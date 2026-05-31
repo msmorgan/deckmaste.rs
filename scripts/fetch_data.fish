@@ -1,75 +1,92 @@
 #!/usr/bin/env fish
+function download_file
+    argparse -Ss -N2 -X2 t/tag= q/quiet -- $argv
+    or return
 
-set -l project_dir (path dirname (path dirname (status filename)))
+    set tag $_flag_tag
+    set -l url $argv[1]
+    set -l out $argv[2]
+
+    set -l code (curl -w '%{http_code}' -fsSL -z $out -o $out $url)
+    switch $code
+        case 200
+            set -q _flag_quiet; or echo >&2 $tag "Downloaded to $out"
+        case 304
+            set -q _flag_quiet; or echo >&2 $tag "Skipped $out; already up-to-date"
+        case '*'
+            set -q _flag_quiet; or echo >&2 $tag "ERROR: HTTP $code when downloading $url; aborting..."
+            return 1
+    end
+end
+
+function fetch_mtgjson -a cache_dir extract_dir
+    mkdir -p $cache_dir $extract_dir
+
+    set base_url 'https://mtgjson.com/api/v5'
+    set wanted_files \
+        Meta.json \
+        CompiledList.json \
+        EnumValues.json \
+        Keywords.json \
+        CardTypes.json \
+        SetList.json \
+        AllPrintings.json \
+        AllSetFiles.tar
+
+    for file in $wanted_files
+        set url $base_url/$file.xz
+        set cached $cache_dir/$file.xz
+
+        set prev_mtime (path mtime $cached) 0
+
+        download_file -t '('(status function)')' $url $cached
+        or return
+
+        test (path mtime $cached) -gt $prev_mtime[1]
+        or continue
+
+        switch $cached
+            case '*.json.xz'
+                set -l extracted $extract_dir/$file
+                xzcat $cached >$extracted
+                echo >&2 $tag "Extracted to $extracted"
+            case '*.tar.xz'
+                tar >&2 -C $extract_dir -xJf $cached
+                echo >&2 $tag "Extracted to $(path change-extension '' $extract_dir/$file)"
+        end
+    end
+end
+
+function fetch_rules -a cache_dir
+    mkdir -p $cache_dir
+
+    set base_url "https://api.academyruins.com"
+    set wanted_files_map \
+        link/cr:cr.txt \
+        cr:cr.json \
+        cr/keywords:keywords.json \
+        cr/glossary:glossary.json \
+        cr/unofficial-glossary:unofficial-glossary.json \
+        mtr:mtr.json
+
+    for entry in $wanted_files_map
+        string split ':' -- $entry | read -L src dest
+        set url $base_url/$src
+        set cached $cache_dir/$dest
+
+        set prev_mtime (path mtime $cached) 0
+        download_file -t (status function) $url $cached
+        or return
+
+        test (path mtime $cached) -gt $prev_mtime[1]
+        or continue
+
+        # Nothing to do after downloading.
+    end
+end
+
+set -l project_dir (path resolve (status dirname)/..)
 set -l data_dir $project_dir/data
-set -l xz_dir $data_dir/xz
-set -l raw_dir $data_dir/raw
 
-mkdir -p $xz_dir $raw_dir
-
-# --- Comprehensive Rules ---
-
-echo "Fetching comp rules download URL..."
-set -l rules_page (curl -fsSL https://magic.wizards.com/en/rules)
-set -l rules_url (string match -r 'https://media\.wizards\.com/\S+MagicCompRules[^"]+\.txt' -- $rules_page)
-or begin
-    echo >&2 "Could not find comp rules .txt URL on the rules page"
-    exit 1
-end
-
-set -l rules_file (string replace -r '.*/' '' -- $rules_url | string unescape --style=url)
-set -l rules_date (string match -r '\d{8}' -- $rules_file)
-set -l dated_name cr-$rules_date.txt
-
-if test -f $data_dir/$dated_name
-    echo "Comp rules $dated_name already present, skipping"
-else
-    echo "Downloading $rules_file..."
-    curl -fsSL -o $data_dir/$dated_name -- $rules_url
-    or begin
-        echo >&2 "Failed to download comp rules"
-        exit 1
-    end
-end
-
-ln -sf $dated_name $data_dir/cr.txt
-echo "cr.txt -> $dated_name"
-
-# --- MTGJSON ---
-
-set -l mtgjson_base https://mtgjson.com/api/v5
-set -l mtgjson_files \
-    AllPrintings.json.xz \
-    AllPrintings.psql.xz \
-    AllSetFiles.tar.xz \
-    AtomicCards.json.xz
-
-for xz_file in $mtgjson_files
-    set -l dest $xz_dir/$xz_file
-    set -l http_code (curl -fsSL -z $dest -o $dest -w '%{http_code}' -- $mtgjson_base/$xz_file)
-    or begin
-        echo >&2 "Failed to download $xz_file"
-        exit 1
-    end
-
-    if test "$http_code" = 304
-        echo "$xz_file is up to date, skipping"
-        continue
-    end
-
-    set -l base (path change-extension '' -- $xz_file)
-
-    if string match -q '*.tar' -- $base
-        set base (path change-extension '' -- $base)
-        echo "Extracting $xz_file -> raw/$base/"
-        rm -rf $raw_dir/$base
-        mkdir -p $raw_dir/$base
-        tar -xJf $xz_dir/$xz_file -C $raw_dir/$base --strip-components=1
-    else
-        echo "Extracting $xz_file -> raw/$base"
-        xz -dkf $xz_dir/$xz_file
-        mv $xz_dir/$base $raw_dir/$base
-    end
-end
-
-echo "Done."
+fetch_mtgjson $data_dir/mtgjson{/xz,}
+fetch_rules $data_dir/rules
