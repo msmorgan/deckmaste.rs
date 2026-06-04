@@ -18,17 +18,17 @@ enum KeywordAbility {
 /// "Cumulative upkeep" -> "CumulativeUpkeep", "Jump-start" -> "Jumpstart".
 fn to_rust_ident(name: &str) -> String {
     name.split(' ')
-        .map(|word| {
+        .filter_map(|word| {
             let mut chars = word.chars();
-            match chars.next() {
-                Some(first) => first.to_uppercase().chain(chars).collect(),
-                None => String::new(),
-            }
+            chars.next().map(|first| {
+                first
+                    .to_uppercase()
+                    .chain(chars)
+                    .filter(char::is_ascii_alphanumeric)
+            })
         })
+        .flatten()
         .collect::<String>()
-        .chars()
-        .filter(char::is_ascii_alphanumeric)
-        .collect()
 }
 
 impl super::Migration for KeywordAbilityTodos {
