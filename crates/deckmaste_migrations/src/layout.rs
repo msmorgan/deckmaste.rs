@@ -15,21 +15,23 @@ impl PluginLayout {
     }
 
     fn file(&self, path: &str) -> anyhow::Result<PathBuf> {
-        let file_path = self.0.join(path).canonicalize()?;
-        let parent_dir = file_path.parent().unwrap();
+        let file_path = self.0.join(path);
+        let file_name = file_path.file_name().unwrap();
+        std::fs::create_dir_all(file_path.parent().unwrap())?;
+        let parent_dir = file_path.parent().unwrap().canonicalize()?;
         if !parent_dir.starts_with(&self.0) {
             return Err(anyhow::anyhow!("path is outside of plugin layout: {}", file_path.display()));
         }
-        std::fs::create_dir_all(parent_dir)?;
-        Ok(file_path)
+        Ok(parent_dir.join(file_name))
     }
 
     fn dir(&self, path: &str) -> anyhow::Result<PathBuf> {
-        let dir_path = self.0.join(path).canonicalize()?;
+        let dir_path = self.0.join(path);
+        std::fs::create_dir_all(&dir_path)?;
+        let dir_path = dir_path.canonicalize()?;
         if !dir_path.starts_with(&self.0) {
             return Err(anyhow::anyhow!("path is outside of plugin layout: {}", dir_path.display()));
         }
-        std::fs::create_dir_all(&dir_path)?;
         Ok(dir_path)
     }
 
