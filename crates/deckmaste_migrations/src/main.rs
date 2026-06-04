@@ -1,4 +1,5 @@
 use anyhow::Context;
+use clap::Parser;
 use mtgjson::AtomicCards;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -8,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 mod data;
 mod migrations;
-
+mod layout;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct RawCharacteristics {
@@ -20,30 +21,43 @@ struct RawCharacteristics {
     text: String,
 }
 
+#[derive(Debug, Parser)]
+struct Args {
+    pub plugin_dir: PathBuf,
+    pub migration_number: Option<usize>,
+}
+
 fn main() -> anyhow::Result<()> {
-    let atomic_cards = data::atomic_cards()?;
-    let _comp_rules = data::comprehensive_rules()?;
+    let args = Args::parse();
 
-    let legal_cards = atomic_cards
-        .data
-        .into_values()
-        .map(|faces| {
-            faces
-                .into_iter()
-                .filter(
-                    |face| match face.legalities.vintage.as_ref().map(String::as_str) {
-                        None | Some("Banned") => false,
-                        _ => true,
-                    },
-                )
-                .collect::<Vec<_>>()
-        })
-        .filter(|faces| !faces.is_empty())
-        .collect::<Vec<_>>();
-
-    println!("{} cards are legal in Vintage", legal_cards.len());
-
-    // println!("Hello, world!");
+    match args.migration_number {
+        Some(number) => migrations::apply(&args.plugin_dir, number)?,
+        None => migrations::apply_all(&args.plugin_dir)?,
+    }
+    //
+    // let atomic_cards = data::atomic_cards()?;
+    // let _comp_rules = data::comprehensive_rules()?;
+    //
+    // let legal_cards = atomic_cards
+    //     .data
+    //     .into_values()
+    //     .map(|faces| {
+    //         faces
+    //             .into_iter()
+    //             .filter(
+    //                 |face| match face.legalities.vintage.as_ref().map(String::as_str) {
+    //                     None | Some("Banned") => false,
+    //                     _ => true,
+    //                 },
+    //             )
+    //             .collect::<Vec<_>>()
+    //     })
+    //     .filter(|faces| !faces.is_empty())
+    //     .collect::<Vec<_>>();
+    //
+    // println!("{} cards are legal in Vintage", legal_cards.len());
+    //
+    // // println!("Hello, world!");
 
     Ok(())
 }

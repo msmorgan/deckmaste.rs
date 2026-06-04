@@ -5,7 +5,7 @@ use anyhow::Context;
 use mtgjson::AtomicCards;
 use serde::de::DeserializeOwned;
 
-mod rules;
+mod academyruins;
 mod scryfall;
 
 fn data_dir() -> PathBuf {
@@ -29,7 +29,7 @@ pub fn all_printings() -> anyhow::Result<mtgjson::AllPrintings> {
     load_json(data_dir().join("mtgjson/AllPrintings.json"))
 }
 
-pub fn comprehensive_rules() -> anyhow::Result<rules::RulesMap> {
+pub fn comprehensive_rules() -> anyhow::Result<academyruins::RulesMap> {
     load_json(data_dir().join("rules/cr.json"))
 }
 
