@@ -1,4 +1,6 @@
+use regex::Regex;
 use serde::Serialize;
+use std::sync::LazyLock;
 
 use crate::data::academyruins;
 
@@ -14,19 +16,21 @@ enum KeywordAbility {
 }
 
 /// Converts a keyword ability name to a Rust identifier, e.g.
-/// "Cumulative upkeep" -> "CumulativeUpkeep", "Jump-start" -> "Jumpstart".
+/// "Cumulative upkeep" -> "CumulativeUpkeep", "Jump-start" -> "JumpStart".
 fn to_rust_ident(name: &str) -> String {
-    name.split(' ')
-        .filter_map(|word| {
+    static SPLIT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[\s|-]+").unwrap());
+
+    SPLIT
+        .split(name)
+        .flat_map(|word| {
             let mut chars = word.chars();
-            chars.next().map(|first| {
-                first
-                    .to_uppercase()
-                    .chain(chars)
-                    .filter(char::is_ascii_alphanumeric)
-            })
+            chars
+                .next()
+                .into_iter()
+                .flat_map(char::to_uppercase)
+                .chain(chars)
+                .filter(char::is_ascii_alphanumeric)
         })
-        .flatten()
         .collect::<String>()
 }
 
@@ -43,7 +47,7 @@ impl super::Migration for KeywordAbilityTodos {
         let dest_dir = plugin.keyword_abilities_dir()?;
 
         // Only (over)write files that are still unimplemented stubs.
-        let todo_pattern = regex::Regex::new(r"(?m)^\s*Todo\(")?;
+        let todo_pattern = Regex::new(r"(?m)^\s*Todo\(")?;
 
         for ability in keyword_abilities {
             let Some(rule_number) = rules.find_keyword_ability_rule_number(&ability) else {
@@ -84,7 +88,7 @@ mod tests {
     fn rust_idents() {
         assert_eq!(to_rust_ident("Flying"), "Flying");
         assert_eq!(to_rust_ident("Cumulative upkeep"), "CumulativeUpkeep");
-        assert_eq!(to_rust_ident("Jump-start"), "Jumpstart");
+        assert_eq!(to_rust_ident("Jump-start"), "JumpStart");
         assert_eq!(to_rust_ident("Doctor's companion"), "DoctorsCompanion");
     }
 
