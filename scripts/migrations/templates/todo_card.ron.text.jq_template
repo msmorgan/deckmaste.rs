@@ -1,0 +1,15 @@
+Todo(
+    name: r#\"\(.name)\"#,\(
+    if .manaCost then "\n    mana_cost: " + .manaCostRon + "," else "" end)\(
+    if .colorIndicator then "\n    color_indicator: " + .colorIndicatorRon + "," else "" end)
+    types: [\(.types | join(", "))],\(
+    if .supertypes | length > 0 then "\n    supertypes: [" + (.supertypes | join(", ")) + "]," else "" end)\(
+    if .subtypes | length > 0 then "\n    subtypes: " + .subtypesRon + "," else "" end)
+    text: r#\"
+\(.text)
+\"#,\(
+    if .power then "\n    power: " + .powerRon + "," else "" end)\(
+    if .toughness then "\n    toughness: " + .toughnessRon + "," else "" end)\(
+    if .loyalty then "\n    loyalty: " + .loyaltyRon + "," else "" end)\(
+    if .defense then "\n    defense: " + .defenseRon + "," else "" end)
+)

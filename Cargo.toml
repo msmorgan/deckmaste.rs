@@ -1,3 +1,9 @@
+[workspace]
+members = [
+    ".",
+    "crates/deckmaste_migrations",
+]
+
 [package]
 name = "deckmaste"
 version = "0.1.0"
