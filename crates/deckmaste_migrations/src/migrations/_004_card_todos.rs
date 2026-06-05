@@ -2,7 +2,7 @@ use std::sync::LazyLock;
 
 use crate::data::mtgjson::AtomicCard;
 use regex::Regex;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 pub(super) struct CardTodos;
 
@@ -134,21 +134,75 @@ fn pretty_config(multi_face: bool) -> ron::ser::PrettyConfig {
     }
 }
 
+/// A subtype definition file under the plugin's types/<category> directory,
+/// e.g. `CreatureType("Advisor")`.
+#[derive(Deserialize)]
+enum TypeDef {
+    ArtifactType(String),
+    BattleType(String),
+    CreatureType(String),
+    EnchantmentType(String),
+    LandType(String),
+    PlaneswalkerType(String),
+    SpellType(String),
+}
+
+impl TypeDef {
+    fn into_parts(self) -> (&'static str, String) {
+        match self {
+            TypeDef::ArtifactType(name) => ("artifact", name),
+            TypeDef::BattleType(name) => ("battle", name),
+            TypeDef::CreatureType(name) => ("creature", name),
+            TypeDef::EnchantmentType(name) => ("enchantment", name),
+            TypeDef::LandType(name) => ("land", name),
+            TypeDef::PlaneswalkerType(name) => ("planeswalker", name),
+            TypeDef::SpellType(name) => ("spell", name),
+        }
+    }
+}
+
 /// Categorized subtype lists, in the lookup order of the jq version (the
 /// first category containing a subtype wins).
-struct SubtypeCategories([(Vec<String>, fn(String) -> Subtype); 7]);
+struct SubtypeCategories(Vec<(Vec<String>, fn(String) -> Subtype)>);
 
 impl SubtypeCategories {
-    fn load() -> anyhow::Result<Self> {
-        Ok(Self([
-            (crate::data::creature_types()?, Subtype::Creature),
-            (crate::data::artifact_types()?, Subtype::Artifact),
-            (crate::data::enchantment_types()?, Subtype::Enchantment),
-            (crate::data::land_types()?, Subtype::Land),
-            (crate::data::battle_types()?, Subtype::Battle),
-            (crate::data::planeswalker_types()?, Subtype::Planeswalker),
-            (crate::data::spell_types()?, Subtype::Spell),
-        ]))
+    /// The plugin's types/<category> directories -- written by migration 003
+    /// and possibly extended by hand -- are the source of truth for which
+    /// subtypes exist and which category each belongs to.
+    fn load(plugin: &super::PluginLayout) -> anyhow::Result<Self> {
+        const CATEGORIES: [(&str, fn(String) -> Subtype); 7] = [
+            ("creature", Subtype::Creature),
+            ("artifact", Subtype::Artifact),
+            ("enchantment", Subtype::Enchantment),
+            ("land", Subtype::Land),
+            ("battle", Subtype::Battle),
+            ("planeswalker", Subtype::Planeswalker),
+            ("spell", Subtype::Spell),
+        ];
+
+        let mut categories = Vec::with_capacity(CATEGORIES.len());
+        for (category, constructor) in CATEGORIES {
+            let dir = plugin.types_dir(category)?;
+            let mut names = Vec::new();
+            for entry in std::fs::read_dir(&dir)? {
+                let path = entry?.path();
+                if path.extension() != Some(std::ffi::OsStr::new("ron")) {
+                    continue;
+                }
+                let def: TypeDef = ron::from_str(&std::fs::read_to_string(&path)?)
+                    .map_err(|e| anyhow::anyhow!("parsing {}: {e}", path.display()))?;
+                let (def_category, name) = def.into_parts();
+                if def_category != category {
+                    anyhow::bail!(
+                        "{} defines a {def_category} type but lives under types/{category}",
+                        path.display()
+                    );
+                }
+                names.push(name);
+            }
+            categories.push((names, constructor));
+        }
+        Ok(Self(categories))
     }
 
     fn subtype(&self, subtype: &str) -> anyhow::Result<Subtype> {
@@ -156,7 +210,12 @@ impl SubtypeCategories {
             .iter()
             .find(|(subtypes, _)| subtypes.iter().any(|s| s == subtype))
             .map(|(_, category)| category(subtype.to_owned()))
-            .ok_or_else(|| anyhow::anyhow!("subtype {subtype:?} not in any type catalog"))
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "subtype {subtype:?} is not defined in the plugin's types directories \
+                     (has migration 003 run?)"
+                )
+            })
     }
 }
 
@@ -355,7 +414,7 @@ impl super::Migration for CardTodos {
     fn apply(&self, plugin: &super::PluginLayout) -> anyhow::Result<()> {
         let atomic_cards = crate::data::atomic_cards()?;
         let keyword_abilities = crate::data::keywords()?.keyword_abilities;
-        let categories = SubtypeCategories::load()?;
+        let categories = SubtypeCategories::load(plugin)?;
         let dest_dir = plugin.cards_dir()?;
         let options = ron_options();
 
@@ -475,6 +534,49 @@ mod tests {
         assert_eq!(render("*"), "NonNumber(\"*\")");
         assert_eq!(render("1+*"), "NonNumber(\"1+*\")");
         assert_eq!(render("X"), "NonNumber(\"X\")");
+    }
+
+    #[test]
+    fn subtypes_load_from_plugin_type_files() {
+        let base = std::env::temp_dir().join(format!("deckmaste_test_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(base.join("types/creature")).unwrap();
+        std::fs::create_dir_all(base.join("types/land")).unwrap();
+        std::fs::write(
+            base.join("types/creature/TimeLord.ron"),
+            "CreatureType(\"Time Lord\")\n",
+        )
+        .unwrap();
+        std::fs::write(base.join("types/land/Urzas.ron"), "LandType(\"Urza's\")\n").unwrap();
+
+        let plugin = crate::layout::PluginLayout::new(&base).unwrap();
+        let categories = SubtypeCategories::load(&plugin).unwrap();
+        assert_eq!(
+            categories.subtype("Time Lord").unwrap(),
+            Subtype::Creature("Time Lord".to_owned())
+        );
+        assert_eq!(
+            categories.subtype("Urza's").unwrap(),
+            Subtype::Land("Urza's".to_owned())
+        );
+        // Unknown subtypes are validation errors.
+        assert!(categories.subtype("Missingno").is_err());
+
+        // A definition in the wrong directory is a validation error.
+        std::fs::write(
+            base.join("types/creature/Sneaky.ron"),
+            "LandType(\"Sneaky\")\n",
+        )
+        .unwrap();
+        let Err(error) = SubtypeCategories::load(&plugin) else {
+            panic!("mismatched type definition should fail to load");
+        };
+        assert!(
+            error.to_string().contains("defines a land type"),
+            "{error}"
+        );
+
+        std::fs::remove_dir_all(&base).unwrap();
     }
 
     fn test_face(name: &str, vanilla: bool) -> CardFace {
