@@ -27,7 +27,9 @@ impl SubtypeCategories {
         self.0
             .iter()
             .find(|(_, subtypes)| subtypes.iter().any(|s| s == subtype))
-            .map(|(category, _)| format!("{category}({subtype})"))
+            // Quoted: subtypes like "Urza's" and "Time Lord" are not valid
+            // RON identifiers.
+            .map(|(category, _)| format!("{category}(\"{subtype}\")"))
             .ok_or_else(|| anyhow::anyhow!("subtype {subtype:?} not in any type catalog"))
     }
 }
@@ -62,12 +64,19 @@ fn capitalize(text: &str) -> String {
 }
 
 /// Removes single-line parentheticals (reminder text), keeping at most one
-/// of the surrounding spaces.
+/// of the surrounding spaces. Lines that consisted solely of reminder text
+/// are dropped entirely.
 fn strip_reminder_text(text: &str) -> String {
     static PARENTHETICAL: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r" ?\([^)\n]+\)( ?)").unwrap());
 
-    PARENTHETICAL.replace_all(text, "$1").into_owned()
+    text.split('\n')
+        .filter_map(|line| {
+            let stripped = PARENTHETICAL.replace_all(line, "$1");
+            (!stripped.is_empty() || line.is_empty()).then(|| stripped.into_owned())
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Splits lines that are comma-separated lists of keyword abilities into one
@@ -192,6 +201,18 @@ fn indent_ron(text: &str, indent: &str) -> String {
     lines.join("\n")
 }
 
+/// A single face stands alone; multiple faces are wrapped in a tuple named
+/// after the card's layout, e.g. `Transform(Todo(...), Todo(...))`.
+fn wrap_faces(layout: Layout, faces: Vec<String>) -> String {
+    match <[String; 1]>::try_from(faces) {
+        Ok([single]) => single,
+        Err(faces) => format!(
+            "{layout:?}(\n{},\n)",
+            indent_ron(&faces.join(",\n"), "    ")
+        ),
+    }
+}
+
 fn render_face(
     card: &AtomicCard,
     keyword_abilities: &[String],
@@ -272,10 +293,7 @@ impl super::Migration for CardTodos {
                 .map(|face| render_face(face, &keyword_abilities, &categories))
                 .collect::<anyhow::Result<Vec<_>>>()
                 .map_err(|e| e.context(format!("rendering card {name:?}")))?;
-            let contents = match <[String; 1]>::try_from(rendered) {
-                Ok([single]) => single,
-                Err(faces) => format!("(\n{},\n)", indent_ron(&faces.join(",\n"), "    ")),
-            };
+            let contents = wrap_faces(supported[0].layout, rendered);
 
             std::fs::write(&dest, contents + "\n")?;
             eprintln!("wrote {}", dest.display());
@@ -306,6 +324,45 @@ mod tests {
         // when the parenthetical starts the line.
         assert_eq!(strip_reminder_text("(Reminder) Foo"), " Foo");
         assert_eq!(strip_reminder_text("A (b) c"), "A c");
+        // Lines that are nothing but reminder text disappear entirely.
+        assert_eq!(
+            strip_reminder_text("({R/P} can be paid with {R} or 2 life.)\nGain control."),
+            "Gain control."
+        );
+    }
+
+    #[test]
+    fn subtypes_are_quoted() {
+        let categories = SubtypeCategories([
+            ("Creature", vec!["Time Lord".to_owned()]),
+            ("Artifact", vec![]),
+            ("Enchantment", vec![]),
+            ("Land", vec!["Urza's".to_owned()]),
+            ("Battle", vec![]),
+            ("Planeswalker", vec![]),
+            ("Spell", vec![]),
+        ]);
+        assert_eq!(
+            categories.subtype_ron("Time Lord").unwrap(),
+            "Creature(\"Time Lord\")"
+        );
+        assert_eq!(categories.subtype_ron("Urza's").unwrap(), "Land(\"Urza's\")");
+        assert!(categories.subtype_ron("Missingno").is_err());
+    }
+
+    #[test]
+    fn face_wrapping() {
+        assert_eq!(
+            wrap_faces(Layout::Normal, vec!["Todo(\n)".to_owned()]),
+            "Todo(\n)"
+        );
+        assert_eq!(
+            wrap_faces(
+                Layout::ModalDfc,
+                vec!["Todo(\n)".to_owned(), "Todo(\n)".to_owned()]
+            ),
+            "ModalDfc(\n    Todo(\n    ),\n    Todo(\n    ),\n)"
+        );
     }
 
     #[test]
