@@ -47,6 +47,10 @@ impl PluginLayout {
         self.dir("ability_words")
     }
 
+    pub fn types_dir(&self, category: &str) -> anyhow::Result<PathBuf> {
+        self.dir(&format!("types/{category}"))
+    }
+
     pub fn keyword_abilities_file(&self) -> anyhow::Result<PathBuf> {
         self.file("keyword_abilities.ron")
     }

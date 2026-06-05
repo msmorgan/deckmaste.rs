@@ -6,6 +6,7 @@ use crate::layout::PluginLayout;
 mod _000_keyword_ability_todos;
 mod _001_keyword_action_todos;
 mod _002_ability_word_todos;
+mod _003_subtypes;
 mod keyword_todos;
 
 trait Migration {
@@ -29,6 +30,7 @@ const MIGRATIONS: &[&dyn Migration] = &[
     &_000_keyword_ability_todos::KeywordAbilityTodos,
     &_001_keyword_action_todos::KeywordActionTodos,
     &_002_ability_word_todos::AbilityWordTodos,
+    &_003_subtypes::Subtypes,
 ];
 
 pub fn apply_all(plugin_dir: &Path) -> anyhow::Result<()> {

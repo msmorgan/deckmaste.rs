@@ -49,6 +49,14 @@ pub fn battle_types() -> anyhow::Result<Vec<String>> {
     load_json::<scryfall::Catalog>(data_dir().join("catalogs/battle-types.json")).map(|catalog| catalog.data)
 }
 
+pub fn creature_types() -> anyhow::Result<Vec<String>> {
+    load_json::<scryfall::Catalog>(data_dir().join("catalogs/creature-types.json")).map(|catalog| catalog.data)
+}
+
+pub fn spell_types() -> anyhow::Result<Vec<String>> {
+    load_json::<scryfall::Catalog>(data_dir().join("catalogs/spell-types.json")).map(|catalog| catalog.data)
+}
+
 pub fn enchantment_types() -> anyhow::Result<Vec<String>> {
     load_json::<scryfall::Catalog>(data_dir().join("catalogs/enchantment-types.json")).map(|catalog| catalog.data)
 }
