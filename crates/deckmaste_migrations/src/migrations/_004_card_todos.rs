@@ -1,35 +1,161 @@
-use std::fmt::Write as _;
 use std::sync::LazyLock;
 
 use mtgjson::{AtomicCard, Color, Layout};
 use regex::Regex;
+use serde::Serialize;
 
 pub(super) struct CardTodos;
 
+#[derive(Debug, PartialEq, Serialize)]
+enum ManaSymbol {
+    Variable,
+    Snow,
+    Generic(u64),
+    White,
+    Blue,
+    Black,
+    Red,
+    Green,
+    Colorless,
+    Hybrid(Box<ManaSymbol>, Box<ManaSymbol>),
+    Phyrexian(Box<ManaSymbol>),
+}
+
+#[derive(Debug, PartialEq, Serialize)]
+enum Stat {
+    Number(serde_json::Number),
+    NonNumber(String),
+}
+
+#[derive(Debug, PartialEq, Serialize)]
+enum Subtype {
+    Creature(String),
+    Artifact(String),
+    Enchantment(String),
+    Land(String),
+    Battle(String),
+    Planeswalker(String),
+    Spell(String),
+}
+
+/// `mtgjson::Color` serializes as the single-letter code; this serializes as
+/// the color's name.
+#[derive(Debug, PartialEq, Serialize)]
+enum RonColor {
+    White,
+    Blue,
+    Black,
+    Red,
+    Green,
+}
+
+#[derive(Serialize)]
+enum CardFace {
+    Todo {
+        name: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        mana_cost: Option<Vec<ManaSymbol>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        color_indicator: Option<Vec<RonColor>>,
+        types: Vec<String>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        supertypes: Vec<String>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        subtypes: Vec<Subtype>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        text: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        power: Option<Stat>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        toughness: Option<Stat>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        loyalty: Option<Stat>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        defense: Option<Stat>,
+    },
+}
+
+/// A single face serializes as a bare `Todo(...)`; multiple faces serialize
+/// as a tuple named after the card's layout, e.g. `Transform(Todo(...),
+/// Todo(...))`.
+struct CardFile {
+    layout: &'static str,
+    faces: Vec<CardFace>,
+}
+
+impl Serialize for CardFile {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeTupleVariant;
+
+        if let [single] = self.faces.as_slice() {
+            return single.serialize(serializer);
+        }
+        let mut faces =
+            serializer.serialize_tuple_variant("CardFile", 0, self.layout, self.faces.len())?;
+        for face in &self.faces {
+            faces.serialize_field(face)?;
+        }
+        faces.end()
+    }
+}
+
+fn layout_name(layout: Layout) -> anyhow::Result<&'static str> {
+    Ok(match layout {
+        Layout::Adventure => "Adventure",
+        Layout::Aftermath => "Aftermath",
+        Layout::Flip => "Flip",
+        Layout::Meld => "Meld",
+        Layout::ModalDfc => "ModalDfc",
+        Layout::Prepare => "Prepare",
+        Layout::Split => "Split",
+        Layout::Transform => "Transform",
+        other => anyhow::bail!("unsupported multi-face layout: {other:?}"),
+    })
+}
+
+fn ron_options() -> ron::Options {
+    // Implicit Some keeps the optional fields unwrapped, and is a default
+    // extension so no #![enable(...)] header is emitted.
+    ron::Options::default().with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME)
+}
+
+/// Multi-line text is written verbatim; arrays (mana costs, subtypes) stay
+/// on one line. The multi-face config additionally puts each face on its own
+/// indented line, with the depth limit keeping `Hybrid(...)` mana symbols
+/// inline (faces are at depth 1, hybrid tuple members at depth 3).
+fn pretty_config(multi_face: bool) -> ron::ser::PrettyConfig {
+    let config = ron::ser::PrettyConfig::default()
+        .escape_strings(false)
+        .compact_arrays(true);
+    if multi_face {
+        config.separate_tuple_members(true).depth_limit(2)
+    } else {
+        config
+    }
+}
+
 /// Categorized subtype lists, in the lookup order of the jq version (the
 /// first category containing a subtype wins).
-struct SubtypeCategories([(&'static str, Vec<String>); 7]);
+struct SubtypeCategories([(Vec<String>, fn(String) -> Subtype); 7]);
 
 impl SubtypeCategories {
     fn load() -> anyhow::Result<Self> {
         Ok(Self([
-            ("Creature", crate::data::creature_types()?),
-            ("Artifact", crate::data::artifact_types()?),
-            ("Enchantment", crate::data::enchantment_types()?),
-            ("Land", crate::data::land_types()?),
-            ("Battle", crate::data::battle_types()?),
-            ("Planeswalker", crate::data::planeswalker_types()?),
-            ("Spell", crate::data::spell_types()?),
+            (crate::data::creature_types()?, Subtype::Creature),
+            (crate::data::artifact_types()?, Subtype::Artifact),
+            (crate::data::enchantment_types()?, Subtype::Enchantment),
+            (crate::data::land_types()?, Subtype::Land),
+            (crate::data::battle_types()?, Subtype::Battle),
+            (crate::data::planeswalker_types()?, Subtype::Planeswalker),
+            (crate::data::spell_types()?, Subtype::Spell),
         ]))
     }
 
-    fn subtype_ron(&self, subtype: &str) -> anyhow::Result<String> {
+    fn subtype(&self, subtype: &str) -> anyhow::Result<Subtype> {
         self.0
             .iter()
-            .find(|(_, subtypes)| subtypes.iter().any(|s| s == subtype))
-            // Quoted: subtypes like "Urza's" and "Time Lord" are not valid
-            // RON identifiers.
-            .map(|(category, _)| format!("{category}(\"{subtype}\")"))
+            .find(|(subtypes, _)| subtypes.iter().any(|s| s == subtype))
+            .map(|(_, category)| category(subtype.to_owned()))
             .ok_or_else(|| anyhow::anyhow!("subtype {subtype:?} not in any type catalog"))
     }
 }
@@ -99,29 +225,29 @@ fn expand_keyword_lines(text: &str, keyword_abilities: &[String]) -> String {
         .join("\n")
 }
 
-fn ron_color(color: Color) -> &'static str {
+fn ron_color(color: Color) -> RonColor {
     match color {
-        Color::White => "White",
-        Color::Blue => "Blue",
-        Color::Black => "Black",
-        Color::Red => "Red",
-        Color::Green => "Green",
+        Color::White => RonColor::White,
+        Color::Blue => RonColor::Blue,
+        Color::Black => RonColor::Black,
+        Color::Red => RonColor::Red,
+        Color::Green => RonColor::Green,
     }
 }
 
-fn ron_color_code(code: &str) -> &'static str {
+fn color_symbol(code: &str) -> ManaSymbol {
     match code {
-        "W" => "White",
-        "U" => "Blue",
-        "B" => "Black",
-        "R" => "Red",
-        "G" => "Green",
-        "C" => "Colorless",
+        "W" => ManaSymbol::White,
+        "U" => ManaSymbol::Blue,
+        "B" => ManaSymbol::Black,
+        "R" => ManaSymbol::Red,
+        "G" => ManaSymbol::Green,
+        "C" => ManaSymbol::Colorless,
         _ => unreachable!("colors are restricted by the symbol regex"),
     }
 }
 
-fn mana_symbol_ron(symbol: &str) -> anyhow::Result<String> {
+fn parse_mana_symbol(symbol: &str) -> anyhow::Result<ManaSymbol> {
     static SYMBOL: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(
             r"(?x)^\{(?:
@@ -144,72 +270,42 @@ fn mana_symbol_ron(symbol: &str) -> anyhow::Result<String> {
         .captures(symbol)
         .ok_or_else(|| anyhow::anyhow!("unrecognized mana symbol: {symbol:?}"))?;
 
-    let mut ron = if captures.name("variable").is_some() {
-        "Variable".to_owned()
+    let mut parsed = if captures.name("variable").is_some() {
+        ManaSymbol::Variable
     } else if captures.name("snow").is_some() {
-        "Snow".to_owned()
+        ManaSymbol::Snow
     } else if let Some(generic) = captures.name("generic") {
-        format!("Generic({})", generic.as_str())
+        ManaSymbol::Generic(generic.as_str().parse()?)
     } else {
-        ron_color_code(&captures["color"]).to_owned()
+        color_symbol(&captures["color"])
     };
     if let Some(hybrid) = captures.name("hybrid") {
-        ron = format!("Hybrid({ron}, {})", ron_color_code(hybrid.as_str()));
+        parsed = ManaSymbol::Hybrid(
+            Box::new(parsed),
+            Box::new(color_symbol(hybrid.as_str())),
+        );
     }
     if captures.name("phyrexian").is_some() {
-        ron = format!("Phyrexian({ron})");
+        parsed = ManaSymbol::Phyrexian(Box::new(parsed));
     }
-    Ok(ron)
+    Ok(parsed)
 }
 
-fn mana_cost_ron(mana_cost: &str) -> anyhow::Result<String> {
+fn parse_mana_cost(mana_cost: &str) -> anyhow::Result<Vec<ManaSymbol>> {
     static SYMBOLS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\{[^}]+\}").unwrap());
 
-    let symbols = SYMBOLS
+    SYMBOLS
         .find_iter(mana_cost)
-        .map(|symbol| mana_symbol_ron(symbol.as_str()))
-        .collect::<anyhow::Result<Vec<_>>>()?;
-    Ok(format!("[{}]", symbols.join(", ")))
+        .map(|symbol| parse_mana_symbol(symbol.as_str()))
+        .collect()
 }
 
 /// `Number(2)` for values that parse as JSON numbers, `NonNumber("*")`
 /// otherwise.
-fn number_ron(value: &str) -> String {
-    match serde_json::from_str::<serde_json::Number>(value) {
-        Ok(number) => format!("Number({number})"),
-        Err(_) => format!("NonNumber(\"{value}\")"),
-    }
-}
-
-/// Indents every line by `indent`, leaving the bodies of multi-line raw
-/// strings (r#" ... "#) and empty lines untouched.
-fn indent_ron(text: &str, indent: &str) -> String {
-    let mut in_raw = false;
-    let mut lines = Vec::new();
-    for line in text.split('\n') {
-        if in_raw || line.is_empty() {
-            lines.push(line.to_owned());
-        } else {
-            lines.push(format!("{indent}{line}"));
-        }
-        if !in_raw && line.ends_with("r#\"") {
-            in_raw = true;
-        } else if in_raw && line.starts_with("\"#") {
-            in_raw = false;
-        }
-    }
-    lines.join("\n")
-}
-
-/// A single face stands alone; multiple faces are wrapped in a tuple named
-/// after the card's layout, e.g. `Transform(Todo(...), Todo(...))`.
-fn wrap_faces(layout: Layout, faces: Vec<String>) -> String {
-    match <[String; 1]>::try_from(faces) {
-        Ok([single]) => single,
-        Err(faces) => format!(
-            "{layout:?}(\n{},\n)",
-            indent_ron(&faces.join(",\n"), "    ")
-        ),
+fn stat(value: &str) -> Stat {
+    match serde_json::from_str(value) {
+        Ok(number) => Stat::Number(number),
+        Err(_) => Stat::NonNumber(value.to_owned()),
     }
 }
 
@@ -217,57 +313,31 @@ fn render_face(
     card: &AtomicCard,
     keyword_abilities: &[String],
     categories: &SubtypeCategories,
-) -> anyhow::Result<String> {
-    let mut out = String::from("Todo(\n");
-
-    let name = card.face_name.as_ref().unwrap_or(&card.name);
-    writeln!(out, "    name: r#\"{name}\"#,")?;
-
-    if let Some(mana_cost) = &card.mana_cost {
-        writeln!(out, "    mana_cost: {},", mana_cost_ron(mana_cost)?)?;
-    }
-
-    if let Some(color_indicator) = card.color_indicator.as_deref().filter(|ci| !ci.is_empty()) {
-        let colors: Vec<&str> = color_indicator.iter().map(|&c| ron_color(c)).collect();
-        writeln!(out, "    color_indicator: [{}],", colors.join(", "))?;
-    }
-
-    writeln!(out, "    types: [{}],", card.card_types.join(", "))?;
-
-    if !card.supertypes.is_empty() {
-        writeln!(out, "    supertypes: [{}],", card.supertypes.join(", "))?;
-    }
-
-    if !card.subtypes.is_empty() {
-        let subtypes = card
+) -> anyhow::Result<CardFace> {
+    Ok(CardFace::Todo {
+        name: card.face_name.clone().unwrap_or_else(|| card.name.clone()),
+        mana_cost: card.mana_cost.as_deref().map(parse_mana_cost).transpose()?,
+        color_indicator: card
+            .color_indicator
+            .as_deref()
+            .filter(|colors| !colors.is_empty())
+            .map(|colors| colors.iter().map(|&c| ron_color(c)).collect()),
+        types: card.card_types.clone(),
+        supertypes: card.supertypes.clone(),
+        subtypes: card
             .subtypes
             .iter()
-            .map(|subtype| categories.subtype_ron(subtype))
-            .collect::<anyhow::Result<Vec<_>>>()?;
-        writeln!(out, "    subtypes: [{}],", subtypes.join(", "))?;
-    }
-
-    // NOTE: The jq version rendered cards without rules text with the
-    // literal text "null"; we omit the field instead.
-    if let Some(text) = &card.text {
-        let text = expand_keyword_lines(&strip_reminder_text(text), keyword_abilities);
-        writeln!(out, "    text: r#\"\n{text}\n\"#,")?;
-    }
-
-    let numbers = [
-        ("power", &card.power),
-        ("toughness", &card.toughness),
-        ("loyalty", &card.loyalty),
-        ("defense", &card.defense),
-    ];
-    for (field, value) in numbers {
-        if let Some(value) = value {
-            writeln!(out, "    {field}: {},", number_ron(value))?;
-        }
-    }
-
-    out.push(')');
-    Ok(out)
+            .map(|subtype| categories.subtype(subtype))
+            .collect::<anyhow::Result<_>>()?,
+        text: card.text.as_deref().map(|text| {
+            let text = expand_keyword_lines(&strip_reminder_text(text), keyword_abilities);
+            format!("\n{text}\n")
+        }),
+        power: card.power.as_deref().map(stat),
+        toughness: card.toughness.as_deref().map(stat),
+        loyalty: card.loyalty.as_deref().map(stat),
+        defense: card.defense.as_deref().map(stat),
+    })
 }
 
 impl super::Migration for CardTodos {
@@ -276,6 +346,7 @@ impl super::Migration for CardTodos {
         let keyword_abilities = crate::data::keywords()?.keyword_abilities;
         let categories = SubtypeCategories::load()?;
         let dest_dir = plugin.cards_dir()?;
+        let options = ron_options();
 
         for (name, faces) in &atomic_cards.data {
             let supported: Vec<&AtomicCard> = faces.iter().filter(|c| is_supported(c)).collect();
@@ -288,14 +359,25 @@ impl super::Migration for CardTodos {
                 continue;
             }
 
-            let rendered = supported
-                .iter()
-                .map(|face| render_face(face, &keyword_abilities, &categories))
-                .collect::<anyhow::Result<Vec<_>>>()
-                .map_err(|e| e.context(format!("rendering card {name:?}")))?;
-            let contents = wrap_faces(supported[0].layout, rendered);
+            let card_file = CardFile {
+                // The layout only names the wrapper of multi-face cards; a
+                // single face serializes as a bare Todo.
+                layout: if supported.len() > 1 {
+                    layout_name(supported[0].layout)?
+                } else {
+                    "Normal"
+                },
+                faces: supported
+                    .iter()
+                    .map(|face| render_face(face, &keyword_abilities, &categories))
+                    .collect::<anyhow::Result<_>>()?,
+            };
+            let serialized = options
+                .to_string_pretty(&card_file, pretty_config(supported.len() > 1))
+                .map_err(|e| anyhow::anyhow!(e))
+                .map_err(|e| e.context(format!("serializing card {name:?}")))?;
 
-            std::fs::write(&dest, contents + "\n")?;
+            std::fs::write(&dest, serialized + "\n")?;
             eprintln!("wrote {}", dest.display());
         }
 
@@ -332,40 +414,6 @@ mod tests {
     }
 
     #[test]
-    fn subtypes_are_quoted() {
-        let categories = SubtypeCategories([
-            ("Creature", vec!["Time Lord".to_owned()]),
-            ("Artifact", vec![]),
-            ("Enchantment", vec![]),
-            ("Land", vec!["Urza's".to_owned()]),
-            ("Battle", vec![]),
-            ("Planeswalker", vec![]),
-            ("Spell", vec![]),
-        ]);
-        assert_eq!(
-            categories.subtype_ron("Time Lord").unwrap(),
-            "Creature(\"Time Lord\")"
-        );
-        assert_eq!(categories.subtype_ron("Urza's").unwrap(), "Land(\"Urza's\")");
-        assert!(categories.subtype_ron("Missingno").is_err());
-    }
-
-    #[test]
-    fn face_wrapping() {
-        assert_eq!(
-            wrap_faces(Layout::Normal, vec!["Todo(\n)".to_owned()]),
-            "Todo(\n)"
-        );
-        assert_eq!(
-            wrap_faces(
-                Layout::ModalDfc,
-                vec!["Todo(\n)".to_owned(), "Todo(\n)".to_owned()]
-            ),
-            "ModalDfc(\n    Todo(\n    ),\n    Todo(\n    ),\n)"
-        );
-    }
-
-    #[test]
     fn keyword_lines() {
         let keywords = vec![
             "Flying".to_owned(),
@@ -385,34 +433,119 @@ mod tests {
 
     #[test]
     fn mana_costs() {
-        assert_eq!(mana_cost_ron("{1}{G}").unwrap(), "[Generic(1), Green]");
-        assert_eq!(mana_cost_ron("{X}{S}").unwrap(), "[Variable, Snow]");
+        use ManaSymbol::*;
         assert_eq!(
-            mana_cost_ron("{2/W}{C/B}").unwrap(),
-            "[Hybrid(Generic(2), White), Hybrid(Colorless, Black)]"
+            parse_mana_cost("{1}{G}").unwrap(),
+            vec![Generic(1), Green]
+        );
+        assert_eq!(parse_mana_cost("{X}{S}").unwrap(), vec![Variable, Snow]);
+        assert_eq!(
+            parse_mana_cost("{2/W}{C/B}").unwrap(),
+            vec![
+                Hybrid(Box::new(Generic(2)), Box::new(White)),
+                Hybrid(Box::new(Colorless), Box::new(Black)),
+            ]
         );
         assert_eq!(
-            mana_cost_ron("{G/U/P}{W/P}").unwrap(),
-            "[Phyrexian(Hybrid(Green, Blue)), Phyrexian(White)]"
+            parse_mana_cost("{G/U/P}{W/P}").unwrap(),
+            vec![
+                Phyrexian(Box::new(Hybrid(Box::new(Green), Box::new(Blue)))),
+                Phyrexian(Box::new(White)),
+            ]
         );
-        assert!(mana_cost_ron("{HW}").is_err());
+        assert!(parse_mana_cost("{HW}").is_err());
     }
 
     #[test]
-    fn numbers() {
-        assert_eq!(number_ron("2"), "Number(2)");
-        assert_eq!(number_ron("-1"), "Number(-1)");
-        assert_eq!(number_ron("*"), "NonNumber(\"*\")");
-        assert_eq!(number_ron("1+*"), "NonNumber(\"1+*\")");
-        assert_eq!(number_ron("X"), "NonNumber(\"X\")");
+    fn stats() {
+        let render = |value| ron_options().to_string(&stat(value)).unwrap();
+        assert_eq!(render("2"), "Number(2)");
+        assert_eq!(render("-1"), "Number(-1)");
+        assert_eq!(render("*"), "NonNumber(\"*\")");
+        assert_eq!(render("1+*"), "NonNumber(\"1+*\")");
+        assert_eq!(render("X"), "NonNumber(\"X\")");
+    }
+
+    fn test_face(name: &str, vanilla: bool) -> CardFace {
+        CardFace::Todo {
+            name: name.to_owned(),
+            mana_cost: Some(vec![
+                ManaSymbol::Hybrid(Box::new(ManaSymbol::Generic(2)), Box::new(ManaSymbol::White)),
+                ManaSymbol::Green,
+            ]),
+            color_indicator: None,
+            types: vec!["Creature".to_owned()],
+            supertypes: vec![],
+            subtypes: vec![Subtype::Creature("Time Lord".to_owned())],
+            text: (!vanilla).then(|| "\nFlying\nDoctor's \"companion\" rule.\n".to_owned()),
+            power: Some(stat("2")),
+            toughness: Some(stat("*")),
+            loyalty: None,
+            defense: None,
+        }
     }
 
     #[test]
-    fn raw_string_aware_indent() {
-        let text = "Todo(\n    text: r#\"\nNot indented\n\n\"#,\n)";
+    fn single_face_serialization() {
+        let card = CardFile {
+            layout: "Normal",
+            faces: vec![test_face("Solo", false)],
+        };
+        let serialized = ron_options()
+            .to_string_pretty(&card, pretty_config(false))
+            .unwrap();
         assert_eq!(
-            indent_ron(text, "    "),
-            "    Todo(\n        text: r#\"\nNot indented\n\n\"#,\n    )"
+            serialized,
+            r##"Todo(
+    name: "Solo",
+    mana_cost: [Hybrid(Generic(2), White), Green],
+    types: ["Creature"],
+    subtypes: [Creature("Time Lord")],
+    text: r#"
+Flying
+Doctor's "companion" rule.
+"#,
+    power: Number(2),
+    toughness: NonNumber("*"),
+)"##
+        );
+    }
+
+    #[test]
+    fn multi_face_serialization() {
+        let card = CardFile {
+            layout: "Transform",
+            faces: vec![test_face("Front", false), test_face("Back", true)],
+        };
+        let serialized = ron_options()
+            .to_string_pretty(&card, pretty_config(true))
+            .unwrap();
+        // Faces are split onto their own lines while Hybrid mana symbols
+        // stay inline, and raw string bodies stay unindented.
+        assert_eq!(
+            serialized,
+            r##"Transform(
+    Todo(
+        name: "Front",
+        mana_cost: [Hybrid(Generic(2), White), Green],
+        types: ["Creature"],
+        subtypes: [Creature("Time Lord")],
+        text: r#"
+Flying
+Doctor's "companion" rule.
+"#,
+        power: Number(2),
+        toughness: NonNumber("*"),
+    ),
+    Todo(
+        name: "Back",
+        mana_cost: [Hybrid(Generic(2), White), Green],
+        types: ["Creature"],
+        subtypes: [Creature("Time Lord")],
+        power: Number(2),
+        toughness: NonNumber("*"),
+    ),
+)"##
         );
     }
 }
