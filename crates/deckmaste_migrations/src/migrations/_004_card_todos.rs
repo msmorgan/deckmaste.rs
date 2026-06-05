@@ -330,7 +330,8 @@ fn render_face(
             .map(|subtype| categories.subtype(subtype))
             .collect::<anyhow::Result<_>>()?,
         text: card.text.as_deref().map(|text| {
-            let text = expand_keyword_lines(&strip_reminder_text(text), keyword_abilities);
+            let text = crate::data::academyruins::normalize_quotes(text);
+            let text = expand_keyword_lines(&strip_reminder_text(&text), keyword_abilities);
             format!("\n{text}\n")
         }),
         power: card.power.as_deref().map(stat),

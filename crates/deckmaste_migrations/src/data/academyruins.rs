@@ -52,7 +52,7 @@ impl RulesMap {
 }
 
 /// Replaces typographic quotation marks with their ASCII equivalents.
-fn normalize_quotes(text: &str) -> String {
+pub(crate) fn normalize_quotes(text: &str) -> String {
     text.replace(['‘', '’'], "'").replace(['“', '”'], "\"")
 }
 
