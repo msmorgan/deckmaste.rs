@@ -51,6 +51,11 @@ impl RulesMap {
     }
 }
 
+/// Replaces typographic quotation marks with their ASCII equivalents.
+fn normalize_quotes(text: &str) -> String {
+    text.replace(['‘', '’'], "'").replace(['“', '”'], "\"")
+}
+
 /// Formats a rule section like the cr.txt layout, rules separated by blank
 /// lines.
 pub fn format_section(section: &[&Rule]) -> String {
@@ -74,7 +79,7 @@ pub struct Rule {
 impl Rule {
     /// Formats the rule like the cr.txt layout: numbered rules ("100.2") get
     /// a trailing dot; lettered subrules ("100.2a") do not. Examples follow
-    /// on their own lines.
+    /// on their own lines. Typographic quotes are normalized to ASCII.
     pub fn format(&self) -> String {
         let separator = if self.rule_number.ends_with(|c: char| c.is_ascii_lowercase()) {
             " "
@@ -86,7 +91,7 @@ impl Rule {
             formatted.push_str("\nExample: ");
             formatted.push_str(example);
         }
-        formatted
+        normalize_quotes(&formatted)
     }
 }
 
@@ -103,4 +108,27 @@ pub struct Keywords {
     pub keyword_abilities: Vec<String>,
     pub keyword_actions: Vec<String>,
     pub ability_words: Vec<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn format_normalizes_quotes() {
+        let rule = Rule {
+            rule_number: "702.9b".to_owned(),
+            examples: Some(vec!["The ‘fox’ said “hi.”".to_owned()]),
+            rule_text: "A creature with flying can’t be blocked. (See rule 509, “Declare Blockers Step.”)".to_owned(),
+            fragment: "9b".to_owned(),
+            navigation: Navigation {
+                next_rule: None,
+                previous_rule: None,
+            },
+        };
+        assert_eq!(
+            rule.format(),
+            "702.9b A creature with flying can't be blocked. (See rule 509, \"Declare Blockers Step.\")\nExample: The 'fox' said \"hi.\""
+        );
+    }
 }

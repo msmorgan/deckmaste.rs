@@ -27,6 +27,8 @@ impl super::Migration for KeywordAbilityTodos {
         let dest_dir = plugin.keyword_abilities_dir()?;
 
         // Only (over)write files that are still unimplemented stubs.
+        // (?m) anchors ^ at line starts: the Todo( line follows a // CR
+        // comment line, so it is never at the start of the file.
         let todo_pattern = Regex::new(r"(?m)^\s*Todo\(")?;
 
         for ability in keyword_abilities {
