@@ -1,8 +1,7 @@
+use crate::data::academyruins;
+use crate::migrations;
 use regex::Regex;
 use serde::Serialize;
-use std::sync::LazyLock;
-
-use crate::data::academyruins;
 
 pub(super) struct KeywordAbilityTodos;
 
@@ -13,25 +12,6 @@ enum KeywordAbility {
         template: String,
         rule: String,
     },
-}
-
-/// Converts a keyword ability name to a Rust identifier, e.g.
-/// "Cumulative upkeep" -> "CumulativeUpkeep", "Jump-start" -> "JumpStart".
-fn to_rust_ident(name: &str) -> String {
-    static SPLIT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[\s|-]+").unwrap());
-
-    SPLIT
-        .split(name)
-        .flat_map(|word| {
-            let mut chars = word.chars();
-            chars
-                .next()
-                .into_iter()
-                .flat_map(char::to_uppercase)
-                .chain(chars)
-                .filter(char::is_ascii_alphanumeric)
-        })
-        .collect::<String>()
 }
 
 /// Multi-line rule text is written verbatim (a plain string with literal
@@ -58,7 +38,7 @@ impl super::Migration for KeywordAbilityTodos {
                 .find_rule_section(rule_number)
                 .expect("rule number came from the rules map");
 
-            let name = to_rust_ident(&ability);
+            let name = migrations::to_rust_ident(&ability);
             let dest = dest_dir.join(format!("{name}.ron"));
             if dest.exists() && !todo_pattern.is_match(&std::fs::read_to_string(&dest)?) {
                 continue;
@@ -83,14 +63,6 @@ impl super::Migration for KeywordAbilityTodos {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn rust_idents() {
-        assert_eq!(to_rust_ident("Flying"), "Flying");
-        assert_eq!(to_rust_ident("Cumulative upkeep"), "CumulativeUpkeep");
-        assert_eq!(to_rust_ident("Jump-start"), "JumpStart");
-        assert_eq!(to_rust_ident("Doctor's companion"), "DoctorsCompanion");
-    }
 
     #[test]
     fn todo_serializes_with_verbatim_rule_text() {
