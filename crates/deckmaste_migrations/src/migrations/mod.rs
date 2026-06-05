@@ -4,6 +4,7 @@ use regex::Regex;
 use crate::layout::PluginLayout;
 
 mod _000_keyword_ability_todos;
+mod _001_keyword_action_todos;
 mod keyword_todos;
 
 trait Migration {
@@ -25,6 +26,7 @@ fn is_todo(path: &Path) -> anyhow::Result<bool> {
 
 const MIGRATIONS: &[&dyn Migration] = &[
     &_000_keyword_ability_todos::KeywordAbilityTodos,
+    &_001_keyword_action_todos::KeywordActionTodos,
 ];
 
 pub fn apply_all(plugin_dir: &Path) -> anyhow::Result<()> {
