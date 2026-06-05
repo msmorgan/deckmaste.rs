@@ -43,6 +43,10 @@ impl PluginLayout {
         self.dir("keyword_actions")
     }
 
+    pub fn ability_words_dir(&self) -> anyhow::Result<PathBuf> {
+        self.dir("ability_words")
+    }
+
     pub fn keyword_abilities_file(&self) -> anyhow::Result<PathBuf> {
         self.file("keyword_abilities.ron")
     }
