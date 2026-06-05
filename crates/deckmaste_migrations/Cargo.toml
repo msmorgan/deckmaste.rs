@@ -6,7 +6,6 @@ edition = "2024"
 [dependencies]
 anyhow = { version = "1.0.102" }
 clap = { version = "4.6.1", features = ["derive"] }
-mtgjson = { path = "./vendor/mtgjson", features = []}
 regex = "1.12.3"
 ron = { path = "vendor/ron" }
 serde = { version = "1.0.228", features = ["derive"] }

@@ -2,10 +2,10 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use anyhow::Context;
-use mtgjson::AtomicCards;
 use serde::de::DeserializeOwned;
 
 pub mod academyruins;
+pub mod mtgjson;
 mod scryfall;
 
 fn data_dir() -> PathBuf {
@@ -21,12 +21,8 @@ fn load_json<T: DeserializeOwned>(path: impl AsRef<Path>) -> anyhow::Result<T> {
     Ok(data)
 }
 
-pub fn atomic_cards() -> anyhow::Result<AtomicCards> {
+pub fn atomic_cards() -> anyhow::Result<mtgjson::AtomicCards> {
     load_json(data_dir().join("mtgjson/AtomicCards.json"))
-}
-
-pub fn all_printings() -> anyhow::Result<mtgjson::AllPrintings> {
-    load_json(data_dir().join("mtgjson/AllPrintings.json"))
 }
 
 pub fn comprehensive_rules() -> anyhow::Result<academyruins::RulesMap> {

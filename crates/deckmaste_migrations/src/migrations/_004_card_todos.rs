@@ -1,6 +1,6 @@
 use std::sync::LazyLock;
 
-use mtgjson::{AtomicCard, Color, Layout};
+use crate::data::mtgjson::AtomicCard;
 use regex::Regex;
 use serde::Serialize;
 
@@ -38,8 +38,8 @@ enum Subtype {
     Spell(String),
 }
 
-/// `mtgjson::Color` serializes as the single-letter code; this serializes as
-/// the color's name.
+/// A color indicator color, serialized by name rather than the data's
+/// single-letter code.
 #[derive(Debug, PartialEq, Serialize)]
 enum RonColor {
     White,
@@ -99,16 +99,16 @@ impl Serialize for CardFile {
     }
 }
 
-fn layout_name(layout: Layout) -> anyhow::Result<&'static str> {
+fn layout_name(layout: &str) -> anyhow::Result<&'static str> {
     Ok(match layout {
-        Layout::Adventure => "Adventure",
-        Layout::Aftermath => "Aftermath",
-        Layout::Flip => "Flip",
-        Layout::Meld => "Meld",
-        Layout::ModalDfc => "ModalDfc",
-        Layout::Prepare => "Prepare",
-        Layout::Split => "Split",
-        Layout::Transform => "Transform",
+        "adventure" => "Adventure",
+        "aftermath" => "Aftermath",
+        "flip" => "Flip",
+        "meld" => "Meld",
+        "modal_dfc" => "ModalDfc",
+        "prepare" => "Prepare",
+        "split" => "Split",
+        "transform" => "Transform",
         other => anyhow::bail!("unsupported multi-face layout: {other:?}"),
     })
 }
@@ -163,7 +163,7 @@ impl SubtypeCategories {
 // We count non-null, non-"Banned" as legal.
 fn is_supported(card: &AtomicCard) -> bool {
     card.legalities.vintage.as_deref().unwrap_or("Banned") != "Banned"
-        && card.layout != Layout::ReversibleCard
+        && card.layout != "reversible_card"
 }
 
 /// Maps windows-unsafe filename characters to their fullwidth equivalents,
@@ -225,14 +225,15 @@ fn expand_keyword_lines(text: &str, keyword_abilities: &[String]) -> String {
         .join("\n")
 }
 
-fn ron_color(color: Color) -> RonColor {
-    match color {
-        Color::White => RonColor::White,
-        Color::Blue => RonColor::Blue,
-        Color::Black => RonColor::Black,
-        Color::Red => RonColor::Red,
-        Color::Green => RonColor::Green,
-    }
+fn ron_color(code: &str) -> anyhow::Result<RonColor> {
+    Ok(match code {
+        "W" => RonColor::White,
+        "U" => RonColor::Blue,
+        "B" => RonColor::Black,
+        "R" => RonColor::Red,
+        "G" => RonColor::Green,
+        other => anyhow::bail!("unrecognized color indicator: {other:?}"),
+    })
 }
 
 fn color_symbol(code: &str) -> ManaSymbol {
@@ -321,8 +322,9 @@ fn render_face(
             .color_indicator
             .as_deref()
             .filter(|colors| !colors.is_empty())
-            .map(|colors| colors.iter().map(|&c| ron_color(c)).collect()),
-        types: card.card_types.clone(),
+            .map(|colors| colors.iter().map(|code| ron_color(code)).collect())
+            .transpose()?,
+        types: card.types.clone(),
         supertypes: card.supertypes.clone(),
         subtypes: card
             .subtypes
@@ -372,7 +374,7 @@ impl super::Migration for CardTodos {
                 // The layout only names the wrapper of multi-face cards; a
                 // single face serializes as a bare Todo.
                 layout: if supported.len() > 1 {
-                    layout_name(supported[0].layout)?
+                    layout_name(&supported[0].layout)?
                 } else {
                     "Normal"
                 },
