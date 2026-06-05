@@ -56,16 +56,6 @@ pub(crate) fn normalize_quotes(text: &str) -> String {
     text.replace(['‘', '’'], "'").replace(['“', '”'], "\"")
 }
 
-/// Formats a rule section like the cr.txt layout, rules separated by blank
-/// lines.
-pub fn format_section(section: &[&Rule]) -> String {
-    section
-        .iter()
-        .map(|rule| rule.format())
-        .collect::<Vec<_>>()
-        .join("\n\n")
-}
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Rule {

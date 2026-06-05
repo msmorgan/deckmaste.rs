@@ -2,14 +2,14 @@ use std::path::Path;
 
 use serde::Serialize;
 
-use crate::data::academyruins::{self, RulesMap};
+use crate::data::academyruins::RulesMap;
 
 #[derive(Serialize)]
 enum KeywordTodo {
     Todo {
         name: String,
         template: String,
-        rule: String,
+        rules: Vec<String>,
     },
 }
 
@@ -47,7 +47,7 @@ pub(super) fn create_keyword_todos<'r>(
         let todo = KeywordTodo::Todo {
             name,
             template: keyword.clone(),
-            rule: format!("\n{}\n", academyruins::format_section(&section)),
+            rules: section.iter().map(|rule| rule.format()).collect(),
         };
         let serialized = ron::ser::to_string_pretty(&todo, pretty_config())?;
         let contents = format!("// CR {rule_number}\n{serialized}\n");
@@ -64,43 +64,50 @@ mod tests {
     use super::*;
 
     #[test]
-    fn todo_serializes_with_verbatim_rule_text() {
-        let rule = "\n702.9. Flying\n\n702.9a Flying is an evasion ability.\n";
+    fn todo_serializes_with_one_rule_per_element() {
+        let rules = vec![
+            "702.9. Flying".to_owned(),
+            "702.9b A creature with flying can't be blocked. (See \"Reach.\")".to_owned(),
+            "104.3a A player can concede.\nExample: Someone scooped.".to_owned(),
+        ];
         let todo = KeywordTodo::Todo {
             name: "Flying".to_owned(),
             template: "Flying".to_owned(),
-            rule: rule.to_owned(),
+            rules: rules.clone(),
         };
         let serialized = ron::ser::to_string_pretty(&todo, pretty_config()).unwrap();
+        // Quote-bearing rules fall back to raw strings; embedded Example
+        // lines keep their literal newlines.
         assert_eq!(
             serialized,
-            r#"Todo(
+            r##"Todo(
     name: "Flying",
     template: "Flying",
-    rule: "
-702.9. Flying
-
-702.9a Flying is an evasion ability.
-",
-)"#
+    rules: [
+        "702.9. Flying",
+        r#"702.9b A creature with flying can't be blocked. (See "Reach.")"#,
+        "104.3a A player can concede.
+Example: Someone scooped.",
+    ],
+)"##
         );
 
-        // The literal newlines must survive a round trip through the parser.
+        // Everything must survive a round trip through the parser.
         #[derive(serde::Deserialize)]
         enum Parsed {
             Todo {
                 name: String,
                 template: String,
-                rule: String,
+                rules: Vec<String>,
             },
         }
         let Parsed::Todo {
             name,
             template,
-            rule: parsed,
+            rules: parsed,
         } = ron::from_str(&serialized).unwrap();
         assert_eq!(name, "Flying");
         assert_eq!(template, "Flying");
-        assert_eq!(parsed, rule);
+        assert_eq!(parsed, rules);
     }
 }

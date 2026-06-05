@@ -63,7 +63,7 @@ enum CardFace {
         #[serde(skip_serializing_if = "Vec::is_empty")]
         subtypes: Vec<Subtype>,
         #[serde(skip_serializing_if = "Option::is_none")]
-        text: Option<String>,
+        text: Option<Vec<String>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         power: Option<Stat>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -329,10 +329,18 @@ fn render_face(
             .iter()
             .map(|subtype| categories.subtype(subtype))
             .collect::<anyhow::Result<_>>()?,
-        text: card.text.as_deref().map(|text| {
+        // One element per line of normalized oracle text -- one ability
+        // each, except that modal/leveler lines stay split. Cards whose text
+        // is nothing but reminder text (basic lands) end up with no text.
+        text: card.text.as_deref().and_then(|text| {
             let text = crate::data::academyruins::normalize_quotes(text);
             let text = expand_keyword_lines(&strip_reminder_text(&text), keyword_abilities);
-            format!("\n{text}\n")
+            let lines: Vec<String> = text
+                .split('\n')
+                .filter(|line| !line.is_empty())
+                .map(str::to_owned)
+                .collect();
+            (!lines.is_empty()).then_some(lines)
         }),
         power: card.power.as_deref().map(stat),
         toughness: card.toughness.as_deref().map(stat),
@@ -478,7 +486,12 @@ mod tests {
             types: vec!["Creature".to_owned()],
             supertypes: vec![],
             subtypes: vec![Subtype::Creature("Time Lord".to_owned())],
-            text: (!vanilla).then(|| "\nFlying\nDoctor's \"companion\" rule.\n".to_owned()),
+            text: (!vanilla).then(|| {
+                vec![
+                    "Flying".to_owned(),
+                    "Doctor's \"companion\" rule.".to_owned(),
+                ]
+            }),
             power: Some(stat("2")),
             toughness: Some(stat("*")),
             loyalty: None,
@@ -502,10 +515,7 @@ mod tests {
     mana_cost: [Hybrid(Generic(2), White), Green],
     types: ["Creature"],
     subtypes: [Creature("Time Lord")],
-    text: r#"
-Flying
-Doctor's "companion" rule.
-"#,
+    text: ["Flying", r#"Doctor's "companion" rule."#],
     power: Number(2),
     toughness: NonNumber("*"),
 )"##
@@ -531,10 +541,7 @@ Doctor's "companion" rule.
         mana_cost: [Hybrid(Generic(2), White), Green],
         types: ["Creature"],
         subtypes: [Creature("Time Lord")],
-        text: r#"
-Flying
-Doctor's "companion" rule.
-"#,
+        text: ["Flying", r#"Doctor's "companion" rule."#],
         power: Number(2),
         toughness: NonNumber("*"),
     ),
