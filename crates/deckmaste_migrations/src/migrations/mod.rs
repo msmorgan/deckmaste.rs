@@ -4,9 +4,23 @@ use regex::Regex;
 use crate::layout::PluginLayout;
 
 mod _000_keyword_ability_todos;
+mod keyword_todos;
 
 trait Migration {
     fn apply(&self, plugin: &PluginLayout) -> anyhow::Result<()>;
+}
+
+/// A file may be (over)written only while it is still an unimplemented stub.
+/// (?m) anchors ^ at line starts: the Todo( line may follow a // CR comment
+/// line, so it is not necessarily at the start of the file.
+fn is_todo(path: &Path) -> anyhow::Result<bool> {
+    static TODO_PATTERN: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?m)^\s*Todo\(").unwrap());
+
+    if !path.exists() {
+        return Ok(true);
+    }
+    Ok(TODO_PATTERN.is_match(&std::fs::read_to_string(path)?))
 }
 
 const MIGRATIONS: &[&dyn Migration] = &[

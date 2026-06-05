@@ -37,15 +37,15 @@ impl RulesMap {
         Some(section)
     }
 
-    /// Finds the rule in section 702 whose text is exactly the keyword
-    /// ability's name (e.g. "Flying" -> "702.9").
-    pub fn find_keyword_ability_rule_number(&self, keyword_ability: &str) -> Option<&str> {
-        let keyword_ability = keyword_ability.to_lowercase();
+    /// Finds the rule within the given section (e.g. "702.") whose text is
+    /// exactly the keyword's name (e.g. "Flying" -> "702.9").
+    pub fn find_keyword_rule_number(&self, section_prefix: &str, keyword: &str) -> Option<&str> {
+        let keyword = keyword.to_lowercase();
         self.0
             .values()
             .find(|rule| {
-                rule.rule_number.starts_with("702.")
-                    && rule.rule_text.to_lowercase() == keyword_ability
+                rule.rule_number.starts_with(section_prefix)
+                    && rule.rule_text.to_lowercase() == keyword
             })
             .map(|rule| rule.rule_number.as_str())
     }
