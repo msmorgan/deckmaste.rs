@@ -54,16 +54,17 @@ enum RonColor {
 enum CardFace {
     Todo {
         name: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none", serialize_with = "one_line_if_single_opt")]
         mana_cost: Option<Vec<ManaSymbol>>,
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none", serialize_with = "one_line_if_single_opt")]
         color_indicator: Option<Vec<RonColor>>,
+        #[serde(serialize_with = "one_line_if_single")]
         types: Vec<String>,
-        #[serde(skip_serializing_if = "Vec::is_empty")]
+        #[serde(skip_serializing_if = "Vec::is_empty", serialize_with = "one_line_if_single")]
         supertypes: Vec<String>,
-        #[serde(skip_serializing_if = "Vec::is_empty")]
+        #[serde(skip_serializing_if = "Vec::is_empty", serialize_with = "one_line_if_single")]
         subtypes: Vec<Subtype>,
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none", serialize_with = "one_line_if_single_opt")]
         text: Option<Vec<String>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         power: Option<Stat>,
@@ -74,6 +75,39 @@ enum CardFace {
         #[serde(skip_serializing_if = "Option::is_none")]
         defense: Option<Stat>,
     },
+}
+
+/// Serializes a single-element array on one line (`[Red]`); longer arrays
+/// fall through to the chopped pretty-printer. ron's config cannot express
+/// this, so the compact form is pre-rendered and embedded as a RawValue.
+fn one_line_if_single<T: Serialize, S: serde::Serializer>(
+    array: &[T],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    use serde::ser::Error as _;
+
+    if array.len() != 1 {
+        return array.serialize(serializer);
+    }
+    let compact = ron::Options::default()
+        .to_string_pretty(
+            &array,
+            ron::ser::PrettyConfig::default()
+                .escape_strings(false)
+                .depth_limit(0),
+        )
+        .map_err(S::Error::custom)?;
+    ron::value::RawValue::from_ron(&compact)
+        .map_err(S::Error::custom)?
+        .serialize(serializer)
+}
+
+fn one_line_if_single_opt<T: Serialize, S: serde::Serializer>(
+    array: &Option<Vec<T>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    let array = array.as_deref().expect("field is skipped when None");
+    one_line_if_single(array, serializer)
 }
 
 /// A single face serializes as a bare `Todo(...)`; multiple faces serialize
@@ -619,12 +653,8 @@ mod tests {
         Hybrid(Generic(2), White),
         Green,
     ],
-    types: [
-        "Creature",
-    ],
-    subtypes: [
-        Creature("Time Lord"),
-    ],
+    types: ["Creature"],
+    subtypes: [Creature("Time Lord")],
     text: [
         "Flying",
         r#"Doctor's "companion" rule."#,
@@ -655,12 +685,8 @@ mod tests {
             Hybrid(Generic(2), White),
             Green,
         ],
-        types: [
-            "Creature",
-        ],
-        subtypes: [
-            Creature("Time Lord"),
-        ],
+        types: ["Creature"],
+        subtypes: [Creature("Time Lord")],
         text: [
             "Flying",
             r#"Doctor's "companion" rule."#,
@@ -674,12 +700,8 @@ mod tests {
             Hybrid(Generic(2), White),
             Green,
         ],
-        types: [
-            "Creature",
-        ],
-        subtypes: [
-            Creature("Time Lord"),
-        ],
+        types: ["Creature"],
+        subtypes: [Creature("Time Lord")],
         power: Number(2),
         toughness: NonNumber("*"),
     ),
