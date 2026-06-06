@@ -120,16 +120,15 @@ fn ron_options() -> ron::Options {
     ron::Options::default().with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME)
 }
 
-/// Multi-line text is written verbatim; arrays (mana costs, subtypes) stay
-/// on one line. The multi-face config additionally puts each face on its own
+/// Multi-line text is written verbatim and arrays are chopped, one element
+/// per line. The multi-face config additionally puts each face on its own
 /// indented line, with the depth limit keeping `Hybrid(...)` mana symbols
-/// inline (faces are at depth 1, hybrid tuple members at depth 3).
+/// inline (faces are at depth 1, array elements at depth 3, hybrid tuple
+/// members at depth 4).
 fn pretty_config(multi_face: bool) -> ron::ser::PrettyConfig {
-    let config = ron::ser::PrettyConfig::default()
-        .escape_strings(false)
-        .compact_arrays(true);
+    let config = ron::ser::PrettyConfig::default().escape_strings(false);
     if multi_face {
-        config.separate_tuple_members(true).depth_limit(2)
+        config.separate_tuple_members(true).depth_limit(3)
     } else {
         config
     }
@@ -616,10 +615,20 @@ mod tests {
             serialized,
             r##"Todo(
     name: "Solo",
-    mana_cost: [Hybrid(Generic(2), White), Green],
-    types: ["Creature"],
-    subtypes: [Creature("Time Lord")],
-    text: ["Flying", r#"Doctor's "companion" rule."#],
+    mana_cost: [
+        Hybrid(Generic(2), White),
+        Green,
+    ],
+    types: [
+        "Creature",
+    ],
+    subtypes: [
+        Creature("Time Lord"),
+    ],
+    text: [
+        "Flying",
+        r#"Doctor's "companion" rule."#,
+    ],
     power: Number(2),
     toughness: NonNumber("*"),
 )"##
@@ -642,18 +651,35 @@ mod tests {
             r##"Transform(
     Todo(
         name: "Front",
-        mana_cost: [Hybrid(Generic(2), White), Green],
-        types: ["Creature"],
-        subtypes: [Creature("Time Lord")],
-        text: ["Flying", r#"Doctor's "companion" rule."#],
+        mana_cost: [
+            Hybrid(Generic(2), White),
+            Green,
+        ],
+        types: [
+            "Creature",
+        ],
+        subtypes: [
+            Creature("Time Lord"),
+        ],
+        text: [
+            "Flying",
+            r#"Doctor's "companion" rule."#,
+        ],
         power: Number(2),
         toughness: NonNumber("*"),
     ),
     Todo(
         name: "Back",
-        mana_cost: [Hybrid(Generic(2), White), Green],
-        types: ["Creature"],
-        subtypes: [Creature("Time Lord")],
+        mana_cost: [
+            Hybrid(Generic(2), White),
+            Green,
+        ],
+        types: [
+            "Creature",
+        ],
+        subtypes: [
+            Creature("Time Lord"),
+        ],
         power: Number(2),
         toughness: NonNumber("*"),
     ),
