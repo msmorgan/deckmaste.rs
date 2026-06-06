@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::sync::LazyLock;
 
 use deckmaste_core::{Color, ManaSymbol, mana};
@@ -5,7 +7,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::data::DataStr;
-use crate::data::mtgjson::AtomicCard;
+use crate::data::mtgjson::{self, Card};
 
 #[derive(Debug, PartialEq, Serialize)]
 enum Stat {
@@ -243,7 +245,7 @@ impl SubtypeCategories {
 }
 
 // We count non-null, non-"Banned" as legal.
-fn is_supported(card: &AtomicCard) -> bool {
+fn is_supported(card: &Card) -> bool {
     card.legalities.vintage.as_deref().unwrap_or("Banned") != "Banned"
         && card.layout.as_str() != "reversible_card"
 }
@@ -321,7 +323,7 @@ fn stat(value: &str) -> Stat {
 }
 
 fn render_face(
-    card: &AtomicCard,
+    card: &Card,
     keyword_abilities: &[DataStr<'_>],
     categories: &SubtypeCategories,
 ) -> anyhow::Result<CardFace> {
@@ -371,10 +373,72 @@ fn render_face(
 
 pub(super) struct CardTodos;
 
+/// First printings: the original (non-reprint) card objects grouped by card
+/// name. Promo versions can also be non-reprints, so the earliest set wins.
+/// Only supported printings compete: isReprint tracks oracle identity, so an
+/// unsupported card sharing a name (Mystery Booster playtest cards, mostly)
+/// must not shadow a later legal card.
+///
+/// Known provenance quirks that don't matter while only oracle-level fields
+/// are rendered: a few cards' first printing is online-only (Arena Beginner
+/// Set) or oversized (Comet Storm's P10 promo). If set-level fields are ever
+/// rendered, exclude isOnlineOnly/isOversized here, with a fallback.
+fn first_printings<'p, 'a>(
+    all_printings: &'p mtgjson::AllPrintings<'a>,
+) -> HashMap<&'p str, (&'p str, Vec<&'p Card<'a>>)> {
+    let mut first_prints: HashMap<&str, (&str, Vec<&Card>)> = HashMap::new();
+    for set in &all_printings.sets {
+        let date = set.release_date.as_str();
+        for card in set
+            .cards
+            .iter()
+            .filter(|card| !card.is_reprint && is_supported(card))
+        {
+            match first_prints.entry(card.name.as_str()) {
+                Entry::Vacant(entry) => {
+                    entry.insert((date, vec![card]));
+                }
+                Entry::Occupied(mut entry) => {
+                    let (best_date, faces) = entry.get_mut();
+                    if date < *best_date {
+                        *best_date = date;
+                        faces.clear();
+                    }
+                    if date <= *best_date {
+                        faces.push(card);
+                    }
+                }
+            }
+        }
+    }
+    first_prints
+}
+
+/// One card object per face: printing variants within the first-print set
+/// (showcase frames, multiple basics) are deduped in collector-number order,
+/// then the faces are put in side order.
+fn faces<'p, 'a>(printings: &[&'p Card<'a>]) -> Vec<&'p Card<'a>> {
+    let mut faces: Vec<&Card> = Vec::new();
+    let mut seen: Vec<(&str, &str)> = Vec::new();
+    for card in printings {
+        let key = (
+            card.side.as_deref().unwrap_or(""),
+            card.face_name.as_deref().unwrap_or(&card.name),
+        );
+        if seen.contains(&key) {
+            continue;
+        }
+        seen.push(key);
+        faces.push(card);
+    }
+    faces.sort_by_key(|card| card.side.as_deref().unwrap_or(""));
+    faces
+}
+
 impl super::Migration for CardTodos {
     fn apply(&self, plugin: &super::PluginLayout) -> anyhow::Result<()> {
-        let atomic_bytes = crate::data::atomic_cards_bytes()?;
-        let atomic_cards = crate::data::mtgjson::AtomicCards::parse(&atomic_bytes)?;
+        let printings_bytes = crate::data::all_printings_bytes()?;
+        let all_printings = mtgjson::AllPrintings::parse(&printings_bytes)?;
         let keywords_bytes = crate::data::keywords_bytes()?;
         let keyword_abilities =
             crate::data::academyruins::Keywords::parse(&keywords_bytes)?.keyword_abilities;
@@ -382,8 +446,11 @@ impl super::Migration for CardTodos {
         let dest_dir = plugin.cards_dir()?;
         let options = ron_options();
 
-        for (name, faces) in &atomic_cards.data {
-            let supported: Vec<&AtomicCard> = faces.iter().filter(|c| is_supported(c)).collect();
+        for (name, (_, printings)) in &first_printings(&all_printings) {
+            let supported: Vec<&Card> = faces(printings)
+                .into_iter()
+                .filter(|c| is_supported(c))
+                .collect();
             if supported.is_empty() {
                 continue;
             }

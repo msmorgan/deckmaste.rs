@@ -17,9 +17,9 @@ fn read_data(relative: &str) -> anyhow::Result<Vec<u8>> {
     std::fs::read(&path).with_context(|| format!("Failed to read file: {path:?}"))
 }
 
-/// Reads the atomic cards file; parse with [`mtgjson::AtomicCards::parse`],
+/// Reads the printings file; parse with [`mtgjson::AllPrintings::parse`],
 /// which borrows from the returned bytes.
-pub fn atomic_cards_bytes() -> anyhow::Result<Vec<u8>> { read_data("mtgjson/AtomicCards.json") }
+pub fn all_printings_bytes() -> anyhow::Result<Vec<u8>> { read_data("mtgjson/AllPrintings.json") }
 
 /// Reads the comprehensive rules file; parse with
 /// [`academyruins::RulesMap::parse`], which borrows from the returned bytes.
