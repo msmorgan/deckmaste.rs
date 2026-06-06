@@ -1,5 +1,3 @@
-use anyhow::Context;
-
 use super::card_todo::{CardFaceTodo, CardFile};
 use crate::layout::PluginLayout;
 
@@ -44,39 +42,7 @@ pub(super) struct BasicLands;
 
 impl super::Migration for BasicLands {
     fn apply(&self, plugin: &PluginLayout) -> anyhow::Result<()> {
-        let cards_dir = plugin.cards_dir()?;
-        // cards/ is flat: everything _004 writes goes through card_file,
-        // one path segment per card, so no recursion here.
-        let mut paths: Vec<_> = std::fs::read_dir(&cards_dir)?
-            .map(|entry| entry.map(|e| e.path()))
-            .collect::<Result<_, _>>()?;
-        paths.sort();
-
-        for path in paths {
-            if path.extension().is_none_or(|ext| ext != "ron") || !path.is_file() {
-                continue;
-            }
-            let source = std::fs::read_to_string(&path)?;
-            if !deckmaste_core::plugin::is_todo_source(&source) {
-                continue;
-            }
-            let card: CardFile = crate::ron_output::ron_options()
-                .from_str(&source)
-                .with_context(|| format!("parsing todo {}", path.display()))?;
-            let Some(face) = basic_land_face(&card) else {
-                continue;
-            };
-
-            let definition = render_land(face);
-            // Cheap guard: the output must still be valid RON. Bare idents
-            // like `Plains` are deliberately unresolved here -- only the
-            // macro-aware reader (`cargo xtask validate`) can judge them.
-            ron::value::RawValue::from_ron(&definition)
-                .with_context(|| format!("invalid render for {}", path.display()))?;
-            std::fs::write(&path, definition)?;
-            eprintln!("wrote {}", path.display());
-        }
-        Ok(())
+        super::card_todo::convert_todos(plugin, |card| Ok(basic_land_face(card).map(render_land)))
     }
 }
 

@@ -2,9 +2,11 @@
 //! migration that turns todos into real definitions. Plain ron/serde on
 //! both sides — todo files quote everything, so no macro awareness needed.
 
+use anyhow::Context;
 use deckmaste_core::{Color, Ident, ManaCost};
 use serde::{Deserialize, Serialize};
 
+use crate::layout::PluginLayout;
 use crate::ron_output::one_line_if_single;
 
 /// Numbers serialize untagged (`power: 2`); anything else keeps its tag
@@ -81,6 +83,46 @@ pub(super) struct CardFaceTodo {
     pub(super) loyalty: Option<Stat>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) defense: Option<Stat>,
+}
+
+/// Walks the plugin's cards directory and overwrites every todo for which
+/// `convert` produces a finished definition. cards/ is flat: everything
+/// `_004` writes goes through `card_file`, one path segment per card, so
+/// no recursion here.
+pub(super) fn convert_todos(
+    plugin: &PluginLayout,
+    convert: impl Fn(&CardFile) -> anyhow::Result<Option<String>>,
+) -> anyhow::Result<()> {
+    let cards_dir = plugin.cards_dir()?;
+    let mut paths: Vec<_> = std::fs::read_dir(&cards_dir)?
+        .map(|entry| entry.map(|e| e.path()))
+        .collect::<Result<_, _>>()?;
+    paths.sort();
+
+    for path in paths {
+        if path.extension().is_none_or(|ext| ext != "ron") || !path.is_file() {
+            continue;
+        }
+        let source = std::fs::read_to_string(&path)?;
+        if !deckmaste_core::plugin::is_todo_source(&source) {
+            continue;
+        }
+        let card: CardFile = crate::ron_output::ron_options()
+            .from_str(&source)
+            .with_context(|| format!("parsing todo {}", path.display()))?;
+        let Some(definition) = convert(&card)? else {
+            continue;
+        };
+
+        // Cheap guard: the output must still be valid RON. Bare idents
+        // like `Plains` are deliberately unresolved here -- only the
+        // macro-aware reader (`cargo xtask validate`) can judge them.
+        ron::value::RawValue::from_ron(&definition)
+            .with_context(|| format!("invalid render for {}", path.display()))?;
+        std::fs::write(&path, definition)?;
+        eprintln!("wrote {}", path.display());
+    }
+    Ok(())
 }
 
 #[cfg(test)]
