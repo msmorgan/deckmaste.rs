@@ -449,9 +449,9 @@ fn faces<'p, 'a>(printings: &[&'p Card<'a>]) -> Vec<&'p Card<'a>> {
 
 impl super::Migration for CardTodos {
     fn apply(&self, plugin: &super::PluginLayout) -> anyhow::Result<()> {
-        let printings_bytes = crate::data::all_printings_bytes()?;
+        let printings_bytes = crate::data::mtgjson::all_printings_bytes()?;
         let all_printings = mtgjson::AllPrintings::parse(&printings_bytes)?;
-        let keywords_bytes = crate::data::keywords_bytes()?;
+        let keywords_bytes = crate::data::academyruins::keywords_bytes()?;
         let keyword_abilities =
             crate::data::academyruins::Keywords::parse(&keywords_bytes)?.keyword_abilities;
         let categories = SubtypeCategories::load(plugin)?;

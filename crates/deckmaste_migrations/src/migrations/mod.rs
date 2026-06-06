@@ -10,6 +10,8 @@ mod _001_keyword_action_todos;
 mod _002_ability_word_todos;
 mod _003_subtypes;
 mod _004_card_todos;
+mod _005_basic_lands;
+mod _006_vanilla_creatures;
 mod keyword_todos;
 
 trait Migration {
@@ -34,6 +36,8 @@ const MIGRATIONS: &[&dyn Migration] = &[
     &_002_ability_word_todos::AbilityWordTodos,
     &_003_subtypes::Subtypes,
     &_004_card_todos::CardTodos,
+    &_005_basic_lands::BasicLands,
+    &_006_vanilla_creatures::VanillaCreatures,
 ];
 
 pub fn apply_all(plugin_dir: &Path) -> anyhow::Result<()> {

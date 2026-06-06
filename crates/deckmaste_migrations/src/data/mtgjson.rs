@@ -4,13 +4,13 @@
 //! deserialization.
 //!
 //! The model borrows from the underlying file bytes (see
-//! [`crate::data::all_printings_bytes`]); strings only allocate when their
+//! [`all_printings_bytes`]); strings only allocate when their
 //! JSON contains escape sequences. Consumers clone out what they keep.
 
 use serde::Deserialize;
 use serde::de::{IgnoredAny, MapAccess, Visitor};
 
-use crate::data::DataStr;
+use super::DataStr;
 
 /// Every printing of every card, grouped by set. The set-code keys of the
 /// data map are dropped: consumers iterate, they never look sets up.
@@ -187,4 +187,10 @@ mod tests {
         assert_eq!(all.sets.len(), 2);
         assert_eq!(all.sets[0].release_date.as_str(), "1993-08-05");
     }
+}
+
+/// Reads the printings file; parse with [`AllPrintings::parse`],
+/// which borrows from the returned bytes.
+pub fn all_printings_bytes() -> anyhow::Result<Vec<u8>> {
+    super::read_data("mtgjson/AllPrintings.json")
 }

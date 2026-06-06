@@ -5,9 +5,9 @@ pub(super) struct KeywordAbilityTodos;
 
 impl super::Migration for KeywordAbilityTodos {
     fn apply(&self, plugin: &super::PluginLayout) -> anyhow::Result<()> {
-        let keywords_bytes = crate::data::keywords_bytes()?;
+        let keywords_bytes = crate::data::academyruins::keywords_bytes()?;
         let keywords = Keywords::parse(&keywords_bytes)?;
-        let rules_bytes = crate::data::comprehensive_rules_bytes()?;
+        let rules_bytes = crate::data::academyruins::comprehensive_rules_bytes()?;
         let rules = RulesMap::parse(&rules_bytes)?;
         create_keyword_todos(
             &plugin.keyword_abilities_dir()?,

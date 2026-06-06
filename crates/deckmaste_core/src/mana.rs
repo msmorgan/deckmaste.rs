@@ -44,18 +44,19 @@ fn simple_symbol(code: &str) -> SimpleManaSymbol {
 pub fn parse_symbol(symbol: &str) -> anyhow::Result<ManaSymbol> {
     static SYMBOL: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(
-            r"(?x)^\{(?:
+            r"(?x)^[{](?:
                 (?P<variable>X)
-                |(?P<snow>S)
-                |(?:
-                    (?:
-                        (?P<generic>[0-9]|[1-9][0-9]+)
-                        |(?P<color>[WUBRGC])
-                    )
-                    (?:/(?P<hybrid>[WUBRG]))?
-                    (?:/(?P<phyrexian>P))?
+            |
+                (?P<snow>S)
+            |
+                (?:
+                    (?P<generic>[0-9]|[1-9][0-9]+)
+                |
+                    (?P<color>[WUBRGC])
                 )
-            )\}$",
+                (?:/(?P<hybrid>[WUBRG]))?
+                (?:/(?P<phyrexian>P))?
+            )[}]$",
         )
         .unwrap()
     });
@@ -88,7 +89,7 @@ pub fn parse_symbol(symbol: &str) -> anyhow::Result<ManaSymbol> {
 
 /// Parses every `{...}` symbol in a mana cost string like "{2}{W/U}{X}".
 pub fn parse_cost(mana_cost: &str) -> anyhow::Result<Vec<ManaSymbol>> {
-    static SYMBOLS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\{[^}]+\}").unwrap());
+    static SYMBOLS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[{][^}]+[}]").unwrap());
 
     SYMBOLS
         .find_iter(mana_cost)

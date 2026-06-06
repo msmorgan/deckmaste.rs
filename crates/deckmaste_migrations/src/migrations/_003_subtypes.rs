@@ -28,7 +28,7 @@ impl super::Migration for Subtypes {
         ];
 
         for (category, prefix) in categories {
-            let catalog_bytes = crate::data::catalog_bytes(&format!("{category}-types"))?;
+            let catalog_bytes = crate::data::scryfall::catalog_bytes(&format!("{category}-types"))?;
             let catalog = crate::data::scryfall::Catalog::parse(&catalog_bytes)?;
             let dest_dir = plugin.types_dir(category)?;
             for subtype in &catalog.data {
