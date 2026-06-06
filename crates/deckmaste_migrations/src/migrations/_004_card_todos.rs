@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
 use std::sync::LazyLock;
 
 use deckmaste_core::{Color, ManaSymbol, mana};
@@ -7,7 +5,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::data::DataStr;
-use crate::data::mtgjson::{self, Card};
+use crate::data::mtgjson::AtomicCard;
 
 #[derive(Debug, PartialEq, Serialize)]
 enum Stat {
@@ -244,13 +242,10 @@ impl SubtypeCategories {
     }
 }
 
-// We count non-null, non-"Banned" as legal. Online-only and oversized
-// (non-traditional) printings are not supported.
-fn is_supported(card: &Card) -> bool {
+// We count non-null, non-"Banned" as legal.
+fn is_supported(card: &AtomicCard) -> bool {
     card.legalities.vintage.as_deref().unwrap_or("Banned") != "Banned"
         && card.layout.as_str() != "reversible_card"
-        && !card.is_online_only
-        && !card.is_oversized
 }
 
 /// Maps windows-unsafe filename characters to their fullwidth equivalents,
@@ -326,7 +321,7 @@ fn stat(value: &str) -> Stat {
 }
 
 fn render_face(
-    card: &Card,
+    card: &AtomicCard,
     keyword_abilities: &[DataStr<'_>],
     categories: &SubtypeCategories,
 ) -> anyhow::Result<CardFace> {
@@ -376,93 +371,19 @@ fn render_face(
 
 pub(super) struct CardTodos;
 
-/// First printings: the original (non-reprint) card objects grouped by card
-/// name. Promo versions can also be non-reprints, so the earliest set wins.
-/// Only supported printings compete: isReprint tracks oracle identity, so an
-/// unsupported card sharing a name (Mystery Booster playtest cards, mostly)
-/// must not shadow a later legal card.
-///
-/// Cards whose original printing is unsupported (Arena Beginner Set debuts
-/// are online-only) fall back to their earliest supported printing, reprint
-/// or not.
-fn first_printings<'p, 'a>(
-    all_printings: &'p mtgjson::AllPrintings<'a>,
-) -> HashMap<&'p str, (&'p str, Vec<&'p Card<'a>>)> {
-    let mut originals: HashMap<&str, (&str, Vec<&Card>)> = HashMap::new();
-    let mut earliest: HashMap<&str, (&str, Vec<&Card>)> = HashMap::new();
-
-    let collect = |prints: &mut HashMap<&'p str, (&'p str, Vec<&'p Card<'a>>)>,
-                   date: &'p str,
-                   card: &'p Card<'a>| {
-        match prints.entry(card.name.as_str()) {
-            Entry::Vacant(entry) => {
-                entry.insert((date, vec![card]));
-            }
-            Entry::Occupied(mut entry) => {
-                let (best_date, faces) = entry.get_mut();
-                if date < *best_date {
-                    *best_date = date;
-                    faces.clear();
-                }
-                if date <= *best_date {
-                    faces.push(card);
-                }
-            }
-        }
-    };
-
-    for set in &all_printings.sets {
-        let date = set.release_date.as_str();
-        for card in set.cards.iter().filter(|card| is_supported(card)) {
-            collect(&mut earliest, date, card);
-            if !card.is_reprint {
-                collect(&mut originals, date, card);
-            }
-        }
-    }
-    for (name, entry) in earliest {
-        originals.entry(name).or_insert(entry);
-    }
-    originals
-}
-
-/// One card object per face: printing variants within the first-print set
-/// (showcase frames, multiple basics) are deduped in collector-number order,
-/// then the faces are put in side order.
-fn faces<'p, 'a>(printings: &[&'p Card<'a>]) -> Vec<&'p Card<'a>> {
-    let mut faces: Vec<&Card> = Vec::new();
-    let mut seen: Vec<(&str, &str)> = Vec::new();
-    for card in printings {
-        let key = (
-            card.side.as_deref().unwrap_or(""),
-            card.face_name.as_deref().unwrap_or(&card.name),
-        );
-        if seen.contains(&key) {
-            continue;
-        }
-        seen.push(key);
-        faces.push(card);
-    }
-    faces.sort_by_key(|card| card.side.as_deref().unwrap_or(""));
-    faces
-}
-
 impl super::Migration for CardTodos {
     fn apply(&self, plugin: &super::PluginLayout) -> anyhow::Result<()> {
-        let printings_bytes = crate::data::mtgjson::all_printings_bytes()?;
-        let all_printings = mtgjson::AllPrintings::parse(&printings_bytes)?;
-        let keywords_bytes = crate::data::academyruins::keywords_bytes()?;
+        let atomic_bytes = crate::data::atomic_cards_bytes()?;
+        let atomic_cards = crate::data::mtgjson::AtomicCards::parse(&atomic_bytes)?;
+        let keywords_bytes = crate::data::keywords_bytes()?;
         let keyword_abilities =
             crate::data::academyruins::Keywords::parse(&keywords_bytes)?.keyword_abilities;
         let categories = SubtypeCategories::load(plugin)?;
         let dest_dir = plugin.cards_dir()?;
         let options = ron_options();
 
-        for (name, (_, printings)) in &first_printings(&all_printings) {
-            let supported: Vec<&Card> = faces(printings)
-                .into_iter()
-                .filter(|c| is_supported(c))
-                .collect();
+        for (name, faces) in &atomic_cards.data {
+            let supported: Vec<&AtomicCard> = faces.iter().filter(|c| is_supported(c)).collect();
             if supported.is_empty() {
                 continue;
             }
