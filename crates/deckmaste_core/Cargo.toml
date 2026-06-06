@@ -4,6 +4,4 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-anyhow = { version = "1.0.102" }
-regex = "1.12.3"
 serde = { version = "1.0.228", features = ["derive"] }

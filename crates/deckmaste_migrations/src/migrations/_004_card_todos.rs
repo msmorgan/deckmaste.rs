@@ -1,6 +1,6 @@
 use std::sync::LazyLock;
 
-use deckmaste_core::{Color, ManaSymbol, mana};
+use deckmaste_core::{Color, ManaCost};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -32,7 +32,7 @@ enum CardFace {
             skip_serializing_if = "Option::is_none",
             serialize_with = "one_line_if_single_opt"
         )]
-        mana_cost: Option<Vec<ManaSymbol>>,
+        mana_cost: Option<ManaCost>,
         #[serde(
             skip_serializing_if = "Option::is_none",
             serialize_with = "one_line_if_single_opt"
@@ -91,10 +91,13 @@ fn one_line_if_single<T: Serialize, S: serde::Serializer>(
         .serialize(serializer)
 }
 
-fn one_line_if_single_opt<T: Serialize, S: serde::Serializer>(
-    array: &Option<Vec<T>>,
+fn one_line_if_single_opt<T: Serialize, A, S: serde::Serializer>(
+    array: &Option<A>,
     serializer: S,
-) -> Result<S::Ok, S::Error> {
+) -> Result<S::Ok, S::Error>
+where
+    A: std::ops::Deref<Target = [T]>,
+{
     let array = array.as_deref().expect("field is skipped when None");
     one_line_if_single(array, serializer)
 }
@@ -327,11 +330,7 @@ fn render_face(
 ) -> anyhow::Result<CardFace> {
     Ok(CardFace::Todo {
         name: card.face_name.as_deref().unwrap_or(&card.name).to_owned(),
-        mana_cost: card
-            .mana_cost
-            .as_deref()
-            .map(mana::parse_cost)
-            .transpose()?,
+        mana_cost: card.mana_cost.as_deref().map(str::parse).transpose()?,
         color_indicator: card
             .color_indicator
             .as_deref()
@@ -421,6 +420,8 @@ impl super::Migration for CardTodos {
 
 #[cfg(test)]
 mod tests {
+    use deckmaste_core::ManaSymbol;
+
     use super::*;
 
     #[test]
@@ -465,11 +466,11 @@ mod tests {
     fn mana_symbols_serialize_flat() {
         // The Simple and Color wrapper variants are untagged: the nested
         // model must not show up in the RON.
-        let symbols = mana::parse_cost("{R}{2}{C}{2/W}{W/P}{G/U/P}{X}{S}").unwrap();
+        let symbols: ManaCost = "{R}{2}{C}{2/W}{W/P}{G/U/P}{X}{S}".parse().unwrap();
         assert_eq!(
             ron_options().to_string(&symbols).unwrap(),
-            "[Red,Generic(2),Colorless,Hybrid(Generic(2),White),Phyrexian(White),\
-             PhyrexianHybrid(Green,Blue),Variable,Snow]"
+            "[Red,Generic(2),Colorless,Hybrid(Generic(2),White),Phyrexian(White,None),\
+             Phyrexian(Green,Blue),Variable,Snow]"
         );
     }
 
@@ -526,13 +527,13 @@ mod tests {
     fn test_face(name: &str, vanilla: bool) -> CardFace {
         CardFace::Todo {
             name: name.to_owned(),
-            mana_cost: Some(vec![
-                ManaSymbol::Hybrid(
-                    deckmaste_core::SimpleManaSymbol::Generic(2),
-                    deckmaste_core::SimpleManaSymbol::Color(Color::White),
-                ),
-                ManaSymbol::Simple(deckmaste_core::SimpleManaSymbol::Color(Color::Green)),
-            ]),
+            mana_cost: Some(
+                vec![
+                    ManaSymbol::Hybrid(2.into(), Color::White),
+                    ManaSymbol::Simple(Color::Green.into()),
+                ]
+                .into(),
+            ),
             color_indicator: None,
             types: vec!["Creature".to_owned()],
             supertypes: vec![],

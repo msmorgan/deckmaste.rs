@@ -1,131 +1,268 @@
-use std::sync::LazyLock;
+use std::fmt;
+use std::str::FromStr;
 
-use regex::Regex;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::Color;
+use crate::color::ColorOrColorless;
 
 /// The component symbols hybrid/phyrexian symbols are built from: a generic
 /// amount, one of the five colors, or colorless ({C}, which is not a color).
 ///
 /// The untagged Color variant serializes transparently, so the RON stays
 /// flat: `White`, not `Color(White)`.
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum SimpleManaSymbol {
-    Generic(u16),
-    Colorless,
+    Generic(crate::Uint),
     #[serde(untagged)]
-    Color(Color),
+    Specific(ColorOrColorless),
+}
+
+impl SimpleManaSymbol {
+    pub fn color(&self) -> Option<Color> {
+        match self {
+            &Self::Specific(c) => c.color(),
+            _ => None,
+        }
+    }
+}
+
+impl From<Color> for SimpleManaSymbol {
+    fn from(color: Color) -> Self { Self::Specific(color.into()) }
+}
+
+impl From<ColorOrColorless> for SimpleManaSymbol {
+    fn from(color: ColorOrColorless) -> Self { Self::Specific(color) }
+}
+
+impl From<crate::Uint> for SimpleManaSymbol {
+    fn from(amount: crate::Uint) -> Self { Self::Generic(amount) }
 }
 
 /// The untagged Simple variant serializes transparently, so the RON stays
 /// flat: `Generic(2)`, not `Simple(Generic(2))`.
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum ManaSymbol {
     Variable,
     Snow,
-    Hybrid(SimpleManaSymbol, SimpleManaSymbol),
-    Phyrexian(SimpleManaSymbol),
-    PhyrexianHybrid(SimpleManaSymbol, SimpleManaSymbol),
+    Hybrid(SimpleManaSymbol, Color), // Slightly more permissive than CR107.4.
+    Phyrexian(Color, Option<Color>),
     #[serde(untagged)]
     Simple(SimpleManaSymbol),
 }
 
-fn simple_symbol(code: &str) -> SimpleManaSymbol {
-    if code == "C" {
-        return SimpleManaSymbol::Colorless;
-    }
-    Color::from_code(code)
-        .map(SimpleManaSymbol::Color)
-        .expect("codes are restricted by the symbol regex")
+impl From<Color> for ManaSymbol {
+    fn from(color: Color) -> Self { Self::Simple(color.into()) }
 }
 
-/// Parses one `{...}` mana symbol.
-pub fn parse_symbol(symbol: &str) -> anyhow::Result<ManaSymbol> {
-    static SYMBOL: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(
-            r"(?x)^[{](?:
-                (?P<variable>X)
-            |
-                (?P<snow>S)
-            |
-                (?:
-                    (?P<generic>[0-9]|[1-9][0-9]+)
-                |
-                    (?P<color>[WUBRGC])
-                )
-                (?:/(?P<hybrid>[WUBRG]))?
-                (?:/(?P<phyrexian>P))?
-            )[}]$",
-        )
-        .unwrap()
-    });
+impl From<ColorOrColorless> for ManaSymbol {
+    fn from(color: ColorOrColorless) -> Self { Self::Simple(color.into()) }
+}
 
-    let captures = SYMBOL
-        .captures(symbol)
-        .ok_or_else(|| anyhow::anyhow!("unrecognized mana symbol: {symbol:?}"))?;
+impl From<crate::Uint> for ManaSymbol {
+    fn from(amount: crate::Uint) -> Self { Self::Simple(amount.into()) }
+}
 
-    if captures.name("variable").is_some() {
-        return Ok(ManaSymbol::Variable);
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct ManaCost(Vec<ManaSymbol>);
+
+impl From<Vec<ManaSymbol>> for ManaCost {
+    fn from(symbols: Vec<ManaSymbol>) -> Self { Self(symbols) }
+}
+
+impl std::ops::Deref for ManaCost {
+    type Target = [ManaSymbol];
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+/// The error type for [`ManaSymbol`] and [`ManaCost`]'s [`FromStr`] impls.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseManaError {
+    symbol: String,
+}
+
+impl ParseManaError {
+    fn new(symbol: &str) -> Self {
+        Self {
+            symbol: symbol.to_owned(),
+        }
     }
-    if captures.name("snow").is_some() {
-        return Ok(ManaSymbol::Snow);
-    }
+}
 
-    let simple = if let Some(generic) = captures.name("generic") {
-        SimpleManaSymbol::Generic(generic.as_str().parse()?)
-    } else {
-        simple_symbol(&captures["color"])
-    };
-    let hybrid = captures.name("hybrid").map(|h| simple_symbol(h.as_str()));
-    let phyrexian = captures.name("phyrexian").is_some();
-    Ok(match (hybrid, phyrexian) {
-        (Some(hybrid), true) => ManaSymbol::PhyrexianHybrid(simple, hybrid),
-        (Some(hybrid), false) => ManaSymbol::Hybrid(simple, hybrid),
-        (None, true) => ManaSymbol::Phyrexian(simple),
-        (None, false) => ManaSymbol::Simple(simple),
+impl fmt::Display for ParseManaError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "unrecognized mana symbol: {:?}", self.symbol)
+    }
+}
+
+impl std::error::Error for ParseManaError {}
+
+/// Parses a generic amount, insisting on the canonical form: digits only with
+/// no leading zeros (unlike `Uint::from_str`, which also accepts "+1").
+fn parse_generic(code: &str) -> Option<crate::Uint> {
+    let canonical = !code.is_empty()
+        && code.bytes().all(|b| b.is_ascii_digit())
+        && (code.len() == 1 || !code.starts_with('0'));
+    if canonical { code.parse().ok() } else { None }
+}
+
+fn parse_simple(code: &str) -> Option<SimpleManaSymbol> {
+    ColorOrColorless::from_code(code)
+        .map(SimpleManaSymbol::Specific)
+        .or_else(|| parse_generic(code).map(SimpleManaSymbol::Generic))
+}
+
+/// Parses the body of a `{...}` mana symbol, braces already stripped.
+fn parse_symbol_body(body: &str) -> Option<ManaSymbol> {
+    Some(match *body.split('/').collect::<Vec<_>>() {
+        ["X"] => ManaSymbol::Variable,
+        ["S"] => ManaSymbol::Snow,
+        [simple] => ManaSymbol::Simple(parse_simple(simple)?),
+        // Phyrexian symbols need a colored left half: there is no {2/P} or {C/P}.
+        [simple, "P"] => ManaSymbol::Phyrexian(parse_simple(simple)?.color()?, None),
+        [simple, hybrid] => ManaSymbol::Hybrid(parse_simple(simple)?, Color::from_code(hybrid)?),
+        [simple, hybrid, "P"] => ManaSymbol::Phyrexian(
+            parse_simple(simple)?.color()?,
+            Some(Color::from_code(hybrid)?),
+        ),
+        _ => return None,
     })
 }
 
-/// Parses every `{...}` symbol in a mana cost string like "{2}{W/U}{X}".
-pub fn parse_cost(mana_cost: &str) -> anyhow::Result<Vec<ManaSymbol>> {
-    static SYMBOLS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[{][^}]+[}]").unwrap());
+impl FromStr for ManaSymbol {
+    type Err = ParseManaError;
 
-    SYMBOLS
-        .find_iter(mana_cost)
-        .map(|symbol| parse_symbol(symbol.as_str()))
-        .collect()
+    /// Parses one `{...}` mana symbol.
+    fn from_str(symbol: &str) -> Result<Self, Self::Err> {
+        symbol
+            .strip_prefix('{')
+            .and_then(|body| body.strip_suffix('}'))
+            .and_then(parse_symbol_body)
+            .ok_or_else(|| ParseManaError::new(symbol))
+    }
+}
+
+impl FromStr for ManaCost {
+    type Err = ParseManaError;
+
+    /// Parses a mana cost like "{2}{W/U}{X}": a string of symbols and nothing
+    /// else. The empty string is the empty cost.
+    fn from_str(mana_cost: &str) -> Result<Self, Self::Err> {
+        let mut symbols = Vec::new();
+        let mut rest = mana_cost;
+        while !rest.is_empty() {
+            let end = rest.find('}').map_or(rest.len(), |close| close + 1);
+            let (symbol, tail) = rest.split_at(end);
+            symbols.push(symbol.parse()?);
+            rest = tail;
+        }
+        Ok(Self(symbols))
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use Color::*;
+    use ColorOrColorless::Colorless;
+    use ManaSymbol::*;
+    use SimpleManaSymbol::{Generic, Specific};
+
     use super::*;
+
+    fn symbol(s: &str) -> Result<ManaSymbol, ParseManaError> { s.parse() }
+
+    #[test]
+    fn mana_symbols() {
+        assert_eq!(symbol("{W}").unwrap(), White.into());
+        assert_eq!(symbol("{C}").unwrap(), Simple(Specific(Colorless)));
+        assert_eq!(symbol("{0}").unwrap(), Simple(Generic(0)));
+        assert_eq!(symbol("{15}").unwrap(), Simple(Generic(15)));
+        assert_eq!(symbol("{1000000}").unwrap(), Simple(Generic(1_000_000))); // Gleemax
+        assert_eq!(symbol("{X}").unwrap(), Variable);
+        assert_eq!(symbol("{S}").unwrap(), Snow);
+        assert_eq!(
+            symbol("{G/U}").unwrap(),
+            Hybrid(Specific(Green.into()), Blue)
+        );
+        assert_eq!(symbol("{2/W}").unwrap(), Hybrid(Generic(2), White));
+        assert_eq!(symbol("{C/B}").unwrap(), Hybrid(Specific(Colorless), Black));
+        assert_eq!(symbol("{R/P}").unwrap(), Phyrexian(Red, None));
+        assert_eq!(symbol("{G/U/P}").unwrap(), Phyrexian(Green, Some(Blue)));
+    }
+
+    #[test]
+    fn invalid_mana_symbols() {
+        for invalid in [
+            "",
+            "W",
+            "{W",
+            "W}",
+            "{}",
+            "{w}",
+            "{ W }",
+            "{HW}",
+            "{T}",
+            "{P}",
+            // Non-canonical or overflowing generic amounts.
+            "{01}",
+            "{+1}",
+            "{4294967296}",
+            // Phyrexian symbols need a colored left half.
+            "{2/P}",
+            "{C/P}",
+            "{2/W/P}",
+            "{X/P}",
+            // The right half of a hybrid must be a color.
+            "{W/C}",
+            "{W/2}",
+            "{W/X}",
+            "{/W}",
+            "{W/}",
+            "{W/U/B}",
+            "{G/U/P/P}",
+        ] {
+            assert!(symbol(invalid).is_err(), "{invalid:?} should not parse");
+        }
+    }
 
     #[test]
     fn mana_costs() {
-        use ManaSymbol::*;
-        use SimpleManaSymbol::{Colorless, Generic};
-        let color = |c| SimpleManaSymbol::Color(c);
+        let cost = |s: &str| s.parse::<ManaCost>();
 
         assert_eq!(
-            parse_cost("{1}{G}").unwrap(),
-            vec![Simple(Generic(1)), Simple(color(Color::Green))]
+            cost("{1}{G}").unwrap(),
+            ManaCost(vec![Simple(Generic(1)), Green.into()])
         );
-        assert_eq!(parse_cost("{X}{S}").unwrap(), vec![Variable, Snow]);
+        assert_eq!(cost("{X}{S}").unwrap(), ManaCost(vec![Variable, Snow]));
         assert_eq!(
-            parse_cost("{2/W}{C/B}").unwrap(),
-            vec![
-                Hybrid(Generic(2), color(Color::White)),
-                Hybrid(Colorless, color(Color::Black)),
-            ]
+            cost("{2/W}{C/B}").unwrap(),
+            ManaCost(vec![
+                Hybrid(Generic(2), White),
+                Hybrid(Specific(Colorless), Black),
+            ])
         );
         assert_eq!(
-            parse_cost("{G/U/P}{W/P}").unwrap(),
-            vec![
-                PhyrexianHybrid(color(Color::Green), color(Color::Blue)),
-                Phyrexian(color(Color::White)),
-            ]
+            cost("{G/U/P}{W/P}").unwrap(),
+            ManaCost(vec![Phyrexian(Green, Some(Blue)), Phyrexian(White, None),])
         );
-        assert!(parse_cost("{HW}").is_err());
+        assert_eq!(cost("").unwrap(), ManaCost::default());
+
+        // ManaCost derefs to its symbols.
+        assert_eq!(cost("{1}{G}").unwrap().len(), 2);
+        assert_eq!(cost("{X}").unwrap().first(), Some(&Variable));
+    }
+
+    #[test]
+    fn invalid_mana_costs() {
+        for invalid in [
+            " {W}", "{W} {U}", "{W}junk", "junk{W}", "{W}{", "{1}}", "{X}{HW}",
+        ] {
+            assert!(
+                invalid.parse::<ManaCost>().is_err(),
+                "{invalid:?} should not parse"
+            );
+        }
     }
 }

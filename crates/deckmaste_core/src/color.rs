@@ -1,7 +1,7 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// One of the five colors of Magic (CR 105.1). Colorless is not a color.
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Color {
     White,
     Blue,
@@ -23,4 +23,31 @@ impl Color {
             _ => return None,
         })
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum ColorOrColorless {
+    Colorless,
+    #[serde(untagged)]
+    Color(Color),
+}
+
+impl ColorOrColorless {
+    pub fn from_code(code: &str) -> Option<Self> {
+        Some(match code {
+            "C" => ColorOrColorless::Colorless,
+            code => ColorOrColorless::Color(Color::from_code(code)?),
+        })
+    }
+
+    pub fn color(&self) -> Option<Color> {
+        match self {
+            &Self::Colorless => None,
+            &Self::Color(color) => Some(color),
+        }
+    }
+}
+
+impl From<Color> for ColorOrColorless {
+    fn from(color: Color) -> Self { ColorOrColorless::Color(color) }
 }
