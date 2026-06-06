@@ -5,7 +5,7 @@ Normal(
     abilities: [
         Spell(
             targets: [Target(AnyTarget)],
-            effect: DealDamage(That(Target(0)), 3),
+            effect: DealDamage(Target(0), 3),
         ),
     ],
 )
