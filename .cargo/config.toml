@@ -1,0 +1,4 @@
+# `cargo migrate <plugin_dir> [migration_number]` -- always a release build:
+# parsing AllPrintings.json under the dev profile takes tens of seconds.
+[alias]
+migrate = "run --release -p deckmaste_migrations --"
