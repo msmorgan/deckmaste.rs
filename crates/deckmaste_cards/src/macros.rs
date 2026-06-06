@@ -46,8 +46,10 @@ use serde::de::{DeserializeOwned, Deserializer, MapAccess, SeqAccess, Visitor};
 pub enum MacroKind {
     Ability,
     CardFace,
+    Filter,
+    Reference,
+    Selection,
     Subtype,
-    Target,
 }
 
 impl MacroKind {
@@ -57,8 +59,10 @@ impl MacroKind {
         Some(match name {
             "Ability" => MacroKind::Ability,
             "CardFace" => MacroKind::CardFace,
+            "Filter" => MacroKind::Filter,
+            "Reference" => MacroKind::Reference,
+            "Selection" => MacroKind::Selection,
             "Subtype" => MacroKind::Subtype,
-            "Target" => MacroKind::Target,
             _ => return None,
         })
     }
@@ -122,6 +126,10 @@ impl<'de> Deserialize<'de> for Params {
 }
 
 /// A macro: self-describing, matching its definition file.
+///
+/// Definition files may carry extra metadata fields (e.g. `template:`,
+/// the rules text a use of the macro renders as); serde ignores them
+/// here, so don't add `deny_unknown_fields`.
 #[derive(Debug, Clone, Deserialize)]
 pub struct MacroDef {
     pub name: Ident,
@@ -291,7 +299,7 @@ impl FromIterator<MacroDef> for MacroSet {
 
 #[cfg(test)]
 mod tests {
-    use deckmaste_core::{Ability, Subtype, Target, Type};
+    use deckmaste_core::{Ability, CharacteristicFilter, Filter, ObjectKind, Subtype, Type};
 
     use super::*;
 
@@ -310,8 +318,16 @@ mod tests {
             position::<deckmaste_core::CardFace>(),
             Some(MacroKind::CardFace)
         );
+        assert_eq!(position::<Filter>(), Some(MacroKind::Filter));
+        assert_eq!(
+            position::<deckmaste_core::Reference>(),
+            Some(MacroKind::Reference)
+        );
+        assert_eq!(
+            position::<deckmaste_core::Selection>(),
+            Some(MacroKind::Selection)
+        );
         assert_eq!(position::<Subtype>(), Some(MacroKind::Subtype));
-        assert_eq!(position::<Target>(), Some(MacroKind::Target));
     }
 
     fn subtype_macro(name: &str, params: Vec<ParamType>, body: &str) -> MacroDef {
@@ -468,14 +484,14 @@ mod tests {
         macros
             .insert(&MacroDef {
                 name: "Self".into(),
-                kinds: vec![MacroKind::Subtype, MacroKind::Target],
+                kinds: vec![MacroKind::Subtype, MacroKind::Filter],
                 params: Params::Positional(vec![ParamType::String]),
                 body: "Param(0)".into(),
             })
             .unwrap();
 
-        let target: Target = macros.read_str("Self(Player)").unwrap();
-        assert_eq!(target, Target::Player);
+        let filter: Filter = macros.read_str("Self(Kind(Player))").unwrap();
+        assert_eq!(filter, Filter::Kind(ObjectKind::Player));
 
         // The macro is invisible at an Ability position.
         let error = macros.read_str::<Ability>("Self(Static)").unwrap_err();
@@ -485,6 +501,37 @@ mod tests {
                 .contains("neither a variant of `Ability` nor a known `Ability` macro"),
             "unexpected error: {error}"
         );
+    }
+
+    /// Filter's manual Deserialize must go through `deserialize_enum` with
+    /// the full flattened variant list: that is what lets unknown names at
+    /// Filter positions fall through to the macro namespace.
+    #[test]
+    fn filter_positions_expand_macros() {
+        let mut macros = MacroSet::default();
+        macros
+            .insert(&MacroDef {
+                name: "AnyTargetish".into(),
+                kinds: vec![MacroKind::Filter],
+                params: Params::default(),
+                body: "OneOf([Kind(Player), AllOf([Kind(Permanent), Type(Creature)])])".into(),
+            })
+            .unwrap();
+        let filter: Filter = macros.read_str("AnyTargetish").unwrap();
+        let Filter::OneOf(arms) = filter else {
+            panic!("expected OneOf, got {filter:?}");
+        };
+        assert_eq!(arms[0], Filter::Kind(ObjectKind::Player));
+        // The nested arm proves Filter positions *inside* an expansion stay
+        // macro-aware too.
+        assert_eq!(
+            arms[1],
+            Filter::AllOf(vec![
+                Filter::Kind(ObjectKind::Permanent),
+                Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            ])
+        );
+        assert_eq!(arms.len(), 2);
     }
 
     #[test]
