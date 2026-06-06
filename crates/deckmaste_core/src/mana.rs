@@ -6,6 +6,13 @@ use serde::{Deserialize, Serialize};
 use crate::Color;
 use crate::color::ColorOrColorless;
 
+/// Produced-mana spec (CR 106): what colors or types a mana-adding effect
+/// may produce. Variants accrete — `AnyType`, fixed symbols, riders later.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum ManaSpec {
+    AnyColor,
+}
+
 /// The component symbols hybrid/phyrexian symbols are built from: a generic
 /// amount, one of the five colors, or colorless ({C}, which is not a color).
 ///
