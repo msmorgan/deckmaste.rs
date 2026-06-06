@@ -2,7 +2,7 @@ use std::path::Path;
 
 use serde::Serialize;
 
-use crate::data::Str;
+use crate::data::DataStr;
 use crate::data::academyruins::{Rule, RulesMap};
 
 #[derive(Serialize)]
@@ -27,7 +27,7 @@ fn pretty_config() -> ron::ser::PrettyConfig {
 /// (usually [`Rule::format`]).
 pub(super) fn create_keyword_todos<'r, 'data>(
     dest_dir: &Path,
-    keywords: &[Str<'_>],
+    keywords: &[DataStr<'_>],
     rules: &'r RulesMap<'data>,
     rule_number_for: impl Fn(&str) -> Option<&'r str>,
     format_rule: impl Fn(&Rule<'data>) -> String,

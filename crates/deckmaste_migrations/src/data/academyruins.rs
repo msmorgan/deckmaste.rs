@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 
-use super::Str;
+use super::DataStr;
 
 /// Replaces typographic quotation marks with their ASCII equivalents.
 pub(crate) fn normalize_quotes(text: &str) -> String {
@@ -13,13 +13,13 @@ pub(crate) fn normalize_quotes(text: &str) -> String {
 #[serde(rename_all = "camelCase")]
 pub struct Rule<'a> {
     #[serde(borrow)]
-    pub rule_number: Str<'a>,
+    pub rule_number: DataStr<'a>,
     #[serde(borrow, default)]
-    pub examples: Option<Vec<Str<'a>>>,
+    pub examples: Option<Vec<DataStr<'a>>>,
     #[serde(borrow)]
-    pub rule_text: Str<'a>,
+    pub rule_text: DataStr<'a>,
     #[serde(borrow)]
-    pub fragment: Str<'a>,
+    pub fragment: DataStr<'a>,
     #[serde(borrow)]
     pub navigation: Navigation<'a>,
 }
@@ -47,20 +47,20 @@ impl<'a> Rule<'a> {
 #[serde(rename_all = "camelCase")]
 pub struct Navigation<'a> {
     #[serde(borrow)]
-    pub next_rule: Option<Str<'a>>,
+    pub next_rule: Option<DataStr<'a>>,
     #[serde(borrow)]
-    pub previous_rule: Option<Str<'a>>,
+    pub previous_rule: Option<DataStr<'a>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Keywords<'a> {
     #[serde(borrow)]
-    pub keyword_abilities: Vec<Str<'a>>,
+    pub keyword_abilities: Vec<DataStr<'a>>,
     #[serde(borrow)]
-    pub keyword_actions: Vec<Str<'a>>,
+    pub keyword_actions: Vec<DataStr<'a>>,
     #[serde(borrow)]
-    pub ability_words: Vec<Str<'a>>,
+    pub ability_words: Vec<DataStr<'a>>,
 }
 
 impl<'a> Keywords<'a> {
@@ -69,12 +69,12 @@ impl<'a> Keywords<'a> {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(transparent)]
-pub(crate) struct RulesMap<'a>(#[serde(borrow)] pub HashMap<Str<'a>, Rule<'a>>);
+pub(crate) struct RulesMap<'a>(#[serde(borrow)] pub HashMap<DataStr<'a>, Rule<'a>>);
 
 impl<'a> RulesMap<'a> {
     pub fn parse(bytes: &'a [u8]) -> serde_json::Result<Self> { serde_json::from_slice(bytes) }
 
-    pub fn into_inner(self) -> HashMap<Str<'a>, Rule<'a>> { self.0 }
+    pub fn into_inner(self) -> HashMap<DataStr<'a>, Rule<'a>> { self.0 }
 
     pub fn find_rule(&self, rule_number: &str) -> Option<&Rule<'a>> { self.0.get(rule_number) }
 

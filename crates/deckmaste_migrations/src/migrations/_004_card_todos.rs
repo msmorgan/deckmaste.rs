@@ -4,7 +4,7 @@ use deckmaste_core::{Color, ManaSymbol, mana};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::data::Str;
+use crate::data::DataStr;
 use crate::data::mtgjson::AtomicCard;
 
 #[derive(Debug, PartialEq, Serialize)]
@@ -289,7 +289,7 @@ fn strip_reminder_text(text: &str) -> String {
 
 /// Splits lines that are comma-separated lists of keyword abilities into one
 /// keyword per line, e.g. "Flying, vigilance" -> "Flying\nVigilance".
-fn expand_keyword_lines(text: &str, keyword_abilities: &[Str<'_>]) -> String {
+fn expand_keyword_lines(text: &str, keyword_abilities: &[DataStr<'_>]) -> String {
     text.split('\n')
         .flat_map(|line| {
             let items: Vec<String> = line.split(", ").map(capitalize).collect();
@@ -322,7 +322,7 @@ fn stat(value: &str) -> Stat {
 
 fn render_face(
     card: &AtomicCard,
-    keyword_abilities: &[Str<'_>],
+    keyword_abilities: &[DataStr<'_>],
     categories: &SubtypeCategories,
 ) -> anyhow::Result<CardFace> {
     Ok(CardFace::Todo {
@@ -449,7 +449,7 @@ mod tests {
 
     #[test]
     fn keyword_lines() {
-        let keywords: Vec<Str> = vec!["Flying".into(), "Vigilance".into(), "Equip".into()];
+        let keywords: Vec<DataStr> = vec!["Flying".into(), "Vigilance".into(), "Equip".into()];
         assert_eq!(
             expand_keyword_lines("flying, vigilance", &keywords),
             "Flying\nVigilance"

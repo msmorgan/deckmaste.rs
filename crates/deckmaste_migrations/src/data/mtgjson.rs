@@ -1,5 +1,5 @@
 //! Minimal models of the MTGJSON atomic card data: only the fields the
-//! migrations use, with `Str` instead of closed enums for the fields
+//! migrations use, with `DataStr` instead of closed enums for the fields
 //! MTGJSON adds variants to (layouts, colors), so data updates can't break
 //! deserialization.
 //!
@@ -11,13 +11,13 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 
-use crate::data::Str;
+use crate::data::DataStr;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct AtomicCards<'a> {
     /// Cards grouped by full name; one entry per face.
     #[serde(borrow)]
-    pub data: HashMap<Str<'a>, Vec<AtomicCard<'a>>>,
+    pub data: HashMap<DataStr<'a>, Vec<AtomicCard<'a>>>,
 }
 
 impl<'a> AtomicCards<'a> {
@@ -29,36 +29,36 @@ impl<'a> AtomicCards<'a> {
 pub struct AtomicCard<'a> {
     /// The full card name; faces of multi-face cards share it.
     #[serde(borrow)]
-    pub name: Str<'a>,
+    pub name: DataStr<'a>,
     /// The name of this face, for multi-face cards.
     #[serde(borrow, default)]
-    pub face_name: Option<Str<'a>>,
+    pub face_name: Option<DataStr<'a>>,
     /// Symbols like "{2}{W/U}{X}".
     #[serde(borrow, default)]
-    pub mana_cost: Option<Str<'a>>,
+    pub mana_cost: Option<DataStr<'a>>,
     /// Single-letter color codes ("W", "U", ...).
     #[serde(borrow, default)]
-    pub color_indicator: Option<Vec<Str<'a>>>,
+    pub color_indicator: Option<Vec<DataStr<'a>>>,
     #[serde(borrow)]
-    pub types: Vec<Str<'a>>,
+    pub types: Vec<DataStr<'a>>,
     #[serde(borrow)]
-    pub supertypes: Vec<Str<'a>>,
+    pub supertypes: Vec<DataStr<'a>>,
     #[serde(borrow)]
-    pub subtypes: Vec<Str<'a>>,
+    pub subtypes: Vec<DataStr<'a>>,
     /// Oracle rules text, one line per ability.
     #[serde(borrow, default)]
-    pub text: Option<Str<'a>>,
+    pub text: Option<DataStr<'a>>,
     #[serde(borrow, default)]
-    pub power: Option<Str<'a>>,
+    pub power: Option<DataStr<'a>>,
     #[serde(borrow, default)]
-    pub toughness: Option<Str<'a>>,
+    pub toughness: Option<DataStr<'a>>,
     #[serde(borrow, default)]
-    pub loyalty: Option<Str<'a>>,
+    pub loyalty: Option<DataStr<'a>>,
     #[serde(borrow, default)]
-    pub defense: Option<Str<'a>>,
+    pub defense: Option<DataStr<'a>>,
     /// snake_case layout name, e.g. "normal", "modal_dfc".
     #[serde(borrow)]
-    pub layout: Str<'a>,
+    pub layout: DataStr<'a>,
     #[serde(borrow)]
     pub legalities: Legalities<'a>,
 }
@@ -66,7 +66,7 @@ pub struct AtomicCard<'a> {
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct Legalities<'a> {
     #[serde(borrow, default)]
-    pub vintage: Option<Str<'a>>,
+    pub vintage: Option<DataStr<'a>>,
 }
 
 #[cfg(test)]
@@ -100,9 +100,12 @@ mod tests {
         assert_eq!(card.power, None);
 
         // Escape-free strings borrow from the input; escaped ones allocate.
-        assert!(matches!(card.name, Str(Cow::Borrowed("Front // Back"))));
-        assert!(matches!(card.subtypes[0], Str(Cow::Borrowed("Time Lord"))));
-        assert!(matches!(card.text, Some(Str(Cow::Owned(_)))));
+        assert!(matches!(card.name, DataStr(Cow::Borrowed("Front // Back"))));
+        assert!(matches!(
+            card.subtypes[0],
+            DataStr(Cow::Borrowed("Time Lord"))
+        ));
+        assert!(matches!(card.text, Some(DataStr(Cow::Owned(_)))));
         assert_eq!(
             card.text.as_deref(),
             Some("Flying\nProtection from \"quotes\"")

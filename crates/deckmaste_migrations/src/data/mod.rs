@@ -42,52 +42,54 @@ pub fn catalog_bytes(name: &str) -> anyhow::Result<Vec<u8>> {
 /// (serde's `#[serde(borrow)]` only rewires top-level `Cow` fields), so this
 /// wrapper carries the borrowing visitor everywhere it appears.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Str<'a>(Cow<'a, str>);
+pub struct DataStr<'a>(Cow<'a, str>);
 
-impl<'b: 'a, 'a> From<&'b str> for Str<'a> {
-    fn from(s: &'b str) -> Self { Str(Cow::Borrowed(s)) }
+impl<'b: 'a, 'a> From<&'b str> for DataStr<'a> {
+    fn from(s: &'b str) -> Self { DataStr(Cow::Borrowed(s)) }
 }
 
-impl Str<'_> {
+impl DataStr<'_> {
     pub fn as_str(&self) -> &str { &self.0 }
 }
 
-impl Deref for Str<'_> {
+impl Deref for DataStr<'_> {
     type Target = str;
 
     fn deref(&self) -> &str { &self.0 }
 }
 
-// Lets maps keyed by Str be queried with plain &str.
-impl std::borrow::Borrow<str> for Str<'_> {
+// Lets maps keyed by DataStr be queried with plain &str.
+impl std::borrow::Borrow<str> for DataStr<'_> {
     fn borrow(&self) -> &str { &self.0 }
 }
 
-impl fmt::Display for Str<'_> {
+impl fmt::Display for DataStr<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { self.0.fmt(f) }
 }
 
-impl<'de: 'a, 'a> Deserialize<'de> for Str<'a> {
+impl<'de: 'a, 'a> Deserialize<'de> for DataStr<'a> {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct StrVisitor<'a>(std::marker::PhantomData<&'a ()>);
-        impl<'de: 'a, 'a> serde::de::Visitor<'de> for StrVisitor<'a> {
-            type Value = Str<'a>;
+        struct DataStrVisitor<'a>(std::marker::PhantomData<&'a ()>);
+        impl<'de: 'a, 'a> serde::de::Visitor<'de> for DataStrVisitor<'a> {
+            type Value = DataStr<'a>;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 formatter.write_str("a string")
             }
 
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E> {
-                Ok(Str(Cow::Owned(v.to_owned())))
+                Ok(DataStr(Cow::Owned(v.to_owned())))
             }
 
             fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E> {
-                Ok(Str(Cow::Borrowed(v)))
+                Ok(DataStr(Cow::Borrowed(v)))
             }
 
-            fn visit_string<E>(self, v: String) -> Result<Self::Value, E> { Ok(Str(Cow::Owned(v))) }
+            fn visit_string<E>(self, v: String) -> Result<Self::Value, E> {
+                Ok(DataStr(Cow::Owned(v)))
+            }
         }
 
-        deserializer.deserialize_str(StrVisitor(std::marker::PhantomData))
+        deserializer.deserialize_str(DataStrVisitor(std::marker::PhantomData))
     }
 }
