@@ -7,8 +7,8 @@ use std::path::Path;
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::ron::options as ron_options;
 use deckmaste_core::{
-    Ability, Card, CardFace, Effect, ManaCost, Selector, SpellAbility, StatValue, Subtype,
-    Supertype, Target, Type,
+    Ability, Card, CardFace, CharacteristicFilter, Effect, Filter, ManaCost, ObjectKind,
+    Reference, Selection, SpellAbility, StatValue, Subtype, Supertype, Type,
 };
 
 fn builtin() -> Plugin {
@@ -100,25 +100,31 @@ fn grizzly_bears_expand_the_creature_type_macro() {
     assert_eq!(face.toughness, Some(StatValue::Number(2)));
 }
 
-/// Target-position interception through real data: `targets: [AnyTarget]`
-/// chains `AnyTarget` -> `Self` -> `OneOf`.
+/// Filter-position interception through real data: `Target(AnyTarget)`
+/// expands `AnyTarget` at the Selection's Filter payload.
 #[test]
-fn lightning_bolt_expands_target_macros() {
+fn lightning_bolt_expands_filter_macros() {
     let card = builtin().card("Lightning Bolt").unwrap();
     let Card::Normal(face) = card else {
         panic!("Lightning Bolt should be single-faced");
     };
-    let any_target = Target::OneOf(vec![
-        Target::PermanentOfType(Type::Battle),
-        Target::PermanentOfType(Type::Creature),
-        Target::PermanentOfType(Type::Planeswalker),
-        Target::Player,
+    let permanent_of = |t: Type| {
+        Filter::AllOf(vec![
+            Filter::Kind(ObjectKind::Permanent),
+            Filter::Characteristic(CharacteristicFilter::Type(t)),
+        ])
+    };
+    let any_target = Filter::OneOf(vec![
+        permanent_of(Type::Battle),
+        permanent_of(Type::Creature),
+        permanent_of(Type::Planeswalker),
+        Filter::Kind(ObjectKind::Player),
     ]);
     assert_eq!(
         face.abilities,
         vec![Ability::Spell(SpellAbility {
-            targets: vec![any_target],
-            effect: Effect::DealDamage(Selector::Target(0), 3),
+            targets: vec![Selection::Target(any_target)],
+            effect: Effect::DealDamage(Selection::That(Reference::Target(0)), 3),
         })]
     );
 }
