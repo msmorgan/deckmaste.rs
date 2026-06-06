@@ -587,7 +587,7 @@ mod tests {
         );
     }
 
-    /// CostComponent positions participate in macro expansion: a registered
+    /// `CostComponent` positions participate in macro expansion: a registered
     /// `CostComponent` macro is expanded in place of its name.
     #[test]
     fn cost_positions_expand_macros() {

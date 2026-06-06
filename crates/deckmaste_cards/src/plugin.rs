@@ -9,8 +9,8 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
-use deckmaste_core::plugin::{MACROS_DIR, TYPES_DIR, card_path};
-use deckmaste_core::{Card, Ident, Subtype};
+use deckmaste_core::plugin::{MACROS_DIR, TYPES_DIR, card_path, token_path};
+use deckmaste_core::{Card, Ident, Subtype, Token};
 
 use crate::macros::{DuplicateMacro, MacroDef, MacroKind, MacroSet};
 
@@ -158,6 +158,21 @@ impl Plugin {
     /// If the file is missing or doesn't expand to a card.
     pub fn card(&self, name: &str) -> anyhow::Result<Card> {
         let path = self.card_path(name);
+        self.macros
+            .read_str(&read(&path)?)
+            .with_context(|| format!(r#"parsing "{}""#, path.display()))
+    }
+
+    /// The file a token of this name would live in.
+    #[must_use]
+    pub fn token_path(&self, name: &str) -> PathBuf { token_path(&self.root, name) }
+
+    /// Reads and parses `tokens/<name>.ron`, with the plugin's macros in scope.
+    ///
+    /// # Errors
+    /// If the file is missing or doesn't expand to a token.
+    pub fn token(&self, name: &str) -> anyhow::Result<Token> {
+        let path = self.token_path(name);
         self.macros
             .read_str(&read(&path)?)
             .with_context(|| format!(r#"parsing "{}""#, path.display()))

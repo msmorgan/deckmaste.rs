@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 pub const MACROS_DIR: &str = "macros";
 pub const TYPES_DIR: &str = "types";
 pub const CARDS_DIR: &str = "cards";
+pub const TOKENS_DIR: &str = "tokens";
 pub const KEYWORD_ABILITIES_DIR: &str = "keyword_abilities";
 pub const KEYWORD_ACTIONS_DIR: &str = "keyword_actions";
 pub const ABILITY_WORDS_DIR: &str = "ability_words";
@@ -21,6 +22,16 @@ pub fn card_file(name: &str) -> String { format!("{}.ron", card_filename(name)) 
 /// Where a card of this name lives under the plugin `root`.
 #[must_use]
 pub fn card_path(root: &Path, name: &str) -> PathBuf { root.join(CARDS_DIR).join(card_file(name)) }
+
+/// The file name a token of this name is stored under.
+#[must_use]
+pub fn token_file(name: &str) -> String { format!("{name}.ron") }
+
+/// Where a token of this name lives under the plugin `root`.
+#[must_use]
+pub fn token_path(root: &Path, name: &str) -> PathBuf {
+    root.join(TOKENS_DIR).join(token_file(name))
+}
 
 /// Whether card-file source is still an unimplemented stub. A stub is any
 /// file with a line starting (modulo indentation) with `Todo(` — checked

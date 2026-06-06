@@ -9,6 +9,7 @@
 // Structural variants (`Sequence`, `May`, …) join VARIANTS in Plan 5.
 
 use std::fmt;
+use std::marker::PhantomData;
 
 use serde::de::{self, EnumAccess, SeqAccess, VariantAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -75,12 +76,12 @@ impl<'de> Deserialize<'de> for Effect {
                 Ok(match ident.as_str() {
                     "AddMana" => {
                         let Pair(n, spec) =
-                            v.tuple_variant(2, PairVisitor::<Uint, ManaSpec>(Default::default()))?;
+                            v.tuple_variant(2, PairVisitor::<Uint, ManaSpec>(PhantomData))?;
                         Effect::Act(Action::AddMana(n, spec))
                     }
                     "DealDamage" => {
                         let Pair(sel, n) =
-                            v.tuple_variant(2, PairVisitor::<Selection, Uint>(Default::default()))?;
+                            v.tuple_variant(2, PairVisitor::<Selection, Uint>(PhantomData))?;
                         Effect::Act(Action::DealDamage(sel, n))
                     }
                     "DrawCards" => Effect::Act(Action::DrawCards(v.newtype_variant()?)),
