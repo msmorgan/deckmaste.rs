@@ -23,17 +23,20 @@
 //! untouched. By assumption, arguments never reference an outer macro's
 //! params — frames would need a caller link to support that.
 //!
-//! Captured fragments and resolved arguments are owned by a [`Scratch`] that
-//! lives for one document read: visitors are entitled to borrow from their
-//! input, and the input here is text built mid-read. It all drops when the
-//! read finishes.
+//! Captured fragments and invocation arguments are borrowed subslices of
+//! the text they were read from — the document, a macro body, or a spliced
+//! string — never copies. The one place new text is built is `Param`
+//! substitution inside untagged content; those splices are owned by the
+//! read-long [`ReadCtx`], because visitors are entitled to borrow from
+//! their input, and drop when the read finishes.
 
-use std::cell::{Cell, RefCell};
+use std::cell::Cell;
 use std::fmt;
 use std::ops::Range;
 
 use deckmaste_core::Ident;
 use deckmaste_core::ident::IdentSeed;
+use elsa::FrozenVec;
 use ron::value::RawValue;
 use serde::Deserialize;
 use serde::de::value::StrDeserializer;
@@ -44,24 +47,26 @@ use serde::de::{
 
 use crate::macros::{MacroDef, MacroSet, Params};
 
-/// Owns every string built while reading one document — captured fragments,
-/// resolved arguments — so they can be borrowed like the input is.
-#[derive(Default)]
-pub(crate) struct Scratch(RefCell<Vec<Box<str>>>);
+/// The read-long half of the context: the macros in scope, and the strings
+/// spliced together while reading one document, so they can be borrowed
+/// like the input is.
+pub(crate) struct ReadCtx<'m> {
+    macros: &'m MacroSet,
+    /// An append-only arena: the [`FrozenVec`] hands out borrows that
+    /// outlive later pushes, because the boxed strs never move even when
+    /// its spine reallocates.
+    splices: FrozenVec<Box<str>>,
+}
 
-impl Scratch {
-    fn alloc(&self, s: String) -> &str {
-        let boxed = s.into_boxed_str();
-        let ptr = std::ptr::from_ref::<str>(&*boxed);
-        self.0.borrow_mut().push(boxed);
-        // SAFETY: the heap allocation behind `ptr` is owned by the pushed box
-        // and lives until `self` drops; moving the box into the Vec (or the
-        // Vec reallocating) doesn't move the boxed str itself, and nothing
-        // removes entries.
-        unsafe { &*ptr }
+impl<'m> ReadCtx<'m> {
+    pub(crate) fn new(macros: &'m MacroSet) -> Self {
+        ReadCtx {
+            macros,
+            splices: FrozenVec::new(),
+        }
     }
 
-    fn alloc_raw(&self, raw: &RawValue) -> &str { self.alloc(raw.get_ron().to_owned()) }
+    fn splice(&self, s: String) -> &str { self.splices.push_get(s.into_boxed_str()) }
 }
 
 /// A macro expansion in flight: the invocation's arguments, which the body's
@@ -96,13 +101,11 @@ impl fmt::Display for ParamKey {
     }
 }
 
-/// What every layer of the wrapper carries: the macros in scope, the scratch
-/// for mid-read strings, and the innermost expansion frame, if a macro body
-/// is being read.
+/// What every layer of the wrapper carries: the read-long [`ReadCtx`] and
+/// the innermost expansion frame, if a macro body is being read.
 #[derive(Clone, Copy)]
 struct Ctx<'de, 'f> {
-    macros: &'de MacroSet,
-    scratch: &'de Scratch,
+    read: &'de ReadCtx<'de>,
     frame: Option<&'f Frame<'de>>,
     /// How many expansions deep this position is; bounded by [`MAX_DEPTH`].
     depth: usize,
@@ -134,8 +137,7 @@ impl<'de> Ctx<'de, '_> {
     /// wrong macro.
     fn frameless(&self) -> Ctx<'de, 'de> {
         Ctx {
-            macros: self.macros,
-            scratch: self.scratch,
+            read: self.read,
             frame: None,
             depth: self.depth,
         }
@@ -151,8 +153,7 @@ impl<'de> Ctx<'de, '_> {
             ));
         }
         Ok(Ctx {
-            macros: self.macros,
-            scratch: self.scratch,
+            read: self.read,
             frame: Some(frame),
             depth: self.depth + 1,
         })
@@ -186,12 +187,11 @@ pub struct MacroAware<'de, 'f, D> {
 }
 
 impl<'de, D> MacroAware<'de, 'de, D> {
-    pub(crate) fn new(de: D, macros: &'de MacroSet, scratch: &'de Scratch) -> Self {
+    pub(crate) fn new(de: D, read: &'de ReadCtx<'de>) -> Self {
         Self {
             de,
             ctx: Ctx {
-                macros,
-                scratch,
+                read,
                 frame: None,
                 depth: 0,
             },
@@ -262,7 +262,6 @@ struct Probe<'a, 'de> {
     /// The position's struct name, if its macros may stand here.
     position: Option<&'static str>,
     macros: &'de MacroSet,
-    scratch: &'de Scratch,
     /// Set once a leading identifier has been read: failures before that
     /// mean "not an invocation", failures after are real.
     entered: &'a Cell<bool>,
@@ -292,7 +291,7 @@ impl<'de> Visitor<'de> for Probe<'_, 'de> {
         let Some(def) = self.position.and_then(|kind| self.macros.get(kind, &ident)) else {
             return Ok(None);
         };
-        let args = read_args(variant, &def.params, self.scratch)?;
+        let args = read_args(variant, &def.params)?;
         Ok(Some(Invocation::Macro {
             name: ident,
             def,
@@ -314,8 +313,7 @@ fn probe<'de, E: serde::de::Error>(
     let entered = Cell::new(false);
     let seed = Probe {
         position,
-        macros: ctx.macros,
-        scratch: ctx.scratch,
+        macros: ctx.read.macros,
         entered: &entered,
     };
     match seed.deserialize(&mut de) {
@@ -577,10 +575,7 @@ impl<'de, D: Deserializer<'de>> MacroAware<'de, '_, D> {
         position: Option<&'static str>,
         f: impl FnOnce(MacroAware<'de, '_, &mut ron::de::Deserializer<'de>>) -> Result<T, ron::Error>,
     ) -> Result<T, D::Error> {
-        let source = self
-            .ctx
-            .scratch
-            .alloc_raw(&Box::<RawValue>::deserialize(self.de)?);
+        let source = <&RawValue>::deserialize(self.de)?.get_ron();
         match probe::<D::Error>(source, position, self.ctx)? {
             Some(Invocation::Param(key)) => {
                 let arg = self.ctx.param(key).map_err(D::Error::custom)?;
@@ -629,10 +624,7 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
             return self.de.deserialize_any(wrapped);
         }
 
-        let source = self
-            .ctx
-            .scratch
-            .alloc_raw(&Box::<RawValue>::deserialize(self.de)?);
+        let source = <&RawValue>::deserialize(self.de)?.get_ron();
         if let Some(Invocation::Param(key)) = probe::<Self::Error>(source, None, self.ctx)? {
             let arg = self.ctx.param(key).map_err(Self::Error::custom)?;
             return reread(arg, self.ctx.frameless(), Intercept::Full, |de| {
@@ -641,7 +633,7 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
         }
         let resolved = match substitute_params(source, &self.ctx).map_err(Self::Error::custom)? {
             std::borrow::Cow::Borrowed(source) => source,
-            std::borrow::Cow::Owned(resolved) => self.ctx.scratch.alloc(resolved),
+            std::borrow::Cow::Owned(resolved) => self.ctx.read.splice(resolved),
         };
         let mut de = ron_deserializer(resolved).map_err(Self::Error::custom)?;
         let value = de
@@ -662,7 +654,7 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
         // stand there: inside a macro body, or whenever some macro expands
         // to this struct.
         let interceptable = self.intercept == Intercept::Full
-            && (self.ctx.frame.is_some() || self.ctx.macros.expands_to_struct(name));
+            && (self.ctx.frame.is_some() || self.ctx.read.macros.expands_to_struct(name));
         if !interceptable {
             let wrapped = self.wrap(visitor);
             return self.de.deserialize_struct(name, fields, wrapped);
@@ -699,12 +691,11 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
 fn read_args<'de, A: VariantAccess<'de>>(
     variant: A,
     params: &Params,
-    scratch: &'de Scratch,
 ) -> Result<FrameArgs<'de>, A::Error> {
     use serde::de::Error;
 
-    struct RawArgs<'de>(&'de Scratch);
-    impl<'de> Visitor<'de> for RawArgs<'de> {
+    struct RawArgs;
+    impl<'de> Visitor<'de> for RawArgs {
         type Value = Vec<&'de str>;
 
         fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -713,15 +704,15 @@ fn read_args<'de, A: VariantAccess<'de>>(
 
         fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
             let mut args = Vec::new();
-            while let Some(raw) = seq.next_element::<Box<RawValue>>()? {
-                args.push(self.0.alloc_raw(&raw));
+            while let Some(raw) = seq.next_element::<&RawValue>()? {
+                args.push(raw.get_ron());
             }
             Ok(args)
         }
     }
 
-    struct NamedArgs<'de>(&'de Scratch);
-    impl<'de> Visitor<'de> for NamedArgs<'de> {
+    struct NamedArgs;
+    impl<'de> Visitor<'de> for NamedArgs {
         type Value = Vec<(Ident, &'de str)>;
 
         fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -731,8 +722,8 @@ fn read_args<'de, A: VariantAccess<'de>>(
         fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
             let mut args = Vec::new();
             while let Some(key) = map.next_key_seed(IdentSeed)? {
-                let raw: Box<RawValue> = map.next_value()?;
-                args.push((key, self.0.alloc_raw(&raw)));
+                let raw: &RawValue = map.next_value()?;
+                args.push((key, raw.get_ron()));
             }
             Ok(args)
         }
@@ -745,8 +736,8 @@ fn read_args<'de, A: VariantAccess<'de>>(
                     variant.unit_variant()?;
                     vec![]
                 }
-                1 => vec![scratch.alloc_raw(&variant.newtype_variant::<Box<RawValue>>()?)],
-                arity => variant.tuple_variant(arity, RawArgs(scratch))?,
+                1 => vec![variant.newtype_variant::<&RawValue>()?.get_ron()],
+                arity => variant.tuple_variant(arity, RawArgs)?,
             };
             if args.len() != types.len() {
                 return Err(A::Error::custom(format_args!(
@@ -758,7 +749,7 @@ fn read_args<'de, A: VariantAccess<'de>>(
             Ok(FrameArgs::Positional(args))
         }
         Params::Named(signature) => {
-            let args = variant.struct_variant(&[], NamedArgs(scratch))?;
+            let args = variant.struct_variant(&[], NamedArgs)?;
             for (i, (key, _)) in args.iter().enumerate() {
                 if !signature.contains_key(key) {
                     return Err(A::Error::custom(format_args!(
@@ -816,13 +807,13 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
         }
 
         // if not_a_real_variant(next_ident) { expand_macro(next_ident); try_again(); }
-        let def = self.ctx.macros.get(self.name, &ident).ok_or_else(|| {
+        let def = self.ctx.read.macros.get(self.name, &ident).ok_or_else(|| {
             A::Error::custom(format_args!(
                 "`{ident}` is neither a variant of `{0}` nor a known `{0}` macro",
                 self.name,
             ))
         })?;
-        let args = read_args(variant, &def.params, self.ctx.scratch)?;
+        let args = read_args(variant, &def.params)?;
         let frame = Frame { name: ident, args };
         let ctx = self.ctx.expansion(&frame).map_err(A::Error::custom)?;
         reread(def.body(), ctx, Intercept::Full, |de| {

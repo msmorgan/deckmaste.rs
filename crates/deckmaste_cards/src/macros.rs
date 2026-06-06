@@ -232,11 +232,35 @@ impl MacroSet {
         })
     }
 
+    /// Registers `def` under each of its kinds, overriding same-kind
+    /// entries already in scope. Layer-to-layer overriding is legal — last
+    /// plugin wins — so the caller is responsible for rejecting duplicates
+    /// *within* one layer.
+    pub(crate) fn replace(&mut self, def: &MacroDef) {
+        for &kind in &def.kinds {
+            self.macros
+                .entry(kind)
+                .or_default()
+                .insert(def.name, def.clone());
+        }
+    }
+
+    /// Like [`MacroSet::declare`], but overriding: see
+    /// [`MacroSet::replace`].
+    pub(crate) fn redeclare(&mut self, name: Ident, declaration: &str) {
+        self.replace(&MacroDef {
+            name,
+            kinds: vec![MacroKind::Subtype],
+            params: Params::default(),
+            body: declaration.trim().into(),
+        });
+    }
+
     /// Reads a RON document with these macros in scope: an identifier that
     /// isn't real at its position is expanded and the position re-read from
     /// the expansion.
     ///
-    /// `T` must be owned: expansions live in a scratch that drops when the
+    /// `T` must be owned: any text spliced during expansion drops when the
     /// read finishes.
     ///
     /// # Errors
@@ -244,15 +268,11 @@ impl MacroSet {
     /// the position's kind, malformed invocations, unresolvable `Param(...)`
     /// holes, and expansion cycles.
     pub fn read_str<T: DeserializeOwned>(&self, source: &str) -> ron::error::SpannedResult<T> {
-        let scratch = crate::expand::Scratch::default();
+        let read = crate::expand::ReadCtx::new(self);
         let mut deserializer =
             ron::de::Deserializer::from_str_with_options(source, &deckmaste_core::ron::options())?;
-        let value = T::deserialize(crate::expand::MacroAware::new(
-            &mut deserializer,
-            self,
-            &scratch,
-        ))
-        .map_err(|e| deserializer.span_error(e))?;
+        let value = T::deserialize(crate::expand::MacroAware::new(&mut deserializer, &read))
+            .map_err(|e| deserializer.span_error(e))?;
         deserializer.end().map_err(|e| deserializer.span_error(e))?;
         Ok(value)
     }
