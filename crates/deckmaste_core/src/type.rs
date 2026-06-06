@@ -19,3 +19,13 @@ pub enum Type {
     Sorcery,
     // Vanguard,
 }
+
+// CR 205.4a
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
+pub enum Supertype {
+    Basic,
+    Legendary,
+    Ongoing,
+    Snow,
+    World,
+}

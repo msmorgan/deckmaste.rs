@@ -1,7 +1,7 @@
 // CR 111.10b
 Token(
     types: [Artifact],
-    subtypes: [Artifact(Food)],
+    subtypes: [Food],
     abilities: [
         Activated(
             cost: [Mana([Generic(2)]), Tap, SacrificeThis],

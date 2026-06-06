@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow = { version = "1.0.102" }
+clap = { version = "4.6.1", features = ["derive"] }
 deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
 ron = "0.12.1"
 serde = { version = "1.0.228", features = ["derive"] }

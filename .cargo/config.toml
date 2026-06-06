@@ -1,4 +1,6 @@
 # `cargo migrate <plugin_dir> [migration_number]` -- always a release build:
 # parsing AllPrintings.json under the dev profile takes tens of seconds.
+# `cargo card <plugin_dir> <card_name>` shows a card's parsed expansion.
 [alias]
 migrate = "run --release -p deckmaste_migrations --"
+card = "run -p deckmaste_cards --"

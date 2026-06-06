@@ -3,6 +3,6 @@ Subtype(
     params: [String],
     subtype: Subtype(
         name: Param(0),
-        types: [Land],
+        types: [Battle],
     ),
 )

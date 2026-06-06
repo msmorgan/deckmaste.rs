@@ -1,39 +1,40 @@
 use serde::{Deserialize, Serialize};
 
 use crate::ability::Ability;
-use crate::{Color, Ident, ManaCost};
+use crate::{Color, ManaCost, Subtype, Supertype, Type};
 
-#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Default, Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub struct CardFace {
-    name: String,
+    pub name: String,
 
-    #[serde(skip_serializing_if = "ManaCost::is_empty")]
-    mana_cost: ManaCost,
+    #[serde(default, skip_serializing_if = "ManaCost::is_empty")]
+    pub mana_cost: ManaCost,
 
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    color_indicator: Vec<Color>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub color_indicator: Vec<Color>,
 
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    supertypes: Vec<Ident>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub supertypes: Vec<Supertype>,
 
-    types: Vec<Ident>,
+    pub types: Vec<Type>,
 
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    subtypes: Vec<Ident>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub subtypes: Vec<Subtype>,
 
-    abilities: Vec<Ability>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    power: Option<StatValue>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub abilities: Vec<Ability>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    toughness: Option<StatValue>,
+    pub power: Option<StatValue>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    loyalty: Option<StatValue>,
+    pub toughness: Option<StatValue>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    defense: Option<StatValue>,
+    pub loyalty: Option<StatValue>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub defense: Option<StatValue>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
@@ -44,8 +45,13 @@ pub enum Card {
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub enum StatValue {
-    DefinedByAbility, // Power or toughness set by a characteristic-defining ability.
-    Variable, // Loyalty set to X when cast.
+    // Power or toughness set by a characteristic-defining ability.
+    // Any power or toughness containing * is essentially reminder text.
+    DefinedByAbility,
+
+    // Loyalty set to X from casting cost.
+    Variable,
+
     #[serde(untagged)]
     Number(crate::Int),
 }

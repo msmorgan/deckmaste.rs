@@ -49,6 +49,7 @@ pub struct Navigation<'a> {
     #[serde(borrow)]
     pub next_rule: Option<DataStr<'a>>,
     #[serde(borrow)]
+    #[allow(unused)]
     pub previous_rule: Option<DataStr<'a>>,
 }
 

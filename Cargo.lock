@@ -135,6 +135,8 @@ dependencies = [
 name = "deckmaste_cards"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "clap",
  "deckmaste_core",
  "ron",
  "serde",
@@ -144,6 +146,7 @@ dependencies = [
 name = "deckmaste_core"
 version = "0.1.0"
 dependencies = [
+ "ron",
  "serde",
 ]
 

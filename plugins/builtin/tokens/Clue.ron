@@ -1,7 +1,7 @@
 // CR 111.10f
 Token(
     types: [Artifact],
-    subtypes: [Artifact(Clue)],
+    subtypes: [Clue],
     abilities: [
         Activated(
             cost: [Mana([Generic(2)]), SacrificeThis],

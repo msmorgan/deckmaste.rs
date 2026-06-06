@@ -1,8 +1,7 @@
 use std::sync::LazyLock;
 
 use anyhow::Context;
-use deckmaste_core::Card;
-use deckmaste_core::{Color, Ident, ManaCost};
+use deckmaste_core::{Card, Color, Ident, ManaCost};
 use regex::Regex;
 use serde::Serialize;
 

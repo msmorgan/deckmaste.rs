@@ -1,12 +1,14 @@
 // CR 115.4
-Selector(
+Target(
     params: [],
-    selector: Templated(
-        template: "any target",
-        selector: OneOf([
-            Permanent(Battle),
-            Permanent(Creature),
-            Permanent(Planeswalker),
+    target: Self(
+//    Templated(
+//        template: "any target",
+//        target:
+        OneOf([
+            PermanentOfType(Battle),
+            PermanentOfType(Creature),
+            PermanentOfType(Planeswalker),
             Player,
         ]),
     ),

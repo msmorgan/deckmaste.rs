@@ -4,18 +4,16 @@
 
 use serde::Serialize;
 
-/// Implicit Some keeps the optional fields unwrapped, and is a default
-/// extension so no `#![enable(...)]` header is emitted.
-pub(crate) fn ron_options() -> ron::Options {
-    ron::Options::default().with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME)
-}
+/// The shared config from [`deckmaste_core::ron`]: its extensions are
+/// defaults, so no `#![enable(...)]` header is emitted.
+pub(crate) fn ron_options() -> ron::Options { deckmaste_core::ron::options() }
 
 /// Multi-line text is written verbatim and arrays are chopped, one element
 /// per line. Tuple members (e.g. `Hybrid(...)` mana symbols) stay inline,
 /// the default.
 pub(crate) fn pretty_config() -> ron::ser::PrettyConfig {
     ron::ser::PrettyConfig::default()
-        .extensions(ron::extensions::Extensions::IMPLICIT_SOME)
+        .extensions(ron_options().default_extensions)
         .escape_strings(false)
 }
 

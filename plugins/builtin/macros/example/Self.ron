@@ -1,0 +1,4 @@
+Subtype(
+    params: [String],
+    subtype: Param(0),
+)

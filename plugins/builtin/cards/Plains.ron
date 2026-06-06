@@ -2,5 +2,5 @@ Normal(
     name: "Plains",
     supertypes: [Basic],
     types: [Land],
-    subtypes: [Land(Plains)],
+    subtypes: [Plains],
 )

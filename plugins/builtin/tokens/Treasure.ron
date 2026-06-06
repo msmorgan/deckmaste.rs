@@ -1,7 +1,7 @@
 // CR 111.10a
 Token(
     types: [Artifact],
-    subtypes: [Artifact(Treasure)],
+    subtypes: [Treasure],
     abilities: [
         Activated(
             cost: [Tap, SacrificeThis],
