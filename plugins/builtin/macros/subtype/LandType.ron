@@ -1,7 +1,9 @@
 // CR 205.3i
-Subtype(
+(
+    name: "LandType",
+    kinds: [Subtype],
     params: [String],
-    subtype: Subtype(
+    body: Subtype(
         name: Param(0),
         types: [Land],
     ),

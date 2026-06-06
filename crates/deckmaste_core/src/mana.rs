@@ -11,7 +11,7 @@ use crate::color::ColorOrColorless;
 ///
 /// The untagged Color variant serializes transparently, so the RON stays
 /// flat: `White`, not `Color(White)`.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum SimpleManaSymbol {
     Generic(crate::Uint),
     #[serde(untagged)]
@@ -19,6 +19,7 @@ pub enum SimpleManaSymbol {
 }
 
 impl SimpleManaSymbol {
+    #[must_use]
     pub fn color(&self) -> Option<Color> {
         match self {
             &Self::Specific(c) => c.color(),
@@ -41,7 +42,7 @@ impl From<crate::Uint> for SimpleManaSymbol {
 
 /// The untagged Simple variant serializes transparently, so the RON stays
 /// flat: `Generic(2)`, not `Simple(Generic(2))`.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum ManaSymbol {
     Variable,
     Snow,
@@ -63,12 +64,14 @@ impl From<crate::Uint> for ManaSymbol {
     fn from(amount: crate::Uint) -> Self { Self::Simple(amount.into()) }
 }
 
-#[derive(Default, Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct ManaCost(Vec<ManaSymbol>);
 
 impl ManaCost {
+    #[must_use]
     pub fn new(symbols: Vec<ManaSymbol>) -> Self { Self(symbols) }
+    #[must_use]
     pub fn is_empty(&self) -> bool { self.0.is_empty() }
 }
 
@@ -91,7 +94,7 @@ impl AsRef<[ManaSymbol]> for ManaCost {
 }
 
 /// The error type for [`ManaSymbol`] and [`ManaCost`]'s [`FromStr`] impls.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseManaError {
     symbol: String,
 }

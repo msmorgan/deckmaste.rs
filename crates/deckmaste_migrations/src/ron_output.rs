@@ -24,7 +24,7 @@ pub(crate) fn to_string_pretty<T: Serialize>(value: &T) -> Result<String, ron::E
 
 /// Serializes a single-element array on one line (`[Red]`); longer arrays
 /// fall through to the chopped pretty-printer. ron's config cannot express
-/// this, so the compact form is pre-rendered and embedded as a RawValue.
+/// this, so the compact form is pre-rendered and embedded as a `RawValue`.
 pub(crate) fn one_line_if_single<T: Serialize, S: serde::Serializer>(
     array: &[T],
     serializer: S,

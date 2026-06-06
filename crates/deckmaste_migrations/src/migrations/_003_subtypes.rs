@@ -2,13 +2,13 @@ pub(super) struct Subtypes;
 
 /// Filename for a subtype: capitalize the first character and strip
 /// non-alphanumerics, without splitting words (e.g. "Power-Plant" ->
-/// "PowerPlant", "Urza's" -> "Urzas").
+/// "`PowerPlant`", "Urza's" -> "Urzas").
 fn type_filename(name: &str) -> String {
     let mut chars = name.chars();
     chars
         .next()
         .into_iter()
-        .flat_map(|first| first.to_uppercase())
+        .flat_map(char::to_uppercase)
         .chain(chars)
         .filter(char::is_ascii_alphanumeric)
         .collect()

@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 use std::sync::{LazyLock, Mutex};
 
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 static POOL: LazyLock<Mutex<HashSet<&'static str>>> = LazyLock::new(Default::default);
@@ -9,25 +8,22 @@ static POOL: LazyLock<Mutex<HashSet<&'static str>>> = LazyLock::new(Default::def
 /// The dumbest possible string interner.
 fn intern(s: &str) -> &'static str {
     let mut pool = POOL.lock().unwrap();
-    pool.get(s).cloned().unwrap_or_else(|| {
+    pool.get(s).copied().unwrap_or_else(|| {
         let interned = Box::leak(s.into());
         pool.insert(interned);
         interned
     })
 }
 
-#[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Serialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize)]
 #[serde(transparent)]
 pub struct Ident(&'static str);
 
 impl Ident {
+    #[must_use]
     pub fn new(s: &str) -> Self { Self(intern(s)) }
+    #[must_use]
     pub fn as_str(&self) -> &'static str { self.0 }
-}
-
-// Transparent, like the serialization: `"Forest"`, not `Ident("Forest")`.
-impl std::fmt::Debug for Ident {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result { self.0.fmt(f) }
 }
 
 impl From<&str> for Ident {

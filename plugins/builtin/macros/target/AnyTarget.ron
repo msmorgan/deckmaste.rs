@@ -1,7 +1,9 @@
+/* @[deckmaste_cards::macros::MacroDef] */
 // CR 115.4
-Target(
-    params: [],
-    target: Self(
+(
+    name: "AnyTarget",
+    kinds: [Target],
+    body: Self(
 //    Templated(
 //        template: "any target",
 //        target:

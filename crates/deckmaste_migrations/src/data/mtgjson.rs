@@ -57,17 +57,23 @@ pub struct AtomicCard<'a> {
     pub loyalty: Option<DataStr<'a>>,
     #[serde(borrow, default)]
     pub defense: Option<DataStr<'a>>,
-    /// snake_case layout name, e.g. "normal", "modal_dfc".
+    /// `snake_case` layout name, e.g. "normal", "`modal_dfc`".
     #[serde(borrow)]
     pub layout: DataStr<'a>,
     #[serde(borrow)]
     pub legalities: Legalities<'a>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct Legalities<'a> {
     #[serde(borrow, default)]
     pub vintage: Option<DataStr<'a>>,
+}
+
+/// Reads the atomic cards file; parse with [`AtomicCards::parse`],
+/// which borrows from the returned bytes.
+pub fn atomic_cards_bytes() -> anyhow::Result<Vec<u8>> {
+    data::read_data("mtgjson/AtomicCards.json")
 }
 
 #[cfg(test)]
@@ -112,10 +118,4 @@ mod tests {
             Some("Flying\nProtection from \"quotes\"")
         );
     }
-}
-
-/// Reads the atomic cards file; parse with [`AtomicCards::parse`],
-/// which borrows from the returned bytes.
-pub fn atomic_cards_bytes() -> anyhow::Result<Vec<u8>> {
-    data::read_data("mtgjson/AtomicCards.json")
 }

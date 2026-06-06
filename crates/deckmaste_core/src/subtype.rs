@@ -9,7 +9,7 @@ use crate::{Ident, Type};
 /// Plain serde on both sides; card files reference declared subtypes by bare
 /// name (`Forest`), which the macro-aware reader expands to the full
 /// declaration before this type ever sees it.
-#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Subtype {
     pub name: Ident,
     pub types: Vec<Type>,

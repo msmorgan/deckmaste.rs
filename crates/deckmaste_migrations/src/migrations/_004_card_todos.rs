@@ -28,7 +28,7 @@ enum CardFile {
     },
 
     #[serde(untagged)]
-    Card(Card),
+    Card(Box<Card>),
 }
 
 #[derive(Serialize)]
@@ -91,7 +91,7 @@ fn to_filename(name: &str) -> String {
         .collect()
 }
 
-/// Uppercases the first character (ASCII only, like jq's ascii_upcase).
+/// Uppercases the first character (ASCII only, like jq's `ascii_upcase`).
 fn capitalize(text: &str) -> String {
     let mut chars = text.chars();
     match chars.next() {
@@ -299,15 +299,15 @@ mod tests {
     fn test_face(name: &str, vanilla: bool) -> CardFaceTodo {
         CardFaceTodo {
             name: name.to_owned(),
-            mana_cost: (!vanilla)
-                .then(|| {
-                    vec![
-                        ManaSymbol::Hybrid(2.into(), Color::White),
-                        ManaSymbol::Simple(Color::Green.into()),
-                    ]
-                    .into()
-                })
-                .unwrap_or_default(),
+            mana_cost: if vanilla {
+                ManaCost::default()
+            } else {
+                vec![
+                    ManaSymbol::Hybrid(2.into(), Color::White),
+                    ManaSymbol::Simple(Color::Green.into()),
+                ]
+                .into()
+            },
             color_indicator: vec![],
             supertypes: vec![],
             types: vec!["Creature".into()],

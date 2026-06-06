@@ -17,7 +17,7 @@ impl PluginLayout {
                 base.display()
             ));
         }
-        Ok(Self(base.to_owned()))
+        Ok(Self(base.clone()))
     }
 
     fn file(&self, path: &str) -> anyhow::Result<PathBuf> {

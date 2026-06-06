@@ -72,7 +72,7 @@ fn declared_subtypes_cover_the_basics() {
         );
 
         // Declared subtypes are nullary macros expanding to themselves.
-        let expanded: Subtype = plugin.macros.from_str(name).unwrap();
+        let expanded: Subtype = plugin.macros.read_str(name).unwrap();
         assert_eq!(Some(&expanded), plugin.subtypes.get(name));
     }
 }

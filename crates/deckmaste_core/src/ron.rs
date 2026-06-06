@@ -7,6 +7,7 @@
 /// `implicit_some` keeps `Option` fields flat, and `unwrap_variant_newtypes`
 /// is what lets files spell a struct-carrying variant flat —
 /// `Normal(name: ..., ...)` instead of `Normal((name: ...))`.
+#[must_use]
 pub fn options() -> ron::Options {
     ron::Options::default().with_default_extension(
         ron::extensions::Extensions::IMPLICIT_SOME

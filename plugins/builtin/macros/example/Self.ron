@@ -1,4 +1,7 @@
-Subtype(
+// The identity macro: expands to its argument, untouched.
+(
+    name: "Self",
+    kinds: [Subtype, Target],
     params: [String],
-    subtype: Param(0),
+    body: Param(0),
 )

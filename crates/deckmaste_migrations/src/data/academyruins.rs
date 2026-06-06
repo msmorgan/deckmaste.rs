@@ -12,29 +12,26 @@ pub(crate) fn normalize_quotes(text: &str) -> String {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Rule<'a> {
-    #[serde(borrow)]
-    pub rule_number: DataStr<'a>,
+    #[serde(borrow, rename = "ruleNumber")]
+    pub number: DataStr<'a>,
     #[serde(borrow, default, deserialize_with = "super::null_to_default")]
     pub examples: Vec<DataStr<'a>>,
-    #[serde(borrow)]
-    pub rule_text: DataStr<'a>,
+    #[serde(borrow, rename = "ruleText")]
+    pub text: DataStr<'a>,
     #[serde(borrow)]
     pub fragment: DataStr<'a>,
     #[serde(borrow)]
     pub navigation: Navigation<'a>,
 }
 
-impl<'a> Rule<'a> {
+impl Rule<'_> {
     /// Formats the rule like the cr.txt layout: numbered rules ("100.2") get
     /// a trailing dot; lettered subrules ("100.2a") do not. Examples follow
     /// on their own lines. Typographic quotes are normalized to ASCII.
     pub fn format(&self) -> String {
-        let separator = if self.rule_number.ends_with(|c: char| c.is_ascii_lowercase()) {
-            " "
-        } else {
-            ". "
-        };
-        let mut formatted = format!("{}{}{}", self.rule_number, separator, self.rule_text);
+        let separator =
+            if self.number.ends_with(|c: char| c.is_ascii_lowercase()) { " " } else { ". " };
+        let mut formatted = format!("{}{}{}", self.number, separator, self.text);
         for example in &self.examples {
             formatted.push_str("\nExample: ");
             formatted.push_str(example);
@@ -105,10 +102,9 @@ impl<'a> RulesMap<'a> {
         self.0
             .values()
             .find(|rule| {
-                rule.rule_number.starts_with(section_prefix)
-                    && rule.rule_text.to_lowercase() == keyword
+                rule.number.starts_with(section_prefix) && rule.text.to_lowercase() == keyword
             })
-            .map(|rule| rule.rule_number.as_str())
+            .map(|rule| rule.number.as_str())
     }
 }
 
@@ -127,9 +123,9 @@ mod tests {
     #[test]
     fn format_normalizes_quotes() {
         let rule = Rule {
-            rule_number: "702.9b".into(),
+            number: "702.9b".into(),
             examples: vec!["The ‘fox’ said “hi.”".into()],
-            rule_text:
+            text:
                 "A creature with flying can’t be blocked. (See rule 509, “Declare Blockers Step.”)"
                     .into(),
             fragment: "9b".into(),

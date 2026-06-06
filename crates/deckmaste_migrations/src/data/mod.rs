@@ -14,7 +14,7 @@ fn data_dir() -> PathBuf { PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..
 
 fn read_data(relative: &str) -> anyhow::Result<Vec<u8>> {
     let path = data_dir().join(relative);
-    std::fs::read(&path).with_context(|| format!("Failed to read file: {path:?}"))
+    std::fs::read(&path).with_context(|| format!(r#"Failed to read file: "{}""#, path.display()))
 }
 
 /// Deserializes an explicit JSON `null` as the type's default. The upstream
@@ -34,7 +34,7 @@ where
 /// `Cow<str>` behind `Option`/`Vec`/map keys always deserializes owned
 /// (serde's `#[serde(borrow)]` only rewires top-level `Cow` fields), so this
 /// wrapper carries the borrowing visitor everywhere it appears.
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DataStr<'a>(Cow<'a, str>);
 
 impl<'b: 'a, 'a> From<&'b str> for DataStr<'a> {

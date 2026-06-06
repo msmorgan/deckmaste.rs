@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// One of the five colors of Magic (CR 105.1). Colorless is not a color.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Color {
     White,
     Blue,
@@ -13,6 +13,7 @@ pub enum Color {
 impl Color {
     /// Maps the single-letter codes used by mana symbols and data sources
     /// like MTGJSON.
+    #[must_use]
     pub fn from_code(code: &str) -> Option<Self> {
         Some(match code {
             "W" => Color::White,
@@ -25,7 +26,7 @@ impl Color {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum ColorOrColorless {
     Colorless,
     #[serde(untagged)]
@@ -33,6 +34,7 @@ pub enum ColorOrColorless {
 }
 
 impl ColorOrColorless {
+    #[must_use]
     pub fn from_code(code: &str) -> Option<Self> {
         Some(match code {
             "C" => ColorOrColorless::Colorless,
@@ -40,10 +42,11 @@ impl ColorOrColorless {
         })
     }
 
+    #[must_use]
     pub fn color(&self) -> Option<Color> {
-        match self {
-            &Self::Colorless => None,
-            &Self::Color(color) => Some(color),
+        match *self {
+            Self::Colorless => None,
+            Self::Color(color) => Some(color),
         }
     }
 }

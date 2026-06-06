@@ -41,7 +41,7 @@ use serde::de::{
     Visitor,
 };
 
-use crate::macros::MacroSet;
+use crate::macros::{MacroSet, Params};
 
 /// Owns every string built while reading one document — captured fragments,
 /// resolved arguments — so they can be borrowed like the input is.
@@ -64,17 +64,58 @@ impl Scratch {
 }
 
 /// A macro expansion in flight: the invocation's arguments, which the body's
-/// `Param(n)` holes resolve against.
+/// `Param(...)` holes resolve against.
 struct Frame<'de> {
     /// The macro's name, for error messages.
     name: Ident,
-    /// Raw argument source, in invocation order.
-    args: Vec<&'de str>,
+    args: FrameArgs<'de>,
+}
+
+/// Invocation arguments, as raw source each, shaped like the signature.
+enum FrameArgs<'de> {
+    Positional(Vec<&'de str>),
+    Named(Vec<(Ident, &'de str)>),
+}
+
+/// What a `Param(...)` hole addresses: `Param(0)` or `Param(cost)`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+enum ParamKey {
+    #[serde(untagged)]
+    Index(usize),
+    #[serde(untagged)]
+    Name(Ident),
+}
+
+impl fmt::Display for ParamKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ParamKey::Index(index) => write!(f, "{index}"),
+            ParamKey::Name(name) => write!(f, "{name}"),
+        }
+    }
+}
+
+/// Classifies the content of a `Param(...)` hole: an index or a name.
+fn parse_param_key(content: &str) -> Option<ParamKey> {
+    let content = content.trim();
+    let bytes = content.as_bytes();
+    if bytes.is_empty() {
+        return None;
+    }
+    if bytes.iter().all(u8::is_ascii_digit) {
+        return content.parse().ok().map(ParamKey::Index);
+    }
+    let ident = !bytes[0].is_ascii_digit()
+        && bytes
+            .iter()
+            .all(|&b| b.is_ascii_alphanumeric() || b == b'_');
+    ident.then(|| ParamKey::Name(content.into()))
 }
 
 /// What every layer of the wrapper carries: the macros in scope, the scratch
 /// for mid-read strings, and the innermost expansion frame, if a macro body
 /// is being read.
+#[derive(Clone, Copy)]
 struct Ctx<'de, 'f> {
     macros: &'de MacroSet,
     scratch: &'de Scratch,
@@ -88,19 +129,20 @@ struct Ctx<'de, 'f> {
 /// error rather than run into a stack overflow.
 const MAX_DEPTH: usize = 64;
 
-impl<'de, 'f> Ctx<'de, 'f> {
-    /// Resolves `Param(index)` against the current frame.
-    fn param(&self, index: usize) -> Result<&'de str, String> {
+impl<'de> Ctx<'de, '_> {
+    /// Resolves a `Param(...)` hole against the current frame.
+    fn param(&self, key: ParamKey) -> Result<&'de str, String> {
         let frame = self
             .frame
-            .ok_or_else(|| format!("Param({index}) outside any macro expansion"))?;
-        frame.args.get(index).copied().ok_or_else(|| {
-            format!(
-                "macro `{}` takes {} arguments, so there is no Param({index})",
-                frame.name,
-                frame.args.len(),
-            )
-        })
+            .ok_or_else(|| format!("Param({key}) outside any macro expansion"))?;
+        let arg = match (&frame.args, key) {
+            (FrameArgs::Positional(args), ParamKey::Index(index)) => args.get(index).copied(),
+            (FrameArgs::Named(args), ParamKey::Name(name)) => {
+                args.iter().find(|(k, _)| *k == name).map(|(_, v)| *v)
+            }
+            _ => None,
+        };
+        arg.ok_or_else(|| format!("macro `{}` has no Param({key})", frame.name))
     }
 
     /// The context for reading an argument or expansion that isn't a body:
@@ -133,15 +175,9 @@ impl<'de, 'f> Ctx<'de, 'f> {
     }
 }
 
-// Derived Copy would require `Frame: Copy`; only the references are copied.
-impl Clone for Ctx<'_, '_> {
-    fn clone(&self) -> Self { *self }
-}
-impl Copy for Ctx<'_, '_> {}
-
 /// How much of the next value position may be intercepted. Applies for one
 /// level only — nested positions re-enable through the wrappers.
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum Intercept {
     /// Capture and check anywhere a hole or invocation could stand.
     Full,
@@ -270,12 +306,12 @@ fn substitute_params<'de>(
                 if &source[start..i] != "Param" {
                     continue;
                 }
-                // `Param ( digits )`, or it isn't a hole (e.g. a field name).
-                let Some((index, end)) = parse_call_index(source, i) else {
+                // `Param ( key )`, or it isn't a hole (e.g. a field name).
+                let Some((key, end)) = parse_call_key(source, i) else {
                     continue;
                 };
                 out.push_str(&source[copied..start]);
-                out.push_str(ctx.param(index)?);
+                out.push_str(ctx.param(key)?);
                 i = end;
                 copied = end;
             }
@@ -345,41 +381,33 @@ fn skip_block_comment(source: &str, start: usize) -> usize {
     i
 }
 
-/// For a `(` call opening at or after `at`: the enclosed integer and the
-/// index just past the closing parenthesis.
-fn parse_call_index(source: &str, at: usize) -> Option<(usize, usize)> {
+/// For a `(` call opening at or after `at`: the enclosed [`ParamKey`] and
+/// the index just past the closing parenthesis.
+fn parse_call_key(source: &str, at: usize) -> Option<(ParamKey, usize)> {
     let open = at + source[at..].len() - source[at..].trim_start().len();
     let rest = source[open..].strip_prefix('(')?.trim_start();
-    let digits = rest.len() - rest.trim_start_matches(|c: char| c.is_ascii_digit()).len();
-    let index: usize = rest[..digits].parse().ok()?;
-    let close = rest[digits..].trim_start().strip_prefix(')')?;
-    Some((index, source.len() - close.len()))
+    let token = rest.len()
+        - rest
+            .trim_start_matches(|c: char| c.is_ascii_alphanumeric() || c == '_')
+            .len();
+    let key = deckmaste_core::ron::options()
+        .from_str(&rest[..token])
+        .ok()?;
+    let close = rest[token..].trim_start().strip_prefix(')')?;
+    Some((key, source.len() - close.len()))
 }
 
-/// Parses the index out of a `Param(n)` source fragment.
-fn param_index<E: serde::de::Error>(source: &str) -> Result<usize, E> {
-    struct Index;
-    impl<'de> Visitor<'de> for Index {
-        type Value = usize;
-
-        fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            f.write_str("a Param(n) hole")
-        }
-
-        fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
-            let (_, variant) = data.variant_seed(IdentSeed)?;
-            variant.newtype_variant()
-        }
+/// Parses a whole `Param(...)` source fragment.
+fn param_key<E: serde::de::Error>(source: &str) -> Result<ParamKey, E> {
+    #[derive(Deserialize)]
+    enum Hole {
+        Param(ParamKey),
     }
 
-    let mut de =
-        ron::de::Deserializer::from_str_with_options(source, &deckmaste_core::ron::options())
-            .map_err(E::custom)?;
-    let index = de
-        .deserialize_enum("Param", &[], Index)
-        .map_err(|e| E::custom(de.span_error(e)))?;
-    de.end().map_err(|e| E::custom(de.span_error(e)))?;
-    Ok(index)
+    deckmaste_core::ron::options()
+        .from_str(source)
+        .map(|Hole::Param(key)| key)
+        .map_err(E::custom)
 }
 
 macro_rules! forward {
@@ -405,7 +433,7 @@ macro_rules! forward_or_param {
     };
 }
 
-impl<'de, 'f, D: Deserializer<'de>> MacroAware<'de, 'f, D> {
+impl<'de, D: Deserializer<'de>> MacroAware<'de, '_, D> {
     /// Captures the next value as source text; a `Param(n)` hole resolves to
     /// the current frame's argument, anything else re-reads as itself.
     fn via_capture<T>(
@@ -417,8 +445,8 @@ impl<'de, 'f, D: Deserializer<'de>> MacroAware<'de, 'f, D> {
             .scratch
             .alloc_raw(&Box::<RawValue>::deserialize(self.de)?);
         if leading_ident(source) == Some("Param") {
-            let index = param_index::<D::Error>(source)?;
-            let arg = self.ctx.param(index).map_err(D::Error::custom)?;
+            let key = param_key::<D::Error>(source)?;
+            let arg = self.ctx.param(key).map_err(D::Error::custom)?;
             reread(arg, self.ctx.frameless(), Intercept::Full, f)
         } else {
             reread(source, self.ctx, Intercept::Skip, f)
@@ -426,7 +454,7 @@ impl<'de, 'f, D: Deserializer<'de>> MacroAware<'de, 'f, D> {
     }
 }
 
-impl<'de, 'f, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, 'f, D> {
+impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
     type Error = D::Error;
 
     forward! {
@@ -459,8 +487,8 @@ impl<'de, 'f, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, 'f, D>
             .scratch
             .alloc_raw(&Box::<RawValue>::deserialize(self.de)?);
         if leading_ident(source) == Some("Param") {
-            let index = param_index::<Self::Error>(source)?;
-            let arg = self.ctx.param(index).map_err(Self::Error::custom)?;
+            let key = param_key::<Self::Error>(source)?;
+            let arg = self.ctx.param(key).map_err(Self::Error::custom)?;
             return reread(arg, self.ctx.frameless(), Intercept::Full, |de| {
                 de.deserialize_any(visitor)
             });
@@ -550,16 +578,15 @@ impl<'de, 'f, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, 'f, D>
             .alloc_raw(&Box::<RawValue>::deserialize(self.de)?);
         let leading = leading_ident(source);
         if leading == Some("Param") {
-            let index = param_index::<Self::Error>(source)?;
-            let arg = self.ctx.param(index).map_err(Self::Error::custom)?;
+            let key = param_key::<Self::Error>(source)?;
+            let arg = self.ctx.param(key).map_err(Self::Error::custom)?;
             return reread(arg, self.ctx.frameless(), Intercept::Full, |de| {
                 de.deserialize_struct(name, fields, visitor)
             });
         }
         match leading.and_then(|ident| self.ctx.macros.get(name, ident)) {
             Some(def) => {
-                let args =
-                    invocation_args::<Self::Error>(source, def.params.len(), self.ctx.scratch)?;
+                let args = invocation_args::<Self::Error>(source, &def.params, self.ctx.scratch)?;
                 let frame = Frame {
                     name: leading.expect("had a leading identifier").into(),
                     args,
@@ -599,12 +626,12 @@ impl<'de, 'f, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, 'f, D>
 /// Reads the arguments of the macro invocation `source`, as raw text each.
 fn invocation_args<'de, E: serde::de::Error>(
     source: &'de str,
-    arity: usize,
+    params: &Params,
     scratch: &'de Scratch,
-) -> Result<Vec<&'de str>, E> {
-    struct Args<'de>(usize, &'de Scratch);
-    impl<'de> Visitor<'de> for Args<'de> {
-        type Value = Vec<&'de str>;
+) -> Result<FrameArgs<'de>, E> {
+    struct Args<'a, 'de>(&'a Params, &'de Scratch);
+    impl<'de> Visitor<'de> for Args<'_, 'de> {
+        type Value = FrameArgs<'de>;
 
         fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
             f.write_str("a macro invocation")
@@ -620,18 +647,22 @@ fn invocation_args<'de, E: serde::de::Error>(
         ron::de::Deserializer::from_str_with_options(source, &deckmaste_core::ron::options())
             .map_err(E::custom)?;
     let args = de
-        .deserialize_enum("Macro", &[], Args(arity, scratch))
+        .deserialize_enum("Macro", &[], Args(params, scratch))
         .map_err(|e| E::custom(de.span_error(e)))?;
     de.end().map_err(|e| E::custom(de.span_error(e)))?;
     Ok(args)
 }
 
-/// Reads however many arguments the definition's signature says to expect.
+/// Reads the arguments the definition's signature says to expect: its shape
+/// decides between the positional call grammar (unit, newtype, or tuple by
+/// arity) and the named, struct-shaped one.
 fn read_args<'de, A: VariantAccess<'de>>(
     variant: A,
-    arity: usize,
+    params: &Params,
     scratch: &'de Scratch,
-) -> Result<Vec<&'de str>, A::Error> {
+) -> Result<FrameArgs<'de>, A::Error> {
+    use serde::de::Error;
+
     struct RawArgs<'de>(&'de Scratch);
     impl<'de> Visitor<'de> for RawArgs<'de> {
         type Value = Vec<&'de str>;
@@ -649,21 +680,63 @@ fn read_args<'de, A: VariantAccess<'de>>(
         }
     }
 
-    let args = match arity {
-        0 => {
-            variant.unit_variant()?;
-            vec![]
+    struct NamedArgs<'de>(&'de Scratch);
+    impl<'de> Visitor<'de> for NamedArgs<'de> {
+        type Value = Vec<(Ident, &'de str)>;
+
+        fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.write_str("named macro arguments")
         }
-        1 => vec![scratch.alloc_raw(&variant.newtype_variant::<Box<RawValue>>()?)],
-        arity => variant.tuple_variant(arity, RawArgs(scratch))?,
-    };
-    if args.len() != arity {
-        return Err(A::Error::custom(format_args!(
-            "expected {arity} macro arguments, got {}",
-            args.len(),
-        )));
+
+        fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+            let mut args = Vec::new();
+            while let Some(key) = map.next_key_seed(IdentSeed)? {
+                let raw: Box<RawValue> = map.next_value()?;
+                args.push((key, self.0.alloc_raw(&raw)));
+            }
+            Ok(args)
+        }
     }
-    Ok(args)
+
+    match params {
+        Params::Positional(types) => {
+            let args = match types.len() {
+                0 => {
+                    variant.unit_variant()?;
+                    vec![]
+                }
+                1 => vec![scratch.alloc_raw(&variant.newtype_variant::<Box<RawValue>>()?)],
+                arity => variant.tuple_variant(arity, RawArgs(scratch))?,
+            };
+            if args.len() != types.len() {
+                return Err(A::Error::custom(format_args!(
+                    "expected {} macro arguments, got {}",
+                    types.len(),
+                    args.len(),
+                )));
+            }
+            Ok(FrameArgs::Positional(args))
+        }
+        Params::Named(signature) => {
+            let args = variant.struct_variant(&[], NamedArgs(scratch))?;
+            for (key, _) in &args {
+                if !signature.contains_key(key) {
+                    return Err(A::Error::custom(format_args!(
+                        "`{key}` is not one of this macro's parameters",
+                    )));
+                }
+            }
+            let mut missing: Vec<&Ident> = signature
+                .keys()
+                .filter(|key| !args.iter().any(|(k, _)| k == *key))
+                .collect();
+            missing.sort_unstable_by_key(|key| key.as_str());
+            if let Some(key) = missing.first() {
+                return Err(A::Error::custom(format_args!("missing argument `{key}`")));
+            }
+            Ok(FrameArgs::Named(args))
+        }
+    }
 }
 
 /// The visitor for intercepted enum positions: known variants are forwarded,
@@ -683,8 +756,8 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
     fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
         let (ident, variant) = data.variant_seed(IdentSeed)?;
         if ident == "Param" {
-            let index: usize = variant.newtype_variant()?;
-            let arg = self.ctx.param(index).map_err(A::Error::custom)?;
+            let key = variant.newtype_variant::<ParamKey>()?;
+            let arg = self.ctx.param(key).map_err(A::Error::custom)?;
             return reread(arg, self.ctx.frameless(), Intercept::Full, |de| {
                 de.deserialize_enum(self.name, self.variants, self.visitor)
             });
@@ -704,7 +777,7 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
                 self.name,
             ))
         })?;
-        let args = read_args(variant, def.params.len(), self.ctx.scratch)?;
+        let args = read_args(variant, &def.params, self.ctx.scratch)?;
         let frame = Frame { name: ident, args };
         let ctx = self.ctx.expansion(&frame).map_err(A::Error::custom)?;
         reread(def.body(), ctx, Intercept::Full, |de| {

@@ -60,6 +60,16 @@ pub(super) fn create_keyword_todos<'r, 'data>(
 mod tests {
     use super::*;
 
+    /// The shape a written todo must round-trip back through.
+    #[derive(serde::Deserialize)]
+    enum Parsed {
+        Todo {
+            name: String,
+            template: String,
+            rules: Vec<String>,
+        },
+    }
+
     #[test]
     fn todo_serializes_with_one_rule_per_element() {
         let rules = vec![
@@ -90,14 +100,6 @@ Example: Someone scooped.",
         );
 
         // Everything must survive a round trip through the parser.
-        #[derive(serde::Deserialize)]
-        enum Parsed {
-            Todo {
-                name: String,
-                template: String,
-                rules: Vec<String>,
-            },
-        }
         let Parsed::Todo {
             name,
             template,

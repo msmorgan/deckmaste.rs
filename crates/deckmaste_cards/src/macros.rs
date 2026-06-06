@@ -1,32 +1,35 @@
 //! The plugin macro system: parameterized RON templates, defined in
-//! `plugins/*/macros/<kind>/<Name>.ron` and invoked by name elsewhere in the
-//! plugin (e.g. `plugins/*/types/land/Forest.ron` containing
-//! `LandType("Forest")`).
+//! `plugins/*/macros/**/*.ron` (the paths and file names are organizational
+//! only) and invoked by name where a value of one of their kinds is
+//! expected.
 //!
-//! A definition file is tagged with the kind of value it expands to, declares
-//! its parameter signature, and gives the expansion body with `Param(n)`
-//! holes (written exactly like that):
+//! A definition file is a bare struct naming the macro, the kinds of value
+//! it can expand to, its parameter signature, and the expansion body with
+//! `Param(...)` holes:
 //!
 //! ```ron
 //! // CR 205.3i
-//! Subtype(
+//! (
+//!     name: "LandType",
+//!     kinds: [Subtype],
 //!     params: [String],
-//!     subtype: Subtype(
+//!     body: Subtype(
 //!         name: Param(0),
 //!         types: [Land],
 //!     ),
 //! )
 //! ```
 //!
-//! The macro's name is the definition file's stem, not part of its contents.
+//! The signature's shape decides the invocation grammar: positional
+//! `params: [String]` is invoked `LandType("Forest")` with `Param(0)` holes,
+//! named `params: {"cost": String}` is invoked `Boast(cost: "{1}")` with
+//! `Param(cost)` holes.
 //!
 //! Bodies are raw RON source, read in place of the invocation with the
-//! invocation's arguments in scope: a `Param(n)` hole resolves, at whatever
-//! position it occupies, to the n-th argument's source text — see
-//! [`MacroSet::from_str`] and the [`crate::expand`] layer it drives. The
-//! macros don't know what they expand to; the parse position gives the
-//! result its meaning. Subtype declarations join the same namespace as
-//! nullary macros whose bodies are the declaration source, verbatim.
+//! invocation's arguments in scope — see [`MacroSet::read_str`] and the
+//! [`crate::expand`] layer it drives. Subtype declarations join the same
+//! namespace as nullary macros whose bodies are the declaration source,
+//! verbatim.
 
 use std::collections::HashMap;
 use std::fmt;
@@ -34,59 +37,117 @@ use std::fmt;
 use deckmaste_core::Ident;
 use ron::value::RawValue;
 use serde::Deserialize;
-use serde::de::DeserializeOwned;
+use serde::de::{DeserializeOwned, Deserializer, MapAccess, SeqAccess, Visitor};
 
-/// The declared type of one macro parameter. Only arity is checked today.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Deserialize)]
+/// The kinds of value a macro can expand to: the types whose parse positions
+/// consult the macro namespace. Variant names must match the Rust types'
+/// serde names.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+pub enum MacroKind {
+    Ability,
+    CardFace,
+    Subtype,
+    Target,
+}
+
+impl MacroKind {
+    /// The kind a position with this (serde) type name checks, if any.
+    #[must_use]
+    pub fn from_position(name: &str) -> Option<Self> {
+        Some(match name {
+            "Ability" => MacroKind::Ability,
+            "CardFace" => MacroKind::CardFace,
+            "Subtype" => MacroKind::Subtype,
+            "Target" => MacroKind::Target,
+            _ => return None,
+        })
+    }
+}
+
+impl fmt::Display for MacroKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "{self:?}") }
+}
+
+/// The declared type of one macro parameter. Only the signature's shape and
+/// arity are checked today.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 pub enum ParamType {
     String,
 }
 
-/// A macro definition file, tagged by the kind of value it expands to.
-#[derive(Debug, Deserialize)]
-pub enum MacroFile {
-    Subtype {
-        params: Vec<ParamType>,
-        subtype: Box<RawValue>,
-    },
-    Target {
-        params: Vec<ParamType>,
-        target: Box<RawValue>,
-    },
+/// A macro's parameter signature, whose shape decides the invocation
+/// grammar: positional (`M(a, b)`, holes `Param(0)`) or named
+/// (`M(x: a, y: b)`, holes `Param(x)`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Params {
+    Positional(Vec<ParamType>),
+    // ParamType currently has one variant, hence zero-sized; more are coming.
+    #[expect(clippy::zero_sized_map_values)]
+    Named(HashMap<Ident, ParamType>),
 }
 
-/// A loaded macro: its signature and raw RON body with `Param(n)` holes.
-#[derive(Debug, Clone)]
-pub struct MacroDef {
-    /// The kind tag, which is also the name of the type the body expands to.
-    pub kind: Ident,
-    pub params: Vec<ParamType>,
-    body: Box<str>,
+impl Default for Params {
+    fn default() -> Self { Params::Positional(vec![]) }
 }
 
-impl From<MacroFile> for MacroDef {
-    fn from(file: MacroFile) -> Self {
-        let (kind, params, body) = match file {
-            MacroFile::Subtype { params, subtype } => ("Subtype", params, subtype),
-            MacroFile::Target { params, target } => ("Target", params, target),
-        };
-        MacroDef {
-            kind: kind.into(),
-            params,
-            body: body.get_ron().trim().into(),
+impl<'de> Deserialize<'de> for Params {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct ShapeVisitor;
+        impl<'de> Visitor<'de> for ShapeVisitor {
+            type Value = Params;
+
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str("a parameter list or a name-to-type map")
+            }
+
+            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+                let mut params = Vec::new();
+                while let Some(param) = seq.next_element()? {
+                    params.push(param);
+                }
+                Ok(Params::Positional(params))
+            }
+
+            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+                let mut params = HashMap::new();
+                while let Some((name, param)) = map.next_entry()? {
+                    params.insert(name, param);
+                }
+                Ok(Params::Named(params))
+            }
         }
+
+        deserializer.deserialize_any(ShapeVisitor)
     }
 }
 
+/// A macro: self-describing, matching its definition file.
+#[derive(Debug, Clone, Deserialize)]
+pub struct MacroDef {
+    pub name: Ident,
+    pub kinds: Vec<MacroKind>,
+    #[serde(default)]
+    pub params: Params,
+    /// Raw RON source with `Param(...)` holes.
+    #[serde(deserialize_with = "raw_body")]
+    body: Box<str>,
+}
+
+fn raw_body<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Box<str>, D::Error> {
+    let raw = Box::<RawValue>::deserialize(deserializer)?;
+    Ok(raw.get_ron().trim().into())
+}
+
 impl MacroDef {
+    #[must_use]
     pub fn body(&self) -> &str { &self.body }
 }
 
 /// Two macros (or subtype declarations) of one kind tried to use the same
 /// name.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DuplicateMacro {
-    pub kind: Ident,
+    pub kind: MacroKind,
     pub name: Ident,
 }
 
@@ -104,50 +165,68 @@ impl std::error::Error for DuplicateMacro {}
 
 /// The macros in scope, keyed by name.
 ///
-/// This is the entry point for macro-aware reading: [`MacroSet::from_str`]
+/// This is the entry point for macro-aware reading: [`MacroSet::read_str`]
 /// parses a RON document, expanding macro invocations wherever they stand in
 /// for a real value.
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct MacroSet {
-    /// Macros namespaced by their kind — the name of the type they expand
-    /// to. A macro is only visible at positions of that type, so kinds can
-    /// reuse names.
-    macros: HashMap<Ident, HashMap<Ident, MacroDef>>,
+    /// Macros namespaced by kind — a macro is only visible at positions of
+    /// the types it expands to, so kinds can reuse names.
+    macros: HashMap<MacroKind, HashMap<Ident, MacroDef>>,
 }
 
 impl MacroSet {
-    /// The macro `name` expanding to the type named `kind`, if defined.
+    /// The macro `name` for positions of the type named `kind`, if defined.
+    #[must_use]
     pub fn get(&self, kind: &str, name: &str) -> Option<&MacroDef> {
-        self.macros.get(kind)?.get(name)
+        self.macros.get(&MacroKind::from_position(kind)?)?.get(name)
     }
 
-    pub fn insert(&mut self, name: Ident, def: MacroDef) -> Result<(), DuplicateMacro> {
-        let kind = def.kind;
-        match self.macros.entry(kind).or_default().entry(name) {
-            std::collections::hash_map::Entry::Occupied(_) => Err(DuplicateMacro { kind, name }),
-            std::collections::hash_map::Entry::Vacant(entry) => {
-                entry.insert(def);
-                Ok(())
+    /// Registers `def` under each of its kinds.
+    ///
+    /// # Errors
+    /// If any of those kinds already has a macro with `def`'s name.
+    pub fn insert(&mut self, def: &MacroDef) -> Result<(), DuplicateMacro> {
+        for &kind in &def.kinds {
+            if self
+                .macros
+                .get(&kind)
+                .is_some_and(|named| named.contains_key(&def.name))
+            {
+                return Err(DuplicateMacro {
+                    kind,
+                    name: def.name,
+                });
             }
         }
+        for &kind in &def.kinds {
+            self.macros
+                .entry(kind)
+                .or_default()
+                .insert(def.name, def.clone());
+        }
+        Ok(())
     }
 
     /// Whether some macro expands to the struct named `name`, i.e. whether
     /// that parse position needs macro interception.
-    pub(crate) fn expands_to_struct(&self, name: &str) -> bool { self.macros.contains_key(name) }
+    pub(crate) fn expands_to_struct(&self, name: &str) -> bool {
+        MacroKind::from_position(name).is_some_and(|kind| self.macros.contains_key(&kind))
+    }
 
     /// Declares a subtype as a nullary macro whose body is the declaration
     /// source, verbatim: once `Forest.ron` declares `LandType("Forest")`, a
     /// bare `Forest` re-reads that invocation.
+    ///
+    /// # Errors
+    /// If a Subtype macro named `name` already exists.
     pub fn declare(&mut self, name: Ident, declaration: &str) -> Result<(), DuplicateMacro> {
-        self.insert(
+        self.insert(&MacroDef {
             name,
-            MacroDef {
-                kind: "Subtype".into(),
-                params: vec![],
-                body: declaration.trim().into(),
-            },
-        )
+            kinds: vec![MacroKind::Subtype],
+            params: Params::default(),
+            body: declaration.trim().into(),
+        })
     }
 
     /// Reads a RON document with these macros in scope: an identifier that
@@ -156,7 +235,12 @@ impl MacroSet {
     ///
     /// `T` must be owned: expansions live in a scratch that drops when the
     /// read finishes.
-    pub fn from_str<T: DeserializeOwned>(&self, source: &str) -> ron::error::SpannedResult<T> {
+    ///
+    /// # Errors
+    /// On RON syntax errors, names that are neither variants nor macros of
+    /// the position's kind, malformed invocations, unresolvable `Param(...)`
+    /// holes, and expansion cycles.
+    pub fn read_str<T: DeserializeOwned>(&self, source: &str) -> ron::error::SpannedResult<T> {
         let scratch = crate::expand::Scratch::default();
         let mut deserializer =
             ron::de::Deserializer::from_str_with_options(source, &deckmaste_core::ron::options())?;
@@ -171,12 +255,12 @@ impl MacroSet {
     }
 }
 
-impl FromIterator<(Ident, MacroDef)> for MacroSet {
+impl FromIterator<MacroDef> for MacroSet {
     /// Panics on duplicate names; use [`MacroSet::insert`] to handle them.
-    fn from_iter<I: IntoIterator<Item = (Ident, MacroDef)>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = MacroDef>>(iter: I) -> Self {
         let mut set = Self::default();
-        for (name, def) in iter {
-            set.insert(name, def).expect("duplicate macro name");
+        for def in iter {
+            set.insert(&def).expect("duplicate macro name");
         }
         set
     }
@@ -184,24 +268,34 @@ impl FromIterator<(Ident, MacroDef)> for MacroSet {
 
 #[cfg(test)]
 mod tests {
-    use deckmaste_core::{Ability, Subtype, Type};
+    use deckmaste_core::{Ability, Subtype, Target, Type};
 
     use super::*;
 
+    fn subtype_macro(name: &str, params: Vec<ParamType>, body: &str) -> MacroDef {
+        MacroDef {
+            name: name.into(),
+            kinds: vec![MacroKind::Subtype],
+            params: Params::Positional(params),
+            body: body.trim().into(),
+        }
+    }
+
     fn land_type() -> MacroDef {
         deckmaste_core::ron::options()
-            .from_str::<MacroFile>(
-                "// CR 205.3i
-                Subtype(
+            .from_str::<MacroDef>(
+                r#"// CR 205.3i
+                (
+                    name: "LandType",
+                    kinds: [Subtype],
                     params: [String],
-                    subtype: Subtype(
+                    body: Subtype(
                         name: Param(0),
                         types: [Land],
                     ),
-                )",
+                )"#,
             )
             .unwrap()
-            .into()
     }
 
     fn forest() -> Subtype {
@@ -211,18 +305,27 @@ mod tests {
         }
     }
 
-    fn macros() -> MacroSet { [("LandType".into(), land_type())].into_iter().collect() }
+    fn macros() -> MacroSet { [land_type()].into_iter().collect() }
+
+    #[test]
+    fn definition_files_are_self_describing() {
+        let def = land_type();
+        assert_eq!(def.name, "LandType");
+        assert_eq!(def.kinds, [MacroKind::Subtype]);
+        assert_eq!(def.params, Params::Positional(vec![ParamType::String]));
+        assert!(def.body().starts_with("Subtype("), "{}", def.body());
+    }
 
     #[test]
     fn invocations_read_as_the_expansion() {
-        let subtype: Subtype = macros().from_str(r#"LandType("Forest")"#).unwrap();
+        let subtype: Subtype = macros().read_str(r#"LandType("Forest")"#).unwrap();
         assert_eq!(subtype, forest());
     }
 
     #[test]
     fn plain_values_still_read() {
         let subtype: Subtype = macros()
-            .from_str(r#"Subtype(name: "Forest", types: [Land])"#)
+            .read_str(r#"Subtype(name: "Forest", types: [Land])"#)
             .unwrap();
         assert_eq!(subtype, forest());
     }
@@ -233,7 +336,7 @@ mod tests {
         macros
             .declare("Forest".into(), r#"LandType("Forest")"#)
             .unwrap();
-        let subtype: Subtype = macros.from_str("Forest").unwrap();
+        let subtype: Subtype = macros.read_str("Forest").unwrap();
         assert_eq!(subtype, forest());
     }
 
@@ -241,7 +344,7 @@ mod tests {
     fn unknown_names_are_an_error() {
         assert!(
             macros()
-                .from_str::<Subtype>(r#"IslandType("Tropical")"#)
+                .read_str::<Subtype>(r#"IslandType("Tropical")"#)
                 .is_err()
         );
     }
@@ -250,7 +353,7 @@ mod tests {
     fn wrong_arity_is_an_error() {
         for call in ["LandType", r#"LandType("Forest", "Island")"#] {
             assert!(
-                macros().from_str::<Subtype>(call).is_err(),
+                macros().read_str::<Subtype>(call).is_err(),
                 "{call} should not expand",
             );
         }
@@ -262,17 +365,14 @@ mod tests {
         // its expansion is read where the invocation stood.
         let mut macros = MacroSet::default();
         macros
-            .insert(
-                "Flying".into(),
-                MacroDef {
-                    kind: "Ability".into(),
-                    params: vec![],
-                    body: r#"Keyword(keyword: "Flying", expanded: (params: [], value: Static))"#
-                        .into(),
-                },
-            )
+            .insert(&MacroDef {
+                name: "Flying".into(),
+                kinds: vec![MacroKind::Ability],
+                params: Params::default(),
+                body: r#"Keyword(keyword: "Flying", expanded: (params: [], value: Static))"#.into(),
+            })
             .unwrap();
-        let ability: Ability = macros.from_str("Flying").unwrap();
+        let ability: Ability = macros.read_str("Flying").unwrap();
         let Ability::Keyword(keyword) = ability else {
             panic!("expected a keyword ability, got {ability:?}");
         };
@@ -288,18 +388,18 @@ mod tests {
             .declare("Forest".into(), r#"LandType("Forest")"#)
             .unwrap();
         macros.declare("Woods".into(), "Forest").unwrap();
-        let subtype: Subtype = macros.from_str("Woods").unwrap();
+        let subtype: Subtype = macros.read_str("Woods").unwrap();
         assert_eq!(subtype, forest());
     }
 
     #[test]
     fn duplicate_names_are_an_error() {
         let duplicate = Err(DuplicateMacro {
-            kind: "Subtype".into(),
+            kind: MacroKind::Subtype,
             name: "LandType".into(),
         });
         let mut macros = macros();
-        assert_eq!(macros.insert("LandType".into(), land_type()), duplicate);
+        assert_eq!(macros.insert(&land_type()), duplicate);
         assert_eq!(macros.declare("LandType".into(), "Forest"), duplicate);
     }
 
@@ -310,7 +410,7 @@ mod tests {
         macros.declare("Ping".into(), "Pong").unwrap();
         macros.declare("Pong".into(), "Ping").unwrap();
         for cycle in ["Ouroboros", "Ping"] {
-            let error = macros.from_str::<Subtype>(cycle).unwrap_err();
+            let error = macros.read_str::<Subtype>(cycle).unwrap_err();
             assert!(
                 error.to_string().contains("macros don't recurse"),
                 "unexpected error: {error}"
@@ -320,27 +420,23 @@ mod tests {
 
     #[test]
     fn macros_are_namespaced_by_kind() {
-        // The same name can mean different things for different kinds, and
-        // each is only visible at positions of its own kind.
+        // One macro can serve several kinds, and is only visible at
+        // positions of those kinds.
         let mut macros = MacroSet::default();
-        for kind in ["Subtype", "Target"] {
-            macros
-                .insert(
-                    "Self".into(),
-                    MacroDef {
-                        kind: kind.into(),
-                        params: vec![ParamType::String],
-                        body: "Param(0)".into(),
-                    },
-                )
-                .unwrap();
-        }
+        macros
+            .insert(&MacroDef {
+                name: "Self".into(),
+                kinds: vec![MacroKind::Subtype, MacroKind::Target],
+                params: Params::Positional(vec![ParamType::String]),
+                body: "Param(0)".into(),
+            })
+            .unwrap();
 
-        let target: deckmaste_core::Target = macros.from_str("Self(Player)").unwrap();
-        assert_eq!(target, deckmaste_core::Target::Player);
+        let target: Target = macros.read_str("Self(Player)").unwrap();
+        assert_eq!(target, Target::Player);
 
-        // A Target macro is invisible at an Ability position.
-        let error = macros.from_str::<Ability>("Self(Static)").unwrap_err();
+        // The macro is invisible at an Ability position.
+        let error = macros.read_str::<Ability>("Self(Static)").unwrap_err();
         assert!(
             error
                 .to_string()
@@ -353,16 +449,13 @@ mod tests {
     fn params_resolve_at_enum_positions() {
         let mut macros = macros();
         macros
-            .insert(
-                "WithType".into(),
-                MacroDef {
-                    kind: "Subtype".into(),
-                    params: vec![ParamType::String],
-                    body: r#"Subtype(name: "Forest", types: [Param(0)])"#.into(),
-                },
-            )
+            .insert(&subtype_macro(
+                "WithType",
+                vec![ParamType::String],
+                r#"Subtype(name: "Forest", types: [Param(0)])"#,
+            ))
             .unwrap();
-        let subtype: Subtype = macros.from_str("WithType(Land)").unwrap();
+        let subtype: Subtype = macros.read_str("WithType(Land)").unwrap();
         assert_eq!(subtype, forest());
     }
 
@@ -370,17 +463,79 @@ mod tests {
     fn params_resolve_per_argument() {
         let mut macros = macros();
         macros
-            .insert(
-                "Pair".into(),
-                MacroDef {
-                    kind: "Subtype".into(),
-                    params: vec![ParamType::String, ParamType::String],
-                    body: "Subtype(name: Param(0), types: [Param(1)])".into(),
-                },
-            )
+            .insert(&subtype_macro(
+                "Pair",
+                vec![ParamType::String, ParamType::String],
+                "Subtype(name: Param(0), types: [Param(1)])",
+            ))
             .unwrap();
-        let subtype: Subtype = macros.from_str(r#"Pair("Forest", Land)"#).unwrap();
+        let subtype: Subtype = macros.read_str(r#"Pair("Forest", Land)"#).unwrap();
         assert_eq!(subtype, forest());
+    }
+
+    #[test]
+    fn named_parameters_invoke_struct_shaped() {
+        use deckmaste_core::{CardFace, ManaSymbol, SimpleManaSymbol};
+
+        let mut macros = MacroSet::default();
+        macros
+            .insert(&MacroDef {
+                name: "Vanilla".into(),
+                kinds: vec![MacroKind::CardFace],
+                params: Params::Named(
+                    [
+                        ("name".into(), ParamType::String),
+                        ("cost".into(), ParamType::String),
+                    ]
+                    .into(),
+                ),
+                body: r"CardFace(
+                    name: Param(name),
+                    mana_cost: [Generic(Param(cost))],
+                    types: [Creature],
+                )"
+                .into(),
+            })
+            .unwrap();
+
+        let face: CardFace = macros
+            .read_str(r#"Vanilla(name: "Bear", cost: 2)"#)
+            .unwrap();
+        assert_eq!(face.name, "Bear");
+        assert_eq!(
+            Vec::from(face.mana_cost),
+            vec![ManaSymbol::Simple(SimpleManaSymbol::Generic(2))]
+        );
+
+        // Wrong argument names are errors, both ways.
+        for call in [
+            r#"Vanilla(name: "Bear")"#,
+            r#"Vanilla(name: "Bear", cost: 2, power: 2)"#,
+        ] {
+            assert!(
+                macros.read_str::<CardFace>(call).is_err(),
+                "{call} should not expand",
+            );
+        }
+    }
+
+    #[test]
+    fn named_parameters_at_enum_positions() {
+        let mut macros = MacroSet::default();
+        macros
+            .insert(&MacroDef {
+                name: "Boast".into(),
+                kinds: vec![MacroKind::Ability],
+                params: Params::Named([("cost".into(), ParamType::String)].into()),
+                body: r"Keyword(keyword: Param(cost), expanded: (params: [], value: Static))"
+                    .into(),
+            })
+            .unwrap();
+        let ability: Ability = macros.read_str(r#"Boast(cost: "{1}")"#).unwrap();
+        let Ability::Keyword(keyword) = ability else {
+            panic!("expected a keyword ability, got {ability:?}");
+        };
+        assert_eq!(keyword.keyword, "{1}");
     }
 
     #[test]
@@ -389,16 +544,13 @@ mod tests {
         // appear verbatim inside body strings.
         let mut macros = macros();
         macros
-            .insert(
-                "Weird".into(),
-                MacroDef {
-                    kind: "Subtype".into(),
-                    params: vec![],
-                    body: r#"Subtype(name: "literally Param(0)", types: [Land])"#.into(),
-                },
-            )
+            .insert(&subtype_macro(
+                "Weird",
+                vec![],
+                r#"Subtype(name: "literally Param(0)", types: [Land])"#,
+            ))
             .unwrap();
-        let subtype: Subtype = macros.from_str("Weird").unwrap();
+        let subtype: Subtype = macros.read_str("Weird").unwrap();
         assert_eq!(subtype.name, "literally Param(0)");
     }
 
@@ -406,17 +558,14 @@ mod tests {
     fn out_of_range_params_are_an_error() {
         let mut macros = macros();
         macros
-            .insert(
-                "OffByOne".into(),
-                MacroDef {
-                    kind: "Subtype".into(),
-                    params: vec![ParamType::String],
-                    body: "Subtype(name: Param(1), types: [Land])".into(),
-                },
-            )
+            .insert(&subtype_macro(
+                "OffByOne",
+                vec![ParamType::String],
+                "Subtype(name: Param(1), types: [Land])",
+            ))
             .unwrap();
         let error = macros
-            .from_str::<Subtype>(r#"OffByOne("Forest")"#)
+            .read_str::<Subtype>(r#"OffByOne("Forest")"#)
             .unwrap_err();
         assert!(
             error.to_string().contains("no Param(1)"),
@@ -426,7 +575,7 @@ mod tests {
 
     #[test]
     fn params_outside_macros_are_an_error() {
-        let error = macros().from_str::<Subtype>("Param(0)").unwrap_err();
+        let error = macros().read_str::<Subtype>("Param(0)").unwrap_err();
         assert!(
             error.to_string().contains("outside any macro expansion"),
             "unexpected error: {error}"
@@ -442,21 +591,19 @@ mod tests {
         // `cost: [Mana(Generic(Param(0)))]` down the road.
         let mut macros = MacroSet::default();
         macros
-            .insert(
-                "Vanilla".into(),
-                MacroDef {
-                    kind: "CardFace".into(),
-                    params: vec![ParamType::String, ParamType::String],
-                    body: r#"CardFace(
+            .insert(&MacroDef {
+                name: "Vanilla".into(),
+                kinds: vec![MacroKind::CardFace],
+                params: Params::Positional(vec![ParamType::String, ParamType::String]),
+                body: r"CardFace(
                     name: Param(0),
                     mana_cost: [Hybrid(Generic(Param(1)), White), Green],
                     types: [Creature],
-                )"#
-                    .into(),
-                },
-            )
+                )"
+                .into(),
+            })
             .unwrap();
-        let face: CardFace = macros.from_str(r#"Vanilla("Bear", 2)"#).unwrap();
+        let face: CardFace = macros.read_str(r#"Vanilla("Bear", 2)"#).unwrap();
         assert_eq!(face.name, "Bear");
         assert_eq!(
             Vec::from(face.mana_cost),

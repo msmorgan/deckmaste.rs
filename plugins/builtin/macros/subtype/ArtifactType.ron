@@ -1,7 +1,9 @@
 // CR 205.3g
-Subtype(
+(
+    name: "ArtifactType",
+    kinds: [Subtype],
     params: [String],
-    subtype: Subtype(
+    body: Subtype(
         name: Param(0),
         types: [Artifact],
     ),

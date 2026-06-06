@@ -1,7 +1,9 @@
 // CR 205.3q
-Subtype(
+(
+    name: "BattleType",
+    kinds: [Subtype],
     params: [String],
-    subtype: Subtype(
+    body: Subtype(
         name: Param(0),
         types: [Battle],
     ),

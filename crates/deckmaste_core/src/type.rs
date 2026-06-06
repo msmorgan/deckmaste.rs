@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 // CR 300.1
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Type {
     Artifact,
     Battle,
@@ -21,7 +21,7 @@ pub enum Type {
 }
 
 // CR 205.4a
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Supertype {
     Basic,
     Legendary,

@@ -57,7 +57,7 @@ pub fn apply(plugin_dir: &Path, migration_number: usize) -> anyhow::Result<()> {
 }
 
 /// Converts a keyword ability name to a Rust identifier, e.g.
-/// "Cumulative upkeep" -> "CumulativeUpkeep", "Jump-start" -> "JumpStart".
+/// "Cumulative upkeep" -> "`CumulativeUpkeep`", "Jump-start" -> "`JumpStart`".
 fn to_rust_ident(name: &str) -> String {
     static SPLIT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[\s|-]+").unwrap());
 
@@ -68,7 +68,7 @@ fn to_rust_ident(name: &str) -> String {
             chars
                 .next()
                 .into_iter()
-                .flat_map(|first| first.to_uppercase())
+                .flat_map(char::to_uppercase)
                 .chain(chars)
         })
         .filter(char::is_ascii_alphanumeric)

@@ -5,10 +5,18 @@ members = [
     "crates/deckmaste_migrations",
 ]
 
+# Strict linting for the whole workspace; crates opt in with
+# `[lints] workspace = true`.
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+
 [package]
 name = "deckmaste"
 version = "0.1.0"
 edition = "2024"
+
+[lints]
+workspace = true
 
 [dependencies]
 ron = "0.12.1"
