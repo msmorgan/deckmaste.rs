@@ -31,6 +31,9 @@ pub use symbol::Symbol;
 
 pub mod ron;
 
+mod selection;
+pub use selection::Selection;
+
 mod r#type;
 pub use r#type::{Supertype, Type};
 
