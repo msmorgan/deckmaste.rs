@@ -28,6 +28,9 @@ pub mod ron;
 mod r#type;
 pub use r#type::{Supertype, Type};
 
+mod zone;
+pub use zone::Zone;
+
 /// The unsigned integer type for game quantities that can't be negative
 /// (generic mana amounts, counters, deck counts).
 pub type Uint = u32;
