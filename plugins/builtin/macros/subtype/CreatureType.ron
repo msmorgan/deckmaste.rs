@@ -1,0 +1,8 @@
+// CR 205.3m
+Subtype(
+    params: [String],
+    subtype: Subtype(
+        name: Param(0),
+        types: [Creature, Kindred],
+    ),
+)

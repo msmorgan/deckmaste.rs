@@ -1,9 +1,9 @@
 use serde::Deserialize;
-use crate::data;
+
 use super::DataStr;
 
 /// A scryfall catalog: a named list of strings. Only the list is modeled.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub(crate) struct Catalog<'a> {
     #[serde(borrow)]
     pub data: Vec<DataStr<'a>>,

@@ -1,11 +1,14 @@
 use std::sync::LazyLock;
 
-use deckmaste_core::{Color, ManaCost};
+use anyhow::Context;
+use deckmaste_core::Card;
+use deckmaste_core::{Color, Ident, ManaCost};
 use regex::Regex;
 use serde::Serialize;
 
 use crate::data::DataStr;
 use crate::data::mtgjson::AtomicCard;
+use crate::ron_output::{one_line_if_single, to_string_pretty};
 
 /// Numbers serialize untagged (`power: 2`); anything else keeps its tag
 /// (`power: Other("*")`). Untagged variants must come last in the enum.
@@ -21,41 +24,44 @@ enum Stat {
 #[derive(Serialize)]
 enum CardFile {
     Todo {
-        layout: String,
-        faces: Vec<CardFace>,
+        layout: Ident,
+        faces: Vec<CardFaceTodo>,
     },
+
+    #[serde(untagged)]
+    Card(Card),
 }
 
 #[derive(Serialize)]
-struct CardFace {
+struct CardFaceTodo {
     name: String,
     #[serde(
-        skip_serializing_if = "Option::is_none",
-        serialize_with = "one_line_if_single_opt"
+        skip_serializing_if = "ManaCost::is_empty",
+        serialize_with = "one_line_if_single"
     )]
-    mana_cost: Option<ManaCost>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        serialize_with = "one_line_if_single_opt"
-    )]
-    color_indicator: Option<Vec<Color>>,
+    mana_cost: ManaCost,
     #[serde(
         skip_serializing_if = "Vec::is_empty",
         serialize_with = "one_line_if_single"
     )]
-    supertypes: Vec<String>,
+    color_indicator: Vec<Color>,
+    #[serde(
+        skip_serializing_if = "Vec::is_empty",
+        serialize_with = "one_line_if_single"
+    )]
+    supertypes: Vec<Ident>,
     #[serde(serialize_with = "one_line_if_single")]
-    types: Vec<String>,
+    types: Vec<Ident>,
     #[serde(
         skip_serializing_if = "Vec::is_empty",
         serialize_with = "one_line_if_single"
     )]
-    subtypes: Vec<String>,
+    subtypes: Vec<Ident>,
     #[serde(
-        skip_serializing_if = "Option::is_none",
-        serialize_with = "one_line_if_single_opt"
+        skip_serializing_if = "Vec::is_empty",
+        serialize_with = "one_line_if_single"
     )]
-    text: Option<Vec<String>>,
+    text: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     power: Option<Stat>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -64,58 +70,6 @@ struct CardFace {
     loyalty: Option<Stat>,
     #[serde(skip_serializing_if = "Option::is_none")]
     defense: Option<Stat>,
-}
-
-/// Serializes a single-element array on one line (`[Red]`); longer arrays
-/// fall through to the chopped pretty-printer. ron's config cannot express
-/// this, so the compact form is pre-rendered and embedded as a RawValue.
-fn one_line_if_single<T: Serialize, S: serde::Serializer>(
-    array: &[T],
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    use serde::ser::Error as _;
-
-    if array.len() != 1 {
-        return array.serialize(serializer);
-    }
-    let compact = ron::Options::default()
-        .to_string_pretty(
-            &array,
-            ron::ser::PrettyConfig::default()
-                .escape_strings(false)
-                .depth_limit(0),
-        )
-        .map_err(S::Error::custom)?;
-    ron::value::RawValue::from_ron(&compact)
-        .map_err(S::Error::custom)?
-        .serialize(serializer)
-}
-
-fn one_line_if_single_opt<T: Serialize, A, S: serde::Serializer>(
-    array: &Option<A>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    A: std::ops::Deref<Target = [T]>,
-{
-    let array = array.as_deref().expect("field is skipped when None");
-    one_line_if_single(array, serializer)
-}
-
-fn ron_options() -> ron::Options {
-    // Implicit Some keeps the optional fields unwrapped, and is a default
-    // extension so no #![enable(...)] header is emitted.
-    ron::Options::default().with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME)
-}
-
-/// Multi-line text is written verbatim and arrays are chopped, one element
-/// per line. Tuples like `Hybrid(...)` mana symbols keep their members
-/// inline (the default), and the faces list chops one face per line like
-/// any other array.
-fn pretty_config() -> ron::ser::PrettyConfig {
-    ron::ser::PrettyConfig::default()
-        .extensions(ron::extensions::Extensions::IMPLICIT_SOME)
-        .escape_strings(false)
 }
 
 // We count non-null, non-"Banned" as legal.
@@ -196,39 +150,36 @@ fn stat(value: &str) -> Stat {
     }
 }
 
-fn render_face(card: &AtomicCard, keyword_abilities: &[DataStr<'_>]) -> anyhow::Result<CardFace> {
-    Ok(CardFace {
+fn render_face(
+    card: &AtomicCard,
+    keyword_abilities: &[DataStr<'_>],
+) -> anyhow::Result<CardFaceTodo> {
+    Ok(CardFaceTodo {
         name: card.face_name.as_deref().unwrap_or(&card.name).to_owned(),
-        mana_cost: card.mana_cost.as_deref().map(str::parse).transpose()?,
+        mana_cost: card
+            .mana_cost
+            .as_deref()
+            .map(str::parse)
+            .transpose()?
+            .unwrap_or_default(),
         color_indicator: card
             .color_indicator
-            .as_deref()
-            .filter(|colors| !colors.is_empty())
-            .map(|colors| colors.iter().map(|code| ron_color(code)).collect())
-            .transpose()?,
-        supertypes: card
-            .supertypes
             .iter()
-            .map(|t| t.as_str().to_owned())
-            .collect(),
-        types: card.types.iter().map(|t| t.as_str().to_owned()).collect(),
-        subtypes: card
-            .subtypes
-            .iter()
-            .map(|t| t.as_str().to_owned())
-            .collect(),
+            .map(|code| ron_color(code))
+            .collect::<anyhow::Result<_>>()?,
+        supertypes: card.supertypes.iter().map(|t| t.as_str().into()).collect(),
+        types: card.types.iter().map(|t| t.as_str().into()).collect(),
+        subtypes: card.subtypes.iter().map(|t| t.as_str().into()).collect(),
         // One element per line of normalized oracle text -- one ability
         // each, except that modal/leveler lines stay split. Cards whose text
         // is nothing but reminder text (basic lands) end up with no text.
-        text: card.text.as_deref().and_then(|text| {
+        text: card.text.as_deref().map_or_else(Vec::new, |text| {
             let text = crate::data::academyruins::normalize_quotes(text);
             let text = expand_keyword_lines(&strip_reminder_text(&text), keyword_abilities);
-            let lines: Vec<String> = text
-                .split('\n')
+            text.split('\n')
                 .filter(|line| !line.is_empty())
                 .map(str::to_owned)
-                .collect();
-            (!lines.is_empty()).then_some(lines)
+                .collect()
         }),
         power: card.power.as_deref().map(stat),
         toughness: card.toughness.as_deref().map(stat),
@@ -247,7 +198,6 @@ impl super::Migration for CardTodos {
         let keyword_abilities =
             crate::data::academyruins::Keywords::parse(&keywords_bytes)?.keyword_abilities;
         let dest_dir = plugin.cards_dir()?;
-        let options = ron_options();
 
         for (name, faces) in &atomic_cards.data {
             let supported: Vec<&AtomicCard> = faces.iter().filter(|c| is_supported(c)).collect();
@@ -261,16 +211,14 @@ impl super::Migration for CardTodos {
             }
 
             let card_file = CardFile::Todo {
-                layout: supported[0].layout.as_str().to_owned(),
+                layout: supported[0].layout.as_str().into(),
                 faces: supported
                     .iter()
                     .map(|face| render_face(face, &keyword_abilities))
                     .collect::<anyhow::Result<_>>()?,
             };
-            let serialized = options
-                .to_string_pretty(&card_file, pretty_config())
-                .map_err(|e| anyhow::anyhow!(e))
-                .map_err(|e| e.context(format!("serializing card {name:?}")))?;
+            let serialized = to_string_pretty(&card_file)
+                .with_context(|| format!("serializing card {name:?}"))?;
 
             std::fs::write(&dest, serialized + "\n")?;
             eprintln!("wrote {}", dest.display());
@@ -285,6 +233,7 @@ mod tests {
     use deckmaste_core::ManaSymbol;
 
     use super::*;
+    use crate::ron_output::ron_options;
 
     #[test]
     fn filenames() {
@@ -346,26 +295,32 @@ mod tests {
         assert_eq!(render("X"), "Other(\"X\")");
     }
 
-    fn test_face(name: &str, vanilla: bool) -> CardFace {
-        CardFace {
+    /// A vanilla face has no mana cost and no text, like a basic land:
+    /// optional fields must be skipped, not handed to the serializers.
+    fn test_face(name: &str, vanilla: bool) -> CardFaceTodo {
+        CardFaceTodo {
             name: name.to_owned(),
-            mana_cost: Some(
-                vec![
-                    ManaSymbol::Hybrid(2.into(), Color::White),
-                    ManaSymbol::Simple(Color::Green.into()),
-                ]
-                .into(),
-            ),
-            color_indicator: None,
+            mana_cost: (!vanilla)
+                .then(|| {
+                    vec![
+                        ManaSymbol::Hybrid(2.into(), Color::White),
+                        ManaSymbol::Simple(Color::Green.into()),
+                    ]
+                    .into()
+                })
+                .unwrap_or_default(),
+            color_indicator: vec![],
             supertypes: vec![],
-            types: vec!["Creature".to_owned()],
-            subtypes: vec!["Time Lord".to_owned()],
-            text: (!vanilla).then(|| {
+            types: vec!["Creature".into()],
+            subtypes: vec!["Time Lord".into()],
+            text: if vanilla {
+                vec![]
+            } else {
                 vec![
                     "Flying".to_owned(),
                     "Doctor's \"companion\" rule.".to_owned(),
                 ]
-            }),
+            },
             power: Some(stat("2")),
             toughness: Some(stat("*")),
             loyalty: None,
@@ -376,12 +331,10 @@ mod tests {
     #[test]
     fn single_face_serialization() {
         let card = CardFile::Todo {
-            layout: "normal".to_owned(),
+            layout: "normal".into(),
             faces: vec![test_face("Solo", false)],
         };
-        let serialized = ron_options()
-            .to_string_pretty(&card, pretty_config())
-            .unwrap();
+        let serialized = to_string_pretty(&card).unwrap();
         assert_eq!(
             serialized,
             r##"Todo(
@@ -410,12 +363,10 @@ mod tests {
     #[test]
     fn multi_face_serialization() {
         let card = CardFile::Todo {
-            layout: "transform".to_owned(),
+            layout: "transform".into(),
             faces: vec![test_face("Front", false), test_face("Back", true)],
         };
-        let serialized = ron_options()
-            .to_string_pretty(&card, pretty_config())
-            .unwrap();
+        let serialized = to_string_pretty(&card).unwrap();
         // Each face is its own list element; Hybrid mana symbols stay
         // inline, and raw string bodies stay unindented.
         assert_eq!(
@@ -440,10 +391,6 @@ mod tests {
         ),
         (
             name: "Back",
-            mana_cost: [
-                Hybrid(Generic(2), White),
-                Green,
-            ],
             types: ["Creature"],
             subtypes: ["Time Lord"],
             power: 2,

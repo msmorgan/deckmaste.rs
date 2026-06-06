@@ -1,0 +1,8 @@
+// CR 205.3j
+Subtype(
+    params: [String],
+    subtype: Subtype(
+        name: Param(0),
+        types: [Planeswalker],
+    ),
+)

@@ -10,10 +10,11 @@
 use std::collections::HashMap;
 
 use serde::Deserialize;
+
 use crate::data;
 use crate::data::DataStr;
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct AtomicCards<'a> {
     /// Cards grouped by full name; one entry per face.
     #[serde(borrow)]
@@ -24,7 +25,7 @@ impl<'a> AtomicCards<'a> {
     pub fn parse(bytes: &'a [u8]) -> serde_json::Result<Self> { serde_json::from_slice(bytes) }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AtomicCard<'a> {
     /// The full card name; faces of multi-face cards share it.
@@ -37,8 +38,8 @@ pub struct AtomicCard<'a> {
     #[serde(borrow, default)]
     pub mana_cost: Option<DataStr<'a>>,
     /// Single-letter color codes ("W", "U", ...).
-    #[serde(borrow, default)]
-    pub color_indicator: Option<Vec<DataStr<'a>>>,
+    #[serde(borrow, default, deserialize_with = "super::null_to_default")]
+    pub color_indicator: Vec<DataStr<'a>>,
     #[serde(borrow)]
     pub types: Vec<DataStr<'a>>,
     #[serde(borrow)]
@@ -63,7 +64,7 @@ pub struct AtomicCard<'a> {
     pub legalities: Legalities<'a>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize)]
 pub struct Legalities<'a> {
     #[serde(borrow, default)]
     pub vintage: Option<DataStr<'a>>,
@@ -115,4 +116,6 @@ mod tests {
 
 /// Reads the atomic cards file; parse with [`AtomicCards::parse`],
 /// which borrows from the returned bytes.
-pub fn atomic_cards_bytes() -> anyhow::Result<Vec<u8>> { data::read_data("mtgjson/AtomicCards.json") }
+pub fn atomic_cards_bytes() -> anyhow::Result<Vec<u8>> {
+    data::read_data("mtgjson/AtomicCards.json")
+}

@@ -17,13 +17,24 @@ fn read_data(relative: &str) -> anyhow::Result<Vec<u8>> {
     std::fs::read(&path).with_context(|| format!("Failed to read file: {path:?}"))
 }
 
+/// Deserializes an explicit JSON `null` as the type's default. The upstream
+/// data writes `"examples": null` rather than omitting the key, so flattened
+/// `Vec` fields need this on top of `#[serde(default)]`.
+pub(crate) fn null_to_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Default + Deserialize<'de>,
+{
+    Ok(Option::<T>::deserialize(deserializer)?.unwrap_or_default())
+}
+
 /// A string borrowed from the source bytes when its JSON representation is
 /// escape-free, owned otherwise.
 ///
 /// `Cow<str>` behind `Option`/`Vec`/map keys always deserializes owned
 /// (serde's `#[serde(borrow)]` only rewires top-level `Cow` fields), so this
 /// wrapper carries the borrowing visitor everywhere it appears.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct DataStr<'a>(Cow<'a, str>);
 
 impl<'b: 'a, 'a> From<&'b str> for DataStr<'a> {

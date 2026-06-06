@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::mana::ManaSymbol;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
 pub enum Symbol {
     Tap,       // {T}
     Untap,     // {Q}

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use serde::Deserialize;
+
 use super::DataStr;
 
 /// Replaces typographic quotation marks with their ASCII equivalents.
@@ -8,13 +9,13 @@ pub(crate) fn normalize_quotes(text: &str) -> String {
     text.replace(['‘', '’'], "'").replace(['“', '”'], "\"")
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Rule<'a> {
     #[serde(borrow)]
     pub rule_number: DataStr<'a>,
-    #[serde(borrow, default)]
-    pub examples: Option<Vec<DataStr<'a>>>,
+    #[serde(borrow, default, deserialize_with = "super::null_to_default")]
+    pub examples: Vec<DataStr<'a>>,
     #[serde(borrow)]
     pub rule_text: DataStr<'a>,
     #[serde(borrow)]
@@ -34,7 +35,7 @@ impl<'a> Rule<'a> {
             ". "
         };
         let mut formatted = format!("{}{}{}", self.rule_number, separator, self.rule_text);
-        for example in self.examples.iter().flatten() {
+        for example in &self.examples {
             formatted.push_str("\nExample: ");
             formatted.push_str(example);
         }
@@ -42,7 +43,7 @@ impl<'a> Rule<'a> {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Navigation<'a> {
     #[serde(borrow)]
@@ -51,7 +52,7 @@ pub struct Navigation<'a> {
     pub previous_rule: Option<DataStr<'a>>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Keywords<'a> {
     #[serde(borrow)]
@@ -66,7 +67,7 @@ impl<'a> Keywords<'a> {
     pub fn parse(bytes: &'a [u8]) -> serde_json::Result<Self> { serde_json::from_slice(bytes) }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(transparent)]
 pub(crate) struct RulesMap<'a>(#[serde(borrow)] pub HashMap<DataStr<'a>, Rule<'a>>);
 
@@ -118,7 +119,6 @@ pub fn comprehensive_rules_bytes() -> anyhow::Result<Vec<u8>> { super::read_data
 /// [`Keywords::parse`], which borrows from the returned bytes.
 pub fn keywords_bytes() -> anyhow::Result<Vec<u8>> { super::read_data("rules/keywords.json") }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -127,7 +127,7 @@ mod tests {
     fn format_normalizes_quotes() {
         let rule = Rule {
             rule_number: "702.9b".into(),
-            examples: Some(vec!["The ‘fox’ said “hi.”".into()]),
+            examples: vec!["The ‘fox’ said “hi.”".into()],
             rule_text:
                 "A creature with flying can’t be blocked. (See rule 509, “Declare Blockers Step.”)"
                     .into(),

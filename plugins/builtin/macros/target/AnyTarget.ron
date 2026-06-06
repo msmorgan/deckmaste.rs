@@ -1,6 +1,5 @@
 // CR 115.4
-Target(
-    name: "AnyTarget",
+Selector(
     params: [],
     selector: Templated(
         template: "any target",

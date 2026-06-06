@@ -1,11 +1,25 @@
-//! Core game data types for deckmaste.
+//! Core game data types for deckmaste.rs.
 
-pub mod color;
-pub mod mana;
-pub mod symbol;
+mod ability;
+pub use ability::{Ability, KeywordAbility};
 
-pub use color::Color;
+mod card;
+pub use card::{Card, CardFace, StatValue};
+
+mod color;
+pub use color::{Color, ColorOrColorless};
+
+mod ident;
+pub use ident::Ident;
+
+mod mana;
 pub use mana::{ManaCost, ManaSymbol, SimpleManaSymbol};
+
+mod symbol;
+pub use symbol::Symbol;
+
+mod r#type;
+pub use r#type::Type;
 
 /// The unsigned integer type for game quantities that can't be negative
 /// (generic mana amounts, counters, deck counts).

@@ -14,12 +14,6 @@ enum KeywordTodo {
     },
 }
 
-/// Multi-line rule text is written verbatim (a plain string with literal
-/// newlines) rather than `\n`-escaped onto one line.
-fn pretty_config() -> ron::ser::PrettyConfig {
-    ron::ser::PrettyConfig::default().escape_strings(false)
-}
-
 /// Writes a `<RustIdent>.ron` Todo stub into `dest_dir` for every keyword,
 /// with its CR rule section inlined. `rule_number_for` resolves a keyword to
 /// the rule number its section starts at; keywords it cannot resolve are
@@ -52,7 +46,7 @@ pub(super) fn create_keyword_todos<'r, 'data>(
             template: keyword.as_str().to_owned(),
             rules: section.iter().map(|&rule| format_rule(rule)).collect(),
         };
-        let serialized = ron::ser::to_string_pretty(&todo, pretty_config())?;
+        let serialized = crate::ron_output::to_string_pretty(&todo)?;
         let contents = format!("// CR {rule_number}\n{serialized}\n");
 
         std::fs::write(&dest, contents)?;
@@ -78,7 +72,7 @@ mod tests {
             template: "Flying".to_owned(),
             rules: rules.clone(),
         };
-        let serialized = ron::ser::to_string_pretty(&todo, pretty_config()).unwrap();
+        let serialized = crate::ron_output::to_string_pretty(&todo).unwrap();
         // Quote-bearing rules fall back to raw strings; embedded Example
         // lines keep their literal newlines.
         assert_eq!(
