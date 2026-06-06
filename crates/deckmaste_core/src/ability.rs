@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+use crate::continuous::StaticEffect;
 use crate::cost::CostComponent;
 use crate::effect::Effect;
-use crate::{Ident, Selection};
+use crate::{Condition, Event, Ident, Quantity, TargetSpec};
 
 // Temporary types.
 type ParamValue = String;
@@ -19,29 +20,102 @@ pub struct KeywordAbility {
     pub expanded: Expanded<Ability>,
 }
 
+/// A spell ability — what an instant or sorcery does on resolution
+/// (CR 113.3a). Targets are an explicit announce list referenced by index
+/// (`Target(0)`); a single-instruction body needs no wrapper.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct SpellAbility {
-    pub targets: Vec<Selection>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub targets: Vec<TargetSpec>,
     pub effect: Effect,
 }
 
-/// An activated ability: paid with a cost and produces an effect. Targets
-/// are collected here for now; the `Resolvable` wrapper arrives with Modal.
+/// An activated ability: paid with a cost and produces an effect
+/// (CR 113.3b, 602). Targets are flattened here (the `Resolvable` wrapper of
+/// the design sketch is realized as `Effect::Modal` instead — see `effect`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct ActivatedAbility {
     pub cost: Vec<CostComponent>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub targets: Vec<Selection>,
+    pub targets: Vec<TargetSpec>,
     pub effect: Effect,
 }
 
-// The struct-carrying variants read flat in RON — `Spell(targets: ..., ...)`,
-// not `Spell((targets: ...))` — via the unwrap_variant_newtypes extension.
+/// A limit on how often a triggered ability may trigger (CR 603.3i).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum TriggerLimit {
+    /// "Once each turn" (CR 603.3i).
+    OncePerTurn,
+}
+
+/// A triggered ability (CR 113.3c, 603). A named struct because it recurs:
+/// delayed (CR 603.7) and reflexive (CR 603.12) triggers are the same value,
+/// created inside an `Effect`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub struct TriggeredAbility {
+    /// The event that triggers it (CR 603.2).
+    pub event: Event,
+    /// Intervening-if (CR 603.4) — `condition`, not `when_if`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub condition: Option<Condition>,
+    /// Trigger-frequency limits (CR 603.3i).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub limits: Vec<TriggerLimit>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub targets: Vec<TargetSpec>,
+    pub effect: Effect,
+}
+
+/// A static ability (CR 113.3d, 604). Its duration is implicit: while it
+/// functions (CR 611.3).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub struct StaticAbility {
+    /// When the ability functions, if conditional (CR 604.3).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub condition: Option<Condition>,
+    pub effects: Vec<StaticEffect>,
+    /// The one explicit, validated flag (CR 604.3): a characteristic-defining
+    /// ability applies in layer 7a / a/b/c per its op.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub characteristic_defining: bool,
+}
+
+/// A `skip_serializing_if` predicate: a `false` bool is omitted from RON.
+/// serde requires the predicate to take `&T`, hence the by-ref bool.
+#[expect(clippy::trivially_copy_pass_by_ref)]
+fn is_false(b: &bool) -> bool { !*b }
+
+/// How a modal spell or ability's modes are chosen (CR 700.2). `up_to` is the
+/// "up to N" form (700.2d); `repeats` allows choosing the same mode more than
+/// once (700.2d).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub struct ChooseSpec {
+    pub count: Quantity,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub up_to: bool,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub repeats: bool,
+}
+
+/// One mode of a modal spell or ability (CR 700.2). Each mode owns its target
+/// list (CR 700.2c, 115.8) and may carry a per-mode cost (CR 700.2h).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub struct Mode {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub targets: Vec<TargetSpec>,
+    pub effect: Effect,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cost: Option<Vec<CostComponent>>,
+}
+
+/// An ability (CR 113). The struct-carrying variants read flat in RON —
+/// `Spell(targets: ..., ...)`, not `Spell((targets: ...))` — via the
+/// `unwrap_variant_newtypes` extension.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Ability {
-    Static,
+    Static(StaticAbility),
     Activated(ActivatedAbility),
-    Triggered,
+    Triggered(TriggeredAbility),
     Spell(SpellAbility),
     Keyword(KeywordAbility),
 }
@@ -52,6 +126,7 @@ mod tests {
     use crate::action::Action;
     use crate::cost::CostComponent;
     use crate::effect::Effect;
+    use crate::{Quantity, Selection};
 
     fn read_ability(source: &str) -> Ability { crate::ron::options().from_str(source).unwrap() }
 
@@ -63,20 +138,58 @@ mod tests {
             Ability::Activated(ActivatedAbility {
                 cost: vec![CostComponent::Tap],
                 targets: vec![],
-                effect: Effect::Act(Action::DrawCards(1)),
+                effect: Effect::Act(Action::DrawCards(Quantity::Literal(1))),
             })
         );
     }
 
+    /// `Ability::Triggered` is now a struct variant carrying a
+    /// `TriggeredAbility`; the event/effect read flat.
     #[test]
-    fn activated_ability_round_trips() {
-        let ability = Ability::Activated(ActivatedAbility {
-            cost: vec![CostComponent::Tap],
-            targets: vec![],
-            effect: Effect::Act(Action::DrawCards(1)),
-        });
+    fn triggered_ability_parses() {
+        let ability = read_ability(
+            "Triggered(event: ZoneMove(what: Is(This), to: Graveyard), effect: DrawCards(1))",
+        );
+        let Ability::Triggered(triggered) = ability else {
+            panic!("expected a triggered ability");
+        };
+        assert_eq!(
+            triggered.effect,
+            Effect::Act(Action::DrawCards(Quantity::Literal(1)))
+        );
+        assert!(triggered.condition.is_none());
+        assert!(triggered.limits.is_empty());
+    }
+
+    /// `Ability::Static` is now a struct variant carrying a `StaticAbility`;
+    /// the CDA flag is omitted when false.
+    #[test]
+    fn static_ability_parses_and_omits_cda() {
+        let ability = read_ability("Static(effects: [Restriction(CantAttack)])");
+        let Ability::Static(static_ability) = &ability else {
+            panic!("expected a static ability");
+        };
+        assert!(!static_ability.characteristic_defining);
         let written = crate::ron::options().to_string(&ability).unwrap();
-        let reparsed = read_ability(&written);
-        assert_eq!(ability, reparsed);
+        assert!(
+            !written.contains("characteristic_defining"),
+            "false CDA flag should be omitted: {written}"
+        );
+        assert!(!written.contains("condition"), "absent condition omitted");
+    }
+
+    #[test]
+    fn sacrifice_this_reads_flat() {
+        // Confirms the new flattened Selection (`This`, not `That(This)`).
+        let ability = read_ability(
+            "Activated(cost: [Tap, Do(Sacrifice(This))], effect: AddMana(1, AnyColor))",
+        );
+        let Ability::Activated(activated) = ability else {
+            panic!("expected an activated ability");
+        };
+        assert_eq!(
+            activated.cost[1],
+            CostComponent::Do(Action::Sacrifice(Selection::This))
+        );
     }
 }
