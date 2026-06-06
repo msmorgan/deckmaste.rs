@@ -1,37 +1,12 @@
 use std::sync::LazyLock;
 
+use deckmaste_core::{Color, ManaSymbol, mana};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::data::mtgjson::AtomicCard;
 
 pub(super) struct CardTodos;
-
-/// The component symbols hybrid/phyrexian symbols are built from: a generic
-/// amount, one of the five colors, or colorless ({C}, which is not a color).
-///
-/// The untagged Color variant serializes transparently, so the RON stays
-/// flat: `White`, not `Color(White)`.
-#[derive(Debug, PartialEq, Serialize)]
-enum SimpleManaSymbol {
-    Generic(u16),
-    Colorless,
-    #[serde(untagged)]
-    Color(Color),
-}
-
-/// The untagged Simple variant serializes transparently, so the RON stays
-/// flat: `Generic(2)`, not `Simple(Generic(2))`.
-#[derive(Debug, PartialEq, Serialize)]
-enum ManaSymbol {
-    Variable,
-    Snow,
-    Hybrid(SimpleManaSymbol, SimpleManaSymbol),
-    Phyrexian(SimpleManaSymbol),
-    PhyrexianHybrid(SimpleManaSymbol, SimpleManaSymbol),
-    #[serde(untagged)]
-    Simple(SimpleManaSymbol),
-}
 
 #[derive(Debug, PartialEq, Serialize)]
 enum Stat {
@@ -50,32 +25,36 @@ enum Subtype {
     Spell(String),
 }
 
-/// A color indicator color, serialized by name rather than the data's
-/// single-letter code.
-#[derive(Debug, PartialEq, Serialize)]
-enum Color {
-    White,
-    Blue,
-    Black,
-    Red,
-    Green,
-}
-
 #[derive(Serialize)]
 enum CardFace {
     Todo {
         name: String,
-        #[serde(skip_serializing_if = "Option::is_none", serialize_with = "one_line_if_single_opt")]
+        #[serde(
+            skip_serializing_if = "Option::is_none",
+            serialize_with = "one_line_if_single_opt"
+        )]
         mana_cost: Option<Vec<ManaSymbol>>,
-        #[serde(skip_serializing_if = "Option::is_none", serialize_with = "one_line_if_single_opt")]
+        #[serde(
+            skip_serializing_if = "Option::is_none",
+            serialize_with = "one_line_if_single_opt"
+        )]
         color_indicator: Option<Vec<Color>>,
         #[serde(serialize_with = "one_line_if_single")]
         types: Vec<String>,
-        #[serde(skip_serializing_if = "Vec::is_empty", serialize_with = "one_line_if_single")]
+        #[serde(
+            skip_serializing_if = "Vec::is_empty",
+            serialize_with = "one_line_if_single"
+        )]
         supertypes: Vec<String>,
-        #[serde(skip_serializing_if = "Vec::is_empty", serialize_with = "one_line_if_single")]
+        #[serde(
+            skip_serializing_if = "Vec::is_empty",
+            serialize_with = "one_line_if_single"
+        )]
         subtypes: Vec<Subtype>,
-        #[serde(skip_serializing_if = "Option::is_none", serialize_with = "one_line_if_single_opt")]
+        #[serde(
+            skip_serializing_if = "Option::is_none",
+            serialize_with = "one_line_if_single_opt"
+        )]
         text: Option<Vec<String>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         power: Option<Stat>,
@@ -330,80 +309,7 @@ fn expand_keyword_lines(text: &str, keyword_abilities: &[String]) -> String {
 }
 
 fn ron_color(code: &str) -> anyhow::Result<Color> {
-    Ok(match code {
-        "W" => Color::White,
-        "U" => Color::Blue,
-        "B" => Color::Black,
-        "R" => Color::Red,
-        "G" => Color::Green,
-        other => anyhow::bail!("unrecognized color indicator: {other:?}"),
-    })
-}
-
-fn simple_symbol(code: &str) -> SimpleManaSymbol {
-    match code {
-        "W" => SimpleManaSymbol::Color(Color::White),
-        "U" => SimpleManaSymbol::Color(Color::Blue),
-        "B" => SimpleManaSymbol::Color(Color::Black),
-        "R" => SimpleManaSymbol::Color(Color::Red),
-        "G" => SimpleManaSymbol::Color(Color::Green),
-        "C" => SimpleManaSymbol::Colorless,
-        _ => unreachable!("colors are restricted by the symbol regex"),
-    }
-}
-
-fn parse_mana_symbol(symbol: &str) -> anyhow::Result<ManaSymbol> {
-    static SYMBOL: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(
-            r"(?x)^\{(?:
-                (?P<variable>X)
-                |(?P<snow>S)
-                |(?:
-                    (?:
-                        (?P<generic>[0-9]|[1-9][0-9]+)
-                        |(?P<color>[WUBRGC])
-                    )
-                    (?:/(?P<hybrid>[WUBRG]))?
-                    (?:/(?P<phyrexian>P))?
-                )
-            )\}$",
-        )
-        .unwrap()
-    });
-
-    let captures = SYMBOL
-        .captures(symbol)
-        .ok_or_else(|| anyhow::anyhow!("unrecognized mana symbol: {symbol:?}"))?;
-
-    if captures.name("variable").is_some() {
-        return Ok(ManaSymbol::Variable);
-    }
-    if captures.name("snow").is_some() {
-        return Ok(ManaSymbol::Snow);
-    }
-
-    let simple = if let Some(generic) = captures.name("generic") {
-        SimpleManaSymbol::Generic(generic.as_str().parse()?)
-    } else {
-        simple_symbol(&captures["color"])
-    };
-    let hybrid = captures.name("hybrid").map(|h| simple_symbol(h.as_str()));
-    let phyrexian = captures.name("phyrexian").is_some();
-    Ok(match (hybrid, phyrexian) {
-        (Some(hybrid), true) => ManaSymbol::PhyrexianHybrid(simple, hybrid),
-        (Some(hybrid), false) => ManaSymbol::Hybrid(simple, hybrid),
-        (None, true) => ManaSymbol::Phyrexian(simple),
-        (None, false) => ManaSymbol::Simple(simple),
-    })
-}
-
-fn parse_mana_cost(mana_cost: &str) -> anyhow::Result<Vec<ManaSymbol>> {
-    static SYMBOLS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\{[^}]+\}").unwrap());
-
-    SYMBOLS
-        .find_iter(mana_cost)
-        .map(|symbol| parse_mana_symbol(symbol.as_str()))
-        .collect()
+    Color::from_code(code).ok_or_else(|| anyhow::anyhow!("unrecognized color indicator: {code:?}"))
 }
 
 /// `Number(2)` for values that parse as JSON numbers, `NonNumber("*")`
@@ -422,7 +328,11 @@ fn render_face(
 ) -> anyhow::Result<CardFace> {
     Ok(CardFace::Todo {
         name: card.face_name.as_deref().unwrap_or(&card.name).to_owned(),
-        mana_cost: card.mana_cost.as_deref().map(parse_mana_cost).transpose()?,
+        mana_cost: card
+            .mana_cost
+            .as_deref()
+            .map(mana::parse_cost)
+            .transpose()?,
         color_indicator: card
             .color_indicator
             .as_deref()
@@ -553,38 +463,10 @@ mod tests {
     }
 
     #[test]
-    fn mana_costs() {
-        use ManaSymbol::*;
-        use SimpleManaSymbol::{Colorless, Generic};
-        let color = |c| SimpleManaSymbol::Color(c);
-
-        assert_eq!(
-            parse_mana_cost("{1}{G}").unwrap(),
-            vec![Simple(Generic(1)), Simple(color(Color::Green))]
-        );
-        assert_eq!(parse_mana_cost("{X}{S}").unwrap(), vec![Variable, Snow]);
-        assert_eq!(
-            parse_mana_cost("{2/W}{C/B}").unwrap(),
-            vec![
-                Hybrid(Generic(2), color(Color::White)),
-                Hybrid(Colorless, color(Color::Black)),
-            ]
-        );
-        assert_eq!(
-            parse_mana_cost("{G/U/P}{W/P}").unwrap(),
-            vec![
-                PhyrexianHybrid(color(Color::Green), color(Color::Blue)),
-                Phyrexian(color(Color::White)),
-            ]
-        );
-        assert!(parse_mana_cost("{HW}").is_err());
-    }
-
-    #[test]
     fn mana_symbols_serialize_flat() {
         // The Simple and Color wrapper variants are untagged: the nested
         // model must not show up in the RON.
-        let symbols = parse_mana_cost("{R}{2}{C}{2/W}{W/P}{G/U/P}{X}{S}").unwrap();
+        let symbols = mana::parse_cost("{R}{2}{C}{2/W}{W/P}{G/U/P}{X}{S}").unwrap();
         assert_eq!(
             ron_options().to_string(&symbols).unwrap(),
             "[Red,Generic(2),Colorless,Hybrid(Generic(2),White),Phyrexian(White),\
@@ -647,10 +529,10 @@ mod tests {
             name: name.to_owned(),
             mana_cost: Some(vec![
                 ManaSymbol::Hybrid(
-                    SimpleManaSymbol::Generic(2),
-                    SimpleManaSymbol::Color(Color::White),
+                    deckmaste_core::SimpleManaSymbol::Generic(2),
+                    deckmaste_core::SimpleManaSymbol::Color(Color::White),
                 ),
-                ManaSymbol::Simple(SimpleManaSymbol::Color(Color::Green)),
+                ManaSymbol::Simple(deckmaste_core::SimpleManaSymbol::Color(Color::Green)),
             ]),
             color_indicator: None,
             types: vec!["Creature".to_owned()],

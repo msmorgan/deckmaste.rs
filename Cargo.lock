@@ -147,11 +147,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckmaste_core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "regex",
+ "serde",
+]
+
+[[package]]
 name = "deckmaste_migrations"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "deckmaste_core",
  "regex",
  "ron 0.12.1",
  "serde",

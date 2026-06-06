@@ -1,6 +1,7 @@
 [workspace]
 members = [
     ".",
+    "crates/deckmaste_core",
     "crates/deckmaste_migrations",
 ]
 
