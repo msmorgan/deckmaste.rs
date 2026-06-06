@@ -17,6 +17,9 @@ pub use mana::{ManaCost, ManaSymbol, SimpleManaSymbol};
 
 pub mod plugin;
 
+mod reference;
+pub use reference::Reference;
+
 mod subtype;
 pub use subtype::Subtype;
 
