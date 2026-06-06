@@ -12,6 +12,7 @@ mod _003_subtypes;
 mod _004_card_todos;
 mod _005_basic_lands;
 mod _006_vanilla_creatures;
+mod card_todo;
 mod keyword_todos;
 
 trait Migration {
@@ -19,15 +20,13 @@ trait Migration {
 }
 
 /// A file may be (over)written only while it is still an unimplemented stub.
-/// (?m) anchors ^ at line starts: the Todo( line may follow a // CR comment
-/// line, so it is not necessarily at the start of the file.
 fn is_todo(path: &Path) -> anyhow::Result<bool> {
-    static TODO_PATTERN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?m)^\s*Todo\(").unwrap());
-
     if !path.exists() {
         return Ok(true);
     }
-    Ok(TODO_PATTERN.is_match(&std::fs::read_to_string(path)?))
+    Ok(deckmaste_core::plugin::is_todo_source(
+        &std::fs::read_to_string(path)?,
+    ))
 }
 
 const MIGRATIONS: &[&dyn Migration] = &[

@@ -1,0 +1,12 @@
+[package]
+name = "xtask"
+version = "0.1.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { version = "1.0.102" }
+deckmaste_cards = { path = "../deckmaste_cards" }
+deckmaste_migrations = { path = "../deckmaste_migrations" }

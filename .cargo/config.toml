@@ -4,3 +4,7 @@
 [alias]
 migrate = "run --release -p deckmaste_migrations --"
 card = "run -p deckmaste_cards --"
+# `cargo xtask <validate|migrate|card> ...` -- workspace automation, a pure
+# dispatcher over the crates' CLI entry points. Always release for the same
+# reason as `migrate`.
+xtask = "run --release -p xtask --"

@@ -1,17 +1,12 @@
-/* @[deckmaste_cards::macros::MacroDef] */
 // CR 115.4
 (
     name: "AnyTarget",
+    template: "any target",
     kinds: [Target],
-    body: Self(
-//    Templated(
-//        template: "any target",
-//        target:
-        OneOf([
-            PermanentOfType(Battle),
-            PermanentOfType(Creature),
-            PermanentOfType(Planeswalker),
-            Player,
-        ]),
-    ),
+    body: OneOf([
+        PermanentOfType(Battle),
+        PermanentOfType(Creature),
+        PermanentOfType(Planeswalker),
+        Player,
+    ]),
 )

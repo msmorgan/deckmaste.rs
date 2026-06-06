@@ -3,6 +3,7 @@ members = [
     ".", "crates/deckmaste_cards",
     "crates/deckmaste_core",
     "crates/deckmaste_migrations",
+    "crates/xtask",
 ]
 
 # Strict linting for the whole workspace; crates opt in with
