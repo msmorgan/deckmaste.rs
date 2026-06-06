@@ -1,7 +1,7 @@
 //! Core game data types for deckmaste.rs.
 
 mod ability;
-pub use ability::{Ability, Effect, KeywordAbility, Selector, SpellAbility, Target};
+pub use ability::{Ability, Effect, KeywordAbility, SpellAbility};
 
 mod card;
 pub use card::{Card, CardFace, StatValue};

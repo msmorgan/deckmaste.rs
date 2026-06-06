@@ -1,26 +1,13 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Ident, Type};
+use crate::{Ident, Selection};
 
 // Temporary types.
 type ParamValue = String;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub enum Target {
-    OneOf(Vec<Target>),
-    PermanentOfType(Type),
-    Player,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub enum Selector {
-    Target(usize),
-    GameObject(usize),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Effect {
-    DealDamage(Selector, crate::Uint),
+    DealDamage(Selection, crate::Uint),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
@@ -37,7 +24,7 @@ pub struct KeywordAbility {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct SpellAbility {
-    pub targets: Vec<Target>,
+    pub targets: Vec<Selection>,
     pub effect: Effect,
 }
 
