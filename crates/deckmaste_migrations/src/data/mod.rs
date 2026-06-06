@@ -17,24 +17,6 @@ fn read_data(relative: &str) -> anyhow::Result<Vec<u8>> {
     std::fs::read(&path).with_context(|| format!("Failed to read file: {path:?}"))
 }
 
-/// Reads the atomic cards file; parse with [`mtgjson::AtomicCards::parse`],
-/// which borrows from the returned bytes.
-pub fn atomic_cards_bytes() -> anyhow::Result<Vec<u8>> { read_data("mtgjson/AtomicCards.json") }
-
-/// Reads the comprehensive rules file; parse with
-/// [`academyruins::RulesMap::parse`], which borrows from the returned bytes.
-pub fn comprehensive_rules_bytes() -> anyhow::Result<Vec<u8>> { read_data("rules/cr.json") }
-
-/// Reads the keyword lists file; parse with
-/// [`academyruins::Keywords::parse`], which borrows from the returned bytes.
-pub fn keywords_bytes() -> anyhow::Result<Vec<u8>> { read_data("rules/keywords.json") }
-
-/// Reads a scryfall catalog file (e.g. "creature-types"); parse with
-/// [`scryfall::Catalog::parse`], which borrows from the returned bytes.
-pub fn catalog_bytes(name: &str) -> anyhow::Result<Vec<u8>> {
-    read_data(&format!("catalogs/{name}.json"))
-}
-
 /// A string borrowed from the source bytes when its JSON representation is
 /// escape-free, owned otherwise.
 ///

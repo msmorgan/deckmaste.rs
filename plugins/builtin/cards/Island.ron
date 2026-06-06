@@ -1,0 +1,6 @@
+Normal(
+    name: "Island",
+    supertypes: [Basic],
+    types: [Land],
+    subtypes: [Land(Island)],
+)

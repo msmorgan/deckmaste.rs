@@ -132,6 +132,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckmaste_cards"
+version = "0.1.0"
+dependencies = [
+ "deckmaste_core",
+ "ron",
+ "serde",
+]
+
+[[package]]
 name = "deckmaste_core"
 version = "0.1.0"
 dependencies = [

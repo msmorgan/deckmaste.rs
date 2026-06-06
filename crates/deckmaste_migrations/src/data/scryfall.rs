@@ -1,5 +1,5 @@
 use serde::Deserialize;
-
+use crate::data;
 use super::DataStr;
 
 /// A scryfall catalog: a named list of strings. Only the list is modeled.

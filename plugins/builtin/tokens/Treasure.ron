@@ -1,0 +1,11 @@
+// CR 111.10a
+Token(
+    types: [Artifact],
+    subtypes: [Artifact(Treasure)],
+    abilities: [
+        Activated(
+            cost: [Tap, SacrificeThis],
+            effect: AddMana(1, AnyColor),
+        )
+    ],
+)

@@ -4,13 +4,13 @@
 //! deserialization.
 //!
 //! The model borrows from the underlying file bytes (see
-//! [`crate::data::atomic_cards_bytes`]); strings only allocate when their
+//! [`atomic_cards_bytes`]); strings only allocate when their
 //! JSON contains escape sequences. Consumers clone out what they keep.
 
 use std::collections::HashMap;
 
 use serde::Deserialize;
-
+use crate::data;
 use crate::data::DataStr;
 
 #[derive(Clone, Debug, Deserialize)]
@@ -112,3 +112,7 @@ mod tests {
         );
     }
 }
+
+/// Reads the atomic cards file; parse with [`AtomicCards::parse`],
+/// which borrows from the returned bytes.
+pub fn atomic_cards_bytes() -> anyhow::Result<Vec<u8>> { data::read_data("mtgjson/AtomicCards.json") }

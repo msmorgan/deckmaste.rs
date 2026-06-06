@@ -1,0 +1,9 @@
+[package]
+name = "deckmaste_cards"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
+ron = "0.12.1"
+serde = { version = "1.0.228", features = ["derive"] }

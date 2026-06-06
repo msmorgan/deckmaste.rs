@@ -1,0 +1,6 @@
+Normal(
+    name: "Forest",
+    supertypes: [Basic],
+    types: [Land],
+    subtypes: [Land(Forest)],
+)

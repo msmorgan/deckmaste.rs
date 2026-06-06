@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use serde::Deserialize;
-
 use super::DataStr;
 
 /// Replaces typographic quotation marks with their ASCII equivalents.
@@ -111,6 +110,15 @@ impl<'a> RulesMap<'a> {
     }
 }
 
+/// Reads the comprehensive rules file; parse with
+/// [`RulesMap::parse`], which borrows from the returned bytes.
+pub fn comprehensive_rules_bytes() -> anyhow::Result<Vec<u8>> { super::read_data("rules/cr.json") }
+
+/// Reads the keyword lists file; parse with
+/// [`Keywords::parse`], which borrows from the returned bytes.
+pub fn keywords_bytes() -> anyhow::Result<Vec<u8>> { super::read_data("rules/keywords.json") }
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -135,11 +143,3 @@ mod tests {
         );
     }
 }
-
-/// Reads the comprehensive rules file; parse with
-/// [`RulesMap::parse`], which borrows from the returned bytes.
-pub fn comprehensive_rules_bytes() -> anyhow::Result<Vec<u8>> { super::read_data("rules/cr.json") }
-
-/// Reads the keyword lists file; parse with
-/// [`Keywords::parse`], which borrows from the returned bytes.
-pub fn keywords_bytes() -> anyhow::Result<Vec<u8>> { super::read_data("rules/keywords.json") }

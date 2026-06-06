@@ -1,4 +1,4 @@
 /target/
 /data/
-/plugins/
-
+/plugins/*/
+!/plugins/builtin/
