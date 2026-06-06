@@ -244,10 +244,13 @@ impl SubtypeCategories {
     }
 }
 
-// We count non-null, non-"Banned" as legal.
+// We count non-null, non-"Banned" as legal. Online-only and oversized
+// (non-traditional) printings are not supported.
 fn is_supported(card: &Card) -> bool {
     card.legalities.vintage.as_deref().unwrap_or("Banned") != "Banned"
         && card.layout.as_str() != "reversible_card"
+        && !card.is_online_only
+        && !card.is_oversized
 }
 
 /// Maps windows-unsafe filename characters to their fullwidth equivalents,
@@ -379,39 +382,48 @@ pub(super) struct CardTodos;
 /// unsupported card sharing a name (Mystery Booster playtest cards, mostly)
 /// must not shadow a later legal card.
 ///
-/// Known provenance quirks that don't matter while only oracle-level fields
-/// are rendered: a few cards' first printing is online-only (Arena Beginner
-/// Set) or oversized (Comet Storm's P10 promo). If set-level fields are ever
-/// rendered, exclude isOnlineOnly/isOversized here, with a fallback.
+/// Cards whose original printing is unsupported (Arena Beginner Set debuts
+/// are online-only) fall back to their earliest supported printing, reprint
+/// or not.
 fn first_printings<'p, 'a>(
     all_printings: &'p mtgjson::AllPrintings<'a>,
 ) -> HashMap<&'p str, (&'p str, Vec<&'p Card<'a>>)> {
-    let mut first_prints: HashMap<&str, (&str, Vec<&Card>)> = HashMap::new();
-    for set in &all_printings.sets {
-        let date = set.release_date.as_str();
-        for card in set
-            .cards
-            .iter()
-            .filter(|card| !card.is_reprint && is_supported(card))
-        {
-            match first_prints.entry(card.name.as_str()) {
-                Entry::Vacant(entry) => {
-                    entry.insert((date, vec![card]));
+    let mut originals: HashMap<&str, (&str, Vec<&Card>)> = HashMap::new();
+    let mut earliest: HashMap<&str, (&str, Vec<&Card>)> = HashMap::new();
+
+    let collect = |prints: &mut HashMap<&'p str, (&'p str, Vec<&'p Card<'a>>)>,
+                   date: &'p str,
+                   card: &'p Card<'a>| {
+        match prints.entry(card.name.as_str()) {
+            Entry::Vacant(entry) => {
+                entry.insert((date, vec![card]));
+            }
+            Entry::Occupied(mut entry) => {
+                let (best_date, faces) = entry.get_mut();
+                if date < *best_date {
+                    *best_date = date;
+                    faces.clear();
                 }
-                Entry::Occupied(mut entry) => {
-                    let (best_date, faces) = entry.get_mut();
-                    if date < *best_date {
-                        *best_date = date;
-                        faces.clear();
-                    }
-                    if date <= *best_date {
-                        faces.push(card);
-                    }
+                if date <= *best_date {
+                    faces.push(card);
                 }
             }
         }
+    };
+
+    for set in &all_printings.sets {
+        let date = set.release_date.as_str();
+        for card in set.cards.iter().filter(|card| is_supported(card)) {
+            collect(&mut earliest, date, card);
+            if !card.is_reprint {
+                collect(&mut originals, date, card);
+            }
+        }
     }
-    first_prints
+    for (name, entry) in earliest {
+        originals.entry(name).or_insert(entry);
+    }
+    originals
 }
 
 /// One card object per face: printing variants within the first-print set

@@ -41,7 +41,10 @@ impl<'de: 'a, 'a> Deserialize<'de> for AllPrintings<'a> {
                         f.write_str("a map of sets")
                     }
 
-                    fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+                    fn visit_map<A: MapAccess<'de>>(
+                        self,
+                        mut map: A,
+                    ) -> Result<Self::Value, A::Error> {
                         let mut sets = Vec::with_capacity(map.size_hint().unwrap_or(0));
                         while let Some((IgnoredAny, set)) = map.next_entry::<IgnoredAny, Set>()? {
                             sets.push(set);
@@ -52,7 +55,9 @@ impl<'de: 'a, 'a> Deserialize<'de> for AllPrintings<'a> {
                 deserializer.deserialize_map(V(std::marker::PhantomData))
             }
         }
-        Ok(AllPrintings { sets: Outer::deserialize(deserializer)?.data.0 })
+        Ok(AllPrintings {
+            sets: Outer::deserialize(deserializer)?.data.0,
+        })
     }
 }
 
@@ -81,6 +86,13 @@ pub struct Card<'a> {
     /// True when an earlier set already printed this card.
     #[serde(default)]
     pub is_reprint: bool,
+    /// True for printings only available in digital clients.
+    #[serde(default)]
+    pub is_online_only: bool,
+    /// True for oversized printings (boxtopper promos and the like), which
+    /// are not traditional Magic cards.
+    #[serde(default)]
+    pub is_oversized: bool,
     /// Symbols like "{2}{W/U}{X}".
     #[serde(borrow, default)]
     pub mana_cost: Option<DataStr<'a>>,
