@@ -9,7 +9,6 @@ workspace = true
 [dependencies]
 anyhow = { version = "1.0.102" }
 clap = { version = "4.6.1", features = ["derive"] }
-deckmaste_cards = { path = "../deckmaste_cards" }
 deckmaste_core = { path = "../deckmaste_core" }
 regex = "1.12.3"
 ron = "0.12.1"

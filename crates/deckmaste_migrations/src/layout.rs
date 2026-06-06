@@ -1,5 +1,10 @@
 use std::path::{Path, PathBuf};
 
+use deckmaste_core::plugin::{
+    ABILITY_WORDS_DIR, CARDS_DIR, KEYWORD_ABILITIES_DIR, KEYWORD_ABILITIES_FILE,
+    KEYWORD_ACTIONS_DIR, TYPES_DIR,
+};
+
 pub struct PluginLayout(PathBuf);
 
 impl PluginLayout {
@@ -47,19 +52,21 @@ impl PluginLayout {
         Ok(dir_path)
     }
 
-    pub fn keyword_abilities_dir(&self) -> anyhow::Result<PathBuf> { self.dir("keyword_abilities") }
-
-    pub fn keyword_actions_dir(&self) -> anyhow::Result<PathBuf> { self.dir("keyword_actions") }
-
-    pub fn ability_words_dir(&self) -> anyhow::Result<PathBuf> { self.dir("ability_words") }
-
-    pub fn types_dir(&self, category: &str) -> anyhow::Result<PathBuf> {
-        self.dir(&format!("types/{category}"))
+    pub fn keyword_abilities_dir(&self) -> anyhow::Result<PathBuf> {
+        self.dir(KEYWORD_ABILITIES_DIR)
     }
 
-    pub fn cards_dir(&self) -> anyhow::Result<PathBuf> { self.dir("cards") }
+    pub fn keyword_actions_dir(&self) -> anyhow::Result<PathBuf> { self.dir(KEYWORD_ACTIONS_DIR) }
+
+    pub fn ability_words_dir(&self) -> anyhow::Result<PathBuf> { self.dir(ABILITY_WORDS_DIR) }
+
+    pub fn types_dir(&self, category: &str) -> anyhow::Result<PathBuf> {
+        self.dir(&format!("{TYPES_DIR}/{category}"))
+    }
+
+    pub fn cards_dir(&self) -> anyhow::Result<PathBuf> { self.dir(CARDS_DIR) }
 
     pub fn keyword_abilities_file(&self) -> anyhow::Result<PathBuf> {
-        self.file("keyword_abilities.ron")
+        self.file(KEYWORD_ABILITIES_FILE)
     }
 }

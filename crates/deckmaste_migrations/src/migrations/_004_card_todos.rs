@@ -1,7 +1,7 @@
 use std::sync::LazyLock;
 
 use anyhow::Context;
-use deckmaste_cards::plugin::card_filename;
+use deckmaste_core::plugin::card_file;
 use deckmaste_core::{Card, Color, Ident, ManaCost};
 use regex::Regex;
 use serde::Serialize;
@@ -205,7 +205,7 @@ impl super::Migration for CardTodos {
                 continue;
             }
 
-            let dest = dest_dir.join(format!("{}.ron", card_filename(name)));
+            let dest = dest_dir.join(card_file(name));
             if !super::is_todo(&dest)? {
                 continue;
             }

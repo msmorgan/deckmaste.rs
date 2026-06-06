@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
+use deckmaste_core::plugin::{MACROS_DIR, TYPES_DIR, card_path};
 use deckmaste_core::{Card, Ident, Subtype};
 
 use crate::macros::{MacroDef, MacroSet};
@@ -32,7 +33,7 @@ impl Plugin {
 
         // Macro definitions are self-describing.
         let mut macros = MacroSet::default();
-        for path in ron_files_recursive(&root.join("macros"))? {
+        for path in ron_files_recursive(&root.join(MACROS_DIR))? {
             let def: MacroDef = deckmaste_core::ron::options()
                 .from_str(&read(&path)?)
                 .with_context(|| format!(r#"parsing macro "{}""#, path.display()))?;
@@ -48,7 +49,7 @@ impl Plugin {
         // pass stops making progress — only then is the first one real.
         let mut subtypes = HashMap::new();
         let mut pending = Vec::new();
-        for path in ron_files_recursive(&root.join("types"))? {
+        for path in ron_files_recursive(&root.join(TYPES_DIR))? {
             let declaration = read(&path)?;
             pending.push((path, declaration));
         }
@@ -85,11 +86,7 @@ impl Plugin {
 
     /// The file a card of this name would live in.
     #[must_use]
-    pub fn card_path(&self, name: &str) -> PathBuf {
-        self.root
-            .join("cards")
-            .join(format!("{}.ron", card_filename(name)))
-    }
+    pub fn card_path(&self, name: &str) -> PathBuf { card_path(&self.root, name) }
 
     /// Reads and parses `cards/<name>.ron`, with the plugin's macros in scope.
     ///
@@ -101,28 +98,6 @@ impl Plugin {
             .read_str(&read(&path)?)
             .with_context(|| format!(r#"parsing "{}""#, path.display()))
     }
-}
-
-/// Maps Windows-unsafe filename characters to their fullwidth equivalents,
-/// e.g. "Fire // Ice" -> "Fire ／／ Ice". Card files are written and looked
-/// up through this one mapping, which also keeps separators in a card's name
-/// from escaping `cards/`.
-#[must_use]
-pub fn card_filename(name: &str) -> String {
-    name.chars()
-        .map(|c| match c {
-            '<' => '＜',
-            '>' => '＞',
-            ':' => '：',
-            '"' => '＂',
-            '/' => '／',
-            '\\' => '＼',
-            '|' => '｜',
-            '?' => '？',
-            '*' => '＊',
-            c => c,
-        })
-        .collect()
 }
 
 fn read(path: &Path) -> anyhow::Result<String> {
@@ -156,16 +131,4 @@ fn ron_files_recursive(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
     }
     files.sort();
     Ok(files)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn filenames() {
-        assert_eq!(card_filename("Fire // Ice"), "Fire ／／ Ice");
-        assert_eq!(card_filename("Question?"), "Question？");
-        assert_eq!(card_filename("Lightning Bolt"), "Lightning Bolt");
-    }
 }

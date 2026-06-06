@@ -15,6 +15,8 @@ pub use ident::Ident;
 mod mana;
 pub use mana::{ManaCost, ManaSymbol, SimpleManaSymbol};
 
+pub mod plugin;
+
 mod subtype;
 pub use subtype::Subtype;
 

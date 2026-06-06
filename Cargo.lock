@@ -156,7 +156,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "deckmaste_cards",
  "deckmaste_core",
  "regex",
  "ron",
