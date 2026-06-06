@@ -1,22 +1,17 @@
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(transparent)]
 pub(crate) struct RulesMap(pub HashMap<String, Rule>);
 
 impl RulesMap {
-    pub fn inner(&self) -> &HashMap<String, Rule> {
-        &self.0
-    }
+    pub fn inner(&self) -> &HashMap<String, Rule> { &self.0 }
 
-    pub fn into_inner(self) -> HashMap<String, Rule> {
-        self.0
-    }
+    pub fn into_inner(self) -> HashMap<String, Rule> { self.0 }
 
-    pub fn find_rule(&self, rule_number: &str) -> Option<&Rule> {
-        self.0.get(rule_number)
-    }
+    pub fn find_rule(&self, rule_number: &str) -> Option<&Rule> { self.0.get(rule_number) }
 
     /// Returns the rule and the subrules that follow it, e.g. "702.9"
     /// yields 702.9, 702.9a, 702.9b, and 702.9c.
@@ -109,7 +104,9 @@ mod tests {
         let rule = Rule {
             rule_number: "702.9b".to_owned(),
             examples: Some(vec!["The ‘fox’ said “hi.”".to_owned()]),
-            rule_text: "A creature with flying can’t be blocked. (See rule 509, “Declare Blockers Step.”)".to_owned(),
+            rule_text:
+                "A creature with flying can’t be blocked. (See rule 509, “Declare Blockers Step.”)"
+                    .to_owned(),
             fragment: "9b".to_owned(),
             navigation: Navigation {
                 next_rule: None,

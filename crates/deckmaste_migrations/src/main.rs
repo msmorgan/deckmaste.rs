@@ -1,10 +1,11 @@
-use clap::Parser;
-use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use clap::Parser;
+use serde::{Deserialize, Serialize};
+
 mod data;
-mod migrations;
 mod layout;
+mod migrations;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct RawCharacteristics {

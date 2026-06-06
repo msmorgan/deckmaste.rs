@@ -1,0 +1,24 @@
+# Rust 2024 / "Version Two" formatting. style_edition is the stabilized
+# successor of `version = "Two"` -- don't set both, and `edition` comes from
+# Cargo.toml when run via `cargo fmt`.
+style_edition = "2024"
+
+# --- stable options -------------------------------------------------------
+newline_style = "Unix"
+# Allow short `if c { a } else { b }` and let-else to stay on one line a bit
+# longer (default 50).
+single_line_if_else_max_width = 80
+single_line_let_else_max_width = 80
+use_field_init_shorthand = true
+use_try_shorthand = true
+
+# --- nightly-only: applied by `cargo +nightly fmt`, warned-and-ignored on
+# --- stable ---------------------------------------------------------------
+# Import hygiene: one `use` tree per module, grouped std / external / crate.
+imports_granularity = "Module"
+group_imports = "StdExternalCrate"
+# One-line bodies for single-expression fns.
+fn_single_line = true
+# Rewrap prose comments at comment_width (default 80).
+wrap_comments = true
+format_code_in_doc_comments = true

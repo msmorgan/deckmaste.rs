@@ -7,11 +7,12 @@
 //! [`crate::data::atomic_cards_bytes`]); strings only allocate when their
 //! JSON contains escape sequences. Consumers clone out what they keep.
 
-use serde::{Deserialize, Deserializer};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
 use std::ops::Deref;
+
+use serde::{Deserialize, Deserializer};
 
 /// A string borrowed from the source bytes when its JSON representation is
 /// escape-free, owned otherwise.
@@ -23,23 +24,17 @@ use std::ops::Deref;
 pub struct Str<'a>(Cow<'a, str>);
 
 impl Str<'_> {
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
+    pub fn as_str(&self) -> &str { &self.0 }
 }
 
 impl Deref for Str<'_> {
     type Target = str;
 
-    fn deref(&self) -> &str {
-        &self.0
-    }
+    fn deref(&self) -> &str { &self.0 }
 }
 
 impl fmt::Display for Str<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.0.fmt(f)
-    }
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { self.0.fmt(f) }
 }
 
 impl<'de: 'a, 'a> Deserialize<'de> for Str<'a> {
@@ -60,9 +55,7 @@ impl<'de: 'a, 'a> Deserialize<'de> for Str<'a> {
                 Ok(Str(Cow::Borrowed(v)))
             }
 
-            fn visit_string<E>(self, v: String) -> Result<Self::Value, E> {
-                Ok(Str(Cow::Owned(v)))
-            }
+            fn visit_string<E>(self, v: String) -> Result<Self::Value, E> { Ok(Str(Cow::Owned(v))) }
         }
 
         deserializer.deserialize_str(StrVisitor(std::marker::PhantomData))
@@ -77,9 +70,7 @@ pub struct AtomicCards<'a> {
 }
 
 impl<'a> AtomicCards<'a> {
-    pub fn parse(bytes: &'a [u8]) -> serde_json::Result<Self> {
-        serde_json::from_slice(bytes)
-    }
+    pub fn parse(bytes: &'a [u8]) -> serde_json::Result<Self> { serde_json::from_slice(bytes) }
 }
 
 #[derive(Clone, Debug, Deserialize)]

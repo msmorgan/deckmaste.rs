@@ -1,6 +1,8 @@
 use std::path::Path;
 use std::sync::LazyLock;
+
 use regex::Regex;
+
 use crate::layout::PluginLayout;
 
 mod _000_keyword_ability_todos;
@@ -18,8 +20,7 @@ trait Migration {
 /// (?m) anchors ^ at line starts: the Todo( line may follow a // CR comment
 /// line, so it is not necessarily at the start of the file.
 fn is_todo(path: &Path) -> anyhow::Result<bool> {
-    static TODO_PATTERN: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"(?m)^\s*Todo\(").unwrap());
+    static TODO_PATTERN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?m)^\s*Todo\(").unwrap());
 
     if !path.exists() {
         return Ok(true);

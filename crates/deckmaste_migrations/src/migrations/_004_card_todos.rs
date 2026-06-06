@@ -1,8 +1,9 @@
 use std::sync::LazyLock;
 
-use crate::data::mtgjson::AtomicCard;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+
+use crate::data::mtgjson::AtomicCard;
 
 pub(super) struct CardTodos;
 
@@ -340,10 +341,7 @@ fn parse_mana_symbol(symbol: &str) -> anyhow::Result<ManaSymbol> {
         color_symbol(&captures["color"])
     };
     if let Some(hybrid) = captures.name("hybrid") {
-        parsed = ManaSymbol::Hybrid(
-            Box::new(parsed),
-            Box::new(color_symbol(hybrid.as_str())),
-        );
+        parsed = ManaSymbol::Hybrid(Box::new(parsed), Box::new(color_symbol(hybrid.as_str())));
     }
     if captures.name("phyrexian").is_some() {
         parsed = ManaSymbol::Phyrexian(Box::new(parsed));
@@ -509,10 +507,7 @@ mod tests {
     #[test]
     fn mana_costs() {
         use ManaSymbol::*;
-        assert_eq!(
-            parse_mana_cost("{1}{G}").unwrap(),
-            vec![Generic(1), Green]
-        );
+        assert_eq!(parse_mana_cost("{1}{G}").unwrap(), vec![Generic(1), Green]);
         assert_eq!(parse_mana_cost("{X}{S}").unwrap(), vec![Variable, Snow]);
         assert_eq!(
             parse_mana_cost("{2/W}{C/B}").unwrap(),
@@ -576,10 +571,7 @@ mod tests {
         let Err(error) = SubtypeCategories::load(&plugin) else {
             panic!("mismatched type definition should fail to load");
         };
-        assert!(
-            error.to_string().contains("defines a land type"),
-            "{error}"
-        );
+        assert!(error.to_string().contains("defines a land type"), "{error}");
 
         std::fs::remove_dir_all(&base).unwrap();
     }
@@ -588,7 +580,10 @@ mod tests {
         CardFace::Todo {
             name: name.to_owned(),
             mana_cost: Some(vec![
-                ManaSymbol::Hybrid(Box::new(ManaSymbol::Generic(2)), Box::new(ManaSymbol::White)),
+                ManaSymbol::Hybrid(
+                    Box::new(ManaSymbol::Generic(2)),
+                    Box::new(ManaSymbol::White),
+                ),
                 ManaSymbol::Green,
             ]),
             color_indicator: None,

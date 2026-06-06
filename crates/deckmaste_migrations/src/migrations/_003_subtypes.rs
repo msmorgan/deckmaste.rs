@@ -22,7 +22,11 @@ impl super::Migration for Subtypes {
             ("creature", "Creature", crate::data::creature_types),
             ("enchantment", "Enchantment", crate::data::enchantment_types),
             ("land", "Land", crate::data::land_types),
-            ("planeswalker", "Planeswalker", crate::data::planeswalker_types),
+            (
+                "planeswalker",
+                "Planeswalker",
+                crate::data::planeswalker_types,
+            ),
             ("spell", "Spell", crate::data::spell_types),
         ];
 

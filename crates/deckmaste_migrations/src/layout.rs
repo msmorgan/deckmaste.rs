@@ -6,10 +6,16 @@ impl PluginLayout {
     pub fn new(base: &Path) -> anyhow::Result<Self> {
         let base = base.canonicalize()?;
         if !base.exists() {
-            return Err(anyhow::anyhow!("Plugin base directory does not exist: {}", base.display()));
+            return Err(anyhow::anyhow!(
+                "Plugin base directory does not exist: {}",
+                base.display()
+            ));
         }
         if !base.is_dir() {
-            return Err(anyhow::anyhow!("Plugin base path is not a directory: {}", base.display()));
+            return Err(anyhow::anyhow!(
+                "Plugin base path is not a directory: {}",
+                base.display()
+            ));
         }
         Ok(Self(base.to_owned()))
     }
@@ -20,7 +26,10 @@ impl PluginLayout {
         std::fs::create_dir_all(file_path.parent().unwrap())?;
         let parent_dir = file_path.parent().unwrap().canonicalize()?;
         if !parent_dir.starts_with(&self.0) {
-            return Err(anyhow::anyhow!("path is outside of plugin layout: {}", file_path.display()));
+            return Err(anyhow::anyhow!(
+                "path is outside of plugin layout: {}",
+                file_path.display()
+            ));
         }
         Ok(parent_dir.join(file_name))
     }
@@ -30,30 +39,25 @@ impl PluginLayout {
         std::fs::create_dir_all(&dir_path)?;
         let dir_path = dir_path.canonicalize()?;
         if !dir_path.starts_with(&self.0) {
-            return Err(anyhow::anyhow!("path is outside of plugin layout: {}", dir_path.display()));
+            return Err(anyhow::anyhow!(
+                "path is outside of plugin layout: {}",
+                dir_path.display()
+            ));
         }
         Ok(dir_path)
     }
 
-    pub fn keyword_abilities_dir(&self) -> anyhow::Result<PathBuf> {
-        self.dir("keyword_abilities")
-    }
+    pub fn keyword_abilities_dir(&self) -> anyhow::Result<PathBuf> { self.dir("keyword_abilities") }
 
-    pub fn keyword_actions_dir(&self) -> anyhow::Result<PathBuf> {
-        self.dir("keyword_actions")
-    }
+    pub fn keyword_actions_dir(&self) -> anyhow::Result<PathBuf> { self.dir("keyword_actions") }
 
-    pub fn ability_words_dir(&self) -> anyhow::Result<PathBuf> {
-        self.dir("ability_words")
-    }
+    pub fn ability_words_dir(&self) -> anyhow::Result<PathBuf> { self.dir("ability_words") }
 
     pub fn types_dir(&self, category: &str) -> anyhow::Result<PathBuf> {
         self.dir(&format!("types/{category}"))
     }
 
-    pub fn cards_dir(&self) -> anyhow::Result<PathBuf> {
-        self.dir("cards")
-    }
+    pub fn cards_dir(&self) -> anyhow::Result<PathBuf> { self.dir("cards") }
 
     pub fn keyword_abilities_file(&self) -> anyhow::Result<PathBuf> {
         self.file("keyword_abilities.ron")
