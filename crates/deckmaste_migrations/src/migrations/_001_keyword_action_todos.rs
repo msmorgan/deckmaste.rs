@@ -11,6 +11,7 @@ impl super::Migration for KeywordActionTodos {
             &keywords.keyword_actions,
             &rules,
             |keyword| rules.find_keyword_rule_number("701.", keyword),
+            crate::data::academyruins::Rule::format,
         )
     }
 }

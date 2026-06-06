@@ -11,6 +11,7 @@ impl super::Migration for KeywordAbilityTodos {
             &keywords.keyword_abilities,
             &rules,
             |keyword| rules.find_keyword_rule_number("702.", keyword),
+            crate::data::academyruins::Rule::format,
         )
     }
 }

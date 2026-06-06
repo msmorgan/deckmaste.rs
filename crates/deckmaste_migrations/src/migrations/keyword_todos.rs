@@ -2,7 +2,7 @@ use std::path::Path;
 
 use serde::Serialize;
 
-use crate::data::academyruins::RulesMap;
+use crate::data::academyruins::{Rule, RulesMap};
 
 #[derive(Serialize)]
 enum KeywordTodo {
@@ -22,12 +22,14 @@ fn pretty_config() -> ron::ser::PrettyConfig {
 /// Writes a `<RustIdent>.ron` Todo stub into `dest_dir` for every keyword,
 /// with its CR rule section inlined. `rule_number_for` resolves a keyword to
 /// the rule number its section starts at; keywords it cannot resolve are
-/// skipped with a warning.
+/// skipped with a warning. `format_rule` renders one rules-array element
+/// (usually [`Rule::format`]).
 pub(super) fn create_keyword_todos<'r>(
     dest_dir: &Path,
     keywords: &[String],
     rules: &'r RulesMap,
     rule_number_for: impl Fn(&str) -> Option<&'r str>,
+    format_rule: impl Fn(&Rule) -> String,
 ) -> anyhow::Result<()> {
     for keyword in keywords {
         let Some(rule_number) = rule_number_for(keyword) else {
@@ -47,7 +49,7 @@ pub(super) fn create_keyword_todos<'r>(
         let todo = KeywordTodo::Todo {
             name,
             template: keyword.clone(),
-            rules: section.iter().map(|rule| rule.format()).collect(),
+            rules: section.iter().map(|&rule| format_rule(rule)).collect(),
         };
         let serialized = ron::ser::to_string_pretty(&todo, pretty_config())?;
         let contents = format!("// CR {rule_number}\n{serialized}\n");
