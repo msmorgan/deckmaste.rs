@@ -7,19 +7,30 @@ use crate::data::mtgjson::AtomicCard;
 
 pub(super) struct CardTodos;
 
+/// The component symbols hybrid/phyrexian symbols are built from: a generic
+/// amount, one of the five colors, or colorless ({C}, which is not a color).
+///
+/// The untagged Color variant serializes transparently, so the RON stays
+/// flat: `White`, not `Color(White)`.
+#[derive(Debug, PartialEq, Serialize)]
+enum SimpleManaSymbol {
+    Generic(u16),
+    Colorless,
+    #[serde(untagged)]
+    Color(Color),
+}
+
+/// The untagged Simple variant serializes transparently, so the RON stays
+/// flat: `Generic(2)`, not `Simple(Generic(2))`.
 #[derive(Debug, PartialEq, Serialize)]
 enum ManaSymbol {
     Variable,
     Snow,
-    Generic(u64),
-    White,
-    Blue,
-    Black,
-    Red,
-    Green,
-    Colorless,
-    Hybrid(Box<ManaSymbol>, Box<ManaSymbol>),
-    Phyrexian(Box<ManaSymbol>),
+    Hybrid(SimpleManaSymbol, SimpleManaSymbol),
+    Phyrexian(SimpleManaSymbol),
+    PhyrexianHybrid(SimpleManaSymbol, SimpleManaSymbol),
+    #[serde(untagged)]
+    Simple(SimpleManaSymbol),
 }
 
 #[derive(Debug, PartialEq, Serialize)]
@@ -42,7 +53,7 @@ enum Subtype {
 /// A color indicator color, serialized by name rather than the data's
 /// single-letter code.
 #[derive(Debug, PartialEq, Serialize)]
-enum RonColor {
+enum Color {
     White,
     Blue,
     Black,
@@ -57,7 +68,7 @@ enum CardFace {
         #[serde(skip_serializing_if = "Option::is_none", serialize_with = "one_line_if_single_opt")]
         mana_cost: Option<Vec<ManaSymbol>>,
         #[serde(skip_serializing_if = "Option::is_none", serialize_with = "one_line_if_single_opt")]
-        color_indicator: Option<Vec<RonColor>>,
+        color_indicator: Option<Vec<Color>>,
         #[serde(serialize_with = "one_line_if_single")]
         types: Vec<String>,
         #[serde(skip_serializing_if = "Vec::is_empty", serialize_with = "one_line_if_single")]
@@ -318,25 +329,25 @@ fn expand_keyword_lines(text: &str, keyword_abilities: &[String]) -> String {
         .join("\n")
 }
 
-fn ron_color(code: &str) -> anyhow::Result<RonColor> {
+fn ron_color(code: &str) -> anyhow::Result<Color> {
     Ok(match code {
-        "W" => RonColor::White,
-        "U" => RonColor::Blue,
-        "B" => RonColor::Black,
-        "R" => RonColor::Red,
-        "G" => RonColor::Green,
+        "W" => Color::White,
+        "U" => Color::Blue,
+        "B" => Color::Black,
+        "R" => Color::Red,
+        "G" => Color::Green,
         other => anyhow::bail!("unrecognized color indicator: {other:?}"),
     })
 }
 
-fn color_symbol(code: &str) -> ManaSymbol {
+fn simple_symbol(code: &str) -> SimpleManaSymbol {
     match code {
-        "W" => ManaSymbol::White,
-        "U" => ManaSymbol::Blue,
-        "B" => ManaSymbol::Black,
-        "R" => ManaSymbol::Red,
-        "G" => ManaSymbol::Green,
-        "C" => ManaSymbol::Colorless,
+        "W" => SimpleManaSymbol::Color(Color::White),
+        "U" => SimpleManaSymbol::Color(Color::Blue),
+        "B" => SimpleManaSymbol::Color(Color::Black),
+        "R" => SimpleManaSymbol::Color(Color::Red),
+        "G" => SimpleManaSymbol::Color(Color::Green),
+        "C" => SimpleManaSymbol::Colorless,
         _ => unreachable!("colors are restricted by the symbol regex"),
     }
 }
@@ -364,22 +375,26 @@ fn parse_mana_symbol(symbol: &str) -> anyhow::Result<ManaSymbol> {
         .captures(symbol)
         .ok_or_else(|| anyhow::anyhow!("unrecognized mana symbol: {symbol:?}"))?;
 
-    let mut parsed = if captures.name("variable").is_some() {
-        ManaSymbol::Variable
-    } else if captures.name("snow").is_some() {
-        ManaSymbol::Snow
-    } else if let Some(generic) = captures.name("generic") {
-        ManaSymbol::Generic(generic.as_str().parse()?)
+    if captures.name("variable").is_some() {
+        return Ok(ManaSymbol::Variable);
+    }
+    if captures.name("snow").is_some() {
+        return Ok(ManaSymbol::Snow);
+    }
+
+    let simple = if let Some(generic) = captures.name("generic") {
+        SimpleManaSymbol::Generic(generic.as_str().parse()?)
     } else {
-        color_symbol(&captures["color"])
+        simple_symbol(&captures["color"])
     };
-    if let Some(hybrid) = captures.name("hybrid") {
-        parsed = ManaSymbol::Hybrid(Box::new(parsed), Box::new(color_symbol(hybrid.as_str())));
-    }
-    if captures.name("phyrexian").is_some() {
-        parsed = ManaSymbol::Phyrexian(Box::new(parsed));
-    }
-    Ok(parsed)
+    let hybrid = captures.name("hybrid").map(|h| simple_symbol(h.as_str()));
+    let phyrexian = captures.name("phyrexian").is_some();
+    Ok(match (hybrid, phyrexian) {
+        (Some(hybrid), true) => ManaSymbol::PhyrexianHybrid(simple, hybrid),
+        (Some(hybrid), false) => ManaSymbol::Hybrid(simple, hybrid),
+        (None, true) => ManaSymbol::Phyrexian(simple),
+        (None, false) => ManaSymbol::Simple(simple),
+    })
 }
 
 fn parse_mana_cost(mana_cost: &str) -> anyhow::Result<Vec<ManaSymbol>> {
@@ -540,23 +555,41 @@ mod tests {
     #[test]
     fn mana_costs() {
         use ManaSymbol::*;
-        assert_eq!(parse_mana_cost("{1}{G}").unwrap(), vec![Generic(1), Green]);
+        use SimpleManaSymbol::{Colorless, Generic};
+        let color = |c| SimpleManaSymbol::Color(c);
+
+        assert_eq!(
+            parse_mana_cost("{1}{G}").unwrap(),
+            vec![Simple(Generic(1)), Simple(color(Color::Green))]
+        );
         assert_eq!(parse_mana_cost("{X}{S}").unwrap(), vec![Variable, Snow]);
         assert_eq!(
             parse_mana_cost("{2/W}{C/B}").unwrap(),
             vec![
-                Hybrid(Box::new(Generic(2)), Box::new(White)),
-                Hybrid(Box::new(Colorless), Box::new(Black)),
+                Hybrid(Generic(2), color(Color::White)),
+                Hybrid(Colorless, color(Color::Black)),
             ]
         );
         assert_eq!(
             parse_mana_cost("{G/U/P}{W/P}").unwrap(),
             vec![
-                Phyrexian(Box::new(Hybrid(Box::new(Green), Box::new(Blue)))),
-                Phyrexian(Box::new(White)),
+                PhyrexianHybrid(color(Color::Green), color(Color::Blue)),
+                Phyrexian(color(Color::White)),
             ]
         );
         assert!(parse_mana_cost("{HW}").is_err());
+    }
+
+    #[test]
+    fn mana_symbols_serialize_flat() {
+        // The Simple and Color wrapper variants are untagged: the nested
+        // model must not show up in the RON.
+        let symbols = parse_mana_cost("{R}{2}{C}{2/W}{W/P}{G/U/P}{X}{S}").unwrap();
+        assert_eq!(
+            ron_options().to_string(&symbols).unwrap(),
+            "[Red,Generic(2),Colorless,Hybrid(Generic(2),White),Phyrexian(White),\
+             PhyrexianHybrid(Green,Blue),Variable,Snow]"
+        );
     }
 
     #[test]
@@ -614,10 +647,10 @@ mod tests {
             name: name.to_owned(),
             mana_cost: Some(vec![
                 ManaSymbol::Hybrid(
-                    Box::new(ManaSymbol::Generic(2)),
-                    Box::new(ManaSymbol::White),
+                    SimpleManaSymbol::Generic(2),
+                    SimpleManaSymbol::Color(Color::White),
                 ),
-                ManaSymbol::Green,
+                ManaSymbol::Simple(SimpleManaSymbol::Color(Color::Green)),
             ]),
             color_indicator: None,
             types: vec!["Creature".to_owned()],
