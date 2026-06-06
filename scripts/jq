@@ -1,0 +1,61 @@
+#!/usr/bin/env fish
+# jq, with the project libraries preloaded.
+#
+# Adds scripts/lib/jq and data/ to the module search path (data/ is where
+# rules.jq's data-imports -- rules/cr, rules/keywords, catalogs/*-types --
+# resolve) and prepends an `include` for every library module, so their
+# functions are available unqualified:
+#
+#     scripts/jq -nr '"flying" | get_keyword_cr | format_section'
+#     scripts/jq 'from_atomic_cards_file | length' data/mtgjson/AtomicCards.json
+#
+# The program-style files (rules/section.jq, rules/keyword_ability.jq,
+# sets/*.jq) contain top-level filters and cannot be `include`d; run those
+# directly with `scripts/jq -f`.
+
+set -l project_dir (path resolve (status dirname)/..)
+set -l lib_dir $project_dir/scripts/lib/jq
+set -l data_dir $project_dir/data
+
+# The modules consisting only of defs -- the ones jq can `include`.
+set -l modules util rules card rules/section2
+
+set -l includes
+for mod in $modules
+    set -a includes "include \"$mod\";"
+end
+
+# Locate the filter: the first argument that isn't an option or an option's
+# value.
+set -l two_value --arg --argjson --slurpfile --rawfile
+set -l one_value --indent -L --library-path
+
+set -l i 1
+set -l filter_idx 0
+while test $i -le (count $argv)
+    set -l a $argv[$i]
+    if contains -- $a $two_value
+        set i (math $i + 3)
+    else if contains -- $a $one_value
+        set i (math $i + 2)
+    else if string match -qr -- '^(-[a-zA-Z0-9]*f[a-zA-Z0-9]*|--from-file)$' $a
+        # The program comes from a file (also catches -f in a cluster like
+        # -rf); nothing to prepend includes to.
+        break
+    else if test "$a" = --
+        set filter_idx (math $i + 1)
+        break
+    else if string match -q -- '-*' $a
+        set i (math $i + 1)
+    else
+        set filter_idx $i
+        break
+    end
+end
+
+if test $filter_idx -gt 0; and test $filter_idx -le (count $argv)
+    # Quoting a fish list joins it with spaces.
+    set argv[$filter_idx] "$includes $argv[$filter_idx]"
+end
+
+exec jq -L $lib_dir -L $data_dir $argv

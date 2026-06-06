@@ -1,0 +1,2 @@
+.data[] |
+.code + "\t" + .type
