@@ -46,12 +46,16 @@ use serde::de::{DeserializeOwned, Deserializer, MapAccess, SeqAccess, Visitor};
 pub enum MacroKind {
     Ability,
     CardFace,
+    Condition,
     CostComponent,
     Effect,
+    Event,
     Filter,
     Reference,
     Selection,
+    StaticEffect,
     Subtype,
+    TargetSpec,
 }
 
 impl MacroKind {
@@ -61,12 +65,16 @@ impl MacroKind {
         Some(match name {
             "Ability" => MacroKind::Ability,
             "CardFace" => MacroKind::CardFace,
+            "Condition" => MacroKind::Condition,
             "CostComponent" => MacroKind::CostComponent,
             "Effect" => MacroKind::Effect,
+            "Event" => MacroKind::Event,
             "Filter" => MacroKind::Filter,
             "Reference" => MacroKind::Reference,
             "Selection" => MacroKind::Selection,
+            "StaticEffect" => MacroKind::StaticEffect,
             "Subtype" => MacroKind::Subtype,
+            "TargetSpec" => MacroKind::TargetSpec,
             _ => return None,
         })
     }
@@ -303,7 +311,9 @@ impl FromIterator<MacroDef> for MacroSet {
 
 #[cfg(test)]
 mod tests {
-    use deckmaste_core::{Ability, CharacteristicFilter, Filter, ObjectKind, Subtype, Type};
+    use deckmaste_core::{
+        Ability, CharacteristicFilter, Filter, ObjectKind, StateFilter, Subtype, Type, Zone,
+    };
 
     use super::*;
 
@@ -323,6 +333,10 @@ mod tests {
             Some(MacroKind::CardFace)
         );
         assert_eq!(
+            position::<deckmaste_core::Condition>(),
+            Some(MacroKind::Condition)
+        );
+        assert_eq!(
             position::<deckmaste_core::CostComponent>(),
             Some(MacroKind::CostComponent)
         );
@@ -330,6 +344,7 @@ mod tests {
             position::<deckmaste_core::Effect>(),
             Some(MacroKind::Effect)
         );
+        assert_eq!(position::<deckmaste_core::Event>(), Some(MacroKind::Event));
         assert_eq!(position::<Filter>(), Some(MacroKind::Filter));
         assert_eq!(
             position::<deckmaste_core::Reference>(),
@@ -339,7 +354,15 @@ mod tests {
             position::<deckmaste_core::Selection>(),
             Some(MacroKind::Selection)
         );
+        assert_eq!(
+            position::<deckmaste_core::StaticEffect>(),
+            Some(MacroKind::StaticEffect)
+        );
         assert_eq!(position::<Subtype>(), Some(MacroKind::Subtype));
+        assert_eq!(
+            position::<deckmaste_core::TargetSpec>(),
+            Some(MacroKind::TargetSpec)
+        );
     }
 
     fn subtype_macro(name: &str, params: Vec<ParamType>, body: &str) -> MacroDef {
@@ -439,7 +462,7 @@ mod tests {
                 name: "Flying".into(),
                 kinds: vec![MacroKind::Ability],
                 params: Params::default(),
-                body: r#"Keyword(keyword: "Flying", expanded: (params: [], value: Static))"#.into(),
+                body: r#"Keyword(keyword: "Flying", expanded: (params: [], value: Static(effects: [Restriction(CantAttack)])))"#.into(),
             })
             .unwrap();
         let ability: Ability = macros.read_str("Flying").unwrap();
@@ -526,7 +549,7 @@ mod tests {
                 name: "AnyTargetish".into(),
                 kinds: vec![MacroKind::Filter],
                 params: Params::default(),
-                body: "OneOf([Kind(Player), AllOf([Kind(Permanent), Type(Creature)])])".into(),
+                body: "OneOf([Kind(Player), AllOf([InZone(Battlefield), Type(Creature)])])".into(),
             })
             .unwrap();
         let filter: Filter = macros.read_str("AnyTargetish").unwrap();
@@ -539,7 +562,7 @@ mod tests {
         assert_eq!(
             arms[1],
             Filter::AllOf(vec![
-                Filter::Kind(ObjectKind::Permanent),
+                Filter::State(StateFilter::InZone(Zone::Battlefield)),
                 Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
             ])
         );
@@ -563,6 +586,27 @@ mod tests {
         assert_eq!(
             selection,
             deckmaste_core::Selection::Each(Filter::Characteristic(CharacteristicFilter::Type(
+                Type::Creature
+            )))
+        );
+    }
+
+    /// Same pin for the new `TargetSpec` positions (the announce-list type).
+    #[test]
+    fn target_spec_positions_expand_macros() {
+        let mut macros = MacroSet::default();
+        macros
+            .insert(&MacroDef {
+                name: "TargetCreature".into(),
+                kinds: vec![MacroKind::TargetSpec],
+                params: Params::default(),
+                body: "Target(Type(Creature))".into(),
+            })
+            .unwrap();
+        let spec: deckmaste_core::TargetSpec = macros.read_str("TargetCreature").unwrap();
+        assert_eq!(
+            spec,
+            deckmaste_core::TargetSpec::Target(Filter::Characteristic(CharacteristicFilter::Type(
                 Type::Creature
             )))
         );
@@ -599,13 +643,13 @@ mod tests {
                 name: "SacThis".into(),
                 kinds: vec![MacroKind::CostComponent],
                 params: Params::default(),
-                body: "Do(Sacrifice(That(This)))".into(),
+                body: "Do(Sacrifice(This))".into(),
             })
             .unwrap();
         let cost: CostComponent = macros.read_str("SacThis").unwrap();
         assert_eq!(
             cost,
-            CostComponent::Do(Action::Sacrifice(Selection::That(Reference::This)))
+            CostComponent::Do(Action::Sacrifice(Selection::from(Reference::This)))
         );
     }
 
@@ -625,7 +669,10 @@ mod tests {
             })
             .unwrap();
         let effect: Effect = macros.read_str("Investigate").unwrap();
-        assert_eq!(effect, Effect::Act(Action::DrawCards(1)));
+        assert_eq!(
+            effect,
+            Effect::Act(Action::DrawCards(deckmaste_core::Quantity::Literal(1)))
+        );
     }
 
     #[test]
@@ -710,7 +757,7 @@ mod tests {
                 name: "Boast".into(),
                 kinds: vec![MacroKind::Ability],
                 params: Params::Named([("cost".into(), ParamType::String)].into()),
-                body: r"Keyword(keyword: Param(cost), expanded: (params: [], value: Static))"
+                body: r"Keyword(keyword: Param(cost), expanded: (params: [], value: Static(effects: [Restriction(CantAttack)])))"
                     .into(),
             })
             .unwrap();

@@ -9,7 +9,7 @@ use std::path::Path;
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::{
     Ability, Action, ActivatedAbility, CostComponent, Effect, ManaCost, ManaSpec, ManaSymbol,
-    Reference, Selection, SimpleManaSymbol, Subtype, Token, Type,
+    Quantity, Reference, Selection, SimpleManaSymbol, Subtype, Token, Type,
 };
 
 fn builtin() -> Plugin {
@@ -23,9 +23,9 @@ fn mana_2() -> CostComponent {
     )]))
 }
 
-/// `Do(Sacrifice(That(This)))` — the expanded form of `SacrificeThis`.
+/// `Do(Sacrifice(This))` — the expanded form of `SacrificeThis`.
 fn sacrifice_this() -> CostComponent {
-    CostComponent::Do(Action::Sacrifice(Selection::That(Reference::This)))
+    CostComponent::Do(Action::Sacrifice(Selection::from(Reference::This)))
 }
 
 fn artifact_subtype(name: &str) -> Subtype {
@@ -48,7 +48,7 @@ fn treasure_token_parses() {
             abilities: vec![Ability::Activated(ActivatedAbility {
                 cost: vec![CostComponent::Tap, sacrifice_this()],
                 targets: vec![],
-                effect: Effect::Act(Action::AddMana(1, ManaSpec::AnyColor)),
+                effect: Effect::Act(Action::AddMana(Quantity::Literal(1), ManaSpec::AnyColor)),
             })],
         }
     );
@@ -67,7 +67,7 @@ fn clue_token_parses() {
             abilities: vec![Ability::Activated(ActivatedAbility {
                 cost: vec![mana_2(), sacrifice_this()],
                 targets: vec![],
-                effect: Effect::Act(Action::DrawCards(1)),
+                effect: Effect::Act(Action::DrawCards(Quantity::Literal(1))),
             })],
         }
     );
@@ -86,7 +86,7 @@ fn food_token_parses() {
             abilities: vec![Ability::Activated(ActivatedAbility {
                 cost: vec![mana_2(), CostComponent::Tap, sacrifice_this()],
                 targets: vec![],
-                effect: Effect::Act(Action::GainLife(3)),
+                effect: Effect::Act(Action::GainLife(Quantity::Literal(3))),
             })],
         }
     );

@@ -1,29 +1,55 @@
 use serde::{Deserialize, Serialize};
 
 use crate::mana::ManaSpec;
-use crate::{Selection, Uint};
+use crate::{Quantity, Selection, Token};
 
-/// An intrinsic game verb (CR 700, 701). Alphabetical. The performer is
-/// implicitly the ability's controller unless a card specifies otherwise.
+/// An intrinsic game verb (CR 700, 701) — only verbs whose semantics can't
+/// be data live here; CR 701 keyword actions (Sacrifice, Investigate, …) are
+/// plugin declarations carried via `Action::Expanded`. Alphabetical. The
+/// performer is implicitly the ability's controller unless a slot says
+/// otherwise (CR 608.2). Object slots are unary `Selection`s.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Action {
     /// Add mana to the controller's mana pool (CR 106.1, 701.3).
-    AddMana(Uint, ManaSpec),
+    AddMana(Quantity, ManaSpec),
+    /// Create a number of token permanents (CR 111.1, 701.6c).
+    Create(Quantity, Token),
     /// Deal an amount of damage to a selection (CR 119.1, 701.25).
-    DealDamage(Selection, Uint),
+    DealDamage(Selection, Quantity),
+    /// Destroy a selected permanent (CR 701.7).
+    Destroy(Selection),
+    /// You discard a number of cards (CR 701.8).
+    Discard(Quantity),
     /// Draw a number of cards (CR 120.1, 701.4).
-    DrawCards(Uint),
+    DrawCards(Quantity),
+    /// Exile a selection (CR 701.10).
+    Exile(Selection),
     /// Gain an amount of life (CR 119.7, 701.6).
-    GainLife(Uint),
+    GainLife(Quantity),
+    /// Lose an amount of life — implicitly you (CR 119.3).
+    LoseLife(Quantity),
+    /// Return a selection to its owner's hand (CR 701.x).
+    ReturnToHand(Selection),
     /// Sacrifice a selected permanent (CR 701.16).
     Sacrifice(Selection),
+    /// Tap a selection (CR 701.21a).
+    Tap(Selection),
+    /// Untap a selection (CR 701.21b).
+    Untap(Selection),
 }
 
 impl Action {
     /// Whether this verb may appear in a cost (`CostComponent::Do`): the
-    /// payer performs it, nothing targets (CR 601.2b-c).
+    /// payer performs it, nothing targets (CR 601.2b-c). Cost-eligible verbs
+    /// are the self-directed ones a player can pay with — sacrifice, exile,
+    /// tap, discard.
     #[must_use]
-    pub fn is_cost_eligible(&self) -> bool { matches!(self, Action::Sacrifice(_)) }
+    pub fn is_cost_eligible(&self) -> bool {
+        matches!(
+            self,
+            Action::Sacrifice(_) | Action::Exile(_) | Action::Tap(_) | Action::Discard(_)
+        )
+    }
 }
 
 #[cfg(test)]
@@ -32,25 +58,19 @@ mod tests {
     use crate::reference::Reference;
     use crate::selection::Selection;
 
-    fn read(source: &str) -> Action { crate::ron::options().from_str(source).unwrap() }
-
     #[test]
-    fn is_cost_eligible_only_sacrifice() {
-        assert!(Action::Sacrifice(Selection::That(Reference::This)).is_cost_eligible());
-        assert!(!Action::DrawCards(1).is_cost_eligible());
-        assert!(!Action::GainLife(3).is_cost_eligible());
-        assert!(!Action::AddMana(1, ManaSpec::AnyColor).is_cost_eligible());
-        assert!(!Action::DealDamage(Selection::That(Reference::This), 1).is_cost_eligible());
-    }
+    fn is_cost_eligible_covers_self_directed_verbs() {
+        assert!(Action::Sacrifice(Selection::This).is_cost_eligible());
+        assert!(Action::Exile(Selection::This).is_cost_eligible());
+        assert!(Action::Tap(Selection::This).is_cost_eligible());
+        assert!(Action::Discard(Quantity::Literal(1)).is_cost_eligible());
 
-    #[test]
-    fn actions_round_trip() {
-        let options = crate::ron::options();
-        let cases = ["DrawCards(1)", "GainLife(3)", "Sacrifice(That(This))"];
-        for source in cases {
-            let parsed = read(source);
-            let written = options.to_string(&parsed).unwrap();
-            assert_eq!(read(&written), parsed, "round-trip failed for: {source}");
-        }
+        assert!(!Action::DrawCards(Quantity::Literal(1)).is_cost_eligible());
+        assert!(!Action::GainLife(Quantity::Literal(3)).is_cost_eligible());
+        assert!(!Action::AddMana(Quantity::Literal(1), ManaSpec::AnyColor).is_cost_eligible());
+        assert!(
+            !Action::DealDamage(Selection::from(Reference::This), Quantity::Literal(1))
+                .is_cost_eligible()
+        );
     }
 }

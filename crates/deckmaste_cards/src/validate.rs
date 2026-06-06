@@ -134,8 +134,8 @@ mod tests {
     use std::path::PathBuf;
 
     use deckmaste_core::{
-        Ability, Action, ActivatedAbility, CostComponent, Effect, ManaSpec, Reference, Selection,
-        Token, Type,
+        Ability, Action, ActivatedAbility, CostComponent, Effect, ManaSpec, Quantity, Reference,
+        Restriction, Selection, StaticAbility, StaticEffect, Token, Type,
     };
 
     use super::lint_card_abilities;
@@ -150,9 +150,9 @@ mod tests {
             types: vec![Type::Artifact],
             subtypes: vec![],
             abilities: vec![Ability::Activated(ActivatedAbility {
-                cost: vec![CostComponent::Do(Action::DrawCards(1))],
+                cost: vec![CostComponent::Do(Action::DrawCards(Quantity::Literal(1)))],
                 targets: vec![],
-                effect: Effect::Act(Action::AddMana(1, ManaSpec::AnyColor)),
+                effect: Effect::Act(Action::AddMana(Quantity::Literal(1), ManaSpec::AnyColor)),
             })],
         };
         let mut failures = Vec::new();
@@ -175,10 +175,10 @@ mod tests {
             abilities: vec![Ability::Activated(ActivatedAbility {
                 cost: vec![
                     CostComponent::Tap,
-                    CostComponent::Do(Action::Sacrifice(Selection::That(Reference::This))),
+                    CostComponent::Do(Action::Sacrifice(Selection::from(Reference::This))),
                 ],
                 targets: vec![],
-                effect: Effect::Act(Action::AddMana(1, ManaSpec::AnyColor)),
+                effect: Effect::Act(Action::AddMana(Quantity::Literal(1), ManaSpec::AnyColor)),
             })],
         };
         let mut failures = Vec::new();
@@ -193,7 +193,11 @@ mod tests {
             supertypes: vec![],
             types: vec![Type::Artifact],
             subtypes: vec![],
-            abilities: vec![Ability::Static],
+            abilities: vec![Ability::Static(StaticAbility {
+                condition: None,
+                effects: vec![StaticEffect::Restriction(Restriction::CantAttack)],
+                characteristic_defining: false,
+            })],
         };
         let mut failures = Vec::new();
         lint_card_abilities(&dummy_path(), &token.abilities, &mut failures);

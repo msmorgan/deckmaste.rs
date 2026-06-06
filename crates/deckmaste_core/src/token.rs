@@ -6,7 +6,7 @@ use crate::{Subtype, Supertype, Type};
 /// A token permanent definition (CR 111). Name, colors, and P/T are omitted
 /// here and join when a token definition needs them; the three predefined
 /// tokens (Treasure, Clue, Food) don't.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Token {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub supertypes: Vec<Supertype>,
@@ -69,13 +69,13 @@ mod tests {
     #[test]
     fn treasure_like_token_parses() {
         // Mirrors the structure of plugins/builtin/tokens/Treasure.ron with the
-        // macro-expanded forms: `SacrificeThis` -> `Do(Sacrifice(That(This)))`,
+        // macro-expanded forms: `SacrificeThis` -> `Do(Sacrifice(This))`,
         // subtypes omitted (Subtype is a struct requiring plugin expansion).
         let source = "Token(\
             types: [Artifact],\
             abilities: [\
                 Activated(\
-                    cost: [Tap, Do(Sacrifice(That(This)))],\
+                    cost: [Tap, Do(Sacrifice(This))],\
                     effect: AddMana(1, AnyColor),\
                 )\
             ],\
@@ -88,10 +88,13 @@ mod tests {
             vec![Ability::Activated(ActivatedAbility {
                 cost: vec![
                     CostComponent::Tap,
-                    CostComponent::Do(Action::Sacrifice(Selection::That(Reference::This))),
+                    CostComponent::Do(Action::Sacrifice(Selection::from(Reference::This))),
                 ],
                 targets: vec![],
-                effect: Effect::Act(Action::AddMana(1, ManaSpec::AnyColor)),
+                effect: Effect::Act(Action::AddMana(
+                    crate::Quantity::Literal(1),
+                    ManaSpec::AnyColor
+                )),
             })]
         );
     }

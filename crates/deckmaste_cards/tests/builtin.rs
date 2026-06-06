@@ -8,7 +8,8 @@ use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::ron::options as ron_options;
 use deckmaste_core::{
     Ability, Action, Card, CardFace, CharacteristicFilter, Effect, Filter, ManaCost, ObjectKind,
-    Reference, Selection, SpellAbility, StatValue, Subtype, Supertype, Type,
+    Quantity, Selection, SpellAbility, StatValue, StateFilter, Subtype, Supertype, TargetSpec,
+    Type, Zone,
 };
 
 fn builtin() -> Plugin {
@@ -110,7 +111,7 @@ fn lightning_bolt_expands_filter_macros() {
     };
     let permanent_of = |t: Type| {
         Filter::AllOf(vec![
-            Filter::Kind(ObjectKind::Permanent),
+            Filter::State(StateFilter::InZone(Zone::Battlefield)),
             Filter::Characteristic(CharacteristicFilter::Type(t)),
         ])
     };
@@ -123,8 +124,11 @@ fn lightning_bolt_expands_filter_macros() {
     assert_eq!(
         face.abilities,
         vec![Ability::Spell(SpellAbility {
-            targets: vec![Selection::Target(any_target)],
-            effect: Effect::Act(Action::DealDamage(Selection::That(Reference::Target(0)), 3)),
+            targets: vec![TargetSpec::Target(any_target)],
+            effect: Effect::Act(Action::DealDamage(
+                Selection::Target(0),
+                Quantity::Literal(3)
+            )),
         })]
     );
 }

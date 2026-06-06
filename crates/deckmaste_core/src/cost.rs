@@ -37,14 +37,14 @@ mod tests {
         );
         assert_eq!(read("Tap"), CostComponent::Tap);
         assert_eq!(
-            read("Do(Sacrifice(That(This)))"),
-            CostComponent::Do(Action::Sacrifice(Selection::That(Reference::This))),
+            read("Do(Sacrifice(This))"),
+            CostComponent::Do(Action::Sacrifice(Selection::from(Reference::This))),
         );
     }
 
     #[test]
     fn cost_list_round_trips() {
-        let source = "[Mana([Generic(2)]),Tap,Do(Sacrifice(That(This)))]";
+        let source = "[Mana([Generic(2)]),Tap,Do(Sacrifice(This))]";
         let parsed: Vec<CostComponent> = crate::ron::options().from_str(source).unwrap();
         let written = crate::ron::options().to_string(&parsed).unwrap();
         let reparsed: Vec<CostComponent> = crate::ron::options().from_str(&written).unwrap();
