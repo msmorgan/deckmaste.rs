@@ -33,9 +33,7 @@ mod tests {
     use super::*;
     use crate::{CharacteristicFilter, ObjectKind, Type};
 
-    fn read(source: &str) -> Selection {
-        crate::ron::options().from_str(source).unwrap()
-    }
+    fn read(source: &str) -> Selection { crate::ron::options().from_str(source).unwrap() }
 
     #[test]
     fn quantifiers_wrap_filters() {
@@ -57,7 +55,10 @@ mod tests {
     /// unambiguous.
     #[test]
     fn references_lift_via_that() {
-        assert_eq!(read("That(Target(0))"), Selection::That(Reference::Target(0)));
+        assert_eq!(
+            read("That(Target(0))"),
+            Selection::That(Reference::Target(0))
+        );
         assert_eq!(read("That(This)"), Selection::That(Reference::This));
         // Target at a Selection position requires a Filter payload.
         assert!(

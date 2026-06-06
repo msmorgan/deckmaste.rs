@@ -455,7 +455,7 @@ impl<'de> Visitor<'de> for Children {
 /// and drops the identifiers that mark holes — trying the tuple-shaped
 /// grammar first, then the struct-shaped one. Everything else decomposes
 /// through [`Children`] directly.
-fn decompose<'de>(fragment: &'de str) -> Result<Node<'de>, String> {
+fn decompose(fragment: &str) -> Result<Node<'_>, String> {
     let entered = Cell::new(false);
     for named in [false, true] {
         let ident_led = IdentLed {

@@ -7,8 +7,8 @@ use std::path::Path;
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::ron::options as ron_options;
 use deckmaste_core::{
-    Ability, Card, CardFace, CharacteristicFilter, Effect, Filter, ManaCost, ObjectKind,
-    Reference, Selection, SpellAbility, StatValue, Subtype, Supertype, Type,
+    Ability, Card, CardFace, CharacteristicFilter, Effect, Filter, ManaCost, ObjectKind, Reference,
+    Selection, SpellAbility, StatValue, Subtype, Supertype, Type,
 };
 
 fn builtin() -> Plugin {

@@ -7,7 +7,7 @@ use crate::ident::IdentSeed;
 use crate::{Ident, Reference, Supertype, Type, Zone};
 
 /// What kind of object something is (CR 109.1). Players are objects here
-/// too — the engine gives players ObjectIds.
+/// too — the engine gives players `ObjectId`s.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum ObjectKind {
     Card,
@@ -94,9 +94,7 @@ impl<'de> Deserialize<'de> for Filter {
         impl<'de> Visitor<'de> for FilterVisitor {
             type Value = Filter;
 
-            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                f.write_str("a filter")
-            }
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result { f.write_str("a filter") }
 
             fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Filter, A::Error> {
                 use CharacteristicFilter as C;
@@ -131,21 +129,15 @@ impl Serialize for Filter {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         // serialize_newtype_variant's index argument is ignored by RON.
         match self {
-            Filter::Kind(kind) => {
-                serializer.serialize_newtype_variant("Filter", 0, "Kind", kind)
-            }
+            Filter::Kind(kind) => serializer.serialize_newtype_variant("Filter", 0, "Kind", kind),
             // The compartments serialize transparently: RON writes only the
             // inner variant, so the text stays flat.
             Filter::Characteristic(c) => c.serialize(serializer),
             Filter::State(s) => s.serialize(serializer),
             Filter::Relation(r) => r.serialize(serializer),
             Filter::Is(r) => serializer.serialize_newtype_variant("Filter", 8, "Is", r),
-            Filter::AllOf(fs) => {
-                serializer.serialize_newtype_variant("Filter", 9, "AllOf", fs)
-            }
-            Filter::OneOf(fs) => {
-                serializer.serialize_newtype_variant("Filter", 10, "OneOf", fs)
-            }
+            Filter::AllOf(fs) => serializer.serialize_newtype_variant("Filter", 9, "AllOf", fs),
+            Filter::OneOf(fs) => serializer.serialize_newtype_variant("Filter", 10, "OneOf", fs),
             Filter::Not(f) => serializer.serialize_newtype_variant("Filter", 11, "Not", f),
         }
     }
@@ -156,9 +148,7 @@ mod tests {
     use super::*;
     use crate::{Supertype, Type, Zone};
 
-    fn read(source: &str) -> Filter {
-        crate::ron::options().from_str(source).unwrap()
-    }
+    fn read(source: &str) -> Filter { crate::ron::options().from_str(source).unwrap() }
 
     #[test]
     fn atoms_read_flat() {
@@ -229,12 +219,14 @@ mod tests {
     #[test]
     fn unknown_names_error() {
         assert!(
-            crate::ron::options().from_str::<Filter>("Bogus(1)").is_err()
+            crate::ron::options()
+                .from_str::<Filter>("Bogus(1)")
+                .is_err()
         );
     }
 
-    /// Every VARIANTS entry must be handled in visit_enum: a missing arm
-    /// surfaces as serde's unknown_variant error, which the macro layer
+    /// Every VARIANTS entry must be handled in `visit_enum`: a missing arm
+    /// surfaces as serde's `unknown_variant` error, which the macro layer
     /// would otherwise misreport as a failed macro lookup. (The reverse
     /// drift — an arm missing from VARIANTS — can't be detected here; a
     /// comment at both sites guards it.)
