@@ -9,6 +9,9 @@ pub use card::{Card, CardFace, StatValue};
 mod color;
 pub use color::{Color, ColorOrColorless};
 
+mod filter;
+pub use filter::{CharacteristicFilter, Filter, ObjectKind, RelationFilter, StateFilter};
+
 pub mod ident;
 pub use ident::Ident;
 
