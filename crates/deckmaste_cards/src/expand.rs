@@ -95,23 +95,6 @@ impl fmt::Display for ParamKey {
     }
 }
 
-/// Classifies the content of a `Param(...)` hole: an index or a name.
-fn parse_param_key(content: &str) -> Option<ParamKey> {
-    let content = content.trim();
-    let bytes = content.as_bytes();
-    if bytes.is_empty() {
-        return None;
-    }
-    if bytes.iter().all(u8::is_ascii_digit) {
-        return content.parse().ok().map(ParamKey::Index);
-    }
-    let ident = !bytes[0].is_ascii_digit()
-        && bytes
-            .iter()
-            .all(|&b| b.is_ascii_alphanumeric() || b == b'_');
-    ident.then(|| ParamKey::Name(content.into()))
-}
-
 /// What every layer of the wrapper carries: the macros in scope, the scratch
 /// for mid-read strings, and the innermost expansion frame, if a macro body
 /// is being read.
@@ -262,8 +245,10 @@ fn leading_ident(source: &str) -> Option<&str> {
         rest = rest.trim_start();
         if let Some(comment) = rest.strip_prefix("//") {
             rest = comment.split_once('\n').map_or("", |(_, tail)| tail);
-        } else if let Some(comment) = rest.strip_prefix("/*") {
-            rest = comment.split_once("*/").map_or("", |(_, tail)| tail);
+        } else if rest.starts_with("/*") {
+            // Block comments nest, so the close is found by the same walk
+            // `substitute_params` uses.
+            rest = rest.get(skip_block_comment(rest, 0)..).unwrap_or("");
         } else {
             break;
         }
@@ -397,6 +382,18 @@ fn parse_call_key(source: &str, at: usize) -> Option<(ParamKey, usize)> {
     Some((key, source.len() - close.len()))
 }
 
+/// Names the macro whose body failed: the reread's span points into a
+/// detached fragment, so without this nothing says which definition to look
+/// at. Only the frame nearest the failure is named — propagating errors
+/// (recursion chains especially) would otherwise collect one prefix per level.
+fn in_expansion_of<E: serde::de::Error>(name: Ident, error: E) -> E {
+    let message = error.to_string();
+    if message.contains("in the expansion of") {
+        return error;
+    }
+    E::custom(format_args!("in the expansion of `{name}`: {message}"))
+}
+
 /// Parses a whole `Param(...)` source fragment.
 fn param_key<E: serde::de::Error>(source: &str) -> Result<ParamKey, E> {
     #[derive(Deserialize)]
@@ -422,13 +419,17 @@ macro_rules! forward {
 /// Forwards like `forward!`, except that inside a macro body the value is
 /// captured first so a `Param(n)` hole can stand in for it.
 macro_rules! forward_or_param {
-    ($($method:ident),* $(,)?) => {
-        $(fn $method<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+    ($($method:ident($($arg:ident: $ty:ty),*)),* $(,)?) => {
+        $(fn $method<V: Visitor<'de>>(
+            self,
+            $($arg: $ty,)*
+            visitor: V,
+        ) -> Result<V::Value, Self::Error> {
             if self.intercept != Intercept::Skip && self.ctx.frame.is_some() {
-                return self.via_capture(move |de| de.$method(visitor));
+                return self.via_capture(move |de| de.$method($($arg,)* visitor));
             }
             let wrapped = self.wrap(visitor);
-            self.de.$method(wrapped)
+            self.de.$method($($arg,)* wrapped)
         })*
     };
 }
@@ -462,11 +463,16 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
     }
 
     forward_or_param! {
-        deserialize_bool, deserialize_i8, deserialize_i16, deserialize_i32,
-        deserialize_i64, deserialize_i128, deserialize_u8, deserialize_u16, deserialize_u32,
-        deserialize_u64, deserialize_u128, deserialize_f32, deserialize_f64, deserialize_char,
-        deserialize_str, deserialize_string, deserialize_bytes, deserialize_byte_buf,
-        deserialize_unit, deserialize_seq, deserialize_map,
+        deserialize_bool(), deserialize_i8(), deserialize_i16(), deserialize_i32(),
+        deserialize_i64(), deserialize_i128(), deserialize_u8(), deserialize_u16(),
+        deserialize_u32(), deserialize_u64(), deserialize_u128(), deserialize_f32(),
+        deserialize_f64(), deserialize_char(), deserialize_str(), deserialize_string(),
+        deserialize_bytes(), deserialize_byte_buf(), deserialize_unit(), deserialize_seq(),
+        deserialize_map(),
+        deserialize_unit_struct(name: &'static str),
+        deserialize_newtype_struct(name: &'static str),
+        deserialize_tuple(len: usize),
+        deserialize_tuple_struct(name: &'static str, len: usize),
     }
 
     /// Untagged enum content arrives here: serde buffers it through its
@@ -508,55 +514,6 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
         Ok(value)
     }
 
-    fn deserialize_unit_struct<V: Visitor<'de>>(
-        self,
-        name: &'static str,
-        visitor: V,
-    ) -> Result<V::Value, Self::Error> {
-        if self.intercept != Intercept::Skip && self.ctx.frame.is_some() {
-            return self.via_capture(move |de| de.deserialize_unit_struct(name, visitor));
-        }
-        let wrapped = self.wrap(visitor);
-        self.de.deserialize_unit_struct(name, wrapped)
-    }
-
-    fn deserialize_newtype_struct<V: Visitor<'de>>(
-        self,
-        name: &'static str,
-        visitor: V,
-    ) -> Result<V::Value, Self::Error> {
-        if self.intercept != Intercept::Skip && self.ctx.frame.is_some() {
-            return self.via_capture(move |de| de.deserialize_newtype_struct(name, visitor));
-        }
-        let wrapped = self.wrap(visitor);
-        self.de.deserialize_newtype_struct(name, wrapped)
-    }
-
-    fn deserialize_tuple<V: Visitor<'de>>(
-        self,
-        len: usize,
-        visitor: V,
-    ) -> Result<V::Value, Self::Error> {
-        if self.intercept != Intercept::Skip && self.ctx.frame.is_some() {
-            return self.via_capture(move |de| de.deserialize_tuple(len, visitor));
-        }
-        let wrapped = self.wrap(visitor);
-        self.de.deserialize_tuple(len, wrapped)
-    }
-
-    fn deserialize_tuple_struct<V: Visitor<'de>>(
-        self,
-        name: &'static str,
-        len: usize,
-        visitor: V,
-    ) -> Result<V::Value, Self::Error> {
-        if self.intercept != Intercept::Skip && self.ctx.frame.is_some() {
-            return self.via_capture(move |de| de.deserialize_tuple_struct(name, len, visitor));
-        }
-        let wrapped = self.wrap(visitor);
-        self.de.deserialize_tuple_struct(name, len, wrapped)
-    }
-
     fn deserialize_struct<V: Visitor<'de>>(
         self,
         name: &'static str,
@@ -595,6 +552,7 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
                 reread(def.body(), ctx, Intercept::Full, |de| {
                     de.deserialize_struct(name, fields, visitor)
                 })
+                .map_err(|e| in_expansion_of(frame.name, e))
             }
             None => reread(source, self.ctx, Intercept::Skip, |de| {
                 de.deserialize_struct(name, fields, visitor)
@@ -719,11 +677,16 @@ fn read_args<'de, A: VariantAccess<'de>>(
         }
         Params::Named(signature) => {
             let args = variant.struct_variant(&[], NamedArgs(scratch))?;
-            for (key, _) in &args {
+            for (i, (key, _)) in args.iter().enumerate() {
                 if !signature.contains_key(key) {
                     return Err(A::Error::custom(format_args!(
                         "`{key}` is not one of this macro's parameters",
                     )));
+                }
+                // ron doesn't reject duplicate keys for us, and resolution
+                // takes the first match, so a repeat would be dropped silently.
+                if args[..i].iter().any(|(k, _)| k == key) {
+                    return Err(A::Error::custom(format_args!("duplicate argument `{key}`")));
                 }
             }
             let mut missing: Vec<&Ident> = signature
@@ -783,6 +746,7 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
         reread(def.body(), ctx, Intercept::Full, |de| {
             de.deserialize_enum(self.name, self.variants, self.visitor)
         })
+        .map_err(|e| in_expansion_of(frame.name, e))
     }
 }
 

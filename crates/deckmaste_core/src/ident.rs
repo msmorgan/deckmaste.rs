@@ -56,23 +56,21 @@ impl PartialEq<&str> for Ident {
     fn eq(&self, other: &&str) -> bool { self.as_str() == *other }
 }
 
+/// The one visitor behind both entry points; only the expectation differs.
+struct IdentVisitor(&'static str);
+
+impl serde::de::Visitor<'_> for IdentVisitor {
+    type Value = Ident;
+    fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result { f.write_str(self.0) }
+    fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> { Ok(Ident::new(v)) }
+}
+
 impl<'de> Deserialize<'de> for Ident {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        struct Visitor;
-        impl serde::de::Visitor<'_> for Visitor {
-            type Value = Ident;
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                f.write_str("a string")
-            }
-            fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
-                Ok(Ident::new(v))
-            }
-        }
-
-        deserializer.deserialize_str(Visitor)
+        deserializer.deserialize_str(IdentVisitor("a string"))
     }
 }
 
@@ -91,17 +89,6 @@ impl<'de> serde::de::DeserializeSeed<'de> for IdentSeed {
     where
         D: serde::Deserializer<'de>,
     {
-        struct Visitor;
-        impl serde::de::Visitor<'_> for Visitor {
-            type Value = Ident;
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                f.write_str("an identifier")
-            }
-            fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
-                Ok(Ident::new(v))
-            }
-        }
-
-        deserializer.deserialize_identifier(Visitor)
+        deserializer.deserialize_identifier(IdentVisitor("an identifier"))
     }
 }

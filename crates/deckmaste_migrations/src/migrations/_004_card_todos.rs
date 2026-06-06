@@ -1,6 +1,7 @@
 use std::sync::LazyLock;
 
 use anyhow::Context;
+use deckmaste_cards::plugin::card_filename;
 use deckmaste_core::{Card, Color, Ident, ManaCost};
 use regex::Regex;
 use serde::Serialize;
@@ -77,20 +78,6 @@ fn is_supported(card: &AtomicCard) -> bool {
         && card.layout.as_str() != "reversible_card"
 }
 
-/// Maps windows-unsafe filename characters to their fullwidth equivalents,
-/// e.g. "Fire // Ice" -> "Fire ／／ Ice".
-fn to_filename(name: &str) -> String {
-    name.chars()
-        .map(|c| {
-            if "<>:\"/\\|?*".contains(c) {
-                char::from_u32(c as u32 + 0xFEE0).expect("fullwidth ASCII is valid")
-            } else {
-                c
-            }
-        })
-        .collect()
-}
-
 /// Uppercases the first character (ASCII only, like jq's `ascii_upcase`).
 fn capitalize(text: &str) -> String {
     let mut chars = text.chars();
@@ -116,18 +103,32 @@ fn strip_reminder_text(text: &str) -> String {
         .join("\n")
 }
 
+/// `capitalize(item).starts_with(keyword)` without building the string.
+fn starts_with_capitalized(item: &str, keyword: &str) -> bool {
+    let mut item_chars = item.chars();
+    let mut keyword_chars = keyword.chars();
+    match (item_chars.next(), keyword_chars.next()) {
+        (_, None) => true,
+        (None, Some(_)) => false,
+        (Some(i), Some(k)) => {
+            i.to_ascii_uppercase() == k && item_chars.as_str().starts_with(keyword_chars.as_str())
+        }
+    }
+}
+
 /// Splits lines that are comma-separated lists of keyword abilities into one
 /// keyword per line, e.g. "Flying, vigilance" -> "Flying\nVigilance".
+/// Most lines aren't keyword lists, so nothing is allocated until one is.
 fn expand_keyword_lines(text: &str, keyword_abilities: &[DataStr<'_>]) -> String {
+    let is_keyword = |item: &str| {
+        keyword_abilities
+            .iter()
+            .any(|keyword| starts_with_capitalized(item, keyword))
+    };
     text.split('\n')
         .flat_map(|line| {
-            let items: Vec<String> = line.split(", ").map(capitalize).collect();
-            if items.iter().all(|item| {
-                keyword_abilities
-                    .iter()
-                    .any(|keyword| item.starts_with(keyword.as_str()))
-            }) {
-                items
+            if line.split(", ").all(is_keyword) {
+                line.split(", ").map(capitalize).collect()
             } else {
                 vec![line.to_owned()]
             }
@@ -204,7 +205,7 @@ impl super::Migration for CardTodos {
                 continue;
             }
 
-            let dest = dest_dir.join(format!("{}.ron", to_filename(name)));
+            let dest = dest_dir.join(format!("{}.ron", card_filename(name)));
             if !super::is_todo(&dest)? {
                 continue;
             }
@@ -233,13 +234,6 @@ mod tests {
 
     use super::*;
     use crate::ron_output::ron_options;
-
-    #[test]
-    fn filenames() {
-        assert_eq!(to_filename("Fire // Ice"), "Fire ／／ Ice");
-        assert_eq!(to_filename("Question?"), "Question？");
-        assert_eq!(to_filename("Lightning Bolt"), "Lightning Bolt");
-    }
 
     #[test]
     fn reminder_text() {

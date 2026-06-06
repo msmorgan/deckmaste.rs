@@ -45,9 +45,6 @@ impl Rule<'_> {
 pub struct Navigation<'a> {
     #[serde(borrow)]
     pub next_rule: Option<DataStr<'a>>,
-    #[serde(borrow)]
-    #[allow(unused)]
-    pub previous_rule: Option<DataStr<'a>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -96,15 +93,18 @@ impl<'a> RulesMap<'a> {
     }
 
     /// Finds the rule within the given section (e.g. "702.") whose text is
-    /// exactly the keyword's name (e.g. "Flying" -> "702.9").
+    /// exactly the keyword's name (e.g. "Flying" -> "702.9"). Ties (which the
+    /// CR shouldn't produce) break toward the smallest rule number, so the
+    /// result never depends on hash order.
     pub fn find_keyword_rule_number(&self, section_prefix: &str, keyword: &str) -> Option<&str> {
         let keyword = keyword.to_lowercase();
         self.0
             .values()
-            .find(|rule| {
+            .filter(|rule| {
                 rule.number.starts_with(section_prefix) && rule.text.to_lowercase() == keyword
             })
             .map(|rule| rule.number.as_str())
+            .min()
     }
 }
 
@@ -129,10 +129,7 @@ mod tests {
                 "A creature with flying can’t be blocked. (See rule 509, “Declare Blockers Step.”)"
                     .into(),
             fragment: "9b".into(),
-            navigation: Navigation {
-                next_rule: None,
-                previous_rule: None,
-            },
+            navigation: Navigation { next_rule: None },
         };
         assert_eq!(
             rule.format(),

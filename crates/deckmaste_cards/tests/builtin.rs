@@ -6,7 +6,10 @@ use std::path::Path;
 
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::ron::options as ron_options;
-use deckmaste_core::{Card, CardFace, ManaCost, Subtype, Supertype, Type};
+use deckmaste_core::{
+    Ability, Card, CardFace, Effect, ManaCost, Selector, SpellAbility, StatValue, Subtype,
+    Supertype, Target, Type,
+};
 
 fn builtin() -> Plugin {
     Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
@@ -75,6 +78,49 @@ fn declared_subtypes_cover_the_basics() {
         let expanded: Subtype = plugin.macros.read_str(name).unwrap();
         assert_eq!(Some(&expanded), plugin.subtypes.get(name));
     }
+}
+
+/// The `CreatureType` macro path through real data: `subtypes: [Bear]`
+/// resolves the declaration, which invokes `CreatureType("Bear")`.
+#[test]
+fn grizzly_bears_expand_the_creature_type_macro() {
+    let card = builtin().card("Grizzly Bears").unwrap();
+    let Card::Normal(face) = card else {
+        panic!("Grizzly Bears should be single-faced");
+    };
+    assert_eq!(face.types, vec![Type::Creature]);
+    assert_eq!(
+        face.subtypes,
+        vec![Subtype {
+            name: "Bear".into(),
+            types: vec![Type::Creature, Type::Kindred],
+        }]
+    );
+    assert_eq!(face.power, Some(StatValue::Number(2)));
+    assert_eq!(face.toughness, Some(StatValue::Number(2)));
+}
+
+/// Target-position interception through real data: `targets: [AnyTarget]`
+/// chains `AnyTarget` -> `Self` -> `OneOf`.
+#[test]
+fn lightning_bolt_expands_target_macros() {
+    let card = builtin().card("Lightning Bolt").unwrap();
+    let Card::Normal(face) = card else {
+        panic!("Lightning Bolt should be single-faced");
+    };
+    let any_target = Target::OneOf(vec![
+        Target::PermanentOfType(Type::Battle),
+        Target::PermanentOfType(Type::Creature),
+        Target::PermanentOfType(Type::Planeswalker),
+        Target::Player,
+    ]);
+    assert_eq!(
+        face.abilities,
+        vec![Ability::Spell(SpellAbility {
+            targets: vec![any_target],
+            effect: Effect::DealDamage(Selector::Target(0), 3),
+        })]
+    );
 }
 
 #[test]

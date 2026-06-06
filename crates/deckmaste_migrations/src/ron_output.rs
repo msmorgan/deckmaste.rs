@@ -34,13 +34,11 @@ pub(crate) fn one_line_if_single<T: Serialize, S: serde::Serializer>(
     if array.len() != 1 {
         return array.serialize(serializer);
     }
-    let compact = ron::Options::default()
-        .to_string_pretty(
-            &array,
-            ron::ser::PrettyConfig::default()
-                .escape_strings(false)
-                .depth_limit(0),
-        )
+    // The same dialect as the surrounding document, just inlined via the
+    // depth limit; a divergent config here would render e.g. implicit Some
+    // differently than the multi-line path.
+    let compact = ron_options()
+        .to_string_pretty(&array, pretty_config().depth_limit(0))
         .map_err(S::Error::custom)?;
     ron::value::RawValue::from_ron(&compact)
         .map_err(S::Error::custom)?

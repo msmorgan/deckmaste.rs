@@ -70,8 +70,6 @@ pub struct ManaCost(Vec<ManaSymbol>);
 
 impl ManaCost {
     #[must_use]
-    pub fn new(symbols: Vec<ManaSymbol>) -> Self { Self(symbols) }
-    #[must_use]
     pub fn is_empty(&self) -> bool { self.0.is_empty() }
 }
 
@@ -87,10 +85,6 @@ impl std::ops::Deref for ManaCost {
     type Target = [ManaSymbol];
 
     fn deref(&self) -> &Self::Target { &self.0 }
-}
-
-impl AsRef<[ManaSymbol]> for ManaCost {
-    fn as_ref(&self) -> &[ManaSymbol] { &self.0 }
 }
 
 /// The error type for [`ManaSymbol`] and [`ManaCost`]'s [`FromStr`] impls.

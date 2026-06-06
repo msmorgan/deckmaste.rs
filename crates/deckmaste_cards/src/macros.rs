@@ -185,14 +185,17 @@ impl MacroSet {
     /// Registers `def` under each of its kinds.
     ///
     /// # Errors
-    /// If any of those kinds already has a macro with `def`'s name.
+    /// If any of those kinds already has a macro with `def`'s name, or the
+    /// definition repeats a kind (which would otherwise self-overwrite
+    /// silently).
     pub fn insert(&mut self, def: &MacroDef) -> Result<(), DuplicateMacro> {
-        for &kind in &def.kinds {
-            if self
-                .macros
-                .get(&kind)
-                .is_some_and(|named| named.contains_key(&def.name))
-            {
+        for (i, &kind) in def.kinds.iter().enumerate() {
+            let duplicate = def.kinds[..i].contains(&kind)
+                || self
+                    .macros
+                    .get(&kind)
+                    .is_some_and(|named| named.contains_key(&def.name));
+            if duplicate {
                 return Err(DuplicateMacro {
                     kind,
                     name: def.name,
@@ -271,6 +274,25 @@ mod tests {
     use deckmaste_core::{Ability, Subtype, Target, Type};
 
     use super::*;
+
+    /// `from_position` matches on serde type names, which a Rust rename
+    /// changes without a compile error — this is the tie. (A `#[serde(rename)]`
+    /// on a core type would still slip through; none carries one.)
+    #[test]
+    fn position_names_track_the_core_types() {
+        fn position<T>() -> Option<MacroKind> {
+            let name = std::any::type_name::<T>().rsplit("::").next().unwrap();
+            MacroKind::from_position(name)
+        }
+
+        assert_eq!(position::<Ability>(), Some(MacroKind::Ability));
+        assert_eq!(
+            position::<deckmaste_core::CardFace>(),
+            Some(MacroKind::CardFace)
+        );
+        assert_eq!(position::<Subtype>(), Some(MacroKind::Subtype));
+        assert_eq!(position::<Target>(), Some(MacroKind::Target));
+    }
 
     fn subtype_macro(name: &str, params: Vec<ParamType>, body: &str) -> MacroDef {
         MacroDef {
