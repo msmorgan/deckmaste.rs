@@ -1,0 +1,6 @@
+(
+    name: "SacrificeThis",
+    template: "Sacrifice this permanent",
+    kinds: [CostComponent],
+    body: Do(Sacrifice(That(This))),
+)

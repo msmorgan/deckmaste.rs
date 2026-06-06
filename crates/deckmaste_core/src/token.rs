@@ -20,8 +20,8 @@ pub struct Token {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::action::Action;
     use crate::ability::{Ability, ActivatedAbility};
+    use crate::action::Action;
     use crate::cost::CostComponent;
     use crate::effect::Effect;
     use crate::mana::ManaSpec;
@@ -48,10 +48,20 @@ mod tests {
             abilities: vec![],
         };
         let written = crate::ron::options().to_string(&token).unwrap();
-        // Empty vecs must not appear in the output (skip_serializing_if is load-bearing).
-        assert!(!written.contains("supertypes"), "supertypes should be omitted when empty");
-        assert!(!written.contains("subtypes"), "subtypes should be omitted when empty");
-        assert!(!written.contains("abilities"), "abilities should be omitted when empty");
+        // Empty vecs must not appear in the output (skip_serializing_if is
+        // load-bearing).
+        assert!(
+            !written.contains("supertypes"),
+            "supertypes should be omitted when empty"
+        );
+        assert!(
+            !written.contains("subtypes"),
+            "subtypes should be omitted when empty"
+        );
+        assert!(
+            !written.contains("abilities"),
+            "abilities should be omitted when empty"
+        );
         let reparsed = read(&written);
         assert_eq!(token, reparsed);
     }

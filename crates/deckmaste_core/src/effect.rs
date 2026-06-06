@@ -31,7 +31,13 @@ pub enum Effect {
 /// Every name an Effect position accepts. Must stay in sync with
 /// `visit_enum` below (the drift-guard test catches missing arms).
 /// Names are the Action variant names; `Act` never appears in RON.
-const VARIANTS: &[&str] = &["AddMana", "DealDamage", "DrawCards", "GainLife", "Sacrifice"];
+const VARIANTS: &[&str] = &[
+    "AddMana",
+    "DealDamage",
+    "DrawCards",
+    "GainLife",
+    "Sacrifice",
+];
 
 // Visitor for 2-field tuple variants (DealDamage and AddMana).
 struct Pair<A, B>(A, B);
@@ -61,9 +67,7 @@ impl<'de> Deserialize<'de> for Effect {
         impl<'de> Visitor<'de> for EffectVisitor {
             type Value = Effect;
 
-            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                f.write_str("an effect")
-            }
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result { f.write_str("an effect") }
 
             fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Effect, A::Error> {
                 let (ident, v) = data.variant_seed(IdentSeed)?;
@@ -75,10 +79,8 @@ impl<'de> Deserialize<'de> for Effect {
                         Effect::Act(Action::AddMana(n, spec))
                     }
                     "DealDamage" => {
-                        let Pair(sel, n) = v.tuple_variant(
-                            2,
-                            PairVisitor::<Selection, Uint>(Default::default()),
-                        )?;
+                        let Pair(sel, n) =
+                            v.tuple_variant(2, PairVisitor::<Selection, Uint>(Default::default()))?;
                         Effect::Act(Action::DealDamage(sel, n))
                     }
                     "DrawCards" => Effect::Act(Action::DrawCards(v.newtype_variant()?)),
@@ -114,24 +116,15 @@ mod tests {
 
     #[test]
     fn verbs_read_flat() {
-        assert_eq!(
-            read("DrawCards(1)"),
-            Effect::Act(Action::DrawCards(1)),
-        );
-        assert_eq!(
-            read("GainLife(3)"),
-            Effect::Act(Action::GainLife(3)),
-        );
+        assert_eq!(read("DrawCards(1)"), Effect::Act(Action::DrawCards(1)),);
+        assert_eq!(read("GainLife(3)"), Effect::Act(Action::GainLife(3)),);
         assert_eq!(
             read("Sacrifice(That(This))"),
             Effect::Act(Action::Sacrifice(Selection::That(Reference::This))),
         );
         assert_eq!(
             read("DealDamage(That(Target(0)), 3)"),
-            Effect::Act(Action::DealDamage(
-                Selection::That(Reference::Target(0)),
-                3
-            )),
+            Effect::Act(Action::DealDamage(Selection::That(Reference::Target(0)), 3)),
         );
         assert_eq!(
             read("AddMana(1, AnyColor)"),
@@ -141,10 +134,7 @@ mod tests {
 
     #[test]
     fn act_serializes_flat() {
-        assert_eq!(
-            write(&Effect::Act(Action::DrawCards(1))),
-            "DrawCards(1)"
-        );
+        assert_eq!(write(&Effect::Act(Action::DrawCards(1))), "DrawCards(1)");
     }
 
     #[test]
@@ -165,12 +155,18 @@ mod tests {
 
     #[test]
     fn unknown_names_error() {
-        assert!(crate::ron::options().from_str::<Effect>("Bogus(1)").is_err());
+        assert!(
+            crate::ron::options()
+                .from_str::<Effect>("Bogus(1)")
+                .is_err()
+        );
     }
 
     /// Every VARIANTS entry must be handled in `visit_enum`: a missing arm
     /// surfaces as serde's `unknown_variant` error, which the macro layer
-    /// would otherwise misreport as a failed macro lookup.
+    /// would otherwise misreport as a failed macro lookup. (The reverse
+    /// drift — an arm missing from VARIANTS — can't be detected here; a
+    /// comment at both sites guards it.)
     #[test]
     fn variants_list_matches_visit_enum() {
         for &name in VARIANTS {

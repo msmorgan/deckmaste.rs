@@ -7,8 +7,8 @@ use std::path::Path;
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::ron::options as ron_options;
 use deckmaste_core::{
-    Ability, Card, CardFace, CharacteristicFilter, Effect, Filter, ManaCost, ObjectKind, Reference,
-    Selection, SpellAbility, StatValue, Subtype, Supertype, Type,
+    Ability, Action, Card, CardFace, CharacteristicFilter, Effect, Filter, ManaCost, ObjectKind,
+    Reference, Selection, SpellAbility, StatValue, Subtype, Supertype, Type,
 };
 
 fn builtin() -> Plugin {
@@ -124,7 +124,7 @@ fn lightning_bolt_expands_filter_macros() {
         face.abilities,
         vec![Ability::Spell(SpellAbility {
             targets: vec![Selection::Target(any_target)],
-            effect: Effect::DealDamage(Selection::That(Reference::Target(0)), 3),
+            effect: Effect::Act(Action::DealDamage(Selection::That(Reference::Target(0)), 3)),
         })]
     );
 }

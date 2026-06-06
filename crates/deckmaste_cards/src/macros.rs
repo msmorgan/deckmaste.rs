@@ -46,6 +46,8 @@ use serde::de::{DeserializeOwned, Deserializer, MapAccess, SeqAccess, Visitor};
 pub enum MacroKind {
     Ability,
     CardFace,
+    CostComponent,
+    Effect,
     Filter,
     Reference,
     Selection,
@@ -59,6 +61,8 @@ impl MacroKind {
         Some(match name {
             "Ability" => MacroKind::Ability,
             "CardFace" => MacroKind::CardFace,
+            "CostComponent" => MacroKind::CostComponent,
+            "Effect" => MacroKind::Effect,
             "Filter" => MacroKind::Filter,
             "Reference" => MacroKind::Reference,
             "Selection" => MacroKind::Selection,
@@ -318,6 +322,14 @@ mod tests {
             position::<deckmaste_core::CardFace>(),
             Some(MacroKind::CardFace)
         );
+        assert_eq!(
+            position::<deckmaste_core::CostComponent>(),
+            Some(MacroKind::CostComponent)
+        );
+        assert_eq!(
+            position::<deckmaste_core::Effect>(),
+            Some(MacroKind::Effect)
+        );
         assert_eq!(position::<Filter>(), Some(MacroKind::Filter));
         assert_eq!(
             position::<deckmaste_core::Reference>(),
@@ -573,6 +585,47 @@ mod tests {
             reference,
             deckmaste_core::Reference::ControllerOf(Box::new(deckmaste_core::Reference::This))
         );
+    }
+
+    /// CostComponent positions participate in macro expansion: a registered
+    /// `CostComponent` macro is expanded in place of its name.
+    #[test]
+    fn cost_positions_expand_macros() {
+        use deckmaste_core::{Action, CostComponent, Reference, Selection};
+
+        let mut macros = MacroSet::default();
+        macros
+            .insert(&MacroDef {
+                name: "SacThis".into(),
+                kinds: vec![MacroKind::CostComponent],
+                params: Params::default(),
+                body: "Do(Sacrifice(That(This)))".into(),
+            })
+            .unwrap();
+        let cost: CostComponent = macros.read_str("SacThis").unwrap();
+        assert_eq!(
+            cost,
+            CostComponent::Do(Action::Sacrifice(Selection::That(Reference::This)))
+        );
+    }
+
+    /// Effect positions participate in macro expansion: a registered `Effect`
+    /// macro is expanded in place of its name.
+    #[test]
+    fn effect_positions_expand_macros() {
+        use deckmaste_core::{Action, Effect};
+
+        let mut macros = MacroSet::default();
+        macros
+            .insert(&MacroDef {
+                name: "Investigate".into(),
+                kinds: vec![MacroKind::Effect],
+                params: Params::default(),
+                body: "DrawCards(1)".into(),
+            })
+            .unwrap();
+        let effect: Effect = macros.read_str("Investigate").unwrap();
+        assert_eq!(effect, Effect::Act(Action::DrawCards(1)));
     }
 
     #[test]

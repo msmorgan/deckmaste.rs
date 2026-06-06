@@ -23,9 +23,7 @@ impl Action {
     /// Whether this verb may appear in a cost (`CostComponent::Do`): the
     /// payer performs it, nothing targets (CR 601.2b-c).
     #[must_use]
-    pub fn is_cost_eligible(&self) -> bool {
-        matches!(self, Action::Sacrifice(_))
-    }
+    pub fn is_cost_eligible(&self) -> bool { matches!(self, Action::Sacrifice(_)) }
 }
 
 #[cfg(test)]
@@ -42,19 +40,13 @@ mod tests {
         assert!(!Action::DrawCards(1).is_cost_eligible());
         assert!(!Action::GainLife(3).is_cost_eligible());
         assert!(!Action::AddMana(1, ManaSpec::AnyColor).is_cost_eligible());
-        assert!(
-            !Action::DealDamage(Selection::That(Reference::This), 1).is_cost_eligible()
-        );
+        assert!(!Action::DealDamage(Selection::That(Reference::This), 1).is_cost_eligible());
     }
 
     #[test]
     fn actions_round_trip() {
         let options = crate::ron::options();
-        let cases = [
-            "DrawCards(1)",
-            "GainLife(3)",
-            "Sacrifice(That(This))",
-        ];
+        let cases = ["DrawCards(1)", "GainLife(3)", "Sacrifice(That(This))"];
         for source in cases {
             let parsed = read(source);
             let written = options.to_string(&parsed).unwrap();
