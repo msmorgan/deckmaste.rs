@@ -21,8 +21,11 @@ fn load_json<T: DeserializeOwned>(path: impl AsRef<Path>) -> anyhow::Result<T> {
     Ok(data)
 }
 
-pub fn atomic_cards() -> anyhow::Result<mtgjson::AtomicCards> {
-    load_json(data_dir().join("mtgjson/AtomicCards.json"))
+/// Reads the atomic cards file; parse with
+/// [`mtgjson::AtomicCards::parse`], which borrows from the returned bytes.
+pub fn atomic_cards_bytes() -> anyhow::Result<Vec<u8>> {
+    let path = data_dir().join("mtgjson/AtomicCards.json");
+    std::fs::read(&path).with_context(|| format!("Failed to read file: {path:?}"))
 }
 
 pub fn comprehensive_rules() -> anyhow::Result<academyruins::RulesMap> {

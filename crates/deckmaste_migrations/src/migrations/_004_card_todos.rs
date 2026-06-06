@@ -222,7 +222,7 @@ impl SubtypeCategories {
 // We count non-null, non-"Banned" as legal.
 fn is_supported(card: &AtomicCard) -> bool {
     card.legalities.vintage.as_deref().unwrap_or("Banned") != "Banned"
-        && card.layout != "reversible_card"
+        && card.layout.as_str() != "reversible_card"
 }
 
 /// Maps windows-unsafe filename characters to their fullwidth equivalents,
@@ -375,7 +375,7 @@ fn render_face(
     categories: &SubtypeCategories,
 ) -> anyhow::Result<CardFace> {
     Ok(CardFace::Todo {
-        name: card.face_name.clone().unwrap_or_else(|| card.name.clone()),
+        name: card.face_name.as_deref().unwrap_or(&card.name).to_owned(),
         mana_cost: card.mana_cost.as_deref().map(parse_mana_cost).transpose()?,
         color_indicator: card
             .color_indicator
@@ -383,8 +383,12 @@ fn render_face(
             .filter(|colors| !colors.is_empty())
             .map(|colors| colors.iter().map(|code| ron_color(code)).collect())
             .transpose()?,
-        types: card.types.clone(),
-        supertypes: card.supertypes.clone(),
+        types: card.types.iter().map(|t| t.as_str().to_owned()).collect(),
+        supertypes: card
+            .supertypes
+            .iter()
+            .map(|t| t.as_str().to_owned())
+            .collect(),
         subtypes: card
             .subtypes
             .iter()
@@ -412,7 +416,8 @@ fn render_face(
 
 impl super::Migration for CardTodos {
     fn apply(&self, plugin: &super::PluginLayout) -> anyhow::Result<()> {
-        let atomic_cards = crate::data::atomic_cards()?;
+        let atomic_bytes = crate::data::atomic_cards_bytes()?;
+        let atomic_cards = crate::data::mtgjson::AtomicCards::parse(&atomic_bytes)?;
         let keyword_abilities = crate::data::keywords()?.keyword_abilities;
         let categories = SubtypeCategories::load(plugin)?;
         let dest_dir = plugin.cards_dir()?;
