@@ -16,24 +16,23 @@ fn type_filename(name: &str) -> String {
 
 impl super::Migration for Subtypes {
     fn apply(&self, plugin: &super::PluginLayout) -> anyhow::Result<()> {
-        let categories: [(&str, &str, fn() -> anyhow::Result<Vec<String>>); 7] = [
-            ("artifact", "Artifact", crate::data::artifact_types),
-            ("battle", "Battle", crate::data::battle_types),
-            ("creature", "Creature", crate::data::creature_types),
-            ("enchantment", "Enchantment", crate::data::enchantment_types),
-            ("land", "Land", crate::data::land_types),
-            (
-                "planeswalker",
-                "Planeswalker",
-                crate::data::planeswalker_types,
-            ),
-            ("spell", "Spell", crate::data::spell_types),
+        // The catalog files are named "<category>-types.json".
+        let categories: [(&str, &str); 7] = [
+            ("artifact", "Artifact"),
+            ("battle", "Battle"),
+            ("creature", "Creature"),
+            ("enchantment", "Enchantment"),
+            ("land", "Land"),
+            ("planeswalker", "Planeswalker"),
+            ("spell", "Spell"),
         ];
 
-        for (category, prefix, types) in categories {
+        for (category, prefix) in categories {
+            let catalog_bytes = crate::data::catalog_bytes(&format!("{category}-types"))?;
+            let catalog = crate::data::scryfall::Catalog::parse(&catalog_bytes)?;
             let dest_dir = plugin.types_dir(category)?;
-            for subtype in types()? {
-                let dest = dest_dir.join(format!("{}.ron", type_filename(&subtype)));
+            for subtype in &catalog.data {
+                let dest = dest_dir.join(format!("{}.ron", type_filename(subtype)));
                 if !super::is_todo(&dest)? {
                     continue;
                 }

@@ -2,6 +2,7 @@ use std::path::Path;
 
 use serde::Serialize;
 
+use crate::data::Str;
 use crate::data::academyruins::{Rule, RulesMap};
 
 #[derive(Serialize)]
@@ -24,12 +25,12 @@ fn pretty_config() -> ron::ser::PrettyConfig {
 /// the rule number its section starts at; keywords it cannot resolve are
 /// skipped with a warning. `format_rule` renders one rules-array element
 /// (usually [`Rule::format`]).
-pub(super) fn create_keyword_todos<'r>(
+pub(super) fn create_keyword_todos<'r, 'data>(
     dest_dir: &Path,
-    keywords: &[String],
-    rules: &'r RulesMap,
+    keywords: &[Str<'_>],
+    rules: &'r RulesMap<'data>,
     rule_number_for: impl Fn(&str) -> Option<&'r str>,
-    format_rule: impl Fn(&Rule) -> String,
+    format_rule: impl Fn(&Rule<'data>) -> String,
 ) -> anyhow::Result<()> {
     for keyword in keywords {
         let Some(rule_number) = rule_number_for(keyword) else {
@@ -48,7 +49,7 @@ pub(super) fn create_keyword_todos<'r>(
 
         let todo = KeywordTodo::Todo {
             name,
-            template: keyword.clone(),
+            template: keyword.as_str().to_owned(),
             rules: section.iter().map(|&rule| format_rule(rule)).collect(),
         };
         let serialized = ron::ser::to_string_pretty(&todo, pretty_config())?;

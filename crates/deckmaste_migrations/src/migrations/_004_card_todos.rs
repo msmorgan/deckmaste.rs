@@ -4,9 +4,8 @@ use deckmaste_core::{Color, ManaSymbol, mana};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+use crate::data::Str;
 use crate::data::mtgjson::AtomicCard;
-
-pub(super) struct CardTodos;
 
 #[derive(Debug, PartialEq, Serialize)]
 enum Stat {
@@ -290,7 +289,7 @@ fn strip_reminder_text(text: &str) -> String {
 
 /// Splits lines that are comma-separated lists of keyword abilities into one
 /// keyword per line, e.g. "Flying, vigilance" -> "Flying\nVigilance".
-fn expand_keyword_lines(text: &str, keyword_abilities: &[String]) -> String {
+fn expand_keyword_lines(text: &str, keyword_abilities: &[Str<'_>]) -> String {
     text.split('\n')
         .flat_map(|line| {
             let items: Vec<String> = line.split(", ").map(capitalize).collect();
@@ -323,7 +322,7 @@ fn stat(value: &str) -> Stat {
 
 fn render_face(
     card: &AtomicCard,
-    keyword_abilities: &[String],
+    keyword_abilities: &[Str<'_>],
     categories: &SubtypeCategories,
 ) -> anyhow::Result<CardFace> {
     Ok(CardFace::Todo {
@@ -370,11 +369,15 @@ fn render_face(
     })
 }
 
+pub(super) struct CardTodos;
+
 impl super::Migration for CardTodos {
     fn apply(&self, plugin: &super::PluginLayout) -> anyhow::Result<()> {
         let atomic_bytes = crate::data::atomic_cards_bytes()?;
         let atomic_cards = crate::data::mtgjson::AtomicCards::parse(&atomic_bytes)?;
-        let keyword_abilities = crate::data::keywords()?.keyword_abilities;
+        let keywords_bytes = crate::data::keywords_bytes()?;
+        let keyword_abilities =
+            crate::data::academyruins::Keywords::parse(&keywords_bytes)?.keyword_abilities;
         let categories = SubtypeCategories::load(plugin)?;
         let dest_dir = plugin.cards_dir()?;
         let options = ron_options();
@@ -446,11 +449,7 @@ mod tests {
 
     #[test]
     fn keyword_lines() {
-        let keywords = vec![
-            "Flying".to_owned(),
-            "Vigilance".to_owned(),
-            "Equip".to_owned(),
-        ];
+        let keywords: Vec<Str> = vec!["Flying".into(), "Vigilance".into(), "Equip".into()];
         assert_eq!(
             expand_keyword_lines("flying, vigilance", &keywords),
             "Flying\nVigilance"

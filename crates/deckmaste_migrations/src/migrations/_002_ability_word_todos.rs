@@ -20,8 +20,10 @@ fn truncate_sentences(text: &str, count: usize) -> String {
 
 impl super::Migration for AbilityWordTodos {
     fn apply(&self, plugin: &super::PluginLayout) -> anyhow::Result<()> {
-        let keywords = crate::data::keywords()?;
-        let rules = crate::data::comprehensive_rules()?;
+        let keywords_bytes = crate::data::keywords_bytes()?;
+        let keywords = crate::data::academyruins::Keywords::parse(&keywords_bytes)?;
+        let rules_bytes = crate::data::comprehensive_rules_bytes()?;
+        let rules = crate::data::academyruins::RulesMap::parse(&rules_bytes)?;
         create_keyword_todos(
             &plugin.ability_words_dir()?,
             &keywords.ability_words,

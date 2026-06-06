@@ -1,21 +1,86 @@
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+use super::Str;
+
+/// Replaces typographic quotation marks with their ASCII equivalents.
+pub(crate) fn normalize_quotes(text: &str) -> String {
+    text.replace(['‘', '’'], "'").replace(['“', '”'], "\"")
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Rule<'a> {
+    #[serde(borrow)]
+    pub rule_number: Str<'a>,
+    #[serde(borrow, default)]
+    pub examples: Option<Vec<Str<'a>>>,
+    #[serde(borrow)]
+    pub rule_text: Str<'a>,
+    #[serde(borrow)]
+    pub fragment: Str<'a>,
+    #[serde(borrow)]
+    pub navigation: Navigation<'a>,
+}
+
+impl<'a> Rule<'a> {
+    /// Formats the rule like the cr.txt layout: numbered rules ("100.2") get
+    /// a trailing dot; lettered subrules ("100.2a") do not. Examples follow
+    /// on their own lines. Typographic quotes are normalized to ASCII.
+    pub fn format(&self) -> String {
+        let separator = if self.rule_number.ends_with(|c: char| c.is_ascii_lowercase()) {
+            " "
+        } else {
+            ". "
+        };
+        let mut formatted = format!("{}{}{}", self.rule_number, separator, self.rule_text);
+        for example in self.examples.iter().flatten() {
+            formatted.push_str("\nExample: ");
+            formatted.push_str(example);
+        }
+        normalize_quotes(&formatted)
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Navigation<'a> {
+    #[serde(borrow)]
+    pub next_rule: Option<Str<'a>>,
+    #[serde(borrow)]
+    pub previous_rule: Option<Str<'a>>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Keywords<'a> {
+    #[serde(borrow)]
+    pub keyword_abilities: Vec<Str<'a>>,
+    #[serde(borrow)]
+    pub keyword_actions: Vec<Str<'a>>,
+    #[serde(borrow)]
+    pub ability_words: Vec<Str<'a>>,
+}
+
+impl<'a> Keywords<'a> {
+    pub fn parse(bytes: &'a [u8]) -> serde_json::Result<Self> { serde_json::from_slice(bytes) }
+}
+
+#[derive(Clone, Debug, Deserialize)]
 #[serde(transparent)]
-pub(crate) struct RulesMap(pub HashMap<String, Rule>);
+pub(crate) struct RulesMap<'a>(#[serde(borrow)] pub HashMap<Str<'a>, Rule<'a>>);
 
-impl RulesMap {
-    pub fn inner(&self) -> &HashMap<String, Rule> { &self.0 }
+impl<'a> RulesMap<'a> {
+    pub fn parse(bytes: &'a [u8]) -> serde_json::Result<Self> { serde_json::from_slice(bytes) }
 
-    pub fn into_inner(self) -> HashMap<String, Rule> { self.0 }
+    pub fn into_inner(self) -> HashMap<Str<'a>, Rule<'a>> { self.0 }
 
-    pub fn find_rule(&self, rule_number: &str) -> Option<&Rule> { self.0.get(rule_number) }
+    pub fn find_rule(&self, rule_number: &str) -> Option<&Rule<'a>> { self.0.get(rule_number) }
 
     /// Returns the rule and the subrules that follow it, e.g. "702.9"
     /// yields 702.9, 702.9a, 702.9b, and 702.9c.
-    pub fn find_rule_section(&self, rule_number: &str) -> Option<Vec<&Rule>> {
+    pub fn find_rule_section(&self, rule_number: &str) -> Option<Vec<&Rule<'a>>> {
         let mut rule = self.find_rule(rule_number)?;
         let mut section = vec![rule];
         while let Some(next) = &rule.navigation.next_rule {
@@ -46,55 +111,6 @@ impl RulesMap {
     }
 }
 
-/// Replaces typographic quotation marks with their ASCII equivalents.
-pub(crate) fn normalize_quotes(text: &str) -> String {
-    text.replace(['‘', '’'], "'").replace(['“', '”'], "\"")
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Rule {
-    pub rule_number: String,
-    pub examples: Option<Vec<String>>,
-    pub rule_text: String,
-    pub fragment: String,
-    pub navigation: Navigation,
-}
-
-impl Rule {
-    /// Formats the rule like the cr.txt layout: numbered rules ("100.2") get
-    /// a trailing dot; lettered subrules ("100.2a") do not. Examples follow
-    /// on their own lines. Typographic quotes are normalized to ASCII.
-    pub fn format(&self) -> String {
-        let separator = if self.rule_number.ends_with(|c: char| c.is_ascii_lowercase()) {
-            " "
-        } else {
-            ". "
-        };
-        let mut formatted = format!("{}{}{}", self.rule_number, separator, self.rule_text);
-        for example in self.examples.iter().flatten() {
-            formatted.push_str("\nExample: ");
-            formatted.push_str(example);
-        }
-        normalize_quotes(&formatted)
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Navigation {
-    pub next_rule: Option<String>,
-    pub previous_rule: Option<String>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Keywords {
-    pub keyword_abilities: Vec<String>,
-    pub keyword_actions: Vec<String>,
-    pub ability_words: Vec<String>,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -102,12 +118,12 @@ mod tests {
     #[test]
     fn format_normalizes_quotes() {
         let rule = Rule {
-            rule_number: "702.9b".to_owned(),
-            examples: Some(vec!["The ‘fox’ said “hi.”".to_owned()]),
+            rule_number: "702.9b".into(),
+            examples: Some(vec!["The ‘fox’ said “hi.”".into()]),
             rule_text:
                 "A creature with flying can’t be blocked. (See rule 509, “Declare Blockers Step.”)"
-                    .to_owned(),
-            fragment: "9b".to_owned(),
+                    .into(),
+            fragment: "9b".into(),
             navigation: Navigation {
                 next_rule: None,
                 previous_rule: None,

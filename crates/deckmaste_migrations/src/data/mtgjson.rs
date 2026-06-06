@@ -7,60 +7,11 @@
 //! [`crate::data::atomic_cards_bytes`]); strings only allocate when their
 //! JSON contains escape sequences. Consumers clone out what they keep.
 
-use std::borrow::Cow;
 use std::collections::HashMap;
-use std::fmt;
-use std::ops::Deref;
 
-use serde::{Deserialize, Deserializer};
+use serde::Deserialize;
 
-/// A string borrowed from the source bytes when its JSON representation is
-/// escape-free, owned otherwise.
-///
-/// `Cow<str>` behind `Option`/`Vec`/map keys always deserializes owned
-/// (serde's `#[serde(borrow)]` only rewires top-level `Cow` fields), so this
-/// wrapper carries the borrowing visitor everywhere it appears.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Str<'a>(Cow<'a, str>);
-
-impl Str<'_> {
-    pub fn as_str(&self) -> &str { &self.0 }
-}
-
-impl Deref for Str<'_> {
-    type Target = str;
-
-    fn deref(&self) -> &str { &self.0 }
-}
-
-impl fmt::Display for Str<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { self.0.fmt(f) }
-}
-
-impl<'de: 'a, 'a> Deserialize<'de> for Str<'a> {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct StrVisitor<'a>(std::marker::PhantomData<&'a ()>);
-        impl<'de: 'a, 'a> serde::de::Visitor<'de> for StrVisitor<'a> {
-            type Value = Str<'a>;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("a string")
-            }
-
-            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E> {
-                Ok(Str(Cow::Owned(v.to_owned())))
-            }
-
-            fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E> {
-                Ok(Str(Cow::Borrowed(v)))
-            }
-
-            fn visit_string<E>(self, v: String) -> Result<Self::Value, E> { Ok(Str(Cow::Owned(v))) }
-        }
-
-        deserializer.deserialize_str(StrVisitor(std::marker::PhantomData))
-    }
-}
+use crate::data::Str;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct AtomicCards<'a> {
@@ -124,6 +75,8 @@ mod tests {
 
     #[test]
     fn deserializes_the_fields_we_use() {
+        use std::borrow::Cow;
+
         let json = r#"{
             "colorIdentity": ["W"],
             "colors": ["W"],
