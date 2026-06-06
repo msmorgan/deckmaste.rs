@@ -28,8 +28,9 @@
 //! input, and the input here is text built mid-read. It all drops when the
 //! read finishes.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::fmt;
+use std::ops::Range;
 
 use deckmaste_core::Ident;
 use deckmaste_core::ident::IdentSeed;
@@ -37,11 +38,11 @@ use ron::value::RawValue;
 use serde::Deserialize;
 use serde::de::value::StrDeserializer;
 use serde::de::{
-    DeserializeSeed, Deserializer, EnumAccess, Error as _, MapAccess, SeqAccess, VariantAccess,
-    Visitor,
+    DeserializeSeed, Deserializer, EnumAccess, Error as _, IgnoredAny, MapAccess, SeqAccess,
+    VariantAccess, Visitor,
 };
 
-use crate::macros::{MacroSet, Params};
+use crate::macros::{MacroDef, MacroSet, Params};
 
 /// Owns every string built while reading one document — captured fragments,
 /// resolved arguments — so they can be borrowed like the input is.
@@ -216,6 +217,12 @@ impl<'de, 'f, D> MacroAware<'de, 'f, D> {
     }
 }
 
+/// A native ron deserializer over `source`, reading the same dialect as the
+/// document — the one place that names it.
+fn ron_deserializer(source: &str) -> ron::error::SpannedResult<ron::de::Deserializer<'_>> {
+    ron::de::Deserializer::from_str_with_options(source, &deckmaste_core::ron::options())
+}
+
 /// Builds a fresh macro-aware deserializer over `source` and runs `f` on it,
 /// typically to re-read the position the source was expanded for.
 fn reread<'de, 'f, T, E: serde::de::Error>(
@@ -224,9 +231,7 @@ fn reread<'de, 'f, T, E: serde::de::Error>(
     intercept: Intercept,
     f: impl FnOnce(MacroAware<'de, 'f, &mut ron::de::Deserializer<'de>>) -> Result<T, ron::Error>,
 ) -> Result<T, E> {
-    let mut de =
-        ron::de::Deserializer::from_str_with_options(source, &deckmaste_core::ron::options())
-            .map_err(E::custom)?;
+    let mut de = ron_deserializer(source).map_err(E::custom)?;
     let value = f(MacroAware {
         de: &mut de,
         ctx,
@@ -237,149 +242,290 @@ fn reread<'de, 'f, T, E: serde::de::Error>(
     Ok(value)
 }
 
-/// The leading identifier of a RON fragment, skipping whitespace and
-/// comments; `None` if it doesn't open with one.
-fn leading_ident(source: &str) -> Option<&str> {
-    let mut rest = source;
-    loop {
-        rest = rest.trim_start();
-        if let Some(comment) = rest.strip_prefix("//") {
-            rest = comment.split_once('\n').map_or("", |(_, tail)| tail);
-        } else if rest.starts_with("/*") {
-            // Block comments nest, so the close is found by the same walk
-            // `substitute_params` uses.
-            rest = rest.get(skip_block_comment(rest, 0)..).unwrap_or("");
+/// What a captured fragment resolved to, when it isn't an ordinary value.
+enum Invocation<'de> {
+    /// A `Param(...)` hole addressing the current frame.
+    Param(ParamKey),
+    /// An invocation of a macro in scope at this position.
+    Macro {
+        name: Ident,
+        def: &'de MacroDef,
+        args: FrameArgs<'de>,
+    },
+}
+
+/// The seed behind [`probe`]: reads a fragment through ron's enum channel —
+/// the one data-model position that carries an arbitrary identifier — and
+/// resolves that identifier against the reserved name `Param` and the
+/// macros in scope.
+struct Probe<'a, 'de> {
+    /// The position's struct name, if its macros may stand here.
+    position: Option<&'static str>,
+    macros: &'de MacroSet,
+    scratch: &'de Scratch,
+    /// Set once a leading identifier has been read: failures before that
+    /// mean "not an invocation", failures after are real.
+    entered: &'a Cell<bool>,
+}
+
+impl<'de> DeserializeSeed<'de> for Probe<'_, 'de> {
+    type Value = Option<Invocation<'de>>;
+
+    fn deserialize<D: Deserializer<'de>>(self, de: D) -> Result<Self::Value, D::Error> {
+        de.deserialize_enum("", &[], self)
+    }
+}
+
+impl<'de> Visitor<'de> for Probe<'_, 'de> {
+    type Value = Option<Invocation<'de>>;
+
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("a macro invocation or `Param` hole")
+    }
+
+    fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
+        let (ident, variant) = data.variant_seed(IdentSeed)?;
+        self.entered.set(true);
+        if ident == "Param" {
+            return Ok(Some(Invocation::Param(variant.newtype_variant()?)));
+        }
+        let Some(def) = self.position.and_then(|kind| self.macros.get(kind, &ident)) else {
+            return Ok(None);
+        };
+        let args = read_args(variant, &def.params, self.scratch)?;
+        Ok(Some(Invocation::Macro {
+            name: ident,
+            def,
+            args,
+        }))
+    }
+}
+
+/// Try-parses a captured fragment as a `Param(...)` hole or — when the
+/// position's struct name is given — an invocation of one of its macros.
+/// `None` means an ordinary value to read natively: the fragment doesn't
+/// open with an identifier, or its identifier names no macro.
+fn probe<'de, E: serde::de::Error>(
+    source: &'de str,
+    position: Option<&'static str>,
+    ctx: Ctx<'de, '_>,
+) -> Result<Option<Invocation<'de>>, E> {
+    let mut de = ron_deserializer(source).map_err(E::custom)?;
+    let entered = Cell::new(false);
+    let seed = Probe {
+        position,
+        macros: ctx.macros,
+        scratch: ctx.scratch,
+        entered: &entered,
+    };
+    match seed.deserialize(&mut de) {
+        Ok(Some(invocation)) => {
+            de.end().map_err(|e| E::custom(de.span_error(e)))?;
+            Ok(Some(invocation))
+        }
+        Ok(None) => Ok(None),
+        Err(_) if !entered.get() => Ok(None),
+        Err(error) => Err(E::custom(de.span_error(error))),
+    }
+}
+
+/// One value of untagged content, decomposed by ron.
+enum Node<'de> {
+    /// A `Param(...)` hole.
+    Hole(ParamKey),
+    /// Anything else: its immediate children, each captured as a raw
+    /// subslice of the fragment. Scalars and bare identifiers have none.
+    Branch(Vec<&'de RawValue>),
+}
+
+/// Builds a native deserializer over `fragment` and applies `seed`. The
+/// fragment was captured by ron, so its end isn't re-checked.
+fn read_fragment<'de, S: DeserializeSeed<'de>>(
+    fragment: &'de str,
+    seed: S,
+) -> Result<S::Value, String> {
+    let mut de = ron_deserializer(fragment).map_err(|e| e.to_string())?;
+    seed.deserialize(&mut de)
+        .map_err(|e| de.span_error(e).to_string())
+}
+
+/// The enum-channel half of [`decompose`]: a `Param(...)` hole resolves,
+/// and any other leading identifier's contents are collected in the given
+/// shape.
+struct IdentLed<'a> {
+    /// See [`Probe::entered`].
+    entered: &'a Cell<bool>,
+    /// Whether to read struct-shaped `(key: value)` contents rather than
+    /// tuple-shaped.
+    named: bool,
+}
+
+impl<'de> DeserializeSeed<'de> for IdentLed<'_> {
+    type Value = Node<'de>;
+
+    fn deserialize<D: Deserializer<'de>>(self, de: D) -> Result<Self::Value, D::Error> {
+        de.deserialize_enum("", &[], self)
+    }
+}
+
+impl<'de> Visitor<'de> for IdentLed<'_> {
+    type Value = Node<'de>;
+
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("an identifier-led value")
+    }
+
+    fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
+        let (ident, variant) = data.variant_seed(IdentSeed)?;
+        self.entered.set(true);
+        if ident == "Param" {
+            return Ok(Node::Hole(variant.newtype_variant()?));
+        }
+        let children = if self.named {
+            variant.struct_variant(&[], Children)?
         } else {
-            break;
+            variant.tuple_variant(0, Children)?
+        };
+        Ok(Node::Branch(children))
+    }
+}
+
+macro_rules! leaf_visits {
+    ($($method:ident$(($ty:ty))?),* $(,)?) => {
+        $(fn $method<E: serde::de::Error>(self $(, _: $ty)?) -> Result<Self::Value, E> {
+            Ok(Vec::new())
+        })*
+    };
+}
+
+/// Collects every immediate child of a value as a raw subslice: sequence
+/// elements, map and struct values, the contents of `Some` and newtypes.
+/// Scalars have none, and keys are skipped — holes can't stand there.
+struct Children;
+
+impl<'de> DeserializeSeed<'de> for Children {
+    type Value = Vec<&'de RawValue>;
+
+    fn deserialize<D: Deserializer<'de>>(self, de: D) -> Result<Self::Value, D::Error> {
+        de.deserialize_any(self)
+    }
+}
+
+impl<'de> Visitor<'de> for Children {
+    type Value = Vec<&'de RawValue>;
+
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result { f.write_str("untagged content") }
+
+    leaf_visits! {
+        visit_bool(bool),
+        visit_i8(i8), visit_i16(i16), visit_i32(i32), visit_i64(i64), visit_i128(i128),
+        visit_u8(u8), visit_u16(u16), visit_u32(u32), visit_u64(u64), visit_u128(u128),
+        visit_f32(f32), visit_f64(f64),
+        visit_char(char),
+        visit_str(&str), visit_borrowed_str(&'de str), visit_string(String),
+        visit_bytes(&[u8]), visit_borrowed_bytes(&'de [u8]), visit_byte_buf(Vec<u8>),
+        visit_none, visit_unit,
+    }
+
+    fn visit_some<D: Deserializer<'de>>(self, de: D) -> Result<Self::Value, D::Error> {
+        Ok(vec![<&RawValue>::deserialize(de)?])
+    }
+
+    fn visit_newtype_struct<D: Deserializer<'de>>(self, de: D) -> Result<Self::Value, D::Error> {
+        self.visit_some(de)
+    }
+
+    fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+        let mut children = Vec::new();
+        while let Some(child) = seq.next_element()? {
+            children.push(child);
+        }
+        Ok(children)
+    }
+
+    fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+        let mut children = Vec::new();
+        while map.next_key::<IgnoredAny>()?.is_some() {
+            children.push(map.next_value()?);
+        }
+        Ok(children)
+    }
+}
+
+/// Decomposes one fragment of untagged content. Identifier-led values go
+/// through the enum channel — `deserialize_any` collapses newtype contents
+/// and drops the identifiers that mark holes — trying the tuple-shaped
+/// grammar first, then the struct-shaped one. Everything else decomposes
+/// through [`Children`] directly.
+fn decompose<'de>(fragment: &'de str) -> Result<Node<'de>, String> {
+    let entered = Cell::new(false);
+    for named in [false, true] {
+        let ident_led = IdentLed {
+            entered: &entered,
+            named,
+        };
+        match read_fragment(fragment, ident_led) {
+            Ok(node) => return Ok(node),
+            // Not identifier-led: decompose through the data model instead.
+            Err(_) if !entered.get() => break,
+            // A shape mismatch: the struct-shaped grammar is next, and a
+            // bare identifier — or anything malformed, which the native
+            // parse will report — is a leaf.
+            Err(_) => {}
         }
     }
-    let end = rest
-        .find(|c: char| !c.is_alphanumeric() && c != '_')
-        .unwrap_or(rest.len());
-    (end > 0 && !rest.starts_with(|c: char| c.is_ascii_digit())).then(|| &rest[..end])
+    if entered.get() {
+        return Ok(Node::Branch(Vec::new()));
+    }
+    read_fragment(fragment, Children).map(Node::Branch)
+}
+
+/// Walks `fragment` — a subslice of `root` — recording every `Param(...)`
+/// hole as its byte range in `root` and the argument text that fills it.
+fn collect_holes<'de>(
+    root: &str,
+    fragment: &'de str,
+    ctx: &Ctx<'de, '_>,
+    edits: &mut Vec<(Range<usize>, &'de str)>,
+) -> Result<(), String> {
+    match decompose(fragment)? {
+        Node::Hole(key) => {
+            let start = fragment.as_ptr() as usize - root.as_ptr() as usize;
+            edits.push((start..start + fragment.len(), ctx.param(key)?));
+        }
+        Node::Branch(children) => {
+            for child in children {
+                collect_holes(root, child.get_ron(), ctx, edits)?;
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Replaces every `Param(n)` hole in a RON fragment with the corresponding
-/// argument's source text, skipping string literals and comments. Only used
-/// for untagged enum content, where serde buffers through `deserialize_any`
-/// and parse-position resolution can't reach.
+/// argument's source text. Only used for untagged enum content, where serde
+/// buffers through `deserialize_any` and parse-position resolution can't
+/// reach. ron itself locates every value as a subslice of the fragment, so
+/// holes are spliced by offset and a string literal mentioning `Param` is
+/// never confused for one.
 fn substitute_params<'de>(
     source: &'de str,
     ctx: &Ctx<'de, '_>,
 ) -> Result<std::borrow::Cow<'de, str>, String> {
-    let bytes = source.as_bytes();
-    let mut out = String::new();
-    let mut copied = 0; // start of the region not yet copied to `out`
-    let mut i = 0;
-    while i < bytes.len() {
-        match bytes[i] {
-            b'"' => i = skip_string(source, i),
-            // Raw strings — but a plain identifier can also start with `r`.
-            b'r' if raw_string_quote(bytes, i).is_some() => {
-                let hashes = raw_string_quote(bytes, i).expect("just checked");
-                i = skip_raw_string(source, i, hashes);
-            }
-            b'/' if bytes.get(i + 1) == Some(&b'/') => {
-                i += source[i..].find('\n').map_or(source.len() - i, |n| n + 1);
-            }
-            b'/' if bytes.get(i + 1) == Some(&b'*') => i = skip_block_comment(source, i),
-            c if c.is_ascii_alphabetic() || c == b'_' => {
-                let start = i;
-                while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
-                    i += 1;
-                }
-                if &source[start..i] != "Param" {
-                    continue;
-                }
-                // `Param ( key )`, or it isn't a hole (e.g. a field name).
-                let Some((key, end)) = parse_call_key(source, i) else {
-                    continue;
-                };
-                out.push_str(&source[copied..start]);
-                out.push_str(ctx.param(key)?);
-                i = end;
-                copied = end;
-            }
-            _ => i += 1,
-        }
-    }
-    if copied == 0 {
+    let mut edits = Vec::new();
+    collect_holes(source, source, ctx, &mut edits)?;
+    if edits.is_empty() {
         return Ok(std::borrow::Cow::Borrowed(source));
+    }
+    let mut out = String::new();
+    let mut copied = 0;
+    for (range, argument) in edits {
+        out.push_str(&source[copied..range.start]);
+        out.push_str(argument);
+        copied = range.end;
     }
     out.push_str(&source[copied..]);
     Ok(std::borrow::Cow::Owned(out))
-}
-
-/// For a `r`, `r#`, ... at `start`: the number of hashes if a raw string
-/// opens here.
-fn raw_string_quote(bytes: &[u8], start: usize) -> Option<usize> {
-    let hashes = bytes[start + 1..]
-        .iter()
-        .take_while(|&&b| b == b'#')
-        .count();
-    (bytes.get(start + 1 + hashes) == Some(&b'"')).then_some(hashes)
-}
-
-/// Returns the index just past the string literal opening at `start`.
-fn skip_string(source: &str, start: usize) -> usize {
-    let bytes = source.as_bytes();
-    let mut i = start + 1;
-    while i < bytes.len() {
-        match bytes[i] {
-            b'\\' => i += 2,
-            b'"' => return i + 1,
-            _ => i += 1,
-        }
-    }
-    i
-}
-
-/// Returns the index just past the raw string literal opening at `start`.
-fn skip_raw_string(source: &str, start: usize, hashes: usize) -> usize {
-    let close: String = std::iter::once('"')
-        .chain(std::iter::repeat_n('#', hashes))
-        .collect();
-    let body = start + 1 + hashes + 1;
-    source[body..]
-        .find(&close)
-        .map_or(source.len(), |n| body + n + close.len())
-}
-
-/// Returns the index just past the (nestable) block comment opening at `start`.
-fn skip_block_comment(source: &str, start: usize) -> usize {
-    let bytes = source.as_bytes();
-    let mut depth = 1;
-    let mut i = start + 2;
-    while i + 1 < bytes.len() && depth > 0 {
-        match &bytes[i..i + 2] {
-            b"/*" => {
-                depth += 1;
-                i += 2;
-            }
-            b"*/" => {
-                depth -= 1;
-                i += 2;
-            }
-            _ => i += 1,
-        }
-    }
-    i
-}
-
-/// For a `(` call opening at or after `at`: the enclosed [`ParamKey`] and
-/// the index just past the closing parenthesis.
-fn parse_call_key(source: &str, at: usize) -> Option<(ParamKey, usize)> {
-    let open = at + source[at..].len() - source[at..].trim_start().len();
-    let rest = source[open..].strip_prefix('(')?.trim_start();
-    let token = rest.len()
-        - rest
-            .trim_start_matches(|c: char| c.is_ascii_alphanumeric() || c == '_')
-            .len();
-    let key = deckmaste_core::ron::options()
-        .from_str(&rest[..token])
-        .ok()?;
-    let close = rest[token..].trim_start().strip_prefix(')')?;
-    Some((key, source.len() - close.len()))
 }
 
 /// Names the macro whose body failed: the reread's span points into a
@@ -392,19 +538,6 @@ fn in_expansion_of<E: serde::de::Error>(name: Ident, error: E) -> E {
         return error;
     }
     E::custom(format_args!("in the expansion of `{name}`: {message}"))
-}
-
-/// Parses a whole `Param(...)` source fragment.
-fn param_key<E: serde::de::Error>(source: &str) -> Result<ParamKey, E> {
-    #[derive(Deserialize)]
-    enum Hole {
-        Param(ParamKey),
-    }
-
-    deckmaste_core::ron::options()
-        .from_str(source)
-        .map(|Hole::Param(key)| key)
-        .map_err(E::custom)
 }
 
 macro_rules! forward {
@@ -426,7 +559,7 @@ macro_rules! forward_or_param {
             visitor: V,
         ) -> Result<V::Value, Self::Error> {
             if self.intercept != Intercept::Skip && self.ctx.frame.is_some() {
-                return self.via_capture(move |de| de.$method($($arg,)* visitor));
+                return self.via_capture(None, move |de| de.$method($($arg,)* visitor));
             }
             let wrapped = self.wrap(visitor);
             self.de.$method($($arg,)* wrapped)
@@ -435,22 +568,30 @@ macro_rules! forward_or_param {
 }
 
 impl<'de, D: Deserializer<'de>> MacroAware<'de, '_, D> {
-    /// Captures the next value as source text; a `Param(n)` hole resolves to
-    /// the current frame's argument, anything else re-reads as itself.
+    /// Captures the next value as source text and probes it: a `Param(n)`
+    /// hole resolves to the current frame's argument, a macro invocation
+    /// (when the position's struct name is given) expands, and anything
+    /// else re-reads as itself.
     fn via_capture<T>(
         self,
+        position: Option<&'static str>,
         f: impl FnOnce(MacroAware<'de, '_, &mut ron::de::Deserializer<'de>>) -> Result<T, ron::Error>,
     ) -> Result<T, D::Error> {
         let source = self
             .ctx
             .scratch
             .alloc_raw(&Box::<RawValue>::deserialize(self.de)?);
-        if leading_ident(source) == Some("Param") {
-            let key = param_key::<D::Error>(source)?;
-            let arg = self.ctx.param(key).map_err(D::Error::custom)?;
-            reread(arg, self.ctx.frameless(), Intercept::Full, f)
-        } else {
-            reread(source, self.ctx, Intercept::Skip, f)
+        match probe::<D::Error>(source, position, self.ctx)? {
+            Some(Invocation::Param(key)) => {
+                let arg = self.ctx.param(key).map_err(D::Error::custom)?;
+                reread(arg, self.ctx.frameless(), Intercept::Full, f)
+            }
+            Some(Invocation::Macro { name, def, args }) => {
+                let frame = Frame { name, args };
+                let ctx = self.ctx.expansion(&frame).map_err(D::Error::custom)?;
+                reread(def.body(), ctx, Intercept::Full, f).map_err(|e| in_expansion_of(name, e))
+            }
+            None => reread(source, self.ctx, Intercept::Skip, f),
         }
     }
 }
@@ -478,10 +619,10 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
     /// Untagged enum content arrives here: serde buffers it through its
     /// private Content type, which our wrapped access objects interfere with
     /// (and whose synthetic map keys can't be captured). Instead, the
-    /// fragment's `Param(n)` holes are resolved textually — string-literal
-    /// aware — and the result is handed to ron natively, as if written out.
-    /// Macro invocations (other than `Param`) inside untagged content remain
-    /// unsupported.
+    /// fragment's `Param(n)` holes are spliced out — ron locates every value
+    /// as a subslice of the capture — and the result is handed to ron
+    /// natively, as if written out. Macro invocations (other than `Param`)
+    /// inside untagged content remain unsupported.
     fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         if self.intercept == Intercept::Skip || self.ctx.frame.is_none() {
             let wrapped = self.wrap(visitor);
@@ -492,8 +633,7 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
             .ctx
             .scratch
             .alloc_raw(&Box::<RawValue>::deserialize(self.de)?);
-        if leading_ident(source) == Some("Param") {
-            let key = param_key::<Self::Error>(source)?;
+        if let Some(Invocation::Param(key)) = probe::<Self::Error>(source, None, self.ctx)? {
             let arg = self.ctx.param(key).map_err(Self::Error::custom)?;
             return reread(arg, self.ctx.frameless(), Intercept::Full, |de| {
                 de.deserialize_any(visitor)
@@ -503,9 +643,7 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
             std::borrow::Cow::Borrowed(source) => source,
             std::borrow::Cow::Owned(resolved) => self.ctx.scratch.alloc(resolved),
         };
-        let mut de =
-            ron::de::Deserializer::from_str_with_options(resolved, &deckmaste_core::ron::options())
-                .map_err(Self::Error::custom)?;
+        let mut de = ron_deserializer(resolved).map_err(Self::Error::custom)?;
         let value = de
             .deserialize_any(visitor)
             .map_err(|e| Self::Error::custom(de.span_error(e)))?;
@@ -520,44 +658,18 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
         fields: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
+        // A struct position is captured when a hole or invocation could
+        // stand there: inside a macro body, or whenever some macro expands
+        // to this struct.
         let interceptable = self.intercept == Intercept::Full
             && (self.ctx.frame.is_some() || self.ctx.macros.expands_to_struct(name));
         if !interceptable {
             let wrapped = self.wrap(visitor);
             return self.de.deserialize_struct(name, fields, wrapped);
         }
-
-        // Capture the next value as source text; if it's a hole or opens
-        // with a macro name, read the position from the resolution instead.
-        let source = self
-            .ctx
-            .scratch
-            .alloc_raw(&Box::<RawValue>::deserialize(self.de)?);
-        let leading = leading_ident(source);
-        if leading == Some("Param") {
-            let key = param_key::<Self::Error>(source)?;
-            let arg = self.ctx.param(key).map_err(Self::Error::custom)?;
-            return reread(arg, self.ctx.frameless(), Intercept::Full, |de| {
-                de.deserialize_struct(name, fields, visitor)
-            });
-        }
-        match leading.and_then(|ident| self.ctx.macros.get(name, ident)) {
-            Some(def) => {
-                let args = invocation_args::<Self::Error>(source, &def.params, self.ctx.scratch)?;
-                let frame = Frame {
-                    name: leading.expect("had a leading identifier").into(),
-                    args,
-                };
-                let ctx = self.ctx.expansion(&frame).map_err(Self::Error::custom)?;
-                reread(def.body(), ctx, Intercept::Full, |de| {
-                    de.deserialize_struct(name, fields, visitor)
-                })
-                .map_err(|e| in_expansion_of(frame.name, e))
-            }
-            None => reread(source, self.ctx, Intercept::Skip, |de| {
-                de.deserialize_struct(name, fields, visitor)
-            }),
-        }
+        self.via_capture(Some(name), move |de| {
+            de.deserialize_struct(name, fields, visitor)
+        })
     }
 
     fn deserialize_enum<V: Visitor<'de>>(
@@ -579,36 +691,6 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
     }
 
     fn is_human_readable(&self) -> bool { self.de.is_human_readable() }
-}
-
-/// Reads the arguments of the macro invocation `source`, as raw text each.
-fn invocation_args<'de, E: serde::de::Error>(
-    source: &'de str,
-    params: &Params,
-    scratch: &'de Scratch,
-) -> Result<FrameArgs<'de>, E> {
-    struct Args<'a, 'de>(&'a Params, &'de Scratch);
-    impl<'de> Visitor<'de> for Args<'_, 'de> {
-        type Value = FrameArgs<'de>;
-
-        fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            f.write_str("a macro invocation")
-        }
-
-        fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
-            let (_, variant) = data.variant_seed(IdentSeed)?;
-            read_args(variant, self.0, self.1)
-        }
-    }
-
-    let mut de =
-        ron::de::Deserializer::from_str_with_options(source, &deckmaste_core::ron::options())
-            .map_err(E::custom)?;
-    let args = de
-        .deserialize_enum("Macro", &[], Args(params, scratch))
-        .map_err(|e| E::custom(de.span_error(e)))?;
-    de.end().map_err(|e| E::custom(de.span_error(e)))?;
-    Ok(args)
 }
 
 /// Reads the arguments the definition's signature says to expect: its shape

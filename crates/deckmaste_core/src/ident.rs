@@ -1,13 +1,19 @@
 use std::collections::HashSet;
-use std::sync::{LazyLock, Mutex};
+use std::sync::{LazyLock, RwLock};
 
 use serde::{Deserialize, Serialize};
 
-static POOL: LazyLock<Mutex<HashSet<&'static str>>> = LazyLock::new(Default::default);
+static POOL: LazyLock<RwLock<HashSet<&'static str>>> = LazyLock::new(Default::default);
 
 /// The dumbest possible string interner.
 fn intern(s: &str) -> &'static str {
-    let mut pool = POOL.lock().unwrap();
+    // Fast path: shared read lock for the (overwhelmingly common) hit.
+    if let Some(&interned) = POOL.read().unwrap().get(s) {
+        return interned;
+    }
+    let mut pool = POOL.write().unwrap();
+    // Re-check under the write lock: another thread may have interned `s`
+    // between the read and write locks above.
     pool.get(s).copied().unwrap_or_else(|| {
         let interned = Box::leak(s.into());
         pool.insert(interned);
