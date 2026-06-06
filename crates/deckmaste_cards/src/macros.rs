@@ -534,6 +534,47 @@ mod tests {
         assert_eq!(arms.len(), 2);
     }
 
+    /// Same pin for Selection positions: nothing exercises Selection macros
+    /// in real data yet, and Plan 2 will make this path load-bearing.
+    #[test]
+    fn selection_positions_expand_macros() {
+        let mut macros = MacroSet::default();
+        macros
+            .insert(&MacroDef {
+                name: "EachCreature".into(),
+                kinds: vec![MacroKind::Selection],
+                params: Params::default(),
+                body: "Each(Type(Creature))".into(),
+            })
+            .unwrap();
+        let selection: deckmaste_core::Selection = macros.read_str("EachCreature").unwrap();
+        assert_eq!(
+            selection,
+            deckmaste_core::Selection::Each(Filter::Characteristic(CharacteristicFilter::Type(
+                Type::Creature
+            )))
+        );
+    }
+
+    /// And for Reference positions.
+    #[test]
+    fn reference_positions_expand_macros() {
+        let mut macros = MacroSet::default();
+        macros
+            .insert(&MacroDef {
+                name: "MyController".into(),
+                kinds: vec![MacroKind::Reference],
+                params: Params::default(),
+                body: "ControllerOf(This)".into(),
+            })
+            .unwrap();
+        let reference: deckmaste_core::Reference = macros.read_str("MyController").unwrap();
+        assert_eq!(
+            reference,
+            deckmaste_core::Reference::ControllerOf(Box::new(deckmaste_core::Reference::This))
+        );
+    }
+
     #[test]
     fn params_resolve_at_enum_positions() {
         let mut macros = macros();
