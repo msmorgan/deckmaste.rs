@@ -47,7 +47,6 @@ pub use event::{Event, StateFilterEvent, StepOrPhase, WhoseTurn};
 
 mod filter;
 pub use filter::{CharacteristicFilter, Filter, ObjectKind, RelationFilter, StateFilter};
-
 pub use macro_ron::{Expansion, ExpansionArgs, Ident, IdentSeed};
 
 mod mana;

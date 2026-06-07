@@ -132,9 +132,7 @@ fn kind_names<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Ident>, 
     impl<'de> Visitor<'de> for KindName {
         type Value = Ident;
 
-        fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            f.write_str("a kind name")
-        }
+        fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result { f.write_str("a kind name") }
 
         fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
             let (ident, variant) = data.variant_seed(IdentSeed)?;
@@ -247,9 +245,7 @@ impl MacroSet {
 
     /// Whether some macro expands to the struct named `name`, i.e. whether
     /// that parse position needs macro interception.
-    pub(crate) fn expands_to_struct(&self, name: &str) -> bool {
-        self.macros.contains_key(name)
-    }
+    pub(crate) fn expands_to_struct(&self, name: &str) -> bool { self.macros.contains_key(name) }
 
     fn check_kinds(&self, def: &MacroDef) -> Result<(), InsertError> {
         for &kind in &def.kinds {
@@ -362,8 +358,7 @@ impl MacroSet {
     /// holes, and expansion cycles.
     pub fn read_str<T: DeserializeOwned>(&self, source: &str) -> ron::error::SpannedResult<T> {
         let read = crate::expand::ReadCtx::new(self);
-        let mut deserializer =
-            ron::de::Deserializer::from_str_with_options(source, &self.options)?;
+        let mut deserializer = ron::de::Deserializer::from_str_with_options(source, &self.options)?;
         let value = T::deserialize(crate::expand::MacroAware::new(&mut deserializer, &read))
             .map_err(|e| deserializer.span_error(e))?;
         deserializer.end().map_err(|e| deserializer.span_error(e))?;

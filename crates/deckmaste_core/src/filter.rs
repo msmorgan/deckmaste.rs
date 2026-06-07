@@ -3,9 +3,9 @@ use std::fmt;
 use serde::de::{self, EnumAccess, SeqAccess, VariantAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::IdentSeed;
 use crate::{
-    Cmp, Color, Expansion, Ident, Quantity, Reference, Stat, Status, Supertype, Type, Zone,
+    Cmp, Color, Expansion, Ident, IdentSeed, Quantity, Reference, Stat, Status, Supertype, Type,
+    Zone,
 };
 
 /// What kind of object something is (CR 109.1). Players are objects here

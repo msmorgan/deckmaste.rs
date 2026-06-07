@@ -3,11 +3,10 @@ use std::fmt;
 use serde::de::{self, EnumAccess, VariantAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::IdentSeed;
 use crate::replacement::{Prevention, Replacement};
 use crate::{
-    Ability, Color, Condition, CostComponent, Event, Expansion, Filter, Ident, Quantity, Reference,
-    Supertype, Type,
+    Ability, Color, Condition, CostComponent, Event, Expansion, Filter, Ident, IdentSeed, Quantity,
+    Reference, Supertype, Type,
 };
 
 /// How long a one-shot-created continuous effect lasts (CR 611.2). Static
@@ -128,9 +127,8 @@ pub enum CostChange {
 /// end of turn" one-shot (CR 611). The difference is who wraps it: a static
 /// ability (`StaticAbility`) or a one-shot `Effect::Continuously`.
 ///
-/// Manual serde for macro interception (it bears `Expanded` via
-/// `MacroKind::StaticEffect`): unknown names at `StaticEffect` positions fall
-/// through to the macro layer.
+/// Manual serde for macro interception (it bears `Expanded`): unknown names
+/// at `StaticEffect` positions fall through to the macro layer.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum StaticEffect {
     /// Change a scope's characteristics (anthems, pumps).

@@ -21,9 +21,10 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use crate::ability::TriggeredAbility;
 use crate::action::Action;
 use crate::continuous::{Duration, StaticEffect};
-use crate::IdentSeed;
 use crate::mana::ManaSpec;
-use crate::{ChooseSpec, Condition, Expansion, Filter, Mode, Quantity, Selection, Token};
+use crate::{
+    ChooseSpec, Condition, Expansion, Filter, IdentSeed, Mode, Quantity, Selection, Token,
+};
 
 /// An effect an ability produces (CR 608). Compartmentalized in Rust; flat in
 /// RON (`DrawCards(1)`, never `Act(DrawCards(1))`) via the manual serde below.

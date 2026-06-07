@@ -12,7 +12,7 @@ use anyhow::Context;
 use deckmaste_core::plugin::{MACROS_DIR, TYPES_DIR, card_path, token_path};
 use deckmaste_core::{Card, Ident, Subtype, Token};
 
-use crate::macros::{DuplicateMacro, MacroDef, MacroKind, MacroSet};
+use crate::macros::{InsertError, MacroDef, MacroSet, macro_set};
 
 /// A plugin directory with its macro layer loaded and expanded.
 pub struct Plugin {
@@ -29,13 +29,13 @@ impl Plugin {
     /// If a macro definition or subtype declaration fails to read, expand,
     /// or register, or a directory isn't listable.
     pub fn load(root: impl Into<PathBuf>) -> anyhow::Result<Self> {
-        Self::load_onto(MacroSet::default(), HashMap::new(), root.into())
+        Self::load_onto(macro_set(), HashMap::new(), root.into())
     }
 
     /// Loads `root` with `prelude`'s macros and subtype declarations
     /// already in scope. Last plugin wins: `root`'s definitions override
     /// same-name entries from the prelude, while duplicates within `root`
-    /// itself are still [`DuplicateMacro`](crate::macros::DuplicateMacro)
+    /// itself are still [`InsertError::Duplicate`](crate::macros::InsertError)
     /// errors.
     ///
     /// # Errors
@@ -83,7 +83,7 @@ impl Plugin {
         // the prelude may be overridden — last plugin wins — but two
         // definitions within one plugin still collide: file order here is
         // alphabetical happenstance, so "last" would be meaningless.
-        let mut own: HashSet<(MacroKind, Ident)> = HashSet::new();
+        let mut own: HashSet<(Ident, Ident)> = HashSet::new();
 
         // Macro definitions are self-describing.
         for path in ron_files_recursive(&root.join(MACROS_DIR))? {
@@ -92,14 +92,16 @@ impl Plugin {
                 .with_context(|| format!(r#"parsing macro "{}""#, path.display()))?;
             for &kind in &def.kinds {
                 if !own.insert((kind, def.name)) {
-                    return Err(DuplicateMacro {
+                    return Err(InsertError::Duplicate {
                         kind,
                         name: def.name,
                     })
                     .with_context(|| format!(r#"loading "{}""#, path.display()));
                 }
             }
-            macros.replace(&def);
+            macros
+                .replace(&def)
+                .with_context(|| format!(r#"loading "{}""#, path.display()))?;
         }
 
         // A declaration joins the macro scope as a nullary macro whose body
@@ -118,14 +120,16 @@ impl Plugin {
             for (path, declaration) in pending {
                 match macros.read_str::<Subtype>(&declaration) {
                     Ok(subtype) => {
-                        if !own.insert((MacroKind::Subtype, subtype.name)) {
-                            return Err(DuplicateMacro {
-                                kind: MacroKind::Subtype,
+                        if !own.insert(("Subtype".into(), subtype.name)) {
+                            return Err(InsertError::Duplicate {
+                                kind: "Subtype".into(),
                                 name: subtype.name,
                             })
                             .with_context(|| format!(r#"declaring "{}""#, path.display()));
                         }
-                        macros.redeclare(subtype.name, &declaration);
+                        macros
+                            .redeclare("Subtype", subtype.name, &declaration)
+                            .with_context(|| format!(r#"declaring "{}""#, path.display()))?;
                         subtypes.insert(subtype.name, subtype);
                     }
                     Err(error) => failures.push((path, declaration, error)),

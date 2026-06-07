@@ -420,7 +420,10 @@ fn macros_expand_inside_expansion_bodies() {
         panic!("expected a nested wrapper, got {:?}", arms[1]);
     };
     assert_eq!(inner.name, "Inner");
-    assert_eq!(*inner.value, Filter::AllOf(vec![Filter::Type(Type::Creature)]));
+    assert_eq!(
+        *inner.value,
+        Filter::AllOf(vec![Filter::Type(Type::Creature)])
+    );
     assert_eq!(arms.len(), 2);
 }
 

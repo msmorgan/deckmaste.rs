@@ -3,8 +3,7 @@ use std::fmt;
 use serde::de::{self, EnumAccess, VariantAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::IdentSeed;
-use crate::{Event, Expansion, Filter, Quantity, Reference};
+use crate::{Event, Expansion, Filter, IdentSeed, Quantity, Reference};
 
 /// A numeric comparison (CR 107.3). The named forms keep RON readable —
 /// `AtLeast` rather than `>=`.

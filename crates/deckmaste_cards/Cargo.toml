@@ -10,7 +10,7 @@ workspace = true
 anyhow = { version = "1.0.102" }
 clap = { version = "4.6.1", features = ["derive"] }
 deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
-elsa = "1.11.2"
+macro_ron = { version = "0.1.0", path = "../macro_ron" }
 ron = "0.12.1"
 serde = { version = "1.0.228", features = ["derive"] }
 
