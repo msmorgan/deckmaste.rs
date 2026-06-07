@@ -153,7 +153,7 @@ mod tests {
 
     #[test]
     fn activated_ability_parses() {
-        let ability = read_ability("Activated(cost: [Tap], effect: DrawCards(1))");
+        let ability = read_ability("Activated(cost: [Tap], effect: DrawCards(Literal(1)))");
         assert_eq!(
             ability,
             Ability::Activated(ActivatedAbility {
@@ -169,7 +169,7 @@ mod tests {
     #[test]
     fn triggered_ability_parses() {
         let ability = read_ability(
-            "Triggered(event: ZoneMove(what: Is(This), to: Graveyard), effect: DrawCards(1))",
+            "Triggered(event: ZoneMove(what: Is(This), to: Graveyard), effect: DrawCards(Literal(1)))",
         );
         let Ability::Triggered(triggered) = ability else {
             panic!("expected a triggered ability");
@@ -203,7 +203,7 @@ mod tests {
     fn sacrifice_this_reads_flat() {
         // Confirms the new flattened Selection (`This`, not `That(This)`).
         let ability = read_ability(
-            "Activated(cost: [Tap, Do(Sacrifice(This))], effect: AddMana(1, AnyColor))",
+            "Activated(cost: [Tap, Do(Sacrifice(This))], effect: AddMana(Literal(1), AnyColor))",
         );
         let Ability::Activated(activated) = ability else {
             panic!("expected an activated ability");

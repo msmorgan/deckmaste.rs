@@ -241,11 +241,11 @@ mod tests {
     #[test]
     fn verbs_read_flat() {
         assert_eq!(
-            read("DrawCards(1)"),
+            read("DrawCards(Literal(1))"),
             Effect::Act(Action::DrawCards(Quantity::Literal(1))),
         );
         assert_eq!(
-            read("GainLife(3)"),
+            read("GainLife(Literal(3))"),
             Effect::Act(Action::GainLife(Quantity::Literal(3))),
         );
         assert_eq!(
@@ -253,14 +253,14 @@ mod tests {
             Effect::Act(Action::Sacrifice(Selection::This)),
         );
         assert_eq!(
-            read("DealDamage(Target(0), 3)"),
+            read("DealDamage(Target(0), Literal(3))"),
             Effect::Act(Action::DealDamage(
                 Selection::Target(0),
                 Quantity::Literal(3)
             )),
         );
         assert_eq!(
-            read("AddMana(1, AnyColor)"),
+            read("AddMana(Literal(1), AnyColor)"),
             Effect::Act(Action::AddMana(Quantity::Literal(1), ManaSpec::AnyColor)),
         );
     }
@@ -276,7 +276,7 @@ mod tests {
         );
         assert_eq!(read("Tap(This)"), Effect::Act(Action::Tap(Selection::This)),);
         assert_eq!(
-            read("Discard(1)"),
+            read("Discard(Literal(1))"),
             Effect::Act(Action::Discard(Quantity::Literal(1))),
         );
     }
@@ -286,13 +286,13 @@ mod tests {
     #[test]
     fn structural_forms_read_flat() {
         assert_eq!(
-            read("Sequence([DrawCards(1), GainLife(1)])"),
+            read("Sequence([DrawCards(Literal(1)), GainLife(Literal(1))])"),
             Effect::Sequence(vec![
                 Effect::Act(Action::DrawCards(Quantity::Literal(1))),
                 Effect::Act(Action::GainLife(Quantity::Literal(1))),
             ]),
         );
-        let may = read("May(effect: DrawCards(1))");
+        let may = read("May(effect: DrawCards(Literal(1)))");
         let Effect::May(may) = may else {
             panic!("expected May");
         };
@@ -307,22 +307,22 @@ mod tests {
     fn act_serializes_flat() {
         assert_eq!(
             write(&Effect::Act(Action::DrawCards(Quantity::Literal(1)))),
-            "DrawCards(1)"
+            "DrawCards(Literal(1))"
         );
     }
 
     #[test]
     fn effects_round_trip() {
         let cases = [
-            "DrawCards(1)",
-            "GainLife(3)",
+            "DrawCards(Literal(1))",
+            "GainLife(Literal(3))",
             "Sacrifice(This)",
-            "DealDamage(Target(0),3)",
-            "AddMana(1,AnyColor)",
+            "DealDamage(Target(0),Literal(3))",
+            "AddMana(Literal(1),AnyColor)",
             "Destroy(Each(Type(Creature)))",
-            "Sequence([DrawCards(1),GainLife(1)])",
-            "May(effect:DrawCards(1))",
-            "ForEach(over:Type(Creature),effect:DrawCards(1))",
+            "Sequence([DrawCards(Literal(1)),GainLife(Literal(1))])",
+            "May(effect:DrawCards(Literal(1)))",
+            "ForEach(over:Type(Creature),effect:DrawCards(Literal(1)))",
         ];
         for source in cases {
             let parsed = read(source);

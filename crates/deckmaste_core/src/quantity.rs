@@ -1,6 +1,7 @@
+use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
 
-use crate::{Filter, Reference};
+use crate::{Expansion, Filter, Reference};
 
 /// A measurable characteristic of an object, read by `Quantity::StatOf`
 /// (CR 109.3, 208, 212). The open part (mana value, loyalty, defense) is
@@ -22,14 +23,17 @@ pub enum Stat {
 /// A number an effect computes at resolution: an amount, never an object
 /// (objects are `Reference`s, CR 107.1, 107.3).
 ///
-/// `Literal(Uint)` is `#[serde(untagged)]` and listed LAST so a bare
-/// integer in RON parses straight to it (the `StatValue::Number`
-/// precedent). KNOWN LIMITATION: because the literal arm is untagged, it
-/// deserializes through `deserialize_any`, which never reaches the macro
-/// layer's `deserialize_enum` interception — so a macro cannot stand at a
-/// Quantity position until a card needs one and this is reworked into a
-/// manual impl (as `Filter`/`Effect` did).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+/// Core's grammar is strict: a literal is written `Literal(3)`, a plain
+/// tagged variant like every other. A bare numeral (`3`) at a Quantity
+/// position is *reader sugar* the macro layer splices into `Literal(3)`
+/// before core ever sees it — exactly like a bare declared subtype name. So
+/// `Quantity` is a plain derived enum, and full macro interception applies
+/// at and under its positions.
+///
+/// `Deserialize` is derived (the macro reader synthesizes the `Expanded`
+/// stream); `Serialize` is **manual** so `Expanded` writes the invocation
+/// back rather than the literal struct — the other variants mirror the derive.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub enum Quantity {
     /// The value chosen for {X} as the spell or ability was put on the
     /// stack (CR 107.3).
@@ -42,10 +46,33 @@ pub enum Quantity {
     /// Magnitude anaphora: "that much" / "that many" — the amount fixed by
     /// an earlier instruction (CR 107.3).
     ThatMuch,
-    /// A bare integer literal. Untagged and last; see the type doc for the
-    /// macro limitation this implies.
-    #[serde(untagged)]
+    /// A bare integer literal. Written `Literal(3)` in core grammar; a bare
+    /// `3` is macro-layer reader sugar for it.
     Literal(crate::Uint),
+    /// A remembered `Quantity` macro invocation.
+    Expanded(Expansion<Quantity>),
+}
+
+impl Serialize for Quantity {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // serialize_*_variant index arguments are ignored by RON. Mirrors the
+        // shapes the derive produced, plus the `Expanded` invocation arm.
+        match self {
+            Quantity::X => serializer.serialize_unit_variant("Quantity", 0, "X"),
+            Quantity::CountOf(f) => {
+                serializer.serialize_newtype_variant("Quantity", 1, "CountOf", f)
+            }
+            Quantity::StatOf(r, s) => {
+                serializer.serialize_newtype_variant("Quantity", 2, "StatOf", &(r, s))
+            }
+            Quantity::ThatMuch => serializer.serialize_unit_variant("Quantity", 3, "ThatMuch"),
+            Quantity::Literal(n) => {
+                serializer.serialize_newtype_variant("Quantity", 4, "Literal", n)
+            }
+            // The invocation, not the struct.
+            Quantity::Expanded(e) => e.serialize(serializer),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -55,11 +82,11 @@ mod tests {
 
     fn read(source: &str) -> Quantity { crate::ron::options().from_str(source).unwrap() }
 
-    /// A bare integer reads as `Literal` (the untagged arm) — the property
-    /// that keeps existing `DealDamage(Target(0), 3)`-shaped RON parsing.
+    /// In core grammar a literal is tagged: `Literal(3)`. A bare `3` is not
+    /// core grammar — it's macro-layer sugar, tested in the cards crate.
     #[test]
-    fn bare_integer_reads_as_literal() {
-        assert_eq!(read("3"), Quantity::Literal(3));
+    fn literal_reads_tagged() {
+        assert_eq!(read("Literal(3)"), Quantity::Literal(3));
     }
 
     #[test]

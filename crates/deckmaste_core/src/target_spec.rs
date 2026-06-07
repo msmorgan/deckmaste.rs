@@ -69,7 +69,7 @@ mod tests {
             ))),
         );
         assert_eq!(
-            read("UpToTargets(2, Type(Creature))"),
+            read("UpToTargets(Literal(2), Type(Creature))"),
             TargetSpec::UpToTargets(
                 crate::Quantity::Literal(2),
                 Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),

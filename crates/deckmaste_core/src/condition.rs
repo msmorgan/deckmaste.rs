@@ -180,7 +180,7 @@ mod tests {
     #[test]
     fn compare_reads() {
         assert_eq!(
-            read("Compare(X, AtLeast, 3)"),
+            read("Compare(X, AtLeast, Literal(3))"),
             Condition::Compare(Quantity::X, Cmp::AtLeast, Quantity::Literal(3)),
         );
     }

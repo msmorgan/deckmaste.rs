@@ -274,8 +274,9 @@ mod tests {
     /// The anthem shape reads flat and round-trips.
     #[test]
     fn modify_reads_flat() {
-        let parsed =
-            read("Modify(of: Matching(Type(Creature)), changes: [AddPower(1), AddToughness(1)])");
+        let parsed = read(
+            "Modify(of: Matching(Type(Creature)), changes: [AddPower(Literal(1)), AddToughness(Literal(1))])",
+        );
         assert_eq!(
             parsed,
             StaticEffect::Modify {

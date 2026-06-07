@@ -76,7 +76,7 @@ mod tests {
             abilities: [\
                 Activated(\
                     cost: [Tap, Do(Sacrifice(This))],\
-                    effect: AddMana(1, AnyColor),\
+                    effect: AddMana(Literal(1), AnyColor),\
                 )\
             ],\
         )";

@@ -311,7 +311,7 @@ mod tests {
             Filter::Characteristic(CharacteristicFilter::Named("Forest".into())),
         );
         assert_eq!(
-            read("Stat(Power, AtLeast, 3)"),
+            read("Stat(Power, AtLeast, Literal(3))"),
             Filter::Characteristic(CharacteristicFilter::Stat(
                 Stat::Power,
                 Cmp::AtLeast,
@@ -440,7 +440,7 @@ mod tests {
             "Supertype(Basic)",
             "ColorIs(Green)",
             r#"Named("Forest")"#,
-            "Stat(Toughness, Greater, 0)",
+            "Stat(Toughness, Greater, Literal(0))",
             r#"HasAbility("Flying")"#,
             "Not(Kind(Player))",
             "Is(You)",
