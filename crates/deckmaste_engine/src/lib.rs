@@ -6,16 +6,16 @@
 //! state between any two events.
 
 // Modules land task by task; uncomment each pair as its file is created.
-// mod agenda;
-// pub use agenda::WorkItem;
+mod agenda;
+pub use agenda::WorkItem;
 
-// mod decide;
-// pub use decide::{Action, Decision, DecisionError, PendingDecision};
+mod decide;
+pub use decide::{Action, Decision, DecisionError, PendingDecision};
 
 // mod derive;
 
-// mod event;
-// pub use event::{GameEvent, LossReason};
+mod event;
+pub use event::{GameEvent, LossReason};
 
 // mod legal;
 
@@ -37,8 +37,8 @@ pub use player::{ManaPool, PlayerId, PlayerState};
 // mod step;
 // pub use step::{Progress, StepOutcome};
 
-// mod turn;
-// pub use turn::{PriorityRound, TurnState};
+mod turn;
+pub use turn::{PriorityRound, TurnState};
 
-// mod zone;
-// pub use zone::Zones;
+mod zone;
+pub use zone::Zones;
