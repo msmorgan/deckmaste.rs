@@ -160,10 +160,18 @@ fn lint_card_subtypes(
     for subtype in subtypes {
         match declared_subtypes.get(&subtype.name) {
             Some(declared) if declared == subtype => {}
-            _ => out.push((
+            Some(declared) => out.push((
                 path.to_owned(),
                 format!(
-                    "bare-subtype-in-card: {:?} does not match a declared subtype",
+                    "bare-subtype-in-card: {:?} is declared but its value differs from the \
+                     declaration (expected {declared:?})",
+                    subtype.name.as_str()
+                ),
+            )),
+            None => out.push((
+                path.to_owned(),
+                format!(
+                    "bare-subtype-in-card: {:?} does not match any declared subtype",
                     subtype.name.as_str()
                 ),
             )),
@@ -329,6 +337,38 @@ mod tests {
         assert!(
             failures.is_empty(),
             "matching declaration should not be flagged"
+        );
+    }
+
+    /// A name that IS declared, carried with a different value: the case the
+    /// lint exists for — post-expansion it's indistinguishable from a bare
+    /// reference, so only equality against the declaration catches it.
+    #[test]
+    fn lint_flags_declared_name_with_drifted_value() {
+        let declared_subtype = Subtype {
+            name: "Forest".into(),
+            types: vec![Type::Land],
+            confers: vec![],
+        };
+        let drifted = Subtype {
+            name: "Forest".into(),
+            types: vec![Type::Creature],
+            confers: vec![],
+        };
+        let declared: HashMap<_, Subtype> =
+            [("Forest".into(), declared_subtype)].into_iter().collect();
+        let mut failures = Vec::new();
+        lint_card_subtypes(&dummy_path(), &[drifted], &declared, &mut failures);
+        assert_eq!(failures.len(), 1, "expected exactly one lint failure");
+        assert!(
+            failures[0].1.contains("bare-subtype-in-card"),
+            "message should contain the lint name: {}",
+            failures[0].1
+        );
+        assert!(
+            failures[0].1.contains("differs"),
+            "message should mention drift: {}",
+            failures[0].1
         );
     }
 }
