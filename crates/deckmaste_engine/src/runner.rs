@@ -12,7 +12,7 @@ pub enum RunStop {
 }
 
 /// Auto-steps a [`GameState`] to its decision points, collecting the
-/// progress trace for callers that want it.
+/// progress trace along the way.
 #[derive(Debug)]
 pub struct Runner<'a> {
     state: &'a mut GameState,

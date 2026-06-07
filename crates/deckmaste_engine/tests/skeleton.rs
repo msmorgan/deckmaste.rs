@@ -455,6 +455,18 @@ fn replay_is_deterministic() {
                 .map(VecDeque::len)
                 .collect::<Vec<_>>(),
             state.zones.battlefield.clone(),
+            // The script taps lands and floats mana: pin those too.
+            state
+                .zones
+                .battlefield
+                .iter()
+                .map(|&id| state.objects.obj(id).tapped)
+                .collect::<Vec<_>>(),
+            state
+                .players
+                .iter()
+                .map(|p| p.mana_pool.clone())
+                .collect::<Vec<_>>(),
             state.turn.turn_number,
             state.turn.current,
         )
