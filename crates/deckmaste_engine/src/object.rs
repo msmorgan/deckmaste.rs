@@ -33,12 +33,17 @@ impl Cards {
     /// # Panics
     ///
     /// Panics if the card table exceeds `Uint::MAX` entries.
-    pub fn push(&mut self, def: Arc<Card>, owner: PlayerId) -> CardId {
+    pub(crate) fn push(&mut self, def: Arc<Card>, owner: PlayerId) -> CardId {
         let id = CardId(Uint::try_from(self.0.len()).expect("card table fits in Uint"));
         self.0.push(CardInstance { def, owner });
         id
     }
 
+    /// The card at `id`.
+    ///
+    /// # Panics
+    ///
+    /// Panics on a fabricated `CardId` — engine invariant, not caller input.
     #[must_use]
     pub fn get(&self, id: CardId) -> &CardInstance { &self.0[id.0 as usize] }
 
