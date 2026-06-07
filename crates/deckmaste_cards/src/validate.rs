@@ -15,10 +15,11 @@
 //! Earlier lint candidate: degenerate sequences once
 //! `Effect::Sequence(Vec<Effect>)` lands.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use deckmaste_core::plugin::{CARDS_DIR, TOKENS_DIR, is_todo_source};
-use deckmaste_core::{Ability, Card, CostComponent, Token};
+use deckmaste_core::{Ability, Card, CostComponent, Ident, Subtype, Token};
 
 use crate::plugin::{Plugin, read, ron_files_recursive};
 
@@ -68,7 +69,12 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
         }
         match plugin.macros.read_str::<Card>(&source) {
             Ok(card) => {
-                lint_all_card_faces(&path, &card, &mut validation.lint_failures);
+                lint_all_card_faces(
+                    &path,
+                    &card,
+                    &plugin.subtypes,
+                    &mut validation.lint_failures,
+                );
                 validation.valid += 1;
             }
             Err(error) => validation.failures.push(InvalidCard { path, error }),
@@ -94,13 +100,23 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
     Ok(validation)
 }
 
-/// Lint all abilities across every face of a card.
-fn lint_all_card_faces(path: &Path, card: &Card, out: &mut Vec<(PathBuf, String)>) {
+/// Lint all abilities and subtypes across every face of a card.
+fn lint_all_card_faces(
+    path: &Path,
+    card: &Card,
+    declared_subtypes: &HashMap<Ident, Subtype>,
+    out: &mut Vec<(PathBuf, String)>,
+) {
     match card {
-        Card::Normal(face) => lint_card_abilities(path, &face.abilities, out),
+        Card::Normal(face) => {
+            lint_card_abilities(path, &face.abilities, out);
+            lint_card_subtypes(path, &face.subtypes, declared_subtypes, out);
+        }
         Card::ModalDfc(front, back) => {
             lint_card_abilities(path, &front.abilities, out);
+            lint_card_subtypes(path, &front.subtypes, declared_subtypes, out);
             lint_card_abilities(path, &back.abilities, out);
+            lint_card_subtypes(path, &back.subtypes, declared_subtypes, out);
         }
     }
 }
@@ -131,6 +147,30 @@ fn lint_card_abilities(path: &Path, abilities: &[Ability], out: &mut Vec<(PathBu
     }
 }
 
+/// For each subtype on a face, check that it equals the plugin's declaration
+/// of that name. Post-expansion a bare reference and an inline literal are
+/// indistinguishable — the lint enforces declaration provenance, catching
+/// undeclared names and inline literals that drift from declarations.
+fn lint_card_subtypes(
+    path: &Path,
+    subtypes: &[Subtype],
+    declared_subtypes: &HashMap<Ident, Subtype>,
+    out: &mut Vec<(PathBuf, String)>,
+) {
+    for subtype in subtypes {
+        match declared_subtypes.get(&subtype.name) {
+            Some(declared) if declared == subtype => {}
+            _ => out.push((
+                path.to_owned(),
+                format!(
+                    "bare-subtype-in-card: {:?} does not match a declared subtype",
+                    subtype.name.as_str()
+                ),
+            )),
+        }
+    }
+}
+
 /// The `Do(action)` a cost component reduces to, looking through any
 /// remembered macro invocation (`CostComponent::Expanded`). `None` for
 /// non-`Do` components (mana, tap, untap).
@@ -144,15 +184,16 @@ fn cost_action(component: &CostComponent) -> Option<&deckmaste_core::Action> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use std::path::PathBuf;
 
     use deckmaste_core::{
         Ability, Action, ActivatedAbility, CostComponent, Effect, Expansion, ExpansionArgs,
-        ManaSpec, Quantity, Reference, Restriction, Selection, StaticAbility, StaticEffect, Token,
-        Type,
+        ManaSpec, Quantity, Reference, Restriction, Selection, StaticAbility, StaticEffect,
+        Subtype, Token, Type,
     };
 
-    use super::lint_card_abilities;
+    use super::{lint_card_abilities, lint_card_subtypes};
 
     fn dummy_path() -> PathBuf { PathBuf::from("test/dummy.ron") }
 
@@ -245,5 +286,49 @@ mod tests {
         let mut failures = Vec::new();
         lint_card_abilities(&dummy_path(), &token.abilities, &mut failures);
         assert!(failures.is_empty());
+    }
+
+    /// A face with a subtype whose name is not in the declared set produces a
+    /// `bare-subtype-in-card` finding.
+    #[test]
+    fn lint_flags_undeclared_subtype() {
+        let undeclared = Subtype {
+            name: "Undeclared".into(),
+            types: vec![Type::Land],
+            confers: vec![],
+        };
+        let declared: HashMap<_, _> = HashMap::new();
+        let mut failures = Vec::new();
+        lint_card_subtypes(&dummy_path(), &[undeclared], &declared, &mut failures);
+        assert_eq!(failures.len(), 1, "expected exactly one lint failure");
+        assert!(
+            failures[0].1.contains("bare-subtype-in-card"),
+            "message should contain the lint name: {}",
+            failures[0].1
+        );
+        assert!(
+            failures[0].1.contains("Undeclared"),
+            "message should mention the subtype name: {}",
+            failures[0].1
+        );
+    }
+
+    /// A face whose subtypes match declarations exactly produces no findings.
+    #[test]
+    fn lint_passes_declared_matching_subtype() {
+        let declared_subtype = Subtype {
+            name: "Forest".into(),
+            types: vec![Type::Land],
+            confers: vec![],
+        };
+        let declared: HashMap<_, Subtype> = [("Forest".into(), declared_subtype.clone())]
+            .into_iter()
+            .collect();
+        let mut failures = Vec::new();
+        lint_card_subtypes(&dummy_path(), &[declared_subtype], &declared, &mut failures);
+        assert!(
+            failures.is_empty(),
+            "matching declaration should not be flagged"
+        );
     }
 }

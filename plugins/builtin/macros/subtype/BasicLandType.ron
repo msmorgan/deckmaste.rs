@@ -1,0 +1,18 @@
+// CR 305.6: a basic land type carries the intrinsic ability to tap for one
+// mana of its color. Conferred through the subtype so type-changing effects
+// (CR 305.7) pick it up from the same data.
+(
+    name: "BasicLandType",
+    kinds: [Subtype],
+    params: [String, String],
+    body: Subtype(
+        name: Param(0),
+        types: [Land],
+        confers: [
+            Ability(Activated(
+                cost: [Tap],
+                effect: AddMana(1, Param(1)),
+            )),
+        ],
+    ),
+)

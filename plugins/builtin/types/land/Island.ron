@@ -1,1 +1,1 @@
-LandType("Island")
+BasicLandType("Island", Blue)

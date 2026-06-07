@@ -7,13 +7,44 @@ use std::path::Path;
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::ron::options as ron_options;
 use deckmaste_core::{
-    Ability, Action, Card, CardFace, CharacteristicFilter, Effect, Expansion, ExpansionArgs,
-    Filter, ManaCost, ObjectKind, Quantity, Selection, SpellAbility, StatValue, StateFilter,
-    Subtype, Supertype, TargetSpec, Type, Zone,
+    Ability, Action, ActivatedAbility, Card, CardFace, CharacteristicFilter, Color,
+    ColorOrColorless, CostComponent, Effect, Expansion, ExpansionArgs, Filter, ManaCost, ManaSpec,
+    ObjectKind, Property, Quantity, Selection, SpellAbility, StatValue, StateFilter, Subtype,
+    Supertype, TargetSpec, Type, Zone,
 };
 
 fn builtin() -> Plugin {
     Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
+}
+
+/// What a basic land type's declaration expands to: the subtype plus its
+/// intrinsic mana ability (CR 305.6), conferred as data.
+fn basic_land_subtype(name: &str, color: Color) -> Subtype {
+    Subtype {
+        name: name.into(),
+        types: vec![Type::Land],
+        confers: vec![Property::Ability(Box::new(Ability::Activated(
+            ActivatedAbility {
+                cost: vec![CostComponent::Tap],
+                targets: vec![],
+                effect: Effect::Act(Action::AddMana(
+                    Quantity::Literal(1),
+                    ManaSpec::Specific(ColorOrColorless::Color(color)),
+                )),
+            },
+        )))],
+    }
+}
+
+fn basic_color(name: &str) -> Color {
+    match name {
+        "Plains" => Color::White,
+        "Island" => Color::Blue,
+        "Swamp" => Color::Black,
+        "Mountain" => Color::Red,
+        "Forest" => Color::Green,
+        other => panic!("not a basic land type: {other}"),
+    }
 }
 
 fn basic_land(name: &str) -> Card {
@@ -22,11 +53,7 @@ fn basic_land(name: &str) -> Card {
         mana_cost: ManaCost::default(),
         supertypes: vec![Supertype::Basic],
         types: vec![Type::Land],
-        subtypes: vec![Subtype {
-            name: name.into(),
-            types: vec![Type::Land],
-            confers: vec![],
-        }],
+        subtypes: vec![basic_land_subtype(name, basic_color(name))],
         ..Default::default()
     })
 }
@@ -70,11 +97,7 @@ fn declared_subtypes_cover_the_basics() {
     for name in ["Forest", "Island", "Mountain", "Plains", "Swamp"] {
         assert_eq!(
             plugin.subtypes.get(name),
-            Some(&Subtype {
-                name: name.into(),
-                types: vec![Type::Land],
-                confers: vec![],
-            })
+            Some(&basic_land_subtype(name, basic_color(name)))
         );
 
         // Declared subtypes are nullary macros expanding to themselves.

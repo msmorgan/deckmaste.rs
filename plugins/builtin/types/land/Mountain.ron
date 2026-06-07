@@ -1,1 +1,1 @@
-LandType("Mountain")
+BasicLandType("Mountain", Red)

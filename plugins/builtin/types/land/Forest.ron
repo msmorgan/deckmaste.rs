@@ -1,1 +1,1 @@
-LandType("Forest")
+BasicLandType("Forest", Green)
