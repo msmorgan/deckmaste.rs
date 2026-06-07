@@ -7,10 +7,15 @@ use crate::Color;
 use crate::color::ColorOrColorless;
 
 /// Produced-mana spec (CR 106): what colors or types a mana-adding effect
-/// may produce. Variants accrete — `AnyType`, fixed symbols, riders later.
+/// may produce. Variants accrete — `AnyType`, riders later.
+///
+/// The untagged Specific variant serializes transparently, so the RON stays
+/// flat: `AddMana(Literal(1), White)`, not `…Specific(White)`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum ManaSpec {
     AnyColor,
+    #[serde(untagged)]
+    Specific(ColorOrColorless),
 }
 
 /// The component symbols hybrid/phyrexian symbols are built from: a generic
@@ -281,5 +286,21 @@ mod tests {
                 "{invalid:?} should not parse"
             );
         }
+    }
+
+    #[test]
+    fn mana_spec_specific_reads_flat() {
+        let read = |s: &str| crate::ron::options().from_str::<ManaSpec>(s).unwrap();
+        assert_eq!(read("AnyColor"), ManaSpec::AnyColor);
+        assert_eq!(read("White"), ManaSpec::Specific(White.into()));
+        assert_eq!(read("Colorless"), ManaSpec::Specific(Colorless));
+    }
+
+    #[test]
+    fn mana_spec_specific_writes_flat() {
+        let write = |m: &ManaSpec| crate::ron::options().to_string(m).unwrap();
+        assert_eq!(write(&ManaSpec::AnyColor), "AnyColor");
+        assert_eq!(write(&ManaSpec::Specific(White.into())), "White");
+        assert_eq!(write(&ManaSpec::Specific(Colorless)), "Colorless");
     }
 }
