@@ -68,7 +68,9 @@ fn shuffles_are_seeded() {
 }
 
 use deckmaste_core::StepOrPhase;
-use deckmaste_engine::{GameEvent, PendingDecision, Progress, StepOutcome};
+use deckmaste_engine::{
+    Action, Decision, DecisionError, GameEvent, PendingDecision, Progress, StepOutcome,
+};
 
 /// Steps until the next decision or game end, returning the progress trace.
 /// (The Runner wraps exactly this; tests that predate it drive manually.)
@@ -137,4 +139,208 @@ fn turn_one_walks_to_upkeep_priority_one_event_at_a_time() {
         state.step(),
         StepOutcome::NeedsDecision(PendingDecision::Priority { .. })
     ));
+}
+
+/// Drives to the next decision, answering every priority with Pass.
+/// Returns the non-priority stop (other decision kind, or game over).
+fn pass_to_stop(state: &mut GameState) -> StepOutcome {
+    loop {
+        let (_, stop) = step_to_stop(state);
+        match stop {
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            other => return other,
+        }
+    }
+}
+
+/// Steps until the predicate matches a just-returned outcome. The predicate
+/// also receives the state (taking it as a parameter rather than capturing
+/// it — the closure can't borrow `state` while `&mut state` is in use).
+fn step_until(
+    state: &mut GameState,
+    mut pred: impl FnMut(&GameState, &StepOutcome) -> bool,
+) -> StepOutcome {
+    loop {
+        let outcome = state.step();
+        if pred(state, &outcome) {
+            return outcome;
+        }
+        if let StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) = outcome {
+            state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+        } else if matches!(
+            outcome,
+            StepOutcome::NeedsDecision(_) | StepOutcome::GameOver(_)
+        ) {
+            panic!("unexpected stop: {outcome:?}");
+        }
+    }
+}
+
+#[test]
+fn submission_errors() {
+    let mut state = two_player_plains(42, 20);
+    // Nothing pending yet.
+    assert_eq!(
+        state.submit_decision(Decision::Act(Action::Pass)),
+        Err(DecisionError::NothingPending)
+    );
+    // Wrong kind at a priority decision.
+    let (_, stop) = step_to_stop(&mut state);
+    assert!(matches!(
+        stop,
+        StepOutcome::NeedsDecision(PendingDecision::Priority { .. })
+    ));
+    assert_eq!(
+        state.submit_decision(Decision::Discard(vec![])),
+        Err(DecisionError::WrongKind)
+    );
+    // Illegal action: playing a land during upkeep.
+    let object = state.zones.hands[0][0];
+    assert!(matches!(
+        state.submit_decision(Decision::Act(Action::PlayLand { object })),
+        Err(DecisionError::Illegal { .. })
+    ));
+    // The decision is still pending and answerable after errors.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+}
+
+#[test]
+fn a_full_pass_around_advances_the_step() {
+    let mut state = two_player_plains(42, 20);
+    let (_, stop) = step_to_stop(&mut state);
+    assert!(matches!(stop, StepOutcome::NeedsDecision(_)));
+    assert_eq!(state.turn.current, StepOrPhase::Upkeep);
+    // P0 passes; priority rotates to P1 (same step).
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) = stop else {
+        panic!("expected P1 priority");
+    };
+    assert_eq!(player, PlayerId(1));
+    assert_eq!(state.turn.current, StepOrPhase::Upkeep);
+    // P1 passes too: all-pass on an empty stack ends the step.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = step_to_stop(&mut state);
+    assert_eq!(state.turn.current, StepOrPhase::Draw);
+}
+
+#[test]
+fn land_drop_tap_for_mana_and_pool_emptying() {
+    let mut state = two_player_plains(42, 20);
+    // Drive to P0's precombat main.
+    let stop = step_until(&mut state, |s, o| {
+        matches!(o, StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. })
+            if *player == PlayerId(0))
+            && s.turn.current == StepOrPhase::PrecombatMain
+    });
+    let StepOutcome::NeedsDecision(PendingDecision::Priority { legal, .. }) = stop else {
+        unreachable!()
+    };
+    // Land drop is legal; take the first.
+    let land = legal
+        .iter()
+        .find_map(|a| match a {
+            Action::PlayLand { object } => Some(*object),
+            _ => None,
+        })
+        .expect("a land drop should be legal");
+    state
+        .submit_decision(Decision::Act(Action::PlayLand { object: land }))
+        .unwrap();
+
+    // The land arrives; P0 retains priority (CR 117.3c).
+    let (trace, stop) = step_to_stop(&mut state);
+    assert!(trace.iter().any(|p| matches!(
+        p,
+        Progress::Applied(GameEvent::LandPlayed { object }) if *object == land
+    )));
+    assert_eq!(state.zones.battlefield, vec![land]);
+    assert_eq!(state.players[0].lands_played_this_turn, 1);
+    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, legal }) = stop else {
+        panic!("expected priority back");
+    };
+    assert_eq!(player, PlayerId(0));
+
+    // Second land this turn: not offered, and rejected if forced.
+    assert!(!legal.iter().any(|a| matches!(a, Action::PlayLand { .. })));
+    let another = state.zones.hands[0][0];
+    assert!(matches!(
+        state.submit_decision(Decision::Act(Action::PlayLand { object: another })),
+        Err(DecisionError::Illegal { .. })
+    ));
+
+    // Tap it for mana: the conferred CR 305.6 ability, through the data.
+    let tap = legal
+        .iter()
+        .find(|a| matches!(a, Action::ActivateAbility { .. }))
+        .expect("mana ability should be legal")
+        .clone();
+    state.submit_decision(Decision::Act(tap)).unwrap();
+    let (trace, _stop) = step_to_stop(&mut state);
+    assert!(trace.iter().any(|p| matches!(
+        p,
+        Progress::Applied(GameEvent::Tapped(id)) if *id == land
+    )));
+    use deckmaste_core::Color;
+    assert_eq!(state.players[0].mana_pool.amount(Color::White.into()), 1);
+
+    // Pass around: the step ends, the pool empties (CR 500.4).
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = step_to_stop(&mut state); // P1's priority
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let (trace, _) = step_to_stop(&mut state);
+    assert!(
+        trace
+            .iter()
+            .any(|p| matches!(p, Progress::Applied(GameEvent::ManaEmptied(PlayerId(0)))))
+    );
+    assert!(state.players[0].mana_pool.is_empty());
+}
+
+#[test]
+fn cleanup_discards_to_hand_size() {
+    let mut state = two_player_plains(42, 20);
+    // All-pass: P1 draws on turn 2 (8 cards) and must discard at cleanup.
+    let stop = pass_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::DiscardToHandSize { player, count }) = stop
+    else {
+        panic!("expected a cleanup discard, got {stop:?}");
+    };
+    assert_eq!(player, PlayerId(1));
+    assert_eq!(count, 1);
+    assert_eq!(state.turn.turn_number, 2);
+
+    // Wrong count rejected; then a legal discard.
+    assert!(matches!(
+        state.submit_decision(Decision::Discard(vec![])),
+        Err(DecisionError::Illegal { .. })
+    ));
+    let chosen = state.zones.hands[1][0];
+    state
+        .submit_decision(Decision::Discard(vec![chosen]))
+        .unwrap();
+    let (trace, _) = step_to_stop(&mut state);
+    assert!(trace.iter().any(|p| matches!(
+        p,
+        Progress::Applied(GameEvent::Discarded { player: PlayerId(1), object }) if *object == chosen
+    )));
+    assert_eq!(state.zones.hands[1].len(), 7);
+    assert_eq!(state.zones.graveyards[1], vec![chosen]);
+}
+
+#[test]
+fn deck_out_ends_the_game() {
+    // Seven-card decks: opening hands take the whole library. P1 draws on
+    // turn 2 from nothing → CR 704.5c → P0 wins.
+    let mut state = two_player_plains(7, 7);
+    let stop = pass_to_stop(&mut state);
+    assert_eq!(
+        stop,
+        StepOutcome::GameOver(deckmaste_engine::GameOutcome::Win(PlayerId(0)))
+    );
+    assert!(state.players[1].lost);
+    // Game over is sticky.
+    assert!(matches!(state.step(), StepOutcome::GameOver(_)));
 }

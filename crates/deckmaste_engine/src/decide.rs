@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt;
 
 use deckmaste_core::Uint;
@@ -66,3 +67,132 @@ impl fmt::Display for DecisionError {
 }
 
 impl std::error::Error for DecisionError {}
+
+use crate::agenda::WorkItem;
+use crate::derive;
+use crate::event::GameEvent;
+use crate::state::GameState;
+
+impl GameState {
+    /// Answers the pending decision: validates, does the decision's
+    /// bookkeeping, schedules the continuation at the agenda front, and
+    /// clears `pending`. On error the decision stays pending.
+    ///
+    /// # Errors
+    ///
+    /// `NothingPending` with no decision open, `WrongKind` when the answer
+    /// doesn't match the question, `Illegal` when it fails validation.
+    pub fn submit_decision(&mut self, decision: Decision) -> Result<(), DecisionError> {
+        let Some(pending) = &self.pending else {
+            return Err(DecisionError::NothingPending);
+        };
+        match (pending, decision) {
+            (PendingDecision::Priority { player, legal }, Decision::Act(action)) => {
+                if !legal.contains(&action) {
+                    return Err(DecisionError::Illegal {
+                        reason: format!("{action:?} is not a legal action right now"),
+                    });
+                }
+                let player = *player;
+                self.pending = None;
+                self.take_priority_action(player, &action);
+                Ok(())
+            }
+            (PendingDecision::DiscardToHandSize { player, count }, Decision::Discard(objects)) => {
+                let (player, count) = (*player, *count);
+                let hand = &self.zones.hands[player.index()];
+                let distinct: HashSet<_> = objects.iter().copied().collect();
+                if objects.len() != count as usize
+                    || distinct.len() != objects.len()
+                    || !objects.iter().all(|o| hand.contains(o))
+                {
+                    return Err(DecisionError::Illegal {
+                        reason: format!("discard exactly {count} distinct cards from hand"),
+                    });
+                }
+                self.pending = None;
+                self.schedule_front(
+                    objects
+                        .into_iter()
+                        .map(|object| WorkItem::Emit(GameEvent::Discarded { player, object }))
+                        .collect(),
+                );
+                Ok(())
+            }
+            _ => Err(DecisionError::WrongKind),
+        }
+    }
+
+    /// The priority bookkeeping (CR 117.3c, 117.4): a pass rotates or ends
+    /// the round; an action emits, re-runs the barrier, and re-opens
+    /// priority for the actor. Legality was checked by the caller.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no priority round is open — engine invariant, not caller
+    /// input.
+    fn take_priority_action(&mut self, player: PlayerId, action: &Action) {
+        match action {
+            Action::Pass => {
+                // Compute before borrowing the round mutably.
+                let live = self.live_count();
+                let next = self.next_live_after(player);
+                let round = self.turn.priority.as_mut().expect("open priority round");
+                round.consecutive_passes += 1;
+                let all_passed = round.consecutive_passes >= live;
+                if all_passed {
+                    // CR 117.4: all-pass on an empty stack ends the step.
+                    self.turn.priority = None;
+                    let items = self.end_of_step_items();
+                    self.schedule_front(items);
+                } else {
+                    self.turn
+                        .priority
+                        .as_mut()
+                        .expect("open priority round")
+                        .holder = next;
+                    self.schedule_front(vec![WorkItem::OpenPriority]);
+                }
+            }
+            Action::PlayLand { object } => {
+                self.reset_passes();
+                self.schedule_front(vec![
+                    WorkItem::Emit(GameEvent::LandPlayed { object: *object }),
+                    WorkItem::CheckSbas,
+                    WorkItem::OpenPriority,
+                ]);
+            }
+            Action::ActivateAbility { object, ability } => {
+                let abilities = derive::abilities(self, *object);
+                let (mana, amount) = derive::tap_mana_ability(abilities[*ability])
+                    .expect("legality check admitted only tap-mana abilities");
+                self.reset_passes();
+                self.schedule_front(vec![
+                    WorkItem::Emit(GameEvent::Tapped(*object)),
+                    WorkItem::Emit(GameEvent::ManaAdded {
+                        player,
+                        mana,
+                        amount,
+                    }),
+                    WorkItem::CheckSbas,
+                    WorkItem::OpenPriority,
+                ]);
+            }
+        }
+    }
+
+    /// CR 117.3c: taking an action restarts the pass count; the actor
+    /// receives priority again afterward.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no priority round is open — engine invariant, not caller
+    /// input.
+    fn reset_passes(&mut self) {
+        self.turn
+            .priority
+            .as_mut()
+            .expect("open priority round")
+            .consecutive_passes = 0;
+    }
+}
