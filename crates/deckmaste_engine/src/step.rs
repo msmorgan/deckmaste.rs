@@ -93,6 +93,9 @@ impl GameState {
                 }
             }
             GameEvent::DrewFromEmpty(player) => {
+                // Today only `CardDrawn`'s apply-time transform produces this
+                // fact; the arm exists for future direct emitters (e.g. a
+                // replacement effect rewriting a draw).
                 self.player_mut(player).drew_from_empty = true;
                 event
             }
@@ -130,6 +133,14 @@ impl GameState {
                 self.player_mut(player).lost = true;
                 // CR 104.2a / 104.4: last player standing wins; nobody is a
                 // draw. Game over clears the agenda for good.
+                //
+                // Stage-3 trap, documented: a CR 704.3 sweep is simultaneous,
+                // but these events apply one per step() — if two players lost
+                // in ONE sweep, the first apply would declare Win instead of
+                // Draw and destroy the second event with the agenda. This is
+                // unreachable in the skeleton (no damage exists, and draws
+                // are sequential), but stage 3's simultaneous-event batching
+                // must make a multi-loss sweep apply atomically.
                 let live: Vec<PlayerId> = self
                     .players
                     .iter()
@@ -222,6 +233,11 @@ impl GameState {
         match s {
             StepOrPhase::Untap => self.end_of_step_items(),
             StepOrPhase::Cleanup => {
+                // CR 514.3a: if the sweep acts (or triggers are waiting),
+                // players DO get priority and cleanup repeats. Stage 3 must
+                // detect that and insert OpenPriority + another cleanup
+                // before the step end; in the skeleton the sweep can never
+                // act here.
                 let mut items = vec![WorkItem::CheckSbas];
                 items.extend(self.end_of_step_items());
                 items
@@ -259,6 +275,10 @@ impl GameState {
     }
 
     /// CR 514.1: the active player discards to maximum hand size.
+    ///
+    /// Setting `pending` blocks the next `step()` before the already-queued
+    /// `CheckSbas` is consumed; submission front-schedules the `Discarded`
+    /// emits ahead of it, so the sweep still runs after the discards apply.
     fn check_hand_size(&mut self) -> Progress {
         let active = self.turn.active_player;
         let player = self.player(active);
