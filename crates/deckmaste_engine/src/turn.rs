@@ -27,6 +27,9 @@ pub struct PriorityRound {
 /// skeleton, so `DeclareAttackers` is followed by `EndOfCombat` (CR 508.8 skips
 /// `DeclareBlockers` and `CombatDamage`).
 #[must_use]
+// Two arms reach EndOfCombat for different reasons; keeping them separate
+// keeps the CR 508.8 comment attached to the right one.
+#[expect(clippy::match_same_arms)]
 pub fn successor(step: StepOrPhase) -> Option<StepOrPhase> {
     use StepOrPhase::{
         BeginningOfCombat, Cleanup, CombatDamage, DeclareAttackers, DeclareBlockers, Draw,
@@ -39,8 +42,10 @@ pub fn successor(step: StepOrPhase) -> Option<StepOrPhase> {
         PrecombatMain => BeginningOfCombat,
         BeginningOfCombat => DeclareAttackers,
         // CR 508.8: no attackers (ever, in the skeleton) skips blocks/damage.
-        DeclareAttackers | CombatDamage => EndOfCombat,
+        DeclareAttackers => EndOfCombat,
         DeclareBlockers => CombatDamage,
+        // Ordinary turn order (unreachable in the skeleton — only via 508.8).
+        CombatDamage => EndOfCombat,
         EndOfCombat => PostcombatMain,
         PostcombatMain => EndStep,
         EndStep => Cleanup,
