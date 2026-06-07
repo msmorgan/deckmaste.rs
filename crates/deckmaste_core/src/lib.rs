@@ -59,6 +59,9 @@ pub use mana::{ManaCost, ManaSpec, ManaSymbol, SimpleManaSymbol};
 
 pub mod plugin;
 
+mod property;
+pub use property::Property;
+
 mod quantity;
 pub use quantity::{Quantity, Stat};
 

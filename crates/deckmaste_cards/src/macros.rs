@@ -440,6 +440,7 @@ mod tests {
         Subtype {
             name: "Forest".into(),
             types: vec![Type::Land],
+            confers: vec![],
         }
     }
 

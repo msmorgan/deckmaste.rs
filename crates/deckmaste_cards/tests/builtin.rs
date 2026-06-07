@@ -25,6 +25,7 @@ fn basic_land(name: &str) -> Card {
         subtypes: vec![Subtype {
             name: name.into(),
             types: vec![Type::Land],
+            confers: vec![],
         }],
         ..Default::default()
     })
@@ -72,6 +73,7 @@ fn declared_subtypes_cover_the_basics() {
             Some(&Subtype {
                 name: name.into(),
                 types: vec![Type::Land],
+                confers: vec![],
             })
         );
 
@@ -95,6 +97,7 @@ fn grizzly_bears_expand_the_creature_type_macro() {
         vec![Subtype {
             name: "Bear".into(),
             types: vec![Type::Creature, Type::Kindred],
+            confers: vec![],
         }]
     );
     assert_eq!(face.power, Some(StatValue::Number(2)));
@@ -145,8 +148,26 @@ fn subtypes_round_trip_plainly() {
     let forest = Subtype {
         name: "Forest".into(),
         types: vec![Type::Land],
+        confers: vec![],
     };
     let written = ron_options().to_string(&forest).unwrap();
     let parsed: Subtype = ron_options().from_str(&written).unwrap();
     assert_eq!(parsed, forest);
+}
+
+/// `confers` is omitted from RON when empty (the skip attr is load-bearing)
+/// and round-trips when present.
+#[test]
+fn subtype_confers_round_trips_and_omits_empty() {
+    let plain = Subtype {
+        name: "Forest".into(),
+        types: vec![Type::Land],
+        confers: vec![],
+    };
+    let written = ron_options().to_string(&plain).unwrap();
+    assert!(
+        !written.contains("confers"),
+        "empty confers omitted: {written}"
+    );
+    assert_eq!(ron_options().from_str::<Subtype>(&written).unwrap(), plain);
 }

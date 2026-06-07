@@ -39,6 +39,7 @@ fn artifact_subtype(name: &str) -> Subtype {
     Subtype {
         name: name.into(),
         types: vec![Type::Artifact],
+        confers: vec![],
     }
 }
 
