@@ -154,6 +154,7 @@ dependencies = [
 name = "deckmaste_core"
 version = "0.1.0"
 dependencies = [
+ "macro_ron",
  "ron",
  "serde",
 ]

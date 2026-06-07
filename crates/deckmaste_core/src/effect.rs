@@ -21,7 +21,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use crate::ability::TriggeredAbility;
 use crate::action::Action;
 use crate::continuous::{Duration, StaticEffect};
-use crate::ident::IdentSeed;
+use crate::IdentSeed;
 use crate::mana::ManaSpec;
 use crate::{ChooseSpec, Condition, Expansion, Filter, Mode, Quantity, Selection, Token};
 

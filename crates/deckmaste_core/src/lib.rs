@@ -51,8 +51,7 @@ pub use event::{Event, StateFilterEvent, StepOrPhase, WhoseTurn};
 mod filter;
 pub use filter::{CharacteristicFilter, Filter, ObjectKind, RelationFilter, StateFilter};
 
-pub mod ident;
-pub use ident::Ident;
+pub use macro_ron::{Ident, IdentSeed};
 
 mod mana;
 pub use mana::{ManaCost, ManaSpec, ManaSymbol, SimpleManaSymbol};

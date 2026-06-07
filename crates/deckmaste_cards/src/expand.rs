@@ -34,8 +34,7 @@ use std::cell::Cell;
 use std::fmt;
 use std::ops::Range;
 
-use deckmaste_core::Ident;
-use deckmaste_core::ident::IdentSeed;
+use deckmaste_core::{Ident, IdentSeed};
 use elsa::FrozenVec;
 use ron::value::RawValue;
 use serde::Deserialize;

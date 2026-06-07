@@ -7,5 +7,6 @@ edition = "2024"
 workspace = true
 
 [dependencies]
+macro_ron = { version = "0.1.0", path = "../macro_ron" }
 ron = "0.12.1"
 serde = { version = "1.0.228", features = ["derive"] }

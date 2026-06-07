@@ -3,7 +3,7 @@ use std::fmt;
 use serde::de::{self, EnumAccess, VariantAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::ident::IdentSeed;
+use crate::IdentSeed;
 use crate::{Expansion, Filter, Ident, Zone};
 
 /// A turn step or phase (CR 5xx). `BeginningOf` triggers key off these.

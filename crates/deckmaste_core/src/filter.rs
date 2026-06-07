@@ -3,7 +3,7 @@ use std::fmt;
 use serde::de::{self, EnumAccess, SeqAccess, VariantAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::ident::IdentSeed;
+use crate::IdentSeed;
 use crate::{
     Cmp, Color, Expansion, Ident, Quantity, Reference, Stat, Status, Supertype, Type, Zone,
 };
