@@ -164,7 +164,10 @@ impl GameState {
             }
             Action::ActivateAbility { object, ability } => {
                 let abilities = derive::abilities(self, *object);
-                let (mana, amount) = derive::tap_mana_ability(abilities[*ability])
+                let ability = abilities.get(*ability).expect(
+                    "ability index from the legal list is in bounds (state frozen by pending)",
+                );
+                let (mana, amount) = derive::tap_mana_ability(ability)
                     .expect("legality check admitted only tap-mana abilities");
                 self.reset_passes();
                 self.schedule_front(vec![
@@ -182,7 +185,9 @@ impl GameState {
     }
 
     /// CR 117.3c: taking an action restarts the pass count; the actor
-    /// receives priority again afterward.
+    /// receives priority again afterward. `holder` is intentionally not
+    /// touched — the scheduled `OpenPriority` reuses it as-is, and it is
+    /// already the actor.
     ///
     /// # Panics
     ///
