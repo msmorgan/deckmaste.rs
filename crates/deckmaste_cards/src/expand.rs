@@ -670,6 +670,30 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
         variants: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
+        // Literal sugar: at a kind whose grammar is strict but whose reader
+        // accepts a bare numeral (`Quantity`: `3` for `Literal(3)`), capture
+        // the next value first. If it's digit-led, splice it into the wrapper
+        // and re-read; otherwise re-read it verbatim. The capture runs wherever
+        // a value can be captured (`Full`, and the newtype-content `SkipStructs`
+        // — an enum position is an ordinary value); only `Skip` opts out, so the
+        // re-reads below can't loop: the spliced `Literal(N)` re-read runs with
+        // `Full` but is no longer digit-led, so it falls to the verbatim branch,
+        // and the verbatim re-read runs with `Skip`, which skips this capture.
+        if self.intercept != Intercept::Skip
+            && let Some(wrapper) =
+                MacroKind::from_position(name).and_then(MacroKind::literal_wrapper)
+        {
+            let source = <&RawValue>::deserialize(self.de)?.get_ron();
+            if source.trim().starts_with(|c: char| c.is_ascii_digit()) {
+                let spliced = self.ctx.read.splice(format!("{wrapper}({source})"));
+                return reread(spliced, self.ctx, Intercept::Full, |de| {
+                    de.deserialize_enum(name, variants, visitor)
+                });
+            }
+            return reread(source, self.ctx, Intercept::Skip, |de| {
+                de.deserialize_enum(name, variants, visitor)
+            });
+        }
         self.de.deserialize_enum(
             name,
             variants,

@@ -51,6 +51,7 @@ pub enum MacroKind {
     Effect,
     Event,
     Filter,
+    Quantity,
     Reference,
     Selection,
     StaticEffect,
@@ -63,7 +64,7 @@ impl MacroKind {
     /// invocation by wrapping the expansion in the kind's
     /// `Expanded(Expansion<Self>)` variant.
     ///
-    /// True for the ten enum kinds (their Rust types bear `Expanded`; the
+    /// True for the enum kinds (their Rust types bear `Expanded`; the
     /// engine consults the remembered name for ability/verb/event identity and
     /// for provenance). False for the struct kinds `CardFace` and `Subtype`:
     /// `Subtype` already self-names and nothing engine-meaningful invokes
@@ -78,11 +79,23 @@ impl MacroKind {
             | MacroKind::Effect
             | MacroKind::Event
             | MacroKind::Filter
+            | MacroKind::Quantity
             | MacroKind::Reference
             | MacroKind::Selection
             | MacroKind::StaticEffect
             | MacroKind::TargetSpec => true,
             MacroKind::CardFace | MacroKind::Subtype => false,
+        }
+    }
+
+    /// Kinds whose positions accept bare literal sugar: a digit-led value
+    /// `N` reads as `<wrapper>(N)`. Reader sugar, exactly like bare declared
+    /// subtype names — core's grammar stays strict.
+    #[must_use]
+    pub fn literal_wrapper(self) -> Option<&'static str> {
+        match self {
+            MacroKind::Quantity => Some("Literal"),
+            _ => None,
         }
     }
 
@@ -97,6 +110,7 @@ impl MacroKind {
             "Effect" => MacroKind::Effect,
             "Event" => MacroKind::Event,
             "Filter" => MacroKind::Filter,
+            "Quantity" => MacroKind::Quantity,
             "Reference" => MacroKind::Reference,
             "Selection" => MacroKind::Selection,
             "StaticEffect" => MacroKind::StaticEffect,
@@ -373,6 +387,10 @@ mod tests {
         );
         assert_eq!(position::<deckmaste_core::Event>(), Some(MacroKind::Event));
         assert_eq!(position::<Filter>(), Some(MacroKind::Filter));
+        assert_eq!(
+            position::<deckmaste_core::Quantity>(),
+            Some(MacroKind::Quantity)
+        );
         assert_eq!(
             position::<deckmaste_core::Reference>(),
             Some(MacroKind::Reference)
@@ -1026,6 +1044,144 @@ mod tests {
                 ManaSymbol::Hybrid(2.into(), Color::White),
                 Color::Green.into(),
             ]
+        );
+    }
+
+    /// A bare numeral at a Quantity position is reader sugar for `Literal(N)`:
+    /// core's grammar stays strict (`Literal(3)`), the macro layer splices it.
+    #[test]
+    fn bare_numeral_at_quantity_is_literal_sugar() {
+        use deckmaste_core::Quantity;
+
+        let quantity: Quantity = MacroSet::default().read_str("3").unwrap();
+        assert_eq!(quantity, Quantity::Literal(3));
+    }
+
+    /// The strict core form still reads through the macro layer unchanged.
+    #[test]
+    fn tagged_literal_reads_at_quantity() {
+        use deckmaste_core::Quantity;
+
+        let quantity: Quantity = MacroSet::default().read_str("Literal(3)").unwrap();
+        assert_eq!(quantity, Quantity::Literal(3));
+    }
+
+    /// The whole point of the change: `DealDamage(Target(0), 3)` — the bare `3`
+    /// sits at a Quantity position nested inside a verb — reads through the
+    /// macro layer with the literal spliced in. (The Bolt integration test
+    /// exercises the same shape from the real card file.)
+    #[test]
+    fn bare_numeral_nested_in_a_verb_is_literal() {
+        use deckmaste_core::{Action, Effect, Quantity, Selection};
+
+        let effect: Effect = MacroSet::default()
+            .read_str("DealDamage(Target(0), 3)")
+            .unwrap();
+        assert_eq!(
+            effect,
+            Effect::Act(Action::DealDamage(
+                Selection::Target(0),
+                Quantity::Literal(3),
+            )),
+        );
+    }
+
+    /// `X` is a real Quantity variant — identifier-led, so the sugar path's
+    /// digit check passes it straight through to the enum reader.
+    #[test]
+    fn identifier_quantity_variants_still_read() {
+        use deckmaste_core::Quantity;
+
+        let quantity: Quantity = MacroSet::default().read_str("X").unwrap();
+        assert_eq!(quantity, Quantity::X);
+    }
+
+    /// A Filter macro inside `CountOf` at a Quantity position: macros now work
+    /// *under* Quantity, which the old untagged `Literal` arm prevented. The
+    /// inner Filter invocation is remembered as `Filter::Expanded`.
+    #[test]
+    fn filter_macros_expand_under_quantity() {
+        use deckmaste_core::Quantity;
+
+        let mut macros = MacroSet::default();
+        macros
+            .insert(&MacroDef {
+                name: "AnyTargetish".into(),
+                kinds: vec![MacroKind::Filter],
+                params: Params::default(),
+                body: "OneOf([Kind(Player), AllOf([InZone(Battlefield), Type(Creature)])])".into(),
+            })
+            .unwrap();
+        let quantity: Quantity = macros.read_str("CountOf(AnyTargetish)").unwrap();
+        let Quantity::CountOf(filter) = quantity else {
+            panic!("expected CountOf, got {quantity:?}");
+        };
+        let Filter::Expanded(expanded) = *filter else {
+            panic!("expected a remembered filter under CountOf, got {filter:?}");
+        };
+        assert_eq!(expanded.name, "AnyTargetish");
+        let Filter::OneOf(arms) = *expanded.value else {
+            panic!("expected OneOf, got {:?}", expanded.value);
+        };
+        assert_eq!(arms[0], Filter::Kind(ObjectKind::Player));
+        assert_eq!(arms.len(), 2);
+    }
+
+    /// A Quantity *macro* expands and is remembered: `DevotionIsh` (a nullary
+    /// Quantity macro) reads as `Quantity::Expanded` wrapping its body.
+    #[test]
+    fn quantity_macros_expand_and_are_remembered() {
+        use deckmaste_core::Quantity;
+
+        let mut macros = MacroSet::default();
+        macros
+            .insert(&MacroDef {
+                name: "DevotionIsh".into(),
+                kinds: vec![MacroKind::Quantity],
+                params: Params::default(),
+                body: "CountOf(Type(Creature))".into(),
+            })
+            .unwrap();
+        let quantity: Quantity = macros.read_str("DevotionIsh").unwrap();
+        let Quantity::Expanded(expanded) = quantity else {
+            panic!("expected a remembered quantity, got {quantity:?}");
+        };
+        assert_eq!(expanded.name, "DevotionIsh");
+        assert_eq!(
+            *expanded.value,
+            Quantity::CountOf(Box::new(Filter::Characteristic(
+                CharacteristicFilter::Type(Type::Creature)
+            ))),
+        );
+    }
+
+    /// A `Param` hole at a Quantity position resolves to the argument and then
+    /// re-reads at that position — so a bare-numeral argument hits the
+    /// digit-sugar path: `DealDamage(Target(0), Param(0))` invoked with `3`.
+    #[test]
+    fn param_holes_resolve_at_quantity_positions() {
+        use deckmaste_core::{Action, Effect, Quantity, Selection};
+
+        let mut macros = MacroSet::default();
+        macros
+            .insert(&MacroDef {
+                name: "BoltFor".into(),
+                kinds: vec![MacroKind::Effect],
+                params: Params::Positional(vec![ParamType::String]),
+                body: "DealDamage(Target(0), Param(0))".into(),
+            })
+            .unwrap();
+        let effect: Effect = macros.read_str("BoltFor(3)").unwrap();
+        let Effect::Expanded(expanded) = effect else {
+            panic!("expected a remembered effect, got {effect:?}");
+        };
+        assert_eq!(expanded.name, "BoltFor");
+        assert_eq!(
+            *expanded.value,
+            Effect::Act(Action::DealDamage(
+                Selection::Target(0),
+                Quantity::Literal(3),
+            )),
         );
     }
 }
