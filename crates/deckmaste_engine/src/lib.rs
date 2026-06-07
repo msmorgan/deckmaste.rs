@@ -12,7 +12,6 @@ mod decide;
 pub use decide::{Action, Decision, DecisionError, PendingDecision};
 
 mod derive;
-pub use derive::{abilities, face, tap_mana_ability};
 
 mod event;
 pub use event::{GameEvent, LossReason};

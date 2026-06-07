@@ -252,7 +252,8 @@ impl GameState {
         let mut items: Vec<WorkItem> = self
             .players
             .iter()
-            .filter(|p| !p.mana_pool.is_empty())
+            // Lost players have left the game; nothing of theirs empties.
+            .filter(|p| !p.lost && !p.mana_pool.is_empty())
             .map(|p| WorkItem::Emit(GameEvent::ManaEmptied(p.id)))
             .collect();
         items.push(WorkItem::BeginStep(

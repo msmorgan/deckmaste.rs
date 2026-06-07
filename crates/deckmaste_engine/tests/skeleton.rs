@@ -486,3 +486,16 @@ fn replay_is_deterministic() {
     };
     assert_eq!(fingerprint(&play()), fingerprint(&play()));
 }
+
+/// CR 103.8a (two-player): the starting player skips their first draw step.
+/// Pinned directly — `cleanup_discards_to_hand_size` only implies it.
+#[test]
+fn starting_player_skips_the_first_draw() {
+    let mut state = two_player_plains(42, 20);
+    step_until(&mut state, |s, _| {
+        s.turn.turn_number == 1 && s.turn.current == StepOrPhase::PrecombatMain
+    });
+    // Past turn 1's draw step: the opening seven, no draw.
+    assert_eq!(state.zones.hands[0].len(), 7);
+    assert_eq!(state.zones.libraries[0].len(), 13);
+}
