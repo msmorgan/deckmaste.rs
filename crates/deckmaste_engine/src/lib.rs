@@ -12,7 +12,8 @@ pub use agenda::WorkItem;
 mod decide;
 pub use decide::{Action, Decision, DecisionError, PendingDecision};
 
-// mod derive;
+mod derive;
+pub use derive::{abilities, face, tap_mana_ability};
 
 mod event;
 pub use event::{GameEvent, LossReason};
@@ -30,9 +31,8 @@ pub use player::{ManaPool, PlayerId, PlayerState};
 
 // mod sba;
 
-// mod state;
-// pub use state::{GameConfig, GameOutcome, GameState, PlayerConfig,
-// StartingPlayer};
+mod state;
+pub use state::{GameConfig, GameOutcome, GameState, PlayerConfig, StartingPlayer};
 
 // mod step;
 // pub use step::{Progress, StepOutcome};
