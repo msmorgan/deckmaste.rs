@@ -1,0 +1,15 @@
+[package]
+name = "deckmaste_engine"
+version = "0.1.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
+rand = "0.9"
+rand_chacha = "0.9"
+
+[dev-dependencies]
+deckmaste_cards = { version = "0.1.0", path = "../deckmaste_cards" }

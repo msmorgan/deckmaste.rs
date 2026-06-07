@@ -1,0 +1,45 @@
+//! The rules engine: a manually-steppable [`GameState`] (one event per
+//! [`GameState::step`]) and a [`Runner`] that auto-steps to decision points.
+//!
+//! Control flow is reified: the agenda (a work queue) holds what the engine
+//! does next, so a `step()` can return mid-cascade and tests can assert
+//! state between any two events.
+
+// Modules land task by task; uncomment each pair as its file is created.
+// mod agenda;
+// pub use agenda::WorkItem;
+
+// mod decide;
+// pub use decide::{Action, Decision, DecisionError, PendingDecision};
+
+// mod derive;
+
+// mod event;
+// pub use event::{GameEvent, LossReason};
+
+// mod legal;
+
+// mod object;
+// pub use object::{CardId, CardInstance, Cards, GameObject, ObjectId,
+// ObjectStore};
+
+// mod player;
+// pub use player::{ManaPool, PlayerId, PlayerState};
+
+// mod runner;
+// pub use runner::{RunStop, Runner};
+
+// mod sba;
+
+// mod state;
+// pub use state::{GameConfig, GameOutcome, GameState, PlayerConfig,
+// StartingPlayer};
+
+// mod step;
+// pub use step::{Progress, StepOutcome};
+
+// mod turn;
+// pub use turn::{PriorityRound, TurnState};
+
+// mod zone;
+// pub use zone::Zones;

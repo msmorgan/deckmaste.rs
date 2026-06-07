@@ -2,6 +2,7 @@
 members = [
     ".", "crates/deckmaste_cards",
     "crates/deckmaste_core",
+    "crates/deckmaste_engine",
     "crates/deckmaste_migrations",
     "crates/xtask",
 ]
