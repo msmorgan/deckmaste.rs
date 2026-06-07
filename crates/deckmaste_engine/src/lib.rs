@@ -19,12 +19,11 @@
 
 // mod legal;
 
-// mod object;
-// pub use object::{CardId, CardInstance, Cards, GameObject, ObjectId,
-// ObjectStore};
+mod object;
+pub use object::{CardId, CardInstance, Cards, GameObject, ObjectId, ObjectStore};
 
-// mod player;
-// pub use player::{ManaPool, PlayerId, PlayerState};
+mod player;
+pub use player::{ManaPool, PlayerId, PlayerState};
 
 // mod runner;
 // pub use runner::{RunStop, Runner};
