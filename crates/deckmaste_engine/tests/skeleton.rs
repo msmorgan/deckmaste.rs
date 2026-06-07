@@ -66,3 +66,75 @@ fn shuffles_are_seeded() {
         "different seed, different order (vanishingly unlikely to collide)"
     );
 }
+
+use deckmaste_core::StepOrPhase;
+use deckmaste_engine::{GameEvent, PendingDecision, Progress, StepOutcome};
+
+/// Steps until the next decision or game end, returning the progress trace.
+/// (The Runner wraps exactly this; tests that predate it drive manually.)
+fn step_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
+    let mut trace = Vec::new();
+    loop {
+        match state.step() {
+            StepOutcome::Progress(p) => trace.push(p),
+            stop => return (trace, stop),
+        }
+    }
+}
+
+#[test]
+fn turn_one_walks_to_upkeep_priority_one_event_at_a_time() {
+    let mut state = two_player_plains(42, 20);
+
+    // Turn structure: BeginStep(Untap) begins turn 1.
+    assert!(matches!(
+        state.step(),
+        StepOutcome::Progress(Progress::Advanced(StepOrPhase::Untap))
+    ));
+    assert_eq!(state.turn.turn_number, 1);
+    assert_eq!(state.turn.active_player, PlayerId(0));
+
+    // One event per step: TurnBegan, then StepBegan(Untap).
+    assert!(matches!(
+        state.step(),
+        StepOutcome::Progress(Progress::Applied(GameEvent::TurnBegan {
+            player: PlayerId(0),
+            turn: 1,
+        }))
+    ));
+    assert!(matches!(
+        state.step(),
+        StepOutcome::Progress(Progress::Applied(GameEvent::StepBegan(StepOrPhase::Untap)))
+    ));
+
+    // Empty battlefield: no untap events; untap grants no priority (CR 502.4),
+    // so the next transition is straight into upkeep.
+    assert!(matches!(
+        state.step(),
+        StepOutcome::Progress(Progress::Advanced(StepOrPhase::Upkeep))
+    ));
+    assert!(matches!(
+        state.step(),
+        StepOutcome::Progress(Progress::Applied(GameEvent::StepBegan(StepOrPhase::Upkeep)))
+    ));
+
+    // The pre-priority barrier: a clean SBA sweep, then priority opens.
+    assert!(matches!(
+        state.step(),
+        StepOutcome::Progress(Progress::SbasChecked { actions: 0 })
+    ));
+    assert!(matches!(
+        state.step(),
+        StepOutcome::Progress(Progress::PriorityOpened(PlayerId(0)))
+    ));
+
+    // The decision surfaces on the NEXT call, idempotently, without mutating.
+    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) = state.step() else {
+        panic!("expected priority");
+    };
+    assert_eq!(player, PlayerId(0));
+    assert!(matches!(
+        state.step(),
+        StepOutcome::NeedsDecision(PendingDecision::Priority { .. })
+    ));
+}

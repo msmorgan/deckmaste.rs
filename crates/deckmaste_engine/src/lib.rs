@@ -18,7 +18,7 @@ pub use derive::{abilities, face, tap_mana_ability};
 mod event;
 pub use event::{GameEvent, LossReason};
 
-// mod legal;
+mod legal;
 
 mod object;
 pub use object::{CardId, CardInstance, Cards, GameObject, ObjectId, ObjectStore};
@@ -29,13 +29,13 @@ pub use player::{ManaPool, PlayerId, PlayerState};
 // mod runner;
 // pub use runner::{RunStop, Runner};
 
-// mod sba;
+mod sba;
 
 mod state;
 pub use state::{GameConfig, GameOutcome, GameState, PlayerConfig, StartingPlayer};
 
-// mod step;
-// pub use step::{Progress, StepOutcome};
+mod step;
+pub use step::{Progress, StepOutcome};
 
 mod turn;
 pub use turn::{PriorityRound, TurnState};
