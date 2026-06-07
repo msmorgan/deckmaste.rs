@@ -10,7 +10,9 @@ use crate::color::ColorOrColorless;
 /// may produce. Variants accrete — `AnyType`, riders later.
 ///
 /// The untagged Specific variant serializes transparently, so the RON stays
-/// flat: `AddMana(Literal(1), White)`, not `…Specific(White)`.
+/// flat: `AddMana(Literal(1), White)`, not `…Specific(White)`. Tagged
+/// variants (`AnyColor`, future `AnyType`, riders) must stay above the
+/// `#[serde(untagged)]` line — the untagged arm is tried last.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum ManaSpec {
     AnyColor,
