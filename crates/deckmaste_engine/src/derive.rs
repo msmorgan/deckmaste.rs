@@ -36,9 +36,11 @@ pub fn abilities(state: &GameState, id: ObjectId) -> Vec<&Ability> {
         .collect()
 }
 
-/// The skeleton's mana-ability shape (CR 605.1a): an activated ability with
-/// no targets, cost exactly `[Tap]`, producing a fixed amount of specific
-/// mana. Returns what it produces. Keyword wrappers are looked through.
+/// Skeleton-subset mana-ability check (a subset of CR 605.1a): an activated
+/// ability with no targets, cost exactly `[Tap]`, producing a fixed amount
+/// of specific mana. Full 605.1a admits more (other costs, `AnyColor`,
+/// loyalty exclusion) — not yet needed here. Returns what it produces.
+/// Keyword wrappers are looked through.
 #[must_use]
 pub fn tap_mana_ability(ability: &Ability) -> Option<(ColorOrColorless, Uint)> {
     match ability {

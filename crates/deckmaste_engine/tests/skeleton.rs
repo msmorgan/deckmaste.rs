@@ -57,8 +57,10 @@ fn shuffles_are_seeded() {
         a.zones.libraries, b.zones.libraries,
         "same seed, same order"
     );
-    // 13 identical Plains cards can't prove different *order*; prove the rng
-    // streams differ by comparing the object-id sequences of the libraries.
+    // 13 identical Plains cards can't distinguish permutations by value.
+    // ObjectIds are minted in deck-loop order before the shuffle, so every
+    // construction assigns the same ids; the VecDeque sequence captures the
+    // permutation the shuffle chose.
     assert!(
         a.zones.libraries != c.zones.libraries,
         "different seed, different order (vanishingly unlikely to collide)"
