@@ -15,6 +15,8 @@ mod expansion;
 mod ident;
 mod kind;
 mod set;
+#[cfg(test)]
+mod tests;
 
 pub use expansion::{Expansion, ExpansionArgs};
 pub use ident::{Ident, IdentSeed};
