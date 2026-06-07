@@ -1,6 +1,7 @@
 //! The walking skeleton against real builtin-plugin data: a full game of
 //! basic lands, stepped one event at a time.
 
+use std::collections::VecDeque;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -343,4 +344,138 @@ fn deck_out_ends_the_game() {
     assert!(state.players[1].lost);
     // Game over is sticky.
     assert!(matches!(state.step(), StepOutcome::GameOver(_)));
+}
+
+use deckmaste_engine::{RunStop, Runner};
+
+#[test]
+fn runner_recovers_the_auto_stepping_ergonomics() {
+    let mut state = two_player_plains(7, 7);
+    let mut runner = Runner::new(&mut state);
+    let (_, mut stop) = runner.run();
+    loop {
+        match stop {
+            RunStop::Decision(PendingDecision::Priority { .. }) => {
+                (_, stop) = runner.submit(Decision::Act(Action::Pass)).unwrap();
+            }
+            RunStop::Decision(other) => panic!("unexpected decision: {other:?}"),
+            RunStop::GameOver(outcome) => {
+                assert_eq!(outcome, deckmaste_engine::GameOutcome::Win(PlayerId(0)));
+                break;
+            }
+        }
+    }
+}
+
+/// The step-grain showcase: two tapped lands untap one event at a time, and
+/// the state between the two events is assertable.
+#[test]
+fn state_is_assertable_between_two_untap_events() {
+    let mut state = two_player_plains(42, 20);
+
+    // Each player's script at priority: play a land if allowed, tap every
+    // untapped land, then pass.
+    let script = |legal: &[Action]| -> Action {
+        legal
+            .iter()
+            .find(|a| matches!(a, Action::PlayLand { .. }))
+            .or_else(|| {
+                legal
+                    .iter()
+                    .find(|a| matches!(a, Action::ActivateAbility { .. }))
+            })
+            .unwrap_or(&Action::Pass)
+            .clone()
+    };
+
+    // Drive turns 1–4 with the script; collect P0's lands.
+    let mut p0_lands = Vec::new();
+    loop {
+        match state.step() {
+            StepOutcome::Progress(Progress::Applied(GameEvent::LandPlayed { object }))
+                if state.objects.obj(object).controller == PlayerId(0) =>
+            {
+                p0_lands.push(object);
+            }
+            StepOutcome::Progress(Progress::Advanced(StepOrPhase::Untap))
+                if state.turn.turn_number == 5 =>
+            {
+                break; // turn 5 has begun; its untap events are next.
+            }
+            StepOutcome::Progress(_) => {}
+            StepOutcome::NeedsDecision(PendingDecision::Priority { legal, .. }) => {
+                let action = script(&legal);
+                state.submit_decision(Decision::Act(action)).unwrap();
+            }
+            StepOutcome::NeedsDecision(other) => panic!("unexpected decision: {other:?}"),
+            StepOutcome::GameOver(o) => panic!("game ended early: {o:?}"),
+        }
+    }
+    assert_eq!(p0_lands.len(), 2, "turns 1 and 3 each played a land");
+    assert!(p0_lands.iter().all(|&l| state.objects.obj(l).tapped));
+
+    // Step into the untap events: after the FIRST, exactly one of the two
+    // is untapped — the in-between state the old engine could never show.
+    let first = step_until(&mut state, |_, o| {
+        matches!(
+            o,
+            StepOutcome::Progress(Progress::Applied(GameEvent::Untapped(_)))
+        )
+    });
+    let StepOutcome::Progress(Progress::Applied(GameEvent::Untapped(a))) = first else {
+        unreachable!()
+    };
+    let b = *p0_lands.iter().find(|&&l| l != a).expect("the other land");
+    assert!(!state.objects.obj(a).tapped, "first land untapped");
+    assert!(
+        state.objects.obj(b).tapped,
+        "second land still tapped in between"
+    );
+
+    // One more step: the second untap.
+    let second = state.step();
+    assert!(matches!(
+        second,
+        StepOutcome::Progress(Progress::Applied(GameEvent::Untapped(id))) if id == b
+    ));
+    assert!(!state.objects.obj(b).tapped);
+}
+
+/// Replay: the same config and the same decisions reach the same state.
+#[test]
+fn replay_is_deterministic() {
+    let fingerprint = |state: &GameState| {
+        (
+            state.players.iter().map(|p| p.life).collect::<Vec<_>>(),
+            state.zones.hands.iter().map(Vec::len).collect::<Vec<_>>(),
+            state
+                .zones
+                .libraries
+                .iter()
+                .map(VecDeque::len)
+                .collect::<Vec<_>>(),
+            state.zones.battlefield.clone(),
+            state.turn.turn_number,
+            state.turn.current,
+        )
+    };
+    let play = || {
+        let mut state = two_player_plains(123, 20);
+        for _ in 0..40 {
+            match state.step() {
+                StepOutcome::NeedsDecision(PendingDecision::Priority { legal, .. }) => {
+                    let action = legal
+                        .iter()
+                        .find(|a| !matches!(a, Action::Pass))
+                        .unwrap_or(&Action::Pass)
+                        .clone();
+                    state.submit_decision(Decision::Act(action)).unwrap();
+                }
+                StepOutcome::NeedsDecision(_) | StepOutcome::GameOver(_) => break,
+                StepOutcome::Progress(_) => {}
+            }
+        }
+        state
+    };
+    assert_eq!(fingerprint(&play()), fingerprint(&play()));
 }

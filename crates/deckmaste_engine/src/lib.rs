@@ -5,7 +5,6 @@
 //! does next, so a `step()` can return mid-cascade and tests can assert
 //! state between any two events.
 
-// Modules land task by task; uncomment each pair as its file is created.
 mod agenda;
 pub use agenda::WorkItem;
 
@@ -26,8 +25,8 @@ pub use object::{CardId, CardInstance, Cards, GameObject, ObjectId, ObjectStore}
 mod player;
 pub use player::{ManaPool, PlayerId, PlayerState};
 
-// mod runner;
-// pub use runner::{RunStop, Runner};
+mod runner;
+pub use runner::{RunStop, Runner};
 
 mod sba;
 
