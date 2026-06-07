@@ -23,7 +23,7 @@ use crate::action::Action;
 use crate::continuous::{Duration, StaticEffect};
 use crate::ident::IdentSeed;
 use crate::mana::ManaSpec;
-use crate::{ChooseSpec, Condition, Filter, Mode, Quantity, Selection, Token};
+use crate::{ChooseSpec, Condition, Expansion, Filter, Mode, Quantity, Selection, Token};
 
 /// An effect an ability produces (CR 608). Compartmentalized in Rust; flat in
 /// RON (`DrawCards(1)`, never `Act(DrawCards(1))`) via the manual serde below.
@@ -56,6 +56,9 @@ pub enum Effect {
     /// A modal effect: choose modes, then apply them (CR 700.2). This is the
     /// realized form of the design's `Resolvable::Modal` — see the report.
     Modal(ModalEffect),
+    /// A remembered `Effect` macro invocation (declared compound verbs like
+    /// `Investigate`). Serialized as the invocation, not the struct.
+    Expanded(Expansion<Effect>),
 }
 
 /// `Continuously { effect, duration }` (CR 611.2). `effect` is boxed to break
@@ -137,6 +140,7 @@ const VARIANTS: &[&str] = &[
     "Delayed",
     "Reflexive",
     "Modal",
+    "Expanded",
 ];
 
 impl<'de> Deserialize<'de> for Effect {
@@ -187,6 +191,7 @@ impl<'de> Deserialize<'de> for Effect {
                     "Delayed" => Effect::Delayed(v.newtype_variant()?),
                     "Reflexive" => Effect::Reflexive(v.newtype_variant()?),
                     "Modal" => Effect::Modal(v.newtype_variant()?),
+                    "Expanded" => Effect::Expanded(v.newtype_variant()?),
                     _ => return Err(de::Error::unknown_variant(&ident, VARIANTS)),
                 })
             }
@@ -218,6 +223,8 @@ impl Serialize for Effect {
                 serializer.serialize_newtype_variant("Effect", 20, "Reflexive", t)
             }
             Effect::Modal(e) => serializer.serialize_newtype_variant("Effect", 21, "Modal", e),
+            // The invocation, not the struct: `Expansion`'s Serialize emits it.
+            Effect::Expanded(e) => e.serialize(serializer),
         }
     }
 }

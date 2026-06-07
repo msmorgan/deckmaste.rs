@@ -4,7 +4,7 @@ use serde::de::{self, EnumAccess, VariantAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::ident::IdentSeed;
-use crate::{Filter, Ident, Zone};
+use crate::{Expansion, Filter, Ident, Zone};
 
 /// A turn step or phase (CR 5xx). `BeginningOf` triggers key off these.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
@@ -88,6 +88,9 @@ pub enum Event {
     },
     /// Any of several events (CR 603.2, "whenever … or …").
     OneOfEvents(Vec<Event>),
+    /// A remembered `Event` macro invocation (`Dies`, `Enters`, `Landfall`,
+    /// …). Serialized as the invocation, not the struct.
+    Expanded(Expansion<Event>),
 }
 
 /// Every name an Event position accepts. Must stay in sync with `visit_enum`
@@ -98,6 +101,7 @@ const VARIANTS: &[&str] = &[
     "BeginningOf",
     "StateBecomes",
     "OneOfEvents",
+    "Expanded",
 ];
 
 /// `Performed`, deserialized as its own struct so the `by`/`on` defaults
@@ -171,6 +175,7 @@ impl<'de> Deserialize<'de> for Event {
                         }
                     }
                     "OneOfEvents" => Event::OneOfEvents(v.newtype_variant()?),
+                    "Expanded" => Event::Expanded(v.newtype_variant()?),
                     _ => return Err(de::Error::unknown_variant(&ident, VARIANTS)),
                 })
             }
@@ -212,6 +217,8 @@ impl Serialize for Event {
             Event::OneOfEvents(events) => {
                 serializer.serialize_newtype_variant("Event", 4, "OneOfEvents", events)
             }
+            // The invocation, not the struct: `Expansion`'s Serialize emits it.
+            Event::Expanded(e) => e.serialize(serializer),
         }
     }
 }

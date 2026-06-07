@@ -1,6 +1,7 @@
+use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
 
-use crate::{Filter, Quantity, Reference};
+use crate::{Expansion, Filter, Quantity, Reference};
 
 /// A Filter lifted into a resolution-time choice context: who picks, when,
 /// how many (CR 608.2d). Verb object slots take exactly one `Selection`.
@@ -9,7 +10,11 @@ use crate::{Filter, Quantity, Reference};
 /// list — because a target has legality recheck and retargeting rules the
 /// other choice forms lack (CR 115). References lift into `Selection`
 /// (`This`, `Target(0)`, …) so a bound object can stand where a choice would.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+///
+/// `Deserialize` is derived (the macro reader synthesizes the `Expanded`
+/// stream); `Serialize` is **manual** so `Expanded` writes the invocation
+/// back rather than the literal struct — the other variants mirror the derive.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub enum Selection {
     /// Every matching object, one at a time — distributive "each", no
     /// targeting, evaluated when the instruction applies (CR 608.2d).
@@ -52,6 +57,63 @@ pub enum Selection {
     EquippedCreature,
     /// See [`Reference::AttachedTo`].
     AttachedTo(Box<Reference>),
+
+    /// A remembered `Selection` macro invocation.
+    Expanded(Expansion<Selection>),
+}
+
+impl Serialize for Selection {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // serialize_*_variant index arguments are ignored by RON. Mirrors the
+        // shapes the derive produced, plus the `Expanded` invocation arm.
+        match self {
+            Selection::Each(f) => serializer.serialize_newtype_variant("Selection", 0, "Each", f),
+            Selection::All(f) => serializer.serialize_newtype_variant("Selection", 1, "All", f),
+            Selection::Choose(f) => {
+                serializer.serialize_newtype_variant("Selection", 2, "Choose", f)
+            }
+            Selection::ChooseN(q, f) => {
+                serializer.serialize_newtype_variant("Selection", 3, "ChooseN", &(q, f))
+            }
+            Selection::Random(q, f) => {
+                serializer.serialize_newtype_variant("Selection", 4, "Random", &(q, f))
+            }
+            Selection::This => serializer.serialize_unit_variant("Selection", 5, "This"),
+            Selection::You => serializer.serialize_unit_variant("Selection", 6, "You"),
+            Selection::Target(n) => {
+                serializer.serialize_newtype_variant("Selection", 7, "Target", n)
+            }
+            Selection::ThatObject => {
+                serializer.serialize_unit_variant("Selection", 8, "ThatObject")
+            }
+            Selection::ThatPlayer => {
+                serializer.serialize_unit_variant("Selection", 9, "ThatPlayer")
+            }
+            Selection::Bound(role) => {
+                serializer.serialize_newtype_variant("Selection", 10, "Bound", role)
+            }
+            Selection::Linked(key) => {
+                serializer.serialize_newtype_variant("Selection", 11, "Linked", key)
+            }
+            Selection::ControllerOf(r) => {
+                serializer.serialize_newtype_variant("Selection", 12, "ControllerOf", r)
+            }
+            Selection::OwnerOf(r) => {
+                serializer.serialize_newtype_variant("Selection", 13, "OwnerOf", r)
+            }
+            Selection::EnchantedObject => {
+                serializer.serialize_unit_variant("Selection", 14, "EnchantedObject")
+            }
+            Selection::EquippedCreature => {
+                serializer.serialize_unit_variant("Selection", 15, "EquippedCreature")
+            }
+            Selection::AttachedTo(r) => {
+                serializer.serialize_newtype_variant("Selection", 16, "AttachedTo", r)
+            }
+            // The invocation, not the struct.
+            Selection::Expanded(e) => e.serialize(serializer),
+        }
+    }
 }
 
 /// Lifts a bound `Reference` into a `Selection`. The match is EXHAUSTIVE on
@@ -72,6 +134,14 @@ impl From<Reference> for Selection {
             Reference::EnchantedObject => Selection::EnchantedObject,
             Reference::EquippedCreature => Selection::EquippedCreature,
             Reference::AttachedTo(r) => Selection::AttachedTo(r),
+            // A remembered reference invocation lifts to a remembered
+            // selection invocation: name and args carry over, the inner
+            // reference value lifts recursively.
+            Reference::Expanded(e) => Selection::Expanded(crate::Expansion {
+                name: e.name,
+                args: e.args,
+                value: Box::new(Selection::from(*e.value)),
+            }),
         }
     }
 }

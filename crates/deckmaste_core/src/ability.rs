@@ -1,24 +1,10 @@
+use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
 
 use crate::continuous::StaticEffect;
 use crate::cost::CostComponent;
 use crate::effect::Effect;
-use crate::{Condition, Event, Ident, Quantity, TargetSpec};
-
-// Temporary types.
-type ParamValue = String;
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub struct Expanded<T> {
-    pub params: Vec<ParamValue>,
-    pub value: Box<T>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub struct KeywordAbility {
-    pub keyword: Ident,
-    pub expanded: Expanded<Ability>,
-}
+use crate::{Condition, Event, Expansion, Quantity, TargetSpec};
 
 /// A spell ability — what an instant or sorcery does on resolution
 /// (CR 113.3a). Targets are an explicit announce list referenced by index
@@ -111,13 +97,48 @@ pub struct Mode {
 /// An ability (CR 113). The struct-carrying variants read flat in RON —
 /// `Spell(targets: ..., ...)`, not `Spell((targets: ...))` — via the
 /// `unwrap_variant_newtypes` extension.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+///
+/// `Deserialize` is derived: the macro reader synthesizes an
+/// `Expanded(name: …, value: …)` stream for keyword abilities and other
+/// `Ability` macros, which the derive accepts like any other variant.
+/// `Serialize` is **manual** because `Expanded` must write the *invocation*
+/// back (`Flying`), not the literal `Expanded(name: …)` struct the derive
+/// would emit; the other variants mirror what the derive did.
+///
+/// The struct-carrying variants are deliberately unboxed so they read and
+/// write flat in RON via `unwrap_variant_newtypes`; the size spread that
+/// triggers `large_enum_variant` (`Triggered` dominates) is accepted here —
+/// boxing would push `Box::new` into every construction site for no runtime
+/// gain on a type that is itself usually behind a `Vec`/`Box` already
+/// (`CardFace::abilities`, `Modification::GainAbility(Box<Ability>)`).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum Ability {
     Static(StaticAbility),
     Activated(ActivatedAbility),
     Triggered(TriggeredAbility),
     Spell(SpellAbility),
-    Keyword(KeywordAbility),
+    /// A remembered macro invocation (CR 702 keyword abilities, and any other
+    /// `Ability` macro). Absorbs the old `Keyword`/`KeywordAbility` shape.
+    Expanded(Expansion<Ability>),
+}
+
+impl Serialize for Ability {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // serialize_newtype_variant's index argument is ignored by RON.
+        match self {
+            Ability::Static(a) => serializer.serialize_newtype_variant("Ability", 0, "Static", a),
+            Ability::Activated(a) => {
+                serializer.serialize_newtype_variant("Ability", 1, "Activated", a)
+            }
+            Ability::Triggered(a) => {
+                serializer.serialize_newtype_variant("Ability", 2, "Triggered", a)
+            }
+            Ability::Spell(a) => serializer.serialize_newtype_variant("Ability", 3, "Spell", a),
+            // The invocation, not the struct: `Expansion`'s Serialize emits it.
+            Ability::Expanded(e) => e.serialize(serializer),
+        }
+    }
 }
 
 #[cfg(test)]

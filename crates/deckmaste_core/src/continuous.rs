@@ -6,8 +6,8 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use crate::ident::IdentSeed;
 use crate::replacement::{Prevention, Replacement};
 use crate::{
-    Ability, Color, Condition, CostComponent, Event, Filter, Ident, Quantity, Reference, Supertype,
-    Type,
+    Ability, Color, Condition, CostComponent, Event, Expansion, Filter, Ident, Quantity, Reference,
+    Supertype, Type,
 };
 
 /// How long a one-shot-created continuous effect lasts (CR 611.2). Static
@@ -150,6 +150,9 @@ pub enum StaticEffect {
     Replacement(Replacement),
     /// A prevention effect (CR 615).
     Prevention(Prevention),
+    /// A remembered `StaticEffect` macro invocation. Serialized as the
+    /// invocation, not the struct.
+    Expanded(Expansion<StaticEffect>),
 }
 
 /// Every name a `StaticEffect` position accepts, compartments flattened. Must
@@ -162,6 +165,7 @@ const VARIANTS: &[&str] = &[
     "CostModifier",
     "Replacement",
     "Prevention",
+    "Expanded",
 ];
 
 /// `Modify`, deserialized as its own struct (newtype-variant delegation,
@@ -213,6 +217,7 @@ impl<'de> Deserialize<'de> for StaticEffect {
                     }
                     "Replacement" => StaticEffect::Replacement(v.newtype_variant()?),
                     "Prevention" => StaticEffect::Prevention(v.newtype_variant()?),
+                    "Expanded" => StaticEffect::Expanded(v.newtype_variant()?),
                     _ => return Err(de::Error::unknown_variant(&ident, VARIANTS)),
                 })
             }
@@ -254,6 +259,8 @@ impl Serialize for StaticEffect {
             StaticEffect::Prevention(p) => {
                 serializer.serialize_newtype_variant("StaticEffect", 6, "Prevention", p)
             }
+            // The invocation, not the struct: `Expansion`'s Serialize emits it.
+            StaticEffect::Expanded(e) => e.serialize(serializer),
         }
     }
 }

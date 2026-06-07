@@ -1,10 +1,16 @@
+use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
 
+use crate::Expansion;
 use crate::action::Action;
 use crate::mana::ManaCost;
 
 /// A single component of an ability's cost (CR 601.2b).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+///
+/// `Deserialize` is derived (the macro reader synthesizes the `Expanded`
+/// stream — `SacrificeThis` and other Cost macros); `Serialize` is **manual**
+/// so `Expanded` writes the invocation back rather than the literal struct.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub enum CostComponent {
     /// Mana payment, e.g. `Mana([Generic(2)])`.
     Mana(ManaCost),
@@ -16,6 +22,27 @@ pub enum CostComponent {
     /// (`Action::is_cost_eligible`) belong here — enforced by the cards
     /// crate's validation lint, not the parser.
     Do(Action),
+    /// A remembered `CostComponent` macro invocation (`SacrificeThis`, loyalty
+    /// sugar, …).
+    Expanded(Expansion<CostComponent>),
+}
+
+impl Serialize for CostComponent {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // serialize_*_variant index arguments are ignored by RON.
+        match self {
+            CostComponent::Mana(m) => {
+                serializer.serialize_newtype_variant("CostComponent", 0, "Mana", m)
+            }
+            CostComponent::Tap => serializer.serialize_unit_variant("CostComponent", 1, "Tap"),
+            CostComponent::Untap => serializer.serialize_unit_variant("CostComponent", 2, "Untap"),
+            CostComponent::Do(a) => {
+                serializer.serialize_newtype_variant("CostComponent", 3, "Do", a)
+            }
+            // The invocation, not the struct.
+            CostComponent::Expanded(e) => e.serialize(serializer),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -4,7 +4,9 @@ use serde::de::{self, EnumAccess, SeqAccess, VariantAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::ident::IdentSeed;
-use crate::{Cmp, Color, Ident, Quantity, Reference, Stat, Status, Supertype, Type, Zone};
+use crate::{
+    Cmp, Color, Expansion, Ident, Quantity, Reference, Stat, Status, Supertype, Type, Zone,
+};
 
 /// What kind of object something is (CR 109.1). Players are objects here
 /// too — the engine gives players `ObjectId`s.
@@ -91,6 +93,9 @@ pub enum Filter {
     /// Matches every object — the bare-Filter default for event participant
     /// slots (`Event::Performed`'s `by`/`on`).
     Any,
+    /// A remembered `Filter` macro invocation (`AnyTarget`, evasion sets,
+    /// protection qualities, …). Serialized as the invocation, not the struct.
+    Expanded(Expansion<Filter>),
 }
 
 impl Filter {
@@ -127,6 +132,7 @@ const VARIANTS: &[&str] = &[
     "OneOf",
     "Not",
     "Any",
+    "Expanded",
 ];
 
 // Visitor for the 3-tuple `Stat(Stat, Cmp, Quantity)` atom.
@@ -233,6 +239,7 @@ impl<'de> Deserialize<'de> for Filter {
                         v.unit_variant()?;
                         Filter::Any
                     }
+                    "Expanded" => Filter::Expanded(v.newtype_variant()?),
                     _ => return Err(de::Error::unknown_variant(&ident, VARIANTS)),
                 })
             }
@@ -257,6 +264,8 @@ impl Serialize for Filter {
             Filter::OneOf(fs) => serializer.serialize_newtype_variant("Filter", 20, "OneOf", fs),
             Filter::Not(f) => serializer.serialize_newtype_variant("Filter", 21, "Not", f),
             Filter::Any => serializer.serialize_unit_variant("Filter", 22, "Any"),
+            // The invocation, not the struct: `Expansion`'s Serialize emits it.
+            Filter::Expanded(e) => e.serialize(serializer),
         }
     }
 }

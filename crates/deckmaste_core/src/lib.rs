@@ -2,8 +2,8 @@
 
 mod ability;
 pub use ability::{
-    Ability, ActivatedAbility, ChooseSpec, KeywordAbility, Mode, SpellAbility, StaticAbility,
-    TriggerLimit, TriggeredAbility,
+    Ability, ActivatedAbility, ChooseSpec, Mode, SpellAbility, StaticAbility, TriggerLimit,
+    TriggeredAbility,
 };
 
 mod action;
@@ -41,6 +41,9 @@ mod effect;
 pub use effect::{
     ContinuouslyEffect, Effect, ForEachEffect, IfEffect, MayEffect, ModalEffect, UnlessEffect,
 };
+
+mod expansion;
+pub use expansion::{Expansion, ExpansionArgs};
 
 mod event;
 pub use event::{Event, StateFilterEvent, StepOrPhase, WhoseTurn};

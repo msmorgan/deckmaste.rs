@@ -1,6 +1,7 @@
+use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
 
-use crate::{Filter, Quantity};
+use crate::{Expansion, Filter, Quantity};
 
 /// One entry in an ability's announce list (CR 601.2c, 115). A `TargetSpec`
 /// is the only place "target" lives: it binds `Reference::Target(n)` for the
@@ -10,7 +11,11 @@ use crate::{Filter, Quantity};
 /// (`Each`, `Choose`, …) and announce-time targets never share a position —
 /// targeting has legality recheck and retargeting rules that the other
 /// choice forms don't.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+///
+/// `Deserialize` is derived (the macro reader synthesizes the `Expanded`
+/// stream); `Serialize` is **manual** so `Expanded` writes the invocation back
+/// rather than the literal struct — the other variants mirror the derive.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub enum TargetSpec {
     /// One target matching the filter (CR 115.1).
     Target(Filter),
@@ -20,6 +25,30 @@ pub enum TargetSpec {
     Targets(Quantity, Filter),
     /// Any number of targets (CR 115.1d).
     AnyNumberTargets(Filter),
+    /// A remembered `TargetSpec` macro invocation.
+    Expanded(Expansion<TargetSpec>),
+}
+
+impl Serialize for TargetSpec {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // serialize_*_variant index arguments are ignored by RON.
+        match self {
+            TargetSpec::Target(f) => {
+                serializer.serialize_newtype_variant("TargetSpec", 0, "Target", f)
+            }
+            TargetSpec::UpToTargets(q, f) => {
+                serializer.serialize_newtype_variant("TargetSpec", 1, "UpToTargets", &(q, f))
+            }
+            TargetSpec::Targets(q, f) => {
+                serializer.serialize_newtype_variant("TargetSpec", 2, "Targets", &(q, f))
+            }
+            TargetSpec::AnyNumberTargets(f) => {
+                serializer.serialize_newtype_variant("TargetSpec", 3, "AnyNumberTargets", f)
+            }
+            // The invocation, not the struct.
+            TargetSpec::Expanded(e) => e.serialize(serializer),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -4,7 +4,7 @@ use serde::de::{self, EnumAccess, VariantAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::ident::IdentSeed;
-use crate::{Event, Filter, Quantity, Reference};
+use crate::{Event, Expansion, Filter, Quantity, Reference};
 
 /// A numeric comparison (CR 107.3). The named forms keep RON readable —
 /// `AtLeast` rather than `>=`.
@@ -45,12 +45,15 @@ pub enum Condition {
     OneOf(Vec<Condition>),
     /// The sub-condition does not hold.
     Not(Box<Condition>),
+    /// A remembered `Condition` macro invocation (ability words: `Threshold`,
+    /// `Delirium`, `Morbid`). Serialized as the invocation, not the struct.
+    Expanded(Expansion<Condition>),
 }
 
 /// Every name a Condition position accepts. Must stay in sync with
 /// `visit_enum` (the drift-guard test catches missing arms).
 const VARIANTS: &[&str] = &[
-    "Compare", "Exists", "Is", "Happened", "AllOf", "OneOf", "Not",
+    "Compare", "Exists", "Is", "Happened", "AllOf", "OneOf", "Not", "Expanded",
 ];
 
 /// `Compare`, deserialized via its own tuple shape.
@@ -126,6 +129,7 @@ impl<'de> Deserialize<'de> for Condition {
                     "AllOf" => Condition::AllOf(v.newtype_variant()?),
                     "OneOf" => Condition::OneOf(v.newtype_variant()?),
                     "Not" => Condition::Not(v.newtype_variant()?),
+                    "Expanded" => Condition::Expanded(v.newtype_variant()?),
                     _ => return Err(de::Error::unknown_variant(&ident, VARIANTS)),
                 })
             }
@@ -161,6 +165,8 @@ impl Serialize for Condition {
                 serializer.serialize_newtype_variant("Condition", 5, "OneOf", cs)
             }
             Condition::Not(c) => serializer.serialize_newtype_variant("Condition", 6, "Not", c),
+            // The invocation, not the struct: `Expansion`'s Serialize emits it.
+            Condition::Expanded(e) => e.serialize(serializer),
         }
     }
 }
