@@ -8,8 +8,8 @@ use std::path::Path;
 
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::{
-    Ability, Action, ActivatedAbility, CostComponent, Effect, ManaCost, ManaSpec, ManaSymbol,
-    Quantity, Reference, Selection, SimpleManaSymbol, Subtype, Token, Type,
+    Ability, Action, ActivatedAbility, CostComponent, Effect, Expansion, ExpansionArgs, ManaCost,
+    ManaSpec, ManaSymbol, Quantity, Reference, Selection, SimpleManaSymbol, Subtype, Token, Type,
 };
 
 fn builtin() -> Plugin {
@@ -23,9 +23,16 @@ fn mana_2() -> CostComponent {
     )]))
 }
 
-/// `Do(Sacrifice(This))` — the expanded form of `SacrificeThis`.
+/// `SacrificeThis` — a remembered `CostComponent` macro invocation whose body
+/// expanded to `Do(Sacrifice(This))`.
 fn sacrifice_this() -> CostComponent {
-    CostComponent::Do(Action::Sacrifice(Selection::from(Reference::This)))
+    CostComponent::Expanded(Expansion {
+        name: "SacrificeThis".into(),
+        args: ExpansionArgs::none(),
+        value: Box::new(CostComponent::Do(Action::Sacrifice(Selection::from(
+            Reference::This,
+        )))),
+    })
 }
 
 fn artifact_subtype(name: &str) -> Subtype {

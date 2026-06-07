@@ -45,7 +45,7 @@ use serde::de::{
     VariantAccess, Visitor,
 };
 
-use crate::macros::{MacroDef, MacroSet, Params};
+use crate::macros::{MacroDef, MacroKind, MacroSet, Params};
 
 /// The read-long half of the context: the macros in scope, and the strings
 /// spliced together while reading one document, so they can be borrowed
@@ -816,11 +816,67 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
         let args = read_args(variant, &def.params)?;
         let frame = Frame { name: ident, args };
         let ctx = self.ctx.expansion(&frame).map_err(A::Error::custom)?;
-        reread(def.body(), ctx, Intercept::Full, |de| {
+
+        // When the position's kind remembers its invocation, re-read a
+        // synthesized `Expanded(name: …, value: <body>)` wrapper instead of
+        // the bare body — the kind's own Deserialize then builds
+        // `T::Expanded(Expansion { … })`. The frame (built from the original
+        // input above) stays in scope, so `Param` holes inside the body copy
+        // resolve exactly as they would against the body itself.
+        let remembers =
+            MacroKind::from_position(self.name).is_some_and(MacroKind::remembers_expansion);
+        let source = if remembers {
+            let synthesized = synthesize_expanded(ident, &frame.args, def.body());
+            self.ctx.read.splice(synthesized)
+        } else {
+            def.body()
+        };
+        reread(source, ctx, Intercept::Full, |de| {
             de.deserialize_enum(self.name, self.variants, self.visitor)
         })
         .map_err(|e| in_expansion_of(frame.name, e))
     }
+}
+
+/// Builds the `Expanded(...)` wrapper text the macro reader re-reads when a
+/// remembering kind's macro expands: `Expanded(name: "M", value: <body>)`, or
+/// with an `args:` field when the invocation carried arguments. Each raw
+/// argument source is escaped as a RON string with `{arg:?}` (RON's string
+/// syntax matches Rust's debug formatting). The body is spliced verbatim into
+/// the `value:` position, where it re-reads with the frame in scope.
+fn synthesize_expanded(name: Ident, args: &FrameArgs, body: &str) -> String {
+    use std::fmt::Write as _;
+
+    // `Ident`'s Debug is the tuple-struct form `Ident("…")`; the RON string
+    // literal we want is the debug of the &str behind it. Argument source is
+    // trimmed of the surrounding whitespace ron's `RawValue` subslice carries
+    // (a value's leading/trailing ws is never meaningful) and escaped as a RON
+    // string with `{:?}` — RON's string syntax matches Rust's debug, so the
+    // text is carried verbatim, quotes and all.
+    let name = name.as_str();
+    let mut out = String::new();
+    match args {
+        FrameArgs::Positional(args) if args.is_empty() => {
+            write!(out, "Expanded(name: {name:?}, value: {body})").unwrap();
+        }
+        FrameArgs::Positional(args) => {
+            write!(out, "Expanded(name: {name:?}, args: Positional([").unwrap();
+            for (i, arg) in args.iter().enumerate() {
+                let sep = if i > 0 { ", " } else { "" };
+                write!(out, "{sep}{:?}", arg.trim()).unwrap();
+            }
+            write!(out, "]), value: {body})").unwrap();
+        }
+        FrameArgs::Named(args) => {
+            write!(out, "Expanded(name: {name:?}, args: Named([").unwrap();
+            for (i, (key, arg)) in args.iter().enumerate() {
+                let sep = if i > 0 { ", " } else { "" };
+                write!(out, "{sep}({:?}, {:?})", key.as_str(), arg.trim()).unwrap();
+            }
+            write!(out, "]), value: {body})").unwrap();
+        }
+    }
+    out
 }
 
 /// The enum access handed to the real visitor for a known variant: replays

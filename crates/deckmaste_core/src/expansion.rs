@@ -130,14 +130,14 @@ mod tests {
 
     /// A placeholder inner value: serialization never emits it (the invocation
     /// is written instead), so any value works.
-    fn inner() -> Box<Filter> { Box::new(Filter::Any) }
+    fn inner() -> Filter { Filter::Any }
 
     #[test]
     fn nullary_serializes_as_the_bare_name() {
         let expansion = Expansion {
             name: "Flying".into(),
             args: ExpansionArgs::none(),
-            value: inner(),
+            value: Box::new(inner()),
         };
         assert_eq!(write(&expansion), "Flying");
     }
@@ -147,7 +147,7 @@ mod tests {
         let expansion = Expansion {
             name: "LandType".into(),
             args: ExpansionArgs::Positional(vec![r#""Forest""#.to_owned()]),
-            value: inner(),
+            value: Box::new(inner()),
         };
         assert_eq!(write(&expansion), r#"LandType("Forest")"#);
     }
@@ -157,7 +157,7 @@ mod tests {
         let expansion = Expansion {
             name: "Pair".into(),
             args: ExpansionArgs::Positional(vec![r#""Forest""#.to_owned(), "Land".to_owned()]),
-            value: inner(),
+            value: Box::new(inner()),
         };
         assert_eq!(write(&expansion), r#"Pair("Forest",Land)"#);
     }
@@ -167,7 +167,7 @@ mod tests {
         let expansion = Expansion {
             name: "Boast".into(),
             args: ExpansionArgs::Named(vec![("cost".into(), r#""{1}""#.to_owned())]),
-            value: inner(),
+            value: Box::new(inner()),
         };
         assert_eq!(write(&expansion), r#"Boast(cost:"{1}")"#);
     }
@@ -177,12 +177,12 @@ mod tests {
         let flying = Expansion {
             name: "Flying".into(),
             args: ExpansionArgs::none(),
-            value: inner(),
+            value: Box::new(inner()),
         };
         let reach = Expansion {
             name: "Reach".into(),
             args: ExpansionArgs::none(),
-            value: inner(),
+            value: Box::new(inner()),
         };
         // Same expansion, different invocation name: deliberately unequal.
         assert_ne!(flying, reach);

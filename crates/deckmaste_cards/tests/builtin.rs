@@ -7,9 +7,9 @@ use std::path::Path;
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::ron::options as ron_options;
 use deckmaste_core::{
-    Ability, Action, Card, CardFace, CharacteristicFilter, Effect, Filter, ManaCost, ObjectKind,
-    Quantity, Selection, SpellAbility, StatValue, StateFilter, Subtype, Supertype, TargetSpec,
-    Type, Zone,
+    Ability, Action, Card, CardFace, CharacteristicFilter, Effect, Expansion, ExpansionArgs,
+    Filter, ManaCost, ObjectKind, Quantity, Selection, SpellAbility, StatValue, StateFilter,
+    Subtype, Supertype, TargetSpec, Type, Zone,
 };
 
 fn builtin() -> Plugin {
@@ -115,12 +115,19 @@ fn lightning_bolt_expands_filter_macros() {
             Filter::Characteristic(CharacteristicFilter::Type(t)),
         ])
     };
-    let any_target = Filter::OneOf(vec![
+    let any_target_value = Filter::OneOf(vec![
         permanent_of(Type::Battle),
         permanent_of(Type::Creature),
         permanent_of(Type::Planeswalker),
         Filter::Kind(ObjectKind::Player),
     ]);
+    // `AnyTarget` is a remembered Filter macro: the invocation survives,
+    // wrapping the expanded predicate under `.value`.
+    let any_target = Filter::Expanded(Expansion {
+        name: "AnyTarget".into(),
+        args: ExpansionArgs::none(),
+        value: Box::new(any_target_value),
+    });
     assert_eq!(
         face.abilities,
         vec![Ability::Spell(SpellAbility {

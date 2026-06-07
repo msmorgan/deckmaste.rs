@@ -106,14 +106,16 @@ fn lint_all_card_faces(path: &Path, card: &Card, out: &mut Vec<(PathBuf, String)
 }
 
 /// For each `Activated` ability, check every `Do(action)` cost component;
-/// push a message if `!action.is_cost_eligible()`.
+/// push a message if `!action.is_cost_eligible()`. A remembered cost macro
+/// (`CostComponent::Expanded`) is looked through to the `Do` it expanded to,
+/// so `SacrificeThis` and friends stay validated.
 fn lint_card_abilities(path: &Path, abilities: &[Ability], out: &mut Vec<(PathBuf, String)>) {
     for ability in abilities {
         let Ability::Activated(activated) = ability else {
             continue;
         };
         for component in &activated.cost {
-            let CostComponent::Do(action) = component else {
+            let Some(action) = cost_action(component) else {
                 continue;
             };
             if !action.is_cost_eligible() {
@@ -129,13 +131,25 @@ fn lint_card_abilities(path: &Path, abilities: &[Ability], out: &mut Vec<(PathBu
     }
 }
 
+/// The `Do(action)` a cost component reduces to, looking through any
+/// remembered macro invocation (`CostComponent::Expanded`). `None` for
+/// non-`Do` components (mana, tap, untap).
+fn cost_action(component: &CostComponent) -> Option<&deckmaste_core::Action> {
+    match component {
+        CostComponent::Do(action) => Some(action),
+        CostComponent::Expanded(expansion) => cost_action(&expansion.value),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
     use deckmaste_core::{
-        Ability, Action, ActivatedAbility, CostComponent, Effect, ManaSpec, Quantity, Reference,
-        Restriction, Selection, StaticAbility, StaticEffect, Token, Type,
+        Ability, Action, ActivatedAbility, CostComponent, Effect, Expansion, ExpansionArgs,
+        ManaSpec, Quantity, Reference, Restriction, Selection, StaticAbility, StaticEffect, Token,
+        Type,
     };
 
     use super::lint_card_abilities;
@@ -184,6 +198,35 @@ mod tests {
         let mut failures = Vec::new();
         lint_card_abilities(&dummy_path(), &token.abilities, &mut failures);
         assert!(failures.is_empty(), "Sacrifice should not be flagged");
+    }
+
+    /// An ineligible action hidden inside a remembered cost macro
+    /// (`CostComponent::Expanded`) is still flagged: the lint looks through
+    /// the invocation to the `Do` it expanded to.
+    #[test]
+    fn lint_looks_through_expanded_cost_macros() {
+        let token = Token {
+            supertypes: vec![],
+            types: vec![Type::Artifact],
+            subtypes: vec![],
+            abilities: vec![Ability::Activated(ActivatedAbility {
+                cost: vec![CostComponent::Expanded(Expansion {
+                    name: "BadCost".into(),
+                    args: ExpansionArgs::none(),
+                    value: Box::new(CostComponent::Do(Action::DrawCards(Quantity::Literal(1)))),
+                })],
+                targets: vec![],
+                effect: Effect::Act(Action::AddMana(Quantity::Literal(1), ManaSpec::AnyColor)),
+            })],
+        };
+        let mut failures = Vec::new();
+        lint_card_abilities(&dummy_path(), &token.abilities, &mut failures);
+        assert_eq!(
+            failures.len(),
+            1,
+            "expected the inner DrawCards to be flagged"
+        );
+        assert!(failures[0].1.contains("DrawCards"), "{}", failures[0].1);
     }
 
     /// Non-activated abilities are ignored by the lint.

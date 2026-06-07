@@ -59,6 +59,33 @@ pub enum MacroKind {
 }
 
 impl MacroKind {
+    /// Whether expanding a macro at a position of this kind remembers the
+    /// invocation by wrapping the expansion in the kind's
+    /// `Expanded(Expansion<Self>)` variant.
+    ///
+    /// True for the ten enum kinds (their Rust types bear `Expanded`; the
+    /// engine consults the remembered name for ability/verb/event identity and
+    /// for provenance). False for the struct kinds `CardFace` and `Subtype`:
+    /// `Subtype` already self-names and nothing engine-meaningful invokes
+    /// `CardFace` macros, so they stay name-erasing and re-read their body
+    /// directly.
+    #[must_use]
+    pub fn remembers_expansion(self) -> bool {
+        match self {
+            MacroKind::Ability
+            | MacroKind::Condition
+            | MacroKind::CostComponent
+            | MacroKind::Effect
+            | MacroKind::Event
+            | MacroKind::Filter
+            | MacroKind::Reference
+            | MacroKind::Selection
+            | MacroKind::StaticEffect
+            | MacroKind::TargetSpec => true,
+            MacroKind::CardFace | MacroKind::Subtype => false,
+        }
+    }
+
     /// The kind a position with this (serde) type name checks, if any.
     #[must_use]
     pub fn from_position(name: &str) -> Option<Self> {
@@ -455,21 +482,32 @@ mod tests {
     #[test]
     fn enum_positions_expand_unknown_variants() {
         // `Flying` is not a variant of Ability; the macro fills it in, and
-        // its expansion is read where the invocation stood.
+        // its expansion is wrapped in `Ability::Expanded` carrying the name.
         let mut macros = MacroSet::default();
         macros
             .insert(&MacroDef {
                 name: "Flying".into(),
                 kinds: vec![MacroKind::Ability],
                 params: Params::default(),
-                body: r#"Keyword(keyword: "Flying", expanded: (params: [], value: Static(effects: [Restriction(CantAttack)])))"#.into(),
+                body: "Static(effects: [Restriction(CantAttack)])".into(),
             })
             .unwrap();
         let ability: Ability = macros.read_str("Flying").unwrap();
-        let Ability::Keyword(keyword) = ability else {
-            panic!("expected a keyword ability, got {ability:?}");
+        let Ability::Expanded(expanded) = ability else {
+            panic!("expected a remembered ability, got {ability:?}");
         };
-        assert_eq!(keyword.keyword, "Flying");
+        assert_eq!(expanded.name, "Flying");
+        assert!(expanded.args.is_none());
+        assert_eq!(
+            *expanded.value,
+            Ability::Static(deckmaste_core::StaticAbility {
+                condition: None,
+                effects: vec![deckmaste_core::StaticEffect::Restriction(
+                    deckmaste_core::Restriction::CantAttack
+                )],
+                characteristic_defining: false,
+            })
+        );
     }
 
     #[test]
@@ -526,7 +564,15 @@ mod tests {
             .unwrap();
 
         let filter: Filter = macros.read_str("Self(Kind(Player))").unwrap();
-        assert_eq!(filter, Filter::Kind(ObjectKind::Player));
+        let Filter::Expanded(expanded) = filter else {
+            panic!("expected a remembered filter, got {filter:?}");
+        };
+        assert_eq!(expanded.name, "Self");
+        assert_eq!(
+            expanded.args,
+            deckmaste_core::ExpansionArgs::Positional(vec!["Kind(Player)".to_owned()]),
+        );
+        assert_eq!(*expanded.value, Filter::Kind(ObjectKind::Player));
 
         // The macro is invisible at an Ability position.
         let error = macros.read_str::<Ability>("Self(Static)").unwrap_err();
@@ -553,8 +599,13 @@ mod tests {
             })
             .unwrap();
         let filter: Filter = macros.read_str("AnyTargetish").unwrap();
-        let Filter::OneOf(arms) = filter else {
-            panic!("expected OneOf, got {filter:?}");
+        // The invocation is remembered; the expansion lives under `.value`.
+        let Filter::Expanded(expanded) = filter else {
+            panic!("expected a remembered filter, got {filter:?}");
+        };
+        assert_eq!(expanded.name, "AnyTargetish");
+        let Filter::OneOf(arms) = *expanded.value else {
+            panic!("expected OneOf, got {:?}", expanded.value);
         };
         assert_eq!(arms[0], Filter::Kind(ObjectKind::Player));
         // The nested arm proves Filter positions *inside* an expansion stay
@@ -583,8 +634,12 @@ mod tests {
             })
             .unwrap();
         let selection: deckmaste_core::Selection = macros.read_str("EachCreature").unwrap();
+        let deckmaste_core::Selection::Expanded(expanded) = selection else {
+            panic!("expected a remembered selection, got {selection:?}");
+        };
+        assert_eq!(expanded.name, "EachCreature");
         assert_eq!(
-            selection,
+            *expanded.value,
             deckmaste_core::Selection::Each(Filter::Characteristic(CharacteristicFilter::Type(
                 Type::Creature
             )))
@@ -604,8 +659,12 @@ mod tests {
             })
             .unwrap();
         let spec: deckmaste_core::TargetSpec = macros.read_str("TargetCreature").unwrap();
+        let deckmaste_core::TargetSpec::Expanded(expanded) = spec else {
+            panic!("expected a remembered target spec, got {spec:?}");
+        };
+        assert_eq!(expanded.name, "TargetCreature");
         assert_eq!(
-            spec,
+            *expanded.value,
             deckmaste_core::TargetSpec::Target(Filter::Characteristic(CharacteristicFilter::Type(
                 Type::Creature
             )))
@@ -625,8 +684,12 @@ mod tests {
             })
             .unwrap();
         let reference: deckmaste_core::Reference = macros.read_str("MyController").unwrap();
+        let deckmaste_core::Reference::Expanded(expanded) = reference else {
+            panic!("expected a remembered reference, got {reference:?}");
+        };
+        assert_eq!(expanded.name, "MyController");
         assert_eq!(
-            reference,
+            *expanded.value,
             deckmaste_core::Reference::ControllerOf(Box::new(deckmaste_core::Reference::This))
         );
     }
@@ -647,8 +710,12 @@ mod tests {
             })
             .unwrap();
         let cost: CostComponent = macros.read_str("SacThis").unwrap();
+        let CostComponent::Expanded(expanded) = cost else {
+            panic!("expected a remembered cost component, got {cost:?}");
+        };
+        assert_eq!(expanded.name, "SacThis");
         assert_eq!(
-            cost,
+            *expanded.value,
             CostComponent::Do(Action::Sacrifice(Selection::from(Reference::This)))
         );
     }
@@ -669,9 +736,123 @@ mod tests {
             })
             .unwrap();
         let effect: Effect = macros.read_str("Investigate").unwrap();
+        let Effect::Expanded(expanded) = effect else {
+            panic!("expected a remembered effect, got {effect:?}");
+        };
+        assert_eq!(expanded.name, "Investigate");
         assert_eq!(
-            effect,
+            *expanded.value,
             Effect::Act(Action::DrawCards(deckmaste_core::Quantity::Literal(1)))
+        );
+    }
+
+    /// A chain of remembering macros nests `Expanded` at each link: an Ability
+    /// macro whose body is another Ability macro's name yields one wrapper per
+    /// expansion, outermost first.
+    #[test]
+    fn remembering_chains_nest_expanded() {
+        let mut macros = MacroSet::default();
+        macros
+            .insert(&MacroDef {
+                name: "Inner".into(),
+                kinds: vec![MacroKind::Ability],
+                params: Params::default(),
+                body: "Static(effects: [Restriction(CantAttack)])".into(),
+            })
+            .unwrap();
+        macros
+            .insert(&MacroDef {
+                name: "Outer".into(),
+                kinds: vec![MacroKind::Ability],
+                params: Params::default(),
+                body: "Inner".into(),
+            })
+            .unwrap();
+        let ability: Ability = macros.read_str("Outer").unwrap();
+        let Ability::Expanded(outer) = ability else {
+            panic!("expected the outer wrapper, got {ability:?}");
+        };
+        assert_eq!(outer.name, "Outer");
+        let Ability::Expanded(inner) = &*outer.value else {
+            panic!("expected a nested wrapper, got {:?}", outer.value);
+        };
+        assert_eq!(inner.name, "Inner");
+        assert_eq!(
+            *inner.value,
+            Ability::Static(deckmaste_core::StaticAbility {
+                condition: None,
+                effects: vec![deckmaste_core::StaticEffect::Restriction(
+                    deckmaste_core::Restriction::CantAttack
+                )],
+                characteristic_defining: false,
+            })
+        );
+    }
+
+    /// A remembered invocation round-trips as the invocation: reading a
+    /// nullary Ability macro then serializing yields exactly its name, and a
+    /// parameterized Filter macro invocation serializes back to the original
+    /// call text — not the expansion.
+    #[test]
+    fn remembered_invocations_round_trip_as_invocations() {
+        let mut macros = MacroSet::default();
+        macros
+            .insert(&MacroDef {
+                name: "Flying".into(),
+                kinds: vec![MacroKind::Ability],
+                params: Params::default(),
+                body: "Static(effects: [Restriction(CantAttack)])".into(),
+            })
+            .unwrap();
+        macros
+            .insert(&MacroDef {
+                name: "OfType".into(),
+                kinds: vec![MacroKind::Filter],
+                params: Params::Positional(vec![ParamType::String]),
+                body: "Type(Param(0))".into(),
+            })
+            .unwrap();
+
+        let ability: Ability = macros.read_str("Flying").unwrap();
+        assert_eq!(
+            deckmaste_core::ron::options().to_string(&ability).unwrap(),
+            "Flying"
+        );
+
+        let filter: Filter = macros.read_str("OfType(Creature)").unwrap();
+        assert_eq!(
+            deckmaste_core::ron::options().to_string(&filter).unwrap(),
+            "OfType(Creature)"
+        );
+    }
+
+    /// The raw argument source survives verbatim in the remembered args,
+    /// including a string literal with embedded quotes.
+    #[test]
+    fn argument_source_survives_verbatim() {
+        let mut macros = MacroSet::default();
+        macros
+            .insert(&MacroDef {
+                name: "NamedAs".into(),
+                kinds: vec![MacroKind::Filter],
+                params: Params::Positional(vec![ParamType::String]),
+                body: "Named(Param(0))".into(),
+            })
+            .unwrap();
+        let filter: Filter = macros.read_str(r#"NamedAs("Goblin \"Token\"")"#).unwrap();
+        let Filter::Expanded(expanded) = filter else {
+            panic!("expected a remembered filter, got {filter:?}");
+        };
+        assert_eq!(
+            expanded.args,
+            deckmaste_core::ExpansionArgs::Positional(vec![r#""Goblin \"Token\"""#.to_owned()]),
+        );
+        // And it serializes back to the exact invocation.
+        assert_eq!(
+            deckmaste_core::ron::options()
+                .to_string(&Filter::Expanded(expanded))
+                .unwrap(),
+            r#"NamedAs("Goblin \"Token\"")"#,
         );
     }
 
@@ -757,15 +938,19 @@ mod tests {
                 name: "Boast".into(),
                 kinds: vec![MacroKind::Ability],
                 params: Params::Named([("cost".into(), ParamType::String)].into()),
-                body: r"Keyword(keyword: Param(cost), expanded: (params: [], value: Static(effects: [Restriction(CantAttack)])))"
-                    .into(),
+                body: "Static(effects: [Restriction(CantAttack)])".into(),
             })
             .unwrap();
         let ability: Ability = macros.read_str(r#"Boast(cost: "{1}")"#).unwrap();
-        let Ability::Keyword(keyword) = ability else {
-            panic!("expected a keyword ability, got {ability:?}");
+        let Ability::Expanded(expanded) = ability else {
+            panic!("expected a remembered ability, got {ability:?}");
         };
-        assert_eq!(keyword.keyword, "{1}");
+        assert_eq!(expanded.name, "Boast");
+        // The named argument's raw source survives verbatim.
+        assert_eq!(
+            expanded.args,
+            deckmaste_core::ExpansionArgs::Named(vec![("cost".into(), r#""{1}""#.to_owned())]),
+        );
     }
 
     #[test]
