@@ -42,16 +42,13 @@ pub use effect::{
     ContinuouslyEffect, Effect, ForEachEffect, IfEffect, MayEffect, ModalEffect, UnlessEffect,
 };
 
-mod expansion;
-pub use expansion::{Expansion, ExpansionArgs};
-
 mod event;
 pub use event::{Event, StateFilterEvent, StepOrPhase, WhoseTurn};
 
 mod filter;
 pub use filter::{CharacteristicFilter, Filter, ObjectKind, RelationFilter, StateFilter};
 
-pub use macro_ron::{Ident, IdentSeed};
+pub use macro_ron::{Expansion, ExpansionArgs, Ident, IdentSeed};
 
 mod mana;
 pub use mana::{ManaCost, ManaSpec, ManaSymbol, SimpleManaSymbol};
