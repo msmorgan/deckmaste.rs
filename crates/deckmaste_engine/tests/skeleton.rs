@@ -6,8 +6,11 @@ use std::path::Path;
 use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
-use deckmaste_core::Card;
-use deckmaste_engine::{GameConfig, GameState, PlayerConfig, PlayerId, StartingPlayer};
+use deckmaste_core::{Card, Color, StepOrPhase};
+use deckmaste_engine::{
+    Action, Decision, DecisionError, GameConfig, GameEvent, GameState, PendingDecision,
+    PlayerConfig, PlayerId, Progress, RunStop, Runner, StartingPlayer, StepOutcome,
+};
 
 fn builtin() -> Plugin {
     Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
@@ -67,11 +70,6 @@ fn shuffles_are_seeded() {
         "different seed, different order (vanishingly unlikely to collide)"
     );
 }
-
-use deckmaste_core::StepOrPhase;
-use deckmaste_engine::{
-    Action, Decision, DecisionError, GameEvent, PendingDecision, Progress, StepOutcome,
-};
 
 /// Steps until the next decision or game end, returning the progress trace.
 /// (The Runner wraps exactly this; tests that predate it drive manually.)
@@ -284,7 +282,6 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
         p,
         Progress::Applied(GameEvent::Tapped(id)) if *id == land
     )));
-    use deckmaste_core::Color;
     assert_eq!(state.players[0].mana_pool.amount(Color::White.into()), 1);
 
     // Pass around: the step ends, the pool empties (CR 500.4).
@@ -345,8 +342,6 @@ fn deck_out_ends_the_game() {
     // Game over is sticky.
     assert!(matches!(state.step(), StepOutcome::GameOver(_)));
 }
-
-use deckmaste_engine::{RunStop, Runner};
 
 #[test]
 fn runner_recovers_the_auto_stepping_ergonomics() {
