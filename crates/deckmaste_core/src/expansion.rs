@@ -68,16 +68,16 @@ pub struct Expansion<T> {
 
 /// A RON source fragment, serialized verbatim: `ron::value::RawValue`'s own
 /// `Serialize` re-emits its text exactly, so a stored argument's source is
-/// written back unchanged. Borrowing rather than validating keeps the hot
-/// path allocation-free; the source came out of the reader, so it is already
-/// valid RON.
-fn raw(source: &str) -> &ron::value::RawValue {
-    // SAFETY-equivalent: `from_ron` validates and borrows. The stored source
-    // is RON the reader already parsed, so this never fails in practice; on
-    // the impossible malformed case, fall back to a borrow that serializes
-    // the text as-is.
-    ron::value::RawValue::from_ron(source)
-        .unwrap_or_else(|_| ron::value::RawValue::from_ron("()").unwrap())
+/// written back unchanged. The source came out of the reader, so it is
+/// already valid RON — but an `Expansion` constructed in Rust could carry
+/// anything, and writing a *different* invocation silently would be data
+/// corruption, so the malformed case is a serialization error instead.
+fn raw<E: serde::ser::Error>(source: &str) -> Result<&ron::value::RawValue, E> {
+    ron::value::RawValue::from_ron(source).map_err(|e| {
+        E::custom(format_args!(
+            "invalid stored argument source {source:?}: {e}"
+        ))
+    })
 }
 
 impl<T: Serialize> Serialize for Expansion<T> {
@@ -96,14 +96,14 @@ impl<T: Serialize> Serialize for Expansion<T> {
             }
             ExpansionArgs::Positional(args) if args.len() == 1 => {
                 // One positional argument: `M(<arg>)`.
-                serializer.serialize_newtype_variant("Expansion", 0, name, raw(&args[0]))
+                serializer.serialize_newtype_variant("Expansion", 0, name, raw(&args[0])?)
             }
             ExpansionArgs::Positional(args) => {
                 // Several positional arguments: `M(<a>, <b>, …)`.
                 let mut tv =
                     serializer.serialize_tuple_variant("Expansion", 0, name, args.len())?;
                 for arg in args {
-                    tv.serialize_field(raw(arg))?;
+                    tv.serialize_field(raw(arg)?)?;
                 }
                 tv.end()
             }
@@ -113,7 +113,7 @@ impl<T: Serialize> Serialize for Expansion<T> {
                 let mut sv =
                     serializer.serialize_struct_variant("Expansion", 0, name, args.len())?;
                 for (key, value) in args {
-                    sv.serialize_field(key.as_str(), raw(value))?;
+                    sv.serialize_field(key.as_str(), raw(value)?)?;
                 }
                 sv.end()
             }
