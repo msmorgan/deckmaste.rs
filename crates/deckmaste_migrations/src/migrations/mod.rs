@@ -15,6 +15,7 @@ mod _006_vanilla_creatures;
 mod _007_simple_lands;
 mod card_todo;
 mod keyword_todos;
+mod mana_ability;
 
 trait Migration {
     fn apply(&self, plugin: &PluginLayout) -> anyhow::Result<()>;
