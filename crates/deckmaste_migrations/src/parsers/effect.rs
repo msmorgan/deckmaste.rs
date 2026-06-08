@@ -19,9 +19,12 @@ pub(super) fn parse_clause(line: &str) -> Option<ParsedEffect> {
     parse_deal_damage(line).or_else(|| parse_draw(line))
 }
 
-/// `~ deals N damage to <target>.`
+/// `~ deals N damage to <target>.` or `it deals N damage to <target>.`
 fn parse_deal_damage(line: &str) -> Option<ParsedEffect> {
-    let rest = line.strip_prefix("~ deals ")?.strip_suffix('.')?;
+    let body = line
+        .strip_prefix("~ deals ")
+        .or_else(|| line.strip_prefix("it deals "))?;
+    let rest = body.strip_suffix('.')?;
     let (amount, tail) = rest.split_once(" damage to ")?;
     let amount: u32 = amount.parse().ok()?;
     let (targets, selection) = damage_target(tail)?;
@@ -31,9 +34,9 @@ fn parse_deal_damage(line: &str) -> Option<ParsedEffect> {
     })
 }
 
-/// `Draw N card(s).` — no targets.
+/// `Draw N card(s).` — no targets. Case-insensitive lead ("draw" or "Draw").
 fn parse_draw(line: &str) -> Option<ParsedEffect> {
-    let rest = line.strip_prefix("Draw ")?.strip_suffix('.')?;
+    let rest = strip_prefix_ci(line, "draw ")?.strip_suffix('.')?;
     // Plural first so "two cards" doesn't strip to "two card".
     let count = rest
         .strip_suffix(" cards")
@@ -43,6 +46,13 @@ fn parse_draw(line: &str) -> Option<ParsedEffect> {
         targets: Vec::new(),
         effect: format!("Draw({n})"),
     })
+}
+
+/// Case-insensitive ASCII prefix strip: the remainder after `prefix` if `s`
+/// starts with it (ignoring ASCII case), else `None`.
+fn strip_prefix_ci<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
+    let (head, rest) = s.split_at_checked(prefix.len())?;
+    head.eq_ignore_ascii_case(prefix).then_some(rest)
 }
 
 /// A small spelled cardinal or a bare decimal -> its value. `None` for
@@ -168,5 +178,42 @@ mod tests {
         // "X" and "that many" aren't v1 productions.
         assert!(parse_clause("Draw X cards.").is_none());
         assert!(parse_clause("Draw that many cards.").is_none());
+    }
+
+    #[test]
+    fn deal_damage_accepts_it_subject() {
+        // Trigger surface: "it deals …" (the source), same RON as "~ deals …".
+        assert_eq!(
+            parsed("it deals 1 damage to any target."),
+            Some((
+                "AnyTarget".to_owned(),
+                "DealDamage(Target(0), 1)".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn draw_is_case_insensitive() {
+        // Trigger surface: lowercase "draw a card." (mid-sentence).
+        assert_eq!(
+            parsed("draw a card."),
+            Some((String::new(), "Draw(1)".to_owned()))
+        );
+    }
+
+    #[test]
+    fn spell_surface_still_parses() {
+        // Regression: the spell forms must keep working after generalization.
+        assert_eq!(
+            parsed("~ deals 3 damage to any target."),
+            Some((
+                "AnyTarget".to_owned(),
+                "DealDamage(Target(0), 3)".to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed("Draw two cards."),
+            Some((String::new(), "Draw(2)".to_owned()))
+        );
     }
 }
