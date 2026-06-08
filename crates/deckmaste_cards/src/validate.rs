@@ -18,7 +18,8 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use deckmaste_core::plugin::{CARDS_DIR, TOKENS_DIR, is_todo_source};
+use anyhow::Context;
+use deckmaste_core::plugin::{CARDS_DIR, TOKENS_DIR, is_todo_file, is_todo_source};
 use deckmaste_core::{Ability, Card, CostComponent, Ident, Subtype, Token};
 
 use crate::plugin::{Plugin, read, ron_files_recursive};
@@ -98,6 +99,94 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
     }
 
     Ok(validation)
+}
+
+/// A finished card that disagrees with canon's reference version of the same
+/// name — the same card implemented in two plugins, expanding to different
+/// [`Card`] values.
+pub struct CanonMismatch {
+    /// The card file name shared by both plugins, e.g. `Grizzly Bears.ron`.
+    pub file: String,
+    /// canon's reference file.
+    pub canon_path: PathBuf,
+    /// The implementing plugin's file.
+    pub plugin_path: PathBuf,
+}
+
+/// Checks `plugin_dir`'s finished cards against canon as the authority: for
+/// every card canon defines, if `plugin_dir` also finishes a card of that
+/// name, the two must expand to the same [`Card`]. Each plugin expands its
+/// own copy under its own macro scope, so this catches an implementation that
+/// drifted from the reference even when both files parse.
+///
+/// canon is the sibling directory named `canon`. An absent canon — or
+/// `plugin_dir` itself *being* canon — yields no mismatches.
+///
+/// # Errors
+/// If canon or the plugin fails to load, a file isn't readable, or canon's
+/// own reference card doesn't parse. A *plugin* card that doesn't parse is
+/// left to [`validate_plugin`] to report, not an error here.
+pub fn check_against_canon(plugin_dir: &Path) -> anyhow::Result<Vec<CanonMismatch>> {
+    let canon_dir = plugin_dir
+        .parent()
+        .unwrap_or_else(|| Path::new(""))
+        .join("canon");
+    if !canon_dir.is_dir() {
+        return Ok(vec![]);
+    }
+    // Validating canon itself: there's nothing to compare it against.
+    let same_dir = match (canon_dir.canonicalize(), plugin_dir.canonicalize()) {
+        (Ok(canon), Ok(plugin)) => canon == plugin,
+        _ => false,
+    };
+    if same_dir {
+        return Ok(vec![]);
+    }
+
+    let canon = Plugin::load_with_sibling_prelude(&canon_dir)
+        .with_context(|| format!(r#"loading canon reference "{}""#, canon_dir.display()))?;
+    let plugin = Plugin::load_with_sibling_prelude(plugin_dir)?;
+
+    let mut mismatches = Vec::new();
+    for canon_path in ron_files_recursive(&canon_dir.join(CARDS_DIR))? {
+        if is_todo_file(&canon_path) {
+            continue;
+        }
+        let canon_source = read(&canon_path)?;
+        if is_todo_source(&canon_source) {
+            continue;
+        }
+        let Some(file) = canon_path.file_name().and_then(|f| f.to_str()) else {
+            continue;
+        };
+
+        // Only cards this plugin has actually finished are in scope.
+        let plugin_path = plugin_dir.join(CARDS_DIR).join(file);
+        if !plugin_path.is_file() {
+            continue;
+        }
+        let plugin_source = read(&plugin_path)?;
+        if is_todo_source(&plugin_source) {
+            continue;
+        }
+
+        let canon_card: Card = canon
+            .macros
+            .read_str(&canon_source)
+            .with_context(|| format!(r#"parsing canon "{}""#, canon_path.display()))?;
+        // A plugin card that won't parse is already a validate_plugin failure.
+        let Ok(plugin_card) = plugin.macros.read_str::<Card>(&plugin_source) else {
+            continue;
+        };
+        if canon_card != plugin_card {
+            mismatches.push(CanonMismatch {
+                file: file.to_owned(),
+                canon_path,
+                plugin_path,
+            });
+        }
+    }
+    Ok(mismatches)
 }
 
 /// Lint all abilities and subtypes across every face of a card.
@@ -193,7 +282,7 @@ fn cost_action(component: &CostComponent) -> Option<&deckmaste_core::Action> {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     use deckmaste_core::{
         Ability, Action, ActivatedAbility, CostComponent, Effect, Expansion, ExpansionArgs,
@@ -201,7 +290,7 @@ mod tests {
         Subtype, Token, Type,
     };
 
-    use super::{lint_card_abilities, lint_card_subtypes};
+    use super::{check_against_canon, lint_card_abilities, lint_card_subtypes};
 
     fn dummy_path() -> PathBuf { PathBuf::from("test/dummy.ron") }
 
@@ -369,6 +458,74 @@ mod tests {
             failures[0].1.contains("differs"),
             "message should mention drift: {}",
             failures[0].1
+        );
+    }
+
+    const FOO_1_1: &str =
+        r#"Normal(name: "Foo", mana_cost: [Green], types: [Creature], power: 1, toughness: 1)"#;
+    const FOO_2_2: &str =
+        r#"Normal(name: "Foo", mana_cost: [Green], types: [Creature], power: 2, toughness: 2)"#;
+
+    fn write_card(root: &Path, plugin: &str, file: &str, source: &str) {
+        let cards = root.join(plugin).join("cards");
+        std::fs::create_dir_all(&cards).unwrap();
+        std::fs::write(cards.join(file), source).unwrap();
+    }
+
+    /// Two plugins finishing the same-named card with different values: the
+    /// implementation has drifted from canon, so it's a mismatch.
+    #[test]
+    fn canon_mismatch_detected_when_implementation_drifts() {
+        let root = tempfile::tempdir().unwrap();
+        write_card(root.path(), "canon", "Foo.ron", FOO_1_1);
+        write_card(root.path(), "wizards", "Foo.ron", FOO_2_2);
+        let mismatches = check_against_canon(&root.path().join("wizards")).unwrap();
+        assert_eq!(mismatches.len(), 1);
+        assert_eq!(mismatches[0].file, "Foo.ron");
+    }
+
+    /// Same name, same value: the implementation matches canon.
+    #[test]
+    fn canon_match_when_implementation_agrees() {
+        let root = tempfile::tempdir().unwrap();
+        write_card(root.path(), "canon", "Foo.ron", FOO_1_1);
+        write_card(root.path(), "wizards", "Foo.ron", FOO_1_1);
+        assert!(
+            check_against_canon(&root.path().join("wizards"))
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    /// A canon card the plugin hasn't finished — only a todo stub, with an
+    /// unrelated finished card alongside — is not compared.
+    #[test]
+    fn canon_skips_cards_the_plugin_has_not_implemented() {
+        let root = tempfile::tempdir().unwrap();
+        write_card(root.path(), "canon", "Foo.ron", FOO_1_1);
+        write_card(
+            root.path(),
+            "wizards",
+            "Foo.todo.ron",
+            r#"Todo(layout: "normal")"#,
+        );
+        write_card(root.path(), "wizards", "Bar.ron", FOO_2_2);
+        assert!(
+            check_against_canon(&root.path().join("wizards"))
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    /// Validating canon against itself compares nothing.
+    #[test]
+    fn canon_checked_against_itself_is_empty() {
+        let root = tempfile::tempdir().unwrap();
+        write_card(root.path(), "canon", "Foo.ron", FOO_1_1);
+        assert!(
+            check_against_canon(&root.path().join("canon"))
+                .unwrap()
+                .is_empty()
         );
     }
 }

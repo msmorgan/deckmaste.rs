@@ -45,7 +45,8 @@ struct ValidateArgs {
 }
 
 /// The `validate` entry point: report every non-todo card that doesn't
-/// parse.
+/// parse, and every finished card that disagrees with canon's reference
+/// version of the same name.
 ///
 /// # Errors
 /// If the plugin (or its prelude) fails to load, or a card file isn't
@@ -61,18 +62,32 @@ pub fn validate<I: IntoIterator<Item = OsString>>(args: I) -> anyhow::Result<()>
     for failure in &validation.failures {
         eprintln!("{}: {}", failure.path.display(), failure.error);
     }
+
+    // canon is the authority: a finished card a plugin shares with canon must
+    // expand to canon's value (see `check_against_canon`).
+    let mismatches = crate::validate::check_against_canon(&plugin_dir)?;
+    for mismatch in &mismatches {
+        eprintln!(
+            "{}: differs from canon reference {}",
+            mismatch.plugin_path.display(),
+            mismatch.canon_path.display()
+        );
+    }
+
     println!(
-        "{}: {} valid, {} todos skipped, {} invalid",
+        "{}: {} valid, {} todos skipped, {} invalid, {} canon mismatch(es)",
         plugin_dir.display(),
         validation.valid,
         validation.todos,
-        validation.failures.len()
+        validation.failures.len(),
+        mismatches.len(),
     );
-    if !validation.failures.is_empty() {
+    if !validation.failures.is_empty() || !mismatches.is_empty() {
         anyhow::bail!(
-            "{}: {} invalid card(s)",
+            "{}: {} invalid card(s), {} canon mismatch(es)",
             plugin_dir.display(),
-            validation.failures.len()
+            validation.failures.len(),
+            mismatches.len(),
         );
     }
     Ok(())
