@@ -19,8 +19,6 @@ pub struct Rule<'a> {
     #[serde(borrow, rename = "ruleText")]
     pub text: DataStr<'a>,
     #[serde(borrow)]
-    pub fragment: DataStr<'a>,
-    #[serde(borrow)]
     pub navigation: Navigation<'a>,
 }
 
@@ -68,8 +66,6 @@ pub(crate) struct RulesMap<'a>(#[serde(borrow)] pub HashMap<DataStr<'a>, Rule<'a
 
 impl<'a> RulesMap<'a> {
     pub fn parse(bytes: &'a [u8]) -> serde_json::Result<Self> { serde_json::from_slice(bytes) }
-
-    pub fn into_inner(self) -> HashMap<DataStr<'a>, Rule<'a>> { self.0 }
 
     pub fn find_rule(&self, rule_number: &str) -> Option<&Rule<'a>> { self.0.get(rule_number) }
 
@@ -128,7 +124,6 @@ mod tests {
             text:
                 "A creature with flying can’t be blocked. (See rule 509, “Declare Blockers Step.”)"
                     .into(),
-            fragment: "9b".into(),
             navigation: Navigation { next_rule: None },
         };
         assert_eq!(
