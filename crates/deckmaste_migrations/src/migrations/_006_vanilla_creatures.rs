@@ -1,6 +1,3 @@
-use deckmaste_core::Ident;
-use serde::Serialize;
-
 use super::card_todo::{CardFaceTodo, CardFile, Stat};
 use crate::layout::PluginLayout;
 
@@ -26,67 +23,9 @@ fn vanilla_creature_face(card: &CardFile) -> Option<&CardFaceTodo> {
     }
 }
 
-/// One leaf value (mana symbol, color, stat) spelled by the shared ron
-/// config — tuple members stay inline, so `Hybrid(Generic(2), White)`
-/// keeps its canonical spacing. The template owns the file shape; ron
-/// only spells the tokens.
-fn leaf<T: Serialize>(value: &T) -> anyhow::Result<String> {
-    Ok(crate::ron_output::ron_options()
-        .to_string_pretty(value, crate::ron_output::pretty_config())?)
-}
-
-/// `    field: [a, b],` — ident arrays stay inline; nothing for `[]`.
-fn ident_line(out: &mut String, field: &str, idents: &[Ident]) {
-    use std::fmt::Write;
-
-    if !idents.is_empty() {
-        writeln!(out, "    {field}: [{}],", idents.join(", ")).unwrap();
-    }
-}
-
-/// The finished definition in the builtin/cards house style: ident arrays
-/// inline, multi-symbol mana costs chopped like the hand-written
-/// Grizzly Bears.
+/// A vanilla creature has no abilities: delegate to the shared renderer.
 fn render_creature(face: &CardFaceTodo) -> anyhow::Result<String> {
-    use std::fmt::Write;
-
-    let mut out = String::new();
-    writeln!(out, "Normal(")?;
-    writeln!(out, "    name: {:?},", face.name)?;
-    match &*face.mana_cost {
-        [] => {}
-        [symbol] => writeln!(out, "    mana_cost: [{}],", leaf(symbol)?)?,
-        symbols => {
-            writeln!(out, "    mana_cost: [")?;
-            for symbol in symbols {
-                writeln!(out, "        {},", leaf(symbol)?)?;
-            }
-            writeln!(out, "    ],")?;
-        }
-    }
-    if !face.color_indicator.is_empty() {
-        let colors: Vec<String> = face
-            .color_indicator
-            .iter()
-            .map(leaf)
-            .collect::<anyhow::Result<_>>()?;
-        writeln!(out, "    color_indicator: [{}],", colors.join(", "))?;
-    }
-    ident_line(&mut out, "supertypes", &face.supertypes);
-    ident_line(&mut out, "types", &face.types);
-    ident_line(&mut out, "subtypes", &face.subtypes);
-    // The predicate guarantees both stats; a creature file without them
-    // would be a silent authoring error, so fail loudly instead.
-    let (Some(power), Some(toughness)) = (&face.power, &face.toughness) else {
-        anyhow::bail!(
-            "vanilla creature {:?} is missing power/toughness",
-            face.name
-        );
-    };
-    writeln!(out, "    power: {},", leaf(power)?)?;
-    writeln!(out, "    toughness: {},", leaf(toughness)?)?;
-    writeln!(out, ")")?;
-    Ok(out)
+    super::creature_face::render_creature(face, &[])
 }
 
 pub(super) struct VanillaCreatures;
