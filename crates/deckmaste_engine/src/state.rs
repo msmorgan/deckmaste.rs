@@ -10,6 +10,7 @@ use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
 use crate::object::{Cards, ObjectId, ObjectSource, ObjectStore};
 use crate::player::{PlayerId, PlayerState};
+use crate::stack::{PendingStackEntry, StackEntry};
 use crate::turn::TurnState;
 use crate::zone::Zones;
 
@@ -55,6 +56,10 @@ pub struct GameState {
     pub players: Vec<PlayerState>,
     pub zones: Zones,
     pub objects: ObjectStore,
+    pub stack: Vec<StackEntry>,
+    /// The single in-flight announce (CR 601.2 / 602.2); `Some` only between
+    /// `BeginCast` and the `SpellCast` that promotes it onto the stack.
+    pub announcing: Option<PendingStackEntry>,
     pub turn: TurnState,
     pub agenda: VecDeque<WorkItem>,
     pub pending: Option<PendingDecision>,
@@ -116,6 +121,8 @@ impl GameState {
             players,
             zones,
             objects,
+            stack: Vec::new(),
+            announcing: None,
             turn: TurnState {
                 active_player: starting,
                 turn_number: 0,
