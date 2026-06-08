@@ -11,25 +11,28 @@ use crate::color::ColorOrColorless;
 ///
 /// The untagged Specific variant serializes transparently, so the RON stays
 /// flat: `AddMana(Literal(1), White)`, not `…Specific(White)`. Tagged
-/// variants (`AnyColor`, future `AnyType`, riders) must stay above the
-/// `#[serde(untagged)]` line — the untagged arm is tried last.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+/// variants (`AnyColor`, `OneOf`, future `AnyType`, riders) must stay above
+/// the `#[serde(untagged)]` line — the untagged arm is tried last.
+///
+/// Not `Copy`: `OneOf` carries a `Vec`. Nothing `Copy` holds a `ManaSpec`
+/// (`Action`/`Token` are `Clone`), so the spec stays `Clone`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum ManaSpec {
     AnyColor,
+    /// One mana of a color the controller chooses from a fixed set on
+    /// resolution ("{W} or {U}", CR 106.1b) — a single mana ability, not a
+    /// CR 700.2 modal choice. Members keep their printed order.
+    OneOf(Vec<ColorOrColorless>),
     #[serde(untagged)]
     Specific(ColorOrColorless),
 }
 
 impl From<ColorOrColorless> for ManaSpec {
-    fn from(color_or_colorless: ColorOrColorless) -> Self {
-        Self::Specific(color_or_colorless)
-    }
+    fn from(color_or_colorless: ColorOrColorless) -> Self { Self::Specific(color_or_colorless) }
 }
 
 impl From<Color> for ManaSpec {
-    fn from(color: Color) -> Self {
-        Self::Specific(color.into())
-    }
+    fn from(color: Color) -> Self { Self::Specific(color.into()) }
 }
 
 /// The component symbols hybrid/phyrexian symbols are built from: a generic
@@ -316,5 +319,22 @@ mod tests {
         assert_eq!(write(&ManaSpec::AnyColor), "AnyColor");
         assert_eq!(write(&ManaSpec::Specific(White.into())), "White");
         assert_eq!(write(&ManaSpec::Specific(Colorless)), "Colorless");
+    }
+
+    /// "{W} or {U}" lands: one mana, color chosen at resolution. The colors
+    /// keep their printed order and each spells flat (`White`, not
+    /// `Color(White)`).
+    #[test]
+    fn mana_spec_one_of_round_trips() {
+        let read = |s: &str| crate::ron::options().from_str::<ManaSpec>(s).unwrap();
+        let spec = read("OneOf([White, Blue])");
+        assert_eq!(spec, ManaSpec::OneOf(vec![White.into(), Blue.into()]));
+        let write = |m: &ManaSpec| crate::ron::options().to_string(m).unwrap();
+        assert_eq!(write(&spec), "OneOf([White,Blue])");
+        // Colorless is a valid member too ({C} or {U} appears in the corpus).
+        assert_eq!(
+            read("OneOf([Colorless, Blue])"),
+            ManaSpec::OneOf(vec![Colorless, Blue.into()])
+        );
     }
 }

@@ -12,6 +12,7 @@ mod _003_subtypes;
 mod _004_card_todos;
 mod _005_basic_lands;
 mod _006_vanilla_creatures;
+mod _007_simple_lands;
 mod card_todo;
 mod keyword_todos;
 
@@ -36,6 +37,7 @@ const MIGRATIONS: &[&dyn Migration] = &[
     &_004_card_todos::CardTodos,
     &_005_basic_lands::BasicLands,
     &_006_vanilla_creatures::VanillaCreatures,
+    &_007_simple_lands::SimpleLands,
 ];
 
 pub fn apply_all(plugin_dir: &Path) -> anyhow::Result<()> {
