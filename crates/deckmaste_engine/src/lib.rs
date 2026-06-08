@@ -29,6 +29,9 @@ pub use runner::{RunStop, Runner};
 
 mod sba;
 
+mod stack;
+pub use stack::{Frame, PendingStackEntry, StackEntry, StackObject};
+
 mod state;
 pub use state::{GameConfig, GameOutcome, GameState, PlayerConfig, StartingPlayer};
 
