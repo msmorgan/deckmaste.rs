@@ -48,7 +48,7 @@ pub enum StateFilter {
     Status(Status),
     /// The object has at least one counter of the named kind ([CR#122.1]).
     HasCounter(Ident),
-    /// The object carries the named designation ([CR#109.4]) — derived
+    /// The object carries the named designation (taxonomy §8) — derived
     /// designations (`Designated(Modified)`) work with no special casing.
     Designated(Ident),
     /// The object is related to a matching object by a named, declared

@@ -17,7 +17,7 @@ pub enum Cmp {
 }
 
 /// The turn-history window a `Happened` condition looks back over
-/// ([CR#603.10]). Just `ThisTurn` for now; `ThisCombat` etc. accrete.
+/// ([CR#608.2i]). Just `ThisTurn` for now; `ThisCombat` etc. accrete.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Window {
     /// Since the start of the current turn (morbid, raid, "was kicked").
@@ -37,7 +37,7 @@ pub enum Condition {
     Exists(Filter),
     /// A referenced object matches a filter ([CR#107.3], "if it is a …").
     Is(Reference, Filter),
-    /// An event happened within a window (morbid/raid, [CR#603.10]).
+    /// An event happened within a window (morbid/raid, [CR#608.2i]).
     Happened { event: Event, within: Window },
     /// All sub-conditions hold.
     AllOf(Vec<Condition>),

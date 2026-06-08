@@ -10,31 +10,31 @@ use crate::{Quantity, Selection, Token};
 /// otherwise ([CR#608.2]). Object slots are unary `Selection`s.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Action {
-    /// Add mana to the controller's mana pool ([CR#106.1,701.3]).
+    /// Add mana to the controller's mana pool ([CR#106.4]).
     AddMana(Quantity, ManaSpec),
-    /// Create a number of token permanents ([CR#111.1,701.6c]).
+    /// Create a number of token permanents ([CR#111.1,701.7]).
     Create(Quantity, Token),
-    /// Deal an amount of damage to a selection ([CR#119.1,701.25]).
+    /// Deal an amount of damage to a selection ([CR#120.1]).
     DealDamage(Selection, Quantity),
-    /// Destroy a selected permanent ([CR#701.7]).
+    /// Destroy a selected permanent ([CR#701.8]).
     Destroy(Selection),
-    /// You discard a number of cards ([CR#701.8]).
+    /// You discard a number of cards ([CR#701.9]).
     Discard(Quantity),
-    /// Draw a number of cards ([CR#120.1,701.4]).
+    /// Draw a number of cards ([CR#121.1]).
     DrawCards(Quantity),
-    /// Exile a selection ([CR#701.10]).
+    /// Exile a selection ([CR#701.13]).
     Exile(Selection),
-    /// Gain an amount of life ([CR#119.7,701.6]).
+    /// Gain an amount of life ([CR#119.3]).
     GainLife(Quantity),
     /// Lose an amount of life — implicitly you ([CR#119.3]).
     LoseLife(Quantity),
-    /// Return a selection to its owner's hand ([CR#701]).
+    /// Return a selection to its owner's hand.
     ReturnToHand(Selection),
-    /// Sacrifice a selected permanent ([CR#701.16]).
+    /// Sacrifice a selected permanent ([CR#701.21]).
     Sacrifice(Selection),
-    /// Tap a selection ([CR#701.21a]).
+    /// Tap a selection ([CR#701.26a]).
     Tap(Selection),
-    /// Untap a selection ([CR#701.21b]).
+    /// Untap a selection ([CR#701.26b]).
     Untap(Selection),
 }
 

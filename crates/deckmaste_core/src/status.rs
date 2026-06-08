@@ -5,14 +5,14 @@ use serde::{Deserialize, Serialize};
 /// `Event::StateBecomes`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Status {
-    /// [CR#110.5a].
+    /// [CR#110.5].
     Tapped,
-    /// [CR#110.5a].
+    /// [CR#110.5].
     Untapped,
-    /// [CR#110.5b].
+    /// [CR#110.5].
     FaceDown,
-    /// [CR#110.5b].
+    /// [CR#110.5].
     FaceUp,
-    /// [CR#110.5c].
+    /// [CR#110.5].
     PhasedOut,
 }

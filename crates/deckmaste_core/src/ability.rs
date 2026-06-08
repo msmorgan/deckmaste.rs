@@ -27,10 +27,10 @@ pub struct ActivatedAbility {
     pub effect: Effect,
 }
 
-/// A limit on how often a triggered ability may trigger ([CR#603.3i]).
+/// A limit on how often a triggered ability may trigger ([CR#603.2h]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum TriggerLimit {
-    /// "Once each turn" ([CR#603.3i]).
+    /// "Once each turn" ([CR#603.2h]).
     OncePerTurn,
 }
 
@@ -44,7 +44,7 @@ pub struct TriggeredAbility {
     /// Intervening-if ([CR#603.4]) — `condition`, not `when_if`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub condition: Option<Condition>,
-    /// Trigger-frequency limits ([CR#603.3i]).
+    /// Trigger-frequency limits ([CR#603.2h]).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub limits: Vec<TriggerLimit>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -72,7 +72,7 @@ pub struct StaticAbility {
 fn is_false(b: &bool) -> bool { !*b }
 
 /// How a modal spell or ability's modes are chosen ([CR#700.2]). `up_to` is the
-/// "up to N" form ([CR#700.2d]); `repeats` allows choosing the same mode more
+/// "up to N" form ([CR#700.2]); `repeats` allows choosing the same mode more
 /// than once ([CR#700.2d]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct ChooseSpec {

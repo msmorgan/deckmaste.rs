@@ -27,7 +27,7 @@ pub enum Selection {
     Choose(Filter),
     /// A quantity of untargeted choices made at resolution ([CR#608.2d]).
     ChooseN(Quantity, Filter),
-    /// A random selection of a quantity of matching objects ([CR#701]).
+    /// A random selection of a quantity of matching objects.
     Random(Quantity, Filter),
 
     // References, flattened: a bound object can stand where a choice would.
