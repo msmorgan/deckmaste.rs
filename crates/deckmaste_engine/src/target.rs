@@ -1,5 +1,5 @@
-//! Targeting ([CR#115]): which objects a `Filter` admits. Stage 2 wires only the
-//! arms the corpus's `AnyTarget` reaches; the rest are `todo!`.
+//! Targeting ([CR#115]): which objects a `Filter` admits. Stage 2 wires only
+//! the arms the corpus's `AnyTarget` reaches; the rest are `todo!`.
 
 use deckmaste_core::{CharacteristicFilter, Filter, ObjectKind, StateFilter, Type, Zone};
 
@@ -31,9 +31,11 @@ pub fn matches(state: &GameState, id: ObjectId, filter: &Filter) -> bool {
         Filter::OneOf(fs) => fs.iter().any(|f| matches(state, id, f)),
         Filter::Not(f) => !matches(state, id, f),
         Filter::Any => true,
-        // An `Expanded` macro invocation is transparent: delegate to the
-        // expanded value so callers can pass a `Filter::Expanded(AnyTarget)`
-        // directly without pre-unwrapping.
+        // A filter-position macro (`kinds: [Filter]` — `Self`, evasion sets,
+        // protection qualities) survives expansion as `Filter::Expanded`;
+        // evaluate it transparently through the remembered body. (Target-position
+        // macros like `AnyTarget` are looked through earlier, in
+        // `resolve::target_spec_filter`, so they never reach here.)
         Filter::Expanded(e) => matches(state, id, &e.value),
         other => todo!("stage 2 does not evaluate filter {other:?}"),
     }
@@ -66,7 +68,7 @@ mod tests {
     use std::sync::Arc;
 
     use deckmaste_cards::plugin::Plugin;
-    use deckmaste_core::{Filter, Zone};
+    use deckmaste_core::{Filter, TargetSpec, Zone};
 
     use super::*;
     use crate::player::PlayerId;
@@ -123,17 +125,37 @@ mod tests {
 
     #[test]
     fn any_target_is_creatures_and_players_not_lands() {
-        // `plugin.macros.read_str` returns `Filter::Expanded(AnyTarget { .. })`
-        // whose value is the OneOf body. `matches` delegates through Expanded
-        // transparently, so the wrapped form works directly.
-        let any_target: Filter = builtin().macros.read_str("AnyTarget").unwrap();
+        // `read_str` returns the remembered `TargetSpec::Expanded(AnyTarget)`.
+        // `resolve::target_spec_filter` is the engine's own TargetSpec→Filter
+        // extraction — the path real targeting funnels through — so the test
+        // exercises it rather than hand-unwrapping the expansion.
+        let any_target: TargetSpec = builtin().macros.read_str("AnyTarget").unwrap();
+        let filter = crate::resolve::target_spec_filter(&any_target);
         let (state, bear) = game_with_a_bear_on_the_field();
-        let targets = candidates(&state, &any_target);
+        let targets = candidates(&state, filter);
         // Both player proxies + the lone battlefield creature; no lands (in
         // hand/library), no spells (stack empty).
         assert!(targets.contains(&bear));
         assert!(targets.contains(&state.players[0].object));
         assert!(targets.contains(&state.players[1].object));
         assert_eq!(targets.len(), 3);
+    }
+
+    /// A filter-position macro (`kinds: [Filter]`) survives expansion as
+    /// `Filter::Expanded`; `matches` must look through it transparently.
+    /// Guards the delegation arm against being mistaken for dead code.
+    #[test]
+    fn matches_looks_through_a_filter_macro() {
+        // `CreatureOrPlayer` reads as `Filter::Expanded(.., value: OneOf([..]))`:
+        // the invocation survives, wrapping its expanded body.
+        let wrapped: Filter = builtin().macros.read_str("CreatureOrPlayer").unwrap();
+        assert!(
+            matches!(wrapped, Filter::Expanded(_)),
+            "a filter macro should survive as Filter::Expanded, got {wrapped:?}"
+        );
+        let (state, bear) = game_with_a_bear_on_the_field();
+        // Evaluating the wrapped macro reaches the battlefield creature through
+        // the remembered body — delegation is transparent.
+        assert!(candidates(&state, &wrapped).contains(&bear));
     }
 }

@@ -2,11 +2,11 @@
 (
     name: "AnyTarget",
     template: "any target",
-    kinds: [Filter],
-    body: OneOf([
+    kinds: [TargetSpec],
+    body: Target(OneOf([
         AllOf([InZone(Battlefield), Type(Battle)]),
         AllOf([InZone(Battlefield), Type(Creature)]),
         AllOf([InZone(Battlefield), Type(Planeswalker)]),
         Kind(Player),
-    ]),
+    ])),
 )

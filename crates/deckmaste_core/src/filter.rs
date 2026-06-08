@@ -93,8 +93,8 @@ pub enum Filter {
     /// Matches every object — the bare-Filter default for event participant
     /// slots (`Event::Performed`'s `by`/`on`).
     Any,
-    /// A remembered `Filter` macro invocation (`AnyTarget`, evasion sets,
-    /// protection qualities, …). Serialized as the invocation, not the struct.
+    /// A remembered `Filter` macro invocation (evasion sets, protection
+    /// qualities, …). Serialized as the invocation, not the struct.
     Expanded(Expansion<Filter>),
 }
 
@@ -186,7 +186,7 @@ impl<'de> Visitor<'de> for RelatedByVisitor {
 
 // Manual serde, not `#[serde(untagged)]` wrappers: untagged variants
 // deserialize through `deserialize_any`, which never reaches the macro
-// layer's `deserialize_enum` interception — `AnyTarget` would stop
+// layer's `deserialize_enum` interception — a `Filter` macro would stop
 // expanding at Filter positions. Dispatching by name over one combined
 // variant list keeps the RON flat *and* the positions macro-aware.
 impl<'de> Deserialize<'de> for Filter {
