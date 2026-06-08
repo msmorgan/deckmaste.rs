@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::sync::Arc;
 
-use deckmaste_core::{Card, Int, StepOrPhase, Uint, Zone};
+use deckmaste_core::{BeginningStep, Card, EndingStep, Int, Phase, Uint, Zone};
 use rand::SeedableRng;
 use rand::seq::SliceRandom;
 use rand_chacha::ChaCha8Rng;
@@ -135,11 +135,12 @@ impl GameState {
             turn: TurnState {
                 active_player: starting,
                 turn_number: 0,
-                // Pre-game placeholder; the first BeginStep(Untap) begins turn 1.
-                current: StepOrPhase::Cleanup,
+                // Pre-game placeholder; the first BeginStep(Beginning(Untap))
+                // begins turn 1.
+                current: Phase::Ending(EndingStep::Cleanup),
                 priority: None,
             },
-            agenda: VecDeque::from([WorkItem::BeginStep(StepOrPhase::Untap)]),
+            agenda: VecDeque::from([WorkItem::BeginStep(Phase::Beginning(BeginningStep::Untap))]),
             pending: None,
             outcome: None,
             pending_triggers: Vec::new(),

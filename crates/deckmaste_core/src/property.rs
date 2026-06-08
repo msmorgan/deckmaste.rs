@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::ability::Ability;
-use crate::{Condition, Effect, StepOrPhase};
+use crate::{Condition, Effect, Phase};
 
 /// What bearing a subtype confers on objects that have it
 /// ([CR#305.6,714.3a,714.3c,714.4,704.5m]), typed by execution flavor so each
@@ -23,5 +23,5 @@ pub enum Property {
     },
     /// Performed as a turn-based action — no stack ([CR#714.3c]). Parses
     /// today; the engine executes it in stage 3.
-    TurnBased { at: StepOrPhase, effect: Effect },
+    TurnBased { at: Phase, effect: Effect },
 }

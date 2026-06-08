@@ -3,7 +3,7 @@
 //! authoritative check at submission (state can't change in between: a
 //! pending decision blocks stepping).
 
-use deckmaste_core::{StepOrPhase, Type};
+use deckmaste_core::{Phase, Type};
 
 use crate::decide::Action;
 use crate::derive;
@@ -18,7 +18,7 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     // (trivially true in the skeleton), one per turn.
     let main = matches!(
         state.turn.current,
-        StepOrPhase::PrecombatMain | StepOrPhase::PostcombatMain
+        Phase::PrecombatMain | Phase::PostcombatMain
     );
     if main && player == state.turn.active_player && state.player(player).lands_played_this_turn < 1
     {

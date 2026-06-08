@@ -2,7 +2,7 @@ use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
 
 use crate::continuous::Duration;
-use crate::{Count, Effect, Event, Expansion, Filter, StepOrPhase};
+use crate::{Count, Effect, Event, Expansion, Filter, Phase};
 
 /// A replacement effect: the CR's closed template list ([CR#614]).
 ///
@@ -14,7 +14,7 @@ pub enum Replacement {
     /// "If [event] would happen, [effect] instead" — replace ([CR#614.1a]).
     Instead { would: Event, instead: Effect },
     /// Skip a step or phase — omit ([CR#614.1b]).
-    Skip { what: StepOrPhase },
+    Skip { what: Phase },
     /// "If [event] would happen, [event] and [effect]" — augment, all-at-once
     /// ([CR#614.1c]). `AsEnters` is a prelude macro over this.
     Also { would: Event, also: Effect },
@@ -42,7 +42,7 @@ impl Serialize for Replacement {
             Replacement::Skip { what } => {
                 #[derive(Serialize)]
                 struct Skip<'a> {
-                    what: &'a StepOrPhase,
+                    what: &'a Phase,
                 }
                 serializer.serialize_newtype_variant("Replacement", 1, "Skip", &Skip { what })
             }
@@ -92,12 +92,12 @@ mod tests {
     #[test]
     fn skip_reads_flat() {
         let parsed: Replacement = crate::ron::options()
-            .from_str("Skip(what: Upkeep)")
+            .from_str("Skip(what: Beginning(Upkeep))")
             .unwrap();
         assert_eq!(
             parsed,
             Replacement::Skip {
-                what: StepOrPhase::Upkeep
+                what: Phase::Beginning(crate::BeginningStep::Upkeep)
             },
         );
     }
@@ -106,7 +106,7 @@ mod tests {
     #[test]
     fn primitives_round_trip() {
         for source in [
-            "Skip(what: Upkeep)",
+            "Skip(what: Beginning(Upkeep))",
             "Also(would: ZoneMove(what: Any, to: Battlefield), also: Tap(This))",
             "Instead(would: ZoneMove(what: Any, to: Graveyard), instead: Tap(This))",
         ] {
