@@ -10,7 +10,7 @@ use deckmaste_core::{BeginningStep, Card, Color, EndingStep, Filter, Phase, Type
 use deckmaste_engine::{
     Action, Decision, DecisionError, GameConfig, GameEvent, GameState, ObjectId, ObjectSource,
     Occurrence, PendingDecision, PlayerConfig, PlayerId, Progress, RunStop, Runner, StackEntry,
-    StackObject, StartingPlayer, StepOutcome,
+    StackObject, StartingPlayer, StepOutcome, Tally,
 };
 
 fn builtin() -> Plugin {
@@ -275,7 +275,7 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
         Some(GameEvent::LandPlayed { object }) if *object == land
     )));
     assert_eq!(state.zones.battlefield, vec![land]);
-    assert_eq!(state.players[0].lands_played_this_turn, 1);
+    assert_eq!(state.players[0].this_turn.count(Tally::LandsPlayed), 1);
     let StepOutcome::NeedsDecision(PendingDecision::Priority { player, legal }) = stop else {
         panic!("expected priority back");
     };

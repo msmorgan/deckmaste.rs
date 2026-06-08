@@ -9,6 +9,7 @@ use crate::decide::Action;
 use crate::derive;
 use crate::player::PlayerId;
 use crate::state::GameState;
+use crate::tally::Tally;
 
 #[must_use]
 pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
@@ -20,7 +21,9 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         state.turn.current,
         Phase::PrecombatMain | Phase::PostcombatMain
     );
-    if main && player == state.turn.active_player && state.player(player).lands_played_this_turn < 1
+    if main
+        && player == state.turn.active_player
+        && state.player(player).this_turn.count(Tally::LandsPlayed) < 1
     {
         for &object in &state.zones.hands[player.index()] {
             if derive::face(state.def(object)).types.contains(&Type::Land) {

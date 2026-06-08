@@ -30,6 +30,9 @@ pub use object::{CardId, CardInstance, Cards, GameObject, ObjectId, ObjectSource
 mod player;
 pub use player::{ManaPool, PlayerId, PlayerState};
 
+mod tally;
+pub use tally::{Tallies, Tally};
+
 mod replace;
 
 mod resolve;

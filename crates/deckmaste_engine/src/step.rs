@@ -12,6 +12,7 @@ use crate::player::PlayerId;
 use crate::sba;
 use crate::stack::StackEntry;
 use crate::state::{GameOutcome, GameState};
+use crate::tally::Tally;
 use crate::turn::{PriorityRound, successor};
 
 /// What one `step()` call produced.
@@ -151,7 +152,7 @@ impl GameState {
                 self.remove_from_hand(owner, object);
                 self.objects.obj_mut(object).zone = Some(Zone::Battlefield);
                 self.zones.battlefield.push(object);
-                self.player_mut(owner).lands_played_this_turn += 1;
+                self.player_mut(owner).this_turn.bump(Tally::LandsPlayed);
                 event
             }
             GameEvent::Tapped(id) => {
@@ -399,7 +400,7 @@ impl GameState {
             self.turn.active_player = self.next_live_after(self.turn.active_player);
         }
         for player in &mut self.players {
-            player.lands_played_this_turn = 0;
+            player.this_turn.reset();
         }
         GameEvent::TurnBegan {
             player: self.turn.active_player,
