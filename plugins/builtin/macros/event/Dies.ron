@@ -1,0 +1,9 @@
+// "Dies" = a permanent moves from the battlefield to the graveyard ([CR#700.4]).
+// Usage: Dies(what) — e.g. Dies(Type(Creature)), Dies(Is(This)).
+(
+    name: "Dies",
+    template: "dies",
+    kinds: [Event],
+    params: [Any],
+    body: ZoneMove(what: Param(0), from: Battlefield, to: Graveyard),
+)

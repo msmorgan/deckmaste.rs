@@ -1,0 +1,9 @@
+// "Enters" = a permanent enters the battlefield ([CR#603.6]).
+// Usage: Enters(what) — e.g. Enters(Type(Creature)), Enters(Is(This)).
+(
+    name: "Enters",
+    template: "enters the battlefield",
+    kinds: [Event],
+    params: [Any],
+    body: ZoneMove(what: Param(0), to: Battlefield),
+)
