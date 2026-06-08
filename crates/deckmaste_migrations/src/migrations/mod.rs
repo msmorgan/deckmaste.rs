@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
 use regex::Regex;
@@ -20,14 +20,21 @@ trait Migration {
     fn apply(&self, plugin: &PluginLayout) -> anyhow::Result<()>;
 }
 
-/// Whether a definition still needs generating, keyed on its *finished*
-/// `.ron` path. A stub writer (re)generates its `<name>.todo.ron` only while
-/// the finished `<name>.ron` is absent; once the final exists — converted by
-/// a later migration or hand-written — the stub writers leave it alone.
-///
-/// Editing a `.todo.ron` in place offers no such protection: a stub is a
-/// disposable draft, so promote finished work to `<name>.ron`.
-fn is_unimplemented(final_path: &Path) -> bool { !final_path.exists() }
+/// Whether a definition still needs generating, keyed on its *finished* `.ron`
+/// path. A stub writer (re)generates its `<name>.todo.ron` only while neither
+/// the finished `<name>.ron` nor a parked `<name>.ron.pending` (a Blocked
+/// draft) exists; once either is present the stub writers leave it alone.
+fn is_unimplemented(final_path: &Path) -> bool {
+    !final_path.exists() && !pending_path(final_path).exists()
+}
+
+/// The parked sibling of a finished `.ron` path: `Foo.ron` ->
+/// `Foo.ron.pending`.
+fn pending_path(final_path: &Path) -> PathBuf {
+    let mut name = final_path.file_name().unwrap_or_default().to_os_string();
+    name.push(".pending");
+    final_path.with_file_name(name)
+}
 
 const MIGRATIONS: &[&dyn Migration] = &[
     &_000_keyword_ability_todos::KeywordAbilityTodos,
@@ -94,5 +101,21 @@ mod tests {
         assert_eq!(to_rust_ident("Cumulative upkeep"), "CumulativeUpkeep");
         assert_eq!(to_rust_ident("Jump-start"), "JumpStart");
         assert_eq!(to_rust_ident("Doctor's companion"), "DoctorsCompanion");
+    }
+
+    #[test]
+    fn pending_card_counts_as_implemented() {
+        use super::is_unimplemented;
+        let dir = tempfile::tempdir().unwrap();
+        let final_path = dir.path().join("Serra Angel.ron");
+        // Nothing on disk: needs a stub.
+        assert!(is_unimplemented(&final_path));
+        // A parked draft beside it: no longer needs a stub.
+        std::fs::write(dir.path().join("Serra Angel.ron.pending"), "x").unwrap();
+        assert!(!is_unimplemented(&final_path));
+        // A finished card: also implemented.
+        std::fs::remove_file(dir.path().join("Serra Angel.ron.pending")).unwrap();
+        std::fs::write(&final_path, "x").unwrap();
+        assert!(!is_unimplemented(&final_path));
     }
 }
