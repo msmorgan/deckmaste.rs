@@ -13,6 +13,7 @@ mod _004_card_todos;
 mod _005_basic_lands;
 mod _006_vanilla_creatures;
 mod _007_simple_lands;
+mod _008_french_vanilla_creatures;
 mod card_todo;
 mod creature_face;
 mod keyword_ability;
