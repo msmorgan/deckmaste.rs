@@ -16,7 +16,10 @@ pub(super) struct ParsedEffect {
 /// Parses one normalized effect line into a [`ParsedEffect`], or `None` to
 /// decline. Productions are tried in order; the first match wins.
 pub(super) fn parse_clause(line: &str) -> Option<ParsedEffect> {
-    parse_deal_damage(line).or_else(|| parse_draw(line))
+    parse_deal_damage(line)
+        .or_else(|| parse_draw(line))
+        .or_else(|| parse_lose_life(line))
+        .or_else(|| parse_gain_life(line))
 }
 
 /// `~ deals N damage to <target>.` or `it deals N damage to <target>.`
@@ -46,6 +49,30 @@ fn parse_draw(line: &str) -> Option<ParsedEffect> {
         targets: Vec::new(),
         effect: format!("Draw({n})"),
     })
+}
+
+/// `You lose N life.` — the ability's controller loses N life. No targets.
+fn parse_lose_life(line: &str) -> Option<ParsedEffect> {
+    let n = life_count(strip_prefix_ci(line, "you lose ")?)?;
+    Some(ParsedEffect {
+        targets: Vec::new(),
+        effect: format!("LoseLife({n})"),
+    })
+}
+
+/// `You gain N life.` — the ability's controller gains N life. No targets.
+fn parse_gain_life(line: &str) -> Option<ParsedEffect> {
+    let n = life_count(strip_prefix_ci(line, "you gain ")?)?;
+    Some(ParsedEffect {
+        targets: Vec::new(),
+        effect: format!("GainLife({n})"),
+    })
+}
+
+/// `N life.` -> N ("life" is invariant — never pluralized). `None` if the
+/// count word or the shape is off.
+fn life_count(text: &str) -> Option<u32> {
+    number_word(text.strip_suffix('.')?.strip_suffix(" life")?)
 }
 
 /// Case-insensitive ASCII prefix strip: the remainder after `prefix` if `s`
@@ -215,5 +242,31 @@ mod tests {
             parsed("Draw two cards."),
             Some((String::new(), "Draw(2)".to_owned()))
         );
+    }
+
+    #[test]
+    fn lose_and_gain_life() {
+        assert_eq!(
+            parsed("You lose 1 life."),
+            Some((String::new(), "LoseLife(1)".to_owned()))
+        );
+        assert_eq!(
+            parsed("you lose 2 life."),
+            Some((String::new(), "LoseLife(2)".to_owned()))
+        );
+        assert_eq!(
+            parsed("You gain 3 life."),
+            Some((String::new(), "GainLife(3)".to_owned()))
+        );
+        assert_eq!(
+            parsed("you gain three life."),
+            Some((String::new(), "GainLife(3)".to_owned()))
+        );
+    }
+
+    #[test]
+    fn life_declines_unparseable() {
+        assert!(parse_clause("you lose life.").is_none());
+        assert!(parse_clause("you gain X life.").is_none());
     }
 }
