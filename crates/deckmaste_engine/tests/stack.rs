@@ -25,6 +25,13 @@ fn builtin() -> Plugin {
     Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
 }
 
+fn canon() -> Plugin {
+    Plugin::load_with_sibling_prelude(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon"),
+    )
+    .unwrap()
+}
+
 fn red() -> ColorOrColorless { Color::Red.into() }
 fn green() -> ColorOrColorless { Color::Green.into() }
 
@@ -89,11 +96,11 @@ fn force_into_play(state: &mut GameState, player: PlayerId, name: &str) -> Objec
 /// player 0's battlefield. Callers force a Bears onto player 1's battlefield
 /// (as a Bolt target) when they need one.
 fn bolt_game(seed: u64, mountains: usize) -> GameState {
-    let plugin = builtin();
-    let bolt = Arc::new(plugin.card("Lightning Bolt").unwrap());
-    let mountain = Arc::new(plugin.card("Mountain").unwrap());
-    let bears = Arc::new(plugin.card("Grizzly Bears").unwrap());
-    let forest = Arc::new(plugin.card("Forest").unwrap());
+    let canon = canon();
+    let bolt = Arc::new(canon.card("Lightning Bolt").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let bears = Arc::new(canon.card("Grizzly Bears").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap());
     let mut p0 = vec![Arc::clone(&bolt); 5];
     p0.extend(vec![Arc::clone(&mountain); 5]);
     let mut p1 = vec![Arc::clone(&bears); 5];
@@ -115,9 +122,8 @@ fn bolt_game(seed: u64, mountains: usize) -> GameState {
 /// A two-player game where the *casting* player (player 0) holds Grizzly Bears
 /// and Forests. `forests` Forests are forced onto player 0's battlefield.
 fn bears_game(seed: u64, forests: usize) -> GameState {
-    let plugin = builtin();
-    let bears = Arc::new(plugin.card("Grizzly Bears").unwrap());
-    let forest = Arc::new(plugin.card("Forest").unwrap());
+    let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap());
     let mut p0 = vec![Arc::clone(&bears); 5];
     p0.extend(vec![Arc::clone(&forest); 5]);
     let mut state = GameState::new(GameConfig {
@@ -363,11 +369,11 @@ fn sorcery_speed_gate_blocks_bears_off_turn_and_on_a_nonempty_stack() {
     //     R,G,G through the real mana abilities (so `legal` recomputes); the
     //     Bears is timing-blocked while the Bolt (instant) is allowed.
     {
-        let plugin = builtin();
-        let bolt = Arc::new(plugin.card("Lightning Bolt").unwrap());
-        let bears = Arc::new(plugin.card("Grizzly Bears").unwrap());
-        let mountain = Arc::new(plugin.card("Mountain").unwrap());
-        let forest = Arc::new(plugin.card("Forest").unwrap());
+        let canon = canon();
+        let bolt = Arc::new(canon.card("Lightning Bolt").unwrap());
+        let bears = Arc::new(canon.card("Grizzly Bears").unwrap());
+        let mountain = Arc::new(builtin().card("Mountain").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap());
         // 4 Bolt + 4 Bears + 1 Mountain + 1 Forest, fattened with Forests so a
         // Mountain and two Forests are always somewhere in the library and a
         // seed exists with both spell types in the opening hand.
@@ -506,11 +512,11 @@ fn drive_to_off_turn_priority(state: &mut GameState) -> Vec<Action> {
 /// Bolt and a Bears in the opening hand), three Forests forced onto player 0's
 /// battlefield, and player 1 holds a Bears (for use as a Bolt target).
 fn bears_with_bolts() -> GameState {
-    let plugin = builtin();
-    let bolt = Arc::new(plugin.card("Lightning Bolt").unwrap());
-    let bears = Arc::new(plugin.card("Grizzly Bears").unwrap());
-    let mountain = Arc::new(plugin.card("Mountain").unwrap());
-    let forest = Arc::new(plugin.card("Forest").unwrap());
+    let canon = canon();
+    let bolt = Arc::new(canon.card("Lightning Bolt").unwrap());
+    let bears = Arc::new(canon.card("Grizzly Bears").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap());
     let build = |seed: u64| {
         let mut deck = vec![Arc::clone(&bolt); 4];
         deck.extend(vec![Arc::clone(&bears); 2]);
