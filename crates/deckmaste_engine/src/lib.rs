@@ -43,6 +43,8 @@ pub use stack::{Frame, PendingStackEntry, StackEntry, StackObject};
 mod target;
 pub use target::{candidates, matches, object_kind};
 
+mod trigger;
+
 mod state;
 pub use state::{GameConfig, GameOutcome, GameState, PlayerConfig, StartingPlayer};
 
