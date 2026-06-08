@@ -13,7 +13,8 @@ use xtask::resolve::ResolveArgs;
 use xtask::stubs::StubsArgs;
 use xtask::validate::ValidateArgs;
 
-/// Workspace automation: validate, card, migrate, and CR-citation tasks.
+/// Workspace automation: validate, card, generate, stubs, extract, resolve,
+/// graduate, and CR-citation tasks.
 #[derive(Debug, Parser)]
 #[command(name = "cargo xtask", bin_name = "cargo xtask")]
 struct Cli {
