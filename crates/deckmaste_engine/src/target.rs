@@ -78,18 +78,18 @@ mod tests {
         Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
     }
 
-    fn canon() -> Plugin {
+    fn testing() -> Plugin {
         Plugin::load_with_sibling_prelude(
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon"),
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/testing"),
         )
         .unwrap()
     }
 
-    /// A two-player game; player 0's deck is Grizzly Bears, player 1's is
-    /// Forest. Returns the state plus a Bears object moved onto the
+    /// A two-player game; player 0's deck is Vanilla Creature, player 1's is
+    /// Forest. Returns the state plus a creature object moved onto the
     /// battlefield.
     fn game_with_a_bear_on_the_field() -> (GameState, ObjectId) {
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let bears = Arc::new(testing().card("Vanilla Creature").unwrap());
         let forest = Arc::new(builtin().card("Forest").unwrap());
         let mut state = GameState::new(GameConfig {
             players: vec![
@@ -104,7 +104,7 @@ mod tests {
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
         });
-        // Force a Bears from player 0's hand onto the battlefield.
+        // Force a Vanilla Creature from player 0's hand onto the battlefield.
         let bear = *state.zones.hands[0]
             .iter()
             .find(|&&o| {
@@ -116,7 +116,7 @@ mod tests {
                     )),
                 )
             })
-            .expect("a Bears in the opening hand (10-card mono deck)");
+            .expect("a Vanilla Creature in the opening hand (10-card mono deck)");
         state.remove_from_hand(PlayerId(0), bear);
         state.objects.obj_mut(bear).zone = Some(Zone::Battlefield);
         state.zones.battlefield.push(bear);

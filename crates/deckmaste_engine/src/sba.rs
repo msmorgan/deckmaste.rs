@@ -71,19 +71,19 @@ mod tests {
         Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
     }
 
-    fn canon() -> Plugin {
+    fn testing() -> Plugin {
         Plugin::load_with_sibling_prelude(
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon"),
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/testing"),
         )
         .unwrap()
     }
 
     fn deck(card: &Arc<Card>, n: usize) -> Vec<Arc<Card>> { vec![Arc::clone(card); n] }
 
-    /// A two-player game; player 0's deck is Grizzly Bears.
-    /// Returns the state plus a Bears object forced onto the battlefield.
+    /// A two-player game; player 0's deck is Vanilla Creature.
+    /// Returns the state plus a creature object forced onto the battlefield.
     fn bear_on_field() -> (GameState, crate::object::ObjectId) {
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let bears = Arc::new(testing().card("Vanilla Creature").unwrap());
         let forest = Arc::new(builtin().card("Forest").unwrap());
         let mut state = GameState::new(GameConfig {
             players: vec![
@@ -98,7 +98,7 @@ mod tests {
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
         });
-        // Force a Bears from player 0's hand onto the battlefield.
+        // Force a Vanilla Creature from player 0's hand onto the battlefield.
         let bear = *state.zones.hands[0]
             .iter()
             .find(|&&o| {
@@ -110,7 +110,7 @@ mod tests {
                     )),
                 )
             })
-            .expect("a Bears in the opening hand");
+            .expect("a Vanilla Creature in the opening hand");
         state.zones.hands[PlayerId(0).index()].retain(|&o| o != bear);
         state.objects.obj_mut(bear).zone = Some(Zone::Battlefield);
         state.zones.battlefield.push(bear);
@@ -121,14 +121,14 @@ mod tests {
     fn lethal_damage_destroys_a_creature_in_the_sba_sweep() {
         let (mut state, bear) = bear_on_field();
 
-        // Grizzly Bears has toughness 2; set lethal damage.
+        // Vanilla Creature has toughness 2; set lethal damage.
         state.objects.obj_mut(bear).damage = 2;
         let actions = sba::sweep(&state);
         assert!(
             actions
                 .iter()
                 .any(|e| matches!(e, GameEvent::Destroyed(o) if *o == bear)),
-            "sweep should include Destroyed for Bears at lethal damage"
+            "sweep should include Destroyed for Vanilla Creature at lethal damage"
         );
 
         // Sublethal: damage = 1 < toughness 2.
@@ -138,7 +138,7 @@ mod tests {
             actions
                 .iter()
                 .all(|e| !matches!(e, GameEvent::Destroyed(_))),
-            "sweep should NOT include Destroyed for Bears at sublethal damage"
+            "sweep should NOT include Destroyed for Vanilla Creature at sublethal damage"
         );
     }
 
