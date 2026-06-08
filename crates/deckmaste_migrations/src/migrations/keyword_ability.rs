@@ -7,7 +7,7 @@
 //! don't exist yet, so the output is a parked draft (see the `.ron.pending`
 //! state).
 
-use deckmaste_core::ManaCost;
+use deckmaste_core::{ManaCost, ManaSymbol};
 
 use super::to_rust_ident;
 use crate::ron_output::ron_options;
@@ -295,7 +295,7 @@ fn mana_cost_arg(arg: &str) -> anyhow::Result<Option<String>> {
     let Ok(mana) = cost.parse::<ManaCost>() else {
         return Ok(None);
     };
-    if mana.is_empty() {
+    if mana.is_empty() || mana.iter().any(|s| matches!(s, ManaSymbol::Variable)) {
         return Ok(None);
     }
     Ok(Some(format!("[Mana({})]", ron_options().to_string(&mana)?)))
@@ -362,7 +362,8 @@ mod tests {
 
     #[test]
     fn declines_variable_difficult_and_unknown() {
-        assert!(render("Annihilator X").is_none()); // variable
+        assert!(render("Annihilator X").is_none()); // variable integer
+        assert!(render("Ward {X}").is_none()); // variable mana cost
         assert!(render("Protection from black").is_none()); // word arg
         assert!(render("Enchant creature").is_none());
         assert!(render("Cycling—Discard a card").is_none()); // non-mana em-dash cost
