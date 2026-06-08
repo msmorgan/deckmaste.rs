@@ -259,7 +259,7 @@ impl GameState {
     // Two arms produce vec![] for different reasons; keeping them separate
     // preserves the per-step CR references.
     #[expect(clippy::match_same_arms)]
-    fn turn_based_actions(&self, s: StepOrPhase) -> Vec<WorkItem> {
+    fn turn_based_actions(&mut self, s: StepOrPhase) -> Vec<WorkItem> {
         match s {
             // [CR#502.1]: the active player's tapped permanents untap.
             StepOrPhase::Untap => {
@@ -283,9 +283,24 @@ impl GameState {
                 })]
             }
             StepOrPhase::Draw => vec![],
-            // [CR#514.1]: discard to hand size — checked after StepBegan.
-            StepOrPhase::Cleanup => vec![WorkItem::CheckHandSize],
+            // CR 514.1: discard to hand size — checked after StepBegan.
+            // CR 514.2: marked damage is removed from all permanents.
+            StepOrPhase::Cleanup => {
+                self.clear_marked_damage();
+                vec![WorkItem::CheckHandSize]
+            }
             _ => vec![],
+        }
+    }
+
+    /// CR 514.2: remove all marked damage from battlefield permanents when
+    /// the Cleanup step begins.
+    fn clear_marked_damage(&mut self) {
+        // Collect ids first to satisfy the borrow checker (can't hold a
+        // shared ref to `self.zones` while mutably borrowing `self.objects`).
+        let ids: Vec<_> = self.zones.battlefield.clone();
+        for id in ids {
+            self.objects.obj_mut(id).damage = 0;
         }
     }
 
