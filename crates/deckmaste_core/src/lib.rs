@@ -9,6 +9,9 @@ pub use ability::{
 mod action;
 pub use action::Action;
 
+mod count;
+pub use count::{Count, Stat};
+
 mod card;
 pub use card::{Card, CardFace, StatValue};
 
@@ -58,7 +61,7 @@ mod property;
 pub use property::Property;
 
 mod quantity;
-pub use quantity::{Quantity, Stat};
+pub use quantity::Quantity;
 
 mod reference;
 pub use reference::Reference;

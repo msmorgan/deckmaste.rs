@@ -4,8 +4,8 @@
 //! out of the data; the engine never special-cases land subtypes).
 
 use deckmaste_core::{
-    Ability, Action, Card, CardFace, ColorOrColorless, CostComponent, Effect, ManaSpec, Property,
-    Quantity, Uint,
+    Ability, Action, Card, CardFace, ColorOrColorless, CostComponent, Count, Effect, ManaSpec,
+    Property, Uint,
 };
 
 use crate::object::{ObjectId, ObjectSource};
@@ -61,7 +61,7 @@ pub fn tap_mana_ability(ability: &Ability) -> Option<(ColorOrColorless, Uint)> {
             if a.targets.is_empty() && a.cost.as_slice() == [CostComponent::Tap] =>
         {
             match &a.effect {
-                Effect::Act(Action::AddMana(Quantity::Literal(n), ManaSpec::Specific(m))) => {
+                Effect::Act(Action::AddMana(Count::Literal(n), ManaSpec::Specific(m))) => {
                     Some((*m, *n))
                 }
                 _ => None,

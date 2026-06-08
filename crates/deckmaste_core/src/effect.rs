@@ -22,9 +22,7 @@ use crate::ability::TriggeredAbility;
 use crate::action::Action;
 use crate::continuous::{Duration, StaticEffect};
 use crate::mana::ManaSpec;
-use crate::{
-    ChooseSpec, Condition, Expansion, Filter, IdentSeed, Mode, Quantity, Selection, Token,
-};
+use crate::{ChooseSpec, Condition, Count, Expansion, Filter, IdentSeed, Mode, Selection, Token};
 
 /// An effect an ability produces ([CR#608]). Compartmentalized in Rust; flat in
 /// RON (`DrawCards(1)`, never `Act(DrawCards(1))`) via the manual serde below.
@@ -161,15 +159,15 @@ impl<'de> Deserialize<'de> for Effect {
                 Ok(match ident.as_str() {
                     // --- Action verbs (flat through the Act compartment) ---
                     "AddMana" => {
-                        let (n, spec) = v.tuple_variant(2, Pair::<Quantity, ManaSpec>::new())?;
+                        let (n, spec) = v.tuple_variant(2, Pair::<Count, ManaSpec>::new())?;
                         Effect::Act(Action::AddMana(n, spec))
                     }
                     "Create" => {
-                        let (n, token) = v.tuple_variant(2, Pair::<Quantity, Token>::new())?;
+                        let (n, token) = v.tuple_variant(2, Pair::<Count, Token>::new())?;
                         Effect::Act(Action::Create(n, token))
                     }
                     "DealDamage" => {
-                        let (sel, n) = v.tuple_variant(2, Pair::<Selection, Quantity>::new())?;
+                        let (sel, n) = v.tuple_variant(2, Pair::<Selection, Count>::new())?;
                         Effect::Act(Action::DealDamage(sel, n))
                     }
                     "Destroy" => Effect::Act(Action::Destroy(v.newtype_variant()?)),
@@ -243,11 +241,11 @@ mod tests {
     fn verbs_read_flat() {
         assert_eq!(
             read("DrawCards(Literal(1))"),
-            Effect::Act(Action::DrawCards(Quantity::Literal(1))),
+            Effect::Act(Action::DrawCards(Count::Literal(1))),
         );
         assert_eq!(
             read("GainLife(Literal(3))"),
-            Effect::Act(Action::GainLife(Quantity::Literal(3))),
+            Effect::Act(Action::GainLife(Count::Literal(3))),
         );
         assert_eq!(
             read("Sacrifice(This)"),
@@ -255,14 +253,11 @@ mod tests {
         );
         assert_eq!(
             read("DealDamage(Target(0), Literal(3))"),
-            Effect::Act(Action::DealDamage(
-                Selection::Target(0),
-                Quantity::Literal(3)
-            )),
+            Effect::Act(Action::DealDamage(Selection::Target(0), Count::Literal(3))),
         );
         assert_eq!(
             read("AddMana(Literal(1), AnyColor)"),
-            Effect::Act(Action::AddMana(Quantity::Literal(1), ManaSpec::AnyColor)),
+            Effect::Act(Action::AddMana(Count::Literal(1), ManaSpec::AnyColor)),
         );
     }
 
@@ -278,7 +273,7 @@ mod tests {
         assert_eq!(read("Tap(This)"), Effect::Act(Action::Tap(Selection::This)),);
         assert_eq!(
             read("Discard(Literal(1))"),
-            Effect::Act(Action::Discard(Quantity::Literal(1))),
+            Effect::Act(Action::Discard(Count::Literal(1))),
         );
     }
 
@@ -289,8 +284,8 @@ mod tests {
         assert_eq!(
             read("Sequence([DrawCards(Literal(1)), GainLife(Literal(1))])"),
             Effect::Sequence(vec![
-                Effect::Act(Action::DrawCards(Quantity::Literal(1))),
-                Effect::Act(Action::GainLife(Quantity::Literal(1))),
+                Effect::Act(Action::DrawCards(Count::Literal(1))),
+                Effect::Act(Action::GainLife(Count::Literal(1))),
             ]),
         );
         let may = read("May(effect: DrawCards(Literal(1)))");
@@ -299,7 +294,7 @@ mod tests {
         };
         assert_eq!(
             *may.effect,
-            Effect::Act(Action::DrawCards(Quantity::Literal(1)))
+            Effect::Act(Action::DrawCards(Count::Literal(1)))
         );
         assert!(may.if_did.is_none() && may.if_not.is_none());
     }
@@ -307,7 +302,7 @@ mod tests {
     #[test]
     fn act_serializes_flat() {
         assert_eq!(
-            write(&Effect::Act(Action::DrawCards(Quantity::Literal(1)))),
+            write(&Effect::Act(Action::DrawCards(Count::Literal(1)))),
             "DrawCards(Literal(1))"
         );
     }

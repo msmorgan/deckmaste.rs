@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::continuous::Duration;
-use crate::{Effect, Event, Filter, Quantity, StepOrPhase};
+use crate::{Count, Effect, Event, Filter, StepOrPhase};
 
 /// A replacement effect: the CR's closed template list ([CR#614]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
@@ -21,7 +21,7 @@ pub enum Replacement {
 pub enum Prevention {
     /// Prevent the next N damage from `from` to `to` ([CR#615.7]).
     PreventNext {
-        n: Quantity,
+        n: Count,
         from: Filter,
         to: Filter,
         duration: Duration,

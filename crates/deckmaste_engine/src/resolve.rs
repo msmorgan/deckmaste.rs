@@ -1,7 +1,7 @@
 //! Resolution ([CR#608]): dispatch a stack object, and walk its `Effect` AST as
 //! reified agenda work. Stage 3 wires the corpus's arms; the rest are `todo!`.
 
-use deckmaste_core::{Ability, Action, Effect, Quantity, Selection, TargetSpec, Type, Uint, Zone};
+use deckmaste_core::{Ability, Action, Count, Effect, Selection, TargetSpec, Type, Uint, Zone};
 
 use crate::agenda::WorkItem;
 use crate::event::{GameEvent, Occurrence};
@@ -142,7 +142,7 @@ impl GameState {
         use crate::event::Occurrence;
         match action {
             Action::DealDamage(sel, qty) => {
-                let amount = self.eval_quantity(qty, frame);
+                let amount = self.eval_count(qty, frame);
                 let targets = self.eval_selection_set(sel, frame);
                 let events: Vec<GameEvent> = targets
                     .into_iter()
@@ -165,7 +165,7 @@ impl GameState {
             Action::DrawCards(qty) => {
                 // TODO(stage-4): emit as ZoneWillChange (action-driven collapse, §5.6);
                 //   also needs the deferred WillDrawCards intent (spec §11).
-                let n = self.eval_quantity(qty, frame);
+                let n = self.eval_count(qty, frame);
                 (0..n)
                     .map(|_| {
                         WorkItem::Emit(Occurrence::Single(GameEvent::CardDrawn {
@@ -176,7 +176,7 @@ impl GameState {
                     .collect()
             }
             Action::LoseLife(qty) => {
-                let amount = self.eval_quantity(qty, frame);
+                let amount = self.eval_count(qty, frame);
                 vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeLost {
                     player: frame.controller,
                     amount,
@@ -224,19 +224,19 @@ impl GameState {
         }
     }
 
-    /// Evaluate a `Quantity` to a concrete number.
+    /// Evaluate a `Count` to a concrete number.
     ///
     /// # Panics
     ///
-    /// Panics on a `Quantity` not wired for Stage 3.
+    /// Panics on a `Count` not wired for Stage 3.
     #[expect(
         clippy::unused_self,
-        reason = "future Quantity arms (X, StatOf, …) will read self"
+        reason = "future Count arms (X, StatOf, …) will read self"
     )]
-    fn eval_quantity(&self, qty: &Quantity, _frame: &Frame) -> Uint {
+    fn eval_count(&self, qty: &Count, _frame: &Frame) -> Uint {
         match qty {
-            Quantity::Literal(n) => *n,
-            other => todo!("stage 3 does not evaluate quantity {other:?}"),
+            Count::Literal(n) => *n,
+            other => todo!("stage 3 does not evaluate count {other:?}"),
         }
     }
 
@@ -379,7 +379,7 @@ mod tests {
 
     use deckmaste_cards::plugin::Plugin;
     use deckmaste_core::{
-        Action, Card, CharacteristicFilter, Effect, Filter, ObjectKind, Quantity, Selection,
+        Action, Card, CharacteristicFilter, Count, Effect, Filter, ObjectKind, Selection,
         StateFilter, Type, Zone,
     };
 
@@ -459,7 +459,7 @@ mod tests {
         );
 
         // DrawCards(2) -> two sequential Single(CardDrawn) for the controller
-        let items = state.action_items(&Action::DrawCards(Quantity::Literal(2)), &frame);
+        let items = state.action_items(&Action::DrawCards(Count::Literal(2)), &frame);
         assert_eq!(items.len(), 2);
         assert!(items.iter().all(|item| matches!(
             item,
@@ -470,7 +470,7 @@ mod tests {
         )));
 
         // LoseLife(3) -> one Single(LifeLost{player0, 3})
-        let items = state.action_items(&Action::LoseLife(Quantity::Literal(3)), &frame);
+        let items = state.action_items(&Action::LoseLife(Count::Literal(3)), &frame);
         assert_eq!(
             items,
             vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeLost {
@@ -532,7 +532,7 @@ mod tests {
         // Build the effect directly: DealDamage(Each(Kind(Player)), 20)
         let effect = Effect::Act(Action::DealDamage(
             Selection::Each(Filter::Kind(ObjectKind::Player)),
-            Quantity::Literal(20),
+            Count::Literal(20),
         ));
         state.run_effect(effect, &frame);
 
@@ -595,7 +595,7 @@ mod tests {
                 Filter::State(StateFilter::InZone(Zone::Battlefield)),
                 Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
             ])),
-            Quantity::Literal(2),
+            Count::Literal(2),
         ));
         state.run_effect(effect, &frame);
 

@@ -92,7 +92,7 @@ mod tests {
                 ],
                 targets: vec![],
                 effect: Effect::Act(Action::AddMana(
-                    crate::Quantity::Literal(1),
+                    crate::Count::Literal(1),
                     ManaSpec::AnyColor
                 )),
             })]

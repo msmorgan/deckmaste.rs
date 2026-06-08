@@ -5,7 +5,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::replacement::{Prevention, Replacement};
 use crate::{
-    Ability, Color, Condition, CostComponent, Event, Expansion, Filter, Ident, IdentSeed, Quantity,
+    Ability, Color, Condition, CostComponent, Count, Event, Expansion, Filter, Ident, IdentSeed,
     Reference, Supertype, Type,
 };
 
@@ -50,10 +50,10 @@ pub enum Scope {
 /// because it can span layers applied to the same set ([CR#613.6]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Modification {
-    SetPower(Quantity),
-    AddPower(Quantity),
-    SetToughness(Quantity),
-    AddToughness(Quantity),
+    SetPower(Count),
+    AddPower(Count),
+    SetToughness(Count),
+    AddToughness(Count),
     /// Switch power and toughness ([CR#613.4d]).
     SwitchPowerToughness,
     SetColors(Vec<Color>),
@@ -79,9 +79,9 @@ pub enum Modification {
     /// Change text ([CR#613.1c]).
     SetText(String),
     /// Set base loyalty ([CR#613.1d], planeswalker).
-    SetBaseLoyalty(Quantity),
+    SetBaseLoyalty(Count),
     /// Set base defense (battle).
-    SetBaseDefense(Quantity),
+    SetBaseDefense(Count),
     /// The [CR#305.7] bundle: replace land types ∧ lose printed abilities ∧
     /// gain the basic-land mana ability (Blood Moon). One intrinsic, not
     /// reachable from the plain `Set*` ops.
@@ -282,8 +282,8 @@ mod tests {
                     Type::Creature
                 ))),
                 changes: vec![
-                    Modification::AddPower(Quantity::Literal(1)),
-                    Modification::AddToughness(Quantity::Literal(1)),
+                    Modification::AddPower(Count::Literal(1)),
+                    Modification::AddToughness(Count::Literal(1)),
                 ],
             },
         );

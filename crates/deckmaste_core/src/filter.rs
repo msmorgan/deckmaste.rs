@@ -4,8 +4,7 @@ use serde::de::{self, EnumAccess, SeqAccess, VariantAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
-    Cmp, Color, Expansion, Ident, IdentSeed, Quantity, Reference, Stat, Status, Supertype, Type,
-    Zone,
+    Cmp, Color, Count, Expansion, Ident, IdentSeed, Reference, Stat, Status, Supertype, Type, Zone,
 };
 
 /// What kind of object something is ([CR#109.1]). Players are objects here
@@ -34,7 +33,7 @@ pub enum CharacteristicFilter {
     /// A printed/defined stat compares as stated, e.g.
     /// `Stat(Power, AtLeast, 3)` — mana value via `Stat(ManaValue, …)`
     /// ([CR#208,202.3]).
-    Stat(Stat, Cmp, Quantity),
+    Stat(Stat, Cmp, Count),
     /// The object has the named keyword ability ([CR#702]).
     HasAbility(Ident),
 }
@@ -135,8 +134,8 @@ const VARIANTS: &[&str] = &[
     "Expanded",
 ];
 
-// Visitor for the 3-tuple `Stat(Stat, Cmp, Quantity)` atom.
-struct StatTriple(Stat, Cmp, Quantity);
+// Visitor for the 3-tuple `Stat(Stat, Cmp, Count)` atom.
+struct StatTriple(Stat, Cmp, Count);
 
 struct StatTripleVisitor;
 
@@ -144,7 +143,7 @@ impl<'de> Visitor<'de> for StatTripleVisitor {
     type Value = StatTriple;
 
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("a (Stat, Cmp, Quantity) tuple")
+        f.write_str("a (Stat, Cmp, Count) tuple")
     }
 
     fn visit_seq<S: SeqAccess<'de>>(self, mut seq: S) -> Result<Self::Value, S::Error> {
@@ -315,7 +314,7 @@ mod tests {
             Filter::Characteristic(CharacteristicFilter::Stat(
                 Stat::Power,
                 Cmp::AtLeast,
-                Quantity::Literal(3),
+                Count::Literal(3),
             )),
         );
         assert_eq!(
