@@ -51,6 +51,9 @@ const MIGRATIONS: &[&dyn Migration] = &[
     &_005_basic_lands::BasicLands,
     &_006_vanilla_creatures::VanillaCreatures,
     &_007_simple_lands::SimpleLands,
+    &_008_french_vanilla_creatures::FrenchVanillaCreatures,
+    &_009_simple_mana_rocks::SimpleManaRocks,
+    &_010_simple_mana_dorks::SimpleManaDorks,
 ];
 
 /// Apply every migration to the plugin in order.
