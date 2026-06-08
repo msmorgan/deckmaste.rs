@@ -65,6 +65,28 @@ pub fn final_for_todo(todo_name: &str) -> Option<String> {
         .map(|stem| format!("{stem}.ron"))
 }
 
+/// The in-progress suffix for the resolution pipeline: a Card-shaped definition
+/// that hasn't graduated yet. Distinct from the legacy [`TODO_SUFFIX`]
+/// (`.todo.ron`) stub. Its extension is `.todo` (not `ron`), so every `*.ron`
+/// glob — the plugin loader, `validate`, the macros/types reads — skips it for
+/// free.
+pub const RON_TODO_SUFFIX: &str = ".ron.todo";
+
+/// Whether `path` names a `.ron.todo` (an ungraduated Card-shaped definition).
+#[must_use]
+pub fn is_ron_todo_file(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.ends_with(RON_TODO_SUFFIX))
+}
+
+/// The graduated file name for a `.ron.todo`: `"Foo.ron.todo"` -> `"Foo.ron"`.
+/// `None` if `name` isn't a [`RON_TODO_SUFFIX`] file.
+#[must_use]
+pub fn graduated_name(name: &str) -> Option<String> {
+    name.strip_suffix(".todo").map(str::to_owned)
+}
+
 /// Whether card-file source is still an unimplemented stub. A stub is any
 /// file with a line starting (modulo indentation) with `Todo(` — checked
 /// per line because the `Todo(` may follow a `// CR ...` comment line, so
@@ -153,6 +175,27 @@ mod tests {
         );
         // Not a stub name: nothing to graduate.
         assert_eq!(final_for_todo("Plains.ron"), None);
+    }
+
+    #[test]
+    fn ron_todo_recognition() {
+        assert!(is_ron_todo_file(Path::new("cards/Sol Ring.ron.todo")));
+        // A finished `.ron` and a legacy `.todo.ron` stub are not `.ron.todo`.
+        assert!(!is_ron_todo_file(Path::new("cards/Sol Ring.ron")));
+        assert!(!is_ron_todo_file(Path::new("cards/Sol Ring.todo.ron")));
+    }
+
+    #[test]
+    fn graduated_names() {
+        assert_eq!(
+            graduated_name("Sol Ring.ron.todo").as_deref(),
+            Some("Sol Ring.ron")
+        );
+        assert_eq!(
+            graduated_name("Fire {slash}{slash} Ice.ron.todo").as_deref(),
+            Some("Fire {slash}{slash} Ice.ron")
+        );
+        assert_eq!(graduated_name("Sol Ring.ron"), None);
     }
 
     #[test]
