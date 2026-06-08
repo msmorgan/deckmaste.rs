@@ -11,7 +11,7 @@ use crate::data::mtgjson::AtomicCard;
 use crate::ron_output::to_string_pretty;
 
 // We count non-null, non-"Banned" as legal.
-fn is_supported(card: &AtomicCard) -> bool {
+pub(crate) fn is_supported(card: &AtomicCard) -> bool {
     card.legalities.vintage.as_deref().unwrap_or("Banned") != "Banned"
         && card.layout.as_str() != "reversible_card"
 }
@@ -28,7 +28,7 @@ fn capitalize(text: &str) -> String {
 /// Removes single-line parentheticals (reminder text), keeping at most one
 /// of the surrounding spaces. Lines that consisted solely of reminder text
 /// are dropped entirely.
-fn strip_reminder_text(text: &str) -> String {
+pub(crate) fn strip_reminder_text(text: &str) -> String {
     static PARENTHETICAL: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r" ?\([^)\n]+\)( ?)").unwrap());
 
@@ -57,7 +57,7 @@ fn starts_with_capitalized(item: &str, keyword: &str) -> bool {
 /// Splits lines that are comma-separated lists of keyword abilities into one
 /// keyword per line, e.g. "Flying, vigilance" -> "Flying\nVigilance".
 /// Most lines aren't keyword lists, so nothing is allocated until one is.
-fn expand_keyword_lines(text: &str, keyword_abilities: &[DataStr<'_>]) -> String {
+pub(crate) fn expand_keyword_lines(text: &str, keyword_abilities: &[DataStr<'_>]) -> String {
     let is_keyword = |item: &str| {
         keyword_abilities
             .iter()
@@ -95,7 +95,7 @@ fn replace_whole_word(text: &str, name: &str) -> String {
 /// "Boromir" from "Boromir, Gondor's Hope") is also collapsed -- unless it is
 /// a keyword ability ("Storm") or shorter than three characters ("Me"), both
 /// too collision-prone to replace blindly.
-fn self_ref_to_tilde(
+pub(crate) fn self_ref_to_tilde(
     text: &str,
     face_name: &str,
     is_legendary: bool,
@@ -147,7 +147,7 @@ fn this_self_ref_to_tilde(text: &str) -> String {
     THIS_NOUN.replace_all(text, "~").into_owned()
 }
 
-fn ron_color(code: &str) -> anyhow::Result<Color> {
+pub(crate) fn ron_color(code: &str) -> anyhow::Result<Color> {
     Color::from_code(code).ok_or_else(|| anyhow::anyhow!("unrecognized color indicator: {code:?}"))
 }
 
