@@ -2,3 +2,4 @@
 /data/
 /plugins/*/
 !/plugins/builtin/
+!/plugins/canon/

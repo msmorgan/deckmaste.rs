@@ -2,20 +2,18 @@
 //! the subtype declarations invoking them, and the basic land cards whose
 //! type lines reference the result.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::ron::options as ron_options;
 use deckmaste_core::{
-    Ability, Action, ActivatedAbility, Card, CardFace, CharacteristicFilter, Color,
-    ColorOrColorless, CostComponent, Effect, Expansion, ExpansionArgs, Filter, ManaCost, ManaSpec,
-    ObjectKind, Property, Quantity, Selection, SpellAbility, StatValue, StateFilter, Subtype,
-    Supertype, TargetSpec, Type, Zone,
+    Ability, Action, ActivatedAbility, Card, CardFace, Color, ColorOrColorless, CostComponent,
+    Effect, ManaCost, ManaSpec, Property, Quantity, Subtype, Supertype, Type,
 };
 
-fn builtin() -> Plugin {
-    Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
-}
+fn builtin_path() -> PathBuf { Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin") }
+
+fn builtin() -> Plugin { Plugin::load(builtin_path()).unwrap() }
 
 /// What a basic land type's declaration expands to: the subtype plus its
 /// intrinsic mana ability (CR 305.6), conferred as data.
@@ -56,6 +54,29 @@ fn basic_land(name: &str) -> Card {
         subtypes: vec![basic_land_subtype(name, basic_color(name))],
         ..Default::default()
     })
+}
+
+/// builtin is the prelude every other plugin depends on, so this guards it
+/// under plain `cargo test`; wizards is the explicit
+/// `cargo xtask validate plugins/wizards`.
+#[test]
+fn builtin_cards_are_valid() {
+    let validation = deckmaste_cards::validate::validate_plugin(&builtin_path()).unwrap();
+    for failure in &validation.failures {
+        eprintln!("{}: {}", failure.path.display(), failure.error);
+    }
+    for (path, msg) in &validation.lint_failures {
+        eprintln!("{}: lint: {msg}", path.display());
+    }
+    assert!(validation.failures.is_empty());
+    assert!(validation.lint_failures.is_empty());
+    // The handwritten builtin cards: 5 basics + 3 tokens at the time of writing.
+    // Floor, not exact, so adding cards or tokens doesn't break the test.
+    assert!(
+        validation.valid >= 8,
+        "only {} items checked",
+        validation.valid
+    );
 }
 
 #[test]
@@ -104,66 +125,6 @@ fn declared_subtypes_cover_the_basics() {
         let expanded: Subtype = plugin.macros.read_str(name).unwrap();
         assert_eq!(Some(&expanded), plugin.subtypes.get(name));
     }
-}
-
-/// The `CreatureType` macro path through real data: `subtypes: [Bear]`
-/// resolves the declaration, which invokes `CreatureType("Bear")`.
-#[test]
-fn grizzly_bears_expand_the_creature_type_macro() {
-    let card = builtin().card("Grizzly Bears").unwrap();
-    let Card::Normal(face) = card else {
-        panic!("Grizzly Bears should be single-faced");
-    };
-    assert_eq!(face.types, vec![Type::Creature]);
-    assert_eq!(
-        face.subtypes,
-        vec![Subtype {
-            name: "Bear".into(),
-            types: vec![Type::Creature, Type::Kindred],
-            confers: vec![],
-        }]
-    );
-    assert_eq!(face.power, Some(StatValue::Number(2)));
-    assert_eq!(face.toughness, Some(StatValue::Number(2)));
-}
-
-/// Filter-position interception through real data: `Target(AnyTarget)`
-/// expands `AnyTarget` at the Selection's Filter payload.
-#[test]
-fn lightning_bolt_expands_filter_macros() {
-    let card = builtin().card("Lightning Bolt").unwrap();
-    let Card::Normal(face) = card else {
-        panic!("Lightning Bolt should be single-faced");
-    };
-    let permanent_of = |t: Type| {
-        Filter::AllOf(vec![
-            Filter::State(StateFilter::InZone(Zone::Battlefield)),
-            Filter::Characteristic(CharacteristicFilter::Type(t)),
-        ])
-    };
-    let any_target_value = Filter::OneOf(vec![
-        permanent_of(Type::Battle),
-        permanent_of(Type::Creature),
-        permanent_of(Type::Planeswalker),
-        Filter::Kind(ObjectKind::Player),
-    ]);
-    // `AnyTarget` is a remembered Filter macro: the invocation survives,
-    // wrapping the expanded predicate under `.value`.
-    let any_target = Filter::Expanded(Expansion {
-        name: "AnyTarget".into(),
-        args: ExpansionArgs::none(),
-        value: Box::new(any_target_value),
-    });
-    assert_eq!(
-        face.abilities,
-        vec![Ability::Spell(SpellAbility {
-            targets: vec![TargetSpec::Target(any_target)],
-            effect: Effect::Act(Action::DealDamage(
-                Selection::Target(0),
-                Quantity::Literal(3)
-            )),
-        })]
-    );
 }
 
 #[test]

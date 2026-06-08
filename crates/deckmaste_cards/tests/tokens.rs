@@ -122,9 +122,9 @@ fn validate_builtin_with_tokens_has_no_failures() {
         "{} lint failure(s)",
         validation.lint_failures.len()
     );
-    // 7 cards + 3 tokens = 10 minimum.
+    // 5 cards + 3 tokens = 8 minimum.
     assert!(
-        validation.valid >= 10,
+        validation.valid >= 8,
         "only {} items validated",
         validation.valid
     );
