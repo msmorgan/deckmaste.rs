@@ -288,9 +288,16 @@ fn bolt_kills_grizzly_bears() {
         )),
         "3 damage dealt to the Vanilla Creature, trace: {trace:?}"
     );
+    // [CR#400.7]: the old ObjectId is gone; check that the SBA fired and a
+    // new object landed in P1's graveyard instead.
     assert!(
-        state.zones.graveyards[1].contains(&bear),
-        "Vanilla Creature destroyed to P1's graveyard ([CR#704.5g])"
+        state.objects.get(bear).is_none(),
+        "old Vanilla Creature id must be gone after reminting"
+    );
+    assert_eq!(
+        state.zones.graveyards[1].len(),
+        1,
+        "exactly one object (the reminted creature) in P1's graveyard ([CR#704.5g])"
     );
     assert!(
         state.zones.graveyards[0].contains(&bolt),
@@ -696,7 +703,9 @@ fn second_bolt_fizzles_when_its_target_is_already_dead() {
             StepOutcome::NeedsDecision(other) => panic!("unexpected decision: {other:?}"),
             StepOutcome::GameOver(_) => break,
         }
-        if state.stack.is_empty() && state.zones.graveyards[1].contains(&bear) {
+        // [CR#400.7]: after reminting, the old `bear` id is gone — break when the
+        // stack is empty and P1's graveyard has a (new) object in it.
+        if state.stack.is_empty() && !state.zones.graveyards[1].is_empty() {
             // Drain any remaining priority passes for the empty stack, then stop.
             break;
         }
@@ -706,9 +715,15 @@ fn second_bolt_fizzles_when_its_target_is_already_dead() {
         damage_events, 1,
         "only the top instant dealt damage; the second fizzled ([CR#608.2b])"
     );
+    // [CR#400.7]: old id gone; graveyard has the reminted creature.
     assert!(
-        state.zones.graveyards[1].contains(&bear),
-        "the Vanilla Creature died to the first instant"
+        state.objects.get(bear).is_none(),
+        "old Vanilla Creature id must be gone after reminting"
+    );
+    assert_eq!(
+        state.zones.graveyards[1].len(),
+        1,
+        "the Vanilla Creature died to the first instant ([CR#704.5g])"
     );
     assert!(
         state.zones.graveyards[0].contains(&bolt_a) && state.zones.graveyards[0].contains(&bolt_b),

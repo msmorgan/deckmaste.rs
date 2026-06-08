@@ -44,7 +44,9 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
             if toughness > 0 {
                 #[expect(clippy::cast_sign_loss)]
                 if obj.damage >= toughness as deckmaste_core::Uint {
-                    actions.push(GameEvent::Destroyed(id));
+                    actions.push(GameEvent::Destroyed {
+                        snapshot: crate::lki::LkiSnapshot::capture(state, id),
+                    });
                 }
             }
         }
@@ -61,7 +63,8 @@ mod tests {
     use deckmaste_cards::plugin::Plugin;
     use deckmaste_core::{Card, Filter, Type, Zone};
 
-    use crate::event::GameEvent;
+    use crate::agenda::WorkItem;
+    use crate::event::{GameEvent, Occurrence};
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
     use crate::state::{GameConfig, GameState, PlayerConfig, StartingPlayer};
@@ -127,7 +130,7 @@ mod tests {
         assert!(
             actions
                 .iter()
-                .any(|e| matches!(e, GameEvent::Destroyed(o) if *o == bear)),
+                .any(|e| matches!(e, GameEvent::Destroyed { snapshot } if snapshot.object == bear)),
             "sweep should include Destroyed for Vanilla Creature at lethal damage"
         );
 
@@ -137,7 +140,7 @@ mod tests {
         assert!(
             actions
                 .iter()
-                .all(|e| !matches!(e, GameEvent::Destroyed(_))),
+                .all(|e| !matches!(e, GameEvent::Destroyed { .. })),
             "sweep should NOT include Destroyed for Vanilla Creature at sublethal damage"
         );
     }
@@ -155,5 +158,33 @@ mod tests {
             ObjectSource::Player(_)
         ));
         assert!(!state.zones.battlefield.contains(&proxy));
+    }
+
+    /// [CR#400.7]: when a creature is destroyed, the old `ObjectId` is removed
+    /// from the store entirely, and a fresh `ObjectId` is minted in the owner's
+    /// graveyard. The `LkiSnapshot` rides the event.
+    #[test]
+    fn destroy_remints_old_id_gone_new_in_graveyard() {
+        let (mut state, bear) = bear_on_field();
+        // Vanilla Creature has toughness 2; set lethal damage.
+        state.objects.obj_mut(bear).damage = 2;
+        let actions = sba::sweep(&state);
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(actions))]);
+        let _ = state.step();
+        assert!(
+            state.objects.get(bear).is_none(),
+            "old battlefield id must be gone from the object store"
+        );
+        assert!(
+            !state.zones.battlefield.contains(&bear),
+            "old id must not remain on the battlefield"
+        );
+        assert_eq!(
+            state.zones.graveyards[0].len(),
+            1,
+            "owner's graveyard must contain exactly one object"
+        );
+        let new = state.zones.graveyards[0][0];
+        assert_ne!(new, bear, "graveyard object must have a fresh ObjectId");
     }
 }
