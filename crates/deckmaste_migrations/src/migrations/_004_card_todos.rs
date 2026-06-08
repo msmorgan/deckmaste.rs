@@ -113,10 +113,38 @@ fn self_ref_to_tilde(
                 .any(|kw| kw.as_str().eq_ignore_ascii_case(short))
         });
 
-    match short {
+    let named = match short {
         Some(short) => replace_whole_word(&out, short),
         None => out,
-    }
+    };
+    this_self_ref_to_tilde(&named)
+}
+
+/// Collapses generic "this `<noun>`" / "This `<noun>`" self-references to `~`,
+/// independent of the card's name. `~` denotes the object the text belongs to
+/// -- the card itself, or, inside a granted (quoted) ability, the token gaining
+/// it -- so this is a blind whole-phrase substitution: WotC templating reserves
+/// "this X" for the source object (any other object is "that"/"it"/"the X"), so
+/// one line may legitimately yield two `~`s (a card and a token it makes).
+///
+/// The noun set is fixed and **case-sensitive**: lowercase card-type and
+/// generic nouns, plus the capitalized permanent-subtype nouns that occur in
+/// the corpus. Case-sensitivity is load-bearing -- it keeps lowercase English
+/// ("in this case", "this way") from matching the subtype `Case`. Nouns that
+/// never denote the object stay literal (turn, way, mana, ability, combat,
+/// effect, phase, step, game).
+///
+/// `door` is deliberately left out for now: very borderline -- "this door" is
+/// one half of a Room, not the whole card, and a lowercase common word risks
+/// collisions. (Capitalized `Room` is included -- it self-refs the whole card.)
+fn this_self_ref_to_tilde(text: &str) -> String {
+    static THIS_NOUN: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(
+            r"\b[Tt]his (creature|land|artifact|enchantment|planeswalker|battle|permanent|spell|card|token|Aura|Equipment|Vehicle|Saga|Siege|Class|Spacecraft|Case|Room)\b",
+        )
+        .expect("self-reference noun pattern is valid")
+    });
+    THIS_NOUN.replace_all(text, "~").into_owned()
 }
 
 fn ron_color(code: &str) -> anyhow::Result<Color> {
@@ -352,6 +380,90 @@ mod tests {
         assert_eq!(
             self_ref_to_tilde("Draw a card.", "Some Other Card", false, no_kw),
             "Draw a card."
+        );
+    }
+
+    /// The generic "this <noun>" pass is name-independent, so an unrelated
+    /// face name exercises it in isolation. `~` is the object the text belongs
+    /// to — the card, or, inside a granted (quoted) ability, the token.
+    #[test]
+    fn generic_self_reference() {
+        let no_kw: &[DataStr] = &[];
+        let tilde = |text: &str| self_ref_to_tilde(text, "Unrelated Name", false, no_kw);
+
+        // Card-type nouns (lowercase), leading and mid-sentence.
+        assert_eq!(tilde("This land enters tapped."), "~ enters tapped.");
+        assert_eq!(tilde("Sacrifice this creature."), "Sacrifice ~.");
+        assert_eq!(tilde("This creature can't block."), "~ can't block.");
+        assert_eq!(
+            tilde("Return this artifact to its owner's hand."),
+            "Return ~ to its owner's hand."
+        );
+        assert_eq!(tilde("When this enchantment enters"), "When ~ enters");
+        assert_eq!(tilde("Exile this permanent."), "Exile ~.");
+
+        // Generic nouns: spell / card.
+        assert_eq!(
+            tilde("When you cast this spell, draw a card."),
+            "When you cast ~, draw a card."
+        );
+        assert_eq!(
+            tilde("Discard this card: Draw a card."),
+            "Discard ~: Draw a card."
+        );
+
+        // Capitalized permanent-subtype nouns.
+        assert_eq!(tilde("Sacrifice this Saga."), "Sacrifice ~.");
+        assert_eq!(tilde("When this Vehicle attacks"), "When ~ attacks");
+        assert_eq!(
+            tilde("Solved — Sacrifice this Case:"),
+            "Solved — Sacrifice ~:"
+        );
+        assert_eq!(tilde("When this Room is unlocked"), "When ~ is unlocked");
+
+        // A token's granted (quoted) ability self-refs the token, so it tildes.
+        assert_eq!(
+            tilde(
+                r#"create a 0/1 Eldrazi Spawn creature token with "Sacrifice this token: Add {C}.""#
+            ),
+            r#"create a 0/1 Eldrazi Spawn creature token with "Sacrifice ~: Add {C}.""#
+        );
+        // Two ~ on one line: the card, then the token it makes.
+        assert_eq!(
+            tilde(
+                r#"When this creature dies, create a 1/1 token with "this creature can't block.""#
+            ),
+            r#"When ~ dies, create a 1/1 token with "~ can't block.""#
+        );
+
+        // Possessive keeps the trailing 's (apostrophe is a word boundary).
+        assert_eq!(
+            tilde("this creature's controller draws a card."),
+            "~'s controller draws a card."
+        );
+
+        // Non-matches: the bare word (no "this"), excluded nouns, lowercase "case".
+        assert_eq!(tilde("Destroy all creatures."), "Destroy all creatures.");
+        assert_eq!(
+            tilde("Draw two cards this turn."),
+            "Draw two cards this turn."
+        );
+        assert_eq!(tilde("In this case, you win."), "In this case, you win.");
+        assert_eq!(tilde("Add this much mana."), "Add this much mana.");
+        assert_eq!(
+            tilde("Activate this ability only once each turn."),
+            "Activate this ability only once each turn."
+        );
+
+        // Composes with the name pass: both the name and the "this land" collapse.
+        assert_eq!(
+            self_ref_to_tilde(
+                "Coastal Tower enters tapped. This land taps for mana.",
+                "Coastal Tower",
+                false,
+                no_kw
+            ),
+            "~ enters tapped. ~ taps for mana."
         );
     }
 }
