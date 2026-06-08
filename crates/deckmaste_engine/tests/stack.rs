@@ -155,6 +155,11 @@ fn step_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
 /// Steps until a `Priority` decision surfaces for `player` in `phase`, passing
 /// any other priority along the way. Returns the legal action list at that
 /// window.
+///
+/// When a `PayMana` decision surfaces mid-cast for an all-colored cost
+/// (generic == 0, so `Payment { generic: vec![] }` is the only valid answer),
+/// this function auto-answers it and continues. Costs with a generic component
+/// must be answered explicitly before calling this helper.
 fn run_to_priority(state: &mut GameState, player: PlayerId, phase: StepOrPhase) -> Vec<Action> {
     loop {
         let (_, stop) = step_to_stop(state);
@@ -166,6 +171,14 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: StepOrPhase) 
             }
             StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+                // Auto-answer all-colored costs (generic == 0). Callers that
+                // cast spells with a generic component must answer PayMana
+                // explicitly before invoking run_to_priority.
+                state
+                    .submit_decision(Decision::Pay(Payment { generic: vec![] }))
+                    .unwrap_or_else(|e| panic!("auto-pay failed (cost has a generic component — answer PayMana explicitly before run_to_priority): {e}"));
             }
             other => panic!("unexpected stop before {player:?} priority in {phase:?}: {other:?}"),
         }
@@ -306,9 +319,20 @@ fn grizzly_bears_resolves_to_a_two_two_on_the_battlefield() {
     float_mana(&mut state, PlayerId(0), 2); // G, G
     let bears = find_in_hand(&state, PlayerId(0), "Grizzly Bears");
 
-    // Sorcery-speed cast, no targets, no payment choice (forced from G,G).
+    // Sorcery-speed cast, no targets; PayMana surfaces for {1}{G} from G,G.
     state
         .submit_decision(Decision::Act(Action::CastSpell { object: bears }))
+        .unwrap();
+    // PayMana must be answered: {G} takes one green pip (forced by color),
+    // {1} takes the other green — the only legal allocation from G,G.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
+        panic!("expected PayMana for {{1}}{{G}}, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Pay(Payment {
+            generic: vec![green()],
+        }))
         .unwrap();
     let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
     assert_eq!(state.stack.len(), 1, "the Bears spell is on the stack");
@@ -522,30 +546,45 @@ fn bears_with_bolts() -> GameState {
 }
 
 #[test]
-fn paymana_surfaces_with_a_choice_and_auto_pays_when_forced() {
-    // (a) Forced: {1}{G} from a G,G pool auto-pays — no PayMana surfaces.
+fn paymana_surfaces_for_every_cast() {
+    // (a) All-colored cost: Bolt {R} from a R pool surfaces PayMana even
+    //     though there is only one legal allocation (empty generic).
     {
-        let mut state = bears_game(1, 2);
+        let mut state = bolt_game(1, 1);
+        let bear = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
         let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
-        float_mana(&mut state, PlayerId(0), 2); // G, G
-        let bears = find_in_hand(&state, PlayerId(0), "Grizzly Bears");
+        float_mana(&mut state, PlayerId(0), 1); // R
+        let bolt = find_in_hand(&state, PlayerId(0), "Lightning Bolt");
         state
-            .submit_decision(Decision::Act(Action::CastSpell { object: bears }))
+            .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
             .unwrap();
-        // The cast proceeds straight to the caster's priority — no PayMana.
+        // ChooseTargets surfaces first (Bolt targets).
         let (_, stop) = step_to_stop(&mut state);
+        let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+            panic!("expected ChooseTargets, got {stop:?}");
+        };
+        state
+            .submit_decision(Decision::Targets(vec![bear]))
+            .unwrap();
+        // PayMana MUST surface — the core never auto-pays, even for {R}.
+        let (_, stop) = step_to_stop(&mut state);
+        let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
+            panic!("expected PayMana for {{R}} (always explicit), got {stop:?}");
+        };
+        // {R} has no generic: empty Payment is the only valid answer.
+        state
+            .submit_decision(Decision::Pay(Payment { generic: vec![] }))
+            .unwrap();
+        let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+        assert_eq!(state.stack.len(), 1, "the Bolt reached the stack");
         assert!(
-            matches!(
-                stop,
-                StepOutcome::NeedsDecision(PendingDecision::Priority { .. })
-            ),
-            "G,G auto-pays {{1}}{{G}}; no PayMana should surface, got {stop:?}"
+            state.player(PlayerId(0)).mana_pool.is_empty(),
+            "the Red was spent"
         );
-        assert_eq!(state.stack.len(), 1, "the Bears reached the stack");
-        assert!(state.player(PlayerId(0)).mana_pool.is_empty(), "pool spent");
     }
 
-    // (b) Choice: {1}{G} from a G,G,R pool surfaces PayMana ({1} <- G or R).
+    // (b) Mixed cost with a real choice: {1}{G} from a G,G,R pool surfaces
+    //     PayMana with the {1} generic open to Green or Red.
     {
         let mut state = bears_game(2, 2);
         let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
@@ -556,9 +595,10 @@ fn paymana_surfaces_with_a_choice_and_auto_pays_when_forced() {
         state
             .submit_decision(Decision::Act(Action::CastSpell { object: bears }))
             .unwrap();
+        // PayMana surfaces (Bears has no targets, so we skip ChooseTargets).
         let (_, stop) = step_to_stop(&mut state);
         let StepOutcome::NeedsDecision(PendingDecision::PayMana { cost, .. }) = stop else {
-            panic!("G,G,R should surface a PayMana decision, got {stop:?}");
+            panic!("expected PayMana for {{1}}{{G}} from G,G,R, got {stop:?}");
         };
         let _ = cost;
         // Pay {1} with the Red (either Red or one Green is legal here).

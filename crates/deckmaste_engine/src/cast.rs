@@ -65,39 +65,6 @@ pub fn can_pay(pool: &ManaPool, cost: &ManaCost) -> bool {
     leftover >= generic
 }
 
-/// The unique allocation if there is exactly one; `None` if the player has a
-/// real choice (so a `PayMana` decision must surface) or it can't be paid.
-///
-/// Returns `None` for costs containing out-of-scope symbols.
-#[must_use]
-pub fn forced_payment(pool: &ManaPool, cost: &ManaCost) -> Option<Payment> {
-    let (colored, generic) = requirement(cost)?;
-    if !can_pay(pool, cost) {
-        return None;
-    }
-    // Pool remaining after the (forced) colored pips, as a flat multiset.
-    let mut leftover: Vec<ColorOrColorless> = Vec::new();
-    for (kind, have) in pool_kinds(pool) {
-        let need = colored
-            .iter()
-            .find(|(k, _)| *k == kind)
-            .map_or(0, |(_, n)| *n);
-        for _ in 0..(have - need) {
-            leftover.push(kind);
-        }
-    }
-    if generic == 0 {
-        return Some(Payment { generic: vec![] });
-    }
-    // Forced iff the generic units can be drawn only one way: the leftover is
-    // a single color, or you must spend all of it.
-    let distinct: std::collections::HashSet<_> = leftover.iter().copied().collect();
-    let forced = distinct.len() == 1 || leftover.len() == generic as usize;
-    forced.then(|| Payment {
-        generic: leftover.into_iter().take(generic as usize).collect(),
-    })
-}
-
 /// Whether `payment` legally covers `cost` from `pool`.
 #[must_use]
 pub fn validate_payment(pool: &ManaPool, cost: &ManaCost, payment: &Payment) -> bool {
@@ -228,8 +195,9 @@ impl GameState {
         count
     }
 
-    /// CR 601.2f–h: pay the in-flight cost. Auto-pays when the allocation is
-    /// forced; otherwise surfaces a `PayMana` decision.
+    /// CR 601.2f–h: pay the in-flight cost. Always surfaces a `PayMana`
+    /// decision for any non-empty mana cost; the core never auto-pays.
+    /// Auto-resolution (an Arena-style autotapper) is a future runner concern.
     ///
     /// # Panics
     ///
@@ -240,19 +208,15 @@ impl GameState {
         let object = pending.object.object();
         let controller = pending.controller;
         let cost = self.mana_cost(object).expect("a castable spell has a cost");
-        let pool = self.player(controller).mana_pool.clone();
-        match forced_payment(&pool, &cost) {
-            Some(payment) => {
-                apply_payment(&mut self.player_mut(controller).mana_pool, &cost, &payment);
-            }
-            None => {
-                self.pending = Some(PendingDecision::PayMana {
-                    player: controller,
-                    cost,
-                    pool,
-                });
-            }
+        if !cost.is_empty() {
+            let pool = self.player(controller).mana_pool.clone();
+            self.pending = Some(PendingDecision::PayMana {
+                player: controller,
+                cost,
+                pool,
+            });
         }
+        // Empty cost (no mana required): no decision surfaces, cast continues.
     }
 
     /// The card face's printed mana cost (CR 202). `None` would mark an
@@ -315,36 +279,6 @@ mod tests {
         assert!(can_pay(&pool(&[(green(), 2)]), &cost("{1}{G}"))); // G pays {G}, G pays {1}
         assert!(!can_pay(&pool(&[(green(), 1)]), &cost("{1}{G}"))); // nothing left for {1}
         assert!(can_pay(&pool(&[(green(), 1), (red(), 1)]), &cost("{1}{G}")));
-    }
-
-    #[test]
-    fn forced_payment_is_unique_or_none() {
-        // {1}{G} from G,G: {G}<-one green, {1}<-the other — the only allocation.
-        assert_eq!(
-            forced_payment(&pool(&[(green(), 2)]), &cost("{1}{G}")),
-            Some(Payment {
-                generic: vec![green()]
-            }),
-        );
-        // {1}{G} from G,R: {G} must take the lone green, so {1} can only be R —
-        // exactly one allocation, so it IS forced (no decision needed).
-        assert_eq!(
-            forced_payment(&pool(&[(green(), 1), (red(), 1)]), &cost("{1}{G}")),
-            Some(Payment {
-                generic: vec![red()]
-            }),
-        );
-        // {1}{G} from G,G,R: {G} takes one green; {1} can be the other green OR
-        // the red — a real choice, so NOT forced.
-        assert_eq!(
-            forced_payment(&pool(&[(green(), 2), (red(), 1)]), &cost("{1}{G}")),
-            None,
-        );
-        // {R} has no generic at all — trivially forced (empty allocation).
-        assert_eq!(
-            forced_payment(&pool(&[(red(), 1)]), &cost("{R}")),
-            Some(Payment { generic: vec![] }),
-        );
     }
 
     #[test]
