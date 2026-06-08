@@ -4,8 +4,8 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use xtask::cite::check_sources;
-use xtask::cr::{Rules, checksum_text};
-use xtask::lockfile::Lockfile;
+use xtask::cite::cr::{Rules, checksum_text};
+use xtask::cite::lockfile::Lockfile;
 
 const FIXTURE: &str = include_str!("fixtures/cr_fixture.txt");
 

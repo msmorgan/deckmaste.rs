@@ -173,7 +173,6 @@ name = "deckmaste_cards"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap",
  "deckmaste_core",
  "macro_ron",
  "ron",
@@ -205,7 +204,6 @@ name = "deckmaste_migrations"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap",
  "deckmaste_core",
  "regex",
  "ron",

@@ -183,7 +183,7 @@ fn parse_effective_date(s: &str) -> anyhow::Result<String> {
 mod tests {
     use super::*;
 
-    const FIXTURE: &str = include_str!("../tests/fixtures/cr_fixture.txt");
+    const FIXTURE: &str = include_str!("../../tests/fixtures/cr_fixture.txt");
 
     #[test]
     fn parses_date_sections_and_leaves() {

@@ -6,7 +6,7 @@ use std::sync::OnceLock;
 
 use regex::Regex;
 
-use crate::citations::Site;
+use crate::cite::citations::Site;
 
 /// Wide-net patterns for citation-looking strings. Deliberately over-matches;
 /// the human filters during migration. Skips anything already inside `[CR#…]`.

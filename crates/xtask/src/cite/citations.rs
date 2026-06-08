@@ -5,7 +5,7 @@ use std::process::Command;
 
 use anyhow::{Context, bail};
 
-use crate::cr::Rules;
+use crate::cite::cr::Rules;
 
 const OPEN: &str = "[CR#";
 
@@ -176,7 +176,8 @@ mod tests {
     #[test]
     fn members_expands_ranges_and_lists() {
         let rules =
-            crate::cr::Rules::parse(include_str!("../tests/fixtures/cr_fixture.txt")).unwrap();
+            crate::cite::cr::Rules::parse(include_str!("../../tests/fixtures/cr_fixture.txt"))
+                .unwrap();
         let refs = parse_refs("704.5k..704.5n,100.1a").unwrap();
         assert_eq!(
             members(&refs, &rules).unwrap(),
