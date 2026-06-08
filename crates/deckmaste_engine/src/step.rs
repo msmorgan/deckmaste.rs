@@ -270,11 +270,9 @@ impl GameState {
     /// Applies a `ZoneWillChange` ([CR#400.7]): the move+remint that every zone
     /// change goes through. Captures the live object's LKI, removes it from its
     /// `from` zone, remints a fresh object into `to` (new `ObjectId`, same
-    /// `CardId`), and schedules the `ZoneChanged` fact at the agenda front.
-    ///
-    /// The replace stage is a structural no-op in 5a — `enters` is used as-is
-    /// (always `None` from the permanent-zone causes; `AsEnters`/enters-tapped
-    /// is a later task).
+    /// `CardId`), applies the permanent's own `AsEnters` self-replacements into
+    /// the `EnterStatus` (no observable untapped window), and schedules the
+    /// `ZoneChanged` fact at the agenda front.
     fn apply_zone_will_change(
         &mut self,
         object: ObjectId,
@@ -285,7 +283,8 @@ impl GameState {
         // 1. Snapshot while the object is still live in `from`.
         let snapshot = crate::lki::LkiSnapshot::capture(self, object);
 
-        // 2. (replace stage — structural no-op in 5a.)
+        // 2. (replace stage — other-object and destination-rewriting replacements are
+        //    Stage-4 seams; AsEnters self-replacement applied below at mint.)
 
         // 3. Move + remint. Remove the old object from its `from` zone's list, then
         //    from the store; mint a fresh object into `to`.
@@ -308,10 +307,13 @@ impl GameState {
         // object is controlled by its owner.
         let controller = if to == Zone::Battlefield { snapshot.controller } else { owner };
         let new = self.objects.mint(snapshot.source, controller, Some(to));
-        if let Some(status) = enters
-            && status.tapped
-        {
-            // Always false in 5a; the entry-status path lands with AsEnters.
+        // [CR#614.12]: how it enters — emitted status (Stage 4 replacements) plus
+        // the object's own AsEnters self-replacement (enters tapped).
+        let mut entering = enters.unwrap_or_default();
+        if to == Zone::Battlefield {
+            entering.tapped |= self.as_enters_status(snapshot.source).tapped;
+        }
+        if entering.tapped {
             self.objects.obj_mut(new).tapped = true;
         }
         match to {

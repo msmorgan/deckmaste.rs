@@ -56,9 +56,10 @@ pub enum GameEvent {
         target: ObjectId,
         amount: Uint,
     },
-    /// The INTENT of a zone change ([CR#400.7]). Replacements act here (none
-    /// wired in 5a). Its apply captures LKI, moves+remints the object, and
-    /// emits `ZoneChanged`. `enters` is present only when `to == Battlefield`.
+    /// The INTENT of a zone change ([CR#400.7]). Replacements act here. Its
+    /// apply captures LKI, moves+remints the object, folds the object's own
+    /// `AsEnters` self-replacements into the entering status, and emits
+    /// `ZoneChanged`. `enters` is present only when `to == Battlefield`.
     ZoneWillChange {
         object: ObjectId,
         from: Option<Zone>,
@@ -94,8 +95,7 @@ pub enum GameEvent {
 
 /// How a permanent enters the battlefield ([CR#110.5] status;
 /// counters/face-down are later). Present on a `ZoneWillChange` only when `to
-/// == Battlefield`. In 5a it is always `None` from the permanent-zone causes
-/// (enters-tapped is a later task).
+/// == Battlefield`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct EnterStatus {
     pub tapped: bool,
