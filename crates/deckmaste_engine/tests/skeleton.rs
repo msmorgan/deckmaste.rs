@@ -6,7 +6,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
-use deckmaste_core::{Card, Color, Filter, StepOrPhase, Type, Zone};
+use deckmaste_core::{BeginningStep, Card, Color, EndingStep, Filter, Phase, Type, Zone};
 use deckmaste_engine::{
     Action, Decision, DecisionError, GameConfig, GameEvent, GameState, ObjectId, ObjectSource,
     Occurrence, PendingDecision, PlayerConfig, PlayerId, Progress, RunStop, Runner, StackEntry,
@@ -98,7 +98,7 @@ fn turn_one_walks_to_upkeep_priority_one_event_at_a_time() {
     // Turn structure: BeginStep(Untap) begins turn 1.
     assert!(matches!(
         state.step(),
-        StepOutcome::Progress(Progress::Advanced(StepOrPhase::Untap))
+        StepOutcome::Progress(Progress::Advanced(Phase::Beginning(BeginningStep::Untap)))
     ));
     assert_eq!(state.turn.turn_number, 1);
     assert_eq!(state.turn.active_player, PlayerId(0));
@@ -116,7 +116,7 @@ fn turn_one_walks_to_upkeep_priority_one_event_at_a_time() {
     assert!(matches!(
         state.step(),
         StepOutcome::Progress(Progress::Applied(Occurrence::Single(GameEvent::StepBegan(
-            StepOrPhase::Untap
+            Phase::Beginning(BeginningStep::Untap)
         ))))
     ));
 
@@ -124,12 +124,12 @@ fn turn_one_walks_to_upkeep_priority_one_event_at_a_time() {
     // so the next transition is straight into upkeep.
     assert!(matches!(
         state.step(),
-        StepOutcome::Progress(Progress::Advanced(StepOrPhase::Upkeep))
+        StepOutcome::Progress(Progress::Advanced(Phase::Beginning(BeginningStep::Upkeep)))
     ));
     assert!(matches!(
         state.step(),
         StepOutcome::Progress(Progress::Applied(Occurrence::Single(GameEvent::StepBegan(
-            StepOrPhase::Upkeep
+            Phase::Beginning(BeginningStep::Upkeep)
         ))))
     ));
 
@@ -229,7 +229,7 @@ fn a_full_pass_around_advances_the_step() {
     let mut state = two_player_plains(42, 20);
     let (_, stop) = step_to_stop(&mut state);
     assert!(matches!(stop, StepOutcome::NeedsDecision(_)));
-    assert_eq!(state.turn.current, StepOrPhase::Upkeep);
+    assert_eq!(state.turn.current, Phase::Beginning(BeginningStep::Upkeep));
     // P0 passes; priority rotates to P1 (same step).
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let (_, stop) = step_to_stop(&mut state);
@@ -237,11 +237,11 @@ fn a_full_pass_around_advances_the_step() {
         panic!("expected P1 priority");
     };
     assert_eq!(player, PlayerId(1));
-    assert_eq!(state.turn.current, StepOrPhase::Upkeep);
+    assert_eq!(state.turn.current, Phase::Beginning(BeginningStep::Upkeep));
     // P1 passes too: all-pass on an empty stack ends the step.
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let _ = step_to_stop(&mut state);
-    assert_eq!(state.turn.current, StepOrPhase::Draw);
+    assert_eq!(state.turn.current, Phase::Beginning(BeginningStep::Draw));
 }
 
 #[test]
@@ -251,7 +251,7 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
     let stop = step_until(&mut state, |s, o| {
         matches!(o, StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. })
             if *player == PlayerId(0))
-            && s.turn.current == StepOrPhase::PrecombatMain
+            && s.turn.current == Phase::PrecombatMain
     });
     let StepOutcome::NeedsDecision(PendingDecision::Priority { legal, .. }) = stop else {
         unreachable!()
@@ -411,7 +411,7 @@ fn state_is_assertable_between_two_untap_events() {
             ))) if state.objects.obj(object).controller == PlayerId(0) => {
                 p0_lands.push(object);
             }
-            StepOutcome::Progress(Progress::Advanced(StepOrPhase::Untap))
+            StepOutcome::Progress(Progress::Advanced(Phase::Beginning(BeginningStep::Untap)))
                 if state.turn.turn_number == 5 =>
             {
                 break; // turn 5 has begun; its untap events are next.
@@ -516,7 +516,7 @@ fn replay_is_deterministic() {
 fn starting_player_skips_the_first_draw() {
     let mut state = two_player_plains(42, 20);
     step_until(&mut state, |s, _| {
-        s.turn.turn_number == 1 && s.turn.current == StepOrPhase::PrecombatMain
+        s.turn.turn_number == 1 && s.turn.current == Phase::PrecombatMain
     });
     // Past turn 1's draw step: the opening seven, no draw.
     assert_eq!(state.zones.hands[0].len(), 7);
@@ -573,8 +573,8 @@ fn cleanup_clears_marked_damage_on_battlefield_creatures() {
     step_until(&mut state, |s, o| {
         matches!(
             o,
-            StepOutcome::Progress(Progress::Advanced(StepOrPhase::Cleanup))
-        ) && s.turn.current == StepOrPhase::Cleanup
+            StepOutcome::Progress(Progress::Advanced(Phase::Ending(EndingStep::Cleanup)))
+        ) && s.turn.current == Phase::Ending(EndingStep::Cleanup)
     });
 
     assert_eq!(

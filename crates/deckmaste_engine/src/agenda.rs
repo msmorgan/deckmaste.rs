@@ -1,4 +1,4 @@
-use deckmaste_core::StepOrPhase;
+use deckmaste_core::Phase;
 
 use crate::event::Occurrence;
 
@@ -10,7 +10,7 @@ pub enum WorkItem {
     /// A `Single` event or a simultaneous `Batch`, applied together.
     Emit(Occurrence),
     /// Turn-structure transition plus that step's schedule.
-    BeginStep(StepOrPhase),
+    BeginStep(Phase),
     /// [CR#704.3]: state-based actions, checked before anyone gets priority.
     CheckSbas,
     /// [CR#603.3]: place noted triggers on the stack (APNAP, with an

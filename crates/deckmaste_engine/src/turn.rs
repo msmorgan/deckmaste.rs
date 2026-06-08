@@ -1,15 +1,15 @@
-use deckmaste_core::{StepOrPhase, Uint};
+use deckmaste_core::{BeginningStep, CombatStep, EndingStep, Phase, Uint};
 
 use crate::player::PlayerId;
 
 /// Where the turn is ([CR#500]). `current` starts as a pre-game placeholder;
-/// the first `BeginStep(Untap)` begins turn 1.
+/// the first `BeginStep(Beginning(Untap))` begins turn 1.
 #[derive(Debug, Clone)]
 pub struct TurnState {
     pub active_player: PlayerId,
-    /// 0 before the game starts; `BeginStep(Untap)` increments.
+    /// 0 before the game starts; `BeginStep(Beginning(Untap))` increments.
     pub turn_number: Uint,
-    pub current: StepOrPhase,
+    pub current: Phase,
     /// `Some` while a priority round is open ([CR#117]).
     pub priority: Option<PriorityRound>,
 }
@@ -22,53 +22,83 @@ pub struct PriorityRound {
     pub consecutive_passes: Uint,
 }
 
-/// The next step in the skeleton's turn order, or `None` past Cleanup (the
-/// caller begins the next turn). No attackers are ever declared in the
-/// skeleton, so `DeclareAttackers` is followed by `EndOfCombat` ([CR#508.8]
-/// skips `DeclareBlockers` and `CombatDamage`).
+/// The next phase/step in the turn order ([CR#500]), or `None` past Cleanup
+/// (the caller begins the next turn). Walks the `Phase` hierarchy in CR order.
 #[must_use]
-// Two arms reach EndOfCombat for different reasons; keeping them separate
-// keeps the [CR#508.8] comment attached to the right one.
+// DeclareBlockers and FirstCombatDamage both land on CombatDamage for different
+// reasons (the Stage-3 first-strike skip vs. the future ordinary successor);
+// keeping them separate keeps each [CR#510.4] comment attached to its arm.
 #[expect(clippy::match_same_arms)]
-pub fn successor(step: StepOrPhase) -> Option<StepOrPhase> {
-    use StepOrPhase::{
-        BeginningOfCombat, Cleanup, CombatDamage, DeclareAttackers, DeclareBlockers, Draw,
-        EndOfCombat, EndStep, PostcombatMain, PrecombatMain, Untap, Upkeep,
+pub fn successor(step: Phase) -> Option<Phase> {
+    use BeginningStep::{Draw, Untap, Upkeep};
+    use CombatStep::{
+        BeginningOfCombat, CombatDamage, DeclareAttackers, DeclareBlockers, EndOfCombat,
+        FirstCombatDamage,
     };
+    use EndingStep::{Cleanup, End};
+    use Phase::{Beginning, Combat, Ending, PostcombatMain, PrecombatMain};
+
     Some(match step {
-        Untap => Upkeep,
-        Upkeep => Draw,
-        Draw => PrecombatMain,
-        PrecombatMain => BeginningOfCombat,
-        BeginningOfCombat => DeclareAttackers,
-        // [CR#508.8]: no attackers (ever, in the skeleton) skips blocks/damage.
-        DeclareAttackers => EndOfCombat,
-        DeclareBlockers => CombatDamage,
-        // Ordinary turn order (unreachable in the skeleton — only via [CR#508.8]).
-        CombatDamage => EndOfCombat,
-        EndOfCombat => PostcombatMain,
-        PostcombatMain => EndStep,
-        EndStep => Cleanup,
-        Cleanup => return None,
+        // Beginning phase ([CR#501-503]).
+        Beginning(Untap) => Beginning(Upkeep),
+        Beginning(Upkeep) => Beginning(Draw),
+        Beginning(Draw) => PrecombatMain,
+        // Precombat main ([CR#505]) → combat ([CR#506-511]).
+        PrecombatMain => Combat(BeginningOfCombat),
+        Combat(BeginningOfCombat) => Combat(DeclareAttackers),
+        Combat(DeclareAttackers) => Combat(DeclareBlockers),
+        // TODO(stage-4): first/double strike inserts Combat(FirstCombatDamage)
+        //   before Combat(CombatDamage) ([CR#510.4]). Stage 3 has no first
+        //   strike, so DeclareBlockers goes straight to the single combat-damage
+        //   step.
+        Combat(DeclareBlockers) => Combat(CombatDamage),
+        // Unreachable in Stage 3 (no first strike); when wired, FirstCombatDamage
+        // precedes the regular CombatDamage step ([CR#510.4]).
+        Combat(FirstCombatDamage) => Combat(CombatDamage),
+        Combat(CombatDamage) => Combat(EndOfCombat),
+        Combat(EndOfCombat) => PostcombatMain,
+        // Postcombat main ([CR#505]) → ending ([CR#512-514]).
+        PostcombatMain => Ending(End),
+        Ending(End) => Ending(Cleanup),
+        Ending(Cleanup) => return None,
     })
 }
 
 #[cfg(test)]
 mod tests {
-    use StepOrPhase::{
-        BeginningOfCombat, Cleanup, DeclareAttackers, EndOfCombat, EndStep, PrecombatMain, Untap,
-        Upkeep,
+    use BeginningStep::{Draw, Untap, Upkeep};
+    use CombatStep::{
+        BeginningOfCombat, CombatDamage, DeclareAttackers, DeclareBlockers, EndOfCombat,
     };
+    use EndingStep::{Cleanup, End};
+    use Phase::{Beginning, Combat, Ending, PostcombatMain, PrecombatMain};
 
     use super::*;
 
     #[test]
-    fn successor_walks_the_turn_and_skips_combat() {
-        assert_eq!(successor(Untap), Some(Upkeep));
-        assert_eq!(successor(PrecombatMain), Some(BeginningOfCombat));
-        // [CR#508.8]: no attackers in the skeleton.
-        assert_eq!(successor(DeclareAttackers), Some(EndOfCombat));
-        assert_eq!(successor(EndStep), Some(Cleanup));
-        assert_eq!(successor(Cleanup), None);
+    fn successor_walks_the_turn_in_cr_order() {
+        assert_eq!(successor(Beginning(Untap)), Some(Beginning(Upkeep)));
+        assert_eq!(successor(Beginning(Upkeep)), Some(Beginning(Draw)));
+        assert_eq!(successor(Beginning(Draw)), Some(PrecombatMain));
+        assert_eq!(successor(PrecombatMain), Some(Combat(BeginningOfCombat)));
+        assert_eq!(
+            successor(Combat(BeginningOfCombat)),
+            Some(Combat(DeclareAttackers))
+        );
+        assert_eq!(
+            successor(Combat(DeclareAttackers)),
+            Some(Combat(DeclareBlockers))
+        );
+        // Stage 3 has no first strike: DeclareBlockers → CombatDamage,
+        // skipping FirstCombatDamage ([CR#510.4]).
+        assert_eq!(
+            successor(Combat(DeclareBlockers)),
+            Some(Combat(CombatDamage))
+        );
+        assert_eq!(successor(Combat(CombatDamage)), Some(Combat(EndOfCombat)));
+        assert_eq!(successor(Combat(EndOfCombat)), Some(PostcombatMain));
+        assert_eq!(successor(PostcombatMain), Some(Ending(End)));
+        assert_eq!(successor(Ending(End)), Some(Ending(Cleanup)));
+        assert_eq!(successor(Ending(Cleanup)), None);
     }
 }

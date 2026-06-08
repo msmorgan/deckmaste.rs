@@ -12,7 +12,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
-use deckmaste_core::{Card, Color, ColorOrColorless, StepOrPhase, Zone};
+use deckmaste_core::{Card, Color, ColorOrColorless, Phase, Zone};
 use deckmaste_engine::{
     Action, Decision, DecisionError, GameConfig, GameEvent, GameOutcome, GameState, ObjectId,
     Occurrence, Payment, PendingDecision, PlayerConfig, PlayerId, Progress, StackObject,
@@ -168,7 +168,7 @@ fn step_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
 /// (generic == 0, so `Payment { generic: vec![] }` is the only valid answer),
 /// this function auto-answers it and continues. Costs with a generic component
 /// must be answered explicitly before calling this helper.
-fn run_to_priority(state: &mut GameState, player: PlayerId, phase: StepOrPhase) -> Vec<Action> {
+fn run_to_priority(state: &mut GameState, player: PlayerId, phase: Phase) -> Vec<Action> {
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
@@ -247,7 +247,7 @@ fn bolt_kills_grizzly_bears() {
     let bear = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
 
     // P0's precombat main: an instant and an untapped Mountain in play.
-    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     float_mana(&mut state, PlayerId(0), 1); // {R}
     let bolt = find_in_hand(&state, PlayerId(0), "Instant DealDamage AnyTarget");
 
@@ -269,7 +269,7 @@ fn bolt_kills_grizzly_bears() {
 
     // Step to the caster's priority: the instant is on the stack (announce
     // done, not yet resolved).
-    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     assert_eq!(state.stack.len(), 1, "the instant sits on the stack");
     assert_eq!(state.stack[0].object, StackObject::Spell(bolt));
     assert_eq!(state.stack[0].targets, vec![bear]);
@@ -277,7 +277,7 @@ fn bolt_kills_grizzly_bears() {
 
     // Both players pass: the instant resolves, deals 3, SBA destroys the creature.
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
-    let _ = run_to_priority(&mut state, PlayerId(1), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let (trace, _) = step_to_stop(&mut state);
 
@@ -321,7 +321,7 @@ fn bolt_kills_grizzly_bears() {
 fn bolt_to_the_face_costs_three_life() {
     let mut state = bolt_game(1, 1);
 
-    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     float_mana(&mut state, PlayerId(0), 1);
     let bolt = find_in_hand(&state, PlayerId(0), "Instant DealDamage AnyTarget");
     let face = state.players[1].object;
@@ -338,9 +338,9 @@ fn bolt_to_the_face_costs_three_life() {
         .submit_decision(Decision::Targets(vec![face]))
         .unwrap();
 
-    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
-    let _ = run_to_priority(&mut state, PlayerId(1), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let _ = step_to_stop(&mut state);
 
@@ -352,7 +352,7 @@ fn bolt_to_the_face_costs_three_life() {
 fn grizzly_bears_resolves_to_a_two_two_on_the_battlefield() {
     let mut state = bears_game(1, 2); // two Forests for {1}{G}
 
-    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     float_mana(&mut state, PlayerId(0), 2); // G, G
     let bears = find_in_hand(&state, PlayerId(0), "Vanilla Creature");
 
@@ -371,7 +371,7 @@ fn grizzly_bears_resolves_to_a_two_two_on_the_battlefield() {
             generic: vec![green()],
         }))
         .unwrap();
-    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     assert_eq!(
         state.stack.len(),
         1,
@@ -379,7 +379,7 @@ fn grizzly_bears_resolves_to_a_two_two_on_the_battlefield() {
     );
 
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
-    let _ = run_to_priority(&mut state, PlayerId(1), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let _ = step_to_stop(&mut state);
 
@@ -491,7 +491,7 @@ fn sorcery_speed_gate_blocks_bears_off_turn_and_on_a_nonempty_stack() {
         let bears = find_in_hand(&state, PlayerId(0), "Vanilla Creature");
         let bear = force_into_play(&mut state, PlayerId(1), "Vanilla Creature");
 
-        let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+        let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
         // Float R,R,G,G: the first {R} instant leaves R,G,G for the gate
         // comparison (a second {R} instant and a {1}{G} creature are both payable).
         float_mana(&mut state, PlayerId(0), 4);
@@ -506,7 +506,7 @@ fn sorcery_speed_gate_blocks_bears_off_turn_and_on_a_nonempty_stack() {
         state
             .submit_decision(Decision::Targets(vec![bear]))
             .unwrap();
-        let legal = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+        let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
         assert_eq!(state.stack.len(), 1, "an instant is on the stack");
         assert!(
             !legal.contains(&Action::CastSpell { object: bears }),
@@ -539,7 +539,7 @@ fn drive_to_off_turn_priority(state: &mut GameState) -> Vec<Action> {
                     && state.turn.active_player == PlayerId(1)
                     && matches!(
                         state.turn.current,
-                        StepOrPhase::PrecombatMain | StepOrPhase::PostcombatMain
+                        Phase::PrecombatMain | Phase::PostcombatMain
                     ) =>
             {
                 // Tap an untapped land if one remains; each tap re-opens P0's
@@ -618,7 +618,7 @@ fn paymana_surfaces_for_every_cast() {
     {
         let mut state = bolt_game(1, 1);
         let bear = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
-        let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+        let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
         float_mana(&mut state, PlayerId(0), 1); // R
         let bolt = find_in_hand(&state, PlayerId(0), "Instant DealDamage AnyTarget");
         state
@@ -641,7 +641,7 @@ fn paymana_surfaces_for_every_cast() {
         state
             .submit_decision(Decision::Pay(Payment { generic: vec![] }))
             .unwrap();
-        let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+        let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
         assert_eq!(state.stack.len(), 1, "the instant reached the stack");
         assert!(
             state.player(PlayerId(0)).mana_pool.is_empty(),
@@ -653,7 +653,7 @@ fn paymana_surfaces_for_every_cast() {
     //     PayMana with the {1} generic open to Green or Red.
     {
         let mut state = bears_game(2, 2);
-        let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+        let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
         float_mana(&mut state, PlayerId(0), 2); // G, G from forests
         // Add a stray Red so {1} has a real choice.
         state.player_mut(PlayerId(0)).mana_pool.add(red(), 1);
@@ -673,7 +673,7 @@ fn paymana_surfaces_for_every_cast() {
                 generic: vec![red()],
             }))
             .unwrap();
-        let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+        let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
         assert_eq!(
             state.stack.len(),
             1,
@@ -691,7 +691,7 @@ fn second_bolt_fizzles_when_its_target_is_already_dead() {
     let mut state = bolt_game(1, 2); // two Mountains for two {R} casts
     let bear = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
 
-    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     float_mana(&mut state, PlayerId(0), 2); // R, R
 
     // Cast instant A targeting the Vanilla Creature.
@@ -703,7 +703,7 @@ fn second_bolt_fizzles_when_its_target_is_already_dead() {
     state
         .submit_decision(Decision::Targets(vec![bear]))
         .unwrap();
-    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
 
     // In response (LIFO), cast instant B also targeting the Vanilla Creature.
     let bolt_b = find_in_hand(&state, PlayerId(0), "Instant DealDamage AnyTarget");
@@ -715,7 +715,7 @@ fn second_bolt_fizzles_when_its_target_is_already_dead() {
     state
         .submit_decision(Decision::Targets(vec![bear]))
         .unwrap();
-    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     assert_eq!(state.stack.len(), 2, "both instants on the stack");
 
     // Pass both instants to resolution: B resolves (kills creature), then A
@@ -801,7 +801,7 @@ fn a_cast_game_is_deterministic() {
     let play = || {
         let mut state = bolt_game(99, 1);
         let bear = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
-        let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+        let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
         float_mana(&mut state, PlayerId(0), 1);
         let bolt = find_in_hand(&state, PlayerId(0), "Instant DealDamage AnyTarget");
         state
@@ -811,9 +811,9 @@ fn a_cast_game_is_deterministic() {
         state
             .submit_decision(Decision::Targets(vec![bear]))
             .unwrap();
-        let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+        let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
         state.submit_decision(Decision::Act(Action::Pass)).unwrap();
-        let _ = run_to_priority(&mut state, PlayerId(1), StepOrPhase::PrecombatMain);
+        let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
         state.submit_decision(Decision::Act(Action::Pass)).unwrap();
         let _ = step_to_stop(&mut state);
         state
@@ -832,7 +832,7 @@ fn illegal_target_and_payment_submissions_are_rejected_and_retryable() {
     // --- illegal target at ChooseTargets ---
     let mut state = bolt_game(1, 1);
     let bear = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
-    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     float_mana(&mut state, PlayerId(0), 1);
     let bolt = find_in_hand(&state, PlayerId(0), "Instant DealDamage AnyTarget");
     state
@@ -880,7 +880,7 @@ fn illegal_target_and_payment_submissions_are_rejected_and_retryable() {
 
     // --- illegal payment at PayMana ---
     let mut state = bears_game(2, 2);
-    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     float_mana(&mut state, PlayerId(0), 2); // G, G
     state.player_mut(PlayerId(0)).mana_pool.add(red(), 1); // G,G,R → a choice
     let bears = find_in_hand(&state, PlayerId(0), "Vanilla Creature");
@@ -925,7 +925,7 @@ fn illegal_target_and_payment_submissions_are_rejected_and_retryable() {
         }))
         .unwrap();
     assert!(state.pending.is_none());
-    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     assert_eq!(
         state.stack.len(),
         1,
@@ -993,7 +993,7 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
     force_into_play(&mut state, PlayerId(0), "Mountain");
 
     // P0's precombat main: float {R}, cast the bolt at the goblin.
-    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     float_mana(&mut state, PlayerId(0), 1);
     let bolt = find_in_hand(&state, PlayerId(0), "Instant DealDamage AnyTarget");
     state
@@ -1006,7 +1006,7 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
     assert!(legal[0].contains(&gob), "the goblin is a legal bolt target");
     state.submit_decision(Decision::Targets(vec![gob])).unwrap();
     // PayMana for {R}.
-    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
 
     // Both players pass: the bolt resolves (3 to the goblin), the SBA destroys
     // it, and the dies-trigger NOTES — then `PlaceTriggers` surfaces a
@@ -1161,7 +1161,7 @@ fn etb_trigger_draws_a_card() {
     // Record hand size BEFORE casting (the ETB creature is in hand).
     let hand_before = state.zones.hands[0].len();
 
-    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     // Float {U} and {G} for the {1}{U} cost.
     float_mana(&mut state, PlayerId(0), 2);
 
@@ -1184,12 +1184,12 @@ fn etb_trigger_draws_a_card() {
         }))
         .unwrap();
 
-    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     assert_eq!(state.stack.len(), 1, "the creature spell is on the stack");
 
     // Both players pass → resolves.
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
-    let _ = run_to_priority(&mut state, PlayerId(1), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
 
     // Collect the trace while driving through PlaceTriggers → resolution.
@@ -1359,7 +1359,7 @@ fn occurrence_batch_and_apnap_ordering() {
     // P1's watcher — force from P1's library/hand.
     let w1 = force_into_play(&mut state, PlayerId(1), "Creature dies-watcher LoseLife");
 
-    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     float_mana(&mut state, PlayerId(0), 2); // R + G for {1}{R}
 
     let pyro = find_in_hand(&state, PlayerId(0), "Sorcery DealDamage each creature");
@@ -1380,7 +1380,7 @@ fn occurrence_batch_and_apnap_ordering() {
         }))
         .unwrap();
 
-    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     assert_eq!(
         state.stack.len(),
         1,
@@ -1389,7 +1389,7 @@ fn occurrence_batch_and_apnap_ordering() {
 
     // Both pass → resolve.
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
-    let _ = run_to_priority(&mut state, PlayerId(1), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
 
     // --- Drive to the moment just after the SBA batch destroys all creatures.
@@ -1606,7 +1606,7 @@ fn simultaneous_loss_is_a_draw() {
 
     force_into_play(&mut state, PlayerId(0), "Mountain");
 
-    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     float_mana(&mut state, PlayerId(0), 1); // {R}
 
     let spell = find_in_hand(&state, PlayerId(0), "Spell DealDamage each player");
@@ -1625,12 +1625,12 @@ fn simultaneous_loss_is_a_draw() {
         .submit_decision(Decision::Pay(Payment { generic: vec![] }))
         .unwrap();
 
-    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     assert_eq!(state.stack.len(), 1, "spell is on the stack");
 
     // Both pass → resolve.
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
-    let _ = run_to_priority(&mut state, PlayerId(1), StepOrPhase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
 
     // Let it resolve and reach game over.
@@ -1831,7 +1831,7 @@ fn creature_enters_tapped_via_as_enters_replacement() {
         force_into_play(&mut state, PlayerId(0), "Forest");
         force_into_play(&mut state, PlayerId(0), "Forest");
 
-        let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+        let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
         float_mana(&mut state, PlayerId(0), 2); // G, G
         let spell = find_in_hand(&state, PlayerId(0), "Creature enters tapped");
 
@@ -1849,12 +1849,12 @@ fn creature_enters_tapped_via_as_enters_replacement() {
                 generic: vec![green(), green()],
             }))
             .unwrap();
-        let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+        let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
         assert_eq!(state.stack.len(), 1, "the creature spell is on the stack");
 
         // Both players pass → resolves.
         state.submit_decision(Decision::Act(Action::Pass)).unwrap();
-        let _ = run_to_priority(&mut state, PlayerId(1), StepOrPhase::PrecombatMain);
+        let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
         state.submit_decision(Decision::Act(Action::Pass)).unwrap();
         let _ = step_to_stop(&mut state);
 
@@ -1882,7 +1882,7 @@ fn creature_enters_tapped_via_as_enters_replacement() {
     {
         let mut state = bears_game(1, 2); // two Forests for {1}{G}
 
-        let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+        let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
         float_mana(&mut state, PlayerId(0), 2); // G, G
         let bears = find_in_hand(&state, PlayerId(0), "Vanilla Creature");
 
@@ -1898,9 +1898,9 @@ fn creature_enters_tapped_via_as_enters_replacement() {
                 generic: vec![green()],
             }))
             .unwrap();
-        let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+        let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
         state.submit_decision(Decision::Act(Action::Pass)).unwrap();
-        let _ = run_to_priority(&mut state, PlayerId(1), StepOrPhase::PrecombatMain);
+        let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
         state.submit_decision(Decision::Act(Action::Pass)).unwrap();
         let _ = step_to_stop(&mut state);
 

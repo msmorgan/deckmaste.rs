@@ -1,4 +1,4 @@
-use deckmaste_core::{ColorOrColorless, StepOrPhase, Uint, Zone};
+use deckmaste_core::{ColorOrColorless, Phase, Uint, Zone};
 
 use crate::object::{ObjectId, ObjectSource};
 use crate::player::PlayerId;
@@ -22,7 +22,7 @@ pub enum GameEvent {
         player: PlayerId,
         turn: Uint,
     },
-    StepBegan(StepOrPhase),
+    StepBegan(Phase),
     Untapped(ObjectId),
     CardDrawn {
         player: PlayerId,

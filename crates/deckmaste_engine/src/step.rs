@@ -1,7 +1,7 @@
 //! The steppable core: `step()` pops one agenda item and returns one
 //! `Progress`. Decisions surface on the following call; the runner loops.
 
-use deckmaste_core::{StepOrPhase, Uint, Zone};
+use deckmaste_core::{BeginningStep, EndingStep, Phase, Uint, Zone};
 
 use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
@@ -30,7 +30,7 @@ pub enum Progress {
     /// One or more events mutated the state (apply-time bindings filled in).
     Applied(Occurrence),
     /// A new step began.
-    Advanced(StepOrPhase),
+    Advanced(Phase),
     /// A [CR#704] sweep ran; `actions` lost-player events were scheduled.
     SbasChecked { actions: Uint },
     /// [CR#603.3]: the placement barrier ran; `placed` triggers went on the
@@ -408,9 +408,9 @@ impl GameState {
     }
 
     /// The turn-structure transition: schedules the step's whole shape.
-    fn begin_step(&mut self, s: StepOrPhase) -> Progress {
+    fn begin_step(&mut self, s: Phase) -> Progress {
         let mut items = Vec::new();
-        if s == StepOrPhase::Untap {
+        if s == Phase::Beginning(BeginningStep::Untap) {
             let turn_began = self.begin_turn();
             items.push(WorkItem::Emit(Occurrence::single(turn_began)));
         }
@@ -428,10 +428,10 @@ impl GameState {
     // Two arms produce vec![] for different reasons; keeping them separate
     // preserves the per-step CR references.
     #[expect(clippy::match_same_arms)]
-    fn turn_based_actions(&mut self, s: StepOrPhase) -> Vec<WorkItem> {
+    fn turn_based_actions(&mut self, s: Phase) -> Vec<WorkItem> {
         match s {
             // [CR#502.1]: the active player's tapped permanents untap.
-            StepOrPhase::Untap => {
+            Phase::Beginning(BeginningStep::Untap) => {
                 let active = self.turn.active_player;
                 self.zones
                     .battlefield
@@ -447,16 +447,16 @@ impl GameState {
             // player's, who skips their first draw.
             // TODO(stage-4): emit as ZoneWillChange (action-driven collapse, §5.6);
             //   also needs the deferred WillDrawCards intent (spec §11).
-            StepOrPhase::Draw if self.turn.turn_number > 1 => {
+            Phase::Beginning(BeginningStep::Draw) if self.turn.turn_number > 1 => {
                 vec![WorkItem::Emit(Occurrence::single(GameEvent::CardDrawn {
                     player: self.turn.active_player,
                     object: None,
                 }))]
             }
-            StepOrPhase::Draw => vec![],
+            Phase::Beginning(BeginningStep::Draw) => vec![],
             // [CR#514.1]: discard to hand size — checked after StepBegan.
             // [CR#514.2]: marked damage is removed from all permanents.
-            StepOrPhase::Cleanup => {
+            Phase::Ending(EndingStep::Cleanup) => {
                 self.clear_marked_damage();
                 vec![WorkItem::CheckHandSize]
             }
@@ -478,10 +478,10 @@ impl GameState {
     /// What follows a step's turn-based actions: the priority barrier, or
     /// the step end for the no-priority steps ([CR#502.4,514.3] — cleanup's
     /// sweep runs per [CR#514.2] but can never act in the skeleton).
-    fn step_tail(&self, s: StepOrPhase) -> Vec<WorkItem> {
+    fn step_tail(&self, s: Phase) -> Vec<WorkItem> {
         match s {
-            StepOrPhase::Untap => self.end_of_step_items(),
-            StepOrPhase::Cleanup => {
+            Phase::Beginning(BeginningStep::Untap) => self.end_of_step_items(),
+            Phase::Ending(EndingStep::Cleanup) => {
                 // [CR#514.3a]: if the sweep acts (or triggers are waiting),
                 // players DO get priority and cleanup repeats. Stage 3 must
                 // detect that and insert OpenPriority + another cleanup
@@ -513,7 +513,7 @@ impl GameState {
             .map(|p| WorkItem::Emit(Occurrence::single(GameEvent::ManaEmptied(p.id))))
             .collect();
         items.push(WorkItem::BeginStep(
-            successor(self.turn.current).unwrap_or(StepOrPhase::Untap),
+            successor(self.turn.current).unwrap_or(Phase::Beginning(BeginningStep::Untap)),
         ));
         items
     }

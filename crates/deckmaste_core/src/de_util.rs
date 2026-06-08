@@ -10,7 +10,7 @@ use serde::de::{self, SeqAccess, Visitor};
 /// Visits a 2-element tuple variant — `tuple_variant(2, Pair::new())` — into
 /// its two typed elements. Used wherever a 2-field tuple variant appears in a
 /// hand-written `visit_enum` (`DealDamage(Selection, Quantity)`,
-/// `BeginningOf(StepOrPhase, WhoseTurn)`, …).
+/// `BeginningOf(Phase, WhoseTurn)`, …).
 pub struct Pair<A, B>(PhantomData<(A, B)>);
 
 impl<A, B> Pair<A, B> {

@@ -5,32 +5,59 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{Expansion, Filter, Ident, IdentSeed, Zone};
 
-/// A turn step or phase (the 5xx turn structure). `BeginningOf` triggers key
-/// off these.
+/// A turn phase (the 5xx turn structure). `BeginningOf` triggers key off
+/// these. Each phase carries its constituent step(s); a phase that is a single
+/// step (the main phases — [CR#505.1]) is a bare variant. Nested enums
+/// round-trip in RON as `Beginning(Upkeep)`, `Combat(DeclareAttackers)`,
+/// `PostcombatMain`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub enum StepOrPhase {
+pub enum Phase {
+    /// The beginning phase ([CR#501]): untap, upkeep, draw.
+    Beginning(BeginningStep),
+    /// The precombat main phase ([CR#505], one step).
+    PrecombatMain,
+    /// The combat phase ([CR#506]): its five (or six, with first strike) steps.
+    Combat(CombatStep),
+    /// The postcombat main phase ([CR#505], one step).
+    PostcombatMain,
+    /// The ending phase ([CR#512]): end step, cleanup.
+    Ending(EndingStep),
+}
+
+/// The steps of the beginning phase ([CR#501-503]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum BeginningStep {
     /// [CR#502].
     Untap,
     /// [CR#503].
     Upkeep,
     /// [CR#504].
     Draw,
-    /// [CR#505] (first main phase).
-    PrecombatMain,
+}
+
+/// The steps of the combat phase ([CR#506-511]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum CombatStep {
     /// [CR#507].
     BeginningOfCombat,
     /// [CR#508].
     DeclareAttackers,
     /// [CR#509].
     DeclareBlockers,
+    /// The first combat-damage step ([CR#510.4]), present only when an
+    /// attacker or blocker has first strike or double strike.
+    FirstCombatDamage,
     /// [CR#510].
     CombatDamage,
     /// [CR#511].
     EndOfCombat,
-    /// [CR#505] (second main phase).
-    PostcombatMain,
+}
+
+/// The steps of the ending phase ([CR#512-514]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum EndingStep {
     /// [CR#513].
-    EndStep,
+    End,
     /// [CR#514].
     Cleanup,
 }
@@ -80,7 +107,7 @@ pub enum Event {
         to: Option<Zone>,
     },
     /// The beginning of a step or phase ([CR#603.2], "at the beginning of …").
-    BeginningOf(StepOrPhase, WhoseTurn),
+    BeginningOf(Phase, WhoseTurn),
     /// An object's state changed — transitions only ([CR#603.2e]).
     StateBecomes {
         of: Filter,
@@ -267,8 +294,8 @@ mod tests {
     #[test]
     fn beginning_of_reads() {
         assert_eq!(
-            read("BeginningOf(Upkeep, Your)"),
-            Event::BeginningOf(StepOrPhase::Upkeep, WhoseTurn::Your),
+            read("BeginningOf(Beginning(Upkeep), Your)"),
+            Event::BeginningOf(Phase::Beginning(BeginningStep::Upkeep), WhoseTurn::Your),
         );
     }
 

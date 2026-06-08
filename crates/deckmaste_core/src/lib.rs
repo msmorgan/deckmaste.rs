@@ -46,7 +46,7 @@ pub use effect::{
 };
 
 mod event;
-pub use event::{Event, StateFilterEvent, StepOrPhase, WhoseTurn};
+pub use event::{BeginningStep, CombatStep, EndingStep, Event, Phase, StateFilterEvent, WhoseTurn};
 
 mod filter;
 pub use filter::{CharacteristicFilter, Filter, ObjectKind, RelationFilter, StateFilter};
