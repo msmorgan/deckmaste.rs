@@ -9,8 +9,8 @@ use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::{Card, Color, Filter, StepOrPhase, Type, Zone};
 use deckmaste_engine::{
     Action, Decision, DecisionError, GameConfig, GameEvent, GameState, ObjectId, ObjectSource,
-    PendingDecision, PlayerConfig, PlayerId, Progress, RunStop, Runner, StackEntry, StackObject,
-    StartingPlayer, StepOutcome,
+    Occurrence, PendingDecision, PlayerConfig, PlayerId, Progress, RunStop, Runner, StackEntry,
+    StackObject, StartingPlayer, StepOutcome,
 };
 
 fn builtin() -> Plugin {
@@ -106,14 +106,18 @@ fn turn_one_walks_to_upkeep_priority_one_event_at_a_time() {
     // One event per step: TurnBegan, then StepBegan(Untap).
     assert!(matches!(
         state.step(),
-        StepOutcome::Progress(Progress::Applied(GameEvent::TurnBegan {
-            player: PlayerId(0),
-            turn: 1,
-        }))
+        StepOutcome::Progress(Progress::Applied(Occurrence::Single(
+            GameEvent::TurnBegan {
+                player: PlayerId(0),
+                turn: 1,
+            }
+        )))
     ));
     assert!(matches!(
         state.step(),
-        StepOutcome::Progress(Progress::Applied(GameEvent::StepBegan(StepOrPhase::Untap)))
+        StepOutcome::Progress(Progress::Applied(Occurrence::Single(GameEvent::StepBegan(
+            StepOrPhase::Untap
+        ))))
     ));
 
     // Empty battlefield: no untap events; untap grants no priority ([CR#502.4]),
@@ -124,7 +128,9 @@ fn turn_one_walks_to_upkeep_priority_one_event_at_a_time() {
     ));
     assert!(matches!(
         state.step(),
-        StepOutcome::Progress(Progress::Applied(GameEvent::StepBegan(StepOrPhase::Upkeep)))
+        StepOutcome::Progress(Progress::Applied(Occurrence::Single(GameEvent::StepBegan(
+            StepOrPhase::Upkeep
+        ))))
     ));
 
     // The pre-priority barrier: a clean SBA sweep, then priority opens.
@@ -260,8 +266,8 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
     // The land arrives; P0 retains priority ([CR#117.3c]).
     let (trace, stop) = step_to_stop(&mut state);
     assert!(trace.iter().any(|p| matches!(
-        p,
-        Progress::Applied(GameEvent::LandPlayed { object }) if *object == land
+        applied(p),
+        Some(GameEvent::LandPlayed { object }) if *object == land
     )));
     assert_eq!(state.zones.battlefield, vec![land]);
     assert_eq!(state.players[0].lands_played_this_turn, 1);
@@ -287,8 +293,8 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
     state.submit_decision(Decision::Act(tap)).unwrap();
     let (trace, _stop) = step_to_stop(&mut state);
     assert!(trace.iter().any(|p| matches!(
-        p,
-        Progress::Applied(GameEvent::Tapped(id)) if *id == land
+        applied(p),
+        Some(GameEvent::Tapped(id)) if *id == land
     )));
     assert_eq!(state.players[0].mana_pool.amount(Color::White.into()), 1);
 
@@ -300,7 +306,7 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
     assert!(
         trace
             .iter()
-            .any(|p| matches!(p, Progress::Applied(GameEvent::ManaEmptied(PlayerId(0)))))
+            .any(|p| matches!(applied(p), Some(GameEvent::ManaEmptied(PlayerId(0)))))
     );
     assert!(state.players[0].mana_pool.is_empty());
 }
@@ -329,8 +335,8 @@ fn cleanup_discards_to_hand_size() {
         .unwrap();
     let (trace, _) = step_to_stop(&mut state);
     assert!(trace.iter().any(|p| matches!(
-        p,
-        Progress::Applied(GameEvent::Discarded { player: PlayerId(1), object }) if *object == chosen
+        applied(p),
+        Some(GameEvent::Discarded { player: PlayerId(1), object }) if *object == chosen
     )));
     assert_eq!(state.zones.hands[1].len(), 7);
     assert_eq!(state.zones.graveyards[1], vec![chosen]);
@@ -395,9 +401,9 @@ fn state_is_assertable_between_two_untap_events() {
     let mut p0_lands = Vec::new();
     loop {
         match state.step() {
-            StepOutcome::Progress(Progress::Applied(GameEvent::LandPlayed { object }))
-                if state.objects.obj(object).controller == PlayerId(0) =>
-            {
+            StepOutcome::Progress(Progress::Applied(Occurrence::Single(
+                GameEvent::LandPlayed { object },
+            ))) if state.objects.obj(object).controller == PlayerId(0) => {
                 p0_lands.push(object);
             }
             StepOutcome::Progress(Progress::Advanced(StepOrPhase::Untap))
@@ -422,10 +428,14 @@ fn state_is_assertable_between_two_untap_events() {
     let first = step_until(&mut state, |_, o| {
         matches!(
             o,
-            StepOutcome::Progress(Progress::Applied(GameEvent::Untapped(_)))
+            StepOutcome::Progress(Progress::Applied(Occurrence::Single(GameEvent::Untapped(
+                _
+            ))))
         )
     });
-    let StepOutcome::Progress(Progress::Applied(GameEvent::Untapped(a))) = first else {
+    let StepOutcome::Progress(Progress::Applied(Occurrence::Single(GameEvent::Untapped(a)))) =
+        first
+    else {
         unreachable!()
     };
     let b = *p0_lands.iter().find(|&&l| l != a).expect("the other land");
@@ -439,7 +449,7 @@ fn state_is_assertable_between_two_untap_events() {
     let second = state.step();
     assert!(matches!(
         second,
-        StepOutcome::Progress(Progress::Applied(GameEvent::Untapped(id))) if id == b
+        StepOutcome::Progress(Progress::Applied(Occurrence::Single(GameEvent::Untapped(id)))) if id == b
     ));
     assert!(!state.objects.obj(b).tapped);
 }
@@ -573,10 +583,20 @@ fn cleanup_clears_marked_damage_on_battlefield_creatures() {
 fn apply_one(state: &mut GameState, event: GameEvent) -> GameEvent {
     state
         .agenda
-        .push_front(deckmaste_engine::WorkItem::Emit(event));
+        .push_front(deckmaste_engine::WorkItem::Emit(Occurrence::single(event)));
     match state.step() {
-        StepOutcome::Progress(Progress::Applied(e)) => e,
-        other => panic!("expected Applied, got {other:?}"),
+        StepOutcome::Progress(Progress::Applied(Occurrence::Single(e))) => e,
+        other => panic!("expected Applied(Single(_)), got {other:?}"),
+    }
+}
+
+/// Extracts the `GameEvent` from a `Progress::Applied(Occurrence::Single(_))`,
+/// returning `None` for any other variant. Reduces assertion churn in tests
+/// that only see single-event emits.
+fn applied(p: &Progress) -> Option<&GameEvent> {
+    match p {
+        Progress::Applied(Occurrence::Single(e)) => Some(e),
+        _ => None,
     }
 }
 
@@ -757,16 +777,16 @@ fn resolving_bolt_deals_three_then_leaves_for_graveyard() {
     // Resolve → RunEffect(DealDamage) → Emit(DamageDealt) → Emit(SpellResolved).
     let trace = drain_progress(&mut state, 8);
     assert!(
-        trace.iter().any(|p| matches!(p,
-            Progress::Applied(GameEvent::DamageDealt { target, amount: 3, .. })
-            if *target == bear
+        trace.iter().any(|p| matches!(
+            applied(p),
+            Some(GameEvent::DamageDealt { target, amount: 3, .. }) if *target == bear
         )),
         "expected DamageDealt{{target: bear, amount: 3}}, trace: {trace:?}"
     );
     assert!(
-        trace.iter().any(|p| matches!(p,
-            Progress::Applied(GameEvent::SpellResolved(o)) if *o == bolt
-        )),
+        trace
+            .iter()
+            .any(|p| matches!(applied(p), Some(GameEvent::SpellResolved(o)) if *o == bolt)),
         "expected SpellResolved(bolt), trace: {trace:?}"
     );
     assert_eq!(state.objects.obj(bear).damage, 3);
@@ -789,8 +809,9 @@ fn all_pass_on_a_nonempty_stack_resolves_the_top() {
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let (trace, _) = step_to_stop(&mut state);
     assert!(
-        trace.iter().any(|p| matches!(p,
-            Progress::Applied(GameEvent::DamageDealt { target, amount: 3, .. }) if *target == bear
+        trace.iter().any(|p| matches!(
+            applied(p),
+            Some(GameEvent::DamageDealt { target, amount: 3, .. }) if *target == bear
         )),
         "expected DamageDealt{{target: bear, amount: 3}}, trace: {trace:?}"
     );
@@ -846,7 +867,7 @@ fn casting_a_spell_schedules_the_announce_block_and_begin_cast_stages_it() {
             WorkItem::BeginCast(bolt),
             WorkItem::AnnounceTargets,
             WorkItem::PayCost,
-            WorkItem::Emit(GameEvent::SpellCast(bolt)),
+            WorkItem::Emit(Occurrence::single(GameEvent::SpellCast(bolt))),
             WorkItem::CheckSbas,
             WorkItem::OpenPriority,
         ],

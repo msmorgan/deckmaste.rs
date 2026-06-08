@@ -64,3 +64,17 @@ pub enum GameEvent {
     /// [CR#704.5g] result: a permanent destroyed to its owner's graveyard.
     Destroyed(ObjectId),
 }
+
+/// A scheduled occurrence: one event, or a set of simultaneous events applied
+/// and matched together ([CR#603.3b], [CR#700.4]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Occurrence {
+    Single(GameEvent),
+    Batch(Vec<GameEvent>),
+}
+
+impl Occurrence {
+    /// Convenience: wrap a single event.
+    #[must_use]
+    pub fn single(event: GameEvent) -> Self { Occurrence::Single(event) }
+}

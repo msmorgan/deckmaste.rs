@@ -14,8 +14,9 @@ use std::sync::Arc;
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::{Card, Color, ColorOrColorless, StepOrPhase, Zone};
 use deckmaste_engine::{
-    Action, Decision, DecisionError, GameConfig, GameEvent, GameState, ObjectId, Payment,
-    PendingDecision, PlayerConfig, PlayerId, Progress, StackObject, StartingPlayer, StepOutcome,
+    Action, Decision, DecisionError, GameConfig, GameEvent, GameState, ObjectId, Occurrence,
+    Payment, PendingDecision, PlayerConfig, PlayerId, Progress, StackObject, StartingPlayer,
+    StepOutcome,
 };
 
 // --- plugin + deck building
@@ -215,6 +216,15 @@ fn float_mana(state: &mut GameState, player: PlayerId, count: usize) {
     }
 }
 
+/// Extracts the `GameEvent` from a `Progress::Applied(Occurrence::Single(_))`,
+/// returning `None` for any other variant.
+fn applied(p: &Progress) -> Option<&GameEvent> {
+    match p {
+        Progress::Applied(Occurrence::Single(e)) => Some(e),
+        _ => None,
+    }
+}
+
 /// Reads the printed power/toughness of a card-backed object as a pair, or
 /// `None` if either is unprinted/variable.
 fn printed_pt(state: &GameState, id: ObjectId) -> Option<(i64, i64)> {
@@ -272,8 +282,10 @@ fn bolt_kills_grizzly_bears() {
     let (trace, _) = step_to_stop(&mut state);
 
     assert!(
-        trace.iter().any(|p| matches!(p,
-            Progress::Applied(GameEvent::DamageDealt { target, amount: 3, .. }) if *target == bear)),
+        trace.iter().any(|p| matches!(
+            applied(p),
+            Some(GameEvent::DamageDealt { target, amount: 3, .. }) if *target == bear
+        )),
         "3 damage dealt to the Vanilla Creature, trace: {trace:?}"
     );
     assert!(
@@ -671,7 +683,9 @@ fn second_bolt_fizzles_when_its_target_is_already_dead() {
     let mut damage_events = 0;
     loop {
         match state.step() {
-            StepOutcome::Progress(Progress::Applied(GameEvent::DamageDealt { amount, .. })) => {
+            StepOutcome::Progress(Progress::Applied(Occurrence::Single(
+                GameEvent::DamageDealt { amount, .. },
+            ))) => {
                 assert_eq!(amount, 3);
                 damage_events += 1;
             }

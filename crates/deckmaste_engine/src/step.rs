@@ -5,7 +5,7 @@ use deckmaste_core::{StepOrPhase, Uint, Zone};
 
 use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
-use crate::event::GameEvent;
+use crate::event::{GameEvent, Occurrence};
 use crate::legal::legal_actions;
 use crate::object::ObjectSource;
 use crate::player::PlayerId;
@@ -27,9 +27,8 @@ pub enum StepOutcome {
 /// One unit of engine work, observed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Progress {
-    /// One event mutated the state — carried as it occurred (apply-time
-    /// bindings filled in).
-    Applied(GameEvent),
+    /// One or more events mutated the state (apply-time bindings filled in).
+    Applied(Occurrence),
     /// A new step began.
     Advanced(StepOrPhase),
     /// A [CR#704] sweep ran; `actions` lost-player events were scheduled.
@@ -70,7 +69,7 @@ impl GameState {
             .pop_front()
             .expect("agenda is never empty while the game is on");
         let progress = match item {
-            WorkItem::Emit(event) => Progress::Applied(self.apply(event)),
+            WorkItem::Emit(occ) => Progress::Applied(self.apply_occurrence(occ)),
             WorkItem::BeginStep(s) => self.begin_step(s),
             WorkItem::CheckSbas => self.check_sbas(),
             WorkItem::CheckHandSize => self.check_hand_size(),
@@ -254,6 +253,17 @@ impl GameState {
         }
     }
 
+    /// Applies an occurrence: each event through the pipe, returned as the
+    /// facts that occurred. A `Batch` applies with no SBA/trigger interleaving.
+    fn apply_occurrence(&mut self, occ: Occurrence) -> Occurrence {
+        match occ {
+            Occurrence::Single(e) => Occurrence::Single(self.apply(e)),
+            Occurrence::Batch(events) => {
+                Occurrence::Batch(events.into_iter().map(|e| self.apply(e)).collect())
+            }
+        }
+    }
+
     /// Begins a new turn: [CR#500.1]. Returns the `TurnBegan` event to emit.
     fn begin_turn(&mut self) -> GameEvent {
         self.turn.turn_number += 1;
@@ -274,10 +284,10 @@ impl GameState {
         let mut items = Vec::new();
         if s == StepOrPhase::Untap {
             let turn_began = self.begin_turn();
-            items.push(WorkItem::Emit(turn_began));
+            items.push(WorkItem::Emit(Occurrence::single(turn_began)));
         }
         self.turn.current = s;
-        items.push(WorkItem::Emit(GameEvent::StepBegan(s)));
+        items.push(WorkItem::Emit(Occurrence::single(GameEvent::StepBegan(s))));
         items.extend(self.turn_based_actions(s));
         items.extend(self.step_tail(s));
         self.schedule_front(items);
@@ -302,16 +312,16 @@ impl GameState {
                         let obj = self.objects.obj(id);
                         obj.controller == active && obj.tapped
                     })
-                    .map(|&id| WorkItem::Emit(GameEvent::Untapped(id)))
+                    .map(|&id| WorkItem::Emit(Occurrence::single(GameEvent::Untapped(id))))
                     .collect()
             }
             // [CR#504.1]; [CR#103.8a] (two-player): turn 1 is the starting
             // player's, who skips their first draw.
             StepOrPhase::Draw if self.turn.turn_number > 1 => {
-                vec![WorkItem::Emit(GameEvent::CardDrawn {
+                vec![WorkItem::Emit(Occurrence::single(GameEvent::CardDrawn {
                     player: self.turn.active_player,
                     object: None,
-                })]
+                }))]
             }
             StepOrPhase::Draw => vec![],
             // [CR#514.1]: discard to hand size — checked after StepBegan.
@@ -363,7 +373,7 @@ impl GameState {
             .iter()
             // Lost players have left the game; nothing of theirs empties.
             .filter(|p| !p.lost && !p.mana_pool.is_empty())
-            .map(|p| WorkItem::Emit(GameEvent::ManaEmptied(p.id)))
+            .map(|p| WorkItem::Emit(Occurrence::single(GameEvent::ManaEmptied(p.id))))
             .collect();
         items.push(WorkItem::BeginStep(
             successor(self.turn.current).unwrap_or(StepOrPhase::Untap),
@@ -377,7 +387,10 @@ impl GameState {
         let actions = sba::sweep(self);
         let count = Uint::try_from(actions.len()).expect("action count fits in Uint");
         if count > 0 {
-            let mut items: Vec<WorkItem> = actions.into_iter().map(WorkItem::Emit).collect();
+            let mut items: Vec<WorkItem> = actions
+                .into_iter()
+                .map(|e| WorkItem::Emit(Occurrence::single(e)))
+                .collect();
             items.push(WorkItem::CheckSbas);
             self.schedule_front(items);
         }
