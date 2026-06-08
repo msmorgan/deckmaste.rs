@@ -125,7 +125,7 @@ pub(crate) fn resolve_line(line: &str) -> anyhow::Result<Option<String>> {
 fn render_bare(ability: &TapAbility) -> anyhow::Result<String> {
     Ok(match ability {
         TapAbility::EntersTapped => {
-            "Static(effects: [Replacement(AsEnters(effect: Tap(This)))])".to_owned()
+            "Static(effects: [Replacement(AsEnters(Tap(This)))])".to_owned()
         }
         TapAbility::Mana(production) => {
             format!(
@@ -195,7 +195,7 @@ mod tests {
         );
         assert_eq!(
             resolve_line("~ enters tapped.").unwrap().as_deref(),
-            Some("Static(effects: [Replacement(AsEnters(effect: Tap(This)))])")
+            Some("Static(effects: [Replacement(AsEnters(Tap(This)))])")
         );
         assert!(resolve_line("Draw a card.").unwrap().is_none());
         assert_eq!(
