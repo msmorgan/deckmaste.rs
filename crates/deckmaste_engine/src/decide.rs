@@ -148,6 +148,7 @@ impl GameState {
                     });
                 }
                 self.pending = None;
+                // TODO(stage-4): emit as ZoneWillChange (action-driven collapse, §5.6).
                 self.schedule_front(
                     objects
                         .into_iter()
@@ -308,6 +309,7 @@ impl GameState {
             }
             Action::PlayLand { object } => {
                 self.reset_passes();
+                // TODO(stage-4): emit as ZoneWillChange (action-driven collapse, §5.6).
                 self.schedule_front(vec![
                     WorkItem::Emit(Occurrence::single(GameEvent::LandPlayed {
                         object: *object,

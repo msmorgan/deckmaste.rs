@@ -191,7 +191,10 @@ impl GameState {
         let mut emits: Vec<WorkItem> = Vec::new();
         for event in events {
             // Skip facts no fixture trigger watches; never scan a `TriggerFired`
-            // (avoids any chance of recursion).
+            // (avoids any chance of recursion). `ZoneWillChange` is skipped because
+            // trigger-matching happens on the downstream `ZoneChanged` fact (already
+            // queued by the will-change apply at the agenda front — [CR#603.6]);
+            // matching on the intent would double-fire every zone-move trigger.
             match event {
                 GameEvent::TriggerFired { .. }
                 | GameEvent::TriggerResolved(_)
