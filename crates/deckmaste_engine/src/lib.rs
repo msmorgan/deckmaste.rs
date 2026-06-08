@@ -19,7 +19,7 @@ pub use event::{GameEvent, LossReason};
 mod legal;
 
 mod object;
-pub use object::{CardId, CardInstance, Cards, GameObject, ObjectId, ObjectStore};
+pub use object::{CardId, CardInstance, Cards, GameObject, ObjectId, ObjectSource, ObjectStore};
 
 mod player;
 pub use player::{ManaPool, PlayerId, PlayerState};

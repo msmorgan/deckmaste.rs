@@ -8,8 +8,9 @@ use std::sync::Arc;
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::{Card, Color, StepOrPhase};
 use deckmaste_engine::{
-    Action, Decision, DecisionError, GameConfig, GameEvent, GameState, PendingDecision,
-    PlayerConfig, PlayerId, Progress, RunStop, Runner, StartingPlayer, StepOutcome,
+    Action, Decision, DecisionError, GameConfig, GameEvent, GameState, ObjectSource,
+    PendingDecision, PlayerConfig, PlayerId, Progress, RunStop, Runner, StartingPlayer,
+    StepOutcome,
 };
 
 fn builtin() -> Plugin {
@@ -498,4 +499,24 @@ fn starting_player_skips_the_first_draw() {
     // Past turn 1's draw step: the opening seven, no draw.
     assert_eq!(state.zones.hands[0].len(), 7);
     assert_eq!(state.zones.libraries[0].len(), 13);
+}
+
+#[test]
+fn each_player_has_a_proxy_object() {
+    let state = two_player_plains(7, 20);
+    for p in 0..2 {
+        let proxy = state.players[p].object;
+        let obj = state.objects.obj(proxy);
+        assert_eq!(
+            obj.source,
+            ObjectSource::Player(PlayerId(u32::try_from(p).unwrap()))
+        );
+        assert_eq!(
+            obj.controller,
+            PlayerId(u32::try_from(p).unwrap()),
+            "a player controls itself"
+        );
+        assert_eq!(obj.zone, None, "a player proxy is in no zone");
+        assert_eq!(obj.damage, 0);
+    }
 }
