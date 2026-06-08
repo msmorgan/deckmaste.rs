@@ -9,7 +9,7 @@ Normal(
     abilities: [
         Triggered(
             event: Enters(Is(This)),
-            effect: DrawCards(1),
+            effect: Draw(1),
         ),
     ],
 )

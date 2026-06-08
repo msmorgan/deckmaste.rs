@@ -144,7 +144,7 @@ impl Serialize for Ability {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::action::Action;
+    use crate::action::{Action, PlayerAction};
     use crate::cost::CostComponent;
     use crate::effect::Effect;
     use crate::{Count, Reference, Selection};
@@ -153,13 +153,16 @@ mod tests {
 
     #[test]
     fn activated_ability_parses() {
-        let ability = read_ability("Activated(cost: [Tap], effect: DrawCards(Literal(1)))");
+        let ability = read_ability("Activated(cost: [Tap], effect: Draw(Literal(1)))");
         assert_eq!(
             ability,
             Ability::Activated(ActivatedAbility {
                 cost: vec![CostComponent::Tap],
                 targets: vec![],
-                effect: Effect::Act(Action::DrawCards(Count::Literal(1))),
+                effect: Effect::Act(Action::By(
+                    Reference::You,
+                    PlayerAction::Draw(Count::Literal(1))
+                )),
             })
         );
     }
@@ -169,14 +172,17 @@ mod tests {
     #[test]
     fn triggered_ability_parses() {
         let ability = read_ability(
-            "Triggered(event: ZoneMove(what: Is(This), to: Graveyard), effect: DrawCards(Literal(1)))",
+            "Triggered(event: ZoneMove(what: Is(This), to: Graveyard), effect: Draw(Literal(1)))",
         );
         let Ability::Triggered(triggered) = ability else {
             panic!("expected a triggered ability");
         };
         assert_eq!(
             triggered.effect,
-            Effect::Act(Action::DrawCards(Count::Literal(1)))
+            Effect::Act(Action::By(
+                Reference::You,
+                PlayerAction::Draw(Count::Literal(1))
+            ))
         );
         assert!(triggered.condition.is_none());
         assert!(triggered.limits.is_empty());
@@ -210,7 +216,7 @@ mod tests {
         };
         assert_eq!(
             activated.cost[1],
-            CostComponent::Do(Action::Sacrifice(Selection::Ref(Reference::This)))
+            CostComponent::Do(PlayerAction::Sacrifice(Selection::Ref(Reference::This)))
         );
     }
 }

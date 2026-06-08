@@ -6,7 +6,7 @@
 //! same macro scope and todo-skipping as cards.
 //!
 //! **Cost-eligibility lint**: for every parsed Card face and Token, every
-//! `CostComponent::Do(action)` must satisfy `Action::is_cost_eligible()`.
+//! `CostComponent::Do(action)` must satisfy `PlayerAction::is_cost_eligible()`.
 //! Violations surface as [`Validation::lint_failures`] entries with a plain
 //! message, separate from the parse-error [`Validation::failures`] vec (which
 //! carries [`ron::error::SpannedError`] values that can't be constructed by
@@ -228,7 +228,7 @@ fn lint_card_abilities(path: &Path, abilities: &[Ability], out: &mut Vec<(PathBu
                     path.to_owned(),
                     format!(
                         "cost-ineligible action in Do(…): {action:?} is not allowed as a cost \
-                         (only Sacrifice is cost-eligible)"
+                         (only Sacrifice/Exile/Tap/Untap/Discard/LoseLife are cost-eligible)"
                     ),
                 ));
             }
@@ -271,7 +271,7 @@ fn lint_card_subtypes(
 /// The `Do(action)` a cost component reduces to, looking through any
 /// remembered macro invocation (`CostComponent::Expanded`). `None` for
 /// non-`Do` components (mana, tap, untap).
-fn cost_action(component: &CostComponent) -> Option<&deckmaste_core::Action> {
+fn cost_action(component: &CostComponent) -> Option<&deckmaste_core::PlayerAction> {
     match component {
         CostComponent::Do(action) => Some(action),
         CostComponent::Expanded(expansion) => cost_action(&expansion.value),
@@ -286,15 +286,24 @@ mod tests {
 
     use deckmaste_core::{
         Ability, Action, ActivatedAbility, CostComponent, Count, Effect, Expansion, ExpansionArgs,
-        ManaSpec, Reference, Restriction, Selection, StaticAbility, StaticEffect, Subtype, Token,
-        Type,
+        ManaSpec, PlayerAction, Reference, Restriction, Selection, StaticAbility, StaticEffect,
+        Subtype, Token, Type,
     };
+
+    /// `Effect::Act(By(You, AddMana(1, AnyColor)))` — the produced-mana effect
+    /// the test tokens carry, in the new player-agent shape.
+    fn add_one_any() -> Effect {
+        Effect::Act(Action::By(
+            Reference::You,
+            PlayerAction::AddMana(Count::Literal(1), ManaSpec::AnyColor),
+        ))
+    }
 
     use super::{check_against_canon, lint_card_abilities, lint_card_subtypes};
 
     fn dummy_path() -> PathBuf { PathBuf::from("test/dummy.ron") }
 
-    /// `DrawCards` in a Do cost is flagged as ineligible.
+    /// `Draw` in a Do cost is flagged as ineligible.
     #[test]
     fn lint_flags_draw_cards_in_do_cost() {
         let token = Token {
@@ -302,16 +311,16 @@ mod tests {
             types: vec![Type::Artifact],
             subtypes: vec![],
             abilities: vec![Ability::Activated(ActivatedAbility {
-                cost: vec![CostComponent::Do(Action::DrawCards(Count::Literal(1)))],
+                cost: vec![CostComponent::Do(PlayerAction::Draw(Count::Literal(1)))],
                 targets: vec![],
-                effect: Effect::Act(Action::AddMana(Count::Literal(1), ManaSpec::AnyColor)),
+                effect: add_one_any(),
             })],
         };
         let mut failures = Vec::new();
         lint_card_abilities(&dummy_path(), &token.abilities, &mut failures);
         assert_eq!(failures.len(), 1, "expected exactly one lint failure");
         assert!(
-            failures[0].1.contains("DrawCards"),
+            failures[0].1.contains("Draw"),
             "message should mention the action: {}",
             failures[0].1
         );
@@ -327,10 +336,10 @@ mod tests {
             abilities: vec![Ability::Activated(ActivatedAbility {
                 cost: vec![
                     CostComponent::Tap,
-                    CostComponent::Do(Action::Sacrifice(Selection::from(Reference::This))),
+                    CostComponent::Do(PlayerAction::Sacrifice(Selection::from(Reference::This))),
                 ],
                 targets: vec![],
-                effect: Effect::Act(Action::AddMana(Count::Literal(1), ManaSpec::AnyColor)),
+                effect: add_one_any(),
             })],
         };
         let mut failures = Vec::new();
@@ -351,20 +360,16 @@ mod tests {
                 cost: vec![CostComponent::Expanded(Expansion {
                     name: "BadCost".into(),
                     args: ExpansionArgs::none(),
-                    value: Box::new(CostComponent::Do(Action::DrawCards(Count::Literal(1)))),
+                    value: Box::new(CostComponent::Do(PlayerAction::Draw(Count::Literal(1)))),
                 })],
                 targets: vec![],
-                effect: Effect::Act(Action::AddMana(Count::Literal(1), ManaSpec::AnyColor)),
+                effect: add_one_any(),
             })],
         };
         let mut failures = Vec::new();
         lint_card_abilities(&dummy_path(), &token.abilities, &mut failures);
-        assert_eq!(
-            failures.len(),
-            1,
-            "expected the inner DrawCards to be flagged"
-        );
-        assert!(failures[0].1.contains("DrawCards"), "{}", failures[0].1);
+        assert_eq!(failures.len(), 1, "expected the inner Draw to be flagged");
+        assert!(failures[0].1.contains("Draw"), "{}", failures[0].1);
     }
 
     /// Non-activated abilities are ignored by the lint.

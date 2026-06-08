@@ -9,8 +9,13 @@ use std::path::Path;
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::{
     Ability, Action, ActivatedAbility, CostComponent, Count, Effect, Expansion, ExpansionArgs,
-    ManaCost, ManaSpec, ManaSymbol, Reference, Selection, SimpleManaSymbol, Subtype, Token, Type,
+    ManaCost, ManaSpec, ManaSymbol, PlayerAction, Reference, Selection, SimpleManaSymbol, Subtype,
+    Token, Type,
 };
+
+/// `Effect::Act(By(You, pa))` — the implicit-you default a bare player verb in
+/// an effect slot reads as.
+fn by_you(pa: PlayerAction) -> Effect { Effect::Act(Action::By(Reference::You, pa)) }
 
 fn builtin() -> Plugin {
     Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
@@ -29,7 +34,7 @@ fn sacrifice_this() -> CostComponent {
     CostComponent::Expanded(Expansion {
         name: "SacrificeThis".into(),
         args: ExpansionArgs::none(),
-        value: Box::new(CostComponent::Do(Action::Sacrifice(Selection::from(
+        value: Box::new(CostComponent::Do(PlayerAction::Sacrifice(Selection::from(
             Reference::This,
         )))),
     })
@@ -56,7 +61,7 @@ fn treasure_token_parses() {
             abilities: vec![Ability::Activated(ActivatedAbility {
                 cost: vec![CostComponent::Tap, sacrifice_this()],
                 targets: vec![],
-                effect: Effect::Act(Action::AddMana(Count::Literal(1), ManaSpec::AnyColor)),
+                effect: by_you(PlayerAction::AddMana(Count::Literal(1), ManaSpec::AnyColor)),
             })],
         }
     );
@@ -75,7 +80,7 @@ fn clue_token_parses() {
             abilities: vec![Ability::Activated(ActivatedAbility {
                 cost: vec![mana_2(), sacrifice_this()],
                 targets: vec![],
-                effect: Effect::Act(Action::DrawCards(Count::Literal(1))),
+                effect: by_you(PlayerAction::Draw(Count::Literal(1))),
             })],
         }
     );
@@ -94,7 +99,7 @@ fn food_token_parses() {
             abilities: vec![Ability::Activated(ActivatedAbility {
                 cost: vec![mana_2(), CostComponent::Tap, sacrifice_this()],
                 targets: vec![],
-                effect: Effect::Act(Action::GainLife(Count::Literal(3))),
+                effect: by_you(PlayerAction::GainLife(Count::Literal(3))),
             })],
         }
     );

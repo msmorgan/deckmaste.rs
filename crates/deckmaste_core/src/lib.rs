@@ -7,7 +7,7 @@ pub use ability::{
 };
 
 mod action;
-pub use action::Action;
+pub use action::{Action, PlayerAction};
 
 mod count;
 pub use count::{Count, Stat};

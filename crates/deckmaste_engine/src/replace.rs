@@ -4,7 +4,8 @@
 //! (§7.2).
 
 use deckmaste_core::{
-    Ability, Action, Effect, Event, Filter, Reference, Replacement, Selection, StaticEffect, Zone,
+    Ability, Action, Effect, Event, Filter, PlayerAction, Reference, Replacement, Selection,
+    StaticEffect, Zone,
 };
 
 use crate::event::EnterStatus;
@@ -62,10 +63,14 @@ fn would_is_self_enter(would: &Event) -> bool {
 }
 
 /// Fold one `also` effect into the entering status. Stage 3: only `Tap(This)`
-/// (→ tapped). Counters/face-down are Stage-4 seams.
+/// (→ tapped) — which, since `Tap` is now a `PlayerAction`, the `AsEnters`
+/// sugar expands to `Act(By(You, Tap(This)))` (the agent is irrelevant for the
+/// enters-tapped recognizer). Counters/face-down are Stage-4 seams.
 fn apply_as_enters(effect: &Effect, status: &mut EnterStatus) {
     match effect {
-        Effect::Act(Action::Tap(Selection::Ref(Reference::This))) => status.tapped = true,
+        Effect::Act(Action::By(_, PlayerAction::Tap(Selection::Ref(Reference::This)))) => {
+            status.tapped = true;
+        }
         other => todo!("stage 3 does not interpret enters-replacement effect {other:?}"),
     }
 }
