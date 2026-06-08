@@ -1,4 +1,4 @@
-//! Resolution (CR 608): dispatch a stack object, and walk its `Effect` AST as
+//! Resolution ([CR#608]): dispatch a stack object, and walk its `Effect` AST as
 //! reified agenda work. Stage 2 wires the corpus's arms; the rest are `todo!`.
 
 use deckmaste_core::{Ability, Action, Effect, Quantity, Selection, TargetSpec, Type, Uint};
@@ -10,7 +10,7 @@ use crate::stack::{Frame, StackEntry, StackObject};
 use crate::state::GameState;
 
 impl GameState {
-    /// CR 608: resolve the committed stack object `obj`. Schedules the work
+    /// [CR#608]: resolve the committed stack object `obj`. Schedules the work
     /// and the trailing cleanup event.
     ///
     /// # Panics
@@ -28,7 +28,7 @@ impl GameState {
             StackObject::Spell(spell) => {
                 let spell = *spell;
                 if self.is_permanent_spell(spell) {
-                    // CR 608.3: a permanent spell enters the battlefield.
+                    // [CR#608.3]: a permanent spell enters the battlefield.
                     self.schedule_front(vec![WorkItem::Emit(GameEvent::EntersBattlefield(spell))]);
                 } else if self.targets_still_legal(&entry) {
                     // Instant/sorcery with all targets still legal: run its effect.
@@ -48,14 +48,14 @@ impl GameState {
                         WorkItem::Emit(GameEvent::SpellResolved(spell)),
                     ]);
                 } else {
-                    // CR 608.2b: all targets illegal — the spell fizzles.
+                    // [CR#608.2b]: all targets illegal — the spell fizzles.
                     self.schedule_front(vec![WorkItem::Emit(GameEvent::SpellResolved(spell))]);
                 }
             }
         }
     }
 
-    /// Interpret one `Effect` node (CR 608.2). `Act` becomes a concrete event
+    /// Interpret one `Effect` node ([CR#608.2]). `Act` becomes a concrete event
     /// (scheduled through the Emit pipe); `Sequence` expands to one
     /// `RunEffect` per child.
     ///
@@ -98,7 +98,7 @@ impl GameState {
         }
     }
 
-    /// Resolve a unary `Selection` to an `ObjectId` (CR 608.2d / references).
+    /// Resolve a unary `Selection` to an `ObjectId` ([CR#608.2d] / references).
     ///
     /// # Panics
     ///
@@ -136,7 +136,7 @@ impl GameState {
     /// (Creature/Artifact/Enchantment/Land/Planeswalker/Battle) and NOT
     /// Instant or Sorcery.
     ///
-    /// CR 110.1: a permanent spell is one that would enter the battlefield on
+    /// [CR#110.1]: a permanent spell is one that would enter the battlefield on
     /// resolution. Grizzly Bears → true; Lightning Bolt → false.
     #[must_use]
     pub(crate) fn is_permanent_spell(&self, id: ObjectId) -> bool {
@@ -170,7 +170,7 @@ impl GameState {
             .cloned()
     }
 
-    /// CR 608.2b: for each chosen target, it still matches its `TargetSpec`'s
+    /// [CR#608.2b]: for each chosen target, it still matches its `TargetSpec`'s
     /// filter. Returns `true` if all chosen targets are still legal (or there
     /// are no targets). Stage 2: single target, so "all legal" == "the one
     /// target legal".

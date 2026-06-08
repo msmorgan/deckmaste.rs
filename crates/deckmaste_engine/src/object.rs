@@ -54,7 +54,7 @@ impl Cards {
     pub fn is_empty(&self) -> bool { self.0.is_empty() }
 }
 
-/// Where an object's identity comes from (CR 109). Tokens are deferred — no
+/// Where an object's identity comes from ([CR#109]). Tokens are deferred — no
 /// fixture creates them yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ObjectSource {
@@ -62,8 +62,8 @@ pub enum ObjectSource {
     Player(PlayerId),
 }
 
-/// An object in the game (CR 109). An object whose `zone == Some(Battlefield)`
-/// is a permanent (CR 110.1). A player proxy has `source = Player(..)` and
+/// An object in the game ([CR#109]). An object whose `zone == Some(Battlefield)`
+/// is a permanent ([CR#110.1]). A player proxy has `source = Player(..)` and
 /// `zone == None` (players are objects here, but in no zone).
 #[derive(Debug, Clone)]
 pub struct GameObject {
@@ -72,7 +72,7 @@ pub struct GameObject {
     pub controller: PlayerId,
     /// Meaningful only on the battlefield.
     pub tapped: bool,
-    /// Marked damage (CR 120.3, 704.5g) — meaningful only on the battlefield.
+    /// Marked damage ([CR#120.3,704.5g]) — meaningful only on the battlefield.
     pub damage: Uint,
     /// `None` for a player proxy.
     pub zone: Option<Zone>,

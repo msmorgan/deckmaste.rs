@@ -1,4 +1,4 @@
-//! Casting (CR 601): the mana-payment solver plus the reified announce flow
+//! Casting ([CR#601]): the mana-payment solver plus the reified announce flow
 //! (`begin_cast` → `announce_targets` → `pay_cost`), and the `can_cast`
 //! legality gate that `legal::legal_actions` offers from.
 
@@ -42,7 +42,7 @@ fn requirement(cost: &ManaCost) -> Option<(Vec<(ColorOrColorless, Uint)>, Uint)>
     Some((colored, generic))
 }
 
-/// Whether `pool` can pay `cost` (CR 601.2g). Colored pips must be covered by
+/// Whether `pool` can pay `cost` ([CR#601.2g]). Colored pips must be covered by
 /// their color; the remaining mana must cover the generic.
 ///
 /// Returns `false` for costs containing out-of-scope symbols (X, hybrid,
@@ -87,7 +87,7 @@ pub fn validate_payment(pool: &ManaPool, cost: &ManaCost, payment: &Payment) -> 
     true
 }
 
-/// Deducts a validated `payment` from `pool` (CR 601.2g, 106.4).
+/// Deducts a validated `payment` from `pool` ([CR#601.2g,106.4]).
 ///
 /// # Panics
 ///
@@ -119,7 +119,7 @@ fn pool_kinds(pool: &ManaPool) -> [(ColorOrColorless, Uint); 6] {
 }
 
 impl GameState {
-    /// CR 601.3a + 601.2g: may `player` cast `object` now? Offered iff the
+    /// [CR#601.3a,601.2g]: may `player` cast `object` now? Offered iff the
     /// object is in the holder's hand (the caller iterates the hand), timing
     /// permits (instant → any priority; otherwise sorcery-speed), the pool can
     /// pay the cost, and every target spec has at least one legal candidate.
@@ -133,7 +133,7 @@ impl GameState {
     ) -> bool {
         let face = crate::derive::face(self.def(object));
         let instant = face.types.contains(&Type::Instant);
-        // Sorcery speed for non-instants (CR 307.1, 601.3a): only the active
+        // Sorcery speed for non-instants ([CR#307.1,601.3a]): only the active
         // player, in a main phase, with the stack empty.
         let timing_ok = instant || (player == self.turn.active_player && in_main && stack_empty);
         if !timing_ok {
@@ -151,7 +151,7 @@ impl GameState {
             .all(|spec| !self.legal_targets(spec).is_empty())
     }
 
-    /// CR 601.2a–b: move the spell from its controller's hand to the stack and
+    /// [CR#601.2a,601.2b]: move the spell from its controller's hand to the stack and
     /// open the announce slot. Procedural — not an event.
     ///
     /// # Panics
@@ -169,7 +169,7 @@ impl GameState {
         });
     }
 
-    /// CR 601.2c: surface a `ChooseTargets` decision if the in-flight spell
+    /// [CR#601.2c]: surface a `ChooseTargets` decision if the in-flight spell
     /// targets. Returns the number of target specs (0 = no decision surfaced).
     ///
     /// # Panics
@@ -195,7 +195,7 @@ impl GameState {
         count
     }
 
-    /// CR 601.2f–h: pay the in-flight cost. Always surfaces a `PayMana`
+    /// [CR#601.2f,601.2g,601.2h]: pay the in-flight cost. Always surfaces a `PayMana`
     /// decision for any non-empty mana cost; the core never auto-pays.
     /// Auto-resolution (an Arena-style autotapper) is a future runner concern.
     ///
@@ -219,7 +219,7 @@ impl GameState {
         // Empty cost (no mana required): no decision surfaces, cast continues.
     }
 
-    /// The card face's printed mana cost (CR 202). `None` would mark an
+    /// The card face's printed mana cost ([CR#202]). `None` would mark an
     /// uncastable object; every card face carries a (possibly empty) cost, so
     /// this is always `Some` today — the option leaves room for future
     /// faces/zones that have no castable cost (and lets `can_cast`/`pay_cost`
@@ -233,7 +233,7 @@ impl GameState {
         Some(crate::derive::face(self.def(object)).mana_cost.clone())
     }
 
-    /// CR 115: the legal candidates for a single `TargetSpec` (its filter's
+    /// [CR#115]: the legal candidates for a single `TargetSpec` (its filter's
     /// matching objects, in id order).
     ///
     /// Delegates filter extraction to `resolve::target_spec_filter` so that

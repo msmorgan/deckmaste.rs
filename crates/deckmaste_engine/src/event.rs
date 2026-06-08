@@ -47,20 +47,20 @@ pub enum GameEvent {
         player: PlayerId,
         reason: LossReason,
     },
-    /// CR 601.2i — a spell becomes cast. Applies by promoting `announcing`
+    /// [CR#601.2i] — a spell becomes cast. Applies by promoting `announcing`
     /// onto the stack. The Stage-3 "whenever you cast" seam.
     SpellCast(ObjectId),
-    /// CR 119 — damage to a creature (marked) or a player (life loss).
+    /// [CR#119] — damage to a creature (marked) or a player (life loss).
     DamageDealt {
         source: ObjectId,
         target: ObjectId,
         amount: Uint,
     },
-    /// A permanent spell resolving onto the battlefield (CR 608.3).
+    /// A permanent spell resolving onto the battlefield ([CR#608.3]).
     EntersBattlefield(ObjectId),
     /// An instant/sorcery leaving the stack for its owner's graveyard after
-    /// resolution or fizzle (CR 608.2m).
+    /// resolution or fizzle ([CR#608.2m]).
     SpellResolved(ObjectId),
-    /// SBA 704.5g result: a permanent destroyed to its owner's graveyard.
+    /// [CR#704.5g] result: a permanent destroyed to its owner's graveyard.
     Destroyed(ObjectId),
 }

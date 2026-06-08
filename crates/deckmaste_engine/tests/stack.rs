@@ -274,11 +274,11 @@ fn bolt_kills_grizzly_bears() {
     );
     assert!(
         state.zones.graveyards[1].contains(&bear),
-        "Bears destroyed to P1's graveyard (CR 704.5g)"
+        "Bears destroyed to P1's graveyard ([CR#704.5g])"
     );
     assert!(
         state.zones.graveyards[0].contains(&bolt),
-        "Bolt to P0's graveyard after resolution (CR 608.2m)"
+        "Bolt to P0's graveyard after resolution ([CR#608.2m])"
     );
     assert!(state.stack.is_empty());
 }
@@ -350,7 +350,7 @@ fn grizzly_bears_resolves_to_a_two_two_on_the_battlefield() {
 
     assert!(
         state.zones.battlefield.contains(&bears),
-        "the Bears entered the battlefield (CR 608.3)"
+        "the Bears entered the battlefield ([CR#608.3])"
     );
     assert_eq!(state.objects.obj(bears).controller, PlayerId(0));
     assert_eq!(state.objects.obj(bears).zone, Some(Zone::Battlefield));
@@ -677,7 +677,7 @@ fn second_bolt_fizzles_when_its_target_is_already_dead() {
 
     assert_eq!(
         damage_events, 1,
-        "only the top Bolt dealt damage; the second fizzled (CR 608.2b)"
+        "only the top Bolt dealt damage; the second fizzled ([CR#608.2b])"
     );
     assert!(
         state.zones.graveyards[1].contains(&bear),
