@@ -69,9 +69,9 @@ mod tests {
             ))),
         );
         assert_eq!(
-            read("UpToTargets(Literal(2), Type(Creature))"),
+            read("UpToTargets(Exactly(Literal(2)), Type(Creature))"),
             TargetSpec::UpToTargets(
-                crate::Quantity::Literal(2),
+                crate::Quantity::Exactly(crate::Count::Literal(2)),
                 Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
             ),
         );

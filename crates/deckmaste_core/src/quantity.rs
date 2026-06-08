@@ -1,54 +1,26 @@
 use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
 
-use crate::{Expansion, Filter, Reference};
+use crate::{Count, Expansion};
 
-/// A measurable characteristic of an object, read by `Quantity::StatOf`
-/// ([CR#109.3,208,209,210]). The open part (mana value, loyalty, defense) is
-/// finite; new printed stats are rare and get a variant when one arrives.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub enum Stat {
-    /// [CR#208].
-    Power,
-    /// [CR#208].
-    Toughness,
-    /// [CR#202.3].
-    ManaValue,
-    /// [CR#209] (planeswalker).
-    Loyalty,
-    /// [CR#210] (battle).
-    Defense,
-}
-
-/// A number an effect computes at resolution: an amount, never an object
-/// (objects are `Reference`s, [CR#107.1,107.3]).
-///
-/// Core's grammar is strict: a literal is written `Literal(3)`, a plain
-/// tagged variant like every other. A bare numeral (`3`) at a Quantity
-/// position is *reader sugar* the macro layer splices into `Literal(3)`
-/// before core ever sees it — exactly like a bare declared subtype name. So
-/// `Quantity` is a plain derived enum, and full macro interception applies
-/// at and under its positions.
+/// A cardinality range over a scalar [`Count`]: how many objects an effect
+/// operates on, never a continuous magnitude (amounts use `Count` directly).
 ///
 /// `Deserialize` is derived (the macro reader synthesizes the `Expanded`
 /// stream); `Serialize` is **manual** so `Expanded` writes the invocation
 /// back rather than the literal struct — the other variants mirror the derive.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub enum Quantity {
-    /// The value chosen for {X} as the spell or ability was put on the
-    /// stack ([CR#107.3]).
-    X,
-    /// How many objects match a filter ([CR#107.3], "for each"). Boxed to
-    /// break the `Filter` → `Stat` → `Quantity` → `Filter` size cycle.
-    CountOf(Box<Filter>),
-    /// A referenced object's stat ([CR#107.3], "equal to its power").
-    StatOf(Reference, Stat),
-    /// Magnitude anaphora: "that much" / "that many" — the amount fixed by
-    /// an earlier instruction ([CR#107.3]).
-    ThatMuch,
-    /// A bare integer literal. Written `Literal(3)` in core grammar; a bare
-    /// `3` is macro-layer reader sugar for it.
-    Literal(crate::Uint),
+    /// Exactly `n` objects.
+    Exactly(Count),
+    /// At least `n` objects.
+    AtLeast(Count),
+    /// At most `n` objects.
+    AtMost(Count),
+    /// Between `lo` and `hi` objects (inclusive).
+    Between(Count, Count),
+    /// Any number of objects ([CR#601.2c]).
+    AnyNumber,
     /// A remembered `Quantity` macro invocation.
     Expanded(Expansion<Quantity>),
 }
@@ -58,17 +30,17 @@ impl Serialize for Quantity {
         // serialize_*_variant index arguments are ignored by RON. Mirrors the
         // shapes the derive produced, plus the `Expanded` invocation arm.
         match self {
-            Quantity::X => serializer.serialize_unit_variant("Quantity", 0, "X"),
-            Quantity::CountOf(f) => {
-                serializer.serialize_newtype_variant("Quantity", 1, "CountOf", f)
+            Quantity::Exactly(c) => {
+                serializer.serialize_newtype_variant("Quantity", 0, "Exactly", c)
             }
-            Quantity::StatOf(r, s) => {
-                serializer.serialize_newtype_variant("Quantity", 2, "StatOf", &(r, s))
+            Quantity::AtLeast(c) => {
+                serializer.serialize_newtype_variant("Quantity", 1, "AtLeast", c)
             }
-            Quantity::ThatMuch => serializer.serialize_unit_variant("Quantity", 3, "ThatMuch"),
-            Quantity::Literal(n) => {
-                serializer.serialize_newtype_variant("Quantity", 4, "Literal", n)
+            Quantity::AtMost(c) => serializer.serialize_newtype_variant("Quantity", 2, "AtMost", c),
+            Quantity::Between(lo, hi) => {
+                serializer.serialize_newtype_variant("Quantity", 3, "Between", &(lo, hi))
             }
+            Quantity::AnyNumber => serializer.serialize_unit_variant("Quantity", 4, "AnyNumber"),
             // The invocation, not the struct.
             Quantity::Expanded(e) => e.serialize(serializer),
         }
@@ -78,24 +50,55 @@ impl Serialize for Quantity {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::reference::Reference;
+    use crate::Count;
 
     fn read(source: &str) -> Quantity { crate::ron::options().from_str(source).unwrap() }
 
-    /// In core grammar a literal is tagged: `Literal(3)`. A bare `3` is not
-    /// core grammar — it's macro-layer sugar, tested in the cards crate.
     #[test]
-    fn literal_reads_tagged() {
-        assert_eq!(read("Literal(3)"), Quantity::Literal(3));
+    fn exactly_reads() {
+        assert_eq!(
+            read("Exactly(Literal(3))"),
+            Quantity::Exactly(Count::Literal(3)),
+        );
     }
 
     #[test]
-    fn constructors_read_named() {
-        assert_eq!(read("X"), Quantity::X);
-        assert_eq!(read("ThatMuch"), Quantity::ThatMuch);
+    fn at_most_reads() {
         assert_eq!(
-            read("StatOf(This, Power)"),
-            Quantity::StatOf(Reference::This, Stat::Power),
+            read("AtMost(Literal(2))"),
+            Quantity::AtMost(Count::Literal(2)),
         );
+    }
+
+    #[test]
+    fn at_least_reads() {
+        assert_eq!(read("AtLeast(X)"), Quantity::AtLeast(Count::X),);
+    }
+
+    #[test]
+    fn between_reads() {
+        assert_eq!(
+            read("Between(Literal(1), Literal(3))"),
+            Quantity::Between(Count::Literal(1), Count::Literal(3)),
+        );
+    }
+
+    #[test]
+    fn any_number_reads() {
+        assert_eq!(read("AnyNumber"), Quantity::AnyNumber);
+    }
+
+    /// `Between` (2-tuple) and `AnyNumber` (unit) pin the manual `Serialize`:
+    /// serialize → read is identity.
+    #[test]
+    fn variants_round_trip() {
+        for value in [
+            Quantity::Between(Count::Literal(1), Count::Literal(3)),
+            Quantity::AnyNumber,
+            Quantity::Exactly(Count::X),
+        ] {
+            let written = crate::ron::options().to_string(&value).unwrap();
+            assert_eq!(read(&written), value, "round-trip failed for {value:?}");
+        }
     }
 }

@@ -8,7 +8,7 @@ use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::ron::options as ron_options;
 use deckmaste_core::{
     Ability, Action, ActivatedAbility, Card, CardFace, Color, ColorOrColorless, CostComponent,
-    Effect, ManaCost, ManaSpec, Property, Quantity, Subtype, Supertype, Type,
+    Count, Effect, ManaCost, ManaSpec, Property, Subtype, Supertype, Type,
 };
 
 fn builtin_path() -> PathBuf { Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin") }
@@ -26,7 +26,7 @@ fn basic_land_subtype(name: &str, color: Color) -> Subtype {
                 cost: vec![CostComponent::Tap],
                 targets: vec![],
                 effect: Effect::Act(Action::AddMana(
-                    Quantity::Literal(1),
+                    Count::Literal(1),
                     ManaSpec::Specific(ColorOrColorless::Color(color)),
                 )),
             },

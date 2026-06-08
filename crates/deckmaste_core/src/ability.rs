@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::continuous::StaticEffect;
 use crate::cost::CostComponent;
 use crate::effect::Effect;
-use crate::{Condition, Event, Expansion, Quantity, TargetSpec};
+use crate::{Condition, Count, Event, Expansion, TargetSpec};
 
 /// A spell ability — what an instant or sorcery does on resolution
 /// ([CR#113.3a]). Targets are an explicit announce list referenced by index
@@ -76,7 +76,7 @@ fn is_false(b: &bool) -> bool { !*b }
 /// than once ([CR#700.2d]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct ChooseSpec {
-    pub count: Quantity,
+    pub count: Count,
     #[serde(default, skip_serializing_if = "is_false")]
     pub up_to: bool,
     #[serde(default, skip_serializing_if = "is_false")]
@@ -147,7 +147,7 @@ mod tests {
     use crate::action::Action;
     use crate::cost::CostComponent;
     use crate::effect::Effect;
-    use crate::{Quantity, Selection};
+    use crate::{Count, Selection};
 
     fn read_ability(source: &str) -> Ability { crate::ron::options().from_str(source).unwrap() }
 
@@ -159,7 +159,7 @@ mod tests {
             Ability::Activated(ActivatedAbility {
                 cost: vec![CostComponent::Tap],
                 targets: vec![],
-                effect: Effect::Act(Action::DrawCards(Quantity::Literal(1))),
+                effect: Effect::Act(Action::DrawCards(Count::Literal(1))),
             })
         );
     }
@@ -176,7 +176,7 @@ mod tests {
         };
         assert_eq!(
             triggered.effect,
-            Effect::Act(Action::DrawCards(Quantity::Literal(1)))
+            Effect::Act(Action::DrawCards(Count::Literal(1)))
         );
         assert!(triggered.condition.is_none());
         assert!(triggered.limits.is_empty());

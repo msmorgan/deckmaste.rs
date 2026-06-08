@@ -3,7 +3,7 @@ use std::fmt;
 use serde::de::{self, EnumAccess, VariantAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::{Event, Expansion, Filter, IdentSeed, Quantity, Reference};
+use crate::{Count, Event, Expansion, Filter, IdentSeed, Reference};
 
 /// A numeric comparison ([CR#107.3]). The named forms keep RON readable —
 /// `AtLeast` rather than `>=`.
@@ -31,8 +31,8 @@ pub enum Window {
 /// layer.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Condition {
-    /// Compare two quantities ([CR#107.3]).
-    Compare(Quantity, Cmp, Quantity),
+    /// Compare two scalar counts ([CR#107.3]).
+    Compare(Count, Cmp, Count),
     /// At least one object matches ([CR#107.3], "if you control a …").
     Exists(Filter),
     /// A referenced object matches a filter ([CR#107.3], "if it is a …").
@@ -110,7 +110,7 @@ impl<'de> Deserialize<'de> for Condition {
                     "Compare" => {
                         let Triple(a, cmp, b) = v.tuple_variant(
                             3,
-                            TripleVisitor::<Quantity, Cmp, Quantity>(std::marker::PhantomData),
+                            TripleVisitor::<Count, Cmp, Count>(std::marker::PhantomData),
                         )?;
                         Condition::Compare(a, cmp, b)
                     }
@@ -181,7 +181,7 @@ mod tests {
     fn compare_reads() {
         assert_eq!(
             read("Compare(X, AtLeast, Literal(3))"),
-            Condition::Compare(Quantity::X, Cmp::AtLeast, Quantity::Literal(3)),
+            Condition::Compare(Count::X, Cmp::AtLeast, Count::Literal(3)),
         );
     }
 

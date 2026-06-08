@@ -285,9 +285,9 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use deckmaste_core::{
-        Ability, Action, ActivatedAbility, CostComponent, Effect, Expansion, ExpansionArgs,
-        ManaSpec, Quantity, Reference, Restriction, Selection, StaticAbility, StaticEffect,
-        Subtype, Token, Type,
+        Ability, Action, ActivatedAbility, CostComponent, Count, Effect, Expansion, ExpansionArgs,
+        ManaSpec, Reference, Restriction, Selection, StaticAbility, StaticEffect, Subtype, Token,
+        Type,
     };
 
     use super::{check_against_canon, lint_card_abilities, lint_card_subtypes};
@@ -302,9 +302,9 @@ mod tests {
             types: vec![Type::Artifact],
             subtypes: vec![],
             abilities: vec![Ability::Activated(ActivatedAbility {
-                cost: vec![CostComponent::Do(Action::DrawCards(Quantity::Literal(1)))],
+                cost: vec![CostComponent::Do(Action::DrawCards(Count::Literal(1)))],
                 targets: vec![],
-                effect: Effect::Act(Action::AddMana(Quantity::Literal(1), ManaSpec::AnyColor)),
+                effect: Effect::Act(Action::AddMana(Count::Literal(1), ManaSpec::AnyColor)),
             })],
         };
         let mut failures = Vec::new();
@@ -330,7 +330,7 @@ mod tests {
                     CostComponent::Do(Action::Sacrifice(Selection::from(Reference::This))),
                 ],
                 targets: vec![],
-                effect: Effect::Act(Action::AddMana(Quantity::Literal(1), ManaSpec::AnyColor)),
+                effect: Effect::Act(Action::AddMana(Count::Literal(1), ManaSpec::AnyColor)),
             })],
         };
         let mut failures = Vec::new();
@@ -351,10 +351,10 @@ mod tests {
                 cost: vec![CostComponent::Expanded(Expansion {
                     name: "BadCost".into(),
                     args: ExpansionArgs::none(),
-                    value: Box::new(CostComponent::Do(Action::DrawCards(Quantity::Literal(1)))),
+                    value: Box::new(CostComponent::Do(Action::DrawCards(Count::Literal(1)))),
                 })],
                 targets: vec![],
-                effect: Effect::Act(Action::AddMana(Quantity::Literal(1), ManaSpec::AnyColor)),
+                effect: Effect::Act(Action::AddMana(Count::Literal(1), ManaSpec::AnyColor)),
             })],
         };
         let mut failures = Vec::new();

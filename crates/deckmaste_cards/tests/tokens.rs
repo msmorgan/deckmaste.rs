@@ -8,8 +8,8 @@ use std::path::Path;
 
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::{
-    Ability, Action, ActivatedAbility, CostComponent, Effect, Expansion, ExpansionArgs, ManaCost,
-    ManaSpec, ManaSymbol, Quantity, Reference, Selection, SimpleManaSymbol, Subtype, Token, Type,
+    Ability, Action, ActivatedAbility, CostComponent, Count, Effect, Expansion, ExpansionArgs,
+    ManaCost, ManaSpec, ManaSymbol, Reference, Selection, SimpleManaSymbol, Subtype, Token, Type,
 };
 
 fn builtin() -> Plugin {
@@ -56,7 +56,7 @@ fn treasure_token_parses() {
             abilities: vec![Ability::Activated(ActivatedAbility {
                 cost: vec![CostComponent::Tap, sacrifice_this()],
                 targets: vec![],
-                effect: Effect::Act(Action::AddMana(Quantity::Literal(1), ManaSpec::AnyColor)),
+                effect: Effect::Act(Action::AddMana(Count::Literal(1), ManaSpec::AnyColor)),
             })],
         }
     );
@@ -75,7 +75,7 @@ fn clue_token_parses() {
             abilities: vec![Ability::Activated(ActivatedAbility {
                 cost: vec![mana_2(), sacrifice_this()],
                 targets: vec![],
-                effect: Effect::Act(Action::DrawCards(Quantity::Literal(1))),
+                effect: Effect::Act(Action::DrawCards(Count::Literal(1))),
             })],
         }
     );
@@ -94,7 +94,7 @@ fn food_token_parses() {
             abilities: vec![Ability::Activated(ActivatedAbility {
                 cost: vec![mana_2(), CostComponent::Tap, sacrifice_this()],
                 targets: vec![],
-                effect: Effect::Act(Action::GainLife(Quantity::Literal(3))),
+                effect: Effect::Act(Action::GainLife(Count::Literal(3))),
             })],
         }
     );

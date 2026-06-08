@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::{
-    Ability, Action, Card, Effect, Quantity, Selection, SpellAbility, StatValue, Subtype,
-    TargetSpec, Type,
+    Ability, Action, Card, Count, Effect, Selection, SpellAbility, StatValue, Subtype, TargetSpec,
+    Type,
 };
 
 fn canon_path() -> PathBuf { Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon") }
@@ -79,10 +79,7 @@ fn lightning_bolt_expands_target_macros() {
         face.abilities,
         vec![Ability::Spell(SpellAbility {
             targets: vec![any_target],
-            effect: Effect::Act(Action::DealDamage(
-                Selection::Target(0),
-                Quantity::Literal(3)
-            )),
+            effect: Effect::Act(Action::DealDamage(Selection::Target(0), Count::Literal(3))),
         })]
     );
 }

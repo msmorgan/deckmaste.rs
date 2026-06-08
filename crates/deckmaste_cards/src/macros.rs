@@ -10,15 +10,17 @@ use macro_ron::{Kind, KindSet};
 
 /// The kinds that remember their expansions: their Rust types bear
 /// `Expanded(Expansion<Self>)`, and the engine consults the remembered name
-/// for ability/verb/event identity and for provenance. (`Quantity` is
-/// registered separately for its literal sugar.)
-const REMEMBERING_KINDS: [&str; 10] = [
+/// for ability/verb/event identity and for provenance. (`Count` is
+/// registered separately for its literal sugar; `Quantity` is registered
+/// separately with `remembers_expansion` only — no literal wrapper.)
+const REMEMBERING_KINDS: [&str; 11] = [
     "Ability",
     "Condition",
     "CostComponent",
     "Effect",
     "Event",
     "Filter",
+    "Quantity",
     "Reference",
     "Selection",
     "StaticEffect",
@@ -31,7 +33,7 @@ const REMEMBERING_KINDS: [&str; 10] = [
 ///
 /// The struct kinds `CardFace` and `Subtype` are name-erasing: `Subtype`
 /// already self-names and nothing engine-meaningful invokes `CardFace`
-/// macros. A bare digit-led value at a `Quantity` position is reader sugar
+/// macros. A bare digit-led value at a `Count` position is reader sugar
 /// for `Literal(N)` — core's grammar stays strict.
 #[must_use]
 pub fn kinds() -> KindSet {
@@ -40,7 +42,7 @@ pub fn kinds() -> KindSet {
         kinds.add(Kind::new(name).remembers_expansion());
     }
     kinds.add(
-        Kind::new("Quantity")
+        Kind::new("Count")
             .remembers_expansion()
             .literal_wrapper("Literal"),
     );
@@ -77,9 +79,9 @@ pub fn macro_set() -> MacroSet {
 #[cfg(test)]
 mod tests {
     use deckmaste_core::{
-        Ability, CardFace, CharacteristicFilter, Condition, CostComponent, Effect, Event, Filter,
-        ObjectKind, Quantity, Reference, Selection, StateFilter, StaticEffect, Subtype, TargetSpec,
-        Type, Zone,
+        Ability, CardFace, CharacteristicFilter, Condition, CostComponent, Count, Effect, Event,
+        Filter, ObjectKind, Quantity, Reference, Selection, StateFilter, StaticEffect, Subtype,
+        TargetSpec, Type, Zone,
     };
 
     use super::*;
@@ -101,6 +103,7 @@ mod tests {
             name_of::<Ability>(),
             name_of::<CardFace>(),
             name_of::<Condition>(),
+            name_of::<Count>(),
             name_of::<CostComponent>(),
             name_of::<Effect>(),
             name_of::<Event>(),
@@ -286,15 +289,15 @@ mod tests {
         );
     }
 
-    /// The literal sugar applies to the real `Quantity` through the glue's
-    /// registry: a bare numeral splices to `Literal`, identifier-led
-    /// variants pass straight through.
+    /// The literal sugar applies to `Count` through the glue's registry:
+    /// a bare numeral splices to `Literal`, identifier-led variants pass
+    /// straight through.
     #[test]
-    fn quantity_sugar_applies_to_core_quantity() {
-        let quantity: Quantity = macro_set().read_str("3").unwrap();
-        assert_eq!(quantity, Quantity::Literal(3));
-        let quantity: Quantity = macro_set().read_str("X").unwrap();
-        assert_eq!(quantity, Quantity::X);
+    fn count_sugar_applies_to_core_count() {
+        let count: Count = macro_set().read_str("3").unwrap();
+        assert_eq!(count, Count::Literal(3));
+        let count: Count = macro_set().read_str("X").unwrap();
+        assert_eq!(count, Count::X);
     }
 
     /// `Color` is a registered param type, so a definition may declare it.

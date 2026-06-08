@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::mana::ManaSpec;
-use crate::{Quantity, Selection, Token};
+use crate::{Count, Selection, Token};
 
 /// An intrinsic game verb ([CR#700,701]) — only verbs whose semantics can't
 /// be data live here; [CR#701] keyword actions (Sacrifice, Investigate, …) are
@@ -11,23 +11,23 @@ use crate::{Quantity, Selection, Token};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Action {
     /// Add mana to the controller's mana pool ([CR#106.4]).
-    AddMana(Quantity, ManaSpec),
+    AddMana(Count, ManaSpec),
     /// Create a number of token permanents ([CR#111.1,701.7]).
-    Create(Quantity, Token),
+    Create(Count, Token),
     /// Deal an amount of damage to a selection ([CR#120.1]).
-    DealDamage(Selection, Quantity),
+    DealDamage(Selection, Count),
     /// Destroy a selected permanent ([CR#701.8]).
     Destroy(Selection),
     /// You discard a number of cards ([CR#701.9]).
-    Discard(Quantity),
+    Discard(Count),
     /// Draw a number of cards ([CR#121.1]).
-    DrawCards(Quantity),
+    DrawCards(Count),
     /// Exile a selection ([CR#701.13]).
     Exile(Selection),
     /// Gain an amount of life ([CR#119.3]).
-    GainLife(Quantity),
+    GainLife(Count),
     /// Lose an amount of life — implicitly you ([CR#119.3]).
-    LoseLife(Quantity),
+    LoseLife(Count),
     /// Return a selection to its owner's hand.
     ReturnToHand(Selection),
     /// Sacrifice a selected permanent ([CR#701.21]).
@@ -55,6 +55,7 @@ impl Action {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::count::Count;
     use crate::reference::Reference;
     use crate::selection::Selection;
 
@@ -63,13 +64,13 @@ mod tests {
         assert!(Action::Sacrifice(Selection::This).is_cost_eligible());
         assert!(Action::Exile(Selection::This).is_cost_eligible());
         assert!(Action::Tap(Selection::This).is_cost_eligible());
-        assert!(Action::Discard(Quantity::Literal(1)).is_cost_eligible());
+        assert!(Action::Discard(Count::Literal(1)).is_cost_eligible());
 
-        assert!(!Action::DrawCards(Quantity::Literal(1)).is_cost_eligible());
-        assert!(!Action::GainLife(Quantity::Literal(3)).is_cost_eligible());
-        assert!(!Action::AddMana(Quantity::Literal(1), ManaSpec::AnyColor).is_cost_eligible());
+        assert!(!Action::DrawCards(Count::Literal(1)).is_cost_eligible());
+        assert!(!Action::GainLife(Count::Literal(3)).is_cost_eligible());
+        assert!(!Action::AddMana(Count::Literal(1), ManaSpec::AnyColor).is_cost_eligible());
         assert!(
-            !Action::DealDamage(Selection::from(Reference::This), Quantity::Literal(1))
+            !Action::DealDamage(Selection::from(Reference::This), Count::Literal(1))
                 .is_cost_eligible()
         );
     }
