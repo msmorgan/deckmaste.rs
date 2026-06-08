@@ -1,0 +1,6 @@
+(
+    name: "Player",
+    template: "player",
+    kinds: [Filter],
+    body: Kind(Player),
+)

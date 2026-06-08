@@ -57,8 +57,9 @@ pub struct GameState {
     pub zones: Zones,
     pub objects: ObjectStore,
     pub stack: Vec<StackEntry>,
-    /// The single in-flight announce ([CR#601.2] / [CR#602.2]); `Some` only between
-    /// `BeginCast` and the `SpellCast` that promotes it onto the stack.
+    /// The single in-flight announce ([CR#601.2] / [CR#602.2]); `Some` only
+    /// between `BeginCast` and the `SpellCast` that promotes it onto the
+    /// stack.
     pub announcing: Option<PendingStackEntry>,
     pub turn: TurnState,
     pub agenda: VecDeque<WorkItem>,

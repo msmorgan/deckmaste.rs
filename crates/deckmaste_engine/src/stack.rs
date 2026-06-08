@@ -36,9 +36,9 @@ pub struct StackEntry {
     pub targets: Vec<ObjectId>,
 }
 
-/// An announce in flight ([CR#601.2] / [CR#602.2]). At most one exists, ever (no
-/// priority is held during the procedure). Carries scratch a committed entry
-/// never has.
+/// An announce in flight ([CR#601.2] / [CR#602.2]). At most one exists, ever
+/// (no priority is held during the procedure). Carries scratch a committed
+/// entry never has.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PendingStackEntry {
     pub object: StackObject,

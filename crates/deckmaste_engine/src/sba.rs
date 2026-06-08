@@ -1,7 +1,7 @@
 //! State-based actions ([CR#704]). The skeleton checks two: a player at zero
-//! or less life loses ([CR#704.5a]), and a player who drew from an empty library
-//! loses ([CR#704.5c]). Task 6 adds [CR#704.5g]: a creature with lethal marked
-//! damage is destroyed.
+//! or less life loses ([CR#704.5a]), and a player who drew from an empty
+//! library loses ([CR#704.5c]). Task 6 adds [CR#704.5g]: a creature with lethal
+//! marked damage is destroyed.
 
 use deckmaste_core::{StatValue, Type};
 

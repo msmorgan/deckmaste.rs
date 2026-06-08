@@ -7,10 +7,9 @@ use std::path::{Path, PathBuf};
 
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::{
-    Ability, Action, Card, CharacteristicFilter, Effect, Filter, ObjectKind, Quantity, Selection,
-    SpellAbility, StatValue, StateFilter, Subtype, TargetSpec, Type, Zone,
+    Ability, Action, Card, Effect, Quantity, Selection, SpellAbility, StatValue, Subtype,
+    TargetSpec, Type,
 };
-use macro_ron::{Expansion, ExpansionArgs};
 
 fn canon_path() -> PathBuf { Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon") }
 
@@ -66,29 +65,16 @@ fn grizzly_bears_expand_the_creature_type_macro() {
 /// invocation expands at the ability's `TargetSpec` announce slot.
 #[test]
 fn lightning_bolt_expands_target_macros() {
-    let card = canon().card("Lightning Bolt").unwrap();
-    let Card::Normal(face) = card else {
+    let plugin = canon();
+    let Card::Normal(face) = plugin.card("Lightning Bolt").unwrap() else {
         panic!("Lightning Bolt should be single-faced");
     };
-    let permanent_of = |t: Type| {
-        Filter::AllOf(vec![
-            Filter::State(StateFilter::InZone(Zone::Battlefield)),
-            Filter::Characteristic(CharacteristicFilter::Type(t)),
-        ])
-    };
-    let any_target_filter = Filter::OneOf(vec![
-        permanent_of(Type::Battle),
-        permanent_of(Type::Creature),
-        permanent_of(Type::Planeswalker),
-        Filter::Kind(ObjectKind::Player),
-    ]);
-    // `AnyTarget` is a remembered TargetSpec macro: the invocation survives,
-    // wrapping the expanded `Target(..)` spec under `.value`.
-    let any_target = TargetSpec::Expanded(Expansion {
-        name: "AnyTarget".into(),
-        args: ExpansionArgs::none(),
-        value: Box::new(TargetSpec::Target(any_target_filter)),
-    });
+    // The card's `targets` field is macro-aware: loading it expands the bare
+    // `AnyTarget` exactly as reading the macro directly does — interior filter
+    // expansions (Battle/Creature/…) and all. Comparing against a fresh read
+    // keeps this robust to macro refactors instead of pinning the nested,
+    // provenance-bearing expansion by hand.
+    let any_target: TargetSpec = plugin.macros.read_str("AnyTarget").unwrap();
     assert_eq!(
         face.abilities,
         vec![Ability::Spell(SpellAbility {

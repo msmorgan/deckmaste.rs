@@ -62,9 +62,9 @@ pub enum ObjectSource {
     Player(PlayerId),
 }
 
-/// An object in the game ([CR#109]). An object whose `zone == Some(Battlefield)`
-/// is a permanent ([CR#110.1]). A player proxy has `source = Player(..)` and
-/// `zone == None` (players are objects here, but in no zone).
+/// An object in the game ([CR#109]). An object whose `zone ==
+/// Some(Battlefield)` is a permanent ([CR#110.1]). A player proxy has `source =
+/// Player(..)` and `zone == None` (players are objects here, but in no zone).
 #[derive(Debug, Clone)]
 pub struct GameObject {
     pub id: ObjectId,
