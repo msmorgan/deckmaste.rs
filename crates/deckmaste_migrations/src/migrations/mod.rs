@@ -40,6 +40,10 @@ const MIGRATIONS: &[&dyn Migration] = &[
     &_007_simple_lands::SimpleLands,
 ];
 
+/// Apply every migration to the plugin in order.
+///
+/// # Errors
+/// If the plugin layout is unusable or any migration fails.
 pub fn apply_all(plugin_dir: &Path) -> anyhow::Result<()> {
     let plugin_layout = PluginLayout::new(plugin_dir)?;
     for migration in MIGRATIONS {
@@ -48,6 +52,11 @@ pub fn apply_all(plugin_dir: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Apply a single migration by index.
+///
+/// # Errors
+/// If `migration_number` is out of range, the plugin layout is unusable, or the
+/// migration fails.
 pub fn apply(plugin_dir: &Path, migration_number: usize) -> anyhow::Result<()> {
     if migration_number >= MIGRATIONS.len() {
         return Err(anyhow::anyhow!("Migration number out of range"));

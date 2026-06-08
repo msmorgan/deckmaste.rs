@@ -1,12 +1,17 @@
-//! The `cite` subcommand: check / bless / diff / list.
+//! The `cite` command: check / bless / diff / list / show.
 
 use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 
-use crate::citations::{Site, members, parse_refs, scan_text, strip_citation_wrapper};
-use crate::cr::Rules;
-use crate::lockfile::Lockfile;
+pub mod citations;
+pub mod cr;
+pub mod legacy;
+pub mod lockfile;
+
+use crate::cite::citations::{Site, members, parse_refs, scan_text, strip_citation_wrapper};
+use crate::cite::cr::Rules;
+use crate::cite::lockfile::Lockfile;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Reason {
@@ -254,7 +259,7 @@ fn load_rules() -> anyhow::Result<Rules> {
 fn load_sources() -> anyhow::Result<Vec<(PathBuf, String)>> {
     let root = repo_root();
     let mut out = Vec::new();
-    for path in crate::citations::tracked_files(&root)? {
+    for path in crate::cite::citations::tracked_files(&root)? {
         if let Ok(content) = std::fs::read_to_string(&path) {
             out.push((path, content));
         }
@@ -302,7 +307,7 @@ fn cmd_list_noncompliant() -> anyhow::Result<()> {
     let sources = load_sources()?;
     let mut count = 0;
     for (path, content) in &sources {
-        for site in crate::legacy::scan_noncompliant(path, content) {
+        for site in crate::cite::legacy::scan_noncompliant(path, content) {
             count += 1;
             eprintln!(
                 "{}:{}  {:?}  {}",

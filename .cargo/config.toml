@@ -1,10 +1,9 @@
-# `cargo migrate <plugin_dir> [migration_number]` -- always a release build:
-# parsing AllPrintings.json under the dev profile takes tens of seconds.
-# `cargo card <plugin_dir> <card_name>` shows a card's parsed expansion.
+# `cargo xtask <validate|card|migrate|cite> ...` -- workspace automation.
+# xtask owns all CLI parsing; the other crates are pure libraries it calls.
+#
+# Dev profile, so iterating on xtask stays fast to compile. `migrate`
+# deserializes the ~600 MB AllPrintings.json, which is slow unoptimized -- the
+# root Cargo.toml raises the dev opt-level of deckmaste_migrations + serde_json
+# so it stays fast to run without a release build of the whole tree.
 [alias]
-migrate = "run --release -p deckmaste_migrations --"
-card = "run -p deckmaste_cards --"
-# `cargo xtask <validate|migrate|card> ...` -- workspace automation, a pure
-# dispatcher over the crates' CLI entry points. Always release for the same
-# reason as `migrate`.
-xtask = "run --release -p xtask --"
+xtask = "run -p xtask --"
