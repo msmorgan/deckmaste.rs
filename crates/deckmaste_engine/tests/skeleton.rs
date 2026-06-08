@@ -17,6 +17,13 @@ fn builtin() -> Plugin {
     Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
 }
 
+fn canon() -> Plugin {
+    Plugin::load_with_sibling_prelude(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon"),
+    )
+    .unwrap()
+}
+
 fn deck(card: &Arc<Card>, n: usize) -> Vec<Arc<Card>> { vec![Arc::clone(card); n] }
 
 fn two_player_plains(seed: u64, deck_size: usize) -> GameState {
@@ -504,9 +511,8 @@ fn starting_player_skips_the_first_draw() {
 /// A two-player game; player 0's deck is Grizzly Bears, player 1's is
 /// Forest. Returns the state plus a Bears object forced onto the battlefield.
 fn bear_on_field() -> (GameState, ObjectId) {
-    let plugin = builtin();
-    let bears = Arc::new(plugin.card("Grizzly Bears").unwrap());
-    let forest = Arc::new(plugin.card("Forest").unwrap());
+    let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap());
     let mut state = GameState::new(GameConfig {
         players: vec![
             PlayerConfig {
@@ -654,9 +660,9 @@ fn each_player_has_a_proxy_object() {
 /// in player 1's deck; also forces a Bears onto the battlefield from player
 /// 1's hand. Returns `(state, bear)`.
 fn decks_bolt_vs_bears_with_bear_on_field() -> (GameState, ObjectId) {
-    let plugin = builtin();
-    let bolt = Arc::new(plugin.card("Lightning Bolt").unwrap());
-    let bears = Arc::new(plugin.card("Grizzly Bears").unwrap());
+    let canon = canon();
+    let bolt = Arc::new(canon.card("Lightning Bolt").unwrap());
+    let bears = Arc::new(canon.card("Grizzly Bears").unwrap());
     let mut state = GameState::new(GameConfig {
         players: vec![
             PlayerConfig {

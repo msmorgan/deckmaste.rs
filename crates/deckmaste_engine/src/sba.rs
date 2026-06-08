@@ -71,14 +71,20 @@ mod tests {
         Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
     }
 
+    fn canon() -> Plugin {
+        Plugin::load_with_sibling_prelude(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon"),
+        )
+        .unwrap()
+    }
+
     fn deck(card: &Arc<Card>, n: usize) -> Vec<Arc<Card>> { vec![Arc::clone(card); n] }
 
     /// A two-player game; player 0's deck is Grizzly Bears.
     /// Returns the state plus a Bears object forced onto the battlefield.
     fn bear_on_field() -> (GameState, crate::object::ObjectId) {
-        let plugin = builtin();
-        let bears = Arc::new(plugin.card("Grizzly Bears").unwrap());
-        let forest = Arc::new(plugin.card("Forest").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap());
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
