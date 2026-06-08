@@ -1078,8 +1078,9 @@ fn casting_a_spell_schedules_the_announce_block_and_begin_cast_stages_it() {
 }
 
 /// The collapsed land path reaches both new stages: a tapland played from hand
-/// enters tapped (replace stage, `AsEnters`) and fires its enter trigger (trigger
-/// stage). Impossible before the collapse, when land-play moved in-place.
+/// enters tapped (replace stage, `AsEnters`) and fires its enter trigger
+/// (trigger stage). Impossible before the collapse, when land-play moved
+/// in-place.
 #[test]
 fn tapland_played_from_hand_enters_tapped_and_fires_its_enter_trigger() {
     let mut state = two_player_with("Land enters tapped etb-trigger", 42, 20);
