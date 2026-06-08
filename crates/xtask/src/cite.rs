@@ -1,9 +1,8 @@
 //! The `cite` subcommand: check / bless / diff / list.
 
-use std::ffi::OsString;
 use std::path::PathBuf;
 
-use anyhow::Context;
+use clap::{Args, Subcommand};
 
 use crate::citations::{Site, members, parse_refs, scan_text, strip_citation_wrapper};
 use crate::cr::Rules;
@@ -133,7 +132,7 @@ pub fn list_sites(
     Ok(out)
 }
 
-fn cmd_list(_flags: &[String]) -> anyhow::Result<()> {
+fn cmd_list() -> anyhow::Result<()> {
     let rules = load_rules()?;
     let sources = load_sources()?;
     for (site, members) in list_sites(&rules, &sources)? {
@@ -148,20 +147,78 @@ fn cmd_list(_flags: &[String]) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// The `cite` subcommands; `check` is the default when none is given.
+#[derive(Debug, Args)]
+pub struct CiteArgs {
+    #[command(subcommand)]
+    command: Option<CiteCmd>,
+}
+
+#[derive(Debug, Subcommand)]
+enum CiteCmd {
+    /// Validate cited rules against cr.txt and the lockfile (the default).
+    Check(CheckArgs),
+    /// List every citation site with its expanded member rule numbers.
+    List,
+    /// Print the rule(s) a citation resolves to.
+    Show(ShowArgs),
+    /// Rebuild the lockfile from the rules every citation currently resolves
+    /// to.
+    Bless,
+    /// Show an old-vs-current text diff for one rule.
+    Diff(DiffArgs),
+}
+
+#[derive(Debug, Default, Args)]
+struct CheckArgs {
+    /// List citation-looking strings that don't use the [CR#…] format,
+    /// instead of checking staleness.
+    #[arg(long)]
+    list_noncompliant: bool,
+}
+
+#[derive(Debug, Args)]
+struct ShowArgs {
+    /// The citation to resolve: `704.5g`, `CR#704.5g`, or `[CR#704.5g]`;
+    /// comma-lists and `..` ranges are accepted too.
+    citation: String,
+    /// Print one rule per line, without the bracketed header or word-wrapping.
+    #[arg(long)]
+    plain: bool,
+}
+
+#[derive(Debug, Args)]
+struct DiffArgs {
+    /// The rule number to diff, e.g. `702.158b`.
+    rule: String,
+}
+
+/// Run a parsed `cite` invocation; no subcommand defaults to `check`.
+///
+/// # Errors
+/// Propagates any failure from the selected subcommand.
+pub fn dispatch(args: CiteArgs) -> anyhow::Result<()> {
+    match args
+        .command
+        .unwrap_or_else(|| CiteCmd::Check(CheckArgs::default()))
+    {
+        CiteCmd::Check(check) => cmd_check(check.list_noncompliant),
+        CiteCmd::List => cmd_list(),
+        CiteCmd::Show(show) => cmd_show(show),
+        CiteCmd::Bless => cmd_bless(),
+        CiteCmd::Diff(diff) => cmd_diff(&diff.rule),
+    }
+}
+
 /// `cite show <citation> [--plain]`: print the rule(s) a citation resolves to.
 /// Resolved rules go to stdout; an unresolved single rule prints a marker to
 /// stderr and forces a non-zero exit.
-fn cmd_show(flags: &[String]) -> anyhow::Result<()> {
-    let plain = flags.iter().any(|f| f == "--plain");
-    let arg = flags
-        .iter()
-        .find(|f| !f.starts_with("--"))
-        .context("usage: cite show <citation> [--plain]")?;
-
+fn cmd_show(args: ShowArgs) -> anyhow::Result<()> {
     let rules = load_rules()?;
-    let hits = show_rules(&rules, arg)?;
+    let hits = show_rules(&rules, &args.citation)?;
 
-    // Indented block wraps to the terminal width (or 80), minus the 4-space indent.
+    // The indented block wraps to the terminal width (or 80), less the 4-space
+    // indent.
     let width = std::env::var("COLUMNS")
         .ok()
         .and_then(|c| c.parse::<usize>().ok())
@@ -170,7 +227,7 @@ fn cmd_show(flags: &[String]) -> anyhow::Result<()> {
     let mut missing = 0;
     for (number, text) in &hits {
         match text {
-            Some(t) if plain => println!("{number}  {t}"),
+            Some(t) if args.plain => println!("{number}  {t}"),
             Some(t) => {
                 println!("[CR#{number}]");
                 for line in wrap_text(t, width.saturating_sub(4)) {
@@ -189,24 +246,6 @@ fn cmd_show(flags: &[String]) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn run(args: impl Iterator<Item = OsString>) -> anyhow::Result<()> {
-    let args: Vec<String> = args.map(|a| a.to_string_lossy().into_owned()).collect();
-    // `args` are the tokens after `cite`; args[0] is the subcommand (default:
-    // check).
-    let sub = args.first().map(String::as_str).unwrap_or("check");
-    let flags: &[String] = args.get(1..).unwrap_or(&[]);
-    match sub {
-        "check" => cmd_check(flags),
-        "list" => cmd_list(flags),
-        "show" => cmd_show(flags),
-        "bless" => cmd_bless(flags),
-        "diff" => cmd_diff(flags),
-        other => {
-            anyhow::bail!("cite: unknown subcommand {other:?}; expected check|list|show|bless|diff")
-        }
-    }
-}
-
 fn load_rules() -> anyhow::Result<Rules> {
     let text = std::fs::read_to_string(cr_txt_path())?;
     Rules::parse(&text)
@@ -223,11 +262,10 @@ fn load_sources() -> anyhow::Result<Vec<(PathBuf, String)>> {
     Ok(out)
 }
 
-fn cmd_check(flags: &[String]) -> anyhow::Result<()> {
-    if flags.iter().any(|f| f == "--list-noncompliant") {
+fn cmd_check(list_noncompliant: bool) -> anyhow::Result<()> {
+    if list_noncompliant {
         return cmd_list_noncompliant();
     }
-    // ↓↓↓ the existing cmd_check body stays exactly as-is below ↓↓↓
     let rules = load_rules()?;
     let lock = Lockfile::load(&lockfile_path())?;
     let sources = load_sources()?;
@@ -293,8 +331,7 @@ pub fn format_diff(rule: &str, old: Option<&str>, new: Option<&str>) -> String {
     s
 }
 
-fn cmd_diff(flags: &[String]) -> anyhow::Result<()> {
-    let rule = flags.first().context("usage: cite diff <rule>")?;
+fn cmd_diff(rule: &str) -> anyhow::Result<()> {
     let current = load_rules()?;
     let lock = Lockfile::load(&lockfile_path())?;
 
@@ -343,7 +380,7 @@ fn resolve_wizards_url() -> anyhow::Result<String> {
     Ok(resp.get_url().to_string())
 }
 
-fn cmd_bless(_flags: &[String]) -> anyhow::Result<()> {
+fn cmd_bless() -> anyhow::Result<()> {
     let rules = load_rules()?;
     let sources = load_sources()?;
     let path = lockfile_path();
