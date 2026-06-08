@@ -15,7 +15,9 @@ pub(super) struct ParsedEffect {
 
 /// Parses one normalized effect line into a [`ParsedEffect`], or `None` to
 /// decline. Productions are tried in order; the first match wins.
-pub(super) fn parse_clause(line: &str) -> Option<ParsedEffect> { parse_deal_damage(line) }
+pub(super) fn parse_clause(line: &str) -> Option<ParsedEffect> {
+    parse_deal_damage(line).or_else(|| parse_draw(line))
+}
 
 /// `~ deals N damage to <target>.`
 fn parse_deal_damage(line: &str) -> Option<ParsedEffect> {
@@ -27,6 +29,31 @@ fn parse_deal_damage(line: &str) -> Option<ParsedEffect> {
         targets,
         effect: format!("DealDamage({selection}, {amount})"),
     })
+}
+
+/// `Draw N card(s).` — no targets.
+fn parse_draw(line: &str) -> Option<ParsedEffect> {
+    let rest = line.strip_prefix("Draw ")?.strip_suffix('.')?;
+    // Plural first so "two cards" doesn't strip to "two card".
+    let count = rest
+        .strip_suffix(" cards")
+        .or_else(|| rest.strip_suffix(" card"))?;
+    let n = number_word(count)?;
+    Some(ParsedEffect {
+        targets: Vec::new(),
+        effect: format!("Draw({n})"),
+    })
+}
+
+/// A small spelled cardinal or a bare decimal -> its value. `None` for
+/// anything else (e.g. "X", "that many").
+fn number_word(word: &str) -> Option<u32> {
+    match word {
+        "a" | "one" => Some(1),
+        "two" => Some(2),
+        "three" => Some(3),
+        digits => digits.parse().ok(),
+    }
 }
 
 /// Maps the "to <X>" tail of a damage clause to its `(target declarations,
@@ -110,5 +137,36 @@ mod tests {
         assert!(parse_clause("~ deals 3 damage to each opponent.").is_none());
         assert!(parse_clause("Flying").is_none());
         assert!(parse_clause("~ deals X damage to any target.").is_none());
+    }
+
+    #[test]
+    fn draw_counts_from_words_and_digits() {
+        assert_eq!(
+            parsed("Draw a card."),
+            Some((String::new(), "Draw(1)".to_owned()))
+        );
+        assert_eq!(
+            parsed("Draw one card."),
+            Some((String::new(), "Draw(1)".to_owned()))
+        );
+        assert_eq!(
+            parsed("Draw two cards."),
+            Some((String::new(), "Draw(2)".to_owned()))
+        );
+        assert_eq!(
+            parsed("Draw three cards."),
+            Some((String::new(), "Draw(3)".to_owned()))
+        );
+        assert_eq!(
+            parsed("Draw 5 cards."),
+            Some((String::new(), "Draw(5)".to_owned()))
+        );
+    }
+
+    #[test]
+    fn draw_declines_unparseable_counts() {
+        // "X" and "that many" aren't v1 productions.
+        assert!(parse_clause("Draw X cards.").is_none());
+        assert!(parse_clause("Draw that many cards.").is_none());
     }
 }
