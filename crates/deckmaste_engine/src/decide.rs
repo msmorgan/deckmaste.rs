@@ -148,7 +148,8 @@ impl GameState {
                     });
                 }
                 self.pending = None;
-                // TODO(stage-4): emit as ZoneWillChange (action-driven collapse, §5.6).
+                // The `Discarded` cause fact evolves into ZoneWillChange(Hand→Graveyard)
+                // at apply ([CR#701.8], spec §5.6).
                 self.schedule_front(
                     objects
                         .into_iter()
@@ -309,7 +310,8 @@ impl GameState {
             }
             Action::PlayLand { object } => {
                 self.reset_passes();
-                // TODO(stage-4): emit as ZoneWillChange (action-driven collapse, §5.6).
+                // The `LandPlayed` cause fact bumps the land tally and evolves into
+                // ZoneWillChange(Hand→Battlefield) at apply (spec §5.6).
                 self.schedule_front(vec![
                     WorkItem::Emit(Occurrence::single(GameEvent::LandPlayed {
                         object: *object,
