@@ -770,6 +770,30 @@ fn resolving_bolt_deals_three_then_leaves_for_graveyard() {
 }
 
 #[test]
+fn all_pass_on_a_nonempty_stack_resolves_the_top() {
+    let (mut state, bolt, bear) = bolt_on_stack_targeting_bear();
+    // Open a fresh priority round at the active player and pass twice.
+    state
+        .agenda
+        .push_front(deckmaste_engine::WorkItem::OpenPriority);
+    let _ = step_to_stop(&mut state); // surfaces Priority(P0)
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = step_to_stop(&mut state); // surfaces Priority(P1)
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let (trace, _) = step_to_stop(&mut state);
+    assert!(
+        trace.iter().any(|p| matches!(p,
+            Progress::Applied(GameEvent::DamageDealt { target, amount: 3, .. }) if *target == bear
+        )),
+        "expected DamageDealt{{target: bear, amount: 3}}, trace: {trace:?}"
+    );
+    assert!(
+        state.zones.graveyards[0].contains(&bolt),
+        "bolt should be in player 0's graveyard after resolution"
+    );
+}
+
+#[test]
 fn casting_a_spell_schedules_the_announce_block_and_begin_cast_stages_it() {
     use deckmaste_engine::WorkItem;
 
