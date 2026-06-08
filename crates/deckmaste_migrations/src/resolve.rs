@@ -44,6 +44,7 @@ pub const REGISTRY: &[AbilityParser] = &[
     crate::parsers::mana_ability::resolve_line,
     crate::parsers::keyword_ability::resolve_line,
     crate::parsers::spell_ability::resolve_line,
+    crate::parsers::triggered_ability::resolve_line,
 ];
 
 /// Replaces every `Unparsed` line a parser in `registry` can structure with the
@@ -214,6 +215,25 @@ mod tests {
         assert!(matches!(
             &face.abilities[0],
             TodoAbility::Parsed(r) if r == "Spell(effect: Draw(2))"
+        ));
+    }
+
+    #[test]
+    fn creature_trigger_resolves_through_registry() {
+        let mut card = TodoCard::Normal(TodoCardFace {
+            name: "Arsonist".into(),
+            types: vec![RawIdent("Creature".into())],
+            abilities: vec![TodoAbility::Unparsed(
+                "When ~ dies, it deals 1 damage to any target.".into(),
+            )],
+            ..Default::default()
+        });
+        assert!(resolve_card(&mut card).unwrap());
+        let TodoCard::Normal(face) = &card else { panic!() };
+        assert!(matches!(
+            &face.abilities[0],
+            TodoAbility::Parsed(r)
+                if r == "Triggered(event: Dies(Is(This)), targets: [AnyTarget], effect: DealDamage(Target(0), 1))"
         ));
     }
 
