@@ -14,6 +14,7 @@ mod _005_basic_lands;
 mod _006_vanilla_creatures;
 mod _007_simple_lands;
 mod card_todo;
+mod creature_face;
 mod keyword_todos;
 mod mana_ability;
 
