@@ -20,6 +20,18 @@ pub enum ManaSpec {
     Specific(ColorOrColorless),
 }
 
+impl From<ColorOrColorless> for ManaSpec {
+    fn from(color_or_colorless: ColorOrColorless) -> Self {
+        Self::Specific(color_or_colorless)
+    }
+}
+
+impl From<Color> for ManaSpec {
+    fn from(color: Color) -> Self {
+        Self::Specific(color.into())
+    }
+}
+
 /// The component symbols hybrid/phyrexian symbols are built from: a generic
 /// amount, one of the five colors, or colorless ({C}, which is not a color).
 ///
