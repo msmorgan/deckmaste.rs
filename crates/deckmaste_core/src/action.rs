@@ -61,9 +61,9 @@ mod tests {
 
     #[test]
     fn is_cost_eligible_covers_self_directed_verbs() {
-        assert!(Action::Sacrifice(Selection::This).is_cost_eligible());
-        assert!(Action::Exile(Selection::This).is_cost_eligible());
-        assert!(Action::Tap(Selection::This).is_cost_eligible());
+        assert!(Action::Sacrifice(Selection::Ref(Reference::This)).is_cost_eligible());
+        assert!(Action::Exile(Selection::Ref(Reference::This)).is_cost_eligible());
+        assert!(Action::Tap(Selection::Ref(Reference::This)).is_cost_eligible());
         assert!(Action::Discard(Count::Literal(1)).is_cost_eligible());
 
         assert!(!Action::DrawCards(Count::Literal(1)).is_cost_eligible());

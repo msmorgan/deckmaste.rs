@@ -249,11 +249,14 @@ mod tests {
         );
         assert_eq!(
             read("Sacrifice(This)"),
-            Effect::Act(Action::Sacrifice(Selection::This)),
+            Effect::Act(Action::Sacrifice(Selection::Ref(Reference::This))),
         );
         assert_eq!(
             read("DealDamage(Target(0), Literal(3))"),
-            Effect::Act(Action::DealDamage(Selection::Target(0), Count::Literal(3))),
+            Effect::Act(Action::DealDamage(
+                Selection::Ref(Reference::Target(0)),
+                Count::Literal(3)
+            )),
         );
         assert_eq!(
             read("AddMana(Literal(1), AnyColor)"),
@@ -270,7 +273,10 @@ mod tests {
                 crate::CharacteristicFilter::Type(crate::Type::Creature)
             )))),
         );
-        assert_eq!(read("Tap(This)"), Effect::Act(Action::Tap(Selection::This)),);
+        assert_eq!(
+            read("Tap(This)"),
+            Effect::Act(Action::Tap(Selection::Ref(Reference::This))),
+        );
         assert_eq!(
             read("Discard(Literal(1))"),
             Effect::Act(Action::Discard(Count::Literal(1))),

@@ -1,7 +1,9 @@
 //! Resolution ([CR#608]): dispatch a stack object, and walk its `Effect` AST as
 //! reified agenda work. Stage 3 wires the corpus's arms; the rest are `todo!`.
 
-use deckmaste_core::{Ability, Action, Count, Effect, Selection, TargetSpec, Type, Uint, Zone};
+use deckmaste_core::{
+    Ability, Action, Count, Effect, Reference, Selection, TargetSpec, Type, Uint, Zone,
+};
 
 use crate::agenda::WorkItem;
 use crate::event::{GameEvent, Occurrence};
@@ -206,20 +208,36 @@ impl GameState {
     /// `Target(n)` index.
     fn eval_selection(&self, sel: &Selection, frame: &Frame) -> ObjectId {
         match sel {
-            Selection::Target(n) => *frame
+            // A bound reference lifted into a choice slot: funnel to the
+            // reference resolver.
+            Selection::Ref(reference) => self.eval_reference(reference, frame),
+            other => todo!("stage 3 does not evaluate selection {other:?}"),
+        }
+    }
+
+    /// Resolve a [`Reference`] to an `ObjectId` (the bound-object resolver
+    /// `Selection::Ref` funnels through).
+    ///
+    /// # Panics
+    ///
+    /// Panics on a `Reference` not wired for Stage 3, or an out-of-range
+    /// `Target(n)` index.
+    fn eval_reference(&self, reference: &Reference, frame: &Frame) -> ObjectId {
+        match reference {
+            Reference::Target(n) => *frame
                 .targets
                 .get(*n)
                 .expect("announced target index in bounds"),
             // [CR#603.10a]: for a triggered ability, `~`/`This` is the firing
             // object's last-known self (the live source may be gone); for a
             // spell frame (no bindings) it is the live source.
-            Selection::This => frame
+            Reference::This => frame
                 .bindings
                 .as_ref()
                 .and_then(|b| b.this.as_ref())
                 .map_or(frame.source, |s| s.object),
-            Selection::You => self.player(frame.controller).object,
-            other => todo!("stage 3 does not evaluate selection {other:?}"),
+            Reference::You => self.player(frame.controller).object,
+            other => todo!("stage 3 does not evaluate reference {other:?}"),
         }
     }
 
@@ -382,8 +400,8 @@ mod tests {
 
     use deckmaste_cards::plugin::Plugin;
     use deckmaste_core::{
-        Action, Card, CharacteristicFilter, Count, Effect, Filter, ObjectKind, Selection,
-        StateFilter, Type, Zone,
+        Action, Card, CharacteristicFilter, Count, Effect, Filter, ObjectKind, Reference,
+        Selection, StateFilter, Type, Zone,
     };
 
     use crate::agenda::WorkItem;
@@ -455,7 +473,7 @@ mod tests {
         };
 
         // Tap(This) -> one Single(Tapped(src))
-        let items = state.action_items(&Action::Tap(Selection::This), &frame);
+        let items = state.action_items(&Action::Tap(Selection::Ref(Reference::This)), &frame);
         assert_eq!(
             items,
             vec![WorkItem::Emit(Occurrence::Single(GameEvent::Tapped(src)))]

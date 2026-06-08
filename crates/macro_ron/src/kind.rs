@@ -13,6 +13,7 @@ pub struct Kind {
     pub(crate) name: Ident,
     pub(crate) remembers: bool,
     pub(crate) literal: Option<&'static str>,
+    pub(crate) embeds: bool,
 }
 
 impl Kind {
@@ -24,6 +25,7 @@ impl Kind {
             name: name.into(),
             remembers: false,
             literal: None,
+            embeds: false,
         }
     }
 
@@ -42,6 +44,20 @@ impl Kind {
     #[must_use]
     pub fn literal_wrapper(mut self, wrapper: &'static str) -> Self {
         self.literal = Some(wrapper);
+        self
+    }
+
+    /// Positions of this kind embed another type untagged: when the leading
+    /// identifier names neither one of this kind's own variants nor one of
+    /// its macros, the value is re-presented to the kind's `Deserialize` via
+    /// `visit_newtype_struct`, so its visitor can read the embedded type and
+    /// wrap it. The kind owns *which* type it embeds (its
+    /// `visit_newtype_struct` names that type's `Deserialize`, which
+    /// re-enters the reader under the embedded type's own namespace —
+    /// variants and macros alike).
+    #[must_use]
+    pub fn embeds_untagged(mut self) -> Self {
+        self.embeds = true;
         self
     }
 }

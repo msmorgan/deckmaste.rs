@@ -12,8 +12,10 @@ use macro_ron::{Kind, KindSet};
 /// `Expanded(Expansion<Self>)`, and the engine consults the remembered name
 /// for ability/verb/event identity and for provenance. (`Count` is
 /// registered separately for its literal sugar; `Quantity` is registered
-/// separately with `remembers_expansion` only — no literal wrapper.)
-const REMEMBERING_KINDS: [&str; 11] = [
+/// separately with `remembers_expansion` only — no literal wrapper;
+/// `Selection` is registered separately so it also `embeds_untagged` its
+/// `Reference`.)
+const REMEMBERING_KINDS: [&str; 10] = [
     "Ability",
     "Condition",
     "CostComponent",
@@ -22,7 +24,6 @@ const REMEMBERING_KINDS: [&str; 11] = [
     "Filter",
     "Quantity",
     "Reference",
-    "Selection",
     "StaticEffect",
     "TargetSpec",
 ];
@@ -45,6 +46,14 @@ pub fn kinds() -> KindSet {
         Kind::new("Count")
             .remembers_expansion()
             .literal_wrapper("Literal"),
+    );
+    // `Selection` remembers its own macros *and* embeds `Reference` untagged:
+    // a bare `This`/`Target(0)`/`ControllerOf(This)` at a Selection slot reads
+    // as `Selection::Ref(...)` with no wrapper.
+    kinds.add(
+        Kind::new("Selection")
+            .remembers_expansion()
+            .embeds_untagged(),
     );
     kinds.add(Kind::new("CardFace"));
     kinds.add(Kind::new("Subtype"));
@@ -179,6 +188,51 @@ mod tests {
             Selection::Each(Filter::Characteristic(CharacteristicFilter::Type(
                 Type::Creature
             )))
+        );
+    }
+
+    /// A bare `Reference` at a `Selection` slot reads through the untagged
+    /// embed — no `Ref(...)` wrapper in the source — and wraps in
+    /// `Selection::Ref`. The macro layer's `embeds_untagged` hook routes the
+    /// non-Selection identifier through `Selection`'s `visit_newtype_struct`.
+    #[test]
+    fn bare_reference_embeds_at_selection_slot() {
+        let macros = macro_set();
+        assert_eq!(
+            macros.read_str::<Selection>("This").unwrap(),
+            Selection::Ref(Reference::This),
+        );
+        assert_eq!(
+            macros.read_str::<Selection>("Target(0)").unwrap(),
+            Selection::Ref(Reference::Target(0)),
+        );
+        assert_eq!(
+            macros.read_str::<Selection>("ControllerOf(This)").unwrap(),
+            Selection::Ref(Reference::ControllerOf(Box::new(Reference::This))),
+        );
+    }
+
+    /// A `Reference` *macro* invoked at a `Selection` slot routes through the
+    /// embed to `Reference`'s own reader: it expands and is remembered as a
+    /// `Reference::Expanded`, then wraps in `Selection::Ref`.
+    #[test]
+    fn reference_macro_embeds_at_selection_slot() {
+        let mut macros = macro_set();
+        macros
+            .insert(&def(r#"(
+                    name: "MyController",
+                    kinds: [Reference],
+                    body: ControllerOf(This),
+                )"#))
+            .unwrap();
+        let selection: Selection = macros.read_str("MyController").unwrap();
+        let Selection::Ref(Reference::Expanded(expanded)) = selection else {
+            panic!("expected Ref(Reference::Expanded(..)), got {selection:?}");
+        };
+        assert_eq!(expanded.name, "MyController");
+        assert_eq!(
+            *expanded.value,
+            Reference::ControllerOf(Box::new(Reference::This)),
         );
     }
 

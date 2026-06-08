@@ -303,6 +303,49 @@ impl<'de> Visitor<'de> for Probe<'_, 'de> {
     }
 }
 
+/// Reads just the leading identifier of a captured fragment through the enum
+/// channel, or `None` if the fragment doesn't open with one (a scalar, a
+/// sequence, …). Used by the untagged-embed path to decide whether the value
+/// is one of the host kind's own variants before falling through.
+fn leading_ident<'de, E: serde::de::Error>(
+    source: &'de str,
+    ctx: Ctx<'de, '_>,
+) -> Result<Option<Ident>, E> {
+    struct LeadSeed<'a>(&'a Cell<bool>);
+
+    impl<'de> DeserializeSeed<'de> for LeadSeed<'_> {
+        type Value = Ident;
+
+        fn deserialize<D: Deserializer<'de>>(self, de: D) -> Result<Self::Value, D::Error> {
+            de.deserialize_enum("", &[], self)
+        }
+    }
+
+    impl<'de> Visitor<'de> for LeadSeed<'_> {
+        type Value = Ident;
+
+        fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.write_str("an identifier-led value")
+        }
+
+        fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
+            let (ident, _variant) = data.variant_seed(IdentSeed)?;
+            self.0.set(true);
+            // The variant body is left unread: the caller only wants the tag,
+            // and the fragment is re-read in full afterward.
+            Ok(ident)
+        }
+    }
+
+    let mut de = ron_deserializer(source, ctx.read.macros.options()).map_err(E::custom)?;
+    let entered = Cell::new(false);
+    match LeadSeed(&entered).deserialize(&mut de) {
+        Ok(ident) => Ok(Some(ident)),
+        Err(_) if !entered.get() => Ok(None),
+        Err(error) => Err(E::custom(de.span_error(error))),
+    }
+}
+
 /// Try-parses a captured fragment as a `Param(...)` hole or — when the
 /// position's struct name is given — an invocation of one of its macros.
 /// `None` means an ordinary value to read natively: the fragment doesn't
@@ -698,6 +741,49 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
                 de.deserialize_enum(name, variants, visitor)
             });
         }
+
+        // Untagged embed: at a kind that embeds another type, an identifier
+        // that names neither one of this kind's own variants nor one of its
+        // macros falls through to the embedded type. Capture the value, read
+        // its leading identifier, and — if it isn't native here — re-present
+        // the whole value to the host visitor through `visit_newtype_struct`,
+        // so its `Deserialize` reads the embedded type and wraps it. That
+        // re-read names the embedded type's own `Deserialize`, which re-enters
+        // under the embedded namespace (its variants and macros), so a macro
+        // of the embedded kind is remembered as that kind. A native value
+        // re-reads verbatim with `Skip` through the normal `EnumIntercept`
+        // below; the fall-through re-reads with `Full` so the embedded
+        // `deserialize_enum` stays intercepted.
+        if self.intercept != Intercept::Skip && self.ctx.read.macros.embeds_untagged(name) {
+            let source = <&RawValue>::deserialize(self.de)?.get_ron();
+            let native = match leading_ident::<Self::Error>(source, self.ctx)? {
+                Some(ident) => {
+                    variants.contains(&ident.as_str())
+                        || ident == "Param"
+                        || self.ctx.read.macros.get(name, &ident).is_some()
+                }
+                // Not identifier-led (a scalar, a sequence): the host kind's
+                // own grammar handles it.
+                None => true,
+            };
+            if native {
+                return reread(source, self.ctx, Intercept::Skip, |de| {
+                    de.deserialize_enum(name, variants, visitor)
+                });
+            }
+            // Hand the value to the host visitor as newtype content: its
+            // `visit_newtype_struct` reads the embedded type and wraps it.
+            // The wrapped deserializer is macro-aware (`Full`), so the
+            // embedded `Deserialize`'s `deserialize_enum` re-enters the
+            // intercept under the embedded type's namespace — variants and
+            // macros alike. Calling the visitor directly (not ron's named
+            // `deserialize_newtype_struct`) avoids re-parsing the value as a
+            // struct named after the host kind.
+            return reread(source, self.ctx, Intercept::Full, |de| {
+                visitor.visit_newtype_struct(de)
+            });
+        }
+
         self.de.deserialize_enum(
             name,
             variants,
