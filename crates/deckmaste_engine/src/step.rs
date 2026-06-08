@@ -7,7 +7,7 @@ use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
 use crate::event::{GameEvent, Occurrence};
 use crate::legal::legal_actions;
-use crate::object::ObjectSource;
+use crate::object::{ObjectId, ObjectSource};
 use crate::player::PlayerId;
 use crate::sba;
 use crate::stack::StackEntry;
@@ -229,42 +229,91 @@ impl GameState {
                     amount,
                 }
             }
-            GameEvent::EntersBattlefield(object) => {
-                self.remove_stack_entry(object);
-                self.objects.obj_mut(object).zone = Some(Zone::Battlefield);
-                self.zones.battlefield.push(object);
-                GameEvent::EntersBattlefield(object)
+            GameEvent::ZoneWillChange {
+                object,
+                from,
+                to,
+                enters,
+            } => {
+                self.apply_zone_will_change(object, from, to, enters);
+                GameEvent::ZoneWillChange {
+                    object,
+                    from,
+                    to,
+                    enters,
+                }
             }
-            GameEvent::SpellResolved(object) => {
-                self.remove_stack_entry(object);
-                let owner = self.owner_of(object);
-                self.objects.obj_mut(object).zone = Some(Zone::Graveyard);
-                self.zones.graveyards[owner.index()].push(object);
-                GameEvent::SpellResolved(object)
-            }
-            GameEvent::Destroyed { snapshot } => {
-                // [CR#400.7]: the destroy happens — the battlefield object is gone and
-                // a fresh object exists in the graveyard. LKI rides the event; we
-                // retain nothing.
-                let old = snapshot.object;
-                let ObjectSource::Card(c) = snapshot.source else {
-                    unreachable!("only card-backed permanents are destroyed")
-                };
-                let owner = self.cards.get(c).owner;
-                self.remove_from_battlefield(old);
-                self.objects.remove(old);
-                let new = self
-                    .objects
-                    .mint(snapshot.source, owner, Some(Zone::Graveyard));
-                self.zones.graveyards[owner.index()].push(new);
-                GameEvent::Destroyed { snapshot }
-            }
+            // [CR#603.6]: the FACT — the move already happened at the
+            // will-change apply. A no-op; triggers (a later task) match here.
+            // (Same body as the `TurnBegan`/`StepBegan` no-op, but kept its own
+            // arm to carry the CR rationale and the future trigger-match seam.)
+            #[expect(clippy::match_same_arms)]
+            GameEvent::ZoneChanged { .. } => event,
             GameEvent::LifeLost { player, amount } => {
                 self.player_mut(player).life -=
                     deckmaste_core::Int::try_from(amount).expect("life loss fits in i32");
                 GameEvent::LifeLost { player, amount }
             }
         }
+    }
+
+    /// Applies a `ZoneWillChange` ([CR#400.7]): the move+remint that every zone
+    /// change goes through. Captures the live object's LKI, removes it from its
+    /// `from` zone, remints a fresh object into `to` (new `ObjectId`, same
+    /// `CardId`), and schedules the `ZoneChanged` fact at the agenda front.
+    ///
+    /// The replace stage is a structural no-op in 5a — `enters` is used as-is
+    /// (always `None` from the permanent-zone causes; `AsEnters`/enters-tapped
+    /// is a later task).
+    fn apply_zone_will_change(
+        &mut self,
+        object: ObjectId,
+        from: Option<Zone>,
+        to: Zone,
+        enters: Option<crate::event::EnterStatus>,
+    ) {
+        // 1. Snapshot while the object is still live in `from`.
+        let snapshot = crate::lki::LkiSnapshot::capture(self, object);
+
+        // 2. (replace stage — structural no-op in 5a.)
+
+        // 3. Move + remint. Remove the old object from its `from` zone's list, then
+        //    from the store; mint a fresh object into `to`.
+        match from {
+            Some(Zone::Stack) => self.remove_stack_entry(object),
+            Some(Zone::Battlefield) => self.remove_from_battlefield(object),
+            Some(Zone::Hand) => {
+                let owner = self.owner_of(object);
+                self.remove_from_hand(owner, object);
+            }
+            other => unreachable!("5a moves only from Stack/Battlefield/Hand, not {other:?}"),
+        }
+        self.objects.remove(object);
+
+        let ObjectSource::Card(card) = snapshot.source else {
+            unreachable!("only card-backed objects change zones")
+        };
+        let owner = self.cards.get(card).owner;
+        // [CR#400.7]: a permanent keeps its caster as controller; elsewhere the
+        // object is controlled by its owner.
+        let controller = if to == Zone::Battlefield { snapshot.controller } else { owner };
+        let new = self.objects.mint(snapshot.source, controller, Some(to));
+        if let Some(status) = enters
+            && status.tapped
+        {
+            // Always false in 5a; the entry-status path lands with AsEnters.
+            self.objects.obj_mut(new).tapped = true;
+        }
+        match to {
+            Zone::Battlefield => self.zones.battlefield.push(new),
+            Zone::Graveyard => self.zones.graveyards[owner.index()].push(new),
+            other => unreachable!("5a moves only to Battlefield/Graveyard, not {other:?}"),
+        }
+
+        // 4. Schedule the unreplaceable fact at the agenda front.
+        self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+            GameEvent::ZoneChanged { snapshot, from, to },
+        ))]);
     }
 
     /// Applies an occurrence: each event through the pipe, returned as the

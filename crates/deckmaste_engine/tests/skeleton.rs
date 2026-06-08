@@ -8,9 +8,9 @@ use std::sync::Arc;
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::{Card, Color, Filter, StepOrPhase, Type, Zone};
 use deckmaste_engine::{
-    Action, Decision, DecisionError, GameConfig, GameEvent, GameState, LkiSnapshot, ObjectId,
-    ObjectSource, Occurrence, PendingDecision, PlayerConfig, PlayerId, Progress, RunStop, Runner,
-    StackEntry, StackObject, StartingPlayer, StepOutcome,
+    Action, Decision, DecisionError, GameConfig, GameEvent, GameState, ObjectId, ObjectSource,
+    Occurrence, PendingDecision, PlayerConfig, PlayerId, Progress, RunStop, Runner, StackEntry,
+    StackObject, StartingPlayer, StepOutcome,
 };
 
 fn builtin() -> Plugin {
@@ -625,7 +625,7 @@ fn damage_to_a_player_is_life_loss_and_to_a_creature_is_marked() {
 }
 
 #[test]
-fn spell_resolved_moves_the_stack_object_to_its_owners_graveyard() {
+fn spell_leaves_the_stack_for_its_owners_graveyard() {
     let (mut state, _bear) = bear_on_field();
     // Put a (fake) spell object on the stack owned by player 0.
     let spell = state.zones.hands[0][0];
@@ -636,19 +636,43 @@ fn spell_resolved_moves_the_stack_object_to_its_owners_graveyard() {
         controller: PlayerId(0),
         targets: vec![],
     });
-    apply_one(&mut state, GameEvent::SpellResolved(spell));
+    // [CR#608.2m]/[CR#400.7]: leaving the stack remints — the old id is gone
+    // and a fresh object sits in the owner's graveyard.
+    apply_one(
+        &mut state,
+        GameEvent::ZoneWillChange {
+            object: spell,
+            from: Some(Zone::Stack),
+            to: Zone::Graveyard,
+            enters: None,
+        },
+    );
     assert!(state.stack.is_empty());
-    assert!(state.zones.graveyards[0].contains(&spell));
-    assert_eq!(state.objects.obj(spell).zone, Some(Zone::Graveyard));
+    assert!(
+        state.objects.get(spell).is_none(),
+        "old stack id must be gone after reminting"
+    );
+    assert_eq!(state.zones.graveyards[0].len(), 1);
+    let new = state.zones.graveyards[0][0];
+    assert_ne!(new, spell, "graveyard object must have a fresh ObjectId");
+    assert_eq!(state.objects.obj(new).zone, Some(Zone::Graveyard));
 }
 
 #[test]
-fn destroyed_remints_creature_to_owners_graveyard() {
+fn destroy_will_change_remints_creature_to_owners_graveyard() {
     // [CR#400.7]: the old ObjectId is gone; a fresh one exists in the graveyard.
+    // The battlefield→graveyard ZoneWillChange captures LKI and moves+remints.
     let (mut state, bear) = bear_on_field();
     state.objects.obj_mut(bear).damage = 5;
-    let snapshot = LkiSnapshot::capture(&state, bear);
-    apply_one(&mut state, GameEvent::Destroyed { snapshot });
+    apply_one(
+        &mut state,
+        GameEvent::ZoneWillChange {
+            object: bear,
+            from: Some(Zone::Battlefield),
+            to: Zone::Graveyard,
+            enters: None,
+        },
+    );
     // Old id is gone.
     assert!(state.objects.get(bear).is_none(), "old id must be removed");
     assert!(!state.zones.battlefield.contains(&bear));
@@ -662,6 +686,42 @@ fn destroyed_remints_creature_to_owners_graveyard() {
     );
     // Fresh object starts with zero damage (never carried over).
     assert_eq!(state.objects.obj(new).damage, 0);
+}
+
+#[test]
+fn destroy_will_change_emits_zone_changed_carrying_lki() {
+    // The will-change apply schedules a ZoneChanged fact carrying the leaving
+    // creature's snapshot (captured before removal, while it was still live).
+    let (mut state, bear) = bear_on_field();
+    state.objects.obj_mut(bear).damage = 5;
+    state
+        .agenda
+        .push_front(deckmaste_engine::WorkItem::Emit(Occurrence::single(
+            GameEvent::ZoneWillChange {
+                object: bear,
+                from: Some(Zone::Battlefield),
+                to: Zone::Graveyard,
+                enters: None,
+            },
+        )));
+    // First step applies the will-change; the next applies the queued fact.
+    let _ = state.step();
+    let StepOutcome::Progress(Progress::Applied(Occurrence::Single(GameEvent::ZoneChanged {
+        snapshot,
+        from,
+        to,
+    }))) = state.step()
+    else {
+        panic!("expected an Applied(ZoneChanged) fact after the will-change");
+    };
+    assert_eq!(
+        snapshot.object, bear,
+        "the snapshot names the leaving object"
+    );
+    assert_eq!(snapshot.damage, 5, "LKI captured before removal");
+    assert_eq!(snapshot.left, Zone::Battlefield);
+    assert_eq!(from, Some(Zone::Battlefield));
+    assert_eq!(to, Zone::Graveyard);
 }
 
 #[test]
@@ -781,8 +841,9 @@ fn resolving_bolt_deals_three_then_leaves_for_graveyard() {
     state
         .agenda
         .push_front(deckmaste_engine::WorkItem::Resolve(bolt));
-    // Resolve → RunEffect(DealDamage) → Emit(DamageDealt) → Emit(SpellResolved).
-    let trace = drain_progress(&mut state, 8);
+    // Resolve → RunEffect(DealDamage) → Emit(DamageDealt) →
+    // Emit(ZoneWillChange Stack→Graveyard) → Emit(ZoneChanged).
+    let trace = drain_progress(&mut state, 10);
     assert!(
         trace.iter().any(|p| matches!(
             applied(p),
@@ -790,16 +851,33 @@ fn resolving_bolt_deals_three_then_leaves_for_graveyard() {
         )),
         "expected DamageDealt{{target: bear, amount: 3}}, trace: {trace:?}"
     );
+    // [CR#608.2m]/[CR#400.7]: the instant leaves the stack via a
+    // stack→graveyard ZoneWillChange and remints — the old id is gone.
     assert!(
-        trace
-            .iter()
-            .any(|p| matches!(applied(p), Some(GameEvent::SpellResolved(o)) if *o == bolt)),
-        "expected SpellResolved(bolt), trace: {trace:?}"
+        trace.iter().any(|p| matches!(
+            applied(p),
+            Some(GameEvent::ZoneWillChange {
+                object,
+                from: Some(Zone::Stack),
+                to: Zone::Graveyard,
+                ..
+            }) if *object == bolt
+        )),
+        "expected a stack→graveyard ZoneWillChange for bolt, trace: {trace:?}"
     );
     assert_eq!(state.objects.obj(bear).damage, 3);
     assert!(
-        state.zones.graveyards[0].contains(&bolt),
-        "bolt should be in player 0's graveyard"
+        state.objects.get(bolt).is_none(),
+        "old bolt id must be gone after reminting"
+    );
+    assert_eq!(
+        state.zones.graveyards[0].len(),
+        1,
+        "a fresh object (the reminted instant) sits in player 0's graveyard"
+    );
+    assert!(
+        !state.zones.graveyards[0].contains(&bolt),
+        "the graveyard object carries a fresh id, not the old stack id"
     );
 }
 
@@ -822,9 +900,16 @@ fn all_pass_on_a_nonempty_stack_resolves_the_top() {
         )),
         "expected DamageDealt{{target: bear, amount: 3}}, trace: {trace:?}"
     );
+    // [CR#608.2m]/[CR#400.7]: the instant leaves the stack and remints — the
+    // old bolt id is gone; a fresh object sits in P0's graveyard.
     assert!(
-        state.zones.graveyards[0].contains(&bolt),
-        "bolt should be in player 0's graveyard after resolution"
+        state.objects.get(bolt).is_none(),
+        "old bolt id must be gone after reminting"
+    );
+    assert_eq!(
+        state.zones.graveyards[0].len(),
+        1,
+        "the reminted instant lands in P0's graveyard after resolution"
     );
 }
 
