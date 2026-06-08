@@ -199,9 +199,6 @@ impl GameState {
             .expect("at least one live player")
     }
 
-    /// Removes `object` from `player`'s hand. Panics if absent — callers
-    /// validate first.
-    ///
     /// # Panics
     ///
     /// Panics if `object` is not in `player`'s hand — callers validate first.
@@ -212,6 +209,38 @@ impl GameState {
             .position(|&o| o == object)
             .expect("object in hand");
         hand.remove(i);
+    }
+
+    /// Removes the committed stack entry for `object` (CR 405). Panics if
+    /// absent — engine invariant.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `object` is not on the stack — engine invariant, not caller
+    /// input.
+    pub(crate) fn remove_stack_entry(&mut self, object: ObjectId) {
+        let i = self
+            .stack
+            .iter()
+            .position(|e| e.object.object() == object)
+            .expect("entry on stack");
+        self.stack.remove(i);
+    }
+
+    /// Removes `object` from the shared battlefield. Panics if absent.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `object` is not on the battlefield — engine invariant, not
+    /// caller input.
+    pub(crate) fn remove_from_battlefield(&mut self, object: ObjectId) {
+        let i = self
+            .zones
+            .battlefield
+            .iter()
+            .position(|&o| o == object)
+            .expect("object on battlefield");
+        self.zones.battlefield.remove(i);
     }
 
     /// Schedules items at the agenda front, preserving their order.

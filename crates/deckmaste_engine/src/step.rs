@@ -7,8 +7,10 @@ use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
 use crate::event::GameEvent;
 use crate::legal::legal_actions;
+use crate::object::ObjectSource;
 use crate::player::PlayerId;
 use crate::sba;
+use crate::stack::StackEntry;
 use crate::state::{GameOutcome, GameState};
 use crate::turn::{PriorityRound, successor};
 
@@ -71,6 +73,8 @@ impl GameState {
     /// replacement registries are empty). Returns the event as it occurred —
     /// apply-time bindings (a drawn card's identity) filled in, and a draw
     /// from an empty library occurring as `DrewFromEmpty` instead.
+    // TODO(stage-3): split apply() by subsystem (stack / zone-change / player) as arms grow.
+    #[expect(clippy::too_many_lines)]
     fn apply(&mut self, event: GameEvent) -> GameEvent {
         match event {
             GameEvent::TurnBegan { .. } | GameEvent::StepBegan(_) => event,
@@ -156,6 +160,65 @@ impl GameState {
                     self.agenda.clear();
                 }
                 event
+            }
+            GameEvent::SpellCast(object) => {
+                // CR 601.2i: promote the staged announce onto the stack.
+                let pending = self.announcing.take().expect("an announce in flight");
+                debug_assert_eq!(
+                    pending.object.object(),
+                    object,
+                    "SpellCast event matches the staged announce"
+                );
+                self.stack.push(StackEntry {
+                    object: pending.object,
+                    controller: pending.controller,
+                    targets: pending.targets,
+                });
+                GameEvent::SpellCast(object)
+            }
+            GameEvent::DamageDealt {
+                source,
+                target,
+                amount,
+            } => {
+                // CR 119: damage to a player is life loss; to a creature it is
+                // marked damage. `Int` is `i32`; `Uint` is `u32` — `try_from`
+                // is required because u32 does not fit into i32 via `From`.
+                match self.objects.obj(target).source {
+                    ObjectSource::Player(p) => {
+                        self.player_mut(p).life -=
+                            deckmaste_core::Int::try_from(amount).expect("damage fits in i32");
+                    }
+                    ObjectSource::Card(_) => {
+                        self.objects.obj_mut(target).damage += amount;
+                    }
+                }
+                GameEvent::DamageDealt {
+                    source,
+                    target,
+                    amount,
+                }
+            }
+            GameEvent::EntersBattlefield(object) => {
+                self.remove_stack_entry(object);
+                self.objects.obj_mut(object).zone = Some(Zone::Battlefield);
+                self.zones.battlefield.push(object);
+                GameEvent::EntersBattlefield(object)
+            }
+            GameEvent::SpellResolved(object) => {
+                self.remove_stack_entry(object);
+                let owner = self.owner_of(object);
+                self.objects.obj_mut(object).zone = Some(Zone::Graveyard);
+                self.zones.graveyards[owner.index()].push(object);
+                GameEvent::SpellResolved(object)
+            }
+            GameEvent::Destroyed(object) => {
+                let owner = self.owner_of(object);
+                self.remove_from_battlefield(object);
+                self.objects.obj_mut(object).damage = 0;
+                self.objects.obj_mut(object).zone = Some(Zone::Graveyard);
+                self.zones.graveyards[owner.index()].push(object);
+                GameEvent::Destroyed(object)
             }
         }
     }
