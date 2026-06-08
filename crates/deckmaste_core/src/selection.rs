@@ -21,12 +21,9 @@ pub enum Selection {
     Each(Filter),
     /// All matching objects as one set — the shape continuous-effect
     /// scopes and set-wide instructions consume.
-    All(Filter),
-    /// One untargeted choice, made at resolution: not announced, not
-    /// rechecked the way targets are ([CR#608.2d] vs [CR#601.2c]).
-    Choose(Filter),
+    Filter(Filter),
     /// A quantity of untargeted choices made at resolution ([CR#608.2d]).
-    ChooseN(Quantity, Filter),
+    Choose(Quantity, Filter),
     /// A random selection of a quantity of matching objects.
     Random(Quantity, Filter),
 
@@ -68,15 +65,14 @@ impl Serialize for Selection {
         // shapes the derive produced, plus the `Expanded` invocation arm.
         match self {
             Selection::Each(f) => serializer.serialize_newtype_variant("Selection", 0, "Each", f),
-            Selection::All(f) => serializer.serialize_newtype_variant("Selection", 1, "All", f),
-            Selection::Choose(f) => {
-                serializer.serialize_newtype_variant("Selection", 2, "Choose", f)
+            Selection::Filter(f) => {
+                serializer.serialize_newtype_variant("Selection", 1, "Filter", f)
             }
-            Selection::ChooseN(q, f) => {
-                serializer.serialize_newtype_variant("Selection", 3, "ChooseN", &(q, f))
+            Selection::Choose(q, f) => {
+                serializer.serialize_newtype_variant("Selection", 2, "Choose", &(q, f))
             }
             Selection::Random(q, f) => {
-                serializer.serialize_newtype_variant("Selection", 4, "Random", &(q, f))
+                serializer.serialize_newtype_variant("Selection", 3, "Random", &(q, f))
             }
             Selection::This => serializer.serialize_unit_variant("Selection", 5, "This"),
             Selection::You => serializer.serialize_unit_variant("Selection", 6, "You"),
@@ -149,7 +145,7 @@ impl From<Reference> for Selection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{CharacteristicFilter, ObjectKind, Type};
+    use crate::{CharacteristicFilter, Count, ObjectKind, Quantity, Type};
 
     fn read(source: &str) -> Selection { crate::ron::options().from_str(source).unwrap() }
 
@@ -159,12 +155,23 @@ mod tests {
             read("Each(Kind(Player))"),
             Selection::Each(Filter::Kind(ObjectKind::Player)),
         );
-        assert_eq!(
-            read("Choose(Type(Creature))"),
-            Selection::Choose(Filter::Characteristic(CharacteristicFilter::Type(
-                Type::Creature
-            ))),
+    }
+
+    #[test]
+    fn filter_variant_round_trip() {
+        let v = Selection::Filter(Filter::Kind(ObjectKind::Player));
+        let w = crate::ron::options().to_string(&v).unwrap();
+        assert_eq!(read(&w), v);
+    }
+
+    #[test]
+    fn choose_single_round_trip() {
+        let v = Selection::Choose(
+            Quantity::Exactly(Count::Literal(1)),
+            Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
         );
+        let w = crate::ron::options().to_string(&v).unwrap();
+        assert_eq!(read(&w), v);
     }
 
     /// References lift into Selection flat — `This`, `Target(0)`, … read

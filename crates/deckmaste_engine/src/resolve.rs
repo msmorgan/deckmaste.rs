@@ -187,11 +187,10 @@ impl GameState {
     }
 
     /// A selection resolved to its full set ([CR#608.2d]). `Each` is the
-    /// distributive "for each matching object" and enumerates the set. A
-    /// `Filter` is already set-valued, so `Selection::All` carries nothing a
-    /// bare filter doesn't — it stays an unreached seam (set-wide consumers
-    /// take a `Filter` directly). Unary references resolve to a 1-element
-    /// set.
+    /// distributive "for each matching object" and enumerates the set.
+    /// `Selection::Filter` is set-valued but stays an unreached seam here
+    /// (set-wide consumers take a `Filter` directly). Unary references resolve
+    /// to a 1-element set.
     pub(crate) fn eval_selection_set(&self, sel: &Selection, frame: &Frame) -> Vec<ObjectId> {
         match sel {
             Selection::Each(f) => crate::target::candidates(self, f),
