@@ -250,6 +250,11 @@ impl GameState {
                 self.zones.graveyards[owner.index()].push(object);
                 GameEvent::Destroyed(object)
             }
+            GameEvent::LifeLost { player, amount } => {
+                self.player_mut(player).life -=
+                    deckmaste_core::Int::try_from(amount).expect("life loss fits in i32");
+                GameEvent::LifeLost { player, amount }
+            }
         }
     }
 

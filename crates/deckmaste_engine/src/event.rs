@@ -63,6 +63,11 @@ pub enum GameEvent {
     SpellResolved(ObjectId),
     /// [CR#704.5g] result: a permanent destroyed to its owner's graveyard.
     Destroyed(ObjectId),
+    /// [CR#119.3]: a player loses life directly (not via damage).
+    LifeLost {
+        player: PlayerId,
+        amount: Uint,
+    },
 }
 
 /// A scheduled occurrence: one event, or a set of simultaneous events applied

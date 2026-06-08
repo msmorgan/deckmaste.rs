@@ -1,5 +1,5 @@
 //! Resolution ([CR#608]): dispatch a stack object, and walk its `Effect` AST as
-//! reified agenda work. Stage 2 wires the corpus's arms; the rest are `todo!`.
+//! reified agenda work. Stage 3 wires the corpus's arms; the rest are `todo!`.
 
 use deckmaste_core::{Ability, Action, Effect, Quantity, Selection, TargetSpec, Type, Uint};
 
@@ -59,18 +59,18 @@ impl GameState {
         }
     }
 
-    /// Interpret one `Effect` node ([CR#608.2]). `Act` becomes a concrete event
-    /// (scheduled through the Emit pipe); `Sequence` expands to one
+    /// Interpret one `Effect` node ([CR#608.2]). `Act` becomes one or more
+    /// `Emit` work items (via `action_items`); `Sequence` expands to one
     /// `RunEffect` per child.
     ///
     /// # Panics
     ///
-    /// Panics on any `Effect` variant not wired for Stage 2.
+    /// Panics on any `Effect` variant not wired for Stage 3.
     pub(crate) fn run_effect(&mut self, effect: Effect, frame: &Frame) {
         match effect {
             Effect::Act(action) => {
-                let event = self.action_event(&action, frame);
-                self.schedule_front(vec![WorkItem::Emit(Occurrence::single(event))]);
+                let items = self.action_items(&action, frame);
+                self.schedule_front(items);
             }
             Effect::Sequence(children) => {
                 let items: Vec<WorkItem> = children
@@ -82,31 +82,71 @@ impl GameState {
                     .collect();
                 self.schedule_front(items);
             }
-            other => todo!("stage 2 does not interpret effect {other:?} (the choice seam)"),
+            other => todo!("stage 3 does not interpret effect {other:?} (the choice seam)"),
         }
     }
 
-    /// Build the concrete game event for a single-instruction `Action`.
-    ///
-    /// # Panics
-    ///
-    /// Panics on any `Action` variant not wired for Stage 2.
-    fn action_event(&self, action: &Action, frame: &Frame) -> GameEvent {
+    /// The `Emit` work item(s) a single-instruction `Action` produces. Damage
+    /// to a multi-valued selection is one simultaneous `Batch` (a later
+    /// task); drawing N is N sequential `Single`s ([CR#121.1] — drawn one at
+    /// a time).
+    pub(crate) fn action_items(&self, action: &Action, frame: &Frame) -> Vec<WorkItem> {
+        use crate::event::Occurrence;
         match action {
-            Action::DealDamage(sel, qty) => GameEvent::DamageDealt {
-                source: frame.source,
-                target: self.eval_selection(sel, frame),
-                amount: self.eval_quantity(qty, frame),
-            },
-            other => todo!("stage 2 does not perform action {other:?}"),
+            Action::DealDamage(sel, qty) => {
+                let amount = self.eval_quantity(qty, frame);
+                let targets = self.eval_selection_set(sel, frame);
+                let events: Vec<GameEvent> = targets
+                    .into_iter()
+                    .map(|target| GameEvent::DamageDealt {
+                        source: frame.source,
+                        target,
+                        amount,
+                    })
+                    .collect();
+                vec![WorkItem::Emit(occurrence_of(events))]
+            }
+            Action::Tap(sel) => {
+                let events: Vec<GameEvent> = self
+                    .eval_selection_set(sel, frame)
+                    .into_iter()
+                    .map(GameEvent::Tapped)
+                    .collect();
+                vec![WorkItem::Emit(occurrence_of(events))]
+            }
+            Action::DrawCards(qty) => {
+                let n = self.eval_quantity(qty, frame);
+                (0..n)
+                    .map(|_| {
+                        WorkItem::Emit(Occurrence::Single(GameEvent::CardDrawn {
+                            player: frame.controller,
+                            object: None,
+                        }))
+                    })
+                    .collect()
+            }
+            Action::LoseLife(qty) => {
+                let amount = self.eval_quantity(qty, frame);
+                vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeLost {
+                    player: frame.controller,
+                    amount,
+                }))]
+            }
+            other => todo!("stage 3 does not perform action {other:?}"),
         }
+    }
+
+    /// A later task replaces this with Each/All set evaluation. For now: the
+    /// unary selections wrapped in a 1-element vec.
+    pub(crate) fn eval_selection_set(&self, sel: &Selection, frame: &Frame) -> Vec<ObjectId> {
+        vec![self.eval_selection(sel, frame)]
     }
 
     /// Resolve a unary `Selection` to an `ObjectId` ([CR#608.2d] / references).
     ///
     /// # Panics
     ///
-    /// Panics on a `Selection` not wired for Stage 2, or an out-of-range
+    /// Panics on a `Selection` not wired for Stage 3, or an out-of-range
     /// `Target(n)` index.
     fn eval_selection(&self, sel: &Selection, frame: &Frame) -> ObjectId {
         match sel {
@@ -116,7 +156,7 @@ impl GameState {
                 .expect("announced target index in bounds"),
             Selection::This => frame.source,
             Selection::You => self.player(frame.controller).object,
-            other => todo!("stage 2 does not evaluate selection {other:?}"),
+            other => todo!("stage 3 does not evaluate selection {other:?}"),
         }
     }
 
@@ -124,7 +164,7 @@ impl GameState {
     ///
     /// # Panics
     ///
-    /// Panics on a `Quantity` not wired for Stage 2.
+    /// Panics on a `Quantity` not wired for Stage 3.
     #[expect(
         clippy::unused_self,
         reason = "future Quantity arms (X, StatOf, …) will read self"
@@ -132,7 +172,7 @@ impl GameState {
     fn eval_quantity(&self, qty: &Quantity, _frame: &Frame) -> Uint {
         match qty {
             Quantity::Literal(n) => *n,
-            other => todo!("stage 2 does not evaluate quantity {other:?}"),
+            other => todo!("stage 3 does not evaluate quantity {other:?}"),
         }
     }
 
@@ -235,7 +275,17 @@ fn spell_targets_list(ability: &Ability) -> Option<&Vec<TargetSpec>> {
     }
 }
 
-/// Extracts the `Filter` from a `TargetSpec`. Stage 2 only handles
+/// One event → `Single`; several → a simultaneous `Batch`.
+fn occurrence_of(mut events: Vec<GameEvent>) -> crate::event::Occurrence {
+    use crate::event::Occurrence;
+    if events.len() == 1 {
+        Occurrence::Single(events.pop().expect("len 1"))
+    } else {
+        Occurrence::Batch(events)
+    }
+}
+
+/// Extracts the `Filter` from a `TargetSpec`. Stage 3 only handles
 /// `TargetSpec::Target(filter)` (and `Expanded` wrappers around it).
 ///
 /// This is the single authoritative site for TargetSpec→Filter extraction;
@@ -244,11 +294,115 @@ fn spell_targets_list(ability: &Ability) -> Option<&Vec<TargetSpec>> {
 ///
 /// # Panics
 ///
-/// Panics on `TargetSpec` variants not wired for Stage 2.
+/// Panics on `TargetSpec` variants not wired for Stage 3.
 pub(crate) fn target_spec_filter(spec: &TargetSpec) -> &deckmaste_core::Filter {
     match spec {
         TargetSpec::Target(f) => f,
         TargetSpec::Expanded(e) => target_spec_filter(&e.value),
-        other => todo!("stage 2 does not handle target spec {other:?}"),
+        other => todo!("stage 3 does not handle target spec {other:?}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+    use std::sync::Arc;
+
+    use deckmaste_cards::plugin::Plugin;
+    use deckmaste_core::{Action, Card, Filter, Quantity, Selection, Type, Zone};
+
+    use crate::agenda::WorkItem;
+    use crate::event::{GameEvent, Occurrence};
+    use crate::matches as obj_matches;
+    use crate::object::ObjectId;
+    use crate::player::PlayerId;
+    use crate::stack::Frame;
+    use crate::state::{GameConfig, GameState, PlayerConfig, StartingPlayer};
+
+    fn builtin() -> Plugin {
+        Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
+    }
+
+    fn testing() -> Plugin {
+        Plugin::load_with_sibling_prelude(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/testing"),
+        )
+        .unwrap()
+    }
+
+    fn deck(card: &Arc<Card>, n: usize) -> Vec<Arc<Card>> { vec![Arc::clone(card); n] }
+
+    /// A two-player game; player 0's deck is Vanilla Creature.
+    /// Returns the state plus a creature object forced onto the battlefield.
+    fn bear_on_field() -> (GameState, ObjectId) {
+        let bears = Arc::new(testing().card("Vanilla Creature").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: deck(&bears, 10),
+                },
+                PlayerConfig {
+                    deck: deck(&forest, 10),
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        });
+        let bear = *state.zones.hands[0]
+            .iter()
+            .find(|&&o| {
+                obj_matches(
+                    &state,
+                    o,
+                    &Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(
+                        Type::Creature,
+                    )),
+                )
+            })
+            .expect("a Vanilla Creature in the opening hand");
+        state.zones.hands[PlayerId(0).index()].retain(|&o| o != bear);
+        state.objects.obj_mut(bear).zone = Some(Zone::Battlefield);
+        state.zones.battlefield.push(bear);
+        (state, bear)
+    }
+
+    #[test]
+    fn action_items_for_tap_draw_loselife() {
+        let (state, src) = bear_on_field();
+        let frame = Frame {
+            source: src,
+            controller: PlayerId(0),
+            targets: vec![],
+        };
+
+        // Tap(This) -> one Single(Tapped(src))
+        let items = state.action_items(&Action::Tap(Selection::This), &frame);
+        assert_eq!(
+            items,
+            vec![WorkItem::Emit(Occurrence::Single(GameEvent::Tapped(src)))]
+        );
+
+        // DrawCards(2) -> two sequential Single(CardDrawn) for the controller
+        let items = state.action_items(&Action::DrawCards(Quantity::Literal(2)), &frame);
+        assert_eq!(items.len(), 2);
+        assert!(items.iter().all(|item| matches!(
+            item,
+            WorkItem::Emit(Occurrence::Single(GameEvent::CardDrawn {
+                player: PlayerId(0),
+                ..
+            }))
+        )));
+
+        // LoseLife(3) -> one Single(LifeLost{player0, 3})
+        let items = state.action_items(&Action::LoseLife(Quantity::Literal(3)), &frame);
+        assert_eq!(
+            items,
+            vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeLost {
+                player: PlayerId(0),
+                amount: 3,
+            }))]
+        );
     }
 }
