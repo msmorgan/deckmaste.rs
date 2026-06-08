@@ -4,3 +4,4 @@
 pub(crate) mod effect;
 pub(crate) mod keyword_ability;
 pub(crate) mod mana_ability;
+pub(crate) mod spell_ability;
