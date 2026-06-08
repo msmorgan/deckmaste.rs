@@ -43,6 +43,7 @@ pub type AbilityParser = fn(&str, CardKind) -> anyhow::Result<Option<String>>;
 pub const REGISTRY: &[AbilityParser] = &[
     crate::parsers::mana_ability::resolve_line,
     crate::parsers::keyword_ability::resolve_line,
+    crate::parsers::spell_ability::resolve_line,
 ];
 
 /// Replaces every `Unparsed` line a parser in `registry` can structure with the
@@ -167,6 +168,53 @@ mod tests {
         );
         // No type line at all defaults to permanent framing.
         assert_eq!(CardKind::of(&[]), CardKind::Permanent);
+    }
+
+    #[test]
+    fn spell_card_resolves_damage_but_permanent_does_not() {
+        // An instant with Lightning Bolt's line resolves to a Spell ability.
+        let mut bolt = TodoCard::Normal(TodoCardFace {
+            name: "Bolt".into(),
+            types: vec![RawIdent("Instant".into())],
+            abilities: vec![TodoAbility::Unparsed(
+                "~ deals 3 damage to any target.".into(),
+            )],
+            ..Default::default()
+        });
+        assert!(resolve_card(&mut bolt).unwrap());
+        let TodoCard::Normal(face) = &bolt else { panic!() };
+        assert!(matches!(
+            &face.abilities[0],
+            TodoAbility::Parsed(r)
+                if r == "Spell(targets: [AnyTarget], effect: DealDamage(Target(0), 3))"
+        ));
+
+        // The same line on a creature is NOT a spell ability: it stays Unparsed.
+        let mut creature = TodoCard::Normal(TodoCardFace {
+            name: "X".into(),
+            types: vec![RawIdent("Creature".into())],
+            abilities: vec![TodoAbility::Unparsed(
+                "~ deals 3 damage to any target.".into(),
+            )],
+            ..Default::default()
+        });
+        assert!(!resolve_card(&mut creature).unwrap());
+        let TodoCard::Normal(face) = &creature else { panic!() };
+        assert!(matches!(&face.abilities[0], TodoAbility::Unparsed(_)));
+
+        // A Sorcery resolves an untargeted effect to a `Spell` with no targets field.
+        let mut divination = TodoCard::Normal(TodoCardFace {
+            name: "Divination".into(),
+            types: vec![RawIdent("Sorcery".into())],
+            abilities: vec![TodoAbility::Unparsed("Draw two cards.".into())],
+            ..Default::default()
+        });
+        assert!(resolve_card(&mut divination).unwrap());
+        let TodoCard::Normal(face) = &divination else { panic!() };
+        assert!(matches!(
+            &face.abilities[0],
+            TodoAbility::Parsed(r) if r == "Spell(effect: Draw(2))"
+        ));
     }
 
     #[test]
