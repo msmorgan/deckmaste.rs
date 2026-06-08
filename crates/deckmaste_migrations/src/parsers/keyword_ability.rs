@@ -7,7 +7,7 @@
 
 use deckmaste_core::{ManaCost, ManaSymbol};
 
-use super::to_rust_ident;
+use crate::ident::to_rust_ident;
 use crate::ron_output::ron_options;
 
 /// Keyword-ability names ([CR#702] / the Scryfall `keyword-abilities` catalog —

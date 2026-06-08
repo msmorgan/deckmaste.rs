@@ -15,7 +15,7 @@ use regex::Regex;
 
 use crate::data::DataStr;
 use crate::data::mtgjson::AtomicCard;
-use crate::migrations::to_rust_ident;
+use crate::ident::to_rust_ident;
 use crate::todo_card::{RawIdent, TodoAbility, TodoCard, TodoCardFace, render};
 
 // We count non-null, non-"Banned" as legal.

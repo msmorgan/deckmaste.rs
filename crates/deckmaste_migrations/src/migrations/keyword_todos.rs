@@ -35,7 +35,7 @@ pub(super) fn create_keyword_todos<'r, 'data>(
             .find_rule_section(rule_number)
             .ok_or_else(|| anyhow::anyhow!("rule {rule_number} not in the rules map"))?;
 
-        let name = super::to_rust_ident(keyword);
+        let name = crate::ident::to_rust_ident(keyword);
         // Skip once the finished `<name>.ron` exists; otherwise (re)generate
         // the `<name>.todo.ron` stub beside where it will land.
         if !super::is_unimplemented(&dest_dir.join(format!("{name}.ron"))) {
