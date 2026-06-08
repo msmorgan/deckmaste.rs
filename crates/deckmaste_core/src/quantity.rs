@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{Expansion, Filter, Reference};
 
 /// A measurable characteristic of an object, read by `Quantity::StatOf`
-/// ([CR#109.3,208,212]). The open part (mana value, loyalty, defense) is
+/// ([CR#109.3,208,209,210]). The open part (mana value, loyalty, defense) is
 /// finite; new printed stats are rare and get a variant when one arrives.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Stat {
@@ -14,9 +14,9 @@ pub enum Stat {
     Toughness,
     /// [CR#202.3].
     ManaValue,
-    /// [CR#212.4] (planeswalker).
+    /// [CR#209] (planeswalker).
     Loyalty,
-    /// [CR#212.6] (battle).
+    /// [CR#210] (battle).
     Defense,
 }
 

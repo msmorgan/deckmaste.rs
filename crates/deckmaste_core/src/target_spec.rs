@@ -19,11 +19,11 @@ use crate::{Expansion, Filter, Quantity};
 pub enum TargetSpec {
     /// One target matching the filter ([CR#115.1]).
     Target(Filter),
-    /// Up to a quantity of targets ([CR#115.1c], "up to two target …").
+    /// Up to a quantity of targets ([CR#115.6], "up to two target …").
     UpToTargets(Quantity, Filter),
-    /// Exactly a quantity of targets ([CR#115.1b], "two target …").
+    /// Exactly a quantity of targets ([CR#601.2c], "two target …").
     Targets(Quantity, Filter),
-    /// Any number of targets ([CR#115.1d]).
+    /// Any number of targets ([CR#601.2c]).
     AnyNumberTargets(Filter),
     /// A remembered `TargetSpec` macro invocation.
     Expanded(Expansion<TargetSpec>),
