@@ -537,6 +537,31 @@ fn bear_on_field() -> (GameState, ObjectId) {
     (state, bear)
 }
 
+#[test]
+fn cleanup_clears_marked_damage_on_battlefield_creatures() {
+    let (mut state, bear) = bear_on_field();
+    // Mark some damage on the Bears.
+    state.objects.obj_mut(bear).damage = 5;
+    assert_eq!(state.objects.obj(bear).damage, 5);
+
+    // Drive all-pass until the Cleanup step begins.  The cleanup step fires
+    // `clear_marked_damage` as a turn-based action (CR 514.2) and THEN
+    // checks hand size, so by the time we see `Advanced(Cleanup)` the damage
+    // has already been cleared.
+    step_until(&mut state, |s, o| {
+        matches!(
+            o,
+            StepOutcome::Progress(Progress::Advanced(StepOrPhase::Cleanup))
+        ) && s.turn.current == StepOrPhase::Cleanup
+    });
+
+    assert_eq!(
+        state.objects.obj(bear).damage,
+        0,
+        "CR 514.2: marked damage removed at start of Cleanup"
+    );
+}
+
 /// Drives a single Emit and returns the applied event.
 fn apply_one(state: &mut GameState, event: GameEvent) -> GameEvent {
     state
