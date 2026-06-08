@@ -123,14 +123,7 @@ fn reference_from<'de, A: VariantAccess<'de>>(ident: &str, v: A) -> Result<Refer
         "Linked" => Reference::Linked(v.newtype_variant()?),
         "ControllerOf" => Reference::ControllerOf(v.newtype_variant()?),
         "OwnerOf" => Reference::OwnerOf(v.newtype_variant()?),
-        "EnchantedObject" => {
-            v.unit_variant()?;
-            Reference::EnchantedObject
-        }
-        "EquippedCreature" => {
-            v.unit_variant()?;
-            Reference::EquippedCreature
-        }
+        "AttachHostOf" => Reference::AttachHostOf(v.newtype_variant()?),
         "AttachedTo" => Reference::AttachedTo(v.newtype_variant()?),
         other => {
             return Err(de::Error::custom(format_args!(
@@ -248,8 +241,8 @@ mod tests {
             Selection::Ref(Reference::Target(2)),
         );
         assert_eq!(
-            Selection::from(Reference::AttachedTo(Box::new(Reference::This))),
-            Selection::Ref(Reference::AttachedTo(Box::new(Reference::This))),
+            Selection::from(Reference::AttachHostOf(Box::new(Reference::This))),
+            Selection::Ref(Reference::AttachHostOf(Box::new(Reference::This))),
         );
     }
 
