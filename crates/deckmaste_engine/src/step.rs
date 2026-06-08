@@ -165,30 +165,6 @@ impl GameState {
             }
             GameEvent::PlayerLost { player, .. } => {
                 self.player_mut(player).lost = true;
-                // [CR#104.2a] / [CR#104.4]: last player standing wins; nobody is a
-                // draw. Game over clears the agenda for good.
-                //
-                // Stage-3 trap, documented: a [CR#704.3] sweep is simultaneous,
-                // but these events apply one per step() — if two players lost
-                // in ONE sweep, the first apply would declare Win instead of
-                // Draw and destroy the second event with the agenda. This is
-                // unreachable in the skeleton (no damage exists, and draws
-                // are sequential), but stage 3's simultaneous-event batching
-                // must make a multi-loss sweep apply atomically.
-                let live: Vec<PlayerId> = self
-                    .players
-                    .iter()
-                    .filter(|p| !p.lost)
-                    .map(|p| p.id)
-                    .collect();
-                match live.as_slice() {
-                    [winner] => self.outcome = Some(GameOutcome::Win(*winner)),
-                    [] => self.outcome = Some(GameOutcome::Draw),
-                    _ => {}
-                }
-                if self.outcome.is_some() {
-                    self.agenda.clear();
-                }
                 event
             }
             GameEvent::SpellCast(object) => {
@@ -318,12 +294,39 @@ impl GameState {
 
     /// Applies an occurrence: each event through the pipe, returned as the
     /// facts that occurred. A `Batch` applies with no SBA/trigger interleaving.
+    /// After applying, runs `check_game_end` so a simultaneous multi-loss batch
+    /// is evaluated as a whole.
     fn apply_occurrence(&mut self, occ: Occurrence) -> Occurrence {
-        match occ {
+        let occurred = match occ {
             Occurrence::Single(e) => Occurrence::Single(self.apply(e)),
             Occurrence::Batch(events) => {
                 Occurrence::Batch(events.into_iter().map(|e| self.apply(e)).collect())
             }
+        };
+        self.check_game_end();
+        occurred
+    }
+
+    /// [CR#104.2a,104.4a]: last player standing wins; zero remaining is a draw.
+    /// Run AFTER an occurrence applies, so a simultaneous multi-loss batch is a
+    /// draw, not a win for whoever was checked first.
+    fn check_game_end(&mut self) {
+        if self.outcome.is_some() {
+            return;
+        }
+        let live: Vec<PlayerId> = self
+            .players
+            .iter()
+            .filter(|p| !p.lost)
+            .map(|p| p.id)
+            .collect();
+        match live.as_slice() {
+            [winner] => self.outcome = Some(GameOutcome::Win(*winner)),
+            [] => self.outcome = Some(GameOutcome::Draw),
+            _ => {}
+        }
+        if self.outcome.is_some() {
+            self.agenda.clear();
         }
     }
 
@@ -444,18 +447,16 @@ impl GameState {
         items
     }
 
-    /// [CR#704.3]: sweep; if anything acted, emit and re-check before the
-    /// queued `OpenPriority` runs.
+    /// [CR#704.3]: sweep; if anything acted, emit the whole sweep as ONE
+    /// simultaneous batch and re-check before the queued `OpenPriority` runs.
     fn check_sbas(&mut self) -> Progress {
         let actions = sba::sweep(self);
         let count = Uint::try_from(actions.len()).expect("action count fits in Uint");
         if count > 0 {
-            let mut items: Vec<WorkItem> = actions
-                .into_iter()
-                .map(|e| WorkItem::Emit(Occurrence::single(e)))
-                .collect();
-            items.push(WorkItem::CheckSbas);
-            self.schedule_front(items);
+            self.schedule_front(vec![
+                WorkItem::Emit(crate::event::Occurrence::Batch(actions)),
+                WorkItem::CheckSbas,
+            ]);
         }
         Progress::SbasChecked { actions: count }
     }

@@ -74,7 +74,8 @@ mod tests {
     use crate::event::{GameEvent, Occurrence};
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
-    use crate::state::{GameConfig, GameState, PlayerConfig, StartingPlayer};
+    use crate::state::{GameConfig, GameOutcome, GameState, PlayerConfig, StartingPlayer};
+    use crate::step::StepOutcome;
     use crate::{matches as obj_matches, sba};
 
     fn builtin() -> Plugin {
@@ -173,6 +174,35 @@ mod tests {
             ObjectSource::Player(_)
         ));
         assert!(!state.zones.battlefield.contains(&proxy));
+    }
+
+    /// [CR#104.4a,704.3]: two players at ≤0 life in the same sweep → Draw, not
+    /// a Win for whoever was checked first.
+    #[test]
+    fn simultaneous_double_loss_is_a_draw() {
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 10],
+                },
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 10],
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        });
+        state.players[0].life = 0;
+        state.players[1].life = 0;
+        state.schedule_front(vec![WorkItem::CheckSbas]);
+        loop {
+            if let StepOutcome::GameOver(o) = state.step() {
+                assert_eq!(o, GameOutcome::Draw);
+                return;
+            }
+        }
     }
 
     /// [CR#400.7]: when a creature is destroyed, the old `ObjectId` is removed
