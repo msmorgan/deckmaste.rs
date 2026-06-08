@@ -202,6 +202,32 @@ mod tests {
         assert_eq!(render(&read(source)).unwrap(), source);
     }
 
+    /// A Normal face with structured fields + one Unparsed + a multi-element
+    /// `mana_cost` (chopped) and a single-element `types` (inline).
+    #[test]
+    fn renders_normal_house_style() {
+        let card = read(
+            r#"Normal(name: "Grizzly Bears", mana_cost: [Generic(1), Green], types: [Creature], abilities: [Unparsed("When ~ dies, draw a card.")], power: 2, toughness: 2)"#,
+        );
+        assert_eq!(
+            render(&card).unwrap(),
+            r#"Normal(
+    name: "Grizzly Bears",
+    mana_cost: [
+        Generic(1),
+        Green,
+    ],
+    types: [Creature],
+    abilities: [
+        Unparsed("When ~ dies, draw a card."),
+    ],
+    power: 2,
+    toughness: 2,
+)
+"#
+        );
+    }
+
     /// Round-trip: read then render reproduces the source (house style).
     #[test]
     fn round_trips() {
