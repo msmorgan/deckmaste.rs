@@ -1,21 +1,27 @@
-//! Trigger event-matching ([CR#603.2,603.6]) and the trigger *scan*: after an
-//! occurrence applies, scan watching abilities, emit a `TriggerFired` per
-//! match, whose apply notes a `NotedTrigger` into `pending_triggers`.
+//! Trigger event-matching ([CR#603.2,603.6]), the trigger *scan* (emit a
+//! `TriggerFired` per match, whose apply notes a `NotedTrigger`), and the
+//! `PlaceTriggers` barrier ([CR#603.3]) that puts noted triggers on the stack
+//! in APNAP order with an `OrderTriggers` decision and a target choice at
+//! placement.
 //!
 //! Matching is pure predicates (`event_matches`, `filter_matches_snapshot`,
-//! `condition_holds`); `scan_triggers` is the only scheduling/agenda-touching
-//! function here. Placing/resolving the noted triggers is a later task.
+//! `condition_holds`); `scan_triggers` and `place_triggers` are the
+//! scheduling/agenda-touching functions.
 
 use deckmaste_core::{
-    Ability, CharacteristicFilter, Condition, Event, Filter, Reference, Type, Uint, Zone,
+    Ability, CharacteristicFilter, Condition, Event, Filter, Reference, TargetSpec, Type, Uint,
+    Zone,
 };
 
 use crate::agenda::WorkItem;
+use crate::decide::PendingDecision;
 use crate::event::{GameEvent, Occurrence};
 use crate::lki::LkiSnapshot;
 use crate::object::{ObjectId, ObjectSource};
 use crate::player::PlayerId;
+use crate::stack::{StackEntry, StackObject};
 use crate::state::GameState;
+use crate::step::Progress;
 
 /// The last-known information a fired trigger carries to its placement and
 /// resolution ([CR#603.10a], [CR#608.2]): `~`/`This`/source, the moved object,
@@ -30,9 +36,24 @@ pub struct TriggerBindings {
 }
 
 /// A trigger that has fired but is not yet on the stack ([CR#603.2]). Noted by
-/// applying a `TriggerFired`; placed by the `PlaceTriggers` barrier (later).
+/// applying a `TriggerFired`; placed by the `PlaceTriggers` barrier.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NotedTrigger {
+    pub source: ObjectSource,
+    pub ability: usize,
+    pub controller: PlayerId,
+    pub bindings: TriggerBindings,
+}
+
+/// A triggered ability whose placement is mid-flight: its stack id is minted
+/// and the `ChooseTargets` decision is open ([CR#603.3d]). The trigger analogue
+/// of `announcing` — but a trigger is *not* an announce (no cost, no priority
+/// window), so it has its own staging slot. Answering `ChooseTargets` supplies
+/// the targets and pushes the committed `StackEntry`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PendingTrigger {
+    /// The freshly minted stack identity ([CR#405]).
+    pub id: ObjectId,
     pub source: ObjectSource,
     pub ability: usize,
     pub controller: PlayerId,
@@ -173,6 +194,7 @@ impl GameState {
             // (avoids any chance of recursion).
             match event {
                 GameEvent::TriggerFired { .. }
+                | GameEvent::TriggerResolved(_)
                 | GameEvent::StepBegan(_)
                 | GameEvent::TurnBegan { .. }
                 | GameEvent::ZoneWillChange { .. } => continue,
@@ -247,6 +269,198 @@ impl GameState {
                 }
             }
         }
+    }
+
+    /// [CR#603.3]: the placement barrier. Puts noted triggers on the stack in
+    /// APNAP order ([CR#603.3b]) — the active player's first (so they resolve
+    /// last). One `step()` places at most one trigger (or surfaces a decision):
+    /// it re-schedules itself to loop, with `CheckSbas` ahead, so a placement
+    /// that produced new state re-sweeps before the next is placed.
+    ///
+    /// Returns `TriggersPlaced { placed }`: 1 when a trigger was placed, 0 when
+    /// none were waiting or a decision (`OrderTriggers` / `ChooseTargets`) was
+    /// surfaced instead.
+    pub(crate) fn place_triggers(&mut self) -> Progress {
+        if self.pending_triggers.is_empty() {
+            return Progress::TriggersPlaced { placed: 0 };
+        }
+
+        // APNAP: the first player from the active player who still has a noted
+        // trigger ([CR#603.3b]).
+        let order = self.apnap_order();
+        let Some(player) = order
+            .into_iter()
+            .find(|&p| self.pending_triggers.iter().any(|t| t.controller == p))
+        else {
+            // Triggers exist but none belong to a live APNAP player — drop them.
+            self.pending_triggers.clear();
+            return Progress::TriggersPlaced { placed: 0 };
+        };
+
+        let mine: Vec<NotedTrigger> = self
+            .pending_triggers
+            .iter()
+            .filter(|t| t.controller == player)
+            .cloned()
+            .collect();
+
+        if mine.len() > 1 {
+            // [CR#603.3b]: this player orders their simultaneous triggers.
+            self.pending = Some(PendingDecision::OrderTriggers {
+                player,
+                triggers: mine,
+            });
+            return Progress::TriggersPlaced { placed: 0 };
+        }
+
+        // Exactly one: place it now and loop (re-sweep, then place the next).
+        let noted = self.take_first_trigger_of(player);
+        let placed = self.place_one_trigger(noted);
+        self.schedule_front(vec![WorkItem::CheckSbas, WorkItem::PlaceTriggers]);
+        Progress::TriggersPlaced {
+            placed: u32::from(placed),
+        }
+    }
+
+    /// Controllers in APNAP order ([CR#603.3b]): the active player, then around
+    /// the table, skipping lost players.
+    fn apnap_order(&self) -> Vec<PlayerId> {
+        let mut order = vec![self.turn.active_player];
+        let mut p = self.turn.active_player;
+        while order.len() < self.players.iter().filter(|pl| !pl.lost).count() {
+            p = self.next_live_after(p);
+            if p == self.turn.active_player {
+                break;
+            }
+            order.push(p);
+        }
+        order
+    }
+
+    /// Removes and returns the FIRST noted trigger controlled by `player`
+    /// (preserving the rest's order — the `OrderTriggers` reorder, when used,
+    /// already fixed it).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `player` controls no noted trigger — the caller guards this.
+    fn take_first_trigger_of(&mut self, player: PlayerId) -> NotedTrigger {
+        let i = self
+            .pending_triggers
+            .iter()
+            .position(|t| t.controller == player)
+            .expect("a noted trigger for this player");
+        self.pending_triggers.remove(i)
+    }
+
+    /// Reorders `player`'s noted triggers in place to match `ordered` (the
+    /// permutation chosen via `OrderTriggers`), leaving other players' notes
+    /// untouched. Used by the `OrderTriggers` submission.
+    pub(crate) fn reorder_pending_triggers(
+        &mut self,
+        player: PlayerId,
+        ordered: Vec<NotedTrigger>,
+    ) {
+        let mut ordered = ordered.into_iter();
+        for slot in &mut self.pending_triggers {
+            if slot.controller == player {
+                *slot = ordered
+                    .next()
+                    .expect("ordered covers this player's triggers");
+            }
+        }
+        debug_assert!(
+            ordered.next().is_none(),
+            "ordered had more entries than this player's noted triggers",
+        );
+    }
+
+    /// [CR#603.3c,603.3d]: place one noted trigger on the stack. If its ability
+    /// targets and at least one legal target exists, mint the stack id and open
+    /// a `ChooseTargets` decision (returns `false` — not yet placed). If it
+    /// targets but has NO legal target, drop it ([CR#603.3c], returns `false`).
+    /// If it does not target, push the committed `StackEntry` directly (returns
+    /// `true`).
+    fn place_one_trigger(&mut self, noted: NotedTrigger) -> bool {
+        let specs = self.trigger_targets(noted.source, noted.ability);
+        if specs.is_empty() {
+            // No targets — push directly with a freshly minted stack id.
+            let id = self
+                .objects
+                .mint(noted.source, noted.controller, Some(Zone::Stack));
+            self.stack.push(StackEntry {
+                id,
+                object: StackObject::Triggered {
+                    source: noted.source,
+                    ability: noted.ability,
+                    bindings: noted.bindings,
+                },
+                controller: noted.controller,
+                targets: vec![],
+            });
+            return true;
+        }
+
+        // It targets ([CR#603.3d]). Compute each spec's legal candidates.
+        let legal: Vec<Vec<ObjectId>> = specs.iter().map(|s| self.legal_targets(s)).collect();
+        if legal.iter().any(Vec::is_empty) {
+            // [CR#603.3c]: a target with no legal choice — the trigger is
+            // removed from the stack, never placed.
+            return false;
+        }
+
+        // Stage the in-flight placement and surface the target choice.
+        let controller = noted.controller;
+        let id = self
+            .objects
+            .mint(noted.source, controller, Some(Zone::Stack));
+        self.placing_trigger = Some(crate::trigger::PendingTrigger {
+            id,
+            source: noted.source,
+            ability: noted.ability,
+            controller,
+            bindings: noted.bindings,
+        });
+        self.pending = Some(PendingDecision::ChooseTargets {
+            player: controller,
+            spec: specs,
+            legal,
+        });
+        false
+    }
+
+    /// The `TriggeredAbility.targets` for ability `ability` of `source`'s
+    /// printed face. Empty when the ability is non-targeting.
+    fn trigger_targets(&self, source: ObjectSource, ability: usize) -> Vec<TargetSpec> {
+        match &crate::derive::abilities_of_source(self, source)[ability] {
+            Ability::Triggered(t) => t.targets.clone(),
+            _ => unreachable!("a noted trigger indexes a Triggered ability"),
+        }
+    }
+
+    /// [CR#603.3d]: a placing trigger's targets were chosen — push the
+    /// committed `StackEntry` (using the already-minted stack id) and clear the
+    /// staging slot. Called from the `ChooseTargets` submission.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no trigger placement is in flight — an engine invariant (the
+    /// staging slot is open across the decision), not caller input.
+    pub(crate) fn commit_placing_trigger(&mut self, targets: Vec<ObjectId>) {
+        let staged = self
+            .placing_trigger
+            .take()
+            .expect("a trigger placement in flight");
+        self.stack.push(StackEntry {
+            id: staged.id,
+            object: StackObject::Triggered {
+                source: staged.source,
+                ability: staged.ability,
+                bindings: staged.bindings,
+            },
+            controller: staged.controller,
+            targets,
+        });
     }
 }
 
@@ -914,6 +1128,153 @@ mod tests {
         assert!(
             state.pending_triggers.is_empty(),
             "a vanilla creature dying watches nothing — no trigger noted"
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // PlaceTriggers: placement on the stack ([CR#603.3])
+    // -------------------------------------------------------------------------
+
+    /// A single non-targeting noted trigger places DIRECTLY onto the stack as a
+    /// `Triggered` object with a fresh id, no decision surfaced.
+    #[test]
+    fn non_targeting_trigger_places_directly() {
+        use crate::stack::StackObject;
+
+        let (mut state, etb) = fixture_on_field("Creature etb-trigger DrawCards");
+        let source = state.objects.obj(etb).source;
+        let controller = state.objects.obj(etb).controller;
+        // Note one trigger by hand (ability 0 = the DrawCards etb).
+        state.pending_triggers.push(super::NotedTrigger {
+            source,
+            ability: 0,
+            controller,
+            bindings: super::TriggerBindings {
+                this: None,
+                that_object: None,
+                that_player: None,
+            },
+        });
+
+        let progress = state.place_triggers();
+        assert_eq!(
+            progress,
+            crate::step::Progress::TriggersPlaced { placed: 1 },
+            "the non-targeting trigger places without a decision"
+        );
+        assert!(state.pending.is_none(), "no decision surfaced");
+        assert!(state.pending_triggers.is_empty(), "the note was consumed");
+        assert_eq!(state.stack.len(), 1, "one Triggered object on the stack");
+        let entry = &state.stack[0];
+        assert!(
+            matches!(entry.object, StackObject::Triggered { ability: 0, .. }),
+            "the entry is the etb trigger"
+        );
+        assert_ne!(entry.id, etb, "the stack id is a freshly minted token");
+        assert!(entry.targets.is_empty(), "a non-targeting trigger has none");
+    }
+
+    /// A targeting noted trigger surfaces a `ChooseTargets` at placement
+    /// ([CR#603.3d]): the stack id is minted and staged in `placing_trigger`,
+    /// and nothing is on the stack until the target is chosen. (The
+    /// no-legal-target drop, [CR#603.3c], can't be hit here — "any target"
+    /// always admits the two player proxies.)
+    #[test]
+    fn targeting_trigger_surfaces_choose_targets_at_placement() {
+        use crate::decide::PendingDecision;
+
+        let (mut state, gob) = fixture_on_field("Creature dies-trigger DealDamage AnyTarget");
+        let source = state.objects.obj(gob).source;
+        let controller = state.objects.obj(gob).controller;
+        // Note the dies-trigger (ability 0, targets [AnyTarget]).
+        state.pending_triggers.push(super::NotedTrigger {
+            source,
+            ability: 0,
+            controller,
+            bindings: super::TriggerBindings {
+                this: None,
+                that_object: None,
+                that_player: None,
+            },
+        });
+
+        let progress = state.place_triggers();
+        assert_eq!(
+            progress,
+            crate::step::Progress::TriggersPlaced { placed: 0 },
+            "a target choice surfaces instead of an immediate placement"
+        );
+        let Some(PendingDecision::ChooseTargets { player, legal, .. }) = &state.pending else {
+            panic!("expected ChooseTargets, got {:?}", state.pending);
+        };
+        assert_eq!(*player, controller);
+        assert!(
+            !legal[0].is_empty(),
+            "AnyTarget admits the player proxies (and the goblin)"
+        );
+        assert!(
+            state.placing_trigger.is_some(),
+            "the placement is staged across the decision"
+        );
+        assert!(
+            state.stack.is_empty(),
+            "nothing placed until the target is chosen"
+        );
+    }
+
+    /// [CR#603.3b]: a player controlling TWO simultaneous triggers surfaces an
+    /// `OrderTriggers` decision; the submitted permutation becomes the
+    /// placement order (last placed resolves first).
+    #[test]
+    fn two_triggers_one_player_surface_order_triggers() {
+        use crate::decide::{Decision, PendingDecision};
+
+        // Two dies-watchers under player 0 (non-targeting `LoseLife`).
+        let (mut state, w0) = fixture_on_field("Creature dies-watcher LoseLife");
+        let source = state.objects.obj(w0).source;
+        let bindings = || super::TriggerBindings {
+            this: None,
+            that_object: None,
+            that_player: None,
+        };
+        // Two notes from the same controller (as if two creatures died at once).
+        state.pending_triggers.push(super::NotedTrigger {
+            source,
+            ability: 0,
+            controller: PlayerId(0),
+            bindings: bindings(),
+        });
+        state.pending_triggers.push(super::NotedTrigger {
+            source,
+            ability: 0,
+            controller: PlayerId(0),
+            bindings: bindings(),
+        });
+
+        let progress = state.place_triggers();
+        assert_eq!(
+            progress,
+            crate::step::Progress::TriggersPlaced { placed: 0 },
+            "ordering is needed first — nothing placed yet"
+        );
+        let Some(PendingDecision::OrderTriggers { player, triggers }) = &state.pending else {
+            panic!("expected OrderTriggers, got {:?}", state.pending);
+        };
+        assert_eq!(*player, PlayerId(0));
+        assert_eq!(triggers.len(), 2, "both of player 0's triggers offered");
+
+        // A non-permutation is rejected.
+        assert!(state.submit_decision(Decision::Order(vec![0, 0])).is_err());
+        assert!(state.submit_decision(Decision::Order(vec![5])).is_err());
+        // The valid permutation is accepted; placement resumes (re-scheduled).
+        state.submit_decision(Decision::Order(vec![1, 0])).unwrap();
+        assert!(state.pending.is_none());
+        assert!(
+            state
+                .agenda
+                .iter()
+                .any(|w| matches!(w, crate::agenda::WorkItem::PlaceTriggers)),
+            "placement is re-scheduled after ordering"
         );
     }
 }

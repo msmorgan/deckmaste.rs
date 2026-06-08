@@ -10,18 +10,20 @@ use crate::stack::{Frame, StackEntry, StackObject};
 use crate::state::GameState;
 
 impl GameState {
-    /// [CR#608]: resolve the committed stack object `obj`. Schedules the work
-    /// and the trailing cleanup event.
+    /// [CR#608]: resolve the committed stack entry whose `id` is `id`. Schedules
+    /// the work and the trailing cleanup event.
+    ///
+    /// Keyed on `StackEntry.id` (not the backing object) so it resolves both
+    /// spells and triggered abilities (which have no backing object).
     ///
     /// # Panics
     ///
-    /// Panics if `obj` is not on the stack — engine invariant, not caller
-    /// input.
-    pub(crate) fn resolve_object(&mut self, obj: ObjectId) {
+    /// Panics if no entry has that id — engine invariant, not caller input.
+    pub(crate) fn resolve_object(&mut self, id: ObjectId) {
         let entry = self
             .stack
             .iter()
-            .find(|e| e.object.object() == obj)
+            .find(|e| e.id == id)
             .expect("entry on stack")
             .clone();
         match &entry.object {
@@ -43,6 +45,7 @@ impl GameState {
                         source: spell,
                         controller: entry.controller,
                         targets: entry.targets.clone(),
+                        bindings: None,
                     };
                     let effect = self
                         .spell_effect(spell)
@@ -70,6 +73,36 @@ impl GameState {
                         },
                     ))]);
                 }
+            }
+            // [CR#603.8]: a triggered ability resolves its effect, then vanishes
+            // — no zone move, the source untouched. The minted stack id is just
+            // discarded when `TriggerResolved` removes the entry.
+            StackObject::Triggered {
+                source,
+                ability,
+                bindings,
+            } => {
+                let t = match &crate::derive::abilities_of_source(self, *source)[*ability] {
+                    Ability::Triggered(t) => t.clone(),
+                    other => unreachable!(
+                        "a Triggered stack object indexes a Triggered ability, got {other:?}"
+                    ),
+                };
+                let frame = Frame {
+                    // [CR#608.2,603.10a]: `~`/`This` is the firing object's
+                    // last-known self; the live source may be gone.
+                    source: bindings.this.as_ref().map_or(entry.id, |s| s.object),
+                    controller: entry.controller,
+                    targets: entry.targets.clone(),
+                    bindings: Some(bindings.clone()),
+                };
+                self.schedule_front(vec![
+                    WorkItem::RunEffect {
+                        effect: Box::new(t.effect),
+                        frame,
+                    },
+                    WorkItem::Emit(Occurrence::single(GameEvent::TriggerResolved(entry.id))),
+                ]);
             }
         }
     }
@@ -176,7 +209,14 @@ impl GameState {
                 .targets
                 .get(*n)
                 .expect("announced target index in bounds"),
-            Selection::This => frame.source,
+            // [CR#603.10a]: for a triggered ability, `~`/`This` is the firing
+            // object's last-known self (the live source may be gone); for a
+            // spell frame (no bindings) it is the live source.
+            Selection::This => frame
+                .bindings
+                .as_ref()
+                .and_then(|b| b.this.as_ref())
+                .map_or(frame.source, |s| s.object),
             Selection::You => self.player(frame.controller).object,
             other => todo!("stage 3 does not evaluate selection {other:?}"),
         }
@@ -406,6 +446,7 @@ mod tests {
             source: src,
             controller: PlayerId(0),
             targets: vec![],
+            bindings: None,
         };
 
         // Tap(This) -> one Single(Tapped(src))
@@ -461,6 +502,7 @@ mod tests {
             source: a,
             controller: PlayerId(0),
             targets: vec![],
+            bindings: None,
         };
         let filter = Filter::AllOf(vec![
             Filter::State(StateFilter::InZone(Zone::Battlefield)),
@@ -482,6 +524,7 @@ mod tests {
             source: src,
             controller: PlayerId(0),
             targets: vec![],
+            bindings: None,
         };
 
         // Build the effect directly: DealDamage(Each(Kind(Player)), 20)
@@ -543,6 +586,7 @@ mod tests {
             source: a,
             controller: PlayerId(0),
             targets: vec![],
+            bindings: None,
         };
         let effect = Effect::Act(Action::DealDamage(
             Selection::Each(Filter::AllOf(vec![

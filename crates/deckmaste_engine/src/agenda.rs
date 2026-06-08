@@ -13,6 +13,10 @@ pub enum WorkItem {
     BeginStep(StepOrPhase),
     /// [CR#704.3]: state-based actions, checked before anyone gets priority.
     CheckSbas,
+    /// [CR#603.3]: place noted triggers on the stack (APNAP, with an
+    /// `OrderTriggers` decision and target choice at placement). Sits between
+    /// the SBA loop and `OpenPriority`.
+    PlaceTriggers,
     /// Cleanup's turn-based action ([CR#514.1]).
     CheckHandSize,
     /// Surface `pending = Priority { .. }`.

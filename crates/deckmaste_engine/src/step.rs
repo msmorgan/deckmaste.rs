@@ -33,6 +33,10 @@ pub enum Progress {
     Advanced(StepOrPhase),
     /// A [CR#704] sweep ran; `actions` lost-player events were scheduled.
     SbasChecked { actions: Uint },
+    /// [CR#603.3]: the placement barrier ran; `placed` triggers went on the
+    /// stack this step (0 when none were waiting, or when an `OrderTriggers` /
+    /// `ChooseTargets` decision surfaced instead).
+    TriggersPlaced { placed: Uint },
     /// Cleanup's hand-size check ran ([CR#514.1]).
     HandSizeChecked { discarding: Uint },
     /// A priority decision was surfaced for this player.
@@ -72,6 +76,7 @@ impl GameState {
             WorkItem::Emit(occ) => Progress::Applied(self.apply_occurrence(occ)),
             WorkItem::BeginStep(s) => self.begin_step(s),
             WorkItem::CheckSbas => self.check_sbas(),
+            WorkItem::PlaceTriggers => self.place_triggers(),
             WorkItem::CheckHandSize => self.check_hand_size(),
             WorkItem::OpenPriority => self.open_priority(),
             WorkItem::BeginCast(object) => {
@@ -176,6 +181,10 @@ impl GameState {
                     "SpellCast event matches the staged announce"
                 );
                 self.stack.push(StackEntry {
+                    // [CR#405]: a spell's stack identity is its own object id —
+                    // unchanged from Stage 2, so existing Resolve(spell) keying
+                    // by `StackEntry.id` still finds it.
+                    id: pending.object.object(),
                     object: pending.object,
                     controller: pending.controller,
                     targets: pending.targets,
@@ -246,6 +255,14 @@ impl GameState {
                     bindings: bindings.clone(),
                 });
                 event
+            }
+            // [CR#603.8]: the triggered ability vanishes — remove its stack
+            // entry and discard the minted token. No zone move; the source
+            // (already gone for a dies-trigger) is untouched.
+            GameEvent::TriggerResolved(id) => {
+                self.remove_stack_entry(id);
+                self.objects.remove(id);
+                GameEvent::TriggerResolved(id)
             }
         }
     }
@@ -443,11 +460,18 @@ impl GameState {
                 // detect that and insert OpenPriority + another cleanup
                 // before the step end; in the skeleton the sweep can never
                 // act here.
-                let mut items = vec![WorkItem::CheckSbas];
+                let mut items = vec![WorkItem::CheckSbas, WorkItem::PlaceTriggers];
                 items.extend(self.end_of_step_items());
                 items
             }
-            _ => vec![WorkItem::CheckSbas, WorkItem::OpenPriority],
+            // [CR#603.3]: the placement barrier sits between the SBA loop and
+            // `OpenPriority` — noted triggers go on the stack before anyone
+            // gets priority.
+            _ => vec![
+                WorkItem::CheckSbas,
+                WorkItem::PlaceTriggers,
+                WorkItem::OpenPriority,
+            ],
         }
     }
 

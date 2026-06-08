@@ -932,3 +932,173 @@ fn illegal_target_and_payment_submissions_are_rejected_and_retryable() {
         "the Vanilla Creature reached the stack after retry"
     );
 }
+
+/// End-to-end dies-trigger + target-on-trigger + LKI ([CR#603.3,603.10a]):
+///
+/// P0 controls a `Creature dies-trigger DealDamage AnyTarget` (a 1/1) on the
+/// battlefield. P0 casts the fake bolt at the goblin (3 to it). The bolt
+/// resolves, the SBA destroys the goblin (lethal), its dies-trigger NOTES, then
+/// the `PlaceTriggers` barrier surfaces `ChooseTargets` for the goblin's "any
+/// target". We choose a player proxy; the trigger resolves and deals 1 — and
+/// the damage's source is the *dead* goblin's id (the LKI source), not a live
+/// object.
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "an end-to-end decision-driven scenario"
+)]
+fn dies_trigger_deals_damage_from_the_dead_source() {
+    let testing = testing();
+    let bolt = Arc::new(testing.card("Instant DealDamage AnyTarget").unwrap());
+    let goblin = Arc::new(
+        testing
+            .card("Creature dies-trigger DealDamage AnyTarget")
+            .unwrap(),
+    );
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    // P0's deck: bolts + goblins + mountains. P1: forests.
+    let mut p0 = vec![Arc::clone(&bolt); 4];
+    p0.extend(vec![Arc::clone(&goblin); 3]);
+    p0.extend(vec![Arc::clone(&mountain); 4]);
+    let build = |seed: u64| {
+        GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig { deck: p0.clone() },
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 12],
+                },
+            ],
+            seed,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        })
+    };
+    // A seed whose P0 opening hand holds a bolt (cast from hand) — the goblin
+    // and Mountain are pulled from the library by `force_into_play`.
+    let mut state = (0u64..1000)
+        .map(build)
+        .find(|s| {
+            s.zones.hands[0]
+                .iter()
+                .any(|&o| is_card(s, o, "Instant DealDamage AnyTarget"))
+        })
+        .expect("a seed with a bolt in P0's opening hand");
+
+    let gob = force_into_play(
+        &mut state,
+        PlayerId(0),
+        "Creature dies-trigger DealDamage AnyTarget",
+    );
+    force_into_play(&mut state, PlayerId(0), "Mountain");
+
+    // P0's precombat main: float {R}, cast the bolt at the goblin.
+    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 1);
+    let bolt = find_in_hand(&state, PlayerId(0), "Instant DealDamage AnyTarget");
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+        panic!("expected ChooseTargets for the bolt, got {stop:?}");
+    };
+    assert!(legal[0].contains(&gob), "the goblin is a legal bolt target");
+    state.submit_decision(Decision::Targets(vec![gob])).unwrap();
+    // PayMana for {R}.
+    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+
+    // Both players pass: the bolt resolves (3 to the goblin), the SBA destroys
+    // it, and the dies-trigger NOTES — then `PlaceTriggers` surfaces a
+    // `ChooseTargets` for the trigger's own "any target".
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let (_, stop) = loop {
+        let (_, stop) = step_to_stop(&mut state);
+        match stop {
+            // P1's priority over the (still empty) stack: pass it along.
+            StepOutcome::NeedsDecision(PendingDecision::Priority {
+                player: PlayerId(1),
+                ..
+            }) => {
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            other => break (Vec::<Progress>::new(), other),
+        }
+    };
+
+    // The trigger's target choice surfaces (placement, [CR#603.3d]).
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { player, legal, .. }) = stop
+    else {
+        panic!("expected the dies-trigger's ChooseTargets, got {stop:?}");
+    };
+    assert_eq!(player, PlayerId(0), "the goblin's controller chooses");
+    // The goblin is gone; choose P1's player proxy as the "any target".
+    let p1_proxy = state.players[1].object;
+    assert!(
+        legal[0].contains(&p1_proxy),
+        "P1's proxy is a legal any-target, legal: {legal:?}"
+    );
+    assert!(
+        state.objects.get(gob).is_none(),
+        "the goblin is dead — its old id is gone before its trigger is placed"
+    );
+    state
+        .submit_decision(Decision::Targets(vec![p1_proxy]))
+        .unwrap();
+
+    // A `Triggered` stack object now sits on the stack; both players pass and it
+    // resolves, dealing 1 to P1.
+    let triggered_on_stack = state
+        .stack
+        .iter()
+        .any(|e| matches!(e.object, StackObject::Triggered { .. }));
+    assert!(triggered_on_stack, "the dies-trigger is on the stack");
+
+    // Drive to resolution, collecting the damage event.
+    let mut damage_source: Option<ObjectId> = None;
+    loop {
+        match state.step() {
+            StepOutcome::Progress(Progress::Applied(Occurrence::Single(
+                GameEvent::DamageDealt {
+                    source,
+                    target,
+                    amount,
+                },
+            ))) if target == p1_proxy => {
+                assert_eq!(amount, 1, "the dies-trigger deals 1");
+                damage_source = Some(source);
+            }
+            StepOutcome::Progress(_) => {}
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            StepOutcome::NeedsDecision(other) => panic!("unexpected decision: {other:?}"),
+            StepOutcome::GameOver(_) => break,
+        }
+        if damage_source.is_some() && state.stack.is_empty() {
+            break;
+        }
+    }
+
+    // P1 took 1 from the dead goblin.
+    assert_eq!(state.players[1].life, 19, "20 - 1 from the dies-trigger");
+    // [CR#603.10a]: the damage's source is the goblin's (now-stale) battlefield
+    // id — the LKI source, not any live object.
+    assert_eq!(
+        damage_source,
+        Some(gob),
+        "the damage is dealt by the dead goblin's LKI id"
+    );
+    assert!(
+        state.pending_triggers.is_empty(),
+        "no triggers left pending after placement+resolution"
+    );
+    // The triggered ability vanished — no Triggered entry remains.
+    assert!(
+        !state
+            .stack
+            .iter()
+            .any(|e| matches!(e.object, StackObject::Triggered { .. })),
+        "the triggered ability left the stack on resolution ([CR#603.8])"
+    );
+}

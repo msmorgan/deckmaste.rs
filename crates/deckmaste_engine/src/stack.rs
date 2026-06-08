@@ -4,24 +4,43 @@
 
 use deckmaste_core::Zone;
 
-use crate::object::ObjectId;
+use crate::object::{ObjectId, ObjectSource};
 use crate::player::PlayerId;
+use crate::trigger::TriggerBindings;
 
 /// What sits on (or is going onto) the stack.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StackObject {
     /// A card moved to the stack and cast ([CR#601.2a]).
     Spell(ObjectId),
+    /// A triggered ability on the stack ([CR#603.3]). It has no card identity
+    /// of its own — its `StackEntry.id` is a freshly minted token — and carries
+    /// the firing object's last-known information in `bindings`.
+    Triggered {
+        source: ObjectSource,
+        ability: usize,
+        bindings: TriggerBindings,
+    },
     // Activated { source: ObjectId, ability: usize },  // stage 3
 }
 
 impl StackObject {
-    /// The object this entry is "on" — the spell, or (later) an ability's
-    /// source. Used as `Frame::source` at resolution.
+    /// The object a *spell* entry is "on" — the spell's id. Used by the
+    /// permanent-spell / fizzle paths in `resolve_object`. A triggered ability
+    /// has no such object (it is identified on the stack by its
+    /// `StackEntry.id`).
+    ///
+    /// # Panics
+    ///
+    /// Panics on a `Triggered` entry — those are keyed by `StackEntry.id`, not
+    /// by a backing object.
     #[must_use]
     pub fn object(&self) -> ObjectId {
         match self {
             StackObject::Spell(o) => *o,
+            StackObject::Triggered { .. } => {
+                unreachable!("a triggered ability has no backing object id; key on StackEntry.id")
+            }
         }
     }
 }
@@ -30,9 +49,14 @@ impl StackObject {
 /// SBAs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StackEntry {
+    /// The stack identity ([CR#405]). For a spell it is the spell's own object
+    /// id; for a triggered ability it is a freshly minted token (the ability
+    /// has no card identity). `Resolve` keys on this.
+    pub id: ObjectId,
     pub object: StackObject,
     pub controller: PlayerId,
-    /// Chosen at announce ([CR#601.2c]); read by `Reference::Target(n)`.
+    /// Chosen at announce ([CR#601.2c]) or at trigger placement ([CR#603.3d]);
+    /// read by `Reference::Target(n)`.
     pub targets: Vec<ObjectId>,
 }
 
@@ -56,4 +80,8 @@ pub struct Frame {
     pub source: ObjectId,
     pub controller: PlayerId,
     pub targets: Vec<ObjectId>,
+    /// The trigger's last-known information ([CR#608.2]) — `None` for a spell
+    /// frame. When present, `Selection::This`/`~` reads the firing object's
+    /// snapshot rather than the live `source`.
+    pub bindings: Option<TriggerBindings>,
 }

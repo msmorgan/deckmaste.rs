@@ -67,8 +67,12 @@ pub struct GameState {
     pub outcome: Option<GameOutcome>,
     /// [CR#603.2]: triggers that have fired but are not yet on the stack.
     /// Populated only by applying a `TriggerFired` event; drained by the
-    /// `PlaceTriggers` barrier (a later task).
+    /// `PlaceTriggers` barrier.
     pub pending_triggers: Vec<crate::trigger::NotedTrigger>,
+    /// [CR#603.3d]: a trigger whose placement is mid-flight — its stack id is
+    /// minted and a `ChooseTargets` decision is open. The trigger analogue of
+    /// `announcing`; `Some` only across that target choice.
+    pub placing_trigger: Option<crate::trigger::PendingTrigger>,
     pub rng: ChaCha8Rng,
 }
 
@@ -139,6 +143,7 @@ impl GameState {
             pending: None,
             outcome: None,
             pending_triggers: Vec::new(),
+            placing_trigger: None,
             rng,
         }
     }
@@ -217,18 +222,18 @@ impl GameState {
         hand.remove(i);
     }
 
-    /// Removes the committed stack entry for `object` ([CR#405]). Panics if
-    /// absent — engine invariant.
+    /// Removes the committed stack entry whose `id` is `id` ([CR#405]). Keyed
+    /// on `StackEntry.id` so it works for both spells (id == the spell object)
+    /// and triggered abilities (id == a minted token).
     ///
     /// # Panics
     ///
-    /// Panics if `object` is not on the stack — engine invariant, not caller
-    /// input.
-    pub(crate) fn remove_stack_entry(&mut self, object: ObjectId) {
+    /// Panics if no entry has that id — engine invariant, not caller input.
+    pub(crate) fn remove_stack_entry(&mut self, id: ObjectId) {
         let i = self
             .stack
             .iter()
-            .position(|e| e.object.object() == object)
+            .position(|e| e.id == id)
             .expect("entry on stack");
         self.stack.remove(i);
     }

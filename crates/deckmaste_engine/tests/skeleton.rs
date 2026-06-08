@@ -133,10 +133,15 @@ fn turn_one_walks_to_upkeep_priority_one_event_at_a_time() {
         ))))
     ));
 
-    // The pre-priority barrier: a clean SBA sweep, then priority opens.
+    // The pre-priority barrier: a clean SBA sweep, the (empty) trigger
+    // placement, then priority opens.
     assert!(matches!(
         state.step(),
         StepOutcome::Progress(Progress::SbasChecked { actions: 0 })
+    ));
+    assert!(matches!(
+        state.step(),
+        StepOutcome::Progress(Progress::TriggersPlaced { placed: 0 })
     ));
     assert!(matches!(
         state.step(),
@@ -632,6 +637,7 @@ fn spell_leaves_the_stack_for_its_owners_graveyard() {
     state.zones.hands[PlayerId(0).index()].retain(|&o| o != spell);
     state.objects.obj_mut(spell).zone = Some(Zone::Stack);
     state.stack.push(StackEntry {
+        id: spell,
         object: StackObject::Spell(spell),
         controller: PlayerId(0),
         targets: vec![],
@@ -828,6 +834,7 @@ fn bolt_on_stack_targeting_bear() -> (GameState, ObjectId, ObjectId) {
     state.zones.hands[PlayerId(0).index()].retain(|&o| o != bolt);
     state.objects.obj_mut(bolt).zone = Some(Zone::Stack);
     state.stack.push(StackEntry {
+        id: bolt,
         object: StackObject::Spell(bolt),
         controller: PlayerId(0),
         targets: vec![bear],
@@ -952,7 +959,7 @@ fn casting_a_spell_schedules_the_announce_block_and_begin_cast_stages_it() {
     state
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
         .unwrap();
-    let front: Vec<WorkItem> = state.agenda.iter().take(6).cloned().collect();
+    let front: Vec<WorkItem> = state.agenda.iter().take(7).cloned().collect();
     assert_eq!(
         front,
         vec![
@@ -961,6 +968,7 @@ fn casting_a_spell_schedules_the_announce_block_and_begin_cast_stages_it() {
             WorkItem::PayCost,
             WorkItem::Emit(Occurrence::single(GameEvent::SpellCast(bolt))),
             WorkItem::CheckSbas,
+            WorkItem::PlaceTriggers,
             WorkItem::OpenPriority,
         ],
         "CastSpell must front-schedule the announce block in order"
