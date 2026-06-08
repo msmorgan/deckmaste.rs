@@ -1204,9 +1204,10 @@ fn etb_trigger_draws_a_card() {
                 trigger_fired = true;
             }
             StepOutcome::Progress(Progress::Applied(Occurrence::Single(
-                GameEvent::CardDrawn {
-                    player: PlayerId(0),
-                    object: Some(_),
+                GameEvent::ZoneChanged {
+                    from: Some(Zone::Library),
+                    to: Zone::Hand,
+                    ..
                 },
             ))) => {
                 card_drawn = true;
@@ -1234,7 +1235,7 @@ fn etb_trigger_draws_a_card() {
     }
 
     assert!(trigger_fired, "TriggerFired event was observed");
-    assert!(card_drawn, "CardDrawn event was observed");
+    assert!(card_drawn, "the ETB draw reached hand");
 
     // The ETB creature entered the battlefield; the spell left the hand; a card
     // was drawn. Net hand change: -1 (cast) + 1 (draw) = 0 relative to hand_before.

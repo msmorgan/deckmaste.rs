@@ -110,8 +110,8 @@ impl GameState {
     /// apply-time bindings (a drawn card's identity) filled in, and a draw
     /// from an empty library occurring as `DrewFromEmpty` instead.
     // TODO(stage-4): split apply() by subsystem (stack / zone-change / player) as arms grow;
-    //   pairs with the action-driven zone-change collapse (CardDrawn/LandPlayed/Discarded →
-    // ZoneWillChange).
+    //   pairs with the action-driven zone-change collapse (WillDraw done; LandPlayed/Discarded →
+    // ZoneWillChange still to come).
     #[expect(clippy::too_many_lines)]
     fn apply(&mut self, event: GameEvent) -> GameEvent {
         match event {
@@ -120,25 +120,29 @@ impl GameState {
                 self.objects.obj_mut(id).tapped = false;
                 event
             }
-            // TODO(stage-4): convert to ZoneWillChange/ZoneChanged (action-driven zone collapse,
-            //   spec §5.6); this in-place Library→Hand move is not reminted and bypasses the
-            //   replace/trigger stages. Also needs the deferred WillDrawCards intent (spec §11).
-            GameEvent::CardDrawn { player, object: _ } => {
-                if let Some(top) = self.zones.libraries[player.index()].pop_front() {
-                    self.objects.obj_mut(top).zone = Some(Zone::Hand);
-                    self.zones.hands[player.index()].push(top);
-                    GameEvent::CardDrawn {
-                        player,
-                        object: Some(top),
-                    }
+            GameEvent::WillDraw { player, source } => {
+                // [CR#120.1]: the draw intent commits. A card present → bump the
+                // tally and evolve into the generic Library→Hand move (remint +
+                // LKI); an empty library → DrewFromEmpty, the failed-draw fact
+                // the loss SBA keys on ([CR#120.3,704.5c]).
+                if let Some(&top) = self.zones.libraries[player.index()].front() {
+                    self.player_mut(player).this_turn.bump(Tally::CardsDrawn);
+                    self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+                        GameEvent::ZoneWillChange {
+                            object: top,
+                            from: Some(Zone::Library),
+                            to: Zone::Hand,
+                            enters: None,
+                        },
+                    ))]);
+                    GameEvent::WillDraw { player, source }
                 } else {
-                    // [CR#120.3,704.5c]: the draw fails; the loss is the SBA's.
                     self.player_mut(player).drew_from_empty = true;
                     GameEvent::DrewFromEmpty(player)
                 }
             }
             GameEvent::DrewFromEmpty(player) => {
-                // Today only `CardDrawn`'s apply-time transform produces this
+                // Today only `WillDraw`'s apply-time transform produces this
                 // fact; the arm exists for future direct emitters (e.g. a
                 // replacement effect rewriting a draw).
                 self.player_mut(player).drew_from_empty = true;
@@ -307,12 +311,12 @@ impl GameState {
                 let owner = self.owner_of(object);
                 self.remove_from_hand(owner, object);
             }
-            // Unreachable in Stage 3: only Stack/Battlefield/Hand leaves are converted.
-            // TODO(stage-4): the action-driven collapse (CardDrawn/LandPlayed/Discarded) wires
-            //   Library and additional Hand sources here.
+            Some(Zone::Library) => {
+                let owner = self.owner_of(object);
+                self.remove_from_library(owner, object);
+            }
             other => unreachable!(
-                "Stage 3 wires only Stack/Battlefield/Hand leaves; got {other:?}. \
-                 TODO(stage-4): action-driven zone collapse wires Library/Hand sources here."
+                "zone-change source {other:?} is not wired (Stack/Battlefield/Hand/Library only)"
             ),
         }
         self.objects.remove(object);
@@ -337,12 +341,9 @@ impl GameState {
         match to {
             Zone::Battlefield => self.zones.battlefield.push(new),
             Zone::Graveyard => self.zones.graveyards[owner.index()].push(new),
-            // Unreachable in Stage 3: only Battlefield and Graveyard destinations are converted.
-            // TODO(stage-4): action-driven collapse (LandPlayed → Battlefield already covered;
-            //   CardDrawn/Discarded) adds Hand and Library as to-zone targets here.
+            Zone::Hand => self.zones.hands[owner.index()].push(new),
             other => unreachable!(
-                "Stage 3 wires only Battlefield/Graveyard destinations; got {other:?}. \
-                 TODO(stage-4): action-driven zone collapse wires Hand/Library destinations here."
+                "zone-change destination {other:?} is not wired (Battlefield/Graveyard/Hand only)"
             ),
         }
 
@@ -446,12 +447,10 @@ impl GameState {
             }
             // [CR#504.1]; [CR#103.8a] (two-player): turn 1 is the starting
             // player's, who skips their first draw.
-            // TODO(stage-4): emit as ZoneWillChange (action-driven collapse, §5.6);
-            //   also needs the deferred WillDrawCards intent (spec §11).
             Phase::Beginning(BeginningStep::Draw) if self.turn.turn_number > 1 => {
-                vec![WorkItem::Emit(Occurrence::single(GameEvent::CardDrawn {
+                vec![WorkItem::Emit(Occurrence::single(GameEvent::WillDraw {
                     player: self.turn.active_player,
-                    object: None,
+                    source: None,
                 }))]
             }
             Phase::Beginning(BeginningStep::Draw) => vec![],

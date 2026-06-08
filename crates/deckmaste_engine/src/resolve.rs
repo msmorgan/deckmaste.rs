@@ -189,14 +189,12 @@ impl GameState {
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
             PlayerAction::Draw(qty) => {
-                // TODO(stage-4): emit as ZoneWillChange (action-driven collapse, §5.6);
-                //   also needs the deferred WillDrawCards intent (spec §11).
                 let n = self.eval_count(qty, frame);
                 (0..n)
                     .map(|_| {
-                        WorkItem::Emit(Occurrence::Single(GameEvent::CardDrawn {
+                        WorkItem::Emit(Occurrence::Single(GameEvent::WillDraw {
                             player: actor,
-                            object: None,
+                            source: Some(frame.source),
                         }))
                     })
                     .collect()
@@ -527,12 +525,12 @@ mod tests {
             vec![WorkItem::Emit(Occurrence::Single(GameEvent::Tapped(src)))]
         );
 
-        // By(You, Draw(2)) -> two sequential Single(CardDrawn) for the controller
+        // By(You, Draw(2)) -> two sequential Single(WillDraw) for the controller
         let items = state.action_items(&by_you(PlayerAction::Draw(Count::Literal(2))), &frame);
         assert_eq!(items.len(), 2);
         assert!(items.iter().all(|item| matches!(
             item,
-            WorkItem::Emit(Occurrence::Single(GameEvent::CardDrawn {
+            WorkItem::Emit(Occurrence::Single(GameEvent::WillDraw {
                 player: PlayerId(0),
                 ..
             }))
@@ -568,7 +566,7 @@ mod tests {
         assert_eq!(items.len(), 2);
         assert!(items.iter().all(|item| matches!(
             item,
-            WorkItem::Emit(Occurrence::Single(GameEvent::CardDrawn {
+            WorkItem::Emit(Occurrence::Single(GameEvent::WillDraw {
                 player: PlayerId(1),
                 ..
             }))

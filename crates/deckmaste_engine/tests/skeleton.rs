@@ -362,6 +362,30 @@ fn deck_out_ends_the_game() {
     assert!(matches!(state.step(), StepOutcome::GameOver(_)));
 }
 
+/// A draw remints ([CR#400.7]): the drawn card is the same `CardId` in a fresh
+/// `ObjectId`, now in hand; the old library object is gone. The `CardsDrawn`
+/// tally counts it.
+#[test]
+fn a_draw_remints_the_card_keeping_its_card_id() {
+    let mut state = two_player_plains(42, 20);
+    // P1 draws on turn 2. Capture the library top (object + its card) first.
+    let pre = *state.zones.libraries[1].front().unwrap();
+    let card = state.objects.obj(pre).card_id();
+    // Drive to the turn-2 cleanup discard — P1 has drawn exactly once by then.
+    let _ = pass_to_stop(&mut state);
+    assert!(
+        state.objects.get(pre).is_none(),
+        "the old library object was reminted away"
+    );
+    let drawn = state.zones.hands[1]
+        .iter()
+        .copied()
+        .find(|&o| state.objects.obj(o).card_id() == card)
+        .expect("the drawn card — same CardId — is in hand");
+    assert_ne!(drawn, pre, "the drawn card is a fresh ObjectId");
+    assert_eq!(state.players[1].this_turn.count(Tally::CardsDrawn), 1);
+}
+
 #[test]
 fn runner_recovers_the_auto_stepping_ergonomics() {
     let mut state = two_player_plains(7, 7);

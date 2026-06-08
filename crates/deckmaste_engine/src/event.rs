@@ -14,8 +14,8 @@ pub enum LossReason {
 
 /// A concrete occurrence: what `Emit` pushes through the (future) cant →
 /// replace → apply pipe. Scheduled as an intent, returned from apply as the
-/// occurred fact — `CardDrawn.object` binds at apply time, and a draw from
-/// an empty library applies as `DrewFromEmpty` instead.
+/// occurred fact — the draw's library top binds at `WillDraw` apply time, and a
+/// draw from an empty library applies as `DrewFromEmpty` instead.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GameEvent {
     TurnBegan {
@@ -24,9 +24,16 @@ pub enum GameEvent {
     },
     StepBegan(Phase),
     Untapped(ObjectId),
-    CardDrawn {
+    /// The INTENT of a draw ([CR#120.1]). Replaceable (Notion Thief, Lab
+    /// Maniac — future). Its apply checks the library: a card present → bind
+    /// the top, bump `CardsDrawn`, and evolve into `ZoneWillChange(Library →
+    /// Hand)`; an empty library → `DrewFromEmpty` ([CR#120.3,704.5c]). `source`
+    /// is the object that drew the card, or `None` for the turn-based draw-step
+    /// draw ([CR#504.1]) — "the first card you draw on your draw step" keys on
+    /// `None`.
+    WillDraw {
         player: PlayerId,
-        object: Option<ObjectId>,
+        source: Option<ObjectId>,
     },
     DrewFromEmpty(PlayerId),
     LandPlayed {
