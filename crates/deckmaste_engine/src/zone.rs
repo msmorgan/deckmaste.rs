@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use crate::object::ObjectId;
 
-/// Zone contents (CR 400). Libraries/hands/graveyards are per player;
+/// Zone contents ([CR#400]). Libraries/hands/graveyards are per player;
 /// the battlefield is shared. The library's front is its top. Stack, exile,
 /// and command arrive with the stages that need them.
 #[derive(Debug, Clone)]

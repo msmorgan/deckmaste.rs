@@ -1,4 +1,4 @@
-//! Legal actions for the priority holder (CR 117.1). The list this computes
+//! Legal actions for the priority holder ([CR#117.1]). The list this computes
 //! is both the advisory `legal` carried by the Priority decision and the
 //! authoritative check at submission (state can't change in between: a
 //! pending decision blocks stepping).
@@ -14,7 +14,7 @@ use crate::state::GameState;
 pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     let mut legal = vec![Action::Pass];
 
-    // CR 116.2a, 305.2: a land from hand, own turn, main phase, stack empty
+    // [CR#116.2a,305.2]: a land from hand, own turn, main phase, stack empty
     // (trivially true in the skeleton), one per turn.
     let main = matches!(
         state.turn.current,
@@ -29,7 +29,7 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         }
     }
 
-    // CR 605.3a: mana abilities of untapped permanents you control. The
+    // [CR#605.3a]: mana abilities of untapped permanents you control. The
     // only cost the skeleton can pay is {T}.
     for &object in &state.zones.battlefield {
         let obj = state.objects.obj(object);

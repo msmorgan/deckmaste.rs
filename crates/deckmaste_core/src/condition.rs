@@ -5,7 +5,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{Event, Expansion, Filter, IdentSeed, Quantity, Reference};
 
-/// A numeric comparison (CR 107.3). The named forms keep RON readable —
+/// A numeric comparison ([CR#107.3]). The named forms keep RON readable —
 /// `AtLeast` rather than `>=`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Cmp {
@@ -17,26 +17,27 @@ pub enum Cmp {
 }
 
 /// The turn-history window a `Happened` condition looks back over
-/// (CR 603.10). Just `ThisTurn` for now; `ThisCombat` etc. accrete.
+/// ([CR#603.10]). Just `ThisTurn` for now; `ThisCombat` etc. accrete.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Window {
     /// Since the start of the current turn (morbid, raid, "was kicked").
     ThisTurn,
 }
 
-/// A truth-valued test the engine evaluates (CR 603.4 intervening-if,
-/// 118.12a "unless", ability words). Ability words (`Threshold`, `Delirium`,
-/// `Morbid`) are declared `Condition` macros — hence the manual serde, so
-/// unknown names at Condition positions fall through to the macro layer.
+/// A truth-valued test the engine evaluates ([CR#603.4] intervening-if,
+/// [CR#118.12a] "unless", ability words). Ability words (`Threshold`,
+/// `Delirium`, `Morbid`) are declared `Condition` macros — hence the manual
+/// serde, so unknown names at Condition positions fall through to the macro
+/// layer.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Condition {
-    /// Compare two quantities (CR 107.3).
+    /// Compare two quantities ([CR#107.3]).
     Compare(Quantity, Cmp, Quantity),
-    /// At least one object matches (CR 107.3, "if you control a …").
+    /// At least one object matches ([CR#107.3], "if you control a …").
     Exists(Filter),
-    /// A referenced object matches a filter (CR 107.3, "if it is a …").
+    /// A referenced object matches a filter ([CR#107.3], "if it is a …").
     Is(Reference, Filter),
-    /// An event happened within a window (morbid/raid, CR 603.10).
+    /// An event happened within a window (morbid/raid, [CR#603.10]).
     Happened { event: Event, within: Window },
     /// All sub-conditions hold.
     AllOf(Vec<Condition>),

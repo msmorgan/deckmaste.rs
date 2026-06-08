@@ -13,12 +13,12 @@ use crate::player::{PlayerId, PlayerState};
 use crate::turn::TurnState;
 use crate::zone::Zones;
 
-/// How the game ended (CR 104).
+/// How the game ended ([CR#104]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GameOutcome {
-    /// CR 104.2a: the last player standing.
+    /// [CR#104.2a]: the last player standing.
     Win(PlayerId),
-    /// CR 104.4.
+    /// [CR#104.4].
     Draw,
 }
 
@@ -102,7 +102,7 @@ impl GameState {
             library.shuffle(&mut rng);
             zones.libraries[i] = library.into();
 
-            // Opening hand (CR 103.5): pre-game, not events.
+            // Opening hand ([CR#103.5]): pre-game, not events.
             for _ in 0..7 {
                 let Some(top) = zones.libraries[i].pop_front() else { break };
                 objects.obj_mut(top).zone = Zone::Hand;
@@ -151,7 +151,7 @@ impl GameState {
     #[must_use]
     pub fn def(&self, id: ObjectId) -> &Card { &self.cards.get(self.objects.obj(id).card).def }
 
-    /// CR 108.3: a card's owner never changes; an object's owner is its
+    /// [CR#108.3]: a card's owner never changes; an object's owner is its
     /// card's.
     ///
     /// # Panics

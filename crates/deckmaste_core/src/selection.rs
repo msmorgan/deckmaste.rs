@@ -4,11 +4,11 @@ use serde::{Deserialize, Serialize};
 use crate::{Expansion, Filter, Quantity, Reference};
 
 /// A Filter lifted into a resolution-time choice context: who picks, when,
-/// how many (CR 608.2d). Verb object slots take exactly one `Selection`.
+/// how many ([CR#608.2d]). Verb object slots take exactly one `Selection`.
 ///
 /// Targeting is NOT here — it lives in [`crate::TargetSpec`], the announce
 /// list — because a target has legality recheck and retargeting rules the
-/// other choice forms lack (CR 115). References lift into `Selection`
+/// other choice forms lack ([CR#115]). References lift into `Selection`
 /// (`This`, `Target(0)`, …) so a bound object can stand where a choice would.
 ///
 /// `Deserialize` is derived (the macro reader synthesizes the `Expanded`
@@ -17,17 +17,17 @@ use crate::{Expansion, Filter, Quantity, Reference};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub enum Selection {
     /// Every matching object, one at a time — distributive "each", no
-    /// targeting, evaluated when the instruction applies (CR 608.2d).
+    /// targeting, evaluated when the instruction applies ([CR#608.2d]).
     Each(Filter),
     /// All matching objects as one set — the shape continuous-effect
     /// scopes and set-wide instructions consume.
     All(Filter),
     /// One untargeted choice, made at resolution: not announced, not
-    /// rechecked the way targets are (CR 608.2d vs 601.2c).
+    /// rechecked the way targets are ([CR#608.2d] vs [CR#601.2c]).
     Choose(Filter),
-    /// A quantity of untargeted choices made at resolution (CR 608.2d).
+    /// A quantity of untargeted choices made at resolution ([CR#608.2d]).
     ChooseN(Quantity, Filter),
-    /// A random selection of a quantity of matching objects (CR 701.x).
+    /// A random selection of a quantity of matching objects ([CR#701]).
     Random(Quantity, Filter),
 
     // References, flattened: a bound object can stand where a choice would.

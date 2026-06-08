@@ -9,27 +9,27 @@ use crate::{
     Reference, Supertype, Type,
 };
 
-/// How long a one-shot-created continuous effect lasts (CR 611.2). Static
+/// How long a one-shot-created continuous effect lasts ([CR#611.2]). Static
 /// abilities don't carry this — their duration is implicit ("while it
-/// functions", CR 611.3).
+/// functions", [CR#611.3]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Duration {
-    /// CR 611.2 ("until end of turn").
+    /// [CR#611.2] ("until end of turn").
     UntilEndOfTurn,
     /// "Until your next turn".
     UntilYourNextTurn,
     /// "Until end of combat".
     UntilEndOfCombat,
-    /// While a condition holds (with the never-started rule, CR 611.2b).
+    /// While a condition holds (with the never-started rule, [CR#611.2b]).
     While(Condition),
-    /// Until an event happens (the engine pairs the undo one-shot, CR 610.3).
+    /// Until an event happens (the engine pairs the undo one-shot, [CR#610.3]).
     UntilEvent(Event),
-    /// For the rest of the game (CR 611.2).
+    /// For the rest of the game ([CR#611.2]).
     EndOfGame,
 }
 
-/// The set of objects a `Modify` applies to (CR 611.2c vs 611.3 — lock-in
-/// is provenance the engine applies, not stored here).
+/// The set of objects a `Modify` applies to ([CR#611.2c] vs [CR#611.3] —
+/// lock-in is provenance the engine applies, not stored here).
 ///
 /// `Of` wraps a single reference (the spec's dead `That` renamed); `These`
 /// a fixed list; `Matching` a filter-shaped, possibly-floating set.
@@ -43,64 +43,64 @@ pub enum Scope {
     Matching(Filter),
 }
 
-/// A flat primitive characteristic-change op (CR 613). Layers are DERIVED
+/// A flat primitive characteristic-change op ([CR#613]). Layers are DERIVED
 /// from the op, never written: `Add*` stats → 7c, `Set*` stats → 7b (7a when
 /// CDA-flagged), `Switch` → 7d, types → 4, colors → 5, abilities → 6,
-/// controller → 2, text → 3 (CR 613.1). One effect's `changes` is a list
-/// because it can span layers applied to the same set (CR 613.6).
+/// controller → 2, text → 3 ([CR#613.1]). One effect's `changes` is a list
+/// because it can span layers applied to the same set ([CR#613.6]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Modification {
     SetPower(Quantity),
     AddPower(Quantity),
     SetToughness(Quantity),
     AddToughness(Quantity),
-    /// Switch power and toughness (CR 613.4d).
+    /// Switch power and toughness ([CR#613.4d]).
     SwitchPowerToughness,
     SetColors(Vec<Color>),
     AddColors(Vec<Color>),
     SetCardTypes(Vec<Type>),
     AddCardTypes(Vec<Type>),
-    /// Subtypes by name (the class is derivable from the values, CR 205.1b).
+    /// Subtypes by name (the class is derivable from the values, [CR#205.1b]).
     SetSubtypes(Vec<Ident>),
     AddSubtypes(Vec<Ident>),
     SetSupertypes(Vec<Supertype>),
     AddSupertypes(Vec<Supertype>),
-    /// Gain an ability (CR 613.1f). Boxed: `Ability` is the enum's largest
+    /// Gain an ability ([CR#613.1f]). Boxed: `Ability` is the enum's largest
     /// variant by far, so indirection keeps `Modification` small.
     GainAbility(Box<Ability>),
-    /// Lose a named keyword ability (CR 613.1f).
+    /// Lose a named keyword ability ([CR#613.1f]).
     LoseAbility(Ident),
-    /// Lose all abilities (CR 613.1f).
+    /// Lose all abilities ([CR#613.1f]).
     LoseAllAbilities,
-    /// Can't have or gain the named ability (CR 613.1f).
+    /// Can't have or gain the named ability ([CR#613.1f]).
     CantHaveAbility(Ident),
-    /// Change controller (CR 613.1b).
+    /// Change controller ([CR#613.1b]).
     SetController(Reference),
-    /// Change text (CR 613.1c).
+    /// Change text ([CR#613.1c]).
     SetText(String),
-    /// Set base loyalty (CR 613.1d, planeswalker).
+    /// Set base loyalty ([CR#613.1d], planeswalker).
     SetBaseLoyalty(Quantity),
     /// Set base defense (battle).
     SetBaseDefense(Quantity),
-    /// The CR 305.7 bundle: replace land types ∧ lose printed abilities ∧
+    /// The [CR#305.7] bundle: replace land types ∧ lose printed abilities ∧
     /// gain the basic-land mana ability (Blood Moon). One intrinsic, not
     /// reachable from the plain `Set*` ops.
     BecomeBasicLandType(Vec<Ident>),
 }
 
-/// What an object can't do (CR 509.1b — absolute, asymmetric with
+/// What an object can't do ([CR#509.1b] — absolute, asymmetric with
 /// `Requirement`). Evasion abilities are Restrictions.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Restriction {
     CantAttack,
     CantBlock,
-    /// CR 702.9 (Flying-style): can't be blocked except by matching blockers.
+    /// [CR#702.9] (Flying-style): can't be blocked except by matching blockers.
     CantBeBlockedExceptBy(Filter),
     CantBeTargetedBy(Filter),
     CantCastSpells,
 }
 
-/// What an object must do (CR 509.1c — maximized but violable). Goaded's
+/// What an object must do ([CR#509.1c] — maximized but violable). Goaded's
 /// "attacks each combat if able" is a Requirement.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Requirement {
@@ -108,7 +108,7 @@ pub enum Requirement {
     MustBlock(Filter),
 }
 
-/// A permission an object grants (CR 611.3d "as though"). Flash-likes,
+/// A permission an object grants ([CR#611.3d] "as though"). Flash-likes,
 /// cast-from-other-zones.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Permission {
@@ -116,7 +116,7 @@ pub enum Permission {
     HasFlash,
 }
 
-/// A cost modification (CR 118.7).
+/// A cost modification ([CR#118.7]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum CostChange {
     Increase(Vec<CostComponent>),
@@ -124,7 +124,7 @@ pub enum CostChange {
 }
 
 /// The shared currency between an "anthem" static ability and a "+3/+3 until
-/// end of turn" one-shot (CR 611). The difference is who wraps it: a static
+/// end of turn" one-shot ([CR#611]). The difference is who wraps it: a static
 /// ability (`StaticAbility`) or a one-shot `Effect::Continuously`.
 ///
 /// Manual serde for macro interception (it bears `Expanded`): unknown names
@@ -136,17 +136,17 @@ pub enum StaticEffect {
         of: Scope,
         changes: Vec<Modification>,
     },
-    /// A "can't" (CR 509.1b).
+    /// A "can't" ([CR#509.1b]).
     Restriction(Restriction),
-    /// A "must" (CR 509.1c).
+    /// A "must" ([CR#509.1c]).
     Requirement(Requirement),
-    /// An "as though" / "may" permission (CR 611.3d).
+    /// An "as though" / "may" permission ([CR#611.3d]).
     Permission(Permission),
-    /// A cost modifier (CR 118.7).
+    /// A cost modifier ([CR#118.7]).
     CostModifier { of: Filter, change: CostChange },
-    /// A replacement effect (CR 614).
+    /// A replacement effect ([CR#614]).
     Replacement(Replacement),
-    /// A prevention effect (CR 615).
+    /// A prevention effect ([CR#615]).
     Prevention(Prevention),
     /// A remembered `StaticEffect` macro invocation. Serialized as the
     /// invocation, not the struct.

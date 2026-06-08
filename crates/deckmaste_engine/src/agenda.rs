@@ -11,9 +11,9 @@ pub enum WorkItem {
     Emit(GameEvent),
     /// Turn-structure transition plus that step's schedule.
     BeginStep(StepOrPhase),
-    /// CR 704.3: state-based actions, checked before anyone gets priority.
+    /// [CR#704.3]: state-based actions, checked before anyone gets priority.
     CheckSbas,
-    /// Cleanup's turn-based action (CR 514.1).
+    /// Cleanup's turn-based action ([CR#514.1]).
     CheckHandSize,
     /// Surface `pending = Priority { .. }`.
     OpenPriority,

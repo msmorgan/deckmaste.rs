@@ -1,6 +1,6 @@
 //! Minimal characteristics derivation: what abilities an object has. The
 //! seed of the stage-4 layer system — in the skeleton, a flat concatenation
-//! of printed face abilities and subtype-conferred abilities (CR 305.6 falls
+//! of printed face abilities and subtype-conferred abilities ([CR#305.6] falls
 //! out of the data; the engine never special-cases land subtypes).
 
 use deckmaste_core::{
@@ -36,9 +36,9 @@ pub fn abilities(state: &GameState, id: ObjectId) -> Vec<&Ability> {
         .collect()
 }
 
-/// Skeleton-subset mana-ability check (a subset of CR 605.1a): an activated
+/// Skeleton-subset mana-ability check (a subset of [CR#605.1a]): an activated
 /// ability with no targets, cost exactly `[Tap]`, producing a fixed amount
-/// of specific mana. Full 605.1a admits more (other costs, `AnyColor`,
+/// of specific mana. Full [CR#605.1a] admits more (other costs, `AnyColor`,
 /// loyalty exclusion) — not yet needed here. Returns what it produces.
 /// Keyword wrappers are looked through.
 #[must_use]

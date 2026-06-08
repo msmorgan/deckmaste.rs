@@ -9,7 +9,7 @@ impl PlayerId {
     pub fn index(self) -> usize { self.0 as usize }
 }
 
-/// Unspent mana (CR 106.4), by kind. Fixed six slots — deterministic, no
+/// Unspent mana ([CR#106.4]), by kind. Fixed six slots — deterministic, no
 /// map ordering questions.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ManaPool([Uint; 6]);
@@ -35,18 +35,18 @@ impl ManaPool {
     #[must_use]
     pub fn is_empty(&self) -> bool { self.0.iter().all(|&n| n == 0) }
 
-    /// CR 500.4 / 106.4: the pool empties at each step and phase boundary.
+    /// [CR#500.4] / [CR#106.4]: the pool empties at each step and phase boundary.
     pub fn clear(&mut self) { self.0 = [0; 6]; }
 }
 
-/// Per-player state. CR 119: life is signed.
+/// Per-player state. [CR#119]: life is signed.
 #[derive(Debug, Clone)]
 pub struct PlayerState {
     pub id: PlayerId,
     pub life: Int,
     pub max_hand_size: Uint,
     pub lands_played_this_turn: Uint,
-    /// CR 704.5c flag: tried to draw from an empty library.
+    /// [CR#704.5c] flag: tried to draw from an empty library.
     pub drew_from_empty: bool,
     pub lost: bool,
     pub mana_pool: ManaPool,

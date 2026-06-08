@@ -30,9 +30,9 @@ pub enum Progress {
     Applied(GameEvent),
     /// A new step began.
     Advanced(StepOrPhase),
-    /// A CR 704 sweep ran; `actions` lost-player events were scheduled.
+    /// A [CR#704] sweep ran; `actions` lost-player events were scheduled.
     SbasChecked { actions: Uint },
-    /// Cleanup's hand-size check ran (CR 514.1).
+    /// Cleanup's hand-size check ran ([CR#514.1]).
     HandSizeChecked { discarding: Uint },
     /// A priority decision was surfaced for this player.
     PriorityOpened(PlayerId),
@@ -87,7 +87,7 @@ impl GameState {
                         object: Some(top),
                     }
                 } else {
-                    // CR 120.3, 704.5c: the draw fails; the loss is the SBA's.
+                    // [CR#120.3,704.5c]: the draw fails; the loss is the SBA's.
                     self.player_mut(player).drew_from_empty = true;
                     GameEvent::DrewFromEmpty(player)
                 }
@@ -131,10 +131,10 @@ impl GameState {
             }
             GameEvent::PlayerLost { player, .. } => {
                 self.player_mut(player).lost = true;
-                // CR 104.2a / 104.4: last player standing wins; nobody is a
+                // [CR#104.2a] / [CR#104.4]: last player standing wins; nobody is a
                 // draw. Game over clears the agenda for good.
                 //
-                // Stage-3 trap, documented: a CR 704.3 sweep is simultaneous,
+                // Stage-3 trap, documented: a [CR#704.3] sweep is simultaneous,
                 // but these events apply one per step() — if two players lost
                 // in ONE sweep, the first apply would declare Win instead of
                 // Draw and destroy the second event with the agenda. This is
@@ -160,7 +160,7 @@ impl GameState {
         }
     }
 
-    /// Begins a new turn: CR 500.1. Returns the `TurnBegan` event to emit.
+    /// Begins a new turn: [CR#500.1]. Returns the `TurnBegan` event to emit.
     fn begin_turn(&mut self) -> GameEvent {
         self.turn.turn_number += 1;
         if self.turn.turn_number > 1 {
@@ -190,7 +190,7 @@ impl GameState {
         Progress::Advanced(s)
     }
 
-    /// CR 500: this step's turn-based actions, as schedulable items.
+    /// [CR#500]: this step's turn-based actions, as schedulable items.
     /// Computed at scheduling time — equivalent in the skeleton (nothing can
     /// intervene before they apply); a lazy item arrives with triggers.
     // Two arms produce vec![] for different reasons; keeping them separate
@@ -198,7 +198,7 @@ impl GameState {
     #[expect(clippy::match_same_arms)]
     fn turn_based_actions(&self, s: StepOrPhase) -> Vec<WorkItem> {
         match s {
-            // CR 502.1: the active player's tapped permanents untap.
+            // [CR#502.1]: the active player's tapped permanents untap.
             StepOrPhase::Untap => {
                 let active = self.turn.active_player;
                 self.zones
@@ -211,7 +211,7 @@ impl GameState {
                     .map(|&id| WorkItem::Emit(GameEvent::Untapped(id)))
                     .collect()
             }
-            // CR 504.1; CR 103.8a (two-player): turn 1 is the starting
+            // [CR#504.1]; [CR#103.8a] (two-player): turn 1 is the starting
             // player's, who skips their first draw.
             StepOrPhase::Draw if self.turn.turn_number > 1 => {
                 vec![WorkItem::Emit(GameEvent::CardDrawn {
@@ -220,20 +220,20 @@ impl GameState {
                 })]
             }
             StepOrPhase::Draw => vec![],
-            // CR 514.1: discard to hand size — checked after StepBegan.
+            // [CR#514.1]: discard to hand size — checked after StepBegan.
             StepOrPhase::Cleanup => vec![WorkItem::CheckHandSize],
             _ => vec![],
         }
     }
 
     /// What follows a step's turn-based actions: the priority barrier, or
-    /// the step end for the no-priority steps (CR 502.4, 514.3 — cleanup's
-    /// sweep runs per CR 514.2 but can never act in the skeleton).
+    /// the step end for the no-priority steps ([CR#502.4,514.3] — cleanup's
+    /// sweep runs per [CR#514.2] but can never act in the skeleton).
     fn step_tail(&self, s: StepOrPhase) -> Vec<WorkItem> {
         match s {
             StepOrPhase::Untap => self.end_of_step_items(),
             StepOrPhase::Cleanup => {
-                // CR 514.3a: if the sweep acts (or triggers are waiting),
+                // [CR#514.3a]: if the sweep acts (or triggers are waiting),
                 // players DO get priority and cleanup repeats. Stage 3 must
                 // detect that and insert OpenPriority + another cleanup
                 // before the step end; in the skeleton the sweep can never
@@ -246,7 +246,7 @@ impl GameState {
         }
     }
 
-    /// CR 500.4: pools empty at the end of every step; then the next step
+    /// [CR#500.4]: pools empty at the end of every step; then the next step
     /// begins (wrapping into the next turn's untap).
     pub(crate) fn end_of_step_items(&self) -> Vec<WorkItem> {
         let mut items: Vec<WorkItem> = self
@@ -262,7 +262,7 @@ impl GameState {
         items
     }
 
-    /// CR 704.3: sweep; if anything acted, emit and re-check before the
+    /// [CR#704.3]: sweep; if anything acted, emit and re-check before the
     /// queued `OpenPriority` runs.
     fn check_sbas(&mut self) -> Progress {
         let actions = sba::sweep(self);
@@ -275,7 +275,7 @@ impl GameState {
         Progress::SbasChecked { actions: count }
     }
 
-    /// CR 514.1: the active player discards to maximum hand size.
+    /// [CR#514.1]: the active player discards to maximum hand size.
     ///
     /// Setting `pending` blocks the next `step()` before the already-queued
     /// `CheckSbas` is consumed; submission front-schedules the `Discarded`
@@ -295,7 +295,7 @@ impl GameState {
         Progress::HandSizeChecked { discarding }
     }
 
-    /// CR 117: surfaces priority for the round's holder (opening the round
+    /// [CR#117]: surfaces priority for the round's holder (opening the round
     /// at the active player if none is open — APNAP).
     fn open_priority(&mut self) -> Progress {
         let holder = if let Some(round) = &self.turn.priority {

@@ -1,4 +1,4 @@
-// CR 111.10b
+// [CR#111.10b]
 Token(
     types: [Artifact],
     subtypes: [Food],

@@ -43,7 +43,7 @@ fn artifact_subtype(name: &str) -> Subtype {
     }
 }
 
-// CR 111.10a
+// [CR#111.10a]
 #[test]
 fn treasure_token_parses() {
     let token = builtin().token("Treasure").unwrap();
@@ -62,7 +62,7 @@ fn treasure_token_parses() {
     );
 }
 
-// CR 111.10f
+// [CR#111.10f]
 #[test]
 fn clue_token_parses() {
     let token = builtin().token("Clue").unwrap();
@@ -81,7 +81,7 @@ fn clue_token_parses() {
     );
 }
 
-// CR 111.10b
+// [CR#111.10b]
 #[test]
 fn food_token_parses() {
     let token = builtin().token("Food").unwrap();

@@ -26,7 +26,7 @@ use crate::{
     ChooseSpec, Condition, Expansion, Filter, IdentSeed, Mode, Quantity, Selection, Token,
 };
 
-/// An effect an ability produces (CR 608). Compartmentalized in Rust; flat in
+/// An effect an ability produces ([CR#608]). Compartmentalized in Rust; flat in
 /// RON (`DrawCards(1)`, never `Act(DrawCards(1))`) via the manual serde below.
 ///
 /// A single instruction stands bare (`effect: DealDamage(Target(0), 3)`); the
@@ -38,23 +38,23 @@ pub enum Effect {
     /// A single intrinsic instruction (the `Act` compartment, transparent in
     /// RON).
     Act(Action),
-    /// Explicit "then" — ordered sub-effects (CR 608.2c).
+    /// Explicit "then" — ordered sub-effects ([CR#608.2c]).
     Sequence(Vec<Effect>),
-    /// A one-shot-created continuous effect (CR 611.2).
+    /// A one-shot-created continuous effect ([CR#611.2]).
     Continuously(ContinuouslyEffect),
-    /// "You may [do]" (CR 603.x, 608) — with "if you do"/"if you don't".
+    /// "You may [do]" ([CR#603,608]) — with "if you do"/"if you don't".
     May(MayEffect),
-    /// "If [condition], [then]; otherwise [else]" (CR 603.4-style branch).
+    /// "If [condition], [then]; otherwise [else]" ([CR#603.4]-style branch).
     If(IfEffect),
-    /// "[do] unless [you pay]" (CR 118.12a).
+    /// "[do] unless [you pay]" ([CR#118.12a]).
     Unless(UnlessEffect),
-    /// "For each [over], [do]" — binds the iterated object (CR 608).
+    /// "For each [over], [do]" — binds the iterated object ([CR#608]).
     ForEach(ForEachEffect),
-    /// A delayed triggered ability created on resolution (CR 603.7).
+    /// A delayed triggered ability created on resolution ([CR#603.7]).
     Delayed(Box<TriggeredAbility>),
-    /// A reflexive triggered ability created on resolution (CR 603.12).
+    /// A reflexive triggered ability created on resolution ([CR#603.12]).
     Reflexive(Box<TriggeredAbility>),
-    /// A modal effect: choose modes, then apply them (CR 700.2). This is the
+    /// A modal effect: choose modes, then apply them ([CR#700.2]). This is the
     /// realized form of the design's `Resolvable::Modal` — see the report.
     Modal(ModalEffect),
     /// A remembered `Effect` macro invocation (declared compound verbs like
@@ -62,7 +62,7 @@ pub enum Effect {
     Expanded(Expansion<Effect>),
 }
 
-/// `Continuously { effect, duration }` (CR 611.2). `effect` is boxed to break
+/// `Continuously { effect, duration }` ([CR#611.2]). `effect` is boxed to break
 /// the `Effect` → `StaticEffect` → `Replacement` → `Effect` size cycle.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct ContinuouslyEffect {
@@ -91,7 +91,7 @@ pub struct IfEffect {
 }
 
 /// `Unless { do, unless }` — `do` is a keyword, so the field is `effect`;
-/// `unless` is the cost the affected player may pay to avoid it (CR 118.12a).
+/// `unless` is the cost the affected player may pay to avoid it ([CR#118.12a]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct UnlessEffect {
     pub effect: Box<Effect>,
@@ -105,7 +105,7 @@ pub struct ForEachEffect {
     pub effect: Box<Effect>,
 }
 
-/// `Modal { choose, modes }` (CR 700.2).
+/// `Modal { choose, modes }` ([CR#700.2]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct ModalEffect {
     pub choose: ChooseSpec,

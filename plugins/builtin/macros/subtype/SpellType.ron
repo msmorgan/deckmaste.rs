@@ -1,4 +1,4 @@
-// CR 205.3k
+// [CR#205.3k]
 (
     name: "SpellType",
     kinds: [Subtype],

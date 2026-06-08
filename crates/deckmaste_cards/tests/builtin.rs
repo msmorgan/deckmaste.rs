@@ -16,7 +16,7 @@ fn builtin_path() -> PathBuf { Path::new(env!("CARGO_MANIFEST_DIR")).join("../..
 fn builtin() -> Plugin { Plugin::load(builtin_path()).unwrap() }
 
 /// What a basic land type's declaration expands to: the subtype plus its
-/// intrinsic mana ability (CR 305.6), conferred as data.
+/// intrinsic mana ability ([CR#305.6]), conferred as data.
 fn basic_land_subtype(name: &str, color: Color) -> Subtype {
     Subtype {
         name: name.into(),

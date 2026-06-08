@@ -4,24 +4,24 @@ use serde::{Deserialize, Serialize};
 use crate::{Expansion, Filter, Reference};
 
 /// A measurable characteristic of an object, read by `Quantity::StatOf`
-/// (CR 109.3, 208, 212). The open part (mana value, loyalty, defense) is
+/// ([CR#109.3,208,212]). The open part (mana value, loyalty, defense) is
 /// finite; new printed stats are rare and get a variant when one arrives.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Stat {
-    /// CR 208.
+    /// [CR#208].
     Power,
-    /// CR 208.
+    /// [CR#208].
     Toughness,
-    /// CR 202.3.
+    /// [CR#202.3].
     ManaValue,
-    /// CR 212.4 (planeswalker).
+    /// [CR#212.4] (planeswalker).
     Loyalty,
-    /// CR 212.6 (battle).
+    /// [CR#212.6] (battle).
     Defense,
 }
 
 /// A number an effect computes at resolution: an amount, never an object
-/// (objects are `Reference`s, CR 107.1, 107.3).
+/// (objects are `Reference`s, [CR#107.1,107.3]).
 ///
 /// Core's grammar is strict: a literal is written `Literal(3)`, a plain
 /// tagged variant like every other. A bare numeral (`3`) at a Quantity
@@ -36,15 +36,15 @@ pub enum Stat {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub enum Quantity {
     /// The value chosen for {X} as the spell or ability was put on the
-    /// stack (CR 107.3).
+    /// stack ([CR#107.3]).
     X,
-    /// How many objects match a filter (CR 107.3, "for each"). Boxed to
+    /// How many objects match a filter ([CR#107.3], "for each"). Boxed to
     /// break the `Filter` → `Stat` → `Quantity` → `Filter` size cycle.
     CountOf(Box<Filter>),
-    /// A referenced object's stat (CR 107.3, "equal to its power").
+    /// A referenced object's stat ([CR#107.3], "equal to its power").
     StatOf(Reference, Stat),
     /// Magnitude anaphora: "that much" / "that many" — the amount fixed by
-    /// an earlier instruction (CR 107.3).
+    /// an earlier instruction ([CR#107.3]).
     ThatMuch,
     /// A bare integer literal. Written `Literal(3)` in core grammar; a bare
     /// `3` is macro-layer reader sugar for it.

@@ -3,12 +3,12 @@ use deckmaste_core::{ColorOrColorless, StepOrPhase, Uint};
 use crate::object::ObjectId;
 use crate::player::PlayerId;
 
-/// Why a player lost (CR 704.5).
+/// Why a player lost ([CR#704.5]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LossReason {
-    /// CR 704.5a.
+    /// [CR#704.5a].
     LifeZero,
-    /// CR 704.5c.
+    /// [CR#704.5c].
     DrewFromEmpty,
 }
 
