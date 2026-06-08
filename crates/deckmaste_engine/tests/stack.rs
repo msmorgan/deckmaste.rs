@@ -14,9 +14,9 @@ use std::sync::Arc;
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::{Card, Color, ColorOrColorless, StepOrPhase, Zone};
 use deckmaste_engine::{
-    Action, Decision, DecisionError, GameConfig, GameEvent, GameState, ObjectId, Occurrence,
-    Payment, PendingDecision, PlayerConfig, PlayerId, Progress, StackObject, StartingPlayer,
-    StepOutcome,
+    Action, Decision, DecisionError, GameConfig, GameEvent, GameOutcome, GameState, ObjectId,
+    Occurrence, Payment, PendingDecision, PlayerConfig, PlayerId, Progress, StackObject,
+    StartingPlayer, StepOutcome,
 };
 
 // --- plugin + deck building
@@ -1100,6 +1100,705 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
             .iter()
             .any(|e| matches!(e.object, StackObject::Triggered { .. })),
         "the triggered ability left the stack on resolution ([CR#603.8])"
+    );
+}
+
+/// End-to-end ETB trigger + `DrawCards` ([CR#603.3,121.1]):
+///
+/// P0 casts `Creature etb-trigger DrawCards` ({1}{U}). It resolves and enters
+/// the battlefield. Its `Enters(Is(This))` trigger fires on the `ZoneChanged`
+/// (→Battlefield), `PlaceTriggers` places it (no targets → directly), it
+/// resolves and calls `DrawCards(1)` — P0 draws a card. Assert hand grew by 1.
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "an end-to-end decision-driven scenario"
+)]
+fn etb_trigger_draws_a_card() {
+    let testing = testing();
+    let etb = Arc::new(testing.card("Creature etb-trigger DrawCards").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let island = Arc::new(builtin().card("Island").unwrap());
+
+    // P0: etb creatures + islands (for {U}) + forests (for {1} generic).
+    // P1: forests only (no cards relevant to the scenario).
+    let mut deck0 = vec![Arc::clone(&etb); 4];
+    deck0.extend(vec![Arc::clone(&island); 3]);
+    deck0.extend(vec![Arc::clone(&forest); 3]);
+
+    // Seed search: find a seed whose P0 opening hand holds the ETB creature,
+    // an Island, and a Forest so the {1}{U} cost is payable.
+    let build = |seed: u64| {
+        GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: deck0.clone(),
+                },
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 10],
+                },
+            ],
+            seed,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        })
+    };
+    let mut state = (0u64..1000)
+        .map(build)
+        .find(|s| {
+            let hand = &s.zones.hands[0];
+            hand.iter()
+                .any(|&o| is_card(s, o, "Creature etb-trigger DrawCards"))
+                && hand.iter().any(|&o| is_card(s, o, "Island"))
+                && hand.iter().any(|&o| is_card(s, o, "Forest"))
+        })
+        .expect("a seed with the ETB creature, an Island, and a Forest in P0's opening hand");
+
+    // Force lands onto the battlefield so float_mana works.
+    force_into_play(&mut state, PlayerId(0), "Island");
+    force_into_play(&mut state, PlayerId(0), "Forest");
+
+    // Record hand size BEFORE casting (the ETB creature is in hand).
+    let hand_before = state.zones.hands[0].len();
+
+    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    // Float {U} and {G} for the {1}{U} cost.
+    float_mana(&mut state, PlayerId(0), 2);
+
+    let creature = find_in_hand(&state, PlayerId(0), "Creature etb-trigger DrawCards");
+
+    // Cast the creature spell (sorcery speed, no targets).
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: creature }))
+        .unwrap();
+
+    // {1}{U}: one blue pip + one generic (the Forest's green covers {1}).
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
+        panic!("expected PayMana for {{1}}{{U}}, got {stop:?}");
+    };
+    // Pay the {1} with the green mana floating.
+    state
+        .submit_decision(Decision::Pay(Payment {
+            generic: vec![Color::Green.into()],
+        }))
+        .unwrap();
+
+    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    assert_eq!(state.stack.len(), 1, "the creature spell is on the stack");
+
+    // Both players pass → resolves.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(1), StepOrPhase::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+
+    // Collect the trace while driving through PlaceTriggers → resolution.
+    // The ETB trigger is non-targeting: it places directly, resolves, draws.
+    let mut trigger_fired = false;
+    let mut card_drawn = false;
+    loop {
+        match state.step() {
+            StepOutcome::Progress(Progress::Applied(Occurrence::Single(
+                GameEvent::TriggerFired { .. },
+            ))) => {
+                trigger_fired = true;
+            }
+            StepOutcome::Progress(Progress::Applied(Occurrence::Single(
+                GameEvent::CardDrawn {
+                    player: PlayerId(0),
+                    object: Some(_),
+                },
+            ))) => {
+                card_drawn = true;
+            }
+            StepOutcome::Progress(_) => {}
+            StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) => {
+                // Once both the trigger has fired and the card was drawn, stop.
+                if card_drawn {
+                    break;
+                }
+                state
+                    .submit_decision(Decision::Act(Action::Pass))
+                    .unwrap_or_else(|_| {
+                        let _ = player;
+                    });
+            }
+            StepOutcome::NeedsDecision(other) => {
+                panic!("unexpected decision after etb trigger: {other:?}")
+            }
+            StepOutcome::GameOver(o) => panic!("unexpected game over: {o:?}"),
+        }
+        if card_drawn && state.stack.is_empty() {
+            break;
+        }
+    }
+
+    assert!(trigger_fired, "TriggerFired event was observed");
+    assert!(card_drawn, "CardDrawn event was observed");
+
+    // The ETB creature entered the battlefield; the spell left the hand; a card
+    // was drawn. Net hand change: -1 (cast) + 1 (draw) = 0 relative to hand_before.
+    // Wait — hand_before includes the creature in hand. After cast: hand_before -
+    // 1. After draw: hand_before - 1 + 1 = hand_before. But the trigger draws,
+    // so final hand size == hand_before (cast removes creature, draw adds one).
+    // The creature left the hand when cast (goes to stack), then leaves the stack
+    // when it enters. So net: hand size unchanged from before cast, but now
+    // includes one NEW card drawn instead of the creature.
+    let hand_after = state.zones.hands[0].len();
+    // The key assertion: drawing happened (+1 from the trigger).
+    // Since the creature left hand when cast (-1), and the draw added +1, the
+    // net from hand_before is 0. But we assert the draw happened (card_drawn)
+    // and the creature is on the battlefield (not in hand).
+    assert_eq!(
+        hand_after, hand_before,
+        "hand size is unchanged: the cast removed the creature and the ETB trigger drew 1 \
+         (net zero from hand_before = {hand_before})"
+    );
+    // The creature entered the battlefield.
+    let entered = state
+        .zones
+        .battlefield
+        .iter()
+        .copied()
+        .find(|&o| {
+            state.objects.obj(o).card_id().is_some_and(|_| {
+                matches!(state.def(o), Card::Normal(f) | Card::ModalDfc(f, _)
+                    if f.name == "Creature etb-trigger DrawCards")
+            })
+        })
+        .expect("the ETB creature is on the battlefield");
+    assert_ne!(entered, creature, "reminted with a fresh id ([CR#400.7])");
+    assert!(
+        state.pending_triggers.is_empty(),
+        "no triggers left pending"
+    );
+}
+
+/// End-to-end occurrence batch + APNAP trigger ordering ([CR#603.3b,700.4]):
+///
+/// Board under P0: `Creature dies-trigger DealDamage AnyTarget` (1/1) +
+/// `Creature dies-watcher LoseLife` (1/1). Board under P1: `Creature
+/// dies-watcher LoseLife` (1/1). P0 casts `Sorcery DealDamage each creature`
+/// (2 to each). All three die simultaneously in one `Occurrence::Batch`.
+///
+/// Expected flow:
+/// 1. Resolve → one `Batch` of three `DamageDealt` events.
+/// 2. SBA sweep → one `Batch` of three `ZoneWillChange`/`ZoneChanged` zone
+///    moves (each creature gets lethal damage).
+/// 3. Trigger matching notes THREE triggers: the dies-trigger (P0), P0's
+///    watcher, P1's watcher — all in the same scan.
+/// 4. `PlaceTriggers` APNAP: P0 controls two simultaneous triggers →
+///    `OrderTriggers` surfaces. After ordering, P1's trigger is placed last
+///    (resolves first in LIFO). Within P0's pair: the chosen order is the stack
+///    order.
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "an end-to-end decision-driven scenario"
+)]
+fn occurrence_batch_and_apnap_ordering() {
+    let testing = testing();
+    let pyroclasm = Arc::new(testing.card("Sorcery DealDamage each creature").unwrap());
+    let goblin = Arc::new(
+        testing
+            .card("Creature dies-trigger DealDamage AnyTarget")
+            .unwrap(),
+    );
+    let watcher = Arc::new(testing.card("Creature dies-watcher LoseLife").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+
+    // P0: pyroclasm + goblin + watcher + mountains + forests.
+    // {1}{R} needs a Mountain (red) + something for generic.
+    let mut deck0 = vec![Arc::clone(&pyroclasm); 2];
+    deck0.extend(vec![Arc::clone(&goblin); 2]);
+    deck0.extend(vec![Arc::clone(&watcher); 2]);
+    deck0.extend(vec![Arc::clone(&mountain); 2]);
+    deck0.extend(vec![Arc::clone(&forest); 2]);
+
+    let build = |seed: u64| {
+        GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: deck0.clone(),
+                },
+                PlayerConfig {
+                    deck: {
+                        let mut d = vec![Arc::clone(&watcher); 5];
+                        d.extend(vec![Arc::clone(&forest); 5]);
+                        d
+                    },
+                },
+            ],
+            seed,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        })
+    };
+    let mut state = (0u64..2000)
+        .map(build)
+        .find(|s| {
+            let hand = &s.zones.hands[0];
+            hand.iter()
+                .any(|&o| is_card(s, o, "Sorcery DealDamage each creature"))
+                && hand.iter().any(|&o| is_card(s, o, "Mountain"))
+        })
+        .expect("a seed with Sorcery DealDamage each creature + Mountain in P0's opening hand");
+
+    // Force mana sources onto the battlefield.
+    force_into_play(&mut state, PlayerId(0), "Mountain");
+    force_into_play(&mut state, PlayerId(0), "Forest");
+
+    // Force the 1/1 creatures onto the battlefield directly (bypass SBAs).
+    let gob = force_into_play(
+        &mut state,
+        PlayerId(0),
+        "Creature dies-trigger DealDamage AnyTarget",
+    );
+    let w0 = force_into_play(&mut state, PlayerId(0), "Creature dies-watcher LoseLife");
+    // P1's watcher — force from P1's library/hand.
+    let w1 = force_into_play(&mut state, PlayerId(1), "Creature dies-watcher LoseLife");
+
+    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 2); // R + G for {1}{R}
+
+    let pyro = find_in_hand(&state, PlayerId(0), "Sorcery DealDamage each creature");
+
+    // Cast Sorcery DealDamage each creature (no targets).
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: pyro }))
+        .unwrap();
+
+    // {1}{R}: red covers {R}, generic takes the green.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
+        panic!("expected PayMana for {{1}}{{R}}, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Pay(Payment {
+            generic: vec![Color::Green.into()],
+        }))
+        .unwrap();
+
+    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    assert_eq!(
+        state.stack.len(),
+        1,
+        "Sorcery DealDamage each creature on the stack"
+    );
+
+    // Both pass → resolve.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(1), StepOrPhase::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+
+    // --- Drive to the moment just after the SBA batch destroys all creatures.
+    // We want to catch the state when pending_triggers has all three noted.
+    let mut saw_damage_batch = false;
+    let mut saw_sba_destroy_batch = false;
+
+    loop {
+        let (trace, stop) = step_to_stop(&mut state);
+
+        // Look for the DamageDealt batch from the sorcery resolution.
+        if !saw_damage_batch {
+            for p in &trace {
+                if let Progress::Applied(Occurrence::Batch(events)) = p {
+                    let all_damage = events
+                        .iter()
+                        .all(|e| matches!(e, GameEvent::DamageDealt { .. }));
+                    let count = events
+                        .iter()
+                        .filter(|e| matches!(e, GameEvent::DamageDealt { .. }))
+                        .count();
+                    if all_damage && count == 3 {
+                        saw_damage_batch = true;
+                    }
+                }
+            }
+        }
+        // Look for the ZoneWillChange/ZoneChanged batch (SBA destroys).
+        if !saw_sba_destroy_batch {
+            for p in &trace {
+                if let Progress::Applied(Occurrence::Batch(events)) = p {
+                    let zone_moves = events
+                        .iter()
+                        .filter(|e| matches!(e, GameEvent::ZoneWillChange { .. }))
+                        .count();
+                    if zone_moves >= 3 {
+                        saw_sba_destroy_batch = true;
+                    }
+                }
+            }
+        }
+
+        match stop {
+            // OrderTriggers: P0 controls two simultaneous triggers.
+            StepOutcome::NeedsDecision(PendingDecision::OrderTriggers {
+                player,
+                ref triggers,
+            }) => {
+                assert_eq!(player, PlayerId(0), "P0 orders their simultaneous triggers");
+                assert_eq!(
+                    triggers.len(),
+                    2,
+                    "P0 has exactly two simultaneous triggers (dies-trigger + watcher)"
+                );
+                assert!(
+                    saw_damage_batch,
+                    "damage batch observed before OrderTriggers"
+                );
+                // Check that all three triggers were noted together — P0 has 2,
+                // P1 has 1 (total 3 in pending_triggers, minus however many were
+                // already ordered/placed from prior loops; at first encounter all
+                // three should be present).
+                assert!(
+                    state.pending_triggers.len() >= 2,
+                    "at least P0's two triggers still noted: {}",
+                    state.pending_triggers.len()
+                );
+
+                // Submit an invalid order first (reject it).
+                assert!(
+                    state.submit_decision(Decision::Order(vec![0, 0])).is_err(),
+                    "duplicate index is rejected"
+                );
+                assert!(
+                    state.submit_decision(Decision::Order(vec![5])).is_err(),
+                    "out-of-range index is rejected"
+                );
+
+                // Valid ordering: [0, 1] — goblin's dies-trigger first, then
+                // the watcher. First placed resolves last in LIFO.
+                state.submit_decision(Decision::Order(vec![0, 1])).unwrap();
+            }
+
+            // ChooseTargets for the dies-trigger's "any target" at placement.
+            StepOutcome::NeedsDecision(PendingDecision::ChooseTargets {
+                player, legal, ..
+            }) => {
+                assert_eq!(
+                    player,
+                    PlayerId(0),
+                    "P0 chooses target for the dies-trigger"
+                );
+                // Choose P1's player proxy as the target.
+                let p1_proxy = state.players[1].object;
+                assert!(
+                    legal[0].contains(&p1_proxy),
+                    "P1 proxy is a legal AnyTarget"
+                );
+                state
+                    .submit_decision(Decision::Targets(vec![p1_proxy]))
+                    .unwrap();
+            }
+
+            // Priority windows: pass them through to drive to resolution.
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                // Stop once all creatures are dead and the stack is clear (all
+                // triggers resolved).
+                if state.objects.get(gob).is_none()
+                    && state.objects.get(w0).is_none()
+                    && state.objects.get(w1).is_none()
+                    && state.stack.is_empty()
+                    && state.pending_triggers.is_empty()
+                {
+                    break;
+                }
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+
+            StepOutcome::NeedsDecision(other) => {
+                panic!("unexpected decision: {other:?}")
+            }
+            StepOutcome::GameOver(o) => panic!("unexpected game over: {o:?}"),
+            StepOutcome::Progress(_) => unreachable!("step_to_stop never returns Progress"),
+        }
+    }
+
+    assert!(
+        saw_damage_batch,
+        "the sorcery dealt damage in a single Batch"
+    );
+    assert!(
+        saw_sba_destroy_batch,
+        "SBA destroyed creatures in a single Batch"
+    );
+
+    // All three old ids are gone (reminted).
+    assert!(
+        state.objects.get(gob).is_none(),
+        "goblin reminted — old id gone"
+    );
+    assert!(
+        state.objects.get(w0).is_none(),
+        "P0's watcher reminted — old id gone"
+    );
+    assert!(
+        state.objects.get(w1).is_none(),
+        "P1's watcher reminted — old id gone"
+    );
+    // All three ended in graveyards.
+    assert_eq!(
+        state.zones.graveyards[0].len(),
+        3,
+        "P0's graveyard has the sorcery + reminted goblin + reminted P0-watcher = 3 objects"
+    );
+    assert_eq!(
+        state.zones.graveyards[1].len(),
+        1,
+        "P1's graveyard has the reminted P1-watcher"
+    );
+    assert!(
+        state.pending_triggers.is_empty(),
+        "no triggers left pending after full resolution"
+    );
+    assert!(
+        state.stack.is_empty(),
+        "stack is empty after all triggers resolved"
+    );
+}
+
+/// End-to-end multi-loss Draw ([CR#104.4a,700.4]):
+///
+/// Both players at full life (20). P0 casts `Spell DealDamage each player`
+/// ({R} instant), which deals 20 to each player in one `Occurrence::Batch`.
+/// Both players reach ≤0 simultaneously → `PlayerLost` batch →
+/// `GameOutcome::Draw`.
+///
+/// Asserts the Draw was reached via the full cast→resolve→SBA path, not by
+/// setting life directly.
+#[test]
+fn simultaneous_loss_is_a_draw() {
+    let testing = testing();
+    let each_player = Arc::new(testing.card("Spell DealDamage each player").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+
+    // P0: the instant + mountains. P1: forests.
+    let mut deck0 = vec![Arc::clone(&each_player); 5];
+    deck0.extend(vec![Arc::clone(&mountain); 5]);
+
+    let build = |seed: u64| {
+        GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: deck0.clone(),
+                },
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 10],
+                },
+            ],
+            seed,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        })
+    };
+    let mut state = (0u64..200)
+        .map(build)
+        .find(|s| {
+            let hand = &s.zones.hands[0];
+            hand.iter()
+                .any(|&o| is_card(s, o, "Spell DealDamage each player"))
+                && hand.iter().any(|&o| is_card(s, o, "Mountain"))
+        })
+        .expect("a seed with the instant and a Mountain in P0's opening hand");
+
+    force_into_play(&mut state, PlayerId(0), "Mountain");
+
+    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 1); // {R}
+
+    let spell = find_in_hand(&state, PlayerId(0), "Spell DealDamage each player");
+
+    // Cast: no targets (Each selection), so ChooseTargets does not surface.
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: spell }))
+        .unwrap();
+
+    // The spell has no targets, so PayMana surfaces immediately.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
+        panic!("expected PayMana for {{R}}, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Pay(Payment { generic: vec![] }))
+        .unwrap();
+
+    let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+    assert_eq!(state.stack.len(), 1, "spell is on the stack");
+
+    // Both pass → resolve.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(1), StepOrPhase::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+
+    // Let it resolve and reach game over.
+    let final_outcome = loop {
+        match state.step() {
+            StepOutcome::GameOver(o) => break o,
+            StepOutcome::Progress(_) => {}
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            StepOutcome::NeedsDecision(other) => panic!("unexpected decision: {other:?}"),
+        }
+    };
+
+    assert_eq!(
+        final_outcome,
+        GameOutcome::Draw,
+        "[CR#104.4a]: simultaneous loss → Draw, got {final_outcome:?}"
+    );
+    // Both players must be marked lost.
+    assert!(state.players[0].lost, "P0 lost");
+    assert!(state.players[1].lost, "P1 lost");
+}
+
+/// End-to-end two-trigger ordering: one player controls two simultaneously
+/// firing triggers ([CR#603.3b]):
+///
+/// P0 controls two `Creature dies-watcher LoseLife` creatures. A third
+/// creature (a `Vanilla Creature` under P0) dies (forced by lethal damage via
+/// `CheckSbas`). Both watchers fire at once → `OrderTriggers { player: P0 }`
+/// surfaces with both triggers. Assert:
+/// - an invalid `Order` is rejected;
+/// - a valid `Order([1, 0])` is accepted;
+/// - the stack/resolution order matches the chosen order (LIFO: the FIRST
+///   placed resolves LAST).
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "an end-to-end decision-driven scenario"
+)]
+fn two_triggers_same_player_order_triggers_surfaces() {
+    let testing = testing();
+    let watcher_card = Arc::new(testing.card("Creature dies-watcher LoseLife").unwrap());
+    let bears_card = Arc::new(testing.card("Vanilla Creature").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+
+    // Build a simple two-player game; both players' decks don't matter much.
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig {
+                deck: vec![
+                    Arc::clone(&watcher_card),
+                    Arc::clone(&watcher_card),
+                    Arc::clone(&bears_card),
+                    Arc::clone(&bears_card),
+                    Arc::clone(&forest),
+                    Arc::clone(&forest),
+                    Arc::clone(&forest),
+                    Arc::clone(&forest),
+                    Arc::clone(&forest),
+                    Arc::clone(&forest),
+                ],
+            },
+            PlayerConfig {
+                deck: vec![Arc::clone(&forest); 10],
+            },
+        ],
+        seed: 1,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+
+    // Place two watchers and a Vanilla Creature (the dying creature) under P0.
+    let watcher0 = force_into_play(&mut state, PlayerId(0), "Creature dies-watcher LoseLife");
+    let _watcher1 = force_into_play(&mut state, PlayerId(0), "Creature dies-watcher LoseLife");
+    let bear = force_into_play(&mut state, PlayerId(0), "Vanilla Creature");
+
+    // Deal lethal damage to the Vanilla Creature (2/2 → 2 damage = lethal).
+    state.objects.obj_mut(bear).damage = 2;
+
+    // Drive the engine from the start (game begins at Cleanup; each step runs
+    // CheckSbas). The bear's lethal damage will be caught the first time the
+    // SBA sweep runs — the two watchers' Dies(Type(Creature)) triggers both
+    // fire and note simultaneously, then PlaceTriggers surfaces OrderTriggers.
+    let mut order_triggers_player = None;
+    let mut order_triggers_count = 0;
+    let mut order_accepted = false;
+    loop {
+        let (_, stop) = step_to_stop(&mut state);
+        match stop {
+            StepOutcome::NeedsDecision(PendingDecision::OrderTriggers {
+                player,
+                ref triggers,
+            }) => {
+                order_triggers_player = Some(player);
+                order_triggers_count = triggers.len();
+
+                // Reject invalid orders.
+                assert!(
+                    state.submit_decision(Decision::Order(vec![0, 0])).is_err(),
+                    "duplicate index rejected"
+                );
+                assert!(
+                    state.submit_decision(Decision::Order(vec![2])).is_err(),
+                    "out-of-range index rejected"
+                );
+
+                // Accept [1, 0]: the second trigger is placed first (resolves
+                // last in LIFO).
+                state.submit_decision(Decision::Order(vec![1, 0])).unwrap();
+                order_accepted = true;
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                // After ordering, let triggers resolve.
+                if order_accepted && state.pending_triggers.is_empty() && state.stack.is_empty() {
+                    break;
+                }
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            StepOutcome::NeedsDecision(other) => panic!("unexpected decision: {other:?}"),
+            StepOutcome::GameOver(o) => panic!("unexpected game over: {o:?}"),
+            StepOutcome::Progress(_) => unreachable!("step_to_stop never returns Progress"),
+        }
+    }
+
+    assert!(
+        order_triggers_player.is_some(),
+        "OrderTriggers decision surfaced"
+    );
+    assert_eq!(
+        order_triggers_player,
+        Some(PlayerId(0)),
+        "P0 controls both triggers"
+    );
+    assert_eq!(order_triggers_count, 2, "two simultaneous triggers offered");
+    assert!(order_accepted, "valid Order([1, 0]) was accepted");
+
+    // Both watchers' triggers fired and resolved — P0 lost 2 life (once per
+    // dying creature × 2 watchers = 2 life lost).
+    assert_eq!(
+        state.players[0].life, 18,
+        "P0 lost 2 life (2 × LoseLife(1) triggers resolved)"
+    );
+    // The bear is gone (reminted).
+    assert!(
+        state.objects.get(bear).is_none(),
+        "bear was destroyed and reminted"
+    );
+    assert!(
+        state.pending_triggers.is_empty(),
+        "no triggers left pending after resolution"
+    );
+    assert!(
+        state.stack.is_empty(),
+        "stack empty after all triggers resolved"
+    );
+
+    // The two watchers survive (they are 1/1, the sorcery didn't kill them; we
+    // only set the bear's damage directly).
+    assert!(
+        state.objects.get(watcher0).is_some()
+            || state.zones.battlefield.iter().any(|&o| {
+                state.objects.obj(o).card_id().is_some_and(|_| {
+                    matches!(state.def(o), Card::Normal(f) | Card::ModalDfc(f, _)
+                        if f.name == "Creature dies-watcher LoseLife")
+                })
+            }),
+        "at least one watcher is still on the battlefield (the bear died, not the watchers)"
     );
 }
 

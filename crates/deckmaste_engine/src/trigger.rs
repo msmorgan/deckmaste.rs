@@ -344,7 +344,7 @@ impl GameState {
     /// # Panics
     ///
     /// Panics if `player` controls no noted trigger — the caller guards this.
-    fn take_first_trigger_of(&mut self, player: PlayerId) -> NotedTrigger {
+    pub(crate) fn take_first_trigger_of(&mut self, player: PlayerId) -> NotedTrigger {
         let i = self
             .pending_triggers
             .iter()
@@ -381,7 +381,7 @@ impl GameState {
     /// targets but has NO legal target, drop it ([CR#603.3c], returns `false`).
     /// If it does not target, push the committed `StackEntry` directly (returns
     /// `true`).
-    fn place_one_trigger(&mut self, noted: NotedTrigger) -> bool {
+    pub(crate) fn place_one_trigger(&mut self, noted: NotedTrigger) -> bool {
         let specs = self.trigger_targets(noted.source, noted.ability);
         if specs.is_empty() {
             // No targets — push directly with a freshly minted stack id.
