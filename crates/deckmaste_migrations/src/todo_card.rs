@@ -5,7 +5,7 @@
 //! `Unparsed` entries, and writes them back; `graduate` ignores this type and
 //! just tries to parse the file as core `Card`.
 
-use deckmaste_core::{Color, ManaCost, StatValue, Subtype, Supertype, Type};
+use deckmaste_core::{Color, ManaCost, StatValue};
 use ron::value::RawValue;
 use serde::de::Deserializer;
 use serde::ser::{Error as _, Serializer};
@@ -60,6 +60,31 @@ impl Serialize for TodoAbility {
     }
 }
 
+/// A bare (unquoted) RON identifier — a macro-invocation name like `Bear`,
+/// `Creature`, or `TimeLord`. Card files reference their types, supertypes, and
+/// subtypes by bare name; the macro-aware reader expands them. We cannot use
+/// the core `Type` / `Supertype` / `Subtype` types here, because `Subtype` is a
+/// struct whose bare form (`Bear`) is macro sugar that plain serde cannot
+/// parse. So we capture and re-emit the ident verbatim via `RawValue` — the
+/// same trick `TodoAbility::Parsed` uses for structured abilities.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RawIdent(pub String);
+
+impl<'de> Deserialize<'de> for RawIdent {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let raw: Box<RawValue> = Deserialize::deserialize(deserializer)?;
+        Ok(RawIdent(raw.get_ron().trim().to_owned()))
+    }
+}
+
+impl Serialize for RawIdent {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        RawValue::from_ron(&self.0)
+            .map_err(S::Error::custom)?
+            .serialize(serializer)
+    }
+}
+
 /// A face whose abilities are `TodoAbility`. Field set mirrors
 /// `deckmaste_core::CardFace`; the skip/default attrs match it so a fully
 /// resolved face is byte-identical to a core `CardFace`.
@@ -83,15 +108,15 @@ pub struct TodoCardFace {
         skip_serializing_if = "Vec::is_empty",
         serialize_with = "crate::ron_output::one_line_if_single"
     )]
-    pub supertypes: Vec<Supertype>,
+    pub supertypes: Vec<RawIdent>,
     #[serde(serialize_with = "crate::ron_output::one_line_if_single")]
-    pub types: Vec<Type>,
+    pub types: Vec<RawIdent>,
     #[serde(
         default,
         skip_serializing_if = "Vec::is_empty",
         serialize_with = "crate::ron_output::one_line_if_single"
     )]
-    pub subtypes: Vec<Subtype>,
+    pub subtypes: Vec<RawIdent>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub abilities: Vec<TodoAbility>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -176,6 +201,14 @@ mod tests {
         // single `mana_cost`, the multi-line `Spell`, and the macro sugar all
         // survive the read/render round-trip unchanged.
         assert_eq!(render(&card).unwrap(), source);
+    }
+
+    /// A creature WITH subtypes (bare macro idents) round-trips byte-for-byte
+    /// against the real on-disk canon card.
+    #[test]
+    fn subtyped_card_matches_canon_byte_for_byte() {
+        let source = include_str!("../../../plugins/canon/cards/Grizzly Bears.ron");
+        assert_eq!(render(&read(source)).unwrap(), source);
     }
 
     #[test]
