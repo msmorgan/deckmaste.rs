@@ -16,8 +16,8 @@ pub type AbilityParser = fn(&str) -> anyhow::Result<Option<String>>;
 
 /// The registry, in priority order. First match wins.
 pub const REGISTRY: &[AbilityParser] = &[
-    crate::migrations::mana_ability::resolve_line,
-    crate::migrations::keyword_ability::resolve_line,
+    crate::parsers::mana_ability::resolve_line,
+    crate::parsers::keyword_ability::resolve_line,
 ];
 
 /// Replaces every `Unparsed` line a parser in `registry` can structure with the
