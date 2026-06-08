@@ -2,7 +2,7 @@ use std::sync::LazyLock;
 
 use anyhow::Context;
 use deckmaste_core::Color;
-use deckmaste_core::plugin::card_file;
+use deckmaste_core::plugin::{card_file, card_todo_file};
 use regex::Regex;
 
 use super::card_todo::{CardFaceTodo, CardFile, stat};
@@ -134,21 +134,23 @@ impl super::Migration for CardTodos {
                 continue;
             }
 
-            let dest = dest_dir.join(card_file(name));
-            if !super::is_todo(&dest)? {
+            // Skip once the finished card exists (converted by a later
+            // migration or hand-written); otherwise write the stub beside it.
+            if !super::is_unimplemented(&dest_dir.join(card_file(name))) {
                 continue;
             }
 
-            let card_file = CardFile::Todo {
+            let card = CardFile::Todo {
                 layout: supported[0].layout.as_str().into(),
                 faces: supported
                     .iter()
                     .map(|face| render_face(face, &keyword_abilities))
                     .collect::<anyhow::Result<_>>()?,
             };
-            let serialized = to_string_pretty(&card_file)
-                .with_context(|| format!("serializing card {name:?}"))?;
+            let serialized =
+                to_string_pretty(&card).with_context(|| format!("serializing card {name:?}"))?;
 
+            let dest = dest_dir.join(card_todo_file(name));
             std::fs::write(&dest, serialized + "\n")?;
             eprintln!("wrote {}", dest.display());
         }

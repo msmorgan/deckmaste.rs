@@ -14,7 +14,7 @@ enum KeywordTodo {
     },
 }
 
-/// Writes a `<RustIdent>.ron` Todo stub into `dest_dir` for every keyword,
+/// Writes a `<RustIdent>.todo.ron` Todo stub into `dest_dir` for every keyword,
 /// with its CR rule section inlined. `rule_number_for` resolves a keyword to
 /// the rule number its section starts at; keywords it cannot resolve are
 /// skipped with a warning. `format_rule` renders one rules-array element
@@ -36,19 +36,21 @@ pub(super) fn create_keyword_todos<'r, 'data>(
             .ok_or_else(|| anyhow::anyhow!("rule {rule_number} not in the rules map"))?;
 
         let name = super::to_rust_ident(keyword);
-        let dest = dest_dir.join(format!("{name}.ron"));
-        if !super::is_todo(&dest)? {
+        // Skip once the finished `<name>.ron` exists; otherwise (re)generate
+        // the `<name>.todo.ron` stub beside where it will land.
+        if !super::is_unimplemented(&dest_dir.join(format!("{name}.ron"))) {
             continue;
         }
 
         let todo = KeywordTodo::Todo {
-            name,
+            name: name.clone(),
             template: keyword.as_str().to_owned(),
             rules: section.iter().map(|&rule| format_rule(rule)).collect(),
         };
         let serialized = crate::ron_output::to_string_pretty(&todo)?;
         let contents = format!("// CR {rule_number}\n{serialized}\n");
 
+        let dest = dest_dir.join(deckmaste_core::plugin::todo_file(&name));
         std::fs::write(&dest, contents)?;
         eprintln!("wrote {}", dest.display());
     }

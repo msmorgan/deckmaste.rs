@@ -33,6 +33,38 @@ pub fn token_path(root: &Path, name: &str) -> PathBuf {
     root.join(TOKENS_DIR).join(token_file(name))
 }
 
+/// The filename suffix marking a stub still awaiting implementation. The
+/// finished definition drops `.todo`, living beside it at `<stem>.ron`.
+pub const TODO_SUFFIX: &str = ".todo.ron";
+
+/// The todo-stub file name for this `stem`, e.g. `todo_file("Flying")` is
+/// `"Flying.todo.ron"`.
+#[must_use]
+pub fn todo_file(stem: &str) -> String { format!("{stem}{TODO_SUFFIX}") }
+
+/// The todo-stub file name for a card of this name: [`card_filename`] under
+/// the [`TODO_SUFFIX`].
+#[must_use]
+pub fn card_todo_file(name: &str) -> String { todo_file(&card_filename(name)) }
+
+/// Whether `path` is a todo stub by filename convention (ends in
+/// [`TODO_SUFFIX`]). The complement of a finished `.ron` definition.
+#[must_use]
+pub fn is_todo_file(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.ends_with(TODO_SUFFIX))
+}
+
+/// The finished file name a todo stub graduates into: `"Foo.todo.ron"` ->
+/// `"Foo.ron"`. `None` if `todo_name` isn't a [`TODO_SUFFIX`] stub name.
+#[must_use]
+pub fn final_for_todo(todo_name: &str) -> Option<String> {
+    todo_name
+        .strip_suffix(TODO_SUFFIX)
+        .map(|stem| format!("{stem}.ron"))
+}
+
 /// Whether card-file source is still an unimplemented stub. A stub is any
 /// file with a line starting (modulo indentation) with `Todo(` — checked
 /// per line because the `Todo(` may follow a `// CR ...` comment line, so
@@ -76,6 +108,37 @@ mod tests {
         assert_eq!(card_filename("Fire // Ice"), "Fire ／／ Ice");
         assert_eq!(card_filename("Question?"), "Question？");
         assert_eq!(card_filename("Lightning Bolt"), "Lightning Bolt");
+    }
+
+    #[test]
+    fn todo_filenames() {
+        assert_eq!(todo_file("Flying"), "Flying.todo.ron");
+        // Card todos carry the same name sanitization as finished cards.
+        assert_eq!(card_todo_file("Fire // Ice"), "Fire ／／ Ice.todo.ron");
+        assert_eq!(card_todo_file("Lightning Bolt"), "Lightning Bolt.todo.ron");
+    }
+
+    #[test]
+    fn todo_file_recognition() {
+        assert!(is_todo_file(Path::new("cards/Plains.todo.ron")));
+        assert!(!is_todo_file(Path::new("cards/Plains.ron")));
+        // A bare `.todo.ron` with no stem still counts; a `.ron` never does.
+        assert!(is_todo_file(Path::new(".todo.ron")));
+        assert!(!is_todo_file(Path::new("cards/")));
+    }
+
+    #[test]
+    fn todo_graduates_to_final() {
+        assert_eq!(
+            final_for_todo("Plains.todo.ron").as_deref(),
+            Some("Plains.ron")
+        );
+        assert_eq!(
+            final_for_todo("Fire ／／ Ice.todo.ron").as_deref(),
+            Some("Fire ／／ Ice.ron")
+        );
+        // Not a stub name: nothing to graduate.
+        assert_eq!(final_for_todo("Plains.ron"), None);
     }
 
     #[test]

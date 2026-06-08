@@ -19,15 +19,14 @@ trait Migration {
     fn apply(&self, plugin: &PluginLayout) -> anyhow::Result<()>;
 }
 
-/// A file may be (over)written only while it is still an unimplemented stub.
-fn is_todo(path: &Path) -> anyhow::Result<bool> {
-    if !path.exists() {
-        return Ok(true);
-    }
-    Ok(deckmaste_core::plugin::is_todo_source(
-        &std::fs::read_to_string(path)?,
-    ))
-}
+/// Whether a definition still needs generating, keyed on its *finished*
+/// `.ron` path. A stub writer (re)generates its `<name>.todo.ron` only while
+/// the finished `<name>.ron` is absent; once the final exists — converted by
+/// a later migration or hand-written — the stub writers leave it alone.
+///
+/// Editing a `.todo.ron` in place offers no such protection: a stub is a
+/// disposable draft, so promote finished work to `<name>.ron`.
+fn is_unimplemented(final_path: &Path) -> bool { !final_path.exists() }
 
 const MIGRATIONS: &[&dyn Migration] = &[
     &_000_keyword_ability_todos::KeywordAbilityTodos,

@@ -32,8 +32,10 @@ impl super::Migration for Subtypes {
             let catalog = crate::data::scryfall::Catalog::parse(&catalog_bytes)?;
             let dest_dir = plugin.types_dir(category)?;
             for subtype in &catalog.data {
+                // Subtypes are written final, not as stubs: skip once the
+                // definition exists (generated here or hand-edited).
                 let dest = dest_dir.join(format!("{}.ron", type_filename(subtype)));
-                if !super::is_todo(&dest)? {
+                if !super::is_unimplemented(&dest) {
                     continue;
                 }
 

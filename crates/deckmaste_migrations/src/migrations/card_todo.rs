@@ -85,10 +85,11 @@ pub(super) struct CardFaceTodo {
     pub(super) defense: Option<Stat>,
 }
 
-/// Walks the plugin's cards directory and overwrites every todo for which
-/// `convert` produces a finished definition. cards/ is flat: everything
-/// `_004` writes goes through `card_file`, one path segment per card, so
-/// no recursion here.
+/// Walks the plugin's cards directory and graduates every `<name>.todo.ron`
+/// for which `convert` produces a finished definition: the definition is
+/// written to `<name>.ron` and the stub is deleted. Stubs `convert` declines
+/// are left in place. cards/ is flat: every stub `_004` writes goes through
+/// `card_todo_file`, one path segment per card, so no recursion here.
 pub(super) fn convert_todos(
     plugin: &PluginLayout,
     convert: impl Fn(&CardFile) -> anyhow::Result<Option<String>>,
@@ -100,13 +101,10 @@ pub(super) fn convert_todos(
     paths.sort();
 
     for path in paths {
-        if path.extension().is_none_or(|ext| ext != "ron") || !path.is_file() {
+        if !path.is_file() || !deckmaste_core::plugin::is_todo_file(&path) {
             continue;
         }
         let source = std::fs::read_to_string(&path)?;
-        if !deckmaste_core::plugin::is_todo_source(&source) {
-            continue;
-        }
         let card: CardFile = crate::ron_output::ron_options()
             .from_str(&source)
             .with_context(|| format!("parsing todo {}", path.display()))?;
@@ -119,8 +117,22 @@ pub(super) fn convert_todos(
         // macro-aware reader (`cargo xtask validate`) can judge them.
         ron::value::RawValue::from_ron(&definition)
             .with_context(|| format!("invalid render for {}", path.display()))?;
-        std::fs::write(&path, definition)?;
-        eprintln!("wrote {}", path.display());
+
+        // The `is_todo_file` filter guarantees a `.todo.ron` name, so the
+        // graduated `.ron` name is always present.
+        let final_path = path.with_file_name(
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .and_then(deckmaste_core::plugin::final_for_todo)
+                .with_context(|| format!("not a todo file name: {}", path.display()))?,
+        );
+        std::fs::write(&final_path, definition)?;
+        std::fs::remove_file(&path)?;
+        eprintln!(
+            "wrote {} (removed {})",
+            final_path.display(),
+            path.display()
+        );
     }
     Ok(())
 }
@@ -301,5 +313,48 @@ mod tests {
         let serialized = to_string_pretty(&card).unwrap();
         let parsed: CardFile = ron_options().from_str(&serialized).unwrap();
         assert_eq!(to_string_pretty(&parsed).unwrap(), serialized);
+    }
+
+    /// A stub `convert` accepts graduates to `<name>.ron` and the
+    /// `<name>.todo.ron` is deleted; a declined stub and a finished card
+    /// already in place are both left untouched.
+    #[test]
+    fn convert_graduates_and_deletes_stub() {
+        const ACCEPT_FINAL: &str = "Normal(\n    name: \"Accept\",\n    types: [Land],\n)\n";
+        const DONE_FINAL: &str = "Normal(\n    name: \"Done\",\n    types: [Land],\n)\n";
+        let stub = |name: &str| {
+            format!(
+                "Todo(\n    layout: \"normal\",\n    faces: [\n        \
+                 (\n            name: {name:?},\n            types: [\"Land\"],\n        ),\n    ],\n)\n"
+            )
+        };
+
+        let root = tempfile::tempdir().unwrap();
+        let plugin = PluginLayout::new(root.path()).unwrap();
+        let cards = plugin.cards_dir().unwrap();
+        std::fs::write(cards.join("Accept.todo.ron"), stub("Accept")).unwrap();
+        std::fs::write(cards.join("Decline.todo.ron"), stub("Decline")).unwrap();
+        std::fs::write(cards.join("Done.ron"), DONE_FINAL).unwrap();
+
+        convert_todos(&plugin, |card| {
+            let CardFile::Todo { faces, .. } = card;
+            Ok((faces[0].name == "Accept").then(|| ACCEPT_FINAL.to_owned()))
+        })
+        .unwrap();
+
+        // Accepted: stub deleted, final written.
+        assert!(!cards.join("Accept.todo.ron").exists());
+        assert_eq!(
+            std::fs::read_to_string(cards.join("Accept.ron")).unwrap(),
+            ACCEPT_FINAL
+        );
+        // Declined: stub kept, no final produced.
+        assert!(cards.join("Decline.todo.ron").exists());
+        assert!(!cards.join("Decline.ron").exists());
+        // A finished card is never a stub, so it is left as-is.
+        assert_eq!(
+            std::fs::read_to_string(cards.join("Done.ron")).unwrap(),
+            DONE_FINAL
+        );
     }
 }
