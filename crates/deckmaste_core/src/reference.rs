@@ -3,6 +3,20 @@ use serde::{Deserialize, Serialize};
 
 use crate::Expansion;
 
+#[cfg(test)]
+mod tests {
+    use super::Reference;
+
+    fn read(source: &str) -> Reference { crate::ron::options().from_str(source).unwrap() }
+
+    #[test]
+    fn attach_host_of_round_trips() {
+        let v = Reference::AttachHostOf(Box::new(Reference::This));
+        let w = crate::ron::options().to_string(&v).unwrap();
+        assert_eq!(read(&w), v);
+    }
+}
+
 /// A bound variable: a value fixed earlier (at announce, by the rules of
 /// the position, or by a binder) and referenced later. References name
 /// *objects*; amounts live in [`crate::Quantity`].
@@ -37,11 +51,12 @@ pub enum Reference {
     ControllerOf(Box<Reference>),
     /// The owner of a referenced object ([CR#108.3]).
     OwnerOf(Box<Reference>),
-    /// The object this Aura enchants ([CR#303.4]).
-    EnchantedObject,
-    /// The creature this Equipment is attached to ([CR#301.5]).
-    EquippedCreature,
-    /// The object a referenced attachment is attached to ([CR#701.3] family).
+    /// The permanent that attachment R is attached to — attachment→host
+    /// direction ([CR#301.5,303.4]).  Covers Equipment hosts, Aura
+    /// enchantees, and Fortification hosts alike.
+    AttachHostOf(Box<Reference>),
+    /// What is attached to R — host→attachment direction (inverse of
+    /// [`AttachHostOf`]).
     AttachedTo(Box<Reference>),
     /// A remembered `Reference` macro invocation.
     Expanded(Expansion<Reference>),
@@ -75,14 +90,11 @@ impl Serialize for Reference {
             Reference::OwnerOf(r) => {
                 serializer.serialize_newtype_variant("Reference", 8, "OwnerOf", r)
             }
-            Reference::EnchantedObject => {
-                serializer.serialize_unit_variant("Reference", 9, "EnchantedObject")
-            }
-            Reference::EquippedCreature => {
-                serializer.serialize_unit_variant("Reference", 10, "EquippedCreature")
+            Reference::AttachHostOf(r) => {
+                serializer.serialize_newtype_variant("Reference", 9, "AttachHostOf", r)
             }
             Reference::AttachedTo(r) => {
-                serializer.serialize_newtype_variant("Reference", 11, "AttachedTo", r)
+                serializer.serialize_newtype_variant("Reference", 10, "AttachedTo", r)
             }
             // The invocation, not the struct.
             Reference::Expanded(e) => e.serialize(serializer),
