@@ -65,6 +65,10 @@ pub struct GameState {
     pub agenda: VecDeque<WorkItem>,
     pub pending: Option<PendingDecision>,
     pub outcome: Option<GameOutcome>,
+    /// [CR#603.2]: triggers that have fired but are not yet on the stack.
+    /// Populated only by applying a `TriggerFired` event; drained by the
+    /// `PlaceTriggers` barrier (a later task).
+    pub pending_triggers: Vec<crate::trigger::NotedTrigger>,
     pub rng: ChaCha8Rng,
 }
 
@@ -134,6 +138,7 @@ impl GameState {
             agenda: VecDeque::from([WorkItem::BeginStep(StepOrPhase::Untap)]),
             pending: None,
             outcome: None,
+            pending_triggers: Vec::new(),
             rng,
         }
     }

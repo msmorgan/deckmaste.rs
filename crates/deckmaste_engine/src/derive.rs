@@ -8,7 +8,7 @@ use deckmaste_core::{
     Quantity, Uint,
 };
 
-use crate::object::ObjectId;
+use crate::object::{ObjectId, ObjectSource};
 use crate::state::GameState;
 
 /// The face an object presents. Skeleton: the front face.
@@ -34,6 +34,19 @@ pub fn abilities(state: &GameState, id: ObjectId) -> Vec<&Ability> {
             })
         }))
         .collect()
+}
+
+/// The PRINTED abilities of whatever an `ObjectSource` names — the abilities
+/// the trigger scan considers for a watcher. For a card-backed source this is
+/// the face's printed list (the same spine that survives reminting and LKI);
+/// a player proxy has none. Granted/conferred abilities are a later stage
+/// ([CR#603.2] watching abilities; Stage 3 has no continuous effects).
+#[must_use]
+pub fn abilities_of_source(state: &GameState, source: ObjectSource) -> Vec<Ability> {
+    match source {
+        ObjectSource::Card(card) => face(&state.cards.get(card).def).abilities.clone(),
+        ObjectSource::Player(_) => vec![],
+    }
 }
 
 /// Skeleton-subset mana-ability check (a subset of [CR#605.1a]): an activated
