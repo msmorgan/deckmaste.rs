@@ -42,7 +42,11 @@ pub(super) struct BasicLands;
 
 impl super::Migration for BasicLands {
     fn apply(&self, plugin: &PluginLayout) -> anyhow::Result<()> {
-        super::card_todo::convert_todos(plugin, |card| Ok(basic_land_face(card).map(render_land)))
+        super::card_todo::convert_todos(plugin, |card| {
+            Ok(basic_land_face(card)
+                .map(render_land)
+                .map(super::card_todo::Graduation::Final))
+        })
     }
 }
 
