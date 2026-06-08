@@ -8,6 +8,7 @@
 use deckmaste_core::{ManaCost, ManaSymbol};
 
 use crate::ident::to_rust_ident;
+use crate::resolve::CardKind;
 use crate::ron_output::ron_options;
 
 /// Keyword-ability names ([CR#702] / the Scryfall `keyword-abilities` catalog —
@@ -237,7 +238,7 @@ fn bare_keyword(token: &str) -> anyhow::Result<Option<String>> {
 /// `None`. The input is expected to be a single, already-trimmed keyword line
 /// as `extract` guarantees — comma-joined keyword lines are pre-split before
 /// reaching the registry. A line that still chains keywords on `", "` declines.
-pub(crate) fn resolve_line(line: &str) -> anyhow::Result<Option<String>> {
+pub(crate) fn resolve_line(line: &str, _kind: CardKind) -> anyhow::Result<Option<String>> {
     if line.split(", ").count() != 1 {
         return Ok(None);
     }
@@ -356,11 +357,23 @@ mod tests {
 
     #[test]
     fn resolve_line_bare_keyword() {
-        assert_eq!(resolve_line("Flying").unwrap().as_deref(), Some("Flying"));
+        use crate::resolve::CardKind;
         assert_eq!(
-            resolve_line("Ward {2}").unwrap().as_deref(),
+            resolve_line("Flying", CardKind::Permanent)
+                .unwrap()
+                .as_deref(),
+            Some("Flying")
+        );
+        assert_eq!(
+            resolve_line("Ward {2}", CardKind::Permanent)
+                .unwrap()
+                .as_deref(),
             Some("Ward([Mana([Generic(2)])])")
         );
-        assert!(resolve_line("Protection from black").unwrap().is_none());
+        assert!(
+            resolve_line("Protection from black", CardKind::Permanent)
+                .unwrap()
+                .is_none()
+        );
     }
 }
