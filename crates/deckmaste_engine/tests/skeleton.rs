@@ -43,6 +43,23 @@ fn two_player_plains(seed: u64, deck_size: usize) -> GameState {
     })
 }
 
+fn two_player_with(card: &str, seed: u64, deck_size: usize) -> GameState {
+    let c = Arc::new(testing().card(card).unwrap());
+    GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig {
+                deck: deck(&c, deck_size),
+            },
+            PlayerConfig {
+                deck: deck(&c, deck_size),
+            },
+        ],
+        seed,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    })
+}
+
 #[test]
 fn opening_state() {
     let state = two_player_plains(42, 20);
@@ -1058,4 +1075,56 @@ fn casting_a_spell_schedules_the_announce_block_and_begin_cast_stages_it() {
     assert!(pending.targets.is_empty(), "targets not yet announced");
     // The spell is staged, not yet on the stack (SpellCast hasn't run).
     assert!(state.stack.is_empty());
+}
+
+/// The collapsed land path reaches both new stages: a tapland played from hand
+/// enters tapped (replace stage, `AsEnters`) and fires its enter trigger (trigger
+/// stage). Impossible before the collapse, when land-play moved in-place.
+#[test]
+fn tapland_played_from_hand_enters_tapped_and_fires_its_enter_trigger() {
+    let mut state = two_player_with("Land enters tapped etb-trigger", 42, 20);
+    let stop = step_until(&mut state, |s, o| {
+        matches!(o, StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. })
+            if *player == PlayerId(0))
+            && s.turn.current == Phase::PrecombatMain
+    });
+    let StepOutcome::NeedsDecision(PendingDecision::Priority { legal, .. }) = stop else {
+        unreachable!()
+    };
+    let land = legal
+        .iter()
+        .find_map(|a| match a {
+            Action::PlayLand { object } => Some(*object),
+            _ => None,
+        })
+        .expect("a land drop is legal");
+    let land_card = state
+        .objects
+        .obj(land)
+        .card_id()
+        .expect("land is card-backed");
+    state
+        .submit_decision(Decision::Act(Action::PlayLand { object: land }))
+        .unwrap();
+
+    // The land arrives, its enter trigger is placed (PlaceTriggers), priority
+    // returns to P0. The trace covers that whole tail.
+    let (trace, _stop) = step_to_stop(&mut state);
+
+    // Replace stage: it entered tapped, reminted (same CardId).
+    assert_eq!(state.zones.battlefield.len(), 1);
+    let played = state.zones.battlefield[0];
+    assert!(
+        state.objects.obj(played).tapped,
+        "tapland entered tapped (replace stage)"
+    );
+    assert_eq!(state.objects.obj(played).card_id(), Some(land_card));
+
+    // Trigger stage: its enter trigger fired.
+    assert!(
+        trace
+            .iter()
+            .any(|p| matches!(applied(p), Some(GameEvent::TriggerFired { .. }))),
+        "the land's enter trigger fired (trigger stage)"
+    );
 }
