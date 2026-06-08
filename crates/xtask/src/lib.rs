@@ -4,7 +4,8 @@
 pub mod card;
 pub mod cite;
 pub mod extract;
+pub mod generate;
 pub mod graduate;
-pub mod migrate;
 pub mod resolve;
+pub mod stubs;
 pub mod validate;
