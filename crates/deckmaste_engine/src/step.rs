@@ -38,6 +38,14 @@ pub enum Progress {
     HandSizeChecked { discarding: Uint },
     /// A priority decision was surfaced for this player.
     PriorityOpened(PlayerId),
+    /// CR 601.2a–b: a spell moved to the stack and the announce slot opened.
+    Announcing(crate::object::ObjectId),
+    /// CR 601.2c: targets were announced for the in-flight spell (a
+    /// `ChooseTargets` decision surfaces when `specs > 0`).
+    TargetsAnnounced { specs: Uint },
+    /// CR 601.2f–h: the in-flight cost was paid or a `PayMana` decision
+    /// surfaced.
+    CostPaid,
     /// A resolution step ran (dispatch or one effect node) for this object.
     Resolving(crate::object::ObjectId),
 }
@@ -67,6 +75,18 @@ impl GameState {
             WorkItem::CheckSbas => self.check_sbas(),
             WorkItem::CheckHandSize => self.check_hand_size(),
             WorkItem::OpenPriority => self.open_priority(),
+            WorkItem::BeginCast(object) => {
+                self.begin_cast(object);
+                Progress::Announcing(object)
+            }
+            WorkItem::AnnounceTargets => {
+                let specs = self.announce_targets();
+                Progress::TargetsAnnounced { specs }
+            }
+            WorkItem::PayCost => {
+                self.pay_cost();
+                Progress::CostPaid
+            }
             WorkItem::Resolve(obj) => {
                 self.resolve_object(obj);
                 Progress::Resolving(obj)

@@ -1,8 +1,17 @@
-//! Casting (CR 601) — payment this task; the announce flow in Task 8.
+//! Casting (CR 601): the mana-payment solver plus the reified announce flow
+//! (`begin_cast` → `announce_targets` → `pay_cost`), and the `can_cast`
+//! legality gate that `legal::legal_actions` offers from.
 
-use deckmaste_core::{ColorOrColorless, ManaCost, ManaSymbol, SimpleManaSymbol, Uint};
+use deckmaste_core::{
+    ColorOrColorless, ManaCost, ManaSymbol, SimpleManaSymbol, TargetSpec, Type, Uint, Zone,
+};
 
-use crate::player::ManaPool;
+use crate::decide::PendingDecision;
+use crate::object::ObjectId;
+use crate::player::{ManaPool, PlayerId};
+use crate::stack::{PendingStackEntry, StackObject};
+use crate::state::GameState;
+use crate::target::candidates;
 
 /// How the pool's mana is spent on a cost's generic part: one entry per unit
 /// of generic mana owed (colored pips are forced by color, so they need no
@@ -140,6 +149,141 @@ fn pool_kinds(pool: &ManaPool) -> [(ColorOrColorless, Uint); 6] {
         Color(Green),
     ]
     .map(|k| (k, pool.amount(k)))
+}
+
+impl GameState {
+    /// CR 601.3a + 601.2g: may `player` cast `object` now? Offered iff the
+    /// object is in the holder's hand (the caller iterates the hand), timing
+    /// permits (instant → any priority; otherwise sorcery-speed), the pool can
+    /// pay the cost, and every target spec has at least one legal candidate.
+    #[must_use]
+    pub(crate) fn can_cast(
+        &self,
+        player: PlayerId,
+        object: ObjectId,
+        in_main: bool,
+        stack_empty: bool,
+    ) -> bool {
+        let face = crate::derive::face(self.def(object));
+        let instant = face.types.contains(&Type::Instant);
+        // Sorcery speed for non-instants (CR 307.1, 601.3a): only the active
+        // player, in a main phase, with the stack empty.
+        let timing_ok = instant || (player == self.turn.active_player && in_main && stack_empty);
+        if !timing_ok {
+            return false;
+        }
+        let Some(cost) = self.mana_cost(object) else {
+            return false;
+        };
+        if !can_pay(&self.player(player).mana_pool, &cost) {
+            return false;
+        }
+        // If the spell targets, every spec must admit at least one candidate.
+        self.spell_targets(object)
+            .iter()
+            .all(|spec| !self.legal_targets(spec).is_empty())
+    }
+
+    /// CR 601.2a–b: move the spell from its controller's hand to the stack and
+    /// open the announce slot. Procedural — not an event.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `object` is not in its controller's hand — engine invariant.
+    pub(crate) fn begin_cast(&mut self, object: ObjectId) {
+        let controller = self.objects.obj(object).controller;
+        self.remove_from_hand(controller, object);
+        self.objects.obj_mut(object).zone = Some(Zone::Stack);
+        self.announcing = Some(PendingStackEntry {
+            object: StackObject::Spell(object),
+            controller,
+            origin: Zone::Hand,
+            targets: vec![],
+        });
+    }
+
+    /// CR 601.2c: surface a `ChooseTargets` decision if the in-flight spell
+    /// targets. Returns the number of target specs (0 = no decision surfaced).
+    ///
+    /// # Panics
+    ///
+    /// Panics if no announce is in flight, or if the spec count overflows
+    /// `Uint` — engine invariants.
+    #[must_use]
+    pub(crate) fn announce_targets(&mut self) -> Uint {
+        let pending = self.announcing.as_ref().expect("an announce in flight");
+        let object = pending.object.object();
+        let controller = pending.controller;
+        let specs = self.spell_targets(object);
+        if specs.is_empty() {
+            return 0;
+        }
+        let legal: Vec<Vec<ObjectId>> = specs.iter().map(|s| self.legal_targets(s)).collect();
+        let count = Uint::try_from(specs.len()).expect("target-spec count fits in Uint");
+        self.pending = Some(PendingDecision::ChooseTargets {
+            player: controller,
+            spec: specs,
+            legal,
+        });
+        count
+    }
+
+    /// CR 601.2f–h: pay the in-flight cost. Auto-pays when the allocation is
+    /// forced; otherwise surfaces a `PayMana` decision.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no announce is in flight, or the spell has no payable cost —
+    /// `can_cast` gated both.
+    pub(crate) fn pay_cost(&mut self) {
+        let pending = self.announcing.as_ref().expect("an announce in flight");
+        let object = pending.object.object();
+        let controller = pending.controller;
+        let cost = self.mana_cost(object).expect("a castable spell has a cost");
+        let pool = self.player(controller).mana_pool.clone();
+        match forced_payment(&pool, &cost) {
+            Some(payment) => {
+                apply_payment(&mut self.player_mut(controller).mana_pool, &cost, &payment);
+            }
+            None => {
+                self.pending = Some(PendingDecision::PayMana {
+                    player: controller,
+                    cost,
+                    pool,
+                });
+            }
+        }
+    }
+
+    /// The card face's printed mana cost (CR 202). `None` would mark an
+    /// uncastable object; every card face carries a (possibly empty) cost, so
+    /// this is always `Some` today — the option leaves room for future
+    /// faces/zones that have no castable cost (and lets `can_cast`/`pay_cost`
+    /// share the `let Some(cost) = …` gate).
+    #[must_use]
+    #[expect(
+        clippy::unnecessary_wraps,
+        reason = "the Option is the cast-legality seam; future no-cost faces return None"
+    )]
+    pub(crate) fn mana_cost(&self, object: ObjectId) -> Option<ManaCost> {
+        Some(crate::derive::face(self.def(object)).mana_cost.clone())
+    }
+
+    /// CR 115: the legal candidates for a single `TargetSpec` (its filter's
+    /// matching objects, in id order).
+    ///
+    /// Delegates filter extraction to `resolve::target_spec_filter` so that
+    /// announce-time and resolution-time `TargetSpec` handling stay in sync.
+    ///
+    /// # Panics
+    ///
+    /// Panics on `TargetSpec` variants other than `Target` or `Expanded` —
+    /// only those are wired for Stage 2.
+    #[must_use]
+    pub(crate) fn legal_targets(&self, spec: &TargetSpec) -> Vec<ObjectId> {
+        let filter = crate::resolve::target_spec_filter(spec);
+        candidates(self, filter)
+    }
 }
 
 #[cfg(test)]
