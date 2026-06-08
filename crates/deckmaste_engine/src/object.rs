@@ -147,4 +147,14 @@ impl ObjectStore {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &GameObject> { self.objects.values() }
+
+    /// Removes an object — its identity is gone ([CR#400.7] reminting; no LKI
+    /// retention).
+    ///
+    /// # Panics
+    ///
+    /// Panics if the id was not present — engine invariant, not caller input.
+    pub fn remove(&mut self, id: ObjectId) {
+        self.objects.remove(&id).expect("removing a live ObjectId");
+    }
 }

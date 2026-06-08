@@ -19,6 +19,9 @@ mod derive;
 mod event;
 pub use event::{GameEvent, LossReason, Occurrence};
 
+mod lki;
+pub use lki::LkiSnapshot;
+
 mod legal;
 
 mod object;

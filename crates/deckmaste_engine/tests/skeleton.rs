@@ -8,9 +8,9 @@ use std::sync::Arc;
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::{Card, Color, Filter, StepOrPhase, Type, Zone};
 use deckmaste_engine::{
-    Action, Decision, DecisionError, GameConfig, GameEvent, GameState, ObjectId, ObjectSource,
-    Occurrence, PendingDecision, PlayerConfig, PlayerId, Progress, RunStop, Runner, StackEntry,
-    StackObject, StartingPlayer, StepOutcome,
+    Action, Decision, DecisionError, GameConfig, GameEvent, GameState, LkiSnapshot, ObjectId,
+    ObjectSource, Occurrence, PendingDecision, PlayerConfig, PlayerId, Progress, RunStop, Runner,
+    StackEntry, StackObject, StartingPlayer, StepOutcome,
 };
 
 fn builtin() -> Plugin {
@@ -557,9 +557,9 @@ fn bear_on_field() -> (GameState, ObjectId) {
 #[test]
 fn cleanup_clears_marked_damage_on_battlefield_creatures() {
     let (mut state, bear) = bear_on_field();
-    // Mark some damage on the creature.
-    state.objects.obj_mut(bear).damage = 5;
-    assert_eq!(state.objects.obj(bear).damage, 5);
+    // Mark sublethal damage (1 < toughness 2) so the creature survives to Cleanup.
+    state.objects.obj_mut(bear).damage = 1;
+    assert_eq!(state.objects.obj(bear).damage, 1);
 
     // Drive all-pass until the Cleanup step begins.  The cleanup step fires
     // `clear_marked_damage` as a turn-based action ([CR#514.2]) and THEN
@@ -643,18 +643,25 @@ fn spell_resolved_moves_the_stack_object_to_its_owners_graveyard() {
 }
 
 #[test]
-fn destroyed_moves_a_damaged_creature_to_its_owners_graveyard_clearing_damage() {
+fn destroyed_remints_creature_to_owners_graveyard() {
+    // [CR#400.7]: the old ObjectId is gone; a fresh one exists in the graveyard.
     let (mut state, bear) = bear_on_field();
     state.objects.obj_mut(bear).damage = 5;
-    apply_one(&mut state, GameEvent::Destroyed(bear));
+    let snapshot = LkiSnapshot::capture(&state, bear);
+    apply_one(&mut state, GameEvent::Destroyed { snapshot });
+    // Old id is gone.
+    assert!(state.objects.get(bear).is_none(), "old id must be removed");
     assert!(!state.zones.battlefield.contains(&bear));
-    let owner = state.owner_of(bear);
-    assert!(state.zones.graveyards[owner.index()].contains(&bear));
+    // A fresh object is in player 0's graveyard.
+    assert_eq!(state.zones.graveyards[0].len(), 1);
+    let new = state.zones.graveyards[0][0];
+    assert_ne!(new, bear, "graveyard object must have a new ObjectId");
     assert_eq!(
-        state.objects.obj(bear).zone,
+        state.objects.obj(new).zone,
         Some(deckmaste_core::Zone::Graveyard)
     );
-    assert_eq!(state.objects.obj(bear).damage, 0);
+    // Fresh object starts with zero damage (never carried over).
+    assert_eq!(state.objects.obj(new).damage, 0);
 }
 
 #[test]

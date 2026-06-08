@@ -242,13 +242,22 @@ impl GameState {
                 self.zones.graveyards[owner.index()].push(object);
                 GameEvent::SpellResolved(object)
             }
-            GameEvent::Destroyed(object) => {
-                let owner = self.owner_of(object);
-                self.remove_from_battlefield(object);
-                self.objects.obj_mut(object).damage = 0;
-                self.objects.obj_mut(object).zone = Some(Zone::Graveyard);
-                self.zones.graveyards[owner.index()].push(object);
-                GameEvent::Destroyed(object)
+            GameEvent::Destroyed { snapshot } => {
+                // [CR#400.7]: the destroy happens — the battlefield object is gone and
+                // a fresh object exists in the graveyard. LKI rides the event; we
+                // retain nothing.
+                let old = snapshot.object;
+                let ObjectSource::Card(c) = snapshot.source else {
+                    unreachable!("only card-backed permanents are destroyed")
+                };
+                let owner = self.cards.get(c).owner;
+                self.remove_from_battlefield(old);
+                self.objects.remove(old);
+                let new = self
+                    .objects
+                    .mint(snapshot.source, owner, Some(Zone::Graveyard));
+                self.zones.graveyards[owner.index()].push(new);
+                GameEvent::Destroyed { snapshot }
             }
             GameEvent::LifeLost { player, amount } => {
                 self.player_mut(player).life -=

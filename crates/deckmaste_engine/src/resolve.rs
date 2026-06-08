@@ -139,8 +139,9 @@ impl GameState {
     /// A selection resolved to its full set ([CR#608.2d]). `Each` is the
     /// distributive "for each matching object" and enumerates the set. A
     /// `Filter` is already set-valued, so `Selection::All` carries nothing a
-    /// bare filter doesn't — it stays an unreached seam (set-wide consumers take
-    /// a `Filter` directly). Unary references resolve to a 1-element set.
+    /// bare filter doesn't — it stays an unreached seam (set-wide consumers
+    /// take a `Filter` directly). Unary references resolve to a 1-element
+    /// set.
     pub(crate) fn eval_selection_set(&self, sel: &Selection, frame: &Frame) -> Vec<ObjectId> {
         match sel {
             Selection::Each(f) => crate::target::candidates(self, f),
@@ -244,6 +245,11 @@ impl GameState {
             "announce fills exactly one chosen target per TargetSpec",
         );
         specs.iter().zip(&entry.targets).all(|(spec, &chosen)| {
+            // [CR#608.2b]: a target that no longer exists (reminted on zone
+            // change) is trivially illegal — the filter can't be satisfied.
+            if self.objects.get(chosen).is_none() {
+                return false;
+            }
             let filter = target_spec_filter(spec);
             crate::target::matches(self, chosen, filter)
         })

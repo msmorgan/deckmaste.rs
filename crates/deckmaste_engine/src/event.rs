@@ -62,7 +62,11 @@ pub enum GameEvent {
     /// resolution or fizzle ([CR#608.2m]).
     SpellResolved(ObjectId),
     /// [CR#704.5g] result: a permanent destroyed to its owner's graveyard.
-    Destroyed(ObjectId),
+    /// Carries the leaving permanent's `LkiSnapshot` ([CR#603.10a]) for
+    /// dies-triggers.
+    Destroyed {
+        snapshot: crate::lki::LkiSnapshot,
+    },
     /// [CR#119.3]: a player loses life directly (not via damage).
     LifeLost {
         player: PlayerId,
