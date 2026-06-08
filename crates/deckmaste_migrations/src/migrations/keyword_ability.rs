@@ -3,9 +3,7 @@
 //! is the macro head and the argument shape decides arity (nullary / cost /
 //! integer / integer+cost). Each keyword will be a macro under its printed name
 //! (`Islandwalk`, `Ward`, `Mountaincycling`) that expands to its underlying
-//! keyword ability, so the on-card name *is* the invocation. Keyword macros
-//! don't exist yet, so the output is a parked draft (see the `.ron.pending`
-//! state).
+//! keyword ability, so the on-card name *is* the invocation.
 
 use deckmaste_core::{ManaCost, ManaSymbol};
 
@@ -219,24 +217,9 @@ const KEYWORD_NAMES: &[&str] = &[
     "Offspring",
 ];
 
-/// Renders a keyword line as one or more ability blocks (each 8-space indent +
-/// trailing comma+newline), or `None` if any token isn't a handled keyword (the
-/// whole card then declines). Unhandled keywords are logged so the un-handled
-/// corpus stays visible.
-pub(super) fn render_keyword_line(line: &str) -> anyhow::Result<Option<String>> {
-    let mut blocks = String::new();
-    for token in line.split(", ") {
-        let Some(block) = render_keyword(token.trim())? else {
-            return Ok(None);
-        };
-        blocks.push_str(&block);
-    }
-    Ok(Some(blocks))
-}
-
 /// One keyword token -> its bare invocation RON (`Flying`,
 /// `Ward([Mana([Generic(2)])])`), or `None` (declines). The name-match +
-/// argument-shape logic; the legacy 8-space block form wraps this.
+/// argument-shape logic.
 fn bare_keyword(token: &str) -> anyhow::Result<Option<String>> {
     let Some(name) = match_keyword_name(token) else {
         return Ok(None);
@@ -248,12 +231,6 @@ fn bare_keyword(token: &str) -> anyhow::Result<Option<String>> {
         return Ok(None);
     };
     Ok(Some(invocation))
-}
-
-/// One keyword token -> its ability block (8-space indent + trailing comma+
-/// newline), or `None`. Wraps [`bare_keyword`] for the legacy migrations.
-fn render_keyword(token: &str) -> anyhow::Result<Option<String>> {
-    Ok(bare_keyword(token)?.map(|invocation| format!("        {invocation},\n")))
 }
 
 /// A registry parser: one keyword-ability line -> the bare invocation RON, or
@@ -323,43 +300,32 @@ fn mana_cost_arg(arg: &str) -> anyhow::Result<Option<String>> {
 mod tests {
     use super::*;
 
-    fn render(line: &str) -> Option<String> { render_keyword_line(line).unwrap() }
+    fn bare(token: &str) -> Option<String> { bare_keyword(token).unwrap() }
 
     #[test]
-    fn nullary_and_chained() {
-        assert_eq!(render("Flying").unwrap(), "        Flying,\n");
-        assert_eq!(
-            render("Flying, vigilance").unwrap(),
-            "        Flying,\n        Vigilance,\n"
-        );
-        assert_eq!(render("First strike").unwrap(), "        FirstStrike,\n");
+    fn nullary_keywords() {
+        assert_eq!(bare("Flying").as_deref(), Some("Flying"));
+        assert_eq!(bare("First strike").as_deref(), Some("FirstStrike"));
     }
 
     #[test]
     fn cost_keywords() {
         assert_eq!(
-            render("Ward {2}").unwrap(),
-            "        Ward([Mana([Generic(2)])]),\n"
+            bare("Ward {2}").as_deref(),
+            Some("Ward([Mana([Generic(2)])])")
         );
         assert_eq!(
-            render("Ward {1}, haste").unwrap(),
-            "        Ward([Mana([Generic(1)])]),\n        Haste,\n"
-        );
-        assert_eq!(
-            render("Equip {3}").unwrap(),
-            "        Equip([Mana([Generic(3)])]),\n"
+            bare("Equip {3}").as_deref(),
+            Some("Equip([Mana([Generic(3)])])")
         );
     }
 
     #[test]
     fn integer_and_integer_cost() {
+        assert_eq!(bare("Annihilator 2").as_deref(), Some("Annihilator(2)"));
         assert_eq!(
-            render("Annihilator 2").unwrap(),
-            "        Annihilator(2),\n"
-        );
-        assert_eq!(
-            render("Suspend 4—{1}{R}").unwrap(),
-            "        Suspend(4, [Mana([Generic(1),Red])]),\n"
+            bare("Suspend 4—{1}{R}").as_deref(),
+            Some("Suspend(4, [Mana([Generic(1),Red])])")
         );
     }
 
@@ -367,25 +333,25 @@ mod tests {
     fn on_card_name_is_the_invocation() {
         // Landwalk / typecycling render as their printed name (a future macro),
         // not an unrolled Landwalk(...) / Typecycling(...).
-        assert_eq!(render("Islandwalk").unwrap(), "        Islandwalk,\n");
+        assert_eq!(bare("Islandwalk").as_deref(), Some("Islandwalk"));
         assert_eq!(
-            render("Legendary landwalk").unwrap(),
-            "        LegendaryLandwalk,\n"
+            bare("Legendary landwalk").as_deref(),
+            Some("LegendaryLandwalk")
         );
         assert_eq!(
-            render("Mountaincycling {2}").unwrap(),
-            "        Mountaincycling([Mana([Generic(2)])]),\n"
+            bare("Mountaincycling {2}").as_deref(),
+            Some("Mountaincycling([Mana([Generic(2)])])")
         );
     }
 
     #[test]
     fn declines_variable_difficult_and_unknown() {
-        assert!(render("Annihilator X").is_none()); // variable integer
-        assert!(render("Ward {X}").is_none()); // variable mana cost
-        assert!(render("Protection from black").is_none()); // word arg
-        assert!(render("Enchant creature").is_none());
-        assert!(render("Cycling—Discard a card").is_none()); // non-mana em-dash cost
-        assert!(render("Whenever this dies, draw a card").is_none()); // not a keyword
+        assert!(bare("Annihilator X").is_none()); // variable integer
+        assert!(bare("Ward {X}").is_none()); // variable mana cost
+        assert!(bare("Protection from black").is_none()); // word arg
+        assert!(bare("Enchant creature").is_none());
+        assert!(bare("Cycling—Discard a card").is_none()); // non-mana em-dash cost
+        assert!(bare("Whenever this dies, draw a card").is_none()); // not a keyword
     }
 
     #[test]

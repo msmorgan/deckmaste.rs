@@ -1,6 +1,5 @@
-//! The shared `{T}: Add …` mana-ability grammar and rendering: the `_007`
-//! lands, `_009` rocks, and `_010` dorks all tap for mana the same way. Reads
-//! `_004`'s `~`-normalized text, so enters-tapped is `"~ enters tapped."`.
+//! The shared `{T}: Add …` mana-ability grammar and rendering. Reads
+//! `~`-normalized oracle text, so enters-tapped is `"~ enters tapped."`.
 
 use deckmaste_core::ColorOrColorless;
 
@@ -114,8 +113,7 @@ fn render_effect(production: &Production) -> anyhow::Result<String> {
 }
 
 /// A registry parser: a `{T}: Add …` / `~ enters tapped.` line -> the bare RON
-/// of one ability, or `None`. (The 8-space block form for the legacy migrations
-/// lives in `render_tap_ability`.)
+/// of one ability, or `None`.
 pub(crate) fn resolve_line(line: &str) -> anyhow::Result<Option<String>> {
     let Some(ability) = parse_tap_ability(line) else {
         return Ok(None);
@@ -123,8 +121,7 @@ pub(crate) fn resolve_line(line: &str) -> anyhow::Result<Option<String>> {
     Ok(Some(render_bare(&ability)?))
 }
 
-/// The bare ability RON (no indent/comma) for a `TapAbility` — same content as
-/// `render_tap_ability` minus the block wrapper.
+/// The bare ability RON (no indent/comma) for a `TapAbility`.
 fn render_bare(ability: &TapAbility) -> anyhow::Result<String> {
     Ok(match ability {
         TapAbility::EntersTapped => {
@@ -136,20 +133,6 @@ fn render_bare(ability: &TapAbility) -> anyhow::Result<String> {
                 render_effect(production)?
             )
         }
-    })
-}
-
-/// One ability block at the `abilities:` items indent (8 spaces), with its
-/// trailing comma + newline.
-pub(super) fn render_tap_ability(ability: &TapAbility) -> anyhow::Result<String> {
-    Ok(match ability {
-        TapAbility::EntersTapped =>
-            "        Static(\n            effects: [Replacement(AsEnters(effect: Tap(This)))],\n        ),\n"
-                .to_owned(),
-        TapAbility::Mana(production) => format!(
-            "        Activated(\n            cost: [Tap],\n            effect: {effect},\n        ),\n",
-            effect = render_effect(production)?
-        ),
     })
 }
 
@@ -202,15 +185,6 @@ mod tests {
         // Bare braces / unknown symbols don't parse.
         assert!(parse_production("{Q}").is_none());
         assert!(parse_production("").is_none());
-    }
-
-    #[test]
-    fn enters_tapped_renders_the_static() {
-        let block = render_tap_ability(&parse_tap_ability("~ enters tapped.").unwrap()).unwrap();
-        assert_eq!(
-            block,
-            "        Static(\n            effects: [Replacement(AsEnters(effect: Tap(This)))],\n        ),\n"
-        );
     }
 
     #[test]
