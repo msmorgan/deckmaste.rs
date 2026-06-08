@@ -18,10 +18,17 @@ pub(super) fn leaf<T: Serialize>(value: &T) -> anyhow::Result<String> {
         .to_string_pretty(value, crate::ron_output::pretty_config())?)
 }
 
-/// `    field: [a, b],` for a non-empty ident array; nothing for `[]`.
+/// `    field: [a, b],` for a non-empty ident array; nothing for `[]`. Each
+/// ident is mapped through [`super::to_rust_ident`] so that names containing
+/// non-alphanumeric characters (e.g. `Assembly-Worker`, `Time Lord`) become
+/// their corresponding macro-invocation names (`AssemblyWorker`, `TimeLord`).
 pub(super) fn ident_line(out: &mut String, field: &str, idents: &[Ident]) {
     if !idents.is_empty() {
-        writeln!(out, "    {field}: [{}],", idents.join(", ")).unwrap();
+        let items: Vec<String> = idents
+            .iter()
+            .map(|id| super::to_rust_ident(id.as_str()))
+            .collect();
+        writeln!(out, "    {field}: [{}],", items.join(", ")).unwrap();
     }
 }
 
