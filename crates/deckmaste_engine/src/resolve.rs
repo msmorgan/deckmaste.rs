@@ -4,7 +4,7 @@
 use deckmaste_core::{Ability, Action, Effect, Quantity, Selection, TargetSpec, Type, Uint};
 
 use crate::agenda::WorkItem;
-use crate::event::GameEvent;
+use crate::event::{GameEvent, Occurrence};
 use crate::object::ObjectId;
 use crate::stack::{Frame, StackEntry, StackObject};
 use crate::state::GameState;
@@ -29,7 +29,9 @@ impl GameState {
                 let spell = *spell;
                 if self.is_permanent_spell(spell) {
                     // [CR#608.3]: a permanent spell enters the battlefield.
-                    self.schedule_front(vec![WorkItem::Emit(GameEvent::EntersBattlefield(spell))]);
+                    self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+                        GameEvent::EntersBattlefield(spell),
+                    ))]);
                 } else if self.targets_still_legal(&entry) {
                     // Instant/sorcery with all targets still legal: run its effect.
                     let frame = Frame {
@@ -45,11 +47,13 @@ impl GameState {
                             effect: Box::new(effect),
                             frame,
                         },
-                        WorkItem::Emit(GameEvent::SpellResolved(spell)),
+                        WorkItem::Emit(Occurrence::single(GameEvent::SpellResolved(spell))),
                     ]);
                 } else {
                     // [CR#608.2b]: all targets illegal — the spell fizzles.
-                    self.schedule_front(vec![WorkItem::Emit(GameEvent::SpellResolved(spell))]);
+                    self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+                        GameEvent::SpellResolved(spell),
+                    ))]);
                 }
             }
         }
@@ -66,7 +70,7 @@ impl GameState {
         match effect {
             Effect::Act(action) => {
                 let event = self.action_event(&action, frame);
-                self.schedule_front(vec![WorkItem::Emit(event)]);
+                self.schedule_front(vec![WorkItem::Emit(Occurrence::single(event))]);
             }
             Effect::Sequence(children) => {
                 let items: Vec<WorkItem> = children

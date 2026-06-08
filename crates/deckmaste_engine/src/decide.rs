@@ -92,7 +92,7 @@ impl std::error::Error for DecisionError {}
 
 use crate::agenda::WorkItem;
 use crate::derive;
-use crate::event::GameEvent;
+use crate::event::{GameEvent, Occurrence};
 use crate::state::GameState;
 
 impl GameState {
@@ -142,7 +142,12 @@ impl GameState {
                 self.schedule_front(
                     objects
                         .into_iter()
-                        .map(|object| WorkItem::Emit(GameEvent::Discarded { player, object }))
+                        .map(|object| {
+                            WorkItem::Emit(Occurrence::single(GameEvent::Discarded {
+                                player,
+                                object,
+                            }))
+                        })
                         .collect(),
                 );
                 Ok(())
@@ -238,7 +243,9 @@ impl GameState {
             Action::PlayLand { object } => {
                 self.reset_passes();
                 self.schedule_front(vec![
-                    WorkItem::Emit(GameEvent::LandPlayed { object: *object }),
+                    WorkItem::Emit(Occurrence::single(GameEvent::LandPlayed {
+                        object: *object,
+                    })),
                     WorkItem::CheckSbas,
                     WorkItem::OpenPriority,
                 ]);
@@ -252,12 +259,12 @@ impl GameState {
                     .expect("legality check admitted only tap-mana abilities");
                 self.reset_passes();
                 self.schedule_front(vec![
-                    WorkItem::Emit(GameEvent::Tapped(*object)),
-                    WorkItem::Emit(GameEvent::ManaAdded {
+                    WorkItem::Emit(Occurrence::single(GameEvent::Tapped(*object))),
+                    WorkItem::Emit(Occurrence::single(GameEvent::ManaAdded {
                         player,
                         mana,
                         amount,
-                    }),
+                    })),
                     WorkItem::CheckSbas,
                     WorkItem::OpenPriority,
                 ]);
@@ -273,7 +280,7 @@ impl GameState {
                     WorkItem::BeginCast(*object),
                     WorkItem::AnnounceTargets,
                     WorkItem::PayCost,
-                    WorkItem::Emit(GameEvent::SpellCast(*object)),
+                    WorkItem::Emit(Occurrence::single(GameEvent::SpellCast(*object))),
                     WorkItem::CheckSbas,
                     WorkItem::OpenPriority,
                 ]);

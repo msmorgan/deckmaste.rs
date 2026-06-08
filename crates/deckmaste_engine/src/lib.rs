@@ -17,7 +17,7 @@ pub use decide::{Action, Decision, DecisionError, PendingDecision};
 mod derive;
 
 mod event;
-pub use event::{GameEvent, LossReason};
+pub use event::{GameEvent, LossReason, Occurrence};
 
 mod legal;
 
