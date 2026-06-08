@@ -1,8 +1,11 @@
 //! `extract` — emit every supported card as a Card-shaped `<name>.ron.todo`
 //! (a `TodoCard`) whose abilities are `Unparsed` oracle lines. Reuses `_004`'s
-//! mtgjson field extraction and text normalization. Covers the `normal` and
-//! `modal_dfc` layouts (the two core `Card` variants); other layouts are
-//! skipped until core `Card` grows variants for them.
+//! individual normalization helpers (`strip_reminder_text`,
+//! `expand_keyword_lines`, `self_ref_to_tilde`) and mtgjson field accessors;
+//! the pipeline wiring is duplicated here and will consolidate when `_004` is
+//! retired. Covers the `normal` and `modal_dfc` layouts (the two core `Card`
+//! variants); other layouts are skipped until core `Card` grows variants for
+//! them.
 
 use std::path::Path;
 
@@ -30,6 +33,8 @@ fn stat_value(text: &str) -> StatValue {
     if let Ok(n) = text.parse::<deckmaste_core::Int>() {
         StatValue::Number(n)
     } else if text == "X" {
+        // `X` is loyalty defined by the casting cost (the only place `X` stats
+        // appear on standard-legal cards); `*`/`1+*` take the DefinedByAbility arm.
         StatValue::Variable
     } else {
         StatValue::DefinedByAbility
@@ -138,6 +143,26 @@ mod tests {
     use super::*;
     use crate::data::mtgjson::Legalities;
 
+    /// A minimal normal-layout creature fixture; `text` is the oracle text.
+    fn creature(text: Option<&'static str>) -> AtomicCard<'static> {
+        AtomicCard {
+            name: "Test Bear".into(),
+            face_name: None,
+            mana_cost: None,
+            color_indicator: vec![],
+            types: vec!["Creature".into()],
+            supertypes: vec![],
+            subtypes: vec!["Bear".into()],
+            text: text.map(Into::into),
+            power: Some("2".into()),
+            toughness: Some("2".into()),
+            loyalty: None,
+            defense: None,
+            layout: "normal".into(),
+            legalities: Legalities::default(),
+        }
+    }
+
     /// `stat_value` is the only branchy conversion; pin every arm.
     #[test]
     fn stat_value_branches() {
@@ -152,22 +177,7 @@ mod tests {
     /// `RawIdent`s, the oracle line becomes a single `Unparsed` ability.
     #[test]
     fn normal_creature_builds() {
-        let card = AtomicCard {
-            name: "Test Bear".into(),
-            face_name: None,
-            mana_cost: None,
-            color_indicator: vec![],
-            types: vec!["Creature".into()],
-            supertypes: vec![],
-            subtypes: vec!["Bear".into()],
-            text: Some("Flying".into()),
-            power: Some("2".into()),
-            toughness: Some("2".into()),
-            loyalty: None,
-            defense: None,
-            layout: "normal".into(),
-            legalities: Legalities::default(),
-        };
+        let card = creature(Some("Flying"));
 
         let todo = todo_card("normal", &[&card], &[]).unwrap().unwrap();
         let TodoCard::Normal(face) = &todo else {
@@ -189,6 +199,20 @@ mod tests {
         let rendered = render(&todo).unwrap();
         assert!(rendered.contains("subtypes: [Bear]"), "{rendered}");
         assert!(rendered.contains(r#"Unparsed("Flying")"#), "{rendered}");
+    }
+
+    /// `text: None` → no oracle text → empty `abilities` vec; the rendered
+    /// output omits the `abilities` field entirely.
+    #[test]
+    fn no_text_yields_empty_abilities() {
+        let card = creature(None);
+        let TodoCard::Normal(face) = todo_card("normal", &[&card], &[]).unwrap().unwrap() else {
+            panic!("expected Normal");
+        };
+        assert!(face.abilities.is_empty());
+        // The rendered card omits the abilities field entirely.
+        let rendered = render(&TodoCard::Normal(face)).unwrap();
+        assert!(!rendered.contains("abilities"));
     }
 
     /// A non-core layout (`split`) yields no `TodoCard`.
