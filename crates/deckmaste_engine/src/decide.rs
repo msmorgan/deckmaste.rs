@@ -18,6 +18,19 @@ pub enum PendingDecision {
     },
     /// [CR#514.1]: discard down to maximum hand size.
     DiscardToHandSize { player: PlayerId, count: Uint },
+    /// CR 601.2c / 115: choose targets for the in-flight announce. `legal[i]`
+    /// is the candidate set for `spec[i]`; `submit_decision` re-validates.
+    ChooseTargets {
+        player: PlayerId,
+        spec: Vec<deckmaste_core::TargetSpec>,
+        legal: Vec<Vec<ObjectId>>,
+    },
+    /// CR 601.2g: allocate pool mana to the in-flight cost.
+    PayMana {
+        player: PlayerId,
+        cost: deckmaste_core::ManaCost,
+        pool: crate::player::ManaPool,
+    },
 }
 
 /// An answer to the pending decision.
@@ -27,6 +40,10 @@ pub enum Decision {
     Act(Action),
     /// Answers `DiscardToHandSize`: which cards to discard.
     Discard(Vec<ObjectId>),
+    /// Answers `ChooseTargets`: one chosen object per `TargetSpec`.
+    Targets(Vec<ObjectId>),
+    /// Answers `PayMana`: how the pool covers the cost.
+    Pay(crate::cast::Payment),
 }
 
 /// What a priority holder can do in the skeleton.
@@ -42,6 +59,11 @@ pub enum Action {
     ActivateAbility {
         object: ObjectId,
         ability: usize,
+    },
+    /// Cast a spell from hand (CR 601). The announce block (targets, cost) is
+    /// reified onto the agenda by `take_priority_action`.
+    CastSpell {
+        object: ObjectId,
     },
 }
 
@@ -82,6 +104,12 @@ impl GameState {
     ///
     /// `NothingPending` with no decision open, `WrongKind` when the answer
     /// doesn't match the question, `Illegal` when it fails validation.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a `ChooseTargets` decision is answered while no announce is in
+    /// flight — an engine invariant (the announce slot is open across the
+    /// decision), not caller input.
     pub fn submit_decision(&mut self, decision: Decision) -> Result<(), DecisionError> {
         let Some(pending) = &self.pending else {
             return Err(DecisionError::NothingPending);
@@ -117,6 +145,49 @@ impl GameState {
                         .map(|object| WorkItem::Emit(GameEvent::Discarded { player, object }))
                         .collect(),
                 );
+                Ok(())
+            }
+            (
+                PendingDecision::ChooseTargets {
+                    player: _,
+                    spec,
+                    legal,
+                },
+                Decision::Targets(chosen),
+            ) => {
+                // CR 601.2c / 115: one chosen object per spec, each drawn from
+                // that spec's legal candidate set.
+                if chosen.len() != spec.len()
+                    || chosen.iter().zip(legal).any(|(c, set)| !set.contains(c))
+                {
+                    return Err(DecisionError::Illegal {
+                        reason: "illegal target selection".into(),
+                    });
+                }
+                self.pending = None;
+                self.announcing
+                    .as_mut()
+                    .expect("an announce in flight")
+                    .targets = chosen;
+                Ok(())
+            }
+            (
+                PendingDecision::PayMana {
+                    player,
+                    cost,
+                    pool: _,
+                },
+                Decision::Pay(payment),
+            ) => {
+                let player = *player;
+                let cost = cost.clone();
+                if !crate::cast::validate_payment(&self.player(player).mana_pool, &cost, &payment) {
+                    return Err(DecisionError::Illegal {
+                        reason: "payment does not cover the cost".into(),
+                    });
+                }
+                self.pending = None;
+                crate::cast::apply_payment(&mut self.player_mut(player).mana_pool, &cost, &payment);
                 Ok(())
             }
             _ => Err(DecisionError::WrongKind),
@@ -177,6 +248,22 @@ impl GameState {
                         mana,
                         amount,
                     }),
+                    WorkItem::CheckSbas,
+                    WorkItem::OpenPriority,
+                ]);
+            }
+            Action::CastSpell { object } => {
+                // CR 601.2: reify the announce procedure. Targets and cost are
+                // chosen by the staged WorkItems (surfacing decisions when
+                // there is a choice); `SpellCast` is the becomes-cast moment
+                // (601.2i) that promotes the announce onto the stack; the
+                // caster then regains priority (CR 117.3c).
+                self.reset_passes();
+                self.schedule_front(vec![
+                    WorkItem::BeginCast(*object),
+                    WorkItem::AnnounceTargets,
+                    WorkItem::PayCost,
+                    WorkItem::Emit(GameEvent::SpellCast(*object)),
                     WorkItem::CheckSbas,
                     WorkItem::OpenPriority,
                 ]);

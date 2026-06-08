@@ -233,10 +233,14 @@ fn spell_targets_list(ability: &Ability) -> Option<&Vec<TargetSpec>> {
 /// Extracts the `Filter` from a `TargetSpec`. Stage 2 only handles
 /// `TargetSpec::Target(filter)` (and `Expanded` wrappers around it).
 ///
+/// This is the single authoritative site for TargetSpec→Filter extraction;
+/// both `cast::legal_targets` (announce time) and `targets_still_legal`
+/// (resolution time) funnel through here so they stay in sync.
+///
 /// # Panics
 ///
 /// Panics on `TargetSpec` variants not wired for Stage 2.
-fn target_spec_filter(spec: &TargetSpec) -> &deckmaste_core::Filter {
+pub(crate) fn target_spec_filter(spec: &TargetSpec) -> &deckmaste_core::Filter {
     match spec {
         TargetSpec::Target(f) => f,
         TargetSpec::Expanded(e) => target_spec_filter(&e.value),

@@ -768,3 +768,75 @@ fn resolving_bolt_deals_three_then_leaves_for_graveyard() {
         "bolt should be in player 0's graveyard"
     );
 }
+
+#[test]
+fn casting_a_spell_schedules_the_announce_block_and_begin_cast_stages_it() {
+    use deckmaste_engine::WorkItem;
+
+    let (mut state, _bear) = decks_bolt_vs_bears_with_bear_on_field();
+    // Float player 0 the {R} Bolt costs so `can_cast` admits it.
+    let red: deckmaste_core::ColorOrColorless = Color::Red.into();
+    state.player_mut(PlayerId(0)).mana_pool.add(red, 1);
+    let bolt = *state.zones.hands[0]
+        .iter()
+        .find(|&&o| state_is_bolt(&state, o))
+        .expect("a Bolt in player 0's opening hand");
+
+    // Open a priority round at the active player and surface the decision.
+    // `OpenPriority` runs on the first step (returning Progress and setting
+    // `pending`); the decision surfaces on the next step (Stage 1 invariant).
+    state
+        .agenda
+        .push_front(deckmaste_engine::WorkItem::OpenPriority);
+    assert!(matches!(
+        state.step(),
+        StepOutcome::Progress(Progress::PriorityOpened(PlayerId(0)))
+    ));
+    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, legal }) = state.step()
+    else {
+        panic!("expected a Priority decision");
+    };
+    assert_eq!(player, PlayerId(0));
+    // The real `can_cast` gate offers the Bolt (instant timing, payable, a
+    // legal target exists — the Bears on the field).
+    assert!(
+        legal.contains(&Action::CastSpell { object: bolt }),
+        "Bolt should be a legal CastSpell, legal: {legal:?}"
+    );
+
+    // Submitting CastSpell reifies the CR 601.2 announce block at the front.
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
+        .unwrap();
+    let front: Vec<WorkItem> = state.agenda.iter().take(6).cloned().collect();
+    assert_eq!(
+        front,
+        vec![
+            WorkItem::BeginCast(bolt),
+            WorkItem::AnnounceTargets,
+            WorkItem::PayCost,
+            WorkItem::Emit(GameEvent::SpellCast(bolt)),
+            WorkItem::CheckSbas,
+            WorkItem::OpenPriority,
+        ],
+        "CastSpell must front-schedule the announce block in order"
+    );
+
+    // Stepping BeginCast stages the spell: out of hand, zone Stack, announcing.
+    assert_eq!(
+        state.step(),
+        StepOutcome::Progress(Progress::Announcing(bolt))
+    );
+    assert!(
+        !state.zones.hands[0].contains(&bolt),
+        "BeginCast removes the spell from hand"
+    );
+    assert_eq!(state.objects.obj(bolt).zone, Some(Zone::Stack));
+    let pending = state.announcing.as_ref().expect("an announce in flight");
+    assert_eq!(pending.object, StackObject::Spell(bolt));
+    assert_eq!(pending.controller, PlayerId(0));
+    assert_eq!(pending.origin, Zone::Hand);
+    assert!(pending.targets.is_empty(), "targets not yet announced");
+    // The spell is staged, not yet on the stack (SpellCast hasn't run).
+    assert!(state.stack.is_empty());
+}
