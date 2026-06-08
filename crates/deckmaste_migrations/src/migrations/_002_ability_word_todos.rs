@@ -29,7 +29,7 @@ impl super::Migration for AbilityWordTodos {
             &keywords.ability_words,
             &rules,
             |_| Some(ABILITY_WORD_RULE),
-            // 207.2c's third sentence is the ever-growing list of every
+            // [CR#207.2c]'s third sentence is the ever-growing list of every
             // ability word; the first two say everything worth repeating in
             // each stub.
             |rule| truncate_sentences(&rule.format(), 2),

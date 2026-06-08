@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Expansion, Filter, Quantity};
 
-/// One entry in an ability's announce list (CR 601.2c, 115). A `TargetSpec`
+/// One entry in an ability's announce list ([CR#601.2c,115]). A `TargetSpec`
 /// is the only place "target" lives: it binds `Reference::Target(n)` for the
-/// effect body to read, and is rechecked at resolution (CR 608.2c-d).
+/// effect body to read, and is rechecked at resolution ([CR#608.2c..608.2d]).
 ///
 /// Separated from [`crate::Selection`] so that resolution-time choices
 /// (`Each`, `Choose`, …) and announce-time targets never share a position —
@@ -17,13 +17,13 @@ use crate::{Expansion, Filter, Quantity};
 /// rather than the literal struct — the other variants mirror the derive.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub enum TargetSpec {
-    /// One target matching the filter (CR 115.1).
+    /// One target matching the filter ([CR#115.1]).
     Target(Filter),
-    /// Up to a quantity of targets (CR 115.1c, "up to two target …").
+    /// Up to a quantity of targets ([CR#115.1c], "up to two target …").
     UpToTargets(Quantity, Filter),
-    /// Exactly a quantity of targets (CR 115.1b, "two target …").
+    /// Exactly a quantity of targets ([CR#115.1b], "two target …").
     Targets(Quantity, Filter),
-    /// Any number of targets (CR 115.1d).
+    /// Any number of targets ([CR#115.1d]).
     AnyNumberTargets(Filter),
     /// A remembered `TargetSpec` macro invocation.
     Expanded(Expansion<TargetSpec>),

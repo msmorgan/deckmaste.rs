@@ -7,7 +7,7 @@ use crate::effect::Effect;
 use crate::{Condition, Event, Expansion, Quantity, TargetSpec};
 
 /// A spell ability — what an instant or sorcery does on resolution
-/// (CR 113.3a). Targets are an explicit announce list referenced by index
+/// ([CR#113.3a]). Targets are an explicit announce list referenced by index
 /// (`Target(0)`); a single-instruction body needs no wrapper.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct SpellAbility {
@@ -17,7 +17,7 @@ pub struct SpellAbility {
 }
 
 /// An activated ability: paid with a cost and produces an effect
-/// (CR 113.3b, 602). Targets are flattened here (the `Resolvable` wrapper of
+/// ([CR#113.3b,602]). Targets are flattened here (the `Resolvable` wrapper of
 /// the design sketch is realized as `Effect::Modal` instead — see `effect`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct ActivatedAbility {
@@ -27,24 +27,24 @@ pub struct ActivatedAbility {
     pub effect: Effect,
 }
 
-/// A limit on how often a triggered ability may trigger (CR 603.3i).
+/// A limit on how often a triggered ability may trigger ([CR#603.3i]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum TriggerLimit {
-    /// "Once each turn" (CR 603.3i).
+    /// "Once each turn" ([CR#603.3i]).
     OncePerTurn,
 }
 
-/// A triggered ability (CR 113.3c, 603). A named struct because it recurs:
-/// delayed (CR 603.7) and reflexive (CR 603.12) triggers are the same value,
-/// created inside an `Effect`.
+/// A triggered ability ([CR#113.3c,603]). A named struct because it recurs:
+/// delayed ([CR#603.7]) and reflexive ([CR#603.12]) triggers are the same
+/// value, created inside an `Effect`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct TriggeredAbility {
-    /// The event that triggers it (CR 603.2).
+    /// The event that triggers it ([CR#603.2]).
     pub event: Event,
-    /// Intervening-if (CR 603.4) — `condition`, not `when_if`.
+    /// Intervening-if ([CR#603.4]) — `condition`, not `when_if`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub condition: Option<Condition>,
-    /// Trigger-frequency limits (CR 603.3i).
+    /// Trigger-frequency limits ([CR#603.3i]).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub limits: Vec<TriggerLimit>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -52,15 +52,15 @@ pub struct TriggeredAbility {
     pub effect: Effect,
 }
 
-/// A static ability (CR 113.3d, 604). Its duration is implicit: while it
-/// functions (CR 611.3).
+/// A static ability ([CR#113.3d,604]). Its duration is implicit: while it
+/// functions ([CR#611.3]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct StaticAbility {
-    /// When the ability functions, if conditional (CR 604.3).
+    /// When the ability functions, if conditional ([CR#604.3]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub condition: Option<Condition>,
     pub effects: Vec<StaticEffect>,
-    /// The one explicit, validated flag (CR 604.3): a characteristic-defining
+    /// The one explicit, validated flag ([CR#604.3]): a characteristic-defining
     /// ability applies in layer 7a / a/b/c per its op.
     #[serde(default, skip_serializing_if = "is_false")]
     pub characteristic_defining: bool,
@@ -71,9 +71,9 @@ pub struct StaticAbility {
 #[expect(clippy::trivially_copy_pass_by_ref)]
 fn is_false(b: &bool) -> bool { !*b }
 
-/// How a modal spell or ability's modes are chosen (CR 700.2). `up_to` is the
-/// "up to N" form (700.2d); `repeats` allows choosing the same mode more than
-/// once (700.2d).
+/// How a modal spell or ability's modes are chosen ([CR#700.2]). `up_to` is the
+/// "up to N" form ([CR#700.2d]); `repeats` allows choosing the same mode more
+/// than once ([CR#700.2d]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct ChooseSpec {
     pub count: Quantity,
@@ -83,8 +83,8 @@ pub struct ChooseSpec {
     pub repeats: bool,
 }
 
-/// One mode of a modal spell or ability (CR 700.2). Each mode owns its target
-/// list (CR 700.2c, 115.8) and may carry a per-mode cost (CR 700.2h).
+/// One mode of a modal spell or ability ([CR#700.2]). Each mode owns its target
+/// list ([CR#700.2c,115.8]) and may carry a per-mode cost ([CR#700.2h]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Mode {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -94,7 +94,7 @@ pub struct Mode {
     pub cost: Option<Vec<CostComponent>>,
 }
 
-/// An ability (CR 113). The struct-carrying variants read flat in RON —
+/// An ability ([CR#113]). The struct-carrying variants read flat in RON —
 /// `Spell(targets: ..., ...)`, not `Spell((targets: ...))` — via the
 /// `unwrap_variant_newtypes` extension.
 ///
@@ -118,7 +118,7 @@ pub enum Ability {
     Activated(ActivatedAbility),
     Triggered(TriggeredAbility),
     Spell(SpellAbility),
-    /// A remembered macro invocation (CR 702 keyword abilities, and any other
+    /// A remembered macro invocation ([CR#702] keyword abilities, and any other
     /// `Ability` macro). Absorbs the old `Keyword`/`KeywordAbility` shape.
     Expanded(Expansion<Ability>),
 }

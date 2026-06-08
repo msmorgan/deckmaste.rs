@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Ident, Property, Type};
 
-/// A subtype: its name, the card types it can appear on (CR 205.3), and
-/// what it confers on its bearers — how CR 305.6 gives basic lands their
+/// A subtype: its name, the card types it can appear on ([CR#205.3]), and
+/// what it confers on its bearers — how [CR#305.6] gives basic lands their
 /// mana abilities, as plugin data rather than an engine special case.
 /// Embedded in the value: a macro-expanded card describes the entirety of
 /// its behavior.

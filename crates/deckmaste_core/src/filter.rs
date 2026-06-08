@@ -8,7 +8,7 @@ use crate::{
     Zone,
 };
 
-/// What kind of object something is (CR 109.1). Players are objects here
+/// What kind of object something is ([CR#109.1]). Players are objects here
 /// too — the engine gives players `ObjectId`s.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum ObjectKind {
@@ -19,7 +19,7 @@ pub enum ObjectKind {
     Token,
 }
 
-/// Characteristic atoms (CR 109.3): facts printed on or defined for the
+/// Characteristic atoms ([CR#109.3]): facts printed on or defined for the
 /// object. `Subtype`/`Named`/`HasAbility` filter by *name* — validating that
 /// the name is declared is a lint, not a parse concern.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
@@ -27,32 +27,32 @@ pub enum CharacteristicFilter {
     Type(Type),
     Subtype(Ident),
     Supertype(Supertype),
-    /// The object is the given color (CR 105.2, 202.2).
+    /// The object is the given color ([CR#105.2,202.2]).
     ColorIs(Color),
-    /// The object has the given name (CR 201).
+    /// The object has the given name ([CR#201]).
     Named(Ident),
     /// A printed/defined stat compares as stated, e.g.
     /// `Stat(Power, AtLeast, 3)` — mana value via `Stat(ManaValue, …)`
-    /// (CR 208, 202.3).
+    /// ([CR#208,202.3]).
     Stat(Stat, Cmp, Quantity),
-    /// The object has the named keyword ability (CR 702).
+    /// The object has the named keyword ability ([CR#702]).
     HasAbility(Ident),
 }
 
 /// State atoms: where the object is and what's on it — not
-/// characteristics (CR 110.5a, 122.1).
+/// characteristics ([CR#110.5a,122.1]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum StateFilter {
     InZone(Zone),
-    /// The object's status (CR 110.5).
+    /// The object's status ([CR#110.5]).
     Status(Status),
-    /// The object has at least one counter of the named kind (CR 122.1).
+    /// The object has at least one counter of the named kind ([CR#122.1]).
     HasCounter(Ident),
-    /// The object carries the named designation (CR 109.4) — derived
+    /// The object carries the named designation ([CR#109.4]) — derived
     /// designations (`Designated(Modified)`) work with no special casing.
     Designated(Ident),
     /// The object is related to a matching object by a named, declared
-    /// relation (CR 607 family). Box because the inner predicate is a Filter.
+    /// relation ([CR#607] family). Box because the inner predicate is a Filter.
     RelatedBy(Ident, Box<Filter>),
 }
 
@@ -61,15 +61,15 @@ pub enum StateFilter {
 /// controller matches".
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum RelationFilter {
-    /// The object's controller matches (CR 109.5).
+    /// The object's controller matches ([CR#109.5]).
     Controller(Box<Filter>),
-    /// The object's owner matches (CR 108.3).
+    /// The object's owner matches ([CR#108.3]).
     Owner(Box<Filter>),
-    /// The object is an opponent of a matching player (CR 102.1).
+    /// The object is an opponent of a matching player ([CR#102.1]).
     OpponentOf(Box<Filter>),
-    /// The object is attached to a matching object (CR 301.5, 303.4).
+    /// The object is attached to a matching object ([CR#301.5,303.4]).
     AttachedTo(Box<Filter>),
-    /// The object has a matching attachment (CR 301.5, 303.4).
+    /// The object has a matching attachment ([CR#301.5,303.4]).
     Attachment(Box<Filter>),
 }
 

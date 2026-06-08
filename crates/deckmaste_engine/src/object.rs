@@ -5,17 +5,17 @@ use deckmaste_core::{Card, Uint, Zone};
 
 use crate::player::PlayerId;
 
-/// A transient object identity (CR 109). Reminted on zone change in a later
+/// A transient object identity ([CR#109]). Reminted on zone change in a later
 /// stage; in the skeleton an object keeps its id for the whole game.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ObjectId(pub Uint);
 
-/// A persistent card identity (CR 108): an index into the game's card table.
+/// A persistent card identity ([CR#108]): an index into the game's card table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct CardId(pub Uint);
 
-/// One physical card (CR 108): its shared definition and its owner, fixed
-/// for the whole game (CR 108.3).
+/// One physical card ([CR#108]): its shared definition and its owner, fixed
+/// for the whole game ([CR#108.3]).
 #[derive(Debug, Clone)]
 pub struct CardInstance {
     pub def: Arc<Card>,
@@ -54,8 +54,8 @@ impl Cards {
     pub fn is_empty(&self) -> bool { self.0.is_empty() }
 }
 
-/// An object in the game (CR 109). An object whose `zone == Battlefield` is
-/// a permanent (CR 110.1) — there is no separate permanent type.
+/// An object in the game ([CR#109]). An object whose `zone == Battlefield` is
+/// a permanent ([CR#110.1]) — there is no separate permanent type.
 #[derive(Debug, Clone)]
 pub struct GameObject {
     pub id: ObjectId,

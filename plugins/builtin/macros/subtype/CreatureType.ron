@@ -1,4 +1,4 @@
-// CR 205.3m
+// [CR#205.3m]
 (
     name: "CreatureType",
     kinds: [Subtype],

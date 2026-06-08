@@ -1,4 +1,4 @@
-// CR 111.10a
+// [CR#111.10a]
 Token(
     types: [Artifact],
     subtypes: [Treasure],

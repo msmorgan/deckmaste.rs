@@ -1,4 +1,4 @@
-// CR 205.3h
+// [CR#205.3h]
 (
     name: "EnchantmentType",
     kinds: [Subtype],

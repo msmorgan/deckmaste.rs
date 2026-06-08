@@ -1,4 +1,4 @@
-// CR 205.3q
+// [CR#205.3q]
 (
     name: "BattleType",
     kinds: [Subtype],

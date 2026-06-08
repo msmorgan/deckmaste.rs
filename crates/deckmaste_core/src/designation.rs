@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::continuous::StaticEffect;
 use crate::{Condition, Filter, Ident};
 
-/// Where a designation attaches (CR 109.4, taxonomy §8).
+/// Where a designation attaches ([CR#109.4], taxonomy §8).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum DesignationScope {
     Object,
@@ -33,7 +33,7 @@ pub enum DesignationUniqueness {
 }
 
 /// How long a designation persists by default (taxonomy §8). Object lifetime
-/// is the free default via CR 400.7.
+/// is the free default via [CR#400.7].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum DesignationPersistence {
     ObjectLifetime,
@@ -62,7 +62,7 @@ pub enum DesignationDef {
     DerivedIf(Condition),
 }
 
-/// A designation declaration (CR 109.4, §6, taxonomy §8): an open `Ident`
+/// A designation declaration ([CR#109.4], §6, taxonomy §8): an open `Ident`
 /// vocabulary carrying a definition. Declaration-file type (like `MacroDef`);
 /// references to designations elsewhere use a bare `Ident`. No loader wiring
 /// yet.

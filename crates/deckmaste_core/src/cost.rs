@@ -5,7 +5,7 @@ use crate::Expansion;
 use crate::action::Action;
 use crate::mana::ManaCost;
 
-/// A single component of an ability's cost (CR 601.2b).
+/// A single component of an ability's cost ([CR#601.2b]).
 ///
 /// `Deserialize` is derived (the macro reader synthesizes the `Expanded`
 /// stream — `SacrificeThis` and other Cost macros); `Serialize` is **manual**
@@ -14,7 +14,7 @@ use crate::mana::ManaCost;
 pub enum CostComponent {
     /// Mana payment, e.g. `Mana([Generic(2)])`.
     Mana(ManaCost),
-    /// The {T} symbol (CR 107.5).
+    /// The {T} symbol ([CR#107.5]).
     Tap,
     /// The {Q} symbol.
     Untap,

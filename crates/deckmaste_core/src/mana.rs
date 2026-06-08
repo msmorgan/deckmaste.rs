@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::Color;
 use crate::color::ColorOrColorless;
 
-/// Produced-mana spec (CR 106): what colors or types a mana-adding effect
+/// Produced-mana spec ([CR#106]): what colors or types a mana-adding effect
 /// may produce. Variants accrete — `AnyType`, riders later.
 ///
 /// The untagged Specific variant serializes transparently, so the RON stays
@@ -75,7 +75,7 @@ impl From<crate::Uint> for SimpleManaSymbol {
 pub enum ManaSymbol {
     Variable,
     Snow,
-    Hybrid(SimpleManaSymbol, Color), // Slightly more permissive than CR107.4.
+    Hybrid(SimpleManaSymbol, Color), // Slightly more permissive than [CR#107.4].
     Phyrexian(Color, Option<Color>),
     #[serde(untagged)]
     Simple(SimpleManaSymbol),

@@ -5,36 +5,37 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{Expansion, Filter, Ident, IdentSeed, Zone};
 
-/// A turn step or phase (CR 5xx). `BeginningOf` triggers key off these.
+/// A turn step or phase (the 5xx turn structure). `BeginningOf` triggers key
+/// off these.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum StepOrPhase {
-    /// CR 502.
+    /// [CR#502].
     Untap,
-    /// CR 503.
+    /// [CR#503].
     Upkeep,
-    /// CR 504.
+    /// [CR#504].
     Draw,
-    /// CR 505 (first main phase).
+    /// [CR#505] (first main phase).
     PrecombatMain,
-    /// CR 507.
+    /// [CR#507].
     BeginningOfCombat,
-    /// CR 508.
+    /// [CR#508].
     DeclareAttackers,
-    /// CR 509.
+    /// [CR#509].
     DeclareBlockers,
-    /// CR 510.
+    /// [CR#510].
     CombatDamage,
-    /// CR 511.
+    /// [CR#511].
     EndOfCombat,
-    /// CR 505 (second main phase).
+    /// [CR#505] (second main phase).
     PostcombatMain,
-    /// CR 513.
+    /// [CR#513].
     EndStep,
-    /// CR 514.
+    /// [CR#514].
     Cleanup,
 }
 
-/// Whose turn a step-based trigger watches (CR 503.1 "your upkeep", etc.).
+/// Whose turn a step-based trigger watches ([CR#503.1] "your upkeep", etc.).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum WhoseTurn {
     /// The controller's own turn.
@@ -45,7 +46,7 @@ pub enum WhoseTurn {
     AnOpponents,
 }
 
-/// The state a `StateBecomes` transition watches (CR 603.2e). A small set
+/// The state a `StateBecomes` transition watches ([CR#603.2e]). A small set
 /// today; variants accrete as cards force them.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum StateFilterEvent {
@@ -53,14 +54,14 @@ pub enum StateFilterEvent {
     Tapped,
     /// Becomes untapped.
     Untapped,
-    /// Becomes attacking (CR 508.1a).
+    /// Becomes attacking ([CR#508.1a]).
     Attacking,
-    /// Becomes blocked (CR 509.1h).
+    /// Becomes blocked ([CR#509.1h]).
     Blocked,
 }
 
 /// A trigger-event pattern, matched structurally against the action log
-/// (CR 603.2). Declared event names (`Dies`, `Enters`, `Landfall`) are macros
+/// ([CR#603.2]). Declared event names (`Dies`, `Enters`, `Landfall`) are macros
 /// over these forms. Each form binds fixed roles (`ThatObject`,
 /// `ThatPlayer`) for the body.
 ///
@@ -68,24 +69,24 @@ pub enum StateFilterEvent {
 /// list so unknown names at Event positions fall through to the macro layer.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Event {
-    /// A verb was performed (CR 603.2 over the action log). `by`/`on` default
+    /// A verb was performed ([CR#603.2] over the action log). `by`/`on` default
     /// to match-anything (`Filter::Any`).
     Performed { verb: Ident, by: Filter, on: Filter },
-    /// An object changed zones (CR 603.6). `Dies` = `from: Battlefield,
+    /// An object changed zones ([CR#603.6]). `Dies` = `from: Battlefield,
     /// to: Graveyard` is a prelude macro over this.
     ZoneMove {
         what: Filter,
         from: Option<Zone>,
         to: Option<Zone>,
     },
-    /// The beginning of a step or phase (CR 603.2, "at the beginning of …").
+    /// The beginning of a step or phase ([CR#603.2], "at the beginning of …").
     BeginningOf(StepOrPhase, WhoseTurn),
-    /// An object's state changed — transitions only (CR 603.2e).
+    /// An object's state changed — transitions only ([CR#603.2e]).
     StateBecomes {
         of: Filter,
         becomes: StateFilterEvent,
     },
-    /// Any of several events (CR 603.2, "whenever … or …").
+    /// Any of several events ([CR#603.2], "whenever … or …").
     OneOfEvents(Vec<Event>),
     /// A remembered `Event` macro invocation (`Dies`, `Enters`, `Landfall`,
     /// …). Serialized as the invocation, not the struct.

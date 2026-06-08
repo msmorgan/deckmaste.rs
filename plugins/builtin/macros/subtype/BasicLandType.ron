@@ -1,6 +1,6 @@
-// CR 205.3i, 305.6: a basic land type carries the intrinsic ability to tap for
+// [CR#205.3i,305.6]: a basic land type carries the intrinsic ability to tap for
 // one mana of its color. Conferred through the subtype so type-changing effects
-// (CR 305.7) pick it up from the same data.
+// ([CR#305.7]) pick it up from the same data.
 (
     name: "BasicLandType",
     kinds: [Subtype],

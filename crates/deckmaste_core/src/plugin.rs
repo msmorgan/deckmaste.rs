@@ -146,7 +146,7 @@ mod tests {
         assert!(is_todo_source("Todo(\n    layout: \"normal\",\n)"));
         // The Todo( line may follow a // CR comment line.
         assert!(is_todo_source(
-            "// CR 205.3i\nTodo(\n    layout: \"normal\",\n)"
+            "// [CR#205.3i]\nTodo(\n    layout: \"normal\",\n)"
         ));
         assert!(is_todo_source("    Todo(layout: \"normal\")"));
         // str::lines strips the \r of CRLF endings.

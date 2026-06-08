@@ -10,13 +10,13 @@ use crate::player::PlayerId;
 /// mutating) until `submit_decision` answers it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PendingDecision {
-    /// CR 117: the holder may act or pass. `legal` is advisory UI data —
+    /// [CR#117]: the holder may act or pass. `legal` is advisory UI data —
     /// submission re-validates.
     Priority {
         player: PlayerId,
         legal: Vec<Action>,
     },
-    /// CR 514.1: discard down to maximum hand size.
+    /// [CR#514.1]: discard down to maximum hand size.
     DiscardToHandSize { player: PlayerId, count: Uint },
 }
 
@@ -33,11 +33,11 @@ pub enum Decision {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     Pass,
-    /// Special action, no stack (CR 116.2a, 305).
+    /// Special action, no stack ([CR#116.2a,305]).
     PlayLand {
         object: ObjectId,
     },
-    /// Skeleton: mana abilities only — no stack (CR 605.3a). `ability`
+    /// Skeleton: mana abilities only — no stack ([CR#605.3a]). `ability`
     /// indexes the object's derived ability list.
     ActivateAbility {
         object: ObjectId,
@@ -123,7 +123,7 @@ impl GameState {
         }
     }
 
-    /// The priority bookkeeping (CR 117.3c, 117.4): a pass rotates or ends
+    /// The priority bookkeeping ([CR#117.3c,117.4]): a pass rotates or ends
     /// the round; an action emits, re-runs the barrier, and re-opens
     /// priority for the actor. Legality was checked by the caller.
     ///
@@ -141,7 +141,7 @@ impl GameState {
                 round.consecutive_passes += 1;
                 let all_passed = round.consecutive_passes >= live;
                 if all_passed {
-                    // CR 117.4: all-pass on an empty stack ends the step.
+                    // [CR#117.4]: all-pass on an empty stack ends the step.
                     self.turn.priority = None;
                     let items = self.end_of_step_items();
                     self.schedule_front(items);
@@ -184,7 +184,7 @@ impl GameState {
         }
     }
 
-    /// CR 117.3c: taking an action restarts the pass count; the actor
+    /// [CR#117.3c]: taking an action restarts the pass count; the actor
     /// receives priority again afterward. `holder` is intentionally not
     /// touched — the scheduled `OpenPriority` reuses it as-is, and it is
     /// already the actor.

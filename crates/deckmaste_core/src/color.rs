@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// One of the five colors of Magic (CR 105.1). Colorless is not a color.
+/// One of the five colors of Magic ([CR#105.1]). Colorless is not a color.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Color {
     White,

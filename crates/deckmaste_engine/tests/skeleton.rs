@@ -108,7 +108,7 @@ fn turn_one_walks_to_upkeep_priority_one_event_at_a_time() {
         StepOutcome::Progress(Progress::Applied(GameEvent::StepBegan(StepOrPhase::Untap)))
     ));
 
-    // Empty battlefield: no untap events; untap grants no priority (CR 502.4),
+    // Empty battlefield: no untap events; untap grants no priority ([CR#502.4]),
     // so the next transition is straight into upkeep.
     assert!(matches!(
         state.step(),
@@ -249,7 +249,7 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
         .submit_decision(Decision::Act(Action::PlayLand { object: land }))
         .unwrap();
 
-    // The land arrives; P0 retains priority (CR 117.3c).
+    // The land arrives; P0 retains priority ([CR#117.3c]).
     let (trace, stop) = step_to_stop(&mut state);
     assert!(trace.iter().any(|p| matches!(
         p,
@@ -270,7 +270,7 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
         Err(DecisionError::Illegal { .. })
     ));
 
-    // Tap it for mana: the conferred CR 305.6 ability, through the data.
+    // Tap it for mana: the conferred [CR#305.6] ability, through the data.
     let tap = legal
         .iter()
         .find(|a| matches!(a, Action::ActivateAbility { .. }))
@@ -284,7 +284,7 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
     )));
     assert_eq!(state.players[0].mana_pool.amount(Color::White.into()), 1);
 
-    // Pass around: the step ends, the pool empties (CR 500.4).
+    // Pass around: the step ends, the pool empties ([CR#500.4]).
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let _ = step_to_stop(&mut state); // P1's priority
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
@@ -331,7 +331,7 @@ fn cleanup_discards_to_hand_size() {
 #[test]
 fn deck_out_ends_the_game() {
     // Seven-card decks: opening hands take the whole library. P1 draws on
-    // turn 2 from nothing → CR 704.5c → P0 wins.
+    // turn 2 from nothing → [CR#704.5c] → P0 wins.
     let mut state = two_player_plains(7, 7);
     let stop = pass_to_stop(&mut state);
     assert_eq!(
@@ -487,7 +487,7 @@ fn replay_is_deterministic() {
     assert_eq!(fingerprint(&play()), fingerprint(&play()));
 }
 
-/// CR 103.8a (two-player): the starting player skips their first draw step.
+/// [CR#103.8a] (two-player): the starting player skips their first draw step.
 /// Pinned directly — `cleanup_discards_to_hand_size` only implies it.
 #[test]
 fn starting_player_skips_the_first_draw() {

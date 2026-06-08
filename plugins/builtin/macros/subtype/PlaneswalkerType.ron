@@ -1,4 +1,4 @@
-// CR 205.3j
+// [CR#205.3j]
 (
     name: "PlaneswalkerType",
     kinds: [Subtype],
