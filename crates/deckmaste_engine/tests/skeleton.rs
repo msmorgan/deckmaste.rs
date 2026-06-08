@@ -346,6 +346,11 @@ fn cleanup_discards_to_hand_size() {
         Err(DecisionError::Illegal { .. })
     ));
     let chosen = state.zones.hands[1][0];
+    let chosen_card = state
+        .objects
+        .obj(chosen)
+        .card_id()
+        .expect("discarded card is card-backed");
     state
         .submit_decision(Decision::Discard(vec![chosen]))
         .unwrap();
@@ -355,7 +360,13 @@ fn cleanup_discards_to_hand_size() {
         Some(GameEvent::Discarded { player: PlayerId(1), object }) if *object == chosen
     )));
     assert_eq!(state.zones.hands[1].len(), 7);
-    assert_eq!(state.zones.graveyards[1], vec![chosen]);
+    assert_eq!(state.zones.graveyards[1].len(), 1);
+    let in_gy = state.zones.graveyards[1][0];
+    assert_eq!(
+        state.objects.obj(in_gy).card_id(),
+        Some(chosen_card),
+        "same CardId, reminted into the graveyard"
+    );
 }
 
 #[test]
