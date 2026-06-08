@@ -110,7 +110,7 @@ impl GameState {
     /// apply-time bindings (a drawn card's identity) filled in, and a draw
     /// from an empty library occurring as `DrewFromEmpty` instead.
     // TODO(stage-4): split apply() by subsystem (stack / zone-change / player) as arms grow;
-    //   pairs with the action-driven zone-change collapse (WillDraw done; LandPlayed/Discarded →
+    //   pairs with the action-driven zone-change collapse (WillDraw+LandPlayed done; Discarded →
     // ZoneWillChange still to come).
     #[expect(clippy::too_many_lines)]
     fn apply(&mut self, event: GameEvent) -> GameEvent {
@@ -148,16 +148,22 @@ impl GameState {
                 self.player_mut(player).drew_from_empty = true;
                 event
             }
-            // TODO(stage-4): convert to ZoneWillChange/ZoneChanged (action-driven zone collapse,
-            //   spec §5.6); this in-place Hand→Battlefield move is not reminted and bypasses the
-            //   replace/trigger stages.
             GameEvent::LandPlayed { object } => {
+                // [CR#305]: playing a land is an unreplaceable special action;
+                // its only side effect (the land-drop tally) stays with the
+                // cause (§5.5), then it evolves into the generic Hand→Battlefield
+                // move — remint + LKI + AsEnters (a tapland enters tapped).
                 let owner = self.owner_of(object);
-                self.remove_from_hand(owner, object);
-                self.objects.obj_mut(object).zone = Some(Zone::Battlefield);
-                self.zones.battlefield.push(object);
                 self.player_mut(owner).this_turn.bump(Tally::LandsPlayed);
-                event
+                self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+                    GameEvent::ZoneWillChange {
+                        object,
+                        from: Some(Zone::Hand),
+                        to: Zone::Battlefield,
+                        enters: None,
+                    },
+                ))]);
+                GameEvent::LandPlayed { object }
             }
             GameEvent::Tapped(id) => {
                 self.objects.obj_mut(id).tapped = true;
