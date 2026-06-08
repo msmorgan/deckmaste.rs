@@ -32,8 +32,8 @@ predicate vocabulary in all of these positions:
 
 - **targeting** — "target creature you control" (CR 115.1);
 - **protection from [quality]** — CR 702.16a: a color, a card type, a
-  subtype, a supertype, a card name, a player, "everything", or "any
-  characteristic value or information";
+  subtype, a supertype, a card name, or "any characteristic value or
+  information";
 - **evasion** — "can't be blocked except by creatures with flying and/or
   reach" (CR 702.9b): a predicate over would-be blockers;
 - **hexproof from [quality]**, **affinity for [quality]**, **landwalk
@@ -189,9 +189,9 @@ participants + the bindings it exports. The anatomy from CR 603:
 |---|---|
 | zone changes | enters (35.7%), dies (8.2%), leaves the battlefield (2.2%), put into a graveyard from … (1.2%), exiled, shuffled in; "dies" = battlefield→graveyard (CR 700.4) |
 | time | beginning of upkeep (7.9%), end step (4.9%), beginning of combat (1.8%), draw step, precombat main, end of combat (CR 5xx turn-based structure) |
-| combat | attacks (10.5%), blocks (1.5%), becomes blocked, deals combat damage to a player (4.4%), deals damage (10.7%), attacks alone, isn't blocked (CR 508.3, 509.3) |
+| combat | attacks (10.5%), blocks (1.5%), becomes blocked (509.3c), deals combat damage to a player (4.4%), deals damage (10.7%), attacks alone (506.5), isn't blocked (509.1h) |
 | player actions | you cast a spell (6.1%), draws (9.5%), discards (4.3%), sacrifices (6.9%), gains life (1.2%), loses life, plays a land (landfall — 166 ability-word lines), taps a land for mana, searches, mills, scries |
-| object state | becomes tapped, becomes the target (0.7%), is turned face up, transforms, becomes paired/crewed (CR 702.122d), counters put on / "Nth counter put on" (CR 122.7), unlocked / fully unlocked (CR 709.5h–i) |
+| object state | becomes tapped, becomes the target (0.7%), is turned face up, transforms, becomes paired (CR 702.95b) / crewed (CR 702.122d), counters put on / "Nth counter put on" (CR 122.7), unlocked / fully unlocked (CR 709.5h–i) |
 | game state / designations | becomes monstrous/renowned, day becomes night (CR 731.1a), becomes the monarch / takes the initiative (CR 725.2, 726.2), you get the city's blessing, completes a dungeon |
 | meta | "for the first time each turn", "if it's the Nth time this ability has resolved this turn" (CR 603.7h) |
 
@@ -213,7 +213,7 @@ A `Cost` is a *vector of components* (CR 601.2f computes a "total cost"):
 
 | Component | Corpus (of 9,522 activated lines) | Cites |
 |---|---|---|
-| mana (incl. X, hybrid, Phyrexian, snow) | mana-only costs 4,642 | CR 118.3a, 107.3, 118.13 |
+| mana (incl. X, hybrid, Phyrexian, snow) | mana-only costs 4,642 | CR 118.3a, 107.3, 118.13, 107.4h |
 | {T} / {Q} | 5,122 / 18 | CR 602.5a (summoning sickness) |
 | sacrifice [filter] | 1,743 | |
 | discard [spec] | 364 | |
@@ -431,7 +431,7 @@ The Ends column lists only expirations *earlier* than object identity.
 | renowned | 702.112b | marker only | flag | renown N | leaves |
 | harnessed | 701.64b | marker only | flag | harness | leaves |
 | solved | 719.3b | gates "Solved —" abilities (719.3c) | flag | Case-solving checks | leaves |
-| suspected | 701.60b | has menace, can't block (701.60a) | flag | suspect | leaves, or "no longer suspected" |
+| suspected | 701.60b | has menace, can't block (701.60c) | flag | suspect | leaves, or "no longer suspected" |
 | goaded | 701.15b | attack requirements | flag **per goading player** (701.15d: can be goaded by multiple players) | goad | the goading effect's duration (default "until your next turn") |
 | saddled | 702.171b | marker only | flag | saddle N | **end of turn** or leaves (unique: self-expires) |
 | prepared | 722.3a–c | copy-in-exile becomes castable | flag | "becomes prepared" / enters prepared | "unprepared" effects; lost when the copy is cast |
@@ -628,7 +628,7 @@ What the current `Ability` enum grows into, slot-wise (CR 113.3):
 | Activated | cost: Cost, effect: Effect, restrictions: [ActivationRestriction], flags: mana-ability (605.1a), loyalty (606) |
 | Triggered | event: Event, condition: Option<Condition> (intervening if), effect: Effect, limits (once-each-turn), flags: mana-ability (605.1b), delayed?, reflexive? |
 | Static | continuous: [ContinuousEffect] \| Replacement \| Prevention \| CastModifier \| Requirement, condition: Option<Condition>, flags: CDA (604.3), functions-in-zones (113.6 exceptions) |
-| Keyword | already modeled: name + expansion (`Expanded<Ability>`) — the macro layer |
+| Keyword | already modeled: name + expansion (`Expanded<Ability>`) — the macro layer (keyword abilities are shorthand, CR 702.1, not a fifth 113.3 category) |
 
 Cross-cutting flags the CR forces: where the ability functions (113.6a–p:
 graveyard-only like unearth, hand-only like cycling, stack, command,
