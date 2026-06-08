@@ -6,4 +6,5 @@ pub mod cite;
 pub mod extract;
 pub mod graduate;
 pub mod migrate;
+pub mod resolve;
 pub mod validate;
