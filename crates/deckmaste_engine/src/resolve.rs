@@ -291,7 +291,7 @@ impl GameState {
     /// # Panics
     ///
     /// Panics on `TargetSpec` variants other than `Target` or `Expanded` —
-    /// only `Target(filter)` is wired for Stage 2.
+    /// only single-target `Target(_, _)` is wired (multi-target is Stage 4).
     #[must_use]
     pub(crate) fn targets_still_legal(&self, entry: &StackEntry) -> bool {
         let spell = entry.object.object();
@@ -355,7 +355,8 @@ fn occurrence_of(mut events: Vec<GameEvent>) -> crate::event::Occurrence {
 }
 
 /// Extracts the `Filter` from a `TargetSpec`. Stage 3 only handles
-/// `TargetSpec::Target(filter)` (and `Expanded` wrappers around it).
+/// `TargetSpec::Target(Exactly(Literal(1)), filter)` (and `Expanded` wrappers
+/// around it).
 ///
 /// This is the single authoritative site for TargetSpec→Filter extraction;
 /// both `cast::legal_targets` (announce time) and `targets_still_legal`
@@ -363,12 +364,15 @@ fn occurrence_of(mut events: Vec<GameEvent>) -> crate::event::Occurrence {
 ///
 /// # Panics
 ///
-/// Panics on `TargetSpec` variants not wired for Stage 3.
+/// Panics on `TargetSpec` quantities not wired for Stage 3.
 pub(crate) fn target_spec_filter(spec: &TargetSpec) -> &deckmaste_core::Filter {
     match spec {
-        TargetSpec::Target(f) => f,
+        TargetSpec::Target(_quantity, f) => {
+            // TODO(stage-4): enforce quantity; for now, Stage 3 only exercises
+            // single targets and callers expect exactly one target slot.
+            f
+        }
         TargetSpec::Expanded(e) => target_spec_filter(&e.value),
-        other => todo!("stage 3 does not handle target spec {other:?}"),
     }
 }
 

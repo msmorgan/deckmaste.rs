@@ -3,7 +3,7 @@
     name: "AnyTarget",
     template: "any target",
     kinds: [TargetSpec],
-    body: Target(OneOf([
+    body: Target(Exactly(Literal(1)), OneOf([
         Battle,
         Creature,
         Planeswalker,
