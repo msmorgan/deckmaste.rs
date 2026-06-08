@@ -7,12 +7,37 @@ use std::path::Path;
 
 use deckmaste_core::plugin::is_ron_todo_file;
 
-use crate::todo_card::{TodoAbility, TodoCard, TodoCardFace, render};
+use crate::todo_card::{RawIdent, TodoAbility, TodoCard, TodoCardFace, render};
+
+/// The coarse card category a parser needs to decide framing: a `Spell` card
+/// is an instant or sorcery (its effect text is a `Spell` ability); everything
+/// else is a `Permanent` (effect text lives inside triggered/activated/static
+/// frames). Computed once per face and handed to every parser.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CardKind {
+    Spell,
+    Permanent,
+}
+
+impl CardKind {
+    /// Classifies a face by its raw type line.
+    #[must_use]
+    pub fn of(types: &[RawIdent]) -> Self {
+        if types
+            .iter()
+            .any(|t| matches!(t.0.as_str(), "Instant" | "Sorcery"))
+        {
+            CardKind::Spell
+        } else {
+            CardKind::Permanent
+        }
+    }
+}
 
 /// One ability parser: a normalized oracle line -> the bare RON of one ability
 /// (`Flying`, `Activated(cost: [Tap], effect: AddMana(1, Green))`), or `None`
 /// to decline.
-pub type AbilityParser = fn(&str) -> anyhow::Result<Option<String>>;
+pub type AbilityParser = fn(&str, CardKind) -> anyhow::Result<Option<String>>;
 
 /// The registry, in priority order. First match wins.
 pub const REGISTRY: &[AbilityParser] = &[
@@ -23,13 +48,14 @@ pub const REGISTRY: &[AbilityParser] = &[
 /// Replaces every `Unparsed` line a parser in `registry` can structure with the
 /// `Parsed` RON. Returns whether anything changed.
 fn resolve_face(face: &mut TodoCardFace, registry: &[AbilityParser]) -> anyhow::Result<bool> {
+    let kind = CardKind::of(&face.types);
     let mut changed = false;
     for ability in &mut face.abilities {
         let TodoAbility::Unparsed(line) = ability else {
             continue;
         };
         for parser in registry {
-            if let Some(ron) = parser(line)? {
+            if let Some(ron) = parser(line, kind)? {
                 *ability = TodoAbility::Parsed(ron);
                 changed = true;
                 break;
@@ -93,11 +119,10 @@ pub fn resolve_cards(plugin_dir: &Path) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::todo_card::RawIdent;
 
     /// A registry that structures the line "Flying" only.
     #[allow(clippy::unnecessary_wraps)]
-    fn flying_only(line: &str) -> anyhow::Result<Option<String>> {
+    fn flying_only(line: &str, _kind: CardKind) -> anyhow::Result<Option<String>> {
         Ok((line == "Flying").then(|| "Flying".to_owned()))
     }
 
@@ -127,6 +152,21 @@ mod tests {
         assert!(matches!(&face.abilities[1], TodoAbility::Unparsed(_))); // unchanged
         // Idempotent: a second pass changes nothing.
         assert!(!resolve_card_with(&mut card, &[flying_only]).unwrap());
+    }
+
+    #[test]
+    fn card_kind_classifies_by_type() {
+        let ident = |s: &str| RawIdent(s.to_owned());
+        assert_eq!(CardKind::of(&[ident("Instant")]), CardKind::Spell);
+        assert_eq!(CardKind::of(&[ident("Sorcery")]), CardKind::Spell);
+        assert_eq!(CardKind::of(&[ident("Creature")]), CardKind::Permanent);
+        // Multi-type artifact-creature is a permanent; no Instant/Sorcery.
+        assert_eq!(
+            CardKind::of(&[ident("Artifact"), ident("Creature")]),
+            CardKind::Permanent
+        );
+        // No type line at all defaults to permanent framing.
+        assert_eq!(CardKind::of(&[]), CardKind::Permanent);
     }
 
     #[test]
