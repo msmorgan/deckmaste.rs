@@ -77,26 +77,33 @@ pub fn is_todo_source(source: &str) -> bool {
         .any(|line| line.trim_start().starts_with("Todo("))
 }
 
-/// Maps Windows-unsafe filename characters to their fullwidth equivalents,
-/// e.g. "Fire // Ice" -> "Fire ／／ Ice". Card files are written and looked
-/// up through this one mapping, which also keeps separators in a card's name
-/// from escaping `cards/`.
+/// Maps Windows-unsafe filename characters to bracketed ASCII placeholders,
+/// e.g. "Fire // Ice" -> "Fire {slash}{slash} Ice". Card files are written and
+/// looked up through this one mapping, which also keeps separators in a card's
+/// name from escaping `cards/`.
+///
+/// The tokens are ASCII, not fullwidth lookalikes (`／：？`…), so the names
+/// survive Unicode compatibility normalization: NFKC folds `／` back into `/`,
+/// which would reopen that escape. `{` never occurs in a card name, so the
+/// encoding stays collision-free.
 #[must_use]
 pub fn card_filename(name: &str) -> String {
-    name.chars()
-        .map(|c| match c {
-            '<' => '＜',
-            '>' => '＞',
-            ':' => '：',
-            '"' => '＂',
-            '/' => '／',
-            '\\' => '＼',
-            '|' => '｜',
-            '?' => '？',
-            '*' => '＊',
-            c => c,
-        })
-        .collect()
+    let mut out = String::with_capacity(name.len());
+    for c in name.chars() {
+        match c {
+            '<' => out.push_str("{less}"),
+            '>' => out.push_str("{greater}"),
+            ':' => out.push_str("{colon}"),
+            '"' => out.push_str("{quote}"),
+            '/' => out.push_str("{slash}"),
+            '\\' => out.push_str("{backslash}"),
+            '|' => out.push_str("{pipe}"),
+            '?' => out.push_str("{question}"),
+            '*' => out.push_str("{star}"),
+            _ => out.push(c),
+        }
+    }
+    out
 }
 
 #[cfg(test)]
@@ -105,8 +112,12 @@ mod tests {
 
     #[test]
     fn filenames() {
-        assert_eq!(card_filename("Fire // Ice"), "Fire ／／ Ice");
-        assert_eq!(card_filename("Question?"), "Question？");
+        assert_eq!(card_filename("Fire // Ice"), "Fire {slash}{slash} Ice");
+        assert_eq!(card_filename("Question?"), "Question{question}");
+        assert_eq!(
+            card_filename("Summon: Esper Ramuh"),
+            "Summon{colon} Esper Ramuh"
+        );
         assert_eq!(card_filename("Lightning Bolt"), "Lightning Bolt");
     }
 
@@ -114,7 +125,10 @@ mod tests {
     fn todo_filenames() {
         assert_eq!(todo_file("Flying"), "Flying.todo.ron");
         // Card todos carry the same name sanitization as finished cards.
-        assert_eq!(card_todo_file("Fire // Ice"), "Fire ／／ Ice.todo.ron");
+        assert_eq!(
+            card_todo_file("Fire // Ice"),
+            "Fire {slash}{slash} Ice.todo.ron"
+        );
         assert_eq!(card_todo_file("Lightning Bolt"), "Lightning Bolt.todo.ron");
     }
 
@@ -134,8 +148,8 @@ mod tests {
             Some("Plains.ron")
         );
         assert_eq!(
-            final_for_todo("Fire ／／ Ice.todo.ron").as_deref(),
-            Some("Fire ／／ Ice.ron")
+            final_for_todo("Fire {slash}{slash} Ice.todo.ron").as_deref(),
+            Some("Fire {slash}{slash} Ice.ron")
         );
         // Not a stub name: nothing to graduate.
         assert_eq!(final_for_todo("Plains.ron"), None);
