@@ -37,6 +37,10 @@ impl<'de> Deserialize<'de> for TodoAbility {
         let ron_text = raw.get_ron(); // the verbatim RON of this slot
         match crate::ron_output::ron_options().from_str::<UnparsedProbe>(ron_text) {
             Ok(UnparsedProbe::Unparsed(text)) => Ok(TodoAbility::Unparsed(text)),
+            // Any non-`Unparsed` slot is a structured ability: the probe failure
+            // means "not that variant", not "invalid RON". A genuinely malformed
+            // slot will also land here; `serialize` will catch it when it calls
+            // `RawValue::from_ron` on the stored string.
             Err(_) => Ok(TodoAbility::Parsed(ron_text.trim().to_owned())),
         }
     }
@@ -59,7 +63,7 @@ impl Serialize for TodoAbility {
 /// A face whose abilities are `TodoAbility`. Field set mirrors
 /// `deckmaste_core::CardFace`; the skip/default attrs match it so a fully
 /// resolved face is byte-identical to a core `CardFace`.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct TodoCardFace {
     pub name: String,
     #[serde(
@@ -172,6 +176,30 @@ mod tests {
         // single `mana_cost`, the multi-line `Spell`, and the macro sugar all
         // survive the read/render round-trip unchanged.
         assert_eq!(render(&card).unwrap(), source);
+    }
+
+    #[test]
+    fn modal_dfc_round_trips() {
+        // Exercises the ModalDfc variant with one Unparsed and one structured
+        // (Parsed) ability on different faces. `Flying` is a bare keyword whose
+        // verbatim RawValue round-trips without indentation concerns.
+        // Note: ron serialises ModalDfc tuple fields inline — `ModalDfc((<face1>),
+        // (<face2>))`.
+        let source = r#"ModalDfc((
+    name: "Front",
+    types: [Instant],
+    abilities: [
+        Unparsed("Draw a card."),
+    ],
+), (
+    name: "Back",
+    types: [Sorcery],
+    abilities: [
+        Flying,
+    ],
+))
+"#;
+        assert_eq!(render(&read(source)).unwrap(), source);
     }
 
     /// Round-trip: read then render reproduces the source (house style).
