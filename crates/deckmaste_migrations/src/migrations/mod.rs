@@ -15,6 +15,7 @@ mod _006_vanilla_creatures;
 mod _007_simple_lands;
 mod _008_french_vanilla_creatures;
 mod _009_simple_mana_rocks;
+mod _010_simple_mana_dorks;
 mod card_todo;
 mod creature_face;
 mod keyword_ability;
