@@ -3,7 +3,9 @@
 
 use std::ffi::{OsStr, OsString};
 
-const SUBCOMMANDS: &str = "validate | migrate | card";
+use xtask::cite;
+
+const SUBCOMMANDS: &str = "validate | migrate | card | cite";
 
 fn main() -> anyhow::Result<()> {
     let mut args = std::env::args_os();
@@ -17,6 +19,7 @@ fn main() -> anyhow::Result<()> {
         Some("validate") => deckmaste_cards::cli::validate(prog("validate").chain(args)),
         Some("card") => deckmaste_cards::cli::card(prog("card").chain(args)),
         Some("migrate") => deckmaste_migrations::cli::run(prog("migrate").chain(args)),
+        Some("cite") => cite::run(args),
         Some(other) => anyhow::bail!("unknown subcommand {other:?}; expected {SUBCOMMANDS}"),
         // A subcommand that isn't UTF-8 is unknown, not missing.
         None if subcommand.is_some() => {
