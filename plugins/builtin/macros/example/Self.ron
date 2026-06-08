@@ -2,6 +2,6 @@
 (
     name: "Self",
     kinds: [Subtype, Filter],
-    params: [String],
+    params: [Any],
     body: Param(0),
 )

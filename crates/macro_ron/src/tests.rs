@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Expansion, ExpansionArgs, Ident, InsertError, Kind, KindSet, MacroDef, MacroSet, ParamType,
-    Params,
+    ParamTypeSet, Params,
 };
 
 /// The deckmaste dialect, for parity with the real consumer: the intercept
@@ -209,7 +209,10 @@ fn definition_files_are_self_describing() {
     let def = land_type();
     assert_eq!(def.name, "LandType");
     assert_eq!(def.kinds, ["Subtype"]);
-    assert_eq!(def.params, Params::Positional(vec![ParamType::String]));
+    assert_eq!(
+        def.params,
+        Params::Positional(vec![ParamType("String".into())])
+    );
     assert!(def.body().starts_with("Subtype("), "{}", def.body());
 }
 
@@ -360,7 +363,7 @@ fn macros_are_namespaced_by_kind() {
         .insert(&MacroDef {
             name: "Self".into(),
             kinds: vec!["Subtype".into(), "Filter".into()],
-            params: Params::Positional(vec![ParamType::String]),
+            params: Params::Positional(vec![ParamType("Any".into())]),
             body: "Param(0)".into(),
         })
         .unwrap();
@@ -505,7 +508,7 @@ fn remembered_invocations_round_trip_as_invocations() {
         .insert(&MacroDef {
             name: "OfType".into(),
             kinds: vec!["Filter".into()],
-            params: Params::Positional(vec![ParamType::String]),
+            params: Params::Positional(vec![ParamType("Any".into())]),
             body: "Type(Param(0))".into(),
         })
         .unwrap();
@@ -526,7 +529,7 @@ fn argument_source_survives_verbatim() {
         .insert(&MacroDef {
             name: "NamedAs".into(),
             kinds: vec!["Filter".into()],
-            params: Params::Positional(vec![ParamType::String]),
+            params: Params::Positional(vec![ParamType("String".into())]),
             body: "Named(Param(0))".into(),
         })
         .unwrap();
@@ -551,7 +554,7 @@ fn params_resolve_at_enum_positions() {
     macros
         .insert(&subtype_macro(
             "WithType",
-            vec![ParamType::String],
+            vec![ParamType("Any".into())],
             r#"Subtype(name: "Forest", types: [Param(0)])"#,
         ))
         .unwrap();
@@ -565,7 +568,7 @@ fn params_resolve_per_argument() {
     macros
         .insert(&subtype_macro(
             "Pair",
-            vec![ParamType::String, ParamType::String],
+            vec![ParamType("String".into()), ParamType("Any".into())],
             "Subtype(name: Param(0), types: [Param(1)])",
         ))
         .unwrap();
@@ -582,8 +585,8 @@ fn named_parameters_invoke_struct_shaped() {
             kinds: vec!["CardFace".into()],
             params: Params::Named(
                 [
-                    ("name".into(), ParamType::String),
-                    ("cost".into(), ParamType::String),
+                    ("name".into(), ParamType("String".into())),
+                    ("cost".into(), ParamType("Any".into())),
                 ]
                 .into(),
             ),
@@ -624,7 +627,7 @@ fn named_parameters_at_enum_positions() {
         .insert(&MacroDef {
             name: "Boast".into(),
             kinds: vec!["Ability".into()],
-            params: Params::Named([("cost".into(), ParamType::String)].into()),
+            params: Params::Named([("cost".into(), ParamType("String".into()))].into()),
             body: "Static(effects: [CantAttack])".into(),
         })
         .unwrap();
@@ -662,7 +665,7 @@ fn out_of_range_params_are_an_error() {
     macros
         .insert(&subtype_macro(
             "OffByOne",
-            vec![ParamType::String],
+            vec![ParamType("String".into())],
             "Subtype(name: Param(1), types: [Land])",
         ))
         .unwrap();
@@ -694,7 +697,7 @@ fn params_resolve_as_enum_variant_contents() {
         .insert(&MacroDef {
             name: "Vanilla".into(),
             kinds: vec!["CardFace".into()],
-            params: Params::Positional(vec![ParamType::String, ParamType::String]),
+            params: Params::Positional(vec![ParamType("String".into()), ParamType("Any".into())]),
             body: r"CardFace(
                 name: Param(0),
                 mana_cost: [Hybrid(Generic(Param(1)), White), Green],
@@ -823,6 +826,29 @@ fn newtype_variant_struct_content_in_a_body() {
     assert_eq!(*expanded.value, Filter::Power(PowerFilter { min: 2 }));
 }
 
+#[test]
+fn unknown_param_types_are_an_error() {
+    let mut macros = empty();
+    let error = macros
+        .insert(&subtype_macro(
+            "Bogus",
+            vec![ParamType("Sorcery".into())],
+            "Subtype(name: Param(0), types: [Land])",
+        ))
+        .unwrap_err();
+    assert_eq!(
+        error,
+        InsertError::UnknownParamType {
+            type_name: "Sorcery".into(),
+            name: "Bogus".into(),
+        }
+    );
+    assert!(
+        error.to_string().contains("param type"),
+        "unexpected error: {error}"
+    );
+}
+
 /// A `Param` hole at a Quantity position resolves to the argument and then
 /// re-reads at that position — so a bare-numeral argument hits the
 /// digit-sugar path: `DealDamage(Target(0), Param(0))` invoked with `3`.
@@ -833,7 +859,7 @@ fn param_holes_resolve_at_quantity_positions() {
         .insert(&MacroDef {
             name: "BoltFor".into(),
             kinds: vec!["Effect".into()],
-            params: Params::Positional(vec![ParamType::String]),
+            params: Params::Positional(vec![ParamType("Any".into())]),
             body: "DealDamage(Target(0), Param(0))".into(),
         })
         .unwrap();
@@ -845,5 +871,81 @@ fn param_holes_resolve_at_quantity_positions() {
     assert_eq!(
         *expanded.value,
         Effect::DealDamage(Selection::Target(0), Quantity::Literal(3)),
+    );
+}
+
+#[test]
+fn arg_type_mismatch_is_an_error() {
+    // A `String` param rejects a bare (unquoted) argument at the call site,
+    // naming the macro and the type — the type is enforced, not just counted.
+    let mut macros = macros();
+    macros
+        .insert(&subtype_macro(
+            "Named",
+            vec![ParamType("String".into())],
+            "Subtype(name: Param(0), types: [Land])",
+        ))
+        .unwrap();
+    // Quoted: accepted, expands normally.
+    let ok: Subtype = macros.read_str(r#"Named("Forest")"#).unwrap();
+    assert_eq!(ok, forest());
+    // Bare: rejected before expansion, with a message naming macro and type.
+    let error = macros.read_str::<Subtype>("Named(Forest)").unwrap_err();
+    let msg = error.to_string();
+    assert!(
+        msg.contains("Named") && msg.contains("String"),
+        "unexpected error: {msg}"
+    );
+}
+
+#[test]
+fn any_accepts_every_shape() {
+    let mut macros = empty();
+    macros
+        .insert(&MacroDef {
+            name: "Echo".into(),
+            kinds: vec!["Filter".into()],
+            params: Params::Positional(vec![ParamType("Any".into())]),
+            body: "Param(0)".into(),
+        })
+        .unwrap();
+    // A bare variant, a compound value, and a nested macro-free value all pass.
+    for call in ["Echo(Any)", "Echo(Type(Land))", "Echo(OneOf([Any]))"] {
+        assert!(
+            macros.read_str::<Filter>(call).is_ok(),
+            "{call} should expand"
+        );
+    }
+}
+
+#[test]
+fn injected_param_types_validate() {
+    // The embedder's path: register a domain validator, then it enforces.
+    let mut param_types = ParamTypeSet::default();
+    param_types.add("Number", |src, macros| {
+        macros
+            .read_str::<u32>(src)
+            .map(drop)
+            .map_err(|e| e.to_string())
+    });
+    let mut macros = MacroSet::new(kinds())
+        .with_options(options())
+        .with_param_types(param_types);
+    macros
+        .insert(&MacroDef {
+            name: "Repeat".into(),
+            kinds: vec!["Effect".into()],
+            params: Params::Positional(vec![ParamType("Number".into())]),
+            body: "DrawCards(Param(0))".into(),
+        })
+        .unwrap();
+    // A number is accepted.
+    assert!(macros.read_str::<Effect>("Repeat(2)").is_ok());
+    // A non-number is rejected at the call site, naming macro and type.
+    let error = macros.read_str::<Effect>("Repeat(Creature)").unwrap_err();
+    let msg = error.to_string();
+    assert!(
+        msg.contains("Repeat") && msg.contains("Number"),
+        "unexpected error: {msg}"
     );
 }

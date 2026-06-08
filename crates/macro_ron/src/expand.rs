@@ -43,6 +43,7 @@ use serde::de::{
     VariantAccess, Visitor,
 };
 
+use crate::param::ParamType;
 use crate::set::{MacroDef, MacroSet, Params};
 use crate::{Ident, IdentSeed};
 
@@ -293,7 +294,7 @@ impl<'de> Visitor<'de> for Probe<'_, 'de> {
         let Some(def) = self.position.and_then(|kind| self.macros.get(kind, &ident)) else {
             return Ok(None);
         };
-        let args = read_args(variant, &def.params)?;
+        let args = read_args(ident, variant, &def.params, self.macros)?;
         Ok(Some(Invocation::Macro {
             name: ident,
             def,
@@ -712,12 +713,41 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
     fn is_human_readable(&self) -> bool { self.de.is_human_readable() }
 }
 
+/// Checks one captured argument against its declared param type, naming the
+/// macro and the argument's position in any error. The validator reads the
+/// argument as its type with macros in scope, so the check is the real
+/// grammar — a bad `Color`, say, fails exactly as it would at a real position.
+fn validate_arg(
+    macro_name: Ident,
+    position: impl fmt::Display,
+    ty: &ParamType,
+    arg: &str,
+    macros: &MacroSet,
+) -> Result<(), String> {
+    let Some(validator) = macros.param_validator(&ty.0) else {
+        // Unreachable for an inserted macro (param types are checked at
+        // insert), but don't panic on a hand-built `MacroDef`.
+        return Err(format!(
+            "macro `{macro_name}` declares unregistered param type `{}`",
+            ty.0
+        ));
+    };
+    validator(arg.trim(), macros).map_err(|reason| {
+        format!(
+            "macro `{macro_name}` argument {position} ({}): {reason}",
+            ty.0
+        )
+    })
+}
+
 /// Reads the arguments the definition's signature says to expect: its shape
 /// decides between the positional call grammar (unit, newtype, or tuple by
 /// arity) and the named, struct-shaped one.
 fn read_args<'de, A: VariantAccess<'de>>(
+    name: Ident,
     variant: A,
     params: &Params,
+    macros: &MacroSet,
 ) -> Result<FrameArgs<'de>, A::Error> {
     use serde::de::Error;
 
@@ -773,6 +803,9 @@ fn read_args<'de, A: VariantAccess<'de>>(
                     args.len(),
                 )));
             }
+            for (i, ty) in types.iter().enumerate() {
+                validate_arg(name, i + 1, ty, args[i], macros).map_err(A::Error::custom)?;
+            }
             Ok(FrameArgs::Positional(args))
         }
         Params::Named(signature) => {
@@ -796,6 +829,12 @@ fn read_args<'de, A: VariantAccess<'de>>(
             missing.sort_unstable_by_key(|key| key.as_str());
             if let Some(key) = missing.first() {
                 return Err(A::Error::custom(format_args!("missing argument `{key}`")));
+            }
+            for (key, arg) in &args {
+                let ty = signature
+                    .get(key)
+                    .expect("argument keys were checked against the signature above");
+                validate_arg(name, *key, ty, arg, macros).map_err(A::Error::custom)?;
             }
             Ok(FrameArgs::Named(args))
         }
@@ -840,7 +879,7 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
                 self.name,
             ))
         })?;
-        let args = read_args(variant, &def.params)?;
+        let args = read_args(ident, variant, &def.params, self.ctx.read.macros)?;
         let frame = Frame { name: ident, args };
         let ctx = self.ctx.expansion(&frame).map_err(A::Error::custom)?;
 

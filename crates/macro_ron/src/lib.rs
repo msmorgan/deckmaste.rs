@@ -14,6 +14,7 @@ mod expand;
 mod expansion;
 mod ident;
 mod kind;
+mod param;
 mod set;
 #[cfg(test)]
 mod tests;
@@ -21,4 +22,5 @@ mod tests;
 pub use expansion::{Expansion, ExpansionArgs};
 pub use ident::{Ident, IdentSeed};
 pub use kind::{Kind, KindSet};
-pub use set::{InsertError, MacroDef, MacroSet, ParamType, Params};
+pub use param::{ParamType, ParamTypeSet, Validator};
+pub use set::{InsertError, MacroDef, MacroSet, Params};

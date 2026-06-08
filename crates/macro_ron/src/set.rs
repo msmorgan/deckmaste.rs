@@ -36,14 +36,8 @@ use serde::de::{
 };
 
 use crate::kind::KindSet;
+use crate::param::{ParamType, ParamTypeSet};
 use crate::{Ident, IdentSeed};
-
-/// The declared type of one macro parameter. Only the signature's shape and
-/// arity are checked today.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-pub enum ParamType {
-    String,
-}
 
 /// A macro's parameter signature, whose shape decides the invocation
 /// grammar: positional (`M(a, b)`, holes `Param(0)`) or named
@@ -51,8 +45,6 @@ pub enum ParamType {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Params {
     Positional(Vec<ParamType>),
-    // ParamType currently has one variant, hence zero-sized; more are coming.
-    #[expect(clippy::zero_sized_map_values)]
     Named(HashMap<Ident, ParamType>),
 }
 
@@ -174,6 +166,8 @@ pub enum InsertError {
     Duplicate { kind: Ident, name: Ident },
     /// A definition named a kind no [`Kind`](crate::Kind) was registered for.
     UnknownKind { kind: Ident, name: Ident },
+    /// A definition named a param type no validator was registered for.
+    UnknownParamType { type_name: Ident, name: Ident },
 }
 
 impl fmt::Display for InsertError {
@@ -184,6 +178,12 @@ impl fmt::Display for InsertError {
             }
             InsertError::UnknownKind { kind, name } => {
                 write!(f, "macro `{name}` declares unregistered kind `{kind}`")
+            }
+            InsertError::UnknownParamType { type_name, name } => {
+                write!(
+                    f,
+                    "macro `{name}` declares unregistered param type `{type_name}`"
+                )
             }
         }
     }
@@ -200,6 +200,7 @@ impl std::error::Error for InsertError {}
 pub struct MacroSet {
     kinds: KindSet,
     options: ron::Options,
+    param_types: ParamTypeSet,
     /// Macros namespaced by kind — a macro is only visible at positions of
     /// the types it expands to, so kinds can reuse names.
     macros: HashMap<Ident, HashMap<Ident, MacroDef>>,
@@ -213,6 +214,7 @@ impl MacroSet {
         MacroSet {
             kinds,
             options: ron::Options::default(),
+            param_types: ParamTypeSet::default(),
             macros: HashMap::new(),
         }
     }
@@ -222,6 +224,15 @@ impl MacroSet {
     #[must_use]
     pub fn with_options(mut self, options: ron::Options) -> Self {
         self.options = options;
+        self
+    }
+
+    /// Sets the param types in scope, with the validators that enforce them.
+    /// The default ([`ParamTypeSet::default`]) already provides `Any` and
+    /// `String`; embedders add domain types like `Color`.
+    #[must_use]
+    pub fn with_param_types(mut self, param_types: ParamTypeSet) -> Self {
+        self.param_types = param_types;
         self
     }
 
@@ -236,6 +247,11 @@ impl MacroSet {
     /// See [`Kind::literal_wrapper`](crate::Kind::literal_wrapper).
     pub(crate) fn literal_wrapper(&self, position: &str) -> Option<&'static str> {
         self.kinds.get(position)?.literal
+    }
+
+    /// The validator for the param type named `name`, if registered.
+    pub(crate) fn param_validator(&self, name: &str) -> Option<crate::param::Validator> {
+        self.param_types.get(name)
     }
 
     /// See [`Kind::remembers_expansion`](crate::Kind::remembers_expansion).
@@ -259,6 +275,23 @@ impl MacroSet {
         Ok(())
     }
 
+    fn check_param_types(&self, def: &MacroDef) -> Result<(), InsertError> {
+        let check = |type_name: Ident| {
+            if self.param_types.contains(&type_name) {
+                Ok(())
+            } else {
+                Err(InsertError::UnknownParamType {
+                    type_name,
+                    name: def.name,
+                })
+            }
+        };
+        match &def.params {
+            Params::Positional(types) => types.iter().try_for_each(|t| check(t.0)),
+            Params::Named(types) => types.values().try_for_each(|t| check(t.0)),
+        }
+    }
+
     /// Registers `def` under each of its kinds.
     ///
     /// # Errors
@@ -267,6 +300,7 @@ impl MacroSet {
     /// self-overwrite silently).
     pub fn insert(&mut self, def: &MacroDef) -> Result<(), InsertError> {
         self.check_kinds(def)?;
+        self.check_param_types(def)?;
         for (i, &kind) in def.kinds.iter().enumerate() {
             let duplicate = def.kinds[..i].contains(&kind)
                 || self
@@ -318,6 +352,7 @@ impl MacroSet {
     /// If any of `def`'s kinds is unregistered.
     pub fn replace(&mut self, def: &MacroDef) -> Result<(), InsertError> {
         self.check_kinds(def)?;
+        self.check_param_types(def)?;
         for &kind in &def.kinds {
             self.macros
                 .entry(kind)

@@ -5,7 +5,7 @@
 //! expected — see [`crate::plugin`] for loading and the `macro_ron` crate
 //! docs for the language itself.
 
-pub use macro_ron::{InsertError, MacroDef, MacroSet, ParamType, Params};
+pub use macro_ron::{InsertError, MacroDef, MacroSet, ParamType, ParamTypeSet, Params};
 use macro_ron::{Kind, KindSet};
 
 /// The kinds that remember their expansions: their Rust types bear
@@ -49,11 +49,29 @@ pub fn kinds() -> KindSet {
     kinds
 }
 
+/// The param types in scope for deckmaste plugins: the domain-neutral
+/// built-ins (`Any`, `String`) plus deckmaste's `Color`. A validator reads
+/// the argument as its Rust type with macros in scope, so the check and the
+/// real grammar are one path.
+#[must_use]
+pub fn param_types() -> ParamTypeSet {
+    let mut param_types = ParamTypeSet::default();
+    param_types.add("Color", |src, macros| {
+        macros
+            .read_str::<deckmaste_core::Color>(src)
+            .map(drop)
+            .map_err(|e| e.to_string())
+    });
+    param_types
+}
+
 /// An empty [`MacroSet`] over the card kinds, reading deckmaste's RON
 /// dialect.
 #[must_use]
 pub fn macro_set() -> MacroSet {
-    MacroSet::new(kinds()).with_options(deckmaste_core::ron::options())
+    MacroSet::new(kinds())
+        .with_options(deckmaste_core::ron::options())
+        .with_param_types(param_types())
 }
 
 #[cfg(test)]
@@ -250,7 +268,7 @@ mod tests {
             .insert(&def(r#"(
                     name: "OfType",
                     kinds: [Filter],
-                    params: [String],
+                    params: [Any],
                     body: Type(Param(0)),
                 )"#))
             .unwrap();
@@ -277,5 +295,78 @@ mod tests {
         assert_eq!(quantity, Quantity::Literal(3));
         let quantity: Quantity = macro_set().read_str("X").unwrap();
         assert_eq!(quantity, Quantity::X);
+    }
+
+    /// `Color` is a registered param type, so a definition may declare it.
+    #[test]
+    fn color_is_a_registered_param_type() {
+        let mut macros = macro_set();
+        macros
+            .insert(&def(r#"(
+                    name: "TapsForColor",
+                    kinds: [Subtype],
+                    params: [Color],
+                    body: Subtype(name: Param(0), types: [Land]),
+                )"#))
+            .expect("a Color param type should be registered");
+    }
+
+    /// A `Color` param rejects a non-color at the call site, before the body
+    /// ever expands — the headline behavior. (Body simplified; the real
+    /// `confers` ability is exercised by the builtin validation test.)
+    #[test]
+    fn basic_land_type_rejects_non_color() {
+        let mut macros = macro_set();
+        macros
+            .insert(&def(r#"(
+                    name: "BasicLandType",
+                    kinds: [Subtype],
+                    params: [String, Color],
+                    body: Subtype(name: Param(0), types: [Land]),
+                )"#))
+            .unwrap();
+        let error = macros
+            .read_str::<Subtype>(r#"BasicLandType("Plains", Purple)"#)
+            .unwrap_err();
+        let msg = error.to_string();
+        assert!(
+            msg.contains("BasicLandType") && msg.contains("Color"),
+            "unexpected error: {msg}"
+        );
+    }
+
+    /// A real color is accepted and the name binds.
+    #[test]
+    fn basic_land_type_accepts_color() {
+        let mut macros = macro_set();
+        macros
+            .insert(&def(r#"(
+                    name: "BasicLandType",
+                    kinds: [Subtype],
+                    params: [String, Color],
+                    body: Subtype(name: Param(0), types: [Land]),
+                )"#))
+            .unwrap();
+        let subtype: deckmaste_core::Subtype = macros
+            .read_str(r#"BasicLandType("Plains", White)"#)
+            .unwrap();
+        assert_eq!(subtype.name, "Plains");
+    }
+
+    /// A quoted-string name at a `[String]` subtype macro still expands — the
+    /// seven unchanged subtype macros keep working.
+    #[test]
+    fn creature_type_still_expands() {
+        let mut macros = macro_set();
+        macros
+            .insert(&def(r#"(
+                    name: "CreatureType",
+                    kinds: [Subtype],
+                    params: [String],
+                    body: Subtype(name: Param(0), types: [Creature]),
+                )"#))
+            .unwrap();
+        let subtype: deckmaste_core::Subtype = macros.read_str(r#"CreatureType("Bear")"#).unwrap();
+        assert_eq!(subtype.name, "Bear");
     }
 }
