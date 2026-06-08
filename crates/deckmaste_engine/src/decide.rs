@@ -221,7 +221,13 @@ impl GameState {
 
     /// [CR#603.3b]: apply an `OrderTriggers` answer — validate `order` is a
     /// permutation of `0..triggers.len()`, reorder this player's noted
-    /// triggers, and resume placement.
+    /// triggers, and immediately place the FIRST one. Placement of subsequent
+    /// triggers is deferred to future `PlaceTriggers` barrier passes (one per
+    /// `step()`), each preceded by a `CheckSbas` re-sweep.
+    ///
+    /// Placing the first trigger here (instead of rescheduling `PlaceTriggers`
+    /// and letting it see `mine.len() > 1` again) avoids the `OrderTriggers`
+    /// re-surface loop.
     ///
     /// # Errors
     ///
@@ -240,12 +246,19 @@ impl GameState {
             });
         }
         // Reorder this player's noted triggers to the chosen order, leaving
-        // other players' notes untouched; placement then resumes.
+        // other players' notes untouched.
         let ordered: Vec<crate::trigger::NotedTrigger> =
             order.iter().map(|&i| triggers[i].clone()).collect();
         self.pending = None;
         self.reorder_pending_triggers(player, ordered);
-        self.schedule_front(vec![WorkItem::PlaceTriggers]);
+        // Immediately place the FIRST trigger in the ordered sequence so the
+        // next `PlaceTriggers` call sees one fewer trigger and does not
+        // re-surface `OrderTriggers`. Schedule CheckSbas + PlaceTriggers so
+        // subsequent triggers (and any new SBA state) are handled normally.
+        let noted = self.take_first_trigger_of(player);
+        let placed = self.place_one_trigger(noted);
+        self.schedule_front(vec![WorkItem::CheckSbas, WorkItem::PlaceTriggers]);
+        let _ = placed; // placement success is tracked by CheckSbas/PlaceTriggers
         Ok(())
     }
 
