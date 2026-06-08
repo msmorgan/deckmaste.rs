@@ -9,7 +9,7 @@ mod _000_keyword_ability_todos;
 mod _001_keyword_action_todos;
 mod _002_ability_word_todos;
 mod _003_subtypes;
-mod _004_card_todos;
+pub(crate) mod _004_card_todos;
 mod _005_basic_lands;
 mod _006_vanilla_creatures;
 mod _007_simple_lands;
@@ -83,7 +83,7 @@ pub fn apply(plugin_dir: &Path, migration_number: usize) -> anyhow::Result<()> {
 
 /// Converts a keyword ability name to a Rust identifier, e.g.
 /// "Cumulative upkeep" -> "`CumulativeUpkeep`", "Jump-start" -> "`JumpStart`".
-fn to_rust_ident(name: &str) -> String {
+pub(crate) fn to_rust_ident(name: &str) -> String {
     static SPLIT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[\s|-]+").unwrap());
 
     SPLIT
