@@ -98,6 +98,60 @@ fn range_with_missing_endpoint_is_gone_not_panic() {
 }
 
 #[test]
+fn show_rules_resolves_single_list_and_range() {
+    let rules = Rules::parse(FIXTURE).unwrap();
+    assert_eq!(
+        xtask::cite::show_rules(&rules, "702.158b").unwrap(),
+        vec![("702.158b".into(), Some("Placeholder sector text.".into()))]
+    );
+    // wrapper forms + comma list, in citation order
+    assert_eq!(
+        xtask::cite::show_rules(&rules, "[CR#100.1a,702.158b]").unwrap(),
+        vec![
+            ("100.1a".into(), Some("Placeholder subrule a.".into())),
+            ("702.158b".into(), Some("Placeholder sector text.".into())),
+        ]
+    );
+    // range expands to existing leaves
+    let range = xtask::cite::show_rules(&rules, "CR#704.5k..704.5n").unwrap();
+    assert_eq!(
+        range.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>(),
+        vec!["704.5k", "704.5m", "704.5n"]
+    );
+}
+
+#[test]
+fn show_rules_marks_absent_single_ref_as_none() {
+    let rules = Rules::parse(FIXTURE).unwrap();
+    assert_eq!(
+        xtask::cite::show_rules(&rules, "999.9z").unwrap(),
+        vec![("999.9z".into(), None)]
+    );
+}
+
+#[test]
+fn show_rules_bails_on_unresolvable_range_endpoint() {
+    let rules = Rules::parse(FIXTURE).unwrap();
+    assert!(xtask::cite::show_rules(&rules, "704.5k..999.9z").is_err());
+    assert!(xtask::cite::show_rules(&rules, "not-a-rule").is_err());
+}
+
+#[test]
+fn wrap_text_breaks_on_word_boundaries() {
+    let lines = xtask::cite::wrap_text("alpha beta gamma delta", 12);
+    assert_eq!(lines, vec!["alpha beta", "gamma delta"]);
+    assert!(lines.iter().all(|l| l.len() <= 12));
+}
+
+#[test]
+fn wrap_text_keeps_short_text_on_one_line() {
+    assert_eq!(
+        xtask::cite::wrap_text("short text", 80),
+        vec!["short text".to_string()]
+    );
+}
+
+#[test]
 fn format_diff_shows_old_and_new() {
     let out = xtask::cite::format_diff("702.158b", Some("old text"), Some("new text"));
     assert!(out.contains("702.158b"));

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 
-use crate::citations::{Site, members, parse_refs, scan_text};
+use crate::citations::{Site, members, parse_refs, scan_text, strip_citation_wrapper};
 use crate::cr::Rules;
 use crate::lockfile::Lockfile;
 
@@ -77,6 +77,42 @@ pub fn check_sources(
     Ok(outcome)
 }
 
+/// Resolve a citation argument to its member rules, each paired with the rule
+/// text (`None` when the rule isn't in `cr.txt`). Bails on a malformed citation
+/// or an unresolvable range endpoint.
+pub fn show_rules(rules: &Rules, arg: &str) -> anyhow::Result<Vec<(String, Option<String>)>> {
+    let refs = parse_refs(strip_citation_wrapper(arg))?;
+    Ok(members(&refs, rules)?
+        .into_iter()
+        .map(|n| {
+            let text = rules.get(&n).map(|r| r.text.clone());
+            (n, text)
+        })
+        .collect())
+}
+
+/// Greedily word-wrap `text` to lines of at most `width` columns, breaking only
+/// on whitespace. A word longer than `width` gets its own (over-long) line.
+pub fn wrap_text(text: &str, width: usize) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut cur = String::new();
+    for word in text.split_whitespace() {
+        if cur.is_empty() {
+            cur.push_str(word);
+        } else if cur.len() + 1 + word.len() <= width {
+            cur.push(' ');
+            cur.push_str(word);
+        } else {
+            lines.push(std::mem::take(&mut cur));
+            cur.push_str(word);
+        }
+    }
+    if !cur.is_empty() {
+        lines.push(cur);
+    }
+    lines
+}
+
 /// Every citation site paired with its expanded member rule numbers.
 pub fn list_sites(
     rules: &Rules,
@@ -112,6 +148,47 @@ fn cmd_list(_flags: &[String]) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// `cite show <citation> [--plain]`: print the rule(s) a citation resolves to.
+/// Resolved rules go to stdout; an unresolved single rule prints a marker to
+/// stderr and forces a non-zero exit.
+fn cmd_show(flags: &[String]) -> anyhow::Result<()> {
+    let plain = flags.iter().any(|f| f == "--plain");
+    let arg = flags
+        .iter()
+        .find(|f| !f.starts_with("--"))
+        .context("usage: cite show <citation> [--plain]")?;
+
+    let rules = load_rules()?;
+    let hits = show_rules(&rules, arg)?;
+
+    // Indented block wraps to the terminal width (or 80), minus the 4-space indent.
+    let width = std::env::var("COLUMNS")
+        .ok()
+        .and_then(|c| c.parse::<usize>().ok())
+        .unwrap_or(80);
+
+    let mut missing = 0;
+    for (number, text) in &hits {
+        match text {
+            Some(t) if plain => println!("{number}  {t}"),
+            Some(t) => {
+                println!("[CR#{number}]");
+                for line in wrap_text(t, width.saturating_sub(4)) {
+                    println!("    {line}");
+                }
+            }
+            None => {
+                missing += 1;
+                eprintln!("[CR#{number}]  (not found in cr.txt)");
+            }
+        }
+    }
+    if missing > 0 {
+        anyhow::bail!("{missing} cited rule(s) not found in cr.txt");
+    }
+    Ok(())
+}
+
 pub fn run(args: impl Iterator<Item = OsString>) -> anyhow::Result<()> {
     let args: Vec<String> = args.map(|a| a.to_string_lossy().into_owned()).collect();
     // `args` are the tokens after `cite`; args[0] is the subcommand (default:
@@ -121,10 +198,11 @@ pub fn run(args: impl Iterator<Item = OsString>) -> anyhow::Result<()> {
     match sub {
         "check" => cmd_check(flags),
         "list" => cmd_list(flags),
+        "show" => cmd_show(flags),
         "bless" => cmd_bless(flags),
         "diff" => cmd_diff(flags),
         other => {
-            anyhow::bail!("cite: unknown subcommand {other:?}; expected check|list|bless|diff")
+            anyhow::bail!("cite: unknown subcommand {other:?}; expected check|list|show|bless|diff")
         }
     }
 }
