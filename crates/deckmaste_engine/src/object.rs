@@ -5,8 +5,8 @@ use deckmaste_core::{Card, Uint, Zone};
 
 use crate::player::PlayerId;
 
-/// A transient object identity ([CR#109]). Reminted on zone change in a later
-/// stage; in the skeleton an object keeps its id for the whole game.
+/// A transient object identity ([CR#109]): a fresh id is minted on every zone
+/// change ([CR#400.7]). The backing [`CardId`] is what persists across moves.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ObjectId(pub Uint);
 

@@ -223,6 +223,21 @@ impl GameState {
         hand.remove(i);
     }
 
+    /// Removes `object` from `player`'s library ([CR#401]). Panics if absent.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `object` is not in `player`'s library — callers validate
+    /// first.
+    pub(crate) fn remove_from_library(&mut self, player: PlayerId, object: ObjectId) {
+        let lib = &mut self.zones.libraries[player.index()];
+        let i = lib
+            .iter()
+            .position(|&o| o == object)
+            .expect("object in library");
+        lib.remove(i);
+    }
+
     /// Removes the committed stack entry whose `id` is `id` ([CR#405]). Keyed
     /// on `StackEntry.id` so it works for both spells (id == the spell object)
     /// and triggered abilities (id == a minted token).
