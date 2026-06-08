@@ -551,7 +551,7 @@ fn cleanup_clears_marked_damage_on_battlefield_creatures() {
     assert_eq!(state.objects.obj(bear).damage, 5);
 
     // Drive all-pass until the Cleanup step begins.  The cleanup step fires
-    // `clear_marked_damage` as a turn-based action (CR 514.2) and THEN
+    // `clear_marked_damage` as a turn-based action ([CR#514.2]) and THEN
     // checks hand size, so by the time we see `Advanced(Cleanup)` the damage
     // has already been cleared.
     step_until(&mut state, |s, o| {
@@ -564,7 +564,7 @@ fn cleanup_clears_marked_damage_on_battlefield_creatures() {
     assert_eq!(
         state.objects.obj(bear).damage,
         0,
-        "CR 514.2: marked damage removed at start of Cleanup"
+        "[CR#514.2]: marked damage removed at start of Cleanup"
     );
 }
 
@@ -834,7 +834,7 @@ fn casting_a_spell_schedules_the_announce_block_and_begin_cast_stages_it() {
         "Bolt should be a legal CastSpell, legal: {legal:?}"
     );
 
-    // Submitting CastSpell reifies the CR 601.2 announce block at the front.
+    // Submitting CastSpell reifies the [CR#601.2] announce block at the front.
     state
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
         .unwrap();

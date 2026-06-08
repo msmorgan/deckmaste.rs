@@ -1,4 +1,4 @@
-//! Targeting (CR 115): which objects a `Filter` admits. Stage 2 wires only the
+//! Targeting ([CR#115]): which objects a `Filter` admits. Stage 2 wires only the
 //! arms the corpus's `AnyTarget` reaches; the rest are `todo!`.
 
 use deckmaste_core::{CharacteristicFilter, Filter, ObjectKind, StateFilter, Type, Zone};
@@ -6,7 +6,7 @@ use deckmaste_core::{CharacteristicFilter, Filter, ObjectKind, StateFilter, Type
 use crate::object::{ObjectId, ObjectSource};
 use crate::state::GameState;
 
-/// The object's kind (CR 109.1) as the corpus needs it: a player proxy is a
+/// The object's kind ([CR#109.1]) as the corpus needs it: a player proxy is a
 /// `Player`; a card on the stack is a `Spell`; otherwise a `Card`.
 #[must_use]
 pub fn object_kind(state: &GameState, id: ObjectId) -> ObjectKind {
@@ -24,7 +24,7 @@ pub fn matches(state: &GameState, id: ObjectId, filter: &Filter) -> bool {
     match filter {
         Filter::Kind(k) => object_kind(state, id) == *k,
         Filter::Characteristic(CharacteristicFilter::Type(t)) => has_type(state, id, *t),
-        // CR 110.5a: state, not characteristic — card/token objects only, so a
+        // [CR#110.5a]: state, not characteristic — card/token objects only, so a
         // player proxy (zone None) never matches InZone.
         Filter::State(StateFilter::InZone(z)) => state.objects.obj(id).zone == Some(*z),
         Filter::AllOf(fs) => fs.iter().all(|f| matches(state, id, f)),

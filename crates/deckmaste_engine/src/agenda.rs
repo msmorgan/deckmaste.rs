@@ -17,16 +17,16 @@ pub enum WorkItem {
     CheckHandSize,
     /// Surface `pending = Priority { .. }`.
     OpenPriority,
-    /// CR 601.2a–b: move the spell to the stack and open the announce slot.
+    /// [CR#601.2a,601.2b]: move the spell to the stack and open the announce slot.
     BeginCast(crate::object::ObjectId),
-    /// CR 601.2c: surface `ChooseTargets` if the in-flight spell targets.
+    /// [CR#601.2c]: surface `ChooseTargets` if the in-flight spell targets.
     AnnounceTargets,
-    /// CR 601.2f–h: pay the in-flight spell's cost (surface `PayMana` if there
+    /// [CR#601.2f,601.2g,601.2h]: pay the in-flight spell's cost (surface `PayMana` if there
     /// is a choice; auto-pay when forced).
     PayCost,
-    /// Resolve the named committed stack object (CR 608). Reads `self.stack`.
+    /// Resolve the named committed stack object ([CR#608]). Reads `self.stack`.
     Resolve(crate::object::ObjectId),
-    /// Interpret one `Effect` node against a resolution frame (CR 608.2).
+    /// Interpret one `Effect` node against a resolution frame ([CR#608.2]).
     RunEffect {
         effect: Box<deckmaste_core::Effect>,
         frame: crate::stack::Frame,

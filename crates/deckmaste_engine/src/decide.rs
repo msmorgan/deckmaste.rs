@@ -18,14 +18,14 @@ pub enum PendingDecision {
     },
     /// [CR#514.1]: discard down to maximum hand size.
     DiscardToHandSize { player: PlayerId, count: Uint },
-    /// CR 601.2c / 115: choose targets for the in-flight announce. `legal[i]`
+    /// [CR#601.2c,115]: choose targets for the in-flight announce. `legal[i]`
     /// is the candidate set for `spec[i]`; `submit_decision` re-validates.
     ChooseTargets {
         player: PlayerId,
         spec: Vec<deckmaste_core::TargetSpec>,
         legal: Vec<Vec<ObjectId>>,
     },
-    /// CR 601.2g: allocate pool mana to the in-flight cost.
+    /// [CR#601.2g]: allocate pool mana to the in-flight cost.
     PayMana {
         player: PlayerId,
         cost: deckmaste_core::ManaCost,
@@ -60,7 +60,7 @@ pub enum Action {
         object: ObjectId,
         ability: usize,
     },
-    /// Cast a spell from hand (CR 601). The announce block (targets, cost) is
+    /// Cast a spell from hand ([CR#601]). The announce block (targets, cost) is
     /// reified onto the agenda by `take_priority_action`.
     CastSpell {
         object: ObjectId,
@@ -155,7 +155,7 @@ impl GameState {
                 },
                 Decision::Targets(chosen),
             ) => {
-                // CR 601.2c / 115: one chosen object per spec, each drawn from
+                // [CR#601.2c,115]: one chosen object per spec, each drawn from
                 // that spec's legal candidate set.
                 if chosen.len() != spec.len()
                     || chosen.iter().zip(legal).any(|(c, set)| !set.contains(c))
@@ -214,7 +214,7 @@ impl GameState {
                 if all_passed {
                     self.turn.priority = None;
                     if let Some(top) = self.stack.last() {
-                        // CR 608: resolve the top; AP gets priority after (117.3b).
+                        // [CR#608]: resolve the top; AP gets priority after ([CR#117.3b]).
                         let obj = top.object.object();
                         self.schedule_front(vec![
                             WorkItem::Resolve(obj),
@@ -222,7 +222,7 @@ impl GameState {
                             WorkItem::OpenPriority,
                         ]);
                     } else {
-                        // CR 117.4: all-pass on an empty stack ends the step.
+                        // [CR#117.4]: all-pass on an empty stack ends the step.
                         let items = self.end_of_step_items();
                         self.schedule_front(items);
                     }
@@ -263,11 +263,11 @@ impl GameState {
                 ]);
             }
             Action::CastSpell { object } => {
-                // CR 601.2: reify the announce procedure. Targets and cost are
+                // [CR#601.2]: reify the announce procedure. Targets and cost are
                 // chosen by the staged WorkItems (surfacing decisions when
                 // there is a choice); `SpellCast` is the becomes-cast moment
-                // (601.2i) that promotes the announce onto the stack; the
-                // caster then regains priority (CR 117.3c).
+                // ([CR#601.2i]) that promotes the announce onto the stack; the
+                // caster then regains priority ([CR#117.3c]).
                 self.reset_passes();
                 self.schedule_front(vec![
                     WorkItem::BeginCast(*object),

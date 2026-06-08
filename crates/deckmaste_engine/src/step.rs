@@ -38,12 +38,12 @@ pub enum Progress {
     HandSizeChecked { discarding: Uint },
     /// A priority decision was surfaced for this player.
     PriorityOpened(PlayerId),
-    /// CR 601.2a–b: a spell moved to the stack and the announce slot opened.
+    /// [CR#601.2a,601.2b]: a spell moved to the stack and the announce slot opened.
     Announcing(crate::object::ObjectId),
-    /// CR 601.2c: targets were announced for the in-flight spell (a
+    /// [CR#601.2c]: targets were announced for the in-flight spell (a
     /// `ChooseTargets` decision surfaces when `specs > 0`).
     TargetsAnnounced { specs: Uint },
-    /// CR 601.2f–h: the in-flight cost was paid or a `PayMana` decision
+    /// [CR#601.2f,601.2g,601.2h]: the in-flight cost was paid or a `PayMana` decision
     /// surfaced.
     CostPaid,
     /// A resolution step ran (dispatch or one effect node) for this object.
@@ -193,7 +193,7 @@ impl GameState {
                 event
             }
             GameEvent::SpellCast(object) => {
-                // CR 601.2i: promote the staged announce onto the stack.
+                // [CR#601.2i]: promote the staged announce onto the stack.
                 let pending = self.announcing.take().expect("an announce in flight");
                 debug_assert_eq!(
                     pending.object.object(),
@@ -212,7 +212,7 @@ impl GameState {
                 target,
                 amount,
             } => {
-                // CR 119: damage to a player is life loss; to a creature it is
+                // [CR#119]: damage to a player is life loss; to a creature it is
                 // marked damage. `Int` is `i32`; `Uint` is `u32` — `try_from`
                 // is required because u32 does not fit into i32 via `From`.
                 match self.objects.obj(target).source {
@@ -314,8 +314,8 @@ impl GameState {
                 })]
             }
             StepOrPhase::Draw => vec![],
-            // CR 514.1: discard to hand size — checked after StepBegan.
-            // CR 514.2: marked damage is removed from all permanents.
+            // [CR#514.1]: discard to hand size — checked after StepBegan.
+            // [CR#514.2]: marked damage is removed from all permanents.
             StepOrPhase::Cleanup => {
                 self.clear_marked_damage();
                 vec![WorkItem::CheckHandSize]
@@ -324,7 +324,7 @@ impl GameState {
         }
     }
 
-    /// CR 514.2: remove all marked damage from battlefield permanents when
+    /// [CR#514.2]: remove all marked damage from battlefield permanents when
     /// the Cleanup step begins.
     fn clear_marked_damage(&mut self) {
         // Collect ids first to satisfy the borrow checker (can't hold a
