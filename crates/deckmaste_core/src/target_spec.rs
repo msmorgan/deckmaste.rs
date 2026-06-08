@@ -17,14 +17,11 @@ use crate::{Expansion, Filter, Quantity};
 /// rather than the literal struct — the other variants mirror the derive.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub enum TargetSpec {
-    /// One target matching the filter ([CR#115.1]).
-    Target(Filter),
-    /// Up to a quantity of targets ([CR#115.6], "up to two target …").
-    UpToTargets(Quantity, Filter),
-    /// Exactly a quantity of targets ([CR#601.2c], "two target …").
-    Targets(Quantity, Filter),
-    /// Any number of targets ([CR#601.2c]).
-    AnyNumberTargets(Filter),
+    /// A quantity of targets matching the filter ([CR#115.1,115.6,601.2c]).
+    /// Use `Quantity::Exactly(Count::Literal(1))` for a single target,
+    /// `Quantity::AtMost(n)` for "up to N", and `Quantity::AnyNumber` for
+    /// "any number of targets".
+    Target(Quantity, Filter),
     /// A remembered `TargetSpec` macro invocation.
     Expanded(Expansion<TargetSpec>),
 }
@@ -33,17 +30,8 @@ impl Serialize for TargetSpec {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         // serialize_*_variant index arguments are ignored by RON.
         match self {
-            TargetSpec::Target(f) => {
-                serializer.serialize_newtype_variant("TargetSpec", 0, "Target", f)
-            }
-            TargetSpec::UpToTargets(q, f) => {
-                serializer.serialize_newtype_variant("TargetSpec", 1, "UpToTargets", &(q, f))
-            }
-            TargetSpec::Targets(q, f) => {
-                serializer.serialize_newtype_variant("TargetSpec", 2, "Targets", &(q, f))
-            }
-            TargetSpec::AnyNumberTargets(f) => {
-                serializer.serialize_newtype_variant("TargetSpec", 3, "AnyNumberTargets", f)
+            TargetSpec::Target(q, f) => {
+                serializer.serialize_newtype_variant("TargetSpec", 0, "Target", &(q, f))
             }
             // The invocation, not the struct.
             TargetSpec::Expanded(e) => e.serialize(serializer),
@@ -54,26 +42,42 @@ impl Serialize for TargetSpec {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{CharacteristicFilter, Type};
+    use crate::{CharacteristicFilter, Count, Quantity, Type};
 
     fn read(source: &str) -> TargetSpec { crate::ron::options().from_str(source).unwrap() }
 
-    /// The announce-list grammar: `Target(Filter)` and the quantity-bearing
-    /// forms, distinct from `Selection`'s resolution choices.
+    fn creature_filter() -> Filter {
+        Filter::Characteristic(CharacteristicFilter::Type(Type::Creature))
+    }
+
+    /// The announce-list grammar: `Target(Quantity, Filter)`, distinct from
+    /// `Selection`'s resolution choices.
     #[test]
     fn announce_forms_read() {
         assert_eq!(
-            read("Target(Type(Creature))"),
-            TargetSpec::Target(Filter::Characteristic(CharacteristicFilter::Type(
-                Type::Creature
-            ))),
+            read("Target(Exactly(Literal(1)), Type(Creature))"),
+            TargetSpec::Target(Quantity::Exactly(Count::Literal(1)), creature_filter(),),
         );
         assert_eq!(
-            read("UpToTargets(Exactly(Literal(2)), Type(Creature))"),
-            TargetSpec::UpToTargets(
-                crate::Quantity::Exactly(crate::Count::Literal(2)),
-                Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
-            ),
+            read("Target(AtMost(Literal(2)), Type(Creature))"),
+            TargetSpec::Target(Quantity::AtMost(Count::Literal(2)), creature_filter(),),
         );
+        assert_eq!(
+            read("Target(AnyNumber, Type(Creature))"),
+            TargetSpec::Target(Quantity::AnyNumber, creature_filter()),
+        );
+    }
+
+    /// Pins the manual `Serialize` — serialize → read is identity.
+    #[test]
+    fn target_round_trips() {
+        for value in [
+            TargetSpec::Target(Quantity::Exactly(Count::Literal(1)), creature_filter()),
+            TargetSpec::Target(Quantity::AnyNumber, creature_filter()),
+            TargetSpec::Target(Quantity::AtMost(Count::Literal(2)), creature_filter()),
+        ] {
+            let written = crate::ron::options().to_string(&value).unwrap();
+            assert_eq!(read(&written), value, "round-trip failed for {value:?}");
+        }
     }
 }

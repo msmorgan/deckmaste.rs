@@ -190,7 +190,7 @@ mod tests {
             .insert(&def(r#"(
                     name: "TargetCreature",
                     kinds: [TargetSpec],
-                    body: Target(Type(Creature)),
+                    body: Target(Exactly(Literal(1)), Type(Creature)),
                 )"#))
             .unwrap();
         let spec: TargetSpec = macros.read_str("TargetCreature").unwrap();
@@ -200,9 +200,10 @@ mod tests {
         assert_eq!(expanded.name, "TargetCreature");
         assert_eq!(
             *expanded.value,
-            TargetSpec::Target(Filter::Characteristic(CharacteristicFilter::Type(
-                Type::Creature
-            )))
+            TargetSpec::Target(
+                Quantity::Exactly(Count::Literal(1)),
+                Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            )
         );
     }
 
