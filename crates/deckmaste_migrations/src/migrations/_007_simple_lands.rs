@@ -197,7 +197,9 @@ pub(super) struct SimpleLands;
 
 impl super::Migration for SimpleLands {
     fn apply(&self, plugin: &PluginLayout) -> anyhow::Result<()> {
-        super::card_todo::convert_todos(plugin, simple_land)
+        super::card_todo::convert_todos(plugin, |card| {
+            Ok(simple_land(card)?.map(super::card_todo::Graduation::Final))
+        })
     }
 }
 

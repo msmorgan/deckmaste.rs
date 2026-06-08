@@ -85,14 +85,23 @@ pub(super) struct CardFaceTodo {
     pub(super) defense: Option<Stat>,
 }
 
+/// The outcome of converting one todo. `Final` graduates to `<stem>.ron`;
+/// `Blocked` is a finished definition that depends on something not yet real
+/// (keyword-ability macros), so it parks at `<stem>.ron.pending` — invisible to
+/// `cargo xtask validate` (its card walk only reads files whose extension is
+/// `ron`) until a later migration graduates it.
+pub(super) enum Graduation {
+    Final(String),
+    Blocked(String),
+}
+
 /// Walks the plugin's cards directory and graduates every `<name>.todo.ron`
-/// for which `convert` produces a finished definition: the definition is
-/// written to `<name>.ron` and the stub is deleted. Stubs `convert` declines
-/// are left in place. cards/ is flat: every stub `_004` writes goes through
-/// `card_todo_file`, one path segment per card, so no recursion here.
+/// for which `convert` produces a definition: a `Final` is written to
+/// `<name>.ron`, a `Blocked` to `<name>.ron.pending`, and the stub is deleted.
+/// Stubs `convert` declines are left in place. cards/ is flat, so no recursion.
 pub(super) fn convert_todos(
     plugin: &PluginLayout,
-    convert: impl Fn(&CardFile) -> anyhow::Result<Option<String>>,
+    convert: impl Fn(&CardFile) -> anyhow::Result<Option<Graduation>>,
 ) -> anyhow::Result<()> {
     let cards_dir = plugin.cards_dir()?;
     let mut paths: Vec<_> = std::fs::read_dir(&cards_dir)?
@@ -108,31 +117,33 @@ pub(super) fn convert_todos(
         let card: CardFile = crate::ron_output::ron_options()
             .from_str(&source)
             .with_context(|| format!("parsing todo {}", path.display()))?;
-        let Some(definition) = convert(&card)? else {
+        let Some(graduation) = convert(&card)? else {
             continue;
         };
 
-        // Cheap guard: the output must still be valid RON. Bare idents
-        // like `Plains` are deliberately unresolved here -- only the
-        // macro-aware reader (`cargo xtask validate`) can judge them.
+        // The graduated `.ron` name (the is_todo_file filter guarantees a
+        // `.todo.ron` stem, so this is always present). A Blocked definition
+        // appends `.pending` so its extension is no longer `ron`.
+        let final_name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .and_then(deckmaste_core::plugin::final_for_todo)
+            .with_context(|| format!("not a todo file name: {}", path.display()))?;
+        let (definition, out_name) = match graduation {
+            Graduation::Final(def) => (def, final_name),
+            Graduation::Blocked(def) => (def, format!("{final_name}.pending")),
+        };
+        let out_path = path.with_file_name(&out_name);
+
+        // Cheap guard: the output must still be valid RON. Bare idents like
+        // `Plains` are deliberately unresolved here -- only the macro-aware
+        // reader (`cargo xtask validate`) can judge them.
         ron::value::RawValue::from_ron(&definition)
             .with_context(|| format!("invalid render for {}", path.display()))?;
 
-        // The `is_todo_file` filter guarantees a `.todo.ron` name, so the
-        // graduated `.ron` name is always present.
-        let final_path = path.with_file_name(
-            path.file_name()
-                .and_then(|name| name.to_str())
-                .and_then(deckmaste_core::plugin::final_for_todo)
-                .with_context(|| format!("not a todo file name: {}", path.display()))?,
-        );
-        std::fs::write(&final_path, definition)?;
+        std::fs::write(&out_path, definition)?;
         std::fs::remove_file(&path)?;
-        eprintln!(
-            "wrote {} (removed {})",
-            final_path.display(),
-            path.display()
-        );
+        eprintln!("wrote {} (removed {})", out_path.display(), path.display());
     }
     Ok(())
 }
@@ -338,7 +349,7 @@ mod tests {
 
         convert_todos(&plugin, |card| {
             let CardFile::Todo { faces, .. } = card;
-            Ok((faces[0].name == "Accept").then(|| ACCEPT_FINAL.to_owned()))
+            Ok((faces[0].name == "Accept").then(|| Graduation::Final(ACCEPT_FINAL.to_owned())))
         })
         .unwrap();
 
@@ -355,6 +366,33 @@ mod tests {
         assert_eq!(
             std::fs::read_to_string(cards.join("Done.ron")).unwrap(),
             DONE_FINAL
+        );
+    }
+
+    /// A `Blocked` outcome parks the definition at `<stem>.ron.pending` (not
+    /// `<stem>.ron`) and still deletes the stub.
+    #[test]
+    fn convert_blocked_parks_pending() {
+        const BLOCKED_DEF: &str = "Normal(\n    name: \"Parked\",\n    types: [Creature],\n)\n";
+        let root = tempfile::tempdir().unwrap();
+        let plugin = PluginLayout::new(root.path()).unwrap();
+        let cards = plugin.cards_dir().unwrap();
+        std::fs::write(
+            cards.join("Parked.todo.ron"),
+            "Todo(\n    layout: \"normal\",\n    faces: [\n        (\n            name: \"Parked\",\n            types: [\"Creature\"],\n        ),\n    ],\n)\n",
+        )
+        .unwrap();
+
+        convert_todos(&plugin, |_card| {
+            Ok(Some(Graduation::Blocked(BLOCKED_DEF.to_owned())))
+        })
+        .unwrap();
+
+        assert!(!cards.join("Parked.todo.ron").exists(), "stub deleted");
+        assert!(!cards.join("Parked.ron").exists(), "no finished .ron");
+        assert_eq!(
+            std::fs::read_to_string(cards.join("Parked.ron.pending")).unwrap(),
+            BLOCKED_DEF
         );
     }
 }

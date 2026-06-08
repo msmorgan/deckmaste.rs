@@ -94,7 +94,10 @@ pub(super) struct VanillaCreatures;
 impl super::Migration for VanillaCreatures {
     fn apply(&self, plugin: &PluginLayout) -> anyhow::Result<()> {
         super::card_todo::convert_todos(plugin, |card| {
-            vanilla_creature_face(card).map(render_creature).transpose()
+            Ok(vanilla_creature_face(card)
+                .map(render_creature)
+                .transpose()?
+                .map(super::card_todo::Graduation::Final))
         })
     }
 }
