@@ -26,14 +26,22 @@ ron = "0.12.1"
 serde = { version = "1.0.228", features = ["derive"] }
 slotmap = { version = "1.1.1", features = ["serde"] }
 
-# `cargo xtask migrate` deserializes the ~600 MB AllPrintings.json; under an
-# unoptimized dev build that parse takes tens of seconds. Optimize just the
-# JSON-parsing crates so the tool stays fast to *run* without a release build
-# of the whole tree (the xtask alias uses the dev profile — see
-# .cargo/config.toml). Profile overrides only take effect from the workspace
-# root manifest, which is why they live here.
+# `cargo xtask migrate` deserializes the ~600 MB AllPrintings.json; `extract`,
+# `graduate`, and `validate` parse/serialize tens of thousands of RON card files
+# (the latter through the `macro_ron` expander). Under an unoptimized dev build
+# those parses take tens of seconds. Optimize just the parsing crates — JSON
+# (`serde_json`) and RON (`ron`, `macro_ron`) — so the tools stay fast to *run*
+# without a release build of the whole tree (the xtask alias uses the dev
+# profile — see .cargo/config.toml). Profile overrides only take effect from the
+# workspace root manifest, which is why they live here.
 [profile.dev.package.deckmaste_migrations]
 opt-level = 3
 
 [profile.dev.package.serde_json]
+opt-level = 3
+
+[profile.dev.package.ron]
+opt-level = 3
+
+[profile.dev.package.macro_ron]
 opt-level = 3
