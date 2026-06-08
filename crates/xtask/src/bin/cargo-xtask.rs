@@ -7,9 +7,10 @@ use clap::{Parser, Subcommand};
 use xtask::card::CardArgs;
 use xtask::cite::CiteArgs;
 use xtask::extract::ExtractArgs;
+use xtask::generate::GenerateArgs;
 use xtask::graduate::GraduateArgs;
-use xtask::migrate::MigrateArgs;
 use xtask::resolve::ResolveArgs;
+use xtask::stubs::StubsArgs;
 use xtask::validate::ValidateArgs;
 
 /// Workspace automation: validate, card, migrate, and CR-citation tasks.
@@ -26,8 +27,10 @@ enum Cmd {
     Validate(ValidateArgs),
     /// Show a card as parsed from a plugin, with its macros expanded.
     Card(CardArgs),
-    /// Apply migration(s) to a plugin.
-    Migrate(MigrateArgs),
+    /// Generate a plugin's cards (extract -> resolve -> graduate).
+    Generate(GenerateArgs),
+    /// Generate a plugin's keyword/subtype macro stubs.
+    Stubs(StubsArgs),
     /// Extract cards/*.ron.todo from mtgjson.
     Extract(ExtractArgs),
     /// Rewrite resolvable Unparsed abilities in a plugin's .ron.todo cards.
@@ -42,7 +45,8 @@ fn main() -> anyhow::Result<()> {
     match Cli::parse().command {
         Cmd::Validate(args) => xtask::validate::run(args),
         Cmd::Card(args) => xtask::card::run(args),
-        Cmd::Migrate(args) => xtask::migrate::run(args),
+        Cmd::Generate(args) => xtask::generate::run(args),
+        Cmd::Stubs(args) => xtask::stubs::run(args),
         Cmd::Extract(args) => xtask::extract::run(args),
         Cmd::Resolve(args) => xtask::resolve::run(args),
         Cmd::Graduate(args) => xtask::graduate::run(args),

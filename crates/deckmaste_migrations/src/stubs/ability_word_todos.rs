@@ -4,8 +4,6 @@ use super::keyword_todos::create_keyword_todos;
 /// have no individual entries in the CR.
 const ABILITY_WORD_RULE: &str = "207.2c";
 
-pub(super) struct AbilityWordTodos;
-
 /// Keeps at most the first `count` sentences of `text`.
 fn truncate_sentences(text: &str, count: usize) -> String {
     let mut matched = 0;
@@ -18,23 +16,21 @@ fn truncate_sentences(text: &str, count: usize) -> String {
     text.to_owned()
 }
 
-impl super::Migration for AbilityWordTodos {
-    fn apply(&self, plugin: &super::PluginLayout) -> anyhow::Result<()> {
-        let keywords_bytes = crate::data::academyruins::keywords_bytes()?;
-        let keywords = crate::data::academyruins::Keywords::parse(&keywords_bytes)?;
-        let rules_bytes = crate::data::academyruins::comprehensive_rules_bytes()?;
-        let rules = crate::data::academyruins::RulesMap::parse(&rules_bytes)?;
-        create_keyword_todos(
-            &plugin.ability_words_dir()?,
-            &keywords.ability_words,
-            &rules,
-            |_| Some(ABILITY_WORD_RULE),
-            // [CR#207.2c]'s third sentence is the ever-growing list of every
-            // ability word; the first two say everything worth repeating in
-            // each stub.
-            |rule| truncate_sentences(&rule.format(), 2),
-        )
-    }
+pub(super) fn generate(plugin: &super::PluginLayout) -> anyhow::Result<()> {
+    let keywords_bytes = crate::data::academyruins::keywords_bytes()?;
+    let keywords = crate::data::academyruins::Keywords::parse(&keywords_bytes)?;
+    let rules_bytes = crate::data::academyruins::comprehensive_rules_bytes()?;
+    let rules = crate::data::academyruins::RulesMap::parse(&rules_bytes)?;
+    create_keyword_todos(
+        &plugin.ability_words_dir()?,
+        &keywords.ability_words,
+        &rules,
+        |_| Some(ABILITY_WORD_RULE),
+        // [CR#207.2c]'s third sentence is the ever-growing list of every
+        // ability word; the first two say everything worth repeating in
+        // each stub.
+        |rule| truncate_sentences(&rule.format(), 2),
+    )
 }
 
 #[cfg(test)]

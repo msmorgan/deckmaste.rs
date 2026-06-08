@@ -26,7 +26,7 @@ ron = "0.12.1"
 serde = { version = "1.0.228", features = ["derive"] }
 slotmap = { version = "1.1.1", features = ["serde"] }
 
-# `cargo xtask migrate` deserializes the ~600 MB AllPrintings.json; `extract`,
+# `cargo xtask generate` deserializes the ~600 MB AllPrintings.json; `extract`,
 # `graduate`, and `validate` parse/serialize tens of thousands of RON card files
 # (the latter through the `macro_ron` expander). Under an unoptimized dev build
 # those parses take tens of seconds. Optimize just the parsing crates — JSON
