@@ -136,10 +136,16 @@ impl GameState {
         }
     }
 
-    /// A later task replaces this with Each/All set evaluation. For now: the
-    /// unary selections wrapped in a 1-element vec.
+    /// A selection resolved to its full set ([CR#608.2d]). `Each` is the
+    /// distributive "for each matching object" and enumerates the set. A
+    /// `Filter` is already set-valued, so `Selection::All` carries nothing a
+    /// bare filter doesn't — it stays an unreached seam (set-wide consumers take
+    /// a `Filter` directly). Unary references resolve to a 1-element set.
     pub(crate) fn eval_selection_set(&self, sel: &Selection, frame: &Frame) -> Vec<ObjectId> {
-        vec![self.eval_selection(sel, frame)]
+        match sel {
+            Selection::Each(f) => crate::target::candidates(self, f),
+            other => vec![self.eval_selection(other, frame)],
+        }
     }
 
     /// Resolve a unary `Selection` to an `ObjectId` ([CR#608.2d] / references).
@@ -309,7 +315,10 @@ mod tests {
     use std::sync::Arc;
 
     use deckmaste_cards::plugin::Plugin;
-    use deckmaste_core::{Action, Card, Filter, Quantity, Selection, Type, Zone};
+    use deckmaste_core::{
+        Action, Card, CharacteristicFilter, Effect, Filter, ObjectKind, Quantity, Selection,
+        StateFilter, Type, Zone,
+    };
 
     use crate::agenda::WorkItem;
     use crate::event::{GameEvent, Occurrence};
@@ -318,6 +327,7 @@ mod tests {
     use crate::player::PlayerId;
     use crate::stack::Frame;
     use crate::state::{GameConfig, GameState, PlayerConfig, StartingPlayer};
+    use crate::step::{Progress, StepOutcome};
 
     fn builtin() -> Plugin {
         Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
@@ -404,5 +414,143 @@ mod tests {
                 amount: 3,
             }))]
         );
+    }
+
+    #[test]
+    fn each_creature_yields_all_battlefield_creatures() {
+        let (mut state, a) = bear_on_field();
+        // Force a second Vanilla Creature from player 0's hand onto the battlefield.
+        let b = *state.zones.hands[0]
+            .iter()
+            .find(|&&o| {
+                obj_matches(
+                    &state,
+                    o,
+                    &Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(
+                        Type::Creature,
+                    )),
+                )
+            })
+            .expect("a second Vanilla Creature in the opening hand");
+        state.zones.hands[PlayerId(0).index()].retain(|&o| o != b);
+        state.objects.obj_mut(b).zone = Some(Zone::Battlefield);
+        state.zones.battlefield.push(b);
+
+        let frame = Frame {
+            source: a,
+            controller: PlayerId(0),
+            targets: vec![],
+        };
+        let filter = Filter::AllOf(vec![
+            Filter::State(StateFilter::InZone(Zone::Battlefield)),
+            Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+        ]);
+        let mut got = state.eval_selection_set(&Selection::Each(filter), &frame);
+        got.sort();
+        let mut want = vec![a, b];
+        want.sort();
+        assert_eq!(got, want);
+    }
+
+    /// `Each(Kind(Player))` yields exactly the two player proxies (no card
+    /// objects), and `DealDamage` wraps them in ONE simultaneous `Batch`.
+    #[test]
+    fn each_player_deal_damage_emits_one_batch() {
+        let (mut state, src) = bear_on_field();
+        let frame = Frame {
+            source: src,
+            controller: PlayerId(0),
+            targets: vec![],
+        };
+
+        // Build the effect directly: DealDamage(Each(Kind(Player)), 20)
+        let effect = Effect::Act(Action::DealDamage(
+            Selection::Each(Filter::Kind(ObjectKind::Player)),
+            Quantity::Literal(20),
+        ));
+        state.run_effect(effect, &frame);
+
+        // The agenda front should now have a single Emit(Batch([...])) item.
+        let outcome = state.step();
+        let Progress::Applied(Occurrence::Batch(events)) = (match outcome {
+            StepOutcome::Progress(p) => p,
+            other => panic!("expected Progress, got {other:?}"),
+        }) else {
+            panic!("expected Applied(Batch(…))");
+        };
+
+        // Both players took 20 damage, order-independent.
+        let p0_obj = state.players[0].object;
+        let p1_obj = state.players[1].object;
+        let mut got: Vec<_> = events
+            .iter()
+            .map(|e| match e {
+                GameEvent::DamageDealt { target, amount, .. } => (*target, *amount),
+                other => panic!("unexpected event {other:?}"),
+            })
+            .collect();
+        got.sort();
+        let mut want = vec![(p0_obj, 20u32), (p1_obj, 20u32)];
+        want.sort();
+        assert_eq!(got, want);
+    }
+
+    /// `DealDamage(Each(AllOf([InZone(Battlefield), Type(Creature)])), 2)` with
+    /// two creatures on the field emits ONE `Batch` of two `DamageDealt`
+    /// events — the sweep fixture drives simultaneous deaths later.
+    #[test]
+    fn each_creature_deal_damage_emits_one_batch() {
+        let (mut state, a) = bear_on_field();
+        // Force a second creature onto the battlefield.
+        let b = *state.zones.hands[0]
+            .iter()
+            .find(|&&o| {
+                obj_matches(
+                    &state,
+                    o,
+                    &Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(
+                        Type::Creature,
+                    )),
+                )
+            })
+            .expect("a second Vanilla Creature in the opening hand");
+        state.zones.hands[PlayerId(0).index()].retain(|&o| o != b);
+        state.objects.obj_mut(b).zone = Some(Zone::Battlefield);
+        state.zones.battlefield.push(b);
+
+        let frame = Frame {
+            source: a,
+            controller: PlayerId(0),
+            targets: vec![],
+        };
+        let effect = Effect::Act(Action::DealDamage(
+            Selection::Each(Filter::AllOf(vec![
+                Filter::State(StateFilter::InZone(Zone::Battlefield)),
+                Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            ])),
+            Quantity::Literal(2),
+        ));
+        state.run_effect(effect, &frame);
+
+        let outcome = state.step();
+        let Progress::Applied(Occurrence::Batch(events)) = (match outcome {
+            StepOutcome::Progress(p) => p,
+            other => panic!("expected Progress, got {other:?}"),
+        }) else {
+            panic!("expected Applied(Batch(…))");
+        };
+
+        // Both creatures took 2 damage.
+        let mut got: Vec<_> = events
+            .iter()
+            .map(|e| match e {
+                GameEvent::DamageDealt { target, amount, .. } => (*target, *amount),
+                other => panic!("unexpected event {other:?}"),
+            })
+            .collect();
+        got.sort();
+        let mut want = vec![(a, 2u32), (b, 2u32)];
+        want.sort();
+        assert_eq!(got, want);
     }
 }
