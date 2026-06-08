@@ -268,13 +268,24 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
         .submit_decision(Decision::Act(Action::PlayLand { object: land }))
         .unwrap();
 
-    // The land arrives; P0 retains priority ([CR#117.3c]).
+    let land_card = state
+        .objects
+        .obj(land)
+        .card_id()
+        .expect("land is card-backed");
+    // The land arrives (reminted); P0 retains priority ([CR#117.3c]).
     let (trace, stop) = step_to_stop(&mut state);
     assert!(trace.iter().any(|p| matches!(
         applied(p),
         Some(GameEvent::LandPlayed { object }) if *object == land
     )));
-    assert_eq!(state.zones.battlefield, vec![land]);
+    assert_eq!(state.zones.battlefield.len(), 1);
+    let played = state.zones.battlefield[0];
+    assert_eq!(
+        state.objects.obj(played).card_id(),
+        Some(land_card),
+        "same CardId, reminted"
+    );
     assert_eq!(state.players[0].this_turn.count(Tally::LandsPlayed), 1);
     let StepOutcome::NeedsDecision(PendingDecision::Priority { player, legal }) = stop else {
         panic!("expected priority back");
@@ -299,7 +310,7 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
     let (trace, _stop) = step_to_stop(&mut state);
     assert!(trace.iter().any(|p| matches!(
         applied(p),
-        Some(GameEvent::Tapped(id)) if *id == land
+        Some(GameEvent::Tapped(id)) if *id == played
     )));
     assert_eq!(state.players[0].mana_pool.amount(Color::White.into()), 1);
 
@@ -426,14 +437,23 @@ fn state_is_assertable_between_two_untap_events() {
             .clone()
     };
 
-    // Drive turns 1–4 with the script; collect P0's lands.
-    let mut p0_lands = Vec::new();
+    // Drive turns 1–4 with the script; collect P0's land CardIds (the hand
+    // object is still live when LandPlayed fires, but ZoneWillChange remints
+    // it into a fresh battlefield ObjectId — track by CardId, resolve to live
+    // ids after the loop).
+    let mut p0_land_cards = Vec::new();
     loop {
         match state.step() {
             StepOutcome::Progress(Progress::Applied(Occurrence::Single(
                 GameEvent::LandPlayed { object },
             ))) if state.objects.obj(object).controller == PlayerId(0) => {
-                p0_lands.push(object);
+                p0_land_cards.push(
+                    state
+                        .objects
+                        .obj(object)
+                        .card_id()
+                        .expect("land is card-backed"),
+                );
             }
             StepOutcome::Progress(Progress::Advanced(Phase::Beginning(BeginningStep::Untap)))
                 if state.turn.turn_number == 5 =>
@@ -449,7 +469,19 @@ fn state_is_assertable_between_two_untap_events() {
             StepOutcome::GameOver(o) => panic!("game ended early: {o:?}"),
         }
     }
-    assert_eq!(p0_lands.len(), 2, "turns 1 and 3 each played a land");
+    assert_eq!(p0_land_cards.len(), 2, "turns 1 and 3 each played a land");
+    // Resolve each CardId to its live battlefield ObjectId (reminted).
+    let p0_lands: Vec<ObjectId> = p0_land_cards
+        .iter()
+        .map(|&cid| {
+            *state
+                .zones
+                .battlefield
+                .iter()
+                .find(|&&oid| state.objects.obj(oid).card_id() == Some(cid))
+                .expect("played land must be on the battlefield")
+        })
+        .collect();
     assert!(p0_lands.iter().all(|&l| state.objects.obj(l).tapped));
 
     // Step into the untap events: after the FIRST, exactly one of the two
