@@ -54,16 +54,39 @@ impl Cards {
     pub fn is_empty(&self) -> bool { self.0.is_empty() }
 }
 
-/// An object in the game ([CR#109]). An object whose `zone == Battlefield` is
-/// a permanent ([CR#110.1]) — there is no separate permanent type.
+/// Where an object's identity comes from (CR 109). Tokens are deferred — no
+/// fixture creates them yet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ObjectSource {
+    Card(CardId),
+    Player(PlayerId),
+}
+
+/// An object in the game (CR 109). An object whose `zone == Some(Battlefield)`
+/// is a permanent (CR 110.1). A player proxy has `source = Player(..)` and
+/// `zone == None` (players are objects here, but in no zone).
 #[derive(Debug, Clone)]
 pub struct GameObject {
     pub id: ObjectId,
-    pub card: CardId,
+    pub source: ObjectSource,
     pub controller: PlayerId,
     /// Meaningful only on the battlefield.
     pub tapped: bool,
-    pub zone: Zone,
+    /// Marked damage (CR 120.3, 704.5g) — meaningful only on the battlefield.
+    pub damage: Uint,
+    /// `None` for a player proxy.
+    pub zone: Option<Zone>,
+}
+
+impl GameObject {
+    /// The backing card, or `None` for a player proxy.
+    #[must_use]
+    pub fn card_id(&self) -> Option<CardId> {
+        match self.source {
+            ObjectSource::Card(c) => Some(c),
+            ObjectSource::Player(_) => None,
+        }
+    }
 }
 
 /// All live objects, keyed by id. `BTreeMap` for deterministic iteration.
@@ -74,17 +97,29 @@ pub struct ObjectStore {
 }
 
 impl ObjectStore {
-    /// Creates an object for `card` in `zone` and returns its id.
-    pub fn mint(&mut self, card: CardId, controller: PlayerId, zone: Zone) -> ObjectId {
+    /// Creates an object and returns its id.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the object count exceeds `Uint::MAX` — engine invariant, not
+    /// caller input.
+    #[must_use]
+    pub fn mint(
+        &mut self,
+        source: ObjectSource,
+        controller: PlayerId,
+        zone: Option<Zone>,
+    ) -> ObjectId {
         let id = ObjectId(self.next);
         self.next += 1;
         self.objects.insert(
             id,
             GameObject {
                 id,
-                card,
+                source,
                 controller,
                 tapped: false,
+                damage: 0,
                 zone,
             },
         );

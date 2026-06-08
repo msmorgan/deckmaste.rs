@@ -80,7 +80,7 @@ impl GameState {
             }
             GameEvent::CardDrawn { player, object: _ } => {
                 if let Some(top) = self.zones.libraries[player.index()].pop_front() {
-                    self.objects.obj_mut(top).zone = Zone::Hand;
+                    self.objects.obj_mut(top).zone = Some(Zone::Hand);
                     self.zones.hands[player.index()].push(top);
                     GameEvent::CardDrawn {
                         player,
@@ -102,7 +102,7 @@ impl GameState {
             GameEvent::LandPlayed { object } => {
                 let owner = self.owner_of(object);
                 self.remove_from_hand(owner, object);
-                self.objects.obj_mut(object).zone = Zone::Battlefield;
+                self.objects.obj_mut(object).zone = Some(Zone::Battlefield);
                 self.zones.battlefield.push(object);
                 self.player_mut(owner).lands_played_this_turn += 1;
                 event
@@ -125,7 +125,7 @@ impl GameState {
             }
             GameEvent::Discarded { player, object } => {
                 self.remove_from_hand(player, object);
-                self.objects.obj_mut(object).zone = Zone::Graveyard;
+                self.objects.obj_mut(object).zone = Some(Zone::Graveyard);
                 self.zones.graveyards[player.index()].push(object);
                 event
             }

@@ -1,5 +1,7 @@
 use deckmaste_core::{ColorOrColorless, Int, Uint};
 
+use crate::object::ObjectId;
+
 /// A player identity: the index into `GameState::players`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PlayerId(pub Uint);
@@ -43,6 +45,8 @@ impl ManaPool {
 #[derive(Debug, Clone)]
 pub struct PlayerState {
     pub id: PlayerId,
+    /// This player's proxy object (CR: players modeled as objects).
+    pub object: ObjectId,
     pub life: Int,
     pub max_hand_size: Uint,
     pub lands_played_this_turn: Uint,
@@ -54,9 +58,10 @@ pub struct PlayerState {
 
 impl PlayerState {
     #[must_use]
-    pub fn new(id: PlayerId, life: Int) -> Self {
+    pub fn new(id: PlayerId, object: ObjectId, life: Int) -> Self {
         Self {
             id,
+            object,
             life,
             max_hand_size: 7,
             lands_played_this_turn: 0,

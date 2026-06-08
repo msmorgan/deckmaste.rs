@@ -8,7 +8,7 @@ use rand_chacha::ChaCha8Rng;
 
 use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
-use crate::object::{Cards, ObjectId, ObjectStore};
+use crate::object::{Cards, ObjectId, ObjectSource, ObjectStore};
 use crate::player::{PlayerId, PlayerState};
 use crate::turn::TurnState;
 use crate::zone::Zones;
@@ -89,14 +89,15 @@ impl GameState {
 
         for (i, player_config) in config.players.into_iter().enumerate() {
             let player = PlayerId(Uint::try_from(i).expect("player count fits in Uint"));
-            players.push(PlayerState::new(player, config.starting_life));
+            let proxy = objects.mint(ObjectSource::Player(player), player, None);
+            players.push(PlayerState::new(player, proxy, config.starting_life));
 
             let mut library: Vec<ObjectId> = player_config
                 .deck
                 .into_iter()
                 .map(|def| {
                     let card = cards.push(def, player);
-                    objects.mint(card, player, Zone::Library)
+                    objects.mint(ObjectSource::Card(card), player, Some(Zone::Library))
                 })
                 .collect();
             library.shuffle(&mut rng);
@@ -105,7 +106,7 @@ impl GameState {
             // Opening hand ([CR#103.5]): pre-game, not events.
             for _ in 0..7 {
                 let Some(top) = zones.libraries[i].pop_front() else { break };
-                objects.obj_mut(top).zone = Zone::Hand;
+                objects.obj_mut(top).zone = Some(Zone::Hand);
                 zones.hands[i].push(top);
             }
         }
@@ -142,25 +143,29 @@ impl GameState {
     /// input.
     pub fn player_mut(&mut self, p: PlayerId) -> &mut PlayerState { &mut self.players[p.index()] }
 
-    /// The card behind an object (skeleton: every object is card-backed).
+    /// The card behind an object (card-backed objects only).
     ///
     /// # Panics
     ///
-    /// Panics on a stale `ObjectId` or fabricated `CardId` — engine invariants,
-    /// not caller input.
+    /// Panics on a stale `ObjectId`, a fabricated `CardId`, or a player proxy
+    /// — engine invariants, not caller input.
     #[must_use]
-    pub fn def(&self, id: ObjectId) -> &Card { &self.cards.get(self.objects.obj(id).card).def }
+    pub fn def(&self, id: ObjectId) -> &Card {
+        let card = self.objects.obj(id).card_id().expect("card-backed object");
+        &self.cards.get(card).def
+    }
 
     /// [CR#108.3]: a card's owner never changes; an object's owner is its
     /// card's.
     ///
     /// # Panics
     ///
-    /// Panics on a stale `ObjectId` or fabricated `CardId` — engine invariants,
-    /// not caller input.
+    /// Panics on a stale `ObjectId`, a fabricated `CardId`, or a player proxy
+    /// — engine invariants, not caller input.
     #[must_use]
     pub fn owner_of(&self, id: ObjectId) -> PlayerId {
-        self.cards.get(self.objects.obj(id).card).owner
+        let card = self.objects.obj(id).card_id().expect("card-backed object");
+        self.cards.get(card).owner
     }
 
     /// # Panics
