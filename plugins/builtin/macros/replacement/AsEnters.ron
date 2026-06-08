@@ -1,0 +1,10 @@
+// "AsEnters" = a self-replacement applied as the permanent enters the
+// battlefield ([CR#614.1c,614.12]): an augment whose event is this object's own
+// entry. Usage: AsEnters(effect) — e.g. AsEnters(Tap(This)) (enters tapped).
+(
+    name: "AsEnters",
+    template: "as this enters",
+    kinds: [Replacement],
+    params: [Any],
+    body: Also(would: Enters(Is(This)), also: Param(0)),
+)

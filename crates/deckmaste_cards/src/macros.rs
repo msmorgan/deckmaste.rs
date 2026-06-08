@@ -15,7 +15,7 @@ use macro_ron::{Kind, KindSet};
 /// separately with `remembers_expansion` only — no literal wrapper;
 /// `Selection` is registered separately so it also `embeds_untagged` its
 /// `Reference`.)
-const REMEMBERING_KINDS: [&str; 10] = [
+const REMEMBERING_KINDS: [&str; 11] = [
     "Ability",
     "Condition",
     "CostComponent",
@@ -24,6 +24,7 @@ const REMEMBERING_KINDS: [&str; 10] = [
     "Filter",
     "Quantity",
     "Reference",
+    "Replacement",
     "StaticEffect",
     "TargetSpec",
 ];
@@ -89,8 +90,8 @@ pub fn macro_set() -> MacroSet {
 mod tests {
     use deckmaste_core::{
         Ability, CardFace, CharacteristicFilter, Condition, CostComponent, Count, Effect, Event,
-        Filter, ObjectKind, Quantity, Reference, Selection, StateFilter, StaticEffect, Subtype,
-        TargetSpec, Type, Zone,
+        Filter, ObjectKind, Quantity, Reference, Replacement, Selection, StateFilter, StaticEffect,
+        Subtype, TargetSpec, Type, Zone,
     };
 
     use super::*;
@@ -119,6 +120,7 @@ mod tests {
             name_of::<Filter>(),
             name_of::<Quantity>(),
             name_of::<Reference>(),
+            name_of::<Replacement>(),
             name_of::<Selection>(),
             name_of::<StaticEffect>(),
             name_of::<Subtype>(),
