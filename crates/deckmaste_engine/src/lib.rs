@@ -8,6 +8,9 @@
 mod agenda;
 pub use agenda::WorkItem;
 
+mod cast;
+pub use cast::Payment;
+
 mod decide;
 pub use decide::{Action, Decision, DecisionError, PendingDecision};
 

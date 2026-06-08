@@ -39,6 +39,17 @@ impl ManaPool {
 
     /// [CR#500.4] / [CR#106.4]: the pool empties at each step and phase boundary.
     pub fn clear(&mut self) { self.0 = [0; 6]; }
+
+    /// Removes `amount` of `mana`. Panics if the pool holds less — callers
+    /// validate first.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `amount` exceeds the pool's holding of `mana`.
+    pub fn spend(&mut self, mana: ColorOrColorless, amount: Uint) {
+        let slot = &mut self.0[slot(mana)];
+        *slot = slot.checked_sub(amount).expect("pool covers the spend");
+    }
 }
 
 /// Per-player state. [CR#119]: life is signed.
