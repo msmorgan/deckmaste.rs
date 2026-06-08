@@ -224,5 +224,9 @@ mod tests {
             Some("Static(effects: [Replacement(AsEnters(effect: Tap(This)))])")
         );
         assert!(resolve_line("Draw a card.").unwrap().is_none());
+        assert_eq!(
+            resolve_line("{T}: Add {W}{U}.").unwrap().as_deref(),
+            Some("Activated(cost: [Tap], effect: Sequence([AddMana(1, White), AddMana(1, Blue)]))")
+        );
     }
 }

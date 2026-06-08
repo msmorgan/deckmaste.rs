@@ -257,9 +257,9 @@ fn render_keyword(token: &str) -> anyhow::Result<Option<String>> {
 }
 
 /// A registry parser: one keyword-ability line -> the bare invocation RON, or
-/// `None`. Lines are pre-split one-keyword-per-line by `extract`, so a line
-/// that still chains keywords (`", "`) declines (the registry maps one line ->
-/// one ability; a smarter splitter can handle chains later).
+/// `None`. The input is expected to be a single, already-trimmed keyword line
+/// as `extract` guarantees — comma-joined keyword lines are pre-split before
+/// reaching the registry. A line that still chains keywords on `", "` declines.
 pub(crate) fn resolve_line(line: &str) -> anyhow::Result<Option<String>> {
     if line.split(", ").count() != 1 {
         return Ok(None);

@@ -78,6 +78,8 @@ pub fn resolve_cards(plugin_dir: &Path) -> anyhow::Result<()> {
         if !path.is_file() || !is_ron_todo_file(&path) {
             continue;
         }
+        // A malformed `.ron.todo` aborts the run (via `?`): it means a bug in
+        // the step that wrote it, which the engineer should fix before resolving.
         let source = std::fs::read_to_string(&path)?;
         let mut card: TodoCard = crate::ron_output::ron_options().from_str(&source)?;
         if resolve_card(&mut card)? {
@@ -91,7 +93,7 @@ pub fn resolve_cards(plugin_dir: &Path) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::todo_card::{RawIdent, TodoAbility, TodoCard, TodoCardFace};
+    use crate::todo_card::RawIdent;
 
     /// A registry that structures the line "Flying" only.
     #[allow(clippy::unnecessary_wraps)]
@@ -124,6 +126,26 @@ mod tests {
         assert!(matches!(&face.abilities[0], TodoAbility::Parsed(r) if r == "Flying"));
         assert!(matches!(&face.abilities[1], TodoAbility::Unparsed(_))); // unchanged
         // Idempotent: a second pass changes nothing.
+        assert!(!resolve_card_with(&mut card, &[flying_only]).unwrap());
+    }
+
+    #[test]
+    fn resolve_modal_dfc_resolves_both_faces() {
+        let mut card = TodoCard::ModalDfc(
+            TodoCardFace {
+                abilities: vec![TodoAbility::Unparsed("Flying".into())],
+                ..Default::default()
+            },
+            TodoCardFace {
+                abilities: vec![TodoAbility::Unparsed("Flying".into())],
+                ..Default::default()
+            },
+        );
+        assert!(resolve_card_with(&mut card, &[flying_only]).unwrap());
+        let TodoCard::ModalDfc(front, back) = &card else { panic!() };
+        assert!(matches!(&front.abilities[0], TodoAbility::Parsed(r) if r == "Flying"));
+        assert!(matches!(&back.abilities[0], TodoAbility::Parsed(r) if r == "Flying"));
+        // Idempotent.
         assert!(!resolve_card_with(&mut card, &[flying_only]).unwrap());
     }
 }
