@@ -1,0 +1,16 @@
+// {R} 1/1: when this dies, deal 1 damage to any target.
+// modeled on Goblin Arsonist.
+Normal(
+    name: "Creature dies-trigger DealDamage AnyTarget",
+    mana_cost: [Red],
+    types: [Creature],
+    power: 1,
+    toughness: 1,
+    abilities: [
+        Triggered(
+            event: Dies(Is(This)),
+            targets: [AnyTarget],
+            effect: DealDamage(Target(0), 1),
+        ),
+    ],
+)

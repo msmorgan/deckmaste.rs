@@ -1,0 +1,12 @@
+// Deals 2 to each creature on the battlefield — drives simultaneous deaths.
+// modeled on Pyroclasm.
+Normal(
+    name: "Sorcery DealDamage each creature",
+    mana_cost: [Generic(1), Red],
+    types: [Sorcery],
+    abilities: [
+        Spell(
+            effect: DealDamage(Each(AllOf([InZone(Battlefield), Type(Creature)])), 2),
+        ),
+    ],
+)
