@@ -163,6 +163,8 @@ impl GameState {
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
             Action::DrawCards(qty) => {
+                // TODO(stage-4): emit as ZoneWillChange (action-driven collapse, §5.6);
+                //   also needs the deferred WillDrawCards intent (spec §11).
                 let n = self.eval_quantity(qty, frame);
                 (0..n)
                     .map(|_| {

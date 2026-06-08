@@ -21,7 +21,8 @@ pub enum StackObject {
         ability: usize,
         bindings: TriggerBindings,
     },
-    // Activated { source: ObjectId, ability: usize },  // stage 3
+    // Activated { source: ObjectId, ability: usize },  // activated-abilities stage (split off
+    // Stage 3)
 }
 
 impl StackObject {
