@@ -31,6 +31,12 @@ pub enum PendingDecision {
         cost: deckmaste_core::ManaCost,
         pool: crate::player::ManaPool,
     },
+    /// [CR#603.3b]: a player controlling several simultaneous triggers orders
+    /// them. The submitted `Order` is a permutation of `0..triggers.len()`.
+    OrderTriggers {
+        player: PlayerId,
+        triggers: Vec<crate::trigger::NotedTrigger>,
+    },
 }
 
 /// An answer to the pending decision.
@@ -44,6 +50,9 @@ pub enum Decision {
     Targets(Vec<ObjectId>),
     /// Answers `PayMana`: how the pool covers the cost.
     Pay(crate::cast::Payment),
+    /// Answers `OrderTriggers`: a permutation of `0..triggers.len()` giving the
+    /// placement order ([CR#603.3b]).
+    Order(Vec<usize>),
 }
 
 /// What a priority holder can do in the skeleton.
@@ -160,8 +169,8 @@ impl GameState {
                 },
                 Decision::Targets(chosen),
             ) => {
-                // [CR#601.2c,115]: one chosen object per spec, each drawn from
-                // that spec's legal candidate set.
+                // [CR#601.2c,115] / [CR#603.3d]: one chosen object per spec,
+                // each drawn from that spec's legal candidate set.
                 if chosen.len() != spec.len()
                     || chosen.iter().zip(legal).any(|(c, set)| !set.contains(c))
                 {
@@ -170,10 +179,17 @@ impl GameState {
                     });
                 }
                 self.pending = None;
-                self.announcing
-                    .as_mut()
-                    .expect("an announce in flight")
-                    .targets = chosen;
+                if self.placing_trigger.is_some() {
+                    // [CR#603.3d]: a triggered ability chose its targets at
+                    // placement — commit it onto the stack and resume placement.
+                    self.commit_placing_trigger(chosen);
+                    self.schedule_front(vec![WorkItem::CheckSbas, WorkItem::PlaceTriggers]);
+                } else {
+                    self.announcing
+                        .as_mut()
+                        .expect("an announce in flight")
+                        .targets = chosen;
+                }
                 Ok(())
             }
             (
@@ -195,8 +211,42 @@ impl GameState {
                 crate::cast::apply_payment(&mut self.player_mut(player).mana_pool, &cost, &payment);
                 Ok(())
             }
+            (PendingDecision::OrderTriggers { player, triggers }, Decision::Order(order)) => {
+                let (player, triggers) = (*player, triggers.clone());
+                self.submit_order_triggers(player, &triggers, &order)
+            }
             _ => Err(DecisionError::WrongKind),
         }
+    }
+
+    /// [CR#603.3b]: apply an `OrderTriggers` answer — validate `order` is a
+    /// permutation of `0..triggers.len()`, reorder this player's noted
+    /// triggers, and resume placement.
+    ///
+    /// # Errors
+    ///
+    /// `Illegal` when `order` is not a permutation of the offered indices.
+    fn submit_order_triggers(
+        &mut self,
+        player: PlayerId,
+        triggers: &[crate::trigger::NotedTrigger],
+        order: &[usize],
+    ) -> Result<(), DecisionError> {
+        let len = triggers.len();
+        let distinct: HashSet<usize> = order.iter().copied().collect();
+        if order.len() != len || distinct.len() != len || order.iter().any(|&i| i >= len) {
+            return Err(DecisionError::Illegal {
+                reason: format!("order must be a permutation of 0..{len}"),
+            });
+        }
+        // Reorder this player's noted triggers to the chosen order, leaving
+        // other players' notes untouched; placement then resumes.
+        let ordered: Vec<crate::trigger::NotedTrigger> =
+            order.iter().map(|&i| triggers[i].clone()).collect();
+        self.pending = None;
+        self.reorder_pending_triggers(player, ordered);
+        self.schedule_front(vec![WorkItem::PlaceTriggers]);
+        Ok(())
     }
 
     /// The priority bookkeeping ([CR#117.3c,117.4]): a pass rotates or ends
@@ -219,11 +269,14 @@ impl GameState {
                 if all_passed {
                     self.turn.priority = None;
                     if let Some(top) = self.stack.last() {
-                        // [CR#608]: resolve the top; AP gets priority after ([CR#117.3b]).
-                        let obj = top.object.object();
+                        // [CR#608]: resolve the top; AP gets priority after
+                        // ([CR#117.3b]). Keyed on `StackEntry.id` so a triggered
+                        // ability (no backing object) resolves like a spell.
+                        let id = top.id;
                         self.schedule_front(vec![
-                            WorkItem::Resolve(obj),
+                            WorkItem::Resolve(id),
                             WorkItem::CheckSbas,
+                            WorkItem::PlaceTriggers,
                             WorkItem::OpenPriority,
                         ]);
                     } else {
@@ -247,6 +300,7 @@ impl GameState {
                         object: *object,
                     })),
                     WorkItem::CheckSbas,
+                    WorkItem::PlaceTriggers,
                     WorkItem::OpenPriority,
                 ]);
             }
@@ -266,6 +320,7 @@ impl GameState {
                         amount,
                     })),
                     WorkItem::CheckSbas,
+                    WorkItem::PlaceTriggers,
                     WorkItem::OpenPriority,
                 ]);
             }
@@ -282,6 +337,7 @@ impl GameState {
                     WorkItem::PayCost,
                     WorkItem::Emit(Occurrence::single(GameEvent::SpellCast(*object))),
                     WorkItem::CheckSbas,
+                    WorkItem::PlaceTriggers,
                     WorkItem::OpenPriority,
                 ]);
             }
