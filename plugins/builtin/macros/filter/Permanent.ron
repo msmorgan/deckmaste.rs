@@ -1,0 +1,6 @@
+(
+    name: "Permanent",
+    template: "permanent",
+    kinds: [Filter],
+    body: InZone(Battlefield),
+)

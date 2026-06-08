@@ -4,9 +4,9 @@
     template: "any target",
     kinds: [TargetSpec],
     body: Target(OneOf([
-        AllOf([InZone(Battlefield), Type(Battle)]),
-        AllOf([InZone(Battlefield), Type(Creature)]),
-        AllOf([InZone(Battlefield), Type(Planeswalker)]),
-        Kind(Player),
+        Battle,
+        Creature,
+        Planeswalker,
+        Player,
     ])),
 )

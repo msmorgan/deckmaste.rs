@@ -1,0 +1,6 @@
+(
+    name: "Creature",
+    template: "creature",
+    kinds: [Filter],
+    body: AllOf([Permanent, Type(Creature)])
+)

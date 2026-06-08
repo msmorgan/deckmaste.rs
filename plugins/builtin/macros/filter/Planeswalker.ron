@@ -1,0 +1,6 @@
+(
+    name: "Planeswalker",
+    template: "planeswalker",
+    kinds: [Filter],
+    body: AllOf([Permanent, Type(Planeswalker)]),
+)

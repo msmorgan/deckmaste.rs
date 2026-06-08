@@ -1,0 +1,6 @@
+(
+    name: "Battle",
+    template: "battle",
+    kinds: [Filter],
+    body: AllOf([Permanent, Type(Battle)]),
+)
