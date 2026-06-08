@@ -113,6 +113,32 @@ fn render_effect(production: &Production) -> anyhow::Result<String> {
     })
 }
 
+/// A registry parser: a `{T}: Add …` / `~ enters tapped.` line -> the bare RON
+/// of one ability, or `None`. (The 8-space block form for the legacy migrations
+/// lives in `render_tap_ability`.)
+pub(crate) fn resolve_line(line: &str) -> anyhow::Result<Option<String>> {
+    let Some(ability) = parse_tap_ability(line) else {
+        return Ok(None);
+    };
+    Ok(Some(render_bare(&ability)?))
+}
+
+/// The bare ability RON (no indent/comma) for a `TapAbility` — same content as
+/// `render_tap_ability` minus the block wrapper.
+fn render_bare(ability: &TapAbility) -> anyhow::Result<String> {
+    Ok(match ability {
+        TapAbility::EntersTapped => {
+            "Static(effects: [Replacement(AsEnters(effect: Tap(This)))])".to_owned()
+        }
+        TapAbility::Mana(production) => {
+            format!(
+                "Activated(cost: [Tap], effect: {})",
+                render_effect(production)?
+            )
+        }
+    })
+}
+
 /// One ability block at the `abilities:` items indent (8 spaces), with its
 /// trailing comma + newline.
 pub(super) fn render_tap_ability(ability: &TapAbility) -> anyhow::Result<String> {
@@ -185,5 +211,18 @@ mod tests {
             block,
             "        Static(\n            effects: [Replacement(AsEnters(effect: Tap(This)))],\n        ),\n"
         );
+    }
+
+    #[test]
+    fn resolve_line_bare() {
+        assert_eq!(
+            resolve_line("{T}: Add {G}.").unwrap().as_deref(),
+            Some("Activated(cost: [Tap], effect: AddMana(1, Green))")
+        );
+        assert_eq!(
+            resolve_line("~ enters tapped.").unwrap().as_deref(),
+            Some("Static(effects: [Replacement(AsEnters(effect: Tap(This)))])")
+        );
+        assert!(resolve_line("Draw a card.").unwrap().is_none());
     }
 }

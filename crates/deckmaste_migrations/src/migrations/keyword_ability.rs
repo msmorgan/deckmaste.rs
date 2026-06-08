@@ -234,9 +234,10 @@ pub(super) fn render_keyword_line(line: &str) -> anyhow::Result<Option<String>> 
     Ok(Some(blocks))
 }
 
-/// One keyword token -> its ability block, or `None` (declines). Renders the
-/// keyword by its on-card name; the argument shape decides arity.
-fn render_keyword(token: &str) -> anyhow::Result<Option<String>> {
+/// One keyword token -> its bare invocation RON (`Flying`,
+/// `Ward([Mana([Generic(2)])])`), or `None` (declines). The name-match +
+/// argument-shape logic; the legacy 8-space block form wraps this.
+fn bare_keyword(token: &str) -> anyhow::Result<Option<String>> {
     let Some(name) = match_keyword_name(token) else {
         return Ok(None);
     };
@@ -246,7 +247,24 @@ fn render_keyword(token: &str) -> anyhow::Result<Option<String>> {
         eprintln!("keyword_ability: unhandled keyword {name:?} (arg {arg:?})");
         return Ok(None);
     };
-    Ok(Some(format!("        {invocation},\n")))
+    Ok(Some(invocation))
+}
+
+/// One keyword token -> its ability block (8-space indent + trailing comma+
+/// newline), or `None`. Wraps [`bare_keyword`] for the legacy migrations.
+fn render_keyword(token: &str) -> anyhow::Result<Option<String>> {
+    Ok(bare_keyword(token)?.map(|invocation| format!("        {invocation},\n")))
+}
+
+/// A registry parser: one keyword-ability line -> the bare invocation RON, or
+/// `None`. Lines are pre-split one-keyword-per-line by `extract`, so a line
+/// that still chains keywords (`", "`) declines (the registry maps one line ->
+/// one ability; a smarter splitter can handle chains later).
+pub(crate) fn resolve_line(line: &str) -> anyhow::Result<Option<String>> {
+    if line.split(", ").count() != 1 {
+        return Ok(None);
+    }
+    bare_keyword(line.trim())
 }
 
 /// The longest `KEYWORD_NAMES` entry that prefixes `token` (case-insensitive)
@@ -368,5 +386,15 @@ mod tests {
         assert!(render("Enchant creature").is_none());
         assert!(render("Cycling—Discard a card").is_none()); // non-mana em-dash cost
         assert!(render("Whenever this dies, draw a card").is_none()); // not a keyword
+    }
+
+    #[test]
+    fn resolve_line_bare_keyword() {
+        assert_eq!(resolve_line("Flying").unwrap().as_deref(), Some("Flying"));
+        assert_eq!(
+            resolve_line("Ward {2}").unwrap().as_deref(),
+            Some("Ward([Mana([Generic(2)])])")
+        );
+        assert!(resolve_line("Protection from black").unwrap().is_none());
     }
 }
