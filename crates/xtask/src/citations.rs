@@ -94,6 +94,19 @@ pub fn parse_refs(inner: &str) -> anyhow::Result<Vec<Ref>> {
         .context("parsing citation refs")
 }
 
+/// Strip an optional `[CR#…]` / `CR#…` wrapper down to the inner ref text.
+/// The enclosing brackets are removed only as a matched pair, so a lone `[` or
+/// `]` survives and is later rejected by [`parse_refs`].
+pub fn strip_citation_wrapper(arg: &str) -> &str {
+    let s = arg.trim();
+    let s = s
+        .strip_prefix('[')
+        .and_then(|rest| rest.strip_suffix(']'))
+        .unwrap_or(s);
+    let s = s.strip_prefix("CR#").unwrap_or(s);
+    s.trim()
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ref {
     One(String),
@@ -169,6 +182,30 @@ mod tests {
             members(&refs, &rules).unwrap(),
             vec!["704.5k", "704.5m", "704.5n", "100.1a"]
         );
+    }
+
+    #[test]
+    fn strip_wrapper_accepts_all_forms() {
+        assert_eq!(strip_citation_wrapper("[CR#704.5g]"), "704.5g");
+        assert_eq!(strip_citation_wrapper("CR#704.5g"), "704.5g");
+        assert_eq!(strip_citation_wrapper("704.5g"), "704.5g");
+        assert_eq!(
+            strip_citation_wrapper("  [CR#601.2g,106.4]  "),
+            "601.2g,106.4"
+        );
+        assert_eq!(
+            strip_citation_wrapper("[CR#704.5k..704.5n]"),
+            "704.5k..704.5n"
+        );
+    }
+
+    #[test]
+    fn strip_wrapper_leaves_unmatched_brackets() {
+        // A lone bracket isn't stripped, so parse_refs later rejects it.
+        assert_eq!(strip_citation_wrapper("[CR#704.5g"), "[CR#704.5g");
+        assert_eq!(strip_citation_wrapper("704.5g]"), "704.5g]");
+        assert!(parse_refs(strip_citation_wrapper("[CR#704.5g")).is_err());
+        assert!(parse_refs(strip_citation_wrapper("704.5g]")).is_err());
     }
 
     #[test]
