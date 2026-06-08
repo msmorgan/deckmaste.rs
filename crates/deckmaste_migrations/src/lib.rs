@@ -1,4 +1,5 @@
-//! Migrations that build and refine the plugin data directories.
+//! Card data pipeline (extract, resolve) plus macro-stub generation for plugin
+//! data directories.
 
 mod data;
 pub mod extract;

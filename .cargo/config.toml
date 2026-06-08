@@ -1,7 +1,7 @@
-# `cargo xtask <validate|card|migrate|cite> ...` -- workspace automation.
+# `cargo xtask <validate|card|generate|cite> ...` -- workspace automation.
 # xtask owns all CLI parsing; the other crates are pure libraries it calls.
 #
-# Dev profile, so iterating on xtask stays fast to compile. `migrate`
+# Dev profile, so iterating on xtask stays fast to compile. `generate`
 # deserializes the ~600 MB AllPrintings.json, which is slow unoptimized -- the
 # root Cargo.toml raises the dev opt-level of deckmaste_migrations + serde_json
 # so it stays fast to run without a release build of the whole tree.

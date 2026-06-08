@@ -194,6 +194,7 @@ fn face(card: &AtomicCard, keyword_abilities: &[DataStr<'_>]) -> anyhow::Result<
         let text = expand_keyword_lines(&strip_reminder_text(&text), keyword_abilities);
         let text = self_ref_to_tilde(&text, face_name, is_legendary, keyword_abilities);
         text.split('\n')
+            .map(str::trim)
             .filter(|line| !line.is_empty())
             .map(|line| TodoAbility::Unparsed(line.to_owned()))
             .collect()
@@ -390,6 +391,25 @@ mod tests {
         assert_eq!(
             strip_reminder_text("({R/P} can be paid with {R} or 2 life.)\nGain control."),
             "Gain control."
+        );
+    }
+
+    /// A reminder-only oracle line that collapses to a lone space after
+    /// `strip_reminder_text` (pattern: `"(text) "` → `" "`) must NOT produce an
+    /// `Unparsed(" ")` ability slot — that would keep the card as `.ron.todo`
+    /// forever. The `.map(str::trim)` in `face()` prevents this.
+    #[test]
+    fn whitespace_only_line_yields_no_ability() {
+        // "(reminder) " → strip → " " (lone space, non-empty without trim).
+        // Without `.map(str::trim)` this would produce Unparsed(" ").
+        let card = creature(Some("(This is reminder text.) "));
+        let TodoCard::Normal(face) = todo_card("normal", &[&card], &[]).unwrap().unwrap() else {
+            panic!("expected Normal");
+        };
+        assert!(
+            face.abilities.is_empty(),
+            "expected no abilities, got: {:?}",
+            face.abilities
         );
     }
 
