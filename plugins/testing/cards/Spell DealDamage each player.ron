@@ -1,0 +1,12 @@
+// Deals 20 to each player — drives the simultaneous multi-loss Draw (a later task).
+// synthetic (no minimal real analog; ~ Earthquake to players).
+Normal(
+    name: "Spell DealDamage each player",
+    mana_cost: [Red],
+    types: [Instant],
+    abilities: [
+        Spell(
+            effect: DealDamage(Each(Kind(Player)), 20),
+        ),
+    ],
+)

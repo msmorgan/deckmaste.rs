@@ -3,3 +3,4 @@
 /plugins/*/
 !/plugins/builtin/
 !/plugins/canon/
+!/plugins/testing/

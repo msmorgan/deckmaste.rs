@@ -1,0 +1,14 @@
+// {2} 2/2: enters the battlefield tapped (static replacement on entry).
+// modeled on Azorius Guildgate (replacement half).
+Normal(
+    name: "Creature enters tapped",
+    mana_cost: [Generic(2)],
+    types: [Creature],
+    power: 2,
+    toughness: 2,
+    abilities: [
+        Static(effects: [
+            Replacement(AsEnters(Tap(This))),
+        ]),
+    ],
+)
