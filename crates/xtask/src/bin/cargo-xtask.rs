@@ -6,6 +6,7 @@
 use clap::{Parser, Subcommand};
 use xtask::card::CardArgs;
 use xtask::cite::CiteArgs;
+use xtask::graduate::GraduateArgs;
 use xtask::migrate::MigrateArgs;
 use xtask::validate::ValidateArgs;
 
@@ -25,6 +26,8 @@ enum Cmd {
     Card(CardArgs),
     /// Apply migration(s) to a plugin.
     Migrate(MigrateArgs),
+    /// Graduate every `cards/*.ron.todo` in a plugin that now parses cleanly.
+    Graduate(GraduateArgs),
     /// Check / bless / diff / list / show CR citations.
     Cite(CiteArgs),
 }
@@ -34,6 +37,7 @@ fn main() -> anyhow::Result<()> {
         Cmd::Validate(args) => xtask::validate::run(args),
         Cmd::Card(args) => xtask::card::run(args),
         Cmd::Migrate(args) => xtask::migrate::run(args),
+        Cmd::Graduate(args) => xtask::graduate::run(args),
         Cmd::Cite(args) => xtask::cite::dispatch(args),
     }
 }

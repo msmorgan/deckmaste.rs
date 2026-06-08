@@ -3,5 +3,6 @@
 //! the workspace's CLI parsing; the other crates are pure libraries.
 pub mod card;
 pub mod cite;
+pub mod graduate;
 pub mod migrate;
 pub mod validate;
