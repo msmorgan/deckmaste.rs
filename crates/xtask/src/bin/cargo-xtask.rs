@@ -9,6 +9,7 @@ use xtask::cite::CiteArgs;
 use xtask::extract::ExtractArgs;
 use xtask::graduate::GraduateArgs;
 use xtask::migrate::MigrateArgs;
+use xtask::resolve::ResolveArgs;
 use xtask::validate::ValidateArgs;
 
 /// Workspace automation: validate, card, migrate, and CR-citation tasks.
@@ -29,6 +30,8 @@ enum Cmd {
     Migrate(MigrateArgs),
     /// Extract cards/*.ron.todo from mtgjson.
     Extract(ExtractArgs),
+    /// Rewrite resolvable Unparsed abilities in a plugin's .ron.todo cards.
+    Resolve(ResolveArgs),
     /// Graduate every `cards/*.ron.todo` in a plugin that now parses cleanly.
     Graduate(GraduateArgs),
     /// Check / bless / diff / list / show CR citations.
@@ -41,6 +44,7 @@ fn main() -> anyhow::Result<()> {
         Cmd::Card(args) => xtask::card::run(args),
         Cmd::Migrate(args) => xtask::migrate::run(args),
         Cmd::Extract(args) => xtask::extract::run(args),
+        Cmd::Resolve(args) => xtask::resolve::run(args),
         Cmd::Graduate(args) => xtask::graduate::run(args),
         Cmd::Cite(args) => xtask::cite::dispatch(args),
     }
