@@ -44,6 +44,7 @@ mod target;
 pub use target::{candidates, matches, object_kind};
 
 mod trigger;
+pub use trigger::{NotedTrigger, TriggerBindings};
 
 mod state;
 pub use state::{GameConfig, GameOutcome, GameState, PlayerConfig, StartingPlayer};

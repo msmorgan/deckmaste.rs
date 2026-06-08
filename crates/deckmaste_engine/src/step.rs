@@ -230,6 +230,23 @@ impl GameState {
                     deckmaste_core::Int::try_from(amount).expect("life loss fits in i32");
                 GameEvent::LifeLost { player, amount }
             }
+            // [CR#603.2]: applying a `TriggerFired` *notes* the trigger. It is
+            // inert until the `PlaceTriggers` barrier (a later task) puts it on
+            // the stack. Nothing else happens here.
+            GameEvent::TriggerFired {
+                source,
+                ability,
+                controller,
+                ref bindings,
+            } => {
+                self.pending_triggers.push(crate::trigger::NotedTrigger {
+                    source,
+                    ability: ability as usize,
+                    controller,
+                    bindings: bindings.clone(),
+                });
+                event
+            }
         }
     }
 
@@ -304,6 +321,9 @@ impl GameState {
             }
         };
         self.check_game_end();
+        if self.outcome.is_none() {
+            self.scan_triggers(&occurred);
+        }
         occurred
     }
 

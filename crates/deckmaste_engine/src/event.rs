@@ -1,6 +1,6 @@
 use deckmaste_core::{ColorOrColorless, StepOrPhase, Uint, Zone};
 
-use crate::object::ObjectId;
+use crate::object::{ObjectId, ObjectSource};
 use crate::player::PlayerId;
 
 /// Why a player lost ([CR#704.5]).
@@ -76,6 +76,15 @@ pub enum GameEvent {
     LifeLost {
         player: PlayerId,
         amount: Uint,
+    },
+    /// [CR#603.2]: a triggered ability triggered. Its apply notes it into
+    /// `pending_triggers`. Routed as an event so Stage-4 replacements/cant can
+    /// intercept (Panharmonicon/Hushwing).
+    TriggerFired {
+        source: ObjectSource,
+        ability: Uint,
+        controller: PlayerId,
+        bindings: crate::trigger::TriggerBindings,
     },
 }
 

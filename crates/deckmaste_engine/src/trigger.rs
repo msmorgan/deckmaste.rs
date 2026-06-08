@@ -1,16 +1,43 @@
-//! Trigger event-matching: pure predicates deciding whether a trigger's
-//! `Event` pattern matches a `GameEvent` fact, using an `LkiSnapshot` for
-//! leave events. Intervening-`if` evaluation ([CR#603.4]) also lives here.
+//! Trigger event-matching ([CR#603.2,603.6]) and the trigger *scan*: after an
+//! occurrence applies, scan watching abilities, emit a `TriggerFired` per
+//! match, whose apply notes a `NotedTrigger` into `pending_triggers`.
 //!
-//! This module contains NO scheduling, NO mutation, NO `TriggerFired` /
-//! `pending_triggers` — those are later tasks.
+//! Matching is pure predicates (`event_matches`, `filter_matches_snapshot`,
+//! `condition_holds`); `scan_triggers` is the only scheduling/agenda-touching
+//! function here. Placing/resolving the noted triggers is a later task.
 
-use deckmaste_core::{CharacteristicFilter, Condition, Event, Filter, Reference, Type, Zone};
+use deckmaste_core::{
+    Ability, CharacteristicFilter, Condition, Event, Filter, Reference, Type, Uint, Zone,
+};
 
-use crate::event::GameEvent;
+use crate::agenda::WorkItem;
+use crate::event::{GameEvent, Occurrence};
 use crate::lki::LkiSnapshot;
-use crate::object::ObjectSource;
+use crate::object::{ObjectId, ObjectSource};
+use crate::player::PlayerId;
 use crate::state::GameState;
+
+/// The last-known information a fired trigger carries to its placement and
+/// resolution ([CR#603.10a], [CR#608.2]): `~`/`This`/source, the moved object,
+/// and the affected player.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TriggerBindings {
+    /// The firing object's last-known self (`~`/`This`/source).
+    pub this: Option<LkiSnapshot>,
+    /// The moved object for a `ZoneMove` trigger.
+    pub that_object: Option<LkiSnapshot>,
+    pub that_player: Option<PlayerId>,
+}
+
+/// A trigger that has fired but is not yet on the stack ([CR#603.2]). Noted by
+/// applying a `TriggerFired`; placed by the `PlaceTriggers` barrier (later).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NotedTrigger {
+    pub source: ObjectSource,
+    pub ability: usize,
+    pub controller: PlayerId,
+    pub bindings: TriggerBindings,
+}
 
 impl GameState {
     /// [CR#603.2,603.6]: does `pattern` match `event`, for an ability on
@@ -18,8 +45,6 @@ impl GameState {
     ///
     /// `Dies`/`Enters` are `Event::Expanded` macros over `ZoneMove`; they are
     /// looked through transparently via the `Expanded` arm.
-    // Seam: wired live by the Task 8 trigger scan.
-    #[allow(dead_code)]
     pub(crate) fn event_matches(
         &self,
         pattern: &Event,
@@ -64,8 +89,6 @@ impl GameState {
     /// Mirrors `target::matches` but sources characteristics from the snapshot
     /// instead of a live object — necessary for leaves where the object is
     /// already reminted/gone.
-    // Seam: wired live by the Task 8 trigger scan.
-    #[allow(dead_code)]
     pub(crate) fn filter_matches_snapshot(
         &self,
         filter: &Filter,
@@ -105,8 +128,6 @@ impl GameState {
     /// game state (the state at the moment of the occurrence). The trigger scan
     /// calls this only when the ability has a condition; a `None` condition is
     /// treated as "holds" by the caller.
-    // Seam: wired live by the Task 8 trigger scan.
-    #[allow(dead_code)]
     pub(crate) fn condition_holds(&self, cond: &Condition) -> bool {
         match cond {
             // "if you control a creature" / "if a creature is on the battlefield"
@@ -129,6 +150,111 @@ impl GameState {
             Condition::Happened { .. } => todo!("stage 3 does not evaluate Condition::Happened"),
         }
     }
+
+    /// [CR#603.2,603.6]: after an occurrence applies, scan watching abilities
+    /// for ones whose `event` pattern matches each occurred fact, and schedule
+    /// a `TriggerFired` per match at the agenda front (so they apply in the
+    /// occurrence's wake — [CR#603.3b]). Applying a `TriggerFired` is what
+    /// *notes* the trigger; this only emits.
+    ///
+    /// Watchers ([CR#603.6]) are every live battlefield permanent, plus — for a
+    /// `ZoneChanged` that LEFT the battlefield — the leaving object itself (via
+    /// its snapshot), so its own dies-trigger is considered even though its
+    /// abilities are gone from the battlefield ([CR#603.6d]). An *entering*
+    /// object is already a live battlefield permanent, so it is not re-added.
+    pub(crate) fn scan_triggers(&mut self, facts: &Occurrence) {
+        let events: &[GameEvent] = match facts {
+            Occurrence::Single(e) => std::slice::from_ref(e),
+            Occurrence::Batch(es) => es,
+        };
+        let mut emits: Vec<WorkItem> = Vec::new();
+        for event in events {
+            // Skip facts no fixture trigger watches; never scan a `TriggerFired`
+            // (avoids any chance of recursion).
+            match event {
+                GameEvent::TriggerFired { .. }
+                | GameEvent::StepBegan(_)
+                | GameEvent::TurnBegan { .. }
+                | GameEvent::ZoneWillChange { .. } => continue,
+                _ => {}
+            }
+            self.scan_event(event, &mut emits);
+        }
+        if !emits.is_empty() {
+            self.schedule_front(emits);
+        }
+    }
+
+    /// Scan one occurred fact against every watcher, pushing a `TriggerFired`
+    /// emit per match onto `emits`.
+    fn scan_event(&self, event: &GameEvent, emits: &mut Vec<WorkItem>) {
+        // The moved object's snapshot for a zone change (the trigger's
+        // `that_object`); `None` for any other fact.
+        let subject: Option<&LkiSnapshot> = match event {
+            GameEvent::ZoneChanged { snapshot, .. } => Some(snapshot),
+            _ => None,
+        };
+
+        // The watcher set ([CR#603.6]): every live battlefield permanent, plus
+        // the leaving object's snapshot for a battlefield-leave.
+        let mut watchers: Vec<Watcher> = self
+            .zones
+            .battlefield
+            .iter()
+            .map(|&id| Watcher::Live(id))
+            .collect();
+        if let GameEvent::ZoneChanged {
+            snapshot,
+            from: Some(Zone::Battlefield),
+            ..
+        } = event
+        {
+            // The leaving object — its abilities are no longer on the
+            // battlefield, so add it explicitly ([CR#603.6d]).
+            watchers.push(Watcher::Leaving(snapshot.clone()));
+        }
+
+        for watcher in watchers {
+            let (source, controller, this) = match watcher {
+                Watcher::Live(id) => {
+                    let o = self.objects.obj(id);
+                    (o.source, o.controller, LkiSnapshot::capture(self, id))
+                }
+                Watcher::Leaving(s) => (s.source, s.controller, s.clone()),
+            };
+            for (idx, ability) in crate::derive::abilities_of_source(self, source)
+                .iter()
+                .enumerate()
+            {
+                let Ability::Triggered(t) = ability else {
+                    continue;
+                };
+                if self.event_matches(&t.event, event, source)
+                    && t.condition.as_ref().is_none_or(|c| self.condition_holds(c))
+                {
+                    emits.push(WorkItem::Emit(Occurrence::single(
+                        GameEvent::TriggerFired {
+                            source,
+                            ability: Uint::try_from(idx).expect("ability index fits in Uint"),
+                            controller,
+                            bindings: TriggerBindings {
+                                this: Some(this.clone()),
+                                that_object: subject.cloned(),
+                                that_player: None,
+                            },
+                        },
+                    )));
+                }
+            }
+        }
+    }
+}
+
+/// A candidate watching object ([CR#603.6]) for the trigger scan: a live
+/// battlefield permanent, or a just-left object carried by its snapshot.
+enum Watcher {
+    Live(ObjectId),
+    Leaving(LkiSnapshot),
 }
 
 /// Whether `zone_constraint` (from the trigger pattern) is satisfied by
@@ -136,8 +262,6 @@ impl GameState {
 ///
 /// `None` in the pattern means "any zone" (open constraint); `Some(z)` requires
 /// an exact match.
-// Seam: wired live by the Task 8 trigger scan.
-#[allow(dead_code)]
 fn zone_ok(constraint: Option<Zone>, actual: Option<Zone>) -> bool {
     match constraint {
         None => true,
@@ -146,8 +270,6 @@ fn zone_ok(constraint: Option<Zone>, actual: Option<Zone>) -> bool {
 }
 
 /// Whether the snapshot's card has the given type in its printed face.
-// Seam: wired live by the Task 8 trigger scan.
-#[allow(dead_code)]
 fn snapshot_has_type(state: &GameState, snapshot: &LkiSnapshot, ty: Type) -> bool {
     match snapshot.source {
         ObjectSource::Card(card_id) => {
@@ -683,6 +805,115 @@ mod tests {
             what,
             &Filter::Is(Reference::This),
             "Dies(Is(This)) must use Filter::Is(Reference::This)"
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // The trigger scan: noting into pending_triggers
+    // -------------------------------------------------------------------------
+
+    /// Force a single card from a named fixture onto the battlefield (as
+    /// player 0's, freshly minted) and return the new id. Player 1's deck is
+    /// Forest fodder so the game is well-formed.
+    fn fixture_on_field(card_name: &str) -> (GameState, ObjectId) {
+        use crate::object::ObjectSource;
+
+        let card = Arc::new(testing().card(card_name).unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 10],
+                },
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 10],
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        });
+        let card_id = state.cards.push(card, PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        (state, id)
+    }
+
+    /// A `Creature dies-trigger DealDamage AnyTarget` on the battlefield with
+    /// lethal damage: stepping past the SBA destroy (`CheckSbas` →
+    /// `ZoneWillChange` → `ZoneChanged` → `TriggerFired` apply) notes exactly
+    /// one trigger, whose `this` binding is the LKI snapshot of the (now-gone)
+    /// battlefield id.
+    #[test]
+    fn dies_trigger_notes_into_pending_triggers() {
+        use crate::agenda::WorkItem;
+
+        let (mut state, goblin) = fixture_on_field("Creature dies-trigger DealDamage AnyTarget");
+        // toughness 1 → 1 damage is lethal.
+        state.objects.obj_mut(goblin).damage = 1;
+
+        state.schedule_front(vec![WorkItem::CheckSbas]);
+        for _ in 0..30 {
+            if !state.pending_triggers.is_empty() {
+                break;
+            }
+            let _ = state.step();
+        }
+
+        assert_eq!(
+            state.pending_triggers.len(),
+            1,
+            "the self-dies trigger must be noted exactly once"
+        );
+        let noted = &state.pending_triggers[0];
+        assert_eq!(noted.ability, 0);
+        assert_eq!(noted.controller, PlayerId(0));
+        assert!(
+            noted.bindings.this.is_some(),
+            "LKI snapshot of the dead goblin"
+        );
+        // The snapshot's object id is the (now-gone) battlefield id.
+        assert_eq!(noted.bindings.this.as_ref().unwrap().object, goblin);
+        // The dead object is truly gone from the store.
+        assert!(state.objects.get(goblin).is_none());
+        // `that_object` for a zone-move trigger is the moved object's snapshot.
+        assert_eq!(
+            noted.bindings.that_object.as_ref().unwrap().object,
+            goblin,
+            "the moved object's snapshot rides as that_object"
+        );
+    }
+
+    /// A non-watching board: a `Vanilla Creature` dying notes NOTHING (it has
+    /// no triggered abilities, and no other watcher cares).
+    #[test]
+    fn vanilla_creature_dying_notes_nothing() {
+        use crate::agenda::WorkItem;
+
+        let (mut state, bear) = fixture_on_field("Vanilla Creature");
+        // Vanilla Creature has toughness 2; set lethal damage.
+        state.objects.obj_mut(bear).damage = 2;
+
+        state.schedule_front(vec![WorkItem::CheckSbas]);
+        for _ in 0..30 {
+            // Stop once the bear is gone (the death has been fully processed).
+            if state.objects.get(bear).is_none() && state.agenda.is_empty() {
+                break;
+            }
+            let _ = state.step();
+        }
+
+        assert!(
+            state.objects.get(bear).is_none(),
+            "the bear should have died and reminted to the graveyard"
+        );
+        assert!(
+            state.pending_triggers.is_empty(),
+            "a vanilla creature dying watches nothing — no trigger noted"
         );
     }
 }
