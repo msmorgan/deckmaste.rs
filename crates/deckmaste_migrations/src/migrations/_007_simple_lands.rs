@@ -11,7 +11,7 @@ use crate::layout::PluginLayout;
 use crate::ron_output::to_string_pretty;
 
 /// Basic land type subtypes. Each confers the intrinsic tap-for-mana ability
-/// (CR 305.6), so a land carrying one needs no printed mana ability.
+/// ([CR#305.6]), so a land carrying one needs no printed mana ability.
 const BASIC_LAND_TYPES: [&str; 5] = ["Plains", "Island", "Swamp", "Mountain", "Forest"];
 
 /// One simple-land ability, parsed from a normalized text line.
@@ -53,7 +53,7 @@ fn symbol_color(symbol: &str) -> Option<ColorOrColorless> {
 
 /// A simple-land face's abilities in printed order, or `None` if the face
 /// isn't a simple land. Two channels by whether the face has a basic land type
-/// (CR 305.6): an intrinsic-mana land must not *also* print a tap ability
+/// ([CR#305.6]): an intrinsic-mana land must not *also* print a tap ability
 /// (ambiguous), and a non-intrinsic land must produce mana some other way.
 fn land_abilities(face: &CardFaceTodo) -> Option<Vec<LandAbility>> {
     if face.types != ["Land"]

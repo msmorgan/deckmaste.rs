@@ -20,8 +20,8 @@ use crate::color::ColorOrColorless;
 pub enum ManaSpec {
     AnyColor,
     /// One mana of a color the controller chooses from a fixed set on
-    /// resolution ("{W} or {U}", CR 106.1b) — a single mana ability, not a
-    /// CR 700.2 modal choice. Members keep their printed order.
+    /// resolution ("{W} or {U}", [CR#106.1b]) — a single mana ability, not a
+    /// [CR#700.2] modal choice. Members keep their printed order.
     OneOf(Vec<ColorOrColorless>),
     #[serde(untagged)]
     Specific(ColorOrColorless),
