@@ -62,10 +62,10 @@ fn grizzly_bears_expand_the_creature_type_macro() {
     assert_eq!(face.toughness, Some(StatValue::Number(2)));
 }
 
-/// Filter-position interception through real data: `Target(AnyTarget)`
-/// expands `AnyTarget` at the Selection's Filter payload.
+/// Target-position interception through real data: the bare `AnyTarget`
+/// invocation expands at the ability's `TargetSpec` announce slot.
 #[test]
-fn lightning_bolt_expands_filter_macros() {
+fn lightning_bolt_expands_target_macros() {
     let card = canon().card("Lightning Bolt").unwrap();
     let Card::Normal(face) = card else {
         panic!("Lightning Bolt should be single-faced");
@@ -76,23 +76,23 @@ fn lightning_bolt_expands_filter_macros() {
             Filter::Characteristic(CharacteristicFilter::Type(t)),
         ])
     };
-    let any_target_value = Filter::OneOf(vec![
+    let any_target_filter = Filter::OneOf(vec![
         permanent_of(Type::Battle),
         permanent_of(Type::Creature),
         permanent_of(Type::Planeswalker),
         Filter::Kind(ObjectKind::Player),
     ]);
-    // `AnyTarget` is a remembered Filter macro: the invocation survives,
-    // wrapping the expanded predicate under `.value`.
-    let any_target = Filter::Expanded(Expansion {
+    // `AnyTarget` is a remembered TargetSpec macro: the invocation survives,
+    // wrapping the expanded `Target(..)` spec under `.value`.
+    let any_target = TargetSpec::Expanded(Expansion {
         name: "AnyTarget".into(),
         args: ExpansionArgs::none(),
-        value: Box::new(any_target_value),
+        value: Box::new(TargetSpec::Target(any_target_filter)),
     });
     assert_eq!(
         face.abilities,
         vec![Ability::Spell(SpellAbility {
-            targets: vec![TargetSpec::Target(any_target)],
+            targets: vec![any_target],
             effect: Effect::Act(Action::DealDamage(
                 Selection::Target(0),
                 Quantity::Literal(3)

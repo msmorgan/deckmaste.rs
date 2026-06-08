@@ -1,0 +1,9 @@
+(
+    name: "CreatureOrPlayer",
+    template: "creature or player",
+    kinds: [Filter],
+    body: OneOf([
+        AllOf([InZone(Battlefield), Type(Creature)]),
+        Kind(Player),
+    ]),
+)
