@@ -17,7 +17,7 @@ pub use decide::{Action, Decision, DecisionError, PendingDecision};
 mod derive;
 
 mod event;
-pub use event::{GameEvent, LossReason, Occurrence};
+pub use event::{EnterStatus, GameEvent, LossReason, Occurrence};
 
 mod lki;
 pub use lki::LkiSnapshot;

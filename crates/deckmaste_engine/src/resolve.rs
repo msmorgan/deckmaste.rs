@@ -1,7 +1,7 @@
 //! Resolution ([CR#608]): dispatch a stack object, and walk its `Effect` AST as
 //! reified agenda work. Stage 3 wires the corpus's arms; the rest are `todo!`.
 
-use deckmaste_core::{Ability, Action, Effect, Quantity, Selection, TargetSpec, Type, Uint};
+use deckmaste_core::{Ability, Action, Effect, Quantity, Selection, TargetSpec, Type, Uint, Zone};
 
 use crate::agenda::WorkItem;
 use crate::event::{GameEvent, Occurrence};
@@ -30,7 +30,12 @@ impl GameState {
                 if self.is_permanent_spell(spell) {
                     // [CR#608.3]: a permanent spell enters the battlefield.
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                        GameEvent::EntersBattlefield(spell),
+                        GameEvent::ZoneWillChange {
+                            object: spell,
+                            from: Some(Zone::Stack),
+                            to: Zone::Battlefield,
+                            enters: None,
+                        },
                     ))]);
                 } else if self.targets_still_legal(&entry) {
                     // Instant/sorcery with all targets still legal: run its effect.
@@ -47,12 +52,22 @@ impl GameState {
                             effect: Box::new(effect),
                             frame,
                         },
-                        WorkItem::Emit(Occurrence::single(GameEvent::SpellResolved(spell))),
+                        WorkItem::Emit(Occurrence::single(GameEvent::ZoneWillChange {
+                            object: spell,
+                            from: Some(Zone::Stack),
+                            to: Zone::Graveyard,
+                            enters: None,
+                        })),
                     ]);
                 } else {
                     // [CR#608.2b]: all targets illegal — the spell fizzles.
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                        GameEvent::SpellResolved(spell),
+                        GameEvent::ZoneWillChange {
+                            object: spell,
+                            from: Some(Zone::Stack),
+                            to: Zone::Graveyard,
+                            enters: None,
+                        },
                     ))]);
                 }
             }

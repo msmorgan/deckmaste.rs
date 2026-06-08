@@ -1,4 +1,4 @@
-use deckmaste_core::{ColorOrColorless, StepOrPhase, Uint};
+use deckmaste_core::{ColorOrColorless, StepOrPhase, Uint, Zone};
 
 use crate::object::ObjectId;
 use crate::player::PlayerId;
@@ -56,22 +56,36 @@ pub enum GameEvent {
         target: ObjectId,
         amount: Uint,
     },
-    /// A permanent spell resolving onto the battlefield ([CR#608.3]).
-    EntersBattlefield(ObjectId),
-    /// An instant/sorcery leaving the stack for its owner's graveyard after
-    /// resolution or fizzle ([CR#608.2m]).
-    SpellResolved(ObjectId),
-    /// [CR#704.5g] result: a permanent destroyed to its owner's graveyard.
-    /// Carries the leaving permanent's `LkiSnapshot` ([CR#603.10a]) for
-    /// dies-triggers.
-    Destroyed {
+    /// The INTENT of a zone change ([CR#400.7]). Replacements act here (none
+    /// wired in 5a). Its apply captures LKI, moves+remints the object, and
+    /// emits `ZoneChanged`. `enters` is present only when `to == Battlefield`.
+    ZoneWillChange {
+        object: ObjectId,
+        from: Option<Zone>,
+        to: Zone,
+        enters: Option<EnterStatus>,
+    },
+    /// The FACT ([CR#603.6]) — unreplaceable; carries the moved object's LKI.
+    /// Triggers (later tasks) fire on it.
+    ZoneChanged {
         snapshot: crate::lki::LkiSnapshot,
+        from: Option<Zone>,
+        to: Zone,
     },
     /// [CR#119.3]: a player loses life directly (not via damage).
     LifeLost {
         player: PlayerId,
         amount: Uint,
     },
+}
+
+/// How a permanent enters the battlefield ([CR#110.5] status;
+/// counters/face-down are later). Present on a `ZoneWillChange` only when `to
+/// == Battlefield`. In 5a it is always `None` from the permanent-zone causes
+/// (enters-tapped is a later task).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct EnterStatus {
+    pub tapped: bool,
 }
 
 /// A scheduled occurrence: one event, or a set of simultaneous events applied

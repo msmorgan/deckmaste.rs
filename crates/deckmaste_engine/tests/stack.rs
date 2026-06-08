@@ -299,9 +299,20 @@ fn bolt_kills_grizzly_bears() {
         1,
         "exactly one object (the reminted creature) in P1's graveyard ([CR#704.5g])"
     );
+    // [CR#608.2m]/[CR#400.7]: the instant leaves the stack and remints — the
+    // old bolt id is gone; a fresh object sits in P0's graveyard.
     assert!(
-        state.zones.graveyards[0].contains(&bolt),
-        "instant to P0's graveyard after resolution ([CR#608.2m])"
+        state.objects.get(bolt).is_none(),
+        "old instant id must be gone after reminting"
+    );
+    assert_eq!(
+        state.zones.graveyards[0].len(),
+        1,
+        "the reminted instant lands in P0's graveyard ([CR#608.2m])"
+    );
+    assert!(
+        !state.zones.graveyards[0].contains(&bolt),
+        "the graveyard object carries a fresh id, not the old stack id"
     );
     assert!(state.stack.is_empty());
 }
@@ -372,13 +383,35 @@ fn grizzly_bears_resolves_to_a_two_two_on_the_battlefield() {
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let _ = step_to_stop(&mut state);
 
+    // [CR#608.3]/[CR#400.7]: the permanent spell enters the battlefield via a
+    // stack→battlefield ZoneWillChange that remints — the old stack id is gone
+    // and a fresh object is on the battlefield under P0's control.
     assert!(
-        state.zones.battlefield.contains(&bears),
-        "the Vanilla Creature entered the battlefield ([CR#608.3])"
+        state.objects.get(bears).is_none(),
+        "old stack id must be gone after the permanent enters and remints"
     );
-    assert_eq!(state.objects.obj(bears).controller, PlayerId(0));
-    assert_eq!(state.objects.obj(bears).zone, Some(Zone::Battlefield));
-    assert_eq!(printed_pt(&state, bears), Some((2, 2)), "a printed 2/2");
+    assert!(
+        !state.zones.battlefield.contains(&bears),
+        "the old stack id must not remain on the battlefield"
+    );
+    // Find the reminted creature among the battlefield (which also holds the
+    // forced Forests).
+    let entered = *state
+        .zones
+        .battlefield
+        .iter()
+        .find(|&&o| {
+            state
+                .objects
+                .obj(o)
+                .card_id()
+                .is_some_and(|_| matches!(state.def(o), Card::Normal(f) | Card::ModalDfc(f, _) if f.name == "Vanilla Creature"))
+        })
+        .expect("the reminted Vanilla Creature is on the battlefield");
+    assert_ne!(entered, bears, "the entering object carries a fresh id");
+    assert_eq!(state.objects.obj(entered).controller, PlayerId(0));
+    assert_eq!(state.objects.obj(entered).zone, Some(Zone::Battlefield));
+    assert_eq!(printed_pt(&state, entered), Some((2, 2)), "a printed 2/2");
     assert!(state.stack.is_empty());
 }
 
@@ -725,9 +758,16 @@ fn second_bolt_fizzles_when_its_target_is_already_dead() {
         1,
         "the Vanilla Creature died to the first instant ([CR#704.5g])"
     );
+    // [CR#400.7]: both instants leave the stack and remint — their old stack
+    // ids are gone; two fresh objects end in P0's graveyard.
     assert!(
-        state.zones.graveyards[0].contains(&bolt_a) && state.zones.graveyards[0].contains(&bolt_b),
-        "both instants end in P0's graveyard"
+        state.objects.get(bolt_a).is_none() && state.objects.get(bolt_b).is_none(),
+        "both old instant ids must be gone after reminting"
+    );
+    assert_eq!(
+        state.zones.graveyards[0].len(),
+        2,
+        "both reminted instants end in P0's graveyard"
     );
     assert!(state.stack.is_empty());
 }

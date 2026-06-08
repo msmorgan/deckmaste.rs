@@ -3,14 +3,16 @@
 //! library loses ([CR#704.5c]). Task 6 adds [CR#704.5g]: a creature with lethal
 //! marked damage is destroyed.
 
-use deckmaste_core::{StatValue, Type};
+use deckmaste_core::{StatValue, Type, Zone};
 
 use crate::event::{GameEvent, LossReason};
 use crate::state::GameState;
 
-/// One sweep ([CR#704.3]): the `PlayerLost` and `Destroyed` events this check
-/// would perform. The caller emits them and re-checks until a sweep comes
-/// back empty.
+/// One sweep ([CR#704.3]): the `PlayerLost` and `ZoneWillChange`
+/// (battlefield→graveyard) events this check would perform. The caller emits
+/// them and re-checks until a sweep comes back empty. The LKI snapshot for a
+/// destroy is captured later, at the will-change apply (the object is still
+/// live then), not here.
 #[must_use]
 pub fn sweep(state: &GameState) -> Vec<GameEvent> {
     let mut actions = Vec::new();
@@ -44,8 +46,13 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
             if toughness > 0 {
                 #[expect(clippy::cast_sign_loss)]
                 if obj.damage >= toughness as deckmaste_core::Uint {
-                    actions.push(GameEvent::Destroyed {
-                        snapshot: crate::lki::LkiSnapshot::capture(state, id),
+                    // [CR#704.5g]: destroy. The snapshot is captured at the
+                    // will-change apply, while the object is still live.
+                    actions.push(GameEvent::ZoneWillChange {
+                        object: id,
+                        from: Some(Zone::Battlefield),
+                        to: Zone::Graveyard,
+                        enters: None,
                     });
                 }
             }
@@ -124,14 +131,22 @@ mod tests {
     fn lethal_damage_destroys_a_creature_in_the_sba_sweep() {
         let (mut state, bear) = bear_on_field();
 
-        // Vanilla Creature has toughness 2; set lethal damage.
+        // Vanilla Creature has toughness 2; set lethal damage. The sweep emits
+        // the destroy as a battlefield→graveyard ZoneWillChange (no snapshot —
+        // captured later, at the will-change apply).
         state.objects.obj_mut(bear).damage = 2;
         let actions = sba::sweep(&state);
         assert!(
-            actions
-                .iter()
-                .any(|e| matches!(e, GameEvent::Destroyed { snapshot } if snapshot.object == bear)),
-            "sweep should include Destroyed for Vanilla Creature at lethal damage"
+            actions.iter().any(|e| matches!(
+                e,
+                GameEvent::ZoneWillChange {
+                    object,
+                    from: Some(Zone::Battlefield),
+                    to: Zone::Graveyard,
+                    enters: None,
+                } if *object == bear
+            )),
+            "sweep should include a battlefield→graveyard ZoneWillChange for Vanilla Creature at lethal damage"
         );
 
         // Sublethal: damage = 1 < toughness 2.
@@ -140,8 +155,8 @@ mod tests {
         assert!(
             actions
                 .iter()
-                .all(|e| !matches!(e, GameEvent::Destroyed { .. })),
-            "sweep should NOT include Destroyed for Vanilla Creature at sublethal damage"
+                .all(|e| !matches!(e, GameEvent::ZoneWillChange { .. })),
+            "sweep should NOT include a destroy for Vanilla Creature at sublethal damage"
         );
     }
 
