@@ -109,9 +109,8 @@ impl GameState {
     /// replacement registries are empty). Returns the event as it occurred —
     /// apply-time bindings (a drawn card's identity) filled in, and a draw
     /// from an empty library occurring as `DrewFromEmpty` instead.
-    // TODO(stage-4): split apply() by subsystem (stack / zone-change / player) as arms grow;
-    //   pairs with the action-driven zone-change collapse (WillDraw+LandPlayed done; Discarded →
-    // ZoneWillChange still to come).
+    // TODO: split apply() by subsystem (stack / zone-change / player) as arms grow. The
+    //   action-driven zone-change collapse (draw / land / discard → ZoneWillChange) is done.
     #[expect(clippy::too_many_lines)]
     fn apply(&mut self, event: GameEvent) -> GameEvent {
         match event {
@@ -181,14 +180,19 @@ impl GameState {
                 self.player_mut(player).mana_pool.clear();
                 event
             }
-            // TODO(stage-4): convert to ZoneWillChange/ZoneChanged (action-driven zone collapse,
-            //   spec §5.6); this in-place Hand→Graveyard move is not reminted and bypasses the
-            //   replace/trigger stages.
             GameEvent::Discarded { player, object } => {
-                self.remove_from_hand(player, object);
-                self.objects.obj_mut(object).zone = Some(Zone::Graveyard);
-                self.zones.graveyards[player.index()].push(object);
-                event
+                // [CR#701.8]: discard evolves into the generic Hand→Graveyard
+                // move (remint + LKI). (Madness — a WillDiscard intent that
+                // replaces this — is a future seam.)
+                self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+                    GameEvent::ZoneWillChange {
+                        object,
+                        from: Some(Zone::Hand),
+                        to: Zone::Graveyard,
+                        enters: None,
+                    },
+                ))]);
+                GameEvent::Discarded { player, object }
             }
             GameEvent::PlayerLost { player, .. } => {
                 self.player_mut(player).lost = true;
