@@ -137,7 +137,8 @@ impl GameState {
     /// Instant or Sorcery.
     ///
     /// [CR#110.1]: a permanent spell is one that would enter the battlefield on
-    /// resolution. Grizzly Bears → true; Lightning Bolt → false.
+    /// resolution. Vanilla Creature → true; Instant `DealDamage` `AnyTarget` →
+    /// false.
     #[must_use]
     pub(crate) fn is_permanent_spell(&self, id: ObjectId) -> bool {
         let types = &crate::derive::face(self.def(id)).types;

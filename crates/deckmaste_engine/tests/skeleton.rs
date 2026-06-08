@@ -17,9 +17,9 @@ fn builtin() -> Plugin {
     Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
 }
 
-fn canon() -> Plugin {
+fn testing() -> Plugin {
     Plugin::load_with_sibling_prelude(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon"),
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/testing"),
     )
     .unwrap()
 }
@@ -508,10 +508,11 @@ fn starting_player_skips_the_first_draw() {
     assert_eq!(state.zones.libraries[0].len(), 13);
 }
 
-/// A two-player game; player 0's deck is Grizzly Bears, player 1's is
-/// Forest. Returns the state plus a Bears object forced onto the battlefield.
+/// A two-player game; player 0's deck is Vanilla Creature, player 1's is
+/// Forest. Returns the state plus a creature object forced onto the
+/// battlefield.
 fn bear_on_field() -> (GameState, ObjectId) {
-    let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+    let bears = Arc::new(testing().card("Vanilla Creature").unwrap());
     let forest = Arc::new(builtin().card("Forest").unwrap());
     let mut state = GameState::new(GameConfig {
         players: vec![
@@ -526,7 +527,7 @@ fn bear_on_field() -> (GameState, ObjectId) {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
     });
-    // Force a Bears from player 0's hand onto the battlefield.
+    // Force a Vanilla Creature from player 0's hand onto the battlefield.
     let bear = *state.zones.hands[0]
         .iter()
         .find(|&&o| {
@@ -536,7 +537,7 @@ fn bear_on_field() -> (GameState, ObjectId) {
                 &Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(Type::Creature)),
             )
         })
-        .expect("a Bears in the opening hand (10-card mono deck)");
+        .expect("a Vanilla Creature in the opening hand (10-card mono deck)");
     state.zones.hands[PlayerId(0).index()].retain(|&o| o != bear);
     state.objects.obj_mut(bear).zone = Some(Zone::Battlefield);
     state.zones.battlefield.push(bear);
@@ -546,7 +547,7 @@ fn bear_on_field() -> (GameState, ObjectId) {
 #[test]
 fn cleanup_clears_marked_damage_on_battlefield_creatures() {
     let (mut state, bear) = bear_on_field();
-    // Mark some damage on the Bears.
+    // Mark some damage on the creature.
     state.objects.obj_mut(bear).damage = 5;
     assert_eq!(state.objects.obj(bear).damage, 5);
 
@@ -656,13 +657,13 @@ fn each_player_has_a_proxy_object() {
     }
 }
 
-/// A two-player game with Lightning Bolt in player 0's deck and Grizzly Bears
-/// in player 1's deck; also forces a Bears onto the battlefield from player
-/// 1's hand. Returns `(state, bear)`.
+/// A two-player game with Instant `DealDamage` `AnyTarget` in player 0's deck
+/// and Vanilla Creature in player 1's deck; also forces a creature onto the
+/// battlefield from player 1's hand. Returns `(state, bear)`.
 fn decks_bolt_vs_bears_with_bear_on_field() -> (GameState, ObjectId) {
-    let canon = canon();
-    let bolt = Arc::new(canon.card("Lightning Bolt").unwrap());
-    let bears = Arc::new(canon.card("Grizzly Bears").unwrap());
+    let testing = testing();
+    let bolt = Arc::new(testing.card("Instant DealDamage AnyTarget").unwrap());
+    let bears = Arc::new(testing.card("Vanilla Creature").unwrap());
     let mut state = GameState::new(GameConfig {
         players: vec![
             PlayerConfig {
@@ -676,11 +677,11 @@ fn decks_bolt_vs_bears_with_bear_on_field() -> (GameState, ObjectId) {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
     });
-    // Force a Bears from player 1's hand onto the battlefield.
+    // Force a Vanilla Creature from player 1's hand onto the battlefield.
     let bear = *state.zones.hands[1]
         .iter()
         .find(|&&o| state_is_bears(&state, o))
-        .expect("a Bears in player 1's opening hand (10-card mono deck)");
+        .expect("a Vanilla Creature in player 1's opening hand (10-card mono deck)");
     state.zones.hands[PlayerId(1).index()].retain(|&o| o != bear);
     state.objects.obj_mut(bear).zone = Some(Zone::Battlefield);
     state.zones.battlefield.push(bear);
@@ -697,22 +698,22 @@ fn face_name(state: &GameState, id: ObjectId) -> &str {
     }
 }
 
-/// True iff `id`'s card face name is "Lightning Bolt".
+/// True iff `id`'s card face name is "Instant `DealDamage` `AnyTarget`".
 fn state_is_bolt(state: &GameState, id: ObjectId) -> bool {
     state
         .objects
         .obj(id)
         .card_id()
-        .is_some_and(|_| face_name(state, id) == "Lightning Bolt")
+        .is_some_and(|_| face_name(state, id) == "Instant DealDamage AnyTarget")
 }
 
-/// True iff `id`'s card face name is "Grizzly Bears".
+/// True iff `id`'s card face name is "Vanilla Creature".
 fn state_is_bears(state: &GameState, id: ObjectId) -> bool {
     state
         .objects
         .obj(id)
         .card_id()
-        .is_some_and(|_| face_name(state, id) == "Grizzly Bears")
+        .is_some_and(|_| face_name(state, id) == "Vanilla Creature")
 }
 
 /// Steps up to `n` times, collecting `Progress` values. Stops early on a
@@ -728,15 +729,15 @@ fn drain_progress(state: &mut GameState, n: usize) -> Vec<Progress> {
     out
 }
 
-/// Builds a game with Lightning Bolt in player 0's deck and a Bears on the
-/// field (player 1's), puts a Bolt onto the stack targeting the Bears.
-/// Returns `(state, bolt, bear)`.
+/// Builds a game with Instant `DealDamage` `AnyTarget` in player 0's deck and
+/// a Vanilla Creature on the field (player 1's), puts the instant onto the
+/// stack targeting the creature. Returns `(state, bolt, bear)`.
 fn bolt_on_stack_targeting_bear() -> (GameState, ObjectId, ObjectId) {
     let (mut state, bear) = decks_bolt_vs_bears_with_bear_on_field();
     let bolt = *state.zones.hands[0]
         .iter()
         .find(|&&o| state_is_bolt(&state, o))
-        .expect("a Bolt in player 0's opening hand");
+        .expect("an Instant DealDamage AnyTarget in player 0's opening hand");
     state.zones.hands[PlayerId(0).index()].retain(|&o| o != bolt);
     state.objects.obj_mut(bolt).zone = Some(Zone::Stack);
     state.stack.push(StackEntry {
@@ -804,13 +805,13 @@ fn casting_a_spell_schedules_the_announce_block_and_begin_cast_stages_it() {
     use deckmaste_engine::WorkItem;
 
     let (mut state, _bear) = decks_bolt_vs_bears_with_bear_on_field();
-    // Float player 0 the {R} Bolt costs so `can_cast` admits it.
+    // Float player 0 the {R} cost so `can_cast` admits it.
     let red: deckmaste_core::ColorOrColorless = Color::Red.into();
     state.player_mut(PlayerId(0)).mana_pool.add(red, 1);
     let bolt = *state.zones.hands[0]
         .iter()
         .find(|&&o| state_is_bolt(&state, o))
-        .expect("a Bolt in player 0's opening hand");
+        .expect("an Instant DealDamage AnyTarget in player 0's opening hand");
 
     // Open a priority round at the active player and surface the decision.
     // `OpenPriority` runs on the first step (returning Progress and setting
@@ -827,8 +828,8 @@ fn casting_a_spell_schedules_the_announce_block_and_begin_cast_stages_it() {
         panic!("expected a Priority decision");
     };
     assert_eq!(player, PlayerId(0));
-    // The real `can_cast` gate offers the Bolt (instant timing, payable, a
-    // legal target exists — the Bears on the field).
+    // The real `can_cast` gate offers the instant (instant timing, payable, a
+    // legal target exists — the Vanilla Creature on the field).
     assert!(
         legal.contains(&Action::CastSpell { object: bolt }),
         "Bolt should be a legal CastSpell, legal: {legal:?}"
