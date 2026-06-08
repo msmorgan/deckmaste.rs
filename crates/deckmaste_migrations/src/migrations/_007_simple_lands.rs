@@ -4,58 +4,19 @@
 //! `_004`'s `~`-normalized text, so the enters-tapped line is
 //! `"~ enters tapped."`.
 
-use deckmaste_core::{ColorOrColorless, ManaSpec};
-
 use super::card_todo::{CardFaceTodo, CardFile};
+use super::mana_ability::{TapAbility, parse_tap_ability, render_tap_ability};
 use crate::layout::PluginLayout;
-use crate::ron_output::to_string_pretty;
 
 /// Basic land type subtypes. Each confers the intrinsic tap-for-mana ability
 /// ([CR#305.6]), so a land carrying one needs no printed mana ability.
 const BASIC_LAND_TYPES: [&str; 5] = ["Plains", "Island", "Swamp", "Mountain", "Forest"];
 
-/// One simple-land ability, parsed from a normalized text line.
-enum LandAbility {
-    EntersTapped,
-    /// A `{T}: Add …` activated mana ability.
-    Mana(ManaSpec),
-}
-
-/// Parses one normalized oracle line. `None` for anything outside the simple
-/// vocabulary -- which disqualifies the whole face.
-fn parse_ability(line: &str) -> Option<LandAbility> {
-    if line == "~ enters tapped." {
-        return Some(LandAbility::EntersTapped);
-    }
-    let production = line.strip_prefix("{T}: Add ")?.strip_suffix('.')?;
-    Some(LandAbility::Mana(parse_production(production)?))
-}
-
-/// "{C}" / "{G}" / "{W} or {U}" / "one mana of any color" -> [`ManaSpec`].
-fn parse_production(text: &str) -> Option<ManaSpec> {
-    if text == "one mana of any color" {
-        return Some(ManaSpec::AnyColor);
-    }
-    if let Some((left, right)) = text.split_once(" or ") {
-        return Some(ManaSpec::OneOf(vec![
-            symbol_color(left)?,
-            symbol_color(right)?,
-        ]));
-    }
-    Some(ManaSpec::Specific(symbol_color(text)?))
-}
-
-/// "{W}" -> White, "{C}" -> Colorless. Only single colored/colorless symbols;
-/// generic, hybrid, and multi-symbol productions fall through to `None`.
-fn symbol_color(symbol: &str) -> Option<ColorOrColorless> {
-    ColorOrColorless::from_code(symbol.strip_prefix('{')?.strip_suffix('}')?)
-}
-
 /// A simple-land face's abilities in printed order, or `None` if the face
 /// isn't a simple land. Two channels by whether the face has a basic land type
 /// ([CR#305.6]): an intrinsic-mana land must not *also* print a tap ability
 /// (ambiguous), and a non-intrinsic land must produce mana some other way.
-fn land_abilities(face: &CardFaceTodo) -> Option<Vec<LandAbility>> {
+fn land_abilities(face: &CardFaceTodo) -> Option<Vec<TapAbility>> {
     if face.types != ["Land"]
         || !face.mana_cost.is_empty()
         || !face.color_indicator.is_empty()
@@ -67,15 +28,15 @@ fn land_abilities(face: &CardFaceTodo) -> Option<Vec<LandAbility>> {
         return None;
     }
 
-    let abilities: Vec<LandAbility> = face
+    let abilities: Vec<TapAbility> = face
         .text
         .iter()
-        .map(|line| parse_ability(line))
+        .map(|line| parse_tap_ability(line))
         .collect::<Option<_>>()?;
 
     if abilities
         .iter()
-        .filter(|a| matches!(a, LandAbility::EntersTapped))
+        .filter(|a| matches!(a, TapAbility::EntersTapped))
         .count()
         > 1
     {
@@ -86,7 +47,7 @@ fn land_abilities(face: &CardFaceTodo) -> Option<Vec<LandAbility>> {
         .subtypes
         .iter()
         .any(|s| BASIC_LAND_TYPES.iter().any(|&b| *s == b));
-    let makes_mana = abilities.iter().any(|a| matches!(a, LandAbility::Mana(_)));
+    let makes_mana = abilities.iter().any(|a| matches!(a, TapAbility::Mana(_)));
     match (has_basic_type, makes_mana) {
         (true, true) => return None, // intrinsic mana + a printed one: ambiguous
         (false, false) => return None, // no way to make mana: not a simple land
@@ -96,40 +57,9 @@ fn land_abilities(face: &CardFaceTodo) -> Option<Vec<LandAbility>> {
     Some(abilities)
 }
 
-/// The produced-mana spec as a leaf token: `Colorless`, `White`, `AnyColor`,
-/// or `OneOf([White, Blue])` (members inline -- the shared pretty config would
-/// chop the `Vec`, so its colors are spelled and joined here).
-fn render_spec(spec: &ManaSpec) -> anyhow::Result<String> {
-    Ok(match spec {
-        ManaSpec::OneOf(colors) => {
-            let inner = colors
-                .iter()
-                .map(to_string_pretty)
-                .collect::<Result<Vec<_>, _>>()?
-                .join(", ");
-            format!("OneOf([{inner}])")
-        }
-        scalar => to_string_pretty(scalar)?,
-    })
-}
-
-/// One ability block at the `abilities:` item indent (8 spaces), with its
-/// trailing comma and newline.
-fn render_ability(ability: &LandAbility) -> anyhow::Result<String> {
-    Ok(match ability {
-        LandAbility::EntersTapped =>
-            "        Static(\n            effects: [Replacement(AsEnters(effect: Tap(This)))],\n        ),\n"
-                .to_owned(),
-        LandAbility::Mana(spec) => format!(
-            "        Activated(\n            cost: [Tap],\n            effect: AddMana(1, {spec}),\n        ),\n",
-            spec = render_spec(spec)?
-        ),
-    })
-}
-
 /// A face's fields at 4-space (Normal) indent, ending in a newline. The
 /// `ModalDfc` path re-indents this body one level.
-fn render_face(face: &CardFaceTodo, abilities: &[LandAbility]) -> anyhow::Result<String> {
+fn render_face(face: &CardFaceTodo, abilities: &[TapAbility]) -> anyhow::Result<String> {
     use std::fmt::Write;
 
     let mut out = String::new();
@@ -144,7 +74,7 @@ fn render_face(face: &CardFaceTodo, abilities: &[LandAbility]) -> anyhow::Result
     if !abilities.is_empty() {
         writeln!(out, "    abilities: [")?;
         for ability in abilities {
-            out.push_str(&render_ability(ability)?);
+            out.push_str(&render_tap_ability(ability)?);
         }
         writeln!(out, "    ],")?;
     }
@@ -154,7 +84,7 @@ fn render_face(face: &CardFaceTodo, abilities: &[LandAbility]) -> anyhow::Result
 /// Prefixes four spaces to every line (for a `ModalDfc` face body).
 fn indent(body: &str) -> String { body.lines().map(|line| format!("    {line}\n")).collect() }
 
-fn render_normal(face: &CardFaceTodo, abilities: &[LandAbility]) -> anyhow::Result<String> {
+fn render_normal(face: &CardFaceTodo, abilities: &[TapAbility]) -> anyhow::Result<String> {
     Ok(format!(
         "Normal(\n{}\n)\n",
         render_face(face, abilities)?.trim_end_matches('\n')
@@ -163,9 +93,9 @@ fn render_normal(face: &CardFaceTodo, abilities: &[LandAbility]) -> anyhow::Resu
 
 fn render_modal_dfc(
     front: &CardFaceTodo,
-    front_abilities: &[LandAbility],
+    front_abilities: &[TapAbility],
     back: &CardFaceTodo,
-    back_abilities: &[LandAbility],
+    back_abilities: &[TapAbility],
 ) -> anyhow::Result<String> {
     let front = indent(&render_face(front, front_abilities)?);
     let back = indent(&render_face(back, back_abilities)?);
