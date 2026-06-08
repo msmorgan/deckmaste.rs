@@ -6,11 +6,11 @@ use std::path::Path;
 use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
-use deckmaste_core::{Card, Color, StepOrPhase};
+use deckmaste_core::{Card, Color, Filter, StepOrPhase, Type, Zone};
 use deckmaste_engine::{
-    Action, Decision, DecisionError, GameConfig, GameEvent, GameState, ObjectSource,
-    PendingDecision, PlayerConfig, PlayerId, Progress, RunStop, Runner, StartingPlayer,
-    StepOutcome,
+    Action, Decision, DecisionError, GameConfig, GameEvent, GameState, ObjectId, ObjectSource,
+    PendingDecision, PlayerConfig, PlayerId, Progress, RunStop, Runner, StackEntry, StackObject,
+    StartingPlayer, StepOutcome,
 };
 
 fn builtin() -> Plugin {
@@ -499,6 +499,110 @@ fn starting_player_skips_the_first_draw() {
     // Past turn 1's draw step: the opening seven, no draw.
     assert_eq!(state.zones.hands[0].len(), 7);
     assert_eq!(state.zones.libraries[0].len(), 13);
+}
+
+/// A two-player game; player 0's deck is Grizzly Bears, player 1's is
+/// Forest. Returns the state plus a Bears object forced onto the battlefield.
+fn bear_on_field() -> (GameState, ObjectId) {
+    let plugin = builtin();
+    let bears = Arc::new(plugin.card("Grizzly Bears").unwrap());
+    let forest = Arc::new(plugin.card("Forest").unwrap());
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig {
+                deck: vec![Arc::clone(&bears); 10],
+            },
+            PlayerConfig {
+                deck: vec![Arc::clone(&forest); 10],
+            },
+        ],
+        seed: 1,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    // Force a Bears from player 0's hand onto the battlefield.
+    let bear = *state.zones.hands[0]
+        .iter()
+        .find(|&&o| {
+            deckmaste_engine::matches(
+                &state,
+                o,
+                &Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(Type::Creature)),
+            )
+        })
+        .expect("a Bears in the opening hand (10-card mono deck)");
+    state.zones.hands[PlayerId(0).index()].retain(|&o| o != bear);
+    state.objects.obj_mut(bear).zone = Some(Zone::Battlefield);
+    state.zones.battlefield.push(bear);
+    (state, bear)
+}
+
+/// Drives a single Emit and returns the applied event.
+fn apply_one(state: &mut GameState, event: GameEvent) -> GameEvent {
+    state
+        .agenda
+        .push_front(deckmaste_engine::WorkItem::Emit(event));
+    match state.step() {
+        StepOutcome::Progress(Progress::Applied(e)) => e,
+        other => panic!("expected Applied, got {other:?}"),
+    }
+}
+
+#[test]
+fn damage_to_a_player_is_life_loss_and_to_a_creature_is_marked() {
+    let (mut state, bear) = bear_on_field();
+    let victim = state.players[1].object;
+    apply_one(
+        &mut state,
+        GameEvent::DamageDealt {
+            source: bear,
+            target: victim,
+            amount: 3,
+        },
+    );
+    assert_eq!(state.players[1].life, 17);
+    apply_one(
+        &mut state,
+        GameEvent::DamageDealt {
+            source: victim,
+            target: bear,
+            amount: 2,
+        },
+    );
+    assert_eq!(state.objects.obj(bear).damage, 2);
+}
+
+#[test]
+fn spell_resolved_moves_the_stack_object_to_its_owners_graveyard() {
+    let (mut state, _bear) = bear_on_field();
+    // Put a (fake) spell object on the stack owned by player 0.
+    let spell = state.zones.hands[0][0];
+    state.zones.hands[PlayerId(0).index()].retain(|&o| o != spell);
+    state.objects.obj_mut(spell).zone = Some(Zone::Stack);
+    state.stack.push(StackEntry {
+        object: StackObject::Spell(spell),
+        controller: PlayerId(0),
+        targets: vec![],
+    });
+    apply_one(&mut state, GameEvent::SpellResolved(spell));
+    assert!(state.stack.is_empty());
+    assert!(state.zones.graveyards[0].contains(&spell));
+    assert_eq!(state.objects.obj(spell).zone, Some(Zone::Graveyard));
+}
+
+#[test]
+fn destroyed_moves_a_damaged_creature_to_its_owners_graveyard_clearing_damage() {
+    let (mut state, bear) = bear_on_field();
+    state.objects.obj_mut(bear).damage = 5;
+    apply_one(&mut state, GameEvent::Destroyed(bear));
+    assert!(!state.zones.battlefield.contains(&bear));
+    let owner = state.owner_of(bear);
+    assert!(state.zones.graveyards[owner.index()].contains(&bear));
+    assert_eq!(
+        state.objects.obj(bear).zone,
+        Some(deckmaste_core::Zone::Graveyard)
+    );
+    assert_eq!(state.objects.obj(bear).damage, 0);
 }
 
 #[test]
