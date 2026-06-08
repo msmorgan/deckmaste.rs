@@ -212,10 +212,20 @@ impl GameState {
                 round.consecutive_passes += 1;
                 let all_passed = round.consecutive_passes >= live;
                 if all_passed {
-                    // [CR#117.4]: all-pass on an empty stack ends the step.
                     self.turn.priority = None;
-                    let items = self.end_of_step_items();
-                    self.schedule_front(items);
+                    if let Some(top) = self.stack.last() {
+                        // CR 608: resolve the top; AP gets priority after (117.3b).
+                        let obj = top.object.object();
+                        self.schedule_front(vec![
+                            WorkItem::Resolve(obj),
+                            WorkItem::CheckSbas,
+                            WorkItem::OpenPriority,
+                        ]);
+                    } else {
+                        // CR 117.4: all-pass on an empty stack ends the step.
+                        let items = self.end_of_step_items();
+                        self.schedule_front(items);
+                    }
                 } else {
                     self.turn
                         .priority
