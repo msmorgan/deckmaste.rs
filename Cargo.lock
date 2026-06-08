@@ -175,6 +175,7 @@ dependencies = [
  "anyhow",
  "deckmaste_core",
  "macro_ron",
+ "regex",
  "ron",
  "serde",
  "tempfile",

@@ -28,7 +28,7 @@ enum Cmd {
     Validate(ValidateArgs),
     /// Show a card as parsed from a plugin, with its macros expanded.
     Card(CardArgs),
-    /// Generate a plugin's cards (extract -> resolve -> graduate).
+    /// Generate a plugin's cards (stubs -> extract -> resolve -> graduate).
     Generate(GenerateArgs),
     /// Generate a plugin's keyword/subtype macro stubs.
     Stubs(StubsArgs),

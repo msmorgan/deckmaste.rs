@@ -9,10 +9,13 @@
 //! Cross-directory graduation (subtype/keyword definitions) and the
 //! retry-until-stable loop generalize in a later plan.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 
 use deckmaste_core::Card;
 use deckmaste_core::plugin::{CARDS_DIR, graduated_name, is_ron_todo_file};
+use regex::Regex;
 
 use crate::plugin::{Plugin, read};
 
@@ -23,6 +26,51 @@ pub struct GraduateReport {
     pub graduated: Vec<PathBuf>,
     /// `.ron.todo` files that did not parse this run (still in progress).
     pub remaining: usize,
+    /// Of the remaining: cards still carrying `Unparsed(...)` oracle lines.
+    pub unresolved: usize,
+    /// Of the remaining: count of cards blocked per missing macro name (the
+    /// macro the user could build next to unblock that many cards).
+    pub blocked_on_macro: BTreeMap<String, usize>,
+    /// Of the remaining: failures that don't match the "unregistered macro"
+    /// pattern (path + first line of the error), for visibility.
+    pub other: Vec<(PathBuf, String)>,
+}
+
+/// Classifies a graduation failure by its macro-reader error message.
+/// Couples to `macro_ron::expand`'s "`X` is neither a variant of `K` nor a
+/// known `K` macro" message — a stable internal contract. Anything that
+/// doesn't match degrades to `Other` (still surfaced, just not bucketed).
+enum Blocker {
+    Unresolved,
+    Macro(String),
+    Other,
+}
+
+/// Captures the IDENT from a macro-reader "neither a variant ... nor a known
+/// ... macro" error. The message may be prefixed with "in the expansion of
+/// `M`:"; we match the inner clause anywhere in the string. IDENT is the
+/// backtick-delimited run between the leading backtick and " is neither a
+/// variant of ".
+static UNREGISTERED_MACRO: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"`([^`]+)` is neither a variant of `[^`]+` nor a known `[^`]+` macro")
+        .expect("valid regex")
+});
+
+fn classify(error: &str) -> Blocker {
+    match UNREGISTERED_MACRO.captures(error) {
+        Some(caps) => {
+            let ident = &caps[1];
+            // A still-present `Unparsed(...)` placeholder fails this same way
+            // with IDENT == "Unparsed"; bucket those as unresolved oracle text,
+            // not as a macro the user should build.
+            if ident == "Unparsed" {
+                Blocker::Unresolved
+            } else {
+                Blocker::Macro(ident.to_owned())
+            }
+        }
+        None => Blocker::Other,
+    }
 }
 
 /// The `*.ron.todo` files directly under `dir`, sorted; an absent directory is
@@ -59,27 +107,44 @@ pub fn graduate_plugin(plugin_dir: &Path) -> anyhow::Result<GraduateReport> {
     let plugin = Plugin::load_with_sibling_prelude(plugin_dir)?;
     let mut graduated = Vec::new();
     let mut remaining = 0;
+    let mut unresolved = 0;
+    let mut blocked_on_macro: BTreeMap<String, usize> = BTreeMap::new();
+    let mut other = Vec::new();
 
     for path in ron_todo_files(&plugin_dir.join(CARDS_DIR))? {
         let source = read(&path)?;
-        if plugin.macros.read_str::<Card>(&source).is_ok() {
-            // is_ron_todo_file guarantees a `.ron.todo` name, so graduated_name
-            // is always present.
-            let final_name = path
-                .file_name()
-                .and_then(|name| name.to_str())
-                .and_then(graduated_name)
-                .expect("a .ron.todo file has a graduated name");
-            let final_path = path.with_file_name(final_name);
-            std::fs::rename(&path, &final_path)?;
-            graduated.push(final_path);
-        } else {
-            remaining += 1;
+        match plugin.macros.read_str::<Card>(&source) {
+            Ok(_) => {
+                // is_ron_todo_file guarantees a `.ron.todo` name, so
+                // graduated_name is always present.
+                let final_name = path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .and_then(graduated_name)
+                    .expect("a .ron.todo file has a graduated name");
+                let final_path = path.with_file_name(final_name);
+                std::fs::rename(&path, &final_path)?;
+                graduated.push(final_path);
+            }
+            Err(e) => {
+                remaining += 1;
+                let message = e.to_string();
+                match classify(&message) {
+                    Blocker::Unresolved => unresolved += 1,
+                    Blocker::Macro(ident) => *blocked_on_macro.entry(ident).or_default() += 1,
+                    Blocker::Other => {
+                        other.push((path, message.lines().next().unwrap_or("").to_owned()));
+                    }
+                }
+            }
         }
     }
     Ok(GraduateReport {
         graduated,
         remaining,
+        unresolved,
+        blocked_on_macro,
+        other,
     })
 }
 
@@ -132,6 +197,31 @@ mod tests {
         assert!(!cards.join("Mystery.ron").exists());
         assert_eq!(report.graduated.len(), 0);
         assert_eq!(report.remaining, 1);
+        // An `Unparsed(...)` placeholder is bucketed as unresolved oracle text,
+        // NOT as a macro the user should build.
+        assert_eq!(report.unresolved, 1);
+        assert!(!report.blocked_on_macro.contains_key("Unparsed"));
+    }
+
+    /// A card whose ability references a macro that isn't registered (here
+    /// `Flying`, absent from the bare test plugin) fails to expand and lands in
+    /// `blocked_on_macro` keyed by the missing macro name.
+    #[test]
+    fn card_blocked_on_macro_is_tallied() {
+        let root = tempfile::tempdir().unwrap();
+        write_card(
+            root.path(),
+            "wizards",
+            "Bird.ron.todo",
+            r#"Normal(name: "Bird", types: [Creature], abilities: [Flying], power: 1, toughness: 1)"#,
+        );
+        let report = graduate_plugin(&root.path().join("wizards")).unwrap();
+
+        let cards = root.path().join("wizards").join("cards");
+        assert!(cards.join("Bird.ron.todo").exists(), "still a .ron.todo");
+        assert_eq!(report.remaining, 1);
+        assert_eq!(report.unresolved, 0);
+        assert_eq!(report.blocked_on_macro.get("Flying"), Some(&1));
     }
 
     /// A card referencing a subtype that has no declaration in scope fails to
@@ -150,6 +240,11 @@ mod tests {
         let cards = root.path().join("wizards").join("cards");
         assert!(cards.join("Elf.ron.todo").exists());
         assert_eq!(report.remaining, 1);
+        // An undeclared subtype is a struct-position ron-native parser error,
+        // which doesn't match the "unregistered macro" pattern — so it's
+        // surfaced under `other`, not bucketed as a missing macro.
+        assert_eq!(report.other.len(), 1);
+        assert!(report.blocked_on_macro.is_empty());
     }
 
     /// Finished `.ron` cards are not touched (only `.ron.todo` is considered).
