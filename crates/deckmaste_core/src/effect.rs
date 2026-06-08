@@ -5,7 +5,7 @@
 // variant list keeps the RON flat *and* the positions macro-aware.
 //
 // The `Act` compartment is never written to RON. Its payload (`Action`)
-// serializes transparently so RON sees `DrawCards(1)`, not `Act(DrawCards(1))`.
+// serializes transparently so RON sees `Draw(1)`, not `Act(By(You, Draw(1)))`.
 //
 // The structural variants (`Sequence`, `May`, …) delegate to inner derived
 // structs (`MayEffect`, …): each `visit_enum` arm is
@@ -19,13 +19,15 @@ use serde::de::{self, EnumAccess, VariantAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::ability::TriggeredAbility;
-use crate::action::Action;
+use crate::action::{Action, PlayerAction};
 use crate::continuous::{Duration, StaticEffect};
 use crate::mana::ManaSpec;
-use crate::{ChooseSpec, Condition, Count, Expansion, Filter, IdentSeed, Mode, Selection, Token};
+use crate::{
+    ChooseSpec, Condition, Count, Expansion, Filter, IdentSeed, Mode, Reference, Selection, Token,
+};
 
 /// An effect an ability produces ([CR#608]). Compartmentalized in Rust; flat in
-/// RON (`DrawCards(1)`, never `Act(DrawCards(1))`) via the manual serde below.
+/// RON (`Draw(1)`, never `Act(By(You, Draw(1)))`) via the manual serde below.
 ///
 /// A single instruction stands bare (`effect: DealDamage(Target(0), 3)`); the
 /// structural forms (`Sequence`, `May`, `If`, …) are the corpus's connective
@@ -115,18 +117,21 @@ pub struct ModalEffect {
 /// `Action` variant names (`Act` never appears in RON); the rest are the
 /// structural variants.
 const VARIANTS: &[&str] = &[
-    // Action verbs (the Act compartment, flat).
-    "AddMana",
-    "Create",
+    // Source-agent Action verbs (the Act compartment, flat).
     "DealDamage",
     "Destroy",
+    "ReturnToHand",
+    // An explicit player-agent action.
+    "By",
+    // Bare player verbs — read as `By(You, …)`, the implicit-you default.
+    "Draw",
     "Discard",
-    "DrawCards",
-    "Exile",
     "GainLife",
     "LoseLife",
-    "ReturnToHand",
+    "AddMana",
+    "Create",
     "Sacrifice",
+    "Exile",
     "Tap",
     "Untap",
     // Structural forms.
@@ -141,6 +146,10 @@ const VARIANTS: &[&str] = &[
     "Modal",
     "Expanded",
 ];
+
+/// Wraps a bare player action in the implicit-you default — the form a player
+/// verb written bare in an effect slot reads as.
+fn act_by_you(pa: PlayerAction) -> Effect { Effect::Act(Action::By(Reference::You, pa)) }
 
 impl<'de> Deserialize<'de> for Effect {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
@@ -157,29 +166,36 @@ impl<'de> Deserialize<'de> for Effect {
                 let (ident, v) = data.variant_seed(IdentSeed)?;
                 // Adding a verb or form? Update VARIANTS above to match.
                 Ok(match ident.as_str() {
-                    // --- Action verbs (flat through the Act compartment) ---
-                    "AddMana" => {
-                        let (n, spec) = v.tuple_variant(2, Pair::<Count, ManaSpec>::new())?;
-                        Effect::Act(Action::AddMana(n, spec))
-                    }
-                    "Create" => {
-                        let (n, token) = v.tuple_variant(2, Pair::<Count, Token>::new())?;
-                        Effect::Act(Action::Create(n, token))
-                    }
+                    // --- Source-agent Action verbs (flat through Act) ---
                     "DealDamage" => {
                         let (sel, n) = v.tuple_variant(2, Pair::<Selection, Count>::new())?;
                         Effect::Act(Action::DealDamage(sel, n))
                     }
                     "Destroy" => Effect::Act(Action::Destroy(v.newtype_variant()?)),
-                    "Discard" => Effect::Act(Action::Discard(v.newtype_variant()?)),
-                    "DrawCards" => Effect::Act(Action::DrawCards(v.newtype_variant()?)),
-                    "Exile" => Effect::Act(Action::Exile(v.newtype_variant()?)),
-                    "GainLife" => Effect::Act(Action::GainLife(v.newtype_variant()?)),
-                    "LoseLife" => Effect::Act(Action::LoseLife(v.newtype_variant()?)),
                     "ReturnToHand" => Effect::Act(Action::ReturnToHand(v.newtype_variant()?)),
-                    "Sacrifice" => Effect::Act(Action::Sacrifice(v.newtype_variant()?)),
-                    "Tap" => Effect::Act(Action::Tap(v.newtype_variant()?)),
-                    "Untap" => Effect::Act(Action::Untap(v.newtype_variant()?)),
+                    // An explicit player-agent action: `By(Target(0), Draw(3))`.
+                    "By" => {
+                        let (who, pa) =
+                            v.tuple_variant(2, Pair::<Reference, PlayerAction>::new())?;
+                        Effect::Act(Action::By(who, pa))
+                    }
+                    // --- Bare player verbs → `By(You, …)`, implicit-you ---
+                    "Draw" => act_by_you(PlayerAction::Draw(v.newtype_variant()?)),
+                    "Discard" => act_by_you(PlayerAction::Discard(v.newtype_variant()?)),
+                    "GainLife" => act_by_you(PlayerAction::GainLife(v.newtype_variant()?)),
+                    "LoseLife" => act_by_you(PlayerAction::LoseLife(v.newtype_variant()?)),
+                    "AddMana" => {
+                        let (n, spec) = v.tuple_variant(2, Pair::<Count, ManaSpec>::new())?;
+                        act_by_you(PlayerAction::AddMana(n, spec))
+                    }
+                    "Create" => {
+                        let (n, token) = v.tuple_variant(2, Pair::<Count, Token>::new())?;
+                        act_by_you(PlayerAction::Create(n, token))
+                    }
+                    "Sacrifice" => act_by_you(PlayerAction::Sacrifice(v.newtype_variant()?)),
+                    "Exile" => act_by_you(PlayerAction::Exile(v.newtype_variant()?)),
+                    "Tap" => act_by_you(PlayerAction::Tap(v.newtype_variant()?)),
+                    "Untap" => act_by_you(PlayerAction::Untap(v.newtype_variant()?)),
                     // --- Structural forms (inner-struct delegation) ---
                     "Sequence" => Effect::Sequence(v.newtype_variant()?),
                     "Continuously" => Effect::Continuously(v.newtype_variant()?),
@@ -237,19 +253,20 @@ mod tests {
     fn read(source: &str) -> Effect { crate::ron::options().from_str(source).unwrap() }
     fn write(effect: &Effect) -> String { crate::ron::options().to_string(effect).unwrap() }
 
+    /// Bare player verbs read flat as `By(You, …)`; source verbs read native.
     #[test]
     fn verbs_read_flat() {
         assert_eq!(
-            read("DrawCards(Literal(1))"),
-            Effect::Act(Action::DrawCards(Count::Literal(1))),
+            read("Draw(Literal(1))"),
+            act_by_you(PlayerAction::Draw(Count::Literal(1))),
         );
         assert_eq!(
             read("GainLife(Literal(3))"),
-            Effect::Act(Action::GainLife(Count::Literal(3))),
+            act_by_you(PlayerAction::GainLife(Count::Literal(3))),
         );
         assert_eq!(
             read("Sacrifice(This)"),
-            Effect::Act(Action::Sacrifice(Selection::Ref(Reference::This))),
+            act_by_you(PlayerAction::Sacrifice(Selection::Ref(Reference::This))),
         );
         assert_eq!(
             read("DealDamage(Target(0), Literal(3))"),
@@ -260,11 +277,11 @@ mod tests {
         );
         assert_eq!(
             read("AddMana(Literal(1), AnyColor)"),
-            Effect::Act(Action::AddMana(Count::Literal(1), ManaSpec::AnyColor)),
+            act_by_you(PlayerAction::AddMana(Count::Literal(1), ManaSpec::AnyColor)),
         );
     }
 
-    /// The new intrinsic verbs read flat too.
+    /// The source verbs read native; the player verbs read as `By(You, …)`.
     #[test]
     fn new_verbs_read_flat() {
         assert_eq!(
@@ -275,11 +292,23 @@ mod tests {
         );
         assert_eq!(
             read("Tap(This)"),
-            Effect::Act(Action::Tap(Selection::Ref(Reference::This))),
+            act_by_you(PlayerAction::Tap(Selection::Ref(Reference::This))),
         );
         assert_eq!(
             read("Discard(Literal(1))"),
-            Effect::Act(Action::Discard(Count::Literal(1))),
+            act_by_you(PlayerAction::Discard(Count::Literal(1))),
+        );
+    }
+
+    /// An explicit player agent reads native — `By(Target(0), Draw(3))`.
+    #[test]
+    fn explicit_agent_reads_flat() {
+        assert_eq!(
+            read("By(Target(0), Draw(Literal(3)))"),
+            Effect::Act(Action::By(
+                Reference::Target(0),
+                PlayerAction::Draw(Count::Literal(3)),
+            )),
         );
     }
 
@@ -288,19 +317,19 @@ mod tests {
     #[test]
     fn structural_forms_read_flat() {
         assert_eq!(
-            read("Sequence([DrawCards(Literal(1)), GainLife(Literal(1))])"),
+            read("Sequence([Draw(Literal(1)), GainLife(Literal(1))])"),
             Effect::Sequence(vec![
-                Effect::Act(Action::DrawCards(Count::Literal(1))),
-                Effect::Act(Action::GainLife(Count::Literal(1))),
+                act_by_you(PlayerAction::Draw(Count::Literal(1))),
+                act_by_you(PlayerAction::GainLife(Count::Literal(1))),
             ]),
         );
-        let may = read("May(effect: DrawCards(Literal(1)))");
+        let may = read("May(effect: Draw(Literal(1)))");
         let Effect::May(may) = may else {
             panic!("expected May");
         };
         assert_eq!(
             *may.effect,
-            Effect::Act(Action::DrawCards(Count::Literal(1)))
+            act_by_you(PlayerAction::Draw(Count::Literal(1)))
         );
         assert!(may.if_did.is_none() && may.if_not.is_none());
     }
@@ -308,23 +337,24 @@ mod tests {
     #[test]
     fn act_serializes_flat() {
         assert_eq!(
-            write(&Effect::Act(Action::DrawCards(Count::Literal(1)))),
-            "DrawCards(Literal(1))"
+            write(&act_by_you(PlayerAction::Draw(Count::Literal(1)))),
+            "Draw(Literal(1))"
         );
     }
 
     #[test]
     fn effects_round_trip() {
         let cases = [
-            "DrawCards(Literal(1))",
+            "Draw(Literal(1))",
             "GainLife(Literal(3))",
             "Sacrifice(This)",
+            "By(Target(0),Draw(Literal(3)))",
             "DealDamage(Target(0),Literal(3))",
             "AddMana(Literal(1),AnyColor)",
             "Destroy(Each(Type(Creature)))",
-            "Sequence([DrawCards(Literal(1)),GainLife(Literal(1))])",
-            "May(effect:DrawCards(Literal(1)))",
-            "ForEach(over:Type(Creature),effect:DrawCards(Literal(1)))",
+            "Sequence([Draw(Literal(1)),GainLife(Literal(1))])",
+            "May(effect:Draw(Literal(1)))",
+            "ForEach(over:Type(Creature),effect:Draw(Literal(1)))",
         ];
         for source in cases {
             let parsed = read(source);

@@ -15,13 +15,14 @@ use macro_ron::{Kind, KindSet};
 /// separately with `remembers_expansion` only — no literal wrapper;
 /// `Selection` is registered separately so it also `embeds_untagged` its
 /// `Reference`.)
-const REMEMBERING_KINDS: [&str; 11] = [
+const REMEMBERING_KINDS: [&str; 12] = [
     "Ability",
     "Condition",
     "CostComponent",
     "Effect",
     "Event",
     "Filter",
+    "PlayerAction",
     "Quantity",
     "Reference",
     "Replacement",
@@ -56,6 +57,10 @@ pub fn kinds() -> KindSet {
             .remembers_expansion()
             .embeds_untagged(),
     );
+    // `Action` embeds `PlayerAction` untagged (it has no macros of its own):
+    // a bare `Draw(1)`/`Tap(This)`/`Sacrifice(This)` at an Action slot reads as
+    // `Action::By(You, ...)` — the implicit-you default.
+    kinds.add(Kind::new("Action").embeds_untagged());
     kinds.add(Kind::new("CardFace"));
     kinds.add(Kind::new("Subtype"));
     kinds
@@ -89,9 +94,9 @@ pub fn macro_set() -> MacroSet {
 #[cfg(test)]
 mod tests {
     use deckmaste_core::{
-        Ability, CardFace, CharacteristicFilter, Condition, CostComponent, Count, Effect, Event,
-        Filter, ObjectKind, Quantity, Reference, Replacement, Selection, StateFilter, StaticEffect,
-        Subtype, TargetSpec, Type, Zone,
+        Ability, Action, CardFace, CharacteristicFilter, Condition, CostComponent, Count, Effect,
+        Event, Filter, ObjectKind, PlayerAction, Quantity, Reference, Replacement, Selection,
+        StateFilter, StaticEffect, Subtype, TargetSpec, Type, Zone,
     };
 
     use super::*;
@@ -111,6 +116,7 @@ mod tests {
         fn name_of<T>() -> &'static str { std::any::type_name::<T>().rsplit("::").next().unwrap() }
         let names = [
             name_of::<Ability>(),
+            name_of::<Action>(),
             name_of::<CardFace>(),
             name_of::<Condition>(),
             name_of::<Count>(),
@@ -118,6 +124,7 @@ mod tests {
             name_of::<Effect>(),
             name_of::<Event>(),
             name_of::<Filter>(),
+            name_of::<PlayerAction>(),
             name_of::<Quantity>(),
             name_of::<Reference>(),
             name_of::<Replacement>(),
@@ -238,6 +245,77 @@ mod tests {
         );
     }
 
+    /// A bare `PlayerAction` at an `Action` slot reads through the untagged
+    /// embed — no `By(...)` wrapper in the source — and wraps in
+    /// `Action::By(You, …)`, the implicit-you default. The macro layer's
+    /// `embeds_untagged` hook routes the non-Action identifier through
+    /// `Action`'s `visit_newtype_struct`.
+    #[test]
+    fn bare_player_action_embeds_at_action_slot() {
+        let macros = macro_set();
+        assert_eq!(
+            macros.read_str::<Action>("Draw(1)").unwrap(),
+            Action::By(Reference::You, PlayerAction::Draw(Count::Literal(1))),
+        );
+        assert_eq!(
+            macros.read_str::<Action>("Sacrifice(This)").unwrap(),
+            Action::By(
+                Reference::You,
+                PlayerAction::Sacrifice(Selection::Ref(Reference::This)),
+            ),
+        );
+        assert_eq!(
+            macros.read_str::<Action>("Tap(This)").unwrap(),
+            Action::By(
+                Reference::You,
+                PlayerAction::Tap(Selection::Ref(Reference::This)),
+            ),
+        );
+    }
+
+    /// An explicit different agent (`By(Target(0), Draw(3))` — Ancestral
+    /// Recall) reads natively through `Action`'s own variants, not the embed.
+    #[test]
+    fn explicit_agent_reads_natively_at_action_slot() {
+        let macros = macro_set();
+        assert_eq!(
+            macros.read_str::<Action>("By(Target(0), Draw(3))").unwrap(),
+            Action::By(Reference::Target(0), PlayerAction::Draw(Count::Literal(3))),
+        );
+    }
+
+    /// A source-agent verb (`DealDamage`) reads natively at an `Action` slot;
+    /// the `Selection` inside still embeds the bare reference.
+    #[test]
+    fn source_verb_reads_natively_at_action_slot() {
+        let macros = macro_set();
+        assert_eq!(
+            macros.read_str::<Action>("DealDamage(This, 3)").unwrap(),
+            Action::DealDamage(Selection::Ref(Reference::This), Count::Literal(3)),
+        );
+    }
+
+    /// A `PlayerAction` *macro* invoked at an `Action` slot routes through the
+    /// embed to `PlayerAction`'s own reader: it expands, is remembered as a
+    /// `PlayerAction::Expanded`, then wraps in `Action::By(You, …)`.
+    #[test]
+    fn player_action_macro_embeds_at_action_slot() {
+        let mut macros = macro_set();
+        macros
+            .insert(&def(r#"(
+                    name: "DrawTwo",
+                    kinds: [PlayerAction],
+                    body: Draw(2),
+                )"#))
+            .unwrap();
+        let action: Action = macros.read_str("DrawTwo").unwrap();
+        let Action::By(Reference::You, PlayerAction::Expanded(expanded)) = action else {
+            panic!("expected By(You, PlayerAction::Expanded(..)), got {action:?}");
+        };
+        assert_eq!(expanded.name, "DrawTwo");
+        assert_eq!(*expanded.value, PlayerAction::Draw(Count::Literal(2)));
+    }
+
     /// Same pin for the `TargetSpec` positions (the announce-list type).
     #[test]
     fn target_spec_positions_expand_macros() {
@@ -289,8 +367,6 @@ mod tests {
     /// registered `CostComponent` macro is expanded in place of its name.
     #[test]
     fn cost_positions_expand_macros() {
-        use deckmaste_core::Action;
-
         let mut macros = macro_set();
         macros
             .insert(&def(r#"(
@@ -306,7 +382,7 @@ mod tests {
         assert_eq!(expanded.name, "SacThis");
         assert_eq!(
             *expanded.value,
-            CostComponent::Do(Action::Sacrifice(Selection::from(Reference::This)))
+            CostComponent::Do(PlayerAction::Sacrifice(Selection::from(Reference::This)))
         );
     }
 

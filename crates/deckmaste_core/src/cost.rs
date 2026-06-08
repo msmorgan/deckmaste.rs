@@ -2,7 +2,7 @@ use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
 
 use crate::Expansion;
-use crate::action::Action;
+use crate::action::PlayerAction;
 use crate::mana::ManaCost;
 
 /// A single component of an ability's cost ([CR#601.2b]).
@@ -18,10 +18,11 @@ pub enum CostComponent {
     Tap,
     /// The {Q} symbol.
     Untap,
-    /// Pay by performing a verb: only cost-eligible Actions
-    /// (`Action::is_cost_eligible`) belong here — enforced by the cards
+    /// Pay by performing a verb: the payer is implicitly you, so this holds a
+    /// bare [`PlayerAction`] (no `By` wrapper). Only cost-eligible ones
+    /// (`PlayerAction::is_cost_eligible`) belong here — enforced by the cards
     /// crate's validation lint, not the parser.
-    Do(Action),
+    Do(PlayerAction),
     /// A remembered `CostComponent` macro invocation (`SacrificeThis`, loyalty
     /// sugar, …).
     Expanded(Expansion<CostComponent>),
@@ -56,6 +57,8 @@ mod tests {
 
     #[test]
     fn cost_components_parse() {
+        use crate::action::PlayerAction;
+
         assert_eq!(
             read("Mana([Generic(2)])"),
             CostComponent::Mana(ManaCost::from(vec![ManaSymbol::Simple(
@@ -65,7 +68,7 @@ mod tests {
         assert_eq!(read("Tap"), CostComponent::Tap);
         assert_eq!(
             read("Do(Sacrifice(This))"),
-            CostComponent::Do(Action::Sacrifice(Selection::from(Reference::This))),
+            CostComponent::Do(PlayerAction::Sacrifice(Selection::from(Reference::This))),
         );
     }
 

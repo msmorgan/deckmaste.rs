@@ -21,7 +21,7 @@ pub struct Token {
 mod tests {
     use super::*;
     use crate::ability::{Ability, ActivatedAbility};
-    use crate::action::Action;
+    use crate::action::{Action, PlayerAction};
     use crate::cost::CostComponent;
     use crate::effect::Effect;
     use crate::mana::ManaSpec;
@@ -88,12 +88,12 @@ mod tests {
             vec![Ability::Activated(ActivatedAbility {
                 cost: vec![
                     CostComponent::Tap,
-                    CostComponent::Do(Action::Sacrifice(Selection::from(Reference::This))),
+                    CostComponent::Do(PlayerAction::Sacrifice(Selection::from(Reference::This))),
                 ],
                 targets: vec![],
-                effect: Effect::Act(Action::AddMana(
-                    crate::Count::Literal(1),
-                    ManaSpec::AnyColor
+                effect: Effect::Act(Action::By(
+                    Reference::You,
+                    PlayerAction::AddMana(crate::Count::Literal(1), ManaSpec::AnyColor),
                 )),
             })]
         );

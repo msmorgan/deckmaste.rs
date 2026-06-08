@@ -5,7 +5,7 @@
 
 use deckmaste_core::{
     Ability, Action, Card, CardFace, ColorOrColorless, CostComponent, Count, Effect, ManaSpec,
-    Property, Uint,
+    PlayerAction, Property, Uint,
 };
 
 use crate::object::{ObjectId, ObjectSource};
@@ -61,9 +61,13 @@ pub fn tap_mana_ability(ability: &Ability) -> Option<(ColorOrColorless, Uint)> {
             if a.targets.is_empty() && a.cost.as_slice() == [CostComponent::Tap] =>
         {
             match &a.effect {
-                Effect::Act(Action::AddMana(Count::Literal(n), ManaSpec::Specific(m))) => {
-                    Some((*m, *n))
-                }
+                // The produced-mana effect is a bare `AddMana` in RON, which
+                // reads as `By(You, AddMana(…))` (the implicit-you default);
+                // the agent is irrelevant for tap-for-mana derivation.
+                Effect::Act(Action::By(
+                    _,
+                    PlayerAction::AddMana(Count::Literal(n), ManaSpec::Specific(m)),
+                )) => Some((*m, *n)),
                 _ => None,
             }
         }

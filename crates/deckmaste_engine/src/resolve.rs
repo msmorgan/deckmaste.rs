@@ -2,7 +2,8 @@
 //! reified agenda work. Stage 3 wires the corpus's arms; the rest are `todo!`.
 
 use deckmaste_core::{
-    Ability, Action, Count, Effect, Reference, Selection, TargetSpec, Type, Uint, Zone,
+    Ability, Action, Count, Effect, PlayerAction, Reference, Selection, TargetSpec, Type, Uint,
+    Zone,
 };
 
 use crate::agenda::WorkItem;
@@ -136,12 +137,13 @@ impl GameState {
         }
     }
 
-    /// The `Emit` work item(s) a single-instruction `Action` produces. Damage
-    /// to a multi-valued selection is one simultaneous `Batch` (a later
-    /// task); drawing N is N sequential `Single`s ([CR#121.1] — drawn one at
-    /// a time).
+    /// The `Emit` work item(s) a single-instruction `Action` produces. The
+    /// source verbs (`DealDamage`, …) act with the source object as agent; the
+    /// player verbs live under `By(who, …)`, where `who` resolves to the acting
+    /// player and replaces the previously hard-coded `frame.controller`. Damage
+    /// to a multi-valued selection is one simultaneous `Batch` (a later task);
+    /// drawing N is N sequential `Single`s ([CR#121.1] — drawn one at a time).
     pub(crate) fn action_items(&self, action: &Action, frame: &Frame) -> Vec<WorkItem> {
-        use crate::event::Occurrence;
         match action {
             Action::DealDamage(sel, qty) => {
                 let amount = self.eval_count(qty, frame);
@@ -156,7 +158,29 @@ impl GameState {
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
-            Action::Tap(sel) => {
+            // The named player performs the verb: resolve `who` to the acting
+            // player, then dispatch the `PlayerAction`. `By(You, …)` (the
+            // implicit-you default) resolves to `frame.controller` — identical
+            // to the previous hard-coded behavior.
+            Action::By(who, pa) => {
+                let actor = self.acting_player(who, frame);
+                self.player_action_items(pa, actor, frame)
+            }
+            other => todo!("stage 3 does not perform action {other:?}"),
+        }
+    }
+
+    /// The `Emit` work item(s) one `PlayerAction` produces, performed by
+    /// `actor` (the agent the enclosing `By` resolved to).
+    fn player_action_items(
+        &self,
+        action: &PlayerAction,
+        actor: crate::player::PlayerId,
+        frame: &Frame,
+    ) -> Vec<WorkItem> {
+        use crate::event::Occurrence;
+        match action {
+            PlayerAction::Tap(sel) => {
                 let events: Vec<GameEvent> = self
                     .eval_selection_set(sel, frame)
                     .into_iter()
@@ -164,27 +188,44 @@ impl GameState {
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
-            Action::DrawCards(qty) => {
+            PlayerAction::Draw(qty) => {
                 // TODO(stage-4): emit as ZoneWillChange (action-driven collapse, §5.6);
                 //   also needs the deferred WillDrawCards intent (spec §11).
                 let n = self.eval_count(qty, frame);
                 (0..n)
                     .map(|_| {
                         WorkItem::Emit(Occurrence::Single(GameEvent::CardDrawn {
-                            player: frame.controller,
+                            player: actor,
                             object: None,
                         }))
                     })
                     .collect()
             }
-            Action::LoseLife(qty) => {
+            PlayerAction::LoseLife(qty) => {
                 let amount = self.eval_count(qty, frame);
                 vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeLost {
-                    player: frame.controller,
+                    player: actor,
                     amount,
                 }))]
             }
-            other => todo!("stage 3 does not perform action {other:?}"),
+            other => todo!("stage 3 does not perform player action {other:?}"),
+        }
+    }
+
+    /// Resolves the agent of a `By(who, …)` to the acting `PlayerId`. `who` is
+    /// a [`Reference`] that resolves (via `eval_reference`) to a player proxy
+    /// object; this maps that proxy back to its `PlayerId`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `who` resolves to a non-player object — a player verb's agent
+    /// must be a player ([CR#608.2]).
+    fn acting_player(&self, who: &Reference, frame: &Frame) -> crate::player::PlayerId {
+        use crate::object::ObjectSource;
+        let object = self.eval_reference(who, frame);
+        match self.objects.get(object).map(|o| o.source) {
+            Some(ObjectSource::Player(p)) => p,
+            other => panic!("a player verb's agent must be a player, got {other:?}"),
         }
     }
 
@@ -400,8 +441,8 @@ mod tests {
 
     use deckmaste_cards::plugin::Plugin;
     use deckmaste_core::{
-        Action, Card, CharacteristicFilter, Count, Effect, Filter, ObjectKind, Reference,
-        Selection, StateFilter, Type, Zone,
+        Action, Card, CharacteristicFilter, Count, Effect, Filter, ObjectKind, PlayerAction,
+        Reference, Selection, StateFilter, Type, Zone,
     };
 
     use crate::agenda::WorkItem;
@@ -425,6 +466,13 @@ mod tests {
     }
 
     fn deck(card: &Arc<Card>, n: usize) -> Vec<Arc<Card>> { vec![Arc::clone(card); n] }
+
+    /// `Action::By(You, pa)` — the implicit-you default a bare player verb
+    /// reads as.
+    fn by_you(pa: PlayerAction) -> Action { Action::By(Reference::You, pa) }
+
+    /// `Selection::Ref(This)` — the common "this object" selection.
+    fn sel_this() -> Selection { Selection::Ref(Reference::This) }
 
     /// A two-player game; player 0's deck is Vanilla Creature.
     /// Returns the state plus a creature object forced onto the battlefield.
@@ -472,15 +520,15 @@ mod tests {
             bindings: None,
         };
 
-        // Tap(This) -> one Single(Tapped(src))
-        let items = state.action_items(&Action::Tap(Selection::Ref(Reference::This)), &frame);
+        // By(You, Tap(This)) -> one Single(Tapped(src))
+        let items = state.action_items(&by_you(PlayerAction::Tap(sel_this())), &frame);
         assert_eq!(
             items,
             vec![WorkItem::Emit(Occurrence::Single(GameEvent::Tapped(src)))]
         );
 
-        // DrawCards(2) -> two sequential Single(CardDrawn) for the controller
-        let items = state.action_items(&Action::DrawCards(Count::Literal(2)), &frame);
+        // By(You, Draw(2)) -> two sequential Single(CardDrawn) for the controller
+        let items = state.action_items(&by_you(PlayerAction::Draw(Count::Literal(2))), &frame);
         assert_eq!(items.len(), 2);
         assert!(items.iter().all(|item| matches!(
             item,
@@ -490,8 +538,8 @@ mod tests {
             }))
         )));
 
-        // LoseLife(3) -> one Single(LifeLost{player0, 3})
-        let items = state.action_items(&Action::LoseLife(Count::Literal(3)), &frame);
+        // By(You, LoseLife(3)) -> one Single(LifeLost{player0, 3})
+        let items = state.action_items(&by_you(PlayerAction::LoseLife(Count::Literal(3))), &frame);
         assert_eq!(
             items,
             vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeLost {
@@ -499,6 +547,32 @@ mod tests {
                 amount: 3,
             }))]
         );
+    }
+
+    /// An explicit agent: `By(Target(0), Draw(2))` draws for the targeted
+    /// player, not the controller. Targets player 1's proxy.
+    #[test]
+    fn action_items_explicit_agent_draws_for_target() {
+        let (state, src) = bear_on_field();
+        let p1_proxy = state.players[1].object;
+        let frame = Frame {
+            source: src,
+            controller: PlayerId(0),
+            targets: vec![p1_proxy],
+            bindings: None,
+        };
+        let items = state.action_items(
+            &Action::By(Reference::Target(0), PlayerAction::Draw(Count::Literal(2))),
+            &frame,
+        );
+        assert_eq!(items.len(), 2);
+        assert!(items.iter().all(|item| matches!(
+            item,
+            WorkItem::Emit(Occurrence::Single(GameEvent::CardDrawn {
+                player: PlayerId(1),
+                ..
+            }))
+        )));
     }
 
     #[test]

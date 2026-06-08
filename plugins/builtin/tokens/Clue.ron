@@ -5,7 +5,7 @@ Token(
     abilities: [
         Activated(
             cost: [Mana([Generic(2)]), SacrificeThis],
-            effect: DrawCards(1),
+            effect: Draw(1),
         )
     ],
 )
