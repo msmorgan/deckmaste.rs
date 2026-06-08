@@ -259,6 +259,11 @@ impl MacroSet {
         self.kinds.get(position).is_some_and(|kind| kind.remembers)
     }
 
+    /// See [`Kind::embeds_untagged`](crate::Kind::embeds_untagged).
+    pub(crate) fn embeds_untagged(&self, position: &str) -> bool {
+        self.kinds.get(position).is_some_and(|kind| kind.embeds)
+    }
+
     /// Whether some macro expands to the struct named `name`, i.e. whether
     /// that parse position needs macro interception.
     pub(crate) fn expands_to_struct(&self, name: &str) -> bool { self.macros.contains_key(name) }

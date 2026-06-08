@@ -3,12 +3,13 @@
 //! remembering enum kinds (`Ability`, `Effect`, `Filter`), and a
 //! literal-sugar kind (`Quantity`).
 
+use serde::de::{EnumAccess, VariantAccess};
 use serde::ser::{SerializeStructVariant, Serializer};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Expansion, ExpansionArgs, Ident, InsertError, Kind, KindSet, MacroDef, MacroSet, ParamType,
-    ParamTypeSet, Params,
+    Expansion, ExpansionArgs, Ident, IdentSeed, InsertError, Kind, KindSet, MacroDef, MacroSet,
+    ParamType, ParamTypeSet, Params,
 };
 
 /// The deckmaste dialect, for parity with the real consumer: the intercept
@@ -33,6 +34,14 @@ fn kinds() -> KindSet {
             .remembers_expansion()
             .literal_wrapper("Literal"),
     );
+    // embeds_untagged fixture kinds: EmbedHost embeds EmbedRef untagged;
+    // EmbedRef remembers its own macro expansions.
+    kinds.add(
+        Kind::new("EmbedHost")
+            .remembers_expansion()
+            .embeds_untagged(),
+    );
+    kinds.add(Kind::new("EmbedRef").remembers_expansion());
     kinds
 }
 
@@ -948,4 +957,147 @@ fn injected_param_types_validate() {
         msg.contains("Repeat") && msg.contains("Number"),
         "unexpected error: {msg}"
     );
+}
+
+// ---------------------------------------------------------------------------
+// embeds_untagged fixture
+//
+// `EmbedHost` mirrors `Selection`: it has its own variants and embeds
+// `EmbedRef` untagged via `visit_newtype_struct`. `EmbedRef` mirrors
+// `Reference`: a plain unit variant and a remembered `Expanded` variant for
+// macro-in-slot tests.
+//
+// Both kinds are registered above in `kinds()`. `EmbedHost` is registered
+// with `.remembers_expansion().embeds_untagged()`; `EmbedRef` with
+// `.remembers_expansion()`.
+
+/// The embedded "reference-like" type. A derive is enough because none of
+/// its variants need special treatment.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+enum EmbedRef {
+    Bare,
+    Counted(u32),
+    Expanded(Expansion<EmbedRef>),
+}
+
+/// The host type. Manual `Deserialize` so `visit_newtype_struct` can wrap an
+/// `EmbedRef` in `Wrapped`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum EmbedHost {
+    Own(u32),
+    Wrapped(EmbedRef),
+    Expanded(Expansion<EmbedHost>),
+}
+
+/// The host's own variant names — what the macro layer checks against to
+/// decide whether to fall through to the embedded type.
+const EMBED_HOST_VARIANTS: &[&str] = &["Own", "Wrapped", "Expanded"];
+
+impl<'de> Deserialize<'de> for EmbedHost {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        use std::fmt;
+
+        use serde::de::Visitor;
+
+        struct EmbedHostVisitor;
+
+        impl<'de> Visitor<'de> for EmbedHostVisitor {
+            type Value = EmbedHost;
+
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str("an EmbedHost value or an EmbedRef value")
+            }
+
+            /// The untagged-embed fall-through: an identifier not belonging to
+            /// `EmbedHost` arrives as newtype content; read it as an `EmbedRef`
+            /// (which re-enters the macro layer under the `EmbedRef` namespace)
+            /// and wrap it.
+            fn visit_newtype_struct<D: serde::Deserializer<'de>>(
+                self,
+                de: D,
+            ) -> Result<Self::Value, D::Error> {
+                Ok(EmbedHost::Wrapped(EmbedRef::deserialize(de)?))
+            }
+
+            fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
+                use serde::de::Error;
+                let (ident, v) = data.variant_seed(IdentSeed)?;
+                Ok(match ident.as_str() {
+                    "Own" => EmbedHost::Own(v.newtype_variant()?),
+                    "Wrapped" => EmbedHost::Wrapped(v.newtype_variant()?),
+                    "Expanded" => EmbedHost::Expanded(v.newtype_variant()?),
+                    other => {
+                        return Err(A::Error::custom(format_args!(
+                            "`{other}` is neither an EmbedHost variant nor an EmbedRef"
+                        )));
+                    }
+                })
+            }
+        }
+
+        deserializer.deserialize_enum("EmbedHost", EMBED_HOST_VARIANTS, EmbedHostVisitor)
+    }
+}
+
+/// A host-native variant reads directly — the embed path is not taken.
+#[test]
+fn embed_host_own_variant_reads_directly() {
+    let host: EmbedHost = empty().read_str("Own(7)").unwrap();
+    assert_eq!(host, EmbedHost::Own(7));
+}
+
+/// A bare `EmbedRef` variant in a host slot falls through to the embedded
+/// type and wraps in `Wrapped`.
+#[test]
+fn embed_host_bare_ref_variant_wraps() {
+    let host: EmbedHost = empty().read_str("Bare").unwrap();
+    assert_eq!(host, EmbedHost::Wrapped(EmbedRef::Bare));
+
+    let host: EmbedHost = empty().read_str("Counted(3)").unwrap();
+    assert_eq!(host, EmbedHost::Wrapped(EmbedRef::Counted(3)));
+}
+
+/// An `EmbedRef` macro in a host slot routes to the embedded type's
+/// `Expanded`, not the host's: the `visit_newtype_struct` path re-enters the
+/// macro layer under `EmbedRef`, so the macro is looked up there and
+/// remembered as `EmbedRef::Expanded`.
+#[test]
+fn embed_host_ref_macro_routes_to_embedded_expanded() {
+    let mut macros = empty();
+    macros
+        .insert(&MacroDef {
+            name: "RefMacro".into(),
+            kinds: vec!["EmbedRef".into()],
+            params: Params::default(),
+            body: "Bare".into(),
+        })
+        .unwrap();
+    let host: EmbedHost = macros.read_str("RefMacro").unwrap();
+    // The macro was looked up under EmbedRef and remembered there.
+    let EmbedHost::Wrapped(EmbedRef::Expanded(expanded)) = host else {
+        panic!("expected Wrapped(Expanded(…)), got {host:?}");
+    };
+    assert_eq!(expanded.name, "RefMacro");
+    assert_eq!(*expanded.value, EmbedRef::Bare);
+}
+
+/// An `EmbedHost` macro in a host slot expands at the host level and is
+/// remembered as `EmbedHost::Expanded` — the embed path is not taken.
+#[test]
+fn embed_host_own_macro_remembered_as_host_expanded() {
+    let mut macros = empty();
+    macros
+        .insert(&MacroDef {
+            name: "HostMacro".into(),
+            kinds: vec!["EmbedHost".into()],
+            params: Params::default(),
+            body: "Own(1)".into(),
+        })
+        .unwrap();
+    let host: EmbedHost = macros.read_str("HostMacro").unwrap();
+    let EmbedHost::Expanded(expanded) = host else {
+        panic!("expected EmbedHost::Expanded(…), got {host:?}");
+    };
+    assert_eq!(expanded.name, "HostMacro");
+    assert_eq!(*expanded.value, EmbedHost::Own(1));
 }

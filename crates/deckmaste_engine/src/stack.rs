@@ -82,7 +82,7 @@ pub struct Frame {
     pub controller: PlayerId,
     pub targets: Vec<ObjectId>,
     /// The trigger's last-known information ([CR#608.2]) — `None` for a spell
-    /// frame. When present, `Selection::This`/`~` reads the firing object's
-    /// snapshot rather than the live `source`.
+    /// frame. When present, `Reference::This`/`~` reads the firing object's
+    /// snapshot rather than the live `source` (via `eval_reference`).
     pub bindings: Option<TriggerBindings>,
 }

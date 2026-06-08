@@ -2,7 +2,7 @@
 //! wires self-replacement on enter (`AsEnters`) into the entering object's
 //! `EnterStatus`; other replacement kinds are Stage-4 seams (§7.2).
 
-use deckmaste_core::{Ability, Action, Effect, Replacement, Selection, StaticEffect};
+use deckmaste_core::{Ability, Action, Effect, Reference, Replacement, Selection, StaticEffect};
 
 use crate::event::EnterStatus;
 use crate::object::ObjectSource;
@@ -31,7 +31,7 @@ impl GameState {
 /// `Tap(This)` (→ tapped). Counters/face-down are Stage-4 seams.
 fn apply_as_enters(effect: &Effect, status: &mut EnterStatus) {
     match effect {
-        Effect::Act(Action::Tap(Selection::This)) => status.tapped = true,
+        Effect::Act(Action::Tap(Selection::Ref(Reference::This))) => status.tapped = true,
         other => todo!("stage 3 does not interpret AsEnters effect {other:?}"),
     }
 }

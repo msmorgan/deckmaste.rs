@@ -147,7 +147,7 @@ mod tests {
     use crate::action::Action;
     use crate::cost::CostComponent;
     use crate::effect::Effect;
-    use crate::{Count, Selection};
+    use crate::{Count, Reference, Selection};
 
     fn read_ability(source: &str) -> Ability { crate::ron::options().from_str(source).unwrap() }
 
@@ -210,7 +210,7 @@ mod tests {
         };
         assert_eq!(
             activated.cost[1],
-            CostComponent::Do(Action::Sacrifice(Selection::This))
+            CostComponent::Do(Action::Sacrifice(Selection::Ref(Reference::This)))
         );
     }
 }
