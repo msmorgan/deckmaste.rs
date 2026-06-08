@@ -649,3 +649,122 @@ fn each_player_has_a_proxy_object() {
         assert_eq!(obj.damage, 0);
     }
 }
+
+/// A two-player game with Lightning Bolt in player 0's deck and Grizzly Bears
+/// in player 1's deck; also forces a Bears onto the battlefield from player
+/// 1's hand. Returns `(state, bear)`.
+fn decks_bolt_vs_bears_with_bear_on_field() -> (GameState, ObjectId) {
+    let plugin = builtin();
+    let bolt = Arc::new(plugin.card("Lightning Bolt").unwrap());
+    let bears = Arc::new(plugin.card("Grizzly Bears").unwrap());
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig {
+                deck: vec![Arc::clone(&bolt); 10],
+            },
+            PlayerConfig {
+                deck: vec![Arc::clone(&bears); 10],
+            },
+        ],
+        seed: 1,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    // Force a Bears from player 1's hand onto the battlefield.
+    let bear = *state.zones.hands[1]
+        .iter()
+        .find(|&&o| state_is_bears(&state, o))
+        .expect("a Bears in player 1's opening hand (10-card mono deck)");
+    state.zones.hands[PlayerId(1).index()].retain(|&o| o != bear);
+    state.objects.obj_mut(bear).zone = Some(Zone::Battlefield);
+    state.zones.battlefield.push(bear);
+    (state, bear)
+}
+
+/// Returns the face name of the card-backed object `id`.
+///
+/// # Panics
+/// Panics if `id` is a player proxy.
+fn face_name(state: &GameState, id: ObjectId) -> &str {
+    match state.def(id) {
+        Card::Normal(f) | Card::ModalDfc(f, _) => &f.name,
+    }
+}
+
+/// True iff `id`'s card face name is "Lightning Bolt".
+fn state_is_bolt(state: &GameState, id: ObjectId) -> bool {
+    state
+        .objects
+        .obj(id)
+        .card_id()
+        .is_some_and(|_| face_name(state, id) == "Lightning Bolt")
+}
+
+/// True iff `id`'s card face name is "Grizzly Bears".
+fn state_is_bears(state: &GameState, id: ObjectId) -> bool {
+    state
+        .objects
+        .obj(id)
+        .card_id()
+        .is_some_and(|_| face_name(state, id) == "Grizzly Bears")
+}
+
+/// Steps up to `n` times, collecting `Progress` values. Stops early on a
+/// decision or game-over.
+fn drain_progress(state: &mut GameState, n: usize) -> Vec<Progress> {
+    let mut out = Vec::new();
+    for _ in 0..n {
+        match state.step() {
+            StepOutcome::Progress(p) => out.push(p),
+            StepOutcome::NeedsDecision(_) | StepOutcome::GameOver(_) => break,
+        }
+    }
+    out
+}
+
+/// Builds a game with Lightning Bolt in player 0's deck and a Bears on the
+/// field (player 1's), puts a Bolt onto the stack targeting the Bears.
+/// Returns `(state, bolt, bear)`.
+fn bolt_on_stack_targeting_bear() -> (GameState, ObjectId, ObjectId) {
+    let (mut state, bear) = decks_bolt_vs_bears_with_bear_on_field();
+    let bolt = *state.zones.hands[0]
+        .iter()
+        .find(|&&o| state_is_bolt(&state, o))
+        .expect("a Bolt in player 0's opening hand");
+    state.zones.hands[PlayerId(0).index()].retain(|&o| o != bolt);
+    state.objects.obj_mut(bolt).zone = Some(Zone::Stack);
+    state.stack.push(StackEntry {
+        object: StackObject::Spell(bolt),
+        controller: PlayerId(0),
+        targets: vec![bear],
+    });
+    (state, bolt, bear)
+}
+
+#[test]
+fn resolving_bolt_deals_three_then_leaves_for_graveyard() {
+    let (mut state, bolt, bear) = bolt_on_stack_targeting_bear();
+    state
+        .agenda
+        .push_front(deckmaste_engine::WorkItem::Resolve(bolt));
+    // Resolve → RunEffect(DealDamage) → Emit(DamageDealt) → Emit(SpellResolved).
+    let trace = drain_progress(&mut state, 8);
+    assert!(
+        trace.iter().any(|p| matches!(p,
+            Progress::Applied(GameEvent::DamageDealt { target, amount: 3, .. })
+            if *target == bear
+        )),
+        "expected DamageDealt{{target: bear, amount: 3}}, trace: {trace:?}"
+    );
+    assert!(
+        trace.iter().any(|p| matches!(p,
+            Progress::Applied(GameEvent::SpellResolved(o)) if *o == bolt
+        )),
+        "expected SpellResolved(bolt), trace: {trace:?}"
+    );
+    assert_eq!(state.objects.obj(bear).damage, 3);
+    assert!(
+        state.zones.graveyards[0].contains(&bolt),
+        "bolt should be in player 0's graveyard"
+    );
+}

@@ -17,4 +17,11 @@ pub enum WorkItem {
     CheckHandSize,
     /// Surface `pending = Priority { .. }`.
     OpenPriority,
+    /// Resolve the named committed stack object (CR 608). Reads `self.stack`.
+    Resolve(crate::object::ObjectId),
+    /// Interpret one `Effect` node against a resolution frame (CR 608.2).
+    RunEffect {
+        effect: Box<deckmaste_core::Effect>,
+        frame: crate::stack::Frame,
+    },
 }

@@ -38,6 +38,8 @@ pub enum Progress {
     HandSizeChecked { discarding: Uint },
     /// A priority decision was surfaced for this player.
     PriorityOpened(PlayerId),
+    /// A resolution step ran (dispatch or one effect node) for this object.
+    Resolving(crate::object::ObjectId),
 }
 
 impl GameState {
@@ -65,6 +67,15 @@ impl GameState {
             WorkItem::CheckSbas => self.check_sbas(),
             WorkItem::CheckHandSize => self.check_hand_size(),
             WorkItem::OpenPriority => self.open_priority(),
+            WorkItem::Resolve(obj) => {
+                self.resolve_object(obj);
+                Progress::Resolving(obj)
+            }
+            WorkItem::RunEffect { effect, frame } => {
+                let source = frame.source;
+                self.run_effect(*effect, &frame);
+                Progress::Resolving(source)
+            }
         };
         StepOutcome::Progress(progress)
     }

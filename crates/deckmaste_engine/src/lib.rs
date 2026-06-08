@@ -27,6 +27,8 @@ pub use object::{CardId, CardInstance, Cards, GameObject, ObjectId, ObjectSource
 mod player;
 pub use player::{ManaPool, PlayerId, PlayerState};
 
+mod resolve;
+
 mod runner;
 pub use runner::{RunStop, Runner};
 
