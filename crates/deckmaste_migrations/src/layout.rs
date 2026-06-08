@@ -1,8 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use deckmaste_core::plugin::{
-    ABILITY_WORDS_DIR, CARDS_DIR, KEYWORD_ABILITIES_DIR, KEYWORD_ABILITIES_FILE,
-    KEYWORD_ACTIONS_DIR, TYPES_DIR,
+    ABILITY_WORDS_DIR, CARDS_DIR, KEYWORD_ABILITIES_DIR, KEYWORD_ACTIONS_DIR, TYPES_DIR,
 };
 
 pub struct PluginLayout(PathBuf);
@@ -23,20 +22,6 @@ impl PluginLayout {
             ));
         }
         Ok(Self(base.clone()))
-    }
-
-    fn file(&self, path: &str) -> anyhow::Result<PathBuf> {
-        let file_path = self.0.join(path);
-        let file_name = file_path.file_name().unwrap();
-        std::fs::create_dir_all(file_path.parent().unwrap())?;
-        let parent_dir = file_path.parent().unwrap().canonicalize()?;
-        if !parent_dir.starts_with(&self.0) {
-            return Err(anyhow::anyhow!(
-                "path is outside of plugin layout: {}",
-                file_path.display()
-            ));
-        }
-        Ok(parent_dir.join(file_name))
     }
 
     fn dir(&self, path: &str) -> anyhow::Result<PathBuf> {
@@ -65,8 +50,4 @@ impl PluginLayout {
     }
 
     pub fn cards_dir(&self) -> anyhow::Result<PathBuf> { self.dir(CARDS_DIR) }
-
-    pub fn keyword_abilities_file(&self) -> anyhow::Result<PathBuf> {
-        self.file(KEYWORD_ABILITIES_FILE)
-    }
 }

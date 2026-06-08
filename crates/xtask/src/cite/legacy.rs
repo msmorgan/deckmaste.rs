@@ -8,6 +8,28 @@ use regex::Regex;
 
 use crate::cite::citations::Site;
 
+/// Files whose rule-number-looking strings are data, format-doc examples, or
+/// test fixtures rather than missing `[CR#…]` citations: the academyruins
+/// JSON data-model (rule numbers as `format` examples), and the keyword /
+/// ability-word stub generators (a rule-number data const plus serialization
+/// fixtures). The wide-net scan skips them so it doesn't demand bracket form
+/// for non-citations. Their *real* citations (e.g. ability_word_todos'
+/// `[CR#207.2c]`) are unaffected — only this scan exempts them; the staleness
+/// check still covers them.
+const NONCOMPLIANT_EXEMPT: &[&str] = &[
+    "crates/deckmaste_migrations/src/data/academyruins.rs",
+    "crates/deckmaste_migrations/src/stubs/keyword_todos.rs",
+    "crates/deckmaste_migrations/src/stubs/ability_word_todos.rs",
+];
+
+/// True if `file` is exempt from the wide-net noncompliance scan (see
+/// [`NONCOMPLIANT_EXEMPT`]).
+fn is_exempt(file: &Path) -> bool {
+    NONCOMPLIANT_EXEMPT
+        .iter()
+        .any(|suffix| file.ends_with(suffix))
+}
+
 /// Wide-net patterns for citation-looking strings. Deliberately over-matches;
 /// the human filters during migration. Skips anything already inside `[CR#…]`.
 fn patterns() -> &'static [Regex] {
@@ -22,6 +44,9 @@ fn patterns() -> &'static [Regex] {
 }
 
 pub fn scan_noncompliant(file: &Path, content: &str) -> Vec<Site> {
+    if is_exempt(file) {
+        return Vec::new();
+    }
     let mut sites = Vec::new();
     let mut seen = std::collections::HashSet::new();
     for (i, line) in content.lines().enumerate() {
@@ -76,5 +101,16 @@ mod tests {
         assert!(hits.iter().any(|(_, r)| r == "509.1h"));
         // line 3 is canonical -> not flagged
         assert!(hits.iter().all(|(l, _)| *l != 3));
+    }
+
+    #[test]
+    fn exempt_files_are_not_scanned() {
+        let content = "// bare 509.1h and CR 107.3 here\n";
+        // A normal file flags the bare forms.
+        assert!(!scan_noncompliant(Path::new("src/lib.rs"), content).is_empty());
+        // An exempt data/fixture file is skipped entirely, even with the same
+        // citation-looking strings.
+        let exempt = Path::new("/repo/crates/deckmaste_migrations/src/data/academyruins.rs");
+        assert!(scan_noncompliant(exempt, content).is_empty());
     }
 }
