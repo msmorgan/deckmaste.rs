@@ -1102,3 +1102,124 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
         "the triggered ability left the stack on resolution ([CR#603.8])"
     );
 }
+
+#[test]
+fn creature_enters_tapped_via_as_enters_replacement() {
+    // Drives both `Creature enters tapped` (an AsEnters replacement) and
+    // `Vanilla Creature` (no replacement) through the full cast+resolve flow,
+    // asserting entry status: the former is minted tapped all-at-once (no
+    // observable untapped window [CR#614.1c,614.12]), the latter untapped.
+
+    // --- (a) `Creature enters tapped` resolves tapped ---
+    {
+        let testing = testing();
+        let enters_tapped = Arc::new(testing.card("Creature enters tapped").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        // {2} costs two generic mana; two Forests supply G,G which covers it.
+        let mut deck = vec![Arc::clone(&enters_tapped); 5];
+        deck.extend(vec![Arc::clone(&forest); 5]);
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig { deck },
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 10],
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        });
+        force_into_play(&mut state, PlayerId(0), "Forest");
+        force_into_play(&mut state, PlayerId(0), "Forest");
+
+        let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+        float_mana(&mut state, PlayerId(0), 2); // G, G
+        let spell = find_in_hand(&state, PlayerId(0), "Creature enters tapped");
+
+        // {2} is all-generic; float G,G and pick one Green for the generic pip.
+        state
+            .submit_decision(Decision::Act(Action::CastSpell { object: spell }))
+            .unwrap();
+        // {2} generic from G,G: PayMana surfaces, both pips into generic.
+        let (_, stop) = step_to_stop(&mut state);
+        let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
+            panic!("expected PayMana for {{2}}, got {stop:?}");
+        };
+        state
+            .submit_decision(Decision::Pay(Payment {
+                generic: vec![green(), green()],
+            }))
+            .unwrap();
+        let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+        assert_eq!(state.stack.len(), 1, "the creature spell is on the stack");
+
+        // Both players pass → resolves.
+        state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+        let _ = run_to_priority(&mut state, PlayerId(1), StepOrPhase::PrecombatMain);
+        state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+        let _ = step_to_stop(&mut state);
+
+        // Find the reminted permanent on the battlefield.
+        let entered = *state
+            .zones
+            .battlefield
+            .iter()
+            .find(|&&o| {
+                state.objects.obj(o).card_id().is_some_and(|_| {
+                    matches!(state.def(o), Card::Normal(f) | Card::ModalDfc(f, _)
+                        if f.name == "Creature enters tapped")
+                })
+            })
+            .expect("the reminted 'Creature enters tapped' is on the battlefield");
+
+        // [CR#614.1c,614.12]: the permanent is minted tapped — no untapped window.
+        assert!(
+            state.objects.obj(entered).tapped,
+            "'Creature enters tapped' must be tapped the instant it enters the battlefield"
+        );
+    }
+
+    // --- (b) `Vanilla Creature` (no AsEnters replacement) enters untapped ---
+    {
+        let mut state = bears_game(1, 2); // two Forests for {1}{G}
+
+        let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+        float_mana(&mut state, PlayerId(0), 2); // G, G
+        let bears = find_in_hand(&state, PlayerId(0), "Vanilla Creature");
+
+        state
+            .submit_decision(Decision::Act(Action::CastSpell { object: bears }))
+            .unwrap();
+        let (_, stop) = step_to_stop(&mut state);
+        let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
+            panic!("expected PayMana for {{1}}{{G}}, got {stop:?}");
+        };
+        state
+            .submit_decision(Decision::Pay(Payment {
+                generic: vec![green()],
+            }))
+            .unwrap();
+        let _ = run_to_priority(&mut state, PlayerId(0), StepOrPhase::PrecombatMain);
+        state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+        let _ = run_to_priority(&mut state, PlayerId(1), StepOrPhase::PrecombatMain);
+        state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+        let _ = step_to_stop(&mut state);
+
+        let entered = *state
+            .zones
+            .battlefield
+            .iter()
+            .find(|&&o| {
+                state.objects.obj(o).card_id().is_some_and(|_| {
+                    matches!(state.def(o), Card::Normal(f) | Card::ModalDfc(f, _)
+                        if f.name == "Vanilla Creature")
+                })
+            })
+            .expect("the reminted Vanilla Creature is on the battlefield");
+
+        assert!(
+            !state.objects.obj(entered).tapped,
+            "Vanilla Creature must enter untapped (no AsEnters replacement)"
+        );
+    }
+}
