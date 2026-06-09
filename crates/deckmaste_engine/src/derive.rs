@@ -19,11 +19,15 @@ pub fn face(card: &Card) -> &CardFace {
     }
 }
 
-/// The object's abilities: printed plus subtype-conferred (the
+/// The object's PRINTED abilities: printed plus subtype-conferred (the
 /// `Property::Ability` arm; other flavors execute elsewhere), in that
 /// order. `Action::ActivateAbility` indexes this list.
+///
+/// This is the cycle-safe base used by the layer pipeline itself
+/// (`layer::base_values` and `layer::gather`). External callers should
+/// use [`abilities`] to get the layer-6–derived list instead.
 #[must_use]
-pub fn abilities(state: &GameState, id: ObjectId) -> Vec<&Ability> {
+pub(crate) fn printed_abilities(state: &GameState, id: ObjectId) -> Vec<&Ability> {
     let face = face(state.def(id));
     face.abilities
         .iter()
@@ -34,6 +38,17 @@ pub fn abilities(state: &GameState, id: ObjectId) -> Vec<&Ability> {
             })
         }))
         .collect()
+}
+
+/// The object's derived abilities after layer 6 ([CR#305.6,613.1f]):
+/// base = printed + subtype-conferred; layer 6 applies on top.
+///
+/// Use this everywhere outside the layer pipeline itself. The layer
+/// pipeline uses [`printed_abilities`] internally to break the
+/// `layers()` → `derive::abilities` → `layers()` recursion.
+#[must_use]
+pub fn abilities(state: &GameState, id: ObjectId) -> Vec<Ability> {
+    state.layers().get(id).abilities.clone()
 }
 
 /// The PRINTED abilities of whatever an `ObjectSource` names — the abilities

@@ -355,7 +355,7 @@ impl GameState {
     #[must_use]
     pub(crate) fn spell_effect(&self, id: ObjectId) -> Option<Effect> {
         crate::derive::abilities(self, id)
-            .into_iter()
+            .iter()
             .find_map(|a| spell_ability_effect(a))
             .cloned()
     }
@@ -398,7 +398,7 @@ impl GameState {
     #[must_use]
     pub(crate) fn spell_targets(&self, id: ObjectId) -> Vec<TargetSpec> {
         crate::derive::abilities(self, id)
-            .into_iter()
+            .iter()
             .find_map(|a| spell_targets_list(a))
             .cloned()
             .unwrap_or_default()

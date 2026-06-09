@@ -7,8 +7,8 @@
 use std::collections::BTreeMap;
 
 use deckmaste_core::{
-    Ability, Color, Count, Duration, Filter, Int, ManaSymbol, Modification, Scope, StaticEffect,
-    Subtype, Supertype, Type, Zone,
+    Ability, Color, Count, Duration, Filter, Ident, Int, ManaSymbol, Modification, Scope,
+    StaticEffect, Subtype, Supertype, Type, Zone,
 };
 
 use crate::object::{ObjectId, Timestamp};
@@ -49,6 +49,9 @@ pub struct Characteristics {
     pub subtypes: Vec<Subtype>,
     pub supertypes: Vec<Supertype>,
     pub abilities: Vec<Ability>,
+    /// Ability names the object can't have or gain ([CR#613.1f]).
+    /// Populated by `CantHaveAbility`; consulted by `GainAbility`.
+    pub cant_have: Vec<Ident>,
 }
 
 /// Every live object's derived characteristics, computed in one pass.
@@ -126,10 +129,11 @@ fn base_values(state: &GameState, id: ObjectId) -> Characteristics {
         card_types: face.types.clone(),
         subtypes: face.subtypes.clone(),
         supertypes: face.supertypes.clone(),
-        abilities: crate::derive::abilities(state, id)
+        abilities: crate::derive::printed_abilities(state, id)
             .into_iter()
             .cloned()
             .collect(),
+        cant_have: Vec::new(),
     }
 }
 
@@ -225,7 +229,11 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
             continue;
         }
         let timestamp = obj.timestamp;
-        for ability in crate::derive::abilities(state, obj.id) {
+        // v1: uses printed_abilities (not the derived view) to break the
+        // layers() → derive::abilities → layers() recursion. As a result, a
+        // static ability that is itself *granted* by a layer-6 effect won't be
+        // re-gathered as an effect source (no fixpoint). No fixture requires that.
+        for ability in crate::derive::printed_abilities(state, obj.id) {
             let Ability::Static(sa) = ability else { continue };
             // Conditions skipped — a seam for later ([CR#604.3]).
             for effect in &sa.effects {
@@ -302,6 +310,19 @@ fn eval_count(n: &Count) -> Int {
     }
 }
 
+/// Whether `a` is the named ability identified by `name`. Uses the
+/// `KeywordAbility::as_str()` mapping — the canonical printed name is the
+/// variant identifier (e.g. `"Trample"`). Non-keyword abilities have no
+/// simple name and return `false` in v1; `LoseAbility`/`CantHaveAbility`
+/// are defined to target named keyword abilities ([CR#613.1f]).
+fn ability_is_named(a: &Ability, name: &Ident) -> bool {
+    match a {
+        Ability::Keyword(kw) => kw.as_str() == name.as_str(),
+        Ability::Expanded(e) => ability_is_named(&e.value, name),
+        _ => false,
+    }
+}
+
 /// Apply one `Modification` to `c` at its layer. Only P/T arms (7a-7d) are
 /// implemented; type/color/ability arms (4-6) are empty stubs for later tasks.
 /// ([CR#613.1b,613.1c,613.1d] deferred arms are also stubs.)
@@ -330,11 +351,21 @@ fn apply(m: &Modification, c: &mut Characteristics) {
         | Modification::BecomeBasicLandType(_) => {}
         // --- Layer 5: color-changing (later task) ---
         Modification::SetColors(_) | Modification::AddColors(_) => {}
-        // --- Layer 6: ability-adding/removing (later task) ---
-        Modification::GainAbility(_)
-        | Modification::LoseAbility(_)
-        | Modification::LoseAllAbilities
-        | Modification::CantHaveAbility(_) => {}
+        // --- Layer 6: ability-adding/removing ([CR#613.1f]) ---
+        Modification::GainAbility(a) => {
+            // Respect any active "can't have" prohibition ([CR#613.1f]).
+            if !c.cant_have.iter().any(|n| ability_is_named(a, n)) {
+                c.abilities.push((**a).clone());
+            }
+        }
+        Modification::LoseAllAbilities => c.abilities.clear(),
+        Modification::LoseAbility(name) => c.abilities.retain(|x| !ability_is_named(x, name)),
+        Modification::CantHaveAbility(name) => {
+            // Remove any already-present instance of the named ability, then
+            // record the prohibition so future GainAbility skips it.
+            c.abilities.retain(|x| !ability_is_named(x, name));
+            c.cant_have.push(*name);
+        }
         // --- Deferred ([CR#613.1b,613.1c,613.1d]) ---
         Modification::SetController(_)
         | Modification::SetText(_)

@@ -1,0 +1,11 @@
+// Static: all creatures gain trample (layer 6, [CR#613.1f]).
+Normal(
+    name: "Trample granter",
+    mana_cost: [Generic(2), Red],
+    types: [Enchantment],
+    abilities: [
+        Static(effects: [
+            Modify(of: Matching(Type(Creature)), changes: [GainAbility(Keyword(Trample))]),
+        ]),
+    ],
+)

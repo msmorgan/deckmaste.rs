@@ -149,3 +149,33 @@ fn one_shot_pump_expires_at_cleanup() {
         "pump gone after cleanup"
     );
 }
+
+/// [CR#613.1f]: a static "creatures gain trample" (layer 6) grants the keyword.
+#[test]
+fn static_grants_keyword() {
+    use deckmaste_core::KeywordAbility;
+    use deckmaste_engine::has_keyword;
+
+    let mut state = game_with_p0_cards(&["Trample granter"], 1);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+    let _granter = force_onto_battlefield(&mut state, PlayerId(0), "Trample granter");
+    assert!(
+        has_keyword(&state, bear, KeywordAbility::Trample),
+        "the bear gains trample from the static ([CR#613.1f])"
+    );
+}
+
+/// [CR#613.1f]: "creatures lose all abilities" blanks a printed keyword.
+#[test]
+fn lose_all_abilities_blanks_keyword() {
+    use deckmaste_core::KeywordAbility;
+    use deckmaste_engine::has_keyword;
+
+    let mut state = game_with_p0_cards(&["Trample Creature", "Blanker"], 1);
+    let trampler = force_onto_battlefield(&mut state, PlayerId(0), "Trample Creature");
+    let _blanker = force_onto_battlefield(&mut state, PlayerId(0), "Blanker");
+    assert!(
+        !has_keyword(&state, trampler, KeywordAbility::Trample),
+        "lose-all-abilities removes the printed trample ([CR#613.1f])"
+    );
+}

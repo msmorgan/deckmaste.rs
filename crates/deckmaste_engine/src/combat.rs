@@ -15,14 +15,12 @@ use deckmaste_core::{Ability, KeywordAbility};
 use crate::object::ObjectId;
 use crate::state::GameState;
 
-/// Whether `object` has the intrinsic combat keyword `kw` ([CR#702]). Scans the
-/// object's PRINTED face abilities for `Ability::Keyword(kw)`. Granted keywords
-/// (layer 6, [CR#613.1f]) await the layer system — this is printed-only for
-/// now.
+/// Whether `object` has the intrinsic combat keyword `kw` ([CR#702]).
+/// Reads the layer-6–derived ability list ([CR#613.1f]) so that granted and
+/// removed keywords are honored.
 #[must_use]
 pub fn has_keyword(state: &GameState, object: ObjectId, kw: KeywordAbility) -> bool {
-    crate::derive::face(state.def(object))
-        .abilities
+    crate::derive::abilities(state, object)
         .iter()
         .any(|a| matches!(a, Ability::Keyword(k) if *k == kw))
 }
