@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 
 use deckmaste_core::{
     Ability, Color, Count, Int, ManaSymbol, Modification, Scope, StaticEffect, Subtype, Supertype,
-    Type,
+    Type, Zone,
 };
 
 use crate::object::{ObjectId, Timestamp};
@@ -196,6 +196,10 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
         if obj.card_id().is_none() {
             continue; // player proxy — no static abilities
         }
+        // Static abilities function only on the battlefield ([CR#611.3a]).
+        if obj.zone != Some(Zone::Battlefield) {
+            continue;
+        }
         let timestamp = obj.timestamp;
         for ability in crate::derive::abilities(state, obj.id) {
             let Ability::Static(sa) = ability else { continue };
@@ -365,6 +369,8 @@ impl GameState {
                 let Some(targets) = effects[i].locked.as_deref() else {
                     unreachable!("locked is always set before this point")
                 };
+                // Copy targets + is_cda to release the borrow on effects[i] so the
+                // inner loop can borrow effects[i].changes.
                 let targets: Vec<ObjectId> = targets.to_vec();
                 let is_cda = effects[i].is_cda;
                 for obj_id in targets {
