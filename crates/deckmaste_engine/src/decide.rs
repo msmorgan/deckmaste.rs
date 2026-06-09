@@ -50,6 +50,15 @@ pub enum PendingDecision {
         player: PlayerId,
         legal: Vec<ObjectId>,
     },
+    /// [CR#510.1c]: divide `source`'s combat damage among its `recipients`
+    /// (free division — any split summing to `source`'s power is legal).
+    /// Surfaced only for a multi-blocked attacker (≥ 2 recipients); forced
+    /// cases auto-resolve. `player` is the source's controller.
+    AssignCombatDamage {
+        player: PlayerId,
+        source: ObjectId,
+        recipients: Vec<ObjectId>,
+    },
 }
 
 /// An answer to the pending decision.
@@ -72,6 +81,10 @@ pub enum Decision {
     /// (possibly empty). Each blocker blocks exactly one attacker
     /// ([CR#509.1a]).
     Blocks(Vec<(ObjectId, ObjectId)>),
+    /// Answers `AssignCombatDamage`: `(recipient, amount)` pairs whose amounts
+    /// sum to the source's power, each recipient drawn from the offered set
+    /// ([CR#510.1c]).
+    Assignment(Vec<(ObjectId, Uint)>),
 }
 
 /// What a priority holder can do in the skeleton.
@@ -291,6 +304,18 @@ impl GameState {
                 }
                 Ok(())
             }
+            (
+                PendingDecision::AssignCombatDamage {
+                    player: _,
+                    source,
+                    recipients,
+                },
+                Decision::Assignment(amounts),
+            ) => {
+                let source = *source;
+                let recipients = recipients.clone();
+                self.submit_assign_combat_damage(source, &recipients, amounts)
+            }
             _ => Err(DecisionError::WrongKind),
         }
     }
@@ -335,6 +360,80 @@ impl GameState {
         let placed = self.place_one_trigger(noted);
         self.schedule_front(vec![WorkItem::CheckSbas, WorkItem::PlaceTriggers]);
         let _ = placed; // placement success is tracked by CheckSbas/PlaceTriggers
+        Ok(())
+    }
+
+    /// [CR#510.1c]: apply an `AssignCombatDamage` answer for the queue's front
+    /// source. Validates that the amounts sum to the source's power and every
+    /// named target is one of its recipients (free division — *any* such split
+    /// is legal; no lethal-before-next ordering, [CR#510.1c]). On success it
+    /// appends one `DamageDealt` per nonzero amount to the buffer, pops the
+    /// source off the queue, and surfaces the next decision (or deals the batch
+    /// when the queue empties) via `open_next_assignment`.
+    ///
+    /// # Errors
+    ///
+    /// `Illegal` when the amounts don't sum to the source's power, or name a
+    /// creature that isn't one of the source's recipients.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no combat-damage assignment is in flight, or the front source
+    /// doesn't match `source` — engine invariants (the pending decision pins
+    /// both), not caller input.
+    fn submit_assign_combat_damage(
+        &mut self,
+        source: ObjectId,
+        recipients: &[ObjectId],
+        amounts: Vec<(ObjectId, Uint)>,
+    ) -> Result<(), DecisionError> {
+        let power = {
+            let cd = self
+                .combat_damage
+                .as_ref()
+                .expect("combat-damage in flight");
+            let front = cd.queue.first().expect("a queued assignment");
+            debug_assert_eq!(
+                front.source, source,
+                "front source matches the pending decision"
+            );
+            front.power
+        };
+        let total: Uint = amounts.iter().map(|&(_, n)| n).sum();
+        if total != power {
+            return Err(DecisionError::Illegal {
+                reason: format!(
+                    "assigned damage ({total}) must sum to the source's power ({power})"
+                ),
+            });
+        }
+        if !amounts.iter().all(|(t, _)| recipients.contains(t)) {
+            return Err(DecisionError::Illegal {
+                reason: "every assignment target must be one of the source's recipients".into(),
+            });
+        }
+        let distinct: HashSet<ObjectId> = amounts.iter().map(|&(t, _)| t).collect();
+        if distinct.len() != amounts.len() {
+            return Err(DecisionError::Illegal {
+                reason: "each recipient may appear at most once in a damage assignment".into(),
+            });
+        }
+        self.pending = None;
+        let cd = self
+            .combat_damage
+            .as_mut()
+            .expect("combat-damage in flight");
+        for (target, amount) in amounts {
+            if amount > 0 {
+                cd.buffer.push(GameEvent::DamageDealt {
+                    source,
+                    target,
+                    amount,
+                });
+            }
+        }
+        cd.queue.remove(0);
+        self.open_next_assignment();
         Ok(())
     }
 

@@ -15,6 +15,30 @@ use crate::stack::{PendingStackEntry, StackEntry};
 use crate::turn::TurnState;
 use crate::zone::Zones;
 
+/// Transient combat-damage assignment ([CR#510.1]): the partial state that
+/// accumulates across one or more `AssignCombatDamage` decisions before the
+/// single simultaneous batch is dealt ([CR#510.2]). `Some` only between the
+/// Combat Damage step's handler opening the first assignment decision and the
+/// last one being answered (the trigger/cast analogue of `announcing`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CombatDamage {
+    /// Every `DamageDealt` chosen or forced so far, dealt together when the
+    /// queue empties.
+    pub buffer: Vec<crate::event::GameEvent>,
+    /// Sources still owing a free-division decision (≥ 2 recipients), in
+    /// declaration order. The front is the one currently surfaced.
+    pub queue: Vec<PendingAssignment>,
+}
+
+/// One source whose combat-damage division is still pending: the source's
+/// object id, its power, and its (≥ 2) live recipients.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PendingAssignment {
+    pub source: ObjectId,
+    pub power: Uint,
+    pub recipients: Vec<ObjectId>,
+}
+
 /// How the game ended ([CR#104]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GameOutcome {
@@ -77,6 +101,11 @@ pub struct GameState {
     /// Combat-phase designations ([CR#506]): attackers, blocks, and
     /// damage-assignment order. Cleared at end of combat ([CR#511.3]).
     pub combat: CombatState,
+    /// [CR#510.1]: the in-flight combat-damage assignment — accumulated
+    /// `DamageDealt` plus the sources still owing a free-division choice.
+    /// `Some` only across the Combat Damage step's assignment decisions; the
+    /// last answer deals the batch and clears this back to `None`.
+    pub combat_damage: Option<CombatDamage>,
     pub rng: ChaCha8Rng,
 }
 
@@ -150,6 +179,7 @@ impl GameState {
             pending_triggers: Vec::new(),
             placing_trigger: None,
             combat: CombatState::default(),
+            combat_damage: None,
             rng,
         }
     }

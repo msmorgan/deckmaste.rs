@@ -25,6 +25,11 @@ pub enum WorkItem {
     /// [CR#509.1]: the Declare Blockers step's turn-based action — surface a
     /// `DeclareBlockers` decision for the defending player.
     DeclareBlockers,
+    /// [CR#510.1]: the Combat Damage step's turn-based action — assign every
+    /// source's combat damage (auto-resolving forced sources, surfacing an
+    /// `AssignCombatDamage` decision for each multi-recipient one), then deal
+    /// it all as one simultaneous batch ([CR#510.2]).
+    AssignCombatDamage,
     /// Surface `pending = Priority { .. }`.
     OpenPriority,
     /// [CR#601.2a,601.2b]: move the spell to the stack and open the announce slot.

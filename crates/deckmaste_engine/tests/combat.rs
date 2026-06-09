@@ -32,14 +32,20 @@ fn deck(card: &Arc<Card>, n: usize) -> Vec<Arc<Card>> { vec![Arc::clone(card); n
 
 /// A two-player game: both players play decks of `card`.
 fn two_player_with(card: &str, seed: u64, deck_size: usize) -> GameState {
-    let c = Arc::new(testing().card(card).unwrap());
+    two_player_decks(card, card, seed, deck_size)
+}
+
+/// A two-player game where P0 plays `p0_card` and P1 plays `p1_card`.
+fn two_player_decks(p0_card: &str, p1_card: &str, seed: u64, deck_size: usize) -> GameState {
+    let p0 = Arc::new(testing().card(p0_card).unwrap());
+    let p1 = Arc::new(testing().card(p1_card).unwrap());
     GameState::new(GameConfig {
         players: vec![
             PlayerConfig {
-                deck: deck(&c, deck_size),
+                deck: deck(&p0, deck_size),
             },
             PlayerConfig {
-                deck: deck(&c, deck_size),
+                deck: deck(&p1, deck_size),
             },
         ],
         seed,
@@ -444,6 +450,194 @@ fn declare_blockers_single_blocker_blocks_attacker() {
         "one blocker is enough to make the attacker blocked ([CR#509.1h])"
     );
     assert_eq!(state.combat.attacker_of(b1), Some(attacker));
+}
+
+// --- combat damage ([CR#510]) ----------------------------------------------
+
+/// True iff `id` is on the battlefield.
+fn on_battlefield(state: &GameState, id: ObjectId) -> bool { state.zones.battlefield.contains(&id) }
+
+/// Drives a freshly-built game to the Declare Attackers decision, declares
+/// `attackers`, then declares `blocks` at the Declare Blockers step (skipped
+/// when there are no attackers/blocks), and finally passes priority on through
+/// to the first stop AT OR INSIDE the Combat Damage step — i.e. either an
+/// `AssignCombatDamage` decision (a multi-blocked attacker) or, when every
+/// source is forced, the priority decision that opens after damage is dealt.
+fn drive_through_blocks(
+    state: &mut GameState,
+    attackers: Vec<ObjectId>,
+    blocks: Vec<(ObjectId, ObjectId)>,
+) -> StepOutcome {
+    let (_t, stop) = pass_to_stop(state);
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+        panic!("expected DeclareAttackers, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Attackers(attackers))
+        .unwrap();
+    let (_t, stop) = pass_to_stop(state);
+    // With attackers declared the blockers step surfaces; declare the blocks.
+    match stop {
+        StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { .. }) => {
+            state.submit_decision(Decision::Blocks(blocks)).unwrap();
+            let (_t, stop) = pass_to_stop(state);
+            stop
+        }
+        other => other,
+    }
+}
+
+/// [CR#510.1a..510.1d], [CR#510.2]: a 2/2 attacker blocked by one 2/2.
+/// Each assigns 2 to the other — forced (one recipient each, no decision). The
+/// damage batch + the lethal SBA then remove both from the battlefield.
+#[test]
+fn combat_damage_one_block_trades() {
+    let mut state = two_player_with("Vanilla Creature", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+
+    let stop = drive_through_blocks(&mut state, vec![attacker], vec![(blocker, attacker)]);
+    // A forced assignment surfaces NO AssignCombatDamage decision.
+    assert!(
+        !matches!(
+            stop,
+            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. })
+        ),
+        "forced (one recipient each) → no assignment decision: {stop:?}"
+    );
+
+    assert!(
+        !on_battlefield(&state, attacker),
+        "the 2/2 attacker took 2 and is destroyed"
+    );
+    assert!(
+        !on_battlefield(&state, blocker),
+        "the 2/2 blocker took 2 and is destroyed"
+    );
+}
+
+/// [CR#510.1c], [CR#510.2]: a 2/2 attacker blocked by two 1/1s. The active
+/// player (the attacker's controller) is asked to divide the attacker's 2
+/// power among the two blockers (free division). A 1+1 split kills both
+/// blockers; the attacker takes 1+1 = 2 and dies too.
+#[test]
+fn combat_damage_two_blockers_split_one_one() {
+    let mut state = two_player_decks("Vanilla Creature", "Vanilla 1/1", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+    let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla 1/1");
+    let b2 = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla 1/1");
+
+    let stop = drive_through_blocks(
+        &mut state,
+        vec![attacker],
+        vec![(b1, attacker), (b2, attacker)],
+    );
+    let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage {
+        player,
+        source,
+        recipients,
+    }) = stop
+    else {
+        panic!(
+            "expected an AssignCombatDamage decision for the multi-blocked attacker, got {stop:?}"
+        );
+    };
+    assert_eq!(player, PlayerId(0), "the attacker's controller divides");
+    assert_eq!(source, attacker);
+    assert!(
+        recipients.contains(&b1) && recipients.contains(&b2) && recipients.len() == 2,
+        "the recipients are the two live blockers: {recipients:?}"
+    );
+
+    // Wrong total (sums to 3, not the attacker's power 2) is rejected.
+    assert!(
+        state
+            .submit_decision(Decision::Assignment(vec![(b1, 2), (b2, 1)]))
+            .is_err(),
+        "an assignment whose amounts don't sum to power is rejected"
+    );
+    // An out-of-recipient target is rejected.
+    assert!(
+        state
+            .submit_decision(Decision::Assignment(vec![(b1, 1), (ObjectId(99999), 1)]))
+            .is_err(),
+        "an amount on a creature that isn't a recipient is rejected"
+    );
+
+    // The legal 1+1 split.
+    let (_t, _stop) = pass_to_stop_after(&mut state, Decision::Assignment(vec![(b1, 1), (b2, 1)]));
+
+    assert!(!on_battlefield(&state, b1), "b1 took 1 (lethal for a 1/1)");
+    assert!(!on_battlefield(&state, b2), "b2 took 1 (lethal for a 1/1)");
+    assert!(
+        !on_battlefield(&state, attacker),
+        "the attacker took 1+1=2 and dies"
+    );
+}
+
+/// [CR#510.1c]: free division — a DIFFERENT legal split (2+0) is also valid.
+/// All 2 power on b1 kills it; b2 takes nothing and survives; the attacker
+/// still takes 1+1 = 2 (both 1/1s dealt their power) and dies.
+#[test]
+fn combat_damage_two_blockers_split_two_zero() {
+    let mut state = two_player_decks("Vanilla Creature", "Vanilla 1/1", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+    let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla 1/1");
+    let b2 = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla 1/1");
+
+    let stop = drive_through_blocks(
+        &mut state,
+        vec![attacker],
+        vec![(b1, attacker), (b2, attacker)],
+    );
+    let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. }) = stop else {
+        panic!("expected an AssignCombatDamage decision, got {stop:?}");
+    };
+
+    // 2 on b1, 0 on b2 — a legal free division ([CR#510.1c]).
+    let (_t, _stop) = pass_to_stop_after(&mut state, Decision::Assignment(vec![(b1, 2), (b2, 0)]));
+
+    assert!(!on_battlefield(&state, b1), "b1 took the full 2 and dies");
+    assert!(
+        on_battlefield(&state, b2),
+        "b2 was assigned 0 and survives (free division)"
+    );
+    assert!(
+        !on_battlefield(&state, attacker),
+        "the attacker still takes 1+1=2 from the two blockers and dies"
+    );
+}
+
+/// [CR#510.1b], [CR#510.2]: an unblocked 3/3 deals 3 to the defending player —
+/// forced (one recipient, the defender's proxy). Their life goes 20 → 17.
+#[test]
+fn combat_damage_unblocked_hits_defender() {
+    let mut state = two_player_decks("Vanilla 3/3", "Vanilla Creature", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla 3/3");
+
+    assert_eq!(state.players[1].life, 20);
+    let stop = drive_through_blocks(&mut state, vec![attacker], vec![]);
+    assert!(
+        !matches!(
+            stop,
+            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. })
+        ),
+        "an unblocked attacker is forced (one recipient) → no decision: {stop:?}"
+    );
+    assert_eq!(
+        state.players[1].life, 17,
+        "the unblocked 3/3 dealt 3 to the defender (20 → 17, [CR#510.1b])"
+    );
+    assert!(
+        on_battlefield(&state, attacker),
+        "the unblocked attacker took no damage and survives"
+    );
+}
+
+/// Submits `decision`, then passes priority through to the next stop.
+fn pass_to_stop_after(state: &mut GameState, decision: Decision) -> (Vec<Progress>, StepOutcome) {
+    state.submit_decision(decision).unwrap();
+    pass_to_stop(state)
 }
 
 /// [CR#508.8]: with no attackers declared, the Declare Blockers step is skipped
