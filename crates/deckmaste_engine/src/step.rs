@@ -32,6 +32,11 @@ pub enum Progress {
     Applied(Occurrence),
     /// A new step began.
     Advanced(Phase),
+    /// [CR#510.4]: a step the turn structure traverses was elided without
+    /// opening (no `StepBegan`, no turn-based action, no priority) — today only
+    /// the `FirstCombatDamage` step, skipped when no combat creature has first
+    /// or double strike. `BeginStep` of the successor was scheduled instead.
+    Skipped(Phase),
     /// A [CR#704] sweep ran; `actions` lost-player events were scheduled.
     SbasChecked { actions: Uint },
     /// [CR#603.3]: the placement barrier ran; `placed` triggers went on the
@@ -509,6 +514,19 @@ impl GameState {
 
     /// The turn-structure transition: schedules the step's whole shape.
     fn begin_step(&mut self, s: Phase) -> Progress {
+        // [CR#510.4]: the FirstCombatDamage step exists only when at least one
+        // attacking or blocking creature has first/double strike. When none
+        // does, elide it entirely — no StepBegan, no turn-based action, no
+        // priority window — and schedule the regular CombatDamage step directly.
+        // (`turn.current` is NOT advanced; the step never owns a turn.)
+        if s == Phase::Combat(CombatStep::FirstCombatDamage)
+            && !crate::combat::any_first_or_double_striker(self)
+        {
+            self.schedule_front(vec![WorkItem::BeginStep(Phase::Combat(
+                CombatStep::CombatDamage,
+            ))]);
+            return Progress::Skipped(s);
+        }
         let mut items = Vec::new();
         if s == Phase::Beginning(BeginningStep::Untap) {
             let turn_began = self.begin_turn();
@@ -563,14 +581,19 @@ impl GameState {
                 vec![WorkItem::DeclareBlockers]
             }
             Phase::Combat(CombatStep::DeclareBlockers) => vec![],
-            // [CR#510.1]: assign + deal combat damage — but only when something
-            // is attacking. With no attackers there is no damage to assign
-            // ([CR#508.8] already skipped blockers); skip the step's work like
-            // the empty Declare Blockers case.
-            Phase::Combat(CombatStep::CombatDamage) if !self.combat.attackers().is_empty() => {
+            // [CR#510.1,510.4]: assign + deal combat damage — but only when
+            // something is attacking. With no attackers there is no damage to
+            // assign ([CR#508.8] already skipped blockers); skip the step's work
+            // like the empty Declare Blockers case. Both combat-damage steps
+            // surface the same turn-based action; `assign_combat_damage` filters
+            // sources by which step is current (first/double strikers in the
+            // first step, normal + double strikers in the regular one).
+            Phase::Combat(CombatStep::FirstCombatDamage | CombatStep::CombatDamage)
+                if !self.combat.attackers().is_empty() =>
+            {
                 vec![WorkItem::AssignCombatDamage]
             }
-            Phase::Combat(CombatStep::CombatDamage) => vec![],
+            Phase::Combat(CombatStep::FirstCombatDamage | CombatStep::CombatDamage) => vec![],
             // [CR#511.1]: the End of Combat step has NO turn-based actions — the
             // removal-from-combat ([CR#511.3]) happens as the step *ends*, after
             // its priority window, scheduled from `end_of_step_items` (so an
@@ -731,6 +754,19 @@ impl GameState {
         let mut buffer: Vec<GameEvent> = Vec::new();
         let mut queue: Vec<crate::state::PendingAssignment> = Vec::new();
 
+        // [CR#510.4]: which sources deal this step is a pure keyword filter on
+        // the current combat-damage step (no "already dealt" bookkeeping). In
+        // the FIRST step only first/double strikers deal; in the REGULAR step
+        // everyone EXCEPT a plain first-striker deals (a double-striker deals in
+        // both). The regular filter includes everyone when no first strike
+        // exists, so a single-pass combat is unchanged.
+        let deals_this_step: fn(&GameState, ObjectId) -> bool =
+            if self.turn.current == Phase::Combat(CombatStep::FirstCombatDamage) {
+                crate::combat::deals_first_strike
+            } else {
+                crate::combat::deals_regular_strike
+            };
+
         // Each attacker is a source. Recipients: unblocked → the defending
         // player's proxy ([CR#510.1b]); blocked → its live blockers
         // ([CR#510.1c]); blocked-but-no-live-blockers → nothing (plain block,
@@ -742,6 +778,9 @@ impl GameState {
             .player(self.next_live_after(self.turn.active_player))
             .object;
         for &attacker in self.combat.attackers() {
+            if !deals_this_step(self, attacker) {
+                continue; // [CR#510.4]: not dealing in this step.
+            }
             let recipients: Vec<ObjectId> = if self.combat.is_blocked(attacker) {
                 let mut blockers = self.combat.blockers_of(attacker).to_vec();
                 if crate::combat::has_keyword(self, attacker, KeywordAbility::Trample) {
@@ -759,6 +798,9 @@ impl GameState {
         // ([CR#510.1d]) — exactly one recipient, always forced.
         for &attacker in self.combat.attackers() {
             for &blocker in self.combat.blockers_of(attacker) {
+                if !deals_this_step(self, blocker) {
+                    continue; // [CR#510.4]: not dealing in this step.
+                }
                 self.assign_source(blocker, &[attacker], &mut buffer, &mut queue);
             }
         }

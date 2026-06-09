@@ -25,10 +25,6 @@ pub struct PriorityRound {
 /// The next phase/step in the turn order ([CR#500]), or `None` past Cleanup
 /// (the caller begins the next turn). Walks the `Phase` hierarchy in CR order.
 #[must_use]
-// DeclareBlockers and FirstCombatDamage both land on CombatDamage for different
-// reasons (the Stage-3 first-strike skip vs. the future ordinary successor);
-// keeping them separate keeps each [CR#510.4] comment attached to its arm.
-#[expect(clippy::match_same_arms)]
 pub fn successor(step: Phase) -> Option<Phase> {
     use BeginningStep::{Draw, Untap, Upkeep};
     use CombatStep::{
@@ -47,13 +43,13 @@ pub fn successor(step: Phase) -> Option<Phase> {
         PrecombatMain => Combat(BeginningOfCombat),
         Combat(BeginningOfCombat) => Combat(DeclareAttackers),
         Combat(DeclareAttackers) => Combat(DeclareBlockers),
-        // TODO(stage-4): first/double strike inserts Combat(FirstCombatDamage)
-        //   before Combat(CombatDamage) ([CR#510.4]). Stage 3 has no first
-        //   strike, so DeclareBlockers goes straight to the single combat-damage
-        //   step.
-        Combat(DeclareBlockers) => Combat(CombatDamage),
-        // Unreachable in Stage 3 (no first strike); when wired, FirstCombatDamage
-        // precedes the regular CombatDamage step ([CR#510.4]).
+        // [CR#510.4]: the turn structure ALWAYS traverses FirstCombatDamage; it
+        // is elided (begun-and-skipped) by `begin_step` when no combat creature
+        // has first/double strike, so the structural successor is uniform.
+        Combat(DeclareBlockers) => Combat(FirstCombatDamage),
+        // [CR#510.4]: the first combat-damage step precedes the regular one (SBAs
+        // run between them — a creature killed by first-strike damage deals
+        // nothing in the regular step).
         Combat(FirstCombatDamage) => Combat(CombatDamage),
         Combat(CombatDamage) => Combat(EndOfCombat),
         Combat(EndOfCombat) => PostcombatMain,
@@ -69,6 +65,7 @@ mod tests {
     use BeginningStep::{Draw, Untap, Upkeep};
     use CombatStep::{
         BeginningOfCombat, CombatDamage, DeclareAttackers, DeclareBlockers, EndOfCombat,
+        FirstCombatDamage,
     };
     use EndingStep::{Cleanup, End};
     use Phase::{Beginning, Combat, Ending, PostcombatMain, PrecombatMain};
@@ -89,10 +86,14 @@ mod tests {
             successor(Combat(DeclareAttackers)),
             Some(Combat(DeclareBlockers))
         );
-        // Stage 3 has no first strike: DeclareBlockers → CombatDamage,
-        // skipping FirstCombatDamage ([CR#510.4]).
+        // [CR#510.4]: the turn structure always traverses FirstCombatDamage
+        // (elided in `begin_step` when no first/double strike exists).
         assert_eq!(
             successor(Combat(DeclareBlockers)),
+            Some(Combat(FirstCombatDamage))
+        );
+        assert_eq!(
+            successor(Combat(FirstCombatDamage)),
             Some(Combat(CombatDamage))
         );
         assert_eq!(successor(Combat(CombatDamage)), Some(Combat(EndOfCombat)));
