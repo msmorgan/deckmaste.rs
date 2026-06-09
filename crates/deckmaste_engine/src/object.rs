@@ -1,7 +1,7 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
-use deckmaste_core::{Card, Uint, Zone};
+use deckmaste_core::{Card, Ident, Uint, Zone};
 
 use crate::player::PlayerId;
 
@@ -93,6 +93,9 @@ pub struct GameObject {
     /// damage ([CR#704.5h]).
     /// Meaningful only on the battlefield; cleared at Cleanup ([CR#514.2]).
     pub struck_by_deathtouch: bool,
+    /// Counters on this object, keyed by counter name ([CR#122]).
+    /// `"+1/+1"` and `"-1/-1"` modify P/T in layer 7c ([CR#613.4c]).
+    pub counters: HashMap<Ident, Uint>,
     /// `None` for a player proxy.
     pub zone: Option<Zone>,
 }
@@ -155,6 +158,7 @@ impl ObjectStore {
                 summoning_sick: false,
                 damage: 0,
                 struck_by_deathtouch: false,
+                counters: HashMap::new(),
                 zone,
             },
         );
