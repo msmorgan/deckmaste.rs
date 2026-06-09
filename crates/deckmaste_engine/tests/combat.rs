@@ -15,8 +15,8 @@ use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::{BeginningStep, Card, CombatStep, KeywordAbility, Phase, Zone};
 use deckmaste_engine::{
     Action, Decision, GameConfig, GameEvent, GameState, ObjectId, Occurrence, PendingDecision,
-    PlayerConfig, PlayerId, Progress, StartingPlayer, StepOutcome, has_keyword, legal_attackers,
-    legal_blockers,
+    PlayerConfig, PlayerId, Progress, StartingPlayer, StepOutcome, WorkItem, has_keyword,
+    legal_attackers, legal_blockers,
 };
 
 // --- plugin + deck building
@@ -976,6 +976,219 @@ fn deathtouch_one_damage_kills_five_five() {
     assert!(
         !on_battlefield(&state, blocker),
         "the 5/5 took 1 deathtouch damage — lethal despite toughness 5 ([CR#704.5h])"
+    );
+}
+
+/// [CR#702.19b]: a blocked 4/4 trampler over one 2/2 blocker. The trampler's
+/// recipients are now `[blocker, defenderProxy]`, so the controller's
+/// free-division decision surfaces even for a single blocker (it's a real
+/// choice — assign lethal to the blocker and spill the rest to the player). A
+/// 2+2 split kills the 2/2 (lethal) and deals 2 to the defender (20 → 18). Two
+/// illegal splits are rejected/accepted to pin the lethal-before-player
+/// constraint.
+#[test]
+fn trample_over_one_blocker_spills_excess_to_player() {
+    let mut state = two_player_decks("Trample Creature", "Vanilla Creature", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Trample Creature");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+    assert!(
+        has_keyword(&state, attacker, KeywordAbility::Trample),
+        "pre-condition: the fixture carries Keyword(Trample)"
+    );
+    let player_proxy = state.players[1].object;
+
+    let stop = drive_through_blocks(&mut state, vec![attacker], vec![(blocker, attacker)]);
+    // [CR#702.19b]: a single-blocked trampler is a real choice — the decision
+    // surfaces with the blocker AND the defending player's proxy as recipients.
+    let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage {
+        player,
+        source,
+        recipients,
+    }) = stop
+    else {
+        panic!("expected an AssignCombatDamage decision for the blocked trampler, got {stop:?}");
+    };
+    assert_eq!(player, PlayerId(0), "the attacker's controller divides");
+    assert_eq!(source, attacker);
+    assert!(
+        recipients.contains(&blocker)
+            && recipients.contains(&player_proxy)
+            && recipients.len() == 2,
+        "recipients are the live blocker followed by the defender's proxy ([CR#702.19b]): {recipients:?}"
+    );
+
+    // [CR#702.19b]: assigning the player while the blocker got < lethal (2) is
+    // rejected — 1 on the 2/2 (sublethal) + 3 to the player. The decision stays
+    // pending on rejection, so we can still answer it below. (The legal all-to-
+    // blocker split `[(blocker, 4), (player, 0)]` is covered by
+    // `trample_all_to_blocker_is_legal_no_player_damage`.)
+    assert!(
+        state
+            .submit_decision(Decision::Assignment(vec![(blocker, 1), (player_proxy, 3)]))
+            .is_err(),
+        "can't assign to the player until each blocker has lethal ([CR#702.19b])"
+    );
+
+    // The decision is still pending after the rejection; the canonical legal 2+2
+    // split drives to the end state.
+    let (_t, _stop) = pass_to_stop_after(
+        &mut state,
+        Decision::Assignment(vec![(blocker, 2), (player_proxy, 2)]),
+    );
+
+    assert!(
+        !on_battlefield(&state, blocker),
+        "the 2/2 blocker took lethal 2 and is destroyed"
+    );
+    assert_eq!(
+        state.players[1].life, 18,
+        "the trampler spilled its excess 2 to the defender (20 → 18, [CR#702.19b])"
+    );
+}
+
+/// [CR#702.19b]: the all-to-blocker split `[(blocker, 4), (player, 0)]` is legal
+/// — the controller need not trample over (no player damage means no lethal
+/// requirement to satisfy first). The blocker dies; the defender is untouched.
+#[test]
+fn trample_all_to_blocker_is_legal_no_player_damage() {
+    let mut state = two_player_decks("Trample Creature", "Vanilla Creature", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Trample Creature");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+    let player_proxy = state.players[1].object;
+
+    let stop = drive_through_blocks(&mut state, vec![attacker], vec![(blocker, attacker)]);
+    let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. }) = stop else {
+        panic!("expected an AssignCombatDamage decision, got {stop:?}");
+    };
+
+    let (_t, _stop) = pass_to_stop_after(
+        &mut state,
+        Decision::Assignment(vec![(blocker, 4), (player_proxy, 0)]),
+    );
+
+    assert!(
+        !on_battlefield(&state, blocker),
+        "the 2/2 blocker took 4 and is destroyed"
+    );
+    assert_eq!(
+        state.players[1].life, 20,
+        "no damage assigned to the player → defender's life is unchanged ([CR#702.19b])"
+    );
+}
+
+/// [CR#702.2c,702.19b]: a 4/4 with BOTH trample and deathtouch, blocked by a
+/// 2/2. Deathtouch makes any nonzero amount lethal for excess-damage purposes
+/// ([CR#702.2c]), so lethal(blocker) = 1. The split `[(blocker, 1), (player,
+/// 3)]` — REJECTED for a plain trampler — is now VALID: 1 is lethal to the
+/// blocker (deathtouch SBA destroys it, [CR#704.5h]) and 3 spills to the
+/// defender (20 → 17).
+#[test]
+fn deathtouch_trample_lethal_is_one_so_one_three_split_is_legal() {
+    let mut state = two_player_decks("Trample Deathtouch Creature", "Vanilla Creature", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Trample Deathtouch Creature");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+    assert!(
+        has_keyword(&state, attacker, KeywordAbility::Trample)
+            && has_keyword(&state, attacker, KeywordAbility::Deathtouch),
+        "pre-condition: the fixture carries BOTH Keyword(Trample) and Keyword(Deathtouch)"
+    );
+    let player_proxy = state.players[1].object;
+
+    let stop = drive_through_blocks(&mut state, vec![attacker], vec![(blocker, attacker)]);
+    let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { recipients, .. }) = stop
+    else {
+        panic!("expected an AssignCombatDamage decision, got {stop:?}");
+    };
+    assert!(
+        recipients.contains(&blocker) && recipients.contains(&player_proxy),
+        "recipients are the blocker and the defender's proxy: {recipients:?}"
+    );
+
+    // [CR#702.2c]: deathtouch makes lethal = 1; assigning 1 to the blocker frees
+    // the other 3 to spill to the player. (Rejected without deathtouch — see
+    // `trample_over_one_blocker_spills_excess_to_player`.)
+    let (_t, _stop) = pass_to_stop_after(
+        &mut state,
+        Decision::Assignment(vec![(blocker, 1), (player_proxy, 3)]),
+    );
+
+    assert!(
+        !on_battlefield(&state, blocker),
+        "the 2/2 blocker took 1 deathtouch damage — lethal ([CR#704.5h])"
+    );
+    assert_eq!(
+        state.players[1].life, 17,
+        "the deathtouch trampler spilled 3 to the defender (20 → 17, [CR#702.2c,702.19b])"
+    );
+}
+
+/// [CR#702.19d]: a blocked trampler whose only blocker leaves combat before
+/// damage is assigned deals ALL its damage to the defending player (as though
+/// the blocker had been assigned lethal). We declare the block, then — in the
+/// post-block priority window — mark the 2/2 blocker with lethal damage so the
+/// SBA destroys it (battlefield→graveyard prunes it from combat, [CR#506.4]).
+/// The attacker stays sticky-blocked ([CR#509.1h]) but has no live blockers, so
+/// its single recipient is the player proxy: the assignment is forced (no
+/// decision) and the defender takes the full 4 (20 → 16).
+#[test]
+fn trample_no_live_blockers_assigns_all_to_player() {
+    let mut state = two_player_decks("Trample Creature", "Vanilla Creature", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Trample Creature");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+
+    // Declare the attack and the block; the `Blocked` event applies (sticky
+    // blocked status + a live-blocker entry).
+    let (_defender, _legal) = drive_to_declare_blockers(&mut state, vec![attacker]);
+    state
+        .submit_decision(Decision::Blocks(vec![(blocker, attacker)]))
+        .unwrap();
+    // Step to the first priority window after blocks apply, still in Declare
+    // Blockers (before the Combat Damage step).
+    loop {
+        match state.step() {
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => break,
+            StepOutcome::Progress(_) => {}
+            other => panic!("unexpected stop before combat damage: {other:?}"),
+        }
+    }
+    assert!(
+        state.combat.is_blocked(attacker) && state.combat.blockers_of(attacker) == [blocker],
+        "pre-condition: the attacker is blocked with one live blocker"
+    );
+
+    // Remove the blocker from combat BEFORE the Combat Damage step, through the
+    // engine's own machinery: destroy it (a battlefield→graveyard
+    // `ZoneWillChange`), which prunes it from combat as it leaves the
+    // battlefield ([CR#506.4]). We clear the open priority, front-schedule the
+    // destroy + an SBA pass + a fresh `OpenPriority` (re-surfacing the same
+    // round), and step it through. This mirrors a removal spell resolving in the
+    // post-block priority window, but is set up directly via the public agenda.
+    state.pending = None;
+    state.agenda.push_front(WorkItem::OpenPriority);
+    state.agenda.push_front(WorkItem::CheckSbas);
+    state.agenda.push_front(WorkItem::Emit(Occurrence::single(
+        GameEvent::ZoneWillChange {
+            object: blocker,
+            from: Some(Zone::Battlefield),
+            to: Zone::Graveyard,
+            enters: None,
+        },
+    )));
+    // Drive on: the destroy applies and prunes combat, then play passes through
+    // to the Combat Damage step where the trampler sees no live blockers.
+    let (_t, _stop) = pass_to_stop(&mut state);
+
+    assert!(
+        !on_battlefield(&state, blocker),
+        "the blocker was destroyed and left combat before damage was assigned"
+    );
+    assert_eq!(
+        state.players[1].life, 16,
+        "all 4 spilled to the defender — no live blockers to satisfy first (20 → 16, [CR#702.19d])"
+    );
+    assert!(
+        on_battlefield(&state, attacker),
+        "the trampler took no damage (its blocker was gone) and survives"
     );
 }
 

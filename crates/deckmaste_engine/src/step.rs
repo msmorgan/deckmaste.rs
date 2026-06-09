@@ -734,13 +734,22 @@ impl GameState {
         // Each attacker is a source. Recipients: unblocked → the defending
         // player's proxy ([CR#510.1b]); blocked → its live blockers
         // ([CR#510.1c]); blocked-but-no-live-blockers → nothing (plain block,
-        // no trample).
+        // no trample). Trample ([CR#702.19]) widens the blocked cases: a blocked
+        // trampler's recipients are its live blockers followed by the defending
+        // player's proxy ([CR#702.19b]), and with no live blockers all of its
+        // damage goes to the player ([CR#702.19d]).
         let defender_proxy = self
             .player(self.next_live_after(self.turn.active_player))
             .object;
         for &attacker in self.combat.attackers() {
             let recipients: Vec<ObjectId> = if self.combat.is_blocked(attacker) {
-                self.combat.blockers_of(attacker).to_vec()
+                let mut blockers = self.combat.blockers_of(attacker).to_vec();
+                if crate::combat::has_keyword(self, attacker, KeywordAbility::Trample) {
+                    // [CR#702.19b]: lethal to the blockers, excess to the player;
+                    // [CR#702.19d]: no live blockers → everything to the player.
+                    blockers.push(defender_proxy);
+                }
+                blockers
             } else {
                 vec![defender_proxy]
             };

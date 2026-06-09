@@ -1,0 +1,11 @@
+// A 4/4 with trample ([CR#702.19]) — a blocked trampler assigns lethal to its
+// blockers and the excess to the defending player. Behavior lives in the
+// combat-damage assignment; this carries the printed keyword.
+Normal(
+    name: "Trample Creature",
+    mana_cost: [Generic(2), Green, Green],
+    types: [Creature],
+    power: 4,
+    toughness: 4,
+    abilities: [Keyword(Trample)],
+)

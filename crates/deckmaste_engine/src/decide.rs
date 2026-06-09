@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 use std::fmt;
 
-use deckmaste_core::Uint;
+use deckmaste_core::{KeywordAbility, StatValue, Uint};
 
-use crate::object::ObjectId;
+use crate::object::{ObjectId, ObjectSource};
 use crate::player::PlayerId;
 
 /// What the engine is waiting on. `step()` returns `NeedsDecision` (without
@@ -365,16 +365,24 @@ impl GameState {
 
     /// [CR#510.1c]: apply an `AssignCombatDamage` answer for the queue's front
     /// source. Validates that the amounts sum to the source's power and every
-    /// named target is one of its recipients (free division — *any* such split
-    /// is legal; no lethal-before-next ordering, [CR#510.1c]). On success it
-    /// appends one `DamageDealt` per nonzero amount to the buffer, pops the
-    /// source off the queue, and surfaces the next decision (or deals the batch
-    /// when the queue empties) via `open_next_assignment`.
+    /// named target is one of its recipients. Ordinary (non-trample) division
+    /// is free — *any* such split is legal ([CR#510.1c]). For a **trample**
+    /// source whose recipients include the defending player's proxy,
+    /// [CR#702.19b] additionally requires that the player be assigned
+    /// damage only once every blocker recipient has at least lethal —
+    /// `lethal` is 1 when the source has deathtouch ([CR#702.2c]) and the
+    /// blocker's toughness otherwise (less any damage already marked). On
+    /// success it appends one `DamageDealt` per nonzero amount to the
+    /// buffer, pops the source off the queue, and surfaces
+    /// the next decision (or deals the batch when the queue empties) via
+    /// `open_next_assignment`.
     ///
     /// # Errors
     ///
-    /// `Illegal` when the amounts don't sum to the source's power, or name a
-    /// creature that isn't one of the source's recipients.
+    /// `Illegal` when the amounts don't sum to the source's power, name a
+    /// creature that isn't one of the source's recipients, repeat a recipient,
+    /// or (trample) assign the player while a blocker recipient is below
+    /// lethal.
     ///
     /// # Panics
     ///
@@ -418,6 +426,36 @@ impl GameState {
                 reason: "each recipient may appear at most once in a damage assignment".into(),
             });
         }
+        // [CR#702.19b]: a trample source may assign damage to the defending
+        // player only after every blocker recipient has lethal. Player proxies
+        // among the recipients are identified by their `ObjectSource::Player`.
+        if crate::combat::has_keyword(self, source, KeywordAbility::Trample) {
+            let assigned = |id: ObjectId| {
+                amounts
+                    .iter()
+                    .find(|&&(t, _)| t == id)
+                    .map_or(0, |&(_, n)| n)
+            };
+            let to_player: Uint = recipients
+                .iter()
+                .filter(|&&r| matches!(self.objects.obj(r).source, ObjectSource::Player(_)))
+                .map(|&r| assigned(r))
+                .sum();
+            if to_player > 0 {
+                for &r in recipients {
+                    if matches!(self.objects.obj(r).source, ObjectSource::Player(_)) {
+                        continue; // the player, not a blocker
+                    }
+                    if assigned(r) < self.lethal_for(source, r) {
+                        return Err(DecisionError::Illegal {
+                            reason: "trample: each blocker must be assigned lethal before the \
+                                     defending player ([CR#702.19b])"
+                                .into(),
+                        });
+                    }
+                }
+            }
+        }
         self.pending = None;
         let cd = self
             .combat_damage
@@ -435,6 +473,32 @@ impl GameState {
         cd.queue.remove(0);
         self.open_next_assignment();
         Ok(())
+    }
+
+    /// [CR#702.19b]: how much damage `source` must assign to the creature
+    /// `blocker` before any excess may spill to the defending player. With
+    /// deathtouch on the source, any nonzero amount is lethal, so `1`
+    /// ([CR#702.2c]); otherwise the blocker's printed toughness, less any
+    /// damage already marked on it (undamaged at assignment time in v1, but
+    /// subtracted for correctness). A non-`Number` toughness (CDA / `*`) is
+    /// treated as needing the source's whole power — effectively
+    /// unsatisfiable below full assignment — by returning `Uint::MAX`;
+    /// layers and `*`-toughness are a later stage.
+    #[must_use]
+    fn lethal_for(&self, source: ObjectId, blocker: ObjectId) -> Uint {
+        if crate::combat::has_keyword(self, source, KeywordAbility::Deathtouch) {
+            return 1; // [CR#702.2c]: any nonzero amount is lethal.
+        }
+        match derive::face(self.def(blocker)).toughness {
+            Some(StatValue::Number(t)) if t > 0 => {
+                #[expect(clippy::cast_sign_loss)]
+                let toughness = t as Uint;
+                toughness.saturating_sub(self.objects.obj(blocker).damage)
+            }
+            // toughness ≤ 0 is already a destroy SBA; a non-Number is unmodeled
+            // here — require the full amount so the player can't be reached.
+            _ => Uint::MAX,
+        }
     }
 
     /// The priority bookkeeping ([CR#117.3c,117.4]): a pass rotates or ends
