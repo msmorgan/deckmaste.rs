@@ -539,28 +539,33 @@ impl GameState {
                     }
                 }
             }
-        }
 
-        // [CR#613.4c],[CR#122]: +1/+1 and -1/-1 counters modify P/T in 7c.
-        // Applied directly (not as Modifications) because Count is unsigned;
-        // 7c additions commute, so order vs. other 7c effects is irrelevant.
-        for (&id, c) in &mut working {
-            let counters = &self.objects.obj(id).counters;
-            let plus = counters.get("+1/+1").copied().unwrap_or(0).cast_signed();
-            let minus = counters.get("-1/-1").copied().unwrap_or(0).cast_signed();
-            let delta = plus - minus;
-            if delta != 0 {
-                if let Some(p) = c.power {
-                    c.power = Some(p + delta);
+            // [CR#613.4c],[CR#122]: +1/+1 and -1/-1 counters modify P/T in
+            // layer 7c, after 7b set-effects and before 7d switch. Applied
+            // directly (not as Modifications) because Count is unsigned;
+            // 7c additions commute, so order vs. other 7c effects is irrelevant.
+            if layer == Layer::L7c {
+                for (&id, c) in &mut working {
+                    let counters = &self.objects.obj(id).counters;
+                    let plus = counters.get("+1/+1").copied().unwrap_or(0).cast_signed();
+                    let minus = counters.get("-1/-1").copied().unwrap_or(0).cast_signed();
+                    let delta = plus - minus;
+                    if delta != 0 {
+                        if let Some(p) = c.power {
+                            c.power = Some(p + delta);
+                        }
+                        if let Some(t) = c.toughness {
+                            c.toughness = Some(t + delta);
+                        }
+                    }
                 }
-                if let Some(t) = c.toughness {
-                    c.toughness = Some(t + delta);
-                }
+                // Keyword counters ([CR#122] payloads) are DEFERRED: no
+                // counter-decl registry is wired in the engine
+                // yet. (Follow-up: gather a counter's
+                // CounterDecl.payload StaticEffect into layer 6 once the
+                // registry exists.)
             }
         }
-        // Keyword counters ([CR#122] payloads) are DEFERRED: no counter-decl
-        // registry is wired in the engine yet. (Follow-up: gather a counter's
-        // CounterDecl.payload StaticEffect into layer 6 once the registry exists.)
 
         LayeredView(working)
     }
