@@ -93,6 +93,13 @@ pub enum GameEvent {
     /// it in `CombatState` and taps it ([CR#508.1f]). The "whenever ~ attacks"
     /// trigger seam (`StateFilterEvent::Attacking`).
     Attacking(ObjectId),
+    /// [CR#509.1a]: a creature was declared as a blocker against `attacker`. Its
+    /// apply records the block in `CombatState` and marks `attacker` blocked
+    /// ([CR#509.1h]). The "whenever ~ blocks / becomes blocked" trigger seam.
+    Blocked {
+        blocker: ObjectId,
+        attacker: ObjectId,
+    },
     /// [CR#603.2]: a triggered ability triggered. Its apply notes it into
     /// `pending_triggers`. Routed as an event so Stage-4 replacements/cant can
     /// intercept (Panharmonicon/Hushwing).

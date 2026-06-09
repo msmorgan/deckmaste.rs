@@ -43,6 +43,13 @@ pub enum PendingDecision {
         player: PlayerId,
         legal: Vec<ObjectId>,
     },
+    /// [CR#509.1a]: the **defending** player declares blockers. `player` is the
+    /// defender (the non-active player); `legal` is the surfaced candidate set
+    /// of legal blockers; `submit_decision` re-validates against it.
+    DeclareBlockers {
+        player: PlayerId,
+        legal: Vec<ObjectId>,
+    },
 }
 
 /// An answer to the pending decision.
@@ -61,6 +68,10 @@ pub enum Decision {
     Order(Vec<usize>),
     /// Answers `DeclareAttackers`: which creatures attack (possibly empty).
     Attackers(Vec<ObjectId>),
+    /// Answers `DeclareBlockers`: `(blocker, the attacker it blocks)` pairs
+    /// (possibly empty). Each blocker blocks exactly one attacker
+    /// ([CR#509.1a]).
+    Blocks(Vec<(ObjectId, ObjectId)>),
 }
 
 /// What a priority holder can do in the skeleton.
@@ -247,6 +258,35 @@ impl GameState {
                 if !chosen.is_empty() {
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(
                         chosen.into_iter().map(GameEvent::Attacking).collect(),
+                    ))]);
+                }
+                Ok(())
+            }
+            (PendingDecision::DeclareBlockers { player: _, legal }, Decision::Blocks(pairs)) => {
+                // [CR#509.1a]: each blocker is from the surfaced legal set, each
+                // blocked creature is an attacker, and no creature blocks twice
+                // (a creature blocks exactly one attacker).
+                let distinct: HashSet<_> = pairs.iter().map(|&(b, _)| b).collect();
+                let attackers = self.combat.attackers();
+                if distinct.len() != pairs.len()
+                    || !pairs
+                        .iter()
+                        .all(|(b, a)| legal.contains(b) && attackers.contains(a))
+                {
+                    return Err(DecisionError::Illegal {
+                        reason: "each blocker (once) blocks an attacker from the legal set".into(),
+                    });
+                }
+                self.pending = None;
+                // [CR#509.1h]: the whole block declaration is one simultaneous
+                // occurrence — a `Batch` (skipped when empty, which schedules
+                // nothing observable).
+                if !pairs.is_empty() {
+                    self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(
+                        pairs
+                            .into_iter()
+                            .map(|(blocker, attacker)| GameEvent::Blocked { blocker, attacker })
+                            .collect(),
                     ))]);
                 }
                 Ok(())

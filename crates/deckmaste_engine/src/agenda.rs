@@ -22,6 +22,9 @@ pub enum WorkItem {
     /// [CR#508.1]: the Declare Attackers step's turn-based action — surface a
     /// `DeclareAttackers` decision for the active player.
     DeclareAttackers,
+    /// [CR#509.1]: the Declare Blockers step's turn-based action — surface a
+    /// `DeclareBlockers` decision for the defending player.
+    DeclareBlockers,
     /// Surface `pending = Priority { .. }`.
     OpenPriority,
     /// [CR#601.2a,601.2b]: move the spell to the stack and open the announce slot.

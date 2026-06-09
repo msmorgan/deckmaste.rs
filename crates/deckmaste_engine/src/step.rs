@@ -6,7 +6,7 @@ use deckmaste_core::{BeginningStep, CombatStep, EndingStep, Phase, Uint, Zone};
 use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
 use crate::event::{GameEvent, Occurrence};
-use crate::legal::{legal_actions, legal_attackers};
+use crate::legal::{legal_actions, legal_attackers, legal_blockers};
 use crate::object::{ObjectId, ObjectSource};
 use crate::player::PlayerId;
 use crate::sba;
@@ -43,6 +43,9 @@ pub enum Progress {
     /// [CR#508.1]: the Declare Attackers step surfaced its decision; `legal` is
     /// how many creatures the active player may declare.
     DeclareAttackersOpened { legal: Uint },
+    /// [CR#509.1]: the Declare Blockers step surfaced its decision; `legal` is
+    /// how many creatures the defending player may declare as blockers.
+    DeclareBlockersOpened { legal: Uint },
     /// A priority decision was surfaced for this player.
     PriorityOpened(PlayerId),
     /// [CR#601.2a,601.2b]: a spell moved to the stack and the announce slot opened.
@@ -83,6 +86,7 @@ impl GameState {
             WorkItem::PlaceTriggers => self.place_triggers(),
             WorkItem::CheckHandSize => self.check_hand_size(),
             WorkItem::DeclareAttackers => self.declare_attackers(),
+            WorkItem::DeclareBlockers => self.declare_blockers(),
             WorkItem::OpenPriority => self.open_priority(),
             WorkItem::BeginCast(object) => {
                 self.begin_cast(object);
@@ -276,6 +280,13 @@ impl GameState {
                 self.combat.declare_attacker(o);
                 self.objects.obj_mut(o).tapped = true;
                 GameEvent::Attacking(o)
+            }
+            // [CR#509.1a]: record the block; [CR#509.1h]: the attacker becomes a
+            // blocked creature (sticky). Declaring a blocker does NOT tap it. The
+            // "becomes blocked" trigger seam matches on this fact.
+            GameEvent::Blocked { blocker, attacker } => {
+                self.combat.declare_block(blocker, attacker);
+                GameEvent::Blocked { blocker, attacker }
             }
             // [CR#603.2]: applying a `TriggerFired` *notes* the trigger. It is
             // inert until the `PlaceTriggers` barrier (a later task) puts it on
@@ -492,6 +503,14 @@ impl GameState {
             // [CR#508.1]: the active player declares attackers — surface the
             // decision as this step's turn-based action.
             Phase::Combat(CombatStep::DeclareAttackers) => vec![WorkItem::DeclareAttackers],
+            // [CR#509.1]: the defending player declares blockers — but only when
+            // there is something to block. [CR#508.8]: with no creatures
+            // attacking, the Declare Blockers step is skipped (like
+            // `check_hand_size` skipping the trivial discard).
+            Phase::Combat(CombatStep::DeclareBlockers) if !self.combat.attackers().is_empty() => {
+                vec![WorkItem::DeclareBlockers]
+            }
+            Phase::Combat(CombatStep::DeclareBlockers) => vec![],
             // [CR#514.1]: discard to hand size — checked after StepBegan.
             // [CR#514.2]: marked damage is removed from all permanents.
             Phase::Ending(EndingStep::Cleanup) => {
@@ -604,6 +623,24 @@ impl GameState {
             legal,
         });
         Progress::DeclareAttackersOpened { legal: count }
+    }
+
+    /// [CR#509.1a]: surfaces the Declare Blockers decision for the defending
+    /// player — the non-active player in this two-player engine ([CR#506.2]
+    /// defines the nonactive player as the defending player). Reached only when
+    /// an attacker exists (the `turn_based_actions` guard skips the trivial
+    /// case, [CR#508.8]); submission front-schedules the `Blocked` batch
+    /// ahead of the already-queued step tail, mirroring
+    /// `declare_attackers`.
+    fn declare_blockers(&mut self) -> Progress {
+        let defender = self.next_live_after(self.turn.active_player);
+        let legal = legal_blockers(self, defender);
+        let count = Uint::try_from(legal.len()).expect("blocker count fits in Uint");
+        self.pending = Some(PendingDecision::DeclareBlockers {
+            player: defender,
+            legal,
+        });
+        Progress::DeclareBlockersOpened { legal: count }
     }
 
     /// [CR#117]: surfaces priority for the round's holder (opening the round
