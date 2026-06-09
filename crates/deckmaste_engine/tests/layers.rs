@@ -241,3 +241,48 @@ fn anthem_catches_creature_painted_red() {
         "the red anthem caught the now-red creature via derived-color matching ([CR#613.6])"
     );
 }
+
+/// [CR#613.4c],[CR#122]: +1/+1 counters modify P/T in layer 7c.
+#[test]
+fn plus_one_counters_pump() {
+    use deckmaste_core::Ident;
+
+    let mut state = two_player_with("Vanilla Creature", 1, 10);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+    state
+        .objects
+        .obj_mut(bear)
+        .counters
+        .insert(Ident::from("+1/+1"), 2);
+
+    let view = state.layers();
+    assert_eq!(view.power(bear), Some(4), "2/2 + two +1/+1 → 4 power");
+    assert_eq!(
+        view.toughness(bear),
+        Some(4),
+        "2/2 + two +1/+1 → 4 toughness"
+    );
+}
+
+/// [CR#613.4c]: -1/-1 counters reduce P/T in layer 7c (and stack with +1/+1
+/// as a net delta).
+#[test]
+fn minus_one_counters_shrink() {
+    use deckmaste_core::Ident;
+
+    let mut state = two_player_with("Vanilla Creature", 1, 10);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+    state
+        .objects
+        .obj_mut(bear)
+        .counters
+        .insert(Ident::from("-1/-1"), 1);
+
+    let view = state.layers();
+    assert_eq!(view.power(bear), Some(1), "2/2 + one -1/-1 → 1 power");
+    assert_eq!(
+        view.toughness(bear),
+        Some(1),
+        "2/2 + one -1/-1 → 1 toughness"
+    );
+}
