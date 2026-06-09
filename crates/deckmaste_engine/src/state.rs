@@ -222,6 +222,18 @@ impl GameState {
         self.cards.get(card).owner
     }
 
+    /// Registers a card definition and mints its backing object in the given
+    /// zone, returning the new object id. Used by tests and setup helpers to
+    /// inject cards that did not come from the initial decklists.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the card or object tables overflow `Uint` — engine invariant.
+    pub fn mint_card(&mut self, def: Arc<Card>, owner: PlayerId, zone: Option<Zone>) -> ObjectId {
+        let card = self.cards.push(def, owner);
+        self.objects.mint(ObjectSource::Card(card), owner, zone)
+    }
+
     /// # Panics
     ///
     /// Panics if the player count overflows `Uint` — config sizes are trusted
