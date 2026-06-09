@@ -18,8 +18,11 @@ use crate::state::GameState;
 // Registry types (floating one-shot continuous effects)
 // ---------------------------------------------------------------------------
 
-/// An effect's target set after resolution. One-shot effects ([CR#611.2c])
-/// lock `Of`/`These` to ids at creation; `Matching` stays floating.
+/// An effect's resolved target set, used throughout the pipeline.
+/// `Locked` holds ids snapshotted at creation ([CR#611.2c], one-shot
+/// `Of`/`These`). `Floating` holds a filter re-evaluated against the derived
+/// map each layer (static `Matching`, and the deferred static-`Of`/`These` seam
+/// currently produces `Locked(empty)`).
 #[derive(Debug, Clone)]
 pub enum ScopeResolved {
     Locked(Vec<ObjectId>),
@@ -373,7 +376,7 @@ fn eval_count(n: &Count) -> Int {
 /// are defined to target named keyword abilities ([CR#613.1f]).
 fn ability_is_named(a: &Ability, name: &Ident) -> bool {
     match a {
-        Ability::Keyword(kw) => kw.as_str() == name.as_str(),
+        Ability::Keyword(kw) => name == kw.as_str(),
         Ability::Expanded(e) => ability_is_named(&e.value, name),
         _ => false,
     }
@@ -545,6 +548,8 @@ impl GameState {
             // directly (not as Modifications) because Count is unsigned;
             // 7c additions commute, so order vs. other 7c effects is irrelevant.
             if layer == Layer::L7c {
+                // Counters live on the object (not derived); layers() is &self so no mid-pass
+                // race.
                 for (&id, c) in &mut working {
                     let counters = &self.objects.obj(id).counters;
                     let plus = counters.get("+1/+1").copied().unwrap_or(0).cast_signed();
@@ -561,9 +566,8 @@ impl GameState {
                 }
                 // Keyword counters ([CR#122] payloads) are DEFERRED: no
                 // counter-decl registry is wired in the engine
-                // yet. (Follow-up: gather a counter's
-                // CounterDecl.payload StaticEffect into layer 6 once the
-                // registry exists.)
+                // yet. (Follow-up: gather a counter's CounterDecl.payload
+                // StaticEffect into layer 6 once the registry exists.)
             }
         }
 
