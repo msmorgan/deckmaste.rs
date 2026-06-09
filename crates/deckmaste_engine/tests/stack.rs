@@ -562,6 +562,9 @@ fn drive_to_off_turn_priority(state: &mut GameState) -> Vec<Action> {
                 let chosen: Vec<ObjectId> = hand.into_iter().take(count as usize).collect();
                 state.submit_decision(Decision::Discard(chosen)).unwrap();
             }
+            StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) => {
+                state.submit_decision(Decision::Attackers(vec![])).unwrap();
+            }
             other => panic!("unexpected stop: {other:?}"),
         }
     }

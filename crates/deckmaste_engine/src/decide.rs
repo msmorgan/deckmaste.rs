@@ -37,6 +37,12 @@ pub enum PendingDecision {
         player: PlayerId,
         triggers: Vec<crate::trigger::NotedTrigger>,
     },
+    /// [CR#508.1a]: the active player declares attackers. `legal` is the
+    /// surfaced candidate set; `submit_decision` re-validates against it.
+    DeclareAttackers {
+        player: PlayerId,
+        legal: Vec<ObjectId>,
+    },
 }
 
 /// An answer to the pending decision.
@@ -53,6 +59,8 @@ pub enum Decision {
     /// Answers `OrderTriggers`: a permutation of `0..triggers.len()` giving the
     /// placement order ([CR#603.3b]).
     Order(Vec<usize>),
+    /// Answers `DeclareAttackers`: which creatures attack (possibly empty).
+    Attackers(Vec<ObjectId>),
 }
 
 /// What a priority holder can do in the skeleton.
@@ -119,6 +127,9 @@ impl GameState {
     /// Panics if a `ChooseTargets` decision is answered while no announce is in
     /// flight — an engine invariant (the announce slot is open across the
     /// decision), not caller input.
+    // TODO: split by decision kind (priority / cast-procedure / combat) as the
+    //   match grows past one screen.
+    #[expect(clippy::too_many_lines)]
     pub fn submit_decision(&mut self, decision: Decision) -> Result<(), DecisionError> {
         let Some(pending) = &self.pending else {
             return Err(DecisionError::NothingPending);
@@ -216,6 +227,29 @@ impl GameState {
             (PendingDecision::OrderTriggers { player, triggers }, Decision::Order(order)) => {
                 let (player, triggers) = (*player, triggers.clone());
                 self.submit_order_triggers(player, &triggers, &order)
+            }
+            (
+                PendingDecision::DeclareAttackers { player: _, legal },
+                Decision::Attackers(chosen),
+            ) => {
+                // [CR#508.1a]: each chosen creature must be in the surfaced
+                // legal set, and no creature attacks twice.
+                let distinct: HashSet<_> = chosen.iter().copied().collect();
+                if distinct.len() != chosen.len() || !chosen.iter().all(|o| legal.contains(o)) {
+                    return Err(DecisionError::Illegal {
+                        reason: "attackers must be distinct, from the legal set".into(),
+                    });
+                }
+                self.pending = None;
+                // [CR#508.1f]: declaring taps the attacker. The whole declaration
+                // is one simultaneous occurrence — a `Batch` (empty when no
+                // attackers were declared, which schedules nothing observable).
+                if !chosen.is_empty() {
+                    self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(
+                        chosen.into_iter().map(GameEvent::Attacking).collect(),
+                    ))]);
+                }
+                Ok(())
             }
             _ => Err(DecisionError::WrongKind),
         }

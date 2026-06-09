@@ -1,12 +1,12 @@
 //! The steppable core: `step()` pops one agenda item and returns one
 //! `Progress`. Decisions surface on the following call; the runner loops.
 
-use deckmaste_core::{BeginningStep, EndingStep, Phase, Uint, Zone};
+use deckmaste_core::{BeginningStep, CombatStep, EndingStep, Phase, Uint, Zone};
 
 use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
 use crate::event::{GameEvent, Occurrence};
-use crate::legal::legal_actions;
+use crate::legal::{legal_actions, legal_attackers};
 use crate::object::{ObjectId, ObjectSource};
 use crate::player::PlayerId;
 use crate::sba;
@@ -40,6 +40,9 @@ pub enum Progress {
     TriggersPlaced { placed: Uint },
     /// Cleanup's hand-size check ran ([CR#514.1]).
     HandSizeChecked { discarding: Uint },
+    /// [CR#508.1]: the Declare Attackers step surfaced its decision; `legal` is
+    /// how many creatures the active player may declare.
+    DeclareAttackersOpened { legal: Uint },
     /// A priority decision was surfaced for this player.
     PriorityOpened(PlayerId),
     /// [CR#601.2a,601.2b]: a spell moved to the stack and the announce slot opened.
@@ -79,6 +82,7 @@ impl GameState {
             WorkItem::CheckSbas => self.check_sbas(),
             WorkItem::PlaceTriggers => self.place_triggers(),
             WorkItem::CheckHandSize => self.check_hand_size(),
+            WorkItem::DeclareAttackers => self.declare_attackers(),
             WorkItem::OpenPriority => self.open_priority(),
             WorkItem::BeginCast(object) => {
                 self.begin_cast(object);
@@ -264,6 +268,14 @@ impl GameState {
                 self.player_mut(player).life -=
                     deckmaste_core::Int::try_from(amount).expect("life loss fits in i32");
                 GameEvent::LifeLost { player, amount }
+            }
+            // [CR#508.1a]: record the attacker; [CR#508.1f]: declaring it as an
+            // attacker taps it (not a cost — attacking simply taps). Vigilance,
+            // which skips the tap, is a later task.
+            GameEvent::Attacking(o) => {
+                self.combat.declare_attacker(o);
+                self.objects.obj_mut(o).tapped = true;
+                GameEvent::Attacking(o)
             }
             // [CR#603.2]: applying a `TriggerFired` *notes* the trigger. It is
             // inert until the `PlaceTriggers` barrier (a later task) puts it on
@@ -477,6 +489,9 @@ impl GameState {
                 }))]
             }
             Phase::Beginning(BeginningStep::Draw) => vec![],
+            // [CR#508.1]: the active player declares attackers — surface the
+            // decision as this step's turn-based action.
+            Phase::Combat(CombatStep::DeclareAttackers) => vec![WorkItem::DeclareAttackers],
             // [CR#514.1]: discard to hand size — checked after StepBegan.
             // [CR#514.2]: marked damage is removed from all permanents.
             Phase::Ending(EndingStep::Cleanup) => {
@@ -573,6 +588,22 @@ impl GameState {
             });
         }
         Progress::HandSizeChecked { discarding }
+    }
+
+    /// [CR#508.1a]: surfaces the Declare Attackers decision for the active
+    /// player. Always surfaces (even with an empty legal set — the player
+    /// declares no attackers with an empty vec); submission front-schedules
+    /// the `Attacking` batch ahead of the already-queued step tail, mirroring
+    /// `check_hand_size`.
+    fn declare_attackers(&mut self) -> Progress {
+        let active = self.turn.active_player;
+        let legal = legal_attackers(self, active);
+        let count = Uint::try_from(legal.len()).expect("attacker count fits in Uint");
+        self.pending = Some(PendingDecision::DeclareAttackers {
+            player: active,
+            legal,
+        });
+        Progress::DeclareAttackersOpened { legal: count }
     }
 
     /// [CR#117]: surfaces priority for the round's holder (opening the round

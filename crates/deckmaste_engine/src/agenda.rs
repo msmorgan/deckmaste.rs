@@ -19,6 +19,9 @@ pub enum WorkItem {
     PlaceTriggers,
     /// Cleanup's turn-based action ([CR#514.1]).
     CheckHandSize,
+    /// [CR#508.1]: the Declare Attackers step's turn-based action — surface a
+    /// `DeclareAttackers` decision for the active player.
+    DeclareAttackers,
     /// Surface `pending = Priority { .. }`.
     OpenPriority,
     /// [CR#601.2a,601.2b]: move the spell to the stack and open the announce slot.
