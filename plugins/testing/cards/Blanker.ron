@@ -1,0 +1,11 @@
+// Static: all creatures lose all abilities (layer 6, Humility-shaped).
+Normal(
+    name: "Blanker",
+    mana_cost: [Generic(2), Black],
+    types: [Enchantment],
+    abilities: [
+        Static(effects: [
+            Modify(of: Matching(Type(Creature)), changes: [LoseAllAbilities]),
+        ]),
+    ],
+)
