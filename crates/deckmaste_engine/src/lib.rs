@@ -22,6 +22,9 @@ mod derive;
 mod event;
 pub use event::{EnterStatus, GameEvent, LossReason, Occurrence};
 
+mod layer;
+pub use layer::{Characteristics, LayeredView};
+
 mod lki;
 pub use lki::LkiSnapshot;
 

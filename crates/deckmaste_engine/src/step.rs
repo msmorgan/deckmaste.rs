@@ -886,14 +886,12 @@ impl GameState {
         }
     }
 
-    /// A creature's combat-damage output: its power as a non-negative number.
-    /// Reads the printed power like `sba` reads toughness; a non-`Number`
-    /// (CDA / Variable) or negative power assigns 0 in the skeleton (layers and
-    /// `*`-power are later stages).
+    /// A creature's combat-damage output: its derived power as a non-negative
+    /// number ([CR#510.1c]). `None`/negative power assigns 0.
     #[must_use]
     fn power_of(&self, id: ObjectId) -> Uint {
-        match crate::derive::face(self.def(id)).power {
-            Some(deckmaste_core::StatValue::Number(p)) if p > 0 => {
+        match self.layers().power(id) {
+            Some(p) if p > 0 => {
                 #[expect(clippy::cast_sign_loss)]
                 let p = p as Uint;
                 p
