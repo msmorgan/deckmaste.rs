@@ -307,3 +307,164 @@ fn declare_attackers_with_no_legal_attacker_accepts_empty() {
     state.submit_decision(Decision::Attackers(vec![])).unwrap();
     assert!(state.combat.attackers().is_empty());
 }
+
+/// Drives to the Declare Attackers decision, declares exactly `attackers`, and
+/// then drives (passing priorities) to the Declare Blockers decision. Returns
+/// the defending player and the surfaced legal-blocker set.
+fn drive_to_declare_blockers(
+    state: &mut GameState,
+    attackers: Vec<ObjectId>,
+) -> (PlayerId, Vec<ObjectId>) {
+    let (_trace, stop) = pass_to_stop(state);
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+        panic!("expected a DeclareAttackers decision, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Attackers(attackers))
+        .unwrap();
+    let (_trace, stop) = pass_to_stop(state);
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { player, legal }) = stop
+    else {
+        panic!("expected a DeclareBlockers decision, got {stop:?}");
+    };
+    (player, legal)
+}
+
+/// [CR#509.1a], [CR#509.1h]: after attackers are declared, the Declare Blockers
+/// step surfaces a `DeclareBlockers` decision for the **defending**
+/// (non-active) player; declaring blocks records them in `CombatState`, marks
+/// the attacker blocked, and fires a `Blocked` event per pair. Two blockers may
+/// gang one attacker (no ordering decision).
+#[test]
+fn declare_blockers_records_blocks_and_fires_blocked() {
+    let mut state = two_player_with("Vanilla Creature", 7, 20);
+    // P0 (active) gets one attacker; P1 (defender) gets two blockers. P0's
+    // creature sheds summoning sickness at turn 1's start, so it can attack;
+    // P1's are legal blockers regardless of sickness (untapped creatures).
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+    let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+    let b2 = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+
+    let (defender, legal) = drive_to_declare_blockers(&mut state, vec![attacker]);
+    assert_eq!(
+        defender,
+        PlayerId(1),
+        "the defender is the non-active player"
+    );
+    assert_eq!(
+        state.turn.current,
+        Phase::Combat(CombatStep::DeclareBlockers)
+    );
+    assert!(
+        legal.contains(&b1) && legal.contains(&b2),
+        "both of P1's untapped creatures are surfaced legal blockers: {legal:?}"
+    );
+
+    // A blocker outside the legal set is rejected.
+    assert!(
+        state
+            .submit_decision(Decision::Blocks(vec![(ObjectId(99999), attacker)]))
+            .is_err(),
+        "a blocker outside the legal set is rejected"
+    );
+    // Blocking a non-attacker is rejected.
+    assert!(
+        state
+            .submit_decision(Decision::Blocks(vec![(b1, ObjectId(88888))]))
+            .is_err(),
+        "blocking a creature that isn't attacking is rejected"
+    );
+    // The same blocker blocking twice is rejected ([CR#509.1a]).
+    assert!(
+        state
+            .submit_decision(Decision::Blocks(vec![(b1, attacker), (b1, attacker)]))
+            .is_err(),
+        "a blocker may block only one attacker ([CR#509.1a])"
+    );
+
+    // Gang-block: both b1 and b2 block the single attacker.
+    state
+        .submit_decision(Decision::Blocks(vec![(b1, attacker), (b2, attacker)]))
+        .unwrap();
+
+    let (trace, _stop) = step_to_stop(&mut state);
+    let blocked_events: Vec<_> = trace
+        .iter()
+        .filter_map(|p| match p {
+            Progress::Applied(Occurrence::Batch(events)) => Some(events),
+            _ => None,
+        })
+        .flatten()
+        .filter(|e| matches!(e, GameEvent::Blocked { .. }))
+        .collect();
+    assert_eq!(
+        blocked_events.len(),
+        2,
+        "two Blocked events fire (one per pair): {trace:?}"
+    );
+    assert!(blocked_events.contains(&&GameEvent::Blocked {
+        blocker: b1,
+        attacker
+    }));
+    assert!(blocked_events.contains(&&GameEvent::Blocked {
+        blocker: b2,
+        attacker
+    }));
+
+    let blockers = state.combat.blockers_of(attacker);
+    assert!(
+        blockers.contains(&b1) && blockers.contains(&b2),
+        "both blockers are recorded against the attacker: {blockers:?}"
+    );
+    assert!(
+        state.combat.is_blocked(attacker),
+        "the attacker is a blocked creature ([CR#509.1h])"
+    );
+}
+
+/// A single blocker still makes the attacker a blocked creature ([CR#509.1h]).
+#[test]
+fn declare_blockers_single_blocker_blocks_attacker() {
+    let mut state = two_player_with("Vanilla Creature", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+    let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+
+    let (defender, legal) = drive_to_declare_blockers(&mut state, vec![attacker]);
+    assert_eq!(defender, PlayerId(1));
+    assert!(legal.contains(&b1));
+
+    state
+        .submit_decision(Decision::Blocks(vec![(b1, attacker)]))
+        .unwrap();
+    let (_trace, _stop) = step_to_stop(&mut state);
+
+    assert_eq!(state.combat.blockers_of(attacker), &[b1]);
+    assert!(
+        state.combat.is_blocked(attacker),
+        "one blocker is enough to make the attacker blocked ([CR#509.1h])"
+    );
+    assert_eq!(state.combat.attacker_of(b1), Some(attacker));
+}
+
+/// [CR#508.8]: with no attackers declared, the Declare Blockers step is skipped
+/// — no `DeclareBlockers` decision surfaces and play proceeds.
+#[test]
+fn declare_blockers_skipped_when_no_attackers() {
+    let mut state = two_player_with("Vanilla Creature", 7, 20);
+    // Drive to Declare Attackers and declare none.
+    let (_trace, stop) = pass_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+        panic!("expected a DeclareAttackers decision, got {stop:?}");
+    };
+    state.submit_decision(Decision::Attackers(vec![])).unwrap();
+
+    // The next decision is NOT a DeclareBlockers — the step was skipped.
+    let (_trace, stop) = pass_to_stop(&mut state);
+    assert!(
+        !matches!(
+            stop,
+            StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { .. })
+        ),
+        "no blockers step when nothing attacked ([CR#508.8]): {stop:?}"
+    );
+}
