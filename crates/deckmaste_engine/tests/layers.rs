@@ -6,7 +6,9 @@ use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::{Card, Color, Zone};
-use deckmaste_engine::{GameConfig, GameState, ObjectId, PlayerConfig, PlayerId, StartingPlayer};
+use deckmaste_engine::{
+    GameConfig, GameState, ObjectId, PlayerConfig, PlayerId, StartingPlayer, legal_attackers,
+};
 
 fn testing() -> Plugin {
     Plugin::load_with_sibling_prelude(
@@ -335,4 +337,29 @@ fn mixed_counters_net_delta() {
         "2/2 + two +1/+1 - one -1/-1 → net +1 → 3"
     );
     assert_eq!(view.toughness(bear), Some(3));
+}
+
+/// [CR#508.1a]: a permanent animated into a creature by a layer-4 effect is a
+/// legal attacker — combat legality reads the derived view, not the printed
+/// type.
+#[test]
+fn animated_enchantment_can_attack() {
+    let mut state = game_with_p0_cards(&["Animate enchantments", "Vanilla Enchantment"], 1);
+    let _animator = force_onto_battlefield(&mut state, PlayerId(0), "Animate enchantments");
+    let ench = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Enchantment");
+    // force_onto_battlefield leaves it untapped and not summoning-sick (mint
+    // defaults).
+
+    assert!(
+        state
+            .layers()
+            .get(ench)
+            .card_types
+            .contains(&deckmaste_core::Type::Creature),
+        "sanity: the enchantment derives as a creature"
+    );
+    assert!(
+        legal_attackers(&state, PlayerId(0)).contains(&ench),
+        "an animated-into-creature permanent can attack ([CR#508.1a] over the derived type)"
+    );
 }
