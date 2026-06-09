@@ -1,7 +1,7 @@
 //! The steppable core: `step()` pops one agenda item and returns one
 //! `Progress`. Decisions surface on the following call; the runner loops.
 
-use deckmaste_core::{BeginningStep, CombatStep, EndingStep, Phase, Uint, Zone};
+use deckmaste_core::{BeginningStep, CombatStep, EndingStep, KeywordAbility, Phase, Uint, Zone};
 
 use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
@@ -284,11 +284,13 @@ impl GameState {
                 GameEvent::LifeLost { player, amount }
             }
             // [CR#508.1a]: record the attacker; [CR#508.1f]: declaring it as an
-            // attacker taps it (not a cost — attacking simply taps). Vigilance,
-            // which skips the tap, is a later task.
+            // attacker taps it (not a cost — attacking simply taps).
+            // [CR#702.20]: a creature with vigilance is NOT tapped when it attacks.
             GameEvent::Attacking(o) => {
                 self.combat.declare_attacker(o);
-                self.objects.obj_mut(o).tapped = true;
+                if !crate::combat::has_keyword(self, o, KeywordAbility::Vigilance) {
+                    self.objects.obj_mut(o).tapped = true;
+                }
                 GameEvent::Attacking(o)
             }
             // [CR#509.1a]: record the block; [CR#509.1h]: the attacker becomes a
