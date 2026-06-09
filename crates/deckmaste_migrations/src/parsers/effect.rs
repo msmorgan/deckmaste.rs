@@ -95,24 +95,18 @@ fn number_word(word: &str) -> Option<u32> {
 
 /// Maps the "to <X>" tail of a damage clause to its `(target declarations,
 /// body selection)`. Targeted shapes declare a `TargetSpec` and the body reads
-/// `Target(0)`; "each" shapes declare nothing and inline an `Each(...)`
+/// `Target(0)`; "each" shapes declare nothing and inline a `Filter(...)`
 /// selection.
 fn damage_target(text: &str) -> Option<(Vec<String>, String)> {
     Some(match text {
         "any target" => (vec!["AnyTarget".to_owned()], "Target(0)".to_owned()),
         "target creature" => (
-            vec!["Target(Exactly(Literal(1)), Type(Creature))".to_owned()],
+            vec!["TargetOne(Creature)".to_owned()],
             "Target(0)".to_owned(),
         ),
-        "target player" => (
-            vec!["Target(Exactly(Literal(1)), Kind(Player))".to_owned()],
-            "Target(0)".to_owned(),
-        ),
-        "each creature" => (
-            Vec::new(),
-            "Each(AllOf([InZone(Battlefield), Type(Creature)]))".to_owned(),
-        ),
-        "each player" => (Vec::new(), "Each(Kind(Player))".to_owned()),
+        "target player" => (vec!["TargetOne(Player)".to_owned()], "Target(0)".to_owned()),
+        "each creature" => (Vec::new(), "Filter(Creature)".to_owned()),
+        "each player" => (Vec::new(), "Filter(Player)".to_owned()),
         _ => return None,
     })
 }
@@ -138,14 +132,14 @@ mod tests {
         assert_eq!(
             parsed("~ deals 2 damage to target creature."),
             Some((
-                "Target(Exactly(Literal(1)), Type(Creature))".to_owned(),
+                "TargetOne(Creature)".to_owned(),
                 "DealDamage(Target(0), 2)".to_owned()
             ))
         );
         assert_eq!(
             parsed("~ deals 4 damage to target player."),
             Some((
-                "Target(Exactly(Literal(1)), Kind(Player))".to_owned(),
+                "TargetOne(Player)".to_owned(),
                 "DealDamage(Target(0), 4)".to_owned()
             ))
         );
@@ -155,17 +149,11 @@ mod tests {
     fn deal_damage_each_shapes() {
         assert_eq!(
             parsed("~ deals 2 damage to each creature."),
-            Some((
-                String::new(),
-                "DealDamage(Each(AllOf([InZone(Battlefield), Type(Creature)])), 2)".to_owned()
-            ))
+            Some((String::new(), "DealDamage(Filter(Creature), 2)".to_owned()))
         );
         assert_eq!(
             parsed("~ deals 20 damage to each player."),
-            Some((
-                String::new(),
-                "DealDamage(Each(Kind(Player)), 20)".to_owned()
-            ))
+            Some((String::new(), "DealDamage(Filter(Player), 20)".to_owned()))
         );
     }
 
