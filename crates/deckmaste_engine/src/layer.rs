@@ -7,12 +7,35 @@
 use std::collections::BTreeMap;
 
 use deckmaste_core::{
-    Ability, Color, Count, Int, ManaSymbol, Modification, Scope, StaticEffect, Subtype, Supertype,
-    Type, Zone,
+    Ability, Color, Count, Duration, Filter, Int, ManaSymbol, Modification, Scope, StaticEffect,
+    Subtype, Supertype, Type, Zone,
 };
 
 use crate::object::{ObjectId, Timestamp};
 use crate::state::GameState;
+
+// ---------------------------------------------------------------------------
+// Registry types (floating one-shot continuous effects)
+// ---------------------------------------------------------------------------
+
+/// An effect's target set after resolution. One-shot effects ([CR#611.2c])
+/// lock `Of`/`These` to ids at creation; `Matching` stays floating.
+#[derive(Debug, Clone)]
+pub enum ScopeResolved {
+    Locked(Vec<ObjectId>),
+    Floating(Filter),
+}
+
+/// A floating one-shot continuous effect ([CR#611.2]). Lives in
+/// `GameState.continuous` until its `duration` expires.
+#[derive(Debug, Clone)]
+pub struct ContinuousEffect {
+    pub timestamp: Timestamp,
+    pub scope: ScopeResolved,
+    pub changes: Vec<Modification>,
+    pub duration: Duration,
+    pub is_cda: bool,
+}
 
 /// An object's derived characteristics ([CR#613]). `power`/`toughness` are
 /// `None` for objects with no P/T; a printed `*` with no CDA resolves to `0`
@@ -179,14 +202,15 @@ fn layer_of(m: &Modification, is_cda: bool) -> Option<Layer> {
 struct ActiveEffect {
     timestamp: Timestamp,
     is_cda: bool,
-    scope: Scope,
+    scope: ScopeResolved,
     changes: Vec<Modification>,
     /// Locked target set: `None` until first applied layer resolves the scope
     /// ([CR#613.6] — scope is locked at first layer of application).
     locked: Option<Vec<ObjectId>>,
 }
 
-/// Collect all active static `Modify` effects from battlefield permanents.
+/// Collect all active static `Modify` effects from battlefield permanents,
+/// plus any floating one-shot effects from `state.continuous`.
 ///
 /// Only unconditional effects are gathered here; `sa.condition` evaluation
 /// is a documented seam for a later task.
@@ -206,15 +230,33 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
             // Conditions skipped — a seam for later ([CR#604.3]).
             for effect in &sa.effects {
                 let StaticEffect::Modify { of, changes } = effect else { continue };
+                // Convert Scope to ScopeResolved. Static Of/These reference
+                // resolution stays a seam — gather has no Frame to eval
+                // references; these are left as Locked(empty) matching the
+                // prior behavior. Floating Matching scopes stay floating.
+                let scope = match of {
+                    Scope::Matching(f) => ScopeResolved::Floating(f.clone()),
+                    Scope::Of(_) | Scope::These(_) => ScopeResolved::Locked(Vec::new()),
+                };
                 effects.push(ActiveEffect {
                     timestamp,
                     is_cda: sa.characteristic_defining,
-                    scope: of.clone(),
+                    scope,
                     changes: changes.clone(),
                     locked: None,
                 });
             }
         }
+    }
+    // Append floating one-shot continuous effects from the registry.
+    for ce in &state.continuous {
+        effects.push(ActiveEffect {
+            timestamp: ce.timestamp,
+            is_cda: ce.is_cda,
+            scope: ce.scope.clone(),
+            changes: ce.changes.clone(),
+            locked: None,
+        });
     }
     effects
 }
@@ -223,30 +265,26 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
 // Scope resolution
 // ---------------------------------------------------------------------------
 
-/// Resolve a `Scope` against the current working set, returning the target
-/// object ids.
+/// Resolve a `ScopeResolved` against the current working set, returning the
+/// target object ids.
 ///
-/// `Scope::Matching` filters against PRINTED characteristics via
-/// `target::matches` (correct for anthem-like effects whose filter describes
-/// printed types; the derived-map upgrade is a documented later limitation).
+/// `Floating` filters against PRINTED characteristics via `target::matches`
+/// (correct for anthem-like effects whose filter describes printed types;
+/// the derived-map upgrade is a documented later limitation).
 ///
-/// `Scope::Of` and `Scope::These` (reference resolution) return empty — a
-/// seam for a later task.
+/// `Locked` ids are returned as-is (pre-snapshotted at creation).
 fn resolve_scope(
     state: &GameState,
     working: &BTreeMap<ObjectId, Characteristics>,
-    scope: &Scope,
+    scope: &ScopeResolved,
 ) -> Vec<ObjectId> {
     match scope {
-        Scope::Matching(filter) => working
+        ScopeResolved::Floating(filter) => working
             .keys()
             .copied()
             .filter(|&id| crate::target::matches(state, id, filter))
             .collect(),
-        Scope::Of(_) | Scope::These(_) => {
-            // Reference resolution is a later task.
-            Vec::new()
-        }
+        ScopeResolved::Locked(ids) => ids.clone(),
     }
 }
 

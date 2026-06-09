@@ -23,7 +23,7 @@ mod event;
 pub use event::{EnterStatus, GameEvent, LossReason, Occurrence};
 
 mod layer;
-pub use layer::{Characteristics, LayeredView};
+pub use layer::{Characteristics, ContinuousEffect, LayeredView, ScopeResolved};
 
 mod lki;
 pub use lki::LkiSnapshot;

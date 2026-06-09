@@ -119,3 +119,33 @@ fn base_set_applies_before_modify() {
     assert_eq!(view.power(bear), Some(1));
     assert_eq!(view.toughness(bear), Some(2));
 }
+
+/// [CR#611.2c],[CR#514.2]: a one-shot "+3/+3 until end of turn" pumps a
+/// creature, then wears off at Cleanup.
+#[test]
+fn one_shot_pump_expires_at_cleanup() {
+    use deckmaste_core::{Count, Duration, Modification};
+    use deckmaste_engine::{ContinuousEffect, ScopeResolved, Timestamp};
+
+    let mut state = two_player_with("Vanilla Creature", 1, 10);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+
+    state.continuous.push(ContinuousEffect {
+        timestamp: Timestamp(1_000),
+        scope: ScopeResolved::Locked(vec![bear]),
+        changes: vec![
+            Modification::AddPower(Count::Literal(3)),
+            Modification::AddToughness(Count::Literal(3)),
+        ],
+        duration: Duration::UntilEndOfTurn,
+        is_cda: false,
+    });
+    assert_eq!(state.layers().power(bear), Some(5), "2/2 +3/+3 → 5");
+
+    state.expire_end_of_turn();
+    assert_eq!(
+        state.layers().power(bear),
+        Some(2),
+        "pump gone after cleanup"
+    );
+}

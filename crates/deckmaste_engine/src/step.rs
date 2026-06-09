@@ -600,9 +600,11 @@ impl GameState {
             // "at end of combat" trigger resolving during that priority can still
             // read combat state).
             // [CR#514.1]: discard to hand size — checked after StepBegan.
-            // [CR#514.2]: marked damage is removed from all permanents.
+            // [CR#514.2]: marked damage is removed from all permanents;
+            // "until end of turn" continuous effects expire ([CR#514.2]).
             Phase::Ending(EndingStep::Cleanup) => {
                 self.clear_marked_damage();
+                self.expire_end_of_turn();
                 vec![WorkItem::CheckHandSize]
             }
             _ => vec![],

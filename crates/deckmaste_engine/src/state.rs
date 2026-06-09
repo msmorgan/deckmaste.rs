@@ -9,6 +9,7 @@ use rand_chacha::ChaCha8Rng;
 use crate::agenda::WorkItem;
 use crate::combat::CombatState;
 use crate::decide::PendingDecision;
+use crate::layer::ContinuousEffect;
 use crate::object::{Cards, ObjectId, ObjectSource, ObjectStore};
 use crate::player::{PlayerId, PlayerState};
 use crate::stack::{PendingStackEntry, StackEntry};
@@ -107,6 +108,10 @@ pub struct GameState {
     /// last answer deals the batch and clears this back to `None`.
     pub combat_damage: Option<CombatDamage>,
     pub rng: ChaCha8Rng,
+    /// Floating one-shot continuous effects ([CR#611.2]): created by resolving
+    /// spells/abilities via `Effect::Continuously`, retained until their
+    /// `duration` expires.
+    pub continuous: Vec<ContinuousEffect>,
 }
 
 impl GameState {
@@ -181,6 +186,7 @@ impl GameState {
             combat: CombatState::default(),
             combat_damage: None,
             rng,
+            continuous: Vec::new(),
         }
     }
 
@@ -310,5 +316,15 @@ impl GameState {
         for item in items.into_iter().rev() {
             self.agenda.push_front(item);
         }
+    }
+
+    /// [CR#514.2]: discard "until end of turn" continuous effects at Cleanup.
+    ///
+    /// Other durations (`UntilEndOfCombat`, `UntilYourNextTurn`, `While`,
+    /// `UntilEvent`, `EndOfGame`) are not yet swept — no fixture creates them
+    /// and their sweep sites are deferred.
+    pub fn expire_end_of_turn(&mut self) {
+        self.continuous
+            .retain(|e| !matches!(e.duration, deckmaste_core::Duration::UntilEndOfTurn));
     }
 }
