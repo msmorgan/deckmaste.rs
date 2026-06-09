@@ -78,6 +78,12 @@ pub struct GameObject {
     pub summoning_sick: bool,
     /// Marked damage ([CR#120.3,704.5g]) — meaningful only on the battlefield.
     pub damage: Uint,
+    /// Set when this object has been dealt damage by a deathtouch source
+    /// ([CR#702.2]). Any nonzero damage from such a source destroys a creature
+    /// with toughness > 0; the SBA checks this flag alongside lethal marked
+    /// damage ([CR#704.5h]).
+    /// Meaningful only on the battlefield; cleared at Cleanup ([CR#514.2]).
+    pub struck_by_deathtouch: bool,
     /// `None` for a player proxy.
     pub zone: Option<Zone>,
 }
@@ -125,6 +131,7 @@ impl ObjectStore {
                 tapped: false,
                 summoning_sick: false,
                 damage: 0,
+                struck_by_deathtouch: false,
                 zone,
             },
         );
