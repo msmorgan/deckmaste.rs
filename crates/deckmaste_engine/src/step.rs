@@ -46,6 +46,11 @@ pub enum Progress {
     /// [CR#509.1]: the Declare Blockers step surfaced its decision; `legal` is
     /// how many creatures the defending player may declare as blockers.
     DeclareBlockersOpened { legal: Uint },
+    /// [CR#510.1]: the Combat Damage step assigned damage. `deciding` is how
+    /// many sources need a free-division decision (0 when every source was
+    /// forced — the batch was dealt immediately; otherwise the first
+    /// `AssignCombatDamage` decision has surfaced).
+    CombatDamageOpened { deciding: Uint },
     /// A priority decision was surfaced for this player.
     PriorityOpened(PlayerId),
     /// [CR#601.2a,601.2b]: a spell moved to the stack and the announce slot opened.
@@ -87,6 +92,7 @@ impl GameState {
             WorkItem::CheckHandSize => self.check_hand_size(),
             WorkItem::DeclareAttackers => self.declare_attackers(),
             WorkItem::DeclareBlockers => self.declare_blockers(),
+            WorkItem::AssignCombatDamage => self.assign_combat_damage(),
             WorkItem::OpenPriority => self.open_priority(),
             WorkItem::BeginCast(object) => {
                 self.begin_cast(object);
@@ -511,6 +517,14 @@ impl GameState {
                 vec![WorkItem::DeclareBlockers]
             }
             Phase::Combat(CombatStep::DeclareBlockers) => vec![],
+            // [CR#510.1]: assign + deal combat damage — but only when something
+            // is attacking. With no attackers there is no damage to assign
+            // ([CR#508.8] already skipped blockers); skip the step's work like
+            // the empty Declare Blockers case.
+            Phase::Combat(CombatStep::CombatDamage) if !self.combat.attackers().is_empty() => {
+                vec![WorkItem::AssignCombatDamage]
+            }
+            Phase::Combat(CombatStep::CombatDamage) => vec![],
             // [CR#514.1]: discard to hand size — checked after StepBegan.
             // [CR#514.2]: marked damage is removed from all permanents.
             Phase::Ending(EndingStep::Cleanup) => {
@@ -641,6 +655,131 @@ impl GameState {
             legal,
         });
         Progress::DeclareBlockersOpened { legal: count }
+    }
+
+    /// [CR#510.1,510.2]: the Combat Damage step's turn-based action. Computes
+    /// every attacker's and blocker's recipients, auto-resolves the forced
+    /// sources (0 or 1 recipient) into a buffer, and either surfaces the first
+    /// free-division decision (a multi-blocked attacker, ≥ 2 recipients) or —
+    /// when nothing needs deciding — deals the whole buffer as one simultaneous
+    /// `Batch` ([CR#510.2]) immediately.
+    ///
+    /// The buffer + the queue of deciding sources live on `self.combat_damage`
+    /// across decisions (the trigger/cast-in-flight pattern); each
+    /// `Decision::Assignment` appends to the buffer and pops the queue, and the
+    /// final answer (or this handler, when the queue starts empty) schedules
+    /// the batch and clears `combat_damage`.
+    fn assign_combat_damage(&mut self) -> Progress {
+        let mut buffer: Vec<GameEvent> = Vec::new();
+        let mut queue: Vec<crate::state::PendingAssignment> = Vec::new();
+
+        // Each attacker is a source. Recipients: unblocked → the defending
+        // player's proxy ([CR#510.1b]); blocked → its live blockers
+        // ([CR#510.1c]); blocked-but-no-live-blockers → nothing (plain block,
+        // no trample).
+        let defender_proxy = self
+            .player(self.next_live_after(self.turn.active_player))
+            .object;
+        for &attacker in self.combat.attackers() {
+            let recipients: Vec<ObjectId> = if self.combat.is_blocked(attacker) {
+                self.combat.blockers_of(attacker).to_vec()
+            } else {
+                vec![defender_proxy]
+            };
+            self.assign_source(attacker, &recipients, &mut buffer, &mut queue);
+        }
+        // Each live blocker is a source dealing to the one attacker it blocks
+        // ([CR#510.1d]) — exactly one recipient, always forced.
+        for &attacker in self.combat.attackers() {
+            for &blocker in self.combat.blockers_of(attacker) {
+                self.assign_source(blocker, &[attacker], &mut buffer, &mut queue);
+            }
+        }
+
+        let deciding = Uint::try_from(queue.len()).expect("deciding-source count fits in Uint");
+        self.combat_damage = Some(crate::state::CombatDamage { buffer, queue });
+        // Surface the first deciding source, or deal the batch now if none.
+        self.open_next_assignment();
+        Progress::CombatDamageOpened { deciding }
+    }
+
+    /// Assigns one source's combat damage. 0 power → nothing ([CR#510.1a]); 1
+    /// recipient → all power to it (forced); ≥ 2 recipients → queue a
+    /// free-division decision ([CR#510.1c]). `buffer` collects forced
+    /// `DamageDealt`s; `queue` collects deciding sources.
+    fn assign_source(
+        &self,
+        source: ObjectId,
+        recipients: &[ObjectId],
+        buffer: &mut Vec<GameEvent>,
+        queue: &mut Vec<crate::state::PendingAssignment>,
+    ) {
+        let power = self.power_of(source);
+        if power == 0 || recipients.is_empty() {
+            return; // [CR#510.1a]: 0 power (or no recipient) assigns nothing.
+        }
+        if recipients.len() == 1 {
+            buffer.push(GameEvent::DamageDealt {
+                source,
+                target: recipients[0],
+                amount: power,
+            });
+        } else {
+            queue.push(crate::state::PendingAssignment {
+                source,
+                power,
+                recipients: recipients.to_vec(),
+            });
+        }
+    }
+
+    /// Surfaces the next queued `AssignCombatDamage` decision, or — when the
+    /// queue is empty — schedules the accumulated buffer as one simultaneous
+    /// `Batch` ([CR#510.2]) and clears the transient state. Called by the step
+    /// handler and after each `Decision::Assignment`.
+    pub(crate) fn open_next_assignment(&mut self) {
+        let cd = self
+            .combat_damage
+            .as_ref()
+            .expect("combat-damage in flight");
+        if let Some(next) = cd.queue.first() {
+            let source = next.source;
+            let recipients = next.recipients.clone();
+            // [CR#510.1c]: the divider is the source's (attacker's) controller.
+            let player = self.objects.obj(source).controller;
+            self.pending = Some(PendingDecision::AssignCombatDamage {
+                player,
+                source,
+                recipients,
+            });
+        } else {
+            // [CR#510.2]: all assigned damage is dealt simultaneously. An empty
+            // buffer (everyone 0 power / no recipients) schedules nothing.
+            let buffer = self
+                .combat_damage
+                .take()
+                .expect("combat-damage in flight")
+                .buffer;
+            if !buffer.is_empty() {
+                self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(buffer))]);
+            }
+        }
+    }
+
+    /// A creature's combat-damage output: its power as a non-negative number.
+    /// Reads the printed power like `sba` reads toughness; a non-`Number`
+    /// (CDA / Variable) or negative power assigns 0 in the skeleton (layers and
+    /// `*`-power are later stages).
+    #[must_use]
+    fn power_of(&self, id: ObjectId) -> Uint {
+        match crate::derive::face(self.def(id)).power {
+            Some(deckmaste_core::StatValue::Number(p)) if p > 0 => {
+                #[expect(clippy::cast_sign_loss)]
+                let p = p as Uint;
+                p
+            }
+            _ => 0,
+        }
     }
 
     /// [CR#117]: surfaces priority for the round's holder (opening the round
