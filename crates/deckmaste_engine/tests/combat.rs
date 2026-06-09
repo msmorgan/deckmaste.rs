@@ -12,10 +12,11 @@ use std::path::Path;
 use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
-use deckmaste_core::{BeginningStep, Card, CombatStep, Phase, Zone};
+use deckmaste_core::{BeginningStep, Card, CombatStep, KeywordAbility, Phase, Zone};
 use deckmaste_engine::{
     Action, Decision, GameConfig, GameEvent, GameState, ObjectId, Occurrence, PendingDecision,
-    PlayerConfig, PlayerId, Progress, StartingPlayer, StepOutcome, legal_attackers, legal_blockers,
+    PlayerConfig, PlayerId, Progress, StartingPlayer, StepOutcome, has_keyword, legal_attackers,
+    legal_blockers,
 };
 
 // --- plugin + deck building
@@ -195,6 +196,30 @@ fn turn_start_clears_summoning_sickness_for_the_active_player_only() {
     assert!(
         legal_attackers(&state, PlayerId(0)).contains(&p0_bear),
         "the de-sickened creature is a legal attacker"
+    );
+}
+
+/// [CR#702.19]: `has_keyword` reads the PRINTED face abilities. The "Keyword
+/// probe" fixture carries `abilities: [Keyword(Trample)]` — proving the keyword
+/// grammar parses as a known variant through the real plugin loader (macro
+/// reader active) — while "Vanilla Creature" carries none.
+#[test]
+fn has_keyword_reads_printed_face_abilities() {
+    let mut state = two_player_decks("Keyword probe", "Vanilla Creature", 1, 10);
+    let trampler = force_onto_battlefield(&mut state, PlayerId(0), "Keyword probe");
+    let vanilla = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+
+    assert!(
+        has_keyword(&state, trampler, KeywordAbility::Trample),
+        "the probe's printed abilities carry Keyword(Trample)"
+    );
+    assert!(
+        !has_keyword(&state, trampler, KeywordAbility::Deathtouch),
+        "the probe carries only Trample, not Deathtouch"
+    );
+    assert!(
+        !has_keyword(&state, vanilla, KeywordAbility::Trample),
+        "a vanilla creature has no keywords"
     );
 }
 
