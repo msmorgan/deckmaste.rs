@@ -252,6 +252,21 @@ impl GameState {
                         self.objects.obj_mut(target).damage += amount;
                     }
                 }
+                // [CR#702.15]: if the source is a card-backed object with lifelink,
+                // its controller gains life equal to the damage dealt. This applies
+                // to combat damage and any other damage from a lifelink source.
+                // Guard: use `get` (not `obj`) because a dies-trigger's source id
+                // may be a stale (reminted) id that is no longer in the store.
+                if self
+                    .objects
+                    .get(source)
+                    .is_some_and(|o| o.card_id().is_some())
+                    && crate::combat::has_keyword(self, source, KeywordAbility::Lifelink)
+                {
+                    let controller = self.objects.obj(source).controller;
+                    self.player_mut(controller).life +=
+                        deckmaste_core::Int::try_from(amount).expect("damage fits in i32");
+                }
                 GameEvent::DamageDealt {
                     source,
                     target,
