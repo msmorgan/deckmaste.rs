@@ -1,0 +1,13 @@
+// A 4/4 with both trample and deathtouch — exercises [CR#702.19b] with the
+// [CR#702.2] lethal-damage shortcut: deathtouch makes lethal = 1 per blocker,
+// so the trampler can assign 1 to each blocker and spill the rest to the
+// defending player. Two keywords in one `abilities` list (confirms multi-keyword
+// loading).
+Normal(
+    name: "Trample Deathtouch Creature",
+    mana_cost: [Generic(2), Black, Green],
+    types: [Creature],
+    power: 4,
+    toughness: 4,
+    abilities: [Keyword(Trample), Keyword(Deathtouch)],
+)
