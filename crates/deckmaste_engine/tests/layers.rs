@@ -5,7 +5,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
-use deckmaste_core::{Card, Zone};
+use deckmaste_core::{Card, Color, Zone};
 use deckmaste_engine::{GameConfig, GameState, ObjectId, PlayerConfig, PlayerId, StartingPlayer};
 
 fn testing() -> Plugin {
@@ -177,5 +177,44 @@ fn lose_all_abilities_blanks_keyword() {
     assert!(
         !has_keyword(&state, trampler, KeywordAbility::Trample),
         "lose-all-abilities removes the printed trample ([CR#613.1f])"
+    );
+}
+
+/// [CR#613.6]: an effect that REPLACES an enchantment's type with Creature (L4)
+/// AND sets its P/T (L7b) applies the P/T to the now-creature — the target set
+/// locks at L4 and the L7b part rides along, even though the object no longer
+/// matches the effect's `Matching(Enchantment)` filter by L7b.
+#[test]
+fn type_change_then_set_pt_locks_in() {
+    use deckmaste_core::Type;
+
+    let mut state = game_with_p0_cards(&["Animate enchantments", "Vanilla Enchantment"], 1);
+    let _animator = force_onto_battlefield(&mut state, PlayerId(0), "Animate enchantments");
+    let ench = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Enchantment");
+
+    let view = state.layers();
+    assert!(
+        view.get(ench).card_types.contains(&Type::Creature),
+        "the enchantment became a creature (layer 4)"
+    );
+    assert_eq!(
+        view.power(ench),
+        Some(4),
+        "and its P/T was set to 4/4 (layer 7b, riding the layer-4-locked set, [CR#613.6])"
+    );
+}
+
+/// [CR#613.1a]-ish layer 5: a static "creatures are red" adds red to a
+/// creature's derived colors.
+#[test]
+fn static_adds_color() {
+    let mut state = game_with_p0_cards(&["Paint red"], 1);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+    let _painter = force_onto_battlefield(&mut state, PlayerId(0), "Paint red");
+
+    let view = state.layers();
+    assert!(
+        view.get(bear).colors.contains(&Color::Red),
+        "the creature is now red (layer 5)"
     );
 }

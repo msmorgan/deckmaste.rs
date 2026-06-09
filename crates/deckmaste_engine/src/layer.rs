@@ -273,14 +273,60 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
 // Scope resolution
 // ---------------------------------------------------------------------------
 
+/// Evaluate a `Filter` against a single object's DERIVED characteristics in
+/// `working`, delegating non-characteristic leaves to the printed matcher.
+///
+/// This is the working-aware sibling of `target::matches` that realizes
+/// [CR#613.6]'s rule that "affected sets" for multi-layer effects are
+/// re-evaluated against the characteristics produced by earlier layers.
+/// Without this, a `Matching(Type(Enchantment))` filter would still read the
+/// printed type even after L4 has replaced it, making the lock unobservable.
+///
+/// Missing `id` in `working` (e.g. a player proxy) returns `false`.
+fn matches_derived(
+    state: &GameState,
+    working: &BTreeMap<ObjectId, Characteristics>,
+    id: ObjectId,
+    filter: &deckmaste_core::Filter,
+) -> bool {
+    use deckmaste_core::{CharacteristicFilter, Filter};
+    let Some(c) = working.get(&id) else { return false };
+    match filter {
+        Filter::Characteristic(CharacteristicFilter::Type(t)) => c.card_types.contains(t),
+        Filter::Characteristic(CharacteristicFilter::Supertype(s)) => c.supertypes.contains(s),
+        Filter::Characteristic(CharacteristicFilter::ColorIs(col)) => c.colors.contains(col),
+        // Subtype matching against derived: `working[id].subtypes` are Subtype
+        // structs; the filter carries an Ident name. Match by name.
+        Filter::Characteristic(CharacteristicFilter::Subtype(name)) => {
+            c.subtypes.iter().any(|s| &s.name == name)
+        }
+        // Combinators: recurse through matches_derived so characteristic leaves
+        // see the derived map.
+        Filter::AllOf(fs) => fs.iter().all(|f| matches_derived(state, working, id, f)),
+        Filter::OneOf(fs) => fs.iter().any(|f| matches_derived(state, working, id, f)),
+        Filter::Not(f) => !matches_derived(state, working, id, f),
+        Filter::Any => true,
+        Filter::Expanded(e) => matches_derived(state, working, id, &e.value),
+        // Named / Stat / HasAbility and everything else (zone, status, kind,
+        // relations, …): delegate to the printed matcher. Named/Stat/HasAbility
+        // are not straightforwardly derivable from `Characteristics` here;
+        // the rest are correctly state/printed-based, not derived characteristics.
+        _ => crate::target::matches(state, id, filter),
+    }
+}
+
 /// Resolve a `ScopeResolved` against the current working set, returning the
 /// target object ids.
 ///
-/// `Floating` filters against PRINTED characteristics via `target::matches`
-/// (correct for anthem-like effects whose filter describes printed types;
-/// the derived-map upgrade is a documented later limitation).
+/// `Floating` filters against DERIVED characteristics via `matches_derived`,
+/// realizing [CR#613.6]'s requirement that affected sets are re-evaluated
+/// against "the characteristics produced by earlier layers". This means an
+/// anthem catches permanents animated to Creature by a same-pass L4 effect,
+/// and a `Matching(Enchantment)` scope correctly includes only objects still
+/// typed Enchantment in the working map at the time of resolution.
 ///
-/// `Locked` ids are returned as-is (pre-snapshotted at creation).
+/// `Locked` ids are returned as-is (pre-snapshotted at the first applied
+/// layer, per [CR#613.6]).
 fn resolve_scope(
     state: &GameState,
     working: &BTreeMap<ObjectId, Characteristics>,
@@ -290,7 +336,7 @@ fn resolve_scope(
         ScopeResolved::Floating(filter) => working
             .keys()
             .copied()
-            .filter(|&id| crate::target::matches(state, id, filter))
+            .filter(|&id| matches_derived(state, working, id, filter))
             .collect(),
         ScopeResolved::Locked(ids) => ids.clone(),
     }
@@ -323,10 +369,12 @@ fn ability_is_named(a: &Ability, name: &Ident) -> bool {
     }
 }
 
-/// Apply one `Modification` to `c` at its layer. Only P/T arms (7a-7d) are
-/// implemented; type/color/ability arms (4-6) are empty stubs for later tasks.
-/// ([CR#613.1b,613.1c,613.1d] deferred arms are also stubs.)
-#[allow(clippy::match_same_arms)] // stub arms will diverge as later tasks fill them
+/// Apply one `Modification` to `c` at its layer.
+/// Layers 4 (types/supertypes), 5 (colors), 6 (abilities), and 7a-7d (P/T) are
+/// implemented. Subtypes ([CR#613.1a]) and `BecomeBasicLandType` ([CR#305.7])
+/// are explicit deferred stubs; controller/text/loyalty/defense
+/// ([CR#613.1b,613.1c,613.1d]) are also stubs.
+#[allow(clippy::match_same_arms)] // deferred stub arms will diverge as later tasks fill them
 fn apply(m: &Modification, c: &mut Characteristics) {
     match m {
         // --- Layer 7a / 7b: set base P/T ---
@@ -341,16 +389,41 @@ fn apply(m: &Modification, c: &mut Characteristics) {
         }
         // --- Layer 7d: switch ---
         Modification::SwitchPowerToughness => std::mem::swap(&mut c.power, &mut c.toughness),
-        // --- Layer 4: type-changing (later task) ---
-        Modification::SetCardTypes(_)
-        | Modification::AddCardTypes(_)
-        | Modification::SetSubtypes(_)
-        | Modification::AddSubtypes(_)
-        | Modification::SetSupertypes(_)
-        | Modification::AddSupertypes(_)
-        | Modification::BecomeBasicLandType(_) => {}
-        // --- Layer 5: color-changing (later task) ---
-        Modification::SetColors(_) | Modification::AddColors(_) => {}
+        // --- Layer 4: type-changing ([CR#613.4a]) ---
+        Modification::AddCardTypes(ts) => {
+            for t in ts {
+                if !c.card_types.contains(t) {
+                    c.card_types.push(*t);
+                }
+            }
+        }
+        Modification::SetCardTypes(ts) => c.card_types.clone_from(ts),
+        Modification::AddSupertypes(ss) => {
+            for s in ss {
+                if !c.supertypes.contains(s) {
+                    c.supertypes.push(*s);
+                }
+            }
+        }
+        Modification::SetSupertypes(ss) => c.supertypes.clone_from(ss),
+        // [CR#613.1a] subtype-set deferred: Ident→Subtype reconcile (no fixture yet)
+        // `Modification::SetSubtypes`/`AddSubtypes` carry `Vec<Ident>` but
+        // `Characteristics::subtypes` holds `Vec<Subtype>` (structs with confers/types).
+        // There is no clean `Ident → Subtype` conversion without plugin data, so these
+        // arms are left as explicit no-ops until a fixture exercises them.
+        Modification::SetSubtypes(_) | Modification::AddSubtypes(_) => {}
+        // [CR#305.7] deferred: replace land subtypes + strip abilities + grant basic
+        // mana ability (no fixture yet). Do NOT implement the mana-ability construction.
+        Modification::BecomeBasicLandType(_) => {}
+        // --- Layer 5: color-changing ([CR#613.4b]) ---
+        Modification::AddColors(cl) => {
+            for x in cl {
+                if !c.colors.contains(x) {
+                    c.colors.push(*x);
+                }
+            }
+        }
+        Modification::SetColors(cl) => c.colors.clone_from(cl),
         // --- Layer 6: ability-adding/removing ([CR#613.1f]) ---
         Modification::GainAbility(a) => {
             // Respect any active "can't have" prohibition ([CR#613.1f]).
@@ -404,6 +477,10 @@ impl GameState {
 
         // Step 3: iterate layers in order, applying each effect's ops that
         // belong to this layer ([CR#613.3]).
+        // SEAM [CR#305.6]: after L4 resolves, subtype-conferred abilities
+        // (e.g. a land subtype granting a mana ability) should be reinjected
+        // before L6 ability additions/removals are applied. No fixture exercises
+        // this path yet; it's a documented gap for a later task.
         for layer in [
             Layer::L4,
             Layer::L5,

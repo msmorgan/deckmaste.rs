@@ -1,0 +1,6 @@
+// A plain enchantment — no abilities, no P/T. Fodder for animation tests.
+Normal(
+    name: "Vanilla Enchantment",
+    mana_cost: [Generic(2)],
+    types: [Enchantment],
+)
