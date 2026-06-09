@@ -290,8 +290,14 @@ fn matches_derived(
     filter: &deckmaste_core::Filter,
 ) -> bool {
     use deckmaste_core::{CharacteristicFilter, Filter};
+    // `Any` is a wildcard sentinel — it must always match, even for ids that
+    // aren't in `working` (e.g. player proxies). Checked before the map lookup.
+    if let Filter::Any = filter {
+        return true;
+    }
     let Some(c) = working.get(&id) else { return false };
     match filter {
+        Filter::Any => unreachable!("handled above"),
         Filter::Characteristic(CharacteristicFilter::Type(t)) => c.card_types.contains(t),
         Filter::Characteristic(CharacteristicFilter::Supertype(s)) => c.supertypes.contains(s),
         Filter::Characteristic(CharacteristicFilter::ColorIs(col)) => c.colors.contains(col),
@@ -300,17 +306,21 @@ fn matches_derived(
         Filter::Characteristic(CharacteristicFilter::Subtype(name)) => {
             c.subtypes.iter().any(|s| &s.name == name)
         }
+        // `HasAbility` is derivable from the working map — check the derived
+        // ability list. `Named` and `Stat` are not straightforwardly derivable
+        // and fall through to `target::matches` (which is unimplemented there
+        // today — pre-existing, not reachable by current fixtures).
+        Filter::Characteristic(CharacteristicFilter::HasAbility(name)) => {
+            c.abilities.iter().any(|a| ability_is_named(a, name))
+        }
         // Combinators: recurse through matches_derived so characteristic leaves
         // see the derived map.
         Filter::AllOf(fs) => fs.iter().all(|f| matches_derived(state, working, id, f)),
         Filter::OneOf(fs) => fs.iter().any(|f| matches_derived(state, working, id, f)),
         Filter::Not(f) => !matches_derived(state, working, id, f),
-        Filter::Any => true,
         Filter::Expanded(e) => matches_derived(state, working, id, &e.value),
-        // Named / Stat / HasAbility and everything else (zone, status, kind,
-        // relations, …): delegate to the printed matcher. Named/Stat/HasAbility
-        // are not straightforwardly derivable from `Characteristics` here;
-        // the rest are correctly state/printed-based, not derived characteristics.
+        // Named / Stat and everything else (zone, status, kind, relations, …):
+        // delegate to the printed matcher.
         _ => crate::target::matches(state, id, filter),
     }
 }

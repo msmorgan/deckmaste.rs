@@ -204,7 +204,7 @@ fn type_change_then_set_pt_locks_in() {
     );
 }
 
-/// [CR#613.1a]-ish layer 5: a static "creatures are red" adds red to a
+/// [CR#613.1e] layer 5: a static "creatures are red" adds red to a
 /// creature's derived colors.
 #[test]
 fn static_adds_color() {
@@ -216,5 +216,28 @@ fn static_adds_color() {
     assert!(
         view.get(bear).colors.contains(&Color::Red),
         "the creature is now red (layer 5)"
+    );
+}
+
+/// [CR#613.6] for layer 5: a "+1/+1 to red creatures" anthem catches a creature
+/// that is only red because another effect painted it red THIS pass —
+/// `matches_derived` evaluates the scope against the derived color, not the
+/// printed face.
+#[test]
+fn anthem_catches_creature_painted_red() {
+    let mut state = game_with_p0_cards(&["Paint red", "Red anthem"], 1);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature"); // base green
+    let _painter = force_onto_battlefield(&mut state, PlayerId(0), "Paint red"); // creatures are red (L5)
+    let _anthem = force_onto_battlefield(&mut state, PlayerId(0), "Red anthem"); // red creatures +1/+1 (L7c)
+
+    let view = state.layers();
+    assert!(
+        view.get(bear).colors.contains(&Color::Red),
+        "painted red (L5)"
+    );
+    assert_eq!(
+        view.power(bear),
+        Some(3),
+        "the red anthem caught the now-red creature via derived-color matching ([CR#613.6])"
     );
 }
