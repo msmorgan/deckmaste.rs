@@ -2,12 +2,13 @@
 //! reified agenda work. Stage 3 wires the corpus's arms; the rest are `todo!`.
 
 use deckmaste_core::{
-    Ability, Action, Count, Effect, PlayerAction, Reference, Selection, TargetSpec, Type, Uint,
-    Zone,
+    Ability, Action, Count, Effect, PlayerAction, Reference, Scope, Selection, StaticEffect,
+    TargetSpec, Type, Uint, Zone,
 };
 
 use crate::agenda::WorkItem;
 use crate::event::{GameEvent, Occurrence};
+use crate::layer::{ContinuousEffect, ScopeResolved};
 use crate::object::ObjectId;
 use crate::stack::{Frame, StackEntry, StackObject};
 use crate::state::GameState;
@@ -132,6 +133,30 @@ impl GameState {
                     })
                     .collect();
                 self.schedule_front(items);
+            }
+            Effect::Continuously(e) => {
+                // [CR#611.2]/[CR#611.2c]: stamp at creation; lock the object set
+                // for non-floating scopes, leave `Matching` floating.
+                let timestamp = self.objects.next_timestamp();
+                if let StaticEffect::Modify { of, changes } = &*e.effect {
+                    let scope = match of {
+                        Scope::Matching(f) => ScopeResolved::Floating(f.clone()),
+                        Scope::Of(r) => ScopeResolved::Locked(vec![self.eval_reference(r, frame)]),
+                        Scope::These(rs) => ScopeResolved::Locked(
+                            rs.iter().map(|r| self.eval_reference(r, frame)).collect(),
+                        ),
+                    };
+                    self.continuous.push(ContinuousEffect {
+                        timestamp,
+                        scope,
+                        changes: changes.clone(),
+                        duration: e.duration.clone(),
+                        is_cda: false,
+                    });
+                }
+                // Non-`Modify` static effects (Restriction/Permission/...) are
+                // a later wire — explicit, not silently
+                // dropped.
             }
             other => todo!("stage 3 does not interpret effect {other:?} (the choice seam)"),
         }
@@ -712,5 +737,84 @@ mod tests {
         let mut want = vec![(a, 2u32), (b, 2u32)];
         want.sort();
         assert_eq!(got, want);
+    }
+
+    /// [CR#611.2]/[CR#611.2c]: `Effect::Continuously(Modify(Matching(...), ...),
+    /// UntilEndOfTurn)` — the resolve arm pushes one `ContinuousEffect` with a
+    /// `ScopeResolved::Floating` scope and the right duration/changes.
+    #[test]
+    fn continuously_matching_registers_floating_scope() {
+        use deckmaste_core::{
+            CharacteristicFilter, ContinuouslyEffect, Count, Duration, Effect, Filter,
+            Modification, Scope, StaticEffect, Type,
+        };
+
+        let (mut state, src) = bear_on_field();
+        let frame = Frame {
+            source: src,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+
+        assert!(state.continuous.is_empty(), "no effects before resolve");
+
+        let filter = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));
+        let effect = Effect::Continuously(ContinuouslyEffect {
+            effect: Box::new(StaticEffect::Modify {
+                of: Scope::Matching(filter.clone()),
+                changes: vec![Modification::AddPower(Count::Literal(1))],
+            }),
+            duration: Duration::UntilEndOfTurn,
+        });
+        state.run_effect(effect, &frame);
+
+        assert_eq!(state.continuous.len(), 1, "one effect registered");
+        let ce = &state.continuous[0];
+        assert!(
+            matches!(&ce.scope, crate::layer::ScopeResolved::Floating(f) if f == &filter),
+            "scope is Floating(creature filter)"
+        );
+        assert_eq!(ce.duration, Duration::UntilEndOfTurn);
+        assert_eq!(ce.changes, vec![Modification::AddPower(Count::Literal(1))]);
+        assert!(!ce.is_cda);
+    }
+
+    /// [CR#611.2c]: `Effect::Continuously(Modify(Of(This), ...), ...)` locks
+    /// the id at creation — `ScopeResolved::Locked(vec![src])`.
+    #[test]
+    fn continuously_of_this_registers_locked_scope() {
+        use deckmaste_core::{
+            ContinuouslyEffect, Count, Duration, Effect, Modification, Reference, Scope,
+            StaticEffect,
+        };
+
+        let (mut state, src) = bear_on_field();
+        let frame = Frame {
+            source: src,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+
+        let effect = Effect::Continuously(ContinuouslyEffect {
+            effect: Box::new(StaticEffect::Modify {
+                of: Scope::Of(Reference::This),
+                changes: vec![Modification::AddToughness(Count::Literal(2))],
+            }),
+            duration: Duration::UntilEndOfTurn,
+        });
+        state.run_effect(effect, &frame);
+
+        assert_eq!(state.continuous.len(), 1, "one effect registered");
+        let ce = &state.continuous[0];
+        assert!(
+            matches!(&ce.scope, crate::layer::ScopeResolved::Locked(ids) if ids == &vec![src]),
+            "scope is Locked([src])"
+        );
+        assert_eq!(
+            ce.changes,
+            vec![Modification::AddToughness(Count::Literal(2))]
+        );
     }
 }
