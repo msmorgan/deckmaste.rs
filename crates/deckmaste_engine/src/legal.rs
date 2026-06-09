@@ -63,10 +63,12 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
 
 /// [CR#508.1a]: the creatures `player` could declare as attackers — battlefield
 /// creatures they control that are untapped and not summoning-sick
-/// ([CR#302.6]). Cost/restriction checks (e.g. defender, "can't attack") are a
-/// later seam.
+/// ([CR#302.6]). Creature-type is read from the derived layer view so that
+/// permanents animated into creatures by continuous effects are included.
+/// Cost/restriction checks (e.g. defender, "can't attack") are a later seam.
 #[must_use]
 pub fn legal_attackers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
+    let view = state.layers();
     state
         .zones
         .battlefield
@@ -77,16 +79,18 @@ pub fn legal_attackers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
             obj.controller == player
                 && !obj.tapped
                 && !obj.summoning_sick
-                && derive::face(state.def(id)).types.contains(&Type::Creature)
+                && view.get(id).card_types.contains(&Type::Creature)
         })
         .collect()
 }
 
 /// [CR#509.1a]: the creatures `player` could declare as blockers — battlefield
 /// creatures they control that are untapped. No summoning-sickness check: a
-/// summoning-sick creature can block.
+/// summoning-sick creature can block. Creature-type is read from the derived
+/// layer view so that animated permanents can block.
 #[must_use]
 pub fn legal_blockers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
+    let view = state.layers();
     state
         .zones
         .battlefield
@@ -96,7 +100,7 @@ pub fn legal_blockers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
             let obj = state.objects.obj(id);
             obj.controller == player
                 && !obj.tapped
-                && derive::face(state.def(id)).types.contains(&Type::Creature)
+                && view.get(id).card_types.contains(&Type::Creature)
         })
         .collect()
 }
