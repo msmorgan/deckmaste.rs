@@ -286,3 +286,53 @@ fn minus_one_counters_shrink() {
         "2/2 + one -1/-1 → 1 toughness"
     );
 }
+
+/// A +1/+1 counter on a permanent with no P/T (a non-creature) does nothing —
+/// the 7c counter delta only applies where P/T is `Some`.
+#[test]
+fn counter_on_non_creature_does_nothing() {
+    use deckmaste_core::Ident;
+
+    let mut state = game_with_p0_cards(&["Vanilla Enchantment"], 1);
+    let ench = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Enchantment");
+    state
+        .objects
+        .obj_mut(ench)
+        .counters
+        .insert(Ident::from("+1/+1"), 3);
+
+    let view = state.layers();
+    assert_eq!(
+        view.power(ench),
+        None,
+        "a counter on a non-creature confers no P/T"
+    );
+    assert_eq!(view.toughness(ench), None);
+}
+
+/// [CR#613.4c]: +1/+1 and -1/-1 counters combine as a net delta in 7c.
+#[test]
+fn mixed_counters_net_delta() {
+    use deckmaste_core::Ident;
+
+    let mut state = two_player_with("Vanilla Creature", 1, 10);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+    state
+        .objects
+        .obj_mut(bear)
+        .counters
+        .insert(Ident::from("+1/+1"), 2);
+    state
+        .objects
+        .obj_mut(bear)
+        .counters
+        .insert(Ident::from("-1/-1"), 1);
+
+    let view = state.layers();
+    assert_eq!(
+        view.power(bear),
+        Some(3),
+        "2/2 + two +1/+1 - one -1/-1 → net +1 → 3"
+    );
+    assert_eq!(view.toughness(bear), Some(3));
+}

@@ -40,6 +40,9 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         if obj.controller != player || obj.tapped {
             continue;
         }
+        // `derive::abilities` recomputes the whole layer view per call, so this
+        // per-permanent loop is an O(permanents) board re-derivation today;
+        // caching the `LayeredView` is the deferred optimization.
         for (ability, a) in derive::abilities(state, object).iter().enumerate() {
             if derive::tap_mana_ability(a).is_some() {
                 legal.push(Action::ActivateAbility { object, ability });

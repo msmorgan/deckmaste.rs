@@ -154,8 +154,8 @@ impl GameState {
                         is_cda: false,
                     });
                 }
-                // Non-`Modify` static effects (Restriction/Permission/...) are
-                // a later wire — explicit, not silently
+                // Non-Modify static effects (Restriction/Permission/...) are a
+                // later seam — explicit no-op, not silently
                 // dropped.
             }
             other => todo!("stage 3 does not interpret effect {other:?} (the choice seam)"),
