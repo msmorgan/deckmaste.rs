@@ -7,6 +7,7 @@ use rand::seq::SliceRandom;
 use rand_chacha::ChaCha8Rng;
 
 use crate::agenda::WorkItem;
+use crate::combat::CombatState;
 use crate::decide::PendingDecision;
 use crate::object::{Cards, ObjectId, ObjectSource, ObjectStore};
 use crate::player::{PlayerId, PlayerState};
@@ -73,6 +74,9 @@ pub struct GameState {
     /// minted and a `ChooseTargets` decision is open. The trigger analogue of
     /// `announcing`; `Some` only across that target choice.
     pub placing_trigger: Option<crate::trigger::PendingTrigger>,
+    /// Combat-phase designations ([CR#506]): attackers, blocks, and
+    /// damage-assignment order. Cleared at end of combat ([CR#511.3]).
+    pub combat: CombatState,
     pub rng: ChaCha8Rng,
 }
 
@@ -145,6 +149,7 @@ impl GameState {
             outcome: None,
             pending_triggers: Vec::new(),
             placing_trigger: None,
+            combat: CombatState::default(),
             rng,
         }
     }
