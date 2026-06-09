@@ -33,30 +33,45 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
         }
     }
 
-    // [CR#704.5g]: a creature with lethal marked damage is destroyed.
+    // [CR#704.5g,704.5h]: a creature with lethal marked damage, or struck by
+    // any damage from a deathtouch source, is destroyed. We collect the ids
+    // to destroy into a `BTreeSet` so that a creature triggering both checks
+    // (e.g. it has lethal damage AND was struck by deathtouch) emits only
+    // one `ZoneWillChange` event.
+    let mut to_destroy = std::collections::BTreeSet::new();
     for &id in &state.zones.battlefield {
         let obj = state.objects.obj(id);
         let face = crate::derive::face(state.def(id));
-        if let Some(StatValue::Number(toughness)) = face.toughness
-            && face.types.contains(&Type::Creature)
-        {
-            // Toughness is an Int (i32). Printed toughness could be
-            // negative or zero (e.g. */0 token) — those are handled by
-            // other SBAs (not yet wired); skip here to avoid underflow.
+        if !face.types.contains(&Type::Creature) {
+            continue;
+        }
+        if let Some(StatValue::Number(toughness)) = face.toughness {
+            // Both destroy SBAs require toughness > 0 ([CR#704.5g], [CR#704.5h]);
+            // toughness is an Int (i32) and a creature with toughness ≤ 0 is
+            // handled by other SBAs (not yet wired). Guard once for both and to
+            // avoid the cast underflow.
             if toughness > 0 {
+                // [CR#704.5g]: lethal marked damage (damage >= toughness).
                 #[expect(clippy::cast_sign_loss)]
                 if obj.damage >= toughness as deckmaste_core::Uint {
-                    // [CR#704.5g]: destroy. The snapshot is captured at the
-                    // will-change apply, while the object is still live.
-                    actions.push(GameEvent::ZoneWillChange {
-                        object: id,
-                        from: Some(Zone::Battlefield),
-                        to: Zone::Graveyard,
-                        enters: None,
-                    });
+                    to_destroy.insert(id);
+                }
+                // [CR#704.5h]: dealt any damage by a deathtouch source.
+                if obj.struck_by_deathtouch {
+                    to_destroy.insert(id);
                 }
             }
         }
+    }
+    for id in to_destroy {
+        // Destroy. The LKI snapshot is captured at the will-change apply
+        // while the object is still live ([CR#400.7]).
+        actions.push(GameEvent::ZoneWillChange {
+            object: id,
+            from: Some(Zone::Battlefield),
+            to: Zone::Graveyard,
+            enters: None,
+        });
     }
 
     actions

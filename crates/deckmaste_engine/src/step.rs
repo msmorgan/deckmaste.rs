@@ -267,6 +267,24 @@ impl GameState {
                     self.player_mut(controller).life +=
                         deckmaste_core::Int::try_from(amount).expect("damage fits in i32");
                 }
+                // [CR#702.2]: if the source is a card-backed object with deathtouch
+                // and the amount dealt is > 0, mark the TARGET as struck by a
+                // deathtouch source. The SBA then destroys a creature with
+                // toughness > 0 so marked ([CR#704.5h]). Same guard pattern as
+                // lifelink above.
+                if amount > 0
+                    && matches!(
+                        self.objects.get(target).map(|o| o.source),
+                        Some(ObjectSource::Card(_))
+                    )
+                    && self
+                        .objects
+                        .get(source)
+                        .is_some_and(|o| o.card_id().is_some())
+                    && crate::combat::has_keyword(self, source, KeywordAbility::Deathtouch)
+                {
+                    self.objects.obj_mut(target).struck_by_deathtouch = true;
+                }
                 GameEvent::DamageDealt {
                     source,
                     target,
@@ -575,7 +593,9 @@ impl GameState {
         // shared ref to `self.zones` while mutably borrowing `self.objects`).
         let ids: Vec<_> = self.zones.battlefield.clone();
         for id in ids {
-            self.objects.obj_mut(id).damage = 0;
+            let obj = self.objects.obj_mut(id);
+            obj.damage = 0;
+            obj.struck_by_deathtouch = false; // [CR#514.2]
         }
     }
 

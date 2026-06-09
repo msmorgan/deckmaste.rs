@@ -945,6 +945,40 @@ fn lifelink_unblocked_attacker_gains_life_for_controller() {
     );
 }
 
+/// [CR#702.2c,704.5h]: a 1/1 with deathtouch, blocked by a 5/5 vanilla. The
+/// deathtouch creature deals 1 damage — normally sublethal against 5 toughness,
+/// but any damage from a deathtouch source is lethal ([CR#702.2c]). The SBA
+/// sweep destroys the 5/5 ([CR#704.5h]). The 1/1 takes 5 and dies normally too.
+#[test]
+fn deathtouch_one_damage_kills_five_five() {
+    let mut state = two_player_decks("Deathtouch Creature", "Vanilla 5/5", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Deathtouch Creature");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla 5/5");
+    assert!(
+        has_keyword(&state, attacker, KeywordAbility::Deathtouch),
+        "pre-condition: the fixture carries Keyword(Deathtouch)"
+    );
+
+    let stop = drive_through_blocks(&mut state, vec![attacker], vec![(blocker, attacker)]);
+    // Forced assignment (one recipient each) — no assignment decision.
+    assert!(
+        !matches!(
+            stop,
+            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. })
+        ),
+        "forced (one recipient each) → no assignment decision: {stop:?}"
+    );
+
+    assert!(
+        !on_battlefield(&state, attacker),
+        "the 1/1 took 5 from the blocker and is destroyed"
+    );
+    assert!(
+        !on_battlefield(&state, blocker),
+        "the 5/5 took 1 deathtouch damage — lethal despite toughness 5 ([CR#704.5h])"
+    );
+}
+
 /// [CR#508.8]: with no attackers declared, the Declare Blockers step is skipped
 /// — no `DeclareBlockers` decision surfaces and play proceeds.
 #[test]

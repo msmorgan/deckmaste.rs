@@ -1,0 +1,9 @@
+// A plain 5/5 with no abilities — a robust blocker that survives normal
+// combat damage from small creatures but cannot survive deathtouch.
+Normal(
+    name: "Vanilla 5/5",
+    mana_cost: [Generic(4), Green],
+    types: [Creature],
+    power: 5,
+    toughness: 5,
+)

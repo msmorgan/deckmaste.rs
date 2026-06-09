@@ -1,0 +1,9 @@
+// A 1/1 with deathtouch — any damage it deals is lethal ([CR#702.2]).
+Normal(
+    name: "Deathtouch Creature",
+    mana_cost: [Generic(1), Black],
+    types: [Creature],
+    power: 1,
+    toughness: 1,
+    abilities: [Keyword(Deathtouch)],
+)
