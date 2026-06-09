@@ -861,6 +861,48 @@ fn attacks_trigger_fires_and_resolves() {
     );
 }
 
+/// [CR#702.20]: a creature with vigilance is NOT tapped when it attacks.
+/// Contrast: the `declare_attackers_taps_records_and_fires_attacking` test
+/// above shows that a normal creature IS tapped — this test covers only the
+/// vigilance exception to keep concerns separate.
+#[test]
+fn vigilance_attacker_is_not_tapped() {
+    let mut state = two_player_decks("Vigilance Creature", "Vanilla Creature", 7, 20);
+    let vigilant = force_onto_battlefield(&mut state, PlayerId(0), "Vigilance Creature");
+    assert!(
+        has_keyword(&state, vigilant, KeywordAbility::Vigilance),
+        "pre-condition: the fixture carries Keyword(Vigilance)"
+    );
+
+    // Drive (passing priorities) to the Declare Attackers step's decision.
+    let (_trace, stop) = pass_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { player, legal }) = stop
+    else {
+        panic!("expected a DeclareAttackers decision, got {stop:?}");
+    };
+    assert_eq!(player, PlayerId(0));
+    assert!(
+        legal.contains(&vigilant),
+        "the de-sickened creature is a legal attacker"
+    );
+
+    // Declare the vigilance creature as the sole attacker.
+    state
+        .submit_decision(Decision::Attackers(vec![vigilant]))
+        .unwrap();
+    let (_trace, _stop) = step_to_stop(&mut state);
+
+    // [CR#702.20]: it IS recorded as attacking but is NOT tapped.
+    assert!(
+        state.combat.is_attacking(vigilant),
+        "the creature is recorded as an attacker ([CR#508.1a])"
+    );
+    assert!(
+        !state.objects.obj(vigilant).tapped,
+        "a creature with vigilance is not tapped when it attacks ([CR#702.20])"
+    );
+}
+
 /// [CR#508.8]: with no attackers declared, the Declare Blockers step is skipped
 /// — no `DeclareBlockers` decision surfaces and play proceeds.
 #[test]
