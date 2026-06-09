@@ -1,0 +1,5 @@
+(
+    name: "ThisEnters",
+    kinds: [Event],
+    body: Enters(Is(This)),
+)

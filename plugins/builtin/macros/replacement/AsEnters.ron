@@ -3,8 +3,8 @@
 // entry. Usage: AsEnters(effect) — e.g. AsEnters(Tap(This)) (enters tapped).
 (
     name: "AsEnters",
-    template: "as this enters",
+    template: "as ~ enters",
     kinds: [Replacement],
     params: [Any],
-    body: Also(would: Enters(Is(This)), also: Param(0)),
+    body: Also(would: ThisEnters, also: Param(0)),
 )

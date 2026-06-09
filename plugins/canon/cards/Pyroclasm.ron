@@ -1,0 +1,13 @@
+Normal(
+    name: "Pyroclasm",
+    mana_cost: [
+        Generic(1),
+        Red,
+    ],
+    types: [Sorcery],
+    abilities: [
+        Spell(
+            effect: DealDamage(Filter(Creature), 2),
+        ),
+    ],
+)

@@ -85,7 +85,7 @@ pub enum Filter {
     Characteristic(CharacteristicFilter),
     State(StateFilter),
     Relation(RelationFilter),
-    Is(Reference),
+    Is(Reference), // Rename to `Ref`?
     AllOf(Vec<Filter>),
     OneOf(Vec<Filter>),
     Not(Box<Filter>),

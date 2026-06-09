@@ -1,0 +1,22 @@
+Normal(
+    name: "Baleful Strix",
+    mana_cost: [
+        Blue,
+        Black,
+    ],
+    types: [
+        Artifact,
+        Creature,
+    ],
+    subtypes: [Bird],
+    abilities: [
+        Flying,
+        Deathtouch,
+        Triggered(
+            event: ThisEnters,
+            effect: Draw(1),
+        ),
+    ],
+    power: 1,
+    toughness: 1,
+)
