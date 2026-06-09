@@ -3,7 +3,7 @@
 //! library loses ([CR#704.5c]). Task 6 adds [CR#704.5g]: a creature with lethal
 //! marked damage is destroyed.
 
-use deckmaste_core::{StatValue, Type, Zone};
+use deckmaste_core::{Type, Zone};
 
 use crate::event::{GameEvent, LossReason};
 use crate::state::GameState;
@@ -38,14 +38,15 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
     // to destroy into a `BTreeSet` so that a creature triggering both checks
     // (e.g. it has lethal damage AND was struck by deathtouch) emits only
     // one `ZoneWillChange` event.
+    let view = state.layers();
     let mut to_destroy = std::collections::BTreeSet::new();
     for &id in &state.zones.battlefield {
         let obj = state.objects.obj(id);
-        let face = crate::derive::face(state.def(id));
-        if !face.types.contains(&Type::Creature) {
+        let c = view.get(id);
+        if !c.card_types.contains(&Type::Creature) {
             continue;
         }
-        if let Some(StatValue::Number(toughness)) = face.toughness {
+        if let Some(toughness) = c.toughness {
             // Both destroy SBAs require toughness > 0 ([CR#704.5g], [CR#704.5h]);
             // toughness is an Int (i32) and a creature with toughness ≤ 0 is
             // handled by other SBAs (not yet wired). Guard once for both and to

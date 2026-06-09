@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::fmt;
 
-use deckmaste_core::{KeywordAbility, StatValue, Uint};
+use deckmaste_core::{KeywordAbility, Uint};
 
 use crate::object::{ObjectId, ObjectSource};
 use crate::player::PlayerId;
@@ -489,14 +489,15 @@ impl GameState {
         if crate::combat::has_keyword(self, source, KeywordAbility::Deathtouch) {
             return 1; // [CR#702.2c]: any nonzero amount is lethal.
         }
-        match derive::face(self.def(blocker)).toughness {
-            Some(StatValue::Number(t)) if t > 0 => {
+        match self.layers().toughness(blocker) {
+            Some(t) if t > 0 => {
                 #[expect(clippy::cast_sign_loss)]
                 let toughness = t as Uint;
                 toughness.saturating_sub(self.objects.obj(blocker).damage)
             }
-            // toughness ≤ 0 is already a destroy SBA; a non-Number is unmodeled
-            // here — require the full amount so the player can't be reached.
+            // toughness ≤ 0 is already a destroy SBA; None is a non-creature
+            // or unmodeled case — require the full amount so the player can't
+            // be reached.
             _ => Uint::MAX,
         }
     }
