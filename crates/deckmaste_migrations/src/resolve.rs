@@ -233,7 +233,7 @@ mod tests {
         assert!(matches!(
             &face.abilities[0],
             TodoAbility::Parsed(r)
-                if r == "Triggered(event: Dies(Is(This)), targets: [AnyTarget], effect: DealDamage(Target(0), 1))"
+                if r == "Triggered(event: ThisDies, targets: [AnyTarget], effect: DealDamage(Target(0), 1))"
         ));
     }
 
