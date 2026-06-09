@@ -27,6 +27,41 @@ pub fn has_keyword(state: &GameState, object: ObjectId, kw: KeywordAbility) -> b
         .any(|a| matches!(a, Ability::Keyword(k) if *k == kw))
 }
 
+/// [CR#702.7c,702.4]: whether `object` deals damage in the FIRST combat-damage
+/// step — true iff it has first strike OR double strike.
+#[must_use]
+pub fn deals_first_strike(state: &GameState, object: ObjectId) -> bool {
+    has_keyword(state, object, KeywordAbility::FirstStrike)
+        || has_keyword(state, object, KeywordAbility::DoubleStrike)
+}
+
+/// [CR#702.4]: whether `object` deals damage in the REGULAR combat-damage step.
+/// A double-striker deals in both steps; a first-striker (without double
+/// strike) deals ONLY in the first step, so it does not deal here; every other
+/// creature deals here. This filter naturally includes everyone when no first
+/// strike exists.
+#[must_use]
+pub fn deals_regular_strike(state: &GameState, object: ObjectId) -> bool {
+    !has_keyword(state, object, KeywordAbility::FirstStrike)
+        || has_keyword(state, object, KeywordAbility::DoubleStrike)
+}
+
+/// [CR#510.4]: whether ANY combat creature (an attacker or a live blocker) has
+/// first strike or double strike — the condition for opening the
+/// `FirstCombatDamage` step. The set of combat creatures is every attacker plus
+/// every live blocker.
+#[must_use]
+pub fn any_first_or_double_striker(state: &GameState) -> bool {
+    let combat = &state.combat;
+    combat.attackers().iter().any(|&a| {
+        deals_first_strike(state, a)
+            || combat
+                .blockers_of(a)
+                .iter()
+                .any(|&b| deals_first_strike(state, b))
+    })
+}
+
 /// Tracks all combat designations for the current combat phase.
 ///
 /// - `attackers`: declared attackers, in declaration order.

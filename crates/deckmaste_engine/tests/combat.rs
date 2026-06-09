@@ -1192,6 +1192,168 @@ fn trample_no_live_blockers_assigns_all_to_player() {
     );
 }
 
+// --- first strike + double strike ([CR#510.4]) -------------------------------
+
+/// [CR#510.4], [CR#702.7]: a 2/2 first-striker attacks, blocked by a 2/2
+/// vanilla. There are TWO combat-damage steps. In the FIRST one only the
+/// first-striker deals — its 2 is lethal to the 2/2 blocker, which the SBA
+/// destroys BEFORE the regular step. By the regular step the blocker is gone,
+/// so it never deals its 2 back: the first-striker survives the trade, untapped
+/// of damage and still on the battlefield.
+#[test]
+fn first_strike_kills_before_taking_damage() {
+    let mut state = two_player_decks("First Strike Creature", "Vanilla Creature", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "First Strike Creature");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+    assert!(
+        has_keyword(&state, attacker, KeywordAbility::FirstStrike),
+        "pre-condition: the fixture carries Keyword(FirstStrike)"
+    );
+
+    let stop = drive_through_blocks(&mut state, vec![attacker], vec![(blocker, attacker)]);
+    // Every source is forced (one recipient each) → no assignment decision in
+    // either pass.
+    assert!(
+        !matches!(
+            stop,
+            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. })
+        ),
+        "forced (one recipient each) → no assignment decision: {stop:?}"
+    );
+
+    // The blocker died to first-strike damage before it could deal any back.
+    assert!(
+        !on_battlefield(&state, blocker),
+        "the 2/2 blocker took 2 first-strike damage and is destroyed before the regular step"
+    );
+    // The first-striker survives — its blocker was dead before the regular step.
+    assert!(
+        on_battlefield(&state, attacker),
+        "the first-striker killed its blocker in the first step and took no damage back ([CR#510.4])"
+    );
+    assert_eq!(
+        state.objects.obj(attacker).damage,
+        0,
+        "the first-striker has no marked damage — the blocker never struck it"
+    );
+}
+
+/// [CR#510.4], [CR#702.4]: a 2/2 double-striker attacks, blocked by a 3/3
+/// vanilla. In the FIRST step the double-striker deals 2 to the 3/3 —
+/// sublethal, so the 3/3 survives, marked 2. In the REGULAR step the
+/// double-striker deals 2 MORE (total 4 ≥ 3 → the 3/3 dies) AND the 3/3 deals
+/// its 3 back SIMULTANEOUSLY → the 2/2 double-striker dies too. Both die: the
+/// second-pass simultaneity is the mutual kill, observable only because the
+/// double-striker dealt in BOTH passes.
+#[test]
+fn double_strike_deals_twice() {
+    let mut state = two_player_decks("Double Strike Creature", "Vanilla 3/3", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Double Strike Creature");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla 3/3");
+    assert!(
+        has_keyword(&state, attacker, KeywordAbility::DoubleStrike),
+        "pre-condition: the fixture carries Keyword(DoubleStrike)"
+    );
+
+    let stop = drive_through_blocks(&mut state, vec![attacker], vec![(blocker, attacker)]);
+    assert!(
+        !matches!(
+            stop,
+            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. })
+        ),
+        "forced (one recipient each) → no assignment decision: {stop:?}"
+    );
+
+    // 2 (first step) + 2 (regular step) = 4 ≥ 3 → the 3/3 dies.
+    assert!(
+        !on_battlefield(&state, blocker),
+        "the 3/3 took 2+2=4 across both steps and is destroyed ([CR#702.4])"
+    );
+    // In the regular step the 3/3 dealt its 3 back simultaneously → the 2/2 dies.
+    assert!(
+        !on_battlefield(&state, attacker),
+        "the double-striker took the 3/3's 3 back in the second pass and dies (mutual kill, [CR#510.4])"
+    );
+}
+
+/// [CR#510.4]: with NO attacking or blocking creature having first/double
+/// strike, there is only the single regular combat-damage step — the
+/// `FirstCombatDamage` step is elided entirely (no `StepBegan`, no priority
+/// window for it). The plain 2/2-vs-2/2 trade still resolves exactly as before,
+/// and the trace shows the step was skipped, never begun.
+#[test]
+fn no_first_strike_elides_first_combat_damage_step() {
+    let mut state = two_player_with("Vanilla Creature", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+
+    // Accumulate the whole combat trace by driving past damage.
+    let (trace, stop) = pass_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+        panic!("expected DeclareAttackers, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Attackers(vec![attacker]))
+        .unwrap();
+    let (trace2, stop) = pass_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { .. }) = stop else {
+        panic!("expected DeclareBlockers, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Blocks(vec![(blocker, attacker)]))
+        .unwrap();
+    let (trace3, _stop) = pass_to_stop(&mut state);
+
+    let full: Vec<Progress> = trace.into_iter().chain(trace2).chain(trace3).collect();
+
+    // The FirstCombatDamage step was SKIPPED — never began (no StepBegan), and
+    // the only combat-damage StepBegan is the regular one.
+    let began_first = full.iter().any(|p| {
+        matches!(
+            p,
+            Progress::Applied(Occurrence::Single(GameEvent::StepBegan(Phase::Combat(
+                CombatStep::FirstCombatDamage
+            ))))
+        )
+    });
+    assert!(
+        !began_first,
+        "no StepBegan(FirstCombatDamage) when nothing has first/double strike ([CR#510.4]): {full:?}"
+    );
+    let skipped_first = full.iter().any(|p| {
+        matches!(
+            p,
+            Progress::Skipped(Phase::Combat(CombatStep::FirstCombatDamage))
+        )
+    });
+    assert!(
+        skipped_first,
+        "the FirstCombatDamage step is observably elided (Skipped) ([CR#510.4]): {full:?}"
+    );
+    // No priority window opened while current was FirstCombatDamage — the step
+    // never owned a turn.
+    let advanced_to_first = full.iter().any(|p| {
+        matches!(
+            p,
+            Progress::Advanced(Phase::Combat(CombatStep::FirstCombatDamage))
+        )
+    });
+    assert!(
+        !advanced_to_first,
+        "the FirstCombatDamage step never advanced (was never opened): {full:?}"
+    );
+
+    // The plain trade still resolves as before: both 2/2s die.
+    assert!(
+        !on_battlefield(&state, attacker),
+        "the 2/2 attacker took 2 and is destroyed (unchanged single-pass trade)"
+    );
+    assert!(
+        !on_battlefield(&state, blocker),
+        "the 2/2 blocker took 2 and is destroyed (unchanged single-pass trade)"
+    );
+}
+
 /// [CR#508.8]: with no attackers declared, the Declare Blockers step is skipped
 /// — no `DeclareBlockers` decision surfaces and play proceeds.
 #[test]

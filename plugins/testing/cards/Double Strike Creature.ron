@@ -1,0 +1,12 @@
+// A 2/2 with double strike ([CR#702.4]) — it deals combat damage in BOTH the
+// first combat-damage step and the regular one ([CR#510.4]). Behavior lives in
+// the two-pass combat-damage machinery; this carries the printed keyword.
+Normal(
+    name: "Double Strike Creature",
+    mana_cost: [Generic(1), Red],
+    types: [Creature],
+    subtypes: [Bear],
+    power: 2,
+    toughness: 2,
+    abilities: [Keyword(DoubleStrike)],
+)
