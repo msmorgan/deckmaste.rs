@@ -26,6 +26,7 @@ mod lki;
 pub use lki::LkiSnapshot;
 
 mod legal;
+pub use legal::{legal_attackers, legal_blockers};
 
 mod object;
 pub use object::{CardId, CardInstance, Cards, GameObject, ObjectId, ObjectSource, ObjectStore};
