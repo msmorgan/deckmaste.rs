@@ -12,10 +12,10 @@ use std::path::Path;
 use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
-use deckmaste_core::{BeginningStep, Card, Phase, Zone};
+use deckmaste_core::{BeginningStep, Card, CombatStep, Phase, Zone};
 use deckmaste_engine::{
-    Action, Decision, GameConfig, GameState, ObjectId, PendingDecision, PlayerConfig, PlayerId,
-    Progress, StartingPlayer, StepOutcome, legal_attackers, legal_blockers,
+    Action, Decision, GameConfig, GameEvent, GameState, ObjectId, Occurrence, PendingDecision,
+    PlayerConfig, PlayerId, Progress, StartingPlayer, StepOutcome, legal_attackers, legal_blockers,
 };
 
 // --- plugin + deck building
@@ -190,4 +190,120 @@ fn turn_start_clears_summoning_sickness_for_the_active_player_only() {
         legal_attackers(&state, PlayerId(0)).contains(&p0_bear),
         "the de-sickened creature is a legal attacker"
     );
+}
+
+/// Steps until the next decision or game end, returning the progress trace.
+fn step_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
+    let mut trace = Vec::new();
+    loop {
+        match state.step() {
+            StepOutcome::Progress(p) => trace.push(p),
+            stop => return (trace, stop),
+        }
+    }
+}
+
+/// Drives to the next non-priority decision (or game over), answering every
+/// priority with Pass. Returns the trace accumulated and the stop.
+fn pass_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
+    let mut trace = Vec::new();
+    loop {
+        let (chunk, stop) = step_to_stop(state);
+        trace.extend(chunk);
+        match stop {
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            other => return (trace, other),
+        }
+    }
+}
+
+/// [CR#508.1a], [CR#508.1f]: the Declare Attackers step surfaces a
+/// `DeclareAttackers` decision for the active player; declaring an attacker
+/// taps it, records it in `CombatState`, and fires an `Attacking` event.
+#[test]
+fn declare_attackers_taps_records_and_fires_attacking() {
+    let mut state = two_player_with("Vanilla Creature", 7, 20);
+    // A creature on P0's battlefield BEFORE the game runs: turn 1's begin clears
+    // its summoning sickness, so it is a legal attacker this combat.
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+
+    // Drive (passing priorities) to the Declare Attackers step's decision.
+    let (_trace, stop) = pass_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { player, legal }) = stop
+    else {
+        panic!("expected a DeclareAttackers decision, got {stop:?}");
+    };
+    assert_eq!(player, PlayerId(0));
+    assert_eq!(
+        state.turn.current,
+        Phase::Combat(CombatStep::DeclareAttackers)
+    );
+    assert!(
+        legal.contains(&bear),
+        "the de-sickened creature is a surfaced legal attacker"
+    );
+
+    // Declaring an attacker that isn't in `legal` is rejected.
+    assert!(
+        state
+            .submit_decision(Decision::Attackers(vec![ObjectId(99999)]))
+            .is_err(),
+        "an id outside the legal set is rejected"
+    );
+    // A duplicate is rejected.
+    assert!(
+        state
+            .submit_decision(Decision::Attackers(vec![bear, bear]))
+            .is_err(),
+        "duplicate attackers are rejected"
+    );
+
+    // Declare the bear.
+    state
+        .submit_decision(Decision::Attackers(vec![bear]))
+        .unwrap();
+
+    // The Attacking event fires; the bear ends up attacking and tapped.
+    let (trace, _stop) = step_to_stop(&mut state);
+    assert!(
+        trace.iter().any(|p| matches!(
+            p,
+            Progress::Applied(Occurrence::Batch(events))
+                if events.contains(&GameEvent::Attacking(bear))
+        )),
+        "an Attacking(bear) event appears in the step trace: {trace:?}"
+    );
+    assert!(
+        state.combat.is_attacking(bear),
+        "the bear is recorded as an attacker ([CR#508.1a])"
+    );
+    assert!(
+        state.objects.obj(bear).tapped,
+        "declaring the bear as an attacker taps it ([CR#508.1f])"
+    );
+}
+
+/// With no legal attacker, the Declare Attackers step still surfaces the
+/// decision; the active player declares no attackers with an empty vec.
+#[test]
+fn declare_attackers_with_no_legal_attacker_accepts_empty() {
+    let mut state = two_player_with("Vanilla Creature", 7, 20);
+    // No creature on the battlefield: an empty legal set.
+    let (_trace, stop) = pass_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { player, legal }) = stop
+    else {
+        panic!("expected a DeclareAttackers decision, got {stop:?}");
+    };
+    assert_eq!(player, PlayerId(0));
+    assert!(legal.is_empty(), "no legal attackers");
+    // A nonempty vec is rejected; the empty vec is accepted.
+    assert!(
+        state
+            .submit_decision(Decision::Attackers(vec![ObjectId(99999)]))
+            .is_err()
+    );
+    state.submit_decision(Decision::Attackers(vec![])).unwrap();
+    assert!(state.combat.attackers().is_empty());
 }

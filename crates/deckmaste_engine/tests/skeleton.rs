@@ -176,14 +176,19 @@ fn turn_one_walks_to_upkeep_priority_one_event_at_a_time() {
     ));
 }
 
-/// Drives to the next decision, answering every priority with Pass.
-/// Returns the non-priority stop (other decision kind, or game over).
+/// Drives to the next decision, answering every priority with Pass and
+/// declaring no attackers at the Declare Attackers step. Returns the first
+/// other decision kind (or game over) — the routine combat/priority decisions
+/// are auto-handled so callers stop only at what they care about.
 fn pass_to_stop(state: &mut GameState) -> StepOutcome {
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
             StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) => {
+                state.submit_decision(Decision::Attackers(vec![])).unwrap();
             }
             other => return other,
         }
@@ -204,6 +209,9 @@ fn step_until(
         }
         if let StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) = outcome {
             state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+        } else if let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = outcome
+        {
+            state.submit_decision(Decision::Attackers(vec![])).unwrap();
         } else if matches!(
             outcome,
             StepOutcome::NeedsDecision(_) | StepOutcome::GameOver(_)
@@ -435,6 +443,9 @@ fn runner_recovers_the_auto_stepping_ergonomics() {
             RunStop::Decision(PendingDecision::Priority { .. }) => {
                 (_, stop) = runner.submit(Decision::Act(Action::Pass)).unwrap();
             }
+            RunStop::Decision(PendingDecision::DeclareAttackers { .. }) => {
+                (_, stop) = runner.submit(Decision::Attackers(vec![])).unwrap();
+            }
             RunStop::Decision(other) => panic!("unexpected decision: {other:?}"),
             RunStop::GameOver(outcome) => {
                 assert_eq!(outcome, deckmaste_engine::GameOutcome::Win(PlayerId(0)));
@@ -492,6 +503,9 @@ fn state_is_assertable_between_two_untap_events() {
             StepOutcome::NeedsDecision(PendingDecision::Priority { legal, .. }) => {
                 let action = script(&legal);
                 state.submit_decision(Decision::Act(action)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) => {
+                state.submit_decision(Decision::Attackers(vec![])).unwrap();
             }
             StepOutcome::NeedsDecision(other) => panic!("unexpected decision: {other:?}"),
             StepOutcome::GameOver(o) => panic!("game ended early: {o:?}"),
@@ -584,6 +598,9 @@ fn replay_is_deterministic() {
                         .unwrap_or(&Action::Pass)
                         .clone();
                     state.submit_decision(Decision::Act(action)).unwrap();
+                }
+                StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) => {
+                    state.submit_decision(Decision::Attackers(vec![])).unwrap();
                 }
                 StepOutcome::NeedsDecision(_) | StepOutcome::GameOver(_) => break,
                 StepOutcome::Progress(_) => {}

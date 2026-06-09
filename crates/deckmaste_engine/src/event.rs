@@ -89,6 +89,10 @@ pub enum GameEvent {
         player: PlayerId,
         amount: Uint,
     },
+    /// [CR#508.1a]: a creature was declared as an attacker. Its apply records
+    /// it in `CombatState` and taps it ([CR#508.1f]). The "whenever ~ attacks"
+    /// trigger seam (`StateFilterEvent::Attacking`).
+    Attacking(ObjectId),
     /// [CR#603.2]: a triggered ability triggered. Its apply notes it into
     /// `pending_triggers`. Routed as an event so Stage-4 replacements/cant can
     /// intercept (Panharmonicon/Hushwing).
