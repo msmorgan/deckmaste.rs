@@ -1,0 +1,13 @@
+Normal(
+    name: "Brainstorm",
+    mana_cost: [Blue],
+    types: [Instant],
+    abilities: [
+        Spell(
+            effect: Sequence([
+                Draw(3),
+                
+            ])
+        )
+    ],
+)

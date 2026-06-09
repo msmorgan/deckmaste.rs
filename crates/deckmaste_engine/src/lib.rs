@@ -66,3 +66,7 @@ pub use turn::{PriorityRound, TurnState};
 
 mod zone;
 pub use zone::Zones;
+
+/// Self-play simulation harness for tests and benchmarks — not a stable API.
+#[doc(hidden)]
+pub mod sim;

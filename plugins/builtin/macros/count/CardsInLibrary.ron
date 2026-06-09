@@ -1,0 +1,6 @@
+(
+    name: "CardsInLibrary",
+    kinds: [Count],
+    params: [Filter],
+    body: CountOf(AllOf([InZone(Library), Owner(Param(0))])),
+)
