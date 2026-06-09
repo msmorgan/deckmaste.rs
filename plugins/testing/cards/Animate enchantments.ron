@@ -1,0 +1,15 @@
+// Each enchantment becomes (only) a 4/4 creature: SetCardTypes replaces the type
+// (L4) so it's no longer an Enchantment; SetPower/SetToughness set P/T (L7b).
+// The L7b set rides the L4-locked target set ([CR#613.6]).
+Normal(
+    name: "Animate enchantments",
+    mana_cost: [Generic(4), White],
+    types: [Enchantment],
+    abilities: [
+        Static(effects: [
+            Modify(of: Matching(Type(Enchantment)), changes: [
+                SetCardTypes([Creature]), SetPower(4), SetToughness(4),
+            ]),
+        ]),
+    ],
+)
