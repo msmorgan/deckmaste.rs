@@ -12,7 +12,7 @@ mod cast;
 pub use cast::Payment;
 
 mod combat;
-pub use combat::CombatState;
+pub use combat::{CombatState, has_keyword};
 
 mod decide;
 pub use decide::{Action, Decision, DecisionError, PendingDecision};

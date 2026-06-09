@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::continuous::StaticEffect;
 use crate::cost::CostComponent;
 use crate::effect::Effect;
-use crate::{Condition, Count, Event, Expansion, TargetSpec};
+use crate::{Condition, Count, Event, Expansion, KeywordAbility, TargetSpec};
 
 /// A spell ability — what an instant or sorcery does on resolution
 /// ([CR#113.3a]). Targets are an explicit announce list referenced by index
@@ -118,6 +118,12 @@ pub enum Ability {
     Activated(ActivatedAbility),
     Triggered(TriggeredAbility),
     Spell(SpellAbility),
+    /// One of the six intrinsic combat keywords the engine reasons about
+    /// directly ([CR#702]) — `Keyword(Trample)`. A **known** variant, so the
+    /// derive accepts it as itself and the macro reader does NOT route it to
+    /// `Expanded` (its name is in the derive's variant list). The other
+    /// `[CR#702]` keywords stay plugin macros that expand to `Expanded`.
+    Keyword(KeywordAbility),
     /// A remembered macro invocation ([CR#702] keyword abilities, and any other
     /// `Ability` macro). Absorbs the old `Keyword`/`KeywordAbility` shape.
     Expanded(Expansion<Ability>),
@@ -135,6 +141,7 @@ impl Serialize for Ability {
                 serializer.serialize_newtype_variant("Ability", 2, "Triggered", a)
             }
             Ability::Spell(a) => serializer.serialize_newtype_variant("Ability", 3, "Spell", a),
+            Ability::Keyword(k) => serializer.serialize_newtype_variant("Ability", 4, "Keyword", k),
             // The invocation, not the struct: `Expansion`'s Serialize emits it.
             Ability::Expanded(e) => e.serialize(serializer),
         }
@@ -203,6 +210,23 @@ mod tests {
             "false CDA flag should be omitted: {written}"
         );
         assert!(!written.contains("condition"), "absent condition omitted");
+    }
+
+    /// `Keyword(Trample)` parses to the *known* `Ability::Keyword` variant —
+    /// NOT routed to the `Expanded` macro fallthrough — and round-trips back to
+    /// the same invocation string.
+    #[test]
+    fn keyword_parses_as_known_variant_not_expanded() {
+        use crate::KeywordAbility;
+
+        let ability = read_ability("Keyword(Trample)");
+        assert_eq!(ability, Ability::Keyword(KeywordAbility::Trample));
+        assert!(
+            !matches!(ability, Ability::Expanded(_)),
+            "Keyword must be a known variant, not macro-intercepted into Expanded"
+        );
+        let written = crate::ron::options().to_string(&ability).unwrap();
+        assert_eq!(written, "Keyword(Trample)");
     }
 
     #[test]

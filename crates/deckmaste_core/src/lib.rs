@@ -52,6 +52,9 @@ mod filter;
 pub use filter::{CharacteristicFilter, Filter, ObjectKind, RelationFilter, StateFilter};
 pub use macro_ron::{Expansion, ExpansionArgs, Ident, IdentSeed};
 
+mod keyword;
+pub use keyword::KeywordAbility;
+
 mod mana;
 pub use mana::{ManaCost, ManaSpec, ManaSymbol, SimpleManaSymbol};
 
