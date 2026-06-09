@@ -32,7 +32,9 @@ mod legal;
 pub use legal::{legal_attackers, legal_blockers};
 
 mod object;
-pub use object::{CardId, CardInstance, Cards, GameObject, ObjectId, ObjectSource, ObjectStore};
+pub use object::{
+    CardId, CardInstance, Cards, GameObject, ObjectId, ObjectSource, ObjectStore, Timestamp,
+};
 
 mod player;
 pub use player::{ManaPool, PlayerId, PlayerState};

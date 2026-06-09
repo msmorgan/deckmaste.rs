@@ -10,6 +10,12 @@ use crate::player::PlayerId;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ObjectId(pub Uint);
 
+/// A continuous-effect ordering stamp ([CR#613.7]). One monotonic clock spans
+/// objects (stamped at mint, zone-entry [CR#613.7d]) and floating effects
+/// (stamped at creation [CR#613.7b]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Timestamp(pub Uint);
+
 /// A persistent card identity ([CR#108]): an index into the game's card table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct CardId(pub Uint);
@@ -70,6 +76,9 @@ pub struct GameObject {
     pub id: ObjectId,
     pub source: ObjectSource,
     pub controller: PlayerId,
+    /// Layer-system ordering stamp ([CR#613.7]): assigned at mint / zone-entry
+    /// ([CR#613.7d]) from the shared monotonic clock in [`ObjectStore`].
+    pub timestamp: Timestamp,
     /// Meaningful only on the battlefield.
     pub tapped: bool,
     /// [CR#302.6]: set when the object enters the battlefield, cleared at the
@@ -104,9 +113,21 @@ impl GameObject {
 pub struct ObjectStore {
     objects: BTreeMap<ObjectId, GameObject>,
     next: Uint,
+    /// Shared monotonic clock for both object timestamps ([CR#613.7d]) and
+    /// floating-effect timestamps ([CR#613.7b]): one total order over all.
+    clock: Uint,
 }
 
 impl ObjectStore {
+    /// Draws the next timestamp from the shared monotonic clock and advances
+    /// it. Floating effects (a later task) use this same clock so that object
+    /// and effect timestamps are totally ordered ([CR#613.7]).
+    pub(crate) fn next_timestamp(&mut self) -> Timestamp {
+        let t = Timestamp(self.clock);
+        self.clock += 1;
+        t
+    }
+
     /// Creates an object and returns its id.
     ///
     /// # Panics
@@ -122,12 +143,14 @@ impl ObjectStore {
     ) -> ObjectId {
         let id = ObjectId(self.next);
         self.next += 1;
+        let timestamp = self.next_timestamp();
         self.objects.insert(
             id,
             GameObject {
                 id,
                 source,
                 controller,
+                timestamp,
                 tapped: false,
                 summoning_sick: false,
                 damage: 0,

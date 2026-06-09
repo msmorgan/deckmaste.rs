@@ -1,13 +1,17 @@
 //! The continuous-effects layer system ([CR#613]): the one place an object's
 //! characteristics are derived. Consumers read a [`LayeredView`], never the
-//! printed face. v1 computes base values only; layers 4-7 and the dependency
-//! tiebreaker ([CR#613.8]) are explicit seams for later tasks.
+//! printed face. Layers 4-7 (P/T sublayers 7a-7d) are implemented here;
+//! layers 1-3 and the dependency tiebreaker ([CR#613.8]) are explicit seams
+//! for later tasks.
 
 use std::collections::BTreeMap;
 
-use deckmaste_core::{Ability, Color, Int, ManaSymbol, Subtype, Supertype, Type};
+use deckmaste_core::{
+    Ability, Color, Count, Int, ManaSymbol, Modification, Scope, StaticEffect, Subtype, Supertype,
+    Type,
+};
 
-use crate::object::ObjectId;
+use crate::object::{ObjectId, Timestamp};
 use crate::state::GameState;
 
 /// An object's derived characteristics ([CR#613]). `power`/`toughness` are
@@ -106,6 +110,203 @@ fn base_values(state: &GameState, id: ObjectId) -> Characteristics {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Layer ordering
+// ---------------------------------------------------------------------------
+
+/// The layer a `Modification` op lives in ([CR#613.3,613.4]).
+/// Only the variants needed for P/T sublayers 7a-7d are enumerated; types,
+/// colors, and abilities (4-6) are explicit seams for later tasks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum Layer {
+    L4,
+    L5,
+    L6,
+    L7a,
+    L7b,
+    L7c,
+    L7d,
+}
+
+/// Maps a `Modification` to the layer it applies in.
+///
+/// Returns `None` for ops that are deferred to later tasks
+/// ([CR#613.1b,613.1c,613.1d]).
+fn layer_of(m: &Modification, is_cda: bool) -> Option<Layer> {
+    match m {
+        // Layer 4: type-changing ([CR#613.4a]).
+        Modification::SetCardTypes(_)
+        | Modification::AddCardTypes(_)
+        | Modification::SetSubtypes(_)
+        | Modification::AddSubtypes(_)
+        | Modification::SetSupertypes(_)
+        | Modification::AddSupertypes(_)
+        | Modification::BecomeBasicLandType(_) => Some(Layer::L4),
+        // Layer 5: color-changing ([CR#613.4b]).
+        Modification::SetColors(_) | Modification::AddColors(_) => Some(Layer::L5),
+        // Layer 6: ability-adding/removing ([CR#613.4c]).
+        Modification::GainAbility(_)
+        | Modification::LoseAbility(_)
+        | Modification::LoseAllAbilities
+        | Modification::CantHaveAbility(_) => Some(Layer::L6),
+        // Layer 7a or 7b: SetPower/SetToughness ([CR#613.4d]).
+        // CDAs ([CR#604.3]) apply in 7a; all other set-ops apply in 7b.
+        Modification::SetPower(_) | Modification::SetToughness(_) => {
+            if is_cda {
+                Some(Layer::L7a)
+            } else {
+                Some(Layer::L7b)
+            }
+        }
+        // Layer 7c: P/T modification ([CR#613.4d]).
+        Modification::AddPower(_) | Modification::AddToughness(_) => Some(Layer::L7c),
+        // Layer 7d: switch ([CR#613.4d]).
+        Modification::SwitchPowerToughness => Some(Layer::L7d),
+        // Deferred to later tasks ([CR#613.1b,613.1c,613.1d]).
+        Modification::SetController(_)
+        | Modification::SetText(_)
+        | Modification::SetBaseLoyalty(_)
+        | Modification::SetBaseDefense(_) => None,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Gather
+// ---------------------------------------------------------------------------
+
+/// An active static continuous effect ready to apply across one or more
+/// layers ([CR#613.6]). Owns cloned data so no borrow escapes `state`.
+struct ActiveEffect {
+    timestamp: Timestamp,
+    is_cda: bool,
+    scope: Scope,
+    changes: Vec<Modification>,
+    /// Locked target set: `None` until first applied layer resolves the scope
+    /// ([CR#613.6] — scope is locked at first layer of application).
+    locked: Option<Vec<ObjectId>>,
+}
+
+/// Collect all active static `Modify` effects from battlefield permanents.
+///
+/// Only unconditional effects are gathered here; `sa.condition` evaluation
+/// is a documented seam for a later task.
+fn gather(state: &GameState) -> Vec<ActiveEffect> {
+    let mut effects = Vec::new();
+    for obj in state.objects.iter() {
+        if obj.card_id().is_none() {
+            continue; // player proxy — no static abilities
+        }
+        let timestamp = obj.timestamp;
+        for ability in crate::derive::abilities(state, obj.id) {
+            let Ability::Static(sa) = ability else { continue };
+            // Conditions skipped — a seam for later ([CR#604.3]).
+            for effect in &sa.effects {
+                let StaticEffect::Modify { of, changes } = effect else { continue };
+                effects.push(ActiveEffect {
+                    timestamp,
+                    is_cda: sa.characteristic_defining,
+                    scope: of.clone(),
+                    changes: changes.clone(),
+                    locked: None,
+                });
+            }
+        }
+    }
+    effects
+}
+
+// ---------------------------------------------------------------------------
+// Scope resolution
+// ---------------------------------------------------------------------------
+
+/// Resolve a `Scope` against the current working set, returning the target
+/// object ids.
+///
+/// `Scope::Matching` filters against PRINTED characteristics via
+/// `target::matches` (correct for anthem-like effects whose filter describes
+/// printed types; the derived-map upgrade is a documented later limitation).
+///
+/// `Scope::Of` and `Scope::These` (reference resolution) return empty — a
+/// seam for a later task.
+fn resolve_scope(
+    state: &GameState,
+    working: &BTreeMap<ObjectId, Characteristics>,
+    scope: &Scope,
+) -> Vec<ObjectId> {
+    match scope {
+        Scope::Matching(filter) => working
+            .keys()
+            .copied()
+            .filter(|&id| crate::target::matches(state, id, filter))
+            .collect(),
+        Scope::Of(_) | Scope::These(_) => {
+            // Reference resolution is a later task.
+            Vec::new()
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Apply
+// ---------------------------------------------------------------------------
+
+/// Evaluate a `Count` to an `Int`. Only `Literal` is resolved here; all
+/// other variants default to `0` (documented limitation — CDAs and dynamic
+/// counts are a later task).
+fn eval_count(n: &Count) -> Int {
+    match n {
+        Count::Literal(v) => (*v).cast_signed(),
+        _ => 0,
+    }
+}
+
+/// Apply one `Modification` to `c` at its layer. Only P/T arms (7a-7d) are
+/// implemented; type/color/ability arms (4-6) are empty stubs for later tasks.
+/// ([CR#613.1b,613.1c,613.1d] deferred arms are also stubs.)
+#[allow(clippy::match_same_arms)] // stub arms will diverge as later tasks fill them
+fn apply(m: &Modification, c: &mut Characteristics) {
+    match m {
+        // --- Layer 7a / 7b: set base P/T ---
+        Modification::SetPower(n) => c.power = Some(eval_count(n)),
+        Modification::SetToughness(n) => c.toughness = Some(eval_count(n)),
+        // --- Layer 7c: add/subtract P/T ---
+        Modification::AddPower(n) => {
+            c.power = Some(c.power.unwrap_or(0) + eval_count(n));
+        }
+        Modification::AddToughness(n) => {
+            c.toughness = Some(c.toughness.unwrap_or(0) + eval_count(n));
+        }
+        // --- Layer 7d: switch ---
+        Modification::SwitchPowerToughness => std::mem::swap(&mut c.power, &mut c.toughness),
+        // --- Layer 4: type-changing (later task) ---
+        Modification::SetCardTypes(_)
+        | Modification::AddCardTypes(_)
+        | Modification::SetSubtypes(_)
+        | Modification::AddSubtypes(_)
+        | Modification::SetSupertypes(_)
+        | Modification::AddSupertypes(_)
+        | Modification::BecomeBasicLandType(_) => {}
+        // --- Layer 5: color-changing (later task) ---
+        Modification::SetColors(_) | Modification::AddColors(_) => {}
+        // --- Layer 6: ability-adding/removing (later task) ---
+        Modification::GainAbility(_)
+        | Modification::LoseAbility(_)
+        | Modification::LoseAllAbilities
+        | Modification::CantHaveAbility(_) => {}
+        // --- Deferred ([CR#613.1b,613.1c,613.1d]) ---
+        Modification::SetController(_)
+        | Modification::SetText(_)
+        | Modification::SetBaseLoyalty(_)
+        | Modification::SetBaseDefense(_) => {
+            // [CR#613.1b/c/d] deferred
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// GameState::layers
+// ---------------------------------------------------------------------------
+
 impl GameState {
     /// Derive every object's characteristics ([CR#613.5]: fresh, continuously).
     /// Recomputed on each call; callers that need many lookups call once and
@@ -116,14 +317,68 @@ impl GameState {
     /// set in the rules sense.
     #[must_use]
     pub fn layers(&self) -> LayeredView {
-        let mut working = BTreeMap::new();
+        // Step 1: base values for all card-backed objects.
+        let mut working: BTreeMap<ObjectId, Characteristics> = BTreeMap::new();
         for obj in self.objects.iter() {
             if obj.card_id().is_none() {
                 continue; // player proxy — no characteristics
             }
             working.insert(obj.id, base_values(self, obj.id));
         }
-        // Layers 4-7 apply here (later tasks). Base values only for now.
+
+        // Step 2: gather all active static Modify effects.
+        let mut effects = gather(self);
+
+        // Step 3: iterate layers in order, applying each effect's ops that
+        // belong to this layer ([CR#613.3]).
+        for layer in [
+            Layer::L4,
+            Layer::L5,
+            Layer::L6,
+            Layer::L7a,
+            Layer::L7b,
+            Layer::L7c,
+            Layer::L7d,
+        ] {
+            // Indices of effects that have at least one op in this layer.
+            let mut order: Vec<usize> = (0..effects.len())
+                .filter(|&i| {
+                    effects[i]
+                        .changes
+                        .iter()
+                        .any(|m| layer_of(m, effects[i].is_cda) == Some(layer))
+                })
+                .collect();
+
+            // Sort: CDAs first ([CR#613.3]), then by timestamp ([CR#613.7]).
+            // Dependency ordering ([CR#613.8]) is a deferred seam.
+            order.sort_by_key(|&i| (!effects[i].is_cda, effects[i].timestamp));
+
+            for i in order {
+                // Lock the target set at first applied layer ([CR#613.6]).
+                if effects[i].locked.is_none() {
+                    let targets = resolve_scope(self, &working, &effects[i].scope);
+                    effects[i].locked = Some(targets);
+                }
+                // `locked` is always `Some` here — either it was set just above
+                // or it was set in an earlier layer iteration.
+                let Some(targets) = effects[i].locked.as_deref() else {
+                    unreachable!("locked is always set before this point")
+                };
+                let targets: Vec<ObjectId> = targets.to_vec();
+                let is_cda = effects[i].is_cda;
+                for obj_id in targets {
+                    if let Some(c) = working.get_mut(&obj_id) {
+                        for m in &effects[i].changes {
+                            if layer_of(m, is_cda) == Some(layer) {
+                                apply(m, c);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         LayeredView(working)
     }
 }
