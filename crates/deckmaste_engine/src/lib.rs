@@ -11,6 +11,9 @@ pub use agenda::WorkItem;
 mod cast;
 pub use cast::Payment;
 
+mod combat;
+pub use combat::CombatState;
+
 mod decide;
 pub use decide::{Action, Decision, DecisionError, PendingDecision};
 
