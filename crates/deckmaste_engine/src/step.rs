@@ -51,6 +51,9 @@ pub enum Progress {
     /// forced — the batch was dealt immediately; otherwise the first
     /// `AssignCombatDamage` decision has surfaced).
     CombatDamageOpened { deciding: Uint },
+    /// [CR#511.3]: the End of Combat step's turn-based action ran — every
+    /// creature was removed from combat (the combat-state registry cleared).
+    CombatEnded,
     /// A priority decision was surfaced for this player.
     PriorityOpened(PlayerId),
     /// [CR#601.2a,601.2b]: a spell moved to the stack and the announce slot opened.
@@ -93,6 +96,7 @@ impl GameState {
             WorkItem::DeclareAttackers => self.declare_attackers(),
             WorkItem::DeclareBlockers => self.declare_blockers(),
             WorkItem::AssignCombatDamage => self.assign_combat_damage(),
+            WorkItem::EndOfCombat => self.end_of_combat(),
             WorkItem::OpenPriority => self.open_priority(),
             WorkItem::BeginCast(object) => {
                 self.begin_cast(object);
@@ -345,7 +349,14 @@ impl GameState {
         //    from the store; mint a fresh object into `to`.
         match from {
             Some(Zone::Stack) => self.remove_stack_entry(object),
-            Some(Zone::Battlefield) => self.remove_from_battlefield(object),
+            Some(Zone::Battlefield) => {
+                // [CR#506.4]: an object that leaves the battlefield is removed
+                // from combat. Prune the OLD/leaving id (not a reminted one) from
+                // the combat registry immediately, so a creature that dies/leaves
+                // mid-combat stops being tracked as an attacker/blocker at once.
+                self.combat.remove_object(object);
+                self.remove_from_battlefield(object);
+            }
             Some(Zone::Hand) => {
                 let owner = self.owner_of(object);
                 self.remove_from_hand(owner, object);
@@ -525,6 +536,11 @@ impl GameState {
                 vec![WorkItem::AssignCombatDamage]
             }
             Phase::Combat(CombatStep::CombatDamage) => vec![],
+            // [CR#511.1]: the End of Combat step has NO turn-based actions — the
+            // removal-from-combat ([CR#511.3]) happens as the step *ends*, after
+            // its priority window, scheduled from `end_of_step_items` (so an
+            // "at end of combat" trigger resolving during that priority can still
+            // read combat state).
             // [CR#514.1]: discard to hand size — checked after StepBegan.
             // [CR#514.2]: marked damage is removed from all permanents.
             Phase::Ending(EndingStep::Cleanup) => {
@@ -583,6 +599,11 @@ impl GameState {
             .filter(|p| !p.lost && !p.mana_pool.is_empty())
             .map(|p| WorkItem::Emit(Occurrence::single(GameEvent::ManaEmptied(p.id))))
             .collect();
+        // [CR#511.3]: removal from combat happens as the End of Combat step ends
+        // — after its priority window, before the next step begins.
+        if self.turn.current == Phase::Combat(CombatStep::EndOfCombat) {
+            items.push(WorkItem::EndOfCombat);
+        }
         items.push(WorkItem::BeginStep(
             successor(self.turn.current).unwrap_or(Phase::Beginning(BeginningStep::Untap)),
         ));
@@ -701,6 +722,17 @@ impl GameState {
         // Surface the first deciding source, or deal the batch now if none.
         self.open_next_assignment();
         Progress::CombatDamageOpened { deciding }
+    }
+
+    /// [CR#511.3]: removal from combat, run as the End of Combat step *ends*
+    /// (scheduled from `end_of_step_items` after the step's priority window,
+    /// not as a turn-based action — [CR#511.1] gives this step none).
+    /// Clears the registry so a later combat phase (and any SBA/other
+    /// reader) never sees stale (reminted/dead) attacker/blocker
+    /// designations.
+    fn end_of_combat(&mut self) -> Progress {
+        self.combat.clear();
+        Progress::CombatEnded
     }
 
     /// Assigns one source's combat damage. 0 power → nothing ([CR#510.1a]); 1

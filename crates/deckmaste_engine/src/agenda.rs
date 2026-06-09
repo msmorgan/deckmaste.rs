@@ -30,6 +30,9 @@ pub enum WorkItem {
     /// `AssignCombatDamage` decision for each multi-recipient one), then deal
     /// it all as one simultaneous batch ([CR#510.2]).
     AssignCombatDamage,
+    /// [CR#511.3]: the End of Combat step's turn-based action — remove every
+    /// creature from combat by clearing the combat-state registry.
+    EndOfCombat,
     /// Surface `pending = Priority { .. }`.
     OpenPriority,
     /// [CR#601.2a,601.2b]: move the spell to the stack and open the announce slot.

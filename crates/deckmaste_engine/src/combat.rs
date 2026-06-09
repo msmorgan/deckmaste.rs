@@ -76,7 +76,6 @@ impl CombatState {
     /// `blocked`, and its `blockers` entry. As a blocker: dropped from `blocks`
     /// and from every attacker's live-blocker vec — but the attacker stays
     /// `blocked` (sticky, [CR#509.1h]).
-    #[allow(dead_code)]
     pub(crate) fn remove_object(&mut self, o: ObjectId) {
         self.attackers.retain(|&a| a != o);
         self.blocked.remove(&o);
@@ -88,7 +87,6 @@ impl CombatState {
     }
 
     /// Clears all combat designations ([CR#511.3]).
-    #[allow(dead_code)]
     pub(crate) fn clear(&mut self) {
         self.attackers.clear();
         self.blocks.clear();

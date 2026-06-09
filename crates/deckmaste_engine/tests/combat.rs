@@ -640,6 +640,202 @@ fn pass_to_stop_after(state: &mut GameState, decision: Decision) -> (Vec<Progres
     pass_to_stop(state)
 }
 
+// --- end of combat + mid-combat prune + attacks trigger ----------------------
+
+/// Drives on to the post-combat main phase, passing every priority and
+/// declaring no further attackers/blockers. Reaching `PostcombatMain` means the
+/// End of Combat step (and its turn-based clear, [CR#511.3]) has run.
+fn pass_to_postcombat_main(state: &mut GameState) {
+    loop {
+        match state.step() {
+            StepOutcome::Progress(Progress::Advanced(Phase::PostcombatMain)) => return,
+            StepOutcome::Progress(_) => {}
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { .. }) => {
+                state.submit_decision(Decision::Blocks(vec![])).unwrap();
+            }
+            StepOutcome::NeedsDecision(other) => panic!("unexpected decision: {other:?}"),
+            StepOutcome::GameOver(o) => panic!("game ended early: {o:?}"),
+        }
+    }
+}
+
+/// Drives a freshly-built game to the Declare Attackers decision, declares
+/// `attackers`, then declares `blocks` at the Declare Blockers step, stopping
+/// the instant the **Combat Damage** step's turn-based action is reached — i.e.
+/// after damage has been dealt but before the End of Combat step runs. (Like
+/// `drive_through_blocks`, but it stops at the post-damage priority instead of
+/// passing it onward.)
+fn drive_to_combat_damage_done(
+    state: &mut GameState,
+    attackers: Vec<ObjectId>,
+    blocks: Vec<(ObjectId, ObjectId)>,
+) {
+    let (_t, stop) = pass_to_stop(state);
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+        panic!("expected DeclareAttackers, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Attackers(attackers))
+        .unwrap();
+    // Reach the Declare Blockers decision and declare the blocks.
+    let mut blocks = Some(blocks);
+    loop {
+        // Stop at the first priority decision once we're in the Combat Damage
+        // step — by then damage has been dealt but End of Combat hasn't run.
+        if state.turn.current == Phase::Combat(CombatStep::CombatDamage)
+            && matches!(state.pending, Some(PendingDecision::Priority { .. }))
+        {
+            return;
+        }
+        match state.step() {
+            StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { .. }) => {
+                state
+                    .submit_decision(Decision::Blocks(blocks.take().unwrap()))
+                    .unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            StepOutcome::Progress(_) => {}
+            StepOutcome::NeedsDecision(other) => panic!("unexpected decision: {other:?}"),
+            StepOutcome::GameOver(o) => panic!("game ended early: {o:?}"),
+        }
+    }
+}
+
+/// [CR#511.3]: when the End of Combat step ends, all creatures are removed from
+/// combat. An unblocked attacker survives the phase; once play reaches the
+/// post-combat main phase, `state.combat` is empty — no stale attacker/blocked
+/// designation lingers.
+#[test]
+fn end_of_combat_clears_combat_state() {
+    let mut state = two_player_decks("Vanilla 3/3", "Vanilla Creature", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla 3/3");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+
+    // Attack with the 3/3; the 2/2 blocks it. The 3/3 deals 3 (lethal to the
+    // 2/2) and takes 2 — it survives the phase. Drive just past damage, with
+    // combat still live.
+    drive_to_combat_damage_done(&mut state, vec![attacker], vec![(blocker, attacker)]);
+    // While combat is live the surviving attacker is still recorded.
+    assert!(
+        on_battlefield(&state, attacker),
+        "the 3/3 took only 2 and survives to End of Combat"
+    );
+    assert!(
+        state.combat.is_attacking(attacker),
+        "the attacker is recorded during combat"
+    );
+    assert!(
+        state.combat.is_blocked(attacker),
+        "the blocked designation is set during combat"
+    );
+
+    // Run the End of Combat step's clear by passing priority into the post-combat
+    // main phase.
+    pass_to_postcombat_main(&mut state);
+
+    // [CR#511.3]: every designation is gone.
+    assert!(
+        state.combat.attackers().is_empty(),
+        "no attackers remain after End of Combat ([CR#511.3])"
+    );
+    assert!(
+        !state.combat.is_attacking(attacker),
+        "the surviving attacker is no longer designated as attacking"
+    );
+    assert!(
+        !state.combat.is_blocked(attacker),
+        "the blocked designation is cleared too"
+    );
+}
+
+/// [CR#506.4]: a creature that leaves the battlefield is removed from combat
+/// immediately. A 2/2 attacker and 2/2 blocker trade in the combat-damage SBA;
+/// once both are dead their (now-reminted-away) ids are pruned from the combat
+/// registry the instant they leave — they are not in `attackers()` and the
+/// blocker is no longer recorded against the attacker.
+#[test]
+fn mid_combat_death_prunes_combat_state() {
+    let mut state = two_player_with("Vanilla Creature", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+
+    let _stop = drive_through_blocks(&mut state, vec![attacker], vec![(blocker, attacker)]);
+
+    // Both 2/2s took 2 and died in the damage SBA.
+    assert!(
+        !on_battlefield(&state, attacker),
+        "the attacker traded away"
+    );
+    assert!(!on_battlefield(&state, blocker), "the blocker traded away");
+
+    // [CR#506.4]: each was pruned from combat the moment it left the battlefield,
+    // even before End of Combat. The dead ids are stale (death remints), so check
+    // by id that they are absent.
+    assert!(
+        !state.combat.attackers().contains(&attacker),
+        "the dead attacker is pruned from the attacker list ([CR#506.4])"
+    );
+    assert!(
+        state.combat.blockers_of(attacker).is_empty(),
+        "the dead blocker is pruned from the attacker's live blockers ([CR#506.4])"
+    );
+    assert_eq!(
+        state.combat.attacker_of(blocker),
+        None,
+        "the dead blocker is gone from the blocks map ([CR#506.4])"
+    );
+}
+
+/// [CR#508.1a], [CR#603.6]: a creature with a "whenever ~ attacks" trigger
+/// (`StateBecomes(of: Is(This), becomes: Attacking)`) declared as an attacker
+/// fires its trigger — the `Attacking` event reached the trigger stage — and,
+/// once it resolves, the controller loses 1 life.
+#[test]
+fn attacks_trigger_fires_and_resolves() {
+    let mut state = two_player_decks("Attacks trigger", "Vanilla Creature", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Attacks trigger");
+
+    let p0_life_before = state.players[0].life;
+
+    // Drive to Declare Attackers and declare the triggered creature.
+    let (_trace, stop) = pass_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+        panic!("expected a DeclareAttackers decision, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Attackers(vec![attacker]))
+        .unwrap();
+
+    // The Attacking event reaches the trigger stage: a TriggerFired for this
+    // creature's ability appears in the step trace.
+    let (trace, _stop) = step_to_stop(&mut state);
+    let fired = trace.iter().any(|p| {
+        matches!(
+            p,
+            Progress::Applied(Occurrence::Single(GameEvent::TriggerFired { source, .. }))
+                if *source == state.objects.obj(attacker).source
+        )
+    });
+    assert!(
+        fired,
+        "the attacks-trigger fired (the Attacking event reached the trigger stage): {trace:?}"
+    );
+
+    // Pass priority through the trigger's placement + resolution; the controller
+    // (P0) loses 1 life.
+    pass_to_postcombat_main(&mut state);
+    assert_eq!(
+        state.players[0].life,
+        p0_life_before - 1,
+        "the resolved LoseLife(1) cost the controller 1 life"
+    );
+}
+
 /// [CR#508.8]: with no attackers declared, the Declare Blockers step is skipped
 /// — no `DeclareBlockers` decision surfaces and play proceeds.
 #[test]

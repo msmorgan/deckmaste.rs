@@ -9,8 +9,8 @@
 //! scheduling/agenda-touching functions.
 
 use deckmaste_core::{
-    Ability, CharacteristicFilter, Condition, Event, Filter, Reference, TargetSpec, Type, Uint,
-    Zone,
+    Ability, CharacteristicFilter, Condition, Event, Filter, Reference, StateFilterEvent,
+    TargetSpec, Type, Uint, Zone,
 };
 
 use crate::agenda::WorkItem;
@@ -100,7 +100,53 @@ impl GameState {
                 matches!(event, GameEvent::StepBegan(s) if s == step)
             }
 
+            // [CR#603.2e]: a "becomes [state]" transition. The `Attacking`
+            // designation ([CR#508.1a]) is a live event ([CR#603.6] — it reaches
+            // the trigger stage like any occurrence): match `GameEvent::Attacking`
+            // against the `becomes` state and run the `of` filter against the
+            // still-live attacking object. ("Becomes blocked" [CR#509.3c] is
+            // deliberately NOT wired here: a creature blocked by N blockers emits
+            // N `Blocked` events, so a naive point-wise match would fire it N
+            // times instead of once — it needs once-per-attacker dedup, deferred
+            // until a fixture forces it.)
+            Event::StateBecomes { of, becomes } => {
+                let live = match (becomes, event) {
+                    (StateFilterEvent::Attacking, GameEvent::Attacking(o)) => Some(*o),
+                    _ => None,
+                };
+                live.is_some_and(|o| self.filter_matches_live(of, o, watcher))
+            }
+
             other => todo!("stage 3 does not match trigger event {other:?}"),
+        }
+    }
+
+    /// Evaluate `filter` against a *live* object `o` for an ability on
+    /// `watcher`.
+    ///
+    /// The live counterpart of
+    /// [`filter_matches_snapshot`](Self::filter_matches_snapshot):
+    /// the transitioning object (an attacker/blocked creature) is still on the
+    /// battlefield, so characteristics come from the live object via
+    /// [`crate::target::matches`]. The one arm `target::matches` can't evaluate
+    /// is `Is(This)` ([CR#603.10a] self-reference, which needs the `watcher`);
+    /// that is special-cased here (and threaded through the logical
+    /// combinators).
+    fn filter_matches_live(&self, filter: &Filter, o: ObjectId, watcher: ObjectSource) -> bool {
+        match filter {
+            // "this object": match only when `o` is the watching object.
+            Filter::Is(Reference::This) => self.objects.obj(o).source == watcher,
+
+            // Logical combinators: recurse so an `Is(This)` nested inside is
+            // still resolved against the watcher.
+            Filter::AllOf(fs) => fs.iter().all(|f| self.filter_matches_live(f, o, watcher)),
+            Filter::OneOf(fs) => fs.iter().any(|f| self.filter_matches_live(f, o, watcher)),
+            Filter::Not(f) => !self.filter_matches_live(f, o, watcher),
+            Filter::Expanded(e) => self.filter_matches_live(&e.value, o, watcher),
+
+            // Everything else (`Any`, "a creature", …) is a plain live-object
+            // characteristic test.
+            other => crate::target::matches(self, o, other),
         }
     }
 
