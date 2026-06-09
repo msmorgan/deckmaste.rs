@@ -439,6 +439,31 @@ mod tests {
         assert_eq!(count, Count::X);
     }
 
+    /// A `Count` macro expands at the *position* slot of `PutInLibrary`,
+    /// read at an `Action` slot through the implicit-`You` embed. This is the
+    /// seam that lets a `CardsInLibrary(...)`-style macro name the bottom of
+    /// the library — the position stays macro-aware inside the 2-tuple verb.
+    #[test]
+    fn count_macro_expands_at_put_in_library_position() {
+        let mut macros = macro_set();
+        macros
+            .insert(&def(r#"(
+                    name: "DeckSize",
+                    kinds: [Count],
+                    body: CountOf(InZone(Library)),
+                )"#))
+            .unwrap();
+        let action: Action = macros.read_str("PutInLibrary(This, DeckSize)").unwrap();
+        let Action::By(Reference::You, PlayerAction::PutInLibrary(sel, pos)) = action else {
+            panic!("expected By(You, PutInLibrary(..)), got {action:?}");
+        };
+        assert_eq!(sel, Selection::Ref(Reference::This));
+        let Count::Expanded(expanded) = pos else {
+            panic!("expected a remembered count at the position, got {pos:?}");
+        };
+        assert_eq!(expanded.name, "DeckSize");
+    }
+
     /// `Color` is a registered param type, so a definition may declare it.
     #[test]
     fn color_is_a_registered_param_type() {

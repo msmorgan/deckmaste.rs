@@ -60,6 +60,12 @@ pub enum PlayerAction {
     Tap(Selection),
     /// Untap a selection ([CR#701.26b]).
     Untap(Selection),
+    /// Put a selection of cards into their owner's library at a `Count`
+    /// position counted from the top: `0` = top, `CardsInLibrary(owner)` =
+    /// bottom. An index past the bottom places the card on the bottom
+    /// ([CR#401.7]). When the selection is two or more cards, the owner
+    /// arranges them in any order ([CR#401.4]).
+    PutInLibrary(Selection, Count),
     /// A remembered `PlayerAction` macro invocation.
     Expanded(Expansion<PlayerAction>),
 }
@@ -173,6 +179,10 @@ fn player_action_from<'de, A: VariantAccess<'de>>(
         "Exile" => PlayerAction::Exile(v.newtype_variant()?),
         "Tap" => PlayerAction::Tap(v.newtype_variant()?),
         "Untap" => PlayerAction::Untap(v.newtype_variant()?),
+        "PutInLibrary" => {
+            let (sel, n) = v.tuple_variant(2, Pair::<Selection, Count>::new())?;
+            PlayerAction::PutInLibrary(sel, n)
+        }
         "Expanded" => PlayerAction::Expanded(v.newtype_variant()?),
         other => {
             return Err(de::Error::custom(format_args!(
@@ -240,6 +250,9 @@ impl Serialize for PlayerAction {
             }
             PlayerAction::Untap(sel) => {
                 serializer.serialize_newtype_variant("PlayerAction", 9, "Untap", sel)
+            }
+            PlayerAction::PutInLibrary(sel, n) => {
+                serializer.serialize_newtype_variant("PlayerAction", 10, "PutInLibrary", &(sel, n))
             }
             // The invocation, not the struct.
             PlayerAction::Expanded(e) => e.serialize(serializer),
@@ -341,5 +354,32 @@ mod tests {
             "expected explicit By, got {written}"
         );
         assert_eq!(read(&written), v);
+    }
+
+    /// `PutInLibrary` under the implicit-`You` agent writes bare (no `By(`)
+    /// through the new 2-tuple `(Selection, Count)` serialize arm, and
+    /// round-trips back to the same value.
+    #[test]
+    fn put_in_library_round_trips_bare() {
+        let v = Action::By(
+            Reference::You,
+            PlayerAction::PutInLibrary(Selection::Ref(Reference::This), Count::Literal(0)),
+        );
+        let written = write(&v);
+        assert!(
+            !written.contains("By("),
+            "By(You, …) should write bare, got {written}"
+        );
+        assert_eq!(read(&written), v);
+    }
+
+    /// `PutInLibrary` is not cost-eligible — it isn't a self-directed cost
+    /// the payer can offer.
+    #[test]
+    fn put_in_library_is_not_cost_eligible() {
+        assert!(
+            !PlayerAction::PutInLibrary(Selection::Ref(Reference::This), Count::Literal(0))
+                .is_cost_eligible()
+        );
     }
 }

@@ -134,6 +134,7 @@ const VARIANTS: &[&str] = &[
     "Exile",
     "Tap",
     "Untap",
+    "PutInLibrary",
     // Structural forms.
     "Sequence",
     "Continuously",
@@ -196,6 +197,10 @@ impl<'de> Deserialize<'de> for Effect {
                     "Exile" => act_by_you(PlayerAction::Exile(v.newtype_variant()?)),
                     "Tap" => act_by_you(PlayerAction::Tap(v.newtype_variant()?)),
                     "Untap" => act_by_you(PlayerAction::Untap(v.newtype_variant()?)),
+                    "PutInLibrary" => {
+                        let (sel, n) = v.tuple_variant(2, Pair::<Selection, Count>::new())?;
+                        act_by_you(PlayerAction::PutInLibrary(sel, n))
+                    }
                     // --- Structural forms (inner-struct delegation) ---
                     "Sequence" => Effect::Sequence(v.newtype_variant()?),
                     "Continuously" => Effect::Continuously(v.newtype_variant()?),
@@ -300,6 +305,20 @@ mod tests {
         );
     }
 
+    /// Brainstorm's second half: a bare `PutInLibrary` reads at an effect slot
+    /// as the implicit-`You` default, with the position a `Count` (0 = top).
+    /// The 2-tuple `(Selection, Count)` exercises the `Pair` visitor.
+    #[test]
+    fn put_in_library_reads_at_effect_slot() {
+        assert_eq!(
+            read("PutInLibrary(This, Literal(0))"),
+            act_by_you(PlayerAction::PutInLibrary(
+                Selection::Ref(Reference::This),
+                Count::Literal(0),
+            )),
+        );
+    }
+
     /// An explicit player agent reads native — `By(Target(0), Draw(3))`.
     #[test]
     fn explicit_agent_reads_flat() {
@@ -355,6 +374,8 @@ mod tests {
             "Sequence([Draw(Literal(1)),GainLife(Literal(1))])",
             "May(effect:Draw(Literal(1)))",
             "ForEach(over:Type(Creature),effect:Draw(Literal(1)))",
+            // Brainstorm's shape: choose 2 cards, put them on top (position 0).
+            "PutInLibrary(Choose(Exactly(Literal(2)),InZone(Hand)),Literal(0))",
         ];
         for source in cases {
             let parsed = read(source);
