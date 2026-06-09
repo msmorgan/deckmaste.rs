@@ -903,6 +903,48 @@ fn vigilance_attacker_is_not_tapped() {
     );
 }
 
+/// [CR#702.15]: a lifelink creature's controller gains life equal to the damage
+/// it deals. An unblocked 2/2 with lifelink attacks: the defending player drops
+/// from 20 → 18, AND the attacking player (the lifelink source's controller)
+/// rises from 20 → 22.
+#[test]
+fn lifelink_unblocked_attacker_gains_life_for_controller() {
+    let mut state = two_player_decks("Lifelink Creature", "Vanilla Creature", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Lifelink Creature");
+    assert!(
+        has_keyword(&state, attacker, KeywordAbility::Lifelink),
+        "pre-condition: the fixture carries Keyword(Lifelink)"
+    );
+
+    assert_eq!(
+        state.players[0].life, 20,
+        "attacker's controller starts at 20"
+    );
+    assert_eq!(state.players[1].life, 20, "defender starts at 20");
+
+    let stop = drive_through_blocks(&mut state, vec![attacker], vec![]);
+    assert!(
+        !matches!(
+            stop,
+            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. })
+        ),
+        "unblocked attacker → forced (one recipient), no assignment decision: {stop:?}"
+    );
+
+    assert_eq!(
+        state.players[1].life, 18,
+        "the unblocked 2/2 lifelink dealt 2 to the defender (20 → 18, [CR#702.15])"
+    );
+    assert_eq!(
+        state.players[0].life, 22,
+        "the lifelink creature's controller gained 2 life (20 → 22, [CR#702.15])"
+    );
+    assert!(
+        on_battlefield(&state, attacker),
+        "the unblocked attacker took no damage and survives"
+    );
+}
+
 /// [CR#508.8]: with no attackers declared, the Declare Blockers step is skipped
 /// — no `DeclareBlockers` decision surfaces and play proceeds.
 #[test]
