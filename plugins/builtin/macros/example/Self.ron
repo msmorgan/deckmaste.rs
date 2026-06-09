@@ -1,7 +1,0 @@
-// The identity macro: expands to its argument, untouched.
-(
-    name: "Self",
-    kinds: [Subtype, Filter],
-    params: [Any],
-    body: Param(0),
-)

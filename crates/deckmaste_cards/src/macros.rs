@@ -79,6 +79,12 @@ pub fn param_types() -> ParamTypeSet {
             .map(drop)
             .map_err(|e| e.to_string())
     });
+    param_types.add("Filter", |src, macros| {
+        macros
+            .read_str::<deckmaste_core::Filter>(src)
+            .map(drop)
+            .map_err(|e| e.to_string())
+    });
     param_types
 }
 

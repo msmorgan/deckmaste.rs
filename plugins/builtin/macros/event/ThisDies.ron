@@ -1,0 +1,5 @@
+(
+    name: "ThisDies",
+    kinds: [Event],
+    body: Dies(Is(This)),
+)
