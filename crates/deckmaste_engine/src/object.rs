@@ -72,6 +72,10 @@ pub struct GameObject {
     pub controller: PlayerId,
     /// Meaningful only on the battlefield.
     pub tapped: bool,
+    /// [CR#302.6]: set when the object enters the battlefield, cleared at the
+    /// controller's turn start — a creature controlled continuously since the
+    /// turn began is not summoning-sick. Meaningful only on the battlefield.
+    pub summoning_sick: bool,
     /// Marked damage ([CR#120.3,704.5g]) — meaningful only on the battlefield.
     pub damage: Uint,
     /// `None` for a player proxy.
@@ -119,6 +123,7 @@ impl ObjectStore {
                 source,
                 controller,
                 tapped: false,
+                summoning_sick: false,
                 damage: 0,
                 zone,
             },

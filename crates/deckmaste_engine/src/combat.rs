@@ -3,7 +3,7 @@
 //! here — not as fields or tags on objects. Cleared at the end of the combat
 //! phase ([CR#511.3]).
 //!
-//! Modern rules have no damage-assignment-order step (`509.2` is just "the
+//! Modern rules have no damage-assignment-order step ([CR#509.2] is just "the
 //! active player gets priority"); a blocked creature's damage is divided among
 //! its blockers as its controller chooses at assignment time ([CR#510.1c]), so
 //! `blockers` is an unordered grouping, not a player-set order.

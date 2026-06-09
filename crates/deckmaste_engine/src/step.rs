@@ -344,6 +344,9 @@ impl GameState {
         let mut entering = enters.unwrap_or_default();
         if to == Zone::Battlefield {
             entering.tapped |= self.as_enters_status(snapshot.source).tapped;
+            // [CR#302.6]: a permanent entering the battlefield is summoning-sick
+            // until its controller's turn begins with it under continuous control.
+            self.objects.obj_mut(new).summoning_sick = true;
         }
         if entering.tapped {
             self.objects.obj_mut(new).tapped = true;
@@ -412,6 +415,16 @@ impl GameState {
         }
         for player in &mut self.players {
             player.this_turn.reset();
+        }
+        // [CR#302.6]: a creature the active player has controlled continuously
+        // since this turn began sheds summoning sickness. Collect ids first to
+        // satisfy the borrow checker (mirrors `clear_marked_damage`).
+        let active = self.turn.active_player;
+        let ids: Vec<_> = self.zones.battlefield.clone();
+        for id in ids {
+            if self.objects.obj(id).controller == active {
+                self.objects.obj_mut(id).summoning_sick = false;
+            }
         }
         GameEvent::TurnBegan {
             player: self.turn.active_player,
