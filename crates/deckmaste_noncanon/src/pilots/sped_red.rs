@@ -1,0 +1,173 @@
+//! The burn seat. Priors: always make the land drop; otherwise consider
+//! every (burn spell × target) line plus passing, and let lookahead pick.
+//! Combat is delegated to the Tactician.
+//!
+//! # Mana-float protocol
+//!
+//! The engine only surfaces `CastSpell` when the pool can already pay the
+//! cost. So the first time a new-priority window opens with `ActivateAbility`
+//! (mana ability) but no matching `CastSpell`, we look for hand spells that
+//! WOULD become castable after floating. We score the intended full line
+//! (float + cast + target) via `tac.score` — the rollout's sequential
+//! dispatch handles the float→cast→target sequence correctly. If the score
+//! beats passing we start floating immediately; on the next priority window
+//! (after each mana ability) the `PlannedQueue` answers subsequent floats, and
+//! once the pool can pay, the engine finally surfaces `CastSpell` which the
+//! queue handles too.
+
+use deckmaste_engine::Action;
+use deckmaste_engine::Decision;
+use deckmaste_engine::ObjectId;
+use deckmaste_engine::PendingDecision;
+
+use crate::lookahead::Horizon;
+use crate::lookahead::Line;
+use crate::lookahead::Tactician;
+use crate::observe::ObjView;
+use crate::observe::Observation;
+use crate::pilot::Pilot;
+use crate::pilot::PlannedQueue;
+use crate::pilot::mechanical;
+use crate::pilot::pool_total;
+
+#[derive(Default)]
+pub struct SpedRed {
+    planned: PlannedQueue,
+}
+
+impl Pilot for SpedRed {
+    fn decide(
+        &mut self,
+        obs: &Observation,
+        tac: &Tactician<'_>,
+        pending: &PendingDecision,
+    ) -> Decision {
+        if let Some(d) = self.planned.try_answer(pending) {
+            return d;
+        }
+        match pending {
+            PendingDecision::Priority { legal, .. } => {
+                // 1. Land drop, always.
+                if let Some(a) = legal.iter().find(|a| matches!(a, Action::PlayLand { .. })) {
+                    return Decision::Act(a.clone());
+                }
+                let mana_actions: Vec<Action> = legal
+                    .iter()
+                    .filter(|a| matches!(a, Action::ActivateAbility { .. }))
+                    .cloned()
+                    .collect();
+
+                // 2. Score every burn line (float* + cast + target), where the spell may or may
+                //    not already appear as CastSpell.  We enumerate spells in hand that are NOT
+                //    lands (Mountains sometimes appear as CastSpell with zero cost — ignore
+                //    them) and have at least one valid target.
+                let have = pool_total(&obs.my_pool);
+                let pass_score = tac.score(&Line::pass(), Horizon::EndOfTurn);
+                let mut best: Option<(i64, Line)> = None;
+
+                // Build the candidate cast-spell actions: prefer an explicit
+                // CastSpell entry (engine confirmed it's legal now) but also
+                // synthesize one for spells we can reach via floating.
+                let candidate_spells: Vec<(Action, &ObjView)> = {
+                    let mut v: Vec<(Action, &ObjView)> = Vec::new();
+                    for spell in obs.my_hand.iter().filter(|s| !s.is_land()) {
+                        let need = (spell.mana_value as usize).saturating_sub(have);
+                        if need > mana_actions.len() {
+                            continue; // can't afford even with all available mana
+                        }
+                        // Find the matching CastSpell action if present.
+                        let cast_action = legal
+                            .iter()
+                            .find(|a| matches!(a, Action::CastSpell { object } if *object == spell.id))
+                            .cloned();
+                        if let Some(cast) = cast_action {
+                            v.push((cast, spell));
+                        } else if need == 0 && have == 0 {
+                            // Pool is empty but cost is also zero — nothing to
+                            // float, and the engine would have surfaced it if
+                            // it were truly castable.  Skip.
+                        } else {
+                            // Not yet in legal (pool can't pay yet) but will be
+                            // once we float `need` mana.  Build the full
+                            // lookahead line to test legality via score.
+                            let cast = Action::CastSpell { object: spell.id };
+                            v.push((cast, spell));
+                        }
+                    }
+                    v
+                };
+
+                for (cast_action, spell) in candidate_spells {
+                    let mut targets: Vec<ObjectId> = vec![obs.opp_proxy];
+                    targets.extend(
+                        obs.opp_battlefield()
+                            .filter(|v| v.is_creature())
+                            .map(|v| v.id),
+                    );
+                    for t in targets {
+                        let Some(line) = build_burn_line(
+                            spell,
+                            Some(t),
+                            cast_action.clone(),
+                            &mana_actions,
+                            obs,
+                        ) else {
+                            continue;
+                        };
+                        let score = tac.score(&line, Horizon::EndOfTurn);
+                        if best.as_ref().is_none_or(|(b, _)| score > *b) {
+                            best = Some((score, line));
+                        }
+                    }
+                }
+                match best {
+                    Some((score, line)) if score > pass_score => {
+                        let mut queued = line.queued;
+                        let first = queued.remove(0);
+                        self.planned.plan(queued);
+                        first
+                    }
+                    _ => Decision::Act(Action::Pass),
+                }
+            }
+            PendingDecision::DeclareAttackers { legal, .. } => {
+                Decision::Attackers(tac.best_attack(legal))
+            }
+            PendingDecision::DeclareBlockers { legal, .. } => {
+                Decision::Blocks(tac.best_blocks(legal))
+            }
+            PendingDecision::ChooseTargets { legal, .. } => {
+                // A planned line normally answers this; if the plan was
+                // abandoned, fall back to the first candidates.
+                Decision::Targets(legal.iter().map(|c| c[0]).collect())
+            }
+            other => mechanical(obs, other),
+        }
+    }
+}
+
+/// Builds the float* + cast + target line for a burn spell.  Same logic as
+/// `crate::pilots::cast_line` but duplicated here to avoid the module
+/// circular dependency while keeping `sped_red` self-contained.
+fn build_burn_line(
+    spell: &ObjView,
+    target: Option<ObjectId>,
+    cast: Action,
+    mana_actions: &[Action],
+    obs: &Observation,
+) -> Option<Line> {
+    let have = pool_total(&obs.my_pool);
+    let need = (spell.mana_value as usize).saturating_sub(have);
+    if mana_actions.len() < need {
+        return None;
+    }
+    let mut queued: Vec<Decision> = mana_actions[..need]
+        .iter()
+        .map(|a| Decision::Act(a.clone()))
+        .collect();
+    queued.push(Decision::Act(cast));
+    if let Some(t) = target {
+        queued.push(Decision::Targets(vec![t]));
+    }
+    Some(Line::new(queued))
+}
