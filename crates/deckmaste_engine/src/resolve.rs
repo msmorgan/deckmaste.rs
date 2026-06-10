@@ -418,13 +418,13 @@ impl GameState {
     }
 
     /// A selection resolved to its full set ([CR#608.2d]). `Each` is the
-    /// distributive "for each matching object" and enumerates the set.
-    /// `Selection::Filter` is set-valued but stays an unreached seam here
-    /// (set-wide consumers take a `Filter` directly). Unary references resolve
-    /// to a 1-element set.
+    /// distributive "for each matching object" and `Filter` is the same
+    /// matching set taken at once — both enumerate here, since a per-object
+    /// instruction (deal damage, destroy) applies to every member either way.
+    /// Unary references resolve to a 1-element set.
     pub(crate) fn eval_selection_set(&self, sel: &Selection, frame: &Frame) -> Vec<ObjectId> {
         match sel {
-            Selection::Each(f) => crate::target::candidates(self, f),
+            Selection::Each(f) | Selection::Filter(f) => crate::target::candidates(self, f),
             other => vec![self.eval_selection(other, frame)],
         }
     }
@@ -491,7 +491,7 @@ impl GameState {
     /// Instant or Sorcery.
     ///
     /// [CR#110.1]: a permanent spell is one that would enter the battlefield on
-    /// resolution. Vanilla Creature → true; Instant `DealDamage` `AnyTarget` →
+    /// resolution. Grizzly Bears → true; Instant `DealDamage` `AnyTarget` →
     /// false.
     #[must_use]
     pub(crate) fn is_permanent_spell(&self, id: ObjectId) -> bool {
@@ -659,9 +659,9 @@ mod tests {
         Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
     }
 
-    fn testing() -> Plugin {
+    fn canon() -> Plugin {
         Plugin::load_with_sibling_prelude(
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/testing"),
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon"),
         )
         .unwrap()
     }
@@ -675,10 +675,10 @@ mod tests {
     /// `Selection::Ref(This)` — the common "this object" selection.
     fn sel_this() -> Selection { Selection::Ref(Reference::This) }
 
-    /// A two-player game; player 0's deck is Vanilla Creature.
+    /// A two-player game; player 0's deck is Grizzly Bears.
     /// Returns the state plus a creature object forced onto the battlefield.
     fn bear_on_field() -> (GameState, ObjectId) {
-        let bears = Arc::new(testing().card("Vanilla Creature").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
         let forest = Arc::new(builtin().card("Forest").unwrap());
         let mut state = GameState::new(GameConfig {
             players: vec![
@@ -704,7 +704,7 @@ mod tests {
                     )),
                 )
             })
-            .expect("a Vanilla Creature in the opening hand");
+            .expect("a Grizzly Bears in the opening hand");
         state.zones.hands[PlayerId(0).index()].retain(|&o| o != bear);
         state.objects.obj_mut(bear).zone = Some(Zone::Battlefield);
         state.zones.battlefield.push(bear);
@@ -779,7 +779,7 @@ mod tests {
     #[test]
     fn each_creature_yields_all_battlefield_creatures() {
         let (mut state, a) = bear_on_field();
-        // Force a second Vanilla Creature from player 0's hand onto the battlefield.
+        // Force a second Grizzly Bears from player 0's hand onto the battlefield.
         let b = *state.zones.hands[0]
             .iter()
             .find(|&&o| {
@@ -791,7 +791,7 @@ mod tests {
                     )),
                 )
             })
-            .expect("a second Vanilla Creature in the opening hand");
+            .expect("a second Grizzly Bears in the opening hand");
         state.zones.hands[PlayerId(0).index()].retain(|&o| o != b);
         state.objects.obj_mut(b).zone = Some(Zone::Battlefield);
         state.zones.battlefield.push(b);
@@ -875,7 +875,7 @@ mod tests {
                     )),
                 )
             })
-            .expect("a second Vanilla Creature in the opening hand");
+            .expect("a second Grizzly Bears in the opening hand");
         state.zones.hands[PlayerId(0).index()].retain(|&o| o != b);
         state.objects.obj_mut(b).zone = Some(Zone::Battlefield);
         state.zones.battlefield.push(b);
@@ -1057,11 +1057,7 @@ mod tests {
     fn sacrifice_fires_the_dying_objects_dies_trigger() {
         use crate::object::ObjectSource;
 
-        let card = Arc::new(
-            testing()
-                .card("Creature dies-trigger DealDamage AnyTarget")
-                .unwrap(),
-        );
+        let card = Arc::new(canon().card("Footlight Fiend").unwrap());
         let forest = Arc::new(builtin().card("Forest").unwrap());
         let mut state = GameState::new(GameConfig {
             players: vec![

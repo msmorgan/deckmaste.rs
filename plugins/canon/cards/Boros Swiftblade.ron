@@ -1,0 +1,17 @@
+// Hand-finished from pipeline output: bare keyword macro → intrinsic
+// Keyword(...) (the per-keyword macros are pending, see todo §6).
+Normal(
+    name: "Boros Swiftblade",
+    mana_cost: [
+        Red,
+        White,
+    ],
+    types: [Creature],
+    subtypes: [
+        Human,
+        Soldier,
+    ],
+    abilities: [Keyword(DoubleStrike)],
+    power: 1,
+    toughness: 2,
+)

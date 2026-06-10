@@ -99,19 +99,19 @@ mod tests {
         Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
     }
 
-    fn testing() -> Plugin {
+    fn canon() -> Plugin {
         Plugin::load_with_sibling_prelude(
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/testing"),
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon"),
         )
         .unwrap()
     }
 
     fn deck(card: &Arc<Card>, n: usize) -> Vec<Arc<Card>> { vec![Arc::clone(card); n] }
 
-    /// A two-player game; player 0's deck is Vanilla Creature.
+    /// A two-player game; player 0's deck is Grizzly Bears.
     /// Returns the state plus a creature object forced onto the battlefield.
     fn bear_on_field() -> (GameState, crate::object::ObjectId) {
-        let bears = Arc::new(testing().card("Vanilla Creature").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
         let forest = Arc::new(builtin().card("Forest").unwrap());
         let mut state = GameState::new(GameConfig {
             players: vec![
@@ -126,7 +126,7 @@ mod tests {
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
         });
-        // Force a Vanilla Creature from player 0's hand onto the battlefield.
+        // Force a Grizzly Bears from player 0's hand onto the battlefield.
         let bear = *state.zones.hands[0]
             .iter()
             .find(|&&o| {
@@ -138,7 +138,7 @@ mod tests {
                     )),
                 )
             })
-            .expect("a Vanilla Creature in the opening hand");
+            .expect("a Grizzly Bears in the opening hand");
         state.zones.hands[PlayerId(0).index()].retain(|&o| o != bear);
         state.objects.obj_mut(bear).zone = Some(Zone::Battlefield);
         state.zones.battlefield.push(bear);
@@ -149,7 +149,7 @@ mod tests {
     fn lethal_damage_destroys_a_creature_in_the_sba_sweep() {
         let (mut state, bear) = bear_on_field();
 
-        // Vanilla Creature has toughness 2; set lethal damage. The sweep emits
+        // Grizzly Bears has toughness 2; set lethal damage. The sweep emits
         // the destroy as a battlefield→graveyard ZoneWillChange (no snapshot —
         // captured later, at the will-change apply).
         state.objects.obj_mut(bear).damage = 2;
@@ -165,7 +165,7 @@ mod tests {
                     position: None,
                 } if *object == bear
             )),
-            "sweep should include a battlefield→graveyard ZoneWillChange for Vanilla Creature at lethal damage"
+            "sweep should include a battlefield→graveyard ZoneWillChange for Grizzly Bears at lethal damage"
         );
 
         // Sublethal: damage = 1 < toughness 2.
@@ -175,7 +175,7 @@ mod tests {
             actions
                 .iter()
                 .all(|e| !matches!(e, GameEvent::ZoneWillChange { .. })),
-            "sweep should NOT include a destroy for Vanilla Creature at sublethal damage"
+            "sweep should NOT include a destroy for Grizzly Bears at sublethal damage"
         );
     }
 
@@ -229,7 +229,7 @@ mod tests {
     #[test]
     fn destroy_remints_old_id_gone_new_in_graveyard() {
         let (mut state, bear) = bear_on_field();
-        // Vanilla Creature has toughness 2; set lethal damage.
+        // Grizzly Bears has toughness 2; set lethal damage.
         state.objects.obj_mut(bear).damage = 2;
         let actions = sba::sweep(&state);
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(actions))]);

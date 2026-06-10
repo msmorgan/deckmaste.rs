@@ -1,0 +1,18 @@
+// Hand-written ability: static prose is beyond the parsers today
+// ("All creatures lose all abilities and have base power and toughness 1/1.").
+Normal(
+    name: "Humility",
+    mana_cost: [
+        Generic(2),
+        White,
+        White,
+    ],
+    types: [Enchantment],
+    abilities: [
+        Static(effects: [
+            Modify(of: Matching(Type(Creature)), changes: [
+                LoseAllAbilities, SetPower(1), SetToughness(1),
+            ]),
+        ]),
+    ],
+)

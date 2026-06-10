@@ -1,0 +1,11 @@
+Normal(
+    name: "Walking Corpse",
+    mana_cost: [
+        Generic(1),
+        Black,
+    ],
+    types: [Creature],
+    subtypes: [Zombie],
+    power: 2,
+    toughness: 2,
+)

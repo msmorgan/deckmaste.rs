@@ -1,0 +1,11 @@
+Normal(
+    name: "Footlight Fiend",
+    mana_cost: [Hybrid(Black, Red)],
+    types: [Creature],
+    subtypes: [Devil],
+    abilities: [
+        Triggered(event: ThisDies, targets: [AnyTarget], effect: DealDamage(Target(0), 1)),
+    ],
+    power: 1,
+    toughness: 1,
+)

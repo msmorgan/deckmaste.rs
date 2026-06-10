@@ -1,0 +1,8 @@
+Normal(
+    name: "Willow Elf",
+    mana_cost: [Green],
+    types: [Creature],
+    subtypes: [Elf],
+    power: 1,
+    toughness: 1,
+)

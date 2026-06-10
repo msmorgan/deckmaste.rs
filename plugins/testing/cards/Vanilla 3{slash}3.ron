@@ -1,9 +1,0 @@
-// A plain 3/3 with no abilities — combat-damage fodder (an unblocked attacker
-// that drops a player from 20 to 17).
-Normal(
-    name: "Vanilla 3/3",
-    mana_cost: [Generic(2), Green],
-    types: [Creature],
-    power: 3,
-    toughness: 3,
-)

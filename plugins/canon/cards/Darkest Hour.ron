@@ -1,0 +1,12 @@
+// Hand-written ability: static prose is beyond the parsers today
+// ("All creatures are black.").
+Normal(
+    name: "Darkest Hour",
+    mana_cost: [Black],
+    types: [Enchantment],
+    abilities: [
+        Static(effects: [
+            Modify(of: Matching(Type(Creature)), changes: [SetColors([Black])]),
+        ]),
+    ],
+)

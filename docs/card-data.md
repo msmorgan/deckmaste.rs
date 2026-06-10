@@ -39,7 +39,9 @@ and art are WOTC's. A small, purposeful slice of name+behavior encodings
 
 ## Engine tests
 
-Engine tests default to fake cards from `plugins/testing` (descriptive
-names; `// modeled on <real card>` comments where relevant). Reach for canon
-cards when the real card is the point — pinning a real interaction
-end-to-end.
+Engine tests use real cards from `plugins/canon`. A fake belongs in
+`plugins/testing` ONLY when the behavior under test exists in no real card —
+verified against the full corpus (see that plugin's `cards/README.md` for the
+current residents and why each combo cannot be real). When a mechanic lands
+that makes a mock encodable with a real card, canonize the real card and
+delete the mock.
