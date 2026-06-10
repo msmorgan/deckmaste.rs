@@ -1,6 +1,12 @@
+//! Subtype definitions for a plugin: one `<Ident>.ron` per catalog subtype
+//! under `macros/types/<category>/`, written final (not as stubs) as a
+//! meta-macro invocation — `name:` the registration ident, `template:` the
+//! printed name.
+
 /// Filename for a subtype: capitalize the first character and strip
 /// non-alphanumerics, without splitting words (e.g. "Power-Plant" ->
-/// "`PowerPlant`", "Urza's" -> "Urzas").
+/// "`PowerPlant`", "Urza's" -> "Urzas"). Doubles as the macro's registration
+/// `name`, so it must stay a bare-invocable identifier.
 fn type_filename(name: &str) -> String {
     let mut chars = name.chars();
     chars
@@ -27,16 +33,31 @@ pub(super) fn generate(plugin: &super::PluginLayout) -> anyhow::Result<()> {
     for (category, prefix) in categories {
         let catalog_bytes = crate::data::scryfall::catalog_bytes(&format!("{category}-types"))?;
         let catalog = crate::data::scryfall::Catalog::parse(&catalog_bytes)?;
-        let dest_dir = plugin.types_dir(category)?;
+        let dest_dir = plugin.subtype_macros_dir(category)?;
+        let mut idents: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
         for subtype in &catalog.data {
+            let ident = type_filename(subtype);
+            // Two printed names must not chop to one ident: the second
+            // would silently skip behind `is_unimplemented`.
+            if let Some(previous) = idents.insert(ident.clone(), subtype.to_string()) {
+                anyhow::bail!(
+                    "subtype idents collide: {previous:?} and {subtype:?} both produce `{ident}`"
+                );
+            }
             // Subtypes are written final, not as stubs: skip once the
             // definition exists (generated here or hand-edited).
-            let dest = dest_dir.join(format!("{}.ron", type_filename(subtype)));
+            let dest = dest_dir.join(format!("{ident}.ron"));
             if !super::is_unimplemented(&dest) {
                 continue;
             }
-
-            std::fs::write(&dest, format!("{prefix}Type(\"{subtype}\")\n"))?;
+            // `name` is the registration ident (what cards invoke);
+            // `template` is the printed name — inert metadata today,
+            // reserved for rules-text rendering.
+            std::fs::write(
+                &dest,
+                format!("{prefix}Type(name: \"{ident}\", template: \"{subtype}\")\n"),
+            )?;
             eprintln!("wrote {}", dest.display());
         }
     }

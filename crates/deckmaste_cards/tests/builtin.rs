@@ -1,5 +1,5 @@
-//! Loads the builtin plugin's real data files: subtype macro definitions,
-//! the subtype declarations invoking them, and the basic land cards whose
+//! Loads the builtin plugin's real data files: subtype meta-macros,
+//! the meta-produced instance definitions, and the basic land cards whose
 //! type lines reference the result.
 
 use std::path::{Path, PathBuf};
@@ -86,7 +86,7 @@ fn builtin_cards_are_valid() {
 fn basic_lands_parse_against_the_subtype_macros() {
     let plugin = builtin();
     assert!(
-        plugin.macros.get("Subtype", "LandType").is_some(),
+        plugin.macros.get("Macro", "LandType").is_some(),
         "LandType macro missing"
     );
 

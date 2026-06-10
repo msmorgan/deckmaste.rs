@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use deckmaste_core::plugin::{
-    ABILITY_WORDS_DIR, CARDS_DIR, KEYWORD_ABILITIES_DIR, KEYWORD_ACTIONS_DIR, TYPES_DIR,
+    ABILITY_WORDS_DIR, CARDS_DIR, KEYWORD_ABILITIES_DIR, KEYWORD_ACTIONS_DIR, MACROS_DIR,
 };
 
 pub struct PluginLayout(PathBuf);
@@ -45,8 +45,10 @@ impl PluginLayout {
 
     pub fn ability_words_dir(&self) -> anyhow::Result<PathBuf> { self.dir(ABILITY_WORDS_DIR) }
 
-    pub fn types_dir(&self, category: &str) -> anyhow::Result<PathBuf> {
-        self.dir(&format!("{TYPES_DIR}/{category}"))
+    /// Where a category's subtype-definition macros live: under `macros/`,
+    /// since they are ordinary (meta-produced) macro definitions.
+    pub fn subtype_macros_dir(&self, category: &str) -> anyhow::Result<PathBuf> {
+        self.dir(&format!("{MACROS_DIR}/types/{category}"))
     }
 
     pub fn cards_dir(&self) -> anyhow::Result<PathBuf> { self.dir(CARDS_DIR) }

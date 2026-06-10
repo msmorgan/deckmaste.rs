@@ -1,15 +1,14 @@
-//! Loading a plugin directory: macro definitions, the subtype declarations
-//! invoking them, and cards.
+//! Loading a plugin directory: macro definitions and cards.
 //!
-//! Directories carry a file's *role* (`macros/`, `types/`, `cards/`);
+//! Directories carry a file's *role* (`macros/`, `cards/`);
 //! everything below them is organizational, and names come from file
-//! contents.
+//! contents. Subtype definitions are ordinary macros, usually meta-produced.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
-use deckmaste_core::plugin::{MACROS_DIR, TYPES_DIR, card_path, token_path};
+use deckmaste_core::plugin::{MACROS_DIR, card_path, token_path};
 use deckmaste_core::{Card, Ident, Subtype, Token};
 
 use crate::macros::{InsertError, MacroDef, MacroSet, macro_set};
@@ -17,10 +16,13 @@ use crate::macros::{InsertError, MacroDef, MacroSet, macro_set};
 /// A plugin directory with its macro layer loaded and expanded.
 pub struct Plugin {
     root: PathBuf,
-    /// The macros in scope: definitions from `macros/`, plus every declared
-    /// subtype as a nullary macro.
+    /// The macros in scope: definitions from `macros/`, including every
+    /// subtype definition, usually produced by a meta-macro.
     pub macros: MacroSet,
-    /// The subtypes declared by `types/`, fully expanded.
+    /// The subtypes defined by `macros/`, fully expanded — keyed by the
+    /// value's **printed name** (what card values carry and the lint looks
+    /// up), not the macro's registration ident; the two differ for names
+    /// like "Time Lord"/`TimeLord`.
     pub subtypes: HashMap<Ident, Subtype>,
 }
 
@@ -127,8 +129,7 @@ impl Plugin {
             }
             if failures.len() == attempted {
                 let (path, _, error) = failures.swap_remove(0);
-                return Err(anyhow::Error::new(error))
-                    .with_context(|| format!(r#"loading "{}""#, path.display()));
+                return Err(error).with_context(|| format!(r#"loading "{}""#, path.display()));
             }
             pending = failures
                 .into_iter()
@@ -144,47 +145,6 @@ impl Plugin {
                 .read_str(name.as_str())
                 .with_context(|| format!("expanding subtype `{name}`"))?;
             subtypes.insert(subtype.name, subtype);
-        }
-
-        // A declaration joins the macro scope as a nullary macro whose body
-        // is the file's source, verbatim; expanding it here both validates
-        // it and fills the subtype table. Declarations may reference each
-        // other regardless of file order, so failures are retried until a
-        // pass stops making progress — only then is the first one real.
-        let mut pending = Vec::new();
-        for path in ron_files_recursive(&root.join(TYPES_DIR))? {
-            let declaration = read(&path)?;
-            pending.push((path, declaration));
-        }
-        while !pending.is_empty() {
-            let attempted = pending.len();
-            let mut failures = Vec::new();
-            for (path, declaration) in pending {
-                match macros.read_str::<Subtype>(&declaration) {
-                    Ok(subtype) => {
-                        if !own.insert(("Subtype".into(), subtype.name)) {
-                            return Err(InsertError::Duplicate {
-                                kind: "Subtype".into(),
-                                name: subtype.name,
-                            })
-                            .with_context(|| format!(r#"declaring "{}""#, path.display()));
-                        }
-                        macros
-                            .redeclare("Subtype", subtype.name, &declaration)
-                            .with_context(|| format!(r#"declaring "{}""#, path.display()))?;
-                        subtypes.insert(subtype.name, subtype);
-                    }
-                    Err(error) => failures.push((path, declaration, error)),
-                }
-            }
-            if failures.len() == attempted {
-                let (path, _, error) = failures.swap_remove(0);
-                return Err(error).with_context(|| format!(r#"expanding "{}""#, path.display()));
-            }
-            pending = failures
-                .into_iter()
-                .map(|(path, declaration, _)| (path, declaration))
-                .collect();
         }
 
         Ok(Self {
@@ -277,7 +237,7 @@ mod tests {
     #[test]
     fn sibling_prelude_brings_builtin_subtypes() {
         let wizards = Plugin::load_with_sibling_prelude(plugins().join("wizards")).unwrap();
-        // Declared in builtin/types/land, visible through the prelude.
+        // Declared in builtin/macros/types/land, visible through the prelude.
         assert!(wizards.subtypes.contains_key("Plains"));
         // wizards' own declarations load on top.
         assert!(wizards.subtypes.contains_key("Cave"));
@@ -290,15 +250,14 @@ mod tests {
     }
 
     /// Last plugin wins: a redeclaration overrides the prelude's version
-    /// rather than erroring. wizards hits this for real — `_003` generates
+    /// rather than erroring. wizards hits this for real — it generates
     /// the full subtype set, overlapping builtin's declarations.
     #[test]
     fn redeclarations_override_the_prelude() {
         let mut prelude = Plugin::load(plugins().join("builtin")).unwrap();
         prelude.subtypes.get_mut("Plains").unwrap().types = vec![Type::Creature];
         let layered = Plugin::load_with_prelude(&prelude, plugins().join("builtin")).unwrap();
-        // builtin's own LandType("Plains") declaration replaced the
-        // doctored prelude entry.
+        // builtin's own Plains definition replaced the doctored prelude entry.
         assert_eq!(layered.subtypes["Plains"].types, [Type::Land]);
     }
 
@@ -348,14 +307,15 @@ mod tests {
     }
 
     /// Within one plugin, file order is alphabetical happenstance: two
-    /// declarations of one name are an error, not "last wins".
+    /// definitions of one name are an error, not "last wins".
     #[test]
     fn duplicates_within_a_plugin_error() {
         let root = tempfile::tempdir().unwrap();
-        let types = root.path().join("types");
-        std::fs::create_dir_all(&types).unwrap();
-        std::fs::write(types.join("A.ron"), r#"Subtype(name: "X", types: [Land])"#).unwrap();
-        std::fs::write(types.join("B.ron"), r#"Subtype(name: "X", types: [Land])"#).unwrap();
+        let macros_dir = root.path().join("macros");
+        std::fs::create_dir_all(&macros_dir).unwrap();
+        let def = r#"(name: "X", kinds: [Subtype], body: Subtype(name: "X", types: [Land]))"#;
+        std::fs::write(macros_dir.join("A.ron"), def).unwrap();
+        std::fs::write(macros_dir.join("B.ron"), def).unwrap();
         let err = Plugin::load(root.path())
             .err()
             .expect("expected duplicate error");
