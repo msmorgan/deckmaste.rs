@@ -1,0 +1,17 @@
+// Hand-finished from pipeline output: bare keyword macro → intrinsic
+// Keyword(...) (the per-keyword macros are pending, see todo §6).
+Normal(
+    name: "Steadfast Paladin",
+    mana_cost: [
+        Generic(1),
+        White,
+    ],
+    types: [Creature],
+    subtypes: [
+        Dwarf,
+        Knight,
+    ],
+    abilities: [Keyword(Lifelink)],
+    power: 2,
+    toughness: 2,
+)

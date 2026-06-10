@@ -1,0 +1,14 @@
+Normal(
+    name: "Grizzled Outrider",
+    mana_cost: [
+        Generic(4),
+        Green,
+    ],
+    types: [Creature],
+    subtypes: [
+        Elf,
+        Warrior,
+    ],
+    power: 5,
+    toughness: 5,
+)

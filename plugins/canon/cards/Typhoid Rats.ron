@@ -1,0 +1,11 @@
+// Hand-finished from pipeline output: bare keyword macro → intrinsic
+// Keyword(...) (the per-keyword macros are pending, see todo §6).
+Normal(
+    name: "Typhoid Rats",
+    mana_cost: [Black],
+    types: [Creature],
+    subtypes: [Rat],
+    abilities: [Keyword(Deathtouch)],
+    power: 1,
+    toughness: 1,
+)

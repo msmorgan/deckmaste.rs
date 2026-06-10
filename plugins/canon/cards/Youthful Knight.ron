@@ -1,0 +1,17 @@
+// Hand-finished from pipeline output: bare keyword macro → intrinsic
+// Keyword(...) (the per-keyword macros are pending, see todo §6).
+Normal(
+    name: "Youthful Knight",
+    mana_cost: [
+        Generic(1),
+        White,
+    ],
+    types: [Creature],
+    subtypes: [
+        Human,
+        Knight,
+    ],
+    abilities: [Keyword(FirstStrike)],
+    power: 2,
+    toughness: 1,
+)

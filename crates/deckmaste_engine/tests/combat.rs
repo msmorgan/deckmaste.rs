@@ -1,4 +1,4 @@
-//! Combat legality against fake testing-plugin data: summoning sickness
+//! Combat legality against real canon-card data: summoning sickness
 //! ([CR#302.6]) and the attacker/blocker legality helpers
 //! ([CR#508.1a], [CR#509.1a]).
 //!
@@ -22,11 +22,20 @@ use deckmaste_engine::{
 // --- plugin + deck building
 // ---------------------------------------------------
 
-fn testing() -> Plugin {
+fn plugin(name: &str) -> Plugin {
     Plugin::load_with_sibling_prelude(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/testing"),
+        Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("../../plugins/{name}")),
     )
     .unwrap()
+}
+
+/// Looks `name` up in canon (real cards) first, then in the testing mocks.
+fn card(name: &str) -> Arc<Card> {
+    let card = plugin("canon")
+        .card(name)
+        .or_else(|_| plugin("testing").card(name))
+        .unwrap();
+    Arc::new(card)
 }
 
 fn deck(card: &Arc<Card>, n: usize) -> Vec<Arc<Card>> { vec![Arc::clone(card); n] }
@@ -38,8 +47,8 @@ fn two_player_with(card: &str, seed: u64, deck_size: usize) -> GameState {
 
 /// A two-player game where P0 plays `p0_card` and P1 plays `p1_card`.
 fn two_player_decks(p0_card: &str, p1_card: &str, seed: u64, deck_size: usize) -> GameState {
-    let p0 = Arc::new(testing().card(p0_card).unwrap());
-    let p1 = Arc::new(testing().card(p1_card).unwrap());
+    let p0 = card(p0_card);
+    let p1 = card(p1_card);
     GameState::new(GameConfig {
         players: vec![
             PlayerConfig {
@@ -100,8 +109,8 @@ fn force_onto_battlefield(state: &mut GameState, player: PlayerId, name: &str) -
 /// and not summoning-sick.
 #[test]
 fn legal_attackers_gates_on_sickness_and_tapped() {
-    let mut state = two_player_with("Vanilla Creature", 1, 10);
-    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+    let mut state = two_player_with("Grizzly Bears", 1, 10);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
 
     // Summoning-sick: not a legal attacker.
     state.objects.obj_mut(bear).summoning_sick = true;
@@ -129,8 +138,8 @@ fn legal_attackers_gates_on_sickness_and_tapped() {
 /// [CR#509.1a]: a summoning-sick creature can still block.
 #[test]
 fn legal_blockers_ignores_summoning_sickness() {
-    let mut state = two_player_with("Vanilla Creature", 1, 10);
-    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+    let mut state = two_player_with("Grizzly Bears", 1, 10);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
 
     state.objects.obj_mut(bear).summoning_sick = true;
     state.objects.obj_mut(bear).tapped = false;
@@ -154,9 +163,9 @@ fn legal_blockers_ignores_summoning_sickness() {
 /// it cleared everybody, P1's would be reset; only the correct behavior passes.
 #[test]
 fn turn_start_clears_summoning_sickness_for_the_active_player_only() {
-    let mut state = two_player_with("Vanilla Creature", 42, 20);
-    let p0_bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
-    let p1_bear = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+    let mut state = two_player_with("Grizzly Bears", 42, 20);
+    let p0_bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    let p1_bear = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
     state.objects.obj_mut(p0_bear).summoning_sick = true;
     state.objects.obj_mut(p1_bear).summoning_sick = true;
 
@@ -199,23 +208,23 @@ fn turn_start_clears_summoning_sickness_for_the_active_player_only() {
     );
 }
 
-/// [CR#702.19]: `has_keyword` reads the PRINTED face abilities. The "Keyword
-/// probe" fixture carries `abilities: [Keyword(Trample)]` — proving the keyword
+/// [CR#702.19]: `has_keyword` reads the PRINTED face abilities. Fangren
+/// Hunter carries `abilities: [Keyword(Trample)]` — proving the keyword
 /// grammar parses as a known variant through the real plugin loader (macro
-/// reader active) — while "Vanilla Creature" carries none.
+/// reader active) — while "Grizzly Bears" carries none.
 #[test]
 fn has_keyword_reads_printed_face_abilities() {
-    let mut state = two_player_decks("Keyword probe", "Vanilla Creature", 1, 10);
-    let trampler = force_onto_battlefield(&mut state, PlayerId(0), "Keyword probe");
-    let vanilla = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+    let mut state = two_player_decks("Fangren Hunter", "Grizzly Bears", 1, 10);
+    let trampler = force_onto_battlefield(&mut state, PlayerId(0), "Fangren Hunter");
+    let vanilla = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
 
     assert!(
         has_keyword(&state.layers(), trampler, &KeywordAbility::Trample),
-        "the probe's printed abilities carry Keyword(Trample)"
+        "Fangren Hunter's printed abilities carry Keyword(Trample)"
     );
     assert!(
         !has_keyword(&state.layers(), trampler, &KeywordAbility::Deathtouch),
-        "the probe carries only Trample, not Deathtouch"
+        "Fangren Hunter carries only Trample, not Deathtouch"
     );
     assert!(
         !has_keyword(&state.layers(), vanilla, &KeywordAbility::Trample),
@@ -255,10 +264,10 @@ fn pass_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
 /// taps it, records it in `CombatState`, and fires an `Attacking` event.
 #[test]
 fn declare_attackers_taps_records_and_fires_attacking() {
-    let mut state = two_player_with("Vanilla Creature", 7, 20);
+    let mut state = two_player_with("Grizzly Bears", 7, 20);
     // A creature on P0's battlefield BEFORE the game runs: turn 1's begin clears
     // its summoning sickness, so it is a legal attacker this combat.
-    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
 
     // Drive (passing priorities) to the Declare Attackers step's decision.
     let (_trace, stop) = pass_to_stop(&mut state);
@@ -320,7 +329,7 @@ fn declare_attackers_taps_records_and_fires_attacking() {
 /// decision; the active player declares no attackers with an empty vec.
 #[test]
 fn declare_attackers_with_no_legal_attacker_accepts_empty() {
-    let mut state = two_player_with("Vanilla Creature", 7, 20);
+    let mut state = two_player_with("Grizzly Bears", 7, 20);
     // No creature on the battlefield: an empty legal set.
     let (_trace, stop) = pass_to_stop(&mut state);
     let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { player, legal }) = stop
@@ -368,13 +377,13 @@ fn drive_to_declare_blockers(
 /// gang one attacker (no ordering decision).
 #[test]
 fn declare_blockers_records_blocks_and_fires_blocked() {
-    let mut state = two_player_with("Vanilla Creature", 7, 20);
+    let mut state = two_player_with("Grizzly Bears", 7, 20);
     // P0 (active) gets one attacker; P1 (defender) gets two blockers. P0's
     // creature sheds summoning sickness at turn 1's start, so it can attack;
     // P1's are legal blockers regardless of sickness (untapped creatures).
-    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
-    let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
-    let b2 = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
+    let b2 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
 
     let (defender, legal) = drive_to_declare_blockers(&mut state, vec![attacker]);
     assert_eq!(
@@ -456,9 +465,9 @@ fn declare_blockers_records_blocks_and_fires_blocked() {
 /// A single blocker still makes the attacker a blocked creature ([CR#509.1h]).
 #[test]
 fn declare_blockers_single_blocker_blocks_attacker() {
-    let mut state = two_player_with("Vanilla Creature", 7, 20);
-    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
-    let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+    let mut state = two_player_with("Grizzly Bears", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
 
     let (defender, legal) = drive_to_declare_blockers(&mut state, vec![attacker]);
     assert_eq!(defender, PlayerId(1));
@@ -517,9 +526,9 @@ fn drive_through_blocks(
 /// damage batch + the lethal SBA then remove both from the battlefield.
 #[test]
 fn combat_damage_one_block_trades() {
-    let mut state = two_player_with("Vanilla Creature", 7, 20);
-    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
-    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+    let mut state = two_player_with("Grizzly Bears", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
 
     let stop = drive_through_blocks(&mut state, vec![attacker], vec![(blocker, attacker)]);
     // A forced assignment surfaces NO AssignCombatDamage decision.
@@ -547,10 +556,10 @@ fn combat_damage_one_block_trades() {
 /// blockers; the attacker takes 1+1 = 2 and dies too.
 #[test]
 fn combat_damage_two_blockers_split_one_one() {
-    let mut state = two_player_decks("Vanilla Creature", "Vanilla 1/1", 7, 20);
-    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
-    let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla 1/1");
-    let b2 = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla 1/1");
+    let mut state = two_player_decks("Grizzly Bears", "Willow Elf", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Willow Elf");
+    let b2 = force_onto_battlefield(&mut state, PlayerId(1), "Willow Elf");
 
     let stop = drive_through_blocks(
         &mut state,
@@ -605,10 +614,10 @@ fn combat_damage_two_blockers_split_one_one() {
 /// still takes 1+1 = 2 (both 1/1s dealt their power) and dies.
 #[test]
 fn combat_damage_two_blockers_split_two_zero() {
-    let mut state = two_player_decks("Vanilla Creature", "Vanilla 1/1", 7, 20);
-    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
-    let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla 1/1");
-    let b2 = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla 1/1");
+    let mut state = two_player_decks("Grizzly Bears", "Willow Elf", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Willow Elf");
+    let b2 = force_onto_battlefield(&mut state, PlayerId(1), "Willow Elf");
 
     let stop = drive_through_blocks(
         &mut state,
@@ -637,8 +646,8 @@ fn combat_damage_two_blockers_split_two_zero() {
 /// forced (one recipient, the defender's proxy). Their life goes 20 → 17.
 #[test]
 fn combat_damage_unblocked_hits_defender() {
-    let mut state = two_player_decks("Vanilla 3/3", "Vanilla Creature", 7, 20);
-    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla 3/3");
+    let mut state = two_player_decks("Centaur Courser", "Grizzly Bears", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Centaur Courser");
 
     assert_eq!(state.players[1].life, 20);
     let stop = drive_through_blocks(&mut state, vec![attacker], vec![]);
@@ -737,9 +746,9 @@ fn drive_to_combat_damage_done(
 /// designation lingers.
 #[test]
 fn end_of_combat_clears_combat_state() {
-    let mut state = two_player_decks("Vanilla 3/3", "Vanilla Creature", 7, 20);
-    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla 3/3");
-    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+    let mut state = two_player_decks("Centaur Courser", "Grizzly Bears", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Centaur Courser");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
 
     // Attack with the 3/3; the 2/2 blocks it. The 3/3 deals 3 (lethal to the
     // 2/2) and takes 2 — it survives the phase. Drive just past damage, with
@@ -785,9 +794,9 @@ fn end_of_combat_clears_combat_state() {
 /// blocker is no longer recorded against the attacker.
 #[test]
 fn mid_combat_death_prunes_combat_state() {
-    let mut state = two_player_with("Vanilla Creature", 7, 20);
-    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
-    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+    let mut state = two_player_with("Grizzly Bears", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
 
     let _stop = drive_through_blocks(&mut state, vec![attacker], vec![(blocker, attacker)]);
 
@@ -817,21 +826,22 @@ fn mid_combat_death_prunes_combat_state() {
 }
 
 /// [CR#508.1a], [CR#603.6]: a creature with a "whenever ~ attacks" trigger
-/// (`StateBecomes(of: Is(This), becomes: Attacking)`) declared as an attacker
-/// fires its trigger — the `Attacking` event reached the trigger stage — and,
-/// once it resolves, the controller loses 1 life.
+/// (`StateBecomes(of: Is(This), becomes: Attacking)`, Library Larcenist)
+/// declared as an attacker fires its trigger — the `Attacking` event reached
+/// the trigger stage — and, once it resolves, the controller draws a card.
 #[test]
 fn attacks_trigger_fires_and_resolves() {
-    let mut state = two_player_decks("Attacks trigger", "Vanilla Creature", 7, 20);
-    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Attacks trigger");
+    let mut state = two_player_decks("Library Larcenist", "Grizzly Bears", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Library Larcenist");
 
-    let p0_life_before = state.players[0].life;
-
-    // Drive to Declare Attackers and declare the triggered creature.
+    // Drive to Declare Attackers and declare the triggered creature. Hand size
+    // is captured at the decision, AFTER the turn's draw step has run, so the
+    // only draw left to observe is the trigger's.
     let (_trace, stop) = pass_to_stop(&mut state);
     let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
         panic!("expected a DeclareAttackers decision, got {stop:?}");
     };
+    let p0_hand_before = state.zones.hands[0].len();
     state
         .submit_decision(Decision::Attackers(vec![attacker]))
         .unwrap();
@@ -852,12 +862,12 @@ fn attacks_trigger_fires_and_resolves() {
     );
 
     // Pass priority through the trigger's placement + resolution; the controller
-    // (P0) loses 1 life.
+    // (P0) draws a card.
     pass_to_postcombat_main(&mut state);
     assert_eq!(
-        state.players[0].life,
-        p0_life_before - 1,
-        "the resolved LoseLife(1) cost the controller 1 life"
+        state.zones.hands[0].len(),
+        p0_hand_before + 1,
+        "the resolved Draw(1) put a card in the controller's hand"
     );
 }
 
@@ -867,8 +877,8 @@ fn attacks_trigger_fires_and_resolves() {
 /// vigilance exception to keep concerns separate.
 #[test]
 fn vigilance_attacker_is_not_tapped() {
-    let mut state = two_player_decks("Vigilance Creature", "Vanilla Creature", 7, 20);
-    let vigilant = force_onto_battlefield(&mut state, PlayerId(0), "Vigilance Creature");
+    let mut state = two_player_decks("Alaborn Grenadier", "Grizzly Bears", 7, 20);
+    let vigilant = force_onto_battlefield(&mut state, PlayerId(0), "Alaborn Grenadier");
     assert!(
         has_keyword(&state.layers(), vigilant, &KeywordAbility::Vigilance),
         "pre-condition: the fixture carries Keyword(Vigilance)"
@@ -909,8 +919,8 @@ fn vigilance_attacker_is_not_tapped() {
 /// rises from 20 → 22.
 #[test]
 fn lifelink_unblocked_attacker_gains_life_for_controller() {
-    let mut state = two_player_decks("Lifelink Creature", "Vanilla Creature", 7, 20);
-    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Lifelink Creature");
+    let mut state = two_player_decks("Steadfast Paladin", "Grizzly Bears", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Steadfast Paladin");
     assert!(
         has_keyword(&state.layers(), attacker, &KeywordAbility::Lifelink),
         "pre-condition: the fixture carries Keyword(Lifelink)"
@@ -951,9 +961,9 @@ fn lifelink_unblocked_attacker_gains_life_for_controller() {
 /// sweep destroys the 5/5 ([CR#704.5h]). The 1/1 takes 5 and dies normally too.
 #[test]
 fn deathtouch_one_damage_kills_five_five() {
-    let mut state = two_player_decks("Deathtouch Creature", "Vanilla 5/5", 7, 20);
-    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Deathtouch Creature");
-    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla 5/5");
+    let mut state = two_player_decks("Typhoid Rats", "Grizzled Outrider", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Typhoid Rats");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Grizzled Outrider");
     assert!(
         has_keyword(&state.layers(), attacker, &KeywordAbility::Deathtouch),
         "pre-condition: the fixture carries Keyword(Deathtouch)"
@@ -988,9 +998,9 @@ fn deathtouch_one_damage_kills_five_five() {
 /// constraint.
 #[test]
 fn trample_over_one_blocker_spills_excess_to_player() {
-    let mut state = two_player_decks("Trample Creature", "Vanilla Creature", 7, 20);
-    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Trample Creature");
-    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+    let mut state = two_player_decks("Fangren Hunter", "Grizzly Bears", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Fangren Hunter");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
     assert!(
         has_keyword(&state.layers(), attacker, &KeywordAbility::Trample),
         "pre-condition: the fixture carries Keyword(Trample)"
@@ -1051,9 +1061,9 @@ fn trample_over_one_blocker_spills_excess_to_player() {
 /// requirement to satisfy first). The blocker dies; the defender is untouched.
 #[test]
 fn trample_all_to_blocker_is_legal_no_player_damage() {
-    let mut state = two_player_decks("Trample Creature", "Vanilla Creature", 7, 20);
-    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Trample Creature");
-    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+    let mut state = two_player_decks("Fangren Hunter", "Grizzly Bears", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Fangren Hunter");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
     let player_proxy = state.players[1].object;
 
     let stop = drive_through_blocks(&mut state, vec![attacker], vec![(blocker, attacker)]);
@@ -1084,9 +1094,9 @@ fn trample_all_to_blocker_is_legal_no_player_damage() {
 /// defender (20 → 17).
 #[test]
 fn deathtouch_trample_lethal_is_one_so_one_three_split_is_legal() {
-    let mut state = two_player_decks("Trample Deathtouch Creature", "Vanilla Creature", 7, 20);
+    let mut state = two_player_decks("Trample Deathtouch Creature", "Grizzly Bears", 7, 20);
     let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Trample Deathtouch Creature");
-    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
     assert!(
         has_keyword(&state.layers(), attacker, &KeywordAbility::Trample)
             && has_keyword(&state.layers(), attacker, &KeywordAbility::Deathtouch),
@@ -1132,9 +1142,9 @@ fn deathtouch_trample_lethal_is_one_so_one_three_split_is_legal() {
 /// decision) and the defender takes the full 4 (20 → 16).
 #[test]
 fn trample_no_live_blockers_assigns_all_to_player() {
-    let mut state = two_player_decks("Trample Creature", "Vanilla Creature", 7, 20);
-    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Trample Creature");
-    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+    let mut state = two_player_decks("Fangren Hunter", "Grizzly Bears", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Fangren Hunter");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
 
     // Declare the attack and the block; the `Blocked` event applies (sticky
     // blocked status + a live-blocker entry).
@@ -1195,17 +1205,17 @@ fn trample_no_live_blockers_assigns_all_to_player() {
 
 // --- first strike + double strike ([CR#510.4]) -------------------------------
 
-/// [CR#510.4], [CR#702.7]: a 2/2 first-striker attacks, blocked by a 2/2
-/// vanilla. There are TWO combat-damage steps. In the FIRST one only the
-/// first-striker deals — its 2 is lethal to the 2/2 blocker, which the SBA
-/// destroys BEFORE the regular step. By the regular step the blocker is gone,
-/// so it never deals its 2 back: the first-striker survives the trade, untapped
-/// of damage and still on the battlefield.
+/// [CR#510.4], [CR#702.7]: Youthful Knight (a 2/1 first-striker) attacks,
+/// blocked by a 2/2 vanilla. There are TWO combat-damage steps. In the FIRST
+/// one only the first-striker deals — its 2 is lethal to the 2/2 blocker,
+/// which the SBA destroys BEFORE the regular step. By the regular step the
+/// blocker is gone, so it never deals its 2 back: the first-striker survives
+/// the trade, untapped of damage and still on the battlefield.
 #[test]
 fn first_strike_kills_before_taking_damage() {
-    let mut state = two_player_decks("First Strike Creature", "Vanilla Creature", 7, 20);
-    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "First Strike Creature");
-    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+    let mut state = two_player_decks("Youthful Knight", "Grizzly Bears", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Youthful Knight");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
     assert!(
         has_keyword(&state.layers(), attacker, &KeywordAbility::FirstStrike),
         "pre-condition: the fixture carries Keyword(FirstStrike)"
@@ -1239,18 +1249,18 @@ fn first_strike_kills_before_taking_damage() {
     );
 }
 
-/// [CR#510.4], [CR#702.4]: a 2/2 double-striker attacks, blocked by a 3/3
-/// vanilla. In the FIRST step the double-striker deals 2 to the 3/3 —
-/// sublethal, so the 3/3 survives, marked 2. In the REGULAR step the
-/// double-striker deals 2 MORE (total 4 ≥ 3 → the 3/3 dies) AND the 3/3 deals
-/// its 3 back SIMULTANEOUSLY → the 2/2 double-striker dies too. Both die: the
+/// [CR#510.4], [CR#702.4]: Boros Swiftblade (a 1/2 double-striker) attacks,
+/// blocked by a 2/2 vanilla. In the FIRST step the double-striker deals 1 to
+/// the 2/2 — sublethal, so the 2/2 survives, marked 1. In the REGULAR step the
+/// double-striker deals 1 MORE (total 2 ≥ 2 → the 2/2 dies) AND the 2/2 deals
+/// its 2 back SIMULTANEOUSLY → the 1/2 double-striker dies too. Both die: the
 /// second-pass simultaneity is the mutual kill, observable only because the
 /// double-striker dealt in BOTH passes.
 #[test]
 fn double_strike_deals_twice() {
-    let mut state = two_player_decks("Double Strike Creature", "Vanilla 3/3", 7, 20);
-    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Double Strike Creature");
-    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla 3/3");
+    let mut state = two_player_decks("Boros Swiftblade", "Grizzly Bears", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Boros Swiftblade");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
     assert!(
         has_keyword(&state.layers(), attacker, &KeywordAbility::DoubleStrike),
         "pre-condition: the fixture carries Keyword(DoubleStrike)"
@@ -1265,15 +1275,15 @@ fn double_strike_deals_twice() {
         "forced (one recipient each) → no assignment decision: {stop:?}"
     );
 
-    // 2 (first step) + 2 (regular step) = 4 ≥ 3 → the 3/3 dies.
+    // 1 (first step) + 1 (regular step) = 2 ≥ 2 → the 2/2 dies.
     assert!(
         !on_battlefield(&state, blocker),
-        "the 3/3 took 2+2=4 across both steps and is destroyed ([CR#702.4])"
+        "the 2/2 took 1+1=2 across both steps and is destroyed ([CR#702.4])"
     );
-    // In the regular step the 3/3 dealt its 3 back simultaneously → the 2/2 dies.
+    // In the regular step the 2/2 dealt its 2 back simultaneously → the 1/2 dies.
     assert!(
         !on_battlefield(&state, attacker),
-        "the double-striker took the 3/3's 3 back in the second pass and dies (mutual kill, [CR#510.4])"
+        "the double-striker took the 2/2's 2 back in the second pass and dies (mutual kill, [CR#510.4])"
     );
 }
 
@@ -1284,9 +1294,9 @@ fn double_strike_deals_twice() {
 /// and the trace shows the step was skipped, never begun.
 #[test]
 fn no_first_strike_elides_first_combat_damage_step() {
-    let mut state = two_player_with("Vanilla Creature", 7, 20);
-    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
-    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
+    let mut state = two_player_with("Grizzly Bears", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
 
     // Accumulate the whole combat trace by driving past damage.
     let (trace, stop) = pass_to_stop(&mut state);
@@ -1359,7 +1369,7 @@ fn no_first_strike_elides_first_combat_damage_step() {
 /// — no `DeclareBlockers` decision surfaces and play proceeds.
 #[test]
 fn declare_blockers_skipped_when_no_attackers() {
-    let mut state = two_player_with("Vanilla Creature", 7, 20);
+    let mut state = two_player_with("Grizzly Bears", 7, 20);
     // Drive to Declare Attackers and declare none.
     let (_trace, stop) = pass_to_stop(&mut state);
     let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {

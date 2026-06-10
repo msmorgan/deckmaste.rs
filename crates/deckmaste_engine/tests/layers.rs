@@ -1,5 +1,6 @@
-//! The layer system ([CR#613]): derived characteristics. Fixtures are fake
-//! cards from `plugins/testing` (no WOTC IP).
+//! The layer system ([CR#613]): derived characteristics. Fixtures are real
+//! cards from `plugins/canon`, plus `plugins/testing` mocks for the two layer
+//! shapes no real card carries (see that plugin's cards/README.md).
 
 use std::path::Path;
 use std::sync::Arc;
@@ -10,14 +11,21 @@ use deckmaste_engine::{
     GameConfig, GameState, ObjectId, PlayerConfig, PlayerId, StartingPlayer, legal_attackers,
 };
 
-fn testing() -> Plugin {
+fn plugin(name: &str) -> Plugin {
     Plugin::load_with_sibling_prelude(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/testing"),
+        Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("../../plugins/{name}")),
     )
     .unwrap()
 }
 
-fn card(name: &str) -> Arc<Card> { Arc::new(testing().card(name).unwrap()) }
+/// Looks `name` up in canon (real cards) first, then in the testing mocks.
+fn card(name: &str) -> Arc<Card> {
+    let card = plugin("canon")
+        .card(name)
+        .or_else(|_| plugin("testing").card(name))
+        .unwrap();
+    Arc::new(card)
+}
 
 fn face_name(state: &GameState, id: ObjectId) -> &str {
     match state.def(id) {
@@ -44,14 +52,14 @@ fn is_named(state: &GameState, o: ObjectId, name: &str) -> bool {
     state.objects.obj(o).card_id().is_some() && face_name(state, o) == name
 }
 
-/// P0's deck contains `names`, padded with Vanilla Creatures so the opening
-/// draw never empties the library; P1 plays a plain Vanilla deck.
+/// P0's deck contains `names`, padded with Grizzly Bears so the opening
+/// draw never empties the library; P1 plays a plain Grizzly Bears deck.
 fn game_with_p0_cards(names: &[&str], seed: u64) -> GameState {
     let mut p0: Vec<Arc<Card>> = names.iter().map(|n| card(n)).collect();
     while p0.len() < 10 {
-        p0.push(card("Vanilla Creature"));
+        p0.push(card("Grizzly Bears"));
     }
-    let p1 = vec![card("Vanilla Creature"); 10];
+    let p1 = vec![card("Grizzly Bears"); 10];
     GameState::new(GameConfig {
         players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
         seed,
@@ -87,8 +95,8 @@ fn force_onto_battlefield(state: &mut GameState, player: PlayerId, name: &str) -
 /// printed values — the layer system is behavior-preserving at the base.
 #[test]
 fn base_values_equal_printed() {
-    let mut state = two_player_with("Vanilla Creature", 1, 10);
-    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+    let mut state = two_player_with("Grizzly Bears", 1, 10);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
 
     let view = state.layers();
     assert_eq!(view.power(bear), Some(2), "printed 2/2 derives power 2");
@@ -99,27 +107,37 @@ fn base_values_equal_printed() {
     );
 }
 
-/// [CR#613.4c]: a static "+1/+1 to creatures" (layer 7c) pumps a 2/2 to 3/3.
+/// [CR#613.4c]: a static "+1/+1 to black creatures" (layer 7c) pumps a black
+/// 2/2 to 3/3.
 #[test]
 fn anthem_pumps_power_and_toughness() {
-    let mut state = game_with_p0_cards(&["Anthem"], 1);
-    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
-    let _anthem = force_onto_battlefield(&mut state, PlayerId(0), "Anthem");
+    let mut state = game_with_p0_cards(&["Bad Moon", "Walking Corpse"], 1);
+    let zombie = force_onto_battlefield(&mut state, PlayerId(0), "Walking Corpse");
+    let _moon = force_onto_battlefield(&mut state, PlayerId(0), "Bad Moon");
     let view = state.layers();
-    assert_eq!(view.power(bear), Some(3), "anthem +1/+1 → 3 power");
-    assert_eq!(view.toughness(bear), Some(3), "anthem +1/+1 → 3 toughness");
+    assert_eq!(view.power(zombie), Some(3), "Bad Moon +1/+1 → 3 power");
+    assert_eq!(
+        view.toughness(zombie),
+        Some(3),
+        "Bad Moon +1/+1 → 3 toughness"
+    );
 }
 
-/// [CR#613.4]: a 7b "base 0/1" set applies before all 7c modification, so
-/// "base 0/1" + anthem "+1/+1" = 1/2 regardless of timestamps.
+/// [CR#613.4]: a 7b base set applies before all 7c modification, so Humility's
+/// "base 1/1" + Bad Moon's "+1/+1" = 2/2 regardless of timestamps.
 #[test]
 fn base_set_applies_before_modify() {
-    let mut state = game_with_p0_cards(&["Becomes 0-1 anthem"], 1);
-    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
-    let _setter = force_onto_battlefield(&mut state, PlayerId(0), "Becomes 0-1 anthem");
+    let mut state = game_with_p0_cards(&["Humility", "Bad Moon", "Walking Corpse"], 1);
+    let zombie = force_onto_battlefield(&mut state, PlayerId(0), "Walking Corpse");
+    let _humility = force_onto_battlefield(&mut state, PlayerId(0), "Humility");
+    let _moon = force_onto_battlefield(&mut state, PlayerId(0), "Bad Moon");
     let view = state.layers();
-    assert_eq!(view.power(bear), Some(1));
-    assert_eq!(view.toughness(bear), Some(2));
+    assert_eq!(
+        view.power(zombie),
+        Some(2),
+        "base 1/1 (7b), then +1/+1 (7c)"
+    );
+    assert_eq!(view.toughness(zombie), Some(2));
 }
 
 /// [CR#611.2c],[CR#514.2]: a one-shot "+3/+3 until end of turn" pumps a
@@ -129,8 +147,8 @@ fn one_shot_pump_expires_at_cleanup() {
     use deckmaste_core::{Count, Duration, Modification};
     use deckmaste_engine::{ContinuousEffect, ScopeResolved, Timestamp};
 
-    let mut state = two_player_with("Vanilla Creature", 1, 10);
-    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+    let mut state = two_player_with("Grizzly Bears", 1, 10);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
 
     state.continuous.push(ContinuousEffect {
         timestamp: Timestamp(1_000),
@@ -153,13 +171,15 @@ fn one_shot_pump_expires_at_cleanup() {
 }
 
 /// [CR#613.1f]: a static "creatures gain trample" (layer 6) grants the keyword.
+/// The granter is a mock — symmetric "all creatures have <intrinsic keyword>"
+/// statics don't exist in real Magic.
 #[test]
 fn static_grants_keyword() {
     use deckmaste_core::KeywordAbility;
     use deckmaste_engine::has_keyword;
 
     let mut state = game_with_p0_cards(&["Trample granter"], 1);
-    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
     let _granter = force_onto_battlefield(&mut state, PlayerId(0), "Trample granter");
     assert!(
         has_keyword(&state.layers(), bear, &KeywordAbility::Trample),
@@ -167,15 +187,16 @@ fn static_grants_keyword() {
     );
 }
 
-/// [CR#613.1f]: "creatures lose all abilities" blanks a printed keyword.
+/// [CR#613.1f]: Humility's "creatures lose all abilities" blanks a printed
+/// keyword.
 #[test]
 fn lose_all_abilities_blanks_keyword() {
     use deckmaste_core::KeywordAbility;
     use deckmaste_engine::has_keyword;
 
-    let mut state = game_with_p0_cards(&["Trample Creature", "Blanker"], 1);
-    let trampler = force_onto_battlefield(&mut state, PlayerId(0), "Trample Creature");
-    let _blanker = force_onto_battlefield(&mut state, PlayerId(0), "Blanker");
+    let mut state = game_with_p0_cards(&["Fangren Hunter", "Humility"], 1);
+    let trampler = force_onto_battlefield(&mut state, PlayerId(0), "Fangren Hunter");
+    let _humility = force_onto_battlefield(&mut state, PlayerId(0), "Humility");
     assert!(
         !has_keyword(&state.layers(), trampler, &KeywordAbility::Trample),
         "lose-all-abilities removes the printed trample ([CR#613.1f])"
@@ -185,14 +206,15 @@ fn lose_all_abilities_blanks_keyword() {
 /// [CR#613.6]: an effect that REPLACES an enchantment's type with Creature (L4)
 /// AND sets its P/T (L7b) applies the P/T to the now-creature — the target set
 /// locks at L4 and the L7b part rides along, even though the object no longer
-/// matches the effect's `Matching(Enchantment)` filter by L7b.
+/// matches the effect's `Matching(Enchantment)` filter by L7b. The animator is
+/// a mock — no real static type-replaces with a literal P/T set.
 #[test]
 fn type_change_then_set_pt_locks_in() {
     use deckmaste_core::Type;
 
-    let mut state = game_with_p0_cards(&["Animate enchantments", "Vanilla Enchantment"], 1);
+    let mut state = game_with_p0_cards(&["Animate enchantments", "Moonlit Wake"], 1);
     let _animator = force_onto_battlefield(&mut state, PlayerId(0), "Animate enchantments");
-    let ench = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Enchantment");
+    let ench = force_onto_battlefield(&mut state, PlayerId(0), "Moonlit Wake");
 
     let view = state.layers();
     assert!(
@@ -206,41 +228,45 @@ fn type_change_then_set_pt_locks_in() {
     );
 }
 
-/// [CR#613.1e] layer 5: a static "creatures are red" adds red to a
+/// [CR#613.1e] layer 5: Darkest Hour's "all creatures are black" replaces a
 /// creature's derived colors.
 #[test]
-fn static_adds_color() {
-    let mut state = game_with_p0_cards(&["Paint red"], 1);
-    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
-    let _painter = force_onto_battlefield(&mut state, PlayerId(0), "Paint red");
+fn static_sets_color() {
+    let mut state = game_with_p0_cards(&["Darkest Hour"], 1);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    let _hour = force_onto_battlefield(&mut state, PlayerId(0), "Darkest Hour");
 
     let view = state.layers();
     assert!(
-        view.get(bear).colors.contains(&Color::Red),
-        "the creature is now red (layer 5)"
+        view.get(bear).colors.contains(&Color::Black),
+        "the creature is now black (layer 5)"
+    );
+    assert!(
+        !view.get(bear).colors.contains(&Color::Green),
+        "\"are black\" replaces the printed green (layer 5)"
     );
 }
 
-/// [CR#613.6] for layer 5: a "+1/+1 to red creatures" anthem catches a creature
-/// that is only red because another effect painted it red THIS pass —
-/// `matches_derived` evaluates the scope against the derived color, not the
+/// [CR#613.6] for layer 5: Bad Moon ("+1/+1 to black creatures") catches a
+/// creature that is only black because Darkest Hour painted it black THIS pass
+/// — `matches_derived` evaluates the scope against the derived color, not the
 /// printed face.
 #[test]
-fn anthem_catches_creature_painted_red() {
-    let mut state = game_with_p0_cards(&["Paint red", "Red anthem"], 1);
-    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature"); // base green
-    let _painter = force_onto_battlefield(&mut state, PlayerId(0), "Paint red"); // creatures are red (L5)
-    let _anthem = force_onto_battlefield(&mut state, PlayerId(0), "Red anthem"); // red creatures +1/+1 (L7c)
+fn anthem_catches_creature_painted_black() {
+    let mut state = game_with_p0_cards(&["Darkest Hour", "Bad Moon"], 1);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears"); // base green
+    let _hour = force_onto_battlefield(&mut state, PlayerId(0), "Darkest Hour"); // creatures are black (L5)
+    let _moon = force_onto_battlefield(&mut state, PlayerId(0), "Bad Moon"); // black creatures +1/+1 (L7c)
 
     let view = state.layers();
     assert!(
-        view.get(bear).colors.contains(&Color::Red),
-        "painted red (L5)"
+        view.get(bear).colors.contains(&Color::Black),
+        "painted black (L5)"
     );
     assert_eq!(
         view.power(bear),
         Some(3),
-        "the red anthem caught the now-red creature via derived-color matching ([CR#613.6])"
+        "Bad Moon caught the now-black creature via derived-color matching ([CR#613.6])"
     );
 }
 
@@ -249,8 +275,8 @@ fn anthem_catches_creature_painted_red() {
 fn plus_one_counters_pump() {
     use deckmaste_core::Ident;
 
-    let mut state = two_player_with("Vanilla Creature", 1, 10);
-    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+    let mut state = two_player_with("Grizzly Bears", 1, 10);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
     state
         .objects
         .obj_mut(bear)
@@ -272,8 +298,8 @@ fn plus_one_counters_pump() {
 fn minus_one_counters_shrink() {
     use deckmaste_core::Ident;
 
-    let mut state = two_player_with("Vanilla Creature", 1, 10);
-    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+    let mut state = two_player_with("Grizzly Bears", 1, 10);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
     state
         .objects
         .obj_mut(bear)
@@ -295,8 +321,8 @@ fn minus_one_counters_shrink() {
 fn counter_on_non_creature_does_nothing() {
     use deckmaste_core::Ident;
 
-    let mut state = game_with_p0_cards(&["Vanilla Enchantment"], 1);
-    let ench = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Enchantment");
+    let mut state = game_with_p0_cards(&["Moonlit Wake"], 1);
+    let ench = force_onto_battlefield(&mut state, PlayerId(0), "Moonlit Wake");
     state
         .objects
         .obj_mut(ench)
@@ -317,8 +343,8 @@ fn counter_on_non_creature_does_nothing() {
 fn mixed_counters_net_delta() {
     use deckmaste_core::Ident;
 
-    let mut state = two_player_with("Vanilla Creature", 1, 10);
-    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
+    let mut state = two_player_with("Grizzly Bears", 1, 10);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
     state
         .objects
         .obj_mut(bear)
@@ -344,9 +370,9 @@ fn mixed_counters_net_delta() {
 /// type.
 #[test]
 fn animated_enchantment_can_attack() {
-    let mut state = game_with_p0_cards(&["Animate enchantments", "Vanilla Enchantment"], 1);
+    let mut state = game_with_p0_cards(&["Animate enchantments", "Moonlit Wake"], 1);
     let _animator = force_onto_battlefield(&mut state, PlayerId(0), "Animate enchantments");
-    let ench = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Enchantment");
+    let ench = force_onto_battlefield(&mut state, PlayerId(0), "Moonlit Wake");
     // force_onto_battlefield leaves it untapped and not summoning-sick (mint
     // defaults).
 

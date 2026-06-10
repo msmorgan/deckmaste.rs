@@ -1,4 +1,5 @@
-//! End-to-end non-mana activated abilities against fake testing-plugin data,
+//! End-to-end non-mana activated abilities against testing-plugin mocks (the
+//! activated permanents) and canon real cards (bystanders and removal),
 //! driven entirely through the public API (`step` / `submit_decision`).
 //!
 //! Each test builds a two-player game from testing cards, forces the relevant
@@ -23,8 +24,8 @@ const MANA_DRAWER: &str = "Artifact mana-activated DrawCards";
 const SORCERY_DRAWER: &str = "Artifact sorcery-speed DrawCards";
 const TURN_DRAWER: &str = "Artifact once-per-turn DrawCards";
 const GAME_DRAWER: &str = "Artifact once-per-game DrawCards";
-const INSTANT: &str = "Instant DealDamage AnyTarget";
-const BEARS: &str = "Vanilla Creature";
+const INSTANT: &str = "Lightning Bolt";
+const BEARS: &str = "Grizzly Bears";
 
 // --- plugin + deck building
 // ---------------------------------------------------
@@ -36,6 +37,13 @@ fn builtin() -> Plugin {
 fn testing() -> Plugin {
     Plugin::load_with_sibling_prelude(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/testing"),
+    )
+    .unwrap()
+}
+
+fn canon() -> Plugin {
+    Plugin::load_with_sibling_prelude(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon"),
     )
     .unwrap()
 }
@@ -108,7 +116,7 @@ fn force_into_play(state: &mut GameState, player: PlayerId, name: &str) -> Objec
 }
 
 /// Two players; player 0's deck holds five copies of `name` plus Mountains;
-/// player 1 holds Vanilla Creatures (targets) and Forests. `mountains`
+/// player 1 holds Grizzly Bears (targets) and Forests. `mountains`
 /// Mountains are forced onto player 0's battlefield. The mono-typed halves of
 /// each deck guarantee the opening seven holds at least two Mountains for
 /// player 0; the named card is pulled by `force_into_play` (library or hand).
@@ -116,7 +124,7 @@ fn activation_game(seed: u64, name: &str, mountains: usize) -> GameState {
     let testing = testing();
     let card = Arc::new(testing.card(name).unwrap());
     let mountain = Arc::new(builtin().card("Mountain").unwrap());
-    let bears = Arc::new(testing.card(BEARS).unwrap());
+    let bears = Arc::new(canon().card(BEARS).unwrap());
     let forest = Arc::new(builtin().card("Forest").unwrap());
     let mut p0 = vec![Arc::clone(&card); 5];
     p0.extend(vec![Arc::clone(&mountain); 5]);
@@ -274,10 +282,7 @@ fn tap_pinger_damages_target_through_stack() {
     let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
         panic!("expected ChooseTargets, got {stop:?}");
     };
-    assert!(
-        legal[0].contains(&bear),
-        "the Vanilla Creature is a legal target"
-    );
+    assert!(legal[0].contains(&bear), "the bear is a legal target");
     state
         .submit_decision(Decision::Targets(vec![bear]))
         .unwrap();
@@ -311,7 +316,7 @@ fn tap_pinger_damages_target_through_stack() {
             applied(p),
             Some(GameEvent::DamageDealt { target, amount: 1, .. }) if *target == bear
         )),
-        "1 damage dealt to the Vanilla Creature, trace: {trace:?}"
+        "1 damage dealt to the bear, trace: {trace:?}"
     );
     assert_eq!(
         state.objects.obj(bear).damage,
@@ -356,7 +361,7 @@ fn summoning_sick_pinger_not_offered() {
     // shows up as activatable.
     assert!(
         activate_action(&legal, bear).is_none(),
-        "the Vanilla Creature has nothing to activate, legal: {legal:?}"
+        "the bear has nothing to activate, legal: {legal:?}"
     );
 }
 
@@ -416,10 +421,10 @@ fn sorcery_speed_drawer_gated() {
     // P0: instants (cast from hand) + sorcery-speed drawers + Mountains; the
     // drawer and two Mountains are pulled from the library, the instant from a
     // seed-searched opening hand. P1: bears (the instant's target) + Forests.
-    let testing = testing();
-    let bolt = Arc::new(testing.card(INSTANT).unwrap());
-    let drawer_card = Arc::new(testing.card(SORCERY_DRAWER).unwrap());
-    let bears = Arc::new(testing.card(BEARS).unwrap());
+    let canon = canon();
+    let bolt = Arc::new(canon.card(INSTANT).unwrap());
+    let drawer_card = Arc::new(testing().card(SORCERY_DRAWER).unwrap());
+    let bears = Arc::new(canon.card(BEARS).unwrap());
     let mountain = Arc::new(builtin().card("Mountain").unwrap());
     let forest = Arc::new(builtin().card("Forest").unwrap());
     let mut deck0 = vec![Arc::clone(&bolt); 4];
@@ -620,10 +625,10 @@ fn pinger_fizzles_when_target_dies() {
     // P0: pingers + Mountains (mono halves). P1: instants + bears + Mountains
     // — the seed search puts an instant in P1's opening hand; the bear and a
     // Mountain are pulled from the library.
-    let testing = testing();
-    let pinger_card = Arc::new(testing.card(PINGER).unwrap());
-    let bolt = Arc::new(testing.card(INSTANT).unwrap());
-    let bears = Arc::new(testing.card(BEARS).unwrap());
+    let canon = canon();
+    let pinger_card = Arc::new(testing().card(PINGER).unwrap());
+    let bolt = Arc::new(canon.card(INSTANT).unwrap());
+    let bears = Arc::new(canon.card(BEARS).unwrap());
     let mountain = Arc::new(builtin().card("Mountain").unwrap());
     let mut deck0 = vec![Arc::clone(&pinger_card); 5];
     deck0.extend(vec![Arc::clone(&mountain); 5]);

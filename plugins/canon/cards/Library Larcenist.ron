@@ -1,0 +1,22 @@
+// Hand-written ability: the attacks-trigger event shape is beyond the
+// triggered-ability parser today ("Whenever ~ attacks, draw a card.").
+Normal(
+    name: "Library Larcenist",
+    mana_cost: [
+        Generic(2),
+        Blue,
+    ],
+    types: [Creature],
+    subtypes: [
+        Merfolk,
+        Rogue,
+    ],
+    abilities: [
+        Triggered(
+            event: StateBecomes(of: Is(This), becomes: Attacking),
+            effect: Draw(1),
+        ),
+    ],
+    power: 1,
+    toughness: 2,
+)

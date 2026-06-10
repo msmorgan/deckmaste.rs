@@ -1,7 +1,7 @@
-//! The handwritten canon cards (Lightning Bolt, Grizzly Bears) parsed
-//! through the macro-aware reader, on top of the builtin prelude they
-//! depend on. Run by plain `cargo test`; wizards is the explicit
-//! `cargo xtask validate plugins/wizards`.
+//! The canon cards (real cards — pipeline output plus marked hand-finished
+//! entries, see docs/card-data.md) parsed through the macro-aware reader, on
+//! top of the builtin prelude they depend on. Run by plain `cargo test`;
+//! wizards is the explicit `cargo xtask validate plugins/wizards`.
 
 use std::path::{Path, PathBuf};
 
@@ -31,10 +31,10 @@ fn canon_cards_are_valid() {
     }
     assert!(validation.failures.is_empty());
     assert!(validation.lint_failures.is_empty());
-    // The handwritten canon cards: Lightning Bolt + Grizzly Bears at the time of
-    // writing.
+    // The canon slice: 25 cards at the time of writing, growing per
+    // docs/card-data.md.
     assert!(
-        validation.valid >= 2,
+        validation.valid >= 25,
         "only {} items checked",
         validation.valid
     );

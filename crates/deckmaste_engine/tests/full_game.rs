@@ -1,8 +1,8 @@
 //! End-to-end games for the Bears-vs-Bolts matchup, driven by the shared
 //! self-play harness (`deckmaste_engine::sim`): a 40-card "Bears" deck
-//! (23 `Vanilla Creature` + 17 `Forest`) versus a 40-card "Bolts" deck
-//! (23 `Instant DealDamage AnyTarget` + 17 `Mountain`) — the classic
-//! Grizzly-Bears-vs-Lightning-Bolt matchup, modeled with the testing plugin's
+//! (23 `Grizzly Bears` + 17 `Forest`) versus a 40-card "Bolts" deck
+//! (23 `Lightning Bolt` + 17 `Mountain`) — the classic
+//! Grizzly-Bears-vs-Lightning-Bolt matchup, modeled with the canon plugin's
 //! fakes so no card IP rides in the engine tests.
 //!
 //! A focused single game pins the behavior; a determinism check pins
@@ -25,16 +25,16 @@ const SEED: u64 = 1;
 /// Loads the four card faces once (the plugins are read from disk here, never
 /// on the hot path).
 fn matchup() -> DeckCards {
-    let testing = Plugin::load_with_sibling_prelude(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/testing"),
+    let canon = Plugin::load_with_sibling_prelude(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon"),
     )
     .unwrap();
     let builtin =
         Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap();
     DeckCards {
-        p0_spell: Arc::new(testing.card("Vanilla Creature").unwrap()),
+        p0_spell: Arc::new(canon.card("Grizzly Bears").unwrap()),
         p0_land: Arc::new(builtin.card("Forest").unwrap()),
-        p1_spell: Arc::new(testing.card("Instant DealDamage AnyTarget").unwrap()),
+        p1_spell: Arc::new(canon.card("Lightning Bolt").unwrap()),
         p1_land: Arc::new(builtin.card("Mountain").unwrap()),
     }
 }

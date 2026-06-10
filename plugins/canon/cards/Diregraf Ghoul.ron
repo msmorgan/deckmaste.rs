@@ -1,0 +1,11 @@
+Normal(
+    name: "Diregraf Ghoul",
+    mana_cost: [Black],
+    types: [Creature],
+    subtypes: [Zombie],
+    abilities: [
+        Static(effects: [Replacement(AsEnters(Tap(This)))]),
+    ],
+    power: 2,
+    toughness: 2,
+)

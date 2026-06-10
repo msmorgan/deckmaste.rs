@@ -9,8 +9,8 @@
 //! functions.
 
 use deckmaste_core::{
-    Ability, CharacteristicFilter, Event, Filter, Reference, StateFilterEvent, TargetSpec, Type,
-    Uint, Zone,
+    Ability, CharacteristicFilter, Event, Filter, Reference, StateFilter, StateFilterEvent,
+    TargetSpec, Type, Uint, Zone,
 };
 
 use crate::agenda::WorkItem;
@@ -171,6 +171,11 @@ impl GameState {
             Filter::Characteristic(CharacteristicFilter::Type(ty)) => {
                 snapshot_has_type(self, snapshot, *ty)
             }
+
+            // "on the battlefield" (the `Permanent` macro and friends): the
+            // snapshot is the object as it last existed in the zone it left
+            // ([CR#603.10a]), so it matches the zone the event removed it from.
+            Filter::State(StateFilter::InZone(zone)) => snapshot.left == *zone,
 
             // Logical combinators: recurse.
             Filter::AllOf(fs) => fs
@@ -538,17 +543,17 @@ mod tests {
         Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
     }
 
-    fn testing() -> Plugin {
+    fn canon() -> Plugin {
         Plugin::load_with_sibling_prelude(
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/testing"),
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon"),
         )
         .unwrap()
     }
 
-    /// Build a two-player game with one Vanilla Creature forced onto the
+    /// Build a two-player game with one Grizzly Bears forced onto the
     /// battlefield, mirroring the `bear_on_field` helper in other test modules.
     fn bear_on_field() -> (GameState, ObjectId) {
-        let bears = Arc::new(testing().card("Vanilla Creature").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
         let forest = Arc::new(builtin().card("Forest").unwrap());
         let mut state = GameState::new(GameConfig {
             players: vec![
@@ -572,7 +577,7 @@ mod tests {
                     &Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
                 )
             })
-            .expect("a Vanilla Creature in the opening hand");
+            .expect("a Grizzly Bears in the opening hand");
         state.zones.hands[0].retain(|&o| o != bear);
         state.objects.obj_mut(bear).zone = Some(Zone::Battlefield);
         state.zones.battlefield.push(bear);
@@ -599,9 +604,9 @@ mod tests {
     /// It must match a creature dying (battlefield → graveyard) …
     #[test]
     fn dies_type_creature_matches_creature_dying() {
-        let testing = testing();
+        let canon = canon();
         // The dies-watcher card uses Dies(Type(Creature)) in its event.
-        let watcher_card = Arc::new(testing.card("Creature dies-watcher LoseLife").unwrap());
+        let watcher_card = Arc::new(canon.card("Moonlit Wake").unwrap());
         let forest = Arc::new(builtin().card("Forest").unwrap());
         let mut state = GameState::new(GameConfig {
             players: vec![
@@ -616,25 +621,19 @@ mod tests {
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
         });
-        // Place the watcher on the battlefield so its ObjectSource is accessible.
+        // Place the watcher on the battlefield so its ObjectSource is
+        // accessible. (P0's deck is mono-watcher, so any card in hand is one.)
         let watcher = *state.zones.hands[0]
-            .iter()
-            .find(|&&o| {
-                matches(
-                    &state,
-                    o,
-                    &Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
-                )
-            })
+            .first()
             .expect("watcher in opening hand");
         state.zones.hands[0].retain(|&o| o != watcher);
         state.objects.obj_mut(watcher).zone = Some(Zone::Battlefield);
         state.zones.battlefield.push(watcher);
         let watcher_source = state.objects.obj(watcher).source;
 
-        // Separately put a Vanilla Creature on the battlefield.
+        // Separately put a Grizzly Bears on the battlefield.
         let bear = {
-            let bears = Arc::new(testing.card("Vanilla Creature").unwrap());
+            let bears = Arc::new(canon.card("Grizzly Bears").unwrap());
             let bear_card = state.cards.push(Arc::clone(&bears), PlayerId(0));
             let bid = state.objects.mint(
                 ObjectSource::Card(bear_card),
@@ -645,7 +644,7 @@ mod tests {
             bid
         };
 
-        // Build the `ZoneChanged` for the Vanilla Creature dying.
+        // Build the `ZoneChanged` for the Grizzly Bears dying.
         let event = zone_changed_event(&state, bear, Zone::Battlefield, Zone::Graveyard);
 
         // The pattern from Dies(Type(Creature)) — built directly.
@@ -664,8 +663,8 @@ mod tests {
     /// … and must NOT match a creature entering (wrong direction).
     #[test]
     fn dies_type_creature_does_not_match_creature_entering() {
-        let testing = testing();
-        let bears = Arc::new(testing.card("Vanilla Creature").unwrap());
+        let canon = canon();
+        let bears = Arc::new(canon.card("Grizzly Bears").unwrap());
         let forest = Arc::new(builtin().card("Forest").unwrap());
         let mut state = GameState::new(GameConfig {
             players: vec![
@@ -770,13 +769,9 @@ mod tests {
     /// `Dies(Is(This))` matches only when the dying object IS the watcher.
     #[test]
     fn dies_this_matches_only_self_death() {
-        let testing = testing();
-        let dies_card = Arc::new(
-            testing
-                .card("Creature dies-trigger DealDamage AnyTarget")
-                .unwrap(),
-        );
-        let bears = Arc::new(testing.card("Vanilla Creature").unwrap());
+        let canon = canon();
+        let dies_card = Arc::new(canon.card("Footlight Fiend").unwrap());
+        let bears = Arc::new(canon.card("Grizzly Bears").unwrap());
         let forest = Arc::new(builtin().card("Forest").unwrap());
         let mut state = GameState::new(GameConfig {
             players: vec![
@@ -808,7 +803,7 @@ mod tests {
         state.zones.battlefield.push(trigger_obj);
         let trigger_source = state.objects.obj(trigger_obj).source;
 
-        // Place a Vanilla Creature beside it.
+        // Place a Grizzly Bears beside it.
         let bear_card_id = state.cards.push(Arc::clone(&bears), PlayerId(0));
         let other = state.objects.mint(
             ObjectSource::Card(bear_card_id),
@@ -856,8 +851,8 @@ mod tests {
     /// `Enters(Is(This))` matches when the object entering is the watcher.
     #[test]
     fn enters_this_matches_own_entry() {
-        let testing = testing();
-        let etb_card = Arc::new(testing.card("Creature etb-trigger DrawCards").unwrap());
+        let canon = canon();
+        let etb_card = Arc::new(canon.card("Elvish Visionary").unwrap());
         let forest = Arc::new(builtin().card("Forest").unwrap());
         let state = GameState::new(GameConfig {
             players: vec![
@@ -990,7 +985,7 @@ mod tests {
     fn dies_macro_expands_to_zone_move() {
         use deckmaste_core::Event;
 
-        let event: Event = testing().macros.read_str("Dies(Type(Creature))").unwrap();
+        let event: Event = canon().macros.read_str("Dies(Type(Creature))").unwrap();
         let Event::Expanded(expanded) = &event else {
             panic!("expected Event::Expanded, got {event:?}");
         };
@@ -1011,7 +1006,7 @@ mod tests {
     fn enters_macro_expands_to_zone_move() {
         use deckmaste_core::Event;
 
-        let event: Event = testing().macros.read_str("Enters(Is(This))").unwrap();
+        let event: Event = canon().macros.read_str("Enters(Is(This))").unwrap();
         let Event::Expanded(expanded) = &event else {
             panic!("expected Event::Expanded, got {event:?}");
         };
@@ -1033,7 +1028,7 @@ mod tests {
     fn dies_this_filter_is_reference_this() {
         use deckmaste_core::Event;
 
-        let event: Event = testing().macros.read_str("Dies(Is(This))").unwrap();
+        let event: Event = canon().macros.read_str("Dies(Is(This))").unwrap();
         let Event::Expanded(expanded) = &event else {
             panic!("expected Event::Expanded");
         };
@@ -1057,7 +1052,7 @@ mod tests {
     fn fixture_on_field(card_name: &str) -> (GameState, ObjectId) {
         use crate::object::ObjectSource;
 
-        let card = Arc::new(testing().card(card_name).unwrap());
+        let card = Arc::new(canon().card(card_name).unwrap());
         let forest = Arc::new(builtin().card("Forest").unwrap());
         let mut state = GameState::new(GameConfig {
             players: vec![
@@ -1091,7 +1086,7 @@ mod tests {
     fn dies_trigger_notes_into_pending_triggers() {
         use crate::agenda::WorkItem;
 
-        let (mut state, goblin) = fixture_on_field("Creature dies-trigger DealDamage AnyTarget");
+        let (mut state, goblin) = fixture_on_field("Footlight Fiend");
         // toughness 1 → 1 damage is lethal.
         state.objects.obj_mut(goblin).damage = 1;
 
@@ -1127,14 +1122,14 @@ mod tests {
         );
     }
 
-    /// A non-watching board: a `Vanilla Creature` dying notes NOTHING (it has
+    /// A non-watching board: a `Grizzly Bears` dying notes NOTHING (it has
     /// no triggered abilities, and no other watcher cares).
     #[test]
     fn vanilla_creature_dying_notes_nothing() {
         use crate::agenda::WorkItem;
 
-        let (mut state, bear) = fixture_on_field("Vanilla Creature");
-        // Vanilla Creature has toughness 2; set lethal damage.
+        let (mut state, bear) = fixture_on_field("Grizzly Bears");
+        // Grizzly Bears has toughness 2; set lethal damage.
         state.objects.obj_mut(bear).damage = 2;
 
         state.schedule_front(vec![WorkItem::CheckSbas]);
@@ -1166,7 +1161,7 @@ mod tests {
     fn non_targeting_trigger_places_directly() {
         use crate::stack::StackObject;
 
-        let (mut state, etb) = fixture_on_field("Creature etb-trigger DrawCards");
+        let (mut state, etb) = fixture_on_field("Elvish Visionary");
         let source = state.objects.obj(etb).source;
         let controller = state.objects.obj(etb).controller;
         // Note one trigger by hand (ability 0 = the DrawCards etb).
@@ -1208,7 +1203,7 @@ mod tests {
     fn targeting_trigger_surfaces_choose_targets_at_placement() {
         use crate::decide::PendingDecision;
 
-        let (mut state, gob) = fixture_on_field("Creature dies-trigger DealDamage AnyTarget");
+        let (mut state, gob) = fixture_on_field("Footlight Fiend");
         let source = state.objects.obj(gob).source;
         let controller = state.objects.obj(gob).controller;
         // Note the dies-trigger (ability 0, targets [AnyTarget]).
@@ -1255,7 +1250,7 @@ mod tests {
         use crate::decide::{Decision, PendingDecision};
 
         // Two dies-watchers under player 0 (non-targeting `LoseLife`).
-        let (mut state, w0) = fixture_on_field("Creature dies-watcher LoseLife");
+        let (mut state, w0) = fixture_on_field("Moonlit Wake");
         let source = state.objects.obj(w0).source;
         let bindings = || super::TriggerBindings {
             this: None,

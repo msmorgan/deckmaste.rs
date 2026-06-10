@@ -1,8 +1,0 @@
-// A plain 1/1 with no abilities — combat-damage fodder (a small blocker).
-Normal(
-    name: "Vanilla 1/1",
-    mana_cost: [Green],
-    types: [Creature],
-    power: 1,
-    toughness: 1,
-)
