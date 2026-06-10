@@ -122,9 +122,10 @@ fn pool_kinds(pool: &ManaPool) -> [(ColorOrColorless, Uint); 6] {
 
 impl GameState {
     /// [CR#601.3a,601.2g]: may `player` cast `object` now? Offered iff the
-    /// object is in the holder's hand (the caller iterates the hand), timing
-    /// permits (instant → any priority; otherwise sorcery-speed), the pool can
-    /// pay the cost, and every target spec has at least one legal candidate.
+    /// object is in the holder's hand (the caller iterates the hand), the
+    /// object is not a land ([CR#305.9]), timing permits (instant → any
+    /// priority; otherwise sorcery-speed), the pool can pay the cost, and
+    /// every target spec has at least one legal candidate.
     #[must_use]
     pub(crate) fn can_cast(
         &self,
@@ -133,6 +134,11 @@ impl GameState {
         object: ObjectId,
     ) -> bool {
         let face = crate::derive::face(self.def(object));
+        // Lands are never cast as spells — playing a land is a special action
+        // ([CR#305.9,116.2a]).
+        if face.types.contains(&Type::Land) {
+            return false;
+        }
         let instant = face.types.contains(&Type::Instant);
         // Sorcery speed for non-instants ([CR#307.1,601.3a]).
         let timing_ok = instant || self.sorcery_speed_ok(player);
