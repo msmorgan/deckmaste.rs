@@ -155,6 +155,11 @@ impl GameState {
     /// derived list — `legal_actions` offered it and the pending decision
     /// froze the state.
     pub(crate) fn begin_activate(&mut self, object: ObjectId, index: usize) {
+        debug_assert_eq!(
+            self.objects.obj(object).zone,
+            Some(Zone::Battlefield),
+            "begin_activate only handles battlefield sources"
+        );
         let abilities = crate::derive::abilities(self, object);
         let ability = as_activated(
             abilities
