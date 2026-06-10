@@ -49,6 +49,10 @@ fn run_batch(decks: &[Vec<Arc<Card>>; 2]) -> Vec<GameRecord> {
         .collect()
 }
 
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "average over small batch counts; f64 has ample mantissa"
+)]
 fn report(label: &str, records: &[GameRecord]) -> (u64, u64, Probes) {
     let mut wins = [0u64; 2];
     let mut decked = 0u64;
