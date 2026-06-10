@@ -66,6 +66,7 @@ pub struct Observation {
     pub opp_proxy: ObjectId,
 }
 
+/// The other seat. Two-player games only: `p` must be seat 0 or 1.
 #[must_use]
 pub fn opponent(p: PlayerId) -> PlayerId {
     PlayerId(1 - p.0)
@@ -85,6 +86,8 @@ pub fn mana_cost_value(cost: &deckmaste_core::ManaCost) -> Uint {
         match sym {
             ManaSymbol::Simple(SimpleManaSymbol::Generic(n)) => mv += *n,
             ManaSymbol::Simple(SimpleManaSymbol::Specific(_)) => mv += 1,
+            // X / hybrid / phyrexian / snow don't occur in this matchup's costs;
+            // revisit when a deck plays them.
             _ => {}
         }
     }
@@ -103,9 +106,10 @@ impl Observation {
     ///
     /// # Panics
     ///
-    /// Panics if `state.objects.obj(id)` is called with a stale `ObjectId`
-    /// — callers must only pass a `GameState` with a live, consistent object
-    /// store (i.e. not a snapshot from a previous game tick).
+    /// Panics if a zone holds a stale `ObjectId` or an id that is not
+    /// card-backed (player proxies have no card face). Callers must only
+    /// pass a `GameState` with a live, consistent object store (i.e. not a
+    /// snapshot from a previous game tick).
     #[must_use]
     pub fn of(state: &GameState, seat: PlayerId) -> Self {
         let view = state.layers();
