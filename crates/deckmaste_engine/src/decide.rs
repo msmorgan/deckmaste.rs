@@ -430,7 +430,7 @@ impl GameState {
         // player only after every blocker recipient has lethal. Player proxies
         // among the recipients are identified by their `ObjectSource::Player`.
         let view = self.layers();
-        if crate::combat::has_keyword(&view, source, KeywordAbility::Trample) {
+        if crate::combat::has_keyword(&view, source, &KeywordAbility::Trample) {
             let assigned = |id: ObjectId| {
                 amounts
                     .iter()
@@ -492,7 +492,7 @@ impl GameState {
         source: ObjectId,
         blocker: ObjectId,
     ) -> Uint {
-        if crate::combat::has_keyword(view, source, KeywordAbility::Deathtouch) {
+        if crate::combat::has_keyword(view, source, &KeywordAbility::Deathtouch) {
             return 1; // [CR#702.2c]: any nonzero amount is lethal.
         }
         match view.toughness(blocker) {

@@ -269,7 +269,7 @@ impl GameState {
                     .objects
                     .get(source)
                     .is_some_and(|o| o.card_id().is_some())
-                    && crate::combat::has_keyword(&view, source, KeywordAbility::Lifelink)
+                    && crate::combat::has_keyword(&view, source, &KeywordAbility::Lifelink)
                 {
                     let controller = self.objects.obj(source).controller;
                     self.player_mut(controller).life +=
@@ -289,7 +289,7 @@ impl GameState {
                         .objects
                         .get(source)
                         .is_some_and(|o| o.card_id().is_some())
-                    && crate::combat::has_keyword(&view, source, KeywordAbility::Deathtouch)
+                    && crate::combat::has_keyword(&view, source, &KeywordAbility::Deathtouch)
                 {
                     self.objects.obj_mut(target).struck_by_deathtouch = true;
                 }
@@ -329,7 +329,7 @@ impl GameState {
             // [CR#702.20]: a creature with vigilance is NOT tapped when it attacks.
             GameEvent::Attacking(o) => {
                 self.combat.declare_attacker(o);
-                if !crate::combat::has_keyword(&self.layers(), o, KeywordAbility::Vigilance) {
+                if !crate::combat::has_keyword(&self.layers(), o, &KeywordAbility::Vigilance) {
                     self.objects.obj_mut(o).tapped = true;
                 }
                 GameEvent::Attacking(o)
@@ -791,7 +791,7 @@ impl GameState {
             }
             let recipients: Vec<ObjectId> = if self.combat.is_blocked(attacker) {
                 let mut blockers = self.combat.blockers_of(attacker).to_vec();
-                if crate::combat::has_keyword(&view, attacker, KeywordAbility::Trample) {
+                if crate::combat::has_keyword(&view, attacker, &KeywordAbility::Trample) {
                     // [CR#702.19b]: lethal to the blockers, excess to the player;
                     // [CR#702.19d]: no live blockers → everything to the player.
                     blockers.push(defender_proxy);
