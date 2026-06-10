@@ -376,7 +376,7 @@ impl GameState {
     #[must_use]
     pub(crate) fn targets_still_legal(&self, entry: &StackEntry) -> bool {
         let spell = entry.object.object();
-        let specs = self.spell_targets(spell);
+        let specs = spell_targets(&self.layers(), spell);
         debug_assert_eq!(
             specs.len(),
             entry.targets.len(),
@@ -392,17 +392,20 @@ impl GameState {
             crate::target::matches(self, chosen, filter)
         })
     }
+}
 
-    /// The `SpellAbility.targets` of the spell (empty for permanent spells).
-    /// Used internally and by `targets_still_legal`.
-    #[must_use]
-    pub(crate) fn spell_targets(&self, id: ObjectId) -> Vec<TargetSpec> {
-        crate::derive::abilities(self, id)
-            .iter()
-            .find_map(|a| spell_targets_list(a))
-            .cloned()
-            .unwrap_or_default()
-    }
+/// The `SpellAbility.targets` of the spell (empty for permanent spells).
+/// Used by the cast checks and `targets_still_legal`. Reads the caller's
+/// derived view — the legality loop checks every hand card against one
+/// view instead of re-deriving the board per card.
+#[must_use]
+pub(crate) fn spell_targets(view: &crate::layer::LayeredView, id: ObjectId) -> Vec<TargetSpec> {
+    view.get(id)
+        .abilities
+        .iter()
+        .find_map(|a| spell_targets_list(a))
+        .cloned()
+        .unwrap_or_default()
 }
 
 /// Extracts the `Effect` from the first `Ability::Spell` arm, looking through

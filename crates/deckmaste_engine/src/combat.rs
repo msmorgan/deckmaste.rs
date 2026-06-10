@@ -12,15 +12,18 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use deckmaste_core::{Ability, KeywordAbility};
 
+use crate::layer::LayeredView;
 use crate::object::ObjectId;
 use crate::state::GameState;
 
 /// Whether `object` has the intrinsic combat keyword `kw` ([CR#702]).
 /// Reads the layer-6–derived ability list ([CR#613.1f]) so that granted and
-/// removed keywords are honored.
+/// removed keywords are honored. Takes the derived view rather than building
+/// one — callers checking several creatures share a single `state.layers()`.
 #[must_use]
-pub fn has_keyword(state: &GameState, object: ObjectId, kw: KeywordAbility) -> bool {
-    crate::derive::abilities(state, object)
+pub fn has_keyword(view: &LayeredView, object: ObjectId, kw: KeywordAbility) -> bool {
+    view.get(object)
+        .abilities
         .iter()
         .any(|a| matches!(a, Ability::Keyword(k) if *k == kw))
 }
@@ -28,9 +31,9 @@ pub fn has_keyword(state: &GameState, object: ObjectId, kw: KeywordAbility) -> b
 /// [CR#702.7c,702.4]: whether `object` deals damage in the FIRST combat-damage
 /// step — true iff it has first strike OR double strike.
 #[must_use]
-pub fn deals_first_strike(state: &GameState, object: ObjectId) -> bool {
-    has_keyword(state, object, KeywordAbility::FirstStrike)
-        || has_keyword(state, object, KeywordAbility::DoubleStrike)
+pub fn deals_first_strike(view: &LayeredView, object: ObjectId) -> bool {
+    has_keyword(view, object, KeywordAbility::FirstStrike)
+        || has_keyword(view, object, KeywordAbility::DoubleStrike)
 }
 
 /// [CR#702.4]: whether `object` deals damage in the REGULAR combat-damage step.
@@ -39,9 +42,9 @@ pub fn deals_first_strike(state: &GameState, object: ObjectId) -> bool {
 /// creature deals here. This filter naturally includes everyone when no first
 /// strike exists.
 #[must_use]
-pub fn deals_regular_strike(state: &GameState, object: ObjectId) -> bool {
-    !has_keyword(state, object, KeywordAbility::FirstStrike)
-        || has_keyword(state, object, KeywordAbility::DoubleStrike)
+pub fn deals_regular_strike(view: &LayeredView, object: ObjectId) -> bool {
+    !has_keyword(view, object, KeywordAbility::FirstStrike)
+        || has_keyword(view, object, KeywordAbility::DoubleStrike)
 }
 
 /// [CR#510.4]: whether ANY combat creature (an attacker or a live blocker) has
@@ -50,13 +53,14 @@ pub fn deals_regular_strike(state: &GameState, object: ObjectId) -> bool {
 /// every live blocker.
 #[must_use]
 pub fn any_first_or_double_striker(state: &GameState) -> bool {
+    let view = state.layers();
     let combat = &state.combat;
     combat.attackers().iter().any(|&a| {
-        deals_first_strike(state, a)
+        deals_first_strike(&view, a)
             || combat
                 .blockers_of(a)
                 .iter()
-                .any(|&b| deals_first_strike(state, b))
+                .any(|&b| deals_first_strike(&view, b))
     })
 }
 

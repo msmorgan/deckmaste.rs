@@ -257,6 +257,9 @@ impl GameState {
                         self.objects.obj_mut(target).damage += amount;
                     }
                 }
+                // One view for the lifelink + deathtouch keyword checks below
+                // (built after the damage lands; neither keyword depends on it).
+                let view = self.layers();
                 // [CR#702.15]: if the source is a card-backed object with lifelink,
                 // its controller gains life equal to the damage dealt. This applies
                 // to combat damage and any other damage from a lifelink source.
@@ -266,7 +269,7 @@ impl GameState {
                     .objects
                     .get(source)
                     .is_some_and(|o| o.card_id().is_some())
-                    && crate::combat::has_keyword(self, source, KeywordAbility::Lifelink)
+                    && crate::combat::has_keyword(&view, source, KeywordAbility::Lifelink)
                 {
                     let controller = self.objects.obj(source).controller;
                     self.player_mut(controller).life +=
@@ -286,7 +289,7 @@ impl GameState {
                         .objects
                         .get(source)
                         .is_some_and(|o| o.card_id().is_some())
-                    && crate::combat::has_keyword(self, source, KeywordAbility::Deathtouch)
+                    && crate::combat::has_keyword(&view, source, KeywordAbility::Deathtouch)
                 {
                     self.objects.obj_mut(target).struck_by_deathtouch = true;
                 }
@@ -326,7 +329,7 @@ impl GameState {
             // [CR#702.20]: a creature with vigilance is NOT tapped when it attacks.
             GameEvent::Attacking(o) => {
                 self.combat.declare_attacker(o);
-                if !crate::combat::has_keyword(self, o, KeywordAbility::Vigilance) {
+                if !crate::combat::has_keyword(&self.layers(), o, KeywordAbility::Vigilance) {
                     self.objects.obj_mut(o).tapped = true;
                 }
                 GameEvent::Attacking(o)
@@ -756,13 +759,16 @@ impl GameState {
         let mut buffer: Vec<GameEvent> = Vec::new();
         let mut queue: Vec<crate::state::PendingAssignment> = Vec::new();
 
+        // One derived view serves every keyword/power read in this pass.
+        let view = self.layers();
+
         // [CR#510.4]: which sources deal this step is a pure keyword filter on
         // the current combat-damage step (no "already dealt" bookkeeping). In
         // the FIRST step only first/double strikers deal; in the REGULAR step
         // everyone EXCEPT a plain first-striker deals (a double-striker deals in
         // both). The regular filter includes everyone when no first strike
         // exists, so a single-pass combat is unchanged.
-        let deals_this_step: fn(&GameState, ObjectId) -> bool =
+        let deals_this_step: fn(&crate::layer::LayeredView, ObjectId) -> bool =
             if self.turn.current == Phase::Combat(CombatStep::FirstCombatDamage) {
                 crate::combat::deals_first_strike
             } else {
@@ -780,12 +786,12 @@ impl GameState {
             .player(self.next_live_after(self.turn.active_player))
             .object;
         for &attacker in self.combat.attackers() {
-            if !deals_this_step(self, attacker) {
+            if !deals_this_step(&view, attacker) {
                 continue; // [CR#510.4]: not dealing in this step.
             }
             let recipients: Vec<ObjectId> = if self.combat.is_blocked(attacker) {
                 let mut blockers = self.combat.blockers_of(attacker).to_vec();
-                if crate::combat::has_keyword(self, attacker, KeywordAbility::Trample) {
+                if crate::combat::has_keyword(&view, attacker, KeywordAbility::Trample) {
                     // [CR#702.19b]: lethal to the blockers, excess to the player;
                     // [CR#702.19d]: no live blockers → everything to the player.
                     blockers.push(defender_proxy);
@@ -794,16 +800,16 @@ impl GameState {
             } else {
                 vec![defender_proxy]
             };
-            self.assign_source(attacker, &recipients, &mut buffer, &mut queue);
+            Self::assign_source(&view, attacker, &recipients, &mut buffer, &mut queue);
         }
         // Each live blocker is a source dealing to the one attacker it blocks
         // ([CR#510.1d]) — exactly one recipient, always forced.
         for &attacker in self.combat.attackers() {
             for &blocker in self.combat.blockers_of(attacker) {
-                if !deals_this_step(self, blocker) {
+                if !deals_this_step(&view, blocker) {
                     continue; // [CR#510.4]: not dealing in this step.
                 }
-                self.assign_source(blocker, &[attacker], &mut buffer, &mut queue);
+                Self::assign_source(&view, blocker, &[attacker], &mut buffer, &mut queue);
             }
         }
 
@@ -830,13 +836,13 @@ impl GameState {
     /// free-division decision ([CR#510.1c]). `buffer` collects forced
     /// `DamageDealt`s; `queue` collects deciding sources.
     fn assign_source(
-        &self,
+        view: &crate::layer::LayeredView,
         source: ObjectId,
         recipients: &[ObjectId],
         buffer: &mut Vec<GameEvent>,
         queue: &mut Vec<crate::state::PendingAssignment>,
     ) {
-        let power = self.power_of(source);
+        let power = Self::power_of(view, source);
         if power == 0 || recipients.is_empty() {
             return; // [CR#510.1a]: 0 power (or no recipient) assigns nothing.
         }
@@ -891,8 +897,8 @@ impl GameState {
     /// A creature's combat-damage output: its derived power as a non-negative
     /// number ([CR#510.1c]). `None`/negative power assigns 0.
     #[must_use]
-    fn power_of(&self, id: ObjectId) -> Uint {
-        match self.layers().power(id) {
+    fn power_of(view: &crate::layer::LayeredView, id: ObjectId) -> Uint {
+        match view.power(id) {
             Some(p) if p > 0 => {
                 #[expect(clippy::cast_sign_loss)]
                 let p = p as Uint;

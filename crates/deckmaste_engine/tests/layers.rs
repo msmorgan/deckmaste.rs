@@ -162,7 +162,7 @@ fn static_grants_keyword() {
     let bear = force_onto_battlefield(&mut state, PlayerId(0), "Vanilla Creature");
     let _granter = force_onto_battlefield(&mut state, PlayerId(0), "Trample granter");
     assert!(
-        has_keyword(&state, bear, KeywordAbility::Trample),
+        has_keyword(&state.layers(), bear, KeywordAbility::Trample),
         "the bear gains trample from the static ([CR#613.1f])"
     );
 }
@@ -177,7 +177,7 @@ fn lose_all_abilities_blanks_keyword() {
     let trampler = force_onto_battlefield(&mut state, PlayerId(0), "Trample Creature");
     let _blanker = force_onto_battlefield(&mut state, PlayerId(0), "Blanker");
     assert!(
-        !has_keyword(&state, trampler, KeywordAbility::Trample),
+        !has_keyword(&state.layers(), trampler, KeywordAbility::Trample),
         "lose-all-abilities removes the printed trample ([CR#613.1f])"
     );
 }

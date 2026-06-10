@@ -14,6 +14,9 @@ use crate::tally::Tally;
 
 #[must_use]
 pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
+    // One derived view serves the whole window — the mana-ability and cast
+    // checks below read it per object instead of re-deriving the board.
+    let view = state.layers();
     let mut legal = vec![Action::Pass];
 
     // [CR#116.2a,305.2]: a land from hand, own turn, main phase, stack empty
@@ -40,10 +43,7 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         if obj.controller != player || obj.tapped {
             continue;
         }
-        // `derive::abilities` recomputes the whole layer view per call, so this
-        // per-permanent loop is an O(permanents) board re-derivation today;
-        // caching the `LayeredView` is the deferred optimization.
-        for (ability, a) in derive::abilities(state, object).iter().enumerate() {
+        for (ability, a) in view.get(object).abilities.iter().enumerate() {
             if derive::tap_mana_ability(a).is_some() {
                 legal.push(Action::ActivateAbility { object, ability });
             }
@@ -53,7 +53,7 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     // [CR#601.3a]: cast a spell from hand if timing + payment + targets permit.
     let stack_empty = state.stack.is_empty() && state.announcing.is_none();
     for &object in &state.zones.hands[player.index()] {
-        if state.can_cast(player, object, main, stack_empty) {
+        if state.can_cast(&view, player, object, main, stack_empty) {
             legal.push(Action::CastSpell { object });
         }
     }

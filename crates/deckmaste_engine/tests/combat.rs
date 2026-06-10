@@ -210,15 +210,15 @@ fn has_keyword_reads_printed_face_abilities() {
     let vanilla = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
 
     assert!(
-        has_keyword(&state, trampler, KeywordAbility::Trample),
+        has_keyword(&state.layers(), trampler, KeywordAbility::Trample),
         "the probe's printed abilities carry Keyword(Trample)"
     );
     assert!(
-        !has_keyword(&state, trampler, KeywordAbility::Deathtouch),
+        !has_keyword(&state.layers(), trampler, KeywordAbility::Deathtouch),
         "the probe carries only Trample, not Deathtouch"
     );
     assert!(
-        !has_keyword(&state, vanilla, KeywordAbility::Trample),
+        !has_keyword(&state.layers(), vanilla, KeywordAbility::Trample),
         "a vanilla creature has no keywords"
     );
 }
@@ -870,7 +870,7 @@ fn vigilance_attacker_is_not_tapped() {
     let mut state = two_player_decks("Vigilance Creature", "Vanilla Creature", 7, 20);
     let vigilant = force_onto_battlefield(&mut state, PlayerId(0), "Vigilance Creature");
     assert!(
-        has_keyword(&state, vigilant, KeywordAbility::Vigilance),
+        has_keyword(&state.layers(), vigilant, KeywordAbility::Vigilance),
         "pre-condition: the fixture carries Keyword(Vigilance)"
     );
 
@@ -912,7 +912,7 @@ fn lifelink_unblocked_attacker_gains_life_for_controller() {
     let mut state = two_player_decks("Lifelink Creature", "Vanilla Creature", 7, 20);
     let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Lifelink Creature");
     assert!(
-        has_keyword(&state, attacker, KeywordAbility::Lifelink),
+        has_keyword(&state.layers(), attacker, KeywordAbility::Lifelink),
         "pre-condition: the fixture carries Keyword(Lifelink)"
     );
 
@@ -955,7 +955,7 @@ fn deathtouch_one_damage_kills_five_five() {
     let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Deathtouch Creature");
     let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla 5/5");
     assert!(
-        has_keyword(&state, attacker, KeywordAbility::Deathtouch),
+        has_keyword(&state.layers(), attacker, KeywordAbility::Deathtouch),
         "pre-condition: the fixture carries Keyword(Deathtouch)"
     );
 
@@ -992,7 +992,7 @@ fn trample_over_one_blocker_spills_excess_to_player() {
     let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Trample Creature");
     let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
     assert!(
-        has_keyword(&state, attacker, KeywordAbility::Trample),
+        has_keyword(&state.layers(), attacker, KeywordAbility::Trample),
         "pre-condition: the fixture carries Keyword(Trample)"
     );
     let player_proxy = state.players[1].object;
@@ -1088,8 +1088,8 @@ fn deathtouch_trample_lethal_is_one_so_one_three_split_is_legal() {
     let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Trample Deathtouch Creature");
     let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
     assert!(
-        has_keyword(&state, attacker, KeywordAbility::Trample)
-            && has_keyword(&state, attacker, KeywordAbility::Deathtouch),
+        has_keyword(&state.layers(), attacker, KeywordAbility::Trample)
+            && has_keyword(&state.layers(), attacker, KeywordAbility::Deathtouch),
         "pre-condition: the fixture carries BOTH Keyword(Trample) and Keyword(Deathtouch)"
     );
     let player_proxy = state.players[1].object;
@@ -1206,7 +1206,7 @@ fn first_strike_kills_before_taking_damage() {
     let attacker = force_onto_battlefield(&mut state, PlayerId(0), "First Strike Creature");
     let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla Creature");
     assert!(
-        has_keyword(&state, attacker, KeywordAbility::FirstStrike),
+        has_keyword(&state.layers(), attacker, KeywordAbility::FirstStrike),
         "pre-condition: the fixture carries Keyword(FirstStrike)"
     );
 
@@ -1251,7 +1251,7 @@ fn double_strike_deals_twice() {
     let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Double Strike Creature");
     let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Vanilla 3/3");
     assert!(
-        has_keyword(&state, attacker, KeywordAbility::DoubleStrike),
+        has_keyword(&state.layers(), attacker, KeywordAbility::DoubleStrike),
         "pre-condition: the fixture carries Keyword(DoubleStrike)"
     );
 
