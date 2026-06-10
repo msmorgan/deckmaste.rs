@@ -6,7 +6,9 @@ use deckmaste_core::{
     ColorOrColorless, ManaCost, ManaSymbol, SimpleManaSymbol, TargetSpec, Type, Uint, Zone,
 };
 
+use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
+use crate::event::{GameEvent, Occurrence};
 use crate::object::ObjectId;
 use crate::player::{ManaPool, PlayerId};
 use crate::stack::{PendingStackEntry, StackObject};
@@ -167,19 +169,29 @@ impl GameState {
         });
     }
 
-    /// [CR#601.2c]: surface a `ChooseTargets` decision if the in-flight spell
-    /// targets. Returns the number of target specs (0 = no decision surfaced).
+    /// [CR#601.2c]: surface a `ChooseTargets` decision if the in-flight
+    /// announce targets. A spell's specs derive from its `Spell` ability; an
+    /// activated ability's ride the carried text ([CR#602.2b]). Returns the
+    /// number of target specs (0 = no decision surfaced).
     ///
     /// # Panics
     ///
-    /// Panics if no announce is in flight, or if the spec count overflows
-    /// `Uint` — engine invariants.
+    /// Panics if no announce is in flight, if a `Triggered` object occupies
+    /// the slot (triggers announce targets at placement, [CR#603.3d]), or if
+    /// the spec count overflows `Uint` — engine invariants.
     #[must_use]
     pub(crate) fn announce_targets(&mut self) -> Uint {
         let pending = self.announcing.as_ref().expect("an announce in flight");
-        let object = pending.object.object();
         let controller = pending.controller;
-        let specs = crate::resolve::spell_targets(&self.layers(), object);
+        let specs: Vec<TargetSpec> = match &pending.object {
+            StackObject::Spell(o) => crate::resolve::spell_targets(&self.layers(), *o),
+            // The carried ability text is authoritative — never re-derive
+            // from the (possibly changed) source.
+            StackObject::Activated { ability, .. } => ability.targets.clone(),
+            StackObject::Triggered { .. } => {
+                unreachable!("triggers announce targets at placement, not in the announce slot")
+            }
+        };
         if specs.is_empty() {
             return 0;
         }
@@ -196,25 +208,68 @@ impl GameState {
     /// [CR#601.2f,601.2g,601.2h]: pay the in-flight cost. Always surfaces a `PayMana`
     /// decision for any non-empty mana cost; the core never auto-pays.
     /// Auto-resolution (an Arena-style autotapper) is a future runner concern.
+    /// For an activated ability ([CR#602.2b]) the cost's {T}/{Q} components
+    /// are scheduled as events alongside the mana decision.
     ///
     /// # Panics
     ///
-    /// Panics if no announce is in flight, or the spell has no payable cost —
-    /// `can_cast` gated both.
+    /// Panics if no announce is in flight, the spell has no payable cost
+    /// (`can_cast` gated it), the ability cost has an unpayable component
+    /// (`can_activate` gated it), or a `Triggered` object occupies the slot.
     pub(crate) fn pay_cost(&mut self) {
         let pending = self.announcing.as_ref().expect("an announce in flight");
-        let object = pending.object.object();
         let controller = pending.controller;
-        let cost = self.mana_cost(object).expect("a castable spell has a cost");
-        if !cost.is_empty() {
-            let pool = self.player(controller).mana_pool.clone();
-            self.pending = Some(PendingDecision::PayMana {
-                player: controller,
-                cost,
-                pool,
-            });
+        match &pending.object {
+            StackObject::Spell(o) => {
+                let object = *o;
+                let cost = self.mana_cost(object).expect("a castable spell has a cost");
+                if !cost.is_empty() {
+                    let pool = self.player(controller).mana_pool.clone();
+                    self.pending = Some(PendingDecision::PayMana {
+                        player: controller,
+                        cost,
+                        pool,
+                    });
+                }
+                // Empty cost (no mana required): no decision surfaces, cast
+                // continues.
+            }
+            StackObject::Activated {
+                source, ability, ..
+            } => {
+                let source = *source;
+                let summary = crate::activate::cost_summary(&ability.cost)
+                    .expect("can_activate vetted the cost");
+                // Costs are paid at [CR#601.2h,602.2b]: schedule the {T}/{Q}
+                // events at the agenda FRONT — they sit behind the pending
+                // mana decision (if any) and apply when it is answered.
+                let mut events: Vec<WorkItem> = Vec::new();
+                if summary.tap {
+                    events.push(WorkItem::Emit(Occurrence::single(GameEvent::Tapped(
+                        source,
+                    ))));
+                }
+                if summary.untap {
+                    events.push(WorkItem::Emit(Occurrence::single(GameEvent::Untapped(
+                        source,
+                    ))));
+                }
+                if !events.is_empty() {
+                    self.schedule_front(events);
+                }
+                if !summary.mana.is_empty() {
+                    let pool = self.player(controller).mana_pool.clone();
+                    self.pending = Some(PendingDecision::PayMana {
+                        player: controller,
+                        cost: summary.mana,
+                        pool,
+                    });
+                }
+            }
+            StackObject::Triggered { .. } => {
+                unreachable!("a triggered ability has no cost and never occupies the announce slot")
+            }
         }
-        // Empty cost (no mana required): no decision surfaces, cast continues.
     }
 
     /// The card face's printed mana cost ([CR#202]). `None` would mark an

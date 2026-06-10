@@ -37,6 +37,14 @@ pub enum WorkItem {
     OpenPriority,
     /// [CR#601.2a,601.2b]: move the spell to the stack and open the announce slot.
     BeginCast(crate::object::ObjectId),
+    /// [CR#602.2a,602.2b]: stage a non-mana activated ability — snapshot the
+    /// ability text + source LKI into the announce slot. The shared
+    /// `AnnounceTargets`/`PayCost` items follow; `AbilityActivated` promotes
+    /// it onto the stack.
+    BeginActivate {
+        object: crate::object::ObjectId,
+        ability: usize,
+    },
     /// [CR#601.2c]: surface `ChooseTargets` if the in-flight spell targets.
     AnnounceTargets,
     /// [CR#601.2f,601.2g,601.2h]: pay the in-flight spell's cost (surface `PayMana` if there

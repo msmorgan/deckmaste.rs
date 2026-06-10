@@ -46,8 +46,8 @@ pub struct ActivationLedger {
 }
 
 impl ActivationLedger {
-    // Called from the activation pipeline (Task 7) and the test module.
-    #[allow(dead_code)]
+    /// Count one activation of `key` — both the per-turn and per-game windows.
+    /// Called when `AbilityActivated` applies ([CR#602.2a]).
     pub(crate) fn bump(&mut self, key: (ObjectId, usize)) {
         *self.this_turn.entry(key).or_insert(0) += 1;
         *self.this_game.entry(key).or_insert(0) += 1;

@@ -33,6 +33,10 @@ impl GameState {
     /// # Panics
     ///
     /// Panics if no entry has that id — engine invariant, not caller input.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one arm per stack-object kind; splitting would scatter the dispatch"
+    )]
     pub(crate) fn resolve_object(&mut self, id: ObjectId) {
         let entry = self
             .stack
@@ -121,8 +125,33 @@ impl GameState {
                     WorkItem::Emit(Occurrence::single(GameEvent::AbilityResolved(entry.id))),
                 ]);
             }
-            StackObject::Activated { .. } => {
-                todo!("activation pipeline task: resolve activated abilities")
+            // [CR#602.2a]: an activated ability resolves its carried text,
+            // then vanishes like a trigger — no zone move.
+            StackObject::Activated {
+                ability, bindings, ..
+            } => {
+                if self.targets_still_legal(&entry) {
+                    let frame = Frame {
+                        // [CR#608.2]: `~` is the source's announce-time
+                        // snapshot; the live object may be gone.
+                        source: bindings.this.as_ref().map_or(entry.id, |s| s.object),
+                        controller: entry.controller,
+                        targets: entry.targets.clone(),
+                        bindings: Some(bindings.clone()),
+                    };
+                    self.schedule_front(vec![
+                        WorkItem::RunEffect {
+                            effect: Box::new(ability.effect.clone()),
+                            frame,
+                        },
+                        WorkItem::Emit(Occurrence::single(GameEvent::AbilityResolved(entry.id))),
+                    ]);
+                } else {
+                    // [CR#608.2b]: every target illegal — fizzle, vanish.
+                    self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+                        GameEvent::AbilityResolved(entry.id),
+                    ))]);
+                }
             }
         }
     }
@@ -495,7 +524,8 @@ impl GameState {
     /// [CR#608.2b]: for each chosen target, it still matches its `TargetSpec`'s
     /// filter. Returns `true` if all chosen targets are still legal (or there
     /// are no targets). Stage 2: single target, so "all legal" == "the one
-    /// target legal".
+    /// target legal". A spell's specs derive from its `Spell` ability; an
+    /// activated ability's ride the carried text ([CR#602.2b]).
     ///
     /// **Announce invariant**: the zip assumes one chosen target per
     /// `TargetSpec` — exactly what the Stage-2 announce flow guarantees. If
@@ -503,12 +533,21 @@ impl GameState {
     ///
     /// # Panics
     ///
-    /// Panics on `TargetSpec` variants other than `Target` or `Expanded` —
-    /// only single-target `Target(_, _)` is wired (multi-target is Stage 4).
+    /// Panics on a `Triggered` entry (its resolve arm does not re-check
+    /// target legality yet — the trigger-fizzle seam), and on `TargetSpec`
+    /// variants other than `Target` or `Expanded` — only single-target
+    /// `Target(_, _)` is wired (multi-target is Stage 4).
     #[must_use]
     pub(crate) fn targets_still_legal(&self, entry: &StackEntry) -> bool {
-        let spell = entry.object.object();
-        let specs = spell_targets(&self.layers(), spell);
+        let specs: Vec<TargetSpec> = match &entry.object {
+            StackObject::Spell(o) => spell_targets(&self.layers(), *o),
+            // The carried text is authoritative — never re-derive from the
+            // (possibly gone, possibly changed) source.
+            StackObject::Activated { ability, .. } => ability.targets.clone(),
+            StackObject::Triggered { .. } => unreachable!(
+                "the Triggered resolve arm does not re-check target legality (fizzle seam)"
+            ),
+        };
         debug_assert_eq!(
             specs.len(),
             entry.targets.len(),

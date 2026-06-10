@@ -623,23 +623,41 @@ impl GameState {
             }
             Action::ActivateAbility { object, ability } => {
                 let abilities = derive::abilities(self, *object);
-                let ability = abilities.get(*ability).expect(
+                let a = abilities.get(*ability).expect(
                     "ability index from the legal list is in bounds (state frozen by pending)",
                 );
-                let (mana, amount) = derive::tap_mana_ability(ability)
-                    .expect("legality check admitted only tap-mana abilities");
                 self.reset_passes();
-                self.schedule_front(vec![
-                    WorkItem::Emit(Occurrence::single(GameEvent::Tapped(*object))),
-                    WorkItem::Emit(Occurrence::single(GameEvent::ManaAdded {
-                        player,
-                        mana,
-                        amount,
-                    })),
-                    WorkItem::CheckSbas,
-                    WorkItem::PlaceTriggers,
-                    WorkItem::OpenPriority,
-                ]);
+                if let Some((mana, amount)) = derive::tap_mana_ability(a) {
+                    // [CR#605.3b]: mana abilities skip the stack entirely.
+                    self.schedule_front(vec![
+                        WorkItem::Emit(Occurrence::single(GameEvent::Tapped(*object))),
+                        WorkItem::Emit(Occurrence::single(GameEvent::ManaAdded {
+                            player,
+                            mana,
+                            amount,
+                        })),
+                        WorkItem::CheckSbas,
+                        WorkItem::PlaceTriggers,
+                        WorkItem::OpenPriority,
+                    ]);
+                } else {
+                    // [CR#602.2b]: the casting steps, for an ability.
+                    self.schedule_front(vec![
+                        WorkItem::BeginActivate {
+                            object: *object,
+                            ability: *ability,
+                        },
+                        WorkItem::AnnounceTargets,
+                        WorkItem::PayCost,
+                        WorkItem::Emit(Occurrence::single(GameEvent::AbilityActivated {
+                            source: *object,
+                            ability: *ability,
+                        })),
+                        WorkItem::CheckSbas,
+                        WorkItem::PlaceTriggers,
+                        WorkItem::OpenPriority,
+                    ]);
+                }
             }
             Action::CastSpell { object } => {
                 // [CR#601.2]: reify the announce procedure. Targets and cost are

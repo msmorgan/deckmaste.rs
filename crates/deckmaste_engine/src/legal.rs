@@ -42,12 +42,11 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         if obj.controller != player {
             continue;
         }
+        let sick_creature =
+            obj.summoning_sick && view.get(object).card_types.contains(&Type::Creature);
         for (ability, a) in view.get(object).abilities.iter().enumerate() {
             if derive::tap_mana_ability(a).is_some() {
-                if !obj.tapped
-                    && !(obj.summoning_sick
-                        && view.get(object).card_types.contains(&Type::Creature))
-                {
+                if !obj.tapped && !sick_creature {
                     legal.push(Action::ActivateAbility { object, ability });
                 }
             } else if let Some(act) = crate::activate::as_activated(a)

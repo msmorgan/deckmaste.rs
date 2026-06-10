@@ -1,16 +1,20 @@
-//! Activating non-mana activated abilities ([CR#602]): the legality gate.
-//! The reified announce flow (next task) mirrors `cast.rs` ([CR#602.2b]:
-//! activation follows the [CR#601.2] steps). Mana abilities never come here:
-//! they are stackless ([CR#605.3b]) and keep their fast path.
+//! Activating non-mana activated abilities ([CR#602]): the legality gate and
+//! the staged announce (`begin_activate`), which mirrors `cast.rs`
+//! ([CR#602.2b]: activation follows the [CR#601.2] steps). Mana abilities
+//! never come here: they are stackless ([CR#605.3b]) and keep their fast
+//! path.
 
 use deckmaste_core::{
-    Ability, ActivatedAbility, CostComponent, ManaCost, ManaSymbol, Type, UseLimit,
+    Ability, ActivatedAbility, CostComponent, ManaCost, ManaSymbol, Type, UseLimit, Zone,
 };
 
 use crate::cast::can_pay;
+use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::player::PlayerId;
+use crate::stack::{PendingStackEntry, StackObject};
 use crate::state::GameState;
+use crate::trigger::TriggerBindings;
 
 /// Look through `Expanded` wrappers to an activated ability, if that is what
 /// this is (keyword macros expand to the abilities they grant).
@@ -23,45 +27,42 @@ pub(crate) fn as_activated(ability: &Ability) -> Option<&ActivatedAbility> {
     }
 }
 
-/// The summed mana of an activation cost, or `None` if a component can't be
-/// paid yet: `Do(...)` verb costs wait for `engine-resolve-playeractions`;
-/// loyalty costs wait for `core-loyalty-costs`.
-fn mana_of(cost: &[CostComponent]) -> Option<ManaCost> {
+/// One pass over an activation cost ([CR#602.2b,601.2f..601.2h]): the summed
+/// mana plus the {T}/{Q} components. `None` when a component is beyond the
+/// engine today (`Do(...)` verb costs wait for engine-resolve-playeractions;
+/// loyalty costs wait for core-loyalty-costs).
+pub(crate) struct CostSummary {
+    pub mana: ManaCost,
+    pub tap: bool,
+    pub untap: bool,
+}
+
+/// Summarize `cost` in one walk (so the `can_activate` gate and the pay step
+/// can never diverge). `Expanded` macro wrappers are looked through.
+pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
     let mut symbols: Vec<ManaSymbol> = Vec::new();
+    let mut tap = false;
+    let mut untap = false;
     for component in cost {
         match component {
             CostComponent::Mana(m) => symbols.extend_from_slice(m),
-            // {T} and {Q} contribute no mana but are not unknown.
-            CostComponent::Tap | CostComponent::Untap => {}
+            CostComponent::Tap => tap = true,
+            CostComponent::Untap => untap = true,
             // Verb costs are not yet handled.
             CostComponent::Do(_) => return None,
             // Recurse through macro wrappers.
             CostComponent::Expanded(e) => {
-                let inner = mana_of(std::slice::from_ref(&e.value))?;
-                symbols.extend_from_slice(&inner);
+                let inner = cost_summary(std::slice::from_ref(&e.value))?;
+                symbols.extend_from_slice(&inner.mana);
+                tap |= inner.tap;
+                untap |= inner.untap;
             }
         }
     }
-    Some(ManaCost::from(symbols))
-}
-
-/// Return whether the cost slice contains a `Tap` component (including inside
-/// `Expanded` wrappers).
-fn cost_has_tap(cost: &[CostComponent]) -> bool {
-    cost.iter().any(|c| match c {
-        CostComponent::Tap => true,
-        CostComponent::Expanded(e) => cost_has_tap(std::slice::from_ref(&e.value)),
-        _ => false,
-    })
-}
-
-/// Return whether the cost slice contains an `Untap` component (including
-/// inside `Expanded` wrappers).
-fn cost_has_untap(cost: &[CostComponent]) -> bool {
-    cost.iter().any(|c| match c {
-        CostComponent::Untap => true,
-        CostComponent::Expanded(e) => cost_has_untap(std::slice::from_ref(&e.value)),
-        _ => false,
+    Some(CostSummary {
+        mana: ManaCost::from(symbols),
+        tap,
+        untap,
     })
 }
 
@@ -79,28 +80,26 @@ impl GameState {
         ability: &ActivatedAbility,
     ) -> bool {
         // [CR#601.2g,602.2b]: the pool must be able to pay the mana cost.
-        let Some(mana) = mana_of(&ability.cost) else {
+        let Some(summary) = cost_summary(&ability.cost) else {
             return false;
         };
-        if !can_pay(&self.player(player).mana_pool, &mana) {
+        if !can_pay(&self.player(player).mana_pool, &summary.mana) {
             return false;
         }
 
-        let needs_tap = cost_has_tap(&ability.cost);
-        let needs_untap = cost_has_untap(&ability.cost);
         let obj = self.objects.obj(object);
 
         // A tapped object cannot pay {T}; an untapped object cannot pay {Q}.
-        if needs_tap && obj.tapped {
+        if summary.tap && obj.tapped {
             return false;
         }
-        if needs_untap && !obj.tapped {
+        if summary.untap && !obj.tapped {
             return false;
         }
 
         // [CR#602.5a]: summoning sickness prevents {T}/{Q} costs on creatures.
         // Haste exemption is the `kw-haste` seam.
-        if (needs_tap || needs_untap)
+        if (summary.tap || summary.untap)
             && obj.summoning_sick
             && view.get(object).card_types.contains(&Type::Creature)
         {
@@ -138,6 +137,48 @@ impl GameState {
             .targets
             .iter()
             .all(|spec| !self.legal_targets(spec).is_empty())
+    }
+
+    /// [CR#602.2a,602.2b]: stage a non-mana activated ability — snapshot the
+    /// ability text and the source's LKI into the announce slot. The shared
+    /// `AnnounceTargets`/`PayCost` items follow; `AbilityActivated` promotes
+    /// it onto the stack.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` does not name an activated ability in `object`'s
+    /// derived list — `legal_actions` offered it and the pending decision
+    /// froze the state.
+    pub(crate) fn begin_activate(&mut self, object: ObjectId, index: usize) {
+        let abilities = crate::derive::abilities(self, object);
+        let ability = as_activated(
+            abilities
+                .get(index)
+                .expect("ability index from the legal list is in bounds"),
+        )
+        .expect("BeginActivate names an activated ability")
+        .clone();
+        let controller = self.objects.obj(object).controller;
+        // The source's announce-time snapshot: `~` reads it at resolution even
+        // if the source is gone ([CR#608.2]). The other bindings stay empty,
+        // as for a fresh trigger outside any event context.
+        let bindings = TriggerBindings {
+            this: Some(LkiSnapshot::capture(self, object)),
+            that_object: None,
+            that_player: None,
+        };
+        self.announcing = Some(PendingStackEntry {
+            object: StackObject::Activated {
+                source: object,
+                ability: Box::new(ability),
+                bindings,
+            },
+            controller,
+            // Origin is a cast-from-zone concept; an ability has no zone of
+            // origin — record the source's zone for symmetry.
+            origin: Zone::Battlefield,
+            targets: vec![],
+        });
     }
 }
 
@@ -218,32 +259,56 @@ mod tests {
         );
     }
 
-    // -- mana_of --
+    // -- cost_summary --
 
     #[test]
-    fn mana_of_returns_none_on_do_cost() {
+    fn cost_summary_returns_none_on_do_cost() {
         let cost = vec![CostComponent::Do(PlayerAction::Sacrifice(Selection::Ref(
             Reference::This,
         )))];
-        assert!(mana_of(&cost).is_none(), "Do(...) cost should yield None");
+        assert!(
+            cost_summary(&cost).is_none(),
+            "Do(...) cost should yield None"
+        );
     }
 
     #[test]
-    fn mana_of_sums_mana_ignores_tap() {
+    fn cost_summary_sums_mana_and_notes_tap() {
         let cost = vec![
             CostComponent::Mana(ManaCost::from(vec![ManaSymbol::Simple(
                 SimpleManaSymbol::Generic(2),
             )])),
             CostComponent::Tap,
         ];
-        let result = mana_of(&cost).expect("mixed [Mana, Tap] should not be None");
-        assert_eq!(result.len(), 1, "should have exactly one generic-2 symbol");
+        let summary = cost_summary(&cost).expect("mixed [Mana, Tap] should not be None");
+        assert_eq!(
+            summary.mana.len(),
+            1,
+            "should have exactly one generic-2 symbol"
+        );
+        assert!(summary.tap, "the {{T}} component is seen");
+        assert!(!summary.untap, "no {{Q}} component");
     }
 
     #[test]
-    fn mana_of_empty_cost_gives_empty_mana_cost() {
-        let result = mana_of(&[]).expect("empty cost should yield Some(empty ManaCost)");
-        assert!(result.is_empty());
+    fn cost_summary_empty_cost_is_all_empty() {
+        let summary = cost_summary(&[]).expect("empty cost should summarize");
+        assert!(summary.mana.is_empty());
+        assert!(!summary.tap);
+        assert!(!summary.untap);
+    }
+
+    #[test]
+    fn cost_summary_sees_untap_through_expanded() {
+        use deckmaste_core::{Expansion, ExpansionArgs};
+        let cost = vec![CostComponent::Expanded(Expansion {
+            name: "Q".into(),
+            args: ExpansionArgs::none(),
+            value: Box::new(CostComponent::Untap),
+        })];
+        let summary = cost_summary(&cost).expect("a wrapped {Q} should summarize");
+        assert!(summary.untap, "{{Q}} is seen through the macro wrapper");
+        assert!(!summary.tap);
     }
 
     // -- can_activate gate --
@@ -359,5 +424,61 @@ mod tests {
             state.can_activate(&view, player, obj, 0, &ability),
             "zero-cost, no-limits ability should always be activatable"
         );
+    }
+
+    // -- begin_activate --
+
+    /// A card whose only ability is the given activated ability.
+    fn card_with_activated(act: ActivatedAbility) -> std::sync::Arc<deckmaste_core::Card> {
+        std::sync::Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+            name: "Activated Fixture".into(),
+            mana_cost: ManaCost::from(vec![]),
+            color_indicator: vec![],
+            supertypes: vec![],
+            types: vec![deckmaste_core::Type::Artifact],
+            subtypes: vec![],
+            abilities: vec![Ability::Activated(act)],
+            power: None,
+            toughness: None,
+            loyalty: None,
+            defense: None,
+        }))
+    }
+
+    #[test]
+    fn begin_activate_stages_cloned_ability_and_lki() {
+        let mut state = game();
+        let player = PlayerId(0);
+        let act = activated(vec![CostComponent::Tap], noop_effect());
+        let card_id = state.cards.push(card_with_activated(act.clone()), player);
+        let obj = state
+            .objects
+            .mint(ObjectSource::Card(card_id), player, Some(Zone::Battlefield));
+        state.zones.battlefield.push(obj);
+
+        state.begin_activate(obj, 0);
+
+        let pending = state.announcing.as_ref().expect("the announce slot opens");
+        assert_eq!(pending.controller, player);
+        assert_eq!(pending.origin, Zone::Battlefield);
+        assert!(pending.targets.is_empty(), "targets fill at announce");
+        let StackObject::Activated {
+            source,
+            ability,
+            bindings,
+        } = &pending.object
+        else {
+            panic!(
+                "expected an Activated stack object, got {:?}",
+                pending.object
+            );
+        };
+        assert_eq!(*source, obj);
+        assert_eq!(**ability, act, "the ability VALUE rides, cloned");
+        let this = bindings.this.as_ref().expect("the source's LKI snapshot");
+        assert_eq!(this.object, obj, "LKI names the announce-time source");
+        assert_eq!(this.left, Zone::Battlefield);
+        assert!(bindings.that_object.is_none(), "no event context");
+        assert_eq!(bindings.that_player, None);
     }
 }

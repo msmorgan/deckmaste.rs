@@ -12,7 +12,7 @@ use crate::legal::{legal_actions, legal_attackers, legal_blockers};
 use crate::object::{ObjectId, ObjectSource};
 use crate::player::PlayerId;
 use crate::sba;
-use crate::stack::StackEntry;
+use crate::stack::{StackEntry, StackObject};
 use crate::state::{GameOutcome, GameState};
 use crate::tally::Tally;
 use crate::turn::{PriorityRound, successor};
@@ -69,7 +69,8 @@ pub enum Progress {
     CombatEnded,
     /// A priority decision was surfaced for this player.
     PriorityOpened(PlayerId),
-    /// [CR#601.2a,601.2b]: a spell moved to the stack and the announce slot opened.
+    /// [CR#601.2a,601.2b] / [CR#602.2a,602.2b]: a spell moved to the stack (or
+    /// an activated ability was staged) and the announce slot opened.
     Announcing(crate::object::ObjectId),
     /// [CR#601.2c]: targets were announced for the in-flight spell (a
     /// `ChooseTargets` decision surfaces when `specs > 0`).
@@ -113,6 +114,10 @@ impl GameState {
             WorkItem::OpenPriority => self.open_priority(),
             WorkItem::BeginCast(object) => {
                 self.begin_cast(object);
+                Progress::Announcing(object)
+            }
+            WorkItem::BeginActivate { object, ability } => {
+                self.begin_activate(object, ability);
                 Progress::Announcing(object)
             }
             WorkItem::AnnounceTargets => {
@@ -272,6 +277,32 @@ impl GameState {
                     targets: pending.targets,
                 });
                 GameEvent::SpellCast(object)
+            }
+            GameEvent::AbilityActivated { source, ability } => {
+                // [CR#602.2a]: promote the staged activation onto the stack
+                // under a freshly minted stack identity ([CR#405]), and count
+                // it against "activate only once" limits ([CR#602.5b]).
+                let pending = self.announcing.take().expect("an announce in flight");
+                debug_assert!(
+                    matches!(
+                        &pending.object,
+                        StackObject::Activated { source: s, .. } if *s == source
+                    ),
+                    "AbilityActivated event matches the staged announce"
+                );
+                // Copy the ObjectSource before minting (mint mutates the store).
+                let src = self.objects.obj(source).source;
+                let id = self
+                    .objects
+                    .mint(src, pending.controller, Some(Zone::Stack));
+                self.stack.push(StackEntry {
+                    id,
+                    object: pending.object,
+                    controller: pending.controller,
+                    targets: pending.targets,
+                });
+                self.activations.bump((source, ability));
+                GameEvent::AbilityActivated { source, ability }
             }
             GameEvent::DamageDealt {
                 source,
