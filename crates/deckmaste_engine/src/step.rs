@@ -292,6 +292,10 @@ impl GameState {
                     // carries the text. Source match is the only structural check here.
                     "AbilityActivated event matches the staged announce"
                 );
+                // The source is always live here: nothing can fire between
+                // PayCost and AbilityActivated in the scheduled pipeline.
+                // Mid-announce zone changes (responding to costs) would need
+                // this arm revisited ([CR#602.2]).
                 // Copy the ObjectSource before minting (mint mutates the store).
                 let src = self.objects.obj(source).source;
                 let id = self

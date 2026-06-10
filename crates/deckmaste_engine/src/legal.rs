@@ -45,6 +45,10 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         let sick_creature =
             obj.summoning_sick && view.get(object).card_types.contains(&Type::Creature);
         for (ability, a) in view.get(object).abilities.iter().enumerate() {
+            // `tap_mana_ability` is the authoritative classifier here: its
+            // subset scope (cost=[Tap], specific mana, no targets) defines
+            // which abilities take the stackless path ([CR#605.3b]); widen it
+            // and this routing together.
             if derive::tap_mana_ability(a).is_some() {
                 if !obj.tapped && !sick_creature {
                     legal.push(Action::ActivateAbility { object, ability });
