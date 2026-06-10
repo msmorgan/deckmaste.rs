@@ -39,6 +39,14 @@ pub enum Condition {
     Is(Reference, Filter),
     /// An event happened within a window (morbid/raid, [CR#608.2i]).
     Happened { event: Event, within: Window },
+    /// It is the evaluating player's turn (the `you` of the evaluation
+    /// context — an ability's controller).
+    YourTurn,
+    /// The current phase/step is exactly the given one. Main phases are
+    /// single-step bare variants, so `DuringPhase(PrecombatMain)` works
+    /// today; phase-class matching (any combat step) accretes when a card
+    /// needs it.
+    DuringPhase(crate::Phase),
     /// All sub-conditions hold.
     AllOf(Vec<Condition>),
     /// At least one sub-condition holds.
@@ -62,6 +70,19 @@ mod tests {
         assert_eq!(
             read("Compare(X, AtLeast, Literal(3))"),
             Condition::Compare(Count::X, Cmp::AtLeast, Count::Literal(3)),
+        );
+    }
+
+    #[test]
+    fn your_turn_reads() {
+        assert_eq!(read("YourTurn"), Condition::YourTurn);
+    }
+
+    #[test]
+    fn during_phase_reads() {
+        assert_eq!(
+            read("DuringPhase(PostcombatMain)"),
+            Condition::DuringPhase(crate::Phase::PostcombatMain),
         );
     }
 

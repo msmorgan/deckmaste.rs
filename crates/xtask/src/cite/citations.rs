@@ -12,7 +12,7 @@ const OPEN: &str = "[CR#";
 /// Find every `[CR#…]` token in `content`. `raw` is the inside text; `context`
 /// is the trimmed source line. Malformed inner text is left for validation —
 /// this only splits on the delimiters.
-#[must_use] 
+#[must_use]
 pub fn scan_text(file: &Path, content: &str) -> Vec<Site> {
     let mut sites = Vec::new();
     for (i, line) in content.lines().enumerate() {
@@ -98,7 +98,7 @@ pub fn parse_refs(inner: &str) -> anyhow::Result<Vec<Ref>> {
 /// Strip an optional `[CR#…]` / `CR#…` wrapper down to the inner ref text.
 /// The enclosing brackets are removed only as a matched pair, so a lone `[` or
 /// `]` survives and is later rejected by [`parse_refs`].
-#[must_use] 
+#[must_use]
 pub fn strip_citation_wrapper(arg: &str) -> &str {
     let s = arg.trim();
     let s = s
