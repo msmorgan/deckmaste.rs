@@ -43,7 +43,7 @@ fn patterns() -> &'static [Regex] {
     })
 }
 
-#[must_use] 
+#[must_use]
 pub fn scan_noncompliant(file: &Path, content: &str) -> Vec<Site> {
     if is_exempt(file) {
         return Vec::new();
