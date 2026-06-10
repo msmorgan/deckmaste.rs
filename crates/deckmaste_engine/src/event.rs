@@ -54,6 +54,15 @@ pub enum GameEvent {
         player: PlayerId,
         object: ObjectId,
     },
+    /// The verb fact of a sacrifice ([CR#701.21a]): `player` moves a permanent
+    /// they control from the battlefield directly to its owner's graveyard —
+    /// not a destruction, so regeneration can never apply. Its apply evolves
+    /// into the generic Battlefield→Graveyard move (remint + LKI), like
+    /// `Discarded`; "you sacrificed" triggers (`Performed`) match here.
+    Sacrificed {
+        player: PlayerId,
+        object: ObjectId,
+    },
     PlayerLost {
         player: PlayerId,
         reason: LossReason,
@@ -71,11 +80,15 @@ pub enum GameEvent {
     /// apply captures LKI, moves+remints the object, folds the object's own
     /// `AsEnters` self-replacements into the entering status, and emits
     /// `ZoneChanged`. `enters` is present only when `to == Battlefield`.
+    /// `position` is present only when `to == Library`: the insertion index
+    /// counted from the top (`0` = top), clamped to the bottom when the
+    /// library is shorter ([CR#401.7]); `None` means the top.
     ZoneWillChange {
         object: ObjectId,
         from: Option<Zone>,
         to: Zone,
         enters: Option<EnterStatus>,
+        position: Option<Uint>,
     },
     /// The FACT ([CR#603.6]) — unreplaceable; carries the moved object's LKI.
     /// Triggers (later tasks) fire on it.
@@ -86,6 +99,11 @@ pub enum GameEvent {
     },
     /// [CR#119.3]: a player loses life directly (not via damage).
     LifeLost {
+        player: PlayerId,
+        amount: Uint,
+    },
+    /// [CR#119.3]: a player gains life.
+    LifeGained {
         player: PlayerId,
         amount: Uint,
     },

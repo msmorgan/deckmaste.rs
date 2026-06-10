@@ -41,6 +41,7 @@ impl GameState {
                             from: Some(Zone::Stack),
                             to: Zone::Battlefield,
                             enters: None,
+                            position: None,
                         },
                     ))]);
                 } else if self.targets_still_legal(&entry) {
@@ -64,6 +65,7 @@ impl GameState {
                             from: Some(Zone::Stack),
                             to: Zone::Graveyard,
                             enters: None,
+                            position: None,
                         })),
                     ]);
                 } else {
@@ -74,6 +76,7 @@ impl GameState {
                             from: Some(Zone::Stack),
                             to: Zone::Graveyard,
                             enters: None,
+                            position: None,
                         },
                     ))]);
                 }

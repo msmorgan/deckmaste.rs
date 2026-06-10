@@ -752,6 +752,7 @@ fn spell_leaves_the_stack_for_its_owners_graveyard() {
             from: Some(Zone::Stack),
             to: Zone::Graveyard,
             enters: None,
+            position: None,
         },
     );
     assert!(state.stack.is_empty());
@@ -778,6 +779,7 @@ fn destroy_will_change_remints_creature_to_owners_graveyard() {
             from: Some(Zone::Battlefield),
             to: Zone::Graveyard,
             enters: None,
+            position: None,
         },
     );
     // Old id is gone.
@@ -809,6 +811,7 @@ fn destroy_will_change_emits_zone_changed_carrying_lki() {
                 from: Some(Zone::Battlefield),
                 to: Zone::Graveyard,
                 enters: None,
+                position: None,
             },
         )));
     // First step applies the will-change; the next applies the queued fact.

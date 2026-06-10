@@ -954,6 +954,7 @@ mod tests {
             from: Some(Zone::Hand),
             to: Zone::Battlefield,
             enters: None,
+            position: None,
         };
         assert!(
             !state.event_matches(&self_enters, &will_change_event, etb_source),
