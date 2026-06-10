@@ -1,0 +1,12 @@
+// {R} 1/1: "{T}: this deals 1 damage to any target."
+// modeled on Prodigal Sorcerer (a tap pinger).
+Normal(
+    name: "Creature tap-activated DealDamage AnyTarget",
+    mana_cost: [Red],
+    types: [Creature],
+    power: 1,
+    toughness: 1,
+    abilities: [
+        Activated(cost: [Tap], targets: [AnyTarget], effect: DealDamage(Target(0), 1)),
+    ],
+)
