@@ -1926,3 +1926,23 @@ fn creature_enters_tapped_via_as_enters_replacement() {
         );
     }
 }
+
+#[test]
+fn land_in_hand_offers_play_land_not_cast_spell() {
+    // A Mountain in hand must appear as PlayLand (a special action
+    // [CR#305.9,116.2a]) but never as CastSpell — lands are not castable spells
+    // ([CR#305.9]).
+    let mut state = bolt_game(1, 0); // no lands forced onto battlefield
+    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+
+    let mountain = find_in_hand(&state, PlayerId(0), "Mountain");
+
+    assert!(
+        legal.contains(&Action::PlayLand { object: mountain }),
+        "legal_actions must offer PlayLand for a Mountain in hand"
+    );
+    assert!(
+        !legal.contains(&Action::CastSpell { object: mountain }),
+        "legal_actions must NOT offer CastSpell for a land ([CR#305.9])"
+    );
+}
