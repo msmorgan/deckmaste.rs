@@ -5,6 +5,7 @@
 //! for later tasks.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use deckmaste_core::{
     Ability, Color, Count, Duration, Filter, Ident, Int, ManaSymbol, Modification, Scope,
@@ -43,15 +44,18 @@ pub struct ContinuousEffect {
 /// An object's derived characteristics ([CR#613]). `power`/`toughness` are
 /// `None` for objects with no P/T; a printed `*` with no CDA resolves to `0`
 /// ([CR#208.2a]).
+/// All list-valued fields are `Arc`'d copy-on-write: base values share the
+/// per-card caches built at `Cards::push`, and a mutating layer op clones via
+/// `Arc::make_mut` only for the objects an effect actually touches.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Characteristics {
     pub power: Option<Int>,
     pub toughness: Option<Int>,
-    pub colors: Vec<Color>,
-    pub card_types: Vec<Type>,
-    pub subtypes: Vec<Subtype>,
-    pub supertypes: Vec<Supertype>,
-    pub abilities: Vec<Ability>,
+    pub colors: Arc<Vec<Color>>,
+    pub card_types: Arc<Vec<Type>>,
+    pub subtypes: Arc<Vec<Subtype>>,
+    pub supertypes: Arc<Vec<Supertype>>,
+    pub abilities: Arc<Vec<Ability>>,
     /// Ability names the object can't have or gain ([CR#613.1f]).
     /// Populated by `CantHaveAbility`; consulted by `GainAbility`.
     pub cant_have: Vec<Ident>,
@@ -89,6 +93,22 @@ fn base_stat(v: Option<&deckmaste_core::StatValue>) -> Option<Int> {
     }
 }
 
+/// A face's base colors ([CR#202.2]): the colored mana symbols in the cost,
+/// falling back to the color indicator for objects with no mana cost.
+/// Computed once per card at setup (`Cards::push`) and cached.
+pub(crate) fn base_colors(face: &deckmaste_core::CardFace) -> Vec<Color> {
+    let mut colors: Vec<Color> = Vec::new();
+    for c in face.mana_cost.iter().flat_map(symbol_colors) {
+        if !colors.contains(&c) {
+            colors.push(c);
+        }
+    }
+    if colors.is_empty() {
+        colors.clone_from(&face.color_indicator);
+    }
+    colors
+}
+
 /// Collect the colors contributed by one mana symbol ([CR#202.2]).
 fn symbol_colors(sym: &ManaSymbol) -> impl Iterator<Item = Color> {
     let mut buf: [Option<Color>; 2] = [None; 2];
@@ -113,29 +133,17 @@ fn symbol_colors(sym: &ManaSymbol) -> impl Iterator<Item = Color> {
 /// characteristics before any continuous effect. v1 reads the printed face
 /// (no copy/face-down handling).
 fn base_values(state: &GameState, id: ObjectId) -> Characteristics {
-    let face = crate::derive::face(state.def(id));
-    // Colors come from the colored mana symbols in the cost ([CR#202.2]);
-    // color_indicator is the fallback for objects with no mana cost.
-    let mut colors: Vec<Color> = Vec::new();
-    for c in face.mana_cost.iter().flat_map(symbol_colors) {
-        if !colors.contains(&c) {
-            colors.push(c);
-        }
-    }
-    if colors.is_empty() {
-        colors.clone_from(&face.color_indicator);
-    }
+    let card = state.objects.obj(id).card_id().expect("card-backed object");
+    let instance = state.cards.get(card);
+    let face = crate::derive::face(&instance.def);
     Characteristics {
         power: base_stat(face.power.as_ref()),
         toughness: base_stat(face.toughness.as_ref()),
-        colors,
-        card_types: face.types.clone(),
-        subtypes: face.subtypes.clone(),
-        supertypes: face.supertypes.clone(),
-        abilities: crate::derive::printed_abilities(state, id)
-            .into_iter()
-            .cloned()
-            .collect(),
+        colors: Arc::clone(&instance.colors),
+        card_types: Arc::clone(&instance.card_types),
+        subtypes: Arc::clone(&instance.subtypes),
+        supertypes: Arc::clone(&instance.supertypes),
+        abilities: Arc::clone(&instance.printed),
         cant_have: Vec::new(),
     }
 }
@@ -404,21 +412,23 @@ fn apply(m: &Modification, c: &mut Characteristics) {
         Modification::SwitchPowerToughness => std::mem::swap(&mut c.power, &mut c.toughness),
         // --- Layer 4: type-changing ([CR#613.4a]) ---
         Modification::AddCardTypes(ts) => {
+            let types = Arc::make_mut(&mut c.card_types);
             for t in ts {
-                if !c.card_types.contains(t) {
-                    c.card_types.push(*t);
+                if !types.contains(t) {
+                    types.push(*t);
                 }
             }
         }
-        Modification::SetCardTypes(ts) => c.card_types.clone_from(ts),
+        Modification::SetCardTypes(ts) => c.card_types = Arc::new(ts.clone()),
         Modification::AddSupertypes(ss) => {
+            let supertypes = Arc::make_mut(&mut c.supertypes);
             for s in ss {
-                if !c.supertypes.contains(s) {
-                    c.supertypes.push(*s);
+                if !supertypes.contains(s) {
+                    supertypes.push(*s);
                 }
             }
         }
-        Modification::SetSupertypes(ss) => c.supertypes.clone_from(ss),
+        Modification::SetSupertypes(ss) => c.supertypes = Arc::new(ss.clone()),
         // [CR#613.1a] subtype-set deferred: Ident→Subtype reconcile (no fixture yet)
         // `Modification::SetSubtypes`/`AddSubtypes` carry `Vec<Ident>` but
         // `Characteristics::subtypes` holds `Vec<Subtype>` (structs with confers/types).
@@ -430,26 +440,31 @@ fn apply(m: &Modification, c: &mut Characteristics) {
         Modification::BecomeBasicLandType(_) => {}
         // --- Layer 5: color-changing ([CR#613.4b]) ---
         Modification::AddColors(cl) => {
+            let colors = Arc::make_mut(&mut c.colors);
             for x in cl {
-                if !c.colors.contains(x) {
-                    c.colors.push(*x);
+                if !colors.contains(x) {
+                    colors.push(*x);
                 }
             }
         }
-        Modification::SetColors(cl) => c.colors.clone_from(cl),
+        Modification::SetColors(cl) => c.colors = Arc::new(cl.clone()),
         // --- Layer 6: ability-adding/removing ([CR#613.1f]) ---
+        // `Arc::make_mut` realizes the copy-on-write: the shared per-card base
+        // list is cloned only here, only for the objects an effect touches.
         Modification::GainAbility(a) => {
             // Respect any active "can't have" prohibition ([CR#613.1f]).
             if !c.cant_have.iter().any(|n| ability_is_named(a, n)) {
-                c.abilities.push((**a).clone());
+                Arc::make_mut(&mut c.abilities).push((**a).clone());
             }
         }
-        Modification::LoseAllAbilities => c.abilities.clear(),
-        Modification::LoseAbility(name) => c.abilities.retain(|x| !ability_is_named(x, name)),
+        Modification::LoseAllAbilities => c.abilities = Arc::new(Vec::new()),
+        Modification::LoseAbility(name) => {
+            Arc::make_mut(&mut c.abilities).retain(|x| !ability_is_named(x, name));
+        }
         Modification::CantHaveAbility(name) => {
             // Remove any already-present instance of the named ability, then
             // record the prohibition so future GainAbility skips it.
-            c.abilities.retain(|x| !ability_is_named(x, name));
+            Arc::make_mut(&mut c.abilities).retain(|x| !ability_is_named(x, name));
             c.cant_have.push(*name);
         }
         // --- Deferred ([CR#613.1b,613.1c,613.1d]) ---
