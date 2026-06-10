@@ -5,6 +5,8 @@
     body: AllOf([
         YourTurn,
         OneOf([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
+        // The Stack census includes the in-flight announce slot: an announced
+        // spell is already in the stack ZONE before its entry commits.
         Compare(CountOf(InZone(Stack)), Eq, Literal(0)),
     ]),
 )
