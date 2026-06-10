@@ -1,0 +1,9 @@
+// {0} artifact: "{1}: draw a card. Activate only once each turn."
+Normal(
+    name: "Artifact once-per-turn DrawCards",
+    mana_cost: [],
+    types: [Artifact],
+    abilities: [
+        Activated(cost: [Mana([Generic(1)])], limits: [OncePerTurn], effect: Draw(1)),
+    ],
+)
