@@ -48,17 +48,14 @@ pub fn check_sources(
             };
             // A range whose endpoint no longer resolves can't be expanded;
             // report the whole citation as GONE rather than aborting the check.
-            let member_rules = match members(&refs, rules) {
-                Ok(m) => m,
-                Err(_) => {
-                    outcome.checked += 1;
-                    outcome.stale.push(Stale {
-                        rule: site.raw.clone(),
-                        reason: Reason::Gone,
-                        site: site.clone(),
-                    });
-                    continue;
-                }
+            let member_rules = if let Ok(m) = members(&refs, rules) { m } else {
+                outcome.checked += 1;
+                outcome.stale.push(Stale {
+                    rule: site.raw.clone(),
+                    reason: Reason::Gone,
+                    site: site.clone(),
+                });
+                continue;
             };
             for rule in member_rules {
                 outcome.checked += 1;
@@ -97,6 +94,7 @@ pub fn show_rules(rules: &Rules, arg: &str) -> anyhow::Result<Vec<(String, Optio
 
 /// Greedily word-wrap `text` to lines of at most `width` columns, breaking only
 /// on whitespace. A word longer than `width` gets its own (over-long) line.
+#[must_use] 
 pub fn wrap_text(text: &str, width: usize) -> Vec<String> {
     let mut lines = Vec::new();
     let mut cur = String::new();
@@ -323,6 +321,7 @@ fn cmd_list_noncompliant() -> anyhow::Result<()> {
 }
 
 /// Render an old-vs-new text comparison for one rule.
+#[must_use] 
 pub fn format_diff(rule: &str, old: Option<&str>, new: Option<&str>) -> String {
     let mut s = format!("[CR#{rule}]\n");
     match old {
@@ -379,7 +378,7 @@ pub fn build_lockfile(
     Ok(lock)
 }
 
-/// Follow AcademyRuins `link/cr` to its final version-specific Wizards URL.
+/// Follow `AcademyRuins` `link/cr` to its final version-specific Wizards URL.
 fn resolve_wizards_url() -> anyhow::Result<String> {
     let resp = ureq::get(ACADEMYRUINS_LINK).call()?;
     Ok(resp.get_url().to_string())
@@ -405,8 +404,10 @@ fn cmd_bless() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[must_use] 
 pub fn repo_root() -> PathBuf { PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..") }
 
+#[must_use] 
 pub fn cr_txt_path() -> PathBuf {
     // Override for workspaces/CI where the gitignored `data/` lives elsewhere.
     if let Ok(p) = std::env::var("DECKMASTE_CR_TXT") {
@@ -415,4 +416,5 @@ pub fn cr_txt_path() -> PathBuf {
     repo_root().join("data/rules/cr.txt")
 }
 
+#[must_use] 
 pub fn lockfile_path() -> PathBuf { repo_root().join("cr-citations.lock") }

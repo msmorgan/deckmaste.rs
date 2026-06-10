@@ -13,7 +13,7 @@ use crate::cite::citations::Site;
 /// JSON data-model (rule numbers as `format` examples), and the keyword /
 /// ability-word stub generators (a rule-number data const plus serialization
 /// fixtures). The wide-net scan skips them so it doesn't demand bracket form
-/// for non-citations. Their *real* citations (e.g. ability_word_todos'
+/// for non-citations. Their *real* citations (e.g. `ability_word_todos`'
 /// `[CR#207.2c]`) are unaffected — only this scan exempts them; the staleness
 /// check still covers them.
 const NONCOMPLIANT_EXEMPT: &[&str] = &[
@@ -43,6 +43,7 @@ fn patterns() -> &'static [Regex] {
     })
 }
 
+#[must_use] 
 pub fn scan_noncompliant(file: &Path, content: &str) -> Vec<Site> {
     if is_exempt(file) {
         return Vec::new();
@@ -75,7 +76,7 @@ pub fn scan_noncompliant(file: &Path, content: &str) -> Vec<Site> {
 /// True if byte offset `at` falls within a `[CR#…]` span on this line.
 fn inside_citation(line: &str, at: usize) -> bool {
     match line[..at].rfind("[CR#") {
-        Some(o) => line[o..].find(']').map(|c| o + c >= at).unwrap_or(false),
+        Some(o) => line[o..].find(']').is_some_and(|c| o + c >= at),
         None => false,
     }
 }

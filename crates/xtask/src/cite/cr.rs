@@ -99,6 +99,7 @@ impl Rules {
         })
     }
 
+    #[must_use] 
     pub fn get(&self, number: &str) -> Option<&Rule> {
         self.index.get(number).map(|&i| &self.ordered[i])
     }
@@ -125,6 +126,7 @@ impl Rules {
     }
 
     /// Checksum of a single rule's text (None if the rule is absent).
+    #[must_use] 
     pub fn checksum(&self, number: &str) -> Option<String> {
         self.get(number).map(|r| checksum_text(&r.text))
     }
@@ -148,6 +150,7 @@ fn push(
 /// FNV-1a/64 of the normalized text, as 16 lowercase hex digits. Normalization
 /// collapses internal whitespace runs to a single space and trims the ends, so
 /// the value is stable across machines and Rust versions.
+#[must_use] 
 pub fn checksum_text(text: &str) -> String {
     let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
     let mut hasher = fnv::FnvHasher::default();
