@@ -8,3 +8,7 @@
 //! ```sh
 //! cargo test -p deckmaste_noncanon --features noncanon_tests
 //! ```
+
+pub mod deck;
+pub mod source;
+pub mod wc99;
