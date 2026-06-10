@@ -55,13 +55,13 @@ impl ActivationLedger {
 
     /// Activations of `key` since the turn began.
     #[must_use]
-    pub fn this_turn(&self, key: (ObjectId, usize)) -> Uint {
+    pub fn turn_count(&self, key: (ObjectId, usize)) -> Uint {
         self.this_turn.get(&key).copied().unwrap_or(0)
     }
 
     /// Activations of `key` this game.
     #[must_use]
-    pub fn this_game(&self, key: (ObjectId, usize)) -> Uint {
+    pub fn game_count(&self, key: (ObjectId, usize)) -> Uint {
         self.this_game.get(&key).copied().unwrap_or(0)
     }
 
@@ -102,12 +102,12 @@ mod tests {
         ledger.bump(key);
         ledger.bump(key);
         assert_eq!(
-            ledger.this_turn(key),
+            ledger.turn_count(key),
             2,
             "two bumps should give turn count 2"
         );
         assert_eq!(
-            ledger.this_game(key),
+            ledger.game_count(key),
             2,
             "two bumps should give game count 2"
         );
@@ -121,12 +121,12 @@ mod tests {
         ledger.bump(key);
         ledger.reset_turn();
         assert_eq!(
-            ledger.this_turn(key),
+            ledger.turn_count(key),
             0,
             "reset_turn should clear turn count"
         );
         assert_eq!(
-            ledger.this_game(key),
+            ledger.game_count(key),
             2,
             "reset_turn must not clear game count"
         );
@@ -139,7 +139,7 @@ mod tests {
         ledger.bump((obj, 0));
         ledger.bump((obj, 1));
         ledger.bump((obj, 1));
-        assert_eq!(ledger.this_turn((obj, 0)), 1);
-        assert_eq!(ledger.this_turn((obj, 1)), 2);
+        assert_eq!(ledger.turn_count((obj, 0)), 1);
+        assert_eq!(ledger.turn_count((obj, 1)), 2);
     }
 }

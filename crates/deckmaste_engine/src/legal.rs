@@ -32,9 +32,11 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     }
 
     // Activated abilities of permanents you control: mana abilities are
-    // stackless and always offerable when untapped ([CR#605.3a]); the rest
-    // run the full [CR#602.5] gate ([CR#602.2]: only the controller
-    // activates).
+    // stackless ([CR#605.3a]) and skip the full gate, but their {T} is still
+    // physical — a tapped object can't pay it, and [CR#602.5a] blocks a
+    // summoning-sick creature's {T} even for mana (haste = the kw-haste
+    // seam); the rest run the full [CR#602.5] gate ([CR#602.2]: only the
+    // controller activates).
     for &object in &state.zones.battlefield {
         let obj = state.objects.obj(object);
         if obj.controller != player {
@@ -42,7 +44,10 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         }
         for (ability, a) in view.get(object).abilities.iter().enumerate() {
             if derive::tap_mana_ability(a).is_some() {
-                if !obj.tapped {
+                if !obj.tapped
+                    && !(obj.summoning_sick
+                        && view.get(object).card_types.contains(&Type::Creature))
+                {
                     legal.push(Action::ActivateAbility { object, ability });
                 }
             } else if let Some(act) = crate::activate::as_activated(a)
