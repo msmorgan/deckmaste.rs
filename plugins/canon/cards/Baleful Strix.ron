@@ -10,8 +10,8 @@ Normal(
     ],
     subtypes: [Bird],
     abilities: [
-        Flying,
-        Deathtouch,
+        Keyword(Flying),
+        Keyword(Deathtouch),
         Triggered(
             event: ThisEnters,
             effect: Draw(1),
