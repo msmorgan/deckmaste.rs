@@ -93,7 +93,7 @@ impl GameState {
             }
             // [CR#603.8]: a triggered ability resolves its effect, then vanishes
             // — no zone move, the source untouched. The minted stack id is just
-            // discarded when `TriggerResolved` removes the entry.
+            // discarded when `AbilityResolved` removes the entry.
             StackObject::Triggered {
                 source,
                 ability,
@@ -118,8 +118,11 @@ impl GameState {
                         effect: Box::new(t.effect),
                         frame,
                     },
-                    WorkItem::Emit(Occurrence::single(GameEvent::TriggerResolved(entry.id))),
+                    WorkItem::Emit(Occurrence::single(GameEvent::AbilityResolved(entry.id))),
                 ]);
+            }
+            StackObject::Activated { .. } => {
+                todo!("activation pipeline task: resolve activated abilities")
             }
         }
     }
