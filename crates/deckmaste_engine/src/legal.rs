@@ -31,15 +31,23 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         }
     }
 
-    // [CR#605.3a]: mana abilities of untapped permanents you control. The
-    // only cost the skeleton can pay is {T}.
+    // Activated abilities of permanents you control: mana abilities are
+    // stackless and always offerable when untapped ([CR#605.3a]); the rest
+    // run the full [CR#602.5] gate ([CR#602.2]: only the controller
+    // activates).
     for &object in &state.zones.battlefield {
         let obj = state.objects.obj(object);
-        if obj.controller != player || obj.tapped {
+        if obj.controller != player {
             continue;
         }
         for (ability, a) in view.get(object).abilities.iter().enumerate() {
             if derive::tap_mana_ability(a).is_some() {
+                if !obj.tapped {
+                    legal.push(Action::ActivateAbility { object, ability });
+                }
+            } else if let Some(act) = crate::activate::as_activated(a)
+                && state.can_activate(&view, player, object, ability, act)
+            {
                 legal.push(Action::ActivateAbility { object, ability });
             }
         }

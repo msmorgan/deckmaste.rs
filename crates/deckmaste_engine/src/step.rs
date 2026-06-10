@@ -557,6 +557,7 @@ impl GameState {
         for player in &mut self.players {
             player.this_turn.reset();
         }
+        self.activations.reset_turn();
         // [CR#302.6]: a creature the active player has controlled continuously
         // since this turn began sheds summoning sickness. Collect ids first to
         // satisfy the borrow checker (mirrors `clear_marked_damage`).
