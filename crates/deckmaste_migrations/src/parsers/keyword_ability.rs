@@ -4,6 +4,11 @@
 //! integer / integer+cost). Each keyword will be a macro under its printed name
 //! (`Islandwalk`, `Ward`, `Mountaincycling`) that expands to its underlying
 //! keyword ability, so the on-card name *is* the invocation.
+//!
+//! The exception is the seven INTRINSIC keywords the grammar carries as
+//! `KeywordAbility` variants ([CR#702]): those render wrapped —
+//! `Keyword(Deathtouch)` — because the variant name IS the printed name and
+//! the engine implements them natively; no macro will ever exist for them.
 
 use deckmaste_core::{ManaCost, ManaSymbol};
 
@@ -218,8 +223,21 @@ const KEYWORD_NAMES: &[&str] = &[
     "Offspring",
 ];
 
-/// One keyword token -> its bare invocation RON (`Flying`,
-/// `Ward([Mana([Generic(2)])])`), or `None` (declines). The name-match +
+/// The intrinsic `KeywordAbility` variants (their rust-ident spellings) —
+/// kept in sync with `deckmaste_core::KeywordAbility::ALL`. All nullary.
+const INTRINSIC_KEYWORDS: &[&str] = &[
+    "FirstStrike",
+    "DoubleStrike",
+    "Deathtouch",
+    "Trample",
+    "Vigilance",
+    "Lifelink",
+    "Flying",
+];
+
+/// One keyword token -> its invocation RON: wrapped for an intrinsic
+/// (`Keyword(Flying)`), bare for a future printed-name macro
+/// (`Ward([Mana([Generic(2)])])`), or `None` (declines). The name-match +
 /// argument-shape logic.
 fn bare_keyword(token: &str) -> anyhow::Result<Option<String>> {
     let Some(name) = match_keyword_name(token) else {
@@ -231,6 +249,9 @@ fn bare_keyword(token: &str) -> anyhow::Result<Option<String>> {
         eprintln!("keyword_ability: unhandled keyword {name:?} (arg {arg:?})");
         return Ok(None);
     };
+    if INTRINSIC_KEYWORDS.contains(&invocation.as_str()) {
+        return Ok(Some(format!("Keyword({invocation})")));
+    }
     Ok(Some(invocation))
 }
 
@@ -304,9 +325,19 @@ mod tests {
     fn bare(token: &str) -> Option<String> { bare_keyword(token).unwrap() }
 
     #[test]
+    fn intrinsic_keywords_render_wrapped() {
+        assert_eq!(bare("Flying").as_deref(), Some("Keyword(Flying)"));
+        assert_eq!(
+            bare("First strike").as_deref(),
+            Some("Keyword(FirstStrike)")
+        );
+        assert_eq!(bare("Deathtouch").as_deref(), Some("Keyword(Deathtouch)"));
+    }
+
+    #[test]
     fn nullary_keywords() {
-        assert_eq!(bare("Flying").as_deref(), Some("Flying"));
-        assert_eq!(bare("First strike").as_deref(), Some("FirstStrike"));
+        assert_eq!(bare("Menace").as_deref(), Some("Menace"));
+        assert_eq!(bare("Defender").as_deref(), Some("Defender"));
     }
 
     #[test]
@@ -362,7 +393,7 @@ mod tests {
             resolve_line("Flying", CardKind::Permanent)
                 .unwrap()
                 .as_deref(),
-            Some("Flying")
+            Some("Keyword(Flying)")
         );
         assert_eq!(
             resolve_line("Ward {2}", CardKind::Permanent)

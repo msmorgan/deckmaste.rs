@@ -12,10 +12,7 @@ Normal(
     abilities: [
         Keyword(Flying),
         Keyword(Deathtouch),
-        Triggered(
-            event: ThisEnters,
-            effect: Draw(1),
-        ),
+        Triggered(event: ThisEnters, effect: Draw(1)),
     ],
     power: 1,
     toughness: 1,
