@@ -57,7 +57,11 @@ pub fn build_subset(spec: &DeckSpec, allow: &[&str], src: &CardSource) -> Vec<Ar
         .copied()
         .filter(|(name, _)| allow.contains(name))
         .collect();
-    assert!(!allowed.is_empty(), "{}: empty allowlist", spec.name);
+    assert!(
+        !allowed.is_empty(),
+        "{}: no spec entry matches allow={allow:?}",
+        spec.name
+    );
 
     let mut deck = Vec::with_capacity(spec.size());
     push_copies(&mut deck, src, spec.basics.0, usize::from(spec.basics.1));

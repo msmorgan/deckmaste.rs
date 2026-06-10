@@ -15,15 +15,19 @@ pub struct CardSource {
 impl CardSource {
     /// Loads both plugins from the repo's `plugins/` directory.
     ///
+    /// Loads `builtin` once and passes it as the explicit prelude to
+    /// `noncanon`, so the builtin macro/subtype layer is shared rather than
+    /// loaded twice.
+    ///
     /// # Panics
     ///
     /// Panics if either plugin fails to load — the harness is unusable then.
     #[must_use]
     pub fn load() -> Self {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins");
-        let noncanon = Plugin::load_with_sibling_prelude(root.join("noncanon"))
-            .expect("plugins/noncanon loads");
         let builtin = Plugin::load(root.join("builtin")).expect("plugins/builtin loads");
+        let noncanon = Plugin::load_with_prelude(&builtin, root.join("noncanon"))
+            .expect("plugins/noncanon loads");
         Self { noncanon, builtin }
     }
 
