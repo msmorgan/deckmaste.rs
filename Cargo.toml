@@ -5,6 +5,7 @@ members = [
     "crates/deckmaste_engine",
     "crates/deckmaste_migrations",
     "crates/macro_ron",
+    "crates/macro_ron_derive",
     "crates/xtask",
 ]
 

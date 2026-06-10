@@ -6,7 +6,11 @@ edition = "2024"
 [lints]
 workspace = true
 
+[features]
+derive = ["dep:macro_ron_derive"]
+
 [dependencies]
 elsa = "1.11.2"
 ron = "0.12.1"
 serde = { version = "1.0.228", features = ["derive"] }
+macro_ron_derive = { version = "0.1.0", path = "../macro_ron_derive", optional = true }

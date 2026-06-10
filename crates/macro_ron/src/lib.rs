@@ -10,17 +10,27 @@
 //! that type's `Expanded` variant as an [`Expansion`], which serializes the
 //! *invocation* back.
 
+// Lets generated code's `::macro_ron::` paths resolve inside this crate's
+// own tests (the serde/serde_derive trick).
+extern crate self as macro_ron;
+
 mod expand;
 mod expansion;
 mod ident;
 mod kind;
 mod param;
 mod set;
+mod support;
 #[cfg(test)]
 mod tests;
+mod traverse;
 
 pub use expansion::{Expansion, ExpansionArgs};
 pub use ident::{Ident, IdentSeed};
 pub use kind::{Kind, KindSet};
+#[cfg(feature = "derive")]
+pub use macro_ron_derive::{Expand, SupportsMacros};
 pub use param::{ParamType, ParamTypeSet, Validator};
 pub use set::{InsertError, MacroDef, MacroSet, Params};
+pub use support::{Pair, SupportsMacros, Triple, concat_variants};
+pub use traverse::Expand;
