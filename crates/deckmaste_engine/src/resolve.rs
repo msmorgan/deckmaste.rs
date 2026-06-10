@@ -2,12 +2,22 @@
 //! reified agenda work. Stage 3 wires the corpus's arms; the rest are `todo!`.
 
 use deckmaste_core::{
-    Ability, Action, Count, Effect, PlayerAction, Reference, Scope, Selection, StaticEffect,
-    TargetSpec, Type, Uint, Zone,
+    Ability, Action, Color, ColorOrColorless, Count, Effect, ManaSpec, PlayerAction, Reference,
+    Scope, Selection, StaticEffect, TargetSpec, Type, Uint, Zone,
 };
 
 use crate::agenda::WorkItem;
 use crate::event::{GameEvent, Occurrence};
+
+/// "Any color" ([CR#106.1b]): the five colors ([CR#105.1]) — a player asked to
+/// choose a color may not choose colorless ([CR#105.4]).
+const ANY_COLOR: [ColorOrColorless; 5] = [
+    ColorOrColorless::Color(Color::White),
+    ColorOrColorless::Color(Color::Blue),
+    ColorOrColorless::Color(Color::Black),
+    ColorOrColorless::Color(Color::Red),
+    ColorOrColorless::Color(Color::Green),
+];
 use crate::layer::{ContinuousEffect, ScopeResolved};
 use crate::object::ObjectId;
 use crate::stack::{Frame, StackEntry, StackObject};
@@ -234,6 +244,118 @@ impl GameState {
                     amount,
                 }))]
             }
+            PlayerAction::GainLife(qty) => {
+                let amount = self.eval_count(qty, frame);
+                vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeGained {
+                    player: actor,
+                    amount,
+                }))]
+            }
+            PlayerAction::Untap(sel) => {
+                // [CR#701.26b]: the mirror of `Tap` above.
+                let events: Vec<GameEvent> = self
+                    .eval_selection_set(sel, frame)
+                    .into_iter()
+                    .map(GameEvent::Untapped)
+                    .collect();
+                vec![WorkItem::Emit(occurrence_of(events))]
+            }
+            PlayerAction::Sacrifice(sel) => {
+                // [CR#701.21a]: the actor moves each selected permanent to its
+                // owner's graveyard — the `Sacrificed` verb fact evolves into
+                // the zone move at apply. That the selection names permanents
+                // the actor controls is the grammar's contract; a legality
+                // pass is a later seam.
+                let events: Vec<GameEvent> = self
+                    .eval_selection_set(sel, frame)
+                    .into_iter()
+                    .map(|object| GameEvent::Sacrificed {
+                        player: actor,
+                        object,
+                    })
+                    .collect();
+                vec![WorkItem::Emit(occurrence_of(events))]
+            }
+            PlayerAction::Exile(sel) => {
+                // [CR#701.13a]: move each selected object to exile from
+                // whatever zone it's in ([CR#406.2]) — bound at schedule time,
+                // like every selection here.
+                let events: Vec<GameEvent> = self
+                    .eval_selection_set(sel, frame)
+                    .into_iter()
+                    .map(|object| GameEvent::ZoneWillChange {
+                        object,
+                        from: Some(self.objects.obj(object).zone.expect("exile a zoned object")),
+                        to: Zone::Exile,
+                        enters: None,
+                        position: None,
+                    })
+                    .collect();
+                vec![WorkItem::Emit(occurrence_of(events))]
+            }
+            PlayerAction::PutInLibrary(sel, pos) => {
+                // [CR#401.7]: `pos` indexes from the top (0 = top), clamped to
+                // the bottom at apply. [CR#401.4]: the owner's arrangement
+                // choice for a multi-card selection is a seam — cards move one
+                // at a time in selection order, each inserting at the same
+                // index (so the last placed ends up frontmost of the group).
+                let position = self.eval_count(pos, frame);
+                self.eval_selection_set(sel, frame)
+                    .into_iter()
+                    .map(|object| {
+                        WorkItem::Emit(Occurrence::Single(GameEvent::ZoneWillChange {
+                            object,
+                            from: Some(
+                                self.objects.obj(object).zone.expect("a zoned object"),
+                            ),
+                            to: Zone::Library,
+                            enters: None,
+                            position: Some(position),
+                        }))
+                    })
+                    .collect()
+            }
+            PlayerAction::AddMana(qty, spec) => {
+                let amount = self.eval_count(qty, frame);
+                match spec {
+                    // A fixed production needs no choice.
+                    ManaSpec::Specific(mana) => {
+                        vec![WorkItem::Emit(Occurrence::Single(GameEvent::ManaAdded {
+                            player: actor,
+                            mana: *mana,
+                            amount,
+                        }))]
+                    }
+                    // [CR#106.1b]: the actor chooses on resolution — surfaced
+                    // explicitly even when only one option exists (engine
+                    // policy: every choice surfaces).
+                    ManaSpec::AnyColor => vec![WorkItem::ChooseManaColor {
+                        player: actor,
+                        options: ANY_COLOR.to_vec(),
+                        amount,
+                    }],
+                    ManaSpec::OneOf(options) => vec![WorkItem::ChooseManaColor {
+                        player: actor,
+                        options: options.clone(),
+                        amount,
+                    }],
+                }
+            }
+            PlayerAction::Discard(qty) => {
+                // [CR#701.9b]: the actor chooses which cards — surfaced as a
+                // decision when the work item applies (the hand may change
+                // before then).
+                let count = self.eval_count(qty, frame);
+                vec![WorkItem::DiscardCards {
+                    player: actor,
+                    count,
+                }]
+            }
+            // Look through a remembered macro invocation.
+            PlayerAction::Expanded(e) => self.player_action_items(&e.value, actor, frame),
+            // `Create` belongs to the `engine-tokens` item: token identity
+            // (`ObjectSource` has no token arm), the layer-base plumbing, and
+            // the ceases-to-exist SBA land together there.
             other => todo!("stage 3 does not perform player action {other:?}"),
         }
     }

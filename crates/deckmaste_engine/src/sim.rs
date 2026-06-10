@@ -279,7 +279,8 @@ fn choose_targets(state: &GameState, player: PlayerId, legal: &[Vec<ObjectId>]) 
     vec![state.players[opp.index()].object]
 }
 
-/// At cleanup, discard down — shed lands first, keeping action cards.
+/// Choose `count` cards to discard — shed lands first, keeping action cards.
+/// Serves both the cleanup hand-size discard and a resolving discard.
 fn choose_discards(state: &GameState, player: PlayerId, count: Uint) -> Vec<ObjectId> {
     let hand = &state.zones.hands[player.index()];
     let mut picks: Vec<ObjectId> = hand
@@ -298,8 +299,13 @@ fn choose_discards(state: &GameState, player: PlayerId, count: Uint) -> Vec<Obje
 /// here, which also asserts that the creature seat never chooses targets.
 fn mechanical(state: &GameState, pending: &PendingDecision) -> Decision {
     match pending {
-        PendingDecision::DiscardToHandSize { player, count } => {
+        PendingDecision::DiscardToHandSize { player, count }
+        | PendingDecision::DiscardCards { player, count } => {
             Decision::Discard(choose_discards(state, *player, *count))
+        }
+        // Greedy default: the first offered option (printed order).
+        PendingDecision::ChooseManaColor { options, .. } => {
+            Decision::ManaColor(*options.first().expect("a mana choice offers options"))
         }
         PendingDecision::PayMana { cost, pool, .. } => Decision::Pay(pay(cost, pool)),
         PendingDecision::OrderTriggers { triggers, .. } => {
@@ -327,6 +333,8 @@ fn pending_player(pending: &PendingDecision) -> PlayerId {
     match pending {
         PendingDecision::Priority { player, .. }
         | PendingDecision::DiscardToHandSize { player, .. }
+        | PendingDecision::DiscardCards { player, .. }
+        | PendingDecision::ChooseManaColor { player, .. }
         | PendingDecision::ChooseTargets { player, .. }
         | PendingDecision::PayMana { player, .. }
         | PendingDecision::OrderTriggers { player, .. }

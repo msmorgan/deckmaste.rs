@@ -18,6 +18,17 @@ pub enum PendingDecision {
     },
     /// [CR#514.1]: discard down to maximum hand size.
     DiscardToHandSize { player: PlayerId, count: Uint },
+    /// [CR#701.9b]: a resolving discard — `player` chooses which `count` cards
+    /// from their hand to discard (`count` already clamped to the hand size).
+    DiscardCards { player: PlayerId, count: Uint },
+    /// [CR#106.1b]: a resolving `AddMana` whose production is a choice ("any
+    /// color" offers the five colors per [CR#105.4]; "{W} or {U}" offers its
+    /// printed set) — `player` picks one of `options`.
+    ChooseManaColor {
+        player: PlayerId,
+        options: Vec<deckmaste_core::ColorOrColorless>,
+        amount: Uint,
+    },
     /// [CR#601.2c,115]: choose targets for the in-flight announce. `legal[i]`
     /// is the candidate set for `spec[i]`; `submit_decision` re-validates.
     ChooseTargets {
@@ -66,8 +77,10 @@ pub enum PendingDecision {
 pub enum Decision {
     /// Answers `Priority`.
     Act(Action),
-    /// Answers `DiscardToHandSize`: which cards to discard.
+    /// Answers `DiscardToHandSize` and `DiscardCards`: which cards to discard.
     Discard(Vec<ObjectId>),
+    /// Answers `ChooseManaColor`: the chosen mana.
+    ManaColor(deckmaste_core::ColorOrColorless),
     /// Answers `ChooseTargets`: one chosen object per `TargetSpec`.
     Targets(Vec<ObjectId>),
     /// Answers `PayMana`: how the pool covers the cost.
@@ -170,32 +183,37 @@ impl GameState {
                 self.take_priority_action(player, &action);
                 Ok(())
             }
-            (PendingDecision::DiscardToHandSize { player, count }, Decision::Discard(objects)) => {
+            (
+                PendingDecision::DiscardToHandSize { player, count }
+                | PendingDecision::DiscardCards { player, count },
+                Decision::Discard(objects),
+            ) => {
                 let (player, count) = (*player, *count);
-                let hand = &self.zones.hands[player.index()];
-                let distinct: HashSet<_> = objects.iter().copied().collect();
-                if objects.len() != count as usize
-                    || distinct.len() != objects.len()
-                    || !objects.iter().all(|o| hand.contains(o))
-                {
+                self.submit_discards(player, count, objects)
+            }
+            (
+                PendingDecision::ChooseManaColor {
+                    player,
+                    options,
+                    amount,
+                },
+                Decision::ManaColor(mana),
+            ) => {
+                // [CR#106.1b]: the choice is drawn from the offered set.
+                if !options.contains(&mana) {
                     return Err(DecisionError::Illegal {
-                        reason: format!("discard exactly {count} distinct cards from hand"),
+                        reason: format!("{mana:?} is not one of the offered mana options"),
                     });
                 }
+                let (player, amount) = (*player, *amount);
                 self.pending = None;
-                // The `Discarded` cause fact evolves into ZoneWillChange(Hand→Graveyard)
-                // at apply ([CR#701.8], spec §5.6).
-                self.schedule_front(
-                    objects
-                        .into_iter()
-                        .map(|object| {
-                            WorkItem::Emit(Occurrence::single(GameEvent::Discarded {
-                                player,
-                                object,
-                            }))
-                        })
-                        .collect(),
-                );
+                self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+                    GameEvent::ManaAdded {
+                        player,
+                        mana,
+                        amount,
+                    },
+                ))]);
                 Ok(())
             }
             (
@@ -318,6 +336,44 @@ impl GameState {
             }
             _ => Err(DecisionError::WrongKind),
         }
+    }
+
+    /// Shared by `DiscardToHandSize` ([CR#514.1]) and `DiscardCards`
+    /// ([CR#701.9b]): validate that exactly `count` distinct in-hand cards were
+    /// chosen, then emit one `Discarded` per card.
+    ///
+    /// # Errors
+    ///
+    /// `Illegal` when the chosen cards are not exactly `count` distinct cards
+    /// from the player's hand.
+    fn submit_discards(
+        &mut self,
+        player: PlayerId,
+        count: Uint,
+        objects: Vec<ObjectId>,
+    ) -> Result<(), DecisionError> {
+        let hand = &self.zones.hands[player.index()];
+        let distinct: HashSet<_> = objects.iter().copied().collect();
+        if objects.len() != count as usize
+            || distinct.len() != objects.len()
+            || !objects.iter().all(|o| hand.contains(o))
+        {
+            return Err(DecisionError::Illegal {
+                reason: format!("discard exactly {count} distinct cards from hand"),
+            });
+        }
+        self.pending = None;
+        // The `Discarded` cause fact evolves into ZoneWillChange(Hand→Graveyard)
+        // at apply ([CR#701.8], spec §5.6).
+        self.schedule_front(
+            objects
+                .into_iter()
+                .map(|object| {
+                    WorkItem::Emit(Occurrence::single(GameEvent::Discarded { player, object }))
+                })
+                .collect(),
+        );
+        Ok(())
     }
 
     /// [CR#603.3b]: apply an `OrderTriggers` answer — validate `order` is a
