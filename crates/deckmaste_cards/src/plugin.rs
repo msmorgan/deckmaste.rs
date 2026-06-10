@@ -85,23 +85,65 @@ impl Plugin {
         // alphabetical happenstance, so "last" would be meaningless.
         let mut own: HashSet<(Ident, Ident)> = HashSet::new();
 
-        // Macro definitions are self-describing.
+        // Nullary Subtype-kind definitions this plugin registers, expanded
+        // into the subtype table once the scope settles.
+        let mut declared: Vec<Ident> = Vec::new();
+
+        // A definition file may invoke a meta-macro from a file that
+        // hasn't loaded yet — file order is alphabetical happenstance — so
+        // failures are retried until a pass stops making progress; only
+        // then is the first one real.
+        let mut pending = Vec::new();
         for path in ron_files_recursive(&root.join(MACROS_DIR))? {
-            let def: MacroDef = deckmaste_core::ron::options()
-                .from_str(&read(&path)?)
-                .with_context(|| format!(r#"parsing macro "{}""#, path.display()))?;
-            for &kind in &def.kinds {
-                if !own.insert((kind, def.name)) {
-                    return Err(InsertError::Duplicate {
-                        kind,
-                        name: def.name,
-                    })
-                    .with_context(|| format!(r#"loading "{}""#, path.display()));
+            let source = read(&path)?;
+            pending.push((path, source));
+        }
+        while !pending.is_empty() {
+            let attempted = pending.len();
+            let mut failures = Vec::new();
+            for (path, source) in pending {
+                match macros.read_str::<MacroDef>(&source) {
+                    Ok(def) => {
+                        for &kind in &def.kinds {
+                            if !own.insert((kind, def.name)) {
+                                return Err(InsertError::Duplicate {
+                                    kind,
+                                    name: def.name,
+                                })
+                                .with_context(|| format!(r#"loading "{}""#, path.display()));
+                            }
+                        }
+                        if def.kinds.iter().any(|kind| kind.as_str() == "Subtype")
+                            && nullary(&def.params)
+                        {
+                            declared.push(def.name);
+                        }
+                        macros
+                            .replace(&def)
+                            .with_context(|| format!(r#"loading "{}""#, path.display()))?;
+                    }
+                    Err(error) => failures.push((path, source, error)),
                 }
             }
-            macros
-                .replace(&def)
-                .with_context(|| format!(r#"loading "{}""#, path.display()))?;
+            if failures.len() == attempted {
+                let (path, _, error) = failures.swap_remove(0);
+                return Err(anyhow::Error::new(error))
+                    .with_context(|| format!(r#"loading "{}""#, path.display()));
+            }
+            pending = failures
+                .into_iter()
+                .map(|(path, source, _)| (path, source))
+                .collect();
+        }
+
+        // Expanding each declared subtype both validates its body and
+        // fills the table — keyed by the value's printed name, which is
+        // what card values carry and the lint looks up.
+        for name in declared {
+            let subtype: Subtype = macros
+                .read_str(name.as_str())
+                .with_context(|| format!("expanding subtype `{name}`"))?;
+            subtypes.insert(subtype.name, subtype);
         }
 
         // A declaration joins the macro scope as a nullary macro whose body
@@ -187,6 +229,14 @@ pub(crate) fn read(path: &Path) -> anyhow::Result<String> {
     std::fs::read_to_string(path).with_context(|| format!(r#"reading "{}""#, path.display()))
 }
 
+/// Whether a signature takes no arguments, in either shape.
+fn nullary(params: &crate::macros::Params) -> bool {
+    match params {
+        crate::macros::Params::Positional(types) => types.is_empty(),
+        crate::macros::Params::Named(types) => types.is_empty(),
+    }
+}
+
 /// The `.ron` files under `dir` at any depth, sorted; an absent directory is
 /// empty. Entries are classified by [`std::fs::DirEntry::file_type`], so a
 /// directory named like a file is recursed into, not read.
@@ -250,6 +300,51 @@ mod tests {
         // builtin's own LandType("Plains") declaration replaced the
         // doctored prelude entry.
         assert_eq!(layered.subtypes["Plains"].types, [Type::Land]);
+    }
+
+    /// A meta-invocation definition file loads regardless of file order:
+    /// the retry loop defers it until its meta-macro registers, and the
+    /// produced nullary Subtype macro fills the subtype table.
+    #[test]
+    fn meta_invocation_files_load_before_their_meta() {
+        let root = tempfile::tempdir().unwrap();
+        let macros_dir = root.path().join("macros");
+        std::fs::create_dir_all(&macros_dir).unwrap();
+        // `aa_` sorts before `zz_`: the invocation is attempted first.
+        std::fs::write(
+            macros_dir.join("aa_instance.ron"),
+            r#"DeclareBear(name: "Bear")"#,
+        )
+        .unwrap();
+        std::fs::write(
+            macros_dir.join("zz_meta.ron"),
+            r#"(
+                name: "DeclareBear",
+                kinds: [Macro],
+                params: { "name": String },
+                body: (
+                    name: Param(name),
+                    kinds: [Subtype],
+                    body: Subtype(name: Param(name), types: [Creature]),
+                ),
+            )"#,
+        )
+        .unwrap();
+        let plugin = Plugin::load(root.path()).unwrap();
+        assert!(plugin.macros.get("Subtype", "Bear").is_some());
+        assert_eq!(plugin.subtypes["Bear"].types, [Type::Creature]);
+    }
+
+    /// When no pass makes progress, the first remaining failure is real
+    /// and names its file.
+    #[test]
+    fn an_unloadable_definition_reports_its_file() {
+        let root = tempfile::tempdir().unwrap();
+        let macros_dir = root.path().join("macros");
+        std::fs::create_dir_all(&macros_dir).unwrap();
+        std::fs::write(macros_dir.join("bad.ron"), r#"Nope(name: "X")"#).unwrap();
+        let err = Plugin::load(root.path()).err().expect("expected an error");
+        assert!(format!("{err:#}").contains("bad.ron"), "{err:#}");
     }
 
     /// Within one plugin, file order is alphabetical happenstance: two
