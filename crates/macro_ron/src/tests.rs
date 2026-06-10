@@ -47,6 +47,9 @@ fn kinds() -> KindSet {
 
 fn empty() -> MacroSet { MacroSet::new(kinds()).with_options(options()) }
 
+/// Parses a definition from file-shaped source, as plugin loading does.
+fn def(source: &str) -> MacroDef { options().from_str(source).unwrap() }
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 enum Type {
     Land,
@@ -957,6 +960,19 @@ fn injected_param_types_validate() {
         msg.contains("Repeat") && msg.contains("Number"),
         "unexpected error: {msg}"
     );
+}
+
+/// A definition file read through the macro-aware reader: `kinds:` reads
+/// bare identifiers via `deserialize_enum("", &[], …)`, which must fall
+/// through to the visitor instead of erroring as an unknown variant.
+#[test]
+fn macro_defs_read_through_the_macro_aware_reader() {
+    let def: MacroDef = empty()
+        .read_str(r#"(name: "Bears", kinds: [Filter], body: Type(Creature))"#)
+        .unwrap();
+    assert_eq!(def.name, "Bears");
+    assert_eq!(def.kinds, vec![Ident::from("Filter")]);
+    assert_eq!(def.body(), "Type(Creature)");
 }
 
 // ---------------------------------------------------------------------------

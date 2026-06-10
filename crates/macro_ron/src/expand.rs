@@ -950,7 +950,11 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
                 de.deserialize_enum(self.name, self.variants, self.visitor)
             });
         }
-        if self.variants.contains(&ident.as_str()) {
+        // An empty variant list marks an arbitrary-identifier reader
+        // (`kind_names`, `ParamType` — derived enums always pass their real
+        // list): forward the ident to the visitor instead of treating it as
+        // a macro name.
+        if self.variants.is_empty() || self.variants.contains(&ident.as_str()) {
             return self.visitor.visit_enum(Known {
                 ident,
                 variant,
