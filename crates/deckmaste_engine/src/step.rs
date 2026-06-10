@@ -288,6 +288,8 @@ impl GameState {
                         &pending.object,
                         StackObject::Activated { source: s, .. } if *s == source
                     ),
+                    // The `ability` index keys the ledger only; the stack object
+                    // carries the text. Source match is the only structural check here.
                     "AbilityActivated event matches the staged announce"
                 );
                 // Copy the ObjectSource before minting (mint mutates the store).

@@ -131,10 +131,14 @@ impl GameState {
                 ability, bindings, ..
             } => {
                 if self.targets_still_legal(&entry) {
+                    let this = bindings
+                        .this
+                        .as_ref()
+                        .expect("begin_activate captures the source snapshot unconditionally");
                     let frame = Frame {
                         // [CR#608.2]: `~` is the source's announce-time
                         // snapshot; the live object may be gone.
-                        source: bindings.this.as_ref().map_or(entry.id, |s| s.object),
+                        source: this.object,
                         controller: entry.controller,
                         targets: entry.targets.clone(),
                         bindings: Some(bindings.clone()),
