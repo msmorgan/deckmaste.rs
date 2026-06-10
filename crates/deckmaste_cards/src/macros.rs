@@ -4,6 +4,11 @@
 //! only) and are invoked by name where a value of one of their kinds is
 //! expected — see [`crate::plugin`] for loading and the `macro_ron` crate
 //! docs for the language itself.
+//!
+//! Subtype definitions are ordinary macro files, usually written as
+//! meta-macro invocations (`CreatureType(name: "TimeLord", template:
+//! "Time Lord")`) — `name` is the registration ident cards invoke,
+//! `template` the printed name carried in the value.
 
 use deckmaste_core::SupportsMacros as _;
 pub use macro_ron::{InsertError, MacroDef, MacroSet, ParamType, ParamTypeSet, Params};
