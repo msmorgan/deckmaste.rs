@@ -3,7 +3,7 @@
 //! authoritative check at submission (state can't change in between: a
 //! pending decision blocks stepping).
 
-use deckmaste_core::{Phase, Type};
+use deckmaste_core::Type;
 
 use crate::decide::Action;
 use crate::derive;
@@ -19,14 +19,9 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     let view = state.layers();
     let mut legal = vec![Action::Pass];
 
-    // [CR#116.2a,305.2]: a land from hand, own turn, main phase, stack empty
-    // (trivially true in the skeleton), one per turn.
-    let main = matches!(
-        state.turn.current,
-        Phase::PrecombatMain | Phase::PostcombatMain
-    );
-    if main
-        && player == state.turn.active_player
+    // [CR#116.2a,305.2]: a land from hand — sorcery timing (own turn, main
+    // phase, empty stack), one per turn.
+    if state.sorcery_speed_ok(player)
         && state.player(player).this_turn.count(Tally::LandsPlayed) < 1
     {
         for &object in &state.zones.hands[player.index()] {
