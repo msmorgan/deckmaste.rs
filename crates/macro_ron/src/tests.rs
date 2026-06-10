@@ -1118,7 +1118,7 @@ fn whole_body_holes_resolve_or_pass_through() {
     let produced: MacroDef = macros.read_str(r#"Deferred(name: "Itself")"#).unwrap();
     assert_eq!(produced.body(), "Param(extra)");
     macros.insert(&produced).unwrap();
-    let filter: Filter = macros.read_str(r#"Itself(extra: Any)"#).unwrap();
+    let filter: Filter = macros.read_str("Itself(extra: Any)").unwrap();
     let Filter::Expanded(expanded) = filter else {
         panic!("expected a remembered filter");
     };

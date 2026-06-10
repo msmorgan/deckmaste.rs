@@ -53,7 +53,9 @@ pub(super) fn generate(plugin: &super::PluginLayout) -> anyhow::Result<()> {
             }
             // `name` is the registration ident (what cards invoke);
             // `template` is the printed name — inert metadata today,
-            // reserved for rules-text rendering.
+            // reserved for rules-text rendering. Quotable as-is: catalog
+            // names carry only letters, apostrophes, spaces, and hyphens,
+            // none of which need escaping in a RON string.
             std::fs::write(
                 &dest,
                 format!("{prefix}Type(name: \"{ident}\", template: \"{subtype}\")\n"),

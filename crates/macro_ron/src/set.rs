@@ -224,6 +224,21 @@ fn is_bare_ident(name: &str) -> bool {
         && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
+/// The set-independent definition checks: an invocable name, and named
+/// params on meta-macros (hole indices can't tell the meta's frame from
+/// the produced definition's own params).
+fn check_def(def: &MacroDef) -> Result<(), InsertError> {
+    if !is_bare_ident(&def.name) {
+        return Err(InsertError::InvalidName { name: def.name });
+    }
+    if def.kinds.iter().any(|kind| kind.as_str() == "Macro")
+        && matches!(&def.params, Params::Positional(types) if !types.is_empty())
+    {
+        return Err(InsertError::MetaParamsPositional { name: def.name });
+    }
+    Ok(())
+}
+
 /// The macros in scope, keyed by name.
 ///
 /// This is the entry point for macro-aware reading: [`MacroSet::read_str`]
@@ -301,18 +316,6 @@ impl MacroSet {
     /// that parse position needs macro interception.
     pub(crate) fn expands_to_struct(&self, name: &str) -> bool { self.macros.contains_key(name) }
 
-    fn check_def(&self, def: &MacroDef) -> Result<(), InsertError> {
-        if !is_bare_ident(&def.name) {
-            return Err(InsertError::InvalidName { name: def.name });
-        }
-        if def.kinds.iter().any(|kind| kind.as_str() == "Macro")
-            && matches!(&def.params, Params::Positional(types) if !types.is_empty())
-        {
-            return Err(InsertError::MetaParamsPositional { name: def.name });
-        }
-        Ok(())
-    }
-
     fn check_kinds(&self, def: &MacroDef) -> Result<(), InsertError> {
         for &kind in &def.kinds {
             if self.kinds.get(&kind).is_none() {
@@ -349,7 +352,7 @@ impl MacroSet {
     /// `def`'s name, or the definition repeats a kind (which would otherwise
     /// self-overwrite silently).
     pub fn insert(&mut self, def: &MacroDef) -> Result<(), InsertError> {
-        self.check_def(def)?;
+        check_def(def)?;
         self.check_kinds(def)?;
         self.check_param_types(def)?;
         for (i, &kind) in def.kinds.iter().enumerate() {
@@ -402,7 +405,7 @@ impl MacroSet {
     /// # Errors
     /// If any of `def`'s kinds is unregistered.
     pub fn replace(&mut self, def: &MacroDef) -> Result<(), InsertError> {
-        self.check_def(def)?;
+        check_def(def)?;
         self.check_kinds(def)?;
         self.check_param_types(def)?;
         for &kind in &def.kinds {

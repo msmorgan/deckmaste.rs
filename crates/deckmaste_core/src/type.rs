@@ -39,8 +39,10 @@ pub enum Supertype {
 /// Embedded in the value: a macro-expanded card describes the entirety of
 /// its behavior.
 ///
-/// Subtypes are open-ended data, declared by plugins (usually through subtype
-/// macros like `LandType("Forest")`) rather than baked in as Rust variants.
+/// Subtypes are open-ended data, declared by plugins (usually as macro
+/// definitions produced by meta-macros like
+/// `LandType(name: "Forest", template: "Forest")`) rather than baked in as
+/// Rust variants.
 /// Plain serde on both sides; card files reference declared subtypes by bare
 /// name (`Forest`), which the macro-aware reader expands to the full
 /// declaration before this type ever sees it.
