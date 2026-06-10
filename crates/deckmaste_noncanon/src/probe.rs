@@ -45,6 +45,10 @@ impl Probes {
                 GameEvent::DamageDealt { source, target, .. } => {
                     let from_battlefield = state.zones.battlefield.contains(source);
                     let to_player = proxies.contains(target);
+                    // Heuristic: a source that died in the same batch (combat
+                    // trade) has already left the battlefield, so its damage
+                    // classifies as "spell". Fine while the fixture has no
+                    // combat trades; revisit with blockers.
                     match (from_battlefield, to_player) {
                         (true, true) => self.creature_damage_to_players += 1,
                         (false, true) => self.spell_damage_to_players += 1,
@@ -64,6 +68,7 @@ impl Probes {
         }
     }
 
+    /// Keep in sync with the struct fields — new probes must be summed here.
     pub fn merge(&mut self, other: &Probes) {
         self.lands_played += other.lands_played;
         self.spells_cast += other.spells_cast;

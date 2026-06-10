@@ -25,6 +25,9 @@ impl Pilot for PassBot {
             PendingDecision::DeclareAttackers { .. } => Decision::Attackers(vec![]),
             PendingDecision::DeclareBlockers { .. } => Decision::Blocks(vec![]),
             PendingDecision::ChooseTargets { legal, .. } => {
+                // The engine never surfaces an empty candidate set for a
+                // slot; if it ever does, the panic here is the loudest
+                // available signal.
                 Decision::Targets(legal.iter().map(|c| c[0]).collect())
             }
             other => mechanical(obs, other),

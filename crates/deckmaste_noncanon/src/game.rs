@@ -137,6 +137,9 @@ mod tests {
                 &mut PassBot,
                 &mut PassBot,
             );
+            // Draw is structurally impossible here: each player draws on
+            // their own turn, so the two deck-outs land in different SBA
+            // sweeps — always a Win.
             assert!(matches!(rec.outcome, GameOutcome::Win(_)), "{rec:?}");
             assert!(rec.decked, "draw-go must end in a deck-out: {rec:?}");
             assert!(rec.loser_lost_for_real);
