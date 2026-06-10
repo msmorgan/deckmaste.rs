@@ -5,6 +5,8 @@
 //! does next, so a `step()` can return mid-cascade and tests can assert
 //! state between any two events.
 
+mod activate;
+
 mod agenda;
 pub use agenda::WorkItem;
 
@@ -42,7 +44,7 @@ mod player;
 pub use player::{ManaPool, PlayerId, PlayerState};
 
 mod tally;
-pub use tally::{Tallies, Tally};
+pub use tally::{ActivationLedger, Tallies, Tally};
 
 mod replace;
 

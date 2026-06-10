@@ -13,6 +13,7 @@ use crate::layer::ContinuousEffect;
 use crate::object::{Cards, ObjectId, ObjectSource, ObjectStore};
 use crate::player::{PlayerId, PlayerState};
 use crate::stack::{PendingStackEntry, StackEntry};
+use crate::tally::ActivationLedger;
 use crate::turn::TurnState;
 use crate::zone::Zones;
 
@@ -112,6 +113,10 @@ pub struct GameState {
     /// spells/abilities via `Effect::Continuously`, retained until their
     /// `duration` expires.
     pub continuous: Vec<ContinuousEffect>,
+    /// Per-(object, ability-index) activation counts for "Activate only once …"
+    /// limits ([CR#602.5b]). Reset per turn in `begin_turn`; game-total
+    /// survives until the game ends.
+    pub activations: ActivationLedger,
 }
 
 impl GameState {
@@ -187,6 +192,7 @@ impl GameState {
             combat_damage: None,
             rng,
             continuous: Vec::new(),
+            activations: ActivationLedger::default(),
         }
     }
 
