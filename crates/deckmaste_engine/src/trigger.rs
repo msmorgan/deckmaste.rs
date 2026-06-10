@@ -4,9 +4,9 @@
 //! in APNAP order with an `OrderTriggers` decision and a target choice at
 //! placement.
 //!
-//! Matching is pure predicates (`event_matches`, `filter_matches_snapshot`,
-//! `condition_holds`); `scan_triggers` and `place_triggers` are the
-//! scheduling/agenda-touching functions.
+//! Matching is pure predicates (`event_matches`, `filter_matches_snapshot`);
+//! `scan_triggers` and `place_triggers` are the scheduling/agenda-touching
+//! functions.
 
 use deckmaste_core::{
     Ability, CharacteristicFilter, Event, Filter, Reference, StateFilterEvent, TargetSpec, Type,

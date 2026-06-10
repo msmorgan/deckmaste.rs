@@ -12,6 +12,10 @@ impl GameState {
     /// Evaluate a `Condition` against the current game state, where `you` is
     /// the evaluating player (the ability's controller — the "you" of
     /// `YourTurn` and similar self-referential conditions).
+    ///
+    /// `you` is the ability's controller *at the moment of evaluation* — the
+    /// activating player at gate time ([CR#602.5b]), or the stack entry's
+    /// controller at resolution for an intervening-if ([CR#603.4]).
     pub(crate) fn condition_holds(&self, cond: &Condition, you: PlayerId) -> bool {
         match cond {
             // "if you control a creature" / "if a creature is on the battlefield"
@@ -134,18 +138,38 @@ mod tests {
 
     /// `Compare(CountOf(InZone(Stack)), Eq, Literal(0))` is the core of the
     /// builtin `SorcerySpeed` macro. Fresh game has an empty stack and no
-    /// announce slot, so the condition holds.
+    /// announce slot, so the condition holds. An in-flight announce makes it
+    /// false — the announce slot counts as a stack occupant
+    /// ([CR#601.2a]).
     #[test]
     fn compare_counts_stack_census() {
-        let state = game();
+        let mut state = game();
         let cond = Condition::Compare(
             Count::CountOf(Box::new(Filter::State(StateFilter::InZone(Zone::Stack)))),
             Cmp::Eq,
             Count::Literal(0),
         );
+        // Fresh game: stack empty, no announce slot.
         assert!(
             state.condition_holds(&cond, PlayerId(0)),
             "Compare(CountOf(InZone(Stack)), Eq, Literal(0)) should hold on a fresh game (stack empty)"
+        );
+
+        // In-flight announce: the slot counts as a stack occupant.
+        let spell = state.objects.mint(
+            crate::object::ObjectSource::Player(PlayerId(0)),
+            PlayerId(0),
+            Some(deckmaste_core::Zone::Stack),
+        );
+        state.announcing = Some(crate::stack::PendingStackEntry {
+            object: crate::stack::StackObject::Spell(spell),
+            controller: PlayerId(0),
+            origin: deckmaste_core::Zone::Hand,
+            targets: vec![],
+        });
+        assert!(
+            !state.condition_holds(&cond, PlayerId(0)),
+            "Compare(CountOf(InZone(Stack)), Eq, Literal(0)) should be false with an in-flight announce"
         );
     }
 
