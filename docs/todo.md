@@ -5,8 +5,9 @@ today and what *every Modern-legal card and mechanic* needs. Census source: the
 local MTGJSON snapshot (22,050 distinct Modern-legal card names) intersected
 with the Scryfall keyword catalogs; rules references are the CR snapshot in
 `data/rules/`. "Cards" columns count distinct Modern-legal card names that use
-a mechanic — use them to prioritize. Mechanic names only; no card names or
-oracle text belong in this file.
+a mechanic — use them to prioritize. Mechanic names only in this census; the
+policy on committing real cards (the ~100–200-card canon slice, hand-written
+edge cases) is `card-data.md`.
 
 Already in place, for orientation: the full turn/priority/stack loop, casting
 with mana payment and targets, zone-change pipeline with LKI, core combat with
@@ -546,6 +547,9 @@ Rows here track that the *patterns* graduate. Slug: `aw-<kebab-case>`.
   → cards) instead of today's single pass.
 - [ ] `pipeline-layout-extraction` — extract layouts beyond normal/modal_dfc
   (see §4).
+- [ ] `canon-slice` — grow `plugins/canon/` toward the ~100–200-card mechanics
+  slice (`card-data.md`): as each mechanic lands, graduate a few real cards
+  exercising it; hand-write (and mark) the genuinely unparseable ones.
 - [ ] `macro-param-validation` — type-check macro params (Color, Filter, …) at
   the graduate gate.
 - [ ] `tokens-templates` — token definitions (predefined + ad-hoc) and granted
