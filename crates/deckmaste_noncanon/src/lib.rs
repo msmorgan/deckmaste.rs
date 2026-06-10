@@ -10,8 +10,11 @@
 //! ```
 
 pub mod deck;
+pub mod game;
 pub mod lookahead;
 pub mod observe;
 pub mod pilot;
+pub mod pilots;
+pub mod probe;
 pub mod source;
 pub mod wc99;
