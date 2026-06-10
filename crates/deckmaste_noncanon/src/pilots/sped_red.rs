@@ -91,12 +91,11 @@ impl Pilot for SpedRed {
                         if let Some(cast) = cast_action {
                             v.push((cast, spell));
                         } else if need == 0 && have == 0 {
-                            // have == 0 means need == mana_value, so this is a
-                            // zero-cost spell.
-                            // The engine surfaces CastSpell for those when
-                            // they're castable; if it
-                            // didn't, some other restriction applies. Skip
-                            // rather than synthesize.
+                            // need == 0 with have == 0 means mana_value == 0:
+                            // a zero-cost spell. The engine surfaces CastSpell
+                            // for those when they're castable; if it didn't,
+                            // some other restriction applies. Skip rather
+                            // than synthesize.
                         } else {
                             // Not yet in legal (pool can't pay yet) but will be
                             // once we float `need` mana.  Build the full
