@@ -39,6 +39,7 @@ pub(crate) struct CostSummary {
 
 /// Summarize `cost` in one walk (so the `can_activate` gate and the pay step
 /// can never diverge). `Expanded` macro wrappers are looked through.
+#[must_use]
 pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
     let mut symbols: Vec<ManaSymbol> = Vec::new();
     let mut tap = false;
@@ -143,6 +144,10 @@ impl GameState {
     /// ability text and the source's LKI into the announce slot. The shared
     /// `AnnounceTargets`/`PayCost` items follow; `AbilityActivated` promotes
     /// it onto the stack.
+    ///
+    /// The source must be a battlefield permanent — `legal_actions` only offers
+    /// battlefield activations; `origin` and the LKI capture assume a zoned
+    /// object. Activating from other zones (flashback-style) is a later seam.
     ///
     /// # Panics
     ///
@@ -429,6 +434,8 @@ mod tests {
     // -- begin_activate --
 
     /// A card whose only ability is the given activated ability.
+    // In-module fixture: no macro/serde path exercised, so no plugin round-trip
+    // needed.
     fn card_with_activated(act: ActivatedAbility) -> std::sync::Arc<deckmaste_core::Card> {
         std::sync::Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
             name: "Activated Fixture".into(),
