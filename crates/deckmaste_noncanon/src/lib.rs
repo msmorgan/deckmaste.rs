@@ -10,5 +10,6 @@
 //! ```
 
 pub mod deck;
+pub mod observe;
 pub mod source;
 pub mod wc99;
