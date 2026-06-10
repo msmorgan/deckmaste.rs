@@ -1,5 +1,6 @@
-use serde::{Deserialize, Serialize};
 use macro_ron::Ident;
+use serde::{Deserialize, Serialize};
+
 use crate::{Expand, Property};
 
 // [CR#300.1]
