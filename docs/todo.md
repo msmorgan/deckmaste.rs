@@ -20,13 +20,20 @@ mana/keyword/spell/triggered parsers.
 
 When starting work on a todo item:
 
-1. **Make a new jj change in `default@` removing the item from this list.**
-   In the default workspace: `jj new`, delete the item's bullet or table row
-   from this file, then `jj describe -m "todo: claim <slug>"`.
+1. **Make a new jj change in `default@` marking the item in-progress.**
+   In the default workspace: `jj new`, then tick the item's checkbox from
+   `- [ ]` to `- [x]`; for a table row (no checkbox), prefix its first cell
+   with `WIP:`. Then `jj describe -m "todo: claim <slug>"`.
 2. **Bookmark that change:** `jj bookmark create <slug> -r @`.
 3. **Start a new workspace** on that bookmark for the actual work:
    `jj workspace add --name <slug> -r <slug> ../deckmaste.<slug>`, then do the
    shared-dir setup from CLAUDE.md ("New jj workspaces") before building.
+
+A ticked box / `WIP:` prefix means claimed and in progress — pick an unclaimed
+item that doesn't conflict with the claimed ones (same files, same engine
+subsystem, or one item's right column naming the other). Claim bookmarks carry
+the item's slug, so `jj bookmark list` shows what's active. Items leave this
+file only when their work lands in the default line.
 
 Bullets carry an explicit `slug`; for table rows derive it from the mechanic
 name (`kw-…` for keyword abilities, `ka-…` for keyword actions, `aw-…` for
@@ -37,32 +44,32 @@ in full.
 
 ## 1. Parked work to integrate
 
-- `tokens-design` — token extraction parked twice (`tokens-shelved`,
+- [ ] `tokens-design` — token extraction parked twice (`tokens-shelved`,
   `tokens-revived` bookmarks). Blocked on a keyword-defs design the user has
   not yet approved. **[design]**
 
 ## 2. Core grammar gaps
 
-- `core-loyalty-costs` — a loyalty-cost component (+N / −N / −X) for activated
+- [ ] `core-loyalty-costs` — a loyalty-cost component (+N / −N / −X) for activated
   abilities; prerequisite for 1,512 planeswalker faces.
-- `core-alt-costs` — first-class shape (or blessed macro convention) for
+- [ ] `core-alt-costs` — first-class shape (or blessed macro convention) for
   alternative and additional casting costs: flashback, evoke, overload,
   madness, kicker, etc., including "if the X cost was paid" linkage.
   **[design]**
-- `core-card-shapes` — `Card` variants beyond `Normal`/`ModalDfc` (see §4).
-- `core-copy-grammar` — copy effects: spell copies on the stack, token copies,
+- [ ] `core-card-shapes` — `Card` variants beyond `Normal`/`ModalDfc` (see §4).
+- [ ] `core-copy-grammar` — copy effects: spell copies on the stack, token copies,
   enters-as-a-copy, "becomes a copy of" (layer 1 input).
-- `core-emblems` — emblem declarations and command-zone object grammar.
-- `core-saga-chapters` — chapter-ability structure (I/II/III markers, ranges,
+- [ ] `core-emblems` — emblem declarations and command-zone object grammar.
+- [ ] `core-saga-chapters` — chapter-ability structure (I/II/III markers, ranges,
   read-ahead compatibility).
-- `core-as-enters-choices` — "as this enters, choose …" (color/type/number/
+- [ ] `core-as-enters-choices` — "as this enters, choose …" (color/type/number/
   opponent) with stored, linked choices readable by other abilities.
-- `core-casting-restrictions` — "can't be countered", split-second-style stack
+- [ ] `core-casting-restrictions` — "can't be countered", split-second-style stack
   lockout, "cast only …" timing/permission restrictions.
-- `core-count-query` — `Count::Query` bridge to engine-tracked tallies (storm
+- [ ] `core-count-query` — `Count::Query` bridge to engine-tracked tallies (storm
   count, lands played, cards drawn); aggregate sums (devotion-style) still
   unsolved. **[design]**
-- `core-intrinsic-keywords-policy` — which keywords graduate from plugin
+- [ ] `core-intrinsic-keywords-policy` — which keywords graduate from plugin
   macros to intrinsic `KeywordAbility` variants, and the template-param story
   for parameterized ones (ward, protection, typed cycling). **[design]**
 
@@ -70,124 +77,124 @@ in full.
 
 ### Resolution breadth (`crates/deckmaste_engine/src/resolve.rs` todo!s)
 
-- `engine-resolve-playeractions` — resolve the remaining `PlayerAction`s:
+- [ ] `engine-resolve-playeractions` — resolve the remaining `PlayerAction`s:
   GainLife, Discard, AddMana, Create, Sacrifice, Exile, Untap, PutInLibrary
   (verb landed, resolution still todo).
-- `engine-resolve-actions` — resolve `Destroy` (regeneration/indestructible
+- [ ] `engine-resolve-actions` — resolve `Destroy` (regeneration/indestructible
   aware) and `ReturnToHand`.
-- `engine-resolve-effects` — May, If/Unless, ForEach, Modal, Delayed,
+- [ ] `engine-resolve-effects` — May, If/Unless, ForEach, Modal, Delayed,
   Reflexive effect frames; resolution-time choices surfaced as decisions.
-- `engine-resolve-counts` — X, CountOf(Filter), StatOf, ThatMuch.
-- `engine-resolve-selections` — Choose/Random selections as surfaced
+- [ ] `engine-resolve-counts` — X, CountOf(Filter), StatOf, ThatMuch.
+- [ ] `engine-resolve-selections` — Choose/Random selections as surfaced
   decisions; remaining `Reference` variants (Bound, Linked, ControllerOf,
   OwnerOf, attachment refs).
-- `engine-filter-breadth` — evaluate Named, Stat, Relation (controller/owner/
+- [ ] `engine-filter-breadth` — evaluate Named, Stat, Relation (controller/owner/
   opponent/attached), StateFilter (Status, HasCounter, HasDesignation,
   RelatedBy), and Is(Reference) filters (`target.rs`, `trigger.rs` snapshot
   matching).
 
 ### Triggers and conditions (`trigger.rs`)
 
-- `engine-trigger-events` — match the remaining event shapes: Performed
+- [ ] `engine-trigger-events` — match the remaining event shapes: Performed
   (verb-based: sacrificed, discarded, milled…), DamageDealt, spell-cast,
   becomes-tapped/untapped, becomes-blocked (needs once-per-attacker dedup),
   becomes-targeted (prerequisite for ward/heroic), OneOfEvents.
-- `engine-trigger-conditions` — Condition::Is, Compare, Happened; intervening
+- [ ] `engine-trigger-conditions` — Condition::Is, Compare, Happened; intervening
   "if" rechecked on resolution [CR#603.4].
-- `engine-trigger-limits` — OncePerTurn and friends.
-- `engine-history-tallies` — turn/game history the condition layer can query:
+- [ ] `engine-trigger-limits` — OncePerTurn and friends.
+- [ ] `engine-history-tallies` — turn/game history the condition layer can query:
   spells cast this turn (storm), lands played, life lost/gained, permanents
   that left, "entered this turn", attack/cast ordinals. The Tallies registry
   exists; wire it broadly and extend `Window` beyond ThisTurn.
 
 ### Layers and continuous effects (`layer.rs` seams)
 
-- `engine-layers-1-3` — layer 1 copy, layer 2 control change, layer 3 text
+- [ ] `engine-layers-1-3` — layer 1 copy, layer 2 control change, layer 3 text
   change; face-down characteristics; dependency ordering [CR#613.8].
-- `engine-layers-misc` — condition evaluation on static abilities, Of/These
+- [ ] `engine-layers-misc` — condition evaluation on static abilities, Of/These
   scope resolution (currently locked empty), subtype changes in layer 4 with
   confers data, become-basic-land-type, base loyalty/defense.
 
 ### SBAs and counters (`sba.rs`)
 
-- `engine-sba-breadth` — the remaining [CR#704.5] sweeps: poison loss,
+- [ ] `engine-sba-breadth` — the remaining [CR#704.5] sweeps: poison loss,
   toughness ≤ 0, loyalty 0, illegal auras, unattached-equipment legality,
   legend rule, token-ceases-to-exist, battle with no defense, spell-copy
   cleanup.
-- `engine-counters-api` — add/remove/move counters as events; enters-with-
+- [ ] `engine-counters-api` — add/remove/move counters as events; enters-with-
   counters; +1/+1 vs −1/−1 annihilation SBA; keyword-counter payload registry
   [CR#122.1] (stun, shield, finality, flying, …).
 
 ### Replacements and prevention (`replace.rs`)
 
-- `engine-replacements` — a general replacement registry beyond enters-tapped:
+- [ ] `engine-replacements` — a general replacement registry beyond enters-tapped:
   Instead/Skip/Also, zone-destination redirects, enters-with-counters,
   enters-as-choices, draw replacements (dredge/miracle window), dies→exile,
   lifegain/damage modification, self-replacement ordering.
-- `engine-prevention` — prevention shields and windows [CR#615.1], including
+- [ ] `engine-prevention` — prevention shields and windows [CR#615.1], including
   "can't be prevented".
 
 ### Costs and casting (`cast.rs`, `legal.rs`)
 
-- `engine-x-costs` — X announcement, X in effects, zero-X edge cases.
-- `engine-cost-payment` — hybrid/Phyrexian payment choices, snow, life
+- [ ] `engine-x-costs` — X announcement, X in effects, zero-X edge cases.
+- [ ] `engine-cost-payment` — hybrid/Phyrexian payment choices, snow, life
   payment, non-mana additional costs (sacrifice/discard/exile/tap others).
-- `engine-cost-modification` — apply CostModifier statics in the cost
+- [ ] `engine-cost-modification` — apply CostModifier statics in the cost
   calculation pipeline [CR#601.2f] (affinity, convoke, improvise, delve,
   reducers/taxers).
-- `engine-alt-costs` — choosing an alternative cost at announcement; "without
+- [ ] `engine-alt-costs` — choosing an alternative cost at announcement; "without
   paying its mana cost" (cascade, suspend, plot).
-- `engine-activated-abilities` — activating non-mana abilities (only mana
+- [ ] `engine-activated-abilities` — activating non-mana abilities (only mana
   abilities are legal today, `legal.rs`): general costs, timing restrictions
   ("only as a sorcery", once-per-turn, once-per-game), loyalty abilities.
-- `engine-mana-system` — mana pool provenance/riders (spend-only-on
+- [ ] `engine-mana-system` — mana pool provenance/riders (spend-only-on
   restrictions, doesn't-empty), triggered mana abilities, conditional
   production.
-- `engine-cast-from-zones` — casting from graveyard/exile/library via
+- [ ] `engine-cast-from-zones` — casting from graveyard/exile/library via
   permissions; linked "the exiled card" access; timing windows (miracle,
   forecast).
 
 ### Zones and objects
 
-- `engine-exile-command` — wire Exile (face-up/face-down, with counters,
+- [ ] `engine-exile-command` — wire Exile (face-up/face-down, with counters,
   linked retrieval) and Command zones as zone-pipeline sources/destinations.
-- `engine-tokens` — resolve Create; token objects on the battlefield; token
+- [ ] `engine-tokens` — resolve Create; token objects on the battlefield; token
   copies; predefined tokens (Treasure, Food, Clue, Blood, Map, Powerstone,
   Incubator, Role); token SBA on zone leave.
-- `engine-copy-spells` — spell copies on the stack with target re-choice
+- [ ] `engine-copy-spells` — spell copies on the stack with target re-choice
   (storm, replicate, casualty, conspire, magecraft sources).
-- `engine-attachments` — attach/unattach state, enchant/equip legality
+- [ ] `engine-attachments` — attach/unattach state, enchant/equip legality
   checks, aura cast targeting, attach SBAs, equip/reconfigure/fortify
   activation.
-- `engine-face-down` — face-down spells and permanents (morph/disguise/
+- [ ] `engine-face-down` — face-down spells and permanents (morph/disguise/
   manifest/cloak), turn-face-up special action, face-down exile.
-- `engine-planeswalkers` — loyalty enters/activation/SBA, attacking
+- [ ] `engine-planeswalkers` — loyalty enters/activation/SBA, attacking
   planeswalkers (attack-target choice), compleated.
-- `engine-battles` — defense counters, protector designation, attacking
+- [ ] `engine-battles` — defense counters, protector designation, attacking
   battles, defeated trigger + back-face casting.
-- `engine-sagas` — lore counters, chapter firing, final-chapter sacrifice,
+- [ ] `engine-sagas` — lore counters, chapter firing, final-chapter sacrifice,
   read-ahead.
-- `engine-transform` — transforming DFC permanents (front/back face state,
+- [ ] `engine-transform` — transforming DFC permanents (front/back face state,
   transforms-with-day-night, meld pairs).
-- `engine-phasing` — phasing status and untap-step phasing events.
+- [ ] `engine-phasing` — phasing status and untap-step phasing events.
 
 ### Combat
 
-- `engine-combat-restrictions` — enforce evasion/restriction statics in
+- [ ] `engine-combat-restrictions` — enforce evasion/restriction statics in
   attack/block legality: flying/reach, menace, fear/intimidate/shadow/skulk,
   landwalk, defender, "can't attack/block", protection-from in blocking.
-- `engine-combat-requirements` — must-attack/must-block requirements, goad,
+- [ ] `engine-combat-requirements` — must-attack/must-block requirements, goad,
   attack taxes/costs.
-- `engine-multi-defender` — attack targets per attacker (player, planeswalker,
+- [ ] `engine-multi-defender` — attack targets per attacker (player, planeswalker,
   battle) and per-defender damage routing.
 
 ### Turn, game, determinism
 
-- `engine-turn-modification` — extra turns, extra combat/main phases, skip
+- [ ] `engine-turn-modification` — extra turns, extra combat/main phases, skip
   steps/phases, "end the turn".
-- `engine-win-alterations` — can't-lose/can't-win statics, alternate win/loss
+- [ ] `engine-win-alterations` — can't-lose/can't-win statics, alternate win/loss
   effects, restart-the-game, controlling another player's turn. **[design]**
-- `engine-randomness` — seeded shuffle, coin flips, random discard; keep runs
+- [ ] `engine-randomness` — seeded shuffle, coin flips, random discard; keep runs
   reproducible for the sim harness.
 
 ## 4. Card shapes (layouts)
@@ -216,17 +223,17 @@ grammar (§2 `core-card-shapes`), extraction, and engine behavior. Slug:
 
 ## 5. Game-wide systems
 
-- `engine-day-night` — day/night game state, daybound/nightbound transforms
+- [ ] `engine-day-night` — day/night game state, daybound/nightbound transforms
   (~236 cards).
-- `engine-dungeons` — dungeon objects outside the game, venture, room
+- [ ] `engine-dungeons` — dungeon objects outside the game, venture, room
   progression, completion (76 cards).
-- `engine-energy` — {E} energy counters on players (105 cards).
-- `engine-ring` — the Ring emblem and tempts-you progression (50 cards).
-- `engine-speed` — speed counters, start-your-engines, max speed (~97 cards).
-- `engine-citys-blessing` — ascend / city's blessing designation (71 cards).
-- `engine-poison` — poison counters, infect/toxic/corrupted hooks, poison SBA
+- [ ] `engine-energy` — {E} energy counters on players (105 cards).
+- [ ] `engine-ring` — the Ring emblem and tempts-you progression (50 cards).
+- [ ] `engine-speed` — speed counters, start-your-engines, max speed (~97 cards).
+- [ ] `engine-citys-blessing` — ascend / city's blessing designation (71 cards).
+- [ ] `engine-poison` — poison counters, infect/toxic/corrupted hooks, poison SBA
   (~190 cards).
-- `engine-party` — party count condition (5 cards).
+- [ ] `engine-party` — party count condition (5 cards).
 
 ## 6. Keyword abilities
 
@@ -234,7 +241,7 @@ Per-keyword work = macro body (stub exists under `plugins/wizards/macros/`),
 any engine machinery (right column names the §3 item it rides on), parser
 coverage, and graduating its cards. Slug: `kw-<kebab-case>`.
 
-- `kw-intrinsics-canon` — the six remaining intrinsic keywords (first strike,
+- [ ] `kw-intrinsics-canon` — the six remaining intrinsic keywords (first strike,
   double strike, deathtouch, trample, vigilance, lifelink) lack the
   end-to-end macro/canon registration that Flying got.
 
@@ -456,7 +463,7 @@ and (b) the condition/history machinery the marked abilities lean on (mostly
 `engine-history-tallies`, `engine-trigger-events`, `engine-trigger-conditions`).
 Rows here track that the *patterns* graduate. Slug: `aw-<kebab-case>`.
 
-- `aw-prefix-parsing` — strip "Ability word —" prefixes during extraction and
+- [ ] `aw-prefix-parsing` — strip "Ability word —" prefixes during extraction and
   preserve them for rendering.
 
 | Ability word | Cards | Leans on |
@@ -517,39 +524,39 @@ Rows here track that the *patterns* graduate. Slug: `aw-<kebab-case>`.
 
 ## 9. Pipeline and parsers
 
-- `parse-activated` — activated-ability frame (`cost: effect`), including the
+- [ ] `parse-activated` — activated-ability frame (`cost: effect`), including the
   cost grammar; registry slot exists, parser doesn't.
-- `parse-static` — static-prose abilities (gets/has/can't sentences) into
+- [ ] `parse-static` — static-prose abilities (gets/has/can't sentences) into
   Continuously/StaticEffect.
-- `parse-replacement` — "if … would …, instead …" / "as … enters" /
+- [ ] `parse-replacement` — "if … would …, instead …" / "as … enters" /
   "… enters tapped" templates.
-- `parse-modal` — "Choose one —" bullet lists, escalate/spree-style modal
+- [ ] `parse-modal` — "Choose one —" bullet lists, escalate/spree-style modal
   costs.
-- `parse-filters` — natural-language object descriptions to Filter ASTs
+- [ ] `parse-filters` — natural-language object descriptions to Filter ASTs
   beyond the current handful (control/zone/type/stat qualifiers).
-- `macro-keyword-templates` — template parameters for keyword macros
+- [ ] `macro-keyword-templates` — template parameters for keyword macros
   (ward cost, protection quality, typed cycling) so the ~190 keyword stubs
   can expand per-card.
-- `macro-subtype-params` — subtype macro registers under its printed-string
+- [ ] `macro-subtype-params` — subtype macro registers under its printed-string
   argument, not its filename; parametric subtype refs miss it and their cards
   stall as todos. Needs the template-param refactor.
-- `macro-keyword-actions` — implement the 66 keyword-action macro stubs over
+- [ ] `macro-keyword-actions` — implement the 66 keyword-action macro stubs over
   engine primitives.
-- `pipeline-fixpoint` — dependency-ordered re-graduation (subtypes → keywords
+- [ ] `pipeline-fixpoint` — dependency-ordered re-graduation (subtypes → keywords
   → cards) instead of today's single pass.
-- `pipeline-layout-extraction` — extract layouts beyond normal/modal_dfc
+- [ ] `pipeline-layout-extraction` — extract layouts beyond normal/modal_dfc
   (see §4).
-- `macro-param-validation` — type-check macro params (Color, Filter, …) at
+- [ ] `macro-param-validation` — type-check macro params (Color, Filter, …) at
   the graduate gate.
-- `tokens-templates` — token definitions (predefined + ad-hoc) and granted
+- [ ] `tokens-templates` — token definitions (predefined + ad-hoc) and granted
   quoted abilities; resume from the parked bookmarks (§1). **[design]**
 
 ## 10. Format and runner
 
-- `format-deck-validation` — Modern deck legality: banlist via mtgjson
+- [ ] `format-deck-validation` — Modern deck legality: banlist via mtgjson
   legalities (derived data only), 4-of rule, sideboard size.
-- `runner-outside-game` — sideboard/outside-the-game access (companion,
+- [ ] `runner-outside-game` — sideboard/outside-the-game access (companion,
   Lesson fetch, wish-style effects).
-- `runner-hidden-info` — per-player redaction stays a runner-layer projection
+- [ ] `runner-hidden-info` — per-player redaction stays a runner-layer projection
   by design (core is full-information). The face-down mechanics in §6 are the
   forcing function; revisit the boundary then. **[design]**
