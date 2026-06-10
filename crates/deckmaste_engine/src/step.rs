@@ -1,7 +1,9 @@
 //! The steppable core: `step()` pops one agenda item and returns one
 //! `Progress`. Decisions surface on the following call; the runner loops.
 
-use deckmaste_core::{BeginningStep, CombatStep, EndingStep, KeywordAbility, Phase, Uint, Zone};
+use deckmaste_core::{
+    BeginningStep, ColorOrColorless, CombatStep, EndingStep, KeywordAbility, Phase, Uint, Zone,
+};
 
 use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
@@ -45,6 +47,12 @@ pub enum Progress {
     TriggersPlaced { placed: Uint },
     /// Cleanup's hand-size check ran ([CR#514.1]).
     HandSizeChecked { discarding: Uint },
+    /// [CR#701.9b]: a resolving discard surfaced its card choice; `count` is
+    /// how many cards the player must choose (clamped to the hand size; 0 =
+    /// an empty hand, nothing surfaced).
+    DiscardOpened { count: Uint },
+    /// [CR#106.1b]: a resolving `AddMana` surfaced its color choice.
+    ManaColorOpened,
     /// [CR#508.1]: the Declare Attackers step surfaced its decision; `legal` is
     /// how many creatures the active player may declare.
     DeclareAttackersOpened { legal: Uint },
@@ -115,6 +123,12 @@ impl GameState {
                 self.pay_cost();
                 Progress::CostPaid
             }
+            WorkItem::DiscardCards { player, count } => self.open_discard_cards(player, count),
+            WorkItem::ChooseManaColor {
+                player,
+                options,
+                amount,
+            } => self.open_choose_mana_color(player, options, amount),
             WorkItem::Resolve(obj) => {
                 self.resolve_object(obj);
                 Progress::Resolving(obj)
@@ -751,6 +765,39 @@ impl GameState {
             });
         }
         Progress::HandSizeChecked { discarding }
+    }
+
+    /// [CR#701.9b]: a resolving discard surfaces its card choice when the work
+    /// item applies — the hand may have changed since the discard was
+    /// scheduled. An instruction to discard more cards than the hand holds
+    /// discards the whole hand (the excess is impossible and ignored,
+    /// [CR#101.3]); an empty hand (count 0) surfaces nothing.
+    fn open_discard_cards(&mut self, player: PlayerId, count: Uint) -> Progress {
+        let hand =
+            Uint::try_from(self.zones.hands[player.index()].len()).expect("hand size fits in Uint");
+        let count = count.min(hand);
+        if count > 0 {
+            self.pending = Some(PendingDecision::DiscardCards { player, count });
+        }
+        Progress::DiscardOpened { count }
+    }
+
+    /// [CR#106.1b]: surfaces the color choice for a resolving `AddMana` whose
+    /// production is not fixed. Always surfaces — engine policy: every choice
+    /// is explicit, even a single-option one.
+    fn open_choose_mana_color(
+        &mut self,
+        player: PlayerId,
+        options: Vec<ColorOrColorless>,
+        amount: Uint,
+    ) -> Progress {
+        debug_assert!(!options.is_empty(), "a mana choice offers at least one option");
+        self.pending = Some(PendingDecision::ChooseManaColor {
+            player,
+            options,
+            amount,
+        });
+        Progress::ManaColorOpened
     }
 
     /// [CR#508.1a]: surfaces the Declare Attackers decision for the active

@@ -42,6 +42,21 @@ pub enum WorkItem {
     /// [CR#601.2f,601.2g,601.2h]: pay the in-flight spell's cost (surface `PayMana` if there
     /// is a choice; auto-pay when forced).
     PayCost,
+    /// [CR#701.9b]: a resolving discard — surface a `DiscardCards` decision
+    /// for `player` to choose which `count` cards to discard (clamped to the
+    /// hand size when the item applies; an empty hand surfaces nothing).
+    DiscardCards {
+        player: crate::player::PlayerId,
+        count: deckmaste_core::Uint,
+    },
+    /// [CR#106.1b]: a resolving `AddMana` whose production is a choice ("any
+    /// color", "{W} or {U}") — surface a `ChooseManaColor` decision for
+    /// `player` to pick one of `options`.
+    ChooseManaColor {
+        player: crate::player::PlayerId,
+        options: Vec<deckmaste_core::ColorOrColorless>,
+        amount: deckmaste_core::Uint,
+    },
     /// Resolve the named committed stack object ([CR#608]). Reads `self.stack`.
     Resolve(crate::object::ObjectId),
     /// Interpret one `Effect` node against a resolution frame ([CR#608.2]).
