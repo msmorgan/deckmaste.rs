@@ -77,7 +77,7 @@ in full.
 
 ### Resolution breadth (`crates/deckmaste_engine/src/resolve.rs` todo!s)
 
-- [ ] `engine-resolve-playeractions` — resolve the remaining `PlayerAction`s:
+- [x] `engine-resolve-playeractions` — resolve the remaining `PlayerAction`s:
   GainLife, Discard, AddMana, Create, Sacrifice, Exile, Untap, PutInLibrary
   (verb landed, resolution still todo).
 - [ ] `engine-resolve-actions` — resolve `Destroy` (regeneration/indestructible
