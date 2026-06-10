@@ -1,9 +1,10 @@
-//! The intrinsic combat keyword abilities ([CR#702]). These six are woven into
-//! the combat rules deeply enough that the engine reasons about them directly,
-//! so they are a closed enum rather than plugin macros: the engine pattern-
-//! matches on [`KeywordAbility`] in combat code. Haste is **not** here — it is
-//! a `Permission` macro, since it only touches the can-attack/tap rules, not
-//! the damage pipeline.
+//! The intrinsic keyword abilities ([CR#702]) the engine treats as first-class:
+//! a closed enum the combat code pattern-matches on, rather than plugin macros.
+//! The original six are woven into the damage pipeline (first/double strike,
+//! deathtouch, trample, vigilance, lifelink); Flying is carried here too as an
+//! intrinsic evasion keyword, encoded on cards as `Keyword(Flying)`. Haste is
+//! **not** here — it is a `Permission` macro (it only touches the
+//! can-attack/tap rules); other non-intrinsic keywords are plugin macros.
 //!
 //! The grammar lands now; the behaviors arrive in later combat tasks.
 
@@ -35,17 +36,21 @@ pub enum KeywordAbility {
     Vigilance,
     /// [CR#702.15].
     Lifelink,
+    /// [CR#702.9]: evasion — can be blocked only by creatures with flying
+    /// and/or reach. Behavior arrives with a later combat task.
+    Flying,
 }
 
 impl KeywordAbility {
     /// Every variant, for iteration in tests and exhaustive mappings.
-    pub const ALL: [KeywordAbility; 6] = [
+    pub const ALL: [KeywordAbility; 7] = [
         KeywordAbility::FirstStrike,
         KeywordAbility::DoubleStrike,
         KeywordAbility::Deathtouch,
         KeywordAbility::Trample,
         KeywordAbility::Vigilance,
         KeywordAbility::Lifelink,
+        KeywordAbility::Flying,
     ];
 
     /// The printed name — identical to the variant identifier and the RON
@@ -60,6 +65,7 @@ impl KeywordAbility {
             KeywordAbility::Trample => "Trample",
             KeywordAbility::Vigilance => "Vigilance",
             KeywordAbility::Lifelink => "Lifelink",
+            KeywordAbility::Flying => "Flying",
         }
     }
 }
@@ -79,6 +85,7 @@ impl FromStr for KeywordAbility {
             "Trample" => KeywordAbility::Trample,
             "Vigilance" => KeywordAbility::Vigilance,
             "Lifelink" => KeywordAbility::Lifelink,
+            "Flying" => KeywordAbility::Flying,
             _ => return Err(()),
         })
     }
@@ -99,13 +106,14 @@ mod tests {
             (KeywordAbility::Trample, "Trample"),
             (KeywordAbility::Vigilance, "Vigilance"),
             (KeywordAbility::Lifelink, "Lifelink"),
+            (KeywordAbility::Flying, "Flying"),
         ];
         for (kw, name) in expected {
             assert_eq!(kw.as_str(), name);
             assert_eq!(kw.to_string(), name);
             assert_eq!(name.parse::<KeywordAbility>(), Ok(kw));
         }
-        // `ALL` and the mapping table cover the same six variants.
+        // `ALL` and the mapping table cover the same variants.
         assert_eq!(KeywordAbility::ALL.len(), expected.len());
     }
 
