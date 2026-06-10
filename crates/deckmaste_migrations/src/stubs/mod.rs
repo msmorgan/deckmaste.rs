@@ -1,5 +1,6 @@
 //! Generate a plugin's keyword-ability / keyword-action / ability-word macro
-//! stubs and subtype declarations. (Formerly the `_000`–`_003` migrations.)
+//! stubs and subtype meta-macro invocations. (Formerly the `_000`–`_003`
+//! migrations.)
 
 use std::path::Path;
 
@@ -16,7 +17,7 @@ mod subtypes;
 /// doesn't exist.
 fn is_unimplemented(final_path: &Path) -> bool { !final_path.exists() }
 
-/// Generate every macro stub + subtype declaration into `plugin_dir`.
+/// Generate every macro stub + subtype meta-invocation into `plugin_dir`.
 ///
 /// # Errors
 /// If the plugin layout is unusable or any generator fails.

@@ -45,8 +45,9 @@ impl PluginLayout {
 
     pub fn ability_words_dir(&self) -> anyhow::Result<PathBuf> { self.dir(ABILITY_WORDS_DIR) }
 
-    /// Where a category's subtype-definition macros live: under `macros/`,
-    /// since they are ordinary (meta-produced) macro definitions.
+    /// Where a category's subtype-definition macros live —
+    /// `macros/types/<category>/` — under `macros/` since they are ordinary
+    /// (meta-produced) macro definitions.
     pub fn subtype_macros_dir(&self, category: &str) -> anyhow::Result<PathBuf> {
         self.dir(&format!("{MACROS_DIR}/types/{category}"))
     }
