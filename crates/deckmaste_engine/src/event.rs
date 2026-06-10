@@ -127,10 +127,10 @@ pub enum GameEvent {
         controller: PlayerId,
         bindings: crate::trigger::TriggerBindings,
     },
-    /// [CR#603.8]: a triggered ability finished resolving and vanishes — no
-    /// zone move, the source untouched. Its apply removes the stack entry whose
-    /// `id` is the carried (minted) token; that token is then discarded.
-    TriggerResolved(ObjectId),
+    /// [CR#603.8] / [CR#602.2a]: a triggered or activated ability finished
+    /// resolving (or fizzled) and vanishes — no zone move. Its apply removes
+    /// the stack entry whose `id` is the carried (minted) token.
+    AbilityResolved(ObjectId),
 }
 
 /// How a permanent enters the battlefield ([CR#110.5] status;

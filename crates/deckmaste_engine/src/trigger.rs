@@ -216,7 +216,7 @@ impl GameState {
             // matching on the intent would double-fire every zone-move trigger.
             match event {
                 GameEvent::TriggerFired { .. }
-                | GameEvent::TriggerResolved(_)
+                | GameEvent::AbilityResolved(_)
                 | GameEvent::StepBegan(_)
                 | GameEvent::TurnBegan { .. }
                 | GameEvent::ZoneWillChange { .. } => continue,

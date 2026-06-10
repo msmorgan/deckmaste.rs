@@ -399,13 +399,13 @@ impl GameState {
                 });
                 event
             }
-            // [CR#603.8]: the triggered ability vanishes — remove its stack
-            // entry and discard the minted token. No zone move; the source
-            // (already gone for a dies-trigger) is untouched.
-            GameEvent::TriggerResolved(id) => {
+            // [CR#603.8] / [CR#602.2a]: the triggered or activated ability vanishes —
+            // remove its stack entry and discard the minted token. No zone move; the
+            // source (already gone for a dies-trigger) is untouched.
+            GameEvent::AbilityResolved(id) => {
                 self.remove_stack_entry(id);
                 self.objects.remove(id);
-                GameEvent::TriggerResolved(id)
+                GameEvent::AbilityResolved(id)
             }
         }
     }

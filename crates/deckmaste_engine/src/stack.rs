@@ -1,6 +1,7 @@
 //! The stack ([CR#405]) and the single in-flight announce slot ([CR#601.2] /
-//! [CR#602.2]). Stage 2 ships only the `Spell` arm of `StackObject`; activated
-//! abilities add a variant in stage 3 without reshaping the callers.
+//! [CR#602.2]). The stack holds spells, triggered abilities, and activated
+//! abilities; the announce slot serves casts ([CR#601.2]) and activations
+//! ([CR#602.2]).
 
 use deckmaste_core::Zone;
 
@@ -21,26 +22,36 @@ pub enum StackObject {
         ability: usize,
         bindings: TriggerBindings,
     },
-    // Activated { source: ObjectId, ability: usize },  // activated-abilities stage (split off
-    // Stage 3)
+    /// An activated ability on the stack ([CR#602.2a]). Carries the ability's
+    /// text — "It has the text of the ability that created it" — so resolution
+    /// never re-derives from the (possibly gone, possibly changed) source.
+    /// `bindings.this` is the source's announce-time snapshot; `~` reads it
+    /// like a trigger's LKI.
+    Activated {
+        source: ObjectId,
+        ability: Box<deckmaste_core::ActivatedAbility>,
+        bindings: TriggerBindings,
+    },
 }
 
 impl StackObject {
     /// The object a *spell* entry is "on" — the spell's id. Used by the
-    /// permanent-spell / fizzle paths in `resolve_object`. A triggered ability
-    /// has no such object (it is identified on the stack by its
-    /// `StackEntry.id`).
+    /// permanent-spell / fizzle paths in `resolve_object`. A triggered or
+    /// activated ability has no such object (it is identified on the stack by
+    /// its `StackEntry.id`).
     ///
     /// # Panics
     ///
-    /// Panics on a `Triggered` entry — those are keyed by `StackEntry.id`, not
-    /// by a backing object.
+    /// Panics on a `Triggered` or `Activated` entry — those are keyed by
+    /// `StackEntry.id`, not by a backing object.
     #[must_use]
     pub fn object(&self) -> ObjectId {
         match self {
             StackObject::Spell(o) => *o,
-            StackObject::Triggered { .. } => {
-                unreachable!("a triggered ability has no backing object id; key on StackEntry.id")
+            StackObject::Triggered { .. } | StackObject::Activated { .. } => {
+                unreachable!(
+                    "a triggered or activated ability has no backing object id; key on StackEntry.id"
+                )
             }
         }
     }
