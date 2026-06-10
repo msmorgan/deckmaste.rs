@@ -85,10 +85,15 @@ impl<'de> Deserialize<'de> for Params {
 
 /// A macro: self-describing, matching its definition file.
 ///
+/// Serde-named `Macro`: that is the position name the macro-aware reader
+/// sees, so meta-macros declare `kinds: [Macro]`. Definition files read as
+/// anonymous structs, so the rename is otherwise invisible.
+///
 /// Definition files may carry extra metadata fields (e.g. `template:`,
 /// the rules text a use of the macro renders as); serde ignores them
 /// here, so don't add `deny_unknown_fields`.
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename = "Macro")]
 pub struct MacroDef {
     pub name: Ident,
     /// The kinds this macro can expand to, by position name; written as

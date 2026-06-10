@@ -47,6 +47,11 @@ use crate::param::ParamType;
 use crate::set::{MacroDef, MacroSet, Params};
 use crate::{Ident, IdentSeed};
 
+/// ron's private raw-value marker: `RawValue` deserializes through
+/// `deserialize_newtype_struct` with this name. ron doesn't export it, so
+/// it is pinned here (and by `raw_value_token_drift_pin` in the tests).
+pub(crate) const RAW_VALUE_TOKEN: &str = "$ron::private::RawValue";
+
 /// The read-long half of the context: the macros in scope, and the strings
 /// spliced together while reading one document, so they can be borrowed
 /// like the input is.
@@ -525,22 +530,39 @@ fn decompose<'de>(fragment: &'de str, options: &ron::Options) -> Result<Node<'de
     read_fragment(fragment, options, Children).map(Node::Branch)
 }
 
+/// What to do with a hole the current frame can't resolve.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum HoleMode {
+    /// Error — untagged content's holes must all belong to the frame.
+    Strict,
+    /// Leave the hole verbatim — a raw capture inside a frame may be a
+    /// produced definition's body, whose remaining holes belong to that
+    /// definition's own params.
+    PassThrough,
+}
+
 /// Walks `fragment` — a subslice of `root` — recording every `Param(...)`
 /// hole as its byte range in `root` and the argument text that fills it.
 fn collect_holes<'de>(
     root: &str,
     fragment: &'de str,
     ctx: &Ctx<'de, '_>,
+    mode: HoleMode,
     edits: &mut Vec<(Range<usize>, &'de str)>,
 ) -> Result<(), String> {
     match decompose(fragment, ctx.read.macros.options())? {
-        Node::Hole(key) => {
-            let start = fragment.as_ptr() as usize - root.as_ptr() as usize;
-            edits.push((start..start + fragment.len(), ctx.param(key)?));
-        }
+        Node::Hole(key) => match (ctx.param(key), mode) {
+            (Ok(arg), _) => {
+                let start = fragment.as_ptr() as usize - root.as_ptr() as usize;
+                edits.push((start..start + fragment.len(), arg));
+            }
+            (Err(reason), HoleMode::Strict) => return Err(reason),
+            // The produced definition's own hole: leave the text alone.
+            (Err(_), HoleMode::PassThrough) => {}
+        },
         Node::Branch(children) => {
             for child in children {
-                collect_holes(root, child.get_ron(), ctx, edits)?;
+                collect_holes(root, child.get_ron(), ctx, mode, edits)?;
             }
         }
     }
@@ -548,17 +570,21 @@ fn collect_holes<'de>(
 }
 
 /// Replaces every `Param(n)` hole in a RON fragment with the corresponding
-/// argument's source text. Only used for untagged enum content, where serde
-/// buffers through `deserialize_any` and parse-position resolution can't
-/// reach. ron itself locates every value as a subslice of the fragment, so
-/// holes are spliced by offset and a string literal mentioning `Param` is
-/// never confused for one.
+/// argument's source text. Two callers, distinguished by [`HoleMode`]:
+/// untagged enum content (serde buffers through its private Content type,
+/// so parse-position resolution can't reach inside — `Strict`), and
+/// raw-value captures inside a frame (the capture stores text before any
+/// position is dispatched; holes the frame doesn't own belong to the
+/// produced definition — `PassThrough`). ron itself locates every value as
+/// a subslice of the fragment, so holes are spliced by offset and a string
+/// literal mentioning `Param` is never confused for one.
 fn substitute_params<'de>(
     source: &'de str,
     ctx: &Ctx<'de, '_>,
+    mode: HoleMode,
 ) -> Result<std::borrow::Cow<'de, str>, String> {
     let mut edits = Vec::new();
-    collect_holes(source, source, ctx, &mut edits)?;
+    collect_holes(source, source, ctx, mode, &mut edits)?;
     if edits.is_empty() {
         return Ok(std::borrow::Cow::Borrowed(source));
     }
@@ -653,9 +679,49 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
         deserialize_bytes(), deserialize_byte_buf(), deserialize_unit(), deserialize_seq(),
         deserialize_map(),
         deserialize_unit_struct(name: &'static str),
-        deserialize_newtype_struct(name: &'static str),
         deserialize_tuple(len: usize),
         deserialize_tuple_struct(name: &'static str, len: usize),
+    }
+
+    /// Like the `forward_or_param!` members, except that a raw-value
+    /// capture inside an expansion frame snapshots **with the frame
+    /// applied**: holes the frame resolves are spliced eagerly
+    /// ([`HoleMode::PassThrough`] leaves the rest for the captured
+    /// definition's own params). `MacroDef.body` is the consumer — without
+    /// this, a meta-produced definition would carry the meta's holes
+    /// dangling.
+    fn deserialize_newtype_struct<V: Visitor<'de>>(
+        self,
+        name: &'static str,
+        visitor: V,
+    ) -> Result<V::Value, Self::Error> {
+        if name == RAW_VALUE_TOKEN && self.intercept != Intercept::Skip && self.ctx.frame.is_some()
+        {
+            let source = <&RawValue>::deserialize(self.de)?.get_ron();
+            // A whole-value hole (`body: Param(b)`) resolves if the frame
+            // owns it; otherwise it passes through like any other.
+            if let Some(Invocation::Param(key)) = probe::<Self::Error>(source, None, self.ctx)?
+                && let Ok(arg) = self.ctx.param(key)
+            {
+                return reread(arg, self.ctx.frameless(), Intercept::Skip, |de| {
+                    de.deserialize_newtype_struct(name, visitor)
+                });
+            }
+            let resolved = match substitute_params(source, &self.ctx, HoleMode::PassThrough)
+                .map_err(Self::Error::custom)?
+            {
+                std::borrow::Cow::Borrowed(source) => source,
+                std::borrow::Cow::Owned(resolved) => self.ctx.read.splice(resolved),
+            };
+            return reread(resolved, self.ctx, Intercept::Skip, |de| {
+                de.deserialize_newtype_struct(name, visitor)
+            });
+        }
+        if self.intercept != Intercept::Skip && self.ctx.frame.is_some() {
+            return self.via_capture(None, move |de| de.deserialize_newtype_struct(name, visitor));
+        }
+        let wrapped = self.wrap(visitor);
+        self.de.deserialize_newtype_struct(name, wrapped)
     }
 
     /// Untagged enum content arrives here: serde buffers it through its
@@ -678,7 +744,9 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
                 de.deserialize_any(visitor)
             });
         }
-        let resolved = match substitute_params(source, &self.ctx).map_err(Self::Error::custom)? {
+        let resolved = match substitute_params(source, &self.ctx, HoleMode::Strict)
+            .map_err(Self::Error::custom)?
+        {
             std::borrow::Cow::Borrowed(source) => source,
             std::borrow::Cow::Owned(resolved) => self.ctx.read.splice(resolved),
         };

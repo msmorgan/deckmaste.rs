@@ -26,6 +26,8 @@ fn kinds() -> KindSet {
     let mut kinds = KindSet::new();
     kinds.add(Kind::new("Subtype"));
     kinds.add(Kind::new("CardFace"));
+    // Meta-macro positions: `MacroDef` reads (serde name "Macro").
+    kinds.add(Kind::new("Macro"));
     kinds.add(Kind::new("Ability").remembers_expansion());
     kinds.add(Kind::new("Effect").remembers_expansion());
     kinds.add(Kind::new("Filter").remembers_expansion());
@@ -973,6 +975,188 @@ fn macro_defs_read_through_the_macro_aware_reader() {
     assert_eq!(def.name, "Bears");
     assert_eq!(def.kinds, vec![Ident::from("Filter")]);
     assert_eq!(def.body(), "Type(Creature)");
+}
+
+/// Pins ron's private raw-value token, which the expand layer matches by
+/// string. If a ron upgrade renames it, this fails before anything subtle.
+#[test]
+fn raw_value_token_drift_pin() {
+    struct Spy<'a>(&'a std::cell::Cell<&'static str>);
+    impl<'de> serde::Deserializer<'de> for Spy<'_> {
+        type Error = serde::de::value::Error;
+        fn deserialize_any<V: serde::de::Visitor<'de>>(
+            self,
+            _: V,
+        ) -> Result<V::Value, Self::Error> {
+            Err(serde::de::Error::custom("any"))
+        }
+        fn deserialize_newtype_struct<V: serde::de::Visitor<'de>>(
+            self,
+            name: &'static str,
+            _: V,
+        ) -> Result<V::Value, Self::Error> {
+            self.0.set(name);
+            Err(serde::de::Error::custom("spied"))
+        }
+        serde::forward_to_deserialize_any! {
+            bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
+            string bytes byte_buf option unit unit_struct seq tuple
+            tuple_struct map struct enum identifier ignored_any
+        }
+    }
+    let seen = std::cell::Cell::new("");
+    let _ = <&ron::value::RawValue as serde::Deserialize>::deserialize(Spy(&seen));
+    assert_eq!(seen.get(), crate::expand::RAW_VALUE_TOKEN);
+}
+
+/// The meta-macro flow end to end: a `Macro`-kind macro whose body is a
+/// definition template. Invoking it at a `MacroDef` read produces a
+/// registrable definition with the frame's holes filled — including inside
+/// the raw-captured `body`, which ordinary capture leaves dangling.
+#[test]
+fn meta_macro_produces_a_working_definition() {
+    let mut macros = empty();
+    macros
+        .insert(&def(r#"(
+            name: "CreatureType",
+            kinds: [Macro],
+            params: { "name": String, "template": String },
+            body: (
+                name: Param(name),
+                kinds: [Subtype],
+                body: Subtype(name: Param(template), types: [Creature]),
+            ),
+        )"#))
+        .unwrap();
+    let produced: MacroDef = macros
+        .read_str(r#"CreatureType(name: "AssemblyWorker", template: "Assembly-Worker")"#)
+        .unwrap();
+    assert_eq!(produced.name, "AssemblyWorker");
+    // The raw-captured body has the meta's holes filled (exact whitespace
+    // follows the body source, so assert on content, not spelling).
+    assert!(
+        produced.body().contains(r#""Assembly-Worker""#) && !produced.body().contains("Param"),
+        "unspliced body: {}",
+        produced.body(),
+    );
+    macros.insert(&produced).unwrap();
+    let subtype: Subtype = macros.read_str("AssemblyWorker").unwrap();
+    assert_eq!(subtype.name, "Assembly-Worker");
+    assert_eq!(subtype.types, [Type::Creature]);
+}
+
+/// A meta-produced definition may itself be parameterized: holes the
+/// meta's frame doesn't resolve pass through the raw capture verbatim and
+/// resolve at the produced macro's own invocation.
+#[test]
+fn unresolved_holes_pass_through_to_the_produced_definition() {
+    let mut macros = empty();
+    macros
+        .insert(&def(r#"(
+            name: "FilterMaker",
+            kinds: [Macro],
+            params: { "name": String },
+            body: (
+                name: Param(name),
+                kinds: [Filter],
+                params: { "extra": Any },
+                body: AllOf([Type(Creature), Param(extra)]),
+            ),
+        )"#))
+        .unwrap();
+    let produced: MacroDef = macros
+        .read_str(r#"FilterMaker(name: "CreatureAnd")"#)
+        .unwrap();
+    macros.insert(&produced).unwrap();
+    let filter: Filter = macros
+        .read_str(r#"CreatureAnd(extra: Named("Bear"))"#)
+        .unwrap();
+    let Filter::Expanded(expanded) = filter else {
+        panic!("expected a remembered filter");
+    };
+    assert_eq!(
+        *expanded.value,
+        Filter::AllOf(vec![
+            Filter::Type(Type::Creature),
+            Filter::Named("Bear".into()),
+        ])
+    );
+}
+
+/// A produced definition whose `body` is a single hole: resolved by the
+/// meta's frame when the frame owns it, left verbatim when it belongs to
+/// the produced definition.
+#[test]
+fn whole_body_holes_resolve_or_pass_through() {
+    let mut macros = empty();
+    macros
+        .insert(&def(r#"(
+            name: "Alias",
+            kinds: [Macro],
+            params: { "name": String, "body": Any },
+            body: (name: Param(name), kinds: [Filter], body: Param(body)),
+        )"#))
+        .unwrap();
+    let produced: MacroDef = macros
+        .read_str(r#"Alias(name: "Bears", body: Type(Creature))"#)
+        .unwrap();
+    assert_eq!(produced.body(), "Type(Creature)");
+
+    macros
+        .insert(&def(r#"(
+            name: "Deferred",
+            kinds: [Macro],
+            params: { "name": String },
+            body: (
+                name: Param(name),
+                kinds: [Filter],
+                params: { "extra": Any },
+                body: Param(extra),
+            ),
+        )"#))
+        .unwrap();
+    let produced: MacroDef = macros.read_str(r#"Deferred(name: "Itself")"#).unwrap();
+    assert_eq!(produced.body(), "Param(extra)");
+    macros.insert(&produced).unwrap();
+    let filter: Filter = macros.read_str(r#"Itself(extra: Any)"#).unwrap();
+    let Filter::Expanded(expanded) = filter else {
+        panic!("expected a remembered filter");
+    };
+    assert_eq!(*expanded.value, Filter::Any);
+}
+
+/// A typo'd hole in a produced *nullary* definition surfaces when the
+/// macro is expanded (the cards loader expands every declared subtype at
+/// load, so this is a load-time error there).
+#[test]
+fn dangling_hole_in_a_produced_nullary_def_errors_at_expansion() {
+    let mut macros = empty();
+    macros
+        .insert(&def(r#"(
+            name: "Meta",
+            kinds: [Macro],
+            params: { "name": String },
+            body: (name: Param(name), kinds: [Filter], body: Named(Param(nme))),
+        )"#))
+        .unwrap();
+    let produced: MacroDef = macros.read_str(r#"Meta(name: "Foo")"#).unwrap();
+    macros.insert(&produced).unwrap();
+    let err = macros.read_str::<Filter>("Foo").unwrap_err();
+    assert!(err.to_string().contains("has no Param(nme)"), "{err}");
+}
+
+/// Parse-position hole resolution stays strict: an unknown hole in an
+/// ordinary body is an error, pass-through is raw-capture-only.
+#[test]
+fn normal_bodies_still_reject_unknown_holes() {
+    let mut macros = empty();
+    macros
+        .insert(&def(
+            r#"(name: "Oops", kinds: [Filter], params: [Any], body: Type(Param(1)))"#,
+        ))
+        .unwrap();
+    let err = macros.read_str::<Filter>("Oops(Creature)").unwrap_err();
+    assert!(err.to_string().contains("has no Param(1)"), "{err}");
 }
 
 // ---------------------------------------------------------------------------
