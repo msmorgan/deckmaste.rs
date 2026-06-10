@@ -791,7 +791,10 @@ impl GameState {
         options: Vec<ColorOrColorless>,
         amount: Uint,
     ) -> Progress {
-        debug_assert!(!options.is_empty(), "a mana choice offers at least one option");
+        debug_assert!(
+            !options.is_empty(),
+            "a mana choice offers at least one option"
+        );
         self.pending = Some(PendingDecision::ChooseManaColor {
             player,
             options,

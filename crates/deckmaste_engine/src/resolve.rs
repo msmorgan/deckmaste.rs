@@ -8,6 +8,10 @@ use deckmaste_core::{
 
 use crate::agenda::WorkItem;
 use crate::event::{GameEvent, Occurrence};
+use crate::layer::{ContinuousEffect, ScopeResolved};
+use crate::object::ObjectId;
+use crate::stack::{Frame, StackEntry, StackObject};
+use crate::state::GameState;
 
 /// "Any color" ([CR#106.1b]): the five colors ([CR#105.1]) — a player asked to
 /// choose a color may not choose colorless ([CR#105.4]).
@@ -18,10 +22,6 @@ const ANY_COLOR: [ColorOrColorless; 5] = [
     ColorOrColorless::Color(Color::Red),
     ColorOrColorless::Color(Color::Green),
 ];
-use crate::layer::{ContinuousEffect, ScopeResolved};
-use crate::object::ObjectId;
-use crate::stack::{Frame, StackEntry, StackObject};
-use crate::state::GameState;
 
 impl GameState {
     /// [CR#608]: resolve the committed stack entry whose `id` is `id`. Schedules
@@ -210,6 +210,10 @@ impl GameState {
 
     /// The `Emit` work item(s) one `PlayerAction` produces, performed by
     /// `actor` (the agent the enclosing `By` resolved to).
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one arm per player verb; splitting would scatter the dispatch"
+    )]
     fn player_action_items(
         &self,
         action: &PlayerAction,
@@ -305,9 +309,7 @@ impl GameState {
                     .map(|object| {
                         WorkItem::Emit(Occurrence::Single(GameEvent::ZoneWillChange {
                             object,
-                            from: Some(
-                                self.objects.obj(object).zone.expect("a zoned object"),
-                            ),
+                            from: Some(self.objects.obj(object).zone.expect("a zoned object")),
                             to: Zone::Library,
                             enters: None,
                             position: Some(position),
@@ -356,7 +358,9 @@ impl GameState {
             // `Create` belongs to the `engine-tokens` item: token identity
             // (`ObjectSource` has no token arm), the layer-base plumbing, and
             // the ceases-to-exist SBA land together there.
-            other => todo!("stage 3 does not perform player action {other:?}"),
+            other @ PlayerAction::Create(..) => {
+                todo!("stage 3 does not perform player action {other:?}")
+            }
         }
     }
 
@@ -943,6 +947,363 @@ mod tests {
         assert_eq!(
             ce.changes,
             vec![Modification::AddToughness(Count::Literal(2))]
+        );
+    }
+
+    /// `By(You, GainLife(3))` → one `LifeGained`; `By(You, Untap(This))` → one
+    /// `Untapped` — the mirrors of `LoseLife`/`Tap` above.
+    #[test]
+    fn action_items_for_gainlife_untap() {
+        let (state, src) = bear_on_field();
+        let frame = Frame {
+            source: src,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+
+        let items = state.action_items(&by_you(PlayerAction::GainLife(Count::Literal(3))), &frame);
+        assert_eq!(
+            items,
+            vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeGained {
+                player: PlayerId(0),
+                amount: 3,
+            }))]
+        );
+
+        let items = state.action_items(&by_you(PlayerAction::Untap(sel_this())), &frame);
+        assert_eq!(
+            items,
+            vec![WorkItem::Emit(Occurrence::Single(GameEvent::Untapped(src)))]
+        );
+    }
+
+    /// [CR#701.21a]: `Sacrifice(This)` emits the verb fact, which evolves into
+    /// the Battlefield→Graveyard move — old id gone, fresh object in the
+    /// owner's graveyard.
+    #[test]
+    fn sacrifice_this_remints_to_owners_graveyard() {
+        let (mut state, bear) = bear_on_field();
+        let frame = Frame {
+            source: bear,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+        state.run_effect(
+            Effect::Act(by_you(PlayerAction::Sacrifice(sel_this()))),
+            &frame,
+        );
+        // Sacrificed → ZoneWillChange → ZoneChanged.
+        for _ in 0..3 {
+            let _ = state.step();
+        }
+        assert!(state.objects.get(bear).is_none(), "old battlefield id gone");
+        assert!(!state.zones.battlefield.contains(&bear));
+        assert_eq!(state.zones.graveyards[0].len(), 1);
+        assert_ne!(state.zones.graveyards[0][0], bear, "reminted");
+    }
+
+    /// A sacrifice rides the same death pipeline as a destroy: the sacrificed
+    /// creature's own dies-trigger fires ([CR#603.6d] — the leaving object
+    /// watches its own departure).
+    #[test]
+    fn sacrifice_fires_the_dying_objects_dies_trigger() {
+        use crate::object::ObjectSource;
+
+        let card = Arc::new(
+            testing()
+                .card("Creature dies-trigger DealDamage AnyTarget")
+                .unwrap(),
+        );
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: deck(&forest, 10),
+                },
+                PlayerConfig {
+                    deck: deck(&forest, 10),
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        });
+        let card_id = state.cards.push(card, PlayerId(0));
+        let gob = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(gob);
+
+        let frame = Frame {
+            source: gob,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+        state.run_effect(
+            Effect::Act(by_you(PlayerAction::Sacrifice(sel_this()))),
+            &frame,
+        );
+        for _ in 0..10 {
+            if !state.pending_triggers.is_empty() {
+                break;
+            }
+            let _ = state.step();
+        }
+        assert_eq!(
+            state.pending_triggers.len(),
+            1,
+            "the self-dies trigger must be noted"
+        );
+        assert!(state.objects.get(gob).is_none(), "the sacrifice happened");
+    }
+
+    /// [CR#701.13a,406.2]: exile moves an object to the shared exile zone —
+    /// from the battlefield, and (via the graveyard source arm) from a
+    /// graveyard.
+    #[test]
+    fn exile_moves_objects_from_battlefield_and_graveyard() {
+        let (mut state, bear) = bear_on_field();
+        let frame = Frame {
+            source: bear,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+        state.run_effect(Effect::Act(by_you(PlayerAction::Exile(sel_this()))), &frame);
+        // ZoneWillChange → ZoneChanged.
+        for _ in 0..2 {
+            let _ = state.step();
+        }
+        assert!(state.objects.get(bear).is_none(), "old id gone");
+        assert_eq!(state.zones.exile.len(), 1);
+        let exiled = state.zones.exile[0];
+        assert_eq!(state.objects.obj(exiled).zone, Some(Zone::Exile));
+
+        // From the graveyard: force a hand card into the graveyard, exile it.
+        let card = *state.zones.hands[0].first().expect("a card in hand");
+        state.zones.hands[0].retain(|&o| o != card);
+        state.objects.obj_mut(card).zone = Some(Zone::Graveyard);
+        state.zones.graveyards[0].push(card);
+        let frame = Frame {
+            source: card,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+        state.run_effect(Effect::Act(by_you(PlayerAction::Exile(sel_this()))), &frame);
+        for _ in 0..2 {
+            let _ = state.step();
+        }
+        assert!(state.objects.get(card).is_none(), "old graveyard id gone");
+        assert!(state.zones.graveyards[0].is_empty());
+        assert_eq!(state.zones.exile.len(), 2);
+    }
+
+    /// [CR#401.7]: `PutInLibrary(This, 0)` puts the card on top; an index past
+    /// the bottom clamps to the bottom.
+    #[test]
+    fn put_in_library_top_and_clamped_bottom() {
+        let (mut state, bear) = bear_on_field();
+        let bear_card = state.objects.obj(bear).card_id().expect("card-backed");
+        let lib_before = state.zones.libraries[0].len();
+        let frame = Frame {
+            source: bear,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+        state.run_effect(
+            Effect::Act(by_you(PlayerAction::PutInLibrary(
+                sel_this(),
+                Count::Literal(0),
+            ))),
+            &frame,
+        );
+        for _ in 0..2 {
+            let _ = state.step();
+        }
+        assert!(state.objects.get(bear).is_none(), "old id gone");
+        assert_eq!(state.zones.libraries[0].len(), lib_before + 1);
+        let top = *state.zones.libraries[0].front().expect("non-empty library");
+        assert_eq!(state.objects.obj(top).card_id(), Some(bear_card));
+        assert_eq!(state.objects.obj(top).zone, Some(Zone::Library));
+
+        // Past the bottom ([CR#401.7]): index 99 places it on the bottom.
+        let frame = Frame {
+            source: top,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+        state.run_effect(
+            Effect::Act(by_you(PlayerAction::PutInLibrary(
+                sel_this(),
+                Count::Literal(99),
+            ))),
+            &frame,
+        );
+        for _ in 0..2 {
+            let _ = state.step();
+        }
+        assert_eq!(state.zones.libraries[0].len(), lib_before + 1);
+        let bottom = *state.zones.libraries[0].back().expect("non-empty library");
+        assert_eq!(state.objects.obj(bottom).card_id(), Some(bear_card));
+    }
+
+    /// `AddMana(2, Green)` needs no choice and lands in the pool ([CR#106.4]);
+    /// `AddMana(1, AnyColor)` surfaces `ChooseManaColor` with the five colors
+    /// — colorless is not a color ([CR#105.4]) and is rejected.
+    #[test]
+    fn add_mana_specific_and_any_color() {
+        use deckmaste_core::{Color, ColorOrColorless, ManaSpec};
+
+        use crate::decide::{Decision, PendingDecision};
+        use crate::step::StepOutcome;
+
+        let (mut state, src) = bear_on_field();
+        let frame = Frame {
+            source: src,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+        let green = ColorOrColorless::Color(Color::Green);
+        state.run_effect(
+            Effect::Act(by_you(PlayerAction::AddMana(
+                Count::Literal(2),
+                ManaSpec::Specific(green),
+            ))),
+            &frame,
+        );
+        let _ = state.step();
+        assert_eq!(state.players[0].mana_pool.amount(green), 2);
+
+        state.run_effect(
+            Effect::Act(by_you(PlayerAction::AddMana(
+                Count::Literal(1),
+                ManaSpec::AnyColor,
+            ))),
+            &frame,
+        );
+        let _ = state.step(); // ManaColorOpened
+        let StepOutcome::NeedsDecision(PendingDecision::ChooseManaColor {
+            player,
+            options,
+            amount,
+        }) = state.step()
+        else {
+            panic!("expected ChooseManaColor, got {:?}", state.pending);
+        };
+        assert_eq!(player, PlayerId(0));
+        assert_eq!(options.len(), 5, "the five colors");
+        assert_eq!(amount, 1);
+        assert!(
+            state
+                .submit_decision(Decision::ManaColor(ColorOrColorless::Colorless))
+                .is_err(),
+            "colorless is not a color"
+        );
+        let blue = ColorOrColorless::Color(Color::Blue);
+        state.submit_decision(Decision::ManaColor(blue)).unwrap();
+        let _ = state.step(); // ManaAdded applies
+        assert_eq!(state.players[0].mana_pool.amount(blue), 1);
+    }
+
+    /// [CR#701.9b]: `Discard(2)` surfaces the card choice; a wrong-sized answer
+    /// is rejected; the right answer discards through the Hand→Graveyard
+    /// pipeline. Discarding more than the hand holds clamps to the whole hand
+    /// ([CR#101.3]).
+    #[test]
+    fn discard_surfaces_choice_validates_and_clamps() {
+        use crate::decide::{Decision, PendingDecision};
+        use crate::step::StepOutcome;
+
+        let (mut state, src) = bear_on_field();
+        let frame = Frame {
+            source: src,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+        let hand_before = state.zones.hands[0].len();
+        state.run_effect(
+            Effect::Act(by_you(PlayerAction::Discard(Count::Literal(2)))),
+            &frame,
+        );
+        let _ = state.step(); // DiscardOpened
+        let StepOutcome::NeedsDecision(PendingDecision::DiscardCards { player, count }) =
+            state.step()
+        else {
+            panic!("expected DiscardCards, got {:?}", state.pending);
+        };
+        assert_eq!((player, count), (PlayerId(0), 2));
+        let one = vec![state.zones.hands[0][0]];
+        assert!(
+            state.submit_decision(Decision::Discard(one)).is_err(),
+            "exactly `count` cards must be chosen"
+        );
+        let two = state.zones.hands[0][..2].to_vec();
+        state.submit_decision(Decision::Discard(two)).unwrap();
+        for _ in 0..30 {
+            if state.zones.graveyards[0].len() == 2 {
+                break;
+            }
+            let _ = state.step();
+        }
+        assert_eq!(state.zones.hands[0].len(), hand_before - 2);
+        assert_eq!(state.zones.graveyards[0].len(), 2);
+
+        // Clamp: an instruction to discard far more than the hand holds
+        // discards the whole hand.
+        state.run_effect(
+            Effect::Act(by_you(PlayerAction::Discard(Count::Literal(99)))),
+            &frame,
+        );
+        let _ = state.step();
+        let StepOutcome::NeedsDecision(PendingDecision::DiscardCards { count, .. }) = state.step()
+        else {
+            panic!("expected DiscardCards, got {:?}", state.pending);
+        };
+        assert_eq!(count as usize, hand_before - 2, "clamped to the hand size");
+        let rest = state.zones.hands[0].clone();
+        state.submit_decision(Decision::Discard(rest)).unwrap();
+        for _ in 0..30 {
+            if state.zones.hands[0].is_empty() {
+                break;
+            }
+            let _ = state.step();
+        }
+        assert!(state.zones.hands[0].is_empty());
+        assert_eq!(state.zones.graveyards[0].len(), hand_before);
+    }
+
+    /// A remembered `PlayerAction` macro invocation resolves through its
+    /// expanded body.
+    #[test]
+    fn expanded_player_action_resolves_through_body() {
+        use deckmaste_core::{Expansion, ExpansionArgs};
+
+        let (state, src) = bear_on_field();
+        let frame = Frame {
+            source: src,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+        let body = PlayerAction::GainLife(Count::Literal(2));
+        let expanded = PlayerAction::Expanded(Expansion {
+            name: "GainTwo".into(),
+            args: ExpansionArgs::none(),
+            value: Box::new(body.clone()),
+        });
+        assert_eq!(
+            state.action_items(&by_you(expanded), &frame),
+            state.action_items(&by_you(body), &frame),
         );
     }
 }
