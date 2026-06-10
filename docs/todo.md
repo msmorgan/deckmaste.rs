@@ -537,7 +537,7 @@ Rows here track that the *patterns* graduate. Slug: `aw-<kebab-case>`.
 - [ ] `macro-keyword-templates` — template parameters for keyword macros
   (ward cost, protection quality, typed cycling) so the ~190 keyword stubs
   can expand per-card.
-- [ ] `macro-subtype-params` — subtype macro registers under its printed-string
+- [x] `macro-subtype-params` — subtype macro registers under its printed-string
   argument, not its filename; parametric subtype refs miss it and their cards
   stall as todos. Needs the template-param refactor.
 - [ ] `macro-keyword-actions` — implement the 66 keyword-action macro stubs over
