@@ -9,8 +9,8 @@
 //! scheduling/agenda-touching functions.
 
 use deckmaste_core::{
-    Ability, CharacteristicFilter, Condition, Event, Filter, Reference, StateFilterEvent,
-    TargetSpec, Type, Uint, Zone,
+    Ability, CharacteristicFilter, Event, Filter, Reference, StateFilterEvent, TargetSpec, Type,
+    Uint, Zone,
 };
 
 use crate::agenda::WorkItem;
@@ -191,37 +191,6 @@ impl GameState {
         }
     }
 
-    /// Evaluate an intervening-`if` condition ([CR#603.4]) against the current
-    /// game state (the state at the moment of the occurrence). The trigger scan
-    /// calls this only when the ability has a condition; a `None` condition is
-    /// treated as "holds" by the caller.
-    pub(crate) fn condition_holds(&self, cond: &Condition) -> bool {
-        match cond {
-            // "if you control a creature" / "if a creature is on the battlefield"
-            Condition::Exists(filter) => !crate::target::candidates(self, filter).is_empty(),
-
-            // "if it is a [filter]" — Is(ref, filter): look up the ref and test.
-            // Not reached by any Stage-3 fixture; wired as a seam.
-            Condition::Is(_, _) => todo!("stage 3 does not evaluate Condition::Is"),
-
-            // Numeric comparison.
-            Condition::Compare(_, _, _) => todo!("stage 3 does not evaluate Condition::Compare"),
-
-            Condition::AllOf(cs) => cs.iter().all(|c| self.condition_holds(c)),
-            Condition::OneOf(cs) => cs.iter().any(|c| self.condition_holds(c)),
-            Condition::Not(c) => !self.condition_holds(c),
-
-            // Look through a macro.
-            Condition::Expanded(e) => self.condition_holds(&e.value),
-
-            Condition::Happened { .. } => todo!("stage 3 does not evaluate Condition::Happened"),
-
-            // Evaluated by the activation gate (Task 4); todo here as a seam.
-            Condition::YourTurn => todo!("condition evaluator: YourTurn"),
-            Condition::DuringPhase(_) => todo!("condition evaluator: DuringPhase"),
-        }
-    }
-
     /// [CR#603.2,603.6]: after an occurrence applies, scan watching abilities
     /// for ones whose `event` pattern matches each occurred fact, and schedule
     /// a `TriggerFired` per match at the agenda front (so they apply in the
@@ -305,7 +274,9 @@ impl GameState {
                     continue;
                 };
                 if self.event_matches(&t.event, event, source)
-                    && t.condition.as_ref().is_none_or(|c| self.condition_holds(c))
+                    && t.condition
+                        .as_ref()
+                        .is_none_or(|c| self.condition_holds(c, controller))
                 {
                     emits.push(WorkItem::Emit(Occurrence::single(
                         GameEvent::TriggerFired {
@@ -979,7 +950,7 @@ mod tests {
             Type::Creature,
         )));
         assert!(
-            state.condition_holds(&cond),
+            state.condition_holds(&cond, PlayerId(0)),
             "Exists(Type(Creature)) should hold when a creature is on the battlefield"
         );
     }
@@ -1004,7 +975,7 @@ mod tests {
             Type::Creature,
         )));
         assert!(
-            !state.condition_holds(&cond),
+            !state.condition_holds(&cond, PlayerId(0)),
             "Exists(Type(Creature)) should NOT hold when no creatures are present"
         );
     }

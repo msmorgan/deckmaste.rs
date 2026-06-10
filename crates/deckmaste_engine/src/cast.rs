@@ -129,14 +129,11 @@ impl GameState {
         view: &crate::layer::LayeredView,
         player: PlayerId,
         object: ObjectId,
-        in_main: bool,
-        stack_empty: bool,
     ) -> bool {
         let face = crate::derive::face(self.def(object));
         let instant = face.types.contains(&Type::Instant);
-        // Sorcery speed for non-instants ([CR#307.1,601.3a]): only the active
-        // player, in a main phase, with the stack empty.
-        let timing_ok = instant || (player == self.turn.active_player && in_main && stack_empty);
+        // Sorcery speed for non-instants ([CR#307.1,601.3a]).
+        let timing_ok = instant || self.sorcery_speed_ok(player);
         if !timing_ok {
             return false;
         }
