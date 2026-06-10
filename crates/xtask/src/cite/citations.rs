@@ -140,7 +140,11 @@ pub fn tracked_files(root: &Path) -> anyhow::Result<Vec<PathBuf>> {
         .map(str::trim)
         .filter(|l| !l.is_empty())
         .filter(|l| !l.starts_with(SELF_CRATE))
-        .filter(|l| l.ends_with(".rs") || l.ends_with(".md") || l.ends_with(".ron"))
+        .filter(|l| {
+            Path::new(l)
+                .extension()
+                .is_some_and(|e| matches!(e.to_str(), Some("rs" | "md" | "ron")))
+        })
         .map(|l| root.join(l))
         .collect())
 }
