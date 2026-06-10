@@ -20,6 +20,7 @@ use crate::pilot::Pilot;
 use crate::pilot::PlannedQueue;
 use crate::pilot::mechanical;
 use crate::pilot::pool_total;
+use crate::pilots::cast_line;
 
 #[derive(Default)]
 pub struct Stompy {
@@ -33,7 +34,7 @@ impl Pilot for Stompy {
         tac: &Tactician<'_>,
         pending: &PendingDecision,
     ) -> Decision {
-        if let Some(d) = self.planned.try_answer(pending) {
+        if let Some(d) = self.planned.try_answer(obs, pending) {
             return d;
         }
         match pending {
@@ -58,6 +59,8 @@ impl Pilot for Stompy {
 
                     // Biggest affordable creature first (by mana value).
                     // Include creatures whose cost we can reach by floating.
+                    // Wave-0 assumption: mono-color costs + mono-color sources, so "enough
+                    // mana actions" implies payable. Revisit with generic/off-color pips.
                     let mut castable: Vec<(crate::lookahead::Line, u32)> = obs
                         .my_hand
                         .iter()
@@ -76,18 +79,19 @@ impl Pilot for Stompy {
                                 })
                                 .cloned()
                                 .unwrap_or(Action::CastSpell { object: spell.id });
-                            let mut queued: Vec<Decision> = mana_actions[..need]
-                                .iter()
-                                .map(|a| Decision::Act(a.clone()))
-                                .collect();
-                            queued.push(Decision::Act(cast_action));
-                            Some((crate::lookahead::Line::new(queued), spell.mana_value))
+                            // Creatures need no target; cast_line with None
+                            // builds the float* + cast sequence.
+                            cast_line(spell, None, cast_action, &mana_actions, obs)
+                                .map(|line| (line, spell.mana_value))
                         })
                         .collect();
                     // Biggest creature first.
                     castable.sort_by_key(|(_, mv)| std::cmp::Reverse(*mv));
                     for (line, _) in castable {
                         let mut queued = line.queued;
+                        // Each priority window deploys at most one creature; the
+                        // remainder of the line (usually just the cast itself) is
+                        // queued and answered on the next window.
                         if queued.is_empty() {
                             continue;
                         }

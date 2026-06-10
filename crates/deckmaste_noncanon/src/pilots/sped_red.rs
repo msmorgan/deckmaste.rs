@@ -21,7 +21,6 @@ use deckmaste_engine::ObjectId;
 use deckmaste_engine::PendingDecision;
 
 use crate::lookahead::Horizon;
-use crate::lookahead::Line;
 use crate::lookahead::Tactician;
 use crate::observe::ObjView;
 use crate::observe::Observation;
@@ -29,6 +28,7 @@ use crate::pilot::Pilot;
 use crate::pilot::PlannedQueue;
 use crate::pilot::mechanical;
 use crate::pilot::pool_total;
+use crate::pilots::cast_line;
 
 #[derive(Default)]
 pub struct SpedRed {
@@ -42,7 +42,7 @@ impl Pilot for SpedRed {
         tac: &Tactician<'_>,
         pending: &PendingDecision,
     ) -> Decision {
-        if let Some(d) = self.planned.try_answer(pending) {
+        if let Some(d) = self.planned.try_answer(obs, pending) {
             return d;
         }
         match pending {
@@ -62,15 +62,23 @@ impl Pilot for SpedRed {
                 //    lands (Mountains sometimes appear as CastSpell with zero cost — ignore
                 //    them) and have at least one valid target.
                 let have = pool_total(&obs.my_pool);
-                let pass_score = tac.score(&Line::pass(), Horizon::EndOfTurn);
-                let mut best: Option<(i64, Line)> = None;
+                let pass_score = tac.score(&crate::lookahead::Line::pass(), Horizon::EndOfTurn);
+                let mut best: Option<(i64, crate::lookahead::Line)> = None;
 
                 // Build the candidate cast-spell actions: prefer an explicit
                 // CastSpell entry (engine confirmed it's legal now) but also
                 // synthesize one for spells we can reach via floating.
+                // Dedup by spell name first: wave-0 decks can hold up to 44
+                // identical Shocks — identical names produce identical lines,
+                // so we score the first copy and skip the rest.
                 let candidate_spells: Vec<(Action, &ObjView)> = {
+                    let mut seen_names: std::collections::HashSet<&str> =
+                        std::collections::HashSet::new();
                     let mut v: Vec<(Action, &ObjView)> = Vec::new();
                     for spell in obs.my_hand.iter().filter(|s| !s.is_land()) {
+                        if !seen_names.insert(spell.name.as_str()) {
+                            continue; // already scored a copy of this card name
+                        }
                         let need = (spell.mana_value as usize).saturating_sub(have);
                         if need > mana_actions.len() {
                             continue; // can't afford even with all available mana
@@ -83,9 +91,12 @@ impl Pilot for SpedRed {
                         if let Some(cast) = cast_action {
                             v.push((cast, spell));
                         } else if need == 0 && have == 0 {
-                            // Pool is empty but cost is also zero — nothing to
-                            // float, and the engine would have surfaced it if
-                            // it were truly castable.  Skip.
+                            // have == 0 means need == mana_value, so this is a
+                            // zero-cost spell.
+                            // The engine surfaces CastSpell for those when
+                            // they're castable; if it
+                            // didn't, some other restriction applies. Skip
+                            // rather than synthesize.
                         } else {
                             // Not yet in legal (pool can't pay yet) but will be
                             // once we float `need` mana.  Build the full
@@ -105,13 +116,9 @@ impl Pilot for SpedRed {
                             .map(|v| v.id),
                     );
                     for t in targets {
-                        let Some(line) = build_burn_line(
-                            spell,
-                            Some(t),
-                            cast_action.clone(),
-                            &mana_actions,
-                            obs,
-                        ) else {
+                        let Some(line) =
+                            cast_line(spell, Some(t), cast_action.clone(), &mana_actions, obs)
+                        else {
                             continue;
                         };
                         let score = tac.score(&line, Horizon::EndOfTurn);
@@ -144,30 +151,4 @@ impl Pilot for SpedRed {
             other => mechanical(obs, other),
         }
     }
-}
-
-/// Builds the float* + cast + target line for a burn spell.  Same logic as
-/// `crate::pilots::cast_line` but duplicated here to avoid the module
-/// circular dependency while keeping `sped_red` self-contained.
-fn build_burn_line(
-    spell: &ObjView,
-    target: Option<ObjectId>,
-    cast: Action,
-    mana_actions: &[Action],
-    obs: &Observation,
-) -> Option<Line> {
-    let have = pool_total(&obs.my_pool);
-    let need = (spell.mana_value as usize).saturating_sub(have);
-    if mana_actions.len() < need {
-        return None;
-    }
-    let mut queued: Vec<Decision> = mana_actions[..need]
-        .iter()
-        .map(|a| Decision::Act(a.clone()))
-        .collect();
-    queued.push(Decision::Act(cast));
-    if let Some(t) = target {
-        queued.push(Decision::Targets(vec![t]));
-    }
-    Some(Line::new(queued))
 }

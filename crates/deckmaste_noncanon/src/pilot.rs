@@ -9,6 +9,7 @@ use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::SimpleManaSymbol;
 use deckmaste_core::Uint;
+use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
 use deckmaste_engine::ManaPool;
 use deckmaste_engine::ObjectId;
@@ -38,13 +39,44 @@ impl PlannedQueue {
         self.0 = decisions.into_iter().collect();
     }
 
-    pub fn try_answer(&mut self, pending: &PendingDecision) -> Option<Decision> {
-        if self.0.front().is_some_and(|d| answers(d, pending)) {
-            self.0.pop_front()
+    /// Kind-match alone is not enough across priority windows — the world may
+    /// have changed since the line was planned; any staleness abandons the
+    /// plan (the pilot re-decides fresh from the new observation).
+    pub fn try_answer(&mut self, obs: &Observation, pending: &PendingDecision) -> Option<Decision> {
+        match self.0.front() {
+            Some(d) if answers(d, pending) => {}
+            _ => {
+                self.0.clear();
+                return None;
+            }
+        }
+        // answers() confirmed front is Some; pop is guaranteed to succeed.
+        if let Some(d) = self.0.pop_front() {
+            if is_stale(&d, obs) {
+                self.0.clear();
+                return None;
+            }
+            Some(d)
         } else {
-            self.0.clear();
             None
         }
+    }
+}
+
+/// Returns `true` when a queued decision references an object that is no
+/// longer in the expected zone, making the planned line invalid.
+fn is_stale(d: &Decision, obs: &Observation) -> bool {
+    match d {
+        Decision::Act(Action::CastSpell { object }) => !obs.my_hand.iter().any(|v| v.id == *object),
+        Decision::Act(Action::ActivateAbility { object, .. }) => {
+            !obs.battlefield.iter().any(|v| v.id == *object && !v.tapped)
+        }
+        Decision::Targets(ids) => ids.iter().any(|id| {
+            *id != obs.opp_proxy
+                && *id != obs.my_proxy
+                && !obs.battlefield.iter().any(|v| v.id == *id)
+        }),
+        _ => false,
     }
 }
 

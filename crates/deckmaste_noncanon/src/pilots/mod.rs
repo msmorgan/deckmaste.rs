@@ -111,6 +111,8 @@ mod tests {
                 GameOutcome::Win(deckmaste_engine::PlayerId(0)),
                 "seed {seed}: {rec:?}"
             );
+            // Both orderings covered: even on the draw, the first main phase
+            // (turn 2) has Mountain + Shock for the 2-life kill.
             assert!(rec.turns <= 4, "seed {seed}: lethal took too long: {rec:?}");
             assert!(
                 rec.probes.spell_damage_to_players >= 1,
@@ -138,6 +140,8 @@ mod tests {
                 GameOutcome::Win(deckmaste_engine::PlayerId(1)),
                 "seed {seed}: {rec:?}"
             );
+            // At 3 life vs a PassBot, Stompy deploys on turn 1 or 2 and attacks
+            // into the open — the first creature through closes it out.
             assert!(rec.probes.attacks_declared >= 1, "seed {seed}: {rec:?}");
             assert!(
                 rec.probes.creature_damage_to_players >= 1,
