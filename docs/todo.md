@@ -165,7 +165,7 @@ in full.
   reducers/taxers).
 - [ ] `engine-alt-costs` — choosing an alternative cost at announcement; "without
   paying its mana cost" (cascade, suspend, plot).
-- [ ] `engine-activated-abilities` — activating non-mana abilities (only mana
+- [x] `engine-activated-abilities` — activating non-mana abilities (only mana
   abilities are legal today, `legal.rs`): general costs, timing restrictions
   ("only as a sorcery", once-per-turn, once-per-game), loyalty abilities.
 - [ ] `engine-mana-system` — mana pool provenance/riders (spend-only-on
