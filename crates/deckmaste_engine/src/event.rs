@@ -70,6 +70,14 @@ pub enum GameEvent {
     /// [CR#601.2i] — a spell becomes cast. Applies by promoting `announcing`
     /// onto the stack. The Stage-3 "whenever you cast" seam.
     SpellCast(ObjectId),
+    /// [CR#602.2a] — an ability becomes activated. Applies by minting the
+    /// stack identity, promoting `announcing` onto the stack, and bumping the
+    /// activation ledger. The "whenever … activates an ability" trigger seam
+    /// (engine-trigger-events).
+    AbilityActivated {
+        source: ObjectId,
+        ability: usize,
+    },
     /// [CR#119] — damage to a creature (marked) or a player (life loss).
     DamageDealt {
         source: ObjectId,
