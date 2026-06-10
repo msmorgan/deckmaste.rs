@@ -1,0 +1,11 @@
+Normal(
+    name: "Jackal Pup",
+    mana_cost: [Red],
+    types: [Creature],
+    subtypes: [Jackal],
+    abilities: [
+        Unparsed("Whenever ~ is dealt damage, it deals that much damage to you."),
+    ],
+    power: 2,
+    toughness: 1,
+)

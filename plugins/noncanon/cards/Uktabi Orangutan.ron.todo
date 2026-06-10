@@ -1,0 +1,14 @@
+Normal(
+    name: "Uktabi Orangutan",
+    mana_cost: [
+        Generic(2),
+        Green,
+    ],
+    types: [Creature],
+    subtypes: [Ape],
+    abilities: [
+        Unparsed("When ~ enters, destroy target artifact."),
+    ],
+    power: 2,
+    toughness: 2,
+)

@@ -1,0 +1,8 @@
+Normal(
+    name: "Gaea's Cradle",
+    supertypes: [Legendary],
+    types: [Land],
+    abilities: [
+        Unparsed("{T}: Add {G} for each creature you control."),
+    ],
+)

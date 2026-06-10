@@ -1,0 +1,11 @@
+Normal(
+    name: "Elvish Lyrist",
+    mana_cost: [Green],
+    types: [Creature],
+    subtypes: [Elf],
+    abilities: [
+        Unparsed("{G}, {T}, Sacrifice ~: Destroy target enchantment."),
+    ],
+    power: 1,
+    toughness: 1,
+)

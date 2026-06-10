@@ -1,0 +1,11 @@
+Normal(
+    name: "Stone Rain",
+    mana_cost: [
+        Generic(2),
+        Red,
+    ],
+    types: [Sorcery],
+    abilities: [
+        Unparsed("Destroy target land."),
+    ],
+)

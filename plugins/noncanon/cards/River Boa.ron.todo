@@ -1,0 +1,15 @@
+Normal(
+    name: "River Boa",
+    mana_cost: [
+        Generic(1),
+        Green,
+    ],
+    types: [Creature],
+    subtypes: [Snake],
+    abilities: [
+        Islandwalk,
+        Unparsed("{G}: Regenerate ~."),
+    ],
+    power: 2,
+    toughness: 1,
+)

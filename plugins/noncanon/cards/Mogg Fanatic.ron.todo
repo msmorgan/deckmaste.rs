@@ -1,0 +1,11 @@
+Normal(
+    name: "Mogg Fanatic",
+    mana_cost: [Red],
+    types: [Creature],
+    subtypes: [Goblin],
+    abilities: [
+        Unparsed("Sacrifice ~: It deals 1 damage to any target."),
+    ],
+    power: 1,
+    toughness: 1,
+)

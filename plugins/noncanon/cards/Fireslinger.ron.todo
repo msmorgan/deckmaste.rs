@@ -1,0 +1,17 @@
+Normal(
+    name: "Fireslinger",
+    mana_cost: [
+        Generic(1),
+        Red,
+    ],
+    types: [Creature],
+    subtypes: [
+        Human,
+        Wizard,
+    ],
+    abilities: [
+        Unparsed("{T}: ~ deals 1 damage to any target and 1 damage to you."),
+    ],
+    power: 1,
+    toughness: 1,
+)

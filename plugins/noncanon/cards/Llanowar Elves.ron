@@ -1,0 +1,14 @@
+Normal(
+    name: "Llanowar Elves",
+    mana_cost: [Green],
+    types: [Creature],
+    subtypes: [
+        Elf,
+        Druid,
+    ],
+    abilities: [
+        Activated(cost: [Tap], effect: AddMana(1, Green)),
+    ],
+    power: 1,
+    toughness: 1,
+)

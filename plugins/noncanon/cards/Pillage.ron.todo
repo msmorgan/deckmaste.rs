@@ -1,0 +1,12 @@
+Normal(
+    name: "Pillage",
+    mana_cost: [
+        Generic(1),
+        Red,
+        Red,
+    ],
+    types: [Sorcery],
+    abilities: [
+        Unparsed("Destroy target artifact or land. It can't be regenerated."),
+    ],
+)

@@ -1,0 +1,9 @@
+Normal(
+    name: "Ghitu Encampment",
+    types: [Land],
+    abilities: [
+        Static(effects: [Replacement(AsEnters(Tap(This)))]),
+        Activated(cost: [Tap], effect: AddMana(1, Red)),
+        Unparsed("{1}{R}: ~ becomes a 2/1 red Warrior creature with first strike until end of turn. It's still a land."),
+    ],
+)

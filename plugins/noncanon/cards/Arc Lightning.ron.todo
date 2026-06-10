@@ -1,0 +1,11 @@
+Normal(
+    name: "Arc Lightning",
+    mana_cost: [
+        Generic(2),
+        Red,
+    ],
+    types: [Sorcery],
+    abilities: [
+        Unparsed("~ deals 3 damage divided as you choose among one, two, or three targets."),
+    ],
+)

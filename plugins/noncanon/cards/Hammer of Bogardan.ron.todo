@@ -1,0 +1,13 @@
+Normal(
+    name: "Hammer of Bogardan",
+    mana_cost: [
+        Generic(1),
+        Red,
+        Red,
+    ],
+    types: [Sorcery],
+    abilities: [
+        Spell(targets: [AnyTarget], effect: DealDamage(Target(0), 3)),
+        Unparsed("{2}{R}{R}{R}: Return ~ from your graveyard to your hand. Activate only during your upkeep."),
+    ],
+)
