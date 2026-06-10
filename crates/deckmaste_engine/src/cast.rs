@@ -126,6 +126,7 @@ impl GameState {
     #[must_use]
     pub(crate) fn can_cast(
         &self,
+        view: &crate::layer::LayeredView,
         player: PlayerId,
         object: ObjectId,
         in_main: bool,
@@ -146,7 +147,7 @@ impl GameState {
             return false;
         }
         // If the spell targets, every spec must admit at least one candidate.
-        self.spell_targets(object)
+        crate::resolve::spell_targets(view, object)
             .iter()
             .all(|spec| !self.legal_targets(spec).is_empty())
     }
@@ -181,7 +182,7 @@ impl GameState {
         let pending = self.announcing.as_ref().expect("an announce in flight");
         let object = pending.object.object();
         let controller = pending.controller;
-        let specs = self.spell_targets(object);
+        let specs = crate::resolve::spell_targets(&self.layers(), object);
         if specs.is_empty() {
             return 0;
         }

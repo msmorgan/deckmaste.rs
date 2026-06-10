@@ -43,9 +43,11 @@ pub(crate) fn printed_abilities(state: &GameState, id: ObjectId) -> Vec<&Ability
 /// The object's derived abilities after layer 6 ([CR#305.6,613.1f]):
 /// base = printed + subtype-conferred; layer 6 applies on top.
 ///
-/// Use this everywhere outside the layer pipeline itself. The layer
-/// pipeline uses [`printed_abilities`] internally to break the
-/// `layers()` → `derive::abilities` → `layers()` recursion.
+/// Builds a full `LayeredView` per call — fine for a one-shot read (e.g. at
+/// resolution), but NEVER call it in a loop: build `state.layers()` once and
+/// index the view instead. The layer pipeline itself uses
+/// [`printed_abilities`] internally to break the `layers()` →
+/// `derive::abilities` → `layers()` recursion.
 #[must_use]
 pub fn abilities(state: &GameState, id: ObjectId) -> Vec<Ability> {
     state.layers().get(id).abilities.clone()

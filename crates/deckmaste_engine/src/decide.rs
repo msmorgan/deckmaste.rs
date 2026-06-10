@@ -429,7 +429,8 @@ impl GameState {
         // [CR#702.19b]: a trample source may assign damage to the defending
         // player only after every blocker recipient has lethal. Player proxies
         // among the recipients are identified by their `ObjectSource::Player`.
-        if crate::combat::has_keyword(self, source, KeywordAbility::Trample) {
+        let view = self.layers();
+        if crate::combat::has_keyword(&view, source, KeywordAbility::Trample) {
             let assigned = |id: ObjectId| {
                 amounts
                     .iter()
@@ -446,7 +447,7 @@ impl GameState {
                     if matches!(self.objects.obj(r).source, ObjectSource::Player(_)) {
                         continue; // the player, not a blocker
                     }
-                    if assigned(r) < self.lethal_for(source, r) {
+                    if assigned(r) < self.lethal_for(&view, source, r) {
                         return Err(DecisionError::Illegal {
                             reason: "trample: each blocker must be assigned lethal before the \
                                      defending player ([CR#702.19b])"
@@ -485,11 +486,16 @@ impl GameState {
     /// unsatisfiable below full assignment — by returning `Uint::MAX`;
     /// layers and `*`-toughness are a later stage.
     #[must_use]
-    fn lethal_for(&self, source: ObjectId, blocker: ObjectId) -> Uint {
-        if crate::combat::has_keyword(self, source, KeywordAbility::Deathtouch) {
+    fn lethal_for(
+        &self,
+        view: &crate::layer::LayeredView,
+        source: ObjectId,
+        blocker: ObjectId,
+    ) -> Uint {
+        if crate::combat::has_keyword(view, source, KeywordAbility::Deathtouch) {
             return 1; // [CR#702.2c]: any nonzero amount is lethal.
         }
-        match self.layers().toughness(blocker) {
+        match view.toughness(blocker) {
             Some(t) if t > 0 => {
                 #[expect(clippy::cast_sign_loss)]
                 let toughness = t as Uint;
