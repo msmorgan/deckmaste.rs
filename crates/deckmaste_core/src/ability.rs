@@ -43,7 +43,7 @@ pub struct ActivatedAbility {
 pub enum UseLimit {
     /// "only once each turn" ([CR#603.2h] / [CR#602.5b]).
     OncePerTurn,
-    /// "Activate only once." — once per game.
+    /// "Activate only once." ([CR#702.177a], exhaust) — once per game.
     OncePerGame,
 }
 
