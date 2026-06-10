@@ -13,6 +13,8 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
+use crate::Expand;
+
 /// A keyword ability the engine treats as a first-class combat concept
 /// ([CR#702]). Carried by [`Ability::Keyword`](crate::Ability::Keyword).
 ///
@@ -22,7 +24,7 @@ use serde::{Deserialize, Serialize};
 /// [`Display`] / [`FromStr`] expose that mapping for the future
 /// `Modification::LoseAbility(Ident)` / `HasAbility(Ident)` paths
 /// ([CR#613.1f]), which name abilities by string.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub enum KeywordAbility {
     /// [CR#702.7].
     FirstStrike,

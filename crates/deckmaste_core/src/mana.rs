@@ -3,8 +3,8 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-use crate::Color;
 use crate::color::ColorOrColorless;
+use crate::{Color, Expand};
 
 /// Produced-mana spec ([CR#106]): what colors or types a mana-adding effect
 /// may produce. Variants accrete — `AnyType`, riders later.
@@ -16,7 +16,7 @@ use crate::color::ColorOrColorless;
 ///
 /// Not `Copy`: `OneOf` carries a `Vec`. Nothing `Copy` holds a `ManaSpec`
 /// (`Action`/`Token` are `Clone`), so the spec stays `Clone`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub enum ManaSpec {
     AnyColor,
     /// One mana of a color the controller chooses from a fixed set on
@@ -40,7 +40,7 @@ impl From<Color> for ManaSpec {
 ///
 /// The untagged Color variant serializes transparently, so the RON stays
 /// flat: `White`, not `Color(White)`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub enum SimpleManaSymbol {
     Generic(crate::Uint),
     #[serde(untagged)]
@@ -71,7 +71,7 @@ impl From<crate::Uint> for SimpleManaSymbol {
 
 /// The untagged Simple variant serializes transparently, so the RON stays
 /// flat: `Generic(2)`, not `Simple(Generic(2))`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub enum ManaSymbol {
     Variable,
     Snow,
@@ -93,7 +93,7 @@ impl From<crate::Uint> for ManaSymbol {
     fn from(amount: crate::Uint) -> Self { Self::Simple(amount.into()) }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 #[serde(transparent)]
 pub struct ManaCost(Vec<ManaSymbol>);
 
