@@ -51,9 +51,8 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     }
 
     // [CR#601.3a]: cast a spell from hand if timing + payment + targets permit.
-    let stack_empty = state.stack.is_empty() && state.announcing.is_none();
     for &object in &state.zones.hands[player.index()] {
-        if state.can_cast(&view, player, object, main, stack_empty) {
+        if state.can_cast(&view, player, object) {
             legal.push(Action::CastSpell { object });
         }
     }

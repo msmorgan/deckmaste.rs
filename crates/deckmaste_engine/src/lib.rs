@@ -11,6 +11,8 @@ pub use agenda::WorkItem;
 mod cast;
 pub use cast::Payment;
 
+mod condition;
+
 mod combat;
 pub use combat::{CombatState, has_keyword};
 
