@@ -17,6 +17,25 @@ step / attacking triggers, a handful of SBAs, the core grammar on a combined
 `SupportsMacros` derive, and an extract→resolve→graduate card pipeline with
 mana/keyword/spell/triggered parsers.
 
+## Priorities
+
+When picking "the next" item, work down this ordering: take the highest tier
+that has an unclaimed, non-conflicting item; within a tier, use the "Cards"
+counts. This is an ordering, not an exclusion list, and it is not exhaustive —
+anything unlisted (e.g. §10 format/runner) ranks below these unless the user
+says otherwise.
+
+1. **Engine happy path** — the engine supports the normal resolution path of
+   ~90% of MTG abilities (§3, plus whichever §2 grammar that path needs).
+2. **Oracle-text coverage** — extraction and parsers graduate an increasing
+   subset of oracle text (§9 parsers, §4 layouts).
+3. **Keyword authoring** — keyword abilities, keyword actions, and ability
+   words get real macro bodies (§6–§8).
+4. **Convenience macros** — shared macros for common mechanics (intertwined
+   with 2 and 3).
+5. **Noncanon tests** — keep the noncanon suite growing alongside engine work.
+6. **Performance** — optimization passes.
+
 ## How to claim an item (instructions for agents)
 
 When starting work on a todo item:
@@ -30,9 +49,10 @@ When starting work on a todo item:
    `jj workspace add --name <slug> -r <slug> ../deckmaste.<slug>`, then do the
    shared-dir setup from CLAUDE.md ("New jj workspaces") before building.
 
-A ticked box / `WIP:` prefix means claimed and in progress — pick an unclaimed
-item that doesn't conflict with the claimed ones (same files, same engine
-subsystem, or one item's right column naming the other). Claim bookmarks carry
+A ticked box / `WIP:` prefix means claimed and in progress — pick the
+highest-priority (see Priorities) unclaimed item that doesn't conflict with
+the claimed ones (same files, same engine subsystem, or one item's right
+column naming the other). Claim bookmarks carry
 the item's slug, so `jj bookmark list` shows what's active. Items leave this
 file only when their work lands in the default line.
 
