@@ -9,6 +9,12 @@
 //! kind that [remembers](Kind::remembers_expansion) wraps each expansion in
 //! that type's `Expanded` variant as an [`Expansion`], which serializes the
 //! *invocation* back.
+//!
+//! A macro may produce *macros*: a definition with kind `Macro` is a
+//! meta-macro whose body is itself a definition template, read at
+//! [`MacroDef`] positions. Holes the meta's frame resolves are spliced
+//! into the produced definition (including its raw `body`); holes it
+//! doesn't own pass through to become the produced macro's own params.
 
 // Lets generated code's `::macro_ron::` paths resolve inside this crate's
 // own tests (the serde/serde_derive trick).
