@@ -1,10 +1,15 @@
 // [CR#205.3q]
 (
     name: "BattleType",
-    kinds: [Subtype],
-    params: [String],
-    body: Subtype(
-        name: Param(0),
-        types: [Battle],
+    kinds: [Macro],
+    params: { "name": String, "template": String },
+    body: (
+        name: Param(name),
+        template: Param(template),
+        kinds: [Subtype],
+        body: Subtype(
+            name: Param(template),
+            types: [Battle],
+        ),
     ),
 )

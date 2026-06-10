@@ -3,16 +3,21 @@
 // ([CR#305.7]) pick it up from the same data.
 (
     name: "BasicLandType",
-    kinds: [Subtype],
-    params: [String, Color],
-    body: Subtype(
-        name: Param(0),
-        types: [Land],
-        confers: [
-            Ability(Activated(
-                cost: [Tap],
-                effect: AddMana(1, Param(1)),
-            )),
-        ],
+    kinds: [Macro],
+    params: { "name": String, "template": String, "color": Color },
+    body: (
+        name: Param(name),
+        template: Param(template),
+        kinds: [Subtype],
+        body: Subtype(
+            name: Param(template),
+            types: [Land],
+            confers: [
+                Ability(Activated(
+                    cost: [Tap],
+                    effect: AddMana(1, Param(color)),
+                )),
+            ],
+        ),
     ),
 )

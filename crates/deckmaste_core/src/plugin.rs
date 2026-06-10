@@ -5,7 +5,6 @@ use std::path::{Path, PathBuf};
 
 // The directory roles under a plugin root.
 pub const MACROS_DIR: &str = "macros";
-pub const TYPES_DIR: &str = "types";
 pub const CARDS_DIR: &str = "cards";
 pub const TOKENS_DIR: &str = "tokens";
 pub const KEYWORD_ABILITIES_DIR: &str = "keyword_abilities";
