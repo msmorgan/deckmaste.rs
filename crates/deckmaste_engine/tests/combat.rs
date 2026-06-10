@@ -1172,6 +1172,7 @@ fn trample_no_live_blockers_assigns_all_to_player() {
             from: Some(Zone::Battlefield),
             to: Zone::Graveyard,
             enters: None,
+            position: None,
         },
     )));
     // Drive on: the destroy applies and prunes combat, then play passes through

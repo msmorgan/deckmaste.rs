@@ -72,6 +72,7 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
             from: Some(Zone::Battlefield),
             to: Zone::Graveyard,
             enters: None,
+            position: None,
         });
     }
 
@@ -161,6 +162,7 @@ mod tests {
                     from: Some(Zone::Battlefield),
                     to: Zone::Graveyard,
                     enters: None,
+                    position: None,
                 } if *object == bear
             )),
             "sweep should include a battlefield→graveyard ZoneWillChange for Vanilla Creature at lethal damage"

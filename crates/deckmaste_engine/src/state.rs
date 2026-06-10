@@ -279,6 +279,22 @@ impl GameState {
         lib.remove(i);
     }
 
+    /// Removes `object` from `player`'s graveyard ([CR#404]). Panics if
+    /// absent.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `object` is not in `player`'s graveyard — callers validate
+    /// first.
+    pub(crate) fn remove_from_graveyard(&mut self, player: PlayerId, object: ObjectId) {
+        let graveyard = &mut self.zones.graveyards[player.index()];
+        let i = graveyard
+            .iter()
+            .position(|&o| o == object)
+            .expect("object in graveyard");
+        graveyard.remove(i);
+    }
+
     /// Removes the committed stack entry whose `id` is `id` ([CR#405]). Keyed
     /// on `StackEntry.id` so it works for both spells (id == the spell object)
     /// and triggered abilities (id == a minted token).

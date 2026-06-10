@@ -155,6 +155,7 @@ impl GameState {
                             from: Some(Zone::Library),
                             to: Zone::Hand,
                             enters: None,
+                            position: None,
                         },
                     ))]);
                     GameEvent::WillDraw { player, source }
@@ -183,6 +184,7 @@ impl GameState {
                         from: Some(Zone::Hand),
                         to: Zone::Battlefield,
                         enters: None,
+                        position: None,
                     },
                 ))]);
                 GameEvent::LandPlayed { object }
@@ -213,9 +215,26 @@ impl GameState {
                         from: Some(Zone::Hand),
                         to: Zone::Graveyard,
                         enters: None,
+                        position: None,
                     },
                 ))]);
                 GameEvent::Discarded { player, object }
+            }
+            GameEvent::Sacrificed { player, object } => {
+                // [CR#701.21a]: the sacrifice verb fact evolves into the generic
+                // Battlefield→Graveyard move (remint + LKI), mirroring
+                // `Discarded`. Not a destruction — nothing here is replaceable
+                // by regeneration.
+                self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+                    GameEvent::ZoneWillChange {
+                        object,
+                        from: Some(Zone::Battlefield),
+                        to: Zone::Graveyard,
+                        enters: None,
+                        position: None,
+                    },
+                ))]);
+                GameEvent::Sacrificed { player, object }
             }
             GameEvent::PlayerLost { player, .. } => {
                 self.player_mut(player).lost = true;
@@ -304,13 +323,15 @@ impl GameState {
                 from,
                 to,
                 enters,
+                position,
             } => {
-                self.apply_zone_will_change(object, from, to, enters);
+                self.apply_zone_will_change(object, from, to, enters, position);
                 GameEvent::ZoneWillChange {
                     object,
                     from,
                     to,
                     enters,
+                    position,
                 }
             }
             // [CR#603.6]: the FACT — the move already happened at the
@@ -323,6 +344,12 @@ impl GameState {
                 self.player_mut(player).life -=
                     deckmaste_core::Int::try_from(amount).expect("life loss fits in i32");
                 GameEvent::LifeLost { player, amount }
+            }
+            // [CR#119.3]: a player gains life — the life total adjusts up.
+            GameEvent::LifeGained { player, amount } => {
+                self.player_mut(player).life +=
+                    deckmaste_core::Int::try_from(amount).expect("life gain fits in i32");
+                GameEvent::LifeGained { player, amount }
             }
             // [CR#508.1a]: record the attacker; [CR#508.1f]: declaring it as an
             // attacker taps it (not a cost — attacking simply taps).
@@ -374,13 +401,16 @@ impl GameState {
     /// `from` zone, remints a fresh object into `to` (new `ObjectId`, same
     /// `CardId`), applies the permanent's own `AsEnters` self-replacements into
     /// the `EnterStatus` (no observable untapped window), and schedules the
-    /// `ZoneChanged` fact at the agenda front.
+    /// `ZoneChanged` fact at the agenda front. `position` places a card
+    /// entering a library at that index from the top, clamped to the bottom
+    /// ([CR#401.7]).
     fn apply_zone_will_change(
         &mut self,
         object: ObjectId,
         from: Option<Zone>,
         to: Zone,
         enters: Option<crate::event::EnterStatus>,
+        position: Option<Uint>,
     ) {
         // 1. Snapshot while the object is still live in `from`.
         let snapshot = crate::lki::LkiSnapshot::capture(self, object);
@@ -408,8 +438,13 @@ impl GameState {
                 let owner = self.owner_of(object);
                 self.remove_from_library(owner, object);
             }
+            Some(Zone::Graveyard) => {
+                let owner = self.owner_of(object);
+                self.remove_from_graveyard(owner, object);
+            }
             other => unreachable!(
-                "zone-change source {other:?} is not wired (Stack/Battlefield/Hand/Library only)"
+                "zone-change source {other:?} is not wired \
+                 (Stack/Battlefield/Hand/Library/Graveyard only)"
             ),
         }
         self.objects.remove(object);
@@ -438,8 +473,17 @@ impl GameState {
             Zone::Battlefield => self.zones.battlefield.push(new),
             Zone::Graveyard => self.zones.graveyards[owner.index()].push(new),
             Zone::Hand => self.zones.hands[owner.index()].push(new),
+            Zone::Exile => self.zones.exile.push(new),
+            Zone::Library => {
+                // [CR#401.7]: an index past the bottom places the card on the
+                // bottom; `None` (a non-positional move) means the top.
+                let lib = &mut self.zones.libraries[owner.index()];
+                let i = (position.unwrap_or(0) as usize).min(lib.len());
+                lib.insert(i, new);
+            }
             other => unreachable!(
-                "zone-change destination {other:?} is not wired (Battlefield/Graveyard/Hand only)"
+                "zone-change destination {other:?} is not wired \
+                 (Battlefield/Graveyard/Hand/Exile/Library only)"
             ),
         }
 
