@@ -208,6 +208,24 @@ mod tests {
         assert_eq!(written, "Keyword(Trample)");
     }
 
+    /// The COMPOSITE keyword form at the `Ability` position —
+    /// `Keyword(Composite(name: ..., abilities: ...))`, the spelling
+    /// keyword macros expand to — parses and round-trips.
+    #[test]
+    fn composite_keyword_parses_at_the_ability_position() {
+        use crate::KeywordAbility;
+
+        let ability = read_ability(r#"Keyword(Composite(name: "Ward", abilities: []))"#);
+        let expected = Ability::Keyword(KeywordAbility::Composite {
+            name: crate::Ident::from("Ward"),
+            abilities: Vec::new(),
+        });
+        assert_eq!(ability, expected);
+        let written = crate::ron::options().to_string(&ability).unwrap();
+        let reread = read_ability(&written);
+        assert_eq!(reread, expected);
+    }
+
     #[test]
     fn sacrifice_this_reads_flat() {
         // Confirms the new flattened Selection (`This`, not `That(This)`).
