@@ -1726,6 +1726,37 @@ mod derived {
     }
 }
 
+/// Macro names appear as bare identifiers at value positions, so a
+/// non-ident name is dead on arrival — rejected at registration, loudly.
+#[test]
+fn non_ident_macro_names_are_rejected_at_insert() {
+    let err = empty()
+        .insert(&def(
+            r#"(name: "Assembly-Worker", kinds: [Filter], body: Any)"#,
+        ))
+        .unwrap_err();
+    assert!(matches!(err, InsertError::InvalidName { .. }), "{err}");
+}
+
+/// A meta-macro's holes and its produced definition's holes share the
+/// body text: indices can't tell the levels apart, so metas must use
+/// named params.
+#[test]
+fn positional_meta_macros_are_rejected_at_insert() {
+    let err = empty()
+        .insert(&def(r#"(
+                name: "Meta",
+                kinds: [Macro],
+                params: [String],
+                body: (name: Param(0), kinds: [Filter], body: Any),
+            )"#))
+        .unwrap_err();
+    assert!(
+        matches!(err, InsertError::MetaParamsPositional { .. }),
+        "{err}"
+    );
+}
+
 mod support_runtime {
     use crate::{Expand, concat_variants};
 

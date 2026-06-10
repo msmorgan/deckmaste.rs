@@ -173,6 +173,13 @@ pub enum InsertError {
     UnknownKind { kind: Ident, name: Ident },
     /// A definition named a param type no validator was registered for.
     UnknownParamType { type_name: Ident, name: Ident },
+    /// A definition's name can't be invoked: macros are invoked as bare
+    /// identifiers, so the name must be one.
+    InvalidName { name: Ident },
+    /// A meta-macro (kind `Macro`) declared positional params: hole
+    /// indices would be ambiguous between the meta's frame and the
+    /// produced definition's own params.
+    MetaParamsPositional { name: Ident },
 }
 
 impl fmt::Display for InsertError {
@@ -190,11 +197,32 @@ impl fmt::Display for InsertError {
                     "macro `{name}` declares unregistered param type `{type_name}`"
                 )
             }
+            InsertError::InvalidName { name } => {
+                write!(
+                    f,
+                    "macro name `{name}` is not a bare identifier; macros are invoked bare"
+                )
+            }
+            InsertError::MetaParamsPositional { name } => {
+                write!(
+                    f,
+                    "meta-macro `{name}` must use named params (indices are \
+                     ambiguous between the meta and its produced definition)"
+                )
+            }
         }
     }
 }
 
 impl std::error::Error for InsertError {}
+
+fn is_bare_ident(name: &str) -> bool {
+    let mut chars = name.chars();
+    chars
+        .next()
+        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
 
 /// The macros in scope, keyed by name.
 ///
@@ -273,6 +301,18 @@ impl MacroSet {
     /// that parse position needs macro interception.
     pub(crate) fn expands_to_struct(&self, name: &str) -> bool { self.macros.contains_key(name) }
 
+    fn check_def(&self, def: &MacroDef) -> Result<(), InsertError> {
+        if !is_bare_ident(&def.name) {
+            return Err(InsertError::InvalidName { name: def.name });
+        }
+        if def.kinds.iter().any(|kind| kind.as_str() == "Macro")
+            && matches!(&def.params, Params::Positional(types) if !types.is_empty())
+        {
+            return Err(InsertError::MetaParamsPositional { name: def.name });
+        }
+        Ok(())
+    }
+
     fn check_kinds(&self, def: &MacroDef) -> Result<(), InsertError> {
         for &kind in &def.kinds {
             if self.kinds.get(&kind).is_none() {
@@ -309,6 +349,7 @@ impl MacroSet {
     /// `def`'s name, or the definition repeats a kind (which would otherwise
     /// self-overwrite silently).
     pub fn insert(&mut self, def: &MacroDef) -> Result<(), InsertError> {
+        self.check_def(def)?;
         self.check_kinds(def)?;
         self.check_param_types(def)?;
         for (i, &kind) in def.kinds.iter().enumerate() {
@@ -361,6 +402,7 @@ impl MacroSet {
     /// # Errors
     /// If any of `def`'s kinds is unregistered.
     pub fn replace(&mut self, def: &MacroDef) -> Result<(), InsertError> {
+        self.check_def(def)?;
         self.check_kinds(def)?;
         self.check_param_types(def)?;
         for &kind in &def.kinds {
