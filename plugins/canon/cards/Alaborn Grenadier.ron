@@ -1,5 +1,3 @@
-// Hand-finished from pipeline output: bare keyword macro → intrinsic
-// Keyword(...) (the per-keyword macros are pending, see todo §6).
 Normal(
     name: "Alaborn Grenadier",
     mana_cost: [
@@ -11,7 +9,9 @@ Normal(
         Human,
         Soldier,
     ],
-    abilities: [Keyword(Vigilance)],
+    abilities: [
+        Keyword(Vigilance),
+    ],
     power: 2,
     toughness: 2,
 )

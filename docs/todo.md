@@ -262,10 +262,6 @@ Per-keyword work = macro body (stub exists under `plugins/wizards/macros/`),
 any engine machinery (right column names the §3 item it rides on), parser
 coverage, and graduating its cards. Slug: `kw-<kebab-case>`.
 
-- [ ] `kw-intrinsics-canon` — the six remaining intrinsic keywords (first strike,
-  double strike, deathtouch, trample, vigilance, lifelink) lack the
-  end-to-end macro/canon registration that Flying got.
-
 | Keyword | Cards | Machinery |
 |---|---|---|
 | Enchant | 2,176 | aura targeting + attach (`engine-attachments`) |
