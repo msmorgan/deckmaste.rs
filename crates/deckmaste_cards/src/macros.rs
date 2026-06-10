@@ -21,9 +21,9 @@ use macro_ron::{Kind, KindSet};
 /// only embeds `PlayerAction` untagged, so a bare `Draw(1)`/`Tap(This)`
 /// reads as `Action::By(You, ...)`, the implicit-you default.
 ///
-/// The struct kinds `CardFace` and `Subtype` are name-erasing: `Subtype`
-/// already self-names and nothing engine-meaningful invokes `CardFace`
-/// macros.
+/// The struct kinds `CardFace`, `Subtype`, and `Macro` are name-erasing:
+/// `Subtype` already self-names; nothing engine-meaningful invokes `CardFace`
+/// macros; and `Macro` is the loader-only position for `MacroDef` itself.
 // When adding a new macroable core type, add its `T::kind()` here AND its
 // name in `kind_names_track_the_core_types`.
 #[must_use]
@@ -50,6 +50,10 @@ pub fn kinds() -> KindSet {
     kinds.add(TargetSpec::kind());
     kinds.add(Kind::new("CardFace"));
     kinds.add(Kind::new("Subtype"));
+    // Meta-macro positions: `MacroDef` reads in the plugin loader (serde
+    // name "Macro"). No card position ever reads it; registering it here
+    // keeps one kind registry. Name-erasing like the other struct kinds.
+    kinds.add(Kind::new("Macro"));
     kinds
 }
 
@@ -103,9 +107,9 @@ mod tests {
     /// The registry matches on serde type names. The derived `kind()`s
     /// self-name from the Rust ident, so they track renames by
     /// construction; the tie this pins is the hand-registered struct kinds
-    /// (`CardFace`, `Subtype`), which a Rust rename would strand without a
-    /// compile error — plus the policy list's completeness (the length
-    /// check).
+    /// (`CardFace`, `Subtype`, `Macro`), which a Rust rename would strand
+    /// without a compile error — plus the policy list's completeness (the
+    /// length check).
     #[test]
     fn kind_names_track_the_core_types() {
         fn name_of<T>() -> &'static str { std::any::type_name::<T>().rsplit("::").next().unwrap() }
@@ -127,6 +131,7 @@ mod tests {
             name_of::<StaticEffect>(),
             name_of::<Subtype>(),
             name_of::<TargetSpec>(),
+            "Macro", // hand-registered: MacroDef's serde rename, loader-only
         ];
         let kinds = kinds();
         for name in names {
