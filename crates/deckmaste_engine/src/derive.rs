@@ -19,25 +19,37 @@ pub fn face(card: &Card) -> &CardFace {
     }
 }
 
-/// The object's PRINTED abilities: printed plus subtype-conferred (the
+/// A face's PRINTED abilities: printed plus subtype-conferred (the
 /// `Property::Ability` arm; other flavors execute elsewhere), in that
-/// order. `Action::ActivateAbility` indexes this list.
-///
-/// This is the cycle-safe base used by the layer pipeline itself
-/// (`layer::base_values` and `layer::gather`). External callers should
-/// use [`abilities`] to get the layer-6–derived list instead.
+/// order. `Action::ActivateAbility` indexes this list. Computed once per
+/// card at setup (`Cards::push`) and cached on the `CardInstance`.
 #[must_use]
-pub(crate) fn printed_abilities(state: &GameState, id: ObjectId) -> Vec<&Ability> {
-    let face = face(state.def(id));
+pub(crate) fn printed_of_face(face: &CardFace) -> Vec<Ability> {
     face.abilities
         .iter()
+        .cloned()
         .chain(face.subtypes.iter().flat_map(|s| {
             s.confers.iter().filter_map(|p| match p {
-                Property::Ability(a) => Some(&**a),
+                Property::Ability(a) => Some((**a).clone()),
                 _ => None,
             })
         }))
         .collect()
+}
+
+/// The object's PRINTED abilities, from the per-card cache.
+///
+/// This is the cycle-safe base used by the layer pipeline itself
+/// (`layer::base_values` and `layer::gather`). External callers should
+/// use [`abilities`] to get the layer-6–derived list instead.
+///
+/// # Panics
+///
+/// Panics on a player proxy — callers guard on `card_id()` first.
+#[must_use]
+pub(crate) fn printed_abilities(state: &GameState, id: ObjectId) -> &[Ability] {
+    let card = state.objects.obj(id).card_id().expect("card-backed object");
+    &state.cards.get(card).printed
 }
 
 /// The object's derived abilities after layer 6 ([CR#305.6,613.1f]):
@@ -49,8 +61,8 @@ pub(crate) fn printed_abilities(state: &GameState, id: ObjectId) -> Vec<&Ability
 /// [`printed_abilities`] internally to break the `layers()` →
 /// `derive::abilities` → `layers()` recursion.
 #[must_use]
-pub fn abilities(state: &GameState, id: ObjectId) -> Vec<Ability> {
-    state.layers().get(id).abilities.clone()
+pub fn abilities(state: &GameState, id: ObjectId) -> std::sync::Arc<Vec<Ability>> {
+    std::sync::Arc::clone(&state.layers().get(id).abilities)
 }
 
 /// The PRINTED abilities of whatever an `ObjectSource` names — the abilities

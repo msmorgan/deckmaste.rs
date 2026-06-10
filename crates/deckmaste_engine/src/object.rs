@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
-use deckmaste_core::{Card, Ident, Uint, Zone};
+use deckmaste_core::{Ability, Card, Ident, Subtype, Uint, Zone};
 
 use crate::player::PlayerId;
 
@@ -26,6 +26,17 @@ pub struct CardId(pub Uint);
 pub struct CardInstance {
     pub def: Arc<Card>,
     pub owner: PlayerId,
+    /// The face's printed + subtype-conferred abilities, precomputed at setup
+    /// so the layer pipeline's base values are an `Arc` bump per rebuild
+    /// instead of a deep clone per object.
+    pub(crate) printed: Arc<Vec<Ability>>,
+    /// The face's subtypes, shared for the same reason (`Subtype` carries its
+    /// `confers` payload, so cloning it per rebuild is as heavy as abilities).
+    pub(crate) subtypes: Arc<Vec<Subtype>>,
+    /// Base colors ([CR#202.2]: cost symbols, else color indicator).
+    pub(crate) colors: Arc<Vec<deckmaste_core::Color>>,
+    pub(crate) card_types: Arc<Vec<deckmaste_core::Type>>,
+    pub(crate) supertypes: Arc<Vec<deckmaste_core::Supertype>>,
 }
 
 /// The game's card table: exactly the cards the decklists brought, built at
@@ -41,7 +52,21 @@ impl Cards {
     /// Panics if the card table exceeds `Uint::MAX` entries.
     pub(crate) fn push(&mut self, def: Arc<Card>, owner: PlayerId) -> CardId {
         let id = CardId(Uint::try_from(self.0.len()).expect("card table fits in Uint"));
-        self.0.push(CardInstance { def, owner });
+        let face = crate::derive::face(&def);
+        let printed = Arc::new(crate::derive::printed_of_face(face));
+        let subtypes = Arc::new(face.subtypes.clone());
+        let colors = Arc::new(crate::layer::base_colors(face));
+        let card_types = Arc::new(face.types.clone());
+        let supertypes = Arc::new(face.supertypes.clone());
+        self.0.push(CardInstance {
+            def,
+            owner,
+            printed,
+            subtypes,
+            colors,
+            card_types,
+            supertypes,
+        });
         id
     }
 
