@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+use crate::Expand;
+
 /// A game zone ([CR#400.1]). Vintage-legal scope: no ante.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub enum Zone {
     Battlefield,
     Command,

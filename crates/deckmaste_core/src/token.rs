@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 
 use crate::ability::Ability;
-use crate::{Subtype, Supertype, Type};
+use crate::{Expand, Subtype, Supertype, Type};
 
 /// A token permanent definition ([CR#111]). Name, colors, and P/T are omitted
 /// here and join when a token definition needs them; the three predefined
 /// tokens (Treasure, Clue, Food) don't.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub struct Token {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub supertypes: Vec<Supertype>,

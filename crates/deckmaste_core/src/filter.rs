@@ -1,15 +1,13 @@
-use std::fmt;
-
-use serde::de::{self, EnumAccess, SeqAccess, VariantAccess, Visitor};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 use crate::{
-    Cmp, Color, Count, Expansion, Ident, IdentSeed, Reference, Stat, Status, Supertype, Type, Zone,
+    Cmp, Color, Count, Expand, Expansion, Ident, Reference, Stat, Status, Supertype,
+    SupportsMacros, Type, Zone,
 };
 
 /// What kind of object something is ([CR#109.1]). Players are objects here
 /// too — the engine gives players `ObjectId`s.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub enum ObjectKind {
     Card,
     Emblem,
@@ -21,7 +19,7 @@ pub enum ObjectKind {
 /// Characteristic atoms ([CR#109.3]): facts printed on or defined for the
 /// object. `Subtype`/`Named`/`HasAbility` filter by *name* — validating that
 /// the name is declared is a lint, not a parse concern.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum CharacteristicFilter {
     Type(Type),
     Subtype(Ident),
@@ -40,7 +38,7 @@ pub enum CharacteristicFilter {
 
 /// State atoms: where the object is and what's on it — not
 /// characteristics ([CR#110.5a,122.1]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum StateFilter {
     InZone(Zone),
     /// The object's status ([CR#110.5]).
@@ -58,7 +56,7 @@ pub enum StateFilter {
 /// Structural relations the engine owns. Relations are
 /// implicitly existential: `Controller(IsOpponent-shaped)` means "whose
 /// controller matches".
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum RelationFilter {
     /// The object's controller matches ([CR#109.5]).
     Controller(Box<Filter>),
@@ -74,16 +72,27 @@ pub enum RelationFilter {
 
 /// A predicate over game objects, players included. Compartmentalized in
 /// Rust; flat in RON (`Type(Creature)`, never
-/// `Characteristic(Type(Creature))`) via the manual serde impls below.
+/// `Characteristic(Type(Creature))`) via the `#[macro_ron(flatten)]`
+/// markers: each compartment's variant names lift into `Filter`'s dispatch
+/// and the compartment tag never appears in text.
+///
+/// Generated dispatch, not `#[serde(untagged)]` wrappers: untagged variants
+/// deserialize through `deserialize_any`, which never reaches the macro
+/// layer's `deserialize_enum` interception — a `Filter` macro would stop
+/// expanding at Filter positions. Dispatching by name over one combined
+/// variant list keeps the RON flat *and* the positions macro-aware.
 ///
 /// Conjunction is explicit (`AllOf`) — an enum position never carries a
 /// bare list. Canonical filters are context-free-correct: state the whole
 /// predicate even where engine context would make parts redundant.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Filter {
     Kind(ObjectKind),
+    #[macro_ron(flatten)]
     Characteristic(CharacteristicFilter),
+    #[macro_ron(flatten)]
     State(StateFilter),
+    #[macro_ron(flatten)]
     Relation(RelationFilter),
     Is(Reference), // Rename to `Ref`?
     AllOf(Vec<Filter>),
@@ -94,6 +103,7 @@ pub enum Filter {
     Any,
     /// A remembered `Filter` macro invocation (evasion sets, protection
     /// qualities, …). Serialized as the invocation, not the struct.
+    #[macro_ron(expanded)]
     Expanded(Expansion<Filter>),
 }
 
@@ -102,171 +112,6 @@ impl Filter {
     /// `Event::Performed`'s `by`/`on`.
     #[must_use]
     pub fn any() -> Filter { Filter::Any }
-}
-
-/// Every name a Filter position accepts, compartments flattened: the
-/// variant list the macro layer's enum interception checks before trying
-/// Filter macros. Names must stay globally unique across compartments.
-const VARIANTS: &[&str] = &[
-    "Kind",
-    "Type",
-    "Subtype",
-    "Supertype",
-    "ColorIs",
-    "Named",
-    "Stat",
-    "HasAbility",
-    "InZone",
-    "Status",
-    "HasCounter",
-    "Designated",
-    "RelatedBy",
-    "Controller",
-    "Owner",
-    "OpponentOf",
-    "AttachedTo",
-    "Attachment",
-    "Is",
-    "AllOf",
-    "OneOf",
-    "Not",
-    "Any",
-    "Expanded",
-];
-
-// Visitor for the 3-tuple `Stat(Stat, Cmp, Count)` atom.
-struct StatTriple(Stat, Cmp, Count);
-
-struct StatTripleVisitor;
-
-impl<'de> Visitor<'de> for StatTripleVisitor {
-    type Value = StatTriple;
-
-    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("a (Stat, Cmp, Count) tuple")
-    }
-
-    fn visit_seq<S: SeqAccess<'de>>(self, mut seq: S) -> Result<Self::Value, S::Error> {
-        let stat = seq
-            .next_element()?
-            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
-        let cmp = seq
-            .next_element()?
-            .ok_or_else(|| de::Error::invalid_length(1, &self))?;
-        let q = seq
-            .next_element()?
-            .ok_or_else(|| de::Error::invalid_length(2, &self))?;
-        Ok(StatTriple(stat, cmp, q))
-    }
-}
-
-// Visitor for the 2-tuple `RelatedBy(Ident, Box<Filter>)` atom.
-struct RelatedByPair(Ident, Box<Filter>);
-
-struct RelatedByVisitor;
-
-impl<'de> Visitor<'de> for RelatedByVisitor {
-    type Value = RelatedByPair;
-
-    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("a (relation name, Filter) tuple")
-    }
-
-    fn visit_seq<S: SeqAccess<'de>>(self, mut seq: S) -> Result<Self::Value, S::Error> {
-        let name = seq
-            .next_element()?
-            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
-        let filter = seq
-            .next_element()?
-            .ok_or_else(|| de::Error::invalid_length(1, &self))?;
-        Ok(RelatedByPair(name, filter))
-    }
-}
-
-// Manual serde, not `#[serde(untagged)]` wrappers: untagged variants
-// deserialize through `deserialize_any`, which never reaches the macro
-// layer's `deserialize_enum` interception — a `Filter` macro would stop
-// expanding at Filter positions. Dispatching by name over one combined
-// variant list keeps the RON flat *and* the positions macro-aware.
-impl<'de> Deserialize<'de> for Filter {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct FilterVisitor;
-
-        impl<'de> Visitor<'de> for FilterVisitor {
-            type Value = Filter;
-
-            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result { f.write_str("a filter") }
-
-            fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Filter, A::Error> {
-                use CharacteristicFilter as C;
-                use RelationFilter as R;
-                use StateFilter as S;
-
-                let (ident, v) = data.variant_seed(IdentSeed)?;
-                Ok(match ident.as_str() {
-                    // Adding an atom? Update VARIANTS above to match.
-                    "Kind" => Filter::Kind(v.newtype_variant()?),
-                    "Type" => Filter::Characteristic(C::Type(v.newtype_variant()?)),
-                    "Subtype" => Filter::Characteristic(C::Subtype(v.newtype_variant()?)),
-                    "Supertype" => Filter::Characteristic(C::Supertype(v.newtype_variant()?)),
-                    "ColorIs" => Filter::Characteristic(C::ColorIs(v.newtype_variant()?)),
-                    "Named" => Filter::Characteristic(C::Named(v.newtype_variant()?)),
-                    "Stat" => {
-                        let StatTriple(stat, cmp, q) = v.tuple_variant(3, StatTripleVisitor)?;
-                        Filter::Characteristic(C::Stat(stat, cmp, q))
-                    }
-                    "HasAbility" => Filter::Characteristic(C::HasAbility(v.newtype_variant()?)),
-                    "InZone" => Filter::State(S::InZone(v.newtype_variant()?)),
-                    "Status" => Filter::State(S::Status(v.newtype_variant()?)),
-                    "HasCounter" => Filter::State(S::HasCounter(v.newtype_variant()?)),
-                    "Designated" => Filter::State(S::Designated(v.newtype_variant()?)),
-                    "RelatedBy" => {
-                        let RelatedByPair(name, f) = v.tuple_variant(2, RelatedByVisitor)?;
-                        Filter::State(S::RelatedBy(name, f))
-                    }
-                    "Controller" => Filter::Relation(R::Controller(v.newtype_variant()?)),
-                    "Owner" => Filter::Relation(R::Owner(v.newtype_variant()?)),
-                    "OpponentOf" => Filter::Relation(R::OpponentOf(v.newtype_variant()?)),
-                    "AttachedTo" => Filter::Relation(R::AttachedTo(v.newtype_variant()?)),
-                    "Attachment" => Filter::Relation(R::Attachment(v.newtype_variant()?)),
-                    "Is" => Filter::Is(v.newtype_variant()?),
-                    "AllOf" => Filter::AllOf(v.newtype_variant()?),
-                    "OneOf" => Filter::OneOf(v.newtype_variant()?),
-                    "Not" => Filter::Not(v.newtype_variant()?),
-                    "Any" => {
-                        // Unit variant: consume the (empty) payload.
-                        v.unit_variant()?;
-                        Filter::Any
-                    }
-                    "Expanded" => Filter::Expanded(v.newtype_variant()?),
-                    _ => return Err(de::Error::unknown_variant(&ident, VARIANTS)),
-                })
-            }
-        }
-
-        deserializer.deserialize_enum("Filter", VARIANTS, FilterVisitor)
-    }
-}
-
-impl Serialize for Filter {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        // serialize_newtype_variant's index argument is ignored by RON.
-        match self {
-            Filter::Kind(kind) => serializer.serialize_newtype_variant("Filter", 0, "Kind", kind),
-            // The compartments serialize transparently: RON writes only the
-            // inner variant, so the text stays flat.
-            Filter::Characteristic(c) => c.serialize(serializer),
-            Filter::State(s) => s.serialize(serializer),
-            Filter::Relation(r) => r.serialize(serializer),
-            Filter::Is(r) => serializer.serialize_newtype_variant("Filter", 18, "Is", r),
-            Filter::AllOf(fs) => serializer.serialize_newtype_variant("Filter", 19, "AllOf", fs),
-            Filter::OneOf(fs) => serializer.serialize_newtype_variant("Filter", 20, "OneOf", fs),
-            Filter::Not(f) => serializer.serialize_newtype_variant("Filter", 21, "Not", f),
-            Filter::Any => serializer.serialize_unit_variant("Filter", 22, "Any"),
-            // The invocation, not the struct: `Expansion`'s Serialize emits it.
-            Filter::Expanded(e) => e.serialize(serializer),
-        }
-    }
 }
 
 #[cfg(test)]
@@ -400,24 +245,6 @@ mod tests {
                 .from_str::<Filter>("Bogus(1)")
                 .is_err()
         );
-    }
-
-    /// Every VARIANTS entry must be handled in `visit_enum`: a missing arm
-    /// surfaces as serde's `unknown_variant` error, which the macro layer
-    /// would otherwise misreport as a failed macro lookup. (The reverse
-    /// drift — an arm missing from VARIANTS — can't be detected here; a
-    /// comment at both sites guards it.)
-    #[test]
-    fn variants_list_matches_visit_enum() {
-        for &name in VARIANTS {
-            if let Err(error) = crate::ron::options().from_str::<Filter>(name) {
-                let message = error.to_string();
-                assert!(
-                    !message.contains("Unexpected variant") && !message.contains("unknown variant"),
-                    "VARIANTS entry `{name}` is not handled in visit_enum: {message}"
-                );
-            }
-        }
     }
 
     /// The compartment Serialize delegation must produce text the

@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+use crate::Expand;
+
 /// One of the five colors of Magic ([CR#105.1]). Colorless is not a color.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub enum Color {
     White,
     Blue,
@@ -26,7 +28,7 @@ impl Color {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub enum ColorOrColorless {
     Colorless,
     #[serde(untagged)]

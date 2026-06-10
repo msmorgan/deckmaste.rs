@@ -81,8 +81,8 @@ pub const fn concat_variants<const N: usize>(
     out
 }
 
-/// Seq visitor for 2-field tuple variants (generalizes what
-/// `deckmaste_core::de_util::Pair` did).
+/// Seq visitor for 2-field tuple variants used by generated `SupportsMacros`
+/// impls.
 pub struct Pair<A, B>(PhantomData<(A, B)>);
 
 impl<A, B> Pair<A, B> {

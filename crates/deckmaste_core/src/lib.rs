@@ -32,8 +32,6 @@ pub use cost::CostComponent;
 mod counter;
 pub use counter::CounterDecl;
 
-mod de_util;
-
 mod designation;
 pub use designation::{
     DesignationDecl, DesignationDef, DesignationPersistence, DesignationScope, DesignationShape,
@@ -50,7 +48,7 @@ pub use event::{BeginningStep, CombatStep, EndingStep, Event, Phase, StateFilter
 
 mod filter;
 pub use filter::{CharacteristicFilter, Filter, ObjectKind, RelationFilter, StateFilter};
-pub use macro_ron::{Expansion, ExpansionArgs, Ident, IdentSeed};
+pub use macro_ron::{Expand, Expansion, ExpansionArgs, Ident, IdentSeed, SupportsMacros};
 
 mod keyword;
 pub use keyword::KeywordAbility;

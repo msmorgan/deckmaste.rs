@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Ident, Property, Type};
+use crate::{Expand, Ident, Property, Type};
 
 /// A subtype: its name, the card types it can appear on ([CR#205.3]), and
 /// what it confers on its bearers — how [CR#305.6] gives basic lands their
@@ -13,7 +13,7 @@ use crate::{Ident, Property, Type};
 /// Plain serde on both sides; card files reference declared subtypes by bare
 /// name (`Forest`), which the macro-aware reader expands to the full
 /// declaration before this type ever sees it.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub struct Subtype {
     pub name: Ident,
     pub types: Vec<Type>,
