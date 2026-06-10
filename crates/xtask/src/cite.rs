@@ -42,15 +42,11 @@ pub fn check_sources(
     let mut outcome = CheckOutcome::default();
     for (path, content) in sources {
         for site in scan_text(path, content) {
-            let refs = match parse_refs(&site.raw) {
-                Ok(r) => r,
-                Err(_) => continue, // malformed [CR#…] is a legacy/format concern, not staleness
-            };
+            // Malformed [CR#…] is a legacy/format concern, not staleness.
+            let Ok(refs) = parse_refs(&site.raw) else { continue };
             // A range whose endpoint no longer resolves can't be expanded;
             // report the whole citation as GONE rather than aborting the check.
-            let member_rules = if let Ok(m) = members(&refs, rules) {
-                m
-            } else {
+            let Ok(member_rules) = members(&refs, rules) else {
                 outcome.checked += 1;
                 outcome.stale.push(Stale {
                     rule: site.raw.clone(),
@@ -218,6 +214,7 @@ pub fn dispatch(args: CiteArgs) -> anyhow::Result<()> {
 /// `cite show <citation> [--plain]`: print the rule(s) a citation resolves to.
 /// Resolved rules go to stdout; an unresolved single rule prints a marker to
 /// stderr and forces a non-zero exit.
+#[allow(clippy::needless_pass_by_value)]
 fn cmd_show(args: ShowArgs) -> anyhow::Result<()> {
     let rules = load_rules()?;
     let hits = show_rules(&rules, &args.citation)?;
@@ -325,13 +322,19 @@ fn cmd_list_noncompliant() -> anyhow::Result<()> {
 /// Render an old-vs-new text comparison for one rule.
 #[must_use]
 pub fn format_diff(rule: &str, old: Option<&str>, new: Option<&str>) -> String {
+    use std::fmt::Write as _;
+
     let mut s = format!("[CR#{rule}]\n");
     match old {
-        Some(t) => s.push_str(&format!("- {t}\n")),
+        Some(t) => {
+            let _ = writeln!(s, "- {t}");
+        }
         None => s.push_str("- (absent in old version)\n"),
     }
     match new {
-        Some(t) => s.push_str(&format!("+ {t}\n")),
+        Some(t) => {
+            let _ = writeln!(s, "+ {t}");
+        }
         None => s.push_str("+ (absent in current cr.txt)\n"),
     }
     s
