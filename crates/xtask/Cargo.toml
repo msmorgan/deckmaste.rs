@@ -10,6 +10,7 @@ workspace = true
 anyhow = { version = "1.0.102" }
 clap = { version = "4.6.1", features = ["derive"] }
 deckmaste_cards = { path = "../deckmaste_cards" }
+deckmaste_core = { path = "../deckmaste_core" }
 deckmaste_migrations = { path = "../deckmaste_migrations" }
 fnv = "1"
 regex = "1"
