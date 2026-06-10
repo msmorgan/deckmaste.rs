@@ -1101,3 +1101,451 @@ fn embed_host_own_macro_remembered_as_host_expanded() {
     assert_eq!(expanded.name, "HostMacro");
     assert_eq!(*expanded.value, EmbedHost::Own(1));
 }
+
+// ---------------------------------------------------------------------------
+// #[derive(SupportsMacros)] fixtures
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "derive")]
+mod derived {
+    use crate::{
+        Expand, Expansion, KindSet, MacroDef, MacroSet, ParamType, Params, SupportsMacros,
+    };
+
+    /// P1 fixture: unit, newtype, 2-tuple, literal, expanded.
+    #[derive(Debug, Clone, PartialEq, crate::SupportsMacros)]
+    enum Amount {
+        X,
+        Twice(Box<Amount>),
+        Per(String, Box<Amount>),
+        #[macro_ron(literal)]
+        Lit(u32),
+        #[macro_ron(expanded)]
+        Expanded(Expansion<Amount>),
+    }
+
+    /// A `MacroSet` over the generated kind facts, with one macro:
+    /// `Double(x)` expands to `Twice(x)`.
+    fn amount_set() -> MacroSet {
+        let mut kinds = KindSet::new();
+        kinds.add(Amount::kind());
+        let mut set = MacroSet::new(kinds).with_options(super::options());
+        set.insert(&MacroDef {
+            name: "Double".into(),
+            kinds: vec!["Amount".into()],
+            params: Params::Positional(vec![ParamType("Any".into())]),
+            body: "Twice(Param(0))".into(),
+        })
+        .unwrap();
+        set
+    }
+
+    /// The generated `Serialize`/`Deserialize` round-trip plain variants
+    /// through plain ron — no macro layer involved.
+    #[test]
+    fn p1_round_trips() {
+        // unit variant: "X" ↔ Amount::X
+        let unit_text = super::options().to_string(&Amount::X).unwrap();
+        assert_eq!(unit_text, "X");
+        let unit_back: Amount = super::options().from_str(&unit_text).unwrap();
+        assert_eq!(unit_back, Amount::X);
+
+        // newtype-with-Box variant: "Twice(X)" ↔ Amount::Twice(Box::new(Amount::X))
+        let newtype = Amount::Twice(Box::new(Amount::X));
+        let newtype_text = super::options().to_string(&newtype).unwrap();
+        assert_eq!(newtype_text, "Twice(X)");
+        let newtype_back: Amount = super::options().from_str(&newtype_text).unwrap();
+        assert_eq!(newtype_back, newtype);
+
+        // 2-tuple variant: write→read round-trip
+        let amount = Amount::Per("land".to_owned(), Box::new(Amount::Lit(2)));
+        let text = super::options().to_string(&amount).unwrap();
+        assert!(text.starts_with("Per("), "{text}");
+        let back: Amount = super::options().from_str(&text).unwrap();
+        assert_eq!(back, amount);
+    }
+
+    /// `kind()` carries the literal-wrapper fact: a bare digit-led value at
+    /// an `Amount` position reads as `Lit(N)`.
+    #[test]
+    fn p1_kind_facts() {
+        let amount: Amount = amount_set().read_str("3").unwrap();
+        assert_eq!(amount, Amount::Lit(3));
+    }
+
+    /// A macro invocation is remembered in the `expanded` variant, writes the
+    /// invocation back, and `expanded()` constructs the same value.
+    #[test]
+    fn p1_expanded_writes_invocation_and_constructs() {
+        let amount: Amount = amount_set().read_str("Double(Lit(2))").unwrap();
+        let Amount::Expanded(e) = amount.clone() else {
+            panic!("expected a remembered amount, got {amount:?}");
+        };
+        assert_eq!(e.name, "Double");
+        assert_eq!(*e.value, Amount::Twice(Box::new(Amount::Lit(2))));
+        assert_eq!(
+            super::options().to_string(&amount).unwrap(),
+            "Double(Lit(2))"
+        );
+        assert_eq!(Amount::expanded(e), Some(amount));
+    }
+
+    /// `expand_all` strips `Expanded` nodes recursively, rebuilding the tree.
+    #[test]
+    fn p1_expand_all_strips_recursively() {
+        let amount: Amount = amount_set().read_str("Twice(Double(Lit(2)))").unwrap();
+        assert_eq!(
+            amount.expand_all(),
+            Amount::Twice(Box::new(Amount::Twice(Box::new(Amount::Lit(2))))),
+        );
+    }
+
+    /// Struct-variant fixture: generated helper struct with forwarded serde
+    /// field attrs (default) reading flat via `unwrap_variant_newtypes`.
+    #[derive(Debug, Clone, PartialEq, crate::SupportsMacros)]
+    enum Clause {
+        When {
+            verb: String,
+            #[serde(default)]
+            count: u32,
+        },
+        #[macro_ron(expanded)]
+        Expanded(Expansion<Clause>),
+    }
+
+    /// A struct variant reads flat (`When(verb: "draw")`), the forwarded
+    /// `#[serde(default)]` fills the missing field, and a full value
+    /// round-trips through write→read.
+    #[test]
+    fn struct_variant_round_trips_with_defaults() {
+        // The defaulted field is absent in the text; serde fills it.
+        let read: Clause = super::options().from_str(r#"When(verb: "draw")"#).unwrap();
+        assert_eq!(
+            read,
+            Clause::When {
+                verb: "draw".into(),
+                count: 0,
+            }
+        );
+
+        // Write→read round-trip with every field set.
+        let clause = Clause::When {
+            verb: "draw".into(),
+            count: 3,
+        };
+        let text = super::options().to_string(&clause).unwrap();
+        let back: Clause = super::options().from_str(&text).unwrap();
+        assert_eq!(back, clause);
+    }
+
+    /// Embed fixtures, mirroring `Selection::Ref` (newtype, name-erased) and
+    /// `Action::By` (tuple, defaulted head).
+    #[derive(Debug, Clone, PartialEq, crate::SupportsMacros)]
+    enum Who {
+        Me,
+        Them,
+        #[macro_ron(expanded)]
+        Expanded(Expansion<Who>),
+    }
+
+    #[derive(Debug, Clone, PartialEq, crate::SupportsMacros)]
+    enum Pick {
+        All,
+        #[macro_ron(embed)]
+        Ref(Who),
+        #[macro_ron(expanded)]
+        Expanded(Expansion<Pick>),
+    }
+
+    #[derive(Debug, Clone, PartialEq, crate::SupportsMacros)]
+    enum Deed {
+        Smash(u32),
+        #[macro_ron(embed)]
+        By(#[macro_ron(default = "Who::Me")] Who, Box<Pick>),
+    }
+
+    /// A newtype embed is name-erased: the embedded type's variants read
+    /// bare at the host position (the `from_variant` fall-through), the
+    /// write is always bare, and the variant's own tag is not a name.
+    #[test]
+    fn newtype_embed_lifts_and_writes_bare() {
+        // Plain-ron path (no macro layer): an unknown ident dispatches into
+        // Who via the from_variant fall-through.
+        let read: Pick = super::options().from_str("Them").unwrap();
+        assert_eq!(read, Pick::Ref(Who::Them));
+
+        // The write is ALWAYS bare.
+        let text = super::options().to_string(&Pick::Ref(Who::Them)).unwrap();
+        assert_eq!(text, "Them");
+
+        // "Ref" is name-erased — the tag itself is not part of the grammar.
+        assert!(super::options().from_str::<Pick>("Ref(Them)").is_err());
+    }
+
+    /// A tuple embed fills defaulted fields on read, writes bare only when
+    /// every defaulted field equals its default, and keeps its tag otherwise.
+    #[test]
+    fn tuple_embed_defaults_head_and_round_trips() {
+        // The payload is the Box<Pick> field — exercises Box peeling.
+        let read: Deed = super::options().from_str("All").unwrap();
+        assert_eq!(read, Deed::By(Who::Me, Box::new(Pick::All)));
+        let Deed::By(head, payload) = &read else { panic!("expected By") };
+        assert_eq!(head, &Who::Me, "defaulted head");
+        assert_eq!(payload.as_ref(), &Pick::All, "Box-peeled payload");
+
+        // The default head writes bare …
+        let text = super::options().to_string(&read).unwrap();
+        assert_eq!(text, "All");
+
+        // … and a non-default head keeps the tag and round-trips.
+        let deed = Deed::By(Who::Them, Box::new(Pick::All));
+        let text = super::options().to_string(&deed).unwrap();
+        assert!(text.starts_with("By("), "{text}");
+        let back: Deed = super::options().from_str(&text).unwrap();
+        assert_eq!(back, deed);
+    }
+
+    /// An unknown ident at a Pick position routes through the macro layer's
+    /// embed hook (`visit_newtype_struct`) into the *Who* namespace, where
+    /// the macro expands and is remembered as `Who::Expanded` — and the
+    /// invocation writes back through the bare embed.
+    #[test]
+    fn embed_macro_layer_falls_through_to_embedded_namespace() {
+        let mut kinds = KindSet::new();
+        kinds.add(Who::kind());
+        kinds.add(Pick::kind());
+        let mut set = MacroSet::new(kinds).with_options(super::options());
+        set.insert(&MacroDef {
+            name: "Us".into(),
+            kinds: vec!["Who".into()],
+            params: Params::default(),
+            body: "Me".into(),
+        })
+        .unwrap();
+
+        let pick: Pick = set.read_str("Us").unwrap();
+        let Pick::Ref(Who::Expanded(e)) = &pick else {
+            panic!("expected Ref(Expanded(…)), got {pick:?}");
+        };
+        assert_eq!(e.name, "Us");
+        assert_eq!(*e.value, Who::Me);
+
+        // Invocation write-back through the bare embed.
+        assert_eq!(super::options().to_string(&pick).unwrap(), "Us");
+    }
+
+    /// The variant lists pin the name-erasure semantics: a newtype embed's
+    /// tag is absent from `OWN_VARIANTS`, a tuple embed's is kept, and
+    /// `ALL_VARIANTS` appends the embedded type's dispatch set.
+    #[test]
+    fn variant_list_composition() {
+        assert_eq!(<Deed as SupportsMacros>::OWN_VARIANTS, &["Smash", "By"]);
+        assert_eq!(<Pick as SupportsMacros>::OWN_VARIANTS, &["All", "Expanded"]);
+        // The duplicate "Expanded" is intentional — once from Pick's own slot,
+        // once appended from Who's dispatch set. concat_variants does not
+        // dedupe; OWN_VARIANTS drives ownership decisions, and ALL_VARIANTS is
+        // only a membership/hint set for the macro layer.
+        assert_eq!(
+            <Pick as SupportsMacros>::ALL_VARIANTS,
+            &["All", "Expanded", "Me", "Them", "Expanded"],
+        );
+    }
+
+    /// Flatten fixture, mirroring `Effect::Act(Action)`: inner names lift,
+    /// write is transparent, and flatten composes with the inner's embed.
+    #[derive(Debug, Clone, PartialEq, crate::SupportsMacros)]
+    enum Step {
+        Wait,
+        #[macro_ron(flatten)]
+        Do(Deed),
+        #[macro_ron(expanded)]
+        Expanded(Expansion<Step>),
+    }
+
+    /// A flattened compartment lifts the payload's accepted names into the
+    /// host position — transitively through the payload's own embed — and
+    /// writes transparently (the `Do` tag never appears in text).
+    #[test]
+    fn flatten_lifts_inner_names_transitively() {
+        // The inner's own variant lifts.
+        let read: Step = super::options().from_str("Smash(3)").unwrap();
+        assert_eq!(read, Step::Do(Deed::Smash(3)));
+
+        // Reached through Deed's embed — flatten composes transitively.
+        let read: Step = super::options().from_str("All").unwrap();
+        assert_eq!(read, Step::Do(Deed::By(Who::Me, Box::new(Pick::All))));
+
+        // Transparent write: the flatten arm delegates to the payload …
+        let step = Step::Do(Deed::Smash(3));
+        let text = super::options().to_string(&step).unwrap();
+        assert!(text.starts_with("Smash("), "{text}");
+        let back: Step = super::options().from_str(&text).unwrap();
+        assert_eq!(back, step);
+
+        // … and composes with the inner's bare embed (bare through BOTH
+        // layers: Do is erased by flatten, By by its all-default head).
+        let step = Step::Do(Deed::By(Who::Me, Box::new(Pick::All)));
+        let text = super::options().to_string(&step).unwrap();
+        assert_eq!(text, "All");
+        let back: Step = super::options().from_str(&text).unwrap();
+        assert_eq!(back, step);
+
+        // An ordinary unit variant is untouched by the flatten machinery.
+        let text = super::options().to_string(&Step::Wait).unwrap();
+        assert_eq!(text, "Wait");
+        let back: Step = super::options().from_str(&text).unwrap();
+        assert_eq!(back, Step::Wait);
+    }
+
+    /// The variant lists pin flatten's name-erasure: the `Do` tag is erased
+    /// from `OWN_VARIANTS`, and `ALL_VARIANTS` appends the payload's full
+    /// dispatch set.
+    #[test]
+    fn flatten_variant_lists() {
+        assert_eq!(
+            <Step as SupportsMacros>::OWN_VARIANTS,
+            &["Wait", "Expanded"]
+        );
+        // ["Wait", "Expanded"] ++ Deed::ALL_VARIANTS, which is itself
+        // ["Smash", "By"] ++ Pick::ALL_VARIANTS. The repeated "Expanded"
+        // entries are intentional — one from Step's own slot, one from Pick's,
+        // one from Who's; concat_variants does not dedupe (ALL_VARIANTS is a
+        // membership set for dispatch, not an ownership list).
+        assert_eq!(
+            <Step as SupportsMacros>::ALL_VARIANTS,
+            &[
+                "Wait", "Expanded", "Smash", "By", "All", "Expanded", "Me", "Them", "Expanded"
+            ],
+        );
+    }
+
+    /// Flatten lifts *names*, not macro namespaces: Step has no embed
+    /// variant, so its kind has `embeds_untagged = false` and an unknown
+    /// ident at a Step position is looked up among *Step* macros only. A
+    /// `Who` macro does not expand there (mirroring production Effect:
+    /// `PlayerAction` macros do not expand at Effect slots).
+    #[test]
+    fn flatten_does_not_open_macro_namespaces() {
+        let mut kinds = KindSet::new();
+        kinds.add(Who::kind());
+        kinds.add(Pick::kind());
+        kinds.add(Step::kind());
+        let mut set = MacroSet::new(kinds).with_options(super::options());
+        set.insert(&MacroDef {
+            name: "Us".into(),
+            kinds: vec!["Who".into()],
+            params: Params::default(),
+            body: "Me".into(),
+        })
+        .unwrap();
+
+        // "Us" is not in Step's native list and Step doesn't embed, so the
+        // macro layer tries Step macros, finds none, and errors.
+        assert!(set.read_str::<Step>("Us").is_err());
+    }
+
+    /// `expand_all` strips `Expanded` nodes through both `flatten` and `embed`
+    /// arms, recursing into all fields.
+    ///
+    /// * Identity: plain variants are returned unchanged.
+    /// * Embed seam: a `Pick` read via the `Who` macro carries
+    ///   `Pick::Ref(Who::Expanded(..))` from the macro layer; `expand_all`
+    ///   strips that inner `Expanded`, yielding `Pick::Ref(Who::Me)`.
+    /// * Tuple embed: wrapping that `Pick` in a `Deed::By` and calling
+    ///   `expand_all` recurses through the `Box` in the tuple field.
+    #[test]
+    fn expand_all_strips_through_flatten_and_embed() {
+        // Build the same MacroSet as `flatten_does_not_open_macro_namespaces`
+        // and `embed_macro_layer_falls_through_to_embedded_namespace`.
+        let mut kinds = KindSet::new();
+        kinds.add(Who::kind());
+        kinds.add(Pick::kind());
+        kinds.add(Step::kind());
+        let mut set = MacroSet::new(kinds).with_options(super::options());
+        set.insert(&MacroDef {
+            name: "Us".into(),
+            kinds: vec!["Who".into()],
+            params: Params::default(),
+            body: "Me".into(),
+        })
+        .unwrap();
+
+        // Identity: unit and plain newtype variants are unchanged.
+        assert_eq!(Step::Wait.expand_all(), Step::Wait);
+        assert_eq!(
+            Step::Do(Deed::Smash(3)).expand_all(),
+            Step::Do(Deed::Smash(3))
+        );
+
+        // The real seam: read "Us" at a Pick position — routes through the
+        // embed hook into the Who namespace, yielding Pick::Ref(Who::Expanded).
+        let pick: Pick = set.read_str("Us").unwrap();
+        let Pick::Ref(Who::Expanded(_)) = &pick else {
+            panic!("expected Pick::Ref(Who::Expanded(…)), got {pick:?}");
+        };
+        // expand_all strips the nested Expanded, regardless of the embed layer.
+        assert_eq!(pick.expand_all(), Pick::Ref(Who::Me));
+
+        // Tuple embed: Deed::By holds a Box<Pick>; expand_all recurses through
+        // the Box in the second field and strips the inner Expanded there too.
+        let pick2: Pick = set.read_str("Us").unwrap();
+        let deed = Deed::By(Who::Me, Box::new(pick2));
+        assert_eq!(
+            deed.expand_all(),
+            Deed::By(Who::Me, Box::new(Pick::Ref(Who::Me)))
+        );
+    }
+
+    /// Standalone Expand derive on a plain struct + enum.
+    #[derive(Debug, Clone, PartialEq, crate::Expand)]
+    struct Plain {
+        who: Who2,
+        n: u32,
+    }
+
+    #[derive(Debug, Clone, PartialEq, crate::Expand)]
+    enum Who2 {
+        Me,
+        Named(String),
+    }
+
+    #[test]
+    fn plain_expand_recurses_fields() {
+        let p = Plain {
+            who: Who2::Named("x".into()),
+            n: 3,
+        };
+        assert_eq!(p.clone().expand_all(), p);
+
+        // The unit-variant arm is identity too.
+        let p = Plain {
+            who: Who2::Me,
+            n: 0,
+        };
+        assert_eq!(p.clone().expand_all(), p);
+    }
+}
+
+mod support_runtime {
+    use crate::{Expand, concat_variants};
+
+    #[test]
+    fn concat_variants_concatenates_in_order() {
+        const A: &[&str] = &["X", "Y"];
+        const B: &[&str] = &["Z"];
+        const ALL: &[&str] = &concat_variants::<{ A.len() + B.len() }>(&[A, B]);
+        assert_eq!(ALL, &["X", "Y", "Z"]);
+    }
+
+    #[test]
+    fn expand_containers_recurse() {
+        // Leaves are identity; containers map through.
+        assert_eq!(3u32.expand_all(), 3);
+        assert_eq!(vec![1u32, 2].expand_all(), vec![1, 2]);
+        assert_eq!(Some(Box::new(7u32)).expand_all(), Some(Box::new(7)));
+        assert_eq!(
+            (1u32, String::from("a")).expand_all(),
+            (1, String::from("a"))
+        );
+    }
+}

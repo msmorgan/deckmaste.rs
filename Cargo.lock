@@ -715,8 +715,18 @@ name = "macro_ron"
 version = "0.1.0"
 dependencies = [
  "elsa",
+ "macro_ron_derive",
  "ron",
  "serde",
+]
+
+[[package]]
+name = "macro_ron_derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
