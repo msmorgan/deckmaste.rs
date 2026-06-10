@@ -58,6 +58,9 @@ pub enum Horizon {
 }
 
 pub const WIN_SCORE: i64 = 1_000_000;
+/// Scored when the engine rejects a scripted decision outright. Deliberately
+/// below `-WIN_SCORE`: any legal line — even a confirmed loss — beats an
+/// engine-rejected one.
 const ILLEGAL_LINE: i64 = i64::MIN / 2;
 const ROLLOUT_GUARD: u32 = 100_000;
 
@@ -217,7 +220,8 @@ fn greedy_value_blocks(
             .filter(|a| !taken.contains(a))
             .filter(|&&a| {
                 let (ap, at) = (view.power(a).unwrap_or(0), view.toughness(a).unwrap_or(0));
-                bp >= at && bt > ap // kills it, survives it
+                bp >= at && bt > ap // kills it, survives it — wave-0 math: no first/double strike yet, so no
+                // damage is pre-marked when this runs
             })
             .max_by_key(|&&a| view.power(a).unwrap_or(0));
         if let Some(&a) = pick {
