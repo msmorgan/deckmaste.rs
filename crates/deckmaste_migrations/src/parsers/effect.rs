@@ -22,11 +22,13 @@ pub(super) fn parse_clause(line: &str) -> Option<ParsedEffect> {
         .or_else(|| parse_gain_life(line))
 }
 
-/// `~ deals N damage to <target>.` or `it deals N damage to <target>.`
+/// `~ deals N damage to <target>.` or `it deals N damage to <target>.` —
+/// "it" case-insensitively, since it opens the clause after a cost colon
+/// ("Sacrifice ~: It deals …") but follows a comma in trigger clauses.
 fn parse_deal_damage(line: &str) -> Option<ParsedEffect> {
     let body = line
         .strip_prefix("~ deals ")
-        .or_else(|| line.strip_prefix("it deals "))?;
+        .or_else(|| strip_prefix_ci(line, "it deals "))?;
     let rest = body.strip_suffix('.')?;
     let (amount, tail) = rest.split_once(" damage to ")?;
     let amount: u32 = amount.parse().ok()?;
@@ -83,8 +85,9 @@ fn strip_prefix_ci<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
 }
 
 /// A small spelled cardinal or a bare decimal -> its value. `None` for
-/// anything else (e.g. "X", "that many").
-fn number_word(word: &str) -> Option<u32> {
+/// anything else (e.g. "X", "that many"). Shared with the sibling frame
+/// parsers (cost counts spell the same way).
+pub(super) fn number_word(word: &str) -> Option<u32> {
     match word {
         "a" | "one" => Some(1),
         "two" => Some(2),
@@ -203,6 +206,14 @@ mod tests {
             Some((
                 "AnyTarget".to_owned(),
                 "DealDamage(Target(0), 1)".to_owned()
+            ))
+        );
+        // Activated surface: clause-initial "It deals …" after a cost colon.
+        assert_eq!(
+            parsed("It deals 2 damage to target creature."),
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "DealDamage(Target(0), 2)".to_owned()
             ))
         );
     }
