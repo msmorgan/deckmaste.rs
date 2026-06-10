@@ -45,10 +45,13 @@ pub enum WorkItem {
         object: crate::object::ObjectId,
         ability: usize,
     },
-    /// [CR#601.2c]: surface `ChooseTargets` if the in-flight spell targets.
+    /// [CR#601.2c,602.2b]: surface `ChooseTargets` if the in-flight announce
+    /// (spell or activated ability) has targets.
     AnnounceTargets,
-    /// [CR#601.2f,601.2g,601.2h]: pay the in-flight spell's cost (surface `PayMana` if there
-    /// is a choice; auto-pay when forced).
+    /// [CR#601.2f,601.2g,601.2h,602.2b]: pay the in-flight cost — mana +
+    /// physical components ({T}/{Q}) for activations, mana only for spells.
+    /// Surfaces `PayMana` when there is a choice; schedules tap/untap events
+    /// for activations alongside it.
     PayCost,
     /// [CR#701.9b]: a resolving discard — surface a `DiscardCards` decision
     /// for `player` to choose which `count` cards to discard (clamped to the

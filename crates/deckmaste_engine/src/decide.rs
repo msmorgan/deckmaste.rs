@@ -108,7 +108,9 @@ pub enum Action {
     PlayLand {
         object: ObjectId,
     },
-    /// Skeleton: mana abilities only — no stack ([CR#605.3a]). `ability`
+    /// Activate an ability of a permanent the player controls ([CR#602]).
+    /// Mana abilities resolve stacklessly ([CR#605.3a]); all other activated
+    /// abilities go on the stack via the announce flow ([CR#602.2]). `ability`
     /// indexes the object's derived ability list.
     ActivateAbility {
         object: ObjectId,

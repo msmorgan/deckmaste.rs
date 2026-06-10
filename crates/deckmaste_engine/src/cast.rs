@@ -1,6 +1,8 @@
 //! Casting ([CR#601]): the mana-payment solver plus the reified announce flow
 //! (`begin_cast` → `announce_targets` → `pay_cost`), and the `can_cast`
-//! legality gate that `legal::legal_actions` offers from.
+//! legality gate that `legal::legal_actions` offers from. The announce flow
+//! (`announce_targets` / `pay_cost`) is shared with activated abilities
+//! ([CR#602.2b]); see `activate.rs` for the activation entry point.
 
 use deckmaste_core::{
     ColorOrColorless, ManaCost, ManaSymbol, SimpleManaSymbol, TargetSpec, Type, Uint, Zone,
