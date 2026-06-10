@@ -2,8 +2,8 @@
 
 mod ability;
 pub use ability::{
-    Ability, ActivatedAbility, ChooseSpec, Mode, SpellAbility, StaticAbility, TriggerLimit,
-    TriggeredAbility,
+    Ability, ActivatedAbility, ChooseSpec, Mode, SpellAbility, StaticAbility, TriggeredAbility,
+    UseLimit,
 };
 
 mod action;

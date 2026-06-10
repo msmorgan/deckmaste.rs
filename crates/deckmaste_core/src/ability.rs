@@ -23,16 +23,28 @@ pub struct SpellAbility {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub struct ActivatedAbility {
     pub cost: Vec<CostComponent>,
+    /// "Activate only if/as/during …" ([CR#602.5b..602.5e]). The sorcery-speed
+    /// restriction is the builtin `SorcerySpeed` Condition macro.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub condition: Option<Condition>,
+    /// "Activate only once each turn." ([CR#602.5b]).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub limits: Vec<UseLimit>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub targets: Vec<TargetSpec>,
     pub effect: Effect,
 }
 
-/// A limit on how often a triggered ability may trigger ([CR#603.2h]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
-pub enum TriggerLimit {
-    /// "Once each turn" ([CR#603.2h]).
+/// A limit on how often an ability may be used — a triggered ability
+/// triggering ([CR#603.2h]) or an activated ability being activated
+/// ([CR#602.5b]). Per object: a reminted object (zone change) starts fresh;
+/// a controller change does not reset it ([CR#602.5b]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+pub enum UseLimit {
+    /// "only once each turn" ([CR#603.2h] / [CR#602.5b]).
     OncePerTurn,
+    /// "Activate only once." — once per game.
+    OncePerGame,
 }
 
 /// A triggered ability ([CR#113.3c,603]). A named struct because it recurs:
@@ -47,7 +59,7 @@ pub struct TriggeredAbility {
     pub condition: Option<Condition>,
     /// Trigger-frequency limits ([CR#603.2h]).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub limits: Vec<TriggerLimit>,
+    pub limits: Vec<UseLimit>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub targets: Vec<TargetSpec>,
     pub effect: Effect,
@@ -144,12 +156,35 @@ mod tests {
             ability,
             Ability::Activated(ActivatedAbility {
                 cost: vec![CostComponent::Tap],
+                condition: None,
+                limits: vec![],
                 targets: vec![],
                 effect: Effect::Act(Action::By(
                     Reference::You,
                     PlayerAction::Draw(Count::Literal(1))
                 )),
             })
+        );
+    }
+
+    /// `condition` and `limits` default-absent: parsing a bare
+    /// `ActivatedAbility` without those fields yields `None`/empty-vec, and
+    /// the serialized form omits them ([CR#602.5b]).
+    #[test]
+    fn activated_ability_condition_limits_default_absent() {
+        let parsed: ActivatedAbility = crate::ron::options()
+            .from_str("(cost: [Tap], effect: Sequence([]))")
+            .unwrap();
+        assert_eq!(parsed.condition, None);
+        assert!(parsed.limits.is_empty());
+        let written = crate::ron::options().to_string(&parsed).unwrap();
+        assert!(
+            !written.contains("condition"),
+            "absent condition omitted: {written}"
+        );
+        assert!(
+            !written.contains("limits"),
+            "absent limits omitted: {written}"
         );
     }
 

@@ -24,6 +24,8 @@ fn basic_land_subtype(name: &str, color: Color) -> Subtype {
         confers: vec![Property::Ability(Box::new(Ability::Activated(
             ActivatedAbility {
                 cost: vec![CostComponent::Tap],
+                condition: None,
+                limits: vec![],
                 targets: vec![],
                 effect: Effect::Act(Action::By(
                     Reference::You,
