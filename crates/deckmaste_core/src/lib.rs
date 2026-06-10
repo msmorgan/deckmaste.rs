@@ -73,9 +73,6 @@ pub use replacement::{Prevention, Replacement};
 mod status;
 pub use status::Status;
 
-mod subtype;
-pub use subtype::Subtype;
-
 mod symbol;
 pub use symbol::Symbol;
 
@@ -91,7 +88,7 @@ mod token;
 pub use token::Token;
 
 mod r#type;
-pub use r#type::{Supertype, Type};
+pub use r#type::{Subtype, Supertype, Type};
 
 mod zone;
 pub use zone::Zone;
