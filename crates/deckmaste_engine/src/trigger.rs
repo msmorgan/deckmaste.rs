@@ -215,6 +215,10 @@ impl GameState {
             Condition::Expanded(e) => self.condition_holds(&e.value),
 
             Condition::Happened { .. } => todo!("stage 3 does not evaluate Condition::Happened"),
+
+            // Evaluated by the activation gate (Task 4); todo here as a seam.
+            Condition::YourTurn => todo!("condition evaluator: YourTurn"),
+            Condition::DuringPhase(_) => todo!("condition evaluator: DuringPhase"),
         }
     }
 

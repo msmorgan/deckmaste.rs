@@ -90,6 +90,8 @@ mod tests {
                     CostComponent::Tap,
                     CostComponent::Do(PlayerAction::Sacrifice(Selection::from(Reference::This))),
                 ],
+                condition: None,
+                limits: vec![],
                 targets: vec![],
                 effect: Effect::Act(Action::By(
                     Reference::You,
