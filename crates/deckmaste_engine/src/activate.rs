@@ -1,7 +1,7 @@
 //! Activating non-mana activated abilities ([CR#602]): the legality gate.
-//! The reified announce flow (next task) mirrors `cast.rs` ([CR#602.2b] —
-//! activation follows 601.2's steps). Mana abilities never come here: they
-//! are stackless ([CR#605.3b]) and keep their fast path.
+//! The reified announce flow (next task) mirrors `cast.rs` ([CR#602.2b]:
+//! activation follows the [CR#601.2] steps). Mana abilities never come here:
+//! they are stackless ([CR#605.3b]) and keep their fast path.
 
 use deckmaste_core::{
     Ability, ActivatedAbility, CostComponent, ManaCost, ManaSymbol, Type, UseLimit,
@@ -78,7 +78,7 @@ impl GameState {
         index: usize,
         ability: &ActivatedAbility,
     ) -> bool {
-        // [CR#601.2g via 602.2b]: the pool must be able to pay the mana cost.
+        // [CR#601.2g,602.2b]: the pool must be able to pay the mana cost.
         let Some(mana) = mana_of(&ability.cost) else {
             return false;
         };
@@ -120,19 +120,19 @@ impl GameState {
         for limit in &ability.limits {
             match limit {
                 UseLimit::OncePerTurn => {
-                    if self.activations.this_turn((object, index)) >= 1 {
+                    if self.activations.turn_count((object, index)) >= 1 {
                         return false;
                     }
                 }
                 UseLimit::OncePerGame => {
-                    if self.activations.this_game((object, index)) >= 1 {
+                    if self.activations.game_count((object, index)) >= 1 {
                         return false;
                     }
                 }
             }
         }
 
-        // [CR#601.2c via 602.2b]: every target spec must admit at least one
+        // [CR#601.2c,602.2b]: every target spec must admit at least one
         // legal candidate.
         ability
             .targets
