@@ -344,6 +344,23 @@ impl GameState {
         self.zones.battlefield.remove(i);
     }
 
+    /// Removes `object` from the shared exile zone ([CR#406]). Panics if
+    /// absent.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `object` is not in exile — engine invariant, not caller
+    /// input.
+    pub(crate) fn remove_from_exile(&mut self, object: ObjectId) {
+        let i = self
+            .zones
+            .exile
+            .iter()
+            .position(|&o| o == object)
+            .expect("object in exile");
+        self.zones.exile.remove(i);
+    }
+
     /// Schedules items at the agenda front, preserving their order.
     pub(crate) fn schedule_front(&mut self, items: Vec<WorkItem>) {
         for item in items.into_iter().rev() {

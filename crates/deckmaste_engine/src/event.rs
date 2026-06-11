@@ -79,6 +79,13 @@ pub enum GameEvent {
         player: PlayerId,
         token: Token,
     },
+    /// [CR#704.5d,111.7]: a token found in a zone other than the battlefield
+    /// ceases to exist. Its apply removes the object from its zone and the
+    /// store outright — no remint, no `ZoneChanged` fact (the token doesn't
+    /// move, it stops existing). Zone-leave triggers already fired at the
+    /// move that stranded it ([CR#111.7]'s note); anything still pointing at
+    /// it reads the LKI that rode that fact.
+    TokenCeased(ObjectId),
     PlayerLost {
         player: PlayerId,
         reason: LossReason,
