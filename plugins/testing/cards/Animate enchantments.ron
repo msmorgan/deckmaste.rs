@@ -7,7 +7,7 @@ Normal(
     types: [Enchantment],
     abilities: [
         Static(effects: [
-            Modify(of: Matching(Type(Enchantment)), changes: [
+            Modify(of: Matching(AllOf([Permanent, Type(Enchantment)])), changes: [
                 SetCardTypes([Creature]), SetPower(4), SetToughness(4),
             ]),
         ]),

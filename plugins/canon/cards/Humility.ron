@@ -10,7 +10,7 @@ Normal(
     types: [Enchantment],
     abilities: [
         Static(effects: [
-            Modify(of: Matching(Type(Creature)), changes: [
+            Modify(of: Matching(Creature), changes: [
                 LoseAllAbilities, SetPower(1), SetToughness(1),
             ]),
         ]),

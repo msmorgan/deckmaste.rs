@@ -5,7 +5,7 @@ Normal(
     types: [Enchantment],
     abilities: [
         Static(effects: [
-            Modify(of: Matching(Type(Creature)), changes: [GainAbility(Keyword(Trample))]),
+            Modify(of: Matching(Creature), changes: [GainAbility(Keyword(Trample))]),
         ]),
     ],
 )

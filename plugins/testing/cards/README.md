@@ -14,6 +14,11 @@ verified against the full corpus, not vibes. Current residents:
 - **Animate enchantments** — no real static type-REPLACES with a literal P/T
   set ("X is still a Y" adds; Opalescence-style sets P/T to mana value, which
   needs count evaluation in layers). Pins the [CR#613.6] layer-4 scope lock.
+- **Trample tautology** — "creatures with trample have trample"; no real card
+  grants a keyword filtered by that same keyword (corpus-checked — it would do
+  nothing). Pins that a layer-6 affected set is evaluated when the effect
+  applies ([CR#611.3a]): no fixpoint loop, no grant to trample-less creatures,
+  a redundant ([CR#702.19g]) second instance on tramplers.
 
 If a mechanic lands that makes one of these encodable with a real card,
 canonize the real card and delete the mock.
