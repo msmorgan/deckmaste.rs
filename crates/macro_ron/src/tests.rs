@@ -1794,6 +1794,81 @@ fn default_param_type_parses() {
     assert_eq!(template.default.as_deref(), Some("Param(name)"));
 }
 
+/// Defaults are named-only: a positional signature with a `Default(...)`
+/// param is rejected at insert (trailing-default arity games are out of
+/// scope).
+#[test]
+fn positional_default_is_rejected_at_insert() {
+    let error = empty()
+        .insert(&def(r#"(
+            name: "M",
+            kinds: [Subtype],
+            params: [Default(String, "x")],
+            body: Subtype(name: Param(0), types: []),
+        )"#))
+        .unwrap_err();
+    assert!(matches!(error, InsertError::PositionalDefault { .. }));
+}
+
+/// A default may reference only non-defaulted siblings: referencing another
+/// defaulted param is rejected (kills fill-order questions and cycles).
+#[test]
+fn default_referencing_defaulted_param_is_rejected() {
+    let error = empty()
+        .insert(&def(r#"(
+            name: "M",
+            kinds: [Subtype],
+            params: { "a": Default(String, Param(b)), "b": Default(String, "x") },
+            body: Subtype(name: Param(a), types: []),
+        )"#))
+        .unwrap_err();
+    assert!(matches!(error, InsertError::BadDefault { .. }), "{error}");
+}
+
+/// Referencing a param that doesn't exist is rejected at insert, not left
+/// to fail at invocation time.
+#[test]
+fn default_referencing_unknown_param_is_rejected() {
+    let error = empty()
+        .insert(&def(r#"(
+            name: "M",
+            kinds: [Subtype],
+            params: { "a": Default(String, Param(nope)) },
+            body: Subtype(name: Param(a), types: []),
+        )"#))
+        .unwrap_err();
+    assert!(matches!(error, InsertError::BadDefault { .. }), "{error}");
+}
+
+/// `Param(0)`-style index holes never resolve in a named signature.
+#[test]
+fn default_with_index_hole_is_rejected() {
+    let error = empty()
+        .insert(&def(r#"(
+            name: "M",
+            kinds: [Subtype],
+            params: { "a": Default(String, Param(0)) },
+            body: Subtype(name: Param(a), types: []),
+        )"#))
+        .unwrap_err();
+    assert!(matches!(error, InsertError::BadDefault { .. }), "{error}");
+}
+
+/// The inner type of a `Default(...)` goes through the same registration
+/// check as a plain type name.
+#[test]
+fn default_inner_type_must_be_registered() {
+    let error = empty()
+        .insert(&def(r#"(
+            name: "M",
+            kinds: [Subtype],
+            params: { "a": Default(Bogus, "x") },
+            body: Subtype(name: Param(a), types: []),
+        )"#))
+        .unwrap_err();
+    assert!(matches!(error, InsertError::UnknownParamType { .. }));
+}
+
 /// A nested `Default(Default(...), ...)` is malformed, not a type name.
 #[test]
 fn nested_default_is_rejected_at_parse() {

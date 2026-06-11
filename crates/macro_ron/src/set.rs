@@ -186,6 +186,16 @@ pub enum InsertError {
     /// indices would be ambiguous between the meta's frame and the
     /// produced definition's own params.
     MetaParamsPositional { name: Ident },
+    /// A positional signature declared a `Default(...)` param; defaults are
+    /// named-only (trailing-default arity is out of scope).
+    PositionalDefault { name: Ident },
+    /// A named param's default expression is unusable: unparseable, or it
+    /// references a param that is missing, defaulted, or index-addressed.
+    BadDefault {
+        name: Ident,
+        param: Ident,
+        reason: String,
+    },
 }
 
 impl fmt::Display for InsertError {
@@ -215,6 +225,20 @@ impl fmt::Display for InsertError {
                     "meta-macro `{name}` must use named params (indices are \
                      ambiguous between the meta and its produced definition)"
                 )
+            }
+            InsertError::PositionalDefault { name } => {
+                write!(
+                    f,
+                    "macro `{name}` declares a positional param with a default; \
+                     defaults are named-only"
+                )
+            }
+            InsertError::BadDefault {
+                name,
+                param,
+                reason,
+            } => {
+                write!(f, "macro `{name}` param `{param}` default: {reason}")
             }
         }
     }
@@ -351,6 +375,58 @@ impl MacroSet {
         }
     }
 
+    /// Default expressions must be confined to named signatures and reference
+    /// only *non-defaulted* sibling params — required params are always
+    /// supplied, so fill-time splicing (`HoleMode::Strict`) is total, and
+    /// cycles are impossible by construction. Checked at insert so a bad
+    /// default fails at load, not first invocation. (The default *value* is
+    /// not validated here: validators read with macros in scope, and load
+    /// order would make that flaky — the filled text is validated per
+    /// invocation instead.)
+    fn check_defaults(&self, def: &MacroDef) -> Result<(), InsertError> {
+        let signature = match &def.params {
+            Params::Positional(types) => {
+                if types.iter().any(|t| t.default.is_some()) {
+                    return Err(InsertError::PositionalDefault { name: def.name });
+                }
+                return Ok(());
+            }
+            Params::Named(signature) => signature,
+        };
+        for (&param, ty) in signature {
+            let Some(default) = ty.default.as_deref() else {
+                continue;
+            };
+            let bad = |reason: String| InsertError::BadDefault {
+                name: def.name,
+                param,
+                reason,
+            };
+            let mut keys = Vec::new();
+            crate::expand::collect_param_keys(default, &self.options, &mut keys).map_err(&bad)?;
+            for key in keys {
+                let crate::expand::ParamKey::Name(referenced) = key else {
+                    return Err(bad(format!(
+                        "references Param({key}); named signatures have no indices"
+                    )));
+                };
+                match signature.get(&referenced) {
+                    None => {
+                        return Err(bad(format!("references unknown param `{referenced}`")));
+                    }
+                    Some(t) if t.default.is_some() => {
+                        return Err(bad(format!(
+                            "references defaulted param `{referenced}`; defaults may \
+                             only reference required params"
+                        )));
+                    }
+                    Some(_) => {}
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Registers `def` under each of its kinds.
     ///
     /// # Errors
@@ -361,6 +437,7 @@ impl MacroSet {
         check_def(def)?;
         self.check_kinds(def)?;
         self.check_param_types(def)?;
+        self.check_defaults(def)?;
         for (i, &kind) in def.kinds.iter().enumerate() {
             let duplicate = def.kinds[..i].contains(&kind)
                 || self
@@ -414,6 +491,7 @@ impl MacroSet {
         check_def(def)?;
         self.check_kinds(def)?;
         self.check_param_types(def)?;
+        self.check_defaults(def)?;
         for &kind in &def.kinds {
             self.macros
                 .entry(kind)
