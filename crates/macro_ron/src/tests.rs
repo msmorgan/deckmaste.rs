@@ -1869,6 +1869,100 @@ fn default_inner_type_must_be_registered() {
     assert!(matches!(error, InsertError::UnknownParamType { .. }));
 }
 
+/// The headline: an omitted defaulted arg fills from the default expression,
+/// whose hole resolves against the *supplied* args.
+#[test]
+fn omitted_defaulted_arg_fills_from_sibling() {
+    let mut macros = empty();
+    macros
+        .insert(&def(r#"(
+            name: "Named",
+            kinds: [Subtype],
+            params: { "name": String, "label": Default(String, Param(name)) },
+            body: Subtype(name: Param(label), types: [Creature]),
+        )"#))
+        .unwrap();
+    let subtype: Subtype = macros.read_str(r#"Named(name: "Zombie")"#).unwrap();
+    assert_eq!(subtype.name, "Zombie");
+}
+
+/// A supplied arg overrides its default.
+#[test]
+fn supplied_arg_overrides_default() {
+    let mut macros = empty();
+    macros
+        .insert(&def(r#"(
+            name: "Named",
+            kinds: [Subtype],
+            params: { "name": String, "label": Default(String, Param(name)) },
+            body: Subtype(name: Param(label), types: [Creature]),
+        )"#))
+        .unwrap();
+    let subtype: Subtype = macros
+        .read_str(r#"Named(name: "AssemblyWorker", label: "Assembly-Worker")"#)
+        .unwrap();
+    assert_eq!(subtype.name, "Assembly-Worker");
+}
+
+/// A hole-free literal default fills verbatim.
+#[test]
+fn literal_default_fills() {
+    let mut macros = empty();
+    macros
+        .insert(&def(r#"(
+            name: "Sized",
+            kinds: [Filter],
+            params: { "min": Default(Any, 1) },
+            body: Power(min: Param(min)),
+        )"#))
+        .unwrap();
+    let filter: Filter = macros.read_str("Sized()").unwrap();
+    let Filter::Expanded(expanded) = filter else {
+        panic!("expected a remembered filter");
+    };
+    assert_eq!(*expanded.value, Filter::Power(PowerFilter { min: 1 }));
+}
+
+/// Omitting a *non-defaulted* arg still errors as before.
+#[test]
+fn omitted_required_arg_still_errors() {
+    let mut macros = empty();
+    macros
+        .insert(&def(r#"(
+            name: "Named",
+            kinds: [Subtype],
+            params: { "name": String, "label": Default(String, Param(name)) },
+            body: Subtype(name: Param(label), types: [Creature]),
+        )"#))
+        .unwrap();
+    let error = macros.read_str::<Subtype>("Named()").unwrap_err();
+    assert!(
+        error.to_string().contains("missing argument `name`"),
+        "unexpected error: {error}"
+    );
+}
+
+/// The filled text is validated against the inner type like a supplied
+/// argument, with the macro and param named in the error.
+#[test]
+fn filled_default_is_validated() {
+    let mut macros = empty();
+    macros
+        .insert(&def(r#"(
+            name: "Named",
+            kinds: [Subtype],
+            params: { "label": Default(String, Bear) },
+            body: Subtype(name: Param(label), types: [Creature]),
+        )"#))
+        .unwrap();
+    let error = macros.read_str::<Subtype>("Named()").unwrap_err();
+    let msg = error.to_string();
+    assert!(
+        msg.contains("Named") && msg.contains("label") && msg.contains("String"),
+        "unexpected error: {msg}"
+    );
+}
+
 /// A nested `Default(Default(...), ...)` is malformed, not a type name.
 #[test]
 fn nested_default_is_rejected_at_parse() {
