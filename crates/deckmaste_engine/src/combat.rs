@@ -18,7 +18,7 @@ use crate::layer::LayeredView;
 use crate::object::ObjectId;
 use crate::state::GameState;
 
-/// Whether `object` has the intrinsic combat keyword `kw` ([CR#702]).
+/// Whether `object` has the native combat keyword `kw` ([CR#702]).
 /// Reads the layer-6–derived ability list ([CR#613.1f]) so that granted and
 /// removed keywords are honored. Takes the derived view rather than building
 /// one — callers checking several creatures share a single `state.layers()`.

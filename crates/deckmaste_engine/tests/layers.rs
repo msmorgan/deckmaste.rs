@@ -181,7 +181,7 @@ fn one_shot_pump_expires_at_cleanup() {
 }
 
 /// [CR#613.1f]: a static "creatures gain trample" (layer 6) grants the keyword.
-/// The granter is a mock — symmetric "all creatures have <intrinsic keyword>"
+/// The granter is a mock — symmetric "all creatures have <native keyword>"
 /// statics don't exist in real Magic.
 #[test]
 fn static_grants_keyword() {

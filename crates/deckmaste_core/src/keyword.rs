@@ -1,10 +1,15 @@
-//! The intrinsic keyword abilities ([CR#702]) the engine treats as first-class:
+//! The native keyword abilities ([CR#702]) the engine implements directly:
 //! a closed enum the combat code pattern-matches on, rather than plugin macros.
-//! The original six are woven into the damage pipeline (first/double strike,
-//! deathtouch, trample, vigilance, lifelink); Flying is carried here too as an
-//! intrinsic evasion keyword, encoded on cards as `Keyword(Flying)`. Haste is
+//! Per the keyword classification (intrinsic / composite / composite-given —
+//! docs/rules-taxonomy.md §10), four are true intrinsics owning prospective
+//! combat-damage machinery ([CR#510.1]): first/double strike, deathtouch,
+//! trample. The other three are kept native pragmatically: vigilance and
+//! lifelink are composite-given (pending cause-tagged events and a
+//! damage-result-rewrite stage), Flying is composite (a block-legality
+//! restriction). All seven are encoded on cards as `Keyword(X)`. Haste is
 //! **not** here — it is a `Permission` macro (it only touches the
-//! can-attack/tap rules); other non-intrinsic keywords are plugin macros.
+//! can-attack/tap rules); other non-native keywords are plugin macros
+//! (e.g. indestructible = a "can't be destroyed" `Restriction`).
 //!
 //! The grammar lands now; the behaviors arrive in later combat tasks.
 
