@@ -5,14 +5,18 @@
 //! maps it to a [`Validator`] that checks an argument's raw source. `macro_ron`
 //! ships the domain-neutral `Any` (accepts anything) and `String` (a quoted
 //! literal); domain types like `Color` are injected by the embedding crate,
-//! the same way kinds are.
+//! the same way kinds are. A named param may wrap its type as
+//! `Default(String, <expr>)` to declare a default expression, filled when an
+//! invocation omits the argument.
 
 use std::collections::HashMap;
 use std::fmt;
 
+use ron::value::RawValue;
 use serde::Deserialize;
 use serde::de::Deserializer;
 use serde::de::EnumAccess;
+use serde::de::SeqAccess;
 use serde::de::VariantAccess;
 use serde::de::Visitor;
 
@@ -21,26 +25,74 @@ use crate::IdentSeed;
 use crate::set::MacroSet;
 
 /// The declared type of one macro parameter: a type *name*, resolved against
-/// the [`ParamTypeSet`] in scope. Written as a bare identifier in definition
-/// files (`params: [String, Color]`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ParamType(pub Ident);
+/// the [`ParamTypeSet`] in scope, plus an optional default expression.
+/// Written in definition files as a bare identifier (`params: [String,
+/// Color]`) or, in named signatures, `Default(String, <expr>)` — `Default` is
+/// thereby reserved as a spelling; a registered param type by that name would
+/// be unreachable.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParamType {
+    pub name: Ident,
+    /// Raw RON source filled in for an omitted argument; its `Param(...)`
+    /// holes may reference non-defaulted siblings (checked at insert).
+    pub default: Option<Box<str>>,
+}
+
+impl ParamType {
+    /// A plain (non-defaulted) param type.
+    #[must_use]
+    pub fn plain(name: impl Into<Ident>) -> Self {
+        ParamType {
+            name: name.into(),
+            default: None,
+        }
+    }
+}
 
 impl<'de> Deserialize<'de> for ParamType {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         // A bare identifier is a unit enum variant in the serde data model —
         // the same channel `kinds: [Subtype]` reads through (see
-        // `set::kind_names`).
+        // `set::kind_names`). `Default(...)` arrives as a tuple variant.
         struct TypeName;
         impl<'de> Visitor<'de> for TypeName {
             type Value = ParamType;
             fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                f.write_str("a parameter type name")
+                f.write_str("a parameter type name or Default(type, expression)")
             }
             fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
                 let (ident, variant) = data.variant_seed(IdentSeed)?;
+                if ident == "Default" {
+                    return variant.tuple_variant(2, DefaultArgs);
+                }
                 variant.unit_variant()?;
-                Ok(ParamType(ident))
+                Ok(ParamType {
+                    name: ident,
+                    default: None,
+                })
+            }
+        }
+        struct DefaultArgs;
+        impl<'de> Visitor<'de> for DefaultArgs {
+            type Value = ParamType;
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str("Default(type, expression)")
+            }
+            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+                use serde::de::Error;
+                let inner: ParamType = seq
+                    .next_element()?
+                    .ok_or_else(|| A::Error::custom("Default(type, expression) needs a type"))?;
+                if inner.default.is_some() {
+                    return Err(A::Error::custom("Default(...) does not nest"));
+                }
+                let expr: Box<RawValue> = seq.next_element()?.ok_or_else(|| {
+                    A::Error::custom("Default(type, expression) needs an expression")
+                })?;
+                Ok(ParamType {
+                    name: inner.name,
+                    default: Some(expr.get_ron().trim().into()),
+                })
             }
         }
         deserializer.deserialize_enum("", &[], TypeName)
