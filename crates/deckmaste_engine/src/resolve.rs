@@ -1434,10 +1434,13 @@ mod tests {
             other => panic!("expected Applied(Batch), got {other:?}"),
         };
         assert_eq!(made.len(), 2);
-        assert!(
-            made.iter()
-                .all(|e| matches!(e, GameEvent::TokenCreated { player: PlayerId(0), .. }))
-        );
+        assert!(made.iter().all(|e| matches!(
+            e,
+            GameEvent::TokenCreated {
+                player: PlayerId(0),
+                ..
+            }
+        )));
 
         let tokens: Vec<ObjectId> = state
             .zones
@@ -1449,7 +1452,11 @@ mod tests {
         assert_eq!(tokens.len(), 2, "two tokens on the battlefield");
         for &t in &tokens {
             assert_eq!(crate::target::object_kind(&state, t), ObjectKind::Token);
-            assert_eq!(state.owner_of(t), PlayerId(0), "[CR#111.2]: creator owns it");
+            assert_eq!(
+                state.owner_of(t),
+                PlayerId(0),
+                "[CR#111.2]: creator owns it"
+            );
             assert_eq!(state.objects.obj(t).controller, PlayerId(0));
             assert!(state.objects.obj(t).summoning_sick, "[CR#302.6]");
             assert!(
@@ -1504,7 +1511,12 @@ mod tests {
         // Subtype asserted on the card entry directly — `Filter::Subtype`
         // evaluation is the `engine-filter-breadth` item.
         assert!(
-            state.cards.get(card).subtypes.iter().any(|s| s.name == "Treasure"),
+            state
+                .cards
+                .get(card)
+                .subtypes
+                .iter()
+                .any(|s| s.name == "Treasure"),
             "declared subtype sticks"
         );
         assert!(state.cards.get(card).is_token, "[CR#111.6]");

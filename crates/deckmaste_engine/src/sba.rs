@@ -1,7 +1,8 @@
 //! State-based actions ([CR#704]). The skeleton checks two: a player at zero
 //! or less life loses ([CR#704.5a]), and a player who drew from an empty
 //! library loses ([CR#704.5c]). Task 6 adds [CR#704.5g]: a creature with lethal
-//! marked damage is destroyed.
+//! marked damage is destroyed. Tokens stranded off the battlefield cease to
+//! exist ([CR#704.5d]).
 
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
@@ -76,6 +77,24 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
             enters: None,
             position: None,
         });
+    }
+
+    // [CR#704.5d,111.7]: a token in a zone other than the battlefield ceases
+    // to exist. The move that stranded it already fired its zone-leave
+    // triggers; this sweep just cleans up ([CR#111.7]'s note). Stack objects
+    // are exempt: an activated/triggered ability minted from a token source
+    // rides the token's `CardId` but is an ability, not the token. (The
+    // [CR#111.8] stay-put rule — a token that left the battlefield can't
+    // change zones again — is an unwired seam; the window between the move
+    // and this sweep is currently unobservable.)
+    for obj in state.objects.iter() {
+        if matches!(
+            obj.zone,
+            Some(Zone::Graveyard | Zone::Exile | Zone::Hand | Zone::Library)
+        ) && obj.card_id().is_some_and(|c| state.cards.get(c).is_token)
+        {
+            actions.push(GameEvent::TokenCeased(obj.id));
+        }
     }
 
     actions
@@ -232,6 +251,84 @@ mod tests {
                 return;
             }
         }
+    }
+
+    /// [CR#704.5d,111.7]: a token put into a graveyard is removed from the
+    /// game by the next SBA sweep — the graveyard empties and the object is
+    /// gone from the store, with no `ZoneChanged` fact (ceasing to exist is
+    /// not a move). A token still on the battlefield never ceases.
+    #[test]
+    fn dead_token_ceases_to_exist() {
+        use deckmaste_core::Action;
+        use deckmaste_core::Count;
+        use deckmaste_core::Effect;
+        use deckmaste_core::PlayerAction;
+        use deckmaste_core::Reference;
+        use deckmaste_core::Token;
+
+        let (mut state, src) = bear_on_field();
+        let frame = crate::stack::Frame {
+            source: src,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+        let token = Token {
+            supertypes: vec![],
+            types: vec![Type::Artifact],
+            subtypes: vec![],
+            abilities: vec![],
+        };
+        state.run_effect(
+            Effect::Act(Action::By(
+                Reference::You,
+                PlayerAction::Create(Count::Literal(1), token),
+            )),
+            &frame,
+        );
+        let _ = state.step(); // TokenCreated applies
+        let _ = state.step(); // its ZoneChanged fact
+        let &token_obj = state
+            .zones
+            .battlefield
+            .iter()
+            .find(|&&id| id != src)
+            .expect("the token on the battlefield");
+
+        // On the battlefield the token is exempt.
+        assert!(
+            sba::sweep(&state)
+                .iter()
+                .all(|e| !matches!(e, GameEvent::TokenCeased(_))),
+            "a battlefield token must not cease"
+        );
+
+        // Put it into the graveyard (the generic move: remint + LKI).
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+            GameEvent::ZoneWillChange {
+                object: token_obj,
+                from: Some(Zone::Battlefield),
+                to: Zone::Graveyard,
+                enters: None,
+                position: None,
+            },
+        ))]);
+        let _ = state.step(); // the move applies
+        let _ = state.step(); // its ZoneChanged fact
+        let dead = state.zones.graveyards[0][0];
+
+        // The sweep emits exactly one TokenCeased for the reminted object.
+        let actions = sba::sweep(&state);
+        assert_eq!(actions, vec![GameEvent::TokenCeased(dead)]);
+
+        // Applying it removes the object outright — graveyard empty, id gone.
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(actions))]);
+        let _ = state.step();
+        assert!(state.zones.graveyards[0].is_empty(), "[CR#704.5d]");
+        assert!(
+            state.objects.get(dead).is_none(),
+            "the ceased token's id must be gone from the store"
+        );
     }
 
     /// [CR#400.7]: when a creature is destroyed, the old `ObjectId` is removed

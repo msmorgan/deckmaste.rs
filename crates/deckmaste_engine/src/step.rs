@@ -271,6 +271,10 @@ impl GameState {
                 self.apply_token_created(player, token);
                 event
             }
+            GameEvent::TokenCeased(id) => {
+                self.apply_token_ceased(id);
+                event
+            }
             GameEvent::PlayerLost { player, .. } => {
                 self.player_mut(player).lost = true;
                 event
@@ -586,6 +590,24 @@ impl GameState {
                 to: Zone::Battlefield,
             },
         ))]);
+    }
+
+    /// Applies a `TokenCeased` ([CR#704.5d,111.7]): removes the token object
+    /// from its zone and the store outright. No remint, no `ZoneChanged` —
+    /// ceasing to exist is not a zone change. The card-table entry stays as
+    /// inert history (`Cards` never shrinks).
+    fn apply_token_ceased(&mut self, id: ObjectId) {
+        let owner = self.owner_of(id);
+        match self.objects.obj(id).zone {
+            Some(Zone::Graveyard) => self.remove_from_graveyard(owner, id),
+            Some(Zone::Hand) => self.remove_from_hand(owner, id),
+            Some(Zone::Library) => self.remove_from_library(owner, id),
+            Some(Zone::Exile) => self.remove_from_exile(id),
+            other => unreachable!(
+                "a token ceases only from a non-battlefield, non-stack zone, got {other:?}"
+            ),
+        }
+        self.objects.remove(id);
     }
 
     /// Applies an occurrence: each event through the pipe, returned as the
