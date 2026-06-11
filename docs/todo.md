@@ -179,7 +179,7 @@ in full.
 
 - [ ] `engine-exile-command` — wire Exile (face-up/face-down, with counters,
   linked retrieval) and Command zones as zone-pipeline sources/destinations.
-- [ ] `engine-tokens` — resolve Create; token objects on the battlefield; token
+- [x] `engine-tokens` — resolve Create; token objects on the battlefield; token
   copies; predefined tokens (Treasure, Food, Clue, Blood, Map, Powerstone,
   Incubator, Role); token SBA on zone leave.
 - [ ] `engine-copy-spells` — spell copies on the stack with target re-choice
