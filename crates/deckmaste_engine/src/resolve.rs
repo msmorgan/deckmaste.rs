@@ -405,14 +405,22 @@ impl GameState {
                     count,
                 }]
             }
+            PlayerAction::Create(qty, token) => {
+                // [CR#701.7a]: one instruction puts all N tokens onto the
+                // battlefield — one simultaneous batch of `TokenCreated`
+                // facts. (Token copies — `Create` of a copy-defined token —
+                // wait on the copy grammar, `core-copy-grammar`.)
+                let n = self.eval_count(qty, frame);
+                let events: Vec<GameEvent> = (0..n)
+                    .map(|_| GameEvent::TokenCreated {
+                        player: actor,
+                        token: token.clone(),
+                    })
+                    .collect();
+                vec![WorkItem::Emit(occurrence_of(events))]
+            }
             // Look through a remembered macro invocation.
             PlayerAction::Expanded(e) => self.player_action_items(&e.value, actor, frame),
-            // `Create` belongs to the `engine-tokens` item: token identity
-            // (`ObjectSource` has no token arm), the layer-base plumbing, and
-            // the ceases-to-exist SBA land together there.
-            other @ PlayerAction::Create(..) => {
-                todo!("stage 3 does not perform player action {other:?}")
-            }
         }
     }
 
@@ -1391,6 +1399,119 @@ mod tests {
         assert_eq!(
             state.action_items(&by_you(expanded), &frame),
             state.action_items(&by_you(body), &frame),
+        );
+    }
+
+    /// [CR#701.7a,111.2]: `Create(2, token)` puts two token permanents onto
+    /// the battlefield under the creator — owned by them, summoning-sick,
+    /// kind `Token` (not `Card`, [CR#111.6]) — as ONE simultaneous batch of
+    /// `TokenCreated` facts, each followed by its `ZoneChanged { from: None,
+    /// to: Battlefield }` fact.
+    #[test]
+    fn create_tokens_enter_battlefield() {
+        use deckmaste_core::Token;
+
+        let (mut state, src) = bear_on_field();
+        let frame = Frame {
+            source: src,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+        let token = Token {
+            supertypes: vec![],
+            types: vec![Type::Artifact],
+            subtypes: vec![],
+            abilities: vec![],
+        };
+        state.run_effect(
+            Effect::Act(by_you(PlayerAction::Create(Count::Literal(2), token))),
+            &frame,
+        );
+        // One simultaneous batch of two TokenCreated facts.
+        let made = match state.step() {
+            StepOutcome::Progress(Progress::Applied(Occurrence::Batch(events))) => events,
+            other => panic!("expected Applied(Batch), got {other:?}"),
+        };
+        assert_eq!(made.len(), 2);
+        assert!(
+            made.iter()
+                .all(|e| matches!(e, GameEvent::TokenCreated { player: PlayerId(0), .. }))
+        );
+
+        let tokens: Vec<ObjectId> = state
+            .zones
+            .battlefield
+            .iter()
+            .copied()
+            .filter(|&id| id != src)
+            .collect();
+        assert_eq!(tokens.len(), 2, "two tokens on the battlefield");
+        for &t in &tokens {
+            assert_eq!(crate::target::object_kind(&state, t), ObjectKind::Token);
+            assert_eq!(state.owner_of(t), PlayerId(0), "[CR#111.2]: creator owns it");
+            assert_eq!(state.objects.obj(t).controller, PlayerId(0));
+            assert!(state.objects.obj(t).summoning_sick, "[CR#302.6]");
+            assert!(
+                obj_matches(
+                    &state,
+                    t,
+                    &Filter::Characteristic(CharacteristicFilter::Type(Type::Artifact))
+                ),
+                "the creating effect's characteristics stick ([CR#111.3])"
+            );
+        }
+        // Each token's enter fact follows — from: None (created, not moved).
+        for _ in 0..2 {
+            match state.step() {
+                StepOutcome::Progress(Progress::Applied(Occurrence::Single(
+                    GameEvent::ZoneChanged {
+                        from: None,
+                        to: Zone::Battlefield,
+                        ..
+                    },
+                ))) => {}
+                other => panic!("expected the token's ZoneChanged fact, got {other:?}"),
+            }
+        }
+    }
+
+    /// The builtin predefined Treasure token ([CR#111.10a]) creates with its
+    /// declared subtype and the [CR#111.4] default name (subtypes + "Token").
+    #[test]
+    fn create_builtin_treasure_token() {
+        let (mut state, src) = bear_on_field();
+        let frame = Frame {
+            source: src,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+        let treasure = builtin().token("Treasure").unwrap();
+        state.run_effect(
+            Effect::Act(by_you(PlayerAction::Create(Count::Literal(1), treasure))),
+            &frame,
+        );
+        let _ = state.step(); // the TokenCreated batch applies
+        let &t = state
+            .zones
+            .battlefield
+            .iter()
+            .find(|&&id| id != src)
+            .expect("the Treasure token on the battlefield");
+        assert_eq!(crate::target::object_kind(&state, t), ObjectKind::Token);
+        let card = state.objects.obj(t).card_id().expect("card-backed");
+        // Subtype asserted on the card entry directly — `Filter::Subtype`
+        // evaluation is the `engine-filter-breadth` item.
+        assert!(
+            state.cards.get(card).subtypes.iter().any(|s| s.name == "Treasure"),
+            "declared subtype sticks"
+        );
+        assert!(state.cards.get(card).is_token, "[CR#111.6]");
+        assert_eq!(
+            crate::derive::face(&state.cards.get(card).def).name,
+            "Treasure Token",
+            "[CR#111.4]: unnamed token defaults to subtypes + \"Token\""
         );
     }
 }

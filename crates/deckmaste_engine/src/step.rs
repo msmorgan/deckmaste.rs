@@ -267,6 +267,10 @@ impl GameState {
                 ))]);
                 GameEvent::Sacrificed { player, object }
             }
+            GameEvent::TokenCreated { player, ref token } => {
+                self.apply_token_created(player, token);
+                event
+            }
             GameEvent::PlayerLost { player, .. } => {
                 self.player_mut(player).lost = true;
                 event
@@ -553,6 +557,34 @@ impl GameState {
         // 4. Schedule the unreplaceable fact at the agenda front.
         self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
             GameEvent::ZoneChanged { snapshot, from, to },
+        ))]);
+    }
+
+    /// Applies a `TokenCreated` ([CR#701.7a]): synthesizes the token's
+    /// definition into the card table ([CR#111.2]: `player` is its owner and
+    /// it enters under their control), mints the object straight onto the
+    /// battlefield (summoning-sick, [CR#302.6]; its own `AsEnters`
+    /// self-replacements folded, [CR#614.12]), and schedules the `ZoneChanged
+    /// { from: None, to: Battlefield }` fact so enter-triggers fire
+    /// ([CR#603.6]). There is no `ZoneWillChange` stage — the token existed
+    /// nowhere to move *from*; its snapshot is captured from the freshly
+    /// minted object.
+    fn apply_token_created(&mut self, player: PlayerId, token: &deckmaste_core::Token) {
+        let card = self.cards.push_token(token, player);
+        let source = ObjectSource::Card(card);
+        let new = self.objects.mint(source, player, Some(Zone::Battlefield));
+        self.objects.obj_mut(new).summoning_sick = true;
+        if self.as_enters_status(source).tapped {
+            self.objects.obj_mut(new).tapped = true;
+        }
+        self.zones.battlefield.push(new);
+        let snapshot = crate::lki::LkiSnapshot::capture(self, new);
+        self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+            GameEvent::ZoneChanged {
+                snapshot,
+                from: None,
+                to: Zone::Battlefield,
+            },
         ))]);
     }
 
