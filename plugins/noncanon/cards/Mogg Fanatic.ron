@@ -4,7 +4,7 @@ Normal(
     types: [Creature],
     subtypes: [Goblin],
     abilities: [
-        Unparsed("Sacrifice ~: It deals 1 damage to any target."),
+        Activated(cost: [SacrificeThis], targets: [AnyTarget], effect: DealDamage(Target(0), 1)),
     ],
     power: 1,
     toughness: 1,
