@@ -562,7 +562,7 @@ A declaration needs to carry:
 - **payload**: marker-only (most) vs carried abilities/requirements
   (suspected = menace + can't block; goaded = attack requirements; the
   designation declaration should be able to reference an Ability/
-  Requirement so the engine applies it while the designation holds);
+  Deontic clause so the engine applies it while the designation holds);
 - invariants the engine enforces uniformly: never copiable, never an
   ability; stored ones are lost with object identity on zone change
   ([CR#400.7]), derived ones simply re-evaluate.
@@ -701,13 +701,13 @@ intrinsic. Four classes:
   *face-down objects* ([CR#708]).
 - **Composite (212)** — macro sugar over the kinds above, including
   everything this doc once called first-class besides the true intrinsics:
-  flying and all evasion/menace/skulk (block-legality Restrictions,
-  [CR#702.9b]), hexproof/shroud (targeting Restrictions, [CR#702.11,702.18]),
+  flying and all evasion/menace/skulk (block-legality Cant clauses,
+  [CR#702.9b]), hexproof/shroud (targeting Cant clauses, [CR#702.11,702.18]),
   protection (a Quality-parameterized bundle of restrictions + prevention,
   [CR#702.16b..702.16f]), ward (a triggered toll: counter-unless-pays,
   [CR#702.21a]), absorb (a prevention shield, [CR#702.64a] — *not* a
   result rewrite), haste (lifts the summoning-sickness limits,
-  [CR#702.10,302.6]; spelling open — `Permission` grant vs an unset-flag
+  [CR#702.10,302.6]; spelling open — deontic `May` grant vs an unset-flag
   form), indestructible (a "can't be destroyed" *event-side* can't-happen —
   [CR#614.17] semantics, grammar home the §7 replacement family rather
   than the deontic layer; consulted by the engine-owned destroy verb and
