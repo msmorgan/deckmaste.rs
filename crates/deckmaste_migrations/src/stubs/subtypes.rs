@@ -53,13 +53,16 @@ pub(super) fn generate(plugin: &super::PluginLayout) -> anyhow::Result<()> {
             }
             // `name` is the registration ident (what cards invoke);
             // `template` is the printed name — inert metadata today,
-            // reserved for rules-text rendering. Quotable as-is: catalog
-            // names carry only letters, apostrophes, spaces, and hyphens,
-            // none of which need escaping in a RON string.
-            std::fs::write(
-                &dest,
-                format!("{prefix}Type(name: \"{ident}\", template: \"{subtype}\")\n"),
-            )?;
+            // reserved for rules-text rendering, and omitted when it equals
+            // the ident (the meta-macro defaults it to `name`). Quotable
+            // as-is: catalog names carry only letters, apostrophes, spaces,
+            // and hyphens, none of which need escaping in a RON string.
+            let invocation = if *ident == **subtype {
+                format!("{prefix}Type(name: \"{ident}\")\n")
+            } else {
+                format!("{prefix}Type(name: \"{ident}\", template: \"{subtype}\")\n")
+            };
+            std::fs::write(&dest, invocation)?;
             eprintln!("wrote {}", dest.display());
         }
     }
