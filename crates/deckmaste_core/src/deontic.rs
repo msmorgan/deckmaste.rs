@@ -15,8 +15,8 @@ use crate::Filter;
 use crate::SupportsMacros;
 use crate::Zone;
 
-/// A cast/play timing window ([CR#117.1a..117.1b]). Closed vocabulary;
-/// `SorcerySpeed` arrives with the deferred `Only` work.
+/// A cast/play timing window ([CR#117.1a..117.1b]). Just `InstantSpeed`
+/// for now; `SorcerySpeed` accretes with the deferred `Only` work.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub enum CastWindow {
     /// Any time you could cast an instant (flash, [CR#702.8a]).
@@ -41,10 +41,12 @@ pub enum DeonticAction {
         #[serde(default = "Filter::any")]
         on: Filter,
     },
-    /// `by` blocks `on`. `count` bounds the matched blocking arrangement:
-    /// anchored on `on` it bounds the blocker set per blocked creature
-    /// (menace, [CR#702.111b]); anchored on `by` it bounds how many
-    /// creatures the blocker blocks ([CR#509.1a..509.1c]).
+    /// `by` blocks `on`. `count` bounds the matched blocking arrangement,
+    /// and which slot carries `Is(This)` decides the reading: anchored on
+    /// `on` it bounds the blocker set per blocked creature (menace,
+    /// [CR#702.111b]) — also the reading when neither slot is anchored —
+    /// while anchored on `by` it bounds how many creatures the blocker
+    /// blocks ([CR#509.1a..509.1c]).
     Block {
         #[serde(default = "Filter::any")]
         by: Filter,
@@ -190,5 +192,32 @@ mod tests {
                 vec![CostComponent::Tap],
             ),
         );
+    }
+
+    /// An unknown name at a `Deontic` position is a hard error, not a
+    /// silent fallthrough (the macro layer's type-safety seam).
+    #[test]
+    fn unknown_names_error() {
+        assert!(
+            crate::ron::options()
+                .from_str::<Deontic>("Bogus(1)")
+                .is_err()
+        );
+    }
+
+    /// Serialize → read returns the same value for each polarity shape.
+    #[test]
+    fn deontic_round_trips() {
+        let cases = [
+            "Cant(Attack(by: Is(This)))",
+            "Cant(Block(on: Is(This), count: (Less, Literal(2))))",
+            "May(Cast(what: Is(This), window: InstantSpeed))",
+            "MayIf(Attack(on: Is(You)), [Tap])",
+        ];
+        for source in cases {
+            let parsed = read(source);
+            let written = crate::ron::options().to_string(&parsed).unwrap();
+            assert_eq!(read(&written), parsed, "round-trip failed: {source}");
+        }
     }
 }
