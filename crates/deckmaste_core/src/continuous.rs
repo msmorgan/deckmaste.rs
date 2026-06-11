@@ -164,14 +164,23 @@ mod tests {
         assert_eq!(read(&written), parsed);
     }
 
+    /// A deontic clause reads flat and serializes flat — the compartment
+    /// tag never appears in RON.
     #[test]
     fn deontic_reads_flat() {
+        let parsed = read("Cant(Attack(by: Is(This)))");
         assert_eq!(
-            read("Cant(Attack(by: Is(This)))"),
-            StaticEffect::Deontic(crate::Deontic::Cant(crate::DeonticAction::Attack {
-                by: crate::Filter::Is(crate::Reference::This),
-                on: crate::Filter::Any,
+            parsed,
+            StaticEffect::Deontic(Deontic::Cant(crate::DeonticAction::Attack {
+                by: Filter::Is(crate::Reference::This),
+                on: Filter::Any,
             })),
         );
+        let written = crate::ron::options().to_string(&parsed).unwrap();
+        assert!(
+            !written.contains("Deontic"),
+            "compartment tag leaked: {written}"
+        );
+        assert_eq!(read(&written), parsed);
     }
 }
