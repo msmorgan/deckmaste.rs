@@ -98,7 +98,7 @@ enum FrameArgs<'de> {
 
 /// What a `Param(...)` hole addresses: `Param(0)` or `Param(cost)`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-enum ParamKey {
+pub(crate) enum ParamKey {
     #[serde(untagged)]
     Index(usize),
     #[serde(untagged)]
@@ -571,6 +571,24 @@ fn collect_holes<'de>(
         Node::Branch(children) => {
             for child in children {
                 collect_holes(root, child.get_ron(), ctx, mode, edits)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Walks `fragment`, collecting every `Param(...)` hole key without
+/// resolving anything — the insert-time validation of default expressions.
+pub(crate) fn collect_param_keys(
+    fragment: &str,
+    options: &ron::Options,
+    keys: &mut Vec<ParamKey>,
+) -> Result<(), String> {
+    match decompose(fragment, options)? {
+        Node::Hole(key) => keys.push(key),
+        Node::Branch(children) => {
+            for child in children {
+                collect_param_keys(child.get_ron(), options, keys)?;
             }
         }
     }
