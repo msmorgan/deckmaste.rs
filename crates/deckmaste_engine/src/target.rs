@@ -13,13 +13,17 @@ use crate::object::ObjectSource;
 use crate::state::GameState;
 
 /// The object's kind ([CR#109.1]) as the corpus needs it: a player proxy is a
-/// `Player`; a card on the stack is a `Spell`; otherwise a `Card`.
+/// `Player`; a card on the stack is a `Spell`; a created token is a `Token`
+/// ([CR#111.6] — not a card); otherwise a `Card`. The stack check outranks
+/// the token check: a stack entry minted from a token source (its activated
+/// ability) is an ability on the stack, not the token itself.
 #[must_use]
 pub fn object_kind(state: &GameState, id: ObjectId) -> ObjectKind {
     let obj = state.objects.obj(id);
     match obj.source {
         ObjectSource::Player(_) => ObjectKind::Player,
         ObjectSource::Card(_) if obj.zone == Some(Zone::Stack) => ObjectKind::Spell,
+        ObjectSource::Card(c) if state.cards.get(c).is_token => ObjectKind::Token,
         ObjectSource::Card(_) => ObjectKind::Card,
     }
 }

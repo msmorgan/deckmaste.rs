@@ -4,8 +4,10 @@ use std::sync::Arc;
 
 use deckmaste_core::Ability;
 use deckmaste_core::Card;
+use deckmaste_core::CardFace;
 use deckmaste_core::Ident;
 use deckmaste_core::Subtype;
+use deckmaste_core::Token;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 
@@ -26,12 +28,17 @@ pub struct Timestamp(pub Uint);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct CardId(pub Uint);
 
-/// One physical card ([CR#108]): its shared definition and its owner, fixed
-/// for the whole game ([CR#108.3]).
+/// One physical card ([CR#108]) — or a created token's definition: its
+/// shared characteristics and its owner, fixed for the whole game
+/// ([CR#108.3]; [CR#111.2] for a token's creator).
 #[derive(Debug, Clone)]
 pub struct CardInstance {
     pub def: Arc<Card>,
     pub owner: PlayerId,
+    /// [CR#111.6]: a token isn't a card. Set for entries synthesized by
+    /// `TokenCreated`; `object_kind` reports `Token` (so `Filter::Kind(Card)`
+    /// excludes them) and the ceases-to-exist SBA ([CR#704.5d]) keys on it.
+    pub is_token: bool,
     /// The face's printed + subtype-conferred abilities, precomputed at setup
     /// so the layer pipeline's base values are an `Arc` bump per rebuild
     /// instead of a deep clone per object.
@@ -45,8 +52,10 @@ pub struct CardInstance {
     pub(crate) supertypes: Arc<Vec<deckmaste_core::Supertype>>,
 }
 
-/// The game's card table: exactly the cards the decklists brought, built at
-/// game start and never mutated after.
+/// The game's card table: the cards the decklists brought, built at game
+/// start, plus one synthesized entry per created token ([CR#111.3] — its
+/// characteristics are exactly what the creating effect defined). Entries are
+/// never removed or mutated; a ceased token's entry stays as inert history.
 #[derive(Debug, Clone, Default)]
 pub struct Cards(Vec<CardInstance>);
 
@@ -57,6 +66,43 @@ impl Cards {
     ///
     /// Panics if the card table exceeds `Uint::MAX` entries.
     pub(crate) fn push(&mut self, def: Arc<Card>, owner: PlayerId) -> CardId {
+        self.push_inner(def, owner, false)
+    }
+
+    /// Adds a created token's synthesized definition ([CR#111.2]: `owner` is
+    /// its creator) and returns its id. The `Token`'s characteristics become a
+    /// one-faced card definition, so tokens ride the same derivation / layer /
+    /// LKI machinery as cards; only the `is_token` flag tells them apart
+    /// ([CR#111.6]). The name defaults to the subtypes plus the word "Token"
+    /// ([CR#111.4] — `Token` carries no name of its own yet).
+    pub(crate) fn push_token(&mut self, token: &Token, owner: PlayerId) -> CardId {
+        let name = token
+            .subtypes
+            .iter()
+            .map(|s| s.name.as_str())
+            .chain(std::iter::once("Token"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let def = Arc::new(Card::Normal(CardFace {
+            name,
+            mana_cost: deckmaste_core::ManaCost::default(),
+            color_indicator: vec![],
+            supertypes: token.supertypes.clone(),
+            types: token.types.clone(),
+            subtypes: token.subtypes.clone(),
+            abilities: token.abilities.clone(),
+            power: None,
+            toughness: None,
+            loyalty: None,
+            defense: None,
+        }));
+        self.push_inner(def, owner, true)
+    }
+
+    /// # Panics
+    ///
+    /// Panics if the card table exceeds `Uint::MAX` entries.
+    fn push_inner(&mut self, def: Arc<Card>, owner: PlayerId, is_token: bool) -> CardId {
         let id = CardId(Uint::try_from(self.0.len()).expect("card table fits in Uint"));
         let face = crate::derive::face(&def);
         let printed = Arc::new(crate::derive::printed_of_face(face));
@@ -67,6 +113,7 @@ impl Cards {
         self.0.push(CardInstance {
             def,
             owner,
+            is_token,
             printed,
             subtypes,
             colors,
@@ -91,8 +138,9 @@ impl Cards {
     pub fn is_empty(&self) -> bool { self.0.is_empty() }
 }
 
-/// Where an object's identity comes from ([CR#109]). Tokens are deferred — no
-/// fixture creates them yet.
+/// Where an object's identity comes from ([CR#109]). A created token is
+/// `Card`-backed too — `TokenCreated` synthesizes its definition into the
+/// card table, flagged `is_token` ([CR#111.6]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ObjectSource {
     Card(CardId),
