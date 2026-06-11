@@ -91,9 +91,12 @@ struct Frame<'de> {
 }
 
 /// Invocation arguments, as raw source each, shaped like the signature.
+#[derive(Clone)]
 enum FrameArgs<'de> {
     Positional(Vec<&'de str>),
-    Named(Vec<(Ident, &'de str)>),
+    /// Name, raw source, and whether the source is a filled-in default
+    /// (excluded from synthesized invocations so short calls round-trip).
+    Named(Vec<(Ident, &'de str, bool)>),
 }
 
 /// What a `Param(...)` hole addresses: `Param(0)` or `Param(cost)`.
@@ -138,7 +141,7 @@ impl<'de> Ctx<'de, '_> {
         let arg = match (&frame.args, key) {
             (FrameArgs::Positional(args), ParamKey::Index(index)) => args.get(index).copied(),
             (FrameArgs::Named(args), ParamKey::Name(name)) => {
-                args.iter().find(|(k, _)| *k == name).map(|(_, v)| *v)
+                args.iter().find(|(k, _, _)| *k == name).map(|(_, v, _)| *v)
             }
             _ => None,
         };
@@ -277,7 +280,9 @@ enum Invocation<'de> {
 struct Probe<'a, 'de> {
     /// The position's struct name, if its macros may stand here.
     position: Option<&'static str>,
-    macros: &'de MacroSet,
+    /// The read-long context: the macros in scope, and the splice arena
+    /// that owns any filled-in default argument text.
+    read: &'de ReadCtx<'de>,
     /// Set once a leading identifier has been read: failures before that
     /// mean "not an invocation", failures after are real.
     entered: &'a Cell<bool>,
@@ -304,10 +309,13 @@ impl<'de> Visitor<'de> for Probe<'_, 'de> {
         if ident == "Param" {
             return Ok(Some(Invocation::Param(variant.newtype_variant()?)));
         }
-        let Some(def) = self.position.and_then(|kind| self.macros.get(kind, &ident)) else {
+        let Some(def) = self
+            .position
+            .and_then(|kind| self.read.macros.get(kind, &ident))
+        else {
             return Ok(None);
         };
-        let args = read_args(ident, variant, &def.params, self.macros)?;
+        let args = read_args(ident, variant, &def.params, self.read)?;
         Ok(Some(Invocation::Macro {
             name: ident,
             def,
@@ -372,7 +380,7 @@ fn probe<'de, E: serde::de::Error>(
     let entered = Cell::new(false);
     let seed = Probe {
         position,
-        macros: ctx.read.macros,
+        read: ctx.read,
         entered: &entered,
     };
     match seed.deserialize(&mut de) {
@@ -922,13 +930,16 @@ fn validate_arg(
 
 /// Reads the arguments the definition's signature says to expect: its shape
 /// decides between the positional call grammar (unit, newtype, or tuple by
-/// arity) and the named, struct-shaped one.
+/// arity) and the named, struct-shaped one. Omitted defaulted params are
+/// filled here — the default expression's holes spliced against the
+/// supplied args — so a `Param` hole downstream never sees the difference.
 fn read_args<'de, A: VariantAccess<'de>>(
     name: Ident,
     variant: A,
-    params: &Params,
-    macros: &MacroSet,
+    params: &'de Params,
+    read: &'de ReadCtx<'de>,
 ) -> Result<FrameArgs<'de>, A::Error> {
+    let macros = read.macros;
     use serde::de::Error;
 
     struct RawArgs;
@@ -1007,7 +1018,10 @@ fn read_args<'de, A: VariantAccess<'de>>(
                 .filter(|key| !args.iter().any(|(k, _)| k == *key))
                 .collect();
             missing.sort_unstable_by_key(|key| key.as_str());
-            if let Some(key) = missing.first() {
+            if let Some(key) = missing
+                .iter()
+                .find(|key| signature[**key].default.is_none())
+            {
                 return Err(A::Error::custom(format_args!("missing argument `{key}`")));
             }
             for (key, arg) in &args {
@@ -1015,6 +1029,37 @@ fn read_args<'de, A: VariantAccess<'de>>(
                     .get(key)
                     .expect("argument keys were checked against the signature above");
                 validate_arg(name, *key, ty, arg, macros).map_err(A::Error::custom)?;
+            }
+            let mut args: Vec<(Ident, &'de str, bool)> =
+                args.into_iter().map(|(k, v)| (k, v, false)).collect();
+            // Fill the omitted defaulted params: splice the default
+            // expression's holes against the supplied args (the insert check
+            // confines them to non-defaulted — i.e. present — siblings, so
+            // Strict mode is total), then validate the filled text like any
+            // supplied argument.
+            let supplied = Frame {
+                name,
+                args: FrameArgs::Named(args.clone()),
+            };
+            let fill_ctx = Ctx {
+                read,
+                frame: Some(&supplied),
+                depth: 0,
+            };
+            for key in missing {
+                let ty = &signature[key];
+                let default = ty
+                    .default
+                    .as_deref()
+                    .expect("non-defaulted missing params errored above");
+                let filled = match substitute_params(default, &fill_ctx, HoleMode::Strict)
+                    .map_err(A::Error::custom)?
+                {
+                    std::borrow::Cow::Borrowed(text) => text,
+                    std::borrow::Cow::Owned(text) => read.splice(text),
+                };
+                validate_arg(name, *key, ty, filled, macros).map_err(A::Error::custom)?;
+                args.push((*key, filled, true));
             }
             Ok(FrameArgs::Named(args))
         }
@@ -1063,7 +1108,7 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
                 self.name,
             ))
         })?;
-        let args = read_args(ident, variant, &def.params, self.ctx.read.macros)?;
+        let args = read_args(ident, variant, &def.params, self.ctx.read)?;
         let frame = Frame { name: ident, args };
         let ctx = self.ctx.expansion(&frame).map_err(A::Error::custom)?;
 
@@ -1118,7 +1163,7 @@ fn synthesize_expanded(name: Ident, args: &FrameArgs, body: &str) -> String {
         }
         FrameArgs::Named(args) => {
             write!(out, "Expanded(name: {name:?}, args: Named([").unwrap();
-            for (i, (key, arg)) in args.iter().enumerate() {
+            for (i, (key, arg, _)) in args.iter().enumerate() {
                 let sep = if i > 0 { ", " } else { "" };
                 write!(out, "{sep}({:?}, {:?})", key.as_str(), arg.trim()).unwrap();
             }
