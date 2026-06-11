@@ -85,7 +85,7 @@ impl GameState {
     /// [CR#307.1,601.3a]: `player` could cast a sorcery right now — their
     /// turn, a main phase, stack (and announce slot) empty. The same facts
     /// the builtin `SorcerySpeed` condition macro reads; `kw-flash`'s
-    /// `Permission::HasFlash` will relax the spell-side caller.
+    /// `May(Cast(window: InstantSpeed))` will relax the spell-side caller.
     #[must_use]
     pub(crate) fn sorcery_speed_ok(&self, player: PlayerId) -> bool {
         player == self.turn.active_player

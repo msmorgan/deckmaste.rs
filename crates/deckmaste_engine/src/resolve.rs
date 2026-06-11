@@ -219,7 +219,7 @@ impl GameState {
                         is_cda: false,
                     });
                 }
-                // Non-Modify static effects (Restriction/Permission/...) are a
+                // Non-Modify static effects (Deontic/CostModifier/...) are a
                 // later seam — explicit no-op, not silently
                 // dropped.
             }

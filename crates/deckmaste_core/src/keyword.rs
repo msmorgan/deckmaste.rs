@@ -7,9 +7,10 @@
 //! lifelink are composite-given (pending cause-tagged events and a
 //! damage-result-rewrite stage), Flying is composite (a block-legality
 //! restriction). All seven are encoded on cards as `Keyword(X)`. Haste is
-//! **not** here — it is a `Permission` macro (it only touches the
-//! can-attack/tap rules); other non-native keywords are plugin macros
-//! (e.g. indestructible = a "can't be destroyed" `Restriction`).
+//! **not** here — it only lifts the summoning-sickness attack/tap limits
+//! (deontic `May` territory; exact spelling still open); other non-native
+//! keywords are plugin macros (e.g. indestructible = an event-side "can't
+//! be destroyed", the replacement-family seam).
 //!
 //! The grammar lands now; the behaviors arrive in later combat tasks.
 
