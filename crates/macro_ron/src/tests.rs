@@ -2009,6 +2009,74 @@ fn all_defaulted_invocation_round_trips() {
     assert_eq!(reread, filter);
 }
 
+/// A meta-macro's own params may be defaulted: the subtype meta-macro shape
+/// this feature was built for, end to end.
+#[test]
+fn meta_macro_with_defaulted_template_param() {
+    let mut macros = empty();
+    macros
+        .insert(&def(r#"(
+            name: "CreatureType",
+            kinds: [Macro],
+            params: { "name": String, "template": Default(String, Param(name)) },
+            body: (
+                name: Param(name),
+                kinds: [Subtype],
+                body: Subtype(name: Param(template), types: [Creature]),
+            ),
+        )"#))
+        .unwrap();
+    // Omitted template: defaults to the name.
+    let produced: MacroDef = macros.read_str(r#"CreatureType(name: "Zombie")"#).unwrap();
+    assert_eq!(produced.name, "Zombie");
+    macros.insert(&produced).unwrap();
+    let subtype: Subtype = macros.read_str("Zombie").unwrap();
+    assert_eq!(subtype.name, "Zombie");
+    // Supplied template: overrides.
+    let produced: MacroDef = macros
+        .read_str(r#"CreatureType(name: "AssemblyWorker", template: "Assembly-Worker")"#)
+        .unwrap();
+    macros.insert(&produced).unwrap();
+    let subtype: Subtype = macros.read_str("AssemblyWorker").unwrap();
+    assert_eq!(subtype.name, "Assembly-Worker");
+}
+
+/// A default expression inside a meta BODY (a produced definition's own
+/// `params:`) rides the raw-capture splice: holes the meta frame owns fill
+/// into the default text, holes naming the produced def's own params
+/// survive verbatim and fill at the produced macro's invocation.
+#[test]
+fn produced_definition_defaults_splice_and_pass_through() {
+    let mut macros = empty();
+    macros
+        .insert(&def(r#"(
+            name: "FilterMaker",
+            kinds: [Macro],
+            params: { "name": String, "fallback": Any },
+            body: (
+                name: Param(name),
+                kinds: [Filter],
+                params: { "kind": Any, "extra": Default(Any, Type(Param(fallback))) },
+                body: AllOf([Type(Param(kind)), Param(extra)]),
+            ),
+        )"#))
+        .unwrap();
+    let produced: MacroDef = macros
+        .read_str(r#"FilterMaker(name: "KindAnd", fallback: Land)"#)
+        .unwrap();
+    macros.insert(&produced).unwrap();
+    // `extra` omitted: the default — `Type(Land)` after the meta spliced
+    // `fallback` — fills. `kind` (produced def's own param) passed through.
+    let filter: Filter = macros.read_str("KindAnd(kind: Creature)").unwrap();
+    let Filter::Expanded(expanded) = filter else {
+        panic!("expected a remembered filter");
+    };
+    assert_eq!(
+        *expanded.value,
+        Filter::AllOf(vec![Filter::Type(Type::Creature), Filter::Type(Type::Land)])
+    );
+}
+
 /// A nested `Default(Default(...), ...)` is malformed, not a type name.
 #[test]
 fn nested_default_is_rejected_at_parse() {
