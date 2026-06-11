@@ -1,2 +1,2 @@
 // [CR#111.10b]
-ArtifactType(name: "Food", template: "Food")
+ArtifactType(name: "Food")

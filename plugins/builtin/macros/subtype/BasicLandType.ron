@@ -4,7 +4,7 @@
 (
     name: "BasicLandType",
     kinds: [Macro],
-    params: { "name": String, "template": String, "color": Color },
+    params: { "name": String, "template": Default(String, Param(name)), "color": Color },
     body: (
         name: Param(name),
         template: Param(template),

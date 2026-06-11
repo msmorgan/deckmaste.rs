@@ -608,4 +608,27 @@ mod tests {
         let subtype: deckmaste_core::Subtype = macros.read_str(r#"CreatureType("Bear")"#).unwrap();
         assert_eq!(subtype.name, "Bear");
     }
+
+    /// The real subtype-meta shape: `template` defaults to `name`, so the
+    /// majority of subtype files omit it.
+    #[test]
+    fn subtype_meta_template_defaults_to_name() {
+        let mut macros = macro_set();
+        macros
+            .insert(&def(r#"(
+                    name: "CreatureType",
+                    kinds: [Macro],
+                    params: { "name": String, "template": Default(String, Param(name)) },
+                    body: (
+                        name: Param(name),
+                        kinds: [Subtype],
+                        body: Subtype(name: Param(template), types: [Creature]),
+                    ),
+                )"#))
+            .unwrap();
+        let produced: MacroDef = macros.read_str(r#"CreatureType(name: "Zombie")"#).unwrap();
+        macros.insert(&produced).unwrap();
+        let subtype: deckmaste_core::Subtype = macros.read_str("Zombie").unwrap();
+        assert_eq!(subtype.name, "Zombie");
+    }
 }
