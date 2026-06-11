@@ -928,18 +928,54 @@ fn validate_arg(
     })
 }
 
+/// Fills the omitted defaulted params of a named signature: each default
+/// expression's holes are spliced against the supplied args (the insert
+/// check confines them to non-defaulted — i.e. present — siblings, so
+/// Strict mode is total), and the filled text is validated like any
+/// supplied argument.
+fn fill_defaults<'de>(
+    name: Ident,
+    signature: &'de std::collections::HashMap<Ident, ParamType>,
+    missing: Vec<&'de Ident>,
+    args: &mut Vec<(Ident, &'de str, bool)>,
+    read: &'de ReadCtx<'de>,
+) -> Result<(), String> {
+    let supplied = Frame {
+        name,
+        args: FrameArgs::Named(args.clone()),
+    };
+    let fill_ctx = Ctx {
+        read,
+        frame: Some(&supplied),
+        depth: 0,
+    };
+    for key in missing {
+        let ty = &signature[key];
+        let default = ty
+            .default
+            .as_deref()
+            .expect("non-defaulted missing params errored by the caller");
+        let filled = match substitute_params(default, &fill_ctx, HoleMode::Strict)? {
+            std::borrow::Cow::Borrowed(text) => text,
+            std::borrow::Cow::Owned(text) => read.splice(text),
+        };
+        validate_arg(name, *key, ty, filled, read.macros)?;
+        args.push((*key, filled, true));
+    }
+    Ok(())
+}
+
 /// Reads the arguments the definition's signature says to expect: its shape
 /// decides between the positional call grammar (unit, newtype, or tuple by
 /// arity) and the named, struct-shaped one. Omitted defaulted params are
-/// filled here — the default expression's holes spliced against the
-/// supplied args — so a `Param` hole downstream never sees the difference.
+/// filled here — see [`fill_defaults`] — so a `Param` hole downstream never
+/// sees the difference.
 fn read_args<'de, A: VariantAccess<'de>>(
     name: Ident,
     variant: A,
     params: &'de Params,
     read: &'de ReadCtx<'de>,
 ) -> Result<FrameArgs<'de>, A::Error> {
-    let macros = read.macros;
     use serde::de::Error;
 
     struct RawArgs;
@@ -995,7 +1031,7 @@ fn read_args<'de, A: VariantAccess<'de>>(
                 )));
             }
             for (i, ty) in types.iter().enumerate() {
-                validate_arg(name, i + 1, ty, args[i], macros).map_err(A::Error::custom)?;
+                validate_arg(name, i + 1, ty, args[i], read.macros).map_err(A::Error::custom)?;
             }
             Ok(FrameArgs::Positional(args))
         }
@@ -1028,39 +1064,11 @@ fn read_args<'de, A: VariantAccess<'de>>(
                 let ty = signature
                     .get(key)
                     .expect("argument keys were checked against the signature above");
-                validate_arg(name, *key, ty, arg, macros).map_err(A::Error::custom)?;
+                validate_arg(name, *key, ty, arg, read.macros).map_err(A::Error::custom)?;
             }
             let mut args: Vec<(Ident, &'de str, bool)> =
                 args.into_iter().map(|(k, v)| (k, v, false)).collect();
-            // Fill the omitted defaulted params: splice the default
-            // expression's holes against the supplied args (the insert check
-            // confines them to non-defaulted — i.e. present — siblings, so
-            // Strict mode is total), then validate the filled text like any
-            // supplied argument.
-            let supplied = Frame {
-                name,
-                args: FrameArgs::Named(args.clone()),
-            };
-            let fill_ctx = Ctx {
-                read,
-                frame: Some(&supplied),
-                depth: 0,
-            };
-            for key in missing {
-                let ty = &signature[key];
-                let default = ty
-                    .default
-                    .as_deref()
-                    .expect("non-defaulted missing params errored above");
-                let filled = match substitute_params(default, &fill_ctx, HoleMode::Strict)
-                    .map_err(A::Error::custom)?
-                {
-                    std::borrow::Cow::Borrowed(text) => text,
-                    std::borrow::Cow::Owned(text) => read.splice(text),
-                };
-                validate_arg(name, *key, ty, filled, macros).map_err(A::Error::custom)?;
-                args.push((*key, filled, true));
-            }
+            fill_defaults(name, signature, missing, &mut args, read).map_err(A::Error::custom)?;
             Ok(FrameArgs::Named(args))
         }
     }

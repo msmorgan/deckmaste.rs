@@ -3,9 +3,10 @@
 //!
 //! A definition is a bare struct naming the macro, the kinds of value it can
 //! expand to, its parameter signature, and the expansion body with
-//! `Param(...)` holes — see [`MacroDef`]. Kinds are the serde names of the
-//! consumer's types, registered with their reader policy in a [`KindSet`];
-//! see [`Kind`]. [`MacroSet::read_str`] is the macro-aware entry point. A
+//! `Param(...)` holes — see [`MacroDef`]; named params may declare defaults
+//! (see [`ParamType`]). Kinds are the serde names of the consumer's types,
+//! registered with their reader policy in a [`KindSet`]; see [`Kind`].
+//! [`MacroSet::read_str`] is the macro-aware entry point. A
 //! kind that [remembers](Kind::remembers_expansion) wraps each expansion in
 //! that type's `Expanded` variant as an [`Expansion`], which serializes the
 //! *invocation* back.

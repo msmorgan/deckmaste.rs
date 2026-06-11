@@ -19,7 +19,10 @@
 //! The signature's shape decides the invocation grammar: positional
 //! `params: [String]` is invoked `LandType("Forest")` with `Param(0)` holes,
 //! named `params: {"cost": String}` is invoked `Boast(cost: "{1}")` with
-//! `Param(cost)` holes.
+//! `Param(cost)` holes. A named param may carry a default —
+//! `{"template": Default(String, Param(name))}` — filled (and validated)
+//! when the invocation omits it; defaults may reference only non-defaulted
+//! params of the same signature.
 //!
 //! Bodies are raw RON source, read in place of the invocation with the
 //! invocation's arguments in scope — see [`MacroSet::read_str`] and the
