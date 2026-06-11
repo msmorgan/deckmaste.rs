@@ -346,8 +346,8 @@ impl MacroSet {
             }
         };
         match &def.params {
-            Params::Positional(types) => types.iter().try_for_each(|t| check(t.0)),
-            Params::Named(types) => types.values().try_for_each(|t| check(t.0)),
+            Params::Positional(types) => types.iter().try_for_each(|t| check(t.name)),
+            Params::Named(types) => types.values().try_for_each(|t| check(t.name)),
         }
     }
 

@@ -236,7 +236,7 @@ fn definition_files_are_self_describing() {
     assert_eq!(def.kinds, ["Subtype"]);
     assert_eq!(
         def.params,
-        Params::Positional(vec![ParamType("String".into())])
+        Params::Positional(vec![ParamType::plain("String")])
     );
     assert!(def.body().starts_with("Subtype("), "{}", def.body());
 }
@@ -388,7 +388,7 @@ fn macros_are_namespaced_by_kind() {
         .insert(&MacroDef {
             name: "Self".into(),
             kinds: vec!["Subtype".into(), "Filter".into()],
-            params: Params::Positional(vec![ParamType("Any".into())]),
+            params: Params::Positional(vec![ParamType::plain("Any")]),
             body: "Param(0)".into(),
         })
         .unwrap();
@@ -533,7 +533,7 @@ fn remembered_invocations_round_trip_as_invocations() {
         .insert(&MacroDef {
             name: "OfType".into(),
             kinds: vec!["Filter".into()],
-            params: Params::Positional(vec![ParamType("Any".into())]),
+            params: Params::Positional(vec![ParamType::plain("Any")]),
             body: "Type(Param(0))".into(),
         })
         .unwrap();
@@ -554,7 +554,7 @@ fn argument_source_survives_verbatim() {
         .insert(&MacroDef {
             name: "NamedAs".into(),
             kinds: vec!["Filter".into()],
-            params: Params::Positional(vec![ParamType("String".into())]),
+            params: Params::Positional(vec![ParamType::plain("String")]),
             body: "Named(Param(0))".into(),
         })
         .unwrap();
@@ -579,7 +579,7 @@ fn params_resolve_at_enum_positions() {
     macros
         .insert(&subtype_macro(
             "WithType",
-            vec![ParamType("Any".into())],
+            vec![ParamType::plain("Any")],
             r#"Subtype(name: "Forest", types: [Param(0)])"#,
         ))
         .unwrap();
@@ -593,7 +593,7 @@ fn params_resolve_per_argument() {
     macros
         .insert(&subtype_macro(
             "Pair",
-            vec![ParamType("String".into()), ParamType("Any".into())],
+            vec![ParamType::plain("String"), ParamType::plain("Any")],
             "Subtype(name: Param(0), types: [Param(1)])",
         ))
         .unwrap();
@@ -610,8 +610,8 @@ fn named_parameters_invoke_struct_shaped() {
             kinds: vec!["CardFace".into()],
             params: Params::Named(
                 [
-                    ("name".into(), ParamType("String".into())),
-                    ("cost".into(), ParamType("Any".into())),
+                    ("name".into(), ParamType::plain("String")),
+                    ("cost".into(), ParamType::plain("Any")),
                 ]
                 .into(),
             ),
@@ -652,7 +652,7 @@ fn named_parameters_at_enum_positions() {
         .insert(&MacroDef {
             name: "Boast".into(),
             kinds: vec!["Ability".into()],
-            params: Params::Named([("cost".into(), ParamType("String".into()))].into()),
+            params: Params::Named([("cost".into(), ParamType::plain("String"))].into()),
             body: "Static(effects: [CantAttack])".into(),
         })
         .unwrap();
@@ -690,7 +690,7 @@ fn out_of_range_params_are_an_error() {
     macros
         .insert(&subtype_macro(
             "OffByOne",
-            vec![ParamType("String".into())],
+            vec![ParamType::plain("String")],
             "Subtype(name: Param(1), types: [Land])",
         ))
         .unwrap();
@@ -722,7 +722,7 @@ fn params_resolve_as_enum_variant_contents() {
         .insert(&MacroDef {
             name: "Vanilla".into(),
             kinds: vec!["CardFace".into()],
-            params: Params::Positional(vec![ParamType("String".into()), ParamType("Any".into())]),
+            params: Params::Positional(vec![ParamType::plain("String"), ParamType::plain("Any")]),
             body: r"CardFace(
                 name: Param(0),
                 mana_cost: [Hybrid(Generic(Param(1)), White), Green],
@@ -857,7 +857,7 @@ fn unknown_param_types_are_an_error() {
     let error = macros
         .insert(&subtype_macro(
             "Bogus",
-            vec![ParamType("Sorcery".into())],
+            vec![ParamType::plain("Sorcery")],
             "Subtype(name: Param(0), types: [Land])",
         ))
         .unwrap_err();
@@ -884,7 +884,7 @@ fn param_holes_resolve_at_quantity_positions() {
         .insert(&MacroDef {
             name: "BoltFor".into(),
             kinds: vec!["Effect".into()],
-            params: Params::Positional(vec![ParamType("Any".into())]),
+            params: Params::Positional(vec![ParamType::plain("Any")]),
             body: "DealDamage(Target(0), Param(0))".into(),
         })
         .unwrap();
@@ -907,7 +907,7 @@ fn arg_type_mismatch_is_an_error() {
     macros
         .insert(&subtype_macro(
             "Named",
-            vec![ParamType("String".into())],
+            vec![ParamType::plain("String")],
             "Subtype(name: Param(0), types: [Land])",
         ))
         .unwrap();
@@ -930,7 +930,7 @@ fn any_accepts_every_shape() {
         .insert(&MacroDef {
             name: "Echo".into(),
             kinds: vec!["Filter".into()],
-            params: Params::Positional(vec![ParamType("Any".into())]),
+            params: Params::Positional(vec![ParamType::plain("Any")]),
             body: "Param(0)".into(),
         })
         .unwrap();
@@ -960,7 +960,7 @@ fn injected_param_types_validate() {
         .insert(&MacroDef {
             name: "Repeat".into(),
             kinds: vec!["Effect".into()],
-            params: Params::Positional(vec![ParamType("Number".into())]),
+            params: Params::Positional(vec![ParamType::plain("Number")]),
             body: "DrawCards(Param(0))".into(),
         })
         .unwrap();
@@ -1349,7 +1349,7 @@ mod derived {
         set.insert(&MacroDef {
             name: "Double".into(),
             kinds: vec!["Amount".into()],
-            params: Params::Positional(vec![ParamType("Any".into())]),
+            params: Params::Positional(vec![ParamType::plain("Any")]),
             body: "Twice(Param(0))".into(),
         })
         .unwrap();
@@ -1770,6 +1770,46 @@ fn positional_meta_macros_are_rejected_at_insert() {
     assert!(
         matches!(err, InsertError::MetaParamsPositional { .. }),
         "{err}"
+    );
+}
+
+/// `Default(Type, <expr>)` in a named signature parses: the inner type name
+/// and the raw default expression, captured verbatim.
+#[test]
+fn default_param_type_parses() {
+    let def = def(r#"(
+        name: "M",
+        kinds: [Subtype],
+        params: { "name": String, "template": Default(String, Param(name)) },
+        body: Subtype(name: Param(template), types: [Creature]),
+    )"#);
+    let Params::Named(signature) = &def.params else {
+        panic!("expected named params");
+    };
+    let name = &signature[&Ident::from("name")];
+    assert_eq!(name.name, "String");
+    assert_eq!(name.default, None);
+    let template = &signature[&Ident::from("template")];
+    assert_eq!(template.name, "String");
+    assert_eq!(template.default.as_deref(), Some("Param(name)"));
+}
+
+/// A nested `Default(Default(...), ...)` is malformed, not a type name.
+#[test]
+fn nested_default_is_rejected_at_parse() {
+    let error = options()
+        .from_str::<MacroDef>(
+            r#"(
+            name: "M",
+            kinds: [Subtype],
+            params: { "p": Default(Default(String, "x"), "y") },
+            body: Subtype(name: "n", types: []),
+        )"#,
+        )
+        .unwrap_err();
+    assert!(
+        error.to_string().contains("Default"),
+        "unexpected error: {error}"
     );
 }
 

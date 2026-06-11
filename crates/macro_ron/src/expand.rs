@@ -886,18 +886,18 @@ fn validate_arg(
     arg: &str,
     macros: &MacroSet,
 ) -> Result<(), String> {
-    let Some(validator) = macros.param_validator(&ty.0) else {
+    let Some(validator) = macros.param_validator(&ty.name) else {
         // Unreachable for an inserted macro (param types are checked at
         // insert), but don't panic on a hand-built `MacroDef`.
         return Err(format!(
             "macro `{macro_name}` declares unregistered param type `{}`",
-            ty.0
+            ty.name
         ));
     };
     validator(arg.trim(), macros).map_err(|reason| {
         format!(
             "macro `{macro_name}` argument {position} ({}): {reason}",
-            ty.0
+            ty.name
         )
     })
 }
