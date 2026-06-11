@@ -18,7 +18,7 @@ use crate::Zone;
 /// A cast/play timing window ([CR#117.1a..117.1b]). Closed vocabulary;
 /// `SorcerySpeed` arrives with the deferred `Only` work.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
-pub enum Window {
+pub enum CastWindow {
     /// Any time you could cast an instant (flash, [CR#702.8a]).
     InstantSpeed,
 }
@@ -70,7 +70,7 @@ pub enum DeonticAction {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         from: Option<Zone>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        window: Option<Window>,
+        window: Option<CastWindow>,
     },
     /// `by` plays `what` — land plays / play-a-card permissions
     /// ([CR#701.18]).
@@ -158,7 +158,7 @@ mod tests {
                 what: Filter::Is(Reference::This),
                 by: Filter::Any,
                 from: None,
-                window: Some(Window::InstantSpeed),
+                window: Some(CastWindow::InstantSpeed),
             }),
         );
     }
