@@ -6,6 +6,7 @@ use crate::Color;
 use crate::Condition;
 use crate::CostComponent;
 use crate::Count;
+use crate::Deontic;
 use crate::Event;
 use crate::Expand;
 use crate::Expansion;
@@ -97,34 +98,6 @@ pub enum Modification {
     BecomeBasicLandType(Vec<Ident>),
 }
 
-/// What an object can't do ([CR#509.1b] — absolute, asymmetric with
-/// `Requirement`). Evasion abilities are Restrictions.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
-pub enum Restriction {
-    CantAttack,
-    CantBlock,
-    /// [CR#702.9] (Flying-style): can't be blocked except by matching blockers.
-    CantBeBlockedExceptBy(Filter),
-    CantBeTargetedBy(Filter),
-    CantCastSpells,
-}
-
-/// What an object must do ([CR#509.1c] — maximized but violable). Goaded's
-/// "attacks each combat if able" is a Requirement.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
-pub enum Requirement {
-    AttacksEachCombatIfAble,
-    MustBlock(Filter),
-}
-
-/// A permission an object grants ([CR#611.3d] "as though"). Flash-likes,
-/// cast-from-other-zones.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
-pub enum Permission {
-    MayCastFrom(crate::Zone),
-    HasFlash,
-}
-
 /// A cost modification ([CR#118.7]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub enum CostChange {
@@ -147,12 +120,10 @@ pub enum StaticEffect {
         of: Scope,
         changes: Vec<Modification>,
     },
-    /// A "can't" ([CR#509.1b]).
-    Restriction(Restriction),
-    /// A "must" ([CR#509.1c]).
-    Requirement(Requirement),
-    /// An "as though" / "may" permission ([CR#611.3d]).
-    Permission(Permission),
+    /// A deontic clause ([CR#101.2,601.3]): May/Cant/Must/MayIf read bare
+    /// in RON (`effects: [Cant(…)]`) via the flatten dispatch.
+    #[macro_ron(flatten)]
+    Deontic(Deontic),
     /// A cost modifier ([CR#118.7]).
     CostModifier { of: Filter, change: CostChange },
     /// A replacement effect ([CR#614]).
@@ -194,10 +165,13 @@ mod tests {
     }
 
     #[test]
-    fn restriction_reads_flat() {
+    fn deontic_reads_flat() {
         assert_eq!(
-            read("Restriction(CantAttack)"),
-            StaticEffect::Restriction(Restriction::CantAttack),
+            read("Cant(Attack(by: Is(This)))"),
+            StaticEffect::Deontic(crate::Deontic::Cant(crate::DeonticAction::Attack {
+                by: crate::Filter::Is(crate::Reference::This),
+                on: crate::Filter::Any,
+            })),
         );
     }
 }
