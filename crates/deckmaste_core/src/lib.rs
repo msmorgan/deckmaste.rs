@@ -56,6 +56,11 @@ pub use designation::DesignationScope;
 pub use designation::DesignationShape;
 pub use designation::DesignationUniqueness;
 
+mod deontic;
+pub use deontic::Deontic;
+pub use deontic::DeonticAction;
+pub use deontic::Window as CastWindow;
+
 mod effect;
 pub use effect::ContinuouslyEffect;
 pub use effect::Effect;
