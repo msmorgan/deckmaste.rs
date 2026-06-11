@@ -2,7 +2,7 @@
 (
     name: "ArtifactType",
     kinds: [Macro],
-    params: { "name": String, "template": String },
+    params: { "name": String, "template": Default(String, Param(name)) },
     body: (
         name: Param(name),
         template: Param(template),
