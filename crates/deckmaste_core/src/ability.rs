@@ -222,7 +222,7 @@ mod tests {
     /// the CDA flag is omitted when false.
     #[test]
     fn static_ability_parses_and_omits_cda() {
-        let ability = read_ability("Static(effects: [Restriction(CantAttack)])");
+        let ability = read_ability("Static(effects: [Cant(Attack(by: Is(This)))])");
         let Ability::Static(static_ability) = &ability else {
             panic!("expected a static ability");
         };

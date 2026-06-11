@@ -36,9 +36,6 @@ mod continuous;
 pub use continuous::CostChange;
 pub use continuous::Duration;
 pub use continuous::Modification;
-pub use continuous::Permission;
-pub use continuous::Requirement;
-pub use continuous::Restriction;
 pub use continuous::Scope;
 pub use continuous::StaticEffect;
 
