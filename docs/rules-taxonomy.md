@@ -626,15 +626,26 @@ pile-splitting ([CR#700.3]). Sagas (523 chapter lines) and Classes/levelers (50
 LEVEL lines) are *positionally* gated mode-lists — chapter/level number is
 the gate, so they reuse Condition + Ability rather than needing a new kind.
 
-**Restriction / Requirement** (combat and play): "can't attack/block",
-"must attack [whom] if able", "can't be blocked except by…" (evasion!),
-"attacks each combat if able" (goaded), activation restrictions ("Activate
-only as a sorcery" — 921 "Activate only" lines; [CR#602.1b]), casting
-restrictions/permissions ("can't cast", "cast only during…", "you may cast
-from the graveyard"), "as though" permissions ([CR#609.4]). These are mostly
-rules-layer ContinuousEffects, but they recur enough to deserve named
-sub-vocabularies — evasion macros are Filter-parameterized values of the
-block-restriction family.
+**Deontic** (the may/can't/must layer): clauses gating whether a proposed
+action is legal. Four polarities over one typed pattern — May permission
+rows ("you may cast ~ from your graveyard", 204 zone-cast lines; flash),
+Cant prohibitions ("can't attack/block", "can't be blocked except by…" —
+evasion), Must if-able requirements ("attacks each combat if able" —
+goaded; arbitrated by the maximize solver, [CR#508.1d,509.1c]), and MayIf
+declaration tolls ("creatures can't attack you unless their controller
+pays…", 71 lines — a cost position paid at declaration, never compelled,
+[CR#508.1d]). The pattern: verb (attack/block/target/cast/play/activate) ×
+participant Filters (`Is(This)`/`Is(You)` anchor the carrier) ×
+block-cardinality bounds (menace, [CR#702.111b]) × zone/window slots
+(cast). Cant beats May ([CR#101.2]); legality is existential over
+completions ([CR#601.3]). Evasion macros are Filter-parameterized Cant
+values. NOT deontic: event-side "can't happen" ([CR#614.17] — can't be
+countered, can't gain life), "doesn't"/skip (replacement family, §7),
+outcome "can't"s ([CR#104.2a,104.3f]), resolution tolls (ward = trigger +
+unless, [CR#702.21a,118.12a]), and cost modification ([CR#118.7], Thalia).
+Activation-timing text ("Activate only as a sorcery" — 921 "Activate only"
+lines; [CR#602.1b]) stays a separate Only-window refinement pending the
+deferred Only/AsThough work ([CR#609.4]).
 
 ---
 
@@ -647,7 +658,7 @@ What the current `Ability` enum grows into, slot-wise ([CR#113.3]):
 | Spell | effect: Effect (+ targets declared by the Effect's binders) |
 | Activated | cost: Cost, effect: Effect, restrictions: [ActivationRestriction], flags: mana-ability ([CR#605.1a]), loyalty ([CR#606]) |
 | Triggered | event: Event, condition: Option<Condition> (intervening if), effect: Effect, limits (once-each-turn), flags: mana-ability ([CR#605.1b]), delayed?, reflexive? |
-| Static | continuous: [ContinuousEffect] \| Replacement \| Prevention \| CastModifier \| Requirement, condition: Option<Condition>, flags: CDA ([CR#604.3]), functions-in-zones ([CR#113.6] exceptions) |
+| Static | continuous: [ContinuousEffect] \| Replacement \| Prevention \| CastModifier \| Deontic, condition: Option<Condition>, flags: CDA ([CR#604.3]), functions-in-zones ([CR#113.6] exceptions) |
 | Keyword | already modeled: name + expansion (`Expanded<Ability>`) — the macro layer (keyword abilities are shorthand, [CR#702.1], not a fifth [CR#113.3] category) |
 
 Cross-cutting flags the CR forces: where the ability functions ([CR#113.6a..113.6p]:
@@ -697,9 +708,10 @@ intrinsic. Four classes:
   [CR#702.21a]), absorb (a prevention shield, [CR#702.64a] — *not* a
   result rewrite), haste (lifts the summoning-sickness limits,
   [CR#702.10,302.6]; spelling open — `Permission` grant vs an unset-flag
-  form), indestructible (a "can't be destroyed" static, [CR#614.17]
-  semantics, consulted by the engine-owned destroy verb and damage SBAs,
-  [CR#702.12a..702.12b,701.8b,704.5g..704.5h]), and all the
+  form), indestructible (a "can't be destroyed" *event-side* can't-happen —
+  [CR#614.17] semantics, grammar home the §7 replacement family rather
+  than the deontic layer; consulted by the engine-owned destroy verb and
+  damage SBAs, [CR#702.12a..702.12b,701.8b,704.5g..704.5h]), and all the
   activated/trigger/cast-modifier/enters-with templates (equip, cycling,
   prowess, flashback, riot, …).
 - **Marker (1)** — reach: no function of its own; only flying's blocking
@@ -746,7 +758,7 @@ today.
 | **ManaSpec** | produced mana | `AnyColor` (Treasure.ron writes this) |
 | **Mode/Choice** | modal machinery | — |
 | **CastModifier** | alt/additional costs, permissions, reductions | `Flashback(cost)`, `Affinity(Filter)` |
-| **Restriction/Requirement** | combat/activation/casting rules text | `CantBlock`, `AttacksEachCombatIfAble` |
+| **Deontic** | may/can't/must/toll over proposed actions (§9) | `Cant(Attack(by: Is(This)))`, evasion macros, `Flash` |
 
 Not every row needs to be a `MacroKind` — only positions where bare *names*
 should expand (Filter, Event, Condition, Effect, Cost, Designation,
