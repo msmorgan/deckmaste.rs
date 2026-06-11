@@ -269,13 +269,16 @@ pub fn model_decide(state: &GameState, pending: &PendingDecision) -> Decision {
         PendingDecision::OrderTriggers { triggers, .. } => {
             Decision::Order((0..triggers.len()).collect())
         }
-        PendingDecision::DiscardToHandSize { player, count } => Decision::Discard(
+        PendingDecision::DiscardToHandSize { player, count }
+        | PendingDecision::DiscardCards { player, count } => Decision::Discard(
             state.zones.hands[player.index()]
                 .iter()
                 .copied()
                 .take(*count as usize)
                 .collect(),
         ),
+        // First offered option, mirroring `mechanical`'s mono-color pick.
+        PendingDecision::ChooseManaColor { options, .. } => Decision::ManaColor(options[0]),
         PendingDecision::AssignCombatDamage {
             source, recipients, ..
         } => {
@@ -298,6 +301,8 @@ pub fn pending_player(pending: &PendingDecision) -> PlayerId {
     match pending {
         PendingDecision::Priority { player, .. }
         | PendingDecision::DiscardToHandSize { player, .. }
+        | PendingDecision::DiscardCards { player, .. }
+        | PendingDecision::ChooseManaColor { player, .. }
         | PendingDecision::ChooseTargets { player, .. }
         | PendingDecision::PayMana { player, .. }
         | PendingDecision::OrderTriggers { player, .. }

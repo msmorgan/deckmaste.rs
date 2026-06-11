@@ -175,13 +175,14 @@ fn assign_damage(
 }
 
 /// The forced / uniform decisions every pilot delegates: discards (lands
-/// first), mana payment, trigger order (as-presented), damage assignment.
-/// `Priority`, `ChooseTargets`, and combat declarations are a pilot's own
-/// concern and panic here.
+/// first), mana payment, mana-color picks, trigger order (as-presented),
+/// damage assignment. `Priority`, `ChooseTargets`, and combat declarations
+/// are a pilot's own concern and panic here.
 #[must_use]
 pub fn mechanical(obs: &Observation, pending: &PendingDecision) -> Decision {
     match pending {
-        PendingDecision::DiscardToHandSize { count, .. } => {
+        PendingDecision::DiscardToHandSize { count, .. }
+        | PendingDecision::DiscardCards { count, .. } => {
             let mut picks: Vec<ObjectId> = obs
                 .my_hand
                 .iter()
@@ -193,6 +194,10 @@ pub fn mechanical(obs: &Observation, pending: &PendingDecision) -> Decision {
             Decision::Discard(picks)
         }
         PendingDecision::PayMana { cost, pool, .. } => Decision::Pay(pay(cost, pool)),
+        // First offered option — trivially right while the decks are
+        // mono-color; revisit when a color choice carries strategy.
+        // The engine never offers an empty option set.
+        PendingDecision::ChooseManaColor { options, .. } => Decision::ManaColor(options[0]),
         PendingDecision::OrderTriggers { triggers, .. } => {
             Decision::Order((0..triggers.len()).collect())
         }
