@@ -1963,6 +1963,52 @@ fn filled_default_is_validated() {
     );
 }
 
+/// A remembering kind round-trips the *short* invocation: filled defaults
+/// are excluded from the synthesized args (re-reading re-fills them).
+#[test]
+fn remembered_invocation_excludes_filled_defaults() {
+    let mut macros = empty();
+    macros
+        .insert(&def(r#"(
+            name: "Sized",
+            kinds: [Filter],
+            params: { "kind": Any, "min": Default(Any, 1) },
+            body: AllOf([Type(Param(kind)), Power(min: Param(min))]),
+        )"#))
+        .unwrap();
+    let filter: Filter = macros.read_str("Sized(kind: Creature)").unwrap();
+    assert_eq!(
+        options().to_string(&filter).unwrap(),
+        "Sized(kind:Creature)"
+    );
+    // An explicit override IS remembered.
+    let filter: Filter = macros.read_str("Sized(kind: Creature, min: 3)").unwrap();
+    assert_eq!(
+        options().to_string(&filter).unwrap(),
+        "Sized(kind:Creature,min:3)"
+    );
+}
+
+/// All params defaulted: the empty named call `M()` survives the round trip
+/// (`Named([])` synthesizes as an empty struct call, which re-reads).
+#[test]
+fn all_defaulted_invocation_round_trips() {
+    let mut macros = empty();
+    macros
+        .insert(&def(r#"(
+            name: "Sized",
+            kinds: [Filter],
+            params: { "min": Default(Any, 1) },
+            body: Power(min: Param(min)),
+        )"#))
+        .unwrap();
+    let filter: Filter = macros.read_str("Sized()").unwrap();
+    let written = options().to_string(&filter).unwrap();
+    assert_eq!(written, "Sized()");
+    let reread: Filter = macros.read_str(&written).unwrap();
+    assert_eq!(reread, filter);
+}
+
 /// A nested `Default(Default(...), ...)` is malformed, not a type name.
 #[test]
 fn nested_default_is_rejected_at_parse() {
