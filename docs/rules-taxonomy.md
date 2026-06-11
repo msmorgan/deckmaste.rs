@@ -1,6 +1,6 @@
 # Rules taxonomy: the value kinds of the card language
 
-2026-06-06
+2026-06-06 (holes patched 2026-06-10)
 
 What kinds of value does a complete card-encoding language need? This is the
 taxonomy of typed positions — the things `MacroKind` will eventually
@@ -224,6 +224,7 @@ A `Cost` is a *vector of components* ([CR#601.2f] computes a "total cost"):
 | energy {E} | 58 | [CR#107.14] |
 | reveal / show | — | forecast ([CR#702.57]) |
 | tap-others-with-total-power ≥ N | — | crew/saddle ([CR#702.122,702.171]) |
+| collect evidence N (exile from graveyard, total MV ≥ N) | 18 | [CR#701.59] |
 | unpayable | — | no mana cost ([CR#118.6]) |
 
 Notice: **cost components are the same verbs as one-shot effects** (§5) —
@@ -261,20 +262,27 @@ Two layers, matching the user's Effect-vs-Action split:
 |---|---|
 | zone change | destroy ([CR#701.8]), exile ([CR#701.13]), sacrifice ([CR#701.21]), discard ([CR#701.9]), mill ([CR#701.17]), counter ([CR#701.6]), return-to-hand/battlefield ("Return" leads 450 lines), put-onto-battlefield, put-into-graveyard/library-position, create token ([CR#701.7]; 3,232 "create" lines), attach/unattach ([CR#701.3]), meld ([CR#701.42]) |
 | library | search ([CR#701.23]), shuffle ([CR#701.24]), reveal ([CR#701.20]), look-at, scry ([CR#701.22]; 428 lines), surveil ([CR#701.25]; 216), fateseal ([CR#701.29]), clash ([CR#701.30]) |
-| counters | put/remove counters (2,808 / 576 lines), proliferate ([CR#701.34]; 95), move counters |
+| counters | put/remove counters (2,808 / 576 lines), proliferate ([CR#701.34]; 95), move counters, time travel — add/remove time counters ([CR#701.56]) |
 | state | tap/untap ([CR#701.26]), transform/convert ([CR#701.27,701.28]), turn face up/down, regenerate ([CR#701.19]), phase out, exert ([CR#701.43]), lock/unlock ([CR#709.5f..709.5g]) |
 | designation-granting | goad ([CR#701.15]; 84 lines), detain ([CR#701.35]), suspect ([CR#701.60]), harness ([CR#701.64]), monstrosity ([CR#701.37]), the Ring tempts you ([CR#701.54]), become saddled/solved/prepared — see §8 |
 | player resources | draw (520 leading lines), gain/lose life, pay, add mana (605), get energy/experience/rad counters, set/increase speed ([CR#702.179]) |
 | combat | fight ([CR#701.14]; 140 lines), remove from combat, "must be blocked" requirements |
 | damage | deal damage (the dominant spell effect; "~ deals" hides 682 cardname-led lines), prevent damage (§7) |
-| game structure | extra turn, extra phase/step, end the turn ([CR#724]), skip ([CR#614.1b]), restart (727), subgame (729), win/lose the game |
+| copy | copy a spell or ability on the stack ([CR#707.10]; a copy of a spell is itself a spell, [CR#112.1a]) — ~650 corpus "copy" lines; token copies → TokenSpec ([CR#707.2]); become-a-copy is layer-1 continuous (§6) |
+| cast / play | resolution-time casting instructions — "you may cast it without paying its mana cost" (281 lines; [CR#701.5]), "you may play that card" ([CR#701.18]); the standing-permission form is a rules-layer ContinuousEffect (§6, §9) |
+| numeric | double / triple a characteristic, life total, or counters ([CR#701.10,701.11] — P/T doubling is actually a continuous +X/+X effect, [CR#701.10a..701.10b]), exchange life totals or control ([CR#701.12]; all-or-nothing, [CR#701.12a]) |
+| game structure | extra turn, extra phase/step, end the turn ([CR#724]), skip ([CR#614.1b]), restart ([CR#727]), subgame ([CR#729]), win/lose the game |
 | choice | vote ([CR#701.38]), villainous choice ([CR#701.55]), choose-a-[value] (binders, §2) |
 | variant | venture ([CR#701.49]; 39 lines), planeswalk, set in motion, open an attraction, roll to visit ([CR#701.52]), roll a die (76 lines), flip a coin (72 lines) |
 
 **Compound keyword actions are macro fodder** — the CR defines them in
 terms of primitives: investigate = create a Clue ([CR#701.16]); populate;
 incubate; amass; explore; connive; discover; learn; forage; behold;
-manifest (+ cloak = manifest + ward); endure; earthbend; monstrosity. These
+manifest (+ cloak = manifest + ward); endure; earthbend; monstrosity;
+adapt; support; manifest dread ([CR#701.62]); blight ([CR#701.68]);
+waterbend ([CR#701.67] — rides the cost-modification hook, §10). Of
+[CR#701]'s 68 actions, 16 are intrinsic — the event basis listed in §10 —
+and the rest compile to them. These
 become `Effect`-kind macros exactly like `AnyTarget` is a `Target` macro —
 e.g. the Aang todo's "airbend another target creature" is an Effect macro
 invocation `Airbend(...)` ([CR#701.65]) awaiting definition.
@@ -308,9 +316,9 @@ duration)** — where the modification determines its layer ([CR#613]):
 
 | Layer | Modification | Corpus |
 |---|---|---|
-| 1 | copy effects (707), face-down characteristics | |
+| 1 | copy effects ([CR#707]), face-down characteristics | |
 | 2 | control change | "gain control" |
-| 3 | text change (612) | rare |
+| 3 | text change ([CR#612]) | rare |
 | 4 | type/subtype/supertype change | "becomes a 0/0 land creature…" (earthbend) |
 | 5 | color change | |
 | 6 | add/remove abilities; can't-have | "have/has [keyword]" 3,430 lines (5.8%) |
@@ -332,7 +340,7 @@ A small closed kind ([CR#611.2,614,615]): until end of turn (5,256 lines —
 9.0%!), this turn (2,425), while-condition "as long as" (1,094) and "for as
 long as" (203, with never-started semantics [CR#611.2b]), until-your-next-turn
 (108; also goad/detain's default), until-end-of-combat ([CR#514.2] cleanup vs
-511), until-[event] (242 "until ~ leaves" — implemented as paired one-shots,
+[CR#511]), until-[event] (242 "until ~ leaves" — implemented as paired one-shots,
 [CR#610.3]), next-N-times counted durations (prevention shields, [CR#615.7]),
 once-per-turn usage windows, and unstated = rest of game ([CR#611.2a]).
 
@@ -432,11 +440,12 @@ The Ends column lists only expirations *earlier* than object identity.
 | harnessed | [CR#701.64b] | marker only | flag | harness | leaves |
 | solved | [CR#719.3b] | gates "Solved —" abilities ([CR#719.3c]) | flag | Case-solving checks | leaves |
 | suspected | [CR#701.60b] | has menace, can't block ([CR#701.60c]) | flag | suspect | leaves, or "no longer suspected" |
-| goaded | [CR#701.15b] | attack requirements | flag **per goading player** ([CR#701.15d]: can be goaded by multiple players) | goad | the goading effect's duration (default "until your next turn") |
+| goaded | [CR#701.15b] | attack requirements | flag **per goading player** ([CR#701.15c]: can be goaded by multiple players; re-goading by the same player is a no-op, [CR#701.15d]) | goad | the goading effect's duration (default "until your next turn") |
 | saddled | [CR#702.171b] | marker only | flag | saddle N | **end of turn** or leaves (unique: self-expires) |
 | prepared | [CR#722.3a..722.3c] | copy-in-exile becomes castable | flag | "becomes prepared" / enters prepared | "unprepared" effects; lost when the copy is cast |
 | paired | [CR#702.95b] | soulbond pairing | **relation** to another creature | soulbond | either leaves / stops being eligible |
-| Ring-bearer | [CR#701.54b] | tested by "is your Ring-bearer" ([CR#701.54e]) | flag, **unique per player** | the Ring tempts you (chooses/moves it) | replaced by next temptation choice |
+| battle's protector | [CR#310.8] | attack/block legality; "defending player" redirection ([CR#310.8b..310.8d]) | **relation to a player** | chosen as it enters ([CR#310.8a]); SBA re-choice ([CR#310.10,704.5w..704.5x]) | reassigned by SBA when illegal or absent |
+| Ring-bearer | [CR#701.54b] | tested by "is your Ring-bearer" ([CR#701.54e]) | flag, **unique per player** | the Ring tempts you (chooses/moves it; first temptation also creates The Ring emblem, [CR#701.54c]) | replaced by next temptation choice; lost if another player gains control ([CR#701.54a]) |
 | level N | [CR#716.2b] | gates Class abilities | **number** | "becomes level N" (Class) | persists even if it stops being a Class |
 | sector (alpha/beta/gamma) | [CR#702.158b] | grouping ("in the same sector" [CR#702.158e]) | **enum(3)** | space sculptor SBA choice ([CR#704.5u]) | while any space-sculptor source exists |
 | left/right half unlocked | [CR#709.5c..709.5i] | half's name/cost/text active ([CR#709.5]) | **set of 2 flags** | cast that half; unlock cost (special action [CR#116.2m]); unlock effects | lock effects ([CR#709.5g]) |
@@ -464,10 +473,10 @@ system, not as a designation with unusual persistence.
 | attacking / defending player | [CR#506.2] | combat-scoped roles; multiple defending players in multiplayer ([CR#506.2a], [CR#508.5a]) |
 | active / starting player | [CR#102.1], [CR#103.1] | turn-structure roles |
 | planar controller | [CR#311.5], [CR#901.6] | Planechase variant |
-| archenemy; emperor/lieutenant | 904, 809 | variant roles |
+| archenemy; emperor/lieutenant | [CR#904,809] | variant roles |
 
 Player-attached counters (poison [CR#122.1f], energy [CR#107.14], experience, rad
-728, ticket [CR#107.17]) are **counters, not designations** — they go through
+[CR#728.1], ticket [CR#107.17]) are **counters, not designations** — they go through
 the CounterKind vocabulary (§9) — but conditions like "poisoned" derive
 from them.
 
@@ -542,8 +551,9 @@ A declaration needs to carry:
 - **scope**: Object | Player | Game — object covers permanents and
   exile-zone cards alike; commander, a card attribute ([CR#903.3]), sits outside
   the system;
-- **shape**: Flag | Enum(values) | Number | Relation(object) — flag is the
-  default; sector/level/paired show the others are real;
+- **shape**: Flag | Enum(values) | Number | Relation(object or player) —
+  flag is the default; sector/level/paired/protector show the others are
+  real;
 - **uniqueness**: none | per-player (Ring-bearer) | per-game (monarch,
   initiative) | one-of-set (day/night);
 - **default persistence**: object lifetime (the dominant pattern — free via
@@ -584,7 +594,7 @@ counters grant the keyword; stun replaces untap).
 **ManaSpec**: produced mana for AddMana and cost-side symbols — specific
 symbols, "one mana of any color", "of any one color" (different!), "any
 type" (incl. colorless), conversion riders, and **restricted mana** ("spend
-this mana only on…" — a rider the mana object carries; [CR#106.6]-ish).
+this mana only on…" — a rider the mana object carries; [CR#106.6]).
 Treasure's `AddMana(1, AnyColor)` already wants this kind.
 
 **TokenSpec / Characteristics**: the payload of create ([CR#701.7a]: number +
@@ -596,6 +606,16 @@ is this), "token copy of [reference] except…" ([CR#707.2] copiable values +
 exception list), and entering-state riders ("tapped and attacking").
 Corpus: "create … token" 3,232 lines (5.5%); Treasure 321, Food 138, Blood
 56, Clue 27, Map 12.
+
+**EmblemSpec**: "[player] gets an emblem with [ability]" ([CR#114.2]) — a
+command-zone object whose characteristics are *only* the granted abilities:
+no name, types, mana cost, or color ([CR#114.3]); owned and controlled by
+the player who gets it ([CR#114.2]); abilities function from the command
+zone ([CR#114.4]); neither a card nor a permanent ([CR#114.5]), so it never
+intersects Filter's battlefield atoms. Corpus: 79 "an emblem with" lines
+(planeswalker ultimates), plus The Ring ([CR#701.54c]). Structurally a
+degenerate TokenSpec — characteristics = [Ability] — but it never touches
+the battlefield, so it earns its own kind.
 
 **Mode / Choice**: modal blocks — "Choose one —" 433, choose two 44, "one
 or both" 46, "up to" 29, "any number" 15; bullets 1,640 lines; repeatable
@@ -625,30 +645,71 @@ What the current `Ability` enum grows into, slot-wise ([CR#113.3]):
 | Variant | Slots |
 |---|---|
 | Spell | effect: Effect (+ targets declared by the Effect's binders) |
-| Activated | cost: Cost, effect: Effect, restrictions: [ActivationRestriction], flags: mana-ability ([CR#605.1a]), loyalty (606) |
+| Activated | cost: Cost, effect: Effect, restrictions: [ActivationRestriction], flags: mana-ability ([CR#605.1a]), loyalty ([CR#606]) |
 | Triggered | event: Event, condition: Option<Condition> (intervening if), effect: Effect, limits (once-each-turn), flags: mana-ability ([CR#605.1b]), delayed?, reflexive? |
 | Static | continuous: [ContinuousEffect] \| Replacement \| Prevention \| CastModifier \| Requirement, condition: Option<Condition>, flags: CDA ([CR#604.3]), functions-in-zones ([CR#113.6] exceptions) |
 | Keyword | already modeled: name + expansion (`Expanded<Ability>`) — the macro layer (keyword abilities are shorthand, [CR#702.1], not a fifth [CR#113.3] category) |
 
 Cross-cutting flags the CR forces: where the ability functions ([CR#113.6a..113.6p]:
 graveyard-only like unearth, hand-only like cycling, stack, command,
-"as … enters"), linked-ability pairing (607 — likely an index/key shared
+"as … enters"), linked-ability pairing ([CR#607] — likely an index/key shared
 between two abilities on a face), and granted-vs-printed provenance
 ([CR#113.10]).
 
-**Keyword classification** (from the [CR#702] sweep of ~191 keywords): the
-overwhelming majority are **pure macro sugar** expanding to the kinds above
-— all "[cost]: effect" activated keywords (equip, cycling, ninjutsu, crew…),
-all templated trigger keywords (annihilator N, prowess, afterlife N…), all
-cast-modifier keywords (flashback, kicker, convoke, affinity…), all
-enters-with/as-enters keywords (riot, devour N, fabricate N…). A short list
-needs **first-class engine support** and can't be expanded away: protection
-(five sub-effects parameterized by one Quality, [CR#702.16b..702.16f]), ward
-(counter-unless-pays, [CR#702.21]), hexproof/shroud (targeting legality),
-evasion + menace/skulk-style block-legality predicates, the combat-damage
-primitives (first/double strike [CR#510.4], trample, deathtouch, banding),
-damage-result modifiers (lifelink, wither, infect, absorb), indestructible,
-phasing, and the designation system (§8). Keyword *parameters* observed:
+**Keyword classification** — the full 260-row derivation (192 abilities +
+68 actions, each classified by what an engine must build) lives in the
+mtg-rules skill's `keyword-classification.md` + `keywords-classified.json`.
+Rubric: decompose to statics + triggers + replacements +
+permissions/restrictions + action-sequences before declaring anything
+intrinsic. Four classes:
+
+- **Intrinsic (8 abilities, 16 actions)** — needs a native opcode; changes
+  *prospective* machinery no composition reproduces. The abilities:
+  first/double strike (combat-damage step structure, [CR#702.7,702.4,510.1]),
+  trample and deathtouch (assignment-time legality and lethality,
+  [CR#702.19b,702.2c,510.1c], plus deathtouch's SBA [CR#704.5h]), banding
+  (locked band state plus a damage-assignment-decider flip,
+  [CR#702.22c,702.22e,702.22j..702.22k]), phasing (untap-step edit + the
+  treated-as-nonexistent status, [CR#702.26b..702.26e,703.4a]), mutate
+  (merged permanents, [CR#702.140,730] — one object represented by several
+  cards, as with meld), and companion (functions outside the game with its
+  own special action, [CR#702.139a,116.2g]). The 16 intrinsic actions are
+  the event basis other rules hang machinery on — cast, play, activate,
+  counter, create, destroy, sacrifice, discard, exile, search, shuffle,
+  reveal, tap, untap, transform, convert (§5's primitive cut).
+- **Composite-given(P) (23)** — decomposes iff one of six named primitives
+  exists; until then each would demand its own opcode: vigilance = a
+  null-replacement on "tapped because declared as an attacker" given
+  *cause-tagged events* ([CR#702.20b,508.1f]); lifelink/wither/infect/toxic
+  given a *damage-result-rewrite* stage ([CR#120.3b..120.3g]);
+  daybound/nightbound and the speed keywords given a *progress track*
+  ([CR#702.145,702.179]); attach given the *attachment relation*
+  ([CR#701.3a..701.3c]); delve/convoke/improvise/assist/waterbend given a
+  *cost-modification hook* ([CR#601.2f..601.2h] — neither additional nor
+  alternative cost, [CR#702.51b]); the morph/manifest/foretell family given
+  *face-down objects* ([CR#708]).
+- **Composite (212)** — macro sugar over the kinds above, including
+  everything this doc once called first-class besides the true intrinsics:
+  flying and all evasion/menace/skulk (block-legality Restrictions,
+  [CR#702.9b]), hexproof/shroud (targeting Restrictions, [CR#702.11,702.18]),
+  protection (a Quality-parameterized bundle of restrictions + prevention,
+  [CR#702.16b..702.16f]), ward (a triggered toll: counter-unless-pays,
+  [CR#702.21a]), absorb (a prevention shield, [CR#702.64a] — *not* a
+  result rewrite), haste (lifts the summoning-sickness limits,
+  [CR#702.10,302.6]; spelling open — `Permission` grant vs an unset-flag
+  form), indestructible (a "can't be destroyed" static, [CR#614.17]
+  semantics, consulted by the engine-owned destroy verb and damage SBAs,
+  [CR#702.12a..702.12b,701.8b,704.5g..704.5h]), and all the
+  activated/trigger/cast-modifier/enters-with templates (equip, cycling,
+  prowess, flashback, riot, …).
+- **Marker (1)** — reach: no function of its own; only flying's blocking
+  predicate gives it meaning ([CR#702.17b,702.9b]).
+
+Engine status: the `KeywordAbility` enum natively implements the four
+combat intrinsics plus three pragmatic natives — vigilance and lifelink
+(composite-given, pending their primitives) and flying (composite) — woven
+into the combat code; the designation system (§8) remains engine machinery
+alongside the intrinsics. Keyword *parameters* observed:
 none, N, Cost, "N—[cost]", Quality/Filter, CardName (partner with), subtype,
 enumerated label (gift); keyword names are an open set (the corpus residual
 is full of set-specific Warp {2}{R}, Firebending 1, Exhaust, Station —
@@ -681,6 +742,7 @@ today.
 | **CounterKind** | open vocabulary, declared | `PlusOnePlusOne`, keyword counters |
 | **Designation** | open vocabulary, declared, §8 | `Monstrous`, `Goaded`, `TheMonarch` |
 | **TokenSpec** | characteristics / predefined / copy-except | `Treasure` ✓ (tokens dir), `Walker` |
+| **EmblemSpec** | abilities-only command-zone object ([CR#114]) | — (planeswalker ultimates, The Ring) |
 | **ManaSpec** | produced mana | `AnyColor` (Treasure.ron writes this) |
 | **Mode/Choice** | modal machinery | — |
 | **CastModifier** | alt/additional costs, permissions, reductions | `Flashback(cost)`, `Affinity(Filter)` |
@@ -709,7 +771,7 @@ By line coverage, the build order that pays off fastest:
    spell one-shots (12.4%) and trigger/activated bodies.
 5. **ContinuousEffect + Duration** — statics (~13%) and the until-EOT 9%.
 6. **Replacement/Prevention, Mode, CastModifier** — the long middle tail.
-7. **Designation, CounterKind, TokenSpec, ManaSpec, Zone** — small closed/
+7. **Designation, CounterKind, TokenSpec, EmblemSpec, ManaSpec, Zone** — small closed/
    open vocabularies; cheap to define early, needed by everything above;
    designation and counter declarations should land with the macro-
    declaration mechanism.
