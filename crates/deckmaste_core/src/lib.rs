@@ -55,6 +55,7 @@ pub use designation::DesignationUniqueness;
 
 mod deontic;
 pub use deontic::CastWindow;
+pub use deontic::CountBound;
 pub use deontic::Deontic;
 pub use deontic::DeonticAction;
 

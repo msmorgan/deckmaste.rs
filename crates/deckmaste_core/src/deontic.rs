@@ -6,7 +6,6 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::Cmp;
 use crate::CostComponent;
 use crate::Count;
 use crate::Expand;
@@ -21,6 +20,20 @@ use crate::Zone;
 pub enum CastWindow {
     /// Any time you could cast an instant (flash, [CR#702.8a]).
     InstantSpeed,
+}
+
+/// A cardinality bound on a matched set — comparator-headed so it reads as
+/// prose (`Less(Literal(2))` = "fewer than two"). A set-level predicate,
+/// deliberately NOT a `Filter` atom: filters judge one object at a time,
+/// bounds judge the arrangement ([CR#702.111b] menace; deontics set-level
+/// evaluation).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+pub enum CountBound {
+    Eq(Count),
+    AtLeast(Count),
+    AtMost(Count),
+    Greater(Count),
+    Less(Count),
 }
 
 /// A proposed-action pattern — the typed verb the deontic polarities range
@@ -53,7 +66,7 @@ pub enum DeonticAction {
         #[serde(default = "Filter::any")]
         on: Filter,
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        count: Option<(Cmp, Count)>,
+        count: Option<CountBound>,
     },
     /// `by` (a spell/ability source) targets `on` ([CR#115.1,601.2c]).
     Target {
@@ -142,11 +155,11 @@ mod tests {
     #[test]
     fn block_count_bound_reads() {
         assert_eq!(
-            read("Cant(Block(on: Is(This), count: (Less, Literal(2))))"),
+            read("Cant(Block(on: Is(This), count: Less(Literal(2))))"),
             Deontic::Cant(DeonticAction::Block {
                 by: Filter::Any,
                 on: Filter::Is(Reference::This),
-                count: Some((Cmp::Less, Count::Literal(2))),
+                count: Some(CountBound::Less(Count::Literal(2))),
             }),
         );
     }
@@ -210,7 +223,7 @@ mod tests {
     fn deontic_round_trips() {
         let cases = [
             "Cant(Attack(by: Is(This)))",
-            "Cant(Block(on: Is(This), count: (Less, Literal(2))))",
+            "Cant(Block(on: Is(This), count: Less(Literal(2))))",
             "May(Cast(what: Is(This), window: InstantSpeed))",
             "MayIf(Attack(on: Is(You)), [Tap])",
         ];
