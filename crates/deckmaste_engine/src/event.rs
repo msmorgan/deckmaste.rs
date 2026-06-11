@@ -1,5 +1,6 @@
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::Phase;
+use deckmaste_core::Token;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 
@@ -66,6 +67,17 @@ pub enum GameEvent {
     Sacrificed {
         player: PlayerId,
         object: ObjectId,
+    },
+    /// [CR#701.7a,111.2]: `player` creates one token with the characteristics
+    /// `token` specifies. Its apply synthesizes a token entry in the card
+    /// table (owner = creator), mints the object straight onto the battlefield
+    /// (controller = creator), folds `AsEnters` self-replacements, and emits
+    /// the `ZoneChanged { from: None, to: Battlefield }` fact so enter-triggers
+    /// fire. Creating N tokens is a `Batch` of N of these (one instruction,
+    /// simultaneous). "Whenever you create a token" triggers match here.
+    TokenCreated {
+        player: PlayerId,
+        token: Token,
     },
     PlayerLost {
         player: PlayerId,
