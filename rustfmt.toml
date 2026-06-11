@@ -14,8 +14,10 @@ use_try_shorthand = true
 
 # --- nightly-only: applied by `cargo +nightly fmt`, warned-and-ignored on
 # --- stable ---------------------------------------------------------------
-# Import hygiene: one `use` tree per module, grouped std / external / crate.
-imports_granularity = "Module"
+# Import hygiene: one fully-pathed `use` per item (Java-style), grouped
+# std / external / crate. Item granularity keeps every import on its own
+# line so concurrent add/remove edits merge instead of conflicting.
+imports_granularity = "Item"
 group_imports = "StdExternalCrate"
 # One-line bodies for single-expression fns.
 fn_single_line = true
