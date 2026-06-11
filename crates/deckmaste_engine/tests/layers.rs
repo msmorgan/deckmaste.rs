@@ -197,6 +197,39 @@ fn static_grants_keyword() {
     );
 }
 
+/// [CR#611.3a,613.8a]: a self-referential layer-6 grant — "creatures with
+/// trample have trample" — applies exactly once. The affected set is whatever
+/// has trample when the effect applies, so the grant can't feed itself: no
+/// fixpoint loop, trample-less creatures stay out of the set, and a printed
+/// trampler ends up with a redundant ([CR#702.19g]) second instance.
+#[test]
+fn self_referential_grant_applies_once() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::KeywordAbility;
+    use deckmaste_engine::has_keyword;
+
+    let mut state = game_with_p0_cards(&["Trample tautology", "Fangren Hunter"], 1);
+    let trampler = force_onto_battlefield(&mut state, PlayerId(0), "Fangren Hunter");
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    let _tautology = force_onto_battlefield(&mut state, PlayerId(0), "Trample tautology");
+
+    let view = state.layers();
+    let instances = view
+        .get(trampler)
+        .abilities
+        .iter()
+        .filter(|a| matches!(a, Ability::Keyword(KeywordAbility::Trample)))
+        .count();
+    assert_eq!(
+        instances, 2,
+        "printed trample + the granted (redundant, [CR#702.19g]) one"
+    );
+    assert!(
+        !has_keyword(&view, bear, &KeywordAbility::Trample),
+        "a creature without trample is never in the affected set ([CR#611.3a])"
+    );
+}
+
 /// [CR#613.1f]: Humility's "creatures lose all abilities" blanks a printed
 /// keyword.
 #[test]

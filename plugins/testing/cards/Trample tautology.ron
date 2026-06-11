@@ -1,0 +1,18 @@
+// Static: creatures with trample have trample — a deliberately tautological
+// layer-6 grant ([CR#613.1f]). The affected set is whatever has trample when
+// the effect applies ([CR#611.3a]), so it neither loops nor catches
+// trample-less creatures; tramplers carry a redundant second instance
+// ([CR#702.19g]).
+Normal(
+    name: "Trample tautology",
+    mana_cost: [Generic(1), Green],
+    types: [Enchantment],
+    abilities: [
+        Static(effects: [
+            Modify(
+                of: Matching(AllOf([Creature, HasAbility("Trample")])),
+                changes: [GainAbility(Keyword(Trample))],
+            ),
+        ]),
+    ],
+)

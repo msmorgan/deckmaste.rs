@@ -6,7 +6,7 @@ Normal(
     types: [Enchantment],
     abilities: [
         Static(effects: [
-            Modify(of: Matching(Type(Creature)), changes: [SetColors([Black])]),
+            Modify(of: Matching(Creature), changes: [SetColors([Black])]),
         ]),
     ],
 )
