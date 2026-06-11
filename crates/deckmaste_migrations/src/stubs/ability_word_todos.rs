@@ -1,4 +1,4 @@
-use super::keyword_todos::create_keyword_todos;
+use crate::stubs::keyword_todos::create_keyword_todos;
 
 /// The rule that introduces ability words and lists them all; ability words
 /// have no individual entries in the CR.

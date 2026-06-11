@@ -1,7 +1,7 @@
-use super::keyword_todos::create_keyword_todos;
 use crate::data::academyruins::Keywords;
 use crate::data::academyruins::Rule;
 use crate::data::academyruins::RulesMap;
+use crate::stubs::keyword_todos::create_keyword_todos;
 
 pub(super) fn generate(plugin: &super::PluginLayout) -> anyhow::Result<()> {
     let keywords_bytes = crate::data::academyruins::keywords_bytes()?;
