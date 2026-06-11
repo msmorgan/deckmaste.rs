@@ -133,7 +133,7 @@ pub enum Ability {
     Activated(ActivatedAbility),
     Triggered(TriggeredAbility),
     Spell(SpellAbility),
-    /// One of the six intrinsic combat keywords the engine reasons about
+    /// One of the seven native keywords the engine reasons about
     /// directly ([CR#702]) — `Keyword(Trample)`. A **known** variant, so the
     /// derive accepts it as itself and the macro reader does NOT route it to
     /// `Expanded` (its name is in the derive's variant list). The other

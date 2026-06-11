@@ -11,8 +11,8 @@ edge cases) is `card-data.md`.
 
 Already in place, for orientation: the full turn/priority/stack loop, casting
 with mana payment and targets, zone-change pipeline with LKI, core combat with
-seven intrinsic keywords (flying, first strike, double strike, deathtouch,
-trample, vigilance, lifelink), layers 4–7 with timestamps and CDAs, zone-move /
+seven native keywords (the true intrinsics first/double strike, deathtouch,
+trample, plus flying, vigilance, lifelink), layers 4–7 with timestamps and CDAs, zone-move /
 step / attacking triggers, a handful of SBAs, the core grammar on a combined
 `SupportsMacros` derive, and an extract→resolve→graduate card pipeline with
 mana/keyword/spell/triggered parsers.

@@ -5,10 +5,11 @@
 //! (`Islandwalk`, `Ward`, `Mountaincycling`) that expands to its underlying
 //! keyword ability, so the on-card name *is* the invocation.
 //!
-//! The exception is the seven INTRINSIC keywords the grammar carries as
+//! The exception is the seven NATIVE keywords the grammar carries as
 //! `KeywordAbility` variants ([CR#702]): those render wrapped —
 //! `Keyword(Deathtouch)` — because the variant name IS the printed name and
-//! the engine implements them natively; no macro will ever exist for them.
+//! the engine implements them natively; while they stay enum variants, no
+//! macro exists for them.
 
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
@@ -224,9 +225,9 @@ const KEYWORD_NAMES: &[&str] = &[
     "Offspring",
 ];
 
-/// The intrinsic `KeywordAbility` variants (their rust-ident spellings) —
+/// The native `KeywordAbility` variants (their rust-ident spellings) —
 /// kept in sync with `deckmaste_core::KeywordAbility::ALL`. All nullary.
-const INTRINSIC_KEYWORDS: &[&str] = &[
+const NATIVE_KEYWORDS: &[&str] = &[
     "FirstStrike",
     "DoubleStrike",
     "Deathtouch",
@@ -236,7 +237,7 @@ const INTRINSIC_KEYWORDS: &[&str] = &[
     "Flying",
 ];
 
-/// One keyword token -> its invocation RON: wrapped for an intrinsic
+/// One keyword token -> its invocation RON: wrapped for a native variant
 /// (`Keyword(Flying)`), bare for a future printed-name macro
 /// (`Ward([Mana([Generic(2)])])`), or `None` (declines). The name-match +
 /// argument-shape logic.
@@ -250,7 +251,7 @@ fn bare_keyword(token: &str) -> anyhow::Result<Option<String>> {
         eprintln!("keyword_ability: unhandled keyword {name:?} (arg {arg:?})");
         return Ok(None);
     };
-    if INTRINSIC_KEYWORDS.contains(&invocation.as_str()) {
+    if NATIVE_KEYWORDS.contains(&invocation.as_str()) {
         return Ok(Some(format!("Keyword({invocation})")));
     }
     Ok(Some(invocation))
