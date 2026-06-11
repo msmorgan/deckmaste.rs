@@ -4,7 +4,8 @@ use std::ops::Deref;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use serde::{Deserialize, Deserializer};
+use serde::Deserialize;
+use serde::Deserializer;
 
 pub mod academyruins;
 pub mod mtgjson;

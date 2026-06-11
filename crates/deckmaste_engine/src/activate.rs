@@ -4,15 +4,21 @@
 //! never come here: they are stackless ([CR#605.3b]) and keep their fast
 //! path.
 
-use deckmaste_core::{
-    Ability, ActivatedAbility, CostComponent, ManaCost, ManaSymbol, Type, UseLimit, Zone,
-};
+use deckmaste_core::Ability;
+use deckmaste_core::ActivatedAbility;
+use deckmaste_core::CostComponent;
+use deckmaste_core::ManaCost;
+use deckmaste_core::ManaSymbol;
+use deckmaste_core::Type;
+use deckmaste_core::UseLimit;
+use deckmaste_core::Zone;
 
 use crate::cast::can_pay;
 use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::player::PlayerId;
-use crate::stack::{PendingStackEntry, StackObject};
+use crate::stack::PendingStackEntry;
+use crate::stack::StackObject;
 use crate::state::GameState;
 use crate::trigger::TriggerBindings;
 
@@ -194,15 +200,29 @@ impl GameState {
 
 #[cfg(test)]
 mod tests {
-    use deckmaste_core::{
-        Ability, Action, ActivatedAbility, Condition, CostComponent, Effect, ManaCost, ManaSymbol,
-        PlayerAction, Reference, Selection, SimpleManaSymbol, UseLimit, Zone,
-    };
+    use deckmaste_core::Ability;
+    use deckmaste_core::Action;
+    use deckmaste_core::ActivatedAbility;
+    use deckmaste_core::Condition;
+    use deckmaste_core::CostComponent;
+    use deckmaste_core::Effect;
+    use deckmaste_core::ManaCost;
+    use deckmaste_core::ManaSymbol;
+    use deckmaste_core::PlayerAction;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Selection;
+    use deckmaste_core::SimpleManaSymbol;
+    use deckmaste_core::UseLimit;
+    use deckmaste_core::Zone;
 
     use super::*;
-    use crate::object::{ObjectId, ObjectSource};
+    use crate::object::ObjectId;
+    use crate::object::ObjectSource;
     use crate::player::PlayerId;
-    use crate::state::{GameConfig, GameState, PlayerConfig, StartingPlayer};
+    use crate::state::GameConfig;
+    use crate::state::GameState;
+    use crate::state::PlayerConfig;
+    use crate::state::StartingPlayer;
 
     fn game() -> GameState {
         GameState::new(GameConfig {
@@ -244,7 +264,9 @@ mod tests {
 
     #[test]
     fn as_activated_looks_through_expanded() {
-        use deckmaste_core::{Expansion, ExpansionArgs, Ident};
+        use deckmaste_core::Expansion;
+        use deckmaste_core::ExpansionArgs;
+        use deckmaste_core::Ident;
         let act = activated(vec![], noop_effect());
         let expanded = Ability::Expanded(Expansion {
             name: Ident::new("Foo"),
@@ -310,7 +332,8 @@ mod tests {
 
     #[test]
     fn cost_summary_sees_untap_through_expanded() {
-        use deckmaste_core::{Expansion, ExpansionArgs};
+        use deckmaste_core::Expansion;
+        use deckmaste_core::ExpansionArgs;
         let cost = vec![CostComponent::Expanded(Expansion {
             name: "Q".into(),
             args: ExpansionArgs::none(),

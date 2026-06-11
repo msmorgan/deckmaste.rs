@@ -1,8 +1,11 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 
-use deckmaste_core::plugin::{
-    ABILITY_WORDS_DIR, CARDS_DIR, KEYWORD_ABILITIES_DIR, KEYWORD_ACTIONS_DIR, MACROS_DIR,
-};
+use deckmaste_core::plugin::ABILITY_WORDS_DIR;
+use deckmaste_core::plugin::CARDS_DIR;
+use deckmaste_core::plugin::KEYWORD_ABILITIES_DIR;
+use deckmaste_core::plugin::KEYWORD_ACTIONS_DIR;
+use deckmaste_core::plugin::MACROS_DIR;
 
 pub struct PluginLayout(PathBuf);
 

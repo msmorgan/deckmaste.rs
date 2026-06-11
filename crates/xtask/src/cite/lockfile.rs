@@ -4,7 +4,8 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use anyhow::Context;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Lockfile {

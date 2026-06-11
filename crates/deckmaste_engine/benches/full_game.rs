@@ -12,9 +12,13 @@ use std::hint::black_box;
 use std::path::Path;
 use std::sync::Arc;
 
-use criterion::{Criterion, Throughput, criterion_group, criterion_main};
+use criterion::Criterion;
+use criterion::Throughput;
+use criterion::criterion_group;
+use criterion::criterion_main;
 use deckmaste_cards::plugin::Plugin;
-use deckmaste_engine::sim::{self, DeckCards};
+use deckmaste_engine::sim::DeckCards;
+use deckmaste_engine::sim::{self};
 
 fn matchup() -> DeckCards {
     let canon = Plugin::load_with_sibling_prelude(

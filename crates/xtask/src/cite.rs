@@ -2,14 +2,19 @@
 
 use std::path::PathBuf;
 
-use clap::{Args, Subcommand};
+use clap::Args;
+use clap::Subcommand;
 
 pub mod citations;
 pub mod cr;
 pub mod legacy;
 pub mod lockfile;
 
-use crate::cite::citations::{Site, members, parse_refs, scan_text, strip_citation_wrapper};
+use crate::cite::citations::Site;
+use crate::cite::citations::members;
+use crate::cite::citations::parse_refs;
+use crate::cite::citations::scan_text;
+use crate::cite::citations::strip_citation_wrapper;
 use crate::cite::cr::Rules;
 use crate::cite::lockfile::Lockfile;
 

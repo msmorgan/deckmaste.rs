@@ -1,7 +1,13 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
+use crate::Color;
+use crate::Expand;
+use crate::ManaCost;
+use crate::Subtype;
+use crate::Supertype;
+use crate::Type;
 use crate::ability::Ability;
-use crate::{Color, Expand, ManaCost, Subtype, Supertype, Type};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize, Expand)]
 pub struct CardFace {

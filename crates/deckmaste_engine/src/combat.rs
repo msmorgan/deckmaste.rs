@@ -8,9 +8,11 @@
 //! its blockers as its controller chooses at assignment time ([CR#510.1c]), so
 //! `blockers` is an unordered grouping, not a player-set order.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
-use deckmaste_core::{Ability, KeywordAbility};
+use deckmaste_core::Ability;
+use deckmaste_core::KeywordAbility;
 
 use crate::layer::LayeredView;
 use crate::object::ObjectId;

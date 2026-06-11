@@ -11,10 +11,14 @@ use std::collections::HashMap;
 use std::fmt;
 
 use serde::Deserialize;
-use serde::de::{Deserializer, EnumAccess, VariantAccess, Visitor};
+use serde::de::Deserializer;
+use serde::de::EnumAccess;
+use serde::de::VariantAccess;
+use serde::de::Visitor;
 
+use crate::Ident;
+use crate::IdentSeed;
 use crate::set::MacroSet;
-use crate::{Ident, IdentSeed};
 
 /// The declared type of one macro parameter: a type *name*, resolved against
 /// the [`ParamTypeSet`] in scope. Written as a bare identifier in definition

@@ -2,9 +2,11 @@
 //! object captured at a zone change, so triggers and effects can read it after
 //! the object itself is gone. The engine never retains dead objects.
 
-use deckmaste_core::{Uint, Zone};
+use deckmaste_core::Uint;
+use deckmaste_core::Zone;
 
-use crate::object::{ObjectId, ObjectSource};
+use crate::object::ObjectId;
+use crate::object::ObjectSource;
 use crate::player::PlayerId;
 use crate::state::GameState;
 

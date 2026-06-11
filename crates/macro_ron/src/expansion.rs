@@ -12,8 +12,11 @@
 //! with differently-spelled-but-equivalent arguments are unequal. Two files
 //! that round-trip to the same text compare equal; that is the contract.
 
-use serde::ser::{SerializeStructVariant, SerializeTupleVariant};
-use serde::{Deserialize, Serialize, Serializer};
+use serde::Deserialize;
+use serde::Serialize;
+use serde::Serializer;
+use serde::ser::SerializeStructVariant;
+use serde::ser::SerializeTupleVariant;
 
 use crate::Ident;
 

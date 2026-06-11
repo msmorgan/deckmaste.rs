@@ -1,21 +1,33 @@
 //! The steppable core: `step()` pops one agenda item and returns one
 //! `Progress`. Decisions surface on the following call; the runner loops.
 
-use deckmaste_core::{
-    BeginningStep, ColorOrColorless, CombatStep, EndingStep, KeywordAbility, Phase, Uint, Zone,
-};
+use deckmaste_core::BeginningStep;
+use deckmaste_core::ColorOrColorless;
+use deckmaste_core::CombatStep;
+use deckmaste_core::EndingStep;
+use deckmaste_core::KeywordAbility;
+use deckmaste_core::Phase;
+use deckmaste_core::Uint;
+use deckmaste_core::Zone;
 
 use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
-use crate::event::{GameEvent, Occurrence};
-use crate::legal::{legal_actions, legal_attackers, legal_blockers};
-use crate::object::{ObjectId, ObjectSource};
+use crate::event::GameEvent;
+use crate::event::Occurrence;
+use crate::legal::legal_actions;
+use crate::legal::legal_attackers;
+use crate::legal::legal_blockers;
+use crate::object::ObjectId;
+use crate::object::ObjectSource;
 use crate::player::PlayerId;
 use crate::sba;
-use crate::stack::{StackEntry, StackObject};
-use crate::state::{GameOutcome, GameState};
+use crate::stack::StackEntry;
+use crate::stack::StackObject;
+use crate::state::GameOutcome;
+use crate::state::GameState;
 use crate::tally::Tally;
-use crate::turn::{PriorityRound, successor};
+use crate::turn::PriorityRound;
+use crate::turn::successor;
 
 /// What one `step()` call produced.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1,9 +1,11 @@
 //! Extract and parse `[CR#…]` citations from source files.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 use std::process::Command;
 
-use anyhow::{Context, bail};
+use anyhow::Context;
+use anyhow::bail;
 
 use crate::cite::cr::Rules;
 

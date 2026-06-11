@@ -3,14 +3,25 @@
 //! remembering enum kinds (`Ability`, `Effect`, `Filter`), and a
 //! literal-sugar kind (`Quantity`).
 
-use serde::de::{EnumAccess, VariantAccess};
-use serde::ser::{SerializeStructVariant, Serializer};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
+use serde::de::EnumAccess;
+use serde::de::VariantAccess;
+use serde::ser::SerializeStructVariant;
+use serde::ser::Serializer;
 
-use crate::{
-    Expansion, ExpansionArgs, Ident, IdentSeed, InsertError, Kind, KindSet, MacroDef, MacroSet,
-    ParamType, ParamTypeSet, Params,
-};
+use crate::Expansion;
+use crate::ExpansionArgs;
+use crate::Ident;
+use crate::IdentSeed;
+use crate::InsertError;
+use crate::Kind;
+use crate::KindSet;
+use crate::MacroDef;
+use crate::MacroSet;
+use crate::ParamType;
+use crate::ParamTypeSet;
+use crate::Params;
 
 /// The deckmaste dialect, for parity with the real consumer: the intercept
 /// layer has to coexist with `implicit_some` and `unwrap_variant_newtypes`
@@ -1308,9 +1319,14 @@ fn embed_host_own_macro_remembered_as_host_expanded() {
 
 #[cfg(feature = "derive")]
 mod derived {
-    use crate::{
-        Expand, Expansion, KindSet, MacroDef, MacroSet, ParamType, Params, SupportsMacros,
-    };
+    use crate::Expand;
+    use crate::Expansion;
+    use crate::KindSet;
+    use crate::MacroDef;
+    use crate::MacroSet;
+    use crate::ParamType;
+    use crate::Params;
+    use crate::SupportsMacros;
 
     /// P1 fixture: unit, newtype, 2-tuple, literal, expanded.
     #[derive(Debug, Clone, PartialEq, crate::SupportsMacros)]
@@ -1758,7 +1774,8 @@ fn positional_meta_macros_are_rejected_at_insert() {
 }
 
 mod support_runtime {
-    use crate::{Expand, concat_variants};
+    use crate::Expand;
+    use crate::concat_variants;
 
     #[test]
     fn concat_variants_concatenates_in_order() {

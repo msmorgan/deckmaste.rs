@@ -6,10 +6,16 @@ use std::path::Path;
 use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
-use deckmaste_core::{Card, Color, Zone};
-use deckmaste_engine::{
-    GameConfig, GameState, ObjectId, PlayerConfig, PlayerId, StartingPlayer, legal_attackers,
-};
+use deckmaste_core::Card;
+use deckmaste_core::Color;
+use deckmaste_core::Zone;
+use deckmaste_engine::GameConfig;
+use deckmaste_engine::GameState;
+use deckmaste_engine::ObjectId;
+use deckmaste_engine::PlayerConfig;
+use deckmaste_engine::PlayerId;
+use deckmaste_engine::StartingPlayer;
+use deckmaste_engine::legal_attackers;
 
 fn plugin(name: &str) -> Plugin {
     Plugin::load_with_sibling_prelude(
@@ -144,8 +150,12 @@ fn base_set_applies_before_modify() {
 /// creature, then wears off at Cleanup.
 #[test]
 fn one_shot_pump_expires_at_cleanup() {
-    use deckmaste_core::{Count, Duration, Modification};
-    use deckmaste_engine::{ContinuousEffect, ScopeResolved, Timestamp};
+    use deckmaste_core::Count;
+    use deckmaste_core::Duration;
+    use deckmaste_core::Modification;
+    use deckmaste_engine::ContinuousEffect;
+    use deckmaste_engine::ScopeResolved;
+    use deckmaste_engine::Timestamp;
 
     let mut state = two_player_with("Grizzly Bears", 1, 10);
     let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");

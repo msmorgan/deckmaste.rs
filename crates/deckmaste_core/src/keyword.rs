@@ -11,9 +11,12 @@
 use std::fmt;
 use std::str::FromStr;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
-use crate::{Ability, Expand, Ident};
+use crate::Ability;
+use crate::Expand;
+use crate::Ident;
 
 /// A keyword ability the engine treats as a first-class combat concept
 /// ([CR#702]). Carried by [`Ability::Keyword`](crate::Ability::Keyword).

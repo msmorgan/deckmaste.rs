@@ -1,4 +1,6 @@
-use crate::{Count, Expansion, SupportsMacros};
+use crate::Count;
+use crate::Expansion;
+use crate::SupportsMacros;
 
 /// A cardinality range over a scalar [`Count`]: how many objects an effect
 /// operates on, never a continuous magnitude (amounts use `Count` directly).

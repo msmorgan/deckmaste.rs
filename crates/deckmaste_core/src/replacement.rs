@@ -1,7 +1,15 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
+use crate::Count;
+use crate::Effect;
+use crate::Event;
+use crate::Expand;
+use crate::Expansion;
+use crate::Filter;
+use crate::Phase;
+use crate::SupportsMacros;
 use crate::continuous::Duration;
-use crate::{Count, Effect, Event, Expand, Expansion, Filter, Phase, SupportsMacros};
 
 /// A replacement effect: the CR's closed template list ([CR#614]).
 ///

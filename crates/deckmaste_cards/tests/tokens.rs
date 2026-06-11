@@ -7,11 +7,24 @@
 use std::path::Path;
 
 use deckmaste_cards::plugin::Plugin;
-use deckmaste_core::{
-    Ability, Action, ActivatedAbility, CostComponent, Count, Effect, Expansion, ExpansionArgs,
-    ManaCost, ManaSpec, ManaSymbol, PlayerAction, Reference, Selection, SimpleManaSymbol, Subtype,
-    Token, Type,
-};
+use deckmaste_core::Ability;
+use deckmaste_core::Action;
+use deckmaste_core::ActivatedAbility;
+use deckmaste_core::CostComponent;
+use deckmaste_core::Count;
+use deckmaste_core::Effect;
+use deckmaste_core::Expansion;
+use deckmaste_core::ExpansionArgs;
+use deckmaste_core::ManaCost;
+use deckmaste_core::ManaSpec;
+use deckmaste_core::ManaSymbol;
+use deckmaste_core::PlayerAction;
+use deckmaste_core::Reference;
+use deckmaste_core::Selection;
+use deckmaste_core::SimpleManaSymbol;
+use deckmaste_core::Subtype;
+use deckmaste_core::Token;
+use deckmaste_core::Type;
 
 /// `Effect::Act(By(You, pa))` — the implicit-you default a bare player verb in
 /// an effect slot reads as.

@@ -1,6 +1,11 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
-use crate::{Expand, Expansion, Filter, Reference, SupportsMacros};
+use crate::Expand;
+use crate::Expansion;
+use crate::Filter;
+use crate::Reference;
+use crate::SupportsMacros;
 
 /// A measurable characteristic of an object, read by `Count::StatOf`
 /// ([CR#109.3,208,209,210]). The open part (mana value, loyalty, defense) is

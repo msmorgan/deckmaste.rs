@@ -3,7 +3,8 @@
 use std::collections::HashMap;
 use std::hash::Hasher;
 
-use anyhow::{Context, bail};
+use anyhow::Context;
+use anyhow::bail;
 use regex::Regex;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

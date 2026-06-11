@@ -1,7 +1,10 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
+use crate::Condition;
+use crate::Filter;
+use crate::Ident;
 use crate::continuous::StaticEffect;
-use crate::{Condition, Filter, Ident};
 
 /// Where a designation attaches (taxonomy §8).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]

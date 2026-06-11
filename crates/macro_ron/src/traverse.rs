@@ -5,8 +5,10 @@
 //! for macro enums and `#[derive(Expand)]` for plain grammar types; this
 //! module supplies containers and leaves.
 
-use std::collections::{BTreeMap, HashMap};
-use std::hash::{BuildHasher, Hash};
+use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::hash::BuildHasher;
+use std::hash::Hash;
 
 use crate::Ident;
 

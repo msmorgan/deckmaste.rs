@@ -3,7 +3,8 @@
 //! carries (see that plugin's cards/README.md); engine tests take everything
 //! else from `plugins/canon` (covered by tests/canon.rs).
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 
 use deckmaste_cards::plugin::Plugin;
 

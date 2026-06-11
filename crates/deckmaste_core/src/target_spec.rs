@@ -1,4 +1,7 @@
-use crate::{Expansion, Filter, Quantity, SupportsMacros};
+use crate::Expansion;
+use crate::Filter;
+use crate::Quantity;
+use crate::SupportsMacros;
 
 /// One entry in an ability's announce list ([CR#601.2c,115]). A `TargetSpec`
 /// is the only place "target" lives: it binds `Reference::Target(n)` for the
@@ -26,7 +29,10 @@ pub enum TargetSpec {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{CharacteristicFilter, Count, Quantity, Type};
+    use crate::CharacteristicFilter;
+    use crate::Count;
+    use crate::Quantity;
+    use crate::Type;
 
     fn read(source: &str) -> TargetSpec { crate::ron::options().from_str(source).unwrap() }
 

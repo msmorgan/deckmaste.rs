@@ -1,9 +1,19 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
-use crate::{
-    Cmp, Color, Count, Expand, Expansion, Ident, Reference, Stat, Status, Supertype,
-    SupportsMacros, Type, Zone,
-};
+use crate::Cmp;
+use crate::Color;
+use crate::Count;
+use crate::Expand;
+use crate::Expansion;
+use crate::Ident;
+use crate::Reference;
+use crate::Stat;
+use crate::Status;
+use crate::Supertype;
+use crate::SupportsMacros;
+use crate::Type;
+use crate::Zone;
 
 /// What kind of object something is ([CR#109.1]). Players are objects here
 /// too — the engine gives players `ObjectId`s.
@@ -117,7 +127,9 @@ impl Filter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Supertype, Type, Zone};
+    use crate::Supertype;
+    use crate::Type;
+    use crate::Zone;
 
     fn read(source: &str) -> Filter { crate::ron::options().from_str(source).unwrap() }
 

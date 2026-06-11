@@ -8,18 +8,28 @@
 //! `scan_triggers` and `place_triggers` are the scheduling/agenda-touching
 //! functions.
 
-use deckmaste_core::{
-    Ability, CharacteristicFilter, Event, Filter, Reference, StateFilter, StateFilterEvent,
-    TargetSpec, Type, Uint, Zone,
-};
+use deckmaste_core::Ability;
+use deckmaste_core::CharacteristicFilter;
+use deckmaste_core::Event;
+use deckmaste_core::Filter;
+use deckmaste_core::Reference;
+use deckmaste_core::StateFilter;
+use deckmaste_core::StateFilterEvent;
+use deckmaste_core::TargetSpec;
+use deckmaste_core::Type;
+use deckmaste_core::Uint;
+use deckmaste_core::Zone;
 
 use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
-use crate::event::{GameEvent, Occurrence};
+use crate::event::GameEvent;
+use crate::event::Occurrence;
 use crate::lki::LkiSnapshot;
-use crate::object::{ObjectId, ObjectSource};
+use crate::object::ObjectId;
+use crate::object::ObjectSource;
 use crate::player::PlayerId;
-use crate::stack::{StackEntry, StackObject};
+use crate::stack::StackEntry;
+use crate::stack::StackObject;
 use crate::state::GameState;
 use crate::step::Progress;
 
@@ -530,13 +540,23 @@ mod tests {
     use std::sync::Arc;
 
     use deckmaste_cards::plugin::Plugin;
-    use deckmaste_core::{CharacteristicFilter, Condition, Event, Filter, Reference, Type, Zone};
+    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::Condition;
+    use deckmaste_core::Event;
+    use deckmaste_core::Filter;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Type;
+    use deckmaste_core::Zone;
 
     use crate::event::GameEvent;
     use crate::lki::LkiSnapshot;
-    use crate::object::{ObjectId, ObjectSource};
+    use crate::object::ObjectId;
+    use crate::object::ObjectSource;
     use crate::player::PlayerId;
-    use crate::state::{GameConfig, GameState, PlayerConfig, StartingPlayer};
+    use crate::state::GameConfig;
+    use crate::state::GameState;
+    use crate::state::PlayerConfig;
+    use crate::state::StartingPlayer;
     use crate::target::matches;
 
     fn builtin() -> Plugin {
@@ -1247,7 +1267,8 @@ mod tests {
     /// placement order (last placed resolves first).
     #[test]
     fn two_triggers_one_player_surface_order_triggers() {
-        use crate::decide::{Decision, PendingDecision};
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
 
         // Two dies-watchers under player 0 (non-targeting `LoseLife`).
         let (mut state, w0) = fixture_on_field("Moonlit Wake");

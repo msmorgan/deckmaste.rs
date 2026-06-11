@@ -10,7 +10,8 @@
 //! `Keyword(Deathtouch)` — because the variant name IS the printed name and
 //! the engine implements them natively; no macro will ever exist for them.
 
-use deckmaste_core::{ManaCost, ManaSymbol};
+use deckmaste_core::ManaCost;
+use deckmaste_core::ManaSymbol;
 
 use crate::ident::to_rust_ident;
 use crate::resolve::CardKind;

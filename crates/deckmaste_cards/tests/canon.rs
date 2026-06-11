@@ -3,13 +3,22 @@
 //! top of the builtin prelude they depend on. Run by plain `cargo test`;
 //! wizards is the explicit `cargo xtask validate plugins/wizards`.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 
 use deckmaste_cards::plugin::Plugin;
-use deckmaste_core::{
-    Ability, Action, Card, Count, Effect, Reference, Selection, SpellAbility, StatValue, Subtype,
-    TargetSpec, Type,
-};
+use deckmaste_core::Ability;
+use deckmaste_core::Action;
+use deckmaste_core::Card;
+use deckmaste_core::Count;
+use deckmaste_core::Effect;
+use deckmaste_core::Reference;
+use deckmaste_core::Selection;
+use deckmaste_core::SpellAbility;
+use deckmaste_core::StatValue;
+use deckmaste_core::Subtype;
+use deckmaste_core::TargetSpec;
+use deckmaste_core::Type;
 
 fn canon_path() -> PathBuf { Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon") }
 

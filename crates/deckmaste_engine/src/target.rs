@@ -1,9 +1,15 @@
 //! Targeting ([CR#115]): which objects a `Filter` admits. Stage 2 wires only
 //! the arms the corpus's `AnyTarget` reaches; the rest are `todo!`.
 
-use deckmaste_core::{CharacteristicFilter, Filter, ObjectKind, StateFilter, Type, Zone};
+use deckmaste_core::CharacteristicFilter;
+use deckmaste_core::Filter;
+use deckmaste_core::ObjectKind;
+use deckmaste_core::StateFilter;
+use deckmaste_core::Type;
+use deckmaste_core::Zone;
 
-use crate::object::{ObjectId, ObjectSource};
+use crate::object::ObjectId;
+use crate::object::ObjectSource;
 use crate::state::GameState;
 
 /// The object's kind ([CR#109.1]) as the corpus needs it: a player proxy is a
@@ -68,11 +74,16 @@ mod tests {
     use std::sync::Arc;
 
     use deckmaste_cards::plugin::Plugin;
-    use deckmaste_core::{Filter, TargetSpec, Zone};
+    use deckmaste_core::Filter;
+    use deckmaste_core::TargetSpec;
+    use deckmaste_core::Zone;
 
     use super::*;
     use crate::player::PlayerId;
-    use crate::state::{GameConfig, GameState, PlayerConfig, StartingPlayer};
+    use crate::state::GameConfig;
+    use crate::state::GameState;
+    use crate::state::PlayerConfig;
+    use crate::state::StartingPlayer;
 
     fn builtin() -> Plugin {
         Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()

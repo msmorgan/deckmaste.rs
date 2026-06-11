@@ -1,7 +1,11 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
+use crate::Condition;
+use crate::Effect;
+use crate::Expand;
+use crate::Phase;
 use crate::ability::Ability;
-use crate::{Condition, Effect, Expand, Phase};
 
 /// What bearing a subtype confers on objects that have it
 /// ([CR#305.6,714.3a,714.3c,714.4,704.5m]), typed by execution flavor so each

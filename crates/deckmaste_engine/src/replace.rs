@@ -3,10 +3,17 @@
 //! entering object's `EnterStatus`; other replacement kinds are Stage-4 seams
 //! (§7.2).
 
-use deckmaste_core::{
-    Ability, Action, Effect, Event, Filter, PlayerAction, Reference, Replacement, Selection,
-    StaticEffect, Zone,
-};
+use deckmaste_core::Ability;
+use deckmaste_core::Action;
+use deckmaste_core::Effect;
+use deckmaste_core::Event;
+use deckmaste_core::Filter;
+use deckmaste_core::PlayerAction;
+use deckmaste_core::Reference;
+use deckmaste_core::Replacement;
+use deckmaste_core::Selection;
+use deckmaste_core::StaticEffect;
+use deckmaste_core::Zone;
 
 use crate::event::EnterStatus;
 use crate::object::ObjectSource;

@@ -1,16 +1,32 @@
 //! Resolution ([CR#608]): dispatch a stack object, and walk its `Effect` AST as
 //! reified agenda work. Stage 3 wires the corpus's arms; the rest are `todo!`.
 
-use deckmaste_core::{
-    Ability, Action, Color, ColorOrColorless, Count, Effect, ManaSpec, PlayerAction, Reference,
-    Scope, Selection, StaticEffect, TargetSpec, Type, Uint, Zone,
-};
+use deckmaste_core::Ability;
+use deckmaste_core::Action;
+use deckmaste_core::Color;
+use deckmaste_core::ColorOrColorless;
+use deckmaste_core::Count;
+use deckmaste_core::Effect;
+use deckmaste_core::ManaSpec;
+use deckmaste_core::PlayerAction;
+use deckmaste_core::Reference;
+use deckmaste_core::Scope;
+use deckmaste_core::Selection;
+use deckmaste_core::StaticEffect;
+use deckmaste_core::TargetSpec;
+use deckmaste_core::Type;
+use deckmaste_core::Uint;
+use deckmaste_core::Zone;
 
 use crate::agenda::WorkItem;
-use crate::event::{GameEvent, Occurrence};
-use crate::layer::{ContinuousEffect, ScopeResolved};
+use crate::event::GameEvent;
+use crate::event::Occurrence;
+use crate::layer::ContinuousEffect;
+use crate::layer::ScopeResolved;
 use crate::object::ObjectId;
-use crate::stack::{Frame, StackEntry, StackObject};
+use crate::stack::Frame;
+use crate::stack::StackEntry;
+use crate::stack::StackObject;
 use crate::state::GameState;
 
 /// "Any color" ([CR#106.1b]): the five colors ([CR#105.1]) — a player asked to
@@ -641,19 +657,33 @@ mod tests {
     use std::sync::Arc;
 
     use deckmaste_cards::plugin::Plugin;
-    use deckmaste_core::{
-        Action, Card, CharacteristicFilter, Count, Effect, Filter, ObjectKind, PlayerAction,
-        Reference, Selection, StateFilter, Type, Zone,
-    };
+    use deckmaste_core::Action;
+    use deckmaste_core::Card;
+    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::Count;
+    use deckmaste_core::Effect;
+    use deckmaste_core::Filter;
+    use deckmaste_core::ObjectKind;
+    use deckmaste_core::PlayerAction;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Selection;
+    use deckmaste_core::StateFilter;
+    use deckmaste_core::Type;
+    use deckmaste_core::Zone;
 
     use crate::agenda::WorkItem;
-    use crate::event::{GameEvent, Occurrence};
+    use crate::event::GameEvent;
+    use crate::event::Occurrence;
     use crate::matches as obj_matches;
     use crate::object::ObjectId;
     use crate::player::PlayerId;
     use crate::stack::Frame;
-    use crate::state::{GameConfig, GameState, PlayerConfig, StartingPlayer};
-    use crate::step::{Progress, StepOutcome};
+    use crate::state::GameConfig;
+    use crate::state::GameState;
+    use crate::state::PlayerConfig;
+    use crate::state::StartingPlayer;
+    use crate::step::Progress;
+    use crate::step::StepOutcome;
 
     fn builtin() -> Plugin {
         Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
@@ -922,10 +952,16 @@ mod tests {
     /// `ScopeResolved::Floating` scope and the right duration/changes.
     #[test]
     fn continuously_matching_registers_floating_scope() {
-        use deckmaste_core::{
-            CharacteristicFilter, ContinuouslyEffect, Count, Duration, Effect, Filter,
-            Modification, Scope, StaticEffect, Type,
-        };
+        use deckmaste_core::CharacteristicFilter;
+        use deckmaste_core::ContinuouslyEffect;
+        use deckmaste_core::Count;
+        use deckmaste_core::Duration;
+        use deckmaste_core::Effect;
+        use deckmaste_core::Filter;
+        use deckmaste_core::Modification;
+        use deckmaste_core::Scope;
+        use deckmaste_core::StaticEffect;
+        use deckmaste_core::Type;
 
         let (mut state, src) = bear_on_field();
         let frame = Frame {
@@ -962,10 +998,14 @@ mod tests {
     /// the id at creation — `ScopeResolved::Locked(vec![src])`.
     #[test]
     fn continuously_of_this_registers_locked_scope() {
-        use deckmaste_core::{
-            ContinuouslyEffect, Count, Duration, Effect, Modification, Reference, Scope,
-            StaticEffect,
-        };
+        use deckmaste_core::ContinuouslyEffect;
+        use deckmaste_core::Count;
+        use deckmaste_core::Duration;
+        use deckmaste_core::Effect;
+        use deckmaste_core::Modification;
+        use deckmaste_core::Reference;
+        use deckmaste_core::Scope;
+        use deckmaste_core::StaticEffect;
 
         let (mut state, src) = bear_on_field();
         let frame = Frame {
@@ -1202,9 +1242,12 @@ mod tests {
     /// — colorless is not a color ([CR#105.4]) and is rejected.
     #[test]
     fn add_mana_specific_and_any_color() {
-        use deckmaste_core::{Color, ColorOrColorless, ManaSpec};
+        use deckmaste_core::Color;
+        use deckmaste_core::ColorOrColorless;
+        use deckmaste_core::ManaSpec;
 
-        use crate::decide::{Decision, PendingDecision};
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
         use crate::step::StepOutcome;
 
         let (mut state, src) = bear_on_field();
@@ -1262,7 +1305,8 @@ mod tests {
     /// ([CR#101.3]).
     #[test]
     fn discard_surfaces_choice_validates_and_clamps() {
-        use crate::decide::{Decision, PendingDecision};
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
         use crate::step::StepOutcome;
 
         let (mut state, src) = bear_on_field();
@@ -1328,7 +1372,8 @@ mod tests {
     /// expanded body.
     #[test]
     fn expanded_player_action_resolves_through_body() {
-        use deckmaste_core::{Expansion, ExpansionArgs};
+        use deckmaste_core::Expansion;
+        use deckmaste_core::ExpansionArgs;
 
         let (state, src) = bear_on_field();
         let frame = Frame {

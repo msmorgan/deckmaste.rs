@@ -7,7 +7,11 @@ use std::path::Path;
 
 use deckmaste_core::plugin::is_ron_todo_file;
 
-use crate::todo_card::{RawIdent, TodoAbility, TodoCard, TodoCardFace, render};
+use crate::todo_card::RawIdent;
+use crate::todo_card::TodoAbility;
+use crate::todo_card::TodoCard;
+use crate::todo_card::TodoCardFace;
+use crate::todo_card::render;
 
 /// The coarse card category a parser needs to decide framing: a `Spell` card
 /// is an instant or sorcery (its effect text is a `Spell` ability); everything

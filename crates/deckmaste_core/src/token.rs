@@ -1,7 +1,11 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
+use crate::Expand;
+use crate::Subtype;
+use crate::Supertype;
+use crate::Type;
 use crate::ability::Ability;
-use crate::{Expand, Subtype, Supertype, Type};
 
 /// A token permanent definition ([CR#111]). Name, colors, and P/T are omitted
 /// here and join when a token definition needs them; the three predefined
@@ -20,8 +24,10 @@ pub struct Token {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ability::{Ability, ActivatedAbility};
-    use crate::action::{Action, PlayerAction};
+    use crate::ability::Ability;
+    use crate::ability::ActivatedAbility;
+    use crate::action::Action;
+    use crate::action::PlayerAction;
     use crate::cost::CostComponent;
     use crate::effect::Effect;
     use crate::mana::ManaSpec;

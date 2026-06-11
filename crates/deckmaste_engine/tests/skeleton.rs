@@ -6,12 +6,34 @@ use std::path::Path;
 use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
-use deckmaste_core::{BeginningStep, Card, Color, EndingStep, Filter, Phase, Type, Zone};
-use deckmaste_engine::{
-    Action, Decision, DecisionError, GameConfig, GameEvent, GameState, ObjectId, ObjectSource,
-    Occurrence, PendingDecision, PlayerConfig, PlayerId, Progress, RunStop, Runner, StackEntry,
-    StackObject, StartingPlayer, StepOutcome, Tally,
-};
+use deckmaste_core::BeginningStep;
+use deckmaste_core::Card;
+use deckmaste_core::Color;
+use deckmaste_core::EndingStep;
+use deckmaste_core::Filter;
+use deckmaste_core::Phase;
+use deckmaste_core::Type;
+use deckmaste_core::Zone;
+use deckmaste_engine::Action;
+use deckmaste_engine::Decision;
+use deckmaste_engine::DecisionError;
+use deckmaste_engine::GameConfig;
+use deckmaste_engine::GameEvent;
+use deckmaste_engine::GameState;
+use deckmaste_engine::ObjectId;
+use deckmaste_engine::ObjectSource;
+use deckmaste_engine::Occurrence;
+use deckmaste_engine::PendingDecision;
+use deckmaste_engine::PlayerConfig;
+use deckmaste_engine::PlayerId;
+use deckmaste_engine::Progress;
+use deckmaste_engine::RunStop;
+use deckmaste_engine::Runner;
+use deckmaste_engine::StackEntry;
+use deckmaste_engine::StackObject;
+use deckmaste_engine::StartingPlayer;
+use deckmaste_engine::StepOutcome;
+use deckmaste_engine::Tally;
 
 fn builtin() -> Plugin {
     Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()

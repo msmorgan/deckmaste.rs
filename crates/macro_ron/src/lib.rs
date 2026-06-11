@@ -31,12 +31,25 @@ mod support;
 mod tests;
 mod traverse;
 
-pub use expansion::{Expansion, ExpansionArgs};
-pub use ident::{Ident, IdentSeed};
-pub use kind::{Kind, KindSet};
+pub use expansion::Expansion;
+pub use expansion::ExpansionArgs;
+pub use ident::Ident;
+pub use ident::IdentSeed;
+pub use kind::Kind;
+pub use kind::KindSet;
 #[cfg(feature = "derive")]
-pub use macro_ron_derive::{Expand, SupportsMacros};
-pub use param::{ParamType, ParamTypeSet, Validator};
-pub use set::{InsertError, MacroDef, MacroSet, Params};
-pub use support::{Pair, SupportsMacros, Triple, concat_variants};
+pub use macro_ron_derive::Expand;
+#[cfg(feature = "derive")]
+pub use macro_ron_derive::SupportsMacros;
+pub use param::ParamType;
+pub use param::ParamTypeSet;
+pub use param::Validator;
+pub use set::InsertError;
+pub use set::MacroDef;
+pub use set::MacroSet;
+pub use set::Params;
+pub use support::Pair;
+pub use support::SupportsMacros;
+pub use support::Triple;
+pub use support::concat_variants;
 pub use traverse::Expand;

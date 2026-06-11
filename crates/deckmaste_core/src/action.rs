@@ -1,5 +1,10 @@
+use crate::Count;
+use crate::Expansion;
+use crate::Reference;
+use crate::Selection;
+use crate::SupportsMacros;
+use crate::Token;
 use crate::mana::ManaSpec;
-use crate::{Count, Expansion, Reference, Selection, SupportsMacros, Token};
 
 /// An intrinsic game verb ([CR#700,701]) whose **agent is the source object or
 /// the effect itself**, not a player: the source deals the damage, the effect

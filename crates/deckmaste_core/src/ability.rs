@@ -1,11 +1,17 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
+use crate::Condition;
+use crate::Count;
+use crate::Event;
+use crate::Expand;
+use crate::Expansion;
+use crate::KeywordAbility;
+use crate::SupportsMacros;
+use crate::TargetSpec;
 use crate::continuous::StaticEffect;
 use crate::cost::CostComponent;
 use crate::effect::Effect;
-use crate::{
-    Condition, Count, Event, Expand, Expansion, KeywordAbility, SupportsMacros, TargetSpec,
-};
 
 /// A spell ability — what an instant or sorcery does on resolution
 /// ([CR#113.3a]). Targets are an explicit announce list referenced by index
@@ -142,10 +148,13 @@ pub enum Ability {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::action::{Action, PlayerAction};
+    use crate::Count;
+    use crate::Reference;
+    use crate::Selection;
+    use crate::action::Action;
+    use crate::action::PlayerAction;
     use crate::cost::CostComponent;
     use crate::effect::Effect;
-    use crate::{Count, Reference, Selection};
 
     fn read_ability(source: &str) -> Ability { crate::ron::options().from_str(source).unwrap() }
 

@@ -37,15 +37,23 @@ use std::ops::Range;
 use elsa::FrozenVec;
 use ron::value::RawValue;
 use serde::Deserialize;
+use serde::de::DeserializeSeed;
+use serde::de::Deserializer;
+use serde::de::EnumAccess;
+use serde::de::Error as _;
+use serde::de::IgnoredAny;
+use serde::de::MapAccess;
+use serde::de::SeqAccess;
+use serde::de::VariantAccess;
+use serde::de::Visitor;
 use serde::de::value::StrDeserializer;
-use serde::de::{
-    DeserializeSeed, Deserializer, EnumAccess, Error as _, IgnoredAny, MapAccess, SeqAccess,
-    VariantAccess, Visitor,
-};
 
+use crate::Ident;
+use crate::IdentSeed;
 use crate::param::ParamType;
-use crate::set::{MacroDef, MacroSet, Params};
-use crate::{Ident, IdentSeed};
+use crate::set::MacroDef;
+use crate::set::MacroSet;
+use crate::set::Params;
 
 /// ron's private raw-value marker: `RawValue` deserializes through
 /// `deserialize_newtype_struct` with this name. ron doesn't export it, so

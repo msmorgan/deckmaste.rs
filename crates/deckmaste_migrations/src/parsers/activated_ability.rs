@@ -6,9 +6,11 @@
 //! sacrifice-self, pay-life, discard; comma-separated) lives here as private
 //! helpers.
 
-use deckmaste_core::{ManaCost, ManaSymbol};
+use deckmaste_core::ManaCost;
+use deckmaste_core::ManaSymbol;
 
-use crate::parsers::effect::{self, ParsedEffect};
+use crate::parsers::effect::ParsedEffect;
+use crate::parsers::effect::{self};
 use crate::resolve::CardKind;
 use crate::ron_output::ron_options;
 

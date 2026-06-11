@@ -1,6 +1,10 @@
-use deckmaste_core::{ColorOrColorless, Phase, Uint, Zone};
+use deckmaste_core::ColorOrColorless;
+use deckmaste_core::Phase;
+use deckmaste_core::Uint;
+use deckmaste_core::Zone;
 
-use crate::object::{ObjectId, ObjectSource};
+use crate::object::ObjectId;
+use crate::object::ObjectSource;
 use crate::player::PlayerId;
 
 /// Why a player lost ([CR#704.5]).
