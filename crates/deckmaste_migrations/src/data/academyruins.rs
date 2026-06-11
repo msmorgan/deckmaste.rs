@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 
-use super::DataStr;
+use crate::data::DataStr;
 
 /// Replaces typographic quotation marks with their ASCII equivalents.
 pub(crate) fn normalize_quotes(text: &str) -> String {

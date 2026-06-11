@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::DataStr;
+use crate::data::DataStr;
 
 /// A scryfall catalog: a named list of strings. Only the list is modeled.
 #[derive(Debug, Clone, Deserialize)]
