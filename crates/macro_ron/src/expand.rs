@@ -1162,8 +1162,14 @@ fn synthesize_expanded(name: Ident, args: &FrameArgs, body: &str) -> String {
             write!(out, "]), value: {body})").unwrap();
         }
         FrameArgs::Named(args) => {
+            // Filled defaults are excluded: the write side then reproduces
+            // the short invocation, and re-reading re-fills them. An
+            // all-defaulted call keeps `Named([])` — deliberately NOT the
+            // no-args form, which serializes as the bare name a named macro
+            // can't be invoked as; `Named([])` writes `M()`, which re-reads.
             write!(out, "Expanded(name: {name:?}, args: Named([").unwrap();
-            for (i, (key, arg, _)) in args.iter().enumerate() {
+            let supplied = args.iter().filter(|(_, _, defaulted)| !defaulted);
+            for (i, (key, arg, _)) in supplied.enumerate() {
                 let sep = if i > 0 { ", " } else { "" };
                 write!(out, "{sep}({:?}, {:?})", key.as_str(), arg.trim()).unwrap();
             }
