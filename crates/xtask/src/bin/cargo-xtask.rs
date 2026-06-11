@@ -3,7 +3,8 @@
 //! tests can drive it. Run via the `cargo xtask` alias (see
 //! `.cargo/config.toml`).
 
-use clap::{Parser, Subcommand};
+use clap::Parser;
+use clap::Subcommand;
 use xtask::card::CardArgs;
 use xtask::cite::CiteArgs;
 use xtask::extract::ExtractArgs;

@@ -1,6 +1,7 @@
+use crate::Expansion;
+use crate::SupportsMacros;
 use crate::action::PlayerAction;
 use crate::mana::ManaCost;
-use crate::{Expansion, SupportsMacros};
 
 /// A single component of an ability's cost ([CR#601.2b]).
 ///
@@ -28,7 +29,9 @@ pub enum CostComponent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mana::{ManaCost, ManaSymbol, SimpleManaSymbol};
+    use crate::mana::ManaCost;
+    use crate::mana::ManaSymbol;
+    use crate::mana::SimpleManaSymbol;
     use crate::reference::Reference;
     use crate::selection::Selection;
 

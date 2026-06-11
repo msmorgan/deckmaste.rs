@@ -1,7 +1,15 @@
 //! Parses a `DeriveInput` into the grammar-enum IR the generators consume.
 
+use syn::Attribute;
+use syn::Data;
+use syn::DeriveInput;
+use syn::Error;
+use syn::Expr;
+use syn::Fields;
+use syn::Ident;
+use syn::Result;
+use syn::Type;
 use syn::spanned::Spanned as _;
-use syn::{Attribute, Data, DeriveInput, Error, Expr, Fields, Ident, Result, Type};
 
 /// Variant-level `#[macro_ron(...)]` markers (mutually exclusive).
 #[derive(Clone, Copy, PartialEq, Eq)]

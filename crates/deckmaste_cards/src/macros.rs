@@ -11,8 +11,14 @@
 //! `template` the printed name carried in the value.
 
 use deckmaste_core::SupportsMacros as _;
-pub use macro_ron::{InsertError, MacroDef, MacroSet, ParamType, ParamTypeSet, Params};
-use macro_ron::{Kind, KindSet};
+pub use macro_ron::InsertError;
+use macro_ron::Kind;
+use macro_ron::KindSet;
+pub use macro_ron::MacroDef;
+pub use macro_ron::MacroSet;
+pub use macro_ron::ParamType;
+pub use macro_ron::ParamTypeSet;
+pub use macro_ron::Params;
 
 /// The kinds of value a macro can expand to: the core types whose parse
 /// positions consult the macro namespace. Which types are macroable is
@@ -33,10 +39,21 @@ use macro_ron::{Kind, KindSet};
 // name in `kind_names_track_the_core_types`.
 #[must_use]
 pub fn kinds() -> KindSet {
-    use deckmaste_core::{
-        Ability, Action, Condition, CostComponent, Count, Effect, Event, Filter, PlayerAction,
-        Quantity, Reference, Replacement, Selection, StaticEffect, TargetSpec,
-    };
+    use deckmaste_core::Ability;
+    use deckmaste_core::Action;
+    use deckmaste_core::Condition;
+    use deckmaste_core::CostComponent;
+    use deckmaste_core::Count;
+    use deckmaste_core::Effect;
+    use deckmaste_core::Event;
+    use deckmaste_core::Filter;
+    use deckmaste_core::PlayerAction;
+    use deckmaste_core::Quantity;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Replacement;
+    use deckmaste_core::Selection;
+    use deckmaste_core::StaticEffect;
+    use deckmaste_core::TargetSpec;
     let mut kinds = KindSet::new();
     kinds.add(Ability::kind());
     kinds.add(Action::kind());
@@ -95,11 +112,28 @@ pub fn macro_set() -> MacroSet {
 
 #[cfg(test)]
 mod tests {
-    use deckmaste_core::{
-        Ability, Action, CardFace, CharacteristicFilter, Condition, CostComponent, Count, Effect,
-        Event, Filter, ObjectKind, PlayerAction, Quantity, Reference, Replacement, Selection,
-        StateFilter, StaticEffect, Subtype, TargetSpec, Type, Zone,
-    };
+    use deckmaste_core::Ability;
+    use deckmaste_core::Action;
+    use deckmaste_core::CardFace;
+    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::Condition;
+    use deckmaste_core::CostComponent;
+    use deckmaste_core::Count;
+    use deckmaste_core::Effect;
+    use deckmaste_core::Event;
+    use deckmaste_core::Filter;
+    use deckmaste_core::ObjectKind;
+    use deckmaste_core::PlayerAction;
+    use deckmaste_core::Quantity;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Replacement;
+    use deckmaste_core::Selection;
+    use deckmaste_core::StateFilter;
+    use deckmaste_core::StaticEffect;
+    use deckmaste_core::Subtype;
+    use deckmaste_core::TargetSpec;
+    use deckmaste_core::Type;
+    use deckmaste_core::Zone;
 
     use super::*;
 

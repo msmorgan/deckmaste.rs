@@ -10,14 +10,18 @@
 //! retry-until-stable loop generalize in a later plan.
 
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::LazyLock;
 
 use deckmaste_core::Card;
-use deckmaste_core::plugin::{CARDS_DIR, graduated_name, is_ron_todo_file};
+use deckmaste_core::plugin::CARDS_DIR;
+use deckmaste_core::plugin::graduated_name;
+use deckmaste_core::plugin::is_ron_todo_file;
 use regex::Regex;
 
-use crate::plugin::{Plugin, read};
+use crate::plugin::Plugin;
+use crate::plugin::read;
 
 /// Outcome of a graduation run.
 #[derive(Debug)]

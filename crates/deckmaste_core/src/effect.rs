@@ -1,9 +1,17 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
+use crate::ChooseSpec;
+use crate::Condition;
+use crate::Expand;
+use crate::Expansion;
+use crate::Filter;
+use crate::Mode;
+use crate::SupportsMacros;
 use crate::ability::TriggeredAbility;
 use crate::action::Action;
-use crate::continuous::{Duration, StaticEffect};
-use crate::{ChooseSpec, Condition, Expand, Expansion, Filter, Mode, SupportsMacros};
+use crate::continuous::Duration;
+use crate::continuous::StaticEffect;
 
 /// An effect an ability produces ([CR#608]). Compartmentalized in Rust; flat in
 /// RON (`Draw(1)`, never `Act(By(You, Draw(1)))`): the `Act` tag never appears

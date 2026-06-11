@@ -2,7 +2,8 @@
 //! macro-aware reader and canon. xtask owns the CLI; the parsing and checking
 //! live in `deckmaste_cards`.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 
 use clap::Args;
 

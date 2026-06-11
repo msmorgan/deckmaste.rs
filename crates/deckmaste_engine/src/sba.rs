@@ -3,9 +3,11 @@
 //! library loses ([CR#704.5c]). Task 6 adds [CR#704.5g]: a creature with lethal
 //! marked damage is destroyed.
 
-use deckmaste_core::{Type, Zone};
+use deckmaste_core::Type;
+use deckmaste_core::Zone;
 
-use crate::event::{GameEvent, LossReason};
+use crate::event::GameEvent;
+use crate::event::LossReason;
 use crate::state::GameState;
 
 /// One sweep ([CR#704.3]): the `PlayerLost` and `ZoneWillChange`
@@ -85,15 +87,24 @@ mod tests {
     use std::sync::Arc;
 
     use deckmaste_cards::plugin::Plugin;
-    use deckmaste_core::{Card, Filter, Type, Zone};
+    use deckmaste_core::Card;
+    use deckmaste_core::Filter;
+    use deckmaste_core::Type;
+    use deckmaste_core::Zone;
 
     use crate::agenda::WorkItem;
-    use crate::event::{GameEvent, Occurrence};
+    use crate::event::GameEvent;
+    use crate::event::Occurrence;
+    use crate::matches as obj_matches;
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
-    use crate::state::{GameConfig, GameOutcome, GameState, PlayerConfig, StartingPlayer};
+    use crate::sba;
+    use crate::state::GameConfig;
+    use crate::state::GameOutcome;
+    use crate::state::GameState;
+    use crate::state::PlayerConfig;
+    use crate::state::StartingPlayer;
     use crate::step::StepOutcome;
-    use crate::{matches as obj_matches, sba};
 
     fn builtin() -> Plugin {
         Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()

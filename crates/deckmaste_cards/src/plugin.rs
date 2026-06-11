@@ -4,14 +4,24 @@
 //! everything below them is organizational, and names come from file
 //! contents. Subtype definitions are ordinary macros, usually meta-produced.
 
-use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::path::Path;
+use std::path::PathBuf;
 
 use anyhow::Context;
-use deckmaste_core::plugin::{MACROS_DIR, card_path, token_path};
-use deckmaste_core::{Card, Ident, Subtype, Token};
+use deckmaste_core::Card;
+use deckmaste_core::Ident;
+use deckmaste_core::Subtype;
+use deckmaste_core::Token;
+use deckmaste_core::plugin::MACROS_DIR;
+use deckmaste_core::plugin::card_path;
+use deckmaste_core::plugin::token_path;
 
-use crate::macros::{InsertError, MacroDef, MacroSet, macro_set};
+use crate::macros::InsertError;
+use crate::macros::MacroDef;
+use crate::macros::MacroSet;
+use crate::macros::macro_set;
 
 /// A plugin directory with its macro layer loaded and expanded.
 pub struct Plugin {

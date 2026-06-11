@@ -1,7 +1,9 @@
 use macro_ron::Ident;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
-use crate::{Expand, Property};
+use crate::Expand;
+use crate::Property;
 
 // [CR#300.1]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]

@@ -1,4 +1,5 @@
-use crate::{Expansion, SupportsMacros};
+use crate::Expansion;
+use crate::SupportsMacros;
 
 #[cfg(test)]
 mod tests {

@@ -7,12 +7,24 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use deckmaste_core::{
-    Ability, Color, Count, Duration, Filter, Ident, Int, ManaSymbol, Modification, Scope,
-    StaticEffect, Subtype, Supertype, Type, Zone,
-};
+use deckmaste_core::Ability;
+use deckmaste_core::Color;
+use deckmaste_core::Count;
+use deckmaste_core::Duration;
+use deckmaste_core::Filter;
+use deckmaste_core::Ident;
+use deckmaste_core::Int;
+use deckmaste_core::ManaSymbol;
+use deckmaste_core::Modification;
+use deckmaste_core::Scope;
+use deckmaste_core::StaticEffect;
+use deckmaste_core::Subtype;
+use deckmaste_core::Supertype;
+use deckmaste_core::Type;
+use deckmaste_core::Zone;
 
-use crate::object::{ObjectId, Timestamp};
+use crate::object::ObjectId;
+use crate::object::Timestamp;
 use crate::state::GameState;
 
 // ---------------------------------------------------------------------------
@@ -300,7 +312,8 @@ fn matches_derived(
     id: ObjectId,
     filter: &deckmaste_core::Filter,
 ) -> bool {
-    use deckmaste_core::{CharacteristicFilter, Filter};
+    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::Filter;
     // `Any` is a wildcard sentinel — it must always match, even for ids that
     // aren't in `working` (e.g. player proxies). Checked before the map lookup.
     if let Filter::Any = filter {

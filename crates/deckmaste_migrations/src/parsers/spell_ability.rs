@@ -3,7 +3,8 @@
 //! [`crate::parsers::effect`]; this module only decides framing (gating on the
 //! card being a spell) and renders the wrapper.
 
-use crate::parsers::effect::{self, ParsedEffect};
+use crate::parsers::effect::ParsedEffect;
+use crate::parsers::effect::{self};
 use crate::resolve::CardKind;
 
 /// A registry parser: a spell's effect line -> the bare `Spell(...)` RON.

@@ -3,12 +3,21 @@
 //! of printed face abilities and subtype-conferred abilities ([CR#305.6] falls
 //! out of the data; the engine never special-cases land subtypes).
 
-use deckmaste_core::{
-    Ability, Action, Card, CardFace, ColorOrColorless, CostComponent, Count, Effect, ManaSpec,
-    PlayerAction, Property, Uint,
-};
+use deckmaste_core::Ability;
+use deckmaste_core::Action;
+use deckmaste_core::Card;
+use deckmaste_core::CardFace;
+use deckmaste_core::ColorOrColorless;
+use deckmaste_core::CostComponent;
+use deckmaste_core::Count;
+use deckmaste_core::Effect;
+use deckmaste_core::ManaSpec;
+use deckmaste_core::PlayerAction;
+use deckmaste_core::Property;
+use deckmaste_core::Uint;
 
-use crate::object::{ObjectId, ObjectSource};
+use crate::object::ObjectId;
+use crate::object::ObjectSource;
 use crate::state::GameState;
 
 /// The face an object presents. Skeleton: the front face.

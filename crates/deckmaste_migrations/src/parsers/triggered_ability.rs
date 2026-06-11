@@ -4,7 +4,8 @@
 //! effect grammar is shared via [`crate::parsers::effect`]; the event grammar
 //! (ETB / dies; self or "a creature" subject) lives here as private helpers.
 
-use crate::parsers::effect::{self, ParsedEffect};
+use crate::parsers::effect::ParsedEffect;
+use crate::parsers::effect::{self};
 use crate::resolve::CardKind;
 
 /// A registry parser: a "When/Whenever <event>, <effect>." line -> the bare

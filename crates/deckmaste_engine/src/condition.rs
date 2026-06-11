@@ -3,7 +3,14 @@
 //! `engine-resolve-counts` / `engine-filter-breadth` seams — they widen this
 //! dispatch rather than growing a second evaluator.
 
-use deckmaste_core::{Cmp, Condition, Count, Filter, Phase, StateFilter, Uint, Zone};
+use deckmaste_core::Cmp;
+use deckmaste_core::Condition;
+use deckmaste_core::Count;
+use deckmaste_core::Filter;
+use deckmaste_core::Phase;
+use deckmaste_core::StateFilter;
+use deckmaste_core::Uint;
+use deckmaste_core::Zone;
 
 use crate::player::PlayerId;
 use crate::state::GameState;
@@ -93,10 +100,20 @@ impl GameState {
 
 #[cfg(test)]
 mod tests {
-    use deckmaste_core::{BeginningStep, Cmp, Condition, Count, Filter, Phase, StateFilter, Zone};
+    use deckmaste_core::BeginningStep;
+    use deckmaste_core::Cmp;
+    use deckmaste_core::Condition;
+    use deckmaste_core::Count;
+    use deckmaste_core::Filter;
+    use deckmaste_core::Phase;
+    use deckmaste_core::StateFilter;
+    use deckmaste_core::Zone;
 
     use crate::player::PlayerId;
-    use crate::state::{GameConfig, GameState, PlayerConfig, StartingPlayer};
+    use crate::state::GameConfig;
+    use crate::state::GameState;
+    use crate::state::PlayerConfig;
+    use crate::state::StartingPlayer;
 
     fn game() -> GameState {
         GameState::new(GameConfig {

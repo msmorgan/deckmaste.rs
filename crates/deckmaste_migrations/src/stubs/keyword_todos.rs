@@ -3,7 +3,8 @@ use std::path::Path;
 use serde::Serialize;
 
 use crate::data::DataStr;
-use crate::data::academyruins::{Rule, RulesMap};
+use crate::data::academyruins::Rule;
+use crate::data::academyruins::RulesMap;
 
 #[derive(Serialize)]
 enum KeywordTodo {

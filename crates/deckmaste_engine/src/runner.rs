@@ -1,8 +1,12 @@
 //! The auto-stepping wrapper: the old draft engine's ergonomics, recovered.
 
-use crate::decide::{Decision, DecisionError, PendingDecision};
-use crate::state::{GameOutcome, GameState};
-use crate::step::{Progress, StepOutcome};
+use crate::decide::Decision;
+use crate::decide::DecisionError;
+use crate::decide::PendingDecision;
+use crate::state::GameOutcome;
+use crate::state::GameState;
+use crate::step::Progress;
+use crate::step::StepOutcome;
 
 /// Where a run stopped: the engine needs input, or the game is over.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1,10 +1,22 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
-use crate::replacement::{Prevention, Replacement};
-use crate::{
-    Ability, Color, Condition, CostComponent, Count, Event, Expand, Expansion, Filter, Ident,
-    Reference, Supertype, SupportsMacros, Type,
-};
+use crate::Ability;
+use crate::Color;
+use crate::Condition;
+use crate::CostComponent;
+use crate::Count;
+use crate::Event;
+use crate::Expand;
+use crate::Expansion;
+use crate::Filter;
+use crate::Ident;
+use crate::Reference;
+use crate::Supertype;
+use crate::SupportsMacros;
+use crate::Type;
+use crate::replacement::Prevention;
+use crate::replacement::Replacement;
 
 /// How long a one-shot-created continuous effect lasts ([CR#611.2]). Static
 /// abilities don't carry this — their duration is implicit ("while it

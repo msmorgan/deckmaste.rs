@@ -5,7 +5,8 @@
 
 use deckmaste_core::Zone;
 
-use crate::object::{ObjectId, ObjectSource};
+use crate::object::ObjectId;
+use crate::object::ObjectSource;
 use crate::player::PlayerId;
 use crate::trigger::TriggerBindings;
 

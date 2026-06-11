@@ -30,14 +30,20 @@ use std::fmt;
 
 use ron::value::RawValue;
 use serde::Deserialize;
-use serde::de::{
-    DeserializeOwned, DeserializeSeed, Deserializer, EnumAccess, MapAccess, SeqAccess,
-    VariantAccess, Visitor,
-};
+use serde::de::DeserializeOwned;
+use serde::de::DeserializeSeed;
+use serde::de::Deserializer;
+use serde::de::EnumAccess;
+use serde::de::MapAccess;
+use serde::de::SeqAccess;
+use serde::de::VariantAccess;
+use serde::de::Visitor;
 
+use crate::Ident;
+use crate::IdentSeed;
 use crate::kind::KindSet;
-use crate::param::{ParamType, ParamTypeSet};
-use crate::{Ident, IdentSeed};
+use crate::param::ParamType;
+use crate::param::ParamTypeSet;
 
 /// A macro's parameter signature, whose shape decides the invocation
 /// grammar: positional (`M(a, b)`, holes `Param(0)`) or named

@@ -15,8 +15,11 @@ use std::path::Path;
 use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
-use deckmaste_engine::sim::{self, DeckCards, Summary};
-use deckmaste_engine::{GameOutcome, PlayerId};
+use deckmaste_engine::GameOutcome;
+use deckmaste_engine::PlayerId;
+use deckmaste_engine::sim::DeckCards;
+use deckmaste_engine::sim::Summary;
+use deckmaste_engine::sim::{self};
 use rayon::prelude::*;
 
 /// Fixed seed for the focused/deterministic games.

@@ -9,14 +9,19 @@ use std::path::Path;
 use std::sync::LazyLock;
 
 use anyhow::Context;
+use deckmaste_core::Color;
+use deckmaste_core::StatValue;
 use deckmaste_core::plugin::card_file;
-use deckmaste_core::{Color, StatValue};
 use regex::Regex;
 
 use crate::data::DataStr;
 use crate::data::mtgjson::AtomicCard;
 use crate::ident::to_rust_ident;
-use crate::todo_card::{RawIdent, TodoAbility, TodoCard, TodoCardFace, render};
+use crate::todo_card::RawIdent;
+use crate::todo_card::TodoAbility;
+use crate::todo_card::TodoCard;
+use crate::todo_card::TodoCardFace;
+use crate::todo_card::render;
 
 // We count non-null, non-"Banned" as legal.
 fn is_supported(card: &AtomicCard) -> bool {

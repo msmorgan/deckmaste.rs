@@ -1,9 +1,11 @@
 use std::collections::HashSet;
 use std::fmt;
 
-use deckmaste_core::{KeywordAbility, Uint};
+use deckmaste_core::KeywordAbility;
+use deckmaste_core::Uint;
 
-use crate::object::{ObjectId, ObjectSource};
+use crate::object::ObjectId;
+use crate::object::ObjectSource;
 use crate::player::PlayerId;
 
 /// What the engine is waiting on. `step()` returns `NeedsDecision` (without
@@ -148,7 +150,8 @@ impl std::error::Error for DecisionError {}
 
 use crate::agenda::WorkItem;
 use crate::derive;
-use crate::event::{GameEvent, Occurrence};
+use crate::event::GameEvent;
+use crate::event::Occurrence;
 use crate::state::GameState;
 
 impl GameState {

@@ -2,7 +2,8 @@
 //! parses cleanly to `<name>.ron`. Thin wrapper over
 //! [`deckmaste_cards::graduate::graduate_plugin`].
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 
 use clap::Args;
 use deckmaste_cards::graduate::GraduateReport;

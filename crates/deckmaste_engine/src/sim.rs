@@ -12,15 +12,33 @@
 
 use std::sync::Arc;
 
-use deckmaste_core::{
-    Card, Color, ColorOrColorless, Int, ManaCost, ManaSymbol, Phase, SimpleManaSymbol, Type, Uint,
-};
+use deckmaste_core::Card;
+use deckmaste_core::Color;
+use deckmaste_core::ColorOrColorless;
+use deckmaste_core::Int;
+use deckmaste_core::ManaCost;
+use deckmaste_core::ManaSymbol;
+use deckmaste_core::Phase;
+use deckmaste_core::SimpleManaSymbol;
+use deckmaste_core::Type;
+use deckmaste_core::Uint;
 
-use crate::{
-    Action, Decision, GameConfig, GameEvent, GameOutcome, GameState, ManaPool, ObjectId,
-    Occurrence, Payment, PendingDecision, PlayerConfig, PlayerId, Progress, StartingPlayer,
-    StepOutcome,
-};
+use crate::Action;
+use crate::Decision;
+use crate::GameConfig;
+use crate::GameEvent;
+use crate::GameOutcome;
+use crate::GameState;
+use crate::ManaPool;
+use crate::ObjectId;
+use crate::Occurrence;
+use crate::Payment;
+use crate::PendingDecision;
+use crate::PlayerConfig;
+use crate::PlayerId;
+use crate::Progress;
+use crate::StartingPlayer;
+use crate::StepOutcome;
 
 const SPELLS_PER_DECK: usize = 23;
 const LANDS_PER_DECK: usize = 17;

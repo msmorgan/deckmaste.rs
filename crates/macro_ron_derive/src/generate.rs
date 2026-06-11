@@ -17,10 +17,22 @@
 //! the former resolve inside `macro_ron`'s own tests).
 
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote};
-use syn::{Attribute, Data, DeriveInput, Error, Ident, Result, Type};
+use quote::format_ident;
+use quote::quote;
+use syn::Attribute;
+use syn::Data;
+use syn::DeriveInput;
+use syn::Error;
+use syn::Ident;
+use syn::Result;
+use syn::Type;
 
-use crate::input::{self, Field, Input, Marker, Shape, Variant};
+use crate::input::Field;
+use crate::input::Input;
+use crate::input::Marker;
+use crate::input::Shape;
+use crate::input::Variant;
+use crate::input::{self};
 
 pub fn supports_macros(input: &Input) -> Result<TokenStream> {
     let helpers = gen_struct_helpers(input);

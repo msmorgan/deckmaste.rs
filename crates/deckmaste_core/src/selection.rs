@@ -1,4 +1,8 @@
-use crate::{Expansion, Filter, Quantity, Reference, SupportsMacros};
+use crate::Expansion;
+use crate::Filter;
+use crate::Quantity;
+use crate::Reference;
+use crate::SupportsMacros;
 
 /// A Filter lifted into a resolution-time choice context: who picks, when,
 /// how many ([CR#608.2d]). Verb object slots take exactly one `Selection`.
@@ -47,7 +51,11 @@ impl From<Reference> for Selection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{CharacteristicFilter, Count, ObjectKind, Quantity, Type};
+    use crate::CharacteristicFilter;
+    use crate::Count;
+    use crate::ObjectKind;
+    use crate::Quantity;
+    use crate::Type;
 
     fn read(source: &str) -> Selection { crate::ron::options().from_str(source).unwrap() }
 

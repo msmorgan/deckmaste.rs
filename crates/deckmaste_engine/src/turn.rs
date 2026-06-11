@@ -1,4 +1,8 @@
-use deckmaste_core::{BeginningStep, CombatStep, EndingStep, Phase, Uint};
+use deckmaste_core::BeginningStep;
+use deckmaste_core::CombatStep;
+use deckmaste_core::EndingStep;
+use deckmaste_core::Phase;
+use deckmaste_core::Uint;
 
 use crate::player::PlayerId;
 
@@ -26,13 +30,22 @@ pub struct PriorityRound {
 /// (the caller begins the next turn). Walks the `Phase` hierarchy in CR order.
 #[must_use]
 pub fn successor(step: Phase) -> Option<Phase> {
-    use BeginningStep::{Draw, Untap, Upkeep};
-    use CombatStep::{
-        BeginningOfCombat, CombatDamage, DeclareAttackers, DeclareBlockers, EndOfCombat,
-        FirstCombatDamage,
-    };
-    use EndingStep::{Cleanup, End};
-    use Phase::{Beginning, Combat, Ending, PostcombatMain, PrecombatMain};
+    use BeginningStep::Draw;
+    use BeginningStep::Untap;
+    use BeginningStep::Upkeep;
+    use CombatStep::BeginningOfCombat;
+    use CombatStep::CombatDamage;
+    use CombatStep::DeclareAttackers;
+    use CombatStep::DeclareBlockers;
+    use CombatStep::EndOfCombat;
+    use CombatStep::FirstCombatDamage;
+    use EndingStep::Cleanup;
+    use EndingStep::End;
+    use Phase::Beginning;
+    use Phase::Combat;
+    use Phase::Ending;
+    use Phase::PostcombatMain;
+    use Phase::PrecombatMain;
 
     Some(match step {
         // Beginning phase ([CR#501-503]).
@@ -62,13 +75,22 @@ pub fn successor(step: Phase) -> Option<Phase> {
 
 #[cfg(test)]
 mod tests {
-    use BeginningStep::{Draw, Untap, Upkeep};
-    use CombatStep::{
-        BeginningOfCombat, CombatDamage, DeclareAttackers, DeclareBlockers, EndOfCombat,
-        FirstCombatDamage,
-    };
-    use EndingStep::{Cleanup, End};
-    use Phase::{Beginning, Combat, Ending, PostcombatMain, PrecombatMain};
+    use BeginningStep::Draw;
+    use BeginningStep::Untap;
+    use BeginningStep::Upkeep;
+    use CombatStep::BeginningOfCombat;
+    use CombatStep::CombatDamage;
+    use CombatStep::DeclareAttackers;
+    use CombatStep::DeclareBlockers;
+    use CombatStep::EndOfCombat;
+    use CombatStep::FirstCombatDamage;
+    use EndingStep::Cleanup;
+    use EndingStep::End;
+    use Phase::Beginning;
+    use Phase::Combat;
+    use Phase::Ending;
+    use Phase::PostcombatMain;
+    use Phase::PrecombatMain;
 
     use super::*;
 

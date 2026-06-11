@@ -5,11 +5,15 @@
 //! `Unparsed` entries, and writes them back; `graduate` ignores this type and
 //! just tries to parse the file as core `Card`.
 
-use deckmaste_core::{Color, ManaCost, StatValue};
+use deckmaste_core::Color;
+use deckmaste_core::ManaCost;
+use deckmaste_core::StatValue;
 use ron::value::RawValue;
+use serde::Deserialize;
+use serde::Serialize;
 use serde::de::Deserializer;
-use serde::ser::{Error as _, Serializer};
-use serde::{Deserialize, Serialize};
+use serde::ser::Error as _;
+use serde::ser::Serializer;
 
 /// One ability slot in a `.ron.todo`: either a not-yet-rewritten oracle line,
 /// or a structured ability captured verbatim (so resolve preserves it and the

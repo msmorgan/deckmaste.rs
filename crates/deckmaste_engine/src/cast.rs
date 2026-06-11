@@ -4,16 +4,24 @@
 //! (`announce_targets` / `pay_cost`) is shared with activated abilities
 //! ([CR#602.2b]); see `activate.rs` for the activation entry point.
 
-use deckmaste_core::{
-    ColorOrColorless, ManaCost, ManaSymbol, SimpleManaSymbol, TargetSpec, Type, Uint, Zone,
-};
+use deckmaste_core::ColorOrColorless;
+use deckmaste_core::ManaCost;
+use deckmaste_core::ManaSymbol;
+use deckmaste_core::SimpleManaSymbol;
+use deckmaste_core::TargetSpec;
+use deckmaste_core::Type;
+use deckmaste_core::Uint;
+use deckmaste_core::Zone;
 
 use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
-use crate::event::{GameEvent, Occurrence};
+use crate::event::GameEvent;
+use crate::event::Occurrence;
 use crate::object::ObjectId;
-use crate::player::{ManaPool, PlayerId};
-use crate::stack::{PendingStackEntry, StackObject};
+use crate::player::ManaPool;
+use crate::player::PlayerId;
+use crate::stack::PendingStackEntry;
+use crate::stack::StackObject;
 use crate::state::GameState;
 use crate::target::candidates;
 
@@ -109,8 +117,13 @@ pub fn apply_payment(pool: &mut ManaPool, cost: &ManaCost, payment: &Payment) {
 
 /// The pool as (kind, amount) pairs over all six kinds.
 fn pool_kinds(pool: &ManaPool) -> [(ColorOrColorless, Uint); 6] {
-    use ColorOrColorless::{Color, Colorless};
-    use deckmaste_core::Color::{Black, Blue, Green, Red, White};
+    use ColorOrColorless::Color;
+    use ColorOrColorless::Colorless;
+    use deckmaste_core::Color::Black;
+    use deckmaste_core::Color::Blue;
+    use deckmaste_core::Color::Green;
+    use deckmaste_core::Color::Red;
+    use deckmaste_core::Color::White;
     [
         Colorless,
         Color(White),

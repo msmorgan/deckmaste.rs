@@ -1,4 +1,6 @@
-use deckmaste_core::{ColorOrColorless, Int, Uint};
+use deckmaste_core::ColorOrColorless;
+use deckmaste_core::Int;
+use deckmaste_core::Uint;
 
 use crate::object::ObjectId;
 
@@ -17,7 +19,11 @@ impl PlayerId {
 pub struct ManaPool([Uint; 6]);
 
 fn slot(mana: ColorOrColorless) -> usize {
-    use deckmaste_core::Color::{Black, Blue, Green, Red, White};
+    use deckmaste_core::Color::Black;
+    use deckmaste_core::Color::Blue;
+    use deckmaste_core::Color::Green;
+    use deckmaste_core::Color::Red;
+    use deckmaste_core::Color::White;
     match mana {
         ColorOrColorless::Colorless => 0,
         ColorOrColorless::Color(White) => 1,

@@ -16,13 +16,24 @@
 //! `Effect::Sequence(Vec<Effect>)` lands.
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 
 use anyhow::Context;
-use deckmaste_core::plugin::{CARDS_DIR, TOKENS_DIR, is_todo_file, is_todo_source};
-use deckmaste_core::{Ability, Card, CostComponent, Ident, Subtype, Token};
+use deckmaste_core::Ability;
+use deckmaste_core::Card;
+use deckmaste_core::CostComponent;
+use deckmaste_core::Ident;
+use deckmaste_core::Subtype;
+use deckmaste_core::Token;
+use deckmaste_core::plugin::CARDS_DIR;
+use deckmaste_core::plugin::TOKENS_DIR;
+use deckmaste_core::plugin::is_todo_file;
+use deckmaste_core::plugin::is_todo_source;
 
-use crate::plugin::{Plugin, read, ron_files_recursive};
+use crate::plugin::Plugin;
+use crate::plugin::read;
+use crate::plugin::ron_files_recursive;
 
 /// A card or token file that failed to parse.
 pub struct InvalidCard {
@@ -282,13 +293,27 @@ fn cost_action(component: &CostComponent) -> Option<&deckmaste_core::PlayerActio
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
+    use std::path::PathBuf;
 
-    use deckmaste_core::{
-        Ability, Action, ActivatedAbility, CostComponent, Count, Effect, Expansion, ExpansionArgs,
-        ManaSpec, PlayerAction, Reference, Restriction, Selection, StaticAbility, StaticEffect,
-        Subtype, Token, Type,
-    };
+    use deckmaste_core::Ability;
+    use deckmaste_core::Action;
+    use deckmaste_core::ActivatedAbility;
+    use deckmaste_core::CostComponent;
+    use deckmaste_core::Count;
+    use deckmaste_core::Effect;
+    use deckmaste_core::Expansion;
+    use deckmaste_core::ExpansionArgs;
+    use deckmaste_core::ManaSpec;
+    use deckmaste_core::PlayerAction;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Restriction;
+    use deckmaste_core::Selection;
+    use deckmaste_core::StaticAbility;
+    use deckmaste_core::StaticEffect;
+    use deckmaste_core::Subtype;
+    use deckmaste_core::Token;
+    use deckmaste_core::Type;
 
     /// `Effect::Act(By(You, AddMana(1, AnyColor)))` — the produced-mana effect
     /// the test tokens carry, in the new player-agent shape.
@@ -299,7 +324,9 @@ mod tests {
         ))
     }
 
-    use super::{check_against_canon, lint_card_abilities, lint_card_subtypes};
+    use super::check_against_canon;
+    use super::lint_card_abilities;
+    use super::lint_card_subtypes;
 
     fn dummy_path() -> PathBuf { PathBuf::from("test/dummy.ron") }
 

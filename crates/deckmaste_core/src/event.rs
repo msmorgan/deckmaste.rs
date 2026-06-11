@@ -1,6 +1,12 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
-use crate::{Expand, Expansion, Filter, Ident, SupportsMacros, Zone};
+use crate::Expand;
+use crate::Expansion;
+use crate::Filter;
+use crate::Ident;
+use crate::SupportsMacros;
+use crate::Zone;
 
 /// A turn phase (the 5xx turn structure). `BeginningOf` triggers key off
 /// these. Each phase carries its constituent step(s); a phase that is a single
@@ -131,7 +137,8 @@ pub enum Event {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{CharacteristicFilter, Type};
+    use crate::CharacteristicFilter;
+    use crate::Type;
 
     fn read(source: &str) -> Event { crate::ron::options().from_str(source).unwrap() }
 

@@ -1,6 +1,13 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
-use crate::{Count, Event, Expand, Expansion, Filter, Reference, SupportsMacros};
+use crate::Count;
+use crate::Event;
+use crate::Expand;
+use crate::Expansion;
+use crate::Filter;
+use crate::Reference;
+use crate::SupportsMacros;
 
 /// A numeric comparison ([CR#107.3]). The named forms keep RON readable —
 /// `AtLeast` rather than `>=`.

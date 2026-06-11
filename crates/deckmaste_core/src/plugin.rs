@@ -1,7 +1,8 @@
 //! The conventions of a plugin directory, shared by its readers
 //! (`deckmaste_cards`) and writers (`deckmaste_migrations`).
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 
 // The directory roles under a plugin root.
 pub const MACROS_DIR: &str = "macros";

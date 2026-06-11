@@ -1,10 +1,12 @@
 use std::fmt;
 use std::str::FromStr;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
+use crate::Color;
+use crate::Expand;
 use crate::color::ColorOrColorless;
-use crate::{Color, Expand};
 
 /// Produced-mana spec ([CR#106]): what colors or types a mana-adding effect
 /// may produce. Variants accrete — `AnyType`, riders later.
@@ -206,7 +208,8 @@ mod tests {
     use Color::*;
     use ColorOrColorless::Colorless;
     use ManaSymbol::*;
-    use SimpleManaSymbol::{Generic, Specific};
+    use SimpleManaSymbol::Generic;
+    use SimpleManaSymbol::Specific;
 
     use super::*;
 

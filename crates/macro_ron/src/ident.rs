@@ -1,7 +1,9 @@
 use std::collections::HashSet;
-use std::sync::{LazyLock, RwLock};
+use std::sync::LazyLock;
+use std::sync::RwLock;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
 static POOL: LazyLock<RwLock<HashSet<&'static str>>> = LazyLock::new(Default::default);
 

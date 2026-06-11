@@ -2,14 +2,29 @@
 //! the meta-produced instance definitions, and the basic land cards whose
 //! type lines reference the result.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 
 use deckmaste_cards::plugin::Plugin;
+use deckmaste_core::Ability;
+use deckmaste_core::Action;
+use deckmaste_core::ActivatedAbility;
+use deckmaste_core::Card;
+use deckmaste_core::CardFace;
+use deckmaste_core::Color;
+use deckmaste_core::ColorOrColorless;
+use deckmaste_core::CostComponent;
+use deckmaste_core::Count;
+use deckmaste_core::Effect;
+use deckmaste_core::ManaCost;
+use deckmaste_core::ManaSpec;
+use deckmaste_core::PlayerAction;
+use deckmaste_core::Property;
+use deckmaste_core::Reference;
+use deckmaste_core::Subtype;
+use deckmaste_core::Supertype;
+use deckmaste_core::Type;
 use deckmaste_core::ron::options as ron_options;
-use deckmaste_core::{
-    Ability, Action, ActivatedAbility, Card, CardFace, Color, ColorOrColorless, CostComponent,
-    Count, Effect, ManaCost, ManaSpec, PlayerAction, Property, Reference, Subtype, Supertype, Type,
-};
 
 fn builtin_path() -> PathBuf { Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin") }
 
