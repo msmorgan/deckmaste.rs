@@ -437,7 +437,7 @@ mod tests {
             .insert(&def(r#"(
                     name: "Flying",
                     kinds: [Ability],
-                    body: Static(effects: [Restriction(CantAttack)]),
+                    body: Static(effects: [Cant(Attack(by: Is(This)))]),
                 )"#))
             .unwrap();
         macros

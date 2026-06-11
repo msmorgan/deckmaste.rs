@@ -301,13 +301,15 @@ mod tests {
     use deckmaste_core::ActivatedAbility;
     use deckmaste_core::CostComponent;
     use deckmaste_core::Count;
+    use deckmaste_core::Deontic;
+    use deckmaste_core::DeonticAction;
     use deckmaste_core::Effect;
     use deckmaste_core::Expansion;
     use deckmaste_core::ExpansionArgs;
+    use deckmaste_core::Filter;
     use deckmaste_core::ManaSpec;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
-    use deckmaste_core::Restriction;
     use deckmaste_core::Selection;
     use deckmaste_core::StaticAbility;
     use deckmaste_core::StaticEffect;
@@ -414,7 +416,12 @@ mod tests {
             subtypes: vec![],
             abilities: vec![Ability::Static(StaticAbility {
                 condition: None,
-                effects: vec![StaticEffect::Restriction(Restriction::CantAttack)],
+                effects: vec![StaticEffect::Deontic(Deontic::Cant(
+                    DeonticAction::Attack {
+                        by: Filter::Is(Reference::This),
+                        on: Filter::Any,
+                    },
+                ))],
                 characteristic_defining: false,
             })],
         };
