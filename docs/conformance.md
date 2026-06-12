@@ -32,7 +32,7 @@ remaining non-✓ row reads **engine-seam**.
 | controller / owner / opponent-of | `Controller` / `Owner` / `OpponentOf` | ✓ |
 | attached-to / attachment | `AttachedTo` / `Attachment` | ✓ |
 | generic relations (paired-with, exiled-with, …) | `RelatedBy(Ident, Filter)` | ✓ |
-| cause-agent predicate ("destroyed by a spell an opponent controls") | — | MISSING (P0.W3, rides the cause triple) |
+| cause-agent predicate ("destroyed by a spell an opponent controls") | `CausePattern.agent` | ✓ grammar; matching engine-seam |
 | targeting tests ("with N targets", "that targets …") | — | MISSING (P0.W4) |
 | zone tests | `InZone(Zone)` — seven zones; no ante (variant-gated) | ✓ |
 | has-counter | `HasCounter(Ident)` | ✓ |
@@ -56,50 +56,50 @@ remaining non-✓ row reads **engine-seam**.
 |---|---|---|
 | zone-change master event (object, from, to, position, face, cause) | core `Event::ZoneMove`; engine `ZoneWillChange`/`ZoneChanged` | partial — `face` + `cause` fields MISSING (P0.W3/W6) |
 | named views: dies / enters | builtin `Dies`/`ThisDies`/`Enters`/`ThisEnters` macros | ✓ |
-| named views: sacrificed / discarded | engine `Sacrificed` / `Discarded` | ✓ |
+| named views: sacrificed / discarded / played | cause triples on `ZoneWillChange`/`ZoneChanged` | ✓ |
 | named views: destroyed (cause-restricted) | engine destroy verb exists; no cause-filtered trigger view | partial (P0.W3 cause triple) |
 | named views: milled (top-of-library nuance) | — | MISSING (P0.W3) |
-| named views: exiled / cast / played-land | `ZoneChanged` to exile; `SpellCast`; `LandPlayed` | ✓ |
+| named views: exiled / cast | `ZoneChanged` to exile; `SpellCast` | ✓ |
 | enters checked against already-modified object | layers-before-triggers discipline | ✓ |
 | damage event (source, recipient, amount, combat?, flags) | engine `DamageDealt` | ✓ engine; grammar trigger coverage partial |
 | life loss / gain (per-source events) | `LifeLost` / `LifeGained` | ✓ |
 | life set-to-N (= gain/loss of difference) | — | MISSING (P0.W3) |
-| counter placed / removed (objects AND players) | — | MISSING (P0.W3) |
+| counter placed / removed (objects AND players) | `CounterPlaced`/`CounterRemoved` + `PutCounters`/`RemoveCounters` verbs | ✓ grammar; apply/storage engine-seam (P0.W5) |
 | tap / untap (no-op = no event) | `Tapped` / `Untapped`, transition-only | ✓ |
 | becomes-target (announce-time) | — | MISSING (P0.W3) |
 | attack / block declaration events | `Attacking` / `Blocked` | ✓ |
 | phase / step / turn entry | `TurnBegan` / `StepBegan`; core `BeginningOf(Phase, WhoseTurn)` | ✓ |
 | day/night flip | — | MISSING (P0.W5) |
 | phase in / out (explicitly NOT a zone change) | — | MISSING (P0.W5) |
-| coin flip / die roll (ignored-roll never happened) | — | MISSING (P0.W3) |
+| coin flip / die roll (ignored-roll never happened) | `CoinFlipped`/`DieRolled` + `FlipCoins`/`RollDice` verbs | ✓ grammar; apply engine-seam |
 | shuffle (also an information event) | — | MISSING (P0.W3) |
 | reveal / look (scoped visibility window) | — | MISSING (P0.W6) |
 | control change + becomes-deltas (transition-only) | core `StateBecomes` (tapped/untapped/attacking/blocked) | partial — control change MISSING (P0.W5) |
-| cause triple (verb, agency, agent) as event data | implicit in variant choice | MISSING (P0.W3) — the headline gap |
+| cause triple (verb, agency, agent) as event data | core `Agency`/`CausePattern`; engine `Cause` on zone changes + `Tapped` | ✓ — named views are constructors over ONE encoding; pattern matching engine-seam |
 | replaced events never trigger; look-back-in-time triggers | `ZoneWillChange` stage + LKI snapshots | ✓ (engine) |
 
 ## 3. Decision kinds (`choices.md` §2–4 ↔ engine `PendingDecision`/`Action`)
 
 | skill concept | deckmaste | status |
 |---|---|---|
-| modes of a spell / activated ability (announce-locked) | — | MISSING (P0.W3) |
+| modes of a spell / activated ability (announce-locked) | `PendingDecision::ChooseModes` shell | ✓ schema; surfacing engine-seam |
 | cost intentions: alternative/additional, X, splice, hybrid/Phyrexian | `CostChange::Additional`, `AlternativeCost` grammar | ✓ grammar; the announce DECISION kinds remain MISSING (P0.W3) |
 | targets, incl. variable count | `ChooseTargets` | ✓ |
-| division / distribution among targets | — | MISSING (P0.W3) |
+| division / distribution among targets | `PendingDecision::Division` shell | ✓ schema; surfacing engine-seam |
 | triggered-ability modes/targets at stack-put | targets only | partial (P0.W3) |
 | resolution-stage choices (named-player options) | `ChooseManaColor`, `DiscardCards` as instances | partial — no general kind (P0.W3) |
-| vote (turn-order, from a specified player) | — | MISSING (P0.W3) |
+| vote (turn-order, from a specified player) | `PendingDecision::Vote` shell | ✓ schema; surfacing engine-seam |
 | attack / block declaration | `DeclareAttackers` / `DeclareBlockers` | ✓ |
 | combat damage assignment (whole-assignment legality) | `AssignCombatDamage` | ✓ |
 | order own simultaneous triggers | `OrderTriggers` | ✓ |
 | replacement/prevention application order | — | MISSING (P0.W4) |
-| fixed-window yes/no ("… unless you pay") | — | MISSING (P0.W3) |
-| pre-game: first turn, mulligans + London bottoming, companion, opening-hand | — | MISSING (P0.W3) |
-| special actions beyond land play | `Action::PlayLand` only | MISSING (P0.W3 grammar; 116-machinery post-P0) |
-| decider field (other-player choosers) | implicit `player` per variant | MISSING (P0.W3 schema) |
-| visibility classes (open / committed-hidden + audit duty) | all implicitly open | MISSING (P0.W3 schema; audit duty P0.W6) |
+| fixed-window yes/no ("… unless you pay") | `PendingDecision::YesNo` shell | ✓ schema; surfacing engine-seam |
+| pre-game: first turn, mulligans + London bottoming, companion, opening-hand | `PreGame(PreGameKind)` shell (bottoming = committed-hidden) | ✓ schema; surfacing engine-seam |
+| special actions beyond land play | `Action::Special(SpecialAction)` over the closed list | ✓ shell; 116-machinery post-P0 |
+| decider field (other-player choosers) | `DeciderSpec` via `DecisionPoint` | ✓ |
+| visibility classes (open / committed-hidden + audit duty) | `Visibility` via `DecisionPoint` | ✓ schema; audit duty P0.W6 |
 | constraint arbitration (maximize-without-violating) | the Deontic rows ARE the input language | engine-seam (solver post-P0; P0.W1 guards live) |
-| randomness as pseudo-decider (flip/roll kinds) | `Selection::Random` grammar only | MISSING (P0.W3) |
+| randomness as pseudo-decider (flip/roll kinds) | `DeciderSpec::Rng`; flip/roll verbs + events | ✓ grammar; execution engine-seam |
 
 ## 4. Temporal & deontic modifiers (`temporal.md`, `deontics.md` §2–3 ↔ `temporal.rs`/`deontic.rs`)
 
