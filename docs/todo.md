@@ -181,14 +181,23 @@ in full.
 
 ### Costs and casting (`cast.rs`, `legal.rs`)
 
-- [ ] `engine-deontic-polarities` — evaluate the deontic rows still behind
-  the narrowed presence guards: `May(Cast(window: …))` lifts (flash
-  [CR#702.8a] — the LOUDEST guard now: any flash permanent on the
-  battlefield trips `legal_actions` at every priority window; convert in
-  `can_cast` first), `Must(Attack/Block)` requirements (goad, must-block),
-  non-Cant `Target` rows, and the announce-time targeting-object seam (an
-  activated ability's stack identity isn't minted at announce — its
-  source stands in; stack-zone-keyed `by` rows need the real id).
+- [x] `engine-deontic-polarities` — evaluate the deontic rows still behind
+  the narrowed presence guards: `May(Cast(window: InstantSpeed))` lifts in
+  `can_cast` (flash [CR#702.8a], canon Pouncing Cheetah),
+  `Must(Attack/Block)` requirements at declaration submission
+  ([CR#508.1d,509.1c], canon Goblin Brigand / Taunting Elf),
+  `Must(Target)` at target-choice submission ([CR#601.2c] Flagbearer
+  class, canon Standard Bearer; `target::matches` gained the Subtype
+  arm), and the announce-time targeting-object seam (activations mint
+  their stack identity at `begin_activate` per [CR#602.2a]). Remaining
+  guards = May/Gate Attack/Block/Target polarities, non-flash Cast
+  shapes (`from`/`cost` slots — the `engine-alt-costs` /
+  `engine-cast-from-zones` unlocks), and Play/Attach rows; the
+  requirement×bound and conflicting-requirement maximize arbitration
+  stays a LOUD in-evaluation seam ([CR#509.1c]'s menace example), as
+  does a Must(Target) row matching a placing trigger (`by` can't exempt
+  triggers yet). Goad rides the Must(Attack) evaluation once designation
+  payloads flow into the derived view.
 
 - [ ] `engine-x-costs` — X announcement, X in effects, zero-X edge cases.
 - [ ] `engine-cost-payment` — hybrid/Phyrexian payment choices, snow, life
