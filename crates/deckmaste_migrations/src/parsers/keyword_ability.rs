@@ -274,6 +274,32 @@ fn match_keyword_name(token: &str) -> Option<&'static str> {
 
 /// Argument-shape render. `None` declines (the card stays a todo).
 fn render_arg(ident: &str, arg: &str) -> anyhow::Result<Option<String>> {
+    // Keyword-specific word-argument shapes first — the parser owns the
+    // authored macros' spelling conventions (a quality word renders as the
+    // Filter the macro's param expects).
+    match ident {
+        // The macro's `from` param is defaulted, but an all-defaulted
+        // invocation still needs its parens — bare `Hexproof` doesn't read.
+        "Hexproof" if arg.is_empty() => return Ok(Some("Hexproof()".to_owned())),
+        // "Hexproof from [quality]" is the same macro, param supplied.
+        "HexproofFrom" => {
+            return Ok(quality_filter(arg).map(|q| format!("Hexproof(from: {q})")));
+        }
+        "Protection" => {
+            let Some(q) = arg.strip_prefix("from ") else {
+                return Ok(None);
+            };
+            return Ok(quality_filter(q).map(|q| format!("Protection({q})")));
+        }
+        "Affinity" => {
+            let Some(q) = arg.strip_prefix("for ") else {
+                return Ok(None);
+            };
+            return Ok(quality_filter(q).map(|q| format!("Affinity({q})")));
+        }
+        "Enchant" => return Ok(quality_filter(arg).map(|q| format!("Enchant({q})"))),
+        _ => {}
+    }
     if arg.is_empty() {
         return Ok(Some(ident.to_owned()));
     }
@@ -291,6 +317,42 @@ fn render_arg(ident: &str, arg: &str) -> anyhow::Result<Option<String>> {
         None => Ok(Some(format!("{ident}({n})"))),
         Some(cost) => Ok(mana_cost_arg(cost)?.map(|cost| format!("{ident}({n}, {cost})"))),
     }
+}
+
+/// A single quality word -> its `Filter` RON: the five colors, or a simple
+/// type noun (plural tolerated). `None` declines — compound qualities
+/// ("from everything", "artifact creatures", "from red and from white")
+/// stay todo.
+fn quality_filter(q: &str) -> Option<String> {
+    let q = q.trim();
+    if q.is_empty() || q.contains(' ') {
+        return None;
+    }
+    let color = match q {
+        "white" => Some("White"),
+        "blue" => Some("Blue"),
+        "black" => Some("Black"),
+        "red" => Some("Red"),
+        "green" => Some("Green"),
+        _ => None,
+    };
+    if let Some(c) = color {
+        return Some(format!("ColorIs({c})"));
+    }
+    if matches!(q, "sorcery" | "sorceries") {
+        return Some("Type(Sorcery)".to_owned());
+    }
+    let ty = match q.strip_suffix('s').unwrap_or(q) {
+        "creature" => "Creature",
+        "artifact" => "Artifact",
+        "enchantment" => "Enchantment",
+        "land" => "Land",
+        "planeswalker" => "Planeswalker",
+        "instant" => "Instant",
+        "battle" => "Battle",
+        _ => return None,
+    };
+    Some(format!("Type({ty})"))
 }
 
 /// A pure-mana cost argument (`{2}` or a leading-em-dash `—{2}`) ->
@@ -380,10 +442,33 @@ mod tests {
     fn declines_variable_difficult_and_unknown() {
         assert!(bare("Annihilator X").is_none()); // variable integer
         assert!(bare("Ward {X}").is_none()); // variable mana cost
-        assert!(bare("Protection from black").is_none()); // word arg
-        assert!(bare("Enchant creature").is_none());
+        assert!(bare("Protection from everything").is_none()); // unknown quality
+        assert!(bare("Enchant artifact creature").is_none()); // compound quality
         assert!(bare("Cycling—Discard a card").is_none()); // non-mana em-dash cost
         assert!(bare("Whenever this dies, draw a card").is_none()); // not a keyword
+    }
+
+    #[test]
+    fn word_arg_keywords_render_quality_filters() {
+        assert_eq!(
+            bare("Protection from black").as_deref(),
+            Some("Keyword(Protection(ColorIs(Black)))")
+        );
+        assert_eq!(
+            bare("Enchant creature").as_deref(),
+            Some("Keyword(Enchant(Type(Creature)))")
+        );
+        assert_eq!(
+            bare("Affinity for artifacts").as_deref(),
+            Some("Keyword(Affinity(Type(Artifact)))")
+        );
+        // Bare hexproof keeps its parens (all-defaulted invocation); the
+        // from-variant supplies the named param on the SAME macro.
+        assert_eq!(bare("Hexproof").as_deref(), Some("Keyword(Hexproof())"));
+        assert_eq!(
+            bare("Hexproof from blue").as_deref(),
+            Some("Keyword(Hexproof(from: ColorIs(Blue)))")
+        );
     }
 
     #[test]
@@ -401,10 +486,11 @@ mod tests {
                 .as_deref(),
             Some("Keyword(Ward([Mana([Generic(2)])]))")
         );
-        assert!(
+        assert_eq!(
             resolve_line("Protection from black", CardKind::Permanent)
                 .unwrap()
-                .is_none()
+                .as_deref(),
+            Some("Keyword(Protection(ColorIs(Black)))")
         );
     }
 }
