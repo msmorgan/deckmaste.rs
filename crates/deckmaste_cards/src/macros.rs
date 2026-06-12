@@ -41,6 +41,7 @@ pub use macro_ron::Params;
 pub fn kinds() -> KindSet {
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
+    use deckmaste_core::AsThough;
     use deckmaste_core::Condition;
     use deckmaste_core::CostComponent;
     use deckmaste_core::Count;
@@ -57,6 +58,7 @@ pub fn kinds() -> KindSet {
     use deckmaste_core::TargetSpec;
     let mut kinds = KindSet::new();
     kinds.add(Ability::kind());
+    kinds.add(AsThough::kind());
     kinds.add(Action::kind());
     kinds.add(Condition::kind());
     kinds.add(CostComponent::kind());
@@ -116,6 +118,7 @@ pub fn macro_set() -> MacroSet {
 mod tests {
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
+    use deckmaste_core::AsThough;
     use deckmaste_core::CardFace;
     use deckmaste_core::CharacteristicFilter;
     use deckmaste_core::Condition;
@@ -158,6 +161,7 @@ mod tests {
         let names = [
             name_of::<Ability>(),
             name_of::<Action>(),
+            name_of::<AsThough>(),
             name_of::<CardFace>(),
             name_of::<Condition>(),
             name_of::<Count>(),

@@ -30,7 +30,6 @@ pub use color::ColorOrColorless;
 mod condition;
 pub use condition::Cmp;
 pub use condition::Condition;
-pub use condition::Window;
 
 mod continuous;
 pub use continuous::CostChange;
@@ -54,10 +53,15 @@ pub use designation::DesignationShape;
 pub use designation::DesignationUniqueness;
 
 mod deontic;
-pub use deontic::CastWindow;
+pub use deontic::AsThough;
 pub use deontic::CountBound;
 pub use deontic::Deontic;
 pub use deontic::DeonticAction;
+
+mod temporal;
+pub use temporal::LockPoint;
+pub use temporal::TurnMarker;
+pub use temporal::Window;
 
 mod effect;
 pub use effect::ContinuouslyEffect;

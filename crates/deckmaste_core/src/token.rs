@@ -92,6 +92,7 @@ mod tests {
         assert_eq!(
             token.abilities,
             vec![Ability::Activated(ActivatedAbility {
+                window: None,
                 cost: vec![
                     CostComponent::Tap,
                     CostComponent::Do(PlayerAction::Sacrifice(Selection::from(Reference::This))),

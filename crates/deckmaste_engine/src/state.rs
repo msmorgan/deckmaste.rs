@@ -370,11 +370,15 @@ impl GameState {
 
     /// [CR#514.2]: discard "until end of turn" continuous effects at Cleanup.
     ///
-    /// Other durations (`UntilEndOfCombat`, `UntilYourNextTurn`, `While`,
-    /// `UntilEvent`, `EndOfGame`) are not yet swept — no fixture creates them
-    /// and their sweep sites are deferred.
+    /// Other durations (the remaining `FixedUntil` markers, `ForAsLongAs`,
+    /// `UntilEvent`, `EndOfGame`) have no sweep/tracking yet — `resolve`
+    /// trips a `P0.W1` seam before any instance carrying one is created.
     pub fn expire_end_of_turn(&mut self) {
-        self.continuous
-            .retain(|e| !matches!(e.duration, deckmaste_core::Duration::UntilEndOfTurn));
+        self.continuous.retain(|e| {
+            !matches!(
+                e.duration,
+                deckmaste_core::Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn)
+            )
+        });
     }
 }

@@ -2,6 +2,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::Ability;
+use crate::AsThough;
 use crate::Color;
 use crate::Condition;
 use crate::CostComponent;
@@ -15,6 +16,7 @@ use crate::Ident;
 use crate::Reference;
 use crate::Supertype;
 use crate::SupportsMacros;
+use crate::TurnMarker;
 use crate::Type;
 use crate::replacement::Prevention;
 use crate::replacement::Replacement;
@@ -24,17 +26,19 @@ use crate::replacement::Replacement;
 /// functions", [CR#611.3]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub enum Duration {
-    /// [CR#611.2] ("until end of turn").
-    UntilEndOfTurn,
-    /// "Until your next turn".
-    UntilYourNextTurn,
-    /// "Until end of combat".
-    UntilEndOfCombat,
-    /// While a condition holds (with the never-started rule, [CR#611.2b]).
-    While(Condition),
+    /// Ends at a fixed turn-structure marker ([CR#611.2a]): end of turn
+    /// sweeps in cleanup ([CR#514.2]), end of combat at the combat phase's
+    /// end ([CR#500.5a,511.2]).
+    FixedUntil(TurnMarker),
     /// Until an event happens (the engine pairs the undo one-shot, [CR#610.3]).
     UntilEvent(Event),
-    /// For the rest of the game ([CR#611.2]).
+    /// "For as long as" — a tracked predicate ([CR#611.2b]). The
+    /// never-started / already-ended edge rules ride a `started` latch on
+    /// the ENGINE's effect-instance record, not the card grammar; once
+    /// stopped (including losing sight of a phased-out object,
+    /// [CR#702.26f]) it never resumes.
+    ForAsLongAs(Condition),
+    /// For the rest of the game — the no-stated-duration default ([CR#611.2a]).
     EndOfGame,
 }
 
@@ -130,6 +134,8 @@ pub enum StaticEffect {
     Replacement(Replacement),
     /// A prevention effect ([CR#615]).
     Prevention(Prevention),
+    /// A scoped counterfactual premise ([CR#609.4]) — see [`AsThough`].
+    AsThough(AsThough),
     /// A remembered `StaticEffect` macro invocation. Serialized as the
     /// invocation, not the struct.
     #[macro_ron(expanded)]

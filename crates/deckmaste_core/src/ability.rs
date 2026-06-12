@@ -9,6 +9,7 @@ use crate::Expansion;
 use crate::KeywordAbility;
 use crate::SupportsMacros;
 use crate::TargetSpec;
+use crate::Window;
 use crate::continuous::StaticEffect;
 use crate::cost::CostComponent;
 use crate::effect::Effect;
@@ -29,8 +30,14 @@ pub struct SpellAbility {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub struct ActivatedAbility {
     pub cost: Vec<CostComponent>,
-    /// "Activate only if/as/during …" ([CR#602.5b..602.5e]). The sorcery-speed
-    /// restriction is the builtin `SorcerySpeed` Condition macro.
+    /// "Activate only [timing]" ([CR#602.5d..602.5e]) — an `Only` window
+    /// refinement on the activation permission (deontics §3), e.g.
+    /// `window: SorcerySpeed`. Distinct from `condition`, which gates on
+    /// game STATE.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub window: Option<Window>,
+    /// "Activate only if [state]" ([CR#602.5b..602.5e]) — a predicate over
+    /// the game state at activation time.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub condition: Option<Condition>,
     /// "Activate only once each turn." ([CR#602.5b]).
@@ -164,6 +171,7 @@ mod tests {
         assert_eq!(
             ability,
             Ability::Activated(ActivatedAbility {
+                window: None,
                 cost: vec![CostComponent::Tap],
                 condition: None,
                 limits: vec![],

@@ -1,10 +1,11 @@
 // {0} artifact: "{1}: draw a card. Activate only as a sorcery."
-// the SorcerySpeed condition macro gates the activation window.
+// `window: SorcerySpeed` is the Only refinement on the activation
+// permission [CR#602.5d] — a Window, not a Condition (deontics §3).
 Normal(
     name: "Artifact sorcery-speed DrawCards",
     mana_cost: [],
     types: [Artifact],
     abilities: [
-        Activated(cost: [Mana([Generic(1)])], condition: SorcerySpeed, effect: Draw(1)),
+        Activated(cost: [Mana([Generic(1)])], window: SorcerySpeed, effect: Draw(1)),
     ],
 )

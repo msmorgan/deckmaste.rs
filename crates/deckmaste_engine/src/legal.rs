@@ -3,14 +3,85 @@
 //! authoritative check at submission (state can't change in between: a
 //! pending decision blocks stepping).
 
+use deckmaste_core::Ability;
+use deckmaste_core::Deontic;
+use deckmaste_core::DeonticAction;
+use deckmaste_core::KeywordAbility;
+use deckmaste_core::StaticEffect;
 use deckmaste_core::Type;
 
 use crate::decide::Action;
 use crate::derive;
+use crate::layer::LayeredView;
 use crate::object::ObjectId;
 use crate::player::PlayerId;
 use crate::state::GameState;
 use crate::tally::Tally;
+
+/// The proposed-action pattern inside a deontic row, looking through the
+/// `Expanded` provenance wrappers.
+fn deontic_action(d: &Deontic) -> &DeonticAction {
+    match d {
+        Deontic::May(a) | Deontic::Cant(a) | Deontic::Must(a) | Deontic::Gate(a, _) => a,
+        Deontic::Expanded(e) => deontic_action(&e.value),
+    }
+}
+
+/// Whether any battlefield object's derived abilities carry a `Deontic` row
+/// whose action matches `verb` — looking through static effects, keyword
+/// composites (flying's evasion `Cant` lives inside `Keyword(Composite)`),
+/// and macro `Expanded` wrappers at every level.
+fn deontic_rows_present(
+    state: &GameState,
+    view: &LayeredView,
+    verb: fn(&DeonticAction) -> bool,
+) -> bool {
+    fn in_ability(a: &Ability, verb: fn(&DeonticAction) -> bool) -> bool {
+        match a {
+            Ability::Static(s) => s.effects.iter().any(|e| in_static(e, verb)),
+            Ability::Keyword(k) => in_keyword(k, verb),
+            Ability::Expanded(e) => in_ability(&e.value, verb),
+            _ => false,
+        }
+    }
+    fn in_keyword(k: &KeywordAbility, verb: fn(&DeonticAction) -> bool) -> bool {
+        match k {
+            KeywordAbility::Composite { abilities, .. } => {
+                abilities.iter().any(|a| in_ability(a, verb))
+            }
+            KeywordAbility::Expanded(e) => in_keyword(&e.value, verb),
+            _ => false,
+        }
+    }
+    fn in_static(e: &StaticEffect, verb: fn(&DeonticAction) -> bool) -> bool {
+        match e {
+            StaticEffect::Deontic(d) => verb(deontic_action(d)),
+            StaticEffect::Expanded(x) => in_static(&x.value, verb),
+            _ => false,
+        }
+    }
+    state
+        .zones
+        .battlefield
+        .iter()
+        .any(|&id| view.get(id).abilities.iter().any(|a| in_ability(a, verb)))
+}
+
+/// P0.W1 presence guard ([CR#101.2,601.3] seam): the deontic grammar is
+/// complete, but declaration legality does not evaluate the rows yet. Any
+/// matching-verb row in the derived view trips the seam LOUDLY rather than
+/// being silently ignored. Never delete a trip to silence it — convert it
+/// to the legality evaluation.
+fn guard_deontic_seam(
+    state: &GameState,
+    view: &LayeredView,
+    verb: fn(&DeonticAction) -> bool,
+    what: &str,
+) {
+    if deontic_rows_present(state, view, verb) {
+        todo!("P0.W1: deontic {what} legality — rows present in the derived view go unevaluated");
+    }
+}
 
 #[must_use]
 pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
@@ -62,6 +133,12 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     }
 
     // [CR#601.3a]: cast a spell from hand if timing + payment + targets permit.
+    guard_deontic_seam(
+        state,
+        &view,
+        |a| matches!(a, DeonticAction::Cast { .. } | DeonticAction::Play { .. }),
+        "cast/play",
+    );
     for &object in &state.zones.hands[player.index()] {
         if state.can_cast(&view, player, object) {
             legal.push(Action::CastSpell { object });
@@ -79,6 +156,12 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
 #[must_use]
 pub fn legal_attackers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
     let view = state.layers();
+    guard_deontic_seam(
+        state,
+        &view,
+        |a| matches!(a, DeonticAction::Attack { .. }),
+        "attack",
+    );
     state
         .zones
         .battlefield
@@ -101,6 +184,12 @@ pub fn legal_attackers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
 #[must_use]
 pub fn legal_blockers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
     let view = state.layers();
+    guard_deontic_seam(
+        state,
+        &view,
+        |a| matches!(a, DeonticAction::Block { .. }),
+        "block",
+    );
     state
         .zones
         .battlefield
