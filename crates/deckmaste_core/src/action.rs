@@ -69,6 +69,13 @@ pub enum PlayerAction {
     Tap(Selection),
     /// Untap a selection ([CR#701.26b]).
     Untap(Selection),
+    /// A resolution choice stored under a note key ([CR#608.2d] choice +
+    /// [CR#607.2] slot): "choose a color" and kin.
+    ChooseAndNote(crate::Ident, crate::NotedKind),
+    /// Put a copy of each selected spell on the stack ([CR#707.10] — a
+    /// copy on the stack, NOT casting one; [CR#707.12] casting rides the
+    /// 601 pipeline).
+    CopySpell(Selection),
     /// Flip that many coins ([CR#705.1]) — results are events; call/win
     /// framing is the consumer's ([CR#705.2]).
     FlipCoins(Count),

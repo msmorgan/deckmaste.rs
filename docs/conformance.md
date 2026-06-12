@@ -20,20 +20,20 @@ remaining non-✓ row reads **engine-seam**.
 |---|---|---|
 | name test (identity-aware self-names) | `Named(Ident)`; self = `Ref(This)` | ✓ |
 | color test, monocolored | `ColorIs(Color)` | ✓ |
-| multicolored / colorless tests | — | MISSING (P0.W4) |
+| multicolored / colorless tests | `Multicolored` / `Colorless` atoms | ✓ grammar; eval engine-seam |
 | mana value comparison | `Stat(ManaValue, Cmp, Count)` | ✓ |
 | type / subtype / supertype | `Type` / `Subtype` / `Supertype` | ✓ |
 | P/T, loyalty, defense comparisons (layer-output reads) | `Stat(…)` over the layered view | ✓ |
 | has-ability / lacks-ability | `HasAbility(Ident)` / `Not(…)` | ✓ |
 | implicit zone quantifier (bare desc = battlefield permanent) | parser convention; canonical filters spell `InZone` explicitly | ✓ (by policy) |
 | status tests (tapped / flipped / face-down / phased) | `Status(Status)` | ✓ grammar; object flags partial (P0.W5 seam) |
-| combat-state tests (attacking, blocking, unblocked) | `StateBecomes` events only — no Filter atom | MISSING (P0.W4) |
+| combat-state tests (attacking, blocking, unblocked) | `StateFilter::{Attacking, Blocking, Unblocked}` | ✓ grammar; eval engine-seam |
 | face-down characteristic exposure | — | MISSING (P0.W6) |
 | controller / owner / opponent-of | `Controller` / `Owner` / `OpponentOf` | ✓ |
 | attached-to / attachment | `AttachedTo` / `Attachment` | ✓ |
 | generic relations (paired-with, exiled-with, …) | `RelatedBy(Ident, Filter)` | ✓ |
 | cause-agent predicate ("destroyed by a spell an opponent controls") | `CausePattern.agent` | ✓ grammar; matching engine-seam |
-| targeting tests ("with N targets", "that targets …") | — | MISSING (P0.W4) |
+| targeting tests ("with N targets", "that targets …") | — | MISSING (P0.W4b mini-dialogue) |
 | zone tests | `InZone(Zone)` — seven zones; no ante (variant-gated) | ✓ |
 | has-counter | `HasCounter(Ident)` | ✓ |
 | designations, stored + derived | `Designated(Ident)` | ✓ grammar; storage P0.W5 seam |
@@ -43,10 +43,10 @@ remaining non-✓ row reads **engine-seam**.
 | variable-count targets, count locked at announce | `Count::X`; `LockPoint::Announce` | ✓ types; threading through decisions is P0.W2/W3 |
 | `any target` shorthand | builtin Filter macro (`CreatureOrPlayer`-family) | ✓ |
 | `each [desc]` (untargeted universal) | `Selection::Each(Filter)` | ✓ |
-| `among [previously computed set]` | — | MISSING (P0.W4) |
+| `among [previously computed set]` | — | MISSING (P0.W4b mini-dialogue) |
 | division/distribution among targets | — | MISSING (P0.W3) |
 | "another/other" source-default exclusion | `AllOf([…, Not(Ref(This))])` | ✓ |
-| "other" co-target set-distinctness (final-set check) | — | MISSING (P0.W4) |
+| "other" co-target set-distinctness (final-set check) | — | MISSING (P0.W4b mini-dialogue) |
 | set-level cardinality constraints (menace) | `CountBound` on `DeonticAction::Block` | ✓ |
 | random selection | `Selection::Random(Quantity, Filter)` | ✓ |
 
@@ -92,7 +92,7 @@ remaining non-✓ row reads **engine-seam**.
 | attack / block declaration | `DeclareAttackers` / `DeclareBlockers` | ✓ |
 | combat damage assignment (whole-assignment legality) | `AssignCombatDamage` | ✓ |
 | order own simultaneous triggers | `OrderTriggers` | ✓ |
-| replacement/prevention application order | — | MISSING (P0.W4) |
+| replacement/prevention application order | `PendingDecision::OrderReplacements` shell | ✓ schema; 616.1 fixpoint engine-seam |
 | fixed-window yes/no ("… unless you pay") | `PendingDecision::YesNo` shell | ✓ schema; surfacing engine-seam |
 | pre-game: first turn, mulligans + London bottoming, companion, opening-hand | `PreGame(PreGameKind)` shell (bottoming = committed-hidden) | ✓ schema; surfacing engine-seam |
 | special actions beyond land play | `Action::Special(SpecialAction)` over the closed list | ✓ shell; 116-machinery post-P0 |
@@ -100,6 +100,17 @@ remaining non-✓ row reads **engine-seam**.
 | visibility classes (open / committed-hidden + audit duty) | `Visibility` via `DecisionPoint` | ✓ schema; audit duty P0.W6 |
 | constraint arbitration (maximize-without-violating) | the Deontic rows ARE the input language | engine-seam (solver post-P0; P0.W1 guards live) |
 | randomness as pseudo-decider (flip/roll kinds) | `DeciderSpec::Rng`; flip/roll verbs + events | ✓ grammar; execution engine-seam |
+
+## 3b. Memory, queries & copies (`queries.md` §3–5, [CR#607.2,707.10])
+
+| skill concept | deckmaste | status |
+|---|---|---|
+| linked slots / chosen-value anaphora (write side) | `NotedKind` + `ChooseAndNote(key, kind)` + `Effect::Noting{key, effect}` | ✓ grammar; slot store P0.W5 seam |
+| noted reads | `Reference::Linked(key)`, `Count::Noted(key)` | ✓ grammar; eval engine-seam |
+| engine-tracked history counts | `Count::Query(QueryKey)` — CardsDrawn/LandsPlayed EVALUATE off live tallies; StormCount seam | ✓ |
+| copy-on-stack vs cast-a-copy ([CR#707.10,707.12]) | `CopySpell(Selection)` verb; cast-a-copy rides the 601 pipeline later | ✓ grammar; execution engine-seam |
+| 608.2b target re-check + fizzle | `targets_still_legal` at resolution | partial — LKI fallback for departed sources is a seam |
+| ⊥ semantics ([CR#107.2] coercion, skip-on-undefined) | documented convention | partial — formalize at first ⊥ collision (UD-6 ADR) |
 
 ## 4. Temporal & deontic modifiers (`temporal.md`, `deontics.md` §2–3 ↔ `temporal.rs`/`deontic.rs`)
 

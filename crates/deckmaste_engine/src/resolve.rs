@@ -405,6 +405,11 @@ impl GameState {
                     })
                     .collect()
             }
+            // P0.W4 seams: noted slots (store is P0.W5) and spell copies.
+            PlayerAction::ChooseAndNote(..) => {
+                todo!("P0.W4: choose-and-note (slot store is P0.W5)")
+            }
+            PlayerAction::CopySpell(..) => todo!("P0.W4: copy-on-stack ([CR#707.10])"),
             // P0.W3 seams: grammar-complete verbs whose execution is unbuilt.
             PlayerAction::FlipCoins(..) => todo!("P0.W3: coin flips (emit CoinFlipped)"),
             PlayerAction::RollDice(..) => todo!("P0.W3: die rolls (emit DieRolled)"),
@@ -557,9 +562,21 @@ impl GameState {
         clippy::unused_self,
         reason = "future Count arms (X, StatOf, …) will read self"
     )]
-    fn eval_count(&self, qty: &Count, _frame: &Frame) -> Uint {
+    fn eval_count(&self, qty: &Count, frame: &Frame) -> Uint {
         match qty {
             Count::Literal(n) => *n,
+            // [CR#608.2i] history reads off the Tally registry — the
+            // evaluating player is the frame's controller.
+            Count::Query(deckmaste_core::QueryKey::CardsDrawnThisTurn) => self
+                .player(frame.controller)
+                .this_turn
+                .count(crate::tally::Tally::CardsDrawn),
+            Count::Query(deckmaste_core::QueryKey::LandsPlayedThisTurn) => self
+                .player(frame.controller)
+                .this_turn
+                .count(crate::tally::Tally::LandsPlayed),
+            Count::Query(other) => todo!("P0.W4: query key {other:?} (tally unbuilt)"),
+            Count::Noted(key) => todo!("P0.W4: noted read {key:?} (slot store is P0.W5)"),
             other => todo!("stage 3 does not evaluate count {other:?}"),
         }
     }

@@ -16,6 +16,7 @@ pub use action::PlayerAction;
 
 mod count;
 pub use count::Count;
+pub use count::QueryKey;
 pub use count::Stat;
 
 mod card;
@@ -47,6 +48,7 @@ pub use counter::CounterDecl;
 
 mod decision;
 pub use decision::DeciderSpec;
+pub use decision::NotedKind;
 pub use decision::Visibility;
 
 mod designation;
@@ -75,6 +77,7 @@ pub use effect::ForEachEffect;
 pub use effect::IfEffect;
 pub use effect::MayEffect;
 pub use effect::ModalEffect;
+pub use effect::NotingEffect;
 pub use effect::UnlessEffect;
 
 mod event;

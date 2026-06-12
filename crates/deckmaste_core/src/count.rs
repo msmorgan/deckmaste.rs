@@ -24,6 +24,18 @@ pub enum Stat {
     Defense,
 }
 
+/// The engine-tracked history counters `Count::Query` bridges to
+/// (the Tally registry; turn-scoped unless noted).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize, Expand)]
+pub enum QueryKey {
+    /// Cards the evaluating player drew this turn ([CR#120]).
+    CardsDrawnThisTurn,
+    /// Lands the evaluating player played this turn ([CR#305.2]).
+    LandsPlayedThisTurn,
+    /// Spells cast before this one this turn (storm, [CR#702.40a]).
+    StormCount,
+}
+
 /// A scalar magnitude an effect computes at resolution: an amount, never an
 /// object (objects are `Reference`s, [CR#107.1,107.3]).
 ///
@@ -54,6 +66,11 @@ pub enum Count {
     /// `3` is macro-layer reader sugar for it.
     #[macro_ron(literal)]
     Literal(crate::Uint),
+    /// An engine-tracked tally ([CR#608.2i] history reads — storm,
+    /// lands-this-turn, cards-drawn), keyed like `Stat`.
+    Query(QueryKey),
+    /// A noted number read back from a slot ([CR#607.2] linked values).
+    Noted(crate::Ident),
     /// A remembered `Count` macro invocation.
     #[macro_ron(expanded)]
     Expanded(Expansion<Count>),
