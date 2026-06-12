@@ -49,6 +49,7 @@ pub fn kinds() -> KindSet {
     use deckmaste_core::Event;
     use deckmaste_core::Filter;
     use deckmaste_core::KeywordAbility;
+    use deckmaste_core::ManaRider;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Quantity;
     use deckmaste_core::Reference;
@@ -67,6 +68,7 @@ pub fn kinds() -> KindSet {
     kinds.add(Event::kind());
     kinds.add(Filter::kind());
     kinds.add(KeywordAbility::kind());
+    kinds.add(ManaRider::kind());
     kinds.add(PlayerAction::kind());
     kinds.add(Quantity::kind());
     kinds.add(Reference::kind());
@@ -128,6 +130,7 @@ mod tests {
     use deckmaste_core::Event;
     use deckmaste_core::Filter;
     use deckmaste_core::KeywordAbility;
+    use deckmaste_core::ManaRider;
     use deckmaste_core::ObjectKind;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Quantity;
@@ -170,6 +173,7 @@ mod tests {
             name_of::<Event>(),
             name_of::<Filter>(),
             name_of::<KeywordAbility>(),
+            name_of::<ManaRider>(),
             name_of::<PlayerAction>(),
             name_of::<Quantity>(),
             name_of::<Reference>(),

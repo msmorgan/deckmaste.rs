@@ -47,7 +47,7 @@ fn basic_land_subtype(name: &str, color: Color) -> Subtype {
                     Reference::You,
                     PlayerAction::AddMana(
                         Count::Literal(1),
-                        ManaSpec::Specific(ColorOrColorless::Color(color)),
+                        ManaSpec::Specific(ColorOrColorless::Color(color)).into(),
                     ),
                 )),
             },

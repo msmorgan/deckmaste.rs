@@ -2,7 +2,7 @@
 // so the [CR#602.5a] summoning-sickness gate never applies.
 Normal(
     name: "Artifact mana-activated DrawCards",
-    mana_cost: [],
+    mana_cost: [Generic(0)],
     types: [Artifact],
     abilities: [
         Activated(cost: [Mana([Generic(2)])], effect: Draw(1)),

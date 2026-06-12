@@ -26,6 +26,24 @@ pub enum CostComponent {
     Expanded(Expansion<CostComponent>),
 }
 
+/// The total-cost record of the [CR#601.2f] pipeline — an ENGINE-traffic
+/// value, not card grammar: base (mana or alternative, per [CR#601.2b]) →
+/// the `trace` of applied steps (`CostChange`: additional/increases, then
+/// reductions, [CR#601.2f]) → mana floor → direct effects → `locked`.
+/// After the lock (`LockPoint::TotalCost`) nothing changes the total
+/// ([CR#601.2h]'s sacrificed-cost-reducer example); payment-stage
+/// substitutions (the cost-modification hook: convoke/delve/…,
+/// [CR#702.51b]) edit HOW it is paid, never the total. Paying a changed
+/// cost still pays the original ([CR#118.7,118.11]).
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TotalCost {
+    pub base: Vec<CostComponent>,
+    /// Applied modification steps, in application order ([CR#601.2f]).
+    pub trace: Vec<crate::CostChange>,
+    /// Set at [CR#601.2f]; a locked total never moves.
+    pub locked: bool,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

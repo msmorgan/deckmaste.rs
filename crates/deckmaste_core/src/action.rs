@@ -4,7 +4,7 @@ use crate::Reference;
 use crate::Selection;
 use crate::SupportsMacros;
 use crate::Token;
-use crate::mana::ManaSpec;
+use crate::mana::ManaProduction;
 
 /// An intrinsic game verb ([CR#700,701]) whose **agent is the source object or
 /// the effect itself**, not a player: the source deals the damage, the effect
@@ -56,8 +56,9 @@ pub enum PlayerAction {
     GainLife(Count),
     /// Lose an amount of life — pay-life when in a cost ([CR#119.3]).
     LoseLife(Count),
-    /// Add mana to the player's mana pool ([CR#106.4]).
-    AddMana(Count, ManaSpec),
+    /// Add mana to the player's mana pool ([CR#106.4]) — the production
+    /// carries optional unit riders ([CR#106.6]).
+    AddMana(Count, ManaProduction),
     /// Create a number of token permanents ([CR#111.1,701.7]).
     Create(Count, Token),
     /// Sacrifice a selected permanent ([CR#701.21]).
@@ -119,7 +120,10 @@ mod tests {
 
         assert!(!PlayerAction::Draw(Count::Literal(1)).is_cost_eligible());
         assert!(!PlayerAction::GainLife(Count::Literal(3)).is_cost_eligible());
-        assert!(!PlayerAction::AddMana(Count::Literal(1), ManaSpec::AnyColor).is_cost_eligible());
+        assert!(
+            !PlayerAction::AddMana(Count::Literal(1), crate::ManaSpec::AnyColor.into())
+                .is_cost_eligible()
+        );
     }
 
     /// A bare player verb reads as `By(You, …)` — the implicit-you default:

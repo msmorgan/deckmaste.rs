@@ -15,6 +15,20 @@ use crate::SupportsMacros;
 use crate::Window;
 use crate::Zone;
 
+/// An alternative base cost on a cast-permission row ([CR#118.9]): paid
+/// INSTEAD of the mana cost, chosen at announce ([CR#601.2b]); only one
+/// alternative may apply per spell ([CR#118.9a] — an engine rule, not
+/// encodable here). Additional costs, increases, and reductions apply on
+/// top ([CR#118.9d]); an alternative unlocks an unpayable base
+/// ([CR#118.6a]).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+pub enum AlternativeCost {
+    /// "Without paying its mana cost" — the limiting case ([CR#118.9]).
+    Free,
+    /// "You may pay [cost] rather than …" ([CR#118.9b]).
+    Components(Vec<CostComponent>),
+}
+
 /// A scoped counterfactual premise ([CR#609.4]): "treat the game as if
 /// [premise] were true, for purposes of that effect only." Carried by
 /// `StaticEffect::AsThough`. Many as-though cards compile to deontic rows
@@ -95,6 +109,10 @@ pub enum DeonticAction {
         from: Option<Zone>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         window: Option<Window>,
+        /// An alternative base cost the permission carries ([CR#118.9]) —
+        /// "you may cast … without paying its mana cost".
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cost: Option<AlternativeCost>,
     },
     /// `by` plays `what` — land plays / play-a-card permissions
     /// ([CR#701.18]).
@@ -183,6 +201,7 @@ mod tests {
                 by: Filter::Any,
                 from: None,
                 window: Some(Window::InstantSpeed),
+                cost: None,
             }),
         );
     }
@@ -197,6 +216,7 @@ mod tests {
                 by: Filter::Any,
                 from: Some(Zone::Graveyard),
                 window: None,
+                cost: None,
             }),
         );
     }

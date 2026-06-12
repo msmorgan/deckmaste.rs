@@ -40,6 +40,7 @@ pub use continuous::StaticEffect;
 
 mod cost;
 pub use cost::CostComponent;
+pub use cost::TotalCost;
 
 mod counter;
 pub use counter::CounterDecl;
@@ -99,6 +100,8 @@ pub use keyword::KeywordAbility;
 
 mod mana;
 pub use mana::ManaCost;
+pub use mana::ManaProduction;
+pub use mana::ManaRider;
 pub use mana::ManaSpec;
 pub use mana::ManaSymbol;
 pub use mana::SimpleManaSymbol;
