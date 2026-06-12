@@ -20,13 +20,7 @@ pub enum Cmp {
     Less,
 }
 
-/// The turn-history window a `Happened` condition looks back over
-/// ([CR#608.2i]). Just `ThisTurn` for now; `ThisCombat` etc. accrete.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
-pub enum Window {
-    /// Since the start of the current turn (morbid, raid, "was kicked").
-    ThisTurn,
-}
+use crate::Window;
 
 /// A truth-valued test the engine evaluates ([CR#603.4] intervening-if,
 /// [CR#118.12a] "unless", ability words). Ability words (`Threshold`,

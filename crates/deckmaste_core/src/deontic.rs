@@ -12,14 +12,23 @@ use crate::Expand;
 use crate::Expansion;
 use crate::Filter;
 use crate::SupportsMacros;
+use crate::Window;
 use crate::Zone;
 
-/// A cast/play timing window ([CR#117.1a..117.1b]). Just `InstantSpeed`
-/// for now; `SorcerySpeed` accretes with the deferred `Only` work.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
-pub enum CastWindow {
-    /// Any time you could cast an instant (flash, [CR#702.8a]).
-    InstantSpeed,
+/// A scoped counterfactual premise ([CR#609.4]): "treat the game as if
+/// [premise] were true, for purposes of that effect only." Carried by
+/// `StaticEffect::AsThough`. Many as-though cards compile to deontic rows
+/// instead (cast-as-though-flash = `May(Cast(window: InstantSpeed))`); the
+/// variants here are the residue. Premises accrete as cards demand them.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+pub enum AsThough {
+    /// Payment freedom ([CR#609.4b]): changes only HOW a cost may be paid —
+    /// never the cost itself, nor what was actually spent.
+    SpendManaAsAnyColor,
+    /// A remembered `AsThough` macro invocation. Serialized as the
+    /// invocation, not the struct.
+    #[macro_ron(expanded)]
+    Expanded(Expansion<AsThough>),
 }
 
 /// A cardinality bound on a matched set — comparator-headed so it reads as
@@ -85,7 +94,7 @@ pub enum DeonticAction {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         from: Option<Zone>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        window: Option<CastWindow>,
+        window: Option<Window>,
     },
     /// `by` plays `what` — land plays / play-a-card permissions
     /// ([CR#701.18]).
@@ -173,7 +182,7 @@ mod tests {
                 what: Filter::Ref(Reference::This),
                 by: Filter::Any,
                 from: None,
-                window: Some(CastWindow::InstantSpeed),
+                window: Some(Window::InstantSpeed),
             }),
         );
     }

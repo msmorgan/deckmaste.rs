@@ -113,7 +113,20 @@ impl GameState {
             return false;
         }
 
-        // [CR#602.5b..602.5e]: activation condition.
+        // [CR#602.5d..602.5e]: activation window ("Activate only as a
+        // sorcery" — the Only refinement on the activation permission).
+        if let Some(window) = &ability.window {
+            let in_window = match window {
+                deckmaste_core::Window::InstantSpeed => true,
+                deckmaste_core::Window::SorcerySpeed => self.sorcery_speed_ok(player),
+                other => todo!("P0.W1: activation window {other:?}"),
+            };
+            if !in_window {
+                return false;
+            }
+        }
+
+        // [CR#602.5b..602.5e]: activation condition ("Activate only if …").
         if ability
             .condition
             .as_ref()
@@ -237,6 +250,7 @@ mod tests {
     /// condition/limits/targets.
     fn activated(cost: Vec<CostComponent>, effect: Effect) -> ActivatedAbility {
         ActivatedAbility {
+            window: None,
             cost,
             condition: None,
             limits: vec![],
@@ -365,6 +379,7 @@ mod tests {
 
         let ability = ActivatedAbility {
             cost: vec![],
+            window: None,
             condition: Some(Condition::YourTurn),
             limits: vec![],
             targets: vec![],
@@ -386,6 +401,7 @@ mod tests {
         let ability = ActivatedAbility {
             cost: vec![],
             condition: Some(Condition::YourTurn),
+            window: None,
             limits: vec![],
             targets: vec![],
             effect: noop_effect(),
@@ -411,6 +427,7 @@ mod tests {
             cost: vec![],
             condition: None,
             limits: vec![UseLimit::OncePerTurn],
+            window: None,
             targets: vec![],
             effect: noop_effect(),
         };
@@ -437,6 +454,7 @@ mod tests {
             condition: None,
             limits: vec![UseLimit::OncePerGame],
             targets: vec![],
+            window: None,
             effect: noop_effect(),
         };
         let view = state.layers();

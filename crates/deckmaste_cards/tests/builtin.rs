@@ -38,6 +38,7 @@ fn basic_land_subtype(name: &str, color: Color) -> Subtype {
         types: vec![Type::Land],
         confers: vec![Property::Ability(Box::new(Ability::Activated(
             ActivatedAbility {
+                window: None,
                 cost: vec![CostComponent::Tap],
                 condition: None,
                 limits: vec![],

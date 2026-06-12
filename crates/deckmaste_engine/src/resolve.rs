@@ -203,6 +203,14 @@ impl GameState {
                 // [CR#611.2]/[CR#611.2c]: stamp at creation; lock the object set
                 // for non-floating scopes, leave `Matching` floating.
                 let timestamp = self.objects.next_timestamp();
+                // P0.W1 seam: only the durations the engine can SWEEP may
+                // create instances — a duration with no sweep/tracking would
+                // silently last forever.
+                match &e.duration {
+                    deckmaste_core::Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn)
+                    | deckmaste_core::Duration::EndOfGame => {}
+                    other => todo!("P0.W1: duration {other:?} — sweep/tracking unbuilt"),
+                }
                 if let StaticEffect::Modify { of, changes } = &*e.effect {
                     let scope = match of {
                         Scope::Matching(f) => ScopeResolved::Floating(f.clone()),
@@ -218,10 +226,14 @@ impl GameState {
                         duration: e.duration.clone(),
                         is_cda: false,
                     });
+                } else {
+                    // P0.W1 seam: a granted Deontic/CostModifier/… row would
+                    // be silently inert — loud instead.
+                    todo!(
+                        "P0.W1: Continuously({:?}) — non-Modify grants unbuilt",
+                        e.effect
+                    );
                 }
-                // Non-Modify static effects (Deontic/CostModifier/...) are a
-                // later seam — explicit no-op, not silently
-                // dropped.
             }
             other => todo!("stage 3 does not interpret effect {other:?} (the choice seam)"),
         }
@@ -987,7 +999,7 @@ mod tests {
                 of: Scope::Matching(filter.clone()),
                 changes: vec![Modification::AddPower(Count::Literal(1))],
             }),
-            duration: Duration::UntilEndOfTurn,
+            duration: Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
         });
         state.run_effect(effect, &frame);
 
@@ -997,7 +1009,10 @@ mod tests {
             matches!(&ce.scope, crate::layer::ScopeResolved::Floating(f) if f == &filter),
             "scope is Floating(creature filter)"
         );
-        assert_eq!(ce.duration, Duration::UntilEndOfTurn);
+        assert_eq!(
+            ce.duration,
+            Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn)
+        );
         assert_eq!(ce.changes, vec![Modification::AddPower(Count::Literal(1))]);
         assert!(!ce.is_cda);
     }
@@ -1028,7 +1043,7 @@ mod tests {
                 of: Scope::Of(Reference::This),
                 changes: vec![Modification::AddToughness(Count::Literal(2))],
             }),
-            duration: Duration::UntilEndOfTurn,
+            duration: Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
         });
         state.run_effect(effect, &frame);
 

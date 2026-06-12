@@ -167,7 +167,7 @@ fn one_shot_pump_expires_at_cleanup() {
             Modification::AddPower(Count::Literal(3)),
             Modification::AddToughness(Count::Literal(3)),
         ],
-        duration: Duration::UntilEndOfTurn,
+        duration: Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
         is_cda: false,
     });
     assert_eq!(state.layers().power(bear), Some(5), "2/2 +3/+3 → 5");
