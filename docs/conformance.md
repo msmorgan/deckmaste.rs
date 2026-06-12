@@ -40,7 +40,7 @@ remaining non-✓ row reads **engine-seam**.
 | player-property tests (life-total comparisons, speed) | designations cover flags; numeric player stats | partial — MISSING (P0.W4) |
 | `target [desc]` | `Target(Quantity, Filter)` | ✓ |
 | exactly-N / up-to-N / any-number selection | `Quantity::{Exactly, AtMost, AnyNumber, …}` | ✓ |
-| variable-count targets, count locked at announce | `Count::X` + lock | partial — lock typing is P0.W1 `LockPoint` |
+| variable-count targets, count locked at announce | `Count::X`; `LockPoint::Announce` | ✓ types; threading through decisions is P0.W2/W3 |
 | `any target` shorthand | builtin Filter macro (`CreatureOrPlayer`-family) | ✓ |
 | `each [desc]` (untargeted universal) | `Selection::Each(Filter)` | ✓ |
 | `among [previously computed set]` | — | MISSING (P0.W4) |
@@ -95,8 +95,24 @@ remaining non-✓ row reads **engine-seam**.
 | replacement/prevention application order | — | MISSING (P0.W4) |
 | fixed-window yes/no ("… unless you pay") | — | MISSING (P0.W3) |
 | pre-game: first turn, mulligans + London bottoming, companion, opening-hand | — | MISSING (P0.W3) |
-| special actions beyond land play | `Action::PlayLand` only | MISSING (P0.W1 grammar; 116-machinery post-P0) |
+| special actions beyond land play | `Action::PlayLand` only | MISSING (P0.W3 grammar; 116-machinery post-P0) |
 | decider field (other-player choosers) | implicit `player` per variant | MISSING (P0.W3 schema) |
 | visibility classes (open / committed-hidden + audit duty) | all implicitly open | MISSING (P0.W3 schema; audit duty P0.W6) |
-| constraint arbitration (maximize-without-violating) | — | types P0.W1; solver post-P0 |
+| constraint arbitration (maximize-without-violating) | the Deontic rows ARE the input language | engine-seam (solver post-P0; P0.W1 guards live) |
 | randomness as pseudo-decider (flip/roll kinds) | `Selection::Random` grammar only | MISSING (P0.W3) |
+
+## 4. Temporal & deontic modifiers (`temporal.md`, `deontics.md` §2–3 ↔ `temporal.rs`/`deontic.rs`)
+
+| skill concept | deckmaste | status |
+|---|---|---|
+| four polarities over typed actions (May/Cant/Must/Gate) | `Deontic` over `DeonticAction` | ✓ grammar; legality evaluation is engine-seam (P0.W1 presence guards live in `legal.rs`) |
+| resolution Toll (price bites at resolution) | `Effect::Unless` (named the Toll node) | ✓ |
+| Only window refinement — activation timing | `ActivatedAbility.window` | ✓ grammar; InstantSpeed/SorcerySpeed evaluated, other windows engine-seam |
+| cast-permission window (flash-style May rows) | `DeonticAction::Cast { window }` | ✓ grammar; consumption engine-seam (cast guard) |
+| AsThough premises (scoped counterfactuals) | `StaticEffect::AsThough` (`SpendManaAsAnyColor` + macros) | partial — premises accrete; consumption engine-seam |
+| shared Window vocabulary, reading per position | `Window` (speeds, ThisTurn, DuringTurn, DuringStep) | ✓ |
+| skipped-window semantics ("the next" skips skipped) | — | MISSING (P0.W3) |
+| duration taxonomy (fixed / until-event / for-as-long-as / rest-of-game) | `Duration::{FixedUntil(TurnMarker), UntilEvent, ForAsLongAs, EndOfGame}` | ✓ grammar; sweeps beyond end-of-turn + predicate tracking engine-seam (creation guard in `resolve.rs`) |
+| `started` latch, never-started/already-ended edges | engine effect-instance record | engine-seam (arrives with ForAsLongAs tracking) |
+| lock-point axis on stored values | `LockPoint` (8 points) | ✓ type; threading is P0.W2/W3 |
+| once-per-turn limiter scopes (object vs controller) | `UseLimit::{OncePerTurn, OncePerGame}` | partial — controller-scoped trigger flavor needs a scope distinction (P0.W3) |

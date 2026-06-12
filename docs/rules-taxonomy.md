@@ -645,8 +645,11 @@ countered, can't gain life), "doesn't"/skip (replacement family, §7),
 outcome "can't"s ([CR#104.2a,104.3f]), resolution Tolls (ward = trigger +
 unless, [CR#702.21a,118.12a]), and cost modification ([CR#118.7], Thalia).
 Activation-timing text ("Activate only as a sorcery" — 921 "Activate only"
-lines; [CR#602.1b]) stays a separate Only-window refinement pending the
-deferred Only/AsThough work ([CR#609.4]).
+lines; [CR#602.1b]) is the `window` slot on activated abilities — the Only
+refinement, drawing on the shared temporal `Window` vocabulary (speeds,
+during-step, this-turn; one value type, reading per position). AsThough
+premises ([CR#609.4]) have a typed shell (`StaticEffect::AsThough`,
+payment-freedom first), accreting variants per card demand.
 
 ---
 
