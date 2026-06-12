@@ -175,7 +175,7 @@ backlog (needs design dialogue)*, *variant-gated*, *UD-blocked*, or
 |---|---|---|
 | loss SBAs: life ([CR#704.5a]) / empty draw ([CR#704.5b]) / poison ([CR#704.5c]) | `sba::sweep` + `LossReason` — all three LIVE (poison reads the proxy's counter map, dormant until counter apply lands) | ✓ |
 | effect outcomes: "loses" / "wins the game" ([CR#104.3e,104.2b]) | `PlayerAction::{LoseGame, WinGame}` riding `By(player, …)` | ✓ grammar; resolve arms engine-seam |
-| concession ([CR#104.3a] — unstoppable, pierces every gate) | `Action::Concede` — REAL: always accepted, never offered; two-player terminal tested | ✓ (multiplayer leave-game cleanup [CR#800.4a] = loud seam) |
+| concession ([CR#104.3a] — unstoppable, pierces every gate) | `Action::Concede` — REAL and ENUMERATED at every choice boundary ("you can also concede"; runner filters); answers ANY pending decision; two-player terminal tested | ✓ (multiplayer leave-game cleanup [CR#800.4a] = loud seam) |
 | can't-lose / can't-win gates (U5 settled: precedence per check, not consumption) | `StaticEffect::OutcomeGate{who, gate}` over `OutcomeGateKind::{CantLose, CantWin}` | ✓ grammar; SBA-sweep presence guard trips on any gate row |
 | win∧lose → lose arbitration ([CR#104.3f]); same-result SBA batch replacement ([CR#704.7]) | doc-pinned on the gate/verbs | engine-seam (arrives with the outcome verbs) |
 | last-player-standing win / all-lose draw ([CR#104.2a,104.4a]) | `check_game_end` → `GameOutcome::{Win, Draw}` | ✓ |
