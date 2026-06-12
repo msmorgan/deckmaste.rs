@@ -733,6 +733,10 @@ impl GameState {
             entry.targets.len(),
             "announce fills exactly one chosen target per TargetSpec",
         );
+        // [CR#608.2b] re-checks the same Cant(Target) rows the announce
+        // evaluated — a hexproof granted after announce fizzles the spell.
+        let view = self.layers();
+        let rows = crate::legal::cant_target_rows(self, &view);
         specs.iter().zip(&entry.targets).all(|(spec, &chosen)| {
             // [CR#608.2b]: a target that no longer exists (reminted on zone
             // change) is trivially illegal — the filter can't be satisfied.
@@ -741,6 +745,7 @@ impl GameState {
             }
             let filter = target_spec_filter(spec);
             crate::target::matches(self, chosen, filter)
+                && crate::legal::target_forbidden_by(self, &rows, entry.id, chosen).is_none()
         })
     }
 }

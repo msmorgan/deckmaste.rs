@@ -9,7 +9,7 @@
     name: "Hexproof",
     template: "hexproof",
     kinds: [KeywordAbility],
-    params: { "from": Default(Any, Any) },
+    params: { "from": Default(Filter, Any) },
     body: Composite(
         name: "Hexproof",
         abilities: [Static(effects: [

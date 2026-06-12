@@ -195,19 +195,21 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     // guard: targeting legality and attach legality don't evaluate
     // deontics yet, and a board carrying such rows must trip LOUDLY at
     // the priority window rather than silently allow the choice.
+    // Cant(Target) rows (hexproof, protection's targeted clause) are
+    // EVALUATED at target-candidate computation now; the guard keeps the
+    // unevaluated rest: Cast/Play/Attach rows of any polarity, and the
+    // non-Cant Target polarities.
     guard_deontic_seam(
         state,
         &view,
-        |d| {
-            matches!(
-                deontic_action(d),
-                DeonticAction::Cast { .. }
-                    | DeonticAction::Play { .. }
-                    | DeonticAction::Target { .. }
-                    | DeonticAction::Attach { .. }
-            )
+        |d| match deontic_action(d) {
+            DeonticAction::Cast { .. }
+            | DeonticAction::Play { .. }
+            | DeonticAction::Attach { .. } => true,
+            DeonticAction::Target { .. } => !is_cant(d),
+            _ => false,
         },
-        "cast/play/target/attach",
+        "cast/play/attach + non-Cant target",
     );
     guard_cost_modifier_seam(state, &view);
     for &object in &state.zones.hands[player.index()] {
@@ -462,4 +464,51 @@ pub(crate) fn arrangement_forbidden_by(
             n > 0 && holds(r.count.as_ref().expect("filtered to Some"), n)
         })
         .map(|r| r.carrier)
+}
+
+/// Every `Cant(Target)` row in the derived view, with its carrier —
+/// `(carrier source, by, on)`: `by` matches the targeting spell/ability,
+/// `on` the would-be target ([CR#702.11b] hexproof, [CR#702.16b]
+/// protection's targeted clause).
+#[must_use]
+pub(crate) fn cant_target_rows(
+    state: &GameState,
+    view: &LayeredView,
+) -> Vec<(crate::object::ObjectSource, Filter, Filter)> {
+    fn cant_action(d: &Deontic) -> Option<&DeonticAction> {
+        match d {
+            Deontic::Cant(a) => Some(a),
+            Deontic::Expanded(e) => cant_action(&e.value),
+            _ => None,
+        }
+    }
+    let mut rows = Vec::new();
+    for &id in &state.zones.battlefield {
+        let source = state.objects.obj(id).source;
+        statics_on(view, id, &mut |e| {
+            if let StaticEffect::Deontic(d) = e
+                && let Some(DeonticAction::Target { by, on }) = cant_action(d)
+            {
+                rows.push((source, by.clone(), on.clone()));
+            }
+        });
+    }
+    rows
+}
+
+/// The carrier of the first `Cant(Target)` row forbidding `spell` (the
+/// targeting stack object / in-flight announce) from targeting `target`.
+#[must_use]
+pub(crate) fn target_forbidden_by(
+    state: &GameState,
+    rows: &[(crate::object::ObjectSource, Filter, Filter)],
+    spell: ObjectId,
+    target: ObjectId,
+) -> Option<crate::object::ObjectSource> {
+    rows.iter()
+        .find(|(carrier, by, on)| {
+            state.filter_matches_live(by, spell, *carrier)
+                && state.filter_matches_live(on, target, *carrier)
+        })
+        .map(|(carrier, ..)| *carrier)
 }
