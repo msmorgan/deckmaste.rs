@@ -215,7 +215,7 @@ pub enum Event {
         becomes: Option<Ident>,
     },
     /// Any of several events ([CR#603.2], "whenever … or …").
-    OneOfEvents(Vec<Event>),
+    OneOf(Vec<Event>),
     /// A remembered `Event` macro invocation (`Dies`, `Enters`, `Landfall`,
     /// …). Serialized as the invocation, not the struct.
     #[macro_ron(expanded)]
