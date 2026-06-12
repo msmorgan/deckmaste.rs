@@ -210,6 +210,8 @@ impl GameState {
         self.remove_from_hand(controller, object);
         self.objects.obj_mut(object).zone = Some(Zone::Stack);
         self.announcing = Some(PendingStackEntry {
+            // [CR#405]: a spell's stack identity is its own object id.
+            id: object,
             object: StackObject::Spell(object),
             controller,
             origin: Zone::Hand,
@@ -245,17 +247,10 @@ impl GameState {
         }
         // [CR#702.11b]-family: Cant(Target) rows (hexproof, protection)
         // exclude their carriers from the candidate sets — `by` evaluates
-        // against the announcing spell, or an ability's SOURCE (the stack
-        // identity isn't minted until the announce promotes, [CR#602.2a];
-        // controller-anchored rows read the same controller either way —
-        // a by-row keyed on stack-zone state needs the minted id, a seam).
-        let spell = match &pending.object {
-            StackObject::Spell(o) => *o,
-            StackObject::Activated { source, .. } => *source,
-            StackObject::Triggered { .. } => {
-                unreachable!("triggers announce targets at placement, not in the announce slot")
-            }
-        };
+        // against the announce's stack identity (a spell's own id, or the
+        // ability identity minted when the announce opened [CR#602.2a]),
+        // so stack-zone-keyed rows read the real object.
+        let spell = pending.id;
         let view = self.layers();
         let rows = crate::legal::cant_target_rows(self, &view);
         let legal: Vec<Vec<ObjectId>> = specs

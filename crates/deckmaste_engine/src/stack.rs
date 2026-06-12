@@ -78,6 +78,13 @@ pub struct StackEntry {
 /// entry never has.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PendingStackEntry {
+    /// The stack identity the announce commits under ([CR#405]): a spell's
+    /// own object id, or an activated ability's identity minted when the
+    /// announce opens — the ability exists on the stack from announcement
+    /// ([CR#602.2a]), so announce-time deontic `by` rows (including
+    /// stack-zone-keyed ones) evaluate against the real id, not a source
+    /// stand-in.
+    pub id: ObjectId,
     pub object: StackObject,
     pub controller: PlayerId,
     /// Where a spell was cast from — for cast-from-zone effects, not undo;

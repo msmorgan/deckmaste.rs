@@ -441,22 +441,13 @@ impl GameState {
                 let view = self.layers();
                 let must_rows = crate::legal::must_target_rows(self, &view);
                 if !must_rows.is_empty() {
+                    // Both staging slots carry a real stack identity: a
+                    // placing trigger's is minted at placement
+                    // ([CR#603.3d]), an announce's when it opened
+                    // ([CR#602.2a] / a spell's own id).
                     let targeting = match &self.placing_trigger {
-                        // A placing trigger's stack identity is already
-                        // minted ([CR#603.3d]).
                         Some(t) => t.id,
-                        None => match &self
-                            .announcing
-                            .as_ref()
-                            .expect("an announce in flight")
-                            .object
-                        {
-                            crate::stack::StackObject::Spell(o) => *o,
-                            crate::stack::StackObject::Activated { source, .. } => *source,
-                            crate::stack::StackObject::Triggered { .. } => unreachable!(
-                                "triggers announce targets at placement, not in the announce slot"
-                            ),
-                        },
+                        None => self.announcing.as_ref().expect("an announce in flight").id,
                     };
                     for (carrier, by, on) in &must_rows {
                         if !self.filter_matches_live(by, targeting, *carrier) {

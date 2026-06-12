@@ -196,7 +196,15 @@ impl GameState {
             that_object: None,
             that_player: None,
         };
+        // [CR#602.2a]: the ability is created on the stack as the FIRST step
+        // of announcing — mint its stack identity now, so announce-time
+        // deontic `by` rows (hexproof's controller anchor, stack-zone-keyed
+        // shapes) evaluate against the real id. `AbilityActivated` promotes
+        // this same id into the committed entry.
+        let src = self.objects.obj(object).source;
+        let id = self.objects.mint(src, controller, Some(Zone::Stack));
         self.announcing = Some(PendingStackEntry {
+            id,
             object: StackObject::Activated {
                 source: object,
                 ability: Box::new(ability),

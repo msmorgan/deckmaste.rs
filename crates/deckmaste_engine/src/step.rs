@@ -262,7 +262,7 @@ impl GameState {
                     // [CR#405]: a spell's stack identity is its own object id —
                     // unchanged from Stage 2, so existing Resolve(spell) keying
                     // by `StackEntry.id` still finds it.
-                    id: pending.object.object(),
+                    id: pending.id,
                     object: pending.object,
                     controller: pending.controller,
                     targets: pending.targets,
@@ -271,8 +271,9 @@ impl GameState {
             }
             GameEvent::AbilityActivated { source, ability } => {
                 // [CR#602.2a]: promote the staged activation onto the stack
-                // under a freshly minted stack identity ([CR#405]), and count
-                // it against "activate only once" limits ([CR#602.5b]).
+                // under the stack identity minted when the announce opened
+                // ([CR#405], `begin_activate`), and count it against
+                // "activate only once" limits ([CR#602.5b]).
                 let pending = self.announcing.take().expect("an announce in flight");
                 debug_assert!(
                     matches!(
@@ -283,17 +284,8 @@ impl GameState {
                     // carries the text. Source match is the only structural check here.
                     "AbilityActivated event matches the staged announce"
                 );
-                // The source is always live here: nothing can fire between
-                // PayCost and AbilityActivated in the scheduled pipeline.
-                // Mid-announce zone changes (responding to costs) would need
-                // this arm revisited ([CR#602.2]).
-                // Copy the ObjectSource before minting (mint mutates the store).
-                let src = self.objects.obj(source).source;
-                let id = self
-                    .objects
-                    .mint(src, pending.controller, Some(Zone::Stack));
                 self.stack.push(StackEntry {
-                    id,
+                    id: pending.id,
                     object: pending.object,
                     controller: pending.controller,
                     targets: pending.targets,
