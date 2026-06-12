@@ -1,12 +1,8 @@
 // Reach is the type specimen MARKER keyword: no function of its own — only
 // flying's blocking predicate gives it meaning [CR#702.17b,702.9b]. An
 // empty composite carrying the name is its entire, honest semantics.
-(
+KeywordAbility(
     name: "Reach",
     template: "reach",
-    kinds: [KeywordAbility],
-    body: Composite(
-        name: "Reach",
-        abilities: [],
-    )
+    abilities: [],
 )

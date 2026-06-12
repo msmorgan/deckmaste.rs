@@ -5,17 +5,13 @@
 // invoke it INSIDE the wrapper — `Keyword(Flying)` — so keyword-ness is
 // always explicit. Engine block-legality enforcement of evasion Cants is a
 // later combat task.
-(
+KeywordAbility(
     name: "Flying",
     template: "flying",
-    kinds: [KeywordAbility],
-    body: Composite(
-        name: "Flying",
-        abilities: [Static(effects: [
-            Cant(Block(
-                on: Ref(This),
-                by: Not(OneOf([HasAbility("Flying"), HasAbility("Reach")])),
-            )),
-        ])],
-    )
+    abilities: [Static(effects: [
+        Cant(Block(
+            on: Ref(This),
+            by: Not(OneOf([HasAbility("Flying"), HasAbility("Reach")])),
+        )),
+    ])],
 )
