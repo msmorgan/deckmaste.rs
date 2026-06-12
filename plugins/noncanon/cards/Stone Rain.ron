@@ -6,6 +6,6 @@ Normal(
     ],
     types: [Sorcery],
     abilities: [
-        Unsupported("Destroy target land."),
+        UnsupportedSpell("Destroy target land."),
     ],
 )

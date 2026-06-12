@@ -17,9 +17,9 @@ use deckmaste_noncanon::probe::Probes;
 use deckmaste_noncanon::source::CardSource;
 use deckmaste_noncanon::wc99;
 
-/// Default 50: lookahead-piloted games run ~2.4s each in the dev profile,
-/// and 50 keeps the gate under ~2 minutes while still exercising both seats
-/// across a real spread of shuffles. Override with `GAMES=n`.
+/// Default 50: lookahead-piloted games run ~2.4s each on subset decks and
+/// ~5s on the full proxied lists (dev profile) — the two green gates total
+/// roughly six minutes. Override with `GAMES=n` for quick iterations.
 fn batch_size() -> u64 {
     std::env::var("GAMES")
         .ok()
@@ -119,11 +119,38 @@ fn wc99_subset_gate() {
     assert!(green > 0, "Stompy never won");
 }
 
-/// The red target: the faithful 60s. Stays ignored until every card is
-/// graduated and engine-supported; the deck build itself panics on the first
-/// ungraduated card, which is the standing gap-list.
+/// The full 60s with Unsupported-proxied abilities: every card loads, casts,
+/// and fights as a vanilla version of itself; abilities arrive incrementally
+/// by replacing their `Unsupported(...)` wrappers. This is the green gate for
+/// the REAL deck shapes (curves, bodies, burn density).
 #[test]
-#[ignore = "full WC99 matchup: ungate when all 24 nonbasics are graduated and engine-supported"]
+fn wc99_full_proxied_gate() {
+    let src = CardSource::load();
+    let decks = [
+        deck::build_full(&wc99::SPED_RED, &src),
+        deck::build_full(&wc99::STOMPY, &src),
+    ];
+    let records = run_batch(&decks);
+    let (red, green, probes) = report("wc99 full-proxied", &records);
+
+    // The full shapes bring combat both ways: red has bodies now.
+    assert!(probes.spells_cast > 0);
+    assert!(probes.attacks_declared > 0);
+    assert!(probes.creature_damage_to_players > 0);
+    assert!(
+        probes.spell_damage_to_players > 0,
+        "burn never went to the face"
+    );
+    // Win-rate sanity only — proxy decks aren't the faithful matchup yet.
+    assert!(red > 0, "Sped Red never won");
+    assert!(green > 0, "Stompy never won");
+}
+
+/// The red target: the faithful matchup. Stays ignored until no
+/// `Unsupported(...)` wrapper remains in either list AND the win-rate band
+/// below is tuned against an observed distribution.
+#[test]
+#[ignore = "faithful WC99 matchup: ungate when no Unsupported abilities remain in either deck"]
 fn wc99_full_matchup() {
     let src = CardSource::load();
     let decks = [

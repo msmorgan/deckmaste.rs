@@ -1,0 +1,9 @@
+// The instant/sorcery form of Unsupported: the resolver requires a Spell
+// ability on instants/sorceries, so the proxy is a targetless spell whose
+// effect is an empty sequence — cast it and nothing happens.
+(
+    name: "UnsupportedSpell",
+    kinds: [Ability],
+    params: [String],
+    body: Spell(effect: Sequence([])),
+)

@@ -350,8 +350,11 @@ pub fn eval(state: &GameState, seat: PlayerId) -> i64 {
             score += sign * 2; // lands/artifacts: small presence value
         }
     }
+    // A held card is worth LESS than its deployed body (aggro decks convert
+    // cards into board and damage every turn) — at 12 a 1/1 deploy scored a
+    // dead tie with passing and creatures rotted in hand.
     score += (i64::try_from(state.zones.hands[seat.index()].len()).unwrap_or(0)
         - i64::try_from(state.zones.hands[opp.index()].len()).unwrap_or(0))
-        * 12;
+        * 6;
     score
 }
