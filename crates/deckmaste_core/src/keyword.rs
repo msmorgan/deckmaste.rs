@@ -1,16 +1,18 @@
 //! The native keyword abilities ([CR#702]) the engine implements directly:
 //! a closed enum the combat code pattern-matches on, rather than plugin macros.
 //! Per the keyword classification (intrinsic / composite / composite-given —
-//! docs/rules-taxonomy.md §10), four are true intrinsics owning prospective
-//! combat-damage machinery ([CR#510.1]): first/double strike, deathtouch,
-//! trample. The other three are kept native pragmatically: vigilance and
-//! lifelink are composite-given (pending cause-tagged events and a
-//! damage-result-rewrite stage), Flying is composite (a block-legality
-//! restriction). All seven are encoded on cards as `Keyword(X)`. Haste is
-//! **not** here — it only lifts the summoning-sickness attack/tap limits
-//! (deontic `May` territory; exact spelling still open); other non-native
-//! keywords are plugin macros (e.g. indestructible = an event-side "can't
-//! be destroyed", the replacement-family seam).
+//! docs/rules-taxonomy.md §10, pinned to the mtg-rules skill v1.7.0), five
+//! are true intrinsics: first/double strike, deathtouch, and trample own
+//! prospective combat-damage machinery ([CR#510.1]); vigilance owns dedicated
+//! declare-attackers text ([CR#702.20a..702.20b,508.1f]). The other two are
+//! kept native pragmatically: lifelink is composite-given (pending the
+//! damage-result-rewrite stage it shares with wither/infect/toxic), Flying
+//! is composite (a block-legality restriction). All seven are encoded on
+//! cards as `Keyword(X)`. Haste is **not** here — it is a flag the standing
+//! summoning-sickness `Cant` rows read in their own conditions
+//! ([CR#508.1a,602.5a]; [CR#702.10b..702.10c,302.6] mirror them); other
+//! non-native keywords are plugin macros (e.g. indestructible = an
+//! event-side "can't be destroyed", the replacement-family seam).
 //!
 //! The grammar lands now; the behaviors arrive in later combat tasks.
 

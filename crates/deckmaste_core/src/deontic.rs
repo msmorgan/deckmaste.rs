@@ -121,11 +121,11 @@ pub enum Deontic {
     /// Requirement — if-able, arbitrated by the maximize solver
     /// ([CR#508.1d,509.1c]); never forces a toll payment.
     Must(DeonticAction),
-    /// Declaration-gating toll ([CR#508.1d,509.1c]): the action is legal
-    /// only in completions paying the cost, once per matching instance;
-    /// the actor is never compelled. Resolution tolls (ward,
-    /// [CR#702.21a,118.12a]) are trigger + unless, not this.
-    MayIf(DeonticAction, Vec<CostComponent>),
+    /// Gate — the declaration-gating price ([CR#508.1d,509.1c]): the
+    /// action is legal only in completions paying the cost, once per
+    /// matching instance; the actor is never compelled. Resolution Tolls
+    /// (ward, [CR#702.21a,118.12a]) are trigger + unless, not a `Deontic`.
+    Gate(DeonticAction, Vec<CostComponent>),
     /// A remembered `Deontic` macro invocation (evasion keywords, …).
     #[macro_ron(expanded)]
     Expanded(Expansion<Deontic>),
@@ -192,12 +192,12 @@ mod tests {
         );
     }
 
-    /// A declaration toll (Propaganda-shaped, cost simplified to {T}).
+    /// A declaration Gate (Propaganda-shaped, cost simplified to {T}).
     #[test]
-    fn declaration_toll_reads() {
+    fn declaration_gate_reads() {
         assert_eq!(
-            read("MayIf(Attack(on: Is(You)), [Tap])"),
-            Deontic::MayIf(
+            read("Gate(Attack(on: Is(You)), [Tap])"),
+            Deontic::Gate(
                 DeonticAction::Attack {
                     by: Filter::Any,
                     on: Filter::Is(Reference::You),
@@ -225,7 +225,7 @@ mod tests {
             "Cant(Attack(by: Is(This)))",
             "Cant(Block(on: Is(This), count: Less(Literal(2))))",
             "May(Cast(what: Is(This), window: InstantSpeed))",
-            "MayIf(Attack(on: Is(You)), [Tap])",
+            "Gate(Attack(on: Is(You)), [Tap])",
         ];
         for source in cases {
             let parsed = read(source);
