@@ -3,12 +3,8 @@
 // carries the name alone and the engine's combat-damage hook matches it by
 // name (the look-through seam, `has_keyword_named`). The
 // wither/infect/toxic family shares the pending primitive.
-(
+KeywordAbility(
     name: "Lifelink",
     template: "lifelink",
-    kinds: [KeywordAbility],
-    body: Composite(
-        name: "Lifelink",
-        abilities: [],
-    )
+    abilities: [],
 )

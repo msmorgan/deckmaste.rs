@@ -1,0 +1,26 @@
+// The keyword-ability declaration form ([CR#702]): one invocation per
+// keyword, generating its KeywordAbility-kind macro. Factors the decl
+// boilerplate and pins the invariant that the Composite's carried name
+// mirrors the macro name (cards invoke the result inside the wrapper:
+// `Keyword(Flying)`). PARAMETERIZED keywords (ward {0}, protection
+// from {0}) are NOT this form's job yet — forwarding a param signature
+// through a meta-macro needs two-level hole hygiene; that story is the
+// `core-intrinsic-keywords-policy` design dialogue.
+(
+    name: "KeywordAbility",
+    kinds: [Macro],
+    params: {
+        "name": String,
+        "template": String,
+        "abilities": Any,
+    },
+    body: (
+        name: Param(name),
+        template: Param(template),
+        kinds: [KeywordAbility],
+        body: Composite(
+            name: Param(name),
+            abilities: Param(abilities),
+        ),
+    ),
+)

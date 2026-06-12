@@ -87,21 +87,43 @@ fn keyword_macros_match_the_classification() {
             &root.join("plugins").join(plugin).join("macros"),
             &mut files,
         );
+        // Meta-macro invocation files (KeywordAbility(name: "Flying", …),
+        // subtype templates) don't parse as a literal MacroDef — resolve
+        // those through the LOADED set instead, which also proves the
+        // registration round-trip the literal scan never exercised.
+        let loaded = deckmaste_cards::plugin::Plugin::load_with_sibling_prelude(
+            root.join("plugins").join(plugin),
+        )
+        .unwrap_or_else(|e| panic!("loading plugin {plugin}: {e:#}"));
         for path in files {
             let text = std::fs::read_to_string(&path).unwrap();
-            // Meta-macro invocations (subtype templates etc.) don't parse as
-            // a literal MacroDef — they are not keyword decls; skip them.
-            let Ok(def) = deckmaste_core::ron::options().from_str::<MacroDef>(&text) else {
-                continue;
+            let name_and_kinds = match deckmaste_core::ron::options().from_str::<MacroDef>(&text) {
+                Ok(def) => (def.name, def.kinds.clone()),
+                Err(_) => {
+                    // An invocation file registers a macro under the file's
+                    // stem; not found under KeywordAbility = some other
+                    // kind's meta-invocation (subtype templates) — skip.
+                    let stem = path.file_stem().unwrap().to_str().unwrap();
+                    if let Some(def) = loaded.macros.get("KeywordAbility", stem) {
+                        (def.name, def.kinds.clone())
+                    } else {
+                        continue;
+                    }
+                }
             };
-            if !def.kinds.iter().any(|k| k.as_str() == "KeywordAbility") {
+            let def_name = name_and_kinds.0;
+            if !name_and_kinds
+                .1
+                .iter()
+                .any(|k| k.as_str() == "KeywordAbility")
+            {
                 continue;
             }
             // Everything non-intrinsic is macro territory: composite,
             // composite-given (name-carrying until its primitive exists),
             // and marker (a name-only composite IS a marker's semantics).
             // Intrinsics belong in the enum; unknown names are drift.
-            let class = class_of(&json, def.name.as_str());
+            let class = class_of(&json, def_name.as_str());
             assert!(
                 matches!(
                     class.as_deref(),
@@ -109,7 +131,7 @@ fn keyword_macros_match_the_classification() {
                 ),
                 "keyword macro {:?} ({}) must be a non-intrinsic class \
                  per the skill classification, got {class:?}",
-                def.name.as_str(),
+                def_name.as_str(),
                 path.display(),
             );
             checked += 1;
