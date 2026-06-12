@@ -168,6 +168,15 @@ impl GameState {
     //   action-driven zone-change collapse (draw / land / discard → ZoneWillChange) is done.
     #[expect(clippy::too_many_lines)]
     fn apply(&mut self, event: GameEvent) -> GameEvent {
+        // Every amount-carrying event fixes the "that much" register
+        // (`Count::ThatMuch`) as it actually happens — at the apply funnel,
+        // after any replacement has rewritten the event.
+        match &event {
+            GameEvent::DamageDealt { amount, .. }
+            | GameEvent::LifeLost { amount, .. }
+            | GameEvent::LifeGained { amount, .. } => self.that_much = Some(*amount),
+            _ => {}
+        }
         match event {
             GameEvent::TurnBegan { .. } | GameEvent::StepBegan(_) => event,
             // P0.W3 seams: grammar-complete events nothing emits yet —

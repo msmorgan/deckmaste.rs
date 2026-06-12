@@ -118,7 +118,13 @@ in full.
   guard), `ReturnToHand`, and `Counter` ([CR#701.6a], ward's verb).
 - [ ] `engine-resolve-effects` — May, If/Unless, ForEach, Modal, Delayed,
   Reflexive effect frames; resolution-time choices surfaced as decisions.
-- [x] `engine-resolve-counts` — X, CountOf(Filter), StatOf, ThatMuch.
+- [ ] `engine-resolve-count-x` — `Count::X`: announced at cast/activate
+  ([CR#107.3a]), stored on the stack entry, read back in `eval_count`.
+  Sequence after `engine-deontic-polarities` (the announce slot lives in
+  cast.rs). Smaller leftover seams from `engine-resolve-counts` (landed:
+  CountOf/StatOf/ThatMuch): Loyalty/Defense `StatOf` reads (counter
+  machinery), and the trigger-bound `ThatMuch` magnitude (needs a
+  `TriggerBindings` slot — trigger.rs, after `engine-trigger-events`).
 - [ ] `engine-resolve-selections` — Choose/Random selections as surfaced
   decisions; remaining `Reference` variants (Bound, Linked, ControllerOf,
   OwnerOf, attachment refs).
