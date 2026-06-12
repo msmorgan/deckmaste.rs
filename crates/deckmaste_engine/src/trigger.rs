@@ -173,6 +173,23 @@ impl GameState {
                 })
             }
 
+            // [CR#601.2c]: an object became the target of a spell/ability at
+            // announce (ward is the family exemplar, [CR#702.21a]). Both ends
+            // are live: the target by definition, and the targeting object —
+            // the announcing spell sits in the stack zone (its remint is the
+            // one deferred move), an ability announce rides its SOURCE (the
+            // stack identity isn't minted until the announce promotes,
+            // [CR#602.2a]), and a placing trigger carries its minted id.
+            Event::BecomesTarget { what, by } => match event {
+                GameEvent::BecameTarget { target, source } => {
+                    self.filter_matches_live(what, *target, watcher)
+                        && by
+                            .as_ref()
+                            .is_none_or(|f| self.filter_matches_live(f, *source, watcher))
+                }
+                _ => false,
+            },
+
             // "Whenever X or Y" is a pattern union ([CR#700.1]); it still
             // fires once per matching occurrence ([CR#603.2c]).
             Event::OneOf(events) => events.iter().any(|p| self.event_matches(p, event, watcher)),
@@ -1730,6 +1747,80 @@ mod tests {
             })
             .count();
         assert_eq!(fired, 2, "each attacker's own transition fires");
+    }
+
+    // -------------------------------------------------------------------------
+    // BecomesTarget ([CR#601.2c]) — announce-time targeting facts
+    // -------------------------------------------------------------------------
+
+    /// `BecomesTarget(what: Ref(This))` matches the watcher's own
+    /// became-target fact; the `by` filter narrows the targeting object
+    /// (ward's "a spell or ability an opponent controls", [CR#702.21a]).
+    #[test]
+    fn becomes_target_matches_what_and_by() {
+        let (mut state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        // A stand-in targeting object controlled by the opponent: a second
+        // creature, placed on the STACK as a casting spell would sit.
+        let spell = {
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let card = state.cards.push(bears, PlayerId(1));
+            state
+                .objects
+                .mint(ObjectSource::Card(card), PlayerId(1), Some(Zone::Stack))
+        };
+        let pattern = Event::BecomesTarget {
+            what: Filter::Ref(Reference::This),
+            by: None,
+        };
+        let event = GameEvent::BecameTarget {
+            target: bear,
+            source: spell,
+        };
+        assert!(
+            state.event_matches(&pattern, &event, watcher_source),
+            "the watcher's own became-target fact matches"
+        );
+        let other_event = GameEvent::BecameTarget {
+            target: spell,
+            source: bear,
+        };
+        assert!(
+            !state.event_matches(&pattern, &other_event, watcher_source),
+            "a fact targeting a different object fails the what-filter"
+        );
+
+        // Ward's by-narrowing: an opponent-controlled stack object matches;
+        // one the watcher's own controller controls does not.
+        let by_opponent = Event::BecomesTarget {
+            what: Filter::Ref(Reference::This),
+            by: Some(Filter::Relation(
+                deckmaste_core::RelationFilter::Controller(Box::new(Filter::Relation(
+                    deckmaste_core::RelationFilter::OpponentOf(Box::new(Filter::Ref(
+                        Reference::You,
+                    ))),
+                ))),
+            )),
+        };
+        assert!(
+            state.event_matches(&by_opponent, &event, watcher_source),
+            "an opponent's spell passes the by-filter"
+        );
+        let own_spell = {
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let card = state.cards.push(bears, PlayerId(0));
+            state
+                .objects
+                .mint(ObjectSource::Card(card), PlayerId(0), Some(Zone::Stack))
+        };
+        let own_event = GameEvent::BecameTarget {
+            target: bear,
+            source: own_spell,
+        };
+        assert!(
+            !state.event_matches(&by_opponent, &own_event, watcher_source),
+            "the watcher's controller's own spell fails the by-filter"
+        );
     }
 
     // -------------------------------------------------------------------------
