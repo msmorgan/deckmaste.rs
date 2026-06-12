@@ -335,8 +335,8 @@ fn render_arg(ident: &str, arg: &str) -> anyhow::Result<Option<String>> {
 /// A keyword cost argument -> its rendered cost list (`[Mana([Generic(2)])]`,
 /// `[Do(LoseLife(3))]`, …): the shared cost grammar over the ", "-separated
 /// clause. The worded form's trailing period is stripped; `{X}` is allowed
-/// (the printed cost carries it — what X equals is pay-time business,
-/// [CR#107.3a,702.21b]).
+/// (the printed cost carries it — what X equals is announced by the
+/// controller or stated by the card, [CR#107.3a,702.21b]).
 fn cost_arg(text: &str) -> anyhow::Result<Option<String>> {
     let trimmed = text.trim();
     let clause = trimmed.strip_suffix('.').unwrap_or(trimmed);
@@ -491,8 +491,9 @@ mod tests {
 
     #[test]
     fn variable_mana_costs() {
-        // {X} is part of the printed cost; what X equals is the card's (or
-        // payer's) business at pay time [CR#702.21b,107.3a], not the parser's.
+        // {X} is part of the printed cost; what X equals is announced by the
+        // controller or stated by the card [CR#107.3a,702.21b], not the
+        // parser's business.
         assert_eq!(
             bare("Ward {X}").as_deref(),
             Some("Keyword(Ward([Mana([Variable])]))")
