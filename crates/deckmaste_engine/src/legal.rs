@@ -102,16 +102,25 @@ pub(crate) fn replaces_destruction(r: &deckmaste_core::Replacement) -> bool {
 fn guard_deontic_seam(
     state: &GameState,
     view: &LayeredView,
-    verb: fn(&DeonticAction) -> bool,
+    row: fn(&Deontic) -> bool,
     what: &str,
 ) {
     let hit = statics_present(
         state,
         view,
-        |e| matches!(e, StaticEffect::Deontic(d) if verb(deontic_action(d))),
+        |e| matches!(e, StaticEffect::Deontic(d) if row(d)),
     );
     if hit {
         todo!("P0.W1: deontic {what} legality — rows present in the derived view go unevaluated");
+    }
+}
+
+/// Whether a deontic row's polarity is `Cant`, through `Expanded` wrappers.
+fn is_cant(d: &Deontic) -> bool {
+    match d {
+        Deontic::Cant(_) => true,
+        Deontic::Expanded(e) => is_cant(&e.value),
+        _ => false,
     }
 }
 
@@ -189,9 +198,9 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     guard_deontic_seam(
         state,
         &view,
-        |a| {
+        |d| {
             matches!(
-                a,
+                deontic_action(d),
                 DeonticAction::Cast { .. }
                     | DeonticAction::Play { .. }
                     | DeonticAction::Target { .. }
@@ -218,12 +227,23 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
 #[must_use]
 pub fn legal_attackers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
     let view = state.layers();
+    // Cant(Attack) rows (defender, [CR#702.3b]; "can't attack" effects) are
+    // EVALUATED below; the guard narrows to the non-Cant Attack polarities
+    // (goad's must-attack, May lifts), which nothing evaluates yet.
     guard_deontic_seam(
         state,
         &view,
-        |a| matches!(a, DeonticAction::Attack { .. }),
-        "attack",
+        |d| !is_cant(d) && matches!(deontic_action(d), DeonticAction::Attack { .. }),
+        "attack (non-Cant polarities)",
     );
+    let rows = cant_attack_rows(state, &view);
+    // [CR#508.1a]: in the two-player game the attacked player is the
+    // defender — the non-active player's proxy carries the `on` slot.
+    let defender_proxy = state
+        .players
+        .iter()
+        .find(|p| p.id != player)
+        .map(|p| p.object);
     state
         .zones
         .battlefield
@@ -235,47 +255,20 @@ pub fn legal_attackers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
                 && !obj.tapped
                 && !obj.summoning_sick
                 && view.get(id).card_types.contains(&Type::Creature)
+                && !rows.iter().any(|(carrier, by, on)| {
+                    state.filter_matches_live(by, id, *carrier)
+                        && defender_proxy
+                            .is_some_and(|d| state.filter_matches_live(on, d, *carrier))
+                })
         })
         .collect()
 }
 
-/// [CR#509.1a]: the creatures `player` could declare as blockers — battlefield
-/// creatures they control that are untapped. No summoning-sickness check: a
-/// summoning-sick creature can block. Creature-type is read from the derived
-/// layer view so that animated permanents can block.
+/// Every `Cant(Attack)` row in the derived view, with its carrier —
+/// point-wise by construction (`Attack{by, on}` carries no arrangement
+/// bound).
 #[must_use]
-pub fn legal_blockers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
-    let view = state.layers();
-    // Point-wise Cant(Block) rows (flying-style evasion) are EVALUATED at
-    // block submission now — the guard narrows to what is still
-    // unevaluated: arrangement-level bounds (menace's `count`,
-    // [CR#702.111b]) and the non-Cant polarities (must-block, May lifts).
-    guard_deontic_seam(
-        state,
-        &view,
-        |a| !matches!(a, DeonticAction::Block { count: None, .. }),
-        "block (arrangement bounds / non-Cant polarities)",
-    );
-    state
-        .zones
-        .battlefield
-        .iter()
-        .copied()
-        .filter(|&id| {
-            let obj = state.objects.obj(id);
-            obj.controller == player
-                && !obj.tapped
-                && view.get(id).card_types.contains(&Type::Creature)
-        })
-        .collect()
-}
-
-/// Every point-wise `Cant(Block)` row in the derived view, with its
-/// carrier: `(carrier source, by, on)`. Arrangement-level rows (a `count`
-/// bound — menace) are excluded; they stay behind the presence guard until
-/// the set-level evaluator exists.
-#[must_use]
-pub(crate) fn cant_block_rows(
+fn cant_attack_rows(
     state: &GameState,
     view: &LayeredView,
 ) -> Vec<(crate::object::ObjectSource, Filter, Filter)> {
@@ -291,13 +284,79 @@ pub(crate) fn cant_block_rows(
         let source = state.objects.obj(id).source;
         statics_on(view, id, &mut |e| {
             if let StaticEffect::Deontic(d) = e
-                && let Some(DeonticAction::Block {
-                    by,
-                    on,
-                    count: None,
-                }) = cant_action(d)
+                && let Some(DeonticAction::Attack { by, on }) = cant_action(d)
             {
                 rows.push((source, by.clone(), on.clone()));
+            }
+        });
+    }
+    rows
+}
+
+/// [CR#509.1a]: the creatures `player` could declare as blockers — battlefield
+/// creatures they control that are untapped. No summoning-sickness check: a
+/// summoning-sick creature can block. Creature-type is read from the derived
+/// layer view so that animated permanents can block.
+#[must_use]
+pub fn legal_blockers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
+    let view = state.layers();
+    // Cant(Block) rows — point-wise (flying) AND arrangement-level
+    // (menace's `count`) — are EVALUATED at block submission now; the
+    // guard narrows to the non-Cant Block polarities (must-block, May
+    // lifts), which nothing evaluates yet.
+    guard_deontic_seam(
+        state,
+        &view,
+        |d| !is_cant(d) && matches!(deontic_action(d), DeonticAction::Block { .. }),
+        "block (non-Cant polarities)",
+    );
+    state
+        .zones
+        .battlefield
+        .iter()
+        .copied()
+        .filter(|&id| {
+            let obj = state.objects.obj(id);
+            obj.controller == player
+                && !obj.tapped
+                && view.get(id).card_types.contains(&Type::Creature)
+        })
+        .collect()
+}
+
+/// One `Cant(Block)` row from the derived view: the carrier it sits on,
+/// the `by`/`on` filters, and the arrangement bound when present
+/// (menace's `count`, [CR#702.111b]).
+pub(crate) struct CantBlockRow {
+    pub carrier: crate::object::ObjectSource,
+    pub by: Filter,
+    pub on: Filter,
+    pub count: Option<deckmaste_core::CountBound>,
+}
+
+/// Every `Cant(Block)` row in the derived view, with its carrier.
+#[must_use]
+pub(crate) fn cant_block_rows(state: &GameState, view: &LayeredView) -> Vec<CantBlockRow> {
+    fn cant_action(d: &Deontic) -> Option<&DeonticAction> {
+        match d {
+            Deontic::Cant(a) => Some(a),
+            Deontic::Expanded(e) => cant_action(&e.value),
+            _ => None,
+        }
+    }
+    let mut rows = Vec::new();
+    for &id in &state.zones.battlefield {
+        let source = state.objects.obj(id).source;
+        statics_on(view, id, &mut |e| {
+            if let StaticEffect::Deontic(d) = e
+                && let Some(DeonticAction::Block { by, on, count }) = cant_action(d)
+            {
+                rows.push(CantBlockRow {
+                    carrier: source,
+                    by: by.clone(),
+                    on: on.clone(),
+                    count: count.clone(),
+                });
             }
         });
     }
@@ -342,21 +401,65 @@ fn statics_on<F: FnMut(&StaticEffect)>(view: &LayeredView, id: ObjectId, visit: 
     }
 }
 
-/// The carrier of the first `Cant(Block)` row forbidding `blocker` blocking
-/// `attacker`, if any — `by`/`on` evaluate against the LIVE objects with
-/// the row's carrier as `This` ([CR#702.9b]: flying's row sits on the
-/// attacker, so `on: Ref(This)` anchors there).
+/// The carrier of the first POINT-WISE `Cant(Block)` row forbidding
+/// `blocker` blocking `attacker`, if any — `by`/`on` evaluate against the
+/// LIVE objects with the row's carrier as `This` ([CR#702.9b]: flying's
+/// row sits on the attacker, so `on: Ref(This)` anchors there).
 #[must_use]
 pub(crate) fn block_forbidden_by(
     state: &GameState,
-    rows: &[(crate::object::ObjectSource, Filter, Filter)],
+    rows: &[CantBlockRow],
     blocker: ObjectId,
     attacker: ObjectId,
 ) -> Option<crate::object::ObjectSource> {
     rows.iter()
-        .find(|(carrier, by, on)| {
-            state.filter_matches_live(by, blocker, *carrier)
-                && state.filter_matches_live(on, attacker, *carrier)
+        .filter(|r| r.count.is_none())
+        .find(|r| {
+            state.filter_matches_live(&r.by, blocker, r.carrier)
+                && state.filter_matches_live(&r.on, attacker, r.carrier)
         })
-        .map(|(carrier, ..)| *carrier)
+        .map(|r| r.carrier)
+}
+
+/// The carrier of the first ARRANGEMENT-LEVEL `Cant(Block)` row (a `count`
+/// bound) forbidding this attacker's whole blocker set ([CR#702.111b]
+/// menace: a non-empty set of fewer than two is forbidden; an empty set is
+/// not a blocking arrangement at all).
+#[must_use]
+pub(crate) fn arrangement_forbidden_by(
+    state: &GameState,
+    rows: &[CantBlockRow],
+    attacker: ObjectId,
+    blockers: &[ObjectId],
+) -> Option<crate::object::ObjectSource> {
+    use deckmaste_core::Count;
+    use deckmaste_core::CountBound;
+    fn lit(c: &Count) -> u64 {
+        match c {
+            Count::Literal(n) => u64::from(*n),
+            other => todo!("non-literal block-arrangement bound {other:?}"),
+        }
+    }
+    fn holds(bound: &CountBound, n: u64) -> bool {
+        match bound {
+            CountBound::Eq(c) => n == lit(c),
+            CountBound::AtLeast(c) => n >= lit(c),
+            CountBound::AtMost(c) => n <= lit(c),
+            CountBound::Greater(c) => n > lit(c),
+            CountBound::Less(c) => n < lit(c),
+        }
+    }
+    rows.iter()
+        .filter(|r| r.count.is_some())
+        .find(|r| {
+            if !state.filter_matches_live(&r.on, attacker, r.carrier) {
+                return false;
+            }
+            let n = blockers
+                .iter()
+                .filter(|&&b| state.filter_matches_live(&r.by, b, r.carrier))
+                .count() as u64;
+            n > 0 && holds(r.count.as_ref().expect("filtered to Some"), n)
+        })
+        .map(|r| r.carrier)
 }

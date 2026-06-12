@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
 
@@ -513,6 +514,25 @@ impl GameState {
                     {
                         return Err(DecisionError::Illegal {
                             reason: format!("a Cant(Block) row on {carrier:?} forbids this block"),
+                        });
+                    }
+                }
+                // [CR#702.111b]-family: arrangement-level bounds judge each
+                // attacker's WHOLE blocker set (menace — a lone blocker is a
+                // forbidden arrangement; no blockers is no arrangement).
+                let mut by_attacker: HashMap<ObjectId, Vec<ObjectId>> = HashMap::new();
+                for &(blocker, attacker) in &pairs {
+                    by_attacker.entry(attacker).or_default().push(blocker);
+                }
+                for (attacker, blockers) in &by_attacker {
+                    if let Some(carrier) =
+                        crate::legal::arrangement_forbidden_by(self, &rows, *attacker, blockers)
+                    {
+                        return Err(DecisionError::Illegal {
+                            reason: format!(
+                                "a Cant(Block) arrangement bound on {carrier:?} forbids this \
+                                 blocker set"
+                            ),
                         });
                     }
                 }

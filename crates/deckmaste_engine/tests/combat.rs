@@ -1448,3 +1448,84 @@ fn flying_attacker_blockable_only_by_flying_or_reach() {
         .submit_decision(Decision::Blocks(vec![(spider, attacker)]))
         .unwrap();
 }
+
+/// kw-menace goes LIVE: the arrangement-level `CountBound` on a
+/// `Cant(Block)` row evaluates at block submission ([CR#702.111b] — can't
+/// be blocked except by two or more). One bear alone is rejected; two
+/// bears gang it legally; declining to block at all stays legal.
+#[test]
+fn menace_attacker_needs_two_blockers() {
+    let brute = card("Boggart Brute");
+    let bears = card("Grizzly Bears");
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig {
+                deck: deck(&brute, 10),
+            },
+            PlayerConfig {
+                deck: deck(&bears, 10),
+            },
+        ],
+        seed: 13,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Boggart Brute");
+    let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
+    let b2 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
+
+    let (_, legal) = drive_to_declare_blockers(&mut state, vec![attacker]);
+    assert!(legal.contains(&b1) && legal.contains(&b2));
+
+    // A lone blocker is a forbidden arrangement ([CR#702.111b]).
+    assert!(matches!(
+        state.submit_decision(Decision::Blocks(vec![(b1, attacker)])),
+        Err(DecisionError::Illegal { .. })
+    ));
+    // Two or more is legal.
+    state
+        .submit_decision(Decision::Blocks(vec![(b1, attacker), (b2, attacker)]))
+        .unwrap();
+}
+
+/// kw-defender goes LIVE: a `Cant(Attack)` row excludes its carrier from
+/// the legal attacker set ([CR#702.3b]), and the submission validator
+/// rejects it; an unencumbered creature beside it still attacks.
+#[test]
+fn defender_cannot_be_declared_as_an_attacker() {
+    let wall = card("Wall of Stone");
+    let bears = card("Grizzly Bears");
+    let mut p0_deck = deck(&wall, 5);
+    p0_deck.extend(deck(&bears, 5));
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck: p0_deck },
+            PlayerConfig {
+                deck: deck(&bears, 10),
+            },
+        ],
+        seed: 17,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    let wall = force_onto_battlefield(&mut state, PlayerId(0), "Wall of Stone");
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    // Shed summoning sickness: both entered before P0's turn begins.
+    let (_, stop) = pass_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { legal, .. }) = stop else {
+        panic!("expected DeclareAttackers, got {stop:?}");
+    };
+    assert!(legal.contains(&bear), "the bear attacks freely");
+    assert!(
+        !legal.contains(&wall),
+        "the defender is excluded from the legal attacker set"
+    );
+    // Submission re-validates against the legal set ([CR#508.1a]).
+    assert!(matches!(
+        state.submit_decision(Decision::Attackers(vec![wall])),
+        Err(DecisionError::Illegal { .. })
+    ));
+    state
+        .submit_decision(Decision::Attackers(vec![bear]))
+        .unwrap();
+}
