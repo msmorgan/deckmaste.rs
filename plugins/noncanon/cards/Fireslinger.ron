@@ -10,7 +10,7 @@ Normal(
         Wizard,
     ],
     abilities: [
-        Unparsed("{T}: ~ deals 1 damage to any target and 1 damage to you."),
+        Unsupported("{T}: ~ deals 1 damage to any target and 1 damage to you."),
     ],
     power: 1,
     toughness: 1,

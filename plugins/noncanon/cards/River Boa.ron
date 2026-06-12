@@ -8,7 +8,7 @@ Normal(
     subtypes: [Snake],
     abilities: [
         Islandwalk,
-        Unparsed("{G}: Regenerate ~."),
+        Unsupported("{G}: Regenerate ~."),
     ],
     power: 2,
     toughness: 1,

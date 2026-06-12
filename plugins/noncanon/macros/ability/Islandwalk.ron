@@ -1,0 +1,7 @@
+// Unsupported-keyword proxy — see Echo.ron.
+(
+    name: "Islandwalk",
+    template: "Islandwalk",
+    kinds: [Ability],
+    body: Keyword(Composite(name: "Islandwalk", abilities: [])),
+)

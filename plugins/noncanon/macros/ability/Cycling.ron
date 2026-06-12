@@ -1,0 +1,9 @@
+// Unsupported-keyword proxy — see Echo.ron. The cycling cost param is
+// preserved in card invocations for the real macro later.
+(
+    name: "Cycling",
+    template: "Cycling",
+    kinds: [Ability],
+    params: [Any],
+    body: Keyword(Composite(name: "Cycling", abilities: [])),
+)

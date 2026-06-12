@@ -1,8 +1,0 @@
-Normal(
-    name: "Cursed Scroll",
-    mana_cost: [Generic(1)],
-    types: [Artifact],
-    abilities: [
-        Unparsed("{3}, {T}: Choose a card name, then reveal a card at random from your hand. If that card has the chosen name, ~ deals 2 damage to any target."),
-    ],
-)

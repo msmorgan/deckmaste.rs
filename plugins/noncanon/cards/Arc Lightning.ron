@@ -6,6 +6,6 @@ Normal(
     ],
     types: [Sorcery],
     abilities: [
-        Unparsed("~ deals 3 damage divided as you choose among one, two, or three targets."),
+        Unsupported("~ deals 3 damage divided as you choose among one, two, or three targets."),
     ],
 )

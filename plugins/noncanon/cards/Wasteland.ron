@@ -3,6 +3,6 @@ Normal(
     types: [Land],
     abilities: [
         Activated(cost: [Tap], effect: AddMana(1, Colorless)),
-        Unparsed("{T}, Sacrifice ~: Destroy target nonbasic land."),
+        Unsupported("{T}, Sacrifice ~: Destroy target nonbasic land."),
     ],
 )

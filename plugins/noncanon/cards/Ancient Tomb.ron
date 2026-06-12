@@ -2,6 +2,6 @@ Normal(
     name: "Ancient Tomb",
     types: [Land],
     abilities: [
-        Unparsed("{T}: Add {C}{C}. ~ deals 2 damage to you."),
+        Unsupported("{T}: Add {C}{C}. ~ deals 2 damage to you."),
     ],
 )

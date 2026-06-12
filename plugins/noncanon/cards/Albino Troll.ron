@@ -8,7 +8,7 @@ Normal(
     subtypes: [Troll],
     abilities: [
         Echo([Mana([Generic(1),Green])]),
-        Unparsed("{1}{G}: Regenerate ~."),
+        Unsupported("{1}{G}: Regenerate ~."),
     ],
     power: 3,
     toughness: 3,

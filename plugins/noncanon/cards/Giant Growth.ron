@@ -3,6 +3,6 @@ Normal(
     mana_cost: [Green],
     types: [Instant],
     abilities: [
-        Unparsed("Target creature gets +3/+3 until end of turn."),
+        Unsupported("Target creature gets +3/+3 until end of turn."),
     ],
 )

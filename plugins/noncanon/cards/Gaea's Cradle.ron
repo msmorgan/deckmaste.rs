@@ -3,6 +3,6 @@ Normal(
     supertypes: [Legendary],
     types: [Land],
     abilities: [
-        Unparsed("{T}: Add {G} for each creature you control."),
+        Unsupported("{T}: Add {G} for each creature you control."),
     ],
 )

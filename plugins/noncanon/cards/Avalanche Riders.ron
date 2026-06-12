@@ -12,7 +12,7 @@ Normal(
     abilities: [
         Haste,
         Echo([Mana([Generic(3),Red])]),
-        Unparsed("When ~ enters, destroy target land."),
+        Unsupported("When ~ enters, destroy target land."),
     ],
     power: 2,
     toughness: 2,

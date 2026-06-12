@@ -7,7 +7,7 @@ Normal(
     types: [Creature],
     subtypes: [Ape],
     abilities: [
-        Unparsed("When ~ enters, destroy target artifact."),
+        Unsupported("When ~ enters, destroy target artifact."),
     ],
     power: 2,
     toughness: 2,

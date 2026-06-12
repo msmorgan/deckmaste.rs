@@ -7,6 +7,6 @@ Normal(
     ],
     types: [Sorcery],
     abilities: [
-        Unparsed("Destroy target artifact or land. It can't be regenerated."),
+        Unsupported("Destroy target artifact or land. It can't be regenerated."),
     ],
 )
