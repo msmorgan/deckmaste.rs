@@ -167,6 +167,14 @@ pub struct GameState {
     pub activations: ActivationLedger,
     /// The designation registry ([CR#109.3] non-characteristic state).
     pub designations: DesignationStore,
+    /// The "that much"/"that many" anaphora register (`Count::ThatMuch` —
+    /// oracle-text magnitude anaphora; no single CR rule defines it): the
+    /// amount the most recently APPLIED amount-carrying event fixed (damage
+    /// dealt, life gained/lost — set by the `apply` funnel, so it reads what
+    /// actually happened, post-replacement). Cleared when a stack entry
+    /// begins resolving, so a read can only see an amount fixed by an
+    /// earlier instruction of the same resolution.
+    pub that_much: Option<Uint>,
 }
 
 impl GameState {
@@ -241,6 +249,7 @@ impl GameState {
             continuous: Vec::new(),
             activations: ActivationLedger::default(),
             designations: DesignationStore::default(),
+            that_much: None,
         }
     }
 

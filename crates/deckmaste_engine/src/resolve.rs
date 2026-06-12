@@ -62,6 +62,10 @@ impl GameState {
             .find(|e| e.id == id)
             .expect("entry on stack")
             .clone();
+        // A fresh resolution has no amount fixed yet: `Count::ThatMuch` may
+        // only read an amount an earlier instruction of THIS resolution
+        // fixed, never one leaking in from combat or a prior resolution.
+        self.that_much = None;
         match &entry.object {
             StackObject::Spell(spell) => {
                 let spell = *spell;
@@ -642,10 +646,73 @@ impl GameState {
     ///
     /// # Panics
     ///
-    /// Panics on a `Count` not wired for Stage 3.
+    /// Panics on a `Count` not wired for Stage 3, on a `StatOf` whose object
+    /// lacks the stat, and on a `ThatMuch` with no amount fixed in this
+    /// resolution.
     fn eval_count(&self, qty: &Count, frame: &Frame) -> Uint {
         match qty {
             Count::Literal(n) => *n,
+            // "For each …": the filter's live cardinality over every object
+            // (card objects in all zones + player proxies) — canonical
+            // filters are context-free-correct, so they carry their own
+            // zone/kind narrowing. The watcher anchors `Ref(This)` to the
+            // frame's announce-time self, the way `eval_reference` does.
+            Count::CountOf(filter) => {
+                let watcher = self.frame_watcher(frame);
+                let n = self
+                    .objects
+                    .iter()
+                    .filter(|ob| self.filter_matches_live(filter, ob.id, watcher))
+                    .count();
+                Uint::try_from(n).expect("object count fits Uint")
+            }
+            // "Equal to its power": resolve the reference, read the DERIVED
+            // stat off the layer view ([CR#613]; per-call rebuild — the same
+            // documented perf seam as `target::matches`'s `Has` arm). A
+            // negative result counts as 0 ([CR#107.1b]).
+            Count::StatOf(reference, stat) => {
+                let id = self.eval_reference(reference, frame);
+                let value = match stat {
+                    deckmaste_core::Stat::Power => self
+                        .layers()
+                        .power(id)
+                        .expect("StatOf(Power) on an object with a power"),
+                    deckmaste_core::Stat::Toughness => self
+                        .layers()
+                        .toughness(id)
+                        .expect("StatOf(Toughness) on an object with a toughness"),
+                    // [CR#202.3]: the printed cost's total. The on-stack
+                    // announced-X contribution ([CR#202.3e]) rides the
+                    // announce-slot X work (see `Count::X` below).
+                    deckmaste_core::Stat::ManaValue => {
+                        let face = crate::derive::face(self.def(id));
+                        deckmaste_core::Int::try_from(face.mana_cost.mana_value())
+                            .expect("mana value fits Int")
+                    }
+                    deckmaste_core::Stat::Loyalty | deckmaste_core::Stat::Defense => todo!(
+                        "engine-resolve-counts: {stat:?} reads (planeswalker/battle counter \
+                         machinery unbuilt)"
+                    ),
+                };
+                Uint::try_from(value.max(0)).expect("clamped stat fits Uint")
+            }
+            // The amount fixed by an earlier instruction of this resolution —
+            // recorded at the apply funnel (so it reads what actually
+            // happened, post-replacement), cleared by `resolve_object`. A
+            // trigger-bound magnitude ("whenever you gain life, … that much")
+            // must instead ride `TriggerBindings`, which the trigger-events
+            // lane owns — loud until that lands.
+            Count::ThatMuch => self.that_much.unwrap_or_else(|| {
+                todo!(
+                    "ThatMuch with no amount fixed this resolution — trigger-bound magnitudes \
+                     are the engine-trigger-events bindings seam"
+                )
+            }),
+            // [CR#107.3a]: X is announced as part of casting/activating and
+            // read back during resolution — the announce-slot plumbing lives
+            // in cast.rs (engine-deontic-polarities lane owns it; see the
+            // narrowed `engine-resolve-count-x` todo item).
+            Count::X => todo!("engine-resolve-count-x: X rides the announce slot ([CR#107.3a])"),
             // [CR#608.2i] history reads off the Tally registry — the
             // evaluating player is the frame's controller.
             Count::Query(deckmaste_core::QueryKey::CardsDrawnThisTurn) => self
@@ -658,8 +725,20 @@ impl GameState {
                 .count(crate::tally::Tally::LandsPlayed),
             Count::Query(other) => todo!("P0.W4: query key {other:?} (tally unbuilt)"),
             Count::Noted(key) => todo!("P0.W4: noted read {key:?} (slot store is P0.W5)"),
-            other => todo!("stage 3 does not evaluate count {other:?}"),
+            Count::Expanded(e) => self.eval_count(&e.value, frame),
         }
+    }
+
+    /// The `ObjectSource` that anchors `Ref(This)`/`Ref(You)` in live filter
+    /// evaluation for `frame`: the announce-time snapshot's source when the
+    /// frame carries bindings (the live object may be gone, [CR#603.10a]),
+    /// else the live source object's.
+    fn frame_watcher(&self, frame: &Frame) -> crate::object::ObjectSource {
+        frame
+            .bindings
+            .as_ref()
+            .and_then(|b| b.this.as_ref())
+            .map_or_else(|| self.objects.obj(frame.source).source, |s| s.source)
     }
 
     /// True iff the card's printed types include a permanent type
@@ -984,6 +1063,120 @@ mod tests {
                 ..
             }))
         )));
+    }
+
+    /// `CountOf` is the filter's live cardinality; a `Controller(Ref(You))`
+    /// relation anchors to the frame's side via the watcher.
+    #[test]
+    fn count_of_counts_live_matching_objects() {
+        let (mut state, bear) = bear_on_field();
+        // A second bear onto the battlefield, then handed to player 1.
+        let theirs = *state.zones.hands[0]
+            .iter()
+            .find(|&&o| {
+                obj_matches(
+                    &state,
+                    o,
+                    &Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                )
+            })
+            .expect("a second Grizzly Bears in the opening hand");
+        state.zones.hands[PlayerId(0).index()].retain(|&o| o != theirs);
+        state.objects.obj_mut(theirs).zone = Some(Zone::Battlefield);
+        state.objects.obj_mut(theirs).controller = PlayerId(1);
+        state.zones.battlefield.push(theirs);
+
+        let frame = Frame {
+            source: bear,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+        let creatures = Filter::AllOf(vec![
+            Filter::State(StateFilter::InZone(Zone::Battlefield)),
+            Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+        ]);
+        assert_eq!(
+            state.eval_count(&Count::CountOf(Box::new(creatures.clone())), &frame),
+            2
+        );
+
+        // "Creatures you control": only the frame side's bear.
+        let yours = Filter::AllOf(vec![
+            creatures,
+            Filter::Relation(deckmaste_core::RelationFilter::Controller(Box::new(
+                Filter::Ref(Reference::You),
+            ))),
+        ]);
+        assert_eq!(
+            state.eval_count(&Count::CountOf(Box::new(yours)), &frame),
+            1
+        );
+    }
+
+    /// `StatOf` reads the DERIVED stat (a pump shows through) and the
+    /// printed mana value ([CR#202.3]).
+    #[test]
+    fn stat_of_reads_derived_stats() {
+        let (mut state, bear) = bear_on_field();
+        let frame = Frame {
+            source: bear,
+            controller: PlayerId(0),
+            targets: vec![bear],
+            bindings: None,
+        };
+
+        let power = Count::StatOf(Reference::Target(0), deckmaste_core::Stat::Power);
+        assert_eq!(state.eval_count(&power, &frame), 2);
+        assert_eq!(
+            state.eval_count(
+                &Count::StatOf(Reference::This, deckmaste_core::Stat::ManaValue),
+                &frame
+            ),
+            2,
+            "Grizzly Bears costs {{1}}{{G}}"
+        );
+
+        // A +1/+0 continuous effect shows the read rides the layer view.
+        let timestamp = state.objects.next_timestamp();
+        state.continuous.push(crate::layer::ContinuousEffect {
+            timestamp,
+            scope: crate::layer::ScopeResolved::Locked(vec![bear]),
+            changes: vec![deckmaste_core::Modification::AddPower(Count::Literal(1))],
+            duration: deckmaste_core::Duration::EndOfGame,
+            is_cda: false,
+        });
+        assert_eq!(state.eval_count(&power, &frame), 3);
+    }
+
+    /// "That much" reads the amount the damage instruction fixed: the two
+    /// instructions run through the agenda, the `DamageDealt` apply records
+    /// 3, and the later `GainLife(ThatMuch)` evaluation reads it back.
+    #[test]
+    fn that_much_gains_life_equal_to_damage_dealt() {
+        let (mut state, bear) = bear_on_field();
+        let frame = Frame {
+            source: bear,
+            controller: PlayerId(0),
+            targets: vec![bear],
+            bindings: None,
+        };
+        state.run_effect(
+            Effect::Sequence(vec![
+                Effect::Act(Action::DealDamage(
+                    Selection::Ref(Reference::Target(0)),
+                    Count::Literal(3),
+                )),
+                Effect::Act(by_you(PlayerAction::GainLife(Count::ThatMuch))),
+            ]),
+            &frame,
+        );
+        // RunEffect(damage) → Emit(DamageDealt) → RunEffect(gain) → Emit(LifeGained).
+        for _ in 0..4 {
+            let _ = state.step();
+        }
+        assert_eq!(state.objects.obj(bear).damage, 3);
+        assert_eq!(state.players[0].life, 23);
     }
 
     #[test]
