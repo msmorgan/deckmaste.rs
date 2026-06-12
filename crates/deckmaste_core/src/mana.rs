@@ -59,6 +59,16 @@ impl SimpleManaSymbol {
             _ => None,
         }
     }
+
+    /// The amount of mana this component represents ([CR#202.3]): a generic
+    /// symbol its number, a specific symbol 1.
+    #[must_use]
+    pub fn mana_value(&self) -> crate::Uint {
+        match self {
+            Self::Generic(n) => *n,
+            Self::Specific(_) => 1,
+        }
+    }
 }
 
 impl From<Color> for SimpleManaSymbol {
@@ -163,6 +173,24 @@ pub struct ManaCost(Vec<ManaSymbol>);
 impl ManaCost {
     #[must_use]
     pub fn is_empty(&self) -> bool { self.0.is_empty() }
+
+    /// The printed cost's mana value ([CR#202.3]): the total amount of mana,
+    /// regardless of color. A hybrid symbol counts its largest component
+    /// ([CR#202.3f]); a Phyrexian symbol counts 1 ([CR#202.3g]); {X} counts
+    /// 0 — the not-on-the-stack treatment ([CR#202.3e]; while on the stack X
+    /// is the announced value, an ENGINE read of the announce slot, not a
+    /// property of the printed cost).
+    #[must_use]
+    pub fn mana_value(&self) -> crate::Uint {
+        self.iter()
+            .map(|sym| match sym {
+                ManaSymbol::Variable => 0,
+                ManaSymbol::Snow | ManaSymbol::Phyrexian(..) => 1,
+                ManaSymbol::Hybrid(component, _) => component.mana_value().max(1),
+                ManaSymbol::Simple(component) => component.mana_value(),
+            })
+            .sum()
+    }
 }
 
 impl From<Vec<ManaSymbol>> for ManaCost {
@@ -355,6 +383,22 @@ mod tests {
         // ManaCost derefs to its symbols.
         assert_eq!(cost("{1}{G}").unwrap().len(), 2);
         assert_eq!(cost("{X}").unwrap().first(), Some(&Variable));
+    }
+
+    /// The [CR#202.3] examples, symbol family by symbol family: plain total,
+    /// hybrid largest-component ([CR#202.3f], both examples), Phyrexian = 1
+    /// ([CR#202.3g]), X = 0 off the stack ([CR#202.3e]).
+    #[test]
+    fn mana_values() {
+        let value = |s: &str| s.parse::<ManaCost>().unwrap().mana_value();
+
+        assert_eq!(value("{3}{U}{U}"), 5);
+        assert_eq!(value("{1}{W/U}{W/U}"), 3);
+        assert_eq!(value("{2/B}{2/B}{2/B}"), 6);
+        assert_eq!(value("{1}{W/P}{W/P}"), 3);
+        assert_eq!(value("{X}{X}{2}{R}"), 3);
+        assert_eq!(value("{S}"), 1);
+        assert_eq!(value(""), 0);
     }
 
     #[test]
