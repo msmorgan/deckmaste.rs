@@ -55,17 +55,12 @@ fn strip_reminder_text(text: &str) -> String {
         .join("\n")
 }
 
-/// `capitalize(item).starts_with(keyword)` without building the string.
-fn starts_with_capitalized(item: &str, keyword: &str) -> bool {
-    let mut item_chars = item.chars();
-    let mut keyword_chars = keyword.chars();
-    match (item_chars.next(), keyword_chars.next()) {
-        (_, None) => true,
-        (None, Some(_)) => false,
-        (Some(i), Some(k)) => {
-            i.to_ascii_uppercase() == k && item_chars.as_str().starts_with(keyword_chars.as_str())
-        }
-    }
+/// `item.starts_with(keyword)`, ASCII-case-insensitively: oracle keyword
+/// lines are sentence case ("First strike, deathtouch") while the data's
+/// names are Title Case ("First Strike"), so every position needs the fold,
+/// not just the first.
+fn starts_with_keyword(item: &str, keyword: &str) -> bool {
+    item.is_char_boundary(keyword.len()) && item[..keyword.len()].eq_ignore_ascii_case(keyword)
 }
 
 /// Splits lines that are comma-separated lists of keyword abilities into one
@@ -75,7 +70,7 @@ fn expand_keyword_lines(text: &str, keyword_abilities: &[DataStr<'_>]) -> String
     let is_keyword = |item: &str| {
         keyword_abilities
             .iter()
-            .any(|keyword| starts_with_capitalized(item, keyword))
+            .any(|keyword| starts_with_keyword(item, keyword))
     };
     text.split('\n')
         .flat_map(|line| {
@@ -466,6 +461,25 @@ mod tests {
         assert_eq!(
             expand_keyword_lines("Draw a card, then discard a card.", &keywords),
             "Draw a card, then discard a card."
+        );
+        // The data's names are Title Case ("First Strike") while oracle lines
+        // are sentence case ("First strike") — matching is case-insensitive
+        // past the first word too.
+        let keywords: Vec<DataStr> = vec![
+            "First Strike".into(),
+            "Deathtouch".into(),
+            "Protection".into(),
+        ];
+        assert_eq!(
+            expand_keyword_lines("First strike, deathtouch", &keywords),
+            "First strike\nDeathtouch"
+        );
+        assert_eq!(
+            expand_keyword_lines(
+                "First strike, protection from black and from red",
+                &keywords
+            ),
+            "First strike\nProtection from black and from red"
         );
     }
 
