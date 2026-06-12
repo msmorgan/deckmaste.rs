@@ -405,6 +405,8 @@ impl GameState {
                     })
                     .collect()
             }
+            // P0.W5 seam: emblem minting into the command zone.
+            PlayerAction::GetEmblem(..) => todo!("P0.W5: emblems ([CR#114.1])"),
             // P0.W4 seams: noted slots (store is P0.W5) and spell copies.
             PlayerAction::ChooseAndNote(..) => {
                 todo!("P0.W4: choose-and-note (slot store is P0.W5)")

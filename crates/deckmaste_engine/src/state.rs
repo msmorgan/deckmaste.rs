@@ -28,6 +28,42 @@ use crate::tally::ActivationLedger;
 use crate::turn::TurnState;
 use crate::zone::Zones;
 
+/// One designation entry's value at game/player scope: a bare flag
+/// (city's blessing), a unique holder (monarch, initiative), or a named
+/// mode (day/night).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DesignationValue {
+    Flag,
+    Holder(PlayerId),
+    Mode(deckmaste_core::Ident),
+}
+
+/// One INSTANCE of an object-scope designation. The declaration's payload
+/// (core `DesignationDecl.payload: Vec<StaticEffect>`) is a TEMPLATE; the
+/// instance supplies its bindings: the grantor (goad's "attacks a player
+/// other than [the goader]", [CR#701.15b..701.15c]) and the duration
+/// ("until your next turn"). Multiple goaders = multiple instances, each
+/// expiring on its own clock — never a merged set. Payload application is
+/// the layers pipeline's designation source (P0.W5 seam); duration sweep
+/// rides the effect-instance machinery (seam).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DesignationInstance {
+    pub grantor: Option<PlayerId>,
+    pub duration: Option<deckmaste_core::Duration>,
+}
+
+/// The generic designation registry — storage mirrors the data-driven
+/// declaration model rather than per-mechanic fields; granting effects are
+/// P0.W5 seams, but `Designated(name)` filter reads are LIVE against it
+/// (an empty store correctly means nothing is goaded/suspected/…).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DesignationStore {
+    pub game: std::collections::HashMap<deckmaste_core::Ident, DesignationValue>,
+    pub players: std::collections::HashMap<(PlayerId, deckmaste_core::Ident), DesignationValue>,
+    pub objects:
+        std::collections::HashMap<(ObjectId, deckmaste_core::Ident), Vec<DesignationInstance>>,
+}
+
 /// Transient combat-damage assignment ([CR#510.1]): the partial state that
 /// accumulates across one or more `AssignCombatDamage` decisions before the
 /// single simultaneous batch is dealt ([CR#510.2]). `Some` only between the
@@ -128,6 +164,8 @@ pub struct GameState {
     /// limits ([CR#602.5b]). Reset per turn in `begin_turn`; game-total
     /// survives until the game ends.
     pub activations: ActivationLedger,
+    /// The designation registry ([CR#109.3] non-characteristic state).
+    pub designations: DesignationStore,
 }
 
 impl GameState {
@@ -204,6 +242,7 @@ impl GameState {
             rng,
             continuous: Vec::new(),
             activations: ActivationLedger::default(),
+            designations: DesignationStore::default(),
         }
     }
 

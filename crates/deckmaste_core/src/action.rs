@@ -69,6 +69,10 @@ pub enum PlayerAction {
     Tap(Selection),
     /// Untap a selection ([CR#701.26b]).
     Untap(Selection),
+    /// "You get an emblem with [abilities]" — a command-zone object that
+    /// never touches the battlefield (rules-taxonomy §6 degenerate
+    /// TokenSpec; [CR#114.1,114.4]).
+    GetEmblem(Vec<crate::Ability>),
     /// A resolution choice stored under a note key ([CR#608.2d] choice +
     /// [CR#607.2] slot): "choose a color" and kin.
     ChooseAndNote(crate::Ident, crate::NotedKind),
