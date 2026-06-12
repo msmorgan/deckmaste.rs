@@ -184,7 +184,7 @@ enum Layer {
 /// ([CR#613.1b,613.1c,613.1d]).
 fn layer_of(m: &Modification, is_cda: bool) -> Option<Layer> {
     match m {
-        // Layer 4: type-changing ([CR#613.4a]).
+        // Layer 4: type-changing ([CR#613.1d]).
         Modification::SetCardTypes(_)
         | Modification::AddCardTypes(_)
         | Modification::SetSubtypes(_)
@@ -192,14 +192,14 @@ fn layer_of(m: &Modification, is_cda: bool) -> Option<Layer> {
         | Modification::SetSupertypes(_)
         | Modification::AddSupertypes(_)
         | Modification::BecomeBasicLandType(_) => Some(Layer::L4),
-        // Layer 5: color-changing ([CR#613.4b]).
+        // Layer 5: color-changing ([CR#613.1e]).
         Modification::SetColors(_) | Modification::AddColors(_) => Some(Layer::L5),
-        // Layer 6: ability-adding/removing ([CR#613.4c]).
+        // Layer 6: ability-adding/removing ([CR#613.1f]).
         Modification::GainAbility(_)
         | Modification::LoseAbility(_)
         | Modification::LoseAllAbilities
         | Modification::CantHaveAbility(_) => Some(Layer::L6),
-        // Layer 7a or 7b: SetPower/SetToughness ([CR#613.4d]).
+        // Layer 7a or 7b: SetPower/SetToughness ([CR#613.4a,613.4b]).
         // CDAs ([CR#604.3]) apply in 7a; all other set-ops apply in 7b.
         Modification::SetPower(_) | Modification::SetToughness(_) => {
             if is_cda {
@@ -208,7 +208,7 @@ fn layer_of(m: &Modification, is_cda: bool) -> Option<Layer> {
                 Some(Layer::L7b)
             }
         }
-        // Layer 7c: P/T modification ([CR#613.4d]).
+        // Layer 7c: P/T modification ([CR#613.4c]).
         Modification::AddPower(_) | Modification::AddToughness(_) => Some(Layer::L7c),
         // Layer 7d: switch ([CR#613.4d]).
         Modification::SwitchPowerToughness => Some(Layer::L7d),
@@ -247,7 +247,7 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
         if obj.card_id().is_none() {
             continue; // player proxy — no static abilities
         }
-        // Static abilities function only on the battlefield ([CR#611.3a]).
+        // Static abilities function only on the battlefield ([CR#611.3b]).
         if obj.zone != Some(Zone::Battlefield) {
             continue;
         }
@@ -258,7 +258,7 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
         // re-gathered as an effect source (no fixpoint). No fixture requires that.
         for ability in crate::derive::printed_abilities(state, obj.id) {
             let Ability::Static(sa) = ability else { continue };
-            // Conditions skipped — a seam for later ([CR#604.3]).
+            // Conditions skipped — a seam for later ([CR#611.3a]).
             for effect in &sa.effects {
                 let StaticEffect::Modify { of, changes } = effect else { continue };
                 // Convert Scope to ScopeResolved. Static Of/These reference
@@ -405,9 +405,9 @@ fn ability_is_named(a: &Ability, name: &Ident) -> bool {
 
 /// Apply one `Modification` to `c` at its layer.
 /// Layers 4 (types/supertypes), 5 (colors), 6 (abilities), and 7a-7d (P/T) are
-/// implemented. Subtypes ([CR#613.1a]) and `BecomeBasicLandType` ([CR#305.7])
-/// are explicit deferred stubs; controller/text/loyalty/defense
-/// ([CR#613.1b,613.1c,613.1d]) are also stubs.
+/// implemented. Subtypes ([CR#613.1d]) and `BecomeBasicLandType` ([CR#305.7])
+/// are explicit deferred stubs; controller/text ([CR#613.1b,613.1c]) and
+/// loyalty/defense (no 613 layer) are also stubs.
 #[allow(clippy::match_same_arms)] // deferred stub arms will diverge as later tasks fill them
 fn apply(m: &Modification, c: &mut Characteristics) {
     match m {
@@ -423,7 +423,7 @@ fn apply(m: &Modification, c: &mut Characteristics) {
         }
         // --- Layer 7d: switch ---
         Modification::SwitchPowerToughness => std::mem::swap(&mut c.power, &mut c.toughness),
-        // --- Layer 4: type-changing ([CR#613.4a]) ---
+        // --- Layer 4: type-changing ([CR#613.1d]) ---
         Modification::AddCardTypes(ts) => {
             let types = Arc::make_mut(&mut c.card_types);
             for t in ts {
@@ -442,7 +442,7 @@ fn apply(m: &Modification, c: &mut Characteristics) {
             }
         }
         Modification::SetSupertypes(ss) => c.supertypes = Arc::new(ss.clone()),
-        // [CR#613.1a] subtype-set deferred: Ident→Subtype reconcile (no fixture yet)
+        // [CR#613.1d] subtype-set deferred: Ident→Subtype reconcile (no fixture yet)
         // `Modification::SetSubtypes`/`AddSubtypes` carry `Vec<Ident>` but
         // `Characteristics::subtypes` holds `Vec<Subtype>` (structs with confers/types).
         // There is no clean `Ident → Subtype` conversion without plugin data, so these
@@ -451,7 +451,7 @@ fn apply(m: &Modification, c: &mut Characteristics) {
         // [CR#305.7] deferred: replace land subtypes + strip abilities + grant basic
         // mana ability (no fixture yet). Do NOT implement the mana-ability construction.
         Modification::BecomeBasicLandType(_) => {}
-        // --- Layer 5: color-changing ([CR#613.4b]) ---
+        // --- Layer 5: color-changing ([CR#613.1e]) ---
         Modification::AddColors(cl) => {
             let colors = Arc::make_mut(&mut c.colors);
             for x in cl {

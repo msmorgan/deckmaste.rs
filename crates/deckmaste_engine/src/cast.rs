@@ -138,7 +138,7 @@ fn pool_kinds(pool: &ManaPool) -> [(ColorOrColorless, Uint); 6] {
 }
 
 impl GameState {
-    /// [CR#601.3a,601.2g]: may `player` cast `object` now? Offered iff the
+    /// [CR#601.3,601.2g]: may `player` cast `object` now? Offered iff the
     /// object is in the holder's hand (the caller iterates the hand), the
     /// object is not a land ([CR#305.9]), timing permits (instant → any
     /// priority; otherwise sorcery-speed), the pool can pay the cost, and
@@ -157,7 +157,7 @@ impl GameState {
             return false;
         }
         let instant = face.types.contains(&Type::Instant);
-        // Sorcery speed for non-instants ([CR#307.1,601.3a]).
+        // Sorcery speed for non-instants ([CR#307.1,117.1a]).
         let timing_ok = instant || self.sorcery_speed_ok(player);
         if !timing_ok {
             return false;

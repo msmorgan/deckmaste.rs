@@ -254,7 +254,7 @@ impl GameState {
     /// Watchers ([CR#603.6]) are every live battlefield permanent, plus — for a
     /// `ZoneChanged` that LEFT the battlefield — the leaving object itself (via
     /// its snapshot), so its own dies-trigger is considered even though its
-    /// abilities are gone from the battlefield ([CR#603.6d]). An *entering*
+    /// abilities are gone from the battlefield ([CR#603.6c]). An *entering*
     /// object is already a live battlefield permanent, so it is not re-added.
     pub(crate) fn scan_triggers(&mut self, facts: &Occurrence) {
         let events: &[GameEvent] = match facts {
@@ -308,7 +308,7 @@ impl GameState {
         } = event
         {
             // The leaving object — its abilities are no longer on the
-            // battlefield, so add it explicitly ([CR#603.6d]).
+            // battlefield, so add it explicitly ([CR#603.6c]).
             watchers.push(Watcher::Leaving(snapshot.clone()));
         }
 

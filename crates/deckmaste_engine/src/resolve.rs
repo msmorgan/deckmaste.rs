@@ -119,7 +119,7 @@ impl GameState {
                     ))]);
                 }
             }
-            // [CR#603.8]: a triggered ability resolves its effect, then vanishes
+            // [CR#608.2n]: a triggered ability resolves its effect, then vanishes
             // — no zone move, the source untouched. The minted stack id is just
             // discarded when `AbilityResolved` removes the entry.
             StackObject::Triggered {
@@ -252,7 +252,7 @@ impl GameState {
     /// player verbs live under `By(who, …)`, where `who` resolves to the acting
     /// player and replaces the previously hard-coded `frame.controller`. Damage
     /// to a multi-valued selection is one simultaneous `Batch` (a later task);
-    /// drawing N is N sequential `Single`s ([CR#121.1] — drawn one at a time).
+    /// drawing N is N sequential `Single`s ([CR#121.2] — drawn one at a time).
     pub(crate) fn action_items(&self, action: &Action, frame: &Frame) -> Vec<WorkItem> {
         match action {
             Action::DealDamage(sel, qty) => {
@@ -803,7 +803,8 @@ pub(crate) fn target_spec_filter(spec: &TargetSpec) -> &deckmaste_core::Filter {
         }
         // P0.W7 seam: the distinctness CONSTRAINT is unenforced — a spec
         // carrying one must trip loudly, not silently target-overlap
-        // ([CR#115.7e] final-set check at announce + [CR#608.2b] re-check).
+        // (final-set semantics [CR#115.7e]; checked at announce [CR#601.2c]
+        // and at the [CR#608.2b] re-check).
         TargetSpec::Distinct(..) => {
             todo!("P0.W7: co-target distinctness enforcement ([CR#115.7e])")
         }
@@ -1262,7 +1263,7 @@ mod tests {
     }
 
     /// A sacrifice rides the same death pipeline as a destroy: the sacrificed
-    /// creature's own dies-trigger fires ([CR#603.6d] — the leaving object
+    /// creature's own dies-trigger fires ([CR#603.6c] — the leaving object
     /// watches its own departure).
     #[test]
     fn sacrifice_fires_the_dying_objects_dies_trigger() {

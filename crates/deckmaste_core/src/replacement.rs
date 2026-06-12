@@ -42,7 +42,8 @@ pub enum Prevention {
     },
     /// Prevent the next instance of damage ([CR#615.8]).
     PreventNextInstance { from: Filter, to: Filter },
-    /// Prevent all damage from `from` to `to` for a duration ([CR#615.10]).
+    /// Prevent all damage from `from` to `to` for a duration
+    /// ([CR#615.1,615.3] — Fog-style shields; no dedicated prevent-all rule).
     PreventAll {
         from: Filter,
         to: Filter,

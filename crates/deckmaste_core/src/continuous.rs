@@ -75,7 +75,8 @@ pub enum Modification {
     AddColors(Vec<Color>),
     SetCardTypes(Vec<Type>),
     AddCardTypes(Vec<Type>),
-    /// Subtypes by name (the class is derivable from the values, [CR#205.1b]).
+    /// Subtypes by name (the class is derivable from the values — each card
+    /// type has its own closed subtype set, [CR#205.3b]).
     SetSubtypes(Vec<Ident>),
     AddSubtypes(Vec<Ident>),
     SetSupertypes(Vec<Supertype>),
@@ -93,7 +94,8 @@ pub enum Modification {
     SetController(Reference),
     /// Change text ([CR#613.1c]).
     SetText(String),
-    /// Set base loyalty ([CR#613.1d], planeswalker).
+    /// Set base loyalty ([CR#306.5b..306.5c] — the printed-loyalty baseline
+    /// the counters start from; no 613 layer covers loyalty).
     SetBaseLoyalty(Count),
     /// Set base defense (battle).
     SetBaseDefense(Count),

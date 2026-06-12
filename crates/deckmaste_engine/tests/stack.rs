@@ -1113,7 +1113,7 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
             .stack
             .iter()
             .any(|e| matches!(e.object, StackObject::Triggered { .. })),
-        "the triggered ability left the stack on resolution ([CR#603.8])"
+        "the triggered ability left the stack on resolution ([CR#608.2n])"
     );
 }
 

@@ -153,7 +153,7 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         }
     }
 
-    // [CR#601.3a]: cast a spell from hand if timing + payment + targets permit.
+    // [CR#601.3]: cast a spell from hand if timing + payment + targets permit.
     guard_deontic_seam(
         state,
         &view,
