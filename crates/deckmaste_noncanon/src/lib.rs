@@ -1,5 +1,5 @@
 //! Noncanon matchup harness: real decks played through the engine's decision
-//! API by honest archetype pilots with tactical lookahead.
+//! API by data-driven greedy `Strategy` seats.
 //!
 //! "Noncanon" = real card encodings copied from generator output and
 //! hand-graduated here, outside the blessed `canon` set. The matchup tests
@@ -11,10 +11,7 @@
 
 pub mod deck;
 pub mod game;
-pub mod lookahead;
-pub mod observe;
-pub mod pilot;
-pub mod pilots;
 pub mod probe;
 pub mod source;
+pub mod strategy;
 pub mod wc99;

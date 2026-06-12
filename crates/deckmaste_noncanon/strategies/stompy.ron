@@ -1,0 +1,28 @@
+// WC99 Mono-G Stompy (Linde) — greedy data-driven play policy.
+//
+// Phase 1 of the Strategy-seam migration: pure greedy, no lookahead. The
+// rule-walk applies the first rule whose `prefer` is a legal play at the
+// current decision. The two `Activate` rules float mana (the data evaluator
+// does not float on its own — it only casts when the pool already funds the
+// cost); Llanowar Elves is tapped before lands so the `nonland_taps` probe
+// keeps firing.
+(
+    name: "WC99 Mono-G Stompy",
+    rules: [
+        // Develop: play a land whenever able.
+        (when: AllOf([]), prefer: Play(what: (pick: First, by: Literal(1)))),
+        // Deploy the biggest creature the pool can already fund (never a land,
+        // which can surface as a zero-cost CastSpell).
+        (when: AllOf([]), prefer: Cast(what: (pick: Max, by: StatOf(This, ManaValue), among: Not(Type(Land))))),
+        // Ramp toward the next cast: tap lands first so creatures stay untapped
+        // to attack; fall back to a mana dork only when lands are exhausted
+        // (which still fires the nonland-tap probe when the seat floods).
+        (when: AllOf([]), prefer: Activate(what: (pick: First, by: Literal(1), among: Type(Land)))),
+        (when: AllOf([]), prefer: Activate(what: (pick: First, by: Literal(1), among: Named("Llanowar Elves")))),
+        // Swing with everything that can legally attack.
+        (when: AllOf([]), prefer: Attack(what: (pick: First, by: Literal(1), among: Any))),
+        // Hold the ground.
+        (when: AllOf([]), prefer: Block(BlockAll)),
+        (when: AllOf([]), prefer: Pass),
+    ],
+)

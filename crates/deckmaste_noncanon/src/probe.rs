@@ -2,10 +2,19 @@
 //! accumulated from the event stream. Asserted across a seed batch, never
 //! per game.
 
+use deckmaste_core::Card;
+use deckmaste_core::CardFace;
 use deckmaste_core::Zone;
 use deckmaste_engine::GameEvent;
 use deckmaste_engine::GameState;
 use deckmaste_engine::ObjectId;
+
+/// The single card face (relocated from the deleted observe module).
+fn face(card: &Card) -> &CardFace {
+    match card {
+        Card::Normal(f) | Card::ModalDfc(f, _) => f,
+    }
+}
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Probes {
@@ -32,14 +41,21 @@ impl Probes {
     pub fn observe(&mut self, state: &GameState, events: &[GameEvent], proxies: [ObjectId; 2]) {
         for ev in events {
             match ev {
-                GameEvent::LandPlayed { .. } => self.lands_played += 1,
+                // A direct hand -> battlefield move is exactly a land play:
+                // permanent SPELLS route via the stack (the LandPlayed event
+                // was retired in favor of the zone-change pipeline).
+                GameEvent::ZoneChanged {
+                    from: Some(Zone::Hand),
+                    to: Zone::Battlefield,
+                    ..
+                } => self.lands_played += 1,
                 GameEvent::SpellCast(_) => self.spells_cast += 1,
                 GameEvent::AbilityActivated { .. } => self.abilities_activated += 1,
                 GameEvent::Attacking(_) => self.attacks_declared += 1,
                 GameEvent::Blocked { .. } => self.blocks_declared += 1,
-                GameEvent::Tapped(o)
+                GameEvent::Tapped { object: o, .. }
                     if state.zones.battlefield.contains(o)
-                        && !crate::observe::face(state.def(*o))
+                        && !face(state.def(*o))
                             .types
                             .contains(&deckmaste_core::Type::Land) =>
                 {

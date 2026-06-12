@@ -1,0 +1,10 @@
+// Draw-go: passes every priority, declares no attackers and no blocks (no
+// Attack/Block rule -> the evaluator's empty defaults). Forced decisions
+// (mana, discard, trigger order) fall to the evaluator's legal fallback. The
+// deterministic-behavior baseline and the deck-out smoke fixture.
+(
+    name: "PassBot",
+    rules: [
+        (when: AllOf([]), prefer: Pass),
+    ],
+)

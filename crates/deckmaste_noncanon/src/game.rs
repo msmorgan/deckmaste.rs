@@ -1,6 +1,5 @@
-//! The per-game driver: steps the engine, routes each pending decision to
-//! the owning seat's pilot (built on a fresh honest Observation + Tactician),
-//! and accumulates probes.
+//! The per-game driver: steps the engine and routes each pending decision to
+//! the owning seat's `Strategy`, accumulating probes.
 
 use std::sync::Arc;
 
@@ -8,24 +7,28 @@ use deckmaste_core::Card;
 use deckmaste_core::Int;
 use deckmaste_core::Uint;
 use deckmaste_engine::GameConfig;
+use deckmaste_engine::GameEvent;
 use deckmaste_engine::GameOutcome;
 use deckmaste_engine::GameState;
+use deckmaste_engine::Occurrence;
+use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
+use deckmaste_engine::PlayerId;
+use deckmaste_engine::Progress;
 use deckmaste_engine::StartingPlayer;
 use deckmaste_engine::StepOutcome;
+use deckmaste_engine::sim::Strategy;
 
-use crate::lookahead::Tactician;
-use crate::lookahead::events_of;
-use crate::lookahead::pending_player;
-use crate::observe::Observation;
-use crate::observe::opponent;
-use crate::pilot::Pilot;
 use crate::probe::Probes;
 
 pub struct Setup {
     pub decks: [Vec<Arc<Card>>; 2],
     pub seed: u64,
     pub starting_life: Int,
+    /// The engine registries (SBA rules, counter/subtype decls) to inject —
+    /// see [`crate::source::EngineRules`]. Without the SBA rules creatures
+    /// never die, so this is load-bearing, not optional.
+    pub rules: crate::source::EngineRules,
 }
 
 #[derive(Debug, Clone)]
@@ -38,23 +41,28 @@ pub struct GameRecord {
     pub decked: bool,
 }
 
-/// Plays one game to completion. `p0` drives `PlayerId(0)`.
+/// Plays one game to completion. `p0` drives `PlayerId(0)`, `p1` drives
+/// `PlayerId(1)`.
 ///
 /// # Panics
 ///
-/// Panics if the game livelocks, runs absurdly long, or a pilot submits a
-/// decision the engine rejects — all engine-or-pilot bugs the suite must
+/// Panics if the game livelocks, runs absurdly long, or a strategy submits a
+/// decision the engine rejects — all engine-or-strategy bugs the suite must
 /// surface loudly.
 #[must_use]
-pub fn play_game(setup: Setup, p0: &mut dyn Pilot, p1: &mut dyn Pilot) -> GameRecord {
+pub fn play_game(setup: Setup, p0: &dyn Strategy, p1: &dyn Strategy) -> GameRecord {
     let [d0, d1] = setup.decks;
     let mut state = GameState::new(GameConfig {
         players: vec![PlayerConfig { deck: d0 }, PlayerConfig { deck: d1 }],
         seed: setup.seed,
         starting_life: setup.starting_life,
         starting_player: StartingPlayer::Random,
+        sba_rules: setup.rules.sba_rules,
+        counter_decls: setup.rules.counter_decls,
+        subtypes: setup.rules.subtypes,
     });
     let proxies = [state.players[0].object, state.players[1].object];
+    let strategies: [&dyn Strategy; 2] = [p0, p1];
     let mut probes = Probes::default();
 
     let mut guard = 0u32;
@@ -74,16 +82,10 @@ pub fn play_game(setup: Setup, p0: &mut dyn Pilot, p1: &mut dyn Pilot) -> GameRe
             StepOutcome::GameOver(o) => break o,
             StepOutcome::NeedsDecision(pending) => {
                 let who = pending_player(&pending);
-                let obs = Observation::of(&state, who);
-                let tac = Tactician::new(&state, who);
-                let d = if who.index() == 0 {
-                    p0.decide(&obs, &tac, &pending)
-                } else {
-                    p1.decide(&obs, &tac, &pending)
-                };
+                let d = strategies[who.index()].decide(&state, &pending);
                 state
                     .submit_decision(d)
-                    .expect("a pilot submits only legal decisions");
+                    .expect("a strategy submits only legal decisions");
             }
         }
     };
@@ -109,21 +111,68 @@ pub fn play_game(setup: Setup, p0: &mut dyn Pilot, p1: &mut dyn Pilot) -> GameRe
     }
 }
 
+/// The seat owning a pending decision. (Relocated from the deleted lookahead
+/// module; seam-agnostic.)
+fn pending_player(pending: &PendingDecision) -> PlayerId {
+    match pending {
+        PendingDecision::Priority { player, .. }
+        | PendingDecision::DiscardToHandSize { player, .. }
+        | PendingDecision::DiscardCards { player, .. }
+        | PendingDecision::ChooseManaColor { player, .. }
+        | PendingDecision::ChooseTargets { player, .. }
+        | PendingDecision::PayMana { player, .. }
+        | PendingDecision::OrderTriggers { player, .. }
+        | PendingDecision::DeclareAttackers { player, .. }
+        | PendingDecision::DeclareBlockers { player, .. }
+        | PendingDecision::AssignCombatDamage { player, .. }
+        | PendingDecision::ChooseModes { player, .. }
+        | PendingDecision::Division { player, .. }
+        | PendingDecision::Vote { player, .. }
+        | PendingDecision::YesNo { player, .. }
+        | PendingDecision::ChooseCostOptions { player, .. }
+        | PendingDecision::OrderReplacements { player, .. }
+        | PendingDecision::PreGame { player, .. }
+        | PendingDecision::ChooseObjects { player, .. }
+        | PendingDecision::ChooseXValue { player, .. }
+        | PendingDecision::LegendRule { player, .. }
+        | PendingDecision::Distribute { player, .. } => *player,
+        // [CR#616.1]: the replacement-ordering chooser is the affected player.
+        PendingDecision::ChooseReplacement { chooser, .. } => *chooser,
+    }
+}
+
+/// The events of one step's progress (seam-agnostic; relocated from lookahead).
+fn events_of(progress: &Progress) -> &[GameEvent] {
+    match progress {
+        Progress::Applied(Occurrence::Single(e)) => std::slice::from_ref(e),
+        Progress::Applied(Occurrence::Batch(es)) => es,
+        _ => &[],
+    }
+}
+
+/// The other seat. Two-player games only: `p` must be seat 0 or 1.
+fn opponent(p: PlayerId) -> PlayerId {
+    PlayerId(1 - p.0)
+}
+
 #[cfg(test)]
 mod tests {
     use deckmaste_engine::GameOutcome;
+    use deckmaste_engine::PlayerId;
 
     use super::*;
     use crate::deck;
-    use crate::pilots::PassBot;
     use crate::source::CardSource;
+    use crate::strategy::MatchupStrategy;
     use crate::wc99;
 
-    /// Two draw-go pilots deck out: the loop, mechanical decisions, and
-    /// probes survive a full game with zero proactive actions.
+    /// Two draw-go seats deck out: the loop, mechanical fallbacks, and probes
+    /// survive a full game with zero proactive actions.
     #[test]
     fn passbots_deck_out() {
         let src = CardSource::load();
+        let p0 = MatchupStrategy::pass_bot(PlayerId(0));
+        let p1 = MatchupStrategy::pass_bot(PlayerId(1));
         for seed in 0..3u64 {
             let rec = play_game(
                 Setup {
@@ -133,9 +182,10 @@ mod tests {
                     ],
                     seed,
                     starting_life: 20,
+                    rules: src.engine_rules(),
                 },
-                &mut PassBot,
-                &mut PassBot,
+                &p0,
+                &p1,
             );
             // Draw is structurally impossible here: each player draws on
             // their own turn, so the two deck-outs land in different SBA
