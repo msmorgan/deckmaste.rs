@@ -125,7 +125,7 @@ in full.
 - [ ] `engine-trigger-events` — match the remaining event shapes: Performed
   (verb-based: sacrificed, discarded, milled…), DamageDealt, spell-cast,
   becomes-tapped/untapped, becomes-blocked (needs once-per-attacker dedup),
-  becomes-targeted (prerequisite for ward/heroic), OneOfEvents.
+  becomes-targeted (prerequisite for ward/heroic), OneOf.
 - [ ] `engine-trigger-conditions` — Condition::Is, Compare, Happened; intervening
   "if" rechecked on resolution [CR#603.4].
 - [ ] `engine-trigger-limits` — OncePerTurn and friends.
