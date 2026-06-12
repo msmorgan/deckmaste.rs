@@ -500,29 +500,24 @@ fn state_is_assertable_between_two_untap_events() {
             .clone()
     };
 
-    // Drive turns 1–4 with the script; collect P0's land CardIds (the hand
-    // object is still live when LandPlayed fires, but ZoneWillChange remints
-    // it into a fresh battlefield ObjectId — track by CardId, resolve to live
-    // ids after the loop).
+    // Drive turns 1–4 with the script; collect P0's land CardIds. The
+    // remint means the will-change's ObjectId is dead once applied — the
+    // ZoneChanged FACT's LKI snapshot is the sanctioned read (CardId spine
+    // + controller), and the "Play" cause marks the land drops.
     let mut p0_land_cards = Vec::new();
     loop {
         match state.step() {
             StepOutcome::Progress(Progress::Applied(Occurrence::Single(
-                GameEvent::ZoneWillChange {
-                    object,
+                GameEvent::ZoneChanged {
+                    ref snapshot,
                     cause: Some(ref c),
                     ..
                 },
-            ))) if c.verb.as_str() == "Play"
-                && state.objects.obj(object).controller == PlayerId(0) =>
-            {
-                p0_land_cards.push(
-                    state
-                        .objects
-                        .obj(object)
-                        .card_id()
-                        .expect("land is card-backed"),
-                );
+            ))) if c.verb.as_str() == "Play" && snapshot.controller == PlayerId(0) => {
+                let deckmaste_engine::ObjectSource::Card(card) = snapshot.source else {
+                    panic!("land is card-backed");
+                };
+                p0_land_cards.push(card);
             }
             StepOutcome::Progress(Progress::Advanced(Phase::Beginning(BeginningStep::Untap)))
                 if state.turn.turn_number == 5 =>
