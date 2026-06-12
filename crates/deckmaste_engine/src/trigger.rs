@@ -97,16 +97,9 @@ impl GameState {
                 face,
                 cause,
             } => {
-                // P0.W3 seam: cause-pattern evaluation (verb/agency equality
-                // + agent filter, events.md cause triple) is unbuilt — a
-                // pattern that NARROWS by cause must not silently match
-                // everything.
-                if cause.is_some() {
-                    todo!("P0.W3: cause-pattern matching");
-                }
-                // P0.W6 seam: same discipline for the face coordinate —
-                // emitters don't track face yet, so an "enters face down"
-                // pattern must trip, not silently never fire.
+                // P0.W6 seam: the face coordinate — emitters don't track
+                // face yet, so an "enters face down" pattern must trip, not
+                // silently never fire.
                 if face.is_some() {
                     todo!("P0.W6: face-coordinate matching");
                 }
@@ -115,10 +108,14 @@ impl GameState {
                         snapshot,
                         from: ef,
                         to: et,
+                        cause: ec,
                         ..
                     } => {
                         zone_ok(*from, *ef)
                             && zone_ok(*to, Some(*et))
+                            && cause
+                                .as_ref()
+                                .is_none_or(|c| self.cause_matches(c, ec.as_ref(), watcher))
                             && self.filter_matches_snapshot(what, snapshot, watcher)
                     }
                     _ => false,
@@ -167,6 +164,42 @@ impl GameState {
             }
 
             other => todo!("stage 3 does not match trigger event {other:?}"),
+        }
+    }
+
+    /// Does the pattern's cause narrowing admit the event's cause triple
+    /// ([CR#603.2] over the (verb, agency, agent) coordinates)?
+    ///
+    /// Every PRESENT coordinate must match; an omitted one matches anything.
+    /// An event with NO cause (an unattributed move) fails every
+    /// cause-narrowed pattern — "destroyed" admits exactly two causes
+    /// ([CR#701.8b]) and a sacrifice is never one of them ([CR#701.21a]),
+    /// while plain "dies" ([CR#700.4]) spells `cause: None` and never gets
+    /// here. The agent filter runs against the LIVE causing object
+    /// (Karmic-Justice predicates over "a spell or ability an opponent
+    /// controls"): the agent is on the stack mid-resolution when its
+    /// instructions emit, so it is live at scan time; turn-based and
+    /// state-based actions have no agent and fail an agent-narrowed pattern.
+    fn cause_matches(
+        &self,
+        pattern: &deckmaste_core::Cause,
+        actual: Option<&crate::event::Cause>,
+        watcher: ObjectSource,
+    ) -> bool {
+        let deckmaste_core::Cause::Cause(p) = pattern;
+        let Some(cause) = actual else {
+            return false;
+        };
+        if p.verb.as_ref().is_some_and(|v| *v != cause.verb) {
+            return false;
+        }
+        if p.agency.is_some_and(|a| a != cause.agency) {
+            return false;
+        }
+        match (&p.agent, cause.agent) {
+            (None, _) => true,
+            (Some(_), None) => false,
+            (Some(f), Some((agent, _controller))) => self.filter_matches_live(f, agent, watcher),
         }
     }
 
@@ -1176,6 +1209,246 @@ mod tests {
                     agent: None,
                 })),
             }
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // Cause-pattern matching ([CR#603.2] over the cause triple)
+    // -------------------------------------------------------------------------
+
+    /// `zone_changed_event` with a cause triple riding the fact.
+    fn zone_changed_with_cause(
+        state: &GameState,
+        id: ObjectId,
+        from: Zone,
+        to: Zone,
+        cause: crate::event::Cause,
+    ) -> GameEvent {
+        let GameEvent::ZoneChanged {
+            snapshot,
+            from,
+            to,
+            face,
+            ..
+        } = zone_changed_event(state, id, from, to)
+        else {
+            unreachable!("zone_changed_event builds a ZoneChanged");
+        };
+        GameEvent::ZoneChanged {
+            snapshot,
+            from,
+            to,
+            face,
+            cause: Some(cause),
+        }
+    }
+
+    /// The SBA destruction cause ([CR#701.8b] — one of "destroyed"'s two
+    /// admitted causes; no agent, [CR#704] actions have none).
+    fn sba_destroy_cause() -> crate::event::Cause {
+        crate::event::Cause {
+            verb: "Destroy".into(),
+            agency: deckmaste_core::Agency::StateBasedAction,
+            agent: None,
+        }
+    }
+
+    /// The canon `Destroyed(Type(Creature))` view matches a creature dying
+    /// to the lethal-damage SBA ([CR#701.8b,704.5g]) …
+    #[test]
+    fn destroyed_matches_destroy_caused_death() {
+        let (state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        let pattern: Event = canon()
+            .macros
+            .read_str("Destroyed(Type(Creature))")
+            .unwrap();
+        let event = zone_changed_with_cause(
+            &state,
+            bear,
+            Zone::Battlefield,
+            Zone::Graveyard,
+            sba_destroy_cause(),
+        );
+        assert!(
+            state.event_matches(&pattern, &event, watcher_source),
+            "Destroyed must match an SBA-destroyed creature"
+        );
+    }
+
+    /// … but NOT an unattributed battlefield→graveyard move — a plain
+    /// "dies" ([CR#700.4]) is not "destroyed" ([CR#701.8b]).
+    #[test]
+    fn destroyed_does_not_match_uncaused_death() {
+        let (state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        let pattern: Event = canon()
+            .macros
+            .read_str("Destroyed(Type(Creature))")
+            .unwrap();
+        let event = zone_changed_event(&state, bear, Zone::Battlefield, Zone::Graveyard);
+        assert!(
+            !state.event_matches(&pattern, &event, watcher_source),
+            "a cause-narrowed pattern must not match an unattributed move"
+        );
+    }
+
+    /// … and NOT a sacrifice — sacrificing is never destruction
+    /// ([CR#701.21a]).
+    #[test]
+    fn destroyed_does_not_match_sacrifice() {
+        let (state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        let pattern: Event = canon()
+            .macros
+            .read_str("Destroyed(Type(Creature))")
+            .unwrap();
+        let event = zone_changed_with_cause(
+            &state,
+            bear,
+            Zone::Battlefield,
+            Zone::Graveyard,
+            crate::event::Cause {
+                verb: "Sacrifice".into(),
+                agency: deckmaste_core::Agency::EffectInstruction,
+                agent: None,
+            },
+        );
+        assert!(
+            !state.event_matches(&pattern, &event, watcher_source),
+            "Destroyed must not match a sacrifice"
+        );
+    }
+
+    /// A cause-agnostic `Dies` pattern keeps matching cause-carrying moves —
+    /// "dies" is the battlefield→graveyard change regardless of cause
+    /// ([CR#700.4]).
+    #[test]
+    fn dies_pattern_stays_cause_agnostic() {
+        let (state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        let pattern = Event::ZoneMove {
+            face: None,
+            cause: None,
+            what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
+        };
+        let event = zone_changed_with_cause(
+            &state,
+            bear,
+            Zone::Battlefield,
+            Zone::Graveyard,
+            sba_destroy_cause(),
+        );
+        assert!(
+            state.event_matches(&pattern, &event, watcher_source),
+            "Dies must stay cause-agnostic"
+        );
+    }
+
+    /// The agency coordinate narrows alone: a pattern pinned to the SBA
+    /// agency matches the SBA destroy but not an effect's ([CR#701.8b]'s
+    /// two routes are distinguishable).
+    #[test]
+    fn cause_agency_coordinate_narrows() {
+        use deckmaste_core::CausePattern;
+
+        let (state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        let pattern = Event::ZoneMove {
+            face: None,
+            cause: Some(deckmaste_core::Cause::Cause(CausePattern {
+                verb: None,
+                agency: Some(deckmaste_core::Agency::StateBasedAction),
+                agent: None,
+            })),
+            what: Filter::Any,
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
+        };
+        let sba = zone_changed_with_cause(
+            &state,
+            bear,
+            Zone::Battlefield,
+            Zone::Graveyard,
+            sba_destroy_cause(),
+        );
+        let effect = zone_changed_with_cause(
+            &state,
+            bear,
+            Zone::Battlefield,
+            Zone::Graveyard,
+            crate::event::Cause {
+                verb: "Destroy".into(),
+                agency: deckmaste_core::Agency::EffectInstruction,
+                agent: None,
+            },
+        );
+        assert!(state.event_matches(&pattern, &sba, watcher_source));
+        assert!(!state.event_matches(&pattern, &effect, watcher_source));
+    }
+
+    /// The agent coordinate runs a live filter over the causing object
+    /// (Karmic-Justice predicates, events.md §3); an agentless cause fails
+    /// an agent-narrowed pattern.
+    #[test]
+    fn cause_agent_filter_narrows() {
+        use deckmaste_core::CausePattern;
+
+        let (mut state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        // A second creature stands in as the causing object (any live
+        // object works for the predicate; real causes are spells/abilities).
+        let agent = {
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let card = state.cards.push(bears, PlayerId(1));
+            let id = state.objects.mint(
+                ObjectSource::Card(card),
+                PlayerId(1),
+                Some(Zone::Battlefield),
+            );
+            state.zones.battlefield.push(id);
+            id
+        };
+        let pattern = Event::ZoneMove {
+            face: None,
+            cause: Some(deckmaste_core::Cause::Cause(CausePattern {
+                verb: Some("Destroy".into()),
+                agency: None,
+                agent: Some(Filter::Characteristic(CharacteristicFilter::Type(
+                    Type::Creature,
+                ))),
+            })),
+            what: Filter::Any,
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
+        };
+        let with_agent = zone_changed_with_cause(
+            &state,
+            bear,
+            Zone::Battlefield,
+            Zone::Graveyard,
+            crate::event::Cause {
+                verb: "Destroy".into(),
+                agency: deckmaste_core::Agency::EffectInstruction,
+                agent: Some((agent, PlayerId(1))),
+            },
+        );
+        let agentless = zone_changed_with_cause(
+            &state,
+            bear,
+            Zone::Battlefield,
+            Zone::Graveyard,
+            sba_destroy_cause(),
+        );
+        assert!(
+            state.event_matches(&pattern, &with_agent, watcher_source),
+            "the agent filter must match the live causing object"
+        );
+        assert!(
+            !state.event_matches(&pattern, &agentless, watcher_source),
+            "an agentless cause must fail an agent-narrowed pattern"
         );
     }
 
