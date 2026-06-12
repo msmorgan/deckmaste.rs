@@ -1,9 +1,12 @@
-// Protection = the DEBT bundle [CR#702.16b..702.16e]: can't be Damaged by,
-// Enchanted/Equipped by, Blocked by, or Targeted by sources with the
-// stated quality. Name-carrying WITH its quality param: the bundle needs
-// the prevention wiring ([CR#702.16e]) and the attach-legality machinery
-// before an honest body exists; the quality rides the invocation
-// (`Protection(ColorIs(Red))`) for the engine's look-through.
+// Protection = the DEBT bundle over the stated quality
+// (`Protection(ColorIs(Red))`), four rows:
+//   Damaged   — damage from matching sources is prevented ([CR#702.16e]);
+//   Enchanted/Equipped — can't have matching attachments
+//               ([CR#702.16c..702.16d]; existing illegal ones are the
+//               [CR#704.5m..704.5n] sweeps' business);
+//   Blocked   — can't be blocked by matching creatures ([CR#702.16f]);
+//   Targeted  — can't be targeted by matching spells, or abilities from
+//               matching sources ([CR#702.16b]).
 (
     name: "Protection",
     template: "protection from {0}",
@@ -11,6 +14,11 @@
     params: [Any],
     body: Composite(
         name: "Protection",
-        abilities: [],
+        abilities: [Static(effects: [
+            Prevention(PreventAll(from: Param(0), to: Ref(This))),
+            Cant(Attach(what: Param(0), to: Ref(This))),
+            Cant(Block(on: Ref(This), by: Param(0))),
+            Cant(Target(on: Ref(This), by: Param(0))),
+        ])],
     ),
 )

@@ -94,6 +94,10 @@ pub enum Modification {
     SetController(Reference),
     /// Change text ([CR#613.1c]).
     SetText(String),
+    /// "Is every creature type" ([CR#702.73a] changeling, [CR#205.3m] the
+    /// open creature-type set) — an open-set subtype FILL, not a list op;
+    /// layer 4, normally CDA-flagged.
+    AllCreatureTypes,
     /// Set base loyalty ([CR#306.5b..306.5c] — the printed-loyalty baseline
     /// the counters start from; no 613 layer covers loyalty).
     SetBaseLoyalty(Count),
@@ -122,6 +126,16 @@ pub enum CostChange {
         components: Vec<CostComponent>,
         #[serde(default, skip_serializing_if = "is_false")]
         optional: bool,
+    },
+    /// A COUNT-SCALED change: the inner change applies `times` times at
+    /// total-cost time ([CR#601.2f]). Covers both polarities — "costs {1}
+    /// less for each artifact you control" ([CR#702.41a] affinity) and
+    /// "costs {1} more for each …" taxers — and `times` is a [`Count`],
+    /// so every counting form (`CountOf`, X, queries) composes. Boxed to
+    /// break the self-reference.
+    Scaled {
+        change: Box<CostChange>,
+        times: Count,
     },
 }
 
