@@ -181,11 +181,23 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     }
 
     // [CR#601.3]: cast a spell from hand if timing + payment + targets permit.
+    // Target/Attach rows (hexproof, protection, enchant) ride the same
+    // guard: targeting legality and attach legality don't evaluate
+    // deontics yet, and a board carrying such rows must trip LOUDLY at
+    // the priority window rather than silently allow the choice.
     guard_deontic_seam(
         state,
         &view,
-        |a| matches!(a, DeonticAction::Cast { .. } | DeonticAction::Play { .. }),
-        "cast/play",
+        |a| {
+            matches!(
+                a,
+                DeonticAction::Cast { .. }
+                    | DeonticAction::Play { .. }
+                    | DeonticAction::Target { .. }
+                    | DeonticAction::Attach { .. }
+            )
+        },
+        "cast/play/target/attach",
     );
     guard_cost_modifier_seam(state, &view);
     for &object in &state.zones.hands[player.index()] {

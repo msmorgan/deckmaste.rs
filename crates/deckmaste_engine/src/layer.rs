@@ -191,6 +191,7 @@ fn layer_of(m: &Modification, is_cda: bool) -> Option<Layer> {
         | Modification::AddSubtypes(_)
         | Modification::SetSupertypes(_)
         | Modification::AddSupertypes(_)
+        | Modification::AllCreatureTypes
         | Modification::BecomeBasicLandType(_) => Some(Layer::L4),
         // Layer 5: color-changing ([CR#613.1e]).
         Modification::SetColors(_) | Modification::AddColors(_) => Some(Layer::L5),
@@ -451,6 +452,13 @@ fn apply(m: &Modification, c: &mut Characteristics) {
         // [CR#305.7] deferred: replace land subtypes + strip abilities + grant basic
         // mana ability (no fixture yet). Do NOT implement the mana-ability construction.
         Modification::BecomeBasicLandType(_) => {}
+        // kw-changeling seam: the every-creature-type fill needs the
+        // declared creature-type registry threaded into the layer engine
+        // ([CR#702.73a,205.3m]) — loud rather than a silently typeless
+        // changeling.
+        Modification::AllCreatureTypes => {
+            todo!("kw-changeling: every-creature-type subtype fill ([CR#702.73a])")
+        }
         // --- Layer 5: color-changing ([CR#613.1e]) ---
         Modification::AddColors(cl) => {
             let colors = Arc::make_mut(&mut c.colors);

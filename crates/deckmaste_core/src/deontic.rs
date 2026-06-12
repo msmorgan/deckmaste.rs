@@ -98,6 +98,17 @@ pub enum DeonticAction {
         #[serde(default = "Filter::any")]
         on: Filter,
     },
+    /// `what` is attached to `to` ([CR#701.3a] legality — "can't be
+    /// attached" rows; protection's can't-be-enchanted/equipped clauses
+    /// [CR#702.16c], enchant's quality restriction [CR#702.5a]). An
+    /// illegal existing attachment is the SBA's business
+    /// ([CR#704.5m..704.5n]), not this row's.
+    Attach {
+        #[serde(default = "Filter::any")]
+        what: Filter,
+        #[serde(default = "Filter::any")]
+        to: Filter,
+    },
     /// `by` casts `what`, optionally from a zone / in a window
     /// ([CR#601.3,701.5]).
     Cast {

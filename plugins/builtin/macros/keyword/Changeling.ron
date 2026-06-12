@@ -1,9 +1,12 @@
 // Changeling = a CDA ([CR#702.73a,604.3]): "this object is every creature
-// type", functioning everywhere. Name-carrying: the every-creature-type
-// modification (an open-set subtype fill, not a Set/Add list) doesn't
-// exist in the Modification grammar yet — the body arrives with it.
+// type", functioning everywhere — the open-set subtype fill
+// (Modification::AllCreatureTypes, [CR#205.3m]'s open list) on a
+// CDA-flagged static. The layer engine's fill is the kw-changeling seam.
 KeywordAbility(
     name: "Changeling",
     template: "changeling",
-    abilities: [],
+    abilities: [Static(
+        cda: true,
+        effects: [Modify(of: Of(This), changes: [AllCreatureTypes])],
+    )],
 )

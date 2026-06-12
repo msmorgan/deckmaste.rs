@@ -1,9 +1,9 @@
 // Crew = an activated ability of Vehicles [CR#702.122a]: "tap any number
 // of other untapped creatures you control with total power N or greater:
 // this permanent becomes an artifact creature until end of turn".
-// Name-carrying with N: the cost needs an aggregate predicate (total
-// power ≥ N over a chosen set) the cost grammar can't express yet — the
-// same aggregate-sum gap as devotion (core-count-query).
+// Name-carrying with N: the cost needs an AGGREGATE predicate (total
+// power over a chosen set) — the explicitly-unsolved aggregate-sums
+// design (core-count-query, devotion family); the body lands with it.
 (
     name: "Crew",
     template: "crew {0}",
