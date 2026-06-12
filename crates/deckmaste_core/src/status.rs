@@ -47,12 +47,24 @@ pub enum Phasing {
     Out,
 }
 
+/// The face-down payload position — a single-variant enum on purpose
+/// (the accretion point): [CR#406.3a]'s face-down-exile case (NO
+/// characteristics at all) is a foreseeable `Nothing` sibling, landing
+/// here without respelling existing files.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, Expand)]
+pub enum FaceDownSpec {
+    /// The characteristics the enabler LISTS ([CR#708.2]).
+    Listed(FaceDownCharacteristics),
+}
+
+impl Default for FaceDownSpec {
+    fn default() -> Self { FaceDownSpec::Listed(FaceDownCharacteristics::default()) }
+}
+
 /// The characteristics a face-down object HAS ([CR#708.2]: only those
 /// listed by the ability or rules that turned it face down — everything
 /// else is absent, not inherited). `Default` is [CR#708.2a]: a 2/2
-/// creature with no name, no text, no subtypes, and no mana cost. A card
-/// exiled face down has NO characteristics at all ([CR#406.3a]) — that's
-/// the absence of a spec, not a spec.
+/// creature with no name, no text, no subtypes, and no mana cost.
 ///
 /// The engine's face-down object model consumes this as the committed
 /// payload (mtg-rules information.md §6): what the object shows while the
@@ -60,7 +72,7 @@ pub enum Phasing {
 /// differentiation duty ([CR#708.6]), and reveal-on-leave ([CR#708.9]) as
 /// engine seams.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, Expand)]
-pub struct FaceDownSpec {
+pub struct FaceDownCharacteristics {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -75,9 +87,9 @@ pub struct FaceDownSpec {
     pub toughness: Option<crate::StatValue>,
 }
 
-impl Default for FaceDownSpec {
+impl Default for FaceDownCharacteristics {
     fn default() -> Self {
-        FaceDownSpec {
+        FaceDownCharacteristics {
             name: None,
             types: vec![crate::Type::Creature],
             subtypes: Vec::new(),
@@ -85,5 +97,25 @@ impl Default for FaceDownSpec {
             power: Some(crate::StatValue::Number(2)),
             toughness: Some(crate::StatValue::Number(2)),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The face-down payload reads through the wrapper (`Listed(…)`), and
+    /// the default is the [CR#708.2a] 2/2 creature.
+    #[test]
+    fn face_down_spec_reads_listed_and_defaults_to_the_two_two() {
+        let spec: FaceDownSpec = crate::ron::options()
+            .from_str("Listed(types: [Creature], power: 2, toughness: 2)")
+            .unwrap();
+        let FaceDownSpec::Listed(c) = &spec;
+        assert_eq!(c.power, Some(crate::StatValue::Number(2)));
+        assert_eq!(
+            FaceDownSpec::default(),
+            FaceDownSpec::Listed(FaceDownCharacteristics::default())
+        );
     }
 }

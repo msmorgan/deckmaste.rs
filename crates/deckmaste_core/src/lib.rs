@@ -134,6 +134,7 @@ pub use replacement::Replacement;
 
 mod status;
 pub use status::Face;
+pub use status::FaceDownCharacteristics;
 pub use status::FaceDownSpec;
 pub use status::Phasing;
 pub use status::Status;
@@ -151,6 +152,7 @@ pub use target_spec::TargetSpec;
 
 mod token;
 pub use token::Token;
+pub use token::TokenSpec;
 
 mod r#type;
 pub use r#type::Subtype;

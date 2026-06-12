@@ -7,6 +7,21 @@ use crate::Supertype;
 use crate::Type;
 use crate::ability::Ability;
 
+/// The token position on a `Create` instruction — a single-variant enum
+/// on purpose (the accretion point): "create a Treasure token" by
+/// PREDEFINED NAME ([CR#111.10]) is a foreseeable `Named(Ident)` sibling,
+/// and it will land here without respelling existing files (which already
+/// read `Token(types: …)` — the variant name is the struct name).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+pub enum TokenSpec {
+    /// An inline token definition.
+    Token(Token),
+}
+
+impl From<Token> for TokenSpec {
+    fn from(token: Token) -> Self { TokenSpec::Token(token) }
+}
+
 /// A token permanent definition ([CR#111]). Name, colors, and P/T are omitted
 /// here and join when a token definition needs them; the three predefined
 /// tokens (Treasure, Clue, Food) don't.
@@ -35,6 +50,25 @@ mod tests {
     use crate::selection::Selection;
 
     fn read(source: &str) -> Token { crate::ron::options().from_str(source).unwrap() }
+
+    /// The `Create` position reads through the single-variant wrapper with
+    /// the SAME spelling files always used — `Token(types: …)`, the struct
+    /// name, is now the variant name.
+    #[test]
+    fn token_spec_reads_the_token_spelling() {
+        let spec: TokenSpec = crate::ron::options()
+            .from_str("Token(types: [Artifact])")
+            .unwrap();
+        assert_eq!(
+            spec,
+            TokenSpec::Token(Token {
+                supertypes: vec![],
+                types: vec![Type::Artifact],
+                subtypes: vec![],
+                abilities: vec![],
+            })
+        );
+    }
 
     #[test]
     fn minimal_token_parses() {

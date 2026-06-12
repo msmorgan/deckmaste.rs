@@ -325,7 +325,7 @@ mod tests {
         state.run_effect(
             Effect::Act(Action::By(
                 Reference::You,
-                PlayerAction::Create(Count::Literal(1), token),
+                PlayerAction::Create(Count::Literal(1), token.into()),
             )),
             &frame,
         );

@@ -540,11 +540,14 @@ impl GameState {
                     count,
                 }]
             }
-            PlayerAction::Create(qty, token) => {
+            PlayerAction::Create(qty, spec) => {
                 // [CR#701.7a]: one instruction puts all N tokens onto the
                 // battlefield — one simultaneous batch of `TokenCreated`
                 // facts. (Token copies — `Create` of a copy-defined token —
-                // wait on the copy grammar, `core-copy-grammar`.)
+                // wait on the copy grammar, `core-copy-grammar`.) The FACT
+                // carries the resolved inline definition; a future
+                // `TokenSpec::Named` resolves to one here.
+                let deckmaste_core::TokenSpec::Token(token) = spec;
                 let n = self.eval_count(qty, frame);
                 let events: Vec<GameEvent> = (0..n)
                     .map(|_| GameEvent::TokenCreated {
@@ -1585,7 +1588,10 @@ mod tests {
             abilities: vec![],
         };
         state.run_effect(
-            Effect::Act(by_you(PlayerAction::Create(Count::Literal(2), token))),
+            Effect::Act(by_you(PlayerAction::Create(
+                Count::Literal(2),
+                token.into(),
+            ))),
             &frame,
         );
         // One simultaneous batch of two TokenCreated facts.
@@ -1656,7 +1662,10 @@ mod tests {
         };
         let treasure = builtin().token("Treasure").unwrap();
         state.run_effect(
-            Effect::Act(by_you(PlayerAction::Create(Count::Literal(1), treasure))),
+            Effect::Act(by_you(PlayerAction::Create(
+                Count::Literal(1),
+                treasure.into(),
+            ))),
             &frame,
         );
         let _ = state.step(); // the TokenCreated batch applies
