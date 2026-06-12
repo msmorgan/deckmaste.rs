@@ -226,7 +226,30 @@ impl GameState {
         if specs.is_empty() {
             return 0;
         }
-        let legal: Vec<Vec<ObjectId>> = specs.iter().map(|s| self.legal_targets(s)).collect();
+        // [CR#702.11b]-family: Cant(Target) rows (hexproof, protection)
+        // exclude their carriers from the candidate sets — `by` evaluates
+        // against the announcing spell, or an ability's SOURCE (the stack
+        // identity isn't minted until the announce promotes, [CR#602.2a];
+        // controller-anchored rows read the same controller either way —
+        // a by-row keyed on stack-zone state needs the minted id, a seam).
+        let spell = match &pending.object {
+            StackObject::Spell(o) => *o,
+            StackObject::Activated { source, .. } => *source,
+            StackObject::Triggered { .. } => {
+                unreachable!("triggers announce targets at placement, not in the announce slot")
+            }
+        };
+        let view = self.layers();
+        let rows = crate::legal::cant_target_rows(self, &view);
+        let legal: Vec<Vec<ObjectId>> = specs
+            .iter()
+            .map(|s| {
+                self.legal_targets(s)
+                    .into_iter()
+                    .filter(|&t| crate::legal::target_forbidden_by(self, &rows, spell, t).is_none())
+                    .collect()
+            })
+            .collect();
         let count = Uint::try_from(specs.len()).expect("target-spec count fits in Uint");
         self.pending = Some(PendingDecision::ChooseTargets {
             player: controller,

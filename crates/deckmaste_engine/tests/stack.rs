@@ -1975,3 +1975,53 @@ fn land_in_hand_offers_play_land_not_cast_spell() {
         "legal_actions must NOT offer CastSpell for a land ([CR#305.9])"
     );
 }
+
+/// kw-hexproof goes LIVE: a `Cant(Target)` row excludes its carrier from an
+/// opposing spell's legal target set ([CR#702.11b]); a creature beside it
+/// stays targetable, and submission re-validates.
+#[test]
+fn hexproof_excludes_it_from_opposing_targets() {
+    let bolt = card("Lightning Bolt");
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let scout = card("Gladecover Scout");
+    let bears = card("Grizzly Bears");
+    let mut p0 = vec![Arc::clone(&bolt); 5];
+    p0.extend(vec![Arc::clone(&mountain); 5]);
+    let mut p1 = vec![Arc::clone(&scout); 5];
+    p1.extend(vec![Arc::clone(&bears); 5]);
+    let mut state = GameState::new(GameConfig {
+        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
+        seed: 19,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    let scout = force_into_play(&mut state, PlayerId(1), "Gladecover Scout");
+    let bear = force_into_play(&mut state, PlayerId(1), "Grizzly Bears");
+    force_into_play(&mut state, PlayerId(0), "Mountain");
+
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 1);
+    let bolt = find_in_hand(&state, PlayerId(0), "Lightning Bolt");
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+        panic!("expected ChooseTargets, got {stop:?}");
+    };
+    assert!(legal[0].contains(&bear), "the bear is targetable");
+    assert!(
+        !legal[0].contains(&scout),
+        "the hexproof creature is excluded from an opponent's targets"
+    );
+    // Submission re-validates against the surfaced legal set.
+    assert!(
+        state
+            .submit_decision(Decision::Targets(vec![scout]))
+            .is_err(),
+        "targeting the hexproof creature is rejected"
+    );
+    state
+        .submit_decision(Decision::Targets(vec![bear]))
+        .unwrap();
+}

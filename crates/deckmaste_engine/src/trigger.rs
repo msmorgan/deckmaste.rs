@@ -190,6 +190,32 @@ impl GameState {
         match filter {
             // "this object": match only when `o` is the watching object.
             Filter::Ref(Reference::This) => self.objects.obj(o).source == watcher,
+            // "you" ([CR#109.5]): `o` is the watcher's controller's proxy.
+            Filter::Ref(Reference::You) => {
+                let controller = self.controller_of_source(watcher);
+                matches!(self.objects.obj(o).source,
+                    crate::object::ObjectSource::Player(p) if Some(p) == controller)
+            }
+
+            // Player relations recurse with the SAME watcher so a nested
+            // `Ref(You)` (hexproof's "your opponents") still anchors right.
+            // The object's controller, as a player proxy ([CR#109.5]).
+            Filter::Relation(deckmaste_core::RelationFilter::Controller(f)) => {
+                let c = self.objects.obj(o).controller;
+                let proxy = self.player(c).object;
+                self.filter_matches_live(f, proxy, watcher)
+            }
+            // `o` is a player who is an opponent of a matching player
+            // ([CR#102.2,102.3]).
+            Filter::Relation(deckmaste_core::RelationFilter::OpponentOf(f)) => {
+                match self.objects.obj(o).source {
+                    crate::object::ObjectSource::Player(p) => self
+                        .players
+                        .iter()
+                        .any(|q| q.id != p && self.filter_matches_live(f, q.object, watcher)),
+                    crate::object::ObjectSource::Card(_) => false,
+                }
+            }
 
             // Logical combinators: recurse so an `Ref(This)` nested inside is
             // still resolved against the watcher.
@@ -202,6 +228,15 @@ impl GameState {
             // characteristic test.
             other => crate::target::matches(self, o, other),
         }
+    }
+
+    /// The controller of the live object minted from `source`, if it is
+    /// still around — the anchor for `Ref(You)` in carrier-bound filters.
+    fn controller_of_source(&self, source: ObjectSource) -> Option<crate::player::PlayerId> {
+        self.objects
+            .iter()
+            .find(|ob| ob.source == source)
+            .map(|ob| ob.controller)
     }
 
     /// Evaluate `filter` against the last-known state of a moved object
