@@ -30,6 +30,16 @@ pub enum Action {
     Destroy(Selection),
     /// Return a selection to its owner's hand.
     ReturnToHand(Selection),
+    /// Counter a selected spell or ability on the stack ([CR#701.6a]) — a
+    /// countered spell moves to its owner's graveyard; a countered ability
+    /// simply ceases. "Can't be countered" is deontic-layer territory, not
+    /// part of the verb.
+    Counter(Selection),
+    /// Attach `what` to `to` ([CR#701.3a..701.3b]) — the one verb the whole
+    /// attachment family shares (Equipment, Auras, Fortifications). The
+    /// attachment RELATION (storage; the illegal-attachment SBAs,
+    /// [CR#704.5m..704.5n]) is engine machinery.
+    Attach { what: Selection, to: Selection },
     /// A named player performs the [`PlayerAction`] ([CR#608.2]). `By(You, …)`
     /// is the implicit-you default and is written bare in RON.
     #[macro_ron(embed)]

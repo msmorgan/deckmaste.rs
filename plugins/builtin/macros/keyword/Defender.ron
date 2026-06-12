@@ -1,0 +1,9 @@
+// Defender = a standing attack prohibition [CR#702.3b]: "a creature with
+// defender can't attack" — one Cant row anchored on the carrier.
+KeywordAbility(
+    name: "Defender",
+    template: "defender",
+    abilities: [Static(effects: [
+        Cant(Attack(by: Ref(This))),
+    ])],
+)

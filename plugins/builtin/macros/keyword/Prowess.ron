@@ -1,0 +1,15 @@
+// Prowess = a triggered ability [CR#702.108a]: "whenever you cast a
+// noncreature spell, this creature gets +1/+1 until end of turn" — a
+// cast-event trigger (the Performed view over [CR#601.2i] SpellCast)
+// driving a one-shot continuous pump ([CR#611.2a] until end of turn).
+KeywordAbility(
+    name: "Prowess",
+    template: "prowess",
+    abilities: [Triggered(
+        event: Performed(verb: "Cast", by: Ref(You), on: AllOf([Kind(Spell), Not(Type(Creature))])),
+        effect: Continuously(
+            effect: Modify(of: Of(This), changes: [AddPower(Literal(1)), AddToughness(Literal(1))]),
+            duration: FixedUntil(EndOfTurn),
+        ),
+    )],
+)

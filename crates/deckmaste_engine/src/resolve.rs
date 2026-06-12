@@ -301,8 +301,14 @@ impl GameState {
                 let actor = self.acting_player(who, frame);
                 self.player_action_items(pa, actor, frame)
             }
-            other @ Action::ReturnToHand(_) => {
-                todo!("stage 3 does not perform action {other:?}")
+            Action::ReturnToHand(_) => {
+                todo!("stage 3 does not perform action ReturnToHand")
+            }
+            // Keyword-batch seams: grammar landed with the FDN keyword
+            // macros; execution arrives with their engine work.
+            Action::Counter(..) => todo!("kw-ward: counter resolution ([CR#701.6a])"),
+            Action::Attach { .. } => {
+                todo!("kw-equip: attach resolution ([CR#701.3]; relation storage is engine work)")
             }
         }
     }

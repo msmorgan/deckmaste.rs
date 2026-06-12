@@ -97,6 +97,18 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
             }
         }
     }
+    // kw-indestructible presence guard: a destroy-replacement row in the
+    // derived view ("would be destroyed → nothing instead") must stop the
+    // sweep LOUDLY — replacements are unapplied (stage-4 seam), and
+    // destroying through one silently would be wrong, not just incomplete.
+    if !to_destroy.is_empty()
+        && crate::legal::statics_present(state, &view, |s| {
+            matches!(s, deckmaste_core::StaticEffect::Replacement(r)
+                if crate::legal::replaces_destruction(r))
+        })
+    {
+        todo!("kw-indestructible: destroy-replacement window ([CR#702.12b])");
+    }
     for id in to_destroy {
         // Destroy. The LKI snapshot is captured at the will-change apply
         // while the object is still live ([CR#400.7]). The cause names the

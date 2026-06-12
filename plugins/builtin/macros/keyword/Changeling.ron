@@ -1,0 +1,9 @@
+// Changeling = a CDA ([CR#702.73a,604.3]): "this object is every creature
+// type", functioning everywhere. Name-carrying: the every-creature-type
+// modification (an open-set subtype fill, not a Set/Add list) doesn't
+// exist in the Modification grammar yet — the body arrives with it.
+KeywordAbility(
+    name: "Changeling",
+    template: "changeling",
+    abilities: [],
+)

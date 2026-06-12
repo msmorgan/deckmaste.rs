@@ -1,0 +1,11 @@
+// Haste carries its name alone BY DESIGN (settled, docs/rules-taxonomy.md
+// §10 / skill deontics §8): it is a FLAG the standing summoning-sickness
+// Cant rows read in their own conditions ([CR#508.1a,602.5a] name haste
+// directly; [CR#702.10b..702.10c,302.6] are prose mirrors) — NOT a May-row
+// lift, so there is nothing to decompose here. The engine's sick-creature
+// checks match the name (the kw-haste seam in legal.rs).
+KeywordAbility(
+    name: "Haste",
+    template: "haste",
+    abilities: [],
+)

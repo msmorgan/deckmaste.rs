@@ -1,0 +1,18 @@
+// Enchant = a targeting/attachment restriction on the Aura [CR#702.5a]:
+// "Enchant [quality]" means the Aura spell targets only matching objects
+// (the half this row expresses: can't target non-matching) and can only
+// be ATTACHED to matching objects — the attach-legality half and the
+// stays-attached sweep ride the attachment machinery (the [CR#704.5m]
+// family), engine seams behind the Attach verb.
+(
+    name: "Enchant",
+    template: "enchant {0}",
+    kinds: [KeywordAbility],
+    params: [Any],
+    body: Composite(
+        name: "Enchant",
+        abilities: [Static(effects: [
+            Cant(Target(by: Ref(This), on: Not(Param(0)))),
+        ])],
+    ),
+)

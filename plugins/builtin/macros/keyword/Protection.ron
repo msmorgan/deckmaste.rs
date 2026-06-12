@@ -1,0 +1,16 @@
+// Protection = the DEBT bundle [CR#702.16b..702.16e]: can't be Damaged by,
+// Enchanted/Equipped by, Blocked by, or Targeted by sources with the
+// stated quality. Name-carrying WITH its quality param: the bundle needs
+// the prevention wiring ([CR#702.16e]) and the attach-legality machinery
+// before an honest body exists; the quality rides the invocation
+// (`Protection(ColorIs(Red))`) for the engine's look-through.
+(
+    name: "Protection",
+    template: "protection from {0}",
+    kinds: [KeywordAbility],
+    params: [Any],
+    body: Composite(
+        name: "Protection",
+        abilities: [],
+    ),
+)
