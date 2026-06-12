@@ -324,7 +324,8 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
     let (trace, stop) = step_to_stop(&mut state);
     assert!(trace.iter().any(|p| matches!(
         applied(p),
-        Some(GameEvent::LandPlayed { object }) if *object == land
+        Some(GameEvent::ZoneWillChange { object, cause: Some(c), .. })
+            if *object == land && c.verb.as_str() == "Play"
     )));
     assert_eq!(state.zones.battlefield.len(), 1);
     let played = state.zones.battlefield[0];
@@ -357,7 +358,7 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
     let (trace, _stop) = step_to_stop(&mut state);
     assert!(trace.iter().any(|p| matches!(
         applied(p),
-        Some(GameEvent::Tapped(id)) if *id == played
+        Some(GameEvent::Tapped { object, .. }) if *object == played
     )));
     assert_eq!(state.players[0].mana_pool.amount(Color::White.into()), 1);
 
@@ -404,7 +405,8 @@ fn cleanup_discards_to_hand_size() {
     let (trace, _) = step_to_stop(&mut state);
     assert!(trace.iter().any(|p| matches!(
         applied(p),
-        Some(GameEvent::Discarded { player: PlayerId(1), object }) if *object == chosen
+        Some(GameEvent::ZoneWillChange { object, cause: Some(c), .. })
+            if *object == chosen && c.verb.as_str() == "Discard"
     )));
     assert_eq!(state.zones.hands[1].len(), 7);
     assert_eq!(state.zones.graveyards[1].len(), 1);
@@ -506,8 +508,14 @@ fn state_is_assertable_between_two_untap_events() {
     loop {
         match state.step() {
             StepOutcome::Progress(Progress::Applied(Occurrence::Single(
-                GameEvent::LandPlayed { object },
-            ))) if state.objects.obj(object).controller == PlayerId(0) => {
+                GameEvent::ZoneWillChange {
+                    object,
+                    cause: Some(ref c),
+                    ..
+                },
+            ))) if c.verb.as_str() == "Play"
+                && state.objects.obj(object).controller == PlayerId(0) =>
+            {
                 p0_land_cards.push(
                     state
                         .objects
@@ -775,6 +783,7 @@ fn spell_leaves_the_stack_for_its_owners_graveyard() {
             to: Zone::Graveyard,
             enters: None,
             position: None,
+            cause: None,
         },
     );
     assert!(state.stack.is_empty());
@@ -802,6 +811,7 @@ fn destroy_will_change_remints_creature_to_owners_graveyard() {
             to: Zone::Graveyard,
             enters: None,
             position: None,
+            cause: None,
         },
     );
     // Old id is gone.
@@ -834,6 +844,7 @@ fn destroy_will_change_emits_zone_changed_carrying_lki() {
                 to: Zone::Graveyard,
                 enters: None,
                 position: None,
+                cause: None,
             },
         )));
     // First step applies the will-change; the next applies the queued fact.
@@ -842,6 +853,7 @@ fn destroy_will_change_emits_zone_changed_carrying_lki() {
         snapshot,
         from,
         to,
+        ..
     }))) = state.step()
     else {
         panic!("expected an Applied(ZoneChanged) fact after the will-change");

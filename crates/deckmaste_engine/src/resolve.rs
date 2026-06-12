@@ -3,6 +3,7 @@
 
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
+use deckmaste_core::Agency;
 use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::Count;
@@ -19,6 +20,7 @@ use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 
 use crate::agenda::WorkItem;
+use crate::event::Cause;
 use crate::event::GameEvent;
 use crate::event::Occurrence;
 use crate::layer::ContinuousEffect;
@@ -72,6 +74,7 @@ impl GameState {
                             to: Zone::Battlefield,
                             enters: None,
                             position: None,
+                            cause: None,
                         },
                     ))]);
                 } else if self.targets_still_legal(&entry) {
@@ -96,6 +99,7 @@ impl GameState {
                             to: Zone::Graveyard,
                             enters: None,
                             position: None,
+                            cause: None,
                         })),
                     ]);
                 } else {
@@ -107,6 +111,7 @@ impl GameState {
                             to: Zone::Graveyard,
                             enters: None,
                             position: None,
+                            cause: None,
                         },
                     ))]);
                 }
@@ -290,7 +295,14 @@ impl GameState {
                 let events: Vec<GameEvent> = self
                     .eval_selection_set(sel, frame)
                     .into_iter()
-                    .map(GameEvent::Tapped)
+                    .map(|object| GameEvent::Tapped {
+                        object,
+                        cause: Some(Cause {
+                            verb: "Tap".into(),
+                            agency: Agency::EffectInstruction,
+                            agent: Some((frame.source, frame.controller)),
+                        }),
+                    })
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
@@ -337,9 +349,19 @@ impl GameState {
                 let events: Vec<GameEvent> = self
                     .eval_selection_set(sel, frame)
                     .into_iter()
-                    .map(|object| GameEvent::Sacrificed {
-                        player: actor,
+                    .map(|object| GameEvent::ZoneWillChange {
                         object,
+                        from: Some(Zone::Battlefield),
+                        to: Zone::Graveyard,
+                        enters: None,
+                        position: None,
+                        // [CR#701.21a]: never a destruction — regeneration
+                        // can't replace it; the cause says so.
+                        cause: Some(Cause {
+                            verb: "Sacrifice".into(),
+                            agency: Agency::EffectInstruction,
+                            agent: Some((frame.source, actor)),
+                        }),
                     })
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
@@ -357,6 +379,7 @@ impl GameState {
                         to: Zone::Exile,
                         enters: None,
                         position: None,
+                        cause: None,
                     })
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
@@ -377,9 +400,19 @@ impl GameState {
                             to: Zone::Library,
                             enters: None,
                             position: Some(position),
+                            cause: None,
                         }))
                     })
                     .collect()
+            }
+            // P0.W3 seams: grammar-complete verbs whose execution is unbuilt.
+            PlayerAction::FlipCoins(..) => todo!("P0.W3: coin flips (emit CoinFlipped)"),
+            PlayerAction::RollDice(..) => todo!("P0.W3: die rolls (emit DieRolled)"),
+            PlayerAction::PutCounters(..) => {
+                todo!("P0.W3: counters (emit CounterPlaced; storage is P0.W5)")
+            }
+            PlayerAction::RemoveCounters(..) => {
+                todo!("P0.W3: counters (emit CounterRemoved; storage is P0.W5)")
             }
             PlayerAction::AddMana(qty, production) => {
                 let amount = self.eval_count(qty, frame);
@@ -780,11 +813,19 @@ mod tests {
             bindings: None,
         };
 
-        // By(You, Tap(This)) -> one Single(Tapped(src))
+        // By(You, Tap(This)) -> one Single(Tapped(src)) carrying the
+        // effect-instruction cause triple (events.md §3).
         let items = state.action_items(&by_you(PlayerAction::Tap(sel_this())), &frame);
         assert_eq!(
             items,
-            vec![WorkItem::Emit(Occurrence::Single(GameEvent::Tapped(src)))]
+            vec![WorkItem::Emit(Occurrence::Single(GameEvent::Tapped {
+                object: src,
+                cause: Some(crate::event::Cause {
+                    verb: "Tap".into(),
+                    agency: deckmaste_core::Agency::EffectInstruction,
+                    agent: Some((src, PlayerId(0))),
+                }),
+            }))]
         );
 
         // By(You, Draw(2)) -> two sequential Single(WillDraw) for the controller

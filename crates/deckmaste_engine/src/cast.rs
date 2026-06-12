@@ -4,6 +4,7 @@
 //! (`announce_targets` / `pay_cost`) is shared with activated abilities
 //! ([CR#602.2b]); see `activate.rs` for the activation entry point.
 
+use deckmaste_core::Agency;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
@@ -15,6 +16,7 @@ use deckmaste_core::Zone;
 
 use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
+use crate::event::Cause;
 use crate::event::GameEvent;
 use crate::event::Occurrence;
 use crate::object::ObjectId;
@@ -274,9 +276,14 @@ impl GameState {
                 // mana decision (if any) and apply when it is answered.
                 let mut events: Vec<WorkItem> = Vec::new();
                 if summary.tap {
-                    events.push(WorkItem::Emit(Occurrence::single(GameEvent::Tapped(
-                        source,
-                    ))));
+                    events.push(WorkItem::Emit(Occurrence::single(GameEvent::Tapped {
+                        object: source,
+                        cause: Some(Cause {
+                            verb: "Tap".into(),
+                            agency: Agency::CostPayment,
+                            agent: Some((source, controller)),
+                        }),
+                    })));
                 }
                 if summary.untap {
                     events.push(WorkItem::Emit(Occurrence::single(GameEvent::Untapped(

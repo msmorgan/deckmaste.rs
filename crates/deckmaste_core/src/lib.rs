@@ -45,6 +45,10 @@ pub use cost::TotalCost;
 mod counter;
 pub use counter::CounterDecl;
 
+mod decision;
+pub use decision::DeciderSpec;
+pub use decision::Visibility;
+
 mod designation;
 pub use designation::DesignationDecl;
 pub use designation::DesignationDef;
@@ -74,7 +78,9 @@ pub use effect::ModalEffect;
 pub use effect::UnlessEffect;
 
 mod event;
+pub use event::Agency;
 pub use event::BeginningStep;
+pub use event::CausePattern;
 pub use event::CombatStep;
 pub use event::EndingStep;
 pub use event::Event;

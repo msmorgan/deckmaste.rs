@@ -69,6 +69,18 @@ pub enum PlayerAction {
     Tap(Selection),
     /// Untap a selection ([CR#701.26b]).
     Untap(Selection),
+    /// Flip that many coins ([CR#705.1]) — results are events; call/win
+    /// framing is the consumer's ([CR#705.2]).
+    FlipCoins(Count),
+    /// Roll that many dice with the given number of sides ([CR#706.1]);
+    /// an IGNORED roll is considered to have never happened ([CR#706.6]).
+    RollDice(Count, crate::Uint),
+    /// Put counters of the named kind on each selected object/player
+    /// ([CR#122.1] — counters go on objects AND players).
+    PutCounters(Selection, crate::Ident, Count),
+    /// Remove counters of the named kind ([CR#122.1]; cost-eligible —
+    /// "Remove a +1/+1 counter from this creature:").
+    RemoveCounters(Selection, crate::Ident, Count),
     /// Put a selection of cards into their owner's library at a `Count`
     /// position counted from the top: `0` = top, `CardsInLibrary(owner)` =
     /// bottom. An index past the bottom places the card on the bottom
@@ -95,6 +107,7 @@ impl PlayerAction {
                 | PlayerAction::Untap(_)
                 | PlayerAction::Discard(_)
                 | PlayerAction::LoseLife(_)
+                | PlayerAction::RemoveCounters(..)
         )
     }
 }
