@@ -127,7 +127,7 @@ remaining non-✓ row reads **engine-seam**.
 | declaration toll / resolution toll | `Deontic::Gate` / `Effect::Unless` | ✓ |
 | recurring slots (echo, cumulative upkeep) | — | MISSING (keyword-macro buildout, post-P0) |
 | special-action costs (X chosen before payment) | — | MISSING (P0.W3 special actions) |
-| 601.2f total-cost pipeline + lock | `TotalCost { base, trace, locked }` | ✓ type; runtime application engine-seam (P0.W2 guard live in `legal.rs`) |
+| total-cost pipeline + lock ([CR#601.2f]) | `TotalCost { base, trace, locked }` | ✓ type; runtime application engine-seam (P0.W2 guard live in `legal.rs`) |
 | cost-modification hook (convoke/delve/improvise/assist/waterbend) | the composite-given primitive | engine-seam (payment-substitution interface, post-P0) |
 | symbol vocabulary, cost-side (generic, colored, {C}, X, hybrid, Phyrexian, snow) | `ManaSymbol` complete | ✓ grammar; payment evaluates simple symbols only — X/hybrid/Phyrexian/snow spells are never OFFERED (scoped absence, engine-seam) |
 | {0} vs no-mana-cost ([CR#118.5..118.6]) | `[]` = absent/unpayable (can_cast gate); `[Generic(0)]` = {0} | ✓ |
