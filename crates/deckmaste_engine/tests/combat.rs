@@ -941,6 +941,25 @@ fn attacks_trigger_fires_and_resolves() {
     );
 }
 
+/// [CR#509.3c]: "becomes blocked" fires once even when two creatures block.
+/// Canon Deepwood Tantiv ("Whenever this creature becomes blocked, you gain
+/// 2 life") double-blocked gains its controller exactly 2 life.
+#[test]
+fn becomes_blocked_trigger_fires_once_for_double_block() {
+    let mut state = two_player_decks("Deepwood Tantiv", "Grizzly Bears", 7, 20);
+    let tantiv = force_onto_battlefield(&mut state, PlayerId(0), "Deepwood Tantiv");
+    let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
+    let b2 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
+
+    let life_before = state.players[0].life;
+    let _stop = drive_through_blocks(&mut state, vec![tantiv], vec![(b1, tantiv), (b2, tantiv)]);
+    assert_eq!(
+        state.players[0].life,
+        life_before + 2,
+        "GainLife(2) resolved exactly once ([CR#509.3c])"
+    );
+}
+
 /// [CR#702.20]: a creature with vigilance is NOT tapped when it attacks.
 /// Contrast: the `declare_attackers_taps_records_and_fires_attacking` test
 /// above shows that a normal creature IS tapped — this test covers only the

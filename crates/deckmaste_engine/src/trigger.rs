@@ -133,11 +133,9 @@ impl GameState {
             // designation ([CR#508.1a]) is a live event ([CR#603.6] — it reaches
             // the trigger stage like any occurrence): match `GameEvent::Attacking`
             // against the `becomes` state and run the `of` filter against the
-            // still-live attacking object. ("Becomes blocked" [CR#509.3c] is
-            // deliberately NOT wired here: a creature blocked by N blockers emits
-            // N `Blocked` events, so a naive point-wise match would fire it N
-            // times instead of once — it needs once-per-attacker dedup, deferred
-            // until a fixture forces it.)
+            // still-live attacking object. "Becomes blocked" ([CR#509.3c])
+            // watches the ATTACKER; its once-per-attacker dedup lives in
+            // `scan_triggers`, so the point-wise match here stays naive.
             Event::StateBecomes { of, becomes, cause } => {
                 // P0.W6 seam: the new becomes-delta kinds (phasing,
                 // turn-face, designation, control) have no emitting
@@ -162,6 +160,9 @@ impl GameState {
                         (Some(*object), cause.as_ref())
                     }
                     (StateFilterEvent::Untapped, GameEvent::Untapped(o)) => (Some(*o), None),
+                    (StateFilterEvent::Blocked, GameEvent::Blocked { attacker, .. }) => {
+                        (Some(*attacker), None)
+                    }
                     _ => (None, None),
                 };
                 live.is_some_and(|o| {
@@ -348,6 +349,14 @@ impl GameState {
             Occurrence::Batch(es) => es,
         };
         let mut emits: Vec<WorkItem> = Vec::new();
+        // [CR#509.3c]: "becomes blocked" fires once per ATTACKER — a
+        // declaration blocking one attacker with N creatures is one batch of
+        // N point-wise `Blocked` facts, so only the first per attacker is
+        // scanned. (A per-blocker view — "becomes blocked by a creature",
+        // [CR#509.3d] — would need the skipped facts; that pattern shape
+        // doesn't exist yet.)
+        let mut blocked_attackers: std::collections::HashSet<ObjectId> =
+            std::collections::HashSet::new();
         for event in events {
             // Skip facts no fixture trigger watches; never scan a `TriggerFired`
             // (avoids any chance of recursion). `ZoneWillChange` is skipped because
@@ -360,6 +369,11 @@ impl GameState {
                 | GameEvent::StepBegan(_)
                 | GameEvent::TurnBegan { .. }
                 | GameEvent::ZoneWillChange { .. } => continue,
+                GameEvent::Blocked { attacker, .. } => {
+                    if !blocked_attackers.insert(*attacker) {
+                        continue;
+                    }
+                }
                 _ => {}
             }
             self.scan_event(event, &mut emits);
@@ -1575,6 +1589,147 @@ mod tests {
         };
         assert!(state.event_matches(&pattern, &cost_tap, watcher_source));
         assert!(!state.event_matches(&pattern, &effect_tap, watcher_source));
+    }
+
+    // -------------------------------------------------------------------------
+    // StateBecomes: becomes-blocked ([CR#509.3c]) — attacker-side, deduped
+    // -------------------------------------------------------------------------
+
+    /// `StateBecomes(of: Ref(This), becomes: Blocked)` watches the ATTACKER
+    /// — "becomes blocked" is the attacker's transition ([CR#509.3c]); the
+    /// blocker-side "blocks" views ([CR#509.3a]) are a different shape.
+    #[test]
+    fn becomes_blocked_matches_the_attacker_not_the_blocker() {
+        use deckmaste_core::StateFilterEvent;
+
+        let (mut state, attacker) = bear_on_field();
+        let attacker_source = state.objects.obj(attacker).source;
+        let blocker = {
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let card = state.cards.push(bears, PlayerId(1));
+            let id = state.objects.mint(
+                ObjectSource::Card(card),
+                PlayerId(1),
+                Some(Zone::Battlefield),
+            );
+            state.zones.battlefield.push(id);
+            id
+        };
+        let blocker_source = state.objects.obj(blocker).source;
+        let pattern = Event::StateBecomes {
+            of: Filter::Ref(Reference::This),
+            becomes: StateFilterEvent::Blocked,
+            cause: None,
+        };
+        let event = GameEvent::Blocked { blocker, attacker };
+        assert!(
+            state.event_matches(&pattern, &event, attacker_source),
+            "the attacker is the transitioning object"
+        );
+        assert!(
+            !state.event_matches(&pattern, &event, blocker_source),
+            "the blocker is not"
+        );
+    }
+
+    /// One attacker blocked by two creatures is ONE "becomes blocked" event
+    /// ([CR#509.3c]; [CR#700.1]'s example): the scan fires the attacker's
+    /// trigger once per declaration batch, not once per blocker.
+    #[test]
+    fn becomes_blocked_scan_dedups_per_attacker() {
+        use crate::agenda::WorkItem;
+        use crate::event::Occurrence;
+
+        // Canon Deepwood Tantiv: "Whenever this creature becomes blocked,
+        // you gain 2 life."
+        let (mut state, tantiv) = fixture_on_field("Deepwood Tantiv");
+        let mut bear = || {
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let card = state.cards.push(bears, PlayerId(1));
+            let id = state.objects.mint(
+                ObjectSource::Card(card),
+                PlayerId(1),
+                Some(Zone::Battlefield),
+            );
+            state.zones.battlefield.push(id);
+            id
+        };
+        let (b1, b2) = (bear(), bear());
+        state.scan_triggers(&Occurrence::Batch(vec![
+            GameEvent::Blocked {
+                blocker: b1,
+                attacker: tantiv,
+            },
+            GameEvent::Blocked {
+                blocker: b2,
+                attacker: tantiv,
+            },
+        ]));
+        let fired = state
+            .agenda
+            .iter()
+            .filter(|w| {
+                matches!(
+                    w,
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { .. }))
+                )
+            })
+            .count();
+        assert_eq!(fired, 1, "double-blocking one attacker fires once");
+    }
+
+    /// Two DIFFERENT attackers blocked in the same declaration each fire —
+    /// the dedup is per attacker, not per batch.
+    #[test]
+    fn becomes_blocked_scan_fires_per_distinct_attacker() {
+        use crate::agenda::WorkItem;
+        use crate::event::Occurrence;
+
+        let (mut state, t1) = fixture_on_field("Deepwood Tantiv");
+        let t2 = {
+            let card = Arc::new(canon().card("Deepwood Tantiv").unwrap());
+            let card_id = state.cards.push(card, PlayerId(0));
+            let id = state.objects.mint(
+                ObjectSource::Card(card_id),
+                PlayerId(0),
+                Some(Zone::Battlefield),
+            );
+            state.zones.battlefield.push(id);
+            id
+        };
+        let mut bear = || {
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let card = state.cards.push(bears, PlayerId(1));
+            let id = state.objects.mint(
+                ObjectSource::Card(card),
+                PlayerId(1),
+                Some(Zone::Battlefield),
+            );
+            state.zones.battlefield.push(id);
+            id
+        };
+        let (b1, b2) = (bear(), bear());
+        state.scan_triggers(&Occurrence::Batch(vec![
+            GameEvent::Blocked {
+                blocker: b1,
+                attacker: t1,
+            },
+            GameEvent::Blocked {
+                blocker: b2,
+                attacker: t2,
+            },
+        ]));
+        let fired = state
+            .agenda
+            .iter()
+            .filter(|w| {
+                matches!(
+                    w,
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { .. }))
+                )
+            })
+            .count();
+        assert_eq!(fired, 2, "each attacker's own transition fires");
     }
 
     // -------------------------------------------------------------------------
