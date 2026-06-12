@@ -10,7 +10,7 @@ Normal(
     abilities: [
         Static(effects: [
             Modify(
-                of: Matching(AllOf([Creature, HasAbility("Trample")])),
+                of: Matching(AllOf([Creature, Has(Trample)])),
                 changes: [GainAbility(Keyword(Trample))],
             ),
         ]),

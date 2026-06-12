@@ -108,6 +108,7 @@ pub use macro_ron::SupportsMacros;
 
 mod keyword;
 pub use keyword::KeywordAbility;
+pub use keyword::KeywordRef;
 
 mod mana;
 pub use mana::ManaCost;

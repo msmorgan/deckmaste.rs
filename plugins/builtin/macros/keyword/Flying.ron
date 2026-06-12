@@ -1,6 +1,6 @@
 // Flying = a block-legality Cant clause [CR#702.9b]: can be blocked only by
 // creatures with flying and/or reach. Composite per the keyword
-// classification; the carried name survives expand_all so HasAbility /
+// classification; the carried name survives expand_all so Has /
 // LoseAbility name paths keep matching. A KeywordAbility-kind macro: cards
 // invoke it INSIDE the wrapper — `Keyword(Flying)` — so keyword-ness is
 // always explicit. Engine block-legality enforcement of evasion Cants is a
@@ -11,7 +11,7 @@ KeywordAbility(
     abilities: [Static(effects: [
         Cant(Block(
             on: Ref(This),
-            by: Not(OneOf([HasAbility("Flying"), HasAbility("Reach")])),
+            by: Not(OneOf([Has(Flying), Has(Reach)])),
         )),
     ])],
 )

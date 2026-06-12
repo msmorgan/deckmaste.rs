@@ -330,12 +330,12 @@ fn matches_derived(
         Filter::Characteristic(CharacteristicFilter::Subtype(name)) => {
             c.subtypes.iter().any(|s| &s.name == name)
         }
-        // `HasAbility` is derivable from the working map — check the derived
+        // `Has` is derivable from the working map — check the derived
         // ability list. `Named` and `Stat` are not straightforwardly derivable
         // and fall through to `target::matches` (which is unimplemented there
         // today — pre-existing, not reachable by current fixtures).
-        Filter::Characteristic(CharacteristicFilter::HasAbility(name)) => {
-            c.abilities.iter().any(|a| ability_is_named(a, name))
+        Filter::Characteristic(CharacteristicFilter::Has(name)) => {
+            c.abilities.iter().any(|a| ability_is_named(a, &name.0))
         }
         // Combinators: recurse through matches_derived so characteristic leaves
         // see the derived map.
