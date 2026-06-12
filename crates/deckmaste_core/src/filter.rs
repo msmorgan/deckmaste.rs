@@ -27,7 +27,7 @@ pub enum ObjectKind {
 }
 
 /// Characteristic atoms ([CR#109.3]): facts printed on or defined for the
-/// object. `Subtype`/`Named`/`HasAbility` filter by *name* — validating that
+/// object. `Subtype`/`Named`/`Has` filter by *name* — validating that
 /// the name is declared is a lint, not a parse concern.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum CharacteristicFilter {
@@ -46,8 +46,11 @@ pub enum CharacteristicFilter {
     Multicolored,
     /// No colors ([CR#105.2c] — colorless is not a color).
     Colorless,
-    /// The object has the named keyword ability ([CR#702]).
-    HasAbility(Ident),
+    /// The object HAS the named keyword ability ([CR#702]) — a bare-ident
+    /// keyword reference (`Has(Flying)`), matching by NAME (a parameterized
+    /// keyword matches regardless of its arguments — card text says "has
+    /// ward", never "has ward {2}").
+    Has(crate::KeywordRef),
 }
 
 /// State atoms: where the object is and what's on it — not
@@ -194,8 +197,8 @@ mod tests {
             )),
         );
         assert_eq!(
-            read(r#"HasAbility("Flying")"#),
-            Filter::Characteristic(CharacteristicFilter::HasAbility("Flying".into())),
+            read("Has(Flying)"),
+            Filter::Characteristic(CharacteristicFilter::Has("Flying".into())),
         );
         assert_eq!(
             read("Status(Tapped)"),
@@ -298,7 +301,7 @@ mod tests {
             "ColorIs(Green)",
             r#"Named("Forest")"#,
             "Stat(Toughness, Greater, Literal(0))",
-            r#"HasAbility("Flying")"#,
+            "Has(Flying)",
             "Not(Kind(Player))",
             "Ref(You)",
             "Any",

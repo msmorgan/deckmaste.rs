@@ -29,6 +29,67 @@ use crate::Expansion;
 use crate::Ident;
 use crate::SupportsMacros;
 
+/// A keyword name at a REFERENCE position ("has flying", `Has(Flying)`):
+/// spelled as a bare identifier, like `kinds: [Subtype]` and param-type
+/// names — the enum channel reads it, and the writer emits it bare. It is
+/// a NAME, never a value: nothing expands (so the evasion family's
+/// self-references — flying's "without flying or reach" — cannot recurse),
+/// and matching is by name through the same path as
+/// [`as_str`](KeywordAbility::as_str). Validating the name against the
+/// keyword namespace (native enum ∪ `KeywordAbility`-kind macros) is a
+/// lint, not a parse concern (`filter.rs` doc) — the lint arrives with
+/// the keyword buildout's filter visitor, and its bar is "doesn't assert
+/// nonsense" (an unknown keyword name), not shape-policing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct KeywordRef(pub Ident);
+
+impl KeywordRef {
+    #[must_use]
+    pub fn as_str(&self) -> &'static str { self.0.as_str() }
+}
+
+impl From<&str> for KeywordRef {
+    fn from(s: &str) -> Self { KeywordRef(s.into()) }
+}
+
+impl crate::Expand for KeywordRef {
+    // A leaf: a name, never an expandable value.
+    fn expand_all(self) -> Self { self }
+}
+
+impl serde::Serialize for KeywordRef {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // A unit variant writes as a bare identifier in RON.
+        serializer.serialize_unit_variant("KeywordRef", 0, self.0.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for KeywordRef {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        // A bare identifier is a unit enum variant in the serde data model —
+        // the same channel `kinds: [Subtype]` and param-type names read
+        // through (ron's `any` channel DROPS identifier names; the enum
+        // channel preserves them).
+        struct NameVisitor;
+        impl<'de> serde::de::Visitor<'de> for NameVisitor {
+            type Value = KeywordRef;
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str("a keyword name (bare identifier)")
+            }
+            fn visit_enum<A: serde::de::EnumAccess<'de>>(
+                self,
+                data: A,
+            ) -> Result<Self::Value, A::Error> {
+                use serde::de::VariantAccess;
+                let (ident, variant) = data.variant_seed(macro_ron::IdentSeed)?;
+                variant.unit_variant()?;
+                Ok(KeywordRef(ident))
+            }
+        }
+        deserializer.deserialize_enum("", &[], NameVisitor)
+    }
+}
+
 /// A keyword ability the engine treats as a first-class combat concept
 /// ([CR#702]). Carried by [`Ability::Keyword`](crate::Ability::Keyword).
 ///
@@ -36,7 +97,7 @@ use crate::SupportsMacros;
 /// `FirstStrike`, not `First strike` — matching the project's convention of
 /// reading enum variants verbatim in RON. [`as_str`](Self::as_str) /
 /// [`Display`] / [`FromStr`] expose that mapping for the future
-/// `Modification::LoseAbility(Ident)` / `HasAbility(Ident)` paths
+/// `Modification::LoseAbility(Ident)` / `Has(KeywordRef)` paths
 /// ([CR#613.1f]), which name abilities by string.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum KeywordAbility {
@@ -54,7 +115,7 @@ pub enum KeywordAbility {
     /// intrinsic variants above that the engine implements natively: its
     /// printed name plus the abilities it stands for, carried IN the
     /// grammar — so the name survives `expand_all` (provenance wrappers do
-    /// not) and the `LoseAbility`/`CantHaveAbility`/`HasAbility` name paths
+    /// not) and the `LoseAbility`/`CantHaveAbility`/`Has` name paths
     /// match it through [`as_str`](Self::as_str) like any intrinsic.
     /// Produced by keyword macros (`Ward([...])`, `Islandwalk`, …) — RON:
     /// `Keyword(Composite(name: "Ward", abilities: [...]))`. The engine

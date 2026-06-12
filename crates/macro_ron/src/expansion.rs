@@ -4,7 +4,7 @@
 //! §9 of the building-blocks design). When the macro reader expands `M(args…)`
 //! at one of those positions, it wraps the expansion in `Expanded` together
 //! with the name and the raw argument source — so the file's meaning survives
-//! as the engine sees it (`HasAbility(Flying)`, verb identity, provenance) and
+//! as the engine sees it (`Has(Flying)`, verb identity, provenance) and
 //! so serialization writes the *invocation* back, not the expansion.
 //!
 //! Equality is provenance-sensitive **by design**: `Expanded(Flying, …)` is
