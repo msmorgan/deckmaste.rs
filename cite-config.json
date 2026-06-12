@@ -1,0 +1,14 @@
+{
+  "format": "bracketed",
+  "lockfile": "cr-citations.lock",
+  "sources": {
+    "tracked": true,
+    "extensions": ["rs", "md", "ron"],
+    "exclude": ["crates/xtask/"]
+  },
+  "noncompliant_exempt": [
+    "crates/deckmaste_migrations/src/data/academyruins.rs",
+    "crates/deckmaste_migrations/src/stubs/keyword_todos.rs",
+    "crates/deckmaste_migrations/src/stubs/ability_word_todos.rs"
+  ]
+}
