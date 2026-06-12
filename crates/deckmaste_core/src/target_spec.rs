@@ -21,6 +21,13 @@ pub enum TargetSpec {
     /// `Quantity::AtMost(n)` for "up to N", and `Quantity::AnyNumber` for
     /// "any number of targets".
     Target(Quantity, Filter),
+    /// A co-target set-distinctness constraint ([CR#115.7e], Arc Trail's
+    /// "any *other* target"): this spec's final picks must not overlap the
+    /// sibling specs at the given indices. Evaluated on the FINAL target
+    /// set — retargeting may swap members; only the whole set is checked,
+    /// at announce and at the [CR#608.2b] re-check. Never a fixed-binding
+    /// exclusion (that is `AllOf([…, Not(Ref(…))])` inside the filter).
+    Distinct(Vec<usize>, Box<TargetSpec>),
     /// A remembered `TargetSpec` macro invocation.
     #[macro_ron(expanded)]
     Expanded(Expansion<TargetSpec>),

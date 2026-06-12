@@ -99,7 +99,9 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
     }
     for id in to_destroy {
         // Destroy. The LKI snapshot is captured at the will-change apply
-        // while the object is still live ([CR#400.7]).
+        // while the object is still live ([CR#400.7]). The cause names the
+        // verb: lethal-damage destruction is one of "destroyed"'s exactly
+        // two causes ([CR#701.8b]), so the named view can narrow on it.
         actions.push(GameEvent::ZoneWillChange {
             object: id,
             from: Some(Zone::Battlefield),
@@ -107,7 +109,11 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
             enters: None,
             position: None,
             face: None,
-            cause: None,
+            cause: Some(crate::event::Cause {
+                verb: "Destroy".into(),
+                agency: deckmaste_core::Agency::StateBasedAction,
+                agent: None,
+            }),
         });
     }
 
@@ -213,7 +219,8 @@ mod tests {
 
         // Grizzly Bears has toughness 2; set lethal damage. The sweep emits
         // the destroy as a battlefield→graveyard ZoneWillChange (no snapshot —
-        // captured later, at the will-change apply).
+        // captured later, at the will-change apply), cause-tagged as the
+        // SBA destruction verb ([CR#701.8b]).
         state.objects.obj_mut(bear).damage = 2;
         let actions = sba::sweep(&state);
         assert!(
@@ -226,8 +233,10 @@ mod tests {
                     enters: None,
                     position: None,
                     face: None,
-                    cause: None,
+                    cause: Some(c),
                 } if *object == bear
+                    && c.verb == deckmaste_core::Ident::from("Destroy")
+                    && c.agency == deckmaste_core::Agency::StateBasedAction
             )),
             "sweep should include a battlefield→graveyard ZoneWillChange for Grizzly Bears at lethal damage"
         );

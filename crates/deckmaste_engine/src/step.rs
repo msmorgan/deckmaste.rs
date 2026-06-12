@@ -9,6 +9,7 @@ use deckmaste_core::KeywordAbility;
 use deckmaste_core::Phase;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
+use rand::seq::SliceRandom;
 
 use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
@@ -448,6 +449,18 @@ impl GameState {
             }
             GameEvent::ControlChanged { .. } => {
                 todo!("P0.W6: control-change apply (layers L2 seam)")
+            }
+            // [CR#701.24a]: randomize so NO player knows the order — the
+            // seeded rng (UD-8). Revealed-state reset ([CR#701.20d]) is a
+            // P0.W6 seam (no reveal windows exist yet).
+            GameEvent::Shuffled(player) => {
+                self.zones.libraries[player.index()]
+                    .make_contiguous()
+                    .shuffle(&mut self.rng);
+                event
+            }
+            GameEvent::BecameTarget { .. } => {
+                todo!("P0.W7: becomes-target emission (announce flow)")
             }
         }
     }

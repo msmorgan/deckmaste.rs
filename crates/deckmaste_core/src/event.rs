@@ -194,6 +194,15 @@ pub enum Event {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         cause: Option<CausePattern>,
     },
+    /// An object becomes the target of a spell/ability ([CR#601.2c]
+    /// announce-time; ward is the family exemplar, [CR#702.21a]). `by`
+    /// narrows the targeting spell/ability ("a spell or ability an
+    /// opponent controls").
+    BecomesTarget {
+        what: Filter,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        by: Option<Filter>,
+    },
     /// A GAME-scope designation transition ([CR#109.3]; day/night are
     /// "designations that the game itself can have", [CR#731.1]). "Day
     /// becomes night" = losing one designation and gaining the other
@@ -231,6 +240,29 @@ mod tests {
                 verb: "Sacrifice".into(),
                 by: Filter::Any,
                 on: Filter::Any,
+            },
+        );
+    }
+
+    /// The cause pattern reads with its struct name spelled out — the
+    /// authoring form (a bare `(verb: …)` tuple reads as noise; user
+    /// ruling, P0.W7). The writer still emits the anonymous form.
+    #[test]
+    fn zone_move_cause_reads_named_struct() {
+        assert_eq!(
+            read(
+                r#"ZoneMove(what: Type(Creature), from: Battlefield, to: Graveyard, cause: CausePattern(verb: "Destroy"))"#
+            ),
+            Event::ZoneMove {
+                what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                from: Some(Zone::Battlefield),
+                to: Some(Zone::Graveyard),
+                face: None,
+                cause: Some(CausePattern {
+                    verb: Some("Destroy".into()),
+                    agency: None,
+                    agent: None,
+                }),
             },
         );
     }

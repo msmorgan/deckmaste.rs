@@ -1,0 +1,13 @@
+// "Destroyed" = a permanent moves battlefield → graveyard by DESTRUCTION —
+// the cause-narrowed dies-view ([CR#701.8b]: the destroy verb or the
+// lethal-damage SBA are its only two causes; sacrifice is never
+// destruction, [CR#701.21a]). Cause-pattern matching is a P0.W3 seam, so
+// a trigger using this trips loudly rather than over-matching plain dies.
+// Usage: Destroyed(what) — e.g. Destroyed(Type(Creature)).
+(
+    name: "Destroyed",
+    template: "{0} is destroyed",
+    kinds: [Event],
+    params: [Any],
+    body: ZoneMove(what: Param(0), from: Battlefield, to: Graveyard, cause: CausePattern(verb: "Destroy")),
+)

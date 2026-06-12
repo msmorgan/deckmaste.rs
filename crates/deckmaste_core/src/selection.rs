@@ -32,6 +32,12 @@ pub enum Selection {
     Choose(Quantity, Filter),
     /// A random selection of a quantity of matching objects.
     Random(Quantity, Filter),
+    /// A choice from among a PREVIOUSLY COMPUTED set ("exile two of them",
+    /// "…from among them" — the among-restriction, queries.md §2): the
+    /// domain is whatever `Effect::Noting{key, …}` recorded under the
+    /// key, not a re-evaluated filter — re-evaluation would be wrong for
+    /// "this way" anaphora ([CR#607.2a] linkage).
+    AmongNoted(crate::Ident, Quantity),
     /// A bound object reference, lifted into a choice slot. Written bare in
     /// RON (no `Ref(...)` wrapper) — see the type docs.
     #[macro_ron(embed)]

@@ -81,6 +81,7 @@ impl PendingDecision {
         match self {
             PendingDecision::ChooseTargets { .. }
             | PendingDecision::ChooseModes { .. }
+            | PendingDecision::ChooseCostOptions { .. }
             | PendingDecision::Division { .. } => LockPoint::Announce,
             PendingDecision::PayMana { .. } => LockPoint::Payment,
             PendingDecision::OrderTriggers { .. } => LockPoint::StackPlacement,
@@ -188,6 +189,11 @@ pub enum PendingDecision {
     Vote { player: PlayerId, options: Uint },
     /// A fixed-window yes/no ("… unless you pay", [CR#608.2d]) — shell.
     YesNo { player: PlayerId },
+    /// Announce-time cost intentions ([CR#601.2b]): optional-additional
+    /// (kicker) and alternative-cost selection; multi-way symbol readings
+    /// (hybrid/Phyrexian, [CR#118.13]) announce here too — P0.W7 shell;
+    /// nothing surfaces it yet.
+    ChooseCostOptions { player: PlayerId, options: Uint },
     /// Order the replacement/prevention effects applicable to one event,
     /// affected player/controller choosing ([CR#616.1]) — shell.
     OrderReplacements { player: PlayerId, count: Uint },
@@ -491,9 +497,10 @@ impl GameState {
                 | PendingDecision::Vote { .. }
                 | PendingDecision::YesNo { .. }
                 | PendingDecision::PreGame { .. }
-                | PendingDecision::OrderReplacements { .. },
+                | PendingDecision::OrderReplacements { .. }
+                | PendingDecision::ChooseCostOptions { .. },
                 _,
-            ) => todo!("P0.W3/W4: submission handling for shell decision kinds"),
+            ) => todo!("P0.W3/W4/W7: submission handling for shell decision kinds"),
             _ => Err(DecisionError::WrongKind),
         }
     }
