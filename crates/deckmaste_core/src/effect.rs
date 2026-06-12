@@ -45,6 +45,9 @@ pub enum Effect {
     /// "For each [over], [do]" — binds the iterated object ([CR#608]).
     ForEach(ForEachEffect),
     /// A delayed triggered ability created on resolution ([CR#603.7]).
+    /// Note the object set the inner effect moves/touches under `key`
+    /// ([CR#607.2a] exiled-with linkage).
+    Noting(NotingEffect),
     Delayed(Box<TriggeredAbility>),
     /// A reflexive triggered ability created on resolution ([CR#603.12]).
     Reflexive(Box<TriggeredAbility>),
@@ -83,6 +86,13 @@ pub struct IfEffect {
     pub then: Box<Effect>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub otherwise: Option<Box<Effect>>,
+}
+
+/// `Noting { key, effect }` — see `Effect::Noting`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+pub struct NotingEffect {
+    pub key: crate::Ident,
+    pub effect: Box<Effect>,
 }
 
 /// `Unless { do, unless }` — `do` is a keyword, so the field is `effect`;

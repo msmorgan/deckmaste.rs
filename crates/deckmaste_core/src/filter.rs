@@ -42,6 +42,10 @@ pub enum CharacteristicFilter {
     /// `Stat(Power, AtLeast, 3)` — mana value via `Stat(ManaValue, …)`
     /// ([CR#208,202.3]).
     Stat(Stat, Cmp, Count),
+    /// Two or more colors ([CR#105.2b]).
+    Multicolored,
+    /// No colors ([CR#105.2c] — colorless is not a color).
+    Colorless,
     /// The object has the named keyword ability ([CR#702]).
     HasAbility(Ident),
 }
@@ -61,6 +65,12 @@ pub enum StateFilter {
     /// The object is related to a matching object by a named, declared
     /// relation ([CR#607] family). Box because the inner predicate is a Filter.
     RelatedBy(Ident, Box<Filter>),
+    /// Declared as an attacker, still in combat ([CR#508.1a]).
+    Attacking,
+    /// Declared as a blocker, still in combat ([CR#509.1a]).
+    Blocking,
+    /// Attacking and unblocked once blockers are declared ([CR#509.1h]).
+    Unblocked,
 }
 
 /// Structural relations the engine owns. Relations are

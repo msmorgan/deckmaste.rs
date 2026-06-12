@@ -188,6 +188,9 @@ pub enum PendingDecision {
     Vote { player: PlayerId, options: Uint },
     /// A fixed-window yes/no ("… unless you pay", [CR#608.2d]) — shell.
     YesNo { player: PlayerId },
+    /// Order the replacement/prevention effects applicable to one event,
+    /// affected player/controller choosing ([CR#616.1]) — shell.
+    OrderReplacements { player: PlayerId, count: Uint },
     /// A pre-game choice ([CR#103]) — shell.
     PreGame { player: PlayerId, kind: PreGameKind },
 }
@@ -478,9 +481,10 @@ impl GameState {
                 | PendingDecision::Division { .. }
                 | PendingDecision::Vote { .. }
                 | PendingDecision::YesNo { .. }
-                | PendingDecision::PreGame { .. },
+                | PendingDecision::PreGame { .. }
+                | PendingDecision::OrderReplacements { .. },
                 _,
-            ) => todo!("P0.W3: submission handling for shell decision kinds"),
+            ) => todo!("P0.W3/W4: submission handling for shell decision kinds"),
             _ => Err(DecisionError::WrongKind),
         }
     }
