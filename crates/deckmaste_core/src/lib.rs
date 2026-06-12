@@ -84,6 +84,7 @@ pub use effect::UnlessEffect;
 mod event;
 pub use event::Agency;
 pub use event::BeginningStep;
+pub use event::Cause;
 pub use event::CausePattern;
 pub use event::CombatStep;
 pub use event::EndingStep;

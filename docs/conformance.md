@@ -80,7 +80,7 @@ backlog (needs design dialogue)*, *variant-gated*, *UD-blocked*, or
 | shuffle (also an information event) | `PlayerAction::Shuffle` + `Shuffled` apply — REAL, seeded rng ([CR#701.24a]; UD-8) | ✓ (revealed-state reset [CR#701.20d] = seam) |
 | reveal / look (scoped visibility window) | `Reveal{what, to}` verb ([CR#701.20a,701.20e]; cost-eligible) + shaped `Revealed` event | ✓ grammar; emit + window lifetimes engine-seam |
 | control change + becomes-deltas (transition-only) | core `StateBecomes` (tapped/untapped/attacking/blocked + phased/turned-face/designated/controlled-by) + shaped `ControlChanged` event | ✓ grammar; new-delta matching + L2 emission engine-seam |
-| cause triple (verb, agency, agent) as event data | core `Agency`/`CausePattern`; engine `Cause` on zone changes + `Tapped` | ✓ — named views are constructors over ONE encoding; pattern matching engine-seam |
+| cause triple (verb, agency, agent) as event data | core `Agency` + `Cause(CausePattern)` (single-variant enum — boolean variants accrete there); engine `Cause` on zone changes + `Tapped` | ✓ — named views are constructors over ONE encoding; pattern matching engine-seam |
 | replaced events never trigger; look-back-in-time triggers | `ZoneWillChange` stage + LKI snapshots | ✓ (engine) |
 
 ## 3. Decision kinds (`choices.md` §2–4 ↔ engine `PendingDecision`/`Action`)
