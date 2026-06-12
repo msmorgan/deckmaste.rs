@@ -12,8 +12,9 @@ use crate::parsers::effect;
 use crate::ron_output::ron_options;
 
 /// Whether `{X}` may appear in a mana component. A keyword cost argument
-/// records the printed cost faithfully — what X equals is the payer's or the
-/// card's business at pay time ([CR#107.3a,702.21b]), behind the macro seam.
+/// records the printed cost faithfully — what X equals is announced by the
+/// controller ([CR#107.3a]) or stated by the card's own text (ward:
+/// determined at resolution, [CR#702.21b]), behind the macro seam either way.
 /// A variable ACTIVATION cost still declines: announcing X ([CR#601.2b]) has
 /// no representation in the `Activated` frame yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
