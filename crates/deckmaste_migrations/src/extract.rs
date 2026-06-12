@@ -1,9 +1,10 @@
 //! `extract` — emit every supported card as a Card-shaped `<name>.ron.todo`
 //! (a `TodoCard`) whose abilities are `Unparsed` oracle lines. Owns the oracle
 //! normalization helpers (`strip_reminder_text`, `expand_keyword_lines`,
-//! `self_ref_to_tilde`) and mtgjson field accessors. Covers the `normal` and
-//! `modal_dfc` layouts (the two core `Card` variants); other layouts are
-//! skipped until core `Card` grows variants for them.
+//! `expand_repeated_from_lines`, `self_ref_to_tilde`) and mtgjson field
+//! accessors. Covers the `normal` and `modal_dfc` layouts (the two core
+//! `Card` variants); other layouts are skipped until core `Card` grows
+//! variants for them.
 
 use std::path::Path;
 use std::sync::LazyLock;
@@ -83,6 +84,41 @@ fn expand_keyword_lines(text: &str, keyword_abilities: &[DataStr<'_>]) -> String
             } else {
                 vec![line.to_owned()]
             }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Splits a multi-quality protection/hexproof keyword line into one line per
+/// quality: "Protection from [quality A] and from [quality B]" is shorthand
+/// for "protection from [quality A]" and "protection from [quality B]" — two
+/// separate abilities ([CR#702.16g]; hexproof: [CR#702.11f]). Only the
+/// repeated-"from" form (with or without the serial comma) is that shorthand;
+/// a single "from" over a compound quality ("Hexproof from artifacts and
+/// enchantments") passes through untouched.
+fn expand_repeated_from_lines(text: &str) -> String {
+    fn qualities<'a>(line: &'a str, head: &str) -> Option<Vec<&'a str>> {
+        let rest = line.strip_prefix(head)?.strip_prefix(" from ")?;
+        let split: Vec<&str> = rest
+            .split(", and from ")
+            .flat_map(|piece| piece.split(" and from "))
+            .flat_map(|piece| piece.split(", from "))
+            .collect();
+        (split.len() > 1).then_some(split)
+    }
+    text.split('\n')
+        .flat_map(|line| {
+            ["Protection", "Hexproof"]
+                .iter()
+                .find_map(|head| {
+                    Some(
+                        qualities(line, head)?
+                            .iter()
+                            .map(|q| format!("{head} from {q}"))
+                            .collect::<Vec<_>>(),
+                    )
+                })
+                .unwrap_or_else(|| vec![line.to_owned()])
         })
         .collect::<Vec<_>>()
         .join("\n")
@@ -197,6 +233,7 @@ fn face(card: &AtomicCard, keyword_abilities: &[DataStr<'_>]) -> anyhow::Result<
     let abilities = card.text.as_deref().map_or_else(Vec::new, |text| {
         let text = crate::data::academyruins::normalize_quotes(text);
         let text = expand_keyword_lines(&strip_reminder_text(&text), keyword_abilities);
+        let text = expand_repeated_from_lines(&text);
         let text = self_ref_to_tilde(&text, face_name, is_legendary, keyword_abilities);
         text.split('\n')
             .map(str::trim)
@@ -429,6 +466,63 @@ mod tests {
         assert_eq!(
             expand_keyword_lines("Draw a card, then discard a card.", &keywords),
             "Draw a card, then discard a card."
+        );
+    }
+
+    /// "From [quality A] and from [quality B]" is shorthand for separate
+    /// abilities — one line per quality ([CR#702.16g]; hexproof:
+    /// [CR#702.11f]).
+    #[test]
+    fn repeated_from_lines() {
+        assert_eq!(
+            expand_repeated_from_lines("Protection from black and from red"),
+            "Protection from black\nProtection from red"
+        );
+        // The serial-comma form, three qualities.
+        assert_eq!(
+            expand_repeated_from_lines("Protection from blue, from black, and from red"),
+            "Protection from blue\nProtection from black\nProtection from red"
+        );
+        assert_eq!(
+            expand_repeated_from_lines("Hexproof from white and from black"),
+            "Hexproof from white\nHexproof from black"
+        );
+        // Mixed quality nouns split the same way.
+        assert_eq!(
+            expand_repeated_from_lines("Protection from planeswalkers and from Wizards"),
+            "Protection from planeswalkers\nProtection from Wizards"
+        );
+        // No repeated "from": one compound quality, not the CR shorthand.
+        assert_eq!(
+            expand_repeated_from_lines("Hexproof from artifacts and enchantments"),
+            "Hexproof from artifacts and enchantments"
+        );
+        // Mid-prose grants aren't keyword lines.
+        assert_eq!(
+            expand_repeated_from_lines(
+                "Target creature gains protection from red and from white until end of turn."
+            ),
+            "Target creature gains protection from red and from white until end of turn."
+        );
+        assert_eq!(expand_repeated_from_lines("Flying"), "Flying");
+    }
+
+    /// The expansion is wired into `face()`: a joint protection line becomes
+    /// one `Unparsed` ability per quality.
+    #[test]
+    fn multi_quality_protection_becomes_two_abilities() {
+        let card = creature(Some("Protection from black and from red"));
+        let TodoCard::Normal(face) = todo_card("normal", &[&card], &[]).unwrap().unwrap() else {
+            panic!("expected Normal");
+        };
+        assert!(
+            matches!(
+                &face.abilities[..],
+                [TodoAbility::Unparsed(a), TodoAbility::Unparsed(b)]
+                    if a == "Protection from black" && b == "Protection from red"
+            ),
+            "abilities = {:?}",
+            face.abilities
         );
     }
 
