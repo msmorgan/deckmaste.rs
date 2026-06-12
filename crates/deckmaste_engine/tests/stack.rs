@@ -511,7 +511,7 @@ fn becomes_target_trigger_sacrifices_phantasmal_bear_and_bolt_fizzles() {
     assert_eq!(
         state.zones.graveyards[0].len(),
         1,
-        "the fizzled bolt remints to its owner's graveyard ([CR#608.2m])"
+        "the fizzled bolt remints to its owner's graveyard ([CR#608.2b])"
     );
 }
 

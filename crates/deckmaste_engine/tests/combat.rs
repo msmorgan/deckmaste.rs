@@ -941,6 +941,42 @@ fn attacks_trigger_fires_and_resolves() {
     );
 }
 
+/// [CR#508.1f,603.2e]: the attack-declaration tap is a real "becomes
+/// tapped" transition — canon Goblin Medics ("Whenever this creature
+/// becomes tapped, it deals 1 damage to any target") fires off its own
+/// attack, chooses its target at placement ([CR#603.3d]), and resolves.
+#[test]
+fn becomes_tapped_trigger_fires_on_attack_tap() {
+    let mut state = two_player_decks("Goblin Medics", "Grizzly Bears", 7, 20);
+    let medics = force_onto_battlefield(&mut state, PlayerId(0), "Goblin Medics");
+
+    let (_trace, _stop) = pass_to_stop(&mut state);
+    state
+        .submit_decision(Decision::Attackers(vec![medics]))
+        .unwrap();
+
+    // The cause-tagged Tapped fact fires the trigger; placement surfaces
+    // its target choice.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { player, legal, .. }) = stop
+    else {
+        panic!("expected the trigger's ChooseTargets, got {stop:?}");
+    };
+    assert_eq!(player, PlayerId(0));
+    let face = state.players[1].object;
+    assert!(legal[0].contains(&face), "any target admits the face");
+    state
+        .submit_decision(Decision::Targets(vec![face]))
+        .unwrap();
+
+    // Priority passes resolve the placed trigger before blocks are declared.
+    let (_t, _stop) = pass_to_stop(&mut state);
+    assert_eq!(
+        state.players[1].life, 19,
+        "the becomes-tapped trigger resolved for 1 damage"
+    );
+}
+
 /// [CR#509.3c]: "becomes blocked" fires once even when two creatures block.
 /// Canon Deepwood Tantiv ("Whenever this creature becomes blocked, you gain
 /// 2 life") double-blocked gains its controller exactly 2 life.

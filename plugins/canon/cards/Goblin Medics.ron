@@ -1,0 +1,24 @@
+// Hand-written ability: the becomes-tapped event shape is beyond the
+// triggered-ability parser today ("Whenever ~ becomes tapped, it deals
+// 1 damage to any target.").
+Normal(
+    name: "Goblin Medics",
+    mana_cost: [
+        Generic(2),
+        Red,
+    ],
+    types: [Creature],
+    subtypes: [
+        Goblin,
+        Shaman,
+    ],
+    abilities: [
+        Triggered(
+            event: StateBecomes(of: Ref(This), becomes: Tapped),
+            targets: [AnyTarget],
+            effect: DealDamage(Target(0), 1),
+        ),
+    ],
+    power: 1,
+    toughness: 1,
+)

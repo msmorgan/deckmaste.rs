@@ -178,7 +178,13 @@ impl GameState {
             _ => {}
         }
         match event {
-            GameEvent::TurnBegan { .. } | GameEvent::StepBegan(_) => event,
+            // Pure facts: nothing to mutate. `BecameTarget` ([CR#601.2c])
+            // exists for the trigger scan (ward, [CR#702.21a]); the
+            // targeting state itself lives in the announce slot / stack
+            // entry.
+            GameEvent::TurnBegan { .. }
+            | GameEvent::StepBegan(_)
+            | GameEvent::BecameTarget { .. } => event,
             // P0.W3 seams: grammar-complete events nothing emits yet —
             // their apply (RNG, counter storage [P0.W5]) is unbuilt.
             GameEvent::CoinFlipped { .. } | GameEvent::DieRolled { .. } => {
@@ -477,10 +483,6 @@ impl GameState {
                     .shuffle(&mut self.rng);
                 event
             }
-            // [CR#601.2c]: pure fact — the targeting state itself lives in
-            // the announce slot / stack entry; this exists for the trigger
-            // scan (ward, [CR#702.21a]).
-            GameEvent::BecameTarget { .. } => event,
         }
     }
 

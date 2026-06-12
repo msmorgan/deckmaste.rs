@@ -155,13 +155,13 @@ impl GameState {
                 // fact carries one (the tap-cause table,
                 // [CR#107.5,508.1f,701.26a]).
                 let (live, ec) = match (becomes, event) {
-                    (StateFilterEvent::Attacking, GameEvent::Attacking(o)) => (Some(*o), None),
+                    (StateFilterEvent::Attacking, GameEvent::Attacking(o))
+                    | (StateFilterEvent::Untapped, GameEvent::Untapped(o)) => (Some(*o), None),
                     (StateFilterEvent::Tapped, GameEvent::Tapped { object, cause }) => {
                         (Some(*object), cause.as_ref())
                     }
-                    (StateFilterEvent::Untapped, GameEvent::Untapped(o)) => (Some(*o), None),
-                    (StateFilterEvent::Blocked, GameEvent::Blocked { attacker, .. }) => {
-                        (Some(*attacker), None)
+                    (StateFilterEvent::Blocked, GameEvent::Blocked { attacker: o, .. }) => {
+                        (Some(*o), None)
                     }
                     // "Comes under the control of [a matching player]": the
                     // inner filter runs against the NEW controller's proxy
@@ -185,52 +185,10 @@ impl GameState {
                 })
             }
 
-            // [CR#603.2] over the action log: a verb was performed. Two fact
-            // families carry verbs — dedicated events (Cast → `SpellCast`,
-            // DealDamage → `DamageDealt`), and cause-carried views riding
-            // zone moves (the W3 unification: Sacrifice/Discard/Play,
-            // [CR#701.21a,701.9a,701.18a], whose performer is the moved
-            // object's controller). Agent-performed narrowing (Karmic
-            // Justice's "a spell or ability an opponent controls destroys…")
-            // rides `ZoneMove`'s `CausePattern` instead — `Performed`'s `by`
-            // is the PERFORMER, which for the wired cause verbs is a player.
-            // A verb outside the wired set must trip, not silently never
-            // fire.
-            Event::Performed { verb, by, on } => match verb.as_str() {
-                // [CR#601.2i]: "whenever you cast" — the spell is live on
-                // the stack when the fact applies; its controller (as a
-                // proxy) is the caster.
-                "Cast" => match event {
-                    GameEvent::SpellCast(o) => {
-                        let caster = self.player(self.objects.obj(*o).controller).object;
-                        self.filter_matches_live(by, caster, watcher)
-                            && self.filter_matches_live(on, *o, watcher)
-                    }
-                    _ => false,
-                },
-                // [CR#120.1]: `by` is the damage SOURCE, `on` the recipient
-                // (both live — an SBA death follows the fact, [CR#704.5g]).
-                "DealDamage" => match event {
-                    GameEvent::DamageDealt { source, target, .. } => {
-                        self.filter_matches_live(by, *source, watcher)
-                            && self.filter_matches_live(on, *target, watcher)
-                    }
-                    _ => false,
-                },
-                v @ ("Sacrifice" | "Discard" | "Play") => match event {
-                    GameEvent::ZoneChanged {
-                        snapshot,
-                        cause: Some(c),
-                        ..
-                    } if c.verb.as_str() == v => {
-                        let performer = self.player(snapshot.controller).object;
-                        self.filter_matches_live(by, performer, watcher)
-                            && self.filter_matches_snapshot(on, snapshot, watcher)
-                    }
-                    _ => false,
-                },
-                other => todo!("engine-trigger-events: Performed verb {other:?} has no wired fact"),
-            },
+            // [CR#603.2] over the action log: a verb was performed.
+            Event::Performed { verb, by, on } => {
+                self.performed_matches(verb, by, on, event, watcher)
+            }
 
             // [CR#601.2c]: an object became the target of a spell/ability at
             // announce (ward is the family exemplar, [CR#702.21a]). Both ends
@@ -263,8 +221,61 @@ impl GameState {
             // "Whenever X or Y" is a pattern union ([CR#700.1]); it still
             // fires once per matching occurrence ([CR#603.2c]).
             Event::OneOf(events) => events.iter().any(|p| self.event_matches(p, event, watcher)),
+        }
+    }
 
-            other => todo!("stage 3 does not match trigger event {other:?}"),
+    /// [CR#603.2] over the action log: does the `Performed` pattern admit
+    /// this fact? Two fact families carry verbs — dedicated events (Cast →
+    /// `SpellCast`, `DealDamage` → `DamageDealt`), and cause-carried views
+    /// riding zone moves (the W3 unification: Sacrifice/Discard/Play,
+    /// [CR#701.21a,701.9a,701.18a], whose performer is the moved object's
+    /// controller). Agent-performed narrowing (Karmic Justice's "a spell or
+    /// ability an opponent controls destroys…") rides `ZoneMove`'s
+    /// `CausePattern` instead — `Performed`'s `by` is the PERFORMER, which
+    /// for the wired cause verbs is a player. A verb outside the wired set
+    /// must trip, not silently never fire.
+    fn performed_matches(
+        &self,
+        verb: &deckmaste_core::Ident,
+        by: &Filter,
+        on: &Filter,
+        event: &GameEvent,
+        watcher: ObjectSource,
+    ) -> bool {
+        match verb.as_str() {
+            // [CR#601.2i]: "whenever you cast" — the spell is live on the
+            // stack when the fact applies; its controller (as a proxy) is
+            // the caster.
+            "Cast" => match event {
+                GameEvent::SpellCast(o) => {
+                    let caster = self.player(self.objects.obj(*o).controller).object;
+                    self.filter_matches_live(by, caster, watcher)
+                        && self.filter_matches_live(on, *o, watcher)
+                }
+                _ => false,
+            },
+            // [CR#120.1]: `by` is the damage SOURCE, `on` the recipient
+            // (both live — an SBA death follows the fact, [CR#704.5g]).
+            "DealDamage" => match event {
+                GameEvent::DamageDealt { source, target, .. } => {
+                    self.filter_matches_live(by, *source, watcher)
+                        && self.filter_matches_live(on, *target, watcher)
+                }
+                _ => false,
+            },
+            v @ ("Sacrifice" | "Discard" | "Play") => match event {
+                GameEvent::ZoneChanged {
+                    snapshot,
+                    cause: Some(c),
+                    ..
+                } if c.verb.as_str() == v => {
+                    let performer = self.player(snapshot.controller).object;
+                    self.filter_matches_live(by, performer, watcher)
+                        && self.filter_matches_snapshot(on, snapshot, watcher)
+                }
+                _ => false,
+            },
+            other => todo!("engine-trigger-events: Performed verb {other:?} has no wired fact"),
         }
     }
 
@@ -456,10 +467,8 @@ impl GameState {
                 | GameEvent::StepBegan(_)
                 | GameEvent::TurnBegan { .. }
                 | GameEvent::ZoneWillChange { .. } => continue,
-                GameEvent::Blocked { attacker, .. } => {
-                    if !blocked_attackers.insert(*attacker) {
-                        continue;
-                    }
+                GameEvent::Blocked { attacker, .. } if !blocked_attackers.insert(*attacker) => {
+                    continue;
                 }
                 _ => {}
             }

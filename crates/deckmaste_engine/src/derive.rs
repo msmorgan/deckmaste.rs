@@ -102,13 +102,13 @@ pub fn abilities_of_source(state: &GameState, source: ObjectSource) -> Vec<Abili
 /// Splice a composite keyword's members into `out` (recursively — a
 /// composite may carry another); any other ability passes through as-is.
 fn flatten_composites(ability: &Ability, out: &mut Vec<Ability>) {
-    if let Ability::Keyword(k) = ability {
-        if let Some(members) = composite_members(k) {
-            for member in members {
-                flatten_composites(member, out);
-            }
-            return;
+    if let Ability::Keyword(k) = ability
+        && let Some(members) = composite_members(k)
+    {
+        for member in members {
+            flatten_composites(member, out);
         }
+        return;
     }
     out.push(ability.clone());
 }
