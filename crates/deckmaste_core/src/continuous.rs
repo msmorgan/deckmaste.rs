@@ -120,7 +120,7 @@ pub enum StaticEffect {
         of: Scope,
         changes: Vec<Modification>,
     },
-    /// A deontic clause ([CR#101.2,601.3]): May/Cant/Must/MayIf read bare
+    /// A deontic clause ([CR#101.2,601.3]): May/Cant/Must/Gate read bare
     /// in RON (`effects: [Cant(…)]`) via the flatten dispatch.
     #[macro_ron(flatten)]
     Deontic(Deontic),

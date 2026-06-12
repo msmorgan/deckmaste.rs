@@ -1,6 +1,7 @@
 # Rules taxonomy: the value kinds of the card language
 
-2026-06-06 (holes patched 2026-06-10)
+2026-06-06 (holes patched 2026-06-10; aligned to mtg-rules skill v1.7.0 on
+2026-06-11)
 
 What kinds of value does a complete card-encoding language need? This is the
 taxonomy of typed positions — the things `MacroKind` will eventually
@@ -631,8 +632,8 @@ action is legal. Four polarities over one typed pattern — May permission
 rows ("you may cast ~ from your graveyard", 204 zone-cast lines; flash),
 Cant prohibitions ("can't attack/block", "can't be blocked except by…" —
 evasion), Must if-able requirements ("attacks each combat if able" —
-goaded; arbitrated by the maximize solver, [CR#508.1d,509.1c]), and MayIf
-declaration tolls ("creatures can't attack you unless their controller
+goaded; arbitrated by the maximize solver, [CR#508.1d,509.1c]), and Gate
+declaration prices ("creatures can't attack you unless their controller
 pays…", 71 lines — a cost position paid at declaration, never compelled,
 [CR#508.1d]). The pattern: verb (attack/block/target/cast/play/activate) ×
 participant Filters (`Is(This)`/`Is(You)` anchor the carrier) ×
@@ -641,7 +642,7 @@ block-cardinality bounds (menace, [CR#702.111b]) × zone/window slots
 completions ([CR#601.3]). Evasion macros are Filter-parameterized Cant
 values. NOT deontic: event-side "can't happen" ([CR#614.17] — can't be
 countered, can't gain life), "doesn't"/skip (replacement family, §7),
-outcome "can't"s ([CR#104.2a,104.3f]), resolution tolls (ward = trigger +
+outcome "can't"s ([CR#104.2a,104.3f]), resolution Tolls (ward = trigger +
 unless, [CR#702.21a,118.12a]), and cost modification ([CR#118.7], Thalia).
 Activation-timing text ("Activate only as a sorcery" — 921 "Activate only"
 lines; [CR#602.1b]) stays a separate Only-window refinement pending the
@@ -670,15 +671,21 @@ between two abilities on a face), and granted-vs-printed provenance
 **Keyword classification** — the full 260-row derivation (192 abilities +
 68 actions, each classified by what an engine must build) lives in the
 mtg-rules skill's `keyword-classification.md` + `keywords-classified.json`.
-Rubric: decompose to statics + triggers + replacements +
-permissions/restrictions + action-sequences before declaring anything
-intrinsic. Four classes:
+Pinned baseline: **skill v1.7.0** (commit `31e8cb3f`, CR effective
+2026-04-17, keywords-classified sha256 `0f984a98b363…`; re-run the skill's
+`scripts/version` and re-sync this section when it bumps). Rubric:
+decompose to statics + triggers + replacements + permissions/restrictions +
+action-sequences before declaring anything intrinsic; a `given` primitive
+needs ≥ 2 keyword dependents — a sole-dependent primitive collapses into
+its keyword as intrinsic. Four classes:
 
-- **Intrinsic (8 abilities, 16 actions)** — needs a native opcode; changes
+- **Intrinsic (9 abilities, 16 actions)** — needs a native opcode; changes
   *prospective* machinery no composition reproduces. The abilities:
   first/double strike (combat-damage step structure, [CR#702.7,702.4,510.1]),
   trample and deathtouch (assignment-time legality and lethality,
-  [CR#702.19b,702.2c,510.1c], plus deathtouch's SBA [CR#704.5h]), banding
+  [CR#702.19b,702.2c,510.1c], plus deathtouch's SBA [CR#704.5h]), vigilance
+  (dedicated declare-attackers text — named in the step's own rules, which
+  exempt it from the attack-tap, [CR#702.20a..702.20b,508.1f]), banding
   (locked band state plus a damage-assignment-decider flip,
   [CR#702.22c,702.22e,702.22j..702.22k]), phasing (untap-step edit + the
   treated-as-nonexistent status, [CR#702.26b..702.26e,703.4a]), mutate
@@ -688,27 +695,32 @@ intrinsic. Four classes:
   the event basis other rules hang machinery on — cast, play, activate,
   counter, create, destroy, sacrifice, discard, exile, search, shuffle,
   reveal, tap, untap, transform, convert (§5's primitive cut).
-- **Composite-given(P) (23)** — decomposes iff one of six named primitives
-  exists; until then each would demand its own opcode: vigilance = a
-  null-replacement on "tapped because declared as an attacker" given
-  *cause-tagged events* ([CR#702.20b,508.1f]); lifelink/wither/infect/toxic
-  given a *damage-result-rewrite* stage ([CR#120.3b..120.3g]);
-  daybound/nightbound and the speed keywords given a *progress track*
-  ([CR#702.145,702.179]); attach given the *attachment relation*
-  ([CR#701.3a..701.3c]); delve/convoke/improvise/assist/waterbend given a
-  *cost-modification hook* ([CR#601.2f..601.2h] — neither additional nor
-  alternative cost, [CR#702.51b]); the morph/manifest/foretell family given
-  *face-down objects* ([CR#708]).
-- **Composite (212)** — macro sugar over the kinds above, including
+- **Composite-given(P) (19)** — decomposes iff one of five named primitives
+  exists; until then each would demand its own opcode:
+  lifelink/wither/infect/toxic given a *damage-result-rewrite* stage
+  ([CR#120.3b..120.3g]); daybound/nightbound and the speed keywords given a
+  *progress track* ([CR#702.145,702.179]); attach given the *attachment
+  relation* ([CR#701.3a..701.3c]); delve/convoke/improvise/assist/waterbend
+  given a *cost-modification hook* ([CR#601.2f..601.2h] — neither
+  additional nor alternative cost, [CR#702.51b]); the morph/manifest family
+  given *face-down objects* ([CR#708] — foretell left for plain composite:
+  face-down *exile* is native zone machinery, [CR#406.3..406.4], not a
+  [CR#708] object). The sixth primitive, *cause-tagged events*, was retired
+  sole-dependent once enlist reclassified as plain composite
+  ([CR#702.154b] names its hooks: an optional attack cost, [CR#508.1g],
+  plus a linked trigger, [CR#607.2h]).
+- **Composite (215)** — macro sugar over the kinds above, including
   everything this doc once called first-class besides the true intrinsics:
   flying and all evasion/menace/skulk (block-legality Cant clauses,
   [CR#702.9b]), hexproof/shroud (targeting Cant clauses, [CR#702.11,702.18]),
   protection (a Quality-parameterized bundle of restrictions + prevention,
   [CR#702.16b..702.16f]), ward (a triggered toll: counter-unless-pays,
   [CR#702.21a]), absorb (a prevention shield, [CR#702.64a] — *not* a
-  result rewrite), haste (lifts the summoning-sickness limits,
-  [CR#702.10,302.6]; spelling open — deontic `May` grant vs an unset-flag
-  form), indestructible (a "can't be destroyed" *event-side* can't-happen —
+  result rewrite), haste (a flag the standing summoning-sickness `Cant`
+  rows read in their own conditions — [CR#508.1a,602.5a] name haste
+  directly, [CR#702.10b..702.10c,302.6] mirror them; settled, the reach
+  pattern rather than a `May`-row lift), indestructible (a "can't be
+  destroyed" *event-side* can't-happen —
   [CR#614.17] semantics, grammar home the §7 replacement family rather
   than the deontic layer; consulted by the engine-owned destroy verb and
   damage SBAs, [CR#702.12a..702.12b,701.8b,704.5g..704.5h]), and all the
@@ -717,11 +729,13 @@ intrinsic. Four classes:
 - **Marker (1)** — reach: no function of its own; only flying's blocking
   predicate gives it meaning ([CR#702.17b,702.9b]).
 
-Engine status: the `KeywordAbility` enum natively implements the four
-combat intrinsics plus three pragmatic natives — vigilance and lifelink
-(composite-given, pending their primitives) and flying (composite) — woven
-into the combat code; the designation system (§8) remains engine machinery
-alongside the intrinsics. Keyword *parameters* observed:
+Engine status: the `KeywordAbility` enum natively implements five of the
+nine intrinsic abilities (first/double strike, deathtouch, trample,
+vigilance) plus two pragmatic natives — lifelink (composite-given, pending
+the damage-result-rewrite stage) and flying (composite) — woven into the
+combat code; banding/companion/mutate/phasing are unimplemented intrinsics
+awaiting their mechanics. The designation system (§8) remains engine
+machinery alongside the intrinsics. Keyword *parameters* observed:
 none, N, Cost, "N—[cost]", Quality/Filter, CardName (partner with), subtype,
 enumerated label (gift); keyword names are an open set (the corpus residual
 is full of set-specific Warp {2}{R}, Firebending 1, Exhaust, Station —
