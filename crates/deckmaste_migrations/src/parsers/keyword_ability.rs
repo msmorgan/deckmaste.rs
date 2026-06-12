@@ -225,22 +225,12 @@ const KEYWORD_NAMES: &[&str] = &[
     "Offspring",
 ];
 
-/// The native `KeywordAbility` variants (their rust-ident spellings) —
-/// kept in sync with `deckmaste_core::KeywordAbility::ALL`. All nullary.
-const NATIVE_KEYWORDS: &[&str] = &[
-    "FirstStrike",
-    "DoubleStrike",
-    "Deathtouch",
-    "Trample",
-    "Vigilance",
-    "Lifelink",
-    "Flying",
-];
-
-/// One keyword token -> its invocation RON: wrapped for a native variant
-/// (`Keyword(Flying)`), bare for a future printed-name macro
-/// (`Ward([Mana([Generic(2)])])`), or `None` (declines). The name-match +
-/// argument-shape logic.
+/// One keyword token -> its invocation RON, always wrapped —
+/// `Keyword(Flying)`, `Keyword(Ward([Mana([Generic(2)])]))` — or `None`
+/// (declines). Intrinsic enum variants and `KeywordAbility`-kind macros
+/// share the wrapper: card definitions always call out keyword-ness
+/// explicitly, and non-intrinsic names resolve (or stay todo) inside the
+/// `KeywordAbility` position's macro namespace.
 fn bare_keyword(token: &str) -> anyhow::Result<Option<String>> {
     let Some(name) = match_keyword_name(token) else {
         return Ok(None);
@@ -251,10 +241,7 @@ fn bare_keyword(token: &str) -> anyhow::Result<Option<String>> {
         eprintln!("keyword_ability: unhandled keyword {name:?} (arg {arg:?})");
         return Ok(None);
     };
-    if NATIVE_KEYWORDS.contains(&invocation.as_str()) {
-        return Ok(Some(format!("Keyword({invocation})")));
-    }
-    Ok(Some(invocation))
+    Ok(Some(format!("Keyword({invocation})")))
 }
 
 /// A registry parser: one keyword-ability line -> the bare invocation RON, or
@@ -328,7 +315,7 @@ mod tests {
 
     #[test]
     fn intrinsic_keywords_render_wrapped() {
-        assert_eq!(bare("Flying").as_deref(), Some("Keyword(Flying)"));
+        assert_eq!(bare("Vigilance").as_deref(), Some("Keyword(Vigilance)"));
         assert_eq!(
             bare("First strike").as_deref(),
             Some("Keyword(FirstStrike)")
@@ -337,29 +324,40 @@ mod tests {
     }
 
     #[test]
+    fn macro_keywords_render_wrapped_too() {
+        // Non-intrinsics are KeywordAbility-kind macros invoked INSIDE the
+        // wrapper — keyword-ness is always explicit on the card.
+        assert_eq!(bare("Flying").as_deref(), Some("Keyword(Flying)"));
+        assert_eq!(bare("Lifelink").as_deref(), Some("Keyword(Lifelink)"));
+    }
+
+    #[test]
     fn nullary_keywords() {
-        assert_eq!(bare("Menace").as_deref(), Some("Menace"));
-        assert_eq!(bare("Defender").as_deref(), Some("Defender"));
+        assert_eq!(bare("Menace").as_deref(), Some("Keyword(Menace)"));
+        assert_eq!(bare("Defender").as_deref(), Some("Keyword(Defender)"));
     }
 
     #[test]
     fn cost_keywords() {
         assert_eq!(
             bare("Ward {2}").as_deref(),
-            Some("Ward([Mana([Generic(2)])])")
+            Some("Keyword(Ward([Mana([Generic(2)])]))")
         );
         assert_eq!(
             bare("Equip {3}").as_deref(),
-            Some("Equip([Mana([Generic(3)])])")
+            Some("Keyword(Equip([Mana([Generic(3)])]))")
         );
     }
 
     #[test]
     fn integer_and_integer_cost() {
-        assert_eq!(bare("Annihilator 2").as_deref(), Some("Annihilator(2)"));
+        assert_eq!(
+            bare("Annihilator 2").as_deref(),
+            Some("Keyword(Annihilator(2))")
+        );
         assert_eq!(
             bare("Suspend 4—{1}{R}").as_deref(),
-            Some("Suspend(4, [Mana([Generic(1),Red])])")
+            Some("Keyword(Suspend(4, [Mana([Generic(1),Red])]))")
         );
     }
 
@@ -367,14 +365,14 @@ mod tests {
     fn on_card_name_is_the_invocation() {
         // Landwalk / typecycling render as their printed name (a future macro),
         // not an unrolled Landwalk(...) / Typecycling(...).
-        assert_eq!(bare("Islandwalk").as_deref(), Some("Islandwalk"));
+        assert_eq!(bare("Islandwalk").as_deref(), Some("Keyword(Islandwalk)"));
         assert_eq!(
             bare("Legendary landwalk").as_deref(),
-            Some("LegendaryLandwalk")
+            Some("Keyword(LegendaryLandwalk)")
         );
         assert_eq!(
             bare("Mountaincycling {2}").as_deref(),
-            Some("Mountaincycling([Mana([Generic(2)])])")
+            Some("Keyword(Mountaincycling([Mana([Generic(2)])]))")
         );
     }
 
@@ -401,7 +399,7 @@ mod tests {
             resolve_line("Ward {2}", CardKind::Permanent)
                 .unwrap()
                 .as_deref(),
-            Some("Ward([Mana([Generic(2)])])")
+            Some("Keyword(Ward([Mana([Generic(2)])]))")
         );
         assert!(
             resolve_line("Protection from black", CardKind::Permanent)

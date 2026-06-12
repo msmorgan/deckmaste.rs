@@ -18,6 +18,7 @@ mod condition;
 mod combat;
 pub use combat::CombatState;
 pub use combat::has_keyword;
+pub use combat::has_keyword_named;
 
 mod decide;
 pub use decide::Action;

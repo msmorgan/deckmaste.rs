@@ -729,13 +729,17 @@ its keyword as intrinsic. Four classes:
 - **Marker (1)** — reach: no function of its own; only flying's blocking
   predicate gives it meaning ([CR#702.17b,702.9b]).
 
-Engine status: the `KeywordAbility` enum natively implements five of the
-nine intrinsic abilities (first/double strike, deathtouch, trample,
-vigilance) plus two pragmatic natives — lifelink (composite-given, pending
-the damage-result-rewrite stage) and flying (composite) — woven into the
-combat code; banding/companion/mutate/phasing are unimplemented intrinsics
-awaiting their mechanics. The designation system (§8) remains engine
-machinery alongside the intrinsics. Keyword *parameters* observed:
+Engine status: the `KeywordAbility` enum is exactly the five implemented
+intrinsic abilities (first/double strike, deathtouch, trample, vigilance) —
+no pragmatic natives remain. Every other keyword is a `KeywordAbility`-kind
+plugin macro invoked inside the wrapper (`Keyword(Flying)`), expanding to
+the name-carrying `Composite`: flying's macro carries its real evasion
+`Cant` ([CR#702.9b]), lifelink's combat hook matches the name
+(`has_keyword_named`, the look-through seam) pending the
+damage-result-rewrite stage, and reach is an empty composite (the marker
+keyword's entire semantics). banding/companion/mutate/phasing are
+unimplemented intrinsics awaiting their mechanics. The designation system
+(§8) remains engine machinery alongside the intrinsics. Keyword *parameters* observed:
 none, N, Cost, "N—[cost]", Quality/Filter, CardName (partner with), subtype,
 enumerated label (gift); keyword names are an open set (the corpus residual
 is full of set-specific Warp {2}{R}, Firebending 1, Exhaust, Station —

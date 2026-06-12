@@ -1,0 +1,14 @@
+// Lifelink is composite-given(damage-result-rewrite) — it has no honest
+// expansion until that stage exists [CR#702.15,120.3], so the composite
+// carries the name alone and the engine's combat-damage hook matches it by
+// name (the look-through seam, `has_keyword_named`). The
+// wither/infect/toxic family shares the pending primitive.
+(
+    name: "Lifelink",
+    template: "lifelink",
+    kinds: [KeywordAbility],
+    body: Composite(
+        name: "Lifelink",
+        abilities: [],
+    )
+)
