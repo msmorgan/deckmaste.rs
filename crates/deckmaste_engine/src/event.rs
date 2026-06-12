@@ -21,6 +21,18 @@ pub enum LossReason {
 /// replace → apply pipe. Scheduled as an intent, returned from apply as the
 /// occurred fact — the draw's library top binds at `WillDraw` apply time, and a
 /// draw from an empty library applies as `DrewFromEmpty` instead.
+/// The cause triple riding an event (mtg-rules events.md §3): the named
+/// VERB view performed ("Sacrifice", "Discard", "Play", …), the AGENCY
+/// that demanded it, and the AGENT — the causing object and its
+/// controller, `None` for turn-based / state-based actions. Trigger
+/// patterns (`CausePattern`) predicate over these coordinates.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Cause {
+    pub verb: deckmaste_core::Ident,
+    pub agency: deckmaste_core::Agency,
+    pub agent: Option<(ObjectId, PlayerId)>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GameEvent {
     TurnBegan {
@@ -45,29 +57,20 @@ pub enum GameEvent {
         source: Option<ObjectId>,
     },
     DrewFromEmpty(PlayerId),
-    LandPlayed {
+
+    Tapped {
         object: ObjectId,
+        /// Tap causes are trigger-visible language ([CR#107.5] cost vs
+        /// [CR#508.1f] attack vs [CR#701.26a] effect vs [CR#106.12] mana).
+        cause: Option<Cause>,
     },
-    Tapped(ObjectId),
     ManaAdded {
         player: PlayerId,
         mana: ColorOrColorless,
         amount: Uint,
     },
     ManaEmptied(PlayerId),
-    Discarded {
-        player: PlayerId,
-        object: ObjectId,
-    },
-    /// The verb fact of a sacrifice ([CR#701.21a]): `player` moves a permanent
-    /// they control from the battlefield directly to its owner's graveyard —
-    /// not a destruction, so regeneration can never apply. Its apply evolves
-    /// into the generic Battlefield→Graveyard move (remint + LKI), like
-    /// `Discarded`; "you sacrificed" triggers (`Performed`) match here.
-    Sacrificed {
-        player: PlayerId,
-        object: ObjectId,
-    },
+
     /// [CR#701.7a,111.2]: `player` creates one token with the characteristics
     /// `token` specifies. Its apply synthesizes a token entry in the card
     /// table (owner = creator), mints the object straight onto the battlefield
@@ -120,6 +123,9 @@ pub enum GameEvent {
         to: Zone,
         enters: Option<EnterStatus>,
         position: Option<Uint>,
+        /// `None` = an unattributed move; named views (sacrificed,
+        /// discarded, played) ride here as cause triples.
+        cause: Option<Cause>,
     },
     /// The FACT ([CR#603.6]) — unreplaceable; carries the moved object's LKI.
     /// Triggers (later tasks) fire on it.
@@ -127,6 +133,8 @@ pub enum GameEvent {
         snapshot: crate::lki::LkiSnapshot,
         from: Option<Zone>,
         to: Zone,
+        /// Copied through from the `ZoneWillChange` intent.
+        cause: Option<Cause>,
     },
     /// [CR#119.3]: a player loses life directly (not via damage).
     LifeLost {
@@ -152,6 +160,33 @@ pub enum GameEvent {
     /// [CR#603.2]: a triggered ability triggered. Its apply notes it into
     /// `pending_triggers`. Routed as an event so Stage-4 replacements/cant can
     /// intercept (Panharmonicon/Hushwing).
+    /// A coin flip's outcome ([CR#705.1..705.2]).
+    CoinFlipped {
+        player: PlayerId,
+        heads: bool,
+    },
+    /// A die roll's outcome ([CR#706.1..706.2]); an IGNORED roll is
+    /// considered never to have happened — no triggers ([CR#706.6]).
+    DieRolled {
+        player: PlayerId,
+        sides: Uint,
+        natural: Uint,
+        result: Uint,
+    },
+    /// Counters placed on an object or player proxy ([CR#122.1]).
+    CounterPlaced {
+        object: ObjectId,
+        kind: deckmaste_core::Ident,
+        count: Uint,
+        cause: Option<Cause>,
+    },
+    /// Counters removed ([CR#122.1]).
+    CounterRemoved {
+        object: ObjectId,
+        kind: deckmaste_core::Ident,
+        count: Uint,
+        cause: Option<Cause>,
+    },
     TriggerFired {
         source: ObjectSource,
         ability: Uint,

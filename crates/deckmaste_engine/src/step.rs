@@ -169,6 +169,14 @@ impl GameState {
     fn apply(&mut self, event: GameEvent) -> GameEvent {
         match event {
             GameEvent::TurnBegan { .. } | GameEvent::StepBegan(_) => event,
+            // P0.W3 seams: grammar-complete events nothing emits yet —
+            // their apply (RNG, counter storage [P0.W5]) is unbuilt.
+            GameEvent::CoinFlipped { .. } | GameEvent::DieRolled { .. } => {
+                todo!("P0.W3: random-event apply")
+            }
+            GameEvent::CounterPlaced { .. } | GameEvent::CounterRemoved { .. } => {
+                todo!("P0.W3: counter-event apply (storage is P0.W5)")
+            }
             GameEvent::Untapped(id) => {
                 self.objects.obj_mut(id).tapped = false;
                 event
@@ -187,6 +195,7 @@ impl GameState {
                             to: Zone::Hand,
                             enters: None,
                             position: None,
+                            cause: None,
                         },
                     ))]);
                     GameEvent::WillDraw { player, source }
@@ -202,26 +211,8 @@ impl GameState {
                 self.player_mut(player).drew_from_empty = true;
                 event
             }
-            GameEvent::LandPlayed { object } => {
-                // [CR#305]: playing a land is an unreplaceable special action;
-                // its only side effect (the land-drop tally) stays with the
-                // cause (§5.5), then it evolves into the generic Hand→Battlefield
-                // move — remint + LKI + AsEnters (a tapland enters tapped).
-                let owner = self.owner_of(object);
-                self.player_mut(owner).this_turn.bump(Tally::LandsPlayed);
-                self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                    GameEvent::ZoneWillChange {
-                        object,
-                        from: Some(Zone::Hand),
-                        to: Zone::Battlefield,
-                        enters: None,
-                        position: None,
-                    },
-                ))]);
-                GameEvent::LandPlayed { object }
-            }
-            GameEvent::Tapped(id) => {
-                self.objects.obj_mut(id).tapped = true;
+            GameEvent::Tapped { object, .. } => {
+                self.objects.obj_mut(object).tapped = true;
                 event
             }
             GameEvent::ManaAdded {
@@ -235,37 +226,6 @@ impl GameState {
             GameEvent::ManaEmptied(player) => {
                 self.player_mut(player).mana_pool.clear();
                 event
-            }
-            GameEvent::Discarded { player, object } => {
-                // [CR#701.8]: discard evolves into the generic Hand→Graveyard
-                // move (remint + LKI). (Madness — a WillDiscard intent that
-                // replaces this — is a future seam.)
-                self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                    GameEvent::ZoneWillChange {
-                        object,
-                        from: Some(Zone::Hand),
-                        to: Zone::Graveyard,
-                        enters: None,
-                        position: None,
-                    },
-                ))]);
-                GameEvent::Discarded { player, object }
-            }
-            GameEvent::Sacrificed { player, object } => {
-                // [CR#701.21a]: the sacrifice verb fact evolves into the generic
-                // Battlefield→Graveyard move (remint + LKI), mirroring
-                // `Discarded`. Not a destruction — nothing here is replaceable
-                // by regeneration.
-                self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                    GameEvent::ZoneWillChange {
-                        object,
-                        from: Some(Zone::Battlefield),
-                        to: Zone::Graveyard,
-                        enters: None,
-                        position: None,
-                    },
-                ))]);
-                GameEvent::Sacrificed { player, object }
             }
             GameEvent::TokenCreated { player, ref token } => {
                 self.apply_token_created(player, token);
@@ -395,14 +355,16 @@ impl GameState {
                 to,
                 enters,
                 position,
+                cause,
             } => {
-                self.apply_zone_will_change(object, from, to, enters, position);
+                self.apply_zone_will_change(object, from, to, enters, position, cause.clone());
                 GameEvent::ZoneWillChange {
                     object,
                     from,
                     to,
                     enters,
                     position,
+                    cause,
                 }
             }
             // [CR#603.6]: the FACT — the move already happened at the
@@ -482,6 +444,7 @@ impl GameState {
         to: Zone,
         enters: Option<crate::event::EnterStatus>,
         position: Option<Uint>,
+        cause: Option<crate::event::Cause>,
     ) {
         // 1. Snapshot while the object is still live in `from`.
         let snapshot = crate::lki::LkiSnapshot::capture(self, object);
@@ -558,9 +521,15 @@ impl GameState {
             ),
         }
 
-        // 4. Schedule the unreplaceable fact at the agenda front.
+        // 4. Schedule the unreplaceable fact at the agenda front — the cause
+        // triple rides through from the intent.
         self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-            GameEvent::ZoneChanged { snapshot, from, to },
+            GameEvent::ZoneChanged {
+                snapshot,
+                from,
+                to,
+                cause,
+            },
         ))]);
     }
 
@@ -588,6 +557,7 @@ impl GameState {
                 snapshot,
                 from: None,
                 to: Zone::Battlefield,
+                cause: None,
             },
         ))]);
     }

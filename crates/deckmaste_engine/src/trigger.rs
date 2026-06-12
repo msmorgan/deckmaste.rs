@@ -90,18 +90,33 @@ impl GameState {
             // [CR#603.6]: a `ZoneMove` pattern matches a `ZoneChanged` fact
             // when the zone constraints hold and the `what` filter matches the
             // moved object's last-known state.
-            Event::ZoneMove { what, from, to } => match event {
-                GameEvent::ZoneChanged {
-                    snapshot,
-                    from: ef,
-                    to: et,
-                } => {
-                    zone_ok(*from, *ef)
-                        && zone_ok(*to, Some(*et))
-                        && self.filter_matches_snapshot(what, snapshot, watcher)
+            Event::ZoneMove {
+                what,
+                from,
+                to,
+                cause,
+            } => {
+                // P0.W3 seam: cause-pattern evaluation (verb/agency equality
+                // + agent filter, events.md cause triple) is unbuilt — a
+                // pattern that NARROWS by cause must not silently match
+                // everything.
+                if cause.is_some() {
+                    todo!("P0.W3: cause-pattern matching");
                 }
-                _ => false,
-            },
+                match event {
+                    GameEvent::ZoneChanged {
+                        snapshot,
+                        from: ef,
+                        to: et,
+                        ..
+                    } => {
+                        zone_ok(*from, *ef)
+                            && zone_ok(*to, Some(*et))
+                            && self.filter_matches_snapshot(what, snapshot, watcher)
+                    }
+                    _ => false,
+                }
+            }
 
             // [CR#603.2]: step/phase triggers match a `StepBegan`.
             // `_whose` filtering (Your/AnOpponents/EachPlayers) is not reached
@@ -119,7 +134,11 @@ impl GameState {
             // N `Blocked` events, so a naive point-wise match would fire it N
             // times instead of once — it needs once-per-attacker dedup, deferred
             // until a fixture forces it.)
-            Event::StateBecomes { of, becomes } => {
+            Event::StateBecomes { of, becomes, cause } => {
+                // P0.W3 seam: see ZoneMove above.
+                if cause.is_some() {
+                    todo!("P0.W3: cause-pattern matching");
+                }
                 let live = match (becomes, event) {
                     (StateFilterEvent::Attacking, GameEvent::Attacking(o)) => Some(*o),
                     _ => None,
@@ -609,6 +628,7 @@ mod tests {
     fn zone_changed_event(state: &GameState, id: ObjectId, from: Zone, to: Zone) -> GameEvent {
         let snapshot = LkiSnapshot::capture(state, id);
         GameEvent::ZoneChanged {
+            cause: None,
             snapshot,
             from: Some(from),
             to,
@@ -669,6 +689,7 @@ mod tests {
 
         // The pattern from Dies(Type(Creature)) — built directly.
         let pattern = Event::ZoneMove {
+            cause: None,
             what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
@@ -727,9 +748,11 @@ mod tests {
             snapshot,
             from: Some(Zone::Hand),
             to: Zone::Battlefield,
+            cause: None,
         };
 
         let dies_pattern = Event::ZoneMove {
+            cause: None,
             what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
@@ -768,9 +791,11 @@ mod tests {
             snapshot,
             from: Some(Zone::Battlefield),
             to: Zone::Graveyard,
+            cause: None,
         };
 
         let dies_pattern = Event::ZoneMove {
+            cause: None,
             what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
@@ -835,6 +860,7 @@ mod tests {
 
         // Pattern: Dies(Ref(This))
         let self_dies = Event::ZoneMove {
+            cause: None,
             what: Filter::Ref(Reference::This),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
@@ -903,6 +929,7 @@ mod tests {
 
         // Pattern: Enters(Ref(This))
         let self_enters = Event::ZoneMove {
+            cause: None,
             what: Filter::Ref(Reference::This),
             from: None,
             to: Some(Zone::Battlefield),
@@ -923,6 +950,7 @@ mod tests {
             snapshot: enters_snapshot,
             from: Some(Zone::Hand),
             to: Zone::Battlefield,
+            cause: None,
         };
 
         assert!(
@@ -945,6 +973,7 @@ mod tests {
             to: Zone::Battlefield,
             enters: None,
             position: None,
+            cause: None,
         };
         assert!(
             !state.event_matches(&self_enters, &will_change_event, etb_source),
@@ -1013,6 +1042,7 @@ mod tests {
         assert_eq!(
             *expanded.value,
             Event::ZoneMove {
+                cause: None,
                 what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
@@ -1034,6 +1064,7 @@ mod tests {
         assert_eq!(
             *expanded.value,
             Event::ZoneMove {
+                cause: None,
                 what: Filter::Ref(Reference::This),
                 from: None,
                 to: Some(Zone::Battlefield),

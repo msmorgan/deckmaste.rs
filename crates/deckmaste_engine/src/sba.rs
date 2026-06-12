@@ -76,6 +76,7 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
             to: Zone::Graveyard,
             enters: None,
             position: None,
+            cause: None,
         });
     }
 
@@ -193,6 +194,7 @@ mod tests {
                     to: Zone::Graveyard,
                     enters: None,
                     position: None,
+                    cause: None,
                 } if *object == bear
             )),
             "sweep should include a battlefield→graveyard ZoneWillChange for Grizzly Bears at lethal damage"
@@ -311,6 +313,7 @@ mod tests {
                 to: Zone::Graveyard,
                 enters: None,
                 position: None,
+                cause: None,
             },
         ))]);
         let _ = state.step(); // the move applies

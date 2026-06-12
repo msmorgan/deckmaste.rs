@@ -148,11 +148,16 @@ impl fmt::Display for DecisionError {
 
 impl std::error::Error for DecisionError {}
 
+use deckmaste_core::Agency;
+use deckmaste_core::Zone;
+
 use crate::agenda::WorkItem;
 use crate::derive;
+use crate::event::Cause;
 use crate::event::GameEvent;
 use crate::event::Occurrence;
 use crate::state::GameState;
+use crate::tally::Tally;
 
 impl GameState {
     /// Answers the pending decision: validates, does the decision's
@@ -368,13 +373,26 @@ impl GameState {
             });
         }
         self.pending = None;
-        // The `Discarded` cause fact evolves into ZoneWillChange(Hand→Graveyard)
-        // at apply ([CR#701.8], spec §5.6).
+        // [CR#701.9a]: discard = Hand→Graveyard carrying its cause triple
+        // (the named "Discard" view; agency per demand site — this decision
+        // serves effect-instructed and cleanup discards alike, so the
+        // turn-based flavor rides the cleanup caller's context for now).
         self.schedule_front(
             objects
                 .into_iter()
                 .map(|object| {
-                    WorkItem::Emit(Occurrence::single(GameEvent::Discarded { player, object }))
+                    WorkItem::Emit(Occurrence::single(GameEvent::ZoneWillChange {
+                        object,
+                        from: Some(Zone::Hand),
+                        to: Zone::Graveyard,
+                        enters: None,
+                        position: None,
+                        cause: Some(Cause {
+                            verb: "Discard".into(),
+                            agency: Agency::EffectInstruction,
+                            agent: None,
+                        }),
+                    }))
                 })
                 .collect(),
         );
@@ -615,11 +633,24 @@ impl GameState {
             }
             Action::PlayLand { object } => {
                 self.reset_passes();
-                // The `LandPlayed` cause fact bumps the land tally and evolves into
-                // ZoneWillChange(Hand→Battlefield) at apply (spec §5.6).
+                // [CR#305.2,116.2a]: the land-drop tally stays with the
+                // cause; the move carries the "Play" view (special action —
+                // Agency::SpecialAction; an effect putting a land onto the
+                // battlefield is NOT a play, [CR#701.18a]).
+                let owner = self.owner_of(*object);
+                self.player_mut(owner).this_turn.bump(Tally::LandsPlayed);
                 self.schedule_front(vec![
-                    WorkItem::Emit(Occurrence::single(GameEvent::LandPlayed {
+                    WorkItem::Emit(Occurrence::single(GameEvent::ZoneWillChange {
                         object: *object,
+                        from: Some(Zone::Hand),
+                        to: Zone::Battlefield,
+                        enters: None,
+                        position: None,
+                        cause: Some(Cause {
+                            verb: "Play".into(),
+                            agency: Agency::SpecialAction,
+                            agent: None,
+                        }),
                     })),
                     WorkItem::CheckSbas,
                     WorkItem::PlaceTriggers,
@@ -635,7 +666,14 @@ impl GameState {
                 if let Some((mana, amount)) = derive::tap_mana_ability(a) {
                     // [CR#605.3b]: mana abilities skip the stack entirely.
                     self.schedule_front(vec![
-                        WorkItem::Emit(Occurrence::single(GameEvent::Tapped(*object))),
+                        WorkItem::Emit(Occurrence::single(GameEvent::Tapped {
+                            object: *object,
+                            cause: Some(Cause {
+                                verb: "Tap".into(),
+                                agency: Agency::CostPayment,
+                                agent: None,
+                            }),
+                        })),
                         WorkItem::Emit(Occurrence::single(GameEvent::ManaAdded {
                             player,
                             mana,

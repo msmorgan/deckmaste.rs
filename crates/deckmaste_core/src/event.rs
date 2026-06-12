@@ -90,6 +90,45 @@ pub enum StateFilterEvent {
     Blocked,
 }
 
+/// The machinery that demanded an event — the cause triple's AGENCY
+/// coordinate (mtg-rules events.md §3). Closed CR vocabulary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+pub enum Agency {
+    /// {T}/cost components being paid ([CR#107.5], "sacrificed to pay").
+    CostPayment,
+    /// The declare-attackers procedure's tap ([CR#508.1f] — explicitly
+    /// not a cost).
+    AttackDeclaration,
+    /// An effect's instruction ("tap target creature", [CR#701.26a]).
+    EffectInstruction,
+    /// A turn-based action ([CR#703] — cleanup discard, phasing).
+    TurnBasedAction,
+    /// A state-based action ([CR#704] — lethal damage, deathtouch).
+    StateBasedAction,
+    /// A resolving mana ability ("tapped for mana", [CR#106.12]).
+    ManaAbilityResolution,
+    /// A special action ([CR#116.2] — land plays, foretell, …). NOTE: absent
+    /// from the skill's events.md §3 agency list (erratum filed); the land
+    /// play view ([CR#701.18a]) is unrepresentable without it.
+    SpecialAction,
+}
+
+/// A trigger-side predicate over an event's cause triple (verb, agency,
+/// agent). Every omitted coordinate matches anything. `verb` names the
+/// performed view ("Destroy", "Sacrifice", …); `agent` filters the causing
+/// object/controller (Karmic Justice's "a spell or ability an opponent
+/// controls"). Agent-IDENTITY equality ("destroyed this way") is a
+/// binding concern, not a pattern — it rides the event log.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+pub struct CausePattern {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verb: Option<Ident>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agency: Option<Agency>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent: Option<Filter>,
+}
+
 /// A trigger-event pattern, matched structurally against the action log
 /// ([CR#603.2]). Declared event names (`Dies`, `Enters`, `Landfall`) are macros
 /// over these forms. Each form binds fixed roles (`ThatObject`,
@@ -111,20 +150,29 @@ pub enum Event {
         on: Filter,
     },
     /// An object changed zones ([CR#603.6]). `Dies` = `from: Battlefield,
-    /// to: Graveyard` is a prelude macro over this.
+    /// to: Graveyard` is a prelude macro over this. `cause` narrows by the
+    /// cause triple ("destroyed" admits exactly two causes, [CR#701.8b];
+    /// "sacrificed" is never destruction, [CR#701.21a]); omitted = any
+    /// cause ("dies", [CR#700.4]).
     ZoneMove {
         what: Filter,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         from: Option<Zone>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         to: Option<Zone>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cause: Option<CausePattern>,
     },
     /// The beginning of a step or phase ([CR#603.2], "at the beginning of …").
     BeginningOf(Phase, WhoseTurn),
     /// An object's state changed — transitions only ([CR#603.2e]).
+    /// `cause` narrows by the tap-cause table (cost payment vs attack
+    /// declaration vs crewing vs effect, [CR#107.5,508.1f,702.122b]).
     StateBecomes {
         of: Filter,
         becomes: StateFilterEvent,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cause: Option<CausePattern>,
     },
     /// Any of several events ([CR#603.2], "whenever … or …").
     OneOfEvents(Vec<Event>),
@@ -164,6 +212,7 @@ mod tests {
                 what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
+                cause: None,
             },
         );
         assert_eq!(
@@ -172,6 +221,7 @@ mod tests {
                 what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
                 from: None,
                 to: None,
+                cause: None,
             },
         );
     }

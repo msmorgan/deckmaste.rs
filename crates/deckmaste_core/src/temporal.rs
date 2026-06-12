@@ -67,6 +67,12 @@ pub enum LockPoint {
     EffectBegin,
     /// Copiable values ([CR#707.2b]).
     CopyCreation,
+    /// Combat declaration sets — attackers/blockers lock as declared
+    /// ([CR#508.1a,509.1a]; the choices.md lock-stage column).
+    Declaration,
+    /// Pre-game choices: first turn, mulligans + bottoming, companion
+    /// ([CR#103.1,103.5,103.2b]).
+    PreGame,
     /// Resolution-stage choices, ward-style X, untargeted division
     /// ([CR#608.2d,702.21b]).
     Resolution,
