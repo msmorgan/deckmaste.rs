@@ -163,6 +163,10 @@ impl GameState {
                 live.is_some_and(|o| self.filter_matches_live(of, o, watcher))
             }
 
+            // "Whenever X or Y" is a pattern union ([CR#700.1]); it still
+            // fires once per matching occurrence ([CR#603.2c]).
+            Event::OneOf(events) => events.iter().any(|p| self.event_matches(p, event, watcher)),
+
             other => todo!("stage 3 does not match trigger event {other:?}"),
         }
     }
@@ -1449,6 +1453,52 @@ mod tests {
         assert!(
             !state.event_matches(&pattern, &agentless, watcher_source),
             "an agentless cause must fail an agent-narrowed pattern"
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // OneOf — "whenever … or …" pattern unions ([CR#603.2c,700.1])
+    // -------------------------------------------------------------------------
+
+    /// `OneOf([Dies, Enters])` matches a death, an entry, and nothing else —
+    /// the watcher's text defines a disjunctive event pattern ([CR#700.1]),
+    /// still firing once per matching occurrence ([CR#603.2c]).
+    #[test]
+    fn one_of_matches_any_branch() {
+        let (state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        let creature = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));
+        let pattern = Event::OneOf(vec![
+            Event::ZoneMove {
+                face: None,
+                cause: None,
+                what: creature.clone(),
+                from: Some(Zone::Battlefield),
+                to: Some(Zone::Graveyard),
+            },
+            Event::ZoneMove {
+                face: None,
+                cause: None,
+                what: creature,
+                from: None,
+                to: Some(Zone::Battlefield),
+            },
+        ]);
+
+        let dies = zone_changed_event(&state, bear, Zone::Battlefield, Zone::Graveyard);
+        let enters = zone_changed_event(&state, bear, Zone::Hand, Zone::Battlefield);
+        let exiled = zone_changed_event(&state, bear, Zone::Graveyard, Zone::Exile);
+        assert!(
+            state.event_matches(&pattern, &dies, watcher_source),
+            "the first branch matches a death"
+        );
+        assert!(
+            state.event_matches(&pattern, &enters, watcher_source),
+            "the second branch matches an entry"
+        );
+        assert!(
+            !state.event_matches(&pattern, &exiled, watcher_source),
+            "no branch matches an exile"
         );
     }
 
