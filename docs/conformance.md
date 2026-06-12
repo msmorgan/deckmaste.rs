@@ -83,7 +83,7 @@ remaining non-✓ row reads **engine-seam**.
 | skill concept | deckmaste | status |
 |---|---|---|
 | modes of a spell / activated ability (announce-locked) | — | MISSING (P0.W3) |
-| cost intentions: alternative/additional, X, splice, hybrid/Phyrexian | — | MISSING (P0.W2) |
+| cost intentions: alternative/additional, X, splice, hybrid/Phyrexian | `CostChange::Additional`, `AlternativeCost` grammar | ✓ grammar; the announce DECISION kinds remain MISSING (P0.W3) |
 | targets, incl. variable count | `ChooseTargets` | ✓ |
 | division / distribution among targets | — | MISSING (P0.W3) |
 | triggered-ability modes/targets at stack-put | targets only | partial (P0.W3) |
@@ -116,3 +116,28 @@ remaining non-✓ row reads **engine-seam**.
 | `started` latch, never-started/already-ended edges | engine effect-instance record | engine-seam (arrives with ForAsLongAs tracking) |
 | lock-point axis on stored values | `LockPoint` (8 points) | ✓ type; threading is P0.W2/W3 |
 | once-per-turn limiter scopes (object vs controller) | `UseLimit::{OncePerTurn, OncePerGame}` | partial — controller-scoped trigger flavor needs a scope distinction (P0.W3) |
+
+## 5. Costs & mana (`costs.md`, `mana.md` ↔ `cost.rs`/`mana.rs`/`continuous.rs`)
+
+| skill concept | deckmaste | status |
+|---|---|---|
+| printed mana cost / activation cost positions | face `mana_cost`; `ActivatedAbility.cost` | ✓ |
+| additional costs, mandatory + optional/kicker (pipeline-positional) | `CostChange::Additional { components, optional }` | ✓ grammar; pipeline application engine-seam |
+| alternative cost, one-per-spell, rides the cast permission | `AlternativeCost::{Free, Components}` on `May(Cast(cost: …))` | ✓ grammar; announce selection + one-per-spell rule engine-seam |
+| declaration toll / resolution toll | `Deontic::Gate` / `Effect::Unless` | ✓ |
+| recurring slots (echo, cumulative upkeep) | — | MISSING (keyword-macro buildout, post-P0) |
+| special-action costs (X chosen before payment) | — | MISSING (P0.W3 special actions) |
+| 601.2f total-cost pipeline + lock | `TotalCost { base, trace, locked }` | ✓ type; runtime application engine-seam (P0.W2 guard live in `legal.rs`) |
+| cost-modification hook (convoke/delve/improvise/assist/waterbend) | the composite-given primitive | engine-seam (payment-substitution interface, post-P0) |
+| symbol vocabulary, cost-side (generic, colored, {C}, X, hybrid, Phyrexian, snow) | `ManaSymbol` complete | ✓ grammar; payment evaluates simple symbols only — X/hybrid/Phyrexian/snow spells are never OFFERED (scoped absence, engine-seam) |
+| {0} vs no-mana-cost ([CR#118.5..118.6]) | `[]` = absent/unpayable (can_cast gate); `[Generic(0)]` = {0} | ✓ |
+| alternative unlocks an unpayable base ([CR#118.6a]) | grammar ✓ | engine-seam |
+| multi-way symbol announce timing ([CR#118.13]) | — | MISSING (P0.W3 decision schema) |
+| mana unit schema: type + source snapshot + riders + persistence | `ManaProduction`/`ManaRider` grammar; pool = six counts | ✓ grammar; pool units engine-seam (production guard live in `resolve.rs`) |
+| spend restrictions / on-spend effects / on-spend triggers / persistence | `ManaRider::{SpendOnly, GrantOnSpend, TriggerOnSpend, Persistent}` | ✓ grammar |
+| production-side symbol readings (hybrid choice, Phyrexian color, generic→colorless) | `ManaSpec` | ✓ |
+| undefined-type production = no mana; "could produce" ([CR#106.7]) | — | MISSING (engine query, post-P0) |
+| mana abilities never forced; no auto-tap | explicit-choice policy | ✓ |
+| mana abilities mid-payment ([CR#601.2g]) | — | MISSING (P0.W3 decision flow) |
+| payment as transactional batch + [CR#733.1] rewind | — | MISSING (P0.W3 cause-tagged event batches) |
+| pool empties per step/phase; per-unit persistence override | `ManaEmptied` turn-based action | ✓ engine; override engine-seam |
