@@ -137,16 +137,16 @@ impl GameState {
             // watches the ATTACKER; its once-per-attacker dedup lives in
             // `scan_triggers`, so the point-wise match here stays naive.
             Event::StateBecomes { of, becomes, cause } => {
-                // P0.W6 seam: the new becomes-delta kinds (phasing,
-                // turn-face, designation, control) have no emitting
-                // machinery yet — a pattern watching one must trip, not
-                // silently never fire.
+                // P0.W6 seam: phasing, turn-face, and OBJECT-scope
+                // designation deltas have no fact shapes yet — a pattern
+                // watching one must trip, not silently never fire.
+                // (`ControlChanged` is shaped; its emitter is the layers-L2
+                // seam, but the fact matches below.)
                 if matches!(
                     becomes,
                     StateFilterEvent::Phased(_)
                         | StateFilterEvent::TurnedFace(_)
                         | StateFilterEvent::Designated(_)
-                        | StateFilterEvent::ControlledBy(_)
                 ) {
                     todo!("P0.W6: becomes-delta matching for {becomes:?}");
                 }
@@ -162,6 +162,18 @@ impl GameState {
                     (StateFilterEvent::Untapped, GameEvent::Untapped(o)) => (Some(*o), None),
                     (StateFilterEvent::Blocked, GameEvent::Blocked { attacker, .. }) => {
                         (Some(*attacker), None)
+                    }
+                    // "Comes under the control of [a matching player]": the
+                    // inner filter runs against the NEW controller's proxy
+                    // ([CR#109.5]).
+                    (
+                        StateFilterEvent::ControlledBy(f),
+                        GameEvent::ControlChanged { object, to },
+                    ) => {
+                        if !self.filter_matches_live(f, self.player(*to).object, watcher) {
+                            return false;
+                        }
+                        (Some(*object), None)
                     }
                     _ => (None, None),
                 };
@@ -234,6 +246,17 @@ impl GameState {
                             .as_ref()
                             .is_none_or(|f| self.filter_matches_live(f, *source, watcher))
                 }
+                _ => false,
+            },
+
+            // [CR#731.1a]: a GAME-scope designation transition ("day becomes
+            // night" loses one designation and gains the other). An omitted
+            // `becomes` watches any transition of that designation.
+            Event::DesignationChanged { name, becomes } => match event {
+                GameEvent::DesignationChanged {
+                    name: en,
+                    becomes: eb,
+                } => name == en && becomes.as_ref().is_none_or(|b| Some(b) == eb.as_ref()),
                 _ => false,
             },
 
@@ -2016,6 +2039,87 @@ mod tests {
             !state.event_matches(&pattern, &plain_death, watcher_source),
             "an uncaused move performs no verb"
         );
+    }
+
+    // -------------------------------------------------------------------------
+    // Becomes-deltas: control change + game-scope designation ([CR#603.2e])
+    // -------------------------------------------------------------------------
+
+    /// `StateBecomes(becomes: ControlledBy(f))` matches a `ControlChanged`
+    /// fact whose NEW controller satisfies `f` — a control change is never a
+    /// zone move ([CR#603.2e]; the object keeps its identity).
+    #[test]
+    fn controlled_by_matches_control_change() {
+        use deckmaste_core::StateFilterEvent;
+
+        let (mut state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        let other = {
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let card = state.cards.push(bears, PlayerId(1));
+            let id = state.objects.mint(
+                ObjectSource::Card(card),
+                PlayerId(1),
+                Some(Zone::Battlefield),
+            );
+            state.zones.battlefield.push(id);
+            id
+        };
+        let pattern = Event::StateBecomes {
+            of: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            becomes: StateFilterEvent::ControlledBy(Filter::Ref(Reference::You)),
+            cause: None,
+        };
+        let to_you = GameEvent::ControlChanged {
+            object: other,
+            to: PlayerId(0),
+        };
+        let to_them = GameEvent::ControlChanged {
+            object: other,
+            to: PlayerId(1),
+        };
+        assert!(
+            state.event_matches(&pattern, &to_you, watcher_source),
+            "a creature coming under YOUR control matches ControlledBy(Ref(You))"
+        );
+        assert!(
+            !state.event_matches(&pattern, &to_them, watcher_source),
+            "one coming under an opponent's control does not"
+        );
+    }
+
+    /// `DesignationChanged(name, becomes)` matches the game-scope
+    /// designation flip ([CR#731.1a] — "day becomes night" loses one
+    /// designation and gains the other); an omitted `becomes` watches any
+    /// transition of that designation.
+    #[test]
+    fn designation_changed_matches_game_scope_flip() {
+        let (state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        let to_night = GameEvent::DesignationChanged {
+            name: "DayNight".into(),
+            becomes: Some("Night".into()),
+        };
+        let exact = Event::DesignationChanged {
+            name: "DayNight".into(),
+            becomes: Some("Night".into()),
+        };
+        let any_flip = Event::DesignationChanged {
+            name: "DayNight".into(),
+            becomes: None,
+        };
+        let wrong_value = Event::DesignationChanged {
+            name: "DayNight".into(),
+            becomes: Some("Day".into()),
+        };
+        let wrong_name = Event::DesignationChanged {
+            name: "Monarch".into(),
+            becomes: Some("Night".into()),
+        };
+        assert!(state.event_matches(&exact, &to_night, watcher_source));
+        assert!(state.event_matches(&any_flip, &to_night, watcher_source));
+        assert!(!state.event_matches(&wrong_value, &to_night, watcher_source));
+        assert!(!state.event_matches(&wrong_name, &to_night, watcher_source));
     }
 
     // -------------------------------------------------------------------------
