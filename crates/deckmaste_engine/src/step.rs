@@ -402,8 +402,25 @@ impl GameState {
             // [CR#702.20]: a creature with vigilance is NOT tapped when it attacks.
             GameEvent::Attacking(o) => {
                 self.combat.declare_attacker(o);
-                if !crate::combat::has_keyword(&self.layers(), o, &KeywordAbility::Vigilance) {
+                if !crate::combat::has_keyword(&self.layers(), o, &KeywordAbility::Vigilance)
+                    && !self.objects.obj(o).tapped
+                {
                     self.objects.obj_mut(o).tapped = true;
+                    // The declaration's tap is a real "becomes tapped"
+                    // transition ([CR#603.2e]), distinguishable by its cause
+                    // ([CR#508.1f] — not a cost): emit the fact in the
+                    // declaration's wake so becomes-tapped triggers see it.
+                    // Re-applying it is an idempotent flip.
+                    self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+                        GameEvent::Tapped {
+                            object: o,
+                            cause: Some(crate::event::Cause {
+                                verb: "Tap".into(),
+                                agency: deckmaste_core::Agency::AttackDeclaration,
+                                agent: None,
+                            }),
+                        },
+                    ))]);
                 }
                 GameEvent::Attacking(o)
             }

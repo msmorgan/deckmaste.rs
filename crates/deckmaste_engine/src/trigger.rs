@@ -139,10 +139,6 @@ impl GameState {
             // times instead of once — it needs once-per-attacker dedup, deferred
             // until a fixture forces it.)
             Event::StateBecomes { of, becomes, cause } => {
-                // P0.W3 seam: see ZoneMove above.
-                if cause.is_some() {
-                    todo!("P0.W3: cause-pattern matching");
-                }
                 // P0.W6 seam: the new becomes-delta kinds (phasing,
                 // turn-face, designation, control) have no emitting
                 // machinery yet — a pattern watching one must trip, not
@@ -156,11 +152,24 @@ impl GameState {
                 ) {
                     todo!("P0.W6: becomes-delta matching for {becomes:?}");
                 }
-                let live = match (becomes, event) {
-                    (StateFilterEvent::Attacking, GameEvent::Attacking(o)) => Some(*o),
-                    _ => None,
+                // The transitioning object (still live — [CR#603.2e] deltas
+                // are never zone moves) and the event's cause, where the
+                // fact carries one (the tap-cause table,
+                // [CR#107.5,508.1f,701.26a]).
+                let (live, ec) = match (becomes, event) {
+                    (StateFilterEvent::Attacking, GameEvent::Attacking(o)) => (Some(*o), None),
+                    (StateFilterEvent::Tapped, GameEvent::Tapped { object, cause }) => {
+                        (Some(*object), cause.as_ref())
+                    }
+                    (StateFilterEvent::Untapped, GameEvent::Untapped(o)) => (Some(*o), None),
+                    _ => (None, None),
                 };
-                live.is_some_and(|o| self.filter_matches_live(of, o, watcher))
+                live.is_some_and(|o| {
+                    cause
+                        .as_ref()
+                        .is_none_or(|c| self.cause_matches(c, ec, watcher))
+                        && self.filter_matches_live(of, o, watcher)
+                })
             }
 
             // "Whenever X or Y" is a pattern union ([CR#700.1]); it still
@@ -1454,6 +1463,118 @@ mod tests {
             !state.event_matches(&pattern, &agentless, watcher_source),
             "an agentless cause must fail an agent-narrowed pattern"
         );
+    }
+
+    // -------------------------------------------------------------------------
+    // StateBecomes: becomes-tapped / becomes-untapped ([CR#603.2e])
+    // -------------------------------------------------------------------------
+
+    /// `StateBecomes(of: Ref(This), becomes: Tapped)` matches the watcher's
+    /// own tap fact, anchored by the `of` filter — and not another object's.
+    #[test]
+    fn becomes_tapped_matches_the_tap_fact() {
+        use deckmaste_core::StateFilterEvent;
+
+        let (mut state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        let other = {
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let card = state.cards.push(bears, PlayerId(0));
+            let id = state.objects.mint(
+                ObjectSource::Card(card),
+                PlayerId(0),
+                Some(Zone::Battlefield),
+            );
+            state.zones.battlefield.push(id);
+            id
+        };
+        let pattern = Event::StateBecomes {
+            of: Filter::Ref(Reference::This),
+            becomes: StateFilterEvent::Tapped,
+            cause: None,
+        };
+        let own_tap = GameEvent::Tapped {
+            object: bear,
+            cause: None,
+        };
+        let other_tap = GameEvent::Tapped {
+            object: other,
+            cause: None,
+        };
+        assert!(
+            state.event_matches(&pattern, &own_tap, watcher_source),
+            "the watcher's own tap matches"
+        );
+        assert!(
+            !state.event_matches(&pattern, &other_tap, watcher_source),
+            "another object's tap fails the of-filter"
+        );
+        assert!(
+            !state.event_matches(&pattern, &GameEvent::Untapped(bear), watcher_source),
+            "an untap is not a tap"
+        );
+    }
+
+    /// `StateBecomes(becomes: Untapped)` matches the untap fact and not the
+    /// tap fact.
+    #[test]
+    fn becomes_untapped_matches_the_untap_fact() {
+        use deckmaste_core::StateFilterEvent;
+
+        let (state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        let pattern = Event::StateBecomes {
+            of: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            becomes: StateFilterEvent::Untapped,
+            cause: None,
+        };
+        assert!(state.event_matches(&pattern, &GameEvent::Untapped(bear), watcher_source));
+        assert!(!state.event_matches(
+            &pattern,
+            &GameEvent::Tapped {
+                object: bear,
+                cause: None
+            },
+            watcher_source
+        ));
+    }
+
+    /// The tap-cause table ([CR#107.5] cost vs [CR#701.26a] effect) narrows a
+    /// becomes-tapped pattern through the same cause triple as `ZoneMove`.
+    #[test]
+    fn becomes_tapped_cause_narrows() {
+        use deckmaste_core::CausePattern;
+        use deckmaste_core::StateFilterEvent;
+
+        let (state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        let pattern = Event::StateBecomes {
+            of: Filter::Any,
+            becomes: StateFilterEvent::Tapped,
+            cause: Some(deckmaste_core::Cause::Cause(CausePattern {
+                verb: None,
+                agency: Some(deckmaste_core::Agency::CostPayment),
+                agent: None,
+            })),
+        };
+        let cost_tap = GameEvent::Tapped {
+            object: bear,
+            cause: Some(crate::event::Cause {
+                verb: "Tap".into(),
+                agency: deckmaste_core::Agency::CostPayment,
+                agent: None,
+            }),
+        };
+        let effect_tap = GameEvent::Tapped {
+            object: bear,
+            cause: Some(crate::event::Cause {
+                verb: "Tap".into(),
+                agency: deckmaste_core::Agency::EffectInstruction,
+                agent: None,
+            }),
+        };
+        assert!(state.event_matches(&pattern, &cost_tap, watcher_source));
+        assert!(!state.event_matches(&pattern, &effect_tap, watcher_source));
     }
 
     // -------------------------------------------------------------------------
