@@ -94,6 +94,7 @@ impl GameState {
                 what,
                 from,
                 to,
+                face,
                 cause,
             } => {
                 // P0.W3 seam: cause-pattern evaluation (verb/agency equality
@@ -102,6 +103,12 @@ impl GameState {
                 // everything.
                 if cause.is_some() {
                     todo!("P0.W3: cause-pattern matching");
+                }
+                // P0.W6 seam: same discipline for the face coordinate —
+                // emitters don't track face yet, so an "enters face down"
+                // pattern must trip, not silently never fire.
+                if face.is_some() {
+                    todo!("P0.W6: face-coordinate matching");
                 }
                 match event {
                     GameEvent::ZoneChanged {
@@ -138,6 +145,19 @@ impl GameState {
                 // P0.W3 seam: see ZoneMove above.
                 if cause.is_some() {
                     todo!("P0.W3: cause-pattern matching");
+                }
+                // P0.W6 seam: the new becomes-delta kinds (phasing,
+                // turn-face, designation, control) have no emitting
+                // machinery yet — a pattern watching one must trip, not
+                // silently never fire.
+                if matches!(
+                    becomes,
+                    StateFilterEvent::Phased(_)
+                        | StateFilterEvent::TurnedFace(_)
+                        | StateFilterEvent::Designated(_)
+                        | StateFilterEvent::ControlledBy(_)
+                ) {
+                    todo!("P0.W6: becomes-delta matching for {becomes:?}");
                 }
                 let live = match (becomes, event) {
                     (StateFilterEvent::Attacking, GameEvent::Attacking(o)) => Some(*o),
@@ -628,6 +648,8 @@ mod tests {
     fn zone_changed_event(state: &GameState, id: ObjectId, from: Zone, to: Zone) -> GameEvent {
         let snapshot = LkiSnapshot::capture(state, id);
         GameEvent::ZoneChanged {
+            face: None,
+
             cause: None,
             snapshot,
             from: Some(from),
@@ -689,6 +711,7 @@ mod tests {
 
         // The pattern from Dies(Type(Creature)) — built directly.
         let pattern = Event::ZoneMove {
+            face: None,
             cause: None,
             what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
             from: Some(Zone::Battlefield),
@@ -748,10 +771,12 @@ mod tests {
             snapshot,
             from: Some(Zone::Hand),
             to: Zone::Battlefield,
+            face: None,
             cause: None,
         };
 
         let dies_pattern = Event::ZoneMove {
+            face: None,
             cause: None,
             what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
             from: Some(Zone::Battlefield),
@@ -791,10 +816,12 @@ mod tests {
             snapshot,
             from: Some(Zone::Battlefield),
             to: Zone::Graveyard,
+            face: None,
             cause: None,
         };
 
         let dies_pattern = Event::ZoneMove {
+            face: None,
             cause: None,
             what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
             from: Some(Zone::Battlefield),
@@ -860,6 +887,7 @@ mod tests {
 
         // Pattern: Dies(Ref(This))
         let self_dies = Event::ZoneMove {
+            face: None,
             cause: None,
             what: Filter::Ref(Reference::This),
             from: Some(Zone::Battlefield),
@@ -929,6 +957,7 @@ mod tests {
 
         // Pattern: Enters(Ref(This))
         let self_enters = Event::ZoneMove {
+            face: None,
             cause: None,
             what: Filter::Ref(Reference::This),
             from: None,
@@ -950,6 +979,7 @@ mod tests {
             snapshot: enters_snapshot,
             from: Some(Zone::Hand),
             to: Zone::Battlefield,
+            face: None,
             cause: None,
         };
 
@@ -973,6 +1003,7 @@ mod tests {
             to: Zone::Battlefield,
             enters: None,
             position: None,
+            face: None,
             cause: None,
         };
         assert!(
@@ -1042,6 +1073,7 @@ mod tests {
         assert_eq!(
             *expanded.value,
             Event::ZoneMove {
+                face: None,
                 cause: None,
                 what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
                 from: Some(Zone::Battlefield),
@@ -1064,6 +1096,7 @@ mod tests {
         assert_eq!(
             *expanded.value,
             Event::ZoneMove {
+                face: None,
                 cause: None,
                 what: Filter::Ref(Reference::This),
                 from: None,

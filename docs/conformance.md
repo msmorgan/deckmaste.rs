@@ -26,16 +26,16 @@ remaining non-✓ row reads **engine-seam**.
 | P/T, loyalty, defense comparisons (layer-output reads) | `Stat(…)` over the layered view | ✓ |
 | has-ability / lacks-ability | `HasAbility(Ident)` / `Not(…)` | ✓ |
 | implicit zone quantifier (bare desc = battlefield permanent) | parser convention; canonical filters spell `InZone` explicitly | ✓ (by policy) |
-| status tests (tapped / flipped / face-down / phased) | `Status(Status)` | ✓ grammar; tapped live, other object flags engine-seam (face-down model P0.W6) |
+| status tests (tapped / flipped / face-down / phased) | `Status(Status)` — the full [CR#110.5] 4×2 vocabulary | ✓ grammar; tapped live, other object flags engine-seam |
 | combat-state tests (attacking, blocking, unblocked) | `StateFilter::{Attacking, Blocking, Unblocked}` | ✓ grammar; eval engine-seam |
-| face-down characteristic exposure | — | MISSING (P0.W6) |
+| face-down characteristic exposure | `FaceDownSpec` (listed characteristics [CR#708.2]; `Default` = the 2/2 [CR#708.2a]) | ✓ grammar; object face flags + look rights ([CR#406.3,708.5]) engine-seam |
 | controller / owner / opponent-of | `Controller` / `Owner` / `OpponentOf` | ✓ |
 | attached-to / attachment | `AttachedTo` / `Attachment` | ✓ |
 | generic relations (paired-with, exiled-with, …) | `RelatedBy(Ident, Filter)` | ✓ |
 | cause-agent predicate ("destroyed by a spell an opponent controls") | `CausePattern.agent` | ✓ grammar; matching engine-seam |
 | targeting tests ("with N targets", "that targets …") | — | MISSING (P0.W4b mini-dialogue) |
 | zone tests | `InZone(Zone)` — seven zones; no ante (variant-gated) | ✓ |
-| has-counter | `HasCounter(Ident)` | ✓ |
+| has-counter | `HasCounter(Ident)` — LIVE read; player counters via the proxy object's map | ✓ |
 | designations, stored + derived | `Designated(Ident)` reads LIVE off the engine `DesignationStore` | ✓ — registry live; granting effects engine-seam (table 6) |
 | player-property tests (life-total comparisons, speed) | designations cover flags; numeric player stats | partial — MISSING (P0.W4) |
 | `target [desc]` | `Target(Quantity, Filter)` | ✓ |
@@ -54,7 +54,7 @@ remaining non-✓ row reads **engine-seam**.
 
 | skill concept | deckmaste | status |
 |---|---|---|
-| zone-change master event (object, from, to, position, face, cause) | core `Event::ZoneMove`; engine `ZoneWillChange`/`ZoneChanged` | partial — `face` + `cause` fields MISSING (P0.W3/W6) |
+| zone-change master event (object, from, to, position, face, cause) | core `Event::ZoneMove`; engine `ZoneWillChange`/`ZoneChanged` — all six coordinates | ✓ — every emitter is face-up today (morph/manifest post-P0); face-narrowed patterns trip the seam |
 | named views: dies / enters | builtin `Dies`/`ThisDies`/`Enters`/`ThisEnters` macros | ✓ |
 | named views: sacrificed / discarded / played | cause triples on `ZoneWillChange`/`ZoneChanged` | ✓ |
 | named views: destroyed (cause-restricted) | engine destroy verb exists; no cause-filtered trigger view | partial (P0.W3 cause triple) |
@@ -69,12 +69,12 @@ remaining non-✓ row reads **engine-seam**.
 | becomes-target (announce-time) | — | MISSING (P0.W3) |
 | attack / block declaration events | `Attacking` / `Blocked` | ✓ |
 | phase / step / turn entry | `TurnBegan` / `StepBegan`; core `BeginningOf(Phase, WhoseTurn)` | ✓ |
-| day/night flip | registry holds the game-scope `Mode`; flip EVENT grammar absent | MISSING (deferred from W5 → P0.W6 dialogue) |
-| phase in / out (explicitly NOT a zone change) | — | MISSING (deferred from W5 → P0.W6 dialogue) |
+| day/night flip | `Event::DesignationChanged` ([CR#731.1a]) + shaped engine event; registry holds the `Mode` | ✓ grammar; flip emission engine-seam |
+| phase in / out (explicitly NOT a zone change) | `StateFilterEvent::Phased(Phasing)` ([CR#702.26b]) | ✓ grammar; phasing machinery engine-seam |
 | coin flip / die roll (ignored-roll never happened) | `CoinFlipped`/`DieRolled` + `FlipCoins`/`RollDice` verbs | ✓ grammar; apply engine-seam |
 | shuffle (also an information event) | — | MISSING (P0.W3) |
-| reveal / look (scoped visibility window) | — | MISSING (P0.W6) |
-| control change + becomes-deltas (transition-only) | core `StateBecomes` (tapped/untapped/attacking/blocked) | partial — control change MISSING (deferred from W5 → P0.W6 dialogue) |
+| reveal / look (scoped visibility window) | `Reveal{what, to}` verb ([CR#701.20a,701.20e]; cost-eligible) + shaped `Revealed` event | ✓ grammar; emit + window lifetimes engine-seam |
+| control change + becomes-deltas (transition-only) | core `StateBecomes` (tapped/untapped/attacking/blocked + phased/turned-face/designated/controlled-by) + shaped `ControlChanged` event | ✓ grammar; new-delta matching + L2 emission engine-seam |
 | cause triple (verb, agency, agent) as event data | core `Agency`/`CausePattern`; engine `Cause` on zone changes + `Tapped` | ✓ — named views are constructors over ONE encoding; pattern matching engine-seam |
 | replaced events never trigger; look-back-in-time triggers | `ZoneWillChange` stage + LKI snapshots | ✓ (engine) |
 
@@ -97,7 +97,7 @@ remaining non-✓ row reads **engine-seam**.
 | pre-game: first turn, mulligans + London bottoming, companion, opening-hand | `PreGame(PreGameKind)` shell (bottoming = committed-hidden) | ✓ schema; surfacing engine-seam |
 | special actions beyond land play | `Action::Special(SpecialAction)` over the closed list | ✓ shell; 116-machinery post-P0 |
 | decider field (other-player choosers) | `DeciderSpec` via `DecisionPoint` | ✓ |
-| visibility classes (open / committed-hidden + audit duty) | `Visibility` via `DecisionPoint` | ✓ schema; audit duty P0.W6 |
+| visibility classes (open / committed-hidden + audit duty) | `Visibility` via `DecisionPoint` | ✓ schema; audit duty (commit-and-open at forced reveals, [CR#708.9]) engine-seam |
 | constraint arbitration (maximize-without-violating) | the Deontic rows ARE the input language | engine-seam (solver post-P0; P0.W1 guards live) |
 | randomness as pseudo-decider (flip/roll kinds) | `DeciderSpec::Rng`; flip/roll verbs + events | ✓ grammar; execution engine-seam |
 
@@ -163,3 +163,25 @@ remaining non-✓ row reads **engine-seam**.
 | derived reads (`Designated(name)` never goes stale) | live registry read in `target.rs` (object entry, or the player's for proxies) | ✓ |
 | emblems: command-zone ability holders, never on the battlefield ([CR#114.1,114.4]) | `PlayerAction::GetEmblem(Vec<Ability>)`; `ObjectKind::Emblem` | ✓ grammar; minting engine-seam |
 | commander designation (damage ledger, command-zone replacement) | — | deferred — variant-gated; arrives with variant support as a designation + damage-result reader |
+
+## 7. Outcomes & information (`outcomes.md`, `information.md` ↔ `action.rs`/`continuous.rs`/engine `sba.rs`/`event.rs`)
+
+| skill concept | deckmaste | status |
+|---|---|---|
+| loss SBAs: life ([CR#704.5a]) / empty draw ([CR#704.5b]) / poison ([CR#704.5c]) | `sba::sweep` + `LossReason` — all three LIVE (poison reads the proxy's counter map, dormant until counter apply lands) | ✓ |
+| effect outcomes: "loses" / "wins the game" ([CR#104.3e,104.2b]) | `PlayerAction::{LoseGame, WinGame}` riding `By(player, …)` | ✓ grammar; resolve arms engine-seam |
+| concession ([CR#104.3a] — unstoppable, pierces every gate) | `Action::Concede` — REAL: always accepted, never offered; two-player terminal tested | ✓ (multiplayer leave-game cleanup [CR#800.4a] = loud seam) |
+| can't-lose / can't-win gates (U5 settled: precedence per check, not consumption) | `StaticEffect::OutcomeGate{who, gate}` over `OutcomeGateKind::{CantLose, CantWin}` | ✓ grammar; SBA-sweep presence guard trips on any gate row |
+| win∧lose → lose arbitration ([CR#104.3f]); same-result SBA batch replacement ([CR#704.7]) | doc-pinned on the gate/verbs | engine-seam (arrives with the outcome verbs) |
+| last-player-standing win / all-lose draw ([CR#104.2a,104.4a]) | `check_game_end` → `GameOutcome::{Win, Draw}` | ✓ |
+| mandatory-loop draw ([CR#104.4b]) | — | engine-seam, BLOCKED on UD-11 equality (no monitor = no trip point; note on `check_game_end`) |
+| restart ([CR#727.1] terminal-with-carryover, restarter starts [CR#727.1a]) | `PlayerAction::RestartGame` (actor binding = the restarter) | ✓ grammar; resolve arm engine-seam |
+| subgames ([CR#729] — a context push, not a restart) | — | deferred (variant-adjacent; noted on the verb's doc) |
+| elimination fallout ([CR#800.4a] objects leave, control ends, residue exiled) | — | loud seam in the concede arm (multiplayer only; two-player terminal needs none) |
+| zone visibility defaults ([CR#400.2] hidden = property of the ZONE) | `Zone::is_hidden()` (hand, library) | ✓ |
+| face-down committed payload ([CR#708.2]; default 2/2 [CR#708.2a]) | `FaceDownSpec` + `Face` on zone events | ✓ grammar; object flags engine-seam (table 1) |
+| look rights are STATEFUL per (player, object) ([CR#406.3] persists past the grant) | — | engine-seam (grant records arrive with face-down exile) |
+| differentiation duty + reveal-on-leave audit ([CR#708.6,708.9]) | — | engine-seam (commit-and-open bookkeeping) |
+| reveal / look operations ([CR#701.20a,701.20e]) | `Reveal{what, to}` (cost-eligible) + `Revealed` event | ✓ grammar; window lifetimes engine-seam |
+| event audience annotations (information.md §6 projection boundary) | `GameEvent::audience(&state)` → `Audience::{Public, Restricted}` — DERIVED, hidden→hidden moves restrict to the owner | ✓ (coarse; refinements ride face-down/look machinery) |
+| per-player information-set projection | — | runner concern BY DESIGN (the full-info punt; annotations above are its contract) |

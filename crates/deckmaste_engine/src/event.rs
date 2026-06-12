@@ -8,13 +8,21 @@ use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::player::PlayerId;
 
-/// Why a player lost ([CR#704.5]).
+/// Why a player lost ([CR#104.3,704.5]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LossReason {
     /// [CR#704.5a].
     LifeZero,
-    /// [CR#704.5c].
+    /// [CR#704.5b].
     DrewFromEmpty,
+    /// Ten or more poison counters ([CR#704.5c]; Two-Headed Giant swaps in
+    /// the fifteen-counter TEAM check [CR#704.6b] — variant-gated).
+    Poison,
+    /// Concession ([CR#104.3a]) — immediate, any time, and UNSTOPPABLE:
+    /// the single exception to card-beats-rules ([CR#101.1]); no `CantLose`
+    /// gate touches it, and a controlled player's controller can't prevent
+    /// it ([CR#723.6]).
+    Conceded,
 }
 
 /// A concrete occurrence: what `Emit` pushes through the (future) cant →
@@ -45,10 +53,10 @@ pub enum GameEvent {
     // indestructible, above Battlefield→Graveyard) and `WillDiscard` (madness, above
     // Hand→Graveyard) — the replaceable intents above their committed zone changes,
     // like `WillDraw` below. Destroy already emits `ZoneWillChange` directly.
-    /// The INTENT of a draw ([CR#120.1]). Replaceable (Notion Thief, Lab
+    /// The INTENT of a draw ([CR#121.1]). Replaceable (Notion Thief, Lab
     /// Maniac — future). Its apply checks the library: a card present → bind
     /// the top, bump `CardsDrawn`, and evolve into `ZoneWillChange(Library →
-    /// Hand)`; an empty library → `DrewFromEmpty` ([CR#120.3,704.5c]). `source`
+    /// Hand)`; an empty library → `DrewFromEmpty` ([CR#121.4,704.5b]). `source`
     /// is the object that drew the card, or `None` for the turn-based draw-step
     /// draw ([CR#504.1]) — "the first card you draw on your draw step" keys on
     /// `None`.
@@ -123,6 +131,11 @@ pub enum GameEvent {
         to: Zone,
         enters: Option<EnterStatus>,
         position: Option<Uint>,
+        /// The face shown on arrival — the master event's `face`
+        /// coordinate; `None` = the default, face up ([CR#110.5b]). No
+        /// emitter sets `Down` yet (morph/manifest are post-P0 macros);
+        /// reveal-on-leave ([CR#708.9]) hooks here when they do.
+        face: Option<deckmaste_core::Face>,
         /// `None` = an unattributed move; named views (sacrificed,
         /// discarded, played) ride here as cause triples.
         cause: Option<Cause>,
@@ -133,6 +146,8 @@ pub enum GameEvent {
         snapshot: crate::lki::LkiSnapshot,
         from: Option<Zone>,
         to: Zone,
+        /// Copied through from the `ZoneWillChange` intent.
+        face: Option<deckmaste_core::Face>,
         /// Copied through from the `ZoneWillChange` intent.
         cause: Option<Cause>,
     },
@@ -197,6 +212,33 @@ pub enum GameEvent {
     /// resolving (or fizzled) and vanishes — no zone move. Its apply removes
     /// the stack entry whose `id` is the carried (minted) token.
     AbilityResolved(ObjectId),
+    /// Cards shown ([CR#701.20a]); `to: None` = revealed to ALL players,
+    /// `Some` = "look at" — the same operation shown to a subset
+    /// ([CR#701.20e]). Revealing never moves the card ([CR#701.20b]).
+    /// Shaped, unbuilt: the `Reveal` resolve seam emits it (P0.W6); the
+    /// reveal WINDOW (how long it stays shown) is effect-instance
+    /// machinery.
+    Revealed {
+        objects: Vec<ObjectId>,
+        to: Option<Vec<PlayerId>>,
+    },
+    /// A GAME-scope designation transition in the W5 registry (day/night,
+    /// [CR#731.1] — "day becomes night" = losing one designation and
+    /// gaining the other, [CR#731.1a]). Shaped, unbuilt: designation
+    /// GRANTING effects are P0.W5/W6 seams. Object/player designation
+    /// deltas ride their own facts when granting lands.
+    DesignationChanged {
+        name: deckmaste_core::Ident,
+        becomes: Option<deckmaste_core::Ident>,
+    },
+    /// An object changed controller — a becomes-delta, never a zone move
+    /// (the object keeps its identity). Shaped, unbuilt: control-changing
+    /// continuous effects are a layers seam (L2); its apply will re-home
+    /// the object and fire `StateFilterEvent::ControlledBy` patterns.
+    ControlChanged {
+        object: ObjectId,
+        to: PlayerId,
+    },
 }
 
 /// How a permanent enters the battlefield ([CR#110.5] status;
@@ -205,6 +247,59 @@ pub enum GameEvent {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct EnterStatus {
     pub tapped: bool,
+}
+
+/// Who learns an event's full payload — the projection-boundary annotation
+/// the per-player view (a RUNNER concern; the engine stays
+/// full-information) consumes. mtg-rules information.md §6: replay,
+/// netplay, and AI all read this layer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Audience {
+    /// Everyone sees the whole payload ([CR#400.2] public-zone default).
+    Public,
+    /// The full payload is for these players; everyone else learns only
+    /// THAT the event happened (shape and count, not identity — a hidden
+    /// zone's size is public, [CR#401.3,402.3]).
+    Restricted(Vec<PlayerId>),
+}
+
+impl GameEvent {
+    /// The event's audience, DERIVED from kind + payload (the
+    /// schema-from-kind pattern — no stored field to drift). Coarse first
+    /// pass: a move between two hidden zones discloses the card's identity
+    /// to its owner alone ([CR#400.2] — a draw, a mulligan bottoming);
+    /// either endpoint public makes the identity public history (a
+    /// discard arrives face up in a public zone) even though a hidden
+    /// destination then conceals the card. Subset reveals restrict to the
+    /// named players ([CR#701.20e]). Refinements — face-down commitments
+    /// ([CR#708.2]), stateful look grants ([CR#406.3]) — arrive with
+    /// their machinery.
+    #[must_use]
+    pub fn audience(&self, state: &crate::state::GameState) -> Audience {
+        match self {
+            GameEvent::ZoneWillChange {
+                object,
+                from: Some(from),
+                to,
+                ..
+            } if from.is_hidden() && to.is_hidden() => {
+                Audience::Restricted(vec![state.owner_of(*object)])
+            }
+            GameEvent::ZoneChanged {
+                snapshot,
+                from: Some(from),
+                to,
+                ..
+            } if from.is_hidden() && to.is_hidden() => match snapshot.source {
+                ObjectSource::Card(card) => Audience::Restricted(vec![state.cards.get(card).owner]),
+                ObjectSource::Player(p) => Audience::Restricted(vec![p]),
+            },
+            GameEvent::Revealed {
+                to: Some(players), ..
+            } => Audience::Restricted(players.clone()),
+            _ => Audience::Public,
+        }
+    }
 }
 
 /// A scheduled occurrence: one event, or a set of simultaneous events applied

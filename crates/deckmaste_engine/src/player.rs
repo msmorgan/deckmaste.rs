@@ -67,7 +67,7 @@ pub struct PlayerState {
     pub life: Int,
     pub max_hand_size: Uint,
     pub this_turn: crate::tally::Tallies,
-    /// [CR#704.5c] flag: tried to draw from an empty library.
+    /// [CR#704.5b] flag: tried to draw from an empty library.
     pub drew_from_empty: bool,
     pub lost: bool,
     pub mana_pool: ManaPool,
