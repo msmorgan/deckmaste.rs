@@ -33,7 +33,7 @@ backlog (needs design dialogue)*, *variant-gated*, *UD-blocked*, or
 | implicit zone quantifier (bare desc = battlefield permanent) | parser convention; canonical filters spell `InZone` explicitly | ✓ (by policy) |
 | status tests (tapped / flipped / face-down / phased) | `Status(Status)` — the full [CR#110.5] 4×2 vocabulary | ✓ grammar; tapped live, other object flags engine-seam |
 | combat-state tests (attacking, blocking, unblocked) | `StateFilter::{Attacking, Blocking, Unblocked}` | ✓ grammar; eval engine-seam |
-| face-down characteristic exposure | `FaceDownSpec` (listed characteristics [CR#708.2]; `Default` = the 2/2 [CR#708.2a]) | ✓ grammar; object face flags + look rights ([CR#406.3,708.5]) engine-seam |
+| face-down characteristic exposure | `FaceDownSpec::Listed(FaceDownCharacteristics)` (single-variant enum — the [CR#406.3a] no-characteristics case accretes there; `Default` = the 2/2 [CR#708.2a]) | ✓ grammar; object face flags + look rights ([CR#406.3,708.5]) engine-seam |
 | controller / owner / opponent-of | `Controller` / `Owner` / `OpponentOf` | ✓ |
 | attached-to / attachment | `AttachedTo` / `Attachment` | ✓ |
 | generic relations (paired-with, exiled-with, …) | `RelatedBy(Ident, Filter)` | ✓ |
@@ -184,7 +184,7 @@ backlog (needs design dialogue)*, *variant-gated*, *UD-blocked*, or
 | subgames ([CR#729] — a context push, not a restart) | — | deferred (variant-adjacent; noted on the verb's doc) |
 | elimination fallout ([CR#800.4a] objects leave, control ends, residue exiled) | — | loud seam in the concede arm (multiplayer only; two-player terminal needs none) |
 | zone visibility defaults ([CR#400.2] hidden = property of the ZONE) | `Zone::is_hidden()` (hand, library) | ✓ |
-| face-down committed payload ([CR#708.2]; default 2/2 [CR#708.2a]) | `FaceDownSpec` + `Face` on zone events | ✓ grammar; object flags engine-seam (table 1) |
+| face-down committed payload ([CR#708.2]; default 2/2 [CR#708.2a]) | `FaceDownSpec::Listed` + `Face` on zone events | ✓ grammar; object flags engine-seam (table 1) |
 | look rights are STATEFUL per (player, object) ([CR#406.3] persists past the grant) | — | engine-seam (grant records arrive with face-down exile) |
 | differentiation duty + reveal-on-leave audit ([CR#708.6,708.9]) | — | engine-seam (commit-and-open bookkeeping) |
 | reveal / look operations ([CR#701.20a,701.20e]) | `Reveal{what, to}` (cost-eligible) + `Revealed` event | ✓ grammar; window lifetimes engine-seam |

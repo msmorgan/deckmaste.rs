@@ -3,7 +3,7 @@ use crate::Expansion;
 use crate::Reference;
 use crate::Selection;
 use crate::SupportsMacros;
-use crate::Token;
+use crate::TokenSpec;
 use crate::mana::ManaProduction;
 
 /// An intrinsic game verb ([CR#700,701]) whose **agent is the source object or
@@ -60,7 +60,7 @@ pub enum PlayerAction {
     /// carries optional unit riders ([CR#106.6]).
     AddMana(Count, ManaProduction),
     /// Create a number of token permanents ([CR#111.1,701.7]).
-    Create(Count, Token),
+    Create(Count, TokenSpec),
     /// Sacrifice a selected permanent ([CR#701.21]).
     Sacrifice(Selection),
     /// Exile a selection ([CR#701.13]).
@@ -70,8 +70,8 @@ pub enum PlayerAction {
     /// Untap a selection ([CR#701.26b]).
     Untap(Selection),
     /// "You get an emblem with [abilities]" — a command-zone object that
-    /// never touches the battlefield (rules-taxonomy §6 degenerate
-    /// `TokenSpec`; [CR#114.1,114.4]).
+    /// never touches the battlefield (rules-taxonomy §6: a degenerate
+    /// token definition; [CR#114.1,114.4]).
     GetEmblem(Vec<crate::Ability>),
     /// A resolution choice stored under a note key ([CR#608.2d] choice +
     /// [CR#607.2] slot): "choose a color" and kin.
