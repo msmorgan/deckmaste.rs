@@ -86,25 +86,12 @@ fn has_type(state: &GameState, id: ObjectId, ty: Type) -> bool {
 fn is_creature(state: &GameState, id: ObjectId) -> bool { has_type(state, id, Type::Creature) }
 fn is_land(state: &GameState, id: ObjectId) -> bool { has_type(state, id, Type::Land) }
 
-/// The mana value of a card-backed object's printed cost.
+/// The mana value of a card-backed object's printed cost ([CR#202.3]).
 fn mana_value(state: &GameState, id: ObjectId) -> Uint {
     let cost = match state.def(id) {
         Card::Normal(f) | Card::ModalDfc(f, _) => &f.mana_cost,
     };
-    mana_cost_value(cost)
-}
-
-fn mana_cost_value(cost: &ManaCost) -> Uint {
-    let mut mv = 0;
-    for sym in cost.iter() {
-        match sym {
-            ManaSymbol::Simple(SimpleManaSymbol::Generic(n)) => mv += *n,
-            ManaSymbol::Simple(SimpleManaSymbol::Specific(_)) => mv += 1,
-            // X / hybrid / phyrexian / snow don't occur in this harness's cards.
-            _ => {}
-        }
-    }
-    mv
+    cost.mana_value()
 }
 
 /// The cheapest mana value among hand cards of `ty` the player could aim to
