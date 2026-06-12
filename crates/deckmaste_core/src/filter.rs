@@ -71,6 +71,15 @@ pub enum StateFilter {
     Blocking,
     /// Attacking and unblocked once blockers are declared ([CR#509.1h]).
     Unblocked,
+    /// "that targets [desc]" ([CR#115.9b]): a stack object one of whose
+    /// chosen targets CURRENTLY matches — departed targets are ignored,
+    /// never read through LKI (the one value read with no LKI fallback).
+    /// Box breaks the `Filter` size cycle.
+    Targets(Box<Filter>),
+    /// "with [N] target(s)" ([CR#115.9a]): counts the target instances
+    /// chosen at stack-put; "targets only …" counts distinct chosen
+    /// targets, then checks current state ([CR#115.9c]).
+    TargetCount(crate::CountBound),
 }
 
 /// Structural relations the engine owns. Relations are

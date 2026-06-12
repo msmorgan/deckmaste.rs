@@ -116,6 +116,15 @@ pub enum PlayerAction {
     /// winner, loser, or draw. Subgames ([CR#729]) are a different,
     /// deferred concept (a context push, not a restart).
     RestartGame,
+    /// Shuffle the actor's library ([CR#701.24a]) — an INFORMATION event
+    /// too: order knowledge is destroyed for everyone, and revealed cards
+    /// in the library stop being revealed and become new objects
+    /// ([CR#701.20d]). Why library actions never rewind: [CR#733.1].
+    Shuffle,
+    /// Set the actor's life total to N ([CR#119.5]): resolves as a gain
+    /// or loss of the necessary difference — triggers see the gain/loss,
+    /// never a "set" event. Equal totals = no event (transition-only).
+    SetLife(Count),
     /// Reveal a selection to all players ([CR#701.20a]); `to` names a
     /// player instead = "look at" — same operation shown to a subset
     /// ([CR#701.20e]). Revealing never moves the card ([CR#701.20b]).

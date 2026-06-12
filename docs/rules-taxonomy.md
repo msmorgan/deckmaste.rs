@@ -674,7 +674,7 @@ between two abilities on a face), and granted-vs-printed provenance
 **Keyword classification** — the full 260-row derivation (192 abilities +
 68 actions, each classified by what an engine must build) lives in the
 mtg-rules skill's `keyword-classification.md` + `keywords-classified.json`.
-Pinned baseline: **skill v1.7.0** (commit `31e8cb3f`, CR effective
+Pinned baseline: **skill v1.7.0** (commit `31797b3e`, CR effective
 2026-04-17, keywords-classified sha256 `0f984a98b363…`; re-run the skill's
 `scripts/version` and re-sync this section when it bumps). Rubric:
 decompose to statics + triggers + replacements + permissions/restrictions +

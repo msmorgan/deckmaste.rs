@@ -268,6 +268,31 @@ impl GameState {
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
+            // [CR#701.8a]: destroy = battlefield → graveyard, cause-tagged
+            // so the "destroyed" named view can narrow by verb ([CR#701.8b]
+            // — this verb or the lethal-damage SBA are its only two
+            // causes). Regeneration/indestructible ride the shaped-unbuilt
+            // `WillDestroy` intent (seam); destruction is direct until then.
+            Action::Destroy(sel) => {
+                let events: Vec<GameEvent> = self
+                    .eval_selection_set(sel, frame)
+                    .into_iter()
+                    .map(|object| GameEvent::ZoneWillChange {
+                        object,
+                        from: Some(Zone::Battlefield),
+                        to: Zone::Graveyard,
+                        enters: None,
+                        position: None,
+                        face: None,
+                        cause: Some(Cause {
+                            verb: "Destroy".into(),
+                            agency: Agency::EffectInstruction,
+                            agent: Some((frame.source, frame.controller)),
+                        }),
+                    })
+                    .collect();
+                vec![WorkItem::Emit(occurrence_of(events))]
+            }
             // The named player performs the verb: resolve `who` to the acting
             // player, then dispatch the `PlayerAction`. `By(You, …)` (the
             // implicit-you default) resolves to `frame.controller` — identical
@@ -276,7 +301,9 @@ impl GameState {
                 let actor = self.acting_player(who, frame);
                 self.player_action_items(pa, actor, frame)
             }
-            other => todo!("stage 3 does not perform action {other:?}"),
+            other @ Action::ReturnToHand(_) => {
+                todo!("stage 3 does not perform action {other:?}")
+            }
         }
     }
 
@@ -413,6 +440,33 @@ impl GameState {
             }
             // P0.W5 seam: emblem minting into the command zone.
             PlayerAction::GetEmblem(..) => todo!("P0.W5: emblems ([CR#114.1])"),
+            // [CR#701.24a]: shuffle the actor's library; the Shuffled
+            // apply randomizes via the seeded rng.
+            PlayerAction::Shuffle => {
+                vec![WorkItem::Emit(Occurrence::single(GameEvent::Shuffled(
+                    actor,
+                )))]
+            }
+            // [CR#119.5]: set-to-N resolves as a gain or loss of the
+            // difference — triggers see the gain/loss, never a "set";
+            // equal totals produce no event (transition-only).
+            PlayerAction::SetLife(qty) => {
+                let target = deckmaste_core::Int::try_from(self.eval_count(qty, frame))
+                    .expect("life total fits in i32");
+                let current = self.player(actor).life;
+                let event = match target.cmp(&current) {
+                    std::cmp::Ordering::Less => GameEvent::LifeLost {
+                        player: actor,
+                        amount: Uint::try_from(current - target).expect("positive difference"),
+                    },
+                    std::cmp::Ordering::Greater => GameEvent::LifeGained {
+                        player: actor,
+                        amount: Uint::try_from(target - current).expect("positive difference"),
+                    },
+                    std::cmp::Ordering::Equal => return vec![],
+                };
+                vec![WorkItem::Emit(Occurrence::single(event))]
+            }
             // P0.W6 seams: outcome verbs (immediate, gate-checked at the
             // OUTCOME layer — never deontic rows) and reveal/look.
             PlayerAction::WinGame => {
@@ -743,6 +797,12 @@ pub(crate) fn target_spec_filter(spec: &TargetSpec) -> &deckmaste_core::Filter {
             // TODO(stage-4): enforce quantity; for now, Stage 3 only exercises
             // single targets and callers expect exactly one target slot.
             f
+        }
+        // P0.W7 seam: the distinctness CONSTRAINT is unenforced — a spec
+        // carrying one must trip loudly, not silently target-overlap
+        // ([CR#115.7e] final-set check at announce + [CR#608.2b] re-check).
+        TargetSpec::Distinct(..) => {
+            todo!("P0.W7: co-target distinctness enforcement ([CR#115.7e])")
         }
         TargetSpec::Expanded(e) => target_spec_filter(&e.value),
     }

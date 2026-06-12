@@ -231,6 +231,19 @@ pub enum GameEvent {
         name: deckmaste_core::Ident,
         becomes: Option<deckmaste_core::Ident>,
     },
+    /// A library was shuffled ([CR#701.24a]) — an INFORMATION event:
+    /// order knowledge is destroyed for every player; revealed cards in
+    /// it stop being revealed and become new objects ([CR#701.20d] —
+    /// revealed-state reset is a P0.W6 seam). Why library actions never
+    /// rewind: [CR#733.1].
+    Shuffled(PlayerId),
+    /// An object became the target of the spell/ability `source` at
+    /// announce ([CR#601.2c]; ward is the family exemplar [CR#702.21a]).
+    /// Shaped, unbuilt: the announce flow emits it (P0.W7 seam).
+    BecameTarget {
+        target: ObjectId,
+        source: ObjectId,
+    },
     /// An object changed controller — a becomes-delta, never a zone move
     /// (the object keeps its identity). Shaped, unbuilt: control-changing
     /// continuous effects are a layers seam (L2); its apply will re-home
