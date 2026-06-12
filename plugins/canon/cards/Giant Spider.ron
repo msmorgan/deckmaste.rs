@@ -1,0 +1,14 @@
+Normal(
+    name: "Giant Spider",
+    mana_cost: [
+        Generic(3),
+        Green,
+    ],
+    types: [Creature],
+    subtypes: [Spider],
+    abilities: [
+        Keyword(Reach),
+    ],
+    power: 2,
+    toughness: 4,
+)

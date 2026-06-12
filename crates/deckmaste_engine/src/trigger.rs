@@ -181,7 +181,12 @@ impl GameState {
     /// is `Ref(This)` ([CR#603.10a] self-reference, which needs the `watcher`);
     /// that is special-cased here (and threaded through the logical
     /// combinators).
-    fn filter_matches_live(&self, filter: &Filter, o: ObjectId, watcher: ObjectSource) -> bool {
+    pub(crate) fn filter_matches_live(
+        &self,
+        filter: &Filter,
+        o: ObjectId,
+        watcher: ObjectSource,
+    ) -> bool {
         match filter {
             // "this object": match only when `o` is the watching object.
             Filter::Ref(Reference::This) => self.objects.obj(o).source == watcher,

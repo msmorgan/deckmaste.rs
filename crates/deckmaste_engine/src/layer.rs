@@ -396,7 +396,7 @@ fn eval_count(n: &Count) -> Int {
 /// variant identifier (e.g. `"Trample"`). Non-keyword abilities have no
 /// simple name and return `false` in v1; `LoseAbility`/`CantHaveAbility`
 /// are defined to target named keyword abilities ([CR#613.1f]).
-fn ability_is_named(a: &Ability, name: &Ident) -> bool {
+pub(crate) fn ability_is_named(a: &Ability, name: &Ident) -> bool {
     match a {
         Ability::Keyword(kw) => name == kw.as_str(),
         Ability::Expanded(e) => ability_is_named(&e.value, name),

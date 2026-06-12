@@ -20,6 +20,7 @@ use deckmaste_core::Phase;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
+use deckmaste_engine::DecisionError;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameEvent;
 use deckmaste_engine::GameState;
@@ -1406,4 +1407,44 @@ fn declare_blockers_skipped_when_no_attackers() {
         ),
         "no blockers step when nothing attacked ([CR#508.8]): {stop:?}"
     );
+}
+
+/// kw-flying goes LIVE: blocking a flier takes flying or reach
+/// ([CR#702.9b]) — the first deontic `Cant(Block)` row the engine
+/// EVALUATES instead of tripping its presence guard. The ground bear's
+/// block is rejected at submission; the reach spider's is accepted.
+#[test]
+fn flying_attacker_blockable_only_by_flying_or_reach() {
+    let strix = card("Baleful Strix");
+    let bears = card("Grizzly Bears");
+    let spider = card("Giant Spider");
+    let mut p1_deck = deck(&bears, 5);
+    p1_deck.extend(deck(&spider, 5));
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig {
+                deck: deck(&strix, 10),
+            },
+            PlayerConfig { deck: p1_deck },
+        ],
+        seed: 11,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Baleful Strix");
+    let bear = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
+    let spider = force_onto_battlefield(&mut state, PlayerId(1), "Giant Spider");
+
+    let (_, legal) = drive_to_declare_blockers(&mut state, vec![attacker]);
+    assert!(legal.contains(&bear) && legal.contains(&spider));
+
+    // A ground creature can't block the flier ([CR#702.9b]).
+    assert!(matches!(
+        state.submit_decision(Decision::Blocks(vec![(bear, attacker)])),
+        Err(DecisionError::Illegal { .. })
+    ));
+    // Reach can — flying's own clause names it ([CR#702.9b,702.17b]).
+    state
+        .submit_decision(Decision::Blocks(vec![(spider, attacker)]))
+        .unwrap();
 }
