@@ -591,11 +591,6 @@ Rows here track that the *patterns* graduate. Slug: `aw-<kebab-case>`.
   today's required `Hexproof()`); needs a probe-free path through serde's
   one-shot `VariantAccess` (or a macro-layer pre-scan), which is why the
   parser currently owns the convention instead.
-- [ ] `cards-keyword-name-lint` — the punted post-parse validator: a
-  `Filter` visitor in `validate.rs` (beside `lint_card_subtypes`)
-  checking `Has`/keyword-reference names against the keyword namespace
-  (native enum ∪ `KeywordAbility`-kind macros). Bar: "doesn't assert
-  nonsense" — benign extras are ignored by design.
 
 - [x] `parse-activated` — activated-ability frame (`cost: effect`), including the
   cost grammar; registry slot exists, parser doesn't.
