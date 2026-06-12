@@ -81,7 +81,9 @@ fn keyword_macros_match_the_classification() {
     let Some(json) = classification() else { return };
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let mut checked = 0;
-    for plugin in ["builtin", "canon", "testing", "for-review"] {
+    // The TRACKED plugins only — local-only artifacts (`for-review`, per its
+    // README) don't exist on fresh clones/workspaces and carry no macros.
+    for plugin in ["builtin", "canon", "testing"] {
         let mut files = Vec::new();
         ron_files_under(
             &root.join("plugins").join(plugin).join("macros"),
