@@ -8,6 +8,7 @@ use deckmaste_core::Int;
 use deckmaste_core::Phase;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
+use rand::RngExt;
 use rand::SeedableRng;
 use rand::seq::SliceRandom;
 use rand_chacha::ChaCha8Rng;
@@ -182,10 +183,7 @@ impl GameState {
         let mut rng = ChaCha8Rng::seed_from_u64(config.seed);
         let starting = match config.starting_player {
             StartingPlayer::Fixed(p) => p,
-            StartingPlayer::Random => PlayerId(rand::Rng::random_range(
-                &mut rng,
-                0..Uint::try_from(n).unwrap(),
-            )),
+            StartingPlayer::Random => PlayerId(rng.random_range(0..Uint::try_from(n).unwrap())),
         };
 
         let mut cards = Cards::default();
