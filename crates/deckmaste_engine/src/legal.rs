@@ -133,6 +133,33 @@ fn is_may(d: &Deontic) -> bool {
     }
 }
 
+/// Whether a deontic row's polarity is `Must`, through `Expanded` wrappers.
+fn is_must(d: &Deontic) -> bool {
+    match d {
+        Deontic::Must(_) => true,
+        Deontic::Expanded(e) => is_must(&e.value),
+        _ => false,
+    }
+}
+
+/// The action under a `Cant` polarity, through `Expanded` wrappers.
+fn cant_action(d: &Deontic) -> Option<&DeonticAction> {
+    match d {
+        Deontic::Cant(a) => Some(a),
+        Deontic::Expanded(e) => cant_action(&e.value),
+        _ => None,
+    }
+}
+
+/// The action under a `Must` polarity, through `Expanded` wrappers.
+fn must_action(d: &Deontic) -> Option<&DeonticAction> {
+    match d {
+        Deontic::Must(a) => Some(a),
+        Deontic::Expanded(e) => must_action(&e.value),
+        _ => None,
+    }
+}
+
 /// P0.W2 presence guard ([CR#601.2f] seam): `CostModifier` rows are
 /// grammar-complete, but no cost-modification pipeline applies them yet —
 /// a row in the derived view would silently change nothing. Loud instead;
@@ -248,13 +275,15 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
 pub fn legal_attackers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
     let view = state.layers();
     // Cant(Attack) rows (defender, [CR#702.3b]; "can't attack" effects) are
-    // EVALUATED below; the guard narrows to the non-Cant Attack polarities
-    // (goad's must-attack, May lifts), which nothing evaluates yet.
+    // EVALUATED below, and Must(Attack) requirements ("attacks if able",
+    // goad) are EVALUATED at declaration submission ([CR#508.1d]); the
+    // guard narrows to the May/Gate Attack polarities (May lifts, Gate
+    // tolls), which nothing evaluates yet.
     guard_deontic_seam(
         state,
         &view,
-        |d| !is_cant(d) && matches!(deontic_action(d), DeonticAction::Attack { .. }),
-        "attack (non-Cant polarities)",
+        |d| !is_cant(d) && !is_must(d) && matches!(deontic_action(d), DeonticAction::Attack { .. }),
+        "attack (May/Gate polarities)",
     );
     let rows = cant_attack_rows(state, &view);
     // [CR#508.1a]: in the two-player game the attacked player is the
@@ -284,33 +313,46 @@ pub fn legal_attackers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
         .collect()
 }
 
-/// Every `Cant(Attack)` row in the derived view, with its carrier —
-/// point-wise by construction (`Attack{by, on}` carries no arrangement
-/// bound).
-#[must_use]
-fn cant_attack_rows(
+/// Every `Attack` row of the polarity `pick` extracts in the derived view,
+/// with its carrier — point-wise by construction (`Attack{by, on}` carries
+/// no arrangement bound).
+fn attack_rows(
     state: &GameState,
     view: &LayeredView,
+    pick: fn(&Deontic) -> Option<&DeonticAction>,
 ) -> Vec<(crate::object::ObjectSource, Filter, Filter)> {
-    fn cant_action(d: &Deontic) -> Option<&DeonticAction> {
-        match d {
-            Deontic::Cant(a) => Some(a),
-            Deontic::Expanded(e) => cant_action(&e.value),
-            _ => None,
-        }
-    }
     let mut rows = Vec::new();
     for &id in &state.zones.battlefield {
         let source = state.objects.obj(id).source;
         statics_on(view, id, &mut |e| {
             if let StaticEffect::Deontic(d) = e
-                && let Some(DeonticAction::Attack { by, on }) = cant_action(d)
+                && let Some(DeonticAction::Attack { by, on }) = pick(d)
             {
                 rows.push((source, by.clone(), on.clone()));
             }
         });
     }
     rows
+}
+
+/// Every `Cant(Attack)` row in the derived view ([CR#702.3b] defender,
+/// "can't attack" effects).
+#[must_use]
+fn cant_attack_rows(
+    state: &GameState,
+    view: &LayeredView,
+) -> Vec<(crate::object::ObjectSource, Filter, Filter)> {
+    attack_rows(state, view, cant_action)
+}
+
+/// Every `Must(Attack)` row in the derived view — attack requirements
+/// ([CR#508.1d]: "attacks if able" effects, goad).
+#[must_use]
+pub(crate) fn must_attack_rows(
+    state: &GameState,
+    view: &LayeredView,
+) -> Vec<(crate::object::ObjectSource, Filter, Filter)> {
+    attack_rows(state, view, must_action)
 }
 
 /// [CR#509.1a]: the creatures `player` could declare as blockers — battlefield
@@ -321,14 +363,15 @@ fn cant_attack_rows(
 pub fn legal_blockers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
     let view = state.layers();
     // Cant(Block) rows — point-wise (flying) AND arrangement-level
-    // (menace's `count`) — are EVALUATED at block submission now; the
-    // guard narrows to the non-Cant Block polarities (must-block, May
-    // lifts), which nothing evaluates yet.
+    // (menace's `count`) — and Must(Block) requirements ([CR#509.1c]
+    // must-block) are EVALUATED at block submission now; the guard
+    // narrows to the May/Gate Block polarities (May lifts, Gate tolls),
+    // which nothing evaluates yet.
     guard_deontic_seam(
         state,
         &view,
-        |d| !is_cant(d) && matches!(deontic_action(d), DeonticAction::Block { .. }),
-        "block (non-Cant polarities)",
+        |d| !is_cant(d) && !is_must(d) && matches!(deontic_action(d), DeonticAction::Block { .. }),
+        "block (May/Gate polarities)",
     );
     state
         .zones
@@ -344,34 +387,31 @@ pub fn legal_blockers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
         .collect()
 }
 
-/// One `Cant(Block)` row from the derived view: the carrier it sits on,
-/// the `by`/`on` filters, and the arrangement bound when present
-/// (menace's `count`, [CR#702.111b]).
-pub(crate) struct CantBlockRow {
+/// One `Block`-action deontic row from the derived view (the polarity is
+/// the collector's): the carrier it sits on, the `by`/`on` filters, and
+/// the arrangement bound when present (menace's `count`, [CR#702.111b]).
+pub(crate) struct BlockRow {
     pub carrier: crate::object::ObjectSource,
     pub by: Filter,
     pub on: Filter,
     pub count: Option<deckmaste_core::CountBound>,
 }
 
-/// Every `Cant(Block)` row in the derived view, with its carrier.
-#[must_use]
-pub(crate) fn cant_block_rows(state: &GameState, view: &LayeredView) -> Vec<CantBlockRow> {
-    fn cant_action(d: &Deontic) -> Option<&DeonticAction> {
-        match d {
-            Deontic::Cant(a) => Some(a),
-            Deontic::Expanded(e) => cant_action(&e.value),
-            _ => None,
-        }
-    }
+/// Every `Block` row of the polarity `pick` extracts in the derived view,
+/// with its carrier.
+fn block_rows(
+    state: &GameState,
+    view: &LayeredView,
+    pick: fn(&Deontic) -> Option<&DeonticAction>,
+) -> Vec<BlockRow> {
     let mut rows = Vec::new();
     for &id in &state.zones.battlefield {
         let source = state.objects.obj(id).source;
         statics_on(view, id, &mut |e| {
             if let StaticEffect::Deontic(d) = e
-                && let Some(DeonticAction::Block { by, on, count }) = cant_action(d)
+                && let Some(DeonticAction::Block { by, on, count }) = pick(d)
             {
-                rows.push(CantBlockRow {
+                rows.push(BlockRow {
                     carrier: source,
                     by: by.clone(),
                     on: on.clone(),
@@ -381,6 +421,21 @@ pub(crate) fn cant_block_rows(state: &GameState, view: &LayeredView) -> Vec<Cant
         });
     }
     rows
+}
+
+/// Every `Cant(Block)` row in the derived view ([CR#702.9b] flying-family
+/// evasion, [CR#702.111b] menace's bound).
+#[must_use]
+pub(crate) fn cant_block_rows(state: &GameState, view: &LayeredView) -> Vec<BlockRow> {
+    block_rows(state, view, cant_action)
+}
+
+/// Every `Must(Block)` row in the derived view — block requirements
+/// ([CR#509.1c]: "blocks if able" effects, "all creatures able to block …
+/// do so").
+#[must_use]
+pub(crate) fn must_block_rows(state: &GameState, view: &LayeredView) -> Vec<BlockRow> {
+    block_rows(state, view, must_action)
 }
 
 /// Walks one object's derived abilities with the same look-through rules as
@@ -428,7 +483,7 @@ fn statics_on<F: FnMut(&StaticEffect)>(view: &LayeredView, id: ObjectId, visit: 
 #[must_use]
 pub(crate) fn block_forbidden_by(
     state: &GameState,
-    rows: &[CantBlockRow],
+    rows: &[BlockRow],
     blocker: ObjectId,
     attacker: ObjectId,
 ) -> Option<crate::object::ObjectSource> {
@@ -448,7 +503,7 @@ pub(crate) fn block_forbidden_by(
 #[must_use]
 pub(crate) fn arrangement_forbidden_by(
     state: &GameState,
-    rows: &[CantBlockRow],
+    rows: &[BlockRow],
     attacker: ObjectId,
     blockers: &[ObjectId],
 ) -> Option<crate::object::ObjectSource> {
