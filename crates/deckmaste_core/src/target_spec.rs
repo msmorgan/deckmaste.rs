@@ -5,7 +5,7 @@ use crate::SupportsMacros;
 
 /// One entry in an ability's announce list ([CR#601.2c,115]). A `TargetSpec`
 /// is the only place "target" lives: it binds `Reference::Target(n)` for the
-/// effect body to read, and is rechecked at resolution ([CR#608.2c..608.2d]).
+/// effect body to read, and is rechecked at resolution ([CR#608.2b]).
 ///
 /// Separated from [`crate::Selection`] so that resolution-time choices
 /// (`Each`, `Choose`, …) and announce-time targets never share a position —

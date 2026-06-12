@@ -82,7 +82,8 @@ pub struct TriggeredAbility {
 /// functions ([CR#611.3]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub struct StaticAbility {
-    /// When the ability functions, if conditional ([CR#604.3]).
+    /// When the ability functions, if conditional ([CR#611.3a] — the effect
+    /// is never locked in; it applies to whatever its text indicates).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub condition: Option<Condition>,
     pub effects: Vec<StaticEffect>,

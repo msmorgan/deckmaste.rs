@@ -28,7 +28,7 @@ pub enum Stat {
 /// (the Tally registry; turn-scoped unless noted).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize, Expand)]
 pub enum QueryKey {
-    /// Cards the evaluating player drew this turn ([CR#120]).
+    /// Cards the evaluating player drew this turn ([CR#121]).
     CardsDrawnThisTurn,
     /// Lands the evaluating player played this turn ([CR#305.2]).
     LandsPlayedThisTurn,

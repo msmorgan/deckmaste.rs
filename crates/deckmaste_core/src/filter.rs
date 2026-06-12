@@ -91,7 +91,7 @@ pub enum RelationFilter {
     Controller(Box<Filter>),
     /// The object's owner matches ([CR#108.3]).
     Owner(Box<Filter>),
-    /// The object is an opponent of a matching player ([CR#102.1]).
+    /// The object is an opponent of a matching player ([CR#102.2,102.3]).
     OpponentOf(Box<Filter>),
     /// The object is attached to a matching object ([CR#301.5,303.4]).
     AttachedTo(Box<Filter>),

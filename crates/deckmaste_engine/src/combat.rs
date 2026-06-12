@@ -43,7 +43,7 @@ pub fn has_keyword_named(view: &LayeredView, object: ObjectId, name: &str) -> bo
         .any(|a| matches!(a, Ability::Keyword(k) if k.as_str() == name))
 }
 
-/// [CR#702.7c,702.4]: whether `object` deals damage in the FIRST combat-damage
+/// [CR#702.7b,702.4]: whether `object` deals damage in the FIRST combat-damage
 /// step — true iff it has first strike OR double strike.
 #[must_use]
 pub fn deals_first_strike(view: &LayeredView, object: ObjectId) -> bool {

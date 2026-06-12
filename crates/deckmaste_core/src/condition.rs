@@ -32,11 +32,11 @@ use crate::Window;
 /// in RON through a generated helper struct + `unwrap_variant_newtypes`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Condition {
-    /// Compare two scalar counts ([CR#107.3]).
+    /// Compare two scalar counts ([CR#107.1]).
     Compare(Count, Cmp, Count),
-    /// At least one object matches ([CR#107.3], "if you control a …").
+    /// At least one object matches ([CR#603.4], "if you control a …").
     Exists(Filter),
-    /// A referenced object matches a filter ([CR#107.3], "if it is a …").
+    /// A referenced object matches a filter ([CR#603.4], "if it is a …").
     Is(Reference, Filter),
     /// An event happened within a window (morbid/raid, [CR#608.2i]).
     Happened { event: Event, within: Window },

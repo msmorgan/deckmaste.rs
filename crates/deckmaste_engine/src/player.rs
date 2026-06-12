@@ -43,7 +43,7 @@ impl ManaPool {
     #[must_use]
     pub fn is_empty(&self) -> bool { self.0.iter().all(|&n| n == 0) }
 
-    /// [CR#500.4] / [CR#106.4]: the pool empties at each step and phase boundary.
+    /// [CR#500.5] / [CR#106.4]: the pool empties at each step and phase boundary.
     pub fn clear(&mut self) { self.0 = [0; 6]; }
 
     /// Removes `amount` of `mana`. Panics if the pool holds less — callers

@@ -14,7 +14,7 @@ use crate::object::ObjectId;
 pub enum Tally {
     /// Lands played this turn ([CR#305.2]): one per turn by default.
     LandsPlayed,
-    /// Cards drawn this turn ([CR#120]); read by "the first card you draw …".
+    /// Cards drawn this turn ([CR#121]); read by "the first card you draw …".
     CardsDrawn,
 }
 

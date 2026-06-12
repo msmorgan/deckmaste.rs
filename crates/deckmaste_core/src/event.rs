@@ -84,7 +84,7 @@ pub enum StateFilterEvent {
     Tapped,
     /// Becomes untapped.
     Untapped,
-    /// Becomes attacking ([CR#508.1a]).
+    /// Becomes attacking ([CR#508.1k]).
     Attacking,
     /// Becomes blocked ([CR#509.3c]).
     Blocked,

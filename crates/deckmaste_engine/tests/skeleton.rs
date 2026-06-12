@@ -362,7 +362,7 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
     )));
     assert_eq!(state.players[0].mana_pool.amount(Color::White.into()), 1);
 
-    // Pass around: the step ends, the pool empties ([CR#500.4]).
+    // Pass around: the step ends, the pool empties ([CR#500.5]).
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let _ = step_to_stop(&mut state); // P1's priority
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
@@ -421,7 +421,7 @@ fn cleanup_discards_to_hand_size() {
 #[test]
 fn deck_out_ends_the_game() {
     // Seven-card decks: opening hands take the whole library. P1 draws on
-    // turn 2 from nothing → [CR#704.5c] → P0 wins.
+    // turn 2 from nothing → [CR#704.5b] → P0 wins.
     let mut state = two_player_plains(7, 7);
     let stop = pass_to_stop(&mut state);
     assert_eq!(

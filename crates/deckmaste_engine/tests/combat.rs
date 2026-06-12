@@ -843,7 +843,7 @@ fn mid_combat_death_prunes_combat_state() {
     );
 }
 
-/// [CR#508.1a], [CR#603.6]: a creature with a "whenever ~ attacks" trigger
+/// [CR#508.1a], [CR#508.1m]: a creature with a "whenever ~ attacks" trigger
 /// (`StateBecomes(of: Ref(This), becomes: Attacking)`, Library Larcenist)
 /// declared as an attacker fires its trigger — the `Attacking` event reached
 /// the trigger stage — and, once it resolves, the controller draws a card.

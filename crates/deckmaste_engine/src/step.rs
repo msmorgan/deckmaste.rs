@@ -297,7 +297,7 @@ impl GameState {
                 target,
                 amount,
             } => {
-                // [CR#119]: damage to a player is life loss; to a creature it is
+                // [CR#120.3]: damage to a player is life loss; to a creature it is
                 // marked damage. `Int` is `i32`; `Uint` is `u32` — `try_from`
                 // is required because u32 does not fit into i32 via `From`.
                 match self.objects.obj(target).source {
@@ -430,7 +430,7 @@ impl GameState {
                 });
                 event
             }
-            // [CR#603.8] / [CR#602.2a]: the triggered or activated ability vanishes —
+            // [CR#608.2n]: the triggered or activated ability vanishes —
             // remove its stack entry and discard the minted token. No zone move; the
             // source (already gone for a dies-trigger) is untouched.
             GameEvent::AbilityResolved(id) => {
@@ -528,8 +528,8 @@ impl GameState {
             unreachable!("only card-backed objects change zones")
         };
         let owner = self.cards.get(card).owner;
-        // [CR#400.7]: a permanent keeps its caster as controller; elsewhere the
-        // object is controlled by its owner.
+        // [CR#110.2,108.4]: a permanent keeps its caster as controller; elsewhere
+        // the object is controlled by its owner.
         let controller = if to == Zone::Battlefield { snapshot.controller } else { owner };
         let new = self.objects.mint(snapshot.source, controller, Some(to));
         // [CR#614.12]: how it enters — emitted status (Stage 4 replacements) plus
@@ -731,7 +731,7 @@ impl GameState {
     #[expect(clippy::match_same_arms)]
     fn turn_based_actions(&mut self, s: Phase) -> Vec<WorkItem> {
         match s {
-            // [CR#502.1]: the active player's tapped permanents untap.
+            // [CR#502.3]: the active player's tapped permanents untap.
             Phase::Beginning(BeginningStep::Untap) => {
                 let active = self.turn.active_player;
                 self.zones
@@ -834,7 +834,7 @@ impl GameState {
         }
     }
 
-    /// [CR#500.4]: pools empty at the end of every step; then the next step
+    /// [CR#500.5]: pools empty at the end of every step; then the next step
     /// begins (wrapping into the next turn's untap).
     pub(crate) fn end_of_step_items(&self) -> Vec<WorkItem> {
         let mut items: Vec<WorkItem> = self

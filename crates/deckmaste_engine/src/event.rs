@@ -112,7 +112,7 @@ pub enum GameEvent {
         source: ObjectId,
         ability: usize,
     },
-    /// [CR#119] — damage to a creature (marked) or a player (life loss).
+    /// [CR#120.3] — damage to a creature (marked) or a player (life loss).
     DamageDealt {
         source: ObjectId,
         target: ObjectId,
@@ -208,7 +208,7 @@ pub enum GameEvent {
         controller: PlayerId,
         bindings: crate::trigger::TriggerBindings,
     },
-    /// [CR#603.8] / [CR#602.2a]: a triggered or activated ability finished
+    /// [CR#608.2n]: a triggered or activated ability finished
     /// resolving (or fizzled) and vanishes — no zone move. Its apply removes
     /// the stack entry whose `id` is the carried (minted) token.
     AbilityResolved(ObjectId),
@@ -316,7 +316,7 @@ impl GameEvent {
 }
 
 /// A scheduled occurrence: one event, or a set of simultaneous events applied
-/// and matched together ([CR#603.3b], [CR#700.4]).
+/// and matched together ([CR#603.3b], [CR#700.1]).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Occurrence {
     Single(GameEvent),
