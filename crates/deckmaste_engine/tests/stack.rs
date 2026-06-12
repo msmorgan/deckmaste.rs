@@ -12,6 +12,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
+use deckmaste_core::BeginningStep;
 use deckmaste_core::Card;
 use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
@@ -2024,4 +2025,115 @@ fn hexproof_excludes_it_from_opposing_targets() {
     state
         .submit_decision(Decision::Targets(vec![bear]))
         .unwrap();
+}
+
+/// kw-flash goes LIVE: the card's own `May(Cast(window: InstantSpeed))` row
+/// lifts the sorcery-speed default ([CR#702.8a]) — a flash creature is
+/// offered and resolves at an instant-timing window (its caster's upkeep),
+/// and the priority window after it hits the battlefield still computes
+/// (the row in the derived view no longer trips the presence guard).
+#[test]
+fn flash_creature_casts_at_instant_timing() {
+    let cheetah = card("Pouncing Cheetah");
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mut p0 = vec![Arc::clone(&cheetah); 5];
+    p0.extend(vec![Arc::clone(&forest); 5]);
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck: p0 },
+            PlayerConfig {
+                deck: vec![Arc::clone(&forest); 10],
+            },
+        ],
+        seed: 23,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    for _ in 0..3 {
+        force_onto_battlefield(&mut state, PlayerId(0), "Forest");
+    }
+
+    // Upkeep is a priority window where sorcery speed is NOT ok.
+    let _ = run_to_priority(
+        &mut state,
+        PlayerId(0),
+        Phase::Beginning(BeginningStep::Upkeep),
+    );
+    float_mana(&mut state, PlayerId(0), 3);
+    let cheetah = find_in_hand(&state, PlayerId(0), "Pouncing Cheetah");
+    let legal = run_to_priority(
+        &mut state,
+        PlayerId(0),
+        Phase::Beginning(BeginningStep::Upkeep),
+    );
+    assert!(
+        legal.contains(&Action::CastSpell { object: cheetah }),
+        "flash lifts the timing default: the cheetah must be castable at upkeep"
+    );
+
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: cheetah }))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
+        panic!("expected PayMana for {{2}}{{G}}, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Pay(Payment {
+            generic: vec![green(), green()],
+        }))
+        .unwrap();
+    let _ = run_to_priority(
+        &mut state,
+        PlayerId(0),
+        Phase::Beginning(BeginningStep::Upkeep),
+    );
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(
+        &mut state,
+        PlayerId(1),
+        Phase::Beginning(BeginningStep::Upkeep),
+    );
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = step_to_stop(&mut state);
+
+    assert!(
+        state
+            .zones
+            .battlefield
+            .iter()
+            .any(|&o| is_card(&state, o, "Pouncing Cheetah")),
+        "the flash creature resolved onto the battlefield during upkeep"
+    );
+    // The flash permanent's row sits in the derived view now — the next
+    // legal_actions computation must evaluate it, not trip the seam guard.
+    let _ = run_to_priority(
+        &mut state,
+        PlayerId(0),
+        Phase::Beginning(BeginningStep::Upkeep),
+    );
+}
+
+/// The control: without a flash row, a creature spell stays
+/// sorcery-speed-only ([CR#117.1a]) — never offered at upkeep even with
+/// the cost funded.
+#[test]
+fn nonflash_creature_not_castable_at_instant_timing() {
+    let mut state = bears_game(7, 2);
+    let _ = run_to_priority(
+        &mut state,
+        PlayerId(0),
+        Phase::Beginning(BeginningStep::Upkeep),
+    );
+    float_mana(&mut state, PlayerId(0), 2);
+    let bears = find_in_hand(&state, PlayerId(0), "Grizzly Bears");
+    let legal = run_to_priority(
+        &mut state,
+        PlayerId(0),
+        Phase::Beginning(BeginningStep::Upkeep),
+    );
+    assert!(
+        !legal.contains(&Action::CastSpell { object: bears }),
+        "a non-flash creature must not be castable at upkeep"
+    );
 }
