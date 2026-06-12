@@ -168,11 +168,11 @@ mod tests {
     /// tag never appears in RON.
     #[test]
     fn deontic_reads_flat() {
-        let parsed = read("Cant(Attack(by: Is(This)))");
+        let parsed = read("Cant(Attack(by: Ref(This)))");
         assert_eq!(
             parsed,
             StaticEffect::Deontic(Deontic::Cant(crate::DeonticAction::Attack {
-                by: Filter::Is(crate::Reference::This),
+                by: Filter::Ref(crate::Reference::This),
                 on: Filter::Any,
             })),
         );

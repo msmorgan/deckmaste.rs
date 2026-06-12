@@ -202,7 +202,7 @@ mod tests {
     #[test]
     fn triggered_ability_parses() {
         let ability = read_ability(
-            "Triggered(event: ZoneMove(what: Is(This), to: Graveyard), effect: Draw(Literal(1)))",
+            "Triggered(event: ZoneMove(what: Ref(This), to: Graveyard), effect: Draw(Literal(1)))",
         );
         let Ability::Triggered(triggered) = ability else {
             panic!("expected a triggered ability");
@@ -222,7 +222,7 @@ mod tests {
     /// the CDA flag is omitted when false.
     #[test]
     fn static_ability_parses_and_omits_cda() {
-        let ability = read_ability("Static(effects: [Cant(Attack(by: Is(This)))])");
+        let ability = read_ability("Static(effects: [Cant(Attack(by: Ref(This)))])");
         let Ability::Static(static_ability) = &ability else {
             panic!("expected a static ability");
         };

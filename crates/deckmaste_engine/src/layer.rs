@@ -485,7 +485,7 @@ fn apply(m: &Modification, c: &mut Characteristics) {
         | Modification::SetText(_)
         | Modification::SetBaseLoyalty(_)
         | Modification::SetBaseDefense(_) => {
-            // [CR#613.1b/c/d] deferred
+            // [CR#613.1b,613.1c,613.1d] deferred
         }
     }
 }

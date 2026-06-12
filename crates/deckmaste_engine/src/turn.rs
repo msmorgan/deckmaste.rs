@@ -48,11 +48,11 @@ pub fn successor(step: Phase) -> Option<Phase> {
     use Phase::PrecombatMain;
 
     Some(match step {
-        // Beginning phase ([CR#501-503]).
+        // Beginning phase ([CR#501,502,503]).
         Beginning(Untap) => Beginning(Upkeep),
         Beginning(Upkeep) => Beginning(Draw),
         Beginning(Draw) => PrecombatMain,
-        // Precombat main ([CR#505]) → combat ([CR#506-511]).
+        // Precombat main ([CR#505]) → combat ([CR#506,507,508,509,510,511]).
         PrecombatMain => Combat(BeginningOfCombat),
         Combat(BeginningOfCombat) => Combat(DeclareAttackers),
         Combat(DeclareAttackers) => Combat(DeclareBlockers),
@@ -66,7 +66,7 @@ pub fn successor(step: Phase) -> Option<Phase> {
         Combat(FirstCombatDamage) => Combat(CombatDamage),
         Combat(CombatDamage) => Combat(EndOfCombat),
         Combat(EndOfCombat) => PostcombatMain,
-        // Postcombat main ([CR#505]) → ending ([CR#512-514]).
+        // Postcombat main ([CR#505]) → ending ([CR#512,513,514]).
         PostcombatMain => Ending(End),
         Ending(End) => Ending(Cleanup),
         Ending(Cleanup) => return None,

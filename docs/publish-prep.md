@@ -65,7 +65,7 @@ people discover it. Suggested skeleton:
    `xtask` (tooling).
 5. **The cite-check system** — a paragraph on `cargo xtask cite check` /
    `cite bless` and `cr-citations.lock`: code cites CR rule numbers in
-   `[CR#…]` form and CI catches stale or unregistered citations against the
+   bracketed `CR#…` form and CI catches stale or unregistered citations against the
    rules snapshot. This is the most novel dev-tooling idea in the repo;
    don't bury it.
 6. **Getting started** — build prereqs, `scripts/fetch_data.fish` (note the

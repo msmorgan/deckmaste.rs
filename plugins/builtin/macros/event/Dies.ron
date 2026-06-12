@@ -1,5 +1,5 @@
 // "Dies" = a permanent moves from the battlefield to the graveyard ([CR#700.4]).
-// Usage: Dies(what) — e.g. Dies(Type(Creature)), Dies(Is(This)).
+// Usage: Dies(what) — e.g. Dies(Type(Creature)), Dies(Ref(This)).
 (
     name: "Dies",
     template: "{0} dies",

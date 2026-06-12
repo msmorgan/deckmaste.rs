@@ -1,5 +1,5 @@
 (
     name: "ThisEnters",
     kinds: [Event],
-    body: Enters(Is(This)),
+    body: Enters(Ref(This)),
 )

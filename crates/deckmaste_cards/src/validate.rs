@@ -418,7 +418,7 @@ mod tests {
                 condition: None,
                 effects: vec![StaticEffect::Deontic(Deontic::Cant(
                     DeonticAction::Attack {
-                        by: Filter::Is(Reference::This),
+                        by: Filter::Ref(Reference::This),
                         on: Filter::Any,
                     },
                 ))],

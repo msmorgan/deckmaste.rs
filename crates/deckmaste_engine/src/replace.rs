@@ -52,10 +52,10 @@ fn look_through(replacement: &Replacement) -> &Replacement {
 }
 
 /// Whether `would` is an enter-the-battlefield event for the watching object
-/// itself — the `Enters(This)`/`Enters(Is(This))` shape, looked through any
+/// itself — the `Enters(This)`/`Enters(Ref(This))` shape, looked through any
 /// remembered macro invocation. Such a `would` on a static replacement is the
 /// object's own self-enter (the watcher in `as_enters_status` is always self),
-/// so a `Is(This)`/`Any` `what` both qualify.
+/// so a `Ref(This)`/`Any` `what` both qualify.
 fn would_is_self_enter(would: &Event) -> bool {
     match would {
         // Look through `Enters(…)` and any other remembered Event macro.
@@ -63,7 +63,7 @@ fn would_is_self_enter(would: &Event) -> bool {
         // A move *to* the battlefield, of this object (or match-anything).
         Event::ZoneMove { what, to, .. } => {
             *to == Some(Zone::Battlefield)
-                && matches!(what, Filter::Is(Reference::This) | Filter::Any)
+                && matches!(what, Filter::Ref(Reference::This) | Filter::Any)
         }
         _ => false,
     }
