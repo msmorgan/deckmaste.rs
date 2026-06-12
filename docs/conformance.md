@@ -26,7 +26,7 @@ remaining non-✓ row reads **engine-seam**.
 | P/T, loyalty, defense comparisons (layer-output reads) | `Stat(…)` over the layered view | ✓ |
 | has-ability / lacks-ability | `HasAbility(Ident)` / `Not(…)` | ✓ |
 | implicit zone quantifier (bare desc = battlefield permanent) | parser convention; canonical filters spell `InZone` explicitly | ✓ (by policy) |
-| status tests (tapped / flipped / face-down / phased) | `Status(Status)` | ✓ grammar; object flags partial (P0.W5 seam) |
+| status tests (tapped / flipped / face-down / phased) | `Status(Status)` | ✓ grammar; tapped live, other object flags engine-seam (face-down model P0.W6) |
 | combat-state tests (attacking, blocking, unblocked) | `StateFilter::{Attacking, Blocking, Unblocked}` | ✓ grammar; eval engine-seam |
 | face-down characteristic exposure | — | MISSING (P0.W6) |
 | controller / owner / opponent-of | `Controller` / `Owner` / `OpponentOf` | ✓ |
@@ -36,7 +36,7 @@ remaining non-✓ row reads **engine-seam**.
 | targeting tests ("with N targets", "that targets …") | — | MISSING (P0.W4b mini-dialogue) |
 | zone tests | `InZone(Zone)` — seven zones; no ante (variant-gated) | ✓ |
 | has-counter | `HasCounter(Ident)` | ✓ |
-| designations, stored + derived | `Designated(Ident)` | ✓ grammar; storage P0.W5 seam |
+| designations, stored + derived | `Designated(Ident)` reads LIVE off the engine `DesignationStore` | ✓ — registry live; granting effects engine-seam (table 6) |
 | player-property tests (life-total comparisons, speed) | designations cover flags; numeric player stats | partial — MISSING (P0.W4) |
 | `target [desc]` | `Target(Quantity, Filter)` | ✓ |
 | exactly-N / up-to-N / any-number selection | `Quantity::{Exactly, AtMost, AnyNumber, …}` | ✓ |
@@ -64,17 +64,17 @@ remaining non-✓ row reads **engine-seam**.
 | damage event (source, recipient, amount, combat?, flags) | engine `DamageDealt` | ✓ engine; grammar trigger coverage partial |
 | life loss / gain (per-source events) | `LifeLost` / `LifeGained` | ✓ |
 | life set-to-N (= gain/loss of difference) | — | MISSING (P0.W3) |
-| counter placed / removed (objects AND players) | `CounterPlaced`/`CounterRemoved` + `PutCounters`/`RemoveCounters` verbs | ✓ grammar; apply/storage engine-seam (P0.W5) |
+| counter placed / removed (objects AND players) | `CounterPlaced`/`CounterRemoved` + `PutCounters`/`RemoveCounters` verbs | ✓ grammar; apply/storage engine-seam |
 | tap / untap (no-op = no event) | `Tapped` / `Untapped`, transition-only | ✓ |
 | becomes-target (announce-time) | — | MISSING (P0.W3) |
 | attack / block declaration events | `Attacking` / `Blocked` | ✓ |
 | phase / step / turn entry | `TurnBegan` / `StepBegan`; core `BeginningOf(Phase, WhoseTurn)` | ✓ |
-| day/night flip | — | MISSING (P0.W5) |
-| phase in / out (explicitly NOT a zone change) | — | MISSING (P0.W5) |
+| day/night flip | registry holds the game-scope `Mode`; flip EVENT grammar absent | MISSING (deferred from W5 → P0.W6 dialogue) |
+| phase in / out (explicitly NOT a zone change) | — | MISSING (deferred from W5 → P0.W6 dialogue) |
 | coin flip / die roll (ignored-roll never happened) | `CoinFlipped`/`DieRolled` + `FlipCoins`/`RollDice` verbs | ✓ grammar; apply engine-seam |
 | shuffle (also an information event) | — | MISSING (P0.W3) |
 | reveal / look (scoped visibility window) | — | MISSING (P0.W6) |
-| control change + becomes-deltas (transition-only) | core `StateBecomes` (tapped/untapped/attacking/blocked) | partial — control change MISSING (P0.W5) |
+| control change + becomes-deltas (transition-only) | core `StateBecomes` (tapped/untapped/attacking/blocked) | partial — control change MISSING (deferred from W5 → P0.W6 dialogue) |
 | cause triple (verb, agency, agent) as event data | core `Agency`/`CausePattern`; engine `Cause` on zone changes + `Tapped` | ✓ — named views are constructors over ONE encoding; pattern matching engine-seam |
 | replaced events never trigger; look-back-in-time triggers | `ZoneWillChange` stage + LKI snapshots | ✓ (engine) |
 
@@ -92,7 +92,7 @@ remaining non-✓ row reads **engine-seam**.
 | attack / block declaration | `DeclareAttackers` / `DeclareBlockers` | ✓ |
 | combat damage assignment (whole-assignment legality) | `AssignCombatDamage` | ✓ |
 | order own simultaneous triggers | `OrderTriggers` | ✓ |
-| replacement/prevention application order | `PendingDecision::OrderReplacements` shell | ✓ schema; 616.1 fixpoint engine-seam |
+| replacement/prevention application order | `PendingDecision::OrderReplacements` shell | ✓ schema; [CR#616.1] fixpoint engine-seam |
 | fixed-window yes/no ("… unless you pay") | `PendingDecision::YesNo` shell | ✓ schema; surfacing engine-seam |
 | pre-game: first turn, mulligans + London bottoming, companion, opening-hand | `PreGame(PreGameKind)` shell (bottoming = committed-hidden) | ✓ schema; surfacing engine-seam |
 | special actions beyond land play | `Action::Special(SpecialAction)` over the closed list | ✓ shell; 116-machinery post-P0 |
@@ -105,11 +105,11 @@ remaining non-✓ row reads **engine-seam**.
 
 | skill concept | deckmaste | status |
 |---|---|---|
-| linked slots / chosen-value anaphora (write side) | `NotedKind` + `ChooseAndNote(key, kind)` + `Effect::Noting{key, effect}` | ✓ grammar; slot store P0.W5 seam |
+| linked slots / chosen-value anaphora (write side) | `NotedKind` + `ChooseAndNote(key, kind)` + `Effect::Noting{key, effect}` | ✓ grammar; slot store engine-seam (deferred from W5) |
 | noted reads | `Reference::Linked(key)`, `Count::Noted(key)` | ✓ grammar; eval engine-seam |
 | engine-tracked history counts | `Count::Query(QueryKey)` — CardsDrawn/LandsPlayed EVALUATE off live tallies; StormCount seam | ✓ |
 | copy-on-stack vs cast-a-copy ([CR#707.10,707.12]) | `CopySpell(Selection)` verb; cast-a-copy rides the 601 pipeline later | ✓ grammar; execution engine-seam |
-| 608.2b target re-check + fizzle | `targets_still_legal` at resolution | partial — LKI fallback for departed sources is a seam |
+| target re-check + fizzle ([CR#608.2b]) | `targets_still_legal` at resolution | partial — LKI fallback for departed sources is a seam |
 | ⊥ semantics ([CR#107.2] coercion, skip-on-undefined) | documented convention | partial — formalize at first ⊥ collision (UD-6 ADR) |
 
 ## 4. Temporal & deontic modifiers (`temporal.md`, `deontics.md` §2–3 ↔ `temporal.rs`/`deontic.rs`)
@@ -152,3 +152,14 @@ remaining non-✓ row reads **engine-seam**.
 | mana abilities mid-payment ([CR#601.2g]) | — | MISSING (P0.W3 decision flow) |
 | payment as transactional batch + [CR#733.1] rewind | — | MISSING (P0.W3 cause-tagged event batches) |
 | pool empties per step/phase; per-unit persistence override | `ManaEmptied` turn-based action | ✓ engine; override engine-seam |
+
+## 6. Designations, emblems & state instances (`designations.md`, `state.md` ↔ engine `state.rs`)
+
+| skill concept | deckmaste | status |
+|---|---|---|
+| designation scopes: game value / player value / per-object instances | `DesignationStore{game, players, objects}`; `DesignationValue::{Flag, Holder, Mode}` | ✓ — registry live, granting effects engine-seam |
+| object designation = grantor-parameterized temporary static payload (goad) | decl payload is the TEMPLATE; `DesignationInstance{grantor, duration}` supplies the bindings | ✓ storage; payload application = the layers pipeline's designation source (engine-seam) |
+| multiplicity: per-grantor instances on independent clocks ([CR#701.15b..701.15c]) | `Vec<DesignationInstance>` per (object, name) — never a merged grantor set | ✓ |
+| derived reads (`Designated(name)` never goes stale) | live registry read in `target.rs` (object entry, or the player's for proxies) | ✓ |
+| emblems: command-zone ability holders, never on the battlefield ([CR#114.1,114.4]) | `PlayerAction::GetEmblem(Vec<Ability>)`; `ObjectKind::Emblem` | ✓ grammar; minting engine-seam |
+| commander designation (damage ledger, command-zone replacement) | — | deferred — variant-gated; arrives with variant support as a designation + damage-result reader |
