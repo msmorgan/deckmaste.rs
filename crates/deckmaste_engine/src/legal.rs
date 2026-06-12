@@ -104,7 +104,12 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     // One derived view serves the whole window — the mana-ability and cast
     // checks below read it per object instead of re-deriving the board.
     let view = state.layers();
-    let mut legal = vec![Action::Pass];
+    // [CR#104.3a] "at any time": a correct steppable engine ENUMERATES
+    // concession at every boundary that emits choices — "you can also
+    // concede". A runner that would rather not show it (or a bot that
+    // must not pick it) filters; that is the runner's problem, not the
+    // legality computation's.
+    let mut legal = vec![Action::Pass, Action::Concede];
 
     // [CR#116.2a,305.2]: a land from hand — sorcery timing (own turn, main
     // phase, empty stack), one per turn.

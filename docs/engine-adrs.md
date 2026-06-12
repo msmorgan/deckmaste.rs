@@ -40,15 +40,18 @@ license to rely on the order.
 
 ## UD-7 — concession granularity — DECIDED (P0.W7, 2026-06-12)
 
-**Coarse: event-boundary.** The W6 concede embodies it: `Action::Concede`
-is accepted at any PRIORITY decision (always legal, never offered —
-strategies must choose it deliberately), and the loss applies as a normal
-`PlayerLost` event through the agenda; there is no mid-resolution or
-mid-decision interruption. The "[CR#104.3a] at any time" breadth beyond
-priority windows is a recorded seam on the `Concede` doc (out-of-band
-submission would be a runner-facing channel, like the hidden-info views).
-Revisit only if a real ruling demands sub-event concession — none is
-known.
+**Coarse: decision-boundary.** USER RULING (W7 closeout, superseding the
+W6 "accepted-but-never-offered" reading): [CR#104.3a]'s "at any time"
+means a correct steppable engine ENUMERATES concession at every boundary
+that emits choices — `Action::Concede` rides every priority legal list,
+and `submit_decision` accepts it as the answer to EVERY pending decision
+(the decider walks away mid-discard, mid-targeting, mid-payment).
+Filtering it out of a UI or a bot's choices is the RUNNER's problem (and
+leaving it in is kind of funny, which is a bonus). Granularity stays
+coarse in one sense: the loss applies as a normal `PlayerLost` event at
+the decision boundary — there is no sub-event interruption, and a player
+who is NOT being asked anything conceding out-of-band remains a
+runner-API seam. Revisit only if a real ruling demands finer grain.
 
 ## UD-11 — game-state equality — OPEN
 

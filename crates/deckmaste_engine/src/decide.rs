@@ -75,6 +75,31 @@ impl PendingDecision {
         }
     }
 
+    /// The CONCRETE player this decision is waiting on (every kind
+    /// carries one) — the nominal-role view is [`Self::decider_spec`].
+    #[must_use]
+    pub fn decider_player(&self) -> PlayerId {
+        match self {
+            PendingDecision::Priority { player, .. }
+            | PendingDecision::DiscardToHandSize { player, .. }
+            | PendingDecision::DiscardCards { player, .. }
+            | PendingDecision::ChooseManaColor { player, .. }
+            | PendingDecision::ChooseTargets { player, .. }
+            | PendingDecision::PayMana { player, .. }
+            | PendingDecision::OrderTriggers { player, .. }
+            | PendingDecision::DeclareAttackers { player, .. }
+            | PendingDecision::DeclareBlockers { player, .. }
+            | PendingDecision::AssignCombatDamage { player, .. }
+            | PendingDecision::ChooseModes { player, .. }
+            | PendingDecision::Division { player, .. }
+            | PendingDecision::Vote { player, .. }
+            | PendingDecision::YesNo { player, .. }
+            | PendingDecision::OrderReplacements { player, .. }
+            | PendingDecision::ChooseCostOptions { player, .. }
+            | PendingDecision::PreGame { player, .. } => *player,
+        }
+    }
+
     /// The choices.md §2 lock stage on the shared `LockPoint` axis.
     #[must_use]
     pub fn lock(&self) -> LockPoint {
@@ -244,10 +269,12 @@ pub enum Action {
     /// Concede ([CR#104.3a]) — immediate and UNSTOPPABLE: the single
     /// exception to card-beats-rules ([CR#101.1]); no `CantLose` gate
     /// touches it and a controlled player's controller can't prevent it
-    /// ([CR#723.6]). Always ACCEPTED at a priority decision but never
-    /// OFFERED in the legal list (a strategy must choose it
-    /// deliberately, not stumble into it). The full "at any time"
-    /// breadth — conceding outside a priority window — is an engine seam.
+    /// ([CR#723.6]). ENUMERATED in every priority legal list and accepted
+    /// as the answer to EVERY pending decision (the `submit_decision`
+    /// pre-check) — "at any time" means the engine always offers it;
+    /// filtering is the runner's problem. The conceder is the pending
+    /// decision's decider; out-of-band concession by a player who is NOT
+    /// being asked anything is a runner-API seam.
     Concede,
     /// A special action ([CR#116.2]) — P0.W3 shell; never offered in the
     /// legal list yet, so submissions reject as Illegal.
@@ -327,10 +354,18 @@ impl GameState {
         let Some(pending) = &self.pending else {
             return Err(DecisionError::NothingPending);
         };
+        // [CR#104.3a] "at any time": conceding answers EVERY decision —
+        // the decider walks away mid-discard, mid-targeting, mid-payment.
+        // The conceder is the pending decision's decider.
+        if matches!(decision, Decision::Act(Action::Concede)) {
+            let player = pending.decider_player();
+            self.pending = None;
+            self.concede(player);
+            return Ok(());
+        }
         match (pending, decision) {
             (PendingDecision::Priority { player, legal }, Decision::Act(action)) => {
-                // [CR#104.3a]: concession is always legal, never offered.
-                if !matches!(action, Action::Concede) && !legal.contains(&action) {
+                if !legal.contains(&action) {
                     return Err(DecisionError::Illegal {
                         reason: format!("{action:?} is not a legal action right now"),
                     });
@@ -753,6 +788,24 @@ impl GameState {
     ///
     /// Panics if no priority round is open — engine invariant, not caller
     /// input.
+    /// [CR#104.3a]: the loss is immediate and unstoppable ([CR#101.1]);
+    /// `check_game_end` then terminalizes ([CR#104.1] — in two-player, the
+    /// first loss ends the whole game). The multiplayer leave-game cleanup
+    /// ([CR#800.4a]: owned objects leave, control effects end, residue
+    /// exiled) is unbuilt — loud rather than a half-departed player
+    /// haunting the table.
+    fn concede(&mut self, player: PlayerId) {
+        if self.live_count() > 2 {
+            todo!("P0.W6: multiplayer leave-game cleanup ([CR#800.4a])");
+        }
+        self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+            GameEvent::PlayerLost {
+                player,
+                reason: crate::event::LossReason::Conceded,
+            },
+        ))]);
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "one arm per action kind; splitting would scatter the dispatch"
@@ -762,23 +815,9 @@ impl GameState {
             // P0.W3 shell: special actions are never in the legal list, so
             // submission already rejected them as Illegal; loud if reached.
             Action::Special(_) => todo!("P0.W3: special actions ([CR#116.2] machinery)"),
-            // [CR#104.3a]: the loss is immediate; `check_game_end` then
-            // terminalizes ([CR#104.1] — in two-player, the first loss ends
-            // the whole game). The multiplayer leave-game cleanup
-            // ([CR#800.4a]: owned objects leave, control effects end,
-            // residue exiled) is unbuilt — loud rather than a half-departed
-            // player haunting the table.
-            Action::Concede => {
-                if self.live_count() > 2 {
-                    todo!("P0.W6: multiplayer leave-game cleanup ([CR#800.4a])");
-                }
-                self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                    GameEvent::PlayerLost {
-                        player,
-                        reason: crate::event::LossReason::Conceded,
-                    },
-                ))]);
-            }
+            // Normally short-circuited by the `submit_decision` pre-check;
+            // kept for exhaustiveness and direct callers.
+            Action::Concede => self.concede(player),
             Action::Pass => {
                 // Compute before borrowing the round mutably.
                 let live = self.live_count();

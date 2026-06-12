@@ -1183,11 +1183,11 @@ fn tapland_played_from_hand_enters_tapped_and_fires_its_enter_trigger() {
     );
 }
 
-/// [CR#104.3a]: concession is immediate and always accepted — but never
-/// OFFERED in the Priority legal list (a strategy must choose it
-/// deliberately). The loss terminalizes a two-player game ([CR#104.1]) with
-/// the opponent winning ([CR#104.2a]), and no gate could have stopped it
-/// ([CR#101.1]).
+/// [CR#104.3a]: concession is immediate, unstoppable ([CR#101.1]), and
+/// ENUMERATED — "you can also concede" rides every priority legal list
+/// (filtering it away is the runner's problem; user ruling). The loss
+/// terminalizes a two-player game ([CR#104.1]) with the opponent winning
+/// ([CR#104.2a]).
 #[test]
 fn concession_ends_the_game() {
     let mut state = two_player_plains(42, 20);
@@ -1196,8 +1196,8 @@ fn concession_ends_the_game() {
         panic!("expected a priority decision, got {stop:?}");
     };
     assert!(
-        !legal.contains(&Action::Concede),
-        "concession is never offered, only accepted"
+        legal.contains(&Action::Concede),
+        "concession is enumerated at every choice boundary"
     );
     state
         .submit_decision(Decision::Act(Action::Concede))
