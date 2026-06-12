@@ -1105,6 +1105,40 @@ mod tests {
         );
     }
 
+    /// `Destroyed(Type(Creature))` expands to the cause-narrowed dies-view
+    /// — pins that the macro BODY parses (bodies parse lazily; without an
+    /// expansion no test would ever read it) and that the cause spells the
+    /// mandatory `Cause(verb: …)` variant form.
+    #[test]
+    fn destroyed_macro_expands_to_cause_narrowed_zone_move() {
+        use deckmaste_core::Cause;
+        use deckmaste_core::CausePattern;
+        use deckmaste_core::Event;
+
+        let event: Event = canon()
+            .macros
+            .read_str("Destroyed(Type(Creature))")
+            .unwrap();
+        let Event::Expanded(expanded) = &event else {
+            panic!("expected Event::Expanded, got {event:?}");
+        };
+        assert_eq!(expanded.name.as_str(), "Destroyed");
+        assert_eq!(
+            *expanded.value,
+            Event::ZoneMove {
+                what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                from: Some(Zone::Battlefield),
+                to: Some(Zone::Graveyard),
+                face: None,
+                cause: Some(Cause::Cause(CausePattern {
+                    verb: Some("Destroy".into()),
+                    agency: None,
+                    agent: None,
+                })),
+            }
+        );
+    }
+
     /// Confirm that reading `Dies(Ref(This))` yields
     /// `Filter::Ref(Reference::This)` in the `what` position — the "this
     /// object" form.

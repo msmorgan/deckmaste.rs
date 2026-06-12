@@ -9,5 +9,5 @@
     template: "{0} is destroyed",
     kinds: [Event],
     params: [Any],
-    body: ZoneMove(what: Param(0), from: Battlefield, to: Graveyard, cause: CausePattern(verb: "Destroy")),
+    body: ZoneMove(what: Param(0), from: Battlefield, to: Graveyard, cause: Cause(verb: "Destroy")),
 )

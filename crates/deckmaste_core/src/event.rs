@@ -145,6 +145,20 @@ pub struct CausePattern {
     pub agent: Option<Filter>,
 }
 
+/// The cause-narrowing position on an event pattern. One variant today —
+/// the conjunctive [`CausePattern`] — but the position is an ENUM on
+/// purpose: boolean structure over cause coordinates ("destroyed or
+/// sacrificed", "not by a spell") is expressible in English and within
+/// the rules; that no card demands it yet is just the current state of
+/// things. When one does, `AnyOf`/`Not` variants accrete HERE without
+/// respelling existing files. RON requires enum variant names, so the
+/// position always reads `Cause(verb: "Destroy")` — never a bare tuple.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+pub enum Cause {
+    /// Every PRESENT coordinate must match (the conjunction).
+    Cause(CausePattern),
+}
+
 /// A trigger-event pattern, matched structurally against the action log
 /// ([CR#603.2]). Declared event names (`Dies`, `Enters`, `Landfall`) are macros
 /// over these forms. Each form binds fixed roles (`ThatObject`,
@@ -181,7 +195,7 @@ pub enum Event {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         face: Option<crate::Face>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        cause: Option<CausePattern>,
+        cause: Option<Cause>,
     },
     /// The beginning of a step or phase ([CR#603.2], "at the beginning of …").
     BeginningOf(Phase, WhoseTurn),
@@ -192,7 +206,7 @@ pub enum Event {
         of: Filter,
         becomes: StateFilterEvent,
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        cause: Option<CausePattern>,
+        cause: Option<Cause>,
     },
     /// An object becomes the target of a spell/ability ([CR#601.2c]
     /// announce-time; ward is the family exemplar, [CR#702.21a]). `by`
@@ -244,26 +258,33 @@ mod tests {
         );
     }
 
-    /// The cause pattern reads with its struct name spelled out — the
-    /// authoring form (a bare `(verb: …)` tuple reads as noise; user
-    /// ruling, P0.W7). The writer still emits the anonymous form.
+    /// The cause position is an enum (single variant today) so the name
+    /// is structural: it always reads `Cause(verb: …)` — a bare
+    /// `(verb: …)` tuple no longer parses (user ruling), and boolean
+    /// variants can accrete without respelling files.
     #[test]
-    fn zone_move_cause_reads_named_struct() {
+    fn zone_move_cause_named_and_never_bare() {
         assert_eq!(
             read(
-                r#"ZoneMove(what: Type(Creature), from: Battlefield, to: Graveyard, cause: CausePattern(verb: "Destroy"))"#
+                r#"ZoneMove(what: Type(Creature), from: Battlefield, to: Graveyard, cause: Cause(verb: "Destroy"))"#
             ),
             Event::ZoneMove {
                 what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
                 face: None,
-                cause: Some(CausePattern {
+                cause: Some(Cause::Cause(CausePattern {
                     verb: Some("Destroy".into()),
                     agency: None,
                     agent: None,
-                }),
+                })),
             },
+        );
+        assert!(
+            crate::ron::options()
+                .from_str::<Event>(r#"ZoneMove(what: Type(Creature), cause: (verb: "Destroy"))"#)
+                .is_err(),
+            "a bare cause tuple must not parse — the variant name is mandatory"
         );
     }
 
