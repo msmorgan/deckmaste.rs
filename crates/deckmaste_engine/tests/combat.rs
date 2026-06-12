@@ -33,6 +33,7 @@ use deckmaste_engine::StartingPlayer;
 use deckmaste_engine::StepOutcome;
 use deckmaste_engine::WorkItem;
 use deckmaste_engine::has_keyword;
+use deckmaste_engine::has_keyword_named;
 use deckmaste_engine::legal_attackers;
 use deckmaste_engine::legal_blockers;
 
@@ -939,8 +940,8 @@ fn lifelink_unblocked_attacker_gains_life_for_controller() {
     let mut state = two_player_decks("Steadfast Paladin", "Grizzly Bears", 7, 20);
     let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Steadfast Paladin");
     assert!(
-        has_keyword(&state.layers(), attacker, &KeywordAbility::Lifelink),
-        "pre-condition: the fixture carries Keyword(Lifelink)"
+        has_keyword_named(&state.layers(), attacker, "Lifelink"),
+        "pre-condition: the fixture carries the Lifelink composite keyword"
     );
 
     assert_eq!(

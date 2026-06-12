@@ -133,11 +133,11 @@ pub enum Ability {
     Activated(ActivatedAbility),
     Triggered(TriggeredAbility),
     Spell(SpellAbility),
-    /// One of the seven native keywords the engine reasons about
-    /// directly ([CR#702]) — `Keyword(Trample)`. A **known** variant, so the
-    /// derive accepts it as itself and the macro reader does NOT route it to
-    /// `Expanded` (its name is in the derive's variant list). The other
-    /// `[CR#702]` keywords stay plugin macros that expand to `Expanded`.
+    /// A keyword ability ([CR#702]) — always spelled `Keyword(…)` on cards.
+    /// The five intrinsic variants read as themselves (`Keyword(Trample)`);
+    /// every other keyword name resolves inside the `KeywordAbility`
+    /// position's macro namespace (`Keyword(Flying)` invokes the builtin
+    /// `KeywordAbility`-kind macro, landing on `Composite`/`Expanded`).
     Keyword(KeywordAbility),
     /// A remembered macro invocation ([CR#702] keyword abilities, and any other
     /// `Ability` macro). Absorbs the old `Keyword`/`KeywordAbility` shape.

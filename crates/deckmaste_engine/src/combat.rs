@@ -30,6 +30,19 @@ pub fn has_keyword(view: &LayeredView, object: ObjectId, kw: &KeywordAbility) ->
         .any(|a| matches!(a, Ability::Keyword(k) if k == kw))
 }
 
+/// Whether `object` has a keyword named `name` — the look-through seam for
+/// keywords that live OUTSIDE the intrinsic enum as `Composite` macros
+/// (lifelink's combat hook is the customer). Matches intrinsics and
+/// composites alike through [`KeywordAbility::as_str`], the same name bridge
+/// the `Ident`-keyed modification ops use ([CR#613.1f]).
+#[must_use]
+pub fn has_keyword_named(view: &LayeredView, object: ObjectId, name: &str) -> bool {
+    view.get(object)
+        .abilities
+        .iter()
+        .any(|a| matches!(a, Ability::Keyword(k) if k.as_str() == name))
+}
+
 /// [CR#702.7c,702.4]: whether `object` deals damage in the FIRST combat-damage
 /// step — true iff it has first strike OR double strike.
 #[must_use]

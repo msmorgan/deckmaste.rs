@@ -359,7 +359,7 @@ impl GameState {
                     .objects
                     .get(source)
                     .is_some_and(|o| o.card_id().is_some())
-                    && crate::combat::has_keyword(&view, source, &KeywordAbility::Lifelink)
+                    && crate::combat::has_keyword_named(&view, source, "Lifelink")
                 {
                     let controller = self.objects.obj(source).controller;
                     self.player_mut(controller).life +=

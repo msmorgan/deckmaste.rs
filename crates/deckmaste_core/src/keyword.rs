@@ -1,30 +1,33 @@
 //! The native keyword abilities ([CR#702]) the engine implements directly:
 //! a closed enum the combat code pattern-matches on, rather than plugin macros.
 //! Per the keyword classification (intrinsic / composite / composite-given —
-//! docs/rules-taxonomy.md §10, pinned to the mtg-rules skill v1.7.0), five
-//! are true intrinsics: first/double strike, deathtouch, and trample own
-//! prospective combat-damage machinery ([CR#510.1]); vigilance owns dedicated
-//! declare-attackers text ([CR#702.20a..702.20b,508.1f]). The other two are
-//! kept native pragmatically: lifelink is composite-given (pending the
-//! damage-result-rewrite stage it shares with wither/infect/toxic), Flying
-//! is composite (a block-legality restriction). All seven are encoded on
-//! cards as `Keyword(X)`. Haste is **not** here — it is a flag the standing
-//! summoning-sickness `Cant` rows read in their own conditions
-//! ([CR#508.1a,602.5a]; [CR#702.10b..702.10c,302.6] mirror them); other
-//! non-native keywords are plugin macros (e.g. indestructible = an
-//! event-side "can't be destroyed", the replacement-family seam).
+//! docs/rules-taxonomy.md §10, pinned to the mtg-rules skill v1.7.0), the
+//! variants are exactly the five implemented true intrinsics: first/double
+//! strike, deathtouch, and trample own prospective combat-damage machinery
+//! ([CR#510.1]); vigilance owns dedicated declare-attackers text
+//! ([CR#702.20a..702.20b,508.1f]). Every non-intrinsic is a
+//! `KeywordAbility`-kind plugin macro invoked INSIDE the wrapper — cards
+//! always read `Keyword(Flying)` — expanding to
+//! [`Composite`](KeywordAbility::Composite); see
+//! `plugins/builtin/macros/keyword/`: flying carries its real evasion
+//! `Cant` ([CR#702.9b]); lifelink and reach carry their names alone
+//! (lifelink's combat hook matches by NAME through
+//! [`as_str`](KeywordAbility::as_str) — the look-through seam — pending the
+//! damage-result-rewrite stage; reach is the marker keyword). Haste is a
+//! flag the standing summoning-sickness `Cant` rows read in their own
+//! conditions ([CR#508.1a,602.5a]; [CR#702.10b..702.10c,302.6] mirror
+//! them); indestructible = an event-side "can't be destroyed", the
+//! replacement-family seam.
 //!
 //! The grammar lands now; the behaviors arrive in later combat tasks.
 
 use std::fmt;
 use std::str::FromStr;
 
-use serde::Deserialize;
-use serde::Serialize;
-
 use crate::Ability;
-use crate::Expand;
+use crate::Expansion;
 use crate::Ident;
+use crate::SupportsMacros;
 
 /// A keyword ability the engine treats as a first-class combat concept
 /// ([CR#702]). Carried by [`Ability::Keyword`](crate::Ability::Keyword).
@@ -35,7 +38,7 @@ use crate::Ident;
 /// [`Display`] / [`FromStr`] expose that mapping for the future
 /// `Modification::LoseAbility(Ident)` / `HasAbility(Ident)` paths
 /// ([CR#613.1f]), which name abilities by string.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum KeywordAbility {
     /// [CR#702.7].
     FirstStrike,
@@ -47,11 +50,6 @@ pub enum KeywordAbility {
     Trample,
     /// [CR#702.20].
     Vigilance,
-    /// [CR#702.15].
-    Lifelink,
-    /// [CR#702.9]: evasion — can be blocked only by creatures with flying
-    /// and/or reach. Behavior arrives with a later combat task.
-    Flying,
     /// A keyword COMPOSED of other abilities ([CR#702]), as opposed to the
     /// intrinsic variants above that the engine implements natively: its
     /// printed name plus the abilities it stands for, carried IN the
@@ -66,20 +64,24 @@ pub enum KeywordAbility {
         name: Ident,
         abilities: Vec<Ability>,
     },
+    /// A remembered `KeywordAbility` macro invocation — the non-intrinsic
+    /// keywords, invoked INSIDE the wrapper so card definitions always call
+    /// out keyword-ness explicitly: `Keyword(Flying)`, `Keyword(Ward([…]))`.
+    /// Serialized as the invocation, not the struct.
+    #[macro_ron(expanded)]
+    Expanded(Expansion<KeywordAbility>),
 }
 
 impl KeywordAbility {
     /// Every INTRINSIC variant, for iteration in tests and exhaustive
     /// mappings. The open-ended `Composite { .. }` form is deliberately
     /// absent.
-    pub const ALL: [KeywordAbility; 7] = [
+    pub const ALL: [KeywordAbility; 5] = [
         KeywordAbility::FirstStrike,
         KeywordAbility::DoubleStrike,
         KeywordAbility::Deathtouch,
         KeywordAbility::Trample,
         KeywordAbility::Vigilance,
-        KeywordAbility::Lifelink,
-        KeywordAbility::Flying,
     ];
 
     /// The printed name — identical to the variant identifier and the RON
@@ -93,11 +95,12 @@ impl KeywordAbility {
             KeywordAbility::Deathtouch => "Deathtouch",
             KeywordAbility::Trample => "Trample",
             KeywordAbility::Vigilance => "Vigilance",
-            KeywordAbility::Lifelink => "Lifelink",
-            KeywordAbility::Flying => "Flying",
             // `Ident` interns to a 'static str, so composite keywords keep
             // the same lifetime story as the intrinsics.
             KeywordAbility::Composite { name, .. } => name.as_str(),
+            // An unexpanded invocation answers with its expansion's name, so
+            // the name bridge holds whether or not `expand_all` has run.
+            KeywordAbility::Expanded(e) => e.value.as_str(),
         }
     }
 }
@@ -118,8 +121,6 @@ impl FromStr for KeywordAbility {
             "Deathtouch" => KeywordAbility::Deathtouch,
             "Trample" => KeywordAbility::Trample,
             "Vigilance" => KeywordAbility::Vigilance,
-            "Lifelink" => KeywordAbility::Lifelink,
-            "Flying" => KeywordAbility::Flying,
             _ => return Err(()),
         })
     }
@@ -128,6 +129,7 @@ impl FromStr for KeywordAbility {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Expand;
 
     /// `as_str`/`from_str` round-trip and pin the printed (RON) spelling of
     /// every variant — the variant identifier, no spaces.
@@ -139,8 +141,6 @@ mod tests {
             (KeywordAbility::Deathtouch, "Deathtouch"),
             (KeywordAbility::Trample, "Trample"),
             (KeywordAbility::Vigilance, "Vigilance"),
-            (KeywordAbility::Lifelink, "Lifelink"),
-            (KeywordAbility::Flying, "Flying"),
         ];
         for (kw, name) in &expected {
             assert_eq!(kw.as_str(), *name);
