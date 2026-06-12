@@ -232,12 +232,13 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     // deontics yet, and a board carrying such rows must trip LOUDLY at
     // the priority window rather than silently allow the choice.
     // Cant(Target) rows (hexproof, protection's targeted clause) are
-    // EVALUATED at target-candidate computation now, and the flash shape —
-    // May(Cast(window: InstantSpeed)) with no from/cost slot — is EVALUATED
-    // as a timing lift in can_cast ([CR#702.8a]); the guard keeps the
-    // unevaluated rest: every other Cast row shape (zone permissions,
-    // alternative costs, non-May polarities), Play/Attach rows of any
-    // polarity, and the non-Cant Target polarities.
+    // EVALUATED at target-candidate computation, Must(Target) requirements
+    // (the Flagbearer class) at target-choice submission, and the flash
+    // shape — May(Cast(window: InstantSpeed)) with no from/cost slot — is
+    // EVALUATED as a timing lift in can_cast ([CR#702.8a]); the guard
+    // keeps the unevaluated rest: every other Cast row shape (zone
+    // permissions, alternative costs, non-May polarities), Play/Attach
+    // rows of any polarity, and the May/Gate Target polarities.
     guard_deontic_seam(
         state,
         &view,
@@ -251,10 +252,10 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
                     && cost.is_none())
             }
             DeonticAction::Play { .. } | DeonticAction::Attach { .. } => true,
-            DeonticAction::Target { .. } => !is_cant(d),
+            DeonticAction::Target { .. } => !is_cant(d) && !is_must(d),
             _ => false,
         },
-        "cast/play/attach + non-Cant target",
+        "cast/play/attach + May/Gate target",
     );
     guard_cost_modifier_seam(state, &view);
     for &object in &state.zones.hands[player.index()] {
@@ -539,34 +540,47 @@ pub(crate) fn arrangement_forbidden_by(
         .map(|r| r.carrier)
 }
 
-/// Every `Cant(Target)` row in the derived view, with its carrier —
-/// `(carrier source, by, on)`: `by` matches the targeting spell/ability,
-/// `on` the would-be target ([CR#702.11b] hexproof, [CR#702.16b]
-/// protection's targeted clause).
-#[must_use]
-pub(crate) fn cant_target_rows(
+/// Every `Target` row of the polarity `pick` extracts in the derived view,
+/// with its carrier — `(carrier source, by, on)`: `by` matches the
+/// targeting spell/ability, `on` the would-be target.
+fn target_rows(
     state: &GameState,
     view: &LayeredView,
+    pick: fn(&Deontic) -> Option<&DeonticAction>,
 ) -> Vec<(crate::object::ObjectSource, Filter, Filter)> {
-    fn cant_action(d: &Deontic) -> Option<&DeonticAction> {
-        match d {
-            Deontic::Cant(a) => Some(a),
-            Deontic::Expanded(e) => cant_action(&e.value),
-            _ => None,
-        }
-    }
     let mut rows = Vec::new();
     for &id in &state.zones.battlefield {
         let source = state.objects.obj(id).source;
         statics_on(view, id, &mut |e| {
             if let StaticEffect::Deontic(d) = e
-                && let Some(DeonticAction::Target { by, on }) = cant_action(d)
+                && let Some(DeonticAction::Target { by, on }) = pick(d)
             {
                 rows.push((source, by.clone(), on.clone()));
             }
         });
     }
     rows
+}
+
+/// Every `Cant(Target)` row in the derived view ([CR#702.11b] hexproof,
+/// [CR#702.16b] protection's targeted clause).
+#[must_use]
+pub(crate) fn cant_target_rows(
+    state: &GameState,
+    view: &LayeredView,
+) -> Vec<(crate::object::ObjectSource, Filter, Filter)> {
+    target_rows(state, view, cant_action)
+}
+
+/// Every `Must(Target)` row in the derived view — targeting requirements
+/// (the Flagbearer class: "must choose at least one … if able" — a
+/// choice-time constraint inside [CR#601.2c]'s legal-target selection).
+#[must_use]
+pub(crate) fn must_target_rows(
+    state: &GameState,
+    view: &LayeredView,
+) -> Vec<(crate::object::ObjectSource, Filter, Filter)> {
+    target_rows(state, view, must_action)
 }
 
 /// The carrier of the first `Cant(Target)` row forbidding `spell` (the

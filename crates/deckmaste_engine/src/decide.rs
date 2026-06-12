@@ -426,6 +426,65 @@ impl GameState {
                         reason: "illegal target selection".into(),
                     });
                 }
+                // Targeting requirements (Must(Target) rows — the
+                // Flagbearer class, "must choose at least one … if able"):
+                // for each row whose `by` matches the targeting object,
+                // if any spec's candidate set holds an `on`-matching
+                // object, the chosen targets must include at least one.
+                // Disjoint multi-row conflicts would need the maximize
+                // arbitration (identical rows — the printed class — are
+                // jointly satisfied by one choice, so per-row checks are
+                // exact today). Triggered abilities are exempt by the
+                // printed wording, but `by` can't spell that
+                // discrimination yet — a row matching a placing trigger's
+                // source is a LOUD seam, not an evaluation.
+                let view = self.layers();
+                let must_rows = crate::legal::must_target_rows(self, &view);
+                if !must_rows.is_empty() {
+                    let targeting = match &self.placing_trigger {
+                        // A placing trigger's stack identity is already
+                        // minted ([CR#603.3d]).
+                        Some(t) => t.id,
+                        None => match &self
+                            .announcing
+                            .as_ref()
+                            .expect("an announce in flight")
+                            .object
+                        {
+                            crate::stack::StackObject::Spell(o) => *o,
+                            crate::stack::StackObject::Activated { source, .. } => *source,
+                            crate::stack::StackObject::Triggered { .. } => unreachable!(
+                                "triggers announce targets at placement, not in the announce slot"
+                            ),
+                        },
+                    };
+                    for (carrier, by, on) in &must_rows {
+                        if !self.filter_matches_live(by, targeting, *carrier) {
+                            continue;
+                        }
+                        if self.placing_trigger.is_some() {
+                            todo!(
+                                "Must(Target) row matching a triggered ability — the by-filter \
+                                 can't exempt triggers yet"
+                            );
+                        }
+                        let able = legal.iter().any(|set| {
+                            set.iter()
+                                .any(|&t| self.filter_matches_live(on, t, *carrier))
+                        });
+                        let obeyed = chosen
+                            .iter()
+                            .any(|&t| self.filter_matches_live(on, t, *carrier));
+                        if able && !obeyed {
+                            return Err(DecisionError::Illegal {
+                                reason: format!(
+                                    "a Must(Target) requirement on {carrier:?} obliges this \
+                                     choice to include a matching target"
+                                ),
+                            });
+                        }
+                    }
+                }
                 self.pending = None;
                 if self.placing_trigger.is_some() {
                     // [CR#603.3d]: a triggered ability chose its targets at

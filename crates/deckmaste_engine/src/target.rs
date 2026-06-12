@@ -58,6 +58,18 @@ pub fn matches(state: &GameState, id: ObjectId, filter: &Filter) -> bool {
                 .iter()
                 .any(|a| crate::layer::ability_is_named(a, &kw.0))
         }
+        // Subtype presence by NAME against the DERIVED subtype list
+        // ([CR#205.3] — layer-4 type changes count); a player proxy has
+        // none. Same per-call layers() perf seam as `Has`.
+        Filter::Characteristic(CharacteristicFilter::Subtype(name)) => {
+            state.objects.obj(id).card_id().is_some()
+                && state
+                    .layers()
+                    .get(id)
+                    .subtypes
+                    .iter()
+                    .any(|s| s.name == *name)
+        }
         // [CR#122.1] counters go on objects AND players — player counters
         // live on the player's proxy object, so one LIVE read serves both.
         Filter::State(deckmaste_core::StateFilter::HasCounter(kind)) => state
