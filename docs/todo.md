@@ -79,22 +79,27 @@ in full.
 
 - [ ] `core-loyalty-costs` — a loyalty-cost component (+N / −N / −X) for activated
   abilities; prerequisite for 1,512 planeswalker faces.
-- [ ] `core-alt-costs` — first-class shape (or blessed macro convention) for
-  alternative and additional casting costs: flashback, evoke, overload,
-  madness, kicker, etc., including "if the X cost was paid" linkage.
-  **[design]**
+- [ ] `core-alt-costs` — the SHAPES landed in P0.W2 (`AlternativeCost` on
+  `May(Cast(cost: …))`, `CostChange::Additional{optional}`); remaining: the
+  keyword macros over them (flashback, evoke, overload, madness, kicker)
+  and "if the X cost was paid" linkage. **[design]**
 - [ ] `core-card-shapes` — `Card` variants beyond `Normal`/`ModalDfc` (see §4).
-- [ ] `core-copy-grammar` — copy effects: spell copies on the stack, token copies,
+- [ ] `core-copy-grammar` — copy effects: `CopySpell` (copy-on-stack) landed
+  P0.W4; remaining: cast-a-copy ([CR#707.12], decides UD-4), token copies,
   enters-as-a-copy, "becomes a copy of" (layer 1 input).
-- [ ] `core-emblems` — emblem declarations and command-zone object grammar.
+- [ ] `core-emblems` — `GetEmblem(Vec<Ability>)` + `ObjectKind::Emblem`
+  landed in P0.W5; remaining: engine minting (the P0.W5 resolve seam) and
+  the parser/macro story for "you get an emblem with …".
 - [ ] `core-saga-chapters` — chapter-ability structure (I/II/III markers, ranges,
   read-ahead compatibility).
 - [ ] `core-as-enters-choices` — "as this enters, choose …" (color/type/number/
   opponent) with stored, linked choices readable by other abilities.
-- [ ] `core-casting-restrictions` — "can't be countered", split-second-style stack
-  lockout, "cast only …" timing/permission restrictions.
-- [ ] `core-count-query` — `Count::Query` bridge to engine-tracked tallies (storm
-  count, lands played, cards drawn); aggregate sums (devotion-style) still
+- [ ] `core-casting-restrictions` — "can't be countered" and split-second-style
+  stack lockout; "cast only …" timing landed in P0.W1
+  (`DeonticAction::Cast{window}` — consumption is the engine seam).
+- [ ] `core-count-query` — `Count::Query(QueryKey)` landed in P0.W4
+  (CardsDrawn/LandsPlayed evaluate live; StormCount is a seam); remaining:
+  more keys as cards force them, and aggregate sums (devotion-style) still
   unsolved. **[design]**
 - [ ] `core-intrinsic-keywords-policy` — which keywords graduate from plugin
   macros to intrinsic `KeywordAbility` variants, and the template-param story
@@ -107,8 +112,9 @@ in full.
 - [x] `engine-resolve-playeractions` — resolve the remaining `PlayerAction`s:
   GainLife, Discard, AddMana, Create, Sacrifice, Exile, Untap, PutInLibrary
   (verb landed, resolution still todo).
-- [ ] `engine-resolve-actions` — resolve `Destroy` (regeneration/indestructible
-  aware) and `ReturnToHand`.
+- [ ] `engine-resolve-actions` — `Destroy` resolves since P0.W7 (cause-tagged,
+  DIRECT — no replacement window); remaining: the `WillDestroy` intent for
+  regeneration/indestructible, and `ReturnToHand`.
 - [ ] `engine-resolve-effects` — May, If/Unless, ForEach, Modal, Delayed,
   Reflexive effect frames; resolution-time choices surfaced as decisions.
 - [ ] `engine-resolve-counts` — X, CountOf(Filter), StatOf, ThatMuch.
@@ -116,16 +122,19 @@ in full.
   decisions; remaining `Reference` variants (Bound, Linked, ControllerOf,
   OwnerOf, attachment refs).
 - [ ] `engine-filter-breadth` — evaluate Named, Stat, Relation (controller/owner/
-  opponent/attached), StateFilter (Status, HasCounter, HasDesignation,
-  RelatedBy), and Ref(Reference) filters (`target.rs`, `trigger.rs` snapshot
-  matching).
+  opponent/attached), StateFilter (Status, RelatedBy, Targets/TargetCount),
+  and Ref(Reference) filters (`target.rs`, `trigger.rs` snapshot matching).
+  `HasCounter` and `Designated` read live since P0.W5/W6.
 
 ### Triggers and conditions (`trigger.rs`)
 
-- [ ] `engine-trigger-events` — match the remaining event shapes: Performed
-  (verb-based: sacrificed, discarded, milled…), DamageDealt, spell-cast,
-  becomes-tapped/untapped, becomes-blocked (needs once-per-attacker dedup),
-  becomes-targeted (prerequisite for ward/heroic), OneOf.
+- [ ] `engine-trigger-events` — match the remaining event shapes: CAUSE-PATTERN
+  matching (the P0.W3 seam — unlocks the sacrificed/discarded/played/
+  `Destroyed` named views, whose emitters all carry causes now), Performed,
+  DamageDealt, spell-cast, becomes-tapped/untapped, becomes-blocked (needs
+  once-per-attacker dedup), becomes-targeted (prerequisite for ward/heroic),
+  OneOf, and the new becomes-deltas (phased/turned-face/designated/
+  controlled-by).
 - [ ] `engine-trigger-conditions` — Condition::Is, Compare, Happened; intervening
   "if" rechecked on resolution [CR#603.4].
 - [ ] `engine-trigger-limits` — OncePerTurn and friends.
@@ -144,13 +153,14 @@ in full.
 
 ### SBAs and counters (`sba.rs`)
 
-- [ ] `engine-sba-breadth` — the remaining [CR#704.5] sweeps: poison loss,
-  toughness ≤ 0, loyalty 0, illegal auras, unattached-equipment legality,
-  legend rule, token-ceases-to-exist, battle with no defense, spell-copy
-  cleanup.
-- [ ] `engine-counters-api` — add/remove/move counters as events; enters-with-
-  counters; +1/+1 vs −1/−1 annihilation SBA; keyword-counter payload registry
-  [CR#122.1] (stun, shield, finality, flying, …).
+- [ ] `engine-sba-breadth` — the remaining [CR#704.5] sweeps (poison landed in
+  P0.W6, live off the proxy counter map): toughness ≤ 0, loyalty 0, illegal
+  auras, unattached-equipment legality, legend rule, battle with no defense,
+  spell-copy cleanup. (Token-ceases already sweeps.)
+- [ ] `engine-counters-api` — apply the counter events (verbs/events landed in
+  P0.W3; storage already lives on objects, players via their proxy);
+  enters-with-counters; +1/+1 vs −1/−1 annihilation SBA; keyword-counter
+  payload registry [CR#122.1] (stun, shield, finality, flying, …).
 
 ### Replacements and prevention (`replace.rs`)
 
