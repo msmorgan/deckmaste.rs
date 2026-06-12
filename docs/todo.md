@@ -135,13 +135,19 @@ in full.
 
 ### Triggers and conditions (`trigger.rs`)
 
-- [ ] `engine-trigger-events` — match the remaining event shapes: CAUSE-PATTERN
-  matching (the P0.W3 seam — unlocks the sacrificed/discarded/played/
-  `Destroyed` named views, whose emitters all carry causes now), Performed,
-  DamageDealt, spell-cast, becomes-tapped/untapped, becomes-blocked (needs
-  once-per-attacker dedup), becomes-targeted (prerequisite for ward/heroic),
-  OneOf, and the new becomes-deltas (phased/turned-face/designated/
-  controlled-by).
+- [x] `engine-trigger-events` — cause-pattern matching (verb/agency/agent —
+  `Destroyed` and the sacrificed/discarded/played views narrow live),
+  Performed (Cast + DealDamage facts; Sacrifice/Discard/Play cause views,
+  performer = the mover), becomes-tapped/untapped (effect emitters
+  transition-guarded; the attack tap emits its cause-tagged fact),
+  becomes-blocked (once-per-attacker scan dedup), becomes-targeted (the
+  announce lock emits `BecameTarget`; ward's trigger half), OneOf,
+  ControlledBy, game-scope DesignationChanged; composite keywords flatten
+  into the trigger ability space (prowess live e2e). Residual seams:
+  phased/turned-face/object-designation deltas await their fact shapes,
+  `DamageDealt` has no combat coordinate yet ("combat damage" triggers),
+  Performed verbs outside the wired set trip, and ward's by-row keys on
+  stack-zone state an ability announce can't satisfy until promote.
 - [ ] `engine-trigger-conditions` — Condition::Is, Compare, Happened; intervening
   "if" rechecked on resolution [CR#603.4].
 - [ ] `engine-trigger-limits` — OncePerTurn and friends.
@@ -328,7 +334,7 @@ coverage, and graduating its cards. Slug: `kw-<kebab-case>`.
 | Defender | 696 | attack restriction |
 | Flashback | 576 | graveyard alt cost + exile replacement |
 | Kicker / Multikicker | 502 | additional cost + "if kicked" linkage |
-| Ward | 475 | becomes-targeted trigger + tax (`engine-trigger-events`) |
+| Ward | 475 | trigger half live; tax = Unless/Counter (`engine-resolve-effects`) |
 | Indestructible | 468 | destroy immunity (SBA + Destroy) |
 | Crew | 420 | tap-creatures cost; vehicle animation |
 | Protection | 380 | bundle: target/enchant/block/damage immunity |
