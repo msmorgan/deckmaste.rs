@@ -1,0 +1,20 @@
+// Equip = an activated ability of Equipment [CR#702.6a]: "[cost]: attach
+// this permanent to target creature you control. Activate only as a
+// sorcery" ([CR#602.5d] sorcery timing = the SorcerySpeed window). The
+// attach RELATION (storage, [CR#704.5m..704.5n] legality sweeps) is
+// engine work behind the Attach verb's seam.
+(
+    name: "Equip",
+    template: "equip {0}",
+    kinds: [KeywordAbility],
+    params: [Any],
+    body: Composite(
+        name: "Equip",
+        abilities: [Activated(
+            cost: Param(0),
+            window: SorcerySpeed,
+            targets: [Target(Exactly(Literal(1)), AllOf([Creature, Controller(Ref(You))]))],
+            effect: Attach(what: This, to: Target(0)),
+        )],
+    ),
+)

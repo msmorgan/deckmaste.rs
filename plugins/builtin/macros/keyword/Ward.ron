@@ -1,0 +1,26 @@
+// Ward = a triggered toll [CR#702.21a]: "whenever this permanent becomes
+// the target of a spell or ability an opponent controls, counter it
+// unless that player pays [cost]" — the becomes-target event ([CR#601.2c]
+// announce-time) driving counter-unless (the resolution Toll node,
+// Effect::Unless). The payer is the targeting spell's controller — the
+// Unless grammar doesn't carry a payer slot; that binding is engine work
+// at the seam.
+(
+    name: "Ward",
+    template: "ward {0}",
+    kinds: [KeywordAbility],
+    params: [Any],
+    body: Composite(
+        name: "Ward",
+        abilities: [Triggered(
+            event: BecomesTarget(
+                what: Ref(This),
+                by: AllOf([InZone(Stack), Controller(OpponentOf(Ref(You)))]),
+            ),
+            effect: Unless(
+                effect: Counter(ThatObject),
+                unless: Param(0),
+            ),
+        )],
+    ),
+)

@@ -1,0 +1,15 @@
+// Affinity = a stack-functioning cost reduction [CR#702.41a]: "this spell
+// costs {1} less to cast for each [text] you control". Name-carrying with
+// its quality param: CostChange::Reduce takes a fixed component list — a
+// PER-EACH scaled reduction isn't expressible yet (the count-scaled
+// cost-change gap; cost-modification-hook family).
+(
+    name: "Affinity",
+    template: "affinity for {0}",
+    kinds: [KeywordAbility],
+    params: [Any],
+    body: Composite(
+        name: "Affinity",
+        abilities: [],
+    ),
+)

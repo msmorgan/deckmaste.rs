@@ -1,0 +1,11 @@
+// Menace = a block-arrangement cardinality bound [CR#702.111b]: "can't be
+// blocked except by two or more creatures" — a Cant(Block) row whose
+// CountBound forbids arrangements with fewer than two blockers (the
+// comparator-headed set-level constraint this grammar was built for).
+KeywordAbility(
+    name: "Menace",
+    template: "menace",
+    abilities: [Static(effects: [
+        Cant(Block(on: Ref(This), count: Less(Literal(2)))),
+    ])],
+)

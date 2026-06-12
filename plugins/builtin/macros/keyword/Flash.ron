@@ -1,0 +1,11 @@
+// Flash = a cast-permission window widening [CR#702.8a]: "you may play this
+// card any time you could cast an instant" — a May(Cast) row whose window
+// is instant speed (deontics §3 Only-refinement, inverted to a grant).
+// Functions from any zone the card could be played from.
+KeywordAbility(
+    name: "Flash",
+    template: "flash",
+    abilities: [Static(effects: [
+        May(Cast(what: Ref(This), window: InstantSpeed)),
+    ])],
+)

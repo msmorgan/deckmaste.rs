@@ -1,0 +1,17 @@
+// Kicker = an optional additional cost [CR#702.33a]: "you may pay an
+// additional [cost] as you cast this spell" — the [CR#118.8b] kicker
+// shape, announced at [CR#601.2b]; pipeline-positional via
+// CostChange::Additional{optional}. "If it was kicked" readers are the
+// alt-cost linkage gap (core-alt-costs), not part of this row.
+(
+    name: "Kicker",
+    template: "kicker {0}",
+    kinds: [KeywordAbility],
+    params: [Any],
+    body: Composite(
+        name: "Kicker",
+        abilities: [Static(effects: [
+            CostModifier(of: Ref(This), change: Additional(components: Param(0), optional: true)),
+        ])],
+    ),
+)
