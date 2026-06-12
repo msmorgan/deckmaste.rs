@@ -3,10 +3,10 @@
 //! The mtg-rules skill's `keywords-classified.json` is the pinned
 //! authoritative classification (docs/rules-taxonomy.md §10): the
 //! `KeywordAbility` enum may contain ONLY keywords it classes `intrinsic`,
-//! and every `KeywordAbility`-kind plugin macro must be `composite` or
-//! `composite-given`. Containment, not equality — intrinsics the engine has
-//! not implemented (banding, companion, mutate, phasing) are legitimately
-//! absent from the enum.
+//! and every `KeywordAbility`-kind plugin macro must be a NON-intrinsic
+//! class (composite / composite-given / marker). Containment, not equality
+//! — intrinsics the engine has not implemented (banding, companion, mutate,
+//! phasing) are legitimately absent from the enum.
 //!
 //! The JSON ships with the skill, not this repo: located via
 //! `$MTG_RULES_SKILL`, defaulting to `~/.claude/skills/mtg-rules/`. When it
