@@ -1,12 +1,111 @@
 use std::collections::HashSet;
 use std::fmt;
 
+use deckmaste_core::DeciderSpec;
 use deckmaste_core::KeywordAbility;
+use deckmaste_core::LockPoint;
 use deckmaste_core::Uint;
+use deckmaste_core::Visibility;
 
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::player::PlayerId;
+
+/// A pre-game decision ([CR#103]) — surfaced before turn one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PreGameKind {
+    /// Who takes the first turn ([CR#103.1]).
+    FirstTurn,
+    /// Keep or mulligan; London bottoming is the committed-hidden part
+    /// ([CR#103.5]).
+    Mulligan,
+    /// Reveal a companion ([CR#103.2b]).
+    Companion,
+    /// Opening-hand (Leyline-style) actions, turn order ([CR#103.6]).
+    OpeningHand,
+}
+
+/// A special action ([CR#116.2]) — taken with priority, no stack; the
+/// closed CR list (land play is already `Action::PlayLand`). All arms are
+/// P0.W3 shells: `legal_actions` never offers them yet.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SpecialAction {
+    /// Turn a face-down creature face up ([CR#116.2b]).
+    TurnFaceUp(ObjectId),
+    /// End a continuous/delayed effect that allows it ([CR#116.2c]).
+    EndEffect(ObjectId),
+    /// Ignore a static ability's effect for a duration ([CR#116.2d]).
+    IgnoreStatic(ObjectId),
+    /// Exile a suspend card from hand ([CR#116.2f]).
+    SuspendCast(ObjectId),
+    /// Pay {3} to bring the companion to hand ([CR#116.2g]).
+    CompanionToHand,
+    /// Pay {2} to foretell ([CR#116.2h]).
+    Foretell(ObjectId),
+    /// Exile a plot card from hand ([CR#116.2k]).
+    PlotExile(ObjectId),
+    /// Pay an unlock cost ([CR#116.2m]).
+    UnlockHalf(ObjectId),
+}
+
+/// The boundary record of a pending decision (mtg-rules choices.md §6):
+/// the kind plus its schema row — nominal decider, lock stage, visibility.
+/// Derived from the kind by the schema methods below (the choices table is
+/// encoded once); UI/AI/replay consumers read THIS, while
+/// `Progress::NeedsDecision` stays the kind-only notification.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DecisionPoint {
+    pub pending: PendingDecision,
+    pub decider: DeciderSpec,
+    pub lock: LockPoint,
+    pub visibility: Visibility,
+}
+
+impl PendingDecision {
+    /// The choices.md §2 schema row: nominal decider. Refinements
+    /// (delegation, APNAP per-combatant) arrive with the kinds' behavior.
+    #[must_use]
+    pub fn decider_spec(&self) -> DeciderSpec {
+        match self {
+            PendingDecision::Priority { .. } => DeciderSpec::PriorityHolder,
+            PendingDecision::DeclareAttackers { .. } => DeciderSpec::ActivePlayer,
+            PendingDecision::DeclareBlockers { .. } => DeciderSpec::DefendingPlayer,
+            PendingDecision::Vote { .. } => DeciderSpec::EachInTurnOrder,
+            _ => DeciderSpec::Controller,
+        }
+    }
+
+    /// The choices.md §2 lock stage on the shared `LockPoint` axis.
+    #[must_use]
+    pub fn lock(&self) -> LockPoint {
+        match self {
+            PendingDecision::ChooseTargets { .. }
+            | PendingDecision::ChooseModes { .. }
+            | PendingDecision::Division { .. } => LockPoint::Announce,
+            PendingDecision::PayMana { .. } => LockPoint::Payment,
+            PendingDecision::OrderTriggers { .. } => LockPoint::StackPlacement,
+            PendingDecision::DeclareAttackers { .. }
+            | PendingDecision::DeclareBlockers { .. }
+            | PendingDecision::AssignCombatDamage { .. } => LockPoint::Declaration,
+            PendingDecision::PreGame { .. } => LockPoint::PreGame,
+            // Priority actions and resolution-stage choices bind as applied.
+            _ => LockPoint::Resolution,
+        }
+    }
+
+    /// The choices.md §3 visibility class. London bottoming is the one
+    /// committed-hidden pre-game payload ([CR#103.5]).
+    #[must_use]
+    pub fn visibility(&self) -> Visibility {
+        match self {
+            PendingDecision::PreGame {
+                kind: PreGameKind::Mulligan,
+                ..
+            } => Visibility::CommittedHidden,
+            _ => Visibility::Open,
+        }
+    }
+}
 
 /// What the engine is waiting on. `step()` returns `NeedsDecision` (without
 /// mutating) until `submit_decision` answers it.
@@ -72,11 +171,38 @@ pub enum PendingDecision {
         source: ObjectId,
         recipients: Vec<ObjectId>,
     },
+    /// Choose a modal spell/ability's modes ([CR#700.2a..700.2b]) —
+    /// P0.W3 shell; nothing surfaces it yet.
+    ChooseModes {
+        player: PlayerId,
+        options: Uint,
+        count: Uint,
+    },
+    /// Divide damage/counters among targets ([CR#601.2d,608.2d]) — shell.
+    Division {
+        player: PlayerId,
+        total: Uint,
+        targets: Vec<ObjectId>,
+    },
+    /// Vote, each player in turn order ([CR#701.38a]) — shell.
+    Vote { player: PlayerId, options: Uint },
+    /// A fixed-window yes/no ("… unless you pay", [CR#608.2d]) — shell.
+    YesNo { player: PlayerId },
+    /// A pre-game choice ([CR#103]) — shell.
+    PreGame { player: PlayerId, kind: PreGameKind },
 }
 
 /// An answer to the pending decision.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Decision {
+    /// Modes chosen, by option index ([CR#700.2]) — P0.W3 shell.
+    Modes(Vec<Uint>),
+    /// A division among targets ([CR#601.2d]) — shell.
+    Divide(Vec<(ObjectId, Uint)>),
+    /// A vote, by option index ([CR#701.38a]) — shell.
+    VoteFor(Uint),
+    /// A yes/no answer ([CR#608.2d]) — shell.
+    Answer(bool),
     /// Answers `Priority`.
     Act(Action),
     /// Answers `DiscardToHandSize` and `DiscardCards`: which cards to discard.
@@ -106,6 +232,9 @@ pub enum Decision {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     Pass,
+    /// A special action ([CR#116.2]) — P0.W3 shell; never offered in the
+    /// legal list yet, so submissions reject as Illegal.
+    Special(SpecialAction),
     /// Special action, no stack ([CR#116.2a,305]).
     PlayLand {
         object: ObjectId,
@@ -344,6 +473,14 @@ impl GameState {
                 let recipients = recipients.clone();
                 self.submit_assign_combat_damage(source, &recipients, amounts)
             }
+            (
+                PendingDecision::ChooseModes { .. }
+                | PendingDecision::Division { .. }
+                | PendingDecision::Vote { .. }
+                | PendingDecision::YesNo { .. }
+                | PendingDecision::PreGame { .. },
+                _,
+            ) => todo!("P0.W3: submission handling for shell decision kinds"),
             _ => Err(DecisionError::WrongKind),
         }
     }
@@ -597,6 +734,9 @@ impl GameState {
     /// input.
     fn take_priority_action(&mut self, player: PlayerId, action: &Action) {
         match action {
+            // P0.W3 shell: special actions are never in the legal list, so
+            // submission already rejected them as Illegal; loud if reached.
+            Action::Special(_) => todo!("P0.W3: special actions ([CR#116.2] machinery)"),
             Action::Pass => {
                 // Compute before borrowing the round mutably.
                 let live = self.live_count();
