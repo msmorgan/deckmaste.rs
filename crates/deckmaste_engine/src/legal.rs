@@ -6,6 +6,7 @@
 use deckmaste_core::Ability;
 use deckmaste_core::Deontic;
 use deckmaste_core::DeonticAction;
+use deckmaste_core::Filter;
 use deckmaste_core::KeywordAbility;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::Type;
@@ -245,11 +246,15 @@ pub fn legal_attackers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
 #[must_use]
 pub fn legal_blockers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
     let view = state.layers();
+    // Point-wise Cant(Block) rows (flying-style evasion) are EVALUATED at
+    // block submission now — the guard narrows to what is still
+    // unevaluated: arrangement-level bounds (menace's `count`,
+    // [CR#702.111b]) and the non-Cant polarities (must-block, May lifts).
     guard_deontic_seam(
         state,
         &view,
-        |a| matches!(a, DeonticAction::Block { .. }),
-        "block",
+        |a| !matches!(a, DeonticAction::Block { count: None, .. }),
+        "block (arrangement bounds / non-Cant polarities)",
     );
     state
         .zones
@@ -263,4 +268,95 @@ pub fn legal_blockers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
                 && view.get(id).card_types.contains(&Type::Creature)
         })
         .collect()
+}
+
+/// Every point-wise `Cant(Block)` row in the derived view, with its
+/// carrier: `(carrier source, by, on)`. Arrangement-level rows (a `count`
+/// bound — menace) are excluded; they stay behind the presence guard until
+/// the set-level evaluator exists.
+#[must_use]
+pub(crate) fn cant_block_rows(
+    state: &GameState,
+    view: &LayeredView,
+) -> Vec<(crate::object::ObjectSource, Filter, Filter)> {
+    fn cant_action(d: &Deontic) -> Option<&DeonticAction> {
+        match d {
+            Deontic::Cant(a) => Some(a),
+            Deontic::Expanded(e) => cant_action(&e.value),
+            _ => None,
+        }
+    }
+    let mut rows = Vec::new();
+    for &id in &state.zones.battlefield {
+        let source = state.objects.obj(id).source;
+        statics_on(view, id, &mut |e| {
+            if let StaticEffect::Deontic(d) = e
+                && let Some(DeonticAction::Block {
+                    by,
+                    on,
+                    count: None,
+                }) = cant_action(d)
+            {
+                rows.push((source, by.clone(), on.clone()));
+            }
+        });
+    }
+    rows
+}
+
+/// Walks one object's derived abilities with the same look-through rules as
+/// [`statics_present`] (static effect lists, keyword composites, `Expanded`
+/// wrappers at every level), calling `visit` on every static effect.
+fn statics_on<F: FnMut(&StaticEffect)>(view: &LayeredView, id: ObjectId, visit: &mut F) {
+    fn in_ability<F: FnMut(&StaticEffect)>(a: &Ability, visit: &mut F) {
+        match a {
+            Ability::Static(s) => {
+                for e in &s.effects {
+                    in_static(e, visit);
+                }
+            }
+            Ability::Keyword(k) => in_keyword(k, visit),
+            Ability::Expanded(e) => in_ability(&e.value, visit),
+            _ => {}
+        }
+    }
+    fn in_keyword<F: FnMut(&StaticEffect)>(k: &KeywordAbility, visit: &mut F) {
+        match k {
+            KeywordAbility::Composite { abilities, .. } => {
+                for a in abilities {
+                    in_ability(a, visit);
+                }
+            }
+            KeywordAbility::Expanded(e) => in_keyword(&e.value, visit),
+            _ => {}
+        }
+    }
+    fn in_static<F: FnMut(&StaticEffect)>(e: &StaticEffect, visit: &mut F) {
+        match e {
+            StaticEffect::Expanded(x) => in_static(&x.value, visit),
+            other => visit(other),
+        }
+    }
+    for a in view.get(id).abilities.iter() {
+        in_ability(a, visit);
+    }
+}
+
+/// The carrier of the first `Cant(Block)` row forbidding `blocker` blocking
+/// `attacker`, if any — `by`/`on` evaluate against the LIVE objects with
+/// the row's carrier as `This` ([CR#702.9b]: flying's row sits on the
+/// attacker, so `on: Ref(This)` anchors there).
+#[must_use]
+pub(crate) fn block_forbidden_by(
+    state: &GameState,
+    rows: &[(crate::object::ObjectSource, Filter, Filter)],
+    blocker: ObjectId,
+    attacker: ObjectId,
+) -> Option<crate::object::ObjectSource> {
+    rows.iter()
+        .find(|(carrier, by, on)| {
+            state.filter_matches_live(by, blocker, *carrier)
+                && state.filter_matches_live(on, attacker, *carrier)
+        })
+        .map(|(carrier, ..)| *carrier)
 }

@@ -47,6 +47,17 @@ pub fn matches(state: &GameState, id: ObjectId, filter: &Filter) -> bool {
         // macros like `AnyTarget` are looked through earlier, in
         // `resolve::target_spec_filter`, so they never reach here.)
         Filter::Expanded(e) => matches(state, id, &e.value),
+        // [CR#702]: keyword presence by NAME against the DERIVED abilities
+        // (granted keywords count; the carried Composite name survives
+        // expansion). Per-call layers() rebuild — a perf seam if a hot path
+        // ever evaluates Has in bulk.
+        Filter::Characteristic(CharacteristicFilter::Has(kw)) => {
+            let view = state.layers();
+            view.get(id)
+                .abilities
+                .iter()
+                .any(|a| crate::layer::ability_is_named(a, &kw.0))
+        }
         // [CR#122.1] counters go on objects AND players — player counters
         // live on the player's proxy object, so one LIVE read serves both.
         Filter::State(deckmaste_core::StateFilter::HasCounter(kind)) => state

@@ -500,6 +500,22 @@ impl GameState {
                         reason: "each blocker (once) blocks an attacker from the legal set".into(),
                     });
                 }
+                // [CR#509.1b]: evaluate the point-wise Cant(Block) rows
+                // (flying-family evasion) against each proposed pair — the
+                // first deontic rows the engine evaluates instead of
+                // guarding. Arrangement-level bounds (menace) are still the
+                // legal_blockers presence guard's business.
+                let view = self.layers();
+                let rows = crate::legal::cant_block_rows(self, &view);
+                for &(blocker, attacker) in &pairs {
+                    if let Some(carrier) =
+                        crate::legal::block_forbidden_by(self, &rows, blocker, attacker)
+                    {
+                        return Err(DecisionError::Illegal {
+                            reason: format!("a Cant(Block) row on {carrier:?} forbids this block"),
+                        });
+                    }
+                }
                 self.pending = None;
                 // [CR#509.1h]: the whole block declaration is one simultaneous
                 // occurrence — a `Batch` (skipped when empty, which schedules
