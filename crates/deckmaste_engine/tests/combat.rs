@@ -1529,3 +1529,124 @@ fn defender_cannot_be_declared_as_an_attacker() {
         .submit_decision(Decision::Attackers(vec![bear]))
         .unwrap();
 }
+
+/// Must(Attack) goes LIVE: an attack requirement ("attacks each combat if
+/// able", [CR#508.1d]) makes any declaration omitting the able carrier
+/// illegal; the creature beside it stays free to stay home.
+#[test]
+fn must_attack_requires_the_able_creature() {
+    let brigand = card("Goblin Brigand");
+    let bears = card("Grizzly Bears");
+    let mut p0_deck = deck(&brigand, 5);
+    p0_deck.extend(deck(&bears, 5));
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck: p0_deck },
+            PlayerConfig {
+                deck: deck(&bears, 10),
+            },
+        ],
+        seed: 29,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    let brigand = force_onto_battlefield(&mut state, PlayerId(0), "Goblin Brigand");
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+
+    let (_, stop) = pass_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { legal, .. }) = stop else {
+        panic!("expected DeclareAttackers, got {stop:?}");
+    };
+    assert!(legal.contains(&brigand) && legal.contains(&bear));
+
+    // Omitting the required creature is an illegal declaration ([CR#508.1d]).
+    assert!(matches!(
+        state.submit_decision(Decision::Attackers(vec![])),
+        Err(DecisionError::Illegal { .. })
+    ));
+    assert!(matches!(
+        state.submit_decision(Decision::Attackers(vec![bear])),
+        Err(DecisionError::Illegal { .. })
+    ));
+    // The requirement binds only its carrier — the bear may stay home.
+    state
+        .submit_decision(Decision::Attackers(vec![brigand]))
+        .unwrap();
+}
+
+/// "If able" ([CR#508.1d]): a tapped carrier isn't an able attacker, so
+/// the requirement is waived and the empty declaration stays legal.
+#[test]
+fn must_attack_waived_when_unable() {
+    let brigand = card("Goblin Brigand");
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig {
+                deck: deck(&brigand, 10),
+            },
+            PlayerConfig {
+                deck: deck(&brigand, 10),
+            },
+        ],
+        seed: 31,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    let brigand = force_onto_battlefield(&mut state, PlayerId(0), "Goblin Brigand");
+
+    // Tap the carrier AFTER the untap step (at the first priority window),
+    // so it is still tapped when attackers are declared.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) = stop else {
+        panic!("expected a priority window before combat, got {stop:?}");
+    };
+    state.objects.obj_mut(brigand).tapped = true;
+
+    let (_, stop) = pass_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { legal, .. }) = stop else {
+        panic!("expected DeclareAttackers, got {stop:?}");
+    };
+    assert!(!legal.contains(&brigand), "tapped: not an able attacker");
+    state.submit_decision(Decision::Attackers(vec![])).unwrap();
+}
+
+/// Must(Block) goes LIVE: "All creatures able to block this creature do
+/// so" ([CR#509.1c]) — with the Taunting Elf attacking, every able
+/// defender must block it; arrangements leaving one home are illegal.
+#[test]
+fn must_block_requires_every_able_blocker() {
+    let elf = card("Taunting Elf");
+    let bears = card("Grizzly Bears");
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig {
+                deck: deck(&elf, 10),
+            },
+            PlayerConfig {
+                deck: deck(&bears, 10),
+            },
+        ],
+        seed: 37,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Taunting Elf");
+    let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
+    let b2 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
+
+    let (_, legal) = drive_to_declare_blockers(&mut state, vec![attacker]);
+    assert!(legal.contains(&b1) && legal.contains(&b2));
+
+    // Leaving any able blocker home is an illegal declaration ([CR#509.1c]).
+    assert!(matches!(
+        state.submit_decision(Decision::Blocks(vec![])),
+        Err(DecisionError::Illegal { .. })
+    ));
+    assert!(matches!(
+        state.submit_decision(Decision::Blocks(vec![(b1, attacker)])),
+        Err(DecisionError::Illegal { .. })
+    ));
+    state
+        .submit_decision(Decision::Blocks(vec![(b1, attacker), (b2, attacker)]))
+        .unwrap();
+}

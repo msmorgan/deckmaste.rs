@@ -463,16 +463,44 @@ impl GameState {
                 let (player, triggers) = (*player, triggers.clone());
                 self.submit_order_triggers(player, &triggers, &order)
             }
-            (
-                PendingDecision::DeclareAttackers { player: _, legal },
-                Decision::Attackers(chosen),
-            ) => {
+            (PendingDecision::DeclareAttackers { player, legal }, Decision::Attackers(chosen)) => {
                 // [CR#508.1a]: each chosen creature must be in the surfaced
                 // legal set, and no creature attacks twice.
                 let distinct: HashSet<_> = chosen.iter().copied().collect();
                 if distinct.len() != chosen.len() || !chosen.iter().all(|o| legal.contains(o)) {
                     return Err(DecisionError::Illegal {
                         reason: "attackers must be distinct, from the legal set".into(),
+                    });
+                }
+                // [CR#508.1d]: attack requirements ("attacks if able",
+                // goad) — every surfaced-legal creature matched by a
+                // Must(Attack) row whose `on` matches the defender must be
+                // among the chosen. The legal set already excludes
+                // restricted creatures (tapped/sick/Cant rows), the Attack
+                // pattern carries no arrangement bound, and Gate costs are
+                // never forced (Gate rows still trip the presence guard) —
+                // so requirements decompose per-creature and obeying all
+                // of them is always possible: the maximize arbitration
+                // reduces to a membership check.
+                let view = self.layers();
+                let rows = crate::legal::must_attack_rows(self, &view);
+                let defender_proxy = self
+                    .players
+                    .iter()
+                    .find(|p| p.id != *player)
+                    .map(|p| p.object);
+                if let Some(&required) = legal.iter().find(|&&c| {
+                    !chosen.contains(&c)
+                        && rows.iter().any(|(carrier, by, on)| {
+                            self.filter_matches_live(by, c, *carrier)
+                                && defender_proxy
+                                    .is_some_and(|d| self.filter_matches_live(on, d, *carrier))
+                        })
+                }) {
+                    return Err(DecisionError::Illegal {
+                        reason: format!(
+                            "a Must(Attack) requirement obliges {required:?} to attack"
+                        ),
                     });
                 }
                 self.pending = None;
@@ -533,6 +561,70 @@ impl GameState {
                                 "a Cant(Block) arrangement bound on {carrier:?} forbids this \
                                  blocker set"
                             ),
+                        });
+                    }
+                }
+                // [CR#509.1c]: block requirements ("blocks if able", "all
+                // creatures able to block … do so") — each surfaced-legal
+                // blocker matched by a Must(Block) row's `by` is demanded
+                // to block an `on`-matching attacker it isn't point-wise
+                // forbidden from blocking. A blocker obeys all its
+                // instances by blocking inside the intersection of their
+                // demanded sets; an instance whose demanded set is empty
+                // is unsatisfiable and waived. The cases needing the full
+                // maximize arbitration are LOUD seams, not approximations:
+                // requirements interacting with an arrangement bound
+                // ([CR#509.1c]'s menace example — both creatures must
+                // block), conflicting instances (empty intersection), and
+                // a requirement row carrying its own bound.
+                let must_rows = crate::legal::must_block_rows(self, &view);
+                for &b in legal {
+                    let mut demanded: Vec<Vec<ObjectId>> = Vec::new();
+                    for row in &must_rows {
+                        if row.count.is_some() {
+                            todo!("a Must(Block) row carrying an arrangement bound");
+                        }
+                        if !self.filter_matches_live(&row.by, b, row.carrier) {
+                            continue;
+                        }
+                        let set: Vec<ObjectId> = attackers
+                            .iter()
+                            .copied()
+                            .filter(|&a| self.filter_matches_live(&row.on, a, row.carrier))
+                            .filter(|&a| {
+                                crate::legal::block_forbidden_by(self, &rows, b, a).is_none()
+                            })
+                            .collect();
+                        let bounded = set.iter().any(|&a| {
+                            rows.iter().any(|r| {
+                                r.count.is_some() && self.filter_matches_live(&r.on, a, r.carrier)
+                            })
+                        });
+                        if bounded {
+                            todo!(
+                                "Must(Block) × arrangement-bound arbitration \
+                                 ([CR#509.1c]'s menace example)"
+                            );
+                        }
+                        if !set.is_empty() {
+                            demanded.push(set);
+                        }
+                    }
+                    let Some(first) = demanded.first() else {
+                        continue;
+                    };
+                    let obeys: Vec<ObjectId> = first
+                        .iter()
+                        .copied()
+                        .filter(|a| demanded.iter().all(|s| s.contains(a)))
+                        .collect();
+                    if obeys.is_empty() {
+                        todo!("conflicting Must(Block) requirements need the maximize arbitration");
+                    }
+                    let blocks = pairs.iter().find(|&&(bb, _)| bb == b).map(|&(_, a)| a);
+                    if !blocks.is_some_and(|a| obeys.contains(&a)) {
+                        return Err(DecisionError::Illegal {
+                            reason: format!("a Must(Block) requirement obliges {b:?} to block"),
                         });
                     }
                 }

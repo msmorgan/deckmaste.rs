@@ -1,0 +1,18 @@
+// Hand-written ability: requirement prose is beyond the parsers today
+// ("All creatures able to block this creature do so." — the if-able
+// arbitration lives in the Must polarity [CR#509.1c]).
+Normal(
+    name: "Taunting Elf",
+    mana_cost: [
+        Green,
+    ],
+    types: [Creature],
+    subtypes: [Elf],
+    abilities: [
+        Static(effects: [
+            Must(Block(by: Creature, on: Ref(This))),
+        ]),
+    ],
+    power: 0,
+    toughness: 1,
+)
