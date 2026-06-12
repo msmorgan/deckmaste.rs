@@ -344,6 +344,57 @@ fn declare_attackers_taps_records_and_fires_attacking() {
     );
 }
 
+/// [CR#508.1f]: the declaration's tap is a real "becomes tapped" transition
+/// ([CR#603.2e]), so a `Tapped` fact carrying the attack-declaration cause
+/// rides the step trace for becomes-tapped triggers to match.
+#[test]
+fn declare_attackers_emits_tapped_fact_with_attack_cause() {
+    let mut state = two_player_with("Grizzly Bears", 7, 20);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+
+    let (_trace, _stop) = pass_to_stop(&mut state);
+    state
+        .submit_decision(Decision::Attackers(vec![bear]))
+        .unwrap();
+
+    let (trace, _stop) = step_to_stop(&mut state);
+    assert!(
+        trace.iter().any(|p| matches!(
+            p,
+            Progress::Applied(Occurrence::Single(GameEvent::Tapped {
+                object,
+                cause: Some(c),
+            })) if *object == bear
+                && c.agency == deckmaste_core::Agency::AttackDeclaration
+        )),
+        "the attack tap rides the trace as a cause-tagged Tapped fact: {trace:?}"
+    );
+}
+
+/// [CR#702.20b]: a vigilance attacker doesn't tap — no transition
+/// ([CR#603.2e]), so no `Tapped` fact is emitted for it. (The untapped
+/// status itself is `vigilance_attacker_is_not_tapped`'s concern.)
+#[test]
+fn vigilant_attacker_emits_no_tapped_fact() {
+    let mut state = two_player_decks("Alaborn Grenadier", "Grizzly Bears", 7, 20);
+    let vigilant = force_onto_battlefield(&mut state, PlayerId(0), "Alaborn Grenadier");
+
+    let (_trace, _stop) = pass_to_stop(&mut state);
+    state
+        .submit_decision(Decision::Attackers(vec![vigilant]))
+        .unwrap();
+
+    let (trace, _stop) = step_to_stop(&mut state);
+    assert!(
+        !trace.iter().any(|p| matches!(
+            p,
+            Progress::Applied(Occurrence::Single(GameEvent::Tapped { object, .. }))
+                if *object == vigilant
+        )),
+        "no Tapped fact for a vigilance attacker: {trace:?}"
+    );
+}
+
 /// With no legal attacker, the Declare Attackers step still surfaces the
 /// decision; the active player declares no attackers with an empty vec.
 #[test]

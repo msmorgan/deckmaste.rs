@@ -332,9 +332,13 @@ impl GameState {
         use crate::event::Occurrence;
         match action {
             PlayerAction::Tap(sel) => {
+                // [CR#701.26a]: only an untapped permanent can be tapped — a
+                // no-op is no event ([CR#603.2e] "becomes tapped" fires on
+                // the transition only).
                 let events: Vec<GameEvent> = self
                     .eval_selection_set(sel, frame)
                     .into_iter()
+                    .filter(|&object| !self.objects.obj(object).tapped)
                     .map(|object| GameEvent::Tapped {
                         object,
                         cause: Some(Cause {
@@ -344,7 +348,11 @@ impl GameState {
                         }),
                     })
                     .collect();
-                vec![WorkItem::Emit(occurrence_of(events))]
+                if events.is_empty() {
+                    vec![]
+                } else {
+                    vec![WorkItem::Emit(occurrence_of(events))]
+                }
             }
             PlayerAction::Draw(qty) => {
                 let n = self.eval_count(qty, frame);
@@ -372,13 +380,19 @@ impl GameState {
                 }))]
             }
             PlayerAction::Untap(sel) => {
-                // [CR#701.26b]: the mirror of `Tap` above.
+                // [CR#701.26b]: the mirror of `Tap` above — only a tapped
+                // permanent can be untapped, a no-op is no event.
                 let events: Vec<GameEvent> = self
                     .eval_selection_set(sel, frame)
                     .into_iter()
+                    .filter(|&object| self.objects.obj(object).tapped)
                     .map(GameEvent::Untapped)
                     .collect();
-                vec![WorkItem::Emit(occurrence_of(events))]
+                if events.is_empty() {
+                    vec![]
+                } else {
+                    vec![WorkItem::Emit(occurrence_of(events))]
+                }
             }
             PlayerAction::Sacrifice(sel) => {
                 // [CR#701.21a]: the actor moves each selected permanent to its
@@ -1039,6 +1053,46 @@ mod tests {
         );
     }
 
+    /// [CR#701.26a]: only an untapped permanent can be tapped — a tap
+    /// instruction on an already-tapped object is a no-op, and a no-op is
+    /// no event ([CR#603.2e] "becomes tapped" fires on the transition only).
+    #[test]
+    fn tap_effect_skips_already_tapped() {
+        let (mut state, src) = bear_on_field();
+        state.objects.obj_mut(src).tapped = true;
+        let frame = Frame {
+            source: src,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+        let items = state.action_items(&by_you(PlayerAction::Tap(sel_this())), &frame);
+        assert_eq!(
+            items,
+            vec![],
+            "tapping an already-tapped object emits nothing"
+        );
+    }
+
+    /// [CR#701.26b]: the untap mirror — untapping an untapped object is a
+    /// no-op, no event.
+    #[test]
+    fn untap_effect_skips_already_untapped() {
+        let (state, src) = bear_on_field();
+        let frame = Frame {
+            source: src,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+        let items = state.action_items(&by_you(PlayerAction::Untap(sel_this())), &frame);
+        assert_eq!(
+            items,
+            vec![],
+            "untapping an already-untapped object emits nothing"
+        );
+    }
+
     /// An explicit agent: `By(Target(0), Draw(2))` draws for the targeted
     /// player, not the controller. Targets player 1's proxy.
     #[test]
@@ -1413,10 +1467,12 @@ mod tests {
     }
 
     /// `By(You, GainLife(3))` → one `LifeGained`; `By(You, Untap(This))` → one
-    /// `Untapped` — the mirrors of `LoseLife`/`Tap` above.
+    /// `Untapped` — the mirrors of `LoseLife`/`Tap` above. The bear is tapped
+    /// first: untapping is transition-only ([CR#701.26b]).
     #[test]
     fn action_items_for_gainlife_untap() {
-        let (state, src) = bear_on_field();
+        let (mut state, src) = bear_on_field();
+        state.objects.obj_mut(src).tapped = true;
         let frame = Frame {
             source: src,
             controller: PlayerId(0),
