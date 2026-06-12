@@ -601,12 +601,15 @@ Rows here track that the *patterns* graduate. Slug: `aw-<kebab-case>`.
 
 ## 9. Pipeline and parsers
 
-- [ ] `parser-keyword-arg-breadth` — keyword-line argument shapes beyond
+- [x] `parser-keyword-arg-breadth` — keyword-line argument shapes beyond
   single quality words and pure-mana costs: compound qualities
   ("protection from everything", "from artifacts", multi-quality "from
   red and from white" [CR#702.16g]), non-mana keyword costs
   ("Ward—Pay 3 life.", "Cycling—Discard a card."), and variable costs
-  ("Ward {X}").
+  ("Ward {X}"). Still declined (parse-filters territory): or-costs
+  ("Pay {3} or discard a card"), sacrifice-a-[filter] costs, cost riders
+  ("at random"), compound type qualities ("from artifacts and
+  enchantments", "from monocolored").
 - [ ] `macro-bare-defaulted-invocations` — let a bare macro name read as a
   zero-arg invocation when every param is defaulted (`Hexproof` vs
   today's required `Hexproof()`); needs a probe-free path through serde's
