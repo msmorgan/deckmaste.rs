@@ -303,6 +303,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckmaste_noncanon"
+version = "0.1.0"
+dependencies = [
+ "deckmaste_cards",
+ "deckmaste_core",
+ "deckmaste_engine",
+]
+
+[[package]]
 name = "either"
 version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
