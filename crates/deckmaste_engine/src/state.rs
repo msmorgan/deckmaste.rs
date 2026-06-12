@@ -373,6 +373,20 @@ impl GameState {
     /// Other durations (the remaining `FixedUntil` markers, `ForAsLongAs`,
     /// `UntilEvent`, `EndOfGame`) have no sweep/tracking yet — `resolve`
     /// trips a `P0.W1` seam before any instance carrying one is created.
+    /// The choices.md §6 boundary record for the pending decision, schema
+    /// derived from the kind (see `PendingDecision`'s schema methods).
+    #[must_use]
+    pub fn decision_point(&self) -> Option<crate::decide::DecisionPoint> {
+        self.pending
+            .as_ref()
+            .map(|pending| crate::decide::DecisionPoint {
+                pending: pending.clone(),
+                decider: pending.decider_spec(),
+                lock: pending.lock(),
+                visibility: pending.visibility(),
+            })
+    }
+
     pub fn expire_end_of_turn(&mut self) {
         self.continuous.retain(|e| {
             !matches!(

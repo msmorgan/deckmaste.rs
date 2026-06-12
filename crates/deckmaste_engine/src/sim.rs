@@ -343,6 +343,7 @@ fn mechanical(state: &GameState, pending: &PendingDecision) -> Decision {
         PendingDecision::Priority { .. } | PendingDecision::ChooseTargets { .. } => {
             unreachable!("priority and targeting are a strategy's own concern")
         }
+        other => todo!("P0.W3: strategy for shell decision kind {other:?}"),
     }
 }
 
@@ -359,6 +360,7 @@ fn pending_player(pending: &PendingDecision) -> PlayerId {
         | PendingDecision::DeclareAttackers { player, .. }
         | PendingDecision::DeclareBlockers { player, .. }
         | PendingDecision::AssignCombatDamage { player, .. } => *player,
+        other => todo!("P0.W3: strategy for shell decision kind {other:?}"),
     }
 }
 

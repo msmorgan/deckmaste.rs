@@ -26,6 +26,9 @@ pub enum DeciderSpec {
     /// Each player in turn order from a specified player (votes,
     /// [CR#701.38a]; opening-hand actions, [CR#103.6]).
     EachInTurnOrder,
+    /// The player holding priority (the engine's action loop — not a
+    /// choices.md row; the priority window itself, [CR#117.1]).
+    PriorityHolder,
     /// The RNG pseudo-player (flips/rolls — replays serialize the
     /// selections like any decider's).
     Rng,
