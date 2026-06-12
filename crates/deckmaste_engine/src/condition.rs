@@ -179,6 +179,7 @@ mod tests {
             Some(deckmaste_core::Zone::Stack),
         );
         state.announcing = Some(crate::stack::PendingStackEntry {
+            id: spell,
             object: crate::stack::StackObject::Spell(spell),
             controller: PlayerId(0),
             origin: deckmaste_core::Zone::Hand,

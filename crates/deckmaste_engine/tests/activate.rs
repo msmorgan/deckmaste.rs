@@ -350,6 +350,48 @@ fn tap_pinger_damages_target_through_stack() {
     );
 }
 
+/// [CR#602.2a]: an activated ability exists on the stack from the START of
+/// its announcement — the announce slot carries a freshly minted
+/// stack-zone identity (not the source standing in), and the committed
+/// entry promotes under that same id. Announce-time deontic `by` rows
+/// (hexproof-family, stack-zone-keyed shapes) evaluate against it.
+#[test]
+fn activation_announce_carries_a_minted_stack_identity() {
+    let mut state = activation_game(3, PINGER, 0);
+    let pinger = force_into_play(&mut state, PlayerId(0), PINGER);
+    state.objects.obj_mut(pinger).summoning_sick = false;
+    let bear = force_into_play(&mut state, PlayerId(1), BEARS);
+
+    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let activate = activate_action(&legal, pinger).expect("the pinger's tap ability is offered");
+    state.submit_decision(Decision::Act(activate)).unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+        panic!("expected ChooseTargets, got {stop:?}");
+    };
+
+    let pending = state.announcing.as_ref().expect("an announce in flight");
+    let minted = pending.id;
+    assert_ne!(minted, pinger, "the stack identity is not the source");
+    assert_eq!(
+        state.objects.obj(minted).zone,
+        Some(Zone::Stack),
+        "the announce's identity is a stack-zone object from announcement"
+    );
+
+    state
+        .submit_decision(Decision::Targets(vec![bear]))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) = stop else {
+        panic!("expected priority after the mana-free activation, got {stop:?}");
+    };
+    assert_eq!(
+        state.stack[0].id, minted,
+        "the committed entry promotes under the announce-time identity"
+    );
+}
+
 #[test]
 fn summoning_sick_pinger_not_offered() {
     let mut state = activation_game(1, PINGER, 0);
