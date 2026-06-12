@@ -2,17 +2,13 @@
 //! `Activated(...)` ability RON. An activated ability is written as
 //! "[Cost]: [Effect.]"; the activation cost is everything before the colon
 //! [CR#602.1,602.1a]. The effect grammar is shared via
-//! [`crate::parsers::effect`]; the cost grammar (mana runs, {T}/{Q},
-//! sacrifice-self, pay-life, discard; comma-separated) lives here as private
-//! helpers.
+//! [`crate::parsers::effect`], the cost grammar via [`crate::parsers::cost`].
 
-use deckmaste_core::ManaCost;
-use deckmaste_core::ManaSymbol;
-
+use crate::parsers::cost::VariableMana;
+use crate::parsers::cost::{self};
 use crate::parsers::effect::ParsedEffect;
 use crate::parsers::effect::{self};
 use crate::resolve::CardKind;
-use crate::ron_output::ron_options;
 
 /// A registry parser: a "<cost>: <effect>." line -> the bare `Activated(...)`
 /// RON. Declines (`Ok(None)`) on lines without a cost colon or with
@@ -22,7 +18,7 @@ pub(crate) fn resolve_line(line: &str, _kind: CardKind) -> anyhow::Result<Option
     let Some((cost_clause, effect_clause)) = line.split_once(": ") else {
         return Ok(None);
     };
-    let Some(cost) = parse_cost(cost_clause)? else {
+    let Some(cost) = cost::parse_cost(cost_clause, VariableMana::Decline)? else {
         return Ok(None);
     };
     let Some(parsed) = effect::parse_clause(effect_clause) else {
@@ -44,65 +40,6 @@ fn render(cost: &[String], parsed: &ParsedEffect) -> String {
             parsed.effect
         )
     }
-}
-
-/// Parses an activation cost clause: every ", "-separated component must be
-/// recognized, or the whole cost declines.
-fn parse_cost(clause: &str) -> anyhow::Result<Option<Vec<String>>> {
-    let mut components = Vec::new();
-    for part in clause.split(", ") {
-        let Some(component) = cost_component(part)? else {
-            return Ok(None);
-        };
-        components.push(component);
-    }
-    Ok(Some(components))
-}
-
-/// One cost component -> its `CostComponent` RON, or `None`. The tap/untap
-/// symbols [CR#107.5,107.6] and sacrifice-self (the `SacrificeThis` macro)
-/// are exact matches; the rest are shape productions.
-fn cost_component(text: &str) -> anyhow::Result<Option<String>> {
-    Ok(match text {
-        "{T}" => Some("Tap".to_owned()),
-        "{Q}" => Some("Untap".to_owned()),
-        "Sacrifice ~" => Some("SacrificeThis".to_owned()),
-        _ => match pay_life(text).or_else(|| discard(text)) {
-            Some(component) => Some(component),
-            None => mana_component(text)?,
-        },
-    })
-}
-
-/// `Pay N life` -> `Do(LoseLife(N))`: paying life is losing that much life
-/// [CR#119.4].
-fn pay_life(text: &str) -> Option<String> {
-    let n = effect::number_word(text.strip_prefix("Pay ")?.strip_suffix(" life")?)?;
-    Some(format!("Do(LoseLife({n}))"))
-}
-
-/// `Discard a card` / `Discard N cards` -> `Do(Discard(N))` (cards of the
-/// payer's choice). Riders ("at random", "your hand") decline.
-fn discard(text: &str) -> Option<String> {
-    let rest = text.strip_prefix("Discard ")?;
-    let count = rest
-        .strip_suffix(" cards")
-        .or_else(|| rest.strip_suffix(" card"))?;
-    let n = effect::number_word(count)?;
-    Some(format!("Do(Discard({n}))"))
-}
-
-/// A run of mana symbols -> `Mana([...])`. Declines on non-mana text, the
-/// empty cost, and `{X}` (a variable activation cost needs an announced X —
-/// no representation yet).
-fn mana_component(text: &str) -> anyhow::Result<Option<String>> {
-    let Ok(mana) = text.parse::<ManaCost>() else {
-        return Ok(None);
-    };
-    if mana.is_empty() || mana.iter().any(|s| matches!(s, ManaSymbol::Variable)) {
-        return Ok(None);
-    }
-    Ok(Some(format!("Mana({})", ron_options().to_string(&mana)?)))
 }
 
 #[cfg(test)]
