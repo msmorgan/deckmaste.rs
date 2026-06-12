@@ -3,10 +3,14 @@
 //! honesty holds by construction — the opponent's hand and both library
 //! orders appear here only as counts.
 
+use deckmaste_core::Ability;
+use deckmaste_core::Action as CoreAction;
 use deckmaste_core::Card;
+use deckmaste_core::Effect;
 use deckmaste_core::Int;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::Phase;
+use deckmaste_core::PlayerAction;
 use deckmaste_core::SimpleManaSymbol;
 use deckmaste_core::StatValue;
 use deckmaste_core::Type;
@@ -28,6 +32,11 @@ pub struct ObjView {
     pub controller: PlayerId,
     pub tapped: bool,
     pub mana_value: Uint,
+    /// The PRINTED abilities (public info). Indexable by the engine's
+    /// `ActivateAbility { ability }` while nothing in the matchup grants or
+    /// rewrites abilities — printed and derived lists coincide for these
+    /// cards. Revisit when an ability-granting effect joins a deck.
+    pub abilities: Vec<Ability>,
 }
 
 impl ObjView {
@@ -94,6 +103,17 @@ pub fn mana_cost_value(cost: &deckmaste_core::ManaCost) -> Uint {
     mv
 }
 
+/// A mana ability by the engine's stackless rule: activated, no targets,
+/// and the effect is a plain add-mana. Compound effects with riders (e.g.
+/// Ancient Tomb's damage) deliberately classify as NOT mana here — for float
+/// purposes the `is_land` shortcut covers them when they're allowlisted.
+#[must_use]
+pub fn is_mana_ability(a: &Ability) -> bool {
+    matches!(a, Ability::Activated(act)
+        if act.targets.is_empty()
+            && matches!(&act.effect, Effect::Act(CoreAction::By(_, PlayerAction::AddMana(..)))))
+}
+
 fn printed_stat(stat: Option<&StatValue>) -> Option<Int> {
     match stat {
         Some(StatValue::Number(n)) => Some(*n),
@@ -125,6 +145,7 @@ impl Observation {
                 controller: state.objects.obj(id).controller,
                 tapped: state.objects.obj(id).tapped,
                 mana_value: mana_cost_value(&f.mana_cost),
+                abilities: f.abilities.clone(),
             }
         };
         let printed = |id: ObjectId| {
@@ -138,6 +159,7 @@ impl Observation {
                 controller: state.objects.obj(id).controller,
                 tapped: false,
                 mana_value: mana_cost_value(&f.mana_cost),
+                abilities: f.abilities.clone(),
             }
         };
 

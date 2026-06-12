@@ -108,10 +108,11 @@ fn wc99_subset_gate() {
     // creature-targeting is structurally correct (Jackal Pup, Fireslinger,
     // River Boa waves).
     assert!(probes.nonland_taps > 0, "Llanowar Elves never made mana");
-    // NOT asserted: battlefield_to_graveyard — nothing dies under optimal
-    // wave-0 play for the same reason as the trade probe above (red can't
-    // block and won't shoot 1/1s). Returns with the first wave that makes
-    // creatures die (any removal-at-creatures incentive or red blockers).
+    // NOT asserted: abilities_activated / battlefield_to_graveyard — the
+    // first general activation (Mogg Fanatic's sac) is blocked on engine
+    // verb-cost support (`cost_summary` rejects `Do(...)` costs), and
+    // nothing dies under optimal play while red can't block and won't
+    // shoot 1/1s. Both assertions arm with that engine wave.
 
     // Win-rate sanity: real shuffled games, neither seat degenerate.
     assert!(red > 0, "Sped Red never won");

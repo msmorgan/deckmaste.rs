@@ -21,6 +21,7 @@ use crate::pilot::PlannedQueue;
 use crate::pilot::mechanical;
 use crate::pilot::pool_total;
 use crate::pilots::cast_line;
+use crate::pilots::mana_floats;
 
 #[derive(Default)]
 pub struct Stompy {
@@ -50,11 +51,7 @@ impl Pilot for Stompy {
                             | deckmaste_core::Phase::PostcombatMain
                     );
                 if my_main && obs.stack_size == 0 {
-                    let mana_actions: Vec<Action> = legal
-                        .iter()
-                        .filter(|a| matches!(a, Action::ActivateAbility { .. }))
-                        .cloned()
-                        .collect();
+                    let mana_actions = mana_floats(legal, obs);
                     let have = pool_total(&obs.my_pool);
 
                     // Biggest affordable creature first (by mana value).

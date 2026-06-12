@@ -45,6 +45,34 @@ pub fn cast_line(
     Some(Line::new(queued))
 }
 
+/// The legal `ActivateAbility` actions that are safe float sources: mana
+/// abilities only. The engine surfaces ALL activated abilities at priority,
+/// so without this filter a general activation (e.g. Mogg Fanatic's
+/// sacrifice) would be queued as if it produced mana. Lands get a shortcut —
+/// basics' mana abilities are intrinsic (not printed), and every land in the
+/// current allowlists is a pure mana source; revisit at the first manland.
+#[must_use]
+pub fn mana_floats(legal: &[Action], obs: &Observation) -> Vec<Action> {
+    legal
+        .iter()
+        .filter(|a| {
+            let Action::ActivateAbility { object, ability } = a else {
+                return false;
+            };
+            obs.battlefield
+                .iter()
+                .find(|v| v.id == *object)
+                .is_some_and(|v| {
+                    v.is_land()
+                        || v.abilities
+                            .get(*ability)
+                            .is_some_and(crate::observe::is_mana_ability)
+                })
+        })
+        .cloned()
+        .collect()
+}
+
 /// Draw-go: passes every priority, never attacks or blocks. The baseline
 /// opponent for deterministic behavior tests, and a deck-out smoke fixture.
 pub struct PassBot;

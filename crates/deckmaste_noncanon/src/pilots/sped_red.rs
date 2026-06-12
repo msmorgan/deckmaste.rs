@@ -21,6 +21,7 @@ use deckmaste_engine::ObjectId;
 use deckmaste_engine::PendingDecision;
 
 use crate::lookahead::Horizon;
+use crate::lookahead::Line;
 use crate::lookahead::Tactician;
 use crate::observe::ObjView;
 use crate::observe::Observation;
@@ -29,6 +30,7 @@ use crate::pilot::PlannedQueue;
 use crate::pilot::mechanical;
 use crate::pilot::pool_total;
 use crate::pilots::cast_line;
+use crate::pilots::mana_floats;
 
 #[derive(Default)]
 pub struct SpedRed {
@@ -51,11 +53,7 @@ impl Pilot for SpedRed {
                 if let Some(a) = legal.iter().find(|a| matches!(a, Action::PlayLand { .. })) {
                     return Decision::Act(a.clone());
                 }
-                let mana_actions: Vec<Action> = legal
-                    .iter()
-                    .filter(|a| matches!(a, Action::ActivateAbility { .. }))
-                    .cloned()
-                    .collect();
+                let mana_actions = mana_floats(legal, obs);
 
                 // 2. Score every burn line (float* + cast + target), where the spell may or may
                 //    not already appear as CastSpell.  We enumerate spells in hand that are NOT
@@ -108,6 +106,52 @@ impl Pilot for SpedRed {
                 };
 
                 for (cast_action, spell) in candidate_spells {
+                    // Creature spells take no targets at cast; everything
+                    // else tries the face first, then each opposing creature.
+                    let target_menu: Vec<Option<ObjectId>> = if spell.is_creature() {
+                        vec![None]
+                    } else {
+                        let mut t: Vec<Option<ObjectId>> = vec![Some(obs.opp_proxy)];
+                        t.extend(
+                            obs.opp_battlefield()
+                                .filter(|v| v.is_creature())
+                                .map(|v| Some(v.id)),
+                        );
+                        t
+                    };
+                    for t in target_menu {
+                        let Some(line) =
+                            cast_line(spell, t, cast_action.clone(), &mana_actions, obs)
+                        else {
+                            continue;
+                        };
+                        let score = tac.score(&line, Horizon::EndOfTurn);
+                        if best.as_ref().is_none_or(|(b, _)| score > *b) {
+                            best = Some((score, line));
+                        }
+                    }
+                }
+
+                // 3. Activation lines: non-mana activated abilities of our own permanents (e.g.
+                //    Mogg Fanatic's sacrifice), tried at the burn target menu. Scored like cast
+                //    lines — a mismatched line rolls out as ILLEGAL and loses. Known horizon
+                //    artifact: end-of-turn eval can't see a sacrificed body's future turns, so
+                //    sac-for-face fires eagerly.
+                for action in legal {
+                    let Action::ActivateAbility { object, ability } = action else {
+                        continue;
+                    };
+                    let Some(perm) = obs.my_battlefield().find(|v| v.id == *object) else {
+                        continue;
+                    };
+                    if perm.is_land()
+                        || perm
+                            .abilities
+                            .get(*ability)
+                            .is_none_or(crate::observe::is_mana_ability)
+                    {
+                        continue; // mana sources are floats, not plays
+                    }
                     let mut targets: Vec<ObjectId> = vec![obs.opp_proxy];
                     targets.extend(
                         obs.opp_battlefield()
@@ -115,11 +159,10 @@ impl Pilot for SpedRed {
                             .map(|v| v.id),
                     );
                     for t in targets {
-                        let Some(line) =
-                            cast_line(spell, Some(t), cast_action.clone(), &mana_actions, obs)
-                        else {
-                            continue;
-                        };
+                        let line = Line::new(vec![
+                            Decision::Act(action.clone()),
+                            Decision::Targets(vec![t]),
+                        ]);
                         let score = tac.score(&line, Horizon::EndOfTurn);
                         if best.as_ref().is_none_or(|(b, _)| score > *b) {
                             best = Some((score, line));

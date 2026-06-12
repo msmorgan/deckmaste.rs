@@ -44,7 +44,11 @@ pub const STOMPY: DeckSpec = DeckSpec {
     ],
 };
 
-/// Wave 0: what's graduated and engine-runnable today.
+/// What's graduated AND engine-runnable today. Graduated is not enough:
+/// Mogg Fanatic parses but its sacrifice can never activate — the engine's
+/// `cost_summary` rejects verb costs (`Do(Sacrifice(This))`), so the card
+/// would be pure burn-dilution. It joins the moment activation verb costs
+/// land.
 pub const SPED_RED_ALLOWLIST: &[&str] = &["Shock"];
 pub const STOMPY_ALLOWLIST: &[&str] = &["Llanowar Elves"];
 

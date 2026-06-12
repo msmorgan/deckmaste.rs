@@ -20,6 +20,8 @@ pub struct Probes {
     pub spell_damage_to_players: u32,
     /// A nonland permanent tapped (wave 0: Llanowar Elves making mana).
     pub nonland_taps: u32,
+    /// Any activated ability, mana or general (wave 1: Mogg Fanatic's sac).
+    pub abilities_activated: u32,
     pub battlefield_to_graveyard: u32,
 }
 
@@ -32,6 +34,7 @@ impl Probes {
             match ev {
                 GameEvent::LandPlayed { .. } => self.lands_played += 1,
                 GameEvent::SpellCast(_) => self.spells_cast += 1,
+                GameEvent::AbilityActivated { .. } => self.abilities_activated += 1,
                 GameEvent::Attacking(_) => self.attacks_declared += 1,
                 GameEvent::Blocked { .. } => self.blocks_declared += 1,
                 GameEvent::Tapped(o)
@@ -78,6 +81,7 @@ impl Probes {
         self.spell_damage_to_creatures += other.spell_damage_to_creatures;
         self.spell_damage_to_players += other.spell_damage_to_players;
         self.nonland_taps += other.nonland_taps;
+        self.abilities_activated += other.abilities_activated;
         self.battlefield_to_graveyard += other.battlefield_to_graveyard;
     }
 }
