@@ -1,5 +1,5 @@
 // "Enters" = a permanent enters the battlefield ([CR#603.6]).
-// Usage: Enters(what) — e.g. Enters(Type(Creature)), Enters(Is(This)).
+// Usage: Enters(what) — e.g. Enters(Type(Creature)), Enters(Ref(This)).
 (
     name: "Enters",
     template: "{0} enters",

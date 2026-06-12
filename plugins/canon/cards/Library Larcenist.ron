@@ -13,7 +13,7 @@ Normal(
     ],
     abilities: [
         Triggered(
-            event: StateBecomes(of: Is(This), becomes: Attacking),
+            event: StateBecomes(of: Ref(This), becomes: Attacking),
             effect: Draw(1),
         ),
     ],

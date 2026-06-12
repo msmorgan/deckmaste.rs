@@ -111,7 +111,7 @@ in full.
   OwnerOf, attachment refs).
 - [ ] `engine-filter-breadth` — evaluate Named, Stat, Relation (controller/owner/
   opponent/attached), StateFilter (Status, HasCounter, HasDesignation,
-  RelatedBy), and Is(Reference) filters (`target.rs`, `trigger.rs` snapshot
+  RelatedBy), and Ref(Reference) filters (`target.rs`, `trigger.rs` snapshot
   matching).
 
 ### Triggers and conditions (`trigger.rs`)

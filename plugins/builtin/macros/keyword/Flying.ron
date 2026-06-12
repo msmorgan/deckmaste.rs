@@ -13,7 +13,7 @@
         name: "Flying",
         abilities: [Static(effects: [
             Cant(Block(
-                on: Is(This),
+                on: Ref(This),
                 by: Not(OneOf([HasAbility("Flying"), HasAbility("Reach")])),
             )),
         ])],

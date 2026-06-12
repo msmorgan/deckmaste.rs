@@ -636,7 +636,7 @@ goaded; arbitrated by the maximize solver, [CR#508.1d,509.1c]), and Gate
 declaration prices ("creatures can't attack you unless their controller
 pays…", 71 lines — a cost position paid at declaration, never compelled,
 [CR#508.1d]). The pattern: verb (attack/block/target/cast/play/activate) ×
-participant Filters (`Is(This)`/`Is(You)` anchor the carrier) ×
+participant Filters (`Ref(This)`/`Ref(You)` anchor the carrier) ×
 block-cardinality bounds (menace, [CR#702.111b]) × zone/window slots
 (cast). Cant beats May ([CR#101.2]); legality is existential over
 completions ([CR#601.3]). Evasion macros are Filter-parameterized Cant
@@ -776,7 +776,7 @@ today.
 | **ManaSpec** | produced mana | `AnyColor` (Treasure.ron writes this) |
 | **Mode/Choice** | modal machinery | — |
 | **CastModifier** | alt/additional costs, permissions, reductions | `Flashback(cost)`, `Affinity(Filter)` |
-| **Deontic** | may/can't/must/toll over proposed actions (§9) | `Cant(Attack(by: Is(This)))`, evasion macros, `Flash` |
+| **Deontic** | may/can't/must/toll over proposed actions (§9) | `Cant(Attack(by: Ref(This)))`, evasion macros, `Flash` |
 
 Not every row needs to be a `MacroKind` — only positions where bare *names*
 should expand (Filter, Event, Condition, Effect, Cost, Designation,

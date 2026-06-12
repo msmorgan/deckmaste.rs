@@ -139,15 +139,15 @@ impl GameState {
     /// the transitioning object (an attacker/blocked creature) is still on the
     /// battlefield, so characteristics come from the live object via
     /// [`crate::target::matches`]. The one arm `target::matches` can't evaluate
-    /// is `Is(This)` ([CR#603.10a] self-reference, which needs the `watcher`);
+    /// is `Ref(This)` ([CR#603.10a] self-reference, which needs the `watcher`);
     /// that is special-cased here (and threaded through the logical
     /// combinators).
     fn filter_matches_live(&self, filter: &Filter, o: ObjectId, watcher: ObjectSource) -> bool {
         match filter {
             // "this object": match only when `o` is the watching object.
-            Filter::Is(Reference::This) => self.objects.obj(o).source == watcher,
+            Filter::Ref(Reference::This) => self.objects.obj(o).source == watcher,
 
-            // Logical combinators: recurse so an `Is(This)` nested inside is
+            // Logical combinators: recurse so an `Ref(This)` nested inside is
             // still resolved against the watcher.
             Filter::AllOf(fs) => fs.iter().all(|f| self.filter_matches_live(f, o, watcher)),
             Filter::OneOf(fs) => fs.iter().any(|f| self.filter_matches_live(f, o, watcher)),
@@ -175,7 +175,7 @@ impl GameState {
         match filter {
             // "this object": match only when the snapshot is the watching object
             // ([CR#603.10a] — self-dies / self-enters).
-            Filter::Is(Reference::This) => snapshot.source == watcher,
+            Filter::Ref(Reference::This) => snapshot.source == watcher,
 
             // "a creature" — check the snapshot's printed card types.
             Filter::Characteristic(CharacteristicFilter::Type(ty)) => {
@@ -783,10 +783,10 @@ mod tests {
     }
 
     // -------------------------------------------------------------------------
-    // Dies(Is(This)) — self-dies
+    // Dies(Ref(This)) — self-dies
     // -------------------------------------------------------------------------
 
-    /// `Dies(Is(This))` matches only when the dying object IS the watcher.
+    /// `Dies(Ref(This))` matches only when the dying object IS the watcher.
     #[test]
     fn dies_this_matches_only_self_death() {
         let canon = canon();
@@ -833,9 +833,9 @@ mod tests {
         state.zones.battlefield.push(other);
         let other_source = state.objects.obj(other).source;
 
-        // Pattern: Dies(Is(This))
+        // Pattern: Dies(Ref(This))
         let self_dies = Event::ZoneMove {
-            what: Filter::Is(Reference::This),
+            what: Filter::Ref(Reference::This),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
         };
@@ -845,7 +845,7 @@ mod tests {
             zone_changed_event(&state, trigger_obj, Zone::Battlefield, Zone::Graveyard);
         assert!(
             state.event_matches(&self_dies, &self_death_event, trigger_source),
-            "Dies(Is(This)) must match when the dying object is the watcher"
+            "Dies(Ref(This)) must match when the dying object is the watcher"
         );
 
         // Other-death: snapshot.source != watcher
@@ -853,22 +853,22 @@ mod tests {
             zone_changed_event(&state, other, Zone::Battlefield, Zone::Graveyard);
         assert!(
             !state.event_matches(&self_dies, &other_death_event, trigger_source),
-            "Dies(Is(This)) must NOT match when a different creature dies"
+            "Dies(Ref(This)) must NOT match when a different creature dies"
         );
 
         // Watcher's own death should NOT match from watcher's OWN perspective
         // when the other creature dies (wrong watcher).
         assert!(
             !state.event_matches(&self_dies, &self_death_event, other_source),
-            "Dies(Is(This)) must NOT match when the dying object is a different watcher"
+            "Dies(Ref(This)) must NOT match when the dying object is a different watcher"
         );
     }
 
     // -------------------------------------------------------------------------
-    // Enters(Is(This)) — self-enters
+    // Enters(Ref(This)) — self-enters
     // -------------------------------------------------------------------------
 
-    /// `Enters(Is(This))` matches when the object entering is the watcher.
+    /// `Enters(Ref(This))` matches when the object entering is the watcher.
     #[test]
     fn enters_this_matches_own_entry() {
         let canon = canon();
@@ -901,9 +901,9 @@ mod tests {
             .expect("ETB creature in hand");
         let etb_source = state.objects.obj(etb_obj).source;
 
-        // Pattern: Enters(Is(This))
+        // Pattern: Enters(Ref(This))
         let self_enters = Event::ZoneMove {
-            what: Filter::Is(Reference::This),
+            what: Filter::Ref(Reference::This),
             from: None,
             to: Some(Zone::Battlefield),
         };
@@ -927,7 +927,7 @@ mod tests {
 
         assert!(
             state.event_matches(&self_enters, &enters_event, etb_source),
-            "Enters(Is(This)) must match when the entering object is the watcher"
+            "Enters(Ref(This)) must match when the entering object is the watcher"
         );
 
         // A different (placeholder) ObjectSource must not match.
@@ -935,7 +935,7 @@ mod tests {
         let forest_source = state.objects.obj(forest_obj).source;
         assert!(
             !state.event_matches(&self_enters, &enters_event, forest_source),
-            "Enters(Is(This)) must NOT match when the entering object is not the watcher"
+            "Enters(Ref(This)) must NOT match when the entering object is not the watcher"
         );
 
         // A ZoneWillChange (not ZoneChanged) must not match.
@@ -1020,13 +1020,13 @@ mod tests {
         );
     }
 
-    /// Confirm that `Enters(Is(This))` expands to `ZoneMove { to: Battlefield,
+    /// Confirm that `Enters(Ref(This))` expands to `ZoneMove { to: Battlefield,
     /// from: None }`.
     #[test]
     fn enters_macro_expands_to_zone_move() {
         use deckmaste_core::Event;
 
-        let event: Event = canon().macros.read_str("Enters(Is(This))").unwrap();
+        let event: Event = canon().macros.read_str("Enters(Ref(This))").unwrap();
         let Event::Expanded(expanded) = &event else {
             panic!("expected Event::Expanded, got {event:?}");
         };
@@ -1034,21 +1034,21 @@ mod tests {
         assert_eq!(
             *expanded.value,
             Event::ZoneMove {
-                what: Filter::Is(Reference::This),
+                what: Filter::Ref(Reference::This),
                 from: None,
                 to: Some(Zone::Battlefield),
             }
         );
     }
 
-    /// Confirm that reading `Dies(Is(This))` yields
-    /// `Filter::Is(Reference::This)` in the `what` position — the "this
+    /// Confirm that reading `Dies(Ref(This))` yields
+    /// `Filter::Ref(Reference::This)` in the `what` position — the "this
     /// object" form.
     #[test]
-    fn dies_this_filter_is_reference_this() {
+    fn dies_this_filter_ref_reference_this() {
         use deckmaste_core::Event;
 
-        let event: Event = canon().macros.read_str("Dies(Is(This))").unwrap();
+        let event: Event = canon().macros.read_str("Dies(Ref(This))").unwrap();
         let Event::Expanded(expanded) = &event else {
             panic!("expected Event::Expanded");
         };
@@ -1057,8 +1057,8 @@ mod tests {
         };
         assert_eq!(
             what,
-            &Filter::Is(Reference::This),
-            "Dies(Is(This)) must use Filter::Is(Reference::This)"
+            &Filter::Ref(Reference::This),
+            "Dies(Ref(This)) must use Filter::Ref(Reference::This)"
         );
     }
 

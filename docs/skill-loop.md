@@ -3,8 +3,9 @@
 deckmaste treats the **mtg-rules skill** as the authoritative design
 baseline for rules semantics (taxonomy, keyword classification, deontics,
 the underdetermined registry). The Comprehensive Rules remain the terminal
-authority — repo prose and code cite `[CR#…]` rule numbers, never skill
-docs; the skill is the privileged intermediate that synthesizes them.
+authority — repo prose and code cite rule numbers in the bracketed `CR#…`
+form, never skill docs; the skill is the privileged intermediate that
+synthesizes them.
 
 ## The pin
 

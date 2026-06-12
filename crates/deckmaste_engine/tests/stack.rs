@@ -1120,7 +1120,7 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
 /// End-to-end ETB trigger + `DrawCards` ([CR#603.3,121.1]):
 ///
 /// P0 casts Elvish Visionary ({1}{G}). It resolves and enters
-/// the battlefield. Its `Enters(Is(This))` trigger fires on the `ZoneChanged`
+/// the battlefield. Its `Enters(Ref(This))` trigger fires on the `ZoneChanged`
 /// (→Battlefield), `PlaceTriggers` places it (no targets → directly), it
 /// resolves and calls `DrawCards(1)` — P0 draws a card. Assert hand grew by 1.
 #[test]

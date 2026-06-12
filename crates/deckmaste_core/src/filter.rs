@@ -104,7 +104,7 @@ pub enum Filter {
     State(StateFilter),
     #[macro_ron(flatten)]
     Relation(RelationFilter),
-    Is(Reference), // Rename to `Ref`?
+    Ref(Reference),
     AllOf(Vec<Filter>),
     OneOf(Vec<Filter>),
     Not(Box<Filter>),
@@ -232,8 +232,8 @@ mod tests {
     fn relations_take_filters() {
         use crate::Reference;
         assert_eq!(
-            read("Controller(Is(You))"),
-            Filter::Relation(RelationFilter::Controller(Box::new(Filter::Is(
+            read("Controller(Ref(You))"),
+            Filter::Relation(RelationFilter::Controller(Box::new(Filter::Ref(
                 Reference::You
             )))),
         );
@@ -264,7 +264,7 @@ mod tests {
     #[test]
     fn compartment_round_trips() {
         let cases = [
-            "Controller(Is(You))",
+            "Controller(Ref(You))",
             "Owner(Kind(Player))",
             "OpponentOf(Kind(Player))",
             "AttachedTo(Type(Creature))",
@@ -281,7 +281,7 @@ mod tests {
             "Stat(Toughness, Greater, Literal(0))",
             r#"HasAbility("Flying")"#,
             "Not(Kind(Player))",
-            "Is(You)",
+            "Ref(You)",
             "Any",
         ];
         for source in cases {

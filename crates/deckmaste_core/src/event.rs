@@ -27,7 +27,7 @@ pub enum Phase {
     Ending(EndingStep),
 }
 
-/// The steps of the beginning phase ([CR#501-503]).
+/// The steps of the beginning phase ([CR#501,502,503]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub enum BeginningStep {
     /// [CR#502].
@@ -38,7 +38,7 @@ pub enum BeginningStep {
     Draw,
 }
 
-/// The steps of the combat phase ([CR#506-511]).
+/// The steps of the combat phase ([CR#506,507,508,509,510,511]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub enum CombatStep {
     /// [CR#507].
@@ -56,7 +56,7 @@ pub enum CombatStep {
     EndOfCombat,
 }
 
-/// The steps of the ending phase ([CR#512-514]).
+/// The steps of the ending phase ([CR#512,513,514]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub enum EndingStep {
     /// [CR#513].
