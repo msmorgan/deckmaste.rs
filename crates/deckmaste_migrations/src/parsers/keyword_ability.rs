@@ -11,12 +11,10 @@
 //! the engine implements them natively; while they stay enum variants, no
 //! macro exists for them.
 
-use deckmaste_core::ManaCost;
-use deckmaste_core::ManaSymbol;
-
 use crate::ident::to_rust_ident;
+use crate::parsers::cost::VariableMana;
+use crate::parsers::cost::{self};
 use crate::resolve::CardKind;
-use crate::ron_output::ron_options;
 
 /// Keyword-ability names ([CR#702] / the Scryfall `keyword-abilities` catalog —
 /// the same source `_000` builds keyword todos from). Longest-prefix matching
@@ -247,9 +245,16 @@ fn bare_keyword(token: &str) -> anyhow::Result<Option<String>> {
 /// A registry parser: one keyword-ability line -> the bare invocation RON, or
 /// `None`. The input is expected to be a single, already-trimmed keyword line
 /// as `extract` guarantees — comma-joined keyword lines are pre-split before
-/// reaching the registry. A line that still chains keywords on `", "` declines.
+/// reaching the registry. A line that still CHAINS keywords on `", "` (every
+/// piece after the first starts a keyword name) declines; other commas are
+/// argument text ("Ward—{2}, Pay 2 life.") and parse as one keyword.
 pub(crate) fn resolve_line(line: &str, _kind: CardKind) -> anyhow::Result<Option<String>> {
-    if line.split(", ").count() != 1 {
+    let chained: Vec<&str> = line.split(", ").skip(1).collect();
+    if !chained.is_empty()
+        && chained
+            .iter()
+            .all(|piece| match_keyword_name(piece).is_some())
+    {
         return Ok(None);
     }
     bare_keyword(line.trim())
@@ -289,6 +294,11 @@ fn render_arg(ident: &str, arg: &str) -> anyhow::Result<Option<String>> {
             let Some(q) = arg.strip_prefix("from ") else {
                 return Ok(None);
             };
+            // "from everything" = protection regardless of qualities
+            // [CR#702.16j]: the match-all Filter in every row of the bundle.
+            if q == "everything" {
+                return Ok(Some("Protection(Any)".to_owned()));
+            }
             return Ok(quality_filter(q).map(|q| format!("Protection({q})")));
         }
         "Affinity" => {
@@ -303,8 +313,11 @@ fn render_arg(ident: &str, arg: &str) -> anyhow::Result<Option<String>> {
     if arg.is_empty() {
         return Ok(Some(ident.to_owned()));
     }
+    // A bare mana run ("Ward {2}") or an em-dash cost ("Ward—Pay 3 life.",
+    // "Ward—{2}, Pay 2 life." [CR#702.21a]) — the shared cost grammar.
     if arg.starts_with('{') || arg.starts_with('—') {
-        return Ok(mana_cost_arg(arg)?.map(|cost| format!("{ident}({cost})")));
+        let clause = arg.strip_prefix('—').unwrap_or(arg);
+        return Ok(cost_arg(clause)?.map(|cost| format!("{ident}({cost})")));
     }
     let (num, cost) = match arg.split_once('—') {
         Some((n, c)) => (n.trim(), Some(c.trim())),
@@ -315,14 +328,30 @@ fn render_arg(ident: &str, arg: &str) -> anyhow::Result<Option<String>> {
     };
     match cost {
         None => Ok(Some(format!("{ident}({n})"))),
-        Some(cost) => Ok(mana_cost_arg(cost)?.map(|cost| format!("{ident}({n}, {cost})"))),
+        Some(cost) => Ok(cost_arg(cost)?.map(|cost| format!("{ident}({n}, {cost})"))),
     }
+}
+
+/// A keyword cost argument -> its rendered cost list (`[Mana([Generic(2)])]`,
+/// `[Do(LoseLife(3))]`, …): the shared cost grammar over the ", "-separated
+/// clause. The worded form's trailing period is stripped; `{X}` is allowed
+/// (the printed cost carries it — what X equals is pay-time business,
+/// [CR#107.3a,702.21b]).
+fn cost_arg(text: &str) -> anyhow::Result<Option<String>> {
+    let trimmed = text.trim();
+    let clause = trimmed.strip_suffix('.').unwrap_or(trimmed);
+    let Some(components) = cost::parse_cost(clause, VariableMana::Allow)? else {
+        return Ok(None);
+    };
+    Ok(Some(format!("[{}]", components.join(", "))))
 }
 
 /// A single quality word -> its `Filter` RON: the five colors, or a simple
 /// type noun (plural tolerated). `None` declines — compound qualities
-/// ("from everything", "artifact creatures", "from red and from white")
-/// stay todo.
+/// ("artifact creatures", "monocolored") stay todo. "From everything" is the
+/// `Protection` arm's special case, and multi-quality lines ("from red and
+/// from white") are expanded into one line per quality by `extract`
+/// [CR#702.16g] before the registry sees them.
 fn quality_filter(q: &str) -> Option<String> {
     let q = q.trim();
     if q.is_empty() || q.contains(' ') {
@@ -353,20 +382,6 @@ fn quality_filter(q: &str) -> Option<String> {
         _ => return None,
     };
     Some(format!("Type({ty})"))
-}
-
-/// A pure-mana cost argument (`{2}` or a leading-em-dash `—{2}`) ->
-/// `[Mana([Generic(2)])]`. `None` for a non-mana cost (em-dash word costs) or
-/// an empty cost.
-fn mana_cost_arg(arg: &str) -> anyhow::Result<Option<String>> {
-    let cost = arg.strip_prefix('—').unwrap_or(arg).trim();
-    let Ok(mana) = cost.parse::<ManaCost>() else {
-        return Ok(None);
-    };
-    if mana.is_empty() || mana.iter().any(|s| matches!(s, ManaSymbol::Variable)) {
-        return Ok(None);
-    }
-    Ok(Some(format!("[Mana({})]", ron_options().to_string(&mana)?)))
 }
 
 #[cfg(test)]
@@ -439,13 +454,82 @@ mod tests {
     }
 
     #[test]
-    fn declines_variable_difficult_and_unknown() {
+    fn declines_difficult_and_unknown() {
         assert!(bare("Annihilator X").is_none()); // variable integer
-        assert!(bare("Ward {X}").is_none()); // variable mana cost
-        assert!(bare("Protection from everything").is_none()); // unknown quality
         assert!(bare("Enchant artifact creature").is_none()); // compound quality
-        assert!(bare("Cycling—Discard a card").is_none()); // non-mana em-dash cost
         assert!(bare("Whenever this dies, draw a card").is_none()); // not a keyword
+        // Or-costs and cost riders aren't productions.
+        assert!(bare("Equip—Pay {3} or discard a card.").is_none());
+        assert!(bare("Ward—Discard a card at random.").is_none());
+        // Sacrifice-a-[filter] costs await the filter grammar.
+        assert!(bare("Ward—Sacrifice a creature.").is_none());
+        // The joint multi-quality line declines here — extract expands it
+        // into one line per quality before the registry sees it.
+        assert!(bare("Protection from black and from red").is_none());
+    }
+
+    #[test]
+    fn word_costs_after_the_em_dash() {
+        assert_eq!(
+            bare("Ward—Pay 3 life.").as_deref(),
+            Some("Keyword(Ward([Do(LoseLife(3))]))")
+        );
+        assert_eq!(
+            bare("Cycling—Discard a card.").as_deref(),
+            Some("Keyword(Cycling([Do(Discard(1))]))")
+        );
+        assert_eq!(
+            bare("Equip—Discard a card.").as_deref(),
+            Some("Keyword(Equip([Do(Discard(1))]))")
+        );
+        // A comma-separated cost list mixes mana and word costs.
+        assert_eq!(
+            bare("Ward—{2}, Pay 2 life.").as_deref(),
+            Some("Keyword(Ward([Mana([Generic(2)]), Do(LoseLife(2))]))")
+        );
+    }
+
+    #[test]
+    fn variable_mana_costs() {
+        // {X} is part of the printed cost; what X equals is the card's (or
+        // payer's) business at pay time [CR#702.21b,107.3a], not the parser's.
+        assert_eq!(
+            bare("Ward {X}").as_deref(),
+            Some("Keyword(Ward([Mana([Variable])]))")
+        );
+        assert_eq!(
+            bare("Cycling {X}{1}{U}").as_deref(),
+            Some("Keyword(Cycling([Mana([Variable,Generic(1),Blue])]))")
+        );
+    }
+
+    #[test]
+    fn protection_from_everything() {
+        // [CR#702.16j]: protection regardless of qualities — the match-all
+        // Filter in every row of the Protection bundle.
+        assert_eq!(
+            bare("Protection from everything").as_deref(),
+            Some("Keyword(Protection(Any))")
+        );
+    }
+
+    #[test]
+    fn resolve_line_comma_gate() {
+        use crate::resolve::CardKind;
+        // A keyword CHAIN still declines (extract pre-splits those; a line
+        // that reaches the registry chained is stale input).
+        assert!(
+            resolve_line("First strike, vigilance", CardKind::Permanent)
+                .unwrap()
+                .is_none()
+        );
+        // But a comma inside a cost list is argument text, not a chain.
+        assert_eq!(
+            resolve_line("Ward—{2}, Pay 2 life.", CardKind::Permanent)
+                .unwrap()
+                .as_deref(),
+            Some("Keyword(Ward([Mana([Generic(2)]), Do(LoseLife(2))]))")
+        );
     }
 
     #[test]
