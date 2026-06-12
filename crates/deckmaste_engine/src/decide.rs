@@ -477,6 +477,41 @@ impl GameState {
                     }
                 }
                 self.pending = None;
+                // [CR#601.2c]: the chosen objects become targets NOW — one
+                // fact per distinct target (an object chosen for two specs
+                // becomes the target once), simultaneous as one occurrence.
+                // The targeting object: a placing trigger's minted stack id
+                // ([CR#603.3d]), the announcing spell itself (stack zone —
+                // its remint is the deferred one), or an ability announce's
+                // SOURCE ([CR#602.2a] — no stack id until promote).
+                let targeting = if let Some(staged) = &self.placing_trigger {
+                    staged.id
+                } else {
+                    match &self
+                        .announcing
+                        .as_ref()
+                        .expect("an announce in flight")
+                        .object
+                    {
+                        crate::stack::StackObject::Spell(o) => *o,
+                        crate::stack::StackObject::Activated { source, .. } => *source,
+                        crate::stack::StackObject::Triggered { .. } => {
+                            unreachable!("triggers choose targets at placement, not announce")
+                        }
+                    }
+                };
+                let mut became: Vec<GameEvent> = Vec::new();
+                for &target in &chosen {
+                    let dup = became.iter().any(
+                        |e| matches!(e, GameEvent::BecameTarget { target: t, .. } if *t == target),
+                    );
+                    if !dup {
+                        became.push(GameEvent::BecameTarget {
+                            target,
+                            source: targeting,
+                        });
+                    }
+                }
                 if self.placing_trigger.is_some() {
                     // [CR#603.3d]: a triggered ability chose its targets at
                     // placement — commit it onto the stack and resume placement.
@@ -488,6 +523,15 @@ impl GameState {
                         .expect("an announce in flight")
                         .targets = chosen;
                 }
+                // Ahead of the resumed placement / cast continuation, so
+                // becomes-target triggers (ward, [CR#702.21a]) note in this
+                // lock's wake.
+                let occ = if became.len() == 1 {
+                    Occurrence::Single(became.pop().expect("len 1"))
+                } else {
+                    Occurrence::Batch(became)
+                };
+                self.schedule_front(vec![WorkItem::Emit(occ)]);
                 Ok(())
             }
             (

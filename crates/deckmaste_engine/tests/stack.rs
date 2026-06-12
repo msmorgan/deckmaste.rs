@@ -336,6 +336,105 @@ fn bolt_kills_grizzly_bears() {
     assert!(state.stack.is_empty());
 }
 
+/// [CR#601.2c]: the chosen objects become targets when the announce locks
+/// them — the `BecameTarget` fact rides the cast and fires becomes-target
+/// triggers. Canon Phantasmal Bear ("When this creature becomes the target
+/// of a spell or ability, sacrifice it") sacrifices itself before the bolt
+/// resolves; the bolt then fizzles on its only target ([CR#608.2b]).
+#[test]
+fn becomes_target_trigger_sacrifices_phantasmal_bear_and_bolt_fizzles() {
+    // bolt_game with player 1's creatures swapped for Phantasmal Bear.
+    let bolt_card = card("Lightning Bolt");
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let phantasmal = card("Phantasmal Bear");
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mut p0 = vec![Arc::clone(&bolt_card); 5];
+    p0.extend(vec![Arc::clone(&mountain); 5]);
+    let mut p1 = vec![Arc::clone(&phantasmal); 5];
+    p1.extend(vec![Arc::clone(&forest); 5]);
+    let mut state = GameState::new(GameConfig {
+        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
+        seed: 1,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    force_onto_battlefield(&mut state, PlayerId(0), "Mountain");
+    let bear = force_onto_battlefield(&mut state, PlayerId(1), "Phantasmal Bear");
+
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 1);
+    let bolt = find_in_hand(&state, PlayerId(0), "Lightning Bolt");
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+        panic!("expected ChooseTargets, got {stop:?}");
+    };
+    assert!(legal[0].contains(&bear), "the bear is a legal target");
+    state
+        .submit_decision(Decision::Targets(vec![bear]))
+        .unwrap();
+
+    // The lock emits the fact; the bear's trigger fires in its wake.
+    let (trace, _stop) = step_to_stop(&mut state);
+    assert!(
+        trace.iter().any(|p| matches!(
+            applied(p),
+            Some(GameEvent::BecameTarget { target, source })
+                if *target == bear && *source == bolt
+        )),
+        "the announce lock emits BecameTarget, trace: {trace:?}"
+    );
+    assert!(
+        trace.iter().any(|p| matches!(
+            applied(p),
+            Some(GameEvent::TriggerFired { source, .. })
+                if *source == state.objects.obj(bear).source
+        )),
+        "the bear's becomes-target trigger fired, trace: {trace:?}"
+    );
+
+    // Finish the cast; the trigger places above the bolt.
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    assert_eq!(state.stack.len(), 2, "bolt + the bear's trigger above it");
+
+    // Both pass: the trigger resolves, the bear is sacrificed.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    assert!(
+        state.objects.get(bear).is_none(),
+        "the bear sacrificed itself before the bolt resolved"
+    );
+    assert_eq!(
+        state.zones.graveyards[1].len(),
+        1,
+        "the reminted bear sits in its owner's graveyard ([CR#701.21a])"
+    );
+    assert_eq!(state.stack.len(), 1, "only the bolt remains");
+
+    // Both pass: the bolt re-checks its only target and fizzles ([CR#608.2b]).
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let (trace, _) = step_to_stop(&mut state);
+    assert!(
+        !trace
+            .iter()
+            .any(|p| matches!(applied(p), Some(GameEvent::DamageDealt { .. }))),
+        "the fizzled bolt deals no damage, trace: {trace:?}"
+    );
+    assert_eq!(state.players[1].life, 20, "no damage anywhere");
+    assert!(state.stack.is_empty(), "the bolt left the stack");
+    assert_eq!(
+        state.zones.graveyards[0].len(),
+        1,
+        "the fizzled bolt remints to its owner's graveyard ([CR#608.2m])"
+    );
+}
+
 #[test]
 fn bolt_to_the_face_costs_three_life() {
     let mut state = bolt_game(1, 1);

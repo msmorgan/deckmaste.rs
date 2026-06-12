@@ -477,9 +477,10 @@ impl GameState {
                     .shuffle(&mut self.rng);
                 event
             }
-            GameEvent::BecameTarget { .. } => {
-                todo!("P0.W7: becomes-target emission (announce flow)")
-            }
+            // [CR#601.2c]: pure fact — the targeting state itself lives in
+            // the announce slot / stack entry; this exists for the trigger
+            // scan (ward, [CR#702.21a]).
+            GameEvent::BecameTarget { .. } => event,
         }
     }
 
