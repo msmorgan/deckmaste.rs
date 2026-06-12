@@ -118,7 +118,7 @@ in full.
   guard), `ReturnToHand`, and `Counter` ([CR#701.6a], ward's verb).
 - [ ] `engine-resolve-effects` — May, If/Unless, ForEach, Modal, Delayed,
   Reflexive effect frames; resolution-time choices surfaced as decisions.
-- [ ] `engine-resolve-counts` — X, CountOf(Filter), StatOf, ThatMuch.
+- [x] `engine-resolve-counts` — X, CountOf(Filter), StatOf, ThatMuch.
 - [ ] `engine-resolve-selections` — Choose/Random selections as surfaced
   decisions; remaining `Reference` variants (Bound, Linked, ControllerOf,
   OwnerOf, attachment refs).
