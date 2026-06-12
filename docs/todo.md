@@ -114,7 +114,8 @@ in full.
   (verb landed, resolution still todo).
 - [ ] `engine-resolve-actions` — `Destroy` resolves since P0.W7 (cause-tagged,
   DIRECT — no replacement window); remaining: the `WillDestroy` intent for
-  regeneration/indestructible, and `ReturnToHand`.
+  regeneration/indestructible (converts the kw-indestructible sweep
+  guard), `ReturnToHand`, and `Counter` ([CR#701.6a], ward's verb).
 - [ ] `engine-resolve-effects` — May, If/Unless, ForEach, Modal, Delayed,
   Reflexive effect frames; resolution-time choices surfaced as decisions.
 - [ ] `engine-resolve-counts` — X, CountOf(Filter), StatOf, ThatMuch.
@@ -149,7 +150,8 @@ in full.
   change; face-down characteristics; dependency ordering [CR#613.8].
 - [ ] `engine-layers-misc` — condition evaluation on static abilities, Of/These
   scope resolution (currently locked empty), subtype changes in layer 4 with
-  confers data, become-basic-land-type, base loyalty/defense.
+  confers data (incl. changeling's `AllCreatureTypes` fill — the
+  kw-changeling seam), become-basic-land-type, base loyalty/defense.
 
 ### SBAs and counters (`sba.rs`)
 
@@ -173,6 +175,15 @@ in full.
 
 ### Costs and casting (`cast.rs`, `legal.rs`)
 
+- [ ] `engine-deontic-polarities` — evaluate the deontic rows still behind
+  the narrowed presence guards: `May(Cast(window: …))` lifts (flash
+  [CR#702.8a] — the LOUDEST guard now: any flash permanent on the
+  battlefield trips `legal_actions` at every priority window; convert in
+  `can_cast` first), `Must(Attack/Block)` requirements (goad, must-block),
+  non-Cant `Target` rows, and the announce-time targeting-object seam (an
+  activated ability's stack identity isn't minted at announce — its
+  source stands in; stack-zone-keyed `by` rows need the real id).
+
 - [ ] `engine-x-costs` — X announcement, X in effects, zero-X edge cases.
 - [ ] `engine-cost-payment` — hybrid/Phyrexian payment choices, snow, life
   payment, non-mana additional costs (sacrifice/discard/exile/tap others).
@@ -192,6 +203,13 @@ in full.
   forecast).
 
 ### Zones and objects
+
+- [ ] `engine-attach` — the attachment relation behind the `Attach` verb's
+  seam: storage on objects, `Attach` resolution ([CR#701.3a..701.3b] —
+  no-op on illegal/duplicate attach), enchant/equip attach-legality via
+  the `Cant(Attach)` rows, and the illegal-attachment sweeps
+  ([CR#704.5m..704.5n]); takes Equip and Enchant end-to-end with the
+  Aura-targeting half already live.
 
 - [ ] `engine-exile-command` — wire Exile (face-up/face-down, with counters,
   linked retrieval) and Command zones as zone-pipeline sources/destinations.
@@ -259,6 +277,11 @@ grammar (§2 `core-card-shapes`), extraction, and engine behavior. Slug:
 | case | 12 | Case enchantments: solve condition + solved state |
 
 ## 5. Game-wide systems
+
+- [ ] `noncanon-keyword-decks` — grow the noncanon matchup decks with the
+  now-live keywords (fliers/reach, menace, defender, hexproof) so the
+  50-game gate regression-tests keyword interactions systemically, not
+  just per-test. Lives in the noncanon workspace/feature.
 
 - [ ] `engine-day-night` — day/night game state, daybound/nightbound transforms
   (~236 cards).
@@ -556,6 +579,23 @@ Rows here track that the *patterns* graduate. Slug: `aw-<kebab-case>`.
 | Sweep | 5 | return lands count |
 
 ## 9. Pipeline and parsers
+
+- [ ] `parser-keyword-arg-breadth` — keyword-line argument shapes beyond
+  single quality words and pure-mana costs: compound qualities
+  ("protection from everything", "from artifacts", multi-quality "from
+  red and from white" [CR#702.16g]), non-mana keyword costs
+  ("Ward—Pay 3 life.", "Cycling—Discard a card."), and variable costs
+  ("Ward {X}").
+- [ ] `macro-bare-defaulted-invocations` — let a bare macro name read as a
+  zero-arg invocation when every param is defaulted (`Hexproof` vs
+  today's required `Hexproof()`); needs a probe-free path through serde's
+  one-shot `VariantAccess` (or a macro-layer pre-scan), which is why the
+  parser currently owns the convention instead.
+- [ ] `cards-keyword-name-lint` — the punted post-parse validator: a
+  `Filter` visitor in `validate.rs` (beside `lint_card_subtypes`)
+  checking `Has`/keyword-reference names against the keyword namespace
+  (native enum ∪ `KeywordAbility`-kind macros). Bar: "doesn't assert
+  nonsense" — benign extras are ignored by design.
 
 - [x] `parse-activated` — activated-ability frame (`cost: effect`), including the
   cost grammar; registry slot exists, parser doesn't.
