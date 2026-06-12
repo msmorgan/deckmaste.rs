@@ -79,11 +79,47 @@ pub fn abilities(state: &GameState, id: ObjectId) -> std::sync::Arc<Vec<Ability>
 /// the face's printed list (the same spine that survives reminting and LKI);
 /// a player proxy has none. Granted/conferred abilities are a later stage
 /// ([CR#603.2] watching abilities; Stage 3 has no continuous effects).
+///
+/// Composite keywords (ward, prowess) are spliced INLINE: the engine
+/// executes the abilities a `KeywordAbility::Composite` carries, so the
+/// trigger scan, placement, and resolution all index one flat space.
+/// Intrinsics and other keyword shapes pass through untouched.
 #[must_use]
 pub fn abilities_of_source(state: &GameState, source: ObjectSource) -> Vec<Ability> {
     match source {
-        ObjectSource::Card(card) => face(&state.cards.get(card).def).abilities.clone(),
+        ObjectSource::Card(card) => {
+            let printed = &face(&state.cards.get(card).def).abilities;
+            let mut out = Vec::with_capacity(printed.len());
+            for ability in printed {
+                flatten_composites(ability, &mut out);
+            }
+            out
+        }
         ObjectSource::Player(_) => vec![],
+    }
+}
+
+/// Splice a composite keyword's members into `out` (recursively — a
+/// composite may carry another); any other ability passes through as-is.
+fn flatten_composites(ability: &Ability, out: &mut Vec<Ability>) {
+    if let Ability::Keyword(k) = ability {
+        if let Some(members) = composite_members(k) {
+            for member in members {
+                flatten_composites(member, out);
+            }
+            return;
+        }
+    }
+    out.push(ability.clone());
+}
+
+/// The member list of a composite keyword, looked up through the remembered
+/// macro invocation; `None` for intrinsics and other keyword shapes.
+fn composite_members(keyword: &deckmaste_core::KeywordAbility) -> Option<&Vec<Ability>> {
+    match keyword {
+        deckmaste_core::KeywordAbility::Expanded(e) => composite_members(&e.value),
+        deckmaste_core::KeywordAbility::Composite { abilities, .. } => Some(abilities),
+        _ => None,
     }
 }
 

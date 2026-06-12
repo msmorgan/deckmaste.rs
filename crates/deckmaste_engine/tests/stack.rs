@@ -336,6 +336,86 @@ fn bolt_kills_grizzly_bears() {
     assert!(state.stack.is_empty());
 }
 
+/// Moves the first `name` card from `player`'s library into their hand
+/// (when it isn't in hand already) and returns its id — the test-setup dual
+/// of `force_into_play` for cards that must be CAST.
+fn force_into_hand(state: &mut GameState, player: PlayerId, name: &str) -> ObjectId {
+    let i = player.index();
+    if let Some(&obj) = state.zones.hands[i]
+        .iter()
+        .find(|&&o| is_card(state, o, name))
+    {
+        return obj;
+    }
+    let obj = *state.zones.libraries[i]
+        .iter()
+        .find(|&&o| is_card(state, o, name))
+        .unwrap_or_else(|| panic!("a {name} in player {}'s library", player.0));
+    state.zones.libraries[i].retain(|&o| o != obj);
+    state.objects.obj_mut(obj).zone = Some(Zone::Hand);
+    state.zones.hands[i].push(obj);
+    obj
+}
+
+/// [CR#702.108a]: prowess end-to-end — canon Bloodfire Expert's
+/// `Performed(verb: "Cast", …)` trigger fires on its controller's
+/// noncreature cast ([CR#601.2i]) and the resolved pump shows in the
+/// derived view until end of turn.
+#[test]
+fn prowess_fires_and_pumps_on_own_noncreature_cast() {
+    // bolt_game's deck with Bloodfire Expert mixed into player 0's half.
+    let bolt_card = card("Lightning Bolt");
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let expert_card = card("Bloodfire Expert");
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mut p0 = vec![Arc::clone(&expert_card); 5];
+    p0.extend(vec![Arc::clone(&bolt_card); 5]);
+    p0.extend(vec![Arc::clone(&mountain); 5]);
+    let p1 = vec![Arc::clone(&forest); 10];
+    let mut state = GameState::new(GameConfig {
+        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
+        seed: 1,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    let expert = force_into_play(&mut state, PlayerId(0), "Bloodfire Expert");
+    force_into_play(&mut state, PlayerId(0), "Mountain");
+    let bolt = force_into_hand(&mut state, PlayerId(0), "Lightning Bolt");
+    assert_eq!(state.layers().power(expert), Some(3), "printed 3/1");
+
+    // P0 casts Lightning Bolt at the opponent's face.
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 1);
+    let face = state.players[1].object;
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+        panic!("expected ChooseTargets, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Targets(vec![face]))
+        .unwrap();
+
+    // The cast completes: SpellCast applies and the prowess trigger fires,
+    // placing above the bolt.
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    assert_eq!(state.stack.len(), 2, "bolt + the prowess trigger above it");
+
+    // Both pass: the trigger resolves; the pump shows in the derived view.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    assert_eq!(state.stack.len(), 1, "only the bolt remains");
+    assert_eq!(
+        state.layers().power(expert),
+        Some(4),
+        "prowess pumped the expert to 4/2 until end of turn ([CR#702.108a])"
+    );
+}
+
 /// [CR#601.2c]: the chosen objects become targets when the announce locks
 /// them — the `BecameTarget` fact rides the cast and fires becomes-target
 /// triggers. Canon Phantasmal Bear ("When this creature becomes the target

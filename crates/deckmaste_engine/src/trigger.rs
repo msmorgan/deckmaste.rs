@@ -173,6 +173,53 @@ impl GameState {
                 })
             }
 
+            // [CR#603.2] over the action log: a verb was performed. Two fact
+            // families carry verbs — dedicated events (Cast → `SpellCast`,
+            // DealDamage → `DamageDealt`), and cause-carried views riding
+            // zone moves (the W3 unification: Sacrifice/Discard/Play,
+            // [CR#701.21a,701.9a,701.18a], whose performer is the moved
+            // object's controller). Agent-performed narrowing (Karmic
+            // Justice's "a spell or ability an opponent controls destroys…")
+            // rides `ZoneMove`'s `CausePattern` instead — `Performed`'s `by`
+            // is the PERFORMER, which for the wired cause verbs is a player.
+            // A verb outside the wired set must trip, not silently never
+            // fire.
+            Event::Performed { verb, by, on } => match verb.as_str() {
+                // [CR#601.2i]: "whenever you cast" — the spell is live on
+                // the stack when the fact applies; its controller (as a
+                // proxy) is the caster.
+                "Cast" => match event {
+                    GameEvent::SpellCast(o) => {
+                        let caster = self.player(self.objects.obj(*o).controller).object;
+                        self.filter_matches_live(by, caster, watcher)
+                            && self.filter_matches_live(on, *o, watcher)
+                    }
+                    _ => false,
+                },
+                // [CR#120.1]: `by` is the damage SOURCE, `on` the recipient
+                // (both live — an SBA death follows the fact, [CR#704.5g]).
+                "DealDamage" => match event {
+                    GameEvent::DamageDealt { source, target, .. } => {
+                        self.filter_matches_live(by, *source, watcher)
+                            && self.filter_matches_live(on, *target, watcher)
+                    }
+                    _ => false,
+                },
+                v @ ("Sacrifice" | "Discard" | "Play") => match event {
+                    GameEvent::ZoneChanged {
+                        snapshot,
+                        cause: Some(c),
+                        ..
+                    } if c.verb.as_str() == v => {
+                        let performer = self.player(snapshot.controller).object;
+                        self.filter_matches_live(by, performer, watcher)
+                            && self.filter_matches_snapshot(on, snapshot, watcher)
+                    }
+                    _ => false,
+                },
+                other => todo!("engine-trigger-events: Performed verb {other:?} has no wired fact"),
+            },
+
             // [CR#601.2c]: an object became the target of a spell/ability at
             // announce (ward is the family exemplar, [CR#702.21a]). Both ends
             // are live: the target by definition, and the targeting object —
@@ -1820,6 +1867,154 @@ mod tests {
         assert!(
             !state.event_matches(&by_opponent, &own_event, watcher_source),
             "the watcher's controller's own spell fails the by-filter"
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // Performed — verb facts ([CR#603.2] over the action log)
+    // -------------------------------------------------------------------------
+
+    /// Prowess's pattern ([CR#702.108a]): `Performed(verb: "Cast", by:
+    /// Ref(You), on: noncreature spell)` matches the controller's own
+    /// noncreature cast ([CR#601.2i]) — and not an opponent's cast or a
+    /// creature spell.
+    #[test]
+    fn performed_cast_matches_own_noncreature_cast() {
+        use deckmaste_core::ObjectKind;
+
+        let (mut state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        let pattern = Event::Performed {
+            verb: "Cast".into(),
+            by: Filter::Ref(Reference::You),
+            on: Filter::AllOf(vec![
+                Filter::Kind(ObjectKind::Spell),
+                Filter::Not(Box::new(Filter::Characteristic(
+                    CharacteristicFilter::Type(Type::Creature),
+                ))),
+            ]),
+        };
+        let mut spell_on_stack = |name: &str, controller: PlayerId| {
+            let card = Arc::new(canon().card(name).unwrap());
+            let card_id = state.cards.push(card, controller);
+            state
+                .objects
+                .mint(ObjectSource::Card(card_id), controller, Some(Zone::Stack))
+        };
+        let own_bolt = spell_on_stack("Lightning Bolt", PlayerId(0));
+        let opp_bolt = spell_on_stack("Lightning Bolt", PlayerId(1));
+        let own_creature = spell_on_stack("Grizzly Bears", PlayerId(0));
+        assert!(
+            state.event_matches(&pattern, &GameEvent::SpellCast(own_bolt), watcher_source),
+            "the controller's own noncreature cast matches"
+        );
+        assert!(
+            !state.event_matches(&pattern, &GameEvent::SpellCast(opp_bolt), watcher_source),
+            "an opponent's cast fails by: Ref(You)"
+        );
+        assert!(
+            !state.event_matches(
+                &pattern,
+                &GameEvent::SpellCast(own_creature),
+                watcher_source
+            ),
+            "a creature spell fails the on-filter"
+        );
+    }
+
+    /// `Performed(verb: "DealDamage", by: Ref(This))` matches the watcher's
+    /// own damage facts ([CR#120.1]) — `by` is the SOURCE, `on` the recipient.
+    #[test]
+    fn performed_deal_damage_matches_source_and_target() {
+        let (mut state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        let other = {
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let card = state.cards.push(bears, PlayerId(1));
+            let id = state.objects.mint(
+                ObjectSource::Card(card),
+                PlayerId(1),
+                Some(Zone::Battlefield),
+            );
+            state.zones.battlefield.push(id);
+            id
+        };
+        let pattern = Event::Performed {
+            verb: "DealDamage".into(),
+            by: Filter::Ref(Reference::This),
+            on: Filter::Any,
+        };
+        let own_damage = GameEvent::DamageDealt {
+            source: bear,
+            target: other,
+            amount: 2,
+        };
+        let others_damage = GameEvent::DamageDealt {
+            source: other,
+            target: bear,
+            amount: 2,
+        };
+        assert!(
+            state.event_matches(&pattern, &own_damage, watcher_source),
+            "the watcher dealing damage matches by: Ref(This)"
+        );
+        assert!(
+            !state.event_matches(&pattern, &others_damage, watcher_source),
+            "damage dealt BY another source does not"
+        );
+    }
+
+    /// `Performed(verb: "Sacrifice", by: Ref(You))` matches the cause-carried
+    /// view of a zone move ([CR#701.21a] — the W3 unification retired the
+    /// dedicated verb facts): the performer is the moved object's controller.
+    #[test]
+    fn performed_sacrifice_matches_cause_carried_move() {
+        let (mut state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        let pattern = Event::Performed {
+            verb: "Sacrifice".into(),
+            by: Filter::Ref(Reference::You),
+            on: Filter::Any,
+        };
+        let sacrifice = |state: &GameState, id| {
+            zone_changed_with_cause(
+                state,
+                id,
+                Zone::Battlefield,
+                Zone::Graveyard,
+                crate::event::Cause {
+                    verb: "Sacrifice".into(),
+                    agency: deckmaste_core::Agency::EffectInstruction,
+                    agent: None,
+                },
+            )
+        };
+        assert!(
+            state.event_matches(&pattern, &sacrifice(&state, bear), watcher_source),
+            "your own sacrifice matches by: Ref(You)"
+        );
+        // An opponent's creature sacrificed: the performer is its controller,
+        // not you.
+        let theirs = {
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let card = state.cards.push(bears, PlayerId(1));
+            let id = state.objects.mint(
+                ObjectSource::Card(card),
+                PlayerId(1),
+                Some(Zone::Battlefield),
+            );
+            state.zones.battlefield.push(id);
+            id
+        };
+        assert!(
+            !state.event_matches(&pattern, &sacrifice(&state, theirs), watcher_source),
+            "an opponent's sacrifice fails by: Ref(You)"
+        );
+        // An unattributed death is not a sacrifice ([CR#700.4] vs [CR#701.21a]).
+        let plain_death = zone_changed_event(&state, bear, Zone::Battlefield, Zone::Graveyard);
+        assert!(
+            !state.event_matches(&pattern, &plain_death, watcher_source),
+            "an uncaused move performs no verb"
         );
     }
 
