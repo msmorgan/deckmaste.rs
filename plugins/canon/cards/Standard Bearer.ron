@@ -1,0 +1,25 @@
+// Hand-written ability: the Flagbearer targeting requirement is beyond the
+// parsers today ("While an opponent is choosing targets as part of casting
+// a spell they control or activating an ability they control, that player
+// must choose at least one Flagbearer on the battlefield if able." — a
+// choice-time Must(Target) row; triggered abilities are exempt by the
+// printed wording, a discrimination the `by` grammar can't spell yet).
+Normal(
+    name: "Standard Bearer",
+    mana_cost: [
+        Generic(1),
+        White,
+    ],
+    types: [Creature],
+    subtypes: [Human, Flagbearer],
+    abilities: [
+        Static(effects: [
+            Must(Target(
+                by: Controller(OpponentOf(Ref(You))),
+                on: AllOf([Permanent, Subtype("Flagbearer")]),
+            )),
+        ]),
+    ],
+    power: 1,
+    toughness: 1,
+)
