@@ -102,7 +102,7 @@ mod tests {
                 targets: vec![],
                 effect: Effect::Act(Action::By(
                     Reference::You,
-                    PlayerAction::AddMana(crate::Count::Literal(1), ManaSpec::AnyColor),
+                    PlayerAction::AddMana(crate::Count::Literal(1), ManaSpec::AnyColor.into()),
                 )),
             })]
         );

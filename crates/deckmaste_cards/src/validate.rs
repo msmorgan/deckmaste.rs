@@ -322,7 +322,7 @@ mod tests {
     fn add_one_any() -> Effect {
         Effect::Act(Action::By(
             Reference::You,
-            PlayerAction::AddMana(Count::Literal(1), ManaSpec::AnyColor),
+            PlayerAction::AddMana(Count::Literal(1), ManaSpec::AnyColor.into()),
         ))
     }
 

@@ -95,7 +95,7 @@ pub struct StaticAbility {
 /// A `skip_serializing_if` predicate: a `false` bool is omitted from RON.
 /// serde requires the predicate to take `&T`, hence the by-ref bool.
 #[expect(clippy::trivially_copy_pass_by_ref)]
-fn is_false(b: &bool) -> bool { !*b }
+pub(crate) fn is_false(b: &bool) -> bool { !*b }
 
 /// How a modal spell or ability's modes are chosen ([CR#700.2]). `up_to` is the
 /// "up to N" form ([CR#700.2]); `repeats` allows choosing the same mode more

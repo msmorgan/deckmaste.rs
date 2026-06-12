@@ -160,6 +160,14 @@ impl GameState {
         if !timing_ok {
             return false;
         }
+        // [CR#118.6]: an EMPTY mana cost is "no mana cost" — an unpayable
+        // base. Attempting the cast is legal in the CR but pointless to
+        // offer; an alternative cost ([CR#118.6a], May(Cast(cost: …)) rows)
+        // is the future unlock. {0} is spelled [Generic(0)] and payable
+        // ([CR#118.5]).
+        if face.mana_cost.is_empty() {
+            return false;
+        }
         let Some(cost) = self.mana_cost(object) else {
             return false;
         };

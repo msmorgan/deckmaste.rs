@@ -1,9 +1,9 @@
-// {0} artifact: "{1}: draw a card. Activate only as a sorcery."
+// {0} artifact ([Generic(0)] is the {0} spelling; [] would be "no mana cost"): "{1}: draw a card. Activate only as a sorcery."
 // `window: SorcerySpeed` is the Only refinement on the activation
 // permission [CR#602.5d] — a Window, not a Condition (deontics §3).
 Normal(
     name: "Artifact sorcery-speed DrawCards",
-    mana_cost: [],
+    mana_cost: [Generic(0)],
     types: [Artifact],
     abilities: [
         Activated(cost: [Mana([Generic(1)])], window: SorcerySpeed, effect: Draw(1)),

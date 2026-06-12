@@ -77,7 +77,10 @@ fn treasure_token_parses() {
                 condition: None,
                 limits: vec![],
                 targets: vec![],
-                effect: by_you(PlayerAction::AddMana(Count::Literal(1), ManaSpec::AnyColor)),
+                effect: by_you(PlayerAction::AddMana(
+                    Count::Literal(1),
+                    ManaSpec::AnyColor.into()
+                )),
             })],
         }
     );

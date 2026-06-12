@@ -147,7 +147,10 @@ mod tests {
         );
         assert_eq!(
             read("AddMana(Literal(1), AnyColor)"),
-            act_by_you(PlayerAction::AddMana(Count::Literal(1), ManaSpec::AnyColor)),
+            act_by_you(PlayerAction::AddMana(
+                Count::Literal(1),
+                ManaSpec::AnyColor.into()
+            )),
         );
     }
 

@@ -18,6 +18,7 @@ use crate::Supertype;
 use crate::SupportsMacros;
 use crate::TurnMarker;
 use crate::Type;
+use crate::ability::is_false;
 use crate::replacement::Prevention;
 use crate::replacement::Replacement;
 
@@ -102,11 +103,24 @@ pub enum Modification {
     BecomeBasicLandType(Vec<Ident>),
 }
 
-/// A cost modification ([CR#118.7]).
+/// A step in the total-cost pipeline ([CR#601.2f]): base → +additional and
+/// increases → −reductions (any order) → floor → lock. `Additional` is
+/// pipeline-positional ([CR#118.8] — any number may stack, [CR#118.8a]);
+/// it never changes the mana cost itself ([CR#118.8d]). Alternative costs
+/// are NOT here — they swap the base and ride `May(Cast(cost: …))` rows
+/// ([CR#118.9]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub enum CostChange {
     Increase(Vec<CostComponent>),
     Reduce(Vec<CostComponent>),
+    /// "As an additional cost …" ([CR#118.8]); `optional` is the kicker
+    /// shape ("you may pay an additional …", [CR#118.8b]), announced at
+    /// [CR#601.2b].
+    Additional {
+        components: Vec<CostComponent>,
+        #[serde(default, skip_serializing_if = "is_false")]
+        optional: bool,
+    },
 }
 
 /// The shared currency between an "anthem" static ability and a "+3/+3 until

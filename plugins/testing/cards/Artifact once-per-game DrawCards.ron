@@ -1,7 +1,7 @@
 // {0} artifact: "{1}: draw a card. Activate only once."
 Normal(
     name: "Artifact once-per-game DrawCards",
-    mana_cost: [],
+    mana_cost: [Generic(0)],
     types: [Artifact],
     abilities: [
         Activated(cost: [Mana([Generic(1)])], limits: [OncePerGame], effect: Draw(1)),

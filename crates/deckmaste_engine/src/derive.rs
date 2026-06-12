@@ -104,7 +104,10 @@ pub fn tap_mana_ability(ability: &Ability) -> Option<(ColorOrColorless, Uint)> {
                 // the agent is irrelevant for tap-for-mana derivation.
                 Effect::Act(Action::By(
                     _,
-                    PlayerAction::AddMana(Count::Literal(n), ManaSpec::Specific(m)),
+                    PlayerAction::AddMana(
+                        Count::Literal(n),
+                        deckmaste_core::ManaProduction::Bare(ManaSpec::Specific(m)),
+                    ),
                 )) => Some((*m, *n)),
                 _ => None,
             }

@@ -27,44 +27,43 @@ fn deontic_action(d: &Deontic) -> &DeonticAction {
     }
 }
 
-/// Whether any battlefield object's derived abilities carry a `Deontic` row
-/// whose action matches `verb` — looking through static effects, keyword
+/// Whether any battlefield object's derived abilities carry a static effect
+/// matching `pred` — looking through static-ability effect lists, keyword
 /// composites (flying's evasion `Cant` lives inside `Keyword(Composite)`),
 /// and macro `Expanded` wrappers at every level.
-fn deontic_rows_present(
+fn statics_present<F: Fn(&StaticEffect) -> bool>(
     state: &GameState,
     view: &LayeredView,
-    verb: fn(&DeonticAction) -> bool,
+    pred: F,
 ) -> bool {
-    fn in_ability(a: &Ability, verb: fn(&DeonticAction) -> bool) -> bool {
+    fn in_ability<F: Fn(&StaticEffect) -> bool>(a: &Ability, pred: &F) -> bool {
         match a {
-            Ability::Static(s) => s.effects.iter().any(|e| in_static(e, verb)),
-            Ability::Keyword(k) => in_keyword(k, verb),
-            Ability::Expanded(e) => in_ability(&e.value, verb),
+            Ability::Static(s) => s.effects.iter().any(|e| in_static(e, pred)),
+            Ability::Keyword(k) => in_keyword(k, pred),
+            Ability::Expanded(e) => in_ability(&e.value, pred),
             _ => false,
         }
     }
-    fn in_keyword(k: &KeywordAbility, verb: fn(&DeonticAction) -> bool) -> bool {
+    fn in_keyword<F: Fn(&StaticEffect) -> bool>(k: &KeywordAbility, pred: &F) -> bool {
         match k {
             KeywordAbility::Composite { abilities, .. } => {
-                abilities.iter().any(|a| in_ability(a, verb))
+                abilities.iter().any(|a| in_ability(a, pred))
             }
-            KeywordAbility::Expanded(e) => in_keyword(&e.value, verb),
+            KeywordAbility::Expanded(e) => in_keyword(&e.value, pred),
             _ => false,
         }
     }
-    fn in_static(e: &StaticEffect, verb: fn(&DeonticAction) -> bool) -> bool {
+    fn in_static<F: Fn(&StaticEffect) -> bool>(e: &StaticEffect, pred: &F) -> bool {
         match e {
-            StaticEffect::Deontic(d) => verb(deontic_action(d)),
-            StaticEffect::Expanded(x) => in_static(&x.value, verb),
-            _ => false,
+            StaticEffect::Expanded(x) => in_static(&x.value, pred),
+            other => pred(other),
         }
     }
     state
         .zones
         .battlefield
         .iter()
-        .any(|&id| view.get(id).abilities.iter().any(|a| in_ability(a, verb)))
+        .any(|&id| view.get(id).abilities.iter().any(|a| in_ability(a, &pred)))
 }
 
 /// P0.W1 presence guard ([CR#101.2,601.3] seam): the deontic grammar is
@@ -78,8 +77,25 @@ fn guard_deontic_seam(
     verb: fn(&DeonticAction) -> bool,
     what: &str,
 ) {
-    if deontic_rows_present(state, view, verb) {
+    let hit = statics_present(
+        state,
+        view,
+        |e| matches!(e, StaticEffect::Deontic(d) if verb(deontic_action(d))),
+    );
+    if hit {
         todo!("P0.W1: deontic {what} legality — rows present in the derived view go unevaluated");
+    }
+}
+
+/// P0.W2 presence guard ([CR#601.2f] seam): `CostModifier` rows are
+/// grammar-complete, but no cost-modification pipeline applies them yet —
+/// a row in the derived view would silently change nothing. Loud instead;
+/// converts to the [CR#601.2f] pipeline, never gets deleted.
+fn guard_cost_modifier_seam(state: &GameState, view: &LayeredView) {
+    if statics_present(state, view, |e| {
+        matches!(e, StaticEffect::CostModifier { .. })
+    }) {
+        todo!("P0.W2: cost modification pipeline — CostModifier rows present go unapplied");
     }
 }
 
@@ -139,6 +155,7 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         |a| matches!(a, DeonticAction::Cast { .. } | DeonticAction::Play { .. }),
         "cast/play",
     );
+    guard_cost_modifier_seam(state, &view);
     for &object in &state.zones.hands[player.index()] {
         if state.can_cast(&view, player, object) {
             legal.push(Action::CastSpell { object });

@@ -381,8 +381,17 @@ impl GameState {
                     })
                     .collect()
             }
-            PlayerAction::AddMana(qty, spec) => {
+            PlayerAction::AddMana(qty, production) => {
                 let amount = self.eval_count(qty, frame);
+                let spec = match production {
+                    deckmaste_core::ManaProduction::Bare(spec) => spec,
+                    // P0.W2 seam: pool units don't carry riders yet
+                    // ([CR#106.6] — restriction/on-spend/persistence ride
+                    // the UNIT); loud rather than silently dropped.
+                    deckmaste_core::ManaProduction::WithRiders { .. } => {
+                        todo!("P0.W2: mana riders — pool units don't carry them")
+                    }
+                };
                 match spec {
                     // A fixed production needs no choice.
                     ManaSpec::Specific(mana) => {
@@ -1284,7 +1293,7 @@ mod tests {
         state.run_effect(
             Effect::Act(by_you(PlayerAction::AddMana(
                 Count::Literal(2),
-                ManaSpec::Specific(green),
+                ManaSpec::Specific(green).into(),
             ))),
             &frame,
         );
@@ -1294,7 +1303,7 @@ mod tests {
         state.run_effect(
             Effect::Act(by_you(PlayerAction::AddMana(
                 Count::Literal(1),
-                ManaSpec::AnyColor,
+                ManaSpec::AnyColor.into(),
             ))),
             &frame,
         );
