@@ -88,6 +88,22 @@ pub enum StateFilterEvent {
     Attacking,
     /// Becomes blocked ([CR#509.3c]).
     Blocked,
+    /// Phases out/in ([CR#702.26b] — a status change, explicitly NOT a
+    /// zone change; a phased-out permanent is treated as though it
+    /// doesn't exist).
+    Phased(crate::Phasing),
+    /// Is turned to the given face ([CR#708]; on turn-up, copiable values
+    /// revert and ETB abilities don't fire again, [CR#708.8]).
+    TurnedFace(crate::Face),
+    /// Gains the named designation ([CR#109.3]): "becomes the monarch" /
+    /// "becomes goaded" ride the player proxy or the object's registry
+    /// entry. GAME-scope transitions (day/night, [CR#731.1]) ride
+    /// `Event::DesignationChanged` instead.
+    Designated(Ident),
+    /// Comes under the control of a matching player — the control-change
+    /// becomes-delta ([CR#603.2e] transitions-only; a control change is
+    /// never a zone change, the object keeps its identity).
+    ControlledBy(Filter),
 }
 
 /// The machinery that demanded an event — the cause triple's AGENCY
@@ -160,6 +176,10 @@ pub enum Event {
         from: Option<Zone>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         to: Option<Zone>,
+        /// The face shown on arrival ("enters face down") — the master
+        /// event's `face` coordinate; omitted = any face.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        face: Option<crate::Face>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         cause: Option<CausePattern>,
     },
@@ -173,6 +193,17 @@ pub enum Event {
         becomes: StateFilterEvent,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         cause: Option<CausePattern>,
+    },
+    /// A GAME-scope designation transition ([CR#109.3]; day/night are
+    /// "designations that the game itself can have", [CR#731.1]). "Day
+    /// becomes night" = losing one designation and gaining the other
+    /// ([CR#731.1a]): `DesignationChanged(name: "DayNight", becomes:
+    /// Some("Night"))`. Object/player designation deltas ride
+    /// `StateBecomes(Designated(…))` instead.
+    DesignationChanged {
+        name: Ident,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        becomes: Option<Ident>,
     },
     /// Any of several events ([CR#603.2], "whenever … or …").
     OneOfEvents(Vec<Event>),
@@ -212,6 +243,7 @@ mod tests {
                 what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
+                face: None,
                 cause: None,
             },
         );
@@ -221,6 +253,7 @@ mod tests {
                 what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
                 from: None,
                 to: None,
+                face: None,
                 cause: None,
             },
         );

@@ -71,7 +71,7 @@ pub enum PlayerAction {
     Untap(Selection),
     /// "You get an emblem with [abilities]" — a command-zone object that
     /// never touches the battlefield (rules-taxonomy §6 degenerate
-    /// TokenSpec; [CR#114.1,114.4]).
+    /// `TokenSpec`; [CR#114.1,114.4]).
     GetEmblem(Vec<crate::Ability>),
     /// A resolution choice stored under a note key ([CR#608.2d] choice +
     /// [CR#607.2] slot): "choose a color" and kin.
@@ -98,6 +98,34 @@ pub enum PlayerAction {
     /// ([CR#401.7]). When the selection is two or more cards, the owner
     /// arranges them in any order ([CR#401.4]).
     PutInLibrary(Selection, Count),
+    /// "[Player] wins the game" ([CR#104.2b]) — immediate on resolution,
+    /// suppressed by a matching `CantWin` outcome gate ([CR#101.1]
+    /// precedence; the last-player-standing win [CR#104.2a] never rides
+    /// this verb and pierces gates).
+    WinGame,
+    /// "[Player] loses the game" ([CR#104.3e]) — immediate on resolution,
+    /// suppressed by a matching `CantLose` outcome gate. A player who
+    /// would win and lose simultaneously loses ([CR#104.3f]).
+    LoseGame,
+    /// Restart the game ([CR#727.1]) — a TERMINAL with explicit carryover
+    /// (every card involved comes along, ownership unchanged [CR#727.2];
+    /// effects may exempt cards [CR#727.5]; trailing instructions execute
+    /// just before the new first untap step [CR#727.4]), never a state
+    /// reset. The actor binding IS [CR#727.1a]: the restarting effect's
+    /// controller starts the new game. The restarted game ends with no
+    /// winner, loser, or draw. Subgames ([CR#729]) are a different,
+    /// deferred concept (a context push, not a restart).
+    RestartGame,
+    /// Reveal a selection to all players ([CR#701.20a]); `to` names a
+    /// player instead = "look at" — same operation shown to a subset
+    /// ([CR#701.20e]). Revealing never moves the card ([CR#701.20b]).
+    /// The reveal WINDOW (how long it stays shown, [CR#701.20a]) is the
+    /// engine's effect-instance machinery, not grammar.
+    Reveal {
+        what: Selection,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        to: Option<Reference>,
+    },
     /// A remembered `PlayerAction` macro invocation.
     #[macro_ron(expanded)]
     Expanded(Expansion<PlayerAction>),
@@ -107,7 +135,9 @@ impl PlayerAction {
     /// Whether this verb may appear in a cost (`CostComponent::Do`): the
     /// payer performs it, nothing targets ([CR#601.2b..601.2c]). Cost-eligible
     /// verbs are the self-directed ones a player can pay with — sacrifice,
-    /// exile, tap, untap, discard, and pay-life (`LoseLife`).
+    /// exile, tap, untap, discard, pay-life (`LoseLife`), and reveal
+    /// ("reveal a blue card from your hand:" — a reveal that is part of a
+    /// cost stays shown until the spell leaves the stack, [CR#701.20a]).
     #[must_use]
     pub fn is_cost_eligible(&self) -> bool {
         matches!(
@@ -119,6 +149,7 @@ impl PlayerAction {
                 | PlayerAction::Discard(_)
                 | PlayerAction::LoseLife(_)
                 | PlayerAction::RemoveCounters(..)
+                | PlayerAction::Reveal { .. }
         )
     }
 }

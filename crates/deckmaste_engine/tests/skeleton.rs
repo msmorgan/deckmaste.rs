@@ -510,6 +510,7 @@ fn state_is_assertable_between_two_untap_events() {
             StepOutcome::Progress(Progress::Applied(Occurrence::Single(
                 GameEvent::ZoneChanged {
                     ref snapshot,
+                    face: None,
                     cause: Some(ref c),
                     ..
                 },
@@ -778,6 +779,7 @@ fn spell_leaves_the_stack_for_its_owners_graveyard() {
             to: Zone::Graveyard,
             enters: None,
             position: None,
+            face: None,
             cause: None,
         },
     );
@@ -806,6 +808,7 @@ fn destroy_will_change_remints_creature_to_owners_graveyard() {
             to: Zone::Graveyard,
             enters: None,
             position: None,
+            face: None,
             cause: None,
         },
     );
@@ -839,6 +842,7 @@ fn destroy_will_change_emits_zone_changed_carrying_lki() {
                 to: Zone::Graveyard,
                 enters: None,
                 position: None,
+                face: None,
                 cause: None,
             },
         )));
@@ -1177,4 +1181,32 @@ fn tapland_played_from_hand_enters_tapped_and_fires_its_enter_trigger() {
             .any(|p| matches!(applied(p), Some(GameEvent::TriggerFired { .. }))),
         "the land's enter trigger fired (trigger stage)"
     );
+}
+
+/// [CR#104.3a]: concession is immediate and always accepted — but never
+/// OFFERED in the Priority legal list (a strategy must choose it
+/// deliberately). The loss terminalizes a two-player game ([CR#104.1]) with
+/// the opponent winning ([CR#104.2a]), and no gate could have stopped it
+/// ([CR#101.1]).
+#[test]
+fn concession_ends_the_game() {
+    let mut state = two_player_plains(42, 20);
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, legal }) = stop else {
+        panic!("expected a priority decision, got {stop:?}");
+    };
+    assert!(
+        !legal.contains(&Action::Concede),
+        "concession is never offered, only accepted"
+    );
+    state
+        .submit_decision(Decision::Act(Action::Concede))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::GameOver(outcome) = stop else {
+        panic!("expected game over after concession, got {stop:?}");
+    };
+    let winner = state.players.iter().find(|p| p.id != player).unwrap().id;
+    assert_eq!(outcome, deckmaste_engine::GameOutcome::Win(winner));
+    assert!(state.player(player).lost);
 }

@@ -31,7 +31,7 @@ fn deontic_action(d: &Deontic) -> &DeonticAction {
 /// matching `pred` — looking through static-ability effect lists, keyword
 /// composites (flying's evasion `Cant` lives inside `Keyword(Composite)`),
 /// and macro `Expanded` wrappers at every level.
-fn statics_present<F: Fn(&StaticEffect) -> bool>(
+pub(crate) fn statics_present<F: Fn(&StaticEffect) -> bool>(
     state: &GameState,
     view: &LayeredView,
     pred: F,

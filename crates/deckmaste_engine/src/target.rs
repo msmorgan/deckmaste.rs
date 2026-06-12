@@ -47,18 +47,26 @@ pub fn matches(state: &GameState, id: ObjectId, filter: &Filter) -> bool {
         // macros like `AnyTarget` are looked through earlier, in
         // `resolve::target_spec_filter`, so they never reach here.)
         Filter::Expanded(e) => matches(state, id, &e.value),
+        // [CR#122.1] counters go on objects AND players — player counters
+        // live on the player's proxy object, so one LIVE read serves both.
+        Filter::State(deckmaste_core::StateFilter::HasCounter(kind)) => state
+            .objects
+            .obj(id)
+            .counters
+            .get(kind)
+            .is_some_and(|&n| n > 0),
         // [CR#109.3] designations are non-characteristic state: a LIVE read
         // against the registry (object entry, or the player's for proxies).
         Filter::State(deckmaste_core::StateFilter::Designated(name)) => {
             state
                 .designations
                 .objects
-                .get(&(id, name.clone()))
+                .get(&(id, *name))
                 .is_some_and(|instances| !instances.is_empty())
                 || matches!(
                     state.objects.obj(id).source,
                     crate::object::ObjectSource::Player(p)
-                        if state.designations.players.contains_key(&(p, name.clone())))
+                        if state.designations.players.contains_key(&(p, *name)))
         }
         other => todo!("stage 2 does not evaluate filter {other:?}"),
     }

@@ -150,10 +150,34 @@ pub enum StaticEffect {
     Prevention(Prevention),
     /// A scoped counterfactual premise ([CR#609.4]) — see [`AsThough`].
     AsThough(AsThough),
+    /// An outcome gate: "[who] can't lose the game" / "can't win the game".
+    /// NOT a deontic row — outcome-"can't" modifies the §104/§704 outcome
+    /// machinery, not action legality (mtg-rules deontics §6 evicts the
+    /// family). Semantics (skill U5, settled): precedence, not consumption
+    /// ([CR#101.2]) — the gate suppresses each applicable outcome at each
+    /// SBA check ([CR#704.3]) while it lasts, and survival past the
+    /// effect's end is decided by each SBA's own predicate: the standing
+    /// state predicates ([CR#704.5a] life, [CR#704.5c] poison) fire at the
+    /// first check after the gate ends; the windowed empty-draw predicate
+    /// ([CR#704.5b]) lapses with its window. Concession pierces every gate
+    /// ([CR#101.1,104.3a]); the last-player-standing win pierces `CantWin`
+    /// ([CR#104.2a]); simultaneous win∧lose = lose ([CR#104.3f]).
+    OutcomeGate { who: Filter, gate: OutcomeGateKind },
     /// A remembered `StaticEffect` macro invocation. Serialized as the
     /// invocation, not the struct.
     #[macro_ron(expanded)]
     Expanded(Expansion<StaticEffect>),
+}
+
+/// Which outcome a [`StaticEffect::OutcomeGate`] suppresses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+pub enum OutcomeGateKind {
+    /// Suppresses the loss SBAs ([CR#704.5a..704.5c]) and "loses the
+    /// game" effect outcomes ([CR#104.3e]) for matching players.
+    CantLose,
+    /// Suppresses "wins the game" effect outcomes ([CR#104.2b]); the
+    /// all-opponents-left win ([CR#104.2a]) bypasses it.
+    CantWin,
 }
 
 #[cfg(test)]

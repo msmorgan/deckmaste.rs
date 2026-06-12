@@ -182,10 +182,10 @@ impl GameState {
                 event
             }
             GameEvent::WillDraw { player, source } => {
-                // [CR#120.1]: the draw intent commits. A card present → bump the
+                // [CR#121.1]: the draw intent commits. A card present → bump the
                 // tally and evolve into the generic Library→Hand move (remint +
                 // LKI); an empty library → DrewFromEmpty, the failed-draw fact
-                // the loss SBA keys on ([CR#120.3,704.5c]).
+                // the loss SBA keys on ([CR#121.4,704.5b]).
                 if let Some(&top) = self.zones.libraries[player.index()].front() {
                     self.player_mut(player).this_turn.bump(Tally::CardsDrawn);
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
@@ -195,6 +195,7 @@ impl GameState {
                             to: Zone::Hand,
                             enters: None,
                             position: None,
+                            face: None,
                             cause: None,
                         },
                     ))]);
@@ -355,15 +356,25 @@ impl GameState {
                 to,
                 enters,
                 position,
+                face,
                 cause,
             } => {
-                self.apply_zone_will_change(object, from, to, enters, position, cause.clone());
+                self.apply_zone_will_change(
+                    object,
+                    from,
+                    to,
+                    enters,
+                    position,
+                    face,
+                    cause.clone(),
+                );
                 GameEvent::ZoneWillChange {
                     object,
                     from,
                     to,
                     enters,
                     position,
+                    face,
                     cause,
                 }
             }
@@ -426,6 +437,18 @@ impl GameState {
                 self.objects.remove(id);
                 GameEvent::AbilityResolved(id)
             }
+            // P0.W6 seams: shaped, nothing emits them yet. Revealed's apply
+            // will open a reveal window ([CR#701.20a] lifetime);
+            // DesignationChanged's will write the W5 registry's game scope;
+            // ControlChanged's will re-home the object ([CR#603.2e] delta,
+            // never a zone move).
+            GameEvent::Revealed { .. } => todo!("P0.W6: reveal apply ([CR#701.20a])"),
+            GameEvent::DesignationChanged { .. } => {
+                todo!("P0.W6: game-scope designation flip apply ([CR#731.1a])")
+            }
+            GameEvent::ControlChanged { .. } => {
+                todo!("P0.W6: control-change apply (layers L2 seam)")
+            }
         }
     }
 
@@ -437,6 +460,10 @@ impl GameState {
     /// `ZoneChanged` fact at the agenda front. `position` places a card
     /// entering a library at that index from the top, clamped to the bottom
     /// ([CR#401.7]).
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one parameter per ZoneWillChange coordinate"
+    )]
     fn apply_zone_will_change(
         &mut self,
         object: ObjectId,
@@ -444,6 +471,7 @@ impl GameState {
         to: Zone,
         enters: Option<crate::event::EnterStatus>,
         position: Option<Uint>,
+        face: Option<deckmaste_core::Face>,
         cause: Option<crate::event::Cause>,
     ) {
         // 1. Snapshot while the object is still live in `from`.
@@ -521,13 +549,14 @@ impl GameState {
             ),
         }
 
-        // 4. Schedule the unreplaceable fact at the agenda front — the cause
-        // triple rides through from the intent.
+        // 4. Schedule the unreplaceable fact at the agenda front — the face
+        // and cause coordinates ride through from the intent.
         self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
             GameEvent::ZoneChanged {
                 snapshot,
                 from,
                 to,
+                face,
                 cause,
             },
         ))]);
@@ -557,6 +586,7 @@ impl GameState {
                 snapshot,
                 from: None,
                 to: Zone::Battlefield,
+                face: None,
                 cause: None,
             },
         ))]);
@@ -601,6 +631,11 @@ impl GameState {
     /// [CR#104.2a,104.4a]: last player standing wins; zero remaining is a draw.
     /// Run AFTER an occurrence applies, so a simultaneous multi-loss batch is a
     /// draw, not a win for whoever was checked first.
+    ///
+    /// P0.W6 seam (no trip point exists yet): the mandatory-loop draw
+    /// ([CR#104.4b]) needs a loop MONITOR, and the monitor needs a
+    /// game-state equality predicate — UD-11, still OPEN (no rule defines
+    /// when two states are "the same"; see docs/engine-adrs.md).
     fn check_game_end(&mut self) {
         if self.outcome.is_some() {
             return;

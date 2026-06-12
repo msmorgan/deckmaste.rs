@@ -235,6 +235,14 @@ pub enum Decision {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     Pass,
+    /// Concede ([CR#104.3a]) — immediate and UNSTOPPABLE: the single
+    /// exception to card-beats-rules ([CR#101.1]); no `CantLose` gate
+    /// touches it and a controlled player's controller can't prevent it
+    /// ([CR#723.6]). Always ACCEPTED at a priority decision but never
+    /// OFFERED in the legal list (a strategy must choose it
+    /// deliberately, not stumble into it). The full "at any time"
+    /// breadth — conceding outside a priority window — is an engine seam.
+    Concede,
     /// A special action ([CR#116.2]) — P0.W3 shell; never offered in the
     /// legal list yet, so submissions reject as Illegal.
     Special(SpecialAction),
@@ -315,7 +323,8 @@ impl GameState {
         };
         match (pending, decision) {
             (PendingDecision::Priority { player, legal }, Decision::Act(action)) => {
-                if !legal.contains(&action) {
+                // [CR#104.3a]: concession is always legal, never offered.
+                if !matches!(action, Action::Concede) && !legal.contains(&action) {
                     return Err(DecisionError::Illegal {
                         reason: format!("{action:?} is not a legal action right now"),
                     });
@@ -528,6 +537,7 @@ impl GameState {
                         to: Zone::Graveyard,
                         enters: None,
                         position: None,
+                        face: None,
                         cause: Some(Cause {
                             verb: "Discard".into(),
                             agency: Agency::EffectInstruction,
@@ -736,11 +746,32 @@ impl GameState {
     ///
     /// Panics if no priority round is open — engine invariant, not caller
     /// input.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one arm per action kind; splitting would scatter the dispatch"
+    )]
     fn take_priority_action(&mut self, player: PlayerId, action: &Action) {
         match action {
             // P0.W3 shell: special actions are never in the legal list, so
             // submission already rejected them as Illegal; loud if reached.
             Action::Special(_) => todo!("P0.W3: special actions ([CR#116.2] machinery)"),
+            // [CR#104.3a]: the loss is immediate; `check_game_end` then
+            // terminalizes ([CR#104.1] — in two-player, the first loss ends
+            // the whole game). The multiplayer leave-game cleanup
+            // ([CR#800.4a]: owned objects leave, control effects end,
+            // residue exiled) is unbuilt — loud rather than a half-departed
+            // player haunting the table.
+            Action::Concede => {
+                if self.live_count() > 2 {
+                    todo!("P0.W6: multiplayer leave-game cleanup ([CR#800.4a])");
+                }
+                self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+                    GameEvent::PlayerLost {
+                        player,
+                        reason: crate::event::LossReason::Conceded,
+                    },
+                ))]);
+            }
             Action::Pass => {
                 // Compute before borrowing the round mutably.
                 let live = self.live_count();
@@ -790,6 +821,7 @@ impl GameState {
                         to: Zone::Battlefield,
                         enters: None,
                         position: None,
+                        face: None,
                         cause: Some(Cause {
                             verb: "Play".into(),
                             agency: Agency::SpecialAction,

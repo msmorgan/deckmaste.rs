@@ -1,7 +1,7 @@
-//! State-based actions ([CR#704]). The skeleton checks two: a player at zero
-//! or less life loses ([CR#704.5a]), and a player who drew from an empty
-//! library loses ([CR#704.5c]). Task 6 adds [CR#704.5g]: a creature with lethal
-//! marked damage is destroyed. Tokens stranded off the battlefield cease to
+//! State-based actions ([CR#704]). Player losses: zero or less life
+//! ([CR#704.5a]), drew from an empty library ([CR#704.5b]), ten or more
+//! poison counters ([CR#704.5c]). Creatures with lethal marked damage are
+//! destroyed ([CR#704.5g]); tokens stranded off the battlefield cease to
 //! exist ([CR#704.5d]).
 
 use deckmaste_core::Type;
@@ -19,6 +19,20 @@ use crate::state::GameState;
 #[must_use]
 pub fn sweep(state: &GameState) -> Vec<GameEvent> {
     let mut actions = Vec::new();
+    let view = state.layers();
+
+    // P0.W6 presence guard: an `OutcomeGate` row in the derived view must
+    // suppress matching outcomes at each check — U5 semantics: precedence,
+    // not consumption ([CR#101.2,704.3]); concession pierces it
+    // ([CR#104.3a]). An unevaluated gate must not let a loss through (or a
+    // win past "can't win") silently.
+    if crate::legal::statics_present(state, &view, |s| {
+        matches!(s, deckmaste_core::StaticEffect::OutcomeGate { .. })
+    }) {
+        todo!("P0.W6: outcome gates (suppress-per-check, [CR#101.1])");
+    }
+
+    let poison: deckmaste_core::Ident = "Poison".into();
     for player in &state.players {
         if player.lost {
             continue;
@@ -33,6 +47,23 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
                 player: player.id,
                 reason: LossReason::DrewFromEmpty,
             });
+        } else if state
+            .objects
+            .obj(player.object)
+            .counters
+            .get(&poison)
+            .is_some_and(|&n| n >= 10)
+        {
+            // [CR#704.5c]: player counters live on the player's PROXY
+            // object ([CR#122.1] — counters go on objects and players; one
+            // storage, never a parallel map). Live but dormant: nothing
+            // places counters yet (the PutCounters apply arm is a P0.W3
+            // seam). Two-Headed Giant swaps in the fifteen-counter TEAM
+            // check ([CR#704.6b]) — variant-gated, not built.
+            actions.push(GameEvent::PlayerLost {
+                player: player.id,
+                reason: LossReason::Poison,
+            });
         }
     }
 
@@ -41,7 +72,6 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
     // to destroy into a `BTreeSet` so that a creature triggering both checks
     // (e.g. it has lethal damage AND was struck by deathtouch) emits only
     // one `ZoneWillChange` event.
-    let view = state.layers();
     let mut to_destroy = std::collections::BTreeSet::new();
     for &id in &state.zones.battlefield {
         let obj = state.objects.obj(id);
@@ -76,6 +106,7 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
             to: Zone::Graveyard,
             enters: None,
             position: None,
+            face: None,
             cause: None,
         });
     }
@@ -194,6 +225,7 @@ mod tests {
                     to: Zone::Graveyard,
                     enters: None,
                     position: None,
+                    face: None,
                     cause: None,
                 } if *object == bear
             )),
@@ -313,6 +345,7 @@ mod tests {
                 to: Zone::Graveyard,
                 enters: None,
                 position: None,
+                face: None,
                 cause: None,
             },
         ))]);

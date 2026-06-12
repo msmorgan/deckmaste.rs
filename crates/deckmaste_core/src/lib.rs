@@ -36,6 +36,7 @@ mod continuous;
 pub use continuous::CostChange;
 pub use continuous::Duration;
 pub use continuous::Modification;
+pub use continuous::OutcomeGateKind;
 pub use continuous::Scope;
 pub use continuous::StaticEffect;
 
@@ -131,6 +132,9 @@ pub use replacement::Prevention;
 pub use replacement::Replacement;
 
 mod status;
+pub use status::Face;
+pub use status::FaceDownSpec;
+pub use status::Phasing;
 pub use status::Status;
 
 mod symbol;

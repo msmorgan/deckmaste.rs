@@ -29,6 +29,7 @@ pub use decide::PendingDecision;
 mod derive;
 
 mod event;
+pub use event::Audience;
 pub use event::EnterStatus;
 pub use event::GameEvent;
 pub use event::LossReason;

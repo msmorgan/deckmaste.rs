@@ -52,3 +52,10 @@ No equality predicate exists; livelock is guarded by a turn-count ceiling in
 `sim.rs`. The mandatory-loop draw rule ([CR#104.4b]) needs a real
 state-equality definition (which components count, what is excluded — e.g.
 the event log). Decide alongside loop detection.
+
+W6 (2026-06-12) deliberately shipped no loop monitor: there is no trip
+point to guard (a seam note rides `check_game_end` in `step.rs`). Working
+lean for the eventual decision: the skill's *event-sequence equality*
+alternative ([CR#104.4b]'s own "sequence of events" framing) detects loops
+without defining whole-state identity — re-evaluate when the first
+mandatory-loop fixture exists.

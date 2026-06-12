@@ -74,6 +74,7 @@ impl GameState {
                             to: Zone::Battlefield,
                             enters: None,
                             position: None,
+                            face: None,
                             cause: None,
                         },
                     ))]);
@@ -99,6 +100,7 @@ impl GameState {
                             to: Zone::Graveyard,
                             enters: None,
                             position: None,
+                            face: None,
                             cause: None,
                         })),
                     ]);
@@ -111,6 +113,7 @@ impl GameState {
                             to: Zone::Graveyard,
                             enters: None,
                             position: None,
+                            face: None,
                             cause: None,
                         },
                     ))]);
@@ -357,6 +360,7 @@ impl GameState {
                         position: None,
                         // [CR#701.21a]: never a destruction — regeneration
                         // can't replace it; the cause says so.
+                        face: None,
                         cause: Some(Cause {
                             verb: "Sacrifice".into(),
                             agency: Agency::EffectInstruction,
@@ -379,6 +383,7 @@ impl GameState {
                         to: Zone::Exile,
                         enters: None,
                         position: None,
+                        face: None,
                         cause: None,
                     })
                     .collect();
@@ -400,6 +405,7 @@ impl GameState {
                             to: Zone::Library,
                             enters: None,
                             position: Some(position),
+                            face: None,
                             cause: None,
                         }))
                     })
@@ -407,6 +413,20 @@ impl GameState {
             }
             // P0.W5 seam: emblem minting into the command zone.
             PlayerAction::GetEmblem(..) => todo!("P0.W5: emblems ([CR#114.1])"),
+            // P0.W6 seams: outcome verbs (immediate, gate-checked at the
+            // OUTCOME layer — never deontic rows) and reveal/look.
+            PlayerAction::WinGame => {
+                todo!("P0.W6: win outcome ([CR#104.2b]; CantWin gate check)")
+            }
+            PlayerAction::LoseGame => {
+                todo!("P0.W6: lose outcome ([CR#104.3e]; CantLose gate check)")
+            }
+            PlayerAction::RestartGame => {
+                todo!("P0.W6: restart ([CR#727.1] — a terminal with carryover, not a reset)")
+            }
+            PlayerAction::Reveal { .. } => {
+                todo!("P0.W6: reveal/look (emit Revealed; window lifetime [CR#701.20a])")
+            }
             // P0.W4 seams: noted slots (store is P0.W5) and spell copies.
             PlayerAction::ChooseAndNote(..) => {
                 todo!("P0.W4: choose-and-note (slot store is P0.W5)")
@@ -560,10 +580,6 @@ impl GameState {
     /// # Panics
     ///
     /// Panics on a `Count` not wired for Stage 3.
-    #[expect(
-        clippy::unused_self,
-        reason = "future Count arms (X, StatOf, …) will read self"
-    )]
     fn eval_count(&self, qty: &Count, frame: &Frame) -> Uint {
         match qty {
             Count::Literal(n) => *n,
