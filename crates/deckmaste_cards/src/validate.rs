@@ -85,6 +85,7 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
                     &path,
                     &card,
                     &plugin.subtypes,
+                    &plugin.macros,
                     &mut validation.lint_failures,
                 );
                 validation.valid += 1;
@@ -205,18 +206,65 @@ fn lint_all_card_faces(
     path: &Path,
     card: &Card,
     declared_subtypes: &HashMap<Ident, Subtype>,
+    macros: &macro_ron::MacroSet,
     out: &mut Vec<(PathBuf, String)>,
 ) {
     match card {
         Card::Normal(face) => {
             lint_card_abilities(path, &face.abilities, out);
             lint_card_subtypes(path, &face.subtypes, declared_subtypes, out);
+            lint_keyword_refs(path, &face.abilities, macros, out);
         }
         Card::ModalDfc(front, back) => {
             lint_card_abilities(path, &front.abilities, out);
             lint_card_subtypes(path, &front.subtypes, declared_subtypes, out);
+            lint_keyword_refs(path, &front.abilities, macros, out);
             lint_card_abilities(path, &back.abilities, out);
             lint_card_subtypes(path, &back.subtypes, declared_subtypes, out);
+            lint_keyword_refs(path, &back.abilities, macros, out);
+        }
+    }
+}
+
+/// Keyword-reference names must exist in the keyword namespace — the native
+/// `KeywordAbility` enum or a `KeywordAbility`-kind macro. A bare-ident
+/// reference like `Has(Flyng)` PARSES (names are a lint, not a parse
+/// concern) but asserts a keyword that doesn't exist and silently never
+/// matches; that is the "asserted nonsense" this lint exists for. Benign
+/// extras are deliberately ignored.
+///
+/// Traversal rides the SERIALIZER rather than a hand-written AST visitor:
+/// canonical re-serialization is the one total walk the grammar maintains
+/// for free (a hand visitor silently misses every future variant), and
+/// `Has(Name)` is the unit-variant spelling the writer emits.
+fn lint_keyword_refs(
+    path: &Path,
+    abilities: &[Ability],
+    macros: &macro_ron::MacroSet,
+    out: &mut Vec<(PathBuf, String)>,
+) {
+    for ability in abilities {
+        let Ok(ron) = deckmaste_core::ron::options().to_string(ability) else {
+            continue;
+        };
+        let mut rest = ron.as_str();
+        while let Some(i) = rest.find("Has(") {
+            rest = &rest[i + 4..];
+            let end = rest.find(')').unwrap_or(rest.len());
+            let name = &rest[..end];
+            let known = deckmaste_core::KeywordAbility::ALL
+                .iter()
+                .any(|k| k.as_str() == name)
+                || macros.get("KeywordAbility", name).is_some();
+            if !known {
+                out.push((
+                    path.to_owned(),
+                    format!(
+                        "unknown-keyword-reference: Has({name}) names no native keyword or \
+                         KeywordAbility-kind macro"
+                    ),
+                ));
+            }
         }
     }
 }
@@ -574,6 +622,52 @@ mod tests {
             check_against_canon(&root.path().join("canon"))
                 .unwrap()
                 .is_empty()
+        );
+    }
+}
+
+#[cfg(test)]
+mod keyword_ref_tests {
+    use std::path::Path;
+    use std::path::PathBuf;
+
+    use deckmaste_core::Ability;
+
+    use crate::plugin::Plugin;
+
+    fn builtin() -> Plugin {
+        Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
+    }
+
+    /// `Has(Flyng)` is asserted nonsense (flags); `Has(Flying)` (macro) and
+    /// `Has(Trample)` (native) are known names (clean).
+    #[test]
+    fn unknown_keyword_reference_is_flagged() {
+        let plugin = builtin();
+        let read = |src: &str| -> Ability { plugin.macros.read_str(src).unwrap() };
+        let typo = read("Static(effects: [Cant(Block(on: Ref(This), by: Not(Has(Flyng))))])");
+        let fine = read(
+            "Static(effects: [Cant(Block(on: Ref(This), by: Not(OneOf([Has(Flying), Has(Trample)]))))])",
+        );
+        let mut out = Vec::new();
+        super::lint_keyword_refs(
+            &PathBuf::from("test/dummy.ron"),
+            &[fine],
+            &plugin.macros,
+            &mut out,
+        );
+        assert!(out.is_empty(), "known names are clean: {out:?}");
+        super::lint_keyword_refs(
+            &PathBuf::from("test/dummy.ron"),
+            &[typo],
+            &plugin.macros,
+            &mut out,
+        );
+        assert_eq!(out.len(), 1, "the typo is flagged once");
+        assert!(
+            out[0].1.contains("Has(Flyng)"),
+            "message names the typo: {}",
+            out[0].1
         );
     }
 }
