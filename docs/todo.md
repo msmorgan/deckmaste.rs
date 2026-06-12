@@ -25,15 +25,12 @@ counts. This is an ordering, not an exclusion list, and it is not exhaustive —
 anything unlisted (e.g. §10 format/runner) ranks below these unless the user
 says otherwise.
 
-0. **Skill alignment, core-first** — full conceptual alignment with the
-   mtg-rules skill (pinned baseline, docs/rules-taxonomy.md §10): every
-   skill-named concept lands as complete grammar in `deckmaste_core`; the
-   engine gets tagged `todo!("P0.W<n>: …")` seams (presence guards where a
-   concept is currently silently ignored), never behavior. Eight waves
-   (W0 conformance rails → W7 ADR sweep), each wave = design dialogue +
-   its own sub-plan before code. Master plan:
-   docs/superpowers/plans/2026-06-11-p0-skill-alignment-master.md.
-   Seam backlog query: `rg 'todo!\("P0\.' crates/`.
+0. ~~**Skill alignment, core-first**~~ — **CLOSED 2026-06-12** (all eight
+   waves done; meter: docs/conformance.md). What remains of it lives in
+   two named backlogs, picked up under the priorities below: the SEAM
+   inventory (`rg 'todo!\("P0\.' crates/` — convert to behavior, mostly
+   priority 1) and the post-P0 GRAMMAR backlog (conformance rows tagged
+   "post-P0 grammar backlog" — each needs a design dialogue first).
 1. **Engine happy path** — the engine supports the normal resolution path of
    ~90% of MTG abilities (§3, plus whichever §2 grammar that path needs).
 2. **Oracle-text coverage** — extraction and parsers graduate an increasing
