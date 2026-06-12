@@ -124,6 +124,15 @@ fn is_cant(d: &Deontic) -> bool {
     }
 }
 
+/// Whether a deontic row's polarity is `May`, through `Expanded` wrappers.
+fn is_may(d: &Deontic) -> bool {
+    match d {
+        Deontic::May(_) => true,
+        Deontic::Expanded(e) => is_may(&e.value),
+        _ => false,
+    }
+}
+
 /// P0.W2 presence guard ([CR#601.2f] seam): `CostModifier` rows are
 /// grammar-complete, but no cost-modification pipeline applies them yet —
 /// a row in the derived view would silently change nothing. Loud instead;
@@ -196,16 +205,25 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     // deontics yet, and a board carrying such rows must trip LOUDLY at
     // the priority window rather than silently allow the choice.
     // Cant(Target) rows (hexproof, protection's targeted clause) are
-    // EVALUATED at target-candidate computation now; the guard keeps the
-    // unevaluated rest: Cast/Play/Attach rows of any polarity, and the
-    // non-Cant Target polarities.
+    // EVALUATED at target-candidate computation now, and the flash shape —
+    // May(Cast(window: InstantSpeed)) with no from/cost slot — is EVALUATED
+    // as a timing lift in can_cast ([CR#702.8a]); the guard keeps the
+    // unevaluated rest: every other Cast row shape (zone permissions,
+    // alternative costs, non-May polarities), Play/Attach rows of any
+    // polarity, and the non-Cant Target polarities.
     guard_deontic_seam(
         state,
         &view,
         |d| match deontic_action(d) {
-            DeonticAction::Cast { .. }
-            | DeonticAction::Play { .. }
-            | DeonticAction::Attach { .. } => true,
+            DeonticAction::Cast {
+                from, window, cost, ..
+            } => {
+                !(is_may(d)
+                    && *window == Some(deckmaste_core::Window::InstantSpeed)
+                    && from.is_none()
+                    && cost.is_none())
+            }
+            DeonticAction::Play { .. } | DeonticAction::Attach { .. } => true,
             DeonticAction::Target { .. } => !is_cant(d),
             _ => false,
         },
@@ -511,4 +529,62 @@ pub(crate) fn target_forbidden_by(
                 && state.filter_matches_live(on, target, *carrier)
         })
         .map(|(carrier, ..)| *carrier)
+}
+
+/// One `May(Cast)` row from the derived view: the carrier it sits on and
+/// the permission's slots. `window` is the timing lift ([CR#702.8a]
+/// flash); `from`/`cost` are the cast-from-zones / alternative-cost
+/// unlocks, carried so the evaluation site can refuse shapes it doesn't
+/// evaluate yet.
+pub(crate) struct MayCastRow {
+    pub carrier: crate::object::ObjectSource,
+    pub what: Filter,
+    pub by: Filter,
+    pub from: Option<deckmaste_core::Zone>,
+    pub window: Option<deckmaste_core::Window>,
+    pub cost: Option<deckmaste_core::AlternativeCost>,
+}
+
+/// Every `May(Cast)` row visible to a cast of `candidate`: rows carried by
+/// battlefield permanents (Orrery-style grants) plus the candidate's OWN
+/// rows — flash functions from the zone the card is played from
+/// ([CR#702.8a]), the hand here.
+#[must_use]
+pub(crate) fn may_cast_rows(
+    state: &GameState,
+    view: &LayeredView,
+    candidate: ObjectId,
+) -> Vec<MayCastRow> {
+    fn may_action(d: &Deontic) -> Option<&DeonticAction> {
+        match d {
+            Deontic::May(a) => Some(a),
+            Deontic::Expanded(e) => may_action(&e.value),
+            _ => None,
+        }
+    }
+    let mut rows = Vec::new();
+    for &id in state.zones.battlefield.iter().chain([&candidate]) {
+        let source = state.objects.obj(id).source;
+        statics_on(view, id, &mut |e| {
+            if let StaticEffect::Deontic(d) = e
+                && let Some(DeonticAction::Cast {
+                    what,
+                    by,
+                    from,
+                    window,
+                    cost,
+                }) = may_action(d)
+            {
+                rows.push(MayCastRow {
+                    carrier: source,
+                    what: what.clone(),
+                    by: by.clone(),
+                    from: *from,
+                    window: *window,
+                    cost: cost.clone(),
+                });
+            }
+        });
+    }
+    rows
 }

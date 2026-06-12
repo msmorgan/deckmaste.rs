@@ -12,6 +12,7 @@ use deckmaste_core::SimpleManaSymbol;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Type;
 use deckmaste_core::Uint;
+use deckmaste_core::Window;
 use deckmaste_core::Zone;
 
 use crate::agenda::WorkItem;
@@ -157,8 +158,24 @@ impl GameState {
             return false;
         }
         let instant = face.types.contains(&Type::Instant);
-        // Sorcery speed for non-instants ([CR#307.1,117.1a]).
-        let timing_ok = instant || self.sorcery_speed_ok(player);
+        // Sorcery speed for non-instants ([CR#307.1,117.1a]), unless a
+        // May(Cast(window: InstantSpeed)) row lifts the default
+        // ([CR#702.8a] flash — the card's own row functions from the
+        // hand; an Orrery-style battlefield grant rides the same shape).
+        // Rows carrying `from`/`cost` slots are different unlocks
+        // (cast-from-zones, alternative costs) and never lift timing.
+        let proxy = self.player(player).object;
+        let timing_ok = instant
+            || self.sorcery_speed_ok(player)
+            || crate::legal::may_cast_rows(self, view, object)
+                .iter()
+                .any(|r| {
+                    r.window == Some(Window::InstantSpeed)
+                        && r.from.is_none()
+                        && r.cost.is_none()
+                        && self.filter_matches_live(&r.what, object, r.carrier)
+                        && self.filter_matches_live(&r.by, proxy, r.carrier)
+                });
         if !timing_ok {
             return false;
         }

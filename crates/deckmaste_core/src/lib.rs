@@ -61,6 +61,7 @@ pub use designation::DesignationShape;
 pub use designation::DesignationUniqueness;
 
 mod deontic;
+pub use deontic::AlternativeCost;
 pub use deontic::AsThough;
 pub use deontic::CountBound;
 pub use deontic::Deontic;
