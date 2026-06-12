@@ -97,18 +97,18 @@ fn keyword_macros_match_the_classification() {
         .unwrap_or_else(|e| panic!("loading plugin {plugin}: {e:#}"));
         for path in files {
             let text = std::fs::read_to_string(&path).unwrap();
-            let name_and_kinds = match deckmaste_core::ron::options().from_str::<MacroDef>(&text) {
-                Ok(def) => (def.name, def.kinds.clone()),
-                Err(_) => {
-                    // An invocation file registers a macro under the file's
-                    // stem; not found under KeywordAbility = some other
-                    // kind's meta-invocation (subtype templates) — skip.
-                    let stem = path.file_stem().unwrap().to_str().unwrap();
-                    if let Some(def) = loaded.macros.get("KeywordAbility", stem) {
-                        (def.name, def.kinds.clone())
-                    } else {
-                        continue;
-                    }
+            let literal = deckmaste_core::ron::options().from_str::<MacroDef>(&text);
+            let name_and_kinds = if let Ok(def) = literal {
+                (def.name, def.kinds.clone())
+            } else {
+                // An invocation file registers a macro under the file's
+                // stem; not found under KeywordAbility = some other
+                // kind's meta-invocation (subtype templates) — skip.
+                let stem = path.file_stem().unwrap().to_str().unwrap();
+                if let Some(def) = loaded.macros.get("KeywordAbility", stem) {
+                    (def.name, def.kinds.clone())
+                } else {
+                    continue;
                 }
             };
             let def_name = name_and_kinds.0;
