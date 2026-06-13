@@ -277,7 +277,7 @@ mod tests {
         assert!(matches!(
             &face.abilities[0],
             TodoAbility::Parsed(r)
-                if r == "Static(effects: [Modify(of: Matching(AllOf([Creature, Controller(Ref(You))])), changes: [AddPower(Literal(1)), AddToughness(Literal(1))])])"
+                if r == "Static(effects: [Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), changes: [AddPower(Literal(1)), AddToughness(Literal(1))])])"
         ));
     }
 

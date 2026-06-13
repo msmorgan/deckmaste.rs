@@ -68,11 +68,14 @@ pub(crate) fn parse_phrase(phrase: &str) -> Option<String> {
 fn strip_postfix(s: &str) -> Option<(String, &str)> {
     let s = s.trim_end();
     for (suffix, atom) in [
-        (" you control", "Controller(Ref(You))"),
-        (" an opponent controls", "Controller(OpponentOf(Ref(You)))"),
+        (" you control", "ControlledBy(Ref(You))"),
+        (
+            " an opponent controls",
+            "ControlledBy(OpponentOf(Ref(You)))",
+        ),
         (
             " your opponents control",
-            "Controller(OpponentOf(Ref(You)))",
+            "ControlledBy(OpponentOf(Ref(You)))",
         ),
         (" you own", "Owner(Ref(You))"),
     ] {
@@ -248,15 +251,15 @@ mod tests {
     fn postfix_clauses() {
         assert_eq!(
             parse_phrase("creatures you control").as_deref(),
-            Some("AllOf([Creature, Controller(Ref(You))])")
+            Some("AllOf([Creature, ControlledBy(Ref(You))])")
         );
         assert_eq!(
             parse_phrase("artifacts an opponent controls").as_deref(),
-            Some("AllOf([Type(Artifact), Controller(OpponentOf(Ref(You)))])")
+            Some("AllOf([Type(Artifact), ControlledBy(OpponentOf(Ref(You)))])")
         );
         assert_eq!(
             parse_phrase("creatures your opponents control").as_deref(),
-            Some("AllOf([Creature, Controller(OpponentOf(Ref(You)))])")
+            Some("AllOf([Creature, ControlledBy(OpponentOf(Ref(You)))])")
         );
         assert_eq!(
             parse_phrase("creatures with power 3 or greater").as_deref(),
@@ -264,7 +267,7 @@ mod tests {
         );
         assert_eq!(
             parse_phrase("other creatures you control").as_deref(),
-            Some("AllOf([Creature, Not(Ref(This)), Controller(Ref(You))])")
+            Some("AllOf([Creature, Not(Ref(This)), ControlledBy(Ref(You))])")
         );
         assert_eq!(
             parse_phrase("creatures you own").as_deref(),

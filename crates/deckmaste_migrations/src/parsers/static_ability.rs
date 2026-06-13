@@ -193,7 +193,7 @@ mod tests {
         assert_eq!(
             stat("Creatures you control get +1/+1.").as_deref(),
             Some(
-                "Static(effects: [Modify(of: Matching(AllOf([Creature, Controller(Ref(You))])), changes: [AddPower(Literal(1)), AddToughness(Literal(1))])])"
+                "Static(effects: [Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), changes: [AddPower(Literal(1)), AddToughness(Literal(1))])])"
             )
         );
     }
@@ -203,7 +203,7 @@ mod tests {
         assert_eq!(
             stat("Creatures your opponents control get -1/-1.").as_deref(),
             Some(
-                "Static(effects: [Modify(of: Matching(AllOf([Creature, Controller(OpponentOf(Ref(You)))])), changes: [SubtractPower(Literal(1)), SubtractToughness(Literal(1))])])"
+                "Static(effects: [Modify(of: Matching(AllOf([Creature, ControlledBy(OpponentOf(Ref(You)))])), changes: [SubtractPower(Literal(1)), SubtractToughness(Literal(1))])])"
             )
         );
         assert_eq!(
@@ -248,13 +248,13 @@ mod tests {
         assert_eq!(
             stat("Creatures you control have flying and vigilance.").as_deref(),
             Some(
-                "Static(effects: [Modify(of: Matching(AllOf([Creature, Controller(Ref(You))])), changes: [GainAbility(Keyword(Flying)), GainAbility(Keyword(Vigilance))])])"
+                "Static(effects: [Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), changes: [GainAbility(Keyword(Flying)), GainAbility(Keyword(Vigilance))])])"
             )
         );
         assert_eq!(
             stat("Creatures you control have flying, vigilance, and trample.").as_deref(),
             Some(
-                "Static(effects: [Modify(of: Matching(AllOf([Creature, Controller(Ref(You))])), changes: [GainAbility(Keyword(Flying)), GainAbility(Keyword(Vigilance)), GainAbility(Keyword(Trample))])])"
+                "Static(effects: [Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), changes: [GainAbility(Keyword(Flying)), GainAbility(Keyword(Vigilance)), GainAbility(Keyword(Trample))])])"
             )
         );
     }
@@ -269,7 +269,7 @@ mod tests {
         );
         assert_eq!(
             stat("Creatures you control can't attack.").as_deref(),
-            Some("Static(effects: [Cant(Attack(by: AllOf([Creature, Controller(Ref(You))])))])")
+            Some("Static(effects: [Cant(Attack(by: AllOf([Creature, ControlledBy(Ref(You))])))])")
         );
     }
 
