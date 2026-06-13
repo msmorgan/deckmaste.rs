@@ -17,10 +17,33 @@
 # --ignore-immutable, the three flags that would let the caller override the guard.
 # `default`, the coordinator, is left unguarded so you can go in and fix things.
 
-set project_dir (path resolve (status dirname)/..)
-set jj_args -R $project_dir
 
-set default_root (command jj -R $project_dir workspace root --name default 2>/dev/null)
+set scripts_dir (path resolve (status dirname))
+set project_dir (path resolve $scripts_dir/..)
+set -g jj_args -R $project_dir
+
+# Fail fast instead of hanging if a command would open an editor (describe/squash
+# without -m, split -i, resolve, …). JJ_EDITOR outranks ui.editor / $VISUAL /
+# $EDITOR, so `false` makes jj abort with a clear error rather than block a
+# scripted run. Interactive jj and the IDE (which don't go through this wrapper)
+# keep their real editor.
+set -x JJ_EDITOR false
+
+# Make sure this dir isn't on $PATH before `command jj`.
+set i 1
+while set -q PATH[$i]
+    while test "$(path resolve $PATH[$i])" = "$scripts_dir"
+        set -e PATH[$i]
+    end
+    set i (math $i + 1)
+end
+
+#alias jj 'command jj $jj_args'
+function jj
+    command jj $jj_args $argv
+end
+
+set default_root (jj workspace root --name default 2>/dev/null)
 test -n "$default_root"; and set default_root (path resolve $default_root)
 if test "$project_dir" != "$default_root"
     set -a jj_args --config 'revset-aliases."immutable_heads()"=default@-'
@@ -33,4 +56,4 @@ if set illegal_flags (string match -r -- '^--(?:ignore-immutable|config(?:-file)
     exit 2
 end
 
-command jj $jj_args $argv
+jj $argv

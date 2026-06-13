@@ -76,6 +76,34 @@ fn ron_files_under(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
+/// A keyword macro under `keyword/derived/` is a parameterized instance of a
+/// base composite (rules-taxonomy §10), classified by its delegate rather than
+/// by its own name — the skill enumerates only the umbrella keyword.
+fn is_derived(path: &Path) -> bool { path.components().any(|c| c.as_os_str() == "derived") }
+
+/// The leading identifier of a macro body — the base keyword a `derived/`
+/// variant delegates to, e.g. `Landwalk` from
+/// `Landwalk(quality: Subtype("Desert"))`. Empty when the body is not a macro
+/// invocation, which then fails the classification lookup loudly (a derived
+/// macro MUST delegate to a named base).
+fn delegate_head(body: &str) -> String {
+    body.trim_start()
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .collect()
+}
+
+#[test]
+fn delegate_head_reads_the_base_keyword() {
+    assert_eq!(
+        delegate_head(r#"Landwalk(quality: Subtype("Desert"))"#),
+        "Landwalk"
+    );
+    assert_eq!(delegate_head("  Cycling(cost: Mana(\"{2}\"))"), "Cycling");
+    // A non-delegating body yields no base keyword → lookup fails loudly.
+    assert_eq!(delegate_head(r#"(name: "x")"#), "");
+}
+
 #[test]
 fn keyword_macros_match_the_classification() {
     let Some(json) = classification() else { return };
@@ -99,41 +127,53 @@ fn keyword_macros_match_the_classification() {
         .unwrap_or_else(|e| panic!("loading plugin {plugin}: {e:#}"));
         for path in files {
             let text = std::fs::read_to_string(&path).unwrap();
-            let literal = deckmaste_core::ron::options().from_str::<MacroDef>(&text);
-            let name_and_kinds = if let Ok(def) = literal {
-                (def.name, def.kinds.clone())
-            } else {
-                // An invocation file registers a macro under the file's
-                // stem; not found under KeywordAbility = some other
-                // kind's meta-invocation (subtype templates) — skip.
-                let stem = path.file_stem().unwrap().to_str().unwrap();
-                if let Some(def) = loaded.macros.get("KeywordAbility", stem) {
-                    (def.name, def.kinds.clone())
+            // A literal MacroDef, or — for a meta-macro invocation file that
+            // doesn't parse as one — the macro it registers under its stem,
+            // resolved through the LOADED set (which also proves the
+            // registration round-trip the literal scan never exercises). Not
+            // found under KeywordAbility = some other kind's meta-invocation
+            // (subtype templates) — skip.
+            let def: MacroDef =
+                if let Ok(def) = deckmaste_core::ron::options().from_str::<MacroDef>(&text) {
+                    def
                 } else {
-                    continue;
-                }
-            };
-            let def_name = name_and_kinds.0;
-            if !name_and_kinds
-                .1
-                .iter()
-                .any(|k| k.as_str() == "KeywordAbility")
-            {
+                    let stem = path.file_stem().unwrap().to_str().unwrap();
+                    let Some(def) = loaded.macros.get("KeywordAbility", stem) else {
+                        continue;
+                    };
+                    def.clone()
+                };
+            if !def.kinds.iter().any(|k| k.as_str() == "KeywordAbility") {
                 continue;
             }
+            // Base composites are classified by their own name. Per-type
+            // *variant* macros under `keyword/derived/` (landwalk-by-subtype,
+            // typecycling, …) are parameterized instances of a base composite:
+            // rules-taxonomy §10 models "landwalk [type-expression]" as ONE
+            // composite, so the skill classifies only the umbrella. A derived
+            // macro therefore inherits the class of the base keyword its body
+            // delegates to (`Landwalk` from `Landwalk(quality: …)`). A derived
+            // macro that delegates to an UNclassified base still fails the
+            // lookup, so the guard keeps its teeth.
+            //
             // Everything non-intrinsic is macro territory: composite,
-            // composite-given (name-carrying until its primitive exists),
-            // and marker (a name-only composite IS a marker's semantics).
+            // composite-given (name-carrying until its primitive exists), and
+            // marker (a name-only composite IS a marker's semantics).
             // Intrinsics belong in the enum; unknown names are drift.
-            let class = class_of(&json, def_name.as_str());
+            let key = if is_derived(&path) {
+                delegate_head(def.body())
+            } else {
+                def.name.as_str().to_owned()
+            };
+            let class = class_of(&json, &key);
             assert!(
                 matches!(
                     class.as_deref(),
                     Some("composite" | "composite-given" | "marker")
                 ),
-                "keyword macro {:?} ({}) must be a non-intrinsic class \
-                 per the skill classification, got {class:?}",
-                def_name.as_str(),
+                "keyword macro {:?} ({}) must resolve to a non-intrinsic class \
+                 per the skill classification (lookup key {key:?}), got {class:?}",
+                def.name.as_str(),
                 path.display(),
             );
             checked += 1;
