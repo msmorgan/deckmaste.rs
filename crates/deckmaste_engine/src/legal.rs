@@ -222,7 +222,9 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     // controller activates).
     for &object in &state.zones.battlefield {
         let obj = state.objects.obj(object);
-        if obj.controller != player {
+        // Derived controller ([CR#613.1b]): only the current controller may
+        // activate ([CR#602.2]); a control-change effect moves this.
+        if view.controller(object) != player {
             continue;
         }
         let sick_creature =
@@ -319,7 +321,9 @@ pub fn legal_attackers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
         .copied()
         .filter(|&id| {
             let obj = state.objects.obj(id);
-            obj.controller == player
+            // Derived controller ([CR#613.1b]): a stolen creature attacks for
+            // its new controller, not its owner.
+            view.controller(id) == player
                 && !obj.tapped
                 && !obj.summoning_sick
                 && view.get(id).card_types.contains(&Type::Creature)
@@ -399,7 +403,9 @@ pub fn legal_blockers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
         .copied()
         .filter(|&id| {
             let obj = state.objects.obj(id);
-            obj.controller == player
+            // Derived controller ([CR#613.1b]): a stolen creature blocks for its
+            // new controller.
+            view.controller(id) == player
                 && !obj.tapped
                 && view.get(id).card_types.contains(&Type::Creature)
         })

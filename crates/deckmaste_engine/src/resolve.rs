@@ -233,6 +233,10 @@ impl GameState {
                     };
                     self.continuous.push(ContinuousEffect {
                         timestamp,
+                        // The continuous effect's controller is the controller
+                        // of the spell/ability that created it ([CR#611.2c]);
+                        // it resolves the `You` in a layer-2 control change.
+                        controller: frame.controller,
                         scope,
                         changes: changes.clone(),
                         duration: e.duration.clone(),
@@ -1494,6 +1498,7 @@ mod tests {
         let timestamp = state.objects.next_timestamp();
         state.continuous.push(crate::layer::ContinuousEffect {
             timestamp,
+            controller: PlayerId(0),
             scope: crate::layer::ScopeResolved::Locked(vec![bear]),
             changes: vec![deckmaste_core::Modification::AddPower(Count::Literal(1))],
             duration: deckmaste_core::Duration::EndOfGame,

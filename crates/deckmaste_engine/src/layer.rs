@@ -48,6 +48,10 @@ pub enum ScopeResolved {
 #[derive(Debug, Clone)]
 pub struct ContinuousEffect {
     pub timestamp: Timestamp,
+    /// The effect's controller, locked at creation ([CR#611.2c]). Resolves the
+    /// `You` in a layer-2 `SetController(You)` ("you gain control of …"); for
+    /// effects with no controller-relative reference it is inert.
+    pub controller: PlayerId,
     pub scope: ScopeResolved,
     pub changes: Vec<Modification>,
     pub duration: Duration,
@@ -211,11 +215,14 @@ fn base_values(state: &GameState, id: ObjectId) -> DerivedObject {
 // Layer ordering
 // ---------------------------------------------------------------------------
 
-/// The layer a `Modification` op lives in ([CR#613.3,613.4]).
-/// Only the variants needed for P/T sublayers 7a-7d are enumerated; types,
-/// colors, and abilities (4-6) are explicit seams for later tasks.
+/// The layer a `Modification` op lives in ([CR#613.1,613.3,613.4]), in
+/// application order. Layer 1 (copy/face-down, [CR#613.2]) is not a
+/// `Modification` — it reshapes the *base* copiable values and is handled in
+/// `base_values`, so it has no variant here.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Layer {
+    L2,
+    L3,
     L4,
     L5,
     L6,
@@ -227,10 +234,16 @@ enum Layer {
 
 /// Maps a `Modification` to the layer it applies in.
 ///
-/// Returns `None` for ops that are deferred to later tasks
-/// ([CR#613.1b,613.1c,613.1d]).
+/// Returns `None` for ops with no [CR#613] layer (loyalty/defense, which are
+/// not characteristics here).
 fn layer_of(m: &Modification, is_cda: bool) -> Option<Layer> {
     match m {
+        // Layer 2: control-changing ([CR#613.1b]).
+        Modification::SetController(_) => Some(Layer::L2),
+        // Layer 3: text-changing ([CR#613.1c], rule 612). The op lives in the
+        // pass at the right position; its `apply` is a documented no-op until a
+        // real word-replacement engine exists (its own todo).
+        Modification::SetText(_) => Some(Layer::L3),
         // Layer 4: type-changing ([CR#613.1d]).
         Modification::SetCardTypes(_)
         | Modification::AddCardTypes(_)
@@ -260,11 +273,8 @@ fn layer_of(m: &Modification, is_cda: bool) -> Option<Layer> {
         Modification::AddPower(_) | Modification::AddToughness(_) => Some(Layer::L7c),
         // Layer 7d: switch ([CR#613.4d]).
         Modification::SwitchPowerToughness => Some(Layer::L7d),
-        // Deferred to later tasks ([CR#613.1b,613.1c,613.1d]).
-        Modification::SetController(_)
-        | Modification::SetText(_)
-        | Modification::SetBaseLoyalty(_)
-        | Modification::SetBaseDefense(_) => None,
+        // No [CR#613] layer: loyalty/defense are not characteristics here.
+        Modification::SetBaseLoyalty(_) | Modification::SetBaseDefense(_) => None,
     }
 }
 
@@ -277,6 +287,10 @@ fn layer_of(m: &Modification, is_cda: bool) -> Option<Layer> {
 struct ActiveEffect {
     timestamp: Timestamp,
     is_cda: bool,
+    /// The effect's controller ([CR#611.2c]) — resolves `You` in a layer-2
+    /// `SetController`. For a static ability it is the source permanent's base
+    /// controller; for a registry effect it is the locked value it carries.
+    controller: PlayerId,
     scope: ScopeResolved,
     changes: Vec<Modification>,
     /// Locked target set: `None` until first applied layer resolves the scope
@@ -320,6 +334,10 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
                 effects.push(ActiveEffect {
                     timestamp,
                     is_cda: sa.characteristic_defining,
+                    // A static ability's continuous effect is controlled by the
+                    // permanent it is on ([CR#611.2c]); its `You` is that
+                    // permanent's controller.
+                    controller: obj.controller,
                     scope,
                     changes: changes.clone(),
                     locked: None,
@@ -332,6 +350,7 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
         effects.push(ActiveEffect {
             timestamp: ce.timestamp,
             is_cda: ce.is_cda,
+            controller: ce.controller,
             scope: ce.scope.clone(),
             changes: ce.changes.clone(),
             locked: None,
@@ -457,7 +476,7 @@ pub(crate) fn ability_is_named(a: &Ability, name: &Ident) -> bool {
 /// are explicit deferred stubs; controller/text ([CR#613.1b,613.1c]) and
 /// loyalty/defense (no 613 layer) are also stubs.
 #[allow(clippy::match_same_arms)] // deferred stub arms will diverge as later tasks fill them
-fn apply(m: &Modification, d: &mut DerivedObject) {
+fn apply(m: &Modification, effect_controller: PlayerId, d: &mut DerivedObject) {
     let c = &mut d.characteristics;
     match m {
         // --- Layer 7a / 7b: set base P/T ---
@@ -536,13 +555,40 @@ fn apply(m: &Modification, d: &mut DerivedObject) {
             Arc::make_mut(&mut c.abilities).retain(|x| !ability_is_named(x, name));
             d.cant_have.push(*name);
         }
-        // --- Deferred ([CR#613.1b,613.1c,613.1d]) ---
-        Modification::SetController(_)
-        | Modification::SetText(_)
-        | Modification::SetBaseLoyalty(_)
-        | Modification::SetBaseDefense(_) => {
-            // [CR#613.1b,613.1c,613.1d] deferred
+        // --- Layer 2: control-changing ([CR#613.1b]) ---
+        Modification::SetController(reference) => {
+            if let Some(p) = resolve_new_controller(reference, effect_controller) {
+                d.controller = p;
+            }
         }
+        // --- Layer 3: text-changing ([CR#613.1c]) — documented slot ---
+        // A real [CR#612] word-replacement needs text→ability re-derivation the
+        // engine does not do; tracked by its own todo. The op still occupies its
+        // layer-3 position in the pass (so dependency ordering sees it).
+        Modification::SetText(_) => {}
+        // --- No [CR#613] layer ---
+        Modification::SetBaseLoyalty(_) | Modification::SetBaseDefense(_) => {
+            // Loyalty/defense are not characteristics here; no layer applies.
+        }
+    }
+}
+
+/// Resolve a control-change effect's new controller ([CR#613.1b]) to a concrete
+/// player. Per [CR#611.2c] the effect's references are locked when it is
+/// created, so `Reference::You` resolves to the effect's controller (the happy
+/// path: "you gain control of …"). General `Reference` resolution needs the
+/// resolve-time `Frame` machinery (`engine-resolve-effects`); any other
+/// reference is a documented seam that leaves the controller unchanged.
+fn resolve_new_controller(
+    reference: &deckmaste_core::Reference,
+    effect_controller: PlayerId,
+) -> Option<PlayerId> {
+    use deckmaste_core::Reference;
+    match reference {
+        Reference::You => Some(effect_controller),
+        // SEAM: opponent / each-player / bound references need a `Frame` to
+        // resolve a specific player; not reachable by current control fixtures.
+        _ => None,
     }
 }
 
@@ -579,6 +625,8 @@ impl GameState {
         // before L6 ability additions/removals are applied. No fixture exercises
         // this path yet; it's a documented gap for a later task.
         for layer in [
+            Layer::L2,
+            Layer::L3,
             Layer::L4,
             Layer::L5,
             Layer::L6,
@@ -616,11 +664,12 @@ impl GameState {
                 // inner loop can borrow effects[i].changes.
                 let targets: Vec<ObjectId> = targets.to_vec();
                 let is_cda = effects[i].is_cda;
+                let controller = effects[i].controller;
                 for obj_id in targets {
                     if let Some(d) = working.get_mut(&obj_id) {
                         for m in &effects[i].changes {
                             if layer_of(m, is_cda) == Some(layer) {
-                                apply(m, d);
+                                apply(m, controller, d);
                             }
                         }
                     }

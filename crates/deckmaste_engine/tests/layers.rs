@@ -162,6 +162,7 @@ fn one_shot_pump_expires_at_cleanup() {
 
     state.continuous.push(ContinuousEffect {
         timestamp: Timestamp(1_000),
+        controller: PlayerId(0),
         scope: ScopeResolved::Locked(vec![bear]),
         changes: vec![
             Modification::AddPower(Count::Literal(3)),
@@ -430,5 +431,109 @@ fn animated_enchantment_can_attack() {
     assert!(
         legal_attackers(&state, PlayerId(0)).contains(&ench),
         "an animated-into-creature permanent can attack ([CR#508.1a] over the derived type)"
+    );
+}
+
+/// [CR#613.1b]: a layer-2 control-change effect ("you gain control") makes the
+/// derived controller the effect's controller. The object's base controller is
+/// unchanged — control change is a continuous effect, not a mutation.
+#[test]
+fn gain_control_changes_derived_controller() {
+    use deckmaste_core::Duration;
+    use deckmaste_core::Modification;
+    use deckmaste_core::Reference;
+    use deckmaste_engine::ContinuousEffect;
+    use deckmaste_engine::ScopeResolved;
+    use deckmaste_engine::Timestamp;
+
+    let mut state = two_player_with("Grizzly Bears", 1, 10);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    assert_eq!(
+        state.layers().controller(bear),
+        PlayerId(0),
+        "base controller is P0"
+    );
+
+    // P1 "gains control of" the bear (Threaten-style). Per [CR#611.2c] the
+    // effect's `You` is locked to its controller (P1) at creation.
+    state.continuous.push(ContinuousEffect {
+        timestamp: Timestamp(1_000),
+        controller: PlayerId(1),
+        scope: ScopeResolved::Locked(vec![bear]),
+        changes: vec![Modification::SetController(Reference::You)],
+        duration: Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
+        is_cda: false,
+    });
+    assert_eq!(
+        state.layers().controller(bear),
+        PlayerId(1),
+        "layer 2 derives the new controller ([CR#613.1b])"
+    );
+}
+
+/// [CR#613.1b],[CR#613.5]: control change is continuous — when the effect
+/// expires the derived controller reverts to the base controller.
+#[test]
+fn gained_control_reverts_when_effect_expires() {
+    use deckmaste_core::Duration;
+    use deckmaste_core::Modification;
+    use deckmaste_core::Reference;
+    use deckmaste_engine::ContinuousEffect;
+    use deckmaste_engine::ScopeResolved;
+    use deckmaste_engine::Timestamp;
+
+    let mut state = two_player_with("Grizzly Bears", 1, 10);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    state.continuous.push(ContinuousEffect {
+        timestamp: Timestamp(1_000),
+        controller: PlayerId(1),
+        scope: ScopeResolved::Locked(vec![bear]),
+        changes: vec![Modification::SetController(Reference::You)],
+        duration: Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
+        is_cda: false,
+    });
+    assert_eq!(state.layers().controller(bear), PlayerId(1), "stolen");
+
+    state.expire_end_of_turn();
+    assert_eq!(
+        state.layers().controller(bear),
+        PlayerId(0),
+        "control reverts after the effect expires ([CR#613.5])"
+    );
+}
+
+/// [CR#508.1a],[CR#613.1b]: combat eligibility reads the DERIVED controller — a
+/// stolen creature is a legal attacker for its new controller, not its owner.
+#[test]
+fn stolen_creature_attacks_for_new_controller() {
+    use deckmaste_core::Duration;
+    use deckmaste_core::Modification;
+    use deckmaste_core::Reference;
+    use deckmaste_engine::ContinuousEffect;
+    use deckmaste_engine::ScopeResolved;
+    use deckmaste_engine::Timestamp;
+
+    let mut state = two_player_with("Grizzly Bears", 1, 10);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    assert!(
+        legal_attackers(&state, PlayerId(0)).contains(&bear),
+        "sanity: P0's bear can attack before the steal"
+    );
+
+    state.continuous.push(ContinuousEffect {
+        timestamp: Timestamp(1_000),
+        controller: PlayerId(1),
+        scope: ScopeResolved::Locked(vec![bear]),
+        changes: vec![Modification::SetController(Reference::You)],
+        duration: Duration::EndOfGame,
+        is_cda: false,
+    });
+    assert!(
+        !legal_attackers(&state, PlayerId(0)).contains(&bear),
+        "P0 no longer controls the stolen creature"
+    );
+    assert!(
+        legal_attackers(&state, PlayerId(1)).contains(&bear),
+        "P1 gained control and can attack with it ([CR#613.1b])"
     );
 }
