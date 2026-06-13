@@ -49,10 +49,21 @@ pub enum GameEvent {
     },
     StepBegan(Phase),
     Untapped(ObjectId),
-    // Shaped, unbuilt (no fixture forces them yet): `WillDestroy` (regeneration /
-    // indestructible, above Battlefield→Graveyard) and `WillDiscard` (madness, above
-    // Hand→Graveyard) — the replaceable intents above their committed zone changes,
-    // like `WillDraw` below. Destroy already emits `ZoneWillChange` directly.
+    // Shaped, unbuilt (no fixture forces it yet): `WillDiscard` (madness, above
+    // Hand→Graveyard) — the replaceable intent above its committed zone change,
+    // like `WillDraw` below.
+    /// The INTENT of a destruction ([CR#701.8a]). Replaceable above the
+    /// committed Battlefield→Graveyard move (like `WillDraw`): its apply checks
+    /// the object's derived view for a destruction-replacement static —
+    /// indestructible ([CR#702.12b]) or, once they exist, a regeneration
+    /// shield (an `engine-replacements` seam). Present → the destroy is replaced
+    /// to nothing (the object is untouched). Absent → it evolves into
+    /// `ZoneWillChange(Battlefield → Graveyard)` carrying `cause`, one of
+    /// "destroyed"'s two causes ([CR#701.8b]).
+    WillDestroy {
+        object: ObjectId,
+        cause: Option<Cause>,
+    },
     /// The INTENT of a draw ([CR#121.1]). Replaceable (Notion Thief, Lab
     /// Maniac — future). Its apply checks the library: a card present → bind
     /// the top, bump `CardsDrawn`, and evolve into `ZoneWillChange(Library →

@@ -1474,8 +1474,8 @@ fn etb_trigger_draws_a_card() {
 ///
 /// Expected flow:
 /// 1. Resolve → one `Batch` of three `DamageDealt` events.
-/// 2. SBA sweep → one `Batch` of three `ZoneWillChange`/`ZoneChanged` zone
-///    moves (each creature gets lethal damage).
+/// 2. SBA sweep → one `Batch` of three `WillDestroy` intents (each creature
+///    has lethal damage); each evolves into its battlefield→graveyard move.
 /// 3. Trigger matching notes SEVEN triggers in the same scan: the fiend's
 ///    dies-trigger plus, for EACH of the three deaths, each player's Moonlit
 ///    Wake — a live watcher fires once per matching event in the batch.
@@ -1606,15 +1606,16 @@ fn occurrence_batch_and_apnap_ordering() {
                 }
             }
         }
-        // Look for the ZoneWillChange/ZoneChanged batch (SBA destroys).
+        // Look for the WillDestroy batch (SBA destroys, one simultaneous batch
+        // of intents; each evolves into its own battlefield→graveyard move).
         if !saw_sba_destroy_batch {
             for p in &trace {
                 if let Progress::Applied(Occurrence::Batch(events)) = p {
-                    let zone_moves = events
+                    let destroys = events
                         .iter()
-                        .filter(|e| matches!(e, GameEvent::ZoneWillChange { .. }))
+                        .filter(|e| matches!(e, GameEvent::WillDestroy { .. }))
                         .count();
-                    if zone_moves >= 3 {
+                    if destroys >= 3 {
                         saw_sba_destroy_batch = true;
                     }
                 }
