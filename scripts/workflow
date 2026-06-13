@@ -5,10 +5,11 @@ or return
 
 alias jj (status dirname)/jj
 
-# Every command but `converge` runs from default. `converge` is the exception: it
-# heals a divergence IN the affected feature workspace, so it must run from there.
-if test "$argv[1]" != converge; and test "$(jj workspace root)" != "$(jj workspace root --name default)"
-    echo >&2 "$(status filename): intended to be run from default workspace only (except 'converge')."
+# Every command but `converge`/`resolve` runs from default. Those two are the
+# exceptions: they heal a divergence / refresh-conflict IN the affected feature
+# workspace, so they must run from there.
+if not contains -- "$argv[1]" converge resolve; and test "$(jj workspace root)" != "$(jj workspace root --name default)"
+    echo >&2 "$(status filename): intended to be run from default workspace only (except 'converge'/'resolve')."
     return 1
 end
 
@@ -23,6 +24,8 @@ Usage: $(status filename) <command> [<args>]
     integrate WORKSPACE  Refresh, fold WORKSPACE's work into default@, then drop the workspace.
     converge             Run FROM a feature workspace: heal a working-copy divergence left
                          by a concurrent op — keep the half holding your work, drop the rest.
+    resolve              Run FROM a feature workspace AFTER editing conflict markers out of the
+                         working copy: fold the conflicted commits + your fix into a clean stack.
 "
     exit 2
 end
@@ -326,6 +329,30 @@ function __workflow_converge
     echo "converge: kept $keep, dropped: $drop"
 end
 
+# Heal feature-stack conflicts a refresh/integrate left behind. Prereq: you've
+# already edited the conflict markers OUT of the working copy (so `jj st` shows @
+# resolved). Run FROM the feature workspace. Folds the conflicted feature commits
+# plus your working-copy resolution into the lowest conflicted commit, leaving a
+# clean, re-integratable stack — in ONE step, instead of the manual flatten dance.
+# (It collapses those commits; re-`describe` the result if you want.) For a
+# working-copy DIVERGENCE rather than a refresh conflict, use `converge` instead.
+function __workflow_resolve
+    set -l name (path basename (jj workspace root))
+    set -l range "$name+::@"   # this feature's commits (above its claim bookmark)
+    if test -z "$(jj log --no-graph -r "($range) & conflicts()" -T 'change_id')"
+        echo "resolve: no conflicts in $name's stack — nothing to do."
+        return 0
+    end
+    if jj log --no-graph -r @ -T 'conflict' | string match -q true
+        echo >&2 "resolve: @ still has unresolved conflict markers — edit them out (`jj st` lists the paths), then re-run."
+        return 1
+    end
+    # Lowest still-conflicted commit; @ (resolved) carries the fix down into it.
+    set -l first (jj log --no-graph -r "roots(($range) & conflicts())" -T 'change_id.short()')
+    jj squash --from "$first+::@" --into "$first" -u
+    and echo "resolve: folded the conflicted commits into $first — re-run 'scripts/workflow integrate $name' (or 'refresh')."
+end
+
 switch $argv[1]
     case claim
         __workflow_start --claim-todo $argv[2..]
@@ -339,6 +366,8 @@ switch $argv[1]
         __workflow_refresh $argv[2..]
     case converge
         __workflow_converge
+    case resolve
+        __workflow_resolve
     case '*'
         __workflow_usage
 end

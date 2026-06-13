@@ -4,7 +4,7 @@
   "sources": {
     "tracked": true,
     "extensions": ["rs", "md", "ron"],
-    "exclude": ["crates/xtask/"]
+    "exclude": ["crates/xtask/", "CLAUDE.md"]
   },
   "noncompliant_exempt": [
     "crates/deckmaste_migrations/src/data/academyruins.rs",
