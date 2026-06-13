@@ -35,6 +35,8 @@ pub use event::GameEvent;
 pub use event::LossReason;
 pub use event::Occurrence;
 
+mod history;
+
 mod layer;
 pub use layer::Characteristics;
 pub use layer::ContinuousEffect;
