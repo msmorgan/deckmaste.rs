@@ -6,6 +6,6 @@ Normal(
     ],
     types: [Enchantment],
     abilities: [
-        Static(effects: [Modify(of: Matching(AllOf([Creature, Controller(Ref(You))])), changes: [GainAbility(Keyword(Vigilance))])]),
+        Static(effects: [Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), changes: [GainAbility(Keyword(Vigilance))])]),
     ],
 )
