@@ -3,6 +3,8 @@
 //! parsing). Strict: an unrecognized head noun or any unconsumed token declines
 //! (`None`) — a wrong filter would graduate a wrong card.
 
+use regex::Regex;
+
 /// Parse an object-description phrase into a `Filter` RON string, or `None`.
 pub(crate) fn parse_phrase(phrase: &str) -> Option<String> {
     let mut rest = phrase.trim();
@@ -41,12 +43,54 @@ pub(crate) fn parse_phrase(phrase: &str) -> Option<String> {
         break;
     }
 
-    // What's left must be exactly the head noun (a later task peels postfix
-    // clauses off the END before this point).
+    // Postfix relative clauses (peel off the END).
+    let mut postfix_atoms: Vec<String> = Vec::new();
+    loop {
+        if let Some((atom, r)) = strip_postfix(rest) {
+            postfix_atoms.push(atom);
+            rest = r;
+            continue;
+        }
+        break;
+    }
+
+    // What's left must be exactly the head noun.
     let head = head_noun(rest)?;
     let mut atoms = vec![head];
     atoms.extend(prefix_atoms);
+    atoms.extend(postfix_atoms);
     Some(combine(atoms))
+}
+
+/// Peel one trailing relative clause off `s`, returning (atom, head-remainder).
+fn strip_postfix(s: &str) -> Option<(String, &str)> {
+    let s = s.trim_end();
+    for (suffix, atom) in [
+        (" you control", "Controller(Ref(You))"),
+        (" an opponent controls", "Controller(OpponentOf(Ref(You)))"),
+        (
+            " your opponents control",
+            "Controller(OpponentOf(Ref(You)))",
+        ),
+        (" you own", "Owner(Ref(You))"),
+    ] {
+        if let Some(head) = s.strip_suffix(suffix) {
+            return Some((atom.to_string(), head));
+        }
+    }
+    // Stat clauses via regex (power/toughness, greater/less).
+    let re = Regex::new(r"(?i) with (power|toughness) (\d+) or (greater|less)$").unwrap();
+    if let Some(caps) = re.captures(s) {
+        let stat = if caps[1].eq_ignore_ascii_case("power") { "Power" } else { "Toughness" };
+        let n = &caps[2];
+        let cmp = if caps[3].eq_ignore_ascii_case("greater") { "AtLeast" } else { "AtMost" };
+        let head = &s[..caps.get(0).unwrap().start()];
+        return Some((format!("Stat({stat}, {cmp}, Literal({n}))"), head));
+    }
+    if let Some(head) = s.strip_suffix(" with a +1/+1 counter on it") {
+        return Some(("HasCounter(\"+1/+1\")".to_string(), head));
+    }
+    None
 }
 
 /// Strip a leading whole word (case-insensitive) from `s`, returning the rest.
@@ -105,9 +149,8 @@ fn strip_color(s: &str) -> Option<(String, &str)> {
 /// `nonblack` → `Not(ColorIs(Black))`, `noncreature` → `Not(Type(Creature))`.
 fn strip_negation(s: &str) -> Option<(String, &str)> {
     let (first, rest) = s.split_once(' ')?;
-    let stem = first
-        .strip_prefix("non")
-        .or_else(|| first.strip_prefix("Non"))?;
+    let lower = first.to_ascii_lowercase();
+    let stem = lower.strip_prefix("non")?;
     let atom = if let Some(c) = color_code(stem) {
         format!("Not(ColorIs({c}))")
     } else if let Some(t) = type_code(stem) {
@@ -187,6 +230,39 @@ mod tests {
         assert_eq!(
             parse_phrase("tapped creatures").as_deref(),
             Some("AllOf([Creature, Status(Tapped)])")
+        );
+        assert_eq!(parse_phrase("a creature").as_deref(), Some("Creature"));
+        assert_eq!(
+            parse_phrase("colorless creatures").as_deref(),
+            Some("AllOf([Creature, Colorless])")
+        );
+        assert_eq!(
+            parse_phrase("other nonblack creatures").as_deref(),
+            Some("AllOf([Creature, Not(Ref(This)), Not(ColorIs(Black))])")
+        );
+    }
+
+    #[test]
+    fn postfix_clauses() {
+        assert_eq!(
+            parse_phrase("creatures you control").as_deref(),
+            Some("AllOf([Creature, Controller(Ref(You))])")
+        );
+        assert_eq!(
+            parse_phrase("artifacts an opponent controls").as_deref(),
+            Some("AllOf([Type(Artifact), Controller(OpponentOf(Ref(You)))])")
+        );
+        assert_eq!(
+            parse_phrase("creatures your opponents control").as_deref(),
+            Some("AllOf([Creature, Controller(OpponentOf(Ref(You)))])")
+        );
+        assert_eq!(
+            parse_phrase("creatures with power 3 or greater").as_deref(),
+            Some("AllOf([Creature, Stat(Power, AtLeast, Literal(3))])")
+        );
+        assert_eq!(
+            parse_phrase("other creatures you control").as_deref(),
+            Some("AllOf([Creature, Not(Ref(This)), Controller(Ref(You))])")
         );
     }
 
