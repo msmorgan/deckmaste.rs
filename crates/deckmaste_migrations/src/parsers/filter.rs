@@ -5,15 +5,117 @@
 
 /// Parse an object-description phrase into a `Filter` RON string, or `None`.
 pub(crate) fn parse_phrase(phrase: &str) -> Option<String> {
-    let mut atoms: Vec<String> = Vec::new();
-    let rest = phrase.trim();
+    let mut rest = phrase.trim();
+    let mut prefix_atoms: Vec<String> = Vec::new();
 
-    // Head noun (required). Later tasks peel prefix adjectives / postfix clauses
-    // around this; for now the whole phrase must be a bare head noun.
+    loop {
+        // Determiners — consumed, no atom.
+        if let Some(r) = strip_word(rest, &["a", "an", "each", "all", "any"]) {
+            rest = r;
+            continue;
+        }
+        // Self-exclusion.
+        if let Some(r) = strip_word(rest, &["other", "another"]) {
+            prefix_atoms.push("Not(Ref(This))".into());
+            rest = r;
+            continue;
+        }
+        // Status adjectives.
+        if let Some((atom, r)) = strip_status(rest) {
+            prefix_atoms.push(atom);
+            rest = r;
+            continue;
+        }
+        // Color / type negation: `non<color>` / `non<type>`.
+        if let Some((atom, r)) = strip_negation(rest) {
+            prefix_atoms.push(atom);
+            rest = r;
+            continue;
+        }
+        // Color adjective.
+        if let Some((atom, r)) = strip_color(rest) {
+            prefix_atoms.push(atom);
+            rest = r;
+            continue;
+        }
+        break;
+    }
+
+    // What's left must be exactly the head noun (a later task peels postfix
+    // clauses off the END before this point).
     let head = head_noun(rest)?;
-    atoms.push(head);
-
+    let mut atoms = vec![head];
+    atoms.extend(prefix_atoms);
     Some(combine(atoms))
+}
+
+/// Strip a leading whole word (case-insensitive) from `s`, returning the rest.
+fn strip_word<'a>(s: &'a str, words: &[&str]) -> Option<&'a str> {
+    let (first, rest) = s.split_once(' ')?;
+    words
+        .iter()
+        .any(|w| first.eq_ignore_ascii_case(w))
+        .then(|| rest.trim_start())
+}
+
+fn strip_status(s: &str) -> Option<(String, &str)> {
+    let (first, rest) = s.split_once(' ')?;
+    let atom = match first.to_ascii_lowercase().as_str() {
+        "tapped" => "Status(Tapped)",
+        "untapped" => "Status(Untapped)",
+        "attacking" => "Attacking",
+        "blocking" => "Blocking",
+        _ => return None,
+    };
+    Some((atom.to_string(), rest.trim_start()))
+}
+
+fn color_code(word: &str) -> Option<&'static str> {
+    Some(match word.to_ascii_lowercase().as_str() {
+        "white" => "White",
+        "blue" => "Blue",
+        "black" => "Black",
+        "red" => "Red",
+        "green" => "Green",
+        _ => return None,
+    })
+}
+
+fn type_code(word: &str) -> Option<&'static str> {
+    Some(match word.to_ascii_lowercase().as_str() {
+        "creature" => "Creature",
+        "artifact" => "Artifact",
+        "enchantment" => "Enchantment",
+        "land" => "Land",
+        "planeswalker" => "Planeswalker",
+        _ => return None,
+    })
+}
+
+fn strip_color(s: &str) -> Option<(String, &str)> {
+    let (first, rest) = s.split_once(' ')?;
+    let atom = match first.to_ascii_lowercase().as_str() {
+        "colorless" => "Colorless".to_string(),
+        "multicolored" => "Multicolored".to_string(),
+        other => format!("ColorIs({})", color_code(other)?),
+    };
+    Some((atom, rest.trim_start()))
+}
+
+/// `nonblack` → `Not(ColorIs(Black))`, `noncreature` → `Not(Type(Creature))`.
+fn strip_negation(s: &str) -> Option<(String, &str)> {
+    let (first, rest) = s.split_once(' ')?;
+    let stem = first
+        .strip_prefix("non")
+        .or_else(|| first.strip_prefix("Non"))?;
+    let atom = if let Some(c) = color_code(stem) {
+        format!("Not(ColorIs({c}))")
+    } else if let Some(t) = type_code(stem) {
+        format!("Not(Type({t}))")
+    } else {
+        return None;
+    };
+    Some((atom, rest.trim_start()))
 }
 
 /// Map a singular/plural type word to its builtin filter macro (battlefield-
@@ -35,7 +137,7 @@ fn head_noun(word: &str) -> Option<String> {
         "enchantment" => "Type(Enchantment)".to_string(),
         "land" => "Type(Land)".to_string(),
         "instant" => "Type(Instant)".to_string(),
-        "sorcery" => return Some("Type(Sorcery)".to_string()), // irregular plural
+        "sorcery" => "Type(Sorcery)".to_string(),
         other if !other.is_empty() && !other.contains(' ') => {
             format!("Subtype(\"{}\")", crate::ident::to_rust_ident(other))
         }
@@ -66,5 +168,31 @@ mod tests {
             Some("Subtype(\"Goblin\")")
         );
         assert_eq!(parse_phrase("sorceries").as_deref(), Some("Type(Sorcery)"));
+    }
+
+    #[test]
+    fn prefix_adjectives() {
+        assert_eq!(
+            parse_phrase("other Goblins").as_deref(),
+            Some("AllOf([Subtype(\"Goblin\"), Not(Ref(This))])")
+        );
+        assert_eq!(
+            parse_phrase("nonblack creatures").as_deref(),
+            Some("AllOf([Creature, Not(ColorIs(Black))])")
+        );
+        assert_eq!(
+            parse_phrase("black creatures").as_deref(),
+            Some("AllOf([Creature, ColorIs(Black)])")
+        );
+        assert_eq!(
+            parse_phrase("tapped creatures").as_deref(),
+            Some("AllOf([Creature, Status(Tapped)])")
+        );
+    }
+
+    #[test]
+    fn declines_unparsable() {
+        assert!(parse_phrase("creatures wearing hats").is_none());
+        assert!(parse_phrase("xyzzy plover blorp").is_none());
     }
 }
