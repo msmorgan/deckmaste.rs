@@ -1,0 +1,17 @@
+[package]
+name = "deckmaste_noncanon"
+version = "0.1.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[features]
+# Gates the matchup integration tests under tests/wc99.rs. The library and the
+# cheap plugin-validity test always build, so the crate can't silently rot.
+noncanon_tests = []
+
+[dependencies]
+deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
+deckmaste_engine = { version = "0.1.0", path = "../deckmaste_engine" }
+deckmaste_cards = { version = "0.1.0", path = "../deckmaste_cards" }

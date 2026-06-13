@@ -469,6 +469,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckmaste_noncanon"
+version = "0.1.0"
+dependencies = [
+ "deckmaste_cards",
+ "deckmaste_core",
+ "deckmaste_engine",
+]
+
+[[package]]
 name = "deckmaste_tui"
 version = "0.1.0"
 dependencies = [
@@ -481,14 +490,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "digest"
-version = "0.11.3"
+name = "displaydoc"
+version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1dd6dbb5841937940781866fa1281a1ff7bd3bf827091440879f9994983d5c2"
+checksum = "1ac70aa55017e108007fbaf5aa0f54b021c98f92ff8af59d42eda9da96e3dd4f"
 dependencies = [
- "block-buffer",
- "const-oid",
- "crypto-common",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
