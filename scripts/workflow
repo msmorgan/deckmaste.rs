@@ -140,12 +140,25 @@ function __workflow_start
         and jj new @- -m "$verb $name"
         and jj bookmark create $name
         and if set -q _flag_claim_todo
+            # Move the ticket into wip/, then snapshot it into the claim commit
+            # right away. Until something snapshots it the move lives only in
+            # default's working copy; the next op (`workspace add`) WOULD capture it,
+            # but default is shared — pinning it now shrinks the gap in which a
+            # concurrent op on default could swallow the move before it's committed.
             __claim_todo $name
+            and jj status >/dev/null
         end
         and jj workspace add "$ws_dir" -r $name
         and jj rebase -r __tip -d $name
         and jj edit __tip
         and jj bookmark forget __tip
+        # A claimed todo MUST leave its ticket move in the claim commit. If the
+        # commit still came out empty, a concurrent default op ate the snapshot
+        # anyway — roll back and have the user retry rather than mint an empty claim.
+        and if set -q _flag_claim_todo; and jj log --no-graph -r $name -T 'empty' --ignore-working-copy | string match -q true
+            echo >&2 "$(status filename): $name's claim commit is empty — the ticket move was lost (a concurrent op on default). Nothing kept; re-run 'claim $name'."
+            false
+        end
         or begin
             echo >&2 "Failed... restoring to $savepoint"
             jj op restore "$savepoint"
@@ -177,9 +190,17 @@ function __workflow_abandon
     and begin
         # Abandon the claim commit AND its feature stack ("$root"::), but not the
         # default line — abandoning the claim reparents that onto the claim's parent.
+        # workspace-forget runs first and drops the workspace's empty trailing WC. For
+        # a claim with NO work yet that empty WC *is* $root, so it's gone afterward and
+        # only the claim is left to abandon; guard on $root still resolving to handle
+        # both the fresh-claim and has-work cases.
         jj workspace forget "$name"
         and jj bookmark forget "$name"
-        and jj abandon "$claim" "$root"::
+        and if jj log --no-graph -r "$root" --ignore-working-copy >/dev/null 2>&1
+            jj abandon "$claim" "$root"::
+        else
+            jj abandon "$claim"
+        end
         or begin
             echo >&2 "Failed... restoring to $savepoint"
             jj op restore "$savepoint"
@@ -231,18 +252,39 @@ end
 
 function __integrate_steps
     set name $argv[1]
+    set -l ws_dir (jj workspace root --name "$name"); or return
     # Refresh first (reorder the claim under default@, feature stack + workspace
     # carried). Propagate its status verbatim: 69 = it left a conflict in the
     # workspace, so we must NOT fold — bail with the same sentinel, no rollback.
     __workflow_refresh "$name"
     or return
 
-    # The workspace WC must be committed (empty) before folding its work into
-    # default@. A dirty WC isn't a failure to undo — stop and let the user act (69).
-    if not jj log --no-graph -r "$name"@ -T 'empty' | string match -q true
-        echo >&2 "$(status filename): $name has uncommitted work — commit or abandon it in its workspace, then re-integrate."
+    # Inspect the workspace's working-copy commit. A clean hand-off has emptiness
+    # and describedness AGREEing: either an empty undescribed @ (the agent ended on
+    # `jj new`), or the finished work sitting in @ described-but-not-`new` (a common
+    # habit). When they DISAGREE it's work in flight — stop (69), don't fold:
+    #   - empty + described  -> a set-up-but-unfilled commit; looks in-progress.
+    #   - nonempty + undescribed -> uncommitted/undescribed work.
+    set -l wc_empty (jj log --no-graph -r "$name"@ -T 'if(empty, "y", "")' --ignore-working-copy)
+    set -l wc_desc (jj log --no-graph -r "$name"@ -T 'if(description, "y", "")' --ignore-working-copy)
+    if test -n "$wc_empty" -a -n "$wc_desc"
+        echo >&2 "$(status filename): $name@ is described but empty — that reads as work in progress. Finish it, or clear the description / abandon it, then re-integrate."
         return 69
+    else if test -z "$wc_empty" -a -z "$wc_desc"
+        echo >&2 "$(status filename): $name has undescribed work in its workspace — describe it (jj describe -m …) or abandon it, then re-integrate."
+        return 69
+    else if test -z "$wc_empty" -a -n "$wc_desc"
+        # Finished work left AS the working copy (describe-but-not-`new`). Cap it
+        # with a fresh empty commit IN the feature workspace, so the work becomes
+        # $name@- and the fold below (default@ onto $name@-, drop the empty tip)
+        # picks it up — exactly as if the agent had run `jj new` themselves.
+        "$ws_dir/scripts/jj" new
+        or begin
+            echo >&2 "$(status filename): couldn't cap $name's described work with an empty commit."
+            return 1
+        end
     end
+    # else: empty + undescribed — already the clean trailing-commit shape.
 
     # Fold: move default's @ onto the feature tip, finish the todo as the final
     # commit. `jj workspace forget` is the point of no return — op restore can't
@@ -254,6 +296,9 @@ function __integrate_steps
     and if jj log --no-graph -r @ -T 'empty' | string match -q false
         jj commit -m "complete $name"
     end
+    # Drop the now-folded claim bookmark (its commit lives on in default@'s history;
+    # the ref is just clutter). Before workspace forget so a failure still rolls back.
+    and jj bookmark forget "$name"
     and jj workspace forget "$name"
     # forget already drops the empty WC; clean up only if it somehow survived, and
     # never let that become a post-forget failure (op restore can't un-forget).
