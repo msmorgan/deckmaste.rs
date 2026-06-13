@@ -28,6 +28,7 @@ use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::player::PlayerId;
+use crate::stack::Frame;
 use crate::stack::StackEntry;
 use crate::stack::StackObject;
 use crate::state::GameState;
@@ -530,24 +531,38 @@ impl GameState {
                 let Ability::Triggered(t) = ability else {
                     continue;
                 };
-                if self.event_matches(&t.event, event, source)
-                    && t.condition
-                        .as_ref()
-                        .is_none_or(|c| self.condition_holds(c, controller))
-                {
-                    emits.push(WorkItem::Emit(Occurrence::single(
-                        GameEvent::TriggerFired {
-                            source,
-                            ability: Uint::try_from(idx).expect("ability index fits in Uint"),
-                            controller,
-                            bindings: TriggerBindings {
-                                this: Some(this.clone()),
-                                that_object: subject.cloned(),
-                                that_player: None,
-                            },
-                        },
-                    )));
+                if !self.event_matches(&t.event, event, source) {
+                    continue;
                 }
+                // [CR#603.10a,608.2]: the bindings the fired trigger carries —
+                // also the context for the intervening-if gate ([CR#603.4]).
+                let bindings = TriggerBindings {
+                    this: Some(this.clone()),
+                    that_object: subject.cloned(),
+                    that_player: None,
+                };
+                // [CR#603.4]: the intervening-if gate — the condition is checked
+                // when the event occurs (no targets are chosen yet, so the gate
+                // frame carries none); it is rechecked at resolution.
+                if let Some(c) = &t.condition {
+                    let frame = Frame {
+                        source: this.object,
+                        controller,
+                        targets: Vec::new(),
+                        bindings: Some(bindings.clone()),
+                    };
+                    if !self.condition_holds(c, &frame) {
+                        continue;
+                    }
+                }
+                emits.push(WorkItem::Emit(Occurrence::single(
+                    GameEvent::TriggerFired {
+                        source,
+                        ability: Uint::try_from(idx).expect("ability index fits in Uint"),
+                        controller,
+                        bindings,
+                    },
+                )));
             }
         }
     }
@@ -795,11 +810,23 @@ mod tests {
     use crate::object::ObjectId;
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
+    use crate::stack::Frame;
     use crate::state::GameConfig;
     use crate::state::GameState;
     use crate::state::PlayerConfig;
     use crate::state::StartingPlayer;
     use crate::target::matches;
+
+    /// A minimal player-anchored gate frame (no bindings, no targets) for the
+    /// trigger-fire intervening-if check ([CR#603.4]).
+    fn gate_frame(state: &GameState, player: PlayerId) -> Frame {
+        Frame {
+            source: state.player(player).object,
+            controller: player,
+            targets: Vec::new(),
+            bindings: None,
+        }
+    }
 
     fn builtin() -> Plugin {
         Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
@@ -1228,7 +1255,7 @@ mod tests {
             Type::Creature,
         )));
         assert!(
-            state.condition_holds(&cond, PlayerId(0)),
+            state.condition_holds(&cond, &gate_frame(&state, PlayerId(0))),
             "Exists(Type(Creature)) should hold when a creature is on the battlefield"
         );
     }
@@ -1253,7 +1280,7 @@ mod tests {
             Type::Creature,
         )));
         assert!(
-            !state.condition_holds(&cond, PlayerId(0)),
+            !state.condition_holds(&cond, &gate_frame(&state, PlayerId(0))),
             "Exists(Type(Creature)) should NOT hold when no creatures are present"
         );
     }

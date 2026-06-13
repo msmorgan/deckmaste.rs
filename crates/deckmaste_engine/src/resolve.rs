@@ -145,13 +145,27 @@ impl GameState {
                     targets: entry.targets.clone(),
                     bindings: Some(bindings.clone()),
                 };
-                self.schedule_front(vec![
-                    WorkItem::RunEffect {
-                        effect: Box::new(t.effect),
-                        frame,
-                    },
-                    WorkItem::Emit(Occurrence::single(GameEvent::AbilityResolved(entry.id))),
-                ]);
+                // [CR#603.4]: an intervening-if is rechecked as the ability
+                // resolves. If it no longer holds, the ability is removed from
+                // the stack and does nothing (the rule mirrors the illegal-target
+                // fizzle) — schedule only the `AbilityResolved` that discards the
+                // entry, never the effect.
+                if t.condition
+                    .as_ref()
+                    .is_some_and(|c| !self.condition_holds(c, &frame))
+                {
+                    self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+                        GameEvent::AbilityResolved(entry.id),
+                    ))]);
+                } else {
+                    self.schedule_front(vec![
+                        WorkItem::RunEffect {
+                            effect: Box::new(t.effect),
+                            frame,
+                        },
+                        WorkItem::Emit(Occurrence::single(GameEvent::AbilityResolved(entry.id))),
+                    ]);
+                }
             }
             // [CR#602.2a]: an activated ability resolves its carried text,
             // then vanishes like a trigger — no zone move.
@@ -695,7 +709,7 @@ impl GameState {
     ///
     /// Panics on a `Reference` not wired for Stage 3, or an out-of-range
     /// `Target(n)` index.
-    fn eval_reference(&self, reference: &Reference, frame: &Frame) -> ObjectId {
+    pub(crate) fn eval_reference(&self, reference: &Reference, frame: &Frame) -> ObjectId {
         match reference {
             Reference::Target(n) => *frame
                 .targets
@@ -876,7 +890,7 @@ impl GameState {
     /// evaluation for `frame`: the announce-time snapshot's source when the
     /// frame carries bindings (the live object may be gone, [CR#603.10a]),
     /// else the live source object's.
-    fn frame_watcher(&self, frame: &Frame) -> crate::object::ObjectSource {
+    pub(crate) fn frame_watcher(&self, frame: &Frame) -> crate::object::ObjectSource {
         frame
             .bindings
             .as_ref()

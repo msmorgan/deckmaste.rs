@@ -17,6 +17,7 @@ use crate::cast::can_pay;
 use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::player::PlayerId;
+use crate::stack::Frame;
 use crate::stack::PendingStackEntry;
 use crate::stack::StackObject;
 use crate::state::GameState;
@@ -127,12 +128,18 @@ impl GameState {
         }
 
         // [CR#602.5b..602.5e]: activation condition ("Activate only if …").
-        if ability
-            .condition
-            .as_ref()
-            .is_some_and(|c| !self.condition_holds(c, player))
-        {
-            return false;
+        // The gate runs before targets are chosen, so the frame carries none;
+        // `Ref(This)`/`Is(This, …)` anchors to the live source.
+        if let Some(c) = &ability.condition {
+            let frame = Frame {
+                source: object,
+                controller: player,
+                targets: Vec::new(),
+                bindings: None,
+            };
+            if !self.condition_holds(c, &frame) {
+                return false;
+            }
         }
 
         // [CR#602.5b]: use limits.
