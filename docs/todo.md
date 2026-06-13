@@ -668,7 +668,7 @@ Rows here track that the *patterns* graduate. Slug: `aw-<kebab-case>`.
 
 - [x] `parse-activated` — activated-ability frame (`cost: effect`), including the
   cost grammar; registry slot exists, parser doesn't.
-- [ ] `parse-static` — static-prose abilities (gets/has/can't sentences) into
+- [/] `parse-static` — static-prose abilities (gets/has/can't sentences) into
   Continuously/StaticEffect.
 - [ ] `parse-replacement` — "if … would …, instead …" / "as … enters" /
   "… enters tapped" templates.
