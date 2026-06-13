@@ -680,11 +680,36 @@ impl GameState {
                 Occurrence::Batch(events.into_iter().map(|e| self.apply(e)).collect())
             }
         };
+        self.record_history(&occurred);
         self.check_game_end();
         if self.outcome.is_none() {
             self.scan_triggers(&occurred);
         }
         occurred
+    }
+
+    /// Appends the substantive facts of `occurred` to the history log, tagged
+    /// with the current turn ([CR#608.2i]). Skips the same meta/intent facts
+    /// the trigger scan skips (`scan_triggers`): a `TriggerFired` is
+    /// bookkeeping, `ZoneWillChange` is the replaceable intent above its
+    /// committed `ZoneChanged`, and `StepBegan`/`TurnBegan` are read off
+    /// `TurnState` rather than the log.
+    fn record_history(&mut self, occurred: &Occurrence) {
+        let turn = self.turn.turn_number;
+        let events: &[GameEvent] = match occurred {
+            Occurrence::Single(e) => std::slice::from_ref(e),
+            Occurrence::Batch(es) => es,
+        };
+        for event in events {
+            match event {
+                GameEvent::TriggerFired { .. }
+                | GameEvent::AbilityResolved(_)
+                | GameEvent::StepBegan(_)
+                | GameEvent::TurnBegan { .. }
+                | GameEvent::ZoneWillChange { .. } => {}
+                _ => self.history.record(turn, event.clone()),
+            }
+        }
     }
 
     /// [CR#104.2a,104.4a]: last player standing wins; zero remaining is a draw.
@@ -1189,5 +1214,55 @@ impl GameState {
             legal,
         });
         Progress::PriorityOpened(holder)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use deckmaste_core::Phase;
+    use deckmaste_core::Window;
+    use deckmaste_core::Zone;
+
+    use crate::event::GameEvent;
+    use crate::event::Occurrence;
+    use crate::object::ObjectSource;
+    use crate::player::PlayerId;
+    use crate::state::GameConfig;
+    use crate::state::GameState;
+    use crate::state::PlayerConfig;
+    use crate::state::StartingPlayer;
+
+    fn game() -> GameState {
+        GameState::new(GameConfig {
+            players: vec![PlayerConfig { deck: vec![] }, PlayerConfig { deck: vec![] }],
+            seed: 7,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        })
+    }
+
+    /// `record_history` logs substantive facts and skips the meta/intent set
+    /// the trigger scan also skips ([CR#608.2i] mirrors trigger.rs).
+    #[test]
+    fn record_history_logs_facts_skips_meta() {
+        let mut state = game();
+        let id = state
+            .objects
+            .mint(ObjectSource::Player(PlayerId(0)), PlayerId(0), Some(Zone::Battlefield));
+
+        // A substantive fact is logged.
+        state.record_history(&Occurrence::single(GameEvent::Untapped(id)));
+        assert_eq!(
+            state.history.scan(Window::ThisGame, state.turn.turn_number).count(),
+            1
+        );
+
+        // A skipped (meta) fact is not.
+        state.record_history(&Occurrence::single(GameEvent::StepBegan(Phase::PrecombatMain)));
+        assert_eq!(
+            state.history.scan(Window::ThisGame, state.turn.turn_number).count(),
+            1,
+            "StepBegan is skipped"
+        );
     }
 }
