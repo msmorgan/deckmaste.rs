@@ -25,6 +25,7 @@ use deckmaste_core::Zone;
 
 use crate::object::ObjectId;
 use crate::object::Timestamp;
+use crate::player::PlayerId;
 use crate::state::GameState;
 
 // ---------------------------------------------------------------------------
@@ -53,12 +54,16 @@ pub struct ContinuousEffect {
     pub is_cda: bool,
 }
 
-/// An object's derived characteristics ([CR#613]). `power`/`toughness` are
-/// `None` for objects with no P/T; a printed `*` with no CDA resolves to `0`
-/// ([CR#208.2a]).
+/// An object's derived characteristics ([CR#109.3]): the strict set the rules
+/// name as characteristics. `power`/`toughness` are `None` for objects with no
+/// P/T; a printed `*` with no CDA resolves to `0` ([CR#208.2a]).
 /// All list-valued fields are `Arc`'d copy-on-write: base values share the
 /// per-card caches built at `Cards::push`, and a mutating layer op clones via
 /// `Arc::make_mut` only for the objects an effect actually touches.
+///
+/// Non-characteristic derived state (controller, the layer-6 can't-have set)
+/// lives on [`DerivedObject`], not here — `Characteristics` is a named CR
+/// concept and holds only characteristics.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Characteristics {
     pub power: Option<Int>,
@@ -68,14 +73,27 @@ pub struct Characteristics {
     pub subtypes: Arc<Vec<Subtype>>,
     pub supertypes: Arc<Vec<Supertype>>,
     pub abilities: Arc<Vec<Ability>>,
-    /// Ability names the object can't have or gain ([CR#613.1f]).
-    /// Populated by `CantHaveAbility`; consulted by `GainAbility`.
-    pub cant_have: Vec<Ident>,
 }
 
-/// Every live object's derived characteristics, computed in one pass.
+/// An object's full derived per-object state: its CR [`Characteristics`] plus
+/// derived state that is *not* a characteristic — the controller ([CR#613.1b]
+/// layer 2) and the layer-6 can't-have-ability prohibition set ([CR#613.1f]).
+/// This is the value the layer pass mutates and the [`LayeredView`] stores.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DerivedObject {
+    characteristics: Characteristics,
+    /// Derived controller ([CR#613.1b]). Seeded from the object's base
+    /// controller, overwritten by layer-2 control-change effects; reverts
+    /// automatically when those effects expire (it is re-derived each pass).
+    controller: PlayerId,
+    /// Ability names the object can't have or gain ([CR#613.1f]).
+    /// Populated by `CantHaveAbility`; consulted by `GainAbility`.
+    cant_have: Vec<Ident>,
+}
+
+/// Every live object's derived state, computed in one pass.
 #[derive(Debug, Clone)]
-pub struct LayeredView(BTreeMap<ObjectId, Characteristics>);
+pub struct LayeredView(BTreeMap<ObjectId, DerivedObject>);
 
 impl LayeredView {
     /// Returns the derived characteristics for `id`.
@@ -85,6 +103,21 @@ impl LayeredView {
     /// Panics if `id` was not a live object when the view was computed.
     #[must_use]
     pub fn get(&self, id: ObjectId) -> &Characteristics {
+        &self.entry(id).characteristics
+    }
+
+    /// Returns the derived controller for `id` ([CR#613.1b]): the base
+    /// controller as modified by any active layer-2 control-change effect.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `id` was not a live object when the view was computed.
+    #[must_use]
+    pub fn controller(&self, id: ObjectId) -> PlayerId {
+        self.entry(id).controller
+    }
+
+    fn entry(&self, id: ObjectId) -> &DerivedObject {
         self.0.get(&id).expect("live ObjectId in LayeredView")
     }
 
@@ -141,21 +174,35 @@ fn symbol_colors(sym: &ManaSymbol) -> impl Iterator<Item = Color> {
     buf.into_iter().flatten()
 }
 
-/// Base characteristics from the printed face ([CR#613.1]): the object's
-/// characteristics before any continuous effect. v1 reads the printed face
-/// (no copy/face-down handling).
-fn base_values(state: &GameState, id: ObjectId) -> Characteristics {
-    let card = state.objects.obj(id).card_id().expect("card-backed object");
+/// Base derived state from the printed face ([CR#613.1]): the object's
+/// characteristics and controller before any continuous effect.
+///
+/// SEAM — layer 1 ([CR#613.2]): the copiable values are the printed face
+/// *as modified by* copy effects (layer 1a, [CR#707.2]) and face-down status
+/// (layer 1b, [CR#708.2]). Neither input exists yet (`core-copy-grammar` /
+/// `engine-face-down` own them), so this reads the printed face. When a copy
+/// source or face-down spec is present on the object, branch here to derive the
+/// copiable values from it instead — that is the entirety of layer 1's effect
+/// on `Characteristics`, since after layer 1 the characteristics *are* the
+/// copiable values ([CR#613.2c]).
+fn base_values(state: &GameState, id: ObjectId) -> DerivedObject {
+    let obj = state.objects.obj(id);
+    let card = obj.card_id().expect("card-backed object");
     let instance = state.cards.get(card);
     let face = crate::derive::face(&instance.def);
-    Characteristics {
-        power: base_stat(face.power.as_ref()),
-        toughness: base_stat(face.toughness.as_ref()),
-        colors: Arc::clone(&instance.colors),
-        card_types: Arc::clone(&instance.card_types),
-        subtypes: Arc::clone(&instance.subtypes),
-        supertypes: Arc::clone(&instance.supertypes),
-        abilities: Arc::clone(&instance.printed),
+    DerivedObject {
+        characteristics: Characteristics {
+            power: base_stat(face.power.as_ref()),
+            toughness: base_stat(face.toughness.as_ref()),
+            colors: Arc::clone(&instance.colors),
+            card_types: Arc::clone(&instance.card_types),
+            subtypes: Arc::clone(&instance.subtypes),
+            supertypes: Arc::clone(&instance.supertypes),
+            abilities: Arc::clone(&instance.printed),
+        },
+        // Base controller ([CR#108.4]): what the object would have absent any
+        // control-change effect. Layer 2 may overwrite it.
+        controller: obj.controller,
         cant_have: Vec::new(),
     }
 }
@@ -309,7 +356,7 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
 /// Missing `id` in `working` (e.g. a player proxy) returns `false`.
 fn matches_derived(
     state: &GameState,
-    working: &BTreeMap<ObjectId, Characteristics>,
+    working: &BTreeMap<ObjectId, DerivedObject>,
     id: ObjectId,
     filter: &deckmaste_core::Filter,
 ) -> bool {
@@ -320,7 +367,7 @@ fn matches_derived(
     if let Filter::Any = filter {
         return true;
     }
-    let Some(c) = working.get(&id) else { return false };
+    let Some(c) = working.get(&id).map(|d| &d.characteristics) else { return false };
     match filter {
         Filter::Any => unreachable!("handled above"),
         Filter::Characteristic(CharacteristicFilter::Type(t)) => c.card_types.contains(t),
@@ -364,7 +411,7 @@ fn matches_derived(
 /// layer, per [CR#613.6]).
 fn resolve_scope(
     state: &GameState,
-    working: &BTreeMap<ObjectId, Characteristics>,
+    working: &BTreeMap<ObjectId, DerivedObject>,
     scope: &ScopeResolved,
 ) -> Vec<ObjectId> {
     match scope {
@@ -410,7 +457,8 @@ pub(crate) fn ability_is_named(a: &Ability, name: &Ident) -> bool {
 /// are explicit deferred stubs; controller/text ([CR#613.1b,613.1c]) and
 /// loyalty/defense (no 613 layer) are also stubs.
 #[allow(clippy::match_same_arms)] // deferred stub arms will diverge as later tasks fill them
-fn apply(m: &Modification, c: &mut Characteristics) {
+fn apply(m: &Modification, d: &mut DerivedObject) {
+    let c = &mut d.characteristics;
     match m {
         // --- Layer 7a / 7b: set base P/T ---
         Modification::SetPower(n) => c.power = Some(eval_count(n)),
@@ -474,7 +522,7 @@ fn apply(m: &Modification, c: &mut Characteristics) {
         // list is cloned only here, only for the objects an effect touches.
         Modification::GainAbility(a) => {
             // Respect any active "can't have" prohibition ([CR#613.1f]).
-            if !c.cant_have.iter().any(|n| ability_is_named(a, n)) {
+            if !d.cant_have.iter().any(|n| ability_is_named(a, n)) {
                 Arc::make_mut(&mut c.abilities).push((**a).clone());
             }
         }
@@ -486,7 +534,7 @@ fn apply(m: &Modification, c: &mut Characteristics) {
             // Remove any already-present instance of the named ability, then
             // record the prohibition so future GainAbility skips it.
             Arc::make_mut(&mut c.abilities).retain(|x| !ability_is_named(x, name));
-            c.cant_have.push(*name);
+            d.cant_have.push(*name);
         }
         // --- Deferred ([CR#613.1b,613.1c,613.1d]) ---
         Modification::SetController(_)
@@ -513,7 +561,7 @@ impl GameState {
     #[must_use]
     pub fn layers(&self) -> LayeredView {
         // Step 1: base values for all card-backed objects.
-        let mut working: BTreeMap<ObjectId, Characteristics> = BTreeMap::new();
+        let mut working: BTreeMap<ObjectId, DerivedObject> = BTreeMap::new();
         for obj in self.objects.iter() {
             if obj.card_id().is_none() {
                 continue; // player proxy — no characteristics
@@ -569,10 +617,10 @@ impl GameState {
                 let targets: Vec<ObjectId> = targets.to_vec();
                 let is_cda = effects[i].is_cda;
                 for obj_id in targets {
-                    if let Some(c) = working.get_mut(&obj_id) {
+                    if let Some(d) = working.get_mut(&obj_id) {
                         for m in &effects[i].changes {
                             if layer_of(m, is_cda) == Some(layer) {
-                                apply(m, c);
+                                apply(m, d);
                             }
                         }
                     }
@@ -586,12 +634,13 @@ impl GameState {
             if layer == Layer::L7c {
                 // Counters live on the object (not derived); layers() is &self so no mid-pass
                 // race.
-                for (&id, c) in &mut working {
+                for (&id, d) in &mut working {
                     let counters = &self.objects.obj(id).counters;
                     let plus = counters.get("+1/+1").copied().unwrap_or(0).cast_signed();
                     let minus = counters.get("-1/-1").copied().unwrap_or(0).cast_signed();
                     let delta = plus - minus;
                     if delta != 0 {
+                        let c = &mut d.characteristics;
                         if let Some(p) = c.power {
                             c.power = Some(p + delta);
                         }
