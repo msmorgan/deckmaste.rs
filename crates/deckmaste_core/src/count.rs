@@ -34,6 +34,10 @@ pub enum QueryKey {
     LandsPlayedThisTurn,
     /// Spells cast before this one this turn (storm, [CR#702.40a]).
     StormCount,
+    /// Life the evaluating player has lost this turn ([CR#119.3]).
+    LifeLostThisTurn,
+    /// Life the evaluating player has gained this turn ([CR#119.3]).
+    LifeGainedThisTurn,
 }
 
 /// A scalar magnitude an effect computes at resolution: an amount, never an

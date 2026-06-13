@@ -781,19 +781,81 @@ impl GameState {
             // in cast.rs (engine-deontic-polarities lane owns it; see the
             // narrowed `engine-resolve-count-x` todo item).
             Count::X => todo!("engine-resolve-count-x: X rides the announce slot ([CR#107.3a])"),
-            // [CR#608.2i] history reads off the Tally registry — the
-            // evaluating player is the frame's controller.
-            Count::Query(deckmaste_core::QueryKey::CardsDrawnThisTurn) => self
-                .player(frame.controller)
-                .this_turn
-                .count(crate::tally::Tally::CardsDrawn),
-            Count::Query(deckmaste_core::QueryKey::LandsPlayedThisTurn) => self
-                .player(frame.controller)
-                .this_turn
-                .count(crate::tally::Tally::LandsPlayed),
-            Count::Query(other) => todo!("P0.W4: query key {other:?} (tally unbuilt)"),
+            // [CR#608.2i] history reads off the log — the evaluating player is
+            // the frame's controller.
+            Count::Query(key) => self.eval_query(*key, frame.controller),
             Count::Noted(key) => todo!("P0.W4: noted read {key:?} (slot store is P0.W5)"),
             Count::Expanded(e) => self.eval_count(&e.value, frame),
+        }
+    }
+
+    /// Derive an engine-tracked history scalar from the log ([CR#608.2i]).
+    /// `controller` is the evaluating player (frame controller, or the
+    /// condition's "you"). Storm is game-wide; the rest are per-`controller`.
+    pub(crate) fn eval_query(
+        &self,
+        key: deckmaste_core::QueryKey,
+        controller: crate::player::PlayerId,
+    ) -> Uint {
+        use crate::event::GameEvent;
+        use deckmaste_core::QueryKey;
+        use deckmaste_core::Window;
+        use deckmaste_core::Zone;
+        let turn = self.turn.turn_number;
+        match key {
+            // Storm ([CR#702.40a]): spells cast before this one this turn =
+            // all spells cast this turn (game-wide) minus the spell itself.
+            // The minus-one assumes the storm spell's own `SpellCast` is in the
+            // log (true when storm reads it on the stack); spells cast in
+            // response to the storm trigger would over-count — exact "before
+            // it" capture at cast time is a trigger-bindings follow-up.
+            QueryKey::StormCount => {
+                let total = self
+                    .history
+                    .scan(Window::ThisTurn, turn)
+                    .filter(|f| matches!(f, GameEvent::SpellCast(_)))
+                    .count();
+                Uint::try_from(total.saturating_sub(1)).expect("storm count fits Uint")
+            }
+            QueryKey::CardsDrawnThisTurn => {
+                let n = self
+                    .history
+                    .scan(Window::ThisTurn, turn)
+                    .filter(|f| matches!(f, GameEvent::WillDraw { player, .. } if *player == controller))
+                    .count();
+                Uint::try_from(n).expect("draw count fits Uint")
+            }
+            QueryKey::LandsPlayedThisTurn => {
+                let play = deckmaste_core::Ident::from("Play");
+                let n = self
+                    .history
+                    .scan(Window::ThisTurn, turn)
+                    .filter(|f| {
+                        matches!(f,
+                            GameEvent::ZoneChanged { to: Zone::Battlefield, cause: Some(c), snapshot, .. }
+                                if c.verb == play && snapshot.controller == controller)
+                    })
+                    .count();
+                Uint::try_from(n).expect("land count fits Uint")
+            }
+            QueryKey::LifeLostThisTurn => self
+                .history
+                .scan(Window::ThisTurn, turn)
+                .filter_map(|f| match f {
+                    GameEvent::LifeLost { player, amount } if *player == controller => Some(*amount),
+                    _ => None,
+                })
+                .sum(),
+            QueryKey::LifeGainedThisTurn => self
+                .history
+                .scan(Window::ThisTurn, turn)
+                .filter_map(|f| match f {
+                    GameEvent::LifeGained { player, amount } if *player == controller => {
+                        Some(*amount)
+                    }
+                    _ => None,
+                })
+                .sum(),
         }
     }
 
@@ -1018,6 +1080,73 @@ mod tests {
     }
 
     fn deck(card: &Arc<Card>, n: usize) -> Vec<Arc<Card>> { vec![Arc::clone(card); n] }
+
+    fn game() -> GameState {
+        GameState::new(GameConfig {
+            players: vec![PlayerConfig { deck: vec![] }, PlayerConfig { deck: vec![] }],
+            seed: 7,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        })
+    }
+
+    /// `eval_query` derives every history scalar off the log: storm is the
+    /// game-wide spell count this turn minus the spell itself ([CR#702.40a]);
+    /// lands by the `Play` cause; draws by the `WillDraw` fact; life by summed
+    /// amounts ([CR#119.3]).
+    #[test]
+    fn eval_query_reads_history_scalars() {
+        use crate::event::Cause;
+        use crate::lki::LkiSnapshot;
+        use crate::object::ObjectSource;
+        use deckmaste_core::Agency;
+        use deckmaste_core::QueryKey;
+
+        let mut state = game();
+        state.turn.turn_number = 1;
+        let p = PlayerId(0);
+
+        // Three spells cast this turn (game-wide) → storm = 3 - 1 = 2.
+        state.history.record(1, GameEvent::SpellCast(ObjectId(1)));
+        state.history.record(1, GameEvent::SpellCast(ObjectId(2)));
+        state.history.record(1, GameEvent::SpellCast(ObjectId(3)));
+        assert_eq!(state.eval_query(QueryKey::StormCount, p), 2);
+
+        // Two draws by p this turn → CardsDrawn = 2.
+        state.history.record(1, GameEvent::WillDraw { player: p, source: None });
+        state.history.record(1, GameEvent::WillDraw { player: p, source: None });
+        assert_eq!(state.eval_query(QueryKey::CardsDrawnThisTurn, p), 2);
+
+        // One land played by p (a Play-caused battlefield entry) → Lands = 1.
+        let land = state.objects.mint(ObjectSource::Player(p), p, Some(Zone::Battlefield));
+        state.history.record(
+            1,
+            GameEvent::ZoneChanged {
+                snapshot: LkiSnapshot::capture(&state, land),
+                from: Some(Zone::Hand),
+                to: Zone::Battlefield,
+                face: None,
+                cause: Some(Cause {
+                    verb: "Play".into(),
+                    agency: Agency::SpecialAction,
+                    agent: None,
+                }),
+            },
+        );
+        assert_eq!(state.eval_query(QueryKey::LandsPlayedThisTurn, p), 1);
+
+        // Life: lost 3 then 2 (=5), gained 4.
+        state.history.record(1, GameEvent::LifeLost { player: p, amount: 3 });
+        state.history.record(1, GameEvent::LifeLost { player: p, amount: 2 });
+        state.history.record(1, GameEvent::LifeGained { player: p, amount: 4 });
+        assert_eq!(state.eval_query(QueryKey::LifeLostThisTurn, p), 5);
+        assert_eq!(state.eval_query(QueryKey::LifeGainedThisTurn, p), 4);
+
+        // Prior-turn entries are excluded once the turn advances.
+        state.turn.turn_number = 2;
+        assert_eq!(state.eval_query(QueryKey::StormCount, p), 0);
+        assert_eq!(state.eval_query(QueryKey::CardsDrawnThisTurn, p), 0);
+    }
 
     /// `Action::By(You, pa)` — the implicit-you default a bare player verb
     /// reads as.

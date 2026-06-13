@@ -36,8 +36,8 @@ impl GameState {
 
             // Numeric comparison.
             Condition::Compare(a, op, b) => {
-                let lhs = self.eval_const_count(a);
-                let rhs = self.eval_const_count(b);
+                let lhs = self.eval_const_count(a, you);
+                let rhs = self.eval_const_count(b, you);
                 match op {
                     Cmp::Eq => lhs == rhs,
                     Cmp::AtLeast => lhs >= rhs,
@@ -81,9 +81,11 @@ impl GameState {
     /// Frame-free `Count` evaluation for condition contexts. Unify with
     /// `resolve`'s frame-aware count evaluation when frames thread through
     /// conditions (`engine-resolve-counts`).
-    fn eval_const_count(&self, count: &Count) -> Uint {
+    fn eval_const_count(&self, count: &Count, you: PlayerId) -> Uint {
         match count {
             Count::Literal(n) => *n,
+            // [CR#608.2i] history scalar reads share the resolve-side helper.
+            Count::Query(key) => self.eval_query(*key, you),
             Count::CountOf(f) => match &**f {
                 // The Stack census includes the in-flight announce slot: an
                 // announced spell is already in the stack ZONE before its
