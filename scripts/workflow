@@ -5,8 +5,10 @@ or return
 
 alias jj (status dirname)/jj
 
-if test "$(jj workspace root)" != "$(jj workspace root --name default)"
-    echo >&2 "$(status filename): intended to be run from default workspace only."
+# Every command but `converge` runs from default. `converge` is the exception: it
+# heals a divergence IN the affected feature workspace, so it must run from there.
+if test "$argv[1]" != converge; and test "$(jj workspace root)" != "$(jj workspace root --name default)"
+    echo >&2 "$(status filename): intended to be run from default workspace only (except 'converge')."
     return 1
 end
 
@@ -19,6 +21,8 @@ Usage: $(status filename) <command> [<args>]
     abandon WORKSPACE    Abandon WORKSPACE and forget its todo claim.
     refresh WORKSPACE    Reorder WORKSPACE's claim commit to sit just under default@.
     integrate WORKSPACE  Refresh, fold WORKSPACE's work into default@, then drop the workspace.
+    converge             Run FROM a feature workspace: heal a working-copy divergence left
+                         by a concurrent op — keep the half holding your work, drop the rest.
 "
     exit 2
 end
@@ -27,25 +31,49 @@ if not set -q argv[1]
     __workflow_usage
 end
 
-# Mark NAME's todo in-progress ([ ] -> [/]). `[/]` is a non-standard "indeterminate"
-# glyph (Obsidian-style); fine for this local catalog, not a real GFM checkbox.
+# Claim NAME: move its ticket into wip/. From a triage folder (critical/planned/
+# maybe) it's a rename; a census-only mechanic is minted fresh into wip/. The move
+# or add lands in the claim commit, so `abandon` reverts it automatically. An
+# already-claimed (wip/) or finished (done/) name, or an unknown one, fails the claim.
 function __claim_todo
-    set name $argv[1]
-    set -l todo "$project_dir/docs/todo.md"
-    # Literal (non-regex) match, so $name needs no escaping; string replace
-    # returns non-zero when nothing matched, which fails the claim on a typo.
-    set -l ticked (string replace -- "- [ ] `$name`" "- [/] `$name`" <$todo)
-    and printf '%s\n' $ticked >$todo
+    set -l name $argv[1]
+    set -l tickets "$project_dir/docs/tickets"
+    for folder in critical planned maybe
+        if test -f "$tickets/$folder/$name.md"
+            mv "$tickets/$folder/$name.md" "$tickets/wip/$name.md"
+            return 0
+        end
+    end
+    if test -f "$tickets/wip/$name.md"
+        echo >&2 "$(status filename): '$name' is already claimed (in wip/)."
+        return 1
+    end
+    if test -f "$tickets/done/$name.md"
+        echo >&2 "$(status filename): '$name' is already done."
+        return 1
+    end
+    # Not a ticket — mint a wip ticket only if NAME is a real census mechanic.
+    if "$scripts_dir/todo" iscensus $name >/dev/null 2>&1
+        "$scripts_dir/todo" mint $name >"$tickets/wip/$name.md"
+        and test -s "$tickets/wip/$name.md"
+        and return 0
+        rm -f "$tickets/wip/$name.md"
+        echo >&2 "$(status filename): minting '$name' from the census failed."
+        return 1
+    end
+    echo >&2 "$(status filename): no ticket or census row named '$name'."
+    return 1
 end
 
-# Finish NAME's todo ([/] -> [x]). Tolerant: an ad-hoc `start`ed feature has no
-# in-progress box, so a no-match is success (nothing to finish), not failure.
+# Finish NAME: move its ticket wip/ -> done/. Tolerant: an ad-hoc `start`ed feature
+# has no wip ticket, so a no-op is success (nothing to finish), not failure.
 function __check_todo
-    set name $argv[1]
-    set -l todo "$project_dir/docs/todo.md"
-    set -l checked (string replace -- "- [/] `$name`" "- [x] `$name`" <$todo)
-    or return 0
-    printf '%s\n' $checked >$todo
+    set -l name $argv[1]
+    set -l tickets "$project_dir/docs/tickets"
+    if test -f "$tickets/wip/$name.md"
+        mv "$tickets/wip/$name.md" "$tickets/done/$name.md"
+    end
+    return 0
 end
 
 # Retire a workspace dir into a sibling bucket instead of deleting it. Symlinks
@@ -250,6 +278,54 @@ function __workflow_integrate
     end
 end
 
+# Heal a working-copy divergence (two+ commits sharing @'s change id, left when a
+# concurrent op rewrote @ while this workspace had un-snapshotted edits). Keep the
+# half holding your work (the non-empty one), drop the empty redundant half(s) — in
+# ONE pass, so a concurrent op can't interrupt a multi-step hand-fix. REFUSES when
+# two halves hold genuinely different non-empty work (a real conflict — resolve by
+# hand). Run this FROM the affected feature workspace.
+function __workflow_converge
+    jj workspace update-stale 2>/dev/null    # clear staleness first; safe under the guards
+    set -l cid (jj log --no-graph --ignore-working-copy -r @ -T 'change_id')
+    set -l commits (jj log --no-graph --ignore-working-copy -r "change_id($cid)" \
+        -T 'commit_id.short() ++ "\n"')
+    if test (count $commits) -le 1
+        echo "converge: @ is not divergent — nothing to do."
+        return 0
+    end
+    # The work lives in the non-empty half; identify by content, never by /N index.
+    set -l nonempty
+    for c in $commits
+        jj log --no-graph --ignore-working-copy -r $c -T 'empty' | string match -q true
+        or set -a nonempty $c
+    end
+    set -l keep
+    switch (count $nonempty)
+        case 0
+            set keep $commits[1]   # all empty → identical; keep any
+        case 1
+            set keep $nonempty[1]  # one real half + empty placeholder(s)
+        case '*'
+            set keep $nonempty[1]  # multiple non-empty: only safe if byte-identical
+            for c in $nonempty[2..]
+                if test -n "$(jj diff --ignore-working-copy --from $keep --to $c)"
+                    echo >&2 "converge: divergent halves hold DIFFERENT work ($keep vs $c) — resolve by hand (jj edit the right one, jj abandon the others)."
+                    return 1
+                end
+            end
+    end
+    set -l drop
+    for c in $commits
+        test "$c" = "$keep"; or set -a drop $c
+    end
+    # Make the keeper @, then drop the rest. Editing the keeper may auto-hide the
+    # empty half, so a "nothing to abandon" here is success, not failure.
+    jj edit $keep
+    or return 1
+    jj abandon $drop 2>/dev/null
+    echo "converge: kept $keep, dropped: $drop"
+end
+
 switch $argv[1]
     case claim
         __workflow_start --claim-todo $argv[2..]
@@ -261,6 +337,8 @@ switch $argv[1]
         __workflow_integrate $argv[2..]
     case refresh
         __workflow_refresh $argv[2..]
+    case converge
+        __workflow_converge
     case '*'
         __workflow_usage
 end

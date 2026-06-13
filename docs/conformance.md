@@ -2,7 +2,7 @@
 
 Concept-by-concept parity between the mtg-rules skill's reference docs
 (pinned baseline: docs/rules-taxonomy.md §10) and deckmaste, maintained by
-the P0 alignment effort (docs/todo.md priority 0). One row per skill
+the P0 alignment effort (catalog priority 0, since closed). One row per skill
 concept; statuses:
 
 - **✓** — grammar exists in core (engine behavior may still be a seam).

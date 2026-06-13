@@ -110,6 +110,10 @@ elsif ($cmd eq 'mint') {
     print "---\nneeds: [", join(', ', @n), "]\n---\n";
     print "Minted from the census ($slug). Fill in a real description.\n";
 }
+elsif ($cmd eq 'iscensus') {
+    # exit 0 iff $slug is a census-derived node (not a ticket, not unknown).
+    exit(($folder{$slug // ''} // '') eq 'census' ? 0 : 1);
+}
 elsif ($cmd eq 'check') {
     my @problems;
     # dangling: a need naming no existing node.

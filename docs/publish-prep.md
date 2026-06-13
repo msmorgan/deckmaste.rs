@@ -99,7 +99,7 @@ fast and it's the repo's signature check.
 ## 5. Hygiene sweep
 
 - Confirm `.idea/` is ignored (it exists locally).
-- Decide whether `docs/todo.md` and `CLAUDE.md` stay public. Both are
+- Decide whether `docs/tickets/` and `CLAUDE.md` stay public. Both are
   harmless — arguably good signal that the repo is actively developed with
   agent workflows — but it's a deliberate choice, not a default.
 - Skim `docs/superpowers` (symlinked, shared) — make sure nothing in it is
