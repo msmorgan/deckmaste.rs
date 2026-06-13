@@ -1,0 +1,160 @@
+#!/usr/bin/env fish
+
+source (status dirname)/lib/setup.fish jj perl
+or return
+
+alias jj "jj -R '$project_dir'"
+
+if test "$(jj workspace root)" != "$(jj workspace root --name default)"
+    echo >&2 "$(status filename): intended to be run from default workspace only."
+    return 1
+end
+
+function __workflow_usage
+    echo >&2 "\
+Usage: $(status filename) <command> [<args>]
+  Commands:
+    claim TODO           Claim a todo item and start a workspace named TODO.
+    start NAME           Spin up an ad-hoc workspace named NAME, with no todo to claim.
+    abandon WORKSPACE    Abandon WORKSPACE and forget its todo claim.
+    refresh WORKSPACE    Rebase the root of WORKSPACE onto default@-.
+    integrate WORKSPACE  Refresh and forget WORKSPACE, then rebase @ to where WORKSPACE@ was.
+"
+    exit 2
+end
+
+if not set -q argv[1]
+    __workflow_usage
+end
+
+function __claim_todo
+    set name $argv[1]
+    set -l todo "$project_dir/docs/todo.md"
+    # Literal (non-regex) match, so $name needs no escaping; string replace
+    # returns non-zero when nothing matched, which fails the claim on a typo.
+    set -l ticked (string replace -- "- [ ] `$name`" "- [x] `$name`" <$todo)
+    and printf '%s\n' $ticked >$todo
+end
+
+# Spin up a NAME-bookmarked base commit on default@- with a ../NAME workspace on
+# top, leaving default's @ put. With -t/--claim-todo, also tick NAME's todo box
+# into the base commit (so abandoning the base reverts the tick automatically).
+function __workflow_start
+    argparse t/claim-todo -- $argv
+    or return
+
+    set name $argv[1]
+    set ws_dir (path dirname $project_dir)/$name
+    set savepoint (jj op log -G -n1 -T 'id.short()')
+
+    set -l verb start
+    set -q _flag_claim_todo; and set verb claim
+
+    begin
+        jj bookmark create __tip
+        and jj new @- -m "$verb $name"
+        and jj bookmark create $name
+        and if set -q _flag_claim_todo
+            __claim_todo $name
+        end
+        and jj workspace add "$ws_dir" -r $name
+        and jj rebase -r __tip -d $name
+        and jj edit __tip
+        and jj bookmark forget __tip
+    end
+    or begin
+        echo >&2 "Failed... restoring to $savepoint"
+        jj op restore "$savepoint"
+        return 1
+    end
+end
+
+function __workflow_abandon
+    set name $argv[1]
+    set ws_dir (jj workspace root --name "$name"); or return 1
+    set savepoint (jj op log -G -n1 -T 'id.short()')
+
+    begin
+        jj workspace forget "$name"
+        and jj abandon "$name"
+    end
+    or begin
+        echo >&2 "Failed... restoring to $savepoint"
+        jj op restore "$savepoint"
+        return 1
+    end
+    test -d "$ws_dir"; and rm -rf "$ws_dir"
+end
+
+function __workflow_refresh
+    set name $argv[1]
+    set ws_dir (jj workspace root --name "$name"); or return 1
+    # Feature-stack root: the claim commit's child on the workspace's line (the
+    # workspace WC itself when no feature commits exist yet). Capture it before the
+    # move — its change id survives the rebase even though the commit id won't.
+    set root (jj log --no-graph -r "roots(children($name) & ::$name@)" -T 'change_id.short()'); or return 1
+    set savepoint (jj op log -G -n1 -T 'id.short()')
+
+    begin
+        # The claim commits live in default@'s history now, so this is a REORDER,
+        # not a rebase-onto: -r pulls the claim out of the chain (healing the gap)
+        # and --insert-before threads it back in just under default@.
+        jj rebase -r "$name" --insert-before default@
+        # -r reparented the claim's children — including the feature stack — onto
+        # its old parent; pull the feature stack back onto the moved claim commit.
+        and jj rebase -s "$root" -d "$name"
+        and command jj -R "$ws_dir" workspace update-stale
+    end
+    or begin
+        echo >&2 "Failed... restoring to $savepoint"
+        jj op restore "$savepoint"
+        return 1
+    end
+end
+
+function __integrate_steps
+    set name $argv[1]
+    # Refresh first (reorder the claim under default@, feature stack + workspace
+    # carried), then fold: move default's @ into the spot the workspace's working
+    # copy held (onto the feature tip), and drop that now-orphaned WC — `forget`
+    # leaves it behind, so we abandon it, but only if empty, never silently
+    # discarding uncommitted work. The claim commit stays in default@'s history.
+    __workflow_refresh "$name"
+    and set wc (jj log --no-graph -r "$name"@ -T 'change_id')
+    and jj rebase -r @ -d "$name"@-
+    and jj workspace forget "$name"
+    and if test (jj log --no-graph -r "$wc" -T 'empty') = true
+        jj abandon "$wc"
+    else
+        echo >&2 "$(status filename): $name has uncommitted changes ($wc); commit or abandon them first."
+        return 1
+    end
+end
+
+function __workflow_integrate
+    set name $argv[1]
+    set ws_dir (jj workspace root --name "$name"); or return 1
+    set savepoint (jj op log -G -n1 -T 'id.short()')
+
+    if not __integrate_steps "$name"
+        echo >&2 "Failed... restoring to $savepoint"
+        jj op restore "$savepoint"
+        return 1
+    end
+    test -d "$ws_dir"; and rm -rf "$ws_dir"
+end
+
+switch $argv[1]
+    case claim
+        __workflow_start --claim-todo $argv[2..]
+    case start
+        __workflow_start $argv[2..]
+    case abandon
+        __workflow_abandon $argv[2..]
+    case integrate
+        __workflow_integrate $argv[2..]
+    case refresh
+        __workflow_refresh $argv[2..]
+    case '*'
+        __workflow_usage
+end
