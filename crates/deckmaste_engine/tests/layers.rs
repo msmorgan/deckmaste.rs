@@ -537,3 +537,155 @@ fn stolen_creature_attacks_for_new_controller() {
         "P1 gained control and can attack with it ([CR#613.1b])"
     );
 }
+
+/// [CR#613.8a,613.8b]: within layer 4, an effect whose affected set DEPENDS on
+/// another applies after it, overriding timestamp order. Effect B
+/// ("enchantments are also artifacts", EARLIER timestamp) depends on effect A
+/// ("creatures are also enchantments", LATER timestamp): applying A adds the
+/// bear to B's affected set. So A applies first despite its later timestamp,
+/// and the bear ends up an artifact — which a naive timestamp order (B before
+/// A) would miss.
+#[test]
+fn dependency_orders_dependent_effect_after_its_dependency() {
+    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::Duration;
+    use deckmaste_core::Filter;
+    use deckmaste_core::Modification;
+    use deckmaste_core::Type;
+    use deckmaste_engine::ContinuousEffect;
+    use deckmaste_engine::ScopeResolved;
+    use deckmaste_engine::Timestamp;
+
+    let mut state = two_player_with("Grizzly Bears", 1, 10);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+
+    // A (LATER timestamp): creatures are also enchantments.
+    state.continuous.push(ContinuousEffect {
+        timestamp: Timestamp(2_000),
+        controller: PlayerId(0),
+        scope: ScopeResolved::Floating(Filter::Characteristic(CharacteristicFilter::Type(
+            Type::Creature,
+        ))),
+        changes: vec![Modification::AddCardTypes(vec![Type::Enchantment])],
+        duration: Duration::EndOfGame,
+        is_cda: false,
+    });
+    // B (EARLIER timestamp): enchantments are also artifacts. Depends on A.
+    state.continuous.push(ContinuousEffect {
+        timestamp: Timestamp(1_000),
+        controller: PlayerId(0),
+        scope: ScopeResolved::Floating(Filter::Characteristic(CharacteristicFilter::Type(
+            Type::Enchantment,
+        ))),
+        changes: vec![Modification::AddCardTypes(vec![Type::Artifact])],
+        duration: Duration::EndOfGame,
+        is_cda: false,
+    });
+
+    let view = state.layers();
+    assert!(
+        view.get(bear).card_types.contains(&Type::Enchantment),
+        "A makes the bear an enchantment"
+    );
+    assert!(
+        view.get(bear).card_types.contains(&Type::Artifact),
+        "B depends on A and applies after it, so the bear becomes an artifact ([CR#613.8b])"
+    );
+}
+
+/// [CR#613.7],[CR#613.8]: independent same-layer effects keep timestamp order —
+/// the dependency pass must not reorder effects that don't change each other's
+/// affected set. Two color sets on the same creature: the later timestamp wins.
+#[test]
+fn independent_effects_keep_timestamp_order() {
+    use deckmaste_core::Color;
+    use deckmaste_core::Duration;
+    use deckmaste_core::Modification;
+    use deckmaste_engine::ContinuousEffect;
+    use deckmaste_engine::ScopeResolved;
+    use deckmaste_engine::Timestamp;
+
+    let mut state = two_player_with("Grizzly Bears", 1, 10);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+
+    // Earlier: becomes red. Later: becomes blue. Both layer 5, independent.
+    state.continuous.push(ContinuousEffect {
+        timestamp: Timestamp(1_000),
+        controller: PlayerId(0),
+        scope: ScopeResolved::Locked(vec![bear]),
+        changes: vec![Modification::SetColors(vec![Color::Red])],
+        duration: Duration::EndOfGame,
+        is_cda: false,
+    });
+    state.continuous.push(ContinuousEffect {
+        timestamp: Timestamp(2_000),
+        controller: PlayerId(0),
+        scope: ScopeResolved::Locked(vec![bear]),
+        changes: vec![Modification::SetColors(vec![Color::Blue])],
+        duration: Duration::EndOfGame,
+        is_cda: false,
+    });
+
+    let view = state.layers();
+    assert_eq!(
+        view.get(bear).colors.as_slice(),
+        [Color::Blue],
+        "later timestamp wins for independent effects ([CR#613.7])"
+    );
+}
+
+/// [CR#613.8b]: a dependency loop is ignored and its members apply in timestamp
+/// order (and the pass must terminate). "Creatures are also enchantments" (A,
+/// earlier) and "enchantments are also creatures" (B, later) each change the
+/// other's affected set — a 2-cycle. Falling back to timestamp order, A applies
+/// first: it catches the printed creature, B then catches the printed
+/// enchantment (and the now-enchantment creature).
+#[test]
+fn dependency_loop_falls_back_to_timestamp() {
+    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::Duration;
+    use deckmaste_core::Filter;
+    use deckmaste_core::Modification;
+    use deckmaste_core::Type;
+    use deckmaste_engine::ContinuousEffect;
+    use deckmaste_engine::ScopeResolved;
+    use deckmaste_engine::Timestamp;
+
+    let mut state = game_with_p0_cards(&["Bad Moon"], 1);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    let moon = force_onto_battlefield(&mut state, PlayerId(0), "Bad Moon"); // an enchantment
+
+    // A (earlier): creatures are also enchantments.
+    state.continuous.push(ContinuousEffect {
+        timestamp: Timestamp(1_000),
+        controller: PlayerId(0),
+        scope: ScopeResolved::Floating(Filter::Characteristic(CharacteristicFilter::Type(
+            Type::Creature,
+        ))),
+        changes: vec![Modification::AddCardTypes(vec![Type::Enchantment])],
+        duration: Duration::EndOfGame,
+        is_cda: false,
+    });
+    // B (later): enchantments are also creatures. Mutually dependent with A.
+    state.continuous.push(ContinuousEffect {
+        timestamp: Timestamp(2_000),
+        controller: PlayerId(0),
+        scope: ScopeResolved::Floating(Filter::Characteristic(CharacteristicFilter::Type(
+            Type::Enchantment,
+        ))),
+        changes: vec![Modification::AddCardTypes(vec![Type::Creature])],
+        duration: Duration::EndOfGame,
+        is_cda: false,
+    });
+
+    // Must terminate (no hang) and resolve in timestamp order.
+    let view = state.layers();
+    assert!(
+        view.get(bear).card_types.contains(&Type::Enchantment),
+        "A (earlier) catches the creature: the bear becomes an enchantment"
+    );
+    assert!(
+        view.get(moon).card_types.contains(&Type::Creature),
+        "B then catches the enchantment: Bad Moon becomes a creature ([CR#613.8b] loop → timestamp)"
+    );
+}
