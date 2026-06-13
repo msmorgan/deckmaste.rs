@@ -792,7 +792,13 @@ impl GameState {
     /// Derive an engine-tracked history scalar from the log ([CR#608.2i]).
     /// `controller` is the evaluating player (frame controller, or the
     /// condition's "you"). Storm is game-wide; the rest are per-`controller`.
-    pub(crate) fn eval_query(
+    ///
+    /// # Panics
+    ///
+    /// Panics only if a this-turn count exceeds `Uint` — unreachable in a real
+    /// game.
+    #[must_use]
+    pub fn eval_query(
         &self,
         key: deckmaste_core::QueryKey,
         controller: crate::player::PlayerId,

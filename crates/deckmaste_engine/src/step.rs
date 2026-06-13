@@ -26,7 +26,6 @@ use crate::stack::StackEntry;
 use crate::stack::StackObject;
 use crate::state::GameOutcome;
 use crate::state::GameState;
-use crate::tally::Tally;
 use crate::turn::PriorityRound;
 use crate::turn::successor;
 
@@ -223,12 +222,12 @@ impl GameState {
                 }
             }
             GameEvent::WillDraw { player, source } => {
-                // [CR#121.1]: the draw intent commits. A card present → bump the
-                // tally and evolve into the generic Library→Hand move (remint +
-                // LKI); an empty library → DrewFromEmpty, the failed-draw fact
-                // the loss SBA keys on ([CR#121.4,704.5b]).
+                // [CR#121.1]: the draw intent commits. A card present → evolve
+                // into the generic Library→Hand move (remint + LKI); the
+                // returned `WillDraw` fact is what `CardsDrawnThisTurn` counts
+                // in the history log. An empty library → DrewFromEmpty, the
+                // failed-draw fact the loss SBA keys on ([CR#121.4,704.5b]).
                 if let Some(&top) = self.zones.libraries[player.index()].front() {
-                    self.player_mut(player).this_turn.bump(Tally::CardsDrawn);
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
                         GameEvent::ZoneWillChange {
                             object: top,
@@ -745,9 +744,6 @@ impl GameState {
         self.turn.turn_number += 1;
         if self.turn.turn_number > 1 {
             self.turn.active_player = self.next_live_after(self.turn.active_player);
-        }
-        for player in &mut self.players {
-            player.this_turn.reset();
         }
         self.activations.reset_turn();
         // [CR#302.6]: a creature the active player has controlled continuously

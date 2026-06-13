@@ -25,7 +25,7 @@ pub enum Stat {
 }
 
 /// The engine-tracked history counters `Count::Query` bridges to
-/// (the Tally registry; turn-scoped unless noted).
+/// (read off the engine's event-history log; turn-scoped unless noted).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize, Expand)]
 pub enum QueryKey {
     /// Cards the evaluating player drew this turn ([CR#121]).

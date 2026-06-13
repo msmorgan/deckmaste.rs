@@ -67,8 +67,6 @@ pub use player::PlayerState;
 
 mod tally;
 pub use tally::ActivationLedger;
-pub use tally::Tallies;
-pub use tally::Tally;
 
 mod replace;
 
