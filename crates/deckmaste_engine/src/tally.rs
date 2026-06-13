@@ -51,7 +51,7 @@ mod tests {
     #[test]
     fn ledger_bump_tracks_turn_and_game() {
         let mut ledger = ActivationLedger::default();
-        let key = (ObjectId(1), 0);
+        let key = (ObjectId::from_raw(1), 0);
         ledger.bump(key);
         ledger.bump(key);
         assert_eq!(
@@ -69,7 +69,7 @@ mod tests {
     #[test]
     fn ledger_reset_turn_clears_turn_keeps_game() {
         let mut ledger = ActivationLedger::default();
-        let key = (ObjectId(1), 0);
+        let key = (ObjectId::from_raw(1), 0);
         ledger.bump(key);
         ledger.bump(key);
         ledger.reset_turn();
@@ -88,7 +88,7 @@ mod tests {
     #[test]
     fn ledger_distinct_ability_indices_tracked_separately() {
         let mut ledger = ActivationLedger::default();
-        let obj = ObjectId(1);
+        let obj = ObjectId::from_raw(1);
         ledger.bump((obj, 0));
         ledger.bump((obj, 1));
         ledger.bump((obj, 1));

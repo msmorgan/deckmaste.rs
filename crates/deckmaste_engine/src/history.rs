@@ -58,9 +58,9 @@ mod tests {
     #[test]
     fn scan_windows_select_by_turn() {
         let mut h = History::default();
-        h.record(1, GameEvent::SpellCast(ObjectId(1)));
-        h.record(2, GameEvent::SpellCast(ObjectId(2)));
-        h.record(2, GameEvent::SpellCast(ObjectId(3)));
+        h.record(1, GameEvent::SpellCast(ObjectId::from_raw(1)));
+        h.record(2, GameEvent::SpellCast(ObjectId::from_raw(2)));
+        h.record(2, GameEvent::SpellCast(ObjectId::from_raw(3)));
 
         assert_eq!(
             h.scan(Window::ThisTurn, 2).count(),

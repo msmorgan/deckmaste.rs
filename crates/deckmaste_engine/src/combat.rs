@@ -166,7 +166,7 @@ impl CombatState {
 mod tests {
     use super::*;
 
-    fn id(n: u32) -> ObjectId { ObjectId(n) }
+    fn id(n: u32) -> ObjectId { ObjectId::from_raw(u64::from(n)) }
 
     #[test]
     fn declaring_attacker_makes_is_attacking_true() {

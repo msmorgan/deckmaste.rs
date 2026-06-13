@@ -326,6 +326,7 @@ dependencies = [
  "rand",
  "rand_chacha",
  "rayon",
+ "slotmap",
 ]
 
 [[package]]

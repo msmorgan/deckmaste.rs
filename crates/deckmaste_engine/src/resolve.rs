@@ -1121,9 +1121,9 @@ mod tests {
         let p = PlayerId(0);
 
         // Three spells cast this turn (game-wide) → storm = 3 - 1 = 2.
-        state.history.record(1, GameEvent::SpellCast(ObjectId(1)));
-        state.history.record(1, GameEvent::SpellCast(ObjectId(2)));
-        state.history.record(1, GameEvent::SpellCast(ObjectId(3)));
+        state.history.record(1, GameEvent::SpellCast(ObjectId::from_raw(1)));
+        state.history.record(1, GameEvent::SpellCast(ObjectId::from_raw(2)));
+        state.history.record(1, GameEvent::SpellCast(ObjectId::from_raw(3)));
         assert_eq!(state.eval_query(QueryKey::StormCount, p), 2);
 
         // Two draws by p this turn → CardsDrawn = 2.

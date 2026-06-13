@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -10,13 +9,27 @@ use deckmaste_core::Subtype;
 use deckmaste_core::Token;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
+use slotmap::SlotMap;
 
 use crate::player::PlayerId;
 
-/// A transient object identity ([CR#109]): a fresh id is minted on every zone
-/// change ([CR#400.7]). The backing [`CardId`] is what persists across moves.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ObjectId(pub Uint);
+slotmap::new_key_type! {
+    /// A transient object identity ([CR#109]): a fresh key is minted on every
+    /// zone change ([CR#400.7]). slotmap's generational versioning means a stale
+    /// key — the object left its zone, or its slot was later reused — resolves to
+    /// `None` on lookup, so identity is self-checking. The backing [`CardId`] is
+    /// what persists across moves.
+    pub struct ObjectId;
+}
+
+#[cfg(test)]
+impl ObjectId {
+    /// Fabricates a distinct id from a raw value, for in-crate tests that need
+    /// opaque ids without a live store (history / tally / combat fixtures).
+    /// Engine code never calls this — real ids come only from
+    /// [`ObjectStore::mint`].
+    pub(crate) fn from_raw(n: u64) -> Self { slotmap::KeyData::from_ffi(n).into() }
+}
 
 /// A continuous-effect ordering stamp ([CR#613.7]). One monotonic clock spans
 /// objects (stamped at mint, zone-entry [CR#613.7d]) and floating effects
@@ -190,11 +203,14 @@ impl GameObject {
     }
 }
 
-/// All live objects, keyed by id. `BTreeMap` for deterministic iteration.
+/// All live objects, keyed by a generational [`ObjectId`]. The slotmap mints
+/// the keys (so ids come for free) and bumps a slot's generation when it's
+/// reused — exactly the transient-identity remint of [CR#400.7], with the bonus
+/// that a key can never resolve to a different object than the one it was
+/// minted for.
 #[derive(Debug, Clone, Default)]
 pub struct ObjectStore {
-    objects: BTreeMap<ObjectId, GameObject>,
-    next: Uint,
+    objects: SlotMap<ObjectId, GameObject>,
     /// Shared monotonic clock for both object timestamps ([CR#613.7d]) and
     /// floating-effect timestamps ([CR#613.7b]): one total order over all.
     clock: Uint,
@@ -210,12 +226,12 @@ impl ObjectStore {
         t
     }
 
-    /// Creates an object and returns its id.
+    /// Creates an object and returns its freshly minted id.
     ///
     /// # Panics
     ///
-    /// Panics if the object count exceeds `Uint::MAX` — engine invariant, not
-    /// caller input.
+    /// Panics if the live-object count reaches the slotmap's capacity
+    /// (`2^32 - 2`) — engine invariant, not caller input.
     #[must_use]
     pub fn mint(
         &mut self,
@@ -223,29 +239,23 @@ impl ObjectStore {
         controller: PlayerId,
         zone: Option<Zone>,
     ) -> ObjectId {
-        let id = ObjectId(self.next);
-        self.next += 1;
         let timestamp = self.next_timestamp();
-        self.objects.insert(
+        self.objects.insert_with_key(|id| GameObject {
             id,
-            GameObject {
-                id,
-                source,
-                controller,
-                timestamp,
-                tapped: false,
-                summoning_sick: false,
-                damage: 0,
-                struck_by_deathtouch: false,
-                counters: HashMap::new(),
-                zone,
-            },
-        );
-        id
+            source,
+            controller,
+            timestamp,
+            tapped: false,
+            summoning_sick: false,
+            damage: 0,
+            struck_by_deathtouch: false,
+            counters: HashMap::new(),
+            zone,
+        })
     }
 
     #[must_use]
-    pub fn get(&self, id: ObjectId) -> Option<&GameObject> { self.objects.get(&id) }
+    pub fn get(&self, id: ObjectId) -> Option<&GameObject> { self.objects.get(id) }
 
     /// Panics if the id is stale — engine invariant, not caller input.
     ///
@@ -253,7 +263,7 @@ impl ObjectStore {
     ///
     /// Panics if the id does not exist in the object store.
     #[must_use]
-    pub fn obj(&self, id: ObjectId) -> &GameObject { self.objects.get(&id).expect("live ObjectId") }
+    pub fn obj(&self, id: ObjectId) -> &GameObject { self.objects.get(id).expect("live ObjectId") }
 
     /// Panics if the id is stale — engine invariant, not caller input.
     ///
@@ -261,7 +271,7 @@ impl ObjectStore {
     ///
     /// Panics if the id does not exist in the object store.
     pub fn obj_mut(&mut self, id: ObjectId) -> &mut GameObject {
-        self.objects.get_mut(&id).expect("live ObjectId")
+        self.objects.get_mut(id).expect("live ObjectId")
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &GameObject> { self.objects.values() }
@@ -273,6 +283,6 @@ impl ObjectStore {
     ///
     /// Panics if the id was not present — engine invariant, not caller input.
     pub fn remove(&mut self, id: ObjectId) {
-        self.objects.remove(&id).expect("removing a live ObjectId");
+        self.objects.remove(id).expect("removing a live ObjectId");
     }
 }
