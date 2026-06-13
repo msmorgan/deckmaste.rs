@@ -166,7 +166,7 @@ in full.
 - [ ] `engine-trigger-conditions` — Condition::Is, Compare, Happened; intervening
   "if" rechecked on resolution [CR#603.4].
 - [ ] `engine-trigger-limits` — OncePerTurn and friends.
-- [/] `engine-history-tallies` — turn/game history the condition layer can query:
+- [x] `engine-history-tallies` — turn/game history the condition layer can query:
   spells cast this turn (storm), lands played, life lost/gained, permanents
   that left, "entered this turn", attack/cast ordinals. The Tallies registry
   exists; wire it broadly and extend `Window` beyond ThisTurn.
