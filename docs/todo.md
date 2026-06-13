@@ -112,7 +112,7 @@ in full.
 - [x] `engine-resolve-playeractions` — resolve the remaining `PlayerAction`s:
   GainLife, Discard, AddMana, Create, Sacrifice, Exile, Untap, PutInLibrary
   (verb landed, resolution still todo).
-- [ ] `engine-resolve-actions` — `Destroy` resolves since P0.W7 (cause-tagged,
+- [/] `engine-resolve-actions` — `Destroy` resolves since P0.W7 (cause-tagged,
   DIRECT — no replacement window); remaining: the `WillDestroy` intent for
   regeneration/indestructible (converts the kw-indestructible sweep
   guard), `ReturnToHand`, and `Counter` ([CR#701.6a], ward's verb).
