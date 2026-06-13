@@ -112,10 +112,17 @@ in full.
 - [x] `engine-resolve-playeractions` — resolve the remaining `PlayerAction`s:
   GainLife, Discard, AddMana, Create, Sacrifice, Exile, Untap, PutInLibrary
   (verb landed, resolution still todo).
-- [/] `engine-resolve-actions` — `Destroy` resolves since P0.W7 (cause-tagged,
-  DIRECT — no replacement window); remaining: the `WillDestroy` intent for
-  regeneration/indestructible (converts the kw-indestructible sweep
-  guard), `ReturnToHand`, and `Counter` ([CR#701.6a], ward's verb).
+- [/] `engine-resolve-actions` — `Destroy` resolves since P0.W7. `ReturnToHand`
+  (selection → owner's hand from its current zone, [CR#400.7]), `Counter`
+  (spell → owner's graveyard, [CR#701.6a]), and the `WillDestroy` intent now
+  land. `WillDestroy` is the replaceable destruction event ([CR#701.8a]): the
+  `Destroy` action AND the lethal-damage SBA emit it, and its apply drops the
+  destroy for an object carrying a destruction-replacement static
+  (indestructible, [CR#702.12b]) else commits the Bf→Gy move — the loud
+  kw-indestructible SBA guard is retired (canon: Darksteel Myr). Residual
+  seams: a countered ABILITY's cessation (narrowed `todo!` — abilities aren't
+  cards, [CR#701.6a]) and regeneration's one-shot shield (the `WillDestroy`
+  hook is live; the shield rides `engine-replacements`).
 - [ ] `engine-resolve-effects` — May, If/Unless, ForEach, Modal, Delayed,
   Reflexive effect frames; resolution-time choices surfaced as decisions.
 - [ ] `engine-resolve-count-x` — `Count::X`: announced at cast/activate
