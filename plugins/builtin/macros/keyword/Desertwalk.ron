@@ -1,0 +1,7 @@
+// Desertwalk = Landwalk for Deserts — delegates to the shared Landwalk macro.
+(
+    name: "Desertwalk",
+    template: "desertwalk",
+    kinds: [KeywordAbility],
+    body: Landwalk(quality: Subtype("Desert")),
+)

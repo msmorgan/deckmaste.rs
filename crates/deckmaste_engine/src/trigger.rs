@@ -345,10 +345,17 @@ impl GameState {
             // Player relations recurse with the SAME watcher so a nested
             // `Ref(You)` (hexproof's "your opponents") still anchors right.
             // The object's controller, as a player proxy ([CR#109.5]).
-            Filter::Relation(deckmaste_core::RelationFilter::Controller(f)) => {
+            Filter::Relation(deckmaste_core::RelationFilter::ControlledBy(f)) => {
                 let c = self.objects.obj(o).controller;
                 let proxy = self.player(c).object;
                 self.filter_matches_live(f, proxy, watcher)
+            }
+            // `o` is a player who controls a matching object — the inverse of
+            // `ControlledBy` ([CR#109.5]). Evaluation lands with
+            // engine-filter-breadth (the only user today is landwalk's
+            // not-yet-enforced Cant(Block) by-filter).
+            Filter::Relation(deckmaste_core::RelationFilter::Controls(_)) => {
+                todo!("engine-filter-breadth: Controls (player controls a matching object)")
             }
             // `o` is a player who is an opponent of a matching player
             // ([CR#102.2,102.3]).
@@ -1874,7 +1881,7 @@ mod tests {
         let by_opponent = Event::BecomesTarget {
             what: Filter::Ref(Reference::This),
             by: Some(Filter::Relation(
-                deckmaste_core::RelationFilter::Controller(Box::new(Filter::Relation(
+                deckmaste_core::RelationFilter::ControlledBy(Box::new(Filter::Relation(
                     deckmaste_core::RelationFilter::OpponentOf(Box::new(Filter::Ref(
                         Reference::You,
                     ))),

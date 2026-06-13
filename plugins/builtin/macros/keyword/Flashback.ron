@@ -1,6 +1,9 @@
 // Flashback = two statics [CR#702.34a]: a graveyard cast permission at an
-// alternative cost (May(Cast(from: Graveyard, cost: …)), [CR#118.9]
-// territory) and an exile-instead replacement as it leaves the stack.
+// alternative cost ([CR#118.9] territory) and an exile-instead replacement as
+// it leaves the stack. The exile half is factored into the shared
+// static/ExileWhenLeavesStack macro (reused by the other graveyard-recast
+// keywords); the cast half stays inline because its cost rides Param(0), and
+// the macro layer can't forward a Param into a nested macro invocation.
 // CAVEAT: the replacement applies only to the flashback cast — the
 // "was cast this way" linkage is the known core-alt-costs gap; until it
 // lands, the row over-claims (engine consumption is a seam either way).
@@ -15,12 +18,7 @@
             Static(effects: [
                 May(Cast(what: Ref(This), from: Graveyard, cost: Components(Param(0)))),
             ]),
-            Static(effects: [
-                Replacement(Instead(
-                    would: ZoneMove(what: Ref(This), from: Stack),
-                    instead: Exile(This),
-                )),
-            ]),
+            Static(effects: [ExileWhenLeavesStack]),
         ],
     ),
 )

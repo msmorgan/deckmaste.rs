@@ -15,7 +15,7 @@
                 of: Ref(This),
                 change: Scaled(
                     change: Reduce([Mana([Generic(1)])]),
-                    times: CountOf(AllOf([Param(0), Controller(Ref(You))])),
+                    times: CountOf(AllOf([Param(0), ControlledBy(Ref(You))])),
                 ),
             ),
         ])],

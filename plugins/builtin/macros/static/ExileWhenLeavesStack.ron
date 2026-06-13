@@ -1,0 +1,12 @@
+// "ExileWhenLeavesStack" = exile this object instead of putting it anywhere
+// else as it leaves the stack ([CR#702.34a] flashback's second static) — the
+// shared exile-replacement half of the graveyard-recast keywords. Reusable as
+// a zero-arg static.
+(
+    name: "ExileWhenLeavesStack",
+    kinds: [StaticEffect],
+    body: Replacement(Instead(
+        would: ZoneMove(what: Ref(This), from: Stack),
+        instead: Exile(This),
+    )),
+)

@@ -1,0 +1,7 @@
+// "ThisAttacks" = this object is declared as an attacker ([CR#508.1a]).
+// Mirrors event/ThisDies + event/ThisEnters.
+(
+    name: "ThisAttacks",
+    kinds: [Event],
+    body: Attacks(Ref(This)),
+)

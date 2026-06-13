@@ -1,0 +1,7 @@
+// Islandwalk = Landwalk for Islands — delegates to the shared Landwalk macro.
+(
+    name: "Islandwalk",
+    template: "islandwalk",
+    kinds: [KeywordAbility],
+    body: Landwalk(quality: Subtype("Island")),
+)

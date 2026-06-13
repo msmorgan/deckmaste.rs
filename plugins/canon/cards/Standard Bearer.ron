@@ -15,7 +15,7 @@ Normal(
     abilities: [
         Static(effects: [
             Must(Target(
-                by: Controller(OpponentOf(Ref(You))),
+                by: ControlledBy(OpponentOf(Ref(You))),
                 on: AllOf([Permanent, Subtype("Flagbearer")]),
             )),
         ]),

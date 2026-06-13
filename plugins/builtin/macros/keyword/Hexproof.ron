@@ -15,7 +15,7 @@
         abilities: [Static(effects: [
             Cant(Target(
                 on: Ref(This),
-                by: AllOf([Controller(OpponentOf(Ref(You))), Param(from)]),
+                by: AllOf([ControlledBy(OpponentOf(Ref(You))), Param(from)]),
             )),
         ])],
     ),
