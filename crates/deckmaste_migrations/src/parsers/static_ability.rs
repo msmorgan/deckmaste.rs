@@ -49,12 +49,11 @@ fn subject_to_filter(subj: &str) -> Option<String> {
     if s == "~" {
         return Some("Ref(This)".into());
     }
-    if let Some(rest) = strip_prefix_ci(s, "this ") {
-        let _ = rest;
+    if strip_prefix_ci(s, "this ").is_some() {
         return Some("Ref(This)".into());
     }
-    if let Some(rest) = strip_prefix_ci(s, "enchanted ") {
-        let _ = rest; // noun dropped — enchant restriction enforces the type
+    if strip_prefix_ci(s, "enchanted ").is_some() {
+        // noun dropped — enchant restriction enforces the type
         return Some("Ref(AttachHostOf(This))".into());
     }
     if strip_prefix_ci(s, "target ").is_some() {
@@ -77,8 +76,8 @@ fn filter_to_scope(f: &str) -> String {
 
 fn parse_pt(subj: &str, pred: &str) -> Option<String> {
     let filter = subject_to_filter(subj)?;
-    // Optional combo tail: "+1/+1 and have/has/gain/gains <kw…>" (a later task
-    // fills parse_keyword_changes; for this task there is no tail).
+    // Optional combo tail: "+N/+M and have/has/gain/gains <kw…>" → the P/T changes
+    // followed by one GainAbility per granted keyword.
     let (pt_part, grant_tail) = split_grant_tail(pred);
     let mut changes = parse_pt_changes(pt_part.trim())?;
     if let Some(tail) = grant_tail {
