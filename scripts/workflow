@@ -5,11 +5,11 @@ or return
 
 alias jj (status dirname)/jj
 
-# Every command but `converge`/`resolve` runs from default. Those two are the
-# exceptions: they heal a divergence / refresh-conflict IN the affected feature
-# workspace, so they must run from there.
-if not contains -- "$argv[1]" converge resolve; and test "$(jj workspace root)" != "$(jj workspace root --name default)"
-    echo >&2 "$(status filename): intended to be run from default workspace only (except 'converge'/'resolve')."
+# Every command but `repair`/`converge`/`resolve` runs from default. Those three
+# are the exceptions: they heal staleness / divergence / refresh-conflicts IN the
+# affected feature workspace, so they must run from there.
+if not contains -- "$argv[1]" repair converge resolve; and test "$(jj workspace root)" != "$(jj workspace root --name default)"
+    echo >&2 "$(status filename): intended to be run from default workspace only (except 'repair'/'converge'/'resolve')."
     return 1
 end
 
@@ -22,6 +22,9 @@ Usage: $(status filename) <command> [<args>]
     abandon WORKSPACE    Abandon WORKSPACE and forget its todo claim.
     refresh WORKSPACE    Reorder WORKSPACE's claim commit to sit just under default@.
     integrate WORKSPACE  Refresh, fold WORKSPACE's work into default@, then drop the workspace.
+    repair               Run FROM a feature workspace: one-stop "my branch shifted under me"
+                         recovery = update-stale + converge + resolve. Exit 0 clean; exit 1 fix
+                         the conflict markers (jj st) and re-run; exit 2 needs a human.
     converge             Run FROM a feature workspace: heal a working-copy divergence left
                          by a concurrent op — keep the half holding your work, drop the rest.
     resolve              Run FROM a feature workspace to walk a refresh/integrate conflict one
@@ -387,6 +390,19 @@ function __workflow_resolve
     end
 end
 
+# One-stop recovery for "my branch shifted under me." Run FROM the feature
+# workspace. Composes the pieces in order: `converge` first (it runs update-stale
+# and heals any working-copy divergence; a non-zero return means the two halves
+# hold genuinely DIFFERENT work, which needs a human), then `resolve` to walk any
+# refresh/integrate conflicts. Exit 0 = clean (re-integrate); exit 1 = you're on a
+# conflicted commit — remove its markers (jj st) and re-run `repair`; exit 2 = a
+# human is needed (converge bailed, or a jj step broke and was rolled back).
+function __workflow_repair
+    __workflow_converge
+    or return 2
+    __workflow_resolve
+end
+
 switch $argv[1]
     case claim
         __workflow_start --claim-todo $argv[2..]
@@ -398,6 +414,8 @@ switch $argv[1]
         __workflow_integrate $argv[2..]
     case refresh
         __workflow_refresh $argv[2..]
+    case repair
+        __workflow_repair
     case converge
         __workflow_converge
     case resolve
