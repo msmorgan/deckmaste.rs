@@ -69,6 +69,8 @@ pub enum Modification {
     AddPower(Count),
     SetToughness(Count),
     AddToughness(Count),
+    SubtractPower(Count),
+    SubtractToughness(Count),
     /// Switch power and toughness ([CR#613.4d]).
     SwitchPowerToughness,
     SetColors(Vec<Color>),
@@ -217,6 +219,28 @@ mod tests {
                 changes: vec![
                     Modification::AddPower(Count::Literal(1)),
                     Modification::AddToughness(Count::Literal(1)),
+                ],
+            },
+        );
+        let written = crate::ron::options().to_string(&parsed).unwrap();
+        assert_eq!(read(&written), parsed);
+    }
+
+    /// The negative-P/T shape (layer 7c) reads flat and round-trips.
+    #[test]
+    fn subtract_modify_round_trips() {
+        let parsed = read(
+            "Modify(of: Matching(Type(Creature)), changes: [SubtractPower(Literal(1)), SubtractToughness(Literal(1))])",
+        );
+        assert_eq!(
+            parsed,
+            StaticEffect::Modify {
+                of: Scope::Matching(Filter::Characteristic(crate::CharacteristicFilter::Type(
+                    Type::Creature
+                ))),
+                changes: vec![
+                    Modification::SubtractPower(Count::Literal(1)),
+                    Modification::SubtractToughness(Count::Literal(1)),
                 ],
             },
         );
