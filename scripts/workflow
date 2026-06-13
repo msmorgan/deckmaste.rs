@@ -45,10 +45,15 @@ end
 function __claim_todo
     set -l name $argv[1]
     set -l tickets "$project_dir/docs/tickets"
+    # wip/ may be absent on disk: an empty directory isn't tracked, so a checkout with
+    # nothing currently claimed materializes no wip/ for the move (or the census mint)
+    # to land in — `mv`/redirect would fail with "No such file or directory". Ensure it.
+    mkdir -p "$tickets/wip"
+    or return
     for folder in critical planned maybe
         if test -f "$tickets/$folder/$name.md"
             mv "$tickets/$folder/$name.md" "$tickets/wip/$name.md"
-            return 0
+            return                       # propagate mv's status — never mask a failure
         end
     end
     if test -f "$tickets/wip/$name.md"
@@ -77,10 +82,12 @@ end
 function __check_todo
     set -l name $argv[1]
     set -l tickets "$project_dir/docs/tickets"
-    if test -f "$tickets/wip/$name.md"
-        mv "$tickets/wip/$name.md" "$tickets/done/$name.md"
-    end
-    return 0
+    # An ad-hoc `start`ed feature has no wip ticket — nothing to finish, success.
+    test -f "$tickets/wip/$name.md"; or return 0
+    # done/ may not exist yet (empty dirs aren't tracked) — create it before the move,
+    # and propagate the move's status rather than masking a failure.
+    mkdir -p "$tickets/done"
+    and mv "$tickets/wip/$name.md" "$tickets/done/$name.md"
 end
 
 # Retire a workspace dir into a sibling bucket instead of deleting it. Symlinks
@@ -130,6 +137,13 @@ function __workflow_start
         return 2
     end
     set ws_dir (path dirname $project_dir)/$name
+    # Refuse a pre-existing dir up front: `jj workspace add` would fail mid-sequence
+    # with a cryptic "destination exists", and knowing it's absent now lets the
+    # rollback below safely delete the partial workspace it creates.
+    if test -e "$ws_dir"
+        echo >&2 "$(status filename): workspace dir '$ws_dir' already exists — remove or rename it, then retry."
+        return 1
+    end
 
     set -l verb start
     set -q _flag_claim_todo; and set verb claim
@@ -162,6 +176,10 @@ function __workflow_start
         or begin
             echo >&2 "Failed... restoring to $savepoint"
             jj op restore "$savepoint"
+            # `workspace add` may have created $ws_dir on disk; op restore drops the
+            # workspace from jj's view but leaves the directory. We confirmed it didn't
+            # exist before, so this partial is ours to remove — else a retry trips on it.
+            rm -rf "$ws_dir"
             return 1
         end
     end
