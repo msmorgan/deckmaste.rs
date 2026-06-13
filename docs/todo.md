@@ -187,8 +187,20 @@ in full.
 
 ### Layers and continuous effects (`layer.rs` seams)
 
-- [/] `engine-layers-1-3` — layer 1 copy, layer 2 control change, layer 3 text
-  change; face-down characteristics; dependency ordering [CR#613.8].
+- [/] `engine-layers-1-3` — layer-2 control change ([CR#613.1b], derived
+  controller in the view) and dependency ordering ([CR#613.8], speculative-apply
+  affected-set detection + loop→timestamp fallback). Layers 1a/1b/3 scaffolded as
+  slots (in the iteration order / `base_values` hook); the blocked remainder is
+  `engine-layers-1-copy-facedown-text` below. (Split per the dependency on
+  `core-copy-grammar` / `engine-face-down`.)
+- [ ] `engine-layers-1-copy-facedown-text` — the layer-1/3 work this slice left
+  as slots: **layer 1a copy** ([CR#613.2a] copiable values from a copy source —
+  the `base_values` SEAM; gated on `core-copy-grammar` for the "becomes a copy
+  of" representation), **layer 1b face-down** ([CR#613.2b,708.2]; gated on
+  `engine-face-down` for face-down state storage + lifecycle), and **layer 3
+  text change** ([CR#613.1c,612]; the `SetText` apply is a no-op slot today —
+  needs a real word-replacement engine that re-derives abilities from text).
+  The dependency machinery already sees these layers' ops once they apply.
 - [ ] `engine-layers-misc` — condition evaluation on static abilities, Of/These
   scope resolution (currently locked empty), subtype changes in layer 4 with
   confers data (incl. changeling's `AllCreatureTypes` fill — the

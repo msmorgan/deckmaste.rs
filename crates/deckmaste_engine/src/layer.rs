@@ -1,10 +1,14 @@
 //! The continuous-effects layer system ([CR#613]): the one place an object's
 //! characteristics are derived. Consumers read a [`LayeredView`], never the
-//! printed face. Layers 4-7 (P/T sublayers 7a-7d) are implemented here;
-//! layers 1-3 and the dependency tiebreaker ([CR#613.8]) are explicit seams
-//! for later tasks.
+//! printed face. Layers 2 (control, [CR#613.1b]) and 4-7 (P/T sublayers 7a-7d)
+//! are implemented, with the dependency tiebreaker ([CR#613.8]). Layer 1
+//! (copy/face-down, [CR#613.2]) is a `base_values` seam and layer 3
+//! (text-change, [CR#613.1c]) a documented no-op slot — both occupy their place
+//! in the pass but await `core-copy-grammar` / `engine-face-down` / a [CR#612]
+//! text-replacement engine (see the `engine-layers-1-copy-facedown-text` todo).
 
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use deckmaste_core::Ability;
@@ -106,9 +110,7 @@ impl LayeredView {
     ///
     /// Panics if `id` was not a live object when the view was computed.
     #[must_use]
-    pub fn get(&self, id: ObjectId) -> &Characteristics {
-        &self.entry(id).characteristics
-    }
+    pub fn get(&self, id: ObjectId) -> &Characteristics { &self.entry(id).characteristics }
 
     /// Returns the derived controller for `id` ([CR#613.1b]): the base
     /// controller as modified by any active layer-2 control-change effect.
@@ -117,9 +119,7 @@ impl LayeredView {
     ///
     /// Panics if `id` was not a live object when the view was computed.
     #[must_use]
-    pub fn controller(&self, id: ObjectId) -> PlayerId {
-        self.entry(id).controller
-    }
+    pub fn controller(&self, id: ObjectId) -> PlayerId { self.entry(id).controller }
 
     fn entry(&self, id: ObjectId) -> &DerivedObject {
         self.0.get(&id).expect("live ObjectId in LayeredView")
@@ -240,7 +240,7 @@ fn layer_of(m: &Modification, is_cda: bool) -> Option<Layer> {
     match m {
         // Layer 2: control-changing ([CR#613.1b]).
         Modification::SetController(_) => Some(Layer::L2),
-        // Layer 3: text-changing ([CR#613.1c], rule 612). The op lives in the
+        // Layer 3: text-changing ([CR#613.1c,612]). The op lives in the
         // pass at the right position; its `apply` is a documented no-op until a
         // real word-replacement engine exists (its own todo).
         Modification::SetText(_) => Some(Layer::L3),
@@ -386,7 +386,9 @@ fn matches_derived(
     if let Filter::Any = filter {
         return true;
     }
-    let Some(c) = working.get(&id).map(|d| &d.characteristics) else { return false };
+    let Some(c) = working.get(&id).map(|d| &d.characteristics) else {
+        return false;
+    };
     match filter {
         Filter::Any => unreachable!("handled above"),
         Filter::Characteristic(CharacteristicFilter::Type(t)) => c.card_types.contains(t),
@@ -593,6 +595,96 @@ fn resolve_new_controller(
 }
 
 // ---------------------------------------------------------------------------
+// Dependency ordering ([CR#613.8])
+// ---------------------------------------------------------------------------
+
+/// The objects an effect applies to in the current pass state: its locked set
+/// once locked ([CR#613.6]), otherwise its scope resolved against `working`.
+fn effect_targets(
+    state: &GameState,
+    working: &BTreeMap<ObjectId, DerivedObject>,
+    effect: &ActiveEffect,
+) -> Vec<ObjectId> {
+    match &effect.locked {
+        Some(ids) => ids.clone(),
+        None => resolve_scope(state, working, &effect.scope),
+    }
+}
+
+/// Apply every op of `effect` that belongs to `layer` to its targets in
+/// `working`, locking its scope on first application ([CR#613.6]: the affected
+/// set is fixed at the first layer the effect applies and reused thereafter).
+fn apply_effect_in_layer(
+    state: &GameState,
+    working: &mut BTreeMap<ObjectId, DerivedObject>,
+    effect: &mut ActiveEffect,
+    layer: Layer,
+) {
+    if effect.locked.is_none() {
+        effect.locked = Some(resolve_scope(state, working, &effect.scope));
+    }
+    let targets = effect.locked.clone().expect("locked just set");
+    for obj_id in targets {
+        if let Some(d) = working.get_mut(&obj_id) {
+            for m in &effect.changes {
+                if layer_of(m, effect.is_cda) == Some(layer) {
+                    apply(m, effect.controller, d);
+                }
+            }
+        }
+    }
+}
+
+/// Speculatively apply `d`'s `layer` ops to a clone of `working`, WITHOUT
+/// locking the real effect. Used only by `depends_on` to ask "what would the
+/// board look like if `d` applied first?".
+fn probe_apply(
+    state: &GameState,
+    working: &BTreeMap<ObjectId, DerivedObject>,
+    d: &ActiveEffect,
+    layer: Layer,
+) -> BTreeMap<ObjectId, DerivedObject> {
+    let mut probe = working.clone();
+    for obj_id in effect_targets(state, working, d) {
+        if let Some(dobj) = probe.get_mut(&obj_id) {
+            for m in &d.changes {
+                if layer_of(m, d.is_cda) == Some(layer) {
+                    apply(m, d.controller, dobj);
+                }
+            }
+        }
+    }
+    probe
+}
+
+/// Whether `e` depends on `d` within `layer` ([CR#613.8a]): applying `d`'s
+/// `layer` ops would change the set of objects `e` applies to.
+///
+/// This detects *affected-set* dependency — the dominant case the dependency
+/// system exists for (type/control/color filters that decide what another
+/// effect catches). A *value* dependency — an op whose magnitude reads a
+/// characteristic `d` changes — is a documented limitation, not yet detected.
+///
+/// Two short-circuits: a locked effect's affected set is fixed ([CR#611.2c]) so
+/// nothing can change it; and per [CR#613.8a] clause (c) an effect and a CDA
+/// are never dependent unless both are CDAs.
+fn depends_on(
+    state: &GameState,
+    working: &BTreeMap<ObjectId, DerivedObject>,
+    e: &ActiveEffect,
+    d: &ActiveEffect,
+    layer: Layer,
+) -> bool {
+    if e.is_cda != d.is_cda || e.locked.is_some() {
+        return false;
+    }
+    let before: BTreeSet<ObjectId> = effect_targets(state, working, e).into_iter().collect();
+    let probe = probe_apply(state, working, d, layer);
+    let after: BTreeSet<ObjectId> = effect_targets(state, &probe, e).into_iter().collect();
+    before != after
+}
+
+// ---------------------------------------------------------------------------
 // GameState::layers
 // ---------------------------------------------------------------------------
 
@@ -635,8 +727,8 @@ impl GameState {
             Layer::L7c,
             Layer::L7d,
         ] {
-            // Indices of effects that have at least one op in this layer.
-            let mut order: Vec<usize> = (0..effects.len())
+            // Effects with at least one op in this layer.
+            let mut pending: Vec<usize> = (0..effects.len())
                 .filter(|&i| {
                     effects[i]
                         .changes
@@ -645,35 +737,27 @@ impl GameState {
                 })
                 .collect();
 
-            // Sort: CDAs first ([CR#613.3]), then by timestamp ([CR#613.7]).
-            // Dependency ordering ([CR#613.8]) is a deferred seam.
-            order.sort_by_key(|&i| (!effects[i].is_cda, effects[i].timestamp));
+            // Base order: CDAs first ([CR#613.3]), then by timestamp
+            // ([CR#613.7]). This is the tiebreaker among independent effects and
+            // the fallback inside a dependency loop ([CR#613.8b]).
+            pending.sort_by_key(|&i| (!effects[i].is_cda, effects[i].timestamp));
 
-            for i in order {
-                // Lock the target set at first applied layer ([CR#613.6]).
-                if effects[i].locked.is_none() {
-                    let targets = resolve_scope(self, &working, &effects[i].scope);
-                    effects[i].locked = Some(targets);
-                }
-                // `locked` is always `Some` here — either it was set just above
-                // or it was set in an earlier layer iteration.
-                let Some(targets) = effects[i].locked.as_deref() else {
-                    unreachable!("locked is always set before this point")
-                };
-                // Copy targets + is_cda to release the borrow on effects[i] so the
-                // inner loop can borrow effects[i].changes.
-                let targets: Vec<ObjectId> = targets.to_vec();
-                let is_cda = effects[i].is_cda;
-                let controller = effects[i].controller;
-                for obj_id in targets {
-                    if let Some(d) = working.get_mut(&obj_id) {
-                        for m in &effects[i].changes {
-                            if layer_of(m, is_cda) == Some(layer) {
-                                apply(m, controller, d);
-                            }
-                        }
-                    }
-                }
+            // Apply in dependency order ([CR#613.8b,613.8c]): repeatedly take the
+            // earliest pending effect that depends on no other pending effect,
+            // re-evaluating after each application. If none is independent (a
+            // dependency loop), fall back to timestamp order — the first pending,
+            // since `pending` is sorted ([CR#613.8b]).
+            while !pending.is_empty() {
+                let pos = pending
+                    .iter()
+                    .position(|&e| {
+                        !pending.iter().any(|&d| {
+                            d != e && depends_on(self, &working, &effects[e], &effects[d], layer)
+                        })
+                    })
+                    .unwrap_or(0);
+                let i = pending.remove(pos);
+                apply_effect_in_layer(self, &mut working, &mut effects[i], layer);
             }
 
             // [CR#613.4c],[CR#122]: +1/+1 and -1/-1 counters modify P/T in
