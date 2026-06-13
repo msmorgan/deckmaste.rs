@@ -327,9 +327,44 @@ impl GameState {
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
-            // Keyword-batch seams: grammar landed with the FDN keyword
-            // macros; execution arrives with their engine work.
-            Action::Counter(..) => todo!("kw-ward: counter resolution ([CR#701.6a])"),
+            // [CR#701.6a]: countering cancels an object on the stack — it
+            // never resolves. A countered SPELL is put into its owner's
+            // graveyard (reminted off the stack, [CR#400.7]), cause-tagged
+            // "Counter" so a "becomes countered" view can narrow by verb. A
+            // countered ABILITY isn't a card and goes nowhere — it simply
+            // ceases (remove from stack, no zone move); that arm is the
+            // remaining seam. An object already gone from the stack
+            // ([CR#608.2b]) is a no-op. Spell is the happy path (ward's verb).
+            Action::Counter(sel) => {
+                let mut events = Vec::new();
+                for object in self.eval_selection_set(sel, frame) {
+                    match self.stack.iter().find(|e| e.id == object).map(|e| &e.object) {
+                        Some(StackObject::Spell(spell)) => {
+                            events.push(GameEvent::ZoneWillChange {
+                                object: *spell,
+                                from: Some(Zone::Stack),
+                                to: Zone::Graveyard,
+                                enters: None,
+                                position: None,
+                                face: None,
+                                cause: Some(Cause {
+                                    verb: "Counter".into(),
+                                    agency: Agency::EffectInstruction,
+                                    agent: Some((frame.source, frame.controller)),
+                                }),
+                            });
+                        }
+                        Some(StackObject::Triggered { .. } | StackObject::Activated { .. }) => {
+                            todo!(
+                                "kw-ward: countered ability ceases — remove from stack, \
+                                 no zone move ([CR#701.6a])"
+                            )
+                        }
+                        None => {}
+                    }
+                }
+                vec![WorkItem::Emit(occurrence_of(events))]
+            }
             Action::Attach { .. } => {
                 todo!("kw-equip: attach resolution ([CR#701.3]; relation storage is engine work)")
             }
@@ -962,6 +997,8 @@ mod tests {
     use crate::object::ObjectId;
     use crate::player::PlayerId;
     use crate::stack::Frame;
+    use crate::stack::StackEntry;
+    use crate::stack::StackObject;
     use crate::state::GameConfig;
     use crate::state::GameState;
     use crate::state::PlayerConfig;
@@ -1682,6 +1719,46 @@ mod tests {
         assert!(state.objects.get(card).is_none(), "old graveyard id gone");
         assert!(state.zones.graveyards[0].is_empty());
         assert_eq!(state.zones.hands[0].len(), gy_hand_before + 1);
+    }
+
+    /// [CR#701.6a]: countering a spell removes it from the stack and puts it
+    /// into its owner's graveyard, reminted ([CR#400.7]) and cause-tagged
+    /// "Counter" — the spell never resolves.
+    #[test]
+    fn counter_spell_goes_to_owners_graveyard() {
+        let (mut state, bear) = bear_on_field();
+        // Stand a hand card up as a spell on the stack, owned by player 0.
+        let spell = state.zones.hands[0][0];
+        state.zones.hands[PlayerId(0).index()].retain(|&o| o != spell);
+        state.objects.obj_mut(spell).zone = Some(Zone::Stack);
+        state.stack.push(StackEntry {
+            id: spell,
+            object: StackObject::Spell(spell),
+            controller: PlayerId(0),
+            targets: vec![],
+        });
+        let gy_before = state.zones.graveyards[0].len();
+
+        // The source's effect counters that spell (chosen as Target(0)).
+        let frame = Frame {
+            source: bear,
+            controller: PlayerId(0),
+            targets: vec![spell],
+            bindings: None,
+        };
+        state.run_effect(
+            Effect::Act(Action::Counter(Selection::Ref(Reference::Target(0)))),
+            &frame,
+        );
+        // ZoneWillChange → ZoneChanged.
+        for _ in 0..2 {
+            let _ = state.step();
+        }
+        assert!(state.stack.is_empty(), "spell removed from the stack");
+        assert!(state.objects.get(spell).is_none(), "old stack id gone");
+        assert_eq!(state.zones.graveyards[0].len(), gy_before + 1);
+        let countered = *state.zones.graveyards[0].last().expect("a countered spell");
+        assert_eq!(state.objects.obj(countered).zone, Some(Zone::Graveyard));
     }
 
     /// [CR#401.7]: `PutInLibrary(This, 0)` puts the card on top; an index past
