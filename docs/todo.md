@@ -187,7 +187,7 @@ in full.
 
 ### Layers and continuous effects (`layer.rs` seams)
 
-- [/] `engine-layers-1-3` — layer-2 control change ([CR#613.1b], derived
+- [x] `engine-layers-1-3` — layer-2 control change ([CR#613.1b], derived
   controller in the view) and dependency ordering ([CR#613.8], speculative-apply
   affected-set detection + loop→timestamp fallback). Layers 1a/1b/3 scaffolded as
   slots (in the iteration order / `base_values` hook); the blocked remainder is
