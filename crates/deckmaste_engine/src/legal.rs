@@ -17,7 +17,6 @@ use crate::layer::LayeredView;
 use crate::object::ObjectId;
 use crate::player::PlayerId;
 use crate::state::GameState;
-use crate::tally::Tally;
 
 /// The proposed-action pattern inside a deontic row, looking through the
 /// `Expanded` provenance wrappers.
@@ -206,7 +205,7 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     // [CR#116.2a,305.2]: a land from hand — sorcery timing (own turn, main
     // phase, empty stack), one per turn.
     if state.sorcery_speed_ok(player)
-        && state.player(player).this_turn.count(Tally::LandsPlayed) < 1
+        && state.eval_query(deckmaste_core::QueryKey::LandsPlayedThisTurn, player) < 1
     {
         for &object in &state.zones.hands[player.index()] {
             if derive::face(state.def(object)).types.contains(&Type::Land) {

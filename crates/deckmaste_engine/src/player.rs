@@ -66,7 +66,6 @@ pub struct PlayerState {
     pub object: ObjectId,
     pub life: Int,
     pub max_hand_size: Uint,
-    pub this_turn: crate::tally::Tallies,
     /// [CR#704.5b] flag: tried to draw from an empty library.
     pub drew_from_empty: bool,
     pub lost: bool,
@@ -81,7 +80,6 @@ impl PlayerState {
             object,
             life,
             max_hand_size: 7,
-            this_turn: crate::tally::Tallies::default(),
             drew_from_empty: false,
             lost: false,
             mana_pool: ManaPool::default(),

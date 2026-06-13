@@ -33,7 +33,7 @@ use deckmaste_engine::StackEntry;
 use deckmaste_engine::StackObject;
 use deckmaste_engine::StartingPlayer;
 use deckmaste_engine::StepOutcome;
-use deckmaste_engine::Tally;
+use deckmaste_core::QueryKey;
 
 fn builtin() -> Plugin {
     Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
@@ -334,7 +334,7 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
         Some(land_card),
         "same CardId, reminted"
     );
-    assert_eq!(state.players[0].this_turn.count(Tally::LandsPlayed), 1);
+    assert_eq!(state.eval_query(QueryKey::LandsPlayedThisTurn, PlayerId(0)), 1);
     let StepOutcome::NeedsDecision(PendingDecision::Priority { player, legal }) = stop else {
         panic!("expected priority back");
     };
@@ -454,7 +454,7 @@ fn a_draw_remints_the_card_keeping_its_card_id() {
         .find(|&o| state.objects.obj(o).card_id() == card)
         .expect("the drawn card — same CardId — is in hand");
     assert_ne!(drawn, pre, "the drawn card is a fresh ObjectId");
-    assert_eq!(state.players[1].this_turn.count(Tally::CardsDrawn), 1);
+    assert_eq!(state.eval_query(QueryKey::CardsDrawnThisTurn, PlayerId(1)), 1);
 }
 
 #[test]

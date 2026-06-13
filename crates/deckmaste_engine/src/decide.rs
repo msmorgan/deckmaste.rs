@@ -331,7 +331,6 @@ use crate::event::Cause;
 use crate::event::GameEvent;
 use crate::event::Occurrence;
 use crate::state::GameState;
-use crate::tally::Tally;
 
 impl GameState {
     /// Answers the pending decision: validates, does the decision's
@@ -1076,12 +1075,11 @@ impl GameState {
             }
             Action::PlayLand { object } => {
                 self.reset_passes();
-                // [CR#305.2,116.2a]: the land-drop tally stays with the
-                // cause; the move carries the "Play" view (special action —
-                // Agency::SpecialAction; an effect putting a land onto the
-                // battlefield is NOT a play, [CR#701.18a]).
-                let owner = self.owner_of(*object);
-                self.player_mut(owner).this_turn.bump(Tally::LandsPlayed);
+                // [CR#305.2,116.2a]: the land drop is recorded by the "Play"
+                // cause on the move (special action — Agency::SpecialAction; an
+                // effect putting a land onto the battlefield is NOT a play,
+                // [CR#701.18a]). `LandsPlayedThisTurn` counts those Play-caused
+                // battlefield entries in the history log.
                 self.schedule_front(vec![
                     WorkItem::Emit(Occurrence::single(GameEvent::ZoneWillChange {
                         object: *object,
