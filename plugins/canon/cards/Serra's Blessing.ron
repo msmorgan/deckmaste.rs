@@ -1,0 +1,11 @@
+Normal(
+    name: "Serra's Blessing",
+    mana_cost: [
+        Generic(1),
+        White,
+    ],
+    types: [Enchantment],
+    abilities: [
+        Static(effects: [Modify(of: Matching(AllOf([Creature, Controller(Ref(You))])), changes: [GainAbility(Keyword(Vigilance))])]),
+    ],
+)

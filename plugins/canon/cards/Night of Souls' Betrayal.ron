@@ -1,0 +1,13 @@
+Normal(
+    name: "Night of Souls' Betrayal",
+    mana_cost: [
+        Generic(2),
+        Black,
+        Black,
+    ],
+    supertypes: [Legendary],
+    types: [Enchantment],
+    abilities: [
+        Static(effects: [Modify(of: Matching(Creature), changes: [SubtractPower(Literal(1)), SubtractToughness(Literal(1))])]),
+    ],
+)

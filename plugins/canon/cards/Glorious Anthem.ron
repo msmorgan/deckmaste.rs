@@ -1,0 +1,12 @@
+Normal(
+    name: "Glorious Anthem",
+    mana_cost: [
+        Generic(1),
+        White,
+        White,
+    ],
+    types: [Enchantment],
+    abilities: [
+        Static(effects: [Modify(of: Matching(AllOf([Creature, Controller(Ref(You))])), changes: [AddPower(Literal(1)), AddToughness(Literal(1))])]),
+    ],
+)

@@ -1,0 +1,21 @@
+Normal(
+    name: "Elesh Norn, Grand Cenobite",
+    mana_cost: [
+        Generic(5),
+        White,
+        White,
+    ],
+    supertypes: [Legendary],
+    types: [Creature],
+    subtypes: [
+        Phyrexian,
+        Praetor,
+    ],
+    abilities: [
+        Keyword(Vigilance),
+        Static(effects: [Modify(of: Matching(AllOf([Creature, Not(Ref(This)), Controller(Ref(You))])), changes: [AddPower(Literal(2)), AddToughness(Literal(2))])]),
+        Static(effects: [Modify(of: Matching(AllOf([Creature, Controller(OpponentOf(Ref(You)))])), changes: [SubtractPower(Literal(2)), SubtractToughness(Literal(2))])]),
+    ],
+    power: 4,
+    toughness: 7,
+)

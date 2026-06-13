@@ -1,0 +1,13 @@
+Normal(
+    name: "Pacifism",
+    mana_cost: [
+        Generic(1),
+        White,
+    ],
+    types: [Enchantment],
+    subtypes: [Aura],
+    abilities: [
+        Keyword(Enchant(Type(Creature))),
+        Static(effects: [Cant(Attack(by: Ref(AttachHostOf(This)))), Cant(Block(by: Ref(AttachHostOf(This))))]),
+    ],
+)
