@@ -307,7 +307,7 @@ fn declare_attackers_taps_records_and_fires_attacking() {
     // Declaring an attacker that isn't in `legal` is rejected.
     assert!(
         state
-            .submit_decision(Decision::Attackers(vec![ObjectId(99999)]))
+            .submit_decision(Decision::Attackers(vec![ObjectId::default()]))
             .is_err(),
         "an id outside the legal set is rejected"
     );
@@ -411,7 +411,7 @@ fn declare_attackers_with_no_legal_attacker_accepts_empty() {
     // A nonempty vec is rejected; the empty vec is accepted.
     assert!(
         state
-            .submit_decision(Decision::Attackers(vec![ObjectId(99999)]))
+            .submit_decision(Decision::Attackers(vec![ObjectId::default()]))
             .is_err()
     );
     state.submit_decision(Decision::Attackers(vec![])).unwrap();
@@ -473,14 +473,14 @@ fn declare_blockers_records_blocks_and_fires_blocked() {
     // A blocker outside the legal set is rejected.
     assert!(
         state
-            .submit_decision(Decision::Blocks(vec![(ObjectId(99999), attacker)]))
+            .submit_decision(Decision::Blocks(vec![(ObjectId::default(), attacker)]))
             .is_err(),
         "a blocker outside the legal set is rejected"
     );
     // Blocking a non-attacker is rejected.
     assert!(
         state
-            .submit_decision(Decision::Blocks(vec![(b1, ObjectId(88888))]))
+            .submit_decision(Decision::Blocks(vec![(b1, ObjectId::default())]))
             .is_err(),
         "blocking a creature that isn't attacking is rejected"
     );
@@ -663,7 +663,7 @@ fn combat_damage_two_blockers_split_one_one() {
     // An out-of-recipient target is rejected.
     assert!(
         state
-            .submit_decision(Decision::Assignment(vec![(b1, 1), (ObjectId(99999), 1)]))
+            .submit_decision(Decision::Assignment(vec![(b1, 1), (ObjectId::default(), 1)]))
             .is_err(),
         "an amount on a creature that isn't a recipient is rejected"
     );
