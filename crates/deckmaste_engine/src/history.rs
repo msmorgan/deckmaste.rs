@@ -62,8 +62,20 @@ mod tests {
         h.record(2, GameEvent::SpellCast(ObjectId(2)));
         h.record(2, GameEvent::SpellCast(ObjectId(3)));
 
-        assert_eq!(h.scan(Window::ThisTurn, 2).count(), 2, "ThisTurn = turn-2 entries");
-        assert_eq!(h.scan(Window::ThisTurn, 1).count(), 1, "ThisTurn = turn-1 entries");
-        assert_eq!(h.scan(Window::ThisGame, 2).count(), 3, "ThisGame = all entries");
+        assert_eq!(
+            h.scan(Window::ThisTurn, 2).count(),
+            2,
+            "ThisTurn = turn-2 entries"
+        );
+        assert_eq!(
+            h.scan(Window::ThisTurn, 1).count(),
+            1,
+            "ThisTurn = turn-1 entries"
+        );
+        assert_eq!(
+            h.scan(Window::ThisGame, 2).count(),
+            3,
+            "ThisGame = all entries"
+        );
     }
 }

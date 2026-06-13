@@ -118,33 +118,31 @@ impl GameState {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+    use std::sync::Arc;
+
+    use deckmaste_cards::plugin::Plugin;
     use deckmaste_core::BeginningStep;
+    use deckmaste_core::CharacteristicFilter;
     use deckmaste_core::Cmp;
     use deckmaste_core::Condition;
     use deckmaste_core::Count;
+    use deckmaste_core::Event;
     use deckmaste_core::Filter;
     use deckmaste_core::Phase;
     use deckmaste_core::StateFilter;
+    use deckmaste_core::Type;
+    use deckmaste_core::Window;
     use deckmaste_core::Zone;
 
+    use crate::event::GameEvent;
+    use crate::lki::LkiSnapshot;
+    use crate::object::ObjectSource;
     use crate::player::PlayerId;
     use crate::state::GameConfig;
     use crate::state::GameState;
     use crate::state::PlayerConfig;
     use crate::state::StartingPlayer;
-
-    use std::path::Path;
-    use std::sync::Arc;
-
-    use deckmaste_cards::plugin::Plugin;
-    use deckmaste_core::CharacteristicFilter;
-    use deckmaste_core::Event;
-    use deckmaste_core::Type;
-    use deckmaste_core::Window;
-
-    use crate::event::GameEvent;
-    use crate::lki::LkiSnapshot;
-    use crate::object::ObjectSource;
 
     fn game() -> GameState {
         GameState::new(GameConfig {
@@ -165,18 +163,23 @@ mod tests {
         .unwrap()
     }
 
-    /// Morbid ("a creature died this turn") is `Condition::Happened { ZoneMove {
-    /// creature, Battlefield → Graveyard }, ThisTurn }`. It holds once a
-    /// creature-death fact is in this turn's history; the `ThisGame` window sees
-    /// it on a later turn while `ThisTurn` no longer does ([CR#608.2i]).
+    /// Morbid ("a creature died this turn") is `Condition::Happened { ZoneMove
+    /// { creature, Battlefield → Graveyard }, ThisTurn }`. It holds once a
+    /// creature-death fact is in this turn's history; the `ThisGame` window
+    /// sees it on a later turn while `ThisTurn` no longer does
+    /// ([CR#608.2i]).
     #[test]
     fn happened_morbid_reads_history_window() {
         let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
         let forest = Arc::new(builtin().card("Forest").unwrap());
         let mut state = GameState::new(GameConfig {
             players: vec![
-                PlayerConfig { deck: vec![Arc::clone(&bears); 10] },
-                PlayerConfig { deck: vec![Arc::clone(&forest); 10] },
+                PlayerConfig {
+                    deck: vec![Arc::clone(&bears); 10],
+                },
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 10],
+                },
             ],
             seed: 1,
             starting_life: 20,
@@ -186,8 +189,11 @@ mod tests {
 
         // Put a Grizzly Bears on the battlefield, snapshot it, build its death.
         let bear_card = state.cards.push(Arc::clone(&bears), PlayerId(0));
-        let bear =
-            state.objects.mint(ObjectSource::Card(bear_card), PlayerId(0), Some(Zone::Battlefield));
+        let bear = state.objects.mint(
+            ObjectSource::Card(bear_card),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
         state.zones.battlefield.push(bear);
         let death = GameEvent::ZoneChanged {
             snapshot: LkiSnapshot::capture(&state, bear),
@@ -214,7 +220,10 @@ mod tests {
         };
 
         // No death yet → false.
-        assert!(!state.condition_holds(&morbid, PlayerId(0)), "no death recorded yet");
+        assert!(
+            !state.condition_holds(&morbid, PlayerId(0)),
+            "no death recorded yet"
+        );
 
         // Record the death this turn → ThisTurn and ThisGame both hold.
         state.history.record(1, death);

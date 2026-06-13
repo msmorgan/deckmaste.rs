@@ -803,10 +803,11 @@ impl GameState {
         key: deckmaste_core::QueryKey,
         controller: crate::player::PlayerId,
     ) -> Uint {
-        use crate::event::GameEvent;
         use deckmaste_core::QueryKey;
         use deckmaste_core::Window;
         use deckmaste_core::Zone;
+
+        use crate::event::GameEvent;
         let turn = self.turn.turn_number;
         match key {
             // Storm ([CR#702.40a]): spells cast before this one this turn =
@@ -848,7 +849,9 @@ impl GameState {
                 .history
                 .scan(Window::ThisTurn, turn)
                 .filter_map(|f| match f {
-                    GameEvent::LifeLost { player, amount } if *player == controller => Some(*amount),
+                    GameEvent::LifeLost { player, amount } if *player == controller => {
+                        Some(*amount)
+                    }
                     _ => None,
                 })
                 .sum(),
@@ -1102,11 +1105,12 @@ mod tests {
     /// amounts ([CR#119.3]).
     #[test]
     fn eval_query_reads_history_scalars() {
+        use deckmaste_core::Agency;
+        use deckmaste_core::QueryKey;
+
         use crate::event::Cause;
         use crate::lki::LkiSnapshot;
         use crate::object::ObjectSource;
-        use deckmaste_core::Agency;
-        use deckmaste_core::QueryKey;
 
         let mut state = game();
         state.turn.turn_number = 1;
@@ -1119,12 +1123,26 @@ mod tests {
         assert_eq!(state.eval_query(QueryKey::StormCount, p), 2);
 
         // Two draws by p this turn → CardsDrawn = 2.
-        state.history.record(1, GameEvent::WillDraw { player: p, source: None });
-        state.history.record(1, GameEvent::WillDraw { player: p, source: None });
+        state.history.record(
+            1,
+            GameEvent::WillDraw {
+                player: p,
+                source: None,
+            },
+        );
+        state.history.record(
+            1,
+            GameEvent::WillDraw {
+                player: p,
+                source: None,
+            },
+        );
         assert_eq!(state.eval_query(QueryKey::CardsDrawnThisTurn, p), 2);
 
         // One land played by p (a Play-caused battlefield entry) → Lands = 1.
-        let land = state.objects.mint(ObjectSource::Player(p), p, Some(Zone::Battlefield));
+        let land = state
+            .objects
+            .mint(ObjectSource::Player(p), p, Some(Zone::Battlefield));
         state.history.record(
             1,
             GameEvent::ZoneChanged {
@@ -1142,9 +1160,27 @@ mod tests {
         assert_eq!(state.eval_query(QueryKey::LandsPlayedThisTurn, p), 1);
 
         // Life: lost 3 then 2 (=5), gained 4.
-        state.history.record(1, GameEvent::LifeLost { player: p, amount: 3 });
-        state.history.record(1, GameEvent::LifeLost { player: p, amount: 2 });
-        state.history.record(1, GameEvent::LifeGained { player: p, amount: 4 });
+        state.history.record(
+            1,
+            GameEvent::LifeLost {
+                player: p,
+                amount: 3,
+            },
+        );
+        state.history.record(
+            1,
+            GameEvent::LifeLost {
+                player: p,
+                amount: 2,
+            },
+        );
+        state.history.record(
+            1,
+            GameEvent::LifeGained {
+                player: p,
+                amount: 4,
+            },
+        );
         assert_eq!(state.eval_query(QueryKey::LifeLostThisTurn, p), 5);
         assert_eq!(state.eval_query(QueryKey::LifeGainedThisTurn, p), 4);
 

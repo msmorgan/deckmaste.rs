@@ -1242,21 +1242,31 @@ mod tests {
     #[test]
     fn record_history_logs_facts_skips_meta() {
         let mut state = game();
-        let id = state
-            .objects
-            .mint(ObjectSource::Player(PlayerId(0)), PlayerId(0), Some(Zone::Battlefield));
+        let id = state.objects.mint(
+            ObjectSource::Player(PlayerId(0)),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
 
         // A substantive fact is logged.
         state.record_history(&Occurrence::single(GameEvent::Untapped(id)));
         assert_eq!(
-            state.history.scan(Window::ThisGame, state.turn.turn_number).count(),
+            state
+                .history
+                .scan(Window::ThisGame, state.turn.turn_number)
+                .count(),
             1
         );
 
         // A skipped (meta) fact is not.
-        state.record_history(&Occurrence::single(GameEvent::StepBegan(Phase::PrecombatMain)));
+        state.record_history(&Occurrence::single(GameEvent::StepBegan(
+            Phase::PrecombatMain,
+        )));
         assert_eq!(
-            state.history.scan(Window::ThisGame, state.turn.turn_number).count(),
+            state
+                .history
+                .scan(Window::ThisGame, state.turn.turn_number)
+                .count(),
             1,
             "StepBegan is skipped"
         );
