@@ -305,8 +305,27 @@ impl GameState {
                 let actor = self.acting_player(who, frame);
                 self.player_action_items(pa, actor, frame)
             }
-            Action::ReturnToHand(_) => {
-                todo!("stage 3 does not perform action ReturnToHand")
+            // [CR#400.7]: each selected object moves to its owner's hand from
+            // whatever zone it's in (bound at schedule time, like `Exile`),
+            // becoming a new object the apply pipeline remints. A relocation,
+            // not a destruction — no cause-verb fact (the from/to zones the
+            // resulting `ZoneChanged` carries are what leave/enter triggers
+            // match on).
+            Action::ReturnToHand(sel) => {
+                let events: Vec<GameEvent> = self
+                    .eval_selection_set(sel, frame)
+                    .into_iter()
+                    .map(|object| GameEvent::ZoneWillChange {
+                        object,
+                        from: Some(self.objects.obj(object).zone.expect("return a zoned object")),
+                        to: Zone::Hand,
+                        enters: None,
+                        position: None,
+                        face: None,
+                        cause: None,
+                    })
+                    .collect();
+                vec![WorkItem::Emit(occurrence_of(events))]
             }
             // Keyword-batch seams: grammar landed with the FDN keyword
             // macros; execution arrives with their engine work.
@@ -1616,6 +1635,53 @@ mod tests {
         assert!(state.objects.get(card).is_none(), "old graveyard id gone");
         assert!(state.zones.graveyards[0].is_empty());
         assert_eq!(state.zones.exile.len(), 2);
+    }
+
+    /// [CR#400.7]: `ReturnToHand(This)` moves the source to its owner's hand,
+    /// reminting it — the old id is gone and a fresh object sits in hand. The
+    /// graveyard arm proves the move reads each object's current zone (like
+    /// `Exile`), not a hard-coded battlefield source.
+    #[test]
+    fn return_to_hand_from_battlefield_and_graveyard() {
+        let (mut state, bear) = bear_on_field();
+        let hand_before = state.zones.hands[0].len();
+        let frame = Frame {
+            source: bear,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+        state.run_effect(Effect::Act(Action::ReturnToHand(sel_this())), &frame);
+        // ZoneWillChange → ZoneChanged.
+        for _ in 0..2 {
+            let _ = state.step();
+        }
+        assert!(state.objects.get(bear).is_none(), "old battlefield id gone");
+        assert!(!state.zones.battlefield.contains(&bear));
+        assert_eq!(state.zones.hands[0].len(), hand_before + 1);
+        let returned = *state.zones.hands[0].last().expect("a returned card");
+        assert_eq!(state.objects.obj(returned).zone, Some(Zone::Hand));
+
+        // From the graveyard ([CR#400.7] reads the current zone): force a hand
+        // card into the graveyard, then return it to hand.
+        let card = *state.zones.hands[0].first().expect("a card in hand");
+        state.zones.hands[0].retain(|&o| o != card);
+        state.objects.obj_mut(card).zone = Some(Zone::Graveyard);
+        state.zones.graveyards[0].push(card);
+        let gy_hand_before = state.zones.hands[0].len();
+        let frame = Frame {
+            source: card,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+        state.run_effect(Effect::Act(Action::ReturnToHand(sel_this())), &frame);
+        for _ in 0..2 {
+            let _ = state.step();
+        }
+        assert!(state.objects.get(card).is_none(), "old graveyard id gone");
+        assert!(state.zones.graveyards[0].is_empty());
+        assert_eq!(state.zones.hands[0].len(), gy_hand_before + 1);
     }
 
     /// [CR#401.7]: `PutInLibrary(This, 0)` puts the card on top; an index past
