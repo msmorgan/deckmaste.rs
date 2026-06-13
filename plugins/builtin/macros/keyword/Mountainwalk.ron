@@ -1,0 +1,7 @@
+// Mountainwalk = Landwalk for Mountains — delegates to the shared Landwalk macro.
+(
+    name: "Mountainwalk",
+    template: "mountainwalk",
+    kinds: [KeywordAbility],
+    body: Landwalk(quality: Subtype("Mountain")),
+)

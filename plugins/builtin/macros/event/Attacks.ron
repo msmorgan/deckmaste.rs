@@ -1,0 +1,11 @@
+// "Attacks" = an object is declared as an attacker ([CR#508.1a]) — the
+// state-transition event the whole attack-trigger family watches ("whenever
+// ~ attacks, …"). Mirrors event/Dies + event/Enters. Usage: Attacks(what) —
+// e.g. Attacks(Type(Creature)), Attacks(Ref(This)).
+(
+    name: "Attacks",
+    template: "{0} attacks",
+    kinds: [Event],
+    params: [Any],
+    body: StateBecomes(of: Param(0), becomes: Attacking),
+)

@@ -86,12 +86,19 @@ pub enum StateFilter {
 }
 
 /// Structural relations the engine owns. Relations are
-/// implicitly existential: `Controller(IsOpponent-shaped)` means "whose
+/// implicitly existential: `ControlledBy(IsOpponent-shaped)` means "whose
 /// controller matches".
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum RelationFilter {
     /// The object's controller matches ([CR#109.5]).
-    Controller(Box<Filter>),
+    ControlledBy(Box<Filter>),
+    /// The object is a player who controls a matching object — the inverse
+    /// of [`ControlledBy`](RelationFilter::ControlledBy) ([CR#109.5]).
+    /// Zone-agnostic: control spans the battlefield, the stack (spells and
+    /// abilities), and the command zone, so the inner filter carries any
+    /// zone restriction it needs (e.g. `Controls(AllOf([Permanent, …]))`
+    /// for "controls a permanent").
+    Controls(Box<Filter>),
     /// The object's owner matches ([CR#108.3]).
     Owner(Box<Filter>),
     /// The object is an opponent of a matching player ([CR#102.2,102.3]).
@@ -254,9 +261,15 @@ mod tests {
     fn relations_take_filters() {
         use crate::Reference;
         assert_eq!(
-            read("Controller(Ref(You))"),
-            Filter::Relation(RelationFilter::Controller(Box::new(Filter::Ref(
+            read("ControlledBy(Ref(You))"),
+            Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
                 Reference::You
+            )))),
+        );
+        assert_eq!(
+            read("Controls(Type(Land))"),
+            Filter::Relation(RelationFilter::Controls(Box::new(Filter::Characteristic(
+                CharacteristicFilter::Type(Type::Land)
             )))),
         );
     }
@@ -286,7 +299,8 @@ mod tests {
     #[test]
     fn compartment_round_trips() {
         let cases = [
-            "Controller(Ref(You))",
+            "ControlledBy(Ref(You))",
+            "Controls(InZone(Battlefield))",
             "Owner(Kind(Player))",
             "OpponentOf(Kind(Player))",
             "AttachedTo(Type(Creature))",

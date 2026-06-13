@@ -15,7 +15,7 @@
         abilities: [Triggered(
             event: BecomesTarget(
                 what: Ref(This),
-                by: AllOf([InZone(Stack), Controller(OpponentOf(Ref(You)))]),
+                by: AllOf([InZone(Stack), ControlledBy(OpponentOf(Ref(You)))]),
             ),
             effect: Unless(
                 effect: Counter(ThatObject),

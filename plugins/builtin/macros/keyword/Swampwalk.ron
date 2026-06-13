@@ -1,0 +1,7 @@
+// Swampwalk = Landwalk for Swamps — delegates to the shared Landwalk macro.
+(
+    name: "Swampwalk",
+    template: "swampwalk",
+    kinds: [KeywordAbility],
+    body: Landwalk(quality: Subtype("Swamp")),
+)

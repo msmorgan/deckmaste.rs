@@ -1,0 +1,7 @@
+// Plainswalk = Landwalk for Plainss — delegates to the shared Landwalk macro.
+(
+    name: "Plainswalk",
+    template: "plainswalk",
+    kinds: [KeywordAbility],
+    body: Landwalk(quality: Subtype("Plains")),
+)

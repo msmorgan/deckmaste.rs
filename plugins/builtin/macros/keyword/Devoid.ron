@@ -1,0 +1,13 @@
+// Devoid = a characteristic-defining ability ([CR#604.3]): "this object is
+// colorless", functioning in every zone. An empty color set IS colorless
+// ([CR#105.2c]-style), so the CDA static sets colors to none. Mirrors
+// Changeling's CDA shape (a `cda: true` static modifying `Of(This)`); the
+// layer engine reads it at layer 5 (color-setting).
+KeywordAbility(
+    name: "Devoid",
+    template: "devoid",
+    abilities: [Static(
+        cda: true,
+        effects: [Modify(of: Of(This), changes: [SetColors([])])],
+    )],
+)

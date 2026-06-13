@@ -247,6 +247,10 @@ impl GameState {
                     );
                 }
             }
+            // A remembered macro expansion (e.g. an `Effect`-kind macro like
+            // `PumpThisUntilEot`) is transparent to resolution — run its value,
+            // matching how every other engine layer sees through `*::Expanded`.
+            Effect::Expanded(e) => self.run_effect(*e.value, frame),
             other => todo!("stage 3 does not interpret effect {other:?} (the choice seam)"),
         }
     }
@@ -1243,7 +1247,7 @@ mod tests {
         )));
     }
 
-    /// `CountOf` is the filter's live cardinality; a `Controller(Ref(You))`
+    /// `CountOf` is the filter's live cardinality; a `ControlledBy(Ref(You))`
     /// relation anchors to the frame's side via the watcher.
     #[test]
     fn count_of_counts_live_matching_objects() {
@@ -1282,7 +1286,7 @@ mod tests {
         // "Creatures you control": only the frame side's bear.
         let yours = Filter::AllOf(vec![
             creatures,
-            Filter::Relation(deckmaste_core::RelationFilter::Controller(Box::new(
+            Filter::Relation(deckmaste_core::RelationFilter::ControlledBy(Box::new(
                 Filter::Ref(Reference::You),
             ))),
         ]);

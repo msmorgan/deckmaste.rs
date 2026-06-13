@@ -7,9 +7,6 @@ KeywordAbility(
     template: "prowess",
     abilities: [Triggered(
         event: Performed(verb: "Cast", by: Ref(You), on: AllOf([Kind(Spell), Not(Type(Creature))])),
-        effect: Continuously(
-            effect: Modify(of: Of(This), changes: [AddPower(Literal(1)), AddToughness(Literal(1))]),
-            duration: FixedUntil(EndOfTurn),
-        ),
+        effect: PumpThisUntilEot(1, 1),
     )],
 )

@@ -1,0 +1,28 @@
+// Landwalk = a conditional evasion ([CR#509.1b] block legality): "~ can't be
+// blocked as long as the defending player controls a [quality]". Modeled as a
+// Cant(Block) whose `by` (the blocker) is narrowed to blockers controlled by a
+// player who controls a matching permanent — and since only the defending
+// player declares blockers for this attacker, that is exactly "the defending
+// player controls a [quality]". The control relation is the new
+// ControlledBy/Controls dual ([CR#109.5]).
+//
+// `quality` defaults to any Land (bare `Landwalk`); the typed variants pass a
+// concrete subtype, e.g. Swampwalk → Landwalk(quality: Subtype("Swamp")).
+// Enforcement rides engine-combat-restrictions (the Cant(Block) row) and
+// engine-filter-breadth (the Controls eval) — the macro authors the rule; the
+// engine doesn't apply it yet.
+(
+    name: "Landwalk",
+    template: "landwalk",
+    kinds: [KeywordAbility],
+    params: { "quality": Default(Filter, Type(Land)) },
+    body: Composite(
+        name: "Landwalk",
+        abilities: [Static(effects: [
+            Cant(Block(
+                on: Ref(This),
+                by: ControlledBy(Controls(AllOf([Permanent, Param(quality)]))),
+            )),
+        ])],
+    ),
+)

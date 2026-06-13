@@ -13,7 +13,7 @@
         abilities: [Activated(
             cost: Param(0),
             window: SorcerySpeed,
-            targets: [Target(Exactly(Literal(1)), AllOf([Creature, Controller(Ref(You))]))],
+            targets: [Target(Exactly(Literal(1)), AllOf([Creature, ControlledBy(Ref(You))]))],
             effect: Attach(what: This, to: Target(0)),
         )],
     ),

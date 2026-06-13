@@ -1,5 +1,5 @@
-// Hand-written ability: the attacks-trigger event shape is beyond the
-// triggered-ability parser today ("Whenever ~ attacks, draw a card.").
+// "Whenever ~ attacks, draw a card." — the attacks-trigger now rides the
+// shared ThisAttacks event macro (event/Attacks.ron).
 Normal(
     name: "Library Larcenist",
     mana_cost: [
@@ -12,10 +12,7 @@ Normal(
         Rogue,
     ],
     abilities: [
-        Triggered(
-            event: StateBecomes(of: Ref(This), becomes: Attacking),
-            effect: Draw(1),
-        ),
+        Triggered(event: ThisAttacks, effect: Draw(1)),
     ],
     power: 1,
     toughness: 2,
