@@ -24,8 +24,9 @@ Usage: $(status filename) <command> [<args>]
     integrate WORKSPACE  Refresh, fold WORKSPACE's work into default@, then drop the workspace.
     converge             Run FROM a feature workspace: heal a working-copy divergence left
                          by a concurrent op — keep the half holding your work, drop the rest.
-    resolve              Run FROM a feature workspace AFTER editing conflict markers out of the
-                         working copy: fold the conflicted commits + your fix into a clean stack.
+    resolve              Run FROM a feature workspace to walk a refresh/integrate conflict one
+                         commit at a time: drops you onto a conflict (exit 1); remove its
+                         markers; re-run. Exit 0 once the stack is clean.
 "
     exit 2
 end
@@ -329,28 +330,61 @@ function __workflow_converge
     echo "converge: kept $keep, dropped: $drop"
 end
 
-# Heal feature-stack conflicts a refresh/integrate left behind. Prereq: you've
-# already edited the conflict markers OUT of the working copy (so `jj st` shows @
-# resolved). Run FROM the feature workspace. Folds the conflicted feature commits
-# plus your working-copy resolution into the lowest conflicted commit, leaving a
-# clean, re-integratable stack — in ONE step, instead of the manual flatten dance.
-# (It collapses those commits; re-`describe` the result if you want.) For a
-# working-copy DIVERGENCE rather than a refresh conflict, use `converge` instead.
+# Walk a feature stack's conflicts after a refresh/integrate left them, resolving
+# them oldest-first IN PLACE (no flattening). The loop you run from the feature
+# workspace:
+#   - `scripts/workflow resolve` drops you onto a conflicted commit and exits 1,
+#   - remove every conflict marker from the files `jj st` lists,
+#   - re-run `resolve`: it folds your fix into that commit and moves to the next.
+# Repeat until exit 0 (stack clean — re-integrate). Exit 2 = you left markers
+# behind, or a jj step broke and was rolled back. The `$name-tip` bookmark is the
+# cursor marking the real tip while you descend onto each conflict. For a
+# working-copy DIVERGENCE (not a refresh conflict), use `converge` instead.
 function __workflow_resolve
     set -l name (path basename (jj workspace root))
-    set -l range "$name+::@"   # this feature's commits (above its claim bookmark)
-    if test -z "$(jj log --no-graph -r "($range) & conflicts()" -T 'change_id')"
-        echo "resolve: no conflicts in $name's stack — nothing to do."
+    set -l tipbm "$name-tip"
+    set -l savepoint (jj op log -n1 -G -T 'id.short()')
+
+    # Mid-descent: the cursor exists, so @ is your edit of one conflicted commit.
+    if jj bookmark list -T 'name ++ "\n"' | string match -q -- "$tipbm"
+        if jj resolve --list >/dev/null 2>&1   # exit 0 => @ still has conflicts
+            echo >&2 "resolve: @ still has conflict markers — remove them all (jj st lists the files), then re-run."
+            return 2
+        end
+        # Fold @'s resolution into the commit it sits on, then hop to the real tip
+        # so the scan below spans the whole stack.
+        begin
+            if test -n "$(jj log -G -r '@- & conflicts()')"
+                jj squash
+            end
+        end
+        and jj edit "$tipbm"
+        and jj bookmark forget "$tipbm"
+        or begin
+            echo >&2 "resolve: a jj step failed — rolled back. Resolve by hand or ask for help."
+            jj op restore "$savepoint"
+            return 2
+        end
+    end
+
+    # Remaining conflicts in this feature's stack (oldest last; jj lists newest-first).
+    set -l conflicts (jj log -G -r "$name+::@ & conflicts()" -T 'change_id.short() ++ "\n"')
+    if set -q conflicts[1]
+        begin
+            jj bookmark create "$tipbm"
+            and jj new $conflicts[-1]
+        end
+        or begin
+            echo >&2 "resolve: a jj step failed — rolled back. Resolve by hand or ask for help."
+            jj op restore "$savepoint"
+            return 2
+        end
+        echo >&2 "resolve: editing the oldest of "(count $conflicts)" conflicted commit(s). Remove all markers (jj st), then re-run resolve."
+        return 1
+    else
+        echo >&2 "resolve: all conflicts resolved on $name@ — re-run 'scripts/workflow integrate $name'."
         return 0
     end
-    if jj log --no-graph -r @ -T 'conflict' | string match -q true
-        echo >&2 "resolve: @ still has unresolved conflict markers — edit them out (`jj st` lists the paths), then re-run."
-        return 1
-    end
-    # Lowest still-conflicted commit; @ (resolved) carries the fix down into it.
-    set -l first (jj log --no-graph -r "roots(($range) & conflicts())" -T 'change_id.short()')
-    jj squash --from "$first+::@" --into "$first" -u
-    and echo "resolve: folded the conflicted commits into $first — re-run 'scripts/workflow integrate $name' (or 'refresh')."
 end
 
 switch $argv[1]
