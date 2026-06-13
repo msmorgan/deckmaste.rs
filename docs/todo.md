@@ -112,7 +112,7 @@ in full.
 - [x] `engine-resolve-playeractions` — resolve the remaining `PlayerAction`s:
   GainLife, Discard, AddMana, Create, Sacrifice, Exile, Untap, PutInLibrary
   (verb landed, resolution still todo).
-- [/] `engine-resolve-actions` — `Destroy` resolves since P0.W7. `ReturnToHand`
+- [x] `engine-resolve-actions` — `Destroy` resolves since P0.W7. `ReturnToHand`
   (selection → owner's hand from its current zone, [CR#400.7]), `Counter`
   (spell → owner's graveyard, [CR#701.6a]), and the `WillDestroy` intent now
   land. `WillDestroy` is the replaceable destruction event ([CR#701.8a]): the
