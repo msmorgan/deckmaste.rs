@@ -23,7 +23,7 @@ fn parse(line: &str, kind: CardKind) -> Option<String> {
     let body = line.strip_suffix('.').unwrap_or(line);
 
     if let Some((subj, pred)) = split_marker(body, &[" can't ", " cannot "]) {
-        return parse_restriction(subj, pred); // later task
+        return parse_restriction(subj, pred);
     }
     if let Some((subj, pred)) = split_marker(body, &[" gets ", " get "]) {
         return parse_pt(subj, pred);
@@ -154,19 +154,33 @@ fn parse_keyword_changes(pred: &str) -> Option<Vec<String>> {
         .collect()
 }
 
-/// Split a comma/"and"-separated list: "a, b, and c" / "a and b" → [a, b, c].
+/// Split a comma/"and"/"or"-separated list: "a, b, and c" / "a and b" /
+/// "a or b" → [a, b, c].
 fn split_list(s: &str) -> Vec<String> {
     s.replace(", and ", ", ")
         .replace(" and ", ", ")
+        .replace(" or ", ", ")
         .split(',')
         .map(|p| p.trim().to_string())
         .filter(|p| !p.is_empty())
         .collect()
 }
 
-// --- filled in later tasks ---
-fn parse_restriction(_subj: &str, _pred: &str) -> Option<String> {
-    None // later task
+/// "<subject> can't <action[ or action…]>" → one `Cant(<verb>)` per action.
+/// The subject is a bare `Filter` (Deontic actions carry `Filter`, not
+/// `Scope`). Any action outside the known verb set declines the whole.
+fn parse_restriction(subj: &str, pred: &str) -> Option<String> {
+    let filter = subject_to_filter(subj)?;
+    let effects: Option<Vec<String>> = split_list(pred)
+        .iter()
+        .map(|act| match act.to_ascii_lowercase().as_str() {
+            "attack" => Some(format!("Cant(Attack(by: {filter}, on: Any))")),
+            "block" => Some(format!("Cant(Block(by: {filter}, on: Any))")),
+            _ => None,
+        })
+        .collect();
+    let effects = effects?;
+    Some(format!("Static(effects: [{}])", effects.join(", ")))
 }
 
 #[cfg(test)]
@@ -238,6 +252,33 @@ mod tests {
                 "Static(effects: [Modify(of: Matching(AllOf([Creature, Controller(Ref(You))])), changes: [GainAbility(Keyword(Flying)), GainAbility(Keyword(Vigilance))])])"
             )
         );
+        assert_eq!(
+            stat("Creatures you control have flying, vigilance, and trample.").as_deref(),
+            Some(
+                "Static(effects: [Modify(of: Matching(AllOf([Creature, Controller(Ref(You))])), changes: [GainAbility(Keyword(Flying)), GainAbility(Keyword(Vigilance)), GainAbility(Keyword(Trample))])])"
+            )
+        );
+    }
+
+    #[test]
+    fn restriction_attack_block() {
+        assert_eq!(
+            stat("Enchanted creature can't attack or block.").as_deref(),
+            Some(
+                "Static(effects: [Cant(Attack(by: Ref(AttachHostOf(This)), on: Any)), Cant(Block(by: Ref(AttachHostOf(This)), on: Any))])"
+            )
+        );
+        assert_eq!(
+            stat("Creatures you control can't attack.").as_deref(),
+            Some(
+                "Static(effects: [Cant(Attack(by: AllOf([Creature, Controller(Ref(You))]), on: Any))])"
+            )
+        );
+    }
+
+    #[test]
+    fn restriction_declines_unknown_action() {
+        assert!(stat("Enchanted creature can't transform.").is_none());
     }
 
     #[test]
