@@ -1,0 +1,48 @@
+#!/usr/bin/env fish
+source (status dirname)/lib/setup.fish perl
+or return
+
+# Roots overridable for tests; default to this workspace's docs/tickets.
+set -q TODO_ROOT; or set -g TODO_ROOT "$project_dir/docs/tickets"
+set -q TODO_CENSUS; or set -g TODO_CENSUS "$TODO_ROOT/census.md"
+
+function __todo_usage
+    echo >&2 "\
+Usage: scripts/todo <command> [<slug>] [--slugs-only]
+  ready            Items whose every need is done (claimable now).
+  blocked          Items with at least one unmet, existing need.
+  graph SLUG       Upstream needs (recursive) + downstream blocks for SLUG.
+  check            Report dependency cycles and dangling needs. Exit 1 if any.
+  needs SLUG       Print SLUG's direct needs, one per line (ticket or census).
+  mint SLUG        Print a wip ticket file for a census SLUG (frontmatter+body)."
+    exit 2
+end
+
+set -l cmd $argv[1]
+set -e argv[1]
+set -l slugs_only ''
+if contains -- --slugs-only $argv
+    set slugs_only 1
+    set -e argv[(contains -i -- --slugs-only $argv)]
+end
+set -l slug $argv[1]
+
+# All graph work happens in one perl pass. It prints, per requested command, the
+# lines fish needs. Folder = status: a need is satisfied iff its target sits in done/.
+set -l perl_out (TODO_ROOT=$TODO_ROOT TODO_CENSUS=$TODO_CENSUS \
+    perl (status dirname)/lib/todo_graph.pl "$cmd" "$slug")
+or return 1
+
+if test -n "$slugs_only"
+    # Keep only the bare slug column (first whitespace token) of each line.
+    printf '%s\n' $perl_out | string replace -r '\s.*$' ''
+else
+    printf '%s\n' $perl_out
+end
+
+# `check` signals failure via a leading "FAIL" sentinel line from perl.
+if test "$cmd" = check
+    if string match -q 'FAIL*' -- $perl_out[1]
+        return 1
+    end
+end
