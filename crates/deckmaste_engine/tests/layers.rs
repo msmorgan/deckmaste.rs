@@ -196,6 +196,7 @@ fn negative_modify_lowers_power_and_toughness() {
 
     state.continuous.push(ContinuousEffect {
         timestamp: Timestamp(1_000),
+        controller: PlayerId(0),
         scope: ScopeResolved::Locked(vec![bear]),
         changes: vec![
             Modification::SubtractPower(Count::Literal(1)),
