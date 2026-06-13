@@ -26,6 +26,9 @@ pub enum Window {
     /// Since the start of the current turn (lookback: morbid, raid) or
     /// until its cleanup (timing containment) — reading per position.
     ThisTurn,
+    /// The whole current game so far (lookback: "a creature died this game",
+    /// "spells you've cast this game" [CR#608.2i]). Full history, every turn.
+    ThisGame,
     /// During the named player-relation's turn ([CR#500.1]).
     DuringTurn(WhoseTurn),
     /// During the named step/phase of the named player-relation's turn
@@ -95,6 +98,7 @@ mod tests {
         assert_eq!(read::<Window>("InstantSpeed"), Window::InstantSpeed);
         assert_eq!(read::<Window>("SorcerySpeed"), Window::SorcerySpeed);
         assert_eq!(read::<Window>("ThisTurn"), Window::ThisTurn);
+        assert_eq!(read::<Window>("ThisGame"), Window::ThisGame);
         assert_eq!(
             read::<Window>("DuringTurn(Your)"),
             Window::DuringTurn(WhoseTurn::Your),

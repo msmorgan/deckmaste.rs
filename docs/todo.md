@@ -170,6 +170,15 @@ in full.
   spells cast this turn (storm), lands played, life lost/gained, permanents
   that left, "entered this turn", attack/cast ordinals. The Tallies registry
   exists; wire it broadly and extend `Window` beyond ThisTurn.
+- [ ] `engine-history-filtered-counts` — a `Count` form for filtered historical
+  counts over the history log ("draw a card for each creature that died this
+  turn"). The `engine-history-tallies` log already retains the data; this is the
+  new grammar variant + eval arm, and wants its own design dialogue (object
+  cardinality vs. event tally vs. this).
+- [ ] `engine-history-tallies-cache` — optimization pass: reconstruct O(1) cached
+  counters for hot history queries (lands/draws/storm) on top of the
+  `engine-history-tallies` log, which stays the source of truth. Deferred from
+  that slice (deleted the old `Tally` struct rather than keep dual bookkeeping).
 
 ### Layers and continuous effects (`layer.rs` seams)
 
