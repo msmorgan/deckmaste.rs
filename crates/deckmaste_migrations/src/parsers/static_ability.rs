@@ -64,6 +64,9 @@ fn subject_to_filter(subj: &str) -> Option<String> {
 }
 
 /// `Ref(r)` filter → `Of(r)` scope; any class filter → `Matching(filter)`.
+// `parse_phrase` always leads with a head-noun atom, so a top-level `Ref(` here
+// can only be our own `subject_to_filter` self-refs (`~`/enchanted); class
+// subjects take the `Matching(...)` branch.
 fn filter_to_scope(f: &str) -> String {
     if let Some(inner) = f.strip_prefix("Ref(").and_then(|x| x.strip_suffix(')')) {
         format!("Of({inner})")
@@ -101,6 +104,8 @@ fn parse_pt_changes(s: &str) -> Option<Vec<String>> {
 
 fn signed(tok: &str) -> Option<(&'static str, u32)> {
     let tok = tok.trim();
+    // std u32::parse tolerates a leading '+', so "++1" would collapse to +1;
+    // harmless — oracle text never produces it.
     if let Some(n) = tok.strip_prefix('+') {
         Some(("Add", n.parse().ok()?))
     } else if let Some(n) = tok.strip_prefix('-') {
@@ -126,13 +131,40 @@ fn strip_prefix_ci<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
         .map(|_| &s[prefix.len()..])
 }
 
+fn parse_grant(subj: &str, pred: &str) -> Option<String> {
+    let filter = subject_to_filter(subj)?;
+    let changes = parse_keyword_changes(pred)?;
+    Some(format!(
+        "Static(effects: [Modify(of: {}, changes: [{}])])",
+        filter_to_scope(&filter),
+        changes.join(", ")
+    ))
+}
+
+/// "flying", "flying and haste", "flying, vigilance, and trample" → one
+/// `GainAbility` per keyword. Any unknown / parameterized word declines the
+/// whole.
+fn parse_keyword_changes(pred: &str) -> Option<Vec<String>> {
+    split_list(pred)
+        .iter()
+        .map(|kw| {
+            crate::parsers::keyword_ability::match_keyword_name(kw)
+                .map(|name| format!("GainAbility(Keyword({name}))"))
+        })
+        .collect()
+}
+
+/// Split a comma/"and"-separated list: "a, b, and c" / "a and b" → [a, b, c].
+fn split_list(s: &str) -> Vec<String> {
+    s.replace(", and ", ", ")
+        .replace(" and ", ", ")
+        .split(',')
+        .map(|p| p.trim().to_string())
+        .filter(|p| !p.is_empty())
+        .collect()
+}
+
 // --- filled in later tasks ---
-fn parse_grant(_subj: &str, _pred: &str) -> Option<String> {
-    None // later task
-}
-fn parse_keyword_changes(_pred: &str) -> Option<Vec<String>> {
-    None // later task
-}
 fn parse_restriction(_subj: &str, _pred: &str) -> Option<String> {
     None // later task
 }
@@ -189,6 +221,49 @@ mod tests {
             resolve_line("Creatures you control get +1/+1.", CardKind::Spell)
                 .unwrap()
                 .is_none()
+        );
+    }
+
+    #[test]
+    fn grant_single_and_list() {
+        assert_eq!(
+            stat("Other Goblins have haste.").as_deref(),
+            Some(
+                "Static(effects: [Modify(of: Matching(AllOf([Subtype(\"Goblin\"), Not(Ref(This))])), changes: [GainAbility(Keyword(Haste))])])"
+            )
+        );
+        assert_eq!(
+            stat("Creatures you control have flying and vigilance.").as_deref(),
+            Some(
+                "Static(effects: [Modify(of: Matching(AllOf([Creature, Controller(Ref(You))])), changes: [GainAbility(Keyword(Flying)), GainAbility(Keyword(Vigilance))])])"
+            )
+        );
+    }
+
+    #[test]
+    fn grant_combo_with_pt() {
+        assert_eq!(
+            stat("Other Goblins get +1/+1 and have mountainwalk.").as_deref(),
+            Some(
+                "Static(effects: [Modify(of: Matching(AllOf([Subtype(\"Goblin\"), Not(Ref(This))])), changes: [AddPower(Literal(1)), AddToughness(Literal(1)), GainAbility(Keyword(Mountainwalk))])])"
+            )
+        );
+    }
+
+    #[test]
+    fn grant_declines() {
+        // unknown keyword
+        assert!(stat("Creatures you control have wibble.").is_none());
+        // parameterized keyword (leftover) — deferred to macro-keyword-templates
+        assert!(stat("Creatures you control have protection from red.").is_none());
+        // durational gain
+        assert!(
+            resolve_line(
+                "Creatures you control gain trample until end of turn.",
+                CardKind::Permanent
+            )
+            .unwrap()
+            .is_none()
         );
     }
 }

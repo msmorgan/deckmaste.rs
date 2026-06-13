@@ -230,7 +230,7 @@ const KEYWORD_NAMES: &[&str] = &[
 /// explicitly, and non-intrinsic names resolve (or stay todo) inside the
 /// `KeywordAbility` position's macro namespace.
 fn bare_keyword(token: &str) -> anyhow::Result<Option<String>> {
-    let Some(name) = match_keyword_name(token) else {
+    let Some(name) = match_keyword_prefix(token) else {
         return Ok(None);
     };
     let arg = token[name.len()..].trim();
@@ -253,7 +253,7 @@ pub(crate) fn resolve_line(line: &str, _kind: CardKind) -> anyhow::Result<Option
     if !chained.is_empty()
         && chained
             .iter()
-            .all(|piece| match_keyword_name(piece).is_some())
+            .all(|piece| match_keyword_prefix(piece).is_some())
     {
         return Ok(None);
     }
@@ -262,7 +262,7 @@ pub(crate) fn resolve_line(line: &str, _kind: CardKind) -> anyhow::Result<Option
 
 /// The longest `KEYWORD_NAMES` entry that prefixes `token` (case-insensitive)
 /// at a word boundary (followed by a space, em-dash, or end).
-fn match_keyword_name(token: &str) -> Option<&'static str> {
+fn match_keyword_prefix(token: &str) -> Option<&'static str> {
     let lower = token.to_ascii_lowercase();
     KEYWORD_NAMES
         .iter()
@@ -275,6 +275,18 @@ fn match_keyword_name(token: &str) -> Option<&'static str> {
                 })
         })
         .max_by_key(|name| name.len())
+}
+
+/// Whole-phrase, case-insensitive match against the keyword catalog → the
+/// `Keyword(...)` ident form. Used by the static-ability grant family
+/// ("… have flying"). A phrase with leftover (e.g. "protection from red", a
+/// parameterized keyword) does NOT match here — the grant family declines it.
+pub(crate) fn match_keyword_name(phrase: &str) -> Option<String> {
+    let phrase = phrase.trim();
+    KEYWORD_NAMES
+        .iter()
+        .find(|name| name.eq_ignore_ascii_case(phrase))
+        .map(|name| to_rust_ident(name))
 }
 
 /// Argument-shape render. `None` declines (the card stays a todo).
