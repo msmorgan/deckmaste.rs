@@ -272,22 +272,18 @@ impl GameState {
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
-            // [CR#701.8a]: destroy = battlefield → graveyard, cause-tagged
-            // so the "destroyed" named view can narrow by verb ([CR#701.8b]
-            // — this verb or the lethal-damage SBA are its only two
-            // causes). Regeneration/indestructible ride the shaped-unbuilt
-            // `WillDestroy` intent (seam); destruction is direct until then.
+            // [CR#701.8a]: destroy = battlefield → graveyard, through the
+            // replaceable `WillDestroy` intent so indestructible /
+            // regeneration can intercede ([CR#702.12b]); its apply commits
+            // the zone move when nothing replaces it. The cause names the
+            // verb so the "destroyed" named view can narrow by it ([CR#701.8b]
+            // — this verb or the lethal-damage SBA are its only two causes).
             Action::Destroy(sel) => {
                 let events: Vec<GameEvent> = self
                     .eval_selection_set(sel, frame)
                     .into_iter()
-                    .map(|object| GameEvent::ZoneWillChange {
+                    .map(|object| GameEvent::WillDestroy {
                         object,
-                        from: Some(Zone::Battlefield),
-                        to: Zone::Graveyard,
-                        enters: None,
-                        position: None,
-                        face: None,
                         cause: Some(Cause {
                             verb: "Destroy".into(),
                             agency: Agency::EffectInstruction,
@@ -1060,6 +1056,78 @@ mod tests {
         state.objects.obj_mut(bear).zone = Some(Zone::Battlefield);
         state.zones.battlefield.push(bear);
         (state, bear)
+    }
+
+    /// A two-player game with player 0's deck = Darksteel Myr (an
+    /// indestructible 0/1), one forced onto the battlefield.
+    fn myr_on_field() -> (GameState, ObjectId) {
+        let myr = Arc::new(canon().card("Darksteel Myr").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig { deck: deck(&myr, 10) },
+                PlayerConfig { deck: deck(&forest, 10) },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        });
+        let m = *state.zones.hands[0]
+            .iter()
+            .find(|&&o| {
+                obj_matches(
+                    &state,
+                    o,
+                    &Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                )
+            })
+            .expect("a Darksteel Myr in the opening hand");
+        state.zones.hands[PlayerId(0).index()].retain(|&o| o != m);
+        state.objects.obj_mut(m).zone = Some(Zone::Battlefield);
+        state.zones.battlefield.push(m);
+        (state, m)
+    }
+
+    /// [CR#702.12b]: an indestructible permanent can't be destroyed — the
+    /// `Destroy` action's `WillDestroy` intent finds the destruction-replacement
+    /// static and is replaced to nothing, so the Myr stays on the battlefield.
+    #[test]
+    fn indestructible_survives_destroy_action() {
+        let (mut state, myr) = myr_on_field();
+        let frame = Frame {
+            source: myr,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+        state.run_effect(Effect::Act(Action::Destroy(sel_this())), &frame);
+        // WillDestroy applies and schedules no zone move (replaced to nothing).
+        let _ = state.step();
+        assert!(state.objects.get(myr).is_some(), "indestructible object still exists");
+        assert!(state.zones.battlefield.contains(&myr), "still on the battlefield");
+        assert!(state.zones.graveyards[0].is_empty(), "not destroyed");
+    }
+
+    /// A destructible creature still dies: `Destroy` → `WillDestroy` (nothing
+    /// replaces it) → `ZoneWillChange(Battlefield → Graveyard)` → `ZoneChanged`,
+    /// reminting it into its owner's graveyard.
+    #[test]
+    fn destroy_action_sends_a_normal_creature_to_its_graveyard() {
+        let (mut state, bear) = bear_on_field();
+        let frame = Frame {
+            source: bear,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+        state.run_effect(Effect::Act(Action::Destroy(sel_this())), &frame);
+        // WillDestroy → ZoneWillChange → ZoneChanged.
+        for _ in 0..3 {
+            let _ = state.step();
+        }
+        assert!(state.objects.get(bear).is_none(), "old battlefield id gone");
+        assert!(!state.zones.battlefield.contains(&bear));
+        assert_eq!(state.zones.graveyards[0].len(), 1);
     }
 
     #[test]

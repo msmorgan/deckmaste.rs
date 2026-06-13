@@ -32,39 +32,58 @@ fn deontic_action(d: &Deontic) -> &DeonticAction {
 /// matching `pred` — looking through static-ability effect lists, keyword
 /// composites (flying's evasion `Cant` lives inside `Keyword(Composite)`),
 /// and macro `Expanded` wrappers at every level.
+fn in_ability<F: Fn(&StaticEffect) -> bool>(a: &Ability, pred: &F) -> bool {
+    match a {
+        Ability::Static(s) => s.effects.iter().any(|e| in_static(e, pred)),
+        Ability::Keyword(k) => in_keyword(k, pred),
+        Ability::Expanded(e) => in_ability(&e.value, pred),
+        _ => false,
+    }
+}
+fn in_keyword<F: Fn(&StaticEffect) -> bool>(k: &KeywordAbility, pred: &F) -> bool {
+    match k {
+        KeywordAbility::Composite { abilities, .. } => abilities.iter().any(|a| in_ability(a, pred)),
+        KeywordAbility::Expanded(e) => in_keyword(&e.value, pred),
+        _ => false,
+    }
+}
+fn in_static<F: Fn(&StaticEffect) -> bool>(e: &StaticEffect, pred: &F) -> bool {
+    match e {
+        StaticEffect::Expanded(x) => in_static(&x.value, pred),
+        other => pred(other),
+    }
+}
+
+/// Whether `id`'s derived view carries any static matching `pred`, looking
+/// through composites and macro `Expanded` wrappers at every level.
+pub(crate) fn object_has_static<F: Fn(&StaticEffect) -> bool>(
+    view: &LayeredView,
+    id: ObjectId,
+    pred: &F,
+) -> bool {
+    view.get(id).abilities.iter().any(|a| in_ability(a, pred))
+}
+
 pub(crate) fn statics_present<F: Fn(&StaticEffect) -> bool>(
     state: &GameState,
     view: &LayeredView,
     pred: F,
 ) -> bool {
-    fn in_ability<F: Fn(&StaticEffect) -> bool>(a: &Ability, pred: &F) -> bool {
-        match a {
-            Ability::Static(s) => s.effects.iter().any(|e| in_static(e, pred)),
-            Ability::Keyword(k) => in_keyword(k, pred),
-            Ability::Expanded(e) => in_ability(&e.value, pred),
-            _ => false,
-        }
-    }
-    fn in_keyword<F: Fn(&StaticEffect) -> bool>(k: &KeywordAbility, pred: &F) -> bool {
-        match k {
-            KeywordAbility::Composite { abilities, .. } => {
-                abilities.iter().any(|a| in_ability(a, pred))
-            }
-            KeywordAbility::Expanded(e) => in_keyword(&e.value, pred),
-            _ => false,
-        }
-    }
-    fn in_static<F: Fn(&StaticEffect) -> bool>(e: &StaticEffect, pred: &F) -> bool {
-        match e {
-            StaticEffect::Expanded(x) => in_static(&x.value, pred),
-            other => pred(other),
-        }
-    }
     state
         .zones
         .battlefield
         .iter()
-        .any(|&id| view.get(id).abilities.iter().any(|a| in_ability(a, &pred)))
+        .any(|&id| object_has_static(view, id, &pred))
+}
+
+/// Whether `id` carries a static that replaces its DESTRUCTION — indestructible
+/// ([CR#702.12b]), or a regeneration shield once those exist. The `WillDestroy`
+/// apply drops the destroy when it does; the lethal-damage SBA routes through
+/// the same intent so it, too, spares such permanents ([CR#704.5g]).
+pub(crate) fn replaced_from_destruction(view: &LayeredView, id: ObjectId) -> bool {
+    object_has_static(view, id, &|s| {
+        matches!(s, StaticEffect::Replacement(r) if replaces_destruction(r))
+    })
 }
 
 /// Whether a replacement row replaces DESTRUCTION — an `Instead` whose

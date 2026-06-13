@@ -11,11 +11,11 @@ use crate::event::GameEvent;
 use crate::event::LossReason;
 use crate::state::GameState;
 
-/// One sweep ([CR#704.3]): the `PlayerLost` and `ZoneWillChange`
-/// (battlefield→graveyard) events this check would perform. The caller emits
-/// them and re-checks until a sweep comes back empty. The LKI snapshot for a
-/// destroy is captured later, at the will-change apply (the object is still
-/// live then), not here.
+/// One sweep ([CR#704.3]): the `PlayerLost`, `WillDestroy` (the replaceable
+/// destruction intent), and `TokenCeased` events this check would perform. The
+/// caller emits them and re-checks until a sweep comes back empty. A destroy's
+/// LKI snapshot is captured later, at the will-change apply the `WillDestroy`
+/// resolves into (the object is still live then), not here.
 #[must_use]
 pub fn sweep(state: &GameState) -> Vec<GameEvent> {
     let mut actions = Vec::new();
@@ -97,30 +97,16 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
             }
         }
     }
-    // kw-indestructible presence guard: a destroy-replacement row in the
-    // derived view ("would be destroyed → nothing instead") must stop the
-    // sweep LOUDLY — replacements are unapplied (stage-4 seam), and
-    // destroying through one silently would be wrong, not just incomplete.
-    if !to_destroy.is_empty()
-        && crate::legal::statics_present(state, &view, |s| {
-            matches!(s, deckmaste_core::StaticEffect::Replacement(r)
-                if crate::legal::replaces_destruction(r))
-        })
-    {
-        todo!("kw-indestructible: destroy-replacement window ([CR#702.12b])");
-    }
     for id in to_destroy {
-        // Destroy. The LKI snapshot is captured at the will-change apply
-        // while the object is still live ([CR#400.7]). The cause names the
-        // verb: lethal-damage destruction is one of "destroyed"'s exactly
-        // two causes ([CR#701.8b]), so the named view can narrow on it.
-        actions.push(GameEvent::ZoneWillChange {
+        // Destroy through the replaceable `WillDestroy` intent so indestructible
+        // / regeneration can intercede ([CR#702.12b]): its apply checks the
+        // object's destruction-replacement statics and either spares it or
+        // commits the battlefield→graveyard move (capturing LKI then,
+        // [CR#400.7]). The cause names the verb — lethal-damage destruction is
+        // one of "destroyed"'s exactly two causes ([CR#701.8b]), so the named
+        // view can narrow on it.
+        actions.push(GameEvent::WillDestroy {
             object: id,
-            from: Some(Zone::Battlefield),
-            to: Zone::Graveyard,
-            enters: None,
-            position: None,
-            face: None,
             cause: Some(crate::event::Cause {
                 verb: "Destroy".into(),
                 agency: deckmaste_core::Agency::StateBasedAction,
@@ -225,32 +211,77 @@ mod tests {
         (state, bear)
     }
 
+    /// Player 0's deck = Darksteel Myr (indestructible 0/1), one on the field.
+    fn myr_on_field() -> (GameState, crate::object::ObjectId) {
+        let myr = Arc::new(canon().card("Darksteel Myr").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig { deck: deck(&myr, 10) },
+                PlayerConfig { deck: deck(&forest, 10) },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        });
+        let m = *state.zones.hands[0]
+            .iter()
+            .find(|&&o| {
+                obj_matches(
+                    &state,
+                    o,
+                    &Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(
+                        Type::Creature,
+                    )),
+                )
+            })
+            .expect("a Darksteel Myr in the opening hand");
+        state.zones.hands[PlayerId(0).index()].retain(|&o| o != m);
+        state.objects.obj_mut(m).zone = Some(Zone::Battlefield);
+        state.zones.battlefield.push(m);
+        (state, m)
+    }
+
+    /// [CR#704.5g,702.12b]: an indestructible creature with lethal damage is
+    /// NOT destroyed by the SBA — the sweep emits a `WillDestroy`, and its
+    /// apply finds the destruction-replacement static and replaces the destroy
+    /// to nothing. The Myr stays on the battlefield.
+    #[test]
+    fn indestructible_survives_lethal_damage() {
+        let (mut state, myr) = myr_on_field();
+        state.objects.obj_mut(myr).damage = 1; // toughness 1 → lethal
+        let actions = sba::sweep(&state);
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(actions))]);
+        let _ = state.step(); // WillDestroy applies → replaced to nothing
+        assert!(
+            state.objects.get(myr).is_some(),
+            "indestructible survives lethal damage"
+        );
+        assert!(state.zones.battlefield.contains(&myr));
+        assert!(state.zones.graveyards[0].is_empty(), "not destroyed");
+    }
+
     #[test]
     fn lethal_damage_destroys_a_creature_in_the_sba_sweep() {
         let (mut state, bear) = bear_on_field();
 
         // Grizzly Bears has toughness 2; set lethal damage. The sweep emits
-        // the destroy as a battlefield→graveyard ZoneWillChange (no snapshot —
-        // captured later, at the will-change apply), cause-tagged as the
-        // SBA destruction verb ([CR#701.8b]).
+        // the destroy as a replaceable `WillDestroy` intent (its apply commits
+        // the battlefield→graveyard move when nothing replaces it), cause-tagged
+        // as the SBA destruction verb ([CR#701.8b]).
         state.objects.obj_mut(bear).damage = 2;
         let actions = sba::sweep(&state);
         assert!(
             actions.iter().any(|e| matches!(
                 e,
-                GameEvent::ZoneWillChange {
+                GameEvent::WillDestroy {
                     object,
-                    from: Some(Zone::Battlefield),
-                    to: Zone::Graveyard,
-                    enters: None,
-                    position: None,
-                    face: None,
                     cause: Some(c),
                 } if *object == bear
                     && c.verb == deckmaste_core::Ident::from("Destroy")
                     && c.agency == deckmaste_core::Agency::StateBasedAction
             )),
-            "sweep should include a battlefield→graveyard ZoneWillChange for Grizzly Bears at lethal damage"
+            "sweep should include a WillDestroy for Grizzly Bears at lethal damage"
         );
 
         // Sublethal: damage = 1 < toughness 2.
@@ -259,7 +290,7 @@ mod tests {
         assert!(
             actions
                 .iter()
-                .all(|e| !matches!(e, GameEvent::ZoneWillChange { .. })),
+                .all(|e| !matches!(e, GameEvent::WillDestroy { .. })),
             "sweep should NOT include a destroy for Grizzly Bears at sublethal damage"
         );
     }
@@ -398,6 +429,8 @@ mod tests {
         state.objects.obj_mut(bear).damage = 2;
         let actions = sba::sweep(&state);
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(actions))]);
+        // WillDestroy applies (nothing replaces it) → ZoneWillChange remints.
+        let _ = state.step();
         let _ = state.step();
         assert!(
             state.objects.get(bear).is_none(),
