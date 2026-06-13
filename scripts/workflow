@@ -17,8 +17,8 @@ Usage: $(status filename) <command> [<args>]
     claim TODO           Claim a todo item and start a workspace named TODO.
     start NAME           Spin up an ad-hoc workspace named NAME, with no todo to claim.
     abandon WORKSPACE    Abandon WORKSPACE and forget its todo claim.
-    refresh WORKSPACE    Rebase the root of WORKSPACE onto default@-.
-    integrate WORKSPACE  Refresh and forget WORKSPACE, then rebase @ to where WORKSPACE@ was.
+    refresh WORKSPACE    Reorder WORKSPACE's claim commit to sit just under default@.
+    integrate WORKSPACE  Refresh, fold WORKSPACE's work into default@, then drop the workspace.
 "
     exit 2
 end
@@ -27,13 +27,41 @@ if not set -q argv[1]
     __workflow_usage
 end
 
+# Mark NAME's todo in-progress ([ ] -> [/]). `[/]` is a non-standard "indeterminate"
+# glyph (Obsidian-style); fine for this local catalog, not a real GFM checkbox.
 function __claim_todo
     set name $argv[1]
     set -l todo "$project_dir/docs/todo.md"
     # Literal (non-regex) match, so $name needs no escaping; string replace
     # returns non-zero when nothing matched, which fails the claim on a typo.
-    set -l ticked (string replace -- "- [ ] `$name`" "- [x] `$name`" <$todo)
+    set -l ticked (string replace -- "- [ ] `$name`" "- [/] `$name`" <$todo)
     and printf '%s\n' $ticked >$todo
+end
+
+# Finish NAME's todo ([/] -> [x]). Tolerant: an ad-hoc `start`ed feature has no
+# in-progress box, so a no-match is success (nothing to finish), not failure.
+function __check_todo
+    set name $argv[1]
+    set -l todo "$project_dir/docs/todo.md"
+    set -l checked (string replace -- "- [/] `$name`" "- [x] `$name`" <$todo)
+    or return 0
+    printf '%s\n' $checked >$todo
+end
+
+# Retire a workspace dir into a sibling bucket instead of deleting it. Symlinks
+# break (fine — gc the bucket later), but nothing is destroyed.
+function __retire_ws --argument-names ws_dir bucket
+    test -d "$ws_dir"; or return 0
+    set -l dest (path dirname $project_dir)/$bucket
+    mkdir -p $dest
+    set -l base (path basename $ws_dir)
+    set -l target $dest/$base
+    set -l n 1
+    while test -e $target
+        set target $dest/$base.$n
+        set n (math $n + 1)
+    end
+    mv "$ws_dir" $target
 end
 
 # Spin up a NAME-bookmarked base commit on default@- with a ../NAME workspace on
@@ -44,6 +72,10 @@ function __workflow_start
     or return
 
     set name $argv[1]
+    test -n "$name"; or begin
+        echo >&2 "$(status filename): a workspace NAME is required."
+        return 2
+    end
     set ws_dir (path dirname $project_dir)/$name
     set savepoint (jj op log -G -n1 -T 'id.short()')
 
@@ -72,18 +104,31 @@ end
 function __workflow_abandon
     set name $argv[1]
     set ws_dir (jj workspace root --name "$name"); or return 1
+    # Capture both targets by change-id up front: the claim commit (before
+    # `bookmark forget` drops NAME) and the feature-stack root (same revset refresh
+    # uses, before `workspace forget` dissolves NAME@). Guard the root — an empty
+    # "$root":: would expand to `::` and abandon the entire repo.
+    set claim (jj log --no-graph -r "$name" -T 'change_id.short()'); or return 1
+    set root (jj log --no-graph -r "roots(children($name) & ::$name@)" -T 'change_id.short()'); or return 1
+    test -n "$root"; or begin
+        echo >&2 "$(status filename): could not locate $name's feature root."
+        return 1
+    end
     set savepoint (jj op log -G -n1 -T 'id.short()')
 
     begin
+        # Abandon the claim commit AND its feature stack ("$root"::), but not the
+        # default line — abandoning the claim reparents that onto the claim's parent.
         jj workspace forget "$name"
-        and jj abandon "$name"
+        and jj bookmark forget "$name"
+        and jj abandon "$claim" "$root"::
     end
     or begin
         echo >&2 "Failed... restoring to $savepoint"
         jj op restore "$savepoint"
         return 1
     end
-    test -d "$ws_dir"; and rm -rf "$ws_dir"
+    __retire_ws "$ws_dir" .abandoned
 end
 
 function __workflow_refresh
@@ -93,6 +138,10 @@ function __workflow_refresh
     # workspace WC itself when no feature commits exist yet). Capture it before the
     # move — its change id survives the rebase even though the commit id won't.
     set root (jj log --no-graph -r "roots(children($name) & ::$name@)" -T 'change_id.short()'); or return 1
+    test -n "$root"; or begin
+        echo >&2 "$(status filename): could not locate $name's feature root."
+        return 1
+    end
     set savepoint (jj op log -G -n1 -T 'id.short()')
 
     begin
@@ -110,25 +159,50 @@ function __workflow_refresh
         jj op restore "$savepoint"
         return 1
     end
+
+    # A rebase conflict is NOT a failure — jj records it and the rebase exits 0.
+    # It's now materialized in the workspace; leave it there to resolve and report
+    # exit 2 so integrate won't fold a conflict into default@. Do NOT roll back.
+    set -l conflicted (jj log --no-graph -r "$root:: & conflicts()" -T 'change_id.short() ++ "\n"')
+    if test -n "$conflicted"
+        echo >&2 "$(status filename): $name now conflicts with default@ — resolve it in $ws_dir, then re-run."
+        return 2
+    end
 end
 
 function __integrate_steps
     set name $argv[1]
     # Refresh first (reorder the claim under default@, feature stack + workspace
-    # carried), then fold: move default's @ into the spot the workspace's working
-    # copy held (onto the feature tip), and drop that now-orphaned WC — `forget`
-    # leaves it behind, so we abandon it, but only if empty, never silently
-    # discarding uncommitted work. The claim commit stays in default@'s history.
+    # carried). Propagate its status verbatim: 2 = it left a conflict in the
+    # workspace, so we must NOT fold — bail with the same code, no rollback.
     __workflow_refresh "$name"
-    and set wc (jj log --no-graph -r "$name"@ -T 'change_id')
-    and jj rebase -r @ -d "$name"@-
-    and jj workspace forget "$name"
-    and if test (jj log --no-graph -r "$wc" -T 'empty') = true
-        jj abandon "$wc"
-    else
-        echo >&2 "$(status filename): $name has uncommitted changes ($wc); commit or abandon them first."
-        return 1
+    set -l rc $status
+    test $rc -eq 0; or return $rc
+
+    # The workspace WC must be committed (empty) before folding its work into
+    # default@. A dirty WC isn't a failure to undo — stop and let the user act (2).
+    if not jj log --no-graph -r "$name"@ -T 'empty' | string match -q true
+        echo >&2 "$(status filename): $name has uncommitted work — commit or abandon it in its workspace, then re-integrate."
+        return 2
     end
+
+    # Fold: move default's @ onto the feature tip, finish the todo as the final
+    # commit. `jj workspace forget` is the point of no return — op restore can't
+    # un-forget — so it runs LAST, after every fail-able step. A failure before it
+    # rolls back cleanly; forget itself then drops the now-empty WC for us.
+    set -l orphan (jj log --no-graph -r "$name"@ -T 'change_id.short()'); or return 1
+    jj rebase -r @ -d "$name"@-; or return 1
+    __check_todo "$name"; or return 1
+    if jj log --no-graph -r @ -T 'empty' | string match -q false
+        jj commit -m "complete $name"; or return 1
+    end
+    jj workspace forget "$name"; or return 1
+    # forget already drops the empty WC; clean up only if it somehow survived, and
+    # never let that become a post-forget failure (op restore can't un-forget).
+    if jj log --no-graph -r "$orphan" >/dev/null 2>&1
+        jj abandon "$orphan"
+    end
+    return 0
 end
 
 function __workflow_integrate
@@ -136,12 +210,20 @@ function __workflow_integrate
     set ws_dir (jj workspace root --name "$name"); or return 1
     set savepoint (jj op log -G -n1 -T 'id.short()')
 
-    if not __integrate_steps "$name"
-        echo >&2 "Failed... restoring to $savepoint"
-        jj op restore "$savepoint"
-        return 1
+    __integrate_steps "$name"
+    set -l rc $status
+    switch $rc
+        case 0
+            __retire_ws "$ws_dir" .integrated
+        case 2
+            # Expected stop (conflict or uncommitted work) — state left in place for
+            # the user to resolve. Do NOT roll back.
+            return 2
+        case '*'
+            echo >&2 "Failed... restoring to $savepoint"
+            jj op restore "$savepoint"
+            return 1
     end
-    test -d "$ws_dir"; and rm -rf "$ws_dir"
 end
 
 switch $argv[1]
