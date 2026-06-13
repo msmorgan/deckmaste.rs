@@ -187,7 +187,7 @@ in full.
 
 ### Layers and continuous effects (`layer.rs` seams)
 
-- [ ] `engine-layers-1-3` — layer 1 copy, layer 2 control change, layer 3 text
+- [/] `engine-layers-1-3` — layer 1 copy, layer 2 control change, layer 3 text
   change; face-down characteristics; dependency ordering [CR#613.8].
 - [ ] `engine-layers-misc` — condition evaluation on static abilities, Of/These
   scope resolution (currently locked empty), subtype changes in layer 4 with
