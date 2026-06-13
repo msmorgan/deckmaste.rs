@@ -13,26 +13,36 @@ use deckmaste_core::Uint;
 use deckmaste_core::Window;
 use deckmaste_core::Zone;
 
-use crate::object::ObjectSource;
 use crate::player::PlayerId;
+use crate::stack::Frame;
 use crate::state::GameState;
 
 impl GameState {
-    /// Evaluate a `Condition` against the current game state, where `you` is
-    /// the evaluating player (the ability's controller — the "you" of
-    /// `YourTurn` and similar self-referential conditions).
+    /// Evaluate a `Condition` against the current game state in `frame` — the
+    /// resolution context whose `controller` is the evaluating player (the
+    /// "you" of `YourTurn` and similar) and whose bindings/targets resolve the
+    /// references a `Condition::Is` reads.
     ///
-    /// `you` is the ability's controller *at the moment of evaluation* — the
-    /// activating player at gate time ([CR#602.5b]), or the stack entry's
-    /// controller at resolution for an intervening-if ([CR#603.4]).
-    pub(crate) fn condition_holds(&self, cond: &Condition, you: PlayerId) -> bool {
+    /// One evaluator serves every site: the activation gate ([CR#602.5b]) and
+    /// the trigger-fire gate build a minimal frame from what is known then (no
+    /// targets), and the resolution recheck of an intervening-if ([CR#603.4])
+    /// passes the resolving entry's full frame.
+    pub(crate) fn condition_holds(&self, cond: &Condition, frame: &Frame) -> bool {
+        let you = frame.controller;
         match cond {
             // "if you control a creature" / "if a creature is on the battlefield"
             Condition::Exists(filter) => !crate::target::candidates(self, filter).is_empty(),
 
-            // "if it is a [filter]" — Is(ref, filter): look up the ref and test.
-            // Not reached by any Stage-3 fixture; wired as a seam.
-            Condition::Is(_, _) => todo!("stage 3 does not evaluate Condition::Is"),
+            // "if it is a [filter]" ([CR#603.4], "if it's a …"): resolve the
+            // reference to a live object and test the filter, anchoring
+            // `Ref(This)`/`Ref(You)` inside it to the ability's source. A
+            // snapshot-bound reference (e.g. `ThatObject` for an object that
+            // already left) rides `eval_reference`'s reference-breadth seam
+            // (`engine-resolve-selections`).
+            Condition::Is(reference, filter) => {
+                let object = self.eval_reference(reference, frame);
+                self.filter_matches_live(filter, object, self.frame_watcher(frame))
+            }
 
             // Numeric comparison.
             Condition::Compare(a, op, b) => {
@@ -47,20 +57,19 @@ impl GameState {
                 }
             }
 
-            Condition::AllOf(cs) => cs.iter().all(|c| self.condition_holds(c, you)),
-            Condition::OneOf(cs) => cs.iter().any(|c| self.condition_holds(c, you)),
-            Condition::Not(c) => !self.condition_holds(c, you),
+            Condition::AllOf(cs) => cs.iter().all(|c| self.condition_holds(c, frame)),
+            Condition::OneOf(cs) => cs.iter().any(|c| self.condition_holds(c, frame)),
+            Condition::Not(c) => !self.condition_holds(c, frame),
 
             // Look through a macro.
-            Condition::Expanded(e) => self.condition_holds(&e.value, you),
+            Condition::Expanded(e) => self.condition_holds(&e.value, frame),
 
             // "[event] happened within [window]" ([CR#608.2i]): scan the
             // history log for any recorded fact matching the pattern, reusing
-            // the trigger event-matcher. "You" binds via the player proxy;
-            // `Ref(This)` in the pattern's filter has no source object in a
-            // bare condition context — a flagged seam, rare in history reads.
+            // the trigger event-matcher. The frame's source anchors a
+            // `Ref(This)` in the pattern's filter ([CR#603.10a]).
             Condition::Happened { event, within } => {
-                let watcher = ObjectSource::Player(you);
+                let watcher = self.frame_watcher(frame);
                 match within {
                     Window::ThisTurn | Window::ThisGame => self
                         .history
@@ -130,6 +139,7 @@ mod tests {
     use deckmaste_core::Event;
     use deckmaste_core::Filter;
     use deckmaste_core::Phase;
+    use deckmaste_core::Reference;
     use deckmaste_core::StateFilter;
     use deckmaste_core::Type;
     use deckmaste_core::Window;
@@ -139,10 +149,12 @@ mod tests {
     use crate::lki::LkiSnapshot;
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
+    use crate::stack::Frame;
     use crate::state::GameConfig;
     use crate::state::GameState;
     use crate::state::PlayerConfig;
     use crate::state::StartingPlayer;
+    use crate::trigger::TriggerBindings;
 
     fn game() -> GameState {
         GameState::new(GameConfig {
@@ -151,6 +163,18 @@ mod tests {
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
         })
+    }
+
+    /// A minimal player-anchored frame (no bindings, no targets) — the
+    /// gate-time shape, enough to evaluate the context-free conditions these
+    /// unit tests exercise.
+    fn frame_for(state: &GameState, player: PlayerId) -> Frame {
+        Frame {
+            source: state.player(player).object,
+            controller: player,
+            targets: Vec::new(),
+            bindings: None,
+        }
     }
 
     fn builtin() -> Plugin {
@@ -221,30 +245,209 @@ mod tests {
 
         // No death yet → false.
         assert!(
-            !state.condition_holds(&morbid, PlayerId(0)),
+            !state.condition_holds(&morbid, &frame_for(&state, PlayerId(0))),
             "no death recorded yet"
         );
 
         // Record the death this turn → ThisTurn and ThisGame both hold.
         state.history.record(1, death);
         assert!(
-            state.condition_holds(&morbid, PlayerId(0)),
+            state.condition_holds(&morbid, &frame_for(&state, PlayerId(0))),
             "morbid holds after a creature dies this turn"
         );
         assert!(
-            state.condition_holds(&morbid_game, PlayerId(0)),
+            state.condition_holds(&morbid_game, &frame_for(&state, PlayerId(0))),
             "ThisGame sees this turn's death too"
         );
 
         // Advance a turn: ThisTurn no longer sees it; ThisGame still does.
         state.turn.turn_number = 2;
         assert!(
-            !state.condition_holds(&morbid, PlayerId(0)),
+            !state.condition_holds(&morbid, &frame_for(&state, PlayerId(0))),
             "ThisTurn no longer sees last turn's death"
         );
         assert!(
-            state.condition_holds(&morbid_game, PlayerId(0)),
+            state.condition_holds(&morbid_game, &frame_for(&state, PlayerId(0))),
             "ThisGame still sees it"
+        );
+    }
+
+    /// `Condition::Is(ref, filter)` ([CR#603.4] "if it's a …") resolves the
+    /// reference against the frame and tests the filter on it. `This`/`Target`
+    /// pick the bear; the bear is a creature, not a land. A `Ref(This)` inside
+    /// the filter anchors to the frame's source via `frame_watcher`, so
+    /// `Is(This, Ref(This))` is true (the resolved object IS the watcher).
+    #[test]
+    fn is_reference_tests_filter_against_resolved_object() {
+        use deckmaste_core::CharacteristicFilter;
+
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: vec![Arc::clone(&bears); 10],
+                },
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 10],
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        });
+
+        // A Grizzly Bears on the battlefield, and a frame whose `This`, sole
+        // target, and source all point at it.
+        let bear_card = state.cards.push(Arc::clone(&bears), PlayerId(0));
+        let bear = state.objects.mint(
+            ObjectSource::Card(bear_card),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(bear);
+        let frame = Frame {
+            source: bear,
+            controller: PlayerId(0),
+            targets: vec![bear],
+            bindings: Some(TriggerBindings {
+                this: Some(LkiSnapshot::capture(&state, bear)),
+                that_object: None,
+                that_player: None,
+            }),
+        };
+
+        let creature = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));
+        let land = Filter::Characteristic(CharacteristicFilter::Type(Type::Land));
+
+        // Is(This, …): the bear is a creature …
+        assert!(
+            state.condition_holds(&Condition::Is(Reference::This, creature.clone()), &frame),
+            "the bear is a creature"
+        );
+        // … and not a land.
+        assert!(
+            !state.condition_holds(&Condition::Is(Reference::This, land), &frame),
+            "the bear is not a land"
+        );
+        // Is(Target(0), …): the announced target is that same bear.
+        assert!(
+            state.condition_holds(&Condition::Is(Reference::Target(0), creature), &frame),
+            "the target is a creature"
+        );
+        // Is(This, Ref(This)): the resolved object IS the watcher, so the
+        // self-reference inside the filter anchors and matches.
+        assert!(
+            state.condition_holds(
+                &Condition::Is(Reference::This, Filter::Ref(Reference::This)),
+                &frame
+            ),
+            "the resolved object is the frame's own source"
+        );
+    }
+
+    /// [CR#603.4]: a triggered ability's intervening-if is rechecked as it
+    /// resolves. A synthetic artifact (engine-test scaffolding, not a plugin
+    /// fixture) whose trigger reads "if a creature is on the battlefield"
+    /// resolves to its effect when a creature is present, and is removed from
+    /// the stack with no effect — only the `AbilityResolved` that discards the
+    /// entry, never a `RunEffect` — when the condition has become false. The
+    /// no-condition/true path is also covered e2e by the integration suite
+    /// (`etb_trigger_draws_a_card`). When canon grows an intervening-if card
+    /// (parser/canon-slice work), an e2e fixture test is the natural follow-up.
+    #[test]
+    fn intervening_if_rechecked_at_resolution() {
+        use deckmaste_core::Ability;
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::CharacteristicFilter;
+        use deckmaste_core::Effect;
+        use deckmaste_core::Event;
+        use deckmaste_core::TriggeredAbility;
+
+        use crate::agenda::WorkItem;
+        use crate::stack::StackEntry;
+        use crate::stack::StackObject;
+        use crate::trigger::TriggerBindings;
+
+        // Resolve the conditional trigger and report whether its effect was
+        // scheduled (vs. removed with no effect).
+        let runs_effect = |creature_present: bool| -> bool {
+            let mut state = game();
+
+            // A synthetic artifact whose sole ability triggers "if a creature
+            // is on the battlefield". The event is irrelevant at resolution;
+            // the effect is a no-op sequence — the test observes only whether
+            // it gets scheduled.
+            let card = Card::Normal(CardFace {
+                name: "Conditional Trigger Artifact".into(),
+                types: vec![Type::Artifact],
+                abilities: vec![Ability::Triggered(TriggeredAbility {
+                    event: Event::OneOf(Vec::new()),
+                    condition: Some(Condition::Exists(Filter::Characteristic(
+                        CharacteristicFilter::Type(Type::Creature),
+                    ))),
+                    limits: Vec::new(),
+                    targets: Vec::new(),
+                    effect: Effect::Sequence(Vec::new()),
+                })],
+                ..CardFace::default()
+            });
+            let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+            let source = state.objects.mint(
+                ObjectSource::Card(card_id),
+                PlayerId(0),
+                Some(Zone::Battlefield),
+            );
+            state.zones.battlefield.push(source);
+
+            // The condition's subject: an actual creature, present or not.
+            if creature_present {
+                let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+                let bear_card = state.cards.push(bears, PlayerId(0));
+                let bear = state.objects.mint(
+                    ObjectSource::Card(bear_card),
+                    PlayerId(0),
+                    Some(Zone::Battlefield),
+                );
+                state.zones.battlefield.push(bear);
+            }
+
+            // Put the fired trigger on the stack with its own minted id, then
+            // resolve it.
+            let stack_id =
+                state
+                    .objects
+                    .mint(ObjectSource::Card(card_id), PlayerId(0), Some(Zone::Stack));
+            state.stack.push(StackEntry {
+                id: stack_id,
+                object: StackObject::Triggered {
+                    source: ObjectSource::Card(card_id),
+                    ability: 0,
+                    bindings: TriggerBindings {
+                        this: Some(LkiSnapshot::capture(&state, source)),
+                        that_object: None,
+                        that_player: None,
+                    },
+                },
+                controller: PlayerId(0),
+                targets: Vec::new(),
+            });
+            state.resolve_object(stack_id);
+
+            state
+                .agenda
+                .iter()
+                .any(|w| matches!(w, WorkItem::RunEffect { .. }))
+        };
+
+        assert!(
+            runs_effect(true),
+            "condition true at resolution → effect scheduled"
+        );
+        assert!(
+            !runs_effect(false),
+            "condition false at resolution → ability removed, no effect ([CR#603.4])"
         );
     }
 
@@ -258,21 +461,27 @@ mod tests {
 
         // YourTurn
         assert!(
-            state.condition_holds(&Condition::YourTurn, PlayerId(0)),
+            state.condition_holds(&Condition::YourTurn, &frame_for(&state, PlayerId(0))),
             "YourTurn should hold for the active player"
         );
         assert!(
-            !state.condition_holds(&Condition::YourTurn, PlayerId(1)),
+            !state.condition_holds(&Condition::YourTurn, &frame_for(&state, PlayerId(1))),
             "YourTurn should not hold for the non-active player"
         );
 
         // DuringPhase — exact match
         assert!(
-            state.condition_holds(&Condition::DuringPhase(Phase::PrecombatMain), PlayerId(0)),
+            state.condition_holds(
+                &Condition::DuringPhase(Phase::PrecombatMain),
+                &frame_for(&state, PlayerId(0))
+            ),
             "DuringPhase(PrecombatMain) should hold during PrecombatMain"
         );
         assert!(
-            !state.condition_holds(&Condition::DuringPhase(Phase::PostcombatMain), PlayerId(0)),
+            !state.condition_holds(
+                &Condition::DuringPhase(Phase::PostcombatMain),
+                &frame_for(&state, PlayerId(0))
+            ),
             "DuringPhase(PostcombatMain) should not hold during PrecombatMain"
         );
     }
@@ -292,7 +501,7 @@ mod tests {
         );
         // Fresh game: stack empty, no announce slot.
         assert!(
-            state.condition_holds(&cond, PlayerId(0)),
+            state.condition_holds(&cond, &frame_for(&state, PlayerId(0))),
             "Compare(CountOf(InZone(Stack)), Eq, Literal(0)) should hold on a fresh game (stack empty)"
         );
 
@@ -310,7 +519,7 @@ mod tests {
             targets: vec![],
         });
         assert!(
-            !state.condition_holds(&cond, PlayerId(0)),
+            !state.condition_holds(&cond, &frame_for(&state, PlayerId(0))),
             "Compare(CountOf(InZone(Stack)), Eq, Literal(0)) should be false with an in-flight announce"
         );
     }
@@ -323,7 +532,7 @@ mod tests {
         let p = PlayerId(0);
         let cond = Condition::Not(Box::new(Condition::AllOf(vec![Condition::OneOf(vec![])])));
         assert!(
-            state.condition_holds(&cond, p),
+            state.condition_holds(&cond, &frame_for(&state, p)),
             "Not(AllOf([OneOf([])])) should be true (vacuous OneOf false → AllOf false → Not true)"
         );
     }
