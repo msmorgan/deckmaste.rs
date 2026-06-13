@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+# A rustfmt --check gate is intentionally omitted for now: rustfmt.toml uses
+# nightly-only options, and the committed code currently differs from the latest
+# nightly rustfmt's output (nightly version drift). Format locally with
+# scripts/fmt; a CI fmt gate needs a pinned nightly + a one-time format pass.
+jobs:
+  clippy-test:
+    name: clippy & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      # A bare checkout is enough: the engine tests build game state in Rust, the
+      # card tests load the committed plugins/{builtin,canon,testing}, and the
+      # keyword-classification drift-guard skips when the mtg-rules skill is
+      # absent. Nothing here reads the gitignored ~600 MB data/ dump.
+      - name: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: test
+        run: cargo test --workspace
+      # NOTE: `cargo xtask cite check` is intentionally not run yet — it shells
+      # out to the mtg-rules skill and needs the CR snapshot under data/, neither
+      # of which a clean runner has. Wiring it in (install the skill + fetch just
+      # the rules snapshot) is a follow-up.
