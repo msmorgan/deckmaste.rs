@@ -50,6 +50,7 @@ pub const REGISTRY: &[AbilityParser] = &[
     crate::parsers::spell_ability::resolve_line,
     crate::parsers::triggered_ability::resolve_line,
     crate::parsers::activated_ability::resolve_line,
+    crate::parsers::static_ability::resolve_line,
 ];
 
 /// Replaces every `Unparsed` line a parser in `registry` can structure with the
@@ -258,6 +259,25 @@ mod tests {
             &face.abilities[0],
             TodoAbility::Parsed(r)
                 if r == "Activated(cost: [Mana([Generic(1),Black]), SacrificeThis], effect: Draw(1))"
+        ));
+    }
+
+    #[test]
+    fn permanent_static_anthem_resolves() {
+        let mut lord = TodoCard::Normal(TodoCardFace {
+            name: "Test Lord".into(),
+            types: vec![RawIdent("Creature".into())],
+            abilities: vec![TodoAbility::Unparsed(
+                "Creatures you control get +1/+1.".into(),
+            )],
+            ..Default::default()
+        });
+        assert!(resolve_card(&mut lord).unwrap());
+        let TodoCard::Normal(face) = &lord else { panic!() };
+        assert!(matches!(
+            &face.abilities[0],
+            TodoAbility::Parsed(r)
+                if r == "Static(effects: [Modify(of: Matching(AllOf([Creature, Controller(Ref(You))])), changes: [AddPower(Literal(1)), AddToughness(Literal(1))])])"
         ));
     }
 
