@@ -44,6 +44,8 @@ pub(crate) fn parse_phrase(phrase: &str) -> Option<String> {
     }
 
     // Postfix relative clauses (peel off the END).
+    // Peels right-to-left off the end, so with multiple postfix clauses the atoms
+    // land in reverse source order.
     let mut postfix_atoms: Vec<String> = Vec::new();
     loop {
         if let Some((atom, r)) = strip_postfix(rest) {
@@ -264,6 +266,20 @@ mod tests {
             parse_phrase("other creatures you control").as_deref(),
             Some("AllOf([Creature, Not(Ref(This)), Controller(Ref(You))])")
         );
+        assert_eq!(
+            parse_phrase("creatures you own").as_deref(),
+            Some("AllOf([Creature, Owner(Ref(You))])")
+        );
+        assert_eq!(
+            parse_phrase("creatures with toughness 2 or less").as_deref(),
+            Some("AllOf([Creature, Stat(Toughness, AtMost, Literal(2))])")
+        );
+        assert_eq!(
+            parse_phrase("creatures with a +1/+1 counter on it").as_deref(),
+            Some("AllOf([Creature, HasCounter(\"+1/+1\")])")
+        );
+        // word-number is out of the regex's \d+ scope → declines
+        assert!(parse_phrase("creatures with power three or greater").is_none());
     }
 
     #[test]
