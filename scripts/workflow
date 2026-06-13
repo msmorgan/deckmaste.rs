@@ -391,16 +391,41 @@ function __workflow_resolve
 end
 
 # One-stop recovery for "my branch shifted under me." Run FROM the feature
-# workspace. Composes the pieces in order: `converge` first (it runs update-stale
-# and heals any working-copy divergence; a non-zero return means the two halves
-# hold genuinely DIFFERENT work, which needs a human), then `resolve` to walk any
-# refresh/integrate conflicts. Exit 0 = clean (re-integrate); exit 1 = you're on a
-# conflicted commit — remove its markers (jj st) and re-run `repair`; exit 2 = a
-# human is needed (converge bailed, or a jj step broke and was rolled back).
+# workspace. Order: clear staleness, heal a working-copy divergence (only if there
+# is one), then walk any refresh/integrate conflicts (only if there are any).
+# Labels its own outcome — exit 0 = clean (re-integrate); exit 1 = you're on a
+# conflicted commit, remove its markers (jj st) and re-run `repair`; exit 2 = a
+# human is needed (divergent halves hold different work, or a jj step rolled back).
 function __workflow_repair
-    __workflow_converge
-    or return 2
+    set -l name (path basename (jj workspace root))
+    # Clear a stale working copy — that's what surfaces a divergence or conflicts.
+    jj workspace update-stale 2>/dev/null
+    # Heal a working-copy divergence, only if there actually is one.
+    set -l div (jj log -G -r "$name::$name@ & divergent()")
+    if test -n "$div"
+        __workflow_converge
+        or begin
+            echo >&2 "repair: the two divergent halves hold genuinely different work — a human is needed."
+            return 2
+        end
+    end
+    # Walk refresh/integrate conflicts, only if there are any (incl. mid-walk).
+    set -l conf (jj log -G -r "$name::$name@ & conflicts()")
+    if test -z "$conf"
+        echo >&2 "repair: branch clean — carry on (re-integrate if you were mid-integrate)."
+        return 0
+    end
     __workflow_resolve
+    set -l rc $status
+    switch $rc
+        case 0
+            echo >&2 "repair: conflicts resolved — branch clean, re-integrate."
+        case 1
+            echo >&2 "repair: stopped on a conflict — remove its markers (jj st), then re-run 'scripts/workflow repair'."
+        case '*'
+            echo >&2 "repair: stopped (exit $rc) — finish removing markers and re-run, or get a human if jj rolled back."
+    end
+    return $rc
 end
 
 switch $argv[1]
