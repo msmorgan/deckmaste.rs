@@ -163,7 +163,7 @@ in full.
   `DamageDealt` has no combat coordinate yet ("combat damage" triggers),
   Performed verbs outside the wired set trip, and ward's by-row keys on
   stack-zone state an ability announce can't satisfy until promote.
-- [/] `engine-trigger-conditions` — Condition::Is, Compare, Happened; intervening
+- [x] `engine-trigger-conditions` — Condition::Is, Compare, Happened; intervening
   "if" rechecked on resolution [CR#603.4].
 - [ ] `engine-trigger-limits` — OncePerTurn and friends.
 - [x] `engine-history-tallies` — turn/game history the condition layer can query:
