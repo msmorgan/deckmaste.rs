@@ -3,7 +3,7 @@
 source (status dirname)/lib/setup.fish jj perl
 or return
 
-alias jj "jj -R '$project_dir'"
+alias jj (status dirname)/jj
 
 if test "$(jj workspace root)" != "$(jj workspace root --name default)"
     echo >&2 "$(status filename): intended to be run from default workspace only."
@@ -64,6 +64,24 @@ function __retire_ws --argument-names ws_dir bucket
     mv "$ws_dir" $target
 end
 
+# Give a fresh workspace the gitignored shared dirs the build needs. `jj
+# workspace add` only checks out tracked files, so we add them by hand (the
+# manual "New jj workspaces" steps from CLAUDE.md): symlink `data` and
+# `docs/superpowers` back to default's real dirs — the repo-wide
+# default/.git/info/exclude already lists their symlink form, so jj won't
+# snapshot them — then generate `plugins/wizards`, the cards deckmaste_cards
+# loads. wizards is a real generated dir, never a symlink (a symlink would make
+# generate write back into default). Slow but tuned (see .cargo/config.toml).
+function __provision_ws --argument-names ws_dir
+    ln -sfn "$project_dir/data" "$ws_dir/data"
+    and ln -sfn "$project_dir/docs/superpowers" "$ws_dir/docs/superpowers"
+    and cargo xtask generate "$ws_dir/plugins/wizards"
+    or begin
+        echo >&2 "$(status filename): $ws_dir's jj structure is set, but shared-dir provisioning failed — fix the data / docs/superpowers symlinks and run 'cargo xtask generate $ws_dir/plugins/wizards' by hand."
+        return 1
+    end
+end
+
 # Spin up a NAME-bookmarked base commit on default@- with a ../NAME workspace on
 # top, leaving default's @ put. With -t/--claim-todo, also tick NAME's todo box
 # into the base commit (so abandoning the base reverts the tick automatically).
@@ -71,18 +89,18 @@ function __workflow_start
     argparse t/claim-todo -- $argv
     or return
 
-    set name $argv[1]
-    test -n "$name"; or begin
+    set name "$argv[1]"
+    if test -z $name
         echo >&2 "$(status filename): a workspace NAME is required."
         return 2
     end
     set ws_dir (path dirname $project_dir)/$name
-    set savepoint (jj op log -G -n1 -T 'id.short()')
 
     set -l verb start
     set -q _flag_claim_todo; and set verb claim
 
-    begin
+    set savepoint (jj op log -G -n1 -T 'id.short()')
+    and begin
         jj bookmark create __tip
         and jj new @- -m "$verb $name"
         and jj bookmark create $name
@@ -93,42 +111,47 @@ function __workflow_start
         and jj rebase -r __tip -d $name
         and jj edit __tip
         and jj bookmark forget __tip
+        or begin
+            echo >&2 "Failed... restoring to $savepoint"
+            jj op restore "$savepoint"
+            return 1
+        end
     end
-    or begin
-        echo >&2 "Failed... restoring to $savepoint"
-        jj op restore "$savepoint"
-        return 1
-    end
+    # The jj structure is committed; now hang the shared dirs off the new
+    # workspace. A provisioning failure leaves a valid-but-bare workspace — op
+    # restore can't undo symlinks/generated files anyway, so don't roll back.
+    and __provision_ws "$ws_dir"
 end
 
 function __workflow_abandon
     set name $argv[1]
-    set ws_dir (jj workspace root --name "$name"); or return 1
+    set ws_dir (jj workspace root --name "$name")
+    or return
     # Capture both targets by change-id up front: the claim commit (before
     # `bookmark forget` drops NAME) and the feature-stack root (same revset refresh
     # uses, before `workspace forget` dissolves NAME@). Guard the root — an empty
     # "$root":: would expand to `::` and abandon the entire repo.
-    set claim (jj log --no-graph -r "$name" -T 'change_id.short()'); or return 1
-    set root (jj log --no-graph -r "roots(children($name) & ::$name@)" -T 'change_id.short()'); or return 1
-    test -n "$root"; or begin
+    set claim (jj log --no-graph -r "$name" -T 'change_id.short()')
+    set root (jj log --no-graph -r "roots(children($name) & ::$name@)" -T 'change_id.short()')
+    if test -z "$root"
         echo >&2 "$(status filename): could not locate $name's feature root."
         return 1
     end
-    set savepoint (jj op log -G -n1 -T 'id.short()')
 
-    begin
+    set savepoint (jj op log -G -n1 -T 'id.short()')
+    and begin
         # Abandon the claim commit AND its feature stack ("$root"::), but not the
         # default line — abandoning the claim reparents that onto the claim's parent.
         jj workspace forget "$name"
         and jj bookmark forget "$name"
         and jj abandon "$claim" "$root"::
+        or begin
+            echo >&2 "Failed... restoring to $savepoint"
+            jj op restore "$savepoint"
+            return 1
+        end
     end
-    or begin
-        echo >&2 "Failed... restoring to $savepoint"
-        jj op restore "$savepoint"
-        return 1
-    end
-    __retire_ws "$ws_dir" .abandoned
+    and __retire_ws "$ws_dir" .abandoned
 end
 
 function __workflow_refresh
@@ -138,13 +161,13 @@ function __workflow_refresh
     # workspace WC itself when no feature commits exist yet). Capture it before the
     # move — its change id survives the rebase even though the commit id won't.
     set root (jj log --no-graph -r "roots(children($name) & ::$name@)" -T 'change_id.short()'); or return 1
-    test -n "$root"; or begin
+    if test -z "$root"
         echo >&2 "$(status filename): could not locate $name's feature root."
         return 1
     end
-    set savepoint (jj op log -G -n1 -T 'id.short()')
 
-    begin
+    set savepoint (jj op log -G -n1 -T 'id.short()')
+    and begin
         # The claim commits live in default@'s history now, so this is a REORDER,
         # not a rebase-onto: -r pulls the claim out of the chain (healing the gap)
         # and --insert-before threads it back in just under default@.
@@ -153,72 +176,73 @@ function __workflow_refresh
         # its old parent; pull the feature stack back onto the moved claim commit.
         and jj rebase -s "$root" -d "$name"
         and command jj -R "$ws_dir" workspace update-stale
-    end
-    or begin
-        echo >&2 "Failed... restoring to $savepoint"
-        jj op restore "$savepoint"
-        return 1
+        or begin
+            echo >&2 "Failed... restoring to $savepoint"
+            jj op restore "$savepoint"
+            return 1
+        end
     end
 
     # A rebase conflict is NOT a failure — jj records it and the rebase exits 0.
-    # It's now materialized in the workspace; leave it there to resolve and report
-    # exit 2 so integrate won't fold a conflict into default@. Do NOT roll back.
+    # It's now materialized in the workspace; leave it there to resolve and return
+    # the 69 "expected-stop" sentinel (the integrate wrapper maps it to exit 2) so
+    # integrate won't fold a conflict into default@. Do NOT roll back.
     set -l conflicted (jj log --no-graph -r "$root:: & conflicts()" -T 'change_id.short() ++ "\n"')
     if test -n "$conflicted"
         echo >&2 "$(status filename): $name now conflicts with default@ — resolve it in $ws_dir, then re-run."
-        return 2
+        return 69
     end
 end
 
 function __integrate_steps
     set name $argv[1]
     # Refresh first (reorder the claim under default@, feature stack + workspace
-    # carried). Propagate its status verbatim: 2 = it left a conflict in the
-    # workspace, so we must NOT fold — bail with the same code, no rollback.
+    # carried). Propagate its status verbatim: 69 = it left a conflict in the
+    # workspace, so we must NOT fold — bail with the same sentinel, no rollback.
     __workflow_refresh "$name"
-    set -l rc $status
-    test $rc -eq 0; or return $rc
+    or return
 
     # The workspace WC must be committed (empty) before folding its work into
-    # default@. A dirty WC isn't a failure to undo — stop and let the user act (2).
+    # default@. A dirty WC isn't a failure to undo — stop and let the user act (69).
     if not jj log --no-graph -r "$name"@ -T 'empty' | string match -q true
         echo >&2 "$(status filename): $name has uncommitted work — commit or abandon it in its workspace, then re-integrate."
-        return 2
+        return 69
     end
 
     # Fold: move default's @ onto the feature tip, finish the todo as the final
     # commit. `jj workspace forget` is the point of no return — op restore can't
     # un-forget — so it runs LAST, after every fail-able step. A failure before it
     # rolls back cleanly; forget itself then drops the now-empty WC for us.
-    set -l orphan (jj log --no-graph -r "$name"@ -T 'change_id.short()'); or return 1
-    jj rebase -r @ -d "$name"@-; or return 1
-    __check_todo "$name"; or return 1
-    if jj log --no-graph -r @ -T 'empty' | string match -q false
-        jj commit -m "complete $name"; or return 1
+    set -l orphan (jj log --no-graph -r "$name"@ -T 'change_id.short()')
+    and jj rebase -r @ -d "$name"@-
+    and __check_todo "$name"
+    and if jj log --no-graph -r @ -T 'empty' | string match -q false
+        jj commit -m "complete $name"
     end
-    jj workspace forget "$name"; or return 1
+    and jj workspace forget "$name"
     # forget already drops the empty WC; clean up only if it somehow survived, and
     # never let that become a post-forget failure (op restore can't un-forget).
-    if jj log --no-graph -r "$orphan" >/dev/null 2>&1
+    and if jj log --no-graph -r "$orphan" >/dev/null 2>&1
         jj abandon "$orphan"
     end
-    return 0
 end
 
 function __workflow_integrate
     set name $argv[1]
-    set ws_dir (jj workspace root --name "$name"); or return 1
+    set ws_dir (jj workspace root --name "$name")
+    or return
+
     set savepoint (jj op log -G -n1 -T 'id.short()')
+    or return
 
     __integrate_steps "$name"
-    set -l rc $status
-    switch $rc
+    switch $status
         case 0
             __retire_ws "$ws_dir" .integrated
-        case 2
+        case 69
             # Expected stop (conflict or uncommitted work) — state left in place for
             # the user to resolve. Do NOT roll back.
-            return 2
+            return
         case '*'
             echo >&2 "Failed... restoring to $savepoint"
             jj op restore "$savepoint"
@@ -239,4 +263,10 @@ switch $argv[1]
         __workflow_refresh $argv[2..]
     case '*'
         __workflow_usage
+end
+switch $status
+    case 69
+        return 2
+    case '*'
+        return
 end

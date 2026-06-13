@@ -1,0 +1,31 @@
+#!/usr/bin/env fish
+# scripts/jj — workspace-pinned, trunk-guarded jj. Run it in place of `jj`:
+# `scripts/jj <args…>` (don't source it).
+#
+# Pins jj to THIS workspace via `-R $project_dir`, which tracks wherever this copy
+# of the script lives (feature workspaces each get their own checkout). In any
+# workspace other than `default` it also marks the whole default line immutable —
+# `immutable_heads() = default@`, i.e. `::default@`: trunk plus every claim commit
+# — so jj refuses, per operation, any rewrite reaching shared history, while the
+# agent's own feature work (which branches off to the side of default@, not an
+# ancestor of it) stays editable. It also refuses --config / --config-file /
+# --ignore-immutable, the three flags that would let the caller override the guard.
+# `default`, the coordinator, is left unguarded so you can go in and fix things.
+
+set project_dir (path resolve (status dirname)/..)
+set jj_args -R $project_dir
+
+set default_root (command jj -R $project_dir workspace root --name default 2>/dev/null)
+test -n "$default_root"; and set default_root (path resolve $default_root)
+if test "$project_dir" != "$default_root"
+    set -a jj_args --config 'revset-aliases."immutable_heads()"=default@'
+end
+
+# Non-capturing groups: `string match -r` returns capture groups next to the full
+# match, so (?:…) keeps $illegal_flags to just the offending flags.
+if set illegal_flags (string match -r -- '^--(?:ignore-immutable|config(?:-file)?(?:=.*)?)$' $argv)
+    echo >&2 "scripts/jj: refusing $illegal_flags — it would bypass the workspace guard."
+    exit 2
+end
+
+command jj $jj_args $argv
