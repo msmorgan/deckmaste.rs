@@ -123,6 +123,14 @@ in full.
   seams: a countered ABILITY's cessation (narrowed `todo!` — abilities aren't
   cards, [CR#701.6a]) and regeneration's one-shot shield (the `WillDestroy`
   hook is live; the shield rides `engine-replacements`).
+- [ ] `engine-counter-ability` — a countered triggered/activated ability ceases
+  to exist: removed from the stack and put nowhere (it isn't a card,
+  [CR#701.6a]). `engine-resolve-actions` left this a narrowed `todo!` in
+  `Action::Counter` (the spell arm → owner's graveyard is live). Wants a
+  cessation path distinct from `AbilityResolved` — a countered ability did NOT
+  resolve — that does the same `remove_stack_entry` + discard-the-minted-token
+  with no zone move. Completes ward's verb (`Counter` targets a spell OR an
+  ability).
 - [ ] `engine-resolve-effects` — May, If/Unless, ForEach, Modal, Delayed,
   Reflexive effect frames; resolution-time choices surfaced as decisions.
 - [ ] `engine-resolve-count-x` — `Count::X`: announced at cast/activate
@@ -188,7 +196,16 @@ in full.
 - [ ] `engine-replacements` — a general replacement registry beyond enters-tapped:
   Instead/Skip/Also, zone-destination redirects, enters-with-counters,
   enters-as-choices, draw replacements (dredge/miracle window), dies→exile,
-  lifegain/damage modification, self-replacement ordering.
+  lifegain/damage modification, self-replacement ordering. The destruction
+  hook is already live: `engine-resolve-actions` routes both destroy paths
+  through the replaceable `WillDestroy` intent, and its apply handles
+  indestructible inline (replace-with-nothing, [CR#702.12b]). What this item
+  adds for destruction is APPLYING a non-trivial destroy-replacement at that
+  hook: regeneration's one-shot, turn-scoped shield ("the next time ~ would be
+  destroyed this turn, instead tap it, remove it from combat, heal all
+  damage") — including the `regenerate` effect/keyword-action that sets the
+  shield — and umbra-armor/totem-armor (`Umbra armor`, §6: destroy the Aura +
+  heal instead).
 - [ ] `engine-prevention` — prevention shields and windows [CR#615.1], including
   "can't be prevented".
 
