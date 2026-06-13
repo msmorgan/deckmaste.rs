@@ -674,8 +674,10 @@ Rows here track that the *patterns* graduate. Slug: `aw-<kebab-case>`.
   "… enters tapped" templates.
 - [ ] `parse-modal` — "Choose one —" bullet lists, escalate/spree-style modal
   costs.
-- [ ] `parse-filters` — natural-language object descriptions to Filter ASTs
-  beyond the current handful (control/zone/type/stat qualifiers).
+- [x] `parse-filters` — natural-language object descriptions to Filter ASTs
+  beyond the current handful (control/zone/type/stat qualifiers). Subsumed by
+  `parse-static`, which built the shared `parsers/filter.rs` (head nouns,
+  prefix adjectives, postfix relative clauses) as its subject parser.
 - [ ] `macro-keyword-templates` — template parameters for keyword macros
   (ward cost, protection quality, typed cycling) so the ~190 keyword stubs
   can expand per-card.
