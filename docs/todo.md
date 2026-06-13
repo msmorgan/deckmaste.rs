@@ -170,6 +170,11 @@ in full.
   spells cast this turn (storm), lands played, life lost/gained, permanents
   that left, "entered this turn", attack/cast ordinals. The Tallies registry
   exists; wire it broadly and extend `Window` beyond ThisTurn.
+  Engine evaluation landed + unit-tested (history log; `Condition::Happened`
+  for ThisTurn/ThisGame; `Count::Query` for storm/lands/draws/life [CR#608.2i]).
+  No e2e: no canon card or parser path emits the history grammar yet — that
+  rides the parser keyword work (storm, below) and ability-word parsing
+  (morbid/raid, [CR#207.2c]).
 - [ ] `engine-history-filtered-counts` — a `Count` form for filtered historical
   counts over the history log ("draw a card for each creature that died this
   turn"). The `engine-history-tallies` log already retains the data; this is the
