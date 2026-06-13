@@ -174,8 +174,8 @@ fn parse_restriction(subj: &str, pred: &str) -> Option<String> {
     let effects: Option<Vec<String>> = split_list(pred)
         .iter()
         .map(|act| match act.to_ascii_lowercase().as_str() {
-            "attack" => Some(format!("Cant(Attack(by: {filter}, on: Any))")),
-            "block" => Some(format!("Cant(Block(by: {filter}, on: Any))")),
+            "attack" => Some(format!("Cant(Attack(by: {filter}))")),
+            "block" => Some(format!("Cant(Block(by: {filter}))")),
             _ => None,
         })
         .collect();
@@ -265,14 +265,12 @@ mod tests {
         assert_eq!(
             stat("Enchanted creature can't attack or block.").as_deref(),
             Some(
-                "Static(effects: [Cant(Attack(by: Ref(AttachHostOf(This)), on: Any)), Cant(Block(by: Ref(AttachHostOf(This)), on: Any))])"
+                "Static(effects: [Cant(Attack(by: Ref(AttachHostOf(This)))), Cant(Block(by: Ref(AttachHostOf(This))))])"
             )
         );
         assert_eq!(
             stat("Creatures you control can't attack.").as_deref(),
-            Some(
-                "Static(effects: [Cant(Attack(by: AllOf([Creature, Controller(Ref(You))]), on: Any))])"
-            )
+            Some("Static(effects: [Cant(Attack(by: AllOf([Creature, Controller(Ref(You))])))])")
         );
     }
 
