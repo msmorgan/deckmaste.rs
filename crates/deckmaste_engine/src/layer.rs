@@ -270,7 +270,10 @@ fn layer_of(m: &Modification, is_cda: bool) -> Option<Layer> {
             }
         }
         // Layer 7c: P/T modification ([CR#613.4c]).
-        Modification::AddPower(_) | Modification::AddToughness(_) => Some(Layer::L7c),
+        Modification::AddPower(_)
+        | Modification::AddToughness(_)
+        | Modification::SubtractPower(_)
+        | Modification::SubtractToughness(_) => Some(Layer::L7c),
         // Layer 7d: switch ([CR#613.4d]).
         Modification::SwitchPowerToughness => Some(Layer::L7d),
         // No [CR#613] layer: loyalty/defense are not characteristics here.
@@ -490,6 +493,12 @@ fn apply(m: &Modification, effect_controller: PlayerId, d: &mut DerivedObject) {
         }
         Modification::AddToughness(n) => {
             c.toughness = Some(c.toughness.unwrap_or(0) + eval_count(n));
+        }
+        Modification::SubtractPower(n) => {
+            c.power = Some(c.power.unwrap_or(0) - eval_count(n));
+        }
+        Modification::SubtractToughness(n) => {
+            c.toughness = Some(c.toughness.unwrap_or(0) - eval_count(n));
         }
         // --- Layer 7d: switch ---
         Modification::SwitchPowerToughness => std::mem::swap(&mut c.power, &mut c.toughness),

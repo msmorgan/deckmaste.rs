@@ -181,6 +181,35 @@ fn one_shot_pump_expires_at_cleanup() {
     );
 }
 
+/// [CR#613.4c]: a static "-1/-1" (layer 7c) lowers a 2/2 to 1/1.
+#[test]
+fn negative_modify_lowers_power_and_toughness() {
+    use deckmaste_core::Count;
+    use deckmaste_core::Duration;
+    use deckmaste_core::Modification;
+    use deckmaste_engine::ContinuousEffect;
+    use deckmaste_engine::ScopeResolved;
+    use deckmaste_engine::Timestamp;
+
+    let mut state = two_player_with("Grizzly Bears", 1, 10);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+
+    state.continuous.push(ContinuousEffect {
+        timestamp: Timestamp(1_000),
+        scope: ScopeResolved::Locked(vec![bear]),
+        changes: vec![
+            Modification::SubtractPower(Count::Literal(1)),
+            Modification::SubtractToughness(Count::Literal(1)),
+        ],
+        duration: Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
+        is_cda: false,
+    });
+
+    let view = state.layers();
+    assert_eq!(view.power(bear), Some(1), "-1/-1 → 1 power");
+    assert_eq!(view.toughness(bear), Some(1), "-1/-1 → 1 toughness");
+}
+
 /// [CR#613.1f]: a static "creatures gain trample" (layer 6) grants the keyword.
 /// The granter is a mock — symmetric "all creatures have <native keyword>"
 /// statics don't exist in real Magic.
