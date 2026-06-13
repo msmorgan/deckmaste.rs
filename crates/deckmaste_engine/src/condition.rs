@@ -10,8 +10,10 @@ use deckmaste_core::Filter;
 use deckmaste_core::Phase;
 use deckmaste_core::StateFilter;
 use deckmaste_core::Uint;
+use deckmaste_core::Window;
 use deckmaste_core::Zone;
 
+use crate::object::ObjectSource;
 use crate::player::PlayerId;
 use crate::state::GameState;
 
@@ -52,7 +54,21 @@ impl GameState {
             // Look through a macro.
             Condition::Expanded(e) => self.condition_holds(&e.value, you),
 
-            Condition::Happened { .. } => todo!("stage 3 does not evaluate Condition::Happened"),
+            // "[event] happened within [window]" ([CR#608.2i]): scan the
+            // history log for any recorded fact matching the pattern, reusing
+            // the trigger event-matcher. "You" binds via the player proxy;
+            // `Ref(This)` in the pattern's filter has no source object in a
+            // bare condition context — a flagged seam, rare in history reads.
+            Condition::Happened { event, within } => {
+                let watcher = ObjectSource::Player(you);
+                match within {
+                    Window::ThisTurn | Window::ThisGame => self
+                        .history
+                        .scan(*within, self.turn.turn_number)
+                        .any(|fact| self.event_matches(event, fact, watcher)),
+                    other => todo!("{other:?} is not a history-lookback window for Happened"),
+                }
+            }
 
             // It is the evaluating player's turn.
             Condition::YourTurn => self.turn.active_player == you,
@@ -115,6 +131,19 @@ mod tests {
     use crate::state::PlayerConfig;
     use crate::state::StartingPlayer;
 
+    use std::path::Path;
+    use std::sync::Arc;
+
+    use deckmaste_cards::plugin::Plugin;
+    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::Event;
+    use deckmaste_core::Type;
+    use deckmaste_core::Window;
+
+    use crate::event::GameEvent;
+    use crate::lki::LkiSnapshot;
+    use crate::object::ObjectSource;
+
     fn game() -> GameState {
         GameState::new(GameConfig {
             players: vec![PlayerConfig { deck: vec![] }, PlayerConfig { deck: vec![] }],
@@ -122,6 +151,90 @@ mod tests {
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
         })
+    }
+
+    fn builtin() -> Plugin {
+        Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
+    }
+    fn canon() -> Plugin {
+        Plugin::load_with_sibling_prelude(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon"),
+        )
+        .unwrap()
+    }
+
+    /// Morbid ("a creature died this turn") is `Condition::Happened { ZoneMove {
+    /// creature, Battlefield → Graveyard }, ThisTurn }`. It holds once a
+    /// creature-death fact is in this turn's history; the `ThisGame` window sees
+    /// it on a later turn while `ThisTurn` no longer does ([CR#608.2i]).
+    #[test]
+    fn happened_morbid_reads_history_window() {
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig { deck: vec![Arc::clone(&bears); 10] },
+                PlayerConfig { deck: vec![Arc::clone(&forest); 10] },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        });
+        state.turn.turn_number = 1;
+
+        // Put a Grizzly Bears on the battlefield, snapshot it, build its death.
+        let bear_card = state.cards.push(Arc::clone(&bears), PlayerId(0));
+        let bear =
+            state.objects.mint(ObjectSource::Card(bear_card), PlayerId(0), Some(Zone::Battlefield));
+        state.zones.battlefield.push(bear);
+        let death = GameEvent::ZoneChanged {
+            snapshot: LkiSnapshot::capture(&state, bear),
+            from: Some(Zone::Battlefield),
+            to: Zone::Graveyard,
+            face: None,
+            cause: None,
+        };
+
+        let morbid_pattern = Event::ZoneMove {
+            what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
+            face: None,
+            cause: None,
+        };
+        let morbid = Condition::Happened {
+            event: morbid_pattern.clone(),
+            within: Window::ThisTurn,
+        };
+        let morbid_game = Condition::Happened {
+            event: morbid_pattern,
+            within: Window::ThisGame,
+        };
+
+        // No death yet → false.
+        assert!(!state.condition_holds(&morbid, PlayerId(0)), "no death recorded yet");
+
+        // Record the death this turn → ThisTurn and ThisGame both hold.
+        state.history.record(1, death);
+        assert!(
+            state.condition_holds(&morbid, PlayerId(0)),
+            "morbid holds after a creature dies this turn"
+        );
+        assert!(
+            state.condition_holds(&morbid_game, PlayerId(0)),
+            "ThisGame sees this turn's death too"
+        );
+
+        // Advance a turn: ThisTurn no longer sees it; ThisGame still does.
+        state.turn.turn_number = 2;
+        assert!(
+            !state.condition_holds(&morbid, PlayerId(0)),
+            "ThisTurn no longer sees last turn's death"
+        );
+        assert!(
+            state.condition_holds(&morbid_game, PlayerId(0)),
+            "ThisGame still sees it"
+        );
     }
 
     /// `YourTurn` is true for the active player, false for the other.
