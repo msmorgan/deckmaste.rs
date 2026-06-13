@@ -175,6 +175,9 @@ pub struct GameState {
     /// begins resolving, so a read can only see an amount fixed by an
     /// earlier instruction of the same resolution.
     pub that_much: Option<Uint>,
+    /// Turn/game event history ([CR#608.2i]): the append-only log the
+    /// condition layer queries (`Count::Query`, `Condition::Happened`).
+    pub history: crate::history::History,
 }
 
 impl GameState {
@@ -250,6 +253,7 @@ impl GameState {
             activations: ActivationLedger::default(),
             designations: DesignationStore::default(),
             that_much: None,
+            history: crate::history::History::default(),
         }
     }
 
