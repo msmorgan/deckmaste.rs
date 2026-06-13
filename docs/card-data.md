@@ -26,7 +26,7 @@ canon's job is correctness.
 ## Still never committed
 
 - `/data/` — CR text (`cr.txt`/`cr.json`), MTGJSON snapshots, catalogs.
-  Fetched locally via `scripts/fetch_data.fish`.
+  Fetched locally via `scripts/fetch_data`.
 - `plugins/wizards/` — generated full-corpus pipeline output; rebuild with
   `cargo xtask generate plugins/wizards`.
 - Oracle text, flavor text, and art, in any form. Canon encodes behavior,

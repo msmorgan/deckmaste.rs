@@ -26,7 +26,7 @@ The repo touches Wizards of the Coast IP in three tiers:
 
 - `data/` — the raw MTGJSON dump (~600 MB) and CR snapshot. Already
   gitignored; never publish. The README should point at
-  `scripts/fetch_data.fish` so users fetch their own copy.
+  `scripts/fetch_data` so users fetch their own copy.
 - `plugins/wizards/` — generated card stubs/todos. Already gitignored and
   regenerated via `cargo xtask generate plugins/wizards`; never publish.
 - `plugins/canon/` (and friends) — hand-written RON encodings that reference
@@ -68,7 +68,7 @@ people discover it. Suggested skeleton:
    bracketed `CR#…` form and CI catches stale or unregistered citations against the
    rules snapshot. This is the most novel dev-tooling idea in the repo;
    don't bury it.
-6. **Getting started** — build prereqs, `scripts/fetch_data.fish` (note the
+6. **Getting started** — build prereqs, `scripts/fetch_data` (note the
    ~600 MB download), `cargo xtask generate plugins/wizards`, then how to run
    the test suite. Flag which steps need the data and which don't.
 7. **Fan-content / license section** — from §2 above.
