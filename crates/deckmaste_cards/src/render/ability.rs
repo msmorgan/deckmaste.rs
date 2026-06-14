@@ -75,19 +75,22 @@ fn lower_first(s: &str) -> String {
 // ── Static abilities ─────────────────────────────────────────────────────────
 
 /// Render a `Static` ability's effects, one rules string each.
-pub(super) fn static_ability(s: &StaticAbility) -> Vec<String> {
-    s.effects.iter().filter_map(static_effect).collect()
+pub(super) fn static_ability(s: &StaticAbility, subject: &str) -> Vec<String> {
+    s.effects
+        .iter()
+        .filter_map(|e| static_effect(e, subject))
+        .collect()
 }
 
-fn static_effect(e: &StaticEffect) -> Option<String> {
+fn static_effect(e: &StaticEffect, subject: &str) -> Option<String> {
     match e {
-        StaticEffect::Expanded(exp) => static_effect(&exp.value),
+        StaticEffect::Expanded(exp) => static_effect(&exp.value, subject),
         StaticEffect::Modify { of, changes } => Some(format!(
             "{} get {}.",
             super::fragment::scope_subject(of),
             pt_delta(changes)
         )),
-        StaticEffect::Deontic(_) => None, // handled in Task 5
+        StaticEffect::Deontic(d) => Some(super::deontic::deontic(d, subject)),
         other => Some(format!("[unrendered: {other:?}].")),
     }
 }
