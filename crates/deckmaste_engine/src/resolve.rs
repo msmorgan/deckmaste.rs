@@ -348,6 +348,10 @@ impl GameState {
     /// player and replaces the previously hard-coded `frame.controller`. Damage
     /// to a multi-valued selection is one simultaneous `Batch` (a later task);
     /// drawing N is N sequential `Single`s ([CR#121.2] — drawn one at a time).
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one arm per source verb; splitting would scatter the dispatch"
+    )]
     pub(crate) fn action_items(&self, action: &Action, frame: &Frame) -> Vec<WorkItem> {
         match action {
             Action::DealDamage(sel, qty) => {
@@ -447,8 +451,32 @@ impl GameState {
                 }
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
-            Action::Attach { .. } => {
-                todo!("kw-equip: attach resolution ([CR#701.3]; relation storage is engine work)")
+            // [CR#701.3a]: attach `what` to each resolved host. This builder is
+            // pure (like every `action_items` arm — `Destroy`, `Tap`): it emits
+            // the `Attached` fact, and the relation mutation (`attached_to`)
+            // happens at that fact's apply ([CR#701.3c] gives the re-attach its
+            // new timestamp). No-op — no fact, mirroring the Tap/Untap
+            // transition-only idiom ([CR#603.2e]) — on the host it is already
+            // on, or a host that is the attachment itself ([CR#303.4d]).
+            Action::Attach { what, to } => {
+                let hosts = self.eval_selection_set(to, frame);
+                let mut events = Vec::new();
+                for attachment in self.eval_selection_set(what, frame) {
+                    for &host in &hosts {
+                        if host == attachment {
+                            continue; // [CR#303.4d]: can't attach to itself.
+                        }
+                        if self.objects.obj(attachment).attached_to == Some(host) {
+                            continue; // [CR#701.3a]: already on that host.
+                        }
+                        // TODO(engine-attach Stage 2): Cant(Attach) legality
+                        // no-op — skip a (what, host) pair where
+                        // `!attachment_legal(self, attachment, host)`
+                        // ([CR#701.3b]). For now any host is attachable.
+                        events.push(GameEvent::Attached { attachment, host });
+                    }
+                }
+                vec![WorkItem::Emit(occurrence_of(events))]
             }
         }
     }
@@ -1480,6 +1508,138 @@ mod tests {
         state.objects.obj_mut(m).zone = Some(Zone::Battlefield);
         state.zones.battlefield.push(m);
         (state, m)
+    }
+
+    /// Two Grizzly Bears (player 0) forced onto the battlefield — `(a, b)`.
+    /// The attachment subsystem is type-agnostic in Stage 1 ([CR#701.3b]'s
+    /// type-based attachability is Task 4.x), so two bare permanents exercise
+    /// the relation/verb/event mechanism directly.
+    fn two_permanents_on_field() -> (GameState, ObjectId, ObjectId) {
+        let (mut state, a) = bear_on_field();
+        let b = *state.zones.hands[0]
+            .iter()
+            .find(|&&o| {
+                obj_matches(
+                    &state,
+                    o,
+                    &Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                )
+            })
+            .expect("a second Grizzly Bears in the opening hand");
+        state.zones.hands[PlayerId(0).index()].retain(|&o| o != b);
+        state.objects.obj_mut(b).zone = Some(Zone::Battlefield);
+        state.zones.battlefield.push(b);
+        (state, a, b)
+    }
+
+    /// Drives the agenda forward a bounded number of steps — assert on the
+    /// post-condition, not the iteration count. A pending decision stops it.
+    fn drain(state: &mut GameState) {
+        for _ in 0..30 {
+            if matches!(state.step(), StepOutcome::NeedsDecision(_)) {
+                break;
+            }
+        }
+    }
+
+    /// Whether the history log holds a fact matching `pred` (game-wide).
+    fn logged(state: &GameState, pred: impl Fn(&GameEvent) -> bool) -> bool {
+        state
+            .history
+            .scan(deckmaste_core::Window::ThisGame, state.turn.turn_number)
+            .any(pred)
+    }
+
+    /// [CR#701.3a]: `Attach` sets the attachment→host relation and records the
+    /// `Attached` fact.
+    #[test]
+    fn attach_sets_the_relation_and_emits_attached() {
+        let (mut state, a, b) = two_permanents_on_field();
+        let frame = Frame {
+            source: a,
+            controller: PlayerId(0),
+            targets: vec![b],
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        state.run_effect(
+            Effect::Act(Action::Attach {
+                what: Selection::Ref(Reference::This),
+                to: Selection::Ref(Reference::Target(0)),
+            }),
+            &frame,
+        );
+        drain(&mut state);
+        assert_eq!(
+            state.objects.obj(a).attached_to,
+            Some(b),
+            "a is attached to b"
+        );
+        assert!(
+            logged(
+                &state,
+                |e| matches!(e, GameEvent::Attached { attachment, host }
+                if *attachment == a && *host == b)
+            ),
+            "Attached fact recorded"
+        );
+    }
+
+    /// [CR#701.3a]: attaching to the host it is already on is a no-op — no
+    /// second `Attached` fact (transition-only, [CR#603.2e]).
+    #[test]
+    fn attach_to_current_host_is_a_noop() {
+        let (mut state, a, b) = two_permanents_on_field();
+        state.objects.obj_mut(a).attached_to = Some(b);
+        let frame = Frame {
+            source: a,
+            controller: PlayerId(0),
+            targets: vec![b],
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        state.run_effect(
+            Effect::Act(Action::Attach {
+                what: Selection::Ref(Reference::This),
+                to: Selection::Ref(Reference::Target(0)),
+            }),
+            &frame,
+        );
+        drain(&mut state);
+        assert_eq!(state.objects.obj(a).attached_to, Some(b));
+        assert!(
+            !logged(&state, |e| matches!(e, GameEvent::Attached { .. })),
+            "no Attached fact for a re-attach to the current host"
+        );
+    }
+
+    /// [CR#303.4d]: an attachment can't be attached to itself — a no-op.
+    #[test]
+    fn attach_to_self_is_a_noop() {
+        let (mut state, a, _b) = two_permanents_on_field();
+        let frame = Frame {
+            source: a,
+            controller: PlayerId(0),
+            targets: vec![a],
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        state.run_effect(
+            Effect::Act(Action::Attach {
+                what: Selection::Ref(Reference::This),
+                to: Selection::Ref(Reference::Target(0)),
+            }),
+            &frame,
+        );
+        drain(&mut state);
+        assert_eq!(state.objects.obj(a).attached_to, None, "host == what no-op");
+        assert!(
+            !logged(&state, |e| matches!(e, GameEvent::Attached { .. })),
+            "no Attached fact for a self-attach"
+        );
     }
 
     /// `eval_selection_set` returns the bound set for a `Choose`/`Random` slot
