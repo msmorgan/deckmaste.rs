@@ -15,6 +15,7 @@ use deckmaste_core::ColorOrColorless;
 use deckmaste_core::Filter;
 use deckmaste_core::ManaRider;
 use deckmaste_core::Phase;
+use deckmaste_core::Supertype;
 use deckmaste_core::TurnMarker;
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
@@ -46,6 +47,23 @@ fn canon() -> Plugin {
 }
 
 fn card(name: &str) -> Arc<Card> { Arc::new(canon().card(name).unwrap()) }
+
+/// A snow Forest: the builtin `Forest` (whose `Forest` subtype confers the
+/// tap-for-green mana ability) with the `Snow` supertype added — the minimal
+/// snow source. Built in-Rust rather than loaded so the subtype's conferred
+/// ability is present (the generated snow basics leave their subtype's
+/// `confers` empty), isolating the test on snow-source detection.
+fn snow_forest() -> Card {
+    let mut forest = builtin().card("Forest").unwrap();
+    let Card::Normal(face) = &mut forest else {
+        panic!("Forest is a Normal card");
+    };
+    face.name = "Snow-Covered Forest".into();
+    if !face.supertypes.contains(&Supertype::Snow) {
+        face.supertypes.push(Supertype::Snow);
+    }
+    forest
+}
 
 fn green() -> ColorOrColorless { Color::Green.into() }
 fn red() -> ColorOrColorless { Color::Red.into() }
@@ -258,6 +276,89 @@ fn persistent_end_of_turn_mana_survives_step_boundaries() {
         state.player(PlayerId(0)).mana_pool.amount(green()),
         1,
         "persistent EndOfTurn green must survive until cleanup"
+    );
+}
+
+/// Player 0 holds one Snow-Covered Forest and one plain Forest, both forced
+/// onto the battlefield untapped. Used to compare the riders on mana tapped
+/// from a snow source vs a non-snow source.
+fn snow_vs_plain_game(seed: u64) -> GameState {
+    let snow = Arc::new(snow_forest());
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig {
+                deck: vec![Arc::clone(&snow), Arc::clone(&forest)],
+            },
+            PlayerConfig {
+                deck: vec![Arc::clone(&forest); 2],
+            },
+        ],
+        seed,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    for name in ["Snow-Covered Forest", "Forest"] {
+        let obj = find_in_hand(&state, PlayerId(0), name);
+        state.zones.hands[0].retain(|&o| o != obj);
+        state.objects.obj_mut(obj).zone = Some(Zone::Battlefield);
+        state.zones.battlefield.push(obj);
+    }
+    state
+}
+
+/// Activates `object`'s tap-for-mana ability at the current priority window,
+/// then steps until priority returns so the produced mana is actually applied.
+/// Mana abilities skip the stack ([CR#605.3b]), so the unit lands in the pool
+/// immediately on the following `ManaAdded` apply.
+fn tap_for_mana(state: &mut GameState, object: ObjectId) {
+    let legal = run_to_priority(state, PlayerId(0), Phase::PrecombatMain);
+    let action = legal
+        .iter()
+        .find(|a| matches!(a, Action::ActivateAbility { object: o, .. } if *o == object))
+        .unwrap_or_else(|| panic!("a tap-for-mana ability on {object:?} at priority: {legal:?}"))
+        .clone();
+    state.submit_decision(Decision::Act(action)).unwrap();
+    // Flush the scheduled `ManaAdded` (and its SBA/trigger checks) back to a
+    // priority window so the unit is in the pool when we inspect it.
+    let _ = run_to_priority(state, PlayerId(0), Phase::PrecombatMain);
+}
+
+/// [CR#107.4h]: any mana produced by a snow source (a permanent with the Snow
+/// supertype) is snow mana — its pool unit carries `ManaRider::Snow`. Mana from
+/// a non-snow source (a plain Forest) carries no such marker. The Snow marker
+/// is read off the source's DERIVED supertypes at the emit site, so it tracks
+/// the layered view, not the raw printed face.
+#[test]
+fn snow_source_mana_carries_snow_rider() {
+    let mut state = snow_vs_plain_game(1);
+    let find = |state: &GameState, name: &str| {
+        *state
+            .zones
+            .battlefield
+            .iter()
+            .find(|&&o| is_card(state, o, name))
+            .unwrap_or_else(|| panic!("a {name} on the battlefield"))
+    };
+    let snow = find(&state, "Snow-Covered Forest");
+    let plain = find(&state, "Forest");
+
+    // Tap the snow source first, then the plain source. The pool ends with two
+    // green units, in tap order: the snow one carries `Snow`, the plain one not.
+    tap_for_mana(&mut state, snow);
+    tap_for_mana(&mut state, plain);
+
+    let units = state.player(PlayerId(0)).mana_pool.units();
+    assert_eq!(units.len(), 2, "two greens floated: {units:?}");
+    assert!(
+        units[0].riders.contains(&ManaRider::Snow),
+        "snow-source mana carries ManaRider::Snow: {:?}",
+        units[0],
+    );
+    assert!(
+        !units[1].riders.contains(&ManaRider::Snow),
+        "non-snow-source mana carries no Snow rider: {:?}",
+        units[1],
     );
 }
 

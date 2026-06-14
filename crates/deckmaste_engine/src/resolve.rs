@@ -641,12 +641,17 @@ impl GameState {
             }
             PlayerAction::AddMana(qty, production) => {
                 let amount = self.eval_count(qty, frame);
-                let (spec, riders) = match production {
+                let (spec, mut riders) = match production {
                     deckmaste_core::ManaProduction::Bare(spec) => (spec, Vec::new()),
                     deckmaste_core::ManaProduction::WithRiders { mana, riders } => {
                         (mana, riders.clone())
                     }
                 };
+                // [CR#107.4h]: mana from a snow source carries `Snow`
+                // provenance regardless of the riders the ability text
+                // declares — snow-ness is a property of the producing source,
+                // not the effect.
+                riders.extend(self.snow_provenance(frame.source));
                 match spec {
                     // A fixed production needs no choice.
                     ManaSpec::Specific(mana) => {
