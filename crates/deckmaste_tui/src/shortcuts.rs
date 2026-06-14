@@ -6,6 +6,7 @@
 use deckmaste_core::Phase;
 use deckmaste_core::Uint;
 use deckmaste_engine::Decision;
+use deckmaste_engine::GameState;
 use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerId;
 
@@ -78,6 +79,62 @@ pub fn keep_passing(mode: PassMode, armed: &Snapshot, now: &Snapshot, player: Pl
         }
         PassMode::Turn => !next_precombat_main,
     }
+}
+
+impl Snapshot {
+    /// Read the live turn coordinates from the game.
+    #[must_use]
+    pub fn of(state: &GameState) -> Self {
+        Self {
+            active: state.turn.active_player,
+            phase: state.turn.current,
+            turn: state.turn.turn_number,
+            stack: state.stack.len(),
+        }
+    }
+}
+
+/// Per-player armed pass state. Indexed by `PlayerId::index()`.
+#[derive(Debug, Clone)]
+pub struct PassState {
+    modes: [Option<PassMode>; 2],
+    armed: [Option<Snapshot>; 2],
+}
+
+impl PassState {
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            modes: [None, None],
+            armed: [None, None],
+        }
+    }
+
+    /// Arm `mode` for `player`, snapshotting the current turn coordinates.
+    pub fn arm(&mut self, player: PlayerId, mode: PassMode, state: &GameState) {
+        self.modes[player.index()] = Some(mode);
+        self.armed[player.index()] = Some(Snapshot::of(state));
+    }
+
+    /// Disarm `player`'s mode (clear-on-stop).
+    pub fn clear(&mut self, player: PlayerId) {
+        self.modes[player.index()] = None;
+        self.armed[player.index()] = None;
+    }
+
+    /// `player`'s armed mode, if any.
+    #[must_use]
+    pub fn mode(&self, player: PlayerId) -> Option<PassMode> { self.modes[player.index()] }
+
+    /// `player`'s arm-time snapshot (only meaningful while a mode is armed).
+    #[must_use]
+    pub fn armed(&self, player: PlayerId) -> Option<&Snapshot> {
+        self.armed[player.index()].as_ref()
+    }
+}
+
+impl Default for PassState {
+    fn default() -> Self { Self::new() }
 }
 
 #[cfg(test)]
@@ -205,5 +262,35 @@ mod tests {
             &next_turn_main,
             PlayerId(0)
         ));
+    }
+
+    use crate::game;
+
+    #[test]
+    fn arm_records_mode_and_snapshot_then_clear_removes_it() {
+        let state = game::build_game().expect("build demo game");
+        let mut pass = PassState::new();
+        assert_eq!(pass.mode(PlayerId(0)), None);
+
+        pass.arm(PlayerId(0), PassMode::Yield, &state);
+        assert_eq!(pass.mode(PlayerId(0)), Some(PassMode::Yield));
+        assert_eq!(
+            pass.armed(PlayerId(0)).map(|s| s.turn),
+            Some(state.turn.turn_number)
+        );
+        assert_eq!(pass.mode(PlayerId(1)), None, "arming P0 leaves P1 alone");
+
+        pass.clear(PlayerId(0));
+        assert_eq!(pass.mode(PlayerId(0)), None);
+        assert!(pass.armed(PlayerId(0)).is_none());
+    }
+
+    #[test]
+    fn snapshot_of_reads_live_turn_coordinates() {
+        let state = game::build_game().expect("build demo game");
+        let s = Snapshot::of(&state);
+        assert_eq!(s.active, state.turn.active_player);
+        assert_eq!(s.turn, state.turn.turn_number);
+        assert_eq!(s.stack, state.stack.len());
     }
 }
