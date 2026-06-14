@@ -4,6 +4,7 @@ pub mod deck;
 pub mod graduate;
 pub mod macros;
 pub mod plugin;
+pub mod render;
 pub mod validate;
 
 pub use deck::Deck;
