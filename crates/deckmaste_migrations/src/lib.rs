@@ -3,6 +3,7 @@
 
 mod data;
 pub mod extract;
+pub mod graduate;
 mod ident;
 mod layout;
 pub(crate) mod parsers;

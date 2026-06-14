@@ -195,7 +195,13 @@ impl Plugin {
     }
 }
 
-pub(crate) fn read(path: &Path) -> anyhow::Result<String> {
+/// Reads a plugin file to a string with path context on failure. Exposed for
+/// the migration pipeline (`deckmaste_migrations::graduate`), which reads
+/// `.ron.todo` candidates before handing them to a [`Plugin`]'s macro reader.
+///
+/// # Errors
+/// If `path` isn't readable or doesn't contain valid UTF-8.
+pub fn read(path: &Path) -> anyhow::Result<String> {
     std::fs::read_to_string(path).with_context(|| format!(r#"reading "{}""#, path.display()))
 }
 

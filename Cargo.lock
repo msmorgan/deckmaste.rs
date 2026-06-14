@@ -429,6 +429,7 @@ name = "deckmaste_migrations"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "deckmaste_cards",
  "deckmaste_core",
  "regex",
  "ron",

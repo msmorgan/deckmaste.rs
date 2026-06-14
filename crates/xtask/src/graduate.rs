@@ -1,12 +1,12 @@
 //! `cargo xtask graduate <plugin>` — rename every `cards/*.ron.todo` that now
 //! parses cleanly to `<name>.ron`. Thin wrapper over
-//! [`deckmaste_cards::graduate::graduate_plugin`].
+//! [`deckmaste_migrations::graduate::graduate_plugin`].
 
 use std::path::Path;
 use std::path::PathBuf;
 
 use clap::Args;
-use deckmaste_cards::graduate::GraduateReport;
+use deckmaste_migrations::graduate::GraduateReport;
 
 /// How many top blocking macros to list before truncating.
 const TOP_MACROS: usize = 25;
@@ -23,7 +23,7 @@ pub struct GraduateArgs {
 /// If the plugin fails to load or a file isn't readable/renamable.
 #[allow(clippy::needless_pass_by_value)]
 pub fn run(args: GraduateArgs) -> anyhow::Result<()> {
-    let report = deckmaste_cards::graduate::graduate_plugin(&args.plugin_dir)?;
+    let report = deckmaste_migrations::graduate::graduate_plugin(&args.plugin_dir)?;
     print_report(&args.plugin_dir, &report);
     Ok(())
 }

@@ -34,7 +34,7 @@ pub fn run(args: GenerateArgs) -> anyhow::Result<()> {
     deckmaste_migrations::stubs::generate_stubs(&args.plugin_dir)?;
     deckmaste_migrations::extract::extract_cards(&args.plugin_dir)?;
     deckmaste_migrations::resolve::resolve_cards(&args.plugin_dir)?;
-    let report = deckmaste_cards::graduate::graduate_plugin(&args.plugin_dir)?;
+    let report = deckmaste_migrations::graduate::graduate_plugin(&args.plugin_dir)?;
     print_report(&args.plugin_dir, &report);
     Ok(())
 }
