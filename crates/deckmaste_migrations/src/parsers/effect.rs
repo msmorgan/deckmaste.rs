@@ -5,6 +5,7 @@
 //! announce list [CR#115.1]; distributive "each" is a resolution-time
 //! selection [CR#608.2d].
 
+use crate::parsers::count;
 use crate::parsers::filter;
 use crate::parsers::modify;
 
@@ -174,6 +175,13 @@ fn life_count(text: &str) -> Option<u32> {
 /// the sibling `Draw` production.
 fn parse_create_token(line: &str) -> Option<ParsedEffect> {
     let body = strip_prefix_ci(line, "create ")?.strip_suffix('.')?;
+    // A trailing dynamic-count clause ("…, where X is the number of …", "… for
+    // each …", "… equal to the number of …") is peeled first so the with-split
+    // below never sees a "with" inside the count's filter.
+    let (body, dynamic) = match count::strip(body) {
+        Some(c) => (c.head, Some(c)),
+        None => (body, None),
+    };
     // Optional trailing keyword-grant clause.
     let (descriptor, with_clause) = match body.split_once(" with ") {
         Some((d, w)) => (d, Some(w)),
@@ -183,9 +191,8 @@ fn parse_create_token(line: &str) -> Option<ParsedEffect> {
     let descriptor = descriptor
         .strip_suffix(" creature tokens")
         .or_else(|| descriptor.strip_suffix(" creature token"))?;
-    // Leading count word.
-    let (count_word, rest) = descriptor.split_once(' ')?;
-    let count = number_word(count_word)?;
+    // Count RON + the descriptor remainder (starting at the P/T).
+    let (count, rest) = resolve_token_count(descriptor, dynamic.as_ref())?;
     // P/T — mandatory; anchors this as a creature token.
     let (pt, rest) = rest.split_once(' ').unwrap_or((rest, ""));
     let (power, toughness) = parse_pt(pt)?;
@@ -241,6 +248,35 @@ fn parse_create_token(line: &str) -> Option<ParsedEffect> {
         targets: Vec::new(),
         effect: format!("Create({count}, Token({}))", fields.join(", ")),
     })
+}
+
+/// Resolve the token count + the descriptor remainder (from the P/T onward).
+/// Literal path: the leading count word -> bare numeral. Dynamic path: the
+/// binder dictates the placeholder the head must carry.
+fn resolve_token_count<'a>(
+    descriptor: &'a str,
+    dynamic: Option<&count::CountClause>,
+) -> Option<(String, &'a str)> {
+    match dynamic {
+        None => {
+            let (word, rest) = descriptor.split_once(' ')?;
+            Some((number_word(word)?.to_string(), rest))
+        }
+        Some(c) => match &c.binder {
+            count::Binder::Variable(var) => {
+                let (word, rest) = descriptor.split_once(' ')?;
+                (word == var).then(|| (c.count.clone(), rest))
+            }
+            count::Binder::ForEach => {
+                let (word, rest) = descriptor.split_once(' ')?;
+                (number_word(word)? == 1).then(|| (c.count.clone(), rest))
+            }
+            count::Binder::EqualTo => {
+                let rest = descriptor.strip_prefix("a number of ")?;
+                Some((c.count.clone(), rest))
+            }
+        },
+    }
 }
 
 /// `"1/1"` -> `(1, 1)`. `None` if either side isn't a non-negative integer
@@ -683,5 +719,50 @@ mod tests {
         assert!(parse_clause("Create a 3/3 colorless Phyrexian Golem artifact creature token.").is_none());
         // Trailing clause after the token.
         assert!(parse_clause("Create a 1/1 white Bird creature token with flying, then populate.").is_none());
+    }
+
+    #[test]
+    fn create_token_dynamic_where_x() {
+        // Krenko, Mob Boss.
+        assert_eq!(
+            parsed("Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control."),
+            Some((
+                String::new(),
+                "Create(CountOf(AllOf([Subtype(\"Goblin\"), ControlledBy(Ref(You))])), \
+                 Token(color_indicator: [Red], types: [Creature], subtypes: [Goblin], power: 1, toughness: 1))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn create_token_dynamic_for_each() {
+        assert_eq!(
+            parsed("Create a 1/1 red Goblin creature token for each Goblin you control."),
+            Some((
+                String::new(),
+                "Create(CountOf(AllOf([Subtype(\"Goblin\"), ControlledBy(Ref(You))])), \
+                 Token(color_indicator: [Red], types: [Creature], subtypes: [Goblin], power: 1, toughness: 1))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn create_token_dynamic_equal_to() {
+        assert_eq!(
+            parsed("Create a number of 1/1 white Soldier creature tokens equal to the number of creatures you control."),
+            Some((
+                String::new(),
+                "Create(CountOf(AllOf([Creature, ControlledBy(Ref(You))])), \
+                 Token(color_indicator: [White], types: [Creature], subtypes: [Soldier], power: 1, toughness: 1))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn create_token_dynamic_mismatched_var_declines() {
+        // The leading count word must equal the where-clause variable.
+        assert!(parse_clause("Create Y 1/1 red Goblin creature tokens, where X is the number of Goblins you control.").is_none());
+        // A non-unit base under "for each" has no Count product form -> decline.
+        assert!(parse_clause("Create two 1/1 red Goblin creature tokens for each Goblin you control.").is_none());
     }
 }
