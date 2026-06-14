@@ -480,6 +480,9 @@ fn walk_abilities<B, F: FnMut(&StaticEffect) -> ControlFlow<B>>(
             }
             Ability::Keyword(k) => in_keyword(k, visit),
             Ability::Expanded(e) => in_ability(&e.value, visit),
+            // Peel `Innate` — its inner static is consumed normally
+            // ([CR#113.12,604]).
+            Ability::Innate(inner) => in_ability(inner, visit),
             _ => ControlFlow::Continue(()),
         }
     }

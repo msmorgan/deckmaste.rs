@@ -61,17 +61,29 @@ pub(crate) fn printed_abilities(state: &GameState, id: ObjectId) -> &[Ability] {
     &state.cards.get(card).printed
 }
 
-/// The object's derived abilities after layer 6 ([CR#305.6,613.1f]):
-/// base = printed + subtype-conferred; layer 6 applies on top.
+/// The object's CARD-FACING derived abilities after layer 6
+/// ([CR#305.6,613.1f]): base = printed + subtype-conferred; layer 6 applies
+/// on top. `Innate` abilities are filtered OUT ([CR#113.12]): they are rules
+/// of the object, not abilities other cards can see or count — an object
+/// whose only abilities are `Innate` reads here as having none.
 ///
 /// Builds a full `LayeredView` per call — fine for a one-shot read (e.g. at
 /// resolution), but NEVER call it in a loop: build `state.layers()` once and
 /// index the view instead. The layer pipeline itself uses
 /// [`printed_abilities`] internally to break the `layers()` →
-/// `derive::abilities` → `layers()` recursion.
+/// `derive::abilities` → `layers()` recursion. Engine machinery that must see
+/// through `Innate` (the SBA sweep, `attachment_legal`, layer
+/// static-application) reads the view's `abilities` directly and peels.
 #[must_use]
 pub fn abilities(state: &GameState, id: ObjectId) -> std::sync::Arc<Vec<Ability>> {
-    std::sync::Arc::clone(&state.layers().get(id).abilities)
+    let view = state.layers();
+    let derived = &view.get(id).abilities;
+    if derived.iter().any(Ability::is_innate) {
+        std::sync::Arc::new(derived.iter().filter(|a| !a.is_innate()).cloned().collect())
+    } else {
+        // No Innate present — return the shared Arc unchanged (the common case).
+        std::sync::Arc::clone(derived)
+    }
 }
 
 /// The PRINTED abilities of whatever an `ObjectSource` names — the abilities

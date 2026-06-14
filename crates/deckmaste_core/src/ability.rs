@@ -147,10 +147,42 @@ pub enum Ability {
     /// position's macro namespace (`Keyword(Flying)` invokes the builtin
     /// `KeywordAbility`-kind macro, landing on `Composite`/`Expanded`).
     Keyword(KeywordAbility),
+    /// A conferred ability that is a *rule of the object* rather than a card
+    /// ability — used sparingly for "this type always behaves like this"
+    /// invariants (the Aura [CR#704.5m] graveyard SBA, the Equipment
+    /// [CR#301.5] / Fortification [CR#301.6] host restriction). The wrapped
+    /// ability is (a) **immune to layer-6 ability removal**: `LoseAllAbilities`
+    /// retains it, `LoseAbility` skips it, a `CantHaveAbility` set never
+    /// suppresses it; and (b) **invisible to card-facing ability queries**
+    /// — an object whose only abilities are `Innate` reads as having no
+    /// abilities to other cards ([CR#113.12]). Engine machinery (the SBA
+    /// sweep, `attachment_legal`, layer static-application) peels `Innate` to
+    /// see the inner ability. A look-through wrapper, like `Expanded`.
+    Innate(Box<Ability>),
     /// A remembered macro invocation ([CR#702] keyword abilities, and any other
     /// `Ability` macro). Absorbs the old `Keyword`/`KeywordAbility` shape.
     #[macro_ron(expanded)]
     Expanded(Expansion<Ability>),
+}
+
+impl Ability {
+    /// Peel any `Innate` wrapper to the inner ability — the view engine
+    /// machinery (SBA sweep, `attachment_legal`, layer static-application)
+    /// uses, since `Innate` is consumed normally there ([CR#604.1] statics
+    /// still function). Non-`Innate` abilities pass through unchanged.
+    #[must_use]
+    pub fn peel_innate(&self) -> &Ability {
+        match self {
+            Ability::Innate(inner) => inner.peel_innate(),
+            other => other,
+        }
+    }
+
+    /// Whether this ability is `Innate` ([CR#113.12]) — used to RETAIN it
+    /// through layer-6 ability removal and to FILTER it out of card-facing
+    /// ability queries.
+    #[must_use]
+    pub fn is_innate(&self) -> bool { matches!(self, Ability::Innate(_)) }
 }
 
 #[cfg(test)]
@@ -277,6 +309,40 @@ mod tests {
         let written = crate::ron::options().to_string(&ability).unwrap();
         let reread = read_ability(&written);
         assert_eq!(reread, expected);
+    }
+
+    /// `Innate(<ability>)` reads and round-trips (a self-boxed look-through
+    /// variant, like `Reference::AttachHostOf`), and `peel_innate` reaches the
+    /// inner ability through nesting while `is_innate` recognizes the wrapper.
+    #[test]
+    fn innate_round_trips_and_peels() {
+        use crate::Deontic;
+        use crate::DeonticAction;
+        use crate::Filter;
+        use crate::StaticAbility;
+        use crate::StaticEffect;
+
+        let inner = Ability::Static(StaticAbility {
+            condition: None,
+            effects: vec![StaticEffect::Deontic(Deontic::Cant(
+                DeonticAction::Attach {
+                    what: Filter::Ref(Reference::This),
+                    to: Filter::Not(Box::new(Filter::Characteristic(
+                        crate::CharacteristicFilter::Type(crate::Type::Creature),
+                    ))),
+                },
+            ))],
+            characteristic_defining: false,
+        });
+        let innate = Ability::Innate(Box::new(inner.clone()));
+        assert!(innate.is_innate());
+        assert!(!inner.is_innate());
+        // peel_innate reaches the inner ability (through any nesting).
+        assert_eq!(innate.peel_innate(), &inner);
+        assert_eq!(inner.peel_innate(), &inner);
+        // serde round-trip.
+        let written = crate::ron::options().to_string(&innate).unwrap();
+        assert_eq!(read_ability(&written), innate);
     }
 
     #[test]
