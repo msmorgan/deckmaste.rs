@@ -212,7 +212,9 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         && state.eval_query(deckmaste_core::QueryKey::LandsPlayedThisTurn, player) < 1
     {
         for &object in &state.zones.hands[player.index()] {
-            if derive::face(state.def(object)).types.contains(&Type::Land) {
+            // Derived type ([CR#613.1d]): a card that is a land in the layered
+            // view is playable as a land, exactly as the battlefield reads do.
+            if view.get(object).card_types.contains(&Type::Land) {
                 legal.push(Action::PlayLand { object });
             }
         }

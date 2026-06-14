@@ -95,13 +95,12 @@ pub fn matches(state: &GameState, id: ObjectId, filter: &Filter) -> bool {
     }
 }
 
-/// A card object's printed types; a player proxy has none.
+/// Whether a card object has card type `ty` in the DERIVED view ([CR#613.1d]
+/// layer-4 type changes count — an animated land or crewed Vehicle types as a
+/// Creature); a player proxy has none. Same per-call `layers()` perf seam as
+/// `Has`/`Subtype`.
 fn has_type(state: &GameState, id: ObjectId, ty: Type) -> bool {
-    state
-        .objects
-        .obj(id)
-        .card_id()
-        .is_some_and(|_| crate::derive::face(state.def(id)).types.contains(&ty))
+    state.objects.obj(id).card_id().is_some() && state.layers().get(id).card_types.contains(&ty)
 }
 
 /// Every object (card objects in their zones + player proxies) matching
@@ -180,6 +179,97 @@ mod tests {
         state.objects.obj_mut(bear).zone = Some(Zone::Battlefield);
         state.zones.battlefield.push(bear);
         (state, bear)
+    }
+
+    /// A two-player game (P0 Grizzly Bears, P1 Forest) with one of P1's
+    /// Forests forced onto the battlefield. Returns the state plus the land
+    /// object.
+    fn game_with_a_forest_on_the_field() -> (GameState, ObjectId) {
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: vec![Arc::clone(&bears); 10],
+                },
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 10],
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(1)),
+        });
+        // Force a Forest from player 1's hand onto the battlefield.
+        let land = *state.zones.hands[1]
+            .iter()
+            .find(|&&o| {
+                matches(
+                    &state,
+                    o,
+                    &Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(
+                        deckmaste_core::Type::Land,
+                    )),
+                )
+            })
+            .expect("a Forest in the opening hand (10-card mono deck)");
+        state.remove_from_hand(PlayerId(1), land);
+        state.objects.obj_mut(land).zone = Some(Zone::Battlefield);
+        state.zones.battlefield.push(land);
+        (state, land)
+    }
+
+    /// Regression ([CR#613.1d]): `Filter::Type` reads the DERIVED type, not the
+    /// printed face. A battlefield land animated into a creature by a layer-4
+    /// continuous effect matches `Type(Creature)` — the view says Creature, so
+    /// the matcher must agree. (Before the fix `has_type` read the printed face
+    /// and reported the land was not a creature, mis-typing every `candidates`
+    /// / targeting caller.)
+    #[test]
+    fn type_filter_reads_derived_type_for_animated_land() {
+        use deckmaste_core::Duration;
+        use deckmaste_core::Modification;
+
+        use crate::layer::ContinuousEffect;
+        use crate::layer::ScopeResolved;
+        use crate::object::Timestamp;
+
+        let (mut state, land) = game_with_a_forest_on_the_field();
+        let creature = Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(
+            deckmaste_core::Type::Creature,
+        ));
+        // Sanity: a plain Forest is not a creature.
+        assert!(
+            !matches(&state, land, &creature),
+            "a plain Forest is not a creature"
+        );
+
+        // Animate it: a layer-4 effect adds the Creature type ([CR#613.1d]).
+        state.continuous.push(ContinuousEffect {
+            timestamp: Timestamp(1_000),
+            controller: PlayerId(1),
+            scope: ScopeResolved::Locked(vec![land]),
+            changes: vec![Modification::AddCardTypes(vec![
+                deckmaste_core::Type::Creature,
+            ])],
+            duration: Duration::EndOfGame,
+            is_cda: false,
+        });
+
+        // The derived view says Creature...
+        assert!(
+            state
+                .layers()
+                .get(land)
+                .card_types
+                .contains(&deckmaste_core::Type::Creature),
+            "sanity: the animated land derives as a creature"
+        );
+        // ...and the Type filter must agree ([CR#613.1d]).
+        assert!(
+            matches(&state, land, &creature),
+            "Filter::Type reads the derived type — the animated land matches Type(Creature)"
+        );
     }
 
     #[test]
