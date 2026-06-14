@@ -10,6 +10,7 @@ use deckmaste_core::CostComponent;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::PlayerAction;
+use deckmaste_core::Selection;
 use deckmaste_core::Type;
 use deckmaste_core::UseLimit;
 use deckmaste_core::Zone;
@@ -44,9 +45,9 @@ pub(crate) struct CostSummary {
     pub tap: bool,
     pub untap: bool,
     /// Cost-eligible verb components ([`PlayerAction::is_cost_eligible`]):
-    /// Sacrifice, Exile, Tap, Untap, Discard, `LoseLife`, `RemoveCounters`, Reveal.
-    /// Collected for payment; non-eligible `Do(_)` causes `cost_summary` to
-    /// return `None`.
+    /// Sacrifice, Exile, Tap, Untap, Discard, `LoseLife`, `RemoveCounters`,
+    /// Reveal. Collected for payment; non-eligible `Do(_)` causes
+    /// `cost_summary` to return `None`.
     pub verbs: Vec<PlayerAction>,
 }
 
@@ -182,10 +183,124 @@ impl GameState {
 
         // [CR#601.2c,602.2b]: every target spec must admit at least one
         // legal candidate.
-        ability
+        if !ability
             .targets
             .iter()
             .all(|spec| !self.legal_targets(spec).is_empty())
+        {
+            return false;
+        }
+
+        // [CR#601.2h,118.3]: the non-mana verb/life costs must be fully
+        // payable too — partial payment is forbidden.
+        self.can_pay_verbs(player, &summary.verbs, object)
+    }
+
+    /// [CR#601.2h,118.3]: can `player` fully pay every cost-eligible verb in
+    /// `verbs`, with `subject` as the cost's source (`~`/`This`)? Each verb's
+    /// payment is all-or-nothing, so this is `true` only when *every* verb is
+    /// satisfiable. The frame mirrors the condition gate's: the source is the
+    /// activation's object, the controller is the payer, and no targets are
+    /// chosen yet.
+    #[must_use]
+    pub(crate) fn can_pay_verbs(
+        &self,
+        player: PlayerId,
+        verbs: &[PlayerAction],
+        subject: ObjectId,
+    ) -> bool {
+        // Same anchoring as the condition gate (`can_activate` above): the
+        // payer is the controller, `~`/`This` is the live source.
+        let frame = Frame {
+            source: subject,
+            controller: player,
+            targets: Vec::new(),
+            bindings: None,
+            chosen: None,
+        };
+        verbs
+            .iter()
+            .all(|verb| self.verb_cost_payable(verb, player, &frame))
+    }
+
+    /// Whether one cost-eligible verb can be paid in full ([CR#601.2h]). Looks
+    /// through `Expanded` macro wrappers.
+    fn verb_cost_payable(&self, verb: &PlayerAction, player: PlayerId, frame: &Frame) -> bool {
+        match verb {
+            // [CR#119.4]: pay-life needs life ≥ the amount; [CR#119.4b]: paying
+            // 0 is always allowed (and `life >= 0` holds trivially).
+            PlayerAction::LoseLife(count) => {
+                let amount = self.eval_count(count, frame);
+                // [CR#119.4,119.4b]: compare in Uint space — negative life can
+                // never be ≥ a non-negative amount, so clamp to 0 before
+                // converting. `unwrap_or(Uint::MAX)` mirrors the idiom used in
+                // `selection_cost_payable` to keep this panic-free.
+                let life = deckmaste_core::Uint::try_from(self.player(player).life.max(0))
+                    .unwrap_or(deckmaste_core::Uint::MAX);
+                life >= amount
+            }
+            // [CR#601.2h]: discard needs at least that many cards in hand
+            // (partial payment is forbidden).
+            PlayerAction::Discard(count) => {
+                let need = self.eval_count(count, frame) as usize;
+                self.zones.hands[player.index()].len() >= need
+            }
+            // Sacrifice/Exile/Tap/Untap: enough legal candidates for the
+            // selection's required count ([CR#601.2h]).
+            PlayerAction::Sacrifice(sel)
+            | PlayerAction::Exile(sel)
+            | PlayerAction::Tap(sel)
+            | PlayerAction::Untap(sel) => self.selection_cost_payable(sel, frame),
+            // Out of this ticket's listed scope — counter storage and the
+            // reveal window are unbuilt, so treat as payable for now.
+            // TODO(engine-cost-payment follow-up): payability for RemoveCounters
+            // (needs counter storage) and Reveal (needs the reveal window).
+            PlayerAction::RemoveCounters(..) | PlayerAction::Reveal { .. } => true,
+            // Look through a remembered macro invocation.
+            PlayerAction::Expanded(e) => self.verb_cost_payable(&e.value, player, frame),
+            // `cost_summary` only collects cost-eligible verbs, so nothing else
+            // reaches here.
+            other => unreachable!("non-cost-eligible verb in a cost summary: {other:?}"),
+        }
+    }
+
+    /// The minimum number of objects a `quantity` requires, independent of how
+    /// many candidates exist — `choice_bounds`'s floor read with an unbounded
+    /// pool (`Uint::MAX as usize` round-trips cleanly, never clamping the
+    /// floor).
+    fn required_minimum(
+        &self,
+        quantity: &deckmaste_core::Quantity,
+        frame: &Frame,
+    ) -> deckmaste_core::Uint {
+        self.choice_bounds(quantity, deckmaste_core::Uint::MAX as usize, frame)
+            .0
+    }
+
+    /// Whether a selection-bearing verb cost (sacrifice/exile/tap/untap) has
+    /// enough legal candidates to pay it ([CR#601.2h]). For `Choose` the
+    /// required count is the quantity's lower bound (via `choice_bounds`); the
+    /// fixed forms (`This`/`Each`/`Filter`) succeed when non-empty — a `This`
+    /// self-cost always names its one object.
+    fn selection_cost_payable(&self, sel: &Selection, frame: &Frame) -> bool {
+        match sel {
+            Selection::Choose(quantity, filter) => {
+                let available = crate::target::candidates(self, filter).len();
+                let required = self.required_minimum(quantity, frame);
+                deckmaste_core::Uint::try_from(available).unwrap_or(deckmaste_core::Uint::MAX)
+                    >= required
+            }
+            Selection::Each(filter) | Selection::Filter(filter) => {
+                !crate::target::candidates(self, filter).is_empty()
+            }
+            Selection::Expanded(e) => self.selection_cost_payable(&e.value, frame),
+            // `Ref` (a bound `This`/`Target`/… ) always names its one object, so
+            // it is payable. `AmongNoted`/`Random` are out of this ticket's scope
+            // (no noted-slot store yet; random isn't a cost form) — treat as
+            // payable for now.
+            // TODO(engine-cost-payment follow-up): payability for AmongNoted/Random selections.
+            Selection::Ref(_) | Selection::AmongNoted(..) | Selection::Random(..) => true,
+        }
     }
 
     /// [CR#602.2a,602.2b]: stage a non-mana activated ability — snapshot the
@@ -527,6 +642,112 @@ mod tests {
         assert!(
             state.can_activate(&view, player, obj, 0, &ability),
             "zero-cost, no-limits ability should always be activatable"
+        );
+    }
+
+    // -- can_pay_verbs gate ([CR#601.2h,118.3,119.4]) --
+
+    /// `LoseLife(2)` cost: the controller must have ≥ 2 life to activate. Goes
+    /// through the real `can_activate` gate so the wiring is exercised end to
+    /// end. The other gate inputs (no mana, no condition/limits/targets) are
+    /// inert, isolating the verb-payability check.
+    #[test]
+    fn gate_rejects_pay_life_cost_when_life_too_low() {
+        let mut state = game();
+        let player = PlayerId(0);
+        let obj = make_object_on_battlefield(&mut state, player);
+        let ability = activated(
+            vec![CostComponent::Do(PlayerAction::LoseLife(
+                deckmaste_core::Count::Literal(2),
+            ))],
+            noop_effect(),
+        );
+
+        // 1 life < 2: cannot pay the life cost.
+        state.player_mut(player).life = 1;
+        let view = state.layers();
+        assert!(
+            !state.can_activate(&view, player, obj, 0, &ability),
+            "LoseLife(2) cost must block activation at 1 life"
+        );
+    }
+
+    #[test]
+    fn gate_allows_pay_life_cost_when_life_sufficient() {
+        let mut state = game();
+        let player = PlayerId(0);
+        let obj = make_object_on_battlefield(&mut state, player);
+        let ability = activated(
+            vec![CostComponent::Do(PlayerAction::LoseLife(
+                deckmaste_core::Count::Literal(2),
+            ))],
+            noop_effect(),
+        );
+
+        // Exactly 2 life ≥ 2: the cost is payable ([CR#119.4]).
+        state.player_mut(player).life = 2;
+        let view = state.layers();
+        assert!(
+            state.can_activate(&view, player, obj, 0, &ability),
+            "LoseLife(2) cost must be payable at 2 life"
+        );
+    }
+
+    /// [CR#119.4b]: paying 0 life is always allowed, even at 0 life.
+    #[test]
+    fn pay_life_of_zero_is_always_payable() {
+        let mut state = game();
+        let player = PlayerId(0);
+        let obj = make_object_on_battlefield(&mut state, player);
+        state.player_mut(player).life = 0;
+        assert!(
+            state.can_pay_verbs(
+                player,
+                &[PlayerAction::LoseLife(deckmaste_core::Count::Literal(0))],
+                obj,
+            ),
+            "paying 0 life is always allowed [CR#119.4b]"
+        );
+    }
+
+    /// `Discard(1)` cost: the actor needs at least one card in hand.
+    #[test]
+    fn discard_cost_needs_a_card_in_hand() {
+        let mut state = game();
+        let player = PlayerId(0);
+        let obj = make_object_on_battlefield(&mut state, player);
+        let verbs = [PlayerAction::Discard(deckmaste_core::Count::Literal(1))];
+
+        // Empty hand: not payable.
+        assert!(
+            !state.can_pay_verbs(player, &verbs, obj),
+            "Discard(1) is not payable with an empty hand"
+        );
+
+        // One object in hand: payable.
+        let card = state
+            .objects
+            .mint(ObjectSource::Player(player), player, Some(Zone::Hand));
+        state.zones.hands[player.index()].push(card);
+        assert!(
+            state.can_pay_verbs(player, &verbs, obj),
+            "Discard(1) is payable with a card in hand"
+        );
+    }
+
+    /// A `This` self-sacrifice always has its one object — payable.
+    #[test]
+    fn self_sacrifice_cost_is_payable() {
+        let mut state = game();
+        let player = PlayerId(0);
+        let obj = make_object_on_battlefield(&mut state, player);
+        assert!(
+            state.can_pay_verbs(
+                player,
+                &[PlayerAction::Sacrifice(Selection::Ref(Reference::This))],
+                obj,
+            ),
+            "a self-sacrifice always has its one object to pay with"
         );
     }
 
