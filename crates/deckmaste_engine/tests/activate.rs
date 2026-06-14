@@ -16,18 +16,22 @@ use deckmaste_core::Action as CoreAction;
 use deckmaste_core::ActivatedAbility;
 use deckmaste_core::Card;
 use deckmaste_core::CardFace;
+use deckmaste_core::CharacteristicFilter;
 use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
 use deckmaste_core::Effect;
+use deckmaste_core::Filter;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::Phase;
 use deckmaste_core::PlayerAction;
+use deckmaste_core::Quantity;
 use deckmaste_core::Reference;
 use deckmaste_core::Selection;
 use deckmaste_core::SimpleManaSymbol;
+use deckmaste_core::StateFilter;
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
@@ -956,6 +960,126 @@ fn activated_ability_pays_life_cost() {
         life_before - 2,
         "the LoseLife(2) cost dropped the controller's life by exactly 2"
     );
+}
+
+/// [CR#601.2h,608.2d]: a `Do(Sacrifice(Choose(1, creature)))` cost surfaces a
+/// `ChooseObjects` decision during payment; the chosen creature is sacrificed
+/// (leaving the battlefield for its owner's graveyard) and the other is left
+/// untouched.
+#[test]
+fn activated_ability_pays_choose_sacrifice_cost() {
+    const ARTIFACT_NAME: &str = "Choose-sacrifice test artifact";
+    // Creature filter: battlefield creatures (zone check + type check).
+    let creature_filter = Filter::AllOf(vec![
+        Filter::State(StateFilter::InZone(Zone::Battlefield)),
+        Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+    ]);
+    let card = artifact_with_cost(
+        ARTIFACT_NAME,
+        vec![
+            CostComponent::Mana("{0}".parse().unwrap()),
+            CostComponent::Do(PlayerAction::Sacrifice(Selection::Choose(
+                Quantity::Exactly(Count::Literal(1)),
+                creature_filter,
+            ))),
+        ],
+    );
+
+    // Build a game: player 0 gets the artifact + mountains + Grizzly Bears,
+    // player 1 gets forests (no creatures so candidates are unambiguously P0's).
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let bears_card = Arc::new(canon().card(BEARS).unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mut p0 = vec![Arc::clone(&card); 3];
+    p0.extend(vec![Arc::clone(&bears_card); 4]);
+    p0.extend(vec![Arc::clone(&mountain); 3]);
+    let p1 = vec![forest; 10];
+    let mut state = GameState::new(GameConfig {
+        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
+        seed: 7,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+
+    // Force the artifact and two distinct bears onto the battlefield.
+    let artifact = force_into_play(&mut state, PlayerId(0), ARTIFACT_NAME);
+    let bear_a = force_into_play(&mut state, PlayerId(0), BEARS);
+    let bear_b = force_into_play(&mut state, PlayerId(0), BEARS);
+    // The two bears must be distinct objects.
+    assert_ne!(
+        bear_a, bear_b,
+        "two distinct Grizzly Bears are on the battlefield"
+    );
+
+    // Activate and pay the {0} mana component; leaves engine waiting after payment.
+    activate_and_pay_zero(&mut state, artifact);
+
+    // The next stop must be ChooseObjects for the sacrifice-a-creature choice.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseObjects {
+        player,
+        ref candidates,
+        min,
+        max,
+    }) = stop
+    else {
+        panic!("expected ChooseObjects for the sacrifice-creature cost, got {stop:?}");
+    };
+    assert_eq!(player, PlayerId(0), "the activating player chooses");
+    assert_eq!((min, max), (1, 1), "exactly one creature must be chosen");
+    assert!(
+        candidates.contains(&bear_a),
+        "bear_a is a candidate, candidates: {candidates:?}"
+    );
+    assert!(
+        candidates.contains(&bear_b),
+        "bear_b is a candidate, candidates: {candidates:?}"
+    );
+
+    // Choose bear_a to sacrifice.
+    state
+        .submit_decision(Decision::Chosen(vec![bear_a]))
+        .unwrap();
+
+    // Drive to the next priority window: the sacrifice cost must fire during
+    // payment so bear_a is already gone before the ability is on the stack.
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+
+    // bear_a was sacrificed: its original id is no longer on the battlefield.
+    assert!(
+        !state.zones.battlefield.contains(&bear_a),
+        "bear_a was sacrificed and is no longer on the battlefield"
+    );
+    // At least one object with the Bear's name is in P0's graveyard (the reminted
+    // id).
+    assert!(
+        state.zones.graveyards[0].iter().any(|&o| {
+            state
+                .objects
+                .obj(o)
+                .card_id()
+                .is_some_and(|_| face_name(&state, o) == BEARS)
+        }),
+        "a Grizzly Bears is in P0's graveyard after the sacrifice, gy: {:?}",
+        state.zones.graveyards[0]
+    );
+    // bear_b was NOT chosen: it must still be on the battlefield.
+    assert!(
+        state.zones.battlefield.contains(&bear_b),
+        "bear_b was not chosen and must still be on the battlefield"
+    );
+
+    // Resolve the ability (it has a no-op gain_zero() effect).
+    assert_eq!(
+        state.stack.len(),
+        1,
+        "the activated ability is on the stack"
+    );
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = step_to_stop(&mut state);
+    assert!(state.stack.is_empty(), "the ability resolved cleanly");
 }
 
 #[test]
