@@ -116,6 +116,11 @@ pub fn validate_payment(pool: &ManaPool, cost: &ManaCost, payment: &Payment) -> 
 /// Deducts a validated `payment`'s selected units from `pool`
 /// ([CR#601.2g,106.4]). Callers must `validate_payment` first; out-of-range
 /// indices are silently ignored, so an unvalidated payment may under-spend.
+///
+/// Seam: a spent unit's `GrantOnSpend`/`TriggerOnSpend` riders ([CR#106.6]) are
+/// dropped here, not fired — on-spend effects need a "mana spent on X" event +
+/// delayed triggers (deferred). `SpendOnly`/`Persistent` are already honored
+/// (at payment / at emptying), so removal here is correct for them.
 pub fn apply_payment(pool: &mut ManaPool, payment: &Payment) { pool.remove_units(&payment.units); }
 
 /// Canonical auto-tap ([CR#601.2g], a runner/test convenience — the engine
