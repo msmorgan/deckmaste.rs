@@ -108,7 +108,7 @@ fn render_zone(
     } else {
         Style::new()
     };
-    let block = Block::bordered().title(title.to_string()).border_style(border_style);
+    let block = Block::bordered().title(title).border_style(border_style);
     let list = List::new(rows)
         .block(block)
         .highlight_symbol("> ")
@@ -187,5 +187,6 @@ mod tests {
         assert!(text.contains("life"), "life shown");
         assert!(text.contains("P0 Battlefield"), "battlefield titled");
         assert!(text.contains("Detail"), "detail pane present");
+        assert!(text.contains("[Tab]"), "footer hints rendered");
     }
 }
