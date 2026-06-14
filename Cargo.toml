@@ -16,6 +16,7 @@ members = [
 pedantic = { level = "warn", priority = -1 }
 
 [package]
+publish = false
 name = "deckmaste"
 version = "0.1.0"
 edition = "2024"
