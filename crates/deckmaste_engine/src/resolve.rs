@@ -744,7 +744,45 @@ impl GameState {
                 .and_then(|b| b.this.as_ref())
                 .map_or(frame.source, |s| s.object),
             Reference::You => self.player(frame.controller).object,
-            other => todo!("stage 3 does not evaluate reference {other:?}"),
+            // [CR#603.10a]: the trigger's moved object / affected player,
+            // read from the bindings the fired trigger carried.
+            Reference::ThatObject => frame
+                .bindings
+                .as_ref()
+                .and_then(|b| b.that_object.as_ref())
+                .map(|s| s.object)
+                .expect("ThatObject referenced where the trigger bound one"),
+            Reference::ThatPlayer => {
+                let p = frame
+                    .bindings
+                    .as_ref()
+                    .and_then(|b| b.that_player)
+                    .expect("ThatPlayer referenced where the trigger bound one");
+                self.player(p).object
+            }
+            // [CR#109.5]: the derived controller of a referenced object.
+            Reference::ControllerOf(inner) => {
+                let id = self.eval_reference(inner, frame);
+                self.player(self.layers().controller(id)).object
+            }
+            // [CR#108.3]: the owner of a referenced (card-backed) object.
+            Reference::OwnerOf(inner) => {
+                let id = self.eval_reference(inner, frame);
+                self.player(self.owner_of(id)).object
+            }
+            // Look through a remembered macro invocation.
+            Reference::Expanded(e) => self.eval_reference(&e.value, frame),
+            // engine-resolve-selections follow-ups: these need stores that do
+            // not exist yet (see the filed tickets).
+            Reference::Bound(ident) => todo!(
+                "engine-bound-references: Bound({ident:?}) needs a named-role binding store ([CR#608.2])"
+            ),
+            Reference::Linked(ident) => todo!(
+                "engine-linked-abilities: Linked({ident:?}) needs a linked-ability store ([CR#607])"
+            ),
+            Reference::AttachHostOf(_) | Reference::AttachedTo(_) => todo!(
+                "engine-attachment-references: attachment refs need attachment-relation storage (see Action::Attach in this file)"
+            ),
         }
     }
 
@@ -1331,6 +1369,66 @@ mod tests {
         };
         let sel = Selection::Choose(Quantity::Exactly(Count::Literal(1)), creatures);
         assert_eq!(state.eval_selection_set(&sel, &frame), vec![bear]);
+    }
+
+    /// The buildable-now references: `ControllerOf`/`OwnerOf` distinguish
+    /// control from ownership ([CR#109.5,108.3]); `ThatObject`/`ThatPlayer`
+    /// read the trigger bindings ([CR#603.10a]).
+    #[test]
+    fn references_resolve_controller_owner_and_trigger_bindings() {
+        let (mut state, bear) = bear_on_field();
+        // A second Grizzly Bears from player 0's hand onto the battlefield, then
+        // handed to player 1: owner stays player 0, controller becomes player 1.
+        let theirs = *state.zones.hands[0]
+            .iter()
+            .find(|&&o| {
+                obj_matches(
+                    &state,
+                    o,
+                    &Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                )
+            })
+            .expect("a second Grizzly Bears in the opening hand");
+        state.zones.hands[PlayerId(0).index()].retain(|&o| o != theirs);
+        state.objects.obj_mut(theirs).zone = Some(Zone::Battlefield);
+        state.objects.obj_mut(theirs).controller = PlayerId(1);
+        state.zones.battlefield.push(theirs);
+
+        let frame = Frame {
+            source: bear,
+            controller: PlayerId(0),
+            targets: vec![theirs],
+            bindings: Some(crate::trigger::TriggerBindings {
+                this: Some(crate::lki::LkiSnapshot::capture(&state, bear)),
+                that_object: Some(crate::lki::LkiSnapshot::capture(&state, theirs)),
+                that_player: Some(PlayerId(1)),
+            }),
+            chosen: None,
+        };
+
+        assert_eq!(
+            state.eval_reference(
+                &Reference::ControllerOf(Box::new(Reference::Target(0))),
+                &frame
+            ),
+            state.player(PlayerId(1)).object,
+            "controller of player 1's creature is player 1"
+        );
+        assert_eq!(
+            state.eval_reference(&Reference::OwnerOf(Box::new(Reference::Target(0))), &frame),
+            state.player(PlayerId(0)).object,
+            "owner is still player 0"
+        );
+        assert_eq!(
+            state.eval_reference(&Reference::ThatObject, &frame),
+            theirs,
+            "ThatObject is the bound snapshot's object"
+        );
+        assert_eq!(
+            state.eval_reference(&Reference::ThatPlayer, &frame),
+            state.player(PlayerId(1)).object,
+            "ThatPlayer is the bound player's proxy"
+        );
     }
 
     /// [CR#702.12b]: an indestructible permanent can't be destroyed — the
