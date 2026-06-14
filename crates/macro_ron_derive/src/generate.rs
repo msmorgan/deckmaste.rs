@@ -92,19 +92,25 @@ fn flatten_payloads(input: &Input) -> Vec<&Type> {
         .collect()
 }
 
+/// The constructor mapping a deserialized payload into a newtype variant:
+/// the bare path constructor `#ty::#v_ident` (a tuple-struct fn), or — when the
+/// payload is `Box`ed — a closure that re-boxes it. Shared by
+/// [`embed_construct`]'s newtype arm and [`fall_throughs`].
+fn newtype_construct(ty: &Ident, v_ident: &Ident, boxed: bool) -> TokenStream {
+    if boxed {
+        quote!(|__payload| #ty::#v_ident(::std::boxed::Box::new(__payload)))
+    } else {
+        quote!(#ty::#v_ident)
+    }
+}
+
 /// The constructor mapping a deserialized embed payload into the embed
 /// variant: `T::Ref` for a newtype embed, a closure filling every defaulted
 /// field with its default for a tuple embed. Boxed payloads re-box.
 fn embed_construct(ty: &Ident, v: &Variant) -> TokenStream {
     let v_ident = &v.ident;
     match &v.shape {
-        Shape::Newtype(f) => {
-            if peeled(&f.ty).1 {
-                quote!(|__payload| #ty::#v_ident(::std::boxed::Box::new(__payload)))
-            } else {
-                quote!(#ty::#v_ident)
-            }
-        }
+        Shape::Newtype(f) => newtype_construct(ty, v_ident, peeled(&f.ty).1),
         Shape::Tuple(fields) => {
             let args = fields.iter().map(|f| match &f.default {
                 Some(default) => quote!(#default),
@@ -343,12 +349,7 @@ fn fall_throughs(input: &Input) -> Vec<TokenStream> {
             unreachable!("flatten is a newtype (validated in parse())");
         };
         let (inner, boxed) = peeled(&f.ty);
-        let v_ident = &v.ident;
-        let construct = if boxed {
-            quote!(|__payload| #ty::#v_ident(::std::boxed::Box::new(__payload)))
-        } else {
-            quote!(#ty::#v_ident)
-        };
+        let construct = newtype_construct(ty, &v.ident, boxed);
         falls.push(fall_through(inner, &construct));
     }
     if let Some(v) = input.embed() {

@@ -279,6 +279,19 @@ fn check_def(def: &MacroDef) -> Result<(), InsertError> {
     Ok(())
 }
 
+/// Builds the nullary `MacroDef` shared by [`MacroSet::declare`] and
+/// [`MacroSet::redeclare`]: `name` is a parameter-less macro of `kind` whose
+/// body is `declaration` (trimmed), verbatim.
+fn decl_def(kind: &str, name: Ident, declaration: &str) -> MacroDef {
+    MacroDef {
+        name,
+        kinds: vec![kind.into()],
+        params: Params::default(),
+        template: None,
+        body: declaration.trim().into(),
+    }
+}
+
 /// The macros in scope, keyed by name.
 ///
 /// This is the entry point for macro-aware reading: [`MacroSet::read_str`]
@@ -437,28 +450,35 @@ impl MacroSet {
         Ok(())
     }
 
-    /// Registers `def` under each of its kinds.
+    /// Validates `def` and registers it under each of its kinds. The shared
+    /// body of [`insert`](Self::insert) and [`replace`](Self::replace): the two
+    /// differ only in whether a same-kind name collision is rejected
+    /// (`allow_overwrite == false`) or silently overwritten
+    /// (`allow_overwrite == true`).
     ///
     /// # Errors
-    /// If any of those kinds is unregistered or already has a macro with
-    /// `def`'s name, or the definition repeats a kind (which would otherwise
-    /// self-overwrite silently).
-    pub fn insert(&mut self, def: &MacroDef) -> Result<(), InsertError> {
+    /// If `def` fails validation, any of its kinds is unregistered, or — when
+    /// `allow_overwrite` is `false` — a kind already has a macro named
+    /// `def.name` or `def` repeats a kind (which would otherwise self-overwrite
+    /// silently).
+    fn register(&mut self, def: &MacroDef, allow_overwrite: bool) -> Result<(), InsertError> {
         check_def(def)?;
         self.check_kinds(def)?;
         self.check_param_types(def)?;
         self.check_defaults(def)?;
-        for (i, &kind) in def.kinds.iter().enumerate() {
-            let duplicate = def.kinds[..i].contains(&kind)
-                || self
-                    .macros
-                    .get(&kind)
-                    .is_some_and(|named| named.contains_key(&def.name));
-            if duplicate {
-                return Err(InsertError::Duplicate {
-                    kind,
-                    name: def.name,
-                });
+        if !allow_overwrite {
+            for (i, &kind) in def.kinds.iter().enumerate() {
+                let duplicate = def.kinds[..i].contains(&kind)
+                    || self
+                        .macros
+                        .get(&kind)
+                        .is_some_and(|named| named.contains_key(&def.name));
+                if duplicate {
+                    return Err(InsertError::Duplicate {
+                        kind,
+                        name: def.name,
+                    });
+                }
             }
         }
         for &kind in &def.kinds {
@@ -468,6 +488,16 @@ impl MacroSet {
                 .insert(def.name, def.clone());
         }
         Ok(())
+    }
+
+    /// Registers `def` under each of its kinds.
+    ///
+    /// # Errors
+    /// If any of those kinds is unregistered or already has a macro with
+    /// `def`'s name, or the definition repeats a kind (which would otherwise
+    /// self-overwrite silently).
+    pub fn insert(&mut self, def: &MacroDef) -> Result<(), InsertError> {
+        self.register(def, false)
     }
 
     /// Declares `name` as a nullary macro of `kind` whose body is
@@ -482,13 +512,7 @@ impl MacroSet {
         name: Ident,
         declaration: &str,
     ) -> Result<(), InsertError> {
-        self.insert(&MacroDef {
-            name,
-            kinds: vec![kind.into()],
-            params: Params::default(),
-            template: None,
-            body: declaration.trim().into(),
-        })
+        self.insert(&decl_def(kind, name, declaration))
     }
 
     /// Registers `def` under each of its kinds, overriding same-kind
@@ -499,17 +523,7 @@ impl MacroSet {
     /// # Errors
     /// If any of `def`'s kinds is unregistered.
     pub fn replace(&mut self, def: &MacroDef) -> Result<(), InsertError> {
-        check_def(def)?;
-        self.check_kinds(def)?;
-        self.check_param_types(def)?;
-        self.check_defaults(def)?;
-        for &kind in &def.kinds {
-            self.macros
-                .entry(kind)
-                .or_default()
-                .insert(def.name, def.clone());
-        }
-        Ok(())
+        self.register(def, true)
     }
 
     /// Like [`MacroSet::declare`], but overriding: see [`MacroSet::replace`].
@@ -522,13 +536,7 @@ impl MacroSet {
         name: Ident,
         declaration: &str,
     ) -> Result<(), InsertError> {
-        self.replace(&MacroDef {
-            name,
-            kinds: vec![kind.into()],
-            params: Params::default(),
-            template: None,
-            body: declaration.trim().into(),
-        })
+        self.replace(&decl_def(kind, name, declaration))
     }
 
     /// Reads a RON document with these macros in scope: an identifier that
