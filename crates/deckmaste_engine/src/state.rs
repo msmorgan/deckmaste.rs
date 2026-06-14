@@ -121,6 +121,15 @@ pub struct GameConfig {
     pub starting_player: StartingPlayer,
 }
 
+/// The effect + frame to re-run once a `ChooseObjects` decision is answered
+/// ([CR#608.2d]). Transient: set while that decision is pending, taken on
+/// submit. The resolution-time analogue of the `announcing` cast slot.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChoiceContinuation {
+    pub effect: Box<deckmaste_core::Effect>,
+    pub frame: crate::stack::Frame,
+}
+
 /// The whole game. Fields are public for test construction and inspection;
 /// [`GameState::step`] and [`GameState::submit_decision`] are the only
 /// sanctioned mutators.
@@ -139,6 +148,8 @@ pub struct GameState {
     pub turn: TurnState,
     pub agenda: VecDeque<WorkItem>,
     pub pending: Option<PendingDecision>,
+    /// The continuation waiting on an open `ChooseObjects` decision.
+    pub choice: Option<ChoiceContinuation>,
     pub outcome: Option<GameOutcome>,
     /// [CR#603.2]: triggers that have fired but are not yet on the stack.
     /// Populated only by applying a `TriggerFired` event; drained by the
@@ -243,6 +254,7 @@ impl GameState {
             },
             agenda: VecDeque::from([WorkItem::BeginStep(Phase::Beginning(BeginningStep::Untap))]),
             pending: None,
+            choice: None,
             outcome: None,
             pending_triggers: Vec::new(),
             placing_trigger: None,

@@ -105,6 +105,7 @@ impl PendingDecision {
             | PendingDecision::YesNo { player, .. }
             | PendingDecision::OrderReplacements { player, .. }
             | PendingDecision::ChooseCostOptions { player, .. }
+            | PendingDecision::ChooseObjects { player, .. }
             | PendingDecision::PreGame { player, .. } => *player,
         }
     }
@@ -233,6 +234,15 @@ pub enum PendingDecision {
     OrderReplacements { player: PlayerId, count: Uint },
     /// A pre-game choice ([CR#103]) — shell.
     PreGame { player: PlayerId, kind: PreGameKind },
+    /// [CR#608.2d]: choose objects at resolution. `candidates` is the matching
+    /// set; the answer picks between `min` and `max` of them (both clamped to
+    /// `candidates.len()` — "as many as able").
+    ChooseObjects {
+        player: PlayerId,
+        candidates: Vec<ObjectId>,
+        min: Uint,
+        max: Uint,
+    },
 }
 
 /// An answer to the pending decision.
@@ -269,6 +279,8 @@ pub enum Decision {
     /// sum to the source's power, each recipient drawn from the offered set
     /// ([CR#510.1c]).
     Assignment(Vec<(ObjectId, Uint)>),
+    /// Answers `ChooseObjects`: the chosen objects ([CR#608.2d]).
+    Chosen(Vec<ObjectId>),
 }
 
 /// What a priority holder can do in the skeleton.
@@ -754,6 +766,41 @@ impl GameState {
                 let source = *source;
                 let recipients = recipients.clone();
                 self.submit_assign_combat_damage(source, &recipients, amounts)
+            }
+            (
+                PendingDecision::ChooseObjects {
+                    candidates,
+                    min,
+                    max,
+                    ..
+                },
+                Decision::Chosen(chosen),
+            ) => {
+                // [CR#608.2d]: distinct, all from the offered set, count in range.
+                let chosen_count = Uint::try_from(chosen.len()).expect("chosen count fits Uint");
+                let distinct: HashSet<_> = chosen.iter().copied().collect();
+                let legal = distinct.len() == chosen.len()
+                    && chosen_count >= *min
+                    && chosen_count <= *max
+                    && chosen.iter().all(|id| candidates.contains(id));
+                if !legal {
+                    return Err(DecisionError::Illegal {
+                        reason: "illegal object selection".into(),
+                    });
+                }
+                // All reads of `pending` are done; safe to mutate self.
+                self.pending = None;
+                let cont = self
+                    .choice
+                    .take()
+                    .expect("a ChooseObjects decision stashed its continuation");
+                let mut frame = cont.frame;
+                frame.chosen = Some(chosen);
+                self.schedule_front(vec![WorkItem::RunEffect {
+                    effect: cont.effect,
+                    frame,
+                }]);
+                Ok(())
             }
             (
                 PendingDecision::ChooseModes { .. }
