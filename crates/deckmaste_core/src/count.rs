@@ -112,4 +112,11 @@ mod tests {
         let written = crate::ron::options().to_string(&value).unwrap();
         assert_eq!(read(&written), value);
     }
+
+    /// The exact shape the dynamic-count parser emits must read back into core.
+    #[test]
+    fn count_of_filter_reads() {
+        let value = read(r#"CountOf(AllOf([Subtype("Goblin"), ControlledBy(Ref(You))]))"#);
+        assert!(matches!(value, Count::CountOf(_)));
+    }
 }
