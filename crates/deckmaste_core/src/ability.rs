@@ -181,8 +181,22 @@ impl Ability {
     /// Whether this ability is `Innate` ([CR#113.12]) — used to RETAIN it
     /// through layer-6 ability removal and to FILTER it out of card-facing
     /// ability queries.
+    ///
+    /// Looks through `Expanded`, the macro-invocation provenance wrapper
+    /// (mirroring `peel_innate`'s recursion and the `Expanded` arm in
+    /// `ability_is_named`): a macro-expanded `Expanded(Innate(...))` is still
+    /// `Innate`, so it survives `LoseAllAbilities` and stays invisible to
+    /// card-facing queries the same way a bare `Innate` does. (Currently Innate
+    /// is always outermost, but Stage-4 subtype conferral may wrap conferred
+    /// abilities in `Expanded`.)
     #[must_use]
-    pub fn is_innate(&self) -> bool { matches!(self, Ability::Innate(_)) }
+    pub fn is_innate(&self) -> bool {
+        match self {
+            Ability::Innate(_) => true,
+            Ability::Expanded(e) => e.value.is_innate(),
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -343,6 +357,54 @@ mod tests {
         // serde round-trip.
         let written = crate::ron::options().to_string(&innate).unwrap();
         assert_eq!(read_ability(&written), innate);
+    }
+
+    /// [CR#113.12]: `is_innate` looks THROUGH the `Expanded` macro-invocation
+    /// wrapper — an `Expanded(Innate(...))` (which a Stage-4 subtype conferral
+    /// may produce) is still recognized as `Innate`, so layer-6 ability removal
+    /// retains it and card-facing queries hide it, exactly like a bare
+    /// `Innate`.
+    #[test]
+    fn is_innate_looks_through_expanded() {
+        use crate::Expansion;
+        use crate::ExpansionArgs;
+
+        let inner = Ability::Static(StaticAbility {
+            condition: None,
+            effects: vec![],
+            characteristic_defining: false,
+        });
+        let innate = Ability::Innate(Box::new(inner.clone()));
+        // A macro-expanded Innate: `Expanded(Innate(...))`.
+        let wrapped = Ability::Expanded(Expansion {
+            name: "AuraGraveyardRule".into(),
+            args: ExpansionArgs::none(),
+            template: None,
+            value: Box::new(innate.clone()),
+        });
+        assert!(wrapped.is_innate(), "Expanded(Innate(...)) is innate");
+        // Nesting deeper through another Expanded layer still resolves.
+        let double = Ability::Expanded(Expansion {
+            name: "Outer".into(),
+            args: ExpansionArgs::none(),
+            template: None,
+            value: Box::new(wrapped.clone()),
+        });
+        assert!(
+            double.is_innate(),
+            "Expanded(Expanded(Innate(...))) is innate"
+        );
+        // A non-Innate Expanded is NOT innate (no over-matching).
+        let not_innate = Ability::Expanded(Expansion {
+            name: "Plain".into(),
+            args: ExpansionArgs::none(),
+            template: None,
+            value: Box::new(inner),
+        });
+        assert!(
+            !not_innate.is_innate(),
+            "Expanded(Static(...)) is not innate"
+        );
     }
 
     #[test]
