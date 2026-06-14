@@ -230,11 +230,19 @@ pub enum PendingDecision {
     Vote { player: PlayerId, options: Uint },
     /// A fixed-window yes/no ("… unless you pay", [CR#608.2d]) — shell.
     YesNo { player: PlayerId },
-    /// Announce-time cost intentions ([CR#601.2b]): optional-additional
-    /// (kicker) and alternative-cost selection; multi-way symbol readings
-    /// (hybrid/Phyrexian, [CR#118.13]) announce here too — P0.W7 shell;
-    /// nothing surfaces it yet.
-    ChooseCostOptions { player: PlayerId, options: Uint },
+    /// Announce-time cost intentions ([CR#601.2b]): the player announces the
+    /// nonhybrid equivalent of each hybrid symbol ([CR#107.4e]) and, for each
+    /// Phyrexian symbol, color-or-2-life ([CR#107.4f]). `options[i]` is the
+    /// legal readings of the i-th choosable symbol of `cost` (cost order); the
+    /// answer ([`Decision::CostOptions`]) supplies one pick per entry. Kicker
+    /// and alternative-cost selection will join this kind in a later task.
+    ChooseCostOptions {
+        player: PlayerId,
+        cost: deckmaste_core::ManaCost,
+        // pre-computed from choosable(&cost); redundancy is intentional so the
+        // player's answer can be validated without re-reading the cost.
+        options: crate::cost_options::ChoosableOptions,
+    },
     /// [CR#601.2b]: announce the value of `{X}` in the in-flight cost. Any value
     /// >= 0 is accepted; an unpayable announcement rewinds the cast ([CR#733]).
     ChooseXValue { player: PlayerId },
@@ -265,6 +273,9 @@ pub enum Decision {
     VoteFor(Uint),
     /// A yes/no answer ([CR#608.2d]) — shell.
     Answer(bool),
+    /// Answers `ChooseCostOptions`: one chosen reading per choosable symbol, in
+    /// the order they appear in the cost ([CR#601.2b]).
+    CostOptions(crate::cost_options::CostOptionChoices),
     /// Answers `Priority`.
     Act(Action),
     /// Answers `DiscardToHandSize` and `DiscardCards`: which cards to discard.

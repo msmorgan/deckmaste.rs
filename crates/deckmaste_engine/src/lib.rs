@@ -15,6 +15,15 @@ pub use cast::Payment;
 
 mod condition;
 
+mod cost_options;
+pub use cost_options::ChoosableOptions;
+pub use cost_options::ConcretizeError;
+pub use cost_options::CostOptionChoices;
+pub use cost_options::SymbolChoice;
+pub use cost_options::SymbolOptions;
+pub use cost_options::choosable;
+pub use cost_options::concretize;
+
 mod combat;
 pub use combat::CombatState;
 pub use combat::has_keyword;
