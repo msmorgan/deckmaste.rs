@@ -28,6 +28,7 @@ pub(super) fn count(c: &Count) -> String {
 pub(super) fn selection(sel: &Selection, ctx: &Ctx) -> String {
     match sel {
         Selection::Ref(r) => reference(r, ctx),
+        Selection::Each(f) | Selection::Filter(f) => format!("each {}", filter_noun(f)),
         other => format!("[unrendered: {other:?}]"),
     }
 }
@@ -63,12 +64,14 @@ pub(super) fn target_spec(spec: &TargetSpec) -> String {
     }
 }
 
-/// A simple noun for a filter, used in target phrases.
+/// A simple noun for a filter, used in target phrases and "each <noun>"
+/// selection phrases.  Sees through `Expanded` wrappers via [`find_card_type`]
+/// and [`strip_expanded`].
 fn filter_noun(filter: &Filter) -> String {
-    match filter {
-        Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(t)) => {
-            format!("{t:?}").to_lowercase()
-        }
+    if let Some(t) = find_card_type(filter) {
+        return super::card::type_str(t).to_lowercase();
+    }
+    match strip_expanded(filter) {
         Filter::Kind(ObjectKind::Player) => "player".to_string(),
         other => format!("[unrendered: {other:?}]"),
     }
