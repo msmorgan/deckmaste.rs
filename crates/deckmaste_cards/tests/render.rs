@@ -438,6 +438,40 @@ fn renders_scope_of_singular() {
     );
 }
 
+/// An Aura whose static effect pumps its host: `Scope::Of(AttachHostOf(This))`
+/// → "Enchanted creature gets +2/+2."
+#[test]
+fn renders_aura_host_pump() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::CardFace;
+    use deckmaste_core::Count;
+    use deckmaste_core::Modification;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Scope;
+    use deckmaste_core::StaticAbility;
+    use deckmaste_core::StaticEffect;
+    let face = CardFace {
+        name: "Test Buff Aura".into(),
+        types: vec![Type::Enchantment],
+        abilities: vec![Ability::Static(StaticAbility {
+            condition: None,
+            effects: vec![StaticEffect::Modify {
+                of: Scope::Of(Reference::AttachHostOf(Box::new(Reference::This))),
+                changes: vec![
+                    Modification::AddPower(Count::Literal(2)),
+                    Modification::AddToughness(Count::Literal(2)),
+                ],
+            }],
+            characteristic_defining: false,
+        })],
+        ..CardFace::default()
+    };
+    assert_eq!(
+        render_card_face(&face).rules,
+        vec!["Enchanted creature gets +2/+2.".to_string()]
+    );
+}
+
 // ── Coverage D: Effect::Continuously + Duration suffix ──────────────────────
 
 /// Synthesized pump spell: "Target creature gets +3/+3 until end of turn."

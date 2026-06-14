@@ -133,6 +133,10 @@ fn reference_subject(r: &Reference, ctx: &super::Ctx) -> String {
             Some(spec) => capitalize(&target_spec(spec)),
             None => "[unrendered: missing target]".to_string(),
         },
+        // Aura host: "Enchanted creature gets +2/+2." (matches deontic_subject).
+        Reference::AttachHostOf(inner) if matches!(**inner, Reference::This) => {
+            "Enchanted creature".to_string()
+        }
         other => format!("[unrendered: {other:?}]"),
     }
 }
