@@ -8,6 +8,7 @@
 use crate::parsers::count;
 use crate::parsers::filter;
 use crate::parsers::modify;
+use crate::parsers::modify::strip_prefix_ci;
 
 /// One parsed effect clause: `TargetSpec` RON fragments to declare on the
 /// frame (empty when the effect targets nothing), and the `Effect`/`Action`
@@ -246,7 +247,7 @@ fn parse_create_token(line: &str) -> Option<ParsedEffect> {
     let mut colors: Vec<&'static str> = Vec::new();
     let mut i = 0;
     while i < words.len() {
-        if let Some(c) = color_word(words[i]) {
+        if let Some(c) = super::filter::color_ident(words[i]) {
             colors.push(c);
             i += 1;
         } else if words[i] == "colorless"
@@ -254,7 +255,7 @@ fn parse_create_token(line: &str) -> Option<ParsedEffect> {
                 && i > 0
                 && words
                     .get(i + 1)
-                    .is_some_and(|w| color_word(w).is_some() || *w == "colorless"))
+                    .is_some_and(|w| super::filter::color_ident(w).is_some() || *w == "colorless"))
         {
             // "colorless" is an explicit no-color marker; "and" connects color
             // words — both advance past a non-subtype word without recording a color.
@@ -331,20 +332,6 @@ fn parse_pt(text: &str) -> Option<(u32, u32)> {
     Some((p.parse().ok()?, t.parse().ok()?))
 }
 
-/// A color word -> its `Color` ident, else `None`. Case-insensitive: oracle
-/// text lowercases colors in this position, but a silent misclassification as a
-/// subtype is worse than tolerating case.
-fn color_word(word: &str) -> Option<&'static str> {
-    Some(match word.to_ascii_lowercase().as_str() {
-        "white" => "White",
-        "blue" => "Blue",
-        "black" => "Black",
-        "red" => "Red",
-        "green" => "Green",
-        _ => return None,
-    })
-}
-
 /// A plausible single creature subtype: uppercase-initial and all ASCII
 /// alphabetic. Rejects lowercase card-type words ("artifact"), connectives, and
 /// any word carrying a comma/slash/digit — the tell-tale of a multi-token line
@@ -370,13 +357,6 @@ fn parse_keyword_grants(clause: &str) -> Option<Vec<String>> {
                 .map(|ident| format!("Keyword({ident})"))
         })
         .collect()
-}
-
-/// Case-insensitive ASCII prefix strip: the remainder after `prefix` if `s`
-/// starts with it (ignoring ASCII case), else `None`.
-fn strip_prefix_ci<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
-    let (head, rest) = s.split_at_checked(prefix.len())?;
-    head.eq_ignore_ascii_case(prefix).then_some(rest)
 }
 
 /// A small spelled cardinal or a bare decimal -> its value. `None` for

@@ -168,7 +168,12 @@ fn strip_status(s: &str) -> Option<(String, &str)> {
     Some((atom.to_string(), rest.trim_start()))
 }
 
-fn color_code(word: &str) -> Option<&'static str> {
+/// An English color word -> its `Color` ident, else `None`. Case-insensitive:
+/// oracle text lowercases colors in this position, but a silent
+/// misclassification as a subtype is worse than tolerating case. The single
+/// English color-word map shared across the parsers (distinct from core
+/// `Color::from_code`, which maps single-letter codes).
+pub(super) fn color_ident(word: &str) -> Option<&'static str> {
     Some(match word.to_ascii_lowercase().as_str() {
         "white" => "White",
         "blue" => "Blue",
@@ -195,7 +200,7 @@ fn strip_color(s: &str) -> Option<(String, &str)> {
     let atom = match first.to_ascii_lowercase().as_str() {
         "colorless" => "Colorless".to_string(),
         "multicolored" => "Multicolored".to_string(),
-        other => format!("ColorIs({})", color_code(other)?),
+        other => format!("ColorIs({})", color_ident(other)?),
     };
     Some((atom, rest.trim_start()))
 }
@@ -242,26 +247,64 @@ fn strip_designation_adjective(s: &str) -> Option<(String, &str)> {
     Some((format!("Designated(\"{ident}\")"), rest.trim_start()))
 }
 
+/// Singularize an English type noun: the `-ies → -y` irregular plural first
+/// (so "sorceries" → "sorcery"), then the plain trailing `-s`. The shared
+/// singularizer the type-noun maps key on ([`head_noun`], [`is_type_noun`], and
+/// `keyword_ability::quality_filter`).
+pub(super) fn singularize(word: &str) -> String {
+    word.strip_suffix("ies").map_or_else(
+        || word.strip_suffix('s').unwrap_or(word).to_string(),
+        |stem| format!("{stem}y"),
+    )
+}
+
+/// The shared English type-noun vocabulary: singular (lowercase) → the atom
+/// [`head_noun`] emits — a battlefield-scoped builtin filter macro (`Creature`,
+/// `Permanent`, …) or a `Type(<T>)` for the card types that have no dedicated
+/// macro. The one map both filter-head parsing and `quality_filter` consult;
+/// each applies its own wrapper (see [`type_filter`] for `quality_filter`'s
+/// always-`Type(<T>)` view).
+const TYPE_NOUN_ATOMS: &[(&str, &str)] = &[
+    ("creature", "Creature"),
+    ("permanent", "Permanent"),
+    ("planeswalker", "Planeswalker"),
+    ("battle", "Battle"),
+    ("artifact", "Type(Artifact)"),
+    ("enchantment", "Type(Enchantment)"),
+    ("land", "Type(Land)"),
+    ("instant", "Type(Instant)"),
+    ("sorcery", "Type(Sorcery)"),
+];
+
+/// The [`head_noun`] atom for a singular type-noun key, or `None` if `singular`
+/// is not a known type noun.
+fn type_noun_atom(singular: &str) -> Option<&'static str> {
+    TYPE_NOUN_ATOMS
+        .iter()
+        .find(|(noun, _)| *noun == singular)
+        .map(|(_, atom)| *atom)
+}
+
+/// The `Type(<T>)` filter for a singular type-noun key that names a real card
+/// type — `quality_filter`'s divergent wrapper. Declines the builtin-only
+/// `Permanent` (not a card type, so `Type(Permanent)` would be wrong) and the
+/// macro-rendered card types share the same `<T>` spelling either way.
+pub(super) fn type_filter(singular: &str) -> Option<String> {
+    let atom = type_noun_atom(singular)?;
+    let ty = atom
+        .strip_prefix("Type(")
+        .and_then(|t| t.strip_suffix(')'))
+        .unwrap_or(atom);
+    // `Permanent` has no `Type(...)` form — it is a builtin filter, not a card
+    // type.
+    (ty != "Permanent").then(|| format!("Type({ty})"))
+}
+
 /// A card-type noun (singular or plural) that can anchor a filter head:
 /// `creature(s)`, `permanent(s)`, `artifact(s)`, `sorcer(y|ies)`, … Mirrors
 /// the type set [`head_noun`] recognizes.
 fn is_type_noun(word: &str) -> bool {
-    let singular = word.strip_suffix("ies").map_or_else(
-        || word.strip_suffix('s').unwrap_or(word).to_string(),
-        |stem| format!("{stem}y"),
-    );
-    matches!(
-        singular.to_ascii_lowercase().as_str(),
-        "creature"
-            | "permanent"
-            | "planeswalker"
-            | "battle"
-            | "artifact"
-            | "enchantment"
-            | "land"
-            | "instant"
-            | "sorcery"
-    )
+    type_noun_atom(&singularize(word).to_ascii_lowercase()).is_some()
 }
 
 /// `nonblack` → `Not(ColorIs(Black))`, `noncreature` → `Not(Type(Creature))`.
@@ -269,7 +312,7 @@ fn strip_negation(s: &str) -> Option<(String, &str)> {
     let (first, rest) = s.split_once(' ')?;
     let lower = first.to_ascii_lowercase();
     let stem = lower.strip_prefix("non")?;
-    let atom = if let Some(c) = color_code(stem) {
+    let atom = if let Some(c) = color_ident(stem) {
         format!("Not(ColorIs({c}))")
     } else if let Some(t) = type_code(stem) {
         format!("Not(Type({t}))")
@@ -287,28 +330,19 @@ fn head_noun(word: &str) -> Option<String> {
     if let Some(ident) = designation_ident(w) {
         return Some(format!("Designated(\"{ident}\")"));
     }
-    // Singularize: the `-ies → -y` irregular plural first (so "sorceries" →
-    // "sorcery"), then the plain trailing `-s`.
-    let singular = w.strip_suffix("ies").map_or_else(
-        || w.strip_suffix('s').unwrap_or(w).to_string(),
-        |stem| format!("{stem}y"),
-    );
-    let atom = match singular.to_ascii_lowercase().as_str() {
-        "creature" => "Creature".to_string(),
-        "permanent" => "Permanent".to_string(),
-        "planeswalker" => "Planeswalker".to_string(),
-        "battle" => "Battle".to_string(),
-        "artifact" => "Type(Artifact)".to_string(),
-        "enchantment" => "Type(Enchantment)".to_string(),
-        "land" => "Type(Land)".to_string(),
-        "instant" => "Type(Instant)".to_string(),
-        "sorcery" => "Type(Sorcery)".to_string(),
-        other if !other.is_empty() && !other.contains(' ') => {
-            format!("Subtype(\"{}\")", crate::ident::to_rust_ident(other))
-        }
-        _ => return None,
-    };
-    Some(atom)
+    let singular = singularize(w).to_ascii_lowercase();
+    if let Some(atom) = type_noun_atom(&singular) {
+        return Some(atom.to_string());
+    }
+    // Otherwise a single bare token is a subtype; a multi-word or empty
+    // remainder declines.
+    if !singular.is_empty() && !singular.contains(' ') {
+        return Some(format!(
+            "Subtype(\"{}\")",
+            crate::ident::to_rust_ident(&singular)
+        ));
+    }
+    None
 }
 
 fn combine(atoms: Vec<String>) -> String {
@@ -473,5 +507,38 @@ mod tests {
     fn declines_unparsable() {
         assert!(parse_phrase("creatures wearing hats").is_none());
         assert!(parse_phrase("xyzzy plover blorp").is_none());
+    }
+
+    #[test]
+    fn shared_color_ident_is_case_insensitive() {
+        assert_eq!(color_ident("white"), Some("White"));
+        assert_eq!(color_ident("Blue"), Some("Blue"));
+        assert_eq!(color_ident("GREEN"), Some("Green"));
+        assert_eq!(color_ident("teal"), None);
+    }
+
+    #[test]
+    fn shared_singularizer() {
+        assert_eq!(singularize("creatures"), "creature");
+        assert_eq!(singularize("sorceries"), "sorcery");
+        assert_eq!(singularize("land"), "land");
+    }
+
+    #[test]
+    fn type_filter_keeps_qualitys_divergent_wrapper() {
+        // `quality_filter`'s view: always `Type(<T>)`, even for the nouns
+        // `head_noun` renders as a bare builtin macro.
+        assert_eq!(type_filter("creature").as_deref(), Some("Type(Creature)"));
+        assert_eq!(
+            type_filter("planeswalker").as_deref(),
+            Some("Type(Planeswalker)")
+        );
+        assert_eq!(type_filter("sorcery").as_deref(), Some("Type(Sorcery)"));
+        // `permanent` is a builtin filter, not a card type — no `Type(...)` form.
+        assert_eq!(type_filter("permanent"), None);
+        assert_eq!(type_filter("goblin"), None);
+        // …whereas the filter-head atom for the same nouns is the bare macro.
+        assert_eq!(type_noun_atom("creature"), Some("Creature"));
+        assert_eq!(type_noun_atom("permanent"), Some("Permanent"));
     }
 }
