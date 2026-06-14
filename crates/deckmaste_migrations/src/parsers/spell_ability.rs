@@ -80,4 +80,16 @@ mod tests {
             Some("Spell(targets: [TargetOne(Creature)], effect: Destroy(Target(0)))")
         );
     }
+
+    #[test]
+    fn frames_durational_team_pump_like_overrun() {
+        assert_eq!(
+            spell("Creatures you control get +3/+3 and gain trample until end of turn.").as_deref(),
+            Some(
+                "Spell(effect: Continuously(effect: Modify(of: Matching(AllOf([Creature, \
+                 ControlledBy(Ref(You))])), changes: [AddPower(Literal(3)), AddToughness(Literal(3)), \
+                 GainAbility(Keyword(Trample))]), duration: FixedUntil(EndOfTurn)))"
+            )
+        );
+    }
 }
