@@ -1,7 +1,19 @@
 // Enchant = the Aura's quality restriction [CR#702.5a]: "Enchant [quality]"
-// restricts BOTH what the Aura spell targets and what the Aura can be
-// attached to — one row each. Stays-attached legality is the
-// [CR#704.5m]-family sweep, engine work.
+// parameterizes the legal-host predicate. The keyword confers THREE abilities
+// (spec conferral map):
+//   1. a targeting `Spell` carrying ONLY the target spec ([CR#303.4a]) — its
+//      no-op `Sequence([])` effect keeps cast targeting on the live
+//      `spell_targets` path; it does not attach.
+//   2. a *removable* `Cant(Attach(what: Ref(This), to: Not(Param(0))))` — the
+//      legal-host bound ([CR#702.5a]); also `Cant(Target)` so the spell can't
+//      target an illegal quality.
+//   3. the `AsEnters(Attach(...))` self-replacement ([CR#303.4,303.4f]) — the
+//      SOLE attach-on-entry. Written as the inlined `Also(would: ThisEnters,
+//      also: Attach(This, Filter(Param(0))))` form (what `AsEnters` expands to)
+//      because Enchant's `Param(0)` can't thread through a nested macro call's
+//      arguments — the engine recognizes this `Also` shape directly (replace.rs).
+// The must-be-attached graveyard SBA ([CR#704.5m]) is the AURA SUBTYPE's Innate
+// rule, NOT this keyword (the subtype/ability decoupling — spec §"finding").
 (
     name: "Enchant",
     template: "enchant {0}",
@@ -9,9 +21,19 @@
     params: [Any],
     body: Composite(
         name: "Enchant",
-        abilities: [Static(effects: [
-            Cant(Target(by: Ref(This), on: Not(Param(0)))),
-            Cant(Attach(what: Ref(This), to: Not(Param(0)))),
-        ])],
+        abilities: [
+            Spell(
+                targets: [Target(Exactly(Literal(1)), Param(0))],
+                effect: Sequence([]),
+            ),
+            Static(effects: [
+                Cant(Target(by: Ref(This), on: Not(Param(0)))),
+                Cant(Attach(what: Ref(This), to: Not(Param(0)))),
+                Replacement(Also(
+                    would: ThisEnters,
+                    also: Attach(what: This, to: Filter(Param(0))),
+                )),
+            ]),
+        ],
     ),
 )
