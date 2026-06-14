@@ -76,24 +76,6 @@ impl ManaPool {
             keep
         });
     }
-
-    /// TEMPORARY (until unit-selecting payment lands): remove `amount` units of
-    /// `mana` (the earliest ones).
-    ///
-    /// # Panics
-    ///
-    /// Panics if the pool holds fewer than `amount` units of `mana` — callers
-    /// must validate first.
-    pub fn spend(&mut self, mana: ColorOrColorless, amount: Uint) {
-        for _ in 0..amount {
-            let i = self
-                .0
-                .iter()
-                .position(|u| u.kind == mana)
-                .expect("pool covers the spend");
-            self.0.remove(i);
-        }
-    }
 }
 
 /// Per-player state. [CR#119]: life is signed.

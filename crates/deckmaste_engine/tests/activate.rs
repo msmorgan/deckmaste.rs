@@ -27,7 +27,6 @@ use deckmaste_engine::GameEvent;
 use deckmaste_engine::GameState;
 use deckmaste_engine::ObjectId;
 use deckmaste_engine::Occurrence;
-use deckmaste_engine::Payment;
 use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
@@ -178,10 +177,10 @@ fn step_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
 /// any other priority along the way. Returns the legal action list at that
 /// window.
 ///
-/// When a `PayMana` decision surfaces mid-announce for an all-colored cost
-/// (generic == 0, so `Payment { generic: vec![] }` is the only valid answer),
-/// this function auto-answers it and continues. Costs with a generic component
-/// must be answered explicitly before calling this helper.
+/// When a `PayMana` decision surfaces mid-announce, this function auto-taps it
+/// (via the engine's canonical `auto_pay_pending`) and continues. Tests that
+/// need a *specific* allocation must answer that `PayMana` explicitly before
+/// calling this helper.
 fn run_to_priority(state: &mut GameState, player: PlayerId, phase: Phase) -> Vec<Action> {
     loop {
         let (_, stop) = step_to_stop(state);
@@ -195,9 +194,8 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: Phase) -> Vec
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
             StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
-                state
-                    .submit_decision(Decision::Pay(Payment { generic: vec![] }))
-                    .unwrap_or_else(|e| panic!("auto-pay failed (cost has a generic component — answer PayMana explicitly before run_to_priority): {e}"));
+                let pay = state.auto_pay_pending();
+                state.submit_decision(Decision::Pay(pay)).unwrap();
             }
             other => panic!("unexpected stop before {player:?} priority in {phase:?}: {other:?}"),
         }
@@ -454,11 +452,8 @@ fn artifact_pays_mana_ignores_sickness() {
         ManaCost::from(vec![ManaSymbol::Simple(SimpleManaSymbol::Generic(2))]),
         "the decision carries the ability's {{2}} cost"
     );
-    state
-        .submit_decision(Decision::Pay(Payment {
-            generic: vec![red(), red()],
-        }))
-        .unwrap();
+    let pay = state.auto_pay_pending();
+    state.submit_decision(Decision::Pay(pay)).unwrap();
 
     let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     assert_eq!(state.stack.len(), 1, "the ability is on the stack");
@@ -582,11 +577,8 @@ fn once_per_turn_resets_next_turn() {
     let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
         panic!("expected PayMana for {{1}}, got {stop:?}");
     };
-    state
-        .submit_decision(Decision::Pay(Payment {
-            generic: vec![red()],
-        }))
-        .unwrap();
+    let pay = state.auto_pay_pending();
+    state.submit_decision(Decision::Pay(pay)).unwrap();
     let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
@@ -637,11 +629,8 @@ fn once_per_game_stays_spent() {
     let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
         panic!("expected PayMana for {{1}}, got {stop:?}");
     };
-    state
-        .submit_decision(Decision::Pay(Payment {
-            generic: vec![red()],
-        }))
-        .unwrap();
+    let pay = state.auto_pay_pending();
+    state.submit_decision(Decision::Pay(pay)).unwrap();
     let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);

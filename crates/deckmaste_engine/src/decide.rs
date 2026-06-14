@@ -572,7 +572,7 @@ impl GameState {
                     });
                 }
                 self.pending = None;
-                crate::cast::apply_payment(&mut self.player_mut(player).mana_pool, &cost, &payment);
+                crate::cast::apply_payment(&mut self.player_mut(player).mana_pool, &payment);
                 Ok(())
             }
             (PendingDecision::OrderTriggers { player, triggers }, Decision::Order(order)) => {

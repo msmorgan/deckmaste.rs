@@ -183,10 +183,10 @@ fn step_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
 /// any other priority along the way. Returns the legal action list at that
 /// window.
 ///
-/// When a `PayMana` decision surfaces mid-cast for an all-colored cost
-/// (generic == 0, so `Payment { generic: vec![] }` is the only valid answer),
-/// this function auto-answers it and continues. Costs with a generic component
-/// must be answered explicitly before calling this helper.
+/// When a `PayMana` decision surfaces mid-cast, this function auto-taps it (via
+/// the engine's canonical `auto_pay_pending`) and continues. Tests that need a
+/// *specific* allocation must answer that `PayMana` explicitly before calling
+/// this helper.
 fn run_to_priority(state: &mut GameState, player: PlayerId, phase: Phase) -> Vec<Action> {
     loop {
         let (_, stop) = step_to_stop(state);
@@ -200,12 +200,8 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: Phase) -> Vec
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
             StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
-                // Auto-answer all-colored costs (generic == 0). Callers that
-                // cast spells with a generic component must answer PayMana
-                // explicitly before invoking run_to_priority.
-                state
-                    .submit_decision(Decision::Pay(Payment { generic: vec![] }))
-                    .unwrap_or_else(|e| panic!("auto-pay failed (cost has a generic component — answer PayMana explicitly before run_to_priority): {e}"));
+                let pay = state.auto_pay_pending();
+                state.submit_decision(Decision::Pay(pay)).unwrap();
             }
             other => panic!("unexpected stop before {player:?} priority in {phase:?}: {other:?}"),
         }
@@ -564,11 +560,8 @@ fn grizzly_bears_resolves_to_a_two_two_on_the_battlefield() {
     let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
         panic!("expected PayMana for {{1}}{{G}}, got {stop:?}");
     };
-    state
-        .submit_decision(Decision::Pay(Payment {
-            generic: vec![green()],
-        }))
-        .unwrap();
+    let pay = state.auto_pay_pending();
+    state.submit_decision(Decision::Pay(pay)).unwrap();
     let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     assert_eq!(
         state.stack.len(),
@@ -835,10 +828,9 @@ fn paymana_surfaces_for_every_cast() {
         let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
             panic!("expected PayMana for {{R}} (always explicit), got {stop:?}");
         };
-        // {R} has no generic: empty Payment is the only valid answer.
-        state
-            .submit_decision(Decision::Pay(Payment { generic: vec![] }))
-            .unwrap();
+        // {R} is all-colored: the lone Red unit is the only covering selection.
+        let pay = state.auto_pay_pending();
+        state.submit_decision(Decision::Pay(pay)).unwrap();
         let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
         assert_eq!(state.stack.len(), 1, "the instant reached the stack");
         assert!(
@@ -865,11 +857,11 @@ fn paymana_surfaces_for_every_cast() {
             panic!("expected PayMana for {{1}}{{G}} from G,G,R, got {stop:?}");
         };
         let _ = cost;
-        // Pay {1} with the Red (either Red or one Green is legal here).
+        // Pool order is G(0), G(1), R(2). Deliberately pay {1} with the Red:
+        // {G} takes a Green (index 0), {1} takes the Red (index 2). Either Red
+        // or a Green is legal for {1}; this site asserts the Red allocation.
         state
-            .submit_decision(Decision::Pay(Payment {
-                generic: vec![red()],
-            }))
+            .submit_decision(Decision::Pay(Payment { units: vec![0, 2] }))
             .unwrap();
         let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
         assert_eq!(
@@ -1090,20 +1082,19 @@ fn illegal_target_and_payment_submissions_are_rejected_and_retryable() {
         panic!("expected PayMana, got {stop:?}");
     };
     let pool_before = state.player(PlayerId(0)).mana_pool.clone();
+    // Pool order is G(0), G(1), R(2); cost {1}{G} (mana value 2).
 
-    // (i) Over-spend: {1} needs exactly one generic, two is rejected.
+    // (i) Over-spend: selecting three units for a mana-value-2 cost is rejected.
     assert!(matches!(
         state.submit_decision(Decision::Pay(Payment {
-            generic: vec![red(), green()]
+            units: vec![0, 1, 2]
         })),
         Err(DecisionError::Illegal { .. })
     ));
-    // (ii) Spend a color the pool can't cover after the colored pip: paying {1}
-    //      with a Blue the pool never had.
+    // (ii) Reference a unit the pool doesn't have: an out-of-range index (the
+    //      analog of paying with a Blue the pool never had).
     assert!(matches!(
-        state.submit_decision(Decision::Pay(Payment {
-            generic: vec![Color::Blue.into()]
-        })),
+        state.submit_decision(Decision::Pay(Payment { units: vec![0, 9] })),
         Err(DecisionError::Illegal { .. })
     ));
     // State untouched: still pending, pool unchanged.
@@ -1117,11 +1108,8 @@ fn illegal_target_and_payment_submissions_are_rejected_and_retryable() {
         "a rejected payment leaves the pool untouched"
     );
     // A valid retry is accepted and the cast completes.
-    state
-        .submit_decision(Decision::Pay(Payment {
-            generic: vec![red()],
-        }))
-        .unwrap();
+    let pay = state.auto_pay_pending();
+    state.submit_decision(Decision::Pay(pay)).unwrap();
     assert!(state.pending.is_none());
     let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     assert_eq!(
@@ -1367,11 +1355,8 @@ fn etb_trigger_draws_a_card() {
         panic!("expected PayMana for {{1}}{{G}}, got {stop:?}");
     };
     // Pay the {1} with the green mana floating.
-    state
-        .submit_decision(Decision::Pay(Payment {
-            generic: vec![Color::Green.into()],
-        }))
-        .unwrap();
+    let pay = state.auto_pay_pending();
+    state.submit_decision(Decision::Pay(pay)).unwrap();
 
     let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     assert_eq!(state.stack.len(), 1, "the creature spell is on the stack");
@@ -1561,11 +1546,8 @@ fn occurrence_batch_and_apnap_ordering() {
     let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
         panic!("expected PayMana for {{1}}{{R}}, got {stop:?}");
     };
-    state
-        .submit_decision(Decision::Pay(Payment {
-            generic: vec![Color::Green.into()],
-        }))
-        .unwrap();
+    let pay = state.auto_pay_pending();
+    state.submit_decision(Decision::Pay(pay)).unwrap();
 
     let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     assert_eq!(
@@ -1838,11 +1820,8 @@ fn simultaneous_loss_is_a_draw() {
     let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
         panic!("expected PayMana for {{1}}{{R}}, got {stop:?}");
     };
-    state
-        .submit_decision(Decision::Pay(Payment {
-            generic: vec![green()],
-        }))
-        .unwrap();
+    let pay = state.auto_pay_pending();
+    state.submit_decision(Decision::Pay(pay)).unwrap();
 
     let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
     assert_eq!(state.stack.len(), 1, "spell is on the stack");
@@ -2055,14 +2034,13 @@ fn creature_enters_tapped_via_as_enters_replacement() {
         state
             .submit_decision(Decision::Act(Action::CastSpell { object: spell }))
             .unwrap();
-        // {B} is all-colored: PayMana surfaces with an empty generic component.
+        // {B} is all-colored: the lone Black unit is the only covering selection.
         let (_, stop) = step_to_stop(&mut state);
         let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
             panic!("expected PayMana for {{B}}, got {stop:?}");
         };
-        state
-            .submit_decision(Decision::Pay(Payment { generic: vec![] }))
-            .unwrap();
+        let pay = state.auto_pay_pending();
+        state.submit_decision(Decision::Pay(pay)).unwrap();
         let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
         assert_eq!(state.stack.len(), 1, "the creature spell is on the stack");
 
@@ -2107,11 +2085,8 @@ fn creature_enters_tapped_via_as_enters_replacement() {
         let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
             panic!("expected PayMana for {{1}}{{G}}, got {stop:?}");
         };
-        state
-            .submit_decision(Decision::Pay(Payment {
-                generic: vec![green()],
-            }))
-            .unwrap();
+        let pay = state.auto_pay_pending();
+        state.submit_decision(Decision::Pay(pay)).unwrap();
         let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
         state.submit_decision(Decision::Act(Action::Pass)).unwrap();
         let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
@@ -2258,11 +2233,8 @@ fn flash_creature_casts_at_instant_timing() {
     let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
         panic!("expected PayMana for {{2}}{{G}}, got {stop:?}");
     };
-    state
-        .submit_decision(Decision::Pay(Payment {
-            generic: vec![green(), green()],
-        }))
-        .unwrap();
+    let pay = state.auto_pay_pending();
+    state.submit_decision(Decision::Pay(pay)).unwrap();
     let _ = run_to_priority(
         &mut state,
         PlayerId(0),
