@@ -145,6 +145,7 @@ mod tests {
             controller: player,
             targets: Vec::new(),
             bindings: None,
+            chosen: None,
         }
     }
 
@@ -286,6 +287,7 @@ mod tests {
                 that_object: None,
                 that_player: None,
             }),
+            chosen: None,
         };
 
         let creature = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));

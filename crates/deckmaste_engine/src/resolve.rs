@@ -89,6 +89,7 @@ impl GameState {
                         controller: entry.controller,
                         targets: entry.targets.clone(),
                         bindings: None,
+                        chosen: None,
                     };
                     let effect = self
                         .spell_effect(spell)
@@ -144,6 +145,7 @@ impl GameState {
                     controller: entry.controller,
                     targets: entry.targets.clone(),
                     bindings: Some(bindings.clone()),
+                    chosen: None,
                 };
                 // [CR#603.4]: an intervening-if is rechecked as the ability
                 // resolves. If it no longer holds, the ability is removed from
@@ -184,6 +186,7 @@ impl GameState {
                         controller: entry.controller,
                         targets: entry.targets.clone(),
                         bindings: Some(bindings.clone()),
+                        chosen: None,
                     };
                     self.schedule_front(vec![
                         WorkItem::RunEffect {
@@ -693,6 +696,13 @@ impl GameState {
     pub(crate) fn eval_selection_set(&self, sel: &Selection, frame: &Frame) -> Vec<ObjectId> {
         match sel {
             Selection::Each(f) | Selection::Filter(f) => crate::target::candidates(self, f),
+            // The chooser's/RNG's picks, bound into the frame before the action
+            // re-runs ([CR#608.2d]).
+            Selection::Choose(..) | Selection::Random(..) => frame
+                .chosen
+                .clone()
+                .expect("a Choose/Random selection is bound into the frame before its action runs"),
+            Selection::Expanded(e) => self.eval_selection_set(&e.value, frame),
             other => vec![self.eval_selection(other, frame)],
         }
     }
@@ -1301,6 +1311,28 @@ mod tests {
         (state, m)
     }
 
+    /// `eval_selection_set` returns the bound set for a `Choose`/`Random` slot
+    /// (the value the decision/RNG wrote into the frame), instead of surfacing.
+    #[test]
+    fn eval_selection_set_reads_bound_choice() {
+        use deckmaste_core::Quantity;
+
+        let (state, bear) = bear_on_field();
+        let creatures = Filter::AllOf(vec![
+            Filter::State(StateFilter::InZone(Zone::Battlefield)),
+            Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+        ]);
+        let frame = Frame {
+            source: bear,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+            chosen: Some(vec![bear]),
+        };
+        let sel = Selection::Choose(Quantity::Exactly(Count::Literal(1)), creatures);
+        assert_eq!(state.eval_selection_set(&sel, &frame), vec![bear]);
+    }
+
     /// [CR#702.12b]: an indestructible permanent can't be destroyed — the
     /// `Destroy` action's `WillDestroy` intent finds the
     /// destruction-replacement static and is replaced to nothing, so the
@@ -1313,6 +1345,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         state.run_effect(Effect::Act(Action::Destroy(sel_this())), &frame);
         // WillDestroy applies and schedules no zone move (replaced to nothing).
@@ -1339,6 +1372,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         state.run_effect(Effect::Act(Action::Destroy(sel_this())), &frame);
         // WillDestroy → ZoneWillChange → ZoneChanged.
@@ -1358,6 +1392,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
 
         // By(You, Tap(This)) -> one Single(Tapped(src)) carrying the
@@ -1409,6 +1444,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         let items = state.action_items(&by_you(PlayerAction::Tap(sel_this())), &frame);
         assert_eq!(
@@ -1428,6 +1464,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         let items = state.action_items(&by_you(PlayerAction::Untap(sel_this())), &frame);
         assert_eq!(
@@ -1448,6 +1485,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![p1_proxy],
             bindings: None,
+            chosen: None,
         };
         let items = state.action_items(
             &Action::By(Reference::Target(0), PlayerAction::Draw(Count::Literal(2))),
@@ -1489,6 +1527,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         let creatures = Filter::AllOf(vec![
             Filter::State(StateFilter::InZone(Zone::Battlefield)),
@@ -1522,6 +1561,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![bear],
             bindings: None,
+            chosen: None,
         };
 
         let power = Count::StatOf(Reference::Target(0), deckmaste_core::Stat::Power);
@@ -1559,6 +1599,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![bear],
             bindings: None,
+            chosen: None,
         };
         state.run_effect(
             Effect::Sequence(vec![
@@ -1603,6 +1644,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         let filter = Filter::AllOf(vec![
             Filter::State(StateFilter::InZone(Zone::Battlefield)),
@@ -1625,6 +1667,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
 
         // Build the effect directly: DealDamage(Each(Kind(Player)), 20)
@@ -1687,6 +1730,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         let effect = Effect::Act(Action::DealDamage(
             Selection::Each(Filter::AllOf(vec![
@@ -1741,6 +1785,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
 
         assert!(state.continuous.is_empty(), "no effects before resolve");
@@ -1788,6 +1833,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
 
         let effect = Effect::Continuously(ContinuouslyEffect {
@@ -1823,6 +1869,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
 
         let items = state.action_items(&by_you(PlayerAction::GainLife(Count::Literal(3))), &frame);
@@ -1852,6 +1899,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         state.run_effect(
             Effect::Act(by_you(PlayerAction::Sacrifice(sel_this()))),
@@ -1902,6 +1950,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         state.run_effect(
             Effect::Act(by_you(PlayerAction::Sacrifice(sel_this()))),
@@ -1932,6 +1981,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         state.run_effect(Effect::Act(by_you(PlayerAction::Exile(sel_this()))), &frame);
         // ZoneWillChange → ZoneChanged.
@@ -1953,6 +2003,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         state.run_effect(Effect::Act(by_you(PlayerAction::Exile(sel_this()))), &frame);
         for _ in 0..2 {
@@ -1976,6 +2027,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         state.run_effect(Effect::Act(Action::ReturnToHand(sel_this())), &frame);
         // ZoneWillChange → ZoneChanged.
@@ -2000,6 +2052,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         state.run_effect(Effect::Act(Action::ReturnToHand(sel_this())), &frame);
         for _ in 0..2 {
@@ -2034,6 +2087,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![spell],
             bindings: None,
+            chosen: None,
         };
         state.run_effect(
             Effect::Act(Action::Counter(Selection::Ref(Reference::Target(0)))),
@@ -2062,6 +2116,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         state.run_effect(
             Effect::Act(by_you(PlayerAction::PutInLibrary(
@@ -2085,6 +2140,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         state.run_effect(
             Effect::Act(by_you(PlayerAction::PutInLibrary(
@@ -2120,6 +2176,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         let green = ColorOrColorless::Color(Color::Green);
         state.run_effect(
@@ -2179,6 +2236,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         let hand_before = state.zones.hands[0].len();
         state.run_effect(
@@ -2245,6 +2303,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         let body = PlayerAction::GainLife(Count::Literal(2));
         let expanded = PlayerAction::Expanded(Expansion {
@@ -2274,6 +2333,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         let token = Token {
             color_indicator: vec![],
@@ -2356,6 +2416,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         let treasure = builtin().token("Treasure").unwrap();
         state.run_effect(

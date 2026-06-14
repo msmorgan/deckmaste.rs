@@ -104,4 +104,9 @@ pub struct Frame {
     /// frame. When present, `Reference::This`/`~` reads the firing object's
     /// snapshot rather than the live `source` (via `eval_reference`).
     pub bindings: Option<TriggerBindings>,
+    /// A `Choose`/`Random` selection resolved into this frame for a re-run
+    /// ([CR#608.2d]). Set only on the continuation frame the choice produces;
+    /// `eval_selection_set` reads it for the `Choose`/`Random` slot. `None`
+    /// on a fresh frame.
+    pub chosen: Option<Vec<ObjectId>>,
 }

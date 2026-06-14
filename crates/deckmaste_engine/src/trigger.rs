@@ -550,6 +550,7 @@ impl GameState {
                         controller,
                         targets: Vec::new(),
                         bindings: Some(bindings.clone()),
+                        chosen: None,
                     };
                     if !self.condition_holds(c, &frame) {
                         continue;
@@ -833,6 +834,7 @@ mod tests {
             controller: player,
             targets: Vec::new(),
             bindings: None,
+            chosen: None,
         }
     }
 

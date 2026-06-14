@@ -136,6 +136,7 @@ impl GameState {
                 controller: player,
                 targets: Vec::new(),
                 bindings: None,
+                chosen: None,
             };
             if !self.condition_holds(c, &frame) {
                 return false;
