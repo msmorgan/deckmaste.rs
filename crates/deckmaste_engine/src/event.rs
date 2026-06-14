@@ -357,6 +357,13 @@ pub enum GameEvent {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct EnterStatus {
     pub tapped: bool,
+    /// The host this permanent enters attached to ([CR#303.4]), folded in from
+    /// its own `AsEnters(Attach(This, …))` self-replacement so it enters
+    /// attached atomically — no observable unattached window. `None` = enters
+    /// unattached. Resolved against the entering object's id once it is minted
+    /// (the attach is part of the entering `ZoneMove`, not a post-entry
+    /// trigger).
+    pub attach_to: Option<ObjectId>,
 }
 
 /// Who learns an event's full payload — the projection-boundary annotation
