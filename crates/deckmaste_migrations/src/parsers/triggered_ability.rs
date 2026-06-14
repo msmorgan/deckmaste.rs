@@ -56,7 +56,11 @@ fn render(event: &str, parsed: &ParsedEffect) -> String {
 /// [`filter`] grammar and applied to the event macro — so "a creature you
 /// control", "another creature you control", "a Goblin", etc. all resolve
 /// (declining when the filter grammar can't parse the subject).
-fn parse_event(clause: &str) -> Option<String> {
+///
+/// Shared with [`crate::parsers::replacement`]: an `Instead`/`Also`
+/// replacement's `would:` is the same `Event`, parsed from the same
+/// enters/dies clause grammar.
+pub(super) fn parse_event(clause: &str) -> Option<String> {
     // Tolerate the older "enters the battlefield" wording (current oracle:
     // "enters").
     let clause = clause.strip_suffix(" the battlefield").unwrap_or(clause);

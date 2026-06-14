@@ -50,6 +50,7 @@ pub const REGISTRY: &[AbilityParser] = &[
     crate::parsers::spell_ability::resolve_line,
     crate::parsers::triggered_ability::resolve_line,
     crate::parsers::activated_ability::resolve_line,
+    crate::parsers::replacement::resolve_line,
     crate::parsers::static_ability::resolve_line,
 ];
 
