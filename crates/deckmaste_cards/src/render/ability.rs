@@ -101,24 +101,26 @@ pub(super) fn lower_first(s: &str) -> String {
 // ── Static abilities ─────────────────────────────────────────────────────────
 
 /// Render a `Static` ability's effects, one rules string each.
-pub(super) fn static_ability(s: &StaticAbility, subject: &str) -> Vec<String> {
+pub(super) fn static_ability(s: &StaticAbility, ctx: &Ctx) -> Vec<String> {
     s.effects
         .iter()
-        .filter_map(|e| static_effect(e, subject))
+        .filter_map(|e| static_effect(e, ctx))
         .collect()
 }
 
-fn static_effect(e: &StaticEffect, subject: &str) -> Option<String> {
+/// Render one `StaticEffect` as a period-terminated sentence, or `None` for
+/// effects that produce no text on their own.
+pub(super) fn static_effect(e: &StaticEffect, ctx: &Ctx) -> Option<String> {
     match e {
-        StaticEffect::Expanded(exp) => static_effect(&exp.value, subject),
+        StaticEffect::Expanded(exp) => static_effect(&exp.value, ctx),
         StaticEffect::Modify { of, changes } => {
-            let (subj, plural) = super::fragment::scope_subject_agreed(of, subject);
+            let (subj, plural) = super::fragment::scope_subject_agreed(of, ctx);
             Some(format!(
                 "{subj} {}.",
                 modifications_predicate(changes, plural)
             ))
         }
-        StaticEffect::Deontic(d) => Some(super::deontic::deontic(d, subject)),
+        StaticEffect::Deontic(d) => Some(super::deontic::deontic(d, ctx.subject)),
         other => Some(format!("[unrendered: {other:?}].")),
     }
 }
