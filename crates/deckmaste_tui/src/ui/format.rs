@@ -153,6 +153,7 @@ mod tests {
             object: StackObject::Spell(id),
             controller: PlayerId(0),
             targets: vec![],
+            x: None,
         };
         assert_eq!(stack_label(&state, &entry), face(state.def(id)).name);
     }
