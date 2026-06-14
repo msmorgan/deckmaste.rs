@@ -268,8 +268,8 @@ impl GameState {
                     .add_riders(mana, amount, riders);
                 event
             }
-            GameEvent::ManaEmptied(player) => {
-                self.player_mut(player).mana_pool.clear();
+            GameEvent::ManaEmptied { player, ending } => {
+                self.player_mut(player).mana_pool.empty_after(ending);
                 event
             }
             GameEvent::TokenCreated { player, ref token } => {
@@ -913,7 +913,12 @@ impl GameState {
             .iter()
             // Lost players have left the game; nothing of theirs empties.
             .filter(|p| !p.lost && !p.mana_pool.is_empty())
-            .map(|p| WorkItem::Emit(Occurrence::single(GameEvent::ManaEmptied(p.id))))
+            .map(|p| {
+                WorkItem::Emit(Occurrence::single(GameEvent::ManaEmptied {
+                    player: p.id,
+                    ending: self.turn.current,
+                }))
+            })
             .collect();
         // [CR#511.3]: removal from combat happens as the End of Combat step ends
         // — after its priority window, before the next step begins.
