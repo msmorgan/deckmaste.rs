@@ -422,4 +422,23 @@ mod tests {
         assert!(!it.is_chosen(off));
         assert!(it.confirm().is_none());
     }
+
+    #[test]
+    fn attackers_toggle_is_a_free_subset_and_confirms_any_set() {
+        let v = ids();
+        let (a, b, off) = (v[0], v[1], v[3]);
+        let mut it = Interaction::for_decision(&PendingDecision::DeclareAttackers {
+            player: PlayerId(0),
+            legal: vec![a, b],
+        })
+        .expect("interactive");
+        // Empty set is a legal answer ("no attacks").
+        assert_eq!(it.confirm(), Some(Decision::Attackers(vec![])));
+        it.toggle(a);
+        it.toggle(b);
+        it.toggle(off); // ignored — not legal
+        assert_eq!(it.confirm(), Some(Decision::Attackers(vec![a, b])));
+        it.toggle(a); // untoggle
+        assert_eq!(it.confirm(), Some(Decision::Attackers(vec![b])));
+    }
 }
