@@ -177,6 +177,17 @@ mod tests {
     }
 
     #[test]
+    fn pt_anthem_subtype_adjective() {
+        // Elvish Archdruid's anthem: a subtype-adjective subject ("Elf creatures").
+        assert_eq!(
+            stat("Other Elf creatures you control get +1/+1.").as_deref(),
+            Some(
+                "Static(effects: [Modify(of: Matching(AllOf([Creature, Not(Ref(This)), Subtype(\"Elf\"), ControlledBy(Ref(You))])), changes: [AddPower(Literal(1)), AddToughness(Literal(1))])])"
+            )
+        );
+    }
+
+    #[test]
     fn grant_combo_with_pt() {
         assert_eq!(
             stat("Other Goblins get +1/+1 and have mountainwalk.").as_deref(),
