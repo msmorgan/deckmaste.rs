@@ -18,6 +18,7 @@ use deckmaste_core::TargetSpec;
 use deckmaste_core::Type;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
+use rand::seq::SliceRandom;
 
 use crate::agenda::WorkItem;
 use crate::event::Cause;
@@ -235,10 +236,14 @@ impl GameState {
                             return;
                         }
                         PendingChoice::Random(quantity, filter) => {
-                            todo!(
-                                "engine-resolve-selections: Random({quantity:?}, {filter:?}) \
-                                 selection (next task)"
-                            )
+                            let mut pool = crate::target::candidates(self, &filter);
+                            let k = self.random_count(&quantity, pool.len(), frame);
+                            pool.shuffle(&mut self.rng);
+                            pool.truncate(k);
+                            let mut next = frame.clone();
+                            next.chosen = Some(pool);
+                            self.run_effect(Effect::Act(action), &next);
+                            return;
                         }
                     }
                 }
@@ -736,6 +741,21 @@ impl GameState {
             Quantity::Between(lo, hi) => (ev(lo), ev(hi)),
             Quantity::AnyNumber => (0, cap),
             Quantity::Expanded(e) => self.choice_bounds(&e.value, n, frame),
+        }
+    }
+
+    /// How many objects a `Random` selection picks. v1 supports `Exactly`
+    /// (clamped to the candidate count); ranged random is a loud seam.
+    fn random_count(&self, quantity: &deckmaste_core::Quantity, n: usize, frame: &Frame) -> usize {
+        use deckmaste_core::Quantity;
+        match quantity {
+            Quantity::Exactly(c) => usize::try_from(self.eval_count(c, frame))
+                .expect("count fits usize")
+                .min(n),
+            Quantity::Expanded(e) => self.random_count(&e.value, n, frame),
+            other => todo!(
+                "engine-resolve-selections follow-up: ranged Random {other:?} (Exactly only in v1)"
+            ),
         }
     }
 
@@ -1464,6 +1484,78 @@ mod tests {
         };
         let sel = Selection::Choose(Quantity::Exactly(Count::Literal(1)), creatures);
         assert_eq!(state.eval_selection_set(&sel, &frame), vec![bear]);
+    }
+
+    /// `Destroy(Random(Exactly 1, creature))` resolves via the seeded RNG —
+    /// exactly one creature is destroyed and NO decision is surfaced.
+    #[test]
+    fn destroy_random_destroys_one_without_a_decision() {
+        use deckmaste_core::Quantity;
+
+        use crate::step::StepOutcome;
+
+        let (mut state, bear) = bear_on_field();
+        let theirs = *state.zones.hands[0]
+            .iter()
+            .find(|&&o| {
+                obj_matches(
+                    &state,
+                    o,
+                    &Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                )
+            })
+            .expect("a second Grizzly Bears in the opening hand");
+        state.zones.hands[PlayerId(0).index()].retain(|&o| o != theirs);
+        state.objects.obj_mut(theirs).zone = Some(Zone::Battlefield);
+        state.objects.obj_mut(theirs).controller = PlayerId(1);
+        state.zones.battlefield.push(theirs);
+
+        let creatures = Filter::AllOf(vec![
+            Filter::State(StateFilter::InZone(Zone::Battlefield)),
+            Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+        ]);
+        let frame = Frame {
+            source: bear,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+        };
+        let before = [bear, theirs]
+            .iter()
+            .filter(|o| state.zones.battlefield.contains(o))
+            .count();
+        assert_eq!(before, 2);
+
+        state.run_effect(
+            Effect::Act(Action::Destroy(Selection::Random(
+                Quantity::Exactly(Count::Literal(1)),
+                creatures,
+            ))),
+            &frame,
+        );
+        // No decision: Random is resolved inline by the RNG.
+        assert!(
+            !matches!(state.step(), StepOutcome::NeedsDecision(_)),
+            "Random surfaces no decision"
+        );
+        // Pump the agenda to completion (bounded safety cap; assert on the
+        // post-condition, not the iteration count).
+        for _ in 0..30 {
+            let alive = [bear, theirs]
+                .iter()
+                .filter(|o| state.zones.battlefield.contains(o))
+                .count();
+            if alive == 1 {
+                break;
+            }
+            let _ = state.step();
+        }
+        let alive = [bear, theirs]
+            .iter()
+            .filter(|o| state.zones.battlefield.contains(o))
+            .count();
+        assert_eq!(alive, 1, "exactly one creature destroyed at random");
     }
 
     /// `Destroy(Choose(Exactly 1, creature))` surfaces `ChooseObjects`; an
