@@ -854,7 +854,7 @@ impl GameState {
                 // Task 6's rewind takes the whole `announcing` slot, so the `x` written above
                 // is discarded on the unpayable path — committing it first is safe.
                 if !payable {
-                    todo!("engine-x-costs Task 6: rewind an unpayable announced X ([CR#733])");
+                    self.rewind_announce();
                 }
                 Ok(())
             }
