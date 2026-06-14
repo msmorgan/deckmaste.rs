@@ -116,10 +116,41 @@ fn parse_destroy(line: &str) -> Option<ParsedEffect> {
 fn parse_deal_damage(line: &str) -> Option<ParsedEffect> {
     let body = line
         .strip_prefix("~ deals ")
-        .or_else(|| strip_prefix_ci(line, "it deals "))?;
-    let rest = body.strip_suffix('.')?;
-    let (amount, tail) = rest.split_once(" damage to ")?;
-    let amount: u32 = amount.parse().ok()?;
+        .or_else(|| strip_prefix_ci(line, "it deals "))?
+        .strip_suffix('.')?;
+    let (body, dynamic) = match count::strip(body) {
+        Some(c) => (c.head, Some(c)),
+        None => (body, None),
+    };
+    let (amount, tail) = match &dynamic {
+        // "equal to the number of …": the head is "damage to <target>" — no
+        // amount word; the count IS the amount.
+        Some(c) if matches!(c.binder, count::Binder::EqualTo) => {
+            (c.count.clone(), body.strip_prefix("damage to ")?)
+        }
+        _ => {
+            let (amt, tail) = body.split_once(" damage to ")?;
+            let amount = match &dynamic {
+                None => number_word(amt)?.to_string(),
+                Some(c) => match &c.binder {
+                    count::Binder::Variable(var) => {
+                        if amt != var {
+                            return None;
+                        }
+                        c.count.clone()
+                    }
+                    count::Binder::ForEach => {
+                        if number_word(amt)? != 1 {
+                            return None;
+                        }
+                        c.count.clone()
+                    }
+                    count::Binder::EqualTo => unreachable!("handled above"),
+                },
+            };
+            (amount, tail)
+        }
+    };
     let (targets, selection) = damage_target(tail)?;
     Some(ParsedEffect {
         targets,
@@ -764,5 +795,36 @@ mod tests {
         assert!(parse_clause("Create Y 1/1 red Goblin creature tokens, where X is the number of Goblins you control.").is_none());
         // A non-unit base under "for each" has no Count product form -> decline.
         assert!(parse_clause("Create two 1/1 red Goblin creature tokens for each Goblin you control.").is_none());
+    }
+
+    #[test]
+    fn deal_damage_dynamic_equal_to() {
+        assert_eq!(
+            parsed("~ deals damage to any target equal to the number of Goblins you control."),
+            Some((
+                "AnyTarget".to_owned(),
+                "DealDamage(Target(0), CountOf(AllOf([Subtype(\"Goblin\"), ControlledBy(Ref(You))])))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn deal_damage_dynamic_where_x() {
+        assert_eq!(
+            parsed("~ deals X damage to target player, where X is the number of Goblins you control."),
+            Some((
+                "TargetOne(Player)".to_owned(),
+                "DealDamage(Target(0), CountOf(AllOf([Subtype(\"Goblin\"), ControlledBy(Ref(You))])))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn deal_damage_literal_still_bare() {
+        // Regression: the literal path keeps emitting a bare numeral.
+        assert_eq!(
+            parsed("~ deals 3 damage to any target."),
+            Some(("AnyTarget".to_owned(), "DealDamage(Target(0), 3)".to_owned()))
+        );
     }
 }
