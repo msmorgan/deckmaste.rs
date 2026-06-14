@@ -20,6 +20,22 @@ pub enum Cmp {
     Less,
 }
 
+impl Cmp {
+    /// Does `lhs <op> rhs` hold? The single comparator table every numeric
+    /// test routes through — `Condition::Compare`'s two evaluated counts and
+    /// `CountBound::satisfied_by`'s matched-set cardinality alike.
+    #[must_use]
+    pub fn apply(self, lhs: crate::Uint, rhs: crate::Uint) -> bool {
+        match self {
+            Cmp::Eq => lhs == rhs,
+            Cmp::AtLeast => lhs >= rhs,
+            Cmp::AtMost => lhs <= rhs,
+            Cmp::Greater => lhs > rhs,
+            Cmp::Less => lhs < rhs,
+        }
+    }
+}
+
 use crate::Window;
 
 /// A truth-valued test the engine evaluates ([CR#603.4] intervening-if,

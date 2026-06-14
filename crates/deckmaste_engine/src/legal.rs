@@ -423,6 +423,9 @@ pub fn legal_blockers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
 /// the arrangement bound when present (menace's `count`, [CR#702.111b]).
 pub(crate) struct BlockRow {
     pub carrier: crate::object::ObjectSource,
+    /// The carrier's live object id — anchors `Ref(This)`/`StatOf(This)` in a
+    /// `count` bound (frame source) when an arrangement bound is non-literal.
+    pub carrier_id: ObjectId,
     pub by: Filter,
     pub on: Filter,
     pub count: Option<deckmaste_core::CountBound>,
@@ -444,6 +447,7 @@ fn block_rows(
             {
                 rows.push(BlockRow {
                     carrier: source,
+                    carrier_id: id,
                     by: by.clone(),
                     on: on.clone(),
                     count: count.clone(),
@@ -538,23 +542,6 @@ pub(crate) fn arrangement_forbidden_by(
     attacker: ObjectId,
     blockers: &[ObjectId],
 ) -> Option<crate::object::ObjectSource> {
-    use deckmaste_core::Count;
-    use deckmaste_core::CountBound;
-    fn lit(c: &Count) -> u64 {
-        match c {
-            Count::Literal(n) => u64::from(*n),
-            other => todo!("non-literal block-arrangement bound {other:?}"),
-        }
-    }
-    fn holds(bound: &CountBound, n: u64) -> bool {
-        match bound {
-            CountBound::Eq(c) => n == lit(c),
-            CountBound::AtLeast(c) => n >= lit(c),
-            CountBound::AtMost(c) => n <= lit(c),
-            CountBound::Greater(c) => n > lit(c),
-            CountBound::Less(c) => n < lit(c),
-        }
-    }
     rows.iter()
         .filter(|r| r.count.is_some())
         .find(|r| {
@@ -564,8 +551,31 @@ pub(crate) fn arrangement_forbidden_by(
             let n = blockers
                 .iter()
                 .filter(|&&b| state.filter_matches_live(&r.by, b, r.carrier))
-                .count() as u64;
-            n > 0 && holds(r.count.as_ref().expect("filtered to Some"), n)
+                .count();
+            let Ok(n) = deckmaste_core::Uint::try_from(n) else {
+                return false;
+            };
+            // An empty set is not a blocking arrangement at all (see this
+            // fn's doc, [CR#702.111b]), so it is never forbidden — only a
+            // non-empty set is judged.
+            if n == 0 {
+                return false;
+            }
+            // The bound rides the one count evaluator (`eval_count`) through
+            // `CountBound::satisfied_by`, so a non-literal bound (e.g. "fewer
+            // than its power" — `StatOf(This, Power)`) evaluates instead of
+            // panicking. `Ref(This)`/`StatOf(This)` anchor on the carrier, so
+            // build a carrier-source frame with no resolution context.
+            let frame = crate::stack::Frame {
+                source: r.carrier_id,
+                controller: state.objects.obj(r.carrier_id).controller,
+                targets: Vec::new(),
+                bindings: None,
+            };
+            r.count
+                .as_ref()
+                .expect("filtered to Some")
+                .satisfied_by(n, |c| state.eval_count(c, &frame))
         })
         .map(|r| r.carrier)
 }

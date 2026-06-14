@@ -745,7 +745,7 @@ impl GameState {
     /// Panics on a `Count` not wired for Stage 3, on a `StatOf` whose object
     /// lacks the stat, and on a `ThatMuch` with no amount fixed in this
     /// resolution.
-    fn eval_count(&self, qty: &Count, frame: &Frame) -> Uint {
+    pub(crate) fn eval_count(&self, qty: &Count, frame: &Frame) -> Uint {
         match qty {
             Count::Literal(n) => *n,
             // "For each …": the filter's live cardinality over every object

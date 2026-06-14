@@ -1,17 +1,12 @@
 //! Condition evaluation ([CR#603.4] intervening-if, [CR#602.5b] activation
-//! restrictions). The `todo!` arms are the `engine-trigger-conditions` /
-//! `engine-resolve-counts` / `engine-filter-breadth` seams — they widen this
-//! dispatch rather than growing a second evaluator.
+//! restrictions). Numeric comparisons route through the one count evaluator
+//! (`GameState::eval_count`) — there is no frame-free count subset to drift
+//! from it. The remaining `todo!` arms (e.g. history-lookback windows) widen
+//! this dispatch in place rather than growing a second evaluator.
 
-use deckmaste_core::Cmp;
 use deckmaste_core::Condition;
-use deckmaste_core::Count;
-use deckmaste_core::Filter;
 use deckmaste_core::Phase;
-use deckmaste_core::StateFilter;
-use deckmaste_core::Uint;
 use deckmaste_core::Window;
-use deckmaste_core::Zone;
 
 use crate::player::PlayerId;
 use crate::stack::Frame;
@@ -44,17 +39,15 @@ impl GameState {
                 self.filter_matches_live(filter, object, self.frame_watcher(frame))
             }
 
-            // Numeric comparison.
+            // Numeric comparison: both sides ride the one `eval_count`, so a
+            // `CountOf` here counts live objects exactly as it does at
+            // resolution — no frame-free subset to fall out of sync.
+            // The in-flight announce slot still counts toward a Stack census:
+            // its object already sits in the Stack zone before the entry
+            // commits ([CR#601.2a], set in `begin_cast`), so the zone-based
+            // `CountOf` picks it up without a special case.
             Condition::Compare(a, op, b) => {
-                let lhs = self.eval_const_count(a, you);
-                let rhs = self.eval_const_count(b, you);
-                match op {
-                    Cmp::Eq => lhs == rhs,
-                    Cmp::AtLeast => lhs >= rhs,
-                    Cmp::AtMost => lhs <= rhs,
-                    Cmp::Greater => lhs > rhs,
-                    Cmp::Less => lhs < rhs,
-                }
+                op.apply(self.eval_count(a, frame), self.eval_count(b, frame))
             }
 
             Condition::AllOf(cs) => cs.iter().all(|c| self.condition_holds(c, frame)),
@@ -84,28 +77,6 @@ impl GameState {
 
             // The current phase/step is exactly the given one.
             Condition::DuringPhase(p) => self.turn.current == *p,
-        }
-    }
-
-    /// Frame-free `Count` evaluation for condition contexts. Unify with
-    /// `resolve`'s frame-aware count evaluation when frames thread through
-    /// conditions (`engine-resolve-counts`).
-    fn eval_const_count(&self, count: &Count, you: PlayerId) -> Uint {
-        match count {
-            Count::Literal(n) => *n,
-            // [CR#608.2i] history scalar reads share the resolve-side helper.
-            Count::Query(key) => self.eval_query(*key, you),
-            Count::CountOf(f) => match &**f {
-                // The Stack census includes the in-flight announce slot: an
-                // announced spell is already in the stack ZONE before its
-                // entry commits ([CR#601.2a]).
-                Filter::State(StateFilter::InZone(Zone::Stack)) => {
-                    Uint::try_from(self.stack.len() + usize::from(self.announcing.is_some()))
-                        .expect("stack size fits in Uint")
-                }
-                other => todo!("engine-filter-breadth: CountOf({other:?}) in conditions"),
-            },
-            other => todo!("engine-resolve-counts: {other:?} in conditions"),
         }
     }
 
@@ -521,6 +492,59 @@ mod tests {
         assert!(
             !state.condition_holds(&cond, &frame_for(&state, PlayerId(0))),
             "Compare(CountOf(InZone(Stack)), Eq, Literal(0)) should be false with an in-flight announce"
+        );
+    }
+
+    /// `Compare` over a non-Stack `CountOf` — the release-blocker the
+    /// frame-free evaluator `todo!`d. `Compare(CountOf(creature), Eq,
+    /// Literal(1))` must evaluate the live creature cardinality through the
+    /// unified `eval_count`, not panic. The bare `Type(Creature)` filter is
+    /// zone-agnostic, so the decks are all-land (`GameState::new` mints
+    /// deck cards as library objects); the one battlefield Grizzly Bears is
+    /// then the only creature.
+    #[test]
+    fn compare_counts_nonstack_filter() {
+        use deckmaste_core::CharacteristicFilter;
+
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 4],
+                },
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 4],
+                },
+            ],
+            seed: 3,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        });
+        let bear_card = state.cards.push(bears, PlayerId(0));
+        let bear = state.objects.mint(
+            ObjectSource::Card(bear_card),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(bear);
+
+        let creatures = Count::CountOf(Box::new(Filter::Characteristic(
+            CharacteristicFilter::Type(Type::Creature),
+        )));
+        assert!(
+            state.condition_holds(
+                &Condition::Compare(creatures.clone(), Cmp::Eq, Count::Literal(1)),
+                &frame_for(&state, PlayerId(0))
+            ),
+            "exactly one creature on the battlefield"
+        );
+        assert!(
+            !state.condition_holds(
+                &Condition::Compare(creatures, Cmp::Eq, Count::Literal(0)),
+                &frame_for(&state, PlayerId(0))
+            ),
+            "there IS a creature, so == 0 is false"
         );
     }
 
