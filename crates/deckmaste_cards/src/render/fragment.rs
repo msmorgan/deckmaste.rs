@@ -54,9 +54,12 @@ fn target_phrase(i: usize, ctx: &Ctx) -> String {
 /// A `TargetSpec` as the phrase naming what it points at.
 pub(super) fn target_spec(spec: &TargetSpec) -> String {
     match spec {
-        // Unwrap macro expansion layers to reach the real Target.
-        TargetSpec::Expanded(exp) => target_spec(&exp.value),
-        TargetSpec::Target(_q, filter) if is_any_target(filter) => "any target".to_string(),
+        // Macro-provenance: prefer the invocation's own template (e.g. AnyTarget
+        // -> "any target"); fall back to the expansion. Target templates name
+        // the target, never the host, so the subject is irrelevant here.
+        TargetSpec::Expanded(exp) => {
+            super::template::expanded(exp, "").unwrap_or_else(|| target_spec(&exp.value))
+        }
         TargetSpec::Target(Quantity::Exactly(Count::Literal(1)), filter) => {
             format!("target {}", filter_noun(filter))
         }
@@ -65,9 +68,15 @@ pub(super) fn target_spec(spec: &TargetSpec) -> String {
 }
 
 /// A simple noun for a filter, used in target phrases and "each <noun>"
-/// selection phrases.  Sees through `Expanded` wrappers via [`find_card_type`]
-/// and [`strip_expanded`].
+/// selection phrases.  Prefers a filter macro's own noun template ("creature",
+/// "player", ...); falls back to structural derivation ([`find_card_type`] /
+/// [`strip_expanded`]) for hand-built (un-wrapped) filters.
 fn filter_noun(filter: &Filter) -> String {
+    if let Filter::Expanded(exp) = filter
+        && let Some(noun) = super::template::expanded(exp, "")
+    {
+        return noun;
+    }
     if let Some(t) = find_card_type(filter) {
         return super::card::type_str(t).to_lowercase();
     }
@@ -75,27 +84,6 @@ fn filter_noun(filter: &Filter) -> String {
         Filter::Kind(ObjectKind::Player) => "player".to_string(),
         other => format!("[unrendered: {other:?}]"),
     }
-}
-
-/// Detect the expanded `AnyTarget` filter. The `AnyTarget` macro expands to
-/// `Target(Exactly(Literal(1)), OneOf([Battle, Creature, Planeswalker,
-/// Player]))`. The Battle/Creature/Planeswalker members are each
-/// `Expanded(Expansion { value: AllOf([..., Characteristic(Type(...))]) })` and
-/// the Player member is `Expanded(Expansion { value: Kind(Player) })`.
-///
-/// A pragmatic check: the filter is a `OneOf` containing at least one member
-/// whose resolved value is `Kind(Player)` — this is unique to `AnyTarget` among
-/// the `TargetSpec` macros.
-fn is_any_target(filter: &Filter) -> bool {
-    let Filter::OneOf(members) = filter else { return false };
-    if members.len() != 4 {
-        return false;
-    }
-    // The Player entry is the last one: Expanded(Expansion { value: Kind(Player) })
-    members.iter().any(|m| match m {
-        Filter::Expanded(exp) => matches!(*exp.value, Filter::Kind(ObjectKind::Player)),
-        _ => false,
-    })
 }
 
 // ── Static-ability subject phrases ──────────────────────────────────────────

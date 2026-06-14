@@ -34,14 +34,10 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
             out.push('.');
             out
         }
-        Effect::Expanded(e) => {
-            if let Some(t) = e.template.as_deref()
-                && let Some(s) = super::template::fill(t, ctx.subject, &e.args)
-            {
-                return ensure_period(&s);
-            }
-            effect(&e.value, ctx)
-        }
+        Effect::Expanded(e) => match super::template::expanded(e, ctx.subject) {
+            Some(s) => ensure_period(&s),
+            None => effect(&e.value, ctx),
+        },
         Effect::Continuously(c) => {
             let clause = super::ability::static_effect(&c.effect, ctx).map_or_else(
                 || format!("[unrendered: {:?}]", c.effect),
