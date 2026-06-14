@@ -308,6 +308,9 @@ fn mechanical(state: &GameState, pending: &PendingDecision) -> Decision {
                 .take(usize::try_from(*min).expect("min fits usize"))
                 .collect(),
         ),
+        // [CR#601.2b]: the headless strategy announces the minimum X=0 (always
+        // legal and payable). A smarter X is a follow-up.
+        PendingDecision::ChooseXValue { .. } => Decision::XValue(0),
         other => todo!("P0.W3: strategy for shell decision kind {other:?}"),
     }
 }
@@ -324,7 +327,8 @@ fn pending_player(pending: &PendingDecision) -> PlayerId {
         | PendingDecision::OrderTriggers { player, .. }
         | PendingDecision::DeclareAttackers { player, .. }
         | PendingDecision::DeclareBlockers { player, .. }
-        | PendingDecision::AssignCombatDamage { player, .. } => *player,
+        | PendingDecision::AssignCombatDamage { player, .. }
+        | PendingDecision::ChooseXValue { player, .. } => *player,
         other => todo!("P0.W3: strategy for shell decision kind {other:?}"),
     }
 }

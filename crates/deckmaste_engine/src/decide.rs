@@ -105,6 +105,7 @@ impl PendingDecision {
             | PendingDecision::YesNo { player, .. }
             | PendingDecision::OrderReplacements { player, .. }
             | PendingDecision::ChooseCostOptions { player, .. }
+            | PendingDecision::ChooseXValue { player, .. }
             | PendingDecision::ChooseObjects { player, .. }
             | PendingDecision::PreGame { player, .. } => *player,
         }
@@ -117,6 +118,7 @@ impl PendingDecision {
             PendingDecision::ChooseTargets { .. }
             | PendingDecision::ChooseModes { .. }
             | PendingDecision::ChooseCostOptions { .. }
+            | PendingDecision::ChooseXValue { .. }
             | PendingDecision::Division { .. } => LockPoint::Announce,
             PendingDecision::PayMana { .. } => LockPoint::Payment,
             PendingDecision::OrderTriggers { .. } => LockPoint::StackPlacement,
@@ -233,6 +235,9 @@ pub enum PendingDecision {
     /// (hybrid/Phyrexian, [CR#118.13]) announce here too — P0.W7 shell;
     /// nothing surfaces it yet.
     ChooseCostOptions { player: PlayerId, options: Uint },
+    /// [CR#601.2b]: announce the value of `{X}` in the in-flight cost. Any value
+    /// >= 0 is accepted; an unpayable announcement rewinds the cast ([CR#733]).
+    ChooseXValue { player: PlayerId },
     /// Order the replacement/prevention effects applicable to one event,
     /// affected player/controller choosing ([CR#616.1]) — shell.
     OrderReplacements { player: PlayerId, count: Uint },
@@ -285,6 +290,8 @@ pub enum Decision {
     Assignment(Vec<(ObjectId, Uint)>),
     /// Answers `ChooseObjects`: the chosen objects ([CR#608.2d]).
     Chosen(Vec<ObjectId>),
+    /// Answers `ChooseXValue`: the chosen value of X ([CR#601.2b]).
+    XValue(Uint),
 }
 
 /// What a priority holder can do in the skeleton.
@@ -813,6 +820,44 @@ impl GameState {
                 }]);
                 Ok(())
             }
+            (PendingDecision::ChooseXValue { player }, Decision::XValue(x)) => {
+                let player = *player;
+                // [CR#601.2b]: record the announced value in the open slot.
+                self.announcing
+                    .as_mut()
+                    .expect("an announce in flight for ChooseXValue")
+                    .x = Some(x);
+                // [CR#601.2h,733]: an unpayable announcement reverses the cast.
+                // Read the kind + base cost immutably, then decide.
+                let pending = self.announcing.as_ref().expect("an announce in flight");
+                let (subject, base) = match &pending.object {
+                    crate::stack::StackObject::Spell(o) => {
+                        (*o, self.mana_cost(*o).expect("a castable spell has a cost"))
+                    }
+                    crate::stack::StackObject::Activated {
+                        source, ability, ..
+                    } => (
+                        *source,
+                        crate::activate::cost_summary(&ability.cost)
+                            .expect("can_activate vetted the cost")
+                            .mana,
+                    ),
+                    crate::stack::StackObject::Triggered { .. } => {
+                        unreachable!("triggers never occupy the announce slot")
+                    }
+                };
+                let payable = crate::cast::can_pay(
+                    &self.spendable_pool(player, subject),
+                    &crate::cast::concretize_x(&base, x),
+                );
+                self.pending = None;
+                // Task 6's rewind takes the whole `announcing` slot, so the `x` written above
+                // is discarded on the unpayable path — committing it first is safe.
+                if !payable {
+                    todo!("engine-x-costs Task 6: rewind an unpayable announced X ([CR#733])");
+                }
+                Ok(())
+            }
             (
                 PendingDecision::ChooseModes { .. }
                 | PendingDecision::Division { .. }
@@ -1199,6 +1244,7 @@ impl GameState {
                             object: *object,
                             ability: *ability,
                         },
+                        WorkItem::AnnounceX,
                         WorkItem::AnnounceTargets,
                         WorkItem::PayCost,
                         WorkItem::Emit(Occurrence::single(GameEvent::AbilityActivated {
@@ -1220,6 +1266,7 @@ impl GameState {
                 self.reset_passes();
                 self.schedule_front(vec![
                     WorkItem::BeginCast(*object),
+                    WorkItem::AnnounceX,
                     WorkItem::AnnounceTargets,
                     WorkItem::PayCost,
                     WorkItem::Emit(Occurrence::single(GameEvent::SpellCast(*object))),

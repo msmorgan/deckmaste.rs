@@ -1106,11 +1106,13 @@ fn casting_a_spell_schedules_the_announce_block_and_begin_cast_stages_it() {
     state
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
         .unwrap();
-    let front: Vec<WorkItem> = state.agenda.iter().take(7).cloned().collect();
+    let front: Vec<WorkItem> = state.agenda.iter().take(8).cloned().collect();
     assert_eq!(
         front,
         vec![
             WorkItem::BeginCast(bolt),
+            // [CR#601.2b]: X is announced before targets ([CR#601.2c]).
+            WorkItem::AnnounceX,
             WorkItem::AnnounceTargets,
             WorkItem::PayCost,
             WorkItem::Emit(Occurrence::single(GameEvent::SpellCast(bolt))),
