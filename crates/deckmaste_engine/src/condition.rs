@@ -39,6 +39,21 @@ impl GameState {
                 self.filter_matches_live(filter, object, self.frame_watcher(frame))
             }
 
+            // [CR#701.3b,303.4d,704.5m]: the referenced attachment is legally
+            // attached iff it HAS a host and that (attachment, host) pair
+            // passes `attachment_legal` (the same predicate the attach no-op
+            // uses). Unattached / illegal-host / self-attached all read false —
+            // exactly the Aura graveyard SBA's "or is not attached" trigger
+            // (`Sba(Not(LegallyAttached(Ref(This))), …)`). Generic: no subtype
+            // branch.
+            Condition::LegallyAttached(reference) => {
+                let object = self.eval_reference(reference, frame);
+                self.objects
+                    .obj(object)
+                    .attached_to
+                    .is_some_and(|host| crate::legal::attachment_legal(self, object, host))
+            }
+
             // Numeric comparison: both sides ride the one `eval_count`, so a
             // `CountOf` here counts live objects exactly as it does at
             // resolution — no frame-free subset to fall out of sync.

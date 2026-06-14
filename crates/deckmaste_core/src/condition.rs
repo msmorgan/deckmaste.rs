@@ -54,6 +54,16 @@ pub enum Condition {
     Exists(Filter),
     /// A referenced object matches a filter ([CR#603.4], "if it is a …").
     Is(Reference, Filter),
+    /// The referenced attachment is LEGALLY attached ([CR#701.3b,303.4d]): it
+    /// has a host AND that (attachment, host) pair passes the attachment
+    /// legality predicate (host-type / protection / `Cant(Attach)`). False when
+    /// the object is unattached, attached to an illegal host, or self-attached
+    /// — the exact "or is not attached / attached to an illegal object" trigger
+    /// of the Aura graveyard SBA ([CR#704.5m]), whose static is
+    /// `Sba(Not(LegallyAttached(Ref(This))), Move(Ref(This), Graveyard))`. The
+    /// engine evaluates it through the one `attachment_legal` predicate (the
+    /// same one the [CR#701.3b] attach no-op uses), never by subtype.
+    LegallyAttached(Reference),
     /// An event happened within a window (morbid/raid, [CR#608.2i]).
     Happened { event: Event, within: Window },
     /// It is the evaluating player's turn (the `you` of the evaluation
@@ -101,6 +111,18 @@ mod tests {
             read("DuringPhase(PostcombatMain)"),
             Condition::DuringPhase(crate::Phase::PostcombatMain),
         );
+    }
+
+    /// `LegallyAttached(This)` reads and round-trips ([CR#704.5m] trigger).
+    #[test]
+    fn legally_attached_reads() {
+        assert_eq!(
+            read("LegallyAttached(This)"),
+            Condition::LegallyAttached(Reference::This),
+        );
+        let v = Condition::LegallyAttached(Reference::This);
+        let w = crate::ron::options().to_string(&v).unwrap();
+        assert_eq!(read(&w), v);
     }
 
     #[test]

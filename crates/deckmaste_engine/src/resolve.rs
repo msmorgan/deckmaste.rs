@@ -500,6 +500,29 @@ impl GameState {
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
+            // [CR#400.7]: a PLAIN zone move (no `WillDestroy` intent, no
+            // cause-verb fact) — each selected object moves from whatever zone
+            // it's in to `zone`. The apply remints into the owner's
+            // graveyard/hand/library (or the shared exile), exactly like
+            // `ReturnToHand`/`Exile`. NOT destruction (indestructible doesn't
+            // apply) and NOT a sacrifice — the [CR#704.5m] Aura graveyard SBA's
+            // mover.
+            Action::Move(sel, zone) => {
+                let events: Vec<GameEvent> = self
+                    .eval_selection_set(sel, frame)
+                    .into_iter()
+                    .map(|object| GameEvent::ZoneWillChange {
+                        object,
+                        from: Some(self.objects.obj(object).zone.expect("move a zoned object")),
+                        to: *zone,
+                        enters: None,
+                        position: None,
+                        face: None,
+                        cause: None,
+                    })
+                    .collect();
+                vec![WorkItem::Emit(occurrence_of(events))]
+            }
         }
     }
 
@@ -1244,7 +1267,8 @@ fn unresolved_choice(action: &Action) -> Option<PendingChoice> {
         | Action::Destroy(s)
         | Action::ReturnToHand(s)
         | Action::Counter(s)
-        | Action::Unattach(s) => lift(s),
+        | Action::Unattach(s)
+        | Action::Move(s, _) => lift(s),
         Action::By(_, p) => lift_pa(p),
         Action::Attach { .. } => None,
     }
@@ -2180,6 +2204,40 @@ mod tests {
         assert!(state.objects.get(bear).is_none(), "old battlefield id gone");
         assert!(!state.zones.battlefield.contains(&bear));
         assert_eq!(state.zones.graveyards[0].len(), 1);
+    }
+
+    /// [CR#400.7]: `Move(This, Graveyard)` is a PLAIN relocation — no
+    /// `WillDestroy` intent, so it's a direct `ZoneWillChange(Battlefield →
+    /// Graveyard)` → `ZoneChanged`, reminting the object into its OWNER's
+    /// graveyard. (Indestructible would not save it — but a plain Grizzly Bears
+    /// exercises the move path.)
+    #[test]
+    fn move_sends_this_to_owner_graveyard() {
+        let (mut state, bear) = bear_on_field();
+        let frame = Frame {
+            source: bear,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        state.run_effect(
+            Effect::Act(Action::Move(sel_this(), Zone::Graveyard)),
+            &frame,
+        );
+        // ZoneWillChange → ZoneChanged (one fewer step than Destroy — no
+        // WillDestroy replace stage).
+        for _ in 0..2 {
+            let _ = state.step();
+        }
+        assert!(state.objects.get(bear).is_none(), "old battlefield id gone");
+        assert!(!state.zones.battlefield.contains(&bear));
+        assert_eq!(
+            state.zones.graveyards[0].len(),
+            1,
+            "moved into owner's graveyard"
+        );
     }
 
     #[test]
