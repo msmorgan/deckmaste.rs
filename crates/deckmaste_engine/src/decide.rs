@@ -1175,10 +1175,6 @@ impl GameState {
         ))]);
     }
 
-    #[expect(
-        clippy::too_many_lines,
-        reason = "one arm per action kind; splitting would scatter the dispatch"
-    )]
     fn take_priority_action(&mut self, player: PlayerId, action: &Action) {
         match action {
             // P0.W3 shell: special actions are never in the legal list, so
@@ -1228,8 +1224,8 @@ impl GameState {
                 // effect putting a land onto the battlefield is NOT a play,
                 // [CR#701.18a]). `LandsPlayedThisTurn` counts those Play-caused
                 // battlefield entries in the history log.
-                self.schedule_front(vec![
-                    WorkItem::Emit(Occurrence::single(GameEvent::ZoneWillChange {
+                let mut items = vec![WorkItem::Emit(Occurrence::single(
+                    GameEvent::ZoneWillChange {
                         object: *object,
                         from: Some(Zone::Hand),
                         to: Zone::Battlefield,
@@ -1237,11 +1233,10 @@ impl GameState {
                         position: None,
                         face: None,
                         cause: Some(Cause::play(Agency::SpecialAction, None)),
-                    })),
-                    WorkItem::CheckSbas,
-                    WorkItem::PlaceTriggers,
-                    WorkItem::OpenPriority,
-                ]);
+                    },
+                ))];
+                items.extend(Self::priority_tail());
+                self.schedule_front(items);
             }
             Action::ActivateAbility { object, ability } => {
                 let abilities = derive::abilities(self, *object);
@@ -1262,7 +1257,7 @@ impl GameState {
                     // per action; revisit if mana activation becomes a profiling
                     // hotspot (the repo has prior `layers()` perf history).
                     let riders = self.snow_provenance(*object);
-                    self.schedule_front(vec![
+                    let mut items = vec![
                         WorkItem::Emit(Occurrence::single(GameEvent::Tapped {
                             object: *object,
                             cause: Some(Cause::tap(Agency::CostPayment, None)),
@@ -1273,31 +1268,22 @@ impl GameState {
                             amount,
                             riders,
                         })),
-                        WorkItem::CheckSbas,
-                        WorkItem::PlaceTriggers,
-                        WorkItem::OpenPriority,
-                    ]);
+                    ];
+                    items.extend(Self::priority_tail());
+                    self.schedule_front(items);
                 } else {
                     // [CR#602.2b]: the casting steps, for an ability.
-                    self.schedule_front(vec![
+                    let items = Self::announce_schedule(
                         WorkItem::BeginActivate {
                             object: *object,
                             ability: *ability,
                         },
-                        WorkItem::AnnounceX,
-                        WorkItem::AnnounceTargets,
-                        // [CR#601.2b]: concretize hybrid/Phyrexian symbols
-                        // before the total cost locks at payment.
-                        WorkItem::ChooseCostOptions,
-                        WorkItem::PayCost,
-                        WorkItem::Emit(Occurrence::single(GameEvent::AbilityActivated {
+                        GameEvent::AbilityActivated {
                             source: *object,
                             ability: *ability,
-                        })),
-                        WorkItem::CheckSbas,
-                        WorkItem::PlaceTriggers,
-                        WorkItem::OpenPriority,
-                    ]);
+                        },
+                    );
+                    self.schedule_front(items);
                 }
             }
             Action::CastSpell { object } => {
@@ -1307,21 +1293,49 @@ impl GameState {
                 // ([CR#601.2i]) that promotes the announce onto the stack; the
                 // caster then regains priority ([CR#117.3c]).
                 self.reset_passes();
-                self.schedule_front(vec![
+                let items = Self::announce_schedule(
                     WorkItem::BeginCast(*object),
-                    WorkItem::AnnounceX,
-                    WorkItem::AnnounceTargets,
-                    // [CR#601.2b]: concretize hybrid/Phyrexian symbols before
-                    // the total cost locks at payment.
-                    WorkItem::ChooseCostOptions,
-                    WorkItem::PayCost,
-                    WorkItem::Emit(Occurrence::single(GameEvent::SpellCast(*object))),
-                    WorkItem::CheckSbas,
-                    WorkItem::PlaceTriggers,
-                    WorkItem::OpenPriority,
-                ]);
+                    GameEvent::SpellCast(*object),
+                );
+                self.schedule_front(items);
             }
         }
+    }
+
+    /// The trailer every priority-restarting action ends with: re-check
+    /// state-based actions ([CR#704.3]), place any waiting triggers
+    /// ([CR#603.3]), then re-open priority for the actor ([CR#117.3c]). Shared
+    /// by the announce schedule, `PlayLand`, and the mana-ability arm so the
+    /// three never drift.
+    #[must_use]
+    pub(crate) fn priority_tail() -> Vec<WorkItem> {
+        vec![
+            WorkItem::CheckSbas,
+            WorkItem::PlaceTriggers,
+            WorkItem::OpenPriority,
+        ]
+    }
+
+    /// [CR#601.2,602.2]: the full announce procedure, identical for casting a
+    /// spell and activating a non-mana ability — only the opening shell
+    /// (`BeginCast` vs `BeginActivate`) and the becomes-cast event
+    /// (`SpellCast` / `AbilityActivated`) differ. `AnnounceX` precedes targets
+    /// ([CR#601.2b,601.2c]); `ChooseCostOptions` concretizes hybrid/Phyrexian
+    /// symbols ([CR#601.2b]) before `PayCost`; the becomes-cast event then
+    /// promotes the announce onto the stack ([CR#601.2i,602.2a]) and the
+    /// shared `priority_tail` re-opens priority for the actor.
+    #[must_use]
+    pub(crate) fn announce_schedule(begin: WorkItem, cast_event: GameEvent) -> Vec<WorkItem> {
+        let mut items = vec![
+            begin,
+            WorkItem::AnnounceX,
+            WorkItem::AnnounceTargets,
+            WorkItem::ChooseCostOptions,
+            WorkItem::PayCost,
+            WorkItem::Emit(Occurrence::single(cast_event)),
+        ];
+        items.extend(Self::priority_tail());
+        items
     }
 
     /// The per-unit provenance riders a `source` contributes to the mana it
