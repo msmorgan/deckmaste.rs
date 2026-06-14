@@ -1,7 +1,18 @@
 //! Filling a macro's `template:` metadata into rules text.
 //! `~` -> the subject; `{i}` -> the rendered i-th positional arg.
 
+use deckmaste_core::Expansion;
 use deckmaste_core::ExpansionArgs;
+
+/// The one template-first hook: render a macro invocation through its own
+/// rules-text `template`, if it carries a fillable one. `None` when there is no
+/// template (or an arg can't be rendered) — the caller then falls back to
+/// structural rendering of `e.value`. Every `X::Expanded` arm routes through
+/// this so the "prefer the macro's text, else reconstruct it" rule is written
+/// once, not re-derived per kind.
+pub(super) fn expanded<T>(e: &Expansion<T>, subject: &str) -> Option<String> {
+    fill(e.template.as_deref()?, subject, &e.args)
+}
 
 /// Fill a template. Returns `None` if any `{i}` can't be rendered cleanly
 /// (caller then falls back to structural rendering — never emit a half-filled
@@ -46,9 +57,60 @@ fn render_arg(raw: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    use deckmaste_core::Expansion;
     use deckmaste_core::ExpansionArgs;
 
+    use super::expanded;
     use super::fill;
+
+    /// A placeholder expanded value: `expanded` never looks at it (it renders
+    /// from `template`/`args`), so any type works.
+    fn exp(template: Option<&str>, args: ExpansionArgs) -> Expansion<u8> {
+        Expansion {
+            name: "M".into(),
+            args,
+            template: template.map(str::to_owned),
+            value: Box::new(0),
+        }
+    }
+
+    #[test]
+    fn expanded_prefers_a_nullary_template() {
+        // The AnyTarget shape: nullary, no `~`, no `{i}` — the template *is* the
+        // text, used in preference to reconstructing it from `value`.
+        let e = exp(Some("any target"), ExpansionArgs::none());
+        assert_eq!(expanded(&e, "ignored").as_deref(), Some("any target"));
+    }
+
+    #[test]
+    fn expanded_fills_subject_and_args() {
+        let e = exp(
+            Some("~ gets +{0}/+{1} until end of turn"),
+            ExpansionArgs::Positional(vec!["1".into(), "1".into()]),
+        );
+        assert_eq!(
+            expanded(&e, "Goblin").as_deref(),
+            Some("Goblin gets +1/+1 until end of turn")
+        );
+    }
+
+    #[test]
+    fn expanded_without_template_is_none() {
+        // No template -> caller falls back to structural rendering of `value`.
+        let e = exp(None, ExpansionArgs::none());
+        assert_eq!(expanded(&e, "x"), None);
+    }
+
+    #[test]
+    fn expanded_with_unrenderable_arg_is_none() {
+        // A grammar-node arg the v1 filler can't render -> fall back, never a
+        // half-filled template.
+        let e = exp(
+            Some("{0}"),
+            ExpansionArgs::Positional(vec!["SomeFilter".into()]),
+        );
+        assert_eq!(expanded(&e, "x"), None);
+    }
 
     #[test]
     fn fills_pump_template() {
