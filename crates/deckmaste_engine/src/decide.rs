@@ -953,11 +953,7 @@ impl GameState {
                         enters: None,
                         position: None,
                         face: None,
-                        cause: Some(Cause {
-                            verb: "Discard".into(),
-                            agency: Agency::EffectInstruction,
-                            agent: None,
-                        }),
+                        cause: Some(Cause::discard(Agency::EffectInstruction, None)),
                     }))
                 })
                 .collect(),
@@ -1240,11 +1236,7 @@ impl GameState {
                         enters: None,
                         position: None,
                         face: None,
-                        cause: Some(Cause {
-                            verb: "Play".into(),
-                            agency: Agency::SpecialAction,
-                            agent: None,
-                        }),
+                        cause: Some(Cause::play(Agency::SpecialAction, None)),
                     })),
                     WorkItem::CheckSbas,
                     WorkItem::PlaceTriggers,
@@ -1273,11 +1265,7 @@ impl GameState {
                     self.schedule_front(vec![
                         WorkItem::Emit(Occurrence::single(GameEvent::Tapped {
                             object: *object,
-                            cause: Some(Cause {
-                                verb: "Tap".into(),
-                                agency: Agency::CostPayment,
-                                agent: None,
-                            }),
+                            cause: Some(Cause::tap(Agency::CostPayment, None)),
                         })),
                         WorkItem::Emit(Occurrence::single(GameEvent::ManaAdded {
                             player,

@@ -107,11 +107,10 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
         // view can narrow on it.
         actions.push(GameEvent::WillDestroy {
             object: id,
-            cause: Some(crate::event::Cause {
-                verb: "Destroy".into(),
-                agency: deckmaste_core::Agency::StateBasedAction,
-                agent: None,
-            }),
+            cause: Some(crate::event::Cause::destroy(
+                deckmaste_core::Agency::StateBasedAction,
+                None,
+            )),
         });
     }
 

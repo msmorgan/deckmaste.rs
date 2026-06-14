@@ -41,6 +41,73 @@ pub struct Cause {
     pub agent: Option<(ObjectId, PlayerId)>,
 }
 
+/// Named constructors for the cause triple. Each fixes the VERB spelling in
+/// one place — a verb names a performed view ("Destroy", "Sacrifice", …) and a
+/// typo'd verb silently never matches a trigger ([CR#603.2]), so the canonical
+/// strings live here, not scattered across ~8 emission sites. The `agency`
+/// coordinate stays a per-site argument: tap-for-cost ([CR#107.5]), tap-by-
+/// effect ([CR#701.26a]), and tap-to-attack ([CR#508.1f]) are genuinely
+/// different agencies of the same verb. `agent` is the causing object and its
+/// controller, `None` for turn-based / state-based actions (mtg-rules
+/// events.md §3). The open `Ident` verb vocabulary stays a seam.
+impl Cause {
+    /// The internal verb+agency+agent packing — every named constructor below
+    /// routes through here so the only `Cause { … }` literal in the engine is
+    /// this one.
+    fn verb(
+        verb: &str,
+        agency: deckmaste_core::Agency,
+        agent: Option<(ObjectId, PlayerId)>,
+    ) -> Self {
+        Cause {
+            verb: verb.into(),
+            agency,
+            agent,
+        }
+    }
+
+    /// "Destroy" ([CR#701.8a]) — one of "destroyed"'s exactly two causes
+    /// ([CR#701.8b]; the other is the lethal-damage SBA, also this verb under
+    /// `Agency::StateBasedAction`).
+    #[must_use]
+    pub fn destroy(agency: deckmaste_core::Agency, agent: Option<(ObjectId, PlayerId)>) -> Self {
+        Self::verb("Destroy", agency, agent)
+    }
+
+    /// "Counter" ([CR#701.6a]) — a "becomes countered" view narrows by it.
+    #[must_use]
+    pub fn counter(agency: deckmaste_core::Agency, agent: Option<(ObjectId, PlayerId)>) -> Self {
+        Self::verb("Counter", agency, agent)
+    }
+
+    /// "Tap" — distinguishable from the others only by `agency` ([CR#107.5]
+    /// cost vs [CR#508.1f] attack vs [CR#701.26a] effect vs [CR#106.12] mana).
+    #[must_use]
+    pub fn tap(agency: deckmaste_core::Agency, agent: Option<(ObjectId, PlayerId)>) -> Self {
+        Self::verb("Tap", agency, agent)
+    }
+
+    /// "Sacrifice" ([CR#701.21a]) — never a destruction (regeneration can't
+    /// replace it).
+    #[must_use]
+    pub fn sacrifice(agency: deckmaste_core::Agency, agent: Option<(ObjectId, PlayerId)>) -> Self {
+        Self::verb("Sacrifice", agency, agent)
+    }
+
+    /// "Discard" ([CR#701.9a]).
+    #[must_use]
+    pub fn discard(agency: deckmaste_core::Agency, agent: Option<(ObjectId, PlayerId)>) -> Self {
+        Self::verb("Discard", agency, agent)
+    }
+
+    /// "Play" ([CR#305.2,116.2a]) — the land-drop cause (an effect putting a
+    /// land onto the battlefield is NOT a play, [CR#701.18a]).
+    #[must_use]
+    pub fn play(agency: deckmaste_core::Agency, agent: Option<(ObjectId, PlayerId)>) -> Self {
+        Self::verb("Play", agency, agent)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GameEvent {
     TurnBegan {
@@ -342,4 +409,66 @@ impl Occurrence {
     /// Convenience: wrap a single event.
     #[must_use]
     pub fn single(event: GameEvent) -> Self { Occurrence::Single(event) }
+}
+
+#[cfg(test)]
+mod tests {
+    use deckmaste_core::Agency;
+
+    use super::Cause;
+    use crate::object::ObjectId;
+    use crate::player::PlayerId;
+
+    /// Each named constructor fixes its canonical verb spelling and threads the
+    /// per-site `agency` and `agent` through unchanged.
+    #[test]
+    fn named_constructors_fix_verb_and_thread_agency_agent() {
+        let agent = Some((ObjectId::from_raw(7), PlayerId(1)));
+
+        assert_eq!(
+            Cause::destroy(Agency::StateBasedAction, None),
+            Cause {
+                verb: "Destroy".into(),
+                agency: Agency::StateBasedAction,
+                agent: None,
+            }
+        );
+        assert_eq!(
+            Cause::destroy(Agency::EffectInstruction, agent),
+            Cause {
+                verb: "Destroy".into(),
+                agency: Agency::EffectInstruction,
+                agent,
+            }
+        );
+        assert_eq!(
+            Cause::counter(Agency::EffectInstruction, agent)
+                .verb
+                .as_str(),
+            "Counter"
+        );
+        assert_eq!(
+            Cause::sacrifice(Agency::EffectInstruction, agent)
+                .verb
+                .as_str(),
+            "Sacrifice"
+        );
+        assert_eq!(
+            Cause::discard(Agency::EffectInstruction, None)
+                .verb
+                .as_str(),
+            "Discard"
+        );
+        assert_eq!(
+            Cause::play(Agency::SpecialAction, None).verb.as_str(),
+            "Play"
+        );
+
+        // "Tap" is distinguished only by agency — same verb, different agency.
+        let cost_tap = Cause::tap(Agency::CostPayment, agent);
+        let effect_tap = Cause::tap(Agency::EffectInstruction, agent);
+        assert_eq!(cost_tap.verb, effect_tap.verb);
+        assert_eq!(cost_tap.verb.as_str(), "Tap");
+        assert_ne!(cost_tap.agency, effect_tap.agency);
+    }
 }
