@@ -159,7 +159,7 @@ fn render_detail(
 
 fn render_footer(frame: &mut Frame, area: Rect, stop: &Stop) {
     let status = match stop {
-        Stop::Priority(p) => format!("Priority P{}", p.decider_player().0),
+        Stop::Decision(p) => format!("P{} to decide", p.decider_player().0),
         Stop::GameOver(o) => format!("GAME OVER: {o:?}"),
         Stop::Budget => "step budget reached".to_string(),
     };

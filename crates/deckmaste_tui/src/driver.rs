@@ -16,8 +16,9 @@ pub(crate) const HEADLESS_BUDGET: usize = 100_000;
 /// Why the driver stopped stepping.
 #[derive(Debug)]
 pub enum Stop {
-    /// A human-facing priority decision is pending (interactive mode only).
-    Priority(PendingDecision),
+    /// An interactive decision is pending (interactive mode only). Carries the
+    /// pending decision so the UI can build an `Interaction` for it.
+    Decision(PendingDecision),
     /// The game ended.
     GameOver(GameOutcome),
     /// The step budget was exhausted (headless mode only).
@@ -34,21 +35,29 @@ impl Driver {
     #[must_use]
     pub fn new(state: GameState, strategy: Box<dyn Strategy>) -> Self { Self { state, strategy } }
 
-    /// Steps the engine, auto-resolving every decision except (when
-    /// `auto_priority` is false) priority, which is left for the human.
+    /// Escape valve: if the engine ever fails to open a decision window, return
+    /// `Stop::Budget` rather than hang the UI.
+    const DECISION_BUDGET: usize = 1_000_000;
+
+    /// Steps the engine, auto-resolving (via `Strategy`) every decision for
+    /// which `stop_pred` is false, and stopping on the first one for which
+    /// it is true.
     ///
     /// # Errors
     /// Propagates a `DecisionError` if an auto-submitted decision is rejected
     /// (a wiring bug — `Strategy` is expected to answer legally).
-    fn drive(&mut self, auto_priority: bool, budget: usize) -> Result<Stop, DecisionError> {
+    fn drive(
+        &mut self,
+        stop_pred: impl Fn(&PendingDecision) -> bool,
+        budget: usize,
+    ) -> Result<Stop, DecisionError> {
         for _ in 0..budget {
             match self.state.step() {
                 StepOutcome::Progress(_) => {}
                 StepOutcome::GameOver(outcome) => return Ok(Stop::GameOver(outcome)),
                 StepOutcome::NeedsDecision(pending) => {
-                    let is_priority = matches!(pending, PendingDecision::Priority { .. });
-                    if is_priority && !auto_priority {
-                        return Ok(Stop::Priority(pending));
+                    if stop_pred(&pending) {
+                        return Ok(Stop::Decision(pending));
                     }
                     let decision = self.strategy.decide(&self.state, &pending);
                     self.state.submit_decision(decision)?;
@@ -58,16 +67,24 @@ impl Driver {
         Ok(Stop::Budget)
     }
 
-    /// Interactive: step until the human holds priority or the game ends.
+    /// Interactive: step until a human-driven decision is pending or the game
+    /// ends.
+    ///
+    /// # Errors
+    /// As [`Driver::drive`].
+    pub fn run_to_decision(&mut self) -> Result<Stop, DecisionError> {
+        self.drive(crate::interact::is_interactive, Self::DECISION_BUDGET)
+    }
+
+    /// Interactive (priority only): used by the existing render/board tests.
     ///
     /// # Errors
     /// As [`Driver::drive`].
     pub fn run_to_priority(&mut self) -> Result<Stop, DecisionError> {
-        /// Escape valve: if the engine ever fails to open a priority window,
-        /// return `Stop::Budget` rather than hang the UI. Mirrors the engine's
-        /// own sim step guard.
-        const PRIORITY_BUDGET: usize = 1_000_000;
-        self.drive(false, PRIORITY_BUDGET)
+        self.drive(
+            |p| matches!(p, PendingDecision::Priority { .. }),
+            Self::DECISION_BUDGET,
+        )
     }
 
     /// Headless: auto-play both seats until game over or the step budget.
@@ -75,7 +92,7 @@ impl Driver {
     /// # Errors
     /// As [`Driver::drive`].
     pub fn run_to_end(&mut self, budget: usize) -> Result<Stop, DecisionError> {
-        self.drive(true, budget)
+        self.drive(|_| false, budget)
     }
 
     /// Pass priority for the current holder.
@@ -93,6 +110,17 @@ impl Driver {
     pub fn auto(&mut self, pending: &PendingDecision) -> Result<(), DecisionError> {
         let decision = self.strategy.decide(&self.state, pending);
         self.state.submit_decision(decision)
+    }
+
+    /// Submit a decision, then run to the next interactive stop.
+    ///
+    /// # Errors
+    /// Returns the `DecisionError` if the engine rejects `decision` (e.g. an
+    /// illegal selection); the caller keeps the current interaction and
+    /// re-prompts.
+    pub fn submit(&mut self, decision: Decision) -> Result<Stop, DecisionError> {
+        self.state.submit_decision(decision)?;
+        self.run_to_decision()
     }
 }
 
@@ -114,5 +142,19 @@ mod tests {
             .run_to_end(HEADLESS_BUDGET)
             .expect("no decision error");
         assert!(matches!(stop, Stop::GameOver(_) | Stop::Budget));
+    }
+
+    #[test]
+    fn run_to_decision_stops_on_an_interactive_kind() {
+        let state = game::build_game().expect("build demo game");
+        let mut driver = Driver::new(state, Box::new(GreedyCreatures));
+        let stop = driver.run_to_decision().expect("no decision error");
+        match stop {
+            Stop::Decision(p) => assert!(
+                crate::interact::is_interactive(&p),
+                "stopped on a non-interactive decision: {p:?}"
+            ),
+            other => panic!("expected an interactive decision at the opening, got {other:?}"),
+        }
     }
 }
