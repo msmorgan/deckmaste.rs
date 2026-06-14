@@ -35,8 +35,15 @@ fn event_clause(e: &Event, ctx: &Ctx) -> (&'static str, String) {
         Event::ZoneMove {
             what,
             to: Some(Zone::Battlefield),
+            from: None,
             ..
-        } => ("When", format!("{} enters", subject_of(what, ctx))),
+        } => (lead_for(what), format!("{} enters", subject_of(what, ctx))),
+        Event::ZoneMove {
+            what,
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
+            ..
+        } => (lead_for(what), format!("{} dies", subject_of(what, ctx))),
         Event::StateBecomes { of, becomes, .. } => (
             "Whenever",
             format!("{} becomes {}", subject_of(of, ctx), state_word(becomes)),
@@ -45,13 +52,30 @@ fn event_clause(e: &Event, ctx: &Ctx) -> (&'static str, String) {
     }
 }
 
-/// A subject filter as a noun ("Baleful Strix" for the self filter).
-fn subject_of(f: &Filter, ctx: &Ctx) -> String {
-    match f {
-        Filter::Expanded(exp) => subject_of(&exp.value, ctx),
-        Filter::Ref(Reference::This) => ctx.subject.to_string(),
-        other => format!("[unrendered: {other:?}]"),
+/// One-shot enters/dies of THIS → "When"; a filtered (non-self) subject →
+/// "Whenever".
+fn lead_for(what: &Filter) -> &'static str {
+    if matches!(
+        super::fragment::strip_expanded(what),
+        Filter::Ref(Reference::This)
+    ) {
+        "When"
+    } else {
+        "Whenever"
     }
+}
+
+/// A subject filter as a noun ("Baleful Strix" for the self filter,
+/// "a creature" for a Creature macro filter).
+fn subject_of(f: &Filter, ctx: &Ctx) -> String {
+    let f = super::fragment::strip_expanded(f);
+    if matches!(f, Filter::Ref(Reference::This)) {
+        return ctx.subject.to_string();
+    }
+    if let Some(t) = super::fragment::find_card_type(f) {
+        return format!("a {}", super::card::type_str(t).to_lowercase());
+    }
+    format!("[unrendered: {f:?}]")
 }
 
 fn state_word(s: &StateFilterEvent) -> &'static str {

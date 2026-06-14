@@ -353,3 +353,29 @@ fn renders_synthesized_lose_life_and_destroy() {
         vec!["Destroy target creature.".to_string()]
     );
 }
+
+// ── Coverage B: "dies" event + non-self trigger subjects ─────────────────────
+
+#[test]
+fn renders_dies_trigger_footlight_fiend() {
+    let r = render_card_face(&face("Footlight Fiend"));
+    assert!(
+        r.rules
+            .iter()
+            .any(|l| l == "When Footlight Fiend dies, deal 1 damage to any target."),
+        "rules: {:?}",
+        r.rules
+    );
+}
+
+#[test]
+fn renders_creature_dies_trigger_moonlit_wake() {
+    let r = render_card_face(&face("Moonlit Wake"));
+    assert!(
+        r.rules
+            .iter()
+            .any(|l| l == "Whenever a creature dies, gain 1 life."),
+        "rules: {:?}",
+        r.rules
+    );
+}
