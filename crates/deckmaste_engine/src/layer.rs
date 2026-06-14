@@ -38,9 +38,9 @@ use crate::state::GameState;
 
 /// An effect's resolved target set, used throughout the pipeline.
 /// `Locked` holds ids snapshotted at creation ([CR#611.2c], one-shot
-/// `Of`/`These`). `Floating` holds a filter re-evaluated against the derived
-/// map each layer (static `Matching`, and the deferred static-`Of`/`These` seam
-/// currently produces `Locked(empty)`).
+/// `Of`/`These`; also a static `Of`/`These` resolved source-relative in
+/// `gather` — see `resolve_source_relative`). `Floating` holds a filter
+/// re-evaluated against the derived map each layer (static `Matching`).
 #[derive(Debug, Clone)]
 pub enum ScopeResolved {
     Locked(Vec<ObjectId>),
@@ -358,13 +358,25 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
             // Conditions skipped — a seam for later ([CR#611.3a]).
             for effect in &sa.effects {
                 let StaticEffect::Modify { of, changes } = effect else { continue };
-                // Convert Scope to ScopeResolved. Static Of/These reference
-                // resolution stays a seam — gather has no Frame to eval
-                // references; these are left as Locked(empty) matching the
-                // prior behavior. Floating Matching scopes stay floating.
+                // Convert Scope to ScopeResolved. `Matching` floating scopes
+                // stay floating. `Of`/`These` reference the carrying object's
+                // relations — resolved here SOURCE-RELATIVE (`This = obj.id`,
+                // no `Frame`) so a host-targeting static ("enchanted/equipped
+                // creature gets +N/+N", `Of(AttachHostOf(This))`) lands on the
+                // host. The resolved ids are LOCKED at this first application
+                // ([CR#613.6]). References that genuinely need a `Frame`
+                // (`Target`, bindings) cannot be resolved in gather and drop to
+                // an empty locked set (a documented seam).
                 let scope = match of {
                     Scope::Matching(f) => ScopeResolved::Floating(f.clone()),
-                    Scope::Of(_) | Scope::These(_) => ScopeResolved::Locked(Vec::new()),
+                    Scope::Of(r) => {
+                        ScopeResolved::Locked(resolve_source_relative(state, obj.id, r))
+                    }
+                    Scope::These(rs) => ScopeResolved::Locked(
+                        rs.iter()
+                            .flat_map(|r| resolve_source_relative(state, obj.id, r))
+                            .collect(),
+                    ),
                 };
                 effects.push(ActiveEffect {
                     timestamp,
@@ -392,6 +404,61 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
         });
     }
     effects
+}
+
+/// Resolve a `Reference` inside a static ability's `Scope::Of`/`These` to
+/// concrete object ids, SOURCE-RELATIVE: `This` is the static's source object
+/// `source` (the carrying permanent), and `gather` has **no** [`Frame`], so
+/// only the references whose value is fixed by the source's own relations are
+/// resolvable here. The rest are a documented seam (see below) and resolve to
+/// the empty set.
+///
+/// Returns a (possibly empty) vec — the empty set both for a Frame-dependent
+/// reference and for a relation that isn't established (an unattached
+/// attachment's `AttachHostOf(This)` has no host yet). The caller LOCKS the
+/// result ([CR#613.6]: the affected set is fixed at first application).
+///
+/// [`Frame`]: crate::resolve::Frame
+fn resolve_source_relative(
+    state: &GameState,
+    source: ObjectId,
+    reference: &deckmaste_core::Reference,
+) -> Vec<ObjectId> {
+    use deckmaste_core::Reference;
+    match reference {
+        // The carrying object itself.
+        Reference::This => vec![source],
+        // The host an attachment is attached to ([CR#301.5,303.4]) — read the
+        // attachment→host link off the resolved inner object. No host (an
+        // unattached attachment) → empty, so nothing is buffed.
+        Reference::AttachHostOf(inner) => resolve_source_relative(state, source, inner)
+            .into_iter()
+            .filter_map(|id| state.objects.get(id).and_then(|o| o.attached_to))
+            .collect(),
+        // The inverse (host→attachment): every object whose `attached_to`
+        // points at the resolved host ([CR#613.7] deterministic id order). A
+        // host with multiple attachments fans out to all of them.
+        Reference::AttachedTo(inner) => {
+            let hosts: BTreeSet<ObjectId> = resolve_source_relative(state, source, inner)
+                .into_iter()
+                .collect();
+            state
+                .objects
+                .iter()
+                .filter(|o| o.attached_to.is_some_and(|h| hosts.contains(&h)))
+                .map(|o| o.id)
+                .collect()
+        }
+        // Look through a remembered macro invocation.
+        Reference::Expanded(e) => resolve_source_relative(state, source, &e.value),
+        // Frame-dependent references only: `Target`, bindings (`Bound`,
+        // `Linked`, `ThatObject`, `ThatPlayer`) — and the player-valued
+        // `You`/`ControllerOf`/`OwnerOf` — cannot be resolved without a `Frame`
+        // in gather, so they stay an empty locked set (a documented seam; these
+        // need `eval_reference`, which `gather` deliberately lacks to avoid the
+        // layers()→eval recursion).
+        _ => Vec::new(),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1112,5 +1179,105 @@ mod tests {
             facing[0],
             Ability::Keyword(KeywordAbility::Trample)
         ));
+    }
+
+    /// A host-targeting static: "enchanted/equipped creature gets +N/+N",
+    /// authored as `Modify { of: Of(AttachHostOf(This)), changes: [+N/+N] }`.
+    /// The source-relative `AttachHostOf(This)` reference is exactly the
+    /// Stage-3 seam this task resolves.
+    fn host_pump_static(n: u32) -> Ability {
+        use deckmaste_core::Reference;
+        Ability::Static(StaticAbility {
+            condition: None,
+            effects: vec![StaticEffect::Modify {
+                of: Scope::Of(Reference::AttachHostOf(Box::new(Reference::This))),
+                changes: vec![
+                    Modification::AddPower(Count::Literal(n)),
+                    Modification::AddToughness(Count::Literal(n)),
+                ],
+            }],
+            characteristic_defining: false,
+        })
+    }
+
+    /// Mint a bare (non-creature) permanent carrying `abilities` onto the
+    /// battlefield (player 0) — used as an attachment whose static targets its
+    /// host. No power/toughness, so it never gets caught by an anthem itself.
+    fn permanent_on_field(mut state: GameState, abilities: Vec<Ability>) -> (GameState, ObjectId) {
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        let card = Card::Normal(CardFace {
+            name: "Test Attachment".into(),
+            types: vec![Type::Enchantment],
+            abilities,
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        (state, id)
+    }
+
+    /// Stage 3 end-to-end: a static whose affected set is a *source-relative
+    /// reference* (`Of(AttachHostOf(This))`) lands on the attached host. Before
+    /// this task `Of`/`These` resolved to `Locked(empty)` so the bonus
+    /// vanished; now the gather resolves `This = obj.id` and reads the
+    /// attachment→host link, so the 2/2 host derives as 3/3 ([CR#613.6]).
+    #[test]
+    fn static_lands_on_host() {
+        // Host: a plain 2/2 creature, no abilities of its own.
+        let (state, host) = creature_on_field(game(), vec![]);
+        // Attachment: a permanent carrying "host gets +1/+1".
+        let (mut state, attachment) = permanent_on_field(state, vec![host_pump_static(1)]);
+        // Establish the relation (the Stage-1 verb does this in real play).
+        state.objects.obj_mut(attachment).attached_to = Some(host);
+
+        let view = state.layers();
+        assert_eq!(
+            view.power(host),
+            Some(3),
+            "the host-targeting +1/+1 static landed on the host's power"
+        );
+        assert_eq!(
+            view.toughness(host),
+            Some(3),
+            "the host-targeting +1/+1 static landed on the host's toughness"
+        );
+    }
+
+    /// The attachment's own characteristics are untouched by its host-targeting
+    /// static — `AttachHostOf(This)` resolves to the host, not back to self.
+    #[test]
+    fn host_static_does_not_buff_the_attachment_itself() {
+        let (state, host) = creature_on_field(game(), vec![]);
+        let (mut state, attachment) = permanent_on_field(state, vec![host_pump_static(1)]);
+        state.objects.obj_mut(attachment).attached_to = Some(host);
+
+        let view = state.layers();
+        // The attachment has no P/T at all — and certainly isn't pumped.
+        assert_eq!(
+            view.power(attachment),
+            None,
+            "the attachment is not its own host"
+        );
+    }
+
+    /// Guard: an UNATTACHED attachment's host-targeting static resolves to no
+    /// host, so nothing is buffed (the resolver yields an empty locked set).
+    #[test]
+    fn host_static_with_no_host_buffs_nothing() {
+        let (state, host) = creature_on_field(game(), vec![]);
+        let (state, _attachment) = permanent_on_field(state, vec![host_pump_static(1)]);
+
+        let view = state.layers();
+        assert_eq!(
+            view.power(host),
+            Some(2),
+            "an unattached attachment buffs no host"
+        );
     }
 }
