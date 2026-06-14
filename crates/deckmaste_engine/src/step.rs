@@ -465,11 +465,10 @@ impl GameState {
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
                         GameEvent::Tapped {
                             object: o,
-                            cause: Some(crate::event::Cause {
-                                verb: "Tap".into(),
-                                agency: deckmaste_core::Agency::AttackDeclaration,
-                                agent: None,
-                            }),
+                            cause: Some(crate::event::Cause::tap(
+                                deckmaste_core::Agency::AttackDeclaration,
+                                None,
+                            )),
                         },
                     ))]);
                 }

@@ -311,6 +311,37 @@ impl GameState {
         }
     }
 
+    /// A `ZoneWillChange` intent ([CR#400.7]) moving `object` to `to` from
+    /// WHATEVER zone it currently occupies — the current-zone lookup
+    /// ([CR#406.2] "from wherever it is") bound at schedule time, with the
+    /// `enters` / `position` / `face` coordinates left default (the
+    /// bare-relocation case; a battlefield entry's `enters`, a library
+    /// insertion's `position`, and a face-down arrival's `face` each need
+    /// their own builder). Centralizes the `self.objects.obj(object).zone.
+    /// expect(…)` + `…: None` boilerplate the move verbs (`ReturnToHand`,
+    /// `Exile`) otherwise repeat.
+    pub(crate) fn relocate_from_current(
+        &self,
+        object: ObjectId,
+        to: Zone,
+        cause: Option<Cause>,
+    ) -> GameEvent {
+        GameEvent::ZoneWillChange {
+            object,
+            from: Some(
+                self.objects
+                    .obj(object)
+                    .zone
+                    .expect("relocate a zoned object"),
+            ),
+            to,
+            enters: None,
+            position: None,
+            face: None,
+            cause,
+        }
+    }
+
     /// The `Emit` work item(s) a single-instruction `Action` produces. The
     /// source verbs (`DealDamage`, …) act with the source object as agent; the
     /// player verbs live under `By(who, …)`, where `who` resolves to the acting
@@ -344,11 +375,10 @@ impl GameState {
                     .into_iter()
                     .map(|object| GameEvent::WillDestroy {
                         object,
-                        cause: Some(Cause {
-                            verb: "Destroy".into(),
-                            agency: Agency::EffectInstruction,
-                            agent: Some((frame.source, frame.controller)),
-                        }),
+                        cause: Some(Cause::destroy(
+                            Agency::EffectInstruction,
+                            Some((frame.source, frame.controller)),
+                        )),
                     })
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
@@ -371,20 +401,7 @@ impl GameState {
                 let events: Vec<GameEvent> = self
                     .eval_selection_set(sel, frame)
                     .into_iter()
-                    .map(|object| GameEvent::ZoneWillChange {
-                        object,
-                        from: Some(
-                            self.objects
-                                .obj(object)
-                                .zone
-                                .expect("return a zoned object"),
-                        ),
-                        to: Zone::Hand,
-                        enters: None,
-                        position: None,
-                        face: None,
-                        cause: None,
-                    })
+                    .map(|object| self.relocate_from_current(object, Zone::Hand, None))
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
@@ -413,11 +430,10 @@ impl GameState {
                                 enters: None,
                                 position: None,
                                 face: None,
-                                cause: Some(Cause {
-                                    verb: "Counter".into(),
-                                    agency: Agency::EffectInstruction,
-                                    agent: Some((frame.source, frame.controller)),
-                                }),
+                                cause: Some(Cause::counter(
+                                    Agency::EffectInstruction,
+                                    Some((frame.source, frame.controller)),
+                                )),
                             });
                         }
                         Some(StackObject::Triggered { .. } | StackObject::Activated { .. }) => {
@@ -461,11 +477,10 @@ impl GameState {
                     .filter(|&object| !self.objects.obj(object).tapped)
                     .map(|object| GameEvent::Tapped {
                         object,
-                        cause: Some(Cause {
-                            verb: "Tap".into(),
-                            agency: Agency::EffectInstruction,
-                            agent: Some((frame.source, frame.controller)),
-                        }),
+                        cause: Some(Cause::tap(
+                            Agency::EffectInstruction,
+                            Some((frame.source, frame.controller)),
+                        )),
                     })
                     .collect();
                 if events.is_empty() {
@@ -532,11 +547,10 @@ impl GameState {
                         // [CR#701.21a]: never a destruction — regeneration
                         // can't replace it; the cause says so.
                         face: None,
-                        cause: Some(Cause {
-                            verb: "Sacrifice".into(),
-                            agency: Agency::EffectInstruction,
-                            agent: Some((frame.source, actor)),
-                        }),
+                        cause: Some(Cause::sacrifice(
+                            Agency::EffectInstruction,
+                            Some((frame.source, actor)),
+                        )),
                     })
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
@@ -548,15 +562,7 @@ impl GameState {
                 let events: Vec<GameEvent> = self
                     .eval_selection_set(sel, frame)
                     .into_iter()
-                    .map(|object| GameEvent::ZoneWillChange {
-                        object,
-                        from: Some(self.objects.obj(object).zone.expect("exile a zoned object")),
-                        to: Zone::Exile,
-                        enters: None,
-                        position: None,
-                        face: None,
-                        cause: None,
-                    })
+                    .map(|object| self.relocate_from_current(object, Zone::Exile, None))
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
             }

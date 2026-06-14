@@ -874,11 +874,7 @@ impl GameState {
                 if summary.tap {
                     items.push(WorkItem::Emit(Occurrence::single(GameEvent::Tapped {
                         object: source,
-                        cause: Some(Cause {
-                            verb: "Tap".into(),
-                            agency: Agency::CostPayment,
-                            agent: Some((source, controller)),
-                        }),
+                        cause: Some(Cause::tap(Agency::CostPayment, Some((source, controller)))),
                     })));
                 }
                 if summary.untap {
