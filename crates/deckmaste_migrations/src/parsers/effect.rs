@@ -25,6 +25,7 @@ pub(super) fn parse_clause(line: &str) -> Option<ParsedEffect> {
         .or_else(|| parse_gain_life(line))
         .or_else(|| parse_destroy(line))
         .or_else(|| parse_pump(line))
+        .or_else(|| parse_create_token(line))
 }
 
 /// `<subject> gets ±N/±N [and gain(s) <kw…>] until end of turn.` (and the
@@ -161,6 +162,133 @@ fn parse_gain_life(line: &str) -> Option<ParsedEffect> {
 /// count word or the shape is off.
 fn life_count(text: &str) -> Option<u32> {
     number_word(text.strip_suffix('.')?.strip_suffix(" life")?)
+}
+
+/// `Create <count> <P/T> [<colors>] [<subtypes>] creature token[s] [with
+/// <kw…>].` — a creature-token maker. The creating effect defines the token's
+/// characteristics [CR#111.3]; color rides a color indicator [CR#202.2e]
+/// (a token has no mana cost); the name defaults to the subtypes plus "Token"
+/// at synthesis [CR#111.4]. "Create" puts the tokens onto the battlefield
+/// [CR#701.7a] — no target. Fixed counts only; `X`/"for each" decline. The
+/// count emits as a bare numeral, reader-sugar for `Count::Literal`, matching
+/// the sibling `Draw` production.
+fn parse_create_token(line: &str) -> Option<ParsedEffect> {
+    let body = strip_prefix_ci(line, "create ")?.strip_suffix('.')?;
+    // Optional trailing keyword-grant clause.
+    let (descriptor, with_clause) = match body.split_once(" with ") {
+        Some((d, w)) => (d, Some(w)),
+        None => (body, None),
+    };
+    // Creature-token terminator (plural first so it isn't stripped to "token").
+    let descriptor = descriptor
+        .strip_suffix(" creature tokens")
+        .or_else(|| descriptor.strip_suffix(" creature token"))?;
+    // Leading count word.
+    let (count_word, rest) = descriptor.split_once(' ')?;
+    let count = number_word(count_word)?;
+    // P/T — mandatory; anchors this as a creature token.
+    let (pt, rest) = rest.split_once(' ').unwrap_or((rest, ""));
+    let (power, toughness) = parse_pt(pt)?;
+    // Remaining words: leading color words (and "colorless"), then subtypes.
+    let words: Vec<&str> = rest.split_whitespace().collect();
+    let mut colors: Vec<&'static str> = Vec::new();
+    let mut i = 0;
+    while i < words.len() {
+        if let Some(c) = color_word(words[i]) {
+            colors.push(c);
+            i += 1;
+        } else if words[i] == "colorless"
+            || (words[i] == "and"
+                && i > 0
+                && words
+                    .get(i + 1)
+                    .is_some_and(|w| color_word(w).is_some() || *w == "colorless"))
+        {
+            // "colorless" is an explicit no-color marker; "and" connects color
+            // words — both advance past a non-subtype word without recording a color.
+            i += 1;
+        } else {
+            break;
+        }
+    }
+    let subtypes = &words[i..];
+    // Every remaining word must be a plausible single creature subtype
+    // (uppercase-initial, ASCII-alphabetic). Anything else means the line is
+    // richer than this v1 production: a multi-token sentence ("…, a 2/2 …"
+    // leaves comma/digit-bearing words), a card-type word ("artifact creature"),
+    // or a trailing clause. Decline cleanly rather than emit junk RON.
+    if subtypes.iter().any(|word| !is_subtype_word(word)) {
+        return None;
+    }
+    let abilities = match with_clause {
+        Some(clause) => parse_keyword_grants(clause)?,
+        None => Vec::new(),
+    };
+    let mut fields: Vec<String> = Vec::new();
+    if !colors.is_empty() {
+        fields.push(format!("color_indicator: [{}]", colors.join(", ")));
+    }
+    fields.push("types: [Creature]".to_owned());
+    if !subtypes.is_empty() {
+        fields.push(format!("subtypes: [{}]", subtypes.join(", ")));
+    }
+    if !abilities.is_empty() {
+        fields.push(format!("abilities: [{}]", abilities.join(", ")));
+    }
+    fields.push(format!("power: {power}"));
+    fields.push(format!("toughness: {toughness}"));
+    Some(ParsedEffect {
+        targets: Vec::new(),
+        effect: format!("Create({count}, Token({}))", fields.join(", ")),
+    })
+}
+
+/// `"1/1"` -> `(1, 1)`. `None` if either side isn't a non-negative integer
+/// (a `*`/`X` P/T is a CDA token — not a v1 production).
+fn parse_pt(text: &str) -> Option<(u32, u32)> {
+    let (p, t) = text.split_once('/')?;
+    Some((p.parse().ok()?, t.parse().ok()?))
+}
+
+/// A color word -> its `Color` ident, else `None`. Case-insensitive: oracle
+/// text lowercases colors in this position, but a silent misclassification as a
+/// subtype is worse than tolerating case.
+fn color_word(word: &str) -> Option<&'static str> {
+    Some(match word.to_ascii_lowercase().as_str() {
+        "white" => "White",
+        "blue" => "Blue",
+        "black" => "Black",
+        "red" => "Red",
+        "green" => "Green",
+        _ => return None,
+    })
+}
+
+/// A plausible single creature subtype: uppercase-initial and all ASCII
+/// alphabetic. Rejects lowercase card-type words ("artifact"), connectives, and
+/// any word carrying a comma/slash/digit — the tell-tale of a multi-token line
+/// or trailing clause this v1 production doesn't handle.
+fn is_subtype_word(word: &str) -> bool {
+    let mut chars = word.chars();
+    chars.next().is_some_and(|c| c.is_ascii_uppercase())
+        && word.chars().all(|c| c.is_ascii_alphabetic())
+}
+
+/// A `with <kw>[, <kw>][ and <kw>]` clause (trailing period already stripped)
+/// -> the `Keyword(...)` invocations, reusing the keyword catalog. `None` if
+/// any piece isn't a recognized no-argument keyword (an argument-taking keyword
+/// or a quoted ability declines the WHOLE production — never a partial parse).
+fn parse_keyword_grants(clause: &str) -> Option<Vec<String>> {
+    clause
+        .split(',')
+        .flat_map(|piece| piece.split(" and "))
+        .map(str::trim)
+        .filter(|piece| !piece.is_empty())
+        .map(|piece| {
+            crate::parsers::keyword_ability::match_keyword_name(piece)
+                .map(|ident| format!("Keyword({ident})"))
+        })
+        .collect()
 }
 
 /// Case-insensitive ASCII prefix strip: the remainder after `prefix` if `s`
@@ -452,5 +580,108 @@ mod tests {
     fn life_declines_unparseable() {
         assert!(parse_clause("you lose life.").is_none());
         assert!(parse_clause("you gain X life.").is_none());
+    }
+
+    #[test]
+    fn create_token_fixed_count_vanilla() {
+        assert_eq!(
+            parsed("Create three 1/1 red Goblin creature tokens."),
+            Some((
+                String::new(),
+                "Create(3, Token(color_indicator: [Red], types: [Creature], subtypes: [Goblin], power: 1, toughness: 1))".to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed("Create a 1/1 red Goblin creature token."),
+            Some((
+                String::new(),
+                "Create(1, Token(color_indicator: [Red], types: [Creature], subtypes: [Goblin], power: 1, toughness: 1))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn create_token_with_keyword_grants() {
+        assert_eq!(
+            parsed("create a 1/1 red Goblin creature token with haste."),
+            Some((
+                String::new(),
+                "Create(1, Token(color_indicator: [Red], types: [Creature], subtypes: [Goblin], abilities: [Keyword(Haste)], power: 1, toughness: 1))".to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed("Create a 2/2 white Cat creature token with flying and vigilance."),
+            Some((
+                String::new(),
+                "Create(1, Token(color_indicator: [White], types: [Creature], subtypes: [Cat], abilities: [Keyword(Flying), Keyword(Vigilance)], power: 2, toughness: 2))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn create_token_multicolor_and_multi_subtype() {
+        assert_eq!(
+            parsed("Create two 1/1 black and green Elf Warrior creature tokens."),
+            Some((
+                String::new(),
+                "Create(2, Token(color_indicator: [Black, Green], types: [Creature], subtypes: [Elf, Warrior], power: 1, toughness: 1))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn create_token_colorless_omits_color() {
+        assert_eq!(
+            parsed("Create a 1/1 colorless Eldrazi Scion creature token."),
+            Some((
+                String::new(),
+                "Create(1, Token(types: [Creature], subtypes: [Eldrazi, Scion], power: 1, toughness: 1))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn create_token_no_subtype_omits_subtypes() {
+        assert_eq!(
+            parsed("Create a 1/1 red creature token."),
+            Some((
+                String::new(),
+                "Create(1, Token(color_indicator: [Red], types: [Creature], power: 1, toughness: 1))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn create_token_declines_out_of_scope() {
+        // Dynamic count -> gen-dynamic-count.
+        assert!(parse_clause("Create X 1/1 red Goblin creature tokens.").is_none());
+        // Predefined token -> needs TokenSpec::Named.
+        assert!(parse_clause("Create a Treasure token.").is_none());
+        // Argument-taking keyword grant declines the whole production.
+        assert!(parse_clause("Create a 1/1 white Cat creature token with ward {2}.").is_none());
+        // Quoted granted ability -> follow-up seam.
+        assert!(
+            parse_clause(
+                "Create a 1/1 red Goblin creature token with \"~ attacks each combat if able.\"."
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn create_token_declines_multi_and_typed_tokens() {
+        // Multi-token sentence (comma-separated tokens) — previously emitted
+        // junk RON (double comma) and crashed the pipeline; must decline.
+        assert!(parse_clause(
+            "Create a 1/1 green Snake creature token, a 2/2 green Wolf creature token, and a 3/3 green Elephant creature token."
+        ).is_none());
+        // Two tokens joined by a trailing conjunction after a with-clause.
+        assert!(parse_clause(
+            "Create a 1/1 red Dinosaur creature token with haste and a 1/1 white Human Soldier creature token."
+        ).is_none());
+        // Artifact creature token — the "artifact" card-type word is out of scope.
+        assert!(parse_clause("Create a 3/3 colorless Phyrexian Golem artifact creature token.").is_none());
+        // Trailing clause after the token.
+        assert!(parse_clause("Create a 1/1 white Bird creature token with flying, then populate.").is_none());
     }
 }
