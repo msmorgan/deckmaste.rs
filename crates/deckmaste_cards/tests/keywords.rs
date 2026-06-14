@@ -34,6 +34,8 @@ fn every_builtin_keyword_macro_expands() {
         ("Kicker([Tap])", "Kicker"),
         ("Flashback([Tap])", "Flashback"),
         ("Equip([Tap])", "Equip"),
+        ("Fortify([Tap])", "Fortify"),
+        ("Reconfigure([Tap])", "Reconfigure"),
         ("Enchant(Type(Creature))", "Enchant"),
         ("Protection(ColorIs(Red))", "Protection"),
         ("Crew(2)", "Crew"),
@@ -121,6 +123,97 @@ fn enchant_confers_spell_cant_attach_and_as_enters() {
         effs.iter()
             .any(|e| matches!(peel(e), StaticEffect::Replacement(r) if is_also(r))),
         "Enchant confers AsEnters(Attach(...)) ([CR#303.4f]); got {effs:?}"
+    );
+}
+
+/// [CR#702.67a]: **Fortify** confers an Activated ability — sorcery-speed,
+/// targeting a land you control, with an `Attach` effect (Equip's Land twin).
+#[test]
+fn fortify_confers_sorcery_speed_attach_activated() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::Action;
+    use deckmaste_core::Effect;
+    use deckmaste_core::Window;
+
+    let plugin = builtin();
+    let kw: KeywordAbility = plugin
+        .macros
+        .read_str("Fortify([Tap])")
+        .expect("Fortify expands");
+    let KeywordAbility::Expanded(expanded) = &kw else {
+        panic!("expected Expanded, got {kw:?}");
+    };
+    let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+        panic!("Fortify body is a Composite");
+    };
+    let act = abilities
+        .iter()
+        .find_map(|a| match a {
+            Ability::Activated(act) => Some(act),
+            _ => None,
+        })
+        .expect("Fortify confers an Activated ability");
+    assert!(
+        matches!(act.window, Some(Window::SorcerySpeed)),
+        "fortify is sorcery-speed ([CR#702.67a]); got {:?}",
+        act.window
+    );
+    assert!(!act.targets.is_empty(), "fortify targets a land");
+    assert!(
+        matches!(&act.effect, Effect::Act(Action::Attach { .. })),
+        "fortify's effect is Attach; got {:?}",
+        act.effect
+    );
+}
+
+/// [CR#702.151a]: **Reconfigure** confers TWO activated abilities — attach to
+/// another target creature you control (sorcery speed), and unattach if
+/// attached (sorcery speed). The [CR#702.151b] creature-suppression static
+/// ("isn't a creature while attached") is a documented engine SEAM (it needs
+/// condition-gated layer-4 type removal, which the layer pipeline doesn't have
+/// yet) and is intentionally NOT authored here — see Reconfigure.ron.
+#[test]
+fn reconfigure_confers_attach_and_unattach_activated() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::Action;
+    use deckmaste_core::Effect;
+    use deckmaste_core::Window;
+
+    let plugin = builtin();
+    let kw: KeywordAbility = plugin
+        .macros
+        .read_str("Reconfigure([Tap])")
+        .expect("Reconfigure expands");
+    let KeywordAbility::Expanded(expanded) = &kw else {
+        panic!("expected Expanded, got {kw:?}");
+    };
+    let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+        panic!("Reconfigure body is a Composite");
+    };
+    let acts: Vec<_> = abilities
+        .iter()
+        .filter_map(|a| match a {
+            Ability::Activated(act) => Some(act),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(acts.len(), 2, "Reconfigure confers two activated abilities");
+    // Both are sorcery-speed.
+    assert!(
+        acts.iter()
+            .all(|a| matches!(a.window, Some(Window::SorcerySpeed))),
+        "both reconfigure abilities are sorcery-speed ([CR#702.151a])"
+    );
+    // One attaches, one unattaches.
+    assert!(
+        acts.iter()
+            .any(|a| matches!(&a.effect, Effect::Act(Action::Attach { .. }))),
+        "reconfigure has an Attach ability"
+    );
+    assert!(
+        acts.iter()
+            .any(|a| matches!(&a.effect, Effect::Act(Action::Unattach(_)))),
+        "reconfigure has an Unattach ability"
     );
 }
 
