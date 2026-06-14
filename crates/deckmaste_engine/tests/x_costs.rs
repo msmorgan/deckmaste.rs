@@ -23,8 +23,6 @@ fn builtin() -> Plugin {
     Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
 }
 
-// used by later x_costs tests (activated-ability + non-X cases)
-#[allow(dead_code)]
 fn canon() -> Plugin {
     Plugin::load_with_sibling_prelude(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon"),
@@ -32,13 +30,9 @@ fn canon() -> Plugin {
     .unwrap()
 }
 
-// used by later x_costs tests (activated-ability + non-X cases)
-#[allow(dead_code)]
 fn card(name: &str) -> Arc<Card> { Arc::new(canon().card(name).unwrap()) }
 
 fn green() -> deckmaste_core::ColorOrColorless { deckmaste_core::Color::Green.into() }
-// used by later x_costs tests (activated-ability + non-X cases)
-#[allow(dead_code)]
 fn red() -> deckmaste_core::ColorOrColorless { deckmaste_core::Color::Red.into() }
 
 fn find_in_hand(state: &GameState, player: PlayerId, name: &str) -> ObjectId {
@@ -235,5 +229,85 @@ fn x_spell_is_offered_when_x_zero_is_affordable() {
     assert!(
         legal.contains(&Action::CastSpell { object: xdraw }),
         "an {{X}} spell is castable at X=0 with an empty pool: {legal:?}"
+    );
+}
+
+#[test]
+fn x_zero_draws_nothing_and_resolves() {
+    let mut state = x_game(1);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let xdraw = find_in_hand(&state, PlayerId(0), "Sorcery X Draw");
+    let library_before = state.zones.libraries[0].len();
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: xdraw }))
+        .unwrap();
+
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseXValue { .. }) = stop else {
+        panic!("expected ChooseXValue, got {stop:?}");
+    };
+    state.submit_decision(Decision::XValue(0)).unwrap();
+
+    loop {
+        let (_, stop) = step_to_stop(&mut state);
+        match stop {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+                let pay = state.auto_pay_pending();
+                state.submit_decision(Decision::Pay(pay)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                if state.stack.is_empty() && !state.zones.hands[0].contains(&xdraw) {
+                    break;
+                }
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            other => panic!("unexpected stop: {other:?}"),
+        }
+    }
+    assert_eq!(
+        state.zones.libraries[0].len(),
+        library_before,
+        "X=0 drew nothing"
+    );
+}
+
+// --- bolt_game: non-X regression fixture -------------------------------------
+
+fn bolt_game(seed: u64) -> GameState {
+    let bolt = card("Lightning Bolt");
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let mut p0 = vec![Arc::clone(&bolt); 5];
+    p0.extend(vec![Arc::clone(&mountain); 10]);
+    GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck: p0 },
+            PlayerConfig {
+                deck: vec![Arc::clone(&mountain); 15],
+            },
+        ],
+        seed,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    })
+}
+
+#[test]
+fn non_x_cast_surfaces_no_choose_x() {
+    let mut state = bolt_game(1);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    state.player_mut(PlayerId(0)).mana_pool.add(red(), 1);
+    resurface_priority(&mut state);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let bolt = find_in_hand(&state, PlayerId(0), "Lightning Bolt");
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    assert!(
+        !matches!(
+            stop,
+            StepOutcome::NeedsDecision(PendingDecision::ChooseXValue { .. })
+        ),
+        "a non-X cast must not surface ChooseXValue, got {stop:?}"
     );
 }
