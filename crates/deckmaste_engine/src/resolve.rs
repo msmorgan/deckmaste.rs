@@ -91,6 +91,7 @@ impl GameState {
                         targets: entry.targets.clone(),
                         bindings: None,
                         chosen: None,
+                        x: entry.x,
                     };
                     let effect = self
                         .spell_effect(spell)
@@ -147,6 +148,7 @@ impl GameState {
                     targets: entry.targets.clone(),
                     bindings: Some(bindings.clone()),
                     chosen: None,
+                    x: None,
                 };
                 // [CR#603.4]: an intervening-if is rechecked as the ability
                 // resolves. If it no longer holds, the ability is removed from
@@ -188,6 +190,7 @@ impl GameState {
                         targets: entry.targets.clone(),
                         bindings: Some(bindings.clone()),
                         chosen: None,
+                        x: entry.x,
                     };
                     self.schedule_front(vec![
                         WorkItem::RunEffect {
@@ -1481,6 +1484,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: Some(vec![bear]),
+            x: None,
         };
         let sel = Selection::Choose(Quantity::Exactly(Count::Literal(1)), creatures);
         assert_eq!(state.eval_selection_set(&sel, &frame), vec![bear]);
@@ -1520,6 +1524,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         let before = [bear, theirs]
             .iter()
@@ -1595,6 +1600,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         state.run_effect(
             Effect::Act(Action::Destroy(Selection::Choose(
@@ -1691,6 +1697,7 @@ mod tests {
                 that_player: Some(PlayerId(1)),
             }),
             chosen: None,
+            x: None,
         };
 
         assert_eq!(
@@ -1731,6 +1738,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         state.run_effect(Effect::Act(Action::Destroy(sel_this())), &frame);
         // WillDestroy applies and schedules no zone move (replaced to nothing).
@@ -1758,6 +1766,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         state.run_effect(Effect::Act(Action::Destroy(sel_this())), &frame);
         // WillDestroy → ZoneWillChange → ZoneChanged.
@@ -1778,6 +1787,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
 
         // By(You, Tap(This)) -> one Single(Tapped(src)) carrying the
@@ -1830,6 +1840,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         let items = state.action_items(&by_you(PlayerAction::Tap(sel_this())), &frame);
         assert_eq!(
@@ -1850,6 +1861,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         let items = state.action_items(&by_you(PlayerAction::Untap(sel_this())), &frame);
         assert_eq!(
@@ -1871,6 +1883,7 @@ mod tests {
             targets: vec![p1_proxy],
             bindings: None,
             chosen: None,
+            x: None,
         };
         let items = state.action_items(
             &Action::By(Reference::Target(0), PlayerAction::Draw(Count::Literal(2))),
@@ -1913,6 +1926,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         let creatures = Filter::AllOf(vec![
             Filter::State(StateFilter::InZone(Zone::Battlefield)),
@@ -1947,6 +1961,7 @@ mod tests {
             targets: vec![bear],
             bindings: None,
             chosen: None,
+            x: None,
         };
 
         let power = Count::StatOf(Reference::Target(0), deckmaste_core::Stat::Power);
@@ -1985,6 +2000,7 @@ mod tests {
             targets: vec![bear],
             bindings: None,
             chosen: None,
+            x: None,
         };
         state.run_effect(
             Effect::Sequence(vec![
@@ -2030,6 +2046,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         let filter = Filter::AllOf(vec![
             Filter::State(StateFilter::InZone(Zone::Battlefield)),
@@ -2053,6 +2070,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
 
         // Build the effect directly: DealDamage(Each(Kind(Player)), 20)
@@ -2116,6 +2134,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         let effect = Effect::Act(Action::DealDamage(
             Selection::Each(Filter::AllOf(vec![
@@ -2171,6 +2190,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
 
         assert!(state.continuous.is_empty(), "no effects before resolve");
@@ -2219,6 +2239,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
 
         let effect = Effect::Continuously(ContinuouslyEffect {
@@ -2255,6 +2276,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
 
         let items = state.action_items(&by_you(PlayerAction::GainLife(Count::Literal(3))), &frame);
@@ -2285,6 +2307,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         state.run_effect(
             Effect::Act(by_you(PlayerAction::Sacrifice(sel_this()))),
@@ -2336,6 +2359,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         state.run_effect(
             Effect::Act(by_you(PlayerAction::Sacrifice(sel_this()))),
@@ -2367,6 +2391,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         state.run_effect(Effect::Act(by_you(PlayerAction::Exile(sel_this()))), &frame);
         // ZoneWillChange → ZoneChanged.
@@ -2389,6 +2414,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         state.run_effect(Effect::Act(by_you(PlayerAction::Exile(sel_this()))), &frame);
         for _ in 0..2 {
@@ -2413,6 +2439,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         state.run_effect(Effect::Act(Action::ReturnToHand(sel_this())), &frame);
         // ZoneWillChange → ZoneChanged.
@@ -2438,6 +2465,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         state.run_effect(Effect::Act(Action::ReturnToHand(sel_this())), &frame);
         for _ in 0..2 {
@@ -2463,6 +2491,7 @@ mod tests {
             object: StackObject::Spell(spell),
             controller: PlayerId(0),
             targets: vec![],
+            x: None,
         });
         let gy_before = state.zones.graveyards[0].len();
 
@@ -2473,6 +2502,7 @@ mod tests {
             targets: vec![spell],
             bindings: None,
             chosen: None,
+            x: None,
         };
         state.run_effect(
             Effect::Act(Action::Counter(Selection::Ref(Reference::Target(0)))),
@@ -2502,6 +2532,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         state.run_effect(
             Effect::Act(by_you(PlayerAction::PutInLibrary(
@@ -2526,6 +2557,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         state.run_effect(
             Effect::Act(by_you(PlayerAction::PutInLibrary(
@@ -2562,6 +2594,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         let green = ColorOrColorless::Color(Color::Green);
         state.run_effect(
@@ -2624,6 +2657,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         let red = ColorOrColorless::Color(Color::Red);
         let rider = ManaRider::SpendOnly(Filter::Any);
@@ -2665,6 +2699,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         let hand_before = state.zones.hands[0].len();
         state.run_effect(
@@ -2732,6 +2767,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         let body = PlayerAction::GainLife(Count::Literal(2));
         let expanded = PlayerAction::Expanded(Expansion {
@@ -2762,6 +2798,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         let token = Token {
             color_indicator: vec![],
@@ -2845,6 +2882,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         let treasure = builtin().token("Treasure").unwrap();
         state.run_effect(

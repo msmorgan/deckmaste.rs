@@ -146,6 +146,7 @@ mod tests {
             targets: Vec::new(),
             bindings: None,
             chosen: None,
+            x: None,
         }
     }
 
@@ -288,6 +289,7 @@ mod tests {
                 that_player: None,
             }),
             chosen: None,
+            x: None,
         };
 
         let creature = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));
@@ -405,6 +407,7 @@ mod tests {
                 },
                 controller: PlayerId(0),
                 targets: Vec::new(),
+                x: None,
             });
             state.resolve_object(stack_id);
 
@@ -490,6 +493,7 @@ mod tests {
             controller: PlayerId(0),
             origin: deckmaste_core::Zone::Hand,
             targets: vec![],
+            x: None,
         });
         assert!(
             !state.condition_holds(&cond, &frame_for(&state, PlayerId(0))),

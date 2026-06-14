@@ -71,6 +71,9 @@ pub struct StackEntry {
     /// Chosen at announce ([CR#601.2c]) or at trigger placement ([CR#603.3d]);
     /// read by `Reference::Target(n)`.
     pub targets: Vec<ObjectId>,
+    /// [CR#107.3a]: the announced X — copied from the announce slot at promote.
+    /// `None` for triggers and non-X spells.
+    pub x: Option<deckmaste_core::Uint>,
 }
 
 /// An announce in flight ([CR#601.2] / [CR#602.2]). At most one exists, ever
@@ -91,6 +94,9 @@ pub struct PendingStackEntry {
     /// `Hand` in stage 2.
     pub origin: Zone,
     pub targets: Vec<ObjectId>,
+    /// [CR#601.2b,107.3a]: the value announced for `{X}` in the cost, or `None`
+    /// when the cost has no `{X}`. Chosen at the `AnnounceX` step.
+    pub x: Option<deckmaste_core::Uint>,
 }
 
 /// The bindings an effect reads during resolution ([CR#608.2]). Grows `x`,
@@ -109,4 +115,7 @@ pub struct Frame {
     /// `eval_selection_set` reads it for the `Choose`/`Random` slot. `None`
     /// on a fresh frame.
     pub chosen: Option<Vec<ObjectId>>,
+    /// [CR#107.3a]: the announced X for the resolving object — read by
+    /// `Count::X`. `None` for triggers and non-X spells.
+    pub x: Option<deckmaste_core::Uint>,
 }

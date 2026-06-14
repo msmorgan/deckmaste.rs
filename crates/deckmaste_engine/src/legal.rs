@@ -572,6 +572,7 @@ pub(crate) fn arrangement_forbidden_by(
                 targets: Vec::new(),
                 bindings: None,
                 chosen: None,
+                x: None,
             };
             r.count
                 .as_ref()

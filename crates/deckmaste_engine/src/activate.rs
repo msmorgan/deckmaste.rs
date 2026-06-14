@@ -139,6 +139,7 @@ impl GameState {
                 targets: Vec::new(),
                 bindings: None,
                 chosen: None,
+                x: None,
             };
             if !self.condition_holds(c, &frame) {
                 return false;
@@ -225,6 +226,7 @@ impl GameState {
             // origin — record the source's zone for symmetry.
             origin: Zone::Battlefield,
             targets: vec![],
+            x: None,
         });
     }
 }
