@@ -2,7 +2,10 @@
 //! selection per zone, and the auto-following perspective. No ratatui types and
 //! no engine mutation — unit-tested headlessly.
 use deckmaste_engine::GameState;
+use deckmaste_engine::LayeredView;
 use deckmaste_engine::PlayerId;
+
+use crate::ui::zones;
 
 /// A focusable zone. The two battlefields are keyed by player so the columns
 /// stay fixed as the perspective flips.
@@ -83,6 +86,23 @@ impl BoardState {
             self.perspective = pending.decider_player();
         }
     }
+
+    /// The number of selectable items in the focused zone (for `step_selection`).
+    #[must_use]
+    pub fn focused_len(&self, state: &GameState, view: &LayeredView) -> usize {
+        zones::contents(state, view, self.perspective, self.focused_zone()).len()
+    }
+
+    /// Resolve the focused zone's selection to a [`Selected`], clamped to live
+    /// contents. `None` when the focused zone is empty.
+    #[must_use]
+    pub fn selected(&self, state: &GameState, view: &LayeredView) -> Option<Selected> {
+        let items = zones::contents(state, view, self.perspective, self.focused_zone());
+        if items.is_empty() {
+            return None;
+        }
+        Some(items[self.selected[self.focus].min(items.len() - 1)])
+    }
 }
 
 impl Default for BoardState {
@@ -133,5 +153,23 @@ mod tests {
         let mut b = BoardState::new();
         b.sync(&d.state);
         assert_eq!(b.perspective, decider);
+    }
+
+    #[test]
+    fn selected_resolves_hand_and_is_none_for_empty_stack() {
+        let mut d = Driver::new(game::build_game().expect("build"), Box::new(GreedyCreatures));
+        d.run_to_priority().expect("priority");
+        let state = &d.state;
+        let view = state.layers();
+        let mut b = BoardState::new();
+        b.sync(state);
+
+        b.cycle_zone(false); // focus Hand (wrap back from Battlefield(P0))
+        assert_eq!(b.focused_zone(), Zone::Hand);
+        assert!(matches!(b.selected(state, &view), Some(Selected::Object(_))));
+
+        b.cycle_zone(false); // focus Stack (empty at opening)
+        assert_eq!(b.focused_zone(), Zone::Stack);
+        assert!(b.selected(state, &view).is_none());
     }
 }
