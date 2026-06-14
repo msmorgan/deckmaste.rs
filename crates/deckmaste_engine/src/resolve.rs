@@ -928,8 +928,8 @@ impl GameState {
             }),
             // [CR#107.3a]: while a spell/ability is on the stack, X equals the
             // value announced as it was cast (engine-x-costs threads it onto the
-            // resolution frame). 107.3f text-X chosen at resolution is a separate
-            // seam.
+            // resolution frame). [CR#107.3f] text-X chosen at resolution is a
+            // separate seam.
             Count::X => frame.x.expect(
                 "Count::X on a frame with no announced X — a card referenced X without an {X} cost",
             ),

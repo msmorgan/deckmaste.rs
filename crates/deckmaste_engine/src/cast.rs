@@ -609,6 +609,50 @@ impl GameState {
             .collect();
         ManaPool::from_units(units)
     }
+
+    /// [CR#733.1,733.2]: reverse an in-flight announce whose announced cost can't
+    /// be paid. A spell returns to its origin zone; an activated ability's
+    /// minted stack identity is discarded (the source is untouched). No
+    /// triggers fire (none were queued — targets are chosen after X), and
+    /// the caster keeps priority. Drains this cast's continuation, still
+    /// contiguous at the agenda front (`take_priority_action` pushed the
+    /// whole block onto an empty agenda; no priority is held mid-announce),
+    /// then reopens priority.
+    ///
+    /// # Panics
+    /// Panics if no announce is in flight.
+    pub(crate) fn rewind_announce(&mut self) {
+        let pending = self.announcing.take().expect("an announce to rewind");
+        match &pending.object {
+            StackObject::Spell(o) => {
+                let object = *o;
+                self.objects.obj_mut(object).zone = Some(pending.origin);
+                self.zones.hands[pending.controller.index()].push(object);
+            }
+            StackObject::Activated { .. } => {
+                // The id begin_activate minted was never committed to the stack.
+                self.objects.remove(pending.id);
+            }
+            StackObject::Triggered { .. } => {
+                unreachable!("triggers never occupy the announce slot")
+            }
+        }
+        while let Some(item) = self.agenda.pop_front() {
+            debug_assert!(
+                matches!(
+                    item,
+                    WorkItem::AnnounceTargets
+                        | WorkItem::PayCost
+                        | WorkItem::Emit(_)
+                        | WorkItem::CheckSbas
+                        | WorkItem::PlaceTriggers
+                        | WorkItem::OpenPriority
+                ),
+                "rewind drained an unexpected agenda item: {item:?}"
+            );
+        }
+        self.schedule_front(vec![WorkItem::OpenPriority]);
+    }
 }
 
 #[cfg(test)]

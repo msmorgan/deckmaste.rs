@@ -187,6 +187,46 @@ fn cast_x_draw_announces_pays_and_draws_x() {
 }
 
 #[test]
+fn unpayable_x_rewinds_the_cast() {
+    let mut state = x_game(1);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    // Only one mana available; announcing X=5 (cost {5}) is unpayable.
+    state.player_mut(PlayerId(0)).mana_pool.add(green(), 1);
+    resurface_priority(&mut state);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+
+    let xdraw = find_in_hand(&state, PlayerId(0), "Sorcery X Draw");
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: xdraw }))
+        .unwrap();
+
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseXValue { .. }) = stop else {
+        panic!("expected ChooseXValue, got {stop:?}");
+    };
+    state.submit_decision(Decision::XValue(5)).unwrap();
+
+    // [CR#733.1]: the spell returned to hand; [CR#733.2]: priority is back with
+    // the caster; the pool is untouched.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) = stop else {
+        panic!("expected Priority after rewind, got {stop:?}");
+    };
+    assert_eq!(player, PlayerId(0));
+    assert!(
+        state.zones.hands[0].contains(&xdraw),
+        "spell returned to hand"
+    );
+    assert!(state.stack.is_empty(), "nothing reached the stack");
+    assert_eq!(
+        state.player(PlayerId(0)).mana_pool.amount(green()),
+        1,
+        "pool untouched"
+    );
+    assert!(state.announcing.is_none(), "announce slot cleared");
+}
+
+#[test]
 fn x_spell_is_offered_when_x_zero_is_affordable() {
     let mut state = x_game(1);
     // No mana floated: {X} at its floor X=0 is {0}, payable with nothing.
