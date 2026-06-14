@@ -1173,8 +1173,9 @@ fn schedule_activation(
     for &(color, amount) in float {
         state.player_mut(PlayerId(0)).mana_pool.add(color, amount);
     }
-    // Reset passes so the re-opened priority round starts clean (mirrors the
-    // `reset_passes` `take_priority_action` runs on a real activation).
+    // Clear the Priority decision `run_to_priority` stopped at; the announce
+    // block front-runs the next priority open. (`consecutive_passes` is NOT
+    // reset.)
     state.pending = None;
     // The full [CR#602.2b] announce block, in order: BeginActivate →
     // AnnounceTargets → ChooseCostOptions → PayCost → AbilityActivated → SBAs
