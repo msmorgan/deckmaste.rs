@@ -55,6 +55,29 @@ Design questions for the dialogue:
 
 Needs a design dialogue before implementation (design-pause boundary).
 
+## Dependent: Reconfigure [CR#702.151b] type-suppression (deferred from engine-attach)
+
+engine-attach built Reconfigure's two activated abilities (attach / unattach) but
+**seam'd** the "this Equipment isn't a creature while attached to a creature"
+static — it needs the machinery this ticket designs, plus one more primitive:
+
+1. **Conditional static evaluation in the layer `gather`.** Today `gather`
+   constructs `ActiveEffect`s from a `StaticAbility` WITHOUT consulting
+   `sa.condition` (the [CR#611.3a] seam), so a conditional static (`Is(Ref(This),
+   AttachedTo(Creature))` → not-a-creature) would apply *unconditionally* —
+   making the Equipment non-creature even while unattached (an active bug). Honoring
+   static `condition`s in gather is squarely this ticket's territory.
+2. **A remove-card-type `Modification`** (e.g. `RemoveCardType(Creature)`): layer 4
+   has add-type / `AllCreatureTypes` ops but no "stop being a creature" op. Small
+   addition, do it alongside.
+
+Once both exist, Reconfigure's suppression is just an authored conditional static on
+the keyword macro: `Static(condition: Is(Ref(This), AttachedTo(Creature)),
+effects: [Modify(of: Of(Ref(This)), changes: [RemoveCardType(Creature)])])`. The
+`#[ignore]`'d `reconfigure_suppresses_creature` test in engine-attach pins the
+intended behavior.
+
 Surfaced during `engine-attach` (the attachment SBAs/legality + the `Innate`
-mechanism made the "treat all GameObjects the same" question concrete). Not
+mechanism made the "treat all GameObjects the same" question concrete; Reconfigure's
+suppression is the concrete first customer of conditional-static gating). Not
 blocking engine-attach.
