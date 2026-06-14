@@ -851,8 +851,9 @@ impl GameState {
                     &crate::cast::concretize_x(&base, x),
                 );
                 self.pending = None;
-                // Task 6's rewind takes the whole `announcing` slot, so the `x` written above
-                // is discarded on the unpayable path — committing it first is safe.
+                // The rewind on the unpayable path (rewind_announce) takes the whole
+                // `announcing` slot, discarding the `x` written above — so
+                // committing it first is safe.
                 if !payable {
                     self.rewind_announce();
                 }
