@@ -3,6 +3,8 @@
 //! never a panic.
 
 mod card;
+mod effect;
+mod fragment;
 mod keyword;
 
 use deckmaste_core::Ability;
@@ -55,7 +57,6 @@ impl<'a> From<&'a CardFace> for CardView<'a> {
 }
 
 /// Rendering context threaded through the recursive walk.
-#[allow(dead_code)] // wired in later tasks
 pub(crate) struct Ctx<'a> {
     /// Display name of the subject object (used for self-referential
     /// events/effects).
@@ -69,17 +70,26 @@ pub(crate) struct Ctx<'a> {
 pub fn render_card_face(face: &CardFace) -> RenderedCard { render(&CardView::from(face)) }
 
 fn rules(view: &CardView) -> Vec<String> {
-    let mut out = Vec::new();
     let mut kw_line: Vec<String> = Vec::new();
+    let mut body: Vec<String> = Vec::new();
     for ability in view.abilities {
-        if let Ability::Keyword(k) = ability {
-            kw_line.push(keyword::keyword_name(k));
+        match ability {
+            Ability::Keyword(k) => kw_line.push(keyword::keyword_name(k)),
+            Ability::Spell(s) => {
+                let ctx = Ctx {
+                    subject: view.name,
+                    targets: &s.targets,
+                };
+                body.push(effect::effect(&s.effect, &ctx));
+            }
+            _ => {} // Triggered/Static/Activated: later tasks
         }
-        // non-keyword abilities: handled in later tasks
     }
+    let mut out = Vec::new();
     if !kw_line.is_empty() {
         out.push(kw_line.join(", "));
     }
+    out.extend(body);
     out
 }
 
