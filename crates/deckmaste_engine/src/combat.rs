@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
 use deckmaste_core::Ability;
+use deckmaste_core::Ident;
 use deckmaste_core::KeywordAbility;
 
 use crate::layer::LayeredView;
@@ -35,12 +36,18 @@ pub fn has_keyword(view: &LayeredView, object: ObjectId, kw: &KeywordAbility) ->
 /// (lifelink's combat hook is the customer). Matches intrinsics and
 /// composites alike through [`KeywordAbility::as_str`], the same name bridge
 /// the `Ident`-keyed modification ops use ([CR#613.1f]).
+///
+/// Delegates per ability to [`crate::layer::ability_is_named`], the canonical
+/// name matcher, so a keyword carried INSIDE an `Ability::Expanded` wrapper
+/// (a composite/static that expanded to a keyword) is found — the look-through
+/// a hand-rolled top-level `matches!` would miss.
 #[must_use]
 pub fn has_keyword_named(view: &LayeredView, object: ObjectId, name: &str) -> bool {
+    let name = Ident::from(name);
     view.get(object)
         .abilities
         .iter()
-        .any(|a| matches!(a, Ability::Keyword(k) if k.as_str() == name))
+        .any(|a| crate::layer::ability_is_named(a, &name))
 }
 
 /// [CR#702.7b,702.4]: whether `object` deals damage in the FIRST combat-damage
@@ -295,5 +302,46 @@ mod tests {
         assert_eq!(cs.blockers_of(a), &[] as &[ObjectId]);
         assert_eq!(cs.attacker_of(b), None);
         assert_eq!(cs.attackers(), &[] as &[ObjectId]);
+    }
+
+    use deckmaste_core::Expansion;
+    use deckmaste_core::ExpansionArgs;
+
+    use crate::layer::LayeredView;
+
+    /// A plain top-level keyword is matched by name.
+    #[test]
+    fn has_keyword_named_matches_plain_keyword() {
+        let obj = id(1);
+        let view = LayeredView::single_with_abilities(
+            obj,
+            vec![Ability::Keyword(KeywordAbility::Trample)],
+        );
+        assert!(has_keyword_named(&view, obj, "Trample"));
+        assert!(!has_keyword_named(&view, obj, "Flying"));
+    }
+
+    /// [CR#613.1f]: a keyword that lives INSIDE an `Ability::Expanded` wrapper
+    /// (e.g. granted through a composite/static that expanded to a keyword) is
+    /// still found by name — the look-through `ability_is_named` provides. This
+    /// is the latent miss the old hand-rolled `matches!(Keyword(k) …)` body
+    /// had: it only inspected the top level.
+    #[test]
+    fn has_keyword_named_looks_through_expanded() {
+        let obj = id(1);
+        let wrapped = Ability::Expanded(Expansion {
+            name: "Lifelink".into(),
+            args: ExpansionArgs::none(),
+            template: None,
+            value: Box::new(Ability::Keyword(KeywordAbility::Composite {
+                name: "Lifelink".into(),
+                abilities: Vec::new(),
+            })),
+        });
+        let view = LayeredView::single_with_abilities(obj, vec![wrapped]);
+        assert!(
+            has_keyword_named(&view, obj, "Lifelink"),
+            "an Expanded-wrapped keyword must be found by name"
+        );
     }
 }

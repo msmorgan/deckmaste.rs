@@ -130,6 +130,32 @@ impl LayeredView {
 
     #[must_use]
     pub fn toughness(&self, id: ObjectId) -> Option<Int> { self.get(id).toughness }
+
+    /// Test-only: a view holding a single object with the given derived
+    /// abilities (controller `PlayerId(0)`, no other characteristics). Lets
+    /// consumers of the derived ability list be unit-tested without standing up
+    /// a whole `GameState`.
+    #[cfg(test)]
+    pub(crate) fn single_with_abilities(id: ObjectId, abilities: Vec<Ability>) -> Self {
+        let mut working = BTreeMap::new();
+        working.insert(
+            id,
+            DerivedObject {
+                characteristics: Characteristics {
+                    power: None,
+                    toughness: None,
+                    colors: Arc::new(Vec::new()),
+                    card_types: Arc::new(Vec::new()),
+                    subtypes: Arc::new(Vec::new()),
+                    supertypes: Arc::new(Vec::new()),
+                    abilities: Arc::new(abilities),
+                },
+                controller: PlayerId(0),
+                cant_have: Vec::new(),
+            },
+        );
+        LayeredView(working)
+    }
 }
 
 /// Resolve a printed `StatValue` to a base number. `*` with no CDA is `0`
