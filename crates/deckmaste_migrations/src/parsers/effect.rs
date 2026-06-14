@@ -761,9 +761,15 @@ mod tests {
             "Create a 1/1 red Dinosaur creature token with haste and a 1/1 white Human Soldier creature token."
         ).is_none());
         // Artifact creature token — the "artifact" card-type word is out of scope.
-        assert!(parse_clause("Create a 3/3 colorless Phyrexian Golem artifact creature token.").is_none());
+        assert!(
+            parse_clause("Create a 3/3 colorless Phyrexian Golem artifact creature token.")
+                .is_none()
+        );
         // Trailing clause after the token.
-        assert!(parse_clause("Create a 1/1 white Bird creature token with flying, then populate.").is_none());
+        assert!(
+            parse_clause("Create a 1/1 white Bird creature token with flying, then populate.")
+                .is_none()
+        );
     }
 
     #[test]
@@ -808,7 +814,10 @@ mod tests {
         // The leading count word must equal the where-clause variable.
         assert!(parse_clause("Create Y 1/1 red Goblin creature tokens, where X is the number of Goblins you control.").is_none());
         // A non-unit base under "for each" has no Count product form -> decline.
-        assert!(parse_clause("Create two 1/1 red Goblin creature tokens for each Goblin you control.").is_none());
+        assert!(
+            parse_clause("Create two 1/1 red Goblin creature tokens for each Goblin you control.")
+                .is_none()
+        );
     }
 
     #[test]
@@ -838,7 +847,10 @@ mod tests {
         // Regression: the literal path keeps emitting a bare numeral.
         assert_eq!(
             parsed("~ deals 3 damage to any target."),
-            Some(("AnyTarget".to_owned(), "DealDamage(Target(0), 3)".to_owned()))
+            Some((
+                "AnyTarget".to_owned(),
+                "DealDamage(Target(0), 3)".to_owned()
+            ))
         );
     }
 
@@ -874,6 +886,11 @@ mod tests {
     #[test]
     fn durational_pump_for_each_nonunit_declines() {
         // "+2/+2 for each" has no Count product form -> decline.
-        assert!(parse_clause("Creatures you control get +2/+2 for each Goblin you control until end of turn.").is_none());
+        assert!(
+            parse_clause(
+                "Creatures you control get +2/+2 for each Goblin you control until end of turn."
+            )
+            .is_none()
+        );
     }
 }
