@@ -1474,8 +1474,8 @@ fn etb_trigger_draws_a_card() {
 ///
 /// Expected flow:
 /// 1. Resolve → one `Batch` of three `DamageDealt` events.
-/// 2. SBA sweep → one `Batch` of three `WillDestroy` intents (each creature
-///    has lethal damage); each evolves into its battlefield→graveyard move.
+/// 2. SBA sweep → one `Batch` of three `WillDestroy` intents (each creature has
+///    lethal damage); each evolves into its battlefield→graveyard move.
 /// 3. Trigger matching notes SEVEN triggers in the same scan: the fiend's
 ///    dies-trigger plus, for EACH of the three deaths, each player's Moonlit
 ///    Wake — a live watcher fires once per matching event in the batch.
