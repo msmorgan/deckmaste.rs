@@ -14,9 +14,18 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
     match e {
         Effect::Act(a) => action(a, ctx),
         Effect::Sequence(parts) => {
-            let rendered: Vec<String> =
-                parts.iter().map(|p| trim_period(&effect(p, ctx))).collect();
-            format!("{}.", rendered.join(", then "))
+            let mut out = String::new();
+            for (i, p) in parts.iter().enumerate() {
+                let s = trim_period(&effect(p, ctx));
+                if i == 0 {
+                    out.push_str(&s);
+                } else {
+                    out.push_str(", then ");
+                    out.push_str(&super::ability::lower_first(&s));
+                }
+            }
+            out.push('.');
+            out
         }
         other => format!("[unrendered: {other:?}]."),
     }
@@ -34,10 +43,15 @@ fn action(a: &Action, ctx: &Ctx) -> String {
     }
 }
 
-fn player_action(pa: &PlayerAction, _ctx: &Ctx) -> String {
+fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
     match pa {
         PlayerAction::Draw(Count::Literal(1)) => "Draw a card.".to_string(),
         PlayerAction::Draw(c) => format!("Draw {} cards.", fragment::count(c)),
+        PlayerAction::PutInLibrary(sel, position) => format!(
+            "Put {} on {} of your library.",
+            fragment::selection_object(sel, ctx),
+            fragment::library_position(position),
+        ),
         other => format!("[unrendered: {other:?}]."),
     }
 }

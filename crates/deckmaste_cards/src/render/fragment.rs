@@ -9,7 +9,9 @@ use deckmaste_core::Reference;
 use deckmaste_core::RelationFilter;
 use deckmaste_core::Scope;
 use deckmaste_core::Selection;
+use deckmaste_core::StateFilter;
 use deckmaste_core::TargetSpec;
+use deckmaste_core::Zone;
 
 use super::Ctx;
 
@@ -185,5 +187,53 @@ fn flatten_all_of(f: &Filter) -> Vec<&Filter> {
     match strip_expanded(f) {
         Filter::AllOf(v) => v.iter().collect(),
         single => vec![single],
+    }
+}
+
+// ── PutInLibrary helpers ─────────────────────────────────────────────────────
+
+/// A `Selection` as the object of "put __": "2 cards from your hand".
+pub(super) fn selection_object(sel: &Selection, ctx: &Ctx) -> String {
+    match sel {
+        Selection::Choose(q, filter) => format!("{} {}", quantity(q), filter_object(filter)),
+        other => selection(other, ctx),
+    }
+}
+
+fn quantity(q: &Quantity) -> String {
+    match q {
+        Quantity::Exactly(c) => count(c),
+        other => format!("[unrendered: {other:?}]"),
+    }
+}
+
+/// A `Filter` as the object noun for cards: "cards from your hand".
+fn filter_object(f: &Filter) -> String {
+    let parts = flatten_all_of(f);
+    let mut zone = "";
+    let mut yours = false;
+    for p in parts {
+        match strip_expanded(p) {
+            Filter::State(StateFilter::InZone(Zone::Hand)) => zone = "hand",
+            Filter::Relation(RelationFilter::Owner(inner))
+                if matches!(strip_expanded(inner), Filter::Ref(Reference::You)) =>
+            {
+                yours = true;
+            }
+            _ => {}
+        }
+    }
+    match (zone, yours) {
+        ("hand", true) => "cards from your hand".to_string(),
+        ("hand", false) => "cards from a hand".to_string(),
+        _ => format!("cards [unrendered: {f:?}]"),
+    }
+}
+
+/// Library position from a `Count`: 0 -> "top", else "the bottom".
+pub(super) fn library_position(c: &Count) -> String {
+    match c {
+        Count::Literal(0) => "top".to_string(),
+        _ => "the bottom".to_string(),
     }
 }
