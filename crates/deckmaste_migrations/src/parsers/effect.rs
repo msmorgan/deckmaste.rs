@@ -383,6 +383,12 @@ fn damage_target(text: &str) -> Option<(Vec<String>, String)> {
             "Target(0)".to_owned(),
         ),
         "target player" => (vec!["TargetOne(Player)".to_owned()], "Target(0)".to_owned()),
+        // The restricted "any target" minus its object members ([CR#115.4]):
+        // a player or planeswalker, never a creature/battle (Lava Spike).
+        "target player or planeswalker" => (
+            vec!["TargetOne(OneOf([Player, Planeswalker]))".to_owned()],
+            "Target(0)".to_owned(),
+        ),
         "each creature" => (Vec::new(), "Filter(Creature)".to_owned()),
         "each player" => (Vec::new(), "Filter(Player)".to_owned()),
         // "each opponent" — the players who are opponents of you ([CR#102.2]).
@@ -421,6 +427,15 @@ mod tests {
             Some((
                 "TargetOne(Player)".to_owned(),
                 "DealDamage(Target(0), 4)".to_owned()
+            ))
+        );
+        // Lava Spike's restricted target: player-or-planeswalker (can't hit
+        // creatures), a strict subset of "any target".
+        assert_eq!(
+            parsed("~ deals 3 damage to target player or planeswalker."),
+            Some((
+                "TargetOne(OneOf([Player, Planeswalker]))".to_owned(),
+                "DealDamage(Target(0), 3)".to_owned()
             ))
         );
     }

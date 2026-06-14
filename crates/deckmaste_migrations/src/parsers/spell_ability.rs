@@ -50,6 +50,16 @@ mod tests {
     }
 
     #[test]
+    fn frames_restricted_target_like_lava_spike() {
+        assert_eq!(
+            spell("~ deals 3 damage to target player or planeswalker.").as_deref(),
+            Some(
+                "Spell(targets: [TargetOne(OneOf([Player, Planeswalker]))], effect: DealDamage(Target(0), 3))"
+            )
+        );
+    }
+
+    #[test]
     fn frames_untargeted_effects_without_a_targets_field() {
         assert_eq!(
             spell("~ deals 2 damage to each creature.").as_deref(),
