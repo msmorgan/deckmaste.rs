@@ -106,7 +106,7 @@ pub(super) fn type_str(t: deckmaste_core::Type) -> &'static str {
     }
 }
 
-fn supertype_str(s: deckmaste_core::Supertype) -> &'static str {
+pub(super) fn supertype_str(s: deckmaste_core::Supertype) -> &'static str {
     use deckmaste_core::Supertype::Basic;
     use deckmaste_core::Supertype::Legendary;
     use deckmaste_core::Supertype::Ongoing;

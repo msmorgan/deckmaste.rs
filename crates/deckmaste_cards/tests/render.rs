@@ -488,3 +488,89 @@ fn renders_continuously_pump_until_eot() {
         vec!["Target creature gets +3/+3 until end of turn.".to_string()]
     );
 }
+
+#[test]
+fn renders_create_one_token() {
+    use deckmaste_core::Action;
+    use deckmaste_core::Color;
+    use deckmaste_core::Count;
+    use deckmaste_core::Effect;
+    use deckmaste_core::PlayerAction;
+    use deckmaste_core::Reference;
+    use deckmaste_core::SpellAbility;
+    use deckmaste_core::StatValue;
+    use deckmaste_core::Token;
+    use deckmaste_core::TokenSpec;
+    let token = Token {
+        color_indicator: vec![Color::Red],
+        supertypes: vec![],
+        types: vec![Type::Creature],
+        subtypes: vec![Subtype {
+            name: "Goblin".into(),
+            types: vec![Type::Creature],
+            confers: vec![],
+        }],
+        abilities: vec![],
+        power: Some(StatValue::Number(1)),
+        toughness: Some(StatValue::Number(1)),
+    };
+    let face = CardFace {
+        name: "Test Maker".into(),
+        types: vec![Type::Sorcery],
+        abilities: vec![Ability::Spell(SpellAbility {
+            targets: vec![],
+            effect: Effect::Act(Action::By(
+                Reference::You,
+                PlayerAction::Create(Count::Literal(1), TokenSpec::Token(token)),
+            )),
+        })],
+        ..CardFace::default()
+    };
+    assert_eq!(
+        render_card_face(&face).rules,
+        vec!["Create a 1/1 red Goblin creature token.".to_string()]
+    );
+}
+
+#[test]
+fn renders_create_two_tokens() {
+    use deckmaste_core::Action;
+    use deckmaste_core::Color;
+    use deckmaste_core::Count;
+    use deckmaste_core::Effect;
+    use deckmaste_core::PlayerAction;
+    use deckmaste_core::Reference;
+    use deckmaste_core::SpellAbility;
+    use deckmaste_core::StatValue;
+    use deckmaste_core::Token;
+    use deckmaste_core::TokenSpec;
+    let token = Token {
+        color_indicator: vec![Color::White],
+        supertypes: vec![],
+        types: vec![Type::Creature],
+        subtypes: vec![Subtype {
+            name: "Soldier".into(),
+            types: vec![Type::Creature],
+            confers: vec![],
+        }],
+        abilities: vec![],
+        power: Some(StatValue::Number(1)),
+        toughness: Some(StatValue::Number(1)),
+    };
+    let face = CardFace {
+        name: "Test Muster".into(),
+        types: vec![Type::Sorcery],
+        abilities: vec![Ability::Spell(SpellAbility {
+            targets: vec![],
+            effect: Effect::Act(Action::By(
+                Reference::You,
+                PlayerAction::Create(Count::Literal(2), TokenSpec::Token(token)),
+            )),
+        })],
+        ..CardFace::default()
+    };
+    assert_eq!(
+        render_card_face(&face).rules,
+        vec!["Create two 1/1 white Soldier creature tokens.".to_string()]
+    );
+}
