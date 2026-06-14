@@ -638,13 +638,10 @@ impl GameState {
             }
             PlayerAction::AddMana(qty, production) => {
                 let amount = self.eval_count(qty, frame);
-                let spec = match production {
-                    deckmaste_core::ManaProduction::Bare(spec) => spec,
-                    // P0.W2 seam: pool units don't carry riders yet
-                    // ([CR#106.6] — restriction/on-spend/persistence ride
-                    // the UNIT); loud rather than silently dropped.
-                    deckmaste_core::ManaProduction::WithRiders { .. } => {
-                        todo!("P0.W2: mana riders — pool units don't carry them")
+                let (spec, riders) = match production {
+                    deckmaste_core::ManaProduction::Bare(spec) => (spec, Vec::new()),
+                    deckmaste_core::ManaProduction::WithRiders { mana, riders } => {
+                        (mana, riders.clone())
                     }
                 };
                 match spec {
@@ -654,6 +651,7 @@ impl GameState {
                             player: actor,
                             mana: *mana,
                             amount,
+                            riders,
                         }))]
                     }
                     // [CR#106.1b]: the actor chooses on resolution — surfaced
@@ -663,11 +661,13 @@ impl GameState {
                         player: actor,
                         options: ANY_COLOR.to_vec(),
                         amount,
+                        riders,
                     }],
                     ManaSpec::OneOf(options) => vec![WorkItem::ChooseManaColor {
                         player: actor,
                         options: options.clone(),
                         amount,
+                        riders,
                     }],
                 }
             }
@@ -2586,6 +2586,7 @@ mod tests {
             player,
             options,
             amount,
+            ..
         }) = state.step()
         else {
             panic!("expected ChooseManaColor, got {:?}", state.pending);
@@ -2603,6 +2604,47 @@ mod tests {
         state.submit_decision(Decision::ManaColor(blue)).unwrap();
         let _ = state.step(); // ManaAdded applies
         assert_eq!(state.players[0].mana_pool.amount(blue), 1);
+    }
+
+    /// `AddMana(1, WithRiders{ mana: Red, riders: [SpendOnly(Any)] })` lands
+    /// one red unit in the pool whose riders vec is non-empty ([CR#106.6]).
+    #[test]
+    fn add_mana_with_riders_lands_unit_carrying_riders() {
+        use deckmaste_core::Color;
+        use deckmaste_core::ColorOrColorless;
+        use deckmaste_core::Filter;
+        use deckmaste_core::ManaProduction;
+        use deckmaste_core::ManaRider;
+        use deckmaste_core::ManaSpec;
+
+        let (mut state, src) = bear_on_field();
+        let frame = Frame {
+            source: src,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+        };
+        let red = ColorOrColorless::Color(Color::Red);
+        let rider = ManaRider::SpendOnly(Filter::Any);
+        state.run_effect(
+            Effect::Act(by_you(PlayerAction::AddMana(
+                Count::Literal(1),
+                ManaProduction::WithRiders {
+                    mana: ManaSpec::Specific(red),
+                    riders: vec![rider],
+                },
+            ))),
+            &frame,
+        );
+        let _ = state.step(); // ManaAdded applies
+        assert_eq!(state.players[0].mana_pool.amount(red), 1);
+        let units_with_riders = state.players[0]
+            .mana_pool
+            .units()
+            .iter()
+            .filter(|u| !u.riders.is_empty())
+            .count();
+        assert_eq!(units_with_riders, 1, "one unit should carry riders");
     }
 
     /// [CR#701.9b]: `Discard(2)` surfaces the card choice; a wrong-sized answer

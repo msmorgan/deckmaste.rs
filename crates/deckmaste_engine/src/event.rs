@@ -87,6 +87,7 @@ pub enum GameEvent {
         player: PlayerId,
         mana: ColorOrColorless,
         amount: Uint,
+        riders: Vec<deckmaste_core::ManaRider>,
     },
     ManaEmptied(PlayerId),
 
