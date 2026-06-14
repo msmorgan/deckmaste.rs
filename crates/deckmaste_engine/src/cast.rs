@@ -58,10 +58,36 @@ pub(crate) fn concretize_x(cost: &ManaCost, x: Uint) -> ManaCost {
     )
 }
 
-/// The colored requirement (per color) and total generic of a cost, or `None`
-/// if the cost uses an out-of-scope symbol (X, hybrid, phyrexian, snow).
-fn requirement(cost: &ManaCost) -> Option<(Vec<(ColorOrColorless, Uint)>, Uint)> {
+/// A cost's payment requirement: its colored pips (per color), its `{S}` (snow,
+/// [CR#107.4h]) pip count, and its total generic. Hybrid/Phyrexian/`{X}` are
+/// *not* representable here — `requirement` returns `None` for them (they are
+/// concretized/announced away before payment; see [`requirement`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Requirement {
+    colored: Vec<(ColorOrColorless, Uint)>,
+    snow: Uint,
+    generic: Uint,
+}
+
+impl Requirement {
+    /// The cost's mana value: one unit per pip ([CR#202.3]; `{S}` counts 1).
+    fn mana_value(&self) -> Uint {
+        self.colored.iter().map(|(_, n)| *n).sum::<Uint>() + self.snow + self.generic
+    }
+}
+
+/// The colored / snow / generic requirement of a cost, or `None` if the cost
+/// uses an out-of-scope symbol (X, hybrid, Phyrexian).
+///
+/// Hybrid and Phyrexian symbols are concretized to `Simple` symbols at
+/// [CR#601.2b] (the `ChooseCostOptions` step) before payment, and `Variable`
+/// (`{X}`) is announced there too (engine-x-costs) — so a *residual* one
+/// reaching `requirement` is an engine bug, not a payable cost. `{S}` (snow,
+/// [CR#107.4h]) is NOT concretized: it is recognized here and matched against
+/// snow-rider units at payment.
+fn requirement(cost: &ManaCost) -> Option<Requirement> {
     let mut colored: Vec<(ColorOrColorless, Uint)> = Vec::new();
+    let mut snow: Uint = 0;
     let mut generic: Uint = 0;
     for symbol in cost.iter() {
         match symbol {
@@ -72,46 +98,157 @@ fn requirement(cost: &ManaCost) -> Option<(Vec<(ColorOrColorless, Uint)>, Uint)>
                     None => colored.push((*c, 1)),
                 }
             }
-            // X/Hybrid/Phyrexian/Snow are out of scope this stage.
-            _ => return None,
+            // [CR#107.4h]: a snow pip — paid by a unit carrying ManaRider::Snow.
+            ManaSymbol::Snow => snow += 1,
+            // Hybrid/Phyrexian are concretized at [CR#601.2b] before payment;
+            // Variable ({X}) is announced there too (engine-x-costs). A residual
+            // one here is an engine bug, not a payable cost.
+            ManaSymbol::Hybrid(..) | ManaSymbol::Phyrexian(..) | ManaSymbol::Variable => {
+                return None;
+            }
         }
     }
-    Some((colored, generic))
+    Some(Requirement {
+        colored,
+        snow,
+        generic,
+    })
 }
 
-/// Whether `pool` can pay `cost` ([CR#601.2g]). Colored pips must be covered by
-/// their color; the remaining mana must cover the generic.
+/// One pip's eligibility over a pool unit, for the payment matcher. A colored
+/// pip accepts a unit of its color; a snow pip ([CR#107.4h]) accepts any unit
+/// carrying `ManaRider::Snow`; a generic pip accepts any unit.
+#[derive(Debug, Clone, Copy)]
+enum Pip {
+    Colored(ColorOrColorless),
+    Snow,
+    Generic,
+}
+
+impl Pip {
+    /// Whether `unit` can pay this pip.
+    fn accepts(self, unit: &crate::player::ManaUnit) -> bool {
+        match self {
+            Pip::Colored(c) => unit.kind == c,
+            Pip::Snow => unit.riders.contains(&deckmaste_core::ManaRider::Snow),
+            Pip::Generic => true,
+        }
+    }
+}
+
+/// The cost's pips as a flat list, in match-difficulty order: colored first
+/// (tightest — one color), then snow ([CR#107.4h] — snow units of any color),
+/// then generic (any unit). Order only affects auto-pay's *choice* of units,
+/// not feasibility (the matcher backtracks); it puts the most-constrained pips
+/// first so a greedy seeding lands a maximum matching faster.
+fn pips(req: &Requirement) -> Vec<Pip> {
+    let mut pips = Vec::with_capacity(req.mana_value() as usize);
+    for &(c, n) in &req.colored {
+        pips.extend(std::iter::repeat_n(Pip::Colored(c), n as usize));
+    }
+    pips.extend(std::iter::repeat_n(Pip::Snow, req.snow as usize));
+    pips.extend(std::iter::repeat_n(Pip::Generic, req.generic as usize));
+    pips
+}
+
+/// Maximum bipartite matching (Kuhn's augmenting-path algorithm) of `pips` to
+/// the pool `units` restricted to `candidates`, returning, for each pip, the
+/// chosen unit index (or `None` if unmatched). Pools are tiny, so the O(V·E)
+/// cost is negligible; an exact matching is used (not greedy) so the
+/// colored/snow/generic interactions ([CR#107.4h]) are always resolved
+/// correctly — e.g. `{G}{S}` over a (plain green, snow green) pool must use the
+/// plain green for `{G}` and the snow green for `{S}`.
+fn match_pips(
+    pips: &[Pip],
+    units: &[crate::player::ManaUnit],
+    candidates: &[usize],
+) -> Vec<Option<usize>> {
+    // unit_for[pip] = candidate-slot currently matched to that pip.
+    let mut pip_for: Vec<Option<usize>> = vec![None; pips.len()];
+    // Reverse map over candidate slots: which pip holds candidate slot `s`.
+    let mut held_by: Vec<Option<usize>> = vec![None; candidates.len()];
+    for (p, &pip) in pips.iter().enumerate() {
+        let mut visited = vec![false; candidates.len()];
+        augment(pip, p, pips, units, candidates, &mut held_by, &mut visited);
+    }
+    // Rebuild pip -> unit-index from the candidate-slot assignment.
+    for (slot, holder) in held_by.iter().enumerate() {
+        if let Some(p) = holder {
+            pip_for[*p] = Some(candidates[slot]);
+        }
+    }
+    pip_for
+}
+
+/// Try to match pip `p` (eligibility `pip`) to some candidate slot, displacing
+/// already-matched pips along an augmenting path. Returns whether `p` got a
+/// slot.
+fn augment(
+    pip: Pip,
+    p: usize,
+    pips: &[Pip],
+    units: &[crate::player::ManaUnit],
+    candidates: &[usize],
+    held_by: &mut [Option<usize>],
+    visited: &mut [bool],
+) -> bool {
+    for (slot, &unit_idx) in candidates.iter().enumerate() {
+        if visited[slot] || !pip.accepts(&units[unit_idx]) {
+            continue;
+        }
+        visited[slot] = true;
+        let free_or_rematched = match held_by[slot] {
+            None => true,
+            Some(other) => augment(
+                pips[other],
+                other,
+                pips,
+                units,
+                candidates,
+                held_by,
+                visited,
+            ),
+        };
+        if free_or_rematched {
+            held_by[slot] = Some(p);
+            return true;
+        }
+    }
+    false
+}
+
+/// Whether `pool` can pay `cost` ([CR#601.2g]). Each colored pip must be
+/// covered by a distinct unit of its color, each `{S}` pip ([CR#107.4h]) by a
+/// distinct unit carrying `ManaRider::Snow` (of any color), and each generic
+/// pip by any remaining unit. Feasibility is decided by an exact bipartite
+/// matching, so the colored ↔ snow interaction (a snow unit may pay either, but
+/// not both at once) is handled correctly.
 ///
 /// Returns `false` for costs containing out-of-scope symbols (X, hybrid,
-/// phyrexian, snow).
+/// Phyrexian — concretized away before payment, [CR#601.2b]).
 #[must_use]
 pub fn can_pay(pool: &ManaPool, cost: &ManaCost) -> bool {
-    let Some((colored, generic)) = requirement(cost) else { return false };
-    let mut leftover: Uint = 0;
-    // Sum leftover across all six kinds after colored deductions.
-    for (kind, have) in pool_kinds(pool) {
-        let need = colored
-            .iter()
-            .find(|(k, _)| *k == kind)
-            .map_or(0, |(_, n)| *n);
-        if have < need {
-            return false;
-        }
-        leftover += have - need;
-    }
-    leftover >= generic
+    let Some(req) = requirement(cost) else { return false };
+    let pips = pips(&req);
+    let units = pool.units();
+    let all: Vec<usize> = (0..units.len()).collect();
+    // A perfect matching of every pip to a distinct unit means the pool covers
+    // the cost.
+    match_pips(&pips, units, &all).iter().all(Option::is_some)
 }
 
 /// Whether `payment`'s selected pool units legally cover `cost` from `pool`
 /// ([CR#601.2g]).
 ///
 /// The selected indices must be distinct and in range; the number of units
-/// selected must equal the cost's mana value (colored need + generic); and each
-/// color's colored requirement must be met by selected units of that color.
-/// (Spendability/`SpendOnly` is not checked here yet — a later task.)
+/// selected must equal the cost's mana value (colored + `{S}` + generic); and
+/// the selected units must admit a perfect matching to the cost's pips — each
+/// colored pip ↔ a unit of that color, each `{S}` pip ([CR#107.4h]) ↔ a unit
+/// carrying `ManaRider::Snow`, each generic pip ↔ any selected unit.
+/// (Spendability/`SpendOnly` is not checked here — see `validate_spendable`.)
 #[must_use]
 pub fn validate_payment(pool: &ManaPool, cost: &ManaCost, payment: &Payment) -> bool {
-    let Some((colored, generic)) = requirement(cost) else { return false };
+    let Some(req) = requirement(cost) else { return false };
     let units = pool.units();
     // Indices must be distinct and in range.
     let mut seen = std::collections::HashSet::with_capacity(payment.units.len());
@@ -120,19 +257,16 @@ pub fn validate_payment(pool: &ManaPool, cost: &ManaCost, payment: &Payment) -> 
             return false;
         }
     }
-    let colored_total: Uint = colored.iter().map(|(_, n)| *n).sum();
     // Exactly the cost's mana value: no under- or over-spend.
-    if payment.units.len() != (colored_total + generic) as usize {
+    if payment.units.len() != req.mana_value() as usize {
         return false;
     }
-    let selected = || payment.units.iter().map(|&i| &units[i]);
-    // Each color's colored pips must be covered by selected units of that color.
-    for (c, n) in colored {
-        if selected().filter(|u| u.kind == c).count() < n as usize {
-            return false;
-        }
-    }
-    true
+    // The selected units must perfectly match the pips. Equal cardinality plus a
+    // perfect pip-side matching means every selected unit is also used.
+    let pips = pips(&req);
+    match_pips(&pips, units, &payment.units)
+        .iter()
+        .all(Option::is_some)
 }
 
 /// Deducts a validated `payment`'s selected units from `pool`
@@ -147,8 +281,8 @@ pub fn apply_payment(pool: &mut ManaPool, payment: &Payment) { pool.remove_units
 
 /// Canonical auto-tap ([CR#601.2g], a runner/test convenience — the engine
 /// surfaces the choice, this answers it): pick pool unit indices covering
-/// `cost` (colored pips to matching-color units, generic pips to any
-/// remaining). Caller ensures `can_pay` first.
+/// `cost` (colored pips to matching-color units, `{S}` pips to snow-rider units
+/// [CR#107.4h], generic pips to any remaining). Caller ensures `can_pay` first.
 ///
 /// Ignores spendability (`SpendOnly`): every unit is eligible. Use
 /// [`auto_pay_spendable`] (via [`GameState::auto_pay_pending`]) to honor a
@@ -168,8 +302,16 @@ pub fn auto_pay(pool: &ManaPool, cost: &ManaCost) -> Payment {
 }
 
 /// Like [`auto_pay`], but only units `i` with `spendable[i] == true` are
-/// eligible — `take` skips the rest ([CR#106.6]). `spendable` must index the
-/// same `pool` (length `== pool.units().len()`).
+/// eligible ([CR#106.6]). `spendable` must index the same `pool` (length
+/// `== pool.units().len()`).
+///
+/// Snow-rider units are RESERVED for `{S}` pips ([CR#107.4h]): the matcher
+/// considers non-snow units first, so colored/generic pips spend a plain unit
+/// when one is available and the scarcer snow units stay open for `{S}` (e.g.
+/// auto-paying `{G}{S}` over a plain-green + snow-green pool pairs plain →
+/// `{G}` and snow → `{S}`). Correctness — a covering selection whenever one
+/// exists — is the matching's; the ordering only steers *which* covering
+/// selection.
 ///
 /// # Panics
 ///
@@ -177,48 +319,19 @@ pub fn auto_pay(pool: &ManaPool, cost: &ManaCost) -> Payment {
 /// (call `can_pay` over the spendable sub-pool first).
 #[must_use]
 pub fn auto_pay_spendable(pool: &ManaPool, cost: &ManaCost, spendable: &[bool]) -> Payment {
-    let (colored, generic) = requirement(cost).expect("auto_pay on a payable cost");
+    let req = requirement(cost).expect("auto_pay on a payable cost");
     let units = pool.units();
-    let mut used = vec![false; units.len()];
-    let mut chosen = Vec::new();
-    let mut take = |kind: Option<ColorOrColorless>, chosen: &mut Vec<usize>| {
-        let i = units
-            .iter()
-            .enumerate()
-            .position(|(i, u)| spendable[i] && !used[i] && kind.is_none_or(|k| u.kind == k))
-            .expect("can_pay over the spendable sub-pool guarantees a covering unit");
-        used[i] = true;
-        chosen.push(i);
-    };
-    for (c, n) in colored {
-        for _ in 0..n {
-            take(Some(c), &mut chosen);
-        }
-    }
-    for _ in 0..generic {
-        take(None, &mut chosen);
-    }
+    // Candidate units: spendable only, non-snow first so colored/generic pips
+    // prefer a plain unit and reserve snow units for {S} pips ([CR#107.4h]).
+    let mut candidates: Vec<usize> = (0..units.len()).filter(|&i| spendable[i]).collect();
+    candidates.sort_by_key(|&i| units[i].riders.contains(&deckmaste_core::ManaRider::Snow));
+    let pips = pips(&req);
+    let matched = match_pips(&pips, units, &candidates);
+    let chosen: Vec<usize> = matched
+        .into_iter()
+        .map(|m| m.expect("can_pay over the spendable sub-pool guarantees a covering unit"))
+        .collect();
     Payment { units: chosen }
-}
-
-/// The pool as (kind, amount) pairs over all six kinds.
-fn pool_kinds(pool: &ManaPool) -> [(ColorOrColorless, Uint); 6] {
-    use ColorOrColorless::Color;
-    use ColorOrColorless::Colorless;
-    use deckmaste_core::Color::Black;
-    use deckmaste_core::Color::Blue;
-    use deckmaste_core::Color::Green;
-    use deckmaste_core::Color::Red;
-    use deckmaste_core::Color::White;
-    [
-        Colorless,
-        Color(White),
-        Color(Blue),
-        Color(Black),
-        Color(Red),
-        Color(Green),
-    ]
-    .map(|k| (k, pool.amount(k)))
 }
 
 /// [CR#601.2h]: one `RunEffect` per cost-eligible verb, each performed by the
@@ -827,6 +940,21 @@ mod tests {
         }
         p
     }
+    /// A pool whose units each carry `ManaRider::Snow` ([CR#107.4h]) — produced
+    /// by a snow source, so eligible to pay `{S}` (and, being otherwise normal
+    /// mana, colored/generic too).
+    fn snow_pool(pairs: &[(ColorOrColorless, Uint)]) -> ManaPool {
+        let units = pairs
+            .iter()
+            .flat_map(|&(m, n)| {
+                (0..n).map(move |_| crate::player::ManaUnit {
+                    kind: m,
+                    riders: vec![deckmaste_core::ManaRider::Snow],
+                })
+            })
+            .collect();
+        ManaPool::from_units(units)
+    }
     fn cost(s: &str) -> ManaCost { s.parse().unwrap() }
     fn red() -> ColorOrColorless { Color::Red.into() }
     fn green() -> ColorOrColorless { Color::Green.into() }
@@ -899,11 +1027,15 @@ mod tests {
 
     #[test]
     fn auto_pay_covers_colored_then_generic() {
-        // Pool [G, G, R] (0,1,2), cost {1}{G}: {G} forced to a green, {1} to the
-        // next unused unit (the other green). Deterministic, first-fit.
+        // Pool [G, G, R] (0,1,2), cost {1}{G}: both pips are covered by the two
+        // greens, leaving the red unused. The exact bipartite matcher pairs the
+        // {G} pip with unit 1 and the {1} pip with unit 0 (an augmenting-path
+        // assignment) — a valid covering selection of the SET {0,1}; the red
+        // (index 2) is never chosen. (`pay.units` is in pip order: [{G}, {1}].)
         let p = pool(&[(green(), 2), (red(), 1)]);
         let pay = auto_pay(&p, &cost("{1}{G}"));
-        assert_eq!(pay.units, vec![0, 1]);
+        assert_eq!(pay.units, vec![1, 0]);
+        assert!(!pay.units.contains(&2)); // the red is never spent
         assert!(validate_payment(&p, &cost("{1}{G}"), &pay));
     }
 
@@ -913,5 +1045,144 @@ mod tests {
         assert_eq!(concretize_x(&cost("{X}{R}"), 3), cost("{3}{R}"));
         assert_eq!(concretize_x(&cost("{X}{R}"), 0), cost("{0}{R}"));
         assert_eq!(concretize_x(&cost("{1}{G}"), 5), cost("{1}{G}"));
+    }
+
+    #[test]
+    fn snow_pip_needs_a_snow_source() {
+        // {S} ([CR#107.4h]): one mana of any type, but from a snow source.
+        assert!(can_pay(&snow_pool(&[(red(), 1)]), &cost("{S}")));
+        // Plain (non-snow) mana cannot pay {S}.
+        assert!(!can_pay(&pool(&[(red(), 1)]), &cost("{S}")));
+        assert!(!can_pay(&ManaPool::default(), &cost("{S}")));
+    }
+
+    #[test]
+    fn snow_and_generic_mix() {
+        // One snow + one plain unit pays {1}{S}: snow -> {S}, plain -> {1}.
+        let units = vec![
+            crate::player::ManaUnit {
+                kind: red(),
+                riders: vec![deckmaste_core::ManaRider::Snow],
+            },
+            crate::player::ManaUnit {
+                kind: green(),
+                riders: vec![],
+            },
+        ];
+        assert!(can_pay(&ManaPool::from_units(units), &cost("{1}{S}")));
+        // A single plain unit can't pay {1}{S}: no snow source for {S}.
+        assert!(!can_pay(&pool(&[(green(), 1)]), &cost("{1}{S}")));
+        // A single snow unit can't pay {1}{S}: only one unit, mana value is 2.
+        assert!(!can_pay(&snow_pool(&[(red(), 1)]), &cost("{1}{S}")));
+    }
+
+    #[test]
+    fn snow_does_not_help_a_second_snow_pip() {
+        // ONE snow unit cannot pay {S}{S}: each {S} needs its own snow unit.
+        assert!(!can_pay(&snow_pool(&[(red(), 1)]), &cost("{S}{S}")));
+        // Two snow units do.
+        assert!(can_pay(
+            &snow_pool(&[(red(), 1), (green(), 1)]),
+            &cost("{S}{S}")
+        ));
+    }
+
+    #[test]
+    fn colored_and_snow_interaction() {
+        // [plain green, snow green] pays {G}{S}: plain-green -> {G}, snow-green
+        // -> {S}. The snow unit is the ONLY one that can cover {S}, so {G} must
+        // take the plain green — a correct matcher finds this.
+        let units = vec![
+            crate::player::ManaUnit {
+                kind: green(),
+                riders: vec![],
+            },
+            crate::player::ManaUnit {
+                kind: green(),
+                riders: vec![deckmaste_core::ManaRider::Snow],
+            },
+        ];
+        assert!(can_pay(&ManaPool::from_units(units), &cost("{G}{S}")));
+        // ONE snow green alone canNOT pay {G}{S}: needs two units (one per pip).
+        assert!(!can_pay(&snow_pool(&[(green(), 1)]), &cost("{G}{S}")));
+    }
+
+    #[test]
+    fn validate_payment_snow_round_trips() {
+        // Pool [snow-red (0), plain green (1)] against {1}{S}.
+        let p = ManaPool::from_units(vec![
+            crate::player::ManaUnit {
+                kind: red(),
+                riders: vec![deckmaste_core::ManaRider::Snow],
+            },
+            crate::player::ManaUnit {
+                kind: green(),
+                riders: vec![],
+            },
+        ]);
+        // snow-red -> {S}, plain green -> {1}: a correct selection.
+        assert!(validate_payment(
+            &p,
+            &cost("{1}{S}"),
+            &Payment { units: vec![0, 1] }
+        ));
+        // Using the NON-snow unit for the {S} pip is rejected: pool [plain red,
+        // snow green] for {S}{G} — selecting both is fine (snow green -> {S},
+        // plain red can't be {G}, so it must be... there is no {G}). Build a
+        // sharper case: pool [plain green (0), plain red (1)] for {S}: a single
+        // plain unit can never be {S}.
+        let plain = pool(&[(green(), 1)]);
+        assert!(!validate_payment(
+            &plain,
+            &cost("{S}"),
+            &Payment { units: vec![0] }
+        ));
+        // Pool [plain green (0), snow green (1)] for {G}{S}: selecting {0,1} is
+        // valid (plain->{G}, snow->{S}); but if the only snow unit is index 1
+        // and we instead try to pay {S} with index 0 alone it fails on count
+        // anyway — the discriminating case is that a payment naming only the
+        // plain unit for an {S}-bearing cost is rejected.
+        let mixed = ManaPool::from_units(vec![
+            crate::player::ManaUnit {
+                kind: green(),
+                riders: vec![],
+            },
+            crate::player::ManaUnit {
+                kind: green(),
+                riders: vec![deckmaste_core::ManaRider::Snow],
+            },
+        ]);
+        assert!(validate_payment(
+            &mixed,
+            &cost("{G}{S}"),
+            &Payment { units: vec![0, 1] }
+        ));
+    }
+
+    #[test]
+    fn auto_pay_prefers_non_snow_for_generic() {
+        // Pool [plain green (0), snow green (1)] for {1}{S}: the snow unit must
+        // go to {S}, so {1} takes the plain green. Auto-pay reserves snow for
+        // {S}.
+        let p = ManaPool::from_units(vec![
+            crate::player::ManaUnit {
+                kind: green(),
+                riders: vec![],
+            },
+            crate::player::ManaUnit {
+                kind: green(),
+                riders: vec![deckmaste_core::ManaRider::Snow],
+            },
+        ]);
+        let pay = auto_pay(&p, &cost("{1}{S}"));
+        assert!(validate_payment(&p, &cost("{1}{S}"), &pay));
+        // The snow unit (index 1) must be among the chosen, paired with {S};
+        // and the plain green (index 0) must be chosen for {1}.
+        assert!(pay.units.contains(&1));
+        assert!(pay.units.contains(&0));
+        // Same for {G}{S}: plain green -> {G}, snow green -> {S}.
+        let pay = auto_pay(&p, &cost("{G}{S}"));
+        assert!(validate_payment(&p, &cost("{G}{S}"), &pay));
+        assert!(pay.units.contains(&0) && pay.units.contains(&1));
     }
 }
