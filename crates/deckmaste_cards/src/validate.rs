@@ -384,6 +384,7 @@ mod tests {
     #[test]
     fn lint_flags_draw_cards_in_do_cost() {
         let token = Token {
+            color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact],
             subtypes: vec![],
@@ -395,6 +396,8 @@ mod tests {
                 targets: vec![],
                 effect: add_one_any(),
             })],
+            power: None,
+            toughness: None,
         };
         let mut failures = Vec::new();
         lint_card_abilities(&dummy_path(), &token.abilities, &mut failures);
@@ -410,6 +413,7 @@ mod tests {
     #[test]
     fn lint_allows_sacrifice_in_do_cost() {
         let token = Token {
+            color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact],
             subtypes: vec![],
@@ -424,6 +428,8 @@ mod tests {
                 targets: vec![],
                 effect: add_one_any(),
             })],
+            power: None,
+            toughness: None,
         };
         let mut failures = Vec::new();
         lint_card_abilities(&dummy_path(), &token.abilities, &mut failures);
@@ -436,6 +442,7 @@ mod tests {
     #[test]
     fn lint_looks_through_expanded_cost_macros() {
         let token = Token {
+            color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact],
             subtypes: vec![],
@@ -451,6 +458,8 @@ mod tests {
                 targets: vec![],
                 effect: add_one_any(),
             })],
+            power: None,
+            toughness: None,
         };
         let mut failures = Vec::new();
         lint_card_abilities(&dummy_path(), &token.abilities, &mut failures);
@@ -462,6 +471,7 @@ mod tests {
     #[test]
     fn lint_ignores_non_activated_abilities() {
         let token = Token {
+            color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact],
             subtypes: vec![],
@@ -475,6 +485,8 @@ mod tests {
                 ))],
                 characteristic_defining: false,
             })],
+            power: None,
+            toughness: None,
         };
         let mut failures = Vec::new();
         lint_card_abilities(&dummy_path(), &token.abilities, &mut failures);

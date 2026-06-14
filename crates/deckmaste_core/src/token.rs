@@ -1,7 +1,9 @@
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::Color;
 use crate::Expand;
+use crate::StatValue;
 use crate::Subtype;
 use crate::Supertype;
 use crate::Type;
@@ -22,11 +24,16 @@ impl From<Token> for TokenSpec {
     fn from(token: Token) -> Self { TokenSpec::Token(token) }
 }
 
-/// A token permanent definition ([CR#111]). Name, colors, and P/T are omitted
-/// here and join when a token definition needs them; the three predefined
-/// tokens (Treasure, Clue, Food) don't.
+/// A token permanent definition ([CR#111]). The creating effect defines the
+/// token's characteristics ([CR#111.3] — functionally equivalent to printed
+/// values). Color rides a color indicator ([CR#202.2e]: a token has no mana
+/// cost, so its defined color is carried the same way `CardFace` carries a
+/// printed indicator). Name is still omitted — it defaults to the subtypes
+/// plus "Token" at synthesis ([CR#111.4]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub struct Token {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub color_indicator: Vec<Color>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub supertypes: Vec<Supertype>,
     pub types: Vec<Type>,
@@ -34,6 +41,10 @@ pub struct Token {
     pub subtypes: Vec<Subtype>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub abilities: Vec<Ability>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub power: Option<StatValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub toughness: Option<StatValue>,
 }
 
 #[cfg(test)]
@@ -62,10 +73,13 @@ mod tests {
         assert_eq!(
             spec,
             TokenSpec::Token(Token {
+                color_indicator: vec![],
                 supertypes: vec![],
                 types: vec![Type::Artifact],
                 subtypes: vec![],
                 abilities: vec![],
+                power: None,
+                toughness: None,
             })
         );
     }
@@ -77,15 +91,21 @@ mod tests {
         assert!(token.supertypes.is_empty());
         assert!(token.subtypes.is_empty());
         assert!(token.abilities.is_empty());
+        assert!(token.color_indicator.is_empty());
+        assert!(token.power.is_none());
+        assert!(token.toughness.is_none());
     }
 
     #[test]
     fn token_round_trips_with_empty_vecs_omitted() {
         let token = Token {
+            color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact],
             subtypes: vec![],
             abilities: vec![],
+            power: None,
+            toughness: None,
         };
         let written = crate::ron::options().to_string(&token).unwrap();
         // Empty vecs must not appear in the output (skip_serializing_if is
@@ -102,8 +122,34 @@ mod tests {
             !written.contains("abilities"),
             "abilities should be omitted when empty"
         );
+        assert!(
+            !written.contains("color_indicator"),
+            "color_indicator should be omitted when empty"
+        );
+        assert!(
+            !written.contains("power"),
+            "power should be omitted when None"
+        );
+        assert!(
+            !written.contains("toughness"),
+            "toughness should be omitted when None"
+        );
         let reparsed = read(&written);
         assert_eq!(token, reparsed);
+    }
+
+    /// A creature token carries its defined color [CR#202.2e] and P/T
+    /// [CR#111.3]; the new fields round-trip and stay omitted when empty.
+    #[test]
+    fn token_carries_color_and_pt() {
+        let token =
+            read("Token(color_indicator: [Red], types: [Creature], power: 1, toughness: 1)");
+        assert_eq!(token.color_indicator, vec![Color::Red]);
+        assert_eq!(token.types, vec![Type::Creature]);
+        assert_eq!(token.power, Some(StatValue::Number(1)));
+        assert_eq!(token.toughness, Some(StatValue::Number(1)));
+        let written = crate::ron::options().to_string(&token).unwrap();
+        assert_eq!(read(&written), token);
     }
 
     #[test]

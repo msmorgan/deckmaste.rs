@@ -68,6 +68,7 @@ fn treasure_token_parses() {
     assert_eq!(
         token,
         Token {
+            color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact],
             subtypes: vec![artifact_subtype("Treasure")],
@@ -82,6 +83,8 @@ fn treasure_token_parses() {
                     ManaSpec::AnyColor.into()
                 )),
             })],
+            power: None,
+            toughness: None,
         }
     );
 }
@@ -93,6 +96,7 @@ fn clue_token_parses() {
     assert_eq!(
         token,
         Token {
+            color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact],
             subtypes: vec![artifact_subtype("Clue")],
@@ -104,6 +108,8 @@ fn clue_token_parses() {
                 targets: vec![],
                 effect: by_you(PlayerAction::Draw(Count::Literal(1))),
             })],
+            power: None,
+            toughness: None,
         }
     );
 }
@@ -115,6 +121,7 @@ fn food_token_parses() {
     assert_eq!(
         token,
         Token {
+            color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact],
             subtypes: vec![artifact_subtype("Food")],
@@ -126,6 +133,8 @@ fn food_token_parses() {
                 targets: vec![],
                 effect: by_you(PlayerAction::GainLife(Count::Literal(3))),
             })],
+            power: None,
+            toughness: None,
         }
     );
 }

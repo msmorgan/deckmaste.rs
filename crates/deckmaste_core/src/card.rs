@@ -49,7 +49,7 @@ pub enum Card {
     ModalDfc(CardFace, CardFace),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
 pub enum StatValue {
     // Power or toughness set by a characteristic-defining ability.
     // Any power or toughness containing * is essentially reminder text.
