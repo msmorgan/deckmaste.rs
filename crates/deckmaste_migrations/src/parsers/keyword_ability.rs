@@ -473,8 +473,6 @@ mod tests {
         // Or-costs and cost riders aren't productions.
         assert!(bare("Equip—Pay {3} or discard a card.").is_none());
         assert!(bare("Ward—Discard a card at random.").is_none());
-        // Sacrifice-a-[filter] costs await the filter grammar.
-        assert!(bare("Ward—Sacrifice a creature.").is_none());
         // The joint multi-quality line declines here — extract expands it
         // into one line per quality before the registry sees it.
         assert!(bare("Protection from black and from red").is_none());
@@ -489,6 +487,12 @@ mod tests {
         assert_eq!(
             bare("Cycling—Discard a card.").as_deref(),
             Some("Keyword(Cycling([Do(Discard(1))]))")
+        );
+        // A chosen-sacrifice cost after the em dash (the filter grammar now
+        // resolves the subject) — e.g. Ward—Sacrifice a creature.
+        assert_eq!(
+            bare("Ward—Sacrifice a creature.").as_deref(),
+            Some("Keyword(Ward([Do(Sacrifice(Choose(Exactly(Literal(1)), Creature)))]))")
         );
         assert_eq!(
             bare("Equip—Discard a card.").as_deref(),
