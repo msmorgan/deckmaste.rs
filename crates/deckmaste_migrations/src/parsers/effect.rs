@@ -21,13 +21,30 @@ pub(super) struct ParsedEffect {
 /// Parses one normalized effect line into a [`ParsedEffect`], or `None` to
 /// decline. Productions are tried in order; the first match wins.
 pub(super) fn parse_clause(line: &str) -> Option<ParsedEffect> {
-    parse_deal_damage(line)
+    parse_may(line)
+        .or_else(|| parse_deal_damage(line))
         .or_else(|| parse_draw(line))
         .or_else(|| parse_lose_life(line))
         .or_else(|| parse_gain_life(line))
         .or_else(|| parse_destroy(line))
         .or_else(|| parse_pump(line))
         .or_else(|| parse_create_token(line))
+}
+
+/// `you may <effect>` -> the inner effect wrapped in a `May` frame
+/// ([CR#603,608] optional-do): `May(effect: <inner>)`. The inner clause is
+/// re-parsed by [`parse_clause`], carrying through any targets it declares — so
+/// the whole production declines if the inner effect isn't itself parseable.
+/// Every inner production accepts a lowercase (mid-sentence) lead, so the
+/// stripped clause re-enters them directly. Case-insensitive lead ("You may"
+/// opens a trigger effect; "you may" follows a comma).
+fn parse_may(line: &str) -> Option<ParsedEffect> {
+    let inner = strip_prefix_ci(line, "you may ")?;
+    let parsed = parse_clause(inner)?;
+    Some(ParsedEffect {
+        targets: parsed.targets,
+        effect: format!("May(effect: {})", parsed.effect),
+    })
 }
 
 /// `<subject> gets ±N/±N [and gain(s) <kw…>] until end of turn.` (and the
@@ -43,13 +60,26 @@ pub(super) fn parse_clause(line: &str) -> Option<ParsedEffect> {
 /// `TargetOne(<filter>)`), or a team/self class via the shared subject grammar
 /// (`Matching`/`Of`).
 fn parse_pump(line: &str) -> Option<ParsedEffect> {
-    let body = line.strip_suffix('.')?.strip_suffix(" until end of turn")?;
-    // A "for each <filter>" tail scales the P/T; where/equal-to are not a
-    // natural pump form and decline.
-    let (body, scaled) = match count::strip(body) {
-        Some(c) if matches!(c.binder, count::Binder::ForEach) => (c.head, Some(c.count)),
-        Some(_) => return None,
-        None => (body, None),
+    let body = line.strip_suffix('.')?;
+    // The required "until end of turn" marker may sit on EITHER side of a "for
+    // each" count tail: "gets +1/+1 for each … until end of turn" (marker last)
+    // or "gets +2/+0 until end of turn for each …" (marker mid, the
+    // Piledriver/Rabblemaster order). Strip a trailing marker first; if it isn't
+    // trailing, peel the count and strip the marker off the count's head.
+    let (body, scaled) = if let Some(head) = body.strip_suffix(" until end of turn") {
+        // Marker last — peel any "for each" count off what precedes it.
+        match count::strip(head) {
+            Some(c) if matches!(c.binder, count::Binder::ForEach) => (c.head, Some(c.count)),
+            Some(_) => return None,
+            None => (head, None),
+        }
+    } else {
+        // Marker not trailing — it must precede a "for each" count tail.
+        let c = count::strip(body)?;
+        if !matches!(c.binder, count::Binder::ForEach) {
+            return None;
+        }
+        (c.head.strip_suffix(" until end of turn")?, Some(c.count))
     };
     let changes = pump_changes(body, scaled.as_deref())?;
     let (scope, targets) = pump_scope(pump_subject(body)?)?;
@@ -91,8 +121,10 @@ fn pump_changes(body: &str, scaled: Option<&str>) -> Option<Vec<String>> {
 }
 
 /// Pump subject -> (`Modify` scope, target declarations). A "target <filter>"
-/// subject scopes `Of(Target(0))` and declares `TargetOne(<filter>)`; a
-/// team/self class scopes via the shared subject grammar with no target.
+/// subject scopes `Of(Target(0))` and declares `TargetOne(<filter>)`; the
+/// source anaphor "it" (a self-pump trigger surface, e.g. "it gets +2/+0 …")
+/// scopes `Of(This)`; a team/self class scopes via the shared subject grammar
+/// with no target.
 fn pump_scope(subj: &str) -> Option<(String, Vec<String>)> {
     if let Some(rest) = modify::strip_prefix_ci(subj.trim(), "target ") {
         let filter = filter::parse_phrase(rest)?;
@@ -100,6 +132,11 @@ fn pump_scope(subj: &str) -> Option<(String, Vec<String>)> {
             "Of(Target(0))".to_owned(),
             vec![format!("TargetOne({filter})")],
         ));
+    }
+    // "it" — the resolving source pumping itself (trigger anaphor); same scope as
+    // a "~ gets …" self-pump.
+    if subj.trim().eq_ignore_ascii_case("it") {
+        return Some(("Of(This)".to_owned(), Vec::new()));
     }
     let filter = modify::subject_to_filter(subj)?;
     Some((modify::filter_to_scope(&filter), Vec::new()))
@@ -187,28 +224,42 @@ fn parse_draw(line: &str) -> Option<ParsedEffect> {
     })
 }
 
-/// `You lose N life.` — the ability's controller loses N life. No targets.
+/// `You lose N life[ for each <filter>].` — the ability's controller loses
+/// life. No targets.
 fn parse_lose_life(line: &str) -> Option<ParsedEffect> {
-    let n = life_count(strip_prefix_ci(line, "you lose ")?)?;
+    let amount = life_amount(strip_prefix_ci(line, "you lose ")?)?;
     Some(ParsedEffect {
         targets: Vec::new(),
-        effect: format!("LoseLife({n})"),
+        effect: format!("LoseLife({amount})"),
     })
 }
 
-/// `You gain N life.` — the ability's controller gains N life. No targets.
+/// `You gain N life[ for each <filter>].` — the ability's controller gains
+/// life. No targets.
 fn parse_gain_life(line: &str) -> Option<ParsedEffect> {
-    let n = life_count(strip_prefix_ci(line, "you gain ")?)?;
+    let amount = life_amount(strip_prefix_ci(line, "you gain ")?)?;
     Some(ParsedEffect {
         targets: Vec::new(),
-        effect: format!("GainLife({n})"),
+        effect: format!("GainLife({amount})"),
     })
 }
 
-/// `N life.` -> N ("life" is invariant — never pluralized). `None` if the
-/// count word or the shape is off.
-fn life_count(text: &str) -> Option<u32> {
-    number_word(text.strip_suffix('.')?.strip_suffix(" life")?)
+/// `N life[ for each <filter>].` -> the amount RON: a bare numeral for a fixed
+/// count (reader-sugar for `Count::Literal`, like `Draw`), or a `CountOf(...)`
+/// for a "1 life for each <filter>" dynamic tail. "life" is invariant (never
+/// pluralized). `None` if the count word or the shape is off — and a non-unit
+/// base under "for each" (no `Count` product form) declines.
+fn life_amount(text: &str) -> Option<String> {
+    let body = text.strip_suffix('.')?;
+    match count::strip(body) {
+        // "1 life for each <filter>": the count IS the amount (base must be 1).
+        Some(c) if matches!(c.binder, count::Binder::ForEach) => {
+            (number_word(c.head.strip_suffix(" life")?)? == 1).then_some(c.count)
+        }
+        // where/equal-to are not a natural life-amount form -> decline.
+        Some(_) => None,
+        None => Some(number_word(body.strip_suffix(" life")?)?.to_string()),
+    }
 }
 
 /// `Create <count> <P/T> [<colors>] [<subtypes>] creature token[s] [with
@@ -887,5 +938,52 @@ mod tests {
             )
             .is_none()
         );
+    }
+
+    #[test]
+    fn gain_life_for_each_attacking_filter() {
+        // Dwynen lifegain: "you gain 1 life for each attacking Elf you control."
+        // The "attacking" status rides the shared filter grammar; base must be 1.
+        assert_eq!(
+            parsed("you gain 1 life for each attacking Elf you control."),
+            Some((
+                String::new(),
+                "GainLife(CountOf(AllOf([Subtype(\"Elf\"), Attacking, ControlledBy(Ref(You))])))"
+                    .to_owned()
+            ))
+        );
+        // Fixed life is still a bare numeral (regression).
+        assert_eq!(
+            parsed("You gain 3 life."),
+            Some((String::new(), "GainLife(3)".to_owned()))
+        );
+        // A non-unit base under "for each" has no Count product form -> declines.
+        assert!(parse_clause("you gain 2 life for each attacking Elf you control.").is_none());
+    }
+
+    #[test]
+    fn may_wraps_inner_effect() {
+        // Lys Alana rider: "you may create a 1/1 green Elf Warrior creature token."
+        assert_eq!(
+            parsed("you may create a 1/1 green Elf Warrior creature token."),
+            Some((
+                String::new(),
+                "May(effect: Create(1, Token(color_indicator: [Green], types: [Creature], \
+                 subtypes: [Elf, Warrior], power: 1, toughness: 1)))"
+                    .to_owned()
+            ))
+        );
+        // A `you may` over a targeted effect carries the inner target through.
+        assert_eq!(
+            parsed("You may draw a card."),
+            Some((String::new(), "May(effect: Draw(1))".to_owned()))
+        );
+    }
+
+    #[test]
+    fn may_declines_unparseable_inner() {
+        // The whole `you may` production declines when the inner effect doesn't
+        // parse (no partial parse).
+        assert!(parse_clause("you may flip a coin.").is_none());
     }
 }
