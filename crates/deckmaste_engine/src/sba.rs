@@ -7,8 +7,11 @@
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
 
+use crate::agenda::WorkItem;
 use crate::event::GameEvent;
 use crate::event::LossReason;
+use crate::event::Occurrence;
+use crate::object::ObjectId;
 use crate::state::GameState;
 
 /// One sweep ([CR#704.3]): the `PlayerLost`, `WillDestroy` (the replaceable
@@ -132,7 +135,94 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
         }
     }
 
+    // Attachment SBAs ([CR#704.5m..704.5p]) — GENERIC, no subtype branch.
+    actions.extend(attachment_sbas(state, &view));
+
     actions
+}
+
+/// The attachment state-based actions ([CR#704.5m..704.5p]) — extracted from
+/// [`sweep`] but logically part of the same [CR#704.3] check. Two passes,
+/// both keyed on conferred data + the `attached_to` relation only; NEVER on
+/// the Aura/Equipment/Fortification subtype:
+///
+/// 1. **Firing `Sba { when, then }` statics.** The Aura graveyard rule
+///    ([CR#704.5m]) is `Sba(Not(LegallyAttached(Ref(This))), Move(Ref(This),
+///    Graveyard))`, conferred `Innate` by the Aura subtype. For each
+///    battlefield object, for each `Sba` it carries (peeling `Innate`),
+///    evaluate `when` with `This` = the object; if true, run `then`'s events.
+///    Objects a firing `Sba` removes this sweep are tracked so pass 2 doesn't
+///    double-handle them.
+/// 2. **Generic illegal-attachment cleanup.** Any object attached to an illegal
+///    host (per `attachment_legal`) that no firing `Sba` removed → becomes
+///    unattached and stays ([CR#704.5n] Equipment/Fortification; [CR#704.5p]
+///    creature / battle / other permanent — engine-identical).
+fn attachment_sbas(state: &GameState, view: &crate::layer::LayeredView) -> Vec<GameEvent> {
+    let mut out = Vec::new();
+    let mut removed_by_sba: std::collections::BTreeSet<ObjectId> =
+        std::collections::BTreeSet::new();
+
+    // (1) Firing `Sba` statics.
+    for &id in &state.zones.battlefield {
+        // A `This`-anchored frame: `condition_holds`/`action_items` resolve
+        // `Ref(This)` to this object via the frame source ([CR#603.10a]).
+        let frame = crate::stack::Frame {
+            source: id,
+            controller: state.objects.obj(id).controller,
+            targets: Vec::new(),
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        let mut rows: Vec<(deckmaste_core::Condition, deckmaste_core::Effect)> = Vec::new();
+        crate::legal::for_each_static(view, id, |e| {
+            if let deckmaste_core::StaticEffect::Sba { when, then } = e {
+                rows.push((when.clone(), (**then).clone()));
+            }
+        });
+        for (when, then) in rows {
+            if !state.condition_holds(&when, &frame) {
+                continue;
+            }
+            // Run `then`. For Stage 2 the only shape is `Act(<Action>)` (the
+            // Aura's `Move`, the Saga generalization's `Sacrifice`); the
+            // produced events are flattened out of the `Emit` work items. A
+            // non-`Act` `then` (Sequence, choices) is a documented seam.
+            let deckmaste_core::Effect::Act(action) = &then else {
+                todo!("SBA `then` is only Act(<Action>) in Stage 2 (got {then:?})");
+            };
+            for item in state.action_items(action, &frame) {
+                if let WorkItem::Emit(occ) = item {
+                    match occ {
+                        Occurrence::Single(ev) => out.push(ev),
+                        Occurrence::Batch(evs) => out.extend(evs),
+                    }
+                }
+            }
+            // This object is being moved/removed by its own SBA this sweep;
+            // pass 2 must not also unattach it.
+            removed_by_sba.insert(id);
+        }
+    }
+
+    // (2) Generic illegal-attachment cleanup ([CR#704.5n,704.5p]).
+    for &id in &state.zones.battlefield {
+        if removed_by_sba.contains(&id) {
+            continue;
+        }
+        if let Some(host) = state.objects.obj(id).attached_to
+            && !crate::legal::attachment_legal(state, id, host)
+        {
+            // Becomes unattached, stays on the battlefield. The `attached_to`
+            // clear happens at the `Unattached` apply (transition-only).
+            out.push(GameEvent::Unattached {
+                attachment: id,
+                former_host: host,
+            });
+        }
+    }
+
+    out
 }
 
 #[cfg(test)]
@@ -455,5 +545,195 @@ mod tests {
         );
         let new = state.zones.graveyards[0][0];
         assert_ne!(new, bear, "graveyard object must have a fresh ObjectId");
+    }
+
+    // --- Attachment SBAs ([CR#704.5m..704.5p]) ---------------------------------
+
+    use deckmaste_core::Ability;
+    use deckmaste_core::CardFace;
+    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::Condition;
+    use deckmaste_core::Deontic;
+    use deckmaste_core::DeonticAction;
+    use deckmaste_core::Effect;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Selection;
+    use deckmaste_core::StaticAbility;
+    use deckmaste_core::StaticEffect;
+
+    fn game() -> GameState {
+        GameState::new(GameConfig {
+            players: vec![PlayerConfig { deck: vec![] }, PlayerConfig { deck: vec![] }],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        })
+    }
+
+    fn on_field(
+        state: &mut GameState,
+        name: &str,
+        types: Vec<Type>,
+        abilities: Vec<Ability>,
+    ) -> crate::object::ObjectId {
+        let card = Card::Normal(CardFace {
+            name: name.into(),
+            types,
+            abilities,
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        id
+    }
+
+    /// The Aura-subtype shape (scaffolded in-Rust): `Innate(Static([Sba(Not(
+    /// LegallyAttached(Ref(This))), Move(Ref(This), Graveyard))]))`.
+    fn aura_graveyard_sba() -> Ability {
+        Ability::Innate(Box::new(Ability::Static(StaticAbility {
+            condition: None,
+            effects: vec![StaticEffect::Sba {
+                when: Condition::Not(Box::new(Condition::LegallyAttached(Reference::This))),
+                then: Box::new(Effect::Act(deckmaste_core::Action::Move(
+                    Selection::Ref(Reference::This),
+                    Zone::Graveyard,
+                ))),
+            }],
+            characteristic_defining: false,
+        })))
+    }
+
+    /// The Equipment-subtype shape: `Innate(Static([Cant(Attach(what:
+    /// Ref(This), to: Not(Creature)))]))`.
+    fn equipment_host_rule() -> Ability {
+        Ability::Innate(Box::new(Ability::Static(StaticAbility {
+            condition: None,
+            effects: vec![StaticEffect::Deontic(Deontic::Cant(
+                DeonticAction::Attach {
+                    what: Filter::Ref(Reference::This),
+                    to: Filter::Not(Box::new(Filter::Characteristic(
+                        CharacteristicFilter::Type(Type::Creature),
+                    ))),
+                },
+            ))],
+            characteristic_defining: false,
+        })))
+    }
+
+    /// [CR#704.5m]: an Aura (carrying the Innate graveyard `Sba`) that is
+    /// UNATTACHED fires the SBA → a `ZoneWillChange(Battlefield → Graveyard)`
+    /// for it. Generic — driven by the `Sba` static, not the subtype.
+    #[test]
+    fn sba_attach_unattached_aura_goes_to_graveyard() {
+        let mut state = game();
+        let aura = on_field(
+            &mut state,
+            "Test Aura",
+            vec![Type::Enchantment],
+            vec![aura_graveyard_sba()],
+        );
+        // It is unattached → `LegallyAttached` is false → the SBA fires.
+        let actions = sba::sweep(&state);
+        assert!(
+            actions.iter().any(|e| matches!(e,
+                GameEvent::ZoneWillChange { object, to: Zone::Graveyard, .. } if *object == aura)),
+            "unattached Aura is moved to the graveyard ([CR#704.5m]); got {actions:?}"
+        );
+    }
+
+    /// [CR#704.5m]: an Aura legally attached to a creature does NOT fire its
+    /// graveyard SBA.
+    #[test]
+    fn sba_attach_legally_attached_aura_stays() {
+        let mut state = game();
+        let aura = on_field(
+            &mut state,
+            "Test Aura",
+            vec![Type::Enchantment],
+            vec![aura_graveyard_sba()],
+        );
+        let host = on_field(&mut state, "Bear", vec![Type::Creature], vec![]);
+        state.objects.obj_mut(aura).attached_to = Some(host);
+        let actions = sba::sweep(&state);
+        assert!(
+            !actions
+                .iter()
+                .any(|e| matches!(e, GameEvent::ZoneWillChange { object, .. } if *object == aura)),
+            "legally-attached Aura stays put; got {actions:?}"
+        );
+    }
+
+    /// [CR#704.5n]: an Equipment (no firing `Sba`) attached to an ILLEGAL host
+    /// (a non-creature) becomes unattached and stays — the generic
+    /// illegal-attachment cleanup, NO subtype branch.
+    #[test]
+    fn sba_attach_illegal_equipment_unattaches() {
+        let mut state = game();
+        let equip = on_field(
+            &mut state,
+            "Test Equipment",
+            vec![Type::Artifact],
+            vec![equipment_host_rule()],
+        );
+        // Illegally attached to a non-creature artifact.
+        let rock = on_field(&mut state, "Rock", vec![Type::Artifact], vec![]);
+        state.objects.obj_mut(equip).attached_to = Some(rock);
+
+        let actions = sba::sweep(&state);
+        assert!(
+            actions.iter().any(|e| matches!(e,
+                GameEvent::Unattached { attachment, former_host }
+                if *attachment == equip && *former_host == rock)),
+            "illegally-attached Equipment becomes unattached ([CR#704.5n]); got {actions:?}"
+        );
+        // It does NOT go to the graveyard (no firing Sba).
+        assert!(
+            !actions
+                .iter()
+                .any(|e| matches!(e, GameEvent::ZoneWillChange { object, .. } if *object == equip)),
+            "Equipment stays on the battlefield, not graveyard"
+        );
+    }
+
+    /// [CR#704.5p]: a plain permanent with `attached_to` set to an illegal host
+    /// and NO `Sba` → becomes unattached (engine-identical to [CR#704.5n]).
+    #[test]
+    fn sba_attach_plain_permanent_illegal_link_unattaches() {
+        let mut state = game();
+        // A plain artifact with no attachment rules at all, illegally linked.
+        let thing = on_field(&mut state, "Thing", vec![Type::Artifact], vec![]);
+        let host = on_field(&mut state, "Bear", vec![Type::Creature], vec![]);
+        // Give the host a protection-shaped host-side Cant so the link is
+        // illegal even though `thing` itself carries no restriction.
+        let protected = on_field(
+            &mut state,
+            "Protected",
+            vec![Type::Creature],
+            vec![Ability::Static(StaticAbility {
+                condition: None,
+                effects: vec![StaticEffect::Deontic(Deontic::Cant(
+                    DeonticAction::Attach {
+                        what: Filter::Any,
+                        to: Filter::Ref(Reference::This),
+                    },
+                ))],
+                characteristic_defining: false,
+            })],
+        );
+        let _ = host;
+        state.objects.obj_mut(thing).attached_to = Some(protected);
+
+        let actions = sba::sweep(&state);
+        assert!(
+            actions.iter().any(|e| matches!(e,
+                GameEvent::Unattached { attachment, former_host }
+                if *attachment == thing && *former_host == protected)),
+            "plain permanent on an illegal host becomes unattached ([CR#704.5p]); got {actions:?}"
+        );
     }
 }
