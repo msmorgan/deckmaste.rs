@@ -101,7 +101,7 @@ fn is_any_target(filter: &Filter) -> bool {
 // ── Static-ability subject phrases ──────────────────────────────────────────
 
 /// See through macro-provenance wrappers on a `Filter`.
-fn strip_expanded(f: &Filter) -> &Filter {
+pub(super) fn strip_expanded(f: &Filter) -> &Filter {
     match f {
         Filter::Expanded(e) => strip_expanded(&e.value),
         other => other,
@@ -166,7 +166,7 @@ pub(super) fn filter_subject(f: &Filter) -> String {
 /// Recursively search a stripped filter for a `Characteristic(Type(t))`.
 /// Used to find the type name inside a macro-expanded Creature/Land/etc.
 /// filter.
-fn find_card_type(f: &Filter) -> Option<deckmaste_core::Type> {
+pub(super) fn find_card_type(f: &Filter) -> Option<deckmaste_core::Type> {
     match strip_expanded(f) {
         Filter::Characteristic(CharacteristicFilter::Type(t)) => Some(*t),
         Filter::AllOf(vs) => vs.iter().find_map(find_card_type),
