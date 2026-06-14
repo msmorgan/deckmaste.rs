@@ -861,8 +861,10 @@ impl GameState {
     ///
     /// # Panics
     ///
-    /// Panics on a `Reference` not wired for Stage 3, or an out-of-range
-    /// `Target(n)` index.
+    /// Panics on a `Reference` not wired for Stage 3, an out-of-range
+    /// `Target(n)` index, or an `AttachHostOf`/`AttachedTo` over an
+    /// attachment/host with no live link (the reference is only well-defined
+    /// where the relation is established).
     pub(crate) fn eval_reference(&self, reference: &Reference, frame: &Frame) -> ObjectId {
         match reference {
             Reference::Target(n) => *frame
@@ -914,9 +916,27 @@ impl GameState {
             Reference::Linked(ident) => todo!(
                 "engine-linked-abilities: Linked({ident:?}) needs a linked-ability store ([CR#607])"
             ),
-            Reference::AttachHostOf(_) | Reference::AttachedTo(_) => todo!(
-                "engine-attachment-references: attachment refs need attachment-relation storage (see Action::Attach in this file)"
-            ),
+            // [CR#301.5,303.4]: the host an attachment is attached to — read
+            // the attachment→host relation directly off the resolved object.
+            Reference::AttachHostOf(inner) => {
+                let id = self.eval_reference(inner, frame);
+                self.objects
+                    .obj(id)
+                    .attached_to
+                    .expect("AttachHostOf referenced an unattached object")
+            }
+            // The inverse (host→attachment): scan for the object whose
+            // `attached_to` points at the resolved host. v1 single attachment —
+            // returns the first (deterministic id order, [CR#613.7]); the
+            // multiple-attachment fan-out is `Filter::Attachment` territory.
+            Reference::AttachedTo(inner) => {
+                let host = self.eval_reference(inner, frame);
+                self.objects
+                    .iter()
+                    .find(|o| o.attached_to == Some(host))
+                    .map(|o| o.id)
+                    .expect("AttachedTo referenced a host with no attachment")
+            }
         }
     }
 
@@ -1720,6 +1740,46 @@ mod tests {
         assert!(
             !logged(&state, |e| matches!(e, GameEvent::Unattached { .. })),
             "no Unattached fact for an already-unattached object"
+        );
+    }
+
+    /// [CR#301.5]: `AttachHostOf(This)` from the attachment resolves to its
+    /// host; `AttachedTo(This)` from the host resolves to the attachment (the
+    /// derived inverse).
+    #[test]
+    fn eval_reference_attach_host_and_inverse() {
+        let (mut state, a, b) = two_permanents_on_field();
+        state.objects.obj_mut(a).attached_to = Some(b);
+
+        let frame_a = Frame {
+            source: a,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        assert_eq!(
+            state.eval_reference(
+                &Reference::AttachHostOf(Box::new(Reference::This)),
+                &frame_a
+            ),
+            b,
+            "AttachHostOf(This) from a is its host b"
+        );
+
+        let frame_b = Frame {
+            source: b,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        assert_eq!(
+            state.eval_reference(&Reference::AttachedTo(Box::new(Reference::This)), &frame_b),
+            a,
+            "AttachedTo(This) from b is the attachment a (inverse by scan)"
         );
     }
 
