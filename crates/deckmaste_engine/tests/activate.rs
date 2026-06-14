@@ -11,12 +11,22 @@ use std::path::Path;
 use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
+use deckmaste_core::Ability;
+use deckmaste_core::Action as CoreAction;
+use deckmaste_core::ActivatedAbility;
 use deckmaste_core::Card;
+use deckmaste_core::CardFace;
 use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
+use deckmaste_core::CostComponent;
+use deckmaste_core::Count;
+use deckmaste_core::Effect;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::Phase;
+use deckmaste_core::PlayerAction;
+use deckmaste_core::Reference;
+use deckmaste_core::Selection;
 use deckmaste_core::SimpleManaSymbol;
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
@@ -788,6 +798,163 @@ fn pinger_fizzles_when_target_dies() {
     assert!(
         state.objects.obj(pinger).tapped,
         "the tap cost stays paid on a fizzle"
+    );
+}
+
+// --- non-mana cost payment ([CR#601.2h]) ------------------------------------
+
+/// A nondescript no-target effect: gain 0 life. Resolving it mutates nothing,
+/// so a test can isolate the *cost* being performed from the effect.
+fn gain_zero() -> Effect {
+    Effect::Act(CoreAction::By(
+        Reference::You,
+        PlayerAction::GainLife(Count::Literal(0)),
+    ))
+}
+
+/// An artifact whose sole ability is an activated ability with the given cost
+/// and a harmless no-target effect. Built in-Rust so a test pins the exact
+/// cost components; `Cards::push` derives its printed abilities like any card.
+fn artifact_with_cost(name: &str, cost: Vec<CostComponent>) -> Arc<Card> {
+    Arc::new(Card::Normal(CardFace {
+        name: name.into(),
+        mana_cost: ManaCost::from(vec![]),
+        color_indicator: vec![],
+        supertypes: vec![],
+        types: vec![Type::Artifact],
+        subtypes: vec![],
+        abilities: vec![Ability::Activated(ActivatedAbility {
+            window: None,
+            cost,
+            condition: None,
+            limits: vec![],
+            targets: vec![],
+            effect: gain_zero(),
+        })],
+        power: None,
+        toughness: None,
+        loyalty: None,
+        defense: None,
+    }))
+}
+
+/// Builds a two-player game whose player-0 deck is five copies of `card` plus
+/// five Mountains (so the opening hand and library are well-formed), nothing
+/// special for player 1. Mirrors `activation_game` but seeds an arbitrary
+/// in-Rust card.
+fn cost_game(seed: u64, card: &Arc<Card>) -> GameState {
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mut p0 = vec![Arc::clone(card); 5];
+    p0.extend(vec![Arc::clone(&mountain); 5]);
+    let p1 = vec![forest; 10];
+    GameState::new(GameConfig {
+        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
+        seed,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    })
+}
+
+/// Activates `object`'s only ability at the current P0 priority window, then
+/// answers the `PayMana` that the `{0}` mana component surfaces. Leaves the
+/// engine at whatever stop follows payment.
+fn activate_and_pay_zero(state: &mut GameState, object: ObjectId) {
+    let legal = run_to_priority(state, PlayerId(0), Phase::PrecombatMain);
+    let activate =
+        activate_action(&legal, object).expect("the in-Rust ability is offered at priority");
+    state.submit_decision(Decision::Act(activate)).unwrap();
+
+    // No targets: the next stop is the `{0}` PayMana (a payment with nothing).
+    let (_, stop) = step_to_stop(state);
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
+        panic!("expected PayMana for the {{0}} cost, got {stop:?}");
+    };
+    let pay = state.auto_pay_pending();
+    state.submit_decision(Decision::Pay(pay)).unwrap();
+}
+
+/// [CR#601.2h]: a `Do(Sacrifice(This))` cost is PERFORMED in the payment
+/// window — after the mana payment, before the ability becomes activated. The
+/// source permanent leaves the battlefield for its owner's graveyard.
+#[test]
+fn activated_ability_pays_self_sacrifice_cost() {
+    const NAME: &str = "Sacrifice-cost test artifact";
+    let card = artifact_with_cost(
+        NAME,
+        vec![
+            CostComponent::Mana("{0}".parse().unwrap()),
+            CostComponent::Do(PlayerAction::Sacrifice(Selection::Ref(Reference::This))),
+        ],
+    );
+    let mut state = cost_game(7, &card);
+    let obj = force_into_play(&mut state, PlayerId(0), NAME);
+
+    activate_and_pay_zero(&mut state, obj);
+
+    // Drive to the next priority: the sacrifice cost must have fired during
+    // payment, so the source is gone from the battlefield.
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    assert!(
+        !state.zones.battlefield.contains(&obj),
+        "the self-sacrifice cost removed the source from the battlefield"
+    );
+    assert!(
+        state.zones.graveyards[0].iter().any(|&o| {
+            state
+                .objects
+                .obj(o)
+                .card_id()
+                .is_some_and(|_| face_name(&state, o) == NAME)
+        }),
+        "the sacrificed permanent is in its owner's graveyard, gy: {:?}",
+        state.zones.graveyards[0]
+    );
+}
+
+/// [CR#601.2h,119.4]: a `Do(LoseLife(2))` cost is PERFORMED in the payment
+/// window — the controller's life drops by exactly 2.
+#[test]
+fn activated_ability_pays_life_cost() {
+    const NAME: &str = "Life-cost test artifact";
+    let card = artifact_with_cost(
+        NAME,
+        vec![
+            CostComponent::Mana("{0}".parse().unwrap()),
+            CostComponent::Do(PlayerAction::LoseLife(Count::Literal(2))),
+        ],
+    );
+    let mut state = cost_game(7, &card);
+    let obj = force_into_play(&mut state, PlayerId(0), NAME);
+
+    let life_before = state.players[0].life;
+    activate_and_pay_zero(&mut state, obj);
+    // Capture the trace from just after payment to the next priority: the
+    // `LifeLost` cost must occur BEFORE the `AbilityActivated` "becomes
+    // activated" step ([CR#601.2h] precedes [CR#601.2i]).
+    let (trace, _) = step_to_stop(&mut state);
+    let life_idx = trace.iter().position(|p| {
+        matches!(
+            applied(p),
+            Some(GameEvent::LifeLost { player, amount: 2 }) if *player == PlayerId(0)
+        )
+    });
+    let activated_idx = trace.iter().position(|p| {
+        matches!(applied(p), Some(GameEvent::AbilityActivated { source, .. }) if *source == obj)
+    });
+    let life_idx = life_idx.unwrap_or_else(|| panic!("a LifeLost(2) cost event, trace: {trace:?}"));
+    let activated_idx =
+        activated_idx.unwrap_or_else(|| panic!("an AbilityActivated event, trace: {trace:?}"));
+    assert!(
+        life_idx < activated_idx,
+        "the LoseLife cost ([CR#601.2h]) runs before the ability becomes activated ([CR#601.2i]); \
+         life@{life_idx} activated@{activated_idx}, trace: {trace:?}"
+    );
+
+    assert_eq!(
+        state.players[0].life,
+        life_before - 2,
+        "the LoseLife(2) cost dropped the controller's life by exactly 2"
     );
 }
 
