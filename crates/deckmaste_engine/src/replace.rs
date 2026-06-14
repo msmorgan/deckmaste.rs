@@ -47,6 +47,25 @@ impl GameState {
         status
     }
 
+    /// Whether `source` carries an enters-attached self-replacement
+    /// (`Also(would: Enters(This), also: Attach(This, …))`) — i.e. it attaches
+    /// itself on entry ([CR#303.4], the Enchant `AsEnters`). The cast-path host
+    /// resolution (spec §4) keys on this: a permanent SPELL with this
+    /// replacement attaches to its resolving spell's chosen target, not an
+    /// arbitrary candidate.
+    pub(crate) fn enters_attached_self(&self, source: ObjectSource) -> bool {
+        crate::derive::abilities_of_source(self, source)
+            .iter()
+            .any(|ability| {
+                let Ability::Static(s) = ability else { return false };
+                s.effects.iter().any(|eff| {
+                    matches!(eff, StaticEffect::Replacement(r)
+                        if matches!(look_through(r), Replacement::Also { would, also }
+                            if would_is_self_enter(would) && also_is_self_attach(also)))
+                })
+            })
+    }
+
     /// Fold one `also` effect into the entering status. `Tap(This)` → tapped;
     /// `Attach(This, to)` → enters attached, the host resolved from the `to`
     /// selection (§4). Counters/face-down are Stage-4 seams.
@@ -121,6 +140,16 @@ fn is_self_selection(sel: &Selection) -> bool {
             is_self_selection(&Selection::Ref((*e.value).clone()))
         }
         Selection::Expanded(e) => is_self_selection(&e.value),
+        _ => false,
+    }
+}
+
+/// Whether an `also` effect is this object attaching itself (`Attach(what:
+/// This, to: …)`), looked through `Expanded` — the enters-attached shape.
+fn also_is_self_attach(effect: &Effect) -> bool {
+    match effect {
+        Effect::Act(Action::Attach { what, .. }) => is_self_selection(what),
+        Effect::Expanded(e) => also_is_self_attach(&e.value),
         _ => false,
     }
 }

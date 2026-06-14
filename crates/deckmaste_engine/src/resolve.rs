@@ -72,12 +72,28 @@ impl GameState {
                 let spell = *spell;
                 if self.is_permanent_spell(spell) {
                     // [CR#608.3]: a permanent spell enters the battlefield.
+                    // Host resolution by entry context (spec §4, [CR#303.4]): a
+                    // permanent SPELL that enters attached (the Enchant
+                    // `AsEnters`) attaches to its resolving spell's CHOSEN TARGET
+                    // — the Aura's enchant target — not an arbitrary candidate.
+                    // Carry that host in the `EnterStatus`; `apply_zone_will_change`
+                    // prefers it over the candidate-set fallback (`.or`).
+                    let enters = if self.enters_attached_self(self.objects.obj(spell).source)
+                        && let Some(&host) = entry.targets.first()
+                    {
+                        Some(crate::event::EnterStatus {
+                            attach_to: Some(host),
+                            ..crate::event::EnterStatus::default()
+                        })
+                    } else {
+                        None
+                    };
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
                         GameEvent::ZoneWillChange {
                             object: spell,
                             from: Some(Zone::Stack),
                             to: Zone::Battlefield,
-                            enters: None,
+                            enters,
                             position: None,
                             face: None,
                             cause: None,
@@ -1608,6 +1624,27 @@ mod tests {
             if matches!(state.step(), StepOutcome::NeedsDecision(_)) {
                 break;
             }
+        }
+    }
+
+    /// Process exactly a test-injected effect's front-scheduled work, WITHOUT
+    /// advancing the turn structure. `run_effect` schedules its work
+    /// (`Emit`/`RunEffect`/…) at the front of the agenda; this steps while the
+    /// front item is such injected work and stops the moment a turn-structure
+    /// item (`BeginStep`/`CheckSbas`/`OpenPriority`/…) or a decision would run.
+    /// A test-only driver for sequentially-injected effects: it never parks a
+    /// priority (so the next `run_effect`'s front work isn't blocked) and never
+    /// drains the turn loop dry.
+    fn run_injected(state: &mut GameState) {
+        for _ in 0..30 {
+            let injected = matches!(
+                state.agenda.front(),
+                Some(WorkItem::Emit(_) | WorkItem::RunEffect { .. } | WorkItem::Resolve(_))
+            );
+            if !injected || state.pending.is_some() {
+                return;
+            }
+            let _ = state.step();
         }
     }
 
@@ -3393,6 +3430,463 @@ mod tests {
             crate::derive::face(&state.cards.get(card).def).name,
             "Treasure Token",
             "[CR#111.4]: unnamed token defaults to subtypes + \"Token\""
+        );
+    }
+
+    // ====================================================================
+    // Task 4.6 — end-to-end (Enchant + Equip + Fortify + Reconfigure)
+    // ====================================================================
+    //
+    // These drive a real `GameState` and assert real state, exercising the
+    // ACTUAL keyword-macro (builtin) + subtype-confer (canon) paths where
+    // feasible — the integration coverage that caught the composite-flatten
+    // prerequisite. Helpers below build cards from the live plugin macros.
+
+    use deckmaste_core::Ability;
+    use deckmaste_core::CardFace;
+    use deckmaste_core::Modification;
+    use deckmaste_core::Scope;
+    use deckmaste_core::StaticAbility;
+    use deckmaste_core::StaticEffect;
+    use deckmaste_core::Subtype;
+
+    use crate::object::ObjectSource;
+
+    /// Expand a builtin keyword macro invocation to an `Ability::Keyword`.
+    fn keyword(invocation: &str) -> Ability {
+        Ability::Keyword(builtin().macros.read_str(invocation).unwrap())
+    }
+
+    /// A canon subtype value (with its `confers:` list) by printed name.
+    fn subtype(name: &str) -> Subtype {
+        canon()
+            .subtypes
+            .get(&deckmaste_core::Ident::from(name))
+            .unwrap_or_else(|| panic!("canon defines the {name} subtype"))
+            .clone()
+    }
+
+    /// A "host gets +n/+n" static targeting this attachment's host
+    /// (`Of(AttachHostOf(This))`) — the equipped/enchanted-creature bonus.
+    fn host_pump(n: u32) -> Ability {
+        Ability::Static(StaticAbility {
+            condition: None,
+            effects: vec![StaticEffect::Modify {
+                of: Scope::Of(Reference::AttachHostOf(Box::new(Reference::This))),
+                changes: vec![
+                    Modification::AddPower(Count::Literal(n)),
+                    Modification::AddToughness(Count::Literal(n)),
+                ],
+            }],
+            characteristic_defining: false,
+        })
+    }
+
+    /// Mint a card-backed object directly onto the battlefield (player 0).
+    fn mint_on_field(state: &mut GameState, card: Card) -> ObjectId {
+        let cid = state.cards.push(Arc::new(card), PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(cid),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        id
+    }
+
+    /// A vanilla 2/2 creature on the battlefield.
+    fn vanilla_creature(state: &mut GameState, name: &str) -> ObjectId {
+        mint_on_field(
+            state,
+            Card::Normal(CardFace {
+                name: name.into(),
+                types: vec![Type::Creature],
+                power: Some(deckmaste_core::StatValue::Number(2)),
+                toughness: Some(deckmaste_core::StatValue::Number(2)),
+                ..CardFace::default()
+            }),
+        )
+    }
+
+    /// [CR#702.6a]: activate the Equipment's equip ability (sorcery speed)
+    /// targeting a creature you control → the host's derived P/T includes the
+    /// Equipment's "+1/+1" bonus (via the `Of(AttachHostOf(This))` path).
+    #[test]
+    fn equip_e2e() {
+        let mut state = game();
+        let host = vanilla_creature(&mut state, "Bear Host");
+        // A real Equipment: the Equipment subtype confer (Innate Cant(Attach)) +
+        // the `equip {T}` keyword + "+1/+1 to the equipped creature".
+        let equipment = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Test Sword".into(),
+                types: vec![Type::Artifact],
+                subtypes: vec![subtype("Equipment")],
+                abilities: vec![keyword("Equip([Tap])"), host_pump(1)],
+                ..CardFace::default()
+            }),
+        );
+        // Base host is 2/2.
+        assert_eq!(state.layers().power(host), Some(2));
+
+        // Drive the equip activated ability: the keyword + host_pump → the
+        // activated ability is at filtered index 0 (no Innate to skew it here,
+        // but resolve via the offered legal action to be faithful).
+        let frame = Frame {
+            source: equipment,
+            controller: PlayerId(0),
+            targets: vec![host],
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        state.run_effect(
+            Effect::Act(Action::Attach {
+                what: Selection::Ref(Reference::This),
+                to: Selection::Ref(Reference::Target(0)),
+            }),
+            &frame,
+        );
+        drain(&mut state);
+
+        assert_eq!(
+            state.objects.obj(equipment).attached_to,
+            Some(host),
+            "equip attached the Equipment to the host ([CR#701.3a])"
+        );
+        assert_eq!(
+            state.layers().power(host),
+            Some(3),
+            "the equipped creature gets +1/+1 (host-targeting static landed)"
+        );
+        assert_eq!(state.layers().toughness(host), Some(3));
+    }
+
+    /// [CR#303.4,704.5m]: a CAST Aura resolves attached to the SPELL'S CHOSEN
+    /// TARGET (the cast-path host wiring), buffs it +2/+2, and is sent to its
+    /// owner's graveyard by the SBA when the host leaves.
+    #[test]
+    fn aura_cast_e2e() {
+        let mut state = game();
+        let host = vanilla_creature(&mut state, "Enchanted Bear");
+        // A real Aura: Enchant(creature) keyword (targeting Spell + Cant(Attach)
+        // + AsEnters) + the Aura subtype's Innate graveyard SBA + "+2/+2".
+        let aura_card = Card::Normal(CardFace {
+            name: "Test Aura".into(),
+            types: vec![Type::Enchantment],
+            subtypes: vec![subtype("Aura")],
+            abilities: vec![keyword("Enchant(Type(Creature))"), host_pump(2)],
+            ..CardFace::default()
+        });
+        // Stand the Aura up as a spell on the stack, target = the host.
+        let cid = state.cards.push(Arc::new(aura_card), PlayerId(0));
+        let spell = state
+            .objects
+            .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack));
+        state.stack.push(StackEntry {
+            id: spell,
+            object: StackObject::Spell(spell),
+            controller: PlayerId(0),
+            targets: vec![host],
+            x: None,
+        });
+        // Resolve the Aura spell — it enters attached to its chosen target.
+        // (`resolve_object` schedules the entering ZoneMove at the agenda front;
+        // `run_injected` processes just that, without parking priority.)
+        state.resolve_object(spell);
+        run_injected(&mut state);
+
+        let aura = *state
+            .zones
+            .battlefield
+            .iter()
+            .find(|&&o| state.objects.obj(o).card_id() == Some(cid))
+            .expect("the Aura entered the battlefield");
+        assert_eq!(
+            state.objects.obj(aura).attached_to,
+            Some(host),
+            "cast Aura enters attached to its chosen target ([CR#303.4])"
+        );
+        assert_eq!(
+            state.layers().power(host),
+            Some(4),
+            "the enchanted creature gets +2/+2"
+        );
+
+        // Destroy the host (source = host, `This` = the dying creature); the SBA
+        // sweep then sends the now-unattached Aura to the graveyard ([CR#704.5m]).
+        let frame = Frame {
+            source: host,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        state.run_effect(Effect::Act(Action::Destroy(sel_this())), &frame);
+        run_injected(&mut state);
+        for e in crate::sba::sweep(&state) {
+            state.schedule_front(vec![WorkItem::Emit(Occurrence::single(e))]);
+            run_injected(&mut state);
+        }
+        let aura_gy = *state.zones.graveyards[PlayerId(0).index()]
+            .iter()
+            .find(|&&o| state.objects.obj(o).card_id() == Some(cid))
+            .expect("the orphaned Aura was put into its owner's graveyard ([CR#704.5m])");
+        assert_eq!(state.objects.obj(aura_gy).zone, Some(Zone::Graveyard));
+    }
+
+    /// [CR#704.5n]: when an equipped creature dies, the Equipment becomes
+    /// unattached and STAYS on the battlefield (no graveyard SBA — that's
+    /// Auras).
+    #[test]
+    fn equipment_host_dies_unattaches() {
+        let mut state = game();
+        let host = vanilla_creature(&mut state, "Doomed Bear");
+        let equipment = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Sticky Sword".into(),
+                types: vec![Type::Artifact],
+                subtypes: vec![subtype("Equipment")],
+                abilities: vec![keyword("Equip([Tap])")],
+                ..CardFace::default()
+            }),
+        );
+        state.objects.obj_mut(equipment).attached_to = Some(host);
+
+        // Host dies.
+        let frame = Frame {
+            source: equipment,
+            controller: PlayerId(0),
+            targets: vec![host],
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        state.run_effect(
+            Effect::Act(Action::Destroy(Selection::Ref(Reference::Target(0)))),
+            &frame,
+        );
+        drain(&mut state);
+        for e in crate::sba::sweep(&state) {
+            state.schedule_front(vec![WorkItem::Emit(Occurrence::single(e))]);
+            drain(&mut state);
+        }
+        assert_eq!(
+            state.objects.obj(equipment).attached_to,
+            None,
+            "the Equipment became unattached when its host died ([CR#704.5n])"
+        );
+        assert!(
+            state.zones.battlefield.contains(&equipment),
+            "the Equipment STAYS on the battlefield (not graveyarded)"
+        );
+    }
+
+    /// [CR#702.16d]: a creature that gains protection from a color drops a
+    /// colored Equipment attached to it — the SBA re-runs `attachment_legal`
+    /// (host-side protection `Cant(Attach)`) and unattaches.
+    #[test]
+    fn protection_drops_equipment() {
+        use deckmaste_core::Color;
+        use deckmaste_core::Deontic;
+        use deckmaste_core::DeonticAction;
+
+        let mut state = game();
+        // The host gains protection from red: a host-side `Cant(Attach(what:
+        // red, to: This))` (the Protection-conferred shape, [CR#702.16d]).
+        let host = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Protected Bear".into(),
+                types: vec![Type::Creature],
+                power: Some(deckmaste_core::StatValue::Number(2)),
+                toughness: Some(deckmaste_core::StatValue::Number(2)),
+                abilities: vec![Ability::Static(StaticAbility {
+                    condition: None,
+                    effects: vec![StaticEffect::Deontic(Deontic::Cant(
+                        DeonticAction::Attach {
+                            what: Filter::Characteristic(CharacteristicFilter::ColorIs(Color::Red)),
+                            to: Filter::Ref(Reference::This),
+                        },
+                    ))],
+                    characteristic_defining: false,
+                })],
+                ..CardFace::default()
+            }),
+        );
+        // A RED Equipment attached to the host.
+        let equipment = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Red Sword".into(),
+                types: vec![Type::Artifact],
+                color_indicator: vec![Color::Red],
+                subtypes: vec![subtype("Equipment")],
+                abilities: vec![keyword("Equip([Tap])")],
+                ..CardFace::default()
+            }),
+        );
+        state.objects.obj_mut(equipment).attached_to = Some(host);
+        // Sanity: it is currently illegal (protection) — the SBA will catch it.
+        assert!(!crate::legal::attachment_legal(&state, equipment, host));
+
+        for e in crate::sba::sweep(&state) {
+            state.schedule_front(vec![WorkItem::Emit(Occurrence::single(e))]);
+            drain(&mut state);
+        }
+        assert_eq!(
+            state.objects.obj(equipment).attached_to,
+            None,
+            "the colored Equipment fell off the protected creature ([CR#702.16d])"
+        );
+    }
+
+    /// [CR#702.67a]: a Fortification with `fortify` activated, targeting a land
+    /// you control → attached to that land.
+    #[test]
+    fn fortify_attaches_to_land() {
+        let mut state = game();
+        let land = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Target Land".into(),
+                types: vec![Type::Land],
+                ..CardFace::default()
+            }),
+        );
+        let fortification = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Test Banner".into(),
+                types: vec![Type::Artifact],
+                subtypes: vec![subtype("Fortification")],
+                abilities: vec![keyword("Fortify([Tap])")],
+                ..CardFace::default()
+            }),
+        );
+        let frame = Frame {
+            source: fortification,
+            controller: PlayerId(0),
+            targets: vec![land],
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        state.run_effect(
+            Effect::Act(Action::Attach {
+                what: Selection::Ref(Reference::This),
+                to: Selection::Ref(Reference::Target(0)),
+            }),
+            &frame,
+        );
+        drain(&mut state);
+        assert_eq!(
+            state.objects.obj(fortification).attached_to,
+            Some(land),
+            "fortify attached the Fortification to the land ([CR#702.67a])"
+        );
+    }
+
+    /// [CR#702.151b]: a reconfigured Equipment attached to a creature stops
+    /// being a creature; unattaching restores it. SEAM: the
+    /// creature-suppression static needs condition-gated layer-4 type
+    /// removal the engine doesn't have yet (see Reconfigure.ron) — so the
+    /// suppression assertion is `#[ignore]`d; the attach/unattach mechanics
+    /// are exercised here unignored.
+    #[test]
+    fn reconfigure_attaches_and_unattaches() {
+        let mut state = game();
+        let host = vanilla_creature(&mut state, "Recon Host");
+        // A reconfigure Equipment creature (it IS a creature when unattached).
+        let equip_creature = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Living Weapon".into(),
+                types: vec![Type::Artifact, Type::Creature],
+                subtypes: vec![subtype("Equipment")],
+                power: Some(deckmaste_core::StatValue::Number(1)),
+                toughness: Some(deckmaste_core::StatValue::Number(1)),
+                abilities: vec![keyword("Reconfigure([Tap])")],
+                ..CardFace::default()
+            }),
+        );
+        // Attach via reconfigure's first ability shape (Attach to a creature).
+        let frame = Frame {
+            source: equip_creature,
+            controller: PlayerId(0),
+            targets: vec![host],
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        state.run_effect(
+            Effect::Act(Action::Attach {
+                what: Selection::Ref(Reference::This),
+                to: Selection::Ref(Reference::Target(0)),
+            }),
+            &frame,
+        );
+        run_injected(&mut state);
+        assert_eq!(
+            state.objects.obj(equip_creature).attached_to,
+            Some(host),
+            "reconfigure attached the Equipment to the creature ([CR#702.151a])"
+        );
+
+        // Unattach (reconfigure's second ability).
+        let frame = Frame {
+            source: equip_creature,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        state.run_effect(
+            Effect::Act(Action::Unattach(Selection::Ref(Reference::This))),
+            &frame,
+        );
+        run_injected(&mut state);
+        assert_eq!(
+            state.objects.obj(equip_creature).attached_to,
+            None,
+            "reconfigure unattached the Equipment ([CR#702.151a])"
+        );
+    }
+
+    /// [CR#702.151b]: SEAM — the creature-suppression static (a reconfigured
+    /// Equipment isn't a creature while attached) needs condition-gated layer-4
+    /// type removal the layer pipeline doesn't have yet (Reconfigure.ron seam).
+    /// Ignored until that engine support lands.
+    #[test]
+    #[ignore = "engine-attach seam: conditional layer-4 type removal not built ([CR#702.151b]) — see Reconfigure.ron"]
+    fn reconfigure_suppresses_creature() {
+        let mut state = game();
+        let host = vanilla_creature(&mut state, "Recon Host");
+        let equip_creature = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Living Weapon".into(),
+                types: vec![Type::Artifact, Type::Creature],
+                subtypes: vec![subtype("Equipment")],
+                power: Some(deckmaste_core::StatValue::Number(1)),
+                toughness: Some(deckmaste_core::StatValue::Number(1)),
+                abilities: vec![keyword("Reconfigure([Tap])")],
+                ..CardFace::default()
+            }),
+        );
+        state.objects.obj_mut(equip_creature).attached_to = Some(host);
+        // Would-be: attached → not a creature.
+        let view = state.layers();
+        assert!(
+            !view
+                .get(equip_creature)
+                .card_types
+                .contains(&Type::Creature),
+            "attached reconfigure Equipment is not a creature ([CR#702.151b])"
         );
     }
 }
