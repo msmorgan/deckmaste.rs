@@ -1,6 +1,5 @@
 //! Drives the engine's step/submit loop, auto-resolving decisions the UI does
 //! not yet handle through a `sim::Strategy`.
-use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
 use deckmaste_engine::DecisionError;
 use deckmaste_engine::GameOutcome;
@@ -94,25 +93,6 @@ impl Driver {
     /// As [`Driver::drive`].
     pub fn run_to_end(&mut self, budget: usize) -> Result<Stop, DecisionError> {
         self.drive(|_| false, budget)
-    }
-
-    /// Pass priority for the current holder.
-    ///
-    /// # Errors
-    /// If the engine rejects the pass (no priority pending).
-    #[allow(dead_code)]
-    pub fn pass(&mut self) -> Result<(), DecisionError> {
-        self.state.submit_decision(Decision::Act(Action::Pass))
-    }
-
-    /// Let the strategy answer the given pending decision.
-    ///
-    /// # Errors
-    /// If the strategy's answer is rejected.
-    #[allow(dead_code)]
-    pub fn auto(&mut self, pending: &PendingDecision) -> Result<(), DecisionError> {
-        let decision = self.strategy.decide(&self.state, pending);
-        self.state.submit_decision(decision)
     }
 
     /// Submit a decision, then run to the next interactive stop.
