@@ -926,11 +926,13 @@ impl GameState {
                      are the engine-trigger-events bindings seam"
                 )
             }),
-            // [CR#107.3a]: X is announced as part of casting/activating and
-            // read back during resolution — the announce-slot plumbing lives
-            // in cast.rs (engine-deontic-polarities lane owns it; see the
-            // narrowed `engine-resolve-count-x` todo item).
-            Count::X => todo!("engine-resolve-count-x: X rides the announce slot ([CR#107.3a])"),
+            // [CR#107.3a]: while a spell/ability is on the stack, X equals the
+            // value announced as it was cast (engine-x-costs threads it onto the
+            // resolution frame). 107.3f text-X chosen at resolution is a separate
+            // seam.
+            Count::X => frame.x.expect(
+                "Count::X on a frame with no announced X — a card referenced X without an {X} cost",
+            ),
             // [CR#608.2i] history reads off the log — the evaluating player is
             // the frame's controller.
             Count::Query(key) => self.eval_query(*key, frame.controller),
@@ -2018,6 +2020,20 @@ mod tests {
         }
         assert_eq!(state.objects.obj(bear).damage, 3);
         assert_eq!(state.players[0].life, 23);
+    }
+
+    #[test]
+    fn count_x_reads_announced_value() {
+        let (state, src) = bear_on_field();
+        let frame = Frame {
+            source: src,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+            x: Some(3),
+        };
+        assert_eq!(state.eval_count(&Count::X, &frame), 3);
     }
 
     #[test]
