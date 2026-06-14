@@ -92,7 +92,7 @@ struct Frame<'de> {
 
 /// Invocation arguments, as raw source each, shaped like the signature.
 #[derive(Clone)]
-enum FrameArgs<'de> {
+pub(crate) enum FrameArgs<'de> {
     Positional(Vec<&'de str>),
     /// Name, raw source, and whether the source is a filled-in default
     /// (excluded from synthesized invocations so short calls round-trip).
@@ -1128,7 +1128,7 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
         // resolve exactly as they would against the body itself.
         let remembers = self.ctx.read.macros.remembers_expansion(self.name);
         let source = if remembers {
-            let synthesized = synthesize_expanded(ident, &frame.args, def.body());
+            let synthesized = synthesize_expanded(ident, &frame.args, def.template(), def.body());
             self.ctx.read.splice(synthesized)
         } else {
             def.body()
@@ -1142,11 +1142,20 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
 
 /// Builds the `Expanded(...)` wrapper text the macro reader re-reads when a
 /// remembering kind's macro expands: `Expanded(name: "M", value: <body>)`, or
-/// with an `args:` field when the invocation carried arguments. Each raw
-/// argument source is escaped as a RON string with `{arg:?}` (RON's string
-/// syntax matches Rust's debug formatting). The body is spliced verbatim into
-/// the `value:` position, where it re-reads with the frame in scope.
-fn synthesize_expanded(name: Ident, args: &FrameArgs, body: &str) -> String {
+/// with `template:` and/or `args:` fields when the macro has a template or the
+/// invocation carried arguments. Each raw argument source is escaped as a RON
+/// string with `{arg:?}` (RON's string syntax matches Rust's debug formatting).
+/// The body is spliced verbatim into the `value:` position, where it re-reads
+/// with the frame in scope.
+///
+/// Field order: `name`, then `template` (if any), then `args` (if any), then
+/// `value`. Callers with no template receive byte-identical output to before.
+pub(crate) fn synthesize_expanded(
+    name: Ident,
+    args: &FrameArgs,
+    template: Option<&str>,
+    body: &str,
+) -> String {
     use std::fmt::Write as _;
 
     // `Ident`'s Debug is the tuple-struct form `Ident("…")`; the RON string
@@ -1157,17 +1166,22 @@ fn synthesize_expanded(name: Ident, args: &FrameArgs, body: &str) -> String {
     // text is carried verbatim, quotes and all.
     let name = name.as_str();
     let mut out = String::new();
+    write!(out, "Expanded(name: {name:?}").unwrap();
+    if let Some(t) = template {
+        // `Option<String>` with implicit_some enabled: bare value is treated as
+        // `Some(…)`. Use the explicit `Some(…)` form so it works under either
+        // dialect — the reader accepts both.
+        write!(out, ", template: Some({t:?})").unwrap();
+    }
     match args {
-        FrameArgs::Positional(args) if args.is_empty() => {
-            write!(out, "Expanded(name: {name:?}, value: {body})").unwrap();
-        }
+        FrameArgs::Positional(args) if args.is_empty() => {}
         FrameArgs::Positional(args) => {
-            write!(out, "Expanded(name: {name:?}, args: Positional([").unwrap();
+            write!(out, ", args: Positional([").unwrap();
             for (i, arg) in args.iter().enumerate() {
                 let sep = if i > 0 { ", " } else { "" };
                 write!(out, "{sep}{:?}", arg.trim()).unwrap();
             }
-            write!(out, "]), value: {body})").unwrap();
+            write!(out, "])").unwrap();
         }
         FrameArgs::Named(args) => {
             // Filled defaults are excluded: the write side then reproduces
@@ -1175,15 +1189,16 @@ fn synthesize_expanded(name: Ident, args: &FrameArgs, body: &str) -> String {
             // all-defaulted call keeps `Named([])` — deliberately NOT the
             // no-args form, which serializes as the bare name a named macro
             // can't be invoked as; `Named([])` writes `M()`, which re-reads.
-            write!(out, "Expanded(name: {name:?}, args: Named([").unwrap();
+            write!(out, ", args: Named([").unwrap();
             let supplied = args.iter().filter(|(_, _, defaulted)| !defaulted);
             for (i, (key, arg, _)) in supplied.enumerate() {
                 let sep = if i > 0 { ", " } else { "" };
                 write!(out, "{sep}({:?}, {:?})", key.as_str(), arg.trim()).unwrap();
             }
-            write!(out, "]), value: {body})").unwrap();
+            write!(out, "])").unwrap();
         }
     }
+    write!(out, ", value: {body})").unwrap();
     out
 }
 

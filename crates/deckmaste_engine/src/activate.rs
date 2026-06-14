@@ -300,6 +300,7 @@ mod tests {
         let expanded = Ability::Expanded(Expansion {
             name: Ident::new("Foo"),
             args: ExpansionArgs::none(),
+            template: None,
             value: Box::new(Ability::Activated(act)),
         });
         assert!(
@@ -366,6 +367,7 @@ mod tests {
         let cost = vec![CostComponent::Expanded(Expansion {
             name: "Q".into(),
             args: ExpansionArgs::none(),
+            template: None,
             value: Box::new(CostComponent::Untap),
         })];
         let summary = cost_summary(&cost).expect("a wrapped {Q} should summarize");

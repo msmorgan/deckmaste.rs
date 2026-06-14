@@ -196,6 +196,7 @@ fn subtype_macro(name: &str, params: Vec<ParamType>, body: &str) -> MacroDef {
         name: name.into(),
         kinds: vec!["Subtype".into()],
         params: Params::Positional(params),
+        template: None,
         body: body.trim().into(),
     }
 }
@@ -292,6 +293,7 @@ fn unknown_kinds_are_an_error() {
             name: "Bogus".into(),
             kinds: vec!["Sorcery".into()],
             params: Params::default(),
+            template: None,
             body: "()".into(),
         })
         .unwrap_err();
@@ -318,6 +320,7 @@ fn enum_positions_expand_unknown_variants() {
             name: "Flying".into(),
             kinds: vec!["Ability".into()],
             params: Params::default(),
+            template: None,
             body: "Static(effects: [CantAttack])".into(),
         })
         .unwrap();
@@ -389,6 +392,7 @@ fn macros_are_namespaced_by_kind() {
             name: "Self".into(),
             kinds: vec!["Subtype".into(), "Filter".into()],
             params: Params::Positional(vec![ParamType::plain("Any")]),
+            template: None,
             body: "Param(0)".into(),
         })
         .unwrap();
@@ -424,6 +428,7 @@ fn macros_expand_inside_expansion_bodies() {
             name: "Inner".into(),
             kinds: vec!["Filter".into()],
             params: Params::default(),
+            template: None,
             body: "AllOf([Type(Creature)])".into(),
         })
         .unwrap();
@@ -432,6 +437,7 @@ fn macros_expand_inside_expansion_bodies() {
             name: "Outer".into(),
             kinds: vec!["Filter".into()],
             params: Params::default(),
+            template: None,
             body: "OneOf([Any, Inner])".into(),
         })
         .unwrap();
@@ -463,6 +469,7 @@ fn effect_positions_expand_macros() {
             name: "Investigate".into(),
             kinds: vec!["Effect".into()],
             params: Params::default(),
+            template: None,
             body: "DrawCards(1)".into(),
         })
         .unwrap();
@@ -486,6 +493,7 @@ fn remembering_chains_nest_expanded() {
             name: "Inner".into(),
             kinds: vec!["Ability".into()],
             params: Params::default(),
+            template: None,
             body: "Static(effects: [CantAttack])".into(),
         })
         .unwrap();
@@ -494,6 +502,7 @@ fn remembering_chains_nest_expanded() {
             name: "Outer".into(),
             kinds: vec!["Ability".into()],
             params: Params::default(),
+            template: None,
             body: "Inner".into(),
         })
         .unwrap();
@@ -526,6 +535,7 @@ fn remembered_invocations_round_trip_as_invocations() {
             name: "Flying".into(),
             kinds: vec!["Ability".into()],
             params: Params::default(),
+            template: None,
             body: "Static(effects: [CantAttack])".into(),
         })
         .unwrap();
@@ -534,6 +544,7 @@ fn remembered_invocations_round_trip_as_invocations() {
             name: "OfType".into(),
             kinds: vec!["Filter".into()],
             params: Params::Positional(vec![ParamType::plain("Any")]),
+            template: None,
             body: "Type(Param(0))".into(),
         })
         .unwrap();
@@ -555,6 +566,7 @@ fn argument_source_survives_verbatim() {
             name: "NamedAs".into(),
             kinds: vec!["Filter".into()],
             params: Params::Positional(vec![ParamType::plain("String")]),
+            template: None,
             body: "Named(Param(0))".into(),
         })
         .unwrap();
@@ -615,6 +627,7 @@ fn named_parameters_invoke_struct_shaped() {
                 ]
                 .into(),
             ),
+            template: None,
             body: r"CardFace(
                 name: Param(name),
                 mana_cost: [Generic(Param(cost))],
@@ -653,6 +666,7 @@ fn named_parameters_at_enum_positions() {
             name: "Boast".into(),
             kinds: vec!["Ability".into()],
             params: Params::Named([("cost".into(), ParamType::plain("String"))].into()),
+            template: None,
             body: "Static(effects: [CantAttack])".into(),
         })
         .unwrap();
@@ -723,6 +737,7 @@ fn params_resolve_as_enum_variant_contents() {
             name: "Vanilla".into(),
             kinds: vec!["CardFace".into()],
             params: Params::Positional(vec![ParamType::plain("String"), ParamType::plain("Any")]),
+            template: None,
             body: r"CardFace(
                 name: Param(0),
                 mana_cost: [Hybrid(Generic(Param(1)), White), Green],
@@ -788,6 +803,7 @@ fn filter_macros_expand_under_quantity() {
             name: "AnyTargetish".into(),
             kinds: vec!["Filter".into()],
             params: Params::default(),
+            template: None,
             body: "OneOf([Any, Type(Creature)])".into(),
         })
         .unwrap();
@@ -816,6 +832,7 @@ fn quantity_macros_expand_and_are_remembered() {
             name: "DevotionIsh".into(),
             kinds: vec!["Quantity".into()],
             params: Params::default(),
+            template: None,
             body: "CountOf(Type(Creature))".into(),
         })
         .unwrap();
@@ -841,6 +858,7 @@ fn newtype_variant_struct_content_in_a_body() {
             name: "Beefy".into(),
             kinds: vec!["Filter".into()],
             params: Params::default(),
+            template: None,
             body: "Power(min: 2)".into(),
         })
         .unwrap();
@@ -885,6 +903,7 @@ fn param_holes_resolve_at_quantity_positions() {
             name: "BoltFor".into(),
             kinds: vec!["Effect".into()],
             params: Params::Positional(vec![ParamType::plain("Any")]),
+            template: None,
             body: "DealDamage(Target(0), Param(0))".into(),
         })
         .unwrap();
@@ -931,6 +950,7 @@ fn any_accepts_every_shape() {
             name: "Echo".into(),
             kinds: vec!["Filter".into()],
             params: Params::Positional(vec![ParamType::plain("Any")]),
+            template: None,
             body: "Param(0)".into(),
         })
         .unwrap();
@@ -961,6 +981,7 @@ fn injected_param_types_validate() {
             name: "Repeat".into(),
             kinds: vec!["Effect".into()],
             params: Params::Positional(vec![ParamType::plain("Number")]),
+            template: None,
             body: "DrawCards(Param(0))".into(),
         })
         .unwrap();
@@ -986,6 +1007,91 @@ fn macro_defs_read_through_the_macro_aware_reader() {
     assert_eq!(def.name, "Bears");
     assert_eq!(def.kinds, vec![Ident::from("Filter")]);
     assert_eq!(def.body(), "Type(Creature)");
+}
+
+/// `template:` metadata is captured in `MacroDef` when present, and `None`
+/// when absent.
+#[test]
+fn macro_def_captures_template() {
+    let with: MacroDef =
+        def(r#"(name: "Bears", kinds: [Filter], template: "bears", body: Type(Creature))"#);
+    assert_eq!(with.template(), Some("bears"));
+
+    let without: MacroDef = def(r#"(name: "Bears", kinds: [Filter], body: Type(Creature))"#);
+    assert_eq!(without.template(), None);
+}
+
+/// `synthesize_expanded` emits `template: Some("…")` when a template is given,
+/// and emits no template field when absent — byte-identical to the pre-template
+/// form.
+#[test]
+fn synthesize_expanded_emits_template_when_present() {
+    use crate::expand::FrameArgs;
+    use crate::expand::synthesize_expanded;
+
+    let no_args = FrameArgs::Positional(vec![]);
+
+    // With template: the output contains `, template: Some("…")`.
+    let with_tmpl = synthesize_expanded("M".into(), &no_args, Some("any target"), "Body");
+    assert!(
+        with_tmpl.contains(r#"template: Some("any target")"#),
+        "expected template field in: {with_tmpl}"
+    );
+    assert!(
+        with_tmpl.starts_with(r#"Expanded(name: "M", template:"#),
+        "{with_tmpl}"
+    );
+
+    // Without template: byte-identical to the pre-template form.
+    let no_tmpl = synthesize_expanded("M".into(), &no_args, None, "Body");
+    assert_eq!(no_tmpl, r#"Expanded(name: "M", value: Body)"#);
+}
+
+/// When a macro with a `template:` field is expanded at a remembering kind,
+/// the resulting `Expansion.template` carries the template text.
+#[test]
+fn template_is_carried_on_expansion() {
+    let mut macros = empty();
+    macros
+        .insert(
+            &options()
+                .from_str::<MacroDef>(
+                    r#"(
+                    name: "Flying",
+                    kinds: [Ability],
+                    template: "flying",
+                    body: Static(effects: [CantAttack]),
+                )"#,
+                )
+                .unwrap(),
+        )
+        .unwrap();
+
+    let ability: Ability = macros.read_str("Flying").unwrap();
+    let Ability::Expanded(expanded) = ability else {
+        panic!("expected a remembered ability, got {ability:?}");
+    };
+    assert_eq!(expanded.template.as_deref(), Some("flying"));
+
+    // A macro WITHOUT a template leaves it as None.
+    macros
+        .insert(
+            &options()
+                .from_str::<MacroDef>(
+                    r#"(
+                    name: "Reach",
+                    kinds: [Ability],
+                    body: Static(effects: [CantAttack]),
+                )"#,
+                )
+                .unwrap(),
+        )
+        .unwrap();
+    let ability2: Ability = macros.read_str("Reach").unwrap();
+    let Ability::Expanded(exp2) = ability2 else {
+        panic!("expected a remembered ability, got {ability2:?}");
+    };
+    assert_eq!(exp2.template, None);
 }
 
 /// Pins ron's private raw-value token, which the expand layer matches by
@@ -1280,6 +1386,7 @@ fn embed_host_ref_macro_routes_to_embedded_expanded() {
             name: "RefMacro".into(),
             kinds: vec!["EmbedRef".into()],
             params: Params::default(),
+            template: None,
             body: "Bare".into(),
         })
         .unwrap();
@@ -1302,6 +1409,7 @@ fn embed_host_own_macro_remembered_as_host_expanded() {
             name: "HostMacro".into(),
             kinds: vec!["EmbedHost".into()],
             params: Params::default(),
+            template: None,
             body: "Own(1)".into(),
         })
         .unwrap();
@@ -1350,6 +1458,7 @@ mod derived {
             name: "Double".into(),
             kinds: vec!["Amount".into()],
             params: Params::Positional(vec![ParamType::plain("Any")]),
+            template: None,
             body: "Twice(Param(0))".into(),
         })
         .unwrap();
@@ -1535,6 +1644,7 @@ mod derived {
             name: "Us".into(),
             kinds: vec!["Who".into()],
             params: Params::default(),
+            template: None,
             body: "Me".into(),
         })
         .unwrap();
@@ -1651,6 +1761,7 @@ mod derived {
             name: "Us".into(),
             kinds: vec!["Who".into()],
             params: Params::default(),
+            template: None,
             body: "Me".into(),
         })
         .unwrap();
@@ -1682,6 +1793,7 @@ mod derived {
             name: "Us".into(),
             kinds: vec!["Who".into()],
             params: Params::default(),
+            template: None,
             body: "Me".into(),
         })
         .unwrap();

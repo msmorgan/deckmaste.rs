@@ -2250,6 +2250,7 @@ mod tests {
         let expanded = PlayerAction::Expanded(Expansion {
             name: "GainTwo".into(),
             args: ExpansionArgs::none(),
+            template: None,
             value: Box::new(body.clone()),
         });
         assert_eq!(

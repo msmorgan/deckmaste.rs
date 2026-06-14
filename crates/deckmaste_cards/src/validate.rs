@@ -451,6 +451,7 @@ mod tests {
                 cost: vec![CostComponent::Expanded(Expansion {
                     name: "BadCost".into(),
                     args: ExpansionArgs::none(),
+                    template: None,
                     value: Box::new(CostComponent::Do(PlayerAction::Draw(Count::Literal(1)))),
                 })],
                 condition: None,

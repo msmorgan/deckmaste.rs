@@ -111,6 +111,10 @@ pub struct MacroDef {
     pub kinds: Vec<Ident>,
     #[serde(default)]
     pub params: Params,
+    /// Optional human-readable rules-text template (metadata): `~` = self,
+    /// `{i}` = the i-th positional arg. Consumed by the card-text renderer.
+    #[serde(default)]
+    pub template: Option<String>,
     /// Raw RON source with `Param(...)` holes.
     #[serde(deserialize_with = "raw_body")]
     pub(crate) body: Box<str>,
@@ -171,6 +175,9 @@ fn kind_names<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Ident>, 
 impl MacroDef {
     #[must_use]
     pub fn body(&self) -> &str { &self.body }
+
+    #[must_use]
+    pub fn template(&self) -> Option<&str> { self.template.as_deref() }
 }
 
 /// Why a macro couldn't be registered.
@@ -479,6 +486,7 @@ impl MacroSet {
             name,
             kinds: vec![kind.into()],
             params: Params::default(),
+            template: None,
             body: declaration.trim().into(),
         })
     }
@@ -518,6 +526,7 @@ impl MacroSet {
             name,
             kinds: vec![kind.into()],
             params: Params::default(),
+            template: None,
             body: declaration.trim().into(),
         })
     }
