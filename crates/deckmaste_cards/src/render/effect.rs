@@ -97,6 +97,8 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
             fragment::library_position(position),
         ),
         PlayerAction::Create(count, spec) => create_text(count, spec),
+        PlayerAction::Tap(sel) => format!("Tap {}.", fragment::selection(sel, ctx)),
+        PlayerAction::Untap(sel) => format!("Untap {}.", fragment::selection(sel, ctx)),
         other => format!("[unrendered: {other:?}]."),
     }
 }
