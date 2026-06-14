@@ -56,7 +56,8 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
     loop {
         board.sync(&driver.state);
         let view = driver.state.layers();
-        terminal.draw(|frame| ui::render(frame, &driver.state, &view, &board, &stop))?;
+        terminal
+            .draw(|frame| ui::render(frame, &driver.state, &view, &board, &stop, None, None))?;
 
         let Event::Key(key) = event::read()? else {
             continue;
