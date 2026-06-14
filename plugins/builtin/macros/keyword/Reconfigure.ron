@@ -1,0 +1,46 @@
+// Reconfigure ([CR#702.151a]) — an activated ability of an Equipment creature:
+// "[cost]: Attach to target creature you control. [cost]: Unattach. Activate
+// only as a sorcery." Two activated abilities over the shared Attach/Unattach
+// primitives (the Land twin is Fortify; the Creature twin is Equip):
+//   1. attach to ANOTHER target creature you control ([CR#702.151a]);
+//   2. unattach, if currently attached to a creature ([CR#702.151a]).
+//
+// SEAM ([CR#702.151b]): "As long as it's attached to a permanent, this isn't a
+// creature." This is a CONDITIONAL layer-4 type-removal static gated on
+// `Is(This, AttachedTo(Creature))`. It is NOT authored here because the engine
+// can't apply it correctly yet: the layer `gather` skips static `condition`s
+// ([CR#611.3a] seam, layer.rs) — so a conditional static applies
+// UNCONDITIONALLY — AND there is no type-removal `Modification` ("remove the
+// creature card type"). Authoring it now would make a reconfigured Equipment
+// stop being a creature even while UNATTACHED. Building it needs (a) condition
+// evaluation in gather and (b) a type-removal Modification — both larger than
+// this macro. See the e2e test `reconfigure_suppresses_creature` (#[ignore]).
+// TODO(engine-attach Stage 4 seam): add condition-gated layer-4 type removal,
+// then confer the [CR#702.151b] suppression static here.
+(
+    name: "Reconfigure",
+    template: "reconfigure {0}",
+    kinds: [KeywordAbility],
+    params: [Any],
+    body: Composite(
+        name: "Reconfigure",
+        abilities: [
+            Activated(
+                cost: Param(0),
+                window: SorcerySpeed,
+                targets: [Target(Exactly(Literal(1)), AllOf([
+                    Creature,
+                    ControlledBy(Ref(You)),
+                    Not(Ref(This)),
+                ]))],
+                effect: Attach(what: This, to: Target(0)),
+            ),
+            Activated(
+                cost: Param(0),
+                window: SorcerySpeed,
+                condition: Is(This, AttachedTo(Creature)),
+                effect: Unattach(This),
+            ),
+        ],
+    ),
+)

@@ -1,0 +1,21 @@
+// Fortify = an activated ability of a Fortification ([CR#702.67a]): "[cost]:
+// attach this permanent to target land you control. Activate only as a sorcery."
+// The Land twin of Equip ([CR#702.6a]); the attach RELATION + legality sweeps
+// ([CR#704.5n]) are engine work behind the Attach verb. The host restriction
+// (Fortification → land) is the SUBTYPE's Innate `Cant(Attach)` ([CR#301.6]),
+// not this keyword.
+(
+    name: "Fortify",
+    template: "fortify {0}",
+    kinds: [KeywordAbility],
+    params: [Any],
+    body: Composite(
+        name: "Fortify",
+        abilities: [Activated(
+            cost: Param(0),
+            window: SorcerySpeed,
+            targets: [Target(Exactly(Literal(1)), AllOf([Type(Land), ControlledBy(Ref(You))]))],
+            effect: Attach(what: This, to: Target(0)),
+        )],
+    ),
+)
