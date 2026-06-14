@@ -18,7 +18,9 @@ pub(crate) fn resolve_line(line: &str, _kind: CardKind) -> anyhow::Result<Option
     let Some((cost_clause, effect_clause)) = line.split_once(": ") else {
         return Ok(None);
     };
-    let Some(cost) = cost::parse_cost(cost_clause, VariableMana::Decline)? else {
+    // Variable activation costs parse now: the engine announces X onto the
+    // activation slot and concretizes the cost (engine-x-costs, [CR#601.2b]).
+    let Some(cost) = cost::parse_cost(cost_clause, VariableMana::Allow)? else {
         return Ok(None);
     };
     let Some(parsed) = effect::parse_clause(effect_clause) else {
@@ -157,8 +159,16 @@ mod tests {
         // Discard riders decline.
         assert!(act("Discard a card at random: ~ deals 1 damage to any target.").is_none());
         assert!(act("Discard your hand: Draw two cards.").is_none());
-        // Variable activation costs decline.
-        assert!(act("{X}: Draw a card.").is_none());
+    }
+
+    #[test]
+    fn variable_activation_cost_parses() {
+        // [CR#601.2b]: variable activation costs now parse (engine-x-costs); the
+        // rendered frame carries the printed `{X}` as a `Variable` mana symbol.
+        assert_eq!(
+            act("{X}: Draw a card.").as_deref(),
+            Some("Activated(cost: [Mana([Variable])], effect: Draw(1))")
+        );
     }
 
     #[test]

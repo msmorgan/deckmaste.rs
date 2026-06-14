@@ -4,6 +4,7 @@ use std::sync::Arc;
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Card;
 use deckmaste_core::Phase;
+use deckmaste_core::Zone;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
 use deckmaste_engine::GameConfig;
@@ -309,5 +310,85 @@ fn non_x_cast_surfaces_no_choose_x() {
             StepOutcome::NeedsDecision(PendingDecision::ChooseXValue { .. })
         ),
         "a non-X cast must not surface ChooseXValue, got {stop:?}"
+    );
+}
+
+// --- activated {X} ability: announce X on the activation slot too ------------
+
+/// Player 0 holds `Artifact X-activated Draw` ({X}: draw X) and Mountains;
+/// player 1 holds Mountains.
+fn artifact_x_game(seed: u64) -> GameState {
+    let art = Arc::new(testing().card("Artifact X-activated Draw").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let mut p0 = vec![Arc::clone(&art); 5];
+    p0.extend(vec![Arc::clone(&mountain); 10]);
+    GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck: p0 },
+            PlayerConfig {
+                deck: vec![Arc::clone(&mountain); 15],
+            },
+        ],
+        seed,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    })
+}
+
+#[test]
+fn activate_x_draw_announces_pays_and_draws_x() {
+    let mut state = artifact_x_game(1);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    // Force the artifact onto the battlefield (no cast pipeline needed here).
+    let art = find_in_hand(&state, PlayerId(0), "Artifact X-activated Draw");
+    state.zones.hands[0].retain(|&o| o != art);
+    state.objects.obj_mut(art).zone = Some(Zone::Battlefield);
+    state.zones.battlefield.push(art);
+    // Float two generic-payable mana, re-derive priority with the artifact in play.
+    state.player_mut(PlayerId(0)).mana_pool.add(red(), 2);
+    resurface_priority(&mut state);
+    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+
+    // Activate ability index 0 of the artifact (the {X}: Draw X ability).
+    let act = Action::ActivateAbility {
+        object: art,
+        ability: 0,
+    };
+    assert!(
+        legal.contains(&act),
+        "the {{X}} activated ability is offered: {legal:?}"
+    );
+    let library_before = state.zones.libraries[0].len();
+    state.submit_decision(Decision::Act(act)).unwrap();
+
+    // [CR#601.2b]: X is announced first — on the activation slot too.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseXValue { player }) = stop else {
+        panic!("expected ChooseXValue, got {stop:?}");
+    };
+    assert_eq!(player, PlayerId(0));
+    state.submit_decision(Decision::XValue(2)).unwrap();
+
+    // Pay {2} (auto), then both players pass so the ability resolves.
+    loop {
+        let (_, stop) = step_to_stop(&mut state);
+        match stop {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+                let pay = state.auto_pay_pending();
+                state.submit_decision(Decision::Pay(pay)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                if state.stack.is_empty() {
+                    break;
+                }
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            other => panic!("unexpected stop: {other:?}"),
+        }
+    }
+    assert_eq!(
+        state.zones.libraries[0].len(),
+        library_before - 2,
+        "the activated ability drew X=2 cards"
     );
 }
