@@ -362,6 +362,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         let token = Token {
             color_indicator: vec![],

@@ -571,6 +571,7 @@ pub(crate) fn arrangement_forbidden_by(
                 controller: state.objects.obj(r.carrier_id).controller,
                 targets: Vec::new(),
                 bindings: None,
+                chosen: None,
             };
             r.count
                 .as_ref()
