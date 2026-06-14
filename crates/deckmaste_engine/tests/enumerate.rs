@@ -259,3 +259,61 @@ fn mana_cost_is_publicly_reachable_for_a_castable_spell() {
     // Lightning Bolt costs {R}: exactly one colored symbol, no generic.
     assert_eq!(cost.mana_value(), 1, "Bolt is mana value 1");
 }
+
+#[test]
+fn abilities_index_matches_activate_ability_action() {
+    // PINGER is a creature with a tap-activated non-mana ability; activation_game
+    // forces one Mountain onto p0's battlefield and stocks the deck with PINGER.
+    let mut state = activation_game(7, PINGER, 1);
+    let pinger = force_into_play(&mut state, PlayerId(0), PINGER);
+    let _legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+
+    // Find the offered ActivateAbility for the pinger and read its ability back
+    // by the SAME index — that round-trip is the public indexing contract.
+    let StepOutcome::NeedsDecision(PendingDecision::Priority { legal, .. }) = state.step() else {
+        panic!("expected priority");
+    };
+    let idx = legal
+        .iter()
+        .find_map(|a| match a {
+            Action::ActivateAbility { object, ability } if *object == pinger => Some(*ability),
+            _ => None,
+        })
+        .expect("pinger offers an activated ability");
+
+    let abilities = state.abilities(pinger);
+    assert!(
+        idx < abilities.len(),
+        "the Action index is in range of abilities()"
+    );
+    // The indexed ability resolves as an activated ability.
+    assert!(
+        state.activated_ability(pinger, idx).is_some(),
+        "activated_ability returns the activated ability at the offered index"
+    );
+}
+
+#[test]
+fn mana_ability_identifies_a_mountains_tap_for_red() {
+    let mut state = activation_game(7, PINGER, 1);
+    // The Mountain forced onto the battlefield by activation_game.
+    let mountain = *state
+        .zones
+        .battlefield
+        .iter()
+        .find(|&&o| is_card(&state, o, "Mountain"))
+        .expect("a Mountain on the battlefield");
+
+    // Its derived (basic-land-conferred) abilities include a tap-for-{R}.
+    let abilities = state.abilities(mountain);
+    let mana_idx = (0..abilities.len())
+        .find(|&i| state.mana_ability(mountain, i).is_some())
+        .expect("Mountain has a derived mana ability");
+    assert_eq!(
+        state.mana_ability(mountain, mana_idx),
+        Some((red(), 1)),
+        "Mountain taps for one red"
+    );
+    // And that same ability is an activated ability.
+    assert!(state.activated_ability(mountain, mana_idx).is_some());
+}
