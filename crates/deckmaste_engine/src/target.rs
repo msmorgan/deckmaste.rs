@@ -91,6 +91,19 @@ pub fn matches(state: &GameState, id: ObjectId, filter: &Filter) -> bool {
                     crate::object::ObjectSource::Player(p)
                         if state.designations.players.contains_key(&(p, *name)))
         }
+        // [CR#301.5,303.4]: `id` is an attachment attached to a host matching
+        // `inner` — read the attachment→host relation, then match the host.
+        Filter::Relation(deckmaste_core::RelationFilter::AttachedTo(inner)) => state
+            .objects
+            .obj(id)
+            .attached_to
+            .is_some_and(|host| matches(state, host, inner)),
+        // The inverse: `id` is a host that has some attachment matching `inner`
+        // (existential — `Attachment(Any)` means "has any attachment").
+        Filter::Relation(deckmaste_core::RelationFilter::Attachment(inner)) => state
+            .objects
+            .iter()
+            .any(|o| o.attached_to == Some(id) && matches(state, o.id, inner)),
         other => todo!("stage 2 does not evaluate filter {other:?}"),
     }
 }
@@ -306,5 +319,55 @@ mod tests {
         // Evaluating the wrapped macro reaches the battlefield creature through
         // the remembered body — delegation is transparent.
         assert!(candidates(&state, &wrapped).contains(&bear));
+    }
+
+    /// [CR#301.5,303.4]: with `a` attached to host `b` (a creature),
+    /// `AttachedTo(Creature)` admits `a`, and `Attachment(Any)` admits `b`; the
+    /// reverse pairings do not match.
+    #[test]
+    fn relation_filters_match_attachment_and_host() {
+        use deckmaste_core::CharacteristicFilter;
+        use deckmaste_core::RelationFilter;
+        use deckmaste_core::Type;
+
+        let (mut state, b) = game_with_a_bear_on_the_field();
+        // A second Grizzly Bears on the field plays the attachment `a`.
+        let a = *state.zones.hands[0]
+            .iter()
+            .find(|&&o| {
+                matches(
+                    &state,
+                    o,
+                    &Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                )
+            })
+            .expect("a second Grizzly Bears in the opening hand");
+        state.remove_from_hand(PlayerId(0), a);
+        state.objects.obj_mut(a).zone = Some(Zone::Battlefield);
+        state.zones.battlefield.push(a);
+        state.objects.obj_mut(a).attached_to = Some(b);
+
+        let creature = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));
+        let attached_to_creature =
+            Filter::Relation(RelationFilter::AttachedTo(Box::new(creature.clone())));
+        let has_any_attachment =
+            Filter::Relation(RelationFilter::Attachment(Box::new(Filter::Any)));
+
+        assert!(
+            matches(&state, a, &attached_to_creature),
+            "a is attached to a creature"
+        );
+        assert!(
+            !matches(&state, b, &attached_to_creature),
+            "b (the host) is not itself attached to anything"
+        );
+        assert!(
+            matches(&state, b, &has_any_attachment),
+            "b has an attachment (a)"
+        );
+        assert!(
+            !matches(&state, a, &has_any_attachment),
+            "a has nothing attached to it"
+        );
     }
 }
