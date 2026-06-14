@@ -347,12 +347,23 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
         // layers() → derive::abilities → layers() recursion. As a result, a
         // static ability that is itself *granted* by a layer-6 effect won't be
         // re-gathered as an effect source (no fixpoint). No fixture requires that.
+        // Flatten the printed list the same way the engine-internal
+        // enumeration does (`derive::flatten_composites`): peel `Innate`
+        // ([CR#113.12]) — a subtype rule conferred as `Innate(Static(...))`
+        // (the Aura/Equipment/Fortification attachment rules) still functions
+        // as a [CR#604.1] static — AND splice the members of a composite
+        // keyword. A `KeywordAbility`-kind macro (Changeling, Devoid) expands
+        // to `Keyword(Composite { abilities: [Static(...)] })`; without
+        // splicing, the `Static` it carries would never be gathered, so the
+        // keyword's continuous effect (devoid → colorless, changeling → every
+        // creature type) would silently do nothing. This mirrors the flat
+        // ability space `abilities_of_source` builds for the trigger scan.
+        let mut printed = Vec::new();
         for ability in crate::derive::printed_abilities(state, obj.id) {
-            // Peel `Innate` ([CR#113.12]): a subtype rule conferred as an
-            // `Innate(Static(...))` (the Aura/Equipment/Fortification
-            // attachment rules) still functions as a [CR#604.1] static, so its
-            // effects are gathered like any other.
-            let Ability::Static(sa) = ability.peel_innate() else {
+            crate::derive::flatten_composites(ability, &mut printed);
+        }
+        for ability in &printed {
+            let Ability::Static(sa) = ability else {
                 continue;
             };
             // Conditions skipped — a seam for later ([CR#611.3a]).
@@ -372,9 +383,16 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
                     Scope::Of(r) => {
                         ScopeResolved::Locked(resolve_source_relative(state, obj.id, r))
                     }
+                    // Dedup the resolved ids ([CR#613.7] deterministic id
+                    // order, mirroring `AttachedTo`'s host-set): overlapping
+                    // references (e.g. `These([AttachHostOf(This), This])` on a
+                    // self-attached object) must not apply an additive change
+                    // twice.
                     Scope::These(rs) => ScopeResolved::Locked(
                         rs.iter()
                             .flat_map(|r| resolve_source_relative(state, obj.id, r))
+                            .collect::<BTreeSet<ObjectId>>()
+                            .into_iter()
                             .collect(),
                     ),
                 };
@@ -629,13 +647,14 @@ fn apply(m: &Modification, effect_controller: PlayerId, d: &mut DerivedObject) {
         // [CR#305.7] deferred: replace land subtypes + strip abilities + grant basic
         // mana ability (no fixture yet). Do NOT implement the mana-ability construction.
         Modification::BecomeBasicLandType(_) => {}
-        // kw-changeling seam: the every-creature-type fill needs the
-        // declared creature-type registry threaded into the layer engine
-        // ([CR#702.73a,205.3m]) — loud rather than a silently typeless
-        // changeling.
-        Modification::AllCreatureTypes => {
-            todo!("kw-changeling: every-creature-type subtype fill ([CR#702.73a])")
-        }
+        // TODO(kw-changeling): every-creature-type subtype fill
+        // ([CR#702.73a,205.3m]) — no-op stub until built (reachable now that
+        // Of(This) resolves source-relative in gather). The full fill needs
+        // the declared creature-type registry threaded into the layer engine;
+        // a changeling deriving as typeless-for-now is strictly better than a
+        // panic, and matches the sibling deferred stubs in this match
+        // (`SetSubtypes`/`BecomeBasicLandType`). Do NOT implement the fill here.
+        Modification::AllCreatureTypes => {}
         // --- Layer 5: color-changing ([CR#613.1e]) ---
         Modification::AddColors(cl) => {
             let colors = Arc::make_mut(&mut c.colors);
@@ -1278,6 +1297,113 @@ mod tests {
             view.power(host),
             Some(2),
             "an unattached attachment buffs no host"
+        );
+    }
+
+    /// M1: `These` dedups its resolved id list. A static carrying
+    /// `Of: These([This, This])` with an *additive* op must apply that op only
+    /// once — without the `BTreeSet` dedup in gather the duplicate reference
+    /// would pump the source twice (+2 instead of +1).
+    #[test]
+    fn these_dedups_overlapping_references() {
+        use deckmaste_core::Reference;
+
+        let dup_pump = Ability::Static(StaticAbility {
+            condition: None,
+            effects: vec![StaticEffect::Modify {
+                of: Scope::These(vec![Reference::This, Reference::This]),
+                changes: vec![Modification::AddPower(Count::Literal(1))],
+            }],
+            characteristic_defining: false,
+        });
+        let (state, id) = creature_on_field(game(), vec![dup_pump]);
+        assert_eq!(
+            state.layers().power(id),
+            Some(3),
+            "These([This, This]) applies +1 ONCE: base 2 → 3 (not 4)"
+        );
+    }
+
+    /// Load a card from the wizards corpus with the builtin keyword/subtype
+    /// macros in scope (the real expansion path), forcing it onto the
+    /// battlefield as player 0's permanent. Reads only the macro corpus plus
+    /// the single named card file — not the whole 30k-card directory.
+    fn wizards_permanent(name: &str) -> (GameState, ObjectId) {
+        use std::path::Path;
+
+        use deckmaste_cards::plugin::Plugin;
+
+        let plugin = Plugin::load_with_sibling_prelude(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/wizards"),
+        )
+        .expect("load wizards plugin (builtin prelude)");
+        let card = Arc::new(
+            plugin
+                .card(name)
+                .unwrap_or_else(|e| panic!("load {name}: {e:?}")),
+        );
+
+        let mut state = game();
+        let card_id = state.cards.push(card, PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        (state, id)
+    }
+
+    /// C1 regression: a Changeling permanent must NOT panic in
+    /// `state.layers()`. `plugins/builtin/macros/keyword/Changeling.ron`
+    /// confers `Modify(of: Of(This), changes: [AllCreatureTypes])`; now
+    /// that `Of(This)` resolves source-relative in gather (Stage 3), Layer
+    /// 4 runs the `AllCreatureTypes` arm. That arm was a `todo!()` (panic)
+    /// before this fix and is now a no-op stub (every-creature-type fill is
+    /// deferred — [CR#702.73a]). The derived characteristics are returned
+    /// and, with the stub, carry only the printed subtype (no all-types
+    /// fill yet).
+    #[test]
+    fn changeling_layers_does_not_panic() {
+        // Avian Changeling: `Keyword(Changeling)` + `Keyword(Flying)`, a
+        // 2/2 white Shapeshifter — exercises the keyword-macro path.
+        let (state, id) = wizards_permanent("Avian Changeling");
+
+        // The critical assertion: this call previously PANICKED.
+        let view = state.layers();
+        let c = view.get(id);
+
+        // Sanity: the object derived (P/T preserved through the layer pass).
+        assert_eq!(view.power(id), Some(2));
+        assert_eq!(view.toughness(id), Some(2));
+        // No-op stub: only the printed Shapeshifter subtype is present — the
+        // every-creature-type fill is deliberately NOT performed yet.
+        assert!(
+            c.subtypes.iter().any(|s| s.name == "Shapeshifter"),
+            "printed Shapeshifter subtype survives"
+        );
+        assert!(
+            c.subtypes.len() < 50,
+            "AllCreatureTypes is a no-op stub (no every-creature-type fill), \
+             got {} subtypes",
+            c.subtypes.len()
+        );
+    }
+
+    /// Devoid runs the IMPLEMENTED `SetColors([])` arm (not a panic): a devoid
+    /// permanent derives colorless ([CR#604.3,105.2c]). This is the intended,
+    /// correct behavior un-gated alongside Changeling by Stage 3.
+    #[test]
+    fn devoid_derives_colorless() {
+        // Havoc Sower: a Black creature with `Keyword(Devoid)` — Devoid's CDA
+        // `Modify(of: Of(This), changes: [SetColors([])])` makes it colorless.
+        let (state, id) = wizards_permanent("Havoc Sower");
+
+        let view = state.layers();
+        assert!(
+            view.get(id).colors.is_empty(),
+            "devoid derives colorless (empty color set), got {:?}",
+            view.get(id).colors
         );
     }
 }
