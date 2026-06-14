@@ -16,8 +16,11 @@ use crate::ron_output::ron_options;
 /// records the printed cost faithfully — what X equals is announced by the
 /// controller ([CR#107.3a]) or stated by the card's own text (ward:
 /// determined at resolution, [CR#702.21b]), behind the macro seam either way.
-/// A variable ACTIVATION cost still declines: announcing X ([CR#601.2b]) has
-/// no representation in the `Activated` frame yet.
+/// A variable ACTIVATION cost likewise records the `{X}` symbol now: the engine
+/// announces X onto the activation's announce slot and concretizes the cost
+/// (engine-x-costs), so the `Activated` frame carries the printed `{X}`
+/// faithfully ([CR#601.2b]). `Decline` remains for any future caller that must
+/// reject `{X}`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum VariableMana {
     Allow,

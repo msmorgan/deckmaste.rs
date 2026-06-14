@@ -1,0 +1,11 @@
+// {0} artifact: "{X}: draw X cards." Exercises an activated ability whose
+// activation cost has an {X} ([CR#107.3a,602.2b]). No graduated real card has a
+// pure {X} activation cost wired yet; canonize one once available.
+Normal(
+    name: "Artifact X-activated Draw",
+    mana_cost: [Generic(0)],
+    types: [Artifact],
+    abilities: [
+        Activated(cost: [Mana([Variable])], effect: Draw(X)),
+    ],
+)
