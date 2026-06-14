@@ -5,6 +5,8 @@
 //! announce list [CR#115.1]; distributive "each" is a resolution-time
 //! selection [CR#608.2d].
 
+use crate::parsers::filter;
+
 /// One parsed effect clause: `TargetSpec` RON fragments to declare on the
 /// frame (empty when the effect targets nothing), and the `Effect`/`Action`
 /// body RON, which references any declared targets as `Target(0)`, `Target(1)`…
@@ -20,6 +22,24 @@ pub(super) fn parse_clause(line: &str) -> Option<ParsedEffect> {
         .or_else(|| parse_draw(line))
         .or_else(|| parse_lose_life(line))
         .or_else(|| parse_gain_life(line))
+        .or_else(|| parse_destroy(line))
+}
+
+/// `Destroy target <subject>.` -> a `TargetOne(<filter>)` declaration (the
+/// subject parsed by the shared [`filter`] grammar) and the body
+/// `Destroy(Target(0))` ([CR#701.8]). Only the single-target form; board wipes
+/// ("destroy all/each …") are a later production. Declines when the subject
+/// isn't filter-parseable. Case-insensitive lead, since the clause opens a
+/// spell ("Destroy …") or follows a trigger comma ("…, destroy …").
+fn parse_destroy(line: &str) -> Option<ParsedEffect> {
+    let subject = strip_prefix_ci(line, "destroy ")?
+        .strip_suffix('.')?
+        .strip_prefix("target ")?;
+    let filter = filter::parse_phrase(subject)?;
+    Some(ParsedEffect {
+        targets: vec![format!("TargetOne({filter})")],
+        effect: "Destroy(Target(0))".to_owned(),
+    })
 }
 
 /// `~ deals N damage to <target>.` or `it deals N damage to <target>.` —
@@ -171,11 +191,49 @@ mod tests {
     }
 
     #[test]
+    fn destroy_target_shapes() {
+        // The target subject parses via filter.rs into a `TargetOne(<filter>)`.
+        assert_eq!(
+            parsed("Destroy target creature."),
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "Destroy(Target(0))".to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed("Destroy target artifact."),
+            Some((
+                "TargetOne(Type(Artifact))".to_owned(),
+                "Destroy(Target(0))".to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed("Destroy target nonland permanent."),
+            Some((
+                "TargetOne(AllOf([Permanent, Not(Type(Land))]))".to_owned(),
+                "Destroy(Target(0))".to_owned()
+            ))
+        );
+        // Lowercase lead (the clause after a trigger comma) parses too.
+        assert_eq!(
+            parsed("destroy target Goblin."),
+            Some((
+                "TargetOne(Subtype(\"Goblin\"))".to_owned(),
+                "Destroy(Target(0))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
     fn declines_unknown_damage_targets_and_non_effects() {
         // A damage target the grammar doesn't model still declines.
         assert!(parse_clause("~ deals 3 damage to each artifact.").is_none());
         assert!(parse_clause("Flying").is_none());
         assert!(parse_clause("~ deals X damage to any target.").is_none());
+        // Destroy without the "target" form (board wipes) is a later follow-up.
+        assert!(parse_clause("Destroy all creatures.").is_none());
+        // A target subject the filter grammar can't parse declines.
+        assert!(parse_clause("Destroy target creature with flying.").is_none());
     }
 
     #[test]
