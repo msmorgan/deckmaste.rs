@@ -3,6 +3,7 @@ mod app;
 mod driver;
 mod game;
 mod interact;
+mod shortcuts;
 mod ui;
 
 pub use app::run;
