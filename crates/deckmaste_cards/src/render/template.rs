@@ -36,9 +36,9 @@ pub(super) fn fill(template: &str, subject: &str, args: &ExpansionArgs) -> Optio
 }
 
 /// Render one raw-RON-source positional arg. v1: bare integers
-/// (PumpThisUntilEot's magnitudes) pass through verbatim; anything else returns
-/// `None` so the caller falls back to structural rendering. (Grammar-node args
-/// — filters, costs — are a later enhancement.)
+/// (`PumpThisUntilEot`'s magnitudes) pass through verbatim; anything else
+/// returns `None` so the caller falls back to structural rendering.
+/// (Grammar-node args — filters, costs — are a later enhancement.)
 fn render_arg(raw: &str) -> Option<String> {
     let t = raw.trim();
     if t.parse::<i64>().is_ok() { Some(t.to_string()) } else { None }
