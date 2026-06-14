@@ -1,8 +1,12 @@
 # `large_enum_variant` fires at 200 bytes by default, which is noise for this
 # grammar's value enums: `Selection`/`Count`/`PlayerAction` nest several layers
 # unboxed by design (boxing is reserved for breaking size *cycles*, not for
-# size alone — see `count.rs`/`filter.rs`). 320 is the bar we treat as
-# "potentially significant" and worth a second look (raised from 256 at
-# P0.W7 when the targeting-test atoms grew `Filter` and `Property`'s gap
-# crossed 270).
-enum-variant-size-threshold = 320
+# size alone — see `count.rs`/`filter.rs`). The bar is "potentially
+# significant" and worth a second look. Raised 256→320 at P0.W7 when the
+# targeting-test atoms grew `Filter` and `Property`'s gap crossed 270; raised
+# 320→800 for engine-decision-enumeration when `ActionViewKind::Activate`
+# (render.rs) embeds an owned `ActivatedAbility` (~785B vs the 24B `Cast`
+# variant) — a short-lived query view, not a stored grammar node, so an
+# unboxed clone the renderer reads once is the right shape (boxing it would
+# add indirection for no lifetime/cycle reason).
+enum-variant-size-threshold = 800

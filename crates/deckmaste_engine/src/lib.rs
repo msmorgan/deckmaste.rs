@@ -51,6 +51,8 @@ pub use legal::legal_attackers;
 pub use legal::legal_blockers;
 
 mod render;
+pub use render::ActionView;
+pub use render::ActionViewKind;
 
 mod object;
 pub use object::CardId;
