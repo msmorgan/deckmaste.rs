@@ -95,3 +95,25 @@ fn lightning_bolt_expands_target_macros() {
         })]
     );
 }
+
+/// End-to-end proof that `template:` from a macro def rides the expansion all
+/// the way through the real loader. `AnyTarget.ron` carries `template: "any
+/// target"`; after loading, `TargetSpec::Expanded(exp)` must have it.
+#[test]
+fn any_target_expansion_carries_its_template() {
+    let plugin = canon();
+    let Card::Normal(face) = plugin.card("Lightning Bolt").unwrap() else {
+        panic!("Lightning Bolt should be single-faced");
+    };
+    let Ability::Spell(ref spell) = face.abilities[0] else {
+        panic!("expected a spell ability");
+    };
+    match &spell.targets[0] {
+        TargetSpec::Expanded(exp) => assert_eq!(
+            exp.template.as_deref(),
+            Some("any target"),
+            "AnyTarget's template should ride the expansion"
+        ),
+        other => panic!("expected AnyTarget expansion, got {other:?}"),
+    }
+}

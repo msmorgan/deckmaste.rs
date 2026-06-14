@@ -57,16 +57,43 @@ impl ExpansionArgs {
 /// `Deserialize` is derived (the reader synthesizes the matching stream);
 /// `Serialize` is manual and writes the **invocation**, not the struct — see
 /// the impl. Equality is provenance-sensitive by design (see the module docs).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
+///
+/// `template` is excluded from equality (`PartialEq`/`Eq`/`Hash`): it is
+/// derived metadata, not provenance. Including it would break
+/// structural-equality tests that compare read values against hand-built
+/// literals lacking the field.
+#[derive(Debug, Clone, Deserialize)]
 pub struct Expansion<T> {
     /// The macro's name, as invoked.
     pub name: Ident,
     /// The invocation's arguments, as raw source.
     #[serde(default = "ExpansionArgs::none")]
     pub args: ExpansionArgs,
+    /// The macro's rules-text template (metadata), brought over from the def at
+    /// expansion time. `~` = self, `{i}` = i-th positional arg. Reconstructed
+    /// on read, never serialized; excluded from equality (provenance =
+    /// name+args+value).
+    #[serde(default)]
+    pub template: Option<String>,
     /// The value the macro body expanded to. Reconstructed on read, never
     /// serialized (serialization emits the invocation instead).
     pub value: Box<T>,
+}
+
+impl<T: PartialEq> PartialEq for Expansion<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.args == other.args && self.value == other.value
+    }
+}
+
+impl<T: Eq> Eq for Expansion<T> {}
+
+impl<T: std::hash::Hash> std::hash::Hash for Expansion<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+        self.args.hash(state);
+        self.value.hash(state);
+    }
 }
 
 /// A RON source fragment, serialized verbatim: `ron::value::RawValue`'s own
@@ -148,6 +175,7 @@ mod tests {
         let expansion = Expansion {
             name: "Flying".into(),
             args: ExpansionArgs::none(),
+            template: None,
             value: Box::new(inner()),
         };
         assert_eq!(write(&expansion), "Flying");
@@ -158,6 +186,7 @@ mod tests {
         let expansion = Expansion {
             name: "LandType".into(),
             args: ExpansionArgs::Positional(vec![r#""Forest""#.to_owned()]),
+            template: None,
             value: Box::new(inner()),
         };
         assert_eq!(write(&expansion), r#"LandType("Forest")"#);
@@ -168,6 +197,7 @@ mod tests {
         let expansion = Expansion {
             name: "Pair".into(),
             args: ExpansionArgs::Positional(vec![r#""Forest""#.to_owned(), "Land".to_owned()]),
+            template: None,
             value: Box::new(inner()),
         };
         assert_eq!(write(&expansion), r#"Pair("Forest",Land)"#);
@@ -178,6 +208,7 @@ mod tests {
         let expansion = Expansion {
             name: "Boast".into(),
             args: ExpansionArgs::Named(vec![("cost".into(), r#""{1}""#.to_owned())]),
+            template: None,
             value: Box::new(inner()),
         };
         assert_eq!(write(&expansion), r#"Boast(cost:"{1}")"#);
@@ -188,15 +219,37 @@ mod tests {
         let flying = Expansion {
             name: "Flying".into(),
             args: ExpansionArgs::none(),
+            template: None,
             value: Box::new(inner()),
         };
         let reach = Expansion {
             name: "Reach".into(),
             args: ExpansionArgs::none(),
+            template: None,
             value: Box::new(inner()),
         };
         // Same expansion, different invocation name: deliberately unequal.
         assert_ne!(flying, reach);
         assert_eq!(flying, flying.clone());
+    }
+
+    /// `template` is metadata, not provenance — two expansions that differ only
+    /// in their template field are equal, so hand-built literals (without a
+    /// template) compare equal to read values (which carry one).
+    #[test]
+    fn template_does_not_affect_equality() {
+        let with_template = Expansion {
+            name: "AnyTarget".into(),
+            args: ExpansionArgs::none(),
+            template: Some("any target".to_owned()),
+            value: Box::new(inner()),
+        };
+        let without_template = Expansion {
+            name: "AnyTarget".into(),
+            args: ExpansionArgs::none(),
+            template: None,
+            value: Box::new(inner()),
+        };
+        assert_eq!(with_template, without_template);
     }
 }
