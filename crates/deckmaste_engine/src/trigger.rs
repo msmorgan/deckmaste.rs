@@ -697,30 +697,38 @@ impl GameState {
             return true;
         }
 
-        // It targets ([CR#603.3d]). Compute each spec's legal candidates.
-        let legal: Vec<Vec<ObjectId>> = specs.iter().map(|s| self.legal_targets(s)).collect();
-        if legal.iter().any(Vec::is_empty) {
-            // [CR#603.3c]: a target with no legal choice — the trigger is
-            // removed from the stack, never placed.
-            return false;
-        }
-
-        // Stage the in-flight placement and surface the target choice.
+        // It targets ([CR#603.3d]). Mint the stack id FIRST so the
+        // `Cant(Target)` filtering in `surface_target_choice` (shared with the
+        // announce path) evaluates each forbidding row's `by` against the
+        // trigger's real stack identity — hexproof's "abilities your opponents
+        // control" reads the targeting object's controller, so a placeholder
+        // id won't do.
         let controller = noted.controller;
         let id = self
             .objects
             .mint(noted.source, controller, Some(Zone::Stack));
+        let _ = self.surface_target_choice(controller, specs, id);
+        // [CR#603.3c]: a target with no legal choice — its candidates empty,
+        // or every candidate forbidden by hexproof/protection — removes the
+        // trigger from the stack, never placed. Retract the surfaced decision
+        // and the minted-but-unused stack identity.
+        let droppable = matches!(
+            &self.pending,
+            Some(PendingDecision::ChooseTargets { legal, .. }) if legal.iter().any(Vec::is_empty)
+        );
+        if droppable {
+            self.pending = None;
+            self.objects.remove(id);
+            return false;
+        }
+
+        // Stage the in-flight placement; the target choice is already surfaced.
         self.placing_trigger = Some(crate::trigger::PendingTrigger {
             id,
             source: noted.source,
             ability: noted.ability,
             controller,
             bindings: noted.bindings,
-        });
-        self.pending = Some(PendingDecision::ChooseTargets {
-            player: controller,
-            spec: specs,
-            legal,
         });
         false
     }
@@ -2267,6 +2275,20 @@ mod tests {
         (state, id)
     }
 
+    /// Force a named canon card onto the battlefield under `controller`,
+    /// freshly minted, returning the new id.
+    fn put_on_field(state: &mut GameState, name: &str, controller: PlayerId) -> ObjectId {
+        let card = Arc::new(canon().card(name).unwrap());
+        let card_id = state.cards.push(card, controller);
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            controller,
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        id
+    }
+
     /// A `Creature dies-trigger DealDamage AnyTarget` on the battlefield with
     /// lethal damage: stepping past the SBA destroy (`CheckSbas` →
     /// `ZoneWillChange` → `ZoneChanged` → `TriggerFired` apply) notes exactly
@@ -2429,6 +2451,183 @@ mod tests {
         assert!(
             state.stack.is_empty(),
             "nothing placed until the target is chosen"
+        );
+    }
+
+    /// [CR#702.11b]: a targeting trigger's legal candidates EXCLUDE an
+    /// opponent's hexproof permanent — placement must apply the same
+    /// `Cant(Target)` filtering the announce path does ([CR#601.2c]), or a
+    /// trigger could illegally target a hexproof permanent.
+    #[test]
+    fn targeting_trigger_excludes_opponent_hexproof() {
+        use crate::decide::PendingDecision;
+
+        // A `Footlight Fiend` dies-trigger (P0, "any target").
+        let (mut state, fiend) = fixture_on_field("Footlight Fiend");
+        let source = state.objects.obj(fiend).source;
+        let controller = state.objects.obj(fiend).controller; // P0
+        // P1 (an opponent) controls a hexproof `Gladecover Scout`.
+        let scout = put_on_field(&mut state, "Gladecover Scout", PlayerId(1));
+
+        state.pending_triggers.push(super::NotedTrigger {
+            source,
+            ability: 0,
+            controller,
+            bindings: super::TriggerBindings {
+                this: None,
+                that_object: None,
+                that_player: None,
+            },
+        });
+
+        let progress = state.place_triggers();
+        assert_eq!(
+            progress,
+            crate::step::Progress::TriggersPlaced { placed: 0 },
+            "a target choice surfaces instead of an immediate placement"
+        );
+        let Some(PendingDecision::ChooseTargets { legal, .. }) = &state.pending else {
+            panic!("expected ChooseTargets, got {:?}", state.pending);
+        };
+        assert!(
+            !legal[0].contains(&scout),
+            "[CR#702.11b]: P0's trigger can't target P1's hexproof Scout"
+        );
+        // The filter didn't nuke the whole set — the player proxies (and the
+        // fiend itself) are still legal "any target" choices.
+        assert!(
+            !legal[0].is_empty(),
+            "any target still admits the players and the fiend"
+        );
+    }
+
+    /// [CR#702.11b]: hexproof only stops OPPONENTS — a controller may still
+    /// target their OWN hexproof permanent with a triggered ability (the
+    /// filtering must not over-exclude).
+    #[test]
+    fn targeting_trigger_may_target_own_hexproof() {
+        use crate::decide::PendingDecision;
+
+        let (mut state, fiend) = fixture_on_field("Footlight Fiend");
+        let source = state.objects.obj(fiend).source;
+        let controller = state.objects.obj(fiend).controller; // P0
+        // The SAME player (P0) controls the hexproof `Gladecover Scout`.
+        let scout = put_on_field(&mut state, "Gladecover Scout", PlayerId(0));
+
+        state.pending_triggers.push(super::NotedTrigger {
+            source,
+            ability: 0,
+            controller,
+            bindings: super::TriggerBindings {
+                this: None,
+                that_object: None,
+                that_player: None,
+            },
+        });
+
+        state.place_triggers();
+        let Some(PendingDecision::ChooseTargets { legal, .. }) = &state.pending else {
+            panic!("expected ChooseTargets, got {:?}", state.pending);
+        };
+        assert!(
+            legal[0].contains(&scout),
+            "[CR#702.11b]: hexproof does not stop the permanent's own controller"
+        );
+    }
+
+    /// [CR#603.3c]: a targeting trigger whose ONLY candidate is an opponent's
+    /// hexproof permanent has no legal target — it is removed from the stack,
+    /// never placed, and the stack id minted for the (now-empty) target choice
+    /// is cleaned up rather than left dangling in the object store.
+    #[test]
+    fn targeting_trigger_with_only_hexproof_target_is_dropped() {
+        use deckmaste_core::Card;
+
+        // No curated canon card carries a creature-ONLY-target triggered
+        // ability (canon's targeting triggers all use "any target", which
+        // always admits the player proxies, so the drop can't be reached with
+        // them). This synthesizes the minimal card that does — engine-path
+        // scaffolding to exercise [CR#603.3c], not a corpus mock.
+        let card: Card = canon()
+            .macros
+            .read_str(
+                r#"Normal(
+                    name: "Test Targeted Pinger",
+                    mana_cost: [Red],
+                    types: [Artifact],
+                    abilities: [
+                        Triggered(
+                            event: ThisEnters,
+                            targets: [TargetOne(Creature)],
+                            effect: DealDamage(Target(0), 1),
+                        ),
+                    ],
+                )"#,
+            )
+            .unwrap();
+
+        // The pinger (a non-creature, so not itself a legal "target creature")
+        // belongs to P0; the only creature on the board is P1's hexproof Scout.
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 10],
+                },
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 10],
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        });
+        let pinger_card = state.cards.push(Arc::new(card), PlayerId(0));
+        let pinger = state.objects.mint(
+            ObjectSource::Card(pinger_card),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(pinger);
+        put_on_field(&mut state, "Gladecover Scout", PlayerId(1));
+
+        let objects_before = state.objects.iter().count();
+        state.pending_triggers.push(super::NotedTrigger {
+            source: state.objects.obj(pinger).source,
+            ability: 0,
+            controller: PlayerId(0),
+            bindings: super::TriggerBindings {
+                this: None,
+                that_object: None,
+                that_player: None,
+            },
+        });
+
+        let progress = state.place_triggers();
+        assert_eq!(
+            progress,
+            crate::step::Progress::TriggersPlaced { placed: 0 },
+            "the trigger neither places nor is counted — it has no legal target"
+        );
+        assert!(
+            state.pending.is_none(),
+            "no ChooseTargets surfaces for a trigger with no legal target"
+        );
+        assert!(
+            state.placing_trigger.is_none(),
+            "no placement is staged for the dropped trigger"
+        );
+        assert!(state.stack.is_empty(), "nothing reached the stack");
+        // The minted stack id was retracted, not orphaned: the object count is
+        // back to where it started and no stray Stack-zone object lingers.
+        assert_eq!(
+            state.objects.iter().count(),
+            objects_before,
+            "the minted-but-unused stack id is removed"
+        );
+        assert!(
+            state.objects.iter().all(|o| o.zone != Some(Zone::Stack)),
+            "no dangling Stack-zone object from the dropped trigger"
         );
     }
 

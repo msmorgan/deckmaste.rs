@@ -245,12 +245,40 @@ impl GameState {
         if specs.is_empty() {
             return 0;
         }
-        // [CR#702.11b]-family: Cant(Target) rows (hexproof, protection)
-        // exclude their carriers from the candidate sets — `by` evaluates
-        // against the announce's stack identity (a spell's own id, or the
-        // ability identity minted when the announce opened [CR#602.2a]),
-        // so stack-zone-keyed rows read the real object.
+        // The Cant(Target) filtering (hexproof, protection) and the
+        // `ChooseTargets` construction live in `surface_target_choice`, shared
+        // with trigger placement ([CR#603.3d]). `by` evaluates against the
+        // announce's stack identity — a spell's own id, or the ability
+        // identity minted when the announce opened ([CR#602.2a]) — so
+        // stack-zone-keyed rows read the real object.
         let spell = pending.id;
+        self.surface_target_choice(controller, specs, spell)
+    }
+
+    /// [CR#601.2c]: surface a `ChooseTargets` decision for `player` over
+    /// `specs`, computing each spec's legal candidates with the `Cant(Target)`
+    /// carriers ([CR#702.11b] hexproof, [CR#702.16b] protection's targeted
+    /// clause) excluded. `targeting_id` is the live stack identity each
+    /// forbidding row's `by` filter evaluates against — a spell's own id / an
+    /// ability announce's minted id ([CR#602.2a]), or a placing trigger's
+    /// freshly minted stack id ([CR#603.3d]); it must be a real object, since
+    /// `by` reads the targeting object's controller (hexproof's "abilities
+    /// your opponents control").
+    ///
+    /// Returns the spec count. The surfaced decision carries the per-spec
+    /// legal sets; a caller that must drop on an empty set (a targeting
+    /// trigger, [CR#603.3c]) inspects them off `self.pending`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the spec count overflows `Uint` — an engine invariant.
+    #[must_use]
+    pub(crate) fn surface_target_choice(
+        &mut self,
+        player: PlayerId,
+        specs: Vec<TargetSpec>,
+        targeting_id: ObjectId,
+    ) -> Uint {
         let view = self.layers();
         let rows = crate::legal::cant_target_rows(self, &view);
         let legal: Vec<Vec<ObjectId>> = specs
@@ -258,13 +286,15 @@ impl GameState {
             .map(|s| {
                 self.legal_targets(s)
                     .into_iter()
-                    .filter(|&t| crate::legal::target_forbidden_by(self, &rows, spell, t).is_none())
+                    .filter(|&t| {
+                        crate::legal::target_forbidden_by(self, &rows, targeting_id, t).is_none()
+                    })
                     .collect()
             })
             .collect();
         let count = Uint::try_from(specs.len()).expect("target-spec count fits in Uint");
         self.pending = Some(PendingDecision::ChooseTargets {
-            player: controller,
+            player,
             spec: specs,
             legal,
         });
