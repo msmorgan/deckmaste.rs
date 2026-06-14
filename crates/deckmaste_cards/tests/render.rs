@@ -608,3 +608,16 @@ fn renders_create_two_tokens() {
         vec!["Create two 1/1 white Soldier creature tokens.".to_string()]
     );
 }
+
+#[test]
+fn renders_enters_tapped_diregraf_ghoul() {
+    let r = render_card_face(&face("Diregraf Ghoul"));
+    assert!(r.rules.iter().any(|l| l == "As Diregraf Ghoul enters, tap it."), "rules: {:?}", r.rules);
+}
+
+#[test]
+fn renders_kabira_crossroads() {
+    let r = render_card_face(&face("Kabira Crossroads"));
+    assert!(r.rules.iter().any(|l| l == "As Kabira Crossroads enters, tap it."), "rules: {:?}", r.rules);
+    assert!(r.rules.iter().any(|l| l == "When Kabira Crossroads enters, gain 2 life."), "rules: {:?}", r.rules);
+}

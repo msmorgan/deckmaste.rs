@@ -8,6 +8,7 @@ mod deontic;
 mod effect;
 mod fragment;
 mod keyword;
+mod replacement;
 mod template;
 
 use deckmaste_core::Ability;

@@ -31,7 +31,7 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
 
 /// Returns (lead word, the event clause).
 /// "When", "Baleful Strix enters" | "Whenever", "Goblin Medics becomes tapped".
-fn event_clause(e: &Event, ctx: &Ctx) -> (&'static str, String) {
+pub(super) fn event_clause(e: &Event, ctx: &Ctx) -> (&'static str, String) {
     match e {
         Event::Expanded(exp) => event_clause(&exp.value, ctx),
         Event::ZoneMove {
@@ -121,6 +121,7 @@ pub(super) fn static_effect(e: &StaticEffect, ctx: &Ctx) -> Option<String> {
             ))
         }
         StaticEffect::Deontic(d) => Some(super::deontic::deontic(d, ctx.subject)),
+        StaticEffect::Replacement(r) => Some(super::replacement::replacement(r, ctx)),
         other => Some(format!("[unrendered: {other:?}].")),
     }
 }
