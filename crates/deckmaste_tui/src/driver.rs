@@ -17,7 +17,6 @@ pub(crate) const HEADLESS_BUDGET: usize = 100_000;
 #[derive(Debug)]
 pub enum Stop {
     /// A human-facing priority decision is pending (interactive mode only).
-    #[allow(dead_code)] // payload consumed by the interactive loop in Task 5
     Priority(PendingDecision),
     /// The game ended.
     GameOver(GameOutcome),
@@ -63,7 +62,6 @@ impl Driver {
     ///
     /// # Errors
     /// As [`Driver::drive`].
-    #[allow(dead_code)] // consumed by the interactive loop in Task 5
     pub fn run_to_priority(&mut self) -> Result<Stop, DecisionError> {
         /// Escape valve: if the engine ever fails to open a priority window,
         /// return `Stop::Budget` rather than hang the UI. Mirrors the engine's
@@ -84,7 +82,6 @@ impl Driver {
     ///
     /// # Errors
     /// If the engine rejects the pass (no priority pending).
-    #[allow(dead_code)] // consumed by the interactive loop in Task 5
     pub fn pass(&mut self) -> Result<(), DecisionError> {
         self.state.submit_decision(Decision::Act(Action::Pass))
     }
@@ -93,7 +90,6 @@ impl Driver {
     ///
     /// # Errors
     /// If the strategy's answer is rejected.
-    #[allow(dead_code)] // consumed by the interactive loop in Task 5
     pub fn auto(&mut self, pending: &PendingDecision) -> Result<(), DecisionError> {
         let decision = self.strategy.decide(&self.state, pending);
         self.state.submit_decision(decision)

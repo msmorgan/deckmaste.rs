@@ -2,11 +2,17 @@ use std::process::ExitCode;
 
 use anyhow::Result;
 use deckmaste_engine::sim::GreedyCreatures;
+use ratatui::DefaultTerminal;
+use ratatui::crossterm::event::Event;
+use ratatui::crossterm::event::KeyCode;
+use ratatui::crossterm::event::KeyEventKind;
+use ratatui::crossterm::event::{self};
 
 use crate::driver::Driver;
 use crate::driver::HEADLESS_BUDGET;
 use crate::driver::Stop;
 use crate::game;
+use crate::ui;
 
 /// Binary entry point. Prints a clean error and exits non-zero on failure.
 #[must_use]
@@ -25,7 +31,6 @@ fn try_run() -> Result<()> {
     let mut driver = Driver::new(game::build_game()?, Box::new(GreedyCreatures));
 
     if headless {
-        // `DecisionError: std::error::Error`, so `?` lifts it into anyhow.
         let stop = driver.run_to_end(HEADLESS_BUDGET)?;
         match stop {
             Stop::GameOver(outcome) => println!("game over: {outcome:?}"),
@@ -35,7 +40,41 @@ fn try_run() -> Result<()> {
         return Ok(());
     }
 
-    // Interactive ratatui UI is wired in Task 5.
-    println!("interactive UI not yet wired; run with --headless");
-    Ok(())
+    // `ratatui::init` enters raw mode + the alternate screen and installs a
+    // panic hook that restores the terminal; `ratatui::restore` undoes it.
+    let mut terminal = ratatui::init();
+    let result = interactive_loop(&mut terminal, &mut driver);
+    ratatui::restore();
+    result
+}
+
+fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Result<()> {
+    let mut stop = driver.run_to_priority()?;
+    loop {
+        terminal.draw(|frame| ui::render(frame, &driver.state, &stop))?;
+
+        let Event::Key(key) = event::read()? else {
+            continue;
+        };
+        if key.kind != KeyEventKind::Press {
+            continue;
+        }
+        match key.code {
+            KeyCode::Char('q') => break Ok(()),
+            KeyCode::Char(' ') => {
+                if let Stop::Priority(_) = stop {
+                    driver.pass()?;
+                    stop = driver.run_to_priority()?;
+                }
+            }
+            KeyCode::Enter => {
+                if let Stop::Priority(pending) = &stop {
+                    let pending = pending.clone();
+                    driver.auto(&pending)?;
+                    stop = driver.run_to_priority()?;
+                }
+            }
+            _ => {}
+        }
+    }
 }
