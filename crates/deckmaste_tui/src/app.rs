@@ -13,6 +13,7 @@ use crate::driver::HEADLESS_BUDGET;
 use crate::driver::Stop;
 use crate::game;
 use crate::ui;
+use crate::ui::BoardState;
 
 /// Binary entry point. Prints a clean error and exits non-zero on failure.
 #[must_use]
@@ -49,9 +50,12 @@ fn try_run() -> Result<()> {
 }
 
 fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Result<()> {
+    let mut board = BoardState::new();
     let mut stop = driver.run_to_priority()?;
     loop {
-        terminal.draw(|frame| ui::render(frame, &driver.state, &stop))?;
+        board.sync(&driver.state);
+        let view = driver.state.layers();
+        terminal.draw(|frame| ui::render(frame, &driver.state, &view, &board, &stop))?;
 
         let Event::Key(key) = event::read()? else {
             continue;
@@ -61,6 +65,14 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
         }
         match key.code {
             KeyCode::Char('q') => break Ok(()),
+            KeyCode::Tab => board.cycle_zone(true),
+            KeyCode::BackTab => board.cycle_zone(false),
+            KeyCode::Up | KeyCode::Left => {
+                board.step_selection(false, board.focused_len(&driver.state, &view));
+            }
+            KeyCode::Down | KeyCode::Right => {
+                board.step_selection(true, board.focused_len(&driver.state, &view));
+            }
             KeyCode::Char(' ') => {
                 if let Stop::Priority(_) = stop {
                     driver.pass()?;
