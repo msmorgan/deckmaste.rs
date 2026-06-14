@@ -317,3 +317,19 @@ fn mana_ability_identifies_a_mountains_tap_for_red() {
     // And that same ability is an activated ability.
     assert!(state.activated_ability(mountain, mana_idx).is_some());
 }
+
+#[test]
+fn decision_point_exposes_the_decider_player() {
+    let mut state = activation_game(7, PINGER, 1);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) = state.step() else {
+        panic!("expected priority");
+    };
+
+    let dp = state.decision_point().expect("a pending decision");
+    assert_eq!(
+        dp.decider_player(),
+        player,
+        "DecisionPoint::decider_player matches the pending decision's player"
+    );
+}

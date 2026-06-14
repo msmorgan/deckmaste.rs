@@ -62,6 +62,14 @@ pub struct DecisionPoint {
     pub visibility: Visibility,
 }
 
+impl DecisionPoint {
+    /// The concrete player this decision is waiting on — convenience over
+    /// `self.pending.decider_player()` so callers needn't reach through the
+    /// `pending` field.
+    #[must_use]
+    pub fn decider_player(&self) -> PlayerId { self.pending.decider_player() }
+}
+
 impl PendingDecision {
     /// The choices.md §2 schema row: nominal decider. Refinements
     /// (delegation, APNAP per-combatant) arrive with the kinds' behavior.
