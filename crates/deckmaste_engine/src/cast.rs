@@ -7,6 +7,7 @@
 use deckmaste_core::Action;
 use deckmaste_core::Agency;
 use deckmaste_core::ColorOrColorless;
+use deckmaste_core::CostComponent;
 use deckmaste_core::Effect;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
@@ -240,7 +241,23 @@ fn verb_payment_items(verbs: &[PlayerAction], source: ObjectId, player: PlayerId
                 targets: vec![],
                 bindings: None,
                 chosen: None,
+                // A cost verb reads no announced X.
+                x: None,
             },
+        })
+        .collect()
+}
+
+/// Unwrap the `CostComponent::Do(action)` verbs `concretize` produces for
+/// Phyrexian-life picks ([CR#107.4f]) back into the `PlayerAction`s
+/// `verb_payment_items` schedules. `concretize` only ever emits
+/// `Do(LoseLife(2))` here, so any other shape is an engine invariant violation.
+fn phyrexian_life_verbs(verbs: &[CostComponent]) -> Vec<PlayerAction> {
+    verbs
+        .iter()
+        .map(|c| match c {
+            CostComponent::Do(action) => action.clone(),
+            other => unreachable!("concretize emits only Do(_) verb costs, got {other:?}"),
         })
         .collect()
 }
@@ -329,7 +346,10 @@ impl GameState {
             controller,
             origin: Zone::Hand,
             targets: vec![],
+            // [CR#601.2b]: filled by the `ChooseXValue` step before `PayCost`.
             x: None,
+            // [CR#601.2b]: filled by the `ChooseCostOptions` step before `PayCost`.
+            concretized: None,
         });
     }
 
@@ -443,33 +463,124 @@ impl GameState {
         }
     }
 
+    /// [CR#601.2b]: concretize the in-flight cost's hybrid/Phyrexian symbols
+    /// ([CR#107.4e,107.4f]). Reads the announce slot's printed mana cost — a
+    /// spell's via `mana_cost`, an activated ability's via
+    /// `cost_summary(&ability.cost).mana` (which already aggregates the
+    /// ability's mana symbols, hybrid/Phyrexian included). Then:
+    ///
+    /// - No choosable symbol → stash the cost unchanged (`concretize` with no
+    ///   picks is infallible here) and surface NO decision, so every plain-cost
+    ///   subject behaves exactly as before with `PayCost` reading a populated
+    ///   stash uniformly. Returns `false`.
+    /// - Otherwise → surface `ChooseCostOptions` for the controller to announce
+    ///   each nonhybrid equivalent / color-or-2-life; the submission handler
+    ///   concretizes and stashes. Returns `true`.
+    ///
+    /// `Variable`/`{X}` is announced at [CR#601.2b] too, but X is out of scope
+    /// here (engine-x-costs); `choosable` ignores it, so an X cost takes the
+    /// no-decision path and its `Variable` symbol passes through unchanged.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no announce is in flight, or a `Triggered` object occupies the
+    /// slot — engine invariants.
+    #[must_use]
+    pub(crate) fn choose_cost_options(&mut self) -> bool {
+        let pending = self.announcing.as_ref().expect("an announce in flight");
+        let controller = pending.controller;
+        let cost = match &pending.object {
+            StackObject::Spell(o) => self
+                .mana_cost(*o)
+                .expect("a castable spell has a printed cost"),
+            StackObject::Activated { ability, .. } => {
+                crate::activate::cost_summary(&ability.cost)
+                    .expect("can_activate vetted the cost")
+                    .mana
+            }
+            StackObject::Triggered { .. } => {
+                unreachable!("a triggered ability has no cost and never occupies the announce slot")
+            }
+        };
+        let options = crate::cost_options::choosable(&cost);
+        if options.options.is_empty() {
+            // [CR#601.2b]: no multi-way symbol — the cost is already concrete.
+            // Stash it (with no Phyrexian-life verbs) so `PayCost` reads the
+            // stash uniformly; surface nothing.
+            let concrete = crate::cost_options::concretize(
+                &cost,
+                &crate::cost_options::CostOptionChoices { picks: vec![] },
+            )
+            .expect("a cost with no choosable symbols needs no picks");
+            self.announcing
+                .as_mut()
+                .expect("an announce in flight")
+                .concretized = Some(concrete);
+            return false;
+        }
+        // [CR#601.2b]: the player announces each reading; the submission handler
+        // concretizes and stashes.
+        self.pending = Some(PendingDecision::ChooseCostOptions {
+            player: controller,
+            cost,
+            options,
+        });
+        true
+    }
+
     /// [CR#601.2f,601.2g,601.2h]: pay the in-flight cost. Always surfaces a `PayMana`
     /// decision for any non-empty mana cost; the core never auto-pays.
     /// Auto-resolution (an Arena-style autotapper) is a future runner concern.
     /// For an activated ability ([CR#602.2b]) the cost's {T}/{Q} components
     /// are scheduled as events alongside the mana decision.
     ///
+    /// The mana paid is the CONCRETIZED cost the preceding `ChooseCostOptions`
+    /// step ([CR#601.2b]) stashed on the announce slot — its hybrid/Phyrexian
+    /// symbols resolved to `Simple` symbols ([CR#107.4e,107.4f]). Any
+    /// Phyrexian-life picks contributed `Do(LoseLife(2))` verb costs to the
+    /// same stash; those are paid here (the spell branch's whole verb set;
+    /// folded after the ability branch's own verb costs), via the shared
+    /// `verb_payment_items`. When the concretized mana is empty but verbs
+    /// remain, the verbs are still scheduled (a fully-Phyrexian-life cost).
+    ///
     /// # Panics
     ///
-    /// Panics if no announce is in flight, the spell has no payable cost
-    /// (`can_cast` gated it), the ability cost has an unpayable component
-    /// (`can_activate` gated it), or a `Triggered` object occupies the slot.
+    /// Panics if no announce is in flight, the announce slot was not
+    /// concretized (the `ChooseCostOptions` step always populates it), or a
+    /// `Triggered` object occupies the slot.
     pub(crate) fn pay_cost(&mut self) {
         let pending = self.announcing.as_ref().expect("an announce in flight");
         let controller = pending.controller;
         let announced_x = pending.x.unwrap_or(0);
+        // [CR#601.2b]: the announced concretization — always set by the
+        // preceding `ChooseCostOptions` step.
+        let (mana, extra_verbs) = pending
+            .concretized
+            .clone()
+            .expect("ChooseCostOptions concretized the cost before PayCost");
+        // The Phyrexian-life picks rode as `Do(LoseLife(2))` cost components;
+        // unwrap them into payable verbs ([CR#601.2h]).
+        let extra_verbs = phyrexian_life_verbs(&extra_verbs);
         match &pending.object {
             StackObject::Spell(o) => {
                 let object = *o;
-                let cost = concretize_x(
-                    &self.mana_cost(object).expect("a castable spell has a cost"),
-                    announced_x,
-                );
-                if !cost.is_empty() {
+                // [CR#601.2h]: pay the Phyrexian-life verb costs in the payment
+                // window — front-scheduled so they sit behind the pending mana
+                // decision (if any) and ahead of the `SpellCast` becomes-cast
+                // step. The source is the spell object; the payer its
+                // controller.
+                let items = verb_payment_items(&extra_verbs, object, controller);
+                if !items.is_empty() {
+                    self.schedule_front(items);
+                }
+                // [CR#601.2b]: apply the announced X to the concretized mana
+                // ({X} -> Generic(announced_x); hybrid/Phyrexian already resolved).
+                let mana = concretize_x(&mana, announced_x);
+                if !mana.is_empty() {
                     let pool = self.player(controller).mana_pool.clone();
                     self.pending = Some(PendingDecision::PayMana {
                         player: controller,
-                        cost,
+                        cost: mana,
                         pool,
                         // [CR#106.6]: a spell's stack identity is its own id —
                         // the object SpendOnly riders judge.
@@ -477,7 +588,7 @@ impl GameState {
                     });
                 }
                 // Empty cost (no mana required): no decision surfaces, cast
-                // continues.
+                // continues (the verbs above already front-scheduled).
             }
             StackObject::Activated {
                 source, ability, ..
@@ -511,17 +622,24 @@ impl GameState {
                 }
                 // [CR#601.2h]: every cost-eligible verb (Sacrifice, LoseLife,
                 // Discard, …) is performed now, by the activating player,
-                // against the ability's source. One `RunEffect` per verb,
-                // after the {T}/{Q} events and before `AbilityActivated`.
+                // against the ability's source. One `RunEffect` per verb, after
+                // the {T}/{Q} events and before `AbilityActivated`. The
+                // ability's own verb costs come first, then the
+                // concretization's Phyrexian-life verbs.
                 items.extend(verb_payment_items(&summary.verbs, source, controller));
+                items.extend(verb_payment_items(&extra_verbs, source, controller));
                 if !items.is_empty() {
                     self.schedule_front(items);
                 }
-                let mana = concretize_x(&summary.mana, announced_x);
+                // [CR#601.2b]: apply the announced X to the concretized mana
+                // (hybrid/Phyrexian already resolved by ChooseCostOptions).
+                let mana = concretize_x(&mana, announced_x);
                 if !mana.is_empty() {
                     let pool = self.player(controller).mana_pool.clone();
                     self.pending = Some(PendingDecision::PayMana {
                         player: controller,
+                        // [CR#601.2b]: the concretized mana (hybrid/Phyrexian
+                        // resolved, {X} applied), not the printed cost.
                         cost: mana,
                         pool,
                         // [CR#106.6]: an activated ability's mana is spent on
@@ -682,6 +800,7 @@ impl GameState {
                 matches!(
                     item,
                     WorkItem::AnnounceTargets
+                        | WorkItem::ChooseCostOptions
                         | WorkItem::PayCost
                         | WorkItem::Emit(_)
                         | WorkItem::CheckSbas

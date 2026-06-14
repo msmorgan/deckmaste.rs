@@ -870,14 +870,35 @@ impl GameState {
                 }
                 Ok(())
             }
+            (PendingDecision::ChooseCostOptions { cost, .. }, Decision::CostOptions(choices)) => {
+                // [CR#601.2b]: apply the announced readings to the printed cost.
+                // An illegal announce (wrong pick count, or a reading the symbol
+                // doesn't offer) is rejected — the decision stays pending.
+                let cost = cost.clone();
+                let concrete = match crate::cost_options::concretize(&cost, &choices) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        return Err(DecisionError::Illegal {
+                            reason: format!("illegal cost-option announce: {e:?}"),
+                        });
+                    }
+                };
+                // Stash the concretized (mana, Phyrexian-life verbs) on the
+                // announce slot for `PayCost` to consume.
+                self.announcing
+                    .as_mut()
+                    .expect("an announce is in flight across ChooseCostOptions")
+                    .concretized = Some(concrete);
+                self.pending = None;
+                Ok(())
+            }
             (
                 PendingDecision::ChooseModes { .. }
                 | PendingDecision::Division { .. }
                 | PendingDecision::Vote { .. }
                 | PendingDecision::YesNo { .. }
                 | PendingDecision::PreGame { .. }
-                | PendingDecision::OrderReplacements { .. }
-                | PendingDecision::ChooseCostOptions { .. },
+                | PendingDecision::OrderReplacements { .. },
                 _,
             ) => todo!("P0.W3/W4/W7: submission handling for shell decision kinds"),
             _ => Err(DecisionError::WrongKind),
@@ -1258,6 +1279,9 @@ impl GameState {
                         },
                         WorkItem::AnnounceX,
                         WorkItem::AnnounceTargets,
+                        // [CR#601.2b]: concretize hybrid/Phyrexian symbols
+                        // before the total cost locks at payment.
+                        WorkItem::ChooseCostOptions,
                         WorkItem::PayCost,
                         WorkItem::Emit(Occurrence::single(GameEvent::AbilityActivated {
                             source: *object,
@@ -1280,6 +1304,9 @@ impl GameState {
                     WorkItem::BeginCast(*object),
                     WorkItem::AnnounceX,
                     WorkItem::AnnounceTargets,
+                    // [CR#601.2b]: concretize hybrid/Phyrexian symbols before
+                    // the total cost locks at payment.
+                    WorkItem::ChooseCostOptions,
                     WorkItem::PayCost,
                     WorkItem::Emit(Occurrence::single(GameEvent::SpellCast(*object))),
                     WorkItem::CheckSbas,

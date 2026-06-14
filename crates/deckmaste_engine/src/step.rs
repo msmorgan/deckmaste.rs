@@ -89,6 +89,11 @@ pub enum Progress {
     /// [CR#601.2c]: targets were announced for the in-flight spell (a
     /// `ChooseTargets` decision surfaces when `specs > 0`).
     TargetsAnnounced { specs: Uint },
+    /// [CR#601.2b]: the in-flight cost's hybrid/Phyrexian symbols were
+    /// concretized. `surfaced` is true when a `ChooseCostOptions` decision
+    /// opened (the printed cost had a choosable symbol); false when the cost
+    /// was plain and the stash was set directly (no decision).
+    CostOptionsChosen { surfaced: bool },
     /// [CR#601.2f,601.2g,601.2h]: the in-flight cost was paid or a `PayMana` decision
     /// surfaced.
     CostPaid,
@@ -141,6 +146,10 @@ impl GameState {
             WorkItem::AnnounceTargets => {
                 let specs = self.announce_targets();
                 Progress::TargetsAnnounced { specs }
+            }
+            WorkItem::ChooseCostOptions => {
+                let surfaced = self.choose_cost_options();
+                Progress::CostOptionsChosen { surfaced }
             }
             WorkItem::PayCost => {
                 self.pay_cost();

@@ -51,6 +51,13 @@ pub enum WorkItem {
     /// [CR#601.2c,602.2b]: surface `ChooseTargets` if the in-flight announce
     /// (spell or activated ability) has targets.
     AnnounceTargets,
+    /// [CR#601.2b]: concretize the in-flight cost's hybrid/Phyrexian symbols.
+    /// Surfaces `ChooseCostOptions` when the printed cost has any such symbol
+    /// (the player announces each nonhybrid equivalent / color-or-2-life,
+    /// [CR#107.4e,107.4f]); otherwise stashes the cost unchanged so `PayCost`
+    /// uniformly reads the concretized stash. Sits between `AnnounceTargets`
+    /// and `PayCost`. Reads/writes the announce slot.
+    ChooseCostOptions,
     /// [CR#601.2f,601.2g,601.2h,602.2b]: pay the in-flight cost — mana +
     /// physical components ({T}/{Q}) for activations, mana only for spells.
     /// Surfaces `PayMana` when there is a choice; schedules tap/untap events
