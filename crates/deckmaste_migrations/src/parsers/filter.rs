@@ -48,6 +48,11 @@ pub(crate) fn parse_phrase(phrase: &str) -> Option<String> {
     // land in reverse source order.
     let mut postfix_atoms: Vec<String> = Vec::new();
     loop {
+        // "on the battlefield" is the default scope: consume, emit no atom.
+        if let Some(r) = rest.trim_end().strip_suffix(" on the battlefield") {
+            rest = r;
+            continue;
+        }
         if let Some((atom, r)) = strip_postfix(rest) {
             postfix_atoms.push(atom);
             rest = r;
@@ -283,6 +288,16 @@ mod tests {
         );
         // word-number is out of the regex's \d+ scope → declines
         assert!(parse_phrase("creatures with power three or greater").is_none());
+    }
+
+    #[test]
+    fn on_the_battlefield_is_consumed() {
+        // "on the battlefield" is the default scope — consumed, no atom.
+        assert_eq!(parse_phrase("Elf on the battlefield").as_deref(), Some("Subtype(\"Elf\")"));
+        assert_eq!(
+            parse_phrase("creatures on the battlefield").as_deref(),
+            Some("Creature")
+        );
     }
 
     #[test]
