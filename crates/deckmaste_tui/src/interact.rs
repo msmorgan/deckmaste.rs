@@ -267,6 +267,28 @@ impl Interaction {
             }
         }
     }
+
+    /// Blockers only: record that the pending blocker blocks `attacker`, then
+    /// clear the pending blocker. No-op when no pairing is in progress.
+    pub fn pair_with(&mut self, attacker: ObjectId) {
+        if let Interaction::Blockers { pairs, pending, .. } = self
+            && let Some(blocker) = pending.take()
+        {
+            pairs.push((blocker, attacker));
+        }
+    }
+
+    /// Blockers only: undo the in-progress pairing if any, else remove the
+    /// last recorded pair.
+    pub fn unpair_last(&mut self) {
+        if let Interaction::Blockers { pairs, pending, .. } = self {
+            if pending.is_some() {
+                *pending = None;
+            } else {
+                pairs.pop();
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -440,5 +462,46 @@ mod tests {
         assert_eq!(it.confirm(), Some(Decision::Attackers(vec![a, b])));
         it.toggle(a); // untoggle
         assert_eq!(it.confirm(), Some(Decision::Attackers(vec![b])));
+    }
+
+    #[test]
+    fn blockers_pairing_records_blocker_attacker_pairs() {
+        let v = ids();
+        let (b0, b1, atk0, atk1) = (v[0], v[1], v[2], v[3]);
+        let mut it = Interaction::for_decision(&PendingDecision::DeclareBlockers {
+            player: PlayerId(1),
+            legal: vec![b0, b1],
+        })
+        .expect("interactive");
+        // Empty = "no blocks" is a legal answer.
+        assert_eq!(it.confirm(), Some(Decision::Blocks(vec![])));
+        it.toggle(b0); // start pairing b0
+        assert!(it.confirm().is_none()); // pairing in progress
+        it.pair_with(atk0); // b0 blocks atk0
+        assert!(it.is_chosen(b0));
+        it.toggle(b1);
+        it.pair_with(atk1);
+        assert_eq!(
+            it.confirm(),
+            Some(Decision::Blocks(vec![(b0, atk0), (b1, atk1)]))
+        );
+    }
+
+    #[test]
+    fn blockers_unpair_undoes_pending_then_pairs() {
+        let v = ids();
+        let (b0, atk0) = (v[0], v[2]);
+        let mut it = Interaction::for_decision(&PendingDecision::DeclareBlockers {
+            player: PlayerId(1),
+            legal: vec![b0],
+        })
+        .expect("interactive");
+        it.toggle(b0);
+        it.pair_with(atk0);
+        it.toggle(b0); // a paired blocker is no longer a candidate, so re-toggle is a no-op
+        assert!(it.candidates().is_empty());
+        it.unpair_last(); // remove (b0, atk0)
+        assert_eq!(it.confirm(), Some(Decision::Blocks(vec![])));
+        assert_eq!(it.candidates(), vec![b0]); // available again
     }
 }
