@@ -9,6 +9,7 @@ pub(crate) mod filter;
 pub(crate) mod keyword_ability;
 pub(crate) mod mana_ability;
 pub(crate) mod modify;
+pub(crate) mod replacement;
 pub(crate) mod spell_ability;
 pub(crate) mod static_ability;
 pub(crate) mod triggered_ability;
