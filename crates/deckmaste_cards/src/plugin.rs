@@ -265,6 +265,36 @@ mod tests {
         assert!(builtin.subtypes.contains_key("Plains"));
     }
 
+    /// The attachment-rule subtypes (Aura/Equipment/Fortification) carry their
+    /// `Innate` `confers:` ([CR#704.5m] graveyard SBA; host-type
+    /// `Cant(Attach)`) even in the WIZARDS corpus — the defs live in
+    /// `builtin`, and the generator no longer emits confers-LESS wizards
+    /// stubs for them, so under "last plugin wins" builtin's
+    /// confers-bearing def is the one in scope. Regression guard: a
+    /// confers-less wizards stub would silently strip these.
+    #[test]
+    fn wizards_attachment_subtypes_carry_innate_confers() {
+        use deckmaste_core::Property;
+
+        let wizards = Plugin::load_with_sibling_prelude(plugins().join("wizards")).unwrap();
+        for name in ["Aura", "Equipment", "Fortification"] {
+            let subtype = wizards
+                .subtypes
+                .get(name)
+                .unwrap_or_else(|| panic!("wizards corpus knows the {name} subtype"));
+            let has_innate = subtype
+                .confers
+                .iter()
+                .any(|p| matches!(p, Property::Ability(a) if a.is_innate()));
+            assert!(
+                has_innate,
+                "{name} subtype confers an Innate attachment rule in the wizards corpus; \
+                 got confers: {:?}",
+                subtype.confers
+            );
+        }
+    }
+
     /// Last plugin wins: a redeclaration overrides the prelude's version
     /// rather than erroring. wizards hits this for real — it generates
     /// the full subtype set, overlapping builtin's declarations.

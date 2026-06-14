@@ -34,6 +34,12 @@ pub(super) fn generate(plugin: &super::PluginLayout) -> anyhow::Result<()> {
         let catalog_bytes = crate::data::scryfall::catalog_bytes(&format!("{category}-types"))?;
         let catalog = crate::data::scryfall::Catalog::parse(&catalog_bytes)?;
         let dest_dir = plugin.subtype_macros_dir(category)?;
+        // The sibling `builtin` plugin (the universal prelude) may already
+        // define this category's subtypes — e.g. Aura/Equipment/Fortification
+        // carry an Innate `confers:` that a bare confers-LESS stub here would
+        // shadow under "last plugin wins". Skip any subtype builtin provides
+        // so its def is the one in scope for this plugin's cards.
+        let builtin_dir = plugin.sibling_builtin_subtype_dir(category);
         let mut idents: std::collections::HashMap<String, String> =
             std::collections::HashMap::new();
         for subtype in &catalog.data {
@@ -44,6 +50,14 @@ pub(super) fn generate(plugin: &super::PluginLayout) -> anyhow::Result<()> {
                 anyhow::bail!(
                     "subtype idents collide: {previous:?} and {subtype:?} both produce `{ident}`"
                 );
+            }
+            // Defined by the builtin prelude already (with its `confers:`):
+            // don't emit a stub that would override it.
+            if builtin_dir
+                .as_ref()
+                .is_some_and(|dir| dir.join(format!("{ident}.ron")).exists())
+            {
+                continue;
             }
             // Subtypes are written final, not as stubs: skip once the
             // definition exists (generated here or hand-edited).
