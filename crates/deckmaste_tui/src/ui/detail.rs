@@ -1,9 +1,14 @@
-//! The detail pane's text. v1 is a readable STUB derived from the encoding and
-//! the derived characteristics. SEAM: `card-text-render` replaces the body of
-//! [`render`] with real rules text — the signature and all callers stay put.
+//! The detail pane's text. An object's printed face plus its *derived*
+//! [`Characteristics`](deckmaste_engine::Characteristics) are bridged into a
+//! `core`-typed [`CardView`] and run through the engine-free `deckmaste_cards`
+//! renderer, so the pane shows real rules text over the live (pumped, animated,
+//! control-changed) object — not the printed encoding.
 use std::fmt::Write as _;
 
-use deckmaste_engine::Characteristics;
+use deckmaste_cards::render::CardView;
+use deckmaste_cards::render::RenderedCard;
+use deckmaste_cards::render::render as render_card_view;
+use deckmaste_core::StatValue;
 use deckmaste_engine::GameState;
 use deckmaste_engine::LayeredView;
 use deckmaste_engine::ObjectId;
@@ -12,7 +17,6 @@ use deckmaste_engine::face;
 use ratatui::text::Text;
 
 use crate::ui::board::Selected;
-use crate::ui::format;
 
 /// Render the detail pane for the current selection.
 #[must_use]
@@ -25,22 +29,40 @@ pub fn render(state: &GameState, view: &LayeredView, sel: Option<Selected>) -> T
 }
 
 fn object_detail(state: &GameState, view: &LayeredView, id: ObjectId) -> Text<'static> {
-    let mut s = String::new();
     let printed = face(state.def(id));
-    let _ = writeln!(s, "{}", printed.name);
-    let cost = format::mana_cost(&printed.mana_cost);
-    if !cost.is_empty() {
-        let _ = writeln!(s, "{cost}");
-    }
     let chars = view.get(id);
-    let _ = writeln!(s, "{}", type_line(chars));
-    if let (Some(p), Some(t)) = (chars.power, chars.toughness) {
-        let _ = writeln!(s, "{p}/{t}");
+    // Mana cost and name aren't derived characteristics; take them from the
+    // printed face. Power/toughness derive to concrete numbers — lift them back
+    // into the `StatValue` the renderer's `CardView` expects.
+    let power = chars.power.map(StatValue::Number);
+    let toughness = chars.toughness.map(StatValue::Number);
+    let card = render_card_view(&CardView {
+        name: &printed.name,
+        mana_cost: Some(&printed.mana_cost),
+        supertypes: &chars.supertypes,
+        types: &chars.card_types,
+        subtypes: &chars.subtypes,
+        power: power.as_ref(),
+        toughness: toughness.as_ref(),
+        abilities: &chars.abilities,
+    });
+    detail_text(&card)
+}
+
+/// Lay out a rendered card as the detail pane's plain text: name, cost (when
+/// any), type line, P/T (when any), then one line per rule.
+fn detail_text(card: &RenderedCard) -> Text<'static> {
+    let mut s = String::new();
+    let _ = writeln!(s, "{}", card.name);
+    if !card.mana_cost.is_empty() {
+        let _ = writeln!(s, "{}", card.mana_cost);
     }
-    // STUB: derived abilities, Debug-formatted. card-text-render renders these
-    // as real rules text.
-    for ability in state.abilities(id).iter() {
-        let _ = writeln!(s, "{ability:?}");
+    let _ = writeln!(s, "{}", card.type_line);
+    if let Some(pt) = &card.pt {
+        let _ = writeln!(s, "{pt}");
+    }
+    for rule in &card.rules {
+        let _ = writeln!(s, "{rule}");
     }
     Text::from(s)
 }
@@ -60,22 +82,6 @@ fn stack_detail(state: &GameState, view: &LayeredView, i: usize) -> Text<'static
             entry.controller.0
         )),
     }
-}
-
-fn type_line(chars: &Characteristics) -> String {
-    let mut parts: Vec<String> = Vec::new();
-    for st in chars.supertypes.iter() {
-        parts.push(format!("{st:?}"));
-    }
-    for t in chars.card_types.iter() {
-        parts.push(format!("{t:?}"));
-    }
-    let mut line = parts.join(" ");
-    if !chars.subtypes.is_empty() {
-        let subs: Vec<String> = chars.subtypes.iter().map(|s| s.name.to_string()).collect();
-        let _ = write!(line, " — {}", subs.join(" "));
-    }
-    line
 }
 
 #[cfg(test)]
@@ -129,5 +135,25 @@ mod tests {
             s.contains(&face(state.def(id)).name),
             "detail names the card: {s}"
         );
+    }
+
+    /// Elvish Visionary's `Triggered(ThisEnters, Draw(1))` renders as a real
+    /// sentence ("…draw a card."), proving the detail pane runs the
+    /// `deckmaste_cards` renderer over derived characteristics rather than
+    /// Debug-formatting the abilities.
+    #[test]
+    fn object_detail_renders_abilities_as_prose_not_debug() {
+        let state = opening();
+        let view = state.layers();
+        let id = state
+            .objects
+            .iter()
+            .filter(|o| o.card_id().is_some())
+            .map(|o| o.id)
+            .find(|&id| face(state.def(id)).name == "Elvish Visionary")
+            .expect("Elvish Visionary in game");
+        let s = text_to_string(&render(&state, &view, Some(Selected::Object(id))));
+        assert!(s.contains("draw a card"), "renders effect as prose: {s}");
+        assert!(!s.contains("Triggered"), "no Debug ability form: {s}");
     }
 }
