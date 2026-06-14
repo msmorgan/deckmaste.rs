@@ -126,3 +126,13 @@ fn renders_pacifism() {
         r.rules
     );
 }
+
+#[test]
+fn renders_sequence_brainstorm() {
+    let r = render_card_face(&face("Brainstorm"));
+    assert_eq!(r.mana_cost, "{U}");
+    assert_eq!(
+        r.rules,
+        vec!["Draw 3 cards, then put 2 cards from your hand on top of your library.".to_string()]
+    );
+}

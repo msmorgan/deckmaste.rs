@@ -64,7 +64,7 @@ fn state_word(s: &StateFilterEvent) -> &'static str {
     }
 }
 
-fn lower_first(s: &str) -> String {
+pub(super) fn lower_first(s: &str) -> String {
     let mut c = s.chars();
     match c.next() {
         Some(first) => first.to_lowercase().chain(c).collect(),
