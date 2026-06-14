@@ -59,6 +59,35 @@ pub enum CountBound {
     Less(Count),
 }
 
+impl CountBound {
+    /// The comparator this bound heads with, and the `Count` it bounds
+    /// against — comparator-headed variants map 1:1 onto [`Cmp`].
+    #[must_use]
+    pub fn split(&self) -> (crate::Cmp, &Count) {
+        match self {
+            CountBound::Eq(c) => (crate::Cmp::Eq, c),
+            CountBound::AtLeast(c) => (crate::Cmp::AtLeast, c),
+            CountBound::AtMost(c) => (crate::Cmp::AtMost, c),
+            CountBound::Greater(c) => (crate::Cmp::Greater, c),
+            CountBound::Less(c) => (crate::Cmp::Less, c),
+        }
+    }
+
+    /// Does a matched set of cardinality `actual` satisfy this bound? `eval`
+    /// is the engine's unified count evaluator, supplied by the caller to turn
+    /// the bound's `Count` into a concrete cardinality — keeping this core
+    /// predicate independent of the engine while still routing through the one
+    /// evaluator (`GameState::eval_count`).
+    pub fn satisfied_by(
+        &self,
+        actual: crate::Uint,
+        eval: impl FnOnce(&Count) -> crate::Uint,
+    ) -> bool {
+        let (cmp, bound) = self.split();
+        cmp.apply(actual, eval(bound))
+    }
+}
+
 /// A proposed-action pattern — the typed verb the deontic polarities range
 /// over. Closed core enum (the engine pattern-matches it); openness comes
 /// from macro interception at the `Deontic`/`Ability` positions. Slots
@@ -187,6 +216,31 @@ mod tests {
                 on: Filter::Any,
             }),
         );
+    }
+
+    /// `satisfied_by` routes the matched-set cardinality and the bound's
+    /// evaluated `Count` through the right comparator — and feeds the closure
+    /// the BOUND, not the actual. Menace (`Less(2)`) forbids a non-empty set
+    /// of fewer than two: one blocker is too few, two is enough.
+    #[test]
+    fn count_bound_satisfied_by_routes_through_comparator() {
+        let menace = CountBound::Less(Count::Literal(2));
+        // The closure must receive the bound (Literal(2)), returning 2.
+        let eval = |c: &Count| match c {
+            Count::Literal(n) => *n,
+            other => panic!("unexpected count {other:?}"),
+        };
+        assert!(
+            menace.satisfied_by(1, eval),
+            "1 < 2 → bound holds (too few)"
+        );
+        assert!(!menace.satisfied_by(2, eval), "2 < 2 is false");
+        // Every comparator variant maps correctly against a fixed bound of 2.
+        assert!(CountBound::Eq(Count::Literal(2)).satisfied_by(2, eval));
+        assert!(CountBound::AtLeast(Count::Literal(2)).satisfied_by(2, eval));
+        assert!(CountBound::AtMost(Count::Literal(2)).satisfied_by(2, eval));
+        assert!(CountBound::Greater(Count::Literal(2)).satisfied_by(3, eval));
+        assert!(!CountBound::Greater(Count::Literal(2)).satisfied_by(2, eval));
     }
 
     /// Menace's shape: a Cant over too-small blocker sets.
