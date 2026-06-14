@@ -144,3 +144,48 @@ fn render_footer(frame: &mut Frame, area: Rect, stop: &Stop) {
     let hint = "[Tab] zone  [↑↓←→] select  [space] pass  [enter] auto  [q] quit";
     frame.render_widget(Paragraph::new(format!("{status}    {hint}")), area);
 }
+
+#[cfg(test)]
+mod tests {
+    use deckmaste_engine::sim::GreedyCreatures;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+    use ratatui::buffer::Buffer;
+
+    use super::*;
+    use crate::driver::Driver;
+    use crate::game;
+
+    fn buffer_text(buf: &Buffer) -> String {
+        let area = buf.area;
+        let mut s = String::new();
+        for y in 0..area.height {
+            for x in 0..area.width {
+                s.push_str(buf[(x, y)].symbol());
+            }
+        }
+        s
+    }
+
+    #[test]
+    fn renders_opening_board_without_panicking() {
+        let mut driver =
+            Driver::new(game::build_game().expect("build"), Box::new(GreedyCreatures));
+        let stop = driver.run_to_priority().expect("priority");
+        let mut board = BoardState::new();
+        board.sync(&driver.state);
+        let view = driver.state.layers();
+
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).expect("terminal");
+        terminal
+            .draw(|frame| render(frame, &driver.state, &view, &board, &stop))
+            .expect("draw");
+
+        let text = buffer_text(terminal.backend().buffer());
+        assert!(text.contains("Turn"), "header present:\n{text}");
+        assert!(text.contains("life"), "life shown");
+        assert!(text.contains("P0 Battlefield"), "battlefield titled");
+        assert!(text.contains("Detail"), "detail pane present");
+    }
+}
