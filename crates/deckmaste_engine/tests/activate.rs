@@ -867,17 +867,30 @@ fn cost_game(seed: u64, card: &Arc<Card>) -> GameState {
 /// Activates `object`'s only ability at the current P0 priority window, then
 /// answers the `PayMana` that the `{0}` mana component surfaces. Leaves the
 /// engine at whatever stop follows payment.
+///
+/// [CR#118.5,118.5a]: a `{0}` cost is a placeholder payable with nothing, but
+/// the ability is NOT paid automatically — the action still requires the
+/// player's acknowledgment. The engine models that acknowledgment as a real
+/// `PayMana` decision carrying the (zero) cost, answered here via `auto_pay`.
+/// Every `artifact_with_cost` test below relies on this `{0}`-surfaces-PayMana
+/// contract, so this asserts it once for all of them.
 fn activate_and_pay_zero(state: &mut GameState, object: ObjectId) {
     let legal = run_to_priority(state, PlayerId(0), Phase::PrecombatMain);
     let activate =
         activate_action(&legal, object).expect("the in-Rust ability is offered at priority");
     state.submit_decision(Decision::Act(activate)).unwrap();
 
-    // No targets: the next stop is the `{0}` PayMana (a payment with nothing).
+    // No targets: the next stop is the `{0}` PayMana — the acknowledgment that
+    // the cost is being paid ([CR#118.5]), even though it requires no resources.
     let (_, stop) = step_to_stop(state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana { cost, .. }) = stop else {
         panic!("expected PayMana for the {{0}} cost, got {stop:?}");
     };
+    assert_eq!(
+        cost,
+        "{0}".parse().unwrap(),
+        "[CR#118.5]: a {{0}} cost still surfaces a (zero) PayMana — not auto-paid"
+    );
     let pay = state.auto_pay_pending();
     state.submit_decision(Decision::Pay(pay)).unwrap();
 }
@@ -1590,6 +1603,105 @@ fn x_plus_hybrid_gated_on_hybrid() {
     assert!(
         activate_action(&legal, obj).is_none(),
         "{{X}}{{W/U}} is NOT offered with no payable hybrid reading, legal: {legal:?}"
+    );
+}
+
+/// MERGE-COMPOSITION ([CR#107.3a,107.4e,601.2b]): a cost bearing BOTH `{X}` and
+/// a hybrid (`{X}{W/U}`) drives the full announce flow `engine-x-costs` and the
+/// hybrid concretization compose through. The two concretizers run at different
+/// steps — `AnnounceX` records X, `ChooseCostOptions` picks the hybrid reading
+/// (passing `{X}` through untouched), then `PayCost` applies `concretize_x` to
+/// the residual `{X}`. With X=2 and the blue reading picked, the `PayMana` cost
+/// must be the composed `{2}{U}` (X→`Generic(2)`, `{W/U}`→`{U}`), and exactly
+/// the right two units (one blue + two generic-payable) are spent. The gate
+/// also OFFERS the ability when the hybrid is affordable ([CR#601.2g]).
+#[test]
+fn x_plus_hybrid_announces_x_concretizes_hybrid_pays_composed_cost() {
+    const NAME: &str = "X-plus-hybrid e2e test artifact";
+    let card = artifact_with_cost(NAME, vec![CostComponent::Mana("{X}{W/U}".parse().unwrap())]);
+    let mut state = cost_game(7, &card);
+    let obj = force_into_play(&mut state, PlayerId(0), NAME);
+
+    // Float one blue (for the {W/U}→{U} reading) plus two greens (generic-
+    // payable, to fund X=2). `legal_with_float` floats AFTER reaching the
+    // precombat-main priority window (the pool empties at every step end,
+    // [CR#500.5]) and re-derives the legal list with the float reflected. The
+    // gate is X-reduced ([CR#107.3a]), so the offer hangs on the hybrid alone.
+    let legal = legal_with_float(&mut state, &[(blue(), 1), (green(), 2)]);
+    let activate = activate_action(&legal, obj)
+        .expect("the {X}{W/U} ability is OFFERED when the hybrid reading is payable");
+    state.submit_decision(Decision::Act(activate)).unwrap();
+
+    // [CR#601.2b]: X is announced FIRST (engine-x-costs' `AnnounceX` step).
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseXValue { player }) = stop else {
+        panic!("expected ChooseXValue first, got {stop:?}");
+    };
+    assert_eq!(player, PlayerId(0));
+    state.submit_decision(Decision::XValue(2)).unwrap();
+
+    // [CR#601.2b]: ...then ChooseCostOptions for the hybrid. The carried cost is
+    // the printed {X}{W/U}; only the hybrid symbol is choosable (X passes
+    // through). Pick the blue reading.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseCostOptions {
+        player,
+        cost,
+        options,
+    }) = stop
+    else {
+        panic!("expected ChooseCostOptions after X, got {stop:?}");
+    };
+    assert_eq!(player, PlayerId(0));
+    assert_eq!(
+        cost,
+        "{X}{W/U}".parse().unwrap(),
+        "the decision carries the printed {{X}}{{W/U}} cost"
+    );
+    assert_eq!(
+        options.options.len(),
+        1,
+        "only the hybrid symbol is choosable; {{X}} is announced separately"
+    );
+    state
+        .submit_decision(Decision::CostOptions(CostOptionChoices {
+            picks: vec![SymbolChoice::Mana(SimpleManaSymbol::Specific(
+                Color::Blue.into(),
+            ))],
+        }))
+        .unwrap();
+
+    // PayCost composes the two concretizers: the hybrid is already {U}, and
+    // `concretize_x` turns the residual {X} into Generic(2). The PayMana cost
+    // must be the composed {2}{U}.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana { cost, .. }) = stop else {
+        panic!("expected PayMana for the composed {{2}}{{U}}, got {stop:?}");
+    };
+    assert_eq!(
+        cost,
+        "{2}{U}".parse().unwrap(),
+        "X→Generic(2) ∘ hybrid→{{U}} composes to {{2}}{{U}}, not the printed {{X}}{{W/U}}"
+    );
+    let pay = state.auto_pay_pending();
+    state.submit_decision(Decision::Pay(pay)).unwrap();
+
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    // The blue unit paid {U}; the two greens paid the {2}. Nothing is left over.
+    assert_eq!(
+        state.player(PlayerId(0)).mana_pool.amount(blue()),
+        0,
+        "the blue unit paid the concretized {{U}}"
+    );
+    assert_eq!(
+        state.player(PlayerId(0)).mana_pool.amount(green()),
+        0,
+        "the two green units paid the X=2 generic"
+    );
+    assert_eq!(
+        state.stack.len(),
+        1,
+        "the ability reached the stack after the composed cost was paid"
     );
 }
 

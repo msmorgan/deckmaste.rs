@@ -857,9 +857,18 @@ impl GameState {
                         unreachable!("triggers never occupy the announce slot")
                     }
                 };
-                let payable = crate::cast::can_pay(
-                    &self.spendable_pool(player, subject),
+                // [CR#601.2b,107.3a,107.4e,107.4f]: with X now fixed to its
+                // announced value, the cost may STILL carry hybrid/Phyrexian
+                // symbols (a `{X}{W/U}`-style cost composing engine-x-costs with
+                // engine-cost-payment). A bare `can_pay` rejects any cost with a
+                // choosable symbol (`requirement` returns `None`), so the
+                // payability check must go through the reading-search gate —
+                // "is SOME hybrid/Phyrexian reading of the X-concretized cost
+                // payable?" — which subsumes `can_pay` for a plain/X-only cost.
+                let payable = self.affordable_concretization(
+                    player,
                     &crate::cast::concretize_x(&base, x),
+                    subject,
                 );
                 self.pending = None;
                 // The rewind on the unpayable path (rewind_announce) takes the whole
