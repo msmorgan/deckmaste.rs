@@ -99,13 +99,13 @@ impl Cards {
         let def = Arc::new(Card::Normal(CardFace {
             name,
             mana_cost: deckmaste_core::ManaCost::default(),
-            color_indicator: vec![],
+            color_indicator: token.color_indicator.clone(),
             supertypes: token.supertypes.clone(),
             types: token.types.clone(),
             subtypes: token.subtypes.clone(),
             abilities: token.abilities.clone(),
-            power: None,
-            toughness: None,
+            power: token.power.clone(),
+            toughness: token.toughness.clone(),
             loyalty: None,
             defense: None,
         }));
@@ -284,5 +284,38 @@ impl ObjectStore {
     /// Panics if the id was not present — engine invariant, not caller input.
     pub fn remove(&mut self, id: ObjectId) {
         self.objects.remove(id).expect("removing a live ObjectId");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use deckmaste_core::Color;
+    use deckmaste_core::StatValue;
+    use deckmaste_core::Type;
+
+    use super::*;
+
+    /// A synthesized token reflects the creating effect's color [CR#202.2e]
+    /// and P/T [CR#111.3], not a colorless statless default.
+    #[test]
+    fn push_token_carries_color_and_pt() {
+        let mut cards = Cards::default();
+        let token = Token {
+            color_indicator: vec![Color::Red],
+            supertypes: vec![],
+            types: vec![Type::Creature],
+            subtypes: vec![],
+            abilities: vec![],
+            power: Some(StatValue::Number(1)),
+            toughness: Some(StatValue::Number(1)),
+        };
+        let id = cards.push_token(&token, PlayerId(0));
+        let inst = cards.get(id);
+        assert_eq!(*inst.colors, vec![Color::Red]);
+        let Card::Normal(face) = inst.def.as_ref() else {
+            panic!("a token synthesizes a one-faced Normal card");
+        };
+        assert_eq!(face.power, Some(StatValue::Number(1)));
+        assert_eq!(face.toughness, Some(StatValue::Number(1)));
     }
 }

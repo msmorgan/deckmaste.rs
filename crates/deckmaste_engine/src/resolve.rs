@@ -2275,10 +2275,13 @@ mod tests {
             bindings: None,
         };
         let token = Token {
+            color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact],
             subtypes: vec![],
             abilities: vec![],
+            power: None,
+            toughness: None,
         };
         state.run_effect(
             Effect::Act(by_you(PlayerAction::Create(
