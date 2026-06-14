@@ -4,6 +4,7 @@
 
 mod ability;
 mod card;
+mod deontic;
 mod effect;
 mod fragment;
 mod keyword;
@@ -84,7 +85,7 @@ fn rules(view: &CardView) -> Vec<String> {
                 body.push(effect::effect(&s.effect, &ctx));
             }
             Ability::Triggered(t) => body.push(ability::triggered(t, view)),
-            Ability::Static(s) => body.extend(ability::static_ability(s)),
+            Ability::Static(s) => body.extend(ability::static_ability(s, view.name)),
             _ => {} // Activated: later tasks
         }
     }

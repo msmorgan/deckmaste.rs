@@ -96,3 +96,33 @@ fn renders_elesh_norn() {
         ]
     );
 }
+
+#[test]
+fn renders_must_attack_goblin_brigand() {
+    let r = render_card_face(&face("Goblin Brigand"));
+    assert_eq!(
+        r.rules,
+        vec!["Goblin Brigand attacks each combat if able.".to_string()]
+    );
+}
+
+#[test]
+fn renders_pacifism() {
+    let r = render_card_face(&face("Pacifism"));
+    assert_eq!(r.type_line, "Enchantment — Aura");
+    assert!(
+        r.rules
+            .contains(&"Enchanted creature can't attack.".to_string())
+    );
+    assert!(
+        r.rules
+            .contains(&"Enchanted creature can't block.".to_string())
+    );
+    // No leaked fallback markers anywhere (the Enchant keyword line must render
+    // too):
+    assert!(
+        r.rules.iter().all(|line| !line.contains("[unrendered")),
+        "rules: {:?}",
+        r.rules
+    );
+}
