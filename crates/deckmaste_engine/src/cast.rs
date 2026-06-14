@@ -267,9 +267,13 @@ impl GameState {
         let Some(cost) = self.mana_cost(object) else {
             return false;
         };
-        // [CR#106.6]: only mana spendable on this spell can fund it — restrict
-        // the affordability check to the spendable sub-pool.
-        if !can_pay(&self.spendable_pool(player, object), &cost) {
+        // [CR#107.3a,107.3b]: an {X} cost's floor is X=0; concretize at 0 so an
+        // {X} spell is offered whenever its non-X part is affordable. The real
+        // value is announced at the AnnounceX step ([CR#601.2b]).
+        if !can_pay(
+            &self.spendable_pool(player, object),
+            &concretize_x(&cost, 0),
+        ) {
             return false;
         }
         // If the spell targets, every spec must admit at least one candidate.

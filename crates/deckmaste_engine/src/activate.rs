@@ -93,7 +93,10 @@ impl GameState {
         let Some(summary) = cost_summary(&ability.cost) else {
             return false;
         };
-        if !can_pay(&self.spendable_pool(player, object), &summary.mana) {
+        if !can_pay(
+            &self.spendable_pool(player, object),
+            &crate::cast::concretize_x(&summary.mana, 0),
+        ) {
             return false;
         }
 
