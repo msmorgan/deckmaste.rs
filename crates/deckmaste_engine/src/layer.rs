@@ -348,7 +348,13 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
         // static ability that is itself *granted* by a layer-6 effect won't be
         // re-gathered as an effect source (no fixpoint). No fixture requires that.
         for ability in crate::derive::printed_abilities(state, obj.id) {
-            let Ability::Static(sa) = ability else { continue };
+            // Peel `Innate` ([CR#113.12]): a subtype rule conferred as an
+            // `Innate(Static(...))` (the Aura/Equipment/Fortification
+            // attachment rules) still functions as a [CR#604.1] static, so its
+            // effects are gathered like any other.
+            let Ability::Static(sa) = ability.peel_innate() else {
+                continue;
+            };
             // Conditions skipped — a seam for later ([CR#611.3a]).
             for effect in &sa.effects {
                 let StaticEffect::Modify { of, changes } = effect else { continue };
@@ -582,14 +588,24 @@ fn apply(m: &Modification, effect_controller: PlayerId, d: &mut DerivedObject) {
                 Arc::make_mut(&mut c.abilities).push((**a).clone());
             }
         }
-        Modification::LoseAllAbilities => c.abilities = Arc::new(Vec::new()),
+        // [CR#113.12]: "loses all abilities" strips card abilities but NOT
+        // `Innate` subtype rules (the Aura [CR#704.5m] graveyard SBA, the
+        // Equipment/Fortification host restriction) — those are rules of the
+        // object, not abilities it has, so they survive.
+        Modification::LoseAllAbilities => {
+            Arc::make_mut(&mut c.abilities).retain(Ability::is_innate);
+        }
         Modification::LoseAbility(name) => {
-            Arc::make_mut(&mut c.abilities).retain(|x| !ability_is_named(x, name));
+            // [CR#113.12]: never remove an `Innate` ability. (A named-keyword
+            // `LoseAbility` already misses `Innate`, which carries no keyword
+            // name, but guard explicitly so the invariant is local.)
+            Arc::make_mut(&mut c.abilities).retain(|x| x.is_innate() || !ability_is_named(x, name));
         }
         Modification::CantHaveAbility(name) => {
-            // Remove any already-present instance of the named ability, then
-            // record the prohibition so future GainAbility skips it.
-            Arc::make_mut(&mut c.abilities).retain(|x| !ability_is_named(x, name));
+            // Remove any already-present instance of the named ability (except
+            // `Innate`, [CR#113.12]), then record the prohibition so future
+            // GainAbility skips it.
+            Arc::make_mut(&mut c.abilities).retain(|x| x.is_innate() || !ability_is_named(x, name));
             d.cant_have.push(*name);
         }
         // --- Layer 2: control-changing ([CR#613.1b]) ---
@@ -825,5 +841,237 @@ impl GameState {
         }
 
         LayeredView(working)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use deckmaste_core::Ability;
+    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::Count;
+    use deckmaste_core::Duration;
+    use deckmaste_core::Filter;
+    use deckmaste_core::KeywordAbility;
+    use deckmaste_core::Modification;
+    use deckmaste_core::Scope;
+    use deckmaste_core::StatValue;
+    use deckmaste_core::StaticAbility;
+    use deckmaste_core::StaticEffect;
+    use deckmaste_core::Type;
+    use deckmaste_core::Zone;
+
+    use super::ContinuousEffect;
+    use super::ScopeResolved;
+    use crate::object::ObjectId;
+    use crate::object::ObjectSource;
+    use crate::player::PlayerId;
+    use crate::state::GameConfig;
+    use crate::state::GameState;
+    use crate::state::PlayerConfig;
+    use crate::state::StartingPlayer;
+
+    fn game() -> GameState {
+        GameState::new(GameConfig {
+            players: vec![PlayerConfig { deck: vec![] }, PlayerConfig { deck: vec![] }],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        })
+    }
+
+    /// A self-anthem `Static`: "creatures get +2/+2" — matches the carrying
+    /// creature itself (a `Matching` floating scope, no Stage-3 source-relative
+    /// reference needed). Wrapped or not per `innate`.
+    fn pump_static(innate: bool) -> Ability {
+        let s = Ability::Static(StaticAbility {
+            condition: None,
+            effects: vec![StaticEffect::Modify {
+                of: Scope::Matching(Filter::Characteristic(CharacteristicFilter::Type(
+                    Type::Creature,
+                ))),
+                changes: vec![
+                    Modification::AddPower(Count::Literal(2)),
+                    Modification::AddToughness(Count::Literal(2)),
+                ],
+            }],
+            characteristic_defining: false,
+        });
+        if innate { Ability::Innate(Box::new(s)) } else { s }
+    }
+
+    /// Mint a 2/2 creature carrying `abilities` onto the battlefield (player
+    /// 0).
+    fn creature_on_field(mut state: GameState, abilities: Vec<Ability>) -> (GameState, ObjectId) {
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        let card = Card::Normal(CardFace {
+            name: "Test Creature".into(),
+            types: vec![Type::Creature],
+            power: Some(StatValue::Number(2)),
+            toughness: Some(StatValue::Number(2)),
+            abilities,
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        (state, id)
+    }
+
+    /// Lock a `LoseAllAbilities` (layer-6) continuous effect onto `id`.
+    fn lose_all_abilities(state: &mut GameState, id: ObjectId) {
+        let timestamp = state.objects.next_timestamp();
+        state.continuous.push(ContinuousEffect {
+            timestamp,
+            controller: PlayerId(0),
+            scope: ScopeResolved::Locked(vec![id]),
+            changes: vec![Modification::LoseAllAbilities],
+            duration: Duration::EndOfGame,
+            is_cda: false,
+        });
+    }
+
+    /// Whether `id`'s DERIVED ability list (what the SBA sweep,
+    /// `attachment_legal`, and the deontic reads consult) carries a `Static`
+    /// (peeling `Innate`). This is the surface layer-6 ability removal acts on
+    /// — gather's effect-source collection reads PRINTED abilities to break the
+    /// `layers()` recursion (documented in `gather`), so P/T anthem application
+    /// is intentionally NOT the right observable here.
+    fn derived_has_static(state: &GameState, id: ObjectId) -> bool {
+        state
+            .layers()
+            .get(id)
+            .abilities
+            .iter()
+            .any(|a| matches!(a.peel_innate(), Ability::Static(_)))
+    }
+
+    /// [CR#113.12]: `LoseAllAbilities` strips a normal granted ability (Trample)
+    /// but RETAINS an `Innate` static — the Innate static stays in the derived
+    /// ability list (so the SBA / legality reads still see it), while the
+    /// normal keyword is gone.
+    #[test]
+    fn innate_static_survives_lose_all_abilities() {
+        let (mut state, id) = creature_on_field(
+            game(),
+            vec![pump_static(true), Ability::Keyword(KeywordAbility::Trample)],
+        );
+
+        // Before removal: the Innate static and Trample are both derived.
+        assert!(
+            derived_has_static(&state, id),
+            "innate static present pre-removal"
+        );
+        assert!(
+            state
+                .layers()
+                .get(id)
+                .abilities
+                .iter()
+                .any(|a| matches!(a, Ability::Keyword(KeywordAbility::Trample))),
+            "Trample present pre-removal"
+        );
+
+        lose_all_abilities(&mut state, id);
+
+        // After removal: the Innate static SURVIVES in the derived list, the
+        // normal keyword is GONE.
+        assert!(
+            derived_has_static(&state, id),
+            "innate static survives LoseAllAbilities ([CR#113.12])"
+        );
+        assert!(
+            !state
+                .layers()
+                .get(id)
+                .abilities
+                .iter()
+                .any(|a| matches!(a, Ability::Keyword(KeywordAbility::Trample))),
+            "Trample removed by LoseAllAbilities"
+        );
+    }
+
+    /// Guard against over-retaining: a NORMAL (non-Innate) conferred static is
+    /// removed from the derived ability list by `LoseAllAbilities` (so the SBA
+    /// / legality reads no longer see it).
+    #[test]
+    fn normal_static_is_removed_by_lose_all_abilities() {
+        let (mut state, id) = creature_on_field(game(), vec![pump_static(false)]);
+        assert!(
+            derived_has_static(&state, id),
+            "normal static present pre-removal"
+        );
+        lose_all_abilities(&mut state, id);
+        assert!(
+            !derived_has_static(&state, id),
+            "normal static removed from the derived list by LoseAllAbilities"
+        );
+    }
+
+    /// [CR#113.12]: `LoseAbility(Trample)` removes the named keyword from the
+    /// derived list but never an `Innate` ability.
+    #[test]
+    fn lose_ability_does_not_remove_innate() {
+        let (mut state, id) = creature_on_field(
+            game(),
+            vec![pump_static(true), Ability::Keyword(KeywordAbility::Trample)],
+        );
+        let timestamp = state.objects.next_timestamp();
+        state.continuous.push(ContinuousEffect {
+            timestamp,
+            controller: PlayerId(0),
+            scope: ScopeResolved::Locked(vec![id]),
+            changes: vec![Modification::LoseAbility("Trample".into())],
+            duration: Duration::EndOfGame,
+            is_cda: false,
+        });
+        assert!(
+            derived_has_static(&state, id),
+            "innate static survives LoseAbility"
+        );
+        assert!(
+            !state
+                .layers()
+                .get(id)
+                .abilities
+                .iter()
+                .any(|a| matches!(a, Ability::Keyword(KeywordAbility::Trample))),
+            "Trample removed by LoseAbility(Trample)"
+        );
+    }
+
+    /// [CR#113.12]: the card-facing `derive::abilities` view filters `Innate`
+    /// OUT — an object whose only ability is `Innate` reads as having none,
+    /// while a co-present normal ability is still visible.
+    #[test]
+    fn derive_abilities_filters_innate_out() {
+        // Innate-only: card-facing list is empty.
+        let (state, id) = creature_on_field(game(), vec![pump_static(true)]);
+        assert!(
+            crate::derive::abilities(&state, id).is_empty(),
+            "an object whose only ability is Innate reads as having none"
+        );
+
+        // Innate + a normal keyword: only the keyword is visible.
+        let (state, id) = creature_on_field(
+            game(),
+            vec![pump_static(true), Ability::Keyword(KeywordAbility::Trample)],
+        );
+        let facing = crate::derive::abilities(&state, id);
+        assert_eq!(
+            facing.len(),
+            1,
+            "only the non-Innate ability is card-facing"
+        );
+        assert!(matches!(
+            facing[0],
+            Ability::Keyword(KeywordAbility::Trample)
+        ));
     }
 }
