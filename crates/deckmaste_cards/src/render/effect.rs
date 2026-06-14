@@ -27,6 +27,14 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
             out.push('.');
             out
         }
+        Effect::Expanded(e) => {
+            if let Some(t) = e.template.as_deref() {
+                if let Some(s) = super::template::fill(t, ctx.subject, &e.args) {
+                    return ensure_period(&s);
+                }
+            }
+            effect(&e.value, ctx)
+        }
         other => format!("[unrendered: {other:?}]."),
     }
 }
@@ -60,3 +68,7 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
 }
 
 fn trim_period(s: &str) -> String { s.strip_suffix('.').unwrap_or(s).to_string() }
+
+fn ensure_period(s: &str) -> String {
+    if s.ends_with(['.', '!', '?']) { s.to_string() } else { format!("{s}.") }
+}
