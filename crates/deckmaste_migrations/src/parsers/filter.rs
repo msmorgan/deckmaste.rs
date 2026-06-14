@@ -221,8 +221,8 @@ fn strip_subtype_adjective(s: &str) -> Option<(String, &str)> {
 /// "commander" is a designation (an attribute of the card, not a
 /// characteristic), NOT a creature subtype ([CR#903.3]). There's
 /// no designation catalog yet (`DesignationDecl` is an open `Ident` with no
-/// loader), so the recognized set is explicit and grows as designations surface.
-/// Matches singular or plural, any case.
+/// loader), so the recognized set is explicit and grows as designations
+/// surface. Matches singular or plural, any case.
 fn designation_ident(word: &str) -> Option<&'static str> {
     match word.trim_end_matches('s').to_ascii_lowercase().as_str() {
         "commander" => Some("Commander"),
@@ -405,7 +405,10 @@ mod tests {
     #[test]
     fn on_the_battlefield_is_consumed() {
         // "on the battlefield" is the default scope — consumed, no atom.
-        assert_eq!(parse_phrase("Elf on the battlefield").as_deref(), Some("Subtype(\"Elf\")"));
+        assert_eq!(
+            parse_phrase("Elf on the battlefield").as_deref(),
+            Some("Subtype(\"Elf\")")
+        );
         assert_eq!(
             parse_phrase("creatures on the battlefield").as_deref(),
             Some("Creature")
@@ -425,7 +428,10 @@ mod tests {
             Some("AllOf([Creature, Not(Ref(This)), Subtype(\"Elf\"), ControlledBy(Ref(You))])")
         );
         // A bare subtype head still parses as the head (not an adjective).
-        assert_eq!(parse_phrase("Goblins").as_deref(), Some("Subtype(\"Goblin\")"));
+        assert_eq!(
+            parse_phrase("Goblins").as_deref(),
+            Some("Subtype(\"Goblin\")")
+        );
         assert_eq!(
             parse_phrase("Goblins you control").as_deref(),
             Some("AllOf([Subtype(\"Goblin\"), ControlledBy(Ref(You))])")

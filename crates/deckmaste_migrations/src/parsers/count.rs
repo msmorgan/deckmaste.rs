@@ -21,7 +21,8 @@ static WHERE_RE: LazyLock<Regex> =
 pub(super) enum Binder {
     /// "for each <filter>": the head carries a UNIT base the caller verifies.
     ForEach,
-    /// ", where <var> is the number of <filter>": the head's amount word is `var`.
+    /// ", where <var> is the number of <filter>": the head's amount word is
+    /// `var`.
     Variable(String),
     /// "equal to the number of <filter>": the head has no amount slot.
     EqualTo,
@@ -96,7 +97,10 @@ mod tests {
 
     #[test]
     fn where_variable_maps_to_countof() {
-        let c = strip("Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control").unwrap();
+        let c = strip(
+            "Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control",
+        )
+        .unwrap();
         assert_eq!(c.head, "Create X 1/1 red Goblin creature tokens");
         assert_eq!(
             c.count,

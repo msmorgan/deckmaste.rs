@@ -36,6 +36,22 @@ pub struct Payment {
     pub units: Vec<usize>,
 }
 
+/// [CR#107.3a,107.3i]: substitute each `{X}` (`ManaSymbol::Variable`) in `cost`
+/// with `Generic(x)` — all instances of X take the one announced value. A cost
+/// with no `Variable` is returned unchanged, so callers may apply this
+/// unconditionally.
+#[must_use]
+pub(crate) fn concretize_x(cost: &ManaCost, x: Uint) -> ManaCost {
+    ManaCost::from(
+        cost.iter()
+            .map(|s| match s {
+                ManaSymbol::Variable => ManaSymbol::Simple(SimpleManaSymbol::Generic(x)),
+                other => other.clone(),
+            })
+            .collect::<Vec<_>>(),
+    )
+}
+
 /// The colored requirement (per color) and total generic of a cost, or `None`
 /// if the cost uses an out-of-scope symbol (X, hybrid, phyrexian, snow).
 fn requirement(cost: &ManaCost) -> Option<(Vec<(ColorOrColorless, Uint)>, Uint)> {
@@ -649,5 +665,13 @@ mod tests {
         let pay = auto_pay(&p, &cost("{1}{G}"));
         assert_eq!(pay.units, vec![0, 1]);
         assert!(validate_payment(&p, &cost("{1}{G}"), &pay));
+    }
+
+    #[test]
+    fn concretize_x_substitutes_variable_with_generic() {
+        // {X}{R} at X=3 -> {3}{R}; X=0 -> {0}{R}; a cost with no X is unchanged.
+        assert_eq!(concretize_x(&cost("{X}{R}"), 3), cost("{3}{R}"));
+        assert_eq!(concretize_x(&cost("{X}{R}"), 0), cost("{0}{R}"));
+        assert_eq!(concretize_x(&cost("{1}{G}"), 5), cost("{1}{G}"));
     }
 }
