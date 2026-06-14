@@ -2,10 +2,11 @@
 //! the bare `Triggered(...)` ability RON. A triggered ability is written as
 //! "[trigger condition], [effect]" divided by the trigger word [CR#603.1]. The
 //! effect grammar is shared via [`crate::parsers::effect`]; the event grammar
-//! (ETB / dies; self or "a creature" subject) lives here as private helpers.
+//! (ETB / dies; self `~` or any [`crate::parsers::filter`] subject) lives here.
 
 use crate::parsers::effect::ParsedEffect;
 use crate::parsers::effect::{self};
+use crate::parsers::filter;
 use crate::resolve::CardKind;
 
 /// A registry parser: a "When/Whenever <event>, <effect>." line -> the bare
@@ -50,9 +51,11 @@ fn render(event: &str, parsed: &ParsedEffect) -> String {
 }
 
 /// Parses a trigger's event clause (the text between the trigger word and the
-/// comma) into the event RON, or `None`. v1: ETB + dies, subject self (`~`) or
-/// "a creature". Self uses the `This{Verb}` shorthand macro; other subjects
-/// apply the event macro to the subject filter.
+/// comma) into the event RON, or `None`. v1 verbs: ETB + dies. Self (`~`) uses
+/// the `This{Verb}` shorthand macro; any other subject is parsed by the shared
+/// [`filter`] grammar and applied to the event macro — so "a creature you
+/// control", "another creature you control", "a Goblin", etc. all resolve
+/// (declining when the filter grammar can't parse the subject).
 fn parse_event(clause: &str) -> Option<String> {
     // Tolerate the older "enters the battlefield" wording (current oracle:
     // "enters").
@@ -67,17 +70,7 @@ fn parse_event(clause: &str) -> Option<String> {
     if subject == "~" {
         Some(format!("This{verb}"))
     } else {
-        Some(format!("{verb}({})", event_subject(subject)?))
-    }
-}
-
-/// A trigger subject phrase -> its `Filter` RON. `~` is handled in
-/// `parse_event` via the `This{Verb}` shorthand; "a creature" is the `Creature`
-/// macro (a creature permanent).
-fn event_subject(subject: &str) -> Option<&'static str> {
-    match subject {
-        "a creature" => Some("Creature"),
-        _ => None,
+        Some(format!("{verb}({})", filter::parse_phrase(subject)?))
     }
 }
 
@@ -118,6 +111,46 @@ mod tests {
         assert_eq!(
             trig("Whenever a creature enters, draw a card.").as_deref(),
             Some("Triggered(event: Enters(Creature), effect: Draw(1))")
+        );
+    }
+
+    #[test]
+    fn etb_filtered_subject_via_filter_grammar() {
+        // "a creature you control" — the filter parser supplies the subject.
+        assert_eq!(
+            trig("Whenever a creature you control enters, draw a card.").as_deref(),
+            Some(
+                "Triggered(event: Enters(AllOf([Creature, ControlledBy(Ref(You))])), \
+                 effect: Draw(1))"
+            )
+        );
+        // A subtype subject — "a Goblin enters".
+        assert_eq!(
+            trig("Whenever a Goblin enters, draw a card.").as_deref(),
+            Some("Triggered(event: Enters(Subtype(\"Goblin\")), effect: Draw(1))")
+        );
+    }
+
+    #[test]
+    fn dies_another_you_control_aristocrats() {
+        assert_eq!(
+            trig("Whenever another creature you control dies, you lose 1 life.").as_deref(),
+            Some(
+                "Triggered(event: Dies(AllOf([Creature, Not(Ref(This)), ControlledBy(Ref(You))])), \
+                 effect: LoseLife(1))"
+            )
+        );
+    }
+
+    #[test]
+    fn impact_tremors_etb_payoff() {
+        assert_eq!(
+            trig("Whenever a creature you control enters, ~ deals 1 damage to each opponent.")
+                .as_deref(),
+            Some(
+                "Triggered(event: Enters(AllOf([Creature, ControlledBy(Ref(You))])), \
+                 effect: DealDamage(Filter(OpponentOf(Ref(You))), 1))"
+            )
         );
     }
 
