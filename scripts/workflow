@@ -1,6 +1,6 @@
 #!/usr/bin/env fish
 
-source (status dirname)/lib/setup.fish jj perl
+source (status dirname)/lib/setup.fish jj perl flock
 or return
 
 alias jj (status dirname)/jj
@@ -492,6 +492,32 @@ function __workflow_repair
             end
         case '*'
             echo >&2 "repair: stopped (exit $rc) — finish removing markers and re-run, or get a human if jj rolled back."
+    end
+    return $rc
+end
+
+# Serialize the transactional commands so two sessions sharing default@ can't
+# interleave and corrupt the shared op log — or race a ticket move out of a claim
+# commit, the window __workflow_start flags by hand. claim/start/abandon/refresh/
+# integrate all mutate the shared default line; repair/converge/resolve heal an
+# isolated feature workspace, so they are deliberately left lock-free. Re-exec the
+# whole command under an flock on a per-repo lockfile in .jj/ (which jj never
+# snapshots, so it can't leak into a commit): the lock covers the ENTIRE operation
+# — every jj step plus its rollback — and is released when this process exits, even
+# on a crash (the kernel drops the lock when flock's fd closes). _WORKFLOW_LOCKED
+# breaks the re-exec recursion. This internalizes the external `flock <lock>
+# scripts/workflow …` wrapper the parallel-worker recipe used to apply by hand.
+if not set -q _WORKFLOW_LOCKED; and contains -- "$argv[1]" claim start abandon refresh integrate
+    set -gx _WORKFLOW_LOCKED 1
+    # -w 600: wait up to 10 min (a held lock spans one op, incl. claim/start's slow
+    # wizards provisioning) rather than failing fast under contention. -E 75: on
+    # timeout exit 75, distinct from the command's own codes (incl. 2), so a genuine
+    # "couldn't acquire" is never mistaken for the operation's result.
+    flock -w 600 -E 75 "$project_dir/.jj/workflow.lock" "$scripts_dir/workflow" $argv
+    set -l rc $status
+    if test $rc -eq 75
+        echo >&2 "$(status filename): timed out waiting for the workflow lock — another claim/start/abandon/refresh/integrate is holding it. Re-run once it finishes."
+        return 1
     end
     return $rc
 end
