@@ -89,7 +89,10 @@ pub enum GameEvent {
         amount: Uint,
         riders: Vec<deckmaste_core::ManaRider>,
     },
-    ManaEmptied(PlayerId),
+    ManaEmptied {
+        player: PlayerId,
+        ending: deckmaste_core::Phase,
+    },
 
     /// [CR#701.7a,111.2]: `player` creates one token with the characteristics
     /// `token` specifies. Its apply synthesizes a token entry in the card

@@ -70,6 +70,19 @@ impl ManaPool {
     /// emptying arrives in a later task as `empty_after`).
     pub fn clear(&mut self) { self.0.clear(); }
 
+    /// [CR#500.5,106.4]: empty the pool as the `ending` step/phase ends, but
+    /// RETAIN any unit whose `Persistent` marker has not yet expired
+    /// ([CR#702.189a]). A unit with several `Persistent` riders survives until
+    /// the latest marker; a unit with none always empties.
+    pub fn empty_after(&mut self, ending: deckmaste_core::Phase) {
+        self.0.retain(|u| {
+            u.riders.iter().any(|r| {
+                matches!(r,
+                    deckmaste_core::ManaRider::Persistent(m) if !marker_expired_at(*m, ending))
+            })
+        });
+    }
+
     /// Remove the units at `indices` (a validated payment selection). Indices
     /// must be distinct and in range — callers validate first.
     pub fn remove_units(&mut self, indices: &[usize]) {
@@ -80,6 +93,20 @@ impl ManaPool {
             i += 1;
             keep
         });
+    }
+}
+
+/// [CR#514.2,511.2]: has `marker` elapsed by the end of `ending`?
+fn marker_expired_at(marker: deckmaste_core::TurnMarker, ending: deckmaste_core::Phase) -> bool {
+    use deckmaste_core::CombatStep;
+    use deckmaste_core::EndingStep;
+    use deckmaste_core::Phase;
+    use deckmaste_core::TurnMarker;
+    match marker {
+        TurnMarker::EndOfTurn => ending == Phase::Ending(EndingStep::Cleanup),
+        TurnMarker::EndOfCombat => ending == Phase::Combat(CombatStep::EndOfCombat),
+        // Seam: "until your next turn" needs turn-owner tracking; retained for now.
+        TurnMarker::YourNextTurn => false,
     }
 }
 
@@ -114,9 +141,13 @@ impl PlayerState {
 
 #[cfg(test)]
 mod tests {
+    use deckmaste_core::BeginningStep;
     use deckmaste_core::Color;
+    use deckmaste_core::EndingStep;
     use deckmaste_core::Filter;
     use deckmaste_core::ManaRider;
+    use deckmaste_core::Phase;
+    use deckmaste_core::TurnMarker;
 
     use super::*;
 
@@ -134,6 +165,22 @@ mod tests {
         assert!(!pool.is_empty());
         pool.clear();
         assert!(pool.is_empty());
+    }
+
+    #[test]
+    fn persistent_mana_survives_until_its_marker() {
+        let mut pool = ManaPool::default();
+        pool.add(Color::Red.into(), 1); // plain
+        pool.add_riders(
+            Color::Green.into(),
+            1,
+            &[ManaRider::Persistent(TurnMarker::EndOfTurn)],
+        );
+        pool.empty_after(Phase::Beginning(BeginningStep::Upkeep)); // a non-final step
+        assert_eq!(pool.amount(Color::Red.into()), 0); // plain mana emptied
+        assert_eq!(pool.amount(Color::Green.into()), 1); // persistent survives the boundary
+        pool.empty_after(Phase::Ending(EndingStep::Cleanup)); // turn's last step
+        assert!(pool.is_empty()); // EndOfTurn expires at cleanup
     }
 
     #[test]

@@ -15,6 +15,7 @@ use deckmaste_core::ColorOrColorless;
 use deckmaste_core::Filter;
 use deckmaste_core::ManaRider;
 use deckmaste_core::Phase;
+use deckmaste_core::TurnMarker;
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
@@ -183,6 +184,81 @@ fn spend_only_creature_funds_a_creature_spell() {
     assert_eq!(state.stack.len(), 1, "the Bears spell sits on the stack");
     assert_eq!(state.stack[0].object, StackObject::Spell(bears));
     assert!(!state.zones.battlefield.contains(&bears));
+}
+
+/// Steps until a `Priority` decision surfaces for `player` in `phase`, passing
+/// any other priority, auto-paying mana, and declaring no attackers/blockers.
+fn run_to_priority_through_combat(
+    state: &mut GameState,
+    player: PlayerId,
+    phase: Phase,
+) -> Vec<Action> {
+    loop {
+        let (_, stop) = step_to_stop(state);
+        match stop {
+            StepOutcome::NeedsDecision(PendingDecision::Priority { player: p, legal })
+                if p == player && state.turn.current == phase =>
+            {
+                return legal;
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+                let pay = state.auto_pay_pending();
+                state.submit_decision(Decision::Pay(pay)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) => {
+                state.submit_decision(Decision::Attackers(vec![])).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { .. }) => {
+                state.submit_decision(Decision::Blocks(vec![])).unwrap();
+            }
+            other => {
+                panic!("unexpected stop before {player:?} priority in {phase:?}: {other:?}")
+            }
+        }
+    }
+}
+
+/// A green carrying `Persistent(EndOfTurn)` survives every step boundary until
+/// cleanup, while a plain red added at the same time empties at the first step
+/// end. Exercises the persistence logic end-to-end through the engine's
+/// `ManaEmptied { ending }` event and the `empty_after` retainer.
+#[test]
+fn persistent_end_of_turn_mana_survives_step_boundaries() {
+    let mut state = bears_game(1, 0);
+    // Reach precombat-main priority for player 0.
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+
+    // Float one plain red and one persistent green (EndOfTurn).
+    state.player_mut(PlayerId(0)).mana_pool.add(red(), 1);
+    state.player_mut(PlayerId(0)).mana_pool.add_riders(
+        green(),
+        1,
+        &[ManaRider::Persistent(TurnMarker::EndOfTurn)],
+    );
+
+    // Both units are present before any step boundary.
+    assert_eq!(state.player(PlayerId(0)).mana_pool.amount(red()), 1);
+    assert_eq!(state.player(PlayerId(0)).mana_pool.amount(green()), 1);
+
+    // Advance past the precombat-main → combat step boundary. The plain red
+    // empties; the EndOfTurn green survives. We drive to postcombat-main
+    // priority (passing all intermediate decisions automatically, including
+    // declare attackers and blockers).
+    let _ = run_to_priority_through_combat(&mut state, PlayerId(0), Phase::PostcombatMain);
+
+    assert_eq!(
+        state.player(PlayerId(0)).mana_pool.amount(red()),
+        0,
+        "plain red must be gone after the step boundary"
+    );
+    assert_eq!(
+        state.player(PlayerId(0)).mana_pool.amount(green()),
+        1,
+        "persistent EndOfTurn green must survive until cleanup"
+    );
 }
 
 /// Player 0's ONLY green is `SpendOnly(instant)` (a noncreature restriction);

@@ -370,11 +370,13 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
     let _ = step_to_stop(&mut state); // P1's priority
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let (trace, _) = step_to_stop(&mut state);
-    assert!(
-        trace
-            .iter()
-            .any(|p| matches!(applied(p), Some(GameEvent::ManaEmptied(PlayerId(0)))))
-    );
+    assert!(trace.iter().any(|p| matches!(
+        applied(p),
+        Some(GameEvent::ManaEmptied {
+            player: PlayerId(0),
+            ..
+        })
+    )));
     assert!(state.players[0].mana_pool.is_empty());
 }
 
