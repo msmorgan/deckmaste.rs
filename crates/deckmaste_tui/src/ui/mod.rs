@@ -3,6 +3,7 @@
 mod board;
 mod zones;
 mod format;
+mod detail;
 use std::fmt::Write as _;
 
 use deckmaste_core::Card;
