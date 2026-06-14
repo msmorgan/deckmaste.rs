@@ -38,6 +38,7 @@ fn action(a: &Action, ctx: &Ctx) -> String {
             fragment::count(amount),
             fragment::selection(target, ctx)
         ),
+        Action::Destroy(sel) => format!("Destroy {}.", fragment::selection(sel, ctx)),
         Action::By(_who, pa) => player_action(pa, ctx),
         other => format!("[unrendered: {other:?}]."),
     }
@@ -47,6 +48,8 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
     match pa {
         PlayerAction::Draw(Count::Literal(1)) => "Draw a card.".to_string(),
         PlayerAction::Draw(c) => format!("Draw {} cards.", fragment::count(c)),
+        PlayerAction::GainLife(c) => format!("Gain {} life.", fragment::count(c)),
+        PlayerAction::LoseLife(c) => format!("Lose {} life.", fragment::count(c)),
         PlayerAction::PutInLibrary(sel, position) => format!(
             "Put {} on {} of your library.",
             fragment::selection_object(sel, ctx),

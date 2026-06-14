@@ -273,3 +273,83 @@ fn anchor_cards_fully_rendered() {
         );
     }
 }
+
+// ── Coverage A: GainLife / LoseLife, Destroy, each-<noun> selections ─────────
+
+#[test]
+fn renders_gain_life_deepwood_tantiv() {
+    let r = render_card_face(&face("Deepwood Tantiv"));
+    // Whenever it becomes blocked, gain 2 life.
+    assert!(
+        r.rules
+            .iter()
+            .any(|l| l == "Whenever Deepwood Tantiv becomes blocked, gain 2 life."),
+        "rules: {:?}",
+        r.rules
+    );
+}
+
+#[test]
+fn renders_damage_to_each_creature_pyroclasm() {
+    let r = render_card_face(&face("Pyroclasm"));
+    assert_eq!(r.rules, vec!["Deal 2 damage to each creature.".to_string()]);
+}
+
+#[test]
+fn renders_damage_to_each_player_flame_rift() {
+    let r = render_card_face(&face("Flame Rift"));
+    assert_eq!(r.rules, vec!["Deal 4 damage to each player.".to_string()]);
+}
+
+#[test]
+fn renders_synthesized_lose_life_and_destroy() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::Action;
+    use deckmaste_core::CardFace;
+    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::Count;
+    use deckmaste_core::Effect;
+    use deckmaste_core::Filter;
+    use deckmaste_core::PlayerAction;
+    use deckmaste_core::Quantity;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Selection;
+    use deckmaste_core::SpellAbility;
+    use deckmaste_core::TargetSpec;
+    use deckmaste_core::Type;
+    // "Lose 3 life." spell
+    let lose = CardFace {
+        name: "Test Drain".into(),
+        types: vec![Type::Sorcery],
+        abilities: vec![Ability::Spell(SpellAbility {
+            targets: vec![],
+            effect: Effect::Act(Action::By(
+                Reference::You,
+                PlayerAction::LoseLife(Count::Literal(3)),
+            )),
+        })],
+        ..CardFace::default()
+    };
+    assert_eq!(
+        render_card_face(&lose).rules,
+        vec!["Lose 3 life.".to_string()]
+    );
+
+    // "Destroy target creature." spell
+    let destroy = CardFace {
+        name: "Test Smite".into(),
+        types: vec![Type::Sorcery],
+        abilities: vec![Ability::Spell(SpellAbility {
+            targets: vec![TargetSpec::Target(
+                Quantity::Exactly(Count::Literal(1)),
+                Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            )],
+            effect: Effect::Act(Action::Destroy(Selection::Ref(Reference::Target(0)))),
+        })],
+        ..CardFace::default()
+    };
+    assert_eq!(
+        render_card_face(&destroy).rules,
+        vec!["Destroy target creature.".to_string()]
+    );
+}
