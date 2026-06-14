@@ -1,0 +1,11 @@
+// {X} sorcery: "this deals X damage to any target." Pins the X-before-targets
+// ordering ([CR#601.2b] before [CR#601.2c]) end to end with Count::X read in the
+// effect. (No graduated real X damage spell exists yet — all `.ron.todo`.)
+Normal(
+    name: "Sorcery X DealDamage AnyTarget",
+    mana_cost: [Variable],
+    types: [Sorcery],
+    abilities: [
+        Spell(targets: [AnyTarget], effect: DealDamage(Target(0), X)),
+    ],
+)

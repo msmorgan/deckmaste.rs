@@ -267,7 +267,7 @@ impl GameState {
         let Some(cost) = self.mana_cost(object) else {
             return false;
         };
-        // [CR#107.3a,107.3b]: an {X} cost's floor is X=0; concretize at 0 so an
+        // [CR#107.3a]: an {X} cost's floor is X=0; concretize at 0 so an
         // {X} spell is offered whenever its non-X part is affordable. The real
         // value is announced at the AnnounceX step ([CR#601.2b]).
         if !can_pay(

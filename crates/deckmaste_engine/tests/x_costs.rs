@@ -107,7 +107,12 @@ fn resurface_priority(state: &mut GameState) {
 // --- testing plugin ----------------------------------------------------------
 
 fn testing() -> Plugin {
-    Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/testing")).unwrap()
+    // `load_with_sibling_prelude` so builtin target macros (`AnyTarget`) resolve
+    // in testing fixtures — the same loader activate.rs/enumerate.rs use.
+    Plugin::load_with_sibling_prelude(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/testing"),
+    )
+    .unwrap()
 }
 
 fn x_draw() -> Arc<Card> { Arc::new(testing().card("Sorcery X Draw").unwrap()) }
@@ -390,5 +395,87 @@ fn activate_x_draw_announces_pays_and_draws_x() {
         state.zones.libraries[0].len(),
         library_before - 2,
         "the activated ability drew X=2 cards"
+    );
+}
+
+// --- {X} spell that ALSO targets: X-before-targets ordering ------------------
+
+/// Player 0 holds `Sorcery X DealDamage AnyTarget` ({X}: deal X to any target)
+/// and Mountains; player 1 holds Mountains.
+fn x_burn_game(seed: u64) -> GameState {
+    let burn = Arc::new(testing().card("Sorcery X DealDamage AnyTarget").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let mut p0 = vec![Arc::clone(&burn); 5];
+    p0.extend(vec![Arc::clone(&mountain); 10]);
+    GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck: p0 },
+            PlayerConfig {
+                deck: vec![Arc::clone(&mountain); 15],
+            },
+        ],
+        seed,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    })
+}
+
+#[test]
+fn cast_x_burn_announces_x_then_targets_then_deals_x() {
+    let mut state = x_burn_game(1);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    state.player_mut(PlayerId(0)).mana_pool.add(red(), 3);
+    resurface_priority(&mut state);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+
+    let burn = find_in_hand(&state, PlayerId(0), "Sorcery X DealDamage AnyTarget");
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: burn }))
+        .unwrap();
+
+    // [CR#601.2b]: X is announced FIRST...
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseXValue { player }) = stop else {
+        panic!("expected ChooseXValue first, got {stop:?}");
+    };
+    assert_eq!(player, PlayerId(0));
+    state.submit_decision(Decision::XValue(3)).unwrap();
+
+    // [CR#601.2c]: ...then targets. The opponent's player proxy is a legal
+    // `AnyTarget` candidate.
+    let opp = state.players[1].object;
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+        panic!("expected ChooseTargets after X, got {stop:?}");
+    };
+    assert!(
+        legal[0].contains(&opp),
+        "opponent proxy is a legal AnyTarget: {legal:?}"
+    );
+    state.submit_decision(Decision::Targets(vec![opp])).unwrap();
+
+    let life_before = state.players[1].life;
+    // Pay {3} (auto), then both players pass so the spell resolves.
+    loop {
+        let (_, stop) = step_to_stop(&mut state);
+        match stop {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+                let pay = state.auto_pay_pending();
+                state.submit_decision(Decision::Pay(pay)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                if state.stack.is_empty() && !state.zones.hands[0].contains(&burn) {
+                    break;
+                }
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            other => panic!("unexpected stop: {other:?}"),
+        }
+    }
+    // Count::X read inside DealDamage dealt exactly X=3 to the opponent.
+    assert_eq!(
+        state.players[1].life,
+        life_before - 3,
+        "dealt X=3 damage to opponent"
     );
 }
