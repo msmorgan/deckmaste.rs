@@ -2,6 +2,7 @@
 //! `tui-board-view` + `card-text-render` replace it with the real board.
 mod board;
 mod zones;
+mod format;
 use std::fmt::Write as _;
 
 use deckmaste_core::Card;

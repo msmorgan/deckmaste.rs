@@ -27,6 +27,7 @@ pub use decide::DecisionError;
 pub use decide::PendingDecision;
 
 mod derive;
+pub use derive::face;
 
 mod event;
 pub use event::Audience;
