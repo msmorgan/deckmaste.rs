@@ -39,3 +39,11 @@ fn renders_keyword_only_wall_of_stone() {
     assert_eq!(r.pt, Some("0/8".to_string()));
     assert_eq!(r.rules, vec!["Defender".to_string()]);
 }
+
+#[test]
+fn renders_spell_lightning_bolt() {
+    let r = render_card_face(&face("Lightning Bolt"));
+    assert_eq!(r.mana_cost, "{R}");
+    assert_eq!(r.type_line, "Instant");
+    assert_eq!(r.rules, vec!["Deal 3 damage to any target.".to_string()]);
+}
