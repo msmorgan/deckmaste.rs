@@ -9,6 +9,7 @@ use deckmaste_core::ActivatedAbility;
 use deckmaste_core::CostComponent;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
+use deckmaste_core::PlayerAction;
 use deckmaste_core::Type;
 use deckmaste_core::UseLimit;
 use deckmaste_core::Zone;
@@ -35,13 +36,18 @@ pub(crate) fn as_activated(ability: &Ability) -> Option<&ActivatedAbility> {
 }
 
 /// One pass over an activation cost ([CR#602.2b,601.2f..601.2h]): the summed
-/// mana plus the {T}/{Q} components. `None` when a component is beyond the
-/// engine today (`Do(...)` verb costs wait for engine-resolve-playeractions;
-/// loyalty costs wait for core-loyalty-costs).
+/// mana, the {T}/{Q} components, and cost-eligible verb actions. `None` when a
+/// component is not payable (a non-eligible `Do(...)` verb; loyalty costs wait
+/// for core-loyalty-costs).
 pub(crate) struct CostSummary {
     pub mana: ManaCost,
     pub tap: bool,
     pub untap: bool,
+    /// Cost-eligible verb components ([`PlayerAction::is_cost_eligible`]):
+    /// Sacrifice, Exile, Tap, Untap, Discard, `LoseLife`, `RemoveCounters`, Reveal.
+    /// Collected for payment; non-eligible `Do(_)` causes `cost_summary` to
+    /// return `None`.
+    pub verbs: Vec<PlayerAction>,
 }
 
 /// Summarize `cost` in one walk (so the `can_activate` gate and the pay step
@@ -51,19 +57,27 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
     let mut symbols: Vec<ManaSymbol> = Vec::new();
     let mut tap = false;
     let mut untap = false;
+    let mut verbs: Vec<PlayerAction> = Vec::new();
     for component in cost {
         match component {
             CostComponent::Mana(m) => symbols.extend_from_slice(m),
             CostComponent::Tap => tap = true,
             CostComponent::Untap => untap = true,
-            // Verb costs are not yet handled.
-            CostComponent::Do(_) => return None,
+            CostComponent::Do(action) => {
+                if action.is_cost_eligible() {
+                    verbs.push(action.clone());
+                } else {
+                    // Non-eligible verbs in a cost are malformed.
+                    return None;
+                }
+            }
             // Recurse through macro wrappers.
             CostComponent::Expanded(e) => {
                 let inner = cost_summary(std::slice::from_ref(&e.value))?;
                 symbols.extend_from_slice(&inner.mana);
                 tap |= inner.tap;
                 untap |= inner.untap;
+                verbs.extend(inner.verbs);
             }
         }
     }
@@ -71,6 +85,7 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
         mana: ManaCost::from(symbols),
         tap,
         untap,
+        verbs,
     })
 }
 
@@ -332,14 +347,27 @@ mod tests {
     // -- cost_summary --
 
     #[test]
-    fn cost_summary_returns_none_on_do_cost() {
-        let cost = vec![CostComponent::Do(PlayerAction::Sacrifice(Selection::Ref(
-            Reference::This,
-        )))];
+    fn cost_summary_returns_none_on_non_eligible_do_cost() {
+        let cost = vec![CostComponent::Do(PlayerAction::Draw(
+            deckmaste_core::Count::Literal(1),
+        ))];
         assert!(
             cost_summary(&cost).is_none(),
-            "Do(...) cost should yield None"
+            "Do(...) with a non-cost-eligible action should yield None"
         );
+    }
+
+    #[test]
+    fn cost_summary_collects_verb_components() {
+        let cost = vec![
+            CostComponent::Mana("{1}".parse().unwrap()),
+            CostComponent::Tap,
+            CostComponent::Do(PlayerAction::Sacrifice(Selection::Ref(Reference::This))),
+        ];
+        let summary = cost_summary(&cost).expect("verb costs no longer abort the summary");
+        assert_eq!(summary.mana, "{1}".parse().unwrap());
+        assert!(summary.tap);
+        assert_eq!(summary.verbs.len(), 1);
     }
 
     #[test]
