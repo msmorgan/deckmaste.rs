@@ -112,6 +112,161 @@ impl Interaction {
     /// True for the board-dimming pick modes (everything but `Priority`).
     #[must_use]
     pub fn is_pick_mode(&self) -> bool { !matches!(self, Interaction::Priority { .. }) }
+
+    /// Candidate ids selectable for the current step (the active spec's set for
+    /// Targets, the legal pool for Attackers, the unpaired legal blockers for
+    /// Blockers when no pairing is in progress). Empty for `Priority`. Blocker
+    /// *attacker* candidates (pairing step) are derived from combat in
+    /// `app`/`ui`.
+    #[must_use]
+    pub fn candidates(&self) -> Vec<ObjectId> {
+        match self {
+            Interaction::Priority { .. } => Vec::new(),
+            Interaction::Targets { legal, active, .. } => {
+                legal.get(*active).cloned().unwrap_or_default()
+            }
+            Interaction::Attackers { legal, .. } => legal.clone(),
+            Interaction::Blockers {
+                legal,
+                pairs,
+                pending,
+            } => {
+                if pending.is_some() {
+                    Vec::new()
+                } else {
+                    legal
+                        .iter()
+                        .copied()
+                        .filter(|id| !pairs.iter().any(|(b, _)| b == id))
+                        .collect()
+                }
+            }
+        }
+    }
+
+    /// Whether `id` is selectable right now.
+    #[must_use]
+    pub fn is_candidate(&self, id: ObjectId) -> bool { self.candidates().contains(&id) }
+
+    /// Whether `id` is part of the committed selection (rendered with a ✓).
+    #[must_use]
+    pub fn is_chosen(&self, id: ObjectId) -> bool {
+        match self {
+            Interaction::Priority { .. } => false,
+            Interaction::Targets { chosen, .. } => chosen.iter().flatten().any(|&c| c == id),
+            Interaction::Attackers { chosen, .. } => chosen.contains(&id),
+            Interaction::Blockers { pairs, pending, .. } => {
+                *pending == Some(id) || pairs.iter().any(|(b, _)| *b == id)
+            }
+        }
+    }
+
+    /// Toggle `id` for the current step, enforcing legality and per-step caps.
+    /// - Targets: sets the active spec's pick; toggling the same id clears it;
+    ///   a different id is refused while the active spec already has a pick
+    ///   (untoggle first — the prescribed-count cap).
+    /// - Attackers: add/remove from the set (no cap).
+    /// - Blockers: start (or cancel) a pairing for a legal, unpaired blocker.
+    /// - Priority: no-op.
+    pub fn toggle(&mut self, id: ObjectId) {
+        match self {
+            Interaction::Priority { .. } => {}
+            Interaction::Targets {
+                legal,
+                chosen,
+                active,
+            } => {
+                let active = *active;
+                if !legal.get(active).is_some_and(|c| c.contains(&id)) {
+                    return;
+                }
+                match chosen[active] {
+                    Some(cur) if cur == id => chosen[active] = None,
+                    Some(_) => {} // a different pick exists — untoggle it first
+                    None => chosen[active] = Some(id),
+                }
+            }
+            Interaction::Attackers { legal, chosen } => {
+                if !legal.contains(&id) {
+                    return;
+                }
+                if let Some(pos) = chosen.iter().position(|&c| c == id) {
+                    chosen.remove(pos);
+                } else {
+                    chosen.push(id);
+                }
+            }
+            Interaction::Blockers {
+                legal,
+                pairs,
+                pending,
+            } => {
+                if *pending == Some(id) {
+                    *pending = None; // cancel the in-progress pairing
+                } else if pending.is_none()
+                    && legal.contains(&id)
+                    && !pairs.iter().any(|(b, _)| *b == id)
+                {
+                    *pending = Some(id);
+                }
+            }
+        }
+    }
+
+    /// Targets only: move to the next spec still needing a pick (wrapping
+    /// forward). No-op for other variants or when every spec is satisfied.
+    pub fn advance(&mut self) {
+        if let Interaction::Targets { chosen, active, .. } = self {
+            let n = chosen.len();
+            for step in 1..=n {
+                let i = (*active + step) % n;
+                if chosen[i].is_none() {
+                    *active = i;
+                    return;
+                }
+            }
+        }
+    }
+
+    /// Reset the in-progress selection to empty (keeps the kind).
+    pub fn cancel(&mut self) {
+        match self {
+            Interaction::Priority { sub } => *sub = None,
+            Interaction::Targets { chosen, active, .. } => {
+                for c in chosen.iter_mut() {
+                    *c = None;
+                }
+                *active = 0;
+            }
+            Interaction::Attackers { chosen, .. } => chosen.clear(),
+            Interaction::Blockers { pairs, pending, .. } => {
+                pairs.clear();
+                *pending = None;
+            }
+        }
+    }
+
+    /// The completed `Decision`, iff this interaction is complete and valid.
+    /// `Priority` never confirms here (priority actions are submitted directly
+    /// by `app` from the cursor / ability popup).
+    #[must_use]
+    pub fn confirm(&self) -> Option<Decision> {
+        match self {
+            Interaction::Priority { .. } => None,
+            Interaction::Targets { chosen, .. } => {
+                let picks: Option<Vec<ObjectId>> = chosen.iter().copied().collect();
+                picks.map(Decision::Targets)
+            }
+            Interaction::Attackers { chosen, .. } => Some(Decision::Attackers(chosen.clone())),
+            Interaction::Blockers { pairs, pending, .. } => {
+                if pending.is_some() {
+                    None // finish the in-progress pairing first
+                } else {
+                    Some(Decision::Blocks(pairs.clone()))
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -124,7 +279,7 @@ mod tests {
     use super::*;
     use crate::game;
 
-    /// A few distinct real ObjectIds (no public constructor exists).
+    /// A few distinct real `ObjectId`s (no public constructor exists).
     fn ids() -> Vec<ObjectId> {
         let state = game::build_game().expect("build");
         state.zones.libraries[0].iter().copied().collect()
@@ -213,5 +368,58 @@ mod tests {
             }
             other => panic!("expected Targets, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn targets_caps_at_one_per_spec_and_untoggles_to_change() {
+        let v = ids();
+        let (a, b) = (v[0], v[1]);
+        let mut it = Interaction::for_decision(&PendingDecision::ChooseTargets {
+            player: PlayerId(0),
+            spec: vec![],
+            legal: vec![vec![a, b]],
+        })
+        .expect("interactive");
+        assert!(it.confirm().is_none()); // nothing chosen yet
+        it.toggle(a);
+        assert!(it.is_chosen(a));
+        it.toggle(b); // refused: spec already has a pick (cap = 1)
+        assert!(it.is_chosen(a) && !it.is_chosen(b));
+        it.toggle(a); // untoggle
+        it.toggle(b); // now allowed
+        assert!(it.is_chosen(b) && !it.is_chosen(a));
+        assert_eq!(it.confirm(), Some(Decision::Targets(vec![b])));
+    }
+
+    #[test]
+    fn targets_advance_walks_specs_and_confirms_in_order() {
+        let v = ids();
+        let (a, b, c) = (v[0], v[1], v[2]);
+        let mut it = Interaction::for_decision(&PendingDecision::ChooseTargets {
+            player: PlayerId(0),
+            spec: vec![],
+            legal: vec![vec![a, b], vec![c]],
+        })
+        .expect("interactive");
+        it.toggle(a); // spec 0 := a
+        assert!(it.confirm().is_none()); // spec 1 still empty
+        it.advance(); // move to spec 1
+        it.toggle(c); // spec 1 := c
+        assert_eq!(it.confirm(), Some(Decision::Targets(vec![a, c])));
+    }
+
+    #[test]
+    fn targets_ignores_non_candidates() {
+        let v = ids();
+        let (a, off) = (v[0], v[3]);
+        let mut it = Interaction::for_decision(&PendingDecision::ChooseTargets {
+            player: PlayerId(0),
+            spec: vec![],
+            legal: vec![vec![a]],
+        })
+        .expect("interactive");
+        it.toggle(off); // not a candidate
+        assert!(!it.is_chosen(off));
+        assert!(it.confirm().is_none());
     }
 }
