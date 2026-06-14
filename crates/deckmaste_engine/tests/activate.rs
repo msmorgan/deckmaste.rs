@@ -1403,3 +1403,275 @@ fn activated_ability_plain_cost_skips_choose_cost_options() {
         "the printed {{1}} is unchanged"
     );
 }
+
+// --- hybrid / Phyrexian AFFORDABILITY GATE ([CR#601.2b,601.2g,107.4e,107.4f])
+//
+// These pin Task 2.4: a hybrid/Phyrexian cost is OFFERED by `can_activate`
+// (→ `legal_actions`) iff SOME legal reading is fully payable. Unlike the
+// 2.2/2.3 wiring tests above (which bypass the gate via `schedule_activation`),
+// these drive the real gate: reach a priority window, float a pool, and assert
+// whether the ability is in the legal list.
+
+fn green() -> ColorOrColorless { Color::Green.into() }
+
+/// Floats `pool` mana into P0's pool at a freshly re-surfaced precombat-main
+/// priority and returns the recomputed legal list (with the float reflected).
+/// The pool empties each step end ([CR#500.5]), so the float happens in the
+/// same window the gate is evaluated.
+fn legal_with_float(state: &mut GameState, pool: &[(ColorOrColorless, Uint)]) -> Vec<Action> {
+    let _ = run_to_priority(state, PlayerId(0), Phase::PrecombatMain);
+    for &(color, amount) in pool {
+        state.player_mut(PlayerId(0)).mana_pool.add(color, amount);
+    }
+    // Re-derive priority so the freshly floated pool is reflected in the list
+    // (mirrors x_costs.rs's resurface_priority).
+    assert!(
+        matches!(state.pending, Some(PendingDecision::Priority { .. })),
+        "expected a Priority decision to resurface"
+    );
+    state.pending = None;
+    state.agenda.push_front(WorkItem::OpenPriority);
+    run_to_priority(state, PlayerId(0), Phase::PrecombatMain)
+}
+
+/// [CR#107.4e,601.2g]: a hybrid `{W/U}` ability is OFFERED when only the blue
+/// reading is payable (one blue unit, no white) — the gate must find the
+/// affordable reading — and NOT offered when neither reading is payable.
+#[test]
+fn hybrid_ability_offered_when_one_reading_payable() {
+    const NAME: &str = "Hybrid-gate test artifact";
+    let card = artifact_with_cost(NAME, vec![CostComponent::Mana("{W/U}".parse().unwrap())]);
+
+    // Only blue available: the {U} reading is payable -> offered.
+    let mut state = cost_game(7, &card);
+    let obj = force_into_play(&mut state, PlayerId(0), NAME);
+    let legal = legal_with_float(&mut state, &[(blue(), 1)]);
+    assert!(
+        activate_action(&legal, obj).is_some(),
+        "{{W/U}} is activatable with only blue mana (pick U), legal: {legal:?}"
+    );
+
+    // No mana at all: neither {W} nor {U} reading is payable -> not offered.
+    let mut state = cost_game(7, &card);
+    let obj = force_into_play(&mut state, PlayerId(0), NAME);
+    let legal = legal_with_float(&mut state, &[]);
+    assert!(
+        activate_action(&legal, obj).is_none(),
+        "{{W/U}} is NOT activatable with no payable reading, legal: {legal:?}"
+    );
+}
+
+/// [CR#107.4f,601.2g]: a Phyrexian `{W/P}` ability is OFFERED with NO mana but
+/// life ≥ 2 (pay 2 life), and NOT offered at 1 life with no white (neither
+/// reading payable).
+#[test]
+fn phyrexian_ability_offered_via_life() {
+    const NAME: &str = "Phyrexian-gate test artifact";
+    let card = artifact_with_cost(NAME, vec![CostComponent::Mana("{W/P}".parse().unwrap())]);
+
+    // No mana, plenty of life: the Life reading is payable -> offered.
+    let mut state = cost_game(7, &card);
+    let obj = force_into_play(&mut state, PlayerId(0), NAME);
+    let legal = legal_with_float(&mut state, &[]);
+    assert!(
+        state.players[0].life >= 2,
+        "the starting life funds the 2-life reading"
+    );
+    assert!(
+        activate_action(&legal, obj).is_some(),
+        "{{W/P}} is activatable via the 2-life reading with no mana, legal: {legal:?}"
+    );
+
+    // 1 life, no white: the Life reading needs 2 life and the {W} reading needs
+    // white -> neither payable -> not offered.
+    let mut state = cost_game(7, &card);
+    let obj = force_into_play(&mut state, PlayerId(0), NAME);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    state.player_mut(PlayerId(0)).life = 1;
+    state.pending = None;
+    state.agenda.push_front(WorkItem::OpenPriority);
+    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    assert!(
+        activate_action(&legal, obj).is_none(),
+        "{{W/P}} is NOT activatable at 1 life with no white, legal: {legal:?}"
+    );
+}
+
+/// SHARED-RESOURCE correctness ([CR#107.4f]): two Phyrexian `{W/P}{W/P}` with
+/// exactly 2 life and no white is NOT castable — only ONE symbol can be paid by
+/// life (2 of the 2 life), the other needs white, which is absent. But 2 life
+/// plus ONE white IS payable (one life, one white). A naive per-symbol greedy
+/// that lets each Phyrexian independently "see" the full 2 life would wrongly
+/// offer the no-white case.
+#[test]
+fn two_phyrexian_share_life_correctly() {
+    const NAME: &str = "Double-Phyrexian-gate test artifact";
+    let card = artifact_with_cost(
+        NAME,
+        vec![CostComponent::Mana("{W/P}{W/P}".parse().unwrap())],
+    );
+
+    // 2 life, no white: cannot pay both via life (needs 4); cannot pay either
+    // via {W} (no white) -> not offered.
+    let mut state = cost_game(7, &card);
+    let obj = force_into_play(&mut state, PlayerId(0), NAME);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    state.player_mut(PlayerId(0)).life = 2;
+    state.pending = None;
+    state.agenda.push_front(WorkItem::OpenPriority);
+    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    assert!(
+        activate_action(&legal, obj).is_none(),
+        "{{W/P}}{{W/P}} at 2 life + no white is NOT activatable (only one life payment fits), \
+         legal: {legal:?}"
+    );
+
+    // 2 life + ONE white: pay one symbol with the white, the other with 2 life
+    // -> offered.
+    let mut state = cost_game(7, &card);
+    let obj = force_into_play(&mut state, PlayerId(0), NAME);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    state.player_mut(PlayerId(0)).life = 2;
+    state.player_mut(PlayerId(0)).mana_pool.add(white(), 1);
+    state.pending = None;
+    state.agenda.push_front(WorkItem::OpenPriority);
+    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    assert!(
+        activate_action(&legal, obj).is_some(),
+        "{{W/P}}{{W/P}} at 2 life + one white IS activatable (one life, one white), legal: {legal:?}"
+    );
+}
+
+/// Regression: a plain `{1}` cost is gated exactly as before — offered with one
+/// mana, not offered with none. The no-choosable-symbol path must keep the
+/// existing `can_pay` behavior unchanged.
+#[test]
+fn plain_cost_gate_unchanged() {
+    const NAME: &str = "Plain-gate test artifact";
+    let card = artifact_with_cost(NAME, vec![CostComponent::Mana("{1}".parse().unwrap())]);
+
+    let mut state = cost_game(7, &card);
+    let obj = force_into_play(&mut state, PlayerId(0), NAME);
+    let legal = legal_with_float(&mut state, &[(green(), 1)]);
+    assert!(
+        activate_action(&legal, obj).is_some(),
+        "plain {{1}} is offered with one mana, legal: {legal:?}"
+    );
+
+    let mut state = cost_game(7, &card);
+    let obj = force_into_play(&mut state, PlayerId(0), NAME);
+    let legal = legal_with_float(&mut state, &[]);
+    assert!(
+        activate_action(&legal, obj).is_none(),
+        "plain {{1}} is NOT offered with an empty pool, legal: {legal:?}"
+    );
+}
+
+/// Composition with engine-x-costs: a cost bearing BOTH `{X}` and a hybrid
+/// (`{X}{W/U}`) is still gated on the non-X part — `{X}` reduces to 0 (X never
+/// blocks, [CR#107.3a]), and the hybrid's affordable reading decides. Offered
+/// with one blue; not offered with an empty pool.
+#[test]
+fn x_plus_hybrid_gated_on_hybrid() {
+    const NAME: &str = "X-plus-hybrid gate test artifact";
+    let card = artifact_with_cost(NAME, vec![CostComponent::Mana("{X}{W/U}".parse().unwrap())]);
+
+    let mut state = cost_game(7, &card);
+    let obj = force_into_play(&mut state, PlayerId(0), NAME);
+    let legal = legal_with_float(&mut state, &[(blue(), 1)]);
+    assert!(
+        activate_action(&legal, obj).is_some(),
+        "{{X}}{{W/U}} is offered at X=0 with blue (pick U), legal: {legal:?}"
+    );
+
+    let mut state = cost_game(7, &card);
+    let obj = force_into_play(&mut state, PlayerId(0), NAME);
+    let legal = legal_with_float(&mut state, &[]);
+    assert!(
+        activate_action(&legal, obj).is_none(),
+        "{{X}}{{W/U}} is NOT offered with no payable hybrid reading, legal: {legal:?}"
+    );
+}
+
+// --- the cast gate (`can_cast`) over hybrid/Phyrexian -----------------------
+
+/// An instant whose only distinction is its printed (hybrid/Phyrexian) mana
+/// cost and a harmless no-target effect — so `can_cast`'s affordability gate is
+/// what decides whether `CastSpell` is offered. Instant timing keeps it
+/// castable at any priority.
+fn instant_with_cost(name: &str, cost: ManaCost) -> Arc<Card> {
+    Arc::new(Card::Normal(CardFace {
+        name: name.into(),
+        mana_cost: cost,
+        color_indicator: vec![],
+        supertypes: vec![],
+        types: vec![Type::Instant],
+        subtypes: vec![],
+        abilities: vec![],
+        power: None,
+        toughness: None,
+        loyalty: None,
+        defense: None,
+    }))
+}
+
+/// The `CastSpell` action for `object` in `legal`, if offered.
+fn cast_action(legal: &[Action], object: ObjectId) -> Option<Action> {
+    legal
+        .iter()
+        .find(|a| matches!(a, Action::CastSpell { object: o } if *o == object))
+        .cloned()
+}
+
+/// [CR#601.2g,107.4e]: `can_cast` offers a hybrid `{W/U}` instant with only
+/// blue mana (the {U} reading is payable) and withholds it with an empty pool.
+#[test]
+fn cast_gate_hybrid_offered_when_one_reading_payable() {
+    const NAME: &str = "Hybrid-cost instant";
+    let card = instant_with_cost(NAME, "{W/U}".parse().unwrap());
+
+    let mut state = cost_game(7, &card);
+    let spell = find_in_hand(&state, PlayerId(0), NAME);
+    let legal = legal_with_float(&mut state, &[(blue(), 1)]);
+    assert!(
+        cast_action(&legal, spell).is_some(),
+        "{{W/U}} instant is castable with only blue mana (pick U), legal: {legal:?}"
+    );
+
+    let mut state = cost_game(7, &card);
+    let spell = find_in_hand(&state, PlayerId(0), NAME);
+    let legal = legal_with_float(&mut state, &[]);
+    assert!(
+        cast_action(&legal, spell).is_none(),
+        "{{W/U}} instant is NOT castable with no payable reading, legal: {legal:?}"
+    );
+}
+
+/// [CR#601.2g,107.4f]: `can_cast` offers a Phyrexian `{W/P}` instant with NO
+/// mana but life ≥ 2 (the 2-life reading), and withholds it at 1 life with no
+/// white.
+#[test]
+fn cast_gate_phyrexian_offered_via_life() {
+    const NAME: &str = "Phyrexian-cost instant";
+    let card = instant_with_cost(NAME, "{W/P}".parse().unwrap());
+
+    let mut state = cost_game(7, &card);
+    let spell = find_in_hand(&state, PlayerId(0), NAME);
+    let legal = legal_with_float(&mut state, &[]);
+    assert!(
+        cast_action(&legal, spell).is_some(),
+        "{{W/P}} instant is castable via 2 life with no mana, legal: {legal:?}"
+    );
+
+    let mut state = cost_game(7, &card);
+    let spell = find_in_hand(&state, PlayerId(0), NAME);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    state.player_mut(PlayerId(0)).life = 1;
+    state.pending = None;
+    state.agenda.push_front(WorkItem::OpenPriority);
+    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    assert!(
+        cast_action(&legal, spell).is_none(),
+        "{{W/P}} instant is NOT castable at 1 life with no white, legal: {legal:?}"
+    );
+}

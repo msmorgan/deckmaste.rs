@@ -15,7 +15,6 @@ use deckmaste_core::Type;
 use deckmaste_core::UseLimit;
 use deckmaste_core::Zone;
 
-use crate::cast::can_pay;
 use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::player::PlayerId;
@@ -109,10 +108,9 @@ impl GameState {
         let Some(summary) = cost_summary(&ability.cost) else {
             return false;
         };
-        if !can_pay(
-            &self.spendable_pool(player, object),
-            &crate::cast::concretize_x(&summary.mana, 0),
-        ) {
+        // [CR#601.2b,601.2g,107.3a]: gate mana affordability under all legal
+        // readings (concretizes {X} to 0, then plain or hybrid/Phyrexian path).
+        if !self.gate_mana_affordable(player, &summary.mana, object) {
             return false;
         }
 
