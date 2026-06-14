@@ -475,6 +475,80 @@ fn cast_spell_is_enumerated_once_its_cost_is_payable() {
 }
 
 #[test]
+fn priority_enumerates_all_action_kinds_at_one_window() {
+    // One board: a castable instant in hand, two tap-mana lands, a non-mana
+    // activated-ability creature (pinger), and a land in hand. After floating
+    // one red, the legal list at p0's main-phase priority offers every action
+    // kind in a SINGLE window — CastSpell, the pinger's ActivateAbility, an
+    // untapped Mountain's mana ActivateAbility, PlayLand, Pass, and Concede.
+    let bolt = Arc::new(canon().card(INSTANT).unwrap());
+    let pinger = Arc::new(testing().card(PINGER).unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let bears = Arc::new(canon().card(BEARS).unwrap());
+    let mut p0 = vec![Arc::clone(&bolt); 4];
+    p0.extend(vec![Arc::clone(&pinger); 3]);
+    p0.extend(vec![Arc::clone(&mountain); 8]);
+    let mut p1 = vec![Arc::clone(&bears); 5];
+    p1.extend(vec![Arc::clone(&forest); 5]);
+    let mut state = GameState::new(GameConfig {
+        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
+        seed: 5,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    let pinger_id = force_into_play(&mut state, PlayerId(0), PINGER);
+    force_into_play(&mut state, PlayerId(0), "Mountain"); // Mountain A (will be tapped)
+    force_into_play(&mut state, PlayerId(0), "Mountain"); // a second Mountain stays untapped
+    let bolt_id = force_into_hand(&mut state, PlayerId(0), INSTANT);
+    let land = force_into_hand(&mut state, PlayerId(0), "Mountain");
+
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    // Float one red: taps the first untapped Mountain, leaving the other untapped.
+    float_mana(&mut state, PlayerId(0), 1);
+
+    let StepOutcome::NeedsDecision(PendingDecision::Priority { legal, .. }) = state.step() else {
+        panic!("expected priority");
+    };
+
+    assert!(legal.contains(&Action::Pass), "Pass is offered");
+    assert!(
+        legal.contains(&Action::Concede),
+        "Concede is offered [CR#104.3a]"
+    );
+    assert!(
+        legal.contains(&Action::PlayLand { object: land }),
+        "the land in hand is playable"
+    );
+    assert!(
+        legal.contains(&Action::CastSpell { object: bolt_id }),
+        "the instant is castable once {{R}} is floated"
+    );
+    // The pinger's non-mana activated ability.
+    assert!(
+        legal
+            .iter()
+            .any(|a| matches!(a, Action::ActivateAbility { object, .. } if *object == pinger_id)),
+        "the pinger's activated ability is offered"
+    );
+    // An untapped Mountain's tap-mana ability. `float_mana` taps the first
+    // untapped land, so find a Mountain that is still untapped (by content, not
+    // by a remembered id) and assert ITS mana ability is offered.
+    let untapped_mountain = *state
+        .zones
+        .battlefield
+        .iter()
+        .find(|&&o| is_card(&state, o, "Mountain") && !state.objects.obj(o).tapped)
+        .expect("an untapped Mountain remains on the battlefield");
+    assert!(
+        legal.iter().any(
+            |a| matches!(a, Action::ActivateAbility { object, .. } if *object == untapped_mountain)
+        ),
+        "the remaining untapped Mountain's mana ability is offered"
+    );
+}
+
+#[test]
 fn choose_targets_candidates_resolve_to_names() {
     // Cast Lightning Bolt; the ChooseTargets candidates are object ids a renderer
     // resolves to names via def()/face_name — confirming that decision kind is
