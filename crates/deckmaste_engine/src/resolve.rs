@@ -215,6 +215,33 @@ impl GameState {
     pub(crate) fn run_effect(&mut self, effect: Effect, frame: &Frame) {
         match effect {
             Effect::Act(action) => {
+                if frame.chosen.is_none()
+                    && let Some(choice) = unresolved_choice(&action)
+                {
+                    match choice {
+                        PendingChoice::Choose(quantity, filter) => {
+                            let candidates = crate::target::candidates(self, &filter);
+                            let (min, max) = self.choice_bounds(&quantity, candidates.len(), frame);
+                            self.pending = Some(crate::decide::PendingDecision::ChooseObjects {
+                                player: frame.controller,
+                                candidates,
+                                min,
+                                max,
+                            });
+                            self.choice = Some(crate::state::ChoiceContinuation {
+                                effect: Box::new(Effect::Act(action)),
+                                frame: frame.clone(),
+                            });
+                            return;
+                        }
+                        PendingChoice::Random(quantity, filter) => {
+                            todo!(
+                                "engine-resolve-selections: Random({quantity:?}, {filter:?}) \
+                                 selection (next task)"
+                            )
+                        }
+                    }
+                }
                 let items = self.action_items(&action, frame);
                 self.schedule_front(items);
             }
@@ -688,6 +715,30 @@ impl GameState {
         }
     }
 
+    /// (min, max) objects to choose for `quantity`, clamped to `n` available —
+    /// choose as many as able when fewer exist ([CR#608.2d]).
+    fn choice_bounds(
+        &self,
+        quantity: &deckmaste_core::Quantity,
+        n: usize,
+        frame: &Frame,
+    ) -> (Uint, Uint) {
+        use deckmaste_core::Quantity;
+        let cap = Uint::try_from(n).expect("candidate count fits Uint");
+        let ev = |c: &Count| self.eval_count(c, frame).min(cap);
+        match quantity {
+            Quantity::Exactly(c) => {
+                let v = ev(c);
+                (v, v)
+            }
+            Quantity::AtLeast(c) => (ev(c), cap),
+            Quantity::AtMost(c) => (0, ev(c)),
+            Quantity::Between(lo, hi) => (ev(lo), ev(hi)),
+            Quantity::AnyNumber => (0, cap),
+            Quantity::Expanded(e) => self.choice_bounds(&e.value, n, frame),
+        }
+    }
+
     /// A selection resolved to its full set ([CR#608.2d]). `Each` is the
     /// distributive "for each matching object" and `Filter` is the same
     /// matching set taken at once — both enumerate here, since a per-object
@@ -1044,6 +1095,50 @@ impl GameState {
     }
 }
 
+/// A `Choose`/`Random` selection lifted out of an action, owned so the action
+/// can be moved into a continuation afterward. v1 assumes <=1 per effect node;
+/// grammar gives one selection slot per action.
+enum PendingChoice {
+    Choose(deckmaste_core::Quantity, deckmaste_core::Filter),
+    Random(deckmaste_core::Quantity, deckmaste_core::Filter),
+}
+
+/// The lone unresolved `Choose`/`Random` selection in `action` (looking through
+/// `Expanded`), cloned out. `Attach`'s two slots stay behind its own `todo!`.
+fn unresolved_choice(action: &Action) -> Option<PendingChoice> {
+    fn lift(sel: &Selection) -> Option<PendingChoice> {
+        match sel {
+            Selection::Choose(q, f) => Some(PendingChoice::Choose(q.clone(), f.clone())),
+            Selection::Random(q, f) => Some(PendingChoice::Random(q.clone(), f.clone())),
+            Selection::Expanded(e) => lift(&e.value),
+            _ => None,
+        }
+    }
+    fn lift_pa(pa: &PlayerAction) -> Option<PendingChoice> {
+        match pa {
+            PlayerAction::Sacrifice(s)
+            | PlayerAction::Exile(s)
+            | PlayerAction::Tap(s)
+            | PlayerAction::Untap(s)
+            | PlayerAction::CopySpell(s)
+            | PlayerAction::PutCounters(s, _, _)
+            | PlayerAction::RemoveCounters(s, _, _)
+            | PlayerAction::PutInLibrary(s, _) => lift(s),
+            PlayerAction::Reveal { what, .. } => lift(what),
+            PlayerAction::Expanded(e) => lift_pa(&e.value),
+            _ => None,
+        }
+    }
+    match action {
+        Action::DealDamage(s, _)
+        | Action::Destroy(s)
+        | Action::ReturnToHand(s)
+        | Action::Counter(s) => lift(s),
+        Action::By(_, p) => lift_pa(p),
+        Action::Attach { .. } => None,
+    }
+}
+
 /// The `SpellAbility.targets` of the spell (empty for permanent spells).
 /// Used by the cast checks and `targets_still_legal`. Reads the caller's
 /// derived view — the legality loop checks every hand card against one
@@ -1369,6 +1464,106 @@ mod tests {
         };
         let sel = Selection::Choose(Quantity::Exactly(Count::Literal(1)), creatures);
         assert_eq!(state.eval_selection_set(&sel, &frame), vec![bear]);
+    }
+
+    /// `Destroy(Choose(Exactly 1, creature))` surfaces `ChooseObjects`; an
+    /// out-of-range count and an out-of-pool object are rejected; a legal pick
+    /// destroys exactly that creature ([CR#608.2d]).
+    #[test]
+    fn destroy_choose_surfaces_decision_validates_and_destroys() {
+        use deckmaste_core::Quantity;
+
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+        use crate::step::StepOutcome;
+
+        let (mut state, bear) = bear_on_field();
+        let theirs = *state.zones.hands[0]
+            .iter()
+            .find(|&&o| {
+                obj_matches(
+                    &state,
+                    o,
+                    &Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                )
+            })
+            .expect("a second Grizzly Bears in the opening hand");
+        state.zones.hands[PlayerId(0).index()].retain(|&o| o != theirs);
+        state.objects.obj_mut(theirs).zone = Some(Zone::Battlefield);
+        state.objects.obj_mut(theirs).controller = PlayerId(1);
+        state.zones.battlefield.push(theirs);
+
+        let creatures = Filter::AllOf(vec![
+            Filter::State(StateFilter::InZone(Zone::Battlefield)),
+            Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+        ]);
+        let frame = Frame {
+            source: bear,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+        };
+        state.run_effect(
+            Effect::Act(Action::Destroy(Selection::Choose(
+                Quantity::Exactly(Count::Literal(1)),
+                creatures,
+            ))),
+            &frame,
+        );
+
+        let StepOutcome::NeedsDecision(PendingDecision::ChooseObjects {
+            player,
+            candidates,
+            min,
+            max,
+        }) = state.step()
+        else {
+            panic!("expected ChooseObjects, got {:?}", state.pending);
+        };
+        assert_eq!(player, PlayerId(0));
+        assert_eq!((min, max), (1, 1));
+        assert_eq!(
+            candidates.len(),
+            2,
+            "both battlefield creatures are candidates"
+        );
+
+        // Too many (count 2 > max 1).
+        assert!(
+            state
+                .submit_decision(Decision::Chosen(candidates.clone()))
+                .is_err(),
+            "count must be within [min, max]"
+        );
+        // Out of pool (a player proxy is not a creature).
+        assert!(
+            state
+                .submit_decision(Decision::Chosen(vec![state.player(PlayerId(0)).object]))
+                .is_err(),
+            "every chosen object must be a candidate"
+        );
+
+        // Legal: destroy player 1's creature.
+        state
+            .submit_decision(Decision::Chosen(vec![theirs]))
+            .unwrap();
+        // Pump the agenda to completion (bounded safety cap; we assert on the
+        // post-condition, not the iteration count).
+        for _ in 0..30 {
+            if !state.zones.battlefield.contains(&theirs) {
+                break;
+            }
+            let _ = state.step();
+        }
+        assert!(
+            !state.zones.battlefield.contains(&theirs),
+            "the chosen creature is destroyed"
+        );
+        assert!(
+            state.zones.battlefield.contains(&bear),
+            "the unchosen creature survives"
+        );
     }
 
     /// The buildable-now references: `ControllerOf`/`OwnerOf` distinguish
