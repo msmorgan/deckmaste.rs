@@ -6,6 +6,7 @@
 //! selection [CR#608.2d].
 
 use crate::parsers::filter;
+use crate::parsers::modify;
 
 /// One parsed effect clause: `TargetSpec` RON fragments to declare on the
 /// frame (empty when the effect targets nothing), and the `Effect`/`Action`
@@ -23,7 +24,72 @@ pub(super) fn parse_clause(line: &str) -> Option<ParsedEffect> {
         .or_else(|| parse_lose_life(line))
         .or_else(|| parse_gain_life(line))
         .or_else(|| parse_destroy(line))
+        .or_else(|| parse_pump(line))
 }
+
+/// `<subject> gets ±N/±N [and gain(s) <kw…>] until end of turn.` (and the
+/// keyword-only `<subject> gain(s)/have/has <kw…> until end of turn.`) -> a
+/// one-shot continuous effect ([CR#611.2]): `Continuously(effect: Modify(of:
+/// <scope>, changes: [...]), duration: FixedUntil(EndOfTurn))`. The durational
+/// marker is required — it's what makes this a one-shot continuous effect
+/// rather than an always-on static anthem ([`crate::parsers::static_ability`],
+/// which declines the marker). The ±N/±N + keyword-grant grammar is shared with
+/// that anthem parser via [`modify`]; the changes are written inline
+/// (`Modification` is not a macro kind, so no `AddPowerToughness` macro can
+/// stand here). Subject: a target ("target creature" -> `Of(Target(0))` +
+/// `TargetOne(<filter>)`), or a team/self class via the shared subject grammar
+/// (`Matching`/`Of`).
+fn parse_pump(line: &str) -> Option<ParsedEffect> {
+    let body = line.strip_suffix('.')?.strip_suffix(" until end of turn")?;
+    let changes = pump_changes(body)?;
+    let (scope, targets) = pump_scope(pump_subject(body)?)?;
+    Some(ParsedEffect {
+        targets,
+        effect: format!(
+            "Continuously(effect: Modify(of: {scope}, changes: [{}]), duration: FixedUntil(EndOfTurn))",
+            changes.join(", ")
+        ),
+    })
+}
+
+/// The subject phrase of a pump body — everything before the first modify
+/// marker.
+fn pump_subject(body: &str) -> Option<&str> {
+    modify::split_marker(body, &MODIFY_MARKERS).map(|(subj, _)| subj)
+}
+
+/// The changes list of a pump body: "±N/±N [and gain <kw…>]" (the P/T form,
+/// with an optional keyword tail) or a bare keyword grant.
+fn pump_changes(body: &str) -> Option<Vec<String>> {
+    if let Some((_, pred)) = modify::split_marker(body, &[" gets ", " get "]) {
+        let (pt_part, grant_tail) = modify::split_grant_tail(pred);
+        let mut changes = modify::parse_pt_changes(pt_part.trim())?;
+        if let Some(tail) = grant_tail {
+            changes.extend(modify::parse_keyword_changes(tail)?);
+        }
+        return Some(changes);
+    }
+    let (_, pred) = modify::split_marker(body, &[" gains ", " gain ", " have ", " has "])?;
+    modify::parse_keyword_changes(pred)
+}
+
+/// Pump subject -> (`Modify` scope, target declarations). A "target <filter>"
+/// subject scopes `Of(Target(0))` and declares `TargetOne(<filter>)`; a
+/// team/self class scopes via the shared subject grammar with no target.
+fn pump_scope(subj: &str) -> Option<(String, Vec<String>)> {
+    if let Some(rest) = modify::strip_prefix_ci(subj.trim(), "target ") {
+        let filter = filter::parse_phrase(rest)?;
+        return Some((
+            "Of(Target(0))".to_owned(),
+            vec![format!("TargetOne({filter})")],
+        ));
+    }
+    let filter = modify::subject_to_filter(subj)?;
+    Some((modify::filter_to_scope(&filter), Vec::new()))
+}
+
+/// The markers that separate a pump subject from its predicate.
+const MODIFY_MARKERS: [&str; 6] = [" gets ", " get ", " gains ", " gain ", " have ", " has "];
 
 /// `Destroy target <subject>.` -> a `TargetOne(<filter>)` declaration (the
 /// subject parsed by the shared [`filter`] grammar) and the body
@@ -225,6 +291,53 @@ mod tests {
     }
 
     #[test]
+    fn durational_pump_team_like_overrun() {
+        // Overrun: a team P/T boost + keyword grant lasting until end of turn.
+        assert_eq!(
+            parsed("Creatures you control get +3/+3 and gain trample until end of turn."),
+            Some((
+                String::new(),
+                "Continuously(effect: Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), \
+                 changes: [AddPower(Literal(3)), AddToughness(Literal(3)), GainAbility(Keyword(Trample))]), \
+                 duration: FixedUntil(EndOfTurn))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn durational_pump_self_and_target() {
+        // Self pump ("~ gets …"): scope Of(This), no target.
+        assert_eq!(
+            parsed("~ gets +1/+1 until end of turn."),
+            Some((
+                String::new(),
+                "Continuously(effect: Modify(of: Of(This), changes: [AddPower(Literal(1)), \
+                 AddToughness(Literal(1))]), duration: FixedUntil(EndOfTurn))"
+                    .to_owned()
+            ))
+        );
+        // Single-target pump ("target creature gets …"): TargetOne + Of(Target(0)).
+        assert_eq!(
+            parsed("Target creature gets +3/+3 until end of turn."),
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "Continuously(effect: Modify(of: Of(Target(0)), changes: [AddPower(Literal(3)), \
+                 AddToughness(Literal(3))]), duration: FixedUntil(EndOfTurn))"
+                    .to_owned()
+            ))
+        );
+        // Keyword-only durational grant on a target.
+        assert_eq!(
+            parsed("Target creature gains flying until end of turn."),
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "Continuously(effect: Modify(of: Of(Target(0)), changes: [GainAbility(Keyword(Flying))]), \
+                 duration: FixedUntil(EndOfTurn))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
     fn declines_unknown_damage_targets_and_non_effects() {
         // A damage target the grammar doesn't model still declines.
         assert!(parse_clause("~ deals 3 damage to each artifact.").is_none());
@@ -234,6 +347,9 @@ mod tests {
         assert!(parse_clause("Destroy all creatures.").is_none());
         // A target subject the filter grammar can't parse declines.
         assert!(parse_clause("Destroy target creature with flying.").is_none());
+        // A pump without the durational marker isn't an effect-grammar pump (it's
+        // a static anthem's job on a permanent).
+        assert!(parse_clause("Creatures you control get +1/+1.").is_none());
     }
 
     #[test]
