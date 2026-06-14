@@ -168,9 +168,20 @@ mod tests {
         assert!(trig("Draw a card.").is_none());
         // Unknown event (cast trigger not in v1).
         assert!(trig("When you cast ~, draw a card.").is_none());
-        // Unknown effect.
-        assert!(trig("When ~ dies, destroy target creature.").is_none());
+        // Unknown effect (exile isn't a production yet).
+        assert!(trig("When ~ dies, exile target creature.").is_none());
         // Trigger word present but no ", " separator (no effect clause).
         assert!(trig("When ~ dies").is_none());
+    }
+
+    #[test]
+    fn dies_destroy_target_via_effect_grammar() {
+        assert_eq!(
+            trig("When ~ dies, destroy target creature.").as_deref(),
+            Some(
+                "Triggered(event: ThisDies, targets: [TargetOne(Creature)], \
+                 effect: Destroy(Target(0)))"
+            )
+        );
     }
 }

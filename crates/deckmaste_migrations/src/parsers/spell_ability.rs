@@ -69,7 +69,15 @@ mod tests {
                 .unwrap()
                 .is_none()
         );
-        // Unknown effect on a spell still declines.
-        assert!(spell("Destroy target creature.").is_none());
+        // Unknown effect on a spell still declines (exile isn't a production).
+        assert!(spell("Exile target creature.").is_none());
+    }
+
+    #[test]
+    fn frames_destroy_target_like_doom_blade() {
+        assert_eq!(
+            spell("Destroy target creature.").as_deref(),
+            Some("Spell(targets: [TargetOne(Creature)], effect: Destroy(Target(0)))")
+        );
     }
 }
