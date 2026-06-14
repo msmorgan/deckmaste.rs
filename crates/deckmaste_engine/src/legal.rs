@@ -486,7 +486,7 @@ fn walk_abilities<B, F: FnMut(&StaticEffect) -> ControlFlow<B>>(
             Ability::Keyword(k) => in_keyword(k, visit),
             Ability::Expanded(e) => in_ability(&e.value, visit),
             // Peel `Innate` — its inner static is consumed normally
-            // ([CR#113.12,604]).
+            // ([CR#113.12,604.1]).
             Ability::Innate(inner) => in_ability(inner, visit),
             _ => ControlFlow::Continue(()),
         }
@@ -535,8 +535,14 @@ fn statics_on<B, F: FnMut(&StaticEffect) -> ControlFlow<B>>(
 /// The non-short-circuiting view over [`statics_on`]: runs `visit` on every
 /// static effect of `id` (no early exit). The visit-each callers
 /// (`attack_rows`/`block_rows`/`target_rows`/`may_cast_rows`) collect rows
-/// through this, leaving the `ControlFlow` plumbing to the one walker.
-fn for_each_static<F: FnMut(&StaticEffect)>(view: &LayeredView, id: ObjectId, mut visit: F) {
+/// through this, leaving the `ControlFlow` plumbing to the one walker. Also
+/// the entry point for the [CR#704] SBA sweep, which collects `Sba` rows the
+/// same look-through way.
+pub(crate) fn for_each_static<F: FnMut(&StaticEffect)>(
+    view: &LayeredView,
+    id: ObjectId,
+    mut visit: F,
+) {
     // The visitor never breaks, so the only outcome is the run-to-completion
     // `Continue(())`, deliberately discarded.
     let _ = statics_on(view, id, &mut |e| {
@@ -682,7 +688,7 @@ pub(crate) fn target_forbidden_by(
 /// Fortification [CR#301.6] host rule, conferred `Innate`) and the
 /// **host-side** restriction (protection's can't-be-equipped clause
 /// [CR#702.16d]) land here — the row is read the same way regardless of which
-/// permanent carries it. `statics_on` peels `Innate` ([CR#113.12]).
+/// permanent carries it. The walker peels `Innate` ([CR#113.12]).
 #[must_use]
 fn cant_attach_rows(
     state: &GameState,
@@ -691,7 +697,7 @@ fn cant_attach_rows(
     let mut rows = Vec::new();
     for &id in &state.zones.battlefield {
         let source = state.objects.obj(id).source;
-        statics_on(view, id, &mut |e| {
+        for_each_static(view, id, |e| {
             if let StaticEffect::Deontic(d) = e
                 && let Some(DeonticAction::Attach { what, to }) = cant_action(d)
             {
