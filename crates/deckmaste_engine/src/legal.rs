@@ -475,6 +475,15 @@ pub(crate) fn must_block_rows(state: &GameState, view: &LayeredView) -> Vec<Bloc
 /// result propagates the visitor's `Break` value (or `Continue(())` when the
 /// descent ran to completion). View-free so it can be unit-tested directly;
 /// [`statics_on`] is the thin `LayeredView` adapter over it.
+///
+/// The composite-keyword splice (`in_keyword`) is the legality/SBA twin of the
+/// layer `gather`'s `derive::flatten_composites`: a keyword macro that confers
+/// a static (Enchant → `Cant(Attach)`, [CR#702.5a]) lands as
+/// `Keyword(Composite { abilities: [Static(...)] })`, so a static-read path
+/// that did NOT descend into the composite would silently miss the conferred
+/// row. `Innate` is peeled here too, so subtype-conferred
+/// `Innate(Cant(Attach))` ([CR#301.5,301.6]) and `Innate(Static([Sba(...)]))`
+/// ([CR#704.5m]) are seen.
 fn walk_abilities<B, F: FnMut(&StaticEffect) -> ControlFlow<B>>(
     abilities: &[Ability],
     visit: &mut F,
@@ -1175,6 +1184,54 @@ mod tests {
         assert!(
             state.announcing.is_some(),
             "begin_activate staged the activated ability at the offered index"
+        );
+    }
+
+    // --- PREREQUISITE: composite-keyword flattening for static reads ----------
+
+    /// [CR#702.5a]: the **Enchant** keyword confers its `Cant(Attach)` row
+    /// nested inside a `Keyword(Composite { abilities: [Static(...)] })` (the
+    /// macro body shape). `attachment_legal` reads `Cant(Attach)` via
+    /// `statics_on`, which must look THROUGH the composite (splice its members)
+    /// for the conferred restriction to be visible — otherwise the enchant
+    /// host bound is silently ignored. This mirrors the layer `gather`
+    /// composite flattening (`derive::flatten_composites`).
+    #[test]
+    fn attachment_legal_sees_cant_attach_nested_in_composite_keyword() {
+        use deckmaste_core::KeywordAbility;
+        let mut state = game();
+        // An attachment whose ONLY `Cant(Attach)` lives inside a composite
+        // keyword (the Enchant macro shape: a `Keyword(Composite{[Static(..)]})`).
+        let enchant_composite = Ability::Keyword(KeywordAbility::Composite {
+            name: "Enchant".into(),
+            abilities: vec![Ability::Static(StaticAbility {
+                condition: None,
+                effects: vec![StaticEffect::Deontic(Deontic::Cant(
+                    DeonticAction::Attach {
+                        what: Filter::Ref(Reference::This),
+                        to: Filter::Not(Box::new(creature())),
+                    },
+                ))],
+                characteristic_defining: false,
+            })],
+        });
+        let aura = obj_on_field(
+            &mut state,
+            "Composite Aura",
+            vec![Type::Enchantment],
+            vec![enchant_composite],
+        );
+        let creature_host = obj_on_field(&mut state, "Bear", vec![Type::Creature], vec![]);
+        let noncreature_host = obj_on_field(&mut state, "Rock", vec![Type::Artifact], vec![]);
+
+        assert!(
+            attachment_legal(&state, aura, creature_host),
+            "composite-conferred Cant(Attach) allows a creature host"
+        );
+        assert!(
+            !attachment_legal(&state, aura, noncreature_host),
+            "composite-conferred Cant(Attach to Not(Creature)) forbids a non-creature host \
+             ([CR#702.5a]) — statics_on must flatten the composite keyword"
         );
     }
 }
