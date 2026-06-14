@@ -369,31 +369,13 @@ fn quality_filter(q: &str) -> Option<String> {
     if q.is_empty() || q.contains(' ') {
         return None;
     }
-    let color = match q {
-        "white" => Some("White"),
-        "blue" => Some("Blue"),
-        "black" => Some("Black"),
-        "red" => Some("Red"),
-        "green" => Some("Green"),
-        _ => None,
-    };
-    if let Some(c) = color {
+    if let Some(c) = super::filter::color_ident(q) {
         return Some(format!("ColorIs({c})"));
     }
-    if matches!(q, "sorcery" | "sorceries") {
-        return Some("Type(Sorcery)".to_owned());
-    }
-    let ty = match q.strip_suffix('s').unwrap_or(q) {
-        "creature" => "Creature",
-        "artifact" => "Artifact",
-        "enchantment" => "Enchantment",
-        "land" => "Land",
-        "planeswalker" => "Planeswalker",
-        "instant" => "Instant",
-        "battle" => "Battle",
-        _ => return None,
-    };
-    Some(format!("Type({ty})"))
+    // Share the type-noun vocabulary + singularizer with the filter-head
+    // parser; `quality_filter`'s divergent wrapper is the always-`Type(<T>)`
+    // form (and it has no `permanent`, which `type_filter` declines).
+    super::filter::type_filter(&super::filter::singularize(q).to_ascii_lowercase())
 }
 
 #[cfg(test)]
