@@ -379,3 +379,61 @@ fn renders_creature_dies_trigger_moonlit_wake() {
         r.rules
     );
 }
+
+// ── Coverage C: Scope::Of + full Modification vocabulary ────────────────────
+
+#[test]
+fn renders_set_colors_darkest_hour() {
+    assert_eq!(
+        render_card_face(&face("Darkest Hour")).rules,
+        vec!["Creatures are black.".to_string()]
+    );
+}
+
+#[test]
+fn renders_gain_ability_serras_blessing() {
+    assert_eq!(
+        render_card_face(&face("Serra's Blessing")).rules,
+        vec!["Creatures you control have vigilance.".to_string()]
+    );
+}
+
+#[test]
+fn renders_humility() {
+    assert_eq!(
+        render_card_face(&face("Humility")).rules,
+        vec!["Creatures lose all abilities and have base power and toughness 1/1.".to_string()]
+    );
+}
+
+#[test]
+fn renders_scope_of_singular() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::CardFace;
+    use deckmaste_core::Count;
+    use deckmaste_core::Modification;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Scope;
+    use deckmaste_core::StaticAbility;
+    use deckmaste_core::StaticEffect;
+    let face = CardFace {
+        name: "Test Aura".into(),
+        types: vec![Type::Enchantment],
+        abilities: vec![Ability::Static(StaticAbility {
+            condition: None,
+            effects: vec![StaticEffect::Modify {
+                of: Scope::Of(Reference::This),
+                changes: vec![
+                    Modification::AddPower(Count::Literal(1)),
+                    Modification::AddToughness(Count::Literal(1)),
+                ],
+            }],
+            characteristic_defining: false,
+        })],
+        ..CardFace::default()
+    };
+    assert_eq!(
+        render_card_face(&face).rules,
+        vec!["Test Aura gets +1/+1.".to_string()]
+    );
+}
