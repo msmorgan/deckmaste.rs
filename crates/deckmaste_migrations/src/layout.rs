@@ -55,5 +55,26 @@ impl PluginLayout {
         self.dir(&format!("{MACROS_DIR}/types/{category}"))
     }
 
+    /// The sibling `builtin` plugin's subtype-macros dir for `category`, when
+    /// distinct from this plugin (none if this layout *is* builtin, or no
+    /// sibling exists). Mirrors the loader's prelude convention
+    /// ([`Plugin::load_with_sibling_prelude`]): a sibling directory named
+    /// `builtin` is the universal prelude. The generator consults it so it
+    /// never writes a confers-LESS stub for a subtype that builtin already
+    /// defines (with `confers:`) — a wizards stub would otherwise shadow
+    /// builtin's def under "last plugin wins".
+    ///
+    /// Returns the path unconditionally (it need not exist on disk); callers
+    /// probe individual `<ident>.ron` files under it.
+    #[must_use]
+    pub fn sibling_builtin_subtype_dir(&self, category: &str) -> Option<PathBuf> {
+        let builtin = self.0.parent()?.join("builtin");
+        // Don't treat ourselves as our own prelude.
+        if builtin == self.0 {
+            return None;
+        }
+        Some(builtin.join(format!("{MACROS_DIR}/types/{category}")))
+    }
+
     pub fn cards_dir(&self) -> anyhow::Result<PathBuf> { self.dir(CARDS_DIR) }
 }

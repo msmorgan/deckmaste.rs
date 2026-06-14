@@ -261,6 +261,17 @@ mod tests {
         .unwrap()
     }
 
+    /// The graduated WIZARDS corpus, loaded over its `builtin` sibling prelude
+    /// (same path real wizards cards load through). Proves the Aura/Equipment/
+    /// Fortification `confers:` reach a wizards card: the defs live in builtin,
+    /// and the generator emits no confers-less wizards stub to shadow them.
+    fn wizards() -> Plugin {
+        Plugin::load_with_sibling_prelude(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/wizards"),
+        )
+        .unwrap()
+    }
+
     fn deck(card: &Arc<Card>, n: usize) -> Vec<Arc<Card>> { vec![Arc::clone(card); n] }
 
     /// A two-player game; player 0's deck is Grizzly Bears.
@@ -333,6 +344,56 @@ mod tests {
         state.objects.obj_mut(m).zone = Some(Zone::Battlefield);
         state.zones.battlefield.push(m);
         (state, m)
+    }
+
+    /// End-to-end through the WIZARDS load path ([CR#704.5m]): a graduated
+    /// wizards Aura (Angelic Gift) carries the Aura subtype's `Innate`
+    /// graveyard `Sba` *via the data*, not in-Rust scaffolding. Loaded over the
+    /// builtin sibling prelude, put on the battlefield UNATTACHED, the generic
+    /// SBA sweep fires its battlefield→graveyard move. This is the regression
+    /// the fix targets: the Aura `confers:` lives in builtin and the generator
+    /// emits no confers-less wizards stub to shadow it, so a fresh wizards card
+    /// inherits the attachment rule.
+    #[test]
+    fn wizards_aura_carries_innate_graveyard_sba() {
+        let gift = Arc::new(wizards().card("Angelic Gift").unwrap());
+        // Sanity: the loaded card actually carries the Aura subtype's confer.
+        // (`derive::printed_of_face` is what flattens it onto the object.)
+        let face = crate::derive::face(&gift);
+        assert!(
+            face.subtypes
+                .iter()
+                .any(|s| s.confers.iter().any(|p| matches!(
+                    p,
+                    deckmaste_core::Property::Ability(a) if a.is_innate()
+                ))),
+            "the wizards Aura card embeds the Innate confer; subtypes: {:?}",
+            face.subtypes
+        );
+
+        let mut state = GameState::new(GameConfig {
+            players: vec![PlayerConfig { deck: vec![] }, PlayerConfig { deck: vec![] }],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        });
+        let card_id = state.cards.push(gift, PlayerId(0));
+        let aura = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(aura);
+
+        // Unattached → `LegallyAttached` is false → the conferred Innate SBA
+        // fires, moving the Aura to its owner's graveyard.
+        let actions = sba::sweep(&state);
+        assert!(
+            actions.iter().any(|e| matches!(e,
+                GameEvent::ZoneWillChange { object, to: Zone::Graveyard, .. } if *object == aura)),
+            "a graduated wizards Aura's Innate graveyard SBA fires when unattached \
+             ([CR#704.5m]); got {actions:?}"
+        );
     }
 
     /// [CR#704.5g,702.12b]: an indestructible creature with lethal damage is
