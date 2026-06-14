@@ -13,6 +13,7 @@ use deckmaste_core::Phase;
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
+use deckmaste_engine::ActionViewKind;
 use deckmaste_engine::Decision;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameState;
@@ -332,4 +333,81 @@ fn decision_point_exposes_the_decider_player() {
         player,
         "DecisionPoint::decider_player matches the pending decision's player"
     );
+}
+
+#[test]
+fn describe_action_bundles_cast_land_activate_pass_concede() {
+    let bolt = Arc::new(canon().card(INSTANT).unwrap());
+    let pinger = Arc::new(testing().card(PINGER).unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+    let mut p0 = vec![Arc::clone(&bolt); 4];
+    p0.extend(vec![Arc::clone(&pinger); 3]);
+    p0.extend(vec![Arc::clone(&mountain); 6]);
+    let mut p1 = vec![Arc::clone(&bears); 5];
+    p1.extend(vec![Arc::clone(&forest); 5]);
+    let mut state = GameState::new(GameConfig {
+        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
+        seed: 3,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    let pinger_id = force_into_play(&mut state, PlayerId(0), PINGER);
+    let mountain_id = force_into_play(&mut state, PlayerId(0), "Mountain");
+    let bolt_id = force_into_hand(&mut state, PlayerId(0), INSTANT);
+    let land_id = force_into_hand(&mut state, PlayerId(0), "Mountain");
+
+    // CastSpell view carries the name and cost.
+    let v = state.describe_action(&Action::CastSpell { object: bolt_id });
+    assert_eq!(v.source, Some(bolt_id));
+    assert_eq!(v.name, Some("Lightning Bolt"));
+    match v.kind {
+        ActionViewKind::Cast { cost: Some(c) } => assert_eq!(c.mana_value(), 1),
+        other => panic!("expected Cast with a cost, got {other:?}"),
+    }
+
+    // PlayLand view: name, PlayLand kind.
+    let v = state.describe_action(&Action::PlayLand { object: land_id });
+    assert_eq!(v.name, Some("Mountain"));
+    assert!(matches!(v.kind, ActionViewKind::PlayLand));
+
+    // A mana ability (Mountain) -> Activate { mana: true }.
+    let mab = state.abilities(mountain_id);
+    let m_idx = (0..mab.len())
+        .find(|&i| state.mana_ability(mountain_id, i).is_some())
+        .unwrap();
+    let v = state.describe_action(&Action::ActivateAbility {
+        object: mountain_id,
+        ability: m_idx,
+    });
+    assert_eq!(v.name, Some("Mountain"));
+    assert!(matches!(
+        v.kind,
+        ActionViewKind::Activate { mana: true, .. }
+    ));
+
+    // A non-mana ability (PINGER) -> Activate { mana: false }.
+    let pab = state.abilities(pinger_id);
+    let p_idx = (0..pab.len())
+        .find(|&i| {
+            state.activated_ability(pinger_id, i).is_some()
+                && state.mana_ability(pinger_id, i).is_none()
+        })
+        .expect("pinger has a non-mana activated ability");
+    let v = state.describe_action(&Action::ActivateAbility {
+        object: pinger_id,
+        ability: p_idx,
+    });
+    assert!(matches!(
+        v.kind,
+        ActionViewKind::Activate { mana: false, .. }
+    ));
+
+    // Pass / Concede carry no source/name.
+    let v = state.describe_action(&Action::Pass);
+    assert_eq!(v.source, None);
+    assert!(matches!(v.kind, ActionViewKind::Pass));
+    let v = state.describe_action(&Action::Concede);
+    assert!(matches!(v.kind, ActionViewKind::Concede));
 }
