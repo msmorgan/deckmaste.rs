@@ -65,9 +65,7 @@ pub fn stack_label(state: &GameState, entry: &StackEntry) -> String {
 /// exotic symbols fall back to a `Debug` form (the detail pane is a stub until
 /// `card-text-render`).
 #[must_use]
-pub fn mana_cost(cost: &ManaCost) -> String {
-    cost.iter().map(symbol).collect()
-}
+pub fn mana_cost(cost: &ManaCost) -> String { cost.iter().map(symbol).collect() }
 
 fn symbol(s: &ManaSymbol) -> String {
     match s {
@@ -92,7 +90,10 @@ mod tests {
     use crate::game;
 
     fn opening() -> GameState {
-        let mut d = Driver::new(game::build_game().expect("build"), Box::new(GreedyCreatures));
+        let mut d = Driver::new(
+            game::build_game().expect("build"),
+            Box::new(GreedyCreatures),
+        );
         d.run_to_priority().expect("priority");
         d.state
     }

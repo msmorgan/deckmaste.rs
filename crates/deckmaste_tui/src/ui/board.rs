@@ -47,7 +47,11 @@ impl BoardState {
     /// Initial state: P0 battlefield focused, perspective on P0.
     #[must_use]
     pub fn new() -> Self {
-        Self { focus: 0, selected: [0; ZONES.len()], perspective: PlayerId(0) }
+        Self {
+            focus: 0,
+            selected: [0; ZONES.len()],
+            perspective: PlayerId(0),
+        }
     }
 
     /// The currently focused zone.
@@ -75,8 +79,7 @@ impl BoardState {
             return;
         }
         let cur = self.selected[self.focus].min(len - 1);
-        self.selected[self.focus] =
-            if forward { (cur + 1) % len } else { (cur + len - 1) % len };
+        self.selected[self.focus] = if forward { (cur + 1) % len } else { (cur + len - 1) % len };
     }
 
     /// Recompute the perspective from the pending decision; keep the last value
@@ -87,7 +90,8 @@ impl BoardState {
         }
     }
 
-    /// The number of selectable items in the focused zone (for `step_selection`).
+    /// The number of selectable items in the focused zone (for
+    /// `step_selection`).
     #[must_use]
     pub fn focused_len(&self, state: &GameState, view: &LayeredView) -> usize {
         zones::contents(state, view, self.perspective, self.focused_zone()).len()
@@ -111,7 +115,10 @@ impl Default for BoardState {
 
 /// Position of `zone` in [`ZONES`].
 fn zone_pos(zone: Zone) -> usize {
-    ZONES.iter().position(|&z| z == zone).expect("zone is in ZONES")
+    ZONES
+        .iter()
+        .position(|&z| z == zone)
+        .expect("zone is in ZONES")
 }
 
 #[cfg(test)]
@@ -147,9 +154,17 @@ mod tests {
 
     #[test]
     fn sync_follows_pending_decider() {
-        let mut d = Driver::new(game::build_game().expect("build"), Box::new(GreedyCreatures));
+        let mut d = Driver::new(
+            game::build_game().expect("build"),
+            Box::new(GreedyCreatures),
+        );
         d.run_to_priority().expect("priority");
-        let decider = d.state.pending.as_ref().expect("a pending decision").decider_player();
+        let decider = d
+            .state
+            .pending
+            .as_ref()
+            .expect("a pending decision")
+            .decider_player();
         let mut b = BoardState::new();
         b.sync(&d.state);
         assert_eq!(b.perspective, decider);
@@ -157,7 +172,10 @@ mod tests {
 
     #[test]
     fn selected_resolves_hand_and_is_none_for_empty_stack() {
-        let mut d = Driver::new(game::build_game().expect("build"), Box::new(GreedyCreatures));
+        let mut d = Driver::new(
+            game::build_game().expect("build"),
+            Box::new(GreedyCreatures),
+        );
         d.run_to_priority().expect("priority");
         let state = &d.state;
         let view = state.layers();
@@ -166,7 +184,10 @@ mod tests {
 
         b.cycle_zone(false); // focus Hand (wrap back from Battlefield(P0))
         assert_eq!(b.focused_zone(), Zone::Hand);
-        assert!(matches!(b.selected(state, &view), Some(Selected::Object(_))));
+        assert!(matches!(
+            b.selected(state, &view),
+            Some(Selected::Object(_))
+        ));
 
         b.cycle_zone(false); // focus Stack (empty at opening)
         assert_eq!(b.focused_zone(), Zone::Stack);

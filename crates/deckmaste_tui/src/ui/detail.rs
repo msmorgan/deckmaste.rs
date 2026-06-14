@@ -51,12 +51,14 @@ fn stack_detail(state: &GameState, view: &LayeredView, i: usize) -> Text<'static
     };
     match &entry.object {
         StackObject::Spell(id) => object_detail(state, view, *id),
-        StackObject::Triggered { .. } => {
-            Text::from(format!("triggered ability\ncontroller: P{}", entry.controller.0))
-        }
-        StackObject::Activated { .. } => {
-            Text::from(format!("activated ability\ncontroller: P{}", entry.controller.0))
-        }
+        StackObject::Triggered { .. } => Text::from(format!(
+            "triggered ability\ncontroller: P{}",
+            entry.controller.0
+        )),
+        StackObject::Activated { .. } => Text::from(format!(
+            "activated ability\ncontroller: P{}",
+            entry.controller.0
+        )),
     }
 }
 
@@ -88,13 +90,21 @@ mod tests {
     fn text_to_string(t: &Text) -> String {
         t.lines
             .iter()
-            .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect::<String>())
+            .map(|l| {
+                l.spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<String>()
+            })
             .collect::<Vec<_>>()
             .join("\n")
     }
 
     fn opening() -> GameState {
-        let mut d = Driver::new(game::build_game().expect("build"), Box::new(GreedyCreatures));
+        let mut d = Driver::new(
+            game::build_game().expect("build"),
+            Box::new(GreedyCreatures),
+        );
         d.run_to_priority().expect("priority");
         d.state
     }
@@ -103,7 +113,10 @@ mod tests {
     fn none_is_placeholder() {
         let state = opening();
         let view = state.layers();
-        assert_eq!(text_to_string(&render(&state, &view, None)), "(no selection)");
+        assert_eq!(
+            text_to_string(&render(&state, &view, None)),
+            "(no selection)"
+        );
     }
 
     #[test]
@@ -112,6 +125,9 @@ mod tests {
         let view = state.layers();
         let id = *state.zones.hands[0].first().expect("nonempty hand");
         let s = text_to_string(&render(&state, &view, Some(Selected::Object(id))));
-        assert!(s.contains(&face(state.def(id)).name), "detail names the card: {s}");
+        assert!(
+            s.contains(&face(state.def(id)).name),
+            "detail names the card: {s}"
+        );
     }
 }
