@@ -300,6 +300,7 @@ impl GameState {
                     object: pending.object,
                     controller: pending.controller,
                     targets: pending.targets,
+                    x: pending.x,
                 });
                 GameEvent::SpellCast(object)
             }
@@ -323,6 +324,7 @@ impl GameState {
                     object: pending.object,
                     controller: pending.controller,
                     targets: pending.targets,
+                    x: pending.x,
                 });
                 self.activations.bump((source, ability));
                 GameEvent::AbilityActivated { source, ability }

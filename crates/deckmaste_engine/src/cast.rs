@@ -279,6 +279,7 @@ impl GameState {
             controller,
             origin: Zone::Hand,
             targets: vec![],
+            x: None,
         });
     }
 

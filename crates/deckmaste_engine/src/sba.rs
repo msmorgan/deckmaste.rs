@@ -363,6 +363,7 @@ mod tests {
             targets: vec![],
             bindings: None,
             chosen: None,
+            x: None,
         };
         let token = Token {
             color_indicator: vec![],

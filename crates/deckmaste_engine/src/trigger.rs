@@ -551,6 +551,7 @@ impl GameState {
                         targets: Vec::new(),
                         bindings: Some(bindings.clone()),
                         chosen: None,
+                        x: None,
                     };
                     if !self.condition_holds(c, &frame) {
                         continue;
@@ -694,6 +695,7 @@ impl GameState {
                 },
                 controller: noted.controller,
                 targets: vec![],
+                x: None,
             });
             return true;
         }
@@ -765,6 +767,7 @@ impl GameState {
             },
             controller: staged.controller,
             targets,
+            x: None,
         });
     }
 }
@@ -835,6 +838,7 @@ mod tests {
             targets: Vec::new(),
             bindings: None,
             chosen: None,
+            x: None,
         }
     }
 
