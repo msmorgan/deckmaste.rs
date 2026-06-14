@@ -112,11 +112,48 @@ mod tests {
     }
 
     #[test]
+    fn sacrifice_filter_cost_like_goblin_bombardment() {
+        assert_eq!(
+            act("Sacrifice a creature: ~ deals 1 damage to any target.").as_deref(),
+            Some(
+                "Activated(cost: [Do(Sacrifice(Choose(Exactly(Literal(1)), Creature)))], \
+                 targets: [AnyTarget], effect: DealDamage(Target(0), 1))"
+            )
+        );
+    }
+
+    #[test]
+    fn sacrifice_another_subtype_cost() {
+        // "another Goblin" → the self-exclusion filter, count 1.
+        assert_eq!(
+            act("Sacrifice another Goblin: Draw a card.").as_deref(),
+            Some(
+                "Activated(cost: [Do(Sacrifice(Choose(Exactly(Literal(1)), \
+                 AllOf([Subtype(\"Goblin\"), Not(Ref(This))]))))], effect: Draw(1))"
+            )
+        );
+    }
+
+    #[test]
+    fn sacrifice_count_cost() {
+        // A spelled count word sacrifices that many of the filtered subject.
+        assert_eq!(
+            act("Sacrifice two creatures: Draw a card.").as_deref(),
+            Some(
+                "Activated(cost: [Do(Sacrifice(Choose(Exactly(Literal(2)), Creature)))], \
+                 effect: Draw(1))"
+            )
+        );
+    }
+
+    #[test]
     fn declines_unknown_costs() {
         // Loyalty costs are a different frame (extraction keeps them bracketed).
         assert!(act("[0]: Draw a card.").is_none());
-        // Sacrifice with a non-self selection isn't a v1 production.
-        assert!(act("Sacrifice a creature: Draw a card.").is_none());
+        // A sacrifice subject the filter grammar can't parse declines.
+        assert!(act("Sacrifice a creature wearing hats: Draw a card.").is_none());
+        // A sacrifice with no determiner/count leading the subject declines.
+        assert!(act("Sacrifice creatures: Draw a card.").is_none());
         // Discard riders decline.
         assert!(act("Discard a card at random: ~ deals 1 damage to any target.").is_none());
         assert!(act("Discard your hand: Draw two cards.").is_none());

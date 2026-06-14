@@ -3,12 +3,13 @@
 //! frame's pre-colon clause ("{1}{B}, {T}, Sacrifice ~: …" [CR#602.1a]) and
 //! the keyword parser's cost arguments ("Ward {2}", "Ward—Pay 3 life."
 //! [CR#702.21a]). Components: mana runs, the tap/untap symbols, sacrifice-self,
-//! pay-life, discard.
+//! chosen-sacrifice (`Sacrifice a creature`), pay-life, discard.
 
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
 
 use crate::parsers::effect;
+use crate::parsers::filter;
 use crate::ron_output::ron_options;
 
 /// Whether `{X}` may appear in a mana component. A keyword cost argument
@@ -47,7 +48,10 @@ fn cost_component(text: &str, variable: VariableMana) -> anyhow::Result<Option<S
         "{T}" => Some("Tap".to_owned()),
         "{Q}" => Some("Untap".to_owned()),
         "Sacrifice ~" => Some("SacrificeThis".to_owned()),
-        _ => match pay_life(text).or_else(|| discard(text)) {
+        _ => match pay_life(text)
+            .or_else(|| discard(text))
+            .or_else(|| sacrifice(text))
+        {
             Some(component) => Some(component),
             None => mana_component(text, variable)?,
         },
@@ -70,6 +74,29 @@ fn discard(text: &str) -> Option<String> {
         .or_else(|| rest.strip_suffix(" card"))?;
     let n = effect::number_word(count)?;
     Some(format!("Do(Discard({n}))"))
+}
+
+/// `Sacrifice <subject>` (non-self) -> `Do(Sacrifice(Choose(Exactly(N),
+/// <filter>)))`: a chosen sacrifice, the payer picking N matching permanents as
+/// the cost is paid ([CR#601.2h]). The implicit "you control" restriction is
+/// the Sacrifice verb's own ([CR#701.21a]), not part of the printed-text filter
+/// — matching the self-sacrifice form (`Sacrifice ~` -> `SacrificeThis`). The
+/// leading determiner fixes N: `a`/`an`/`another`/`other` mean one and stay in
+/// the phrase (so the filter parser reads `another`/`other` as self-exclusion);
+/// a spelled count (`one`, `two`, …) is stripped and sets N. An unrecognized
+/// leader or a subject the filter grammar can't parse declines. The self form
+/// `Sacrifice ~` is matched earlier and never reaches here (it has no space).
+fn sacrifice(text: &str) -> Option<String> {
+    let rest = text.strip_prefix("Sacrifice ")?;
+    let (first, tail) = rest.split_once(' ')?;
+    let (count, phrase) = match first.to_ascii_lowercase().as_str() {
+        "a" | "an" | "another" | "other" => (1, rest),
+        _ => (effect::number_word(first)?, tail),
+    };
+    let filter = filter::parse_phrase(phrase)?;
+    Some(format!(
+        "Do(Sacrifice(Choose(Exactly(Literal({count})), {filter})))"
+    ))
 }
 
 /// A run of mana symbols -> `Mana([...])`. Declines on non-mana text, the
