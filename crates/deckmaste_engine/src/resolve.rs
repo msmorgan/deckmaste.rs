@@ -2623,6 +2623,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             bindings: None,
+            chosen: None,
         };
         let red = ColorOrColorless::Color(Color::Red);
         let rider = ManaRider::SpendOnly(Filter::Any);
