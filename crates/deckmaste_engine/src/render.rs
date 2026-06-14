@@ -128,9 +128,13 @@ impl GameState {
                 },
             },
             Action::ActivateAbility { object, ability } => {
-                let mana = self.mana_ability(object, ability).is_some();
-                let act = self
-                    .activated_ability(object, ability)
+                // One layer build for both reads (mana flag + the ability itself).
+                let abilities = self.abilities(object);
+                let entry = abilities.get(ability);
+                let mana = entry.and_then(crate::derive::tap_mana_ability).is_some();
+                let act = entry
+                    .and_then(crate::activate::as_activated)
+                    .cloned()
                     .expect("ActivateAbility indexes an activated ability");
                 ActionView {
                     action: action.clone(),

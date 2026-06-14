@@ -145,6 +145,27 @@ fn activation_game(seed: u64, name: &str, mountains: usize) -> GameState {
     state
 }
 
+/// A two-player game whose p0 deck is Lightning Bolt + Mountains and whose p1
+/// deck is Grizzly Bears + Forests — the canon-spell counterpart of
+/// `activation_game`. Callers force the specific permanents/hand cards they
+/// need.
+fn bolt_game(seed: u64) -> GameState {
+    let bolt = Arc::new(canon().card(INSTANT).unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+    let mut p0 = vec![Arc::clone(&bolt); 5];
+    p0.extend(vec![Arc::clone(&mountain); 5]);
+    let mut p1 = vec![Arc::clone(&bears); 5];
+    p1.extend(vec![Arc::clone(&forest); 5]);
+    GameState::new(GameConfig {
+        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
+        seed,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    })
+}
+
 // --- stepping helpers
 // ---------------------------------------------------------
 
@@ -235,22 +256,7 @@ fn force_into_hand(state: &mut GameState, player: PlayerId, name: &str) -> Objec
 
 #[test]
 fn mana_cost_is_publicly_reachable_for_a_castable_spell() {
-    // A game whose p0 deck holds Lightning Bolt + Mountains (testing plugin
-    // supplies nothing here, so build a bespoke deck like activation_game does).
-    let bolt = Arc::new(canon().card(INSTANT).unwrap());
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
-    let forest = Arc::new(builtin().card("Forest").unwrap());
-    let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
-    let mut p0 = vec![Arc::clone(&bolt); 5];
-    p0.extend(vec![Arc::clone(&mountain); 5]);
-    let mut p1 = vec![Arc::clone(&bears); 5];
-    p1.extend(vec![Arc::clone(&forest); 5]);
-    let mut state = GameState::new(GameConfig {
-        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
-        seed: 1,
-        starting_life: 20,
-        starting_player: StartingPlayer::Fixed(PlayerId(0)),
-    });
+    let mut state = bolt_game(1);
     let bolt_id = force_into_hand(&mut state, PlayerId(0), INSTANT);
 
     // mana_cost is now public: a renderer can read a castable spell's cost.
@@ -439,20 +445,7 @@ fn priority_enumerates_pass_concede_activate_and_land() {
 #[test]
 fn cast_spell_is_enumerated_once_its_cost_is_payable() {
     // Build a deck with Bolt + Mountains so we can float {R} then see CastSpell.
-    let bolt = Arc::new(canon().card(INSTANT).unwrap());
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
-    let forest = Arc::new(builtin().card("Forest").unwrap());
-    let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
-    let mut p0 = vec![Arc::clone(&bolt); 5];
-    p0.extend(vec![Arc::clone(&mountain); 5]);
-    let mut p1 = vec![Arc::clone(&bears); 5];
-    p1.extend(vec![Arc::clone(&forest); 5]);
-    let mut state = GameState::new(GameConfig {
-        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
-        seed: 2,
-        starting_life: 20,
-        starting_player: StartingPlayer::Fixed(PlayerId(0)),
-    });
+    let mut state = bolt_game(2);
     force_into_play(&mut state, PlayerId(0), "Mountain");
     let bolt_id = force_into_hand(&mut state, PlayerId(0), INSTANT);
 
@@ -553,20 +546,7 @@ fn choose_targets_candidates_resolve_to_names() {
     // Cast Lightning Bolt; the ChooseTargets candidates are object ids a renderer
     // resolves to names via def()/face_name — confirming that decision kind is
     // already renderable with no engine change.
-    let bolt = Arc::new(canon().card(INSTANT).unwrap());
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
-    let forest = Arc::new(builtin().card("Forest").unwrap());
-    let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
-    let mut p0 = vec![Arc::clone(&bolt); 5];
-    p0.extend(vec![Arc::clone(&mountain); 5]);
-    let mut p1 = vec![Arc::clone(&bears); 5];
-    p1.extend(vec![Arc::clone(&forest); 5]);
-    let mut state = GameState::new(GameConfig {
-        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
-        seed: 4,
-        starting_life: 20,
-        starting_player: StartingPlayer::Fixed(PlayerId(0)),
-    });
+    let mut state = bolt_game(4);
     force_into_play(&mut state, PlayerId(0), "Mountain");
     let target = force_into_play(&mut state, PlayerId(1), "Grizzly Bears");
     let bolt_id = force_into_hand(&mut state, PlayerId(0), INSTANT);
