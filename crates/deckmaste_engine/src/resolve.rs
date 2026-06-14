@@ -469,10 +469,13 @@ impl GameState {
                         if self.objects.obj(attachment).attached_to == Some(host) {
                             continue; // [CR#701.3a]: already on that host.
                         }
-                        // TODO(engine-attach Stage 2): Cant(Attach) legality
-                        // no-op — skip a (what, host) pair where
-                        // `!attachment_legal(self, attachment, host)`
-                        // ([CR#701.3b]). For now any host is attachable.
+                        // [CR#701.3b]: no-op on an illegal (what, host) pair —
+                        // `attachment_legal` reads the `Cant(Attach)` statics
+                        // (the attachment's own enchant/Innate restriction + the
+                        // host's protection), generically, never the subtype.
+                        if !crate::legal::attachment_legal(self, attachment, host) {
+                            continue;
+                        }
                         events.push(GameEvent::Attached { attachment, host });
                     }
                 }
@@ -1681,6 +1684,91 @@ mod tests {
         assert!(
             !logged(&state, |e| matches!(e, GameEvent::Attached { .. })),
             "no Attached fact for a self-attach"
+        );
+    }
+
+    /// [CR#701.3b]: `Attach` no-ops on an illegal host — the attachment carries
+    /// a conferred `Innate(Cant(Attach(what: Ref(This), to: Not(Creature))))`
+    /// (the Equipment-subtype shape) and the host is a non-creature, so the
+    /// link stays `None` and no `Attached` fact is recorded.
+    #[test]
+    fn attach_illegal_noop() {
+        use deckmaste_core::Ability;
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::Deontic;
+        use deckmaste_core::DeonticAction;
+        use deckmaste_core::StaticAbility;
+        use deckmaste_core::StaticEffect;
+
+        use crate::object::ObjectSource;
+
+        let mut state = game();
+        // The attachment: an artifact whose Innate rule forbids non-creature
+        // hosts (mirrors the Equipment subtype confer).
+        let equip_card = Card::Normal(CardFace {
+            name: "Test Equipment".into(),
+            types: vec![Type::Artifact],
+            abilities: vec![Ability::Innate(Box::new(Ability::Static(StaticAbility {
+                condition: None,
+                effects: vec![StaticEffect::Deontic(Deontic::Cant(
+                    DeonticAction::Attach {
+                        what: Filter::Ref(Reference::This),
+                        to: Filter::Not(Box::new(Filter::Characteristic(
+                            CharacteristicFilter::Type(Type::Creature),
+                        ))),
+                    },
+                ))],
+                characteristic_defining: false,
+            })))],
+            ..CardFace::default()
+        });
+        let equip_id = state.cards.push(Arc::new(equip_card), PlayerId(0));
+        let equip = state.objects.mint(
+            ObjectSource::Card(equip_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(equip);
+
+        // The host: a non-creature artifact "Rock".
+        let rock_card = Card::Normal(CardFace {
+            name: "Rock".into(),
+            types: vec![Type::Artifact],
+            ..CardFace::default()
+        });
+        let rock_id = state.cards.push(Arc::new(rock_card), PlayerId(0));
+        let rock = state.objects.mint(
+            ObjectSource::Card(rock_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(rock);
+
+        let frame = Frame {
+            source: equip,
+            controller: PlayerId(0),
+            targets: vec![rock],
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        state.run_effect(
+            Effect::Act(Action::Attach {
+                what: Selection::Ref(Reference::This),
+                to: Selection::Ref(Reference::Target(0)),
+            }),
+            &frame,
+        );
+        drain(&mut state);
+        assert_eq!(
+            state.objects.obj(equip).attached_to,
+            None,
+            "illegal attach no-ops ([CR#701.3b])"
+        );
+        assert!(
+            !logged(&state, |e| matches!(e, GameEvent::Attached { .. })),
+            "no Attached fact for an illegal host"
         );
     }
 

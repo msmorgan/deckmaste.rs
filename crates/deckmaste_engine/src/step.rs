@@ -622,7 +622,7 @@ impl GameState {
         // the object's own AsEnters self-replacement (enters tapped / attached).
         let mut entering = enters.unwrap_or_default();
         if to == Zone::Battlefield {
-            let as_enters = self.as_enters_status(snapshot.source);
+            let as_enters = self.as_enters_status(snapshot.source, new);
             entering.tapped |= as_enters.tapped;
             entering.attach_to = entering.attach_to.or(as_enters.attach_to);
             // [CR#302.6]: a permanent entering the battlefield is summoning-sick
@@ -694,7 +694,7 @@ impl GameState {
         let source = ObjectSource::Card(card);
         let new = self.objects.mint(source, player, Some(Zone::Battlefield));
         self.objects.obj_mut(new).summoning_sick = true;
-        if self.as_enters_status(source).tapped {
+        if self.as_enters_status(source, new).tapped {
             self.objects.obj_mut(new).tapped = true;
         }
         self.zones.battlefield.push(new);
