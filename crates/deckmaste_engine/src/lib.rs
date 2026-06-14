@@ -50,6 +50,8 @@ mod legal;
 pub use legal::legal_attackers;
 pub use legal::legal_blockers;
 
+mod render;
+
 mod object;
 pub use object::CardId;
 pub use object::CardInstance;

@@ -349,9 +349,9 @@ impl GameState {
     /// faces/zones that have no castable cost (and lets `can_cast`/`pay_cost`
     /// share the `let Some(cost) = …` gate).
     #[must_use]
-    #[expect(
+    #[allow(
         clippy::unnecessary_wraps,
-        reason = "the Option is the cast-legality seam; future no-cost faces return None"
+        reason = "the Option is the cast-legality seam; future no-cost faces return None (now a pub API, so clippy may not fire — keep the seam documented)"
     )]
     pub fn mana_cost(&self, object: ObjectId) -> Option<ManaCost> {
         Some(crate::derive::face(self.def(object)).mana_cost.clone())
