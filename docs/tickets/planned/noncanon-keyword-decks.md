@@ -7,25 +7,29 @@ systemically rather than per-test. Lives in the noncanon workspace/feature.
 
 ## Triage note (batch2 worker, 2026-06-14): mis-tiered — NOT claimed, left in planned/
 
-Blocked on two counts; surfaced rather than guessed:
+Surfaced rather than guessed. The decisive blocker is mechanism (point 1); a
+premise caveat (point 2) needs end-to-end verification before this is worth
+deck work.
 
-1. **Premise not yet true — combat keywords are not live.** The keywords this
-   ticket would exercise via the 50-game gate (fliers/reach, menace, defender)
-   have NO effect on attack/block legality in the engine: `legal.rs`
-   (`legal_blockers`) and `combat.rs` contain zero keyword-keyed evasion /
-   block-requirement logic — the only `Flying` mention in `combat.rs` is a test
-   assertion that a creature does NOT have it. Adding creatures with these
-   keywords to the matchup decks would exercise no interaction, so the
-   regression goal is unreachable until combat keyword restrictions
-   (flying/reach evasion, menace ≥2 blockers, defender can't-attack) are
-   implemented — a substantial engine feature, not pinned by this ticket.
-   (Hexproof's targeting `Cant(Target)` filtering IS live in `legal.rs`, but
-   that is the minority of the ticket and not a combat-deck regression.)
-2. **Wrong mechanism for a default-line batch claim.** The ticket "lives in the
+1. **Wrong mechanism for a default-line batch claim.** The ticket "lives in the
    noncanon workspace/feature" — the long-lived non-mainline `noncanon` branch /
-   `../noncanon` workspace — not a fresh default-line claim that
-   `integrate`s into trunk. It should be picked up inside that feature once the
-   combat keywords land, not via this batch.
+   `../noncanon` workspace — not a fresh default-line claim that `integrate`s
+   into trunk. Growing the noncanon matchup decks and running the 50-game gate
+   is noncanon-feature work; it should be picked up inside that feature, not via
+   this trunk-integrating batch.
+2. **Premise needs end-to-end verification.** Updated from an earlier note that
+   said combat keywords were entirely unlive: the keyword macros now DO confer
+   the deontic rows — `Flying` → `Cant(Block(by: Not(OneOf([Has(Flying),
+   Has(Reach)]))))`, `Menace` → `Cant(Block(count: Less(2)))`, `Defender` →
+   `Cant(Attack(by: This))` — and `legal.rs` has `Cant(Block)`/`Cant(Attack)`
+   enforcement scaffolding ([CR#702.9b] flying-family evasion, [CR#702.111b]
+   menace bound, [CR#702.3b] defender). BUT the keyword macro comments still
+   say "Engine block-legality enforcement of evasion Cants is a later combat
+   task," so whether keyword → derived `Cant` row → `legal.rs` block/attack
+   rejection is wired end-to-end (a real flying creature actually un-blockable
+   by a groundling in a played game) is unverified. Confirm that with a focused
+   engine test before sinking effort into matchup decks, or the 50-game gate
+   exercises nothing.
 
-Re-tier (e.g. depend on an engine combat-keyword-restrictions ticket) and route
-to the noncanon feature before claiming.
+Route to the noncanon feature; verify end-to-end keyword combat enforcement
+first.
