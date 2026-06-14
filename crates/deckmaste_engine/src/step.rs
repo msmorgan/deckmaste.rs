@@ -437,6 +437,13 @@ impl GameState {
             // arm to carry the CR rationale and the future trigger-match seam.)
             #[expect(clippy::match_same_arms)]
             GameEvent::ZoneChanged { .. } => event,
+            // [CR#701.3a,701.3d]: the attach/unattach FACTS. The relation
+            // mutation already happened in the verb's resolution (the
+            // `Action::Attach`/`Action::Unattach` arm sets `attached_to`);
+            // apply only records the fact so "becomes attached / unattached"
+            // triggers can match it later (trigger breadth is a seam, §9).
+            #[expect(clippy::match_same_arms)]
+            GameEvent::Attached { .. } | GameEvent::Unattached { .. } => event,
             GameEvent::LifeLost { player, amount } => {
                 self.player_mut(player).life -=
                     deckmaste_core::Int::try_from(amount).expect("life loss fits in i32");
