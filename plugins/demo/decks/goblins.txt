@@ -1,0 +1,4 @@
+name: Goblins
+
+16 Goblin Brigand
+12 Mountain
