@@ -619,16 +619,27 @@ impl GameState {
         let controller = if to == Zone::Battlefield { snapshot.controller } else { owner };
         let new = self.objects.mint(snapshot.source, controller, Some(to));
         // [CR#614.12]: how it enters — emitted status (Stage 4 replacements) plus
-        // the object's own AsEnters self-replacement (enters tapped).
+        // the object's own AsEnters self-replacement (enters tapped / attached).
         let mut entering = enters.unwrap_or_default();
         if to == Zone::Battlefield {
-            entering.tapped |= self.as_enters_status(snapshot.source).tapped;
+            let as_enters = self.as_enters_status(snapshot.source);
+            entering.tapped |= as_enters.tapped;
+            entering.attach_to = entering.attach_to.or(as_enters.attach_to);
             // [CR#302.6]: a permanent entering the battlefield is summoning-sick
             // until its controller's turn begins with it under continuous control.
             self.objects.obj_mut(new).summoning_sick = true;
         }
         if entering.tapped {
             self.objects.obj_mut(new).tapped = true;
+        }
+        // [CR#303.4]: enters attached atomically — set the link on the freshly
+        // minted object before the `ZoneChanged` fact, so no unattached window
+        // is observable. The `Attached` fact is scheduled after the entry fact.
+        let attached_host = entering.attach_to.filter(|&host| {
+            to == Zone::Battlefield && self.objects.get(host).is_some() && host != new
+        });
+        if let Some(host) = attached_host {
+            self.objects.obj_mut(new).attached_to = Some(host);
         }
         match to {
             Zone::Battlefield => self.zones.battlefield.push(new),
@@ -648,17 +659,25 @@ impl GameState {
             ),
         }
 
-        // 4. Schedule the unreplaceable fact at the agenda front — the face
-        // and cause coordinates ride through from the intent.
-        self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-            GameEvent::ZoneChanged {
-                snapshot,
-                from,
-                to,
-                face,
-                cause,
-            },
-        ))]);
+        // 4. Schedule the unreplaceable fact(s) at the agenda front — the face
+        // and cause coordinates ride through from the intent. When the
+        // permanent entered attached ([CR#303.4]), the `Attached` fact follows
+        // the entry fact (it entered, then became attached) so "becomes
+        // attached / equipped" can match it (breadth is a seam, §9).
+        let mut facts = vec![WorkItem::Emit(Occurrence::single(GameEvent::ZoneChanged {
+            snapshot,
+            from,
+            to,
+            face,
+            cause,
+        }))];
+        if let Some(host) = attached_host {
+            facts.push(WorkItem::Emit(Occurrence::single(GameEvent::Attached {
+                attachment: new,
+                host,
+            })));
+        }
+        self.schedule_front(facts);
     }
 
     /// Applies a `TokenCreated` ([CR#701.7a]): synthesizes the token's
