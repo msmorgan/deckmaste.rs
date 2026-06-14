@@ -330,6 +330,15 @@ fn mechanical(state: &GameState, pending: &PendingDecision) -> Decision {
         PendingDecision::Priority { .. } | PendingDecision::ChooseTargets { .. } => {
             unreachable!("priority and targeting are a strategy's own concern")
         }
+        PendingDecision::ChooseObjects {
+            candidates, min, ..
+        } => Decision::Chosen(
+            candidates
+                .iter()
+                .copied()
+                .take(usize::try_from(*min).expect("min fits usize"))
+                .collect(),
+        ),
         other => todo!("P0.W3: strategy for shell decision kind {other:?}"),
     }
 }
