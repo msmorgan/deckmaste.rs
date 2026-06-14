@@ -214,7 +214,14 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         }
         let sick_creature =
             obj.summoning_sick && view.get(object).card_types.contains(&Type::Creature);
-        for (ability, a) in view.get(object).abilities.iter().enumerate() {
+        // Index the SAME card-facing (Innate-filtered) list resolution reads
+        // ([CR#113.12]): `begin_activate`, `decide`'s `ActivateAbility` arm, and
+        // `render`'s `activated_ability`/`mana_ability` all index
+        // `derive::abilities`. An `Innate` is never an activated ability, so
+        // filtering it changes no offered ability — it only keeps the
+        // `Action::ActivateAbility { ability }` index aligned with resolution
+        // (see the "SAME list, SAME order" invariant in `render.rs`).
+        for (ability, a) in derive::abilities(state, object).iter().enumerate() {
             // `tap_mana_ability` is the authoritative classifier here: its
             // subset scope (cost=[Tap], specific mana, no targets) defines
             // which abilities take the stackless path ([CR#605.3b]); widen it
@@ -1070,6 +1077,104 @@ mod tests {
         assert!(
             attachment_legal(&state, attachment, plain),
             "an unprotected host is legal"
+        );
+    }
+
+    // --- I1: Innate filtering must not desync the activated-ability index ----
+
+    /// A tap-for-mana activated ability `tap_mana_ability` recognizes: cost
+    /// `[Tap]`, no targets, producing one fixed-colour mana.
+    fn tap_for_colorless() -> Ability {
+        use deckmaste_core::Action;
+        use deckmaste_core::ActivatedAbility;
+        use deckmaste_core::ColorOrColorless;
+        use deckmaste_core::CostComponent;
+        use deckmaste_core::Count;
+        use deckmaste_core::Effect;
+        use deckmaste_core::ManaProduction;
+        use deckmaste_core::ManaSpec;
+        use deckmaste_core::PlayerAction;
+        Ability::Activated(ActivatedAbility {
+            cost: vec![CostComponent::Tap],
+            window: None,
+            condition: None,
+            limits: vec![],
+            targets: vec![],
+            effect: Effect::Act(Action::By(
+                Reference::You,
+                PlayerAction::AddMana(
+                    Count::Literal(1),
+                    ManaProduction::Bare(ManaSpec::Specific(ColorOrColorless::Colorless)),
+                ),
+            )),
+        })
+    }
+
+    /// An `Innate` static (any conferred rule), which `derive::abilities`
+    /// filters OUT of the card-facing list — the source of the index skew.
+    fn innate_static() -> Ability {
+        Ability::Innate(Box::new(Ability::Static(StaticAbility {
+            condition: None,
+            effects: vec![StaticEffect::Deontic(Deontic::Cant(
+                DeonticAction::Attach {
+                    what: Filter::Ref(Reference::This),
+                    to: Filter::Not(Box::new(creature())),
+                },
+            ))],
+            characteristic_defining: false,
+        })))
+    }
+
+    /// [CR#113.12,613.1f]: with an `Innate` ability positioned BEFORE an
+    /// activated one, the legal-action list and resolution must share ONE
+    /// index space. `derive::abilities` filters the `Innate` out, so the
+    /// offered `Action::ActivateAbility { ability }` index must point into the
+    /// FILTERED list (index 0 = the activated ability), and `begin_activate`
+    /// must resolve THAT ability — not the Innate slot or an out-of-bounds
+    /// panic.
+    #[test]
+    fn innate_before_activated_does_not_desync_the_index() {
+        let mut state = game();
+        // Abilities printed in this order: [Innate(Static), Activated(tap mana)].
+        // An artifact so the mana-ability path's `sick_creature` guard is false.
+        let object = obj_on_field(
+            &mut state,
+            "Manarock",
+            vec![Type::Artifact],
+            vec![innate_static(), tap_for_colorless()],
+        );
+
+        // (a) Exactly one activation is offered, and it indexes the FILTERED
+        // list: the Innate is filtered out, so the activated ability is at 0.
+        let actions = super::legal_actions(&state, PlayerId(0));
+        let activations: Vec<_> = actions
+            .iter()
+            .filter_map(|a| match a {
+                crate::decide::Action::ActivateAbility { object: o, ability } if *o == object => {
+                    Some(*ability)
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            activations,
+            vec![0],
+            "the offered activation must index the FILTERED ability list (0), not \
+             the unfiltered position (1) where the Innate skews it"
+        );
+
+        // (b) The offered index resolves to the activated ability — the derived
+        // (filtered) list at that index is the tap-for-mana ability, and
+        // `begin_activate` stages it without panicking.
+        let derived = crate::derive::abilities(&state, object);
+        assert!(
+            crate::activate::as_activated(&derived[activations[0]]).is_some(),
+            "the offered index names the activated ability in the filtered list"
+        );
+        state.begin_activate(object, activations[0]);
+        assert!(
+            state.announcing.is_some(),
+            "begin_activate staged the activated ability at the offered index"
         );
     }
 }
