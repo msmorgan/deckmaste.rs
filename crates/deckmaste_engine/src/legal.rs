@@ -3,6 +3,8 @@
 //! authoritative check at submission (state can't change in between: a
 //! pending decision blocks stepping).
 
+use std::ops::ControlFlow;
+
 use deckmaste_core::Ability;
 use deckmaste_core::Deontic;
 use deckmaste_core::DeonticAction;
@@ -27,42 +29,19 @@ fn deontic_action(d: &Deontic) -> &DeonticAction {
     }
 }
 
-/// Whether any battlefield object's derived abilities carry a static effect
-/// matching `pred` — looking through static-ability effect lists, keyword
-/// composites (flying's evasion `Cant` lives inside `Keyword(Composite)`),
-/// and macro `Expanded` wrappers at every level.
-fn in_ability<F: Fn(&StaticEffect) -> bool>(a: &Ability, pred: &F) -> bool {
-    match a {
-        Ability::Static(s) => s.effects.iter().any(|e| in_static(e, pred)),
-        Ability::Keyword(k) => in_keyword(k, pred),
-        Ability::Expanded(e) => in_ability(&e.value, pred),
-        _ => false,
-    }
-}
-fn in_keyword<F: Fn(&StaticEffect) -> bool>(k: &KeywordAbility, pred: &F) -> bool {
-    match k {
-        KeywordAbility::Composite { abilities, .. } => {
-            abilities.iter().any(|a| in_ability(a, pred))
-        }
-        KeywordAbility::Expanded(e) => in_keyword(&e.value, pred),
-        _ => false,
-    }
-}
-fn in_static<F: Fn(&StaticEffect) -> bool>(e: &StaticEffect, pred: &F) -> bool {
-    match e {
-        StaticEffect::Expanded(x) => in_static(&x.value, pred),
-        other => pred(other),
-    }
-}
-
 /// Whether `id`'s derived view carries any static matching `pred`, looking
-/// through composites and macro `Expanded` wrappers at every level.
+/// through composites and macro `Expanded` wrappers at every level. A
+/// short-circuiting wrapper over the single [`statics_on`] walker: it stops
+/// the descent the moment `pred` accepts.
 pub(crate) fn object_has_static<F: Fn(&StaticEffect) -> bool>(
     view: &LayeredView,
     id: ObjectId,
     pred: &F,
 ) -> bool {
-    view.get(id).abilities.iter().any(|a| in_ability(a, pred))
+    statics_on(view, id, &mut |e| {
+        if pred(e) { ControlFlow::Break(()) } else { ControlFlow::Continue(()) }
+    })
+    .is_break()
 }
 
 pub(crate) fn statics_present<F: Fn(&StaticEffect) -> bool>(
@@ -353,7 +332,7 @@ fn attack_rows(
     let mut rows = Vec::new();
     for &id in &state.zones.battlefield {
         let source = state.objects.obj(id).source;
-        statics_on(view, id, &mut |e| {
+        for_each_static(view, id, |e| {
             if let StaticEffect::Deontic(d) = e
                 && let Some(DeonticAction::Attack { by, on }) = pick(d)
             {
@@ -441,7 +420,7 @@ fn block_rows(
     let mut rows = Vec::new();
     for &id in &state.zones.battlefield {
         let source = state.objects.obj(id).source;
-        statics_on(view, id, &mut |e| {
+        for_each_static(view, id, |e| {
             if let StaticEffect::Deontic(d) = e
                 && let Some(DeonticAction::Block { by, on, count }) = pick(d)
             {
@@ -473,42 +452,89 @@ pub(crate) fn must_block_rows(state: &GameState, view: &LayeredView) -> Vec<Bloc
     block_rows(state, view, must_action)
 }
 
-/// Walks one object's derived abilities with the same look-through rules as
-/// [`statics_present`] (static effect lists, keyword composites, `Expanded`
-/// wrappers at every level), calling `visit` on every static effect.
-fn statics_on<F: FnMut(&StaticEffect)>(view: &LayeredView, id: ObjectId, visit: &mut F) {
-    fn in_ability<F: FnMut(&StaticEffect)>(a: &Ability, visit: &mut F) {
+/// The single ability-tree walker. Descends an ability list with the
+/// look-through rules every static read needs (static-ability effect lists,
+/// keyword composites — flying's evasion `Cant` lives inside
+/// `Keyword(Composite)` — and macro `Expanded` wrappers at every level),
+/// calling `visit` on each static effect. The `ControlFlow` return lets a
+/// caller short-circuit: [`object_has_static`] (the boolean "any" form) breaks
+/// on the first match, while the visit-each callers always
+/// [`Continue`](ControlFlow::Continue) to see every effect. The whole-walk
+/// result propagates the visitor's `Break` value (or `Continue(())` when the
+/// descent ran to completion). View-free so it can be unit-tested directly;
+/// [`statics_on`] is the thin `LayeredView` adapter over it.
+fn walk_abilities<B, F: FnMut(&StaticEffect) -> ControlFlow<B>>(
+    abilities: &[Ability],
+    visit: &mut F,
+) -> ControlFlow<B> {
+    fn in_ability<B, F: FnMut(&StaticEffect) -> ControlFlow<B>>(
+        a: &Ability,
+        visit: &mut F,
+    ) -> ControlFlow<B> {
         match a {
             Ability::Static(s) => {
                 for e in &s.effects {
-                    in_static(e, visit);
+                    in_static(e, visit)?;
                 }
+                ControlFlow::Continue(())
             }
             Ability::Keyword(k) => in_keyword(k, visit),
             Ability::Expanded(e) => in_ability(&e.value, visit),
-            _ => {}
+            _ => ControlFlow::Continue(()),
         }
     }
-    fn in_keyword<F: FnMut(&StaticEffect)>(k: &KeywordAbility, visit: &mut F) {
+    fn in_keyword<B, F: FnMut(&StaticEffect) -> ControlFlow<B>>(
+        k: &KeywordAbility,
+        visit: &mut F,
+    ) -> ControlFlow<B> {
         match k {
             KeywordAbility::Composite { abilities, .. } => {
                 for a in abilities {
-                    in_ability(a, visit);
+                    in_ability(a, visit)?;
                 }
+                ControlFlow::Continue(())
             }
             KeywordAbility::Expanded(e) => in_keyword(&e.value, visit),
-            _ => {}
+            _ => ControlFlow::Continue(()),
         }
     }
-    fn in_static<F: FnMut(&StaticEffect)>(e: &StaticEffect, visit: &mut F) {
+    fn in_static<B, F: FnMut(&StaticEffect) -> ControlFlow<B>>(
+        e: &StaticEffect,
+        visit: &mut F,
+    ) -> ControlFlow<B> {
         match e {
             StaticEffect::Expanded(x) => in_static(&x.value, visit),
             other => visit(other),
         }
     }
-    for a in view.get(id).abilities.iter() {
-        in_ability(a, visit);
+    for a in abilities {
+        in_ability(a, visit)?;
     }
+    ControlFlow::Continue(())
+}
+
+/// The `LayeredView` adapter over [`walk_abilities`]: walks `id`'s derived
+/// ability list, calling `visit` on each static effect and short-circuiting on
+/// the visitor's `Break`.
+fn statics_on<B, F: FnMut(&StaticEffect) -> ControlFlow<B>>(
+    view: &LayeredView,
+    id: ObjectId,
+    visit: &mut F,
+) -> ControlFlow<B> {
+    walk_abilities(&view.get(id).abilities, visit)
+}
+
+/// The non-short-circuiting view over [`statics_on`]: runs `visit` on every
+/// static effect of `id` (no early exit). The visit-each callers
+/// (`attack_rows`/`block_rows`/`target_rows`/`may_cast_rows`) collect rows
+/// through this, leaving the `ControlFlow` plumbing to the one walker.
+fn for_each_static<F: FnMut(&StaticEffect)>(view: &LayeredView, id: ObjectId, mut visit: F) {
+    // The visitor never breaks, so the only outcome is the run-to-completion
+    // `Continue(())`, deliberately discarded.
+    let _ = statics_on(view, id, &mut |e| {
+        visit(e);
+        ControlFlow::<()>::Continue(())
+    });
 }
 
 /// The carrier of the first POINT-WISE `Cant(Block)` row forbidding
@@ -593,7 +619,7 @@ fn target_rows(
     let mut rows = Vec::new();
     for &id in &state.zones.battlefield {
         let source = state.objects.obj(id).source;
-        statics_on(view, id, &mut |e| {
+        for_each_static(view, id, |e| {
             if let StaticEffect::Deontic(d) = e
                 && let Some(DeonticAction::Target { by, on }) = pick(d)
             {
@@ -676,7 +702,7 @@ pub(crate) fn may_cast_rows(
     let mut rows = Vec::new();
     for &id in state.zones.battlefield.iter().chain([&candidate]) {
         let source = state.objects.obj(id).source;
-        statics_on(view, id, &mut |e| {
+        for_each_static(view, id, |e| {
             if let StaticEffect::Deontic(d) = e
                 && let Some(DeonticAction::Cast {
                     what,
@@ -698,4 +724,131 @@ pub(crate) fn may_cast_rows(
         });
     }
     rows
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ops::ControlFlow;
+
+    use deckmaste_core::Ability;
+    use deckmaste_core::Expansion;
+    use deckmaste_core::Filter;
+    use deckmaste_core::Ident;
+    use deckmaste_core::KeywordAbility;
+    use deckmaste_core::OutcomeGateKind;
+    use deckmaste_core::StaticAbility;
+    use deckmaste_core::StaticEffect;
+
+    use super::walk_abilities;
+
+    /// A distinguishable leaf effect: `OutcomeGate` tagged by `gate` so a
+    /// collected sequence is order-checkable.
+    fn gate(gate: OutcomeGateKind) -> StaticEffect {
+        StaticEffect::OutcomeGate {
+            who: Filter::Any,
+            gate,
+        }
+    }
+
+    fn expand<T>(value: T) -> Expansion<T> {
+        Expansion {
+            name: Ident::new("Wrapper"),
+            args: deckmaste_core::ExpansionArgs::none(),
+            template: None,
+            value: Box::new(value),
+        }
+    }
+
+    fn static_ability(effects: Vec<StaticEffect>) -> Ability {
+        Ability::Static(StaticAbility {
+            condition: None,
+            effects,
+            characteristic_defining: false,
+        })
+    }
+
+    /// A tree exercising every look-through path the one walker must descend:
+    /// a plain `Static` effect, an `Expanded`-wrapped effect inside a `Static`,
+    /// a `Static` reached through a `Composite` keyword, and a `Static` reached
+    /// through an `Expanded` ability wrapper.
+    fn sample_tree() -> Vec<Ability> {
+        use OutcomeGateKind::CantLose;
+        use OutcomeGateKind::CantWin;
+        vec![
+            // [0] plain static effect, plus an Expanded-wrapped effect.
+            static_ability(vec![
+                gate(CantLose),
+                StaticEffect::Expanded(expand(gate(CantWin))),
+            ]),
+            // [1] effect reached through a keyword composite.
+            Ability::Keyword(KeywordAbility::Composite {
+                name: Ident::new("Kw"),
+                abilities: vec![static_ability(vec![gate(CantLose)])],
+            }),
+            // [2] effect reached through an Expanded ability wrapper.
+            Ability::Expanded(expand(static_ability(vec![gate(CantWin)]))),
+        ]
+    }
+
+    /// The visit-each form sees every static effect, descending through
+    /// static-ability effect lists, keyword composites, and `Expanded`
+    /// wrappers at every level — in DFS order.
+    #[test]
+    fn walk_visits_every_effect_through_all_wrappers() {
+        let tree = sample_tree();
+        let mut seen = Vec::new();
+        let done = walk_abilities(&tree, &mut |e| {
+            if let StaticEffect::OutcomeGate { gate, .. } = e {
+                seen.push(*gate);
+            }
+            ControlFlow::<()>::Continue(())
+        });
+        assert!(done.is_continue(), "a non-breaking walk runs to completion");
+        use OutcomeGateKind::CantLose;
+        use OutcomeGateKind::CantWin;
+        assert_eq!(seen, vec![CantLose, CantWin, CantLose, CantWin]);
+    }
+
+    /// The boolean "any" form short-circuits: the visitor `Break`s on the
+    /// first match, and the descent stops there rather than visiting the rest.
+    #[test]
+    fn walk_short_circuits_on_break() {
+        let tree = sample_tree();
+        let mut visited = 0usize;
+        let hit = walk_abilities(&tree, &mut |e| {
+            visited += 1;
+            if matches!(
+                e,
+                StaticEffect::OutcomeGate {
+                    gate: OutcomeGateKind::CantWin,
+                    ..
+                }
+            ) {
+                ControlFlow::Break(())
+            } else {
+                ControlFlow::Continue(())
+            }
+        });
+        assert!(hit.is_break(), "the matching effect must break the walk");
+        // Stops at the SECOND effect (CantLose, then the wrapped CantWin) —
+        // it does not go on to visit the composite/Expanded branches.
+        assert_eq!(visited, 2, "the walk must not visit effects past the match");
+    }
+
+    /// No match anywhere: the boolean form reports `Continue` (false), having
+    /// visited every effect.
+    #[test]
+    fn walk_no_match_runs_to_completion() {
+        let tree = sample_tree();
+        let mut visited = 0usize;
+        let res = walk_abilities(&tree, &mut |_e| {
+            visited += 1;
+            ControlFlow::<()>::Continue(())
+        });
+        assert!(res.is_continue());
+        assert_eq!(
+            visited, 4,
+            "every leaf effect is visited when nothing breaks"
+        );
+    }
 }
