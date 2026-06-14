@@ -437,13 +437,27 @@ impl GameState {
             // arm to carry the CR rationale and the future trigger-match seam.)
             #[expect(clippy::match_same_arms)]
             GameEvent::ZoneChanged { .. } => event,
-            // [CR#701.3a,701.3d]: the attach/unattach FACTS. The relation
-            // mutation already happened in the verb's resolution (the
-            // `Action::Attach`/`Action::Unattach` arm sets `attached_to`);
-            // apply only records the fact so "becomes attached / unattached"
-            // triggers can match it later (trigger breadth is a seam, §9).
-            #[expect(clippy::match_same_arms)]
-            GameEvent::Attached { .. } | GameEvent::Unattached { .. } => event,
+            // [CR#701.3a,701.3c]: commit the attachment→host relation — a new
+            // timestamp is implicit (no remint; the relation edit IS the
+            // transition). The verb builder (`Action::Attach`) already filtered
+            // the no-ops; this fact is real, so set the link, then record it for
+            // "becomes attached / equipped" triggers (breadth is a seam, §9).
+            GameEvent::Attached { attachment, host } => {
+                self.objects.obj_mut(attachment).attached_to = Some(host);
+                GameEvent::Attached { attachment, host }
+            }
+            // [CR#701.3d]: commit the unattach — clear the link. The verb
+            // builder filtered the not-attached no-op, so this fact is real.
+            GameEvent::Unattached {
+                attachment,
+                former_host,
+            } => {
+                self.objects.obj_mut(attachment).attached_to = None;
+                GameEvent::Unattached {
+                    attachment,
+                    former_host,
+                }
+            }
             GameEvent::LifeLost { player, amount } => {
                 self.player_mut(player).life -=
                     deckmaste_core::Int::try_from(amount).expect("life loss fits in i32");
