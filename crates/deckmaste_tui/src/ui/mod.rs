@@ -9,7 +9,6 @@ mod zones;
 use std::fmt::Write as _;
 
 pub use board::BoardState;
-
 use deckmaste_engine::GameState;
 use deckmaste_engine::LayeredView;
 use deckmaste_engine::PlayerId;
@@ -57,11 +56,35 @@ pub fn render(
         Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(fields);
 
     render_header(frame, header, state, board);
-    render_zone(frame, p0_area, state, view, board, Zone::Battlefield(PlayerId(0)), "P0 Battlefield");
-    render_zone(frame, p1_area, state, view, board, Zone::Battlefield(PlayerId(1)), "P1 Battlefield");
+    render_zone(
+        frame,
+        p0_area,
+        state,
+        view,
+        board,
+        Zone::Battlefield(PlayerId(0)),
+        "P0 Battlefield",
+    );
+    render_zone(
+        frame,
+        p1_area,
+        state,
+        view,
+        board,
+        Zone::Battlefield(PlayerId(1)),
+        "P1 Battlefield",
+    );
     render_zone(frame, stack_area, state, view, board, Zone::Stack, "Stack");
     let hand_title = format!("Hand · P{}", board.perspective.0);
-    render_zone(frame, hand_area, state, view, board, Zone::Hand, &hand_title);
+    render_zone(
+        frame,
+        hand_area,
+        state,
+        view,
+        board,
+        Zone::Hand,
+        &hand_title,
+    );
     render_detail(frame, detail_area, state, view, board);
     render_footer(frame, footer, stop);
 }
@@ -103,11 +126,8 @@ fn render_zone(
         .collect();
 
     let focused = board.is_focused(zone);
-    let border_style = if focused {
-        Style::new().add_modifier(Modifier::BOLD)
-    } else {
-        Style::new()
-    };
+    let border_style =
+        if focused { Style::new().add_modifier(Modifier::BOLD) } else { Style::new() };
     let block = Block::bordered().title(title).border_style(border_style);
     let list = List::new(rows)
         .block(block)
@@ -130,7 +150,9 @@ fn render_detail(
 ) {
     let text = detail::render(state, view, board.selected(state, view));
     frame.render_widget(
-        Paragraph::new(text).block(Block::bordered().title("Detail")).wrap(Wrap { trim: false }),
+        Paragraph::new(text)
+            .block(Block::bordered().title("Detail"))
+            .wrap(Wrap { trim: false }),
         area,
     );
 }
@@ -169,8 +191,10 @@ mod tests {
 
     #[test]
     fn renders_opening_board_without_panicking() {
-        let mut driver =
-            Driver::new(game::build_game().expect("build"), Box::new(GreedyCreatures));
+        let mut driver = Driver::new(
+            game::build_game().expect("build"),
+            Box::new(GreedyCreatures),
+        );
         let stop = driver.run_to_priority().expect("priority");
         let mut board = BoardState::new();
         board.sync(&driver.state);

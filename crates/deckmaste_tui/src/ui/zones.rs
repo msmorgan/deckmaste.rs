@@ -29,7 +29,10 @@ pub fn contents(
             .iter()
             .map(|&id| Selected::Object(id))
             .collect(),
-        Zone::Stack => (0..state.stack.len()).rev().map(Selected::StackEntry).collect(),
+        Zone::Stack => (0..state.stack.len())
+            .rev()
+            .map(Selected::StackEntry)
+            .collect(),
     }
 }
 
@@ -43,7 +46,10 @@ mod tests {
     use crate::game;
 
     fn opening() -> GameState {
-        let mut d = Driver::new(game::build_game().expect("build"), Box::new(GreedyCreatures));
+        let mut d = Driver::new(
+            game::build_game().expect("build"),
+            Box::new(GreedyCreatures),
+        );
         d.run_to_priority().expect("priority");
         d.state
     }
