@@ -1,10 +1,13 @@
 //! Shared noun-phrase / count fragment renderers.
 
+use deckmaste_core::CharacteristicFilter;
 use deckmaste_core::Count;
 use deckmaste_core::Filter;
 use deckmaste_core::ObjectKind;
 use deckmaste_core::Quantity;
 use deckmaste_core::Reference;
+use deckmaste_core::RelationFilter;
+use deckmaste_core::Scope;
 use deckmaste_core::Selection;
 use deckmaste_core::TargetSpec;
 
@@ -88,4 +91,99 @@ fn is_any_target(filter: &Filter) -> bool {
         Filter::Expanded(exp) => matches!(*exp.value, Filter::Kind(ObjectKind::Player)),
         _ => false,
     })
+}
+
+// ── Static-ability subject phrases ──────────────────────────────────────────
+
+/// See through macro-provenance wrappers on a `Filter`.
+fn strip_expanded(f: &Filter) -> &Filter {
+    match f {
+        Filter::Expanded(e) => strip_expanded(&e.value),
+        other => other,
+    }
+}
+
+/// A `Scope` as the subject noun phrase of a static modification.
+pub(super) fn scope_subject(scope: &Scope) -> String {
+    match scope {
+        Scope::Matching(f) => filter_subject(f),
+        other => format!("[unrendered: {other:?}]"),
+    }
+}
+
+/// A `Filter` as a plural subject noun phrase: "Creatures you control",
+/// "Other creatures you control", "Creatures your opponents control".
+///
+/// The Creature filter macro expands as
+/// `Expanded(value=AllOf([Expanded(Permanent),
+/// Characteristic(Type(Creature))]))`. `flatten_all_of` and `find_card_type`
+/// see through both layers.
+pub(super) fn filter_subject(f: &Filter) -> String {
+    let parts = flatten_all_of(f);
+    let mut other = false;
+    let mut base = "Permanents".to_string();
+    let mut control: Option<String> = None;
+    for p in parts {
+        match strip_expanded(p) {
+            Filter::Characteristic(CharacteristicFilter::Type(t)) => {
+                base = format!("{}s", super::card::type_str(*t));
+            }
+            Filter::Not(inner) if matches!(strip_expanded(inner), Filter::Ref(Reference::This)) => {
+                other = true;
+            }
+            Filter::Relation(RelationFilter::ControlledBy(inner)) => {
+                control = Some(controller_phrase(inner));
+            }
+            // The Creature macro expands to AllOf([Expanded(Permanent),
+            // Characteristic(Type(Creature))]); check whether this part holds
+            // a card type buried in a nested AllOf.
+            stripped => {
+                if let Some(t) = find_card_type(stripped) {
+                    base = format!("{}s", super::card::type_str(t));
+                }
+            }
+        }
+    }
+    let mut s = String::new();
+    if other {
+        s.push_str("Other ");
+        s.push_str(&base.to_lowercase());
+    } else {
+        s.push_str(&base);
+    }
+    if let Some(c) = control {
+        s.push(' ');
+        s.push_str(&c);
+    }
+    s
+}
+
+/// Recursively search a stripped filter for a `Characteristic(Type(t))`.
+/// Used to find the type name inside a macro-expanded Creature/Land/etc.
+/// filter.
+fn find_card_type(f: &Filter) -> Option<deckmaste_core::Type> {
+    match strip_expanded(f) {
+        Filter::Characteristic(CharacteristicFilter::Type(t)) => Some(*t),
+        Filter::AllOf(vs) => vs.iter().find_map(find_card_type),
+        _ => None,
+    }
+}
+
+fn controller_phrase(f: &Filter) -> String {
+    match strip_expanded(f) {
+        Filter::Ref(Reference::You) => "you control".to_string(),
+        Filter::Relation(RelationFilter::OpponentOf(inner))
+            if matches!(strip_expanded(inner), Filter::Ref(Reference::You)) =>
+        {
+            "your opponents control".to_string()
+        }
+        other => format!("[unrendered: {other:?}]"),
+    }
+}
+
+fn flatten_all_of(f: &Filter) -> Vec<&Filter> {
+    match strip_expanded(f) {
+        Filter::AllOf(v) => v.iter().collect(),
+        single => vec![single],
+    }
 }

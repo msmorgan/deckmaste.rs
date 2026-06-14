@@ -84,7 +84,8 @@ fn rules(view: &CardView) -> Vec<String> {
                 body.push(effect::effect(&s.effect, &ctx));
             }
             Ability::Triggered(t) => body.push(ability::triggered(t, view)),
-            _ => {} // Static/Activated: later tasks
+            Ability::Static(s) => body.extend(ability::static_ability(s)),
+            _ => {} // Activated: later tasks
         }
     }
     let mut out = Vec::new();

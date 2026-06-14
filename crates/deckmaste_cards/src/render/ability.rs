@@ -1,10 +1,14 @@
 //! Framing for triggered/activated/static abilities (the clause around the
 //! effect).
 
+use deckmaste_core::Count;
 use deckmaste_core::Event;
 use deckmaste_core::Filter;
+use deckmaste_core::Modification;
 use deckmaste_core::Reference;
 use deckmaste_core::StateFilterEvent;
+use deckmaste_core::StaticAbility;
+use deckmaste_core::StaticEffect;
 use deckmaste_core::TriggeredAbility;
 use deckmaste_core::Zone;
 
@@ -66,4 +70,44 @@ fn lower_first(s: &str) -> String {
         Some(first) => first.to_lowercase().chain(c).collect(),
         None => String::new(),
     }
+}
+
+// ── Static abilities ─────────────────────────────────────────────────────────
+
+/// Render a `Static` ability's effects, one rules string each.
+pub(super) fn static_ability(s: &StaticAbility) -> Vec<String> {
+    s.effects.iter().filter_map(static_effect).collect()
+}
+
+fn static_effect(e: &StaticEffect) -> Option<String> {
+    match e {
+        StaticEffect::Expanded(exp) => static_effect(&exp.value),
+        StaticEffect::Modify { of, changes } => Some(format!(
+            "{} get {}.",
+            super::fragment::scope_subject(of),
+            pt_delta(changes)
+        )),
+        StaticEffect::Deontic(_) => None, // handled in Task 5
+        other => Some(format!("[unrendered: {other:?}].")),
+    }
+}
+
+/// "+1/+1", "+2/+2", "-2/-2" from Add/Subtract Power/Toughness modifications.
+fn pt_delta(changes: &[Modification]) -> String {
+    let mut p: i64 = 0;
+    let mut t: i64 = 0;
+    let mut ok = true;
+    for c in changes {
+        match c {
+            Modification::AddPower(Count::Literal(n)) => p += i64::from(*n),
+            Modification::AddToughness(Count::Literal(n)) => t += i64::from(*n),
+            Modification::SubtractPower(Count::Literal(n)) => p -= i64::from(*n),
+            Modification::SubtractToughness(Count::Literal(n)) => t -= i64::from(*n),
+            _ => ok = false,
+        }
+    }
+    if !ok {
+        return format!("[unrendered: {changes:?}]");
+    }
+    format!("{p:+}/{t:+}")
 }

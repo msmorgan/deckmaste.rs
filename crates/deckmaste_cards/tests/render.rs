@@ -71,3 +71,28 @@ fn renders_state_trigger_goblin_medics() {
         vec!["Whenever Goblin Medics becomes tapped, deal 1 damage to any target.".to_string()]
     );
 }
+
+#[test]
+fn renders_anthem_glorious_anthem() {
+    let r = render_card_face(&face("Glorious Anthem"));
+    assert_eq!(r.type_line, "Enchantment");
+    assert_eq!(
+        r.rules,
+        vec!["Creatures you control get +1/+1.".to_string()]
+    );
+}
+
+#[test]
+fn renders_elesh_norn() {
+    let r = render_card_face(&face("Elesh Norn, Grand Cenobite"));
+    assert_eq!(r.type_line, "Legendary Creature — Phyrexian Praetor");
+    assert_eq!(r.pt, Some("4/7".to_string()));
+    assert_eq!(
+        r.rules,
+        vec![
+            "Vigilance".to_string(),
+            "Other creatures you control get +2/+2.".to_string(),
+            "Creatures your opponents control get -2/-2.".to_string(),
+        ]
+    );
+}
