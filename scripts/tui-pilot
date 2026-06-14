@@ -1,0 +1,31 @@
+#!/usr/bin/env fish
+# Drive the deckmaste TUI under tmux for smoke testing.
+#
+#   scripts/tui-pilot start         — build + launch in a detached 120x40 session
+#   scripts/tui-pilot keys <keys…>  — send keystrokes (tmux send-keys syntax; e.g. Space y Enter)
+#   scripts/tui-pilot show          — print the current screen as plain text
+#   scripts/tui-pilot stop          — kill the session
+
+set -l session tui_pilot
+set -l root (status dirname)/..
+set -l binary $root/target/debug/deckmaste_tui
+
+switch $argv[1]
+    case start
+        cargo build -p deckmaste_tui --manifest-path $root/Cargo.toml; or exit 1
+        tmux kill-session -t $session 2>/dev/null
+        tmux new-session -d -s $session -x 120 -y 40 $binary
+        sleep 1.5
+        tmux capture-pane -t $session -p
+    case keys
+        tmux send-keys -t $session $argv[2..-1]
+        sleep 0.5
+        tmux capture-pane -t $session -p
+    case show
+        tmux capture-pane -t $session -p
+    case stop
+        tmux kill-session -t $session 2>/dev/null
+    case '*'
+        echo "usage: tui-pilot start|keys <key…>|show|stop"
+        exit 2
+end
