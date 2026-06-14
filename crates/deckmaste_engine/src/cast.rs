@@ -376,6 +376,162 @@ fn phyrexian_life_verbs(verbs: &[CostComponent]) -> Vec<PlayerAction> {
 }
 
 impl GameState {
+    /// [CR#601.2b,601.2g,107.4e,107.4f]: is SOME legal reading of `cost`'s
+    /// hybrid/Phyrexian symbols fully payable by `player` for `subject`? The
+    /// affordability gate (`can_cast`/`can_activate`) calls this when the cost
+    /// has choosable symbols — a plain or `{S}`-only cost keeps the direct
+    /// `can_pay` path.
+    ///
+    /// Hybrid/Phyrexian are concretized at announce ([CR#601.2b]); the gate
+    /// must already know a payable reading EXISTS so the action is offered. A
+    /// reading is a `CostOptionChoices` — one pick per choosable symbol — that
+    /// `concretize` resolves to a concrete `(mana, verbs)`; it is payable iff
+    /// the spendable pool covers the mana AND the Phyrexian-life picks are
+    /// jointly affordable.
+    ///
+    /// `{X}` never blocks (its floor is X=0, [CR#107.3a]): callers pass an
+    /// already-X-reduced cost (`concretize_x(.., 0)`), so a residual `Variable`
+    /// is impossible and `choosable` (which ignores it anyway) sees only the
+    /// hybrid/Phyrexian symbols. A cost with both `{X}` and a hybrid composes:
+    /// X is reduced to `{0}` first, the hybrid drives this search.
+    ///
+    /// ## Search and shared-resource correctness
+    ///
+    /// The readings are searched by a bounded recursion over the per-symbol
+    /// options (costs carry few choosable symbols; the product is tiny). The
+    /// full concretization is assembled and checked at each leaf — never
+    /// per-symbol greedily — because mana and life are resources SHARED across
+    /// symbols: two `{W/P}` can't both be paid by 2 life (each costs 2; 4
+    /// total), and two hybrids competing for one colored unit can't both take
+    /// it. `can_pay` decides the mana side by an exact matching (joint), and
+    /// the life side is checked against the COMBINED Phyrexian-life total here
+    /// (`can_pay_verbs` alone judges each `LoseLife` against full life, so it
+    /// can't see two life payments competing — this method sums them).
+    #[must_use]
+    pub(crate) fn affordable_concretization(
+        &self,
+        player: PlayerId,
+        cost: &ManaCost,
+        subject: ObjectId,
+    ) -> bool {
+        let options = crate::cost_options::choosable(cost);
+        // Recurse over the per-symbol option lists, building one pick per
+        // symbol; at a complete pick set, test the assembled concretization.
+        self.any_reading_payable(player, cost, subject, &options.options, &mut Vec::new())
+    }
+
+    /// [CR#601.2b,601.2g]: whether `player` can afford `cost`'s mana for
+    /// `subject` under SOME legal reading — reduces `{X}` to its 0 floor
+    /// ([CR#107.3a]), then either the plain `can_pay` fast path (no choosable
+    /// symbol) or the hybrid/Phyrexian reading search
+    /// ([`affordable_concretization`]). The single entry point both `can_cast`
+    /// and `can_activate` gate on, so a new caster can't forget the
+    /// concretize/choosable step.
+    pub(crate) fn gate_mana_affordable(
+        &self,
+        player: PlayerId,
+        cost: &ManaCost,
+        subject: ObjectId,
+    ) -> bool {
+        let reduced = concretize_x(cost, 0);
+        if crate::cost_options::choosable(&reduced).options.is_empty() {
+            can_pay(&self.spendable_pool(player, subject), &reduced)
+        } else {
+            self.affordable_concretization(player, &reduced, subject)
+        }
+    }
+
+    /// Depth-first walk of the choosable symbols' readings: `picks` holds the
+    /// readings chosen for symbols `0..picks.len()`; `options[picks.len()..]`
+    /// remain. At a full pick set (`picks.len() == options.len()`) the
+    /// assembled concretization is tested for full payability. Returns true
+    /// as soon as one payable reading is found (short-circuits).
+    fn any_reading_payable(
+        &self,
+        player: PlayerId,
+        cost: &ManaCost,
+        subject: ObjectId,
+        options: &[crate::cost_options::SymbolOptions],
+        picks: &mut Vec<crate::cost_options::SymbolChoice>,
+    ) -> bool {
+        if picks.len() == options.len() {
+            return self.reading_payable(player, cost, subject, picks);
+        }
+        for &choice in &options[picks.len()].choices {
+            picks.push(choice);
+            let payable = self.any_reading_payable(player, cost, subject, options, picks);
+            picks.pop();
+            if payable {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Whether one complete reading (`picks`) of `cost` concretizes to a fully
+    /// payable `(mana, verbs)` for `player`/`subject` ([CR#601.2g,601.2h]). The
+    /// mana is matched against the spendable pool (joint, via `can_pay`); the
+    /// verbs are checked structurally by `can_pay_verbs` AND — for the
+    /// Phyrexian-life picks, the one resource shared across symbols here — by
+    /// their COMBINED life requirement against the player's life.
+    fn reading_payable(
+        &self,
+        player: PlayerId,
+        cost: &ManaCost,
+        subject: ObjectId,
+        picks: &[crate::cost_options::SymbolChoice],
+    ) -> bool {
+        let choices = crate::cost_options::CostOptionChoices {
+            picks: picks.to_vec(),
+        };
+        // A complete, legal pick set always concretizes — `picks` is built from
+        // `choosable`'s own options, so the count and legality are guaranteed.
+        let Ok((mana, verbs)) = crate::cost_options::concretize(cost, &choices) else {
+            return false;
+        };
+        if !can_pay(&self.spendable_pool(player, subject), &mana) {
+            return false;
+        }
+        let verb_actions = phyrexian_life_verbs(&verbs);
+        // Structural per-verb payability (here: each LoseLife is non-negative
+        // and life ≥ that ONE amount). `concretize` emits only Do(LoseLife(2)),
+        // so this is the [CR#119.4] floor; the joint check below adds the
+        // shared-life constraint `can_pay_verbs` can't express.
+        if !self.can_pay_verbs(player, &verb_actions, subject) {
+            return false;
+        }
+        // [CR#107.4f]: the COMBINED life of all Phyrexian-life picks must be
+        // affordable — two {W/P} paid with life cost 4, not 2. `can_pay_verbs`
+        // judges each LoseLife against full life independently, so sum them.
+        // The frame mirrors the one `can_pay_verbs`/`verb_payment_items` use: a
+        // cost verb names no targets and `~`/`This` is the live source.
+        let frame = Frame {
+            source: subject,
+            controller: player,
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        let life_required: Uint = verb_actions
+            .iter()
+            .map(|v| self.life_cost_of(v, &frame))
+            .sum::<Uint>();
+        let life = Uint::try_from(self.player(player).life.max(0)).unwrap_or(Uint::MAX);
+        life >= life_required
+    }
+
+    /// The life a single concretized Phyrexian-life verb costs. `concretize`
+    /// emits only `Do(LoseLife(n))` for life picks ([CR#107.4f]); any other
+    /// shape contributes 0 (its own structural check in `can_pay_verbs` covers
+    /// it — this sum is purely the shared-life constraint).
+    fn life_cost_of(&self, verb: &PlayerAction, frame: &Frame) -> Uint {
+        match verb {
+            PlayerAction::LoseLife(count) => self.eval_count(count, frame),
+            _ => 0,
+        }
+    }
+
     /// [CR#601.3,601.2g]: may `player` cast `object` now? Offered iff the
     /// object is in the holder's hand (the caller iterates the hand), the
     /// object is not a land ([CR#305.9]), timing permits (instant → any
@@ -427,13 +583,9 @@ impl GameState {
         let Some(cost) = self.mana_cost(object) else {
             return false;
         };
-        // [CR#107.3a]: an {X} cost's floor is X=0; concretize at 0 so an
-        // {X} spell is offered whenever its non-X part is affordable. The real
-        // value is announced at the AnnounceX step ([CR#601.2b]).
-        if !can_pay(
-            &self.spendable_pool(player, object),
-            &concretize_x(&cost, 0),
-        ) {
+        // [CR#601.2b,601.2g,107.3a]: gate mana affordability under all legal
+        // readings (concretizes {X} to 0, then plain or hybrid/Phyrexian path).
+        if !self.gate_mana_affordable(player, &cost, object) {
             return false;
         }
         // If the spell targets, every spec must admit at least one candidate.
