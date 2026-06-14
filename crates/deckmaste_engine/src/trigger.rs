@@ -320,72 +320,26 @@ impl GameState {
     /// `watcher`.
     ///
     /// The live counterpart of
-    /// [`filter_matches_snapshot`](Self::filter_matches_snapshot):
-    /// the transitioning object (an attacker/blocked creature) is still on the
-    /// battlefield, so characteristics come from the live object via
-    /// [`crate::target::matches`]. The one arm `target::matches` can't evaluate
-    /// is `Ref(This)` ([CR#603.10a] self-reference, which needs the `watcher`);
-    /// that is special-cased here (and threaded through the logical
-    /// combinators).
+    /// [`filter_matches_snapshot`](Self::filter_matches_snapshot): the
+    /// transitioning object (an attacker/blocked creature) is still on the
+    /// battlefield, so this is exactly [`crate::target::matches_with`] with the
+    /// `watcher` supplied — the carrier anchors `Ref(This)`/`Ref(You)` and
+    /// threads into nested relations/combinators.
     pub(crate) fn filter_matches_live(
         &self,
         filter: &Filter,
         o: ObjectId,
         watcher: ObjectSource,
     ) -> bool {
-        match filter {
-            // "this object": match only when `o` is the watching object.
-            Filter::Ref(Reference::This) => self.objects.obj(o).source == watcher,
-            // "you" ([CR#109.5]): `o` is the watcher's controller's proxy.
-            Filter::Ref(Reference::You) => {
-                let controller = self.controller_of_source(watcher);
-                matches!(self.objects.obj(o).source,
-                    crate::object::ObjectSource::Player(p) if Some(p) == controller)
-            }
-
-            // Player relations recurse with the SAME watcher so a nested
-            // `Ref(You)` (hexproof's "your opponents") still anchors right.
-            // The object's controller, as a player proxy ([CR#109.5]).
-            Filter::Relation(deckmaste_core::RelationFilter::ControlledBy(f)) => {
-                let c = self.objects.obj(o).controller;
-                let proxy = self.player(c).object;
-                self.filter_matches_live(f, proxy, watcher)
-            }
-            // `o` is a player who controls a matching object — the inverse of
-            // `ControlledBy` ([CR#109.5]). Evaluation lands with
-            // engine-filter-breadth (the only user today is landwalk's
-            // not-yet-enforced Cant(Block) by-filter).
-            Filter::Relation(deckmaste_core::RelationFilter::Controls(_)) => {
-                todo!("engine-filter-breadth: Controls (player controls a matching object)")
-            }
-            // `o` is a player who is an opponent of a matching player
-            // ([CR#102.2,102.3]).
-            Filter::Relation(deckmaste_core::RelationFilter::OpponentOf(f)) => {
-                match self.objects.obj(o).source {
-                    crate::object::ObjectSource::Player(p) => self
-                        .players
-                        .iter()
-                        .any(|q| q.id != p && self.filter_matches_live(f, q.object, watcher)),
-                    crate::object::ObjectSource::Card(_) => false,
-                }
-            }
-
-            // Logical combinators: recurse so an `Ref(This)` nested inside is
-            // still resolved against the watcher.
-            Filter::AllOf(fs) => fs.iter().all(|f| self.filter_matches_live(f, o, watcher)),
-            Filter::OneOf(fs) => fs.iter().any(|f| self.filter_matches_live(f, o, watcher)),
-            Filter::Not(f) => !self.filter_matches_live(f, o, watcher),
-            Filter::Expanded(e) => self.filter_matches_live(&e.value, o, watcher),
-
-            // Everything else (`Any`, "a creature", …) is a plain live-object
-            // characteristic test.
-            other => crate::target::matches(self, o, other),
-        }
+        crate::target::matches_with(self, o, filter, Some(watcher))
     }
 
     /// The controller of the live object minted from `source`, if it is
     /// still around — the anchor for `Ref(You)` in carrier-bound filters.
-    fn controller_of_source(&self, source: ObjectSource) -> Option<crate::player::PlayerId> {
+    pub(crate) fn controller_of_source(
+        &self,
+        source: ObjectSource,
+    ) -> Option<crate::player::PlayerId> {
         self.objects
             .iter()
             .find(|ob| ob.source == source)
@@ -398,6 +352,7 @@ impl GameState {
     /// Mirrors `target::matches` but sources characteristics from the snapshot
     /// instead of a live object — necessary for leaves where the object is
     /// already reminted/gone.
+    #[allow(clippy::match_same_arms)] // distinct `=> false` reasons; seam arms diverge as later tasks land
     pub(crate) fn filter_matches_snapshot(
         &self,
         filter: &Filter,
@@ -418,6 +373,87 @@ impl GameState {
             // snapshot is the object as it last existed in the zone it left
             // ([CR#603.10a]), so it matches the zone the event removed it from.
             Filter::State(StateFilter::InZone(zone)) => snapshot.left == *zone,
+
+            // Characteristics read the PRINTED face (no layer view over a gone
+            // object; LKI-derived characteristics are not captured — see the
+            // snapshot-stat seam note). A player-proxy snapshot has no face.
+            Filter::Characteristic(CharacteristicFilter::Named(n)) => {
+                snapshot_face(self, snapshot).is_some_and(|f| f.name.as_str() == n.as_str())
+            }
+            Filter::Characteristic(CharacteristicFilter::Supertype(s)) => {
+                snapshot_face(self, snapshot).is_some_and(|f| f.supertypes.contains(s))
+            }
+            Filter::Characteristic(CharacteristicFilter::ColorIs(c)) => {
+                snapshot_face(self, snapshot)
+                    .is_some_and(|f| crate::layer::base_colors(f).contains(c))
+            }
+            Filter::Characteristic(CharacteristicFilter::Multicolored) => {
+                snapshot_face(self, snapshot)
+                    .is_some_and(|f| crate::layer::base_colors(f).len() >= 2)
+            }
+            Filter::Characteristic(CharacteristicFilter::Colorless) => {
+                snapshot_face(self, snapshot)
+                    .is_some_and(|f| crate::layer::base_colors(f).is_empty())
+            }
+            // [CR#208,202.3]: the PRINTED stat. (LKI-derived P/T — a pumped
+            // creature that died "with power 3" — is a capture seam: the
+            // snapshot stores no P/T, so this reads the printed face for now.)
+            Filter::Characteristic(CharacteristicFilter::Stat(stat, cmp, count)) => {
+                crate::target::stat_satisfies(snapshot_stat(self, snapshot, *stat), *cmp, count)
+            }
+
+            // [CR#110.5]: tap state is captured on the snapshot; flip/face/
+            // phasing are not (P0.W6).
+            Filter::State(StateFilter::Status(status)) => {
+                use deckmaste_core::Status;
+                match status {
+                    Status::Tapped => snapshot.tapped,
+                    Status::Untapped => !snapshot.tapped,
+                    other => todo!(
+                        "engine-filter-breadth: snapshot Status({other:?}) — flip/face/phasing \
+                         state uncaptured (P0.W6)"
+                    ),
+                }
+            }
+
+            // The captured controller / the card owner, resolved to their LIVE
+            // player proxies ([CR#108.3,109.5]); the inner filter runs live.
+            Filter::Relation(deckmaste_core::RelationFilter::ControlledBy(f)) => {
+                self.filter_matches_live(f, self.player(snapshot.controller).object, watcher)
+            }
+            Filter::Relation(deckmaste_core::RelationFilter::Owner(f)) => match snapshot.source {
+                ObjectSource::Card(c) => {
+                    let owner = self.cards.get(c).owner;
+                    self.filter_matches_live(f, self.player(owner).object, watcher)
+                }
+                ObjectSource::Player(_) => false,
+            },
+            // A snapshot subject is a card, never a player proxy — the
+            // player-side relations never match.
+            Filter::Relation(
+                deckmaste_core::RelationFilter::OpponentOf(_)
+                | deckmaste_core::RelationFilter::Controls(_),
+            ) => false,
+            // Attachment relations over a snapshot: engine-attach tracks
+            // `attached_to` on the LIVE object, but `LkiSnapshot` does not
+            // capture it, so a gone object's last attachment is unknown. Reading
+            // the live store by the stale id would be wrong; a loud seam beats a
+            // silently-wrong `false` until the snapshot captures the relation.
+            Filter::Relation(
+                deckmaste_core::RelationFilter::AttachedTo(_)
+                | deckmaste_core::RelationFilter::Attachment(_),
+            ) => todo!(
+                "engine-filter-breadth: snapshot attachment relations need LkiSnapshot to capture \
+                 attached_to (engine-attach tracks it only on the live object)"
+            ),
+
+            // A gone object has no live stack entry, so it currently targets
+            // nothing ([CR#115.9b] — departed objects are not read through LKI).
+            Filter::State(StateFilter::Targets(_) | StateFilter::TargetCount(_)) => false,
+            // [CR#607]: no linked-ability relation registry yet.
+            Filter::State(StateFilter::RelatedBy(..)) => {
+                todo!("engine-filter-breadth: snapshot RelatedBy needs a CR#607 relation registry")
+            }
 
             // Logical combinators: recurse.
             Filter::AllOf(fs) => fs
@@ -791,15 +827,42 @@ fn zone_ok(constraint: Option<Zone>, actual: Option<Zone>) -> bool {
     }
 }
 
+/// The printed face behind a snapshot, or `None` for a player-proxy snapshot
+/// (no card spine).
+fn snapshot_face<'a>(
+    state: &'a GameState,
+    snapshot: &LkiSnapshot,
+) -> Option<&'a deckmaste_core::CardFace> {
+    match snapshot.source {
+        ObjectSource::Card(card_id) => Some(crate::derive::face(&state.cards.get(card_id).def)),
+        ObjectSource::Player(_) => None,
+    }
+}
+
 /// Whether the snapshot's card has the given type in its printed face.
 fn snapshot_has_type(state: &GameState, snapshot: &LkiSnapshot, ty: Type) -> bool {
-    match snapshot.source {
-        ObjectSource::Card(card_id) => {
-            let card = &state.cards.get(card_id).def;
-            crate::derive::face(card).types.contains(&ty)
+    snapshot_face(state, snapshot).is_some_and(|f| f.types.contains(&ty))
+}
+
+/// The PRINTED value of `stat` for a snapshot, or `None` when the face lacks it
+/// (a land has no power) or the subject is a player proxy. The snapshot stores
+/// no derived P/T, so this is the printed face — an LKI-stat capture seam.
+fn snapshot_stat(
+    state: &GameState,
+    snapshot: &LkiSnapshot,
+    stat: deckmaste_core::Stat,
+) -> Option<deckmaste_core::Int> {
+    let face = snapshot_face(state, snapshot)?;
+    match stat {
+        deckmaste_core::Stat::Power => crate::layer::base_stat(face.power.as_ref()),
+        deckmaste_core::Stat::Toughness => crate::layer::base_stat(face.toughness.as_ref()),
+        deckmaste_core::Stat::ManaValue => Some(
+            deckmaste_core::Int::try_from(face.mana_cost.mana_value())
+                .expect("mana value fits Int"),
+        ),
+        deckmaste_core::Stat::Loyalty | deckmaste_core::Stat::Defense => {
+            todo!("engine-filter-breadth: snapshot {stat:?} stat (counter machinery unbuilt)")
         }
-        // Player proxies have no card types.
-        ObjectSource::Player(_) => false,
     }
 }
 
@@ -2692,5 +2755,138 @@ mod tests {
                 .any(|w| matches!(w, crate::agenda::WorkItem::PlaceTriggers)),
             "placement is re-scheduled after ordering"
         );
+    }
+
+    // -------------------------------------------------------------------------
+    // Snapshot matching: characteristic / status / relation arms over LKI
+    // -------------------------------------------------------------------------
+
+    /// Capture an LKI snapshot of a 2/2 green Grizzly Bears (owned & controlled
+    /// by P0). Returns (state, snapshot, watcher = the bear's source).
+    fn bear_snapshot() -> (GameState, LkiSnapshot, ObjectSource) {
+        let (state, bear) = bear_on_field();
+        let snap = LkiSnapshot::capture(&state, bear);
+        let watcher = state.objects.obj(bear).source;
+        (state, snap, watcher)
+    }
+
+    fn snap_cf(c: CharacteristicFilter) -> Filter { Filter::Characteristic(c) }
+
+    /// `Named` over a snapshot reads the printed face name ([CR#201]).
+    #[test]
+    fn snapshot_named_matches_printed_name() {
+        let (state, snap, w) = bear_snapshot();
+        assert!(state.filter_matches_snapshot(
+            &snap_cf(CharacteristicFilter::Named("Grizzly Bears".into())),
+            &snap,
+            w
+        ));
+        assert!(!state.filter_matches_snapshot(
+            &snap_cf(CharacteristicFilter::Named("Forest".into())),
+            &snap,
+            w
+        ));
+    }
+
+    /// Color / supertype over a snapshot read the printed face.
+    #[test]
+    fn snapshot_color_and_supertype_read_printed_face() {
+        use deckmaste_core::Color;
+        use deckmaste_core::Supertype;
+        let (state, snap, w) = bear_snapshot();
+        assert!(state.filter_matches_snapshot(
+            &snap_cf(CharacteristicFilter::ColorIs(Color::Green)),
+            &snap,
+            w
+        ));
+        assert!(!state.filter_matches_snapshot(
+            &snap_cf(CharacteristicFilter::ColorIs(Color::Red)),
+            &snap,
+            w
+        ));
+        assert!(!state.filter_matches_snapshot(
+            &snap_cf(CharacteristicFilter::Multicolored),
+            &snap,
+            w
+        ));
+        assert!(!state.filter_matches_snapshot(
+            &snap_cf(CharacteristicFilter::Colorless),
+            &snap,
+            w
+        ));
+        // A Grizzly Bears is not a Basic.
+        assert!(!state.filter_matches_snapshot(
+            &snap_cf(CharacteristicFilter::Supertype(Supertype::Basic)),
+            &snap,
+            w
+        ));
+    }
+
+    /// `Stat` over a snapshot reads the printed power/toughness/mana value.
+    #[test]
+    fn snapshot_stat_reads_printed_stats() {
+        use deckmaste_core::Cmp;
+        use deckmaste_core::Count;
+        use deckmaste_core::Stat;
+        let (state, snap, w) = bear_snapshot();
+        let f = |s, c, n| snap_cf(CharacteristicFilter::Stat(s, c, Count::Literal(n)));
+        assert!(state.filter_matches_snapshot(&f(Stat::Power, Cmp::Eq, 2), &snap, w));
+        assert!(state.filter_matches_snapshot(&f(Stat::Toughness, Cmp::AtLeast, 2), &snap, w));
+        assert!(state.filter_matches_snapshot(&f(Stat::ManaValue, Cmp::Eq, 2), &snap, w));
+        assert!(!state.filter_matches_snapshot(&f(Stat::Power, Cmp::Greater, 2), &snap, w));
+    }
+
+    /// `Status(Tapped)`/`Status(Untapped)` read the snapshot's tap flag.
+    #[test]
+    fn snapshot_status_reads_tap_flag() {
+        use deckmaste_core::StateFilter;
+        use deckmaste_core::Status;
+        let (mut state, bear) = bear_on_field();
+        state.objects.obj_mut(bear).tapped = true;
+        let snap = LkiSnapshot::capture(&state, bear);
+        let w = state.objects.obj(bear).source;
+        assert!(state.filter_matches_snapshot(
+            &Filter::State(StateFilter::Status(Status::Tapped)),
+            &snap,
+            w
+        ));
+        assert!(!state.filter_matches_snapshot(
+            &Filter::State(StateFilter::Status(Status::Untapped)),
+            &snap,
+            w
+        ));
+    }
+
+    /// `ControlledBy`/`Owner` over a snapshot resolve the captured controller /
+    /// the card owner to their LIVE player proxies; `OpponentOf`/`Controls`
+    /// never match (a snapshot subject is a card, not a player).
+    #[test]
+    fn snapshot_relations_resolve_to_live_players() {
+        use deckmaste_core::RelationFilter;
+        use deckmaste_core::StateFilter;
+        let (mut state, bear) = bear_on_field();
+        state
+            .objects
+            .obj_mut(state.players[0].object)
+            .counters
+            .insert("mark".into(), 1);
+        let snap = LkiSnapshot::capture(&state, bear);
+        let w = state.objects.obj(bear).source;
+        let marked = || Box::new(Filter::State(StateFilter::HasCounter("mark".into())));
+        assert!(state.filter_matches_snapshot(
+            &Filter::Relation(RelationFilter::ControlledBy(marked())),
+            &snap,
+            w
+        ));
+        assert!(state.filter_matches_snapshot(
+            &Filter::Relation(RelationFilter::Owner(marked())),
+            &snap,
+            w
+        ));
+        assert!(!state.filter_matches_snapshot(
+            &Filter::Relation(RelationFilter::OpponentOf(Box::new(Filter::Any))),
+            &snap,
+            w
+        ));
     }
 }

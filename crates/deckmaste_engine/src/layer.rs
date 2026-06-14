@@ -159,8 +159,9 @@ impl LayeredView {
 }
 
 /// Resolve a printed `StatValue` to a base number. `*` with no CDA is `0`
-/// ([CR#208.2a]); CDAs (layer 7a) overwrite this later.
-fn base_stat(v: Option<&deckmaste_core::StatValue>) -> Option<Int> {
+/// ([CR#208.2a]); CDAs (layer 7a) overwrite this later. Also the printed-stat
+/// source for snapshot (LKI) `Stat` matching, which has no layer view.
+pub(crate) fn base_stat(v: Option<&deckmaste_core::StatValue>) -> Option<Int> {
     match v {
         Some(deckmaste_core::StatValue::Number(n)) => Some(*n),
         Some(_) => Some(0), // DefinedByAbility / Variable: 0 until a 7a CDA sets it
@@ -514,17 +515,37 @@ fn matches_derived(
         Filter::Characteristic(CharacteristicFilter::Type(t)) => c.card_types.contains(t),
         Filter::Characteristic(CharacteristicFilter::Supertype(s)) => c.supertypes.contains(s),
         Filter::Characteristic(CharacteristicFilter::ColorIs(col)) => c.colors.contains(col),
+        Filter::Characteristic(CharacteristicFilter::Multicolored) => c.colors.len() >= 2,
+        Filter::Characteristic(CharacteristicFilter::Colorless) => c.colors.is_empty(),
         // Subtype matching against derived: `working[id].subtypes` are Subtype
         // structs; the filter carries an Ident name. Match by name.
         Filter::Characteristic(CharacteristicFilter::Subtype(name)) => {
             c.subtypes.iter().any(|s| &s.name == name)
         }
         // `Has` is derivable from the working map — check the derived
-        // ability list. `Named` and `Stat` are not straightforwardly derivable
-        // and fall through to `target::matches` (which is unimplemented there
-        // today — pre-existing, not reachable by current fixtures).
+        // ability list.
         Filter::Characteristic(CharacteristicFilter::Has(name)) => {
             c.abilities.iter().any(|a| ability_is_named(a, &name.0))
+        }
+        // Stat over DERIVED P/T (in the working map); mana value is printed
+        // (layer-stable), read without the layer view. Evaluated HERE rather
+        // than delegated so the derived matcher never re-enters `state.layers()`
+        // mid-build via `target::matches`'s layers-reading Stat arm.
+        Filter::Characteristic(CharacteristicFilter::Stat(stat, cmp, count)) => {
+            use deckmaste_core::Stat;
+            let value = match stat {
+                Stat::Power => c.power,
+                Stat::Toughness => c.toughness,
+                Stat::ManaValue => Some(
+                    Int::try_from(crate::derive::face(state.def(id)).mana_cost.mana_value())
+                        .expect("mana value fits Int"),
+                ),
+                Stat::Loyalty | Stat::Defense => todo!(
+                    "engine-filter-breadth: {stat:?} stat in derived matcher (counter machinery \
+                     unbuilt)"
+                ),
+            };
+            crate::target::stat_satisfies(value, *cmp, count)
         }
         // Combinators: recurse through matches_derived so characteristic leaves
         // see the derived map.
@@ -532,8 +553,12 @@ fn matches_derived(
         Filter::OneOf(fs) => fs.iter().any(|f| matches_derived(state, working, id, f)),
         Filter::Not(f) => !matches_derived(state, working, id, f),
         Filter::Expanded(e) => matches_derived(state, working, id, &e.value),
-        // Named / Stat and everything else (zone, status, kind, relations, …):
-        // delegate to the printed matcher.
+        // `Named` and everything non-characteristic (zone, status, kind,
+        // combat, relations, …): delegate to the printed matcher. None of the
+        // delegated arms re-enter `state.layers()` for a battlefield permanent
+        // (the only `id`s this matcher sees): `Named` reads the printed face;
+        // relations resolve over player proxies / object iteration; combat and
+        // state read stored fields. Characteristic leaves are all handled above.
         _ => crate::target::matches(state, id, filter),
     }
 }
