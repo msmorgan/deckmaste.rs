@@ -494,6 +494,7 @@ mod tests {
             origin: deckmaste_core::Zone::Hand,
             targets: vec![],
             x: None,
+            concretized: None,
         });
         assert!(
             !state.condition_holds(&cond, &frame_for(&state, PlayerId(0))),

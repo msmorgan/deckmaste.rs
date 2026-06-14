@@ -217,6 +217,8 @@ impl GameState {
             targets: Vec::new(),
             bindings: None,
             chosen: None,
+            // A cost-payability gate reads no announced X.
+            x: None,
         };
         verbs
             .iter()
@@ -360,6 +362,8 @@ impl GameState {
             origin: Zone::Battlefield,
             targets: vec![],
             x: None,
+            // [CR#601.2b]: filled by the `ChooseCostOptions` step before `PayCost`.
+            concretized: None,
         });
     }
 }

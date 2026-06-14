@@ -3,6 +3,8 @@
 //! abilities; the announce slot serves casts ([CR#601.2]) and activations
 //! ([CR#602.2]).
 
+use deckmaste_core::CostComponent;
+use deckmaste_core::ManaCost;
 use deckmaste_core::Zone;
 
 use crate::object::ObjectId;
@@ -97,6 +99,14 @@ pub struct PendingStackEntry {
     /// [CR#601.2b,107.3a]: the value announced for `{X}` in the cost, or `None`
     /// when the cost has no `{X}`. Chosen at the `AnnounceX` step.
     pub x: Option<deckmaste_core::Uint>,
+    /// [CR#601.2b]: the announced concretization of the printed cost — its
+    /// hybrid/Phyrexian symbols resolved to a `Simple`-only `ManaCost` plus the
+    /// verb costs the Phyrexian-life picks incur ([CR#107.4f]). Set by
+    /// `ChooseCostOptions` (always — directly for a plain cost, via the
+    /// player's answer otherwise); `None` only between `begin_cast`/
+    /// `begin_activate` and that step. `PayCost` reads it for the mana decision
+    /// and the extra verbs.
+    pub concretized: Option<(ManaCost, Vec<CostComponent>)>,
 }
 
 /// The bindings an effect reads during resolution ([CR#608.2]). Grows `x`,

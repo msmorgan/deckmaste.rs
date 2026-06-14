@@ -33,8 +33,10 @@ use deckmaste_core::Selection;
 use deckmaste_core::SimpleManaSymbol;
 use deckmaste_core::StateFilter;
 use deckmaste_core::Type;
+use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
+use deckmaste_engine::CostOptionChoices;
 use deckmaste_engine::Decision;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameEvent;
@@ -48,6 +50,8 @@ use deckmaste_engine::Progress;
 use deckmaste_engine::StackObject;
 use deckmaste_engine::StartingPlayer;
 use deckmaste_engine::StepOutcome;
+use deckmaste_engine::SymbolChoice;
+use deckmaste_engine::WorkItem;
 
 const PINGER: &str = "Creature tap-activated DealDamage AnyTarget";
 const MANA_DRAWER: &str = "Artifact mana-activated DrawCards";
@@ -1115,5 +1119,287 @@ fn mana_ability_stays_stackless() {
         state.player(PlayerId(0)).mana_pool.amount(red()),
         1,
         "the pool gained one red"
+    );
+}
+
+// --- hybrid / Phyrexian concretization ([CR#601.2b]) -------------------------
+//
+// These drive the announce flow for an activated ability whose printed mana
+// cost carries a hybrid or Phyrexian symbol. The affordability gate that
+// decides whether such an ability is *offered* (`can_activate` over the
+// concretized readings) is a separate, later task, so these schedule the
+// announce block directly onto the agenda — the same direct-scheduling
+// technique `skeleton.rs` uses to exercise `BeginCast`/`Resolve` without the
+// legality gate. What is under test is the WIRING: a `ChooseCostOptions`
+// decision surfaces at [CR#601.2b] (between targets and payment), and
+// `pay_cost` consumes the player's announced reading.
+
+fn white() -> ColorOrColorless { Color::White.into() }
+fn blue() -> ColorOrColorless { Color::Blue.into() }
+
+/// Schedules the [CR#602.2b] activation announce block for `object`'s ability
+/// `index` straight onto the agenda front, mirroring `take_priority_action`'s
+/// `ActivateAbility` arm (minus the priority bookkeeping). Bypasses the
+/// `can_activate` legality gate so a hybrid/Phyrexian cost — not yet affordable
+/// to the offer gate (a later task) — still reaches the announce flow.
+///
+/// `float` is added to P0's pool AFTER reaching the precombat-main priority
+/// window (the pool empties at every step end, [CR#500.5]) so the injected
+/// payment window can spend it.
+fn schedule_activation(
+    state: &mut GameState,
+    object: ObjectId,
+    index: usize,
+    float: &[(ColorOrColorless, Uint)],
+) {
+    // Advance the game naturally to P0's precombat-main priority (the same
+    // window the legality gate would offer the activation in), so the trailing
+    // `OpenPriority` re-surfaces priority in the expected phase.
+    let _ = run_to_priority(state, PlayerId(0), Phase::PrecombatMain);
+    // Float the cost's mana now — after the walk, in the window that pays it.
+    for &(color, amount) in float {
+        state.player_mut(PlayerId(0)).mana_pool.add(color, amount);
+    }
+    // Reset passes so the re-opened priority round starts clean (mirrors the
+    // `reset_passes` `take_priority_action` runs on a real activation).
+    state.pending = None;
+    // The full [CR#602.2b] announce block, in order: BeginActivate →
+    // AnnounceTargets → ChooseCostOptions → PayCost → AbilityActivated → SBAs
+    // → triggers → priority. Pushed back-to-front so the front-of-agenda order
+    // is left-to-right.
+    let block = [
+        WorkItem::BeginActivate {
+            object,
+            ability: index,
+        },
+        WorkItem::AnnounceTargets,
+        WorkItem::ChooseCostOptions,
+        WorkItem::PayCost,
+        WorkItem::Emit(Occurrence::single(GameEvent::AbilityActivated {
+            source: object,
+            ability: index,
+        })),
+        WorkItem::CheckSbas,
+        WorkItem::PlaceTriggers,
+        WorkItem::OpenPriority,
+    ];
+    for item in block.into_iter().rev() {
+        state.agenda.push_front(item);
+    }
+}
+
+/// [CR#601.2b]: an ability with a hybrid `{W/U}` mana cost surfaces a
+/// `ChooseCostOptions` decision between announce and payment; picking the blue
+/// reading makes the subsequent `PayMana` cost `{U}`, and a blue unit is spent.
+#[test]
+fn activated_ability_hybrid_picks_a_color() {
+    const NAME: &str = "Hybrid-cost test artifact";
+    let card = artifact_with_cost(NAME, vec![CostComponent::Mana("{W/U}".parse().unwrap())]);
+    let mut state = cost_game(7, &card);
+    let obj = force_into_play(&mut state, PlayerId(0), NAME);
+    // Float one of each color so whichever reading is picked is payable.
+    schedule_activation(&mut state, obj, 0, &[(white(), 1), (blue(), 1)]);
+
+    // No targets: the next stop is the ChooseCostOptions decision.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseCostOptions {
+        player,
+        cost,
+        options,
+    }) = stop
+    else {
+        panic!("expected ChooseCostOptions for the {{W/U}} cost, got {stop:?}");
+    };
+    assert_eq!(player, PlayerId(0), "the activating player announces");
+    assert_eq!(
+        cost,
+        "{W/U}".parse().unwrap(),
+        "the decision carries the printed hybrid cost"
+    );
+    assert_eq!(options.options.len(), 1, "one choosable symbol, the hybrid");
+
+    // Pick the blue reading.
+    state
+        .submit_decision(Decision::CostOptions(CostOptionChoices {
+            picks: vec![SymbolChoice::Mana(SimpleManaSymbol::Specific(
+                Color::Blue.into(),
+            ))],
+        }))
+        .unwrap();
+
+    // PayMana now carries the CONCRETE {U}, not the printed {W/U}.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana { cost, .. }) = stop else {
+        panic!("expected PayMana for the concretized {{U}}, got {stop:?}");
+    };
+    assert_eq!(
+        cost,
+        "{U}".parse().unwrap(),
+        "the concretized cost is {{U}}, not the printed {{W/U}}"
+    );
+    let pay = state.auto_pay_pending();
+    state.submit_decision(Decision::Pay(pay)).unwrap();
+
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    // The blue unit was spent on {U}; the white unit is untouched.
+    assert_eq!(
+        state.player(PlayerId(0)).mana_pool.amount(blue()),
+        0,
+        "the blue unit paid the concretized {{U}}"
+    );
+    assert_eq!(
+        state.player(PlayerId(0)).mana_pool.amount(white()),
+        1,
+        "the white unit was not spent — the blue reading was chosen"
+    );
+    assert_eq!(state.stack.len(), 1, "the ability reached the stack");
+}
+
+/// [CR#107.4f]: an ability with a Phyrexian `{W/P}` mana cost, paid with life,
+/// requires NO mana (no `PayMana` surfaces) and drops the controller's life by
+/// 2 in the payment window.
+#[test]
+fn activated_ability_phyrexian_pays_life() {
+    const NAME: &str = "Phyrexian-cost test artifact";
+    let card = artifact_with_cost(NAME, vec![CostComponent::Mana("{W/P}".parse().unwrap())]);
+    let mut state = cost_game(7, &card);
+    let obj = force_into_play(&mut state, PlayerId(0), NAME);
+    let life_before = state.players[0].life;
+
+    schedule_activation(&mut state, obj, 0, &[]);
+
+    // The ChooseCostOptions decision surfaces; the Phyrexian symbol offers
+    // [Mana(W), Life].
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseCostOptions { options, .. }) = stop
+    else {
+        panic!("expected ChooseCostOptions for the {{W/P}} cost, got {stop:?}");
+    };
+    assert!(
+        options.options[0].choices.contains(&SymbolChoice::Life),
+        "the Phyrexian symbol offers the Life reading, options: {options:?}"
+    );
+
+    // Pay 2 life.
+    state
+        .submit_decision(Decision::CostOptions(CostOptionChoices {
+            picks: vec![SymbolChoice::Life],
+        }))
+        .unwrap();
+
+    // No mana is required: the concretized cost is empty, so NO PayMana
+    // surfaces. The life-loss cost ([CR#601.2h]) fires before the ability
+    // becomes activated ([CR#601.2i]).
+    let (trace, _) = step_to_stop(&mut state);
+    let life_idx = trace.iter().position(|p| {
+        matches!(
+            applied(p),
+            Some(GameEvent::LifeLost { player, amount: 2 }) if *player == PlayerId(0)
+        )
+    });
+    let activated_idx = trace.iter().position(|p| {
+        matches!(applied(p), Some(GameEvent::AbilityActivated { source, .. }) if *source == obj)
+    });
+    assert!(
+        !trace.iter().any(|p| matches!(p, Progress::CostPaid)
+            && matches!(state.pending, Some(PendingDecision::PayMana { .. }))),
+        "no PayMana decision should surface for a fully-life Phyrexian cost"
+    );
+    let life_idx = life_idx.unwrap_or_else(|| panic!("a LifeLost(2) cost event, trace: {trace:?}"));
+    let activated_idx =
+        activated_idx.unwrap_or_else(|| panic!("an AbilityActivated event, trace: {trace:?}"));
+    assert!(
+        life_idx < activated_idx,
+        "the Phyrexian life cost runs before the ability becomes activated; \
+         life@{life_idx} activated@{activated_idx}, trace: {trace:?}"
+    );
+    assert_eq!(
+        state.players[0].life,
+        life_before - 2,
+        "the Phyrexian-life reading dropped the controller's life by 2"
+    );
+}
+
+/// [CR#107.4e]: a monohybrid `{2/W}` cost, paid via the generic half, requires
+/// 2 generic mana; two units are spent.
+#[test]
+fn activated_ability_monohybrid_picks_generic() {
+    const NAME: &str = "Monohybrid-cost test artifact";
+    let card = artifact_with_cost(NAME, vec![CostComponent::Mana("{2/W}".parse().unwrap())]);
+    let mut state = cost_game(7, &card);
+    let obj = force_into_play(&mut state, PlayerId(0), NAME);
+    // Float two red units to pay the generic half.
+    schedule_activation(&mut state, obj, 0, &[(red(), 2)]);
+
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseCostOptions { options, .. }) = stop
+    else {
+        panic!("expected ChooseCostOptions for the {{2/W}} cost, got {stop:?}");
+    };
+    assert_eq!(
+        options.options[0].choices,
+        vec![
+            SymbolChoice::Mana(SimpleManaSymbol::Generic(2)),
+            SymbolChoice::Mana(SimpleManaSymbol::Specific(Color::White.into())),
+        ],
+        "the monohybrid offers its generic and white halves"
+    );
+
+    // Pick the generic-2 half.
+    state
+        .submit_decision(Decision::CostOptions(CostOptionChoices {
+            picks: vec![SymbolChoice::Mana(SimpleManaSymbol::Generic(2))],
+        }))
+        .unwrap();
+
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana { cost, .. }) = stop else {
+        panic!("expected PayMana for the concretized {{2}}, got {stop:?}");
+    };
+    assert_eq!(
+        cost,
+        "{2}".parse().unwrap(),
+        "the generic half concretizes to {{2}}"
+    );
+    let pay = state.auto_pay_pending();
+    state.submit_decision(Decision::Pay(pay)).unwrap();
+
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    assert_eq!(
+        state.player(PlayerId(0)).mana_pool.amount(red()),
+        0,
+        "both red units paid the concretized {{2}}"
+    );
+    assert_eq!(state.stack.len(), 1, "the ability reached the stack");
+}
+
+/// A no-choice (plain) cost still flows through the new `ChooseCostOptions`
+/// step transparently: no decision surfaces, and the printed cost reaches
+/// `PayMana` unchanged.
+#[test]
+fn activated_ability_plain_cost_skips_choose_cost_options() {
+    const NAME: &str = "Plain-cost test artifact";
+    let card = artifact_with_cost(NAME, vec![CostComponent::Mana("{1}".parse().unwrap())]);
+    let mut state = cost_game(7, &card);
+    let obj = force_into_play(&mut state, PlayerId(0), NAME);
+
+    schedule_activation(&mut state, obj, 0, &[(red(), 1)]);
+
+    // No hybrid/Phyrexian symbol: ChooseCostOptions surfaces NOTHING; the next
+    // stop is PayMana with the printed {1}.
+    let (trace, stop) = step_to_stop(&mut state);
+    assert!(
+        !trace
+            .iter()
+            .any(|p| matches!(p, Progress::CostOptionsChosen { surfaced: true })),
+        "a plain cost surfaces no ChooseCostOptions decision, trace: {trace:?}"
+    );
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana { cost, .. }) = stop else {
+        panic!("expected PayMana for the plain {{1}} cost, got {stop:?}");
+    };
+    assert_eq!(
+        cost,
+        "{1}".parse().unwrap(),
+        "the printed {{1}} is unchanged"
     );
 }
