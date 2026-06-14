@@ -122,7 +122,7 @@ pub fn abilities_of_source(state: &GameState, source: ObjectSource) -> Vec<Abili
 /// `abilities_of_source` is indexed self-consistently on both ends (trigger
 /// placement + resolution read the same flattened list), so peeling keeps it
 /// consistent.
-fn flatten_composites(ability: &Ability, out: &mut Vec<Ability>) {
+pub(crate) fn flatten_composites(ability: &Ability, out: &mut Vec<Ability>) {
     // Peel any `Innate` wrapper first, then re-dispatch on the inner ability
     // (which may itself be a composite keyword to splice).
     if let Ability::Innate(inner) = ability {
