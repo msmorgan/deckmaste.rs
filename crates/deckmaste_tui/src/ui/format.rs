@@ -5,6 +5,8 @@ use std::fmt::Write as _;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::SimpleManaSymbol;
+use deckmaste_engine::Action;
+use deckmaste_engine::ActionViewKind;
 use deckmaste_engine::GameState;
 use deckmaste_engine::LayeredView;
 use deckmaste_engine::ObjectId;
@@ -66,6 +68,30 @@ pub fn stack_label(state: &GameState, entry: &StackEntry) -> String {
 /// `card-text-render`).
 #[must_use]
 pub fn mana_cost(cost: &ManaCost) -> String { cost.iter().map(symbol).collect() }
+
+/// A short, human label for a legal priority action, built from the engine's
+/// `describe_action` view. Used by the footer and the ability-pick popup.
+#[must_use]
+pub fn action_label(state: &GameState, action: &Action) -> String {
+    let view = state.describe_action(action);
+    let name = view.name.unwrap_or("?");
+    match view.kind {
+        ActionViewKind::Pass => "Pass".to_string(),
+        ActionViewKind::Concede => "Concede".to_string(),
+        ActionViewKind::PlayLand => format!("Play land: {name}"),
+        ActionViewKind::Cast { cost } => match cost {
+            Some(c) => format!("Cast {name} {}", mana_cost(&c)),
+            None => format!("Cast {name}"),
+        },
+        ActionViewKind::Activate { mana, .. } => {
+            if mana {
+                format!("{name}: tap for mana")
+            } else {
+                format!("{name}: activate ability")
+            }
+        }
+    }
+}
 
 fn symbol(s: &ManaSymbol) -> String {
     match s {
