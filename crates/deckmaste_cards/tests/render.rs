@@ -2,10 +2,17 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use deckmaste_cards::plugin::Plugin;
+use deckmaste_cards::render::CardView;
 use deckmaste_cards::render::RenderedCard;
+use deckmaste_cards::render::render;
 use deckmaste_cards::render::render_card_face;
+use deckmaste_core::Ability;
 use deckmaste_core::Card;
 use deckmaste_core::CardFace;
+use deckmaste_core::KeywordAbility;
+use deckmaste_core::StatValue;
+use deckmaste_core::Subtype;
+use deckmaste_core::Type;
 
 fn canon_path() -> PathBuf { Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon") }
 
@@ -135,4 +142,134 @@ fn renders_sequence_brainstorm() {
         r.rules,
         vec!["Draw 3 cards, then put 2 cards from your hand on top of your library.".to_string()]
     );
+}
+
+// ── Derived / token path ─────────────────────────────────────────────────────
+
+/// A synthesized token: no mana cost, no printed text, but a valid type line
+/// and P/T from the runtime-assembled `CardView`.
+#[test]
+fn renders_a_synthesized_token() {
+    let types = [Type::Creature];
+    let subs = [Subtype {
+        name: "Goblin".into(),
+        types: vec![Type::Creature, Type::Kindred],
+        confers: vec![],
+    }];
+    let p = StatValue::Number(1);
+    let t = StatValue::Number(1);
+    let view = CardView {
+        name: "Goblin",
+        mana_cost: None,
+        supertypes: &[],
+        types: &types,
+        subtypes: &subs,
+        power: Some(&p),
+        toughness: Some(&t),
+        abilities: &[],
+    };
+    let r = render(&view);
+    assert_eq!(r.mana_cost, "");
+    assert_eq!(r.type_line, "Creature — Goblin");
+    assert_eq!(r.pt, Some("1/1".to_string()));
+    assert!(r.rules.is_empty());
+}
+
+/// A derived live object: base stats replaced by layer-applied values, a
+/// keyword granted by a continuous effect present on the view.  No printed
+/// mana cost (the view carries `None`).
+#[test]
+fn renders_a_derived_pumped_flier() {
+    let types = [Type::Creature];
+    let p = StatValue::Number(4);
+    let t = StatValue::Number(4);
+    let fly = Ability::Keyword(KeywordAbility::Composite {
+        name: "Flying".into(),
+        abilities: vec![],
+    });
+    let abilities = [fly];
+    let view = CardView {
+        name: "Grizzly Bears",
+        mana_cost: None,
+        supertypes: &[],
+        types: &types,
+        subtypes: &[],
+        power: Some(&p),
+        toughness: Some(&t),
+        abilities: &abilities,
+    };
+    let r = render(&view);
+    assert_eq!(r.pt, Some("4/4".to_string()));
+    assert_eq!(r.rules, vec!["Flying".to_string()]);
+}
+
+// ── Full-canon breadth sweep ─────────────────────────────────────────────────
+
+fn canon_card_names() -> Vec<String> {
+    std::fs::read_dir(canon_path().join("cards"))
+        .unwrap()
+        .filter_map(Result::ok)
+        .filter_map(|e| {
+            let p = e.path();
+            (p.extension().and_then(|x| x.to_str()) == Some("ron"))
+                .then(|| p.file_stem().map(|s| s.to_string_lossy().into_owned()))
+                .flatten()
+        })
+        .collect()
+}
+
+/// Totality sweep: the renderer must never panic on any canon card face.
+/// Faces that use out-of-scope grammar will produce `[unrendered: …]` markers,
+/// which is intentional — this test only asserts no panic and a non-empty type
+/// line.  The `eprintln!` output shows the marker count when run with
+/// `-- --nocapture`.
+#[test]
+fn renders_every_canon_card_without_panicking() {
+    let plugin = Plugin::load_with_sibling_prelude(canon_path()).unwrap();
+    let mut markers = 0usize;
+    let mut total = 0usize;
+    for name in canon_card_names() {
+        let Ok(card) = plugin.card(&name) else { continue };
+        let faces: Vec<CardFace> = match card {
+            Card::Normal(f) => vec![f],
+            Card::ModalDfc(a, b) => vec![a, b],
+        };
+        for f in faces {
+            let r = render_card_face(&f);
+            assert!(!r.type_line.is_empty(), "{name}: empty type line");
+            total += 1;
+            if r.rules.iter().any(|l| l.contains("[unrendered")) {
+                markers += 1;
+            }
+        }
+    }
+    eprintln!(
+        "rendered {total} canon faces; {markers} still contain an [unrendered] marker (out-of-scope grammar)"
+    );
+    assert!(total > 0, "no canon cards found");
+}
+
+/// Anchor completeness: the ten cards exercised by the golden tests must
+/// render with NO `[unrendered]` markers (they are in-scope by definition).
+#[test]
+fn anchor_cards_fully_rendered() {
+    for name in [
+        "Lightning Bolt",
+        "Baleful Strix",
+        "Glorious Anthem",
+        "Elesh Norn, Grand Cenobite",
+        "Goblin Brigand",
+        "Brainstorm",
+        "Wall of Stone",
+        "Grizzly Bears",
+        "Goblin Medics",
+        "Pacifism",
+    ] {
+        let r = render_card_face(&face(name));
+        let blob = format!("{} {} {:?}", r.mana_cost, r.type_line, r.rules);
+        assert!(
+            !blob.contains("[unrendered"),
+            "{name} leaked a marker: {blob}"
+        );
+    }
 }
