@@ -81,7 +81,7 @@ fn stat(v: Option<&StatValue>) -> String {
     }
 }
 
-fn type_str(t: deckmaste_core::Type) -> &'static str {
+pub(super) fn type_str(t: deckmaste_core::Type) -> &'static str {
     use deckmaste_core::Type::Artifact;
     use deckmaste_core::Type::Battle;
     use deckmaste_core::Type::Creature;
