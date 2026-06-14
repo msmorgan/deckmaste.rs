@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "mtg-rules": {
+      "source": {
+        "source": "github",
+        "repo": "msmorgan/mtg-rules"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "mtg-rules@mtg-rules": true
+  }
+}
