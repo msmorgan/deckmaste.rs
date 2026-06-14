@@ -4,10 +4,14 @@
 //! announce flow (`announce_targets` / `pay_cost`) is shared with activated
 //! abilities ([CR#602.2b]); see `activate.rs` for the activation entry point.
 
+use deckmaste_core::Action;
 use deckmaste_core::Agency;
 use deckmaste_core::ColorOrColorless;
+use deckmaste_core::Effect;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
+use deckmaste_core::PlayerAction;
+use deckmaste_core::Reference;
 use deckmaste_core::SimpleManaSymbol;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Type;
@@ -23,6 +27,7 @@ use crate::event::Occurrence;
 use crate::object::ObjectId;
 use crate::player::ManaPool;
 use crate::player::PlayerId;
+use crate::stack::Frame;
 use crate::stack::PendingStackEntry;
 use crate::stack::StackObject;
 use crate::state::GameState;
@@ -213,6 +218,31 @@ fn pool_kinds(pool: &ManaPool) -> [(ColorOrColorless, Uint); 6] {
         Color(Green),
     ]
     .map(|k| (k, pool.amount(k)))
+}
+
+/// [CR#601.2h]: one `RunEffect` per cost-eligible verb, each performed by the
+/// activating `player` against the ability's `source`. The verb rides
+/// `Action::By(You, …)` over a fresh resolution frame whose `controller` is
+/// the activator — so `Reference::You` resolves to that player and
+/// `Reference::This` (a self-sacrifice) to the source — mirroring the frame
+/// any effect node resolves against (`targets`/`bindings`/`chosen` empty: a
+/// cost verb names no targets and carries no trigger context). A
+/// `Selection::Choose` inside a verb surfaces its own `ChooseObjects` decision
+/// via `run_effect`'s `chosen.is_none()` path.
+fn verb_payment_items(verbs: &[PlayerAction], source: ObjectId, player: PlayerId) -> Vec<WorkItem> {
+    verbs
+        .iter()
+        .map(|verb| WorkItem::RunEffect {
+            effect: Box::new(Effect::Act(Action::By(Reference::You, verb.clone()))),
+            frame: Frame {
+                source,
+                controller: player,
+                targets: vec![],
+                bindings: None,
+                chosen: None,
+            },
+        })
+        .collect()
 }
 
 impl GameState {
@@ -456,11 +486,16 @@ impl GameState {
                 let summary = crate::activate::cost_summary(&ability.cost)
                     .expect("can_activate vetted the cost");
                 // Costs are paid at [CR#601.2h,602.2b]: schedule the {T}/{Q}
-                // events at the agenda FRONT — they sit behind the pending
-                // mana decision (if any) and apply when it is answered.
-                let mut events: Vec<WorkItem> = Vec::new();
+                // events and the verb costs at the agenda FRONT — they sit
+                // behind the pending mana decision (if any) and ahead of the
+                // `AbilityActivated` "becomes activated" step ([CR#601.2i])
+                // that `take_priority_action` queued after this `PayCost`.
+                // FRONT-scheduling lands them in exactly that window: paying
+                // the mana decision schedules nothing, so its continuation is
+                // these items, then `AbilityActivated`.
+                let mut items: Vec<WorkItem> = Vec::new();
                 if summary.tap {
-                    events.push(WorkItem::Emit(Occurrence::single(GameEvent::Tapped {
+                    items.push(WorkItem::Emit(Occurrence::single(GameEvent::Tapped {
                         object: source,
                         cause: Some(Cause {
                             verb: "Tap".into(),
@@ -470,12 +505,17 @@ impl GameState {
                     })));
                 }
                 if summary.untap {
-                    events.push(WorkItem::Emit(Occurrence::single(GameEvent::Untapped(
+                    items.push(WorkItem::Emit(Occurrence::single(GameEvent::Untapped(
                         source,
                     ))));
                 }
-                if !events.is_empty() {
-                    self.schedule_front(events);
+                // [CR#601.2h]: every cost-eligible verb (Sacrifice, LoseLife,
+                // Discard, …) is performed now, by the activating player,
+                // against the ability's source. One `RunEffect` per verb,
+                // after the {T}/{Q} events and before `AbilityActivated`.
+                items.extend(verb_payment_items(&summary.verbs, source, controller));
+                if !items.is_empty() {
+                    self.schedule_front(items);
                 }
                 let mana = concretize_x(&summary.mana, announced_x);
                 if !mana.is_empty() {
