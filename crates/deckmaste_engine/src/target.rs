@@ -91,6 +91,15 @@ pub fn matches(state: &GameState, id: ObjectId, filter: &Filter) -> bool {
                     crate::object::ObjectSource::Player(p)
                         if state.designations.players.contains_key(&(p, *name)))
         }
+        // [CR#105.2,202.2] color presence against the DERIVED colors (layer-5
+        // color changes count — the same source `layer.rs`'s working-view
+        // matcher reads). A player proxy has no colors. The [CR#702.16d]
+        // protection unattach reads this: a colored Equipment on a creature
+        // with protection-from-that-color fails `attachment_legal`.
+        Filter::Characteristic(CharacteristicFilter::ColorIs(color)) => {
+            state.objects.obj(id).card_id().is_some()
+                && state.layers().get(id).colors.contains(color)
+        }
         // [CR#301.5,303.4]: `id` is an attachment attached to a host matching
         // `inner` — read the attachment→host relation, then match the host.
         Filter::Relation(deckmaste_core::RelationFilter::AttachedTo(inner)) => state
