@@ -18,6 +18,8 @@ use crate::game;
 use crate::interact;
 use crate::interact::AbilityPick;
 use crate::interact::Interaction;
+use crate::shortcuts::PassMode;
+use crate::shortcuts::PassState;
 use crate::ui;
 use crate::ui::BoardState;
 use crate::ui::Selected;
@@ -59,7 +61,8 @@ fn try_run() -> Result<()> {
 #[allow(clippy::too_many_lines)]
 fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Result<()> {
     let mut board = BoardState::new();
-    let mut stop = driver.run_to_decision()?;
+    let mut pass = PassState::new();
+    let mut stop = driver.advance(&mut pass)?;
     let mut current = interaction_for(&stop);
     let mut error: Option<String> = None;
 
@@ -139,7 +142,15 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
             },
             // ---- Priority, object-first ----
             Some(Interaction::Priority { sub: None }) => match key.code {
-                KeyCode::Char(' ') => submit = Some(Decision::Act(Action::Pass)),
+                KeyCode::Char(' ') | KeyCode::F(2) => submit = Some(Decision::Act(Action::Pass)),
+                KeyCode::Char('y') | KeyCode::F(4) => {
+                    pass.arm(board.perspective, PassMode::Yield, &driver.state);
+                    submit = Some(Decision::Act(Action::Pass));
+                }
+                KeyCode::Char('P') | KeyCode::F(6) => {
+                    pass.arm(board.perspective, PassMode::Turn, &driver.state);
+                    submit = Some(Decision::Act(Action::Pass));
+                }
                 KeyCode::Enter => match (cursor, priority_legal(&stop)) {
                     (Some(id), Some(legal)) => {
                         let acts = interact::actions_for(id, legal);
@@ -224,7 +235,7 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
         current = replace.or(cur);
 
         if let Some(decision) = submit {
-            match driver.submit(decision) {
+            match driver.submit_and_advance(decision, &mut pass) {
                 Ok(next) => {
                     stop = next;
                     current = interaction_for(&stop);

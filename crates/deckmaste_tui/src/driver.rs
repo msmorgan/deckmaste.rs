@@ -98,12 +98,15 @@ impl Driver {
         self.drive(|_| false, budget)
     }
 
-    /// Submit a decision, then run to the next interactive stop.
+    /// Submit a decision, then run to the next interactive stop. The app loop
+    /// now drives via [`Driver::submit_and_advance`]; this remains for
+    /// integration tests.
     ///
     /// # Errors
     /// Returns the `DecisionError` if the engine rejects `decision` (e.g. an
     /// illegal selection); the caller keeps the current interaction and
     /// re-prompts.
+    #[allow(dead_code)]
     pub fn submit(&mut self, decision: Decision) -> Result<Stop, DecisionError> {
         self.state.submit_decision(decision)?;
         self.run_to_decision()
