@@ -9,6 +9,7 @@ mod zones;
 use std::fmt::Write as _;
 
 pub use board::BoardState;
+pub use board::Selected;
 use deckmaste_engine::GameState;
 use deckmaste_engine::LayeredView;
 use deckmaste_engine::PlayerId;
@@ -26,7 +27,6 @@ use ratatui::widgets::Paragraph;
 use ratatui::widgets::Wrap;
 
 use crate::driver::Stop;
-use crate::ui::board::Selected;
 use crate::ui::board::Zone;
 
 /// Draw the whole board for one frame. `view` is the caller's once-per-frame

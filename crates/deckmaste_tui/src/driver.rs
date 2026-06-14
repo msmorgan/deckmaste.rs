@@ -80,6 +80,7 @@ impl Driver {
     ///
     /// # Errors
     /// As [`Driver::drive`].
+    #[allow(dead_code)]
     pub fn run_to_priority(&mut self) -> Result<Stop, DecisionError> {
         self.drive(
             |p| matches!(p, PendingDecision::Priority { .. }),
@@ -99,6 +100,7 @@ impl Driver {
     ///
     /// # Errors
     /// If the engine rejects the pass (no priority pending).
+    #[allow(dead_code)]
     pub fn pass(&mut self) -> Result<(), DecisionError> {
         self.state.submit_decision(Decision::Act(Action::Pass))
     }
@@ -107,6 +109,7 @@ impl Driver {
     ///
     /// # Errors
     /// If the strategy's answer is rejected.
+    #[allow(dead_code)]
     pub fn auto(&mut self, pending: &PendingDecision) -> Result<(), DecisionError> {
         let decision = self.strategy.decide(&self.state, pending);
         self.state.submit_decision(decision)
