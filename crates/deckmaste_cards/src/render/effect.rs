@@ -1,7 +1,9 @@
 //! Effects / actions render to imperative sentences (spell mood).
 
 use deckmaste_core::Action;
+use deckmaste_core::Count;
 use deckmaste_core::Effect;
+use deckmaste_core::PlayerAction;
 
 use super::Ctx;
 use super::fragment;
@@ -27,10 +29,15 @@ fn action(a: &Action, ctx: &Ctx) -> String {
             fragment::count(amount),
             fragment::selection(target, ctx)
         ),
-        Action::By(who, pa) => {
-            let _ = who;
-            format!("[unrendered: {pa:?}].")
-        }
+        Action::By(_who, pa) => player_action(pa, ctx),
+        other => format!("[unrendered: {other:?}]."),
+    }
+}
+
+fn player_action(pa: &PlayerAction, _ctx: &Ctx) -> String {
+    match pa {
+        PlayerAction::Draw(Count::Literal(1)) => "Draw a card.".to_string(),
+        PlayerAction::Draw(c) => format!("Draw {} cards.", fragment::count(c)),
         other => format!("[unrendered: {other:?}]."),
     }
 }
