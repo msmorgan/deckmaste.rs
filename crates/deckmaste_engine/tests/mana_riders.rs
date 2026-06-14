@@ -1,0 +1,214 @@
+//! End-to-end coverage of `ManaRider::SpendOnly` enforcement at payment
+//! ([CR#106.6]): a unit carrying `SpendOnly(filter)` may pay only for an object
+//! the filter matches. Modeled on `stack.rs`'s harness; the relevant pieces of
+//! that file are reproduced here (a Grizzly Bears `{1}{G}` game, the
+//! `step_to_*` helpers) so this suite stands alone.
+
+use std::path::Path;
+use std::sync::Arc;
+
+use deckmaste_cards::plugin::Plugin;
+use deckmaste_core::Card;
+use deckmaste_core::CharacteristicFilter;
+use deckmaste_core::Color;
+use deckmaste_core::ColorOrColorless;
+use deckmaste_core::Filter;
+use deckmaste_core::ManaRider;
+use deckmaste_core::Phase;
+use deckmaste_core::Type;
+use deckmaste_core::Zone;
+use deckmaste_engine::Action;
+use deckmaste_engine::Decision;
+use deckmaste_engine::GameConfig;
+use deckmaste_engine::GameState;
+use deckmaste_engine::ObjectId;
+use deckmaste_engine::PendingDecision;
+use deckmaste_engine::PlayerConfig;
+use deckmaste_engine::PlayerId;
+use deckmaste_engine::Progress;
+use deckmaste_engine::StackObject;
+use deckmaste_engine::StartingPlayer;
+use deckmaste_engine::StepOutcome;
+use deckmaste_engine::WorkItem;
+
+// --- plugin + deck building --------------------------------------------------
+
+fn builtin() -> Plugin {
+    Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
+}
+
+fn canon() -> Plugin {
+    Plugin::load_with_sibling_prelude(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon"),
+    )
+    .unwrap()
+}
+
+fn card(name: &str) -> Arc<Card> { Arc::new(canon().card(name).unwrap()) }
+
+fn green() -> ColorOrColorless { Color::Green.into() }
+fn red() -> ColorOrColorless { Color::Red.into() }
+
+fn creature_filter() -> Filter {
+    Filter::Characteristic(CharacteristicFilter::Type(Type::Creature))
+}
+fn instant_filter() -> Filter { Filter::Characteristic(CharacteristicFilter::Type(Type::Instant)) }
+
+fn face_name(state: &GameState, id: ObjectId) -> &str {
+    match state.def(id) {
+        Card::Normal(f) | Card::ModalDfc(f, _) => &f.name,
+    }
+}
+
+fn is_card(state: &GameState, id: ObjectId, name: &str) -> bool {
+    state
+        .objects
+        .obj(id)
+        .card_id()
+        .is_some_and(|_| face_name(state, id) == name)
+}
+
+fn find_in_hand(state: &GameState, player: PlayerId, name: &str) -> ObjectId {
+    *state.zones.hands[player.index()]
+        .iter()
+        .find(|&&o| is_card(state, o, name))
+        .unwrap_or_else(|| panic!("a {name} in player {}'s hand", player.0))
+}
+
+/// Player 0 holds Grizzly Bears `{1}{G}` (a creature) and Forests; player 1
+/// holds Forests. `forests` Forests are forced onto player 0's battlefield.
+fn bears_game(seed: u64, forests: usize) -> GameState {
+    let bears = card("Grizzly Bears");
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mut p0 = vec![Arc::clone(&bears); 5];
+    p0.extend(vec![Arc::clone(&forest); 5]);
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck: p0 },
+            PlayerConfig {
+                deck: vec![Arc::clone(&forest); 10],
+            },
+        ],
+        seed,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    for _ in 0..forests {
+        let obj = find_in_hand(&state, PlayerId(0), "Forest");
+        state.zones.hands[0].retain(|&o| o != obj);
+        state.objects.obj_mut(obj).zone = Some(Zone::Battlefield);
+        state.zones.battlefield.push(obj);
+    }
+    state
+}
+
+// --- stepping helpers --------------------------------------------------------
+
+fn step_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
+    let mut trace = Vec::new();
+    loop {
+        match state.step() {
+            StepOutcome::Progress(p) => trace.push(p),
+            stop => return (trace, stop),
+        }
+    }
+}
+
+/// Steps until a `Priority` decision surfaces for `player` in `phase`, passing
+/// any other priority and auto-paying any `PayMana` along the way. Returns the
+/// legal action list at that window.
+fn run_to_priority(state: &mut GameState, player: PlayerId, phase: Phase) -> Vec<Action> {
+    loop {
+        let (_, stop) = step_to_stop(state);
+        match stop {
+            StepOutcome::NeedsDecision(PendingDecision::Priority { player: p, legal })
+                if p == player && state.turn.current == phase =>
+            {
+                return legal;
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+                let pay = state.auto_pay_pending();
+                state.submit_decision(Decision::Pay(pay)).unwrap();
+            }
+            other => panic!("unexpected stop before {player:?} priority in {phase:?}: {other:?}"),
+        }
+    }
+}
+
+/// Re-derives the in-flight priority decision so a freshly injected pool is
+/// reflected in the legal list. Nulls the frozen `Priority` and schedules an
+/// `OpenPriority` — the same work item the engine uses to re-grant priority.
+/// (The `pub` fields make this direct setup possible without widening the API.)
+fn resurface_priority(state: &mut GameState) {
+    assert!(
+        matches!(state.pending, Some(PendingDecision::Priority { .. })),
+        "resurface_priority expects a Priority decision in flight"
+    );
+    state.pending = None;
+    state.agenda.push_front(WorkItem::OpenPriority);
+}
+
+// --- tests -------------------------------------------------------------------
+
+/// A green carrying `SpendOnly(creature)`, plus a plain unit to cover the
+/// generic `{1}`, funds Grizzly Bears (a creature): the restricted green is
+/// spendable on the subject and the Bears spell reaches the stack.
+#[test]
+fn spend_only_creature_funds_a_creature_spell() {
+    let mut state = bears_game(1, 0);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+
+    // Float a restricted green (creature-only) + a plain red for {1}.
+    state.player_mut(PlayerId(0)).mana_pool.add_riders(
+        green(),
+        1,
+        &[ManaRider::SpendOnly(creature_filter())],
+    );
+    state.player_mut(PlayerId(0)).mana_pool.add(red(), 1);
+    // Re-derive the frozen priority list with the freshly floated pool.
+    resurface_priority(&mut state);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+
+    let bears = find_in_hand(&state, PlayerId(0), "Grizzly Bears");
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: bears }))
+        .unwrap();
+
+    // The cast pays (PayMana surfaces and auto-pays) and the spell reaches the
+    // stack: the SpendOnly(creature) green is spendable on the creature.
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    assert_eq!(state.stack.len(), 1, "the Bears spell sits on the stack");
+    assert_eq!(state.stack[0].object, StackObject::Spell(bears));
+    assert!(!state.zones.battlefield.contains(&bears));
+}
+
+/// Player 0's ONLY green is `SpendOnly(instant)` (a noncreature restriction);
+/// a creature spell cannot be funded by it, so the cast is not offered at
+/// precombat-main priority.
+#[test]
+fn spend_only_instant_cannot_fund_a_creature_spell() {
+    let mut state = bears_game(1, 0);
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+
+    // The only green is instant-only; a plain red covers {1}. No other green is
+    // available (no Forests in play), so the creature spell's {G} pip cannot be
+    // paid by a spendable unit.
+    state.player_mut(PlayerId(0)).mana_pool.add_riders(
+        green(),
+        1,
+        &[ManaRider::SpendOnly(instant_filter())],
+    );
+    state.player_mut(PlayerId(0)).mana_pool.add(red(), 1);
+    // Re-derive the frozen priority list with the freshly floated pool.
+    resurface_priority(&mut state);
+
+    let bears = find_in_hand(&state, PlayerId(0), "Grizzly Bears");
+    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    assert!(
+        !legal.contains(&Action::CastSpell { object: bears }),
+        "an instant-only green cannot fund a creature spell, so the cast is not offered: {legal:?}"
+    );
+}

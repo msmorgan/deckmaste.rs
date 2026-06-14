@@ -174,11 +174,14 @@ pub enum PendingDecision {
         spec: Vec<deckmaste_core::TargetSpec>,
         legal: Vec<Vec<ObjectId>>,
     },
-    /// [CR#601.2g]: allocate pool mana to the in-flight cost.
+    /// [CR#601.2g]: allocate pool mana to the in-flight cost. `subject` is the
+    /// object being paid for — the spell, or an activated ability's source
+    /// ([CR#106.6]) — so a `SpendOnly` rider can judge it at validation.
     PayMana {
         player: PlayerId,
         cost: deckmaste_core::ManaCost,
         pool: crate::player::ManaPool,
+        subject: ObjectId,
     },
     /// [CR#603.3b]: a player controlling several simultaneous triggers orders
     /// them. The submitted `Order` is a permutation of `0..triggers.len()`.
@@ -561,12 +564,17 @@ impl GameState {
                     player,
                     cost,
                     pool: _,
+                    subject,
                 },
                 Decision::Pay(payment),
             ) => {
                 let player = *player;
                 let cost = cost.clone();
-                if !crate::cast::validate_payment(&self.player(player).mana_pool, &cost, &payment) {
+                let subject = *subject;
+                // [CR#106.6]: layer SpendOnly spendability on the structural
+                // coverage check — each selected unit must be spendable on the
+                // object being paid for.
+                if !self.validate_spendable(player, &cost, &payment, subject) {
                     return Err(DecisionError::Illegal {
                         reason: "payment does not cover the cost".into(),
                     });

@@ -28,6 +28,11 @@ pub struct ManaUnit {
 pub struct ManaPool(Vec<ManaUnit>);
 
 impl ManaPool {
+    /// A pool of exactly `units`, in the given order. Used to build the
+    /// spendable sub-pool an affordability check runs over ([CR#106.6]).
+    #[must_use]
+    pub fn from_units(units: Vec<ManaUnit>) -> Self { Self(units) }
+
     /// Add `amount` plain (riderless) units of `mana`.
     pub fn add(&mut self, mana: ColorOrColorless, amount: Uint) {
         self.add_riders(mana, amount, &[]);

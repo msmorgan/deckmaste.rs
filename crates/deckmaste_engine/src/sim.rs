@@ -279,9 +279,9 @@ fn mechanical(state: &GameState, pending: &PendingDecision) -> Decision {
         PendingDecision::ChooseManaColor { options, .. } => {
             Decision::ManaColor(*options.first().expect("a mana choice offers options"))
         }
-        PendingDecision::PayMana { cost, pool, .. } => {
-            Decision::Pay(crate::cast::auto_pay(pool, cost))
-        }
+        // Route through `auto_pay_pending` so the autotapper honors the
+        // subject's `SpendOnly` restrictions ([CR#106.6]).
+        PendingDecision::PayMana { .. } => Decision::Pay(state.auto_pay_pending()),
         PendingDecision::OrderTriggers { triggers, .. } => {
             Decision::Order((0..triggers.len()).collect())
         }
