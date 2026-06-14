@@ -646,6 +646,68 @@ mod tests {
         );
     }
 
+    /// Lock a `LoseAllAbilities` (layer-6, end-of-game) continuous effect onto
+    /// `id` — strips its normal/granted abilities, but NOT its `Innate` rules.
+    fn lose_all_abilities(state: &mut GameState, id: crate::object::ObjectId) {
+        use deckmaste_core::Duration;
+        use deckmaste_core::Modification;
+
+        use crate::layer::ContinuousEffect;
+        use crate::layer::ScopeResolved;
+
+        let timestamp = state.objects.next_timestamp();
+        state.continuous.push(ContinuousEffect {
+            timestamp,
+            controller: PlayerId(0),
+            scope: ScopeResolved::Locked(vec![id]),
+            changes: vec![Modification::LoseAllAbilities],
+            duration: Duration::EndOfGame,
+            is_cda: false,
+        });
+    }
+
+    /// Review #7 e2e — the whole point of making the Aura graveyard rule an
+    /// `Innate` SBA ([CR#113.12,704.5m]): an Aura whose normal abilities are
+    /// ALL stripped by an active `LoseAllAbilities` and is UNATTACHED still
+    /// goes to the graveyard. The `Innate(Sba(...))` survives ability
+    /// removal (layer-6 retain), so the sweep still fires it — emitting the
+    /// battlefield→graveyard move, and (driven to completion) landing the
+    /// reminted object in its owner's graveyard.
+    #[test]
+    fn ability_less_aura_still_graveyards() {
+        let mut state = game();
+        let aura = on_field(
+            &mut state,
+            "Test Aura",
+            vec![Type::Enchantment],
+            vec![aura_graveyard_sba()],
+        );
+        // Strip ALL of the Aura's abilities. The Innate SBA must survive.
+        lose_all_abilities(&mut state, aura);
+
+        // The sweep STILL emits the graveyard move for the unattached Aura.
+        let actions = sba::sweep(&state);
+        assert!(
+            actions.iter().any(|e| matches!(e,
+                GameEvent::ZoneWillChange { object, to: Zone::Graveyard, .. } if *object == aura)),
+            "Innate graveyard SBA survives LoseAllAbilities ([CR#113.12,704.5m]); got {actions:?}"
+        );
+
+        // Drive it to completion: the Aura ends up in its owner's graveyard.
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(actions))]);
+        let _ = state.step(); // the move applies (remint + LKI)
+        let _ = state.step(); // its ZoneChanged fact
+        assert!(
+            state.objects.get(aura).is_none(),
+            "old battlefield id is gone after the move"
+        );
+        assert_eq!(
+            state.zones.graveyards[0].len(),
+            1,
+            "the ability-less Aura landed in its owner's graveyard"
+        );
+    }
+
     /// [CR#704.5m]: an Aura legally attached to a creature does NOT fire its
     /// graveyard SBA.
     #[test]
