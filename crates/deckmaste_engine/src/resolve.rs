@@ -478,6 +478,25 @@ impl GameState {
                 }
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
+            // [CR#701.3d]: unattach each selected attachment from its host —
+            // emit the `Unattached` fact (the `attached_to` clear happens at the
+            // fact's apply). No-op (no fact) on an attachment that isn't
+            // attached, mirroring the transition-only idiom ([CR#603.2e]).
+            Action::Unattach(sel) => {
+                let events: Vec<GameEvent> = self
+                    .eval_selection_set(sel, frame)
+                    .into_iter()
+                    .filter_map(|attachment| {
+                        self.objects.obj(attachment).attached_to.map(|former_host| {
+                            GameEvent::Unattached {
+                                attachment,
+                                former_host,
+                            }
+                        })
+                    })
+                    .collect();
+                vec![WorkItem::Emit(occurrence_of(events))]
+            }
         }
     }
 
@@ -1170,7 +1189,9 @@ enum PendingChoice {
 }
 
 /// The lone unresolved `Choose`/`Random` selection in `action` (looking through
-/// `Expanded`), cloned out. `Attach`'s two slots stay behind its own `todo!`.
+/// `Expanded`), cloned out. `Attach`'s two slots are both refs/targets in the
+/// keyword macros (never `Choose`/`Random`), so it stays `None`; `Unattach`'s
+/// single selection lifts like the other one-slot verbs.
 fn unresolved_choice(action: &Action) -> Option<PendingChoice> {
     fn lift(sel: &Selection) -> Option<PendingChoice> {
         match sel {
@@ -1199,7 +1220,8 @@ fn unresolved_choice(action: &Action) -> Option<PendingChoice> {
         Action::DealDamage(s, _)
         | Action::Destroy(s)
         | Action::ReturnToHand(s)
-        | Action::Counter(s) => lift(s),
+        | Action::Counter(s)
+        | Action::Unattach(s) => lift(s),
         Action::By(_, p) => lift_pa(p),
         Action::Attach { .. } => None,
     }
@@ -1639,6 +1661,65 @@ mod tests {
         assert!(
             !logged(&state, |e| matches!(e, GameEvent::Attached { .. })),
             "no Attached fact for a self-attach"
+        );
+    }
+
+    /// [CR#701.3d]: `Unattach` clears the relation and records the `Unattached`
+    /// fact carrying the former host.
+    #[test]
+    fn unattach_clears_the_relation_and_emits_unattached() {
+        let (mut state, a, b) = two_permanents_on_field();
+        state.objects.obj_mut(a).attached_to = Some(b);
+        let frame = Frame {
+            source: a,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        state.run_effect(
+            Effect::Act(Action::Unattach(Selection::Ref(Reference::This))),
+            &frame,
+        );
+        drain(&mut state);
+        assert_eq!(
+            state.objects.obj(a).attached_to,
+            None,
+            "a is now unattached"
+        );
+        assert!(
+            logged(
+                &state,
+                |e| matches!(e, GameEvent::Unattached { attachment, former_host }
+                if *attachment == a && *former_host == b)
+            ),
+            "Unattached fact records the former host"
+        );
+    }
+
+    /// [CR#701.3d]: unattaching an attachment that isn't attached is a no-op —
+    /// no `Unattached` fact (transition-only, [CR#603.2e]).
+    #[test]
+    fn unattach_of_an_unattached_object_is_a_noop() {
+        let (mut state, a, _b) = two_permanents_on_field();
+        let frame = Frame {
+            source: a,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        state.run_effect(
+            Effect::Act(Action::Unattach(Selection::Ref(Reference::This))),
+            &frame,
+        );
+        drain(&mut state);
+        assert_eq!(state.objects.obj(a).attached_to, None);
+        assert!(
+            !logged(&state, |e| matches!(e, GameEvent::Unattached { .. })),
+            "no Unattached fact for an already-unattached object"
         );
     }
 

@@ -40,6 +40,11 @@ pub enum Action {
     /// attachment RELATION (storage; the illegal-attachment SBAs,
     /// [CR#704.5m..704.5n]) is engine machinery.
     Attach { what: Selection, to: Selection },
+    /// Unattach a selected attachment from its host ([CR#701.3d]) — the inverse
+    /// of [`Attach`](Action::Attach). Used by Reconfigure's unattach ability
+    /// and the illegal-attachment SBA's unattach path. No-op on a selection
+    /// that isn't attached.
+    Unattach(Selection),
     /// A named player performs the [`PlayerAction`] ([CR#608.2]). `By(You, …)`
     /// is the implicit-you default and is written bare in RON.
     #[macro_ron(embed)]
@@ -246,6 +251,20 @@ mod tests {
             read("Destroy(This)"),
             Action::Destroy(Selection::Ref(Reference::This)),
         );
+    }
+
+    /// `Attach`/`Unattach` (the source-agent attachment verbs) read natively
+    /// and round-trip.
+    #[test]
+    fn attach_verbs_round_trip() {
+        let attach = Action::Attach {
+            what: Selection::Ref(Reference::This),
+            to: Selection::Ref(Reference::Target(0)),
+        };
+        assert_eq!(read(&write(&attach)), attach);
+        let unattach = Action::Unattach(Selection::Ref(Reference::This));
+        assert_eq!(read("Unattach(This)"), unattach);
+        assert_eq!(read(&write(&unattach)), unattach);
     }
 
     /// `By(You, …)` writes the player action bare and round-trips.
