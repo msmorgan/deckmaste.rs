@@ -353,7 +353,7 @@ impl GameState {
         clippy::unnecessary_wraps,
         reason = "the Option is the cast-legality seam; future no-cost faces return None"
     )]
-    pub(crate) fn mana_cost(&self, object: ObjectId) -> Option<ManaCost> {
+    pub fn mana_cost(&self, object: ObjectId) -> Option<ManaCost> {
         Some(crate::derive::face(self.def(object)).mana_cost.clone())
     }
 

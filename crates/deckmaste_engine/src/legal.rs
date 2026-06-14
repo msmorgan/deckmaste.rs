@@ -41,7 +41,9 @@ fn in_ability<F: Fn(&StaticEffect) -> bool>(a: &Ability, pred: &F) -> bool {
 }
 fn in_keyword<F: Fn(&StaticEffect) -> bool>(k: &KeywordAbility, pred: &F) -> bool {
     match k {
-        KeywordAbility::Composite { abilities, .. } => abilities.iter().any(|a| in_ability(a, pred)),
+        KeywordAbility::Composite { abilities, .. } => {
+            abilities.iter().any(|a| in_ability(a, pred))
+        }
         KeywordAbility::Expanded(e) => in_keyword(&e.value, pred),
         _ => false,
     }
@@ -80,9 +82,11 @@ pub(crate) fn statics_present<F: Fn(&StaticEffect) -> bool>(
 /// apply drops the destroy when it does; the lethal-damage SBA routes through
 /// the same intent so it, too, spares such permanents ([CR#704.5g]).
 pub(crate) fn replaced_from_destruction(view: &LayeredView, id: ObjectId) -> bool {
-    object_has_static(view, id, &|s| {
-        matches!(s, StaticEffect::Replacement(r) if replaces_destruction(r))
-    })
+    object_has_static(
+        view,
+        id,
+        &|s| matches!(s, StaticEffect::Replacement(r) if replaces_destruction(r)),
+    )
 }
 
 /// Whether a replacement row replaces DESTRUCTION — an `Instead` whose

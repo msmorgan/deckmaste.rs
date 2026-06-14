@@ -335,7 +335,12 @@ impl GameState {
                     .into_iter()
                     .map(|object| GameEvent::ZoneWillChange {
                         object,
-                        from: Some(self.objects.obj(object).zone.expect("return a zoned object")),
+                        from: Some(
+                            self.objects
+                                .obj(object)
+                                .zone
+                                .expect("return a zoned object"),
+                        ),
                         to: Zone::Hand,
                         enters: None,
                         position: None,
@@ -356,7 +361,12 @@ impl GameState {
             Action::Counter(sel) => {
                 let mut events = Vec::new();
                 for object in self.eval_selection_set(sel, frame) {
-                    match self.stack.iter().find(|e| e.id == object).map(|e| &e.object) {
+                    match self
+                        .stack
+                        .iter()
+                        .find(|e| e.id == object)
+                        .map(|e| &e.object)
+                    {
                         Some(StackObject::Spell(spell)) => {
                             events.push(GameEvent::ZoneWillChange {
                                 object: *spell,
@@ -1135,9 +1145,15 @@ mod tests {
         let p = PlayerId(0);
 
         // Three spells cast this turn (game-wide) → storm = 3 - 1 = 2.
-        state.history.record(1, GameEvent::SpellCast(ObjectId::from_raw(1)));
-        state.history.record(1, GameEvent::SpellCast(ObjectId::from_raw(2)));
-        state.history.record(1, GameEvent::SpellCast(ObjectId::from_raw(3)));
+        state
+            .history
+            .record(1, GameEvent::SpellCast(ObjectId::from_raw(1)));
+        state
+            .history
+            .record(1, GameEvent::SpellCast(ObjectId::from_raw(2)));
+        state
+            .history
+            .record(1, GameEvent::SpellCast(ObjectId::from_raw(3)));
         assert_eq!(state.eval_query(QueryKey::StormCount, p), 2);
 
         // Two draws by p this turn → CardsDrawn = 2.
@@ -1258,8 +1274,12 @@ mod tests {
         let forest = Arc::new(builtin().card("Forest").unwrap());
         let mut state = GameState::new(GameConfig {
             players: vec![
-                PlayerConfig { deck: deck(&myr, 10) },
-                PlayerConfig { deck: deck(&forest, 10) },
+                PlayerConfig {
+                    deck: deck(&myr, 10),
+                },
+                PlayerConfig {
+                    deck: deck(&forest, 10),
+                },
             ],
             seed: 1,
             starting_life: 20,
@@ -1282,8 +1302,9 @@ mod tests {
     }
 
     /// [CR#702.12b]: an indestructible permanent can't be destroyed — the
-    /// `Destroy` action's `WillDestroy` intent finds the destruction-replacement
-    /// static and is replaced to nothing, so the Myr stays on the battlefield.
+    /// `Destroy` action's `WillDestroy` intent finds the
+    /// destruction-replacement static and is replaced to nothing, so the
+    /// Myr stays on the battlefield.
     #[test]
     fn indestructible_survives_destroy_action() {
         let (mut state, myr) = myr_on_field();
@@ -1296,14 +1317,20 @@ mod tests {
         state.run_effect(Effect::Act(Action::Destroy(sel_this())), &frame);
         // WillDestroy applies and schedules no zone move (replaced to nothing).
         let _ = state.step();
-        assert!(state.objects.get(myr).is_some(), "indestructible object still exists");
-        assert!(state.zones.battlefield.contains(&myr), "still on the battlefield");
+        assert!(
+            state.objects.get(myr).is_some(),
+            "indestructible object still exists"
+        );
+        assert!(
+            state.zones.battlefield.contains(&myr),
+            "still on the battlefield"
+        );
         assert!(state.zones.graveyards[0].is_empty(), "not destroyed");
     }
 
     /// A destructible creature still dies: `Destroy` → `WillDestroy` (nothing
-    /// replaces it) → `ZoneWillChange(Battlefield → Graveyard)` → `ZoneChanged`,
-    /// reminting it into its owner's graveyard.
+    /// replaces it) → `ZoneWillChange(Battlefield → Graveyard)` →
+    /// `ZoneChanged`, reminting it into its owner's graveyard.
     #[test]
     fn destroy_action_sends_a_normal_creature_to_its_graveyard() {
         let (mut state, bear) = bear_on_field();

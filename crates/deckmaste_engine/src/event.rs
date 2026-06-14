@@ -56,10 +56,10 @@ pub enum GameEvent {
     /// committed Battlefield→Graveyard move (like `WillDraw`): its apply checks
     /// the object's derived view for a destruction-replacement static —
     /// indestructible ([CR#702.12b]) or, once they exist, a regeneration
-    /// shield (an `engine-replacements` seam). Present → the destroy is replaced
-    /// to nothing (the object is untouched). Absent → it evolves into
-    /// `ZoneWillChange(Battlefield → Graveyard)` carrying `cause`, one of
-    /// "destroyed"'s two causes ([CR#701.8b]).
+    /// shield (an `engine-replacements` seam). Present → the destroy is
+    /// replaced to nothing (the object is untouched). Absent → it evolves
+    /// into `ZoneWillChange(Battlefield → Graveyard)` carrying `cause`, one
+    /// of "destroyed"'s two causes ([CR#701.8b]).
     WillDestroy {
         object: ObjectId,
         cause: Option<Cause>,

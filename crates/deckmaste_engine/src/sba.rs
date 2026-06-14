@@ -217,8 +217,12 @@ mod tests {
         let forest = Arc::new(builtin().card("Forest").unwrap());
         let mut state = GameState::new(GameConfig {
             players: vec![
-                PlayerConfig { deck: deck(&myr, 10) },
-                PlayerConfig { deck: deck(&forest, 10) },
+                PlayerConfig {
+                    deck: deck(&myr, 10),
+                },
+                PlayerConfig {
+                    deck: deck(&forest, 10),
+                },
             ],
             seed: 1,
             starting_life: 20,

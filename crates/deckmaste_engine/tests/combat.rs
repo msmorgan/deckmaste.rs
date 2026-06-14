@@ -663,7 +663,10 @@ fn combat_damage_two_blockers_split_one_one() {
     // An out-of-recipient target is rejected.
     assert!(
         state
-            .submit_decision(Decision::Assignment(vec![(b1, 1), (ObjectId::default(), 1)]))
+            .submit_decision(Decision::Assignment(vec![
+                (b1, 1),
+                (ObjectId::default(), 1)
+            ]))
             .is_err(),
         "an amount on a creature that isn't a recipient is rejected"
     );
