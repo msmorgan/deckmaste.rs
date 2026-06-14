@@ -4,6 +4,7 @@ members = [
     "crates/deckmaste_core",
     "crates/deckmaste_engine",
     "crates/deckmaste_migrations",
+    "crates/deckmaste_tui",
     "crates/macro_ron",
     "crates/macro_ron_derive",
     "crates/xtask",
@@ -18,11 +19,14 @@ pedantic = { level = "warn", priority = -1 }
 name = "deckmaste"
 version = "0.1.0"
 edition = "2024"
+# `cargo run` from the workspace root launches the TUI via this bin.
+default-run = "deckmaste"
 
 [lints]
 workspace = true
 
 [dependencies]
+deckmaste_tui = { version = "0.1.0", path = "crates/deckmaste_tui" }
 ron = "0.12.1"
 serde = { version = "1.0.228", features = ["derive"] }
 slotmap = { version = "1.1.1", features = ["serde"] }
