@@ -45,6 +45,13 @@ pub enum Action {
     /// and the illegal-attachment SBA's unattach path. No-op on a selection
     /// that isn't attached.
     Unattach(Selection),
+    /// Move a selection to a zone ([CR#400.7]) — a plain zone change (emits
+    /// `ZoneWillChange`), NOT destruction (so indestructible does not apply,
+    /// distinct from [`Destroy`](Action::Destroy)) and NOT a sacrifice. A
+    /// graveyard/hand/library destination is the object's *owner's*; exile is
+    /// the shared exile zone. The [CR#704.5m] Aura graveyard SBA is its first
+    /// user (`Move(Ref(This), Graveyard)`).
+    Move(Selection, crate::Zone),
     /// A named player performs the [`PlayerAction`] ([CR#608.2]). `By(You, …)`
     /// is the implicit-you default and is written bare in RON.
     #[macro_ron(embed)]
@@ -265,6 +272,16 @@ mod tests {
         let unattach = Action::Unattach(Selection::Ref(Reference::This));
         assert_eq!(read("Unattach(This)"), unattach);
         assert_eq!(read(&write(&unattach)), unattach);
+    }
+
+    /// `Move(This, Graveyard)` (the source-agent plain-relocation verb the
+    /// [CR#704.5m] Aura SBA uses) reads natively and round-trips.
+    #[test]
+    fn move_verb_round_trips() {
+        use crate::Zone;
+        let mv = Action::Move(Selection::Ref(Reference::This), Zone::Graveyard);
+        assert_eq!(read("Move(This, Graveyard)"), mv);
+        assert_eq!(read(&write(&mv)), mv);
     }
 
     /// `By(You, …)` writes the player action bare and round-trips.

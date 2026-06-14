@@ -168,6 +168,20 @@ pub enum StaticEffect {
     Prevention(Prevention),
     /// A scoped counterfactual premise ([CR#609.4]) — see [`AsThough`].
     AsThough(AsThough),
+    /// A state-based action expressed as data ([CR#704]): whenever `when`
+    /// holds (evaluated with `This` = the carrying object), perform `then` as
+    /// part of the SBA sweep. The Aura must-be-attached rule ([CR#704.5m]) is
+    /// `Sba { when: Not(LegallyAttached(Ref(This))), then: Move(Ref(This),
+    /// Graveyard) }`; the universal SBA-as-data primitive generalizes (a Saga's
+    /// [CR#714.4] sacrifice is `Sba(lore≥final, Sacrifice(Ref(This)))`). The
+    /// SBA sweep reads these statics generically — it never branches on the
+    /// Aura/Equipment/Fortification subtype. `then` is boxed (an `Effect`
+    /// dominates `StaticEffect`'s size; `Box` only for the size cycle, per the
+    /// "Box only for cycles" rule).
+    Sba {
+        when: Condition,
+        then: Box<crate::Effect>,
+    },
     /// An outcome gate: "[who] can't lose the game" / "can't win the game".
     /// NOT a deontic row — outcome-"can't" modifies the §104/§704 outcome
     /// machinery, not action legality (mtg-rules deontics §6 evicts the
@@ -246,6 +260,28 @@ mod tests {
         );
         let written = crate::ron::options().to_string(&parsed).unwrap();
         assert_eq!(read(&written), parsed);
+    }
+
+    /// The `Sba` state-based-action primitive round-trips: the Aura
+    /// must-be-attached shape `Sba(when: Not(LegallyAttached(Ref(This))), then:
+    /// Move(Ref(This), Graveyard))` ([CR#704.5m]).
+    #[test]
+    fn sba_roundtrip() {
+        use crate::Action;
+        use crate::Condition;
+        use crate::Effect;
+        use crate::Selection;
+        use crate::Zone;
+
+        let sba = StaticEffect::Sba {
+            when: Condition::Not(Box::new(Condition::LegallyAttached(Reference::This))),
+            then: Box::new(Effect::Act(Action::Move(
+                Selection::Ref(Reference::This),
+                Zone::Graveyard,
+            ))),
+        };
+        let written = crate::ron::options().to_string(&sba).unwrap();
+        assert_eq!(read(&written), sba, "Sba round-trips: {written}");
     }
 
     /// A deontic clause reads flat and serializes flat — the compartment
