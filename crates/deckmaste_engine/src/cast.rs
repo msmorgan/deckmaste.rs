@@ -28,12 +28,12 @@ use crate::stack::StackObject;
 use crate::state::GameState;
 use crate::target::candidates;
 
-/// How the pool's mana is spent on a cost's generic part: one entry per unit
-/// of generic mana owed (colored pips are forced by color, so they need no
-/// choice). Empty when the cost is all-colored.
+/// The pool units spent on a cost ([CR#601.2g]): indices into the player's
+/// mana pool at payment time. The decision is atomic, so indices into the
+/// `PayMana` snapshot equal indices into the live pool.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Payment {
-    pub generic: Vec<ColorOrColorless>,
+    pub units: Vec<usize>,
 }
 
 /// The colored requirement (per color) and total generic of a cost, or `None`
@@ -80,42 +80,77 @@ pub fn can_pay(pool: &ManaPool, cost: &ManaCost) -> bool {
     leftover >= generic
 }
 
-/// Whether `payment` legally covers `cost` from `pool`.
+/// Whether `payment`'s selected pool units legally cover `cost` from `pool`
+/// ([CR#601.2g]).
+///
+/// The selected indices must be distinct and in range; the number of units
+/// selected must equal the cost's mana value (colored need + generic); and each
+/// color's colored requirement must be met by selected units of that color.
+/// (Spendability/`SpendOnly` is not checked here yet — a later task.)
 #[must_use]
 pub fn validate_payment(pool: &ManaPool, cost: &ManaCost, payment: &Payment) -> bool {
     let Some((colored, generic)) = requirement(cost) else { return false };
-    if payment.generic.len() != generic as usize {
+    let units = pool.units();
+    // Indices must be distinct and in range.
+    let mut seen = std::collections::HashSet::with_capacity(payment.units.len());
+    for &i in &payment.units {
+        if i >= units.len() || !seen.insert(i) {
+            return false;
+        }
+    }
+    let colored_total: Uint = colored.iter().map(|(_, n)| *n).sum();
+    // Exactly the cost's mana value: no under- or over-spend.
+    if payment.units.len() != (colored_total + generic) as usize {
         return false;
     }
-    // Total spend per kind = colored need + generic chosen of that kind.
-    for (kind, have) in pool_kinds(pool) {
-        let colored_need = colored
-            .iter()
-            .find(|(k, _)| *k == kind)
-            .map_or(0, |(_, n)| *n);
-        let generic_need =
-            u32::try_from(payment.generic.iter().filter(|&&c| c == kind).count()).unwrap();
-        if have < colored_need + generic_need {
+    let selected = || payment.units.iter().map(|&i| &units[i]);
+    // Each color's colored pips must be covered by selected units of that color.
+    for (c, n) in colored {
+        if selected().filter(|u| u.kind == c).count() < n as usize {
             return false;
         }
     }
     true
 }
 
-/// Deducts a validated `payment` from `pool` ([CR#601.2g,106.4]).
+/// Deducts a validated `payment`'s selected units from `pool`
+/// ([CR#601.2g,106.4]). Callers must `validate_payment` first; out-of-range
+/// indices are silently ignored, so an unvalidated payment may under-spend.
+pub fn apply_payment(pool: &mut ManaPool, payment: &Payment) { pool.remove_units(&payment.units); }
+
+/// Canonical auto-tap ([CR#601.2g], a runner/test convenience — the engine
+/// surfaces the choice, this answers it): pick pool unit indices covering
+/// `cost` (colored pips to matching-color units, generic pips to any
+/// remaining). Caller ensures `can_pay` first.
 ///
 /// # Panics
 ///
-/// Panics if the cost contains out-of-scope symbols, or if the pool does not
-/// cover the payment (callers must validate first).
-pub fn apply_payment(pool: &mut ManaPool, cost: &ManaCost, payment: &Payment) {
-    let (colored, _) = requirement(cost).expect("validated cost");
-    for (kind, n) in colored {
-        pool.spend(kind, n);
+/// Panics if `cost` is out of scope or `pool` cannot cover it (call `can_pay`
+/// first).
+#[must_use]
+pub fn auto_pay(pool: &ManaPool, cost: &ManaCost) -> Payment {
+    let (colored, generic) = requirement(cost).expect("auto_pay on a payable cost");
+    let units = pool.units();
+    let mut used = vec![false; units.len()];
+    let mut chosen = Vec::new();
+    let mut take = |kind: Option<ColorOrColorless>, chosen: &mut Vec<usize>| {
+        let i = units
+            .iter()
+            .enumerate()
+            .position(|(i, u)| !used[i] && kind.is_none_or(|k| u.kind == k))
+            .expect("can_pay guarantees a covering unit");
+        used[i] = true;
+        chosen.push(i);
+    };
+    for (c, n) in colored {
+        for _ in 0..n {
+            take(Some(c), &mut chosen);
+        }
     }
-    for kind in &payment.generic {
-        pool.spend(*kind, 1);
+    for _ in 0..generic {
+        take(None, &mut chosen);
     }
+    Payment { units: chosen }
 }
 
 /// The pool as (kind, amount) pairs over all six kinds.
@@ -402,6 +437,19 @@ impl GameState {
         let filter = crate::resolve::target_spec_filter(spec);
         candidates(self, filter)
     }
+
+    /// Auto-tap the in-flight `PayMana` decision ([CR#601.2g]).
+    ///
+    /// # Panics
+    ///
+    /// Panics if the pending decision is not `PayMana`.
+    #[must_use]
+    pub fn auto_pay_pending(&self) -> Payment {
+        match &self.pending {
+            Some(PendingDecision::PayMana { cost, pool, .. }) => auto_pay(pool, cost),
+            other => panic!("auto_pay_pending called without a PayMana decision: {other:?}"),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -436,21 +484,64 @@ mod tests {
     }
 
     #[test]
-    fn validate_and_apply_round_trip() {
-        let mut p = pool(&[(green(), 1), (red(), 1)]);
-        let pay = Payment {
-            generic: vec![red()],
-        }; // {1}<-R, {G}<-G
-        assert!(validate_payment(&p, &cost("{1}{G}"), &pay));
-        apply_payment(&mut p, &cost("{1}{G}"), &pay);
-        assert!(p.is_empty());
-        // An allocation that double-spends a color it doesn't have is invalid.
+    fn validate_payment_selects_units() {
+        // Pool [G, R] (indices 0, 1) against {1}{G}: covering selection valid.
+        let p = pool(&[(green(), 1), (red(), 1)]);
+        assert!(validate_payment(
+            &p,
+            &cost("{1}{G}"),
+            &Payment { units: vec![0, 1] }
+        ));
+        // Too few units (mana value is 2, only one selected).
         assert!(!validate_payment(
-            &pool(&[(green(), 2)]),
+            &p,
+            &cost("{1}{G}"),
+            &Payment { units: vec![0] }
+        ));
+        // Too many units (over-spend).
+        assert!(!validate_payment(
+            &pool(&[(green(), 1), (red(), 2)]),
             &cost("{1}{G}"),
             &Payment {
-                generic: vec![red()]
+                units: vec![0, 1, 2]
             }
         ));
+        // Out-of-range index.
+        assert!(!validate_payment(
+            &p,
+            &cost("{1}{G}"),
+            &Payment { units: vec![0, 9] }
+        ));
+        // Duplicate index (would select the same unit twice).
+        assert!(!validate_payment(
+            &p,
+            &cost("{1}{G}"),
+            &Payment { units: vec![0, 0] }
+        ));
+        // The colored {G} need is unmet: selecting two reds for {1}{G}.
+        assert!(!validate_payment(
+            &pool(&[(red(), 2)]),
+            &cost("{1}{G}"),
+            &Payment { units: vec![0, 1] }
+        ));
+    }
+
+    #[test]
+    fn validate_and_apply_round_trip() {
+        let mut p = pool(&[(green(), 1), (red(), 1)]); // 0=G, 1=R
+        let pay = Payment { units: vec![1, 0] }; // {1}<-R(1), {G}<-G(0)
+        assert!(validate_payment(&p, &cost("{1}{G}"), &pay));
+        apply_payment(&mut p, &pay);
+        assert!(p.is_empty());
+    }
+
+    #[test]
+    fn auto_pay_covers_colored_then_generic() {
+        // Pool [G, G, R] (0,1,2), cost {1}{G}: {G} forced to a green, {1} to the
+        // next unused unit (the other green). Deterministic, first-fit.
+        let p = pool(&[(green(), 2), (red(), 1)]);
+        let pay = auto_pay(&p, &cost("{1}{G}"));
+        assert_eq!(pay.units, vec![0, 1]);
+        assert!(validate_payment(&p, &cost("{1}{G}"), &pay));
     }
 }

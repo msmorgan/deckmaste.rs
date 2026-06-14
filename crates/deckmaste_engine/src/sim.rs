@@ -16,10 +16,7 @@ use deckmaste_core::Card;
 use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::Int;
-use deckmaste_core::ManaCost;
-use deckmaste_core::ManaSymbol;
 use deckmaste_core::Phase;
-use deckmaste_core::SimpleManaSymbol;
 use deckmaste_core::Type;
 use deckmaste_core::Uint;
 
@@ -32,7 +29,6 @@ use crate::GameState;
 use crate::ManaPool;
 use crate::ObjectId;
 use crate::Occurrence;
-use crate::Payment;
 use crate::PendingDecision;
 use crate::PlayerConfig;
 use crate::PlayerId;
@@ -123,35 +119,6 @@ fn all_kinds() -> [ColorOrColorless; 6] {
 
 fn pool_total(pool: &ManaPool) -> usize {
     all_kinds().iter().map(|&k| pool.amount(k) as usize).sum()
-}
-
-/// Build a `Payment` covering `cost` from `pool`: colored pips are forced by
-/// their color, and each generic pip is filled from whatever kind still has
-/// leftover. The policy only casts when the pool can pay, so this always finds
-/// a covering allocation (matching the engine's `validate_payment`).
-fn pay(cost: &ManaCost, pool: &ManaPool) -> Payment {
-    let mut remaining: Vec<(ColorOrColorless, Uint)> =
-        all_kinds().iter().map(|&k| (k, pool.amount(k))).collect();
-    let mut generic_pips: Uint = 0;
-    for sym in cost.iter() {
-        match sym {
-            ManaSymbol::Simple(SimpleManaSymbol::Generic(n)) => generic_pips += *n,
-            ManaSymbol::Simple(SimpleManaSymbol::Specific(c)) => {
-                if let Some(slot) = remaining.iter_mut().find(|(k, _)| *k == *c) {
-                    slot.1 = slot.1.saturating_sub(1);
-                }
-            }
-            _ => {}
-        }
-    }
-    let mut generic = Vec::new();
-    for _ in 0..generic_pips {
-        if let Some(slot) = remaining.iter_mut().find(|(_, n)| *n > 0) {
-            slot.1 -= 1;
-            generic.push(slot.0);
-        }
-    }
-    Payment { generic }
 }
 
 // --- strategies: per-seat decision-makers
@@ -312,7 +279,9 @@ fn mechanical(state: &GameState, pending: &PendingDecision) -> Decision {
         PendingDecision::ChooseManaColor { options, .. } => {
             Decision::ManaColor(*options.first().expect("a mana choice offers options"))
         }
-        PendingDecision::PayMana { cost, pool, .. } => Decision::Pay(pay(cost, pool)),
+        PendingDecision::PayMana { cost, pool, .. } => {
+            Decision::Pay(crate::cast::auto_pay(pool, cost))
+        }
         PendingDecision::OrderTriggers { triggers, .. } => {
             Decision::Order((0..triggers.len()).collect())
         }
