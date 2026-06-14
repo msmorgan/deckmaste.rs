@@ -1,6 +1,7 @@
 use std::process::ExitCode;
 
 use anyhow::Result;
+use deckmaste_engine::PendingDecision;
 use deckmaste_engine::sim::GreedyCreatures;
 use ratatui::DefaultTerminal;
 use ratatui::crossterm::event::Event;
@@ -36,7 +37,7 @@ fn try_run() -> Result<()> {
         match stop {
             Stop::GameOver(outcome) => println!("game over: {outcome:?}"),
             Stop::Budget => println!("step budget reached without a result"),
-            Stop::Priority(_) => unreachable!("headless auto-resolves priority"),
+            Stop::Decision(_) => unreachable!("headless auto-resolves every decision"),
         }
         return Ok(());
     }
@@ -51,7 +52,7 @@ fn try_run() -> Result<()> {
 
 fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Result<()> {
     let mut board = BoardState::new();
-    let mut stop = driver.run_to_priority()?;
+    let mut stop = driver.run_to_decision()?;
     loop {
         board.sync(&driver.state);
         let view = driver.state.layers();
@@ -74,16 +75,16 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
                 board.step_selection(true, board.focused_len(&driver.state, &view));
             }
             KeyCode::Char(' ') => {
-                if let Stop::Priority(_) = stop {
+                if let Stop::Decision(PendingDecision::Priority { .. }) = &stop {
                     driver.pass()?;
-                    stop = driver.run_to_priority()?;
+                    stop = driver.run_to_decision()?;
                 }
             }
             KeyCode::Enter => {
-                if let Stop::Priority(pending) = &stop {
+                if let Stop::Decision(pending) = &stop {
                     let pending = pending.clone();
                     driver.auto(&pending)?;
-                    stop = driver.run_to_priority()?;
+                    stop = driver.run_to_decision()?;
                 }
             }
             _ => {}
