@@ -108,10 +108,25 @@ pub(super) fn strip_expanded(f: &Filter) -> &Filter {
     }
 }
 
-/// A `Scope` as the subject noun phrase of a static modification.
-pub(super) fn scope_subject(scope: &Scope) -> String {
+/// `(subject phrase, is_plural)`.  `subject_name` resolves `Reference::This`.
+pub(super) fn scope_subject_agreed(scope: &Scope, subject_name: &str) -> (String, bool) {
     match scope {
-        Scope::Matching(f) => filter_subject(f),
+        Scope::Matching(f) => (filter_subject(f), true),
+        Scope::Of(r) => (reference_subject(r, subject_name), false),
+        Scope::These(rs) => (
+            rs.iter()
+                .map(|r| reference_subject(r, subject_name))
+                .collect::<Vec<_>>()
+                .join(" and "),
+            rs.len() != 1,
+        ),
+    }
+}
+
+/// A `Reference` as a static-effect subject phrase.
+fn reference_subject(r: &Reference, subject_name: &str) -> String {
+    match r {
+        Reference::This => subject_name.to_string(),
         other => format!("[unrendered: {other:?}]"),
     }
 }
