@@ -504,4 +504,75 @@ mod tests {
         assert_eq!(it.confirm(), Some(Decision::Blocks(vec![])));
         assert_eq!(it.candidates(), vec![b0]); // available again
     }
+
+    #[test]
+    fn interactive_path_produces_only_legal_decisions() {
+        use deckmaste_engine::Decision;
+        use deckmaste_engine::PendingDecision;
+        use deckmaste_engine::sim::GreedyCreatures;
+
+        use crate::driver::Driver;
+        use crate::driver::Stop;
+
+        let mut driver = Driver::new(
+            game::build_game().expect("build demo game"),
+            Box::new(GreedyCreatures),
+        );
+        let mut stop = driver.run_to_decision().expect("first stop");
+        // Bound the loop so a logic bug can't hang the test.
+        for _ in 0..200_000 {
+            let pending = match &stop {
+                Stop::GameOver(_) | Stop::Budget => return, // terminated cleanly
+                Stop::Decision(p) => p.clone(),
+            };
+            let decision = match &pending {
+                // Priority: prefer playing a land, else casting, else pass.
+                PendingDecision::Priority { legal, .. } => {
+                    let pick = legal
+                        .iter()
+                        .find(|a| matches!(a, deckmaste_engine::Action::PlayLand { .. }))
+                        .or_else(|| {
+                            legal
+                                .iter()
+                                .find(|a| matches!(a, deckmaste_engine::Action::CastSpell { .. }))
+                        })
+                        .cloned()
+                        .unwrap_or(deckmaste_engine::Action::Pass);
+                    Decision::Act(pick)
+                }
+                // Targets: first candidate per spec, built through Interaction.
+                PendingDecision::ChooseTargets { .. } => {
+                    let mut it = Interaction::for_decision(&pending).expect("interactive");
+                    loop {
+                        let cand = it.candidates();
+                        if let Some(&first) = cand.first() {
+                            it.toggle(first);
+                        }
+                        match it.confirm() {
+                            Some(d) => break d,
+                            None => it.advance(),
+                        }
+                    }
+                }
+                // Attackers: swing with everything, built through Interaction.
+                PendingDecision::DeclareAttackers { legal, .. } => {
+                    let mut it = Interaction::for_decision(&pending).expect("interactive");
+                    for &id in legal {
+                        it.toggle(id);
+                    }
+                    it.confirm().expect("attackers confirm")
+                }
+                // Blockers: declare no blocks, built through Interaction.
+                PendingDecision::DeclareBlockers { .. } => {
+                    let it = Interaction::for_decision(&pending).expect("interactive");
+                    it.confirm().expect("blocks confirm")
+                }
+                other => panic!("run_to_decision surfaced a non-interactive kind: {other:?}"),
+            };
+            stop = driver
+                .submit(decision)
+                .expect("every Interaction-built decision is legal");
+        }
+        panic!("game did not terminate within the decision budget");
+    }
 }
