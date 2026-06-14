@@ -31,3 +31,11 @@ fn renders_vanilla_grizzly_bears() {
         }
     );
 }
+
+#[test]
+fn renders_keyword_only_wall_of_stone() {
+    let r = render_card_face(&face("Wall of Stone"));
+    assert_eq!(r.type_line, "Creature — Wall");
+    assert_eq!(r.pt, Some("0/8".to_string()));
+    assert_eq!(r.rules, vec!["Defender".to_string()]);
+}

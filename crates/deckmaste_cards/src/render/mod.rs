@@ -3,6 +3,7 @@
 //! never a panic.
 
 mod card;
+mod keyword;
 
 use deckmaste_core::Ability;
 use deckmaste_core::CardFace;
@@ -67,6 +68,21 @@ pub(crate) struct Ctx<'a> {
 #[must_use]
 pub fn render_card_face(face: &CardFace) -> RenderedCard { render(&CardView::from(face)) }
 
+fn rules(view: &CardView) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut kw_line: Vec<String> = Vec::new();
+    for ability in view.abilities {
+        if let Ability::Keyword(k) = ability {
+            kw_line.push(keyword::keyword_name(k));
+        }
+        // non-keyword abilities: handled in later tasks
+    }
+    if !kw_line.is_empty() {
+        out.push(kw_line.join(", "));
+    }
+    out
+}
+
 /// General entry: render any `CardView`.
 #[must_use]
 pub fn render(view: &CardView) -> RenderedCard {
@@ -74,7 +90,7 @@ pub fn render(view: &CardView) -> RenderedCard {
         name: view.name.to_string(),
         mana_cost: card::mana_cost(view.mana_cost),
         type_line: card::type_line(view),
-        rules: Vec::new(), // abilities wired in later tasks
+        rules: rules(view),
         pt: card::pt(view),
     }
 }
