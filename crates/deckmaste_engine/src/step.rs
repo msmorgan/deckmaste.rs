@@ -84,6 +84,8 @@ pub enum Progress {
     /// [CR#601.2a,601.2b] / [CR#602.2a,602.2b]: a spell moved to the stack (or
     /// an activated ability was staged) and the announce slot opened.
     Announcing(crate::object::ObjectId),
+    /// [CR#601.2b]: the X-announce step ran (a `ChooseXValue` may now be pending).
+    XAnnounced,
     /// [CR#601.2c]: targets were announced for the in-flight spell (a
     /// `ChooseTargets` decision surfaces when `specs > 0`).
     TargetsAnnounced { specs: Uint },
@@ -131,6 +133,10 @@ impl GameState {
             WorkItem::BeginActivate { object, ability } => {
                 self.begin_activate(object, ability);
                 Progress::Announcing(object)
+            }
+            WorkItem::AnnounceX => {
+                self.announce_x();
+                Progress::XAnnounced
             }
             WorkItem::AnnounceTargets => {
                 let specs = self.announce_targets();

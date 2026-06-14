@@ -1,8 +1,8 @@
 //! Casting ([CR#601]): the mana-payment solver plus the reified announce flow
-//! (`begin_cast` → `announce_targets` → `pay_cost`), and the `can_cast`
-//! legality gate that `legal::legal_actions` offers from. The announce flow
-//! (`announce_targets` / `pay_cost`) is shared with activated abilities
-//! ([CR#602.2b]); see `activate.rs` for the activation entry point.
+//! (`begin_cast` → `announce_x` → `announce_targets` → `pay_cost`), and the
+//! `can_cast` legality gate that `legal::legal_actions` offers from. The
+//! announce flow (`announce_targets` / `pay_cost`) is shared with activated
+//! abilities ([CR#602.2b]); see `activate.rs` for the activation entry point.
 
 use deckmaste_core::Agency;
 use deckmaste_core::ColorOrColorless;
@@ -46,7 +46,7 @@ pub(crate) fn concretize_x(cost: &ManaCost, x: Uint) -> ManaCost {
         cost.iter()
             .map(|s| match s {
                 ManaSymbol::Variable => ManaSymbol::Simple(SimpleManaSymbol::Generic(x)),
-                other => other.clone(),
+                other => *other,
             })
             .collect::<Vec<_>>(),
     )
@@ -385,6 +385,34 @@ impl GameState {
         count
     }
 
+    /// [CR#601.2b]: surface a `ChooseXValue` if the in-flight announce's cost has
+    /// an `{X}` (`ManaSymbol::Variable`). Runs before `announce_targets`
+    /// ([CR#601.2c]). No-op for an X-free cost, so the step is uniform.
+    ///
+    /// # Panics
+    /// Panics if no announce is in flight, or a `Triggered` object occupies the
+    /// slot — engine invariants.
+    pub(crate) fn announce_x(&mut self) {
+        let pending = self.announcing.as_ref().expect("an announce in flight");
+        let controller = pending.controller;
+        let has_x = match &pending.object {
+            StackObject::Spell(o) => self
+                .mana_cost(*o)
+                .is_some_and(|c| c.iter().any(|s| matches!(s, ManaSymbol::Variable))),
+            StackObject::Activated { ability, .. } => crate::activate::cost_summary(&ability.cost)
+                .expect("can_activate vetted the cost")
+                .mana
+                .iter()
+                .any(|s| matches!(s, ManaSymbol::Variable)),
+            StackObject::Triggered { .. } => {
+                unreachable!("a triggered ability never occupies the announce slot")
+            }
+        };
+        if has_x {
+            self.pending = Some(PendingDecision::ChooseXValue { player: controller });
+        }
+    }
+
     /// [CR#601.2f,601.2g,601.2h]: pay the in-flight cost. Always surfaces a `PayMana`
     /// decision for any non-empty mana cost; the core never auto-pays.
     /// Auto-resolution (an Arena-style autotapper) is a future runner concern.
@@ -399,10 +427,14 @@ impl GameState {
     pub(crate) fn pay_cost(&mut self) {
         let pending = self.announcing.as_ref().expect("an announce in flight");
         let controller = pending.controller;
+        let announced_x = pending.x.unwrap_or(0);
         match &pending.object {
             StackObject::Spell(o) => {
                 let object = *o;
-                let cost = self.mana_cost(object).expect("a castable spell has a cost");
+                let cost = concretize_x(
+                    &self.mana_cost(object).expect("a castable spell has a cost"),
+                    announced_x,
+                );
                 if !cost.is_empty() {
                     let pool = self.player(controller).mana_pool.clone();
                     self.pending = Some(PendingDecision::PayMana {
@@ -445,11 +477,12 @@ impl GameState {
                 if !events.is_empty() {
                     self.schedule_front(events);
                 }
-                if !summary.mana.is_empty() {
+                let mana = concretize_x(&summary.mana, announced_x);
+                if !mana.is_empty() {
                     let pool = self.player(controller).mana_pool.clone();
                     self.pending = Some(PendingDecision::PayMana {
                         player: controller,
-                        cost: summary.mana,
+                        cost: mana,
                         pool,
                         // [CR#106.6]: an activated ability's mana is spent on
                         // its source — that is the object SpendOnly judges.

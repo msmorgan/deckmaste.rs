@@ -45,6 +45,9 @@ pub enum WorkItem {
         object: crate::object::ObjectId,
         ability: usize,
     },
+    /// [CR#601.2b,602.2b]: announce the value of `{X}` in the in-flight cost
+    /// (before targets, [CR#601.2c]). No-op when the cost has no `{X}`.
+    AnnounceX,
     /// [CR#601.2c,602.2b]: surface `ChooseTargets` if the in-flight announce
     /// (spell or activated ability) has targets.
     AnnounceTargets,
