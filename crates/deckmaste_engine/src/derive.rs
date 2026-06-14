@@ -113,7 +113,22 @@ pub fn abilities_of_source(state: &GameState, source: ObjectSource) -> Vec<Abili
 
 /// Splice a composite keyword's members into `out` (recursively — a
 /// composite may carry another); any other ability passes through as-is.
+///
+/// `Innate` is PEELED here ([CR#113.12,604.1]): this is the engine-internal
+/// enumeration (trigger gathering, the `Has`/keyword reads), which sees the
+/// inner ability, not the wrapper — so an `Innate(Triggered)`/`Innate(Keyword)`
+/// is enumerated like its bare form. The card-facing FILTER lives in
+/// `derive::abilities` (the invisibility surface), not here.
+/// `abilities_of_source` is indexed self-consistently on both ends (trigger
+/// placement + resolution read the same flattened list), so peeling keeps it
+/// consistent.
 fn flatten_composites(ability: &Ability, out: &mut Vec<Ability>) {
+    // Peel any `Innate` wrapper first, then re-dispatch on the inner ability
+    // (which may itself be a composite keyword to splice).
+    if let Ability::Innate(inner) = ability {
+        flatten_composites(inner, out);
+        return;
+    }
     if let Ability::Keyword(k) = ability
         && let Some(members) = composite_members(k)
     {
@@ -162,5 +177,77 @@ pub fn tap_mana_ability(ability: &Ability) -> Option<(ColorOrColorless, Uint)> {
         }
         Ability::Expanded(e) => tap_mana_ability(&e.value),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use deckmaste_core::Ability;
+    use deckmaste_core::Card;
+    use deckmaste_core::CardFace;
+    use deckmaste_core::Effect;
+    use deckmaste_core::Event;
+    use deckmaste_core::Reference;
+    use deckmaste_core::TriggeredAbility;
+    use deckmaste_core::Zone;
+
+    use crate::object::ObjectSource;
+    use crate::player::PlayerId;
+    use crate::state::GameConfig;
+    use crate::state::GameState;
+    use crate::state::PlayerConfig;
+    use crate::state::StartingPlayer;
+
+    fn game() -> GameState {
+        GameState::new(GameConfig {
+            players: vec![PlayerConfig { deck: vec![] }, PlayerConfig { deck: vec![] }],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        })
+    }
+
+    /// [CR#113.12,604.1]: `abilities_of_source` (the engine-internal
+    /// enumeration the trigger scan consumes) PEELS `Innate` — an
+    /// `Innate(Triggered(...))` is enumerated as the bare `Triggered`, so the
+    /// trigger gathering sees it. (The card-facing FILTER in
+    /// `derive::abilities` is a separate surface and is unaffected.)
+    #[test]
+    fn abilities_of_source_peels_innate_triggered() {
+        let mut state = game();
+        let trigger = TriggeredAbility {
+            event: Event::ZoneMove {
+                what: deckmaste_core::Filter::Ref(Reference::This),
+                from: None,
+                to: Some(Zone::Graveyard),
+                face: None,
+                cause: None,
+            },
+            condition: None,
+            limits: vec![],
+            targets: vec![],
+            effect: Effect::Act(deckmaste_core::Action::By(
+                Reference::You,
+                deckmaste_core::PlayerAction::Draw(deckmaste_core::Count::Literal(1)),
+            )),
+        };
+        let card = Card::Normal(CardFace {
+            name: "Innate Triggerer".into(),
+            abilities: vec![Ability::Innate(Box::new(Ability::Triggered(
+                trigger.clone(),
+            )))],
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+
+        let derived = super::abilities_of_source(&state, ObjectSource::Card(card_id));
+        assert_eq!(
+            derived,
+            vec![Ability::Triggered(trigger)],
+            "abilities_of_source must peel Innate so the trigger scan sees the \
+             Triggered ability (not the opaque Innate wrapper)"
+        );
     }
 }
