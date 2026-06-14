@@ -110,6 +110,8 @@ fn damage_target(text: &str) -> Option<(Vec<String>, String)> {
         "target player" => (vec!["TargetOne(Player)".to_owned()], "Target(0)".to_owned()),
         "each creature" => (Vec::new(), "Filter(Creature)".to_owned()),
         "each player" => (Vec::new(), "Filter(Player)".to_owned()),
+        // "each opponent" — the players who are opponents of you ([CR#102.2]).
+        "each opponent" => (Vec::new(), "Filter(OpponentOf(Ref(You)))".to_owned()),
         _ => return None,
     })
 }
@@ -158,11 +160,20 @@ mod tests {
             parsed("~ deals 20 damage to each player."),
             Some((String::new(), "DealDamage(Filter(Player), 20)".to_owned()))
         );
+        // "each opponent" -> the player set "opponents of you".
+        assert_eq!(
+            parsed("~ deals 1 damage to each opponent."),
+            Some((
+                String::new(),
+                "DealDamage(Filter(OpponentOf(Ref(You))), 1)".to_owned()
+            ))
+        );
     }
 
     #[test]
     fn declines_unknown_damage_targets_and_non_effects() {
-        assert!(parse_clause("~ deals 3 damage to each opponent.").is_none());
+        // A damage target the grammar doesn't model still declines.
+        assert!(parse_clause("~ deals 3 damage to each artifact.").is_none());
         assert!(parse_clause("Flying").is_none());
         assert!(parse_clause("~ deals X damage to any target.").is_none());
     }
