@@ -26,6 +26,9 @@ fn parse(line: &str, kind: CardKind) -> Option<String> {
     if let Some((subj, pred)) = modify::split_marker(body, &[" can't ", " cannot "]) {
         return parse_restriction(subj, pred);
     }
+    if let Some((subj, pred)) = modify::split_marker(body, &[" attacks ", " attack "]) {
+        return parse_requirement(subj, pred);
+    }
     if let Some((subj, pred)) = modify::split_marker(body, &[" gets ", " get "]) {
         return parse_pt(subj, pred);
     }
@@ -78,6 +81,19 @@ fn parse_restriction(subj: &str, pred: &str) -> Option<String> {
         .collect();
     let effects = effects?;
     Some(format!("Static(effects: [{}])", effects.join(", ")))
+}
+
+/// "<subject> attack[s] each combat if able" → a `Must(Attack(by: <subject>))`
+/// requirement static ([CR#508.1d]). The predicate must be exactly the
+/// "each combat if able" requirement tail — any other prose after the verb
+/// (e.g. "this turn", "a player") declines, so the bare verb marker never
+/// swallows a durational or targeted clause.
+fn parse_requirement(subj: &str, pred: &str) -> Option<String> {
+    if pred.trim() != "each combat if able" {
+        return None;
+    }
+    let filter = modify::subject_to_filter(subj)?;
+    Some(format!("Static(effects: [Must(Attack(by: {filter}))])"))
 }
 
 #[cfg(test)]
@@ -174,6 +190,33 @@ mod tests {
     #[test]
     fn restriction_declines_unknown_action() {
         assert!(stat("Enchanted creature can't transform.").is_none());
+    }
+
+    #[test]
+    fn requirement_attack_each_combat() {
+        // Goblin Rabblemaster's requirement clause → a Must(Attack) static over
+        // the subject filter ([CR#508.1d]).
+        assert_eq!(
+            stat("Other Goblin creatures you control attack each combat if able.").as_deref(),
+            Some(
+                "Static(effects: [Must(Attack(by: AllOf([Creature, Not(Ref(This)), Subtype(\"Goblin\"), ControlledBy(Ref(You))])))])"
+            )
+        );
+        // A self-ref subject ("~ attacks each combat if able") → Must over This.
+        assert_eq!(
+            stat("~ attacks each combat if able.").as_deref(),
+            Some("Static(effects: [Must(Attack(by: Ref(This)))])")
+        );
+    }
+
+    #[test]
+    fn requirement_declines_partial_phrase() {
+        // The bare " attack " marker must not swallow non-requirement prose; only
+        // the exact "each combat if able" tail (singular or plural verb) qualifies.
+        assert!(stat("Creatures you control attack this turn if able.").is_none());
+        assert!(stat("Creatures you control attack a player.").is_none());
+        // A targeted subject still declines (no class filter).
+        assert!(stat("Target creature attacks each combat if able.").is_none());
     }
 
     #[test]
