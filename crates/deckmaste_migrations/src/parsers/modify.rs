@@ -64,6 +64,29 @@ pub(super) fn parse_pt_changes(s: &str) -> Option<Vec<String>> {
     ])
 }
 
+/// "+1/+1" / "+1/+0" with a dynamic `count` (a `CountOf(…)` RON) ->
+/// [Add Power, Add Toughness]. Each side must be `+1` (scales to `count`) or
+/// `+0` (`Literal(0)`); any other magnitude or a negative sign declines — the
+/// `Count` grammar has no product form, and a negative count is meaningless
+/// (object counts are non-negative [CR#107.1b]).
+pub(super) fn parse_pt_changes_scaled(s: &str, count: &str) -> Option<Vec<String>> {
+    let (p, t) = s.split_once('/')?;
+    Some(vec![
+        format!("AddPower({})", scaled_side(p, count)?),
+        format!("AddToughness({})", scaled_side(t, count)?),
+    ])
+}
+
+/// One signed P/T token under a dynamic count: `+1` -> the count, `+0` ->
+/// `Literal(0)`, anything else -> `None`.
+fn scaled_side(tok: &str, count: &str) -> Option<String> {
+    match tok.trim() {
+        "+1" => Some(count.to_owned()),
+        "+0" => Some("Literal(0)".to_owned()),
+        _ => None,
+    }
+}
+
 fn signed(tok: &str) -> Option<(&'static str, u32)> {
     let tok = tok.trim();
     // std u32::parse tolerates a leading '+', so "++1" would collapse to +1;

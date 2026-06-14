@@ -43,7 +43,14 @@ pub(super) fn parse_clause(line: &str) -> Option<ParsedEffect> {
 /// (`Matching`/`Of`).
 fn parse_pump(line: &str) -> Option<ParsedEffect> {
     let body = line.strip_suffix('.')?.strip_suffix(" until end of turn")?;
-    let changes = pump_changes(body)?;
+    // A "for each <filter>" tail scales the P/T; where/equal-to are not a
+    // natural pump form and decline.
+    let (body, scaled) = match count::strip(body) {
+        Some(c) if matches!(c.binder, count::Binder::ForEach) => (c.head, Some(c.count)),
+        Some(_) => return None,
+        None => (body, None),
+    };
+    let changes = pump_changes(body, scaled.as_deref())?;
     let (scope, targets) = pump_scope(pump_subject(body)?)?;
     Some(ParsedEffect {
         targets,
@@ -62,14 +69,21 @@ fn pump_subject(body: &str) -> Option<&str> {
 
 /// The changes list of a pump body: "±N/±N [and gain <kw…>]" (the P/T form,
 /// with an optional keyword tail) or a bare keyword grant.
-fn pump_changes(body: &str) -> Option<Vec<String>> {
+fn pump_changes(body: &str, scaled: Option<&str>) -> Option<Vec<String>> {
     if let Some((_, pred)) = modify::split_marker(body, &[" gets ", " get "]) {
         let (pt_part, grant_tail) = modify::split_grant_tail(pred);
-        let mut changes = modify::parse_pt_changes(pt_part.trim())?;
+        let mut changes = match scaled {
+            Some(count) => modify::parse_pt_changes_scaled(pt_part.trim(), count)?,
+            None => modify::parse_pt_changes(pt_part.trim())?,
+        };
         if let Some(tail) = grant_tail {
             changes.extend(modify::parse_keyword_changes(tail)?);
         }
         return Some(changes);
+    }
+    // A keyword-only grant can't carry a numeric scaler.
+    if scaled.is_some() {
+        return None;
     }
     let (_, pred) = modify::split_marker(body, &[" gains ", " gain ", " have ", " has "])?;
     modify::parse_keyword_changes(pred)
@@ -826,5 +840,40 @@ mod tests {
             parsed("~ deals 3 damage to any target."),
             Some(("AnyTarget".to_owned(), "DealDamage(Target(0), 3)".to_owned()))
         );
+    }
+
+    #[test]
+    fn durational_pump_for_each() {
+        assert_eq!(
+            parsed("Creatures you control get +1/+1 for each Goblin you control until end of turn."),
+            Some((
+                String::new(),
+                "Continuously(effect: Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), \
+                 changes: [AddPower(CountOf(AllOf([Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), \
+                 AddToughness(CountOf(AllOf([Subtype(\"Goblin\"), ControlledBy(Ref(You))])))]), \
+                 duration: FixedUntil(EndOfTurn))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn durational_pump_for_each_half_scaled() {
+        // "+1/+0 for each": power scales, toughness fixed at 0.
+        assert_eq!(
+            parsed("Creatures you control get +1/+0 for each Goblin you control until end of turn."),
+            Some((
+                String::new(),
+                "Continuously(effect: Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), \
+                 changes: [AddPower(CountOf(AllOf([Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), \
+                 AddToughness(Literal(0))]), \
+                 duration: FixedUntil(EndOfTurn))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn durational_pump_for_each_nonunit_declines() {
+        // "+2/+2 for each" has no Count product form -> decline.
+        assert!(parse_clause("Creatures you control get +2/+2 for each Goblin you control until end of turn.").is_none());
     }
 }
