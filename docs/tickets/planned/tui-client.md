@@ -2,8 +2,9 @@
 needs: []
 ---
 Epic. An interactive ratatui hotseat client — the project's primary binary — that
-plays a full game (Goblins vs Elves, from committed `plugins/canon` + `builtin`, no
-data download) by answering the engine's OWN decisions through its public
+plays a full game (Goblins vs Elves — decklists committed, the cards themselves
+generated locally from MTGJSON rather than canonized) by answering the engine's OWN
+decisions through its public
 `step()`/`submit_decision()` API. One human drives both seats; the active
 perspective auto-follows whoever the engine is asking to decide. Side-by-side
 battlefields (public), a middle pane showing the selected object's rendered text,
@@ -15,7 +16,7 @@ external consumer.
 
 Decomposed into — UI: `tui-crate-scaffold`, `tui-board-view`,
 `tui-decision-actions`, `tui-shortcuts`, `tui-polish`; engine/render:
-`engine-decision-enumeration`, `card-text-render`; cards: `canon-goblins-elves` and
+`engine-decision-enumeration`, `card-text-render`; cards: `demo-goblins-elves` and
 its generator tasks `gen-token-effect`, `gen-dynamic-count`, `gen-sacrifice-cost`.
 Lives as `deckmaste_tui` for now; may move to a dedicated crate family once the
 engine has other consumers.
