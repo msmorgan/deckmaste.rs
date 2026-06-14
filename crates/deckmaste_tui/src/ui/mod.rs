@@ -27,10 +27,13 @@ use ratatui::widgets::Paragraph;
 use ratatui::widgets::Wrap;
 
 use crate::driver::Stop;
+use crate::shortcuts::PassMode;
+use crate::shortcuts::PassState;
 use crate::ui::board::Zone;
 
 /// Draw the whole board for one frame. `view` is the caller's once-per-frame
 /// `state.layers()`.
+#[allow(clippy::too_many_arguments)]
 pub fn render(
     frame: &mut Frame,
     state: &GameState,
@@ -39,6 +42,7 @@ pub fn render(
     stop: &Stop,
     interaction: Option<&crate::interact::Interaction>,
     error: Option<&str>,
+    pass: &PassState,
 ) {
     let [header, main, footer] = Layout::vertical([
         Constraint::Length(3),
@@ -57,7 +61,7 @@ pub fn render(
     let [p0_area, p1_area] =
         Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(fields);
 
-    render_header(frame, header, state, board);
+    render_header(frame, header, state, board, pass);
     render_zone(
         frame,
         p0_area,
@@ -106,7 +110,13 @@ pub fn render(
     }
 }
 
-fn render_header(frame: &mut Frame, area: Rect, state: &GameState, board: &BoardState) {
+fn render_header(
+    frame: &mut Frame,
+    area: Rect,
+    state: &GameState,
+    board: &BoardState,
+    pass: &PassState,
+) {
     let turn = &state.turn;
     let mut text = format!(
         "Turn {} · {:?} · active P{}",
@@ -117,6 +127,15 @@ fn render_header(frame: &mut Frame, area: Rect, state: &GameState, board: &Board
     }
     for p in &state.players {
         let _ = write!(text, "    P{}: {} life", p.id.0, p.life);
+        match pass.mode(p.id) {
+            Some(PassMode::Yield) => {
+                let _ = write!(text, " · yielding");
+            }
+            Some(PassMode::Turn) => {
+                let _ = write!(text, " · passing turn");
+            }
+            None => {}
+        }
     }
     frame.render_widget(Paragraph::new(text).block(Block::bordered()), area);
 }
@@ -205,7 +224,7 @@ fn render_footer(
             "Choose ability — [↑↓] select  [enter] do  [esc] cancel".to_string()
         }
         (Stop::Decision(p), Some(Interaction::Priority { .. })) => format!(
-            "P{} priority — [tab/↑↓←→] select  [enter] act  [space] pass  [q] quit",
+            "P{} priority — [enter] act  [space] pass  [y] yield  [P] pass turn  [q] quit",
             p.decider_player().0
         ),
         (Stop::Decision(_), Some(Interaction::Targets { chosen, active, .. })) => {
@@ -314,10 +333,22 @@ mod tests {
         board.sync(&driver.state);
         let view = driver.state.layers();
 
+        let pass = PassState::new();
         let backend = TestBackend::new(120, 40);
         let mut terminal = Terminal::new(backend).expect("terminal");
         terminal
-            .draw(|frame| render(frame, &driver.state, &view, &board, &stop, None, None))
+            .draw(|frame| {
+                render(
+                    frame,
+                    &driver.state,
+                    &view,
+                    &board,
+                    &stop,
+                    None,
+                    None,
+                    &pass,
+                );
+            })
             .expect("draw");
 
         let text = buffer_text(terminal.backend().buffer());
@@ -346,6 +377,7 @@ mod tests {
             chosen: vec![],
         };
 
+        let pass = PassState::new();
         let backend = TestBackend::new(120, 40);
         let mut terminal = Terminal::new(backend).expect("terminal");
         terminal
@@ -358,11 +390,85 @@ mod tests {
                     &stop,
                     Some(&it),
                     Some("nope"),
+                    &pass,
                 );
             })
             .expect("draw");
         let text = buffer_text(terminal.backend().buffer());
         assert!(text.contains("Declare attackers"), "footer prompt:\n{text}");
         assert!(text.contains("nope"), "error surfaced");
+    }
+
+    #[test]
+    fn priority_footer_shows_yield_and_pass_turn() {
+        let mut driver = Driver::new(
+            game::build_game().expect("build"),
+            Box::new(GreedyCreatures),
+        );
+        let stop = driver.run_to_priority().expect("priority");
+        let mut board = BoardState::new();
+        board.sync(&driver.state);
+        let view = driver.state.layers();
+        let pass = PassState::new();
+        let interaction = crate::interact::Interaction::Priority { sub: None };
+
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).expect("terminal");
+        terminal
+            .draw(|frame| {
+                render(
+                    frame,
+                    &driver.state,
+                    &view,
+                    &board,
+                    &stop,
+                    Some(&interaction),
+                    None,
+                    &pass,
+                );
+            })
+            .expect("draw");
+        let text = buffer_text(terminal.backend().buffer());
+        assert!(text.contains("yield"), "footer offers yield:\n{text}");
+        assert!(
+            text.contains("pass turn"),
+            "footer offers pass turn:\n{text}"
+        );
+    }
+
+    #[test]
+    fn header_shows_armed_mode() {
+        let mut driver = Driver::new(
+            game::build_game().expect("build"),
+            Box::new(GreedyCreatures),
+        );
+        let stop = driver.run_to_priority().expect("priority");
+        let mut board = BoardState::new();
+        board.sync(&driver.state);
+        let view = driver.state.layers();
+        let mut pass = PassState::new();
+        pass.arm(PlayerId(0), PassMode::Yield, &driver.state);
+
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).expect("terminal");
+        terminal
+            .draw(|frame| {
+                render(
+                    frame,
+                    &driver.state,
+                    &view,
+                    &board,
+                    &stop,
+                    None,
+                    None,
+                    &pass,
+                );
+            })
+            .expect("draw");
+        let text = buffer_text(terminal.backend().buffer());
+        assert!(
+            text.contains("yielding"),
+            "header shows armed mode:\n{text}"
+        );
     }
 }

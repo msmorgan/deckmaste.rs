@@ -78,6 +78,7 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
                 &stop,
                 current.as_ref(),
                 error.as_deref(),
+                &pass,
             );
         })?;
 
