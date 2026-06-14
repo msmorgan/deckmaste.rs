@@ -26,7 +26,11 @@ impl GameState {
     /// `Also(would: Enters(This), also: Attach(This, to))` → enters attached
     /// ([CR#303.4], §4) — the host resolved from `to`; other `also` effects are
     /// a `todo!` seam.
-    pub(crate) fn as_enters_status(&self, source: ObjectSource) -> EnterStatus {
+    pub(crate) fn as_enters_status(
+        &self,
+        source: ObjectSource,
+        entering: crate::object::ObjectId,
+    ) -> EnterStatus {
         let mut status = EnterStatus::default();
         for ability in crate::derive::abilities_of_source(self, source) {
             if let Ability::Static(s) = &ability {
@@ -35,7 +39,7 @@ impl GameState {
                         && let Replacement::Also { would, also } = look_through(replacement)
                         && would_is_self_enter(would)
                     {
-                        self.apply_as_enters(also, &mut status);
+                        self.apply_as_enters(also, entering, &mut status);
                     }
                 }
             }
@@ -46,7 +50,12 @@ impl GameState {
     /// Fold one `also` effect into the entering status. `Tap(This)` → tapped;
     /// `Attach(This, to)` → enters attached, the host resolved from the `to`
     /// selection (§4). Counters/face-down are Stage-4 seams.
-    fn apply_as_enters(&self, effect: &Effect, status: &mut EnterStatus) {
+    fn apply_as_enters(
+        &self,
+        effect: &Effect,
+        entering: crate::object::ObjectId,
+        status: &mut EnterStatus,
+    ) {
         match effect {
             // `Tap` is a `PlayerAction`, so the `AsEnters` sugar expands to
             // `Act(By(You, Tap(This)))` (the agent is irrelevant here).
@@ -56,9 +65,9 @@ impl GameState {
             // [CR#303.4]: enters attached. `what` is always this object (the
             // self-replacement watcher); the host is whatever `to` resolves to.
             Effect::Act(Action::Attach { what, to }) if is_self_selection(what) => {
-                status.attach_to = self.enters_attached_host(to);
+                status.attach_to = self.enters_attached_host(entering, to);
             }
-            Effect::Expanded(e) => self.apply_as_enters(&e.value, status),
+            Effect::Expanded(e) => self.apply_as_enters(&e.value, entering, status),
             other => todo!("stage 3 does not interpret enters-replacement effect {other:?}"),
         }
     }
@@ -66,21 +75,28 @@ impl GameState {
     /// Resolve the host an `AsEnters(Attach(This, to))` attaches to (§4). The
     /// `to` selection is a *filter* over legal hosts (the enchant/equip
     /// `Param(0)` quality, or a target-position filter looked through here):
-    /// pick the first matching battlefield permanent in deterministic id order.
+    /// pick the first battlefield permanent that both matches the `to` filter
+    /// AND is a LEGAL host for `entering` per `attachment_legal` ([CR#303.4f] —
+    /// the controller chooses among *legal* hosts; here, deterministic id
+    /// order). `attachment_legal` folds in host-side protection ([CR#702.16d])
+    /// on top of the `to` quality bound, generically — no subtype branch.
     ///
     /// Host resolution by entry context (spec §4) — entering from the stack
     /// attaches to the resolving spell's chosen target, entering otherwise
     /// surfaces a controller choice — is the Stage-4 cast-path wiring; Stage 1
     /// resolves the candidate set so the mechanism is exercised end-to-end.
-    ///
-    /// TODO(engine-attach Stage 2): fold in `Cant(Attach)` legality — restrict
-    /// the candidate set to hosts where `attachment_legal(state, _, host)`
-    /// holds, not just the `to` filter ([CR#303.4f]).
-    fn enters_attached_host(&self, to: &Selection) -> Option<crate::object::ObjectId> {
+    fn enters_attached_host(
+        &self,
+        entering: crate::object::ObjectId,
+        to: &Selection,
+    ) -> Option<crate::object::ObjectId> {
         let filter = host_filter(to)?;
         crate::target::candidates(self, filter)
             .into_iter()
-            .find(|&id| self.objects.obj(id).zone == Some(Zone::Battlefield))
+            .find(|&id| {
+                self.objects.obj(id).zone == Some(Zone::Battlefield)
+                    && crate::legal::attachment_legal(self, entering, id)
+            })
     }
 }
 

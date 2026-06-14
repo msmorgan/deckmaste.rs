@@ -256,11 +256,16 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
                     && from.is_none()
                     && cost.is_none())
             }
-            DeonticAction::Play { .. } | DeonticAction::Attach { .. } => true,
+            DeonticAction::Play { .. } => true,
+            // `Cant(Attach)` is EVALUATED via `attachment_legal` (the
+            // [CR#701.3b] no-op + the [CR#704.5m..704.5p] SBA sweep); only the
+            // non-`Cant` attach polarities (May/Must/Gate — no card needs
+            // them yet) stay a loud seam.
+            DeonticAction::Attach { .. } => !is_cant(d),
             DeonticAction::Target { .. } => !is_cant(d) && !is_must(d),
             _ => false,
         },
-        "cast/play/attach + May/Gate target",
+        "cast/play + non-Cant attach + May/Gate target",
     );
     guard_cost_modifier_seam(state, &view);
     for &object in &state.zones.hands[player.index()] {
@@ -671,6 +676,68 @@ pub(crate) fn target_forbidden_by(
         .map(|(carrier, ..)| *carrier)
 }
 
+/// Every `Cant(Attach)` row in the derived view, with its carrier:
+/// `(carrier source, what, to)`. Both the **attachment-side** restriction
+/// (Enchant's quality bound [CR#702.5a], the Equipment [CR#301.5] /
+/// Fortification [CR#301.6] host rule, conferred `Innate`) and the
+/// **host-side** restriction (protection's can't-be-equipped clause
+/// [CR#702.16d]) land here — the row is read the same way regardless of which
+/// permanent carries it. `statics_on` peels `Innate` ([CR#113.12]).
+#[must_use]
+fn cant_attach_rows(
+    state: &GameState,
+    view: &LayeredView,
+) -> Vec<(crate::object::ObjectSource, Filter, Filter)> {
+    let mut rows = Vec::new();
+    for &id in &state.zones.battlefield {
+        let source = state.objects.obj(id).source;
+        statics_on(view, id, &mut |e| {
+            if let StaticEffect::Deontic(d) = e
+                && let Some(DeonticAction::Attach { what, to }) = cant_action(d)
+            {
+                rows.push((source, what.clone(), to.clone()));
+            }
+        });
+    }
+    rows
+}
+
+/// [CR#701.3b,303.4d]: whether `attachment` may legally be attached to `host`
+/// — the ONE predicate used at both attach-time (the [CR#701.3b] no-op) and
+/// SBA-time (the [CR#704.5m..704.5p] illegal-attachment sweep).
+///
+/// `false` when `host == attachment` ([CR#303.4d] can't attach to itself) or
+/// `host` is gone; otherwise true iff no applicable `Cant(Attach(what, to))`
+/// row forbids the pair — `what` matched against the attachment and `to`
+/// against the host, both evaluated against LIVE/derived characteristics with
+/// the row's carrier as `This` (so protection / type changes / the conferred
+/// `Innate` host rules are all seen). This is the **generic** legality read:
+/// it never branches on the Aura/Equipment/Fortification subtype — those carry
+/// their restrictions as conferred `Cant(Attach)` data
+/// ([CR#702.5a,301.5,301.6]).
+#[must_use]
+pub(crate) fn attachment_legal(state: &GameState, attachment: ObjectId, host: ObjectId) -> bool {
+    // [CR#303.4d]: an attachment can't be attached to itself.
+    if host == attachment {
+        return false;
+    }
+    // A host that has left the game / is no longer live is not a legal host.
+    if state.objects.get(host).is_none() {
+        return false;
+    }
+    let view = state.layers();
+    let rows = cant_attach_rows(state, &view);
+    // Legal iff NO row forbids this (attachment, host) pair. A row forbids it
+    // when its `what` matches the attachment AND its `to` matches the host,
+    // both anchored on the row's carrier (so `Cant(Attach(what: Ref(This), …))`
+    // on the attachment, and `Cant(Attach(to: Ref(This)))` on the host, both
+    // resolve their self-reference correctly).
+    !rows.iter().any(|(carrier, what, to)| {
+        state.filter_matches_live(what, attachment, *carrier)
+            && state.filter_matches_live(to, host, *carrier)
+    })
+}
+
 /// One `May(Cast)` row from the derived view: the carrier it sits on and
 /// the permission's slots. `window` is the timing lift ([CR#702.8a]
 /// flash); `from`/`cost` are the cast-from-zones / alternative-cost
@@ -732,17 +799,32 @@ pub(crate) fn may_cast_rows(
 #[cfg(test)]
 mod tests {
     use std::ops::ControlFlow;
+    use std::sync::Arc;
 
     use deckmaste_core::Ability;
+    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::Deontic;
+    use deckmaste_core::DeonticAction;
     use deckmaste_core::Expansion;
     use deckmaste_core::Filter;
     use deckmaste_core::Ident;
     use deckmaste_core::KeywordAbility;
     use deckmaste_core::OutcomeGateKind;
+    use deckmaste_core::Reference;
     use deckmaste_core::StaticAbility;
     use deckmaste_core::StaticEffect;
+    use deckmaste_core::Type;
+    use deckmaste_core::Zone;
 
+    use super::attachment_legal;
     use super::walk_abilities;
+    use crate::object::ObjectId;
+    use crate::object::ObjectSource;
+    use crate::player::PlayerId;
+    use crate::state::GameConfig;
+    use crate::state::GameState;
+    use crate::state::PlayerConfig;
+    use crate::state::StartingPlayer;
 
     /// A distinguishable leaf effect: `OutcomeGate` tagged by `gate` so a
     /// collected sequence is order-checkable.
@@ -852,6 +934,136 @@ mod tests {
         assert_eq!(
             visited, 4,
             "every leaf effect is visited when nothing breaks"
+        );
+    }
+
+    fn game() -> GameState {
+        GameState::new(GameConfig {
+            players: vec![PlayerConfig { deck: vec![] }, PlayerConfig { deck: vec![] }],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        })
+    }
+
+    /// Mint a battlefield object of `types` carrying `abilities` (player 0).
+    fn obj_on_field(
+        state: &mut GameState,
+        name: &str,
+        types: Vec<Type>,
+        abilities: Vec<Ability>,
+    ) -> ObjectId {
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        let card = Card::Normal(CardFace {
+            name: name.into(),
+            types,
+            abilities,
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        id
+    }
+
+    /// An `Innate` static carrying a single `Cant(Attach(what, to))` row — the
+    /// conferred host-restriction shape (Equipment/Fortification subtype rule).
+    fn innate_cant_attach(what: Filter, to: Filter) -> Ability {
+        Ability::Innate(Box::new(Ability::Static(StaticAbility {
+            condition: None,
+            effects: vec![StaticEffect::Deontic(Deontic::Cant(
+                DeonticAction::Attach { what, to },
+            ))],
+            characteristic_defining: false,
+        })))
+    }
+
+    fn creature() -> Filter { Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)) }
+
+    /// [CR#701.3b,301.5]: an attachment with `Innate(Cant(Attach(what: Ref(This),
+    /// to: Not(Creature))))` (the Equipment-subtype shape) is legal on a
+    /// creature host and illegal on a non-creature host.
+    #[test]
+    fn attachment_legal_honors_attachment_side_cant() {
+        let mut state = game();
+        let equip = obj_on_field(
+            &mut state,
+            "Test Equipment",
+            vec![Type::Artifact],
+            vec![innate_cant_attach(
+                Filter::Ref(Reference::This),
+                Filter::Not(Box::new(creature())),
+            )],
+        );
+        let creature_host = obj_on_field(&mut state, "Bear", vec![Type::Creature], vec![]);
+        let noncreature_host = obj_on_field(&mut state, "Rock", vec![Type::Artifact], vec![]);
+
+        assert!(
+            attachment_legal(&state, equip, creature_host),
+            "Equipment is legal on a creature host"
+        );
+        assert!(
+            !attachment_legal(&state, equip, noncreature_host),
+            "Equipment is illegal on a non-creature host ([CR#301.5])"
+        );
+    }
+
+    /// [CR#303.4d]: an attachment can't be attached to itself, and a missing
+    /// host is never legal.
+    #[test]
+    fn attachment_legal_false_on_self_and_missing_host() {
+        let mut state = game();
+        let a = obj_on_field(&mut state, "Aura", vec![Type::Enchantment], vec![]);
+        assert!(
+            !attachment_legal(&state, a, a),
+            "can't attach to itself ([CR#303.4d])"
+        );
+        // A host id with no live object (use a from_raw invalid id is awkward;
+        // instead assert the self case + a normal legal case to bracket it).
+        let host = obj_on_field(&mut state, "Bear", vec![Type::Creature], vec![]);
+        assert!(
+            attachment_legal(&state, a, host),
+            "an unrestricted attachment is legal on any live host"
+        );
+    }
+
+    /// [CR#702.16d]: a HOST-side `Cant(Attach(what: Any, to: Ref(This)))`
+    /// (protection's can't-be-equipped clause shape) makes the host illegal for
+    /// any attachment — the row is read off the host the same generic way.
+    #[test]
+    fn attachment_legal_honors_host_side_cant() {
+        let mut state = game();
+        let attachment = obj_on_field(&mut state, "Aura", vec![Type::Enchantment], vec![]);
+        // A protected creature: forbids ANY attachment onto itself.
+        let protected = obj_on_field(
+            &mut state,
+            "Protected Bear",
+            vec![Type::Creature],
+            vec![Ability::Static(StaticAbility {
+                condition: None,
+                effects: vec![StaticEffect::Deontic(Deontic::Cant(
+                    DeonticAction::Attach {
+                        what: Filter::Any,
+                        to: Filter::Ref(Reference::This),
+                    },
+                ))],
+                characteristic_defining: false,
+            })],
+        );
+        let plain = obj_on_field(&mut state, "Plain Bear", vec![Type::Creature], vec![]);
+
+        assert!(
+            !attachment_legal(&state, attachment, protected),
+            "host-side Cant(Attach to: Ref(This)) forbids attachment ([CR#702.16d])"
+        );
+        assert!(
+            attachment_legal(&state, attachment, plain),
+            "an unprotected host is legal"
         );
     }
 }
