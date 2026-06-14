@@ -1,5 +1,4 @@
 //! Builds the demo `GameState` from committed plugin data + decklist files.
-#![allow(dead_code)]
 use std::path::Path;
 use std::path::PathBuf;
 
