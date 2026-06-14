@@ -997,6 +997,45 @@ mod tests {
         );
     }
 
+    /// [CR#113.12]: an `Expanded(Innate(...))` (a macro-expanded Innate, the
+    /// shape a Stage-4 subtype conferral may produce) ALSO survives
+    /// `LoseAllAbilities` — `is_innate` looks through the `Expanded` provenance
+    /// wrapper, so the retention guard keeps it. Observed via `is_innate` on
+    /// the derived list (not `peel_innate`, which stops at `Expanded`).
+    #[test]
+    fn expanded_innate_survives_lose_all_abilities() {
+        use deckmaste_core::Expansion;
+        use deckmaste_core::ExpansionArgs;
+
+        // `Expanded(Innate(Static(+2/+2 anthem)))`.
+        let expanded_innate = Ability::Expanded(Expansion {
+            name: "SubtypeRule".into(),
+            args: ExpansionArgs::none(),
+            template: None,
+            value: Box::new(pump_static(true)),
+        });
+        assert!(expanded_innate.is_innate(), "the test fixture is innate");
+        let (mut state, id) = creature_on_field(game(), vec![expanded_innate]);
+
+        let innate_present = |state: &GameState| {
+            state
+                .layers()
+                .get(id)
+                .abilities
+                .iter()
+                .any(Ability::is_innate)
+        };
+        assert!(
+            innate_present(&state),
+            "Expanded(Innate) present pre-removal"
+        );
+        lose_all_abilities(&mut state, id);
+        assert!(
+            innate_present(&state),
+            "Expanded(Innate) survives LoseAllAbilities ([CR#113.12])"
+        );
+    }
+
     /// Guard against over-retaining: a NORMAL (non-Innate) conferred static is
     /// removed from the derived ability list by `LoseAllAbilities` (so the SBA
     /// / legality reads no longer see it).
