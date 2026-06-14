@@ -334,6 +334,21 @@ pub enum GameEvent {
         object: ObjectId,
         to: PlayerId,
     },
+    /// An attachment became attached to a host ([CR#701.3a]; a re-attach is a
+    /// new timestamp per [CR#701.3c]). A fact for "whenever ~ becomes
+    /// attached / equipped"; the relation mutation happens in the `Attach`
+    /// verb's resolution, so apply only records this. Trigger-matching breadth
+    /// is a seam (events are shaped, §9).
+    Attached {
+        attachment: ObjectId,
+        host: ObjectId,
+    },
+    /// An attachment became unattached ([CR#701.3d]). A fact, mirroring
+    /// [`Attached`](GameEvent::Attached); apply only records it.
+    Unattached {
+        attachment: ObjectId,
+        former_host: ObjectId,
+    },
 }
 
 /// How a permanent enters the battlefield ([CR#110.5] status;
