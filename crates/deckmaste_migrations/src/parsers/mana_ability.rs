@@ -3,6 +3,7 @@
 
 use deckmaste_core::ColorOrColorless;
 
+use crate::parsers::count;
 use crate::resolve::CardKind;
 use crate::ron_output::to_string_pretty;
 
@@ -16,6 +17,9 @@ pub(super) enum Production {
     /// A run of mana symbols, consecutive identical specs run-length encoded:
     /// `{C}{C}` -> `[(2, Colorless)]`, `{W}{U}` -> `[(1, White), (1, Blue)]`.
     Fixed(Vec<(u32, ColorOrColorless)>),
+    /// "{G} for each <filter>" — a dynamic count of one symbol ([CR#107.3]).
+    /// Only a single symbol scales; the `String` is `CountOf(<filter>)` RON.
+    Scaled(String, ColorOrColorless),
 }
 
 /// One simple ability on a tap-for-mana permanent.
@@ -62,6 +66,17 @@ fn run_length_encode(colors: &[ColorOrColorless]) -> Vec<(u32, ColorOrColorless)
 
 /// Parses the text after `Add ` (trailing `.` already stripped).
 pub(super) fn parse_production(text: &str) -> Option<Production> {
+    // "<symbol> for each <filter>": only a single fixed symbol scales.
+    if let Some(clause) = count::strip(text) {
+        if !matches!(clause.binder, count::Binder::ForEach) {
+            return None;
+        }
+        let colors = parse_symbol_run(clause.head.trim())?;
+        let [color] = colors.as_slice() else {
+            return None;
+        };
+        return Some(Production::Scaled(clause.count, *color));
+    }
     if text == "one mana of any color" {
         return Some(Production::AnyColor);
     }
@@ -109,6 +124,9 @@ fn render_effect(production: &Production) -> anyhow::Result<String> {
             } else {
                 format!("Sequence([{}])", adds.join(", "))
             }
+        }
+        Production::Scaled(count, spec) => {
+            format!("AddMana({count}, {})", to_string_pretty(spec)?)
         }
     })
 }
@@ -178,6 +196,28 @@ mod tests {
     fn one_of_and_any_color() {
         assert_eq!(effect("{W} or {U}"), "AddMana(1, OneOf([White, Blue]))");
         assert_eq!(effect("one mana of any color"), "AddMana(1, AnyColor)");
+    }
+
+    #[test]
+    fn scaled_for_each_single_symbol() {
+        // Elvish Archdruid.
+        assert_eq!(
+            effect("{G} for each Elf you control"),
+            "AddMana(CountOf(AllOf([Subtype(\"Elf\"), ControlledBy(Ref(You))])), Green)"
+        );
+        // Priest of Titania (battlefield scope).
+        assert_eq!(
+            effect("{G} for each Elf on the battlefield"),
+            "AddMana(CountOf(Subtype(\"Elf\")), Green)"
+        );
+    }
+
+    #[test]
+    fn scaled_declines_multi_symbol_and_choice() {
+        // Multi-symbol "for each" would need a Count product -> decline.
+        assert!(parse_production("{G}{G} for each Elf you control").is_none());
+        // A color-choice / any-color base doesn't take a for-each scaler here.
+        assert!(parse_production("{W} or {U} for each Elf you control").is_none());
     }
 
     #[test]
