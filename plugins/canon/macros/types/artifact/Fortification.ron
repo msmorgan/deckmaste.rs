@@ -1,0 +1,22 @@
+// Fortification ([CR#205.3g], [CR#301.6]) — an artifact subtype that can be
+// attached only to a land. The host restriction is a rule of the SUBTYPE, not a
+// removable card ability, so it is conferred `Innate` (survives "loses all
+// abilities"); `attachment_legal` reads the `Cant(Attach)` generically (no
+// engine subtype branch). The fortify ACTIVATED ability rides the Fortify
+// keyword, not the subtype.
+//
+// Authored directly as a `Subtype` (not via the `ArtifactType` meta-macro)
+// because this artifact subtype carries a `confers:` list.
+(
+    name: "Fortification",
+    kinds: [Subtype],
+    body: Subtype(
+        name: "Fortification",
+        types: [Artifact],
+        confers: [
+            Ability(Innate(Static(effects: [
+                Cant(Attach(what: Ref(This), to: Not(Type(Land)))),
+            ]))),
+        ],
+    ),
+)

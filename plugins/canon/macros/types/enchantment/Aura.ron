@@ -1,1 +1,30 @@
-EnchantmentType(name: "Aura")
+// Aura ([CR#205.3h]) — an enchantment subtype that is always attached to a
+// permanent or player. The must-be-attached RULE ([CR#704.5m], [CR#303.4c]) is
+// a rule of the SUBTYPE, not a card ability, so it is conferred `Innate`: it
+// survives "loses all abilities" and is invisible to card-facing ability
+// queries, while the SBA sweep reads it generically (no engine subtype branch).
+//
+// `Innate(Static([Sba(Not(LegallyAttached(This)), Move(This, Graveyard))]))`:
+// whenever the Aura is unattached / on an illegal host / attached to itself
+// ([CR#303.4d]), the [CR#704] sweep moves it to its owner's graveyard. The
+// targeting + legal-host + enters-attached parts live on the Enchant KEYWORD
+// (the subtype/ability decoupling — spec §"finding"), NOT here.
+//
+// Authored directly as a `Subtype` (not via the `EnchantmentType` meta-macro)
+// because only this enchantment subtype carries a `confers:` list.
+(
+    name: "Aura",
+    kinds: [Subtype],
+    body: Subtype(
+        name: "Aura",
+        types: [Enchantment],
+        confers: [
+            Ability(Innate(Static(effects: [
+                Sba(
+                    when: Not(LegallyAttached(This)),
+                    then: Move(This, Graveyard),
+                ),
+            ]))),
+        ],
+    ),
+)
