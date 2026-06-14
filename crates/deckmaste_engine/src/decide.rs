@@ -165,6 +165,7 @@ pub enum PendingDecision {
         player: PlayerId,
         options: Vec<deckmaste_core::ColorOrColorless>,
         amount: Uint,
+        riders: Vec<deckmaste_core::ManaRider>,
     },
     /// [CR#601.2c,115]: choose targets for the in-flight announce. `legal[i]`
     /// is the candidate set for `spec[i]`; `submit_decision` re-validates.
@@ -408,6 +409,7 @@ impl GameState {
                     player,
                     options,
                     amount,
+                    riders,
                 },
                 Decision::ManaColor(mana),
             ) => {
@@ -417,13 +419,14 @@ impl GameState {
                         reason: format!("{mana:?} is not one of the offered mana options"),
                     });
                 }
-                let (player, amount) = (*player, *amount);
+                let (player, amount, riders) = (*player, *amount, riders.clone());
                 self.pending = None;
                 self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
                     GameEvent::ManaAdded {
                         player,
                         mana,
                         amount,
+                        riders,
                     },
                 ))]);
                 Ok(())
@@ -1175,6 +1178,7 @@ impl GameState {
                             player,
                             mana,
                             amount,
+                            riders: vec![],
                         })),
                         WorkItem::CheckSbas,
                         WorkItem::PlaceTriggers,

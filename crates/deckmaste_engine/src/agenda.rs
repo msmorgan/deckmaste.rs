@@ -67,6 +67,7 @@ pub enum WorkItem {
         player: crate::player::PlayerId,
         options: Vec<deckmaste_core::ColorOrColorless>,
         amount: deckmaste_core::Uint,
+        riders: Vec<deckmaste_core::ManaRider>,
     },
     /// Resolve the named committed stack object ([CR#608]). Reads `self.stack`.
     Resolve(crate::object::ObjectId),
