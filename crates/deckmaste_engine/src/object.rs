@@ -188,6 +188,12 @@ pub struct GameObject {
     /// Counters on this object, keyed by counter name ([CR#122]).
     /// `"+1/+1"` and `"-1/-1"` modify P/T in layer 7c ([CR#613.4c]).
     pub counters: HashMap<Ident, Uint>,
+    /// The host this attachment is attached to ([CR#301.5,303.4]). The
+    /// attachment→host direction is the single source of truth; the inverse
+    /// is derived by scanning. Cleared on remint / zone change so a leaving
+    /// attachment becomes unattached ([CR#701.3d]) — `mint` always sets it
+    /// `None`, and a zone change remints a fresh object.
+    pub attached_to: Option<ObjectId>,
     /// `None` for a player proxy.
     pub zone: Option<Zone>,
 }
@@ -250,6 +256,7 @@ impl ObjectStore {
             damage: 0,
             struck_by_deathtouch: false,
             counters: HashMap::new(),
+            attached_to: None,
             zone,
         })
     }
