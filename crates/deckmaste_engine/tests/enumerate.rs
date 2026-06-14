@@ -296,7 +296,7 @@ fn abilities_index_matches_activate_ability_action() {
 
 #[test]
 fn mana_ability_identifies_a_mountains_tap_for_red() {
-    let mut state = activation_game(7, PINGER, 1);
+    let state = activation_game(7, PINGER, 1);
     // The Mountain forced onto the battlefield by activation_game.
     let mountain = *state
         .zones
@@ -410,4 +410,117 @@ fn describe_action_bundles_cast_land_activate_pass_concede() {
     assert!(matches!(v.kind, ActionViewKind::Pass));
     let v = state.describe_action(&Action::Concede);
     assert!(matches!(v.kind, ActionViewKind::Concede));
+}
+
+#[test]
+fn priority_enumerates_pass_concede_activate_and_land() {
+    let mut state = activation_game(7, PINGER, 1);
+    let _pinger = force_into_play(&mut state, PlayerId(0), PINGER);
+    let land = force_into_hand(&mut state, PlayerId(0), "Mountain");
+    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+
+    assert!(legal.contains(&Action::Pass), "Pass is always offered");
+    assert!(
+        legal.contains(&Action::Concede),
+        "Concede is always offered [CR#104.3a]"
+    );
+    assert!(
+        legal.contains(&Action::PlayLand { object: land }),
+        "the land in hand is playable at sorcery speed"
+    );
+    assert!(
+        legal
+            .iter()
+            .any(|a| matches!(a, Action::ActivateAbility { .. })),
+        "an activated ability (the pinger and/or the Mountain) is offered"
+    );
+}
+
+#[test]
+fn cast_spell_is_enumerated_once_its_cost_is_payable() {
+    // Build a deck with Bolt + Mountains so we can float {R} then see CastSpell.
+    let bolt = Arc::new(canon().card(INSTANT).unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+    let mut p0 = vec![Arc::clone(&bolt); 5];
+    p0.extend(vec![Arc::clone(&mountain); 5]);
+    let mut p1 = vec![Arc::clone(&bears); 5];
+    p1.extend(vec![Arc::clone(&forest); 5]);
+    let mut state = GameState::new(GameConfig {
+        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
+        seed: 2,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    force_into_play(&mut state, PlayerId(0), "Mountain");
+    let bolt_id = force_into_hand(&mut state, PlayerId(0), INSTANT);
+
+    // Before floating mana, Bolt's cost isn't payable -> not offered.
+    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    assert!(
+        !legal.contains(&Action::CastSpell { object: bolt_id }),
+        "Bolt isn't castable with an empty pool"
+    );
+
+    // Float {R} via the Mountain's mana ability, then it IS offered.
+    float_mana(&mut state, PlayerId(0), 1);
+    let StepOutcome::NeedsDecision(PendingDecision::Priority { legal, .. }) = state.step() else {
+        panic!("expected priority");
+    };
+    assert!(
+        legal.contains(&Action::CastSpell { object: bolt_id }),
+        "Bolt is castable once {{R}} is floated"
+    );
+}
+
+#[test]
+fn choose_targets_candidates_resolve_to_names() {
+    // Cast Lightning Bolt; the ChooseTargets candidates are object ids a renderer
+    // resolves to names via def()/face_name — confirming that decision kind is
+    // already renderable with no engine change.
+    let bolt = Arc::new(canon().card(INSTANT).unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+    let mut p0 = vec![Arc::clone(&bolt); 5];
+    p0.extend(vec![Arc::clone(&mountain); 5]);
+    let mut p1 = vec![Arc::clone(&bears); 5];
+    p1.extend(vec![Arc::clone(&forest); 5]);
+    let mut state = GameState::new(GameConfig {
+        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
+        seed: 4,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    force_into_play(&mut state, PlayerId(0), "Mountain");
+    let target = force_into_play(&mut state, PlayerId(1), "Grizzly Bears");
+    let bolt_id = force_into_hand(&mut state, PlayerId(0), INSTANT);
+
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 1);
+    // Drain to the priority where Bolt is castable, then cast it.
+    let StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) = state.step() else {
+        panic!("expected priority");
+    };
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: bolt_id }))
+        .unwrap();
+
+    // Step until ChooseTargets surfaces; its candidate ids include the bears,
+    // and each id resolves to a renderable name.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+        panic!("expected ChooseTargets, got {stop:?}");
+    };
+    let candidates: Vec<ObjectId> = legal.into_iter().flatten().collect();
+    assert!(
+        candidates.contains(&target),
+        "the bears are a legal Bolt target"
+    );
+    assert_eq!(
+        face_name(&state, target),
+        "Grizzly Bears",
+        "a candidate id resolves to its name for rendering"
+    );
 }
