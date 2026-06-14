@@ -1251,6 +1251,12 @@ impl GameState {
                 self.reset_passes();
                 if let Some((mana, amount)) = derive::tap_mana_ability(a) {
                     // [CR#605.3b]: mana abilities skip the stack entirely.
+                    // [CR#107.4h]: mana from a snow source (a snow permanent —
+                    // one with the Snow supertype) is snow mana; tag the unit so
+                    // a later task can pay {S}. The ability text declares no
+                    // riders on this path, so the source's snow-ness is the only
+                    // contribution.
+                    let riders = self.snow_provenance(*object);
                     self.schedule_front(vec![
                         WorkItem::Emit(Occurrence::single(GameEvent::Tapped {
                             object: *object,
@@ -1264,7 +1270,7 @@ impl GameState {
                             player,
                             mana,
                             amount,
-                            riders: vec![],
+                            riders,
                         })),
                         WorkItem::CheckSbas,
                         WorkItem::PlaceTriggers,
@@ -1314,6 +1320,29 @@ impl GameState {
                     WorkItem::OpenPriority,
                 ]);
             }
+        }
+    }
+
+    /// The per-unit provenance riders a `source` contributes to the mana it
+    /// produces. A snow source is a snow PERMANENT — an object on the
+    /// battlefield whose DERIVED supertypes include `Snow` ([CR#205.4g]) —
+    /// whose mana can pay `{S}` ([CR#107.4h]), so it contributes
+    /// `ManaRider::Snow`; anything else (a non-snow permanent, or a
+    /// mana-producing spell/ability whose source is not a permanent)
+    /// contributes none. Read off the layered view so a granted Snow supertype
+    /// counts (rare, but the derived view is the consistent source of truth).
+    /// The returned riders combine with any the producing ability declares.
+    pub(crate) fn snow_provenance(&self, source: ObjectId) -> Vec<deckmaste_core::ManaRider> {
+        let is_permanent = self.objects.obj(source).zone == Some(Zone::Battlefield);
+        let is_snow = self
+            .layers()
+            .get(source)
+            .supertypes
+            .contains(&deckmaste_core::Supertype::Snow);
+        if is_permanent && is_snow {
+            vec![deckmaste_core::ManaRider::Snow]
+        } else {
+            vec![]
         }
     }
 

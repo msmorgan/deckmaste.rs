@@ -128,6 +128,13 @@ pub enum ManaRider {
     /// the marker — firebending's "you don't lose this mana",
     /// [CR#702.189a]).
     Persistent(crate::TurnMarker),
+    /// Provenance: this mana was produced by a snow source — a snow permanent,
+    /// i.e. one with the Snow supertype ([CR#205.4g]) — so the unit may pay the
+    /// `{S}` symbol ([CR#107.4h]). Unlike `SpendOnly`, it does NOT restrict
+    /// spending; it only ENABLES `{S}`. Set at the production emit site from
+    /// the source's derived supertypes, not declared by the producing
+    /// ability text.
+    Snow,
     /// A remembered `ManaRider` macro invocation. Serialized as the
     /// invocation, not the struct.
     #[macro_ron(expanded)]
