@@ -163,7 +163,7 @@ fn match_pips(
     units: &[crate::player::ManaUnit],
     candidates: &[usize],
 ) -> Vec<Option<usize>> {
-    // unit_for[pip] = candidate-slot currently matched to that pip.
+    // pip_for[pip] = candidate-slot currently matched to that pip.
     let mut pip_for: Vec<Option<usize>> = vec![None; pips.len()];
     // Reverse map over candidate slots: which pip holds candidate slot `s`.
     let mut held_by: Vec<Option<usize>> = vec![None; candidates.len()];
@@ -319,7 +319,8 @@ pub fn auto_pay(pool: &ManaPool, cost: &ManaCost) -> Payment {
 /// (call `can_pay` over the spendable sub-pool first).
 #[must_use]
 pub fn auto_pay_spendable(pool: &ManaPool, cost: &ManaCost, spendable: &[bool]) -> Payment {
-    let req = requirement(cost).expect("auto_pay on a payable cost");
+    let req =
+        requirement(cost).expect("auto_pay_spendable on a cost the spendable units can cover");
     let units = pool.units();
     // Candidate units: spendable only, non-snow first so colored/generic pips
     // prefer a plain unit and reserve snow units for {S} pips ([CR#107.4h]).
@@ -1278,11 +1279,8 @@ mod tests {
             &cost("{1}{S}"),
             &Payment { units: vec![0, 1] }
         ));
-        // Using the NON-snow unit for the {S} pip is rejected: pool [plain red,
-        // snow green] for {S}{G} — selecting both is fine (snow green -> {S},
-        // plain red can't be {G}, so it must be... there is no {G}). Build a
-        // sharper case: pool [plain green (0), plain red (1)] for {S}: a single
-        // plain unit can never be {S}.
+        // A plain (non-snow) unit can never pay an {S} pip: pool [plain green]
+        // for {S} is rejected.
         let plain = pool(&[(green(), 1)]);
         assert!(!validate_payment(
             &plain,

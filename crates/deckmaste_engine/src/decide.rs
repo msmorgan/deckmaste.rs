@@ -871,9 +871,8 @@ impl GameState {
                     subject,
                 );
                 self.pending = None;
-                // The rewind on the unpayable path (rewind_announce) takes the whole
-                // `announcing` slot, discarding the `x` written above — so
-                // committing it first is safe.
+                // Writing `x` first is safe: `rewind_announce` discards the
+                // whole announcing slot, including the `x` just written.
                 if !payable {
                     self.rewind_announce();
                 }
@@ -1265,6 +1264,11 @@ impl GameState {
                     // a later task can pay {S}. The ability text declares no
                     // riders on this path, so the source's snow-ness is the only
                     // contribution.
+                    //
+                    // NB: `snow_provenance` does a SECOND `layers()` rebuild
+                    // (the first was the `derive::abilities` call above). Cheap
+                    // per action; revisit if mana activation becomes a profiling
+                    // hotspot (the repo has prior `layers()` perf history).
                     let riders = self.snow_provenance(*object);
                     self.schedule_front(vec![
                         WorkItem::Emit(Occurrence::single(GameEvent::Tapped {
@@ -1340,7 +1344,8 @@ impl GameState {
     /// mana-producing spell/ability whose source is not a permanent)
     /// contributes none. Read off the layered view so a granted Snow supertype
     /// counts (rare, but the derived view is the consistent source of truth).
-    /// The returned riders combine with any the producing ability declares.
+    /// Callers are responsible for merging these with any riders the producing
+    /// ability declares.
     pub(crate) fn snow_provenance(&self, source: ObjectId) -> Vec<deckmaste_core::ManaRider> {
         let is_permanent = self.objects.obj(source).zone == Some(Zone::Battlefield);
         let is_snow = self

@@ -732,6 +732,9 @@ mod tests {
     /// `LoseLife(2)` cost IS payable. When the lock lands, extend this to
     /// assert that a can't-lose-life effect makes the life cost UNPAYABLE
     /// while a sibling mana reading stays available.
+    ///
+    /// Lives inline (in `src/`, not `tests/`) because it calls the
+    /// `pub(crate)` `can_pay_verbs` directly.
     #[test]
     fn cant_pay_life_lock_is_a_documented_seam() {
         let mut state = game();
