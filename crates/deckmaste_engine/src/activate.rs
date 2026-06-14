@@ -218,6 +218,17 @@ impl GameState {
             // A cost-payability gate reads no announced X.
             x: None,
         };
+        // TODO(engine-cost-payment / deontics): [CR#119.8] "can't pay life" is
+        // NOT YET ENFORCED. Under a continuous effect saying a player can't lose
+        // life, a cost that involves having that player pay life can't be paid —
+        // so a `Do(LoseLife(..))` cost (and a Phyrexian-life reading, which
+        // concretizes to `Do(LoseLife(2))`) should be UNPAYABLE for that player
+        // while the mana reading stays available. The deontic layer has no
+        // pay-life / lose-life `DeonticAction` variant today (it models only
+        // attack/block/target/attach/cast/play/activate), so there is nothing
+        // cheap to query here. When that lock is built, gate the `LoseLife` arm
+        // of `verb_cost_payable` (and the Phyrexian-life sum in
+        // `reading_payable`) on it. See `cant_pay_life_lock_is_a_documented_seam`.
         verbs
             .iter()
             .all(|verb| self.verb_cost_payable(verb, player, &frame))
@@ -709,6 +720,33 @@ mod tests {
                 obj,
             ),
             "paying 0 life is always allowed [CR#119.4b]"
+        );
+    }
+
+    /// [CR#119.8] SEAM: under an effect that says a player can't lose life, a
+    /// cost involving paying life can't be paid. That lock is NOT YET ENFORCED
+    /// (the deontic layer has no lose-life `DeonticAction` variant, so there is
+    /// nothing to query — see the seam comment in `can_pay_verbs`). This test
+    /// pins the CURRENT behavior so the seam is visible: with sufficient life
+    /// and no such effect in play (none is constructible today), a
+    /// `LoseLife(2)` cost IS payable. When the lock lands, extend this to
+    /// assert that a can't-lose-life effect makes the life cost UNPAYABLE
+    /// while a sibling mana reading stays available.
+    #[test]
+    fn cant_pay_life_lock_is_a_documented_seam() {
+        let mut state = game();
+        let player = PlayerId(0);
+        let obj = make_object_on_battlefield(&mut state, player);
+        state.player_mut(player).life = 20;
+        // No "can't lose life" effect exists (unrepresentable today), so the
+        // life cost is payable — the [CR#119.8] lock is a documented seam.
+        assert!(
+            state.can_pay_verbs(
+                player,
+                &[PlayerAction::LoseLife(deckmaste_core::Count::Literal(2))],
+                obj,
+            ),
+            "without an (unbuilt) can't-lose-life lock, a LoseLife(2) cost is payable at 20 life"
         );
     }
 
