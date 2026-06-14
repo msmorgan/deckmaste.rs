@@ -301,22 +301,15 @@ impl GameState {
             }
             GameEvent::SpellCast(object) => {
                 // [CR#601.2i]: promote the staged announce onto the stack.
-                let pending = self.announcing.take().expect("an announce in flight");
+                // [CR#405]: a spell's stack identity is its own object id —
+                // unchanged from Stage 2, so existing Resolve(spell) keying by
+                // `StackEntry.id` still finds it.
+                let pending = self.promote_announce();
                 debug_assert_eq!(
                     pending.object.object(),
                     object,
                     "SpellCast event matches the staged announce"
                 );
-                self.stack.push(StackEntry {
-                    // [CR#405]: a spell's stack identity is its own object id —
-                    // unchanged from Stage 2, so existing Resolve(spell) keying
-                    // by `StackEntry.id` still finds it.
-                    id: pending.id,
-                    object: pending.object,
-                    controller: pending.controller,
-                    targets: pending.targets,
-                    x: pending.x,
-                });
                 GameEvent::SpellCast(object)
             }
             GameEvent::AbilityActivated { source, ability } => {
@@ -324,7 +317,7 @@ impl GameState {
                 // under the stack identity minted when the announce opened
                 // ([CR#405], `begin_activate`), and count it against
                 // "activate only once" limits ([CR#602.5b]).
-                let pending = self.announcing.take().expect("an announce in flight");
+                let pending = self.promote_announce();
                 debug_assert!(
                     matches!(
                         &pending.object,
@@ -334,13 +327,6 @@ impl GameState {
                     // carries the text. Source match is the only structural check here.
                     "AbilityActivated event matches the staged announce"
                 );
-                self.stack.push(StackEntry {
-                    id: pending.id,
-                    object: pending.object,
-                    controller: pending.controller,
-                    targets: pending.targets,
-                    x: pending.x,
-                });
                 self.activations.bump((source, ability));
                 GameEvent::AbilityActivated { source, ability }
             }
@@ -1278,6 +1264,30 @@ impl GameState {
         });
         Progress::PriorityOpened(holder)
     }
+
+    /// [CR#601.2i,602.2a]: the becomes-cast moment — take the single in-flight
+    /// announce and commit it to the stack as a `StackEntry`, carrying
+    /// id / object / controller / targets / x across unchanged ([CR#405]: the
+    /// stack identity was minted at announce). Shared by the `SpellCast` and
+    /// `AbilityActivated` apply arms, which differ only in their own
+    /// debug-assert and (for activations) the "activate only once" bump — so
+    /// the moved-out `PendingStackEntry` is returned for the caller's check.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no announce is in flight — an engine invariant (these events
+    /// are only emitted while one is staged), not caller input.
+    fn promote_announce(&mut self) -> crate::stack::PendingStackEntry {
+        let pending = self.announcing.take().expect("an announce in flight");
+        self.stack.push(StackEntry {
+            id: pending.id,
+            object: pending.object.clone(),
+            controller: pending.controller,
+            targets: pending.targets.clone(),
+            x: pending.x,
+        });
+        pending
+    }
 }
 
 #[cfg(test)]
@@ -1286,6 +1296,7 @@ mod tests {
     use deckmaste_core::Window;
     use deckmaste_core::Zone;
 
+    use crate::agenda::WorkItem;
     use crate::event::GameEvent;
     use crate::event::Occurrence;
     use crate::object::ObjectSource;
@@ -1337,5 +1348,80 @@ mod tests {
             1,
             "StepBegan is skipped"
         );
+    }
+
+    /// `priority_tail` is the shared `[CheckSbas, PlaceTriggers, OpenPriority]`
+    /// trailer reused by every action that emits and then re-opens priority.
+    #[test]
+    fn priority_tail_is_check_place_open() {
+        assert_eq!(
+            GameState::priority_tail(),
+            vec![
+                WorkItem::CheckSbas,
+                WorkItem::PlaceTriggers,
+                WorkItem::OpenPriority,
+            ],
+        );
+    }
+
+    /// `announce_schedule` reifies the full announce procedure shared by cast
+    /// and activate — only the `begin` shell and the becomes-cast event differ.
+    #[test]
+    fn announce_schedule_matches_cast_and_activate_shape() {
+        let begin = WorkItem::BeginCast(crate::object::ObjectId::from_raw(1));
+        let event = GameEvent::SpellCast(crate::object::ObjectId::from_raw(1));
+        assert_eq!(
+            GameState::announce_schedule(begin.clone(), event.clone()),
+            vec![
+                begin,
+                WorkItem::AnnounceX,
+                WorkItem::AnnounceTargets,
+                WorkItem::ChooseCostOptions,
+                WorkItem::PayCost,
+                WorkItem::Emit(Occurrence::single(event)),
+                WorkItem::CheckSbas,
+                WorkItem::PlaceTriggers,
+                WorkItem::OpenPriority,
+            ],
+        );
+    }
+
+    /// `promote_announce` takes the single in-flight announce and pushes the
+    /// committed `StackEntry`, carrying id / object / controller / targets / x
+    /// across unchanged. It is the shared body of the `SpellCast` and
+    /// `AbilityActivated` apply arms.
+    #[test]
+    fn promote_announce_pushes_committed_entry() {
+        use crate::stack::PendingStackEntry;
+        use crate::stack::StackObject;
+
+        let mut state = game();
+        let id = state.objects.mint(
+            ObjectSource::Player(PlayerId(0)),
+            PlayerId(0),
+            Some(Zone::Stack),
+        );
+        state.announcing = Some(PendingStackEntry {
+            id,
+            object: StackObject::Spell(id),
+            controller: PlayerId(0),
+            origin: Zone::Hand,
+            targets: vec![],
+            x: Some(3),
+            concretized: None,
+        });
+
+        let pending = state.promote_announce();
+
+        assert!(state.announcing.is_none(), "the announce slot is cleared");
+        assert_eq!(state.stack.len(), 1, "one entry committed to the stack");
+        let top = state.stack.last().expect("the promoted entry");
+        assert_eq!(top.id, id);
+        assert_eq!(top.object, StackObject::Spell(id));
+        assert_eq!(top.controller, PlayerId(0));
+        assert_eq!(top.targets, Vec::<crate::object::ObjectId>::new());
+        assert_eq!(top.x, Some(3));
+        // The returned pending lets callers run their own debug-asserts.
+        assert_eq!(pending.id, id);
     }
 }
