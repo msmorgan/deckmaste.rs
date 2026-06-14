@@ -108,14 +108,15 @@ pub(super) fn strip_expanded(f: &Filter) -> &Filter {
     }
 }
 
-/// `(subject phrase, is_plural)`.  `subject_name` resolves `Reference::This`.
-pub(super) fn scope_subject_agreed(scope: &Scope, subject_name: &str) -> (String, bool) {
+/// `(subject phrase, is_plural)`.  `ctx` resolves `Reference::This` and
+/// `Reference::Target(i)`.
+pub(super) fn scope_subject_agreed(scope: &Scope, ctx: &super::Ctx) -> (String, bool) {
     match scope {
         Scope::Matching(f) => (filter_subject(f), true),
-        Scope::Of(r) => (reference_subject(r, subject_name), false),
+        Scope::Of(r) => (reference_subject(r, ctx), false),
         Scope::These(rs) => (
             rs.iter()
-                .map(|r| reference_subject(r, subject_name))
+                .map(|r| reference_subject(r, ctx))
                 .collect::<Vec<_>>()
                 .join(" and "),
             rs.len() != 1,
@@ -123,11 +124,25 @@ pub(super) fn scope_subject_agreed(scope: &Scope, subject_name: &str) -> (String
     }
 }
 
-/// A `Reference` as a static-effect subject phrase.
-fn reference_subject(r: &Reference, subject_name: &str) -> String {
+/// A `Reference` as a static-effect subject phrase (capitalized for
+/// sentence-start use).
+fn reference_subject(r: &Reference, ctx: &super::Ctx) -> String {
     match r {
-        Reference::This => subject_name.to_string(),
+        Reference::This => ctx.subject.to_string(),
+        Reference::Target(i) => match ctx.targets.get(*i) {
+            Some(spec) => capitalize(&target_spec(spec)),
+            None => "[unrendered: missing target]".to_string(),
+        },
         other => format!("[unrendered: {other:?}]"),
+    }
+}
+
+/// Capitalize the first character of a string.
+fn capitalize(s: &str) -> String {
+    let mut c = s.chars();
+    match c.next() {
+        Some(first) => first.to_uppercase().chain(c).collect(),
+        None => String::new(),
     }
 }
 

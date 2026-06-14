@@ -2,8 +2,10 @@
 
 use deckmaste_core::Action;
 use deckmaste_core::Count;
+use deckmaste_core::Duration;
 use deckmaste_core::Effect;
 use deckmaste_core::PlayerAction;
+use deckmaste_core::TurnMarker;
 
 use super::Ctx;
 use super::fragment;
@@ -28,14 +30,40 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
             out
         }
         Effect::Expanded(e) => {
-            if let Some(t) = e.template.as_deref() {
-                if let Some(s) = super::template::fill(t, ctx.subject, &e.args) {
-                    return ensure_period(&s);
-                }
+            if let Some(t) = e.template.as_deref()
+                && let Some(s) = super::template::fill(t, ctx.subject, &e.args)
+            {
+                return ensure_period(&s);
             }
             effect(&e.value, ctx)
         }
+        Effect::Continuously(c) => {
+            let clause = super::ability::static_effect(&c.effect, ctx).map_or_else(
+                || format!("[unrendered: {:?}]", c.effect),
+                |s| trim_period(&s),
+            );
+            match duration_suffix(&c.duration) {
+                Some(d) => format!("{clause} {d}."),
+                None => format!("{clause}."),
+            }
+        }
         other => format!("[unrendered: {other:?}]."),
+    }
+}
+
+fn duration_suffix(d: &Duration) -> Option<String> {
+    match d {
+        Duration::FixedUntil(m) => Some(format!("until {}", turn_marker(*m))),
+        Duration::EndOfGame => None,
+        other => Some(format!("[unrendered: {other:?}]")),
+    }
+}
+
+fn turn_marker(m: TurnMarker) -> &'static str {
+    match m {
+        TurnMarker::EndOfTurn => "end of turn",
+        TurnMarker::EndOfCombat => "end of combat",
+        TurnMarker::YourNextTurn => "your next turn",
     }
 }
 

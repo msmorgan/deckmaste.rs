@@ -437,3 +437,54 @@ fn renders_scope_of_singular() {
         vec!["Test Aura gets +1/+1.".to_string()]
     );
 }
+
+// ── Coverage D: Effect::Continuously + Duration suffix ──────────────────────
+
+/// Synthesized pump spell: "Target creature gets +3/+3 until end of turn."
+/// Exercises `Effect::Continuously` → `static_effect` (inner) +
+/// `duration_suffix(FixedUntil(EndOfTurn))`.
+#[test]
+fn renders_continuously_pump_until_eot() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::CardFace;
+    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::ContinuouslyEffect;
+    use deckmaste_core::Count;
+    use deckmaste_core::Duration;
+    use deckmaste_core::Effect;
+    use deckmaste_core::Filter;
+    use deckmaste_core::Modification;
+    use deckmaste_core::Quantity;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Scope;
+    use deckmaste_core::SpellAbility;
+    use deckmaste_core::StaticEffect;
+    use deckmaste_core::TargetSpec;
+    use deckmaste_core::TurnMarker;
+    use deckmaste_core::Type;
+    let face = CardFace {
+        name: "Test Pump".into(),
+        types: vec![Type::Instant],
+        abilities: vec![Ability::Spell(SpellAbility {
+            targets: vec![TargetSpec::Target(
+                Quantity::Exactly(Count::Literal(1)),
+                Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            )],
+            effect: Effect::Continuously(ContinuouslyEffect {
+                effect: Box::new(StaticEffect::Modify {
+                    of: Scope::Of(Reference::Target(0)),
+                    changes: vec![
+                        Modification::AddPower(Count::Literal(3)),
+                        Modification::AddToughness(Count::Literal(3)),
+                    ],
+                }),
+                duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
+            }),
+        })],
+        ..CardFace::default()
+    };
+    assert_eq!(
+        render_card_face(&face).rules,
+        vec!["Target creature gets +3/+3 until end of turn.".to_string()]
+    );
+}
