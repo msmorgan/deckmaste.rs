@@ -26,9 +26,5 @@ genuinely-structural branches alone — closed enum→string tables (`type_str`,
 counts), and composition not owned by any single macro (Other-/you-control framing,
 When/Whenever, Also/Instead, Must/Cant).
 
-Deferred (needs a design dialogue, **[design]**): extending `template::fill`'s
-`render_arg` beyond integers so `{i}` can render a grammar-node arg (filter/reference) —
-the blocker for routing event clauses (`{0} dies`/`{0} attacks`) and arg-bearing macros
-through templates. `ExpansionArgs` stores args as raw RON source, so the choice is
-re-parse-the-source vs. index-into-the-typed-`value`; pick before coding. AsEnters'
-partial template (`"as ~ enters"`, no `{0}`) also wants resolving here.
+Deferred work (arg-bearing templates: `render_arg` grammar-node args, event clauses,
+`AsEnters`) is tracked separately — see `render-template-grammar-args` (**[design]**).
