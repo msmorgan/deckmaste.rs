@@ -123,12 +123,33 @@ pub fn apply_payment(pool: &mut ManaPool, payment: &Payment) { pool.remove_units
 /// `cost` (colored pips to matching-color units, generic pips to any
 /// remaining). Caller ensures `can_pay` first.
 ///
+/// Ignores spendability (`SpendOnly`): every unit is eligible. Use
+/// [`auto_pay_spendable`] (via [`GameState::auto_pay_pending`]) to honor a
+/// subject's spend restrictions.
+///
 /// # Panics
 ///
 /// Panics if `cost` is out of scope or `pool` cannot cover it (call `can_pay`
 /// first).
 #[must_use]
+#[allow(
+    dead_code,
+    reason = "public subject-free auto-tap helper; engine paths now route through auto_pay_pending (spendability-aware), but this stays the canonical pure form for runners/tests"
+)]
 pub fn auto_pay(pool: &ManaPool, cost: &ManaCost) -> Payment {
+    auto_pay_spendable(pool, cost, &vec![true; pool.units().len()])
+}
+
+/// Like [`auto_pay`], but only units `i` with `spendable[i] == true` are
+/// eligible — `take` skips the rest ([CR#106.6]). `spendable` must index the
+/// same `pool` (length `== pool.units().len()`).
+///
+/// # Panics
+///
+/// Panics if `cost` is out of scope, or if the spendable units cannot cover it
+/// (call `can_pay` over the spendable sub-pool first).
+#[must_use]
+pub fn auto_pay_spendable(pool: &ManaPool, cost: &ManaCost, spendable: &[bool]) -> Payment {
     let (colored, generic) = requirement(cost).expect("auto_pay on a payable cost");
     let units = pool.units();
     let mut used = vec![false; units.len()];
@@ -137,8 +158,8 @@ pub fn auto_pay(pool: &ManaPool, cost: &ManaCost) -> Payment {
         let i = units
             .iter()
             .enumerate()
-            .position(|(i, u)| !used[i] && kind.is_none_or(|k| u.kind == k))
-            .expect("can_pay guarantees a covering unit");
+            .position(|(i, u)| spendable[i] && !used[i] && kind.is_none_or(|k| u.kind == k))
+            .expect("can_pay over the spendable sub-pool guarantees a covering unit");
         used[i] = true;
         chosen.push(i);
     };
@@ -225,7 +246,9 @@ impl GameState {
         let Some(cost) = self.mana_cost(object) else {
             return false;
         };
-        if !can_pay(&self.player(player).mana_pool, &cost) {
+        // [CR#106.6]: only mana spendable on this spell can fund it — restrict
+        // the affordability check to the spendable sub-pool.
+        if !can_pay(&self.spendable_pool(player, object), &cost) {
             return false;
         }
         // If the spell targets, every spec must admit at least one candidate.
@@ -360,6 +383,9 @@ impl GameState {
                         player: controller,
                         cost,
                         pool,
+                        // [CR#106.6]: a spell's stack identity is its own id —
+                        // the object SpendOnly riders judge.
+                        subject: object,
                     });
                 }
                 // Empty cost (no mana required): no decision surfaces, cast
@@ -399,6 +425,9 @@ impl GameState {
                         player: controller,
                         cost: summary.mana,
                         pool,
+                        // [CR#106.6]: an activated ability's mana is spent on
+                        // its source — that is the object SpendOnly judges.
+                        subject: source,
                     });
                 }
             }
@@ -438,7 +467,9 @@ impl GameState {
         candidates(self, filter)
     }
 
-    /// Auto-tap the in-flight `PayMana` decision ([CR#601.2g]).
+    /// Auto-tap the in-flight `PayMana` decision ([CR#601.2g,106.6]), honoring
+    /// the subject's spend restrictions — only units spendable on the `PayMana`
+    /// subject are eligible.
     ///
     /// # Panics
     ///
@@ -446,9 +477,78 @@ impl GameState {
     #[must_use]
     pub fn auto_pay_pending(&self) -> Payment {
         match &self.pending {
-            Some(PendingDecision::PayMana { cost, pool, .. }) => auto_pay(pool, cost),
+            Some(PendingDecision::PayMana {
+                cost,
+                pool,
+                subject,
+                ..
+            }) => {
+                let mask: Vec<bool> = pool
+                    .units()
+                    .iter()
+                    .map(|u| self.unit_spendable_on(u, *subject))
+                    .collect();
+                auto_pay_spendable(pool, cost, &mask)
+            }
             other => panic!("auto_pay_pending called without a PayMana decision: {other:?}"),
         }
+    }
+
+    /// [CR#106.6]: may `unit` pay for `subject`? True unless a `SpendOnly`
+    /// rider's filter rejects the object being paid for. Other rider kinds
+    /// (`GrantOnSpend`/`TriggerOnSpend`/`Persistent`/`Expanded`) don't restrict
+    /// spending.
+    ///
+    /// The watcher anchor is the subject's own `ObjectSource`: a `SpendOnly`
+    /// filter today is object-shaped ("creature spell", "noncreature spell"),
+    /// so it never reads the rider's grantor. A *relative* `SpendOnly` (a
+    /// "your" reference back to the mana's producer — "spend only on a spell
+    /// YOU cast") would need the producing source threaded onto the unit; that
+    /// is a seam (riders carry no grantor today).
+    fn unit_spendable_on(&self, unit: &crate::player::ManaUnit, subject: ObjectId) -> bool {
+        let watcher = self.objects.obj(subject).source;
+        unit.riders.iter().all(|r| match r {
+            deckmaste_core::ManaRider::SpendOnly(f) => {
+                self.filter_matches_live(f, subject, watcher)
+            }
+            _ => true,
+        })
+    }
+
+    /// [CR#601.2g,106.6]: full payment validity — the structural coverage check
+    /// ([`validate_payment`]) layered with spendability: every selected unit
+    /// must be spendable on `subject`.
+    #[must_use]
+    pub(crate) fn validate_spendable(
+        &self,
+        player: PlayerId,
+        cost: &ManaCost,
+        payment: &Payment,
+        subject: ObjectId,
+    ) -> bool {
+        let pool = &self.player(player).mana_pool;
+        validate_payment(pool, cost, payment)
+            && payment.units.iter().all(|&i| {
+                pool.units()
+                    .get(i)
+                    .is_some_and(|u| self.unit_spendable_on(u, subject))
+            })
+    }
+
+    /// [CR#106.6]: a clone of `player`'s pool holding only the units spendable
+    /// on `subject` — the sub-pool an affordability check (`can_pay`) runs over
+    /// so a spend-restricted unit can't fund an object it forbids.
+    #[must_use]
+    pub(crate) fn spendable_pool(&self, player: PlayerId, subject: ObjectId) -> ManaPool {
+        let units = self
+            .player(player)
+            .mana_pool
+            .units()
+            .iter()
+            .filter(|u| self.unit_spendable_on(u, subject))
+            .cloned()
+            .collect();
+        ManaPool::from_units(units)
     }
 }
 

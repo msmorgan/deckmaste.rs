@@ -87,11 +87,13 @@ impl GameState {
         index: usize,
         ability: &ActivatedAbility,
     ) -> bool {
-        // [CR#601.2g,602.2b]: the pool must be able to pay the mana cost.
+        // [CR#601.2g,602.2b,106.6]: the pool must be able to pay the mana cost.
+        // Only mana spendable on this ability's source can fund it — restrict
+        // the affordability check to the spendable sub-pool.
         let Some(summary) = cost_summary(&ability.cost) else {
             return false;
         };
-        if !can_pay(&self.player(player).mana_pool, &summary.mana) {
+        if !can_pay(&self.spendable_pool(player, object), &summary.mana) {
             return false;
         }
 
