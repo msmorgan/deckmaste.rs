@@ -47,3 +47,27 @@ fn renders_spell_lightning_bolt() {
     assert_eq!(r.type_line, "Instant");
     assert_eq!(r.rules, vec!["Deal 3 damage to any target.".to_string()]);
 }
+
+#[test]
+fn renders_keywords_and_etb_trigger_baleful_strix() {
+    let r = render_card_face(&face("Baleful Strix"));
+    assert_eq!(r.mana_cost, "{U}{B}");
+    assert_eq!(r.type_line, "Artifact Creature — Bird");
+    assert_eq!(r.pt, Some("1/1".to_string()));
+    assert_eq!(
+        r.rules,
+        vec![
+            "Flying, Deathtouch".to_string(),
+            "When Baleful Strix enters, draw a card.".to_string(),
+        ]
+    );
+}
+
+#[test]
+fn renders_state_trigger_goblin_medics() {
+    let r = render_card_face(&face("Goblin Medics"));
+    assert_eq!(
+        r.rules,
+        vec!["Whenever Goblin Medics becomes tapped, deal 1 damage to any target.".to_string()]
+    );
+}

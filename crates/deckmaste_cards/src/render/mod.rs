@@ -2,6 +2,7 @@
 //! characteristics. Total: unhandled grammar yields a `[unrendered: …]` marker,
 //! never a panic.
 
+mod ability;
 mod card;
 mod effect;
 mod fragment;
@@ -82,7 +83,8 @@ fn rules(view: &CardView) -> Vec<String> {
                 };
                 body.push(effect::effect(&s.effect, &ctx));
             }
-            _ => {} // Triggered/Static/Activated: later tasks
+            Ability::Triggered(t) => body.push(ability::triggered(t, view)),
+            _ => {} // Static/Activated: later tasks
         }
     }
     let mut out = Vec::new();
