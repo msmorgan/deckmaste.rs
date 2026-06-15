@@ -639,3 +639,32 @@ fn renders_kabira_crossroads() {
         r.rules
     );
 }
+
+#[test]
+fn renders_get_designation() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::Action;
+    use deckmaste_core::CardFace;
+    use deckmaste_core::Effect;
+    use deckmaste_core::Ident;
+    use deckmaste_core::PlayerAction;
+    use deckmaste_core::Reference;
+    use deckmaste_core::SpellAbility;
+    use deckmaste_core::Type;
+    let face = CardFace {
+        name: "Test Ascend".into(),
+        types: vec![Type::Sorcery],
+        abilities: vec![Ability::Spell(SpellAbility {
+            targets: vec![],
+            effect: Effect::Act(Action::By(
+                Reference::You,
+                PlayerAction::GetDesignation(Ident::from("CitysBlessing")),
+            )),
+        })],
+        ..CardFace::default()
+    };
+    assert_eq!(
+        render_card_face(&face).rules,
+        vec!["You get the city's blessing.".to_string()]
+    );
+}
