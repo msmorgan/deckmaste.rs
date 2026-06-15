@@ -226,19 +226,6 @@ fn ascend_macro_expands_to_static_sba() {
     use deckmaste_core::Ability;
     use deckmaste_core::StaticEffect;
 
-    let plugin = builtin();
-    let kw: KeywordAbility = plugin
-        .macros
-        .read_str("Ascend")
-        .expect("Ascend expands");
-    let KeywordAbility::Expanded(expanded) = &kw else {
-        panic!("expected Expanded, got {kw:?}");
-    };
-    assert_eq!(expanded.name.as_str(), "Ascend", "carried name");
-    let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
-        panic!("Ascend body is a Composite");
-    };
-
     // Walk every Static effect (peel Expanded) and look for an Sba row.
     fn statics(a: &Ability, out: &mut Vec<StaticEffect>) {
         match a {
@@ -253,6 +240,17 @@ fn ascend_macro_expands_to_static_sba() {
             other => other,
         }
     }
+
+    let plugin = builtin();
+    let kw: KeywordAbility = plugin.macros.read_str("Ascend").expect("Ascend expands");
+    let KeywordAbility::Expanded(expanded) = &kw else {
+        panic!("expected Expanded, got {kw:?}");
+    };
+    assert_eq!(expanded.name.as_str(), "Ascend", "carried name");
+    let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+        panic!("Ascend body is a Composite");
+    };
+
     let mut effs = Vec::new();
     for a in abilities {
         statics(a, &mut effs);

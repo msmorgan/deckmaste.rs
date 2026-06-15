@@ -323,11 +323,16 @@ impl GameState {
             // `PumpThisUntilEot`) is transparent to resolution — run its value,
             // matching how every other engine layer sees through `*::Expanded`.
             Effect::Expanded(e) => self.run_effect(*e.value, frame),
-            // [CR#603.4]/[CR#608.2]: evaluate the condition when this node
-            // resolves (so an earlier sibling's effect — e.g. gaining the
-            // city's blessing — is already applied), then run the taken branch.
-            // Direct recursion schedules the branch's items at the front, ahead
-            // of any queued sibling, preserving resolution order.
+            // [CR#608.2c,608.2h]: a plain effect "if" has only its normal
+            // English meaning ([CR#603.4]) — NOT the intervening-"if" rule, which
+            // is only the clause directly after a triggered ability's condition.
+            // The controller follows the instructions in written order
+            // ([CR#608.2c]), so the condition is read when this node resolves
+            // (an earlier sibling's effect — e.g. gaining the city's blessing —
+            // is already applied) and the game-state read happens once at that
+            // moment ([CR#608.2h]); then the taken branch runs. Direct recursion
+            // schedules the branch's items at the front, ahead of any queued
+            // sibling, preserving resolution order.
             Effect::If(if_effect) => {
                 if self.condition_holds(&if_effect.condition, frame) {
                     self.run_effect(*if_effect.then, frame);
@@ -817,17 +822,15 @@ impl GameState {
                 // [CR#702.131c]: idempotent — a player who already holds the
                 // designation gets no second grant and no fact (so the SBA
                 // sweep converges and no spurious "got it" event is recorded).
-                if self
-                    .designations
-                    .players
-                    .contains_key(&(actor, name.clone()))
-                {
+                if self.designations.players.contains_key(&(actor, *name)) {
                     vec![]
                 } else {
-                    vec![WorkItem::Emit(Occurrence::Single(GameEvent::GotDesignation {
-                        player: actor,
-                        name: name.clone(),
-                    }))]
+                    vec![WorkItem::Emit(Occurrence::Single(
+                        GameEvent::GotDesignation {
+                            player: actor,
+                            name: *name,
+                        },
+                    ))]
                 }
             }
             // Look through a remembered macro invocation.
@@ -4042,15 +4045,15 @@ mod tests {
         assert_eq!(items.len(), 1, "first grant emits exactly one fact");
 
         // Grant it for real, then re-run: no event.
-        state.designations.players.insert(
-            (p0, "CitysBlessing".into()),
-            DesignationValue::Flag,
-        );
+        state
+            .designations
+            .players
+            .insert((p0, "CitysBlessing".into()), DesignationValue::Flag);
         let items = state.player_action_items(&pa, p0, &frame);
         assert!(items.is_empty(), "already-held designation emits nothing");
     }
 
-    /// [CR#608.2]: `Effect::If` evaluates its condition WHEN it resolves and
+    /// [CR#608.2c]: `Effect::If` evaluates its condition WHEN it resolves and
     /// runs the taken branch — `then` on true, `otherwise` on false, and
     /// nothing when false with no `otherwise`. Driven via `GainLife` (a
     /// choice-free, library-free player action) so the assertion is a clean
@@ -4358,12 +4361,13 @@ mod tests {
         assert_eq!(sd.zones.libraries[p0.index()].len(), lib_before - 3);
     }
 
-    /// [CR#702.131a]/[CR#702.131d]: on a SPELL, the folded Ascend grant fires
-    /// DURING resolution, and the DOWNSTREAM "if you have the city's blessing"
-    /// read sees that fresh grant — at ten permanents the player gets the
-    /// blessing AND draws three (not two). This is the crux: the grant must be
-    /// applied before the later read. No high-water mark — only the count at
-    /// resolution matters (see the sibling cases).
+    /// [CR#702.131a,608.2c]: on a SPELL, the folded Ascend grant ([CR#702.131a])
+    /// fires DURING resolution, and because the controller follows the spell's
+    /// instructions in written order ([CR#608.2c]), the DOWNSTREAM "if you have
+    /// the city's blessing" read sees that fresh grant — at ten permanents the
+    /// player gets the blessing AND draws three (not two). This is the crux:
+    /// the grant must be applied before the later read. No high-water mark
+    /// — only the count at resolution matters (see the sibling cases).
     #[test]
     fn ascend_spell_grants_then_reads_at_ten() {
         let (mut state, p0, lib_before) = secrets_on_stack(10);
@@ -4381,7 +4385,7 @@ mod tests {
         let drawn = state.zones.hands[p0.index()].len();
         assert_eq!(
             drawn, 3,
-            "the downstream read saw the fresh blessing → drew three ([CR#702.131d]); drew {drawn}"
+            "the downstream read saw the fresh blessing → drew three ([CR#608.2c]); drew {drawn}"
         );
         assert_eq!(
             state.zones.libraries[p0.index()].len(),
