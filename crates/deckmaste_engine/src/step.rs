@@ -522,6 +522,14 @@ impl GameState {
             GameEvent::DesignationChanged { .. } => {
                 todo!("P0.W6: game-scope designation flip apply ([CR#731.1a])")
             }
+            GameEvent::GotDesignation { player, name } => {
+                // [CR#702.131c]: set the player-scope flag once; never removed.
+                self.designations
+                    .players
+                    .entry((player, name.clone()))
+                    .or_insert(crate::state::DesignationValue::Flag);
+                GameEvent::GotDesignation { player, name }
+            }
             GameEvent::ControlChanged { .. } => {
                 todo!("P0.W6: control-change apply (layers L2 seam)")
             }
@@ -1423,5 +1431,37 @@ mod tests {
         assert_eq!(top.x, Some(3));
         // The returned pending lets callers run their own debug-asserts.
         assert_eq!(pending.id, id);
+    }
+
+    /// Applying `GotDesignation` writes the player-scope designation store, and a
+    /// second apply is a no-op ([CR#702.131c] — set once; any number of players may
+    /// hold it, none loses it).
+    #[test]
+    fn got_designation_applies_idempotently() {
+        let mut state = game();
+        let name: deckmaste_core::Ident = "CitysBlessing".into();
+        let p0 = crate::player::PlayerId(0);
+
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::Single(
+            GameEvent::GotDesignation {
+                player: p0,
+                name: name.clone(),
+            },
+        ))]);
+        let _ = state.step();
+        assert!(
+            state.designations.players.contains_key(&(p0, name.clone())),
+            "player 0 now holds the city's blessing"
+        );
+
+        // A second apply does not panic and leaves the entry present.
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::Single(
+            GameEvent::GotDesignation {
+                player: p0,
+                name: name.clone(),
+            },
+        ))]);
+        let _ = state.step();
+        assert!(state.designations.players.contains_key(&(p0, name)));
     }
 }
