@@ -95,6 +95,12 @@ pub enum PlayerAction {
     /// never touches the battlefield (rules-taxonomy §6: a degenerate
     /// token definition; [CR#114.1,114.4]).
     GetEmblem(Vec<crate::Ability>),
+    /// "[Player] gets the named designation" ([CR#702.131c] — the city's
+    /// blessing; the generic player-scope grant verb). v1 handles the
+    /// **player-scope flag** case only; single-holder designations (monarch /
+    /// the initiative — they evict the prior holder) and object-scope grants
+    /// (goad, suspected) are seams the verb does not yet cover.
+    GetDesignation(crate::Ident),
     /// A resolution choice stored under a note key ([CR#608.2d] choice +
     /// [CR#607.2] slot): "choose a color" and kin.
     ChooseAndNote(crate::Ident, crate::NotedKind),
@@ -282,6 +288,27 @@ mod tests {
         let mv = Action::Move(Selection::Ref(Reference::This), Zone::Graveyard);
         assert_eq!(read("Move(This, Graveyard)"), mv);
         assert_eq!(read(&write(&mv)), mv);
+    }
+
+    /// `GetDesignation` is a player verb: bare it reads as `By(You, …)`, and it
+    /// round-trips. The designation name is a quoted Ident ([CR#702.131c]).
+    #[test]
+    fn get_designation_round_trips_bare() {
+        let v = Action::By(
+            Reference::You,
+            PlayerAction::GetDesignation("CitysBlessing".into()),
+        );
+        let written = write(&v);
+        assert!(
+            !written.contains("By("),
+            "By(You, …) should write bare, got {written}"
+        );
+        assert_eq!(read(&written), v);
+        assert_eq!(
+            read(r#"GetDesignation("CitysBlessing")"#),
+            v,
+            "a bare player verb reads as By(You, …)"
+        );
     }
 
     /// `By(You, …)` writes the player action bare and round-trips.
