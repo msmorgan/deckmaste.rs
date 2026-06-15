@@ -77,6 +77,7 @@ impl GameState {
     ///
     /// `Dies`/`Enters` are `Event::Expanded` macros over `ZoneMove`; they are
     /// looked through transparently via the `Expanded` arm.
+    #[expect(clippy::too_many_lines, reason = "flat per-variant Event dispatch")]
     pub(crate) fn event_matches(
         &self,
         pattern: &Event,
@@ -123,11 +124,29 @@ impl GameState {
                 }
             }
 
-            // [CR#603.2]: step/phase triggers match a `StepBegan`.
-            // `_whose` filtering (Your/AnOpponents/EachPlayers) is not reached
-            // by any Stage-3 fixture; the constraint is wired as a seam here.
-            Event::BeginningOf(step, _whose) => {
-                matches!(event, GameEvent::StepBegan(s) if s == step)
+            // [CR#603.2b]: when a step/phase begins, abilities that trigger "at
+            // the beginning of" it trigger — match the `StepBegan` fact on the
+            // exact phase. The `whose` coordinate ([CR#503.1] "your upkeep")
+            // narrows by whose turn it is, relative to the watching ability's
+            // controller: `Your` requires the watcher's controller to be the
+            // active player, `AnOpponents` requires the active player to be
+            // someone else, and `EachPlayers` fires on every player's turn.
+            Event::BeginningOf(step, whose) => {
+                use deckmaste_core::WhoseTurn;
+                if !matches!(event, GameEvent::StepBegan(s) if s == step) {
+                    return false;
+                }
+                let active = self.turn.active_player;
+                match whose {
+                    WhoseTurn::EachPlayers => true,
+                    // The watcher's controller anchors "your"/"an opponent's";
+                    // a step trigger fires from a live battlefield permanent,
+                    // so its source resolves to a live controller.
+                    WhoseTurn::Your => self.controller_of_source(watcher) == Some(active),
+                    WhoseTurn::AnOpponents => self
+                        .controller_of_source(watcher)
+                        .is_some_and(|c| c != active),
+                }
             }
 
             // [CR#603.2e]: a "becomes [state]" transition. The `Attacking`
@@ -500,15 +519,17 @@ impl GameState {
         let mut blocked_attackers: std::collections::HashSet<ObjectId> =
             std::collections::HashSet::new();
         for event in events {
-            // Skip facts no fixture trigger watches; never scan a `TriggerFired`
+            // Skip facts no trigger pattern watches; never scan a `TriggerFired`
             // (avoids any chance of recursion). `ZoneWillChange` is skipped because
             // trigger-matching happens on the downstream `ZoneChanged` fact (already
             // queued by the will-change apply at the agenda front — [CR#603.6]);
             // matching on the intent would double-fire every zone-move trigger.
+            // `StepBegan` is NOT skipped — `BeginningOf` step/phase triggers
+            // ([CR#603.2]) key off it (e.g. "at the beginning of combat on your
+            // turn"); `TurnBegan` has no pattern shape that watches it.
             match event {
                 GameEvent::TriggerFired { .. }
                 | GameEvent::AbilityResolved(_)
-                | GameEvent::StepBegan(_)
                 | GameEvent::TurnBegan { .. }
                 | GameEvent::ZoneWillChange { .. } => continue,
                 GameEvent::Blocked { attacker, .. } if !blocked_attackers.insert(*attacker) => {
@@ -2429,6 +2450,290 @@ mod tests {
         assert!(
             state.pending_triggers.is_empty(),
             "a vanilla creature dying watches nothing — no trigger noted"
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // BeginningOf — step/phase-entry triggers ([CR#603.2b])
+    // -------------------------------------------------------------------------
+
+    /// A synthetic Goblin Rabblemaster: a red Goblin creature whose sole
+    /// ability is "At the beginning of combat on your turn, create a 1/1 red
+    /// Goblin creature token with haste" — i.e.
+    /// `Triggered(event: BeginningOf(Combat(BeginningOfCombat), Your),
+    /// effect: Create(1, Token(1/1 red Goblin)))`.
+    fn rabblemaster() -> deckmaste_core::Card {
+        use deckmaste_core::Ability;
+        use deckmaste_core::Action;
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::Color;
+        use deckmaste_core::CombatStep;
+        use deckmaste_core::Count;
+        use deckmaste_core::Effect;
+        use deckmaste_core::Event;
+        use deckmaste_core::Phase;
+        use deckmaste_core::PlayerAction;
+        use deckmaste_core::Reference;
+        use deckmaste_core::StatValue;
+        use deckmaste_core::Token;
+        use deckmaste_core::TriggeredAbility;
+        use deckmaste_core::WhoseTurn;
+
+        let goblin_token = Token {
+            color_indicator: vec![Color::Red],
+            supertypes: vec![],
+            types: vec![Type::Creature],
+            subtypes: vec![],
+            abilities: vec![],
+            power: Some(StatValue::Number(1)),
+            toughness: Some(StatValue::Number(1)),
+        };
+        Card::Normal(CardFace {
+            name: "Rabblemaster".into(),
+            types: vec![Type::Creature],
+            abilities: vec![Ability::Triggered(TriggeredAbility {
+                event: Event::BeginningOf(
+                    Phase::Combat(CombatStep::BeginningOfCombat),
+                    WhoseTurn::Your,
+                ),
+                condition: None,
+                limits: Vec::new(),
+                targets: Vec::new(),
+                effect: Effect::Act(Action::By(
+                    Reference::You,
+                    PlayerAction::Create(Count::Literal(1), goblin_token.into()),
+                )),
+            })],
+            ..CardFace::default()
+        })
+    }
+
+    /// Force a synthetic in-Rust card onto the battlefield under `controller`.
+    fn put_synthetic_on_field(
+        state: &mut GameState,
+        card: deckmaste_core::Card,
+        controller: PlayerId,
+    ) -> ObjectId {
+        let card_id = state.cards.push(Arc::new(card), controller);
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            controller,
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        id
+    }
+
+    /// A two-player game with no permanents, active player = P0.
+    fn empty_game() -> GameState {
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 10],
+                },
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 10],
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        })
+    }
+
+    /// [CR#603.2b]: when the beginning-of-combat step begins, a
+    /// "at the beginning of combat on your turn" ability fires — the
+    /// `StepBegan` fact must reach the scan, and `WhoseTurn::Your` must pass
+    /// on the controller's own turn.
+    #[test]
+    fn beginning_of_combat_your_turn_fires_on_controllers_turn() {
+        use deckmaste_core::CombatStep;
+        use deckmaste_core::Phase;
+
+        use crate::agenda::WorkItem;
+        use crate::event::Occurrence;
+
+        let mut state = empty_game();
+        state.turn.active_player = PlayerId(0);
+        let rabble = put_synthetic_on_field(&mut state, rabblemaster(), PlayerId(0));
+
+        state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(Phase::Combat(
+            CombatStep::BeginningOfCombat,
+        ))));
+
+        let fired: Vec<&WorkItem> = state
+            .agenda
+            .iter()
+            .filter(|w| {
+                matches!(
+                    w,
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { .. }))
+                )
+            })
+            .collect();
+        assert_eq!(
+            fired.len(),
+            1,
+            "beginning-of-combat trigger must fire on the controller's turn"
+        );
+        let WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { source, .. })) = fired[0]
+        else {
+            unreachable!()
+        };
+        assert_eq!(*source, state.objects.obj(rabble).source);
+    }
+
+    /// [CR#503.1]: a `WhoseTurn::Your`-scoped step trigger does NOT fire on
+    /// an opponent's turn.
+    #[test]
+    fn beginning_of_combat_your_turn_silent_on_opponents_turn() {
+        use deckmaste_core::CombatStep;
+        use deckmaste_core::Phase;
+
+        use crate::agenda::WorkItem;
+        use crate::event::Occurrence;
+
+        let mut state = empty_game();
+        // The opponent (P1) is the active player; the Rabblemaster's controller
+        // is P0, so "on your turn" must not be satisfied.
+        state.turn.active_player = PlayerId(1);
+        let _rabble = put_synthetic_on_field(&mut state, rabblemaster(), PlayerId(0));
+
+        state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(Phase::Combat(
+            CombatStep::BeginningOfCombat,
+        ))));
+
+        let fired = state
+            .agenda
+            .iter()
+            .filter(|w| {
+                matches!(
+                    w,
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { .. }))
+                )
+            })
+            .count();
+        assert_eq!(
+            fired, 0,
+            "a `Your`-scoped trigger must stay silent on an opponent's turn"
+        );
+    }
+
+    /// A different step's `StepBegan` (upkeep) does not match a
+    /// beginning-of-combat trigger — the phase must match exactly
+    /// ([CR#603.2b]).
+    #[test]
+    fn beginning_of_combat_trigger_ignores_other_steps() {
+        use deckmaste_core::BeginningStep;
+        use deckmaste_core::CombatStep;
+        use deckmaste_core::Phase;
+
+        use crate::agenda::WorkItem;
+        use crate::event::Occurrence;
+
+        let mut state = empty_game();
+        state.turn.active_player = PlayerId(0);
+        let _rabble = put_synthetic_on_field(&mut state, rabblemaster(), PlayerId(0));
+
+        // The upkeep step begins, not combat.
+        state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(Phase::Beginning(
+            BeginningStep::Upkeep,
+        ))));
+        assert_eq!(
+            state
+                .agenda
+                .iter()
+                .filter(|w| matches!(
+                    w,
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { .. }))
+                ))
+                .count(),
+            0,
+            "a beginning-of-combat trigger must ignore the upkeep step"
+        );
+        // Sanity: the same trigger DOES fire on the matching step.
+        state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(Phase::Combat(
+            CombatStep::BeginningOfCombat,
+        ))));
+        assert_eq!(
+            state
+                .agenda
+                .iter()
+                .filter(|w| matches!(
+                    w,
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { .. }))
+                ))
+                .count(),
+            1,
+            "the matching beginning-of-combat step fires it"
+        );
+    }
+
+    /// End-to-end ([CR#603.2b,701.7a]): stepping the engine into the
+    /// beginning-of-combat step on the controller's turn drives the whole
+    /// pipeline (`StepBegan` → scan → place → resolve) and the Goblin token
+    /// reaches the battlefield.
+    #[test]
+    fn rabblemaster_mints_a_goblin_at_beginning_of_combat() {
+        use deckmaste_core::CombatStep;
+        use deckmaste_core::ObjectKind;
+        use deckmaste_core::Phase;
+
+        use crate::agenda::WorkItem;
+        use crate::decide::Action;
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+        use crate::step::StepOutcome;
+
+        let mut state = empty_game();
+        state.turn.active_player = PlayerId(0);
+        state.turn.current = Phase::PrecombatMain;
+        let rabble = put_synthetic_on_field(&mut state, rabblemaster(), PlayerId(0));
+
+        // Schedule the beginning-of-combat step directly, then step the engine,
+        // passing priority whenever it asks so the placed trigger resolves.
+        state.schedule_front(vec![WorkItem::BeginStep(Phase::Combat(
+            CombatStep::BeginningOfCombat,
+        ))]);
+        let goblin_exists = |state: &GameState| {
+            state.zones.battlefield.iter().any(|&id| {
+                id != rabble && crate::target::object_kind(state, id) == ObjectKind::Token
+            })
+        };
+        for _ in 0..200 {
+            if goblin_exists(&state) {
+                break;
+            }
+            match state.step() {
+                StepOutcome::Progress(_) => {}
+                StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+                }
+                StepOutcome::NeedsDecision(other) => {
+                    panic!("unexpected decision before the token minted: {other:?}")
+                }
+                StepOutcome::GameOver(o) => panic!("unexpected game over: {o:?}"),
+            }
+        }
+
+        let goblins: Vec<ObjectId> = state
+            .zones
+            .battlefield
+            .iter()
+            .copied()
+            .filter(|&id| id != rabble)
+            .collect();
+        assert_eq!(
+            goblins.len(),
+            1,
+            "exactly one Goblin token minted at beginning of combat"
+        );
+        assert_eq!(
+            crate::target::object_kind(&state, goblins[0]),
+            ObjectKind::Token,
+            "[CR#111.6]: it is a token, not a card"
         );
     }
 
