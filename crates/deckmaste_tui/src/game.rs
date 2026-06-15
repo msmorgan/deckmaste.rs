@@ -59,8 +59,8 @@ mod tests {
 
     /// End-to-end: both seats are auto-developed by `GreedyDemo` (which, unlike
     /// `GreedyCreatures`, also chooses legal targets for the burn / sac-outlet
-    /// pings these decks cast), so the tribal lords, Krenko's token scaling, sac
-    /// outlets, and burn all reach the battlefield. A lord-filled board
+    /// pings these decks cast), so the tribal lords, Krenko's token scaling,
+    /// sac outlets, and burn all reach the battlefield. A lord-filled board
     /// exercises the continuous-effect carrier (engine-static-scope-carrier)
     /// that used to panic every layer rebuild — so this finishing at all is the
     /// demo's real proof of life.
