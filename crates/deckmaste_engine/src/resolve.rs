@@ -801,11 +801,22 @@ impl GameState {
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
-            // Seam: the city's-blessing grant verb. Its emit (a `GotDesignation`
-            // fact, suppressed when the player already holds `name`) lands with
-            // the Ascend wiring ([CR#702.131c]).
-            PlayerAction::GetDesignation(..) => {
-                todo!("city's-blessing grant verb — emit GotDesignation ([CR#702.131c])")
+            PlayerAction::GetDesignation(name) => {
+                // [CR#702.131c]: idempotent — a player who already holds the
+                // designation gets no second grant and no fact (so the SBA
+                // sweep converges and no spurious "got it" event is recorded).
+                if self
+                    .designations
+                    .players
+                    .contains_key(&(actor, name.clone()))
+                {
+                    vec![]
+                } else {
+                    vec![WorkItem::Emit(Occurrence::Single(GameEvent::GotDesignation {
+                        player: actor,
+                        name: name.clone(),
+                    }))]
+                }
             }
             // Look through a remembered macro invocation.
             PlayerAction::Expanded(e) => self.player_action_items(&e.value, actor, frame),
@@ -3994,5 +4005,36 @@ mod tests {
                 .contains(&Type::Creature),
             "attached reconfigure Equipment is not a creature ([CR#702.151b])"
         );
+    }
+
+    /// [CR#702.131c]: the grant verb emits one `GotDesignation` for a player
+    /// who lacks the designation, and nothing for one who already holds it
+    /// (idempotent — keeps the SBA sweep convergent and avoids spurious facts).
+    #[test]
+    fn get_designation_emits_once_then_nothing() {
+        use crate::state::DesignationValue;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let frame = Frame {
+            source: state.player(p0).object,
+            controller: p0,
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        let pa = deckmaste_core::PlayerAction::GetDesignation("CitysBlessing".into());
+
+        let items = state.player_action_items(&pa, p0, &frame);
+        assert_eq!(items.len(), 1, "first grant emits exactly one fact");
+
+        // Grant it for real, then re-run: no event.
+        state.designations.players.insert(
+            (p0, "CitysBlessing".into()),
+            DesignationValue::Flag,
+        );
+        let items = state.player_action_items(&pa, p0, &frame);
+        assert!(items.is_empty(), "already-held designation emits nothing");
     }
 }
