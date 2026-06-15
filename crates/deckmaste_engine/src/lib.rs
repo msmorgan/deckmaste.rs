@@ -119,6 +119,9 @@ mod step;
 pub use step::Progress;
 pub use step::StepOutcome;
 
+#[cfg(test)]
+mod test_support;
+
 mod turn;
 pub use turn::PriorityRound;
 pub use turn::TurnState;
