@@ -224,7 +224,15 @@ fn reconfigure_confers_attach_and_unattach_activated() {
 #[test]
 fn ascend_macro_expands_to_static_sba() {
     use deckmaste_core::Ability;
+    use deckmaste_core::Cmp;
+    use deckmaste_core::Condition;
+    use deckmaste_core::Count;
+    use deckmaste_core::Filter;
+    use deckmaste_core::Reference;
+    use deckmaste_core::RelationFilter;
+    use deckmaste_core::StateFilter;
     use deckmaste_core::StaticEffect;
+    use deckmaste_core::Zone;
 
     // Walk every Static effect (peel Expanded) and look for an Sba row.
     fn statics(a: &Ability, out: &mut Vec<StaticEffect>) {
@@ -255,10 +263,38 @@ fn ascend_macro_expands_to_static_sba() {
     for a in abilities {
         statics(a, &mut effs);
     }
-    assert!(
-        effs.iter()
-            .any(|e| matches!(peel(e), StaticEffect::Sba { .. })),
-        "Ascend confers a Static carrying an Sba ([CR#702.131b]); got {effs:?}"
+    let when = effs
+        .iter()
+        .find_map(|e| match peel(e) {
+            StaticEffect::Sba { when, .. } => Some(when.clone()),
+            _ => None,
+        })
+        .unwrap_or_else(|| {
+            panic!("Ascend confers a Static carrying an Sba ([CR#702.131b]); got {effs:?}")
+        });
+
+    // Drift guard: the macro's Sba `when` must equal the canonical Ascend gate
+    // ([CR#702.131a,702.131b]) — the same typed `Condition` the spell-form
+    // `ASCEND_GATE` and the engine helper use. A macro edit that diverges fails.
+    let canonical = Condition::AllOf(vec![
+        Condition::Compare(
+            Count::CountOf(Box::new(Filter::AllOf(vec![
+                Filter::State(StateFilter::InZone(Zone::Battlefield)),
+                Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+                    Reference::You,
+                )))),
+            ]))),
+            Cmp::AtLeast,
+            Count::Literal(10),
+        ),
+        Condition::Not(Box::new(Condition::Is(
+            Reference::You,
+            Filter::State(StateFilter::Designated("CitysBlessing".into())),
+        ))),
+    ]);
+    assert_eq!(
+        when, canonical,
+        "Ascend macro's Sba gate drifted from the canonical Ascend gate"
     );
 }
 

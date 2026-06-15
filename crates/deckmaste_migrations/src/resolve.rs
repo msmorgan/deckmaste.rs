@@ -426,4 +426,47 @@ mod tests {
             "Ascend keyword preserved on a permanent"
         );
     }
+
+    /// Drift guard: the spell-form `ASCEND_GATE` string must parse to the same
+    /// `Condition` the permanent-form macro and the engine use
+    /// ([CR#702.131a,702.131b]). The canonical gate is "you control ten or more
+    /// battlefield permanents AND you don't already have the city's blessing".
+    /// If `ASCEND_GATE` is edited away from this shape, this fails loudly.
+    #[test]
+    fn ascend_gate_const_matches_canonical_condition() {
+        use deckmaste_core::Cmp;
+        use deckmaste_core::Condition;
+        use deckmaste_core::Count;
+        use deckmaste_core::Filter;
+        use deckmaste_core::Reference;
+        use deckmaste_core::RelationFilter;
+        use deckmaste_core::StateFilter;
+        use deckmaste_core::Zone;
+
+        let parsed: Condition = crate::ron_output::ron_options()
+            .from_str(ASCEND_GATE)
+            .expect("ASCEND_GATE parses as a Condition");
+
+        let canonical = Condition::AllOf(vec![
+            Condition::Compare(
+                Count::CountOf(Box::new(Filter::AllOf(vec![
+                    Filter::State(StateFilter::InZone(Zone::Battlefield)),
+                    Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+                        Reference::You,
+                    )))),
+                ]))),
+                Cmp::AtLeast,
+                Count::Literal(10),
+            ),
+            Condition::Not(Box::new(Condition::Is(
+                Reference::You,
+                Filter::State(StateFilter::Designated("CitysBlessing".into())),
+            ))),
+        ]);
+
+        assert_eq!(
+            parsed, canonical,
+            "ASCEND_GATE drifted from the canonical Ascend gate"
+        );
+    }
 }

@@ -4136,18 +4136,14 @@ mod tests {
 
     // --- Ascend (spell form) e2e ([CR#702.131a]) -------------------------------
     //
-    // SEAM (BLOCKED): the spell form of Ascend folds into
-    // `Sequence([If(<gate>, GetDesignation), If(Is(You,Designated), Draw(3),
-    // otherwise: Draw(2))])` (Task 7). But `run_effect` has NO `Effect::If` arm
-    // — an `If` node falls through to `todo!("stage 3 does not interpret effect
-    // …")` (resolve.rs, the choice seam). So resolving a folded Ascend spell
-    // PANICS today; the grant-then-read sequencing the three cases below assert
-    // can't be exercised until the resolution interpreter learns `Effect::If`
-    // (evaluate `condition_holds`, then schedule `then`/`otherwise`). The
-    // fixture itself is sound — `diag_setup_is_sound` (unignored) proves the
-    // gate reads 10/9 correctly and a bare `Draw(3)` lands three. The three
-    // behavioral cases are `#[ignore]`d until the `Effect::If` seam lands;
-    // un-ignore them then (they must pass as written — do NOT weaken to draws-2).
+    // The spell form of Ascend folds into `Sequence([If(<gate>,
+    // GetDesignation), If(Is(You,Designated), Draw(3), otherwise: Draw(2))])`
+    // (Task 7). The `Effect::If` interpreter is now live (see the `Effect::If`
+    // arm in `run_effect` — it evaluates `condition_holds`, then schedules
+    // `then`/`otherwise`), so these run unignored. They prove the grant-then-read
+    // ordering ([CR#608.2c]): draws 3 at ten, 2 at nine, and 2 at ten-then-nine
+    // (no high-water mark). The fixture is isolated by `diag_setup_is_sound`,
+    // which proves the gate reads 10/9 correctly and a bare `Draw(3)` lands three.
 
     /// The folded Ascend gate ([CR#702.131a]) built typed — the exact shape
     /// `deckmaste_migrations::resolve::fold_spell_ascend` prepends to a spell's
@@ -4298,11 +4294,12 @@ mod tests {
         out
     }
 
-    /// DIAGNOSTIC (temporary): proves the e2e SETUP is sound — the gate reads
-    /// true at ten / false at nine for these minted battlefield objects, and a
-    /// bare `Draw(3)` from the stocked library lands three cards in hand. Any
-    /// remaining failure of the three real cases below is therefore the
-    /// `Effect::If` interpreter, not the fixture.
+    /// Isolation guard: proves the spell-form fixture is sound independent of
+    /// the `Effect::If` interpreter — the gate reads true at ten / false at
+    /// nine for these minted battlefield objects, and a bare `Draw(3)` from
+    /// the stocked library lands three cards in hand. So any failure of the
+    /// three behavioral cases below points at the interpreter, not the
+    /// fixture.
     #[test]
     fn diag_setup_is_sound() {
         // Gate at ten: true.
