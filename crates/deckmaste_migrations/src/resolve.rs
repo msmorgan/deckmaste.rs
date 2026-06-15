@@ -54,6 +54,45 @@ pub const REGISTRY: &[AbilityParser] = &[
     crate::parsers::static_ability::resolve_line,
 ];
 
+/// The Ascend gate ([CR#702.131a/b]) — KEEP IN SYNC with
+/// `plugins/builtin/macros/keyword/Ascend.ron`.
+const ASCEND_GATE: &str = "AllOf([Compare(CountOf(AllOf([InZone(Battlefield), \
+ControlledBy(Ref(You))])), AtLeast, Literal(10)), Not(Is(You, Designated(\"CitysBlessing\")))])";
+
+/// [CR#702.131a]: fold an Ascend keyword on a SPELL into the front of its spell
+/// effect, then drop the keyword. `effect` is the last field of the rendered
+/// `Spell(...)` ability, so its value runs from `effect: ` to the closing `)`.
+fn fold_spell_ascend(face: &mut TodoCardFace) -> bool {
+    let has_ascend = face
+        .abilities
+        .iter()
+        .any(|a| matches!(a, TodoAbility::Parsed(s) if s == "Keyword(Ascend)"));
+    if !has_ascend {
+        return false;
+    }
+    let mut wrapped = false;
+    for ability in &mut face.abilities {
+        if let TodoAbility::Parsed(s) = ability
+            && let Some(idx) = s.find("effect: ")
+            && s.starts_with("Spell(")
+            && s.ends_with(')')
+        {
+            let head = &s[..idx + "effect: ".len()];
+            let effect_val = &s[idx + "effect: ".len()..s.len() - 1];
+            *ability = TodoAbility::Parsed(format!(
+                "{head}Sequence([If(condition: {ASCEND_GATE}, then: GetDesignation(\"CitysBlessing\")), {effect_val}]))"
+            ));
+            wrapped = true;
+            break;
+        }
+    }
+    if wrapped {
+        face.abilities
+            .retain(|a| !matches!(a, TodoAbility::Parsed(s) if s == "Keyword(Ascend)"));
+    }
+    wrapped
+}
+
 /// Replaces every `Unparsed` line a parser in `registry` can structure with the
 /// `Parsed` RON. Returns whether anything changed.
 fn resolve_face(face: &mut TodoCardFace, registry: &[AbilityParser]) -> anyhow::Result<bool> {
@@ -70,6 +109,9 @@ fn resolve_face(face: &mut TodoCardFace, registry: &[AbilityParser]) -> anyhow::
                 break;
             }
         }
+    }
+    if kind == CardKind::Spell && fold_spell_ascend(face) {
+        changed = true;
     }
     Ok(changed)
 }
@@ -300,5 +342,88 @@ mod tests {
         assert!(matches!(&back.abilities[0], TodoAbility::Parsed(r) if r == "Flying"));
         // Idempotent.
         assert!(!resolve_card_with(&mut card, &[flying_only]).unwrap());
+    }
+
+    /// [CR#702.131a]: on a spell, Ascend is folded into the front of the spell
+    /// effect (a Sequence) and the keyword ability is dropped — the grant
+    /// resolves before any downstream "if you have the city's blessing"
+    /// read. On a permanent, the keyword is left as-is (Task 5's static-Sba
+    /// macro handles it).
+    #[test]
+    fn ascend_on_spell_folds_into_spell_effect() {
+        // A Sorcery with Ascend + a draw effect, both already line-resolved.
+        // `<E>` = `Draw(Literal(1))` — a CORE-PARSEABLE effect: this is route
+        // (a) from the task. The migrations spell parser may emit macro-flavored
+        // atoms (e.g. `Draw(2)`), but the round-trip assertion below uses the
+        // BARE `deckmaste_core::ron::options()` reader — the same reader
+        // `resolve_cards`/`graduate` round-trips card RON through — so the
+        // fixture must be one the bare core reader accepts. `Draw(Literal(1))`
+        // is exactly such a form (cf. the `Activated(... Draw(Literal(1)))`
+        // round-trip test in `deckmaste_core::ability`).
+        let mut face = TodoCardFace {
+            name: "Test Spell".into(),
+            types: vec![RawIdent("Sorcery".into())],
+            abilities: vec![
+                TodoAbility::Parsed("Keyword(Ascend)".into()),
+                TodoAbility::Parsed("Spell(effect: Draw(Literal(1)))".into()),
+            ],
+            ..Default::default()
+        };
+        let changed = resolve_face(&mut face, &[]).unwrap();
+        assert!(changed);
+
+        // The Ascend keyword is gone …
+        assert!(
+            !face.abilities.iter().any(|a| matches!(
+                a,
+                TodoAbility::Parsed(s) if s.contains("Keyword(Ascend)")
+            )),
+            "Ascend keyword stripped on a spell"
+        );
+        // … and the single Spell ability now wraps the grant first.
+        let spell = face
+            .abilities
+            .iter()
+            .find_map(|a| match a {
+                TodoAbility::Parsed(s) if s.starts_with("Spell(") => Some(s.clone()),
+                _ => None,
+            })
+            .expect("a Spell ability remains");
+        assert!(
+            spell.contains("Sequence(["),
+            "effect wrapped in a Sequence: {spell}"
+        );
+        assert!(
+            spell.contains("GetDesignation(\"CitysBlessing\")"),
+            "grant present: {spell}"
+        );
+        // The original effect value is preserved verbatim inside the wrap.
+        assert!(
+            spell.contains("Draw(Literal(1))"),
+            "original effect preserved: {spell}"
+        );
+        // The wrapped Spell string re-parses into a typed Ability (no garbage).
+        let _: deckmaste_core::Ability = deckmaste_core::ron::options()
+            .from_str(&spell)
+            .expect("wrapped Spell re-parses");
+    }
+
+    /// On a permanent, Ascend is untouched by the post-pass.
+    #[test]
+    fn ascend_on_permanent_left_as_keyword() {
+        let mut face = TodoCardFace {
+            name: "Test Permanent".into(),
+            types: vec![RawIdent("Enchantment".into())],
+            abilities: vec![TodoAbility::Parsed("Keyword(Ascend)".into())],
+            ..Default::default()
+        };
+        let _ = resolve_face(&mut face, &[]).unwrap();
+        assert!(
+            face.abilities.iter().any(|a| matches!(
+                a,
+                TodoAbility::Parsed(s) if s == "Keyword(Ascend)"
+            )),
+            "Ascend keyword preserved on a permanent"
+        );
     }
 }
