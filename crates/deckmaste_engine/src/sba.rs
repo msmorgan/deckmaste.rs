@@ -859,4 +859,223 @@ mod tests {
             "plain permanent on an illegal host becomes unattached ([CR#704.5p]); got {actions:?}"
         );
     }
+
+    // --- Ascend (permanent form) e2e ([CR#702.131b,702.131c]) ------------------
+
+    /// [CR#702.131b]: the Ascend static grants the city's blessing once the
+    /// controller has ten permanents, exactly once (idempotent / no sweep
+    /// loop), and not at nine.
+    #[test]
+    fn ascend_permanent_grants_citys_blessing_at_ten() {
+        use deckmaste_core::Action;
+        use deckmaste_core::Cmp;
+        use deckmaste_core::Count;
+        use deckmaste_core::PlayerAction;
+        use deckmaste_core::RelationFilter;
+        use deckmaste_core::StateFilter;
+
+        let mut state = game();
+        let name: deckmaste_core::Ident = "CitysBlessing".into();
+        let p0 = PlayerId(0);
+
+        // The Ascend static, built typed (mirrors the builtin macro's expansion).
+        let gate = Condition::AllOf(vec![
+            Condition::Compare(
+                Count::CountOf(Box::new(Filter::AllOf(vec![
+                    Filter::State(StateFilter::InZone(Zone::Battlefield)),
+                    Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+                        Reference::You,
+                    )))),
+                ]))),
+                Cmp::AtLeast,
+                Count::Literal(10),
+            ),
+            Condition::Not(Box::new(Condition::Is(
+                Reference::You,
+                Filter::State(StateFilter::Designated(name.clone())),
+            ))),
+        ]);
+        let ascend = Ability::Static(StaticAbility {
+            condition: None,
+            effects: vec![StaticEffect::Sba {
+                when: gate,
+                then: Box::new(Effect::Act(Action::By(
+                    Reference::You,
+                    PlayerAction::GetDesignation(name.clone()),
+                ))),
+            }],
+            characteristic_defining: false,
+        });
+        let _ascender = on_field(
+            &mut state,
+            "Ascender",
+            vec![Type::Enchantment],
+            vec![ascend],
+        );
+
+        // Nine permanents (the ascender + 8 fillers) → no grant.
+        for i in 0..8 {
+            on_field(
+                &mut state,
+                &format!("Filler{i}"),
+                vec![Type::Artifact],
+                vec![],
+            );
+        }
+        assert_eq!(state.zones.battlefield.len(), 9);
+        assert!(
+            sba::sweep(&state)
+                .iter()
+                .all(|e| !matches!(e, GameEvent::GotDesignation { .. })),
+            "no blessing at nine permanents"
+        );
+
+        // Tenth permanent → the sweep emits the grant for p0.
+        on_field(&mut state, "Filler8", vec![Type::Artifact], vec![]);
+        let actions = sba::sweep(&state);
+        assert!(
+            actions.iter().any(|e| matches!(e,
+                GameEvent::GotDesignation { player, name: n } if *player == p0 && *n == name)),
+            "blessing granted at ten permanents; got {actions:?}"
+        );
+
+        // Apply it; the store holds it and a re-sweep emits nothing (no loop).
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(actions))]);
+        let _ = state.step();
+        assert!(state.designations.players.contains_key(&(p0, name.clone())));
+        assert!(
+            sba::sweep(&state)
+                .iter()
+                .all(|e| !matches!(e, GameEvent::GotDesignation { .. })),
+            "already-held: the Not(Designated) guard stops re-granting"
+        );
+    }
+
+    /// [CR#702.131c]: the city's blessing is a per-player designation — more
+    /// than one player can hold it at once. Two players, each controlling ten
+    /// permanents (each with their own Ascend static), both acquire it in a
+    /// single sweep.
+    #[test]
+    fn citys_blessing_is_multi_holder() {
+        use deckmaste_core::Action;
+        use deckmaste_core::Cmp;
+        use deckmaste_core::Count;
+        use deckmaste_core::PlayerAction;
+        use deckmaste_core::RelationFilter;
+        use deckmaste_core::StateFilter;
+
+        let name: deckmaste_core::Ident = "CitysBlessing".into();
+        let p0 = PlayerId(0);
+        let p1 = PlayerId(1);
+
+        // The Ascend static, built typed (mirrors the builtin macro's
+        // expansion). `ControlledBy(Ref(You))` resolves `You` to the carrying
+        // object's controller via the Sba frame, so each ascender counts ITS
+        // controller's permanents and grants to that controller.
+        let ascend = || {
+            Ability::Static(StaticAbility {
+                condition: None,
+                effects: vec![StaticEffect::Sba {
+                    when: Condition::AllOf(vec![
+                        Condition::Compare(
+                            Count::CountOf(Box::new(Filter::AllOf(vec![
+                                Filter::State(StateFilter::InZone(Zone::Battlefield)),
+                                Filter::Relation(RelationFilter::ControlledBy(Box::new(
+                                    Filter::Ref(Reference::You),
+                                ))),
+                            ]))),
+                            Cmp::AtLeast,
+                            Count::Literal(10),
+                        ),
+                        Condition::Not(Box::new(Condition::Is(
+                            Reference::You,
+                            Filter::State(StateFilter::Designated(name.clone())),
+                        ))),
+                    ]),
+                    then: Box::new(Effect::Act(Action::By(
+                        Reference::You,
+                        PlayerAction::GetDesignation(name.clone()),
+                    ))),
+                }],
+                characteristic_defining: false,
+            })
+        };
+
+        let mut state = game();
+
+        // p0: ascender + 9 fillers, all controlled by p0 (on_field default).
+        on_field(
+            &mut state,
+            "Ascender0",
+            vec![Type::Enchantment],
+            vec![ascend()],
+        );
+        for i in 0..9 {
+            on_field(
+                &mut state,
+                &format!("P0Filler{i}"),
+                vec![Type::Artifact],
+                vec![],
+            );
+        }
+
+        // p1: mint a second ascender + 9 fillers, then flip the controller of
+        // those ten objects to p1 (on_field mints under p0).
+        let mut p1_objs = Vec::new();
+        p1_objs.push(on_field(
+            &mut state,
+            "Ascender1",
+            vec![Type::Enchantment],
+            vec![ascend()],
+        ));
+        for i in 0..9 {
+            p1_objs.push(on_field(
+                &mut state,
+                &format!("P1Filler{i}"),
+                vec![Type::Artifact],
+                vec![],
+            ));
+        }
+        for &id in &p1_objs {
+            state.objects.obj_mut(id).controller = p1;
+        }
+
+        // Sanity: each player controls exactly ten battlefield permanents.
+        let controlled = |state: &GameState, who: PlayerId| {
+            state
+                .zones
+                .battlefield
+                .iter()
+                .filter(|&&id| state.objects.obj(id).controller == who)
+                .count()
+        };
+        assert_eq!(state.zones.battlefield.len(), 20);
+        assert_eq!(controlled(&state, p0), 10, "p0 controls ten permanents");
+        assert_eq!(controlled(&state, p1), 10, "p1 controls ten permanents");
+
+        // One sweep grants the blessing to BOTH players.
+        let actions = sba::sweep(&state);
+        assert!(
+            actions.iter().any(|e| matches!(e,
+                GameEvent::GotDesignation { player, name: n } if *player == p0 && *n == name)),
+            "p0 gets the blessing; got {actions:?}"
+        );
+        assert!(
+            actions.iter().any(|e| matches!(e,
+                GameEvent::GotDesignation { player, name: n } if *player == p1 && *n == name)),
+            "p1 gets the blessing; got {actions:?}"
+        );
+
+        // Apply all; both players end up holding the per-player designation.
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(actions))]);
+        let _ = state.step();
+        assert!(
+            state.designations.players.contains_key(&(p0, name.clone())),
+            "p0 holds the city's blessing ([CR#702.131c])"
+        );
+        assert!(
+            state.designations.players.contains_key(&(p1, name.clone())),
+            "p1 holds the city's blessing ([CR#702.131c])"
+        );
+    }
 }
