@@ -106,8 +106,7 @@ pub(crate) fn parse_phrase(phrase: &str) -> Option<String> {
     }
 
     // What's left must be exactly the head noun.
-    let head = head_noun(rest)?;
-    let mut atoms = vec![head];
+    let mut atoms = head_noun(rest)?;
     atoms.extend(prefix_atoms);
     atoms.extend(postfix_atoms);
     Some(combine(atoms))
@@ -322,25 +321,37 @@ fn strip_negation(s: &str) -> Option<(String, &str)> {
     Some((atom, rest.trim_start()))
 }
 
-/// Map a singular/plural type word to its builtin filter macro (battlefield-
-/// scoped) or `Type(<T>)`; otherwise treat a single token as a subtype.
-fn head_noun(word: &str) -> Option<String> {
+/// Map a singular/plural type word to its head atom(s): a builtin filter macro
+/// (battlefield-scoped) or `Type(<T>)` for a card type, a `Subtype(<S>)` paired
+/// with a `Permanent` zone scope for a subtype, or a `Designated(<D>)` for a
+/// designation. Returns the atoms `parse_phrase` flattens into the conjunction.
+///
+/// The subtype head carries an explicit `Permanent` scope ([CR#109.2]): a
+/// description that includes a subtype but no zone/"card"/"spell"/"source"
+/// qualifier means a permanent on the battlefield. Without it the bare subtype
+/// is zone-agnostic — the live count matcher ([`crate::target::matches`]) would
+/// also count the source's own on-stack copy (which reuses its card id),
+/// over-counting "Goblins/Elves you control" by one. The type-noun heads are
+/// already battlefield-scoped through their `Permanent`/`Creature` macros; this
+/// gives the subtype head the same scope.
+fn head_noun(word: &str) -> Option<Vec<String>> {
     let w = word.trim();
     // A designation head ("commander") is not a subtype ([CR#903.3]).
     if let Some(ident) = designation_ident(w) {
-        return Some(format!("Designated(\"{ident}\")"));
+        return Some(vec![format!("Designated(\"{ident}\")")]);
     }
     let singular = singularize(w).to_ascii_lowercase();
     if let Some(atom) = type_noun_atom(&singular) {
-        return Some(atom.to_string());
+        return Some(vec![atom.to_string()]);
     }
     // Otherwise a single bare token is a subtype; a multi-word or empty
-    // remainder declines.
+    // remainder declines. `Permanent` ([CR#109.2]) scopes it to the
+    // battlefield, matching the type-noun heads' built-in scope.
     if !singular.is_empty() && !singular.contains(' ') {
-        return Some(format!(
-            "Subtype(\"{}\")",
-            crate::ident::to_rust_ident(&singular)
-        ));
+        return Some(vec![
+            "Permanent".to_string(),
+            format!("Subtype(\"{}\")", crate::ident::to_rust_ident(&singular)),
+        ]);
     }
     None
 }
@@ -362,9 +373,11 @@ mod tests {
         assert_eq!(parse_phrase("creatures").as_deref(), Some("Creature"));
         assert_eq!(parse_phrase("permanents").as_deref(), Some("Permanent"));
         assert_eq!(parse_phrase("artifacts").as_deref(), Some("Type(Artifact)"));
+        // A bare subtype head is battlefield-scoped ([CR#109.2]) — `Permanent`,
+        // the same scope the type-noun heads carry through their macros.
         assert_eq!(
             parse_phrase("Goblins").as_deref(),
-            Some("Subtype(\"Goblin\")")
+            Some("AllOf([Permanent, Subtype(\"Goblin\")])")
         );
         assert_eq!(parse_phrase("sorceries").as_deref(), Some("Type(Sorcery)"));
     }
@@ -373,7 +386,7 @@ mod tests {
     fn prefix_adjectives() {
         assert_eq!(
             parse_phrase("other Goblins").as_deref(),
-            Some("AllOf([Subtype(\"Goblin\"), Not(Ref(This))])")
+            Some("AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])")
         );
         assert_eq!(
             parse_phrase("nonblack creatures").as_deref(),
@@ -438,10 +451,12 @@ mod tests {
 
     #[test]
     fn on_the_battlefield_is_consumed() {
-        // "on the battlefield" is the default scope — consumed, no atom.
+        // "on the battlefield" is the default scope — consumed, no atom. The
+        // battlefield scope still rides the head atom ([CR#109.2]): `Permanent`
+        // for a subtype head, the builtin macro for a type-noun head.
         assert_eq!(
             parse_phrase("Elf on the battlefield").as_deref(),
-            Some("Subtype(\"Elf\")")
+            Some("AllOf([Permanent, Subtype(\"Elf\")])")
         );
         assert_eq!(
             parse_phrase("creatures on the battlefield").as_deref(),
@@ -461,14 +476,18 @@ mod tests {
             parse_phrase("Other Elf creatures you control").as_deref(),
             Some("AllOf([Creature, Not(Ref(This)), Subtype(\"Elf\"), ControlledBy(Ref(You))])")
         );
-        // A bare subtype head still parses as the head (not an adjective).
+        // A bare subtype head still parses as the head (not an adjective),
+        // carrying the battlefield scope ([CR#109.2]).
         assert_eq!(
             parse_phrase("Goblins").as_deref(),
-            Some("Subtype(\"Goblin\")")
+            Some("AllOf([Permanent, Subtype(\"Goblin\")])")
         );
+        // Krenko, Mob Boss / Elvish Archdruid's "you control" count: the
+        // `Permanent` scope keeps the live count off the source's own on-stack
+        // copy, so it no longer over-counts by one.
         assert_eq!(
             parse_phrase("Goblins you control").as_deref(),
-            Some("AllOf([Subtype(\"Goblin\"), ControlledBy(Ref(You))])")
+            Some("AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])")
         );
     }
 

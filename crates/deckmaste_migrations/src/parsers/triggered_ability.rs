@@ -196,10 +196,14 @@ mod tests {
                  effect: Draw(1))"
             )
         );
-        // A subtype subject — "a Goblin enters".
+        // A subtype subject — "a Goblin enters". The bare-subtype head carries
+        // the battlefield scope ([CR#109.2]); harmless on an enters event (the
+        // subject is entering the battlefield).
         assert_eq!(
             trig("Whenever a Goblin enters, draw a card.").as_deref(),
-            Some("Triggered(event: Enters(Subtype(\"Goblin\")), effect: Draw(1))")
+            Some(
+                "Triggered(event: Enters(AllOf([Permanent, Subtype(\"Goblin\")])), effect: Draw(1))"
+            )
         );
     }
 
@@ -267,7 +271,7 @@ mod tests {
                 .as_deref(),
             Some(
                 "Triggered(event: ThisAttacks, effect: Continuously(effect: Modify(of: Of(This), \
-                 changes: [AddPower(CountOf(AllOf([Subtype(\"Goblin\"), Not(Ref(This)), Attacking]))), \
+                 changes: [AddPower(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This)), Attacking]))), \
                  AddToughness(Literal(0))]), duration: FixedUntil(EndOfTurn)))"
             )
         );
@@ -281,7 +285,7 @@ mod tests {
             trig("Whenever ~ attacks, you gain 1 life for each attacking Elf you control.")
                 .as_deref(),
             Some(
-                "Triggered(event: ThisAttacks, effect: GainLife(CountOf(AllOf([Subtype(\"Elf\"), \
+                "Triggered(event: ThisAttacks, effect: GainLife(CountOf(AllOf([Permanent, Subtype(\"Elf\"), \
                  Attacking, ControlledBy(Ref(You))]))))"
             )
         );

@@ -90,7 +90,7 @@ mod tests {
         assert_eq!(c.head, "{G}");
         assert_eq!(
             c.count,
-            "CountOf(AllOf([Subtype(\"Elf\"), ControlledBy(Ref(You))]))"
+            "CountOf(AllOf([Permanent, Subtype(\"Elf\"), ControlledBy(Ref(You))]))"
         );
         assert!(matches!(c.binder, Binder::ForEach));
     }
@@ -104,7 +104,7 @@ mod tests {
         assert_eq!(c.head, "Create X 1/1 red Goblin creature tokens");
         assert_eq!(
             c.count,
-            "CountOf(AllOf([Subtype(\"Goblin\"), ControlledBy(Ref(You))]))"
+            "CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))"
         );
         match c.binder {
             Binder::Variable(v) => assert_eq!(v, "X"),
@@ -118,15 +118,18 @@ mod tests {
         assert_eq!(c.head, "damage to any target");
         assert_eq!(
             c.count,
-            "CountOf(AllOf([Subtype(\"Goblin\"), ControlledBy(Ref(You))]))"
+            "CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))"
         );
         assert!(matches!(c.binder, Binder::EqualTo));
     }
 
     #[test]
     fn on_the_battlefield_filter() {
+        // "on the battlefield" is consumed, but the head still carries the
+        // battlefield scope ([CR#109.2]) so a count never reaches a Stack-zone
+        // copy of an Elf (e.g. a cast Elf spell).
         let c = strip("{G} for each Elf on the battlefield").unwrap();
-        assert_eq!(c.count, "CountOf(Subtype(\"Elf\"))");
+        assert_eq!(c.count, "CountOf(AllOf([Permanent, Subtype(\"Elf\")]))");
     }
 
     #[test]

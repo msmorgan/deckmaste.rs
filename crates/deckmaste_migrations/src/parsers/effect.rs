@@ -535,11 +535,12 @@ mod tests {
                 "Destroy(Target(0))".to_owned()
             ))
         );
-        // Lowercase lead (the clause after a trigger comma) parses too.
+        // Lowercase lead (the clause after a trigger comma) parses too. The
+        // bare-subtype head is battlefield-scoped ([CR#109.2,115.2]).
         assert_eq!(
             parsed("destroy target Goblin."),
             Some((
-                "TargetOne(Subtype(\"Goblin\"))".to_owned(),
+                "TargetOne(AllOf([Permanent, Subtype(\"Goblin\")]))".to_owned(),
                 "Destroy(Target(0))".to_owned()
             ))
         );
@@ -825,7 +826,7 @@ mod tests {
             parsed("Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control."),
             Some((
                 String::new(),
-                "Create(CountOf(AllOf([Subtype(\"Goblin\"), ControlledBy(Ref(You))])), \
+                "Create(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])), \
                  Token(color_indicator: [Red], types: [Creature], subtypes: [Goblin], power: 1, toughness: 1))".to_owned()
             ))
         );
@@ -837,7 +838,7 @@ mod tests {
             parsed("Create a 1/1 red Goblin creature token for each Goblin you control."),
             Some((
                 String::new(),
-                "Create(CountOf(AllOf([Subtype(\"Goblin\"), ControlledBy(Ref(You))])), \
+                "Create(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])), \
                  Token(color_indicator: [Red], types: [Creature], subtypes: [Goblin], power: 1, toughness: 1))".to_owned()
             ))
         );
@@ -872,7 +873,7 @@ mod tests {
             parsed("~ deals damage to any target equal to the number of Goblins you control."),
             Some((
                 "AnyTarget".to_owned(),
-                "DealDamage(Target(0), CountOf(AllOf([Subtype(\"Goblin\"), ControlledBy(Ref(You))])))".to_owned()
+                "DealDamage(Target(0), CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))".to_owned()
             ))
         );
     }
@@ -883,7 +884,7 @@ mod tests {
             parsed("~ deals X damage to target player, where X is the number of Goblins you control."),
             Some((
                 "TargetOne(Player)".to_owned(),
-                "DealDamage(Target(0), CountOf(AllOf([Subtype(\"Goblin\"), ControlledBy(Ref(You))])))".to_owned()
+                "DealDamage(Target(0), CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))".to_owned()
             ))
         );
     }
@@ -907,8 +908,8 @@ mod tests {
             Some((
                 String::new(),
                 "Continuously(effect: Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), \
-                 changes: [AddPower(CountOf(AllOf([Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), \
-                 AddToughness(CountOf(AllOf([Subtype(\"Goblin\"), ControlledBy(Ref(You))])))]), \
+                 changes: [AddPower(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), \
+                 AddToughness(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))]), \
                  duration: FixedUntil(EndOfTurn))".to_owned()
             ))
         );
@@ -922,7 +923,7 @@ mod tests {
             Some((
                 String::new(),
                 "Continuously(effect: Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), \
-                 changes: [AddPower(CountOf(AllOf([Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), \
+                 changes: [AddPower(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), \
                  AddToughness(Literal(0))]), \
                  duration: FixedUntil(EndOfTurn))".to_owned()
             ))
@@ -948,7 +949,7 @@ mod tests {
             parsed("you gain 1 life for each attacking Elf you control."),
             Some((
                 String::new(),
-                "GainLife(CountOf(AllOf([Subtype(\"Elf\"), Attacking, ControlledBy(Ref(You))])))"
+                "GainLife(CountOf(AllOf([Permanent, Subtype(\"Elf\"), Attacking, ControlledBy(Ref(You))])))"
                     .to_owned()
             ))
         );

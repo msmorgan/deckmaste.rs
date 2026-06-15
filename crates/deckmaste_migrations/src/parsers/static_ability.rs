@@ -156,7 +156,7 @@ mod tests {
         assert_eq!(
             stat("Other Goblins have haste.").as_deref(),
             Some(
-                "Static(effects: [Modify(of: Matching(AllOf([Subtype(\"Goblin\"), Not(Ref(This))])), changes: [GainAbility(Keyword(Haste))])])"
+                "Static(effects: [Modify(of: Matching(AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])), changes: [GainAbility(Keyword(Haste))])])"
             )
         );
         assert_eq!(
@@ -235,7 +235,7 @@ mod tests {
         assert_eq!(
             stat("Other Goblins get +1/+1 and have mountainwalk.").as_deref(),
             Some(
-                "Static(effects: [Modify(of: Matching(AllOf([Subtype(\"Goblin\"), Not(Ref(This))])), changes: [AddPower(Literal(1)), AddToughness(Literal(1)), GainAbility(Keyword(Mountainwalk))])])"
+                "Static(effects: [Modify(of: Matching(AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])), changes: [AddPower(Literal(1)), AddToughness(Literal(1)), GainAbility(Keyword(Mountainwalk))])])"
             )
         );
     }

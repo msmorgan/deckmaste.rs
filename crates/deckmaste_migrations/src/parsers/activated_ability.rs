@@ -131,7 +131,7 @@ mod tests {
             act("Sacrifice another Goblin: Draw a card.").as_deref(),
             Some(
                 "Activated(cost: [Do(Sacrifice(Choose(Exactly(Literal(1)), \
-                 AllOf([Subtype(\"Goblin\"), Not(Ref(This))]))))], effect: Draw(1))"
+                 AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This))]))))], effect: Draw(1))"
             )
         );
     }
