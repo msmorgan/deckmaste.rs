@@ -28,6 +28,7 @@ use deckmaste_core::Type;
 use deckmaste_core::Zone;
 
 use crate::object::ObjectId;
+use crate::object::ObjectSource;
 use crate::object::Timestamp;
 use crate::player::PlayerId;
 use crate::state::GameState;
@@ -323,6 +324,14 @@ struct ActiveEffect {
     controller: PlayerId,
     scope: ScopeResolved,
     changes: Vec<Modification>,
+    /// The effect's carrier ([CR#611.2c]) — the object whose `Ref(This)`/
+    /// `Ref(You)` a `Matching` scope resolves against. The source permanent for
+    /// a static ability; `Player(controller)` for a spell-built floating effect
+    /// (its source spell has left the stack, so `You` anchors on the locked
+    /// controller's proxy, which is always live). Threaded into `resolve_scope`
+    /// → `matches_derived` so a tribal-lord scope resolves instead of
+    /// panicking.
+    watcher: Option<ObjectSource>,
     /// Locked target set: `None` until first applied layer resolves the scope
     /// ([CR#613.6] — scope is locked at first layer of application).
     locked: Option<Vec<ObjectId>>,
@@ -406,6 +415,10 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
                     controller: obj.controller,
                     scope,
                     changes: changes.clone(),
+                    // The carrier is the source permanent itself: a `Matching`
+                    // scope's `Ref(This)` is this object and `Ref(You)` is its
+                    // controller ([CR#603.10a,109.5]).
+                    watcher: Some(obj.source),
                     locked: None,
                 });
             }
@@ -419,6 +432,13 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
             controller: ce.controller,
             scope: ce.scope.clone(),
             changes: ce.changes.clone(),
+            // A spell-built floating effect's source spell has left the stack by
+            // the time the layer pass runs, so `Ref(You)` anchors on the locked
+            // controller's player proxy (`controller_of_source(Player(p)) == p`,
+            // always live) rather than the gone spell. A floating `Matching`
+            // scope naming `Ref(This)` (no canonical card does) would resolve to
+            // that proxy; the spell itself is not re-derivable here ([CR#611.2c]).
+            watcher: Some(ObjectSource::Player(ce.controller)),
             locked: None,
         });
     }
@@ -494,11 +514,20 @@ fn resolve_source_relative(
 /// printed type even after L4 has replaced it, making the lock unobservable.
 ///
 /// Missing `id` in `working` (e.g. a player proxy) returns `false`.
+///
+/// `watcher` is the carrier of the effect whose scope is being evaluated — the
+/// source permanent for a static ability, or `Player(controller)` for a
+/// spell-built floating effect ([CR#611.2c]). It anchors `Ref(This)`/`Ref(You)`
+/// in the scope: without it those refs hit the frameless-targeting `todo!` in
+/// `target::matches` the moment a layer rebuild touches a tribal-lord scope
+/// (`AllOf([…, Not(Ref(This)), ControlledBy(Ref(You))])`). The live trigger
+/// lane (`filter_matches_live`) threads its watcher the same way.
 fn matches_derived(
     state: &GameState,
     working: &BTreeMap<ObjectId, DerivedObject>,
     id: ObjectId,
     filter: &deckmaste_core::Filter,
+    watcher: Option<ObjectSource>,
 ) -> bool {
     use deckmaste_core::CharacteristicFilter;
     use deckmaste_core::Filter;
@@ -548,18 +577,26 @@ fn matches_derived(
             crate::target::stat_satisfies(value, *cmp, count)
         }
         // Combinators: recurse through matches_derived so characteristic leaves
-        // see the derived map.
-        Filter::AllOf(fs) => fs.iter().all(|f| matches_derived(state, working, id, f)),
-        Filter::OneOf(fs) => fs.iter().any(|f| matches_derived(state, working, id, f)),
-        Filter::Not(f) => !matches_derived(state, working, id, f),
-        Filter::Expanded(e) => matches_derived(state, working, id, &e.value),
+        // see the derived map, carrying the same `watcher` so a nested
+        // `Ref(This)`/`Ref(You)` still anchors against the host.
+        Filter::AllOf(fs) => fs
+            .iter()
+            .all(|f| matches_derived(state, working, id, f, watcher)),
+        Filter::OneOf(fs) => fs
+            .iter()
+            .any(|f| matches_derived(state, working, id, f, watcher)),
+        Filter::Not(f) => !matches_derived(state, working, id, f, watcher),
+        Filter::Expanded(e) => matches_derived(state, working, id, &e.value, watcher),
         // `Named` and everything non-characteristic (zone, status, kind,
-        // combat, relations, …): delegate to the printed matcher. None of the
+        // combat, relations, refs …): delegate to the printed matcher, threading
+        // the carrier `watcher` so a scope's `Ref(This)`/`Ref(You)` (and the
+        // `Ref(You)` nested inside a `ControlledBy`) anchors against the host
+        // instead of hitting the frameless-targeting `todo!`. None of the
         // delegated arms re-enter `state.layers()` for a battlefield permanent
         // (the only `id`s this matcher sees): `Named` reads the printed face;
         // relations resolve over player proxies / object iteration; combat and
         // state read stored fields. Characteristic leaves are all handled above.
-        _ => crate::target::matches(state, id, filter),
+        _ => crate::target::matches_with(state, id, filter, watcher),
     }
 }
 
@@ -579,12 +616,13 @@ fn resolve_scope(
     state: &GameState,
     working: &BTreeMap<ObjectId, DerivedObject>,
     scope: &ScopeResolved,
+    watcher: Option<ObjectSource>,
 ) -> Vec<ObjectId> {
     match scope {
         ScopeResolved::Floating(filter) => working
             .keys()
             .copied()
-            .filter(|&id| matches_derived(state, working, id, filter))
+            .filter(|&id| matches_derived(state, working, id, filter, watcher))
             .collect(),
         ScopeResolved::Locked(ids) => ids.clone(),
     }
@@ -769,7 +807,7 @@ fn effect_targets(
 ) -> Vec<ObjectId> {
     match &effect.locked {
         Some(ids) => ids.clone(),
-        None => resolve_scope(state, working, &effect.scope),
+        None => resolve_scope(state, working, &effect.scope, effect.watcher),
     }
 }
 
@@ -783,7 +821,7 @@ fn apply_effect_in_layer(
     layer: Layer,
 ) {
     if effect.locked.is_none() {
-        effect.locked = Some(resolve_scope(state, working, &effect.scope));
+        effect.locked = Some(resolve_scope(state, working, &effect.scope, effect.watcher));
     }
     let targets = effect.locked.clone().expect("locked just set");
     for obj_id in targets {
@@ -1429,6 +1467,153 @@ mod tests {
             view.get(id).colors.is_empty(),
             "devoid derives colorless (empty color set), got {:?}",
             view.get(id).colors
+        );
+    }
+
+    /// Mint a 2/2 creature of the named subtype carrying `abilities`,
+    /// controlled by `controller`. The carrier-threading lord tests need
+    /// both a subtype and a chooseable controller, which
+    /// `creature_on_field` (player 0, no subtype) does not give.
+    fn typed_creature(
+        mut state: GameState,
+        subtype: &str,
+        controller: PlayerId,
+        abilities: Vec<Ability>,
+    ) -> (GameState, ObjectId) {
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::Subtype;
+        let card = Card::Normal(CardFace {
+            name: "Test Tribe".into(),
+            types: vec![Type::Creature],
+            subtypes: vec![Subtype {
+                name: subtype.into(),
+                types: vec![Type::Creature],
+                confers: vec![],
+            }],
+            power: Some(StatValue::Number(2)),
+            toughness: Some(StatValue::Number(2)),
+            abilities,
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), controller);
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            controller,
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        (state, id)
+    }
+
+    /// The canonical tribal-lord static: "other Goblins you control get +1/+1",
+    /// i.e. `Matching(AllOf([Creature, Not(Ref(This)), Subtype("Goblin"),
+    /// ControlledBy(Ref(You))]))`. Its scope names both `~` (`Ref(This)`) and
+    /// `you` (`Ref(You)`), which are exactly the carrier-bound refs the derived
+    /// path must anchor against the host permanent.
+    fn goblin_lord_static() -> Ability {
+        use deckmaste_core::Reference;
+        use deckmaste_core::RelationFilter;
+        Ability::Static(StaticAbility {
+            condition: None,
+            effects: vec![StaticEffect::Modify {
+                of: Scope::Matching(Filter::AllOf(vec![
+                    Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                    Filter::Not(Box::new(Filter::Ref(Reference::This))),
+                    Filter::Characteristic(CharacteristicFilter::Subtype("Goblin".into())),
+                    Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+                        Reference::You,
+                    )))),
+                ])),
+                changes: vec![
+                    Modification::AddPower(Count::Literal(1)),
+                    Modification::AddToughness(Count::Literal(1)),
+                ],
+            }],
+            characteristic_defining: false,
+        })
+    }
+
+    /// engine-static-scope-carrier: the derived/continuous-effect path threads
+    /// the static's source permanent as the carrier, so a tribal-lord scope
+    /// that names `~`/`you` (`Ref(This)`/`Ref(You)`) resolves against the
+    /// host instead of panicking. The lord buffs ANOTHER controlled Goblin
+    /// +1/+1, does NOT buff itself (`Not(Ref(This))`), and does NOT buff an
+    /// opponent-controlled Goblin (`ControlledBy(Ref(You))`).
+    #[test]
+    fn tribal_lord_buffs_other_controlled_goblins() {
+        // Lord: a Goblin carrying the "other Goblins you control get +1/+1"
+        // static, controlled by player 0.
+        let (state, lord) =
+            typed_creature(game(), "Goblin", PlayerId(0), vec![goblin_lord_static()]);
+        // A second Goblin, same controller — should be buffed.
+        let (state, ally) = typed_creature(state, "Goblin", PlayerId(0), vec![]);
+        // An opponent's Goblin — NOT buffed (scoped to the controller).
+        let (state, foe) = typed_creature(state, "Goblin", PlayerId(1), vec![]);
+
+        let view = state.layers();
+        assert_eq!(
+            view.power(ally),
+            Some(3),
+            "another controlled Goblin gets +1/+1"
+        );
+        assert_eq!(view.toughness(ally), Some(3), "…on toughness too");
+        assert_eq!(
+            view.power(lord),
+            Some(2),
+            "the lord does not buff itself (Not(Ref(This)))"
+        );
+        assert_eq!(
+            view.power(foe),
+            Some(2),
+            "an opponent's Goblin is not buffed (ControlledBy(Ref(You)))"
+        );
+    }
+
+    /// engine-static-scope-carrier: a spell-built FLOATING scope (Overrun's
+    /// `Continuously(Modify(of: Matching(AllOf([Creature,
+    /// ControlledBy(Ref(You))] )), …))`) names `you` and so also rode the
+    /// carrier `todo!`. The floating effect carries its controller, so
+    /// `Ref(You)` resolves and the player's own creatures are buffed
+    /// without panic.
+    #[test]
+    fn floating_controlled_by_you_scope_resolves() {
+        use deckmaste_core::Reference;
+        use deckmaste_core::RelationFilter;
+
+        // Two plain creatures: one player 0 controls, one player 1 controls.
+        let (state, mine) = typed_creature(game(), "Beast", PlayerId(0), vec![]);
+        let (mut state, theirs) = typed_creature(state, "Beast", PlayerId(1), vec![]);
+
+        // An Overrun-shaped floating effect controlled by player 0.
+        let timestamp = state.objects.next_timestamp();
+        state.continuous.push(ContinuousEffect {
+            timestamp,
+            controller: PlayerId(0),
+            scope: ScopeResolved::Floating(Filter::AllOf(vec![
+                Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+                    Reference::You,
+                )))),
+            ])),
+            changes: vec![
+                Modification::AddPower(Count::Literal(2)),
+                Modification::AddToughness(Count::Literal(2)),
+            ],
+            duration: Duration::EndOfGame,
+            is_cda: false,
+        });
+
+        let view = state.layers();
+        assert_eq!(
+            view.power(mine),
+            Some(4),
+            "the effect controller's creature is buffed (+2/+2)"
+        );
+        assert_eq!(
+            view.power(theirs),
+            Some(2),
+            "the opponent's creature is untouched (ControlledBy(Ref(You)))"
         );
     }
 }
