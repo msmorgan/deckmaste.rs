@@ -217,6 +217,53 @@ fn reconfigure_confers_attach_and_unattach_activated() {
     );
 }
 
+/// [CR#702.131b]: **Ascend** on a permanent confers a state-checked static —
+/// modeled as the generic `Sba { when, then }` primitive (the same shape the
+/// Aura graveyard rule uses, swept generically). Proves the macro expands to a
+/// `Static` ability whose effects carry a reachable `StaticEffect::Sba`.
+#[test]
+fn ascend_macro_expands_to_static_sba() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::StaticEffect;
+
+    let plugin = builtin();
+    let kw: KeywordAbility = plugin
+        .macros
+        .read_str("Ascend")
+        .expect("Ascend expands");
+    let KeywordAbility::Expanded(expanded) = &kw else {
+        panic!("expected Expanded, got {kw:?}");
+    };
+    assert_eq!(expanded.name.as_str(), "Ascend", "carried name");
+    let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+        panic!("Ascend body is a Composite");
+    };
+
+    // Walk every Static effect (peel Expanded) and look for an Sba row.
+    fn statics(a: &Ability, out: &mut Vec<StaticEffect>) {
+        match a {
+            Ability::Static(s) => out.extend(s.effects.iter().cloned()),
+            Ability::Expanded(e) => statics(&e.value, out),
+            _ => {}
+        }
+    }
+    fn peel(e: &StaticEffect) -> &StaticEffect {
+        match e {
+            StaticEffect::Expanded(x) => peel(&x.value),
+            other => other,
+        }
+    }
+    let mut effs = Vec::new();
+    for a in abilities {
+        statics(a, &mut effs);
+    }
+    assert!(
+        effs.iter()
+            .any(|e| matches!(peel(e), StaticEffect::Sba { .. })),
+        "Ascend confers a Static carrying an Sba ([CR#702.131b]); got {effs:?}"
+    );
+}
+
 fn deontic_inner(d: &deckmaste_core::Deontic) -> Option<&deckmaste_core::DeonticAction> {
     use deckmaste_core::Deontic;
     match d {
