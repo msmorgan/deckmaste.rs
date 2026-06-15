@@ -583,6 +583,30 @@ mod tests {
         );
     }
 
+    /// [CR#702.131c]: "if you have the city's blessing" reads the player-scope
+    /// designation store via `Is(You, Designated(...))`.
+    #[test]
+    fn has_citys_blessing_reads_player_designation() {
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let cond = Condition::Is(
+            Reference::You,
+            Filter::State(StateFilter::Designated("CitysBlessing".into())),
+        );
+        assert!(
+            !state.condition_holds(&cond, &frame_for(&state, p0)),
+            "no blessing yet"
+        );
+        state.designations.players.insert(
+            (p0, "CitysBlessing".into()),
+            crate::state::DesignationValue::Flag,
+        );
+        assert!(
+            state.condition_holds(&cond, &frame_for(&state, p0)),
+            "blessing now read true via the player proxy"
+        );
+    }
+
     /// `sorcery_speed_ok` is gated by active player, main phase, and empty
     /// stack/announce.
     #[test]
