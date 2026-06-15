@@ -234,8 +234,10 @@ mod tests {
 
     #[test]
     fn auto_play_produces_only_legal_decisions() {
+        use deckmaste_engine::sim::GreedyDemo;
+
         let state = game::build_game().expect("build demo game");
-        let mut driver = Driver::new(state, Box::new(GreedyCreatures));
+        let mut driver = Driver::new(state, Box::new(GreedyDemo));
         // Auto-play both seats. The point is the loop only ever submits legal
         // decisions (no DecisionError); reaching game over is a bonus, so a
         // step budget keeps the test bounded.

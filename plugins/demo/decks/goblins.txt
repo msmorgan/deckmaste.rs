@@ -1,4 +1,19 @@
 name: Goblins
 
-16 Goblin Brigand
-12 Mountain
+# Sac outlet — pings + combat reach
+4 Mogg Fanatic
+# Tribal lords (anthem + haste)
+3 Goblin Chieftain
+2 Goblin King
+# Token engines — go wide
+1 Krenko, Mob Boss
+2 Goblin Rabblemaster
+3 Dragon Fodder
+3 Krenko's Command
+# Sacrifice payoff
+2 Goblin Bombardment
+# Burn
+3 Lightning Bolt
+3 Shock
+
+14 Mountain

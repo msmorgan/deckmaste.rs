@@ -176,6 +176,96 @@ impl Strategy for GreedyRemoval {
     }
 }
 
+/// A self-play seat for the rich demo decks (Goblins vs Elves). Like
+/// `GreedyCreatures` it develops land and casts creatures with all-out attacks
+/// (and, like both matchup seats, never blocks), but — unlike the
+/// Bears-vs-Bolts seats — it also makes a *legal* choice for the decisions
+/// those decks can surface that the matchup seats treat as impossible: it
+/// chooses targets for the burn / sac-outlet pings ("any target"), and divides
+/// a multi-blocked attacker's combat damage. It plays only legally, not well.
+///
+/// The targeting arm runs in the deterministic demo (seed `0xD00D`); the
+/// damage-division arm is a defensive capability — no multi-block arises in
+/// that line because neither seat blocks — covered directly by
+/// `greedy_demo_divides_a_multi_blocked_attacker` in the combat suite.
+///
+/// Kept separate so `GreedyCreatures`/`GreedyRemoval` and `mechanical`'s
+/// intentional `unreachable!`s still assert the narrow Bears-vs-Bolts matchup
+/// (no targeting from the creature seat, no multi-block) — see
+/// `auto_play_produces_only_legal_decisions` / `demo_auto_plays_to_completion`.
+pub struct GreedyDemo;
+
+impl Strategy for GreedyDemo {
+    fn decide(&self, state: &GameState, pending: &PendingDecision) -> Decision {
+        match pending {
+            PendingDecision::Priority { player, legal } => Decision::Act(greedy_priority(
+                state,
+                *player,
+                legal,
+                Type::Creature,
+                false,
+            )),
+            // The demo's burn / sac-outlet pings ("any target") and any other
+            // targeted effect: a legal candidate per spec slot.
+            PendingDecision::ChooseTargets { player, legal, .. } => {
+                Decision::Targets(choose_targets_any(state, *player, legal))
+            }
+            // A multi-blocked attacker ([CR#510.1c]): any split summing to the
+            // source's power is legal; dump it all on the first recipient.
+            PendingDecision::AssignCombatDamage {
+                source, recipients, ..
+            } => Decision::Assignment(assign_all_to_first(state, *source, recipients)),
+            other => mechanical(state, other),
+        }
+    }
+}
+
+/// Choose one legal object per `TargetSpec` slot. For a single-slot spec it
+/// reuses the removal heuristic (trim the board, else the face); for multi-slot
+/// specs it takes the first legal candidate of each slot — every choice is
+/// drawn from that slot's offered set, so it always validates. The demo's
+/// targeted cards are single "any target" pings, so the heuristic path is what
+/// runs in practice.
+fn choose_targets_any(
+    state: &GameState,
+    player: PlayerId,
+    legal: &[Vec<ObjectId>],
+) -> Vec<ObjectId> {
+    if legal.len() == 1 {
+        return choose_targets(state, player, legal);
+    }
+    legal
+        .iter()
+        .map(|set| {
+            *set.first()
+                .expect("each spec offers at least one legal target")
+        })
+        .collect()
+}
+
+/// Divide a multi-blocked attacker's combat damage ([CR#510.1c]): assign the
+/// source's whole power to its first recipient. This sums to power and names a
+/// single distinct recipient, so it is always legal — even for a trample
+/// source, since assigning nothing to the defending player keeps the
+/// "lethal-to-blockers-first" clause ([CR#702.19b]) vacuous.
+fn assign_all_to_first(
+    state: &GameState,
+    source: ObjectId,
+    recipients: &[ObjectId],
+) -> Vec<(ObjectId, Uint)> {
+    // The validator checks the sum against the queued assignment's recorded
+    // power, so read that exact value rather than the live layered power.
+    let power = state
+        .combat_damage
+        .as_ref()
+        .and_then(|cd| cd.queue.iter().find(|a| a.source == source))
+        .map_or(0, |a| a.power);
+    let first = *recipients
+        .first()
+        .expect("a multi-blocked source has recipients");
+    vec![(first, power)]
+}
+
 /// The greedy priority core both seats run, parameterized by the card type it
 /// is trying to resolve and whether it holds priority until its own main phase.
 /// A pure function of the visible state.
