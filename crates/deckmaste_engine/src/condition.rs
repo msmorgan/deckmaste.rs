@@ -140,6 +140,7 @@ mod tests {
     use crate::state::GameState;
     use crate::state::PlayerConfig;
     use crate::state::StartingPlayer;
+    use crate::test_support::frame_for;
     use crate::trigger::TriggerBindings;
 
     fn game() -> GameState {
@@ -149,20 +150,6 @@ mod tests {
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
         })
-    }
-
-    /// A minimal player-anchored frame (no bindings, no targets) — the
-    /// gate-time shape, enough to evaluate the context-free conditions these
-    /// unit tests exercise.
-    fn frame_for(state: &GameState, player: PlayerId) -> Frame {
-        Frame {
-            source: state.player(player).object,
-            controller: player,
-            targets: Vec::new(),
-            bindings: None,
-            chosen: None,
-            x: None,
-        }
     }
 
     fn builtin() -> Plugin {
