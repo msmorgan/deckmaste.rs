@@ -12,6 +12,7 @@ use deckmaste_core::StatValue;
 use deckmaste_engine::GameState;
 use deckmaste_engine::LayeredView;
 use deckmaste_engine::ObjectId;
+use deckmaste_engine::ObjectSource;
 use deckmaste_engine::StackObject;
 use deckmaste_engine::face;
 use ratatui::text::Text;
@@ -29,6 +30,14 @@ pub fn render(state: &GameState, view: &LayeredView, sel: Option<Selected>) -> T
 }
 
 fn object_detail(state: &GameState, view: &LayeredView, id: ObjectId) -> Text<'static> {
+    if let ObjectSource::Player(pid) = state.objects.obj(id).source {
+        let p = state.player(pid);
+        let hand = state.zones.hands[pid.index()].len();
+        return Text::from(format!(
+            "Player {}\n{} life\nhand: {hand} card(s)",
+            pid.0, p.life
+        ));
+    }
     let printed = face(state.def(id));
     let chars = view.get(id);
     // Mana cost and name aren't derived characteristics; take them from the

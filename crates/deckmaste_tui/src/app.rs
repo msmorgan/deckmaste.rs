@@ -4,7 +4,7 @@ use anyhow::Result;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
 use deckmaste_engine::PendingDecision;
-use deckmaste_engine::sim::GreedyCreatures;
+use deckmaste_engine::sim::GreedyDemo;
 use ratatui::DefaultTerminal;
 use ratatui::crossterm::event::Event;
 use ratatui::crossterm::event::KeyCode;
@@ -38,7 +38,10 @@ pub fn run() -> ExitCode {
 
 fn try_run() -> Result<()> {
     let headless = std::env::args().skip(1).any(|a| a == "--headless");
-    let mut driver = Driver::new(game::build_game()?, Box::new(GreedyCreatures));
+    // `GreedyDemo`, not `GreedyCreatures`: headless auto-resolves *every*
+    // decision via the strategy (including the demo's targeted burn), so the
+    // strategy must answer priority/targeting — `GreedyCreatures` punts those.
+    let mut driver = Driver::new(game::build_game()?, Box::new(GreedyDemo));
 
     if headless {
         let stop = driver.run_to_end(HEADLESS_BUDGET)?;
@@ -65,10 +68,21 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
     let mut stop = driver.advance(&mut pass)?;
     let mut current = interaction_for(&stop);
     let mut error: Option<String> = None;
+    let mut help = false;
+    // When a fresh pick-step opens, land the cursor on a legal candidate so the
+    // player can act immediately (esp. blockers, whose legal blockers sit on
+    // their own battlefield, away from the just-declared attackers).
+    let mut steer_pending = true;
 
     loop {
         board.sync(&driver.state);
         let view = driver.state.layers();
+        if std::mem::take(&mut steer_pending)
+            && let Some(it) = current.as_ref()
+            && let Some(&first) = it.candidates().first()
+        {
+            board.steer_to(first, &driver.state, &view);
+        }
         terminal.draw(|frame| {
             ui::render(
                 frame,
@@ -79,6 +93,7 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
                 current.as_ref(),
                 error.as_deref(),
                 &pass,
+                help,
             );
         })?;
 
@@ -86,14 +101,37 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
         if key.kind != KeyEventKind::Press {
             continue;
         }
+        // The help overlay is modal: the next keypress dismisses it.
+        if help {
+            help = false;
+            continue;
+        }
         if key.code == KeyCode::Char('q') {
             break Ok(());
+        }
+        if key.code == KeyCode::Char('?') {
+            help = true;
+            continue;
         }
         // The cursor's object, if the focused selection is one.
         let cursor = match board.selected(&driver.state, &view) {
             Some(Selected::Object(id)) => Some(id),
             _ => None,
         };
+
+        // Direct zone hotkeys (b/o/h/s/g/e) jump focus, except under the
+        // ability popup where letter keys would be ambiguous (arrows drive it).
+        let popup_open = matches!(
+            current.as_ref(),
+            Some(Interaction::Priority { sub: Some(_) })
+        );
+        if !popup_open
+            && let KeyCode::Char(c) = key.code
+            && let Some(zone) = ui::zone_for_key(c, board.perspective)
+        {
+            board.focus_zone(zone);
+            continue;
+        }
 
         // Shared navigation (Tab / arrows). When the ability popup is open the
         // arrows move its selection instead of the board. Each arm `continue`s,
@@ -142,8 +180,11 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
                 _ => {}
             },
             // ---- Priority, object-first ----
+            // Pass is `a`, not Space — Space is the giant easy-to-fat-finger key
+            // and still toggles selections in the pick modes below, so binding
+            // priority-pass off it stops accidental advances.
             Some(Interaction::Priority { sub: None }) => match key.code {
-                KeyCode::Char(' ') | KeyCode::F(2) => submit = Some(Decision::Act(Action::Pass)),
+                KeyCode::Char('a') | KeyCode::F(2) => submit = Some(Decision::Act(Action::Pass)),
                 KeyCode::Char('y') | KeyCode::F(4) => {
                     pass.arm(board.perspective, PassMode::Yield, &driver.state);
                     submit = Some(Decision::Act(Action::Pass));
@@ -214,12 +255,28 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
                     KeyCode::Char(' ') if !pairing => {
                         if let Some(id) = cursor {
                             it.toggle(id);
+                            // Pairing just started: steer to the live attackers
+                            // (which aren't in `candidates()`).
+                            if matches!(
+                                it,
+                                Interaction::Blockers {
+                                    pending: Some(_),
+                                    ..
+                                }
+                            ) && let Some(&atk) = driver.state.combat.attackers().first()
+                            {
+                                board.steer_to(atk, &driver.state, &view);
+                            }
                         }
                     }
                     KeyCode::Enter => {
                         if pairing {
                             if let Some(id) = cursor {
                                 it.pair_with(id);
+                                // Back to the defender's remaining blockers.
+                                if let Some(&next) = it.candidates().first() {
+                                    board.steer_to(next, &driver.state, &view);
+                                }
                             }
                         } else if let Some(d) = it.confirm() {
                             submit = Some(d);
@@ -241,6 +298,7 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
                     stop = next;
                     current = interaction_for(&stop);
                     error = None;
+                    steer_pending = true;
                 }
                 Err(e) => error = Some(e.to_string()),
             }
