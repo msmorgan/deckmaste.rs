@@ -95,6 +95,10 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
         PlayerAction::Create(count, spec) => create_text(count, spec),
         PlayerAction::Tap(sel) => format!("Tap {}.", fragment::selection(sel, ctx)),
         PlayerAction::Untap(sel) => format!("Untap {}.", fragment::selection(sel, ctx)),
+        PlayerAction::GetDesignation(name) if name.as_ref() == "CitysBlessing" => {
+            "You get the city's blessing.".to_string()
+        }
+        PlayerAction::GetDesignation(name) => format!("You get {name}."),
         other => format!("[unrendered: {other:?}]."),
     }
 }
