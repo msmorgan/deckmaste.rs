@@ -801,6 +801,12 @@ impl GameState {
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
+            // Seam: the city's-blessing grant verb. Its emit (a `GotDesignation`
+            // fact, suppressed when the player already holds `name`) lands with
+            // the Ascend wiring ([CR#702.131c]).
+            PlayerAction::GetDesignation(..) => {
+                todo!("city's-blessing grant verb — emit GotDesignation ([CR#702.131c])")
+            }
             // Look through a remembered macro invocation.
             PlayerAction::Expanded(e) => self.player_action_items(&e.value, actor, frame),
         }

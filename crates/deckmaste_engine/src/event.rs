@@ -313,6 +313,15 @@ pub enum GameEvent {
         name: deckmaste_core::Ident,
         becomes: Option<deckmaste_core::Ident>,
     },
+    /// A player GAINED a player-scope designation ([CR#702.131c] — the city's
+    /// blessing). The object/player-scope counterpart to `DesignationChanged`
+    /// (which is game-scope). Idempotent at apply: a player who already holds
+    /// `name` is unchanged. The `GetDesignation` verb suppresses re-emission,
+    /// so this fact marks a genuine first acquisition.
+    GotDesignation {
+        player: PlayerId,
+        name: deckmaste_core::Ident,
+    },
     /// A library was shuffled ([CR#701.24a]) — an INFORMATION event:
     /// order knowledge is destroyed for every player; revealed cards in
     /// it stop being revealed and become new objects ([CR#701.20d] —
