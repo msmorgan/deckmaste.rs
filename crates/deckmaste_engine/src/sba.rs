@@ -892,7 +892,7 @@ mod tests {
             ),
             Condition::Not(Box::new(Condition::Is(
                 Reference::You,
-                Filter::State(StateFilter::Designated(name.clone())),
+                Filter::State(StateFilter::Designated(name)),
             ))),
         ]);
         let ascend = Ability::Static(StaticAbility {
@@ -901,7 +901,7 @@ mod tests {
                 when: gate,
                 then: Box::new(Effect::Act(Action::By(
                     Reference::You,
-                    PlayerAction::GetDesignation(name.clone()),
+                    PlayerAction::GetDesignation(name),
                 ))),
             }],
             characteristic_defining: false,
@@ -942,7 +942,7 @@ mod tests {
         // Apply it; the store holds it and a re-sweep emits nothing (no loop).
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(actions))]);
         let _ = state.step();
-        assert!(state.designations.players.contains_key(&(p0, name.clone())));
+        assert!(state.designations.players.contains_key(&(p0, name)));
         assert!(
             sba::sweep(&state)
                 .iter()
@@ -956,6 +956,7 @@ mod tests {
     /// permanents (each with their own Ascend static), both acquire it in a
     /// single sweep.
     #[test]
+    #[allow(clippy::too_many_lines)] // one cohesive two-player e2e scenario
     fn citys_blessing_is_multi_holder() {
         use deckmaste_core::Action;
         use deckmaste_core::Cmp;
@@ -989,12 +990,12 @@ mod tests {
                         ),
                         Condition::Not(Box::new(Condition::Is(
                             Reference::You,
-                            Filter::State(StateFilter::Designated(name.clone())),
+                            Filter::State(StateFilter::Designated(name)),
                         ))),
                     ]),
                     then: Box::new(Effect::Act(Action::By(
                         Reference::You,
-                        PlayerAction::GetDesignation(name.clone()),
+                        PlayerAction::GetDesignation(name),
                     ))),
                 }],
                 characteristic_defining: false,
@@ -1070,11 +1071,11 @@ mod tests {
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(actions))]);
         let _ = state.step();
         assert!(
-            state.designations.players.contains_key(&(p0, name.clone())),
+            state.designations.players.contains_key(&(p0, name)),
             "p0 holds the city's blessing ([CR#702.131c])"
         );
         assert!(
-            state.designations.players.contains_key(&(p1, name.clone())),
+            state.designations.players.contains_key(&(p1, name)),
             "p1 holds the city's blessing ([CR#702.131c])"
         );
     }

@@ -54,7 +54,7 @@ pub const REGISTRY: &[AbilityParser] = &[
     crate::parsers::static_ability::resolve_line,
 ];
 
-/// The Ascend gate ([CR#702.131a/b]) — KEEP IN SYNC with
+/// The Ascend gate ([CR#702.131a,702.131b]) — KEEP IN SYNC with
 /// `plugins/builtin/macros/keyword/Ascend.ron`.
 const ASCEND_GATE: &str = "AllOf([Compare(CountOf(AllOf([InZone(Battlefield), \
 ControlledBy(Ref(You))])), AtLeast, Literal(10)), Not(Is(You, Designated(\"CitysBlessing\")))])";

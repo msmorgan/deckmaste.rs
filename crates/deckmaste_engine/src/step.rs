@@ -526,7 +526,7 @@ impl GameState {
                 // [CR#702.131c]: set the player-scope flag once; never removed.
                 self.designations
                     .players
-                    .entry((player, name.clone()))
+                    .entry((player, name))
                     .or_insert(crate::state::DesignationValue::Flag);
                 GameEvent::GotDesignation { player, name }
             }
@@ -1433,9 +1433,9 @@ mod tests {
         assert_eq!(pending.id, id);
     }
 
-    /// Applying `GotDesignation` writes the player-scope designation store, and a
-    /// second apply is a no-op ([CR#702.131c] — set once; any number of players may
-    /// hold it, none loses it).
+    /// Applying `GotDesignation` writes the player-scope designation store, and
+    /// a second apply is a no-op ([CR#702.131c] — set once; any number of
+    /// players may hold it, none loses it).
     #[test]
     fn got_designation_applies_idempotently() {
         let mut state = game();
@@ -1443,23 +1443,17 @@ mod tests {
         let p0 = crate::player::PlayerId(0);
 
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Single(
-            GameEvent::GotDesignation {
-                player: p0,
-                name: name.clone(),
-            },
+            GameEvent::GotDesignation { player: p0, name },
         ))]);
         let _ = state.step();
         assert!(
-            state.designations.players.contains_key(&(p0, name.clone())),
+            state.designations.players.contains_key(&(p0, name)),
             "player 0 now holds the city's blessing"
         );
 
         // A second apply does not panic and leaves the entry present.
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Single(
-            GameEvent::GotDesignation {
-                player: p0,
-                name: name.clone(),
-            },
+            GameEvent::GotDesignation { player: p0, name },
         ))]);
         let _ = state.step();
         assert!(state.designations.players.contains_key(&(p0, name)));

@@ -9,7 +9,7 @@ PANICS. Wire it: evaluate the branch via the existing `condition_holds(condition
 frame)`, then schedule a `RunEffect` for `then` (or `otherwise`, when present);
 no-op when the condition is false and there is no `otherwise`.
 
-Blocks the SPELL form of Ascend (CR 702.131a): the build-time fold (engine-
+Blocks the SPELL form of Ascend ([CR#702.131a]): the build-time fold (engine-
 citys-blessing Task 7) emits
 `Spell(effect: Sequence([If(<gate>, GetDesignation), <original effect>]))`, so
 EVERY folded Ascend spell panics on resolution. The three e2e cases pinning the
