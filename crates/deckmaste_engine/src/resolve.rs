@@ -323,6 +323,18 @@ impl GameState {
             // `PumpThisUntilEot`) is transparent to resolution — run its value,
             // matching how every other engine layer sees through `*::Expanded`.
             Effect::Expanded(e) => self.run_effect(*e.value, frame),
+            // [CR#603.4]/[CR#608.2]: evaluate the condition when this node
+            // resolves (so an earlier sibling's effect — e.g. gaining the
+            // city's blessing — is already applied), then run the taken branch.
+            // Direct recursion schedules the branch's items at the front, ahead
+            // of any queued sibling, preserving resolution order.
+            Effect::If(if_effect) => {
+                if self.condition_holds(&if_effect.condition, frame) {
+                    self.run_effect(*if_effect.then, frame);
+                } else if let Some(otherwise) = if_effect.otherwise {
+                    self.run_effect(*otherwise, frame);
+                }
+            }
             other => todo!("stage 3 does not interpret effect {other:?} (the choice seam)"),
         }
     }
@@ -4038,6 +4050,87 @@ mod tests {
         assert!(items.is_empty(), "already-held designation emits nothing");
     }
 
+    /// [CR#608.2]: `Effect::If` evaluates its condition WHEN it resolves and
+    /// runs the taken branch — `then` on true, `otherwise` on false, and
+    /// nothing when false with no `otherwise`. Driven via `GainLife` (a
+    /// choice-free, library-free player action) so the assertion is a clean
+    /// life delta.
+    #[test]
+    fn run_effect_if_takes_the_right_branch() {
+        use deckmaste_core::Cmp;
+        use deckmaste_core::Condition;
+        use deckmaste_core::IfEffect;
+
+        // Trivially-true and trivially-false comparisons over literals.
+        let yes = Condition::Compare(Count::Literal(1), Cmp::AtLeast, Count::Literal(0));
+        let no = Condition::Compare(Count::Literal(0), Cmp::AtLeast, Count::Literal(1));
+        let gain = |n| {
+            Effect::Act(Action::By(
+                Reference::You,
+                PlayerAction::GainLife(Count::Literal(n)),
+            ))
+        };
+
+        let p0 = PlayerId(0);
+        let frame_for = |state: &GameState| Frame {
+            source: state.player(p0).object,
+            controller: p0,
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+
+        // true → then (gain 3), otherwise NOT taken.
+        let mut state = game();
+        let frame = frame_for(&state);
+        let life0 = state.player(p0).life;
+        state.run_effect(
+            Effect::If(IfEffect {
+                condition: yes.clone(),
+                then: Box::new(gain(3)),
+                otherwise: Some(Box::new(gain(5))),
+            }),
+            &frame,
+        );
+        let _ = drain_progress(&mut state, 40);
+        assert_eq!(state.player(p0).life, life0 + 3, "true → then branch");
+
+        // false → otherwise (gain 5), then NOT taken.
+        let mut state = game();
+        let frame = frame_for(&state);
+        let life0 = state.player(p0).life;
+        state.run_effect(
+            Effect::If(IfEffect {
+                condition: no.clone(),
+                then: Box::new(gain(3)),
+                otherwise: Some(Box::new(gain(5))),
+            }),
+            &frame,
+        );
+        let _ = drain_progress(&mut state, 40);
+        assert_eq!(state.player(p0).life, life0 + 5, "false → otherwise branch");
+
+        // false + no otherwise → nothing runs (life unchanged).
+        let mut state = game();
+        let frame = frame_for(&state);
+        let life0 = state.player(p0).life;
+        state.run_effect(
+            Effect::If(IfEffect {
+                condition: no.clone(),
+                then: Box::new(gain(3)),
+                otherwise: None,
+            }),
+            &frame,
+        );
+        let _ = drain_progress(&mut state, 40);
+        assert_eq!(
+            state.player(p0).life,
+            life0,
+            "false + no otherwise → no change"
+        );
+    }
+
     // --- Ascend (spell form) e2e ([CR#702.131a]) -------------------------------
     //
     // SEAM (BLOCKED): the spell form of Ascend folds into
@@ -4272,7 +4365,6 @@ mod tests {
     /// applied before the later read. No high-water mark — only the count at
     /// resolution matters (see the sibling cases).
     #[test]
-    #[ignore = "Effect::If resolution seam: run_effect has no If arm (todo! at the choice seam) — folded Ascend spells panic on resolve; un-ignore when Effect::If lands"]
     fn ascend_spell_grants_then_reads_at_ten() {
         let (mut state, p0, lib_before) = secrets_on_stack(10);
         let name: deckmaste_core::Ident = "CitysBlessing".into();
@@ -4301,7 +4393,6 @@ mod tests {
     /// At NINE permanents the gate is false: no grant, the downstream read is
     /// false, the player draws two and never holds the blessing.
     #[test]
-    #[ignore = "Effect::If resolution seam: run_effect has no If arm (todo! at the choice seam) — folded Ascend spells panic on resolve; un-ignore when Effect::If lands"]
     fn ascend_spell_no_blessing_below_ten() {
         let (mut state, p0, lib_before) = secrets_on_stack(9);
         let name: deckmaste_core::Ident = "CitysBlessing".into();
@@ -4329,7 +4420,6 @@ mod tests {
     /// resolution, so no blessing and a two-card draw. A momentary ten does not
     /// count.
     #[test]
-    #[ignore = "Effect::If resolution seam: run_effect has no If arm (todo! at the choice seam) — folded Ascend spells panic on resolve; un-ignore when Effect::If lands"]
     fn ascend_spell_no_high_water_mark() {
         let (mut state, p0, lib_before) = secrets_on_stack(10);
         let name: deckmaste_core::Ident = "CitysBlessing".into();
