@@ -1,0 +1,21 @@
+// Ascend on a permanent [CR#702.131b]: a static ability — "any time you
+// control ten or more permanents and you don't have the city's blessing,
+// you get the city's blessing for the rest of the game." Modeled as the
+// generic state-checked `Sba` static (swept generically, like the Aura
+// graveyard rule). The `Not(Designated)` guard makes it fire exactly once
+// and lets the SBA sweep converge. The spell form [CR#702.131a] is NOT this
+// macro — it is folded into the spell effect by the migrations resolve pass
+// (keep the gate below in sync with that pass's `ASCEND_GATE`).
+KeywordAbility(
+    name: "Ascend",
+    template: "ascend",
+    abilities: [Static(effects: [
+        Sba(
+            when: AllOf([
+                Compare(CountOf(AllOf([InZone(Battlefield), ControlledBy(Ref(You))])), AtLeast, Literal(10)),
+                Not(Is(You, Designated("CitysBlessing"))),
+            ]),
+            then: GetDesignation("CitysBlessing"),
+        ),
+    ])],
+)
