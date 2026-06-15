@@ -200,15 +200,17 @@ mod tests {
 
     #[test]
     fn scaled_for_each_single_symbol() {
-        // Elvish Archdruid.
+        // Elvish Archdruid — the `Permanent` scope ([CR#109.2]) keeps the
+        // count off the ability's own on-stack copy (it would otherwise tap
+        // for one extra mana).
         assert_eq!(
             effect("{G} for each Elf you control"),
-            "AddMana(CountOf(AllOf([Subtype(\"Elf\"), ControlledBy(Ref(You))])), Green)"
+            "AddMana(CountOf(AllOf([Permanent, Subtype(\"Elf\"), ControlledBy(Ref(You))])), Green)"
         );
-        // Priest of Titania (battlefield scope).
+        // Priest of Titania (battlefield scope, made explicit on the head).
         assert_eq!(
             effect("{G} for each Elf on the battlefield"),
-            "AddMana(CountOf(Subtype(\"Elf\")), Green)"
+            "AddMana(CountOf(AllOf([Permanent, Subtype(\"Elf\")])), Green)"
         );
     }
 

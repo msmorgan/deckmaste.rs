@@ -3384,6 +3384,106 @@ mod tests {
         }
     }
 
+    /// [CR#109.2]: an activated ability that counts "Goblins you control" — a
+    /// subtype description with no zone qualifier — means Goblin PERMANENTS on
+    /// the battlefield. The canonical (`Permanent`-scoped) filter counts
+    /// exactly the battlefield Goblins; the bare-subtype filter (no zone
+    /// scope) ALSO matches the ability's own freshly-minted on-stack
+    /// identity — which reuses the source's card id — so it over-counts by
+    /// one. With three controlled Goblins (incl. the source) Krenko makes 3
+    /// tokens, not 4. This pins the engine semantics the parser fix relies
+    /// on (see `parsers::filter::head_noun`'s `Permanent` scope).
+    #[test]
+    fn count_you_control_excludes_the_activations_own_stack_copy() {
+        use crate::object::ObjectSource;
+
+        // A Goblin permanent on the battlefield, player 0.
+        fn goblin(state: &mut GameState, name: &str) -> ObjectId {
+            mint_on_field(
+                state,
+                Card::Normal(CardFace {
+                    name: name.into(),
+                    types: vec![Type::Creature],
+                    subtypes: vec![subtype("Goblin")],
+                    power: Some(deckmaste_core::StatValue::Number(1)),
+                    toughness: Some(deckmaste_core::StatValue::Number(1)),
+                    ..CardFace::default()
+                }),
+            )
+        }
+
+        // Builds the Krenko scenario fresh (three controlled Goblins, incl. the
+        // source, plus the activation's own Stack-zone copy of the source),
+        // runs `Create(CountOf(filter), 1/1 Goblin)` once, and returns how many
+        // tokens entered. A fresh state per call keeps the two filters'
+        // token batches from feeding each other's count. `filter` is parsed
+        // (and its `Permanent` macro expanded) through the live plugin macros.
+        fn tokens_made(filter: &str) -> usize {
+            let mut state = game();
+            let source = goblin(&mut state, "Krenko, Mob Boss");
+            let _g2 = goblin(&mut state, "Goblin Two");
+            let _g3 = goblin(&mut state, "Goblin Three");
+
+            // The activation mints a Stack-zone identity that REUSES the
+            // source's card id ([CR#602.2a]) — the LKI copy that drives the
+            // over-count. `eval_count` enumerates every object in the store, so
+            // minting it into the Stack zone is enough for the unzoned filter to
+            // reach it.
+            let src_card = state.objects.obj(source).card_id().unwrap();
+            let _stack_copy =
+                state
+                    .objects
+                    .mint(ObjectSource::Card(src_card), PlayerId(0), Some(Zone::Stack));
+
+            let parsed: Filter = builtin().macros.read_str(filter).unwrap();
+            let frame = Frame {
+                source,
+                controller: PlayerId(0),
+                targets: vec![],
+                bindings: None,
+                chosen: None,
+                x: None,
+            };
+            let before = state.zones.battlefield.len();
+            state.run_effect(
+                Effect::Act(by_you(PlayerAction::Create(
+                    Count::CountOf(Box::new(parsed)),
+                    deckmaste_core::Token {
+                        color_indicator: vec![],
+                        supertypes: vec![],
+                        types: vec![Type::Creature],
+                        subtypes: vec![subtype("Goblin")],
+                        abilities: vec![],
+                        power: Some(deckmaste_core::StatValue::Number(1)),
+                        toughness: Some(deckmaste_core::StatValue::Number(1)),
+                    }
+                    .into(),
+                ))),
+                &frame,
+            );
+            // Drain the queued work (the TokenCreated batch + per-token enters).
+            while let StepOutcome::Progress(_) = state.step() {}
+            state.zones.battlefield.len() - before
+        }
+
+        // Bare subtype (the pre-fix parser output): the Stack-zone copy is a
+        // Goblin you control too, so it over-counts → 4.
+        assert_eq!(
+            tokens_made("AllOf([Subtype(\"Goblin\"), ControlledBy(Ref(You))])"),
+            4,
+            "the unzoned filter wrongly counts the on-stack copy"
+        );
+
+        // The canonical battlefield-scoped filter (the post-fix parser output):
+        // the Stack-zone copy is excluded → exactly the three battlefield
+        // Goblins.
+        assert_eq!(
+            tokens_made("AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])"),
+            3,
+            "[CR#109.2]: the Permanent scope counts only battlefield Goblins"
+        );
+    }
+
     /// The builtin predefined Treasure token ([CR#111.10a]) creates with its
     /// declared subtype and the [CR#111.4] default name (subtypes + "Token").
     #[test]
