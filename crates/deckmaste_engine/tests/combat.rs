@@ -715,6 +715,55 @@ fn combat_damage_two_blockers_split_two_zero() {
     );
 }
 
+/// The demo seat ([`GreedyDemo`]) answers a multi-blocked attacker's free
+/// division ([CR#510.1c]) with a *legal* assignment — all of the source's power
+/// on the first recipient. The demo's own deterministic line never blocks, so
+/// this pins the division arm directly. The engine ACCEPTS the answer and the
+/// damage lands: the fully-assigned 1/1 dies, the unassigned 1/1 survives.
+#[test]
+fn greedy_demo_divides_a_multi_blocked_attacker() {
+    use deckmaste_engine::sim::GreedyDemo;
+    use deckmaste_engine::sim::Strategy;
+
+    let mut state = two_player_decks("Grizzly Bears", "Willow Elf", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Willow Elf");
+    let b2 = force_onto_battlefield(&mut state, PlayerId(1), "Willow Elf");
+
+    let stop = drive_through_blocks(
+        &mut state,
+        vec![attacker],
+        vec![(b1, attacker), (b2, attacker)],
+    );
+    let StepOutcome::NeedsDecision(pending @ PendingDecision::AssignCombatDamage { .. }) = stop
+    else {
+        panic!(
+            "expected an AssignCombatDamage decision for the multi-blocked attacker, got {stop:?}"
+        );
+    };
+    let PendingDecision::AssignCombatDamage { recipients, .. } = &pending else {
+        unreachable!()
+    };
+    let (first, second) = (recipients[0], recipients[1]);
+
+    // The seat's answer dumps the source's whole power (2) on the first
+    // recipient — a legal free division the engine accepts.
+    let decision = GreedyDemo.decide(&state, &pending);
+    assert_eq!(decision, Decision::Assignment(vec![(first, 2)]));
+    let (_t, _stop) = pass_to_stop_after(&mut state, decision);
+
+    assert!(
+        !on_battlefield(&state, first),
+        "the fully-assigned 1/1 took 2 and dies"
+    );
+    assert!(
+        on_battlefield(&state, second),
+        "the unassigned 1/1 was dealt 0 and survives (free division)"
+    );
+    // Sanity: b1/b2 are exactly the two recipients (order-independent).
+    assert!([first, second].contains(&b1) && [first, second].contains(&b2));
+}
+
 /// [CR#510.1b], [CR#510.2]: an unblocked 3/3 deals 3 to the defending player —
 /// forced (one recipient, the defender's proxy). Their life goes 20 → 17.
 #[test]

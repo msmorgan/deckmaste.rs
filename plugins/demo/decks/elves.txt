@@ -1,4 +1,19 @@
 name: Elves
 
-16 Elvish Visionary
-12 Forest
+# Mana dorks — ramp into the lords
+4 Llanowar Elves
+4 Elvish Mystic
+2 Fyndhorn Elves
+2 Llanowar Tribe
+# Tribal lords (anthem)
+3 Elvish Archdruid
+3 Imperious Perfect
+1 Elvish Champion
+1 Dwynen, Gilt-Leaf Daen
+# Explosive mana + card advantage
+2 Priest of Titania
+3 Elvish Visionary
+# Finisher
+1 Overrun
+
+14 Forest
