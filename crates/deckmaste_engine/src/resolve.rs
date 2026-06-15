@@ -4037,4 +4037,327 @@ mod tests {
         let items = state.player_action_items(&pa, p0, &frame);
         assert!(items.is_empty(), "already-held designation emits nothing");
     }
+
+    // --- Ascend (spell form) e2e ([CR#702.131a]) -------------------------------
+    //
+    // SEAM (BLOCKED): the spell form of Ascend folds into
+    // `Sequence([If(<gate>, GetDesignation), If(Is(You,Designated), Draw(3),
+    // otherwise: Draw(2))])` (Task 7). But `run_effect` has NO `Effect::If` arm
+    // — an `If` node falls through to `todo!("stage 3 does not interpret effect
+    // …")` (resolve.rs, the choice seam). So resolving a folded Ascend spell
+    // PANICS today; the grant-then-read sequencing the three cases below assert
+    // can't be exercised until the resolution interpreter learns `Effect::If`
+    // (evaluate `condition_holds`, then schedule `then`/`otherwise`). The
+    // fixture itself is sound — `diag_setup_is_sound` (unignored) proves the
+    // gate reads 10/9 correctly and a bare `Draw(3)` lands three. The three
+    // behavioral cases are `#[ignore]`d until the `Effect::If` seam lands;
+    // un-ignore them then (they must pass as written — do NOT weaken to draws-2).
+
+    /// The folded Ascend gate ([CR#702.131a]) built typed — the exact shape
+    /// `deckmaste_migrations::resolve::fold_spell_ascend` prepends to a spell's
+    /// effect: "ten battlefield permanents you control AND you don't already
+    /// have the city's blessing".
+    fn ascend_gate() -> deckmaste_core::Condition {
+        use deckmaste_core::Cmp;
+        use deckmaste_core::Condition;
+        use deckmaste_core::RelationFilter;
+
+        Condition::AllOf(vec![
+            Condition::Compare(
+                Count::CountOf(Box::new(Filter::AllOf(vec![
+                    Filter::State(StateFilter::InZone(Zone::Battlefield)),
+                    Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+                        Reference::You,
+                    )))),
+                ]))),
+                Cmp::AtLeast,
+                Count::Literal(10),
+            ),
+            Condition::Not(Box::new(Condition::Is(
+                Reference::You,
+                Filter::State(StateFilter::Designated("CitysBlessing".into())),
+            ))),
+        ])
+    }
+
+    /// Secrets of the Golden City's resolved shape — the folded grant followed
+    /// by the blessing-conditioned draw ("Ascend. Draw two cards. If you have
+    /// the city's blessing, draw three instead."):
+    ///
+    /// ```text
+    /// Sequence([
+    ///   If(gate, then: GetDesignation("CitysBlessing")),          // folded Ascend
+    ///   If(Is(You, Designated), then: Draw(3), otherwise: Draw(2)),
+    /// ])
+    /// ```
+    fn secrets_effect() -> Effect {
+        use deckmaste_core::Condition;
+        use deckmaste_core::IfEffect;
+
+        let by_you = |pa| Effect::Act(Action::By(Reference::You, pa));
+        Effect::Sequence(vec![
+            Effect::If(IfEffect {
+                condition: ascend_gate(),
+                then: Box::new(by_you(PlayerAction::GetDesignation("CitysBlessing".into()))),
+                otherwise: None,
+            }),
+            Effect::If(IfEffect {
+                condition: Condition::Is(
+                    Reference::You,
+                    Filter::State(StateFilter::Designated("CitysBlessing".into())),
+                ),
+                then: Box::new(by_you(PlayerAction::Draw(Count::Literal(3)))),
+                otherwise: Some(Box::new(by_you(PlayerAction::Draw(Count::Literal(2))))),
+            }),
+        ])
+    }
+
+    /// Builds a game where p0 controls `permanents` battlefield objects, has a
+    /// fat library to draw from, an EMPTY hand (so the draw delta is the
+    /// post-resolution hand size), and the synthetic Secrets-of-the-Golden-City
+    /// spell on the stack (its first/only ability the `secrets` effect).
+    /// Returns `(state, p0, library_before)`.
+    fn secrets_on_stack(permanents: usize) -> (GameState, PlayerId, usize) {
+        use deckmaste_core::Ability;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::SpellAbility;
+
+        use crate::object::ObjectSource;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+
+        // A stocked library and an empty hand, so the post-resolution hand size
+        // IS the number of cards drawn. Mint plain library objects under p0;
+        // their identity is irrelevant — a draw just remints the top.
+        let dummy = Card::Normal(CardFace {
+            name: "Library Filler".into(),
+            ..CardFace::default()
+        });
+        let dummy_card = state.cards.push(Arc::new(dummy), p0);
+        for _ in 0..10 {
+            let id = state
+                .objects
+                .mint(ObjectSource::Card(dummy_card), p0, Some(Zone::Library));
+            state.zones.libraries[p0.index()].push_back(id);
+        }
+        let library_before = state.zones.libraries[p0.index()].len();
+        assert!(
+            state.zones.hands[p0.index()].is_empty(),
+            "empty starting hand"
+        );
+
+        // p0's battlefield: `permanents` plain artifacts. Card-backed (mirrors
+        // a real board), all controlled by p0 — the gate counts these.
+        for i in 0..permanents {
+            let perm = Card::Normal(CardFace {
+                name: format!("Permanent {i}"),
+                types: vec![Type::Artifact],
+                ..CardFace::default()
+            });
+            let card_id = state.cards.push(Arc::new(perm), p0);
+            let id = state
+                .objects
+                .mint(ObjectSource::Card(card_id), p0, Some(Zone::Battlefield));
+            state.zones.battlefield.push(id);
+        }
+        assert_eq!(state.zones.battlefield.len(), permanents);
+
+        // The synthetic Secrets-of-the-Golden-City spell on the stack.
+        let spell_card = Card::Normal(CardFace {
+            name: "Secrets of the Golden City".into(),
+            types: vec![Type::Sorcery],
+            abilities: vec![Ability::Spell(SpellAbility {
+                targets: vec![],
+                effect: secrets_effect(),
+            })],
+            ..CardFace::default()
+        });
+        let spell_card_id = state.cards.push(Arc::new(spell_card), p0);
+        let spell = state
+            .objects
+            .mint(ObjectSource::Card(spell_card_id), p0, Some(Zone::Stack));
+        state.stack.push(StackEntry {
+            id: spell,
+            object: StackObject::Spell(spell),
+            controller: p0,
+            targets: vec![],
+            x: None,
+        });
+
+        (state, p0, library_before)
+    }
+
+    /// Steps the agenda to a stop (decision / game-over) or until `n` steps
+    /// elapse, returning the `Progress` trace — the in-crate analogue of
+    /// `skeleton::drain_progress`.
+    fn drain_progress(state: &mut GameState, n: usize) -> Vec<Progress> {
+        let mut out = Vec::new();
+        for _ in 0..n {
+            match state.step() {
+                StepOutcome::Progress(p) => out.push(p),
+                StepOutcome::NeedsDecision(_) | StepOutcome::GameOver(_) => break,
+            }
+        }
+        out
+    }
+
+    /// DIAGNOSTIC (temporary): proves the e2e SETUP is sound — the gate reads
+    /// true at ten / false at nine for these minted battlefield objects, and a
+    /// bare `Draw(3)` from the stocked library lands three cards in hand. Any
+    /// remaining failure of the three real cases below is therefore the
+    /// `Effect::If` interpreter, not the fixture.
+    #[test]
+    fn diag_setup_is_sound() {
+        // Gate at ten: true.
+        let (state, p0, _lib) = secrets_on_stack(10);
+        let frame = Frame {
+            source: state.player(p0).object,
+            controller: p0,
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        assert!(
+            state.condition_holds(&ascend_gate(), &frame),
+            "gate true at ten permanents"
+        );
+
+        // Gate at nine: false.
+        let (state9, p0, _lib) = secrets_on_stack(9);
+        let frame9 = Frame {
+            source: state9.player(p0).object,
+            controller: p0,
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        assert!(
+            !state9.condition_holds(&ascend_gate(), &frame9),
+            "gate false at nine permanents"
+        );
+
+        // A bare Draw(3) lands three cards in hand from the stocked library.
+        let (mut sd, p0, lib_before) = secrets_on_stack(10);
+        let dframe = Frame {
+            source: sd.player(p0).object,
+            controller: p0,
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        sd.run_effect(
+            Effect::Act(Action::By(
+                Reference::You,
+                PlayerAction::Draw(Count::Literal(3)),
+            )),
+            &dframe,
+        );
+        let _ = drain_progress(&mut sd, 40);
+        assert_eq!(
+            sd.zones.hands[p0.index()].len(),
+            3,
+            "bare Draw(3) drew three"
+        );
+        assert_eq!(sd.zones.libraries[p0.index()].len(), lib_before - 3);
+    }
+
+    /// [CR#702.131a]/[CR#702.131d]: on a SPELL, the folded Ascend grant fires
+    /// DURING resolution, and the DOWNSTREAM "if you have the city's blessing"
+    /// read sees that fresh grant — at ten permanents the player gets the
+    /// blessing AND draws three (not two). This is the crux: the grant must be
+    /// applied before the later read. No high-water mark — only the count at
+    /// resolution matters (see the sibling cases).
+    #[test]
+    #[ignore = "Effect::If resolution seam: run_effect has no If arm (todo! at the choice seam) — folded Ascend spells panic on resolve; un-ignore when Effect::If lands"]
+    fn ascend_spell_grants_then_reads_at_ten() {
+        let (mut state, p0, lib_before) = secrets_on_stack(10);
+        let name: deckmaste_core::Ident = "CitysBlessing".into();
+
+        state
+            .agenda
+            .push_front(WorkItem::Resolve(state.stack[0].id));
+        let _trace = drain_progress(&mut state, 40);
+
+        assert!(
+            state.designations.players.contains_key(&(p0, name)),
+            "the folded Ascend grant fired during resolution ([CR#702.131a])"
+        );
+        let drawn = state.zones.hands[p0.index()].len();
+        assert_eq!(
+            drawn, 3,
+            "the downstream read saw the fresh blessing → drew three ([CR#702.131d]); drew {drawn}"
+        );
+        assert_eq!(
+            state.zones.libraries[p0.index()].len(),
+            lib_before - 3,
+            "three cards left the library"
+        );
+    }
+
+    /// At NINE permanents the gate is false: no grant, the downstream read is
+    /// false, the player draws two and never holds the blessing.
+    #[test]
+    #[ignore = "Effect::If resolution seam: run_effect has no If arm (todo! at the choice seam) — folded Ascend spells panic on resolve; un-ignore when Effect::If lands"]
+    fn ascend_spell_no_blessing_below_ten() {
+        let (mut state, p0, lib_before) = secrets_on_stack(9);
+        let name: deckmaste_core::Ident = "CitysBlessing".into();
+
+        state
+            .agenda
+            .push_front(WorkItem::Resolve(state.stack[0].id));
+        let _trace = drain_progress(&mut state, 40);
+
+        assert!(
+            !state.designations.players.contains_key(&(p0, name)),
+            "no blessing below ten permanents"
+        );
+        let drawn = state.zones.hands[p0.index()].len();
+        assert_eq!(drawn, 2, "no blessing → drew two; drew {drawn}");
+        assert_eq!(
+            state.zones.libraries[p0.index()].len(),
+            lib_before - 2,
+            "two cards left the library"
+        );
+    }
+
+    /// [CR#702.131a]: NO high-water mark. Reach ten permanents, then drop one
+    /// back to nine BEFORE the spell resolves: the gate reads nine at
+    /// resolution, so no blessing and a two-card draw. A momentary ten does not
+    /// count.
+    #[test]
+    #[ignore = "Effect::If resolution seam: run_effect has no If arm (todo! at the choice seam) — folded Ascend spells panic on resolve; un-ignore when Effect::If lands"]
+    fn ascend_spell_no_high_water_mark() {
+        let (mut state, p0, lib_before) = secrets_on_stack(10);
+        let name: deckmaste_core::Ident = "CitysBlessing".into();
+
+        // Drop one permanent (10 → 9) before resolution.
+        let dropped = state.zones.battlefield.pop().expect("a permanent to drop");
+        state.objects.obj_mut(dropped).zone = None;
+        assert_eq!(
+            state.zones.battlefield.len(),
+            9,
+            "back to nine at resolution"
+        );
+
+        state
+            .agenda
+            .push_front(WorkItem::Resolve(state.stack[0].id));
+        let _trace = drain_progress(&mut state, 40);
+
+        assert!(
+            !state.designations.players.contains_key(&(p0, name)),
+            "a momentary ten doesn't grant — only the resolution count matters ([CR#702.131a])"
+        );
+        let drawn = state.zones.hands[p0.index()].len();
+        assert_eq!(drawn, 2, "nine at resolution → drew two; drew {drawn}");
+        assert_eq!(
+            state.zones.libraries[p0.index()].len(),
+            lib_before - 2,
+            "two cards left the library"
+        );
+    }
 }
