@@ -18,8 +18,11 @@ pub enum CostComponent {
     /// Pay by performing a verb: the payer is implicitly you, so this holds a
     /// bare [`PlayerAction`] (no `By` wrapper). Only cost-eligible ones
     /// (`PlayerAction::is_cost_eligible`) belong here — enforced by the cards
-    /// crate's validation lint, not the parser.
-    Do(PlayerAction),
+    /// crate's validation lint, not the parser. Boxed: `PlayerAction` dwarfs
+    /// the other variants, and `CostComponent` rides in `Vec<CostComponent>`
+    /// cost lists, so an unboxed variant would size every element to it
+    /// (`clippy::large_enum_variant`).
+    Do(Box<PlayerAction>),
     /// A remembered `CostComponent` macro invocation (`SacrificeThis`, loyalty
     /// sugar, …).
     #[macro_ron(expanded)]
@@ -68,7 +71,9 @@ mod tests {
         assert_eq!(read("Tap"), CostComponent::Tap);
         assert_eq!(
             read("Do(Sacrifice(This))"),
-            CostComponent::Do(PlayerAction::Sacrifice(Selection::from(Reference::This))),
+            CostComponent::Do(Box::new(PlayerAction::Sacrifice(Selection::from(
+                Reference::This
+            )))),
         );
     }
 

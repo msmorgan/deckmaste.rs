@@ -434,7 +434,9 @@ mod tests {
         assert_eq!(expanded.name, "SacThis");
         assert_eq!(
             *expanded.value,
-            CostComponent::Do(PlayerAction::Sacrifice(Selection::from(Reference::This)))
+            CostComponent::Do(Box::new(PlayerAction::Sacrifice(Selection::from(
+                Reference::This
+            ))))
         );
     }
 

@@ -74,6 +74,20 @@ fn enchant_confers_spell_cant_attach_and_as_enters() {
     use deckmaste_core::DeonticAction;
     use deckmaste_core::StaticEffect;
 
+    fn statics(a: &Ability, out: &mut Vec<StaticEffect>) {
+        match a {
+            Ability::Static(s) => out.extend(s.effects.iter().cloned()),
+            Ability::Expanded(e) => statics(&e.value, out),
+            _ => {}
+        }
+    }
+    fn peel(e: &StaticEffect) -> &StaticEffect {
+        match e {
+            StaticEffect::Expanded(x) => peel(&x.value),
+            other => other,
+        }
+    }
+
     let plugin = builtin();
     let kw: KeywordAbility = plugin
         .macros
@@ -95,22 +109,9 @@ fn enchant_confers_spell_cant_attach_and_as_enters() {
     );
 
     // Walk every Static effect (peel Expanded) looking for the two static rows.
-    fn statics(a: &Ability, out: &mut Vec<StaticEffect>) {
-        match a {
-            Ability::Static(s) => out.extend(s.effects.iter().cloned()),
-            Ability::Expanded(e) => statics(&e.value, out),
-            _ => {}
-        }
-    }
     let mut effs = Vec::new();
     for a in abilities {
         statics(a, &mut effs);
-    }
-    fn peel(e: &StaticEffect) -> &StaticEffect {
-        match e {
-            StaticEffect::Expanded(x) => peel(&x.value),
-            other => other,
-        }
     }
     // (2) the host-restriction Cant(Attach) row.
     assert!(
@@ -293,7 +294,8 @@ fn ascend_macro_expands_to_static_sba() {
         ))),
     ]);
     assert_eq!(
-        when, canonical,
+        when,
+        Box::new(canonical),
         "Ascend macro's Sba gate drifted from the canonical Ascend gate"
     );
 }

@@ -418,7 +418,9 @@ mod tests {
         };
         assert_eq!(
             activated.cost[1],
-            CostComponent::Do(PlayerAction::Sacrifice(Selection::Ref(Reference::This)))
+            CostComponent::Do(Box::new(PlayerAction::Sacrifice(Selection::Ref(
+                Reference::This
+            ))))
         );
     }
 }

@@ -61,8 +61,10 @@ pub enum DesignationDef {
     },
     /// A designation derived by re-evaluating a filter (e.g. `Modified`).
     Derived(Filter),
-    /// A designation derived by re-evaluating a condition.
-    DerivedIf(Condition),
+    /// A designation derived by re-evaluating a condition. Boxed: `Condition`
+    /// dominates this enum's size; boxing keeps `DesignationDef` small
+    /// (`clippy::large_enum_variant`).
+    DerivedIf(Box<Condition>),
 }
 
 /// A designation declaration (§6, taxonomy §8): an open `Ident`

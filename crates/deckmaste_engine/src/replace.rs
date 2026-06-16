@@ -231,7 +231,7 @@ mod tests {
             types: vec![Type::Enchantment],
             abilities: vec![Ability::Static(StaticAbility {
                 condition: None,
-                effects: vec![StaticEffect::Replacement(Replacement::Also {
+                effects: vec![StaticEffect::Replacement(Box::new(Replacement::Also {
                     would: Event::ZoneMove {
                         what: Filter::Ref(Reference::This),
                         from: None,
@@ -246,7 +246,7 @@ mod tests {
                             Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
                         ])),
                     }),
-                })],
+                }))],
                 characteristic_defining: false,
             })],
             ..CardFace::default()

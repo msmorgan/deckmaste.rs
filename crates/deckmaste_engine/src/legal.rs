@@ -902,6 +902,9 @@ mod tests {
     /// wrappers at every level — in DFS order.
     #[test]
     fn walk_visits_every_effect_through_all_wrappers() {
+        use OutcomeGateKind::CantLose;
+        use OutcomeGateKind::CantWin;
+
         let tree = sample_tree();
         let mut seen = Vec::new();
         let done = walk_abilities(&tree, &mut |e| {
@@ -911,8 +914,6 @@ mod tests {
             ControlFlow::<()>::Continue(())
         });
         assert!(done.is_continue(), "a non-breaking walk runs to completion");
-        use OutcomeGateKind::CantLose;
-        use OutcomeGateKind::CantWin;
         assert_eq!(seen, vec![CantLose, CantWin, CantLose, CantWin]);
     }
 

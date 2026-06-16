@@ -162,10 +162,13 @@ pub enum StaticEffect {
     Deontic(Deontic),
     /// A cost modifier ([CR#118.7]).
     CostModifier { of: Filter, change: CostChange },
-    /// A replacement effect ([CR#614]).
-    Replacement(Replacement),
-    /// A prevention effect ([CR#615]).
-    Prevention(Prevention),
+    /// A replacement effect ([CR#614]). Boxed: `Replacement` is by far the
+    /// largest payload here, so boxing keeps `StaticEffect` small
+    /// (`clippy::large_enum_variant`).
+    Replacement(Box<Replacement>),
+    /// A prevention effect ([CR#615]). Boxed for the same size reason as
+    /// `Replacement`.
+    Prevention(Box<Prevention>),
     /// A scoped counterfactual premise ([CR#609.4]) — see [`AsThough`].
     AsThough(AsThough),
     /// A state-based action expressed as data ([CR#704]): whenever `when`
@@ -179,7 +182,7 @@ pub enum StaticEffect {
     /// dominates `StaticEffect`'s size; `Box` only for the size cycle, per the
     /// "Box only for cycles" rule).
     Sba {
-        when: Condition,
+        when: Box<Condition>,
         then: Box<crate::Effect>,
     },
     /// An outcome gate: "[who] can't lose the game" / "can't win the game".
@@ -274,7 +277,9 @@ mod tests {
         use crate::Zone;
 
         let sba = StaticEffect::Sba {
-            when: Condition::Not(Box::new(Condition::LegallyAttached(Reference::This))),
+            when: Box::new(Condition::Not(Box::new(Condition::LegallyAttached(
+                Reference::This,
+            )))),
             then: Box::new(Effect::Act(Action::Move(
                 Selection::Ref(Reference::This),
                 Zone::Graveyard,

@@ -144,7 +144,9 @@ pub fn concretize(
                     SymbolChoice::Mana(sym) => mana.push(ManaSymbol::Simple(sym)),
                     // [CR#107.4f]: 2 life in place of the colored mana.
                     SymbolChoice::Life => {
-                        verbs.push(CostComponent::Do(PlayerAction::LoseLife(Count::Literal(2))));
+                        verbs.push(CostComponent::Do(Box::new(PlayerAction::LoseLife(
+                            Count::Literal(2),
+                        ))));
                     }
                 }
             }
@@ -245,7 +247,9 @@ mod tests {
         assert!(mana.is_empty());
         assert_eq!(
             verbs,
-            vec![CostComponent::Do(PlayerAction::LoseLife(Count::Literal(2)))]
+            vec![CostComponent::Do(Box::new(PlayerAction::LoseLife(
+                Count::Literal(2)
+            )))]
         );
 
         // Pay the color: {W}, no verbs.
@@ -287,7 +291,9 @@ mod tests {
         assert_eq!(mana, parse_cost("{1}"));
         assert_eq!(
             verbs,
-            vec![CostComponent::Do(PlayerAction::LoseLife(Count::Literal(2)))]
+            vec![CostComponent::Do(Box::new(PlayerAction::LoseLife(
+                Count::Literal(2)
+            )))]
         );
     }
 
@@ -409,7 +415,9 @@ mod tests {
         assert_eq!(mana, parse_cost("{U}"));
         assert_eq!(
             verbs,
-            vec![CostComponent::Do(PlayerAction::LoseLife(Count::Literal(2)))]
+            vec![CostComponent::Do(Box::new(PlayerAction::LoseLife(
+                Count::Literal(2)
+            )))]
         );
 
         // Color for {W/P}, Life for {U/P}: one concrete mana, one verb (order
@@ -424,7 +432,9 @@ mod tests {
         assert_eq!(mana, parse_cost("{W}"));
         assert_eq!(
             verbs,
-            vec![CostComponent::Do(PlayerAction::LoseLife(Count::Literal(2)))]
+            vec![CostComponent::Do(Box::new(PlayerAction::LoseLife(
+                Count::Literal(2)
+            )))]
         );
     }
 }

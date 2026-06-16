@@ -26,6 +26,15 @@ use crate::continuous::StaticEffect;
 /// control flow. The struct-carrying forms delegate to inner derived structs
 /// (`MayEffect`, …), which read flat via `unwrap_variant_newtypes` and carry
 /// the field defaults and shapes.
+// `Act(Action)` is the largest variant: `Action` is a big *balanced* leaf enum
+// (no single fat field to box), and `Effect` is the hot, recursively-matched
+// node of the effect grammar. Boxing `Act` would inject indirection + a deref
+// into every `Effect::Act` match (incl. the `resolve` hot path) and still leave
+// `Effect` over the bar via the next-largest variant — so it buys nothing for
+// the lint without a sweeping multi-box of `Action`/`Condition` embeddings.
+// The recursive sub-effect fields are already boxed (`MayEffect.effect`, …);
+// this `allow` is the "balanced AST leaf" exception, same call as `Ability`.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Effect {
     /// A single intrinsic instruction (the `Act` compartment, transparent in

@@ -370,7 +370,7 @@ fn phyrexian_life_verbs(verbs: &[CostComponent]) -> Vec<PlayerAction> {
     verbs
         .iter()
         .map(|c| match c {
-            CostComponent::Do(action) => action.clone(),
+            CostComponent::Do(action) => (**action).clone(),
             other => unreachable!("concretize emits only Do(_) verb costs, got {other:?}"),
         })
         .collect()

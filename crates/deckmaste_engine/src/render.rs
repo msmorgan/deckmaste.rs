@@ -74,9 +74,10 @@ pub enum ActionViewKind {
     /// no-mana-cost face).
     Cast { cost: Option<ManaCost> },
     /// Activate an ability ([CR#602]); `mana` flags a mana ability
-    /// ([CR#605.1a]).
+    /// ([CR#605.1a]). `ability` is boxed: it dwarfs every other variant, so
+    /// inlining it would bloat the whole enum (`clippy::large_enum_variant`).
     Activate {
-        ability: ActivatedAbility,
+        ability: Box<ActivatedAbility>,
         mana: bool,
     },
 }
@@ -140,7 +141,10 @@ impl GameState {
                     action: action.clone(),
                     source: Some(object),
                     name: name(object),
-                    kind: ActionViewKind::Activate { ability: act, mana },
+                    kind: ActionViewKind::Activate {
+                        ability: Box::new(act),
+                        mana,
+                    },
                 }
             }
             // Special actions ([CR#116.2]) are a P0.W3 shell never offered in a
