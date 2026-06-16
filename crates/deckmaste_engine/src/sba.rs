@@ -177,7 +177,7 @@ fn attachment_sbas(state: &GameState, view: &crate::layer::LayeredView) -> Vec<G
         let mut rows: Vec<(deckmaste_core::Condition, deckmaste_core::Effect)> = Vec::new();
         crate::legal::for_each_static(view, id, |e| {
             if let deckmaste_core::StaticEffect::Sba { when, then } = e {
-                rows.push((when.clone(), (**then).clone()));
+                rows.push((*when.clone(), (**then).clone()));
             }
         });
         for (when, then) in rows {
@@ -659,7 +659,9 @@ mod tests {
         Ability::Innate(Box::new(Ability::Static(StaticAbility {
             condition: None,
             effects: vec![StaticEffect::Sba {
-                when: Condition::Not(Box::new(Condition::LegallyAttached(Reference::This))),
+                when: Box::new(Condition::Not(Box::new(Condition::LegallyAttached(
+                    Reference::This,
+                )))),
                 then: Box::new(Effect::Act(deckmaste_core::Action::Move(
                     Selection::Ref(Reference::This),
                     Zone::Graveyard,
@@ -898,7 +900,7 @@ mod tests {
         let ascend = Ability::Static(StaticAbility {
             condition: None,
             effects: vec![StaticEffect::Sba {
-                when: gate,
+                when: Box::new(gate),
                 then: Box::new(Effect::Act(Action::By(
                     Reference::You,
                     PlayerAction::GetDesignation(name),
@@ -977,7 +979,7 @@ mod tests {
             Ability::Static(StaticAbility {
                 condition: None,
                 effects: vec![StaticEffect::Sba {
-                    when: Condition::AllOf(vec![
+                    when: Box::new(Condition::AllOf(vec![
                         Condition::Compare(
                             Count::CountOf(Box::new(Filter::AllOf(vec![
                                 Filter::State(StateFilter::InZone(Zone::Battlefield)),
@@ -992,7 +994,7 @@ mod tests {
                             Reference::You,
                             Filter::State(StateFilter::Designated(name)),
                         ))),
-                    ]),
+                    ])),
                     then: Box::new(Effect::Act(Action::By(
                         Reference::You,
                         PlayerAction::GetDesignation(name),

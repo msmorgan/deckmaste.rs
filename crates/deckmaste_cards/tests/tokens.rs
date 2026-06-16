@@ -48,8 +48,8 @@ fn sacrifice_this() -> CostComponent {
         name: "SacrificeThis".into(),
         args: ExpansionArgs::none(),
         template: None,
-        value: Box::new(CostComponent::Do(PlayerAction::Sacrifice(Selection::from(
-            Reference::This,
+        value: Box::new(CostComponent::Do(Box::new(PlayerAction::Sacrifice(
+            Selection::from(Reference::This),
         )))),
     })
 }

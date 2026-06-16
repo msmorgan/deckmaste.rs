@@ -6,6 +6,7 @@
 //!     Not(Creature)))]))` ([CR#301.5]).
 //!   - **Fortification** confers `Innate(Static([Cant(Attach(This,
 //!     Not(Land)))]))` ([CR#301.6]).
+//!
 //! These ride `Innate` so they survive "loses all abilities" and stay invisible
 //! to card-facing ability queries, while the SBA sweep / `attachment_legal`
 //! read them generically.
@@ -81,7 +82,7 @@ fn aura_subtype_confers_innate_graveyard_sba() {
     assert!(
         effs.iter().any(|e| matches!(e,
             StaticEffect::Sba { when, .. }
-                if matches!(when, Condition::Not(b) if matches!(**b, Condition::LegallyAttached(_))))),
+                if matches!(&**when, Condition::Not(b) if matches!(**b, Condition::LegallyAttached(_))))),
         "Aura confers Sba(Not(LegallyAttached(This)), Move(This, Graveyard)) ([CR#704.5m]); got {effs:?}"
     );
 }

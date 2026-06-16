@@ -65,7 +65,7 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
             CostComponent::Untap => untap = true,
             CostComponent::Do(action) => {
                 if action.is_cost_eligible() {
-                    verbs.push(action.clone());
+                    verbs.push(*action.clone());
                 } else {
                     // Non-eligible verbs in a cost are malformed.
                     return None;
@@ -476,9 +476,9 @@ mod tests {
 
     #[test]
     fn cost_summary_returns_none_on_non_eligible_do_cost() {
-        let cost = vec![CostComponent::Do(PlayerAction::Draw(
+        let cost = vec![CostComponent::Do(Box::new(PlayerAction::Draw(
             deckmaste_core::Count::Literal(1),
-        ))];
+        )))];
         assert!(
             cost_summary(&cost).is_none(),
             "Do(...) with a non-cost-eligible action should yield None"
@@ -490,7 +490,9 @@ mod tests {
         let cost = vec![
             CostComponent::Mana("{1}".parse().unwrap()),
             CostComponent::Tap,
-            CostComponent::Do(PlayerAction::Sacrifice(Selection::Ref(Reference::This))),
+            CostComponent::Do(Box::new(PlayerAction::Sacrifice(Selection::Ref(
+                Reference::This,
+            )))),
         ];
         let summary = cost_summary(&cost).expect("verb costs no longer abort the summary");
         assert_eq!(summary.mana, "{1}".parse().unwrap());
@@ -670,9 +672,9 @@ mod tests {
         let player = PlayerId(0);
         let obj = make_object_on_battlefield(&mut state, player);
         let ability = activated(
-            vec![CostComponent::Do(PlayerAction::LoseLife(
+            vec![CostComponent::Do(Box::new(PlayerAction::LoseLife(
                 deckmaste_core::Count::Literal(2),
-            ))],
+            )))],
             noop_effect(),
         );
 
@@ -691,9 +693,9 @@ mod tests {
         let player = PlayerId(0);
         let obj = make_object_on_battlefield(&mut state, player);
         let ability = activated(
-            vec![CostComponent::Do(PlayerAction::LoseLife(
+            vec![CostComponent::Do(Box::new(PlayerAction::LoseLife(
                 deckmaste_core::Count::Literal(2),
-            ))],
+            )))],
             noop_effect(),
         );
 

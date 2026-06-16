@@ -175,7 +175,9 @@ mod tests {
                 window: None,
                 cost: vec![
                     CostComponent::Tap,
-                    CostComponent::Do(PlayerAction::Sacrifice(Selection::from(Reference::This))),
+                    CostComponent::Do(Box::new(PlayerAction::Sacrifice(Selection::from(
+                        Reference::This
+                    )))),
                 ],
                 condition: None,
                 limits: vec![],

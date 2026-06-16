@@ -905,7 +905,9 @@ fn activated_ability_pays_self_sacrifice_cost() {
         NAME,
         vec![
             CostComponent::Mana("{0}".parse().unwrap()),
-            CostComponent::Do(PlayerAction::Sacrifice(Selection::Ref(Reference::This))),
+            CostComponent::Do(Box::new(PlayerAction::Sacrifice(Selection::Ref(
+                Reference::This,
+            )))),
         ],
     );
     let mut state = cost_game(7, &card);
@@ -942,7 +944,7 @@ fn activated_ability_pays_life_cost() {
         NAME,
         vec![
             CostComponent::Mana("{0}".parse().unwrap()),
-            CostComponent::Do(PlayerAction::LoseLife(Count::Literal(2))),
+            CostComponent::Do(Box::new(PlayerAction::LoseLife(Count::Literal(2)))),
         ],
     );
     let mut state = cost_game(7, &card);
@@ -995,10 +997,10 @@ fn activated_ability_pays_choose_sacrifice_cost() {
         ARTIFACT_NAME,
         vec![
             CostComponent::Mana("{0}".parse().unwrap()),
-            CostComponent::Do(PlayerAction::Sacrifice(Selection::Choose(
+            CostComponent::Do(Box::new(PlayerAction::Sacrifice(Selection::Choose(
                 Quantity::Exactly(Count::Literal(1)),
                 creature_filter,
-            ))),
+            )))),
         ],
     );
 

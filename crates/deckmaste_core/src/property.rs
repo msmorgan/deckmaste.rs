@@ -22,10 +22,10 @@ pub enum Property {
     /// canonical instances. Parses today; the engine executes it in
     /// stage 3.
     StateBased {
-        condition: Condition,
-        effect: Effect,
+        condition: Box<Condition>,
+        effect: Box<Effect>,
     },
     /// Performed as a turn-based action — no stack ([CR#714.3c]). Parses
     /// today; the engine executes it in stage 3.
-    TurnBased { at: Phase, effect: Effect },
+    TurnBased { at: Phase, effect: Box<Effect> },
 }
