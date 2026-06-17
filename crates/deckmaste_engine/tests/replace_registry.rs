@@ -480,6 +480,7 @@ fn resolve_and_drive(state: &mut GameState, effect: Effect, source: ObjectId) {
             bindings: None,
             chosen: None,
             x: None,
+            subject: None,
         },
     });
     drive(state);
