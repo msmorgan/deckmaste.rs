@@ -551,6 +551,40 @@ impl GameState {
                 controller,
                 ref bindings,
             } => {
+                // [CR#603.2h]: a "once each turn" / once-per-game triggered
+                // ability is noted at most that often. The gate lives HERE, at
+                // note time — NOT at scan-emit — because a single
+                // multi-occurrence event ([CR#603.2c], e.g. two creatures
+                // dying simultaneously) emits both `TriggerFired`s in one scan
+                // pass before either applies; only at sequential apply-time
+                // does the second see the first's recorded `AbilityUsed`. The
+                // limit is per firing object ([CR#400.7]).
+                let obj = bindings.this.as_ref().map(|t| t.object);
+                // Collect the firing ability's limits into an owned vec BEFORE
+                // the `pending_triggers`/`history` mutations below (the
+                // `abilities_of_source` borrow must not overlap them).
+                let limits: Vec<deckmaste_core::UseLimit> =
+                    match crate::derive::abilities_of_source(self, source).get(ability as usize) {
+                        Some(deckmaste_core::Ability::Triggered(t)) => t.limits.clone(),
+                        _ => Vec::new(),
+                    };
+                if let Some(obj) = obj {
+                    for limit in &limits {
+                        let window = match limit {
+                            deckmaste_core::UseLimit::OncePerTurn => {
+                                deckmaste_core::Window::ThisTurn
+                            }
+                            deckmaste_core::UseLimit::OncePerGame => {
+                                deckmaste_core::Window::ThisGame
+                            }
+                        };
+                        if self.ability_used_count(obj, ability, window) >= 1 {
+                            // The limit is spent: the trigger does NOT fire —
+                            // note nothing, record nothing.
+                            return event;
+                        }
+                    }
+                }
                 self.pending_triggers.push(crate::trigger::NotedTrigger {
                     source,
                     ability: ability as usize,
