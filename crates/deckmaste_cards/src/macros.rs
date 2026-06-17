@@ -53,42 +53,17 @@ pub fn kinds() -> KindSet {
 #[must_use]
 pub fn param_types() -> ParamTypeSet {
     let mut param_types = ParamTypeSet::default();
-    param_types.add("Color", |src, macros| {
-        macros
-            .read_str::<deckmaste_core::Color>(src)
-            .map(drop)
-            .map_err(|e| e.to_string())
-    });
-    param_types.add("Filter", |src, macros| {
-        macros
-            .read_str::<deckmaste_core::Filter>(src)
-            .map(drop)
-            .map_err(|e| e.to_string())
-    });
+    param_types.add_typed::<deckmaste_core::Color>("Color");
+    param_types.add_typed::<deckmaste_core::Filter>("Filter");
     // A reference slot: the object/player a macro compares against
     // (`SharesColorWith(Ref(This))`, `SharesColor(Subject, This)`).
-    param_types.add("Reference", |src, macros| {
-        macros
-            .read_str::<deckmaste_core::Reference>(src)
-            .map(drop)
-            .map_err(|e| e.to_string())
-    });
+    param_types.add_typed::<deckmaste_core::Reference>("Reference");
     // A keyword/cost slot: the bracketed cost-component list authored as the
     // macro's argument (`[Mana([Generic(2)])]`, `[Mana(...), Do(LoseLife(2))]`).
-    param_types.add("Cost", |src, macros| {
-        macros
-            .read_str::<Vec<deckmaste_core::CostComponent>>(src)
-            .map(drop)
-            .map_err(|e| e.to_string())
-    });
+    param_types.add_typed::<Vec<deckmaste_core::CostComponent>>("Cost");
     // A count slot (`PumpThisUntilEot`'s P/T magnitudes): a bare numeral reads as
     // `Count::Literal`, dynamic counts as `CountOf`/`StatOf`.
-    param_types.add("Count", |src, macros| {
-        macros
-            .read_str::<deckmaste_core::Count>(src)
-            .map(drop)
-            .map_err(|e| e.to_string())
-    });
+    param_types.add_typed::<deckmaste_core::Count>("Count");
     param_types
 }
 
@@ -569,6 +544,23 @@ mod tests {
                     body: Ref(Param(0)),
                 )"#))
             .expect("a Reference param type should be registered");
+    }
+
+    /// `SupportsMacros` guarantees `DeserializeOwned`: a function generic over
+    /// the trait can deserialize a value of that type through the macro layer.
+    /// This compiles only because the supertrait bond holds — the param-type
+    /// validators (`read_str::<T>`) rely on exactly that guarantee.
+    #[test]
+    fn supports_macros_guarantees_deserialize_owned() {
+        fn read_one<T: deckmaste_core::SupportsMacros>(
+            macros: &MacroSet,
+            src: &str,
+        ) -> Result<T, ron::error::SpannedError> {
+            macros.read_str::<T>(src)
+        }
+        let macros = macro_set();
+        let parsed: Reference = read_one(&macros, "This").expect("This is a Reference");
+        assert_eq!(parsed, Reference::This);
     }
 
     /// A `Color` param rejects a non-color at the call site, before the body
