@@ -38,12 +38,9 @@ pub use macro_ron::Params;
 // `kind_names_track_the_core_types`.
 #[must_use]
 pub fn kinds() -> KindSet {
-    use deckmaste_core::SupportsMacros as _;
-    // Core types come from the shared registry; cards-only macroable types
-    // (the strategy `Preference`) are added on top.
-    let mut kinds = deckmaste_core::ron::kinds();
-    kinds.add(crate::strategy::Preference::kind());
-    kinds
+    // Every macroable kind (including the strategy `Preference`) lives in core's
+    // shared registry; cards adds none of its own.
+    deckmaste_core::ron::kinds()
 }
 
 /// The param types in scope for deckmaste plugins: the domain-neutral
@@ -105,9 +102,9 @@ mod tests {
     use deckmaste_core::TargetSpec;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
+    use deckmaste_core::strategy::Preference;
 
     use super::*;
-    use crate::strategy::Preference;
 
     /// Parses a definition the way plugin loading does: from RON source in
     /// deckmaste's dialect. (`MacroDef`'s body field is crate-private in
@@ -644,5 +641,49 @@ mod tests {
         macros.insert(&produced).unwrap();
         let subtype: deckmaste_core::Subtype = macros.read_str("Zombie").unwrap();
         assert_eq!(subtype.name, "Zombie");
+    }
+
+    /// A `Condition` macro at a strategy's `when:` position expands through the
+    /// macro reader even though it sits deep inside plain-serde
+    /// `Strategy`/`Rule` — sensing positions are macro-aware for free
+    /// (core's `Condition` does the fall-through). Lets strategy-guide
+    /// vocabulary (`Always`, …) be macros.
+    #[test]
+    fn strategy_when_position_expands_a_condition_macro() {
+        use deckmaste_core::Condition;
+        use deckmaste_core::strategy::Strategy;
+        let mut macros = macro_set();
+        macros
+            .insert(&def(
+                r#"(name: "Always", kinds: [Condition], body: AllOf([]))"#,
+            ))
+            .unwrap();
+        let s: Strategy = macros
+            .read_str(r#"(name: "M", rules: [(when: Always, prefer: Pass)])"#)
+            .unwrap();
+        let Condition::Expanded(exp) = &s.rules[0].when else {
+            panic!("expected expanded condition, got {:?}", s.rules[0].when);
+        };
+        assert_eq!(exp.name, "Always");
+    }
+
+    /// `Preference` is a registered macroable kind, so choose-a-play vocabulary
+    /// (`AttackAll`, …) at a `prefer:` position expands to a literal variant.
+    #[test]
+    fn strategy_prefer_position_expands_a_preference_macro() {
+        use deckmaste_core::strategy::Strategy;
+        let mut macros = macro_set();
+        macros
+            .insert(&def(
+                r#"(name: "AttackAll", kinds: [Preference], body: Attack(what: (pick: First, by: Literal(1))))"#,
+            ))
+            .unwrap();
+        let s: Strategy = macros
+            .read_str(r#"(name: "M", rules: [(when: YourTurn, prefer: AttackAll)])"#)
+            .unwrap();
+        let Preference::Expanded(exp) = &s.rules[0].prefer else {
+            panic!("expected expanded preference, got {:?}", s.rules[0].prefer);
+        };
+        assert_eq!(exp.name, "AttackAll");
     }
 }

@@ -6,6 +6,16 @@
 //! second evaluator. `strategy-evaluator-core` builds the `StrategyEvaluator`
 //! on top of this.
 
+use deckmaste_core::Count;
+use deckmaste_core::Uint;
+use deckmaste_core::strategy::Extremum;
+use deckmaste_core::strategy::Preference;
+use deckmaste_core::strategy::Selector;
+use deckmaste_core::strategy::Strategy as StrategyDef;
+
+use crate::Action;
+use crate::Decision;
+use crate::PendingDecision;
 use crate::object::ObjectId;
 use crate::player::PlayerId;
 use crate::stack::Frame;
@@ -18,9 +28,6 @@ use crate::state::GameState;
 /// bindings, choice, or X. The engine's `eval_count`/`condition_holds`/
 /// `eval_reference` evaluate a strategy's `Count`/`Condition`/`Reference`
 /// against this exactly as they do during effect resolution.
-// Production consumer is `strategy-evaluator-core` (the next ticket); for now
-// only the spike's tests exercise it.
-#[allow(dead_code)]
 pub(crate) fn eval_frame(state: &GameState, seat: PlayerId, candidate: Option<ObjectId>) -> Frame {
     Frame {
         source: candidate.unwrap_or_else(|| state.player(seat).object),
@@ -33,26 +40,281 @@ pub(crate) fn eval_frame(state: &GameState, seat: PlayerId, candidate: Option<Ob
     }
 }
 
+/// A data-driven seat: answers the engine's decisions by walking a
+/// [`Strategy`]'s ordered rules and ranking legal options with its selectors.
+/// Implements the engine `Strategy` trait, so it drops into `play()`, the
+/// harness, and the TUI driver wherever a hardcoded greedy seat went.
+///
+/// This is the core — rule-walk + selector engine + a total fallback — wired
+/// for the priority window. The remaining per-decision handlers (targeting,
+/// combat, discards, …) ride on top in `strategy-decision-handlers`; until then
+/// those kinds take the total fallback's legal default.
+///
+/// [`Strategy`]: deckmaste_cards::Strategy
+pub struct StrategyEvaluator {
+    strategy: StrategyDef,
+    seat: PlayerId,
+}
+
+impl StrategyEvaluator {
+    /// A seat driven by `strategy`.
+    #[must_use]
+    pub fn new(strategy: StrategyDef, seat: PlayerId) -> Self {
+        Self { strategy, seat }
+    }
+
+    /// Rule-walk at a priority window: the first rule whose `when` holds AND
+    /// whose `prefer` resolves to a legal action wins; falls through to `Pass`.
+    fn decide_priority(&self, state: &GameState, legal: &[Action]) -> Action {
+        let frame = eval_frame(state, self.seat, None);
+        for rule in &self.strategy.rules {
+            if !state.condition_holds(&rule.when, &frame) {
+                continue;
+            }
+            if let Some(action) = self.priority_action(state, &rule.prefer, legal) {
+                return action;
+            }
+        }
+        Action::Pass
+    }
+
+    /// Map a `Preference` to a legal priority `Action`, or `None` when it does
+    /// not apply to a priority window (`Attack`/`Block`/`Discard`) or has no
+    /// legal instance — so the rule-walk falls through to the next rule.
+    fn priority_action(
+        &self,
+        state: &GameState,
+        prefer: &Preference,
+        legal: &[Action],
+    ) -> Option<Action> {
+        match prefer {
+            Preference::Pass => Some(Action::Pass),
+            Preference::Concede => Some(Action::Concede),
+            Preference::Play { what } => {
+                let cands: Vec<ObjectId> = legal
+                    .iter()
+                    .filter_map(|a| match a {
+                        Action::PlayLand { object } => Some(*object),
+                        _ => None,
+                    })
+                    .collect();
+                self.select(state, what, &cands)
+                    .map(|object| Action::PlayLand { object })
+            }
+            Preference::Cast { what, .. } => {
+                let cands: Vec<ObjectId> = legal
+                    .iter()
+                    .filter_map(|a| match a {
+                        Action::CastSpell { object } => Some(*object),
+                        _ => None,
+                    })
+                    .collect();
+                self.select(state, what, &cands)
+                    .map(|object| Action::CastSpell { object })
+            }
+            Preference::Activate { what, .. } => {
+                let cands: Vec<ObjectId> = legal
+                    .iter()
+                    .filter_map(|a| match a {
+                        Action::ActivateAbility { object, .. } => Some(*object),
+                        _ => None,
+                    })
+                    .collect();
+                let picked = self.select(state, what, &cands)?;
+                legal.iter().find_map(|a| match a {
+                    Action::ActivateAbility { object, ability } if *object == picked => {
+                        Some(Action::ActivateAbility {
+                            object: *object,
+                            ability: *ability,
+                        })
+                    }
+                    _ => None,
+                })
+            }
+            // Not priority-window plays — handled at their own decision kinds.
+            Preference::Attack { .. } | Preference::Block(_) | Preference::Discard { .. } => None,
+            Preference::Expanded(e) => self.priority_action(state, &e.value, legal),
+        }
+    }
+
+    /// The selector engine: from `candidates`, keep those matching `among`,
+    /// then take the `pick` extremum by the per-candidate `by` count
+    /// (evaluated with the candidate bound as `This`). `None` if nothing
+    /// matches.
+    fn select(
+        &self,
+        state: &GameState,
+        selector: &Selector,
+        candidates: &[ObjectId],
+    ) -> Option<ObjectId> {
+        let matching = candidates
+            .iter()
+            .copied()
+            .filter(|&o| self.matches_among(state, selector, o));
+        match selector.pick {
+            Extremum::First => matching.into_iter().next(),
+            Extremum::Min => matching.min_by_key(|&o| self.score(state, &selector.by, o)),
+            Extremum::Max => matching.max_by_key(|&o| self.score(state, &selector.by, o)),
+        }
+    }
+
+    /// Does `candidate` pass the selector's optional `among` filter? (`None` =
+    /// the whole set.) Evaluated with the candidate bound as `This`.
+    fn matches_among(&self, state: &GameState, selector: &Selector, candidate: ObjectId) -> bool {
+        match &selector.among {
+            None => true,
+            Some(filter) => {
+                let frame = eval_frame(state, self.seat, Some(candidate));
+                state.filter_matches_live(filter, candidate, state.frame_watcher(&frame))
+            }
+        }
+    }
+
+    /// The per-candidate ranking count, evaluated with `candidate` bound as
+    /// `This`.
+    fn score(&self, state: &GameState, by: &Count, candidate: ObjectId) -> Uint {
+        let frame = eval_frame(state, self.seat, Some(candidate));
+        state.eval_count(by, &frame)
+    }
+
+    /// A total, always-legal default for the decision kinds the core does not
+    /// yet handle smartly (filled in by `strategy-decision-handlers`). Mirrors
+    /// the harness's `mechanical` defaults, but never panics on the kinds that
+    /// arise in v1 decks, nor on the simple shells.
+    fn fallback(&self, state: &GameState, pending: &PendingDecision) -> Decision {
+        match pending {
+            // Stays total even though `decide` routes Priority itself.
+            PendingDecision::Priority { legal, .. } => {
+                Decision::Act(self.decide_priority(state, legal))
+            }
+            PendingDecision::DiscardToHandSize { player, count }
+            | PendingDecision::DiscardCards { player, count } => {
+                let hand = &state.zones.hands[player.index()];
+                let n = (*count as usize).min(hand.len());
+                Decision::Discard(hand.iter().copied().take(n).collect())
+            }
+            PendingDecision::ChooseManaColor { options, .. } => {
+                Decision::ManaColor(*options.first().expect("a mana choice offers options"))
+            }
+            PendingDecision::PayMana { .. } => Decision::Pay(state.auto_pay_pending()),
+            PendingDecision::OrderTriggers { triggers, .. } => {
+                Decision::Order((0..triggers.len()).collect())
+            }
+            PendingDecision::ChooseTargets { legal, .. } => Decision::Targets(
+                legal
+                    .iter()
+                    .map(|set| *set.first().expect("a target spec offers a candidate"))
+                    .collect(),
+            ),
+            // No-op defaults: declaring no attackers / no blocks is always legal.
+            PendingDecision::DeclareAttackers { .. } => Decision::Attackers(vec![]),
+            PendingDecision::DeclareBlockers { .. } => Decision::Blocks(vec![]),
+            PendingDecision::AssignCombatDamage {
+                source, recipients, ..
+            } => {
+                let power = state
+                    .combat_damage
+                    .as_ref()
+                    .and_then(|cd| cd.queue.iter().find(|a| a.source == *source))
+                    .map_or(0, |a| a.power);
+                let first = *recipients
+                    .first()
+                    .expect("a multi-blocked source has recipients");
+                Decision::Assignment(vec![(first, power)])
+            }
+            PendingDecision::ChooseObjects {
+                candidates, min, ..
+            } => Decision::Chosen(candidates.iter().copied().take(*min as usize).collect()),
+            PendingDecision::ChooseXValue { .. } => Decision::XValue(0),
+            // Simple shells: a legal minimal default.
+            PendingDecision::ChooseModes { min, .. } => Decision::Modes((0..*min).collect()),
+            PendingDecision::Division { total, targets, .. } => {
+                let first = *targets.first().expect("a division has targets");
+                Decision::Divide(vec![(first, *total)])
+            }
+            PendingDecision::Vote { .. } => Decision::VoteFor(0),
+            PendingDecision::YesNo { .. } => Decision::Answer(false),
+            PendingDecision::ChooseReplacement { applicable, .. } => Decision::ReplacementChoice(
+                *applicable
+                    .first()
+                    .expect("a replacement choice offers options"),
+            ),
+            // Deep engine choices with no trivial legal default; none arise in
+            // v1 decks. Later tickets handle these explicitly.
+            other @ (PendingDecision::ChooseCostOptions { .. }
+            | PendingDecision::OrderReplacements { .. }
+            | PendingDecision::PreGame { .. }) => {
+                todo!("strategy fallback for {other:?} (no v1 deck surfaces it)")
+            }
+        }
+    }
+}
+
+impl crate::sim::Strategy for StrategyEvaluator {
+    fn decide(&self, state: &GameState, pending: &PendingDecision) -> Decision {
+        match pending {
+            PendingDecision::Priority { legal, .. } => {
+                Decision::Act(self.decide_priority(state, legal))
+            }
+            other => self.fallback(state, other),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::Path;
     use std::sync::Arc;
 
     use deckmaste_cards::plugin::Plugin;
+    use deckmaste_core::Card;
     use deckmaste_core::Cmp;
     use deckmaste_core::Condition;
     use deckmaste_core::Count;
     use deckmaste_core::Reference;
     use deckmaste_core::Stat;
     use deckmaste_core::Zone;
+    use deckmaste_core::strategy::Extremum;
+    use deckmaste_core::strategy::Preference;
+    use deckmaste_core::strategy::Rule;
+    use deckmaste_core::strategy::Selector;
+    use deckmaste_core::strategy::Strategy as StrategyDef;
 
+    use super::StrategyEvaluator;
     use super::eval_frame;
+    use crate::Action;
+    use crate::Decision;
+    use crate::PendingDecision;
+    use crate::object::ObjectId;
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
+    use crate::sim::Strategy as _;
     use crate::state::GameConfig;
     use crate::state::GameState;
     use crate::state::PlayerConfig;
     use crate::state::StartingPlayer;
+
+    fn empty_two_player() -> GameState {
+        GameState::new(GameConfig {
+            players: vec![PlayerConfig { deck: vec![] }, PlayerConfig { deck: vec![] }],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        })
+    }
+
+    fn put_creature(state: &mut GameState, card: &Arc<Card>, owner: PlayerId) -> ObjectId {
+        let cid = state.cards.push(Arc::clone(card), owner);
+        let id = state
+            .objects
+            .mint(ObjectSource::Card(cid), owner, Some(Zone::Battlefield));
+        state.zones.battlefield.push(id);
+        id
+    }
+
+    fn always() -> Condition {
+        Condition::AllOf(vec![])
+    }
 
     fn canon() -> Plugin {
         Plugin::load_with_sibling_prelude(
@@ -132,5 +394,81 @@ mod tests {
             state.eval_reference(&Reference::This, &frame),
             state.player(PlayerId(1)).object,
         );
+    }
+
+    /// Rule-walk: the first rule whose `when` holds wins. `Always → Pass`
+    /// yields a pass at a priority window.
+    #[test]
+    fn priority_first_matching_rule_yields_pass() {
+        let strat = StrategyDef {
+            name: "pass".into(),
+            rules: vec![Rule {
+                when: always(),
+                prefer: Preference::Pass,
+            }],
+        };
+        let eval = StrategyEvaluator::new(strat, PlayerId(0));
+        let state = empty_two_player();
+        let pending = PendingDecision::Priority {
+            player: PlayerId(0),
+            legal: vec![Action::Pass],
+        };
+        assert_eq!(eval.decide(&state, &pending), Decision::Act(Action::Pass));
+    }
+
+    /// Selector engine: `Cast(pick: Max, by: power)` over two legal cast
+    /// candidates picks the bigger creature (Grizzly Bears 2/2 over Willow Elf
+    /// 1/1) — argmax of a `Count` over the legal set.
+    #[test]
+    fn priority_cast_selector_picks_by_extremum() {
+        let willow = Arc::new(canon().card("Willow Elf").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let mut state = empty_two_player();
+        let willow_id = put_creature(&mut state, &willow, PlayerId(0));
+        let bears_id = put_creature(&mut state, &bears, PlayerId(0));
+
+        let strat = StrategyDef {
+            name: "cast-biggest".into(),
+            rules: vec![Rule {
+                when: always(),
+                prefer: Preference::Cast {
+                    what: Selector {
+                        pick: Extremum::Max,
+                        by: Count::StatOf(Reference::This, Stat::Power),
+                        among: None,
+                    },
+                    target: None,
+                },
+            }],
+        };
+        let eval = StrategyEvaluator::new(strat, PlayerId(0));
+        let pending = PendingDecision::Priority {
+            player: PlayerId(0),
+            legal: vec![
+                Action::CastSpell { object: willow_id },
+                Action::CastSpell { object: bears_id },
+            ],
+        };
+        assert_eq!(
+            eval.decide(&state, &pending),
+            Decision::Act(Action::CastSpell { object: bears_id }),
+        );
+    }
+
+    /// Totality: an unhandled decision kind falls back to a legal default
+    /// rather than panicking. A defender with no legal blockers blocks nothing.
+    #[test]
+    fn fallback_is_total_for_unhandled_kinds() {
+        let strat = StrategyDef {
+            name: "noop".into(),
+            rules: vec![],
+        };
+        let eval = StrategyEvaluator::new(strat, PlayerId(1));
+        let state = empty_two_player();
+        let pending = PendingDecision::DeclareBlockers {
+            player: PlayerId(1),
+            legal: vec![],
+        };
+        assert_eq!(eval.decide(&state, &pending), Decision::Blocks(vec![]));
     }
 }
