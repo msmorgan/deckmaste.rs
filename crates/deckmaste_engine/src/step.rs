@@ -219,7 +219,7 @@ impl GameState {
                     .objects
                     .obj_mut(object)
                     .counters
-                    .entry(kind.clone())
+                    .entry(*kind)
                     .or_insert(0) += count;
                 event
             }
@@ -661,12 +661,7 @@ impl GameState {
         // before the `ZoneChanged` fact — the entering P/T already reflects
         // them, and no counterless window is observable.
         for (kind, n) in &entering.counters {
-            *self
-                .objects
-                .obj_mut(new)
-                .counters
-                .entry(kind.clone())
-                .or_insert(0) += n;
+            *self.objects.obj_mut(new).counters.entry(*kind).or_insert(0) += n;
         }
         // [CR#303.4]: enters attached atomically — set the link on the freshly
         // minted object before the `ZoneChanged` fact, so no unattached window

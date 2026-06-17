@@ -366,7 +366,7 @@ mod tests {
 
     /// [CR#122.6a,614.1c]: a permanent with an `AsEnters(PutCounters(This,
     /// P1P1Counter, 2))` self-replacement enters the battlefield already
-    /// carrying two P1P1Counter counters — placed atomically at mint, before
+    /// carrying two `P1P1Counter` counters — placed atomically at mint, before
     /// the `ZoneChanged` fact.
     #[test]
     fn enters_with_counters() {
