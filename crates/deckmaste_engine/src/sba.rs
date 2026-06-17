@@ -333,6 +333,50 @@ fn run_sba_effect(
     out
 }
 
+/// [CR#704.5j] legend-rule groups: per controller, battlefield legendary
+/// permanents grouped by printed name, keeping groups of size ≥ 2. Ordered
+/// active player first ([CR#101.4] APNAP), then by name, for a stable choice
+/// order.
+pub(crate) fn legend_rule_groups(
+    state: &GameState,
+) -> Vec<(crate::player::PlayerId, Vec<ObjectId>)> {
+    use std::collections::BTreeMap;
+
+    let view = state.layers();
+    // controller → name → [ids]
+    let mut by_player: BTreeMap<crate::player::PlayerId, BTreeMap<String, Vec<ObjectId>>> =
+        BTreeMap::new();
+    for &id in &state.zones.battlefield {
+        if !view
+            .get(id)
+            .supertypes
+            .contains(&deckmaste_core::Supertype::Legendary)
+        {
+            continue;
+        }
+        let controller = state.objects.obj(id).controller;
+        let name = crate::derive::face(state.def(id)).name.clone();
+        by_player
+            .entry(controller)
+            .or_default()
+            .entry(name)
+            .or_default()
+            .push(id);
+    }
+    let mut groups = Vec::new();
+    for (player, names) in by_player {
+        for (_name, ids) in names {
+            if ids.len() >= 2 {
+                groups.push((player, ids));
+            }
+        }
+    }
+    // Active player's groups first ([CR#101.4] APNAP).
+    let active = state.turn.active_player;
+    groups.sort_by_key(|(p, _)| *p != active);
+    groups
+}
+
 #[cfg(test)]
 mod tests {
     // `too_many_lines` is exempted for this test module: e2e scenarios read
@@ -1433,5 +1477,78 @@ mod tests {
         );
         // Must not panic regardless of how many rules are loaded.
         let _actions = sba::sweep(&state);
+    }
+
+    // --- Legend rule [CR#704.5j] -----------------------------------------------
+
+    use deckmaste_core::Supertype;
+
+    /// Mint a legendary creature on the battlefield for the given controller.
+    fn legendary_creature(
+        state: &mut GameState,
+        name: &str,
+        controller: PlayerId,
+    ) -> crate::object::ObjectId {
+        let card = deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+            name: name.into(),
+            types: vec![Type::Creature],
+            supertypes: vec![Supertype::Legendary],
+            ..deckmaste_core::CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), controller);
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            controller,
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        id
+    }
+
+    /// Mint a non-legendary creature on the battlefield for the given
+    /// controller.
+    fn nonlegendary_creature(
+        state: &mut GameState,
+        name: &str,
+        controller: PlayerId,
+    ) -> crate::object::ObjectId {
+        let card = deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+            name: name.into(),
+            types: vec![Type::Creature],
+            supertypes: vec![],
+            ..deckmaste_core::CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), controller);
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            controller,
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        id
+    }
+
+    #[test]
+    fn legend_rule_groups_finds_same_name_legendaries() {
+        let (mut state, _bear) = bear_on_field();
+        let a = legendary_creature(&mut state, "Bob", PlayerId(0));
+        let b = legendary_creature(&mut state, "Bob", PlayerId(0));
+        let _other = legendary_creature(&mut state, "Carol", PlayerId(0)); // singleton, no group
+        let groups = sba::legend_rule_groups(&state);
+        assert_eq!(groups.len(), 1, "one group: the two Bobs");
+        let (player, cands) = &groups[0];
+        assert_eq!(*player, PlayerId(0));
+        assert_eq!(cands.len(), 2);
+        assert!(cands.contains(&a) && cands.contains(&b));
+    }
+
+    #[test]
+    fn legend_rule_groups_ignores_split_controllers_and_nonlegendaries() {
+        let (mut state, _bear) = bear_on_field();
+        legendary_creature(&mut state, "Bob", PlayerId(0));
+        legendary_creature(&mut state, "Bob", PlayerId(1)); // different controller
+        nonlegendary_creature(&mut state, "Mox", PlayerId(0));
+        nonlegendary_creature(&mut state, "Mox", PlayerId(0)); // not legendary
+        assert!(sba::legend_rule_groups(&state).is_empty());
     }
 }
