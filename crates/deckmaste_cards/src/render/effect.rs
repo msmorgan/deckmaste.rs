@@ -48,6 +48,16 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
                 None => format!("{clause}."),
             }
         }
+        // A target-scoping wrapper ([CR#115.1,601.2c]): render the inner effect
+        // with `ctx.targets` rebound to this node's targets, so the inner
+        // `Reference::Target(n)` resolves to "target creature" etc.
+        Effect::Targeted(t) => effect(
+            &t.effect,
+            &Ctx {
+                subject: ctx.subject,
+                targets: &t.targets,
+            },
+        ),
         other => format!("[unrendered: {other:?}]."),
     }
 }

@@ -15,8 +15,7 @@ Normal(
     abilities: [
         Triggered(
             event: StateBecomes(of: Ref(This), becomes: Tapped),
-            targets: [AnyTarget],
-            effect: DealDamage(Target(0), 1),
+            effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), 1)),
         ),
     ],
     power: 1,

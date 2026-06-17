@@ -23,8 +23,10 @@
         name: "Enchant",
         abilities: [
             Spell(
-                targets: [Target(Exactly(Literal(1)), Param(0))],
-                effect: Sequence([]),
+                effect: Targeted(
+                    targets: [Target(Exactly(Literal(1)), Param(0))],
+                    effect: Sequence([]),
+                ),
             ),
             Static(effects: [
                 Cant(Target(by: Ref(This), on: Not(Param(0)))),

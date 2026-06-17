@@ -1445,8 +1445,15 @@ impl GameState {
         let specs: Vec<TargetSpec> = match &entry.object {
             StackObject::Spell(o) => spell_targets(&self.layers(), *o),
             // The carried text is authoritative — never re-derive from the
-            // (possibly gone, possibly changed) source.
-            StackObject::Activated { ability, .. } => ability.targets.clone(),
+            // (possibly gone, possibly changed) source. Dual-read: legacy
+            // `targets` field, else a top-level `Targeted` wrapper.
+            StackObject::Activated { ability, .. } => {
+                if ability.targets.is_empty() {
+                    top_targets(&ability.effect).to_vec()
+                } else {
+                    ability.targets.clone()
+                }
+            }
             StackObject::Triggered { .. } => unreachable!(
                 "the Triggered resolve arm does not re-check target legality (fizzle seam)"
             ),

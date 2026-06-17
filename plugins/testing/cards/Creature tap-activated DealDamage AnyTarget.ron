@@ -7,6 +7,6 @@ Normal(
     power: 1,
     toughness: 1,
     abilities: [
-        Activated(cost: [Tap], targets: [AnyTarget], effect: DealDamage(Target(0), 1)),
+        Activated(cost: [Tap], effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), 1))),
     ],
 )

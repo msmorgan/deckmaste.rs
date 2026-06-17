@@ -4,7 +4,7 @@ Normal(
     types: [Creature],
     subtypes: [Devil],
     abilities: [
-        Triggered(event: ThisDies, targets: [AnyTarget], effect: DealDamage(Target(0), 1)),
+        Triggered(event: ThisDies, effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), 1))),
     ],
     power: 1,
     toughness: 1,

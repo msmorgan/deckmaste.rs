@@ -342,11 +342,16 @@ fn renders_synthesized_lose_life_and_destroy() {
         name: "Test Smite".into(),
         types: vec![Type::Sorcery],
         abilities: vec![Ability::Spell(SpellAbility {
-            targets: vec![TargetSpec::Target(
-                Quantity::Exactly(Count::Literal(1)),
-                Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
-            )],
-            effect: Effect::Act(Action::Destroy(Selection::Ref(Reference::Target(0)))),
+            targets: vec![],
+            effect: Effect::Targeted(deckmaste_core::Targeted {
+                targets: vec![TargetSpec::Target(
+                    Quantity::Exactly(Count::Literal(1)),
+                    Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                )],
+                effect: Box::new(Effect::Act(Action::Destroy(Selection::Ref(
+                    Reference::Target(0),
+                )))),
+            }),
         })],
         ..CardFace::default()
     };
@@ -502,19 +507,22 @@ fn renders_continuously_pump_until_eot() {
         name: "Test Pump".into(),
         types: vec![Type::Instant],
         abilities: vec![Ability::Spell(SpellAbility {
-            targets: vec![TargetSpec::Target(
-                Quantity::Exactly(Count::Literal(1)),
-                Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
-            )],
-            effect: Effect::Continuously(Continuously {
-                effect: Box::new(StaticEffect::Modify {
-                    of: Scope::Of(Reference::Target(0)),
-                    changes: vec![
-                        Modification::AddPower(Count::Literal(3)),
-                        Modification::AddToughness(Count::Literal(3)),
-                    ],
-                }),
-                duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
+            targets: vec![],
+            effect: Effect::Targeted(deckmaste_core::Targeted {
+                targets: vec![TargetSpec::Target(
+                    Quantity::Exactly(Count::Literal(1)),
+                    Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                )],
+                effect: Box::new(Effect::Continuously(Continuously {
+                    effect: Box::new(StaticEffect::Modify {
+                        of: Scope::Of(Reference::Target(0)),
+                        changes: vec![
+                            Modification::AddPower(Count::Literal(3)),
+                            Modification::AddToughness(Count::Literal(3)),
+                        ],
+                    }),
+                    duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
+                })),
             }),
         })],
         ..CardFace::default()
