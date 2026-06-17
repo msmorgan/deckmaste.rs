@@ -119,6 +119,13 @@ fn resolve_face(
         index,
     };
     let mut changed = false;
+    // Modal "Choose one —" is a MULTI-line ability (a header + bulleted modes),
+    // so it can't go through the per-line registry: fold it first ([CR#700.2]),
+    // collapsing the header + its bullet slots into one `Spell(Modal(...))`
+    // before the per-line parsers see the now-orphaned bullet lines.
+    if crate::parsers::modal::fold_modal(face, &ctx) {
+        changed = true;
+    }
     for ability in &mut face.abilities {
         let TodoAbility::Unparsed(line) = ability else {
             continue;
