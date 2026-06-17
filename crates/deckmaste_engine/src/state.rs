@@ -233,6 +233,11 @@ pub struct GameState {
     /// the loaded plugin's `counters` at game construction; empty means no
     /// counter confers anything (the pre-data behavior).
     pub counter_decls: std::collections::HashMap<deckmaste_core::Ident, deckmaste_core::Counter>,
+    /// Rules-defined SBAs in force this game ([CR#704]). Injected by the
+    /// consumer after construction (like `counter_decls`); the SBA sweep reads
+    /// it. Empty = no rules-defined SBAs (the engine still runs the imperative
+    /// ones). A variant rule set swaps this vector.
+    pub sba_rules: Vec<deckmaste_core::SbaRule>,
     /// The "that much"/"that many" anaphora register (`Count::ThatMuch` —
     /// oracle-text magnitude anaphora; no single CR rule defines it): the
     /// amount the most recently APPLIED amount-carrying event fixed (damage
@@ -329,6 +334,7 @@ impl GameState {
             shields: Vec::new(),
             designations: DesignationStore::default(),
             counter_decls: std::collections::HashMap::new(),
+            sba_rules: Vec::new(),
             that_much: None,
             history: crate::history::History::default(),
             replace_state: None,
