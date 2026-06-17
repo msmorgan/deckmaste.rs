@@ -641,6 +641,7 @@ fn schedule_body(
         bindings,
         chosen: None,
         x: None,
+        subject: None,
     };
     state.schedule_front(vec![crate::agenda::WorkItem::RunEffect {
         effect: Box::new(effect),
