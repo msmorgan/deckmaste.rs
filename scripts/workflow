@@ -309,10 +309,25 @@ function __integrate_steps
     # un-forget — so it runs LAST, after every fail-able step. A failure before it
     # rolls back cleanly; forget itself then drops the now-empty WC for us.
     set -l orphan (jj log --no-graph -r "$name"@ -T 'change_id.short()')
-    and jj rebase -r @ -d "$name"@-
+    # Ticket paths + whether this feature has a wip ticket to finish (ad-hoc `start`ed
+    # ones don't) — captured before __check_todo moves it out of wip/.
+    set -l wip_ticket "$project_dir/docs/tickets/wip/$name.md"
+    set -l done_ticket "$project_dir/docs/tickets/done/$name.md"
+    set -l had_ticket
+    test -e "$wip_ticket"; and set had_ticket y
+
+    jj rebase -r @ -d "$name"@-
     and __check_todo "$name"
-    and if jj log --no-graph -r @ -T 'empty' | string match -q false
-        jj commit -m "complete $name"
+    # Commit ONLY the ticket move. The rebase folded default@'s working copy onto the
+    # feature tip, and default@ — the shared coordinator working copy — routinely
+    # carries unrelated in-flight edits that aren't this feature's. A bare `jj commit`
+    # takes the WHOLE working copy, sweeping those strays into "complete $name" (this
+    # is exactly how a concurrent integrate once swallowed an unrelated edit). Naming
+    # the two ticket paths scopes the commit to the move and leaves any strays
+    # uncommitted in the new @. (`claim` avoids the same hazard via its __tip dance in
+    # __workflow_start.) Ad-hoc features have no ticket, so there's nothing to commit.
+    and if test -n "$had_ticket"
+        jj commit -m "complete $name" "$wip_ticket" "$done_ticket"
     end
     # Drop the now-folded claim bookmark (its commit lives on in default@'s history;
     # the ref is just clutter). Before workspace forget so a failure still rolls back.
