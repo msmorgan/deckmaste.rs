@@ -484,7 +484,7 @@ fn renders_continuously_pump_until_eot() {
     use deckmaste_core::Ability;
     use deckmaste_core::CardFace;
     use deckmaste_core::CharacteristicFilter;
-    use deckmaste_core::ContinuouslyEffect;
+    use deckmaste_core::Continuously;
     use deckmaste_core::Count;
     use deckmaste_core::Duration;
     use deckmaste_core::Effect;
@@ -506,7 +506,7 @@ fn renders_continuously_pump_until_eot() {
                 Quantity::Exactly(Count::Literal(1)),
                 Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
             )],
-            effect: Effect::Continuously(ContinuouslyEffect {
+            effect: Effect::Continuously(Continuously {
                 effect: Box::new(StaticEffect::Modify {
                     of: Scope::Of(Reference::Target(0)),
                     changes: vec![
