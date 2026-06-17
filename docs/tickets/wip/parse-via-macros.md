@@ -31,3 +31,35 @@ double-handling.
 
 Line: `macro-parse-index` (lookup primitive) → `parse-keywords-via-macros` (MVP —
 keywords are the most regular) → `parse-params-via-macros` (arg-bearing macros).
+
+## DESIGN SETTLED (2026-06-17)
+
+Full design: `docs/superpowers/specs/2026-06-17-parse-via-macros-design.md` (local).
+
+Decisions:
+- (a) Parse pattern = **derive-only** from the render `template`; no `parse:`
+  field (escape hatch only if a real case forces it). A template-less macro does
+  not participate.
+- (b) Reverse index = kind-scoped `template → macro`; a `ParsePattern` of literal
+  segments + typed slots; specificity-ordered, case-folded, word-boundary
+  anchored. → `macro-parse-index`.
+- (c) Handoff = a generic `macro_template` parser placed **first** in the resolve
+  `REGISTRY`; first-match-wins; unmatched lines fall through to the bespoke tail.
+  It doubles as a typed sub-reader for the frame parsers.
+
+Enablers:
+- Placeholder sigil `{i}` → `${0}` / `${name}` (kills the mana-symbol collision).
+  → `macro-template-sigil` (foundation, lands first).
+- **Typed params** (the under-used feature this work vindicates): retype lazy
+  `params: [Any]` slots; slot type read from `MacroDef.params` — no body-AST
+  reflection.
+- **One bidirectional slot codec** keyed on declared type (parse `read` + render
+  `show`) — subsumes the old `render-template-grammar-args`. → `macro-slot-codec`.
+- Codec-driven matching: slots bounded by grammatical validity, not regex greed.
+
+Build line: `macro-template-sigil` → `macro-parse-index` (nullary) →
+`parse-keywords-via-macros` (MVP) + `macro-slot-codec` (typed codec; closes
+`render-template-grammar-args`) → `parse-params-via-macros` (full).
+
+Big deletion target: `KEYWORD_NAMES`, `match_keyword_prefix`, and `render_arg`'s
+per-keyword argument shapes collapse into index + codec.
