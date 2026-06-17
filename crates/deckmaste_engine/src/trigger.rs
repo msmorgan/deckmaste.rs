@@ -251,6 +251,19 @@ impl GameState {
             // "Whenever X or Y" is a pattern union ([CR#700.1]); it still
             // fires once per matching occurrence ([CR#603.2c]).
             Event::OneOf(events) => events.iter().any(|p| self.event_matches(p, event, watcher)),
+
+            // [CR#608.2i]: `Used` is the self/object-scoped ability-use count,
+            // resolved by `EventCount`'s frame path — `by` is resolved to a
+            // concrete `ObjectId` and matched against `AbilityUsed`'s object.
+            // The watcher-only matcher here cannot resolve that object
+            // identity (its `watcher` is an `ObjectSource`, not the resolved
+            // id), so `Happened(Used)` is unbuilt — trip rather than silently
+            // never fire.
+            Event::Used { .. } => todo!(
+                "Event::Used is counted via EventCount's frame-resolved object path \
+                 ([CR#608.2i]); the watcher-only matcher cannot resolve the object \
+                 identity — Happened(Used) is unbuilt"
+            ),
         }
     }
 

@@ -234,6 +234,10 @@ pub enum Event {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         becomes: Option<Ident>,
     },
+    /// An ability of `by` was used — a triggered ability fired ([CR#603.2]) or
+    /// an activated ability was activated ([CR#602.2a]). Matches the engine's
+    /// `AbilityUsed` history fact; counted via `EventCount` ([CR#608.2i]).
+    Used { by: crate::Reference },
     /// Any of several events ([CR#603.2], "whenever … or …").
     OneOf(Vec<Event>),
     /// A remembered `Event` macro invocation (`Dies`, `Enters`, `Landfall`,
@@ -326,5 +330,20 @@ mod tests {
             read("BeginningOf(Beginning(Upkeep), Your)"),
             Event::BeginningOf(Phase::Beginning(BeginningStep::Upkeep), WhoseTurn::Your),
         );
+    }
+
+    /// `Used(by: This)` reads to the `Event::Used` variant and serializes back
+    /// to the same invocation — the self/object-scoped ability-use pattern
+    /// counted via `EventCount` ([CR#608.2i]).
+    #[test]
+    fn used_round_trips() {
+        use crate::Reference;
+
+        let v = Event::Used {
+            by: Reference::This,
+        };
+        assert_eq!(read("Used(by: This)"), v);
+        let w = crate::ron::options().to_string(&v).unwrap();
+        assert_eq!(read(&w), v);
     }
 }
