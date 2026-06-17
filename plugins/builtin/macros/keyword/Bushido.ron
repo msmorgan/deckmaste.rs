@@ -1,0 +1,48 @@
+// Bushido = a triggered ability [CR#702.45a]: "Bushido N" means "Whenever
+// this creature blocks or becomes blocked, it gets +N/+N until end of turn."
+// (See the declare-blockers step, [CR#509].) The printed N is the macro's
+// `Count` param, threaded into both magnitudes of the until-end-of-turn pump
+// ([CR#611.2a]). The parser emits the bare numeral `Bushido(1)`, which reads
+// as `Count::Literal(1)` for `Param(0)`.
+//
+// The pump tail is the same `Continuously(Modify … FixedUntil(EndOfTurn))`
+// that the `PumpThisUntilEot` effect macro wraps, but it is INLINED here
+// rather than invoked: a macro body can't thread its OWN `Param` into a nested
+// macro's argument slot (`PumpThisUntilEot(Param(0), Param(0))` errors
+// "Param(0) outside any macro expansion") — the same constraint that forces
+// Intimidate's `SharesColorWith` to inline. With literal magnitudes (Prowess's
+// `PumpThisUntilEot(1, 1)`) the macro call is fine; with a forwarded param it
+// must be inlined.
+//
+// The trigger is a union ([CR#603.2c], "whenever … or …") of the two
+// declare-blockers transitions THIS creature can undergo:
+//   - `becomes: Blocking` = "this creature blocks" ([CR#509.3a], the
+//     blocker-side trigger — it becomes a blocking creature, [CR#509.1g]);
+//   - `becomes: Blocked`  = "this creature becomes blocked" ([CR#509.3c], the
+//     attacker-side trigger).
+// Both are `StateBecomes` becomes-deltas ([CR#603.2e]) keyed on `Ref(This)`,
+// matched in the engine against the single `GameEvent::Blocked { blocker,
+// attacker }` declaration fact (blocker side for `Blocking`, attacker side for
+// `Blocked`).
+(
+    name: "Bushido",
+    template: "bushido ${0}",
+    kinds: [KeywordAbility],
+    params: [Count],
+    body: Composite(
+        name: "Bushido",
+        abilities: [Triggered(
+            event: OneOf([
+                StateBecomes(of: Ref(This), becomes: Blocking),
+                StateBecomes(of: Ref(This), becomes: Blocked),
+            ]),
+            effect: Continuously(
+                effect: Modify(
+                    of: Of(This),
+                    changes: [AddPower(Param(0)), AddToughness(Param(0))],
+                ),
+                duration: FixedUntil(EndOfTurn),
+            ),
+        )],
+    ),
+)

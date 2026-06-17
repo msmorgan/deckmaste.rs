@@ -179,7 +179,18 @@ impl GameState {
                     (StateFilterEvent::Tapped, GameEvent::Tapped { object, cause }) => {
                         (Some(*object), cause.as_ref())
                     }
-                    (StateFilterEvent::Blocked, GameEvent::Blocked { attacker: o, .. }) => {
+                    // The two sides of one declaration fact ([CR#509.1g..509.1h]):
+                    // `Blocked` watches the ATTACKER ("becomes blocked",
+                    // [CR#509.3c]); `Blocking` watches the BLOCKER ("whenever ~
+                    // blocks", [CR#509.3a]). Bushido ([CR#702.45a]) unions both.
+                    // SEAM: `scan_triggers` dedups `Blocked` facts once per
+                    // ATTACKER (serving the [CR#509.3c] becomes-blocked count),
+                    // so in a multi-block (one attacker, N blockers) only the
+                    // first blocker's fact is scanned — a second blocker's
+                    // "blocks" trigger is under-counted. Single-block (the
+                    // common case) is correct.
+                    (StateFilterEvent::Blocked, GameEvent::Blocked { attacker: o, .. })
+                    | (StateFilterEvent::Blocking, GameEvent::Blocked { blocker: o, .. }) => {
                         (Some(*o), None)
                     }
                     // "Comes under the control of [a matching player]": the
