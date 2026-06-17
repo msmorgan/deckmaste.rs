@@ -77,7 +77,6 @@ impl GameState {
     ///
     /// `Dies`/`Enters` are `Event::Expanded` macros over `ZoneMove`; they are
     /// looked through transparently via the `Expanded` arm.
-    #[expect(clippy::too_many_lines, reason = "flat per-variant Event dispatch")]
     pub(crate) fn event_matches(
         &self,
         pattern: &Event,

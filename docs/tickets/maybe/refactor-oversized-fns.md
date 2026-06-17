@@ -8,8 +8,14 @@ engine's genuine flat dispatchers (`resolve_object`, `run_effect`,
 `action_items`, `player_action_items`, `event_matches`) keep a permanent
 `#[expect(.., reason = "one arm per ...; splitting would scatter the dispatch")]`
 — but because they have grown real internal structure that wants decomposing.
-Each currently carries a placeholder `#[expect(clippy::too_many_lines, reason =
-"... tracked in refactor-oversized-fns")]`. `#[expect]` is self-clearing: once a
+(The genuine flat dispatchers that are still over the threshold — `run_effect`,
+`player_action_items` — keep a permanent `#[expect(.., reason = "one arm per
+...; splitting would scatter the dispatch")]`; the rest now fit under the
+raised threshold and carry no annotation.)
+
+Each of the three below currently carries a placeholder
+`#[expect(clippy::too_many_lines, reason = "... tracked in
+refactor-oversized-fns")]`. `#[expect]` is self-clearing: once a
 function drops under the threshold its expectation goes unfulfilled and clippy
 forces the attribute's removal, so these placeholders cannot silently outlive
 the refactor.

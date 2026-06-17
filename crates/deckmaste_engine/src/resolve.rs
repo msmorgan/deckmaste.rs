@@ -52,10 +52,6 @@ impl GameState {
     /// # Panics
     ///
     /// Panics if no entry has that id — engine invariant, not caller input.
-    #[expect(
-        clippy::too_many_lines,
-        reason = "one arm per stack-object kind; splitting would scatter the dispatch"
-    )]
     pub(crate) fn resolve_object(&mut self, id: ObjectId) {
         let entry = self
             .stack
@@ -530,10 +526,6 @@ impl GameState {
     /// player and replaces the previously hard-coded `frame.controller`. Damage
     /// to a multi-valued selection is one simultaneous `Batch` (a later task);
     /// drawing N is N sequential `Single`s ([CR#121.2] — drawn one at a time).
-    #[expect(
-        clippy::too_many_lines,
-        reason = "one arm per source verb; splitting would scatter the dispatch"
-    )]
     pub(crate) fn action_items(&self, action: &Action, frame: &Frame) -> Vec<WorkItem> {
         match action {
             Action::DealDamage(sel, qty) => {
