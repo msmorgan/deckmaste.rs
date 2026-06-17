@@ -51,6 +51,8 @@ fn every_builtin_keyword_macro_expands() {
         ("Modular(1)", "Modular"),
         ("Undying", "Undying"),
         ("Persist", "Persist"),
+        ("Evolve", "Evolve"),
+        ("Bloodthirst(6)", "Bloodthirst"),
     ];
     let plugin = builtin();
     for (invocation, name) in cases {

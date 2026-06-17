@@ -1,0 +1,39 @@
+// Evolve = a triggered ability [CR#702.100a]: "Whenever a creature you control
+// enters, if that creature's power is greater than this creature's power and/or
+// that creature's toughness is greater than this creature's toughness, put a
+// +1/+1 counter on this creature."
+//
+// The trigger is "a creature you control enters" — the `Enters` ETB event
+// ([CR#603.6]) filtered to OTHER creatures you control: `AllOf([Creature,
+// Not(Ref(This)), ControlledBy(Ref(You))])`. (CR's "a creature you control"
+// includes this creature when it itself enters, but its own entry can never
+// satisfy the intervening-if — nothing has greater stats than itself at that
+// instant — so `Not(Ref(This))` is a faithful, cheaper equivalent and matches
+// the Champion-of-Lambholt idiom.) The matched entering creature binds to
+// `ThatObject` ([CR#603.2e], "that creature").
+//
+// The intervening-if ([CR#603.4], "if that creature's power/toughness is
+// greater") is a cross-object stat comparison. `Condition::Compare` takes two
+// full `Count`s (not a value-vs-literal), so two different objects' stats
+// compare directly via `Count::StatOf(Reference, Stat)`: `ThatObject`'s power
+// vs `This`'s power, OR ([CR#702.100a] "and/or" — `OneOf`) `ThatObject`'s
+// toughness vs `This`'s toughness, each with `Cmp::Greater`. ([CR#702.100c]
+// "a creature can't have greater power or toughness than a noncreature
+// permanent" needs no special-casing here: the trigger only admits creature
+// entries, and stats compare numerically.)
+//
+// The resolution puts one +1/+1 counter ([CR#122.1a]) on this creature:
+// `PutCounters(This, P1P1Counter, 1)` — the counter ref is a bare identifier,
+// the count a bare numeral.
+KeywordAbility(
+    name: "Evolve",
+    template: "evolve",
+    abilities: [Triggered(
+        event: Enters(AllOf([Creature, Not(Ref(This)), ControlledBy(Ref(You))])),
+        condition: OneOf([
+            Compare(StatOf(ThatObject, Power), Greater, StatOf(This, Power)),
+            Compare(StatOf(ThatObject, Toughness), Greater, StatOf(This, Toughness)),
+        ]),
+        effect: PutCounters(This, P1P1Counter, 1),
+    )],
+)
