@@ -29,21 +29,11 @@ use deckmaste_engine::CardId;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameState;
 use deckmaste_engine::ObjectId;
-use deckmaste_engine::ObjectSource;
 use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::StartingPlayer;
 use deckmaste_engine::StepOutcome;
 use deckmaste_engine::WorkItem;
-
-fn base_state() -> GameState {
-    GameState::new(GameConfig {
-        players: vec![PlayerConfig { deck: vec![] }, PlayerConfig { deck: vec![] }],
-        seed: 7,
-        starting_life: 20,
-        starting_player: StartingPlayer::Fixed(PlayerId(0)),
-    })
-}
 
 /// The abstract `Event` for "this permanent would be destroyed"
 /// (BF→GY with verb "Destroy").
@@ -61,10 +51,39 @@ fn destroyed_self() -> Event {
     }
 }
 
-/// Mint a synthetic creature with the given replacement on player 0's
-/// battlefield. P/T is 2/2, so lethal = 2 damage. Returns `(state, id)`.
+/// The face name of a card-backed object, if it is card-backed.
+fn face_name(state: &GameState, id: ObjectId) -> Option<&str> {
+    state
+        .objects
+        .get(id)
+        .and_then(deckmaste_engine::GameObject::card_id)
+        .map(|cid| match state.cards.get(cid).def.as_ref() {
+            Card::Normal(f) | Card::ModalDfc(f, _) => f.name.as_str(),
+        })
+}
+
+/// Find the first object in player 0's hand whose face name is `name`.
+fn find_in_hand(state: &GameState, name: &str) -> ObjectId {
+    *state.zones.hands[0]
+        .iter()
+        .find(|&&o| face_name(state, o) == Some(name))
+        .unwrap_or_else(|| panic!("expected '{name}' in player 0's hand"))
+}
+
+/// Move `obj` from player 0's hand straight onto the battlefield (no
+/// event loop, no land-drop limit). The public `GameState` fields make this
+/// direct setup possible without widening the engine API.
+fn force_onto_battlefield(state: &mut GameState, obj: ObjectId) {
+    state.zones.hands[0].retain(|&o| o != obj);
+    state.objects.obj_mut(obj).zone = Some(Zone::Battlefield);
+    state.zones.battlefield.push(obj);
+}
+
+/// Build a `GameConfig` whose player-0 deck contains `card` and player-1
+/// deck is empty. After `GameState::new`, the card (the only deck entry)
+/// will be in player 0's opening hand. Then force it onto the battlefield.
+/// Returns `(state, id)`.
 fn creature_with_replacement(replacement: Replacement) -> (GameState, ObjectId) {
-    let mut state = base_state();
     let card = Arc::new(Card::Normal(CardFace {
         name: "Test Creature".into(),
         types: vec![Type::Creature],
@@ -77,14 +96,48 @@ fn creature_with_replacement(replacement: Replacement) -> (GameState, ObjectId) 
         })],
         ..CardFace::default()
     }));
-    let card_id = state.cards.push(card, PlayerId(0));
-    let id = state.objects.mint(
-        ObjectSource::Card(card_id),
-        PlayerId(0),
-        Some(Zone::Battlefield),
-    );
-    state.zones.battlefield.push(id);
-    (state, id)
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck: vec![card] },
+            PlayerConfig { deck: vec![] },
+        ],
+        seed: 7,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    let obj = find_in_hand(&state, "Test Creature");
+    force_onto_battlefield(&mut state, obj);
+    (state, obj)
+}
+
+/// Build a `GameState` with a single synthetic creature (given abilities) on
+/// player 0's battlefield. Returns `(state, id)`.
+fn creature_with_abilities(
+    name: &str,
+    power: i32,
+    toughness: i32,
+    abilities: Vec<Ability>,
+) -> (GameState, ObjectId) {
+    let card = Arc::new(Card::Normal(CardFace {
+        name: name.to_owned(),
+        types: vec![Type::Creature],
+        power: Some(StatValue::Number(power)),
+        toughness: Some(StatValue::Number(toughness)),
+        abilities,
+        ..CardFace::default()
+    }));
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck: vec![card] },
+            PlayerConfig { deck: vec![] },
+        ],
+        seed: 7,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    let obj = find_in_hand(&state, name);
+    force_onto_battlefield(&mut state, obj);
+    (state, obj)
 }
 
 /// Drive the SBA check by injecting a `CheckSbas` work item directly on the
@@ -175,13 +228,11 @@ fn instead_redirects_destruction_to_exile() {
 /// `WillDestroy` before the replacement registry runs.
 #[test]
 fn indestructible_still_survives_via_cant_pass() {
-    let mut state = base_state();
-    let card = Arc::new(Card::Normal(CardFace {
-        name: "Indestructible Test".into(),
-        types: vec![Type::Creature],
-        power: Some(StatValue::Number(1)),
-        toughness: Some(StatValue::Number(1)),
-        abilities: vec![Ability::Static(StaticAbility {
+    let (mut state, id) = creature_with_abilities(
+        "Indestructible Test",
+        1,
+        1,
+        vec![Ability::Static(StaticAbility {
             characteristic_defining: false,
             effects: vec![StaticEffect::CantHappen(Event::ZoneMove {
                 what: Filter::Ref(Reference::This),
@@ -192,15 +243,7 @@ fn indestructible_still_survives_via_cant_pass() {
             })],
             condition: None,
         })],
-        ..CardFace::default()
-    }));
-    let card_id_val = state.cards.push(card, PlayerId(0));
-    let id: ObjectId = state.objects.mint(
-        ObjectSource::Card(card_id_val),
-        PlayerId(0),
-        Some(Zone::Battlefield),
     );
-    state.zones.battlefield.push(id);
 
     // Lethal damage (toughness 1).
     state.objects.obj_mut(id).damage = 1;
@@ -225,7 +268,6 @@ fn indestructible_still_survives_via_cant_pass() {
 /// Ordinary destroy (no replacement) still sends the creature to the graveyard.
 #[test]
 fn ordinary_destroy_goes_to_graveyard() {
-    let mut state = base_state();
     let card = Arc::new(Card::Normal(CardFace {
         name: "Vanilla Creature".into(),
         types: vec![Type::Creature],
@@ -233,16 +275,21 @@ fn ordinary_destroy_goes_to_graveyard() {
         toughness: Some(StatValue::Number(2)),
         ..CardFace::default()
     }));
-    let card_id = state.cards.push(card, PlayerId(0));
-    let id = state.objects.mint(
-        ObjectSource::Card(card_id),
-        PlayerId(0),
-        Some(Zone::Battlefield),
-    );
-    state.zones.battlefield.push(id);
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck: vec![card] },
+            PlayerConfig { deck: vec![] },
+        ],
+        seed: 7,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    let obj = find_in_hand(&state, "Vanilla Creature");
+    force_onto_battlefield(&mut state, obj);
+    let card_id = state.objects.obj(obj).card_id().expect("backed by a card");
 
     // Lethal damage.
-    state.objects.obj_mut(id).damage = 2;
+    state.objects.obj_mut(obj).damage = 2;
 
     drive_sbas(&mut state);
 
