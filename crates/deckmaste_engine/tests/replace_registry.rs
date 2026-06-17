@@ -574,6 +574,146 @@ fn regeneration_shield_expires_end_of_turn() {
     );
 }
 
+// ── Task 7: Umbra/totem armor ([CR#702.89a]) ─────────────────────────────────
+
+/// Build a `GameState` with a 2/2 creature enchanted by an "Umbra Armor" Aura.
+/// The Aura carries a static `Instead` that watches the enchanted permanent's
+/// destruction ([CR#702.89a]): if the creature would be destroyed, instead
+/// remove all damage from it and destroy the Aura.
+///
+/// Returns `(state, creature_card_id, aura_card_id)` — the creature and Aura
+/// are both live on the battlefield; `aura.attached_to == Some(creature)`.
+fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
+    // The `would.what` for "the enchanted permanent":
+    // `Filter::Ref(Reference::AttachHostOf(Box::new(Reference::This)))` —
+    // "the object THIS (the Aura) is attached to" ([CR#702.89a]).
+    let enchanted_perm = Filter::Ref(Reference::AttachHostOf(Box::new(Reference::This)));
+
+    let instead_body = Effect::Sequence(vec![
+        // [CR#701.19a,702.89a]: remove all damage from the enchanted permanent.
+        Effect::Act(Action::By(
+            Reference::You,
+            PlayerAction::RemoveDamage(Selection::Ref(Reference::AttachHostOf(Box::new(
+                Reference::This,
+            )))),
+        )),
+        // [CR#702.89a]: destroy this Aura.
+        Effect::Act(Action::Destroy(Selection::Ref(Reference::This))),
+    ]);
+
+    let umbra_armor = Replacement::Instead {
+        would: Event::ZoneMove {
+            what: enchanted_perm,
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
+            face: None,
+            cause: Some(deckmaste_core::Cause::Cause(CausePattern {
+                verb: Some("Destroy".into()),
+                agency: None,
+                agent: None,
+            })),
+        },
+        instead: instead_body,
+    };
+
+    // Creature card: a 2/2 with no abilities.
+    let creature_card = Arc::new(Card::Normal(CardFace {
+        name: "Host Creature".into(),
+        types: vec![Type::Creature],
+        power: Some(StatValue::Number(2)),
+        toughness: Some(StatValue::Number(2)),
+        ..CardFace::default()
+    }));
+
+    // Aura card: Enchantment with the umbra-armor static.
+    let aura_card = Arc::new(Card::Normal(CardFace {
+        name: "Umbra Armor".into(),
+        types: vec![Type::Enchantment],
+        abilities: vec![Ability::Static(StaticAbility {
+            characteristic_defining: false,
+            effects: vec![StaticEffect::Replacement(Box::new(umbra_armor))],
+            condition: None,
+        })],
+        ..CardFace::default()
+    }));
+
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig {
+                deck: vec![creature_card, aura_card],
+            },
+            PlayerConfig { deck: vec![] },
+        ],
+        seed: 7,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+
+    // Both cards are in hand after `GameState::new`; force them to the battlefield.
+    let creature_obj = find_in_hand(&state, "Host Creature");
+    let aura_obj = find_in_hand(&state, "Umbra Armor");
+
+    let creature_card_id = state.objects.obj(creature_obj).card_id().unwrap();
+    let aura_card_id = state.objects.obj(aura_obj).card_id().unwrap();
+
+    force_onto_battlefield(&mut state, creature_obj);
+    force_onto_battlefield(&mut state, aura_obj);
+
+    // Manually attach the Aura to the creature (bypass the enters-attached
+    // replacement for the test setup — we care about the static's behavior,
+    // not the attachment process).
+    state.objects.obj_mut(aura_obj).attached_to = Some(creature_obj);
+
+    (state, creature_card_id, aura_card_id)
+}
+
+/// [CR#702.89a,614.1a]: an Aura with umbra-armor watches the enchanted
+/// permanent's destruction. When the creature gets lethal damage:
+/// - `WillDestroy(creature)` is gathered (the Aura's static other-watches it).
+/// - The `Instead` fires: remove damage from creature, destroy the Aura.
+/// - The creature SURVIVES (damage cleared); the Aura goes to the graveyard.
+#[test]
+fn umbra_armor_redirects_host_destruction_to_aura() {
+    let (mut state, creature_card_id, aura_card_id) = enchanted_with_umbra();
+
+    // Find current object ids (the cards were force-moved onto the battlefield).
+    let creature = find_on_battlefield(&state, creature_card_id);
+
+    // Mark lethal damage on the creature (toughness = 2).
+    state.objects.obj_mut(creature).damage = 5;
+
+    // Drive SBAs: SBA sweep → WillDestroy(creature) → Aura's static gathered
+    // → Instead fires → RemoveDamage + Destroy(Aura).
+    drive_sbas(&mut state);
+
+    // The creature must survive on the battlefield.
+    let live_creature = find_on_battlefield(&state, creature_card_id);
+    assert!(
+        state.objects.get(live_creature).is_some(),
+        "host creature must survive (umbra armor replaced its destruction); \
+         bf={:?}",
+        state.zones.battlefield
+    );
+    // Damage must be cleared.
+    assert_eq!(
+        state.objects.obj(live_creature).damage,
+        0,
+        "damage must be removed by umbra armor [CR#702.89a]"
+    );
+    // The creature must NOT be in the graveyard.
+    assert!(
+        find_in_graveyard(&state, PlayerId(0), creature_card_id).is_none(),
+        "creature must not be in graveyard"
+    );
+    // The Aura must be in the graveyard (destroyed instead of the creature).
+    assert!(
+        find_in_graveyard(&state, PlayerId(0), aura_card_id).is_some(),
+        "Aura must be in graveyard (destroyed instead of host creature) [CR#702.89a]; \
+         graveyard={:?}",
+        state.zones.graveyards[0]
+    );
+}
+
 /// Ordinary destroy (no replacement) still sends the creature to the graveyard.
 #[test]
 fn ordinary_destroy_goes_to_graveyard() {
