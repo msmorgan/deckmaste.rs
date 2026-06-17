@@ -16,6 +16,7 @@ use deckmaste_core::Ident;
 use deckmaste_core::Subtype;
 use deckmaste_core::Token;
 use deckmaste_core::plugin::MACROS_DIR;
+use deckmaste_core::plugin::RULES_DIR;
 use deckmaste_core::plugin::card_path;
 use deckmaste_core::plugin::token_path;
 
@@ -40,6 +41,10 @@ pub struct Plugin {
     /// resolves to. The post-load `validate_counter_refs` pass checks every
     /// authored `CounterRef` against this registry.
     pub counters: HashMap<Ident, Counter>,
+    /// Rules-defined state-based actions loaded from `rules/sba/`. Evaluated
+    /// globally by the engine's SBA sweep ([CR#704.3]). See
+    /// `deckmaste_core::SbaRule`.
+    pub sba_rules: Vec<deckmaste_core::SbaRule>,
 }
 
 impl Plugin {
@@ -182,11 +187,14 @@ impl Plugin {
             counters.insert(counter.name, counter);
         }
 
+        let sba_rules = load_sba_rules(&root, &macros)?;
+
         Ok(Self {
             root,
             macros,
             subtypes,
             counters,
+            sba_rules,
         })
     }
 
@@ -223,6 +231,24 @@ impl Plugin {
             .read_str(&read(&path)?)
             .with_context(|| format!(r#"parsing "{}""#, path.display()))
     }
+}
+
+/// Loads all `Vec<SbaRule>` files under `root/rules/sba/`, concatenating them
+/// into a single list. An absent directory yields an empty vec.
+///
+/// # Errors
+/// If a file is unreadable or doesn't parse as `Vec<SbaRule>`.
+fn load_sba_rules(root: &Path, macros: &MacroSet) -> anyhow::Result<Vec<deckmaste_core::SbaRule>> {
+    let dir = root.join(RULES_DIR).join("sba");
+    let mut rules = Vec::new();
+    for path in ron_files_recursive(&dir)? {
+        let source = read(&path)?;
+        let file: Vec<deckmaste_core::SbaRule> = macros
+            .read_str(&source)
+            .with_context(|| format!(r#"loading SBA rules from "{}""#, path.display()))?;
+        rules.extend(file);
+    }
+    Ok(rules)
 }
 
 /// Reads a plugin file to a string with path context on failure. Exposed for
@@ -280,6 +306,26 @@ mod tests {
 
     fn plugins() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins")
+    }
+
+    #[test]
+    fn builtin_loads_three_sba_rules() {
+        let plugin = Plugin::load(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"),
+        )
+        .unwrap();
+        assert_eq!(
+            plugin.sba_rules.len(),
+            3,
+            "toughness-0, loyalty-0, battle-defense-0"
+        );
+        // Every row puts the object into a graveyard.
+        assert!(
+            plugin
+                .sba_rules
+                .iter()
+                .all(|r| matches!(&r.then, deckmaste_core::Effect::Act(_)))
+        );
     }
 
     #[test]

@@ -1,0 +1,8 @@
+// [CR#704.5i]: a planeswalker with loyalty 0 is put into its owner's graveyard.
+[
+    SbaRule(
+        scope: Type(Planeswalker),
+        when: Compare(StatOf(This, Loyalty), Eq, 0),
+        then: Move(This, Graveyard),
+    ),
+]

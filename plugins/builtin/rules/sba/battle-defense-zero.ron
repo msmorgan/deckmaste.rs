@@ -1,0 +1,10 @@
+// [CR#704.5v]: a battle with defense 0 is put into its owner's graveyard. SEAM:
+// the "isn't the source of a triggered ability that hasn't left the stack"
+// clause of [CR#704.5v,310.7] is deferred to engine-battles.
+[
+    SbaRule(
+        scope: Type(Battle),
+        when: Compare(StatOf(This, Defense), Eq, 0),
+        then: Move(This, Graveyard),
+    ),
+]

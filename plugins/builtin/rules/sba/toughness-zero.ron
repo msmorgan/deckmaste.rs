@@ -1,0 +1,11 @@
+// [CR#704.5f]: a creature with toughness 0 or less is put into its owner's
+// graveyard. A `Move` (not a destroy) — regeneration and indestructible cannot
+// replace this; Leyline-style graveyard replacements still can. `scope` binds
+// `This` to each creature; `when` reads its toughness.
+[
+    SbaRule(
+        scope: Type(Creature),
+        when: Compare(StatOf(This, Toughness), AtMost, 0),
+        then: Move(This, Graveyard),
+    ),
+]
