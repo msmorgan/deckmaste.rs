@@ -31,8 +31,11 @@ pub(super) fn subject_to_filter(subj: &str) -> Option<String> {
     if strip_prefix_ci(s, "this ").is_some() {
         return Some("Ref(This)".into());
     }
-    if strip_prefix_ci(s, "enchanted ").is_some() {
-        // noun dropped — enchant restriction enforces the type
+    if strip_prefix_ci(s, "enchanted ").is_some() || strip_prefix_ci(s, "equipped ").is_some() {
+        // noun dropped — enchant/equip restriction enforces the type. Both the
+        // aura's "Enchanted creature …" and the Equipment's "Equipped creature
+        // …" name the single attach host ([CR#702.5a,301.5a]); the conferred
+        // Modify lands on it via `Of(AttachHostOf(This))`.
         return Some("Ref(AttachHostOf(This))".into());
     }
     if strip_prefix_ci(s, "target ").is_some() {
