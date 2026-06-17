@@ -424,8 +424,11 @@ fn vanilla_creature(power: i32, toughness: i32) -> (GameState, ObjectId) {
 /// on `subject_ref`: "the next time [subject] would be destroyed this turn,
 /// instead remove all damage marked on it and tap it." [CR#701.19a,614.8]
 fn regenerate_effect(subject_ref: Reference) -> Effect {
+    // The shield resolves `subject` to a concrete object and remembers it as
+    // `That`; the watch and body refer to that captured permanent as
+    // `ThatObject` (NOT `This` — `This` stays the source ability).
     let would = Event::ZoneMove {
-        what: Filter::Ref(Reference::This),
+        what: Filter::Ref(Reference::ThatObject),
         from: Some(Zone::Battlefield),
         to: Some(Zone::Graveyard),
         face: None,
@@ -436,15 +439,15 @@ fn regenerate_effect(subject_ref: Reference) -> Effect {
         })),
     };
     let instead = Effect::Sequence(vec![
-        // [CR#701.19a]: remove all damage.
+        // [CR#701.19a]: remove all damage from That (the regenerated permanent).
         Effect::Act(Action::By(
             Reference::You,
-            PlayerAction::RemoveDamage(Selection::Ref(Reference::This)),
+            PlayerAction::RemoveDamage(Selection::Ref(Reference::ThatObject)),
         )),
         // [CR#701.19a]: its controller taps it.
         Effect::Act(Action::By(
             Reference::You,
-            PlayerAction::Tap(Selection::Ref(Reference::This)),
+            PlayerAction::Tap(Selection::Ref(Reference::ThatObject)),
         )),
     ]);
     Effect::Act(Action::CreateReplacement {
@@ -541,6 +544,97 @@ fn regenerated_creature_survives_lethal_damage() {
     assert!(
         state.shields.is_empty(),
         "one-shot shield must be consumed after use [CR#614.3]"
+    );
+}
+
+/// "Regenerate TARGET creature" — the shield's SOURCE (the regenerating spell/
+/// ability) is a different object than its SUBJECT (the protected creature).
+/// Because the shield matches by stored subject identity and its body reads
+/// `That` (the affected permanent), the SUBJECT is healed and tapped while the
+/// source is untouched — and `This` never had to move off the source.
+/// [CR#701.19a]
+#[test]
+fn regenerate_target_creature_heals_the_subject_not_the_source() {
+    use deckmaste_engine::InstanceId;
+    use deckmaste_engine::ReplacementInstance;
+
+    let subj_card = Arc::new(Card::Normal(CardFace {
+        name: "Subject".into(),
+        types: vec![Type::Creature],
+        power: Some(StatValue::Number(2)),
+        toughness: Some(StatValue::Number(2)),
+        ..CardFace::default()
+    }));
+    let src_card = Arc::new(Card::Normal(CardFace {
+        name: "Source".into(),
+        types: vec![Type::Creature],
+        power: Some(StatValue::Number(1)),
+        toughness: Some(StatValue::Number(1)),
+        ..CardFace::default()
+    }));
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig {
+                deck: vec![subj_card, src_card],
+            },
+            PlayerConfig { deck: vec![] },
+        ],
+        seed: 7,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    let subject = find_in_hand(&state, "Subject");
+    force_onto_battlefield(&mut state, subject);
+    let source = find_in_hand(&state, "Source");
+    force_onto_battlefield(&mut state, source);
+    let subj_card_id = state
+        .objects
+        .obj(subject)
+        .card_id()
+        .expect("backed by a card");
+
+    // A shield protecting the SUBJECT, created by a distinct SOURCE.
+    let Effect::Act(Action::CreateReplacement { replacement, .. }) =
+        regenerate_effect(Reference::This)
+    else {
+        unreachable!("regenerate_effect builds a CreateReplacement")
+    };
+    state.shields.push(ReplacementInstance {
+        id: InstanceId(7),
+        replacement: *replacement,
+        subject,
+        source, // distinct from subject — the key of this test
+        duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
+        one_shot: true,
+    });
+
+    // Clear the startup agenda so the cascade is just the SBA sweep + the
+    // shield body (a leftover BeginStep(Untap) would untap the active player's
+    // creature again after regeneration taps it).
+    state.agenda.clear();
+    state.pending = None;
+
+    state.objects.obj_mut(subject).damage = 5; // lethal
+    drive_sbas(&mut state);
+
+    let live = find_on_battlefield(&state, subj_card_id);
+    assert!(
+        state.objects.get(live).is_some(),
+        "the targeted subject survives, not the source"
+    );
+    assert_eq!(
+        state.objects.obj(live).damage,
+        0,
+        "the SUBJECT's damage is removed — the body healed That, not This"
+    );
+    assert!(state.objects.obj(live).tapped, "the SUBJECT is tapped");
+    assert!(
+        state.objects.get(source).is_some() && state.zones.battlefield.contains(&source),
+        "the source is untouched"
+    );
+    assert!(
+        state.shields.is_empty(),
+        "one-shot shield consumed [CR#614.3]"
     );
 }
 

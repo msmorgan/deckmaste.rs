@@ -24,10 +24,12 @@ use deckmaste_core::Zone;
 
 use crate::event::GameEvent;
 use crate::layer::LayeredView;
+use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::player::PlayerId;
 use crate::state::GameState;
+use crate::trigger::TriggerBindings;
 
 /// What an intent affects — the object being moved/changed, or the player
 /// experiencing the event (e.g. the player drawing a card, gaining life).
@@ -387,9 +389,13 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
         }
     }
 
-    // Floating instances (regeneration shields, etc.).
+    // Floating instances (regeneration shields, etc.). A shield's `subject`
+    // was resolved to a concrete object when the shield was created (its
+    // captured `That`), so it matches by SUBJECT IDENTITY — independent of how
+    // the source ability refers to it — which is why "regenerate target
+    // creature" (source ≠ subject) works, not just "regenerate this creature".
     for inst in &state.shields {
-        if replacement_would(state, &view, &inst.replacement, inst.source, e) {
+        if floating_watches(&inst.replacement, inst.subject, e) {
             out.push(Applicable {
                 key: ReplacementKey::Floating(inst.id),
                 replacement: inst.replacement.clone(),
@@ -417,6 +423,67 @@ fn replacement_would(
         }
         Replacement::Skip { .. } => false, // handled in begin_step, Task 9
         Replacement::Expanded(_) => unreachable!("look_through_replacement strips Expanded"),
+    }
+}
+
+/// Whether a FLOATING shield watches intent `e`. A shield's `subject` was
+/// resolved to a concrete object when the shield was created (its captured
+/// `That`), so matching is by SUBJECT IDENTITY — the `would`'s `what`
+/// (typically `Ref(ThatObject)`, which a frameless gather can't re-resolve) is
+/// NOT re-evaluated — paired with the event SHAPE (kind + from/to/face/cause).
+fn floating_watches(replacement: &Replacement, subject: ObjectId, e: &GameEvent) -> bool {
+    let Some((abstract_ev, affected)) = intent_event(e) else {
+        return false;
+    };
+    if affected != Affected::Object(subject) {
+        return false;
+    }
+    let would = match crate::replace::look_through_replacement(replacement) {
+        Replacement::Instead { would, .. } | Replacement::Also { would, .. } => would,
+        Replacement::Skip { .. } | Replacement::Expanded(_) => return false,
+    };
+    event_shape_matches(look_through_event(would), &abstract_ev)
+}
+
+/// Whether a `would`'s event SHAPE matches the abstract intent: the event kind
+/// plus the `ZoneMove` coordinates (from/to/face/cause) or the `Performed`
+/// verb. The participant filter (`what`/`on`) is NOT checked here — the
+/// floating matcher pairs this with its own subject-identity check.
+fn event_shape_matches(would: &Event, abstract_ev: &Event) -> bool {
+    match (would, abstract_ev) {
+        (
+            Event::ZoneMove {
+                from: w_from,
+                to: w_to,
+                face: w_face,
+                cause: w_cause,
+                ..
+            },
+            Event::ZoneMove {
+                from: e_from,
+                to: e_to,
+                face: e_face,
+                cause: e_cause,
+                ..
+            },
+        ) => {
+            (w_from.is_none() || w_from == e_from)
+                && (w_to.is_none() || w_to == e_to)
+                && (w_face.is_none() || w_face == e_face)
+                && match w_cause {
+                    None => true,
+                    Some(deckmaste_core::Cause::Cause(p)) => matches!(
+                        e_cause,
+                        Some(deckmaste_core::Cause::Cause(ep))
+                            if cause_pattern_matches(p, ep.verb.as_ref(), ep.agency)
+                    ),
+                }
+        }
+        (Event::Performed { verb: w, .. }, Event::Performed { verb: e, .. }) => w == e,
+        (Event::OneOf(ws), _) => ws
+            .iter()
+            .any(|w| event_shape_matches(look_through_event(w), abstract_ev)),
+        _ => false,
     }
 }
 
@@ -505,11 +572,18 @@ pub(crate) fn replace_event(state: &mut GameState, e: GameEvent) -> ReplaceOutco
 /// looping on, or `None` when the event is replaced to nothing (Instead).
 /// Schedules body effects via `schedule_body`.
 fn apply_one(state: &mut GameState, e: GameEvent, a: &Applicable) -> Option<GameEvent> {
+    // [CR#608.2]: the object the intent affects (the would-be-destroyed
+    // permanent, the damaged creature, …) is bound to `That` for the body to
+    // read — regeneration heals/taps `That`. `This` stays the source.
+    let that = match intent_event(&e) {
+        Some((_, Affected::Object(id))) => Some(id),
+        _ => None,
+    };
     match crate::replace::look_through_replacement(&a.replacement).clone() {
         Replacement::Instead { instead, .. } => {
             // [CR#614.1a,614.6]: the event is replaced — it does NOT happen.
             // Schedule the `instead` body; consume a one-shot shield if present.
-            schedule_body(state, instead, a.source);
+            schedule_body(state, instead, a.source, that);
             // [CR#614.3]: only consume a floating instance when it is one-shot
             // (e.g. a regeneration shield). Duration-only floating replacements
             // (one_shot: false) persist until their duration expires and must
@@ -524,7 +598,7 @@ fn apply_one(state: &mut GameState, e: GameEvent, a: &Applicable) -> Option<Game
         Replacement::Also { also, .. } => {
             // [CR#614.1c]: the event still happens AND `also` happens.
             // Schedule the body; the (unchanged) event continues.
-            schedule_body(state, also, a.source);
+            schedule_body(state, also, a.source, that);
             Some(e)
         }
         Replacement::Skip { .. } => {
@@ -545,13 +619,27 @@ fn apply_one(state: &mut GameState, e: GameEvent, a: &Applicable) -> Option<Game
 /// `Ref(This)` off `source` instead. Threading `Affected` into `Frame`
 /// is the follow-up work (see [CR#616.1] body-binding discussion in the
 /// spec).
-fn schedule_body(state: &mut GameState, effect: deckmaste_core::Effect, source: ObjectId) {
+fn schedule_body(
+    state: &mut GameState,
+    effect: deckmaste_core::Effect,
+    source: ObjectId,
+    that: Option<ObjectId>,
+) {
     let controller = state.objects.obj(source).controller;
+    // [CR#608.2]: bind `That` (`ThatObject`) to the affected object so the body
+    // can read it — `This` falls back to `source` (`bindings.this` is `None`),
+    // never moving off the ability. A frameless body (`that == None`) leaves
+    // bindings unset.
+    let bindings = that.map(|id| TriggerBindings {
+        this: None,
+        that_object: Some(LkiSnapshot::capture(state, id)),
+        that_player: None,
+    });
     let frame = crate::stack::Frame {
         source,
         controller,
         targets: vec![],
-        bindings: None,
+        bindings,
         chosen: None,
         x: None,
     };
