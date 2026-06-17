@@ -1448,6 +1448,31 @@ impl GameState {
         }
     }
 
+    /// Count of `AbilityUsed` events for the given `(object, ability)` pair
+    /// within `within` — the primitive backing per-instance use-limit gates
+    /// ([CR#602.5b,603.2h]) and history reads ([CR#608.2i]).
+    ///
+    /// `within` must be a history-lookback window (`ThisTurn` or `ThisGame`);
+    /// timing windows produce 0 (same defensive contract as
+    /// [`History::scan`]).
+    pub(crate) fn ability_used_count(
+        &self,
+        object: crate::object::ObjectId,
+        ability: Uint,
+        within: deckmaste_core::Window,
+    ) -> Uint {
+        let n = self
+            .history
+            .scan(within, self.turn.turn_number)
+            .filter(|f| {
+                matches!(f,
+                    GameEvent::AbilityUsed { object: o, ability: a }
+                        if *o == object && *a == ability)
+            })
+            .count();
+        Uint::try_from(n).expect("ability use count fits Uint")
+    }
+
     /// The `ObjectSource` that anchors `Ref(This)`/`Ref(You)` in live filter
     /// evaluation for `frame`: the announce-time snapshot's source when the
     /// frame carries bindings (the live object may be gone, [CR#603.10a]),
@@ -1850,6 +1875,63 @@ mod tests {
         state.turn.turn_number = 2;
         assert_eq!(state.eval_query(QueryKey::StormCount, p), 0);
         assert_eq!(state.eval_query(QueryKey::CardsDrawnThisTurn, p), 0);
+    }
+
+    /// `ability_used_count` counts `AbilityUsed` events keyed by (object,
+    /// ability) and respects the `Window` filter — `ThisTurn` excludes
+    /// prior-turn entries, `ThisGame` includes them all.
+    #[test]
+    fn ability_used_count_keys_object_ability_window() {
+        use deckmaste_core::Window;
+
+        let mut state = game();
+        state.turn.turn_number = 1;
+
+        let obj_a = ObjectId::from_raw(10);
+        let obj_b = ObjectId::from_raw(20);
+
+        // Two uses of ability 0 on obj_a, one use of ability 1 on obj_a —
+        // all on the current turn.
+        state.history.record(
+            1,
+            GameEvent::AbilityUsed {
+                object: obj_a,
+                ability: 0,
+            },
+        );
+        state.history.record(
+            1,
+            GameEvent::AbilityUsed {
+                object: obj_a,
+                ability: 0,
+            },
+        );
+        state.history.record(
+            1,
+            GameEvent::AbilityUsed {
+                object: obj_a,
+                ability: 1,
+            },
+        );
+
+        assert_eq!(state.ability_used_count(obj_a, 0, Window::ThisGame), 2);
+        assert_eq!(state.ability_used_count(obj_a, 1, Window::ThisGame), 1);
+        // obj_b has no uses recorded.
+        assert_eq!(state.ability_used_count(obj_b, 0, Window::ThisGame), 0);
+
+        // A use of (obj_a, 0) on a DIFFERENT turn.
+        state.history.record(
+            2,
+            GameEvent::AbilityUsed {
+                object: obj_a,
+                ability: 0,
+            },
+        );
+
+        // ThisTurn (still turn 1) excludes the turn-2 entry.
+        assert_eq!(state.ability_used_count(obj_a, 0, Window::ThisTurn), 2);
+        // ThisGame includes it.
+        assert_eq!(state.ability_used_count(obj_a, 0, Window::ThisGame), 3);
     }
 
     /// A two-player game; player 0's deck is Grizzly Bears.
