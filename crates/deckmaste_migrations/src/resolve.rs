@@ -8,6 +8,7 @@ use std::path::Path;
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_cards::template::index::TemplateIndex;
 use deckmaste_core::plugin::is_ron_todo_file;
+use rayon::prelude::*;
 
 use crate::todo_card::RawIdent;
 use crate::todo_card::TodoAbility;
@@ -184,24 +185,27 @@ pub fn resolve_cards(plugin_dir: &Path) -> anyhow::Result<()> {
     let plugin = Plugin::load_with_sibling_prelude(plugin_dir)?;
     let index = TemplateIndex::build(&plugin.macros);
     let cards = crate::layout::PluginLayout::new(plugin_dir)?.cards_dir()?;
-    let mut paths: Vec<_> = std::fs::read_dir(&cards)?
+    let paths: Vec<_> = std::fs::read_dir(&cards)?
         .map(|e| e.map(|e| e.path()))
         .collect::<Result<_, _>>()?;
-    paths.sort();
-    for path in paths {
-        if !path.is_file() || !is_ron_todo_file(&path) {
-            continue;
-        }
-        // A malformed `.ron.todo` aborts the run (via `?`): it means a bug in
-        // the step that wrote it, which the engineer should fix before resolving.
-        let source = std::fs::read_to_string(&path)?;
-        let mut card: TodoCard = crate::ron_output::ron_options().from_str(&source)?;
-        if resolve_card(&mut card, &index)? {
-            std::fs::write(&path, render(&card)?)?;
-            eprintln!("resolved {}", path.display());
-        }
-    }
-    Ok(())
+    // Each card resolves independently against the shared (read-only) macro
+    // index, so the map runs in parallel; `try_for_each` short-circuits on the
+    // first error. Per-card writes target distinct files; the `eprintln!` order
+    // is no longer sorted, but the file output is identical either way.
+    paths
+        .par_iter()
+        .filter(|path| path.is_file() && is_ron_todo_file(path))
+        .try_for_each(|path| -> anyhow::Result<()> {
+            // A malformed `.ron.todo` aborts the run (via `?`): it means a bug in
+            // the step that wrote it, which the engineer should fix before resolving.
+            let source = std::fs::read_to_string(path)?;
+            let mut card: TodoCard = crate::ron_output::ron_options().from_str(&source)?;
+            if resolve_card(&mut card, &index)? {
+                std::fs::write(path, render(&card)?)?;
+                eprintln!("resolved {}", path.display());
+            }
+            Ok(())
+        })
 }
 
 #[cfg(test)]

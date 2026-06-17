@@ -13,6 +13,7 @@ use anyhow::Context;
 use deckmaste_core::Color;
 use deckmaste_core::StatValue;
 use deckmaste_core::plugin::card_file;
+use rayon::prelude::*;
 use regex::Regex;
 
 use crate::data::DataStr;
@@ -300,25 +301,34 @@ pub fn extract_cards(plugin_dir: &Path) -> anyhow::Result<()> {
     let keyword_abilities =
         crate::data::academyruins::Keywords::parse(&keywords_bytes)?.keyword_abilities;
 
-    for (name, all_faces) in &atomic.data {
-        let supported: Vec<&AtomicCard> = all_faces.iter().filter(|c| is_supported(c)).collect();
-        if supported.is_empty() {
-            continue;
-        }
-        let final_path = cards_dir.join(card_file(name.as_str()));
-        let todo_path = cards_dir.join(format!("{}.todo", card_file(name.as_str())));
-        if final_path.exists() || todo_path.exists() {
-            continue; // already finished or already in progress
-        }
-        let Some(card) = todo_card(supported[0].layout.as_str(), &supported, &keyword_abilities)?
-        else {
-            continue; // unsupported layout
-        };
-        std::fs::write(&todo_path, render(&card)?)
-            .with_context(|| format!("writing {}", todo_path.display()))?;
-        eprintln!("wrote {}", todo_path.display());
-    }
-    Ok(())
+    // Each card writes a distinct `<name>.ron.todo` from shared read-only data,
+    // so the render+write runs in parallel; `try_for_each` short-circuits on the
+    // first error. `&atomic.data` is a HashMap (already unordered), so going
+    // parallel changes only the `eprintln!` order, not the file set or contents.
+    atomic
+        .data
+        .par_iter()
+        .try_for_each(|(name, all_faces)| -> anyhow::Result<()> {
+            let supported: Vec<&AtomicCard> =
+                all_faces.iter().filter(|c| is_supported(c)).collect();
+            if supported.is_empty() {
+                return Ok(());
+            }
+            let final_path = cards_dir.join(card_file(name.as_str()));
+            let todo_path = cards_dir.join(format!("{}.todo", card_file(name.as_str())));
+            if final_path.exists() || todo_path.exists() {
+                return Ok(()); // already finished or already in progress
+            }
+            let Some(card) =
+                todo_card(supported[0].layout.as_str(), &supported, &keyword_abilities)?
+            else {
+                return Ok(()); // unsupported layout
+            };
+            std::fs::write(&todo_path, render(&card)?)
+                .with_context(|| format!("writing {}", todo_path.display()))?;
+            eprintln!("wrote {}", todo_path.display());
+            Ok(())
+        })
 }
 
 #[cfg(test)]
