@@ -393,20 +393,13 @@ fn unless_cost_action(
     use deckmaste_core::Action;
     use deckmaste_core::CostComponent;
     use deckmaste_core::PlayerAction;
-    use deckmaste_core::Reference;
     use deckmaste_core::Selection;
     match component {
         // A verb cost is paid by `who` performing it ([CR#601.2h]).
         CostComponent::Do(pa) => Action::By(who.clone(), (**pa).clone()),
         // {T}/{Q} tap/untap the source permanent the cost rides on.
-        CostComponent::Tap => Action::By(
-            who.clone(),
-            PlayerAction::Tap(Selection::Ref(Reference::This)),
-        ),
-        CostComponent::Untap => Action::By(
-            who.clone(),
-            PlayerAction::Untap(Selection::Ref(Reference::This)),
-        ),
+        CostComponent::Tap => Action::By(who.clone(), PlayerAction::Tap(Selection::this())),
+        CostComponent::Untap => Action::By(who.clone(), PlayerAction::Untap(Selection::this())),
         CostComponent::Expanded(e) => unless_cost_action(&e.value, who),
         // A nested cost is spliced flat by `Cost::deserialize` before any
         // cost is read, so a `Cost` component never survives to here.

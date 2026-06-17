@@ -118,7 +118,6 @@ mod tests {
 
     use deckmaste_cards::plugin::Plugin;
     use deckmaste_core::BeginningStep;
-    use deckmaste_core::CharacteristicFilter;
     use deckmaste_core::Cmp;
     use deckmaste_core::Condition;
     use deckmaste_core::Count;
@@ -203,7 +202,7 @@ mod tests {
         };
 
         let morbid_pattern = Event::ZoneMove {
-            what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            what: Filter::creature(),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             face: None,
@@ -254,8 +253,6 @@ mod tests {
     /// `Is(This, Ref(This))` is true (the resolved object IS the watcher).
     #[test]
     fn is_reference_tests_filter_against_resolved_object() {
-        use deckmaste_core::CharacteristicFilter;
-
         let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
         let forest = Arc::new(builtin().card("Forest").unwrap());
         let mut state = GameState::new(GameConfig {
@@ -295,8 +292,8 @@ mod tests {
             subject: None,
         };
 
-        let creature = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));
-        let land = Filter::Characteristic(CharacteristicFilter::Type(Type::Land));
+        let creature = Filter::creature();
+        let land = Filter::type_(Type::Land);
 
         // Is(This, …): the bear is a creature …
         assert!(

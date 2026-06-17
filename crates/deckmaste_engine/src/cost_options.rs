@@ -144,8 +144,8 @@ pub fn concretize(
                     SymbolChoice::Mana(sym) => mana.push(ManaSymbol::Simple(sym)),
                     // [CR#107.4f]: 2 life in place of the colored mana.
                     SymbolChoice::Life => {
-                        verbs.push(CostComponent::Do(Box::new(PlayerAction::LoseLife(
-                            Count::Literal(2),
+                        verbs.push(CostComponent::do_(PlayerAction::LoseLife(Count::Literal(
+                            2,
                         ))));
                     }
                 }
@@ -251,8 +251,8 @@ mod tests {
         assert!(mana.is_empty());
         assert_eq!(
             verbs,
-            vec![CostComponent::Do(Box::new(PlayerAction::LoseLife(
-                Count::Literal(2)
+            vec![CostComponent::do_(PlayerAction::LoseLife(Count::Literal(
+                2
             )))]
         );
 
@@ -295,8 +295,8 @@ mod tests {
         assert_eq!(mana, parse_cost("{1}"));
         assert_eq!(
             verbs,
-            vec![CostComponent::Do(Box::new(PlayerAction::LoseLife(
-                Count::Literal(2)
+            vec![CostComponent::do_(PlayerAction::LoseLife(Count::Literal(
+                2
             )))]
         );
     }
@@ -419,8 +419,8 @@ mod tests {
         assert_eq!(mana, parse_cost("{U}"));
         assert_eq!(
             verbs,
-            vec![CostComponent::Do(Box::new(PlayerAction::LoseLife(
-                Count::Literal(2)
+            vec![CostComponent::do_(PlayerAction::LoseLife(Count::Literal(
+                2
             )))]
         );
 
@@ -436,8 +436,8 @@ mod tests {
         assert_eq!(mana, parse_cost("{W}"));
         assert_eq!(
             verbs,
-            vec![CostComponent::Do(Box::new(PlayerAction::LoseLife(
-                Count::Literal(2)
+            vec![CostComponent::do_(PlayerAction::LoseLife(Count::Literal(
+                2
             )))]
         );
     }

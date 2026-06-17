@@ -56,6 +56,16 @@ impl From<Reference> for Selection {
     }
 }
 
+impl Selection {
+    /// The self-reference lifted into a choice slot (`Ref(This)`) — the object
+    /// being resolved, as picked by self-directed verbs (`Sacrifice(This)`,
+    /// `Tap(This)`, …).
+    #[must_use]
+    pub fn this() -> Selection {
+        Selection::Ref(Reference::This)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1613,7 +1613,7 @@ mod tests {
             condition: None,
             effects: vec![StaticEffect::Modify {
                 of: Scope::Matching(Filter::AllOf(vec![
-                    Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                    Filter::creature(),
                     Filter::Not(Box::new(Filter::Ref(Reference::This))),
                     Filter::Characteristic(CharacteristicFilter::Subtype("Goblin".into())),
                     Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
@@ -1686,7 +1686,7 @@ mod tests {
             timestamp,
             controller: PlayerId(0),
             scope: ScopeResolved::Floating(Filter::AllOf(vec![
-                Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                Filter::creature(),
                 Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
                     Reference::You,
                 )))),

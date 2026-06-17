@@ -11,6 +11,7 @@ use crate::SupportsMacros;
 use crate::TargetSpec;
 use crate::ability::TriggeredAbility;
 use crate::action::Action;
+use crate::action::PlayerAction;
 use crate::continuous::Duration;
 use crate::continuous::StaticEffect;
 use crate::reference::Reference;
@@ -75,6 +76,15 @@ pub enum Effect {
     Expanded(Expansion<Effect>),
 }
 
+impl Effect {
+    /// A bare player verb in the implicit-"you" default — `Act(By(You, …))`,
+    /// the form a player verb written bare in an effect slot reads as.
+    #[must_use]
+    pub fn act_by_you(action: PlayerAction) -> Effect {
+        Effect::Act(Action::by_you(action))
+    }
+}
+
 /// `Continuously { effect, duration }` ([CR#611.2]). `effect` is boxed to break
 /// the `Effect` → `StaticEffect` → `Replacement` → `Effect` size cycle.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
@@ -96,6 +106,18 @@ pub struct Targeted {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub targets: Vec<TargetSpec>,
     pub effect: Box<Effect>,
+}
+
+impl Targeted {
+    /// Scopes `targets` over `effect`, boxing the inner effect. Builds the
+    /// wrapper without the caller spelling the `Box::new` / field order.
+    #[must_use]
+    pub fn new(targets: Vec<TargetSpec>, effect: Effect) -> Targeted {
+        Targeted {
+            targets,
+            effect: Box::new(effect),
+        }
+    }
 }
 
 /// `May { do, if_did, if_not }` — `do` is a keyword, so the field is `effect`.

@@ -158,7 +158,7 @@ pub(super) fn filter_subject(f: &Filter) -> String {
             Filter::Characteristic(CharacteristicFilter::Type(t)) => {
                 base = format!("{}s", super::card::type_str(*t));
             }
-            Filter::Not(inner) if matches!(strip_expanded(inner), Filter::Ref(Reference::This)) => {
+            Filter::Not(inner) if strip_expanded(inner).is_this() => {
                 other = true;
             }
             Filter::Relation(RelationFilter::ControlledBy(inner)) => {

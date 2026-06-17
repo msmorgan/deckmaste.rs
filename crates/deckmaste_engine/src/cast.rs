@@ -4,7 +4,6 @@
 //! announce flow (`announce_targets` / `pay_cost`) is shared with activated
 //! abilities ([CR#602.2b]); see `activate.rs` for the activation entry point.
 
-use deckmaste_core::Action;
 use deckmaste_core::Agency;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::CostComponent;
@@ -12,7 +11,6 @@ use deckmaste_core::Effect;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::PlayerAction;
-use deckmaste_core::Reference;
 use deckmaste_core::SimpleManaSymbol;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Type;
@@ -350,7 +348,7 @@ fn verb_payment_items(verbs: &[PlayerAction], source: ObjectId, player: PlayerId
     verbs
         .iter()
         .map(|verb| WorkItem::RunEffect {
-            effect: Box::new(Effect::Act(Action::By(Reference::You, verb.clone()))),
+            effect: Box::new(Effect::act_by_you(verb.clone())),
             frame: Frame {
                 source,
                 controller: player,

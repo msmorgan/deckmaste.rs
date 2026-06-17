@@ -166,6 +166,27 @@ impl Filter {
     pub fn any() -> Filter {
         Filter::Any
     }
+
+    /// Matches objects of a single card type ([CR#109.3]) — the flat
+    /// `Type(t)` atom, spelled without its `Characteristic` compartment.
+    #[must_use]
+    pub fn type_(t: Type) -> Filter {
+        Filter::Characteristic(CharacteristicFilter::Type(t))
+    }
+
+    /// Matches creatures — [`Filter::type_`] for [`Type::Creature`], the most
+    /// common typed filter across the card base.
+    #[must_use]
+    pub fn creature() -> Filter {
+        Filter::type_(Type::Creature)
+    }
+
+    /// Whether this filter is exactly the self-reference (`Ref(This)`) — the
+    /// "~ itself" predicate rendering and the replacement layer test for.
+    #[must_use]
+    pub fn is_this(&self) -> bool {
+        matches!(self, Filter::Ref(Reference::This))
+    }
 }
 
 #[cfg(test)]

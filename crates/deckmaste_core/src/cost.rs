@@ -40,6 +40,17 @@ pub enum CostComponent {
     Expanded(Expansion<CostComponent>),
 }
 
+impl CostComponent {
+    /// Pay by performing a (cost-eligible) player verb —
+    /// `Do(Box::new(action))`, hiding the box the boxed variant requires.
+    /// Eligibility itself stays a cards-layer validation lint ([CR#601.2b],
+    /// `PlayerAction::is_cost_eligible`).
+    #[must_use]
+    pub fn do_(action: PlayerAction) -> CostComponent {
+        CostComponent::Do(Box::new(action))
+    }
+}
+
 /// A cost: an ordered list of [`CostComponent`]s ([CR#601.2b]). A newtype
 /// (not a bare `Vec`) so a nested cost — a [`CostComponent::Cost`] spliced in
 /// by a macro whose cost param is itself a list — is FLATTENED back into one

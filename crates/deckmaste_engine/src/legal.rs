@@ -786,7 +786,6 @@ mod tests {
     use std::sync::Arc;
 
     use deckmaste_core::Ability;
-    use deckmaste_core::CharacteristicFilter;
     use deckmaste_core::Deontic;
     use deckmaste_core::DeonticAction;
     use deckmaste_core::Expansion;
@@ -969,7 +968,7 @@ mod tests {
     }
 
     fn creature() -> Filter {
-        Filter::Characteristic(CharacteristicFilter::Type(Type::Creature))
+        Filter::creature()
     }
 
     /// [CR#701.3b,301.5]: an attachment with `Innate(Cant(Attach(what: Ref(This),

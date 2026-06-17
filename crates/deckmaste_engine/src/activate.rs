@@ -445,7 +445,7 @@ mod tests {
         // A no-target effect: By(You, Sacrifice(This)) — available in core.
         Effect::Act(Action::By(
             Reference::You,
-            PlayerAction::Sacrifice(Selection::Ref(Reference::This)),
+            PlayerAction::Sacrifice(Selection::this()),
         ))
     }
 
@@ -492,9 +492,9 @@ mod tests {
 
     #[test]
     fn cost_summary_returns_none_on_non_eligible_do_cost() {
-        let cost = vec![CostComponent::Do(Box::new(PlayerAction::Draw(
+        let cost = vec![CostComponent::do_(PlayerAction::Draw(
             deckmaste_core::Count::Literal(1),
-        )))];
+        ))];
         assert!(
             cost_summary(&cost).is_none(),
             "Do(...) with a non-cost-eligible action should yield None"
@@ -506,9 +506,7 @@ mod tests {
         let cost = vec![
             CostComponent::Mana("{1}".parse().unwrap()),
             CostComponent::Tap,
-            CostComponent::Do(Box::new(PlayerAction::Sacrifice(Selection::Ref(
-                Reference::This,
-            )))),
+            CostComponent::do_(PlayerAction::Sacrifice(Selection::Ref(Reference::This))),
         ];
         let summary = cost_summary(&cost).expect("verb costs no longer abort the summary");
         assert_eq!(summary.mana, "{1}".parse().unwrap());
@@ -688,9 +686,9 @@ mod tests {
         let player = PlayerId(0);
         let obj = make_object_on_battlefield(&mut state, player);
         let ability = activated(
-            vec![CostComponent::Do(Box::new(PlayerAction::LoseLife(
+            vec![CostComponent::do_(PlayerAction::LoseLife(
                 deckmaste_core::Count::Literal(2),
-            )))],
+            ))],
             noop_effect(),
         );
 
@@ -709,9 +707,9 @@ mod tests {
         let player = PlayerId(0);
         let obj = make_object_on_battlefield(&mut state, player);
         let ability = activated(
-            vec![CostComponent::Do(Box::new(PlayerAction::LoseLife(
+            vec![CostComponent::do_(PlayerAction::LoseLife(
                 deckmaste_core::Count::Literal(2),
-            )))],
+            ))],
             noop_effect(),
         );
 
@@ -806,11 +804,7 @@ mod tests {
         let player = PlayerId(0);
         let obj = make_object_on_battlefield(&mut state, player);
         assert!(
-            state.can_pay_verbs(
-                player,
-                &[PlayerAction::Sacrifice(Selection::Ref(Reference::This))],
-                obj,
-            ),
+            state.can_pay_verbs(player, &[PlayerAction::Sacrifice(Selection::this())], obj,),
             "a self-sacrifice always has its one object to pay with"
         );
     }
