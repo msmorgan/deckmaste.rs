@@ -36,6 +36,7 @@ pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect>
         .or_else(|| parse_lose_life(line))
         .or_else(|| parse_gain_life(line))
         .or_else(|| parse_counter(line))
+        .or_else(|| parse_put_counters(line, ctx))
         .or_else(|| parse_return_to_hand(line))
         .or_else(|| parse_tap_untap(line))
         .or_else(|| parse_destroy(line))
@@ -350,6 +351,78 @@ fn parse_counter(line: &str) -> Option<ParsedEffect> {
             cost.join(", ")
         ),
     })
+}
+
+// ---------------------------------------------------------------------------
+// Counter-placement productions ([CR#122.1], the +1/+1 family). The placement
+// verb is `PutCounters(<selection>, <CounterRef>, <count>)`; the counter KIND
+// is resolved the parse-via-macros way — the "+1/+1 counter" / "-1/-1 counter"
+// phrase routes to the `Counter`-kind macro whose `template` renders it, so the
+// kind comes out as the macro NAME (`P1P1Counter`, `M1M1Counter`). An unmodeled
+// kind (`+2/+2`, `+1/+0`) has no macro and declines cleanly, never minting a
+// junk counter ident.
+// ---------------------------------------------------------------------------
+
+/// `Put <count> <kind> counter[s] on <where>.` -> a counter placement
+/// ([CR#122.1]):
+/// - `on target <subject>.` -> `PutCounters(Target(0), <kind>, <n>)` with a
+///   `TargetOne(<filter>)` declaration (the subject parsed by the shared
+///   [`object_target_filter`] grammar).
+/// - `on it.` / `on ~.` -> `PutCounters(This, <kind>, <n>)`, no target — the
+///   resolving source counters itself (the combat-damage trigger surface).
+///
+/// The kind is macro-resolved (so `-1/-1` -> `M1M1Counter` for free); fixed
+/// counts only (a "for each"/`X`/"that many" count declines — a later scaled
+/// production). Case-insensitive lead (spell clause vs. trigger comma).
+fn parse_put_counters(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
+    let body = strip_prefix_ci(line, "put ")?.strip_suffix('.')?;
+    // Split the counter clause from its destination at the LAST " on " (a
+    // counter-kind phrase never contains " on ").
+    let (counter_clause, dest) = body.rsplit_once(" on ")?;
+    let (count, kind) = parse_counter_clause(counter_clause, ctx)?;
+    // Destination -> (selection, target declarations).
+    let (selection, targets) = match dest {
+        // Self placement: the resolving source ("it" — a trigger anaphor — or
+        // "~"). No target.
+        "it" | "~" => ("This".to_owned(), Vec::new()),
+        // Targeted placement: "target <subject>".
+        _ => {
+            let subject = dest.strip_prefix("target ")?;
+            let filter = object_target_filter(subject)?;
+            ("Target(0)".to_owned(), vec![format!("TargetOne({filter})")])
+        }
+    };
+    Some(ParsedEffect {
+        targets,
+        effect: format!("PutCounters({selection}, {kind}, {count})"),
+    })
+}
+
+/// `<count> <kind> counter[s]` (the clause before "on …") -> `(count RON, kind
+/// RON)`. The count is a fixed cardinal emitted as a bare numeral
+/// (reader-sugar for `Count::Literal`, like the sibling `Draw`/`Create`
+/// productions); the kind is the `Counter`-kind macro name the "+1/+1 counter"
+/// phrase resolves to. Declines a non-cardinal count (`X`, "that many") and an
+/// unmodeled counter kind. Shared with the enters-with-counters replacement
+/// production ([`crate::parsers::replacement`]).
+pub(super) fn parse_counter_clause(clause: &str, ctx: &ResolveCtx) -> Option<(u32, String)> {
+    let (count_word, rest) = clause.split_once(' ')?;
+    let count = number_word(count_word)?;
+    // Re-singularize the counter-noun so the singular macro template ("+1/+1
+    // counter") matches regardless of the count's plurality ("two +1/+1
+    // counters").
+    let phrase = rest.strip_suffix('s').unwrap_or(rest);
+    let kind = counter_kind(phrase, ctx)?;
+    Some((count, kind))
+}
+
+/// A counter-kind phrase ("+1/+1 counter", "-1/-1 counter") -> the macro NAME
+/// it resolves to (`P1P1Counter`, `M1M1Counter`), routed through the
+/// `Counter`-kind reverse index. The match must consume the WHOLE phrase (no
+/// trailing junk); an unmodeled kind declines.
+fn counter_kind(phrase: &str, ctx: &ResolveCtx) -> Option<String> {
+    let m = ctx.index.match_kind("Counter", phrase)?;
+    (m.consumed == phrase.len()).then(|| m.macro_name.to_string())
 }
 
 /// Return-to-hand productions ([CR#400.7], the bounce family):
@@ -1849,5 +1922,107 @@ mod tests {
                 "DealDamage(Filter(OneOf([Creature, Player])), 2)".to_owned()
             ))
         );
+    }
+
+    #[test]
+    fn put_counter_on_target() {
+        // "Put a +1/+1 counter on target creature." — the counter kind resolves
+        // to `P1P1Counter` via the `Counter`-kind macro template; the target is
+        // a single creature; one counter ([CR#122.1]).
+        assert_eq!(
+            parsed_with_macros("Put a +1/+1 counter on target creature."),
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "PutCounters(Target(0), P1P1Counter, 1)".to_owned()
+            ))
+        );
+        // Lowercase lead (the clause after a trigger comma).
+        assert_eq!(
+            parsed_with_macros("put a +1/+1 counter on target creature you control."),
+            Some((
+                "TargetOne(AllOf([Creature, ControlledBy(Ref(You))]))".to_owned(),
+                "PutCounters(Target(0), P1P1Counter, 1)".to_owned()
+            ))
+        );
+        // "two +1/+1 counters" — the plural count.
+        assert_eq!(
+            parsed_with_macros("Put two +1/+1 counters on target creature."),
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "PutCounters(Target(0), P1P1Counter, 2)".to_owned()
+            ))
+        );
+        // "-1/-1 counter" generalizes to `M1M1Counter` for free.
+        assert_eq!(
+            parsed_with_macros("Put a -1/-1 counter on target creature."),
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "PutCounters(Target(0), M1M1Counter, 1)".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn put_counter_on_self() {
+        // "Put a +1/+1 counter on it." / "on ~." — the resolving source counters
+        // itself (combat-damage triggers); no target, `This` selection.
+        assert_eq!(
+            parsed_with_macros("put a +1/+1 counter on it."),
+            Some((
+                String::new(),
+                "PutCounters(This, P1P1Counter, 1)".to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed_with_macros("Put a +1/+1 counter on ~."),
+            Some((
+                String::new(),
+                "PutCounters(This, P1P1Counter, 1)".to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed_with_macros("put two +1/+1 counters on ~."),
+            Some((
+                String::new(),
+                "PutCounters(This, P1P1Counter, 2)".to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed_with_macros("Put three +1/+1 counters on it."),
+            Some((
+                String::new(),
+                "PutCounters(This, P1P1Counter, 3)".to_owned()
+            ))
+        );
+        // "-1/-1 counter on it" -> M1M1Counter.
+        assert_eq!(
+            parsed_with_macros("put a -1/-1 counter on it."),
+            Some((
+                String::new(),
+                "PutCounters(This, M1M1Counter, 1)".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn put_counter_declines_out_of_scope() {
+        // An unmodeled counter kind (no `+2/+2`/`+1/+0` macro) declines cleanly —
+        // the named-counter vocabulary doesn't carry it yet.
+        assert!(parsed_with_macros("Put a +2/+2 counter on target creature.").is_none());
+        assert!(parsed_with_macros("put a +1/+0 counter on ~.").is_none());
+        // `X` and "that many" counts aren't v1 productions.
+        assert!(parsed_with_macros("Put X +1/+1 counters on it.").is_none());
+        // A "for each" scaled count declines (later production).
+        assert!(
+            parsed_with_macros("put a +1/+1 counter on target Shrine for each Shrine you control.")
+                .is_none()
+        );
+        // A target subject the filter grammar can't parse declines.
+        assert!(
+            parsed_with_macros("Put a +1/+1 counter on target creature wearing hats.").is_none()
+        );
+        // Under the EMPTY index (no counter macro) the production declines —
+        // pins that the counter kind is macro-resolved, not hardcoded.
+        assert!(declines("Put a +1/+1 counter on target creature."));
     }
 }
