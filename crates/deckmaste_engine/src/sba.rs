@@ -148,6 +148,12 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
         }
     }
 
+    // [CR#704.5e] SEAM: a copy of a spell in a zone other than the stack (or a
+    // copy of a card outside stack/battlefield) ceases to exist. Unbuilt — no
+    // copy representation exists yet (the layer-1 copy seam awaits
+    // `core-copy-grammar` / `engine-copy-spells`); there is nothing to observe,
+    // so this is intentionally not wired here.
+
     // Attachment SBAs ([CR#704.5m..704.5p]) — GENERIC, no subtype branch.
     actions.extend(attachment_sbas(state, &view));
 
