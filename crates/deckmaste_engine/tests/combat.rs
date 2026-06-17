@@ -57,7 +57,9 @@ fn card(name: &str) -> Arc<Card> {
     Arc::new(card)
 }
 
-fn deck(card: &Arc<Card>, n: usize) -> Vec<Arc<Card>> { vec![Arc::clone(card); n] }
+fn deck(card: &Arc<Card>, n: usize) -> Vec<Arc<Card>> {
+    vec![Arc::clone(card); n]
+}
 
 /// A two-player game: both players play decks of `card`.
 fn two_player_with(card: &str, seed: u64, deck_size: usize) -> GameState {
@@ -559,7 +561,9 @@ fn declare_blockers_single_blocker_blocks_attacker() {
 // --- combat damage ([CR#510]) ----------------------------------------------
 
 /// True iff `id` is on the battlefield.
-fn on_battlefield(state: &GameState, id: ObjectId) -> bool { state.zones.battlefield.contains(&id) }
+fn on_battlefield(state: &GameState, id: ObjectId) -> bool {
+    state.zones.battlefield.contains(&id)
+}
 
 /// Drives a freshly-built game to the Declare Attackers decision, declares
 /// `attackers`, then declares `blocks` at the Declare Blockers step (skipped

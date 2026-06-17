@@ -15,7 +15,7 @@ use crate::WhoseTurn;
 
 /// A timing window — a predicate over (turn-structure position, event log).
 /// Closed rules vocabulary: new windows are CR concepts, not card macros.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Window {
     /// Any time the player has priority (instant timing, [CR#117.1a];
     /// flash rides this as a cast-permission window, [CR#702.8a]).
@@ -41,7 +41,7 @@ pub enum Window {
 /// ([CR#611.2a]): "until end of turn" sweeps in cleanup ([CR#514.2]),
 /// "until end of combat" at the combat phase's end ([CR#500.5a,511.2]).
 /// Grows by card demand (end of your next turn, …).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum TurnMarker {
     EndOfTurn,
     EndOfCombat,
@@ -54,7 +54,7 @@ pub enum TurnMarker {
 /// snapshot, with at most one sanctioned recheck — targets at resolution,
 /// [CR#608.2b]; intervening-if, [CR#603.4]) or a re-evaluation rule (it is
 /// a view over live state, [CR#611.3a]).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum LockPoint {
     /// Targets, modes, costs-as-intended, spell/ability X
     /// ([CR#601.2b..601.2d,107.3a]).

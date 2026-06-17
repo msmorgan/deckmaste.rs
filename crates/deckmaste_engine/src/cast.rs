@@ -277,7 +277,9 @@ pub fn validate_payment(pool: &ManaPool, cost: &ManaCost, payment: &Payment) -> 
 /// dropped here, not fired — on-spend effects need a "mana spent on X" event +
 /// delayed triggers (deferred). `SpendOnly`/`Persistent` are already honored
 /// (at payment / at emptying), so removal here is correct for them.
-pub fn apply_payment(pool: &mut ManaPool, payment: &Payment) { pool.remove_units(&payment.units); }
+pub fn apply_payment(pool: &mut ManaPool, payment: &Payment) {
+    pool.remove_units(&payment.units);
+}
 
 /// Canonical auto-tap ([CR#601.2g], a runner/test convenience — the engine
 /// surfaces the choice, this answers it): pick pool unit indices covering
@@ -1104,9 +1106,15 @@ mod tests {
             .collect();
         ManaPool::from_units(units)
     }
-    fn cost(s: &str) -> ManaCost { s.parse().unwrap() }
-    fn red() -> ColorOrColorless { Color::Red.into() }
-    fn green() -> ColorOrColorless { Color::Green.into() }
+    fn cost(s: &str) -> ManaCost {
+        s.parse().unwrap()
+    }
+    fn red() -> ColorOrColorless {
+        Color::Red.into()
+    }
+    fn green() -> ColorOrColorless {
+        Color::Green.into()
+    }
 
     #[test]
     fn colored_pip_needs_its_color() {

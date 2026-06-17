@@ -8,7 +8,9 @@ use std::path::PathBuf;
 
 use deckmaste_cards::plugin::Plugin;
 
-fn testing_path() -> PathBuf { Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/testing") }
+fn testing_path() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/testing")
+}
 
 #[test]
 fn testing_mocks_are_valid() {

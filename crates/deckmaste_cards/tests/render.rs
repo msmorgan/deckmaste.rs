@@ -14,7 +14,9 @@ use deckmaste_core::StatValue;
 use deckmaste_core::Subtype;
 use deckmaste_core::Type;
 
-fn canon_path() -> PathBuf { Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon") }
+fn canon_path() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon")
+}
 
 fn face(name: &str) -> CardFace {
     let plugin = Plugin::load_with_sibling_prelude(canon_path()).unwrap();

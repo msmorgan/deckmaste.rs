@@ -79,8 +79,12 @@ fn has_type(state: &GameState, id: ObjectId, ty: Type) -> bool {
         }
 }
 
-fn is_creature(state: &GameState, id: ObjectId) -> bool { has_type(state, id, Type::Creature) }
-fn is_land(state: &GameState, id: ObjectId) -> bool { has_type(state, id, Type::Land) }
+fn is_creature(state: &GameState, id: ObjectId) -> bool {
+    has_type(state, id, Type::Creature)
+}
+fn is_land(state: &GameState, id: ObjectId) -> bool {
+    has_type(state, id, Type::Land)
+}
 
 /// The mana value of a card-backed object's printed cost ([CR#202.3]).
 fn mana_value(state: &GameState, id: ObjectId) -> Uint {
@@ -101,7 +105,9 @@ fn cheapest_in_hand(state: &GameState, player: PlayerId, ty: Type) -> Option<Uin
         .min()
 }
 
-fn opponent(p: PlayerId) -> PlayerId { PlayerId(1 - p.0) }
+fn opponent(p: PlayerId) -> PlayerId {
+    PlayerId(1 - p.0)
+}
 
 // --- mana payment
 // -------------------------------------------------------------

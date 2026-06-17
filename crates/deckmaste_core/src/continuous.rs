@@ -25,7 +25,7 @@ use crate::replacement::Replacement;
 /// How long a one-shot-created continuous effect lasts ([CR#611.2]). Static
 /// abilities don't carry this — their duration is implicit ("while it
 /// functions", [CR#611.3]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Duration {
     /// Ends at a fixed turn-structure marker ([CR#611.2a]): end of turn
     /// sweeps in cleanup ([CR#514.2]), end of combat at the combat phase's
@@ -48,7 +48,7 @@ pub enum Duration {
 ///
 /// `Of` wraps a single reference (the spec's dead `That` renamed); `These`
 /// a fixed list; `Matching` a filter-shaped, possibly-floating set.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Scope {
     /// One referenced object.
     Of(Reference),
@@ -63,7 +63,7 @@ pub enum Scope {
 /// CDA-flagged), `Switch` → 7d, types → 4, colors → 5, abilities → 6,
 /// controller → 2, text → 3 ([CR#613.1]). One effect's `changes` is a list
 /// because it can span layers applied to the same set ([CR#613.6]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Modification {
     SetPower(Count),
     AddPower(Count),
@@ -117,7 +117,7 @@ pub enum Modification {
 /// it never changes the mana cost itself ([CR#118.8d]). Alternative costs
 /// are NOT here — they swap the base and ride `May(Cast(cost: …))` rows
 /// ([CR#118.9]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum CostChange {
     Increase(Vec<CostComponent>),
     Reduce(Vec<CostComponent>),
@@ -205,7 +205,7 @@ pub enum StaticEffect {
 }
 
 /// Which outcome a [`StaticEffect::OutcomeGate`] suppresses.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum OutcomeGateKind {
     /// Suppresses the loss SBAs ([CR#704.5a..704.5c]) and "loses the
     /// game" effect outcomes ([CR#104.3e]) for matching players.
@@ -219,7 +219,9 @@ pub enum OutcomeGateKind {
 mod tests {
     use super::*;
 
-    fn read(source: &str) -> StaticEffect { crate::ron::options().from_str(source).unwrap() }
+    fn read(source: &str) -> StaticEffect {
+        crate::ron::options().from_str(source).unwrap()
+    }
 
     /// The anthem shape reads flat and round-trips.
     #[test]

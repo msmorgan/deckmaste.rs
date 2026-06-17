@@ -17,7 +17,7 @@ use crate::Zone;
 
 /// What kind of object something is ([CR#109.1]). Players are objects here
 /// too — the engine gives players `ObjectId`s.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum ObjectKind {
     Card,
     Emblem,
@@ -150,7 +150,9 @@ impl Filter {
     /// The match-anything filter, as a serde `default` for fields like
     /// `Event::Performed`'s `by`/`on`.
     #[must_use]
-    pub fn any() -> Filter { Filter::Any }
+    pub fn any() -> Filter {
+        Filter::Any
+    }
 }
 
 #[cfg(test)]
@@ -160,7 +162,9 @@ mod tests {
     use crate::Type;
     use crate::Zone;
 
-    fn read(source: &str) -> Filter { crate::ron::options().from_str(source).unwrap() }
+    fn read(source: &str) -> Filter {
+        crate::ron::options().from_str(source).unwrap()
+    }
 
     #[test]
     fn atoms_read_flat() {

@@ -17,15 +17,21 @@ pub const KEYWORD_ABILITIES_FILE: &str = "keyword_abilities.ron";
 /// The file name a card of this name is stored under: [`card_filename`]
 /// plus the extension.
 #[must_use]
-pub fn card_file(name: &str) -> String { format!("{}.ron", card_filename(name)) }
+pub fn card_file(name: &str) -> String {
+    format!("{}.ron", card_filename(name))
+}
 
 /// Where a card of this name lives under the plugin `root`.
 #[must_use]
-pub fn card_path(root: &Path, name: &str) -> PathBuf { root.join(CARDS_DIR).join(card_file(name)) }
+pub fn card_path(root: &Path, name: &str) -> PathBuf {
+    root.join(CARDS_DIR).join(card_file(name))
+}
 
 /// The file name a token of this name is stored under.
 #[must_use]
-pub fn token_file(name: &str) -> String { format!("{name}.ron") }
+pub fn token_file(name: &str) -> String {
+    format!("{name}.ron")
+}
 
 /// Where a token of this name lives under the plugin `root`.
 #[must_use]
@@ -40,12 +46,16 @@ pub const TODO_SUFFIX: &str = ".todo.ron";
 /// The todo-stub file name for this `stem`, e.g. `todo_file("Flying")` is
 /// `"Flying.todo.ron"`.
 #[must_use]
-pub fn todo_file(stem: &str) -> String { format!("{stem}{TODO_SUFFIX}") }
+pub fn todo_file(stem: &str) -> String {
+    format!("{stem}{TODO_SUFFIX}")
+}
 
 /// The todo-stub file name for a card of this name: [`card_filename`] under
 /// the [`TODO_SUFFIX`].
 #[must_use]
-pub fn card_todo_file(name: &str) -> String { todo_file(&card_filename(name)) }
+pub fn card_todo_file(name: &str) -> String {
+    todo_file(&card_filename(name))
+}
 
 /// Whether `path` is a todo stub by filename convention (ends in
 /// [`TODO_SUFFIX`]). The complement of a finished `.ron` definition.

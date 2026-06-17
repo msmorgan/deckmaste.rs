@@ -3075,7 +3075,9 @@ mod tests {
         (state, snap, watcher)
     }
 
-    fn snap_cf(c: CharacteristicFilter) -> Filter { Filter::Characteristic(c) }
+    fn snap_cf(c: CharacteristicFilter) -> Filter {
+        Filter::Characteristic(c)
+    }
 
     /// `Named` over a snapshot reads the printed face name ([CR#201]).
     #[test]

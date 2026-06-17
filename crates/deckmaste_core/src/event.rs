@@ -13,7 +13,7 @@ use crate::Zone;
 /// step (the main phases — [CR#505.1]) is a bare variant. Nested enums
 /// round-trip in RON as `Beginning(Upkeep)`, `Combat(DeclareAttackers)`,
 /// `PostcombatMain`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Phase {
     /// The beginning phase ([CR#501]): untap, upkeep, draw.
     Beginning(BeginningStep),
@@ -28,7 +28,7 @@ pub enum Phase {
 }
 
 /// The steps of the beginning phase ([CR#501,502,503]).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum BeginningStep {
     /// [CR#502].
     Untap,
@@ -39,7 +39,7 @@ pub enum BeginningStep {
 }
 
 /// The steps of the combat phase ([CR#506,507,508,509,510,511]).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum CombatStep {
     /// [CR#507].
     BeginningOfCombat,
@@ -57,7 +57,7 @@ pub enum CombatStep {
 }
 
 /// The steps of the ending phase ([CR#512,513,514]).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum EndingStep {
     /// [CR#513].
     End,
@@ -66,7 +66,7 @@ pub enum EndingStep {
 }
 
 /// Whose turn a step-based trigger watches ([CR#503.1] "your upkeep", etc.).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum WhoseTurn {
     /// The controller's own turn.
     Your,
@@ -78,7 +78,7 @@ pub enum WhoseTurn {
 
 /// The state a `StateBecomes` transition watches ([CR#603.2e]). A small set
 /// today; variants accrete as cards force them.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum StateFilterEvent {
     /// Becomes tapped.
     Tapped,
@@ -108,7 +108,7 @@ pub enum StateFilterEvent {
 
 /// The machinery that demanded an event — the cause triple's AGENCY
 /// coordinate (mtg-rules events.md §3). Closed CR vocabulary.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Agency {
     /// {T}/cost components being paid ([CR#107.5], "sacrificed to pay").
     CostPayment,
@@ -135,7 +135,7 @@ pub enum Agency {
 /// object/controller (Karmic Justice's "a spell or ability an opponent
 /// controls"). Agent-IDENTITY equality ("destroyed this way") is a
 /// binding concern, not a pattern — it rides the event log.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct CausePattern {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub verb: Option<Ident>,
@@ -153,7 +153,7 @@ pub struct CausePattern {
 /// things. When one does, `AnyOf`/`Not` variants accrete HERE without
 /// respelling existing files. RON requires enum variant names, so the
 /// position always reads `Cause(verb: "Destroy")` — never a bare tuple.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Cause {
     /// Every PRESENT coordinate must match (the conjunction).
     Cause(CausePattern),
@@ -242,7 +242,9 @@ mod tests {
     use crate::CharacteristicFilter;
     use crate::Type;
 
-    fn read(source: &str) -> Event { crate::ron::options().from_str(source).unwrap() }
+    fn read(source: &str) -> Event {
+        crate::ron::options().from_str(source).unwrap()
+    }
 
     /// `by`/`on` default to match-anything when omitted (the `Filter::Any`
     /// default is load-bearing — removing it breaks `Performed(verb: …)`).

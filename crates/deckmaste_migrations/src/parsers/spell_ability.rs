@@ -39,7 +39,9 @@ fn render(parsed: &ParsedEffect) -> String {
 mod tests {
     use super::*;
 
-    fn spell(line: &str) -> Option<String> { resolve_line(line, CardKind::Spell).unwrap() }
+    fn spell(line: &str) -> Option<String> {
+        resolve_line(line, CardKind::Spell).unwrap()
+    }
 
     #[test]
     fn frames_targeted_damage_like_lightning_bolt() {

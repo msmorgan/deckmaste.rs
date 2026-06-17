@@ -17,7 +17,7 @@ use crate::effect::Effect;
 /// A spell ability — what an instant or sorcery does on resolution
 /// ([CR#113.3a]). Targets are an explicit announce list referenced by index
 /// (`Target(0)`); a single-instruction body needs no wrapper.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct SpellAbility {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub targets: Vec<TargetSpec>,
@@ -27,7 +27,7 @@ pub struct SpellAbility {
 /// An activated ability: paid with a cost and produces an effect
 /// ([CR#113.3b,602]). Targets are flattened here (the `Resolvable` wrapper of
 /// the design sketch is realized as `Effect::Modal` instead — see `effect`).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct ActivatedAbility {
     pub cost: Vec<CostComponent>,
     /// "Activate only [timing]" ([CR#602.5d..602.5e]) — an `Only` window
@@ -52,7 +52,7 @@ pub struct ActivatedAbility {
 /// triggering ([CR#603.2h]) or an activated ability being activated
 /// ([CR#602.5b]). Per object: a reminted object (zone change) starts fresh;
 /// a controller change does not reset it ([CR#602.5b]).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum UseLimit {
     /// "only once each turn" ([CR#603.2h] / [CR#602.5b]).
     OncePerTurn,
@@ -63,7 +63,7 @@ pub enum UseLimit {
 /// A triggered ability ([CR#113.3c,603]). A named struct because it recurs:
 /// delayed ([CR#603.7]) and reflexive ([CR#603.12]) triggers are the same
 /// value, created inside an `Effect`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct TriggeredAbility {
     /// The event that triggers it ([CR#603.2]).
     pub event: Event,
@@ -80,7 +80,7 @@ pub struct TriggeredAbility {
 
 /// A static ability ([CR#113.3d,604]). Its duration is implicit: while it
 /// functions ([CR#611.3]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct StaticAbility {
     /// When the ability functions, if conditional ([CR#611.3a] — the effect
     /// is never locked in; it applies to whatever its text indicates).
@@ -96,12 +96,14 @@ pub struct StaticAbility {
 /// A `skip_serializing_if` predicate: a `false` bool is omitted from RON.
 /// serde requires the predicate to take `&T`, hence the by-ref bool.
 #[expect(clippy::trivially_copy_pass_by_ref)]
-pub(crate) fn is_false(b: &bool) -> bool { !*b }
+pub(crate) fn is_false(b: &bool) -> bool {
+    !*b
+}
 
 /// How a modal spell or ability's modes are chosen ([CR#700.2]). `up_to` is the
 /// "up to N" form ([CR#700.2]); `repeats` allows choosing the same mode more
 /// than once ([CR#700.2d]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct ChooseSpec {
     pub count: Count,
     #[serde(default, skip_serializing_if = "is_false")]
@@ -112,7 +114,7 @@ pub struct ChooseSpec {
 
 /// One mode of a modal spell or ability ([CR#700.2]). Each mode owns its target
 /// list ([CR#700.2c,115.8]) and may carry a per-mode cost ([CR#700.2h]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct Mode {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub targets: Vec<TargetSpec>,
@@ -210,7 +212,9 @@ mod tests {
     use crate::cost::CostComponent;
     use crate::effect::Effect;
 
-    fn read_ability(source: &str) -> Ability { crate::ron::options().from_str(source).unwrap() }
+    fn read_ability(source: &str) -> Ability {
+        crate::ron::options().from_str(source).unwrap()
+    }
 
     #[test]
     fn activated_ability_parses() {

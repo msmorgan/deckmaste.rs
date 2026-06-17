@@ -104,17 +104,23 @@ pub struct CombatState {
 impl CombatState {
     /// Returns `true` if `o` has been declared as an attacker.
     #[must_use]
-    pub fn is_attacking(&self, o: ObjectId) -> bool { self.attackers.contains(&o) }
+    pub fn is_attacking(&self, o: ObjectId) -> bool {
+        self.attackers.contains(&o)
+    }
 
     /// Returns `true` if `attacker` is a blocked creature. This is **sticky**
     /// ([CR#509.1h]): it stays true even after all of `attacker`'s blockers
     /// have left combat.
     #[must_use]
-    pub fn is_blocked(&self, attacker: ObjectId) -> bool { self.blocked.contains(&attacker) }
+    pub fn is_blocked(&self, attacker: ObjectId) -> bool {
+        self.blocked.contains(&attacker)
+    }
 
     /// All declared attackers, in declaration order.
     #[must_use]
-    pub fn attackers(&self) -> &[ObjectId] { &self.attackers }
+    pub fn attackers(&self) -> &[ObjectId] {
+        &self.attackers
+    }
 
     /// The *live* blockers of `attacker` ([CR#510.1c] divides damage among
     /// them). Empty slice if `attacker` is unblocked or its blockers have all
@@ -173,7 +179,9 @@ impl CombatState {
 mod tests {
     use super::*;
 
-    fn id(n: u32) -> ObjectId { ObjectId::from_raw(u64::from(n)) }
+    fn id(n: u32) -> ObjectId {
+        ObjectId::from_raw(u64::from(n))
+    }
 
     #[test]
     fn declaring_attacker_makes_is_attacking_true() {

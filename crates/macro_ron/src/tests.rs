@@ -58,10 +58,14 @@ fn kinds() -> KindSet {
     kinds
 }
 
-fn empty() -> MacroSet { MacroSet::new(kinds()).with_options(options()) }
+fn empty() -> MacroSet {
+    MacroSet::new(kinds()).with_options(options())
+}
 
 /// Parses a definition from file-shaped source, as plugin loading does.
-fn def(source: &str) -> MacroDef { options().from_str(source).unwrap() }
+fn def(source: &str) -> MacroDef {
+    options().from_str(source).unwrap()
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 enum Type {

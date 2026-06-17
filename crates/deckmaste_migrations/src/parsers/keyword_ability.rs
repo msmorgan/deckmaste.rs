@@ -382,7 +382,9 @@ fn quality_filter(q: &str) -> Option<String> {
 mod tests {
     use super::*;
 
-    fn bare(token: &str) -> Option<String> { bare_keyword(token).unwrap() }
+    fn bare(token: &str) -> Option<String> {
+        bare_keyword(token).unwrap()
+    }
 
     #[test]
     fn intrinsic_keywords_render_wrapped() {

@@ -79,7 +79,9 @@ impl<'m> ReadCtx<'m> {
         }
     }
 
-    fn splice(&self, s: String) -> &str { self.splices.push_get(s.into_boxed_str()) }
+    fn splice(&self, s: String) -> &str {
+        self.splices.push_get(s.into_boxed_str())
+    }
 }
 
 /// A macro expansion in flight: the invocation's arguments, which the body's
@@ -480,7 +482,9 @@ impl<'de> DeserializeSeed<'de> for Children {
 impl<'de> Visitor<'de> for Children {
     type Value = Vec<&'de RawValue>;
 
-    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result { f.write_str("untagged content") }
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("untagged content")
+    }
 
     leaf_visits! {
         visit_bool(bool),
@@ -898,7 +902,9 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
         )
     }
 
-    fn is_human_readable(&self) -> bool { self.de.is_human_readable() }
+    fn is_human_readable(&self) -> bool {
+        self.de.is_human_readable()
+    }
 }
 
 /// Checks one captured argument against its declared param type, naming the
@@ -1086,7 +1092,9 @@ struct EnumIntercept<'de, 'f, V> {
 impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
     type Value = V::Value;
 
-    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result { self.visitor.expecting(f) }
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.visitor.expecting(f)
+    }
 
     fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
         let (ident, variant) = data.variant_seed(IdentSeed)?;
@@ -1248,7 +1256,9 @@ macro_rules! forward_visits {
 impl<'de, V: Visitor<'de>> Visitor<'de> for Wrap<'de, '_, V> {
     type Value = V::Value;
 
-    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result { self.visitor.expecting(f) }
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.visitor.expecting(f)
+    }
 
     forward_visits! {
         visit_bool: bool,
@@ -1260,13 +1270,17 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for Wrap<'de, '_, V> {
         visit_bytes: &[u8], visit_borrowed_bytes: &'de [u8], visit_byte_buf: Vec<u8>,
     }
 
-    fn visit_none<E: serde::de::Error>(self) -> Result<Self::Value, E> { self.visitor.visit_none() }
+    fn visit_none<E: serde::de::Error>(self) -> Result<Self::Value, E> {
+        self.visitor.visit_none()
+    }
 
     fn visit_some<D: Deserializer<'de>>(self, de: D) -> Result<Self::Value, D::Error> {
         self.visitor.visit_some(MacroAware::with_ctx(de, self.ctx))
     }
 
-    fn visit_unit<E: serde::de::Error>(self) -> Result<Self::Value, E> { self.visitor.visit_unit() }
+    fn visit_unit<E: serde::de::Error>(self) -> Result<Self::Value, E> {
+        self.visitor.visit_unit()
+    }
 
     fn visit_newtype_struct<D: Deserializer<'de>>(self, de: D) -> Result<Self::Value, D::Error> {
         self.visitor
@@ -1326,7 +1340,9 @@ impl<'de, A: SeqAccess<'de>> SeqAccess<'de> for WrapSeq<'de, '_, A> {
         })
     }
 
-    fn size_hint(&self) -> Option<usize> { self.seq.size_hint() }
+    fn size_hint(&self) -> Option<usize> {
+        self.seq.size_hint()
+    }
 }
 
 struct WrapMap<'de, 'f, A> {
@@ -1359,7 +1375,9 @@ impl<'de, A: MapAccess<'de>> MapAccess<'de> for WrapMap<'de, '_, A> {
         })
     }
 
-    fn size_hint(&self) -> Option<usize> { self.map.size_hint() }
+    fn size_hint(&self) -> Option<usize> {
+        self.map.size_hint()
+    }
 }
 
 struct WrapEnum<'de, 'f, A> {
@@ -1398,7 +1416,9 @@ struct WrapVariant<'de, 'f, A> {
 impl<'de, A: VariantAccess<'de>> VariantAccess<'de> for WrapVariant<'de, '_, A> {
     type Error = A::Error;
 
-    fn unit_variant(self) -> Result<(), Self::Error> { self.variant.unit_variant() }
+    fn unit_variant(self) -> Result<(), Self::Error> {
+        self.variant.unit_variant()
+    }
 
     fn newtype_variant_seed<S: DeserializeSeed<'de>>(
         self,

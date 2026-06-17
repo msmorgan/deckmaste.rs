@@ -51,7 +51,9 @@ pub enum Selection {
 /// reference embeds directly; kept for the call sites that build a selection
 /// from a reference value.
 impl From<Reference> for Selection {
-    fn from(reference: Reference) -> Self { Selection::Ref(reference) }
+    fn from(reference: Reference) -> Self {
+        Selection::Ref(reference)
+    }
 }
 
 #[cfg(test)]
@@ -63,9 +65,13 @@ mod tests {
     use crate::Quantity;
     use crate::Type;
 
-    fn read(source: &str) -> Selection { crate::ron::options().from_str(source).unwrap() }
+    fn read(source: &str) -> Selection {
+        crate::ron::options().from_str(source).unwrap()
+    }
 
-    fn to_string(value: &Selection) -> String { crate::ron::options().to_string(value).unwrap() }
+    fn to_string(value: &Selection) -> String {
+        crate::ron::options().to_string(value).unwrap()
+    }
 
     #[test]
     fn quantifiers_wrap_filters() {

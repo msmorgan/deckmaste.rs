@@ -41,7 +41,9 @@ mod tests {
     use crate::Quantity;
     use crate::Type;
 
-    fn read(source: &str) -> TargetSpec { crate::ron::options().from_str(source).unwrap() }
+    fn read(source: &str) -> TargetSpec {
+        crate::ron::options().from_str(source).unwrap()
+    }
 
     fn creature_filter() -> Filter {
         Filter::Characteristic(CharacteristicFilter::Type(Type::Creature))

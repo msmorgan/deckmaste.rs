@@ -20,7 +20,7 @@ use crate::color::ColorOrColorless;
 ///
 /// Not `Copy`: `OneOf` carries a `Vec`. Nothing `Copy` holds a `ManaSpec`
 /// (`Action`/`Token` are `Clone`), so the spec stays `Clone`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum ManaSpec {
     AnyColor,
     /// One mana of a color the controller chooses from a fixed set on
@@ -32,11 +32,15 @@ pub enum ManaSpec {
 }
 
 impl From<ColorOrColorless> for ManaSpec {
-    fn from(color_or_colorless: ColorOrColorless) -> Self { Self::Specific(color_or_colorless) }
+    fn from(color_or_colorless: ColorOrColorless) -> Self {
+        Self::Specific(color_or_colorless)
+    }
 }
 
 impl From<Color> for ManaSpec {
-    fn from(color: Color) -> Self { Self::Specific(color.into()) }
+    fn from(color: Color) -> Self {
+        Self::Specific(color.into())
+    }
 }
 
 /// The component symbols hybrid/phyrexian symbols are built from: a generic
@@ -44,7 +48,7 @@ impl From<Color> for ManaSpec {
 ///
 /// The untagged Color variant serializes transparently, so the RON stays
 /// flat: `White`, not `Color(White)`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum SimpleManaSymbol {
     Generic(crate::Uint),
     #[serde(untagged)]
@@ -72,20 +76,26 @@ impl SimpleManaSymbol {
 }
 
 impl From<Color> for SimpleManaSymbol {
-    fn from(color: Color) -> Self { Self::Specific(color.into()) }
+    fn from(color: Color) -> Self {
+        Self::Specific(color.into())
+    }
 }
 
 impl From<ColorOrColorless> for SimpleManaSymbol {
-    fn from(color: ColorOrColorless) -> Self { Self::Specific(color) }
+    fn from(color: ColorOrColorless) -> Self {
+        Self::Specific(color)
+    }
 }
 
 impl From<crate::Uint> for SimpleManaSymbol {
-    fn from(amount: crate::Uint) -> Self { Self::Generic(amount) }
+    fn from(amount: crate::Uint) -> Self {
+        Self::Generic(amount)
+    }
 }
 
 /// The untagged Simple variant serializes transparently, so the RON stays
 /// flat: `Generic(2)`, not `Simple(Generic(2))`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum ManaSymbol {
     Variable,
     Snow,
@@ -96,15 +106,21 @@ pub enum ManaSymbol {
 }
 
 impl From<Color> for ManaSymbol {
-    fn from(color: Color) -> Self { Self::Simple(color.into()) }
+    fn from(color: Color) -> Self {
+        Self::Simple(color.into())
+    }
 }
 
 impl From<ColorOrColorless> for ManaSymbol {
-    fn from(color: ColorOrColorless) -> Self { Self::Simple(color.into()) }
+    fn from(color: ColorOrColorless) -> Self {
+        Self::Simple(color.into())
+    }
 }
 
 impl From<crate::Uint> for ManaSymbol {
-    fn from(amount: crate::Uint) -> Self { Self::Simple(amount.into()) }
+    fn from(amount: crate::Uint) -> Self {
+        Self::Simple(amount.into())
+    }
 }
 
 /// A rider a producing effect attaches to the mana itself ([CR#106.6] —
@@ -145,7 +161,7 @@ pub enum ManaRider {
 /// The untagged `Bare` variant keeps existing spellings flat —
 /// `AddMana(Literal(1), AnyColor)` — while riders read tagged:
 /// `AddMana(Literal(1), WithRiders(mana: Red, riders: [SpendOnly(…)]))`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum ManaProduction {
     WithRiders {
         mana: ManaSpec,
@@ -166,20 +182,24 @@ impl ManaProduction {
 }
 
 impl<T: Into<ManaSpec>> From<T> for ManaProduction {
-    fn from(spec: T) -> Self { ManaProduction::Bare(spec.into()) }
+    fn from(spec: T) -> Self {
+        ManaProduction::Bare(spec.into())
+    }
 }
 
 /// A printed mana cost: the symbol list ([CR#202.1a]). Conventions
 /// ([CR#118.5..118.6]): an EMPTY list is "no mana cost" — an unpayable
 /// base (castable only via an alternative, [CR#118.6a]); the {0} cost is
 /// spelled `[Generic(0)]` — payable with nothing, but still a payment.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 #[serde(transparent)]
 pub struct ManaCost(Vec<ManaSymbol>);
 
 impl ManaCost {
     #[must_use]
-    pub fn is_empty(&self) -> bool { self.0.is_empty() }
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 
     /// The printed cost's mana value ([CR#202.3]): the total amount of mana,
     /// regardless of color. A hybrid symbol counts its largest component
@@ -201,17 +221,23 @@ impl ManaCost {
 }
 
 impl From<Vec<ManaSymbol>> for ManaCost {
-    fn from(symbols: Vec<ManaSymbol>) -> Self { Self(symbols) }
+    fn from(symbols: Vec<ManaSymbol>) -> Self {
+        Self(symbols)
+    }
 }
 
 impl From<ManaCost> for Vec<ManaSymbol> {
-    fn from(cost: ManaCost) -> Self { cost.0 }
+    fn from(cost: ManaCost) -> Self {
+        cost.0
+    }
 }
 
 impl std::ops::Deref for ManaCost {
     type Target = [ManaSymbol];
 
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 /// The error type for [`ManaSymbol`] and [`ManaCost`]'s [`FromStr`] impls.
@@ -309,7 +335,9 @@ mod tests {
 
     use super::*;
 
-    fn symbol(s: &str) -> Result<ManaSymbol, ParseManaError> { s.parse() }
+    fn symbol(s: &str) -> Result<ManaSymbol, ParseManaError> {
+        s.parse()
+    }
 
     #[test]
     fn mana_symbols() {

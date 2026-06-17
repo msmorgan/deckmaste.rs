@@ -129,7 +129,9 @@ fn embed_construct(ty: &Ident, v: &Variant) -> TokenStream {
 /// `__` + type + variant (e.g. `__ClauseWhen`). The name never appears in
 /// RON text (the variant reads/writes the helper as newtype content), so no
 /// `#[serde(rename)]` is needed.
-fn helper_ident(ty: &Ident, v_ident: &Ident) -> Ident { format_ident!("__{ty}{v_ident}") }
+fn helper_ident(ty: &Ident, v_ident: &Ident) -> Ident {
+    format_ident!("__{ty}{v_ident}")
+}
 
 /// One generated helper struct per struct variant, emitted before the impls.
 /// serde rejects field attributes like `#[serde(default)]` on enum
@@ -151,7 +153,7 @@ fn gen_struct_helpers(input: &Input) -> TokenStream {
             quote! { #(#attrs)* #name: #f_ty, }
         });
         Some(quote! {
-            #[derive(::serde::Serialize, ::serde::Deserialize)]
+            #[derive(::serde::Deserialize, ::serde::Serialize)]
             #[allow(non_camel_case_types)]
             struct #helper { #(#fields)* }
         })

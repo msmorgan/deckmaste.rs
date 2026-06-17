@@ -71,21 +71,33 @@ pub struct KindSet {
 
 impl KindSet {
     #[must_use]
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     /// Registers `kind`, replacing any previous registration of its name.
-    pub fn add(&mut self, kind: Kind) { self.kinds.insert(kind.name, kind); }
+    pub fn add(&mut self, kind: Kind) {
+        self.kinds.insert(kind.name, kind);
+    }
 
     /// Whether a kind of this name is registered.
     #[must_use]
-    pub fn contains(&self, name: &str) -> bool { self.kinds.contains_key(name) }
+    pub fn contains(&self, name: &str) -> bool {
+        self.kinds.contains_key(name)
+    }
 
     /// How many kinds are registered.
     #[must_use]
-    pub fn len(&self) -> usize { self.kinds.len() }
+    pub fn len(&self) -> usize {
+        self.kinds.len()
+    }
 
     #[must_use]
-    pub fn is_empty(&self) -> bool { self.kinds.is_empty() }
+    pub fn is_empty(&self) -> bool {
+        self.kinds.is_empty()
+    }
 
-    pub(crate) fn get(&self, name: &str) -> Option<&Kind> { self.kinds.get(name) }
+    pub(crate) fn get(&self, name: &str) -> Option<&Kind> {
+        self.kinds.get(name)
+    }
 }

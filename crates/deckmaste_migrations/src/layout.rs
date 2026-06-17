@@ -44,9 +44,13 @@ impl PluginLayout {
         self.dir(KEYWORD_ABILITIES_DIR)
     }
 
-    pub fn keyword_actions_dir(&self) -> anyhow::Result<PathBuf> { self.dir(KEYWORD_ACTIONS_DIR) }
+    pub fn keyword_actions_dir(&self) -> anyhow::Result<PathBuf> {
+        self.dir(KEYWORD_ACTIONS_DIR)
+    }
 
-    pub fn ability_words_dir(&self) -> anyhow::Result<PathBuf> { self.dir(ABILITY_WORDS_DIR) }
+    pub fn ability_words_dir(&self) -> anyhow::Result<PathBuf> {
+        self.dir(ABILITY_WORDS_DIR)
+    }
 
     /// Where a category's subtype-definition macros live —
     /// `macros/types/<category>/` — under `macros/` since they are ordinary
@@ -76,5 +80,7 @@ impl PluginLayout {
         Some(builtin.join(format!("{MACROS_DIR}/types/{category}")))
     }
 
-    pub fn cards_dir(&self) -> anyhow::Result<PathBuf> { self.dir(CARDS_DIR) }
+    pub fn cards_dir(&self) -> anyhow::Result<PathBuf> {
+        self.dir(CARDS_DIR)
+    }
 }

@@ -363,7 +363,7 @@ pub enum GameEvent {
 /// How a permanent enters the battlefield ([CR#110.5] status;
 /// counters/face-down are later). Present on a `ZoneWillChange` only when `to
 /// == Battlefield`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct EnterStatus {
     pub tapped: bool,
     /// The host this permanent enters attached to ([CR#303.4]), folded in from
@@ -439,7 +439,9 @@ pub enum Occurrence {
 impl Occurrence {
     /// Convenience: wrap a single event.
     #[must_use]
-    pub fn single(event: GameEvent) -> Self { Occurrence::Single(event) }
+    pub fn single(event: GameEvent) -> Self {
+        Occurrence::Single(event)
+    }
 }
 
 #[cfg(test)]

@@ -10,7 +10,9 @@ pub(crate) struct Catalog<'a> {
 }
 
 impl<'a> Catalog<'a> {
-    pub fn parse(bytes: &'a [u8]) -> serde_json::Result<Self> { serde_json::from_slice(bytes) }
+    pub fn parse(bytes: &'a [u8]) -> serde_json::Result<Self> {
+        serde_json::from_slice(bytes)
+    }
 }
 
 /// Reads a scryfall catalog file (e.g. "creature-types"); parse with

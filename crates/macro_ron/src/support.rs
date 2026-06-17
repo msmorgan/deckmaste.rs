@@ -92,11 +92,15 @@ pub struct Pair<A, B>(PhantomData<(A, B)>);
 
 impl<A, B> Pair<A, B> {
     #[must_use]
-    pub fn new() -> Self { Pair(PhantomData) }
+    pub fn new() -> Self {
+        Pair(PhantomData)
+    }
 }
 
 impl<A, B> Default for Pair<A, B> {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<'de, A: Deserialize<'de>, B: Deserialize<'de>> Visitor<'de> for Pair<A, B> {
@@ -122,11 +126,15 @@ pub struct Triple<A, B, C>(PhantomData<(A, B, C)>);
 
 impl<A, B, C> Triple<A, B, C> {
     #[must_use]
-    pub fn new() -> Self { Triple(PhantomData) }
+    pub fn new() -> Self {
+        Triple(PhantomData)
+    }
 }
 
 impl<A, B, C> Default for Triple<A, B, C> {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<'de, A, B, C> Visitor<'de> for Triple<A, B, C>

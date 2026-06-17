@@ -6,7 +6,9 @@ use serde::Serialize;
 
 /// The shared config from [`deckmaste_core::ron`]: its extensions are
 /// defaults, so no `#![enable(...)]` header is emitted.
-pub(crate) fn ron_options() -> ron::Options { deckmaste_core::ron::options() }
+pub(crate) fn ron_options() -> ron::Options {
+    deckmaste_core::ron::options()
+}
 
 /// Multi-line text is written verbatim and arrays are chopped, one element
 /// per line. Tuple members (e.g. `Hybrid(...)` mana symbols) stay inline,

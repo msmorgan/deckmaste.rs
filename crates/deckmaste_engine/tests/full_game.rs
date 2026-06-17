@@ -75,7 +75,9 @@ fn full_game_is_deterministic() {
     );
 }
 
-fn pct(n: u32, total: u32) -> f64 { 100_f64 * f64::from(n) / f64::from(total) }
+fn pct(n: u32, total: u32) -> f64 {
+    100_f64 * f64::from(n) / f64::from(total)
+}
 
 /// Shuffles up 50,000 games (seeds `0..50_000`, run in parallel with rayon) and
 /// prints matchup statistics. `#[ignore]`d so it stays out of the normal suite;

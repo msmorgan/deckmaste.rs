@@ -272,7 +272,9 @@ mod tests {
         .unwrap()
     }
 
-    fn deck(card: &Arc<Card>, n: usize) -> Vec<Arc<Card>> { vec![Arc::clone(card); n] }
+    fn deck(card: &Arc<Card>, n: usize) -> Vec<Arc<Card>> {
+        vec![Arc::clone(card); n]
+    }
 
     /// A two-player game; player 0's deck is Grizzly Bears.
     /// Returns the state plus a creature object forced onto the battlefield.

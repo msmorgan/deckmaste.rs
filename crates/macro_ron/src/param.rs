@@ -127,11 +127,15 @@ impl ParamTypeSet {
 
     /// The validator for `name`, if registered.
     #[must_use]
-    pub fn get(&self, name: &str) -> Option<Validator> { self.validators.get(name).copied() }
+    pub fn get(&self, name: &str) -> Option<Validator> {
+        self.validators.get(name).copied()
+    }
 
     /// Whether `name` is a registered param type.
     #[must_use]
-    pub fn contains(&self, name: &str) -> bool { self.validators.contains_key(name) }
+    pub fn contains(&self, name: &str) -> bool {
+        self.validators.contains_key(name)
+    }
 }
 
 impl Default for ParamTypeSet {

@@ -31,10 +31,16 @@ fn canon() -> Plugin {
     .unwrap()
 }
 
-fn card(name: &str) -> Arc<Card> { Arc::new(canon().card(name).unwrap()) }
+fn card(name: &str) -> Arc<Card> {
+    Arc::new(canon().card(name).unwrap())
+}
 
-fn green() -> deckmaste_core::ColorOrColorless { deckmaste_core::Color::Green.into() }
-fn red() -> deckmaste_core::ColorOrColorless { deckmaste_core::Color::Red.into() }
+fn green() -> deckmaste_core::ColorOrColorless {
+    deckmaste_core::Color::Green.into()
+}
+fn red() -> deckmaste_core::ColorOrColorless {
+    deckmaste_core::Color::Red.into()
+}
 
 fn find_in_hand(state: &GameState, player: PlayerId, name: &str) -> ObjectId {
     fn face_name(state: &GameState, id: ObjectId) -> &str {
@@ -115,7 +121,9 @@ fn testing() -> Plugin {
     .unwrap()
 }
 
-fn x_draw() -> Arc<Card> { Arc::new(testing().card("Sorcery X Draw").unwrap()) }
+fn x_draw() -> Arc<Card> {
+    Arc::new(testing().card("Sorcery X Draw").unwrap())
+}
 
 /// Player 0 holds `Sorcery X Draw` ({X}) and Forests; player 1 holds Forests.
 fn x_game(seed: u64) -> GameState {

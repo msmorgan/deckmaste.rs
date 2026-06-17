@@ -51,10 +51,16 @@ fn canon() -> Plugin {
 }
 
 /// A canon card by name, ready for a deck list.
-fn card(name: &str) -> Arc<Card> { Arc::new(canon().card(name).unwrap()) }
+fn card(name: &str) -> Arc<Card> {
+    Arc::new(canon().card(name).unwrap())
+}
 
-fn red() -> ColorOrColorless { Color::Red.into() }
-fn green() -> ColorOrColorless { Color::Green.into() }
+fn red() -> ColorOrColorless {
+    Color::Red.into()
+}
+fn green() -> ColorOrColorless {
+    Color::Green.into()
+}
 
 /// The face name of a card-backed object.
 ///

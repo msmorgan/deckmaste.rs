@@ -58,7 +58,9 @@ pub enum Params {
 }
 
 impl Default for Params {
-    fn default() -> Self { Params::Positional(vec![]) }
+    fn default() -> Self {
+        Params::Positional(vec![])
+    }
 }
 
 impl<'de> Deserialize<'de> for Params {
@@ -142,7 +144,9 @@ fn kind_names<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Ident>, 
     impl<'de> Visitor<'de> for KindName {
         type Value = Ident;
 
-        fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result { f.write_str("a kind name") }
+        fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.write_str("a kind name")
+        }
 
         fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
             let (ident, variant) = data.variant_seed(IdentSeed)?;
@@ -174,10 +178,14 @@ fn kind_names<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Ident>, 
 
 impl MacroDef {
     #[must_use]
-    pub fn body(&self) -> &str { &self.body }
+    pub fn body(&self) -> &str {
+        &self.body
+    }
 
     #[must_use]
-    pub fn template(&self) -> Option<&str> { self.template.as_deref() }
+    pub fn template(&self) -> Option<&str> {
+        self.template.as_deref()
+    }
 }
 
 /// Why a macro couldn't be registered.
@@ -337,7 +345,9 @@ impl MacroSet {
         self
     }
 
-    pub(crate) fn options(&self) -> &ron::Options { &self.options }
+    pub(crate) fn options(&self) -> &ron::Options {
+        &self.options
+    }
 
     /// The macro `name` for positions of the type named `kind`, if defined.
     #[must_use]
@@ -367,7 +377,9 @@ impl MacroSet {
 
     /// Whether some macro expands to the struct named `name`, i.e. whether
     /// that parse position needs macro interception.
-    pub(crate) fn expands_to_struct(&self, name: &str) -> bool { self.macros.contains_key(name) }
+    pub(crate) fn expands_to_struct(&self, name: &str) -> bool {
+        self.macros.contains_key(name)
+    }
 
     fn check_kinds(&self, def: &MacroDef) -> Result<(), InsertError> {
         for &kind in &def.kinds {

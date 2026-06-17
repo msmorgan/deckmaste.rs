@@ -67,7 +67,9 @@ impl DecisionPoint {
     /// `self.pending.decider_player()` so callers needn't reach through the
     /// `pending` field.
     #[must_use]
-    pub fn decider_player(&self) -> PlayerId { self.pending.decider_player() }
+    pub fn decider_player(&self) -> PlayerId {
+        self.pending.decider_player()
+    }
 }
 
 impl PendingDecision {

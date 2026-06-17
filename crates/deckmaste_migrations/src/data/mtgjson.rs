@@ -22,7 +22,9 @@ pub struct AtomicCards<'a> {
 }
 
 impl<'a> AtomicCards<'a> {
-    pub fn parse(bytes: &'a [u8]) -> serde_json::Result<Self> { serde_json::from_slice(bytes) }
+    pub fn parse(bytes: &'a [u8]) -> serde_json::Result<Self> {
+        serde_json::from_slice(bytes)
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]

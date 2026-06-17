@@ -56,7 +56,9 @@ mod tests {
     use crate::reference::Reference;
     use crate::selection::Selection;
 
-    fn read(source: &str) -> CostComponent { crate::ron::options().from_str(source).unwrap() }
+    fn read(source: &str) -> CostComponent {
+        crate::ron::options().from_str(source).unwrap()
+    }
 
     #[test]
     fn cost_components_parse() {

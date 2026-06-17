@@ -79,7 +79,9 @@ fn ron_files_under(dir: &Path, out: &mut Vec<PathBuf>) {
 /// A keyword macro under `keyword/derived/` is a parameterized instance of a
 /// base composite (rules-taxonomy §10), classified by its delegate rather than
 /// by its own name — the skill enumerates only the umbrella keyword.
-fn is_derived(path: &Path) -> bool { path.components().any(|c| c.as_os_str() == "derived") }
+fn is_derived(path: &Path) -> bool {
+    path.components().any(|c| c.as_os_str() == "derived")
+}
 
 /// The leading identifier of a macro body — the base keyword a `derived/`
 /// variant delegates to, e.g. `Landwalk` from

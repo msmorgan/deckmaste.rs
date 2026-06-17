@@ -14,14 +14,16 @@ use crate::ability::Ability;
 /// PREDEFINED NAME ([CR#111.10]) is a foreseeable `Named(Ident)` sibling,
 /// and it will land here without respelling existing files (which already
 /// read `Token(types: …)` — the variant name is the struct name).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum TokenSpec {
     /// An inline token definition.
     Token(Token),
 }
 
 impl From<Token> for TokenSpec {
-    fn from(token: Token) -> Self { TokenSpec::Token(token) }
+    fn from(token: Token) -> Self {
+        TokenSpec::Token(token)
+    }
 }
 
 /// A token permanent definition ([CR#111]). The creating effect defines the
@@ -30,7 +32,7 @@ impl From<Token> for TokenSpec {
 /// cost, so its defined color is carried the same way `CardFace` carries a
 /// printed indicator). Name is still omitted — it defaults to the subtypes
 /// plus "Token" at synthesis ([CR#111.4]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct Token {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub color_indicator: Vec<Color>,
@@ -60,7 +62,9 @@ mod tests {
     use crate::reference::Reference;
     use crate::selection::Selection;
 
-    fn read(source: &str) -> Token { crate::ron::options().from_str(source).unwrap() }
+    fn read(source: &str) -> Token {
+        crate::ron::options().from_str(source).unwrap()
+    }
 
     /// The `Create` position reads through the single-variant wrapper with
     /// the SAME spelling files always used — `Token(types: …)`, the struct

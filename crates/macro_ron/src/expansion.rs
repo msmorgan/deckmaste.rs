@@ -38,7 +38,9 @@ impl ExpansionArgs {
     /// `default` so a nullary invocation's `Expanded(name: …, value: …)` reads
     /// without an `args` field.
     #[must_use]
-    pub fn none() -> Self { ExpansionArgs::Positional(Vec::new()) }
+    pub fn none() -> Self {
+        ExpansionArgs::Positional(Vec::new())
+    }
 
     /// Whether there are no arguments at all — drives the nullary
     /// serialization path (`serialize_unit_variant`, just the name).
@@ -164,7 +166,9 @@ mod tests {
         Any,
     }
 
-    fn inner() -> Inner { Inner::Any }
+    fn inner() -> Inner {
+        Inner::Any
+    }
 
     fn write<T: Serialize>(value: &T) -> String {
         ron::Options::default().to_string(value).unwrap()

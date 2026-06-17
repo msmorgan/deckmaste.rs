@@ -35,7 +35,9 @@ pub struct Driver {
 
 impl Driver {
     #[must_use]
-    pub fn new(state: GameState, strategy: Box<dyn Strategy>) -> Self { Self { state, strategy } }
+    pub fn new(state: GameState, strategy: Box<dyn Strategy>) -> Self {
+        Self { state, strategy }
+    }
 
     /// Escape valve: if the engine ever fails to open a decision window, return
     /// `Stop::Budget` rather than hang the UI.

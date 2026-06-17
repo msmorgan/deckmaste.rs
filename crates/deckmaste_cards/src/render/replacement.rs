@@ -34,4 +34,6 @@ pub(super) fn replacement(r: &Replacement, ctx: &Ctx) -> String {
     }
 }
 
-fn trim_suffix_period(s: &str) -> String { s.strip_suffix('.').unwrap_or(s).to_string() }
+fn trim_suffix_period(s: &str) -> String {
+    s.strip_suffix('.').unwrap_or(s).to_string()
+}

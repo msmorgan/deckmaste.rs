@@ -150,7 +150,9 @@ mod tests {
     /// deckmaste's dialect. (`MacroDef`'s body field is crate-private in
     /// `macro_ron`, so file-shaped source is the construction path here —
     /// which is also what real definitions are.)
-    fn def(source: &str) -> MacroDef { deckmaste_core::ron::options().from_str(source).unwrap() }
+    fn def(source: &str) -> MacroDef {
+        deckmaste_core::ron::options().from_str(source).unwrap()
+    }
 
     /// The registry matches on serde type names. The derived `kind()`s
     /// self-name from the Rust ident, so they track renames by
@@ -160,7 +162,9 @@ mod tests {
     /// length check).
     #[test]
     fn kind_names_track_the_core_types() {
-        fn name_of<T>() -> &'static str { std::any::type_name::<T>().rsplit("::").next().unwrap() }
+        fn name_of<T>() -> &'static str {
+            std::any::type_name::<T>().rsplit("::").next().unwrap()
+        }
         let names = [
             name_of::<Ability>(),
             name_of::<Action>(),

@@ -15,7 +15,9 @@ mod subtypes;
 /// Whether a definition still needs generating, keyed on its finished `.ron`
 /// path: a stub writer (re)generates its stub only while the finished `.ron`
 /// doesn't exist.
-fn is_unimplemented(final_path: &Path) -> bool { !final_path.exists() }
+fn is_unimplemented(final_path: &Path) -> bool {
+    !final_path.exists()
+}
 
 /// Generate every macro stub + subtype meta-invocation into `plugin_dir`.
 ///

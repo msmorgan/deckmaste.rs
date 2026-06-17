@@ -378,7 +378,9 @@ mod tests {
     use super::lint_card_abilities;
     use super::lint_card_subtypes;
 
-    fn dummy_path() -> PathBuf { PathBuf::from("test/dummy.ron") }
+    fn dummy_path() -> PathBuf {
+        PathBuf::from("test/dummy.ron")
+    }
 
     /// `Draw` in a Do cost is flagged as ineligible.
     #[test]

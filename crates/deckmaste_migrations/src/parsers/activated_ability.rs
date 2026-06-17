@@ -48,7 +48,9 @@ fn render(cost: &[String], parsed: &ParsedEffect) -> String {
 mod tests {
     use super::*;
 
-    fn act(line: &str) -> Option<String> { resolve_line(line, CardKind::Permanent).unwrap() }
+    fn act(line: &str) -> Option<String> {
+        resolve_line(line, CardKind::Permanent).unwrap()
+    }
 
     #[test]
     fn tap_damage_like_prodigal_sorcerer() {

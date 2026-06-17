@@ -156,7 +156,9 @@ pub fn render(card: &TodoCard) -> anyhow::Result<String> {
 mod tests {
     use super::*;
 
-    fn read(source: &str) -> TodoCard { crate::ron_output::ron_options().from_str(source).unwrap() }
+    fn read(source: &str) -> TodoCard {
+        crate::ron_output::ron_options().from_str(source).unwrap()
+    }
 
     /// An `Unparsed("…")` ability reads as the placeholder; a bare structured
     /// ability (`Flying`) reads as `Parsed` holding its verbatim RON.

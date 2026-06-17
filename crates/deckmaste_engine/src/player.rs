@@ -6,12 +6,14 @@ use deckmaste_core::Uint;
 use crate::object::ObjectId;
 
 /// A player identity: the index into `GameState::players`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct PlayerId(pub Uint);
 
 impl PlayerId {
     #[must_use]
-    pub fn index(self) -> usize { self.0 as usize }
+    pub fn index(self) -> usize {
+        self.0 as usize
+    }
 }
 
 /// One point of unspent mana ([CR#106.4]) with the riders the producing
@@ -31,7 +33,9 @@ impl ManaPool {
     /// A pool of exactly `units`, in the given order. Used to build the
     /// spendable sub-pool an affordability check runs over ([CR#106.6]).
     #[must_use]
-    pub fn from_units(units: Vec<ManaUnit>) -> Self { Self(units) }
+    pub fn from_units(units: Vec<ManaUnit>) -> Self {
+        Self(units)
+    }
 
     /// Add `amount` plain (riderless) units of `mana`.
     pub fn add(&mut self, mana: ColorOrColorless, amount: Uint) {
@@ -61,14 +65,20 @@ impl ManaPool {
     }
 
     #[must_use]
-    pub fn is_empty(&self) -> bool { self.0.is_empty() }
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 
     #[must_use]
-    pub fn units(&self) -> &[ManaUnit] { &self.0 }
+    pub fn units(&self) -> &[ManaUnit] {
+        &self.0
+    }
 
     /// [CR#500.5,106.4]: drop every unit (blanket empty; persistence-aware
     /// emptying arrives in a later task as `empty_after`).
-    pub fn clear(&mut self) { self.0.clear(); }
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
 
     /// [CR#500.5,106.4]: empty the pool as the `ending` step/phase ends, but
     /// RETAIN any unit whose `Persistent` marker has not yet expired
@@ -151,7 +161,9 @@ mod tests {
 
     use super::*;
 
-    fn some_rider() -> ManaRider { ManaRider::SpendOnly(Filter::Any) }
+    fn some_rider() -> ManaRider {
+        ManaRider::SpendOnly(Filter::Any)
+    }
 
     #[test]
     fn mana_pool_adds_reads_and_clears() {

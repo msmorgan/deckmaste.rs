@@ -10,7 +10,7 @@ use crate::ability::Ability;
 /// What bearing a subtype confers on objects that have it
 /// ([CR#305.6,714.3a,714.3c,714.4,704.5m]), typed by execution flavor so each
 /// piece gets the right semantics.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Property {
     /// Joins ability derivation like printed text: layer-6-strippable,
     /// stack-using if triggered ([CR#305.6,714.3a]). Boxed like

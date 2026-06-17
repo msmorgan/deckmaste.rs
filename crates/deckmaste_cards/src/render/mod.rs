@@ -71,7 +71,9 @@ pub(crate) struct Ctx<'a> {
 
 /// Convenience entry for a printed face.
 #[must_use]
-pub fn render_card_face(face: &CardFace) -> RenderedCard { render(&CardView::from(face)) }
+pub fn render_card_face(face: &CardFace) -> RenderedCard {
+    render(&CardView::from(face))
+}
 
 fn rules(view: &CardView) -> Vec<String> {
     let mut kw_line: Vec<String> = Vec::new();

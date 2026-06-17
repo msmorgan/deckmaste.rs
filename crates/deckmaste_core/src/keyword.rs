@@ -45,16 +45,22 @@ pub struct KeywordRef(pub Ident);
 
 impl KeywordRef {
     #[must_use]
-    pub fn as_str(&self) -> &'static str { self.0.as_str() }
+    pub fn as_str(&self) -> &'static str {
+        self.0.as_str()
+    }
 }
 
 impl From<&str> for KeywordRef {
-    fn from(s: &str) -> Self { KeywordRef(s.into()) }
+    fn from(s: &str) -> Self {
+        KeywordRef(s.into())
+    }
 }
 
 impl crate::Expand for KeywordRef {
     // A leaf: a name, never an expandable value.
-    fn expand_all(self) -> Self { self }
+    fn expand_all(self) -> Self {
+        self
+    }
 }
 
 impl serde::Serialize for KeywordRef {
@@ -167,7 +173,9 @@ impl KeywordAbility {
 }
 
 impl fmt::Display for KeywordAbility {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { f.write_str(self.as_str()) }
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 impl FromStr for KeywordAbility {

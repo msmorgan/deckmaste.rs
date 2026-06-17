@@ -90,7 +90,9 @@ fn parse_instead(line: &str) -> Option<String> {
 mod tests {
     use super::*;
 
-    fn rep(line: &str) -> Option<String> { resolve_line(line, CardKind::Permanent).unwrap() }
+    fn rep(line: &str) -> Option<String> {
+        resolve_line(line, CardKind::Permanent).unwrap()
+    }
 
     #[test]
     fn as_enters_self_pump_one_shot() {
