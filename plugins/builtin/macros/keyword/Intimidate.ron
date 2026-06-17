@@ -1,0 +1,15 @@
+// Intimidate = an evasion Cant(Block) [CR#702.13b]: "can't be blocked except by
+// artifact creatures and/or creatures that share a color with it" — a
+// blocker-quality predicate, Fear's shape with the color clause generalized.
+// The share-color half rides the Subject/Where bridge via SharesColorWith(This):
+// the candidate blocker (Subject) shares a color with the carrier (This).
+KeywordAbility(
+    name: "Intimidate",
+    template: "intimidate",
+    abilities: [Static(effects: [
+        Cant(Block(
+            on: Ref(This),
+            by: Not(OneOf([Type(Artifact), SharesColorWith(This)])),
+        )),
+    ])],
+)

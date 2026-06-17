@@ -1,0 +1,22 @@
+// SharesColorWith(ref): a Filter matching objects that share a color with
+// `ref` [CR#702.13b] — the candidate-relative predicate Intimidate needs, built
+// on the general Subject/Where bridge. The matched candidate is `Subject`, so
+// "shares a color with ref" is "for some color, both Subject and ref are that
+// color", over the five colors [CR#105.1]. `ref` is a bare Reference, e.g.
+// SharesColorWith(This). The 5-branch is INLINED, not a reuse of a SharesColor
+// condition macro: a macro body can't pass its own Param as an argument to a
+// nested macro invocation (the nested macro expands before the param binds), so
+// composition isn't available here — the set-theoretic ColorsOf/Intersect form
+// (which would compose) waits on a color-set value language.
+(
+    name: "SharesColorWith",
+    kinds: [Filter],
+    params: [Reference],
+    body: Where(OneOf([
+        AllOf([Is(Subject, ColorIs(White)), Is(Param(0), ColorIs(White))]),
+        AllOf([Is(Subject, ColorIs(Blue)), Is(Param(0), ColorIs(Blue))]),
+        AllOf([Is(Subject, ColorIs(Black)), Is(Param(0), ColorIs(Black))]),
+        AllOf([Is(Subject, ColorIs(Red)), Is(Param(0), ColorIs(Red))]),
+        AllOf([Is(Subject, ColorIs(Green)), Is(Param(0), ColorIs(Green))]),
+    ])),
+)

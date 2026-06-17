@@ -157,6 +157,7 @@ impl GameState {
                 bindings: None,
                 chosen: None,
                 x: None,
+                subject: None,
             };
             if !self.condition_holds(c, &frame) {
                 return false;
@@ -217,6 +218,7 @@ impl GameState {
             chosen: None,
             // A cost-payability gate reads no announced X.
             x: None,
+            subject: None,
         };
         // TODO(engine-cost-payment / deontics): [CR#119.8] "can't pay life" is
         // NOT YET ENFORCED. Under a continuous effect saying a player can't lose
