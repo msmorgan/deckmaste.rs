@@ -135,6 +135,7 @@ mod zone;
 pub use zone::Zones;
 
 mod strategy;
+pub use strategy::StrategyEvaluator;
 
 /// Self-play simulation harness for tests and benchmarks — not a stable API.
 #[doc(hidden)]

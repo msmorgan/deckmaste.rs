@@ -1,22 +1,30 @@
-//! Data-driven play strategies: authored RON play policy, a peer of [`Deck`].
+//! Data-driven play strategies: an authored RON play policy expressed over
+//! core's own expression vocabulary.
 //!
 //! A strategy is RON *data*, not a macro (the macro language has no control
-//! flow): its "sensing" half reuses core's `Condition` / `Filter` / `Count` /
-//! `Reference` vocabulary verbatim, and its branching is an ordered rule list
-//! the evaluator walks — the same way the engine walks `Vec<Ability>`. The
-//! types here are pure data; the evaluator that turns a strategy + game state
-//! into a decision lives in `deckmaste_engine`.
+//! flow): its "sensing" half reuses [`Condition`] / [`Filter`] / [`Count`] /
+//! `Reference` verbatim, and its branching is an ordered rule list an evaluator
+//! walks — the same way the engine walks `Vec<Ability>`. The types here are
+//! pure data; the evaluator that turns a strategy + game state into a decision
+//! lives in `deckmaste_engine`.
 //!
-//! [`Deck`]: crate::Deck
+//! Namespaced under this module and **not** re-exported at the crate root, so
+//! the rules-primitive namespace (`deckmaste_core::Condition`, …) stays
+//! separate from play policy (`deckmaste_core::strategy::Strategy`, …).
+//!
+//! [`Condition`]: crate::Condition
+//! [`Filter`]: crate::Filter
+//! [`Count`]: crate::Count
 
-use deckmaste_core::Condition;
-use deckmaste_core::Count;
-use deckmaste_core::Expand;
-use deckmaste_core::Expansion;
-use deckmaste_core::Filter;
-use deckmaste_core::SupportsMacros;
 use serde::Deserialize;
 use serde::Serialize;
+
+use crate::Condition;
+use crate::Count;
+use crate::Expand;
+use crate::Expansion;
+use crate::Filter;
+use crate::SupportsMacros;
 
 /// Which end of a ranked candidate set a selector picks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
@@ -34,7 +42,7 @@ pub enum Extremum {
 /// matching `among`. The workhorse of a strategy: most decisions reduce to
 /// "the X-est legal option".
 ///
-/// [`Count`]: deckmaste_core::Count
+/// [`Count`]: crate::Count
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Expand, Serialize)]
 pub struct Selector {
     /// Which end of the ranking to take.
@@ -122,9 +130,7 @@ pub struct Rule {
 }
 
 /// A complete play policy: a name and an ordered list of [`Rule`]s the
-/// evaluator walks top-to-bottom. Authored as RON, a peer of [`Deck`].
-///
-/// [`Deck`]: crate::Deck
+/// evaluator walks top-to-bottom. Authored as RON.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Strategy {
     /// Human-facing name.
@@ -139,11 +145,7 @@ mod tests {
     use super::*;
 
     fn read<T: serde::de::DeserializeOwned>(src: &str) -> T {
-        deckmaste_core::ron::options().from_str(src).unwrap()
-    }
-
-    fn def(src: &str) -> crate::macros::MacroDef {
-        deckmaste_core::ron::options().from_str(src).unwrap()
+        crate::ron::options().from_str(src).unwrap()
     }
 
     #[test]
@@ -157,10 +159,8 @@ mod tests {
     /// verbatim — the "sensing" vocabulary is reused, not re-invented.
     #[test]
     fn selector_embeds_core_count_and_filter() {
-        use deckmaste_core::Count;
-        use deckmaste_core::Filter;
-        use deckmaste_core::Reference;
-        use deckmaste_core::Stat;
+        use crate::Reference;
+        use crate::Stat;
         let s: Selector = read("(pick: Max, by: StatOf(This, Power), among: Any)");
         assert_eq!(s.pick, Extremum::Max);
         assert_eq!(s.by, Count::StatOf(Reference::This, Stat::Power));
@@ -230,7 +230,6 @@ mod tests {
     /// a core `Condition` (`when`) with a `Preference` (`prefer`).
     #[test]
     fn strategy_reads_full_with_ordered_rules() {
-        use deckmaste_core::Condition;
         let s: Strategy = read(
             r#"(
                 name: "Test Aggro",
@@ -265,51 +264,8 @@ mod tests {
                 ],
             )"#,
         );
-        let written = deckmaste_core::ron::options().to_string(&s).unwrap();
+        let written = crate::ron::options().to_string(&s).unwrap();
         let again: Strategy = read(&written);
         assert_eq!(s, again);
-    }
-
-    /// The reuse linchpin: a `Condition` macro at the `when:` position expands
-    /// through the macro reader even though it sits deep inside plain-serde
-    /// `Strategy`/`Rule` — sensing positions are macro-aware for free, because
-    /// core's `Condition` does the fall-through. This is what lets strategy-
-    /// guide vocabulary (`Always`, `BehindOnBoard`, …) be authored as macros.
-    #[test]
-    fn sensing_position_expands_a_condition_macro_through_the_reader() {
-        use deckmaste_core::Condition;
-        let mut macros = crate::macros::macro_set();
-        macros
-            .insert(&def(
-                r#"(name: "Always", kinds: [Condition], body: AllOf([]))"#,
-            ))
-            .unwrap();
-        let s: Strategy = macros
-            .read_str(r#"(name: "M", rules: [(when: Always, prefer: Pass)])"#)
-            .unwrap();
-        let Condition::Expanded(exp) = &s.rules[0].when else {
-            panic!("expected expanded condition, got {:?}", s.rules[0].when);
-        };
-        assert_eq!(exp.name, "Always");
-    }
-
-    /// `Preference` is itself a macroable kind, so the choose-a-play vocabulary
-    /// (`AttackAll`, `Mulligan`, …) can be authored as macros that expand to
-    /// literal preference variants.
-    #[test]
-    fn prefer_position_expands_a_preference_macro() {
-        let mut macros = crate::macros::macro_set();
-        macros
-            .insert(&def(
-                r#"(name: "AttackAll", kinds: [Preference], body: Attack(what: (pick: First, by: Literal(1))))"#,
-            ))
-            .unwrap();
-        let s: Strategy = macros
-            .read_str(r#"(name: "M", rules: [(when: YourTurn, prefer: AttackAll)])"#)
-            .unwrap();
-        let Preference::Expanded(exp) = &s.rules[0].prefer else {
-            panic!("expected expanded preference, got {:?}", s.rules[0].prefer);
-        };
-        assert_eq!(exp.name, "AttackAll");
     }
 }

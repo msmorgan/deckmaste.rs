@@ -152,6 +152,11 @@ pub mod ron;
 mod selection;
 pub use selection::Selection;
 
+// Play-policy types (`strategy::Strategy`, `Preference`, …). Deliberately NOT
+// re-exported at the crate root: kept namespaced so the rules-primitive
+// namespace stays separate from play policy.
+pub mod strategy;
+
 mod target_spec;
 pub use target_spec::TargetSpec;
 
