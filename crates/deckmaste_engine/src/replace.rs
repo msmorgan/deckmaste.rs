@@ -86,6 +86,26 @@ impl GameState {
             Effect::Act(Action::Attach { what, to }) if is_self_selection(what) => {
                 status.attach_to = self.enters_attached_host(entering, to);
             }
+            // [CR#122.6a,614.1c]: enters with counters. `PutCounters(This, kind,
+            // n)` self-replacement → fold `(kind, n)` into the entering status.
+            // `n` is evaluated against a `This`-anchored frame so a count that
+            // scales ("a +1/+1 counter for each …") resolves at entry.
+            Effect::Act(Action::By(_, PlayerAction::PutCounters(what, kind, count)))
+                if is_self_selection(what) =>
+            {
+                let frame = crate::stack::Frame {
+                    source: entering,
+                    controller: self.objects.obj(entering).controller,
+                    targets: Vec::new(),
+                    bindings: None,
+                    chosen: None,
+                    x: None,
+                };
+                let n = self.eval_count(count, &frame);
+                if n > 0 {
+                    status.counters.push((kind.0, n));
+                }
+            }
             Effect::Expanded(e) => self.apply_as_enters(&e.value, entering, status),
             other => todo!("stage 3 does not interpret enters-replacement effect {other:?}"),
         }
@@ -341,6 +361,82 @@ mod tests {
                 .scan(deckmaste_core::Window::ThisGame, state.turn.turn_number)
                 .any(|e| matches!(e, GameEvent::Attached { .. })),
             "no Attached fact when there was no legal host"
+        );
+    }
+
+    /// [CR#122.6a,614.1c]: a permanent with an `AsEnters(PutCounters(This,
+    /// P1P1Counter, 2))` self-replacement enters the battlefield already
+    /// carrying two P1P1Counter counters — placed atomically at mint, before
+    /// the `ZoneChanged` fact.
+    #[test]
+    fn enters_with_counters() {
+        use deckmaste_core::Count;
+
+        let card = Card::Normal(CardFace {
+            name: "Test Counterer".into(),
+            types: vec![Type::Artifact],
+            abilities: vec![Ability::Static(StaticAbility {
+                condition: None,
+                effects: vec![StaticEffect::Replacement(Box::new(Replacement::Also {
+                    would: Event::ZoneMove {
+                        what: Filter::Ref(Reference::This),
+                        from: None,
+                        to: Some(Zone::Battlefield),
+                        face: None,
+                        cause: None,
+                    },
+                    also: Effect::Act(Action::By(
+                        Reference::You,
+                        PlayerAction::PutCounters(
+                            Selection::Ref(Reference::This),
+                            "P1P1Counter".into(),
+                            Count::Literal(2),
+                        ),
+                    )),
+                }))],
+                characteristic_defining: false,
+            })],
+            ..CardFace::default()
+        });
+
+        let mut state = game();
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+        let hand_id =
+            state
+                .objects
+                .mint(ObjectSource::Card(card_id), PlayerId(0), Some(Zone::Hand));
+        state.zones.hands[PlayerId(0).index()].push(hand_id);
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+            GameEvent::ZoneWillChange {
+                object: hand_id,
+                from: Some(Zone::Hand),
+                to: Zone::Battlefield,
+                enters: None,
+                position: None,
+                face: None,
+                cause: None,
+            },
+        ))]);
+        for _ in 0..10 {
+            if matches!(state.step(), StepOutcome::NeedsDecision(_)) {
+                break;
+            }
+        }
+        let entered = *state
+            .zones
+            .battlefield
+            .iter()
+            .find(|&&o| state.objects.obj(o).card_id() == Some(card_id))
+            .expect("the permanent entered the battlefield");
+        assert_eq!(
+            state
+                .objects
+                .obj(entered)
+                .counters
+                .get(&deckmaste_core::Ident::from("P1P1Counter"))
+                .copied(),
+            Some(2),
+            "enters with two P1P1Counter counters"
         );
     }
 }

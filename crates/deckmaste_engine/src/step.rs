@@ -432,7 +432,7 @@ impl GameState {
                     object,
                     from,
                     to,
-                    enters,
+                    enters.clone(),
                     position,
                     face,
                     cause.clone(),
@@ -649,12 +649,24 @@ impl GameState {
             let as_enters = self.as_enters_status(snapshot.source, new);
             entering.tapped |= as_enters.tapped;
             entering.attach_to = entering.attach_to.or(as_enters.attach_to);
+            entering.counters.extend(as_enters.counters);
             // [CR#302.6]: a permanent entering the battlefield is summoning-sick
             // until its controller's turn begins with it under continuous control.
             self.objects.obj_mut(new).summoning_sick = true;
         }
         if entering.tapped {
             self.objects.obj_mut(new).tapped = true;
+        }
+        // [CR#122.6a,614.1c]: place enters-with counters atomically at mint,
+        // before the `ZoneChanged` fact — the entering P/T already reflects
+        // them, and no counterless window is observable.
+        for (kind, n) in &entering.counters {
+            *self
+                .objects
+                .obj_mut(new)
+                .counters
+                .entry(kind.clone())
+                .or_insert(0) += n;
         }
         // [CR#303.4]: enters attached atomically — set the link on the freshly
         // minted object before the `ZoneChanged` fact, so no unattached window
