@@ -86,6 +86,12 @@ pub enum StateFilterEvent {
     Untapped,
     /// Becomes attacking ([CR#508.1k]).
     Attacking,
+    /// Becomes a blocking creature — "whenever ~ blocks" ([CR#509.3a],
+    /// the blocker-side declare-blockers trigger; the creature becomes a
+    /// blocker per [CR#509.1g]). Symmetric to `Attacking`; distinct from
+    /// `Blocked`, which watches the ATTACKER side ([CR#509.3c]). Bushido
+    /// ([CR#702.45a]) unions the two.
+    Blocking,
     /// Becomes blocked ([CR#509.3c]).
     Blocked,
     /// Phases out/in ([CR#702.26b] — a status change, explicitly NOT a
