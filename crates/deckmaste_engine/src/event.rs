@@ -382,10 +382,10 @@ pub enum GameEvent {
     },
 }
 
-/// How a permanent enters the battlefield ([CR#110.5] status;
-/// counters/face-down are later). Present on a `ZoneWillChange` only when `to
-/// == Battlefield`.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+/// How a permanent enters the battlefield ([CR#110.5] status; face-down is
+/// later). Present on a `ZoneWillChange` only when `to == Battlefield`. (Not
+/// `Copy`: it carries the enters-with-counters list.)
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct EnterStatus {
     pub tapped: bool,
     /// The host this permanent enters attached to ([CR#303.4]), folded in from
@@ -395,6 +395,12 @@ pub struct EnterStatus {
     /// (the attach is part of the entering `ZoneMove`, not a post-entry
     /// trigger).
     pub attach_to: Option<ObjectId>,
+    /// Counters the permanent enters with ([CR#122.6a,614.1c]) — `(kind,
+    /// count)` pairs folded in from its own `AsEnters(PutCounters(This,
+    /// kind, n))` self-replacement, placed atomically at mint before the
+    /// `ZoneChanged` fact (so no observable counterless window, and the
+    /// entering P/T already reflects them).
+    pub counters: Vec<(deckmaste_core::Ident, deckmaste_core::Uint)>,
 }
 
 /// Who learns an event's full payload — the projection-boundary annotation
