@@ -912,4 +912,91 @@ mod tests {
         assert!(bindings.that_object.is_none(), "no event context");
         assert_eq!(bindings.that_player, None);
     }
+
+    /// When an activated ability is committed (`AbilityActivated` event
+    /// applies), a `GameEvent::AbilityUsed` fact must be recorded in history
+    /// for the same (source, ability-index) pair ([CR#602.2a,608.2i]).
+    ///
+    /// Drive through the full announce schedule for a {0}-cost no-target
+    /// ability so the `Emit(AbilityActivated)` item fires without surfacing
+    /// any `PayMana` or `ChooseTargets` decisions.
+    #[test]
+    fn activation_records_ability_used() {
+        use deckmaste_core::Window;
+
+        use crate::agenda::WorkItem;
+        use crate::event::Occurrence;
+        use crate::step::Progress;
+        use crate::step::StepOutcome;
+
+        let mut state = game();
+        let player = PlayerId(0);
+
+        // Build a free ({0}) no-op artifact activated ability.
+        let act = activated(
+            vec![CostComponent::Mana(ManaCost::from(vec![]))],
+            noop_effect(),
+        );
+        let card_id = state.cards.push(card_with_activated(act), player);
+        let obj = state
+            .objects
+            .mint(ObjectSource::Card(card_id), player, Some(Zone::Battlefield));
+        state.zones.battlefield.push(obj);
+
+        // Schedule the full announce+commit pipeline as the engine would for
+        // an `ActivateAbility` action (mirrors `GameState::act` in decide.rs).
+        let items = crate::state::GameState::announce_schedule(
+            WorkItem::BeginActivate {
+                object: obj,
+                ability: 0,
+            },
+            crate::event::GameEvent::AbilityActivated {
+                source: obj,
+                ability: 0,
+            },
+        );
+        state.schedule_front(items);
+
+        // Step until the `AbilityActivated` apply completes (at most 20 steps).
+        // A {0} cost with no targets/X surfaces no decisions in this window.
+        let mut activated = false;
+        for _ in 0..20 {
+            match state.step() {
+                StepOutcome::Progress(Progress::Applied(Occurrence::Single(
+                    crate::event::GameEvent::AbilityActivated { .. },
+                ))) => {
+                    activated = true;
+                    break;
+                }
+                StepOutcome::NeedsDecision(d) => {
+                    panic!("unexpected decision while stepping activation: {d:?}");
+                }
+                StepOutcome::GameOver(_) => {
+                    panic!("game ended while stepping activation");
+                }
+                StepOutcome::Progress(_) => {}
+            }
+        }
+        assert!(
+            activated,
+            "AbilityActivated must have applied within 20 steps"
+        );
+
+        // History must contain an AbilityUsed for (obj, 0).
+        // Use-limits are object-scoped: record the per-instance ObjectId,
+        // not the persistent CardId/ObjectSource ([CR#400.7]).
+        let turn = state.turn.turn_number;
+        let found = state.history.scan(Window::ThisGame, turn).any(|e| {
+            matches!(
+                e,
+                crate::event::GameEvent::AbilityUsed { object, ability }
+                    if *object == obj && *ability == 0
+            )
+        });
+        assert!(
+            found,
+            "AbilityActivated apply must record GameEvent::AbilityUsed {{ object: {:?}, ability: 0 }} in history",
+            obj,
+        );
+    }
 }

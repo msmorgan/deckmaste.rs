@@ -355,6 +355,33 @@ impl GameState {
                     "AbilityActivated event matches the staged announce"
                 );
                 self.activations.bump((source, ability));
+                // Record the substantive "this ability was used" fact directly
+                // so history reads (use-limit counts, EventCount) can find it.
+                // Not routed through the occurrence pipeline — must not trigger
+                // anything and must not be re-recorded ([CR#608.2i]).
+                //
+                // Use the announce-time LKI snapshot rather than the live
+                // object — the source may have been removed (e.g. self-sacrifice
+                // cost) before this event applies ([CR#602.2a]).
+                // `begin_activate` always captures `bindings.this`, so the
+                // expect below should never fire in practice.
+                let used_object = match &pending.object {
+                    StackObject::Activated { bindings, .. } => {
+                        bindings
+                            .this
+                            .as_ref()
+                            .expect("begin_activate always captures a this snapshot")
+                            .object
+                    }
+                    _ => panic!("AbilityActivated with non-Activated stack object"),
+                };
+                self.history.record(
+                    self.turn.turn_number,
+                    GameEvent::AbilityUsed {
+                        object: used_object,
+                        ability: ability as Uint,
+                    },
+                );
                 GameEvent::AbilityActivated { source, ability }
             }
             GameEvent::DamageDealt {
@@ -530,6 +557,19 @@ impl GameState {
                     controller,
                     bindings: bindings.clone(),
                 });
+                // Record the substantive "this ability was used" fact directly
+                // so history reads (use-limit counts, EventCount) can find it.
+                // Not routed through the occurrence pipeline — must not trigger
+                // anything and must not be re-recorded ([CR#608.2i]).
+                if let Some(this) = &bindings.this {
+                    self.history.record(
+                        self.turn.turn_number,
+                        GameEvent::AbilityUsed {
+                            object: this.object,
+                            ability,
+                        },
+                    );
+                }
                 event
             }
             // [CR#608.2n]: the triggered or activated ability vanishes —
@@ -582,6 +622,10 @@ impl GameState {
                 self.combat.remove_object(object);
                 GameEvent::DamageRemoved { object }
             }
+            // Bookkeeping fact recorded directly via `history.record` at the
+            // trigger-fire and activation apply sites; never emitted as an
+            // occurrence, so this arm is defensive only.
+            GameEvent::AbilityUsed { .. } => event,
         }
     }
 
