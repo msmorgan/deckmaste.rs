@@ -1361,6 +1361,19 @@ impl GameState {
             Count::X => frame.x.expect(
                 "Count::X on a frame with no announced X — a card referenced X without an {X} cost",
             ),
+            // [CR#608.2i]: count history facts matching `event` within `within` —
+            // the count-valued twin of `Condition::Happened`. Reuses the trigger
+            // event-matcher, anchored to the frame's watcher (so `Ref(This)` in the
+            // pattern resolves to the evaluating source).
+            Count::EventCount(event, within) => {
+                let watcher = self.frame_watcher(frame);
+                let n = self
+                    .history
+                    .scan(*within, self.turn.turn_number)
+                    .filter(|fact| self.event_matches(event, fact, watcher))
+                    .count();
+                Uint::try_from(n).expect("event count fits Uint")
+            }
             // [CR#608.2i] history reads off the log — the evaluating player is
             // the frame's controller.
             Count::Query(key) => self.eval_query(*key, frame.controller),
@@ -4912,6 +4925,141 @@ mod tests {
             state.zones.libraries[p0.index()].len(),
             lib_before - 2,
             "two cards left the library"
+        );
+    }
+
+    /// `Count::EventCount` is the count-valued twin of `Condition::Happened`:
+    /// it scans the history log within the given window and returns how many
+    /// facts match the `Event` pattern via `event_matches` ([CR#608.2i]).
+    /// Two creature-death facts recorded this turn → count == 2; a non-matching
+    /// pattern (zone-enter) or a turn with no facts → count == 0.
+    #[test]
+    fn event_count_counts_matching_history() {
+        use deckmaste_core::Event;
+        use deckmaste_core::Window;
+
+        use crate::lki::LkiSnapshot;
+        use crate::object::ObjectSource;
+
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: vec![Arc::clone(&bears); 10],
+                },
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 10],
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        });
+        state.turn.turn_number = 1;
+
+        // Build two creature-death GameEvents (same shape as the morbid test).
+        let bear_card1 = state.cards.push(Arc::clone(&bears), PlayerId(0));
+        let bear1 = state.objects.mint(
+            ObjectSource::Card(bear_card1),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(bear1);
+        let death1 = GameEvent::ZoneChanged {
+            snapshot: LkiSnapshot::capture(&state, bear1),
+            from: Some(Zone::Battlefield),
+            to: Zone::Graveyard,
+            face: None,
+            cause: None,
+        };
+
+        let bear_card2 = state.cards.push(Arc::clone(&bears), PlayerId(0));
+        let bear2 = state.objects.mint(
+            ObjectSource::Card(bear_card2),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(bear2);
+        let death2 = GameEvent::ZoneChanged {
+            snapshot: LkiSnapshot::capture(&state, bear2),
+            from: Some(Zone::Battlefield),
+            to: Zone::Graveyard,
+            face: None,
+            cause: None,
+        };
+
+        // The creature-death event pattern (same as morbid Condition::Happened).
+        let death_pattern = Event::ZoneMove {
+            what: Filter::creature(),
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
+            face: None,
+            cause: None,
+        };
+
+        // A non-matching pattern: creatures entering the battlefield.
+        let enter_pattern = Event::ZoneMove {
+            what: Filter::creature(),
+            from: None,
+            to: Some(Zone::Battlefield),
+            face: None,
+            cause: None,
+        };
+
+        let frame = frame_for(&state, PlayerId(0));
+
+        // No deaths recorded yet → 0.
+        assert_eq!(
+            state.eval_count(
+                &Count::EventCount(Box::new(death_pattern.clone()), Window::ThisTurn),
+                &frame
+            ),
+            0,
+            "no deaths recorded yet"
+        );
+
+        // Record two deaths this turn.
+        state.history.record(1, death1);
+        state.history.record(1, death2);
+
+        // Both deaths match → 2.
+        assert_eq!(
+            state.eval_count(
+                &Count::EventCount(Box::new(death_pattern.clone()), Window::ThisTurn),
+                &frame
+            ),
+            2,
+            "two creature deaths this turn"
+        );
+
+        // A non-matching pattern → 0.
+        assert_eq!(
+            state.eval_count(
+                &Count::EventCount(Box::new(enter_pattern), Window::ThisTurn),
+                &frame
+            ),
+            0,
+            "enter pattern does not match death facts"
+        );
+
+        // Advance to turn 2: ThisTurn sees 0, ThisGame sees 2.
+        state.turn.turn_number = 2;
+        assert_eq!(
+            state.eval_count(
+                &Count::EventCount(Box::new(death_pattern.clone()), Window::ThisTurn),
+                &frame
+            ),
+            0,
+            "ThisTurn no longer sees last turn's deaths"
+        );
+        assert_eq!(
+            state.eval_count(
+                &Count::EventCount(Box::new(death_pattern), Window::ThisGame),
+                &frame
+            ),
+            2,
+            "ThisGame still sees last turn's deaths"
         );
     }
 }
