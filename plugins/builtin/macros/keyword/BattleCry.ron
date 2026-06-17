@@ -1,0 +1,30 @@
+// Battle Cry = a triggered ability [CR#702.91a]: "Whenever this creature
+// attacks, each other attacking creature gets +1/+0 until end of turn." The
+// trigger fires when THIS creature becomes an attacker
+// (`StateBecomes(of: Ref(This), becomes: Attacking)`, the [CR#508.1k]/
+// [CR#603.2e] declare-attackers transition) — no intervening-if (it always
+// resolves; "each other attacking creature" is the affected set, not a gate).
+//
+// "each other attacking creature" = every attacking creature that ISN'T this
+// one: an anthem-shaped `Matching` set over `AllOf([Type(Creature),
+// Attacking, Not(Ref(This))])` ([CR#509.1a] still-in-combat attackers minus
+// the carrier). The boost is +1/+0 (`AddPower(1)`, no toughness change),
+// lasting until end of turn ([CR#611.2a]).
+//
+// NOTE [CR#702.91b]: multiple instances of battle cry trigger separately —
+// that is the engine's per-instance trigger handling, not anything this
+// single-instance body encodes.
+KeywordAbility(
+    name: "BattleCry",
+    template: "battle cry",
+    abilities: [Triggered(
+        event: StateBecomes(of: Ref(This), becomes: Attacking),
+        effect: Continuously(
+            effect: Modify(
+                of: Matching(AllOf([Type(Creature), Attacking, Not(Ref(This))])),
+                changes: [AddPower(1)],
+            ),
+            duration: FixedUntil(EndOfTurn),
+        ),
+    )],
+)
