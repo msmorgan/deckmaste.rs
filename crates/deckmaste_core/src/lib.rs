@@ -108,6 +108,7 @@ pub use macro_ron::Expansion;
 pub use macro_ron::ExpansionArgs;
 pub use macro_ron::Ident;
 pub use macro_ron::IdentSeed;
+pub use macro_ron::Normalize;
 pub use macro_ron::SupportsMacros;
 
 mod keyword;

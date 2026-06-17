@@ -51,7 +51,11 @@ pub(crate) struct CostSummary {
 }
 
 /// Summarize `cost` in one walk (so the `can_activate` gate and the pay step
-/// can never diverge). `Expanded` macro wrappers are looked through.
+/// can never diverge). `Expanded` macro wrappers are looked through, and a
+/// nested `Cost` (the macro list-splice shape, e.g. cycling — read is faithful,
+/// so it arrives lumpy) is recursed into: this walk doubles as the cost's
+/// normalization, splicing nested components into the summary rather than
+/// requiring a separate `Cost::normalize` clone at the call site.
 #[must_use]
 pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
     let mut symbols: Vec<ManaSymbol> = Vec::new();
@@ -79,9 +83,9 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
                 untap |= inner.untap;
                 verbs.extend(inner.verbs);
             }
-            // A nested cost is flattened away by `Cost::deserialize`, so it
-            // never reaches here in practice; recurse defensively for any
-            // hand-built value.
+            // A nested cost (the macro list-splice shape) survives faithful
+            // read; recurse to splice it into the summary — this walk is the
+            // pay path's `Cost::normalize`, inlined.
             CostComponent::Cost(nested) => {
                 let inner = cost_summary(&nested.0)?;
                 symbols.extend_from_slice(&inner.mana);
@@ -512,6 +516,48 @@ mod tests {
         assert_eq!(summary.mana, "{1}".parse().unwrap());
         assert!(summary.tap);
         assert_eq!(summary.verbs.len(), 1);
+    }
+
+    /// A cycling-shaped cost reads LUMPY (faithful read keeps the macro's
+    /// nested `Cost([Mana(2)])` splice), and the pay path summarizes it
+    /// correctly: {2} mana plus the discard-self verb. This is the cycling
+    /// cost paying end-to-end at the level the engine supports (from-hand
+    /// activation is a separate, unbuilt seam) — `cost_summary` doubles as the
+    /// cost's normalization, so the nested `Cost` never derails payment.
+    #[test]
+    fn cost_summary_pays_lumpy_cycling_cost() {
+        use deckmaste_core::Cost;
+        use deckmaste_core::Normalize;
+
+        // The exact shape a `Cycling([Mana([Generic(2)])])` expansion produces
+        // under faithful read: the printed cost rides in a nested `Cost`.
+        let lumpy: Cost = deckmaste_core::ron::options()
+            .from_str("[Cost([Mana([Generic(2)])]), Do(Discard(count: Literal(1), what: This))]")
+            .unwrap();
+        // Pre-condition: read really is lumpy (a nested Cost survives).
+        assert!(
+            matches!(lumpy.0.first(), Some(CostComponent::Cost(_))),
+            "cycling cost reads lumpy, got {:?}",
+            lumpy.0,
+        );
+
+        // The pay path summarizes the lumpy cost correctly.
+        let summary = cost_summary(&lumpy.0).expect("cycling cost is payable");
+        assert_eq!(summary.mana, "{2}".parse().unwrap(), "pays {{2}}");
+        assert!(!summary.tap && !summary.untap);
+        assert_eq!(summary.verbs.len(), 1, "the discard-self verb is collected");
+        assert!(
+            matches!(summary.verbs[0], PlayerAction::Discard { .. }),
+            "the verb is the discard-self, got {:?}",
+            summary.verbs[0],
+        );
+
+        // And it summarizes identically to the normalized (flat) cost — the
+        // walk-as-normalize equivalence the boundary relies on.
+        let flat = lumpy.normalize();
+        let flat_summary = cost_summary(&flat.0).expect("flat cost is payable");
+        assert_eq!(summary.mana, flat_summary.mana);
+        assert_eq!(summary.verbs.len(), flat_summary.verbs.len());
     }
 
     #[test]

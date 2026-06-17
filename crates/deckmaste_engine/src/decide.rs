@@ -401,10 +401,11 @@ fn unless_cost_action(
         CostComponent::Tap => Action::By(who.clone(), PlayerAction::Tap(Selection::this())),
         CostComponent::Untap => Action::By(who.clone(), PlayerAction::Untap(Selection::this())),
         CostComponent::Expanded(e) => unless_cost_action(&e.value, who),
-        // A nested cost is spliced flat by `Cost::deserialize` before any
-        // cost is read, so a `Cost` component never survives to here.
+        // The `unless` cost list is `Cost::normalize`d at the `Effect::Unless`
+        // boundary (see `resolve.rs`), which splices every nested `Cost` flat,
+        // so a `Cost` component never survives to here.
         CostComponent::Cost(_) => {
-            unreachable!("nested Cost is flattened away on deserialize")
+            unreachable!("nested Cost is spliced away by normalize at the Unless boundary")
         }
         CostComponent::Mana(_) => todo!(
             "engine-resolve-effects seam: a mid-resolution mana 'unless' cost \
