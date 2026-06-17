@@ -3183,4 +3183,53 @@ mod tests {
             w
         ));
     }
+
+    // -------------------------------------------------------------------------
+    // AbilityUsed history fact
+    // -------------------------------------------------------------------------
+
+    /// When a triggered ability fires (the `TriggerFired` event is applied),
+    /// an `AbilityUsed` fact must be recorded in history for that same
+    /// source/ability pair.
+    #[test]
+    fn trigger_fire_records_ability_used() {
+        use deckmaste_core::Window;
+
+        use crate::agenda::WorkItem;
+
+        let (mut state, goblin) = fixture_on_field("Footlight Fiend");
+        // toughness 1 → 1 damage is lethal.
+        state.objects.obj_mut(goblin).damage = 1;
+
+        state.schedule_front(vec![WorkItem::CheckSbas]);
+        for _ in 0..30 {
+            if !state.pending_triggers.is_empty() {
+                break;
+            }
+            let _ = state.step();
+        }
+
+        assert!(
+            !state.pending_triggers.is_empty(),
+            "precondition: the dies-trigger must have fired"
+        );
+
+        // The TriggerFired apply must have recorded an AbilityUsed fact
+        // in history for ability index 0 on the Footlight Fiend.
+        // Use-limits are object-scoped: record the per-instance ObjectId,
+        // not the persistent CardId/ObjectSource ([CR#400.7]).
+        let turn = state.turn.turn_number;
+        let found = state.history.scan(Window::ThisGame, turn).any(|e| {
+            matches!(
+                e,
+                GameEvent::AbilityUsed { object, ability }
+                    if *object == goblin && *ability == 0
+            )
+        });
+        assert!(
+            found,
+            "TriggerFired apply must record GameEvent::AbilityUsed {{ object: {:?}, ability: 0 }} in history",
+            goblin,
+        );
+    }
 }

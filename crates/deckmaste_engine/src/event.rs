@@ -312,6 +312,13 @@ pub enum GameEvent {
         controller: PlayerId,
         bindings: crate::trigger::TriggerBindings,
     },
+    /// A triggered ability fired ([CR#603.2]) or an activated ability became
+    /// activated ([CR#602.2a]); the substantive "use" fact backing use-limit
+    /// and EventCount history reads ([CR#608.2i]).
+    AbilityUsed {
+        object: ObjectId,
+        ability: Uint,
+    },
     /// [CR#608.2n]: a triggered or activated ability finished
     /// resolving (or fizzled) and vanishes — no zone move. Its apply removes
     /// the stack entry whose `id` is the carried (minted) token.
