@@ -28,6 +28,8 @@ fn every_builtin_keyword_macro_expands() {
         ("Indestructible", "Indestructible"),
         ("Changeling", "Changeling"),
         ("Prowess", "Prowess"),
+        ("Exalted", "Exalted"),
+        ("BattleCry", "BattleCry"),
         ("Hexproof()", "Hexproof"),
         ("Hexproof(from: ColorIs(Blue))", "Hexproof"),
         ("Ward([Tap])", "Ward"),
