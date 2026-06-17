@@ -16,6 +16,7 @@
 use deckmaste_core::CausePattern;
 use deckmaste_core::Event;
 use deckmaste_core::Filter;
+use deckmaste_core::StaticEffect;
 use deckmaste_core::Zone;
 
 use crate::event::GameEvent;
@@ -276,6 +277,22 @@ pub(crate) fn look_through_event(event: &Event) -> &Event {
     }
 }
 
+/// [CR#614.17]: whether any battlefield static makes `e` unable to happen.
+/// Runs before the replacement registry — can't-happen events are suppressed
+/// entirely; the replacement loop is skipped ([CR#614.17c]).
+pub(crate) fn cant_event(state: &GameState, e: &GameEvent) -> bool {
+    if intent_event(e).is_none() {
+        return false;
+    }
+    let view = state.layers();
+    state.zones.battlefield.iter().any(|&obj| {
+        crate::legal::object_has_static(&view, obj, &|s| {
+            matches!(s, StaticEffect::CantHappen(would)
+                if replacement_watches(state, &view, look_through_event(would), obj, e))
+        })
+    })
+}
+
 /// The `ObjectSource` of a live object — used to anchor `Ref(This)`.
 fn object_source_of(state: &GameState, id: ObjectId) -> ObjectSource {
     state.objects.obj(id).source
@@ -285,8 +302,11 @@ fn object_source_of(state: &GameState, id: ObjectId) -> ObjectSource {
 pub(crate) mod tests_support {
     use std::sync::Arc;
 
+    use deckmaste_core::Ability;
     use deckmaste_core::Card;
     use deckmaste_core::CardFace;
+    use deckmaste_core::StaticAbility;
+    use deckmaste_core::StaticEffect;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
 
@@ -334,6 +354,35 @@ pub(crate) mod tests_support {
         );
         state.zones.battlefield.push(id);
         id
+    }
+
+    /// Mint a synthetic creature carrying a single `StaticEffect` on the
+    /// battlefield for player 0. Returns `(state, id)`.
+    pub(crate) fn creature_with_static(effect: StaticEffect) -> (GameState, ObjectId) {
+        let mut state = GameState::new(GameConfig {
+            players: vec![PlayerConfig { deck: vec![] }, PlayerConfig { deck: vec![] }],
+            seed: 7,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        });
+        let card = Arc::new(Card::Normal(CardFace {
+            name: "Test Creature".into(),
+            types: vec![Type::Creature],
+            abilities: vec![Ability::Static(StaticAbility {
+                characteristic_defining: false,
+                effects: vec![effect],
+                condition: None,
+            })],
+            ..CardFace::default()
+        }));
+        let card_id = state.cards.push(card, PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        (state, id)
     }
 }
 
@@ -399,5 +448,25 @@ mod tests {
             cause: Some(Cause::sacrifice(Agency::EffectInstruction, None)),
         };
         assert!(!replacement_watches(&state, &view, &would, id, &e));
+    }
+
+    /// An object carrying `CantHappen(Destroyed(Ref(This)))` makes its own
+    /// `WillDestroy` "can't happen" ([CR#614.17]).
+    #[test]
+    fn cant_happen_suppresses_own_destruction() {
+        let (state, id) = super::tests_support::creature_with_static(
+            deckmaste_core::StaticEffect::CantHappen(Event::ZoneMove {
+                what: Filter::Ref(Reference::This),
+                from: Some(Zone::Battlefield),
+                to: Some(Zone::Graveyard),
+                face: None,
+                cause: None,
+            }),
+        );
+        let e = GameEvent::WillDestroy {
+            object: id,
+            cause: None,
+        };
+        assert!(cant_event(&state, &e));
     }
 }

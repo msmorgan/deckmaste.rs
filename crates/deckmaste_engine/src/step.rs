@@ -243,29 +243,24 @@ impl GameState {
                 event
             }
             GameEvent::WillDestroy { object, cause } => {
-                // [CR#701.8a]: the destruction intent commits. [CR#702.12b]: a
-                // destruction-replacement static (indestructible; a
-                // regeneration shield once those exist) replaces it to nothing
-                // — the object is untouched, so no zone move is scheduled.
-                // Otherwise it evolves into the committed Battlefield→Graveyard
-                // move, carrying the destroy cause ([CR#701.8b]) for the
-                // "destroyed" view.
-                if crate::legal::replaced_from_destruction(&self.layers(), object) {
-                    GameEvent::WillDestroy { object, cause }
-                } else {
-                    self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                        GameEvent::ZoneWillChange {
-                            object,
-                            from: Some(Zone::Battlefield),
-                            to: Zone::Graveyard,
-                            enters: None,
-                            position: None,
-                            face: None,
-                            cause: cause.clone(),
-                        },
-                    ))]);
-                    GameEvent::WillDestroy { object, cause }
-                }
+                // [CR#701.8a]: the destruction intent commits and evolves into
+                // the committed Battlefield→Graveyard move, carrying the destroy
+                // cause ([CR#701.8b]) for the "destroyed" view. Indestructible
+                // (and other cant-happen statics) are handled upstream in
+                // `apply_occurrence` via the cant pass ([CR#614.17]) — the
+                // `WillDestroy` event never reaches `apply` for such objects.
+                self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+                    GameEvent::ZoneWillChange {
+                        object,
+                        from: Some(Zone::Battlefield),
+                        to: Zone::Graveyard,
+                        enters: None,
+                        position: None,
+                        face: None,
+                        cause: cause.clone(),
+                    },
+                ))]);
+                GameEvent::WillDestroy { object, cause }
             }
             GameEvent::WillDraw { player, source } => {
                 // [CR#121.1]: the draw intent commits. A card present → evolve
@@ -765,9 +760,22 @@ impl GameState {
     /// is evaluated as a whole.
     fn apply_occurrence(&mut self, occ: Occurrence) -> Occurrence {
         let occurred = match occ {
-            Occurrence::Single(e) => Occurrence::Single(self.apply(e)),
+            Occurrence::Single(e) => {
+                if crate::replace_registry::cant_event(self, &e) {
+                    Occurrence::Batch(vec![]) // [CR#614.17]: suppressed, nothing occurred
+                } else {
+                    Occurrence::Single(self.apply(e))
+                }
+            }
             Occurrence::Batch(events) => {
-                Occurrence::Batch(events.into_iter().map(|e| self.apply(e)).collect())
+                // Filter out suppressed events first (cant pass borrows self
+                // immutably), then apply the remainder (which borrows self
+                // mutably) — two separate passes to satisfy the borrow checker.
+                let live: Vec<GameEvent> = events
+                    .into_iter()
+                    .filter(|e| !crate::replace_registry::cant_event(self, e))
+                    .collect();
+                Occurrence::Batch(live.into_iter().map(|e| self.apply(e)).collect())
             }
         };
         self.record_history(&occurred);
