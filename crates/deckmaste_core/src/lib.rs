@@ -171,6 +171,9 @@ pub use r#type::Subtype;
 pub use r#type::Supertype;
 pub use r#type::Type;
 
+mod sba_rule;
+pub use sba_rule::SbaRule;
+
 mod zone;
 pub use zone::Zone;
 
