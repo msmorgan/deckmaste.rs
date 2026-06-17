@@ -145,10 +145,12 @@ fn match_keyword_prefix(token: &str) -> Option<&'static str> {
 /// parameterized keyword) does NOT match here — the grant family declines it.
 pub(crate) fn match_keyword_name(phrase: &str) -> Option<String> {
     let phrase = phrase.trim();
-    KEYWORD_NAMES
+    let name = KEYWORD_NAMES
         .iter()
-        .find(|name| name.eq_ignore_ascii_case(phrase))
-        .map(|name| to_rust_ident(name))
+        .find(|name| name.eq_ignore_ascii_case(phrase))?;
+    // Route through the empty-arg renderer so the invocation form is correct:
+    // `Hexproof()` for a defaulted-param macro, `Flying` for a unit keyword.
+    render_arg(&to_rust_ident(name), "").ok().flatten()
 }
 
 /// Argument-shape render. `None` declines (the card stays a todo).
@@ -443,6 +445,17 @@ mod tests {
             bare("Hexproof from blue").as_deref(),
             Some("Keyword(Hexproof(from: ColorIs(Blue)))")
         );
+    }
+
+    #[test]
+    fn grant_name_renders_invocation_form() {
+        // A defaulted-param macro's grant invocation needs parens.
+        assert_eq!(
+            match_keyword_name("hexproof").as_deref(),
+            Some("Hexproof()")
+        );
+        // A unit keyword stays bare.
+        assert_eq!(match_keyword_name("flying").as_deref(), Some("Flying"));
     }
 
     #[test]
