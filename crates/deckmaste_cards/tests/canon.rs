@@ -89,11 +89,14 @@ fn lightning_bolt_expands_target_macros() {
     assert_eq!(
         face.abilities,
         vec![Ability::Spell(SpellAbility {
-            targets: vec![any_target],
-            effect: Effect::Act(Action::DealDamage(
-                Selection::Ref(Reference::Target(0)),
-                Count::Literal(3)
-            )),
+            targets: vec![],
+            effect: Effect::Targeted(deckmaste_core::Targeted {
+                targets: vec![any_target],
+                effect: Box::new(Effect::Act(Action::DealDamage(
+                    Selection::Ref(Reference::Target(0)),
+                    Count::Literal(3)
+                ))),
+            }),
         })]
     );
 }
@@ -110,7 +113,10 @@ fn any_target_expansion_carries_its_template() {
     let Ability::Spell(ref spell) = face.abilities[0] else {
         panic!("expected a spell ability");
     };
-    match &spell.targets[0] {
+    let Effect::Targeted(ref te) = spell.effect else {
+        panic!("expected a Targeted wrapper, got {:?}", spell.effect);
+    };
+    match &te.targets[0] {
         TargetSpec::Expanded(exp) => assert_eq!(
             exp.template.as_deref(),
             Some("any target"),

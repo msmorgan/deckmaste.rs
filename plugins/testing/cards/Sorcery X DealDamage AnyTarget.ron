@@ -6,6 +6,6 @@ Normal(
     mana_cost: [Variable],
     types: [Sorcery],
     abilities: [
-        Spell(targets: [AnyTarget], effect: DealDamage(Target(0), X)),
+        Spell(effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), X))),
     ],
 )

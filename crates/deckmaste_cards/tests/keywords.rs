@@ -104,7 +104,8 @@ fn enchant_confers_spell_cant_attach_and_as_enters() {
     assert!(
         abilities
             .iter()
-            .any(|a| matches!(a, Ability::Spell(s) if !s.targets.is_empty())),
+            .any(|a| matches!(a, Ability::Spell(s)
+                if matches!(&s.effect, deckmaste_core::Effect::Targeted(t) if !t.targets.is_empty()))),
         "Enchant confers a targeting Spell ability ([CR#303.4a]); got {abilities:?}"
     );
 
@@ -159,11 +160,17 @@ fn fortify_confers_sorcery_speed_attach_activated() {
         "fortify is sorcery-speed ([CR#702.67a]); got {:?}",
         act.window
     );
-    assert!(!act.targets.is_empty(), "fortify targets a land");
+    let Effect::Targeted(t) = &act.effect else {
+        panic!(
+            "fortify's effect is a Targeted wrapper; got {:?}",
+            act.effect
+        );
+    };
+    assert!(!t.targets.is_empty(), "fortify targets a land");
     assert!(
-        matches!(&act.effect, Effect::Act(Action::Attach { .. })),
-        "fortify's effect is Attach; got {:?}",
-        act.effect
+        matches!(&*t.effect, Effect::Act(Action::Attach { .. })),
+        "fortify's inner effect is Attach; got {:?}",
+        t.effect
     );
 }
 
@@ -207,8 +214,8 @@ fn reconfigure_confers_attach_and_unattach_activated() {
     );
     // One attaches, one unattaches.
     assert!(
-        acts.iter()
-            .any(|a| matches!(&a.effect, Effect::Act(Action::Attach { .. }))),
+        acts.iter().any(|a| matches!(&a.effect,
+            Effect::Targeted(t) if matches!(&*t.effect, Effect::Act(Action::Attach { .. })))),
         "reconfigure has an Attach ability"
     );
     assert!(

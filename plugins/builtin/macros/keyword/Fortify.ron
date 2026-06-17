@@ -14,8 +14,10 @@
         abilities: [Activated(
             cost: Param(0),
             window: SorcerySpeed,
-            targets: [Target(Exactly(Literal(1)), AllOf([Type(Land), ControlledBy(Ref(You))]))],
-            effect: Attach(what: This, to: Target(0)),
+            effect: Targeted(
+                targets: [Target(Exactly(Literal(1)), AllOf([Type(Land), ControlledBy(Ref(You))]))],
+                effect: Attach(what: This, to: Target(0)),
+            ),
         )],
     ),
 )
