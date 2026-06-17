@@ -139,18 +139,26 @@ fn match_keyword_prefix(token: &str) -> Option<&'static str> {
         .max_by_key(|name| name.len())
 }
 
-/// Whole-phrase, case-insensitive match against the keyword catalog → the
-/// `Keyword(...)` ident form. Used by the static-ability grant family
-/// ("… have flying"). A phrase with leftover (e.g. "protection from red", a
-/// parameterized keyword) does NOT match here — the grant family declines it.
+/// The bare keyword name for a whole-phrase match ("hexproof" → "Hexproof"),
+/// for REFERENCE positions like `Has(<name>)` whose `KeywordRef` reads a bare
+/// unit ident. A phrase with leftover (e.g. "protection from red") does NOT
+/// match here.
 pub(crate) fn match_keyword_name(phrase: &str) -> Option<String> {
     let phrase = phrase.trim();
-    let name = KEYWORD_NAMES
+    KEYWORD_NAMES
         .iter()
-        .find(|name| name.eq_ignore_ascii_case(phrase))?;
-    // Route through the empty-arg renderer so the invocation form is correct:
-    // `Hexproof()` for a defaulted-param macro, `Flying` for a unit keyword.
-    render_arg(&to_rust_ident(name), "").ok().flatten()
+        .find(|name| name.eq_ignore_ascii_case(phrase))
+        .map(|name| to_rust_ident(name))
+}
+
+/// The keyword INVOCATION for a whole-phrase match ("hexproof" →
+/// `"Hexproof()"`), for invocation positions like `Keyword(<invocation>)`. A
+/// defaulted-param macro still needs its parens; a unit keyword stays bare.
+/// Declines a keyword that can't form a valid no-arg invocation (e.g. a
+/// required-arg keyword).
+pub(crate) fn match_keyword_invocation(phrase: &str) -> Option<String> {
+    let ident = match_keyword_name(phrase)?;
+    render_arg(&ident, "").ok().flatten()
 }
 
 /// Argument-shape render. `None` declines (the card stays a todo).
@@ -444,13 +452,19 @@ mod tests {
 
     #[test]
     fn grant_name_renders_invocation_form() {
-        // A defaulted-param macro's grant invocation needs parens.
+        // Reference form (for `Has(<name>)`): bare unit ident.
+        assert_eq!(match_keyword_name("hexproof").as_deref(), Some("Hexproof"));
+        assert_eq!(match_keyword_name("flying").as_deref(), Some("Flying"));
+        // Invocation form (for `Keyword(<invocation>)`): a defaulted-param macro
+        // needs its parens; a unit keyword stays bare.
         assert_eq!(
-            match_keyword_name("hexproof").as_deref(),
+            match_keyword_invocation("hexproof").as_deref(),
             Some("Hexproof()")
         );
-        // A unit keyword stays bare.
-        assert_eq!(match_keyword_name("flying").as_deref(), Some("Flying"));
+        assert_eq!(
+            match_keyword_invocation("flying").as_deref(),
+            Some("Flying")
+        );
     }
 
     #[test]
