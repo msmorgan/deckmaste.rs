@@ -11,217 +11,79 @@
 //! the engine implements them natively; while they stay enum variants, no
 //! macro exists for them.
 
+use std::sync::LazyLock;
+
 use crate::ident::to_rust_ident;
 use crate::parsers::cost::VariableMana;
 use crate::parsers::cost::{self};
-use crate::resolve::CardKind;
+use crate::resolve::ResolveCtx;
 
-/// Keyword-ability names ([CR#702] / the Scryfall `keyword-abilities` catalog —
-/// the same source `_000` builds keyword todos from). Longest-prefix matching
-/// needs the multi-word names present verbatim. Order is irrelevant (matching
-/// picks the longest prefix).
-const KEYWORD_NAMES: &[&str] = &[
-    "Living weapon",
-    "Jump-start",
+/// Parser-specific keyword-ability forms NOT in the Scryfall catalog: the
+/// per-land-type landwalk and cycling variants (Scryfall lists only the generic
+/// "Landwalk"/"Cycling"), plus a few multi-word / variant forms. The bulk of
+/// the catalog is derived from `data/rules/keywords.json` — see
+/// [`KEYWORD_NAMES`]. (The landwalk/cycling variants could themselves be
+/// derived from the basic land types in a later pass.)
+const KEYWORD_SUPPLEMENT: &[&str] = &[
     "Commander ninjutsu",
     "Legendary landwalk",
     "Nonbasic landwalk",
-    "Megamorph",
-    "Haunt",
-    "Forecast",
-    "Graft",
-    "Fortify",
-    "Frenzy",
-    "Gravestorm",
-    "Hideaway",
-    "Level Up",
-    "Infect",
-    "Reach",
-    "Rampage",
-    "Phasing",
-    "Multikicker",
-    "Morph",
-    "Provoke",
-    "Modular",
-    "Ninjutsu",
-    "Replicate",
-    "Recover",
-    "Poisonous",
-    "Reinforce",
-    "Persist",
-    "Retrace",
-    "Rebound",
-    "Miracle",
-    "Overload",
-    "Outlast",
-    "Prowess",
-    "Renown",
-    "Myriad",
-    "Shroud",
-    "Trample",
-    "Vigilance",
-    "Storm",
-    "Soulshift",
-    "Splice",
-    "Transmute",
-    "Ripple",
-    "Suspend",
-    "Vanishing",
-    "Transfigure",
-    "Wither",
-    "Undying",
-    "Soulbond",
-    "Unleash",
-    "Ascend",
-    "Assist",
-    "Afterlife",
-    "Companion",
-    "Fabricate",
-    "Embalm",
-    "Escape",
-    "Fuse",
-    "Menace",
-    "Ingest",
-    "Melee",
-    "Improvise",
-    "Mentor",
-    "Partner",
-    "Mutate",
-    "Tribute",
-    "Surge",
-    "Skulk",
-    "Riot",
-    "Spectacle",
     "Forestwalk",
     "Islandwalk",
     "Mountainwalk",
-    "Double strike",
-    "Cumulative upkeep",
-    "First strike",
-    "Scavenge",
-    "Encore",
-    "Deathtouch",
-    "Defender",
-    "Amplify",
-    "Affinity",
-    "Bushido",
-    "Convoke",
-    "Bloodthirst",
-    "Absorb",
-    "Aura Swap",
-    "Changeling",
-    "Conspire",
-    "Cascade",
-    "Annihilator",
-    "Battle Cry",
-    "Cipher",
-    "Bestow",
-    "Dash",
-    "Awaken",
-    "Crew",
-    "Aftermath",
-    "Afflict",
-    "Flanking",
-    "Foretell",
-    "Fading",
-    "Eternalize",
-    "Entwine",
-    "Epic",
-    "Dredge",
-    "Delve",
-    "Evoke",
-    "Exalted",
-    "Evolve",
-    "Extort",
-    "Dethrone",
-    "Exploit",
-    "Devoid",
-    "Emerge",
-    "Escalate",
-    "Flying",
-    "Haste",
-    "Hexproof",
-    "Indestructible",
-    "Intimidate",
-    "Lifelink",
-    "Horsemanship",
-    "Kicker",
-    "Madness",
     "Swampwalk",
     "Desertwalk",
-    "Craft",
     "Plainswalk",
-    "Split second",
-    "Augment",
-    "Double agenda",
-    "Reconfigure",
-    "Ward",
-    "Partner with",
-    "Daybound",
-    "Nightbound",
-    "Decayed",
-    "Disturb",
-    "Squad",
-    "Enlist",
-    "Read Ahead",
-    "Ravenous",
-    "Blitz",
-    "Offering",
-    "Living metal",
-    "Backup",
-    "Banding",
-    "Hidden agenda",
-    "For Mirrodin!",
-    "Friends forever",
-    "Casualty",
-    "Protection",
-    "Compleated",
-    "Enchant",
-    "Flash",
-    "Boast",
-    "Demonstrate",
-    "Sunburst",
-    "Flashback",
-    "Cycling",
-    "Equip",
-    "Buyback",
-    "Hexproof from",
-    "More Than Meets the Eye",
-    "Cleave",
-    "Champion",
-    "Specialize",
-    "Training",
-    "Prototype",
-    "Toxic",
-    "Unearth",
-    "Intensity",
     "Plainscycling",
-    "Swampcycling",
-    "Typecycling",
-    "Wizardcycling",
-    "Mountaincycling",
-    "Basic landcycling",
     "Islandcycling",
+    "Swampcycling",
+    "Mountaincycling",
     "Forestcycling",
     "Slivercycling",
+    "Wizardcycling",
+    "Typecycling",
+    "Basic landcycling",
     "Landcycling",
-    "Bargain",
+    "Megamorph",
+    "Multikicker",
+    "Augment",
+    "Double agenda",
+    "Partner with",
+    "Friends forever",
+    "Hexproof from",
+    "Specialize",
+    "Intensity",
     "Choose a background",
-    "Echo",
-    "Disguise",
     "Doctor's companion",
-    "Landwalk",
-    "Umbra armor",
-    "Freerunning",
-    "Spree",
-    "Saddle",
-    "Shadow",
-    "Warp",
-    "Station",
-    "Devour",
-    "Undaunted",
-    "Offspring",
 ];
+
+/// The keyword-ability name catalog, derived once at first use: the Scryfall
+/// `keywordAbilities` list (`data/rules/keywords.json`, the same source the
+/// stub generator reads) plus [`KEYWORD_SUPPLEMENT`]. This replaces a
+/// hand-maintained ~200-entry array — a drifted duplicate of the catalog.
+static KEYWORD_NAMES: LazyLock<Vec<String>> = LazyLock::new(load_keyword_catalog);
+
+fn load_keyword_catalog() -> Vec<String> {
+    let mut names: Vec<String> = match crate::data::academyruins::keywords_bytes() {
+        Ok(bytes) => match crate::data::academyruins::Keywords::parse(&bytes) {
+            Ok(kw) => kw
+                .keyword_abilities
+                .iter()
+                .map(|s| s.as_str().to_owned())
+                .collect(),
+            Err(e) => {
+                eprintln!("keyword_ability: keyword catalog parse failed ({e}); supplement only");
+                Vec::new()
+            }
+        },
+        Err(e) => {
+            eprintln!("keyword_ability: keyword catalog read failed ({e}); supplement only");
+            Vec::new()
+        }
+    };
+    names.extend(KEYWORD_SUPPLEMENT.iter().map(|s| (*s).to_owned()));
+    names
+}
 
 /// One keyword token -> its invocation RON, always wrapped —
 /// `Keyword(Flying)`, `Keyword(Ward([Mana([Generic(2)])]))` — or `None`
@@ -248,7 +110,7 @@ fn bare_keyword(token: &str) -> anyhow::Result<Option<String>> {
 /// reaching the registry. A line that still CHAINS keywords on `", "` (every
 /// piece after the first starts a keyword name) declines; other commas are
 /// argument text ("Ward—{2}, Pay 2 life.") and parse as one keyword.
-pub(crate) fn resolve_line(line: &str, _kind: CardKind) -> anyhow::Result<Option<String>> {
+pub(crate) fn resolve_line(line: &str, _ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
     let chained: Vec<&str> = line.split(", ").skip(1).collect();
     if !chained.is_empty()
         && chained
@@ -266,7 +128,7 @@ fn match_keyword_prefix(token: &str) -> Option<&'static str> {
     let lower = token.to_ascii_lowercase();
     KEYWORD_NAMES
         .iter()
-        .copied()
+        .map(String::as_str)
         .filter(|name| {
             lower
                 .strip_prefix(&name.to_ascii_lowercase())
@@ -399,7 +261,9 @@ mod tests {
     #[test]
     fn macro_keywords_render_wrapped_too() {
         // Non-intrinsics are KeywordAbility-kind macros invoked INSIDE the
-        // wrapper — keyword-ness is always explicit on the card.
+        // wrapper — keyword-ness is always explicit on the card. (The
+        // macro-template parser leads the registry for these as keyword *lines*;
+        // this catalog still backs `match_keyword_name` static grants.)
         assert_eq!(bare("Flying").as_deref(), Some("Keyword(Flying)"));
         assert_eq!(bare("Lifelink").as_deref(), Some("Keyword(Lifelink)"));
     }
@@ -408,6 +272,25 @@ mod tests {
     fn nullary_keywords() {
         assert_eq!(bare("Menace").as_deref(), Some("Keyword(Menace)"));
         assert_eq!(bare("Defender").as_deref(), Some("Keyword(Defender)"));
+    }
+
+    #[test]
+    fn catalog_is_derived_from_data_plus_supplement() {
+        // Loaded from the Scryfall keyword catalog (not hand-listed): if the
+        // data read failed we'd fall back to the ~30-entry supplement only, so
+        // a healthy load is well over 150 names …
+        assert!(
+            super::KEYWORD_NAMES.len() > 150,
+            "keyword catalog should load from data/rules/keywords.json"
+        );
+        // … including entries the old hand-list had missed …
+        assert!(super::KEYWORD_NAMES.iter().any(|n| n.as_str() == "Fear"));
+        // … plus the parser-specific landwalk/cycling supplement.
+        assert!(
+            super::KEYWORD_NAMES
+                .iter()
+                .any(|n| n.as_str() == "Islandwalk")
+        );
     }
 
     #[test]
@@ -520,15 +403,21 @@ mod tests {
         // A keyword CHAIN still declines (extract pre-splits those; a line
         // that reaches the registry chained is stale input).
         assert!(
-            resolve_line("First strike, vigilance", CardKind::Permanent)
-                .unwrap()
-                .is_none()
+            resolve_line(
+                "First strike, vigilance",
+                &crate::parsers::test_ctx::ctx(CardKind::Permanent)
+            )
+            .unwrap()
+            .is_none()
         );
         // But a comma inside a cost list is argument text, not a chain.
         assert_eq!(
-            resolve_line("Ward—{2}, Pay 2 life.", CardKind::Permanent)
-                .unwrap()
-                .as_deref(),
+            resolve_line(
+                "Ward—{2}, Pay 2 life.",
+                &crate::parsers::test_ctx::ctx(CardKind::Permanent)
+            )
+            .unwrap()
+            .as_deref(),
             Some("Keyword(Ward([Mana([Generic(2)]), Do(LoseLife(2))]))")
         );
     }
@@ -560,21 +449,30 @@ mod tests {
     fn resolve_line_bare_keyword() {
         use crate::resolve::CardKind;
         assert_eq!(
-            resolve_line("Flying", CardKind::Permanent)
-                .unwrap()
-                .as_deref(),
+            resolve_line(
+                "Flying",
+                &crate::parsers::test_ctx::ctx(CardKind::Permanent)
+            )
+            .unwrap()
+            .as_deref(),
             Some("Keyword(Flying)")
         );
         assert_eq!(
-            resolve_line("Ward {2}", CardKind::Permanent)
-                .unwrap()
-                .as_deref(),
+            resolve_line(
+                "Ward {2}",
+                &crate::parsers::test_ctx::ctx(CardKind::Permanent)
+            )
+            .unwrap()
+            .as_deref(),
             Some("Keyword(Ward([Mana([Generic(2)])]))")
         );
         assert_eq!(
-            resolve_line("Protection from black", CardKind::Permanent)
-                .unwrap()
-                .as_deref(),
+            resolve_line(
+                "Protection from black",
+                &crate::parsers::test_ctx::ctx(CardKind::Permanent)
+            )
+            .unwrap()
+            .as_deref(),
             Some("Keyword(Protection(ColorIs(Black)))")
         );
     }

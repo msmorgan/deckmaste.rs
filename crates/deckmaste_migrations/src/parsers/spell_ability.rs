@@ -6,6 +6,7 @@
 use crate::parsers::effect::ParsedEffect;
 use crate::parsers::effect::{self};
 use crate::resolve::CardKind;
+use crate::resolve::ResolveCtx;
 
 /// A registry parser: a spell's effect line -> the bare `Spell(...)` RON.
 /// Declines (`Ok(None)`) on non-spell cards or unrecognized effect lines.
@@ -14,8 +15,8 @@ use crate::resolve::CardKind;
 /// registry signature (sibling parsers render fallibly), and future effect
 /// productions may render fallibly too.
 #[allow(clippy::unnecessary_wraps)]
-pub(crate) fn resolve_line(line: &str, kind: CardKind) -> anyhow::Result<Option<String>> {
-    if kind != CardKind::Spell {
+pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
+    if ctx.kind != CardKind::Spell {
         return Ok(None);
     }
     Ok(effect::parse_clause(line).map(|parsed| render(&parsed)))
@@ -40,7 +41,7 @@ mod tests {
     use super::*;
 
     fn spell(line: &str) -> Option<String> {
-        resolve_line(line, CardKind::Spell).unwrap()
+        resolve_line(line, &crate::parsers::test_ctx::ctx(CardKind::Spell)).unwrap()
     }
 
     #[test]
@@ -77,9 +78,12 @@ mod tests {
     fn declines_on_permanents_and_on_unknown_lines() {
         // Same line that frames on a spell declines on a permanent.
         assert!(
-            resolve_line("~ deals 3 damage to any target.", CardKind::Permanent)
-                .unwrap()
-                .is_none()
+            resolve_line(
+                "~ deals 3 damage to any target.",
+                &crate::parsers::test_ctx::ctx(CardKind::Permanent)
+            )
+            .unwrap()
+            .is_none()
         );
         // Unknown effect on a spell still declines (exile isn't a production).
         assert!(spell("Exile target creature.").is_none());

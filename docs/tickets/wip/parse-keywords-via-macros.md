@@ -23,3 +23,32 @@ build the `TemplateIndex` before `resolve`, and thread it through the
 `AbilityParser` signature (or a resolve-scoped context) so the generic
 `macro_template` parser can consult it. `TemplateIndex::build` +
 `match_kind(kind, input)` already exist in `deckmaste_cards::template`.
+
+## DONE
+
+- **ResolveCtx ABI**: `AbilityParser = fn(&str, &ResolveCtx)`; `ResolveCtx {
+  kind, index: &TemplateIndex }`. `resolve_cards` loads the plugin `MacroSet` +
+  builds the index once (so `xtask::generate` is unchanged). All 7 bespoke
+  parsers updated.
+- **`macro_template` parser** leads the `REGISTRY`: full-line nullary
+  `match_kind("KeywordAbility", line)` → `Keyword(<name>)`, else declines
+  (first-match-wins). Param-less keyword *lines* now derive straight from the
+  templates.
+- **Param-aware index**: `ParsePattern.has_params` + `emits_bare()` — the index
+  only claims param-LESS macros, so defaulted-param keywords (`Hexproof`,
+  `Landwalk`, whose templates are slot-less) keep their bespoke `Name(...)`
+  form. Their bare invocation awaits `macro-bare-defaulted-invocations`.
+- **`KEYWORD_NAMES` hand-list RETIRED** → derived: a `LazyLock<Vec<String>>`
+  loaded from `data/rules/keywords.json` (Scryfall `keywordAbilities`, the same
+  source the stub generator reads) ∪ a small documented `KEYWORD_SUPPLEMENT`
+  (~30 parser-specific landwalk/cycling variants + a few multi-word forms
+  Scryfall doesn't enumerate). The derived set is a superset of the old
+  hand-list (+22 keywords it had missed), so zero regression by construction.
+  The single hand-list was the dual-purpose blocker (`bare_keyword` AND
+  `match_keyword_name`); deriving it in place retires it without threading the
+  index through effect/modify.
+
+Deferred (not this ticket): integer/parameterized keyword *lines* (Annihilator,
+Ward, Protection) still bespoke — they need the slot codec (`macro-slot-codec`);
+deriving the landwalk/cycling supplement from basic land types; bare
+defaulted-param invocations (`macro-bare-defaulted-invocations`).

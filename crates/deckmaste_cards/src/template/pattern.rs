@@ -37,13 +37,24 @@ pub(crate) enum SlotKey {
 pub(crate) struct ParsePattern {
     pub(crate) macro_name: Ident,
     pub(crate) segments: Vec<Segment>,
+    /// Whether the macro declares any params. A param-less macro is invoked as
+    /// a bare `Name`; a macro *with* params (even all-defaulted, like
+    /// `Hexproof`/`Landwalk`, whose templates carry no slot) needs `Name(...)`,
+    /// so it must not be emitted as a bare nullary invocation.
+    pub(crate) has_params: bool,
 }
 
 impl ParsePattern {
-    /// No `${…}` slots — a pure-literal / self-only template, the shape the
-    /// nullary matcher handles today.
+    /// No `${…}` slots in the template — a pure-literal / self-only shape.
     pub(crate) fn is_nullary(&self) -> bool {
         !self.segments.iter().any(|s| matches!(s, Segment::Slot(_)))
+    }
+
+    /// Emittable as a bare `Keyword(Name)`: no template slots *and* no params
+    /// (a defaulted-param macro with a slot-less template is excluded — it
+    /// needs the `Name()` form).
+    pub(crate) fn emits_bare(&self) -> bool {
+        self.is_nullary() && !self.has_params
     }
 
     /// Total literal length, for specificity ordering (longer = more specific).
@@ -92,6 +103,15 @@ pub(crate) fn compile(macro_name: Ident, template: &str, params: &Params) -> Par
     ParsePattern {
         macro_name,
         segments,
+        has_params: has_params(params),
+    }
+}
+
+/// Whether a macro's signature declares any parameters.
+fn has_params(params: &Params) -> bool {
+    match params {
+        Params::Positional(v) => !v.is_empty(),
+        Params::Named(m) => !m.is_empty(),
     }
 }
 

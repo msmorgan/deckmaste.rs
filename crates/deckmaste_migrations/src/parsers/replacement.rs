@@ -20,10 +20,11 @@
 use crate::parsers::effect::{self};
 use crate::parsers::triggered_ability;
 use crate::resolve::CardKind;
+use crate::resolve::ResolveCtx;
 
 #[allow(clippy::unnecessary_wraps)]
-pub(crate) fn resolve_line(line: &str, kind: CardKind) -> anyhow::Result<Option<String>> {
-    Ok(parse(line, kind))
+pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
+    Ok(parse(line, ctx.kind))
 }
 
 fn parse(line: &str, kind: CardKind) -> Option<String> {
@@ -91,7 +92,7 @@ mod tests {
     use super::*;
 
     fn rep(line: &str) -> Option<String> {
-        resolve_line(line, CardKind::Permanent).unwrap()
+        resolve_line(line, &crate::parsers::test_ctx::ctx(CardKind::Permanent)).unwrap()
     }
 
     #[test]
@@ -132,14 +133,17 @@ mod tests {
     #[test]
     fn declines_spells() {
         assert!(
-            resolve_line("If ~ would die, draw a card instead.", CardKind::Spell)
-                .unwrap()
-                .is_none()
+            resolve_line(
+                "If ~ would die, draw a card instead.",
+                &crate::parsers::test_ctx::ctx(CardKind::Spell)
+            )
+            .unwrap()
+            .is_none()
         );
         assert!(
             resolve_line(
                 "As ~ enters, ~ gets +1/+1 until end of turn.",
-                CardKind::Spell
+                &crate::parsers::test_ctx::ctx(CardKind::Spell)
             )
             .unwrap()
             .is_none()

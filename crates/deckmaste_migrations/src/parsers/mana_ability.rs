@@ -4,7 +4,7 @@
 use deckmaste_core::ColorOrColorless;
 
 use crate::parsers::count;
-use crate::resolve::CardKind;
+use crate::resolve::ResolveCtx;
 use crate::ron_output::to_string_pretty;
 
 /// A parsed `Add …` production ([CR#106]).
@@ -133,7 +133,7 @@ fn render_effect(production: &Production) -> anyhow::Result<String> {
 
 /// A registry parser: a `{T}: Add …` / `~ enters tapped.` line -> the bare RON
 /// of one ability, or `None`.
-pub(crate) fn resolve_line(line: &str, _kind: CardKind) -> anyhow::Result<Option<String>> {
+pub(crate) fn resolve_line(line: &str, _ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
     let Some(ability) = parse_tap_ability(line) else {
         return Ok(None);
     };
@@ -234,26 +234,38 @@ mod tests {
     fn resolve_line_bare() {
         use crate::resolve::CardKind;
         assert_eq!(
-            resolve_line("{T}: Add {G}.", CardKind::Permanent)
-                .unwrap()
-                .as_deref(),
+            resolve_line(
+                "{T}: Add {G}.",
+                &crate::parsers::test_ctx::ctx(CardKind::Permanent)
+            )
+            .unwrap()
+            .as_deref(),
             Some("Activated(cost: [Tap], effect: AddMana(1, Green))")
         );
         assert_eq!(
-            resolve_line("~ enters tapped.", CardKind::Permanent)
-                .unwrap()
-                .as_deref(),
+            resolve_line(
+                "~ enters tapped.",
+                &crate::parsers::test_ctx::ctx(CardKind::Permanent)
+            )
+            .unwrap()
+            .as_deref(),
             Some("Static(effects: [Replacement(AsEnters(Tap(This)))])")
         );
         assert!(
-            resolve_line("Draw a card.", CardKind::Permanent)
-                .unwrap()
-                .is_none()
+            resolve_line(
+                "Draw a card.",
+                &crate::parsers::test_ctx::ctx(CardKind::Permanent)
+            )
+            .unwrap()
+            .is_none()
         );
         assert_eq!(
-            resolve_line("{T}: Add {W}{U}.", CardKind::Permanent)
-                .unwrap()
-                .as_deref(),
+            resolve_line(
+                "{T}: Add {W}{U}.",
+                &crate::parsers::test_ctx::ctx(CardKind::Permanent)
+            )
+            .unwrap()
+            .as_deref(),
             Some("Activated(cost: [Tap], effect: Sequence([AddMana(1, White), AddMana(1, Blue)]))")
         );
     }
