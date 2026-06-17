@@ -28,6 +28,8 @@ Usage: $(status filename) <command> [<args>]
     start NAME           Spin up an ad-hoc workspace named NAME, with no todo to claim.
     abandon WORKSPACE    Abandon WORKSPACE and forget its todo claim.
     refresh WORKSPACE    Reorder WORKSPACE's claim commit to sit just under default@.
+    refresh --all        Do that for EVERY non-default workspace (prep for a push),
+                         stopping at the first that conflicts or fails.
     integrate WORKSPACE  Refresh, fold WORKSPACE's work into default@, then drop the workspace.
     repair               Run FROM a feature workspace: one-stop "my branch shifted under me"
                          recovery = update-stale + converge + resolve. Exit 0 clean; exit 1 fix
@@ -320,7 +322,52 @@ function __workflow_abandon
     and __retire_ws "$ws_dir" .abandoned
 end
 
+# refresh WORKSPACE  reorders ONE feature's claim under default@ (see __refresh_one).
+# refresh --all / -a does that for EVERY non-default workspace, in turn, as prep for a
+# push. The whole batch runs under the single workflow lock (the flock wrapper keys on
+# argv[1]=refresh), so there's no per-step relock. "Stop at the first problem": the first
+# workspace that conflicts (69) or fails (1, already rolled back by __refresh_one) ends
+# the run and propagates its status; the rest are left untouched for a clean re-run once
+# the blocker is resolved. Reordering an already-current claim is a harmless no-op, so
+# re-running --all after a fix simply re-settles the ones it already did and continues.
 function __workflow_refresh
+    # -S: never abbreviate --all (standing rule — exact long opts only).
+    argparse -S a/all -- $argv
+    or return
+
+    if set -q _flag_all
+        if set -q argv[1]
+            echo >&2 "$(status filename): 'refresh --all' takes no WORKSPACE name (got '$argv[1]')."
+            return 2
+        end
+        # Every workspace but the default coordinator, in jj's (alphabetical) order.
+        set -l targets
+        for ws in (jj workspace list -T 'name ++ "\n"')
+            test "$ws" = default; or set -a targets "$ws"
+        end
+        if not set -q targets[1]
+            echo >&2 "$(status filename): no non-default workspaces to refresh."
+            return 0
+        end
+        for ws in $targets
+            echo >&2 "$(status filename): refreshing $ws"
+            __refresh_one "$ws"; or return    # stop at the first conflict/failure
+        end
+        echo >&2 "$(status filename): refreshed "(count $targets)" workspace(s): "(string join ', ' $targets)"."
+        return 0
+    end
+
+    set -l name $argv[1]
+    if test -z "$name"
+        echo >&2 "$(status filename): refresh needs a WORKSPACE name (or --all)."
+        return 2
+    end
+    __refresh_one "$name"
+end
+
+# Reorder ONE workspace's claim commit to sit just under default@, carrying its feature
+# stack and its workspace WC. Returns 69 (conflict left in place) or 1 (rolled back).
+function __refresh_one
     set name $argv[1]
     set ws_dir (jj workspace root --name "$name"); or return 1
     # Feature-stack root: the claim commit's child on the workspace's line (the
