@@ -776,7 +776,13 @@ impl GameState {
                             Occurrence::Batch(vec![]) // replaced to nothing
                         }
                         crate::replace_registry::ReplaceOutcome::Suspend => {
-                            todo!("Task 5: ChooseReplacement decision")
+                            // [CR#616.1]: ChooseReplacement surfaced for a
+                            // Single event. The decision and ReplaceState are
+                            // already set; remaining is empty (no batch tail).
+                            // Produce an empty Batch — nothing happened yet;
+                            // the event will be applied (or not) after the
+                            // decision is answered via resume_replacements.
+                            Occurrence::Batch(vec![])
                         }
                     }
                 }
@@ -789,14 +795,35 @@ impl GameState {
                     .filter(|e| !crate::replace_registry::cant_event(self, e))
                     .collect();
                 let mut facts = Vec::new();
-                for e in live {
+                let mut iter = live.into_iter();
+                while let Some(e) = iter.next() {
                     match crate::replace_registry::replace_event(self, e) {
                         crate::replace_registry::ReplaceOutcome::Pass(e2) => {
                             facts.push(self.apply(e2));
                         }
                         crate::replace_registry::ReplaceOutcome::Nothing => {}
                         crate::replace_registry::ReplaceOutcome::Suspend => {
-                            todo!("Task 5: ChooseReplacement decision")
+                            // [CR#616.1]: a ChooseReplacement decision was
+                            // surfaced. Store the not-yet-processed tail of
+                            // the batch into the suspended replace_state so
+                            // `resume_replacements` can finish the batch after
+                            // the decision is answered.
+                            let remaining: Vec<GameEvent> = iter
+                                .filter(|ev| !crate::replace_registry::cant_event(self, ev))
+                                .collect();
+                            if let Some(rs) = self.replace_state.as_mut() {
+                                rs.remaining = remaining;
+                            }
+                            // Record and scan the partial facts that DID happen
+                            // before the suspension, then return — the decision
+                            // will drive the rest of the batch via resume.
+                            let partial = Occurrence::Batch(facts);
+                            self.record_history(&partial);
+                            self.check_game_end();
+                            if self.outcome.is_none() {
+                                self.scan_triggers(&partial);
+                            }
+                            return partial;
                         }
                     }
                 }

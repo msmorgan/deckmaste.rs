@@ -157,6 +157,27 @@ pub enum ChoiceContinuation {
     },
 }
 
+/// Suspended replacement-loop state ([CR#616.1]) — preserved across a
+/// `ChooseReplacement` decision so the loop can resume after the player picks.
+///
+/// When `replace_event` needs a player choice (≥ 2 applicable replacements),
+/// it stores the in-progress event and lineage here, surfaces
+/// `PendingDecision::ChooseReplacement`, and returns `Suspend`. The submit
+/// handler resumes by running `apply_one` on the chosen replacement, then
+/// re-entering the replacement loop on the (possibly modified) event.
+#[derive(Debug, Clone)]
+pub struct ReplaceState {
+    /// The event whose replacement choice is pending.
+    pub current: crate::event::GameEvent,
+    /// [CR#614.5] lineage: replacements already applied to the current event
+    /// chain — none of these may be applied again during this occurrence.
+    pub applied: std::collections::HashSet<crate::replace_registry::ReplacementKey>,
+    /// Remaining events from the same batch occurrence that have not yet been
+    /// processed. Empty for a `Occurrence::Single`; non-empty when a batch
+    /// event suspends mid-processing.
+    pub remaining: Vec<crate::event::GameEvent>,
+}
+
 /// The whole game. Fields are public for test construction and inspection;
 /// [`GameState::step`] and [`GameState::submit_decision`] are the only
 /// sanctioned mutators.
@@ -228,6 +249,11 @@ pub struct GameState {
     /// Turn/game event history ([CR#608.2i]): the append-only log the
     /// condition layer queries (`Count::Query`, `Condition::Happened`).
     pub history: crate::history::History,
+    /// Suspended replacement-loop state ([CR#616.1]): set when a
+    /// `ChooseReplacement` decision is surfaced, cleared when it is answered.
+    /// `None` at all other times (the decision-open state machine mirrors
+    /// `combat_damage` / `announcing`).
+    pub replace_state: Option<ReplaceState>,
 }
 
 impl GameState {
@@ -307,6 +333,7 @@ impl GameState {
             counter_decls: std::collections::HashMap::new(),
             that_much: None,
             history: crate::history::History::default(),
+            replace_state: None,
         }
     }
 
