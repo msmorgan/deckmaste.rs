@@ -4,7 +4,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::Ident;
-use crate::continuous::StaticEffect;
+use crate::Property;
 
 /// A counter kind at a REFERENCE position — `HasCounter(P1P1Counter)`,
 /// `CounterCount(This, P1P1Counter)`, `PutCounters(~, P1P1Counter, 2)`:
@@ -74,12 +74,17 @@ impl<'de> Deserialize<'de> for CounterRef {
 /// / shield counter's replacement payload). This is a declaration-file type
 /// (like `MacroDef`); where Filters and Actions reference counters they use a
 /// bare `Ident`. No loader wiring yet.
+/// A counter-kind declaration ([CR#122.1]): an identity (`name`, the rusty
+/// ident a `CounterRef` resolves to) plus the bearings it confers on any object
+/// holding it. Authored as a `Counter`-kind macro (`kinds: [Counter]`, `body:
+/// Counter(name: "P1P1Counter", confers: […])`), loaded into the plugin's
+/// counter registry. Confers are routed by `Property` flavor — `Continuous`
+/// boosts into the layers, `StateBased` SBAs into the 704 sweep.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub struct CounterDecl {
+pub struct Counter {
     pub name: Ident,
-    /// The static effect a counter of this kind confers, if any.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub payload: Option<StaticEffect>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub confers: Vec<Property>,
 }
 
 #[cfg(test)]
