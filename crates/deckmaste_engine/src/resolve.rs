@@ -1015,9 +1015,15 @@ impl GameState {
                 // battlefield — one simultaneous batch of `TokenCreated`
                 // facts. (Token copies — `Create` of a copy-defined token —
                 // wait on the copy grammar, `core-copy-grammar`.) The FACT
-                // carries the resolved inline definition; a future
-                // `TokenSpec::Named` resolves to one here.
-                let deckmaste_core::TokenSpec::Token(token) = spec;
+                // carries the resolved inline definition; a `TokenSpec::Named`
+                // predefined token ([CR#111.10]) resolves to its rules-defined
+                // characteristics here.
+                let token = match spec {
+                    deckmaste_core::TokenSpec::Token(token) => token.clone(),
+                    deckmaste_core::TokenSpec::Named(name) => name
+                        .resolve()
+                        .expect("a Named token in a card resolves to a builtin definition"),
+                };
                 let n = self.eval_count(qty, frame);
                 let events: Vec<GameEvent> = (0..n)
                     .map(|_| GameEvent::TokenCreated {
@@ -3683,6 +3689,41 @@ mod tests {
             3,
             "[CR#109.2]: the Permanent scope counts only battlefield Goblins"
         );
+    }
+
+    /// A `Create(_, Named(Treasure))` resolves the predefined token
+    /// ([CR#111.10a]) from its rules-defined characteristics — no plugin handle
+    /// needed — and puts a real Treasure-subtyped token onto the battlefield.
+    #[test]
+    fn create_named_treasure_token() {
+        let (mut state, src) = bear_on_field();
+        let frame = frame_src(src);
+        state.run_effect(
+            Effect::act_by_you(PlayerAction::Create(
+                Count::Literal(1),
+                deckmaste_core::TokenSpec::Named(deckmaste_core::TokenName::from("Treasure")),
+            )),
+            &frame,
+        );
+        let _ = state.step(); // the TokenCreated batch applies
+        let &t = state
+            .zones
+            .battlefield
+            .iter()
+            .find(|&&id| id != src)
+            .expect("the Treasure token on the battlefield");
+        assert_eq!(crate::target::object_kind(&state, t), ObjectKind::Token);
+        let card = state.objects.obj(t).card_id().expect("card-backed");
+        assert!(
+            state
+                .cards
+                .get(card)
+                .subtypes
+                .iter()
+                .any(|s| s.name == "Treasure"),
+            "[CR#111.10a]: the resolved Named token carries the Treasure subtype"
+        );
+        assert!(state.cards.get(card).is_token, "[CR#111.6]");
     }
 
     /// The builtin predefined Treasure token ([CR#111.10a]) creates with its

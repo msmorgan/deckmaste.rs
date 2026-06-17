@@ -353,6 +353,54 @@ fn renders_synthesized_lose_life_and_destroy() {
     );
 }
 
+/// A predefined token ([CR#111.10]) renders by its bare name — the
+/// bidirectional truth the `create a <Name> token` parser routes back to.
+#[test]
+fn renders_named_predefined_token() {
+    use deckmaste_core::Action;
+    use deckmaste_core::Count;
+    use deckmaste_core::Effect;
+    use deckmaste_core::PlayerAction;
+    use deckmaste_core::Reference;
+    use deckmaste_core::TokenName;
+    use deckmaste_core::TokenSpec;
+
+    let treasure = CardFace {
+        name: "Test Hoard".into(),
+        types: vec![Type::Sorcery],
+        abilities: vec![Ability::Spell(deckmaste_core::SpellAbility {
+            effect: Effect::Act(Action::By(
+                Reference::You,
+                PlayerAction::Create(
+                    Count::Literal(1),
+                    TokenSpec::Named(TokenName::from("Treasure")),
+                ),
+            )),
+        })],
+        ..CardFace::default()
+    };
+    assert_eq!(
+        render_card_face(&treasure).rules,
+        vec!["Create a Treasure token.".to_string()]
+    );
+
+    let two_food = CardFace {
+        name: "Test Feast".into(),
+        types: vec![Type::Sorcery],
+        abilities: vec![Ability::Spell(deckmaste_core::SpellAbility {
+            effect: Effect::Act(Action::By(
+                Reference::You,
+                PlayerAction::Create(Count::Literal(2), TokenSpec::Named(TokenName::from("Food"))),
+            )),
+        })],
+        ..CardFace::default()
+    };
+    assert_eq!(
+        render_card_face(&two_food).rules,
+        vec!["Create two Food tokens.".to_string()]
+    );
+}
+
 // ── Coverage B: "dies" event + non-self trigger subjects ─────────────────────
 
 #[test]

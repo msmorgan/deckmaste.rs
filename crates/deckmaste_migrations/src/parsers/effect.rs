@@ -43,6 +43,7 @@ pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect>
         .or_else(|| parse_sacrifice(line))
         .or_else(|| parse_attach(line))
         .or_else(|| parse_pump(line))
+        .or_else(|| parse_create_predefined_token(line))
         .or_else(|| parse_create_token(line))
         .or_else(|| parse_macro_effect(line, ctx))
 }
@@ -796,6 +797,38 @@ fn life_amount(text: &str) -> Option<String> {
     }
 }
 
+/// `Create <count> <Name> token[s].` — a PREDEFINED token maker ([CR#111.10]):
+/// "Create a Treasure token.", "Create two Food tokens.". The name is one of
+/// the rules-defined tokens deckmaste builds (`Treasure`, `Food`, `Gold`,
+/// `Clue`, `Blood`); the creating effect defines no characteristics of its own
+/// — the rules do — so it emits `Create(<count>, Named(<Name>))`, the
+/// bare-ident `TokenSpec::Named` position. Fixed counts only (the bare numeral
+/// = reader sugar for `Count::Literal`, like the sibling creature-token /
+/// `Draw` productions). A `tapped` modifier, a dynamic count (`X`, "that many",
+/// "a number of …"), an unbuilt predefined token (Powerstone, Map, …), or any
+/// trailing clause declines — those are richer than this v1 production.
+fn parse_create_predefined_token(line: &str) -> Option<ParsedEffect> {
+    let body = strip_prefix_ci(line, "create ")?.strip_suffix('.')?;
+    // The terminator is the bare "token[s]" noun (plural first). A "creature
+    // token" line is the inline-definition production's job, not this one — it
+    // still has a type word before the noun, so the predefined-name check below
+    // rejects it.
+    let descriptor = body
+        .strip_suffix(" tokens")
+        .or_else(|| body.strip_suffix(" token"))?;
+    // "<count-word> <Name>" — a literal count word then the predefined name.
+    let (count_word, name) = descriptor.split_once(' ')?;
+    let count = number_word(count_word)?;
+    // Only a name the engine can resolve to a builtin token may become a
+    // `Named(...)`; anything else (an unbuilt predefined token, a typo, a
+    // "tapped …" modifier left in `name`) declines cleanly.
+    deckmaste_core::PredefinedToken::from_name(name)?;
+    Some(ParsedEffect {
+        targets: Vec::new(),
+        effect: format!("Create({count}, Named({name}))"),
+    })
+}
+
 /// `Create <count> <P/T> [<colors>] [<subtypes>] creature token[s] [with
 /// <kw…>].` — a creature-token maker. The creating effect defines the token's
 /// characteristics [CR#111.3]; color rides a color indicator [CR#202.2e]
@@ -1311,6 +1344,51 @@ mod tests {
     }
 
     #[test]
+    fn create_predefined_token_singular_and_plural() {
+        // [CR#111.10]: a predefined token by bare name -> `Named(<Name>)`.
+        assert_eq!(
+            parsed("Create a Treasure token."),
+            Some((String::new(), "Create(1, Named(Treasure))".to_owned()))
+        );
+        assert_eq!(
+            parsed("create a Food token."),
+            Some((String::new(), "Create(1, Named(Food))".to_owned()))
+        );
+        assert_eq!(
+            parsed("Create two Treasure tokens."),
+            Some((String::new(), "Create(2, Named(Treasure))".to_owned()))
+        );
+        // Gold, Clue, Blood are also built.
+        assert_eq!(
+            parsed("create a Gold token."),
+            Some((String::new(), "Create(1, Named(Gold))".to_owned()))
+        );
+        assert_eq!(
+            parsed("create a Blood token."),
+            Some((String::new(), "Create(1, Named(Blood))".to_owned()))
+        );
+        assert_eq!(
+            parsed("create a Clue token."),
+            Some((String::new(), "Create(1, Named(Clue))".to_owned()))
+        );
+    }
+
+    #[test]
+    fn create_predefined_token_declines_unbuilt_and_modified() {
+        // An unbuilt predefined token (no resolving definition yet) declines.
+        assert!(declines("create a tapped Powerstone token."));
+        assert!(declines("create a Powerstone token."));
+        assert!(declines("create a Map token."));
+        // A "tapped" modifier is not yet representable on a Named token.
+        assert!(declines("create a tapped Treasure token."));
+        // Dynamic counts stay out of this v1 production.
+        assert!(declines("create X Treasure tokens."));
+        assert!(declines("create that many Treasure tokens."));
+        // A plain unknown name is not a predefined token.
+        assert!(declines("create a Bogus token."));
+    }
+
+    #[test]
     fn create_token_with_keyword_grants() {
         assert_eq!(
             parsed("create a 1/1 red Goblin creature token with haste."),
@@ -1365,8 +1443,6 @@ mod tests {
     fn create_token_declines_out_of_scope() {
         // Dynamic count -> gen-dynamic-count.
         assert!(declines("Create X 1/1 red Goblin creature tokens."));
-        // Predefined token -> needs TokenSpec::Named.
-        assert!(declines("Create a Treasure token."));
         // Argument-taking keyword grant declines the whole production.
         assert!(declines(
             "Create a 1/1 white Cat creature token with ward {2}."

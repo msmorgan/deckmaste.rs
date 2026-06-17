@@ -162,7 +162,9 @@ mod target_spec;
 pub use target_spec::TargetSpec;
 
 mod token;
+pub use token::PredefinedToken;
 pub use token::Token;
+pub use token::TokenName;
 pub use token::TokenSpec;
 
 mod r#type;

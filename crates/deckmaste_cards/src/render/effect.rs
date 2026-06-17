@@ -136,6 +136,15 @@ fn create_text(count: &Count, spec: &TokenSpec) -> String {
             let abilities_suffix = token_abilities_suffix(&t.abilities);
             format!("Create {count_word} {descriptor} {noun}{abilities_suffix}.")
         }
+        // A predefined token ([CR#111.10]) renders by its bare name —
+        // "Create a Treasure token." — the bidirectional truth the parser's
+        // `create a <Name> token` production routes back to.
+        TokenSpec::Named(name) => {
+            let plural = count.literal_value() != Some(1);
+            let count_word = token_count_word(count);
+            let noun = if plural { "tokens" } else { "token" };
+            format!("Create {count_word} {} {noun}.", name.as_str())
+        }
     }
 }
 
