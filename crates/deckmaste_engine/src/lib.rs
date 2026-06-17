@@ -129,6 +129,8 @@ pub use turn::TurnState;
 mod zone;
 pub use zone::Zones;
 
+mod strategy;
+
 /// Self-play simulation harness for tests and benchmarks — not a stable API.
 #[doc(hidden)]
 pub mod sim;
