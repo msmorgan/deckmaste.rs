@@ -20,7 +20,6 @@ use deckmaste_core::Action as CoreAction;
 use deckmaste_core::ActivatedAbility;
 use deckmaste_core::Card;
 use deckmaste_core::CardFace;
-use deckmaste_core::CharacteristicFilter;
 use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::CostComponent;
@@ -907,9 +906,7 @@ fn activated_ability_pays_self_sacrifice_cost() {
         NAME,
         vec![
             CostComponent::Mana("{0}".parse().unwrap()),
-            CostComponent::Do(Box::new(PlayerAction::Sacrifice(Selection::Ref(
-                Reference::This,
-            )))),
+            CostComponent::do_(PlayerAction::Sacrifice(Selection::Ref(Reference::This))),
         ],
     );
     let mut state = cost_game(7, &card);
@@ -946,7 +943,7 @@ fn activated_ability_pays_life_cost() {
         NAME,
         vec![
             CostComponent::Mana("{0}".parse().unwrap()),
-            CostComponent::Do(Box::new(PlayerAction::LoseLife(Count::Literal(2)))),
+            CostComponent::do_(PlayerAction::LoseLife(Count::Literal(2))),
         ],
     );
     let mut state = cost_game(7, &card);
@@ -993,16 +990,16 @@ fn activated_ability_pays_choose_sacrifice_cost() {
     // Creature filter: battlefield creatures (zone check + type check).
     let creature_filter = Filter::AllOf(vec![
         Filter::State(StateFilter::InZone(Zone::Battlefield)),
-        Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+        Filter::creature(),
     ]);
     let card = artifact_with_cost(
         ARTIFACT_NAME,
         vec![
             CostComponent::Mana("{0}".parse().unwrap()),
-            CostComponent::Do(Box::new(PlayerAction::Sacrifice(Selection::Choose(
-                Quantity::Exactly(Count::Literal(1)),
+            CostComponent::do_(PlayerAction::Sacrifice(Selection::Choose(
+                Quantity::one(),
                 creature_filter,
-            )))),
+            ))),
         ],
     );
 

@@ -308,7 +308,6 @@ fn renders_synthesized_lose_life_and_destroy() {
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
     use deckmaste_core::CardFace;
-    use deckmaste_core::CharacteristicFilter;
     use deckmaste_core::Count;
     use deckmaste_core::Effect;
     use deckmaste_core::Filter;
@@ -341,15 +340,10 @@ fn renders_synthesized_lose_life_and_destroy() {
         name: "Test Smite".into(),
         types: vec![Type::Sorcery],
         abilities: vec![Ability::Spell(SpellAbility {
-            effect: Effect::Targeted(deckmaste_core::Targeted {
-                targets: vec![TargetSpec::Target(
-                    Quantity::Exactly(Count::Literal(1)),
-                    Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
-                )],
-                effect: Box::new(Effect::Act(Action::Destroy(Selection::Ref(
-                    Reference::Target(0),
-                )))),
-            }),
+            effect: Effect::Targeted(deckmaste_core::Targeted::new(
+                vec![TargetSpec::Target(Quantity::one(), Filter::creature())],
+                Effect::Act(Action::Destroy(Selection::Ref(Reference::Target(0)))),
+            )),
         })],
         ..CardFace::default()
     };
@@ -486,7 +480,6 @@ fn renders_aura_host_pump() {
 fn renders_continuously_pump_until_eot() {
     use deckmaste_core::Ability;
     use deckmaste_core::CardFace;
-    use deckmaste_core::CharacteristicFilter;
     use deckmaste_core::Continuously;
     use deckmaste_core::Count;
     use deckmaste_core::Duration;
@@ -505,12 +498,9 @@ fn renders_continuously_pump_until_eot() {
         name: "Test Pump".into(),
         types: vec![Type::Instant],
         abilities: vec![Ability::Spell(SpellAbility {
-            effect: Effect::Targeted(deckmaste_core::Targeted {
-                targets: vec![TargetSpec::Target(
-                    Quantity::Exactly(Count::Literal(1)),
-                    Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
-                )],
-                effect: Box::new(Effect::Continuously(Continuously {
+            effect: Effect::Targeted(deckmaste_core::Targeted::new(
+                vec![TargetSpec::Target(Quantity::one(), Filter::creature())],
+                Effect::Continuously(Continuously {
                     effect: Box::new(StaticEffect::Modify {
                         of: Scope::Of(Reference::Target(0)),
                         changes: vec![
@@ -519,8 +509,8 @@ fn renders_continuously_pump_until_eot() {
                         ],
                     }),
                     duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
-                })),
-            }),
+                }),
+            )),
         })],
         ..CardFace::default()
     };

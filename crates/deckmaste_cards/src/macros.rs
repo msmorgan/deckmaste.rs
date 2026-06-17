@@ -187,7 +187,7 @@ mod tests {
             arms[1],
             Filter::AllOf(vec![
                 Filter::State(StateFilter::InZone(Zone::Battlefield)),
-                Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                Filter::creature(),
             ])
         );
         assert_eq!(arms.len(), 2);
@@ -227,7 +227,7 @@ mod tests {
         let macros = macro_set();
         assert_eq!(
             macros.read_str::<Selection>("This").unwrap(),
-            Selection::Ref(Reference::This),
+            Selection::this(),
         );
         assert_eq!(
             macros.read_str::<Selection>("Target(0)").unwrap(),
@@ -273,21 +273,15 @@ mod tests {
         let macros = macro_set();
         assert_eq!(
             macros.read_str::<Action>("Draw(1)").unwrap(),
-            Action::By(Reference::You, PlayerAction::Draw(Count::Literal(1))),
+            Action::by_you(PlayerAction::Draw(Count::Literal(1))),
         );
         assert_eq!(
             macros.read_str::<Action>("Sacrifice(This)").unwrap(),
-            Action::By(
-                Reference::You,
-                PlayerAction::Sacrifice(Selection::Ref(Reference::This)),
-            ),
+            Action::by_you(PlayerAction::Sacrifice(Selection::this())),
         );
         assert_eq!(
             macros.read_str::<Action>("Tap(This)").unwrap(),
-            Action::By(
-                Reference::You,
-                PlayerAction::Tap(Selection::Ref(Reference::This)),
-            ),
+            Action::by_you(PlayerAction::Tap(Selection::this())),
         );
     }
 
@@ -309,7 +303,7 @@ mod tests {
         let macros = macro_set();
         assert_eq!(
             macros.read_str::<Action>("DealDamage(This, 3)").unwrap(),
-            Action::DealDamage(Selection::Ref(Reference::This), Count::Literal(3)),
+            Action::DealDamage(Selection::this(), Count::Literal(3)),
         );
     }
 
@@ -352,10 +346,7 @@ mod tests {
         assert_eq!(expanded.name, "TargetCreature");
         assert_eq!(
             *expanded.value,
-            TargetSpec::Target(
-                Quantity::Exactly(Count::Literal(1)),
-                Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
-            )
+            TargetSpec::Target(Quantity::one(), Filter::creature(),)
         );
     }
 
@@ -400,9 +391,7 @@ mod tests {
         assert_eq!(expanded.name, "SacThis");
         assert_eq!(
             *expanded.value,
-            CostComponent::Do(Box::new(PlayerAction::Sacrifice(Selection::from(
-                Reference::This
-            ))))
+            CostComponent::do_(PlayerAction::Sacrifice(Selection::from(Reference::This)))
         );
     }
 
@@ -468,9 +457,8 @@ mod tests {
         let expanded = effect.expand_all();
         assert_eq!(
             expanded,
-            Effect::Sequence(vec![Effect::Act(Action::By(
-                Reference::You,
-                PlayerAction::Draw(Count::Literal(2)),
+            Effect::Sequence(vec![Effect::act_by_you(PlayerAction::Draw(
+                Count::Literal(2),
             ))])
         );
         let written = deckmaste_core::ron::options().to_string(&expanded).unwrap();
@@ -508,7 +496,7 @@ mod tests {
         let Action::By(Reference::You, PlayerAction::PutInLibrary(sel, pos)) = action else {
             panic!("expected By(You, PutInLibrary(..)), got {action:?}");
         };
-        assert_eq!(sel, Selection::Ref(Reference::This));
+        assert_eq!(sel, Selection::this());
         let Count::Expanded(expanded) = pos else {
             panic!("expected a remembered count at the position, got {pos:?}");
         };

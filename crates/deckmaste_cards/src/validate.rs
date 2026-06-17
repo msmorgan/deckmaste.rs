@@ -393,10 +393,7 @@ mod tests {
             abilities: vec![Ability::Activated(ActivatedAbility {
                 from: None,
                 window: None,
-                cost: vec![CostComponent::Do(Box::new(PlayerAction::Draw(
-                    Count::Literal(1),
-                )))]
-                .into(),
+                cost: vec![CostComponent::do_(PlayerAction::Draw(Count::Literal(1)))].into(),
                 condition: None,
                 limits: vec![],
                 effect: add_one_any(),
@@ -427,9 +424,7 @@ mod tests {
                 window: None,
                 cost: vec![
                     CostComponent::Tap,
-                    CostComponent::Do(Box::new(PlayerAction::Sacrifice(Selection::from(
-                        Reference::This,
-                    )))),
+                    CostComponent::do_(PlayerAction::Sacrifice(Selection::from(Reference::This))),
                 ]
                 .into(),
                 condition: None,
@@ -461,9 +456,7 @@ mod tests {
                     name: "BadCost".into(),
                     args: ExpansionArgs::none(),
                     template: None,
-                    value: Box::new(CostComponent::Do(Box::new(PlayerAction::Draw(
-                        Count::Literal(1),
-                    )))),
+                    value: Box::new(CostComponent::do_(PlayerAction::Draw(Count::Literal(1)))),
                 })]
                 .into(),
                 condition: None,

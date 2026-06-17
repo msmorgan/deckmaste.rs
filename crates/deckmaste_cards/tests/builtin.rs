@@ -217,7 +217,7 @@ fn regenerate_macro_expands_with_typed_reference_param() {
     };
     assert_eq!(
         subject,
-        Selection::Ref(Reference::This),
+        Selection::this(),
         "subject lands as a bare Selection::Ref"
     );
     assert!(one_shot, "a regeneration shield is one-shot [CR#614.3]");

@@ -73,7 +73,7 @@ fn lead_for(what: &Filter) -> &'static str {
 /// "a creature" for a Creature macro filter).
 fn subject_of(f: &Filter, ctx: &Ctx) -> String {
     let f = super::fragment::strip_expanded(f);
-    if matches!(f, Filter::Ref(Reference::This)) {
+    if f.is_this() {
         return ctx.subject.to_string();
     }
     if let Some(t) = super::fragment::find_card_type(f) {

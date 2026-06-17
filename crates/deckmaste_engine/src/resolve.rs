@@ -1735,13 +1735,7 @@ mod tests {
     fn second_bear_to_player_1(state: &mut GameState) -> ObjectId {
         let theirs = *state.zones.hands[0]
             .iter()
-            .find(|&&o| {
-                obj_matches(
-                    state,
-                    o,
-                    &Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
-                )
-            })
+            .find(|&&o| obj_matches(state, o, &Filter::creature()))
             .expect("a second Grizzly Bears in the opening hand");
         state.zones.hands[PlayerId(0).index()].retain(|&o| o != theirs);
         state.objects.obj_mut(theirs).zone = Some(Zone::Battlefield);
@@ -1847,17 +1841,6 @@ mod tests {
         assert_eq!(state.eval_query(QueryKey::CardsDrawnThisTurn, p), 0);
     }
 
-    /// `Action::By(You, pa)` — the implicit-you default a bare player verb
-    /// reads as.
-    fn by_you(pa: PlayerAction) -> Action {
-        Action::By(Reference::You, pa)
-    }
-
-    /// `Selection::Ref(This)` — the common "this object" selection.
-    fn sel_this() -> Selection {
-        Selection::Ref(Reference::This)
-    }
-
     /// A two-player game; player 0's deck is Grizzly Bears.
     /// Returns the state plus a creature object forced onto the battlefield.
     fn bear_on_field() -> (GameState, ObjectId) {
@@ -1914,13 +1897,7 @@ mod tests {
         });
         let m = *state.zones.hands[0]
             .iter()
-            .find(|&&o| {
-                obj_matches(
-                    &state,
-                    o,
-                    &Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
-                )
-            })
+            .find(|&&o| obj_matches(&state, o, &Filter::creature()))
             .expect("a Darksteel Myr in the opening hand");
         state.zones.hands[PlayerId(0).index()].retain(|&o| o != m);
         state.objects.obj_mut(m).zone = Some(Zone::Battlefield);
@@ -1936,13 +1913,7 @@ mod tests {
         let (mut state, a) = bear_on_field();
         let b = *state.zones.hands[0]
             .iter()
-            .find(|&&o| {
-                obj_matches(
-                    &state,
-                    o,
-                    &Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
-                )
-            })
+            .find(|&&o| obj_matches(&state, o, &Filter::creature()))
             .expect("a second Grizzly Bears in the opening hand");
         state.zones.hands[PlayerId(0).index()].retain(|&o| o != b);
         state.objects.obj_mut(b).zone = Some(Zone::Battlefield);
@@ -1997,7 +1968,7 @@ mod tests {
         let frame = frame_src_targets(a, vec![b]);
         state.run_effect(
             Effect::Act(Action::Attach {
-                what: Selection::Ref(Reference::This),
+                what: Selection::this(),
                 to: Selection::Ref(Reference::Target(0)),
             }),
             &frame,
@@ -2027,7 +1998,7 @@ mod tests {
         let frame = frame_src_targets(a, vec![b]);
         state.run_effect(
             Effect::Act(Action::Attach {
-                what: Selection::Ref(Reference::This),
+                what: Selection::this(),
                 to: Selection::Ref(Reference::Target(0)),
             }),
             &frame,
@@ -2047,7 +2018,7 @@ mod tests {
         let frame = frame_src_targets(a, vec![a]);
         state.run_effect(
             Effect::Act(Action::Attach {
-                what: Selection::Ref(Reference::This),
+                what: Selection::this(),
                 to: Selection::Ref(Reference::Target(0)),
             }),
             &frame,
@@ -2121,7 +2092,7 @@ mod tests {
         let frame = frame_src_targets(equip, vec![rock]);
         state.run_effect(
             Effect::Act(Action::Attach {
-                what: Selection::Ref(Reference::This),
+                what: Selection::this(),
                 to: Selection::Ref(Reference::Target(0)),
             }),
             &frame,
@@ -2145,10 +2116,7 @@ mod tests {
         let (mut state, a, b) = two_permanents_on_field();
         state.objects.obj_mut(a).attached_to = Some(b);
         let frame = frame_src(a);
-        state.run_effect(
-            Effect::Act(Action::Unattach(Selection::Ref(Reference::This))),
-            &frame,
-        );
+        state.run_effect(Effect::Act(Action::Unattach(Selection::this())), &frame);
         drain(&mut state);
         assert_eq!(
             state.objects.obj(a).attached_to,
@@ -2171,10 +2139,7 @@ mod tests {
     fn unattach_of_an_unattached_object_is_a_noop() {
         let (mut state, a, _b) = two_permanents_on_field();
         let frame = frame_src(a);
-        state.run_effect(
-            Effect::Act(Action::Unattach(Selection::Ref(Reference::This))),
-            &frame,
-        );
+        state.run_effect(Effect::Act(Action::Unattach(Selection::this())), &frame);
         drain(&mut state);
         assert_eq!(state.objects.obj(a).attached_to, None);
         assert!(
@@ -2218,7 +2183,7 @@ mod tests {
         let (state, bear) = bear_on_field();
         let creatures = Filter::AllOf(vec![
             Filter::State(StateFilter::InZone(Zone::Battlefield)),
-            Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            Filter::creature(),
         ]);
         let frame = Frame {
             source: bear,
@@ -2229,7 +2194,7 @@ mod tests {
             x: None,
             subject: None,
         };
-        let sel = Selection::Choose(Quantity::Exactly(Count::Literal(1)), creatures);
+        let sel = Selection::Choose(Quantity::one(), creatures);
         assert_eq!(state.eval_selection_set(&sel, &frame), vec![bear]);
     }
 
@@ -2246,7 +2211,7 @@ mod tests {
 
         let creatures = Filter::AllOf(vec![
             Filter::State(StateFilter::InZone(Zone::Battlefield)),
-            Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            Filter::creature(),
         ]);
         let frame = frame_src(bear);
         let before = [bear, theirs]
@@ -2257,7 +2222,7 @@ mod tests {
 
         state.run_effect(
             Effect::Act(Action::Destroy(Selection::Random(
-                Quantity::Exactly(Count::Literal(1)),
+                Quantity::one(),
                 creatures,
             ))),
             &frame,
@@ -2302,12 +2267,12 @@ mod tests {
 
         let creatures = Filter::AllOf(vec![
             Filter::State(StateFilter::InZone(Zone::Battlefield)),
-            Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            Filter::creature(),
         ]);
         let frame = frame_src(bear);
         state.run_effect(
             Effect::Act(Action::Destroy(Selection::Choose(
-                Quantity::Exactly(Count::Literal(1)),
+                Quantity::one(),
                 creatures,
             ))),
             &frame,
@@ -2424,7 +2389,7 @@ mod tests {
     fn indestructible_survives_destroy_action() {
         let (mut state, myr) = myr_on_field();
         let frame = frame_src(myr);
-        state.run_effect(Effect::Act(Action::Destroy(sel_this())), &frame);
+        state.run_effect(Effect::Act(Action::Destroy(Selection::this())), &frame);
         // WillDestroy applies and schedules no zone move (replaced to nothing).
         let _ = state.step();
         assert!(
@@ -2445,7 +2410,7 @@ mod tests {
     fn destroy_action_sends_a_normal_creature_to_its_graveyard() {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src(bear);
-        state.run_effect(Effect::Act(Action::Destroy(sel_this())), &frame);
+        state.run_effect(Effect::Act(Action::Destroy(Selection::this())), &frame);
         // WillDestroy → ZoneWillChange → ZoneChanged.
         for _ in 0..3 {
             let _ = state.step();
@@ -2465,7 +2430,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src(bear);
         state.run_effect(
-            Effect::Act(Action::Move(sel_this(), Zone::Graveyard)),
+            Effect::Act(Action::Move(Selection::this(), Zone::Graveyard)),
             &frame,
         );
         // ZoneWillChange → ZoneChanged (one fewer step than Destroy — no
@@ -2489,7 +2454,10 @@ mod tests {
 
         // By(You, Tap(This)) -> one Single(Tapped(src)) carrying the
         // effect-instruction cause triple (events.md §3).
-        let items = state.action_items(&by_you(PlayerAction::Tap(sel_this())), &frame);
+        let items = state.action_items(
+            &Action::by_you(PlayerAction::Tap(Selection::this())),
+            &frame,
+        );
         assert_eq!(
             items,
             vec![WorkItem::Emit(Occurrence::Single(GameEvent::Tapped {
@@ -2503,7 +2471,10 @@ mod tests {
         );
 
         // By(You, Draw(2)) -> two sequential Single(WillDraw) for the controller
-        let items = state.action_items(&by_you(PlayerAction::Draw(Count::Literal(2))), &frame);
+        let items = state.action_items(
+            &Action::by_you(PlayerAction::Draw(Count::Literal(2))),
+            &frame,
+        );
         assert_eq!(items.len(), 2);
         assert!(items.iter().all(|item| matches!(
             item,
@@ -2514,7 +2485,10 @@ mod tests {
         )));
 
         // By(You, LoseLife(3)) -> one Single(LifeLost{player0, 3})
-        let items = state.action_items(&by_you(PlayerAction::LoseLife(Count::Literal(3))), &frame);
+        let items = state.action_items(
+            &Action::by_you(PlayerAction::LoseLife(Count::Literal(3))),
+            &frame,
+        );
         assert_eq!(
             items,
             vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeLost {
@@ -2532,7 +2506,10 @@ mod tests {
         let (mut state, src) = bear_on_field();
         state.objects.obj_mut(src).tapped = true;
         let frame = frame_src(src);
-        let items = state.action_items(&by_you(PlayerAction::Tap(sel_this())), &frame);
+        let items = state.action_items(
+            &Action::by_you(PlayerAction::Tap(Selection::this())),
+            &frame,
+        );
         assert_eq!(
             items,
             vec![],
@@ -2546,7 +2523,10 @@ mod tests {
     fn untap_effect_skips_already_untapped() {
         let (state, src) = bear_on_field();
         let frame = frame_src(src);
-        let items = state.action_items(&by_you(PlayerAction::Untap(sel_this())), &frame);
+        let items = state.action_items(
+            &Action::by_you(PlayerAction::Untap(Selection::this())),
+            &frame,
+        );
         assert_eq!(
             items,
             vec![],
@@ -2586,7 +2566,7 @@ mod tests {
         let frame = frame_src(bear);
         let creatures = Filter::AllOf(vec![
             Filter::State(StateFilter::InZone(Zone::Battlefield)),
-            Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            Filter::creature(),
         ]);
         assert_eq!(
             state.eval_count(&Count::CountOf(Box::new(creatures.clone())), &frame),
@@ -2650,7 +2630,7 @@ mod tests {
                     Selection::Ref(Reference::Target(0)),
                     Count::Literal(3),
                 )),
-                Effect::Act(by_you(PlayerAction::GainLife(Count::ThatMuch))),
+                Effect::act_by_you(PlayerAction::GainLife(Count::ThatMuch)),
             ]),
             &frame,
         );
@@ -2670,13 +2650,13 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src_targets(bear, vec![bear]);
         state.run_effect(
-            Effect::Targeted(deckmaste_core::Targeted {
-                targets: vec![],
-                effect: Box::new(Effect::Act(Action::DealDamage(
+            Effect::Targeted(deckmaste_core::Targeted::new(
+                vec![],
+                Effect::Act(Action::DealDamage(
                     Selection::Ref(Reference::Target(0)),
                     Count::Literal(3),
-                ))),
-            }),
+                )),
+            )),
             &frame,
         );
         // RunEffect(Targeted) → RunEffect(DealDamage) → Emit(DamageDealt).
@@ -2691,17 +2671,15 @@ mod tests {
     /// ([CR#115.1,601.2c]).
     #[test]
     fn top_targets_reads_wrapper_and_peels_expanded() {
-        let spec = deckmaste_core::TargetSpec::Target(
-            deckmaste_core::Quantity::Exactly(Count::Literal(1)),
-            Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
-        );
-        let wrapped = Effect::Targeted(deckmaste_core::Targeted {
-            targets: vec![spec.clone()],
-            effect: Box::new(Effect::Act(Action::DealDamage(
+        let spec =
+            deckmaste_core::TargetSpec::Target(deckmaste_core::Quantity::one(), Filter::creature());
+        let wrapped = Effect::Targeted(deckmaste_core::Targeted::new(
+            vec![spec.clone()],
+            Effect::Act(Action::DealDamage(
                 Selection::Ref(Reference::Target(0)),
                 Count::Literal(3),
-            ))),
-        });
+            )),
+        ));
         assert_eq!(super::top_targets(&wrapped), std::slice::from_ref(&spec));
         let bare = Effect::Act(Action::DealDamage(
             Selection::Ref(Reference::Target(0)),
@@ -2748,7 +2726,7 @@ mod tests {
         let frame = frame_src(a);
         let filter = Filter::AllOf(vec![
             Filter::State(StateFilter::InZone(Zone::Battlefield)),
-            Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            Filter::creature(),
         ]);
         let mut got = state.eval_selection_set(&Selection::Each(filter), &frame);
         got.sort();
@@ -2823,7 +2801,7 @@ mod tests {
         let effect = Effect::Act(Action::DealDamage(
             Selection::Each(Filter::AllOf(vec![
                 Filter::State(StateFilter::InZone(Zone::Battlefield)),
-                Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                Filter::creature(),
             ])),
             Count::Literal(2),
         ));
@@ -2856,7 +2834,6 @@ mod tests {
     /// `ScopeResolved::Floating` scope and the right duration/changes.
     #[test]
     fn continuously_matching_registers_floating_scope() {
-        use deckmaste_core::CharacteristicFilter;
         use deckmaste_core::Continuously;
         use deckmaste_core::Count;
         use deckmaste_core::Duration;
@@ -2865,14 +2842,13 @@ mod tests {
         use deckmaste_core::Modification;
         use deckmaste_core::Scope;
         use deckmaste_core::StaticEffect;
-        use deckmaste_core::Type;
 
         let (mut state, src) = bear_on_field();
         let frame = frame_src(src);
 
         assert!(state.continuous.is_empty(), "no effects before resolve");
 
-        let filter = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));
+        let filter = Filter::creature();
         let effect = Effect::Continuously(Continuously {
             effect: Box::new(StaticEffect::Modify {
                 of: Scope::Matching(filter.clone()),
@@ -2942,7 +2918,10 @@ mod tests {
         state.objects.obj_mut(src).tapped = true;
         let frame = frame_src(src);
 
-        let items = state.action_items(&by_you(PlayerAction::GainLife(Count::Literal(3))), &frame);
+        let items = state.action_items(
+            &Action::by_you(PlayerAction::GainLife(Count::Literal(3))),
+            &frame,
+        );
         assert_eq!(
             items,
             vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeGained {
@@ -2951,7 +2930,10 @@ mod tests {
             }))]
         );
 
-        let items = state.action_items(&by_you(PlayerAction::Untap(sel_this())), &frame);
+        let items = state.action_items(
+            &Action::by_you(PlayerAction::Untap(Selection::this())),
+            &frame,
+        );
         assert_eq!(
             items,
             vec![WorkItem::Emit(Occurrence::Single(GameEvent::Untapped(src)))]
@@ -2971,8 +2953,8 @@ mod tests {
         let (state, bear) = bear_on_field();
         let frame = frame_src(bear);
         let items = state.action_items(
-            &by_you(PlayerAction::PutCounters(
-                sel_this(),
+            &Action::by_you(PlayerAction::PutCounters(
+                Selection::this(),
                 "P1P1Counter".into(),
                 Count::Literal(2),
             )),
@@ -3001,8 +2983,8 @@ mod tests {
         let (state, bear) = bear_on_field();
         let frame = frame_src(bear);
         let items = state.action_items(
-            &by_you(PlayerAction::PutCounters(
-                sel_this(),
+            &Action::by_you(PlayerAction::PutCounters(
+                Selection::this(),
                 "P1P1Counter".into(),
                 Count::Literal(0),
             )),
@@ -3024,11 +3006,11 @@ mod tests {
             .insert("P1P1Counter".into(), 1);
         let frame = frame_src(bear);
         state.run_effect(
-            Effect::Act(by_you(PlayerAction::PutCounters(
-                sel_this(),
+            Effect::act_by_you(PlayerAction::PutCounters(
+                Selection::this(),
                 "P1P1Counter".into(),
                 Count::Literal(2),
-            ))),
+            )),
             &frame,
         );
         let _ = state.step(); // applies CounterPlaced
@@ -3055,11 +3037,11 @@ mod tests {
             .insert("P1P1Counter".into(), 1);
         let frame = frame_src(bear);
         state.run_effect(
-            Effect::Act(by_you(PlayerAction::RemoveCounters(
-                sel_this(),
+            Effect::act_by_you(PlayerAction::RemoveCounters(
+                Selection::this(),
                 "P1P1Counter".into(),
                 Count::Literal(2),
-            ))),
+            )),
             &frame,
         );
         let _ = state.step(); // applies CounterRemoved
@@ -3130,7 +3112,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src(bear);
         state.run_effect(
-            Effect::Act(by_you(PlayerAction::Sacrifice(sel_this()))),
+            Effect::act_by_you(PlayerAction::Sacrifice(Selection::this())),
             &frame,
         );
         // Sacrificed → ZoneWillChange → ZoneChanged.
@@ -3175,7 +3157,7 @@ mod tests {
 
         let frame = frame_src(gob);
         state.run_effect(
-            Effect::Act(by_you(PlayerAction::Sacrifice(sel_this()))),
+            Effect::act_by_you(PlayerAction::Sacrifice(Selection::this())),
             &frame,
         );
         for _ in 0..10 {
@@ -3199,7 +3181,10 @@ mod tests {
     fn exile_moves_objects_from_battlefield_and_graveyard() {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src(bear);
-        state.run_effect(Effect::Act(by_you(PlayerAction::Exile(sel_this()))), &frame);
+        state.run_effect(
+            Effect::act_by_you(PlayerAction::Exile(Selection::this())),
+            &frame,
+        );
         // ZoneWillChange → ZoneChanged.
         for _ in 0..2 {
             let _ = state.step();
@@ -3215,7 +3200,10 @@ mod tests {
         state.objects.obj_mut(card).zone = Some(Zone::Graveyard);
         state.zones.graveyards[0].push(card);
         let frame = frame_src(card);
-        state.run_effect(Effect::Act(by_you(PlayerAction::Exile(sel_this()))), &frame);
+        state.run_effect(
+            Effect::act_by_you(PlayerAction::Exile(Selection::this())),
+            &frame,
+        );
         for _ in 0..2 {
             let _ = state.step();
         }
@@ -3233,7 +3221,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let hand_before = state.zones.hands[0].len();
         let frame = frame_src(bear);
-        state.run_effect(Effect::Act(Action::ReturnToHand(sel_this())), &frame);
+        state.run_effect(Effect::Act(Action::ReturnToHand(Selection::this())), &frame);
         // ZoneWillChange → ZoneChanged.
         for _ in 0..2 {
             let _ = state.step();
@@ -3252,7 +3240,7 @@ mod tests {
         state.zones.graveyards[0].push(card);
         let gy_hand_before = state.zones.hands[0].len();
         let frame = frame_src(card);
-        state.run_effect(Effect::Act(Action::ReturnToHand(sel_this())), &frame);
+        state.run_effect(Effect::Act(Action::ReturnToHand(Selection::this())), &frame);
         for _ in 0..2 {
             let _ = state.step();
         }
@@ -3306,10 +3294,10 @@ mod tests {
         let lib_before = state.zones.libraries[0].len();
         let frame = frame_src(bear);
         state.run_effect(
-            Effect::Act(by_you(PlayerAction::PutInLibrary(
-                sel_this(),
+            Effect::act_by_you(PlayerAction::PutInLibrary(
+                Selection::this(),
                 Count::Literal(0),
-            ))),
+            )),
             &frame,
         );
         for _ in 0..2 {
@@ -3324,10 +3312,10 @@ mod tests {
         // Past the bottom ([CR#401.7]): index 99 places it on the bottom.
         let frame = frame_src(top);
         state.run_effect(
-            Effect::Act(by_you(PlayerAction::PutInLibrary(
-                sel_this(),
+            Effect::act_by_you(PlayerAction::PutInLibrary(
+                Selection::this(),
                 Count::Literal(99),
-            ))),
+            )),
             &frame,
         );
         for _ in 0..2 {
@@ -3355,20 +3343,20 @@ mod tests {
         let frame = frame_src(src);
         let green = ColorOrColorless::Color(Color::Green);
         state.run_effect(
-            Effect::Act(by_you(PlayerAction::AddMana(
+            Effect::act_by_you(PlayerAction::AddMana(
                 Count::Literal(2),
                 ManaSpec::Specific(green).into(),
-            ))),
+            )),
             &frame,
         );
         let _ = state.step();
         assert_eq!(state.players[0].mana_pool.amount(green), 2);
 
         state.run_effect(
-            Effect::Act(by_you(PlayerAction::AddMana(
+            Effect::act_by_you(PlayerAction::AddMana(
                 Count::Literal(1),
                 ManaSpec::AnyColor.into(),
-            ))),
+            )),
             &frame,
         );
         let _ = state.step(); // ManaColorOpened
@@ -3412,13 +3400,13 @@ mod tests {
         let red = ColorOrColorless::Color(Color::Red);
         let rider = ManaRider::SpendOnly(Filter::Any);
         state.run_effect(
-            Effect::Act(by_you(PlayerAction::AddMana(
+            Effect::act_by_you(PlayerAction::AddMana(
                 Count::Literal(1),
                 ManaProduction::WithRiders {
                     mana: ManaSpec::Specific(red),
                     riders: vec![rider],
                 },
-            ))),
+            )),
             &frame,
         );
         let _ = state.step(); // ManaAdded applies
@@ -3446,10 +3434,10 @@ mod tests {
         let frame = frame_src(src);
         let hand_before = state.zones.hands[0].len();
         state.run_effect(
-            Effect::Act(by_you(PlayerAction::Discard {
+            Effect::act_by_you(PlayerAction::Discard {
                 count: Count::Literal(2),
                 what: None,
-            })),
+            }),
             &frame,
         );
         let _ = state.step(); // DiscardOpened
@@ -3478,10 +3466,10 @@ mod tests {
         // Clamp: an instruction to discard far more than the hand holds
         // discards the whole hand.
         state.run_effect(
-            Effect::Act(by_you(PlayerAction::Discard {
+            Effect::act_by_you(PlayerAction::Discard {
                 count: Count::Literal(99),
                 what: None,
-            })),
+            }),
             &frame,
         );
         let _ = state.step();
@@ -3519,8 +3507,8 @@ mod tests {
             value: Box::new(body.clone()),
         });
         assert_eq!(
-            state.action_items(&by_you(expanded), &frame),
-            state.action_items(&by_you(body), &frame),
+            state.action_items(&Action::by_you(expanded), &frame),
+            state.action_items(&Action::by_you(body), &frame),
         );
     }
 
@@ -3545,10 +3533,7 @@ mod tests {
             toughness: None,
         };
         state.run_effect(
-            Effect::Act(by_you(PlayerAction::Create(
-                Count::Literal(2),
-                token.into(),
-            ))),
+            Effect::act_by_you(PlayerAction::Create(Count::Literal(2), token.into())),
             &frame,
         );
         // One simultaneous batch of two TokenCreated facts.
@@ -3583,11 +3568,7 @@ mod tests {
             assert_eq!(state.objects.obj(t).controller, PlayerId(0));
             assert!(state.objects.obj(t).summoning_sick, "[CR#302.6]");
             assert!(
-                obj_matches(
-                    &state,
-                    t,
-                    &Filter::Characteristic(CharacteristicFilter::Type(Type::Artifact))
-                ),
+                obj_matches(&state, t, &Filter::type_(Type::Artifact)),
                 "the creating effect's characteristics stick ([CR#111.3])"
             );
         }
@@ -3661,7 +3642,7 @@ mod tests {
             let frame = frame_src(source);
             let before = state.zones.battlefield.len();
             state.run_effect(
-                Effect::Act(by_you(PlayerAction::Create(
+                Effect::act_by_you(PlayerAction::Create(
                     Count::CountOf(Box::new(parsed)),
                     deckmaste_core::Token {
                         color_indicator: vec![],
@@ -3673,7 +3654,7 @@ mod tests {
                         toughness: Some(deckmaste_core::StatValue::Number(1)),
                     }
                     .into(),
-                ))),
+                )),
                 &frame,
             );
             // Drain the queued work (the TokenCreated batch + per-token enters).
@@ -3707,10 +3688,7 @@ mod tests {
         let frame = frame_src(src);
         let treasure = builtin().token("Treasure").unwrap();
         state.run_effect(
-            Effect::Act(by_you(PlayerAction::Create(
-                Count::Literal(1),
-                treasure.into(),
-            ))),
+            Effect::act_by_you(PlayerAction::Create(Count::Literal(1), treasure.into())),
             &frame,
         );
         let _ = state.step(); // the TokenCreated batch applies
@@ -3844,7 +3822,7 @@ mod tests {
         let frame = frame_src_targets(equipment, vec![host]);
         state.run_effect(
             Effect::Act(Action::Attach {
-                what: Selection::Ref(Reference::This),
+                what: Selection::this(),
                 to: Selection::Ref(Reference::Target(0)),
             }),
             &frame,
@@ -3918,7 +3896,7 @@ mod tests {
         // Destroy the host (source = host, `This` = the dying creature); the SBA
         // sweep then sends the now-unattached Aura to the graveyard ([CR#704.5m]).
         let frame = frame_src(host);
-        state.run_effect(Effect::Act(Action::Destroy(sel_this())), &frame);
+        state.run_effect(Effect::Act(Action::Destroy(Selection::this())), &frame);
         run_injected(&mut state);
         for e in crate::sba::sweep(&state) {
             state.schedule_front(vec![WorkItem::Emit(Occurrence::single(e))]);
@@ -4057,7 +4035,7 @@ mod tests {
         let frame = frame_src_targets(fortification, vec![land]);
         state.run_effect(
             Effect::Act(Action::Attach {
-                what: Selection::Ref(Reference::This),
+                what: Selection::this(),
                 to: Selection::Ref(Reference::Target(0)),
             }),
             &frame,
@@ -4097,7 +4075,7 @@ mod tests {
         let frame = frame_src_targets(equip_creature, vec![host]);
         state.run_effect(
             Effect::Act(Action::Attach {
-                what: Selection::Ref(Reference::This),
+                what: Selection::this(),
                 to: Selection::Ref(Reference::Target(0)),
             }),
             &frame,
@@ -4111,10 +4089,7 @@ mod tests {
 
         // Unattach (reconfigure's second ability).
         let frame = frame_src(equip_creature);
-        state.run_effect(
-            Effect::Act(Action::Unattach(Selection::Ref(Reference::This))),
-            &frame,
-        );
+        state.run_effect(Effect::Act(Action::Unattach(Selection::this())), &frame);
         run_injected(&mut state);
         assert_eq!(
             state.objects.obj(equip_creature).attached_to,
@@ -4267,7 +4242,7 @@ mod tests {
         let theirs = second_bear_to_player_1(&mut state);
         let creatures = Filter::AllOf(vec![
             Filter::State(StateFilter::InZone(Zone::Battlefield)),
-            Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            Filter::creature(),
         ]);
         let frame = frame_src(bear);
         state.run_effect(
@@ -4296,7 +4271,7 @@ mod tests {
         let _theirs = second_bear_to_player_1(&mut state);
         let creatures = Filter::AllOf(vec![
             Filter::State(StateFilter::InZone(Zone::Battlefield)),
-            Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            Filter::creature(),
         ]);
         let frame = frame_src(bear);
         let life0 = state.player(PlayerId(0)).life;
@@ -4481,8 +4456,8 @@ mod tests {
                 Reference::You,
                 PlayerAction::GainLife(Count::Literal(10)),
             ))),
-            unless: vec![CostComponent::Do(Box::new(PlayerAction::LoseLife(
-                Count::Literal(2),
+            unless: vec![CostComponent::do_(PlayerAction::LoseLife(Count::Literal(
+                2,
             )))],
         };
 
@@ -4565,11 +4540,12 @@ mod tests {
         use deckmaste_core::Condition;
         use deckmaste_core::If;
 
-        let by_you = |pa| Effect::Act(Action::By(Reference::You, pa));
         Effect::Sequence(vec![
             Effect::If(If {
                 condition: ascend_gate(),
-                then: Box::new(by_you(PlayerAction::GetDesignation("CitysBlessing".into()))),
+                then: Box::new(Effect::act_by_you(PlayerAction::GetDesignation(
+                    "CitysBlessing".into(),
+                ))),
                 otherwise: None,
             }),
             Effect::If(If {
@@ -4577,8 +4553,10 @@ mod tests {
                     Reference::You,
                     Filter::State(StateFilter::Designated("CitysBlessing".into())),
                 ),
-                then: Box::new(by_you(PlayerAction::Draw(Count::Literal(3)))),
-                otherwise: Some(Box::new(by_you(PlayerAction::Draw(Count::Literal(2))))),
+                then: Box::new(Effect::act_by_you(PlayerAction::Draw(Count::Literal(3)))),
+                otherwise: Some(Box::new(Effect::act_by_you(PlayerAction::Draw(
+                    Count::Literal(2),
+                )))),
             }),
         ])
     }

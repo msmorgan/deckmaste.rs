@@ -90,6 +90,20 @@ pub enum Count {
     Literal(crate::Uint),
 }
 
+impl Count {
+    /// The literal magnitude if this count is a bare integer, else `None` —
+    /// the one type-level question call sites ask of a `Count` (pluralization,
+    /// "is this exactly one"). A dynamic count (`X`, `CountOf`, …) has no
+    /// static value.
+    #[must_use]
+    pub fn literal_value(&self) -> Option<crate::Uint> {
+        match self {
+            Count::Literal(n) => Some(*n),
+            _ => None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

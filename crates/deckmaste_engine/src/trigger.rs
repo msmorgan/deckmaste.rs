@@ -959,13 +959,7 @@ mod tests {
         });
         let bear = *state.zones.hands[0]
             .iter()
-            .find(|&&o| {
-                matches(
-                    &state,
-                    o,
-                    &Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
-                )
-            })
+            .find(|&&o| matches(&state, o, &Filter::creature()))
             .expect("a Grizzly Bears in the opening hand");
         state.zones.hands[0].retain(|&o| o != bear);
         state.objects.obj_mut(bear).zone = Some(Zone::Battlefield);
@@ -1043,7 +1037,7 @@ mod tests {
         let pattern = Event::ZoneMove {
             face: None,
             cause: None,
-            what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            what: Filter::creature(),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
         };
@@ -1075,13 +1069,7 @@ mod tests {
         });
         let bear = *state.zones.hands[0]
             .iter()
-            .find(|&&o| {
-                matches(
-                    &state,
-                    o,
-                    &Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
-                )
-            })
+            .find(|&&o| matches(&state, o, &Filter::creature()))
             .unwrap();
         state.zones.hands[0].retain(|&o| o != bear);
         state.objects.obj_mut(bear).zone = Some(Zone::Battlefield);
@@ -1108,7 +1096,7 @@ mod tests {
         let dies_pattern = Event::ZoneMove {
             face: None,
             cause: None,
-            what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            what: Filter::creature(),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
         };
@@ -1153,7 +1141,7 @@ mod tests {
         let dies_pattern = Event::ZoneMove {
             face: None,
             cause: None,
-            what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            what: Filter::creature(),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
         };
@@ -1192,13 +1180,7 @@ mod tests {
         // Place the dies-trigger creature on the battlefield.
         let trigger_obj = *state.zones.hands[0]
             .iter()
-            .find(|&&o| {
-                matches(
-                    &state,
-                    o,
-                    &Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
-                )
-            })
+            .find(|&&o| matches(&state, o, &Filter::creature()))
             .expect("trigger creature in hand");
         state.zones.hands[0].retain(|&o| o != trigger_obj);
         state.objects.obj_mut(trigger_obj).zone = Some(Zone::Battlefield);
@@ -1275,13 +1257,7 @@ mod tests {
         // The ETB creature starts in hand; we want to simulate it entering.
         let etb_obj = *state.zones.hands[0]
             .iter()
-            .find(|&&o| {
-                matches(
-                    &state,
-                    o,
-                    &Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
-                )
-            })
+            .find(|&&o| matches(&state, o, &Filter::creature()))
             .expect("ETB creature in hand");
         let etb_source = state.objects.obj(etb_obj).source;
 
@@ -1405,7 +1381,7 @@ mod tests {
             Event::ZoneMove {
                 face: None,
                 cause: None,
-                what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                what: Filter::creature(),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
             }
@@ -1456,7 +1432,7 @@ mod tests {
         assert_eq!(
             *expanded.value,
             Event::ZoneMove {
-                what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                what: Filter::creature(),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
                 face: None,
@@ -1587,7 +1563,7 @@ mod tests {
         let pattern = Event::ZoneMove {
             face: None,
             cause: None,
-            what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            what: Filter::creature(),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
         };
@@ -1768,7 +1744,7 @@ mod tests {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let pattern = Event::StateBecomes {
-            of: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            of: Filter::creature(),
             becomes: StateFilterEvent::Untapped,
             cause: None,
         };
@@ -2209,7 +2185,7 @@ mod tests {
             id
         };
         let pattern = Event::StateBecomes {
-            of: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            of: Filter::creature(),
             becomes: StateFilterEvent::ControlledBy(Filter::Ref(Reference::You)),
             cause: None,
         };
@@ -2276,7 +2252,7 @@ mod tests {
     fn one_of_matches_any_branch() {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
-        let creature = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));
+        let creature = Filter::creature();
         let pattern = Event::OneOf(vec![
             Event::ZoneMove {
                 face: None,

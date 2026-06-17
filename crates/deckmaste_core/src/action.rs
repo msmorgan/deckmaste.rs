@@ -190,6 +190,16 @@ pub enum PlayerAction {
     Expanded(Expansion<PlayerAction>),
 }
 
+impl Action {
+    /// A player verb performed by the implicit "you" (`By(You, …)`) — the
+    /// default agent a bare player verb reads as ([CR#608.2]). The explicit
+    /// `By(other, …)` form names a different agent.
+    #[must_use]
+    pub fn by_you(action: PlayerAction) -> Action {
+        Action::By(Reference::You, action)
+    }
+}
+
 impl PlayerAction {
     /// Whether this verb may appear in a cost (`CostComponent::Do`): the
     /// payer performs it, nothing targets ([CR#601.2b..601.2c]). Cost-eligible

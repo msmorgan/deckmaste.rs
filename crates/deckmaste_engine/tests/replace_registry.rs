@@ -201,7 +201,7 @@ fn instead_redirects_destruction_to_exile() {
     // `Exile` is a `PlayerAction`; By(You, ...) is the implicit agent sugar.
     let instead_body = Effect::Act(Action::By(
         Reference::You,
-        PlayerAction::Exile(Selection::Ref(Reference::This)),
+        PlayerAction::Exile(Selection::this()),
     ));
     let (mut state, id) = creature_with_replacement(Replacement::Instead {
         would: destroyed_self(),
@@ -693,7 +693,7 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
             )))),
         )),
         // [CR#702.89a]: destroy this Aura.
-        Effect::Act(Action::Destroy(Selection::Ref(Reference::This))),
+        Effect::Act(Action::Destroy(Selection::this())),
     ]);
 
     let umbra_armor = Replacement::Instead {
@@ -974,7 +974,7 @@ fn double_damage_lineage_terminates() {
     // The `instead` body: deal 10 damage to this creature (a fixed amount
     // rather than a doubled one — see doc-comment above for rationale).
     let instead_body = Effect::Act(deckmaste_core::Action::DealDamage(
-        Selection::Ref(Reference::This),
+        Selection::this(),
         Count::Literal(10),
     ));
 

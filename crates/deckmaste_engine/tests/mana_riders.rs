@@ -9,7 +9,6 @@ use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Card;
-use deckmaste_core::CharacteristicFilter;
 use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::Filter;
@@ -72,13 +71,6 @@ fn green() -> ColorOrColorless {
 }
 fn red() -> ColorOrColorless {
     Color::Red.into()
-}
-
-fn creature_filter() -> Filter {
-    Filter::Characteristic(CharacteristicFilter::Type(Type::Creature))
-}
-fn instant_filter() -> Filter {
-    Filter::Characteristic(CharacteristicFilter::Type(Type::Instant))
 }
 
 fn face_name(state: &GameState, id: ObjectId) -> &str {
@@ -192,7 +184,7 @@ fn spend_only_creature_funds_a_creature_spell() {
     state.player_mut(PlayerId(0)).mana_pool.add_riders(
         green(),
         1,
-        &[ManaRider::SpendOnly(creature_filter())],
+        &[ManaRider::SpendOnly(Filter::creature())],
     );
     state.player_mut(PlayerId(0)).mana_pool.add(red(), 1);
     // Re-derive the frozen priority list with the freshly floated pool.
@@ -384,7 +376,7 @@ fn spend_only_instant_cannot_fund_a_creature_spell() {
     state.player_mut(PlayerId(0)).mana_pool.add_riders(
         green(),
         1,
-        &[ManaRider::SpendOnly(instant_filter())],
+        &[ManaRider::SpendOnly(Filter::type_(Type::Instant))],
     );
     state.player_mut(PlayerId(0)).mana_pool.add(red(), 1);
     // Re-derive the frozen priority list with the freshly floated pool.

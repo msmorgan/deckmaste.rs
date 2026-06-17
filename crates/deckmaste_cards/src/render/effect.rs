@@ -129,7 +129,7 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
 fn create_text(count: &Count, spec: &TokenSpec) -> String {
     match spec {
         TokenSpec::Token(t) => {
-            let plural = !matches!(count, Count::Literal(1));
+            let plural = count.literal_value() != Some(1);
             let count_word = token_count_word(count);
             let descriptor = token_descriptor(t);
             let noun = if plural { "tokens" } else { "token" };

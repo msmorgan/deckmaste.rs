@@ -831,7 +831,7 @@ mod tests {
                     Reference::This,
                 )))),
                 then: Box::new(Effect::Act(deckmaste_core::Action::Move(
-                    Selection::Ref(Reference::This),
+                    Selection::this(),
                     Zone::Graveyard,
                 ))),
             }],

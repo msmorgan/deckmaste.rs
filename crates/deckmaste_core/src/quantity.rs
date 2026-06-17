@@ -24,6 +24,15 @@ pub enum Quantity {
     Expanded(Expansion<Quantity>),
 }
 
+impl Quantity {
+    /// Exactly one object — `Exactly(Literal(1))`, the single-target/single-
+    /// choice cardinality that recurs across target specs and selections.
+    #[must_use]
+    pub fn one() -> Quantity {
+        Quantity::Exactly(Count::Literal(1))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

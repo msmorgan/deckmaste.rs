@@ -212,7 +212,6 @@ mod tests {
     use deckmaste_core::Ability;
     use deckmaste_core::Card;
     use deckmaste_core::CardFace;
-    use deckmaste_core::CharacteristicFilter;
     use deckmaste_core::StaticAbility;
     use deckmaste_core::Type;
 
@@ -262,10 +261,10 @@ mod tests {
                         cause: None,
                     },
                     also: Effect::Act(Action::Attach {
-                        what: Selection::Ref(Reference::This),
+                        what: Selection::this(),
                         to: Selection::Filter(Filter::AllOf(vec![
                             Filter::State(deckmaste_core::StateFilter::InZone(Zone::Battlefield)),
-                            Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                            Filter::creature(),
                         ])),
                     }),
                 }))],
@@ -390,7 +389,7 @@ mod tests {
                     also: Effect::Act(Action::By(
                         Reference::You,
                         PlayerAction::PutCounters(
-                            Selection::Ref(Reference::This),
+                            Selection::this(),
                             "P1P1Counter".into(),
                             Count::Literal(2),
                         ),
