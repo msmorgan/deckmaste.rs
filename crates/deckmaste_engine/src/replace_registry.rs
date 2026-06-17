@@ -9,10 +9,6 @@
 //! `replace_event` loop, `ChooseReplacement` decision, regeneration,
 //! umbra/totem armor, genericity proof, and Skip step elision.
 
-// Items added here are consumed by later tasks in this feature; suppress
-// dead_code until those tasks land and wire them in.
-#![allow(dead_code)]
-
 use deckmaste_core::Ability;
 use deckmaste_core::CausePattern;
 use deckmaste_core::Duration;
@@ -202,6 +198,9 @@ fn event_pattern_matches(
         }
 
         // Both are Performed: compare verb and resolve filters against affected.
+        // `by` (the performer, e.g. "if a creature YOU CONTROL would deal
+        // damage") is not matched yet — a v1 seam, like the agent coordinate in
+        // `cause_pattern_matches`; no in-scope replacement restricts `by`.
         (
             Event::Performed {
                 verb: w_verb,
@@ -692,7 +691,6 @@ pub(crate) fn surface_choice(
     });
     state.pending = Some(crate::decide::PendingDecision::ChooseReplacement {
         chooser,
-        event_index: 0,
         applicable: keys,
     });
 }
