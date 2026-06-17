@@ -1,3 +1,4 @@
+use crate::Count;
 use crate::Expansion;
 use crate::Filter;
 use crate::Quantity;
@@ -38,6 +39,18 @@ pub enum Selection {
     /// key, not a re-evaluated filter — re-evaluation would be wrong for
     /// "this way" anaphora ([CR#607.2a] linkage).
     AmongNoted(crate::Ident, Quantity),
+    /// The top `count` cards of a library, top → down (an ORDERED set —
+    /// position is the whole point). `of` names the library's player; the
+    /// default `You` writes bare. Feeds `With`/`Distribute` ([CR#701.22a]).
+    TopOfLibrary {
+        count: Count,
+        #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
+        of: Reference,
+    },
+    /// The whole ordered group bound by an enclosing `Effect::With` — the
+    /// plural anaphor. Resolves to the frame's `those` binding, order
+    /// preserved. Distinct from singular `That` (a `Reference`).
+    Those,
     /// A bound object reference, lifted into a choice slot. Written bare in
     /// RON (no `Ref(...)` wrapper) — see the type docs.
     #[macro_ron(embed)]
@@ -54,6 +67,18 @@ impl From<Reference> for Selection {
     fn from(reference: Reference) -> Self {
         Selection::Ref(reference)
     }
+}
+
+/// serde default for [`TopOfLibrary.of`] — the library belongs to "you"
+/// unless the text names another player.
+fn ref_you() -> Reference {
+    Reference::You
+}
+
+/// `skip_serializing_if` predicate for [`TopOfLibrary.of`]: the default `You`
+/// is omitted from RON.
+fn ref_is_you(r: &Reference) -> bool {
+    matches!(r, Reference::You)
 }
 
 impl Selection {
@@ -151,5 +176,22 @@ mod tests {
             );
             assert_eq!(read(&written), v);
         }
+    }
+
+    #[test]
+    fn top_of_library_round_trips() {
+        let v = Selection::TopOfLibrary {
+            count: Count::Literal(2),
+            of: crate::Reference::You,
+        };
+        // `of: You` is the default and writes bare.
+        assert_eq!(read("TopOfLibrary(count:2)"), v);
+        assert_eq!(read(&to_string(&v)), v);
+    }
+
+    #[test]
+    fn those_round_trips() {
+        assert_eq!(read("Those"), Selection::Those);
+        assert_eq!(read(&to_string(&Selection::Those)), Selection::Those);
     }
 }
