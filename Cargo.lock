@@ -431,6 +431,7 @@ dependencies = [
  "anyhow",
  "deckmaste_cards",
  "deckmaste_core",
+ "rayon",
  "regex",
  "ron",
  "serde",

@@ -129,6 +129,12 @@ pub(crate) fn type_head_atom(word: &str) -> Option<String> {
     type_noun_atom(&singularize(word.trim()).to_ascii_lowercase()).map(ToOwned::to_owned)
 }
 
+/// Trailing "with power/toughness N or greater/less" stat clause. Compiled
+/// once, not per call — `strip_postfix` runs on every ability line during
+/// `resolve`.
+static STAT_CLAUSE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i) with (power|toughness) (\d+) or (greater|less)$").unwrap());
+
 /// Peel one trailing relative clause off `s`, returning (atom, head-remainder).
 fn strip_postfix(s: &str) -> Option<(String, &str)> {
     let s = s.trim_end();
@@ -149,8 +155,7 @@ fn strip_postfix(s: &str) -> Option<(String, &str)> {
         }
     }
     // Stat clauses via regex (power/toughness, greater/less).
-    let re = Regex::new(r"(?i) with (power|toughness) (\d+) or (greater|less)$").unwrap();
-    if let Some(caps) = re.captures(s) {
+    if let Some(caps) = STAT_CLAUSE.captures(s) {
         let stat = if caps[1].eq_ignore_ascii_case("power") { "Power" } else { "Toughness" };
         let n = &caps[2];
         let cmp = if caps[3].eq_ignore_ascii_case("greater") { "AtLeast" } else { "AtMost" };

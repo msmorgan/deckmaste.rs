@@ -25,6 +25,7 @@ use deckmaste_core::Card;
 use deckmaste_core::plugin::CARDS_DIR;
 use deckmaste_core::plugin::graduated_name;
 use deckmaste_core::plugin::is_ron_todo_file;
+use rayon::prelude::*;
 use regex::Regex;
 
 /// Outcome of a graduation run.
@@ -96,6 +97,18 @@ fn ron_todo_files(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
     Ok(files)
 }
 
+/// Per-card outcome of `graduate_plugin`'s parse gate. Reading + parsing a card
+/// (and renaming one that graduates) are independent per file, so the gate runs
+/// in parallel; the report is then folded sequentially over the
+/// order-preserving `collect`, keeping its counts and `Vec` orderings
+/// deterministic regardless of thread scheduling.
+enum Outcome {
+    Graduated(PathBuf),
+    Unresolved,
+    BlockedMacro(String),
+    Other(PathBuf, String),
+}
+
 /// Graduates every `cards/*.ron.todo` in `plugin_dir` that the macro reader
 /// parses as a [`Card`] — renaming it to `<name>.ron`. The plugin's builtin
 /// sibling prelude is in scope. A file that fails to parse (an `Unparsed(…)`
@@ -113,37 +126,58 @@ fn ron_todo_files(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
 /// error.
 pub fn graduate_plugin(plugin_dir: &Path) -> anyhow::Result<GraduateReport> {
     let plugin = Plugin::load_with_sibling_prelude(plugin_dir)?;
+    let paths = ron_todo_files(&plugin_dir.join(CARDS_DIR))?;
+    let outcomes: Vec<Outcome> = paths
+        .par_iter()
+        .map(|path| -> anyhow::Result<Outcome> {
+            let source = read(path)?;
+            match plugin.macros.read_str::<Card>(&source) {
+                Ok(_) => {
+                    // is_ron_todo_file guarantees a `.ron.todo` name, so
+                    // graduated_name is always present.
+                    let final_name = path
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .and_then(graduated_name)
+                        .expect("a .ron.todo file has a graduated name");
+                    let final_path = path.with_file_name(final_name);
+                    std::fs::rename(path, &final_path)?;
+                    Ok(Outcome::Graduated(final_path))
+                }
+                Err(e) => {
+                    let message = e.to_string();
+                    Ok(match classify(&message) {
+                        Blocker::Unresolved => Outcome::Unresolved,
+                        Blocker::Macro(ident) => Outcome::BlockedMacro(ident),
+                        Blocker::Other => Outcome::Other(
+                            path.clone(),
+                            message.lines().next().unwrap_or("").to_owned(),
+                        ),
+                    })
+                }
+            }
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
+
     let mut graduated = Vec::new();
     let mut remaining = 0;
     let mut unresolved = 0;
     let mut blocked_on_macro: BTreeMap<String, usize> = BTreeMap::new();
     let mut other = Vec::new();
-
-    for path in ron_todo_files(&plugin_dir.join(CARDS_DIR))? {
-        let source = read(&path)?;
-        match plugin.macros.read_str::<Card>(&source) {
-            Ok(_) => {
-                // is_ron_todo_file guarantees a `.ron.todo` name, so
-                // graduated_name is always present.
-                let final_name = path
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    .and_then(graduated_name)
-                    .expect("a .ron.todo file has a graduated name");
-                let final_path = path.with_file_name(final_name);
-                std::fs::rename(&path, &final_path)?;
-                graduated.push(final_path);
-            }
-            Err(e) => {
+    for outcome in outcomes {
+        match outcome {
+            Outcome::Graduated(path) => graduated.push(path),
+            Outcome::Unresolved => {
                 remaining += 1;
-                let message = e.to_string();
-                match classify(&message) {
-                    Blocker::Unresolved => unresolved += 1,
-                    Blocker::Macro(ident) => *blocked_on_macro.entry(ident).or_default() += 1,
-                    Blocker::Other => {
-                        other.push((path, message.lines().next().unwrap_or("").to_owned()));
-                    }
-                }
+                unresolved += 1;
+            }
+            Outcome::BlockedMacro(ident) => {
+                remaining += 1;
+                *blocked_on_macro.entry(ident).or_default() += 1;
+            }
+            Outcome::Other(path, msg) => {
+                remaining += 1;
+                other.push((path, msg));
             }
         }
     }

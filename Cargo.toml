@@ -36,10 +36,14 @@ slotmap = { version = "1.1.1", features = ["serde"] }
 # `cargo xtask generate` deserializes the ~600 MB AllPrintings.json; `extract`,
 # `graduate`, and `validate` parse/serialize tens of thousands of RON card files
 # (the latter through the `macro_ron` expander). Under an unoptimized dev build
-# those parses take tens of seconds. Optimize just the parsing crates — JSON
-# (`serde_json`) and RON (`ron`, `macro_ron`) — so the tools stay fast to *run*
-# without a release build of the whole tree (the xtask alias uses the dev
-# profile — see .cargo/config.toml). Profile overrides only take effect from the
+# those parses take tens of seconds. Optimize the parsing crates — JSON
+# (`serde_json`), RON (`ron`, `macro_ron`), and the regex engine (`regex` plus
+# its `regex-automata`/`regex-syntax`/`aho-corasick`/`memchr` workhorses) — so
+# the tools stay fast to *run* without a release build of the whole tree (the
+# xtask alias uses the dev profile — see .cargo/config.toml). The regex crates
+# carry `resolve`'s per-line parser registry and `extract`'s per-card matching;
+# left unoptimized they were the dominant dev-only penalty (dev `resolve` ran
+# ~5x slower than release). Profile overrides only take effect from the
 # workspace root manifest, which is why they live here.
 [profile.dev.package.deckmaste_migrations]
 opt-level = 3
@@ -51,4 +55,19 @@ opt-level = 3
 opt-level = 3
 
 [profile.dev.package.macro_ron]
+opt-level = 3
+
+[profile.dev.package.regex]
+opt-level = 3
+
+[profile.dev.package.regex-automata]
+opt-level = 3
+
+[profile.dev.package.regex-syntax]
+opt-level = 3
+
+[profile.dev.package.aho-corasick]
+opt-level = 3
+
+[profile.dev.package.memchr]
 opt-level = 3
