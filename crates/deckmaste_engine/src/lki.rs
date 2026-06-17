@@ -2,6 +2,9 @@
 //! object captured at a zone change, so triggers and effects can read it after
 //! the object itself is gone. The engine never retains dead objects.
 
+use std::collections::HashMap;
+
+use deckmaste_core::Ident;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 
@@ -23,6 +26,12 @@ pub struct LkiSnapshot {
     pub controller: PlayerId,
     pub tapped: bool,
     pub damage: Uint,
+    /// The counters on the object the instant it left ([CR#122.1]). A dies
+    /// trigger that reads "for each +1/+1 counter on this permanent"
+    /// ([CR#603.10a] last-known information) counts these — the live object
+    /// is gone, so the count must come from the snapshot, not the (stale)
+    /// object id.
+    pub counters: HashMap<Ident, Uint>,
     /// The zone it left.
     pub left: Zone,
 }
@@ -42,6 +51,7 @@ impl LkiSnapshot {
             controller: o.controller,
             tapped: o.tapped,
             damage: o.damage,
+            counters: o.counters.clone(),
             left: o.zone.expect("a zoned object has a zone to leave"),
         }
     }
