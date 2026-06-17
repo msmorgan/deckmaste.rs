@@ -24,17 +24,17 @@ use crate::resolve::ResolveCtx;
 
 #[allow(clippy::unnecessary_wraps)]
 pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
-    Ok(parse(line, ctx.kind))
+    Ok(parse(line, ctx))
 }
 
-fn parse(line: &str, kind: CardKind) -> Option<String> {
+fn parse(line: &str, ctx: &ResolveCtx) -> Option<String> {
     // [CR#614.1]: a replacement is a continuous effect of a permanent's static
     // ability (or a one-shot's during-resolution clause). The permanent-side
     // templates here decline on spells.
-    if kind == CardKind::Spell {
+    if ctx.kind == CardKind::Spell {
         return None;
     }
-    parse_as_enters(line).or_else(|| parse_instead(line))
+    parse_as_enters(line, ctx).or_else(|| parse_instead(line, ctx))
 }
 
 /// "As <subject> enters, <effect>." → `Replacement(AsEnters(<effect>))`. Only
@@ -42,9 +42,9 @@ fn parse(line: &str, kind: CardKind) -> Option<String> {
 /// ([CR#614.12]), folded into this object's own entry. The effect clause keeps
 /// its trailing period (the shared grammar requires it) and must declare no
 /// targets (no announce list exists at a replacement).
-fn parse_as_enters(line: &str) -> Option<String> {
+fn parse_as_enters(line: &str, ctx: &ResolveCtx) -> Option<String> {
     let effect_clause = line.strip_prefix("As ~ enters, ")?;
-    let parsed = effect::parse_clause(effect_clause)?;
+    let parsed = effect::parse_clause(effect_clause, ctx)?;
     if !parsed.targets.is_empty() {
         return None;
     }
@@ -60,7 +60,7 @@ fn parse_as_enters(line: &str) -> Option<String> {
 /// [`triggered_ability::parse_event`] grammar reads ("die" → "dies", "enter"
 /// → "enters"); the effect reuses the shared grammar and must not target (a
 /// replacement declares no announce list). Declines unless both halves parse.
-fn parse_instead(line: &str) -> Option<String> {
+fn parse_instead(line: &str, ctx: &ResolveCtx) -> Option<String> {
     let body = line.strip_suffix('.')?;
     let rest = body.strip_prefix("If ")?;
     // "[subject] would [pred], [effect] instead": the verb "would" splits the
@@ -77,7 +77,7 @@ fn parse_instead(line: &str) -> Option<String> {
     let event = triggered_ability::parse_event(&format!("{subject} {verb_clause}"))?;
     // The shared effect grammar requires the trailing period the "instead"
     // suffix consumed; restore it.
-    let parsed = effect::parse_clause(&format!("{effect_clause}."))?;
+    let parsed = effect::parse_clause(&format!("{effect_clause}."), ctx)?;
     if !parsed.targets.is_empty() {
         return None;
     }

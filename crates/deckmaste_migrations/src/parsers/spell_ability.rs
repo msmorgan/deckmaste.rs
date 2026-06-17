@@ -19,7 +19,7 @@ pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
     if ctx.kind != CardKind::Spell {
         return Ok(None);
     }
-    Ok(effect::parse_clause(line).map(|parsed| render(&parsed)))
+    Ok(effect::parse_clause(line, ctx).map(|parsed| render(&parsed)))
 }
 
 /// Wraps a [`ParsedEffect`] in the `Spell` frame, emitting `targets:` only
@@ -42,6 +42,20 @@ mod tests {
 
     fn spell(line: &str) -> Option<String> {
         resolve_line(line, &crate::parsers::test_ctx::ctx(CardKind::Spell)).unwrap()
+    }
+
+    /// A spell whose effect is an `Effect`-kind keyword-action macro
+    /// (`Investigate.`) frames through the shared macro-template fallthrough —
+    /// the bare invocation as the spell effect, no targets field.
+    #[test]
+    fn frames_keyword_action_macro_like_investigate() {
+        let line = "Investigate.";
+        let out = resolve_line(
+            line,
+            &crate::parsers::test_ctx::builtin_ctx(CardKind::Spell),
+        )
+        .unwrap();
+        assert_eq!(out.as_deref(), Some("Spell(effect: Investigate)"));
     }
 
     #[test]

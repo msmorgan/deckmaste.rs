@@ -9,6 +9,7 @@ use crate::parsers::count;
 use crate::parsers::filter;
 use crate::parsers::modify;
 use crate::parsers::modify::strip_prefix_ci;
+use crate::resolve::ResolveCtx;
 
 /// One parsed effect clause: `TargetSpec` RON fragments to declare on the
 /// frame (empty when the effect targets nothing), and the `Effect`/`Action`
@@ -19,9 +20,15 @@ pub(super) struct ParsedEffect {
 }
 
 /// Parses one normalized effect line into a [`ParsedEffect`], or `None` to
-/// decline. Productions are tried in order; the first match wins.
-pub(super) fn parse_clause(line: &str) -> Option<ParsedEffect> {
-    parse_may(line)
+/// decline. Productions are tried in order; the first match wins. The
+/// bespoke productions lead (they encode targeting/scope the bare macro
+/// templates can't carry); an `Effect`-kind macro template
+/// ([`parse_macro_effect`]) is the final fallthrough, so keyword-action lines
+/// (`investigate.`, `scry 2.`) route back to the macro whose template renders
+/// them. [`ResolveCtx`] carries the reverse template index that fallthrough
+/// consults.
+pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
+    parse_may(line, ctx)
         .or_else(|| parse_deal_damage(line))
         .or_else(|| parse_draw(line))
         .or_else(|| parse_lose_life(line))
@@ -29,6 +36,59 @@ pub(super) fn parse_clause(line: &str) -> Option<ParsedEffect> {
         .or_else(|| parse_destroy(line))
         .or_else(|| parse_pump(line))
         .or_else(|| parse_create_token(line))
+        .or_else(|| parse_macro_effect(line, ctx))
+}
+
+/// The final effect-clause fallthrough: route the whole clause back to the
+/// `Effect`-kind macro whose `template` renders it — the settled
+/// "parse-via-macros" direction. This is what lets keyword-action macros
+/// (`investigate`, and its slot-bearing kin) stand as effect bodies in any
+/// shell (ETB trigger / activated / spell) without a bespoke `parse_<action>`
+/// per action. The clause's trailing period is stripped (templates carry the
+/// sentence body, not its punctuation); a successful match must consume the
+/// WHOLE body (no trailing junk), and declares no targets (a keyword action
+/// targets nothing in its own right — any targeting lives in an outer shell).
+/// Nullary templates (`investigate`) route through the bare-emittable index;
+/// slot-bearing templates (`scry ${0}`) fill each `${i}` via the typed slot
+/// readers, mirroring the whole-line keyword-template parser.
+fn parse_macro_effect(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
+    let body = line.strip_suffix('.')?.trim();
+    // Nullary (param-less) action macro — `investigate`.
+    if let Some(m) = ctx.index.match_kind("Effect", body)
+        && m.consumed == body.len()
+    {
+        return Some(ParsedEffect {
+            targets: Vec::new(),
+            effect: m.macro_name.to_string(),
+        });
+    }
+    // Slot-bearing action macro — `scry ${0}`, with each `${i}` slot read by
+    // the typed reader.
+    if let Some(m) = ctx.index.match_with("Effect", body, macro_slot_reader)
+        && m.consumed == body.len()
+    {
+        return Some(ParsedEffect {
+            targets: Vec::new(),
+            effect: m.invocation,
+        });
+    }
+    None
+}
+
+/// Read one `Effect`-macro template slot of declared type `ty` from the rest of
+/// the clause. The slot is the line's tail in the action shapes modeled here
+/// (`scry 2` — a `Count` magnitude at the end), so a successful read consumes
+/// all of `input`. Only `Count` slots are read for now (the keyword-action
+/// subset that takes an argument all take a count); an unmodeled slot type
+/// declines, failing the whole template cleanly.
+fn macro_slot_reader(ty: &str, input: &str) -> Option<(String, usize)> {
+    match ty {
+        // A bare numeral count word — `scry two`, `mill 3`. Emitted as a bare
+        // numeral (reader-sugar for `Count::Literal`), matching the sibling
+        // `Draw`/`Create` count productions.
+        "Count" => Some((number_word(input.trim())?.to_string(), input.len())),
+        _ => None,
+    }
 }
 
 /// `you may <effect>` -> the inner effect wrapped in a `May` frame
@@ -38,9 +98,9 @@ pub(super) fn parse_clause(line: &str) -> Option<ParsedEffect> {
 /// Every inner production accepts a lowercase (mid-sentence) lead, so the
 /// stripped clause re-enters them directly. Case-insensitive lead ("You may"
 /// opens a trigger effect; "you may" follows a comma).
-fn parse_may(line: &str) -> Option<ParsedEffect> {
+fn parse_may(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
     let inner = strip_prefix_ci(line, "you may ")?;
-    let parsed = parse_clause(inner)?;
+    let parsed = parse_clause(inner, ctx)?;
     Some(ParsedEffect {
         targets: parsed.targets,
         effect: format!("May(effect: {})", parsed.effect),
@@ -451,10 +511,28 @@ fn damage_target(text: &str) -> Option<(Vec<String>, String)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::resolve::CardKind;
 
-    /// `(targets joined by ", ", effect)` for terse assertions.
+    /// `(targets joined by ", ", effect)` for terse assertions. Uses the EMPTY
+    /// reverse index (the macro-template fallthrough declines), so these pin
+    /// the BESPOKE productions in isolation.
     fn parsed(line: &str) -> Option<(String, String)> {
-        parse_clause(line).map(|p| (p.targets.join(", "), p.effect))
+        let ctx = crate::parsers::test_ctx::ctx(CardKind::Permanent);
+        parse_clause(line, &ctx).map(|p| (p.targets.join(", "), p.effect))
+    }
+
+    /// `(targets, effect)` resolved against the REAL builtin macro index, so
+    /// the `Effect`-kind macro-template fallthrough is exercised.
+    fn parsed_with_macros(line: &str) -> Option<(String, String)> {
+        let ctx = crate::parsers::test_ctx::builtin_ctx(CardKind::Permanent);
+        parse_clause(line, &ctx).map(|p| (p.targets.join(", "), p.effect))
+    }
+
+    /// Whether the clause declines under the EMPTY index (pins a bespoke
+    /// production's non-match without the macro fallthrough shadowing it).
+    fn declines(line: &str) -> bool {
+        let ctx = crate::parsers::test_ctx::ctx(CardKind::Permanent);
+        parse_clause(line, &ctx).is_none()
     }
 
     #[test]
@@ -596,16 +674,16 @@ mod tests {
     #[test]
     fn declines_unknown_damage_targets_and_non_effects() {
         // A damage target the grammar doesn't model still declines.
-        assert!(parse_clause("~ deals 3 damage to each artifact.").is_none());
-        assert!(parse_clause("Flying").is_none());
-        assert!(parse_clause("~ deals X damage to any target.").is_none());
+        assert!(declines("~ deals 3 damage to each artifact."));
+        assert!(declines("Flying"));
+        assert!(declines("~ deals X damage to any target."));
         // Destroy without the "target" form (board wipes) is a later follow-up.
-        assert!(parse_clause("Destroy all creatures.").is_none());
+        assert!(declines("Destroy all creatures."));
         // A target subject the filter grammar can't parse declines.
-        assert!(parse_clause("Destroy target creature with flying.").is_none());
+        assert!(declines("Destroy target creature with flying."));
         // A pump without the durational marker isn't an effect-grammar pump (it's
         // a static anthem's job on a permanent).
-        assert!(parse_clause("Creatures you control get +1/+1.").is_none());
+        assert!(declines("Creatures you control get +1/+1."));
     }
 
     #[test]
@@ -635,8 +713,8 @@ mod tests {
     #[test]
     fn draw_declines_unparseable_counts() {
         // "X" and "that many" aren't v1 productions.
-        assert!(parse_clause("Draw X cards.").is_none());
-        assert!(parse_clause("Draw that many cards.").is_none());
+        assert!(declines("Draw X cards."));
+        assert!(declines("Draw that many cards."));
     }
 
     #[test]
@@ -706,8 +784,8 @@ mod tests {
 
     #[test]
     fn life_declines_unparseable() {
-        assert!(parse_clause("you lose life.").is_none());
-        assert!(parse_clause("you gain X life.").is_none());
+        assert!(declines("you lose life."));
+        assert!(declines("you gain X life."));
     }
 
     #[test]
@@ -782,41 +860,38 @@ mod tests {
     #[test]
     fn create_token_declines_out_of_scope() {
         // Dynamic count -> gen-dynamic-count.
-        assert!(parse_clause("Create X 1/1 red Goblin creature tokens.").is_none());
+        assert!(declines("Create X 1/1 red Goblin creature tokens."));
         // Predefined token -> needs TokenSpec::Named.
-        assert!(parse_clause("Create a Treasure token.").is_none());
+        assert!(declines("Create a Treasure token."));
         // Argument-taking keyword grant declines the whole production.
-        assert!(parse_clause("Create a 1/1 white Cat creature token with ward {2}.").is_none());
+        assert!(declines(
+            "Create a 1/1 white Cat creature token with ward {2}."
+        ));
         // Quoted granted ability -> follow-up seam.
-        assert!(
-            parse_clause(
-                "Create a 1/1 red Goblin creature token with \"~ attacks each combat if able.\"."
-            )
-            .is_none()
-        );
+        assert!(declines(
+            "Create a 1/1 red Goblin creature token with \"~ attacks each combat if able.\"."
+        ));
     }
 
     #[test]
     fn create_token_declines_multi_and_typed_tokens() {
         // Multi-token sentence (comma-separated tokens) — previously emitted
         // junk RON (double comma) and crashed the pipeline; must decline.
-        assert!(parse_clause(
+        assert!(declines(
             "Create a 1/1 green Snake creature token, a 2/2 green Wolf creature token, and a 3/3 green Elephant creature token."
-        ).is_none());
+        ));
         // Two tokens joined by a trailing conjunction after a with-clause.
-        assert!(parse_clause(
+        assert!(declines(
             "Create a 1/1 red Dinosaur creature token with haste and a 1/1 white Human Soldier creature token."
-        ).is_none());
+        ));
         // Artifact creature token — the "artifact" card-type word is out of scope.
-        assert!(
-            parse_clause("Create a 3/3 colorless Phyrexian Golem artifact creature token.")
-                .is_none()
-        );
+        assert!(declines(
+            "Create a 3/3 colorless Phyrexian Golem artifact creature token."
+        ));
         // Trailing clause after the token.
-        assert!(
-            parse_clause("Create a 1/1 white Bird creature token with flying, then populate.")
-                .is_none()
-        );
+        assert!(declines(
+            "Create a 1/1 white Bird creature token with flying, then populate."
+        ));
     }
 
     #[test]
@@ -859,12 +934,13 @@ mod tests {
     #[test]
     fn create_token_dynamic_mismatched_var_declines() {
         // The leading count word must equal the where-clause variable.
-        assert!(parse_clause("Create Y 1/1 red Goblin creature tokens, where X is the number of Goblins you control.").is_none());
+        assert!(declines(
+            "Create Y 1/1 red Goblin creature tokens, where X is the number of Goblins you control."
+        ));
         // A non-unit base under "for each" has no Count product form -> decline.
-        assert!(
-            parse_clause("Create two 1/1 red Goblin creature tokens for each Goblin you control.")
-                .is_none()
-        );
+        assert!(declines(
+            "Create two 1/1 red Goblin creature tokens for each Goblin you control."
+        ));
     }
 
     #[test]
@@ -933,12 +1009,9 @@ mod tests {
     #[test]
     fn durational_pump_for_each_nonunit_declines() {
         // "+2/+2 for each" has no Count product form -> decline.
-        assert!(
-            parse_clause(
-                "Creatures you control get +2/+2 for each Goblin you control until end of turn."
-            )
-            .is_none()
-        );
+        assert!(declines(
+            "Creatures you control get +2/+2 for each Goblin you control until end of turn."
+        ));
     }
 
     #[test]
@@ -959,7 +1032,9 @@ mod tests {
             Some((String::new(), "GainLife(3)".to_owned()))
         );
         // A non-unit base under "for each" has no Count product form -> declines.
-        assert!(parse_clause("you gain 2 life for each attacking Elf you control.").is_none());
+        assert!(declines(
+            "you gain 2 life for each attacking Elf you control."
+        ));
     }
 
     #[test]
@@ -985,6 +1060,56 @@ mod tests {
     fn may_declines_unparseable_inner() {
         // The whole `you may` production declines when the inner effect doesn't
         // parse (no partial parse).
-        assert!(parse_clause("you may flip a coin.").is_none());
+        assert!(declines("you may flip a coin."));
+    }
+
+    /// A nullary `Effect`-kind macro template (`investigate`) resolves as the
+    /// effect body through the final macro-template fallthrough — emitting the
+    /// bare invocation, no targets. Both the bare and Title-Case leads match
+    /// (the template is case-folded).
+    #[test]
+    fn macro_effect_investigate_resolves_via_template() {
+        assert_eq!(
+            parsed_with_macros("Investigate."),
+            Some((String::new(), "Investigate".to_owned()))
+        );
+        // Mid-sentence (lowercase) lead — the clause after a trigger comma.
+        assert_eq!(
+            parsed_with_macros("investigate."),
+            Some((String::new(), "Investigate".to_owned()))
+        );
+    }
+
+    /// A `you may <macro-action>` rider wraps the macro effect in `May`, so
+    /// "you may investigate." resolves through the shared `May` production over
+    /// the macro-template fallthrough.
+    #[test]
+    fn macro_effect_under_may_rider() {
+        assert_eq!(
+            parsed_with_macros("you may investigate."),
+            Some((String::new(), "May(effect: Investigate)".to_owned()))
+        );
+    }
+
+    /// The fallthrough requires the WHOLE clause to be the template — a clause
+    /// with trailing text past the action word declines (no partial parse).
+    #[test]
+    fn macro_effect_declines_on_trailing_text() {
+        let ctx = crate::parsers::test_ctx::builtin_ctx(CardKind::Permanent);
+        // "investigate twice" is a repeated-action shape, not the bare template.
+        assert!(parse_clause("investigate twice.", &ctx).is_none());
+        // An unknown action word still declines.
+        assert!(parse_clause("teleport.", &ctx).is_none());
+    }
+
+    /// The bespoke productions still LEAD: a line both a bespoke parser and a
+    /// macro template could claim goes to the bespoke parser (`Draw(1)`, not a
+    /// hypothetical draw macro). Regression that the fallthrough is last.
+    #[test]
+    fn bespoke_productions_lead_over_macro_templates() {
+        assert_eq!(
+            parsed_with_macros("Draw a card."),
+            Some((String::new(), "Draw(1)".to_owned()))
+        );
     }
 }
