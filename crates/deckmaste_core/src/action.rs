@@ -115,11 +115,12 @@ pub enum PlayerAction {
     /// an IGNORED roll is considered to have never happened ([CR#706.6]).
     RollDice(Count, crate::Uint),
     /// Put counters of the named kind on each selected object/player
-    /// ([CR#122.1] — counters go on objects AND players).
-    PutCounters(Selection, crate::Ident, Count),
+    /// ([CR#122.1] — counters go on objects AND players). The kind is a bare
+    /// `CounterRef` (`PutCounters(~, P1P1Counter, 2)`), not a string.
+    PutCounters(Selection, crate::CounterRef, Count),
     /// Remove counters of the named kind ([CR#122.1]; cost-eligible —
     /// "Remove a +1/+1 counter from this creature:").
-    RemoveCounters(Selection, crate::Ident, Count),
+    RemoveCounters(Selection, crate::CounterRef, Count),
     /// Put a selection of cards into their owner's library at a `Count`
     /// position counted from the top: `0` = top, `CardsInLibrary(owner)` =
     /// bottom. An index past the bottom places the card on the bottom

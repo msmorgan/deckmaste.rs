@@ -141,7 +141,8 @@ fn strip_postfix(s: &str) -> Option<(String, &str)> {
         return Some((format!("Stat({stat}, {cmp}, Literal({n}))"), head));
     }
     if let Some(head) = s.strip_suffix(" with a +1/+1 counter on it") {
-        return Some(("HasCounter(\"+1/+1\")".to_string(), head));
+        // Counter kinds are bare `CounterRef` idents, not strings.
+        return Some(("HasCounter(P1P1Counter)".to_string(), head));
     }
     None
 }
@@ -443,7 +444,7 @@ mod tests {
         );
         assert_eq!(
             parse_phrase("creatures with a +1/+1 counter on it").as_deref(),
-            Some("AllOf([Creature, HasCounter(\"+1/+1\")])")
+            Some("AllOf([Creature, HasCounter(P1P1Counter)])")
         );
         // word-number is out of the regex's \d+ scope → declines
         assert!(parse_phrase("creatures with power three or greater").is_none());
