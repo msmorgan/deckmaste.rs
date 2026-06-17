@@ -759,23 +759,48 @@ impl GameState {
     /// After applying, runs `check_game_end` so a simultaneous multi-loss batch
     /// is evaluated as a whole.
     fn apply_occurrence(&mut self, occ: Occurrence) -> Occurrence {
+        // Preserve whether the input was a Single or Batch — callers and tests
+        // observe the shape ([CR#616.1]: a batch is a simultaneous set).
         let occurred = match occ {
             Occurrence::Single(e) => {
+                // [CR#614.17]: can't-happen pass — suppressed before replacements.
                 if crate::replace_registry::cant_event(self, &e) {
-                    Occurrence::Batch(vec![]) // [CR#614.17]: suppressed, nothing occurred
+                    Occurrence::Batch(vec![]) // suppressed, nothing occurred
                 } else {
-                    Occurrence::Single(self.apply(e))
+                    // [CR#616.1]: replacement-effect loop.
+                    match crate::replace_registry::replace_event(self, e) {
+                        crate::replace_registry::ReplaceOutcome::Pass(e2) => {
+                            Occurrence::Single(self.apply(e2))
+                        }
+                        crate::replace_registry::ReplaceOutcome::Nothing => {
+                            Occurrence::Batch(vec![]) // replaced to nothing
+                        }
+                        crate::replace_registry::ReplaceOutcome::Suspend => {
+                            todo!("Task 5: ChooseReplacement decision")
+                        }
+                    }
                 }
             }
             Occurrence::Batch(events) => {
                 // Filter out suppressed events first (cant pass borrows self
-                // immutably), then apply the remainder (which borrows self
-                // mutably) — two separate passes to satisfy the borrow checker.
+                // immutably), then run the replacement loop + apply on each.
                 let live: Vec<GameEvent> = events
                     .into_iter()
                     .filter(|e| !crate::replace_registry::cant_event(self, e))
                     .collect();
-                Occurrence::Batch(live.into_iter().map(|e| self.apply(e)).collect())
+                let mut facts = Vec::new();
+                for e in live {
+                    match crate::replace_registry::replace_event(self, e) {
+                        crate::replace_registry::ReplaceOutcome::Pass(e2) => {
+                            facts.push(self.apply(e2));
+                        }
+                        crate::replace_registry::ReplaceOutcome::Nothing => {}
+                        crate::replace_registry::ReplaceOutcome::Suspend => {
+                            todo!("Task 5: ChooseReplacement decision")
+                        }
+                    }
+                }
+                Occurrence::Batch(facts)
             }
         };
         self.record_history(&occurred);

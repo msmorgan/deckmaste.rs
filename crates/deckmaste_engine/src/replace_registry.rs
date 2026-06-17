@@ -418,7 +418,148 @@ fn replacement_would(
     }
 }
 
-// ── End Task 3 ───────────────────────────────────────────────────────────────
+// ── Task 4: replace_event loop + lineage + apply Instead/Also ────────────────
+
+/// The outcome of running the [CR#616.1] replacement loop for one event.
+pub(crate) enum ReplaceOutcome {
+    /// No applicable replacement rewrote the event — apply `e` as-is.
+    Pass(GameEvent),
+    /// The event was replaced to nothing (`Instead` with a body that doesn't
+    /// re-emit the event) — skip `apply`.
+    Nothing,
+    /// Multiple applicable replacements require a player choice — the
+    /// `ChooseReplacement` decision has been surfaced and the loop is
+    /// suspended. The pending decision will resume processing via Task 5.
+    Suspend,
+}
+
+/// Run the [CR#616.1] replacement loop for intent `e` with the [CR#614.5]
+/// lineage set. Returns the modified event to apply, nothing (replaced away),
+/// or a suspension waiting for a `ChooseReplacement` decision.
+///
+/// Seam: `ThatObject` binding for the affected object is not threaded into
+/// the body frame — the body reads `Ref(This)` off `source`. Binding the
+/// replaced object into `ThatObject` requires threading `Affected` through
+/// `Frame` (deferred, follow-up task).
+///
+/// Seam: general [CR#614.15] self-replacement (resolution-time) is a
+/// `todo!`-tagged future concern; APNAP multi-player 616 ordering is also
+/// deferred.
+pub(crate) fn replace_event(state: &mut GameState, e: GameEvent) -> ReplaceOutcome {
+    use std::collections::HashSet;
+
+    // Non-replaceable intents pass through immediately ([CR#614]: only
+    // replaceable intents can be modified by replacement effects).
+    if intent_event(&e).is_none() {
+        return ReplaceOutcome::Pass(e);
+    }
+
+    // [CR#614.5]: the lineage set — a replacement that has already been applied
+    // to the current event chain cannot apply again, terminating loops.
+    let mut applied: HashSet<ReplacementKey> = HashSet::new();
+    let mut current = e;
+
+    loop {
+        let applicable: Vec<Applicable> = gather_applicable(state, &current)
+            .into_iter()
+            .filter(|a| !applied.contains(&a.key))
+            .collect();
+
+        match applicable.len() {
+            // [CR#616.1]: no more replacements watch the (possibly modified)
+            // event — apply it as-is.
+            0 => return ReplaceOutcome::Pass(current),
+
+            // [CR#616.1]: exactly one applicable — auto-apply (no choice).
+            1 => {
+                let a = applicable.into_iter().next().unwrap();
+                applied.insert(a.key);
+                match apply_one(state, current, &a) {
+                    Some(modified) => {
+                        // Keep looping — the modified event may be watched by
+                        // further replacements ([CR#616.1f]).
+                        current = modified;
+                    }
+                    None => {
+                        // The event was replaced to nothing (Instead with no
+                        // re-emitted event).
+                        return ReplaceOutcome::Nothing;
+                    }
+                }
+            }
+
+            // [CR#616.1]: multiple applicable — surface a choice. Task 5.
+            _ => {
+                return ReplaceOutcome::Suspend;
+                // Task 5 will store the event + applied set in ReplaceState
+                // and surface PendingDecision::ChooseReplacement.
+            }
+        }
+    }
+}
+
+/// Apply one replacement to `e`. Returns the modified event to continue
+/// looping on, or `None` when the event is replaced to nothing (Instead).
+/// Schedules body effects via `schedule_body`.
+fn apply_one(state: &mut GameState, e: GameEvent, a: &Applicable) -> Option<GameEvent> {
+    match crate::replace::look_through_replacement(&a.replacement).clone() {
+        Replacement::Instead { instead, .. } => {
+            // [CR#614.1a,614.6]: the event is replaced — it does NOT happen.
+            // Schedule the `instead` body; consume a one-shot shield if present.
+            schedule_body(state, instead, a.source);
+            if let ReplacementKey::Floating(iid) = a.key {
+                // [CR#614.3]: consume a one-shot floating instance on first use.
+                consume_shield(state, iid);
+            }
+            None // event replaced away
+        }
+        Replacement::Also { also, .. } => {
+            // [CR#614.1c]: the event still happens AND `also` happens.
+            // Schedule the body; the (unchanged) event continues.
+            schedule_body(state, also, a.source);
+            Some(e)
+        }
+        Replacement::Skip { .. } => {
+            // Skip is handled by the step-elision pass (Task 9), not here.
+            Some(e)
+        }
+        Replacement::Expanded(_) => {
+            unreachable!("look_through_replacement strips Expanded")
+        }
+    }
+}
+
+/// Schedule an `instead`/`also` body effect as a `RunEffect` work item at
+/// the agenda front. The frame is anchored on `source`.
+///
+/// Seam: `ThatObject` binding for the replaced event's affected object is
+/// deferred — body effects that need to reference the affected object read
+/// `Ref(This)` off `source` instead. Threading `Affected` into `Frame`
+/// is the follow-up work (see [CR#616.1] body-binding discussion in the
+/// spec).
+fn schedule_body(state: &mut GameState, effect: deckmaste_core::Effect, source: ObjectId) {
+    let controller = state.objects.obj(source).controller;
+    let frame = crate::stack::Frame {
+        source,
+        controller,
+        targets: vec![],
+        bindings: None,
+        chosen: None,
+        x: None,
+    };
+    state.schedule_front(vec![crate::agenda::WorkItem::RunEffect {
+        effect: Box::new(effect),
+        frame,
+    }]);
+}
+
+/// Remove a one-shot floating replacement instance from the shields list
+/// ([CR#614.3]: one-shot instances are consumed on first application).
+fn consume_shield(state: &mut GameState, iid: InstanceId) {
+    state.shields.retain(|s| s.id != iid);
+}
+
+// ── End Task 4 ───────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 pub(crate) mod tests_support {
