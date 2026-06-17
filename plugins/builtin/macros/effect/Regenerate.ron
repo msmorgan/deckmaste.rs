@@ -1,0 +1,25 @@
+// "Regenerate" = register a one-shot floating replacement shield
+// ([CR#614.8,701.19a]): the next time the target would be destroyed this
+// turn, instead remove all damage marked on it, tap it, and remove it
+// from combat. The shield expires at end of turn if unused ([CR#614.3]).
+//
+// Usage: Regenerate(target) — e.g. Regenerate(This); Regenerate(Target(0)).
+// Template: "regenerate ${0}" (matches CR wording, [CR#701.19])
+(
+    name: "Regenerate",
+    template: "regenerate ${0}",
+    kinds: [Effect],
+    params: [Any],
+    body: CreateReplacement(
+        replacement: Instead(
+            would: Destroyed(Param(0)),
+            instead: Sequence([
+                RemoveDamage(Param(0)),
+                Tap(Param(0)),
+            ]),
+        ),
+        subject: Param(0),
+        duration: FixedUntil(EndOfTurn),
+        one_shot: true,
+    ),
+)

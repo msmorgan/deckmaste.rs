@@ -254,6 +254,9 @@ pub struct GameState {
     /// `None` at all other times (the decision-open state machine mirrors
     /// `combat_damage` / `announcing`).
     pub replace_state: Option<ReplaceState>,
+    /// Monotonically increasing counter for `InstanceId` assignment. Bumped on
+    /// every `CreateReplacement` action; yields unique ids across the game.
+    pub next_shield_id: u32,
 }
 
 impl GameState {
@@ -334,6 +337,7 @@ impl GameState {
             that_much: None,
             history: crate::history::History::default(),
             replace_state: None,
+            next_shield_id: 0,
         }
     }
 

@@ -87,6 +87,12 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         ),
         Action::Destroy(sel) => format!("Destroy {}.", fragment::selection(sel, ctx)),
         Action::By(_who, pa) => player_action(pa, ctx),
+        // [CR#701.19a]: a regeneration shield — rendered as "Regenerate <target>."
+        // when the replacement body has the standard structure. The top-level
+        // `Regenerate` keyword macro emits this via its template.
+        Action::CreateReplacement { subject, .. } => {
+            format!("Regenerate {}.", fragment::selection(subject, ctx))
+        }
         other => format!("[unrendered: {other:?}]."),
     }
 }
@@ -109,6 +115,10 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
             "You get the city's blessing.".to_string()
         }
         PlayerAction::GetDesignation(name) => format!("You get {name}."),
+        // [CR#701.19a]: remove all damage as part of regeneration.
+        PlayerAction::RemoveDamage(sel) => {
+            format!("Remove all damage from {}.", fragment::selection(sel, ctx))
+        }
         other => format!("[unrendered: {other:?}]."),
     }
 }

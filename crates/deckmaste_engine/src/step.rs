@@ -567,6 +567,19 @@ impl GameState {
                     .shuffle(&mut self.rng);
                 event
             }
+            // [CR#614.8,701.19a]: the regeneration heal clause — zero damage
+            // and remove from combat. If the object is already at 0 damage
+            // this is still a no-op (removal from combat is still correct —
+            // the shield fired, so the permanent would have been in combat
+            // when the destroy was imminent). `remove_object` is idempotent
+            // for non-combat objects.
+            GameEvent::DamageRemoved { object } => {
+                if self.objects.get(object).is_some() {
+                    self.objects.obj_mut(object).damage = 0;
+                }
+                self.combat.remove_object(object);
+                GameEvent::DamageRemoved { object }
+            }
         }
     }
 
