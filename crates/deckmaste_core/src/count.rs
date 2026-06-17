@@ -80,6 +80,11 @@ pub enum Count {
     /// An engine-tracked tally ([CR#608.2i] history reads — storm,
     /// lands-this-turn, cards-drawn), keyed like `Stat`.
     Query(QueryKey),
+    /// How many times an event matching `Event` occurred within `Window`
+    /// ([CR#608.2i] history reads) — the count-valued twin of
+    /// `Condition::Happened`. `Event` is boxed (it is large) to keep `Count`
+    /// from growing, mirroring `CountOf(Box<Filter>)`.
+    EventCount(Box<crate::Event>, crate::Window),
     /// A noted number read back from a slot ([CR#607.2] linked values).
     Noted(crate::Ident),
     /// A remembered `Count` macro invocation.
@@ -149,5 +154,29 @@ mod tests {
     fn count_of_filter_reads() {
         let value = read(r#"CountOf(AllOf([Subtype("Goblin"), ControlledBy(Ref(You))]))"#);
         assert!(matches!(value, Count::CountOf(_)));
+    }
+
+    /// `EventCount(Event, Window)` parses and round-trips — the count-valued
+    /// twin of `Condition::Happened` ([CR#608.2i]).
+    #[test]
+    fn event_count_round_trips() {
+        use crate::Event;
+        use crate::Filter;
+        use crate::Window;
+
+        let event = Event::Performed {
+            verb: "Sacrifice".into(),
+            by: Filter::Any,
+            on: Filter::Any,
+        };
+        // Parse from RON — verb only, `by`/`on` default to Any.
+        let parsed = read(r#"EventCount(Performed(verb: "Sacrifice"), ThisTurn)"#);
+        assert_eq!(
+            parsed,
+            Count::EventCount(Box::new(event.clone()), Window::ThisTurn),
+        );
+        // Serialize → read round-trip.
+        let written = write(&parsed);
+        assert_eq!(read(&written), parsed);
     }
 }
