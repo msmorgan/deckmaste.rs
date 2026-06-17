@@ -358,7 +358,9 @@ fn bake_counter_counts(
 ) -> Vec<Modification> {
     let bake = |count: &Count| -> Count {
         match count {
-            Count::CounterCount(deckmaste_core::Reference::This, kind) => {
+            Count::CounterCount(reference, kind)
+                if matches!(&**reference, deckmaste_core::Reference::This) =>
+            {
                 Count::Literal(holder.get(kind.as_str()).copied().unwrap_or(0))
             }
             other => other.clone(),

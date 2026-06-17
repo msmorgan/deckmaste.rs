@@ -2853,14 +2853,14 @@ mod tests {
         let frame = frame_src(bear);
         assert_eq!(
             state.eval_count(
-                &Count::CounterCount(Reference::This, "P1P1Counter".into()),
+                &Count::CounterCount(Box::new(Reference::This), "P1P1Counter".into()),
                 &frame
             ),
             3
         );
         assert_eq!(
             state.eval_count(
-                &Count::CounterCount(Reference::This, "M1M1Counter".into()),
+                &Count::CounterCount(Box::new(Reference::This), "M1M1Counter".into()),
                 &frame
             ),
             0,
