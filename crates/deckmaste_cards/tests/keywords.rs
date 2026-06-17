@@ -46,6 +46,8 @@ fn every_builtin_keyword_macro_expands() {
         ("Echo([Mana([Generic(1),Green])])", "Echo"),
         ("CumulativeUpkeep([Mana([Generic(1)])])", "CumulativeUpkeep"),
         ("Bushido(1)", "Bushido"),
+        ("Wither", "Wither"),
+        ("Infect", "Infect"),
     ];
     let plugin = builtin();
     for (invocation, name) in cases {
