@@ -1347,4 +1347,91 @@ mod tests {
             "it went to the graveyard"
         );
     }
+
+    /// [CR#704.5i]: a planeswalker with loyalty 0 is put into its owner's
+    /// graveyard by the rules-SBA pass. The pass is generic (B1); this test
+    /// characterizes it against the loyalty-zero rule already loaded by
+    /// `builtin().sba_rules`. With `LoyaltyCounter` present the walker
+    /// survives.
+    #[test]
+    fn loyalty_zero_planeswalker_is_put_into_graveyard() {
+        let (mut state, _bear) = bear_on_field();
+        state.sba_rules = builtin().sba_rules;
+        state.counter_decls = builtin().counters;
+        let pw = on_field(&mut state, "Test Walker", vec![Type::Planeswalker], vec![]);
+        // 0 LoyaltyCounters ⇒ loyalty 0 ⇒ SBA fires.
+        let actions = sba::sweep(&state);
+        assert!(
+            actions.iter().any(|e| matches!(
+                e,
+                GameEvent::ZoneWillChange { object, to: Zone::Graveyard, .. } if *object == pw
+            )),
+            "a planeswalker with loyalty 0 is put into its graveyard; got {actions:?}"
+        );
+        // With loyalty counters present it survives.
+        state
+            .objects
+            .obj_mut(pw)
+            .counters
+            .insert("LoyaltyCounter".into(), 3);
+        let actions = sba::sweep(&state);
+        assert!(
+            !actions
+                .iter()
+                .any(|e| matches!(e, GameEvent::ZoneWillChange { object, .. } if *object == pw)),
+            "loyalty 3 planeswalker survives the sweep; got {actions:?}"
+        );
+    }
+
+    /// [CR#704.5v]: a battle with defense 0 is put into its owner's graveyard by
+    /// the rules-SBA pass. With `DefenseCounter` present the battle survives.
+    #[test]
+    fn defense_zero_battle_is_put_into_graveyard() {
+        let (mut state, _bear) = bear_on_field();
+        state.sba_rules = builtin().sba_rules;
+        state.counter_decls = builtin().counters;
+        let battle = on_field(&mut state, "Test Siege", vec![Type::Battle], vec![]);
+        // 0 DefenseCounters ⇒ defense 0 ⇒ SBA fires.
+        let actions = sba::sweep(&state);
+        assert!(
+            actions.iter().any(|e| matches!(
+                e,
+                GameEvent::ZoneWillChange { object, to: Zone::Graveyard, .. } if *object == battle
+            )),
+            "a battle with defense 0 is put into its graveyard; got {actions:?}"
+        );
+        // With defense counters present it survives.
+        state
+            .objects
+            .obj_mut(battle)
+            .counters
+            .insert("DefenseCounter".into(), 4);
+        let actions = sba::sweep(&state);
+        assert!(
+            !actions.iter().any(
+                |e| matches!(e, GameEvent::ZoneWillChange { object, .. } if *object == battle)
+            ),
+            "defense 4 battle survives the sweep; got {actions:?}"
+        );
+    }
+
+    /// The global rules-SBA sweep must not panic on permanents outside every
+    /// rule's scope (e.g. an enchantment has no toughness/loyalty/defense).
+    /// This verifies that `scope` is checked before `when` — the stat read
+    /// never runs on an out-of-scope object.
+    #[test]
+    fn non_matching_permanent_does_not_panic_in_rules_sweep() {
+        let (mut state, _bear) = bear_on_field();
+        state.sba_rules = builtin().sba_rules;
+        state.counter_decls = builtin().counters;
+        // A bare enchantment — no toughness, no loyalty, no defense.
+        let _ench = on_field(
+            &mut state,
+            "Test Enchantment",
+            vec![Type::Enchantment],
+            vec![],
+        );
+        // Must not panic regardless of how many rules are loaded.
+        let _actions = sba::sweep(&state);
+    }
 }
