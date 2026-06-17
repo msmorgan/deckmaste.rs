@@ -1,0 +1,41 @@
+// Echo = a triggered ability [CR#702.30a]: "Echo [cost]" means "At the
+// beginning of your upkeep, if this permanent came under your control since
+// the beginning of your last upkeep, sacrifice it unless you pay [cost]." The
+// printed [cost] is the macro's `Cost` param, threaded straight into the
+// `unless` of the resolution Toll (Effect::Unless) — the same cost-list shape
+// the parser emits (`Echo([Mana(...)])`) and the same `unless: Param(0)`
+// splice Ward uses.
+//
+// The intervening-if ([CR#603.4]) is the "came under your control since the
+// beginning of your last upkeep" recheck. The control-change event is
+// representable (`StateBecomes(becomes: ControlledBy(Ref(You)))`,
+// [CR#603.2e]), but its lookback WINDOW is not: the closed `Window` vocabulary
+// has no "since your last upkeep" bound. SEAM — `within: ThisTurn` is the
+// closest representable window (correct only when the permanent entered on the
+// controller's own turn before its upkeep; it under-counts a permanent that
+// arrived during a prior turn's later steps, which echo still bills). A
+// faithful evaluation needs a new `Window::SinceYourLastUpkeep` (or an
+// equivalent upkeep-anchored lookback) in deckmaste_core::Window plus a
+// History::scan arm; until then engine execution of the intervening-if is a
+// seam. Graduation (parse-only) is unaffected: this body expands to valid RON
+// and round-trips.
+(
+    name: "Echo",
+    template: "echo ${0}",
+    kinds: [KeywordAbility],
+    params: [Cost],
+    body: Composite(
+        name: "Echo",
+        abilities: [Triggered(
+            event: BeginningOf(Beginning(Upkeep), Your),
+            condition: Happened(
+                event: StateBecomes(of: Ref(This), becomes: ControlledBy(Ref(You))),
+                within: ThisTurn,
+            ),
+            effect: Unless(
+                effect: Sacrifice(This),
+                unless: Param(0),
+            ),
+        )],
+    ),
+)
