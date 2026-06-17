@@ -1111,10 +1111,31 @@ impl GameState {
                         deckmaste_core::Int::try_from(face.mana_cost.mana_value())
                             .expect("mana value fits Int")
                     }
-                    deckmaste_core::Stat::Loyalty | deckmaste_core::Stat::Defense => todo!(
-                        "engine-resolve-counts: {stat:?} reads (planeswalker/battle counter \
-                         machinery unbuilt)"
-                    ),
+                    // [CR#122.1e,122.1g]: a planeswalker's loyalty IS its
+                    // number of loyalty counters; a battle's defense IS its
+                    // defense counters — read straight off the counter map (the
+                    // counter machinery this ticket built). The PLACEMENT of
+                    // those counters (a planeswalker/battle enters with its
+                    // printed value, [CR#209.1,210.1]) is the separate
+                    // planeswalker/battle-modeling work; until then this reads 0.
+                    deckmaste_core::Stat::Loyalty => deckmaste_core::Int::try_from(
+                        self.objects
+                            .obj(id)
+                            .counters
+                            .get("LoyaltyCounter")
+                            .copied()
+                            .unwrap_or(0),
+                    )
+                    .expect("loyalty fits Int"),
+                    deckmaste_core::Stat::Defense => deckmaste_core::Int::try_from(
+                        self.objects
+                            .obj(id)
+                            .counters
+                            .get("DefenseCounter")
+                            .copied()
+                            .unwrap_or(0),
+                    )
+                    .expect("defense fits Int"),
                 };
                 Uint::try_from(value.max(0)).expect("clamped stat fits Uint")
             }
@@ -2844,6 +2865,26 @@ mod tests {
             ),
             0,
             "an absent counter kind reads as zero"
+        );
+    }
+
+    /// [CR#122.1e]: `StatOf(_, Loyalty)` reads the object's loyalty-counter
+    /// count off the counter map this ticket built (closing the
+    /// engine-resolve-count-x seam; placement on entry is planeswalker work).
+    #[test]
+    fn stat_of_loyalty_reads_loyalty_counters() {
+        use deckmaste_core::Stat;
+
+        let (mut state, bear) = bear_on_field();
+        state
+            .objects
+            .obj_mut(bear)
+            .counters
+            .insert("LoyaltyCounter".into(), 4);
+        let frame = frame_src(bear);
+        assert_eq!(
+            state.eval_count(&Count::StatOf(Reference::This, Stat::Loyalty), &frame),
+            4
         );
     }
 

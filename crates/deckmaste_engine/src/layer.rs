@@ -652,9 +652,31 @@ fn matches_derived(
                     Int::try_from(crate::derive::face(state.def(id)).mana_cost.mana_value())
                         .expect("mana value fits Int"),
                 ),
-                Stat::Loyalty | Stat::Defense => todo!(
-                    "engine-filter-breadth: {stat:?} stat in derived matcher (counter machinery \
-                     unbuilt)"
+                // [CR#122.1e,122.1g]: loyalty/defense are the object's
+                // loyalty-/defense-counter counts (read off the counter map).
+                Stat::Loyalty => Some(
+                    Int::try_from(
+                        state
+                            .objects
+                            .obj(id)
+                            .counters
+                            .get("LoyaltyCounter")
+                            .copied()
+                            .unwrap_or(0),
+                    )
+                    .expect("loyalty fits Int"),
+                ),
+                Stat::Defense => Some(
+                    Int::try_from(
+                        state
+                            .objects
+                            .obj(id)
+                            .counters
+                            .get("DefenseCounter")
+                            .copied()
+                            .unwrap_or(0),
+                    )
+                    .expect("defense fits Int"),
                 ),
             };
             crate::target::stat_satisfies(value, *cmp, count)

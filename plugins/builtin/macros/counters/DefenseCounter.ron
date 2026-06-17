@@ -1,0 +1,10 @@
+// Defense counters ([CR#122.1g]): a battle's defense IS its number of defense
+// counters — read by `StatOf(_, Defense)`. A marker counter (no conferred
+// bearing); the "0 defense → graveyard" SBA and entry placement ([CR#210.1])
+// are battle-modeling work.
+(
+    name: "DefenseCounter",
+    template: "defense counter",
+    kinds: [Counter],
+    body: Counter(name: "DefenseCounter"),
+)
