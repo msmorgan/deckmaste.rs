@@ -134,6 +134,66 @@ fn food_token_parses() {
     );
 }
 
+// [CR#111.10c]
+#[test]
+fn gold_token_parses() {
+    let token = builtin().token("Gold").unwrap();
+    assert_eq!(
+        token,
+        Token {
+            color_indicator: vec![],
+            supertypes: vec![],
+            types: vec![Type::Artifact],
+            subtypes: vec![artifact_subtype("Gold")],
+            abilities: vec![Ability::Activated(ActivatedAbility {
+                from: None,
+                window: None,
+                cost: vec![sacrifice_this()].into(),
+                condition: None,
+                limits: vec![],
+                effect: Effect::act_by_you(PlayerAction::AddMana(
+                    Count::Literal(1),
+                    ManaSpec::AnyColor.into()
+                )),
+            })],
+            power: None,
+            toughness: None,
+        }
+    );
+}
+
+// [CR#111.10g]
+#[test]
+fn blood_token_parses() {
+    let mana_1 = CostComponent::Mana(ManaCost::from(vec![ManaSymbol::Simple(
+        SimpleManaSymbol::Generic(1),
+    )]));
+    let discard_one = CostComponent::Do(Box::new(PlayerAction::Discard {
+        count: Count::Literal(1),
+        what: None,
+    }));
+    let token = builtin().token("Blood").unwrap();
+    assert_eq!(
+        token,
+        Token {
+            color_indicator: vec![],
+            supertypes: vec![],
+            types: vec![Type::Artifact],
+            subtypes: vec![artifact_subtype("Blood")],
+            abilities: vec![Ability::Activated(ActivatedAbility {
+                from: None,
+                window: None,
+                cost: vec![mana_1, CostComponent::Tap, discard_one, sacrifice_this()].into(),
+                condition: None,
+                limits: vec![],
+                effect: Effect::act_by_you(PlayerAction::Draw(Count::Literal(1))),
+            })],
+            power: None,
+            toughness: None,
+        }
+    );
+}
+
 /// `validate_plugin` on the builtin directory must report zero parse failures
 /// and zero lint failures with the token files included.
 #[test]
@@ -156,9 +216,9 @@ fn validate_builtin_with_tokens_has_no_failures() {
         "{} lint failure(s)",
         validation.lint_failures.len()
     );
-    // 5 cards + 3 tokens = 8 minimum.
+    // 5 cards + 5 tokens = 10 minimum.
     assert!(
-        validation.valid >= 8,
+        validation.valid >= 10,
         "only {} items validated",
         validation.valid
     );

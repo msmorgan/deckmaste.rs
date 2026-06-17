@@ -1,0 +1,11 @@
+// [CR#111.10c]
+Token(
+    types: [Artifact],
+    subtypes: [Gold],
+    abilities: [
+        Activated(
+            cost: [SacrificeThis],
+            effect: AddMana(1, AnyColor),
+        )
+    ],
+)
