@@ -14,6 +14,14 @@ pub(crate) enum Segment {
     SelfRef,
     /// A typed argument hole (`${i}` / `${name}`).
     Slot(Slot),
+    /// An optional fragment `${prefix#value#suffix}`: `prefix`/`suffix` are
+    /// literal text, `slot` binds the `value` param. Rendered (and matched)
+    /// only when that param is present.
+    Conditional {
+        prefix: String,
+        slot: Slot,
+        suffix: String,
+    },
 }
 
 /// A `${…}` argument hole: which param it binds, plus that param's declared
@@ -47,7 +55,10 @@ pub(crate) struct ParsePattern {
 impl ParsePattern {
     /// No `${…}` slots in the template — a pure-literal / self-only shape.
     pub(crate) fn is_nullary(&self) -> bool {
-        !self.segments.iter().any(|s| matches!(s, Segment::Slot(_)))
+        !self
+            .segments
+            .iter()
+            .any(|s| matches!(s, Segment::Slot(_) | Segment::Conditional { .. }))
     }
 
     /// Emittable as a bare `Keyword(Name)`: no template slots *and* no params
@@ -64,7 +75,7 @@ impl ParsePattern {
             .map(|s| match s {
                 Segment::Literal(t) => t.chars().count(),
                 Segment::SelfRef => 1,
-                Segment::Slot(_) => 0,
+                Segment::Slot(_) | Segment::Conditional { .. } => 0,
             })
             .sum()
     }
@@ -94,7 +105,22 @@ pub(crate) fn compile(macro_name: Ident, template: &str, params: &Params) -> Par
                     key.push(d);
                 }
                 flush(&mut lit, &mut segments);
-                segments.push(Segment::Slot(slot_for(key.trim(), params)));
+                if key.matches('#').count() == 2 {
+                    let mut parts = key.splitn(3, '#');
+                    let prefix = parts.next().unwrap_or("").to_owned();
+                    let value = parts.next().unwrap_or("").trim();
+                    let suffix = parts.next().unwrap_or("").to_owned();
+                    segments.push(Segment::Conditional {
+                        prefix,
+                        slot: slot_for(value, params),
+                        suffix,
+                    });
+                } else {
+                    // 0 `#` = an ordinary slot. A malformed count (1 or 3+) degrades to a
+                    // slot whose key won't resolve — builtin templates are author-controlled
+                    // and covered by the `keywords.rs` "every builtin macro expands" test.
+                    segments.push(Segment::Slot(slot_for(key.trim(), params)));
+                }
             }
             other => lit.push(other),
         }
@@ -150,6 +176,7 @@ fn slot_for(key: &str, params: &Params) -> Slot {
 #[cfg(test)]
 mod tests {
     use macro_ron::ParamType;
+    use macro_ron::Params;
 
     use super::*;
 
@@ -203,5 +230,33 @@ mod tests {
         // mana etc. pass through as literal, same rule as the renderer.
         let p = compile("M".into(), "add {C}", &Params::default());
         assert_eq!(p.segments, vec![Segment::Literal("add {C}".into())]);
+    }
+
+    #[test]
+    fn compiles_conditional_fragment() {
+        let p = compile(
+            "Hexproof".into(),
+            "hexproof${ from #from#}",
+            &Params::Named(
+                [("from".into(), ParamType::plain("Filter"))]
+                    .into_iter()
+                    .collect(),
+            ),
+        );
+        assert_eq!(
+            p.segments,
+            vec![
+                Segment::Literal("hexproof".into()),
+                Segment::Conditional {
+                    prefix: " from ".into(),
+                    slot: Slot {
+                        key: SlotKey::Name("from".into()),
+                        ty: "Filter".into()
+                    },
+                    suffix: "".into(),
+                },
+            ]
+        );
+        assert!(!p.is_nullary());
     }
 }

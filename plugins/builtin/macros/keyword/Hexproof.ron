@@ -1,13 +1,13 @@
-// Hexproof = a targeting prohibition [CR#702.11b]: "can't be the target of
-// spells or abilities your opponents control". ONE macro covers the
-// parameterized printing too — "hexproof from [quality]" narrows the
-// prohibition to matching sources, so `from` defaults to match-anything:
-// bare `Hexproof`, or `Hexproof(from: ColorIs(Blue))` and kin (the skill
-// classes hexproof-from under this record). Player-proxy carriers get
-// [CR#702.11c] for free (players are objects).
+// Hexproof [CR#702.11b]: "can't be the target of spells or abilities your
+// opponents control". The `from` param narrows it to matching sources
+// [CR#702.11d] — "hexproof from [quality]" IS a hexproof ability, so a "lose
+// hexproof" effect [CR#702.11e] strips it too; hence one macro, one
+// `Composite(name: "Hexproof")` identity. The optional `${ from #from#}`
+// fragment carries the parameterized printing; bare `Hexproof()` renders just
+// "hexproof". Player-proxy carriers get [CR#702.11c] for free.
 (
     name: "Hexproof",
-    template: "hexproof",
+    template: "hexproof${ from #from#}",
     kinds: [KeywordAbility],
     params: { "from": Default(Filter, Any) },
     body: Composite(

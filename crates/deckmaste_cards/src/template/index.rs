@@ -11,6 +11,8 @@ use macro_ron::MacroSet;
 
 use super::pattern::ParsePattern;
 use super::pattern::Segment;
+use super::pattern::Slot;
+use super::pattern::SlotKey;
 use super::pattern::compile;
 
 /// A successful reverse match.
@@ -99,6 +101,48 @@ impl TemplateIndex {
     }
 }
 
+/// Format one matched slot argument: positional contributes the bare arg,
+/// named the `name: arg` pair.
+fn fmt_arg(key: &SlotKey, arg: &str) -> String {
+    match key {
+        SlotKey::Index(_) => arg.to_owned(),
+        SlotKey::Name(name) => format!("{name}: {arg}"),
+    }
+}
+
+/// Try to match an optional fragment (`prefix` literal, typed `slot`, `suffix`
+/// literal) at `cursor`. Returns the slot's raw arg and the new cursor on a
+/// full match, or `None` (the fragment is absent — caller leaves the cursor).
+fn try_conditional<F>(
+    prefix: &str,
+    slot: &Slot,
+    suffix: &str,
+    input: &str,
+    cursor: usize,
+    slot_reader: &mut F,
+) -> Option<(String, usize)>
+where
+    F: FnMut(&str, &str) -> Option<(String, usize)>,
+{
+    let after_prefix = cursor + prefix.len();
+    if !input
+        .get(cursor..after_prefix)?
+        .eq_ignore_ascii_case(prefix)
+    {
+        return None;
+    }
+    let (arg, consumed) = slot_reader(slot.ty.as_str(), input.get(after_prefix..)?)?;
+    let after_slot = after_prefix + consumed;
+    let after_suffix = after_slot + suffix.len();
+    if !input
+        .get(after_slot..after_suffix)?
+        .eq_ignore_ascii_case(suffix)
+    {
+        return None;
+    }
+    Some((arg, after_suffix))
+}
+
 /// Walk a slot-bearing pattern against `input`: literals match (case-folded),
 /// each slot is read by `slot_reader`. Returns the invocation + bytes consumed,
 /// or `None` if any literal mismatches or a slot reader declines.
@@ -124,8 +168,21 @@ where
             }
             Segment::Slot(slot) => {
                 let (arg, consumed) = slot_reader(slot.ty.as_str(), input.get(cursor..)?)?;
-                args.push(arg);
+                args.push(fmt_arg(&slot.key, &arg));
                 cursor += consumed;
+            }
+            Segment::Conditional {
+                prefix,
+                slot,
+                suffix,
+            } => {
+                if let Some((arg, new_cursor)) =
+                    try_conditional(prefix, slot, suffix, input, cursor, slot_reader)
+                {
+                    args.push(fmt_arg(&slot.key, &arg));
+                    cursor = new_cursor;
+                }
+                // Absent: no arg, cursor unchanged.
             }
         }
     }
@@ -144,6 +201,7 @@ fn match_nullary(pattern: &ParsePattern, input: &str) -> Option<usize> {
             Segment::Literal(t) => target.push_str(t),
             Segment::SelfRef => target.push('~'),
             Segment::Slot(_) => return None,
+            Segment::Conditional { .. } => return None,
         }
     }
     let n = target.len();
@@ -216,5 +274,24 @@ mod tests {
             .expect("protection from <x> matches");
         assert_eq!(m.invocation, "Protection(ColorIs(black))");
         assert_eq!(m.consumed, "protection from black".len());
+    }
+
+    #[test]
+    fn matches_conditional_named_and_absent() {
+        let idx = builtin();
+        let present = idx
+            .match_with("KeywordAbility", "hexproof from blue", |ty, rest| {
+                assert_eq!(ty, "Filter");
+                Some((format!("ColorIs({})", rest.trim()), rest.len()))
+            })
+            .expect("hexproof from <x> matches");
+        assert_eq!(present.invocation, "Hexproof(from: ColorIs(blue))");
+        assert_eq!(present.consumed, "hexproof from blue".len());
+
+        let absent = idx
+            .match_with("KeywordAbility", "hexproof", |_, _| None)
+            .expect("bare hexproof matches");
+        assert_eq!(absent.invocation, "Hexproof()");
+        assert_eq!(absent.consumed, "hexproof".len());
     }
 }

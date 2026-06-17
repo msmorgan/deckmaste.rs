@@ -99,12 +99,17 @@ mod tests {
     }
 
     #[test]
-    fn declines_defaulted_param_keyword() {
-        // Hexproof declares a defaulted param: its bare form is `Hexproof()`,
-        // not `Hexproof`, so the index must NOT claim it here — the bespoke
-        // keyword parser emits the correct parenthesized form.
+    fn claims_conditional_param_keyword() {
+        // The conditional template now claims both forms via the same macro.
         let idx = builtin_index();
-        assert_eq!(run("Hexproof", &idx), None);
+        assert_eq!(
+            run("Hexproof", &idx).as_deref(),
+            Some("Keyword(Hexproof())")
+        );
+        assert_eq!(
+            run("hexproof from black", &idx).as_deref(),
+            Some("Keyword(Hexproof(from: ColorIs(Black)))")
+        );
     }
 
     #[test]
