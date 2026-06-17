@@ -1031,3 +1031,250 @@ fn double_damage_lineage_terminates() {
         state.objects.obj(live).damage,
     );
 }
+
+// ── Infect / Wither: source-keyed damage-as-counters ([CR#702.80,702.90]) ────
+//
+// Wither ([CR#702.80a]): damage dealt to a creature by a source with wither
+// puts that many -1/-1 counters instead of being marked. Infect
+// ([CR#702.90b,702.90c]): to a creature → -1/-1 counters; to a player → poison.
+// Both are SOURCE abilities — the replacement's `would` keys on `by: Ref(This)`
+// ("damage dealt BY this creature"), which exercises the `by`-matcher, and the
+// body puts `Count::ThatMuch` counters on `Ref(ThatObject)` (the recipient).
+
+/// A Static "damage by This to `on` → put `kind` counters on the recipient
+/// instead" replacement — the shape both Wither and Infect expand to. The
+/// recipient is read as `recipient` (`ThatObject` for a creature, `ThatPlayer`
+/// for a player — the proxy is zoneless and binds as the player).
+fn damage_as_counters_static(on: Filter, recipient: Reference, kind: &str) -> Ability {
+    use deckmaste_core::Count;
+    let would = Event::Performed {
+        verb: "DealDamage".into(),
+        by: Filter::Ref(Reference::This),
+        on,
+    };
+    let instead = Effect::Act(Action::By(
+        Reference::You,
+        PlayerAction::PutCounters(Selection::Ref(recipient), kind.into(), Count::ThatMuch),
+    ));
+    Ability::Static(StaticAbility {
+        characteristic_defining: false,
+        effects: vec![StaticEffect::Replacement(Box::new(Replacement::Instead {
+            would,
+            instead,
+        }))],
+        condition: None,
+    })
+}
+
+/// Build a source creature with the given abilities plus a separate target
+/// creature, both on player 0's battlefield. Returns `(state, source, target)`.
+fn source_and_target(source_abilities: Vec<Ability>) -> (GameState, ObjectId, ObjectId) {
+    let src_card = Arc::new(Card::Normal(CardFace {
+        name: "Source".into(),
+        types: vec![Type::Creature],
+        power: Some(StatValue::Number(3)),
+        toughness: Some(StatValue::Number(3)),
+        abilities: source_abilities,
+        ..CardFace::default()
+    }));
+    let tgt_card = Arc::new(Card::Normal(CardFace {
+        name: "Target".into(),
+        types: vec![Type::Creature],
+        power: Some(StatValue::Number(4)),
+        toughness: Some(StatValue::Number(4)),
+        ..CardFace::default()
+    }));
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig {
+                deck: vec![src_card, tgt_card],
+            },
+            PlayerConfig { deck: vec![] },
+        ],
+        seed: 7,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    let source = find_in_hand(&state, "Source");
+    force_onto_battlefield(&mut state, source);
+    let target = find_in_hand(&state, "Target");
+    force_onto_battlefield(&mut state, target);
+    state.agenda.clear();
+    state.pending = None;
+    (state, source, target)
+}
+
+/// Emit `amount` damage from `source` to `target` and drive to stability.
+fn deal_damage(state: &mut GameState, source: ObjectId, target: ObjectId, amount: u32) {
+    state
+        .agenda
+        .push_front(WorkItem::Emit(deckmaste_engine::Occurrence::Single(
+            deckmaste_engine::GameEvent::DamageDealt {
+                source,
+                target,
+                amount,
+            },
+        )));
+    drive(state);
+}
+
+/// [CR#702.80a,120.3d]: a Wither source dealing N damage to a creature places N
+/// -1/-1 counters on it instead of marking damage.
+#[test]
+fn wither_source_puts_minus_counters_not_marked_damage() {
+    let wither = damage_as_counters_static(
+        Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(Type::Creature)),
+        Reference::ThatObject,
+        "M1M1Counter",
+    );
+    let (mut state, source, target) = source_and_target(vec![wither]);
+    let m1m1: deckmaste_core::Ident = "M1M1Counter".into();
+
+    deal_damage(&mut state, source, target, 3);
+
+    assert_eq!(
+        state.objects.obj(target).counters.get(&m1m1).copied(),
+        Some(3),
+        "wither damage = that many -1/-1 counters [CR#702.80a]"
+    );
+    assert_eq!(
+        state.objects.obj(target).damage,
+        0,
+        "wither damage is NOT marked [CR#702.80a]"
+    );
+}
+
+/// [CR#702.90c]: an Infect source dealing N to a creature places N -1/-1
+/// counters (the creature branch of infect, same shape as wither).
+#[test]
+fn infect_source_puts_minus_counters_on_a_creature() {
+    let infect_creature = damage_as_counters_static(
+        Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(Type::Creature)),
+        Reference::ThatObject,
+        "M1M1Counter",
+    );
+    let (mut state, source, target) = source_and_target(vec![infect_creature]);
+    let m1m1: deckmaste_core::Ident = "M1M1Counter".into();
+
+    deal_damage(&mut state, source, target, 2);
+
+    assert_eq!(
+        state.objects.obj(target).counters.get(&m1m1).copied(),
+        Some(2),
+        "infect damage to a creature = that many -1/-1 counters [CR#702.90c]"
+    );
+    assert_eq!(
+        state.objects.obj(target).damage,
+        0,
+        "not marked [CR#702.90c]"
+    );
+}
+
+/// [CR#702.90b]: an Infect source dealing N to a PLAYER gives that player N
+/// poison counters instead of losing life.
+#[test]
+fn infect_source_gives_player_poison_not_life_loss() {
+    let infect_player = damage_as_counters_static(
+        Filter::Kind(deckmaste_core::ObjectKind::Player),
+        Reference::ThatPlayer,
+        "Poison",
+    );
+    let (mut state, source, _target) = source_and_target(vec![infect_player]);
+    let poison: deckmaste_core::Ident = "Poison".into();
+    let victim = PlayerId(1);
+    let victim_proxy = state.player(victim).object;
+    let life_before = state.players[victim.index()].life;
+
+    deal_damage(&mut state, source, victim_proxy, 3);
+
+    assert_eq!(
+        state
+            .objects
+            .obj(victim_proxy)
+            .counters
+            .get(&poison)
+            .copied(),
+        Some(3),
+        "infect damage to a player = that many poison counters [CR#702.90b]"
+    );
+    assert_eq!(
+        state.players[victim.index()].life,
+        life_before,
+        "infect damage to a player does NOT cause life loss [CR#702.90b]"
+    );
+}
+
+/// [CR#704.5c,122.1f]: ten or more poison counters → that player loses. Drives
+/// the infect player branch up to 10, then runs the SBA sweep.
+#[test]
+fn ten_poison_counters_lose_the_game() {
+    let infect_player = damage_as_counters_static(
+        Filter::Kind(deckmaste_core::ObjectKind::Player),
+        Reference::ThatPlayer,
+        "Poison",
+    );
+    let (mut state, source, _target) = source_and_target(vec![infect_player]);
+    let victim = PlayerId(1);
+    let victim_proxy = state.player(victim).object;
+
+    // Two 5-damage infect hits → 10 poison counters.
+    deal_damage(&mut state, source, victim_proxy, 5);
+    deal_damage(&mut state, source, victim_proxy, 5);
+    let poison: deckmaste_core::Ident = "Poison".into();
+    assert_eq!(
+        state
+            .objects
+            .obj(victim_proxy)
+            .counters
+            .get(&poison)
+            .copied(),
+        Some(10),
+        "two 5-poison hits accumulate to 10"
+    );
+
+    // The SBA sweep must register the loss ([CR#704.5c]).
+    drive_sbas(&mut state);
+    assert!(
+        state.players[victim.index()].lost,
+        "a player with 10 poison counters loses the game [CR#704.5c]"
+    );
+}
+
+/// The `by`-matcher: a source-keyed replacement (`by: Ref(This)`) fires ONLY
+/// for damage from its own object. Damage from a DIFFERENT source must not
+/// trigger it — the Wither source's counters appear only when IT deals the
+/// damage, never when a third creature does.
+#[test]
+fn by_matcher_fires_only_for_damage_from_its_own_source() {
+    let wither = damage_as_counters_static(
+        Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(Type::Creature)),
+        Reference::ThatObject,
+        "M1M1Counter",
+    );
+    let (mut state, wither_src, target) = source_and_target(vec![wither]);
+    let m1m1: deckmaste_core::Ident = "M1M1Counter".into();
+
+    // `target` is a plain creature (no wither). Damage FROM it (a different
+    // source than wither_src) must NOT trigger the wither replacement, whose
+    // `would` is keyed `by: Ref(This)` = wither_src.
+    deal_damage(&mut state, target, target, 4);
+    assert_eq!(
+        state.objects.obj(target).counters.get(&m1m1).copied(),
+        None,
+        "the wither replacement (by: Ref(This)=wither_src) must NOT fire for \
+         damage from a different source [CR#702.80a]"
+    );
+    assert_eq!(
+        state.objects.obj(target).damage,
+        4,
+        "damage from a non-wither source is marked normally [CR#120.3e]"
+    );
+
+    // Now damage FROM the wither source: counters appear, no marked damage added.
+    deal_damage(&mut state, wither_src, target, 2);
+    assert_eq!(
+        state.objects.obj(target).counters.get(&m1m1).copied(),
+        Some(2),
+        "the wither replacement DOES fire for damage from its own source"
+    );
+}

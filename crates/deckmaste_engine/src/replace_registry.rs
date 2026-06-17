@@ -104,6 +104,21 @@ pub(crate) fn intent_event(e: &GameEvent) -> Option<(Event, Affected)> {
     }
 }
 
+/// The live object that PERFORMED a replaceable intent — the `by` coordinate of
+/// a `Performed` event ([CR#120.3], "damage dealt BY a source"). `Some` only
+/// for the verb-keyed intents that carry a source object; `None` for zone moves
+/// and player-experienced events, whose `Performed` pattern (if any) has no
+/// performer to bind. Mirrors `Affected` (the `on` coordinate): `Affected` is
+/// the recipient, this is the actor.
+pub(crate) fn intent_performer(e: &GameEvent) -> Option<ObjectId> {
+    match e {
+        // [CR#120.3]: the damage's SOURCE — the object infect/wither/lifelink
+        // key their source-side replacements off of.
+        GameEvent::DamageDealt { source, .. } => Some(*source),
+        _ => None,
+    }
+}
+
 /// Whether `would` (with `Ref(This) = this`, the watching object) watches
 /// intent `e`. Built on `intent_event` + the existing filter matcher and
 /// `CausePattern` matching.
@@ -117,12 +132,14 @@ pub(crate) fn replacement_watches(
     let Some((abstract_ev, affected)) = intent_event(e) else {
         return false;
     };
-    event_pattern_matches(state, view, would, this, &abstract_ev, affected)
+    let performer = intent_performer(e);
+    event_pattern_matches(state, view, would, this, &abstract_ev, affected, performer)
 }
 
 /// Match `would` (a core `Event` pattern) against `abstract_ev` (the abstract
 /// representation of the intent). `this` anchors `Ref(This)`. `view` is
-/// threaded through for later-task derived-property checks.
+/// threaded through for later-task derived-property checks. `performer` is the
+/// live actor (the `by` coordinate) when the intent carries one.
 #[allow(clippy::only_used_in_recursion)]
 fn event_pattern_matches(
     state: &GameState,
@@ -131,6 +148,7 @@ fn event_pattern_matches(
     this: ObjectId,
     abstract_ev: &Event,
     affected: Affected,
+    performer: Option<ObjectId>,
 ) -> bool {
     // Look through remembered macro invocations.
     let would = look_through_event(would);
@@ -197,14 +215,18 @@ fn event_pattern_matches(
             }
         }
 
-        // Both are Performed: compare verb and resolve filters against affected.
-        // `by` (the performer, e.g. "if a creature YOU CONTROL would deal
-        // damage") is not matched yet — a v1 seam, like the agent coordinate in
-        // `cause_pattern_matches`; no in-scope replacement restricts `by`.
+        // Both are Performed: compare verb, then resolve the `on` filter against
+        // the recipient (`affected`) and the `by` filter against the performer
+        // (the live actor). Infect/Wither key a SOURCE replacement off
+        // `by: Ref(This)` — "damage dealt BY this creature"
+        // ([CR#702.80a,702.90b,702.90c,120.3]) — so the `by` match is what
+        // restricts the replacement to damage from that very source. A `by`
+        // filter present with no performer to test against never matches (the
+        // intent carries no actor).
         (
             Event::Performed {
                 verb: w_verb,
-                by: _w_by,
+                by: w_by,
                 on: w_on,
             },
             Event::Performed { verb: e_verb, .. },
@@ -213,6 +235,19 @@ fn event_pattern_matches(
                 return false;
             }
             let watcher = object_source_of(state, this);
+            // `by`: resolve against the performer, mirroring `on` against the
+            // recipient. `Filter::Any` matches any (even a missing) performer;
+            // a more specific filter requires the actor to be present and match.
+            let by_ok = match w_by {
+                Filter::Any => true,
+                _ => performer.is_some_and(|src| {
+                    crate::target::matches_with(state, src, w_by, Some(watcher))
+                }),
+            };
+            if !by_ok {
+                return false;
+            }
+            // `on`: resolve against the recipient.
             match affected {
                 Affected::Object(id) => crate::target::matches_with(state, id, w_on, Some(watcher)),
                 Affected::Player(p) => {
@@ -225,7 +260,7 @@ fn event_pattern_matches(
         // OneOf: any arm matches.
         (Event::OneOf(events), _) => events
             .iter()
-            .any(|p| event_pattern_matches(state, view, p, this, abstract_ev, affected)),
+            .any(|p| event_pattern_matches(state, view, p, this, abstract_ev, affected, performer)),
 
         // A pattern for a different event kind never matches.
         _ => false,
@@ -505,10 +540,9 @@ pub(crate) enum ReplaceOutcome {
 /// lineage set. Returns the modified event to apply, nothing (replaced away),
 /// or a suspension waiting for a `ChooseReplacement` decision.
 ///
-/// Seam: `ThatObject` binding for the affected object is not threaded into
-/// the body frame — the body reads `Ref(This)` off `source`. Binding the
-/// replaced object into `ThatObject` requires threading `Affected` through
-/// `Frame` (deferred, follow-up task).
+/// The affected object IS threaded into the body frame as `ThatObject` (via
+/// `schedule_body`), so a body reads it with `Ref(ThatObject)` while `This`
+/// stays the source ability.
 ///
 /// Seam: general [CR#614.15] self-replacement (resolution-time) is a
 /// `todo!`-tagged future concern; APNAP multi-player 616 ordering is also
@@ -567,6 +601,21 @@ pub(crate) fn replace_event(state: &mut GameState, e: GameEvent) -> ReplaceOutco
     }
 }
 
+/// The magnitude an amount-carrying intent fixes for the `Count::ThatMuch`
+/// register ([CR#107.3], "that many"). An `Instead` replaces the intent away —
+/// it never reaches the `apply` funnel that normally fixes `that_much` — so a
+/// body that reads "that many" (infect's poison/-1/-1 counters,
+/// [CR#702.90b,702.90c]) must have it set HERE, off the replaced intent.
+/// Mirrors the `apply`-funnel set ([CR#120.3], damage/life amounts).
+fn intent_magnitude(e: &GameEvent) -> Option<deckmaste_core::Uint> {
+    match e {
+        GameEvent::DamageDealt { amount, .. }
+        | GameEvent::LifeLost { amount, .. }
+        | GameEvent::LifeGained { amount, .. } => Some(*amount),
+        _ => None,
+    }
+}
+
 /// Apply one replacement to `e`. Returns the modified event to continue
 /// looping on, or `None` when the event is replaced to nothing (Instead).
 /// Schedules body effects via `schedule_body`.
@@ -578,6 +627,14 @@ fn apply_one(state: &mut GameState, e: GameEvent, a: &Applicable) -> Option<Game
         Some((_, Affected::Object(id))) => Some(id),
         _ => None,
     };
+    // [CR#107.3]: fix the "that many" register off the replaced intent so the
+    // body's `Count::ThatMuch` reads the original magnitude. The `apply` funnel
+    // can't do it — an `Instead` body schedules BEFORE (and instead of) the
+    // intent's apply. Set before `schedule_body` so the scheduled `RunEffect`
+    // (front of agenda, runs next) sees it. No-op for amount-less intents.
+    if let Some(amount) = intent_magnitude(&e) {
+        state.that_much = Some(amount);
+    }
     match crate::replace::look_through_replacement(&a.replacement).clone() {
         Replacement::Instead { instead, .. } => {
             // [CR#614.1a,614.6]: the event is replaced — it does NOT happen.
@@ -611,13 +668,13 @@ fn apply_one(state: &mut GameState, e: GameEvent, a: &Applicable) -> Option<Game
 }
 
 /// Schedule an `instead`/`also` body effect as a `RunEffect` work item at
-/// the agenda front. The frame is anchored on `source`.
-///
-/// Seam: `ThatObject` binding for the replaced event's affected object is
-/// deferred — body effects that need to reference the affected object read
-/// `Ref(This)` off `source` instead. Threading `Affected` into `Frame`
-/// is the follow-up work (see [CR#616.1] body-binding discussion in the
-/// spec).
+/// the agenda front. The frame is anchored on `source`, with the replaced
+/// intent's affected recipient bound for the body to read while `This` stays
+/// the source ability. A card-backed recipient binds as `ThatObject` (a body
+/// reads `Ref(ThatObject)` — regeneration heals it, wither/infect put -1/-1
+/// counters on it, [CR#702.80a,702.90c]); a PLAYER recipient (the proxy is
+/// zoneless, so it has no LKI snapshot) binds as `ThatPlayer` instead, read as
+/// `Ref(ThatPlayer)` — infect gives that player poison counters ([CR#702.90b]).
 fn schedule_body(
     state: &mut GameState,
     effect: deckmaste_core::Effect,
@@ -625,14 +682,22 @@ fn schedule_body(
     that: Option<ObjectId>,
 ) {
     let controller = state.objects.obj(source).controller;
-    // [CR#608.2]: bind `That` (`ThatObject`) to the affected object so the body
-    // can read it — `This` falls back to `source` (`bindings.this` is `None`),
-    // never moving off the ability. A frameless body (`that == None`) leaves
-    // bindings unset.
-    let bindings = that.map(|id| TriggerBindings {
-        this: None,
-        that_object: Some(LkiSnapshot::capture(state, id)),
-        that_player: None,
+    // [CR#608.2]: bind `That` to the affected recipient so the body can read it
+    // — `This` falls back to `source` (`bindings.this` is `None`), never moving
+    // off the ability. A frameless body (`that == None`) leaves bindings unset.
+    // A player proxy (no zone) can't be LKI-snapshotted, so it binds as
+    // `ThatPlayer`; a card/token recipient binds as `ThatObject`.
+    let bindings = that.map(|id| match state.objects.obj(id).source {
+        ObjectSource::Player(p) => TriggerBindings {
+            this: None,
+            that_object: None,
+            that_player: Some(p),
+        },
+        ObjectSource::Card(_) => TriggerBindings {
+            this: None,
+            that_object: Some(LkiSnapshot::capture(state, id)),
+            that_player: None,
+        },
     });
     let frame = crate::stack::Frame {
         source,
@@ -1024,6 +1089,53 @@ mod tests {
         };
         let app = gather_applicable(&state, &e);
         assert_eq!(app.len(), 2);
+    }
+
+    /// The `by`-matcher ([CR#120.3], "damage dealt BY a source"): a `would`
+    /// keyed `by: Ref(This)` watches a `DamageDealt` whose SOURCE is `this`,
+    /// but NOT one whose source is a different object. This is the source-side
+    /// filter infect/wither rely on ([CR#702.80a,702.90b,702.90c]).
+    #[test]
+    fn by_matcher_distinguishes_damage_source() {
+        let (mut state, view, source_a) = super::tests_support::lone_creature();
+        // A second creature — the "other source".
+        let source_b = super::tests_support::mint_creature_on_battlefield(&mut state);
+        let target = super::tests_support::mint_creature_on_battlefield(&mut state);
+
+        // "damage dealt BY this creature" — keyed to the watching object.
+        let would = Event::Performed {
+            verb: "DealDamage".into(),
+            by: Filter::Ref(Reference::This),
+            on: Filter::Any,
+        };
+
+        // `this == source_a`: damage from A fires the watch; damage from B does not.
+        let from_a = GameEvent::DamageDealt {
+            source: source_a,
+            target,
+            amount: 2,
+        };
+        let from_b = GameEvent::DamageDealt {
+            source: source_b,
+            target,
+            amount: 2,
+        };
+        assert!(
+            replacement_watches(&state, &view, &would, source_a, &from_a),
+            "a `by: Ref(This)` would watches damage from its own source"
+        );
+        assert!(
+            !replacement_watches(&state, &view, &would, source_a, &from_b),
+            "it must NOT watch damage from a different source"
+        );
+
+        // A bare `by: Any` watches both (the default, source-agnostic).
+        let any = Event::Performed {
+            verb: "DealDamage".into(),
+            by: Filter::Any,
+            on: Filter::Any,
+        };
+        assert!(replacement_watches(&state, &view, &any, source_a, &from_b));
     }
 
     /// Helper: the abstract `Event` for "this permanent would be destroyed"
