@@ -45,7 +45,7 @@ pub use cost::CostComponent;
 pub use cost::TotalCost;
 
 mod counter;
-pub use counter::CounterDecl;
+pub use counter::Counter;
 pub use counter::CounterRef;
 
 mod decision;
