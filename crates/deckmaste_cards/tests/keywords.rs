@@ -49,6 +49,8 @@ fn every_builtin_keyword_macro_expands() {
         ("Wither", "Wither"),
         ("Infect", "Infect"),
         ("Modular(1)", "Modular"),
+        ("Undying", "Undying"),
+        ("Persist", "Persist"),
     ];
     let plugin = builtin();
     for (invocation, name) in cases {
