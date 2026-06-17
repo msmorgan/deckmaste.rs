@@ -276,7 +276,7 @@ mod tests {
             Some(
                 "Triggered(event: ThisAttacks, effect: Continuously(effect: Modify(of: Of(This), \
                  changes: [AddPower(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This)), Attacking]))), \
-                 AddToughness(Literal(0))]), duration: FixedUntil(EndOfTurn)))"
+                 AddToughness(0)]), duration: FixedUntil(EndOfTurn)))"
             )
         );
     }

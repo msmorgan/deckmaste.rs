@@ -359,7 +359,7 @@ mod tests {
         // resolves the subject) — e.g. Ward—Sacrifice a creature.
         assert_eq!(
             bare("Ward—Sacrifice a creature.").as_deref(),
-            Some("Keyword(Ward([Do(Sacrifice(Choose(Exactly(Literal(1)), Creature)))]))")
+            Some("Keyword(Ward([Do(Sacrifice(Choose(Exactly(1), Creature)))]))")
         );
         assert_eq!(
             bare("Equip—Discard a card.").as_deref(),

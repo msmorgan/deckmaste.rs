@@ -2,5 +2,5 @@
     name: "TargetOne",
     kinds: [TargetSpec],
     params: [Filter],
-    body: Target(Exactly(Literal(1)), Param(0)),
+    body: Target(Exactly(1), Param(0)),
 )

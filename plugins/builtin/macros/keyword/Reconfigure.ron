@@ -29,7 +29,7 @@
                 cost: Param(0),
                 window: SorcerySpeed,
                 effect: Targeted(
-                    targets: [Target(Exactly(Literal(1)), AllOf([
+                    targets: [Target(Exactly(1), AllOf([
                         Creature,
                         ControlledBy(Ref(You)),
                         Not(Ref(This)),

@@ -14,7 +14,7 @@
             cost: Param(0),
             window: SorcerySpeed,
             effect: Targeted(
-                targets: [Target(Exactly(Literal(1)), AllOf([Creature, ControlledBy(Ref(You))]))],
+                targets: [Target(Exactly(1), AllOf([Creature, ControlledBy(Ref(You))]))],
                 effect: Attach(what: This, to: Target(0)),
             ),
         )],

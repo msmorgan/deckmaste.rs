@@ -554,7 +554,7 @@ mod tests {
             Some((
                 String::new(),
                 "Continuously(effect: Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), \
-                 changes: [AddPower(Literal(3)), AddToughness(Literal(3)), GainAbility(Keyword(Trample))]), \
+                 changes: [AddPower(3), AddToughness(3), GainAbility(Keyword(Trample))]), \
                  duration: FixedUntil(EndOfTurn))".to_owned()
             ))
         );
@@ -567,8 +567,8 @@ mod tests {
             parsed("~ gets +1/+1 until end of turn."),
             Some((
                 String::new(),
-                "Continuously(effect: Modify(of: Of(This), changes: [AddPower(Literal(1)), \
-                 AddToughness(Literal(1))]), duration: FixedUntil(EndOfTurn))"
+                "Continuously(effect: Modify(of: Of(This), changes: [AddPower(1), \
+                 AddToughness(1)]), duration: FixedUntil(EndOfTurn))"
                     .to_owned()
             ))
         );
@@ -577,8 +577,8 @@ mod tests {
             parsed("Target creature gets +3/+3 until end of turn."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "Continuously(effect: Modify(of: Of(Target(0)), changes: [AddPower(Literal(3)), \
-                 AddToughness(Literal(3))]), duration: FixedUntil(EndOfTurn))"
+                "Continuously(effect: Modify(of: Of(Target(0)), changes: [AddPower(3), \
+                 AddToughness(3)]), duration: FixedUntil(EndOfTurn))"
                     .to_owned()
             ))
         );
@@ -924,7 +924,7 @@ mod tests {
                 String::new(),
                 "Continuously(effect: Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), \
                  changes: [AddPower(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), \
-                 AddToughness(Literal(0))]), \
+                 AddToughness(0)]), \
                  duration: FixedUntil(EndOfTurn))".to_owned()
             ))
         );

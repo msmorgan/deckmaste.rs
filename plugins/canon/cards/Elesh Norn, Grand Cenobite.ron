@@ -13,8 +13,8 @@ Normal(
     ],
     abilities: [
         Keyword(Vigilance),
-        Static(effects: [Modify(of: Matching(AllOf([Creature, Not(Ref(This)), ControlledBy(Ref(You))])), changes: [AddPower(Literal(2)), AddToughness(Literal(2))])]),
-        Static(effects: [Modify(of: Matching(AllOf([Creature, ControlledBy(OpponentOf(Ref(You)))])), changes: [SubtractPower(Literal(2)), SubtractToughness(Literal(2))])]),
+        Static(effects: [Modify(of: Matching(AllOf([Creature, Not(Ref(This)), ControlledBy(Ref(You))])), changes: [AddPower(2), AddToughness(2)])]),
+        Static(effects: [Modify(of: Matching(AllOf([Creature, ControlledBy(OpponentOf(Ref(You)))])), changes: [SubtractPower(2), SubtractToughness(2)])]),
     ],
     power: 4,
     toughness: 7,

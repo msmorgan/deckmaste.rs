@@ -12,7 +12,7 @@ KeywordAbility(
     abilities: [Static(effects: [
         Sba(
             when: AllOf([
-                Compare(CountOf(AllOf([InZone(Battlefield), ControlledBy(Ref(You))])), AtLeast, Literal(10)),
+                Compare(CountOf(AllOf([InZone(Battlefield), ControlledBy(Ref(You))])), AtLeast, 10),
                 Not(Is(You, Designated("CitysBlessing"))),
             ]),
             then: GetDesignation("CitysBlessing"),

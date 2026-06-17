@@ -8,6 +8,6 @@ Normal(
     supertypes: [Legendary],
     types: [Enchantment],
     abilities: [
-        Static(effects: [Modify(of: Matching(Creature), changes: [SubtractPower(Literal(1)), SubtractToughness(Literal(1))])]),
+        Static(effects: [Modify(of: Matching(Creature), changes: [SubtractPower(1), SubtractToughness(1)])]),
     ],
 )

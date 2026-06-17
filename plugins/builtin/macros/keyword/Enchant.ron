@@ -24,7 +24,7 @@
         abilities: [
             Spell(
                 effect: Targeted(
-                    targets: [Target(Exactly(Literal(1)), Param(0))],
+                    targets: [Target(Exactly(1), Param(0))],
                     effect: Sequence([]),
                 ),
             ),

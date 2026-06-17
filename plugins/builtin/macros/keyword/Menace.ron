@@ -6,6 +6,6 @@ KeywordAbility(
     name: "Menace",
     template: "menace",
     abilities: [Static(effects: [
-        Cant(Block(on: Ref(This), count: Less(Literal(2)))),
+        Cant(Block(on: Ref(This), count: Less(2))),
     ])],
 )
