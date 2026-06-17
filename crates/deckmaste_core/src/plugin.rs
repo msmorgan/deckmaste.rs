@@ -8,6 +8,7 @@ use std::path::PathBuf;
 pub const MACROS_DIR: &str = "macros";
 pub const CARDS_DIR: &str = "cards";
 pub const TOKENS_DIR: &str = "tokens";
+pub const RULES_DIR: &str = "rules";
 pub const KEYWORD_ABILITIES_DIR: &str = "keyword_abilities";
 pub const KEYWORD_ACTIONS_DIR: &str = "keyword_actions";
 pub const ABILITY_WORDS_DIR: &str = "ability_words";
