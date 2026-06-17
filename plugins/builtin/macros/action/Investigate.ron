@@ -1,0 +1,27 @@
+// "Investigate" [CR#701.16a] = "Create a Clue token." The Clue is the
+// predefined colorless artifact token with "{2}, Sacrifice this artifact:
+// Draw a card." ([CR#111.10f]) — mirrored inline here from
+// `plugins/builtin/tokens/Clue.ron` (`SacrificeThis` is the cost macro
+// `Do(Sacrifice(This))`). An `Effect`-kind macro, so it stands as the effect
+// body in any shell — ETB trigger ("When ~ enters, investigate."), activated
+// ("{4}, {T}: Investigate."), or spell ("Investigate.").
+//
+// Template: "investigate" (the bare keyword-action verb). This is the
+// bidirectional parse<->render truth: the effect-clause parser routes an
+// "investigate." clause back to this macro, and the renderer prints the
+// invocation as the word.
+(
+    name: "Investigate",
+    template: "investigate",
+    kinds: [Effect],
+    body: Create(1, Token(
+        types: [Artifact],
+        subtypes: [Clue],
+        abilities: [
+            Activated(
+                cost: [Mana([Generic(2)]), SacrificeThis],
+                effect: Draw(1),
+            )
+        ],
+    )),
+)

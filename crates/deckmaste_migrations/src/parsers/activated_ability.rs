@@ -16,7 +16,7 @@ use crate::resolve::ResolveCtx;
 /// RON. Declines (`Ok(None)`) on lines without a cost colon or with
 /// unrecognized cost components/effects. Self-identifying by the cost grammar
 /// before the colon, so the card's `CardKind` is irrelevant.
-pub(crate) fn resolve_line(line: &str, _ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
+pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
     let Some((cost_clause, effect_clause)) = line.split_once(": ") else {
         return Ok(None);
     };
@@ -25,7 +25,7 @@ pub(crate) fn resolve_line(line: &str, _ctx: &ResolveCtx) -> anyhow::Result<Opti
     let Some(cost) = cost::parse_cost(cost_clause, VariableMana::Allow)? else {
         return Ok(None);
     };
-    let Some(parsed) = effect::parse_clause(effect_clause) else {
+    let Some(parsed) = effect::parse_clause(effect_clause, ctx) else {
         return Ok(None);
     };
     Ok(Some(render(&cost, &parsed)))
@@ -52,6 +52,22 @@ mod tests {
 
     fn act(line: &str) -> Option<String> {
         resolve_line(line, &crate::parsers::test_ctx::ctx(CardKind::Permanent)).unwrap()
+    }
+
+    /// An activated ability whose effect is a keyword-action macro
+    /// ("{4}, {T}: Investigate.") resolves through the macro-template
+    /// fallthrough in the shared effect grammar.
+    #[test]
+    fn activated_keyword_action_macro_like_investigate() {
+        let out = resolve_line(
+            "{4}, {T}: Investigate.",
+            &crate::parsers::test_ctx::builtin_ctx(CardKind::Permanent),
+        )
+        .unwrap();
+        assert_eq!(
+            out.as_deref(),
+            Some("Activated(cost: [Mana([Generic(4)]), Tap], effect: Investigate)")
+        );
     }
 
     #[test]

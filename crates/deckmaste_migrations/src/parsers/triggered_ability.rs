@@ -20,7 +20,7 @@ use crate::resolve::ResolveCtx;
 /// Infallible today, but the `Result` is required by the `AbilityParser`
 /// registry signature (sibling parsers render fallibly).
 #[allow(clippy::unnecessary_wraps)]
-pub(crate) fn resolve_line(line: &str, _ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
+pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
     // "At the beginning of …" is a step-entry trigger whose event clause carries
     // an internal comma ("on your turn,"), so it can't share the "When/Whenever
     // … , …" split. Route it to a dedicated event parser that consumes the whole
@@ -29,7 +29,7 @@ pub(crate) fn resolve_line(line: &str, _ctx: &ResolveCtx) -> anyhow::Result<Opti
         let Some((event, effect_clause)) = parse_beginning_of(rest) else {
             return Ok(None);
         };
-        let Some(parsed) = effect::parse_clause(effect_clause) else {
+        let Some(parsed) = effect::parse_clause(effect_clause, ctx) else {
             return Ok(None);
         };
         return Ok(Some(render(&event, &parsed)));
@@ -46,7 +46,7 @@ pub(crate) fn resolve_line(line: &str, _ctx: &ResolveCtx) -> anyhow::Result<Opti
     let Some(event) = parse_event(event_clause) else {
         return Ok(None);
     };
-    let Some(parsed) = effect::parse_clause(effect_clause) else {
+    let Some(parsed) = effect::parse_clause(effect_clause, ctx) else {
         return Ok(None);
     };
     Ok(Some(render(&event, &parsed)))
@@ -154,6 +154,22 @@ mod tests {
 
     fn trig(line: &str) -> Option<String> {
         resolve_line(line, &crate::parsers::test_ctx::ctx(CardKind::Permanent)).unwrap()
+    }
+
+    /// An ETB trigger whose effect is a keyword-action macro
+    /// ("When ~ enters, investigate.") resolves through the macro-template
+    /// fallthrough in the shared effect grammar.
+    #[test]
+    fn etb_keyword_action_macro_like_investigate() {
+        let out = resolve_line(
+            "When ~ enters, investigate.",
+            &crate::parsers::test_ctx::builtin_ctx(CardKind::Permanent),
+        )
+        .unwrap();
+        assert_eq!(
+            out.as_deref(),
+            Some("Triggered(event: ThisEnters, effect: Investigate)")
+        );
     }
 
     #[test]
