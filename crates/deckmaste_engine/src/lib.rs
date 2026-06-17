@@ -85,6 +85,8 @@ pub use tally::ActivationLedger;
 mod replace;
 
 mod replace_registry;
+pub use replace_registry::InstanceId;
+pub use replace_registry::ReplacementInstance;
 pub use replace_registry::ReplacementKey;
 
 mod resolve;

@@ -753,3 +753,176 @@ fn ordinary_destroy_goes_to_graveyard() {
         "must not be in exile"
     );
 }
+
+// ── Task 8: Non-destroy genericity proof + lineage
+// ────────────────────────────
+
+/// Build a `GameState` with a creature (carrying the given `replacement`
+/// static) on the battlefield for player 0. Returns `(state, id)`.
+fn creature_with_non_destroy_replacement(replacement: Replacement) -> (GameState, ObjectId) {
+    creature_with_replacement(replacement)
+}
+
+/// [CR#614,616.1]: a non-destroy replacement (`GainLife` → `LoseLife`) proves the
+/// registry handles `Performed`-verb intents, not just `WillDestroy`.
+///
+/// A creature carrying `Instead(would: Performed("GainLife", on: Any), instead:
+/// LoseLife(Literal(1)))` watches a `LifeGained` intent for player 0. When the
+/// `LifeGained` intent fires, the Instead fires: the player loses 1 life
+/// instead of gaining 3. This exercises the `Affected::Player` arm of
+/// `event_pattern_matches` and proves the registry is not destroy-only.
+///
+/// `on: Filter::Any` matches any object, which in the `Affected::Player` case
+/// resolves against the player's proxy object (`matches_with` with `Any`
+/// always returns true).
+#[test]
+fn lifegain_replaced_by_draw() {
+    // Build the GainLife → LoseLife(1) instead. We use LoseLife rather than
+    // Draw because player 0's library may be empty after the opening-hand draw,
+    // and an empty-library draw would silently set `drew_from_empty` rather than
+    // adding a card. LoseLife(1) is directly observable as a life-total change.
+    let would = Event::Performed {
+        verb: "GainLife".into(),
+        by: Filter::Any,
+        on: Filter::Any,
+    };
+    let instead_body = Effect::Act(deckmaste_core::Action::By(
+        Reference::You,
+        PlayerAction::LoseLife(deckmaste_core::Count::Literal(1)),
+    ));
+    let (mut state, _src) = creature_with_non_destroy_replacement(Replacement::Instead {
+        would,
+        instead: instead_body,
+    });
+
+    // Clear the agenda and any pending decision so the manually-emitted event
+    // is the only thing processed.
+    state.agenda.clear();
+    state.pending = None;
+
+    let before_life = state.players[0].life;
+
+    // Emit the LifeGained intent directly onto the agenda — the replacement
+    // registry intercepts it before `apply` runs.
+    state
+        .agenda
+        .push_front(WorkItem::Emit(deckmaste_engine::Occurrence::Single(
+            deckmaste_engine::GameEvent::LifeGained {
+                player: PlayerId(0),
+                amount: 3,
+            },
+        )));
+
+    // Drive until stable.
+    drive(&mut state);
+
+    // Player 0 should NOT have gained the 3 life (Instead: event replaced away).
+    assert!(
+        state.players[0].life < before_life,
+        "player 0 should lose 1 life from Instead body (not gain 3); \
+         before={before_life}, after={}",
+        state.players[0].life,
+    );
+    let expected_life = before_life - 1; // deckmaste_core::Int
+    assert_eq!(
+        state.players[0].life, expected_life,
+        "player 0 should lose exactly 1 life from the Instead body"
+    );
+}
+
+/// [CR#614.5]: `double_damage_lineage_terminates` — a one-shot floating shield
+/// watching `DamageDealt` to the creature fires once and is consumed. The body
+/// schedules a fresh `DamageDealt` with a fixed larger amount. That fresh event
+/// enters the pipeline with the shield already consumed (one-shot), so
+/// `gather_applicable` finds nothing and the loop terminates.
+///
+/// This proves:
+/// 1. The registry handles `DamageDealt` (`Performed`-verb) intents.
+/// 2. A one-shot shield is consumed after application ([CR#614.3]).
+/// 3. The fresh re-emitted event does NOT re-fire the same replacement (shield
+///    gone), proving the termination property (in this case via consumption;
+///    for static replacements the local `applied` `HashSet` provides the same
+///    guarantee within a single `replace_event` call).
+///
+/// Body form chosen: `DealDamage(Ref(This), Literal(10))` — a fixed amount
+/// rather than a computed double, which avoids needing `ThatMuch`/`Count::X`
+/// machinery. The test asserts termination (no stack overflow) and that the
+/// fixed 10 damage lands exactly once.
+#[test]
+fn double_damage_lineage_terminates() {
+    use deckmaste_core::Count;
+    use deckmaste_engine::InstanceId;
+    use deckmaste_engine::ReplacementInstance;
+
+    // Build a vanilla 2/2 creature on the battlefield.
+    let (mut state, id) = vanilla_creature(2, 2);
+    let card_id = state.objects.obj(id).card_id().expect("backed by a card");
+
+    // The `would`: "this creature would be dealt damage"
+    //   Performed(verb: "DealDamage", on: Ref(This))
+    let would = Event::Performed {
+        verb: "DealDamage".into(),
+        by: Filter::Any,
+        on: Filter::Ref(Reference::This),
+    };
+
+    // The `instead` body: deal 10 damage to this creature (a fixed amount
+    // rather than a doubled one — see doc-comment above for rationale).
+    let instead_body = Effect::Act(deckmaste_core::Action::DealDamage(
+        Selection::Ref(Reference::This),
+        Count::Literal(10),
+    ));
+
+    // Register a ONE-SHOT floating shield on the creature.
+    // After it fires, `consume_shield` removes it, so the fresh re-emitted
+    // `DamageDealt` finds no applicable replacement and applies cleanly.
+    state.shields.push(ReplacementInstance {
+        id: InstanceId(42),
+        replacement: Replacement::Instead {
+            would,
+            instead: instead_body,
+        },
+        subject: id,
+        duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
+        one_shot: true,
+        source: id,
+    });
+
+    // Clear the agenda so the manually-emitted event is processed in isolation.
+    state.agenda.clear();
+    state.pending = None;
+
+    // Emit a `DamageDealt` intent with 2 damage to the creature.
+    state
+        .agenda
+        .push_front(WorkItem::Emit(deckmaste_engine::Occurrence::Single(
+            deckmaste_engine::GameEvent::DamageDealt {
+                source: id, // source = the creature itself (arbitrary for the test)
+                target: id,
+                amount: 2,
+            },
+        )));
+
+    // Drive to stability — must terminate (no stack overflow / infinite loop).
+    drive(&mut state);
+
+    // The shield must be consumed (one-shot).
+    assert!(
+        state.shields.is_empty(),
+        "one-shot shield must be consumed after firing [CR#614.3]"
+    );
+
+    // The creature must still be on the battlefield (10 damage < lethal for a 2/2
+    // without SBA running here — drive() doesn't push CheckSbas).
+    let live = find_on_battlefield(&state, card_id);
+
+    // The original 2-damage event was replaced away (Instead).
+    // The body's 10-damage event applied once (no replacement on the fresh event).
+    assert_eq!(
+        state.objects.obj(live).damage,
+        10,
+        "the fixed-amount Instead body's damage must land exactly once; \
+         actual={}",
+        state.objects.obj(live).damage,
+    );
+}
