@@ -85,6 +85,11 @@ pub enum Count {
     /// `Condition::Happened`. `Event` is boxed (it is large) to keep `Count`
     /// from growing, mirroring `CountOf(Box<Filter>)`.
     EventCount(Box<crate::Event>, crate::Window),
+    /// The summed AMOUNT of history facts matching `Event` within `Window`
+    /// ([CR#608.2i,119.3]) — e.g. total life lost this turn. The match is by
+    /// the same `Event` pattern as `EventCount`; the magnitude is each matched
+    /// fact's carried amount. `EventCount` counts; `EventSum` sums.
+    EventSum(Box<crate::Event>, crate::Window),
     /// A noted number read back from a slot ([CR#607.2] linked values).
     Noted(crate::Ident),
     /// A remembered `Count` macro invocation.
@@ -174,6 +179,30 @@ mod tests {
         assert_eq!(
             parsed,
             Count::EventCount(Box::new(event.clone()), Window::ThisTurn),
+        );
+        // Serialize → read round-trip.
+        let written = write(&parsed);
+        assert_eq!(read(&written), parsed);
+    }
+
+    /// `EventSum(Event, Window)` parses and round-trips — the sum-valued twin
+    /// of `EventCount` for amount-carrying facts ([CR#608.2i,119.3]).
+    #[test]
+    fn event_sum_round_trips() {
+        use crate::Event;
+        use crate::Filter;
+        use crate::Window;
+
+        let event = Event::Performed {
+            verb: "LoseLife".into(),
+            by: Filter::Any,
+            on: Filter::Any,
+        };
+        // Parse from RON — verb only, `by`/`on` default to Any.
+        let parsed = read(r#"EventSum(Performed(verb: "LoseLife"), ThisTurn)"#);
+        assert_eq!(
+            parsed,
+            Count::EventSum(Box::new(event.clone()), Window::ThisTurn),
         );
         // Serialize → read round-trip.
         let written = write(&parsed);
