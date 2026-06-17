@@ -5,7 +5,7 @@
 // alt-cost linkage gap (core-alt-costs), not part of this row.
 (
     name: "Kicker",
-    template: "kicker {0}",
+    template: "kicker ${0}",
     kinds: [KeywordAbility],
     params: [Any],
     body: Composite(

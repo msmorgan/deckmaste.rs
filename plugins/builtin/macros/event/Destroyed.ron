@@ -6,7 +6,7 @@
 // Usage: Destroyed(what) — e.g. Destroyed(Type(Creature)).
 (
     name: "Destroyed",
-    template: "{0} is destroyed",
+    template: "${0} is destroyed",
     kinds: [Event],
     params: [Any],
     body: ZoneMove(what: Param(0), from: Battlefield, to: Graveyard, cause: Cause(verb: "Destroy")),

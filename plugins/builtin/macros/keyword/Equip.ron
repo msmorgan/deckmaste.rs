@@ -5,7 +5,7 @@
 // engine work behind the Attach verb's seam.
 (
     name: "Equip",
-    template: "equip {0}",
+    template: "equip ${0}",
     kinds: [KeywordAbility],
     params: [Any],
     body: Composite(

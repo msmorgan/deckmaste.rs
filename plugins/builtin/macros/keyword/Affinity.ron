@@ -5,7 +5,7 @@
 // the counted filter: `Affinity(Type(Artifact))`.
 (
     name: "Affinity",
-    template: "affinity for {0}",
+    template: "affinity for ${0}",
     kinds: [KeywordAbility],
     params: [Any],
     body: Composite(

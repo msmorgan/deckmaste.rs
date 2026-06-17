@@ -9,7 +9,7 @@
 // lands, the row over-claims (engine consumption is a seam either way).
 (
     name: "Flashback",
-    template: "flashback {0}",
+    template: "flashback ${0}",
     kinds: [KeywordAbility],
     params: [Any],
     body: Composite(

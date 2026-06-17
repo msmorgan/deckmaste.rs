@@ -2,7 +2,7 @@
 // Usage: Dies(what) — e.g. Dies(Type(Creature)), Dies(Ref(This)).
 (
     name: "Dies",
-    template: "{0} dies",
+    template: "${0} dies",
     kinds: [Event],
     params: [Any],
     body: ZoneMove(what: Param(0), from: Battlefield, to: Graveyard),

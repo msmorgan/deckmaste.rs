@@ -1,5 +1,6 @@
 //! Filling a macro's `template:` metadata into rules text.
-//! `~` -> the subject; `{i}` -> the rendered i-th positional arg.
+//! `~` -> the subject; `${i}` / `${name}` -> the rendered positional / named
+//! arg. Single-brace `{…}` is a literal game symbol (mana, `{T}`, …).
 
 use deckmaste_core::Expansion;
 use deckmaste_core::ExpansionArgs;
@@ -14,36 +15,45 @@ pub(super) fn expanded<T>(e: &Expansion<T>, subject: &str) -> Option<String> {
     fill(e.template.as_deref()?, subject, &e.args)
 }
 
-/// Fill a template. Returns `None` if any `{i}` can't be rendered cleanly
-/// (caller then falls back to structural rendering — never emit a half-filled
-/// template with a literal `{0}` left in it).
+/// Fill a template. Returns `None` if any `${…}` can't be resolved/rendered
+/// cleanly (caller then falls back to structural rendering — never emit a
+/// half-filled template with a literal `${0}` left in it). A single-brace
+/// `{…}` is a literal game symbol (mana, `{T}`, …) and passes through
+/// untouched, which is why `${…}` — not `{…}` — is the placeholder sigil.
 pub(super) fn fill(template: &str, subject: &str, args: &ExpansionArgs) -> Option<String> {
-    let positional: &[String] = match args {
-        ExpansionArgs::Positional(v) => v,
-        ExpansionArgs::Named(_) => return None, // named-arg templates: not handled here
-    };
     let mut out = String::new();
     let mut chars = template.char_indices().peekable();
     while let Some((_, c)) = chars.next() {
         match c {
             '~' => out.push_str(subject),
-            '{' => {
-                // parse the index up to '}'
-                let mut idx = String::new();
+            '$' if matches!(chars.peek(), Some((_, '{'))) => {
+                chars.next(); // consume the '{'
+                let mut key = String::new();
                 for (_, d) in chars.by_ref() {
                     if d == '}' {
                         break;
                     }
-                    idx.push(d);
+                    key.push(d);
                 }
-                let i: usize = idx.trim().parse().ok()?;
-                let raw = positional.get(i)?;
-                out.push_str(&render_arg(raw)?);
+                out.push_str(&render_arg(lookup_arg(args, key.trim())?)?);
             }
             other => out.push(other),
         }
     }
     Some(out)
+}
+
+/// Resolve a `${key}` reference against the invocation's args: a numeric key
+/// indexes positional args; a name keys into named args. Named signatures carry
+/// no indices, so a numeric key never resolves against them (and vice versa).
+fn lookup_arg<'a>(args: &'a ExpansionArgs, key: &str) -> Option<&'a String> {
+    match args {
+        ExpansionArgs::Positional(v) => v.get(key.parse::<usize>().ok()?),
+        ExpansionArgs::Named(pairs) => pairs
+            .iter()
+            .find(|(name, _)| name.as_str() == key)
+            .map(|(_, raw)| raw),
+    }
 }
 
 /// Render one raw-RON-source positional arg. v1: bare integers
@@ -85,7 +95,7 @@ mod tests {
     #[test]
     fn expanded_fills_subject_and_args() {
         let e = exp(
-            Some("~ gets +{0}/+{1} until end of turn"),
+            Some("~ gets +${0}/+${1} until end of turn"),
             ExpansionArgs::Positional(vec!["1".into(), "1".into()]),
         );
         assert_eq!(
@@ -106,7 +116,7 @@ mod tests {
         // A grammar-node arg the v1 filler can't render -> fall back, never a
         // half-filled template.
         let e = exp(
-            Some("{0}"),
+            Some("${0}"),
             ExpansionArgs::Positional(vec!["SomeFilter".into()]),
         );
         assert_eq!(expanded(&e, "x"), None);
@@ -115,21 +125,14 @@ mod tests {
     #[test]
     fn fills_pump_template() {
         let args = ExpansionArgs::Positional(vec!["1".into(), "1".into()]);
-        let s = fill("~ gets +{0}/+{1} until end of turn", "Goblin", &args);
+        let s = fill("~ gets +${0}/+${1} until end of turn", "Goblin", &args);
         assert_eq!(s.as_deref(), Some("Goblin gets +1/+1 until end of turn"));
     }
 
     #[test]
     fn returns_none_for_unknown_arg() {
         let args = ExpansionArgs::Positional(vec!["SomeFilter".into()]);
-        let s = fill("do {0} things", "it", &args);
-        assert_eq!(s, None);
-    }
-
-    #[test]
-    fn returns_none_for_named_args() {
-        let args = ExpansionArgs::Named(vec![("x".into(), "1".into())]);
-        let s = fill("~ gets +{0}", "it", &args);
+        let s = fill("do ${0} things", "it", &args);
         assert_eq!(s, None);
     }
 
@@ -143,8 +146,41 @@ mod tests {
     #[test]
     fn missing_positional_returns_none() {
         let args = ExpansionArgs::Positional(vec!["1".into()]);
-        // {1} doesn't exist
-        let s = fill("~ gets +{0}/+{1}", "it", &args);
+        // ${1} doesn't exist
+        let s = fill("~ gets +${0}/+${1}", "it", &args);
+        assert_eq!(s, None);
+    }
+
+    #[test]
+    fn fills_dollar_brace_positional() {
+        // New sigil: `${i}` is the positional placeholder.
+        let args = ExpansionArgs::Positional(vec!["1".into(), "1".into()]);
+        let s = fill("~ gets +${0}/+${1} until end of turn", "Goblin", &args);
+        assert_eq!(s.as_deref(), Some("Goblin gets +1/+1 until end of turn"));
+    }
+
+    #[test]
+    fn fills_named_arg() {
+        // `${name}` resolves against named args.
+        let args =
+            ExpansionArgs::Named(vec![("pow".into(), "2".into()), ("tou".into(), "3".into())]);
+        let s = fill("~ gets +${pow}/+${tou} until end of turn", "Ogre", &args);
+        assert_eq!(s.as_deref(), Some("Ogre gets +2/+3 until end of turn"));
+    }
+
+    #[test]
+    fn single_brace_passes_through_literally() {
+        // Single-brace `{…}` is a literal game symbol (mana), not a placeholder.
+        let args = ExpansionArgs::Positional(vec![]);
+        let s = fill("add {C}{C}", "x", &args);
+        assert_eq!(s.as_deref(), Some("add {C}{C}"));
+    }
+
+    #[test]
+    fn dollar_index_against_named_args_is_none() {
+        // Named signatures have no indices: `${0}` can't resolve against named args.
+        let args = ExpansionArgs::Named(vec![("x".into(), "1".into())]);
+        let s = fill("~ gets +${0}", "it", &args);
         assert_eq!(s, None);
     }
 }

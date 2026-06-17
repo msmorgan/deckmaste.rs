@@ -6,7 +6,7 @@
 // negative magnitudes give the "-N/-N" debuffs (flanking on the blocker).
 (
     name: "PumpThisUntilEot",
-    template: "~ gets +{0}/+{1} until end of turn",
+    template: "~ gets +${0}/+${1} until end of turn",
     kinds: [Effect],
     params: [Any, Any],
     body: Continuously(

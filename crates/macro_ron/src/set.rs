@@ -114,7 +114,9 @@ pub struct MacroDef {
     #[serde(default)]
     pub params: Params,
     /// Optional human-readable rules-text template (metadata): `~` = self,
-    /// `{i}` = the i-th positional arg. Consumed by the card-text renderer.
+    /// `${i}` = the i-th positional arg, `${name}` = the named arg
+    /// (single-brace `{…}` is a literal game symbol). Consumed by the
+    /// card-text renderer.
     #[serde(default)]
     pub template: Option<String>,
     /// Raw RON source with `Param(...)` holes.
