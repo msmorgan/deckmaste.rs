@@ -134,6 +134,23 @@ function __provision_ws --argument-names ws_dir
         echo >&2 "$(status filename): $ws_dir's jj structure is set, but shared-dir provisioning failed — fix the data / docs/superpowers symlinks and run 'cargo xtask generate $ws_dir/plugins/wizards' by hand."
         return 1
     end
+
+    # Pre-warm the build cache (best-effort): CoW-reflink default's target/ into the
+    # new workspace so registry/git deps — the bulk of a clean build — are reused on
+    # the first compile. Those are keyed on source-in-~/.cargo + rustc + features +
+    # profile, NOT the workspace path, so they're reused as-is with no path rewriting.
+    # Workspace-local crates carry a path-dependent metadata hash and recompile
+    # regardless, so there's nothing to "fix". Skip incremental/: per-build scratch
+    # that won't apply to a fresh path and bloats the copy. --reflink=auto is instant
+    # and ~zero-space on btrfs (falls back to a plain copy elsewhere); /target/ is
+    # gitignored so jj won't snapshot it. A miss here just means a cold first build.
+    if test -d "$project_dir/target"
+        if cp --reflink=auto -a "$project_dir/target" "$ws_dir/target"
+            rm -rf "$ws_dir/target/debug/incremental" "$ws_dir/target/release/incremental"
+        else
+            echo >&2 "$(status filename): target/ pre-warm into $ws_dir failed — first build there starts cold (harmless)."
+        end
+    end
 end
 
 # Spin up a NAME-bookmarked base commit on default@- with a ../NAME workspace on
