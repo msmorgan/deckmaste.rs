@@ -318,6 +318,29 @@ impl GameState {
                 }
                 _ => false,
             },
+            // [CR#121.1]: the intent of a draw. `by` is the drawing player;
+            // `on` is ignored (draws have no target object, the player is both
+            // actor and recipient).
+            "Draw" => match event {
+                GameEvent::WillDraw { player, .. } => {
+                    self.filter_matches_live(by, self.player(*player).object, watcher)
+                }
+                _ => false,
+            },
+            // [CR#119.3]: `by` is the player losing/gaining life.
+            "LoseLife" => match event {
+                GameEvent::LifeLost { player, .. } => {
+                    self.filter_matches_live(by, self.player(*player).object, watcher)
+                }
+                _ => false,
+            },
+            // [CR#119.3]: `by` is the player gaining life.
+            "GainLife" => match event {
+                GameEvent::LifeGained { player, .. } => {
+                    self.filter_matches_live(by, self.player(*player).object, watcher)
+                }
+                _ => false,
+            },
             other => todo!("engine-trigger-events: Performed verb {other:?} has no wired fact"),
         }
     }
@@ -3438,6 +3461,97 @@ mod tests {
             noted_for(&state, watcher),
             1,
             "a once-per-game trigger never fires again, even in a later turn"
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // Performed — Draw / LoseLife / GainLife ([CR#121.1,119.3])
+    // -------------------------------------------------------------------------
+
+    /// `Performed(verb: "Draw", by: Ref(You))` matches `WillDraw` for the
+    /// watcher's controller ([CR#121.1]) and not another player's draw.
+    #[test]
+    fn performed_matches_draw_matches_will_draw() {
+        let (state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        let pattern = Event::Performed {
+            verb: "Draw".into(),
+            by: Filter::Ref(Reference::You),
+            on: Filter::Any,
+        };
+        let you_draw = GameEvent::WillDraw {
+            player: PlayerId(0),
+            source: None,
+        };
+        let opp_draw = GameEvent::WillDraw {
+            player: PlayerId(1),
+            source: None,
+        };
+        assert!(
+            state.event_matches(&pattern, &you_draw, watcher_source),
+            "your own draw matches by: Ref(You)"
+        );
+        assert!(
+            !state.event_matches(&pattern, &opp_draw, watcher_source),
+            "an opponent's draw fails by: Ref(You)"
+        );
+    }
+
+    /// `Performed(verb: "LoseLife", by: Ref(You))` matches `LifeLost` for the
+    /// watcher's controller ([CR#119.3]) and not another player's life loss.
+    #[test]
+    fn performed_matches_loselife_matches_life_lost() {
+        let (state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        let pattern = Event::Performed {
+            verb: "LoseLife".into(),
+            by: Filter::Ref(Reference::You),
+            on: Filter::Any,
+        };
+        let you_lose = GameEvent::LifeLost {
+            player: PlayerId(0),
+            amount: 3,
+        };
+        let opp_lose = GameEvent::LifeLost {
+            player: PlayerId(1),
+            amount: 3,
+        };
+        assert!(
+            state.event_matches(&pattern, &you_lose, watcher_source),
+            "your own life loss matches by: Ref(You)"
+        );
+        assert!(
+            !state.event_matches(&pattern, &opp_lose, watcher_source),
+            "an opponent's life loss fails by: Ref(You)"
+        );
+    }
+
+    /// `Performed(verb: "GainLife", by: Ref(You))` matches `LifeGained` for the
+    /// watcher's controller ([CR#119.3]) and not another player's life gain.
+    #[test]
+    fn performed_matches_gainlife_matches_life_gained() {
+        let (state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        let pattern = Event::Performed {
+            verb: "GainLife".into(),
+            by: Filter::Ref(Reference::You),
+            on: Filter::Any,
+        };
+        let you_gain = GameEvent::LifeGained {
+            player: PlayerId(0),
+            amount: 4,
+        };
+        let opp_gain = GameEvent::LifeGained {
+            player: PlayerId(1),
+            amount: 4,
+        };
+        assert!(
+            state.event_matches(&pattern, &you_gain, watcher_source),
+            "your own life gain matches by: Ref(You)"
+        );
+        assert!(
+            !state.event_matches(&pattern, &opp_gain, watcher_source),
+            "an opponent's life gain fails by: Ref(You)"
         );
     }
 }

@@ -1388,11 +1388,32 @@ impl GameState {
                 };
                 Uint::try_from(n).expect("event count fits Uint")
             }
+            // [CR#608.2i,119.3]: sum the carried amount of history facts that
+            // match `event` within `within` — the sum-valued twin of
+            // `EventCount`. Reuses the trigger event-matcher and extracts each
+            // matching fact's magnitude via `game_event_amount`.
+            Count::EventSum(event, within) => {
+                let watcher = self.frame_watcher(frame);
+                self.history
+                    .scan(*within, self.turn.turn_number)
+                    .filter(|fact| self.event_matches(event, fact, watcher))
+                    .map(Self::game_event_amount)
+                    .sum()
+            }
             // [CR#608.2i] history reads off the log — the evaluating player is
             // the frame's controller.
             Count::Query(key) => self.eval_query(*key, frame.controller),
             Count::Noted(key) => todo!("P0.W4: noted read {key:?} (slot store is P0.W5)"),
             Count::Expanded(e) => self.eval_count(&e.value, frame),
+        }
+    }
+
+    /// The magnitude carried by an amount-bearing history fact ([CR#119.3]).
+    /// Returns `0` for facts with no scalar amount.
+    fn game_event_amount(fact: &GameEvent) -> Uint {
+        match fact {
+            GameEvent::LifeLost { amount, .. } | GameEvent::LifeGained { amount, .. } => *amount,
+            _ => 0,
         }
     }
 
@@ -5074,6 +5095,98 @@ mod tests {
             ),
             2,
             "ThisGame still sees last turn's deaths"
+        );
+    }
+
+    /// `EventSum` sums the `amount` field of matching `LifeLost` facts within
+    /// the window ([CR#608.2i,119.3]). Two losses of 2 and 3 by the same player
+    /// total 5; a third loss by an opponent does not contribute. After a turn
+    /// advance `ThisTurn` reads 0 while `ThisGame` still reads 5.
+    #[test]
+    fn event_sum_totals_amounts() {
+        use deckmaste_core::Event;
+        use deckmaste_core::Window;
+
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig { deck: Vec::new() },
+                PlayerConfig { deck: Vec::new() },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        });
+        state.turn.turn_number = 1;
+
+        let frame = frame_for(&state, PlayerId(0));
+
+        let lose_life_pattern = Event::Performed {
+            verb: "LoseLife".into(),
+            by: deckmaste_core::Filter::Ref(deckmaste_core::Reference::You),
+            on: deckmaste_core::Filter::Any,
+        };
+
+        // No facts yet → 0.
+        assert_eq!(
+            state.eval_count(
+                &Count::EventSum(Box::new(lose_life_pattern.clone()), Window::ThisTurn),
+                &frame
+            ),
+            0,
+            "no life-loss facts yet"
+        );
+
+        // Record two life-loss facts for player 0 (you) and one for player 1
+        // (opponent).
+        state.history.record(
+            1,
+            GameEvent::LifeLost {
+                player: PlayerId(0),
+                amount: 2,
+            },
+        );
+        state.history.record(
+            1,
+            GameEvent::LifeLost {
+                player: PlayerId(0),
+                amount: 3,
+            },
+        );
+        state.history.record(
+            1,
+            GameEvent::LifeLost {
+                player: PlayerId(1),
+                amount: 10,
+            },
+        );
+
+        // Only player 0's losses sum → 5.
+        assert_eq!(
+            state.eval_count(
+                &Count::EventSum(Box::new(lose_life_pattern.clone()), Window::ThisTurn),
+                &frame
+            ),
+            5,
+            "two life-loss facts for you: 2 + 3 = 5"
+        );
+
+        // Advance to turn 2: ThisTurn sees 0, ThisGame sees 5.
+        state.turn.turn_number = 2;
+        assert_eq!(
+            state.eval_count(
+                &Count::EventSum(Box::new(lose_life_pattern.clone()), Window::ThisTurn),
+                &frame
+            ),
+            0,
+            "ThisTurn no longer sees last turn's life losses"
+        );
+        assert_eq!(
+            state.eval_count(
+                &Count::EventSum(Box::new(lose_life_pattern), Window::ThisGame),
+                &frame
+            ),
+            5,
+            "ThisGame still sees 5 total life lost by you"
         );
     }
 
