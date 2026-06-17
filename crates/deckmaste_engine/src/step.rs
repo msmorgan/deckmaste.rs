@@ -1169,6 +1169,14 @@ impl GameState {
     /// [CR#704.3]: sweep; if anything acted, emit the whole sweep as ONE
     /// simultaneous batch and re-check before the queued `OpenPriority` runs.
     fn check_sbas(&mut self) -> Progress {
+        // [CR#704.5j]: the legend rule needs a choice — surface it before the
+        // mechanical, choice-free SBAs. One group per decision cycle; the
+        // submission re-checks, so remaining groups and the mechanical sweep
+        // follow.
+        if let Some((player, candidates)) = sba::legend_rule_groups(self).into_iter().next() {
+            self.pending = Some(PendingDecision::LegendRule { player, candidates });
+            return Progress::SbasChecked { actions: 0 };
+        }
         let actions = sba::sweep(self);
         let count = Uint::try_from(actions.len()).expect("action count fits in Uint");
         if count > 0 {
@@ -1642,5 +1650,101 @@ mod tests {
         ))]);
         let _ = state.step();
         assert!(state.designations.players.contains_key(&(p0, name)));
+    }
+
+    // --- Legend-rule wiring (Task C3) ---
+
+    mod legend_choice {
+        use std::path::Path;
+        use std::sync::Arc;
+
+        use deckmaste_cards::plugin::Plugin;
+        use deckmaste_core::Card;
+        use deckmaste_core::StatValue;
+        use deckmaste_core::Supertype;
+        use deckmaste_core::Type;
+        use deckmaste_core::Zone;
+
+        use crate::agenda::WorkItem;
+        use crate::decide::PendingDecision;
+        use crate::object::ObjectId;
+        use crate::object::ObjectSource;
+        use crate::player::PlayerId;
+        use crate::state::GameConfig;
+        use crate::state::GameState;
+        use crate::state::PlayerConfig;
+        use crate::state::StartingPlayer;
+        use crate::step::StepOutcome;
+
+        fn builtin() -> Plugin {
+            Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"))
+                .unwrap()
+        }
+
+        /// A two-player game with player 0's deck being Grizzly Bears (loaded
+        /// from canon so the bear ends up on the battlefield).
+        fn empty_game() -> GameState {
+            let forest = Arc::new(builtin().card("Forest").unwrap());
+            GameState::new(GameConfig {
+                players: vec![
+                    PlayerConfig {
+                        deck: vec![Arc::clone(&forest)],
+                    },
+                    PlayerConfig {
+                        deck: vec![Arc::clone(&forest)],
+                    },
+                ],
+                seed: 42,
+                starting_life: 20,
+                starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            })
+        }
+
+        fn legendary_creature(state: &mut GameState, name: &str, controller: PlayerId) -> ObjectId {
+            let card = Arc::new(Card::Normal(deckmaste_core::CardFace {
+                name: name.into(),
+                types: vec![Type::Creature],
+                supertypes: vec![Supertype::Legendary],
+                power: Some(StatValue::Number(2)),
+                toughness: Some(StatValue::Number(2)),
+                ..deckmaste_core::CardFace::default()
+            }));
+            let card_id = state.cards.push(Arc::clone(&card), controller);
+            let id = state.objects.mint(
+                ObjectSource::Card(card_id),
+                controller,
+                Some(Zone::Battlefield),
+            );
+            state.zones.battlefield.push(id);
+            id
+        }
+
+        /// [CR#704.5j]: two same-name legendaries controlled by one player →
+        /// `check_sbas` surfaces `NeedsDecision(LegendRule)` before the
+        /// mechanical sweep. The decision surfaces on the call after
+        /// `CheckSbas` sets pending (the runner's step loop pattern:
+        /// Progress* then NeedsDecision).
+        #[test]
+        fn legend_rule_surfaces_a_choice() {
+            let mut state = empty_game();
+            state.sba_rules = builtin().sba_rules;
+            legendary_creature(&mut state, "Bob", PlayerId(0));
+            legendary_creature(&mut state, "Bob", PlayerId(0));
+            state.schedule_front(vec![WorkItem::CheckSbas]);
+            // First step processes CheckSbas and sets pending.
+            let _ = state.step();
+            // Second step sees pending and returns NeedsDecision.
+            let outcome = state.step();
+            assert!(
+                matches!(
+                    outcome,
+                    StepOutcome::NeedsDecision(PendingDecision::LegendRule {
+                        player: PlayerId(0),
+                        ..
+                    })
+                ),
+                "got {outcome:?}"
+            );
+        }
     }
 }
