@@ -1,0 +1,35 @@
+// The -1/-1 counter ([CR#122.1a]): each subtracts 1 from power and toughness
+// in layer 7c ([CR#613.4c]). It ALSO owns the annihilation rule ([CR#704.5q]):
+// when a permanent has both +1/+1 and -1/-1 counters, the smaller count of
+// each is removed as a state-based action. Both bearings are conferred
+// DIRECTLY: the boost as `Continuous`, the annihilation as the purpose-built
+// `StateBased` flavor (swept, no stack). Removing `M1M1Counter`-many +1/+1 and
+// `P1P1Counter`-many -1/-1 — each `RemoveCounters` reads the PRE-removal counts
+// and saturates, so each kind loses exactly min(p, m), at once.
+(
+    name: "M1M1Counter",
+    template: "-1/-1 counter",
+    kinds: [Counter],
+    body: Counter(
+        name: "M1M1Counter",
+        confers: [
+            Continuous(
+                of: Of(This),
+                changes: [
+                    SubtractPower(CounterCount(This, M1M1Counter)),
+                    SubtractToughness(CounterCount(This, M1M1Counter)),
+                ],
+            ),
+            StateBased(
+                condition: AllOf([
+                    Is(This, HasCounter(P1P1Counter)),
+                    Is(This, HasCounter(M1M1Counter)),
+                ]),
+                effect: Sequence([
+                    RemoveCounters(This, P1P1Counter, CounterCount(This, M1M1Counter)),
+                    RemoveCounters(This, M1M1Counter, CounterCount(This, P1P1Counter)),
+                ]),
+            ),
+        ],
+    ),
+)

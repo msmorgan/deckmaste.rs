@@ -11,6 +11,7 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use deckmaste_core::Card;
+use deckmaste_core::Counter;
 use deckmaste_core::Ident;
 use deckmaste_core::Subtype;
 use deckmaste_core::Token;
@@ -34,6 +35,11 @@ pub struct Plugin {
     /// up), not the macro's registration ident; the two differ for names
     /// like "Time Lord"/`TimeLord`.
     pub subtypes: HashMap<Ident, Subtype>,
+    /// The counter kinds defined by `macros/`, fully expanded — keyed by the
+    /// counter's identity (`P1P1Counter`), which is what a `CounterRef`
+    /// resolves to. The post-load `validate_counter_refs` pass checks every
+    /// authored `CounterRef` against this registry.
+    pub counters: HashMap<Ident, Counter>,
 }
 
 impl Plugin {
@@ -41,7 +47,7 @@ impl Plugin {
     /// If a macro definition or subtype declaration fails to read, expand,
     /// or register, or a directory isn't listable.
     pub fn load(root: impl Into<PathBuf>) -> anyhow::Result<Self> {
-        Self::load_onto(macro_set(), HashMap::new(), root.into())
+        Self::load_onto(macro_set(), HashMap::new(), HashMap::new(), root.into())
     }
 
     /// Loads `root` with `prelude`'s macros and subtype declarations
@@ -56,6 +62,7 @@ impl Plugin {
         Self::load_onto(
             prelude.macros.clone(),
             prelude.subtypes.clone(),
+            prelude.counters.clone(),
             root.into(),
         )
     }
@@ -89,6 +96,7 @@ impl Plugin {
     fn load_onto(
         mut macros: MacroSet,
         mut subtypes: HashMap<Ident, Subtype>,
+        mut counters: HashMap<Ident, Counter>,
         root: PathBuf,
     ) -> anyhow::Result<Self> {
         // What this plugin itself defines, per kind. A name inherited from
@@ -100,6 +108,8 @@ impl Plugin {
         // Nullary Subtype-kind definitions this plugin registers, expanded
         // into the subtype table once the scope settles.
         let mut declared: Vec<Ident> = Vec::new();
+        // Nullary Counter-kind definitions, expanded into the counter table.
+        let mut declared_counters: Vec<Ident> = Vec::new();
 
         // A definition file may invoke a meta-macro from a file that
         // hasn't loaded yet — file order is alphabetical happenstance — so
@@ -130,6 +140,11 @@ impl Plugin {
                         {
                             declared.push(def.name);
                         }
+                        if def.kinds.iter().any(|kind| kind.as_str() == "Counter")
+                            && nullary(&def.params)
+                        {
+                            declared_counters.push(def.name);
+                        }
                         macros
                             .replace(&def)
                             .with_context(|| format!(r#"loading "{}""#, path.display()))?;
@@ -157,10 +172,21 @@ impl Plugin {
             subtypes.insert(subtype.name, subtype);
         }
 
+        // Expanding each declared counter validates its body and fills the
+        // table — keyed by the counter's identity (the `name` field, what a
+        // `CounterRef` resolves to).
+        for name in declared_counters {
+            let counter: Counter = macros
+                .read_str(name.as_str())
+                .with_context(|| format!("expanding counter `{name}`"))?;
+            counters.insert(counter.name, counter);
+        }
+
         Ok(Self {
             root,
             macros,
             subtypes,
+            counters,
         })
     }
 
@@ -269,6 +295,56 @@ mod tests {
     fn builtin_loads_without_self_prelude() {
         let builtin = Plugin::load_with_sibling_prelude(plugins().join("builtin")).unwrap();
         assert!(builtin.subtypes.contains_key("Plains"));
+    }
+
+    /// [CR#122.1a]: the `+1/+1` counter is a `Counter`-kind macro in
+    /// `builtin/macros/counters`, expanded into the counter registry under its
+    /// rusty identity `P1P1Counter`, conferring a `Continuous` P/T boost
+    /// (`AddPower`) — not an ability. Reaches WIZARDS through the prelude.
+    #[test]
+    fn builtin_defines_the_plus_one_counter() {
+        use deckmaste_core::Modification;
+        use deckmaste_core::Property;
+
+        let builtin = Plugin::load_with_sibling_prelude(plugins().join("builtin")).unwrap();
+        let counter = builtin
+            .counters
+            .get("P1P1Counter")
+            .expect("P1P1Counter registered");
+        assert_eq!(counter.name, Ident::from("P1P1Counter"));
+        assert!(
+            counter.confers.iter().any(|p| matches!(p,
+                Property::Continuous { changes, .. }
+                    if changes.iter().any(|m| matches!(m, Modification::AddPower(_))))),
+            "confers a Continuous AddPower boost; got {:?}",
+            counter.confers
+        );
+        // Reaches the wizards corpus via the sibling prelude.
+        let wizards = Plugin::load_with_sibling_prelude(plugins().join("wizards")).unwrap();
+        assert!(wizards.counters.contains_key("P1P1Counter"));
+    }
+
+    /// [CR#704.5q]: the `-1/-1` counter confers both the negative `Continuous`
+    /// boost AND the annihilation as a `StateBased` SBA (a `Sequence` of two
+    /// `RemoveCounters`). Exercises the richer confer RON (`Is`/`HasCounter`,
+    /// bare-embedded `RemoveCounters`, `CounterCount`).
+    #[test]
+    fn builtin_minus_one_counter_carries_annihilation_sba() {
+        use deckmaste_core::Property;
+
+        let builtin = Plugin::load_with_sibling_prelude(plugins().join("builtin")).unwrap();
+        let counter = builtin
+            .counters
+            .get("M1M1Counter")
+            .expect("M1M1Counter registered");
+        assert!(
+            counter
+                .confers
+                .iter()
+                .any(|p| matches!(p, Property::StateBased { .. })),
+            "confers a StateBased annihilation SBA; got {:?}",
+            counter.confers
+        );
     }
 
     /// The attachment-rule subtypes (Aura/Equipment/Fortification) carry their
