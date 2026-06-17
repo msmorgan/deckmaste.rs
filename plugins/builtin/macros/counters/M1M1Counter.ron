@@ -3,9 +3,10 @@
 // when a permanent has both +1/+1 and -1/-1 counters, the smaller count of
 // each is removed as a state-based action. Both bearings are conferred
 // DIRECTLY: the boost as `Continuous`, the annihilation as the purpose-built
-// `StateBased` flavor (swept, no stack). Removing `M1M1Counter`-many +1/+1 and
-// `P1P1Counter`-many -1/-1 — each `RemoveCounters` reads the PRE-removal counts
-// and saturates, so each kind loses exactly min(p, m), at once.
+// `StateBased` flavor (swept, no stack). Both removals take exactly
+// `Min(count +1/+1, count -1/-1)` of their kind — read against the PRE-removal
+// counts (the sweep evaluates the whole effect purely, then applies), so each
+// kind loses exactly min(p, m), at once, with matching event counts.
 (
     name: "M1M1Counter",
     template: "-1/-1 counter",
@@ -26,8 +27,8 @@
                     Is(This, HasCounter(M1M1Counter)),
                 ]),
                 effect: Sequence([
-                    RemoveCounters(This, P1P1Counter, CounterCount(This, M1M1Counter)),
-                    RemoveCounters(This, M1M1Counter, CounterCount(This, P1P1Counter)),
+                    RemoveCounters(This, P1P1Counter, Min(CounterCount(This, P1P1Counter), CounterCount(This, M1M1Counter))),
+                    RemoveCounters(This, M1M1Counter, Min(CounterCount(This, P1P1Counter), CounterCount(This, M1M1Counter))),
                 ]),
             ),
         ],

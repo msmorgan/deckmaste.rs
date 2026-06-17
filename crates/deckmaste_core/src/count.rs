@@ -69,6 +69,11 @@ pub enum Count {
     /// confers `AddPower(CounterCount(This, P1P1Counter))`). The kind is a bare
     /// `CounterRef`, not a string.
     CounterCount(Reference, crate::CounterRef),
+    /// The smaller of two counts — the +1/+1 vs -1/-1 annihilation removes
+    /// `Min(CounterCount(+1/+1), CounterCount(-1/-1))` of each ([CR#704.5q]),
+    /// and "the lesser of X and Y" appears across the card base. Boxed to keep
+    /// `Count` small.
+    Min(Box<Count>, Box<Count>),
     /// Magnitude anaphora: "that much" / "that many" — the amount fixed by
     /// an earlier instruction ([CR#107.3]).
     ThatMuch,

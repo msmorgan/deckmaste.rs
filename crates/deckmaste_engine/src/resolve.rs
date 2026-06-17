@@ -1131,6 +1131,9 @@ impl GameState {
                     .copied()
                     .unwrap_or(0)
             }
+            // [CR#704.5q]: the lesser of two magnitudes (annihilation removes
+            // the smaller of the two counter counts of each kind).
+            Count::Min(a, b) => self.eval_count(a, frame).min(self.eval_count(b, frame)),
             // The amount fixed by an earlier instruction of this resolution —
             // recorded at the apply funnel (so it reads what actually
             // happened, post-replacement), cleared by `resolve_object`. A
