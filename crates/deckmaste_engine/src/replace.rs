@@ -36,7 +36,8 @@ impl GameState {
             if let Ability::Static(s) = &ability {
                 for eff in &s.effects {
                     if let StaticEffect::Replacement(replacement) = eff
-                        && let Replacement::Also { would, also } = look_through(replacement)
+                        && let Replacement::Also { would, also } =
+                            look_through_replacement(replacement)
                         && would_is_self_enter(would)
                     {
                         self.apply_as_enters(also, entering, &mut status);
@@ -60,7 +61,7 @@ impl GameState {
                 let Ability::Static(s) = ability else { return false };
                 s.effects.iter().any(|eff| {
                     matches!(eff, StaticEffect::Replacement(r)
-                        if matches!(look_through(r), Replacement::Also { would, also }
+                        if matches!(look_through_replacement(r), Replacement::Also { would, also }
                             if would_is_self_enter(would) && also_is_self_attach(also)))
                 })
             })
@@ -177,9 +178,9 @@ fn also_is_self_attach(effect: &Effect) -> bool {
 
 /// Look through a remembered `Replacement` macro invocation (`AsEnters`, …) to
 /// the form it expanded to.
-fn look_through(replacement: &Replacement) -> &Replacement {
+pub(crate) fn look_through_replacement(replacement: &Replacement) -> &Replacement {
     match replacement {
-        Replacement::Expanded(e) => look_through(&e.value),
+        Replacement::Expanded(e) => look_through_replacement(&e.value),
         other => other,
     }
 }

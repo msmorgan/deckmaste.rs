@@ -199,6 +199,11 @@ pub struct GameState {
     /// spells/abilities via `Effect::Continuously`, retained until their
     /// `duration` expires.
     pub continuous: Vec<ContinuousEffect>,
+    /// Floating one-shot/duration-bounded replacement effects ([CR#614.3]):
+    /// regeneration shields and other "the next time …" replacements. Swept at
+    /// end of turn; a `one_shot` instance is removed when it is the chosen
+    /// replacement.
+    pub shields: Vec<crate::replace_registry::ReplacementInstance>,
     /// Per-(object, ability-index) activation counts for "Activate only once …"
     /// limits ([CR#602.5b]). Reset per turn in `begin_turn`; game-total
     /// survives until the game ends.
@@ -296,6 +301,7 @@ impl GameState {
             combat_damage: None,
             rng,
             continuous: Vec::new(),
+            shields: Vec::new(),
             activations: ActivationLedger::default(),
             designations: DesignationStore::default(),
             counter_decls: std::collections::HashMap::new(),
@@ -492,6 +498,12 @@ impl GameState {
         self.continuous.retain(|e| {
             !matches!(
                 e.duration,
+                deckmaste_core::Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn)
+            )
+        });
+        self.shields.retain(|s| {
+            !matches!(
+                s.duration,
                 deckmaste_core::Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn)
             )
         });
