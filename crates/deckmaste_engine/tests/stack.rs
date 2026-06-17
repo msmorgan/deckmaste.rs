@@ -7,6 +7,10 @@
 //! float mana with the Stage-1 mana ability, `CastSpell`, answer
 //! `ChooseTargets` / `PayMana` as they surface, and `Pass` to resolve.
 
+// `too_many_lines` is exempted for this whole test target: each test is one
+// cohesive end-to-end scenario that reads better whole than split into helpers.
+#![allow(clippy::too_many_lines)]
+
 use std::collections::VecDeque;
 use std::path::Path;
 use std::sync::Arc;
@@ -1135,10 +1139,6 @@ fn illegal_target_and_payment_submissions_are_rejected_and_retryable() {
 /// the damage's source is the *dead* fiend's id (the LKI source), not a live
 /// object.
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "an end-to-end decision-driven scenario"
-)]
 fn dies_trigger_deals_damage_from_the_dead_source() {
     let bolt = card("Lightning Bolt");
     let fiend = card("Footlight Fiend");
@@ -1298,10 +1298,6 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
 /// (→Battlefield), `PlaceTriggers` places it (no targets → directly), it
 /// resolves and calls `DrawCards(1)` — P0 draws a card. Assert hand grew by 1.
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "an end-to-end decision-driven scenario"
-)]
 fn etb_trigger_draws_a_card() {
     let etb = card("Elvish Visionary");
     let forest = Arc::new(builtin().card("Forest").unwrap());
@@ -1474,10 +1470,6 @@ fn etb_trigger_draws_a_card() {
 ///    simultaneous triggers, then P1 orders its three; P1's are placed last
 ///    (resolve first in LIFO).
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "an end-to-end decision-driven scenario"
-)]
 fn occurrence_batch_and_apnap_ordering() {
     let pyroclasm = card("Pyroclasm");
     let fiend = card("Footlight Fiend");
@@ -1871,10 +1863,6 @@ fn simultaneous_loss_is_a_draw() {
 /// - the stack/resolution order matches the chosen order (LIFO: the FIRST
 ///   placed resolves LAST).
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "an end-to-end decision-driven scenario"
-)]
 fn two_triggers_same_player_order_triggers_surfaces() {
     let watcher_card = card("Moonlit Wake");
     let bears_card = card("Grizzly Bears");

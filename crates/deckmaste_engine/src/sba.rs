@@ -297,6 +297,10 @@ fn run_sba_effect(
 
 #[cfg(test)]
 mod tests {
+    // `too_many_lines` is exempted for this test module: e2e scenarios read
+    // better whole than split into helpers.
+    #![allow(clippy::too_many_lines)]
+
     use std::path::Path;
     use std::sync::Arc;
 
@@ -1122,7 +1126,6 @@ mod tests {
     /// permanents (each with their own Ascend static), both acquire it in a
     /// single sweep.
     #[test]
-    #[allow(clippy::too_many_lines)] // one cohesive two-player e2e scenario
     fn citys_blessing_is_multi_holder() {
         use deckmaste_core::Action;
         use deckmaste_core::Cmp;

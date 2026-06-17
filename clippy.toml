@@ -1,0 +1,10 @@
+# Clippy's default `too_many_lines` threshold (100) is too stingy here: the
+# engine has several flat per-variant `match` dispatch functions (one arm per
+# Effect / Event / verb) that read better whole than carved into helpers. Raise
+# the bar project-wide. Genuinely oversized functions still trip it and must
+# carry an `#[expect(.., reason = ..)]` — either explaining why the length is
+# irreducible, or pointing at a decomposition ticket. Test targets are exempted
+# wholesale instead (see the `#![allow(clippy::too_many_lines)]` atop the
+# integration tests and in the `sba` test module): an end-to-end scenario is one
+# cohesive narrative and reads better whole than split into helpers.
+too-many-lines-threshold = 150

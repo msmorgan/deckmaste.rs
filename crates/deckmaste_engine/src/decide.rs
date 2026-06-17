@@ -445,9 +445,11 @@ impl GameState {
     /// Panics if a `ChooseTargets` decision is answered while no announce is in
     /// flight — an engine invariant (the announce slot is open across the
     /// decision), not caller input.
-    // TODO: split by decision kind (priority / cast-procedure / combat) as the
-    //   match grows past one screen.
-    #[expect(clippy::too_many_lines)]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "decomposition by decision kind (priority / cast-procedure / \
+                  combat) tracked in refactor-oversized-fns"
+    )]
     pub fn submit_decision(&mut self, decision: Decision) -> Result<(), DecisionError> {
         let Some(pending) = &self.pending else {
             return Err(DecisionError::NothingPending);

@@ -7,6 +7,10 @@
 //! activates the way a UI would: pick the offered `ActivateAbility`, answer
 //! `ChooseTargets` / `PayMana` as they surface, and `Pass` to resolve.
 
+// `too_many_lines` is exempted for this whole test target: each test is one
+// cohesive end-to-end scenario that reads better whole than split into helpers.
+#![allow(clippy::too_many_lines)]
+
 use std::path::Path;
 use std::sync::Arc;
 
@@ -685,10 +689,6 @@ fn once_per_game_stays_spent() {
 }
 
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "an end-to-end decision-driven scenario"
-)]
 fn pinger_fizzles_when_target_dies() {
     // P0: pingers + Mountains (mono halves). P1: instants + bears + Mountains
     // — the seed search puts an instant in P1's opening hand; the bear and a
