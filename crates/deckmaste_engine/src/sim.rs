@@ -424,7 +424,8 @@ fn pending_player(pending: &PendingDecision) -> PlayerId {
         | PendingDecision::DeclareAttackers { player, .. }
         | PendingDecision::DeclareBlockers { player, .. }
         | PendingDecision::AssignCombatDamage { player, .. }
-        | PendingDecision::ChooseXValue { player, .. } => *player,
+        | PendingDecision::ChooseXValue { player, .. }
+        | PendingDecision::LegendRule { player, .. } => *player,
         other => todo!("P0.W3: strategy for shell decision kind {other:?}"),
     }
 }

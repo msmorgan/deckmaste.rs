@@ -109,7 +109,8 @@ impl PendingDecision {
             | PendingDecision::ChooseCostOptions { player, .. }
             | PendingDecision::ChooseXValue { player, .. }
             | PendingDecision::ChooseObjects { player, .. }
-            | PendingDecision::PreGame { player, .. } => *player,
+            | PendingDecision::PreGame { player, .. }
+            | PendingDecision::LegendRule { player, .. } => *player,
             PendingDecision::ChooseReplacement { chooser, .. } => *chooser,
         }
     }
@@ -275,6 +276,14 @@ pub enum PendingDecision {
         candidates: Vec<ObjectId>,
         min: Uint,
         max: Uint,
+    },
+    /// [CR#704.5j] the legend rule: `player` controls two or more legendary
+    /// permanents with the same name (`candidates`); they choose exactly one to
+    /// keep and the rest are put into their owners' graveyards. Surfaced by the
+    /// SBA driver, resolved in `submit_decision`.
+    LegendRule {
+        player: PlayerId,
+        candidates: Vec<ObjectId>,
     },
 }
 
@@ -1073,7 +1082,8 @@ impl GameState {
                 PendingDecision::Division { .. }
                 | PendingDecision::Vote { .. }
                 | PendingDecision::PreGame { .. }
-                | PendingDecision::OrderReplacements { .. },
+                | PendingDecision::OrderReplacements { .. }
+                | PendingDecision::LegendRule { .. },
                 _,
             ) => todo!("P0.W4/W7: submission handling for shell decision kinds"),
             _ => Err(DecisionError::WrongKind),

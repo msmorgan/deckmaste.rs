@@ -387,7 +387,8 @@ impl StrategyEvaluator {
             // v1 decks. Later tickets handle these explicitly.
             other @ (PendingDecision::ChooseCostOptions { .. }
             | PendingDecision::OrderReplacements { .. }
-            | PendingDecision::PreGame { .. }) => {
+            | PendingDecision::PreGame { .. }
+            | PendingDecision::LegendRule { .. }) => {
                 todo!("strategy fallback for {other:?} (no v1 deck surfaces it)")
             }
         }
