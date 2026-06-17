@@ -1,6 +1,7 @@
 //! End-to-end tests for the replacement-effect registry ([CR#614]).
 //! Task 4: `replace_event` loop + lineage + Instead/Also apply.
 //! Task 5: `ChooseReplacement` decision ([CR#616.1]).
+//! Task 6: Regeneration — `CreateReplacement`/`RemoveDamage` primitives.
 //!
 //! Pattern: synthetic `Card` scaffolding (in-Rust, no plugin), place a
 //! `WorkItem::CheckSbas` on the agenda to trigger the SBA sweep, then
@@ -14,6 +15,7 @@ use deckmaste_core::Action;
 use deckmaste_core::Card;
 use deckmaste_core::CardFace;
 use deckmaste_core::CausePattern;
+use deckmaste_core::Duration;
 use deckmaste_core::Effect;
 use deckmaste_core::Event;
 use deckmaste_core::Filter;
@@ -24,10 +26,12 @@ use deckmaste_core::Selection;
 use deckmaste_core::StatValue;
 use deckmaste_core::StaticAbility;
 use deckmaste_core::StaticEffect;
+use deckmaste_core::TurnMarker;
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
 use deckmaste_engine::CardId;
 use deckmaste_engine::Decision;
+use deckmaste_engine::Frame;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameState;
 use deckmaste_engine::ObjectId;
@@ -406,6 +410,167 @@ fn two_applicable_replacements_second_choice_also_survives() {
     assert!(
         state.zones.graveyards[0].is_empty(),
         "graveyard must be empty"
+    );
+}
+
+// ── Task 6: Regeneration helpers ─────────────────────────────────────────────
+
+/// Build a vanilla creature (no abilities) on the battlefield.
+fn vanilla_creature(power: i32, toughness: i32) -> (GameState, ObjectId) {
+    creature_with_abilities("Vanilla", power, toughness, vec![])
+}
+
+/// Build the `CreateReplacement` effect that registers a regeneration shield
+/// on `subject_ref`: "the next time [subject] would be destroyed this turn,
+/// instead remove all damage marked on it and tap it." [CR#701.19a,614.8]
+fn regenerate_effect(subject_ref: Reference) -> Effect {
+    let would = Event::ZoneMove {
+        what: Filter::Ref(Reference::This),
+        from: Some(Zone::Battlefield),
+        to: Some(Zone::Graveyard),
+        face: None,
+        cause: Some(deckmaste_core::Cause::Cause(CausePattern {
+            verb: Some("Destroy".into()),
+            agency: None,
+            agent: None,
+        })),
+    };
+    let instead = Effect::Sequence(vec![
+        // [CR#701.19a]: remove all damage.
+        Effect::Act(Action::By(
+            Reference::You,
+            PlayerAction::RemoveDamage(Selection::Ref(Reference::This)),
+        )),
+        // [CR#701.19a]: its controller taps it.
+        Effect::Act(Action::By(
+            Reference::You,
+            PlayerAction::Tap(Selection::Ref(Reference::This)),
+        )),
+    ]);
+    Effect::Act(Action::CreateReplacement {
+        replacement: Box::new(Replacement::Instead { would, instead }),
+        subject: Selection::Ref(subject_ref),
+        duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
+        one_shot: true,
+    })
+}
+
+/// Run `effect` as a `RunEffect` work item with `source` as the frame source,
+/// then drive until stable. Used to simulate an ability resolving.
+///
+/// Clears the agenda and any pending decision first so that pre-existing
+/// game-startup work items (the initial `BeginStep(Untap)`) do not advance
+/// the game into a priority window and prevent subsequent `drive_sbas` calls
+/// from running.
+fn resolve_and_drive(state: &mut GameState, effect: Effect, source: ObjectId) {
+    // Flush game-startup items; tests that call this function only care about
+    // the effect's immediate consequences, not full turn progression.
+    state.agenda.clear();
+    state.pending = None;
+    let controller = state.objects.obj(source).controller;
+    state.agenda.push_front(WorkItem::RunEffect {
+        effect: Box::new(effect),
+        frame: Frame {
+            source,
+            controller,
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+            x: None,
+        },
+    });
+    drive(state);
+}
+
+/// Find the live `ObjectId` of `original_id`'s card on the battlefield
+/// (the same id if the object didn't move; panics if absent).
+fn find_on_battlefield(state: &GameState, card_id: CardId) -> ObjectId {
+    state
+        .zones
+        .battlefield
+        .iter()
+        .copied()
+        .find(|&o| {
+            state
+                .objects
+                .get(o)
+                .and_then(deckmaste_engine::GameObject::card_id)
+                == Some(card_id)
+        })
+        .expect("creature expected on battlefield")
+}
+
+// ── Task 6: Regeneration tests
+// ────────────────────────────────────────────────
+
+/// [CR#701.19a,614.8]: Resolve "Regenerate ~" on a 2/2 → a shield registers.
+/// Then mark lethal damage → SBA → `WillDestroy` → the shield replaces it:
+/// damage is removed, creature is tapped, shield is consumed. Creature
+/// survives.
+#[test]
+fn regenerated_creature_survives_lethal_damage() {
+    let (mut state, id) = vanilla_creature(2, 2);
+    let card_id = state.objects.obj(id).card_id().expect("backed by a card");
+
+    // Resolve "Regenerate ~" — creates a shield on id.
+    resolve_and_drive(&mut state, regenerate_effect(Reference::This), id);
+    assert_eq!(state.shields.len(), 1, "shield registered after regenerate");
+
+    // Mark lethal damage (toughness = 2).
+    state.objects.obj_mut(id).damage = 5;
+
+    // Drive SBAs: sweep → WillDestroy → shield replaces → heal + tap.
+    drive_sbas(&mut state);
+
+    // Creature must still be on the battlefield (same id — it didn't move).
+    let live = find_on_battlefield(&state, card_id);
+    assert!(
+        state.objects.get(live).is_some(),
+        "regenerated creature must survive lethal damage; bf={:?}",
+        state.zones.battlefield
+    );
+    assert_eq!(
+        state.objects.obj(live).damage,
+        0,
+        "damage must be cleared by regeneration [CR#701.19a]"
+    );
+    assert!(
+        state.objects.obj(live).tapped,
+        "creature must be tapped by regeneration [CR#701.19a]"
+    );
+    assert!(
+        state.shields.is_empty(),
+        "one-shot shield must be consumed after use [CR#614.3]"
+    );
+}
+
+/// [CR#614.3]: A regeneration shield registered at end of turn is swept by
+/// `expire_end_of_turn`. After expiry, a fresh lethal hit destroys the
+/// creature.
+#[test]
+fn regeneration_shield_expires_end_of_turn() {
+    let (mut state, id) = vanilla_creature(2, 2);
+    let card_id = state.objects.obj(id).card_id().expect("backed by a card");
+
+    // Register a regen shield.
+    resolve_and_drive(&mut state, regenerate_effect(Reference::This), id);
+    assert_eq!(state.shields.len(), 1, "shield registered");
+
+    // Simulate end-of-turn sweep (what cleanup calls).
+    state.expire_end_of_turn();
+    assert!(
+        state.shields.is_empty(),
+        "shield must expire at end of turn"
+    );
+
+    // Now a lethal hit must destroy the creature (no shield left).
+    state.objects.obj_mut(id).damage = 5;
+    drive_sbas(&mut state);
+
+    assert!(
+        find_in_graveyard(&state, PlayerId(0), card_id).is_some(),
+        "creature must be destroyed after shield expired; graveyard={:?}",
+        state.zones.graveyards[0]
     );
 }
 

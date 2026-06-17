@@ -380,6 +380,12 @@ pub enum GameEvent {
         attachment: ObjectId,
         former_host: ObjectId,
     },
+    /// All marked damage was removed from `object` ([CR#614.8,701.19a] —
+    /// the regeneration heal clause). Applied by zeroing `damage` on the
+    /// object and removing it from combat ([CR#701.19a] "remove from combat").
+    DamageRemoved {
+        object: ObjectId,
+    },
 }
 
 /// How a permanent enters the battlefield ([CR#110.5] status; face-down is

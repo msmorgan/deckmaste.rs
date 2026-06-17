@@ -273,8 +273,36 @@ impl GameState {
                         }
                     }
                 }
-                let items = self.action_items(&action, frame);
-                self.schedule_front(items);
+                // `CreateReplacement` directly mutates `state.shields` — it
+                // cannot go through `action_items` (which is `&self`). Handle
+                // it here, mirroring how `Effect::Continuously` works.
+                if let Action::CreateReplacement {
+                    replacement,
+                    subject,
+                    duration,
+                    one_shot,
+                } = action
+                {
+                    let id = self
+                        .eval_selection_set(&subject, frame)
+                        .into_iter()
+                        .next()
+                        .expect("CreateReplacement subject must resolve to one object");
+                    let iid = crate::replace_registry::InstanceId(self.next_shield_id);
+                    self.next_shield_id += 1;
+                    self.shields
+                        .push(crate::replace_registry::ReplacementInstance {
+                            id: iid,
+                            replacement: *replacement,
+                            subject: id,
+                            duration,
+                            one_shot,
+                            source: frame.source,
+                        });
+                } else {
+                    let items = self.action_items(&action, frame);
+                    self.schedule_front(items);
+                }
             }
             Effect::Sequence(children) => {
                 let items: Vec<WorkItem> = children
@@ -662,6 +690,14 @@ impl GameState {
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
+            // `CreateReplacement` directly mutates `state.shields` — it is
+            // intercepted in `run_effect` before `action_items` is called.
+            // This arm is unreachable by design.
+            Action::CreateReplacement { .. } => {
+                unreachable!(
+                    "CreateReplacement is handled in run_effect before action_items is called"
+                )
+            }
         }
     }
 
@@ -992,6 +1028,22 @@ impl GameState {
                             name: *name,
                         },
                     ))]
+                }
+            }
+            // [CR#614.8,701.19a]: remove all marked damage from each selected
+            // object and remove it from combat if it's attacking or blocking.
+            // This is the regeneration "heal" clause — its apply zeroes damage
+            // and calls `combat.remove_object`.
+            PlayerAction::RemoveDamage(sel) => {
+                let events: Vec<GameEvent> = self
+                    .eval_selection_set(sel, frame)
+                    .into_iter()
+                    .map(|object| GameEvent::DamageRemoved { object })
+                    .collect();
+                if events.is_empty() {
+                    vec![]
+                } else {
+                    vec![WorkItem::Emit(occurrence_of(events))]
                 }
             }
             // Look through a remembered macro invocation.
@@ -1509,7 +1561,8 @@ fn unresolved_choice(action: &Action) -> Option<PendingChoice> {
             | PlayerAction::CopySpell(s)
             | PlayerAction::PutCounters(s, _, _)
             | PlayerAction::RemoveCounters(s, _, _)
-            | PlayerAction::PutInLibrary(s, _) => lift(s),
+            | PlayerAction::PutInLibrary(s, _)
+            | PlayerAction::RemoveDamage(s) => lift(s),
             PlayerAction::Reveal { what, .. } => lift(what),
             PlayerAction::Expanded(e) => lift_pa(&e.value),
             _ => None,
@@ -1524,6 +1577,8 @@ fn unresolved_choice(action: &Action) -> Option<PendingChoice> {
         | Action::Move(s, _) => lift(s),
         Action::By(_, p) => lift_pa(p),
         Action::Attach { .. } => None,
+        // `CreateReplacement.subject` could be a Choose; inspect it.
+        Action::CreateReplacement { subject, .. } => lift(subject),
     }
 }
 

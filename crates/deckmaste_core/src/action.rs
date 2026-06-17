@@ -52,6 +52,16 @@ pub enum Action {
     /// the shared exile zone. The [CR#704.5m] Aura graveyard SBA is its first
     /// user (`Move(Ref(This), Graveyard)`).
     Move(Selection, crate::Zone),
+    /// Register a floating replacement effect ([CR#614.3]) — "the next time …"
+    /// shields (regeneration, one-shot prevention). `subject` resolves to the
+    /// protected permanent; `one_shot` consumes the shield on first use
+    /// ([CR#614.3]). [CR#701.19a,614.8]
+    CreateReplacement {
+        replacement: Box<crate::replacement::Replacement>,
+        subject: crate::Selection,
+        duration: crate::continuous::Duration,
+        one_shot: bool,
+    },
     /// A named player performs the [`PlayerAction`] ([CR#608.2]). `By(You, …)`
     /// is the implicit-you default and is written bare in RON.
     #[macro_ron(embed)]
@@ -171,6 +181,10 @@ pub enum PlayerAction {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         to: Option<Reference>,
     },
+    /// Remove all marked damage from a selection ([CR#614.8] regeneration body;
+    /// [CR#701.19a] heal clause). Applied in the regeneration `instead` body
+    /// before tapping to restore the permanent to a clean damage state.
+    RemoveDamage(crate::Selection),
     /// A remembered `PlayerAction` macro invocation.
     #[macro_ron(expanded)]
     Expanded(Expansion<PlayerAction>),
