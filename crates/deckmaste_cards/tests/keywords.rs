@@ -42,6 +42,7 @@ fn every_builtin_keyword_macro_expands() {
         ("Affinity(Type(Artifact))", "Affinity"),
         ("Cycling([Mana([Generic(2)])])", "Cycling"),
         ("Echo([Mana([Generic(1),Green])])", "Echo"),
+        ("CumulativeUpkeep([Mana([Generic(1)])])", "CumulativeUpkeep"),
     ];
     let plugin = builtin();
     for (invocation, name) in cases {

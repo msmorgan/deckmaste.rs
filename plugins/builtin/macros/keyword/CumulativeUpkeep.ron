@@ -1,0 +1,57 @@
+// Cumulative Upkeep = a triggered ability that imposes an increasing cost on a
+// permanent [CR#702.24a]: "Cumulative upkeep [cost]" means "At the beginning of
+// your upkeep, if this permanent is on the battlefield, put an age counter on
+// this permanent. Then you may pay [cost] for each age counter on it. If you
+// don't, sacrifice it."
+//
+// Pieces (all representable):
+//   - trigger:    `BeginningOf(Beginning(Upkeep), Your)` — same upkeep trigger
+//                 Echo uses [CR#603.2].
+//   - intervening-if [CR#603.4]: "if this permanent is on the battlefield" =
+//                 `Is(This, InZone(Battlefield))`.
+//   - resolution: a `Sequence` — first `PutCounters(This, AgeCounter, 1)` (the
+//                 new age counter, [CR#702.24a], a player action by you), then
+//                 `Unless(effect: Sacrifice(This), unless: <cost>)` — the same
+//                 `Effect::Unless` toll shape Echo threads the printed [cost]
+//                 into [CR#118.12a]. The printed [cost] is the macro's `Cost`
+//                 param (`CumulativeUpkeep([Mana(...)])`, the list shape the
+//                 parser emits), spliced into `unless` exactly as Echo does.
+//
+// SEAM — the "for each age counter" SCALING is NOT representable on the
+// `Unless` toll. [CR#702.24a] bills `[cost]` MULTIPLIED by the number of age
+// counters on the permanent (counted after this trigger's counter is added):
+// the natural form is `Scaled(change: [cost], times: CountOf(age counters on
+// This))`. But `Scaled` is a `CostChange` variant — it lives only in the
+// [CR#601.2f] total-cost MODIFIER pipeline (affinity-style cost reduction) —
+// while `Unless::unless` is a flat `Vec<CostComponent>`, and `CostComponent`
+// has NO count-scaled variant. So the toll here charges ONE instance of
+// `[cost]` (`unless: Param(0)`), the correct bill only on the FIRST upkeep
+// (one age counter). A faithful evaluation needs a count-scaled cost form —
+// e.g. a new `CostComponent::Scaled { component, times: Count }` (or letting
+// `Unless::unless` carry a `CostChange`/`Scaled`) plus the payment-stage
+// machinery to demand `times` copies, with `times = CounterCount(This,
+// AgeCounter)`. Until then engine-exact billing of the escalating cost is a
+// seam; the per-counter choice-replication of [CR#702.24a] ("each choice is
+// made separately for each age counter") rides on the same scaled-cost work.
+// Graduation (parse-only) is unaffected: this body expands to valid RON and
+// round-trips, and the age counter is still placed each upkeep.
+(
+    name: "CumulativeUpkeep",
+    template: "cumulative upkeep ${0}",
+    kinds: [KeywordAbility],
+    params: [Cost],
+    body: Composite(
+        name: "CumulativeUpkeep",
+        abilities: [Triggered(
+            event: BeginningOf(Beginning(Upkeep), Your),
+            condition: Is(This, InZone(Battlefield)),
+            effect: Sequence([
+                PutCounters(This, AgeCounter, 1),
+                Unless(
+                    effect: Sacrifice(This),
+                    unless: Param(0),
+                ),
+            ]),
+        )],
+    ),
+)

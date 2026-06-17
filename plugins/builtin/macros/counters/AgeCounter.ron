@@ -1,0 +1,15 @@
+// Age counters ([CR#702.24a], placed by cumulative upkeep; counters in general
+// [CR#122.1]): a MARKER counter with no conferred bearing of its own. It does
+// nothing but accumulate — its only role is to be counted by the cumulative
+// upkeep ability that places it ("pay [cost] for each age counter on it"),
+// read by `CounterCount(This, AgeCounter)`. Like `LoyaltyCounter` /
+// `DefenseCounter`, it confers no `Continuous` / `StateBased` property. The CR
+// gives age counters no behavior beyond being counted, so there is no
+// counter-kind subrule effect to model (cf. the [CR#122.1] subrules, which
+// give +1/+1, loyalty, shield, etc. their behavior — age has no such entry).
+(
+    name: "AgeCounter",
+    template: "age counter",
+    kinds: [Counter],
+    body: Counter(name: "AgeCounter"),
+)
