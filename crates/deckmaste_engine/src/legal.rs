@@ -1112,7 +1112,6 @@ mod tests {
             window: None,
             condition: None,
             limits: vec![],
-            targets: vec![],
             effect: Effect::Act(Action::By(
                 Reference::You,
                 PlayerAction::AddMana(

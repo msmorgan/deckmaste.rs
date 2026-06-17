@@ -838,7 +838,6 @@ fn artifact_with_cost(name: &str, cost: Vec<CostComponent>) -> Arc<Card> {
             cost,
             condition: None,
             limits: vec![],
-            targets: vec![],
             effect: gain_zero(),
         })],
         power: None,

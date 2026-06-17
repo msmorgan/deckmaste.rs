@@ -20,9 +20,11 @@ use super::effect;
 
 /// "When/Whenever <event>, <effect>."
 pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
+    // Targeting lives on an `Effect::Targeted` wrapper, which the effect walk
+    // rebinds `ctx.targets` from ([CR#115.1]).
     let ctx = Ctx {
         subject: view.name,
-        targets: &t.targets,
+        targets: &[],
     };
     let (lead, clause) = event_clause(&t.event, &ctx);
     let body = lower_first(&effect::effect(&t.effect, &ctx));

@@ -89,7 +89,6 @@ fn lightning_bolt_expands_target_macros() {
     assert_eq!(
         face.abilities,
         vec![Ability::Spell(SpellAbility {
-            targets: vec![],
             effect: Effect::Targeted(deckmaste_core::Targeted {
                 targets: vec![any_target],
                 effect: Box::new(Effect::Act(Action::DealDamage(

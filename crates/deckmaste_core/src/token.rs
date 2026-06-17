@@ -185,7 +185,6 @@ mod tests {
                 ],
                 condition: None,
                 limits: vec![],
-                targets: vec![],
                 effect: Effect::Act(Action::By(
                     Reference::You,
                     PlayerAction::AddMana(crate::Count::Literal(1), ManaSpec::AnyColor.into()),

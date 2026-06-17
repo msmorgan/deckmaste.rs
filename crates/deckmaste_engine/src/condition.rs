@@ -366,7 +366,6 @@ mod tests {
                         CharacteristicFilter::Type(Type::Creature),
                     ))),
                     limits: Vec::new(),
-                    targets: Vec::new(),
                     effect: Effect::Sequence(Vec::new()),
                 })],
                 ..CardFace::default()

@@ -159,7 +159,8 @@ fn composite_members(keyword: &deckmaste_core::KeywordAbility) -> Option<&Vec<Ab
 pub fn tap_mana_ability(ability: &Ability) -> Option<(ColorOrColorless, Uint)> {
     match ability {
         Ability::Activated(a)
-            if a.targets.is_empty() && a.cost.as_slice() == [CostComponent::Tap] =>
+            if crate::resolve::top_targets(&a.effect).is_empty()
+                && a.cost.as_slice() == [CostComponent::Tap] =>
         {
             match &a.effect {
                 // The produced-mana effect is a bare `AddMana` in RON, which
@@ -227,7 +228,6 @@ mod tests {
             },
             condition: None,
             limits: vec![],
-            targets: vec![],
             effect: Effect::Act(deckmaste_core::Action::By(
                 Reference::You,
                 deckmaste_core::PlayerAction::Draw(deckmaste_core::Count::Literal(1)),

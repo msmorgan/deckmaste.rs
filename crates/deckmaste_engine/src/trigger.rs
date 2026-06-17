@@ -798,14 +798,8 @@ impl GameState {
     /// printed face. Empty when the ability is non-targeting.
     fn trigger_targets(&self, source: ObjectSource, ability: usize) -> Vec<TargetSpec> {
         match &crate::derive::abilities_of_source(self, source)[ability] {
-            // Dual-read: legacy `targets` field, else a `Targeted` wrapper.
-            Ability::Triggered(t) => {
-                if t.targets.is_empty() {
-                    crate::resolve::top_targets(&t.effect).to_vec()
-                } else {
-                    t.targets.clone()
-                }
-            }
+            // Targets live on a top-level `Effect::Targeted` wrapper ([CR#115.1]).
+            Ability::Triggered(t) => crate::resolve::top_targets(&t.effect).to_vec(),
             _ => unreachable!("a noted trigger indexes a Triggered ability"),
         }
     }
@@ -2508,7 +2502,6 @@ mod tests {
                 ),
                 condition: None,
                 limits: Vec::new(),
-                targets: Vec::new(),
                 effect: Effect::Act(Action::By(
                     Reference::You,
                     PlayerAction::Create(Count::Literal(1), goblin_token.into()),
@@ -2941,8 +2934,7 @@ mod tests {
                     abilities: [
                         Triggered(
                             event: ThisEnters,
-                            targets: [TargetOne(Creature)],
-                            effect: DealDamage(Target(0), 1),
+                            effect: Targeted(targets: [TargetOne(Creature)], effect: DealDamage(Target(0), 1)),
                         ),
                     ],
                 )"#,

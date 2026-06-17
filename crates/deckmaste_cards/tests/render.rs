@@ -324,7 +324,6 @@ fn renders_synthesized_lose_life_and_destroy() {
         name: "Test Drain".into(),
         types: vec![Type::Sorcery],
         abilities: vec![Ability::Spell(SpellAbility {
-            targets: vec![],
             effect: Effect::Act(Action::By(
                 Reference::You,
                 PlayerAction::LoseLife(Count::Literal(3)),
@@ -342,7 +341,6 @@ fn renders_synthesized_lose_life_and_destroy() {
         name: "Test Smite".into(),
         types: vec![Type::Sorcery],
         abilities: vec![Ability::Spell(SpellAbility {
-            targets: vec![],
             effect: Effect::Targeted(deckmaste_core::Targeted {
                 targets: vec![TargetSpec::Target(
                     Quantity::Exactly(Count::Literal(1)),
@@ -507,7 +505,6 @@ fn renders_continuously_pump_until_eot() {
         name: "Test Pump".into(),
         types: vec![Type::Instant],
         abilities: vec![Ability::Spell(SpellAbility {
-            targets: vec![],
             effect: Effect::Targeted(deckmaste_core::Targeted {
                 targets: vec![TargetSpec::Target(
                     Quantity::Exactly(Count::Literal(1)),
@@ -562,7 +559,6 @@ fn renders_create_one_token() {
         name: "Test Maker".into(),
         types: vec![Type::Sorcery],
         abilities: vec![Ability::Spell(SpellAbility {
-            targets: vec![],
             effect: Effect::Act(Action::By(
                 Reference::You,
                 PlayerAction::Create(Count::Literal(1), TokenSpec::Token(token)),
@@ -605,7 +601,6 @@ fn renders_create_two_tokens() {
         name: "Test Muster".into(),
         types: vec![Type::Sorcery],
         abilities: vec![Ability::Spell(SpellAbility {
-            targets: vec![],
             effect: Effect::Act(Action::By(
                 Reference::You,
                 PlayerAction::Create(Count::Literal(2), TokenSpec::Token(token)),
@@ -665,7 +660,6 @@ fn renders_get_designation() {
         name: "Test Ascend".into(),
         types: vec![Type::Sorcery],
         abilities: vec![Ability::Spell(SpellAbility {
-            targets: vec![],
             effect: Effect::Act(Action::By(
                 Reference::You,
                 PlayerAction::GetDesignation(Ident::from("CitysBlessing")),
