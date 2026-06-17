@@ -28,14 +28,28 @@ pub(super) fn fill(template: &str, subject: &str, args: &ExpansionArgs) -> Optio
             '~' => out.push_str(subject),
             '$' if matches!(chars.peek(), Some((_, '{'))) => {
                 chars.next(); // consume the '{'
-                let mut key = String::new();
+                let mut content = String::new();
                 for (_, d) in chars.by_ref() {
                     if d == '}' {
                         break;
                     }
-                    key.push(d);
+                    content.push(d);
                 }
-                out.push_str(&render_arg(lookup_arg(args, key.trim())?)?);
+                if content.matches('#').count() == 2 {
+                    // Conditional fragment: render prefix+value+suffix iff the value
+                    // param is present; absent renders to nothing.
+                    let mut parts = content.splitn(3, '#');
+                    let prefix = parts.next().unwrap_or("");
+                    let value = parts.next().unwrap_or("").trim();
+                    let suffix = parts.next().unwrap_or("");
+                    if let Some(raw) = lookup_arg(args, value) {
+                        out.push_str(prefix);
+                        out.push_str(&render_arg(raw)?);
+                        out.push_str(suffix);
+                    }
+                } else {
+                    out.push_str(&render_arg(lookup_arg(args, content.trim())?)?);
+                }
             }
             other => out.push(other),
         }
@@ -217,5 +231,18 @@ mod tests {
         let args = ExpansionArgs::Named(vec![("x".into(), "1".into())]);
         let s = fill("~ gets +${0}", "it", &args);
         assert_eq!(s, None);
+    }
+
+    #[test]
+    fn fills_conditional_present_and_absent() {
+        let present = fill(
+            "hexproof${ from #from#}",
+            "ignored",
+            &ExpansionArgs::Named(vec![("from".into(), "ColorIs(Blue)".into())]),
+        );
+        assert_eq!(present.as_deref(), Some("hexproof from blue"));
+
+        let absent = fill("hexproof${ from #from#}", "ignored", &ExpansionArgs::none());
+        assert_eq!(absent.as_deref(), Some("hexproof"));
     }
 }
