@@ -1,6 +1,8 @@
 //! Pure enumeration of a focusable zone's selectable items, in display order.
+use deckmaste_core::Type;
 use deckmaste_engine::GameState;
 use deckmaste_engine::LayeredView;
+use deckmaste_engine::ObjectId;
 use deckmaste_engine::PlayerId;
 
 use crate::ui::board::Selected;
@@ -20,16 +22,24 @@ pub fn contents(
     zone: Zone,
 ) -> Vec<Selected> {
     match zone {
-        Zone::Battlefield(player) => std::iter::once(Selected::Object(state.player(player).object))
-            .chain(
-                state
-                    .zones
-                    .battlefield
-                    .iter()
-                    .filter(|&&id| view.controller(id) == player)
-                    .map(|&id| Selected::Object(id)),
-            )
-            .collect(),
+        Zone::Battlefield(player) => {
+            // The permanents this player controls by *derived* controller, with
+            // lands sorted to the bottom of the column. `sort_by_key` is stable,
+            // so play order is preserved within the non-land and land groups, and
+            // `false` (non-land) sorts before `true` (land).
+            let mut perms: Vec<ObjectId> = state
+                .zones
+                .battlefield
+                .iter()
+                .copied()
+                .filter(|&id| view.controller(id) == player)
+                .collect();
+            perms.sort_by_key(|&id| view.get(id).card_types.contains(&Type::Land));
+            // Lead with the player's own proxy object (the targetable face).
+            std::iter::once(Selected::Object(state.player(player).object))
+                .chain(perms.into_iter().map(Selected::Object))
+                .collect()
+        }
         Zone::Hand => state.zones.hands[perspective.index()]
             .iter()
             .map(|&id| Selected::Object(id))
@@ -109,6 +119,54 @@ mod tests {
         let e1 = contents(&state, &view, PlayerId(1), Zone::Exile);
         assert_eq!(e0.len(), state.zones.exile.len());
         assert_eq!(e0, e1);
+    }
+
+    #[test]
+    fn battlefield_sorts_lands_below_nonlands() {
+        use deckmaste_core::Type;
+        use deckmaste_engine::sim::GreedyDemo;
+        use deckmaste_engine::sim::Strategy;
+
+        use crate::driver::Stop;
+
+        // Drive the demo (which develops both boards) until some player controls
+        // both a land and a non-land, then assert every land sits below every
+        // non-land in their column.
+        let strat = GreedyDemo;
+        let mut driver = Driver::new(game::build_game().expect("build"), Box::new(GreedyDemo));
+        let mut stop = driver.run_to_decision().expect("first stop");
+        for _ in 0..200_000 {
+            let pending = match &stop {
+                Stop::GameOver(_) | Stop::Budget => break,
+                Stop::Decision(p) => p.clone(),
+            };
+            let view = driver.state.layers();
+            for player in [PlayerId(0), PlayerId(1)] {
+                let perms: Vec<_> =
+                    contents(&driver.state, &view, player, Zone::Battlefield(player))[1..] // skip the leading player proxy
+                        .iter()
+                        .map(|s| match s {
+                            Selected::Object(id) => *id,
+                            Selected::StackEntry(_) => panic!("battlefield holds objects"),
+                        })
+                        .collect();
+                let is_land = |id| view.get(id).card_types.contains(&Type::Land);
+                let has_land = perms.iter().any(|&id| is_land(id));
+                let has_nonland = perms.iter().any(|&id| !is_land(id));
+                if has_land && has_nonland {
+                    let first_land = perms.iter().position(|&id| is_land(id)).expect("a land");
+                    assert!(
+                        perms[first_land..].iter().all(|&id| is_land(id)),
+                        "every land must sit below every non-land in P{}'s column: {perms:?}",
+                        player.0
+                    );
+                    return;
+                }
+            }
+            let decision = strat.decide(&driver.state, &pending);
+            stop = driver.submit(decision).expect("legal decision");
+        }
+        panic!("never reached a board controlling both a land and a non-land");
     }
 
     #[test]
