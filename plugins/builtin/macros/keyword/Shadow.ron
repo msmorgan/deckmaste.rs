@@ -1,0 +1,18 @@
+// Shadow = a bidirectional evasion Cant [CR#702.28b]: "a creature with shadow
+// can't be blocked by creatures without shadow, and a creature without shadow
+// can't be blocked by creatures with shadow." Both halves restrict the
+// being-blocked relation, so it reads as two Cant(Block) rows over the shadow
+// keyword itself (a self-declaring marker — like Flying references Has(Flying),
+// the carried name keeps Has(Shadow) matching):
+//   - This (shadow) can't be blocked by non-shadow   — on: This, by: ¬shadow
+//   - This (shadow) can't block non-shadow            — by: This, on: ¬shadow
+// The second row is the contrapositive of "a non-shadow creature can't be
+// blocked by shadow," read from This's blocker side.
+KeywordAbility(
+    name: "Shadow",
+    template: "shadow",
+    abilities: [Static(effects: [
+        Cant(Block(on: Ref(This), by: Not(Has(Shadow)))),
+        Cant(Block(by: Ref(This), on: Not(Has(Shadow)))),
+    ])],
+)
