@@ -17,6 +17,7 @@ use std::sync::Arc;
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_engine::GameOutcome;
 use deckmaste_engine::PlayerId;
+use deckmaste_engine::StrategyEvaluator;
 use deckmaste_engine::sim::DeckCards;
 use deckmaste_engine::sim::Summary;
 use deckmaste_engine::sim::{self};
@@ -188,5 +189,88 @@ fn bears_vs_bolts_50k_game_stats() {
         p0_wins + p1_wins + draws,
         GAMES,
         "every one of the {GAMES} games produced a result"
+    );
+}
+
+// --- data-driven RON strategies for the matchup (strategy-greedy-port) -------
+
+/// P0 "Bears": in a main phase, develop a land, tap out, and cast every
+/// creature it can afford; swing with everything each combat; shed cheapest
+/// (lands first) to hand size. A deliberately simple tap-out aggro line — all
+/// expressible in the strategy language today (the careful Rust ramp needs a
+/// not-yet-available "mana available" `Count`; see the ticket).
+const RON_BEARS: &str = r#"(
+    name: "Bears (tap-out aggro)",
+    rules: [
+        (when: OneOf([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
+         prefer: Play(what: (pick: First, by: Literal(1)))),
+        (when: OneOf([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
+         prefer: Activate(what: (pick: First, by: Literal(1)))),
+        (when: OneOf([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
+         prefer: Cast(what: (pick: Min, by: StatOf(This, ManaValue)))),
+        (when: AllOf([]), prefer: Attack(what: (pick: First, by: Literal(1)))),
+        (when: AllOf([]), prefer: Discard(what: (pick: Min, by: StatOf(This, ManaValue)))),
+        (when: AllOf([]), prefer: Pass),
+    ],
+)"#;
+
+/// P1 "Bolts": in a main phase, develop a land, tap out, and cast its burn at
+/// the biggest opposing creature (falling back to the first legal target — the
+/// face — when there is none); shed cheapest; pass.
+const RON_BOLTS: &str = r#"(
+    name: "Bolts (tap-out burn)",
+    rules: [
+        (when: OneOf([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
+         prefer: Play(what: (pick: First, by: Literal(1)))),
+        (when: OneOf([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
+         prefer: Activate(what: (pick: First, by: Literal(1)))),
+        (when: OneOf([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
+         prefer: Cast(
+            what: (pick: Min, by: StatOf(This, ManaValue)),
+            target: (pick: Max, by: StatOf(This, Power), among: Type(Creature)))),
+        (when: AllOf([]), prefer: Discard(what: (pick: Min, by: StatOf(This, ManaValue)))),
+        (when: AllOf([]), prefer: Pass),
+    ],
+)"#;
+
+/// The data-driven strategy engine drives the whole Bears-vs-Bolts matchup:
+/// both seats are RON strategies (no hardcoded Rust policy), and the game plays
+/// to a real, sensible finish — the same end-state shape the Rust-greedy game
+/// asserts (a real loss, a Bear connecting, a Bolt killing a Bear).
+#[test]
+fn ron_strategies_play_the_matchup_to_a_winner() {
+    let cards = matchup();
+    let bears = StrategyEvaluator::from_ron(RON_BEARS, PlayerId(0)).unwrap();
+    let bolts = StrategyEvaluator::from_ron(RON_BOLTS, PlayerId(1)).unwrap();
+    let summary = sim::play(&cards, SEED, &bears, &bolts);
+    eprintln!("RON Bears vs RON Bolts (seed {SEED}): {summary:?}");
+    assert!(
+        matches!(summary.outcome, GameOutcome::Win(_)),
+        "data-driven matchup reaches a definite winner: {summary:?}"
+    );
+    assert!(
+        summary.loser_lost_for_real,
+        "the loser lost via a real loss condition: {summary:?}"
+    );
+    assert!(
+        summary.creature_hit_player,
+        "a Bear connected for combat damage: {summary:?}"
+    );
+    assert!(
+        summary.spell_killed_creature,
+        "a Bolt killed a Bear via the lethal SBA: {summary:?}"
+    );
+}
+
+/// Determinism: the data-driven seats reproduce the same game on the same seed.
+#[test]
+fn ron_strategies_are_deterministic() {
+    let cards = matchup();
+    let p0 = || StrategyEvaluator::from_ron(RON_BEARS, PlayerId(0)).unwrap();
+    let p1 = || StrategyEvaluator::from_ron(RON_BOLTS, PlayerId(1)).unwrap();
+    assert_eq!(
+        sim::play(&cards, SEED, &p0(), &p1()),
+        sim::play(&cards, SEED, &p0(), &p1()),
+        "same seed + same RON strategies reproduce the same game"
     );
 }
