@@ -1,0 +1,16 @@
+// A vigilance counter ([CR#122.1b]): its bearer gains vigilance at layer 6
+// ([CR#613.1f]) — the FlyingCounter pattern with a different keyword.
+(
+    name: "VigilanceCounter",
+    template: "vigilance counter",
+    kinds: [Counter],
+    body: Counter(
+        name: "VigilanceCounter",
+        confers: [
+            Continuous(
+                of: Of(This),
+                changes: [GainAbility(Keyword(Vigilance))],
+            ),
+        ],
+    ),
+)

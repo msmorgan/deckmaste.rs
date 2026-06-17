@@ -1,0 +1,16 @@
+// A trample counter ([CR#122.1b]): its bearer gains trample at layer 6
+// ([CR#613.1f]) — the FlyingCounter pattern with a different keyword.
+(
+    name: "TrampleCounter",
+    template: "trample counter",
+    kinds: [Counter],
+    body: Counter(
+        name: "TrampleCounter",
+        confers: [
+            Continuous(
+                of: Of(This),
+                changes: [GainAbility(Keyword(Trample))],
+            ),
+        ],
+    ),
+)

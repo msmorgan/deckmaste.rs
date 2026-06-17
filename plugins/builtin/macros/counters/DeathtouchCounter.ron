@@ -1,0 +1,16 @@
+// A deathtouch counter ([CR#122.1b]): its bearer gains deathtouch at layer 6
+// ([CR#613.1f]) — the FlyingCounter pattern with a different keyword.
+(
+    name: "DeathtouchCounter",
+    template: "deathtouch counter",
+    kinds: [Counter],
+    body: Counter(
+        name: "DeathtouchCounter",
+        confers: [
+            Continuous(
+                of: Of(This),
+                changes: [GainAbility(Keyword(Deathtouch))],
+            ),
+        ],
+    ),
+)
