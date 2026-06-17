@@ -8,7 +8,7 @@
     name: "PumpThisUntilEot",
     template: "~ gets +${0}/+${1} until end of turn",
     kinds: [Effect],
-    params: [Any, Any],
+    params: [Count, Count],
     body: Continuously(
         effect: Modify(of: Of(This), changes: [AddPower(Param(0)), AddToughness(Param(1))]),
         duration: FixedUntil(EndOfTurn),

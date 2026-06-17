@@ -4,6 +4,6 @@
     name: "Dies",
     template: "${0} dies",
     kinds: [Event],
-    params: [Any],
+    params: [Filter],
     body: ZoneMove(what: Param(0), from: Battlefield, to: Graveyard),
 )

@@ -56,13 +56,48 @@ fn lookup_arg<'a>(args: &'a ExpansionArgs, key: &str) -> Option<&'a String> {
     }
 }
 
-/// Render one raw-RON-source positional arg. v1: bare integers
-/// (`PumpThisUntilEot`'s magnitudes) pass through verbatim; anything else
-/// returns `None` so the caller falls back to structural rendering.
-/// (Grammar-node args — filters, costs — are a later enhancement.)
+/// Render one raw-RON-source positional arg back to English (the `show`
+/// direction): bare integers pass through; a `Filter` arg renders as its noun
+/// (`ColorIs(Black)` → "black", `Type(Creature)` → "creature"); a `Cost` arg
+/// renders as its symbols (`[Mana([Generic(2)])]` → "{2}"). Each is parsed with
+/// the bare core reader, so the arg's type is recovered without a `MacroSet`.
+/// Anything else (a filter with no clean noun, a verb-cost) returns `None`, so
+/// the caller falls back to structural rendering.
 fn render_arg(raw: &str) -> Option<String> {
     let t = raw.trim();
-    if t.parse::<i64>().is_ok() { Some(t.to_string()) } else { None }
+    if t.parse::<i64>().is_ok() {
+        return Some(t.to_string());
+    }
+    if let Ok(filter) = deckmaste_core::ron::options().from_str::<deckmaste_core::Filter>(t) {
+        let noun = super::fragment::filter_noun(&filter);
+        if !noun.contains("[unrendered") {
+            return Some(noun);
+        }
+    }
+    // A Cost arg (`ward ${0}`, `equip ${0}`): a bracketed cost-component list.
+    if let Ok(cost) =
+        deckmaste_core::ron::options().from_str::<Vec<deckmaste_core::CostComponent>>(t)
+    {
+        return render_cost(&cost);
+    }
+    None
+}
+
+/// Render a cost-component list to its symbol/word text (`[Mana([Generic(2)])]`
+/// → "{2}"). Declines on any component without a simple rendering (e.g. a
+/// `Do(...)` verb cost), so the keyword falls back to its bare name.
+fn render_cost(cost: &[deckmaste_core::CostComponent]) -> Option<String> {
+    use deckmaste_core::CostComponent;
+    let mut out = String::new();
+    for component in cost {
+        match component {
+            CostComponent::Mana(mc) => out.push_str(&super::card::mana_cost(Some(mc))),
+            CostComponent::Tap => out.push_str("{T}"),
+            CostComponent::Untap => out.push_str("{Q}"),
+            _ => return None,
+        }
+    }
+    Some(out)
 }
 
 #[cfg(test)]

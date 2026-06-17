@@ -11,7 +11,7 @@
     name: "Flashback",
     template: "flashback ${0}",
     kinds: [KeywordAbility],
-    params: [Any],
+    params: [Cost],
     body: Composite(
         name: "Flashback",
         abilities: [

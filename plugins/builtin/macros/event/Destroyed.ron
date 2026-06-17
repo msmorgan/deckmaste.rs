@@ -8,6 +8,6 @@
     name: "Destroyed",
     template: "${0} is destroyed",
     kinds: [Event],
-    params: [Any],
+    params: [Filter],
     body: ZoneMove(what: Param(0), from: Battlefield, to: Graveyard, cause: Cause(verb: "Destroy")),
 )

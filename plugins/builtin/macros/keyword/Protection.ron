@@ -11,7 +11,7 @@
     name: "Protection",
     template: "protection from ${0}",
     kinds: [KeywordAbility],
-    params: [Any],
+    params: [Filter],
     body: Composite(
         name: "Protection",
         abilities: [Static(effects: [

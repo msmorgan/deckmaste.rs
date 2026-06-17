@@ -7,7 +7,7 @@
     name: "Equip",
     template: "equip ${0}",
     kinds: [KeywordAbility],
-    params: [Any],
+    params: [Cost],
     body: Composite(
         name: "Equip",
         abilities: [Activated(

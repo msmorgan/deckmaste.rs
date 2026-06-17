@@ -211,7 +211,7 @@ fn render_arg(ident: &str, arg: &str) -> anyhow::Result<Option<String>> {
 /// clause. The worded form's trailing period is stripped; `{X}` is allowed
 /// (the printed cost carries it — what X equals is announced by the
 /// controller or stated by the card, [CR#107.3a,702.21b]).
-fn cost_arg(text: &str) -> anyhow::Result<Option<String>> {
+pub(crate) fn cost_arg(text: &str) -> anyhow::Result<Option<String>> {
     let trimmed = text.trim();
     let clause = trimmed.strip_suffix('.').unwrap_or(trimmed);
     let Some(components) = cost::parse_cost(clause, VariableMana::Allow)? else {
@@ -226,7 +226,7 @@ fn cost_arg(text: &str) -> anyhow::Result<Option<String>> {
 /// `Protection` arm's special case, and multi-quality lines ("from red and
 /// from white") are expanded into one line per quality by `extract`
 /// [CR#702.16g] before the registry sees them.
-fn quality_filter(q: &str) -> Option<String> {
+pub(crate) fn quality_filter(q: &str) -> Option<String> {
     let q = q.trim();
     if q.is_empty() || q.contains(' ') {
         return None;

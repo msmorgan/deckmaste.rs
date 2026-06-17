@@ -8,7 +8,7 @@
     name: "Fortify",
     template: "fortify ${0}",
     kinds: [KeywordAbility],
-    params: [Any],
+    params: [Cost],
     body: Composite(
         name: "Fortify",
         abilities: [Activated(

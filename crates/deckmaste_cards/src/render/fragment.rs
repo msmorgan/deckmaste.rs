@@ -71,7 +71,7 @@ pub(super) fn target_spec(spec: &TargetSpec) -> String {
 /// selection phrases.  Prefers a filter macro's own noun template ("creature",
 /// "player", ...); falls back to structural derivation ([`find_card_type`] /
 /// [`strip_expanded`]) for hand-built (un-wrapped) filters.
-fn filter_noun(filter: &Filter) -> String {
+pub(super) fn filter_noun(filter: &Filter) -> String {
     if let Filter::Expanded(exp) = filter
         && let Some(noun) = super::template::expanded(exp, "")
     {
@@ -81,6 +81,9 @@ fn filter_noun(filter: &Filter) -> String {
         return super::card::type_str(t).to_lowercase();
     }
     match strip_expanded(filter) {
+        Filter::Characteristic(CharacteristicFilter::ColorIs(c)) => {
+            super::effect::color_word(*c).to_string()
+        }
         Filter::Kind(ObjectKind::Player) => "player".to_string(),
         other => format!("[unrendered: {other:?}]"),
     }
