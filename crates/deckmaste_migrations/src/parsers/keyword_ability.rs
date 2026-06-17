@@ -159,13 +159,11 @@ fn render_arg(ident: &str, arg: &str) -> anyhow::Result<Option<String>> {
     // authored macros' spelling conventions (a quality word renders as the
     // Filter the macro's param expects).
     match ident {
-        // The macro's `from` param is defaulted, but an all-defaulted
-        // invocation still needs its parens — bare `Hexproof` doesn't read.
+        // An all-defaulted invocation still needs its parens — bare `Hexproof`
+        // doesn't read. The "hexproof from [quality]" oracle line is now claimed
+        // by the macro-template parser; this empty-arg form is what
+        // `match_keyword_name` reuses for keyword grants.
         "Hexproof" if arg.is_empty() => return Ok(Some("Hexproof()".to_owned())),
-        // "Hexproof from [quality]" is the same macro, param supplied.
-        "HexproofFrom" => {
-            return Ok(quality_filter(arg).map(|q| format!("Hexproof(from: {q})")));
-        }
         "Protection" => {
             let Some(q) = arg.strip_prefix("from ") else {
                 return Ok(None);
@@ -438,13 +436,10 @@ mod tests {
             bare("Affinity for artifacts").as_deref(),
             Some("Keyword(Affinity(Type(Artifact)))")
         );
-        // Bare hexproof keeps its parens (all-defaulted invocation); the
-        // from-variant supplies the named param on the SAME macro.
+        // Bare hexproof keeps its parens (all-defaulted invocation); this is
+        // the form `match_keyword_name` reuses for grants. The "from X" variant
+        // is now claimed by the macro-template parser (see macro_template.rs).
         assert_eq!(bare("Hexproof").as_deref(), Some("Keyword(Hexproof())"));
-        assert_eq!(
-            bare("Hexproof from blue").as_deref(),
-            Some("Keyword(Hexproof(from: ColorIs(Blue)))")
-        );
     }
 
     #[test]
