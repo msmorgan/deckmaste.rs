@@ -40,6 +40,8 @@ pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect>
         .or_else(|| parse_return_to_hand(line))
         .or_else(|| parse_tap_untap(line))
         .or_else(|| parse_destroy(line))
+        .or_else(|| parse_sacrifice(line))
+        .or_else(|| parse_attach(line))
         .or_else(|| parse_pump(line))
         .or_else(|| parse_create_token(line))
         .or_else(|| parse_macro_effect(line, ctx))
@@ -316,6 +318,78 @@ fn parse_destroy(line: &str) -> Option<ParsedEffect> {
     })
 }
 
+/// Self-sacrifice productions ([CR#701.16], the "sacrifice it/~" family that
+/// rides trigger bodies):
+/// - `Sacrifice it.` / `Sacrifice ~.` -> `Sacrifice(This)`, no target. The "it"
+///   anaphor in a trigger body is the resolving source ([CR#113.7] — the
+///   permanent whose ability triggered), the same `This` the `~` self-reference
+///   names; both normalize to the source. This is the resolution of "When ~
+///   becomes the target …, sacrifice it." and "At the beginning of the end
+///   step, sacrifice ~."
+/// - `Sacrifice it/~ unless you pay <cost>.` -> the "unless you pay" toll
+///   ([CR#118.12a]): the controller may pay the stated cost to keep the
+///   permanent, else sacrifices it. Wrapped in an
+///   [`Unless`](deckmaste_core::Effect::Unless) whose payer is the default
+///   `You` (the controller — the trigger fires on your own upkeep). Only a
+///   single mana cost is modeled (the overwhelmingly common upkeep tax); a
+///   richer toll declines. Mirrors the kw-echo macro's `Unless(effect:
+///   Sacrifice(This), unless: Param(0))` resolution shape.
+///
+/// A non-self sacrifice ("Sacrifice a creature", "Sacrifice another …") is a
+/// chosen-permanent cost handled in the cost grammar, not here — this body
+/// production fires only on the self anaphors.
+fn parse_sacrifice(line: &str) -> Option<ParsedEffect> {
+    let body = strip_prefix_ci(line, "sacrifice ")?.strip_suffix('.')?;
+    // The self anaphors: a bare "it"/"~", or one carrying an "unless you pay"
+    // toll. The subject is the resolving source either way ("it" == "~" == the
+    // permanent that triggered).
+    let (subject, toll) = match body.split_once(' ') {
+        None => (body, None),
+        Some((subject, rest)) => (subject, Some(rest)),
+    };
+    if subject != "it" && subject != "~" {
+        return None;
+    }
+    let Some(toll) = toll else {
+        return Some(ParsedEffect {
+            targets: Vec::new(),
+            effect: "Sacrifice(This)".to_owned(),
+        });
+    };
+    // "unless you pay <cost>." — the controller's optional mana toll.
+    let cost = toll.strip_prefix("unless you pay ")?;
+    let cost = crate::parsers::cost::parse_cost(cost, crate::parsers::cost::VariableMana::Decline)
+        .ok()
+        .flatten()?;
+    if cost.len() != 1 {
+        return None;
+    }
+    Some(ParsedEffect {
+        targets: Vec::new(),
+        effect: format!(
+            "Unless(effect: Sacrifice(This), unless: [{}])",
+            cost.join(", ")
+        ),
+    })
+}
+
+/// `Attach it to target <subject>.` -> the uniform attachment verb
+/// ([CR#701.3a], the one verb the whole Aura/Equipment/Fortification family
+/// shares): the resolving source (`it` -> `This`) is attached to a single
+/// chosen target. The body is the ETB resolution of "When ~ enters, attach it
+/// to target creature you control." (a self-equipping artifact creature). The
+/// subject after "target " is parsed by [`object_target_filter`]. The "it"
+/// anaphor names the entering permanent (`This`); a non-"it" attachee declines
+/// (no card demands a non-self attach body yet).
+fn parse_attach(line: &str) -> Option<ParsedEffect> {
+    let subject = strip_prefix_ci(line, "attach it to target ")?.strip_suffix('.')?;
+    let filter = object_target_filter(subject)?;
+    Some(ParsedEffect {
+        targets: vec![format!("TargetOne({filter})")],
+        effect: "Attach(what: This, to: Target(0))".to_owned(),
+    })
+}
+
 /// `Counter target spell[ unless its controller pays <cost>].` -> a
 /// `TargetOne(Spell)` target on the stack and a `Counter(Target(0))` body
 /// ([CR#701.6a]). The "unless its controller pays" rider wraps the counter in
@@ -440,8 +514,10 @@ fn counter_kind(phrase: &str, ctx: &ResolveCtx) -> Option<String> {
 ///   `InZone(Graveyard)` + `Owner(Ref(You))`.
 fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
     let body = strip_prefix_ci(line, "return ")?.strip_suffix('.')?;
-    // Self-bounce: "Return ~ to its owner's hand." (an activated-ability effect).
-    if body == "~ to its owner's hand" {
+    // Self-bounce: "Return ~/it to its owner's hand." — an activated-ability
+    // effect ("~") or a trigger body whose "it" anaphor names the resolving
+    // source ([CR#113.7]); both are the source permanent (`This`).
+    if body == "~ to its owner's hand" || body == "it to its owner's hand" {
         return Some(ParsedEffect {
             targets: Vec::new(),
             effect: "ReturnToHand(This)".to_owned(),
@@ -1564,6 +1640,56 @@ mod tests {
         assert_eq!(
             out.as_deref(),
             Some("Activated(cost: [Mana([Generic(1),Green])], effect: Regenerate(This))")
+        );
+    }
+
+    #[test]
+    fn sacrifice_self_anaphors() {
+        // "it" and "~" both name the resolving source.
+        assert_eq!(
+            parsed("Sacrifice it."),
+            Some((String::new(), "Sacrifice(This)".to_owned()))
+        );
+        assert_eq!(
+            parsed("Sacrifice ~."),
+            Some((String::new(), "Sacrifice(This)".to_owned()))
+        );
+    }
+
+    #[test]
+    fn sacrifice_unless_pay_toll() {
+        assert_eq!(
+            parsed("Sacrifice ~ unless you pay {2}."),
+            Some((
+                String::new(),
+                "Unless(effect: Sacrifice(This), unless: [Mana([Generic(2)])])".to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed("Sacrifice it unless you pay {W}{W}."),
+            Some((
+                String::new(),
+                "Unless(effect: Sacrifice(This), unless: [Mana([White,White])])".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn sacrifice_non_self_declines() {
+        // A chosen sacrifice ("a creature") is a cost-grammar concern, not this
+        // self-anaphor body production.
+        assert!(parsed("Sacrifice a creature.").is_none());
+        assert!(parsed("Sacrifice another creature.").is_none());
+    }
+
+    #[test]
+    fn attach_it_to_target() {
+        assert_eq!(
+            parsed("Attach it to target creature you control."),
+            Some((
+                "TargetOne(AllOf([Creature, ControlledBy(Ref(You))]))".to_owned(),
+                "Attach(what: This, to: Target(0))".to_owned()
+            ))
         );
     }
 

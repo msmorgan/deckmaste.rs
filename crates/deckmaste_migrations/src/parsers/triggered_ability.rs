@@ -21,6 +21,10 @@ use crate::resolve::ResolveCtx;
 /// registry signature (sibling parsers render fallibly).
 #[allow(clippy::unnecessary_wraps)]
 pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
+    // Strip a leading ability-word label ("Landfall — …", "Threshold — …").
+    // Ability words have NO rules meaning ([CR#207.2c]) — they're a flavor tag
+    // on the trigger that follows — so the ability underneath is what we parse.
+    let line = strip_ability_word(line);
     // "At the beginning of …" is a step-entry trigger whose event clause carries
     // an internal comma ("on your turn,"), so it can't share the "When/Whenever
     // … , …" split. Route it to a dedicated event parser that consumes the whole
@@ -50,6 +54,30 @@ pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
         return Ok(None);
     };
     Ok(Some(render(&event, &parsed)))
+}
+
+/// Strip a leading ability-word label ("Landfall — ", "Pack Tactics — ").
+/// Ability words are reminder flavor with no rules weight ([CR#207.2c]); the
+/// label is the Title-Case run before the spaced em-dash, and the ability that
+/// carries weight is whatever follows. Returns the suffix when the line opens
+/// with such a label AND continues with a trigger word ("When"/"Whenever"/"At")
+/// — that follow-on word is the structural signal an ability is underneath,
+/// keeping a mid-sentence em-dash (a cost em-dash, a "choose one —" header)
+/// from being mistaken for an ability-word break. Otherwise returns the line
+/// unchanged.
+fn strip_ability_word(line: &str) -> &str {
+    let Some((label, rest)) = line.split_once(" — ") else {
+        return line;
+    };
+    // A bare label: a short Title-Case run, no sentence punctuation (a real
+    // effect clause before the em-dash would carry a comma/period/colon).
+    let bare_label = !label.is_empty()
+        && label.len() <= 24
+        && label.chars().next().is_some_and(|c| c.is_ascii_uppercase())
+        && !label.contains([',', '.', ':', ';', '"']);
+    let trigger_follows =
+        rest.starts_with("When ") || rest.starts_with("Whenever ") || rest.starts_with("At ");
+    if bare_label && trigger_follows { rest } else { line }
 }
 
 /// Wraps an event + [`ParsedEffect`] in the `Triggered` frame, emitting
@@ -83,6 +111,30 @@ pub(super) fn parse_event(clause: &str) -> Option<String> {
     // ([CR#601.2i]), filtered to a spell of the named subtype (Prowess shape).
     if let Some(event) = parse_cast_event(clause) {
         return Some(event);
+    }
+    // Becomes-target trigger: "<subject> becomes the target of a spell or
+    // ability" — the `BecomesTarget` event ([CR#601.2c] announce-time; ward is
+    // the family exemplar). "a spell or ability" carries no controller
+    // restriction, so `by` is omitted (matches any targeting source); a narrowed
+    // "… an opponent controls" rider is the Ward shape, not this bare form, and
+    // declines here.
+    if let Some(subject) = clause.strip_suffix(" becomes the target of a spell or ability") {
+        return Some(if subject == "~" {
+            "BecomesTarget(what: Ref(This))".to_owned()
+        } else {
+            format!("BecomesTarget(what: {})", filter::parse_phrase(subject)?)
+        });
+    }
+    // "dies" also spells out as "is put into a graveyard from the battlefield"
+    // ([CR#700.4]: the long form IS the definition of dies) — fold it onto the
+    // same Dies event up front so the suffix match below routes it through the
+    // Dies macro.
+    if let Some(subject) = clause.strip_suffix(" is put into a graveyard from the battlefield") {
+        return Some(if subject == "~" {
+            "ThisDies".to_owned()
+        } else {
+            format!("Dies({})", filter::parse_phrase(subject)?)
+        });
     }
     // Tolerate the older "enters the battlefield" wording (current oracle:
     // "enters").
@@ -128,24 +180,60 @@ fn parse_cast_event(clause: &str) -> Option<String> {
     ))
 }
 
-/// "At the beginning of <step> on <whose> turn, <effect>" (lead already
-/// stripped) -> (`BeginningOf(<phase>, <whose>)`, effect clause), or `None`. v1
-/// step: "combat" -> `Combat(BeginningOfCombat)`; v1 turn: "your" -> `Your`.
-/// The "on … turn" run carries an internal comma, so the effect clause is split
-/// off at the FIRST ", " after the turn phrase.
+/// "At the beginning of <step-phrase>, <effect>" (lead already stripped) ->
+/// (`BeginningOf(<phase>, <whose>)`, effect clause), or `None`. Two step-phrase
+/// shapes ([CR#603.3]):
+///
+/// - A possessive step naming whose turn it watches: "your upkeep" / "your end
+///   step" -> `(<phase>, Your)`. The whose-turn is the leading possessive; the
+///   phase is the remaining step words.
+/// - A "the"-led step with no possessive: "the end step" / "the upkeep" — fires
+///   on EVERY player's turn of that step ([CR#513.1a] end-step triggers; the
+///   bare "the" carries no turn restriction), so the whose-turn is
+///   `EachPlayers`.
+/// - The combat-only "<step> on <whose> turn" form ("combat on your turn")
+///   whose "on … turn" run carries an INTERNAL comma — kept for the existing
+///   beginning-of-combat trigger.
+///
+/// The phrase->`Phase` map covers the steps cards trigger on today (upkeep, end
+/// step, beginning of combat); an unmodeled step or a non-"your" possessive
+/// declines.
 fn parse_beginning_of(rest: &str) -> Option<(String, &str)> {
     let (step_clause, effect_clause) = rest.split_once(", ")?;
-    let step_clause = step_clause.strip_suffix(" turn")?;
-    let (step, whose) = step_clause.split_once(" on ")?;
-    let phase = match step {
+    // The combat form carries an internal "on <whose> turn" run.
+    if let Some(combat_step) = step_clause.strip_suffix(" turn") {
+        let (step, whose) = combat_step.split_once(" on ")?;
+        let phase = step_phase(step)?;
+        let whose_turn = match whose {
+            "your" => "Your",
+            _ => return None,
+        };
+        return Some((format!("BeginningOf({phase}, {whose_turn})"), effect_clause));
+    }
+    // The plain "<possessive> <step>" / "the <step>" forms.
+    let (whose_turn, step) = if let Some(step) = step_clause.strip_prefix("your ") {
+        ("Your", step)
+    } else if let Some(step) = step_clause.strip_prefix("the ") {
+        // No possessive -> every player's turn of that step.
+        ("EachPlayers", step)
+    } else {
+        return None;
+    };
+    let phase = step_phase(step)?;
+    Some((format!("BeginningOf({phase}, {whose_turn})"), effect_clause))
+}
+
+/// A step phrase -> its `Phase` RON, or `None` for an unmodeled step. Covers
+/// the steps that carry "at the beginning of" triggers today
+/// ([CR#502,503,513]).
+fn step_phase(step: &str) -> Option<&'static str> {
+    Some(match step {
+        "upkeep" => "Beginning(Upkeep)",
+        "draw step" => "Beginning(Draw)",
+        "end step" => "Ending(End)",
         "combat" => "Combat(BeginningOfCombat)",
         _ => return None,
-    };
-    let whose_turn = match whose {
-        "your" => "Your",
-        _ => return None,
-    };
-    Some((format!("BeginningOf({phase}, {whose_turn})"), effect_clause))
+    })
 }
 
 #[cfg(test)]
@@ -154,6 +242,16 @@ mod tests {
 
     fn trig(line: &str) -> Option<String> {
         resolve_line(line, &crate::parsers::test_ctx::ctx(CardKind::Permanent)).unwrap()
+    }
+
+    /// Like [`trig`] but over the BUILTIN macro index — needed by effect bodies
+    /// that route through a macro template (`+1/+1 counter` -> `P1P1Counter`).
+    fn trig_builtin(line: &str) -> Option<String> {
+        resolve_line(
+            line,
+            &crate::parsers::test_ctx::builtin_ctx(CardKind::Permanent),
+        )
+        .unwrap()
     }
 
     /// An ETB trigger whose effect is a keyword-action macro
@@ -368,9 +466,143 @@ mod tests {
 
     #[test]
     fn beginning_of_declines_unmodeled_step_or_turn() {
-        // An unmodeled step (upkeep) declines (v1 covers combat only).
-        assert!(trig("At the beginning of your upkeep, draw a card.").is_none());
-        // A non-"your" turn declines (v1 covers your-turn only).
+        // An unmodeled step declines.
+        assert!(trig("At the beginning of the cleanup step, draw a card.").is_none());
+        // A non-"your" turn declines for the combat form (v1 covers your-turn only).
         assert!(trig("At the beginning of combat on each player's turn, draw a card.").is_none());
+    }
+
+    #[test]
+    fn beginning_of_your_upkeep_sacrifice_unless_pay() {
+        // Cumulative-style upkeep toll: "sacrifice ~ unless you pay {M}{M}" =>
+        // the same `BeginningOf(Beginning(Upkeep), Your)` + `Unless` shape the
+        // kw-echo macro emits.
+        assert_eq!(
+            trig("At the beginning of your upkeep, sacrifice ~ unless you pay {G}{G}.").as_deref(),
+            Some(
+                "Triggered(event: BeginningOf(Beginning(Upkeep), Your), \
+                 effect: Unless(effect: Sacrifice(This), unless: [Mana([Green,Green])]))"
+            )
+        );
+    }
+
+    #[test]
+    fn beginning_of_end_step_sacrifice_each_players() {
+        // "the end step" (no possessive) fires every turn => EachPlayers.
+        assert_eq!(
+            trig("At the beginning of the end step, sacrifice ~.").as_deref(),
+            Some(
+                "Triggered(event: BeginningOf(Ending(End), EachPlayers), \
+                 effect: Sacrifice(This))"
+            )
+        );
+    }
+
+    #[test]
+    fn becomes_target_self_sacrifice() {
+        // Illusion-family drawback: "When ~ becomes the target of a spell or
+        // ability, sacrifice it." => BecomesTarget(what: Ref(This)) + Sacrifice.
+        assert_eq!(
+            trig("When ~ becomes the target of a spell or ability, sacrifice it.").as_deref(),
+            Some("Triggered(event: BecomesTarget(what: Ref(This)), effect: Sacrifice(This))")
+        );
+    }
+
+    #[test]
+    fn dies_long_form_put_into_graveyard_return_to_hand() {
+        // "is put into a graveyard from the battlefield" IS the definition of
+        // "dies" ([CR#700.4]) — same ThisDies event.
+        assert_eq!(
+            trig("When ~ is put into a graveyard from the battlefield, return it to its owner's hand.")
+                .as_deref(),
+            Some("Triggered(event: ThisDies, effect: ReturnToHand(This))")
+        );
+        assert_eq!(
+            trig("When ~ is put into a graveyard from the battlefield, draw a card.").as_deref(),
+            Some("Triggered(event: ThisDies, effect: Draw(1))")
+        );
+    }
+
+    #[test]
+    fn dies_long_form_filtered_subject() {
+        // A non-self subject routes through the Dies macro over the filter.
+        assert_eq!(
+            trig("Whenever another creature you control is put into a graveyard from the battlefield, draw a card.")
+                .as_deref(),
+            Some(
+                "Triggered(event: Dies(AllOf([Creature, Not(Ref(This)), ControlledBy(Ref(You))])), \
+                 effect: Draw(1))"
+            )
+        );
+    }
+
+    #[test]
+    fn landfall_ability_word_stripped_then_pump() {
+        // "Landfall — " is a flavor label ([CR#207.2c]); the land-ETB trigger +
+        // self-pump underneath is what parses.
+        assert_eq!(
+            trig("Landfall — Whenever a land you control enters, ~ gets +2/+2 until end of turn.")
+                .as_deref(),
+            Some(
+                "Triggered(event: Enters(AllOf([Type(Land), ControlledBy(Ref(You))])), \
+                 effect: Continuously(effect: Modify(of: Of(This), \
+                 changes: [AddPower(2), AddToughness(2)]), duration: FixedUntil(EndOfTurn)))"
+            )
+        );
+    }
+
+    #[test]
+    fn landfall_ability_word_put_counter() {
+        assert_eq!(
+            trig_builtin(
+                "Landfall — Whenever a land you control enters, put a +1/+1 counter on ~."
+            )
+            .as_deref(),
+            Some(
+                "Triggered(event: Enters(AllOf([Type(Land), ControlledBy(Ref(You))])), \
+                 effect: PutCounters(This, P1P1Counter, 1))"
+            )
+        );
+    }
+
+    #[test]
+    fn etb_attach_to_target_creature() {
+        // Self-equipping artifact creature: "When ~ enters, attach it to target
+        // creature you control."
+        assert_eq!(
+            trig("When ~ enters, attach it to target creature you control.").as_deref(),
+            Some(
+                "Triggered(event: ThisEnters, effect: Targeted(targets: \
+                 [TargetOne(AllOf([Creature, ControlledBy(Ref(You))]))], \
+                 effect: Attach(what: This, to: Target(0))))"
+            )
+        );
+    }
+
+    #[test]
+    fn ability_word_strip_does_not_eat_mid_sentence_em_dash() {
+        // A real effect line that happens to carry an em-dash but no
+        // ability-word label (no trigger word right after) is left intact, so
+        // the leading "Choose one —" style header isn't mistaken for a label.
+        assert_eq!(
+            super::strip_ability_word("Threshold — Whenever ~ attacks, draw a card."),
+            "Whenever ~ attacks, draw a card."
+        );
+        // No trigger word after the dash => left whole.
+        assert_eq!(
+            super::strip_ability_word("Choose one — draw a card."),
+            "Choose one — draw a card."
+        );
+    }
+
+    #[test]
+    fn becomes_target_declines_ward_shape() {
+        // The "an opponent controls"-narrowed form is the Ward shape, not this
+        // bare production; it has no plain becomes-target match and declines
+        // (the rider stays unparsed in the residual subject).
+        assert!(
+            trig("When ~ becomes the target of a spell or ability an opponent controls, sacrifice it.")
+                .is_none()
+        );
     }
 }
