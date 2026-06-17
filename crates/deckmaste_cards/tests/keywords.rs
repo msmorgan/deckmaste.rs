@@ -311,12 +311,15 @@ fn ascend_macro_expands_to_static_sba() {
 /// [CR#702.29a]: **Cycling** confers an Activated ability that functions from
 /// HAND, whose cost is the printed cost followed by "discard this card", and
 /// whose effect is "draw a card". The printed cost is the macro's list param,
-/// spliced (via the nested-`Cost` flatten) ahead of the fixed discard-self.
+/// spliced ahead of the fixed discard-self as a nested `Cost`. Read is
+/// FAITHFUL — the nested `Cost` survives lumpy — and `Cost::normalize` splices
+/// it into one flat list.
 #[test]
 fn cycling_confers_from_hand_discard_self_draw() {
     use deckmaste_core::Ability;
     use deckmaste_core::Cost;
     use deckmaste_core::Effect;
+    use deckmaste_core::Normalize;
     use deckmaste_core::Zone;
     use deckmaste_core::ron::options as ron_options;
 
@@ -343,14 +346,24 @@ fn cycling_confers_from_hand_discard_self_draw() {
     // (1) Functions from hand ([CR#702.29a]).
     assert_eq!(act.from, Some(Zone::Hand), "cycling activates from hand");
 
-    // (2) Cost = printed cost ({2}) THEN discard this card — the nested-Cost
-    // splice flattened ahead of the fixed discard-self, so the cost is FLAT.
-    let expected_cost: Cost = ron_options()
+    // (2) Cost = printed cost ({2}) THEN discard this card. Read is faithful:
+    // the printed cost rides in a nested `Cost` ahead of the fixed
+    // discard-self, so the authored cost is LUMPY.
+    let lumpy_cost: Cost = ron_options()
+        .from_str("[Cost([Mana([Generic(2)])]), Do(Discard(count: Literal(1), what: This))]")
+        .unwrap();
+    assert_eq!(
+        act.cost, lumpy_cost,
+        "cycling cost reads lumpy (nested Cost survives the macro splice)"
+    );
+    // `.normalize()` splices the nested Cost into one flat list.
+    let flat_cost: Cost = ron_options()
         .from_str("[Mana([Generic(2)]), Do(Discard(count: Literal(1), what: This))]")
         .unwrap();
     assert_eq!(
-        act.cost, expected_cost,
-        "cycling cost = printed cost + discard this card (flattened)"
+        act.cost.clone().normalize(),
+        flat_cost,
+        "cycling cost normalizes to printed cost + discard this card"
     );
 
     // (3) Effect = draw a card.

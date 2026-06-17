@@ -24,6 +24,7 @@ use deckmaste_core::Ability;
 use deckmaste_core::Card;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Ident;
+use deckmaste_core::Normalize;
 use deckmaste_core::Subtype;
 use deckmaste_core::Token;
 use deckmaste_core::plugin::CARDS_DIR;
@@ -272,13 +273,16 @@ fn lint_keyword_refs(
 /// For each `Activated` ability, check every `Do(action)` cost component;
 /// push a message if `!action.is_cost_eligible()`. A remembered cost macro
 /// (`CostComponent::Expanded`) is looked through to the `Do` it expanded to,
-/// so `SacrificeThis` and friends stay validated.
+/// so `SacrificeThis` and friends stay validated. The cost is `normalize`d
+/// first so verbs spliced in via a nested `Cost` (the macro list-splice shape,
+/// e.g. cycling — read is faithful, so it arrives lumpy) are still linted.
 fn lint_card_abilities(path: &Path, abilities: &[Ability], out: &mut Vec<(PathBuf, String)>) {
     for ability in abilities {
         let Ability::Activated(activated) = ability else {
             continue;
         };
-        for component in &activated.cost {
+        let normalized = activated.cost.clone().normalize();
+        for component in &normalized.0 {
             let Some(action) = cost_action(component) else {
                 continue;
             };

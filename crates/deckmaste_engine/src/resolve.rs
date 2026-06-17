@@ -9,6 +9,7 @@ use deckmaste_core::ColorOrColorless;
 use deckmaste_core::Count;
 use deckmaste_core::Effect;
 use deckmaste_core::ManaSpec;
+use deckmaste_core::Normalize;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::Reference;
 use deckmaste_core::Scope;
@@ -474,7 +475,11 @@ impl GameState {
                 self.choice = Some(crate::state::ChoiceContinuation::Unless {
                     effect: u.effect,
                     who: u.who,
-                    unless: u.unless,
+                    // Normalize the authored cost list at this boundary: read is
+                    // faithful, so a macro-spliced `unless` cost arrives lumpy
+                    // (a nested `CostComponent::Cost`); splice it flat before the
+                    // payment walk (`unless_cost_action`) consumes it.
+                    unless: deckmaste_core::Cost(u.unless).normalize().0,
                     frame: frame.clone(),
                 });
             }

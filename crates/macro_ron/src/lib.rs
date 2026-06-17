@@ -54,3 +54,4 @@ pub use support::SupportsMacros;
 pub use support::Triple;
 pub use support::concat_variants;
 pub use traverse::Expand;
+pub use traverse::Normalize;

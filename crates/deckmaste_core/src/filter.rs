@@ -8,6 +8,7 @@ use crate::Count;
 use crate::Expand;
 use crate::Expansion;
 use crate::Ident;
+use crate::Normalize;
 use crate::Reference;
 use crate::Stat;
 use crate::Status;
@@ -189,6 +190,90 @@ impl Filter {
     }
 }
 
+impl Normalize for RelationFilter {
+    /// Recurse into the related-object filter each relation carries.
+    fn normalize(self) -> Self {
+        use RelationFilter as R;
+        match self {
+            R::ControlledBy(f) => R::ControlledBy(f.normalize()),
+            R::Controls(f) => R::Controls(f.normalize()),
+            R::Owner(f) => R::Owner(f.normalize()),
+            R::OpponentOf(f) => R::OpponentOf(f.normalize()),
+            R::AttachedTo(f) => R::AttachedTo(f.normalize()),
+            R::Attachment(f) => R::Attachment(f.normalize()),
+        }
+    }
+}
+
+impl Normalize for StateFilter {
+    /// Recurse into the inner filter the relation/target state atoms carry;
+    /// every other state atom is a leaf for normalization.
+    fn normalize(self) -> Self {
+        use StateFilter as S;
+        match self {
+            S::RelatedBy(rel, f) => S::RelatedBy(rel, f.normalize()),
+            S::Targets(f) => S::Targets(f.normalize()),
+            other => other,
+        }
+    }
+}
+
+impl Normalize for Filter {
+    /// Normalize a predicate (bottom-up): recurse into child filters, then
+    /// collapse the boolean combinators. `AllOf`/`OneOf` are flattened by
+    /// associativity (a nested `AllOf` inside an `AllOf` splices in — same for
+    /// `OneOf`) and a singleton `AllOf([x])`/`OneOf([x])` collapses to `x`.
+    /// Both rewrites preserve meaning: conjunction/disjunction are associative,
+    /// and a one-element conjunction/disjunction is its element.
+    ///
+    /// Out of scope for this pass (demo identities only): `Not(Not x) → x`,
+    /// `Any`-absorption, dedup/sort. `Where`'s inner [`Condition`] is left as
+    /// authored (no `Condition` normalization yet).
+    fn normalize(self) -> Self {
+        match self {
+            // Recurse into compartments that hold child filters.
+            Filter::Relation(r) => Filter::Relation(r.normalize()),
+            Filter::State(s) => Filter::State(s.normalize()),
+            Filter::Not(inner) => Filter::Not(inner.normalize()),
+
+            Filter::AllOf(children) => {
+                let mut flat = Vec::with_capacity(children.len());
+                for child in children {
+                    match child.normalize() {
+                        // Associativity: splice a nested AllOf in.
+                        Filter::AllOf(inner) => flat.extend(inner),
+                        other => flat.push(other),
+                    }
+                }
+                // Singleton collapse: AllOf([x]) → x.
+                if flat.len() == 1 {
+                    flat.pop().expect("len checked")
+                } else {
+                    Filter::AllOf(flat)
+                }
+            }
+            Filter::OneOf(children) => {
+                let mut flat = Vec::with_capacity(children.len());
+                for child in children {
+                    match child.normalize() {
+                        Filter::OneOf(inner) => flat.extend(inner),
+                        other => flat.push(other),
+                    }
+                }
+                if flat.len() == 1 {
+                    flat.pop().expect("len checked")
+                } else {
+                    Filter::OneOf(flat)
+                }
+            }
+
+            // Leaves (no in-scope child filter to recurse / no redundancy).
+            // `Where` carries a Condition, not normalized in this pass.
+            other => other,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -331,6 +416,59 @@ mod tests {
                 .from_str::<Filter>("Bogus(1)")
                 .is_err()
         );
+    }
+
+    /// `Normalize` flattens nested `AllOf`/`OneOf` (associativity) and
+    /// collapses a singleton combinator to its element.
+    #[test]
+    fn normalize_flattens_and_collapses_combinators() {
+        // Associativity: AllOf([AllOf([a, b]), c]) → AllOf([a, b, c]).
+        let nested = read("AllOf([AllOf([Type(Creature), Type(Land)]), InZone(Battlefield)])");
+        assert_eq!(
+            nested.clone().normalize(),
+            read("AllOf([Type(Creature), Type(Land), InZone(Battlefield)])"),
+        );
+
+        // Same for OneOf.
+        let nested_or = read("OneOf([OneOf([Type(Creature), Type(Land)]), InZone(Battlefield)])");
+        assert_eq!(
+            nested_or.normalize(),
+            read("OneOf([Type(Creature), Type(Land), InZone(Battlefield)])"),
+        );
+
+        // Singleton collapse: AllOf([x]) → x, OneOf([x]) → x.
+        assert_eq!(
+            read("AllOf([Type(Creature)])").normalize(),
+            read("Type(Creature)")
+        );
+        assert_eq!(
+            read("OneOf([Type(Creature)])").normalize(),
+            read("Type(Creature)")
+        );
+
+        // Nested singletons collapse from the inside out.
+        assert_eq!(
+            read("AllOf([AllOf([Type(Creature)])])").normalize(),
+            read("Type(Creature)")
+        );
+
+        // A combinator under a compartment filter is normalized too.
+        assert_eq!(
+            read("ControlledBy(AllOf([Type(Creature)]))").normalize(),
+            read("ControlledBy(Type(Creature))"),
+        );
+
+        // Distinct combinators are NOT merged (OneOf inside AllOf stays).
+        let mixed = read("AllOf([OneOf([Type(Creature), Type(Land)]), InZone(Battlefield)])");
+        assert_eq!(
+            mixed.clone().normalize(),
+            mixed,
+            "AllOf/OneOf don't cross-flatten"
+        );
+
+        // Idempotent.
+        let normd = nested.normalize();
+        assert_eq!(normd.clone().normalize(), normd, "normalize is idempotent");
     }
 
     /// The compartment Serialize delegation must produce text the

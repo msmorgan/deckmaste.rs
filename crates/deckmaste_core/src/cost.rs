@@ -3,6 +3,7 @@ use serde::Serialize;
 
 use crate::Expand;
 use crate::Expansion;
+use crate::Normalize;
 use crate::SupportsMacros;
 use crate::action::PlayerAction;
 use crate::mana::ManaCost;
@@ -30,9 +31,10 @@ pub enum CostComponent {
     /// A *nested* cost list. It exists only to let a macro splice a
     /// list-valued cost param into a larger cost list — the body writes
     /// `cost: [Cost(Param(0)), Do(Discard(…))]`, so the spliced `[Mana(…)]`
-    /// reads as `Cost([Mana(…)])` — and [`Cost`]'s `Deserialize` FLATTENS it
-    /// away, so a nested `Cost` never survives into stored data
-    /// (cycling, [CR#702.29a]).
+    /// reads as `Cost([Mana(…)])` (cycling, [CR#702.29a]). Read is faithful:
+    /// a nested `Cost` SURVIVES deserialization verbatim. [`Cost::normalize`]
+    /// is what splices it into the surrounding list — call it at the boundary
+    /// before consuming a (possibly macro-spliced) cost.
     Cost(Cost),
     /// A remembered `CostComponent` macro invocation (`SacrificeThis`, loyalty
     /// sugar, …).
@@ -52,29 +54,46 @@ impl CostComponent {
 }
 
 /// A cost: an ordered list of [`CostComponent`]s ([CR#601.2b]). A newtype
-/// (not a bare `Vec`) so a nested cost — a [`CostComponent::Cost`] spliced in
-/// by a macro whose cost param is itself a list — is FLATTENED back into one
-/// flat list as it deserializes. A macro body writes `[Param(0), Do(…)]`
-/// where `Param(0)` expands to `[Mana(…)]`; that reads as
-/// `[Cost([Mana(…)]), Do(…)]`, and the flatten below yields `[Mana(…), Do(…)]`
-/// (cycling, [CR#702.29a]). Serializes transparently as the bare list.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Expand, Serialize)]
+/// (not a bare `Vec`) so it can carry a [`Normalize`] impl. Read is FAITHFUL:
+/// a nested cost — a [`CostComponent::Cost`] spliced in by a macro whose cost
+/// param is itself a list — survives deserialization verbatim. A macro body
+/// writes `[Param(0), Do(…)]` where `Param(0)` expands to `[Mana(…)]`; that
+/// reads as the lumpy `[Cost([Mana(…)]), Do(…)]` and STAYS lumpy (cycling,
+/// [CR#702.29a]). [`Cost::normalize`] is the explicit post-read step that
+/// splices the nested `Cost` back into one flat list, yielding
+/// `[Mana(…), Do(…)]`. Serializes and deserializes transparently as the bare
+/// list.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 #[serde(transparent)]
 pub struct Cost(pub Vec<CostComponent>);
 
-impl<'de> Deserialize<'de> for Cost {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let raw = Vec::<CostComponent>::deserialize(deserializer)?;
-        let mut flat = Vec::with_capacity(raw.len());
-        for component in raw {
-            match component {
-                // Splice a nested cost in (one level: `inner` is itself
-                // already flat, having deserialized through this same path).
+impl Normalize for CostComponent {
+    /// Recurse into a nested cost; every other variant is a leaf for
+    /// normalization (no in-scope structural redundancy below it).
+    fn normalize(self) -> Self {
+        match self {
+            CostComponent::Cost(inner) => CostComponent::Cost(inner.normalize()),
+            other => other,
+        }
+    }
+}
+
+impl Normalize for Cost {
+    /// Splice every [`CostComponent::Cost`] one level into the surrounding
+    /// list (associativity of cost concatenation, [CR#601.2b]) — the inner
+    /// list is already normalized by the per-component recursion, so one pass
+    /// flattens arbitrarily-deep nesting. This is the explicit post-read
+    /// replacement for the old read-time flatten: a macro-spliced cost reads
+    /// lumpy and `.normalize()` collapses it (cycling, [CR#702.29a]).
+    fn normalize(self) -> Self {
+        let mut flat = Vec::with_capacity(self.0.len());
+        for component in self.0 {
+            match component.normalize() {
                 CostComponent::Cost(inner) => flat.extend(inner.0),
                 other => flat.push(other),
             }
         }
-        Ok(Cost(flat))
+        Cost(flat)
     }
 }
 
@@ -130,14 +149,15 @@ mod tests {
         crate::ron::options().from_str(source).unwrap()
     }
 
-    /// The named `Cost` variant wraps a sub-list, and a `Cost` FLATTENS nested
-    /// `Cost` components after deserialize. This is what lets a macro splice a
-    /// list-valued cost param into a larger cost list: `cost: [Cost(Param(0)),
-    /// Do(…)]` where `Param(0)` expands to `[Mana(…)]` reads as
-    /// `[Cost([Mana(…)]), Do(…)]` and flattens to `[Mana(…), Do(…)]`
-    /// (cycling, [CR#702.29a]).
+    /// Read is FAITHFUL: a nested `Cost` component survives deserialization
+    /// verbatim (the macro-splice shape stays lumpy), and `.normalize()` is the
+    /// explicit step that splices it into one flat list. This is what lets a
+    /// macro splice a list-valued cost param into a larger cost list:
+    /// `cost: [Cost(Param(0)), Do(…)]` where `Param(0)` expands to `[Mana(…)]`
+    /// reads as `[Cost([Mana(…)]), Do(…)]`, and normalization collapses it to
+    /// `[Mana(…), Do(…)]` (cycling, [CR#702.29a]).
     #[test]
-    fn nested_cost_flattens_after_deserialize() {
+    fn nested_cost_survives_read_and_normalizes_flat() {
         use crate::action::PlayerAction;
         use crate::count::Count;
 
@@ -148,22 +168,44 @@ mod tests {
             "Cost([…]) reads as the Cost variant, got {comp:?}"
         );
 
-        // A Cost flattens a nested Cost component (the macro-splice shape).
-        let cost: Cost = crate::ron::options()
+        // Faithful read: the nested Cost SURVIVES verbatim — no read-time flatten.
+        let lumpy: Cost = crate::ron::options()
             .from_str("[Cost([Mana([Generic(2)])]), Do(Discard(count: Literal(1), what: This))]")
             .unwrap();
+        let mana_two = CostComponent::Mana(ManaCost::from(vec![ManaSymbol::Simple(
+            SimpleManaSymbol::Generic(2),
+        )]));
+        let discard_self = CostComponent::Do(Box::new(PlayerAction::Discard {
+            count: Count::Literal(1),
+            what: Some(Selection::Ref(Reference::This)),
+        }));
         assert_eq!(
-            cost,
+            lumpy,
             Cost(vec![
-                CostComponent::Mana(ManaCost::from(vec![ManaSymbol::Simple(
-                    SimpleManaSymbol::Generic(2)
-                )])),
-                CostComponent::Do(Box::new(PlayerAction::Discard {
-                    count: Count::Literal(1),
-                    what: Some(Selection::Ref(Reference::This)),
-                })),
+                CostComponent::Cost(Cost(vec![mana_two.clone()])),
+                discard_self.clone(),
             ]),
+            "read preserves the lumpy macro-splice shape",
         );
+
+        // `.normalize()` splices the nested Cost into one flat list.
+        assert_eq!(
+            lumpy.normalize(),
+            Cost(vec![mana_two, discard_self]),
+            "normalize collapses the nested Cost",
+        );
+    }
+
+    /// Normalization is one-pass over arbitrary nesting depth (the inner list
+    /// is normalized before its parent splices it) and idempotent.
+    #[test]
+    fn normalize_flattens_deeply_and_is_idempotent() {
+        let deep: Cost = crate::ron::options()
+            .from_str("[Cost([Cost([Tap]), Untap])]")
+            .unwrap();
+        let flat = deep.normalize();
+        assert_eq!(flat, Cost(vec![CostComponent::Tap, CostComponent::Untap]));
+        assert_eq!(flat.clone().normalize(), flat, "normalize is idempotent");
     }
 
     #[test]
