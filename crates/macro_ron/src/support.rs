@@ -5,6 +5,7 @@
 use std::marker::PhantomData;
 
 use serde::de::Deserialize;
+use serde::de::DeserializeOwned;
 use serde::de::SeqAccess;
 use serde::de::VariantAccess;
 use serde::de::Visitor;
@@ -24,7 +25,12 @@ use crate::Kind;
 /// still routes unknown identifiers to `visit_newtype_struct` — but a
 /// *parent* that flattens this type consults `ALL_VARIANTS`, because from
 /// the parent's dispatch the embed resolves natively.
-pub trait SupportsMacros: Sized {
+///
+/// The `DeserializeOwned` supertrait makes explicit what the derive already
+/// emits — every macroable type carries a generated `Deserialize` impl — so
+/// code generic over the trait can deserialize a value of `Self`. The
+/// param-type validators (`read_str::<T>`) are exactly such code.
+pub trait SupportsMacros: DeserializeOwned {
     /// This type's own tagged variant names (an `embed` newtype variant
     /// like `Selection::Ref` is name-erased and not listed).
     const OWN_VARIANTS: &'static [&'static str];

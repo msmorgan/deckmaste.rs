@@ -2215,6 +2215,23 @@ fn nested_default_is_rejected_at_parse() {
     );
 }
 
+/// `add_typed::<T>` registers a param type whose validator parses the argument
+/// as `T` through `read_str` — the single mechanical pattern every domain
+/// param type shares, instead of a hand-written closure per type.
+#[test]
+fn add_typed_registers_a_deserialize_validator() {
+    let mut set = ParamTypeSet::empty();
+    set.add_typed::<u32>("Num");
+    assert!(set.contains("Num"));
+    let validate = set.get("Num").expect("Num is registered");
+    let macros = empty();
+    assert!(validate("7", &macros).is_ok(), "a numeral parses as u32");
+    assert!(
+        validate("nope", &macros).is_err(),
+        "a non-numeral is rejected"
+    );
+}
+
 mod support_runtime {
     use crate::Expand;
     use crate::concat_variants;

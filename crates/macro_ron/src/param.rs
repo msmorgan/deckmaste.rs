@@ -14,6 +14,7 @@ use std::fmt;
 
 use ron::value::RawValue;
 use serde::Deserialize;
+use serde::de::DeserializeOwned;
 use serde::de::Deserializer;
 use serde::de::EnumAccess;
 use serde::de::SeqAccess;
@@ -125,6 +126,21 @@ impl ParamTypeSet {
         self.validators.insert(name.into(), validator);
     }
 
+    /// Registers `name` as a param type validated by parsing the argument as
+    /// `T` with the macros in scope — the one mechanical pattern every domain
+    /// param type shares, so callers register a type rather than re-spell the
+    /// closure. `T` is typically a `SupportsMacros` grammar enum (whose
+    /// `DeserializeOwned` supertrait guarantees this works), but any owned-
+    /// deserializable type qualifies (`String`, `Vec<CostComponent>`).
+    pub fn add_typed<T: DeserializeOwned>(&mut self, name: impl Into<Ident>) {
+        self.add(name, |src, macros| {
+            macros
+                .read_str::<T>(src)
+                .map(drop)
+                .map_err(|e| e.to_string())
+        });
+    }
+
     /// The validator for `name`, if registered.
     #[must_use]
     pub fn get(&self, name: &str) -> Option<Validator> {
@@ -144,12 +160,7 @@ impl Default for ParamTypeSet {
     fn default() -> Self {
         let mut set = ParamTypeSet::empty();
         set.add("Any", |_, _| Ok(()));
-        set.add("String", |src, macros| {
-            macros
-                .read_str::<String>(src)
-                .map(drop)
-                .map_err(|e| e.to_string())
-        });
+        set.add_typed::<String>("String");
         set
     }
 }
