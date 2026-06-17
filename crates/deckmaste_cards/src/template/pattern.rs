@@ -253,7 +253,7 @@ mod tests {
                         key: SlotKey::Name("from".into()),
                         ty: "Filter".into()
                     },
-                    suffix: "".into(),
+                    suffix: String::new(),
                 },
             ]
         );

@@ -200,8 +200,7 @@ fn match_nullary(pattern: &ParsePattern, input: &str) -> Option<usize> {
         match seg {
             Segment::Literal(t) => target.push_str(t),
             Segment::SelfRef => target.push('~'),
-            Segment::Slot(_) => return None,
-            Segment::Conditional { .. } => return None,
+            Segment::Slot(_) | Segment::Conditional { .. } => return None,
         }
     }
     let n = target.len();
