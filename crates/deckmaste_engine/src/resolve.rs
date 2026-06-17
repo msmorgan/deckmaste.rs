@@ -439,6 +439,13 @@ impl GameState {
                     frame: frame.clone(),
                 });
             }
+            // [CR#115.1,601.2c]: a target-scoping wrapper. Targets were chosen
+            // at announcement and already live in `frame.targets`; for a single
+            // top-level wrapper (the only shape today) this node is transparent
+            // — descend into the inner effect, exactly like `Expanded`. Nested
+            // wrappers would need a per-scope target stack (left a loud seam by
+            // falling through to the `other` arm if a wrapper nests).
+            Effect::Targeted(te) => self.run_effect(*te.effect, frame),
             other => todo!("stage 3 does not interpret effect {other:?} (the choice seam)"),
         }
     }
@@ -1520,12 +1527,18 @@ fn unresolved_choice(action: &Action) -> Option<PendingChoice> {
 /// view instead of re-deriving the board per card.
 #[must_use]
 pub(crate) fn spell_targets(view: &crate::layer::LayeredView, id: ObjectId) -> Vec<TargetSpec> {
-    view.get(id)
-        .abilities
+    let abilities = &view.get(id).abilities;
+    // Legacy shape: targets on the ability's `targets` field (dropped in the
+    // contract step). Migrated shape: targets on a top-level `Targeted`.
+    if let Some(list) = abilities.iter().find_map(spell_targets_list) {
+        if !list.is_empty() {
+            return list.clone();
+        }
+    }
+    abilities
         .iter()
-        .find_map(|a| spell_targets_list(a))
-        .cloned()
-        .unwrap_or_default()
+        .find_map(spell_ability_effect)
+        .map_or_else(Vec::new, |e| top_targets(e).to_vec())
 }
 
 /// Extracts the `Effect` from the first `Ability::Spell` arm, looking through
@@ -1545,6 +1558,18 @@ fn spell_targets_list(ability: &Ability) -> Option<&Vec<TargetSpec>> {
         Ability::Spell(s) => Some(&s.targets),
         Ability::Expanded(e) => spell_targets_list(&e.value),
         _ => None,
+    }
+}
+
+/// The targets declared on a top-level `Targeted` wrapper (peeling
+/// `Expanded`), or `&[]` when the effect isn't a wrapper — the announce-list
+/// home after the migration ([CR#115.1,601.2c]). A single top-level wrapper is
+/// the only shape today; a nested wrapper would need a per-scope target stack.
+pub(crate) fn top_targets(effect: &Effect) -> &[TargetSpec] {
+    match effect {
+        Effect::Targeted(te) => &te.targets,
+        Effect::Expanded(e) => top_targets(&e.value),
+        _ => &[],
     }
 }
 
@@ -2582,6 +2607,54 @@ mod tests {
         }
         assert_eq!(state.objects.obj(bear).damage, 3);
         assert_eq!(state.players[0].life, 23);
+    }
+
+    /// A `Targeted` wrapper is transparent at resolution — the inner
+    /// instruction runs with `frame.targets` already bound, so `Target(0)`
+    /// resolves and damage lands ([CR#115.1,608]).
+    #[test]
+    fn targeted_effect_resolves_its_inner_effect() {
+        let (mut state, bear) = bear_on_field();
+        let frame = frame_src_targets(bear, vec![bear]);
+        state.run_effect(
+            Effect::Targeted(deckmaste_core::Targeted {
+                targets: vec![],
+                effect: Box::new(Effect::Act(Action::DealDamage(
+                    Selection::Ref(Reference::Target(0)),
+                    Count::Literal(3),
+                ))),
+            }),
+            &frame,
+        );
+        // RunEffect(Targeted) → RunEffect(DealDamage) → Emit(DamageDealt).
+        for _ in 0..3 {
+            let _ = state.step();
+        }
+        assert_eq!(state.objects.obj(bear).damage, 3);
+    }
+
+    /// `top_targets` reads the targets off a top-level `Targeted` (peeling
+    /// `Expanded`) and returns empty for a non-wrapper effect
+    /// ([CR#115.1,601.2c]).
+    #[test]
+    fn top_targets_reads_wrapper_and_peels_expanded() {
+        let spec = deckmaste_core::TargetSpec::Target(
+            deckmaste_core::Quantity::Exactly(Count::Literal(1)),
+            Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+        );
+        let wrapped = Effect::Targeted(deckmaste_core::Targeted {
+            targets: vec![spec.clone()],
+            effect: Box::new(Effect::Act(Action::DealDamage(
+                Selection::Ref(Reference::Target(0)),
+                Count::Literal(3),
+            ))),
+        });
+        assert_eq!(super::top_targets(&wrapped), std::slice::from_ref(&spec));
+        let bare = Effect::Act(Action::DealDamage(
+            Selection::Ref(Reference::Target(0)),
+            Count::Literal(1),
+        ));
+        assert!(super::top_targets(&bare).is_empty());
     }
 
     #[test]

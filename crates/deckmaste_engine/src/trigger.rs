@@ -798,7 +798,14 @@ impl GameState {
     /// printed face. Empty when the ability is non-targeting.
     fn trigger_targets(&self, source: ObjectSource, ability: usize) -> Vec<TargetSpec> {
         match &crate::derive::abilities_of_source(self, source)[ability] {
-            Ability::Triggered(t) => t.targets.clone(),
+            // Dual-read: legacy `targets` field, else a `Targeted` wrapper.
+            Ability::Triggered(t) => {
+                if t.targets.is_empty() {
+                    crate::resolve::top_targets(&t.effect).to_vec()
+                } else {
+                    t.targets.clone()
+                }
+            }
             _ => unreachable!("a noted trigger indexes a Triggered ability"),
         }
     }

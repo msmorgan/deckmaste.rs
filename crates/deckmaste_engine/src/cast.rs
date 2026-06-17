@@ -640,8 +640,15 @@ impl GameState {
         let specs: Vec<TargetSpec> = match &pending.object {
             StackObject::Spell(o) => crate::resolve::spell_targets(&self.layers(), *o),
             // The carried ability text is authoritative — never re-derive
-            // from the (possibly changed) source.
-            StackObject::Activated { ability, .. } => ability.targets.clone(),
+            // from the (possibly changed) source. Dual-read: legacy `targets`
+            // field, else a top-level `Targeted` wrapper.
+            StackObject::Activated { ability, .. } => {
+                if ability.targets.is_empty() {
+                    crate::resolve::top_targets(&ability.effect).to_vec()
+                } else {
+                    ability.targets.clone()
+                }
+            }
             StackObject::Triggered { .. } => {
                 unreachable!("triggers announce targets at placement, not in the announce slot")
             }

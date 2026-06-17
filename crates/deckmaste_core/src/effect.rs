@@ -8,6 +8,7 @@ use crate::Expansion;
 use crate::Filter;
 use crate::Mode;
 use crate::SupportsMacros;
+use crate::TargetSpec;
 use crate::ability::TriggeredAbility;
 use crate::action::Action;
 use crate::continuous::Duration;
@@ -64,6 +65,10 @@ pub enum Effect {
     /// A modal effect: choose modes, then apply them ([CR#700.2]). This is the
     /// realized form of the design's `Resolvable::Modal` — see the report.
     Modal(ModalEffect),
+    /// Targets scoped over an inner effect ([CR#115.1,601.2c]): the rules-
+    /// faithful home for the word "target" — declared on the effect that
+    /// consumes it, with `Reference::Target(n)` indexing this node's list.
+    Targeted(Targeted),
     /// A remembered `Effect` macro invocation (declared compound verbs like
     /// `Investigate`). Serialized as the invocation, not the struct.
     #[macro_ron(expanded)]
@@ -76,6 +81,21 @@ pub enum Effect {
 pub struct ContinuouslyEffect {
     pub effect: Box<StaticEffect>,
     pub duration: Duration,
+}
+
+/// `Targeted { targets, effect }` ([CR#115.1,601.2c]) — declares the
+/// targets its inner effect consumes, scoping `Reference::Target(n)` to this
+/// list. Targets are chosen at announcement and stored on the stack object;
+/// at resolution this node is transparent (the inner effect runs with
+/// `frame.targets` already bound), and per-instance illegal-target handling
+/// ([CR#608.2b]) reads each inner instruction's referenced targets. `effect`
+/// is boxed to break the `Effect` → `Targeted` → `Effect` size cycle
+/// (mirrors `MayEffect`).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub struct Targeted {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub targets: Vec<TargetSpec>,
+    pub effect: Box<Effect>,
 }
 
 /// `May { do, if_did, if_not }` — `do` is a keyword, so the field is `effect`.
@@ -319,5 +339,26 @@ mod tests {
                 .from_str::<Effect>("Bogus(1)")
                 .is_err()
         );
+    }
+
+    /// A `Targeted` wrapper declares its targets and scopes `Target(n)`
+    /// over the inner effect; it reads flat through the newtype variant and
+    /// round-trips ([CR#115.1,601.2c]).
+    #[test]
+    fn targeted_effect_reads_and_round_trips() {
+        let src = "Targeted(targets:[Target(Exactly(Literal(1)),Type(Creature))],effect:DealDamage(Target(0),Literal(3)))";
+        let parsed = read(src);
+        let Effect::Targeted(te) = &parsed else {
+            panic!("expected Targeted, got {parsed:?}");
+        };
+        assert_eq!(te.targets.len(), 1);
+        assert_eq!(
+            *te.effect,
+            Effect::Act(Action::DealDamage(
+                Selection::Ref(Reference::Target(0)),
+                Count::Literal(3),
+            )),
+        );
+        assert_eq!(read(&write(&parsed)), parsed, "round-trip");
     }
 }

@@ -81,6 +81,7 @@ pub use effect::IfEffect;
 pub use effect::MayEffect;
 pub use effect::ModalEffect;
 pub use effect::NotingEffect;
+pub use effect::Targeted;
 pub use effect::UnlessEffect;
 
 mod event;
