@@ -1,8 +1,17 @@
-//! The shared `{T}: Add …` mana-ability grammar and rendering. Reads
+//! The shared `<cost>: Add …` mana-ability grammar and rendering. Reads
 //! `~`-normalized oracle text, so enters-tapped is `"~ enters tapped."`.
+//!
+//! The activation cost is the full pre-colon clause ([CR#602.1a]), parsed by
+//! the shared [`crate::parsers::cost`] grammar — so `{1}, {T}`, `{T}, Sacrifice
+//! ~`, `{T}, Pay 1 life` all front a mana ability, not just a bare `{T}`. The
+//! production after `Add ` is a fixed run, a color choice ([CR#106.1b]), "one
+//! mana of any color", or a `for each` scaler. A painland tail (`. ~ deals N
+//! damage to you.`) rides as a second effect in the same resolution.
 
 use deckmaste_core::ColorOrColorless;
 
+use crate::parsers::cost::VariableMana;
+use crate::parsers::cost::{self};
 use crate::parsers::count;
 use crate::resolve::ResolveCtx;
 use crate::ron_output::to_string_pretty;
@@ -11,8 +20,10 @@ use crate::ron_output::to_string_pretty;
 pub(super) enum Production {
     /// "one mana of any color".
     AnyColor,
-    /// "{W} or {U}" — one mana, color chosen from a set on resolution
-    /// ([CR#106.1b]). Members keep printed order.
+    /// "{W} or {U}" / "{U}, {B}, or {R}" — one mana, color chosen from a set
+    /// on resolution ([CR#106.1b]). Members keep printed order. Each member is
+    /// a SINGLE symbol; a multi-symbol choice ("{W}{W}, {W}{U}, or {U}{U}") has
+    /// no engine spec and is declined.
     OneOf(Vec<ColorOrColorless>),
     /// A run of mana symbols, consecutive identical specs run-length encoded:
     /// `{C}{C}` -> `[(2, Colorless)]`, `{W}{U}` -> `[(1, White), (1, Blue)]`.
@@ -26,8 +37,21 @@ pub(super) enum Production {
 pub(super) enum TapAbility {
     /// `~ enters tapped.` (lands and rocks; creatures never enter tapped).
     EntersTapped,
-    /// `{T}: Add <production>` ([CR#605]).
-    Mana(Production),
+    /// `<cost>: Add <production>[. <rider>]` ([CR#602.1a,605]). The cost is the
+    /// pre-parsed list of `CostComponent` RON strings.
+    Mana {
+        cost: Vec<String>,
+        production: Production,
+        rider: Option<Rider>,
+    },
+}
+
+/// An extra clause a mana ability resolves alongside its `Add` ([CR#605.1a]).
+/// Painlands tax the controller a fixed amount of damage.
+pub(super) enum Rider {
+    /// "~ deals N damage to you." — the source deals damage to its controller
+    /// ([CR#120.1]).
+    DamageToYou(u32),
 }
 
 /// "{W}" -> White, "{C}" -> Colorless. Only single colored/colorless symbols.
@@ -81,29 +105,90 @@ pub(super) fn parse_production(text: &str) -> Option<Production> {
         return Some(Production::AnyColor);
     }
     if text.contains(" or ") {
-        let colors = text
-            .split(" or ")
-            .map(symbol_color)
-            .collect::<Option<Vec<_>>>()?;
-        return Some(Production::OneOf(colors));
+        return parse_one_of(text);
     }
     Some(Production::Fixed(run_length_encode(&parse_symbol_run(
         text,
     )?)))
 }
 
-/// Parses one normalized oracle line as a tap ability, or `None`.
-pub(super) fn parse_tap_ability(line: &str) -> Option<TapAbility> {
-    if line == "~ enters tapped." {
-        return Some(TapAbility::EntersTapped);
+/// A color-choice production: `{W} or {U}` or the Oxford-comma list `{U}, {B},
+/// or {R}` ([CR#106.1b]). Splits on `, ` then `or `, so the last item's `, or`
+/// yields the same single-symbol tokens as the two-item ` or `. Each token
+/// must be ONE colored/colorless symbol; a multi-symbol member (`{W}{W}`)
+/// declines — `ManaSpec::OneOf` holds single colors, not runs.
+fn parse_one_of(text: &str) -> Option<Production> {
+    let colors = text
+        .replace(", or ", ", ")
+        .split(", ")
+        .flat_map(|tok| tok.split(" or "))
+        .map(symbol_color)
+        .collect::<Option<Vec<_>>>()?;
+    // A bare " or " between two symbols is the two-item form; the comma form
+    // needs at least three. Either way two or more members is required.
+    if colors.len() < 2 {
+        return None;
     }
-    let production = line.strip_prefix("{T}: Add ")?.strip_suffix('.')?;
-    Some(TapAbility::Mana(parse_production(production)?))
+    Some(Production::OneOf(colors))
 }
 
-/// The produced-mana effect: a single `AddMana` for a one-run production, a
-/// `Sequence` of them for a heterogeneous run.
-fn render_effect(production: &Production) -> anyhow::Result<String> {
+/// Splits off a painland rider: the `Add` body and an optional trailing clause
+/// after the production's `.`. `"{W} or {B}. ~ deals 1 damage to you"` ->
+/// `("{W} or {B}", Some(DamageToYou(1)))`. A `.`-and-clause the rider grammar
+/// can't read leaves the rider `None` and the `.` inside the body, so the
+/// production parse declines the whole line. No trailing clause -> `(body,
+/// None)`.
+fn split_rider(body: &str) -> (&str, Option<Rider>) {
+    if let Some((head, tail)) = body.split_once(". ")
+        && let Some(rider) = parse_rider(tail)
+    {
+        return (head, Some(rider));
+    }
+    (body, None)
+}
+
+/// `~ deals N damage to you` -> [`Rider::DamageToYou`]; anything else declines.
+fn parse_rider(text: &str) -> Option<Rider> {
+    let amount = text
+        .strip_prefix("~ deals ")?
+        .strip_suffix(" damage to you")?;
+    Some(Rider::DamageToYou(amount.parse().ok()?))
+}
+
+/// Parses one normalized oracle line as a tap ability, or `None`. The cost is
+/// any pre-colon clause the shared cost grammar accepts ([CR#602.1a]).
+pub(super) fn parse_tap_ability(line: &str) -> anyhow::Result<Option<TapAbility>> {
+    if line == "~ enters tapped." {
+        return Ok(Some(TapAbility::EntersTapped));
+    }
+    let Some((cost_clause, add_clause)) = line.split_once(": ") else {
+        return Ok(None);
+    };
+    let Some(add_body) = add_clause
+        .strip_prefix("Add ")
+        .and_then(|s| s.strip_suffix('.'))
+    else {
+        return Ok(None);
+    };
+    // No variable mana in a mana ability's own production cost: {X} costs front
+    // spells/X-abilities, not "{T}: Add" rocks.
+    let Some(cost) = cost::parse_cost(cost_clause, VariableMana::Decline)? else {
+        return Ok(None);
+    };
+    let (production_text, rider) = split_rider(add_body);
+    let Some(production) = parse_production(production_text) else {
+        return Ok(None);
+    };
+    Ok(Some(TapAbility::Mana {
+        cost,
+        production,
+        rider,
+    }))
+}
+
+/// The `AddMana` instruction(s) for a production: one `AddMana` for a one-run
+/// production, a `Sequence` for a heterogeneous run.
+fn render_production(production: &Production) -> anyhow::Result<String> {
     Ok(match production {
         Production::AnyColor => "AddMana(1, AnyColor)".to_owned(),
         Production::OneOf(colors) => {
@@ -131,10 +216,20 @@ fn render_effect(production: &Production) -> anyhow::Result<String> {
     })
 }
 
-/// A registry parser: a `{T}: Add …` / `~ enters tapped.` line -> the bare RON
-/// of one ability, or `None`.
+/// The resolution effect: the production, plus any rider folded into a
+/// `Sequence` after it (the `Add` happens first, [CR#605.1a]).
+fn render_effect(production: &Production, rider: Option<&Rider>) -> anyhow::Result<String> {
+    let add = render_production(production)?;
+    Ok(match rider {
+        None => add,
+        Some(Rider::DamageToYou(n)) => format!("Sequence([{add}, DealDamage(You, {n})])"),
+    })
+}
+
+/// A registry parser: a `<cost>: Add …` / `~ enters tapped.` line -> the bare
+/// RON of one ability, or `None`.
 pub(crate) fn resolve_line(line: &str, _ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
-    let Some(ability) = parse_tap_ability(line) else {
+    let Some(ability) = parse_tap_ability(line)? else {
         return Ok(None);
     };
     Ok(Some(render_bare(&ability)?))
@@ -146,10 +241,15 @@ fn render_bare(ability: &TapAbility) -> anyhow::Result<String> {
         TapAbility::EntersTapped => {
             "Static(effects: [Replacement(AsEnters(Tap(This)))])".to_owned()
         }
-        TapAbility::Mana(production) => {
+        TapAbility::Mana {
+            cost,
+            production,
+            rider,
+        } => {
             format!(
-                "Activated(cost: [Tap], effect: {})",
-                render_effect(production)?
+                "Activated(cost: [{}], effect: {})",
+                cost.join(", "),
+                render_effect(production, rider.as_ref())?
             )
         }
     })
@@ -160,12 +260,22 @@ mod tests {
     use super::*;
 
     fn effect(text: &str) -> String {
-        let TapAbility::Mana(production) =
-            parse_tap_ability(&format!("{{T}}: Add {text}.")).unwrap()
+        let Some(TapAbility::Mana {
+            production, rider, ..
+        }) = parse_tap_ability(&format!("{{T}}: Add {text}.")).unwrap()
         else {
             panic!("not a mana ability");
         };
-        render_effect(&production).unwrap()
+        render_effect(&production, rider.as_ref()).unwrap()
+    }
+
+    /// The bare ability RON for a full `<cost>: Add …` line.
+    fn ability(line: &str) -> Option<String> {
+        resolve_line(
+            line,
+            &crate::parsers::test_ctx::ctx(crate::resolve::CardKind::Permanent),
+        )
+        .unwrap()
     }
 
     #[test]
@@ -198,6 +308,84 @@ mod tests {
         assert_eq!(effect("one mana of any color"), "AddMana(1, AnyColor)");
     }
 
+    /// The Oxford-comma three-color choice ([CR#106.1b]): one mana, color
+    /// chosen from a list. `{C}` may be a member.
+    #[test]
+    fn one_of_three_colors() {
+        assert_eq!(
+            effect("{U}, {B}, or {R}"),
+            "AddMana(1, OneOf([Blue, Black, Red]))"
+        );
+        assert_eq!(
+            effect("{W}, {U}, {B}, {R}, or {G}"),
+            "AddMana(1, OneOf([White, Blue, Black, Red, Green]))"
+        );
+    }
+
+    /// A multi-symbol color choice ("{W}{W}, {W}{U}, or {U}{U}") has no engine
+    /// spec — `ManaSpec::OneOf` holds single colors, not runs — so it declines.
+    #[test]
+    fn one_of_multi_symbol_declines() {
+        assert!(parse_production("{W}{W}, {W}{U}, or {U}{U}").is_none());
+        assert!(parse_production("{C}{C}, or {U}{U}").is_none());
+    }
+
+    /// The cost is the full pre-colon clause: generic mana, sacrifice-self,
+    /// pay-life all front a mana ability ([CR#602.1a]).
+    #[test]
+    fn cost_clause_generalizes_beyond_tap() {
+        assert_eq!(
+            ability("{1}, {T}: Add {W}{U}."),
+            Some(
+                "Activated(cost: [Mana([Generic(1)]), Tap], effect: \
+                 Sequence([AddMana(1, White), AddMana(1, Blue)]))"
+                    .to_owned()
+            )
+        );
+        assert_eq!(
+            ability("{1}, {T}: Add one mana of any color."),
+            Some(
+                "Activated(cost: [Mana([Generic(1)]), Tap], effect: AddMana(1, AnyColor))"
+                    .to_owned()
+            )
+        );
+        assert_eq!(
+            ability("{T}, Sacrifice ~: Add {B}{B}."),
+            Some("Activated(cost: [Tap, SacrificeThis], effect: AddMana(2, Black))".to_owned())
+        );
+        assert_eq!(
+            ability("{T}, Pay 1 life: Add one mana of any color."),
+            Some(
+                "Activated(cost: [Tap, Do(LoseLife(1))], effect: AddMana(1, AnyColor))".to_owned()
+            )
+        );
+    }
+
+    /// A painland rider taxes the controller damage; the `Add` runs first,
+    /// then the damage, in one resolution ([CR#605.1a]).
+    #[test]
+    fn painland_damage_rider() {
+        assert_eq!(
+            ability("{T}: Add {W} or {B}. ~ deals 1 damage to you."),
+            Some(
+                "Activated(cost: [Tap], effect: \
+                 Sequence([AddMana(1, OneOf([White, Black])), DealDamage(You, 1)]))"
+                    .to_owned()
+            )
+        );
+        // A rider clause the grammar can't read leaves the `.` in the body, so
+        // the production parse declines the whole line.
+        assert!(
+            ability("{T}: Add {W} or {B}. ~ doesn't untap during your next untap step.").is_none()
+        );
+    }
+
+    /// An {X} mana component in a mana ability's own cost is declined.
+    #[test]
+    fn variable_cost_declines() {
+        assert!(ability("{X}, {T}: Add {C}.").is_none());
+    }
+
     #[test]
     fn scaled_for_each_single_symbol() {
         // Elvish Archdruid — the `Permanent` scope ([CR#109.2]) keeps the
@@ -224,7 +412,16 @@ mod tests {
 
     #[test]
     fn declines_non_mana_and_garbage() {
-        assert!(parse_tap_ability("Flying").is_none());
+        assert!(parse_tap_ability("Flying").unwrap().is_none());
+        // A cost colon but no `Add` body (e.g. a non-mana activated ability)
+        // declines, leaving it to the activated-ability parser.
+        assert!(parse_tap_ability("{T}: Draw a card.").unwrap().is_none());
+        // An unrecognized cost component declines the whole line.
+        assert!(
+            parse_tap_ability("{T}, Frobnicate: Add {C}.")
+                .unwrap()
+                .is_none()
+        );
         // Bare braces / unknown symbols don't parse.
         assert!(parse_production("{Q}").is_none());
         assert!(parse_production("").is_none());
