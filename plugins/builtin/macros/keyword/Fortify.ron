@@ -6,7 +6,7 @@
 // not this keyword.
 (
     name: "Fortify",
-    template: "fortify {0}",
+    template: "fortify ${0}",
     kinds: [KeywordAbility],
     params: [Any],
     body: Composite(

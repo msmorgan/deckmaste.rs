@@ -7,7 +7,7 @@
 // at the seam.
 (
     name: "Ward",
-    template: "ward {0}",
+    template: "ward ${0}",
     kinds: [KeywordAbility],
     params: [Any],
     body: Composite(

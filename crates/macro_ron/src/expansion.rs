@@ -72,7 +72,8 @@ pub struct Expansion<T> {
     #[serde(default = "ExpansionArgs::none")]
     pub args: ExpansionArgs,
     /// The macro's rules-text template (metadata), brought over from the def at
-    /// expansion time. `~` = self, `{i}` = i-th positional arg. Reconstructed
+    /// expansion time. `~` = self, `${i}` = i-th positional arg, `${name}` =
+    /// named arg (single-brace `{…}` is a literal game symbol). Reconstructed
     /// on read, never serialized; excluded from equality (provenance =
     /// name+args+value).
     #[serde(default)]

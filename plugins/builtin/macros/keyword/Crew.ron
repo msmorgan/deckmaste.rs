@@ -6,7 +6,7 @@
 // design (core-count-query, devotion family); the body lands with it.
 (
     name: "Crew",
-    template: "crew {0}",
+    template: "crew ${0}",
     kinds: [KeywordAbility],
     params: [Any],
     body: Composite(

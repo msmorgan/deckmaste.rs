@@ -2,7 +2,7 @@
 // Usage: Enters(what) — e.g. Enters(Type(Creature)), Enters(Ref(This)).
 (
     name: "Enters",
-    template: "{0} enters",
+    template: "${0} enters",
     kinds: [Event],
     params: [Any],
     body: ZoneMove(what: Param(0), to: Battlefield),

@@ -4,7 +4,7 @@
 // e.g. Attacks(Type(Creature)), Attacks(Ref(This)).
 (
     name: "Attacks",
-    template: "{0} attacks",
+    template: "${0} attacks",
     kinds: [Event],
     params: [Any],
     body: StateBecomes(of: Param(0), becomes: Attacking),
