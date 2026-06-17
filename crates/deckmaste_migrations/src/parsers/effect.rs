@@ -82,18 +82,37 @@ fn parse_macro_effect(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
 
 /// Read one `Effect`-macro template slot of declared type `ty` from the rest of
 /// the clause. The slot is the line's tail in the action shapes modeled here
-/// (`scry 2` — a `Count` magnitude at the end), so a successful read consumes
-/// all of `input`. Only `Count` slots are read for now (the keyword-action
-/// subset that takes an argument all take a count); an unmodeled slot type
-/// declines, failing the whole template cleanly.
+/// (`scry 2` — a `Count` magnitude at the end; `regenerate ~` — a `Reference`
+/// subject), so a successful read consumes all of `input`. `Count` and the
+/// self-reference forms of `Reference` are read; an unmodeled slot type (or a
+/// `Reference` that isn't a self-reference) declines, failing the whole
+/// template cleanly.
 fn macro_slot_reader(ty: &str, input: &str) -> Option<(String, usize)> {
     match ty {
         // A bare numeral count word — `scry two`, `mill 3`. Emitted as a bare
         // numeral (reader-sugar for `Count::Literal`), matching the sibling
         // `Draw`/`Create` count productions.
         "Count" => Some((number_word(input.trim())?.to_string(), input.len())),
+        // An object reference. Only the self-reference forms are modeled here:
+        // the `~` sigil (and the `it` / `this creature` anaphors that survive
+        // when the upstream `~` rewrite didn't fire) name the object the ability
+        // is printed on ([CR#201.5]) — `This`. A `target …` / `enchanted …`
+        // reference would need a target declaration or an attachment ref hoisted
+        // onto the frame, which a slot reader can't do (it returns only `(arg,
+        // consumed)`); those decline, leaving the clause for a later production.
+        "Reference" => self_reference(input.trim()).map(|r| (r, input.len())),
         _ => None,
     }
+}
+
+/// A self-reference phrase -> the `Reference::This` RON, or `None` for any
+/// other reference. The `~` sigil is the normalized self-ref
+/// ([`crate::extract`] rewrites a card's by-name self-references to it); the
+/// bare anaphors `it` / `this creature` are the un-rewritten generic forms that
+/// occasionally survive normalization. All three name the printed-on object
+/// ([CR#201.5]) -> `This`.
+fn self_reference(phrase: &str) -> Option<String> {
+    matches!(phrase, "~" | "it" | "this creature").then(|| "This".to_owned())
 }
 
 /// `<base>. If <condition>, [instead] <override> [instead].` -> a within-effect
@@ -1425,6 +1444,66 @@ mod tests {
             parsed_with_macros("you may investigate."),
             Some((String::new(), "May(effect: Investigate)".to_owned()))
         );
+    }
+
+    /// A slot-bearing `Effect`-kind macro whose param is a `Reference` resolves
+    /// through the fallthrough: the self-reference sigil `~` fills the slot as
+    /// `This` ([CR#201.5]). Regenerate (`template: "regenerate ${0}"`,
+    /// `params: [Reference]`) is the flagship — `regenerate ~.` ->
+    /// `Regenerate(This)`.
+    #[test]
+    fn macro_effect_reference_slot_reads_self_ref() {
+        assert_eq!(
+            parsed_with_macros("Regenerate ~."),
+            Some((String::new(), "Regenerate(This)".to_owned()))
+        );
+        // Mid-sentence (lowercase) lead — the clause after a trigger comma.
+        assert_eq!(
+            parsed_with_macros("regenerate ~."),
+            Some((String::new(), "Regenerate(This)".to_owned()))
+        );
+    }
+
+    /// "it" / "this creature" are source-anaphor self-references in a Reference
+    /// slot — they too read `This` ([CR#201.5]); they survive normalization
+    /// uncollapsed only when the upstream `~` rewrite didn't fire (e.g. a
+    /// granted or generic anaphor), so the slot reader admits them
+    /// directly.
+    #[test]
+    fn macro_effect_reference_slot_reads_it_anaphor() {
+        assert_eq!(
+            parsed_with_macros("Regenerate it."),
+            Some((String::new(), "Regenerate(This)".to_owned()))
+        );
+    }
+
+    /// An activated ability whose effect is a Reference-slot macro
+    /// ("{1}{G}: Regenerate ~.") graduates through the activated shell — the
+    /// slot reader runs inside the shared effect grammar the activated frame
+    /// wraps. Albino Troll's regenerate ability is the canonical near-miss.
+    #[test]
+    fn activated_regenerate_self_graduates() {
+        let out = crate::parsers::activated_ability::resolve_line(
+            "{1}{G}: Regenerate ~.",
+            &crate::parsers::test_ctx::builtin_ctx(CardKind::Permanent),
+        )
+        .unwrap();
+        assert_eq!(
+            out.as_deref(),
+            Some("Activated(cost: [Mana([Generic(1),Green])], effect: Regenerate(This))")
+        );
+    }
+
+    /// A Reference slot whose text is neither `~` nor a modeled anaphor (a
+    /// `target …`/`enchanted …` reference that would need a target declaration
+    /// or an attachment ref) declines cleanly — the slot reader can't hoist
+    /// a target onto the frame, so those stay a follow-up rather than mint
+    /// junk RON.
+    #[test]
+    fn macro_effect_reference_slot_declines_target_subject() {
+        let ctx = crate::parsers::test_ctx::builtin_ctx(CardKind::Permanent);
+        assert!(parse_clause("Regenerate target creature.", &ctx).is_none());
+        assert!(parse_clause("Regenerate enchanted creature.", &ctx).is_none());
     }
 
     /// The fallthrough requires the WHOLE clause to be the template — a clause
