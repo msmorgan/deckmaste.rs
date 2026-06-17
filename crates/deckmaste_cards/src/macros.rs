@@ -78,6 +78,9 @@ pub fn kinds() -> KindSet {
     kinds.add(TargetSpec::kind());
     kinds.add(Kind::new("CardFace"));
     kinds.add(Kind::new("Subtype"));
+    // Counter-kind macros (`P1P1Counter`, …) expand to a `Counter` decl in the
+    // plugin loader; name-erasing like `Subtype`. No card position reads it.
+    kinds.add(Kind::new("Counter"));
     // Meta-macro positions: `MacroDef` reads in the plugin loader (serde
     // name "Macro"). No card position ever reads it; registering it here
     // keeps one kind registry. Name-erasing like the other struct kinds.
@@ -126,6 +129,7 @@ mod tests {
     use deckmaste_core::Condition;
     use deckmaste_core::CostComponent;
     use deckmaste_core::Count;
+    use deckmaste_core::Counter;
     use deckmaste_core::Effect;
     use deckmaste_core::Event;
     use deckmaste_core::Filter;
@@ -186,6 +190,7 @@ mod tests {
             name_of::<StaticEffect>(),
             name_of::<Subtype>(),
             name_of::<TargetSpec>(),
+            name_of::<Counter>(),
             "Macro", // hand-registered: MacroDef's serde rename, loader-only
         ];
         let kinds = kinds();

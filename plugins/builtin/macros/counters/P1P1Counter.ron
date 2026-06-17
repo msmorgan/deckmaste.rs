@@ -1,0 +1,23 @@
+// The +1/+1 counter ([CR#122.1a]): each one adds 1 to power and 1 to
+// toughness in layer 7c ([CR#613.4c]). Confers the boost DIRECTLY (a
+// continuous effect, the `Continuous` Property flavor) — not an ability that
+// grants a boost — scaled by how many of these counters the object holds.
+// Inherently strip-immune: a creature whose abilities are all removed still
+// gets the bonus.
+(
+    name: "P1P1Counter",
+    template: "+1/+1 counter",
+    kinds: [Counter],
+    body: Counter(
+        name: "P1P1Counter",
+        confers: [
+            Continuous(
+                of: Of(This),
+                changes: [
+                    AddPower(CounterCount(This, P1P1Counter)),
+                    AddToughness(CounterCount(This, P1P1Counter)),
+                ],
+            ),
+        ],
+    ),
+)
