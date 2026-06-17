@@ -8,6 +8,7 @@
 
 use deckmaste_core::Count;
 use deckmaste_core::Uint;
+use deckmaste_core::strategy::BlockPolicy;
 use deckmaste_core::strategy::Extremum;
 use deckmaste_core::strategy::Preference;
 use deckmaste_core::strategy::Selector;
@@ -37,6 +38,17 @@ pub(crate) fn eval_frame(state: &GameState, seat: PlayerId, candidate: Option<Ob
         chosen: None,
         x: None,
         subject: None,
+    }
+}
+
+/// Look through a remembered `Preference` macro invocation to the variant it
+/// expanded to (the choose-a-play vocabulary), so the handlers match on the
+/// concrete preference regardless of whether it was authored literally or as a
+/// macro.
+fn resolved(prefer: &Preference) -> &Preference {
+    match prefer {
+        Preference::Expanded(e) => resolved(&e.value),
+        other => other,
     }
 }
 
@@ -177,6 +189,124 @@ impl StrategyEvaluator {
         state.eval_count(by, &frame)
     }
 
+    /// The shared rule-walk: top-to-bottom, the first rule whose `when` holds
+    /// (over a candidate-less sensing frame) for which `f` of its
+    /// (macro-resolved) `prefer` yields a value. Each per-decision handler
+    /// passes an `f` that extracts the part of the preference it needs.
+    fn first_applicable<'a, T>(
+        &'a self,
+        state: &GameState,
+        mut f: impl FnMut(&'a Preference) -> Option<T>,
+    ) -> Option<T> {
+        let frame = eval_frame(state, self.seat, None);
+        self.strategy
+            .rules
+            .iter()
+            .filter(|r| state.condition_holds(&r.when, &frame))
+            .find_map(|r| f(resolved(&r.prefer)))
+    }
+
+    /// Choose one target per spec slot: apply the applicable `Cast`/`Activate`
+    /// preference's `target` selector to that slot's legal candidates, falling
+    /// back to the first legal candidate when no rule supplies a selector.
+    fn decide_targets(&self, state: &GameState, legal: &[Vec<ObjectId>]) -> Vec<ObjectId> {
+        let target = self.first_applicable(state, |p| match p {
+            Preference::Cast {
+                target: Some(s), ..
+            }
+            | Preference::Activate {
+                target: Some(s), ..
+            } => Some(s),
+            _ => None,
+        });
+        legal
+            .iter()
+            .map(|slot| {
+                target
+                    .and_then(|s| self.select(state, s, slot))
+                    .or_else(|| slot.first().copied())
+                    .expect("a target spec offers a candidate")
+            })
+            .collect()
+    }
+
+    /// Declare attackers: the legal attackers matching the applicable `Attack`
+    /// preference's `among` filter (the whole legal set when `among` is
+    /// `None`). No `Attack` rule → declare none. `pick`/`by` are unused
+    /// here — attacking is a set decision, so only `among` narrows it.
+    fn decide_attackers(&self, state: &GameState, legal: &[ObjectId]) -> Vec<ObjectId> {
+        self.first_applicable(state, |p| match p {
+            Preference::Attack { what } => Some(what),
+            _ => None,
+        })
+        .map(|what| {
+            legal
+                .iter()
+                .copied()
+                .filter(|&o| self.matches_among(state, what, o))
+                .collect()
+        })
+        .unwrap_or_default()
+    }
+
+    /// Declare blocks per the applicable `Block` preference's policy. No
+    /// `Block` rule or `NoBlocks` → block nothing. `BlockAll` pairs each
+    /// legal blocker with a declared attacker (round-robin); `ChumpBiggest`
+    /// sends every legal blocker at the highest-power attacker. The engine
+    /// re-validates each pair.
+    fn decide_blocks(&self, state: &GameState, legal: &[ObjectId]) -> Vec<(ObjectId, ObjectId)> {
+        let policy = self.first_applicable(state, |p| match p {
+            Preference::Block(policy) => Some(*policy),
+            _ => None,
+        });
+        let attackers = state.combat.attackers();
+        match policy {
+            None | Some(BlockPolicy::NoBlocks) => vec![],
+            Some(_) if attackers.is_empty() => vec![],
+            Some(BlockPolicy::BlockAll) => legal
+                .iter()
+                .enumerate()
+                .map(|(i, &b)| (b, attackers[i % attackers.len()]))
+                .collect(),
+            Some(BlockPolicy::ChumpBiggest) => {
+                let biggest = attackers
+                    .iter()
+                    .copied()
+                    .max_by_key(|&a| state.layers().power(a).unwrap_or(0))
+                    .expect("attackers non-empty");
+                legal.iter().map(|&b| (b, biggest)).collect()
+            }
+        }
+    }
+
+    /// Choose `count` cards to discard: the applicable `Discard` preference's
+    /// selector ranks the hand (`among`-matched first, falling back to the
+    /// whole hand if too few match), and the `pick` end's first `count` are
+    /// shed. No `Discard` rule → the first `count` in hand order.
+    fn decide_discard(&self, state: &GameState, player: PlayerId, count: Uint) -> Vec<ObjectId> {
+        let hand = &state.zones.hands[player.index()];
+        let want = (count as usize).min(hand.len());
+        let Some(s) = self.first_applicable(state, |p| match p {
+            Preference::Discard { what } => Some(what),
+            _ => None,
+        }) else {
+            return hand.iter().copied().take(want).collect();
+        };
+        let matched: Vec<ObjectId> = hand
+            .iter()
+            .copied()
+            .filter(|&o| self.matches_among(state, s, o))
+            .collect();
+        let mut cands = if matched.len() >= want { matched } else { hand.clone() };
+        match s.pick {
+            Extremum::First => {}
+            Extremum::Min => cands.sort_by_key(|&o| self.score(state, &s.by, o)),
+            Extremum::Max => cands.sort_by_key(|&o| std::cmp::Reverse(self.score(state, &s.by, o))),
+        }
+        cands.truncate(want);
+        cands
+    }
+
     /// A total, always-legal default for the decision kinds the core does not
     /// yet handle smartly (filled in by `strategy-decision-handlers`). Mirrors
     /// the harness's `mechanical` defaults, but never panics on the kinds that
@@ -256,6 +386,19 @@ impl crate::sim::Strategy for StrategyEvaluator {
             PendingDecision::Priority { legal, .. } => {
                 Decision::Act(self.decide_priority(state, legal))
             }
+            PendingDecision::ChooseTargets { legal, .. } => {
+                Decision::Targets(self.decide_targets(state, legal))
+            }
+            PendingDecision::DeclareAttackers { legal, .. } => {
+                Decision::Attackers(self.decide_attackers(state, legal))
+            }
+            PendingDecision::DeclareBlockers { legal, .. } => {
+                Decision::Blocks(self.decide_blocks(state, legal))
+            }
+            PendingDecision::DiscardToHandSize { player, count }
+            | PendingDecision::DiscardCards { player, count } => {
+                Decision::Discard(self.decide_discard(state, *player, *count))
+            }
             other => self.fallback(state, other),
         }
     }
@@ -274,6 +417,7 @@ mod tests {
     use deckmaste_core::Reference;
     use deckmaste_core::Stat;
     use deckmaste_core::Zone;
+    use deckmaste_core::strategy::BlockPolicy;
     use deckmaste_core::strategy::Extremum;
     use deckmaste_core::strategy::Preference;
     use deckmaste_core::strategy::Rule;
@@ -312,8 +456,28 @@ mod tests {
         id
     }
 
+    fn put_in_hand(state: &mut GameState, card: &Arc<Card>, owner: PlayerId) -> ObjectId {
+        let cid = state.cards.push(Arc::clone(card), owner);
+        let id = state
+            .objects
+            .mint(ObjectSource::Card(cid), owner, Some(Zone::Hand));
+        state.zones.hands[owner.index()].push(id);
+        id
+    }
+
     fn always() -> Condition {
         Condition::AllOf(vec![])
+    }
+
+    /// A one-rule strategy: `Always → prefer`.
+    fn always_prefer(prefer: Preference) -> StrategyDef {
+        StrategyDef {
+            name: "t".into(),
+            rules: vec![Rule {
+                when: always(),
+                prefer,
+            }],
+        }
     }
 
     fn canon() -> Plugin {
@@ -470,5 +634,142 @@ mod tests {
             legal: vec![],
         };
         assert_eq!(eval.decide(&state, &pending), Decision::Blocks(vec![]));
+    }
+
+    /// ChooseTargets: the applicable `Cast` preference's `target` selector
+    /// picks the biggest creature among a slot's legal candidates.
+    #[test]
+    fn choose_targets_applies_the_target_selector_per_slot() {
+        let willow = Arc::new(canon().card("Willow Elf").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let mut state = empty_two_player();
+        let willow_id = put_creature(&mut state, &willow, PlayerId(1));
+        let bears_id = put_creature(&mut state, &bears, PlayerId(1));
+
+        let eval = StrategyEvaluator::new(
+            always_prefer(Preference::Cast {
+                what: Selector {
+                    pick: Extremum::First,
+                    by: Count::Literal(1),
+                    among: None,
+                },
+                target: Some(Selector {
+                    pick: Extremum::Max,
+                    by: Count::StatOf(Reference::This, Stat::Power),
+                    among: None,
+                }),
+            }),
+            PlayerId(0),
+        );
+        let pending = PendingDecision::ChooseTargets {
+            player: PlayerId(0),
+            spec: vec![],
+            legal: vec![vec![willow_id, bears_id]],
+        };
+        assert_eq!(
+            eval.decide(&state, &pending),
+            Decision::Targets(vec![bears_id]),
+        );
+    }
+
+    /// ChooseTargets with no `target` rule falls back to the first legal
+    /// candidate per slot (still total/legal).
+    #[test]
+    fn choose_targets_without_a_rule_takes_first_legal() {
+        let eval = StrategyEvaluator::new(always_prefer(Preference::Pass), PlayerId(0));
+        let mut state = empty_two_player();
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let a = put_creature(&mut state, &bears, PlayerId(1));
+        let b = put_creature(&mut state, &bears, PlayerId(1));
+        let pending = PendingDecision::ChooseTargets {
+            player: PlayerId(0),
+            spec: vec![],
+            legal: vec![vec![a, b]],
+        };
+        assert_eq!(eval.decide(&state, &pending), Decision::Targets(vec![a]));
+    }
+
+    /// DeclareAttackers: an `Attack` preference declares the whole legal set
+    /// (no `among`); no `Attack` rule declares none.
+    #[test]
+    fn declare_attackers_attacks_all_legal_then_none() {
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let mut state = empty_two_player();
+        let a = put_creature(&mut state, &bears, PlayerId(0));
+        let b = put_creature(&mut state, &bears, PlayerId(0));
+        let pending = PendingDecision::DeclareAttackers {
+            player: PlayerId(0),
+            legal: vec![a, b],
+        };
+
+        let attacker = StrategyEvaluator::new(
+            always_prefer(Preference::Attack {
+                what: Selector {
+                    pick: Extremum::First,
+                    by: Count::Literal(1),
+                    among: None,
+                },
+            }),
+            PlayerId(0),
+        );
+        assert_eq!(
+            attacker.decide(&state, &pending),
+            Decision::Attackers(vec![a, b]),
+        );
+
+        let passive = StrategyEvaluator::new(always_prefer(Preference::Pass), PlayerId(0));
+        assert_eq!(
+            passive.decide(&state, &pending),
+            Decision::Attackers(vec![])
+        );
+    }
+
+    /// DeclareBlockers: `Block(NoBlocks)` declares no blocks even with legal
+    /// blockers available.
+    #[test]
+    fn declare_blockers_no_blocks_policy_blocks_nothing() {
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let mut state = empty_two_player();
+        let blocker = put_creature(&mut state, &bears, PlayerId(1));
+        let eval = StrategyEvaluator::new(
+            always_prefer(Preference::Block(BlockPolicy::NoBlocks)),
+            PlayerId(1),
+        );
+        let pending = PendingDecision::DeclareBlockers {
+            player: PlayerId(1),
+            legal: vec![blocker],
+        };
+        assert_eq!(eval.decide(&state, &pending), Decision::Blocks(vec![]));
+    }
+
+    /// Discard: the `Discard` selector ranks the hand and sheds the `count`
+    /// cheapest (Min by mana value) — Willow Elf (1) over Grizzly Bears (2).
+    #[test]
+    fn discard_sheds_cheapest_by_mana_value() {
+        let willow = Arc::new(canon().card("Willow Elf").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let mut state = empty_two_player();
+        let bears_id = put_in_hand(&mut state, &bears, PlayerId(0));
+        let willow_id = put_in_hand(&mut state, &willow, PlayerId(0));
+        let _ = bears_id;
+
+        let eval = StrategyEvaluator::new(
+            always_prefer(Preference::Discard {
+                what: Selector {
+                    pick: Extremum::Min,
+                    by: Count::StatOf(Reference::This, Stat::ManaValue),
+                    among: None,
+                },
+            }),
+            PlayerId(0),
+        );
+        let pending = PendingDecision::DiscardCards {
+            player: PlayerId(0),
+            count: 1,
+        };
+        assert_eq!(
+            eval.decide(&state, &pending),
+            Decision::Discard(vec![willow_id]),
+        );
     }
 }
