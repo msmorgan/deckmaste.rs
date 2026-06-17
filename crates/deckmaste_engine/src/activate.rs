@@ -172,6 +172,7 @@ impl GameState {
                 chosen: None,
                 x: None,
                 subject: None,
+                those: None,
             };
             if !self.condition_holds(c, &frame) {
                 return false;
@@ -237,6 +238,7 @@ impl GameState {
             // A cost-payability gate reads no announced X.
             x: None,
             subject: None,
+            those: None,
         };
         // TODO(engine-cost-payment / deontics): [CR#119.8] "can't pay life" is
         // NOT YET ENFORCED. Under a continuous effect saying a player can't lose
@@ -336,6 +338,12 @@ impl GameState {
             // payable for now.
             // TODO(engine-cost-payment follow-up): payability for AmongNoted/Random selections.
             Selection::Ref(_) | Selection::AmongNoted(..) | Selection::Random(..) => true,
+            // Those/TopOfLibrary are not valid cost-selection forms.
+            Selection::TopOfLibrary { .. } | Selection::Those => {
+                todo!(
+                    "engine-cost-payment: TopOfLibrary/Those as a cost selection is not supported"
+                )
+            }
         }
     }
 

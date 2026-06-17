@@ -330,6 +330,7 @@ mod tests {
             chosen: None,
             x: None,
             subject: None,
+            those: None,
         };
 
         let creature = Filter::creature();
@@ -525,6 +526,7 @@ mod tests {
                 chosen: None,
                 x: None,
                 subject: None,
+                those: None,
             };
             let cond = Condition::Is(
                 Reference::This,
@@ -772,6 +774,7 @@ mod tests {
             chosen: None,
             x: None,
             subject: None,
+            those: None,
         };
 
         let enter = |state: &mut GameState, card: &Arc<deckmaste_core::Card>| {

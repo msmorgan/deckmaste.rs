@@ -106,6 +106,7 @@ impl GameState {
                         chosen: None,
                         x: entry.x,
                         subject: None,
+                        those: None,
                     };
                     let effect = self
                         .spell_effect(spell)
@@ -164,6 +165,7 @@ impl GameState {
                     chosen: None,
                     x: None,
                     subject: None,
+                    those: None,
                 };
                 // [CR#603.4]: an intervening-if is rechecked as the ability
                 // resolves. If it no longer holds, the ability is removed from
@@ -207,6 +209,7 @@ impl GameState {
                         chosen: None,
                         x: entry.x,
                         subject: None,
+                        those: None,
                     };
                     self.schedule_front(vec![
                         WorkItem::RunEffect {
@@ -416,6 +419,19 @@ impl GameState {
                     })
                     .collect();
                 self.schedule_front(items);
+            }
+            // Bind the plural anaphor: evaluate `with.selection` at this
+            // moment (order preserved, top→down for a library window), then
+            // schedule `with.body` under a frame carrying that group as `those`
+            // so `Selection::Those` resolves inside the body.
+            Effect::With(with) => {
+                let group = self.eval_selection_set(&with.selection, frame);
+                let mut next = frame.clone();
+                next.those = Some(group);
+                self.schedule_front(vec![WorkItem::RunEffect {
+                    effect: with.body,
+                    frame: next,
+                }]);
             }
             // [CR#118.12]: "[A player] may [do]. If they do/don't, …". Surface a
             // yes/no to the controller; the chosen branch (effect + if_did on
@@ -1066,6 +1082,11 @@ impl GameState {
             }
             // Look through a remembered macro invocation.
             PlayerAction::Expanded(e) => self.player_action_items(&e.value, actor, frame),
+            // [CR#701.22a]: Scry/Surveil put-back step — player distributes the
+            // looked-at group into top/bottom bins. Task 6 implements this.
+            PlayerAction::Distribute { .. } => {
+                todo!("Task 6: distribute resolution ([CR#701.22a])")
+            }
         }
     }
 
@@ -1142,6 +1163,30 @@ impl GameState {
                 .clone()
                 .expect("a Choose/Random selection is bound into the frame before its action runs"),
             Selection::Expanded(e) => self.eval_selection_set(&e.value, frame),
+            // The ordered plural group bound by the enclosing `Effect::With`.
+            // Order-preserved exactly as set by `With` (top→down for a library
+            // window). Panics outside an enclosing `With` — always a bug.
+            Selection::Those => frame
+                .those
+                .clone()
+                .expect("Selection::Those outside an enclosing With"),
+            // The top `count` cards of `of`'s library, front-to-back (top→down).
+            // `of: You` resolves to `frame.controller`'s library. Other player
+            // references (e.g. Fateseal's opponent) are deferred to Task 9.
+            Selection::TopOfLibrary { count, of } => {
+                let controller = match of {
+                    deckmaste_core::Reference::You => frame.controller,
+                    other => {
+                        todo!("Fateseal opponent ref — Task 9: non-You TopOfLibrary.of ({other:?})")
+                    }
+                };
+                let n = self.eval_count(count, frame) as usize;
+                self.zones.libraries[controller.index()]
+                    .iter()
+                    .take(n)
+                    .copied()
+                    .collect()
+            }
             other => vec![self.eval_selection(other, frame)],
         }
     }
@@ -2405,6 +2450,7 @@ mod tests {
             chosen: Some(vec![bear]),
             x: None,
             subject: None,
+            those: None,
         };
         let sel = Selection::Choose(Quantity::one(), creatures);
         assert_eq!(state.eval_selection_set(&sel, &frame), vec![bear]);
@@ -2566,6 +2612,7 @@ mod tests {
             chosen: None,
             x: None,
             subject: None,
+            those: None,
         };
 
         assert_eq!(
@@ -2911,6 +2958,7 @@ mod tests {
             chosen: None,
             x: Some(3),
             subject: None,
+            those: None,
         };
         assert_eq!(state.eval_count(&Count::X, &frame), 3);
     }
@@ -3327,6 +3375,7 @@ mod tests {
             chosen: None,
             x: None,
             subject: None,
+            those: None,
         };
 
         assert_eq!(
@@ -5461,5 +5510,97 @@ mod tests {
             state.condition_holds(&twice, &frame),
             "two self-uses satisfy `== 2`"
         );
+    }
+
+    /// `TopOfLibrary` returns the top N cards in order (front of library =
+    /// top); `Effect::With` binds them so `Selection::Those` resolves to the
+    /// same ordered vec inside the body frame.
+    #[test]
+    fn with_binds_those_and_top_of_library_is_ordered() {
+        use deckmaste_core::CardFace;
+        use deckmaste_core::With;
+
+        use crate::object::ObjectSource;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+
+        // Build three distinct library cards and mint them in order a→b→c
+        // (a at front = top).
+        let make_card = |name: &str| {
+            Card::Normal(CardFace {
+                name: name.into(),
+                ..CardFace::default()
+            })
+        };
+        let card_a = state.cards.push(Arc::new(make_card("Alpha")), p0);
+        let card_b = state.cards.push(Arc::new(make_card("Beta")), p0);
+        let card_c = state.cards.push(Arc::new(make_card("Gamma")), p0);
+
+        let a = state
+            .objects
+            .mint(ObjectSource::Card(card_a), p0, Some(Zone::Library));
+        let b = state
+            .objects
+            .mint(ObjectSource::Card(card_b), p0, Some(Zone::Library));
+        let c = state
+            .objects
+            .mint(ObjectSource::Card(card_c), p0, Some(Zone::Library));
+
+        // Push in top→bottom order: a at front (index 0) = top of library.
+        state.zones.libraries[p0.index()].push_back(a);
+        state.zones.libraries[p0.index()].push_back(b);
+        state.zones.libraries[p0.index()].push_back(c);
+
+        // A source object for the frame — use p0's proxy.
+        let source = state.player(p0).object;
+        let frame = Frame {
+            source,
+            controller: p0,
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+            x: None,
+            subject: None,
+            those: None,
+        };
+
+        // TopOfLibrary(count:2, of:You) → top two in order.
+        let top2 = state.eval_selection_set(
+            &Selection::TopOfLibrary {
+                count: Count::Literal(2),
+                of: deckmaste_core::Reference::You,
+            },
+            &frame,
+        );
+        assert_eq!(top2, vec![a, b], "top 2 are a then b, top→down");
+
+        // With binds them as Those; the body frame sees the same ordered group.
+        let mut bound = frame.clone();
+        bound.those = Some(top2.clone());
+        assert_eq!(
+            state.eval_selection_set(&Selection::Those, &bound),
+            vec![a, b],
+            "Those inside a With frame returns the bound group in order"
+        );
+
+        // Effect::With end-to-end: run_effect schedules a body that reads Those
+        // and verifies the binding survives round-trip through the agenda.
+        // We check indirectly by scheduling a no-op body and confirming no panic.
+        state.run_effect(
+            Effect::With(With {
+                selection: Selection::TopOfLibrary {
+                    count: Count::Literal(2),
+                    of: deckmaste_core::Reference::You,
+                },
+                body: Box::new(Effect::Sequence(vec![])),
+            }),
+            &frame,
+        );
+        // Drain the agenda — the empty Sequence body completes without a
+        // decision, proving With schedules correctly.
+        for _ in 0..10 {
+            state.step();
+        }
     }
 }

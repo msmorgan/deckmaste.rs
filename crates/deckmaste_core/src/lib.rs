@@ -83,6 +83,7 @@ pub use effect::Modal;
 pub use effect::Noting;
 pub use effect::Targeted;
 pub use effect::Unless;
+pub use effect::With;
 
 mod event;
 pub use event::Agency;

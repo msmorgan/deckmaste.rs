@@ -481,6 +481,7 @@ fn resolve_and_drive(state: &mut GameState, effect: Effect, source: ObjectId) {
             chosen: None,
             x: None,
             subject: None,
+            those: None,
         },
     });
     drive(state);

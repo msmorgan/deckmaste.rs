@@ -133,4 +133,7 @@ pub struct Frame {
     /// `Reference::Subject`. `None` on every other frame (resolution, triggers,
     /// activation): `Subject` is meaningful only inside filter matching.
     pub subject: Option<ObjectId>,
+    /// The ordered plural group bound by an enclosing `Effect::With` — read by
+    /// `Selection::Those`. Order-preserved (top→down for a library window).
+    pub those: Option<Vec<ObjectId>>,
 }
