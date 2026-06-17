@@ -10,9 +10,7 @@
 //! "Time Lord")`) — `name` is the registration ident cards invoke,
 //! `template` the printed name carried in the value.
 
-use deckmaste_core::SupportsMacros as _;
 pub use macro_ron::InsertError;
-use macro_ron::Kind;
 use macro_ron::KindSet;
 pub use macro_ron::MacroDef;
 pub use macro_ron::MacroSet;
@@ -35,59 +33,16 @@ pub use macro_ron::Params;
 /// The struct kinds `CardFace`, `Subtype`, and `Macro` are name-erasing:
 /// `Subtype` already self-names; nothing engine-meaningful invokes `CardFace`
 /// macros; and `Macro` is the loader-only position for `MacroDef` itself.
-// When adding a new macroable core type, add its `T::kind()` here AND its
-// name in `kind_names_track_the_core_types`.
+// When adding a new macroable core type, add its `T::kind()` to the shared
+// registry in `deckmaste_core::ron::kinds` AND its name in
+// `kind_names_track_the_core_types`.
 #[must_use]
 pub fn kinds() -> KindSet {
-    use deckmaste_core::Ability;
-    use deckmaste_core::Action;
-    use deckmaste_core::AsThough;
-    use deckmaste_core::Condition;
-    use deckmaste_core::CostComponent;
-    use deckmaste_core::Count;
-    use deckmaste_core::Effect;
-    use deckmaste_core::Event;
-    use deckmaste_core::Filter;
-    use deckmaste_core::KeywordAbility;
-    use deckmaste_core::ManaRider;
-    use deckmaste_core::PlayerAction;
-    use deckmaste_core::Quantity;
-    use deckmaste_core::Reference;
-    use deckmaste_core::Replacement;
-    use deckmaste_core::Selection;
-    use deckmaste_core::StaticEffect;
-    use deckmaste_core::TargetSpec;
-
-    use crate::strategy::Preference;
-    let mut kinds = KindSet::new();
-    kinds.add(Ability::kind());
-    kinds.add(AsThough::kind());
-    kinds.add(Action::kind());
-    kinds.add(Condition::kind());
-    kinds.add(CostComponent::kind());
-    kinds.add(Count::kind());
-    kinds.add(Effect::kind());
-    kinds.add(Event::kind());
-    kinds.add(Filter::kind());
-    kinds.add(KeywordAbility::kind());
-    kinds.add(ManaRider::kind());
-    kinds.add(PlayerAction::kind());
-    kinds.add(Quantity::kind());
-    kinds.add(Reference::kind());
-    kinds.add(Replacement::kind());
-    kinds.add(Selection::kind());
-    kinds.add(StaticEffect::kind());
-    kinds.add(TargetSpec::kind());
-    kinds.add(Preference::kind());
-    kinds.add(Kind::new("CardFace"));
-    kinds.add(Kind::new("Subtype"));
-    // Counter-kind macros (`P1P1Counter`, …) expand to a `Counter` decl in the
-    // plugin loader; name-erasing like `Subtype`. No card position reads it.
-    kinds.add(Kind::new("Counter"));
-    // Meta-macro positions: `MacroDef` reads in the plugin loader (serde
-    // name "Macro"). No card position ever reads it; registering it here
-    // keeps one kind registry. Name-erasing like the other struct kinds.
-    kinds.add(Kind::new("Macro"));
+    use deckmaste_core::SupportsMacros as _;
+    // Core types come from the shared registry; cards-only macroable types
+    // (the strategy `Preference`) are added on top.
+    let mut kinds = deckmaste_core::ron::kinds();
+    kinds.add(crate::strategy::Preference::kind());
     kinds
 }
 
@@ -134,7 +89,7 @@ pub fn param_types() -> ParamTypeSet {
 #[must_use]
 pub fn macro_set() -> MacroSet {
     MacroSet::new(kinds())
-        .with_options(deckmaste_core::ron::options())
+        .with_options(deckmaste_core::ron::raw_options())
         .with_param_types(param_types())
 }
 
@@ -539,9 +494,8 @@ mod tests {
         );
         let written = deckmaste_core::ron::options().to_string(&expanded).unwrap();
         assert!(!written.contains("DrawTwo"), "macro name leaked: {written}");
-        // The bare-numeral `Count` sugar is reader-only: the write side emits
-        // the strict grammar's `Literal(2)`.
-        assert_eq!(written, "Sequence([Draw(Literal(2))])");
+        // A `Count` literal writes bare — `2`, never `Literal(2)`.
+        assert_eq!(written, "Sequence([Draw(2)])");
     }
 
     /// The literal sugar applies to `Count` through the glue's registry:

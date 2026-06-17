@@ -12,6 +12,7 @@ use crate::ability::TriggeredAbility;
 use crate::action::Action;
 use crate::continuous::Duration;
 use crate::continuous::StaticEffect;
+use crate::reference::Reference;
 
 /// An effect an ability produces ([CR#608]). Compartmentalized in Rust; flat in
 /// RON (`Draw(1)`, never `Act(By(You, Draw(1)))`): the `Act` tag never appears
@@ -104,12 +105,29 @@ pub struct NotingEffect {
     pub effect: Box<Effect>,
 }
 
-/// `Unless { do, unless }` — `do` is a keyword, so the field is `effect`;
+/// `Unless { do, who, unless }` — `do` is a keyword, so the field is `effect`;
 /// `unless` is the cost the affected player may pay to avoid it ([CR#118.12a]).
+/// `who` is that affected/paying player — "you" unless the text names another
+/// ("target player … unless that player pays …"); it defaults to `You` and is
+/// omitted from RON when it is.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct UnlessEffect {
     pub effect: Box<Effect>,
+    #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
+    pub who: Reference,
     pub unless: Vec<crate::CostComponent>,
+}
+
+/// serde default for [`UnlessEffect::who`] — the affected player is "you"
+/// unless the text names another ([CR#118.12a]).
+fn ref_you() -> Reference {
+    Reference::You
+}
+
+/// `skip_serializing_if` predicate for [`UnlessEffect::who`]: the default `You`
+/// is omitted from RON.
+fn ref_is_you(r: &Reference) -> bool {
+    matches!(r, Reference::You)
 }
 
 /// `ForEach { over, do }` — `do` is a keyword, so the field is `effect`.
@@ -248,9 +266,10 @@ mod tests {
 
     #[test]
     fn act_serializes_flat() {
+        // A `Count` literal writes bare — `1`, never `Literal(1)`.
         assert_eq!(
             write(&act_by_you(PlayerAction::Draw(Count::Literal(1)))),
-            "Draw(Literal(1))"
+            "Draw(1)"
         );
     }
 
@@ -275,6 +294,22 @@ mod tests {
             let written = write(&parsed);
             assert_eq!(read(&written), parsed, "round-trip failed for: {source}");
         }
+    }
+
+    /// `UnlessEffect::who` defaults to `You` when omitted (and is dropped from
+    /// the written form); an explicit non-`You` payer round-trips.
+    #[test]
+    fn unless_who_defaults_to_you_and_round_trips() {
+        let omitted = "Unless(effect:LoseLife(1),unless:[Mana([Generic(2)])])";
+        let parsed = read(omitted);
+        let Effect::Unless(u) = &parsed else {
+            panic!("expected Unless");
+        };
+        assert_eq!(u.who, Reference::You, "omitted who defaults to You");
+        assert_eq!(write(&parsed), omitted, "default who is omitted on write");
+
+        let explicit = "Unless(effect:LoseLife(1),who:Target(0),unless:[Mana([Generic(2)])])";
+        assert_eq!(write(&read(explicit)), explicit, "explicit who round-trips");
     }
 
     #[test]

@@ -121,13 +121,40 @@ pub struct GameConfig {
     pub starting_player: StartingPlayer,
 }
 
-/// The effect + frame to re-run once a `ChooseObjects` decision is answered
-/// ([CR#608.2d]). Transient: set while that decision is pending, taken on
-/// submit. The resolution-time analogue of the `announcing` cast slot.
+/// What to resume once a resolution-time decision is answered. Transient: set
+/// while that decision is pending (alongside `pending`), taken on submit. The
+/// resolution-time analogue of the `announcing` cast slot.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ChoiceContinuation {
-    pub effect: Box<deckmaste_core::Effect>,
-    pub frame: crate::stack::Frame,
+pub enum ChoiceContinuation {
+    /// A `ChooseObjects` answer ([CR#608.2d]): bind the picks into
+    /// `frame.chosen`, then re-run `effect` (the action whose `Choose`/`Random`
+    /// selection produced the decision).
+    BindChoice {
+        effect: Box<deckmaste_core::Effect>,
+        frame: crate::stack::Frame,
+    },
+    /// A `YesNo` answer for `Effect::May` ([CR#118.12]): true → `effect` then
+    /// `if_did`; false → `if_not` (or nothing).
+    May {
+        may: deckmaste_core::MayEffect,
+        frame: crate::stack::Frame,
+    },
+    /// A `ChooseModes` answer for `Effect::Modal` ([CR#700.2]): run the chosen
+    /// modes' effects in the order they were picked.
+    Modal {
+        modes: Vec<deckmaste_core::Mode>,
+        frame: crate::stack::Frame,
+    },
+    /// A `YesNo` answer for `Effect::Unless` ([CR#118.12a,608.2d]): yes → pay
+    /// the `unless` cost (skipping `effect`); no → run `effect`. `who` is
+    /// the paying player, so each cost component runs as that player's
+    /// action.
+    Unless {
+        effect: Box<deckmaste_core::Effect>,
+        who: deckmaste_core::Reference,
+        unless: Vec<deckmaste_core::CostComponent>,
+        frame: crate::stack::Frame,
+    },
 }
 
 /// The whole game. Fields are public for test construction and inspection;

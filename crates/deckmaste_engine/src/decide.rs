@@ -215,12 +215,16 @@ pub enum PendingDecision {
         source: ObjectId,
         recipients: Vec<ObjectId>,
     },
-    /// Choose a modal spell/ability's modes ([CR#700.2a..700.2b]) —
-    /// P0.W3 shell; nothing surfaces it yet.
+    /// Choose a modal spell/ability's modes ([CR#700.2a..700.2b]). `options` is
+    /// how many modes are offered; the answer ([`Decision::Modes`]) is a list
+    /// of option indices, `min..=max` entries long, distinct unless
+    /// `repeats` ([CR#700.2d]).
     ChooseModes {
         player: PlayerId,
         options: Uint,
-        count: Uint,
+        min: Uint,
+        max: Uint,
+        repeats: bool,
     },
     /// Divide damage/counters among targets ([CR#601.2d,608.2d]) — shell.
     Division {
@@ -365,6 +369,38 @@ impl fmt::Display for DecisionError {
 }
 
 impl std::error::Error for DecisionError {}
+
+/// The action one `unless` cost component performs, paid by `who`
+/// ([CR#118.12a]). v1 covers verb costs (`Do`) and {T}/{Q}; a mid-resolution
+/// mana cost is a loud seam (the PayCost/PayMana flow is announce-slot-bound).
+fn unless_cost_action(
+    component: &deckmaste_core::CostComponent,
+    who: &deckmaste_core::Reference,
+) -> deckmaste_core::Action {
+    use deckmaste_core::Action;
+    use deckmaste_core::CostComponent;
+    use deckmaste_core::PlayerAction;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Selection;
+    match component {
+        // A verb cost is paid by `who` performing it ([CR#601.2h]).
+        CostComponent::Do(pa) => Action::By(who.clone(), (**pa).clone()),
+        // {T}/{Q} tap/untap the source permanent the cost rides on.
+        CostComponent::Tap => Action::By(
+            who.clone(),
+            PlayerAction::Tap(Selection::Ref(Reference::This)),
+        ),
+        CostComponent::Untap => Action::By(
+            who.clone(),
+            PlayerAction::Untap(Selection::Ref(Reference::This)),
+        ),
+        CostComponent::Expanded(e) => unless_cost_action(&e.value, who),
+        CostComponent::Mana(_) => todo!(
+            "engine-resolve-effects seam: a mid-resolution mana 'unless' cost \
+             ([CR#118.12a]) — the PayCost/PayMana flow is announce-slot-bound"
+        ),
+    }
+}
 
 use deckmaste_core::Agency;
 use deckmaste_core::Zone;
@@ -821,16 +857,15 @@ impl GameState {
                 }
                 // All reads of `pending` are done; safe to mutate self.
                 self.pending = None;
-                let cont = self
+                let crate::state::ChoiceContinuation::BindChoice { effect, mut frame } = self
                     .choice
                     .take()
-                    .expect("a ChooseObjects decision stashed its continuation");
-                let mut frame = cont.frame;
+                    .expect("a ChooseObjects decision stashed its continuation")
+                else {
+                    unreachable!("a ChooseObjects decision stashes a BindChoice continuation");
+                };
                 frame.chosen = Some(chosen);
-                self.schedule_front(vec![WorkItem::RunEffect {
-                    effect: cont.effect,
-                    frame,
-                }]);
+                self.schedule_front(vec![WorkItem::RunEffect { effect, frame }]);
                 Ok(())
             }
             (PendingDecision::ChooseXValue { player }, Decision::XValue(x)) => {
@@ -902,15 +937,111 @@ impl GameState {
                 self.pending = None;
                 Ok(())
             }
+            (PendingDecision::YesNo { .. }, Decision::Answer(yes)) => {
+                self.pending = None;
+                let cont = self
+                    .choice
+                    .take()
+                    .expect("a YesNo decision stashed its continuation");
+                match cont {
+                    // [CR#118.12]: `Effect::May` — yes runs `effect` then
+                    // `if_did`; no runs `if_not` (or nothing). Front-scheduled
+                    // in order so `effect` precedes `if_did`.
+                    crate::state::ChoiceContinuation::May { may, frame } => {
+                        let branch: Vec<Box<deckmaste_core::Effect>> = if yes {
+                            std::iter::once(may.effect).chain(may.if_did).collect()
+                        } else {
+                            may.if_not.into_iter().collect()
+                        };
+                        let items = branch
+                            .into_iter()
+                            .map(|effect| WorkItem::RunEffect {
+                                effect,
+                                frame: frame.clone(),
+                            })
+                            .collect();
+                        self.schedule_front(items);
+                    }
+                    // [CR#118.12a,608.2d]: `Effect::Unless` — yes pays the cost
+                    // (each component as the payer's action) and `effect` is
+                    // skipped; no runs `effect`.
+                    crate::state::ChoiceContinuation::Unless {
+                        effect,
+                        who,
+                        unless,
+                        frame,
+                    } => {
+                        let items: Vec<WorkItem> = if yes {
+                            unless
+                                .iter()
+                                .map(|c| WorkItem::RunEffect {
+                                    effect: Box::new(deckmaste_core::Effect::Act(
+                                        unless_cost_action(c, &who),
+                                    )),
+                                    frame: frame.clone(),
+                                })
+                                .collect()
+                        } else {
+                            vec![WorkItem::RunEffect { effect, frame }]
+                        };
+                        self.schedule_front(items);
+                    }
+                    other => {
+                        unreachable!("a YesNo decision stashed a non-YesNo continuation: {other:?}")
+                    }
+                }
+                Ok(())
+            }
             (
-                PendingDecision::ChooseModes { .. }
-                | PendingDecision::Division { .. }
+                PendingDecision::ChooseModes {
+                    options,
+                    min,
+                    max,
+                    repeats,
+                    ..
+                },
+                Decision::Modes(picks),
+            ) => {
+                let (options, min, max, repeats) = (*options, *min, *max, *repeats);
+                // [CR#700.2,700.2d]: count in [min,max], each index a real mode,
+                // distinct unless the same mode may be chosen more than once.
+                let n = Uint::try_from(picks.len()).expect("pick count fits Uint");
+                let distinct = repeats || {
+                    let set: HashSet<_> = picks.iter().copied().collect();
+                    set.len() == picks.len()
+                };
+                let legal = n >= min && n <= max && picks.iter().all(|&i| i < options) && distinct;
+                if !legal {
+                    return Err(DecisionError::Illegal {
+                        reason: "illegal mode selection".into(),
+                    });
+                }
+                self.pending = None;
+                let crate::state::ChoiceContinuation::Modal { modes, frame } = self
+                    .choice
+                    .take()
+                    .expect("a ChooseModes decision stashed its continuation")
+                else {
+                    unreachable!("a ChooseModes decision stashes a Modal continuation");
+                };
+                // [CR#700.2]: apply the chosen modes' effects in pick order.
+                let items = picks
+                    .into_iter()
+                    .map(|i| WorkItem::RunEffect {
+                        effect: Box::new(modes[i as usize].effect.clone()),
+                        frame: frame.clone(),
+                    })
+                    .collect();
+                self.schedule_front(items);
+                Ok(())
+            }
+            (
+                PendingDecision::Division { .. }
                 | PendingDecision::Vote { .. }
-                | PendingDecision::YesNo { .. }
                 | PendingDecision::PreGame { .. }
                 | PendingDecision::OrderReplacements { .. },
                 _,
-            ) => todo!("P0.W3/W4/W7: submission handling for shell decision kinds"),
+            ) => todo!("P0.W4/W7: submission handling for shell decision kinds"),
             _ => Err(DecisionError::WrongKind),
         }
     }

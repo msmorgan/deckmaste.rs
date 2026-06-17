@@ -232,6 +232,10 @@ impl GameState {
     /// # Panics
     ///
     /// Panics on any `Effect` variant not wired for Stage 3.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one arm per effect-frame variant; splitting would scatter the dispatch"
+    )]
     pub(crate) fn run_effect(&mut self, effect: Effect, frame: &Frame) {
         match effect {
             Effect::Act(action) => {
@@ -248,7 +252,7 @@ impl GameState {
                                 min,
                                 max,
                             });
-                            self.choice = Some(crate::state::ChoiceContinuation {
+                            self.choice = Some(crate::state::ChoiceContinuation::BindChoice {
                                 effect: Box::new(Effect::Act(action)),
                                 frame: frame.clone(),
                             });
@@ -339,6 +343,98 @@ impl GameState {
                 } else if let Some(otherwise) = if_effect.otherwise {
                     self.run_effect(*otherwise, frame);
                 }
+            }
+            // [CR#608.2]: "for each [over], [do]". The matched set is fixed
+            // once — when this node resolves ([CR#608.2h]) — then the inner
+            // effect runs once per match with that object bound as `ThatObject`
+            // (so a body like `Destroy(ThatObject)` reads "it"). Per-object
+            // `RunEffect`s scheduled at the front preserve their order and each
+            // pauses independently if the body surfaces a choice.
+            Effect::ForEach(fe) => {
+                let matches = crate::target::candidates(self, &fe.over);
+                let items: Vec<WorkItem> = matches
+                    .into_iter()
+                    .map(|obj| {
+                        let mut next = frame.clone();
+                        let mut bindings =
+                            next.bindings
+                                .clone()
+                                .unwrap_or(crate::trigger::TriggerBindings {
+                                    this: None,
+                                    that_object: None,
+                                    that_player: None,
+                                });
+                        bindings.that_object = Some(crate::lki::LkiSnapshot::capture(self, obj));
+                        next.bindings = Some(bindings);
+                        WorkItem::RunEffect {
+                            effect: fe.effect.clone(),
+                            frame: next,
+                        }
+                    })
+                    .collect();
+                self.schedule_front(items);
+            }
+            // [CR#118.12]: "[A player] may [do]. If they do/don't, …". Surface a
+            // yes/no to the controller; the chosen branch (effect + if_did on
+            // yes, if_not on no) runs when the answer comes back — the `May`
+            // continuation in `submit_decision`.
+            Effect::May(may) => {
+                self.pending = Some(crate::decide::PendingDecision::YesNo {
+                    player: frame.controller,
+                });
+                self.choice = Some(crate::state::ChoiceContinuation::May {
+                    may,
+                    frame: frame.clone(),
+                });
+            }
+            // [CR#700.2]: a modal effect — choose `count` modes (up to `count`
+            // when `up_to`, with repetition when `repeats`), then apply each
+            // chosen mode's effect. Per-mode targets/costs are announce-time
+            // ([CR#601.2b,700.2c,700.2h]) and unbuilt, so a resolution-time
+            // modal handles target/cost-free modes; a mode carrying either is a
+            // loud seam.
+            Effect::Modal(modal) => {
+                if modal
+                    .modes
+                    .iter()
+                    .any(|m| !m.targets.is_empty() || m.cost.is_some())
+                {
+                    todo!(
+                        "engine-resolve-effects seam: modal per-mode targets/costs are \
+                         announce-time ([CR#601.2b,700.2c,700.2h])"
+                    );
+                }
+                let options = Uint::try_from(modal.modes.len()).expect("mode count fits Uint");
+                let count = self.eval_count(&modal.choose.count, frame);
+                let max = if modal.choose.repeats { count } else { count.min(options) };
+                let min = if modal.choose.up_to { 0 } else { max };
+                self.pending = Some(crate::decide::PendingDecision::ChooseModes {
+                    player: frame.controller,
+                    options,
+                    min,
+                    max,
+                    repeats: modal.choose.repeats,
+                });
+                self.choice = Some(crate::state::ChoiceContinuation::Modal {
+                    modes: modal.modes,
+                    frame: frame.clone(),
+                });
+            }
+            // [CR#118.12a,608.2d]: "[do] unless [who] pays [cost]". Surface a
+            // yes/no to the paying player; on yes the cost is paid and `effect`
+            // is skipped, on no `effect` happens — branched when the answer
+            // returns (the `Unless` continuation). v1 does NOT gate the offer on
+            // affordability (a refinement); the runner only offers "pay" when
+            // able.
+            Effect::Unless(u) => {
+                let payer = self.acting_player(&u.who, frame);
+                self.pending = Some(crate::decide::PendingDecision::YesNo { player: payer });
+                self.choice = Some(crate::state::ChoiceContinuation::Unless {
+                    effect: u.effect,
+                    who: u.who,
+                    unless: u.unless,
+                    frame: frame.clone(),
+                });
             }
             other => todo!("stage 3 does not interpret effect {other:?} (the choice seam)"),
         }
@@ -4011,6 +4107,267 @@ mod tests {
             life0,
             "false + no otherwise → no change"
         );
+    }
+
+    /// [CR#608.2]: `Effect::ForEach` evaluates `over` once at resolution and
+    /// runs the inner effect once per matched object, binding each iterated
+    /// object as `ThatObject` (a per-iteration `bindings.that_object`). Proven
+    /// via `Destroy(ThatObject)` over the battlefield creatures: every creature
+    /// dies, which can only happen if each iteration's `ThatObject` resolves to
+    /// that iteration's object.
+    #[test]
+    fn run_effect_foreach_binds_each_match_as_that_object() {
+        use deckmaste_core::ForEachEffect;
+
+        let (mut state, bear) = bear_on_field();
+        let theirs = second_bear_to_player_1(&mut state);
+        let creatures = Filter::AllOf(vec![
+            Filter::State(StateFilter::InZone(Zone::Battlefield)),
+            Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+        ]);
+        let frame = frame_src(bear);
+        state.run_effect(
+            Effect::ForEach(ForEachEffect {
+                over: creatures,
+                effect: Box::new(Effect::Act(Action::Destroy(Selection::Ref(
+                    Reference::ThatObject,
+                )))),
+            }),
+            &frame,
+        );
+        let _ = drain_progress(&mut state, 80);
+        assert!(
+            !state.zones.battlefield.contains(&bear) && !state.zones.battlefield.contains(&theirs),
+            "every iterated creature is destroyed via its ThatObject binding"
+        );
+    }
+
+    /// [CR#608.2]: `Effect::ForEach` runs the inner effect once per match — a
+    /// non-binding body (gain 1 life) over two creatures gains 2 life.
+    #[test]
+    fn run_effect_foreach_runs_once_per_match() {
+        use deckmaste_core::ForEachEffect;
+
+        let (mut state, bear) = bear_on_field();
+        let _theirs = second_bear_to_player_1(&mut state);
+        let creatures = Filter::AllOf(vec![
+            Filter::State(StateFilter::InZone(Zone::Battlefield)),
+            Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+        ]);
+        let frame = frame_src(bear);
+        let life0 = state.player(PlayerId(0)).life;
+        state.run_effect(
+            Effect::ForEach(ForEachEffect {
+                over: creatures,
+                effect: Box::new(Effect::Act(Action::By(
+                    Reference::You,
+                    PlayerAction::GainLife(Count::Literal(1)),
+                ))),
+            }),
+            &frame,
+        );
+        let _ = drain_progress(&mut state, 80);
+        assert_eq!(
+            state.player(PlayerId(0)).life,
+            life0 + 2,
+            "two creatures → inner effect runs twice"
+        );
+    }
+
+    /// [CR#118.12]: `Effect::May` surfaces a yes/no to the controller. Yes runs
+    /// `effect` then `if_did`; no runs `if_not` (nothing when absent). Driven
+    /// via `GainLife` so each branch reads as a clean life delta.
+    #[test]
+    fn run_effect_may_branches_on_the_answer() {
+        use deckmaste_core::MayEffect;
+
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+
+        let gain = |n| {
+            Effect::Act(Action::By(
+                Reference::You,
+                PlayerAction::GainLife(Count::Literal(n)),
+            ))
+        };
+        let may = || MayEffect {
+            effect: Box::new(gain(3)),
+            if_did: Some(Box::new(gain(10))),
+            if_not: Some(Box::new(gain(1))),
+        };
+        let p0 = PlayerId(0);
+
+        // yes → effect (3) + if_did (10) = +13; surfaces YesNo to the controller.
+        let mut state = game();
+        let frame = frame_for(&state, p0);
+        let life0 = state.player(p0).life;
+        state.run_effect(Effect::May(may()), &frame);
+        let StepOutcome::NeedsDecision(PendingDecision::YesNo { player }) = state.step() else {
+            panic!("expected YesNo, got {:?}", state.pending);
+        };
+        assert_eq!(player, p0, "the controller decides");
+        state.submit_decision(Decision::Answer(true)).unwrap();
+        let _ = drain_progress(&mut state, 40);
+        assert_eq!(state.player(p0).life, life0 + 13, "yes → effect + if_did");
+
+        // no → if_not (1) = +1.
+        let mut state = game();
+        let frame = frame_for(&state, p0);
+        let life0 = state.player(p0).life;
+        state.run_effect(Effect::May(may()), &frame);
+        state.submit_decision(Decision::Answer(false)).unwrap();
+        let _ = drain_progress(&mut state, 40);
+        assert_eq!(state.player(p0).life, life0 + 1, "no → if_not");
+
+        // no + no if_not → nothing.
+        let mut state = game();
+        let frame = frame_for(&state, p0);
+        let life0 = state.player(p0).life;
+        state.run_effect(
+            Effect::May(MayEffect {
+                effect: Box::new(gain(3)),
+                if_did: None,
+                if_not: None,
+            }),
+            &frame,
+        );
+        state.submit_decision(Decision::Answer(false)).unwrap();
+        let _ = drain_progress(&mut state, 40);
+        assert_eq!(state.player(p0).life, life0, "no + no if_not → no change");
+    }
+
+    /// [CR#700.2]: `Effect::Modal` surfaces `ChooseModes`; the chosen modes'
+    /// effects run in written order. "Choose one" of three life-gain modes —
+    /// picking index 1 gains 5; "choose two" runs both picks (+3+7); bad picks
+    /// (too many, out of range) are rejected.
+    #[test]
+    fn run_effect_modal_runs_chosen_modes() {
+        use deckmaste_core::ChooseSpec;
+        use deckmaste_core::ModalEffect;
+        use deckmaste_core::Mode;
+
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+
+        let gain_mode = |n| Mode {
+            targets: vec![],
+            effect: Effect::Act(Action::By(
+                Reference::You,
+                PlayerAction::GainLife(Count::Literal(n)),
+            )),
+            cost: None,
+        };
+        let modes = || vec![gain_mode(3), gain_mode(5), gain_mode(7)];
+        let spec = |count, up_to| ChooseSpec {
+            count: Count::Literal(count),
+            up_to,
+            repeats: false,
+        };
+        let p0 = PlayerId(0);
+
+        // choose one → ChooseModes(options 3, [1,1]); pick mode 1 → +5.
+        let mut state = game();
+        let frame = frame_for(&state, p0);
+        let life0 = state.player(p0).life;
+        state.run_effect(
+            Effect::Modal(ModalEffect {
+                choose: spec(1, false),
+                modes: modes(),
+            }),
+            &frame,
+        );
+        let StepOutcome::NeedsDecision(PendingDecision::ChooseModes {
+            player,
+            options,
+            min,
+            max,
+            repeats,
+        }) = state.step()
+        else {
+            panic!("expected ChooseModes, got {:?}", state.pending);
+        };
+        assert_eq!((player, options, min, max, repeats), (p0, 3, 1, 1, false));
+        assert!(
+            state.submit_decision(Decision::Modes(vec![0, 1])).is_err(),
+            "too many modes"
+        );
+        assert!(
+            state.submit_decision(Decision::Modes(vec![5])).is_err(),
+            "mode index out of range"
+        );
+        state.submit_decision(Decision::Modes(vec![1])).unwrap();
+        let _ = drain_progress(&mut state, 40);
+        assert_eq!(
+            state.player(p0).life,
+            life0 + 5,
+            "chosen mode's effect runs"
+        );
+
+        // choose two → both picks run (+3 +7 = +10).
+        let mut state = game();
+        let frame = frame_for(&state, p0);
+        let life0 = state.player(p0).life;
+        state.run_effect(
+            Effect::Modal(ModalEffect {
+                choose: spec(2, false),
+                modes: modes(),
+            }),
+            &frame,
+        );
+        state.submit_decision(Decision::Modes(vec![0, 2])).unwrap();
+        let _ = drain_progress(&mut state, 40);
+        assert_eq!(state.player(p0).life, life0 + 10, "both chosen modes run");
+    }
+
+    /// [CR#118.12a,608.2d]: `Effect::Unless` lets the payer (`who`, default You)
+    /// choose to pay the `unless` cost to avoid `effect`. Paying runs the cost
+    /// and skips the effect; declining runs the effect. Driven via a `LoseLife`
+    /// cost + `GainLife` effect so each branch is a clean life delta.
+    #[test]
+    fn run_effect_unless_pays_or_suffers_the_effect() {
+        use deckmaste_core::CostComponent;
+        use deckmaste_core::UnlessEffect;
+
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+
+        let p0 = PlayerId(0);
+        let unless = || UnlessEffect {
+            who: Reference::You,
+            effect: Box::new(Effect::Act(Action::By(
+                Reference::You,
+                PlayerAction::GainLife(Count::Literal(10)),
+            ))),
+            unless: vec![CostComponent::Do(Box::new(PlayerAction::LoseLife(
+                Count::Literal(2),
+            )))],
+        };
+
+        // "I'll pay" → lose 2 life, effect (gain 10) skipped; YesNo to the payer.
+        let mut state = game();
+        let frame = frame_for(&state, p0);
+        let life0 = state.player(p0).life;
+        state.run_effect(Effect::Unless(unless()), &frame);
+        let StepOutcome::NeedsDecision(PendingDecision::YesNo { player }) = state.step() else {
+            panic!("expected YesNo, got {:?}", state.pending);
+        };
+        assert_eq!(player, p0, "the payer decides");
+        state.submit_decision(Decision::Answer(true)).unwrap();
+        let _ = drain_progress(&mut state, 40);
+        assert_eq!(
+            state.player(p0).life,
+            life0 - 2,
+            "pay → cost paid, effect skipped"
+        );
+
+        // "won't pay" → effect runs (gain 10).
+        let mut state = game();
+        let frame = frame_for(&state, p0);
+        let life0 = state.player(p0).life;
+        state.run_effect(Effect::Unless(unless()), &frame);
+        state.submit_decision(Decision::Answer(false)).unwrap();
+        let _ = drain_progress(&mut state, 40);
+        assert_eq!(state.player(p0).life, life0 + 10, "decline → effect runs");
     }
 
     // --- Ascend (spell form) e2e ([CR#702.131a]) -------------------------------
