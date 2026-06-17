@@ -15,7 +15,14 @@ ${0}`). Expose `match_kind(kind, input) → Option<Match{macro_name, slots,
 consumed_len}>`.
 
 Scope here: build the index + matcher + **nullary matching** (the 33 nullary + 1
-self-only templates — Flying, AnyTarget, battle, Sacrifice this permanent, …).
-Validate on those and delete the nullary half of `keyword_ability.rs`'s
-`KEYWORD_NAMES`. Typed-slot filling is `macro-slot-codec`; rerouting a top-level
-parser is `parse-keywords-via-macros`.
+self-only templates — Flying, AnyTarget, battle, Sacrifice this permanent, …),
+validated by building + matching against the real builtin `MacroSet`
+(`flying`→Flying, `any target`→AnyTarget). No parser is rerouted and no bespoke
+catalog is deleted here — rerouting a top-level parser and retiring
+`KEYWORD_NAMES` is `parse-keywords-via-macros`; typed-slot filling is
+`macro-slot-codec` (slot-bearing patterns compile but aren't matched yet).
+
+Landed in `deckmaste_cards::template` (`pattern` = compile, `index` =
+`TemplateIndex::build` + `match_kind`), the crate that will also host the
+bidirectional codec. Added `MacroSet::iter()` (the registry had only
+`get(kind, name)`).
