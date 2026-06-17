@@ -5,6 +5,8 @@
 
 use std::path::Path;
 
+use deckmaste_cards::plugin::Plugin;
+use deckmaste_cards::template::index::TemplateIndex;
 use deckmaste_core::plugin::is_ron_todo_file;
 
 use crate::todo_card::RawIdent;
@@ -38,13 +40,25 @@ impl CardKind {
     }
 }
 
+/// What a parser resolves a line *in*: the card category plus the reverse
+/// [`TemplateIndex`], so a parser can match a line back to the macro whose
+/// template renders it (`English → macro`). Built once per resolve run and
+/// handed to every parser.
+pub struct ResolveCtx<'a> {
+    pub kind: CardKind,
+    pub index: &'a TemplateIndex,
+}
+
 /// One ability parser: a normalized oracle line -> the bare RON of one ability
 /// (`Flying`, `Activated(cost: [Tap], effect: AddMana(1, Green))`), or `None`
 /// to decline.
-pub type AbilityParser = fn(&str, CardKind) -> anyhow::Result<Option<String>>;
+pub type AbilityParser = fn(&str, &ResolveCtx) -> anyhow::Result<Option<String>>;
 
-/// The registry, in priority order. First match wins.
+/// The registry, in priority order. First match wins. The macro-template parser
+/// leads: it routes a line back through the registered macros' templates before
+/// the bespoke parsers re-encode the same mechanics by hand.
 pub const REGISTRY: &[AbilityParser] = &[
+    crate::parsers::macro_template::resolve_line,
     crate::parsers::mana_ability::resolve_line,
     crate::parsers::keyword_ability::resolve_line,
     crate::parsers::spell_ability::resolve_line,
@@ -95,22 +109,29 @@ fn fold_spell_ascend(face: &mut TodoCardFace) -> bool {
 
 /// Replaces every `Unparsed` line a parser in `registry` can structure with the
 /// `Parsed` RON. Returns whether anything changed.
-fn resolve_face(face: &mut TodoCardFace, registry: &[AbilityParser]) -> anyhow::Result<bool> {
-    let kind = CardKind::of(&face.types);
+fn resolve_face(
+    face: &mut TodoCardFace,
+    registry: &[AbilityParser],
+    index: &TemplateIndex,
+) -> anyhow::Result<bool> {
+    let ctx = ResolveCtx {
+        kind: CardKind::of(&face.types),
+        index,
+    };
     let mut changed = false;
     for ability in &mut face.abilities {
         let TodoAbility::Unparsed(line) = ability else {
             continue;
         };
         for parser in registry {
-            if let Some(ron) = parser(line, kind)? {
+            if let Some(ron) = parser(line, &ctx)? {
                 *ability = TodoAbility::Parsed(ron);
                 changed = true;
                 break;
             }
         }
     }
-    if kind == CardKind::Spell && fold_spell_ascend(face) {
+    if ctx.kind == CardKind::Spell && fold_spell_ascend(face) {
         changed = true;
     }
     Ok(changed)
@@ -121,20 +142,24 @@ fn resolve_face(face: &mut TodoCardFace, registry: &[AbilityParser]) -> anyhow::
 ///
 /// # Errors
 /// If any parser in the registry returns an error.
-pub fn resolve_card(card: &mut TodoCard) -> anyhow::Result<bool> {
-    resolve_card_with(card, REGISTRY)
+pub fn resolve_card(card: &mut TodoCard, index: &TemplateIndex) -> anyhow::Result<bool> {
+    resolve_card_with(card, REGISTRY, index)
 }
 
 /// `resolve_card` against a given registry (test seam).
 ///
 /// # Errors
 /// If any parser in `registry` returns an error.
-pub fn resolve_card_with(card: &mut TodoCard, registry: &[AbilityParser]) -> anyhow::Result<bool> {
+pub fn resolve_card_with(
+    card: &mut TodoCard,
+    registry: &[AbilityParser],
+    index: &TemplateIndex,
+) -> anyhow::Result<bool> {
     let changed = match card {
-        TodoCard::Normal(face) => resolve_face(face, registry)?,
+        TodoCard::Normal(face) => resolve_face(face, registry, index)?,
         TodoCard::ModalDfc(front, back) => {
-            let a = resolve_face(front, registry)?;
-            let b = resolve_face(back, registry)?;
+            let a = resolve_face(front, registry, index)?;
+            let b = resolve_face(back, registry, index)?;
             a || b
         }
     };
@@ -146,6 +171,11 @@ pub fn resolve_card_with(card: &mut TodoCard, registry: &[AbilityParser]) -> any
 /// # Errors
 /// If a file isn't readable/parsable as a `TodoCard`, or isn't writable.
 pub fn resolve_cards(plugin_dir: &Path) -> anyhow::Result<()> {
+    // Load the plugin's macros (builtin prelude included) and build the reverse
+    // template index ONCE, before the per-card loop — the macro-template parser
+    // matches lines back to these macros.
+    let plugin = Plugin::load_with_sibling_prelude(plugin_dir)?;
+    let index = TemplateIndex::build(&plugin.macros);
     let cards = crate::layout::PluginLayout::new(plugin_dir)?.cards_dir()?;
     let mut paths: Vec<_> = std::fs::read_dir(&cards)?
         .map(|e| e.map(|e| e.path()))
@@ -159,7 +189,7 @@ pub fn resolve_cards(plugin_dir: &Path) -> anyhow::Result<()> {
         // the step that wrote it, which the engineer should fix before resolving.
         let source = std::fs::read_to_string(&path)?;
         let mut card: TodoCard = crate::ron_output::ron_options().from_str(&source)?;
-        if resolve_card(&mut card)? {
+        if resolve_card(&mut card, &index)? {
             std::fs::write(&path, render(&card)?)?;
             eprintln!("resolved {}", path.display());
         }
@@ -173,8 +203,14 @@ mod tests {
 
     /// A registry that structures the line "Flying" only.
     #[allow(clippy::unnecessary_wraps)]
-    fn flying_only(line: &str, _kind: CardKind) -> anyhow::Result<Option<String>> {
+    fn flying_only(line: &str, _ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
         Ok((line == "Flying").then(|| "Flying".to_owned()))
+    }
+
+    /// An empty reverse index — for tests that exercise the bespoke parsers,
+    /// the macro-template parser declines on every line.
+    fn no_index() -> TemplateIndex {
+        TemplateIndex::default()
     }
 
     #[test]
@@ -196,13 +232,13 @@ mod tests {
             loyalty: None,
             defense: None,
         });
-        let changed = resolve_card_with(&mut card, &[flying_only]).unwrap();
+        let changed = resolve_card_with(&mut card, &[flying_only], &no_index()).unwrap();
         assert!(changed);
         let TodoCard::Normal(face) = &card else { panic!() };
         assert!(matches!(&face.abilities[0], TodoAbility::Parsed(r) if r == "Flying"));
         assert!(matches!(&face.abilities[1], TodoAbility::Unparsed(_))); // unchanged
         // Idempotent: a second pass changes nothing.
-        assert!(!resolve_card_with(&mut card, &[flying_only]).unwrap());
+        assert!(!resolve_card_with(&mut card, &[flying_only], &no_index()).unwrap());
     }
 
     #[test]
@@ -231,7 +267,7 @@ mod tests {
             )],
             ..Default::default()
         });
-        assert!(resolve_card(&mut bolt).unwrap());
+        assert!(resolve_card(&mut bolt, &no_index()).unwrap());
         let TodoCard::Normal(face) = &bolt else { panic!() };
         assert!(matches!(
             &face.abilities[0],
@@ -248,7 +284,7 @@ mod tests {
             )],
             ..Default::default()
         });
-        assert!(!resolve_card(&mut creature).unwrap());
+        assert!(!resolve_card(&mut creature, &no_index()).unwrap());
         let TodoCard::Normal(face) = &creature else { panic!() };
         assert!(matches!(&face.abilities[0], TodoAbility::Unparsed(_)));
 
@@ -259,7 +295,7 @@ mod tests {
             abilities: vec![TodoAbility::Unparsed("Draw two cards.".into())],
             ..Default::default()
         });
-        assert!(resolve_card(&mut divination).unwrap());
+        assert!(resolve_card(&mut divination, &no_index()).unwrap());
         let TodoCard::Normal(face) = &divination else { panic!() };
         assert!(matches!(
             &face.abilities[0],
@@ -277,7 +313,7 @@ mod tests {
             )],
             ..Default::default()
         });
-        assert!(resolve_card(&mut card).unwrap());
+        assert!(resolve_card(&mut card, &no_index()).unwrap());
         let TodoCard::Normal(face) = &card else { panic!() };
         assert!(matches!(
             &face.abilities[0],
@@ -296,7 +332,7 @@ mod tests {
             )],
             ..Default::default()
         });
-        assert!(resolve_card(&mut card).unwrap());
+        assert!(resolve_card(&mut card, &no_index()).unwrap());
         let TodoCard::Normal(face) = &card else { panic!() };
         assert!(matches!(
             &face.abilities[0],
@@ -315,7 +351,7 @@ mod tests {
             )],
             ..Default::default()
         });
-        assert!(resolve_card(&mut lord).unwrap());
+        assert!(resolve_card(&mut lord, &no_index()).unwrap());
         let TodoCard::Normal(face) = &lord else { panic!() };
         assert!(matches!(
             &face.abilities[0],
@@ -336,12 +372,12 @@ mod tests {
                 ..Default::default()
             },
         );
-        assert!(resolve_card_with(&mut card, &[flying_only]).unwrap());
+        assert!(resolve_card_with(&mut card, &[flying_only], &no_index()).unwrap());
         let TodoCard::ModalDfc(front, back) = &card else { panic!() };
         assert!(matches!(&front.abilities[0], TodoAbility::Parsed(r) if r == "Flying"));
         assert!(matches!(&back.abilities[0], TodoAbility::Parsed(r) if r == "Flying"));
         // Idempotent.
-        assert!(!resolve_card_with(&mut card, &[flying_only]).unwrap());
+        assert!(!resolve_card_with(&mut card, &[flying_only], &no_index()).unwrap());
     }
 
     /// [CR#702.131a]: on a spell, Ascend is folded into the front of the spell
@@ -369,7 +405,7 @@ mod tests {
             ],
             ..Default::default()
         };
-        let changed = resolve_face(&mut face, &[]).unwrap();
+        let changed = resolve_face(&mut face, &[], &no_index()).unwrap();
         assert!(changed);
 
         // The Ascend keyword is gone …
@@ -417,7 +453,7 @@ mod tests {
             abilities: vec![TodoAbility::Parsed("Keyword(Ascend)".into())],
             ..Default::default()
         };
-        let _ = resolve_face(&mut face, &[]).unwrap();
+        let _ = resolve_face(&mut face, &[], &no_index()).unwrap();
         assert!(
             face.abilities.iter().any(|a| matches!(
                 a,

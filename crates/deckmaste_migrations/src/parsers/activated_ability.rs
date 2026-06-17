@@ -8,13 +8,15 @@ use crate::parsers::cost::VariableMana;
 use crate::parsers::cost::{self};
 use crate::parsers::effect::ParsedEffect;
 use crate::parsers::effect::{self};
+#[cfg(test)]
 use crate::resolve::CardKind;
+use crate::resolve::ResolveCtx;
 
 /// A registry parser: a "<cost>: <effect>." line -> the bare `Activated(...)`
 /// RON. Declines (`Ok(None)`) on lines without a cost colon or with
 /// unrecognized cost components/effects. Self-identifying by the cost grammar
 /// before the colon, so the card's `CardKind` is irrelevant.
-pub(crate) fn resolve_line(line: &str, _kind: CardKind) -> anyhow::Result<Option<String>> {
+pub(crate) fn resolve_line(line: &str, _ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
     let Some((cost_clause, effect_clause)) = line.split_once(": ") else {
         return Ok(None);
     };
@@ -49,7 +51,7 @@ mod tests {
     use super::*;
 
     fn act(line: &str) -> Option<String> {
-        resolve_line(line, CardKind::Permanent).unwrap()
+        resolve_line(line, &crate::parsers::test_ctx::ctx(CardKind::Permanent)).unwrap()
     }
 
     #[test]

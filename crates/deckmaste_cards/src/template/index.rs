@@ -48,12 +48,15 @@ impl TemplateIndex {
         Self { by_kind }
     }
 
-    /// Match `input` against the nullary patterns of `kind`, most-specific
-    /// first. Returns the matched macro and how much of `input` it consumed.
+    /// Match `input` against the bare-emittable (param-less, slot-less)
+    /// patterns of `kind`, most-specific first. Returns the matched macro
+    /// and how much of `input` it consumed. Defaulted-param macros (e.g.
+    /// `Hexproof`) are skipped here — they need the `Name(...)` form, not a
+    /// bare nullary invocation.
     #[must_use]
     pub fn match_kind(&self, kind: &str, input: &str) -> Option<Match> {
         for pattern in self.by_kind.get(kind)? {
-            if pattern.is_nullary()
+            if pattern.emits_bare()
                 && let Some(consumed) = match_nullary(pattern, input)
             {
                 return Some(Match {

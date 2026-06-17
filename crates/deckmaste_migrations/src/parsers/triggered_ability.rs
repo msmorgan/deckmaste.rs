@@ -7,7 +7,9 @@
 use crate::parsers::effect::ParsedEffect;
 use crate::parsers::effect::{self};
 use crate::parsers::filter;
+#[cfg(test)]
 use crate::resolve::CardKind;
+use crate::resolve::ResolveCtx;
 
 /// A registry parser: a "When/Whenever <event>, <effect>." or "At the beginning
 /// of <step> …, <effect>." line -> the bare `Triggered(...)` RON. Declines
@@ -18,7 +20,7 @@ use crate::resolve::CardKind;
 /// Infallible today, but the `Result` is required by the `AbilityParser`
 /// registry signature (sibling parsers render fallibly).
 #[allow(clippy::unnecessary_wraps)]
-pub(crate) fn resolve_line(line: &str, _kind: CardKind) -> anyhow::Result<Option<String>> {
+pub(crate) fn resolve_line(line: &str, _ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
     // "At the beginning of …" is a step-entry trigger whose event clause carries
     // an internal comma ("on your turn,"), so it can't share the "When/Whenever
     // … , …" split. Route it to a dedicated event parser that consumes the whole
@@ -151,7 +153,7 @@ mod tests {
     use super::*;
 
     fn trig(line: &str) -> Option<String> {
-        resolve_line(line, CardKind::Permanent).unwrap()
+        resolve_line(line, &crate::parsers::test_ctx::ctx(CardKind::Permanent)).unwrap()
     }
 
     #[test]

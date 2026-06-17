@@ -7,10 +7,11 @@
 
 use crate::parsers::modify;
 use crate::resolve::CardKind;
+use crate::resolve::ResolveCtx;
 
 #[allow(clippy::unnecessary_wraps)]
-pub(crate) fn resolve_line(line: &str, kind: CardKind) -> anyhow::Result<Option<String>> {
-    Ok(parse(line, kind))
+pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
+    Ok(parse(line, ctx.kind))
 }
 
 fn parse(line: &str, kind: CardKind) -> Option<String> {
@@ -101,7 +102,7 @@ mod tests {
     use super::*;
 
     fn stat(line: &str) -> Option<String> {
-        resolve_line(line, CardKind::Permanent).unwrap()
+        resolve_line(line, &crate::parsers::test_ctx::ctx(CardKind::Permanent)).unwrap()
     }
 
     #[test]
@@ -134,22 +135,28 @@ mod tests {
     fn pt_declines() {
         assert!(stat("Creatures you control get +1/+1.").is_some());
         assert!(
-            resolve_line("Target creature gets +2/+2.", CardKind::Permanent)
-                .unwrap()
-                .is_none()
-        );
-        assert!(
             resolve_line(
-                "Creatures you control get +1/+1 until end of turn.",
-                CardKind::Permanent
+                "Target creature gets +2/+2.",
+                &crate::parsers::test_ctx::ctx(CardKind::Permanent)
             )
             .unwrap()
             .is_none()
         );
         assert!(
-            resolve_line("Creatures you control get +1/+1.", CardKind::Spell)
-                .unwrap()
-                .is_none()
+            resolve_line(
+                "Creatures you control get +1/+1 until end of turn.",
+                &crate::parsers::test_ctx::ctx(CardKind::Permanent)
+            )
+            .unwrap()
+            .is_none()
+        );
+        assert!(
+            resolve_line(
+                "Creatures you control get +1/+1.",
+                &crate::parsers::test_ctx::ctx(CardKind::Spell)
+            )
+            .unwrap()
+            .is_none()
         );
     }
 
@@ -252,7 +259,7 @@ mod tests {
         assert!(
             resolve_line(
                 "Creatures you control gain trample until end of turn.",
-                CardKind::Permanent
+                &crate::parsers::test_ctx::ctx(CardKind::Permanent)
             )
             .unwrap()
             .is_none()
