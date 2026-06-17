@@ -7,7 +7,7 @@
     name: "Affinity",
     template: "affinity for ${0}",
     kinds: [KeywordAbility],
-    params: [Any],
+    params: [Filter],
     body: Composite(
         name: "Affinity",
         abilities: [Static(effects: [

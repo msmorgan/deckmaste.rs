@@ -1,30 +1,50 @@
 //! The macro-template parser: route an oracle line back to the macro whose
 //! `template` renders it, via the reverse
-//! [`TemplateIndex`](deckmaste_cards::template::index::TemplateIndex). Today it
-//! claims whole-line NULLARY keyword templates (`flying` → `Keyword(Flying)`);
-//! slot-bearing templates (parameterized keywords) wait on the slot codec. It
-//! leads the registry, emitting the macro invocation instead of a hand-built
-//! node; on no match it declines and the bespoke parsers take
+//! [`TemplateIndex`](deckmaste_cards::template::index::TemplateIndex). It
+//! claims whole-line keyword templates — nullary (`flying` → `Keyword(Flying)`)
+//! and parameterized (`protection from black` →
+//! `Keyword(Protection(ColorIs(Black)))`, each `${i}` slot filled via the typed
+//! slot readers). It leads the registry, emitting the macro invocation instead
+//! of a hand-built node; on no match it declines and the bespoke parsers take
 //! over (first-match-wins).
 
 use crate::resolve::ResolveCtx;
 
-/// Recognize a whole-line nullary `KeywordAbility` macro and emit its
-/// invocation. Declines when the index has no full-line match, so a bespoke
-/// parser (or the native-keyword path) handles the line.
+/// Recognize a whole-line `KeywordAbility` macro and emit its invocation:
+/// nullary (`flying` → `Keyword(Flying)`) via the bare-name index, or
+/// parameterized (`protection from black` →
+/// `Keyword(Protection(ColorIs(Black)))`) by filling each `${i}` slot via the
+/// typed slot readers. Declines (so a bespoke parser handles the line) on no
+/// full-line match.
 // Never errors, but must match the `AbilityParser` fn-pointer type.
 #[allow(clippy::unnecessary_wraps)]
 pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
     let line = line.trim();
-    let Some(m) = ctx.index.match_kind("KeywordAbility", line) else {
-        return Ok(None);
-    };
-    // A keyword-ability line *is* just the keyword: only claim a full-line
-    // match, never a prefix.
-    if m.consumed != line.len() {
-        return Ok(None);
+    // Nullary (param-less) keyword.
+    if let Some(m) = ctx.index.match_kind("KeywordAbility", line)
+        && m.consumed == line.len()
+    {
+        return Ok(Some(format!("Keyword({})", m.macro_name)));
     }
-    Ok(Some(format!("Keyword({})", m.macro_name)))
+    // Parameterized keyword: fill `${i}` slots via the declared-type readers.
+    if let Some(m) = ctx.index.match_with("KeywordAbility", line, slot_reader)
+        && m.consumed == line.len()
+    {
+        return Ok(Some(format!("Keyword({})", m.invocation)));
+    }
+    Ok(None)
+}
+
+/// Read one keyword-template slot of declared type `ty` from the rest of the
+/// line, reusing the bespoke keyword arg parsers. The slot is the line's tail,
+/// so a successful read consumes all of `input`.
+fn slot_reader(ty: &str, input: &str) -> Option<(String, usize)> {
+    let arg = match ty {
+        "Filter" => super::keyword_ability::quality_filter(input.trim())?,
+        "Cost" => super::keyword_ability::cost_arg(input).ok().flatten()?,
+        _ => return None,
+    };
+    Some((arg, input.len()))
 }
 
 #[cfg(test)]
@@ -85,5 +105,20 @@ mod tests {
         // keyword parser emits the correct parenthesized form.
         let idx = builtin_index();
         assert_eq!(run("Hexproof", &idx), None);
+    }
+
+    #[test]
+    fn routes_parameterized_keyword_through_slots() {
+        // The `${0}` slot is filled by the declared-type reader: Filter for
+        // Protection, Cost for Ward — same invocations the bespoke parser emits.
+        let idx = builtin_index();
+        assert_eq!(
+            run("Protection from black", &idx).as_deref(),
+            Some("Keyword(Protection(ColorIs(Black)))")
+        );
+        assert_eq!(
+            run("Ward {2}", &idx).as_deref(),
+            Some("Keyword(Ward([Mana([Generic(2)])]))")
+        );
     }
 }

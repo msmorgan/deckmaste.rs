@@ -4,6 +4,6 @@
     name: "Enters",
     template: "${0} enters",
     kinds: [Event],
-    params: [Any],
+    params: [Filter],
     body: ZoneMove(what: Param(0), to: Battlefield),
 )

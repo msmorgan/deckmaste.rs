@@ -7,7 +7,7 @@
     name: "Kicker",
     template: "kicker ${0}",
     kinds: [KeywordAbility],
-    params: [Any],
+    params: [Cost],
     body: Composite(
         name: "Kicker",
         abilities: [Static(effects: [

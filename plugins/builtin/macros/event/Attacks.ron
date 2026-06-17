@@ -6,6 +6,6 @@
     name: "Attacks",
     template: "${0} attacks",
     kinds: [Event],
-    params: [Any],
+    params: [Filter],
     body: StateBecomes(of: Param(0), becomes: Attacking),
 )

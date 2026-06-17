@@ -22,6 +22,14 @@ pub struct Match {
     pub consumed: usize,
 }
 
+/// A successful slot-bearing match: the full macro invocation RON
+/// (`Protection(ColorIs(Black))`) and how many bytes of `input` it consumed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SlotMatch {
+    pub invocation: String,
+    pub consumed: usize,
+}
+
 /// Kind-scoped reverse index over templated macros.
 #[derive(Debug, Default)]
 pub struct TemplateIndex {
@@ -67,6 +75,64 @@ impl TemplateIndex {
         }
         None
     }
+
+    /// Match `input` against the SLOT-bearing patterns of `kind`, filling each
+    /// `${i}` via `slot_reader(declared_type, remaining_input) -> (arg_ron,
+    /// consumed)` — codec-driven matching, so each slot is bounded by what its
+    /// reader accepts, not by greedy literal capture. Returns the macro
+    /// invocation. Nullary / defaulted-param patterns are not matched here (see
+    /// [`Self::match_kind`]); a slot whose `slot_reader` declines fails the
+    /// whole pattern.
+    pub fn match_with<F>(&self, kind: &str, input: &str, mut slot_reader: F) -> Option<SlotMatch>
+    where
+        F: FnMut(&str, &str) -> Option<(String, usize)>,
+    {
+        for pattern in self.by_kind.get(kind)? {
+            if pattern.is_nullary() {
+                continue;
+            }
+            if let Some(m) = fill_pattern(pattern, input, &mut slot_reader) {
+                return Some(m);
+            }
+        }
+        None
+    }
+}
+
+/// Walk a slot-bearing pattern against `input`: literals match (case-folded),
+/// each slot is read by `slot_reader`. Returns the invocation + bytes consumed,
+/// or `None` if any literal mismatches or a slot reader declines.
+fn fill_pattern<F>(pattern: &ParsePattern, input: &str, slot_reader: &mut F) -> Option<SlotMatch>
+where
+    F: FnMut(&str, &str) -> Option<(String, usize)>,
+{
+    let mut cursor = 0usize;
+    let mut args: Vec<String> = Vec::new();
+    for seg in &pattern.segments {
+        match seg {
+            Segment::Literal(t) => {
+                if !input.get(cursor..cursor + t.len())?.eq_ignore_ascii_case(t) {
+                    return None;
+                }
+                cursor += t.len();
+            }
+            Segment::SelfRef => {
+                if input.get(cursor..cursor + 1)? != "~" {
+                    return None;
+                }
+                cursor += 1;
+            }
+            Segment::Slot(slot) => {
+                let (arg, consumed) = slot_reader(slot.ty.as_str(), input.get(cursor..)?)?;
+                args.push(arg);
+                cursor += consumed;
+            }
+        }
+    }
+    Some(SlotMatch {
+        invocation: format!("{}({})", pattern.macro_name, args.join(", ")),
+        consumed: cursor,
+    })
 }
 
 /// Match a nullary pattern against the start of `input` (case-folded),
@@ -136,5 +202,19 @@ mod tests {
                 .match_kind("KeywordAbility", "flashback {2}")
                 .is_none()
         );
+    }
+
+    #[test]
+    fn fills_a_typed_slot_via_reader() {
+        // Protection is now `params: [Filter]`; the slot reader is handed the
+        // declared type and the remaining input, and returns the arg RON.
+        let m = builtin()
+            .match_with("KeywordAbility", "protection from black", |ty, rest| {
+                assert_eq!(ty, "Filter");
+                Some((format!("ColorIs({})", rest.trim()), rest.len()))
+            })
+            .expect("protection from <x> matches");
+        assert_eq!(m.invocation, "Protection(ColorIs(black))");
+        assert_eq!(m.consumed, "protection from black".len());
     }
 }

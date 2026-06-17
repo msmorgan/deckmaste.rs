@@ -175,7 +175,7 @@ fn stat_value_str(v: &StatValue) -> String {
     }
 }
 
-fn color_word(c: Color) -> &'static str {
+pub(super) fn color_word(c: Color) -> &'static str {
     match c {
         Color::White => "white",
         Color::Blue => "blue",

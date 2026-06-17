@@ -18,7 +18,7 @@
     name: "Enchant",
     template: "enchant ${0}",
     kinds: [KeywordAbility],
-    params: [Any],
+    params: [Filter],
     body: Composite(
         name: "Enchant",
         abilities: [

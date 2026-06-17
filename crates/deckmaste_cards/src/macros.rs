@@ -110,6 +110,22 @@ pub fn param_types() -> ParamTypeSet {
             .map(drop)
             .map_err(|e| e.to_string())
     });
+    // A keyword/cost slot: the bracketed cost-component list authored as the
+    // macro's argument (`[Mana([Generic(2)])]`, `[Mana(...), Do(LoseLife(2))]`).
+    param_types.add("Cost", |src, macros| {
+        macros
+            .read_str::<Vec<deckmaste_core::CostComponent>>(src)
+            .map(drop)
+            .map_err(|e| e.to_string())
+    });
+    // A count slot (`PumpThisUntilEot`'s P/T magnitudes): a bare numeral reads as
+    // `Count::Literal`, dynamic counts as `CountOf`/`StatOf`.
+    param_types.add("Count", |src, macros| {
+        macros
+            .read_str::<deckmaste_core::Count>(src)
+            .map(drop)
+            .map_err(|e| e.to_string())
+    });
     param_types
 }
 
