@@ -84,6 +84,8 @@ pub use tally::ActivationLedger;
 
 mod replace;
 
+mod replace_registry;
+
 mod resolve;
 
 mod runner;
