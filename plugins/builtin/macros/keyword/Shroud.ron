@@ -1,0 +1,12 @@
+// Shroud = a symmetric targeting prohibition [CR#702.18a]: "can't be the
+// target of spells or abilities" — Hexproof minus the opponent restriction
+// (everyone, not just opponents). One Cant(Target) row anchored on the
+// carrier; `by` defaults to match-anything. Player-proxy carriers get the
+// "or player" half for free (players are objects), exactly as Hexproof notes.
+KeywordAbility(
+    name: "Shroud",
+    template: "shroud",
+    abilities: [Static(effects: [
+        Cant(Target(on: Ref(This))),
+    ])],
+)

@@ -1,0 +1,16 @@
+// Fear = an evasion Cant(Block) [CR#702.36b]: "can't be blocked except by
+// artifact creatures and/or black creatures" — the blocker-quality reading,
+// mirroring Flying's shape (a Cant(Block) whose `by` is a Not(OneOf([…]))
+// blocker predicate). Blockers are creatures already, so Type(Artifact) /
+// ColorIs(Black) read as "artifact creature" / "black creature" in the `by`
+// slot (same as Flying naming only the keyword, not "creature").
+KeywordAbility(
+    name: "Fear",
+    template: "fear",
+    abilities: [Static(effects: [
+        Cant(Block(
+            on: Ref(This),
+            by: Not(OneOf([Type(Artifact), ColorIs(Black)])),
+        )),
+    ])],
+)

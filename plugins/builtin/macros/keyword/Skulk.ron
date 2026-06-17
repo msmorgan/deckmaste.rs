@@ -1,0 +1,17 @@
+// Skulk = an evasion Cant(Block) over blocker power [CR#702.118b]: "can't be
+// blocked by creatures with greater power" — greater than THIS creature's
+// power, read live. The blocker predicate compares the candidate blocker's
+// power against the carrier's: Stat(Power, Greater, StatOf(This, Power)). The
+// `This` inside StatOf resolves to the carrier (the ability's source), while
+// the Stat filter's subject is the candidate blocker — so it matches blockers
+// whose power exceeds the carrier's.
+KeywordAbility(
+    name: "Skulk",
+    template: "skulk",
+    abilities: [Static(effects: [
+        Cant(Block(
+            on: Ref(This),
+            by: Stat(Power, Greater, StatOf(This, Power)),
+        )),
+    ])],
+)
