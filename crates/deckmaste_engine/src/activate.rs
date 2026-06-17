@@ -79,6 +79,16 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
                 untap |= inner.untap;
                 verbs.extend(inner.verbs);
             }
+            // A nested cost is flattened away by `Cost::deserialize`, so it
+            // never reaches here in practice; recurse defensively for any
+            // hand-built value.
+            CostComponent::Cost(nested) => {
+                let inner = cost_summary(&nested.0)?;
+                symbols.extend_from_slice(&inner.mana);
+                tap |= inner.tap;
+                untap |= inner.untap;
+                verbs.extend(inner.verbs);
+            }
         }
     }
     Some(CostSummary {
@@ -252,11 +262,16 @@ impl GameState {
                 life >= amount
             }
             // [CR#601.2h]: discard needs at least that many cards in hand
-            // (partial payment is forbidden).
-            PlayerAction::Discard(count) => {
-                let need = self.eval_count(count, frame) as usize;
-                self.zones.hands[player.index()].len() >= need
-            }
+            // (partial payment is forbidden). A named `what` (cycling's
+            // "discard this card", [CR#702.29a]) is payable when those specific
+            // cards resolve, same as the other selection-cost verbs.
+            PlayerAction::Discard { count, what } => match what {
+                None => {
+                    let need = self.eval_count(count, frame) as usize;
+                    self.zones.hands[player.index()].len() >= need
+                }
+                Some(sel) => self.selection_cost_payable(sel, frame),
+            },
             // Sacrifice/Exile/Tap/Untap: enough legal candidates for the
             // selection's required count ([CR#601.2h]).
             PlayerAction::Sacrifice(sel)
@@ -417,8 +432,9 @@ mod tests {
     /// condition/limits/targets.
     fn activated(cost: Vec<CostComponent>, effect: Effect) -> ActivatedAbility {
         ActivatedAbility {
+            from: None,
             window: None,
-            cost,
+            cost: cost.into(),
             condition: None,
             limits: vec![],
             effect,
@@ -561,7 +577,8 @@ mod tests {
         let obj = make_object_on_battlefield(&mut state, player);
 
         let ability = ActivatedAbility {
-            cost: vec![],
+            from: None,
+            cost: vec![].into(),
             window: None,
             condition: Some(Condition::YourTurn),
             limits: vec![],
@@ -581,7 +598,8 @@ mod tests {
         let obj = make_object_on_battlefield(&mut state, player);
 
         let ability = ActivatedAbility {
-            cost: vec![],
+            from: None,
+            cost: vec![].into(),
             condition: Some(Condition::YourTurn),
             window: None,
             limits: vec![],
@@ -605,7 +623,8 @@ mod tests {
         state.activations.bump(key);
 
         let ability = ActivatedAbility {
-            cost: vec![],
+            from: None,
+            cost: vec![].into(),
             condition: None,
             limits: vec![UseLimit::OncePerTurn],
             window: None,
@@ -630,7 +649,8 @@ mod tests {
         state.activations.reset_turn();
 
         let ability = ActivatedAbility {
-            cost: vec![],
+            from: None,
+            cost: vec![].into(),
             condition: None,
             limits: vec![UseLimit::OncePerGame],
             window: None,
@@ -757,7 +777,10 @@ mod tests {
         let mut state = game();
         let player = PlayerId(0);
         let obj = make_object_on_battlefield(&mut state, player);
-        let verbs = [PlayerAction::Discard(deckmaste_core::Count::Literal(1))];
+        let verbs = [PlayerAction::Discard {
+            count: deckmaste_core::Count::Literal(1),
+            what: None,
+        }];
 
         // Empty hand: not payable.
         assert!(

@@ -72,8 +72,15 @@ pub enum Action {
 pub enum PlayerAction {
     /// Draw a number of cards ([CR#121.1]).
     Draw(Count),
-    /// Discard a number of cards ([CR#701.9]).
-    Discard(Count),
+    /// Discard cards ([CR#701.9]). `count` is how many; the optional `what`
+    /// names *which* — omitted = the discarding player chooses `count` from
+    /// hand (the common form). "Discard this card" (cycling's cost,
+    /// [CR#702.29a]) is `Discard(count: Literal(1), what: This)`.
+    Discard {
+        count: Count,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        what: Option<Selection>,
+    },
     /// Gain an amount of life ([CR#119.3]).
     GainLife(Count),
     /// Lose an amount of life — pay-life when in a cost ([CR#119.3]).
@@ -184,7 +191,7 @@ impl PlayerAction {
                 | PlayerAction::Exile(_)
                 | PlayerAction::Tap(_)
                 | PlayerAction::Untap(_)
-                | PlayerAction::Discard(_)
+                | PlayerAction::Discard { .. }
                 | PlayerAction::LoseLife(_)
                 | PlayerAction::RemoveCounters(..)
                 | PlayerAction::Reveal { .. }
@@ -212,7 +219,13 @@ mod tests {
         assert!(PlayerAction::Exile(Selection::Ref(Reference::This)).is_cost_eligible());
         assert!(PlayerAction::Tap(Selection::Ref(Reference::This)).is_cost_eligible());
         assert!(PlayerAction::Untap(Selection::Ref(Reference::This)).is_cost_eligible());
-        assert!(PlayerAction::Discard(Count::Literal(1)).is_cost_eligible());
+        assert!(
+            PlayerAction::Discard {
+                count: Count::Literal(1),
+                what: None
+            }
+            .is_cost_eligible()
+        );
         assert!(PlayerAction::LoseLife(Count::Literal(1)).is_cost_eligible());
 
         assert!(!PlayerAction::Draw(Count::Literal(1)).is_cost_eligible());
@@ -221,6 +234,58 @@ mod tests {
             !PlayerAction::AddMana(Count::Literal(1), crate::ManaSpec::AnyColor.into())
                 .is_cost_eligible()
         );
+    }
+
+    /// `Discard` carries an OPTIONAL `what` naming *which* cards ([CR#701.9]):
+    /// omitted = the discarding player chooses `count` from hand (the common
+    /// form); present = those specific cards. "Discard this card" (cycling's
+    /// cost, [CR#702.29a]) is `Discard(count: Literal(1), what: This)`.
+    #[test]
+    fn discard_takes_optional_selection() {
+        // count-only: the `what` selection is absent.
+        assert_eq!(
+            read("Discard(count: Literal(2))"),
+            Action::By(
+                Reference::You,
+                PlayerAction::Discard {
+                    count: Count::Literal(2),
+                    what: None
+                },
+            ),
+        );
+        // "discard this card" names the specific card via `what`.
+        assert_eq!(
+            read("Discard(count: Literal(1), what: This)"),
+            Action::By(
+                Reference::You,
+                PlayerAction::Discard {
+                    count: Count::Literal(1),
+                    what: Some(Selection::Ref(Reference::This)),
+                },
+            ),
+        );
+        // an absent `what` is omitted on write and round-trips; the This form too.
+        let bare = Action::By(
+            Reference::You,
+            PlayerAction::Discard {
+                count: Count::Literal(2),
+                what: None,
+            },
+        );
+        let written = write(&bare);
+        assert!(
+            !written.contains("what"),
+            "absent `what` omitted: {written}"
+        );
+        assert_eq!(read(&written), bare);
+        let this = Action::By(
+            Reference::You,
+            PlayerAction::Discard {
+                count: Count::Literal(1),
+                what: Some(Selection::Ref(Reference::This)),
+            },
+        );
+        assert_eq!(read(&write(&this)), this);
     }
 
     /// A bare player verb reads as `By(You, …)` — the implicit-you default:

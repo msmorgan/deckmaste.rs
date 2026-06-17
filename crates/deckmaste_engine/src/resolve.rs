@@ -947,11 +947,16 @@ impl GameState {
                     }],
                 }
             }
-            PlayerAction::Discard(qty) => {
+            PlayerAction::Discard { count, what } => {
                 // [CR#701.9b]: the actor chooses which cards — surfaced as a
                 // decision when the work item applies (the hand may change
-                // before then).
-                let count = self.eval_count(qty, frame);
+                // before then). A named `what` (discard a *specific* card) as a
+                // resolution EFFECT is unbuilt; cycling's "discard this card"
+                // ([CR#702.29a]) is a COST, paid in `activate.rs`, never here.
+                if let Some(sel) = what {
+                    todo!("discard a named selection as a resolution effect: {sel:?}");
+                }
+                let count = self.eval_count(count, frame);
                 vec![WorkItem::DiscardCards {
                     player: actor,
                     count,
@@ -3379,7 +3384,10 @@ mod tests {
         let frame = frame_src(src);
         let hand_before = state.zones.hands[0].len();
         state.run_effect(
-            Effect::Act(by_you(PlayerAction::Discard(Count::Literal(2)))),
+            Effect::Act(by_you(PlayerAction::Discard {
+                count: Count::Literal(2),
+                what: None,
+            })),
             &frame,
         );
         let _ = state.step(); // DiscardOpened
@@ -3408,7 +3416,10 @@ mod tests {
         // Clamp: an instruction to discard far more than the hand holds
         // discards the whole hand.
         state.run_effect(
-            Effect::Act(by_you(PlayerAction::Discard(Count::Literal(99)))),
+            Effect::Act(by_you(PlayerAction::Discard {
+                count: Count::Literal(99),
+                what: None,
+            })),
             &frame,
         );
         let _ = state.step();

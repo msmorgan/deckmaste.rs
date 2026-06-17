@@ -176,13 +176,15 @@ mod tests {
         assert_eq!(
             token.abilities,
             vec![Ability::Activated(ActivatedAbility {
+                from: None,
                 window: None,
                 cost: vec![
                     CostComponent::Tap,
                     CostComponent::Do(Box::new(PlayerAction::Sacrifice(Selection::from(
                         Reference::This
                     )))),
-                ],
+                ]
+                .into(),
                 condition: None,
                 limits: vec![],
                 effect: Effect::Act(Action::By(

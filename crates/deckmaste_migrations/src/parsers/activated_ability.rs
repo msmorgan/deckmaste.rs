@@ -86,7 +86,9 @@ mod tests {
     fn discard_cost() {
         assert_eq!(
             act("{1}{R}, Discard a card: Draw a card.").as_deref(),
-            Some("Activated(cost: [Mana([Generic(1),Red]), Do(Discard(1))], effect: Draw(1))")
+            Some(
+                "Activated(cost: [Mana([Generic(1),Red]), Do(Discard(count: 1))], effect: Draw(1))"
+            )
         );
     }
 

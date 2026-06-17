@@ -395,6 +395,11 @@ fn unless_cost_action(
             PlayerAction::Untap(Selection::Ref(Reference::This)),
         ),
         CostComponent::Expanded(e) => unless_cost_action(&e.value, who),
+        // A nested cost is spliced flat by `Cost::deserialize` before any
+        // cost is read, so a `Cost` component never survives to here.
+        CostComponent::Cost(_) => {
+            unreachable!("nested Cost is flattened away on deserialize")
+        }
         CostComponent::Mana(_) => todo!(
             "engine-resolve-effects seam: a mid-resolution mana 'unless' cost \
              ([CR#118.12a]) — the PayCost/PayMana flow is announce-slot-bound"

@@ -1,3 +1,7 @@
+use serde::Deserialize;
+use serde::Serialize;
+
+use crate::Expand;
 use crate::Expansion;
 use crate::SupportsMacros;
 use crate::action::PlayerAction;
@@ -23,10 +27,65 @@ pub enum CostComponent {
     /// cost lists, so an unboxed variant would size every element to it
     /// (`clippy::large_enum_variant`).
     Do(Box<PlayerAction>),
+    /// A *nested* cost list. It exists only to let a macro splice a
+    /// list-valued cost param into a larger cost list — the body writes
+    /// `cost: [Cost(Param(0)), Do(Discard(…))]`, so the spliced `[Mana(…)]`
+    /// reads as `Cost([Mana(…)])` — and [`Cost`]'s `Deserialize` FLATTENS it
+    /// away, so a nested `Cost` never survives into stored data
+    /// (cycling, [CR#702.29a]).
+    Cost(Cost),
     /// A remembered `CostComponent` macro invocation (`SacrificeThis`, loyalty
     /// sugar, …).
     #[macro_ron(expanded)]
     Expanded(Expansion<CostComponent>),
+}
+
+/// A cost: an ordered list of [`CostComponent`]s ([CR#601.2b]). A newtype
+/// (not a bare `Vec`) so a nested cost — a [`CostComponent::Cost`] spliced in
+/// by a macro whose cost param is itself a list — is FLATTENED back into one
+/// flat list as it deserializes. A macro body writes `[Param(0), Do(…)]`
+/// where `Param(0)` expands to `[Mana(…)]`; that reads as
+/// `[Cost([Mana(…)]), Do(…)]`, and the flatten below yields `[Mana(…), Do(…)]`
+/// (cycling, [CR#702.29a]). Serializes transparently as the bare list.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Expand, Serialize)]
+#[serde(transparent)]
+pub struct Cost(pub Vec<CostComponent>);
+
+impl<'de> Deserialize<'de> for Cost {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let raw = Vec::<CostComponent>::deserialize(deserializer)?;
+        let mut flat = Vec::with_capacity(raw.len());
+        for component in raw {
+            match component {
+                // Splice a nested cost in (one level: `inner` is itself
+                // already flat, having deserialized through this same path).
+                CostComponent::Cost(inner) => flat.extend(inner.0),
+                other => flat.push(other),
+            }
+        }
+        Ok(Cost(flat))
+    }
+}
+
+impl std::ops::Deref for Cost {
+    type Target = Vec<CostComponent>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<Vec<CostComponent>> for Cost {
+    fn from(components: Vec<CostComponent>) -> Self {
+        Cost(components)
+    }
+}
+
+impl<'a> IntoIterator for &'a Cost {
+    type Item = &'a CostComponent;
+    type IntoIter = std::slice::Iter<'a, CostComponent>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
 }
 
 /// The total-cost record of the [CR#601.2f] pipeline — an ENGINE-traffic
@@ -58,6 +117,42 @@ mod tests {
 
     fn read(source: &str) -> CostComponent {
         crate::ron::options().from_str(source).unwrap()
+    }
+
+    /// The named `Cost` variant wraps a sub-list, and a `Cost` FLATTENS nested
+    /// `Cost` components after deserialize. This is what lets a macro splice a
+    /// list-valued cost param into a larger cost list: `cost: [Cost(Param(0)),
+    /// Do(…)]` where `Param(0)` expands to `[Mana(…)]` reads as
+    /// `[Cost([Mana(…)]), Do(…)]` and flattens to `[Mana(…), Do(…)]`
+    /// (cycling, [CR#702.29a]).
+    #[test]
+    fn nested_cost_flattens_after_deserialize() {
+        use crate::action::PlayerAction;
+        use crate::count::Count;
+
+        // The named Cost variant wraps a sub-list.
+        let comp: CostComponent = crate::ron::options().from_str("Cost([Tap])").unwrap();
+        assert!(
+            matches!(comp, CostComponent::Cost(_)),
+            "Cost([…]) reads as the Cost variant, got {comp:?}"
+        );
+
+        // A Cost flattens a nested Cost component (the macro-splice shape).
+        let cost: Cost = crate::ron::options()
+            .from_str("[Cost([Mana([Generic(2)])]), Do(Discard(count: Literal(1), what: This))]")
+            .unwrap();
+        assert_eq!(
+            cost,
+            Cost(vec![
+                CostComponent::Mana(ManaCost::from(vec![ManaSymbol::Simple(
+                    SimpleManaSymbol::Generic(2)
+                )])),
+                CostComponent::Do(Box::new(PlayerAction::Discard {
+                    count: Count::Literal(1),
+                    what: Some(Selection::Ref(Reference::This)),
+                })),
+            ]),
+        );
     }
 
     #[test]

@@ -41,6 +41,7 @@ pub use continuous::Scope;
 pub use continuous::StaticEffect;
 
 mod cost;
+pub use cost::Cost;
 pub use cost::CostComponent;
 pub use cost::TotalCost;
 
