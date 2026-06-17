@@ -40,6 +40,35 @@ critical/planned/maybe  →  wip  →  done
 integrate <slug>` folds the finished work into the default line and moves the
 ticket to `done/`.
 
+## The dependency graph (`scripts/todo`)
+
+Each ticket's frontmatter carries a `needs: [...]` list — the other tickets (by
+slug) that must reach `done/` before it can be worked. Those lists are the edges
+of a dependency graph whose nodes are the ticket files (plus the `census.md`
+mechanic rows), and whose status for any node is simply the folder it sits in.
+
+**That `needs:` list is machine-read graph data, not a reading list.** To find
+what a ticket depends on, what it blocks, or whether it is claimable yet, **query
+the graph with `scripts/todo` — do not open the dependency tickets to work that
+out by hand.** (Reading a dependency's *body* to understand its design is fine
+when you actually need it; the script is for everything about dependency *status*
+and *shape*.)
+
+`scripts/todo <command> [<slug>] [--slugs-only]`:
+
+| Command | What it prints |
+|---|---|
+| `ready` | Claimable triage items — those whose every need is in `done/`. One `slug  (folder)` per line, ordered by status then name. |
+| `blocked` | Triage items with an unmet need: `slug  <- need1 need2 …` (only the needs not yet done). |
+| `graph <slug>` | One ticket's dependency picture: recursive `needs (upstream): …` + direct `blocks (downstream): …`, each entry tagged `[folder]`. **Run this on a ticket instead of opening its `needs:` files.** |
+| `needs <slug>` | That ticket's *direct* needs, one slug per line. |
+| `check` | Integrity sweep over the whole graph — reports dependency cycles and dangling needs (a need naming no node). Prints `OK: …`, or a `FAIL` line plus one problem per line and exits 1. Run it after editing any `needs:`. |
+| `mint <slug>` | Print a `wip/` ticket body for a census-only mechanic (what `workflow claim` uses when the slug is a census row, not a ticket). |
+| `iscensus <slug>` | Exit 0 iff `slug` is a census-derived node rather than a ticket file (used by `workflow claim`); prints nothing. |
+
+Append `--slugs-only` to reduce any line-oriented command to just the bare slug
+column — handy for piping, e.g. `scripts/todo ready --slugs-only`.
+
 ## Priorities
 
 When picking "the next" item, run `scripts/todo ready` to list claimable
