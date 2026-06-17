@@ -761,7 +761,9 @@ impl GameState {
                     .into_iter()
                     .map(|object| GameEvent::CounterPlaced {
                         object,
-                        kind: kind.clone(),
+                        // The event carries the resolved Ident name (engine
+                        // state is Ident-keyed); the authored ref is a `CounterRef`.
+                        kind: kind.0,
                         count: n,
                         cause: Some(crate::event::Cause::put_counters(
                             deckmaste_core::Agency::EffectInstruction,
@@ -785,7 +787,7 @@ impl GameState {
                     .into_iter()
                     .map(|object| GameEvent::CounterRemoved {
                         object,
-                        kind: kind.clone(),
+                        kind: kind.0,
                         count: n,
                         cause: Some(crate::event::Cause::remove_counters(
                             deckmaste_core::Agency::EffectInstruction,
@@ -1115,6 +1117,19 @@ impl GameState {
                     ),
                 };
                 Uint::try_from(value.max(0)).expect("clamped stat fits Uint")
+            }
+            // [CR#122.1]: the live count of a counter kind on the resolved
+            // object/player proxy, read off the raw counter map (not the
+            // derived view — counter quantities are base state, so no layers
+            // recursion). An absent kind is zero.
+            Count::CounterCount(reference, kind) => {
+                let id = self.eval_reference(reference, frame);
+                self.objects
+                    .obj(id)
+                    .counters
+                    .get(kind.as_str())
+                    .copied()
+                    .unwrap_or(0)
             }
             // The amount fixed by an earlier instruction of this resolution —
             // recorded at the apply funnel (so it reads what actually
@@ -2685,9 +2700,10 @@ mod tests {
         );
     }
 
-    /// [CR#122.1]: `PutCounters(This, "+1/+1", 2)` emits one `CounterPlaced`
+    /// [CR#122.1]: `PutCounters(This, P1P1Counter, 2)` emits one `CounterPlaced`
     /// per selected object, carrying the effect-instruction cause
     /// (events.md §3) — its agent is the resolving source's controller.
+    /// Counter kinds are bare `CounterRef` idents, not symbolic strings.
     #[test]
     fn put_counters_emits_counter_placed() {
         use deckmaste_core::Agency;
@@ -2699,7 +2715,7 @@ mod tests {
         let items = state.action_items(
             &by_you(PlayerAction::PutCounters(
                 sel_this(),
-                "+1/+1".into(),
+                "P1P1Counter".into(),
                 Count::Literal(2),
             )),
             &frame,
@@ -2709,7 +2725,7 @@ mod tests {
             vec![WorkItem::Emit(Occurrence::Single(
                 GameEvent::CounterPlaced {
                     object: bear,
-                    kind: "+1/+1".into(),
+                    kind: "P1P1Counter".into(),
                     count: 2,
                     cause: Some(Cause::put_counters(
                         Agency::EffectInstruction,
@@ -2729,7 +2745,7 @@ mod tests {
         let items = state.action_items(
             &by_you(PlayerAction::PutCounters(
                 sel_this(),
-                "+1/+1".into(),
+                "P1P1Counter".into(),
                 Count::Literal(0),
             )),
             &frame,
@@ -2747,12 +2763,12 @@ mod tests {
             .objects
             .obj_mut(bear)
             .counters
-            .insert("+1/+1".into(), 1);
+            .insert("P1P1Counter".into(), 1);
         let frame = frame_src(bear);
         state.run_effect(
             Effect::Act(by_you(PlayerAction::PutCounters(
                 sel_this(),
-                "+1/+1".into(),
+                "P1P1Counter".into(),
                 Count::Literal(2),
             ))),
             &frame,
@@ -2763,7 +2779,7 @@ mod tests {
                 .objects
                 .obj(bear)
                 .counters
-                .get(&deckmaste_core::Ident::from("+1/+1"))
+                .get(&deckmaste_core::Ident::from("P1P1Counter"))
                 .copied(),
             Some(3)
         );
@@ -2778,12 +2794,12 @@ mod tests {
             .objects
             .obj_mut(bear)
             .counters
-            .insert("+1/+1".into(), 1);
+            .insert("P1P1Counter".into(), 1);
         let frame = frame_src(bear);
         state.run_effect(
             Effect::Act(by_you(PlayerAction::RemoveCounters(
                 sel_this(),
-                "+1/+1".into(),
+                "P1P1Counter".into(),
                 Count::Literal(2),
             ))),
             &frame,
@@ -2794,8 +2810,37 @@ mod tests {
                 .objects
                 .obj(bear)
                 .counters
-                .contains_key(&deckmaste_core::Ident::from("+1/+1")),
+                .contains_key(&deckmaste_core::Ident::from("P1P1Counter")),
             "a counter kind dropped to zero leaves no key behind"
+        );
+    }
+
+    /// [CR#122.1]: `Count::CounterCount(ref, kind)` reads how many `kind`
+    /// counters sit on the resolved object/player proxy; an absent kind is 0.
+    /// Counter kinds are rusty idents (`P1P1Counter`), not symbolic strings.
+    #[test]
+    fn counter_count_reads_the_objects_counter_map() {
+        let (mut state, bear) = bear_on_field();
+        state
+            .objects
+            .obj_mut(bear)
+            .counters
+            .insert("P1P1Counter".into(), 3);
+        let frame = frame_src(bear);
+        assert_eq!(
+            state.eval_count(
+                &Count::CounterCount(Reference::This, "P1P1Counter".into()),
+                &frame
+            ),
+            3
+        );
+        assert_eq!(
+            state.eval_count(
+                &Count::CounterCount(Reference::This, "M1M1Counter".into()),
+                &frame
+            ),
+            0,
+            "an absent counter kind reads as zero"
         );
     }
 

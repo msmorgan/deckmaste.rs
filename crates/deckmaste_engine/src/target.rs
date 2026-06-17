@@ -102,7 +102,7 @@ pub fn matches_with(
             .objects
             .obj(id)
             .counters
-            .get(kind)
+            .get(kind.as_str())
             .is_some_and(|&n| n > 0),
         // [CR#109.3] designations are non-characteristic state: a LIVE read
         // against the registry (object entry, or the player's for proxies).

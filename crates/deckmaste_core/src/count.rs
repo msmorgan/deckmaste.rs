@@ -63,6 +63,12 @@ pub enum Count {
     CountOf(Box<Filter>),
     /// A referenced object's stat ([CR#107.3], "equal to its power").
     StatOf(Reference, Stat),
+    /// How many counters of the named kind sit on a referenced object or
+    /// player proxy ([CR#122.1]) — "for each +1/+1 counter on ~", and the
+    /// magnitude a counter's own conferred effect scales by (a +1/+1 counter
+    /// confers `AddPower(CounterCount(This, P1P1Counter))`). The kind is a bare
+    /// `CounterRef`, not a string.
+    CounterCount(Reference, crate::CounterRef),
     /// Magnitude anaphora: "that much" / "that many" — the amount fixed by
     /// an earlier instruction ([CR#107.3]).
     ThatMuch,

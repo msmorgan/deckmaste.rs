@@ -61,7 +61,9 @@ pub enum StateFilter {
     /// The object's status ([CR#110.5]).
     Status(Status),
     /// The object has at least one counter of the named kind ([CR#122.1]).
-    HasCounter(Ident),
+    /// The kind is a bare `CounterRef` (`HasCounter(P1P1Counter)`), not a
+    /// string.
+    HasCounter(crate::CounterRef),
     /// The object carries the named designation (taxonomy §8) — derived
     /// designations (`Designated(Modified)`) work with no special casing.
     Designated(Ident),
@@ -216,8 +218,9 @@ mod tests {
             Filter::State(StateFilter::Status(Status::Tapped)),
         );
         assert_eq!(
-            read(r#"HasCounter("+1/+1")"#),
-            Filter::State(StateFilter::HasCounter("+1/+1".into())),
+            // The counter kind is a bare ident (`CounterRef`), not a string.
+            read("HasCounter(P1P1Counter)"),
+            Filter::State(StateFilter::HasCounter("P1P1Counter".into())),
         );
         assert_eq!(
             read(r#"Designated("Monstrous")"#),
@@ -311,7 +314,7 @@ mod tests {
             "Attachment(Type(Enchantment))",
             "InZone(Battlefield)",
             "Status(Tapped)",
-            r#"HasCounter("+1/+1")"#,
+            "HasCounter(P1P1Counter)",
             r#"Designated("Monstrous")"#,
             r#"RelatedBy("PairedWith", Type(Creature))"#,
             r#"Subtype("Forest")"#,
