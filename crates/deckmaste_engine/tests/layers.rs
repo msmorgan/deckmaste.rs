@@ -346,62 +346,41 @@ fn anthem_catches_creature_painted_black() {
 
 /// [CR#613.4c],[CR#122]: +1/+1 counters modify P/T in layer 7c.
 #[test]
-fn plus_one_counters_pump() {
-    use deckmaste_core::Ident;
-
-    let mut state = two_player_with("Grizzly Bears", 1, 10);
-    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
-    state
-        .objects
-        .obj_mut(bear)
-        .counters
-        .insert(Ident::from("+1/+1"), 2);
-
-    let view = state.layers();
-    assert_eq!(view.power(bear), Some(4), "2/2 + two +1/+1 → 4 power");
-    assert_eq!(
-        view.toughness(bear),
-        Some(4),
-        "2/2 + two +1/+1 → 4 toughness"
-    );
-}
-
-/// [CR#613.4c]: -1/-1 counters reduce P/T in layer 7c (and stack with +1/+1
-/// as a net delta).
-#[test]
 fn minus_one_counters_shrink() {
     use deckmaste_core::Ident;
 
     let mut state = two_player_with("Grizzly Bears", 1, 10);
+    state.counter_decls = plugin("builtin").counters;
     let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
     state
         .objects
         .obj_mut(bear)
         .counters
-        .insert(Ident::from("-1/-1"), 1);
+        .insert(Ident::from("M1M1Counter"), 1);
 
     let view = state.layers();
-    assert_eq!(view.power(bear), Some(1), "2/2 + one -1/-1 → 1 power");
+    assert_eq!(view.power(bear), Some(1), "2/2 + one M1M1Counter → 1 power");
     assert_eq!(
         view.toughness(bear),
         Some(1),
-        "2/2 + one -1/-1 → 1 toughness"
+        "2/2 + one M1M1Counter → 1 toughness"
     );
 }
 
 /// A +1/+1 counter on a permanent with no P/T (a non-creature) does nothing —
-/// the 7c counter delta only applies where P/T is `Some`.
+/// the conferred boost only applies where P/T is `Some`.
 #[test]
 fn counter_on_non_creature_does_nothing() {
     use deckmaste_core::Ident;
 
     let mut state = game_with_p0_cards(&["Moonlit Wake"], 1);
+    state.counter_decls = plugin("builtin").counters;
     let ench = force_onto_battlefield(&mut state, PlayerId(0), "Moonlit Wake");
     state
         .objects
         .obj_mut(ench)
         .counters
-        .insert(Ident::from("+1/+1"), 3);
+        .insert(Ident::from("P1P1Counter"), 3);
 
     let view = state.layers();
     assert_eq!(
@@ -412,31 +391,55 @@ fn counter_on_non_creature_does_nothing() {
     assert_eq!(view.toughness(ench), None);
 }
 
-/// [CR#613.4c]: +1/+1 and -1/-1 counters combine as a net delta in 7c.
+/// [CR#613.4c]: +1/+1 and -1/-1 counters combine as a net delta — two
+/// conferred `Continuous` boosts (+2/+2 and -1/-1) sum in layer 7c.
 #[test]
 fn mixed_counters_net_delta() {
     use deckmaste_core::Ident;
 
     let mut state = two_player_with("Grizzly Bears", 1, 10);
+    state.counter_decls = plugin("builtin").counters;
     let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
     state
         .objects
         .obj_mut(bear)
         .counters
-        .insert(Ident::from("+1/+1"), 2);
+        .insert(Ident::from("P1P1Counter"), 2);
     state
         .objects
         .obj_mut(bear)
         .counters
-        .insert(Ident::from("-1/-1"), 1);
+        .insert(Ident::from("M1M1Counter"), 1);
 
     let view = state.layers();
     assert_eq!(
         view.power(bear),
         Some(3),
-        "2/2 + two +1/+1 - one -1/-1 → net +1 → 3"
+        "2/2 + two P1P1Counter - one M1M1Counter → net +1 → 3"
     );
     assert_eq!(view.toughness(bear), Some(3));
+}
+
+/// [CR#122.1a]: a `P1P1Counter` pumps P/T via its conferred `Continuous` boost,
+/// gathered from the counter registry (`state.counter_decls`) — the
+/// data-driven path, not a hardcoded `"+1/+1"` read. The boost scales by the
+/// live count via the baked `CounterCount`.
+#[test]
+fn data_driven_plus_one_counter_pumps() {
+    use deckmaste_core::Ident;
+
+    let mut state = two_player_with("Grizzly Bears", 1, 10);
+    state.counter_decls = plugin("builtin").counters;
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    state
+        .objects
+        .obj_mut(bear)
+        .counters
+        .insert(Ident::from("P1P1Counter"), 2);
+
+    let view = state.layers();
+    assert_eq!(view.power(bear), Some(4), "2/2 + two P1P1Counter → 4 power");
+    assert_eq!(view.toughness(bear), Some(4));
 }
 
 /// [CR#508.1a]: a permanent animated into a creature by a layer-4 effect is a
