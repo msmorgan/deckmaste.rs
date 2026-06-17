@@ -198,10 +198,14 @@ impl GameState {
             // Pure facts: nothing to mutate. `BecameTarget` ([CR#601.2c])
             // exists for the trigger scan (ward, [CR#702.21a]); the
             // targeting state itself lives in the announce slot / stack
-            // entry.
+            // entry. `AbilityUsed` is bookkeeping recorded directly via
+            // `history.record` at the trigger-fire/activation apply sites
+            // ([CR#608.2i]); it never enters the occurrence pipeline, so its
+            // apply is inert here (defensive only).
             GameEvent::TurnBegan { .. }
             | GameEvent::StepBegan(_)
-            | GameEvent::BecameTarget { .. } => event,
+            | GameEvent::BecameTarget { .. }
+            | GameEvent::AbilityUsed { .. } => event,
             // P0.W3 seam: grammar-complete events nothing emits yet — their
             // apply (RNG) is unbuilt.
             GameEvent::CoinFlipped { .. } | GameEvent::DieRolled { .. } => {
@@ -342,19 +346,15 @@ impl GameState {
             GameEvent::AbilityActivated { source, ability } => {
                 // [CR#602.2a]: promote the staged activation onto the stack
                 // under the stack identity minted when the announce opened
-                // ([CR#405], `begin_activate`), and count it against
-                // "activate only once" limits ([CR#602.5b]).
+                // ([CR#405], `begin_activate`).
                 let pending = self.promote_announce();
                 debug_assert!(
                     matches!(
                         &pending.object,
                         StackObject::Activated { source: s, .. } if *s == source
                     ),
-                    // The `ability` index keys the ledger only; the stack object
-                    // carries the text. Source match is the only structural check here.
                     "AbilityActivated event matches the staged announce"
                 );
-                self.activations.bump((source, ability));
                 // Record the substantive "this ability was used" fact directly
                 // so history reads (use-limit counts, EventCount) can find it.
                 // Not routed through the occurrence pipeline — must not trigger
@@ -379,7 +379,7 @@ impl GameState {
                     self.turn.turn_number,
                     GameEvent::AbilityUsed {
                         object: used_object,
-                        ability: ability as Uint,
+                        ability: Uint::try_from(ability).expect("ability index fits in Uint"),
                     },
                 );
                 GameEvent::AbilityActivated { source, ability }
@@ -656,10 +656,6 @@ impl GameState {
                 self.combat.remove_object(object);
                 GameEvent::DamageRemoved { object }
             }
-            // Bookkeeping fact recorded directly via `history.record` at the
-            // trigger-fire and activation apply sites; never emitted as an
-            // occurrence, so this arm is defensive only.
-            GameEvent::AbilityUsed { .. } => event,
         }
     }
 
@@ -989,7 +985,6 @@ impl GameState {
         if self.turn.turn_number > 1 {
             self.turn.active_player = self.next_live_after(self.turn.active_player);
         }
-        self.activations.reset_turn();
         // [CR#302.6]: a creature the active player has controlled continuously
         // since this turn began sheds summoning sickness. Collect ids first to
         // satisfy the borrow checker (mirrors `clear_marked_damage`).
@@ -1468,8 +1463,8 @@ impl GameState {
     /// id / object / controller / targets / x across unchanged ([CR#405]: the
     /// stack identity was minted at announce). Shared by the `SpellCast` and
     /// `AbilityActivated` apply arms, which differ only in their own
-    /// debug-assert and (for activations) the "activate only once" bump — so
-    /// the moved-out `PendingStackEntry` is returned for the caller's check.
+    /// debug-assert — so the moved-out `PendingStackEntry` is returned for the
+    /// caller's check.
     ///
     /// # Panics
     ///
