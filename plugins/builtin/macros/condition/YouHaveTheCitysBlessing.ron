@@ -1,0 +1,18 @@
+// "You have the city's blessing" — the controller holds the city's-blessing
+// designation ([CR#702.131b]: a per-player designation a player either has or
+// does not). A `Condition`-kind macro, so it stands as the `condition:` of an
+// `Effect::If` (and any gate/durational frame that reads a condition) and
+// expands at load to the designation read — the exact `Condition` the Ascend
+// gate and the engine city's-blessing path already use.
+//
+// Template: "you have the city's blessing" (matches the CR wording). This is
+// the bidirectional parse<->render truth: the conditional-effect parser routes
+// an "if you have the city's blessing, … instead" phrase back to this macro
+// (emitting the invocation, expanded here at load), and the renderer prints the
+// invocation as the phrase.
+(
+    name: "YouHaveTheCitysBlessing",
+    template: "you have the city's blessing",
+    kinds: [Condition],
+    body: Is(You, Designated("CitysBlessing")),
+)

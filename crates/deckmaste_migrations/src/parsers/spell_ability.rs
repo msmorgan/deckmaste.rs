@@ -104,6 +104,29 @@ mod tests {
     }
 
     #[test]
+    fn frames_conditional_like_secrets_of_the_golden_city() {
+        // The Ascend reader: a conditional branch on the city's blessing. The
+        // condition is a `Condition`-kind macro INVOCATION
+        // (`YouHaveTheCitysBlessing`), the parse-via-macros form the plugin
+        // loader expands at graduation — exactly as the `Effect` action macro
+        // `Investigate` stands as an effect body. The bare `core::ron` reader
+        // does NOT expand macros, so the macro-aware graduation gate (not a
+        // core re-parse) is what validates this; resolved against the real
+        // builtin index so the condition template matches.
+        let ron = resolve_line(
+            "Draw two cards. If you have the city's blessing, draw three cards instead.",
+            &crate::parsers::test_ctx::builtin_ctx(CardKind::Spell),
+        )
+        .unwrap()
+        .expect("conditional spell parses");
+        assert_eq!(
+            ron,
+            "Spell(effect: If(condition: YouHaveTheCitysBlessing, \
+             then: Draw(3), otherwise: Draw(2)))"
+        );
+    }
+
+    #[test]
     fn frames_destroy_target_like_doom_blade() {
         assert_eq!(
             spell("Destroy target creature.").as_deref(),

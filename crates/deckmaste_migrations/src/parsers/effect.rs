@@ -20,15 +20,17 @@ pub(super) struct ParsedEffect {
 }
 
 /// Parses one normalized effect line into a [`ParsedEffect`], or `None` to
-/// decline. Productions are tried in order; the first match wins. The
-/// bespoke productions lead (they encode targeting/scope the bare macro
-/// templates can't carry); an `Effect`-kind macro template
+/// decline. Productions are tried in order; the first match wins. `parse_if`
+/// leads (it folds a base sentence + conditional override into one
+/// `Effect::If`); the bespoke productions follow (they encode targeting/scope
+/// the bare macro templates can't carry); an `Effect`-kind macro template
 /// ([`parse_macro_effect`]) is the final fallthrough, so keyword-action lines
 /// (`investigate.`, `scry 2.`) route back to the macro whose template renders
-/// them. [`ResolveCtx`] carries the reverse template index that fallthrough
-/// consults.
+/// them. [`ResolveCtx`] carries the reverse template index that the fallthrough
+/// (and the conditional's condition-phrase lookup) consults.
 pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
-    parse_may(line, ctx)
+    parse_if(line, ctx)
+        .or_else(|| parse_may(line, ctx))
         .or_else(|| parse_deal_damage(line))
         .or_else(|| parse_draw(line))
         .or_else(|| parse_lose_life(line))
@@ -89,6 +91,73 @@ fn macro_slot_reader(ty: &str, input: &str) -> Option<(String, usize)> {
         "Count" => Some((number_word(input.trim())?.to_string(), input.len())),
         _ => None,
     }
+}
+
+/// `<base>. If <condition>, [instead] <override> [instead].` -> a within-effect
+/// conditional: `If(condition: <cond>, then: <override>, otherwise: <base>)`.
+/// This is later text modifying earlier text in one resolving effect
+/// ([CR#608.2c] "read the whole text and apply the rules of English") — NOT a
+/// triggered-ability intervening "if" ([CR#603.4]). The conditional sentence's
+/// effect is the `then` branch (taken when the condition holds); the leading
+/// base sentence is the `otherwise` (the default when it doesn't) — matching
+/// the rulings on the Ascend reader cards (e.g. Golden Demise, Secrets of the
+/// Golden City), where "if you have the city's blessing, … instead" swaps the
+/// base for the override at resolution.
+///
+/// Both branches re-enter [`parse_clause`], so the whole production declines if
+/// either branch isn't itself parseable, or if the condition phrase isn't a
+/// grounded condition. The condition is read the parse-via-macros way: the
+/// phrase is routed to the `Condition`-kind macro whose `template` renders it
+/// (e.g. `you have the city's blessing` -> `YouHaveTheCitysBlessing`, authored
+/// in `plugins/builtin/macros/condition/`), and the emitted RON carries that
+/// macro INVOCATION, which the loader expands to its `Condition` body — exactly
+/// as an `Effect` action macro stands as an effect body. New condition phrases
+/// are added by authoring a `Condition` macro, with no parser change. v1
+/// declines when EITHER branch declares targets: the two clauses share no
+/// announce list here, so colliding `Target(0)` references can't be expressed —
+/// a later production with a hoisted shared `Targeted` wrapper will lift that.
+fn parse_if(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
+    // The conditional sentence opens at ". If " (the base sentence ends, the
+    // "If" clause begins). Split on the LAST such boundary so a base sentence
+    // that itself contains "if" survives; in practice these are single-base
+    // single-override lines, so the last boundary is the only one.
+    let (base, cond_sentence) = line.rsplit_once(". If ")?;
+    let base = format!("{base}.");
+    // "<phrase>, <override>." — the condition phrase runs to the first comma,
+    // the override clause follows.
+    let cond_sentence = cond_sentence.strip_suffix('.')?;
+    let (phrase, override_clause) = cond_sentence.split_once(", ")?;
+    // Route the phrase to its `Condition` macro; the match must consume the
+    // WHOLE phrase (no trailing junk). The macro NAME is the parsed condition.
+    let phrase = phrase.trim();
+    let m = ctx.index.match_kind("Condition", phrase)?;
+    if m.consumed != phrase.len() {
+        return None;
+    }
+    let condition = m.macro_name.to_string();
+
+    // "instead" may lead the override ("instead <override>") or trail it
+    // ("<override> instead") — strip whichever side carries it, then re-attach
+    // the sentence period the inner productions expect.
+    let override_body = override_clause.trim();
+    let override_body = strip_prefix_ci(override_body, "instead ")
+        .or_else(|| override_body.strip_suffix(" instead"))
+        .unwrap_or(override_body);
+    let override_line = format!("{override_body}.");
+
+    let base_parsed = parse_clause(&base, ctx)?;
+    let then_parsed = parse_clause(&override_line, ctx)?;
+    // v1: neither branch may declare targets (no shared announce list).
+    if !base_parsed.targets.is_empty() || !then_parsed.targets.is_empty() {
+        return None;
+    }
+    Some(ParsedEffect {
+        targets: Vec::new(),
+        effect: format!(
+            "If(condition: {condition}, then: {}, otherwise: {})",
+            then_parsed.effect, base_parsed.effect
+        ),
+    })
 }
 
 /// `you may <effect>` -> the inner effect wrapped in a `May` frame
@@ -1110,6 +1179,93 @@ mod tests {
         assert_eq!(
             parsed_with_macros("Draw a card."),
             Some((String::new(), "Draw(1)".to_owned()))
+        );
+    }
+
+    #[test]
+    fn conditional_instead_at_end() {
+        // Secrets of the Golden City: base draw, override draw, "instead" at the
+        // end of the conditional sentence. The conditional branch is `then`; the
+        // base is `otherwise` (the branch when the condition is false).
+        assert_eq!(
+            parsed_with_macros(
+                "Draw two cards. If you have the city's blessing, draw three cards instead."
+            ),
+            Some((
+                String::new(),
+                "If(condition: YouHaveTheCitysBlessing, then: Draw(3), otherwise: Draw(2))"
+                    .to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn conditional_instead_at_front() {
+        // "If you have the city's blessing, instead <override>." — the "instead"
+        // leads the override clause.
+        assert_eq!(
+            parsed_with_macros(
+                "Creatures you control get +1/+1 until end of turn. \
+                 If you have the city's blessing, instead creatures you control get +2/+2 until end of turn."
+            ),
+            Some((
+                String::new(),
+                "If(condition: YouHaveTheCitysBlessing, \
+                 then: Continuously(effect: Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), \
+                 changes: [AddPower(2), AddToughness(2)]), duration: FixedUntil(EndOfTurn)), \
+                 otherwise: Continuously(effect: Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), \
+                 changes: [AddPower(1), AddToughness(1)]), duration: FixedUntil(EndOfTurn)))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn conditional_no_instead() {
+        // "If you have the city's blessing, <override>." with no "instead" word —
+        // still a conditional branch (the override is `then`, base is `otherwise`).
+        assert_eq!(
+            parsed_with_macros("Draw a card. If you have the city's blessing, draw two cards."),
+            Some((
+                String::new(),
+                "If(condition: YouHaveTheCitysBlessing, then: Draw(2), otherwise: Draw(1))"
+                    .to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn conditional_declines_unknown_condition() {
+        // An ungrounded condition phrase declines the whole production (the line
+        // stays Unparsed rather than emit an unverified condition).
+        assert!(
+            parsed_with_macros("Draw a card. If you control a creature, draw two cards instead.")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn conditional_declines_unparseable_branch() {
+        // Either branch failing to parse declines the whole `If` (no partial).
+        assert!(
+            parsed_with_macros("Scry 2. If you have the city's blessing, draw a card instead.")
+                .is_none()
+        );
+        assert!(
+            parsed_with_macros("Draw a card. If you have the city's blessing, scry 2 instead.")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn conditional_declines_targeted_branch() {
+        // v1 declines when a branch declares targets: both branches would emit a
+        // `Target(0)` with no shared announce list, which the `If` node can't
+        // express yet. Decline cleanly rather than emit colliding targets.
+        assert!(
+            parsed_with_macros(
+                "Destroy target creature. If you have the city's blessing, destroy target artifact instead."
+            )
+            .is_none()
         );
     }
 }
