@@ -167,6 +167,34 @@ pub fn matches_with(
             }
             None => todo!("Ref(You) at a frameless position — targeting threads no carrier"),
         },
+        // "the host of THIS attachment" ([CR#301.5,303.4]): `id` is the
+        // permanent that THIS (the watcher) is attached to. Used by umbra/totem
+        // armor to express "the enchanted permanent" as the watched subject of
+        // a static other-watching replacement ([CR#702.89a]).
+        //
+        // Only `inner = This` is resolvable from the carrier alone (no Frame).
+        // The general `AttachHostOf(inner)` case needs `eval_reference` and is
+        // therefore left as a seam.
+        Filter::Ref(Reference::AttachHostOf(inner))
+            if matches!(inner.as_ref(), Reference::This) =>
+        {
+            match watcher {
+                Some(w) => {
+                    // Find the live object whose source is the watcher (the Aura)
+                    // and check whether it is attached to `id` (the would-be
+                    // destroyed creature). If the watcher has no live object on
+                    // the battlefield (e.g. it left already), the match fails.
+                    state
+                        .objects
+                        .iter()
+                        .find(|o| o.source == w)
+                        .is_some_and(|o| o.attached_to == Some(id))
+                }
+                None => todo!(
+                    "Ref(AttachHostOf(This)) at a frameless position — targeting threads no carrier"
+                ),
+            }
+        }
 
         // "named X" ([CR#201]): printed face name; a player proxy has no card.
         Filter::Characteristic(CharacteristicFilter::Named(name)) => {
