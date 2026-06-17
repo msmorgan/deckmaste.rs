@@ -15,12 +15,15 @@ use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
+use deckmaste_core::Duration;
 use deckmaste_core::Effect;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSpec;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::Property;
 use deckmaste_core::Reference;
+use deckmaste_core::Replacement;
+use deckmaste_core::Selection;
 use deckmaste_core::Subtype;
 use deckmaste_core::Supertype;
 use deckmaste_core::Type;
@@ -179,4 +182,74 @@ fn subtype_confers_round_trips_and_omits_empty() {
         "empty confers omitted: {written}"
     );
     assert_eq!(ron_options().from_str::<Subtype>(&written).unwrap(), plain);
+}
+
+/// The `Regenerate` macro types its param as a `Reference` (not `Any`), and the
+/// one reference value splices into BOTH slot kinds: bare into the `Selection`
+/// slots (`subject`, the heal/tap) and wrapped `Ref(...)` into the event
+/// `would`'s `Filter` slot. Both the self form (`This`) and the bound-target
+/// form (`Target(0)`) parse — the corpus's only two regeneration shapes
+/// ([CR#701.19]: "regenerate this creature" / "regenerate target creature").
+#[test]
+fn regenerate_macro_expands_with_typed_reference_param() {
+    let plugin = builtin();
+
+    // Regenerate(This): the self form. A macro invocation is REMEMBERED as
+    // `Expanded` (the bidirectional form — it renders back to "Regenerate(This)"
+    // via the template; the typed param is what restores that round-trip), with
+    // the expansion in `value`.
+    let effect: Effect = plugin.macros.read_str("Regenerate(This)").unwrap();
+    let Effect::Expanded(ref ex) = effect else {
+        panic!("a macro invocation is remembered as Expanded, got {effect:?}");
+    };
+    assert_eq!(ex.name.as_str(), "Regenerate");
+    let Effect::Act(Action::CreateReplacement {
+        replacement,
+        subject,
+        duration,
+        one_shot,
+    }) = (*ex.value).clone()
+    else {
+        panic!(
+            "Regenerate(This) must expand to CreateReplacement, got {:?}",
+            ex.value
+        );
+    };
+    assert_eq!(
+        subject,
+        Selection::Ref(Reference::This),
+        "subject lands as a bare Selection::Ref"
+    );
+    assert!(one_shot, "a regeneration shield is one-shot [CR#614.3]");
+    assert_eq!(
+        duration,
+        Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn)
+    );
+    // The watched event is a destruction `Instead`; the heal+tap body taps and
+    // removes damage from the same reference.
+    let Replacement::Instead { instead, .. } = *replacement else {
+        panic!("regeneration is an Instead replacement");
+    };
+    let Effect::Sequence(body) = instead else {
+        panic!("the regen body is a Sequence (remove damage, then tap)");
+    };
+    assert_eq!(body.len(), 2, "remove all damage, then tap [CR#701.19a]");
+
+    // Regenerate(Target(0)): the bound-target form parses too — the param is a
+    // Reference, so a `Target` fits exactly where `This` did.
+    let tgt: Effect = plugin.macros.read_str("Regenerate(Target(0))").unwrap();
+    let Effect::Expanded(tex) = tgt else {
+        panic!("Regenerate(Target(0)) is remembered as Expanded");
+    };
+    assert!(
+        matches!(
+            *tex.value,
+            Effect::Act(Action::CreateReplacement {
+                subject: Selection::Ref(Reference::Target(0)),
+                ..
+            })
+        ),
+        "Regenerate(Target(0)) expands with a Target subject, got {:?}",
+        tex.value
+    );
 }

@@ -5,14 +5,30 @@
 //
 // Usage: Regenerate(target) — e.g. Regenerate(This); Regenerate(Target(0)).
 // Template: "regenerate ${0}" (matches CR wording, [CR#701.19])
+//
+// The param is a `Reference` (the permanent to regenerate — `This` or a
+// bound `Target`). It lands bare in the `Selection` slots (`subject`, and the
+// heal/tap) — `Selection::Ref` embeds — and wrapped as `Ref(...)` in the
+// event `would`'s `Filter` slot. A precise type, not `Any`.
+//
+// The `would` inlines its `ZoneMove` rather than calling the `Destroyed`
+// macro: a `Param` can't cross into a nested macro invocation's frame (it
+// would read as "outside any macro expansion"), so the watch is spelled
+// directly. It is the cause-narrowed destruction view — the same shape
+// `Destroyed` expands to ([CR#701.8b]: destroy verb or lethal-damage SBA).
 (
     name: "Regenerate",
     template: "regenerate ${0}",
     kinds: [Effect],
-    params: [Any],
+    params: [Reference],
     body: CreateReplacement(
         replacement: Instead(
-            would: Destroyed(Param(0)),
+            would: ZoneMove(
+                what: Ref(Param(0)),
+                from: Battlefield,
+                to: Graveyard,
+                cause: Cause(verb: "Destroy"),
+            ),
             instead: Sequence([
                 RemoveDamage(Param(0)),
                 Tap(Param(0)),
