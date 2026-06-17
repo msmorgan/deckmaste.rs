@@ -18,6 +18,13 @@ function __workflow_usage
 Usage: $(status filename) <command> [<args>]
   Commands:
     claim TODO           Claim a todo item and start a workspace named TODO.
+    claim TODO... --into NAME
+                         Fold each TODO into the EXISTING workspace NAME's claim
+                         instead of starting a new workspace — NAME then owns those
+                         tickets too, and `integrate NAME` finishes them all. Use this
+                         to take on extra todos after a workspace is already going.
+                         (NAME's workspace goes stale; run `workspace update-stale`
+                         there.)
     start NAME           Spin up an ad-hoc workspace named NAME, with no todo to claim.
     abandon WORKSPACE    Abandon WORKSPACE and forget its todo claim.
     refresh WORKSPACE    Reorder WORKSPACE's claim commit to sit just under default@.
@@ -77,17 +84,20 @@ function __claim_todo
     return 1
 end
 
-# Finish NAME: move its ticket wip/ -> done/. Tolerant: an ad-hoc `start`ed feature
-# has no wip ticket, so a no-op is success (nothing to finish), not failure.
+# Finish each NAMED ticket: move its wip/ file -> done/. Tolerant — a name with no
+# wip/ ticket (an ad-hoc `start`ed feature, or a slug already moved) is skipped, and
+# an empty list is success (nothing to finish), not failure. integrate passes every
+# ticket its claim commit owns: one for a plain claim, several after `claim --into`,
+# none for an ad-hoc `start`.
 function __check_todo
-    set -l name $argv[1]
     set -l tickets "$project_dir/docs/tickets"
-    # An ad-hoc `start`ed feature has no wip ticket — nothing to finish, success.
-    test -f "$tickets/wip/$name.md"; or return 0
-    # done/ may not exist yet (empty dirs aren't tracked) — create it before the move,
-    # and propagate the move's status rather than masking a failure.
-    mkdir -p "$tickets/done"
-    and mv "$tickets/wip/$name.md" "$tickets/done/$name.md"
+    set -q argv[1]; or return 0          # nothing to finish (ad-hoc / empty list)
+    # done/ may not exist yet (empty dirs aren't tracked) — create it before any move.
+    mkdir -p "$tickets/done"; or return
+    for name in $argv
+        test -f "$tickets/wip/$name.md"; or continue
+        mv "$tickets/wip/$name.md" "$tickets/done/$name.md"; or return
+    end
 end
 
 # Retire a workspace dir into a sibling bucket instead of deleting it. Symlinks
@@ -187,6 +197,88 @@ function __workflow_start
     # workspace. A provisioning failure leaves a valid-but-bare workspace — op
     # restore can't undo symlinks/generated files anyway, so don't roll back.
     and __provision_ws "$ws_dir"
+end
+
+# `claim TODO` spins up a fresh workspace + claim for TODO (the common path).
+# `claim TODO... --into NAME` instead folds each TODO into the EXISTING workspace
+# NAME's claim, so one workspace can own several tickets. Without --into it is exactly
+# the old single-todo behavior.
+function __workflow_claim
+    # -S/--strict-longopts: no abbreviation — only the exact `--into` is accepted, so a
+    # typo like `--in` errors loudly instead of silently standing in for `--into`.
+    argparse -S 'into=' -- $argv
+    or return
+    if set -q _flag_into
+        __workflow_adopt "$_flag_into" $argv
+    else
+        __workflow_start --claim-todo $argv
+    end
+end
+
+# Fold one or more TODOs' ticket-moves into NAME's existing claim commit, so the one
+# workspace now owns them all ("oh, I guess we're fixing these too now"). Runs from
+# default — the claim commit is immutable from the feature workspace, so it can only
+# be amended here. Each ticket is moved triage/->wip/ in default@'s working copy (via
+# __claim_todo: same rules and census-mint as a normal claim), then the moves are
+# SCOPED-squashed into NAME's claim commit, naming exactly the two paths per ticket so
+# default@'s unrelated in-flight strays stay put (the hazard integrate's scoped commit
+# also guards). `abandon NAME` then reverts every folded move for free, and `integrate
+# NAME` finishes them all. Leaves NAME's workspace stale (its claim parent was
+# rewritten) — that is routine: the feature agent clears it with one `workspace
+# update-stale`, having committed first to keep the update clean.
+function __workflow_adopt
+    set -l into $argv[1]
+    set -l tickets $argv[2..]
+    set -l tdir "$project_dir/docs/tickets"
+
+    if not set -q tickets[1]
+        echo >&2 "$(status filename): 'claim --into $into' needs at least one TODO to fold in."
+        return 2
+    end
+    # NAME must be a live feature: a workspace to own the tickets, and a claim commit
+    # (its bookmark) to amend. An ad-hoc `start`ed NAME has both too.
+    set -l ws_dir (jj workspace root --name "$into")
+    or return
+    if not jj bookmark list -T 'name ++ "\n"' | string match -q -- "$into"
+        echo >&2 "$(status filename): no claim bookmark '$into' to fold into (is it a live workspace?)."
+        return 1
+    end
+
+    set -l savepoint (jj op log -G -n1 -T 'id.short()')
+    or return
+    begin
+        # Move each ticket triage/->wip/ in default@, collecting the exact paths to
+        # squash: the new wip/ path always, plus the old triage path when it came from
+        # one (a census-minted ticket has only the new path). Capture the old path
+        # BEFORE __claim_todo moves the file out from under it.
+        set -l paths
+        set -l ok 1
+        for t in $tickets
+            for folder in critical planned maybe
+                if test -f "$tdir/$folder/$t.md"
+                    set -a paths "$tdir/$folder/$t.md"
+                    break
+                end
+            end
+            if not __claim_todo $t
+                set ok 0
+                break
+            end
+            set -a paths "$tdir/wip/$t.md"
+        end
+        # Move ONLY those ticket paths down into the claim commit. The bookmark follows
+        # the rewrite; default's line and NAME's workspace WC are rebased (the WC goes
+        # stale). Any unrelated strays in default@ are left uncommitted in @.
+        test $ok -eq 1
+        and jj squash --from @ --into "$into" $paths
+    end
+    or begin
+        echo >&2 "Failed... restoring to $savepoint"
+        jj op restore "$savepoint"
+        return 1
+    end
+
+    echo >&2 "$(status filename): folded "(string join ', ' $tickets)" into $into's claim. Its workspace ($ws_dir) is now stale — run 'scripts/jj workspace update-stale' there (commit first) before the next commit."
 end
 
 function __workflow_abandon
@@ -309,25 +401,34 @@ function __integrate_steps
     # un-forget — so it runs LAST, after every fail-able step. A failure before it
     # rolls back cleanly; forget itself then drops the now-empty WC for us.
     set -l orphan (jj log --no-graph -r "$name"@ -T 'change_id.short()')
-    # Ticket paths + whether this feature has a wip ticket to finish (ad-hoc `start`ed
-    # ones don't) — captured before __check_todo moves it out of wip/.
-    set -l wip_ticket "$project_dir/docs/tickets/wip/$name.md"
-    set -l done_ticket "$project_dir/docs/tickets/done/$name.md"
-    set -l had_ticket
-    test -e "$wip_ticket"; and set had_ticket y
+    # The tickets THIS claim owns are exactly the wip/ tickets its claim commit adds:
+    # one for a plain claim, several once `claim --into` has folded more in, none for
+    # an ad-hoc `start`. Read them off the claim commit's own diff so a multi-ticket
+    # claim finishes them ALL. jj prints diff paths relative to CWD, so anchor at the
+    # workspace root to keep the match stable wherever integrate was invoked from.
+    set -l prev_pwd "$PWD"
+    cd "$project_dir"
+    set -l slugs
+    for p in (jj diff -r "$name" --name-only --ignore-working-copy)
+        set -l s (string match -rg '^docs/tickets/wip/(.+)\.md$' -- $p)
+        test -n "$s"; and set -a slugs $s
+    end
+    cd "$prev_pwd"
+    # The wip+done path pair for every owned ticket. Naming them explicitly scopes the
+    # completion commit to ONLY the ticket moves: the rebase folded default@'s working
+    # copy — the shared coordinator copy, routinely carrying unrelated in-flight edits
+    # — onto the feature tip, and a bare `jj commit` would sweep those strays into
+    # "complete …" (exactly how a concurrent integrate once swallowed an unrelated
+    # edit). Ad-hoc features own no tickets, so there's nothing to commit.
+    set -l move_paths
+    for s in $slugs
+        set -a move_paths "$project_dir/docs/tickets/wip/$s.md" "$project_dir/docs/tickets/done/$s.md"
+    end
 
     jj rebase -r @ -d "$name"@-
-    and __check_todo "$name"
-    # Commit ONLY the ticket move. The rebase folded default@'s working copy onto the
-    # feature tip, and default@ — the shared coordinator working copy — routinely
-    # carries unrelated in-flight edits that aren't this feature's. A bare `jj commit`
-    # takes the WHOLE working copy, sweeping those strays into "complete $name" (this
-    # is exactly how a concurrent integrate once swallowed an unrelated edit). Naming
-    # the two ticket paths scopes the commit to the move and leaves any strays
-    # uncommitted in the new @. (`claim` avoids the same hazard via its __tip dance in
-    # __workflow_start.) Ad-hoc features have no ticket, so there's nothing to commit.
-    and if test -n "$had_ticket"
-        jj commit -m "complete $name" "$wip_ticket" "$done_ticket"
+    and __check_todo $slugs
+    and if set -q slugs[1]
+        jj commit -m "complete $(string join ' ' $slugs)" $move_paths
     end
     # Drop the now-folded claim bookmark (its commit lives on in default@'s history;
     # the ref is just clutter). Before workspace forget so a failure still rolls back.
@@ -539,7 +640,7 @@ end
 
 switch $argv[1]
     case claim
-        __workflow_start --claim-todo $argv[2..]
+        __workflow_claim $argv[2..]
     case start
         __workflow_start $argv[2..]
     case abandon
