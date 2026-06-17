@@ -454,6 +454,10 @@ fn render_footer(
             "Declare blockers — [space] pick a blocker, then its attacker  ·  [enter] submit ({} blocking)  ·  [esc] clear",
             pairs.len()
         ),
+        (Stop::Decision(_), Some(Interaction::Discard { chosen, count, .. })) => format!(
+            "Discard {count} — [space] toggle a card in hand  ·  [enter] submit ({}/{count} chosen)  ·  [esc] clear",
+            chosen.len()
+        ),
         (Stop::Decision(_), None) => "deciding…".to_string(),
     };
     let mut spans = vec![Span::styled(text, base_style)];
@@ -528,7 +532,7 @@ fn render_help_overlay(frame: &mut Frame, full: Rect) {
         key("y", "yield (auto-pass until something happens)"),
         key("P", "pass until your next turn"),
         Line::raw(""),
-        header("Choosing targets / attackers"),
+        header("Choosing targets / attackers / discards"),
         key("Space", "toggle the highlighted object"),
         key("Enter", "submit (targets: confirm, then next)"),
         key("Esc", "reset the choice"),
@@ -670,6 +674,48 @@ mod tests {
         let text = buffer_text(terminal.backend().buffer());
         assert!(text.contains("Declare attackers"), "footer prompt:\n{text}");
         assert!(text.contains("nope"), "error surfaced");
+    }
+
+    #[test]
+    fn renders_discard_pick_mode_with_footer_prompt() {
+        use crate::interact::Interaction;
+        let mut driver = Driver::new(
+            game::build_game().expect("build"),
+            Box::new(GreedyCreatures),
+        );
+        let stop = driver.run_to_priority().expect("priority");
+        let mut board = BoardState::new();
+        board.sync(&driver.state);
+        let view = driver.state.layers();
+        // A discard picker over the perspective player's hand.
+        let hand: Vec<_> = driver.state.zones.hands[board.perspective.index()].clone();
+        let it = Interaction::Discard {
+            legal: hand,
+            chosen: vec![],
+            count: 1,
+        };
+
+        let pass = PassState::new();
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).expect("terminal");
+        terminal
+            .draw(|frame| {
+                render(
+                    frame,
+                    &driver.state,
+                    &view,
+                    &board,
+                    &stop,
+                    Some(&it),
+                    None,
+                    &pass,
+                    false,
+                );
+            })
+            .expect("draw");
+        let text = buffer_text(terminal.backend().buffer());
+        assert!(text.contains("Discard 1"), "footer prompt:\n{text}");
+        assert!(text.contains("0/1 chosen"), "progress shown:\n{text}");
     }
 
     #[test]

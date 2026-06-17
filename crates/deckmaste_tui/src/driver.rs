@@ -144,6 +144,21 @@ impl Driver {
                     }
                 }
             }
+            // Feature 3: auto-play the oldest land you can on your own main
+            // (land drop unused). Reached only after the pass-mode check, so a
+            // yielding player still plays their land when their main is reached.
+            if crate::shortcuts::AUTOPLAY_LANDS
+                && let PendingDecision::Priority { player, legal } = pending
+            {
+                let player = *player;
+                if let Some(action) = crate::shortcuts::oldest_playable_land(
+                    &self.state.zones.hands[player.index()],
+                    legal,
+                ) {
+                    self.state.submit_decision(Decision::Act(action))?;
+                    continue;
+                }
+            }
             // Genuine human decision: clear the decider's mode, then surface it.
             let decider = pending.decider_player();
             pass.clear(decider);
@@ -177,13 +192,23 @@ mod tests {
     /// First-legal answer to a surfaced non-priority decision, for driving a
     /// game in tests (mirrors the choices in interact.rs's integration
     /// test).
-    fn answer(pending: &PendingDecision) -> Decision {
+    fn answer(state: &GameState, pending: &PendingDecision) -> Decision {
         match pending {
             PendingDecision::ChooseTargets { legal, .. } => {
                 Decision::Targets(legal.iter().map(|c| c[0]).collect())
             }
             PendingDecision::DeclareAttackers { .. } => Decision::Attackers(vec![]),
             PendingDecision::DeclareBlockers { .. } => Decision::Blocks(vec![]),
+            // Discards now surface to the human, so the test driver answers them
+            // too — drop the first `count` cards.
+            PendingDecision::DiscardToHandSize { player, count }
+            | PendingDecision::DiscardCards { player, count } => Decision::Discard(
+                state.zones.hands[player.index()]
+                    .iter()
+                    .copied()
+                    .take(*count as usize)
+                    .collect(),
+            ),
             // Priority and every other interactive kind are handled by the caller.
             _ => Decision::Act(Action::Pass),
         }
@@ -201,6 +226,45 @@ mod tests {
             ),
             other => panic!("expected an interactive decision at the opening, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn advance_auto_plays_your_oldest_land_on_your_main() {
+        use deckmaste_core::Type;
+
+        // With AUTOPLAY_LANDS on, reaching your main auto-plays your oldest land
+        // before surfacing priority. This loop only ever PASSES priority and
+        // never submits a PlayLand, so any land on the battlefield proves the
+        // runner played it.
+        let state = game::build_game().expect("build demo game");
+        let mut driver = Driver::new(state, Box::new(GreedyCreatures));
+        let mut pass = PassState::new();
+        let mut stop = driver.advance(&mut pass).expect("advance");
+        for _ in 0..100 {
+            let view = driver.state.layers();
+            if driver
+                .state
+                .zones
+                .battlefield
+                .iter()
+                .any(|&id| view.get(id).card_types.contains(&Type::Land))
+            {
+                return; // a land was auto-played
+            }
+            match &stop {
+                Stop::GameOver(_) | Stop::Budget => break,
+                Stop::Decision(PendingDecision::Priority { .. }) => {
+                    stop = driver
+                        .submit_and_advance(Decision::Act(Action::Pass), &mut pass)
+                        .expect("pass priority");
+                }
+                Stop::Decision(p) => {
+                    let d = answer(&driver.state, p);
+                    stop = driver.submit_and_advance(d, &mut pass).expect("answer");
+                }
+            }
+        }
+        panic!("no land was auto-played reaching a main phase");
     }
 
     #[test]
@@ -223,7 +287,7 @@ mod tests {
                         pass.arm(*player, PassMode::Turn, &driver.state);
                         Decision::Act(Action::Pass)
                     } else {
-                        answer(pending)
+                        answer(&driver.state, pending)
                     };
                     stop = driver
                         .submit_and_advance(decision, &mut pass)

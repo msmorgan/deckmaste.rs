@@ -34,6 +34,15 @@ pub enum Interaction {
         pairs: Vec<(ObjectId, ObjectId)>,
         pending: Option<ObjectId>,
     },
+    /// Discard: choose exactly `count` cards to discard from `legal` (the
+    /// player's hand). Serves both the cleanup hand-size discard ([CR#514.1])
+    /// and an effect-instructed discard ([CR#701.9b]). `chosen` is the
+    /// in-progress selection, capped at `count`.
+    Discard {
+        legal: Vec<ObjectId>,
+        chosen: Vec<ObjectId>,
+        count: usize,
+    },
 }
 
 /// Disambiguation popup: the legal actions on one selected object, when there
@@ -76,18 +85,22 @@ pub fn is_interactive(pending: &PendingDecision) -> bool {
         PendingDecision::Priority { .. } | PendingDecision::ChooseTargets { .. } => true,
         PendingDecision::DeclareAttackers { legal, .. }
         | PendingDecision::DeclareBlockers { legal, .. } => !legal.is_empty(),
+        // The human picks which cards to discard — cleanup hand-size and
+        // effect-instructed discards alike. `count` is always > 0 when the
+        // engine surfaces one; guard anyway so a degenerate 0 auto-resolves.
+        PendingDecision::DiscardToHandSize { count, .. }
+        | PendingDecision::DiscardCards { count, .. } => *count > 0,
         _ => false,
     }
 }
 
 impl Interaction {
-    /// Build the initial interaction for `pending`, or `None` if it is
-    /// auto-resolved (mirrors [`is_interactive`]).
+    /// Build the initial interaction for `pending`, or `None` when the human
+    /// does not drive it here: an auto-resolved kind, an empty-candidate combat
+    /// step, or a discard — whose candidate set is the player's hand (read from
+    /// state), so the app builds it via [`Interaction::for_discard`].
     #[must_use]
     pub fn for_decision(pending: &PendingDecision) -> Option<Self> {
-        if !is_interactive(pending) {
-            return None;
-        }
         Some(match pending {
             PendingDecision::Priority { .. } => Interaction::Priority { sub: None },
             PendingDecision::ChooseTargets { legal, .. } => Interaction::Targets {
@@ -95,18 +108,33 @@ impl Interaction {
                 chosen: vec![None; legal.len()],
                 active: 0,
             },
-            PendingDecision::DeclareAttackers { legal, .. } => Interaction::Attackers {
-                legal: legal.clone(),
-                chosen: Vec::new(),
-            },
-            PendingDecision::DeclareBlockers { legal, .. } => Interaction::Blockers {
-                legal: legal.clone(),
-                pairs: Vec::new(),
-                pending: None,
-            },
-            // is_interactive already excluded every other kind.
-            _ => unreachable!("is_interactive gated the match"),
+            PendingDecision::DeclareAttackers { legal, .. } if !legal.is_empty() => {
+                Interaction::Attackers {
+                    legal: legal.clone(),
+                    chosen: Vec::new(),
+                }
+            }
+            PendingDecision::DeclareBlockers { legal, .. } if !legal.is_empty() => {
+                Interaction::Blockers {
+                    legal: legal.clone(),
+                    pairs: Vec::new(),
+                    pending: None,
+                }
+            }
+            _ => return None,
         })
+    }
+
+    /// Build a discard picker over `hand`, requiring exactly `count` cards. The
+    /// app supplies the hand because a discard decision names only the player
+    /// and the count — the candidate cards are that player's whole hand.
+    #[must_use]
+    pub fn for_discard(hand: &[ObjectId], count: usize) -> Self {
+        Interaction::Discard {
+            legal: hand.to_vec(),
+            chosen: Vec::new(),
+            count,
+        }
     }
 
     /// True for the board-dimming pick modes (everything but `Priority`).
@@ -127,7 +155,12 @@ impl Interaction {
             Interaction::Targets { legal, active, .. } => {
                 legal.get(*active).cloned().unwrap_or_default()
             }
-            Interaction::Attackers { legal, .. } => legal.clone(),
+            // Attackers and Discard are both "toggle a subset of these ids":
+            // every listed id is a candidate (the caps are enforced in `toggle`,
+            // not by hiding candidates, so chosen cards stay toggle-off-able).
+            Interaction::Attackers { legal, .. } | Interaction::Discard { legal, .. } => {
+                legal.clone()
+            }
             Interaction::Blockers {
                 legal,
                 pairs,
@@ -158,7 +191,9 @@ impl Interaction {
         match self {
             Interaction::Priority { .. } => false,
             Interaction::Targets { chosen, .. } => chosen.iter().flatten().any(|&c| c == id),
-            Interaction::Attackers { chosen, .. } => chosen.contains(&id),
+            Interaction::Attackers { chosen, .. } | Interaction::Discard { chosen, .. } => {
+                chosen.contains(&id)
+            }
             Interaction::Blockers { pairs, pending, .. } => {
                 *pending == Some(id) || pairs.iter().any(|(b, _)| *b == id)
             }
@@ -171,6 +206,8 @@ impl Interaction {
     ///   (untoggle first — the prescribed-count cap).
     /// - Attackers: add/remove from the set (no cap).
     /// - Blockers: start (or cancel) a pairing for a legal, unpaired blocker.
+    /// - Discard: add/remove from the set, capped at `count` (untoggle to
+    ///   swap).
     /// - Priority: no-op.
     pub fn toggle(&mut self, id: ObjectId) {
         match self {
@@ -214,6 +251,22 @@ impl Interaction {
                     *pending = Some(id);
                 }
             }
+            // Add/remove from the set; refuse a new pick once `count` are
+            // chosen (untoggle one first — the exact-count cap).
+            Interaction::Discard {
+                legal,
+                chosen,
+                count,
+            } => {
+                if !legal.contains(&id) {
+                    return;
+                }
+                if let Some(pos) = chosen.iter().position(|&c| c == id) {
+                    chosen.remove(pos);
+                } else if chosen.len() < *count {
+                    chosen.push(id);
+                }
+            }
         }
     }
 
@@ -242,7 +295,9 @@ impl Interaction {
                 }
                 *active = 0;
             }
-            Interaction::Attackers { chosen, .. } => chosen.clear(),
+            Interaction::Attackers { chosen, .. } | Interaction::Discard { chosen, .. } => {
+                chosen.clear();
+            }
             Interaction::Blockers { pairs, pending, .. } => {
                 pairs.clear();
                 *pending = None;
@@ -268,6 +323,11 @@ impl Interaction {
                 } else {
                     Some(Decision::Blocks(pairs.clone()))
                 }
+            }
+            // Confirm only once exactly `count` cards are chosen — the engine
+            // requires exactly that many distinct in-hand cards ([CR#701.9b]).
+            Interaction::Discard { chosen, count, .. } => {
+                (chosen.len() == *count).then(|| Decision::Discard(chosen.clone()))
             }
         }
     }
@@ -366,12 +426,60 @@ mod tests {
         };
         assert!(!is_interactive(&empty));
         assert!(Interaction::for_decision(&empty).is_none());
-        // A clearly auto-resolved kind.
+        // Discards now surface to the human — the picker is built from the hand.
         let discard = PendingDecision::DiscardCards {
             player: PlayerId(0),
             count: 1,
         };
-        assert!(!is_interactive(&discard));
+        assert!(is_interactive(&discard));
+    }
+
+    #[test]
+    fn discard_is_interactive_and_built_over_the_hand() {
+        let v = ids();
+        // Both the cleanup hand-size discard and an effect discard surface.
+        assert!(is_interactive(&PendingDecision::DiscardToHandSize {
+            player: PlayerId(0),
+            count: 1,
+        }));
+        assert!(is_interactive(&PendingDecision::DiscardCards {
+            player: PlayerId(0),
+            count: 2,
+        }));
+        let it = Interaction::for_discard(&[v[0], v[1], v[2]], 2);
+        assert_eq!(it.candidates(), vec![v[0], v[1], v[2]]);
+        assert!(it.is_pick_mode());
+        assert!(it.confirm().is_none(), "nothing chosen yet");
+    }
+
+    #[test]
+    fn discard_caps_at_count_and_confirms_exactly_count_cards() {
+        let v = ids();
+        let (a, b, c) = (v[0], v[1], v[2]);
+        let mut it = Interaction::for_discard(&[a, b, c], 2);
+        it.toggle(a);
+        it.toggle(b);
+        assert!(it.is_chosen(a) && it.is_chosen(b));
+        it.toggle(c); // refused — already at the cap of 2
+        assert!(!it.is_chosen(c));
+        assert_eq!(it.confirm(), Some(Decision::Discard(vec![a, b])));
+        it.toggle(a); // untoggle one → no longer exactly 2
+        assert!(it.confirm().is_none());
+        it.toggle(c); // now [b, c]
+        assert_eq!(it.confirm(), Some(Decision::Discard(vec![b, c])));
+    }
+
+    #[test]
+    fn discard_ignores_non_hand_ids_and_cancel_clears() {
+        let v = ids();
+        let (a, off) = (v[0], v[3]);
+        let mut it = Interaction::for_discard(&[a], 1);
+        it.toggle(off); // not in hand — ignored
+        assert!(!it.is_chosen(off));
+        it.toggle(a);
+        assert_eq!(it.confirm(), Some(Decision::Discard(vec![a])));
+        it.cancel();
+        assert!(it.confirm().is_none(), "cancel clears the selection");
     }
 
     #[test]
@@ -570,6 +678,16 @@ mod tests {
                 PendingDecision::DeclareBlockers { .. } => {
                     let it = Interaction::for_decision(&pending).expect("interactive");
                     it.confirm().expect("blocks confirm")
+                }
+                // Discard: drop the first `count` cards, built through for_discard.
+                PendingDecision::DiscardToHandSize { player, count }
+                | PendingDecision::DiscardCards { player, count } => {
+                    let hand: Vec<_> = driver.state.zones.hands[player.index()].clone();
+                    let mut it = Interaction::for_discard(&hand, *count as usize);
+                    for &id in hand.iter().take(*count as usize) {
+                        it.toggle(id);
+                    }
+                    it.confirm().expect("discard confirm")
                 }
                 other => panic!("run_to_decision surfaced a non-interactive kind: {other:?}"),
             };

@@ -3,6 +3,7 @@ use std::process::ExitCode;
 use anyhow::Result;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
+use deckmaste_engine::GameState;
 use deckmaste_engine::PendingDecision;
 use deckmaste_engine::sim::GreedyDemo;
 use ratatui::DefaultTerminal;
@@ -70,7 +71,7 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
     let mut board = BoardState::new();
     let mut pass = PassState::new();
     let mut stop = driver.advance(&mut pass)?;
-    let mut current = interaction_for(&stop);
+    let mut current = interaction_for(&stop, &driver.state);
     let mut error: Option<String> = None;
     let mut help = false;
     // When a fresh pick-step opens, land the cursor on a legal candidate so the
@@ -235,17 +236,20 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
                 KeyCode::Esc => it.cancel(),
                 _ => {}
             },
-            // ---- Attackers ----
-            Some(it @ Interaction::Attackers { .. }) => match key.code {
-                KeyCode::Char(' ') => {
-                    if let Some(id) = cursor {
-                        it.toggle(id);
+            // ---- Attackers / Discard (toggle a subset of the dimmed board,
+            //      then submit; the cursor's object is the one toggled) ----
+            Some(it @ (Interaction::Attackers { .. } | Interaction::Discard { .. })) => {
+                match key.code {
+                    KeyCode::Char(' ') => {
+                        if let Some(id) = cursor {
+                            it.toggle(id);
+                        }
                     }
+                    KeyCode::Enter => submit = it.confirm(),
+                    KeyCode::Esc => it.cancel(),
+                    _ => {}
                 }
-                KeyCode::Enter => submit = it.confirm(),
-                KeyCode::Esc => it.cancel(),
-                _ => {}
-            },
+            }
             // ---- Blockers ----
             Some(it @ Interaction::Blockers { .. }) => {
                 let pairing = matches!(
@@ -300,7 +304,7 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
             match driver.submit_and_advance(decision, &mut pass) {
                 Ok(next) => {
                     stop = next;
-                    current = interaction_for(&stop);
+                    current = interaction_for(&stop, &driver.state);
                     error = None;
                     steer_pending = true;
                 }
@@ -310,9 +314,18 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
     }
 }
 
-/// The interaction to drive for a stop (None for game-over / budget).
-fn interaction_for(stop: &Stop) -> Option<Interaction> {
+/// The interaction to drive for a stop (None for game-over / budget). A discard
+/// picker's candidate set is the player's hand, read from `state`; every other
+/// kind is built straight from the pending decision.
+fn interaction_for(stop: &Stop, state: &GameState) -> Option<Interaction> {
     match stop {
+        Stop::Decision(
+            PendingDecision::DiscardToHandSize { player, count }
+            | PendingDecision::DiscardCards { player, count },
+        ) => Some(Interaction::for_discard(
+            &state.zones.hands[player.index()],
+            *count as usize,
+        )),
         Stop::Decision(pending) => Interaction::for_decision(pending),
         Stop::GameOver(_) | Stop::Budget => None,
     }

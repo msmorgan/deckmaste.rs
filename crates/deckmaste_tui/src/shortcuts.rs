@@ -5,8 +5,10 @@
 //! concern (like the autotapper).
 use deckmaste_core::Phase;
 use deckmaste_core::Uint;
+use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
 use deckmaste_engine::GameState;
+use deckmaste_engine::ObjectId;
 use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerId;
 
@@ -35,6 +37,25 @@ pub fn auto_answer(pending: &PendingDecision) -> Option<Decision> {
         PendingDecision::ChooseTargets { legal, .. } => single_each(legal).map(Decision::Targets),
         _ => None,
     }
+}
+
+/// Compile-time toggle: when set, the runner auto-plays the oldest land in a
+/// player's hand whenever that player holds priority and a land play is legal
+/// (their main phase, land drop still available). Flip to `false` to restore
+/// fully-manual land plays.
+pub const AUTOPLAY_LANDS: bool = true;
+
+/// The oldest (front-of-hand) land the player may play right now, as its
+/// `PlayLand` action, or `None` if no card in `hand` has a legal land play in
+/// `legal`. "Oldest" is the hand's own order — drawn cards enter the back, so
+/// the front is the longest-held. With basic-land-only decks any land is
+/// interchangeable, so the oldest is as good a choice as any.
+#[must_use]
+pub fn oldest_playable_land(hand: &[ObjectId], legal: &[Action]) -> Option<Action> {
+    hand.iter().find_map(|&id| {
+        let act = Action::PlayLand { object: id };
+        legal.contains(&act).then_some(act)
+    })
 }
 
 /// A player's armed convenience pass.
@@ -66,6 +87,11 @@ pub struct Snapshot {
 #[must_use]
 pub fn keep_passing(mode: PassMode, armed: &Snapshot, now: &Snapshot, player: PlayerId) -> bool {
     let stack_grew = now.stack > armed.stack;
+    // The stack emptied since arming — your spell (cast just before you yielded)
+    // resolved. Yield hands priority back rather than passing through the rest
+    // of the turn. Guarded on `armed.stack > 0` so arming Yield with an already
+    // empty stack (pass until something happens) does not stop immediately.
+    let stack_emptied = armed.stack > 0 && now.stack == 0;
     let entered_combat =
         matches!(now.phase, Phase::Combat(_)) && !matches!(armed.phase, Phase::Combat(_));
     let at_my_main =
@@ -75,7 +101,11 @@ pub fn keep_passing(mode: PassMode, armed: &Snapshot, now: &Snapshot, player: Pl
         now.active == player && now.phase == Phase::PrecombatMain && now.turn > armed.turn;
     match mode {
         PassMode::Yield => {
-            !(stack_grew || entered_combat || entered_my_main || next_precombat_main)
+            !(stack_grew
+                || stack_emptied
+                || entered_combat
+                || entered_my_main
+                || next_precombat_main)
         }
         PassMode::Turn => !next_precombat_main,
     }
@@ -176,6 +206,36 @@ mod tests {
         assert_eq!(auto_answer(&p), None);
     }
 
+    /// A few distinct real `ObjectId`s (no public constructor exists).
+    fn ids() -> Vec<ObjectId> {
+        let state = game::build_game().expect("build");
+        state.zones.libraries[0].iter().copied().collect()
+    }
+
+    #[test]
+    fn oldest_playable_land_picks_the_front_of_hand() {
+        // hand = [a, b, c]; only b and c have a legal land play. The oldest
+        // playable land is b — a is older but has no legal play.
+        let v = ids();
+        let (a, b, c) = (v[0], v[1], v[2]);
+        let legal = vec![
+            Action::Pass,
+            Action::PlayLand { object: b },
+            Action::PlayLand { object: c },
+        ];
+        assert_eq!(
+            oldest_playable_land(&[a, b, c], &legal),
+            Some(Action::PlayLand { object: b })
+        );
+    }
+
+    #[test]
+    fn oldest_playable_land_is_none_without_a_playable_land() {
+        let v = ids();
+        let (a, b) = (v[0], v[1]);
+        assert_eq!(oldest_playable_land(&[a, b], &[Action::Pass]), None);
+    }
+
     fn snap(active: Uint, phase: Phase, turn: Uint, stack: usize) -> Snapshot {
         Snapshot {
             active: PlayerId(active),
@@ -228,6 +288,35 @@ mod tests {
         let armed = snap(1, Phase::Ending(deckmaste_core::EndingStep::End), 1, 0);
         let now = snap(0, Phase::PrecombatMain, 2, 0);
         assert!(!keep_passing(PassMode::Yield, &armed, &now, PlayerId(0)));
+    }
+
+    #[test]
+    fn yield_stops_when_the_stack_empties_after_arming() {
+        // Arm Yield right after casting (your spell is on the stack), on a
+        // window that triggers no other stop. When your spell resolves and the
+        // stack empties, Yield must stop and hand priority back — not keep
+        // passing through the rest of the turn.
+        let armed = snap(1, Phase::Ending(deckmaste_core::EndingStep::End), 1, 1);
+        let now = snap(1, Phase::Ending(deckmaste_core::EndingStep::End), 1, 0);
+        assert!(!keep_passing(PassMode::Yield, &armed, &now, PlayerId(0)));
+    }
+
+    #[test]
+    fn yield_keeps_passing_when_the_stack_was_already_empty_at_arming() {
+        // Arming Yield with an empty stack (the reactive "pass until something
+        // happens" use) must NOT stop just because the stack is empty now —
+        // only a stack that *emptied since arming* (a resolution) stops it.
+        let s = snap(1, Phase::Ending(deckmaste_core::EndingStep::End), 1, 0);
+        assert!(keep_passing(PassMode::Yield, &s, &s, PlayerId(0)));
+    }
+
+    #[test]
+    fn turn_ignores_the_stack_emptying() {
+        // Pass-until-your-turn deliberately ignores the stack; an emptying
+        // stack must not stop it (only your next precombat main does).
+        let armed = snap(1, Phase::Ending(deckmaste_core::EndingStep::End), 1, 1);
+        let now = snap(1, Phase::Ending(deckmaste_core::EndingStep::End), 1, 0);
+        assert!(keep_passing(PassMode::Turn, &armed, &now, PlayerId(0)));
     }
 
     #[test]
