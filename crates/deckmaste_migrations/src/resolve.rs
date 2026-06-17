@@ -71,7 +71,7 @@ pub const REGISTRY: &[AbilityParser] = &[
 /// The Ascend gate ([CR#702.131a,702.131b]) — KEEP IN SYNC with
 /// `plugins/builtin/macros/keyword/Ascend.ron`.
 const ASCEND_GATE: &str = "AllOf([Compare(CountOf(AllOf([InZone(Battlefield), \
-ControlledBy(Ref(You))])), AtLeast, Literal(10)), Not(Is(You, Designated(\"CitysBlessing\")))])";
+ControlledBy(Ref(You))])), AtLeast, 10), Not(Is(You, Designated(\"CitysBlessing\")))])";
 
 /// [CR#702.131a]: fold an Ascend keyword on a SPELL into the front of its spell
 /// effect, then drop the keyword. `effect` is the last field of the rendered
@@ -356,7 +356,7 @@ mod tests {
         assert!(matches!(
             &face.abilities[0],
             TodoAbility::Parsed(r)
-                if r == "Static(effects: [Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), changes: [AddPower(Literal(1)), AddToughness(Literal(1))])])"
+                if r == "Static(effects: [Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), changes: [AddPower(1), AddToughness(1)])])"
         ));
     }
 
@@ -388,20 +388,20 @@ mod tests {
     #[test]
     fn ascend_on_spell_folds_into_spell_effect() {
         // A Sorcery with Ascend + a draw effect, both already line-resolved.
-        // `<E>` = `Draw(Literal(1))` — a CORE-PARSEABLE effect: this is route
+        // `<E>` = `Draw(1)` — a CORE-PARSEABLE effect: this is route
         // (a) from the task. The migrations spell parser may emit macro-flavored
         // atoms (e.g. `Draw(2)`), but the round-trip assertion below uses the
         // BARE `deckmaste_core::ron::options()` reader — the same reader
         // `resolve_cards`/`graduate` round-trips card RON through — so the
-        // fixture must be one the bare core reader accepts. `Draw(Literal(1))`
-        // is exactly such a form (cf. the `Activated(... Draw(Literal(1)))`
+        // fixture must be one the bare core reader accepts. `Draw(1)`
+        // is exactly such a form (cf. the `Activated(... Draw(1))`
         // round-trip test in `deckmaste_core::ability`).
         let mut face = TodoCardFace {
             name: "Test Spell".into(),
             types: vec![RawIdent("Sorcery".into())],
             abilities: vec![
                 TodoAbility::Parsed("Keyword(Ascend)".into()),
-                TodoAbility::Parsed("Spell(effect: Draw(Literal(1)))".into()),
+                TodoAbility::Parsed("Spell(effect: Draw(1))".into()),
             ],
             ..Default::default()
         };
@@ -435,7 +435,7 @@ mod tests {
         );
         // The original effect value is preserved verbatim inside the wrap.
         assert!(
-            spell.contains("Draw(Literal(1))"),
+            spell.contains("Draw(1)"),
             "original effect preserved: {spell}"
         );
         // The wrapped Spell string re-parses into a typed Ability (no garbage).
@@ -479,7 +479,10 @@ mod tests {
         use deckmaste_core::StateFilter;
         use deckmaste_core::Zone;
 
-        let parsed: Condition = crate::ron_output::ron_options()
+        // Read through the literal-aware core reader — the one the graduation
+        // round-trip uses — so the bare `10` literal in `ASCEND_GATE` parses
+        // (the raw reader has no `literal` macro layer and would reject it).
+        let parsed: Condition = deckmaste_core::ron::options()
             .from_str(ASCEND_GATE)
             .expect("ASCEND_GATE parses as a Condition");
 

@@ -16,8 +16,8 @@
         name: "Cycling",
         abilities: [Activated(
             from: Hand,
-            cost: [Cost(Param(0)), Do(Discard(count: Literal(1), what: This))],
-            effect: Draw(Literal(1)),
+            cost: [Cost(Param(0)), Do(Discard(count: 1, what: This))],
+            effect: Draw(1),
         )],
     ),
 )

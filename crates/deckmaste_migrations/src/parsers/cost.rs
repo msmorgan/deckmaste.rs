@@ -97,9 +97,7 @@ fn sacrifice(text: &str) -> Option<String> {
         _ => (effect::number_word(first)?, tail),
     };
     let filter = filter::parse_phrase(phrase)?;
-    Some(format!(
-        "Do(Sacrifice(Choose(Exactly(Literal({count})), {filter})))"
-    ))
+    Some(format!("Do(Sacrifice(Choose(Exactly({count}), {filter})))"))
 }
 
 /// A run of mana symbols -> `Mana([...])`. Declines on non-mana text, the

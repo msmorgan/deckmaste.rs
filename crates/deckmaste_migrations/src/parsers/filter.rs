@@ -138,7 +138,7 @@ fn strip_postfix(s: &str) -> Option<(String, &str)> {
         let n = &caps[2];
         let cmp = if caps[3].eq_ignore_ascii_case("greater") { "AtLeast" } else { "AtMost" };
         let head = &s[..caps.get(0).unwrap().start()];
-        return Some((format!("Stat({stat}, {cmp}, Literal({n}))"), head));
+        return Some((format!("Stat({stat}, {cmp}, {n})"), head));
     }
     if let Some(head) = s.strip_suffix(" with a +1/+1 counter on it") {
         // Counter kinds are bare `CounterRef` idents, not strings.
@@ -428,7 +428,7 @@ mod tests {
         );
         assert_eq!(
             parse_phrase("creatures with power 3 or greater").as_deref(),
-            Some("AllOf([Creature, Stat(Power, AtLeast, Literal(3))])")
+            Some("AllOf([Creature, Stat(Power, AtLeast, 3)])")
         );
         assert_eq!(
             parse_phrase("other creatures you control").as_deref(),
@@ -440,7 +440,7 @@ mod tests {
         );
         assert_eq!(
             parse_phrase("creatures with toughness 2 or less").as_deref(),
-            Some("AllOf([Creature, Stat(Toughness, AtMost, Literal(2))])")
+            Some("AllOf([Creature, Stat(Toughness, AtMost, 2)])")
         );
         assert_eq!(
             parse_phrase("creatures with a +1/+1 counter on it").as_deref(),
