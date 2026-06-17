@@ -840,9 +840,19 @@ fn lifegain_replaced_by_draw() {
 /// 1. The registry handles `DamageDealt` (`Performed`-verb) intents.
 /// 2. A one-shot shield is consumed after application ([CR#614.3]).
 /// 3. The fresh re-emitted event does NOT re-fire the same replacement (shield
-///    gone), proving the termination property (in this case via consumption;
-///    for static replacements the local `applied` `HashSet` provides the same
-///    guarantee within a single `replace_event` call).
+///    gone), so the pipeline terminates.
+///
+/// SCOPE / SEAM ([CR#614.5]): the `applied` lineage set in `replace_event` is
+/// LOCAL to one call. It terminates the in-call loop (an `Also` re-gather, an
+/// `apply_one` that returns a modified event) and the one-shot path above. It
+/// does NOT persist across the agenda: a *static* `Instead` whose body RE-EMITS
+/// the watched event type to the same subject (the canonical "deals double
+/// damage instead" — Furnace of Rath / Gratuitous Violence) would
+/// re-enter `replace_event` with a fresh empty `applied` set and would not
+/// terminate. No in-scope card and no parser path produces such a replacement
+/// (hand-RON only). The robust fix is event-borne lineage (the deckmaster
+/// prototype's per-event `replacement_lineage` bitmask) — tracked as a
+/// follow-up. Do not paper over with an iteration cap.
 ///
 /// Body form chosen: `DealDamage(Ref(This), Literal(10))` — a fixed amount
 /// rather than a computed double, which avoids needing `ThatMuch`/`Count::X`
