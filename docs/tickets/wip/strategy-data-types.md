@@ -28,3 +28,28 @@ Define and register as macroable kinds, alongside cards in
 Scope: pure data types + parse/render round-trip tests + macro registration. No
 evaluator here (that is `strategy-evaluator-core`). Foundation ticket for the
 strategy-engine epic (v1).
+
+## Status: DONE
+
+`crates/deckmaste_cards/src/strategy.rs` (10 TDD tests; full crate suite,
+clippy, and `cargo build --workspace` all green):
+
+- All six data types — `Extremum`, `Selector`, `BlockPolicy`, `Preference`,
+  `Rule`, `Strategy` — parse from RON and round-trip (serialize → parse =
+  identity). `Selector` embeds core `Count`/`Filter` verbatim.
+- **Sensing-position macro reuse verified end-to-end**: a `Condition` macro at
+  `when:` expands through `MacroSet::read_str::<Strategy>` despite sitting deep
+  inside plain-serde `Strategy`/`Rule`. So `Condition`/`Count`/`Filter` macros
+  work for free at `when:`/`by:`/`among:` — no extra machinery on the new
+  structs. Enables strategy-guide vocabulary (`Always`, `BehindOnBoard`,
+  deck-specific predicates) as macros.
+- **`Preference` is a registered macroable kind**: `#[derive(SupportsMacros)]`
+  + `Expanded(Expansion<Preference>)`, registered in `macros.rs` `kinds()`. So
+  the choose-a-play vocabulary (`prefer: AttackAll`, `Mulligan`, …) can be
+  authored as macros that expand to literal preference variants. The
+  `SupportsMacros` derive forwards the `#[serde(default, skip_serializing_if)]`
+  attrs on the `Cast`/`Activate` struct-variant fields onto its generated
+  helper structs, so the round-trip stays correct. `Extremum`/`Selector`/
+  `BlockPolicy` gained `#[derive(Expand)]` (required by `Preference`'s
+  generated `Expand`); `Rule`/`Strategy` deliberately did not (nothing expands
+  into them).

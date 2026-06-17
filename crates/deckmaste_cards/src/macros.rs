@@ -57,6 +57,8 @@ pub fn kinds() -> KindSet {
     use deckmaste_core::Selection;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::TargetSpec;
+
+    use crate::strategy::Preference;
     let mut kinds = KindSet::new();
     kinds.add(Ability::kind());
     kinds.add(AsThough::kind());
@@ -76,6 +78,7 @@ pub fn kinds() -> KindSet {
     kinds.add(Selection::kind());
     kinds.add(StaticEffect::kind());
     kinds.add(TargetSpec::kind());
+    kinds.add(Preference::kind());
     kinds.add(Kind::new("CardFace"));
     kinds.add(Kind::new("Subtype"));
     // Counter-kind macros (`P1P1Counter`, …) expand to a `Counter` decl in the
@@ -149,6 +152,7 @@ mod tests {
     use deckmaste_core::Zone;
 
     use super::*;
+    use crate::strategy::Preference;
 
     /// Parses a definition the way plugin loading does: from RON source in
     /// deckmaste's dialect. (`MacroDef`'s body field is crate-private in
@@ -183,6 +187,7 @@ mod tests {
             name_of::<KeywordAbility>(),
             name_of::<ManaRider>(),
             name_of::<PlayerAction>(),
+            name_of::<Preference>(),
             name_of::<Quantity>(),
             name_of::<Reference>(),
             name_of::<Replacement>(),
