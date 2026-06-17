@@ -13,9 +13,12 @@
 // dead_code until those tasks land and wire them in.
 #![allow(dead_code)]
 
+use deckmaste_core::Ability;
 use deckmaste_core::CausePattern;
+use deckmaste_core::Duration;
 use deckmaste_core::Event;
 use deckmaste_core::Filter;
+use deckmaste_core::Replacement;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::Zone;
 
@@ -298,6 +301,125 @@ fn object_source_of(state: &GameState, id: ObjectId) -> ObjectSource {
     state.objects.obj(id).source
 }
 
+// ── Floating-replacement registry types (Task 3) ─────────────────────────────
+
+/// Stable identity for a floating replacement instance (a regeneration shield
+/// or other "the next time … instead" effect). Used as the lineage key so the
+/// [CR#614.5] applied-set can track it across event rewrites.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct InstanceId(pub u32);
+
+/// A floating one-shot/duration-bounded replacement effect ([CR#614.3]):
+/// regeneration shields and "the next time …" replacements. Stored in
+/// `GameState.shields`; swept at end of turn; a `one_shot` instance is removed
+/// when it is the chosen replacement.
+#[derive(Debug, Clone)]
+pub struct ReplacementInstance {
+    pub id: InstanceId,
+    pub replacement: Replacement,
+    /// The permanent the replacement protects / watches.
+    pub subject: ObjectId,
+    pub duration: Duration,
+    /// If true, consumed on first application ([CR#614.3]).
+    pub one_shot: bool,
+    /// The object whose static/activated ability created this instance (used
+    /// to build the body frame).
+    pub source: ObjectId,
+}
+
+/// Stable identity for a replacement effect — either a static ability effect
+/// slot or a floating instance. Used in the [CR#614.5] lineage set so the same
+/// replacement can't be applied twice to the modified event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum ReplacementKey {
+    /// A static `StaticEffect::Replacement` at a known ability/effect index.
+    Static {
+        source: ObjectId,
+        ability: usize,
+        effect: usize,
+    },
+    /// A floating one-shot instance in `GameState.shields`.
+    Floating(InstanceId),
+}
+
+/// One replacement that is applicable to the current event — the key (for
+/// lineage), the replacement itself, and the source object.
+#[derive(Debug, Clone)]
+pub(crate) struct Applicable {
+    pub key: ReplacementKey,
+    pub replacement: Replacement,
+    pub source: ObjectId,
+}
+
+/// Collect every replacement effect watching intent `e` from:
+/// - static abilities on every battlefield object, and
+/// - floating instances in `state.shields`.
+///
+/// Does NOT filter by lineage; callers apply the lineage set.
+pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applicable> {
+    let view = state.layers();
+    let mut out = Vec::new();
+
+    // Static replacements on every battlefield object (self- and other-watching).
+    for &obj in &state.zones.battlefield {
+        let abilities = crate::derive::abilities_of_source(state, state.objects.obj(obj).source);
+        for (ai, ability) in abilities.iter().enumerate() {
+            let Ability::Static(s) = ability else {
+                continue;
+            };
+            for (ei, eff) in s.effects.iter().enumerate() {
+                if let StaticEffect::Replacement(r) = eff
+                    && replacement_would(state, &view, r, obj, e)
+                {
+                    out.push(Applicable {
+                        key: ReplacementKey::Static {
+                            source: obj,
+                            ability: ai,
+                            effect: ei,
+                        },
+                        replacement: (**r).clone(),
+                        source: obj,
+                    });
+                }
+            }
+        }
+    }
+
+    // Floating instances (regeneration shields, etc.).
+    for inst in &state.shields {
+        if replacement_would(state, &view, &inst.replacement, inst.source, e) {
+            out.push(Applicable {
+                key: ReplacementKey::Floating(inst.id),
+                replacement: inst.replacement.clone(),
+                source: inst.source,
+            });
+        }
+    }
+
+    out
+}
+
+/// Whether replacement `r` (with watcher `source`) watches intent `e` — its
+/// `would` (Instead/Also) matches per `replacement_watches`. Returns `false`
+/// for `Skip` (handled by the step-elision pass, Task 9) and `Expanded`.
+fn replacement_would(
+    state: &GameState,
+    view: &LayeredView,
+    r: &Replacement,
+    source: ObjectId,
+    e: &GameEvent,
+) -> bool {
+    match crate::replace::look_through_replacement(r) {
+        Replacement::Instead { would, .. } | Replacement::Also { would, .. } => {
+            replacement_watches(state, view, would, source, e)
+        }
+        Replacement::Skip { .. } => false, // handled in begin_step, Task 9
+        Replacement::Expanded(_) => unreachable!("look_through_replacement strips Expanded"),
+    }
+}
+
+// ── End Task 3 ───────────────────────────────────────────────────────────────
+
 #[cfg(test)]
 pub(crate) mod tests_support {
     use std::sync::Arc;
@@ -468,5 +590,52 @@ mod tests {
             cause: None,
         };
         assert!(cant_event(&state, &e));
+    }
+
+    /// A creature with a static umbra-style `Instead` on itself, plus a
+    /// floating shield on it → both gathered for its `WillDestroy`.
+    #[test]
+    fn gather_collects_static_and_floating_for_will_destroy() {
+        use deckmaste_core::Duration;
+        use deckmaste_core::Effect;
+        use deckmaste_core::TurnMarker;
+
+        let instead = deckmaste_core::Replacement::Instead {
+            would: destroyed_self(),
+            instead: Effect::Sequence(vec![]),
+        };
+        let (mut state, id) = tests_support::creature_with_static(StaticEffect::Replacement(
+            Box::new(instead.clone()),
+        ));
+        state.shields.push(ReplacementInstance {
+            id: InstanceId(0),
+            replacement: instead,
+            subject: id,
+            duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
+            one_shot: true,
+            source: id,
+        });
+        let e = GameEvent::WillDestroy {
+            object: id,
+            cause: Some(Cause::destroy(Agency::StateBasedAction, None)),
+        };
+        let app = gather_applicable(&state, &e);
+        assert_eq!(app.len(), 2);
+    }
+
+    /// Helper: the abstract `Event` for "this permanent would be destroyed"
+    /// (BF→GY with verb "Destroy"), as used in replacement `would` fields.
+    fn destroyed_self() -> Event {
+        Event::ZoneMove {
+            what: Filter::Ref(Reference::This),
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
+            face: None,
+            cause: Some(deckmaste_core::Cause::Cause(CausePattern {
+                verb: Some("Destroy".into()),
+                agency: None,
+                agent: None,
+            })),
+        }
     }
 }
