@@ -75,6 +75,20 @@ impl StrategyEvaluator {
         Self { strategy, seat }
     }
 
+    /// Build a seat from an authored RON strategy (raw — no macro vocabulary;
+    /// the macro-aware loader rides the cards crate's `MacroSet`).
+    ///
+    /// # Errors
+    ///
+    /// Returns the parse error as a string when `src` is not a valid RON
+    /// `Strategy`.
+    pub fn from_ron(src: &str, seat: PlayerId) -> Result<Self, String> {
+        let strategy = deckmaste_core::ron::options()
+            .from_str::<StrategyDef>(src)
+            .map_err(|e| e.to_string())?;
+        Ok(Self::new(strategy, seat))
+    }
+
     /// Rule-walk at a priority window: the first rule whose `when` holds AND
     /// whose `prefer` resolves to a legal action wins; falls through to `Pass`.
     fn decide_priority(&self, state: &GameState, legal: &[Action]) -> Action {
