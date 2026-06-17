@@ -1022,8 +1022,7 @@ mod tests {
         });
         assert!(
             found,
-            "AbilityActivated apply must record GameEvent::AbilityUsed {{ object: {:?}, ability: 0 }} in history",
-            obj,
+            "AbilityActivated apply must record GameEvent::AbilityUsed {{ object: {obj:?}, ability: 0 }} in history",
         );
     }
 }
