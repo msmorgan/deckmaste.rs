@@ -200,13 +200,43 @@ impl GameState {
             GameEvent::TurnBegan { .. }
             | GameEvent::StepBegan(_)
             | GameEvent::BecameTarget { .. } => event,
-            // P0.W3 seams: grammar-complete events nothing emits yet —
-            // their apply (RNG, counter storage [P0.W5]) is unbuilt.
+            // P0.W3 seam: grammar-complete events nothing emits yet — their
+            // apply (RNG) is unbuilt.
             GameEvent::CoinFlipped { .. } | GameEvent::DieRolled { .. } => {
                 todo!("P0.W3: random-event apply")
             }
-            GameEvent::CounterPlaced { .. } | GameEvent::CounterRemoved { .. } => {
-                todo!("P0.W3: counter-event apply (storage is P0.W5)")
+            // [CR#122.1]: counters live in the object's (or player proxy's)
+            // counter map. Placement sums by kind; removal saturates at zero
+            // and DROPS the key, so an absent kind reads as zero everywhere
+            // (the layer-7c P/T read, `HasCounter`).
+            GameEvent::CounterPlaced {
+                object,
+                ref kind,
+                count,
+                ..
+            } => {
+                *self
+                    .objects
+                    .obj_mut(object)
+                    .counters
+                    .entry(kind.clone())
+                    .or_insert(0) += count;
+                event
+            }
+            GameEvent::CounterRemoved {
+                object,
+                ref kind,
+                count,
+                ..
+            } => {
+                let counters = &mut self.objects.obj_mut(object).counters;
+                if let Some(have) = counters.get_mut(kind) {
+                    *have = have.saturating_sub(count);
+                    if *have == 0 {
+                        counters.remove(kind);
+                    }
+                }
+                event
             }
             GameEvent::Untapped(id) => {
                 self.objects.obj_mut(id).tapped = false;
