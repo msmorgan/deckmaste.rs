@@ -1775,6 +1775,10 @@ mod tests {
     /// that subsume the old `Count::Query`/`eval_query` scalar family
     /// ([CR#608.2i]). Fixtures are the same events; assertions use the
     /// replacements.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one fixture exercises all five history tallies (storm/draws/lands/life-lost/life-gained) end-to-end"
+    )]
     #[test]
     fn history_tallies_via_event_count_sum() {
         use deckmaste_core::Agency;
@@ -5038,30 +5042,30 @@ mod tests {
         state.turn.turn_number = 1;
 
         // Build two creature-death GameEvents (same shape as the morbid test).
-        let bear_card1 = state.cards.push(Arc::clone(&bears), PlayerId(0));
-        let bear1 = state.objects.mint(
-            ObjectSource::Card(bear_card1),
+        let first_bear_card = state.cards.push(Arc::clone(&bears), PlayerId(0));
+        let first_bear = state.objects.mint(
+            ObjectSource::Card(first_bear_card),
             PlayerId(0),
             Some(Zone::Battlefield),
         );
-        state.zones.battlefield.push(bear1);
+        state.zones.battlefield.push(first_bear);
         let death1 = GameEvent::ZoneChanged {
-            snapshot: LkiSnapshot::capture(&state, bear1),
+            snapshot: LkiSnapshot::capture(&state, first_bear),
             from: Some(Zone::Battlefield),
             to: Zone::Graveyard,
             face: None,
             cause: None,
         };
 
-        let bear_card2 = state.cards.push(Arc::clone(&bears), PlayerId(0));
-        let bear2 = state.objects.mint(
-            ObjectSource::Card(bear_card2),
+        let second_bear_card = state.cards.push(Arc::clone(&bears), PlayerId(0));
+        let second_bear = state.objects.mint(
+            ObjectSource::Card(second_bear_card),
             PlayerId(0),
             Some(Zone::Battlefield),
         );
-        state.zones.battlefield.push(bear2);
+        state.zones.battlefield.push(second_bear);
         let death2 = GameEvent::ZoneChanged {
-            snapshot: LkiSnapshot::capture(&state, bear2),
+            snapshot: LkiSnapshot::capture(&state, second_bear),
             from: Some(Zone::Battlefield),
             to: Zone::Graveyard,
             face: None,

@@ -3264,8 +3264,7 @@ mod tests {
         });
         assert!(
             found,
-            "TriggerFired apply must record GameEvent::AbilityUsed {{ object: {:?}, ability: 0 }} in history",
-            goblin,
+            "TriggerFired apply must record GameEvent::AbilityUsed {{ object: {goblin:?}, ability: 0 }} in history",
         );
     }
 
