@@ -94,22 +94,43 @@ impl GameState {
             Effect::Act(Action::By(_, PlayerAction::PutCounters(what, kind, count)))
                 if is_self_selection(what) =>
             {
-                let frame = crate::stack::Frame {
-                    source: entering,
-                    controller: self.objects.obj(entering).controller,
-                    targets: Vec::new(),
-                    bindings: None,
-                    chosen: None,
-                    x: None,
-                    subject: None,
-                };
+                let frame = self.enters_frame(entering);
                 let n = self.eval_count(count, &frame);
                 if n > 0 {
                     status.counters.push((kind.0, n));
                 }
             }
+            // [CR#614.1d,608.2c]: a conditional enters-replacement — the
+            // dual-land "enters tapped unless you control …" gate, modeled as
+            // `AsEnters(If(condition: <gate>, then: <fold>, otherwise: <fold>))`.
+            // Evaluate the gate against a `This`-anchored entry frame (the "you"
+            // is the entering object's controller) and fold the chosen branch.
+            Effect::If(if_effect) => {
+                let frame = self.enters_frame(entering);
+                if self.condition_holds(&if_effect.condition, &frame) {
+                    self.apply_as_enters(&if_effect.then, entering, status);
+                } else if let Some(otherwise) = &if_effect.otherwise {
+                    self.apply_as_enters(otherwise, entering, status);
+                }
+            }
             Effect::Expanded(e) => self.apply_as_enters(&e.value, entering, status),
             other => todo!("stage 3 does not interpret enters-replacement effect {other:?}"),
+        }
+    }
+
+    /// The minimal resolution `Frame` for an enters-replacement fold: source =
+    /// the entering object, controller = its controller (the "you" a gate
+    /// condition reads), no targets/bindings/chosen/x/subject. Shared by the
+    /// counter-count and conditional-gate folds.
+    fn enters_frame(&self, entering: crate::object::ObjectId) -> crate::stack::Frame {
+        crate::stack::Frame {
+            source: entering,
+            controller: self.objects.obj(entering).controller,
+            targets: Vec::new(),
+            bindings: None,
+            chosen: None,
+            x: None,
+            subject: None,
         }
     }
 
@@ -438,6 +459,140 @@ mod tests {
                 .copied(),
             Some(2),
             "enters with two P1P1Counter counters"
+        );
+    }
+
+    /// A land whose sole ability is the dual-land conditional
+    /// enters-replacement `AsEnters(If(condition: Not(Compare(CountOf(other
+    /// lands you control), AtLeast, 1)), then: Tap(This)))` — "~ enters
+    /// tapped unless you control one or more other lands" ([CR#614.1d]).
+    fn tapped_unless_land() -> Card {
+        use deckmaste_core::CharacteristicFilter;
+        use deckmaste_core::Cmp;
+        use deckmaste_core::Condition;
+        use deckmaste_core::Count;
+        use deckmaste_core::If;
+        use deckmaste_core::RelationFilter;
+
+        let other_lands_you_control = Filter::AllOf(vec![
+            Filter::Characteristic(CharacteristicFilter::Type(Type::Land)),
+            Filter::Not(Box::new(Filter::Ref(Reference::This))),
+            Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+                Reference::You,
+            )))),
+        ]);
+        let gate = Condition::Compare(
+            Count::CountOf(Box::new(other_lands_you_control)),
+            Cmp::AtLeast,
+            Count::Literal(1),
+        );
+        Card::Normal(CardFace {
+            name: "Test Tapland".into(),
+            types: vec![Type::Land],
+            abilities: vec![Ability::Static(StaticAbility {
+                condition: None,
+                effects: vec![StaticEffect::Replacement(Box::new(Replacement::Also {
+                    would: Event::ZoneMove {
+                        what: Filter::Ref(Reference::This),
+                        from: None,
+                        to: Some(Zone::Battlefield),
+                        face: None,
+                        cause: None,
+                    },
+                    also: Effect::If(If {
+                        condition: Condition::Not(Box::new(gate)),
+                        then: Box::new(Effect::Act(Action::By(
+                            Reference::You,
+                            PlayerAction::Tap(Selection::this()),
+                        ))),
+                        otherwise: None,
+                    }),
+                }))],
+                characteristic_defining: false,
+            })],
+            ..CardFace::default()
+        })
+    }
+
+    /// Put a vanilla land on the battlefield under P0. Returns its id — the
+    /// "other land" the gate counts.
+    fn other_land(state: &mut GameState) -> ObjectId {
+        let land = Card::Normal(CardFace {
+            name: "Test Land".into(),
+            types: vec![Type::Land],
+            ..CardFace::default()
+        });
+        let card = state.cards.push(Arc::new(land), PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        id
+    }
+
+    /// Run the tapland from hand to battlefield, returning its reminted id.
+    fn enter_tapland(state: &mut GameState) -> ObjectId {
+        let card = state
+            .cards
+            .push(Arc::new(tapped_unless_land()), PlayerId(0));
+        let hand_id = state
+            .objects
+            .mint(ObjectSource::Card(card), PlayerId(0), Some(Zone::Hand));
+        state.zones.hands[PlayerId(0).index()].push(hand_id);
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+            GameEvent::ZoneWillChange {
+                object: hand_id,
+                from: Some(Zone::Hand),
+                to: Zone::Battlefield,
+                enters: None,
+                position: None,
+                face: None,
+                cause: None,
+            },
+        ))]);
+        // Step only until the land appears on the battlefield, then STOP — a
+        // further `step()` would advance into the untap step and clear the
+        // tapped status this test reads ([CR#502.3]).
+        for _ in 0..10 {
+            if let Some(&id) = state
+                .zones
+                .battlefield
+                .iter()
+                .find(|&&o| state.objects.obj(o).card_id() == Some(card))
+            {
+                return id;
+            }
+            if matches!(state.step(), StepOutcome::NeedsDecision(_)) {
+                break;
+            }
+        }
+        panic!("the tapland never entered the battlefield");
+    }
+
+    /// [CR#614.1d]: with NO other land you control, the unless-condition is
+    /// false, so the conditional fold taps the land on entry.
+    #[test]
+    fn conditional_enters_tapped_when_gate_unmet() {
+        let mut state = game();
+        let land = enter_tapland(&mut state);
+        assert!(
+            state.objects.obj(land).tapped,
+            "no other land → unless-condition false → enters tapped"
+        );
+    }
+
+    /// [CR#614.1d]: with an other land already in play, the unless-condition
+    /// holds, so the fold does nothing and the land enters untapped.
+    #[test]
+    fn conditional_enters_untapped_when_gate_met() {
+        let mut state = game();
+        other_land(&mut state);
+        let land = enter_tapland(&mut state);
+        assert!(
+            !state.objects.obj(land).tapped,
+            "an other land is present → unless-condition true → enters untapped"
         );
     }
 }
