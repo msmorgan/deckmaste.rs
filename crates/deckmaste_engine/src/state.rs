@@ -178,6 +178,13 @@ pub struct GameState {
     pub activations: ActivationLedger,
     /// The designation registry ([CR#109.3] non-characteristic state).
     pub designations: DesignationStore,
+    /// The counter-kind registry ([CR#122.1]) — a counter on an object is
+    /// stored as a bare `Ident → count`, so the bearings a counter confers
+    /// (its `Continuous` boost, its `StateBased` SBA) are looked up here by
+    /// name, unlike subtypes whose confers ride the card value. Populated from
+    /// the loaded plugin's `counters` at game construction; empty means no
+    /// counter confers anything (the pre-data behavior).
+    pub counter_decls: std::collections::HashMap<deckmaste_core::Ident, deckmaste_core::Counter>,
     /// The "that much"/"that many" anaphora register (`Count::ThatMuch` —
     /// oracle-text magnitude anaphora; no single CR rule defines it): the
     /// amount the most recently APPLIED amount-carrying event fixed (damage
@@ -264,6 +271,7 @@ impl GameState {
             continuous: Vec::new(),
             activations: ActivationLedger::default(),
             designations: DesignationStore::default(),
+            counter_decls: std::collections::HashMap::new(),
             that_much: None,
             history: crate::history::History::default(),
         }

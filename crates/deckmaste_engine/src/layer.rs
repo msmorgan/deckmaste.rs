@@ -345,8 +345,44 @@ struct ActiveEffect {
     locked: Option<Vec<ObjectId>>,
 }
 
+/// Bake a counter confer's `Modification`s for a specific holder: a self-scoped
+/// `CounterCount(This, k)` becomes `Literal(holder's count of k)` ([CR#122.1]).
+/// The layer-side `eval_count` is literal-only, and a counter's `Continuous`
+/// boost is self-scoped (it modifies its holder), so the holder's counter map
+/// is the right source — equivalent to the old hardcoded 7c read, but
+/// data-driven. Non-`Count` changes (`GainAbility` for keyword counters) and
+/// non-`CounterCount` counts pass through untouched.
+fn bake_counter_counts(
+    changes: &[Modification],
+    holder: &std::collections::HashMap<Ident, deckmaste_core::Uint>,
+) -> Vec<Modification> {
+    let bake = |count: &Count| -> Count {
+        match count {
+            Count::CounterCount(deckmaste_core::Reference::This, kind) => {
+                Count::Literal(holder.get(kind.as_str()).copied().unwrap_or(0))
+            }
+            other => other.clone(),
+        }
+    };
+    changes
+        .iter()
+        .map(|m| match m {
+            Modification::AddPower(n) => Modification::AddPower(bake(n)),
+            Modification::AddToughness(n) => Modification::AddToughness(bake(n)),
+            Modification::SubtractPower(n) => Modification::SubtractPower(bake(n)),
+            Modification::SubtractToughness(n) => Modification::SubtractToughness(bake(n)),
+            Modification::SetPower(n) => Modification::SetPower(bake(n)),
+            Modification::SetToughness(n) => Modification::SetToughness(bake(n)),
+            Modification::SetBaseLoyalty(n) => Modification::SetBaseLoyalty(bake(n)),
+            Modification::SetBaseDefense(n) => Modification::SetBaseDefense(bake(n)),
+            other => other.clone(),
+        })
+        .collect()
+}
+
 /// Collect all active static `Modify` effects from battlefield permanents,
-/// plus any floating one-shot effects from `state.continuous`.
+/// plus any floating one-shot effects from `state.continuous`, plus
+/// counter-conferred `Continuous` boosts ([CR#122.1]).
 ///
 /// Only unconditional effects are gathered here; `sa.condition` evaluation
 /// is a documented seam for a later task.
@@ -426,6 +462,45 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
                     // The carrier is the source permanent itself: a `Matching`
                     // scope's `Ref(This)` is this object and `Ref(You)` is its
                     // controller ([CR#603.10a,109.5]).
+                    watcher: Some(obj.source),
+                    locked: None,
+                });
+            }
+        }
+
+        // [CR#122.1]: counter-conferred continuous effects (the boost flavor) —
+        // strip-immune, gathered from the object's counter map + the registry,
+        // NOT from its abilities (a +1/+1 counter still pumps under
+        // `LoseAllAbilities`). A self-scoped `CounterCount(This, k)` is BAKED to
+        // the holder's live count here, since the layer-side `eval_count` is
+        // literal-only and a counter boost is self-scoped.
+        for kind in obj.counters.keys() {
+            let Some(decl) = state.counter_decls.get(kind) else {
+                continue;
+            };
+            for prop in &decl.confers {
+                let deckmaste_core::Property::Continuous { of, changes } = prop else {
+                    continue;
+                };
+                let scope = match of {
+                    Scope::Matching(f) => ScopeResolved::Floating(f.clone()),
+                    Scope::Of(r) => {
+                        ScopeResolved::Locked(resolve_source_relative(state, obj.id, r))
+                    }
+                    Scope::These(rs) => ScopeResolved::Locked(
+                        rs.iter()
+                            .flat_map(|r| resolve_source_relative(state, obj.id, r))
+                            .collect::<BTreeSet<ObjectId>>()
+                            .into_iter()
+                            .collect(),
+                    ),
+                };
+                effects.push(ActiveEffect {
+                    timestamp: obj.timestamp,
+                    is_cda: false,
+                    controller: obj.controller,
+                    scope,
+                    changes: bake_counter_counts(changes, &obj.counters),
                     watcher: Some(obj.source),
                     locked: None,
                 });
@@ -676,17 +751,28 @@ fn apply(m: &Modification, effect_controller: PlayerId, d: &mut DerivedObject) {
         Modification::SetPower(n) => c.power = Some(eval_count(n)),
         Modification::SetToughness(n) => c.toughness = Some(eval_count(n)),
         // --- Layer 7c: add/subtract P/T ---
+        // [CR#613.4c]: a 7c add/subtract modifies an EXISTING power/toughness —
+        // it never materializes one on a P/T-less object (a +1/+1 counter or a
+        // pump on a non-creature permanent does nothing P/T-wise, [CR#122.1a]).
         Modification::AddPower(n) => {
-            c.power = Some(c.power.unwrap_or(0) + eval_count(n));
+            if let Some(p) = c.power {
+                c.power = Some(p + eval_count(n));
+            }
         }
         Modification::AddToughness(n) => {
-            c.toughness = Some(c.toughness.unwrap_or(0) + eval_count(n));
+            if let Some(t) = c.toughness {
+                c.toughness = Some(t + eval_count(n));
+            }
         }
         Modification::SubtractPower(n) => {
-            c.power = Some(c.power.unwrap_or(0) - eval_count(n));
+            if let Some(p) = c.power {
+                c.power = Some(p - eval_count(n));
+            }
         }
         Modification::SubtractToughness(n) => {
-            c.toughness = Some(c.toughness.unwrap_or(0) - eval_count(n));
+            if let Some(t) = c.toughness {
+                c.toughness = Some(t - eval_count(n));
+            }
         }
         // --- Layer 7d: switch ---
         Modification::SwitchPowerToughness => std::mem::swap(&mut c.power, &mut c.toughness),
@@ -967,34 +1053,11 @@ impl GameState {
                 let i = pending.remove(pos);
                 apply_effect_in_layer(self, &mut working, &mut effects[i], layer);
             }
-
-            // [CR#613.4c],[CR#122]: +1/+1 and -1/-1 counters modify P/T in
-            // layer 7c, after 7b set-effects and before 7d switch. Applied
-            // directly (not as Modifications) because Count is unsigned;
-            // 7c additions commute, so order vs. other 7c effects is irrelevant.
-            if layer == Layer::L7c {
-                // Counters live on the object (not derived); layers() is &self so no mid-pass
-                // race.
-                for (&id, d) in &mut working {
-                    let counters = &self.objects.obj(id).counters;
-                    let plus = counters.get("+1/+1").copied().unwrap_or(0).cast_signed();
-                    let minus = counters.get("-1/-1").copied().unwrap_or(0).cast_signed();
-                    let delta = plus - minus;
-                    if delta != 0 {
-                        let c = &mut d.characteristics;
-                        if let Some(p) = c.power {
-                            c.power = Some(p + delta);
-                        }
-                        if let Some(t) = c.toughness {
-                            c.toughness = Some(t + delta);
-                        }
-                    }
-                }
-                // Keyword counters ([CR#122] payloads) are DEFERRED: no
-                // counter-decl registry is wired in the engine
-                // yet. (Follow-up: gather a counter's CounterDecl.payload
-                // StaticEffect into layer 6 once the registry exists.)
-            }
+            // [CR#122.1a,613.4c,613.1f]: +1/+1 / -1/-1 P/T and keyword counters
+            // are data-driven now — gathered as counter-conferred `Continuous`
+            // boosts (see `gather` + `bake_counter_counts`) and applied as
+            // ordinary layer `Modification`s, so no hardcoded 7c counter read
+            // remains here.
         }
 
         LayeredView(working)
