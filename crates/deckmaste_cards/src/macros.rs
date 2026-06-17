@@ -47,16 +47,17 @@ pub fn kinds() -> KindSet {
 }
 
 /// The param types in scope for deckmaste plugins: the domain-neutral
-/// built-ins (`Any`, `String`) plus deckmaste's `Color`. A validator reads
-/// the argument as its Rust type with macros in scope, so the check and the
-/// real grammar are one path.
+/// built-ins (`Any`, `String`) plus deckmaste's `Color`, `Filter`, and
+/// `Reference`. A validator reads the argument as its Rust type with macros
+/// in scope, so the check and the real grammar are one path.
 #[must_use]
 pub fn param_types() -> ParamTypeSet {
     let mut param_types = ParamTypeSet::default();
     param_types.add_typed::<deckmaste_core::Color>("Color");
     param_types.add_typed::<deckmaste_core::Filter>("Filter");
     // A reference slot: the object/player a macro compares against
-    // (`SharesColorWith(Ref(This))`, `SharesColor(Subject, This)`).
+    // (`SharesColorWith(Ref(This))`, `SharesColor(Subject, This)`). Also types
+    // regeneration's `Regenerate(target)` param.
     param_types.add_typed::<deckmaste_core::Reference>("Reference");
     // A keyword/cost slot: the bracketed cost-component list authored as the
     // macro's argument (`[Mana([Generic(2)])]`, `[Mana(...), Do(LoseLife(2))]`).
