@@ -242,7 +242,8 @@ pub struct GameState {
     /// earlier instruction of the same resolution.
     pub that_much: Option<Uint>,
     /// Turn/game event history ([CR#608.2i]): the append-only log the
-    /// condition layer queries (`Count::Query`, `Condition::Happened`).
+    /// condition layer queries (`Count::EventCount`/`Count::EventSum`,
+    /// `Condition::Happened`).
     pub history: crate::history::History,
     /// Suspended replacement-loop state ([CR#616.1]): set when a
     /// `ChooseReplacement` decision is surfaced, cleared when it is answered.

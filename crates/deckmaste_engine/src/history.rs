@@ -1,9 +1,9 @@
 //! Turn/game event history ([CR#608.2i] history reads): an append-only log of
 //! the facts that have occurred, each tagged with the turn it happened in. The
-//! one source of truth the condition layer queries — `Count::Query` counts
-//! matching entries, `Condition::Happened` tests for any match. Full-game
-//! retention (a bounded game's event count is trivial); the window selects
-//! which turn-tagged entries to read.
+//! one source of truth the condition layer queries — `Count::EventCount`/
+//! `Count::EventSum` tally matching entries, `Condition::Happened` tests for
+//! any match. Full-game retention (a bounded game's event count is trivial);
+//! the window selects which turn-tagged entries to read.
 
 use deckmaste_core::Uint;
 use deckmaste_core::Window;
