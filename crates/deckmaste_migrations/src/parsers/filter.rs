@@ -112,6 +112,23 @@ pub(crate) fn parse_phrase(phrase: &str) -> Option<String> {
     Some(combine(atoms))
 }
 
+/// Whether `word` is a known catalog subtype (any case-sensitive catalog
+/// entry). The dual-land subtype-disjunction grammar
+/// ([`crate::parsers::replacement`]) gates on this so "a Swamp or a Mountain"
+/// mints `Subtype` atoms only for real subtypes — the same catalog
+/// [`strip_subtype_adjective`] validates against.
+pub(crate) fn is_subtype(word: &str) -> bool {
+    SUBTYPES.contains(word)
+}
+
+/// The head atom for a singular/plural type noun ("land" → `Type(Land)`,
+/// "creature" → `Creature`), or `None` if `word` is not a type noun. The
+/// supertype-adjective dual-land grammar pairs this with a `Supertype(...)`
+/// atom ("basic land", "legendary creature").
+pub(crate) fn type_head_atom(word: &str) -> Option<String> {
+    type_noun_atom(&singularize(word.trim()).to_ascii_lowercase()).map(ToOwned::to_owned)
+}
+
 /// Peel one trailing relative clause off `s`, returning (atom, head-remainder).
 fn strip_postfix(s: &str) -> Option<(String, &str)> {
     let s = s.trim_end();
