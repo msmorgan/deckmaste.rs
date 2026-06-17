@@ -36,9 +36,27 @@ fn parse(line: &str, ctx: &ResolveCtx) -> Option<String> {
         return None;
     }
     parse_as_enters(line, ctx)
+        .or_else(|| parse_enters_with_counters(line, ctx))
         .or_else(|| parse_instead(line, ctx))
         .or_else(|| parse_tapped_unless(line))
         .or_else(|| parse_tapped_if(line))
+}
+
+/// `~ enters with <count> <kind> counter[s] on it.` -> an enters-with-counters
+/// self-replacement ([CR#122.6a,614.1c]): `Replacement(AsEnters(PutCounters(
+/// This, <kind>, <count>)))`. The engine folds an `AsEnters(PutCounters(This,
+/// …))` into the permanent's entry, placing the counters atomically at mint
+/// before the `ZoneChanged` fact. The counter kind + fixed count are parsed by
+/// the shared [`effect::parse_counter_clause`] (so `-1/-1` -> `M1M1Counter` for
+/// free); a "for each"/`X` count or an unmodeled kind declines there.
+fn parse_enters_with_counters(line: &str, ctx: &ResolveCtx) -> Option<String> {
+    let clause = line
+        .strip_prefix("~ enters with ")?
+        .strip_suffix(" on it.")?;
+    let (count, kind) = effect::parse_counter_clause(clause, ctx)?;
+    Some(format!(
+        "Static(effects: [Replacement(AsEnters(PutCounters(This, {kind}, {count})))])"
+    ))
 }
 
 /// "As <subject> enters, <effect>." → `Replacement(AsEnters(<effect>))`. Only
@@ -286,6 +304,59 @@ mod tests {
 
     fn rep(line: &str) -> Option<String> {
         resolve_line(line, &crate::parsers::test_ctx::ctx(CardKind::Permanent)).unwrap()
+    }
+
+    /// Resolves against the REAL builtin macro index — the enters-with-counters
+    /// production needs the `Counter`-kind macros to resolve the counter name.
+    fn rep_with_macros(line: &str) -> Option<String> {
+        resolve_line(
+            line,
+            &crate::parsers::test_ctx::builtin_ctx(CardKind::Permanent),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn enters_with_counters_fixed_counts() {
+        // "~ enters with a +1/+1 counter on it." -> an AsEnters self-replacement
+        // that places one P1P1Counter at entry ([CR#122.6a,614.1c]).
+        assert_eq!(
+            rep_with_macros("~ enters with a +1/+1 counter on it.").as_deref(),
+            Some("Static(effects: [Replacement(AsEnters(PutCounters(This, P1P1Counter, 1)))])")
+        );
+        assert_eq!(
+            rep_with_macros("~ enters with two +1/+1 counters on it.").as_deref(),
+            Some("Static(effects: [Replacement(AsEnters(PutCounters(This, P1P1Counter, 2)))])")
+        );
+        assert_eq!(
+            rep_with_macros("~ enters with three +1/+1 counters on it.").as_deref(),
+            Some("Static(effects: [Replacement(AsEnters(PutCounters(This, P1P1Counter, 3)))])")
+        );
+        // "-1/-1 counters" generalizes to M1M1Counter for free.
+        assert_eq!(
+            rep_with_macros("~ enters with two -1/-1 counters on it.").as_deref(),
+            Some("Static(effects: [Replacement(AsEnters(PutCounters(This, M1M1Counter, 2)))])")
+        );
+    }
+
+    #[test]
+    fn enters_with_counters_declines_out_of_scope() {
+        // "X counters" — a dynamic count, not a v1 production.
+        assert!(rep_with_macros("~ enters with X +1/+1 counters on it.").is_none());
+        // An unmodeled counter kind (no +1/+0 macro) declines cleanly.
+        assert!(rep_with_macros("~ enters with four +1/+0 counters on it.").is_none());
+        // Under the EMPTY index (no counter macros) it declines — pins that the
+        // kind is macro-resolved.
+        assert!(rep("~ enters with a +1/+1 counter on it.").is_none());
+        // Spells never carry an enters-with replacement.
+        assert!(
+            resolve_line(
+                "~ enters with two +1/+1 counters on it.",
+                &crate::parsers::test_ctx::ctx(CardKind::Spell)
+            )
+            .unwrap()
+            .is_none()
+        );
     }
 
     #[test]
