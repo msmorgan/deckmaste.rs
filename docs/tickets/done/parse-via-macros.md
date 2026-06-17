@@ -34,8 +34,6 @@ keywords are the most regular) → `parse-params-via-macros` (arg-bearing macros
 
 ## DESIGN SETTLED (2026-06-17)
 
-Full design: `docs/superpowers/specs/2026-06-17-parse-via-macros-design.md` (local).
-
 Decisions:
 - (a) Parse pattern = **derive-only** from the render `template`; no `parse:`
   field (escape hatch only if a real case forces it). A template-less macro does
