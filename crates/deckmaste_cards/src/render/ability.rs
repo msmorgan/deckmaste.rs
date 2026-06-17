@@ -124,6 +124,7 @@ pub(super) fn static_effect(e: &StaticEffect, ctx: &Ctx) -> Option<String> {
         }
         StaticEffect::Deontic(d) => Some(super::deontic::deontic(d, ctx.subject)),
         StaticEffect::Replacement(r) => Some(super::replacement::replacement(r, ctx)),
+        StaticEffect::CantHappen(_event) => Some("[can't happen]".to_string()), /* keyword cards render via their template */
         other => Some(format!("[unrendered: {other:?}].")),
     }
 }

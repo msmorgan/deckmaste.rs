@@ -198,6 +198,13 @@ pub enum StaticEffect {
     /// ([CR#101.1,104.3a]); the last-player-standing win pierces `CantWin`
     /// ([CR#104.2a]); simultaneous win∧lose = lose ([CR#104.3f]).
     OutcomeGate { who: Filter, gate: OutcomeGateKind },
+    /// An event-side "can't happen" ([CR#614.17,702.12b]): the matching event
+    /// can't occur. Distinct from `Deontic::Cant`, which is over player ACTIONS
+    /// ([CR#101.2] action legality); destruction is an EVENT. Indestructible is
+    /// `CantHappen(Destroyed(Ref(This)))`. Per [CR#614.17c] a can't-happen
+    /// event can be touched only by a self-replacement, so the cant pass
+    /// pre-empts the replacement registry entirely.
+    CantHappen(Event),
     /// A remembered `StaticEffect` macro invocation. Serialized as the
     /// invocation, not the struct.
     #[macro_ron(expanded)]
@@ -289,6 +296,15 @@ mod tests {
         };
         let written = crate::ron::options().to_string(&sba).unwrap();
         assert_eq!(read(&written), sba, "Sba round-trips: {written}");
+    }
+
+    /// A `CantHappen` variant round-trips from RON.
+    #[test]
+    fn cant_happen_reads_flat() {
+        let parsed = read(
+            "CantHappen(ZoneMove(what: Ref(This), from: Battlefield, to: Graveyard, cause: Cause(verb: \"Destroy\")))",
+        );
+        assert!(matches!(parsed, StaticEffect::CantHappen(_)));
     }
 
     /// A deontic clause reads flat and serializes flat — the compartment

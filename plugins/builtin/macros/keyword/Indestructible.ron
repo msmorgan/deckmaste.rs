@@ -1,16 +1,18 @@
-// Indestructible = an event-side can't-happen [CR#702.12b]: "would be
-// destroyed → nothing instead" (replacement family, NOT a deontic row —
-// destruction is an event, not a player action). Covers both destroy
-// causes ([CR#701.8b]) including the lethal-damage SBA it explicitly
-// ignores ([CR#704.5g]). The engine's destroy paths carry a presence
-// guard (kw-indestructible) until the replacement window exists.
+// Indestructible = an event-side can't-happen [CR#702.12b,614.17]: the
+// matching destruction event simply cannot occur. Covers both destroy causes
+// ([CR#701.8b]) including the lethal-damage SBA ([CR#704.5g]). The engine's
+// cant pass ([CR#614.17]) in `apply_occurrence` suppresses the `WillDestroy`
+// event before `apply` runs — the replacement registry is skipped entirely
+// ([CR#614.17c]).
 KeywordAbility(
     name: "Indestructible",
     template: "indestructible",
     abilities: [Static(effects: [
-        Replacement(Instead(
-            would: Destroyed(Ref(This)),
-            instead: Sequence([]),
+        CantHappen(ZoneMove(
+            what: Ref(This),
+            from: Battlefield,
+            to: Graveyard,
+            cause: Cause(verb: "Destroy"),
         )),
     ])],
 )

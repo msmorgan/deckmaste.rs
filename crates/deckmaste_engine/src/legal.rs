@@ -56,45 +56,6 @@ pub(crate) fn statics_present<F: Fn(&StaticEffect) -> bool>(
         .any(|&id| object_has_static(view, id, &pred))
 }
 
-/// Whether `id` carries a static that replaces its DESTRUCTION — indestructible
-/// ([CR#702.12b]), or a regeneration shield once those exist. The `WillDestroy`
-/// apply drops the destroy when it does; the lethal-damage SBA routes through
-/// the same intent so it, too, spares such permanents ([CR#704.5g]).
-pub(crate) fn replaced_from_destruction(view: &LayeredView, id: ObjectId) -> bool {
-    object_has_static(
-        view,
-        id,
-        &|s| matches!(s, StaticEffect::Replacement(r) if replaces_destruction(r)),
-    )
-}
-
-/// Whether a replacement row replaces DESTRUCTION — an `Instead` whose
-/// `would` (looked through `Expanded`, e.g. the `Destroyed` macro) is a
-/// battlefield→graveyard `ZoneMove`. The kw-indestructible guard keys on
-/// it: replacements are unapplied (stage-4 seam), and a destroy that
-/// silently ignores an indestructible row would be wrong, not just
-/// incomplete.
-pub(crate) fn replaces_destruction(r: &deckmaste_core::Replacement) -> bool {
-    use deckmaste_core::Event;
-    use deckmaste_core::Replacement;
-    use deckmaste_core::Zone;
-    fn destruction_event(e: &Event) -> bool {
-        match e {
-            Event::Expanded(x) => destruction_event(&x.value),
-            Event::ZoneMove { from, to, .. } => {
-                *from == Some(Zone::Battlefield) && *to == Some(Zone::Graveyard)
-            }
-            Event::OneOf(events) => events.iter().any(destruction_event),
-            _ => false,
-        }
-    }
-    match r {
-        Replacement::Expanded(x) => replaces_destruction(&x.value),
-        Replacement::Instead { would, .. } => destruction_event(would),
-        _ => false,
-    }
-}
-
 /// P0.W1 presence guard ([CR#101.2,601.3] seam): the deontic grammar is
 /// complete, but declaration legality does not evaluate the rows yet. Any
 /// matching-verb row in the derived view trips the seam LOUDLY rather than

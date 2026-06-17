@@ -2355,8 +2355,8 @@ mod tests {
     }
 
     /// [CR#702.12b]: an indestructible permanent can't be destroyed — the
-    /// `Destroy` action's `WillDestroy` intent finds the
-    /// destruction-replacement static and is replaced to nothing, so the
+    /// `Destroy` action's `WillDestroy` intent is suppressed by the
+    /// event-side cant pass ([CR#614.17]) in `apply_occurrence`, so the
     /// Myr stays on the battlefield.
     #[test]
     fn indestructible_survives_destroy_action() {

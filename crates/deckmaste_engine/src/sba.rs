@@ -109,8 +109,9 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
     }
     for id in to_destroy {
         // Destroy through the replaceable `WillDestroy` intent so indestructible
-        // / regeneration can intercede ([CR#702.12b]): its apply checks the
-        // object's destruction-replacement statics and either spares it or
+        // ([CR#702.12b]) and other cant-happen statics intercede via the event-side
+        // cant pass ([CR#614.17]) in `apply_occurrence`, suppressing the event
+        // before it reaches `apply`. For destructible permanents the intent
         // commits the battlefield→graveyard move (capturing LKI then,
         // [CR#400.7]). The cause names the verb — lethal-damage destruction is
         // one of "destroyed"'s exactly two causes ([CR#701.8b]), so the named
@@ -468,9 +469,9 @@ mod tests {
     }
 
     /// [CR#704.5g,702.12b]: an indestructible creature with lethal damage is
-    /// NOT destroyed by the SBA — the sweep emits a `WillDestroy`, and its
-    /// apply finds the destruction-replacement static and replaces the destroy
-    /// to nothing. The Myr stays on the battlefield.
+    /// NOT destroyed by the SBA — the sweep emits a `WillDestroy`, and the
+    /// event-side cant pass ([CR#614.17]) in `apply_occurrence` suppresses it
+    /// before `apply` runs. The Myr stays on the battlefield.
     #[test]
     fn indestructible_survives_lethal_damage() {
         let (mut state, myr) = myr_on_field();
