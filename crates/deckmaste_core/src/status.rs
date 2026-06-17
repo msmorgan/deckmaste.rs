@@ -8,7 +8,7 @@ use crate::Expand;
 /// out. Filtered via `Filter`'s `Status` atom; matched as a transition via
 /// `Event::StateBecomes`. Permanents enter untapped, unflipped, face up,
 /// and phased in unless something says otherwise ([CR#110.5b]).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Status {
     /// [CR#110.5].
     Tapped,
@@ -32,7 +32,7 @@ pub enum Status {
 /// event's `face` coordinate (mtg-rules events.md §2). `None` on an event
 /// means the default: face up ([CR#110.5b]); cards in hidden zones have no
 /// face status — they are hidden by ZONE, not by face ([CR#400.2]).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Face {
     Up,
     Down,
@@ -41,7 +41,7 @@ pub enum Face {
 /// The phased-in/phased-out pair ([CR#110.5] status category; [CR#702.26b]
 /// — phasing is a status change, explicitly NOT a zone change). The
 /// becomes-delta companion to [`Face`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Phasing {
     In,
     Out,
@@ -51,14 +51,16 @@ pub enum Phasing {
 /// (the accretion point): [CR#406.3a]'s face-down-exile case (NO
 /// characteristics at all) is a foreseeable `Nothing` sibling, landing
 /// here without respelling existing files.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Expand, Serialize)]
 pub enum FaceDownSpec {
     /// The characteristics the enabler LISTS ([CR#708.2]).
     Listed(FaceDownCharacteristics),
 }
 
 impl Default for FaceDownSpec {
-    fn default() -> Self { FaceDownSpec::Listed(FaceDownCharacteristics::default()) }
+    fn default() -> Self {
+        FaceDownSpec::Listed(FaceDownCharacteristics::default())
+    }
 }
 
 /// The characteristics a face-down object HAS ([CR#708.2]: only those
@@ -71,7 +73,7 @@ impl Default for FaceDownSpec {
 /// real card stays hidden, with look rights ([CR#708.5]), the
 /// differentiation duty ([CR#708.6]), and reveal-on-leave ([CR#708.9]) as
 /// engine seams.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Expand, Serialize)]
 pub struct FaceDownCharacteristics {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,

@@ -40,7 +40,9 @@ impl ActivationLedger {
     }
 
     /// The per-turn reset (`begin_turn`).
-    pub(crate) fn reset_turn(&mut self) { self.this_turn.clear(); }
+    pub(crate) fn reset_turn(&mut self) {
+        self.this_turn.clear();
+    }
 }
 
 #[cfg(test)]

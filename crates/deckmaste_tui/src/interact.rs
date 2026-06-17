@@ -111,7 +111,9 @@ impl Interaction {
 
     /// True for the board-dimming pick modes (everything but `Priority`).
     #[must_use]
-    pub fn is_pick_mode(&self) -> bool { !matches!(self, Interaction::Priority { .. }) }
+    pub fn is_pick_mode(&self) -> bool {
+        !matches!(self, Interaction::Priority { .. })
+    }
 
     /// Candidate ids selectable for the current step (the active spec's set for
     /// Targets, the legal pool for Attackers, the unpaired legal blockers for
@@ -146,7 +148,9 @@ impl Interaction {
 
     /// Whether `id` is selectable right now.
     #[must_use]
-    pub fn is_candidate(&self, id: ObjectId) -> bool { self.candidates().contains(&id) }
+    pub fn is_candidate(&self, id: ObjectId) -> bool {
+        self.candidates().contains(&id)
+    }
 
     /// Whether `id` is part of the committed selection (rendered with a ✓).
     #[must_use]

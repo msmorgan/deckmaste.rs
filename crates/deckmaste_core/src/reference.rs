@@ -5,7 +5,9 @@ use crate::SupportsMacros;
 mod tests {
     use super::Reference;
 
-    fn read(source: &str) -> Reference { crate::ron::options().from_str(source).unwrap() }
+    fn read(source: &str) -> Reference {
+        crate::ron::options().from_str(source).unwrap()
+    }
 
     #[test]
     fn attach_host_of_round_trips() {

@@ -10,7 +10,7 @@ use crate::SupportsMacros;
 /// A measurable characteristic of an object, read by `Count::StatOf`
 /// ([CR#109.3,208,209,210]). The open part (mana value, loyalty, defense) is
 /// finite; new printed stats are rare and get a variant when one arrives.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Stat {
     /// [CR#208].
     Power,
@@ -26,7 +26,7 @@ pub enum Stat {
 
 /// The engine-tracked history counters `Count::Query` bridges to
 /// (read off the engine's event-history log; turn-scoped unless noted).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, Expand, serde::Serialize)]
 pub enum QueryKey {
     /// Cards the evaluating player drew this turn ([CR#121]).
     CardsDrawnThisTurn,
@@ -85,7 +85,9 @@ mod tests {
     use super::*;
     use crate::reference::Reference;
 
-    fn read(source: &str) -> Count { crate::ron::options().from_str(source).unwrap() }
+    fn read(source: &str) -> Count {
+        crate::ron::options().from_str(source).unwrap()
+    }
 
     /// In core grammar a literal is tagged: `Literal(3)`. A bare `3` is not
     /// core grammar — it's macro-layer sugar, tested in the cards crate.

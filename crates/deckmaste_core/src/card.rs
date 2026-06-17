@@ -9,7 +9,7 @@ use crate::Supertype;
 use crate::Type;
 use crate::ability::Ability;
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Expand, Serialize)]
 pub struct CardFace {
     pub name: String,
 
@@ -43,13 +43,13 @@ pub struct CardFace {
     pub defense: Option<StatValue>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Expand, Serialize)]
 pub enum Card {
     Normal(CardFace),
     ModalDfc(CardFace, CardFace),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum StatValue {
     // Power or toughness set by a characteristic-defining ability.
     // Any power or toughness containing * is essentially reminder text.

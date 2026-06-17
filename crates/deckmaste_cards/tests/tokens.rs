@@ -28,7 +28,9 @@ use deckmaste_core::Type;
 
 /// `Effect::Act(By(You, pa))` — the implicit-you default a bare player verb in
 /// an effect slot reads as.
-fn by_you(pa: PlayerAction) -> Effect { Effect::Act(Action::By(Reference::You, pa)) }
+fn by_you(pa: PlayerAction) -> Effect {
+    Effect::Act(Action::By(Reference::You, pa))
+}
 
 fn builtin() -> Plugin {
     Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()

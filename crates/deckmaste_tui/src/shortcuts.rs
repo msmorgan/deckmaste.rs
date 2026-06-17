@@ -124,7 +124,9 @@ impl PassState {
 
     /// `player`'s armed mode, if any.
     #[must_use]
-    pub fn mode(&self, player: PlayerId) -> Option<PassMode> { self.modes[player.index()] }
+    pub fn mode(&self, player: PlayerId) -> Option<PassMode> {
+        self.modes[player.index()]
+    }
 
     /// `player`'s arm-time snapshot (only meaningful while a mode is armed).
     #[must_use]
@@ -134,7 +136,9 @@ impl PassState {
 }
 
 impl Default for PassState {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]

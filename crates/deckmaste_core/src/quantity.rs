@@ -29,7 +29,9 @@ mod tests {
     use super::*;
     use crate::Count;
 
-    fn read(source: &str) -> Quantity { crate::ron::options().from_str(source).unwrap() }
+    fn read(source: &str) -> Quantity {
+        crate::ron::options().from_str(source).unwrap()
+    }
 
     #[test]
     fn exactly_reads() {

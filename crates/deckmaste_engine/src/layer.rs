@@ -111,7 +111,9 @@ impl LayeredView {
     ///
     /// Panics if `id` was not a live object when the view was computed.
     #[must_use]
-    pub fn get(&self, id: ObjectId) -> &Characteristics { &self.entry(id).characteristics }
+    pub fn get(&self, id: ObjectId) -> &Characteristics {
+        &self.entry(id).characteristics
+    }
 
     /// Returns the derived controller for `id` ([CR#613.1b]): the base
     /// controller as modified by any active layer-2 control-change effect.
@@ -120,17 +122,23 @@ impl LayeredView {
     ///
     /// Panics if `id` was not a live object when the view was computed.
     #[must_use]
-    pub fn controller(&self, id: ObjectId) -> PlayerId { self.entry(id).controller }
+    pub fn controller(&self, id: ObjectId) -> PlayerId {
+        self.entry(id).controller
+    }
 
     fn entry(&self, id: ObjectId) -> &DerivedObject {
         self.0.get(&id).expect("live ObjectId in LayeredView")
     }
 
     #[must_use]
-    pub fn power(&self, id: ObjectId) -> Option<Int> { self.get(id).power }
+    pub fn power(&self, id: ObjectId) -> Option<Int> {
+        self.get(id).power
+    }
 
     #[must_use]
-    pub fn toughness(&self, id: ObjectId) -> Option<Int> { self.get(id).toughness }
+    pub fn toughness(&self, id: ObjectId) -> Option<Int> {
+        self.get(id).toughness
+    }
 
     /// Test-only: a view holding a single object with the given derived
     /// abilities (controller `PlayerId(0)`, no other characteristics). Lets
@@ -247,7 +255,7 @@ fn base_values(state: &GameState, id: ObjectId) -> DerivedObject {
 /// application order. Layer 1 (copy/face-down, [CR#613.2]) is not a
 /// `Modification` — it reshapes the *base* copiable values and is handled in
 /// `base_values`, so it has no variant here.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 enum Layer {
     L2,
     L3,

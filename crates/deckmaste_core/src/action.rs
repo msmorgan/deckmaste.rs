@@ -198,8 +198,12 @@ mod tests {
     use crate::reference::Reference;
     use crate::selection::Selection;
 
-    fn read(source: &str) -> Action { crate::ron::options().from_str(source).unwrap() }
-    fn write(action: &Action) -> String { crate::ron::options().to_string(action).unwrap() }
+    fn read(source: &str) -> Action {
+        crate::ron::options().from_str(source).unwrap()
+    }
+    fn write(action: &Action) -> String {
+        crate::ron::options().to_string(action).unwrap()
+    }
 
     #[test]
     fn is_cost_eligible_covers_self_directed_verbs() {

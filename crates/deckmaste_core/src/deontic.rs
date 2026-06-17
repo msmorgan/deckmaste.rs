@@ -21,7 +21,7 @@ use crate::Zone;
 /// encodable here). Additional costs, increases, and reductions apply on
 /// top ([CR#118.9d]); an alternative unlocks an unpayable base
 /// ([CR#118.6a]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum AlternativeCost {
     /// "Without paying its mana cost" — the limiting case ([CR#118.9]).
     Free,
@@ -50,7 +50,7 @@ pub enum AsThough {
 /// deliberately NOT a `Filter` atom: filters judge one object at a time,
 /// bounds judge the arrangement ([CR#702.111b] menace; deontics set-level
 /// evaluation).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum CountBound {
     Eq(Count),
     AtLeast(Count),
@@ -203,7 +203,9 @@ mod tests {
     use super::*;
     use crate::Reference;
 
-    fn read(source: &str) -> Deontic { crate::ron::options().from_str(source).unwrap() }
+    fn read(source: &str) -> Deontic {
+        crate::ron::options().from_str(source).unwrap()
+    }
 
     /// Omitted slots default to `Any` (load-bearing serde defaults, like
     /// `Event::Performed`).

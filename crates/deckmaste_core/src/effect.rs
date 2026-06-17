@@ -71,14 +71,14 @@ pub enum Effect {
 
 /// `Continuously { effect, duration }` ([CR#611.2]). `effect` is boxed to break
 /// the `Effect` → `StaticEffect` → `Replacement` → `Effect` size cycle.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct ContinuouslyEffect {
     pub effect: Box<StaticEffect>,
     pub duration: Duration,
 }
 
 /// `May { do, if_did, if_not }` — `do` is a keyword, so the field is `effect`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct MayEffect {
     pub effect: Box<Effect>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -89,7 +89,7 @@ pub struct MayEffect {
 
 /// `If { condition, then, else }` — `else` is a keyword, so the field is
 /// `otherwise`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct IfEffect {
     pub condition: Condition,
     pub then: Box<Effect>,
@@ -98,7 +98,7 @@ pub struct IfEffect {
 }
 
 /// `Noting { key, effect }` — see `Effect::Noting`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct NotingEffect {
     pub key: crate::Ident,
     pub effect: Box<Effect>,
@@ -106,21 +106,21 @@ pub struct NotingEffect {
 
 /// `Unless { do, unless }` — `do` is a keyword, so the field is `effect`;
 /// `unless` is the cost the affected player may pay to avoid it ([CR#118.12a]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct UnlessEffect {
     pub effect: Box<Effect>,
     pub unless: Vec<crate::CostComponent>,
 }
 
 /// `ForEach { over, do }` — `do` is a keyword, so the field is `effect`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct ForEachEffect {
     pub over: Filter,
     pub effect: Box<Effect>,
 }
 
 /// `Modal { choose, modes }` ([CR#700.2]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct ModalEffect {
     pub choose: ChooseSpec,
     pub modes: Vec<Mode>,
@@ -135,12 +135,18 @@ mod tests {
     use crate::reference::Reference;
     use crate::selection::Selection;
 
-    fn read(source: &str) -> Effect { crate::ron::options().from_str(source).unwrap() }
-    fn write(effect: &Effect) -> String { crate::ron::options().to_string(effect).unwrap() }
+    fn read(source: &str) -> Effect {
+        crate::ron::options().from_str(source).unwrap()
+    }
+    fn write(effect: &Effect) -> String {
+        crate::ron::options().to_string(effect).unwrap()
+    }
 
     /// Wraps a bare player action in the implicit-you default — the form a
     /// player verb written bare in an effect slot reads as.
-    fn act_by_you(pa: PlayerAction) -> Effect { Effect::Act(Action::By(Reference::You, pa)) }
+    fn act_by_you(pa: PlayerAction) -> Effect {
+        Effect::Act(Action::By(Reference::You, pa))
+    }
 
     /// Bare player verbs read flat as `By(You, …)`; source verbs read native.
     #[test]

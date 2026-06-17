@@ -32,27 +32,39 @@ expand_leaf!(
 );
 
 impl<T: Expand> Expand for Box<T> {
-    fn expand_all(self) -> Self { Box::new((*self).expand_all()) }
+    fn expand_all(self) -> Self {
+        Box::new((*self).expand_all())
+    }
 }
 
 impl<T: Expand> Expand for Option<T> {
-    fn expand_all(self) -> Self { self.map(Expand::expand_all) }
+    fn expand_all(self) -> Self {
+        self.map(Expand::expand_all)
+    }
 }
 
 impl<T: Expand> Expand for Vec<T> {
-    fn expand_all(self) -> Self { self.into_iter().map(Expand::expand_all).collect() }
+    fn expand_all(self) -> Self {
+        self.into_iter().map(Expand::expand_all).collect()
+    }
 }
 
 impl<K: Eq + Hash, V: Expand, S: BuildHasher + Default> Expand for HashMap<K, V, S> {
-    fn expand_all(self) -> Self { self.into_iter().map(|(k, v)| (k, v.expand_all())).collect() }
+    fn expand_all(self) -> Self {
+        self.into_iter().map(|(k, v)| (k, v.expand_all())).collect()
+    }
 }
 
 impl<K: Ord, V: Expand> Expand for BTreeMap<K, V> {
-    fn expand_all(self) -> Self { self.into_iter().map(|(k, v)| (k, v.expand_all())).collect() }
+    fn expand_all(self) -> Self {
+        self.into_iter().map(|(k, v)| (k, v.expand_all())).collect()
+    }
 }
 
 impl<A: Expand, B: Expand> Expand for (A, B) {
-    fn expand_all(self) -> Self { (self.0.expand_all(), self.1.expand_all()) }
+    fn expand_all(self) -> Self {
+        (self.0.expand_all(), self.1.expand_all())
+    }
 }
 
 impl<A: Expand, B: Expand, C: Expand> Expand for (A, B, C) {

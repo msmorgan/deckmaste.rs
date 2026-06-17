@@ -168,9 +168,13 @@ mod tests {
     use super::*;
 
     /// A `Mana` pick of one mana of a color.
-    fn color(c: Color) -> SymbolChoice { SymbolChoice::Mana(c.into()) }
+    fn color(c: Color) -> SymbolChoice {
+        SymbolChoice::Mana(c.into())
+    }
 
-    fn parse_cost(s: &str) -> ManaCost { s.parse().expect("test cost parses") }
+    fn parse_cost(s: &str) -> ManaCost {
+        s.parse().expect("test cost parses")
+    }
 
     /// `{2/W}` is choosable as its two halves; each half concretizes alone.
     #[test]

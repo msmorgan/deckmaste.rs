@@ -11,7 +11,9 @@ pub mod academyruins;
 pub mod mtgjson;
 pub mod scryfall;
 
-fn data_dir() -> PathBuf { PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data") }
+fn data_dir() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
+}
 
 fn read_data(relative: &str) -> anyhow::Result<Vec<u8>> {
     let path = data_dir().join(relative);
@@ -39,26 +41,36 @@ where
 pub struct DataStr<'a>(Cow<'a, str>);
 
 impl<'b: 'a, 'a> From<&'b str> for DataStr<'a> {
-    fn from(s: &'b str) -> Self { DataStr(Cow::Borrowed(s)) }
+    fn from(s: &'b str) -> Self {
+        DataStr(Cow::Borrowed(s))
+    }
 }
 
 impl DataStr<'_> {
-    pub fn as_str(&self) -> &str { &self.0 }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 impl Deref for DataStr<'_> {
     type Target = str;
 
-    fn deref(&self) -> &str { &self.0 }
+    fn deref(&self) -> &str {
+        &self.0
+    }
 }
 
 // Lets maps keyed by DataStr be queried with plain &str.
 impl std::borrow::Borrow<str> for DataStr<'_> {
-    fn borrow(&self) -> &str { &self.0 }
+    fn borrow(&self) -> &str {
+        &self.0
+    }
 }
 
 impl fmt::Display for DataStr<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { self.0.fmt(f) }
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
 }
 
 impl<'de: 'a, 'a> Deserialize<'de> for DataStr<'a> {

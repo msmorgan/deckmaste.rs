@@ -82,7 +82,9 @@ fn canon() -> Plugin {
     .unwrap()
 }
 
-fn red() -> ColorOrColorless { Color::Red.into() }
+fn red() -> ColorOrColorless {
+    Color::Red.into()
+}
 
 /// The face name of a card-backed object.
 ///
@@ -1149,8 +1151,12 @@ fn mana_ability_stays_stackless() {
 // decision surfaces at [CR#601.2b] (between targets and payment), and
 // `pay_cost` consumes the player's announced reading.
 
-fn white() -> ColorOrColorless { Color::White.into() }
-fn blue() -> ColorOrColorless { Color::Blue.into() }
+fn white() -> ColorOrColorless {
+    Color::White.into()
+}
+fn blue() -> ColorOrColorless {
+    Color::Blue.into()
+}
 
 /// Schedules the [CR#602.2b] activation announce block for `object`'s ability
 /// `index` straight onto the agenda front, mirroring `take_priority_action`'s
@@ -1428,7 +1434,9 @@ fn activated_ability_plain_cost_skips_choose_cost_options() {
 // these drive the real gate: reach a priority window, float a pool, and assert
 // whether the ability is in the legal list.
 
-fn green() -> ColorOrColorless { Color::Green.into() }
+fn green() -> ColorOrColorless {
+    Color::Green.into()
+}
 
 /// Floats `pool` mana into P0's pool at a freshly re-surfaced precombat-main
 /// priority and returns the recomputed legal list (with the float reflected).

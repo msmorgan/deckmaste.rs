@@ -8,7 +8,7 @@ use deckmaste_core::Card;
 use crate::plugin::Plugin;
 
 /// A decklist: a name and the `(count, card-name)` entries it lists.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Deck {
     pub name: String,
     pub entries: Vec<DeckEntry>,

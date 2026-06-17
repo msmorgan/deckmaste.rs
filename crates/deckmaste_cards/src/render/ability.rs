@@ -243,10 +243,18 @@ fn base_pt_clause(changes: &[Modification], plural: bool) -> Option<String> {
 
 // ── Verb helpers (plural/singular) ──────────────────────────────────────────
 
-fn get(plural: bool) -> &'static str { if plural { "get" } else { "gets" } }
-fn be(plural: bool) -> &'static str { if plural { "are" } else { "is" } }
-fn have(plural: bool) -> &'static str { if plural { "have" } else { "has" } }
-fn lose(plural: bool) -> &'static str { if plural { "lose" } else { "loses" } }
+fn get(plural: bool) -> &'static str {
+    if plural { "get" } else { "gets" }
+}
+fn be(plural: bool) -> &'static str {
+    if plural { "are" } else { "is" }
+}
+fn have(plural: bool) -> &'static str {
+    if plural { "have" } else { "has" }
+}
+fn lose(plural: bool) -> &'static str {
+    if plural { "lose" } else { "loses" }
+}
 
 // ── Phrase helpers ───────────────────────────────────────────────────────────
 

@@ -1006,7 +1006,9 @@ mod tests {
         })))
     }
 
-    fn creature() -> Filter { Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)) }
+    fn creature() -> Filter {
+        Filter::Characteristic(CharacteristicFilter::Type(Type::Creature))
+    }
 
     /// [CR#701.3b,301.5]: an attachment with `Innate(Cant(Attach(what: Ref(This),
     /// to: Not(Creature))))` (the Equipment-subtype shape) is legal on a

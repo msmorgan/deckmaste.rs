@@ -150,7 +150,9 @@ fn parse_beginning_of(rest: &str) -> Option<(String, &str)> {
 mod tests {
     use super::*;
 
-    fn trig(line: &str) -> Option<String> { resolve_line(line, CardKind::Permanent).unwrap() }
+    fn trig(line: &str) -> Option<String> {
+        resolve_line(line, CardKind::Permanent).unwrap()
+    }
 
     #[test]
     fn etb_self_draw() {

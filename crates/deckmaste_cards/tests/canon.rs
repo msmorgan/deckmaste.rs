@@ -20,7 +20,9 @@ use deckmaste_core::Subtype;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Type;
 
-fn canon_path() -> PathBuf { Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon") }
+fn canon_path() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon")
+}
 
 fn canon() -> Plugin {
     // canon sits on top of builtin: its cards reference builtin's macros

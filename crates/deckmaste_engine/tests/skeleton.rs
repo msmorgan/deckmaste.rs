@@ -46,7 +46,9 @@ fn canon() -> Plugin {
     .unwrap()
 }
 
-fn deck(card: &Arc<Card>, n: usize) -> Vec<Arc<Card>> { vec![Arc::clone(card); n] }
+fn deck(card: &Arc<Card>, n: usize) -> Vec<Arc<Card>> {
+    vec![Arc::clone(card); n]
+}
 
 fn two_player_plains(seed: u64, deck_size: usize) -> GameState {
     let plains = Arc::new(builtin().card("Plains").unwrap());

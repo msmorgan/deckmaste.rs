@@ -100,7 +100,9 @@ fn parse_requirement(subj: &str, pred: &str) -> Option<String> {
 mod tests {
     use super::*;
 
-    fn stat(line: &str) -> Option<String> { resolve_line(line, CardKind::Permanent).unwrap() }
+    fn stat(line: &str) -> Option<String> {
+        resolve_line(line, CardKind::Permanent).unwrap()
+    }
 
     #[test]
     fn pt_anthem_you_control() {

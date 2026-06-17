@@ -31,7 +31,7 @@ pub enum Replacement {
 }
 
 /// A prevention effect ([CR#615]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Prevention {
     /// Prevent the next N damage from `from` to `to` ([CR#615.7]).
     /// `duration: None` = the carrier's implicit duration — a static's

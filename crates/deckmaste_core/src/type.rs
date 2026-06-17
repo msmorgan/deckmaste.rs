@@ -6,7 +6,7 @@ use crate::Expand;
 use crate::Property;
 
 // [CR#300.1]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Type {
     Artifact,
     Battle,
@@ -26,7 +26,7 @@ pub enum Type {
 }
 
 // [CR#205.4a]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Supertype {
     Basic,
     Legendary,
@@ -48,7 +48,7 @@ pub enum Supertype {
 /// Plain serde on both sides; card files reference declared subtypes by bare
 /// name (`Forest`), which the macro-aware reader expands to the full
 /// declaration before this type ever sees it.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct Subtype {
     pub name: Ident,
     pub types: Vec<Type>,

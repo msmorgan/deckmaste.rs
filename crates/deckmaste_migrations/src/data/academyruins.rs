@@ -57,7 +57,9 @@ pub struct Keywords<'a> {
 }
 
 impl<'a> Keywords<'a> {
-    pub fn parse(bytes: &'a [u8]) -> serde_json::Result<Self> { serde_json::from_slice(bytes) }
+    pub fn parse(bytes: &'a [u8]) -> serde_json::Result<Self> {
+        serde_json::from_slice(bytes)
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -65,9 +67,13 @@ impl<'a> Keywords<'a> {
 pub(crate) struct RulesMap<'a>(#[serde(borrow)] pub HashMap<DataStr<'a>, Rule<'a>>);
 
 impl<'a> RulesMap<'a> {
-    pub fn parse(bytes: &'a [u8]) -> serde_json::Result<Self> { serde_json::from_slice(bytes) }
+    pub fn parse(bytes: &'a [u8]) -> serde_json::Result<Self> {
+        serde_json::from_slice(bytes)
+    }
 
-    pub fn find_rule(&self, rule_number: &str) -> Option<&Rule<'a>> { self.0.get(rule_number) }
+    pub fn find_rule(&self, rule_number: &str) -> Option<&Rule<'a>> {
+        self.0.get(rule_number)
+    }
 
     /// Returns the rule and the subrules that follow it, e.g. "702.9"
     /// yields 702.9, 702.9a, 702.9b, and 702.9c.
@@ -106,11 +112,15 @@ impl<'a> RulesMap<'a> {
 
 /// Reads the comprehensive rules file; parse with
 /// [`RulesMap::parse`], which borrows from the returned bytes.
-pub fn comprehensive_rules_bytes() -> anyhow::Result<Vec<u8>> { super::read_data("rules/cr.json") }
+pub fn comprehensive_rules_bytes() -> anyhow::Result<Vec<u8>> {
+    super::read_data("rules/cr.json")
+}
 
 /// Reads the keyword lists file; parse with
 /// [`Keywords::parse`], which borrows from the returned bytes.
-pub fn keywords_bytes() -> anyhow::Result<Vec<u8>> { super::read_data("rules/keywords.json") }
+pub fn keywords_bytes() -> anyhow::Result<Vec<u8>> {
+    super::read_data("rules/keywords.json")
+}
 
 #[cfg(test)]
 mod tests {

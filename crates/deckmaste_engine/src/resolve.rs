@@ -1445,7 +1445,9 @@ mod tests {
         .unwrap()
     }
 
-    fn deck(card: &Arc<Card>, n: usize) -> Vec<Arc<Card>> { vec![Arc::clone(card); n] }
+    fn deck(card: &Arc<Card>, n: usize) -> Vec<Arc<Card>> {
+        vec![Arc::clone(card); n]
+    }
 
     fn game() -> GameState {
         GameState::new(GameConfig {
@@ -1577,10 +1579,14 @@ mod tests {
 
     /// `Action::By(You, pa)` — the implicit-you default a bare player verb
     /// reads as.
-    fn by_you(pa: PlayerAction) -> Action { Action::By(Reference::You, pa) }
+    fn by_you(pa: PlayerAction) -> Action {
+        Action::By(Reference::You, pa)
+    }
 
     /// `Selection::Ref(This)` — the common "this object" selection.
-    fn sel_this() -> Selection { Selection::Ref(Reference::This) }
+    fn sel_this() -> Selection {
+        Selection::Ref(Reference::This)
+    }
 
     /// A two-player game; player 0's deck is Grizzly Bears.
     /// Returns the state plus a creature object forced onto the battlefield.

@@ -14,7 +14,9 @@ use deckmaste_engine::StartingPlayer;
 /// Fixed RNG seed so the demo game is reproducible.
 const SEED: u64 = 0xD00D;
 
-fn data(rel: &str) -> PathBuf { Path::new(env!("CARGO_MANIFEST_DIR")).join(rel) }
+fn data(rel: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join(rel)
+}
 
 /// Loads canon + builtin + the generated `wizards` corpus and the two demo
 /// decklists, and assembles a two-player Goblins-vs-Elves game.

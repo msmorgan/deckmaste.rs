@@ -199,7 +199,9 @@ fn ron_color(code: &str) -> anyhow::Result<Color> {
 /// One mtgjson type/subtype/supertype name → a bare-ident `RawIdent`
 /// (`"Time Lord"` → `TimeLord`), matching the macro-invocation name the
 /// macro-aware reader expands at graduation.
-fn ident(name: &str) -> RawIdent { RawIdent(to_rust_ident(name)) }
+fn ident(name: &str) -> RawIdent {
+    RawIdent(to_rust_ident(name))
+}
 
 /// mtgjson stat string → core `StatValue`: integers (incl. negative) are
 /// `Number`; `X` is `Variable`; anything else (`*`, `1+*`) is

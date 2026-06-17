@@ -4,7 +4,7 @@ use serde::Serialize;
 use crate::Expand;
 
 /// A game zone ([CR#400.1]). Vintage-legal scope: no ante.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Zone {
     Battlefield,
     Command,
@@ -23,5 +23,7 @@ impl Zone {
     /// hidden default. Face-down cards in public zones are the exception
     /// machinery ([CR#708]), not a zone property.
     #[must_use]
-    pub fn is_hidden(self) -> bool { matches!(self, Zone::Hand | Zone::Library) }
+    pub fn is_hidden(self) -> bool {
+        matches!(self, Zone::Hand | Zone::Library)
+    }
 }

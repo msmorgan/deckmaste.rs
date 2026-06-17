@@ -166,7 +166,9 @@ impl Plugin {
 
     /// The file a card of this name would live in.
     #[must_use]
-    pub fn card_path(&self, name: &str) -> PathBuf { card_path(&self.root, name) }
+    pub fn card_path(&self, name: &str) -> PathBuf {
+        card_path(&self.root, name)
+    }
 
     /// Reads and parses `cards/<name>.ron`, with the plugin's macros in scope.
     ///
@@ -181,7 +183,9 @@ impl Plugin {
 
     /// The file a token of this name would live in.
     #[must_use]
-    pub fn token_path(&self, name: &str) -> PathBuf { token_path(&self.root, name) }
+    pub fn token_path(&self, name: &str) -> PathBuf {
+        token_path(&self.root, name)
+    }
 
     /// Reads and parses `tokens/<name>.ron`, with the plugin's macros in scope.
     ///
@@ -248,7 +252,9 @@ mod tests {
 
     use super::*;
 
-    fn plugins() -> PathBuf { Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins") }
+    fn plugins() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins")
+    }
 
     #[test]
     fn sibling_prelude_brings_builtin_subtypes() {

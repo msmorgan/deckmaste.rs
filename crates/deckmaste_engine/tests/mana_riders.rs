@@ -46,7 +46,9 @@ fn canon() -> Plugin {
     .unwrap()
 }
 
-fn card(name: &str) -> Arc<Card> { Arc::new(canon().card(name).unwrap()) }
+fn card(name: &str) -> Arc<Card> {
+    Arc::new(canon().card(name).unwrap())
+}
 
 /// A snow Forest: the builtin `Forest` (whose `Forest` subtype confers the
 /// tap-for-green mana ability) with the `Snow` supertype added — the minimal
@@ -65,13 +67,19 @@ fn snow_forest() -> Card {
     forest
 }
 
-fn green() -> ColorOrColorless { Color::Green.into() }
-fn red() -> ColorOrColorless { Color::Red.into() }
+fn green() -> ColorOrColorless {
+    Color::Green.into()
+}
+fn red() -> ColorOrColorless {
+    Color::Red.into()
+}
 
 fn creature_filter() -> Filter {
     Filter::Characteristic(CharacteristicFilter::Type(Type::Creature))
 }
-fn instant_filter() -> Filter { Filter::Characteristic(CharacteristicFilter::Type(Type::Instant)) }
+fn instant_filter() -> Filter {
+    Filter::Characteristic(CharacteristicFilter::Type(Type::Instant))
+}
 
 fn face_name(state: &GameState, id: ObjectId) -> &str {
     match state.def(id) {

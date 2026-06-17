@@ -48,7 +48,9 @@ pub fn zone_for_key(key: char, perspective: PlayerId) -> Option<Zone> {
 
 /// The other player in the two-player hotseat.
 #[must_use]
-pub fn opponent(p: PlayerId) -> PlayerId { PlayerId(1 - p.0) }
+pub fn opponent(p: PlayerId) -> PlayerId {
+    PlayerId(1 - p.0)
+}
 
 /// A selectable item within a zone. Battlefield/hand resolve to a live object;
 /// the stack resolves to an index into `state.stack`.
@@ -82,15 +84,21 @@ impl BoardState {
 
     /// The currently focused zone.
     #[must_use]
-    pub fn focused_zone(&self) -> Zone { ZONES[self.focus] }
+    pub fn focused_zone(&self) -> Zone {
+        ZONES[self.focus]
+    }
 
     /// Whether `zone` is the focused one (for border highlighting).
     #[must_use]
-    pub fn is_focused(&self, zone: Zone) -> bool { self.focused_zone() == zone }
+    pub fn is_focused(&self, zone: Zone) -> bool {
+        self.focused_zone() == zone
+    }
 
     /// The remembered (un-clamped) selection index for `zone`.
     #[must_use]
-    pub fn selection_index(&self, zone: Zone) -> usize { self.selected[zone_pos(zone)] }
+    pub fn selection_index(&self, zone: Zone) -> usize {
+        self.selected[zone_pos(zone)]
+    }
 
     /// Move focus to the next/previous zone in the ring (wrapping).
     pub fn cycle_zone(&mut self, forward: bool) {
@@ -99,7 +107,9 @@ impl BoardState {
     }
 
     /// Jump focus directly to `zone` (the letter-hotkey path).
-    pub fn focus_zone(&mut self, zone: Zone) { self.focus = zone_pos(zone); }
+    pub fn focus_zone(&mut self, zone: Zone) {
+        self.focus = zone_pos(zone);
+    }
 
     /// Move the selection within the focused zone (wrapping). `len` is the
     /// focused zone's current item count; a no-op when the zone is empty.
@@ -170,7 +180,9 @@ impl BoardState {
 }
 
 impl Default for BoardState {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// Position of `zone` in [`ZONES`].

@@ -13,7 +13,7 @@ use crate::Reference;
 /// vote: [CR#701.38a]); the engine resolves nominal → actual (delegation,
 /// rebinding). `Rng` is the pseudo-decider of coin flips and die rolls
 /// (choices.md §4).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum DeciderSpec {
     /// The spell/ability's controller (announce-stage choices).
     Controller,
@@ -35,7 +35,7 @@ pub enum DeciderSpec {
 }
 
 /// How a choice is seen by other players (choices.md §3).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Visibility {
     /// The default: made publicly; later deciders see earlier choices
     /// ([CR#101.4b]).
@@ -52,7 +52,7 @@ pub enum Visibility {
 /// that stores) and `Effect::Noting` (stores the object set the inner
 /// effect touched — exiled-with). Readers: `Reference::Linked(key)`,
 /// `Count::Noted(key)`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, Expand, serde::Serialize)]
 pub enum NotedKind {
     Color,
     CardName,

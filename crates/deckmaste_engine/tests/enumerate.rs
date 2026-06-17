@@ -50,7 +50,9 @@ fn canon() -> Plugin {
     .unwrap()
 }
 
-fn red() -> ColorOrColorless { Color::Red.into() }
+fn red() -> ColorOrColorless {
+    Color::Red.into()
+}
 
 /// The face name of a card-backed object.
 ///

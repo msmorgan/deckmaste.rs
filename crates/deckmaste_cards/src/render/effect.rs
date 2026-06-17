@@ -209,7 +209,9 @@ fn token_abilities_suffix(abilities: &[Ability]) -> String {
     format!(" with {joined}")
 }
 
-fn trim_period(s: &str) -> String { s.strip_suffix('.').unwrap_or(s).to_string() }
+fn trim_period(s: &str) -> String {
+    s.strip_suffix('.').unwrap_or(s).to_string()
+}
 
 fn ensure_period(s: &str) -> String {
     if s.ends_with(['.', '!', '?']) { s.to_string() } else { format!("{s}.") }

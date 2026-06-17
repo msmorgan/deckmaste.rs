@@ -123,7 +123,9 @@ pub fn mana_pool(pool: &deckmaste_engine::ManaPool) -> String {
 /// exotic symbols fall back to a `Debug` form (the detail pane is a stub until
 /// `card-text-render`).
 #[must_use]
-pub fn mana_cost(cost: &ManaCost) -> String { cost.iter().map(symbol).collect() }
+pub fn mana_cost(cost: &ManaCost) -> String {
+    cost.iter().map(symbol).collect()
+}
 
 /// A short, human label for a legal priority action, built from the engine's
 /// `describe_action` view. Used by the footer and the ability-pick popup.

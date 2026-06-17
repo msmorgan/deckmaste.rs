@@ -24,7 +24,9 @@ pub struct Runner<'a> {
 
 impl<'a> Runner<'a> {
     #[must_use]
-    pub fn new(state: &'a mut GameState) -> Self { Self { state } }
+    pub fn new(state: &'a mut GameState) -> Self {
+        Self { state }
+    }
 
     /// Steps until a decision or game over.
     pub fn run(&mut self) -> (Vec<Progress>, RunStop) {

@@ -28,17 +28,19 @@ impl ObjectId {
     /// opaque ids without a live store (history / tally / combat fixtures).
     /// Engine code never calls this — real ids come only from
     /// [`ObjectStore::mint`].
-    pub(crate) fn from_raw(n: u64) -> Self { slotmap::KeyData::from_ffi(n).into() }
+    pub(crate) fn from_raw(n: u64) -> Self {
+        slotmap::KeyData::from_ffi(n).into()
+    }
 }
 
 /// A continuous-effect ordering stamp ([CR#613.7]). One monotonic clock spans
 /// objects (stamped at mint, zone-entry [CR#613.7d]) and floating effects
 /// (stamped at creation [CR#613.7b]).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub struct Timestamp(pub Uint);
 
 /// A persistent card identity ([CR#108]): an index into the game's card table.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct CardId(pub Uint);
 
 /// One physical card ([CR#108]) — or a created token's definition: its
@@ -142,13 +144,19 @@ impl Cards {
     ///
     /// Panics on a fabricated `CardId` — engine invariant, not caller input.
     #[must_use]
-    pub fn get(&self, id: CardId) -> &CardInstance { &self.0[id.0 as usize] }
+    pub fn get(&self, id: CardId) -> &CardInstance {
+        &self.0[id.0 as usize]
+    }
 
     #[must_use]
-    pub fn len(&self) -> usize { self.0.len() }
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 
     #[must_use]
-    pub fn is_empty(&self) -> bool { self.0.is_empty() }
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 /// Where an object's identity comes from ([CR#109]). A created token is
@@ -262,7 +270,9 @@ impl ObjectStore {
     }
 
     #[must_use]
-    pub fn get(&self, id: ObjectId) -> Option<&GameObject> { self.objects.get(id) }
+    pub fn get(&self, id: ObjectId) -> Option<&GameObject> {
+        self.objects.get(id)
+    }
 
     /// Panics if the id is stale — engine invariant, not caller input.
     ///
@@ -270,7 +280,9 @@ impl ObjectStore {
     ///
     /// Panics if the id does not exist in the object store.
     #[must_use]
-    pub fn obj(&self, id: ObjectId) -> &GameObject { self.objects.get(id).expect("live ObjectId") }
+    pub fn obj(&self, id: ObjectId) -> &GameObject {
+        self.objects.get(id).expect("live ObjectId")
+    }
 
     /// Panics if the id is stale — engine invariant, not caller input.
     ///
@@ -281,7 +293,9 @@ impl ObjectStore {
         self.objects.get_mut(id).expect("live ObjectId")
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &GameObject> { self.objects.values() }
+    pub fn iter(&self) -> impl Iterator<Item = &GameObject> {
+        self.objects.values()
+    }
 
     /// Removes an object — its identity is gone ([CR#400.7] reminting; no LKI
     /// retention).

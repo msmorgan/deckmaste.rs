@@ -569,7 +569,9 @@ mod tests {
 
     use deckmaste_core::CharacteristicFilter as CF;
 
-    fn cf(c: CF) -> Filter { Filter::Characteristic(c) }
+    fn cf(c: CF) -> Filter {
+        Filter::Characteristic(c)
+    }
 
     /// `Named` matches a card by its printed name ([CR#201]); a player proxy
     /// (no card) never matches.
@@ -812,7 +814,9 @@ mod tests {
         (state, bear, p1_card)
     }
 
-    fn marked() -> Filter { Filter::State(StateFilter::HasCounter("mark".into())) }
+    fn marked() -> Filter {
+        Filter::State(StateFilter::HasCounter("mark".into()))
+    }
 
     /// `ControlledBy` matches when the object's controller's proxy matches
     /// ([CR#109.5]).

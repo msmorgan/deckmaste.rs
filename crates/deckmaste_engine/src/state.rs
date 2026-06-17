@@ -274,13 +274,17 @@ impl GameState {
     /// Panics on an out-of-range `PlayerId` — engine invariant, not caller
     /// input.
     #[must_use]
-    pub fn player(&self, p: PlayerId) -> &PlayerState { &self.players[p.index()] }
+    pub fn player(&self, p: PlayerId) -> &PlayerState {
+        &self.players[p.index()]
+    }
 
     /// # Panics
     ///
     /// Panics on an out-of-range `PlayerId` — engine invariant, not caller
     /// input.
-    pub fn player_mut(&mut self, p: PlayerId) -> &mut PlayerState { &mut self.players[p.index()] }
+    pub fn player_mut(&mut self, p: PlayerId) -> &mut PlayerState {
+        &mut self.players[p.index()]
+    }
 
     /// The card behind an object (card-backed objects only).
     ///

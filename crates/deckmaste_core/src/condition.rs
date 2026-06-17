@@ -11,7 +11,7 @@ use crate::SupportsMacros;
 
 /// A numeric comparison ([CR#107.3]). The named forms keep RON readable —
 /// `AtLeast` rather than `>=`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, Expand)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Cmp {
     Eq,
     AtLeast,
@@ -90,7 +90,9 @@ pub enum Condition {
 mod tests {
     use super::*;
 
-    fn read(source: &str) -> Condition { crate::ron::options().from_str(source).unwrap() }
+    fn read(source: &str) -> Condition {
+        crate::ron::options().from_str(source).unwrap()
+    }
 
     #[test]
     fn compare_reads() {

@@ -19,7 +19,9 @@ pub struct CiteArgs {
 }
 
 #[must_use]
-pub fn repo_root() -> PathBuf { PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..") }
+pub fn repo_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
 
 /// `$MTG_RULES_CITE` overrides the script location (e.g. a plugin install or
 /// a development checkout elsewhere).
