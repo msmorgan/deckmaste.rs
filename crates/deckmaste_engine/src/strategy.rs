@@ -38,6 +38,7 @@ pub(crate) fn eval_frame(state: &GameState, seat: PlayerId, candidate: Option<Ob
         chosen: None,
         x: None,
         subject: None,
+        those: None,
     }
 }
 

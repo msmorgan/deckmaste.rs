@@ -94,6 +94,7 @@ pub fn matches_with(
                             chosen: None,
                             x: None,
                             subject: Some(id),
+                            those: None,
                         };
                         state.condition_holds(cond, &frame)
                     }

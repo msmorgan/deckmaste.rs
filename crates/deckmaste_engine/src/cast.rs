@@ -358,6 +358,7 @@ fn verb_payment_items(verbs: &[PlayerAction], source: ObjectId, player: PlayerId
                 // A cost verb reads no announced X.
                 x: None,
                 subject: None,
+                those: None,
             },
         })
         .collect()
@@ -515,6 +516,7 @@ impl GameState {
             chosen: None,
             x: None,
             subject: None,
+            those: None,
         };
         let life_required: Uint = verb_actions
             .iter()

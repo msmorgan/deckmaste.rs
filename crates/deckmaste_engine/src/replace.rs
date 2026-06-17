@@ -131,6 +131,7 @@ impl GameState {
             chosen: None,
             x: None,
             subject: None,
+            those: None,
         }
     }
 

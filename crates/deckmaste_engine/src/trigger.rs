@@ -665,6 +665,7 @@ impl GameState {
                         chosen: None,
                         x: None,
                         subject: None,
+                        those: None,
                     };
                     if !self.condition_holds(c, &frame) {
                         continue;
@@ -981,6 +982,7 @@ mod tests {
             chosen: None,
             x: None,
             subject: None,
+            those: None,
         }
     }
 
