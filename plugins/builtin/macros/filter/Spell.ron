@@ -1,0 +1,6 @@
+(
+    name: "Spell",
+    template: "spell",
+    kinds: [Filter],
+    body: Kind(Spell),
+)
