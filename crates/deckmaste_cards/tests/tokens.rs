@@ -80,7 +80,6 @@ fn treasure_token_parses() {
                 cost: vec![CostComponent::Tap, sacrifice_this()],
                 condition: None,
                 limits: vec![],
-                targets: vec![],
                 effect: by_you(PlayerAction::AddMana(
                     Count::Literal(1),
                     ManaSpec::AnyColor.into()
@@ -108,7 +107,6 @@ fn clue_token_parses() {
                 cost: vec![mana_2(), sacrifice_this()],
                 condition: None,
                 limits: vec![],
-                targets: vec![],
                 effect: by_you(PlayerAction::Draw(Count::Literal(1))),
             })],
             power: None,
@@ -133,7 +131,6 @@ fn food_token_parses() {
                 cost: vec![mana_2(), CostComponent::Tap, sacrifice_this()],
                 condition: None,
                 limits: vec![],
-                targets: vec![],
                 effect: by_you(PlayerAction::GainLife(Count::Literal(3))),
             })],
             power: None,

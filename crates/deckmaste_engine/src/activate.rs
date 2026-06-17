@@ -182,8 +182,7 @@ impl GameState {
 
         // [CR#601.2c,602.2b]: every target spec must admit at least one
         // legal candidate.
-        if !ability
-            .targets
+        if !crate::resolve::top_targets(&ability.effect)
             .iter()
             .all(|spec| !self.legal_targets(spec).is_empty())
         {
@@ -422,7 +421,6 @@ mod tests {
             cost,
             condition: None,
             limits: vec![],
-            targets: vec![],
             effect,
         }
     }
@@ -567,7 +565,6 @@ mod tests {
             window: None,
             condition: Some(Condition::YourTurn),
             limits: vec![],
-            targets: vec![],
             effect: noop_effect(),
         };
         let view = state.layers();
@@ -588,7 +585,6 @@ mod tests {
             condition: Some(Condition::YourTurn),
             window: None,
             limits: vec![],
-            targets: vec![],
             effect: noop_effect(),
         };
         let view = state.layers();
@@ -613,7 +609,6 @@ mod tests {
             condition: None,
             limits: vec![UseLimit::OncePerTurn],
             window: None,
-            targets: vec![],
             effect: noop_effect(),
         };
         let view = state.layers();
@@ -638,7 +633,6 @@ mod tests {
             cost: vec![],
             condition: None,
             limits: vec![UseLimit::OncePerGame],
-            targets: vec![],
             window: None,
             effect: noop_effect(),
         };

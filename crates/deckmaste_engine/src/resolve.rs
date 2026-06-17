@@ -400,7 +400,7 @@ impl GameState {
                 if modal
                     .modes
                     .iter()
-                    .any(|m| !m.targets.is_empty() || m.cost.is_some())
+                    .any(|m| !top_targets(&m.effect).is_empty() || m.cost.is_some())
                 {
                     todo!(
                         "engine-resolve-effects seam: modal per-mode targets/costs are \
@@ -1445,15 +1445,9 @@ impl GameState {
         let specs: Vec<TargetSpec> = match &entry.object {
             StackObject::Spell(o) => spell_targets(&self.layers(), *o),
             // The carried text is authoritative — never re-derive from the
-            // (possibly gone, possibly changed) source. Dual-read: legacy
-            // `targets` field, else a top-level `Targeted` wrapper.
-            StackObject::Activated { ability, .. } => {
-                if ability.targets.is_empty() {
-                    top_targets(&ability.effect).to_vec()
-                } else {
-                    ability.targets.clone()
-                }
-            }
+            // (possibly gone, possibly changed) source. Targets live on a
+            // top-level `Effect::Targeted` wrapper ([CR#115.1,601.2c]).
+            StackObject::Activated { ability, .. } => top_targets(&ability.effect).to_vec(),
             StackObject::Triggered { .. } => unreachable!(
                 "the Triggered resolve arm does not re-check target legality (fizzle seam)"
             ),
@@ -1534,15 +1528,10 @@ fn unresolved_choice(action: &Action) -> Option<PendingChoice> {
 /// view instead of re-deriving the board per card.
 #[must_use]
 pub(crate) fn spell_targets(view: &crate::layer::LayeredView, id: ObjectId) -> Vec<TargetSpec> {
-    let abilities = &view.get(id).abilities;
-    // Legacy shape: targets on the ability's `targets` field (dropped in the
-    // contract step). Migrated shape: targets on a top-level `Targeted`.
-    if let Some(list) = abilities.iter().find_map(spell_targets_list) {
-        if !list.is_empty() {
-            return list.clone();
-        }
-    }
-    abilities
+    // Targets live on a top-level `Effect::Targeted` wrapper in the spell
+    // ability's effect ([CR#115.1,601.2c]).
+    view.get(id)
+        .abilities
         .iter()
         .find_map(spell_ability_effect)
         .map_or_else(Vec::new, |e| top_targets(e).to_vec())
@@ -1554,16 +1543,6 @@ fn spell_ability_effect(ability: &Ability) -> Option<&Effect> {
     match ability {
         Ability::Spell(s) => Some(&s.effect),
         Ability::Expanded(e) => spell_ability_effect(&e.value),
-        _ => None,
-    }
-}
-
-/// Extracts the `targets` list from the first `Ability::Spell` arm, looking
-/// through `Ability::Expanded`.
-fn spell_targets_list(ability: &Ability) -> Option<&Vec<TargetSpec>> {
-    match ability {
-        Ability::Spell(s) => Some(&s.targets),
-        Ability::Expanded(e) => spell_targets_list(&e.value),
         _ => None,
     }
 }
@@ -4342,7 +4321,6 @@ mod tests {
         use crate::decide::PendingDecision;
 
         let gain_mode = |n| Mode {
-            targets: vec![],
             effect: Effect::Act(Action::By(
                 Reference::You,
                 PlayerAction::GainLife(Count::Literal(n)),
@@ -4588,7 +4566,6 @@ mod tests {
             name: "Secrets of the Golden City".into(),
             types: vec![Type::Sorcery],
             abilities: vec![Ability::Spell(SpellAbility {
-                targets: vec![],
                 effect: secrets_effect(),
             })],
             ..CardFace::default()

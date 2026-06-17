@@ -46,7 +46,6 @@ fn basic_land_subtype(name: &str, color: Color) -> Subtype {
                 cost: vec![CostComponent::Tap],
                 condition: None,
                 limits: vec![],
-                targets: vec![],
                 effect: Effect::Act(Action::By(
                     Reference::You,
                     PlayerAction::AddMana(
