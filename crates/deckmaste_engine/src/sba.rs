@@ -77,6 +77,11 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
     // action.
     actions.extend(counter_state_based_sbas(state));
 
+    // [CR#704.3]: rules-defined SBAs from `rules/sba/` data (toughness-0,
+    // loyalty-0, battle-defense-0). Evaluated after counter SBAs so they join
+    // the same simultaneous batch.
+    actions.extend(global_sba_rules(state));
+
     // [CR#704.5g,704.5h]: a creature with lethal marked damage, or struck by
     // any damage from a deathtouch source, is destroyed. We collect the ids
     // to destroy into a `BTreeSet` so that a creature triggering both checks
@@ -255,6 +260,39 @@ fn counter_state_based_sbas(state: &GameState) -> Vec<GameEvent> {
                 if state.condition_holds(condition, &frame) {
                     out.extend(run_sba_effect(state, effect, &frame));
                 }
+            }
+        }
+    }
+    out
+}
+
+/// Rules-defined state-based actions ([CR#704.3]): for every battlefield object
+/// in a rule's `scope`, with `This` bound to that object, run the rule's `then`
+/// if its `when` holds. The rules live in data (`rules/sba/`), so the engine
+/// never branches on type here — each rule's `scope` is its binding domain and
+/// `when` is its firing condition. Checking `scope` first means `when`'s stat
+/// reads only run on in-scope objects (a toughness read never runs on a
+/// non-creature).
+fn global_sba_rules(state: &GameState) -> Vec<GameEvent> {
+    let mut out = Vec::new();
+    for &id in &state.zones.battlefield {
+        let frame = crate::stack::Frame {
+            source: id,
+            controller: state.objects.obj(id).controller,
+            targets: Vec::new(),
+            bindings: None,
+            chosen: None,
+            x: None,
+            subject: None,
+        };
+        for rule in &state.sba_rules {
+            // `scope` binds `This`: only objects in the rule's domain reach
+            // `when` (so a toughness read never runs on a non-creature).
+            if !crate::matches(state, id, &rule.scope) {
+                continue;
+            }
+            if state.condition_holds(&rule.when, &frame) {
+                out.extend(run_sba_effect(state, &rule.then, &frame));
             }
         }
     }
@@ -1246,6 +1284,67 @@ mod tests {
         assert!(
             state.designations.players.contains_key(&(p1, name)),
             "p1 holds the city's blessing ([CR#702.131c])"
+        );
+    }
+
+    /// [CR#704.5f]: a creature whose toughness drops to 0 (via -1/-1 counters)
+    /// is put into its owner's graveyard by the rules-SBA pass — emitted as a
+    /// `ZoneWillChange` to `Graveyard`, NOT a `WillDestroy` (so regeneration
+    /// and indestructible cannot save it).
+    #[test]
+    fn toughness_zero_creature_is_put_into_graveyard() {
+        let (mut state, bear) = bear_on_field();
+        state.sba_rules = builtin().sba_rules;
+        state.counter_decls = builtin().counters;
+        // Grizzly Bears has toughness 2; two -1/-1 counters bring it to 0.
+        state
+            .objects
+            .obj_mut(bear)
+            .counters
+            .insert("M1M1Counter".into(), 2);
+        let actions = sba::sweep(&state);
+        assert!(
+            actions.iter().any(|e| matches!(
+                e,
+                GameEvent::ZoneWillChange { object, to: Zone::Graveyard, .. } if *object == bear
+            )),
+            "toughness-0 creature should be put into its graveyard (a Move, not a destroy); \
+             got {actions:?}"
+        );
+        // Must NOT be a WillDestroy — regeneration/indestructible must not save it.
+        assert!(
+            !actions
+                .iter()
+                .any(|e| matches!(e, GameEvent::WillDestroy { object, .. } if *object == bear)),
+            "toughness-0 is a put-into-graveyard, never a destroy; got {actions:?}"
+        );
+    }
+
+    /// [CR#704.5f,702.12b]: indestructible does NOT save a creature whose
+    /// toughness drops to 0. The toughness-0 SBA emits a `ZoneWillChange`
+    /// (a Move), not a `WillDestroy`, so the cant-happen guard never fires.
+    /// After the sweep applies the creature is gone.
+    #[test]
+    fn toughness_zero_kills_even_indestructible() {
+        let (mut state, myr) = myr_on_field(); // Darksteel Myr: indestructible, toughness 1
+        state.sba_rules = builtin().sba_rules;
+        state.counter_decls = builtin().counters;
+        // One -1/-1 counter: toughness 1 → 0.
+        state
+            .objects
+            .obj_mut(myr)
+            .counters
+            .insert("M1M1Counter".into(), 1);
+        let actions = sba::sweep(&state);
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(actions))]);
+        let _ = state.step();
+        assert!(
+            state.objects.get(myr).is_none() || !state.zones.battlefield.contains(&myr),
+            "an indestructible creature with toughness 0 is still put into the graveyard"
+        );
+        assert!(
+            !state.zones.graveyards[0].is_empty(),
+            "it went to the graveyard"
         );
     }
 }
