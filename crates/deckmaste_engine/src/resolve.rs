@@ -2804,7 +2804,7 @@ mod tests {
     #[test]
     fn continuously_matching_registers_floating_scope() {
         use deckmaste_core::CharacteristicFilter;
-        use deckmaste_core::ContinuouslyEffect;
+        use deckmaste_core::Continuously;
         use deckmaste_core::Count;
         use deckmaste_core::Duration;
         use deckmaste_core::Effect;
@@ -2820,7 +2820,7 @@ mod tests {
         assert!(state.continuous.is_empty(), "no effects before resolve");
 
         let filter = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));
-        let effect = Effect::Continuously(ContinuouslyEffect {
+        let effect = Effect::Continuously(Continuously {
             effect: Box::new(StaticEffect::Modify {
                 of: Scope::Matching(filter.clone()),
                 changes: vec![Modification::AddPower(Count::Literal(1))],
@@ -2847,7 +2847,7 @@ mod tests {
     /// the id at creation — `ScopeResolved::Locked(vec![src])`.
     #[test]
     fn continuously_of_this_registers_locked_scope() {
-        use deckmaste_core::ContinuouslyEffect;
+        use deckmaste_core::Continuously;
         use deckmaste_core::Count;
         use deckmaste_core::Duration;
         use deckmaste_core::Effect;
@@ -2859,7 +2859,7 @@ mod tests {
         let (mut state, src) = bear_on_field();
         let frame = frame_src(src);
 
-        let effect = Effect::Continuously(ContinuouslyEffect {
+        let effect = Effect::Continuously(Continuously {
             effect: Box::new(StaticEffect::Modify {
                 of: Scope::Of(Reference::This),
                 changes: vec![Modification::AddToughness(Count::Literal(2))],
@@ -4130,7 +4130,7 @@ mod tests {
     fn run_effect_if_takes_the_right_branch() {
         use deckmaste_core::Cmp;
         use deckmaste_core::Condition;
-        use deckmaste_core::IfEffect;
+        use deckmaste_core::If;
 
         // Trivially-true and trivially-false comparisons over literals.
         let yes = Condition::Compare(Count::Literal(1), Cmp::AtLeast, Count::Literal(0));
@@ -4149,7 +4149,7 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(
-            Effect::If(IfEffect {
+            Effect::If(If {
                 condition: yes.clone(),
                 then: Box::new(gain(3)),
                 otherwise: Some(Box::new(gain(5))),
@@ -4164,7 +4164,7 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(
-            Effect::If(IfEffect {
+            Effect::If(If {
                 condition: no.clone(),
                 then: Box::new(gain(3)),
                 otherwise: Some(Box::new(gain(5))),
@@ -4179,7 +4179,7 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(
-            Effect::If(IfEffect {
+            Effect::If(If {
                 condition: no.clone(),
                 then: Box::new(gain(3)),
                 otherwise: None,
@@ -4202,7 +4202,7 @@ mod tests {
     /// that iteration's object.
     #[test]
     fn run_effect_foreach_binds_each_match_as_that_object() {
-        use deckmaste_core::ForEachEffect;
+        use deckmaste_core::ForEach;
 
         let (mut state, bear) = bear_on_field();
         let theirs = second_bear_to_player_1(&mut state);
@@ -4212,7 +4212,7 @@ mod tests {
         ]);
         let frame = frame_src(bear);
         state.run_effect(
-            Effect::ForEach(ForEachEffect {
+            Effect::ForEach(ForEach {
                 over: creatures,
                 effect: Box::new(Effect::Act(Action::Destroy(Selection::Ref(
                     Reference::ThatObject,
@@ -4231,7 +4231,7 @@ mod tests {
     /// non-binding body (gain 1 life) over two creatures gains 2 life.
     #[test]
     fn run_effect_foreach_runs_once_per_match() {
-        use deckmaste_core::ForEachEffect;
+        use deckmaste_core::ForEach;
 
         let (mut state, bear) = bear_on_field();
         let _theirs = second_bear_to_player_1(&mut state);
@@ -4242,7 +4242,7 @@ mod tests {
         let frame = frame_src(bear);
         let life0 = state.player(PlayerId(0)).life;
         state.run_effect(
-            Effect::ForEach(ForEachEffect {
+            Effect::ForEach(ForEach {
                 over: creatures,
                 effect: Box::new(Effect::Act(Action::By(
                     Reference::You,
@@ -4264,7 +4264,7 @@ mod tests {
     /// via `GainLife` so each branch reads as a clean life delta.
     #[test]
     fn run_effect_may_branches_on_the_answer() {
-        use deckmaste_core::MayEffect;
+        use deckmaste_core::May;
 
         use crate::decide::Decision;
         use crate::decide::PendingDecision;
@@ -4275,7 +4275,7 @@ mod tests {
                 PlayerAction::GainLife(Count::Literal(n)),
             ))
         };
-        let may = || MayEffect {
+        let may = || May {
             effect: Box::new(gain(3)),
             if_did: Some(Box::new(gain(10))),
             if_not: Some(Box::new(gain(1))),
@@ -4309,7 +4309,7 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(
-            Effect::May(MayEffect {
+            Effect::May(May {
                 effect: Box::new(gain(3)),
                 if_did: None,
                 if_not: None,
@@ -4328,7 +4328,7 @@ mod tests {
     #[test]
     fn run_effect_modal_runs_chosen_modes() {
         use deckmaste_core::ChooseSpec;
-        use deckmaste_core::ModalEffect;
+        use deckmaste_core::Modal;
         use deckmaste_core::Mode;
 
         use crate::decide::Decision;
@@ -4355,7 +4355,7 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(
-            Effect::Modal(ModalEffect {
+            Effect::Modal(Modal {
                 choose: spec(1, false),
                 modes: modes(),
             }),
@@ -4393,7 +4393,7 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(
-            Effect::Modal(ModalEffect {
+            Effect::Modal(Modal {
                 choose: spec(2, false),
                 modes: modes(),
             }),
@@ -4411,13 +4411,13 @@ mod tests {
     #[test]
     fn run_effect_unless_pays_or_suffers_the_effect() {
         use deckmaste_core::CostComponent;
-        use deckmaste_core::UnlessEffect;
+        use deckmaste_core::Unless;
 
         use crate::decide::Decision;
         use crate::decide::PendingDecision;
 
         let p0 = PlayerId(0);
-        let unless = || UnlessEffect {
+        let unless = || Unless {
             who: Reference::You,
             effect: Box::new(Effect::Act(Action::By(
                 Reference::You,
@@ -4505,16 +4505,16 @@ mod tests {
     /// ```
     fn secrets_effect() -> Effect {
         use deckmaste_core::Condition;
-        use deckmaste_core::IfEffect;
+        use deckmaste_core::If;
 
         let by_you = |pa| Effect::Act(Action::By(Reference::You, pa));
         Effect::Sequence(vec![
-            Effect::If(IfEffect {
+            Effect::If(If {
                 condition: ascend_gate(),
                 then: Box::new(by_you(PlayerAction::GetDesignation("CitysBlessing".into()))),
                 otherwise: None,
             }),
-            Effect::If(IfEffect {
+            Effect::If(If {
                 condition: Condition::Is(
                     Reference::You,
                     Filter::State(StateFilter::Designated("CitysBlessing".into())),

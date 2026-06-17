@@ -74,15 +74,15 @@ pub use temporal::TurnMarker;
 pub use temporal::Window;
 
 mod effect;
-pub use effect::ContinuouslyEffect;
+pub use effect::Continuously;
 pub use effect::Effect;
-pub use effect::ForEachEffect;
-pub use effect::IfEffect;
-pub use effect::MayEffect;
-pub use effect::ModalEffect;
-pub use effect::NotingEffect;
+pub use effect::ForEach;
+pub use effect::If;
+pub use effect::May;
+pub use effect::Modal;
+pub use effect::Noting;
 pub use effect::Targeted;
-pub use effect::UnlessEffect;
+pub use effect::Unless;
 
 mod event;
 pub use event::Agency;

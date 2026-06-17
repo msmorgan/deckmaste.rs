@@ -26,7 +26,7 @@ use crate::reference::Reference;
 /// structural forms (`Sequence`, `May`, `If`, …) are the corpus's connective
 /// tissue — data the engine interprets, never seen by the macro layer as
 /// control flow. The struct-carrying forms delegate to inner derived structs
-/// (`MayEffect`, …), which read flat via `unwrap_variant_newtypes` and carry
+/// (`May`, …), which read flat via `unwrap_variant_newtypes` and carry
 /// the field defaults and shapes.
 // `Act(Action)` is the largest variant: `Action` is a big *balanced* leaf enum
 // (no single fat field to box), and `Effect` is the hot, recursively-matched
@@ -34,7 +34,7 @@ use crate::reference::Reference;
 // into every `Effect::Act` match (incl. the `resolve` hot path) and still leave
 // `Effect` over the bar via the next-largest variant — so it buys nothing for
 // the lint without a sweeping multi-box of `Action`/`Condition` embeddings.
-// The recursive sub-effect fields are already boxed (`MayEffect.effect`, …);
+// The recursive sub-effect fields are already boxed (`May.effect`, …);
 // this `allow` is the "balanced AST leaf" exception, same call as `Ability`.
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
@@ -46,25 +46,25 @@ pub enum Effect {
     /// Explicit "then" — ordered sub-effects ([CR#608.2c]).
     Sequence(Vec<Effect>),
     /// A one-shot-created continuous effect ([CR#611.2]).
-    Continuously(ContinuouslyEffect),
+    Continuously(Continuously),
     /// "You may [do]" ([CR#603,608]) — with "if you do"/"if you don't".
-    May(MayEffect),
+    May(May),
     /// "If [condition], [then]; otherwise [else]" ([CR#603.4]-style branch).
-    If(IfEffect),
+    If(If),
     /// "[do] unless [you pay]" ([CR#118.12a]).
-    Unless(UnlessEffect),
+    Unless(Unless),
     /// "For each [over], [do]" — binds the iterated object ([CR#608]).
-    ForEach(ForEachEffect),
+    ForEach(ForEach),
     /// A delayed triggered ability created on resolution ([CR#603.7]).
     /// Note the object set the inner effect moves/touches under `key`
     /// ([CR#607.2a] exiled-with linkage).
-    Noting(NotingEffect),
+    Noting(Noting),
     Delayed(Box<TriggeredAbility>),
     /// A reflexive triggered ability created on resolution ([CR#603.12]).
     Reflexive(Box<TriggeredAbility>),
     /// A modal effect: choose modes, then apply them ([CR#700.2]). This is the
     /// realized form of the design's `Resolvable::Modal` — see the report.
-    Modal(ModalEffect),
+    Modal(Modal),
     /// Targets scoped over an inner effect ([CR#115.1,601.2c]): the rules-
     /// faithful home for the word "target" — declared on the effect that
     /// consumes it, with `Reference::Target(n)` indexing this node's list.
@@ -78,7 +78,7 @@ pub enum Effect {
 /// `Continuously { effect, duration }` ([CR#611.2]). `effect` is boxed to break
 /// the `Effect` → `StaticEffect` → `Replacement` → `Effect` size cycle.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub struct ContinuouslyEffect {
+pub struct Continuously {
     pub effect: Box<StaticEffect>,
     pub duration: Duration,
 }
@@ -90,7 +90,7 @@ pub struct ContinuouslyEffect {
 /// `frame.targets` already bound), and per-instance illegal-target handling
 /// ([CR#608.2b]) reads each inner instruction's referenced targets. `effect`
 /// is boxed to break the `Effect` → `Targeted` → `Effect` size cycle
-/// (mirrors `MayEffect`).
+/// (mirrors `May`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct Targeted {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -100,7 +100,7 @@ pub struct Targeted {
 
 /// `May { do, if_did, if_not }` — `do` is a keyword, so the field is `effect`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub struct MayEffect {
+pub struct May {
     pub effect: Box<Effect>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub if_did: Option<Box<Effect>>,
@@ -111,7 +111,7 @@ pub struct MayEffect {
 /// `If { condition, then, else }` — `else` is a keyword, so the field is
 /// `otherwise`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub struct IfEffect {
+pub struct If {
     pub condition: Condition,
     pub then: Box<Effect>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -120,7 +120,7 @@ pub struct IfEffect {
 
 /// `Noting { key, effect }` — see `Effect::Noting`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub struct NotingEffect {
+pub struct Noting {
     pub key: crate::Ident,
     pub effect: Box<Effect>,
 }
@@ -131,20 +131,20 @@ pub struct NotingEffect {
 /// ("target player … unless that player pays …"); it defaults to `You` and is
 /// omitted from RON when it is.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub struct UnlessEffect {
+pub struct Unless {
     pub effect: Box<Effect>,
     #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
     pub who: Reference,
     pub unless: Vec<crate::CostComponent>,
 }
 
-/// serde default for [`UnlessEffect::who`] — the affected player is "you"
+/// serde default for [`Unless::who`] — the affected player is "you"
 /// unless the text names another ([CR#118.12a]).
 fn ref_you() -> Reference {
     Reference::You
 }
 
-/// `skip_serializing_if` predicate for [`UnlessEffect::who`]: the default `You`
+/// `skip_serializing_if` predicate for [`Unless::who`]: the default `You`
 /// is omitted from RON.
 fn ref_is_you(r: &Reference) -> bool {
     matches!(r, Reference::You)
@@ -152,14 +152,14 @@ fn ref_is_you(r: &Reference) -> bool {
 
 /// `ForEach { over, do }` — `do` is a keyword, so the field is `effect`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub struct ForEachEffect {
+pub struct ForEach {
     pub over: Filter,
     pub effect: Box<Effect>,
 }
 
 /// `Modal { choose, modes }` ([CR#700.2]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub struct ModalEffect {
+pub struct Modal {
     pub choose: ChooseSpec,
     pub modes: Vec<Mode>,
 }
@@ -316,7 +316,7 @@ mod tests {
         }
     }
 
-    /// `UnlessEffect::who` defaults to `You` when omitted (and is dropped from
+    /// `Unless::who` defaults to `You` when omitted (and is dropped from
     /// the written form); an explicit non-`You` payer round-trips.
     #[test]
     fn unless_who_defaults_to_you_and_round_trips() {

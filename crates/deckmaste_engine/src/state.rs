@@ -136,7 +136,7 @@ pub enum ChoiceContinuation {
     /// A `YesNo` answer for `Effect::May` ([CR#118.12]): true → `effect` then
     /// `if_did`; false → `if_not` (or nothing).
     May {
-        may: deckmaste_core::MayEffect,
+        may: deckmaste_core::May,
         frame: crate::stack::Frame,
     },
     /// A `ChooseModes` answer for `Effect::Modal` ([CR#700.2]): run the chosen
