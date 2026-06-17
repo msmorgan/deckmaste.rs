@@ -1108,7 +1108,8 @@ mod tests {
         use deckmaste_core::ManaSpec;
         use deckmaste_core::PlayerAction;
         Ability::Activated(ActivatedAbility {
-            cost: vec![CostComponent::Tap],
+            from: None,
+            cost: vec![CostComponent::Tap].into(),
             window: None,
             condition: None,
             limits: vec![],

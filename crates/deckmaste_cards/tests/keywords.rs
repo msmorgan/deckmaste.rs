@@ -40,6 +40,7 @@ fn every_builtin_keyword_macro_expands() {
         ("Protection(ColorIs(Red))", "Protection"),
         ("Crew(2)", "Crew"),
         ("Affinity(Type(Artifact))", "Affinity"),
+        ("Cycling([Mana([Generic(2)])])", "Cycling"),
     ];
     let plugin = builtin();
     for (invocation, name) in cases {
@@ -305,6 +306,56 @@ fn ascend_macro_expands_to_static_sba() {
         Box::new(canonical),
         "Ascend macro's Sba gate drifted from the canonical Ascend gate"
     );
+}
+
+/// [CR#702.29a]: **Cycling** confers an Activated ability that functions from
+/// HAND, whose cost is the printed cost followed by "discard this card", and
+/// whose effect is "draw a card". The printed cost is the macro's list param,
+/// spliced (via the nested-`Cost` flatten) ahead of the fixed discard-self.
+#[test]
+fn cycling_confers_from_hand_discard_self_draw() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::Cost;
+    use deckmaste_core::Effect;
+    use deckmaste_core::Zone;
+    use deckmaste_core::ron::options as ron_options;
+
+    let plugin = builtin();
+    let kw: KeywordAbility = plugin
+        .macros
+        .read_str("Cycling([Mana([Generic(2)])])")
+        .expect("Cycling expands");
+    let KeywordAbility::Expanded(expanded) = &kw else {
+        panic!("expected Expanded, got {kw:?}");
+    };
+    assert_eq!(expanded.name.as_str(), "Cycling", "carried name");
+    let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+        panic!("Cycling body is a Composite");
+    };
+    let act = abilities
+        .iter()
+        .find_map(|a| match a {
+            Ability::Activated(act) => Some(act),
+            _ => None,
+        })
+        .expect("Cycling confers an Activated ability");
+
+    // (1) Functions from hand ([CR#702.29a]).
+    assert_eq!(act.from, Some(Zone::Hand), "cycling activates from hand");
+
+    // (2) Cost = printed cost ({2}) THEN discard this card — the nested-Cost
+    // splice flattened ahead of the fixed discard-self, so the cost is FLAT.
+    let expected_cost: Cost = ron_options()
+        .from_str("[Mana([Generic(2)]), Do(Discard(count: Literal(1), what: This))]")
+        .unwrap();
+    assert_eq!(
+        act.cost, expected_cost,
+        "cycling cost = printed cost + discard this card (flattened)"
+    );
+
+    // (3) Effect = draw a card.
+    let expected_effect: Effect = ron_options().from_str("Draw(Literal(1))").unwrap();
+    assert_eq!(act.effect, expected_effect, "cycling draws a card");
 }
 
 fn deontic_inner(d: &deckmaste_core::Deontic) -> Option<&deckmaste_core::DeonticAction> {

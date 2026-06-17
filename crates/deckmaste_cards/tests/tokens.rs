@@ -76,8 +76,9 @@ fn treasure_token_parses() {
             types: vec![Type::Artifact],
             subtypes: vec![artifact_subtype("Treasure")],
             abilities: vec![Ability::Activated(ActivatedAbility {
+                from: None,
                 window: None,
-                cost: vec![CostComponent::Tap, sacrifice_this()],
+                cost: vec![CostComponent::Tap, sacrifice_this()].into(),
                 condition: None,
                 limits: vec![],
                 effect: by_you(PlayerAction::AddMana(
@@ -103,8 +104,9 @@ fn clue_token_parses() {
             types: vec![Type::Artifact],
             subtypes: vec![artifact_subtype("Clue")],
             abilities: vec![Ability::Activated(ActivatedAbility {
+                from: None,
                 window: None,
-                cost: vec![mana_2(), sacrifice_this()],
+                cost: vec![mana_2(), sacrifice_this()].into(),
                 condition: None,
                 limits: vec![],
                 effect: by_you(PlayerAction::Draw(Count::Literal(1))),
@@ -127,8 +129,9 @@ fn food_token_parses() {
             types: vec![Type::Artifact],
             subtypes: vec![artifact_subtype("Food")],
             abilities: vec![Ability::Activated(ActivatedAbility {
+                from: None,
                 window: None,
-                cost: vec![mana_2(), CostComponent::Tap, sacrifice_this()],
+                cost: vec![mana_2(), CostComponent::Tap, sacrifice_this()].into(),
                 condition: None,
                 limits: vec![],
                 effect: by_you(PlayerAction::GainLife(Count::Literal(3))),

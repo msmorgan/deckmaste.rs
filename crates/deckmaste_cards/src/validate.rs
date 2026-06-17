@@ -391,10 +391,12 @@ mod tests {
             types: vec![Type::Artifact],
             subtypes: vec![],
             abilities: vec![Ability::Activated(ActivatedAbility {
+                from: None,
                 window: None,
                 cost: vec![CostComponent::Do(Box::new(PlayerAction::Draw(
                     Count::Literal(1),
-                )))],
+                )))]
+                .into(),
                 condition: None,
                 limits: vec![],
                 effect: add_one_any(),
@@ -421,13 +423,15 @@ mod tests {
             types: vec![Type::Artifact],
             subtypes: vec![],
             abilities: vec![Ability::Activated(ActivatedAbility {
+                from: None,
                 window: None,
                 cost: vec![
                     CostComponent::Tap,
                     CostComponent::Do(Box::new(PlayerAction::Sacrifice(Selection::from(
                         Reference::This,
                     )))),
-                ],
+                ]
+                .into(),
                 condition: None,
                 limits: vec![],
                 effect: add_one_any(),
@@ -451,6 +455,7 @@ mod tests {
             types: vec![Type::Artifact],
             subtypes: vec![],
             abilities: vec![Ability::Activated(ActivatedAbility {
+                from: None,
                 window: None,
                 cost: vec![CostComponent::Expanded(Expansion {
                     name: "BadCost".into(),
@@ -459,7 +464,8 @@ mod tests {
                     value: Box::new(CostComponent::Do(Box::new(PlayerAction::Draw(
                         Count::Literal(1),
                     )))),
-                })],
+                })]
+                .into(),
                 condition: None,
                 limits: vec![],
                 effect: add_one_any(),

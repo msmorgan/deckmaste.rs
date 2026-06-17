@@ -1,0 +1,23 @@
+// Cycling = an activated ability that functions only while the card is in a
+// player's HAND [CR#702.29a]: "Cycling [cost]" means "[Cost], Discard this
+// card: Draw a card." The printed [cost] is the macro's list param; wrapping
+// it as a nested cost (`Cost(Param(0))`) splices it ahead of the fixed
+// discard-self, and `Cost`'s deserialize flattens the two into one cost list.
+// The discard is of THIS card (`Discard(what: This)`), not a free-choice
+// discard. `from: Hand` is the zone-of-function seam [CR#702.29b]. Typecycling
+// [CR#702.29e] (the library-search variant) is out of scope — base cycling
+// only (the parser declines a multi-component cycling cost).
+(
+    name: "Cycling",
+    template: "cycling ${0}",
+    kinds: [KeywordAbility],
+    params: [Cost],
+    body: Composite(
+        name: "Cycling",
+        abilities: [Activated(
+            from: Hand,
+            cost: [Cost(Param(0)), Do(Discard(count: Literal(1), what: This))],
+            effect: Draw(Literal(1)),
+        )],
+    ),
+)

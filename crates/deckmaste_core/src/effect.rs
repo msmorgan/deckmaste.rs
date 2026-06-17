@@ -231,8 +231,11 @@ mod tests {
             act_by_you(PlayerAction::Tap(Selection::Ref(Reference::This))),
         );
         assert_eq!(
-            read("Discard(Literal(1))"),
-            act_by_you(PlayerAction::Discard(Count::Literal(1))),
+            read("Discard(count: Literal(1))"),
+            act_by_you(PlayerAction::Discard {
+                count: Count::Literal(1),
+                what: None
+            }),
         );
     }
 

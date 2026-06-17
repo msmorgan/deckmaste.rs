@@ -10,6 +10,7 @@ use crate::KeywordAbility;
 use crate::SupportsMacros;
 use crate::Window;
 use crate::continuous::StaticEffect;
+use crate::cost::Cost;
 use crate::cost::CostComponent;
 use crate::effect::Effect;
 
@@ -27,7 +28,14 @@ pub struct SpellAbility {
 /// is realized as `Effect::Modal` (see `effect`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct ActivatedAbility {
-    pub cost: Vec<CostComponent>,
+    pub cost: Cost,
+    /// The zone the ability functions from ([CR#113.6] — an object's abilities
+    /// usually function only while it is on the battlefield). `None` = that
+    /// battlefield default (omitted on write); a `Some` names another zone the
+    /// source must be in to activate — cycling functions from hand
+    /// ([CR#702.29a]), so `from: Hand`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from: Option<crate::Zone>,
     /// "Activate only [timing]" ([CR#602.5d..602.5e]) — an `Only` window
     /// refinement on the activation permission (deontics §3), e.g.
     /// `window: SorcerySpeed`. Distinct from `condition`, which gates on
@@ -215,8 +223,9 @@ mod tests {
         assert_eq!(
             ability,
             Ability::Activated(ActivatedAbility {
+                from: None,
                 window: None,
-                cost: vec![CostComponent::Tap],
+                cost: vec![CostComponent::Tap].into(),
                 condition: None,
                 limits: vec![],
                 effect: Effect::Act(Action::By(
@@ -246,6 +255,30 @@ mod tests {
             !written.contains("limits"),
             "absent limits omitted: {written}"
         );
+    }
+
+    /// `from` names the zone the ability functions from ([CR#113.6]); it
+    /// defaults to the battlefield (`None`) and is omitted on write. Cycling's
+    /// ability functions from hand ([CR#702.29a]) via `from: Hand`.
+    #[test]
+    fn activated_from_zone_defaults_battlefield_and_reads_hand() {
+        // omitted `from` → None (the battlefield default), omitted on write.
+        let parsed: ActivatedAbility = crate::ron::options()
+            .from_str("(cost: [Tap], effect: Draw(Literal(1)))")
+            .unwrap();
+        assert_eq!(parsed.from, None);
+        let written = crate::ron::options().to_string(&parsed).unwrap();
+        assert!(!written.contains("from"), "absent from omitted: {written}");
+
+        // `from: Hand` reads as Some(Hand) and round-trips.
+        let from_hand: ActivatedAbility = crate::ron::options()
+            .from_str("(cost: [Tap], from: Hand, effect: Draw(Literal(1)))")
+            .unwrap();
+        assert_eq!(from_hand.from, Some(crate::Zone::Hand));
+        let reser = crate::ron::options().to_string(&from_hand).unwrap();
+        assert!(reser.contains("from:Hand"), "from: Hand written: {reser}");
+        let reparsed: ActivatedAbility = crate::ron::options().from_str(&reser).unwrap();
+        assert_eq!(reparsed, from_hand);
     }
 
     /// `Ability::Triggered` is now a struct variant carrying a
