@@ -3232,4 +3232,199 @@ mod tests {
             goblin,
         );
     }
+
+    // -------------------------------------------------------------------------
+    // Triggered-ability use limits ([CR#603.2h] once-each-turn /
+    // [CR#702.177a]-flavored once-per-game), enforced at the `TriggerFired`
+    // apply (note) site ([CR#603.2c]).
+    // -------------------------------------------------------------------------
+
+    /// A synthetic creature whose sole ability is a "whenever a creature dies"
+    /// trigger ([CR#603.6] `Dies(Creature)` → `ZoneMove(what: Creature,
+    /// from: Battlefield, to: Graveyard)`) carrying `limits`, gaining its
+    /// controller 1 life. Models `rabblemaster`.
+    fn dies_watcher(limits: Vec<deckmaste_core::UseLimit>) -> deckmaste_core::Card {
+        use deckmaste_core::Ability;
+        use deckmaste_core::Action;
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::Count;
+        use deckmaste_core::Effect;
+        use deckmaste_core::Event;
+        use deckmaste_core::PlayerAction;
+        use deckmaste_core::Reference;
+        use deckmaste_core::StatValue;
+        use deckmaste_core::TriggeredAbility;
+        use deckmaste_core::Zone;
+
+        Card::Normal(CardFace {
+            name: "Death Watcher".into(),
+            types: vec![Type::Creature],
+            abilities: vec![Ability::Triggered(TriggeredAbility {
+                event: Event::ZoneMove {
+                    what: Filter::creature(),
+                    from: Some(Zone::Battlefield),
+                    to: Some(Zone::Graveyard),
+                    face: None,
+                    cause: None,
+                },
+                condition: None,
+                limits,
+                effect: Effect::Act(Action::By(
+                    Reference::You,
+                    PlayerAction::GainLife(Count::Literal(1)),
+                )),
+            })],
+            power: Some(StatValue::Number(2)),
+            toughness: Some(StatValue::Number(2)),
+            ..CardFace::default()
+        })
+    }
+
+    /// Build a two-player game with a `Death Watcher` (carrying `limits`) on
+    /// the battlefield under P0, plus a separate function for spawning vanilla
+    /// victims that can be lethally damaged.
+    fn watcher_game(limits: Vec<deckmaste_core::UseLimit>) -> (GameState, ObjectId) {
+        let mut state = empty_game();
+        state.turn.active_player = PlayerId(0);
+        let watcher = put_synthetic_on_field(&mut state, dies_watcher(limits), PlayerId(0));
+        // Drop the fresh game's queued turn machinery (`BeginStep(Untap)` and
+        // its cascade) so `drain_sbas` drives ONLY the SBA-death cascade in
+        // isolation — otherwise the leftover turn work runs once the sweep
+        // settles and contaminates the count.
+        state.agenda.clear();
+        (state, watcher)
+    }
+
+    /// A fresh Grizzly Bears (toughness 2) on the battlefield under P1, marked
+    /// with lethal damage so the next SBA sweep destroys it.
+    fn doomed_bear(state: &mut GameState) -> ObjectId {
+        let bear = put_on_field(state, "Grizzly Bears", PlayerId(1));
+        state.objects.obj_mut(bear).damage = 2;
+        bear
+    }
+
+    /// Drive `CheckSbas` (which self-perpetuates) until the doomed creatures
+    /// are gone, applying any `TriggerFired` that the death scan emits. Does
+    /// NOT schedule `PlaceTriggers`, so noted triggers stay in
+    /// `pending_triggers` for inspection.
+    fn drain_sbas(state: &mut GameState) {
+        use crate::agenda::WorkItem;
+        state.schedule_front(vec![WorkItem::CheckSbas]);
+        for _ in 0..60 {
+            if state.agenda.is_empty() {
+                break;
+            }
+            let _ = state.step();
+        }
+    }
+
+    /// Count noted triggers whose firing object (`bindings.this`) is `obj`.
+    fn noted_for(state: &GameState, obj: ObjectId) -> usize {
+        state
+            .pending_triggers
+            .iter()
+            .filter(|n| n.bindings.this.as_ref().is_some_and(|t| t.object == obj))
+            .count()
+    }
+
+    /// [CR#603.2h]: a once-per-turn triggered ability fires at most once each
+    /// turn. Two creatures dying in sequence this turn note the watcher's
+    /// trigger exactly once; a new turn resets it (the `ThisTurn` history
+    /// window — no reset hook).
+    #[test]
+    fn once_per_turn_trigger_fires_once_per_turn() {
+        use deckmaste_core::UseLimit;
+
+        let (mut state, watcher) = watcher_game(vec![UseLimit::OncePerTurn]);
+
+        // First death this turn → the watcher's trigger notes once.
+        doomed_bear(&mut state);
+        drain_sbas(&mut state);
+        assert_eq!(
+            noted_for(&state, watcher),
+            1,
+            "the first creature death notes the once-per-turn trigger"
+        );
+
+        // Second death SAME turn → the gate suppresses it; still exactly one.
+        doomed_bear(&mut state);
+        drain_sbas(&mut state);
+        assert_eq!(
+            noted_for(&state, watcher),
+            1,
+            "a second death the same turn must NOT note the once-per-turn trigger again"
+        );
+
+        // A new turn resets the `ThisTurn` window — the trigger fires again.
+        state.turn.turn_number += 1;
+        doomed_bear(&mut state);
+        drain_sbas(&mut state);
+        assert_eq!(
+            noted_for(&state, watcher),
+            2,
+            "a new turn resets the once-per-turn limit — the trigger notes again"
+        );
+    }
+
+    /// [CR#603.2c]: a single multi-occurrence event (two creatures dying
+    /// simultaneously is one batch of two `ZoneChanged` facts) triggers a
+    /// once-per-turn ability only once. Both `TriggerFired`s are emitted in
+    /// one scan pass; the apply-time gate dedups them.
+    #[test]
+    fn once_per_turn_trigger_fires_once_for_simultaneous_occurrences() {
+        use deckmaste_core::UseLimit;
+
+        let (mut state, watcher) = watcher_game(vec![UseLimit::OncePerTurn]);
+
+        // Two creatures lethally damaged → one SBA sweep destroys both in a
+        // single `Occurrence::Batch`, so the watcher's "creature dies" trigger
+        // is fired twice in one scan pass before either `TriggerFired` applies.
+        doomed_bear(&mut state);
+        doomed_bear(&mut state);
+        drain_sbas(&mut state);
+
+        assert_eq!(
+            noted_for(&state, watcher),
+            1,
+            "simultaneous deaths fire a once-per-turn trigger exactly once ([CR#603.2c])"
+        );
+    }
+
+    /// [CR#702.177a]-flavored once-per-game: the trigger fires once and never
+    /// again — not later the same turn, not after a turn bump (the `ThisGame`
+    /// window spans every turn).
+    #[test]
+    fn once_per_game_trigger_fires_once_per_game() {
+        use deckmaste_core::UseLimit;
+
+        let (mut state, watcher) = watcher_game(vec![UseLimit::OncePerGame]);
+
+        doomed_bear(&mut state);
+        drain_sbas(&mut state);
+        assert_eq!(
+            noted_for(&state, watcher),
+            1,
+            "the first creature death notes the once-per-game trigger"
+        );
+
+        // Same turn, another death → suppressed.
+        doomed_bear(&mut state);
+        drain_sbas(&mut state);
+        assert_eq!(
+            noted_for(&state, watcher),
+            1,
+            "a once-per-game trigger does not fire a second time the same turn"
+        );
+
+        // A later turn → still suppressed (the `ThisGame` window persists).
+        state.turn.turn_number += 1;
+        doomed_bear(&mut state);
+        drain_sbas(&mut state);
+        assert_eq!(
+            noted_for(&state, watcher),
+            1,
+            "a once-per-game trigger never fires again, even in a later turn"
+        );
+    }
 }
