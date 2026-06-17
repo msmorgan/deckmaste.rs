@@ -35,6 +35,9 @@ pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect>
         .or_else(|| parse_draw(line))
         .or_else(|| parse_lose_life(line))
         .or_else(|| parse_gain_life(line))
+        .or_else(|| parse_counter(line))
+        .or_else(|| parse_return_to_hand(line))
+        .or_else(|| parse_tap_untap(line))
         .or_else(|| parse_destroy(line))
         .or_else(|| parse_pump(line))
         .or_else(|| parse_create_token(line))
@@ -275,7 +278,9 @@ fn pump_scope(subj: &str) -> Option<(String, Vec<String>)> {
 const MODIFY_MARKERS: [&str; 6] = [" gets ", " get ", " gains ", " gain ", " have ", " has "];
 
 /// `Destroy target <subject>.` -> a `TargetOne(<filter>)` declaration (the
-/// subject parsed by the shared [`filter`] grammar) and the body
+/// subject parsed by the shared [`object_target_filter`] grammar — the shared
+/// [`filter`] phrase grammar, broadened with a type-noun disjunction for
+/// "<type> or <type>" subjects like "artifact or enchantment") and the body
 /// `Destroy(Target(0))` ([CR#701.8]). Only the single-target form; board wipes
 /// ("destroy all/each …") are a later production. Declines when the subject
 /// isn't filter-parseable. Case-insensitive lead, since the clause opens a
@@ -284,10 +289,242 @@ fn parse_destroy(line: &str) -> Option<ParsedEffect> {
     let subject = strip_prefix_ci(line, "destroy ")?
         .strip_suffix('.')?
         .strip_prefix("target ")?;
-    let filter = filter::parse_phrase(subject)?;
+    let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
         targets: vec![format!("TargetOne({filter})")],
         effect: "Destroy(Target(0))".to_owned(),
+    })
+}
+
+/// `Counter target spell[ unless its controller pays <cost>].` -> a
+/// `TargetOne(Spell)` target on the stack and a `Counter(Target(0))` body
+/// ([CR#701.6a]). The "unless its controller pays" rider wraps the counter in
+/// an [`Unless`](deckmaste_core::Effect::Unless) ([CR#118.12a]): the spell's
+/// controller (`who: ControllerOf(Target(0))`) may pay the stated cost to stop
+/// the counter. Only the bare and the mana-tax riders parse; richer riders
+/// (replacement clauses, "you may cast …", restricted spell filters) are later
+/// productions. Case-insensitive lead (spell clause vs. trigger comma).
+fn parse_counter(line: &str) -> Option<ParsedEffect> {
+    let body = strip_prefix_ci(line, "counter target spell")?.strip_suffix('.')?;
+    let targets = vec!["TargetOne(Spell)".to_owned()];
+    // Bare "Counter target spell."
+    if body.is_empty() {
+        return Some(ParsedEffect {
+            targets,
+            effect: "Counter(Target(0))".to_owned(),
+        });
+    }
+    // "… unless its controller pays <cost>." — the spell's controller may pay
+    // to avoid the counter. Only a single mana cost is modeled here (the
+    // overwhelmingly common "{N}" tax); a "for each …" scaled tax declines.
+    let cost = body.strip_prefix(" unless its controller pays ")?;
+    let cost = crate::parsers::cost::parse_cost(cost, crate::parsers::cost::VariableMana::Decline)
+        .ok()
+        .flatten()?;
+    if cost.len() != 1 {
+        return None;
+    }
+    Some(ParsedEffect {
+        targets,
+        effect: format!(
+            "Unless(effect: Counter(Target(0)), who: ControllerOf(Target(0)), unless: [{}])",
+            cost.join(", ")
+        ),
+    })
+}
+
+/// Return-to-hand productions ([CR#400.7], the bounce family):
+/// - `Return target <subject> to its owner's hand.` -> battlefield bounce via
+///   the dedicated [`ReturnToHand`](deckmaste_core::Action::ReturnToHand) verb,
+///   the subject parsed by [`object_target_filter`].
+/// - `Return ~ to its owner's hand.` -> a self-bounce (`ReturnToHand(This)`),
+///   no target — the effect body of `{cost}: Return ~ to its owner's hand.`
+///   activated abilities (the cost is the activated-frame's job).
+/// - `Return target <subject> card from your graveyard to your hand.` -> a
+///   graveyard-to-hand recursion: a plain zone change ([CR#400.7]) of a card
+///   you own in your graveyard, via `Move(Target(0), Hand)`. The subject is a
+///   *card* (graveyard zone), so it's the card-type spelling
+///   (`Type(Creature)`), not the battlefield-scoped `Creature` macro, scoped
+///   `InZone(Graveyard)` + `Owner(Ref(You))`.
+fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
+    let body = strip_prefix_ci(line, "return ")?.strip_suffix('.')?;
+    // Self-bounce: "Return ~ to its owner's hand." (an activated-ability effect).
+    if body == "~ to its owner's hand" {
+        return Some(ParsedEffect {
+            targets: Vec::new(),
+            effect: "ReturnToHand(This)".to_owned(),
+        });
+    }
+    // Graveyard recursion: "target <subject> card from your graveyard to your
+    // hand." — peeled first so the battlefield arm's "to its owner's hand"
+    // suffix can't shadow it. "<subject> card" is the noun phrase; a bare "card"
+    // (no type qualifier) leaves an empty subject.
+    if let Some(noun) = body
+        .strip_suffix(" from your graveyard to your hand")
+        .and_then(|s| s.strip_prefix("target "))
+    {
+        // The trailing "card" terminator; the subject is whatever precedes it.
+        let subject = noun
+            .strip_suffix(" card")
+            .or_else(|| (noun == "card").then_some(""))?;
+        let card_filter = graveyard_card_filter(subject)?;
+        return Some(ParsedEffect {
+            targets: vec![format!("TargetOne({card_filter})")],
+            effect: "Move(Target(0), Hand)".to_owned(),
+        });
+    }
+    // Battlefield bounce: "target <subject> to its owner's hand."
+    let subject = body
+        .strip_suffix(" to its owner's hand")?
+        .strip_prefix("target ")?;
+    let filter = object_target_filter(subject)?;
+    Some(ParsedEffect {
+        targets: vec![format!("TargetOne({filter})")],
+        effect: "ReturnToHand(Target(0))".to_owned(),
+    })
+}
+
+/// `Tap target <subject>.` / `Untap target <subject>.` -> the
+/// [`Tap`](deckmaste_core::PlayerAction::Tap) /
+/// [`Untap`](deckmaste_core::PlayerAction::Untap) verbs ([CR#701.26a..701.26b])
+/// over a single target. The subject is parsed by [`object_target_filter`].
+/// Riders ("It doesn't untap …", "It gets …") leave trailing text past the
+/// period-terminated single sentence, so they decline cleanly here (each is a
+/// later multi-clause production). Case-insensitive lead.
+fn parse_tap_untap(line: &str) -> Option<ParsedEffect> {
+    let (verb, rest) = if let Some(rest) = strip_prefix_ci(line, "tap target ") {
+        ("Tap", rest)
+    } else if let Some(rest) = strip_prefix_ci(line, "untap target ") {
+        ("Untap", rest)
+    } else {
+        return None;
+    };
+    let subject = rest.strip_suffix('.')?;
+    let filter = object_target_filter(subject)?;
+    Some(ParsedEffect {
+        targets: vec![format!("TargetOne({filter})")],
+        effect: format!("{verb}(Target(0))"),
+    })
+}
+
+/// An object-target subject phrase -> its `Filter` RON. First the shared
+/// [`filter`] phrase grammar (single head noun with adjectives), then a
+/// type-noun disjunction fallback for "<type> or <type>[ or <type>]" subjects
+/// (`OneOf([…])`) the single-head grammar can't carry — "artifact or
+/// enchantment", "creature or planeswalker", "attacking or blocking creature".
+fn object_target_filter(subject: &str) -> Option<String> {
+    if let Some(f) = filter::parse_phrase(subject) {
+        return Some(f);
+    }
+    type_disjunction(subject)
+}
+
+/// "<A> or <B>[ or <C>]" of type-noun (or status-qualified) members ->
+/// `OneOf([…])`. Two shapes:
+/// - a shared head noun with disjoined status adjectives: "attacking or
+///   blocking creature" -> `AllOf([Creature, OneOf([Attacking, Blocking])])` —
+///   the head noun trails the last member; the leading members are bare combat-
+///   status adjectives. Tried first, since a status adjective ("attacking")
+///   would otherwise be misread as a bare-subtype head.
+/// - heterogeneous types: "artifact or enchantment" -> `OneOf([Type(Artifact),
+///   Type(Enchantment)])`. Every member must be a plain type-noun phrase
+///   (creature / artifact / land / …) — NOT a bare-subtype fallthrough, which
+///   the strict head check rules out (so "Goblin or Elf" stays unmodeled rather
+///   than minting wrong `Subtype` disjuncts).
+fn type_disjunction(subject: &str) -> Option<String> {
+    let parts: Vec<&str> = subject.split(" or ").map(str::trim).collect();
+    if parts.len() < 2 {
+        return None;
+    }
+    // Shared-head status disjunction: "<status> or <status> … <status> <head>".
+    if let Some((last_adj, head)) = parts.last()?.split_once(' ')
+        && let Some(head_filter) = type_noun_phrase(head)
+    {
+        let mut adjs: Vec<&str> = parts[..parts.len() - 1].to_vec();
+        adjs.push(last_adj);
+        if let Some(status) = adjs
+            .iter()
+            .map(|a| status_atom(a))
+            .collect::<Option<Vec<_>>>()
+        {
+            return Some(format!(
+                "AllOf([{head_filter}, OneOf([{}])])",
+                status.join(", ")
+            ));
+        }
+    }
+    // Heterogeneous type-noun disjunction: every member is a plain type noun.
+    let members: Option<Vec<String>> = parts.iter().map(|p| type_noun_phrase(p)).collect();
+    Some(format!("OneOf([{}])", members?.join(", ")))
+}
+
+/// A bare type-noun phrase (a determiner-led single card type / `permanent`) ->
+/// its head `Filter`, declining a bare-subtype fallthrough. Guards
+/// [`type_disjunction`] so a disjunction member is a real type noun, never a
+/// silently-minted `Subtype`. Strips a leading determiner ("a"/"an") the way
+/// the shared phrase grammar does.
+fn type_noun_phrase(phrase: &str) -> Option<String> {
+    let phrase = strip_prefix_ci(phrase, "a ")
+        .or_else(|| strip_prefix_ci(phrase, "an "))
+        .unwrap_or(phrase)
+        .trim();
+    let filter = filter::parse_phrase(phrase)?;
+    // A bare-subtype head renders as `AllOf([Permanent, Subtype(...)])` (or a
+    // lone `Subtype(...)`); reject those — only true type nouns disjoin here.
+    (!filter.contains("Subtype(")).then_some(filter)
+}
+
+/// A combat-status adjective -> its `Filter` status atom. The disjoinable
+/// adjectives a shared-head target disjunction admits ("attacking or
+/// blocking").
+fn status_atom(word: &str) -> Option<String> {
+    Some(match word {
+        "attacking" => "Attacking".to_owned(),
+        "blocking" => "Blocking".to_owned(),
+        _ => return None,
+    })
+}
+
+/// A graveyard-card subject (the noun before " card" in "<subject> card from
+/// your graveyard") -> the `Filter` for a card you own in your graveyard:
+/// `AllOf([<type>, InZone(Graveyard), Owner(Ref(You))])`. The type is the
+/// card-type spelling (`Type(Creature)`, `OneOf([Type(Instant),
+/// Type(Sorcery)])` for "instant or sorcery") — NOT the battlefield-scoped
+/// macros, since a graveyard card is not a permanent. A bare "card" (no type)
+/// is any card you own there.
+fn graveyard_card_filter(subject: &str) -> Option<String> {
+    let mut atoms: Vec<String> = Vec::new();
+    if let Some(ty) = graveyard_card_type(subject) {
+        atoms.push(ty);
+    } else if !subject.is_empty() {
+        // A type word the card-type grammar doesn't model -> decline (never
+        // emit a junk filter).
+        return None;
+    }
+    atoms.push("InZone(Graveyard)".to_owned());
+    atoms.push("Owner(Ref(You))".to_owned());
+    Some(format!("AllOf([{}])", atoms.join(", ")))
+}
+
+/// A graveyard-card type phrase -> its card-type `Filter` (`Type(Creature)`,
+/// `OneOf([Type(Instant), Type(Sorcery)])`), or `None` for a bare "card" (no
+/// type qualifier) or an unmodeled phrase. Card-type spelling via
+/// [`filter::type_filter`], so the live matcher reads the printed card type,
+/// not a battlefield-only macro.
+fn graveyard_card_type(subject: &str) -> Option<String> {
+    if subject.is_empty() {
+        return None;
+    }
+    let members: Vec<&str> = subject.split(" or ").map(str::trim).collect();
+    let types: Option<Vec<String>> = members
+        .iter()
+        .map(|m| filter::type_filter(&filter::singularize(m).to_ascii_lowercase()))
+        .collect();
+    let types = types?;
+    Some(if types.len() == 1 {
+        types.into_iter().next().unwrap()
+    } else {
+        format!("OneOf([{}])", types.join(", "))
     })
 }
 
@@ -558,11 +795,12 @@ pub(super) fn number_word(word: &str) -> Option<u32> {
 fn damage_target(text: &str) -> Option<(Vec<String>, String)> {
     Some(match text {
         "any target" => (vec!["AnyTarget".to_owned()], "Target(0)".to_owned()),
-        "target creature" => (
-            vec!["TargetOne(Creature)".to_owned()],
+        "target player" => (vec!["TargetOne(Player)".to_owned()], "Target(0)".to_owned()),
+        // "target opponent" — a single opponent of you ([CR#102.2]).
+        "target opponent" => (
+            vec!["TargetOne(OpponentOf(Ref(You)))".to_owned()],
             "Target(0)".to_owned(),
         ),
-        "target player" => (vec!["TargetOne(Player)".to_owned()], "Target(0)".to_owned()),
         // The restricted "any target" minus its object members ([CR#115.4]):
         // a player or planeswalker, never a creature/battle (Lava Spike).
         "target player or planeswalker" => (
@@ -573,7 +811,20 @@ fn damage_target(text: &str) -> Option<(Vec<String>, String)> {
         "each player" => (Vec::new(), "Filter(Player)".to_owned()),
         // "each opponent" — the players who are opponents of you ([CR#102.2]).
         "each opponent" => (Vec::new(), "Filter(OpponentOf(Ref(You)))".to_owned()),
-        _ => return None,
+        // "each creature and each player" — every member of the combined set
+        // ([CR#608.2d] distributive each). The two "each" groups union into one
+        // `Filter(OneOf([…]))` selection (Pestilence / Earthquake-style sweeps).
+        "each creature and each player" => {
+            (Vec::new(), "Filter(OneOf([Creature, Player]))".to_owned())
+        }
+        // A "target <subject>" object target whose subject parses through the
+        // shared object-target grammar (single head noun, or a "<type> or
+        // <type>" / "attacking or blocking creature" disjunction).
+        _ => {
+            let subject = text.strip_prefix("target ")?;
+            let filter = object_target_filter(subject)?;
+            (vec![format!("TargetOne({filter})")], "Target(0)".to_owned())
+        }
     })
 }
 
@@ -1266,6 +1517,242 @@ mod tests {
                 "Destroy target creature. If you have the city's blessing, destroy target artifact instead."
             )
             .is_none()
+        );
+    }
+
+    #[test]
+    fn counter_target_spell_bare() {
+        // The spell on the stack is the target (Spell filter); the body counters
+        // it ([CR#701.6a]).
+        assert_eq!(
+            parsed("Counter target spell."),
+            Some((
+                "TargetOne(Spell)".to_owned(),
+                "Counter(Target(0))".to_owned()
+            ))
+        );
+        // Lowercase lead (mid-sentence after a trigger comma).
+        assert_eq!(
+            parsed("counter target spell."),
+            Some((
+                "TargetOne(Spell)".to_owned(),
+                "Counter(Target(0))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn counter_target_spell_unless_pays_mana() {
+        // "unless its controller pays {2}" wraps the counter in an Unless: the
+        // spell's controller may pay the tax to stop it ([CR#118.12a]).
+        assert_eq!(
+            parsed("Counter target spell unless its controller pays {2}."),
+            Some((
+                "TargetOne(Spell)".to_owned(),
+                "Unless(effect: Counter(Target(0)), who: ControllerOf(Target(0)), \
+                 unless: [Mana([Generic(2)])])"
+                    .to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed("Counter target spell unless its controller pays {1}.").map(|p| p.1),
+            Some(
+                "Unless(effect: Counter(Target(0)), who: ControllerOf(Target(0)), \
+                 unless: [Mana([Generic(1)])])"
+                    .to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn counter_declines_richer_riders() {
+        // Riders past the bare/mana-tax forms decline (later productions).
+        assert!(declines(
+            "Counter target spell unless its controller pays {X}."
+        ));
+        assert!(declines(
+            "Counter target spell unless its controller pays {1} for each card in your graveyard."
+        ));
+        assert!(declines("Counter target spell. You gain 5 life."));
+        assert!(declines("Counter target spell you don't control."));
+        // Spell-on-the-stack restrictions ("that targets a creature") aren't
+        // modeled here.
+        assert!(declines("Counter target spell that targets a creature."));
+    }
+
+    #[test]
+    fn return_target_to_hand_battlefield() {
+        assert_eq!(
+            parsed("Return target creature to its owner's hand."),
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "ReturnToHand(Target(0))".to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed("Return target permanent to its owner's hand."),
+            Some((
+                "TargetOne(Permanent)".to_owned(),
+                "ReturnToHand(Target(0))".to_owned()
+            ))
+        );
+        // "nonland permanent" rides the shared filter grammar's negation.
+        assert_eq!(
+            parsed("Return target nonland permanent to its owner's hand."),
+            Some((
+                "TargetOne(AllOf([Permanent, Not(Type(Land))]))".to_owned(),
+                "ReturnToHand(Target(0))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn return_self_to_hand_no_target() {
+        // The effect body of `{cost}: Return ~ to its owner's hand.` — a
+        // self-bounce, no target (the cost is the activated frame's job).
+        assert_eq!(
+            parsed("Return ~ to its owner's hand."),
+            Some((String::new(), "ReturnToHand(This)".to_owned()))
+        );
+    }
+
+    #[test]
+    fn return_card_from_graveyard_to_hand() {
+        // A graveyard card you own, returned to hand via a plain zone change
+        // ([CR#400.7]). The type is the card-type spelling (not the
+        // battlefield-scoped macro), scoped to the graveyard + owned by you.
+        assert_eq!(
+            parsed("Return target creature card from your graveyard to your hand."),
+            Some((
+                "TargetOne(AllOf([Type(Creature), InZone(Graveyard), Owner(Ref(You))]))".to_owned(),
+                "Move(Target(0), Hand)".to_owned()
+            ))
+        );
+        // Bare "card" (no type qualifier) — any card you own there.
+        assert_eq!(
+            parsed("Return target card from your graveyard to your hand."),
+            Some((
+                "TargetOne(AllOf([InZone(Graveyard), Owner(Ref(You))]))".to_owned(),
+                "Move(Target(0), Hand)".to_owned()
+            ))
+        );
+        // "instant or sorcery card" — a card-type disjunction.
+        assert_eq!(
+            parsed("Return target instant or sorcery card from your graveyard to your hand."),
+            Some((
+                "TargetOne(AllOf([OneOf([Type(Instant), Type(Sorcery)]), InZone(Graveyard), \
+                 Owner(Ref(You))]))"
+                    .to_owned(),
+                "Move(Target(0), Hand)".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn tap_and_untap_target() {
+        assert_eq!(
+            parsed("Tap target creature."),
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "Tap(Target(0))".to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed("Untap target creature."),
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "Untap(Target(0))".to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed("Untap target permanent."),
+            Some((
+                "TargetOne(Permanent)".to_owned(),
+                "Untap(Target(0))".to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed("Untap target land."),
+            Some((
+                "TargetOne(Type(Land))".to_owned(),
+                "Untap(Target(0))".to_owned()
+            ))
+        );
+        // A trailing rider sentence leaves text past the period — declines here.
+        assert!(declines(
+            "Tap target creature. It doesn't untap during its controller's next untap step."
+        ));
+    }
+
+    #[test]
+    fn destroy_target_disjunction_types() {
+        // "artifact or enchantment" -> a OneOf of the two card types.
+        assert_eq!(
+            parsed("Destroy target artifact or enchantment."),
+            Some((
+                "TargetOne(OneOf([Type(Artifact), Type(Enchantment)]))".to_owned(),
+                "Destroy(Target(0))".to_owned()
+            ))
+        );
+        // "creature or planeswalker" -> the battlefield macros disjoined.
+        assert_eq!(
+            parsed("Destroy target creature or planeswalker."),
+            Some((
+                "TargetOne(OneOf([Creature, Planeswalker]))".to_owned(),
+                "Destroy(Target(0))".to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed("Destroy target artifact or land."),
+            Some((
+                "TargetOne(OneOf([Type(Artifact), Type(Land)]))".to_owned(),
+                "Destroy(Target(0))".to_owned()
+            ))
+        );
+        // Single-type "permanent" still parses through the shared phrase grammar.
+        assert_eq!(
+            parsed("Destroy target permanent."),
+            Some((
+                "TargetOne(Permanent)".to_owned(),
+                "Destroy(Target(0))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn deal_damage_broadened_targets() {
+        // "target opponent" — a single opponent player.
+        assert_eq!(
+            parsed("~ deals 1 damage to target opponent."),
+            Some((
+                "TargetOne(OpponentOf(Ref(You)))".to_owned(),
+                "DealDamage(Target(0), 1)".to_owned()
+            ))
+        );
+        // "target attacking or blocking creature" — a shared-head status
+        // disjunction.
+        assert_eq!(
+            parsed("~ deals 4 damage to target attacking or blocking creature."),
+            Some((
+                "TargetOne(AllOf([Creature, OneOf([Attacking, Blocking])]))".to_owned(),
+                "DealDamage(Target(0), 4)".to_owned()
+            ))
+        );
+        // "target creature or planeswalker" — disjoined object target.
+        assert_eq!(
+            parsed("~ deals 5 damage to target creature or planeswalker."),
+            Some((
+                "TargetOne(OneOf([Creature, Planeswalker]))".to_owned(),
+                "DealDamage(Target(0), 5)".to_owned()
+            ))
+        );
+        // "each creature and each player" — the unioned distributive sweep.
+        assert_eq!(
+            parsed("~ deals 2 damage to each creature and each player."),
+            Some((
+                String::new(),
+                "DealDamage(Filter(OneOf([Creature, Player])), 2)".to_owned()
+            ))
         );
     }
 }
