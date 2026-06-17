@@ -945,6 +945,19 @@ mod tests {
     }
 
     #[test]
+    fn destroy_target_with_keyword_quality() {
+        // "with <keyword>" now resolves to a `Has(<Keyword>)` filter clause, so a
+        // keyword-quality target parses (shared filter grammar gain).
+        assert_eq!(
+            parsed("Destroy target creature with flying."),
+            Some((
+                "TargetOne(AllOf([Creature, Has(Flying)]))".to_owned(),
+                "Destroy(Target(0))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
     fn durational_pump_team_like_overrun() {
         // Overrun: a team P/T boost + keyword grant lasting until end of turn.
         assert_eq!(
@@ -999,8 +1012,11 @@ mod tests {
         assert!(declines("~ deals X damage to any target."));
         // Destroy without the "target" form (board wipes) is a later follow-up.
         assert!(declines("Destroy all creatures."));
-        // A target subject the filter grammar can't parse declines.
-        assert!(declines("Destroy target creature with flying."));
+        // A target subject the filter grammar can't parse declines. ("with
+        // flying" now resolves to a keyword-quality filter, so that target
+        // parses — see `destroy_target_with_keyword_quality`; pick a phrase the
+        // filter grammar still rejects here.)
+        assert!(declines("Destroy target creature wearing hats."));
         // A pump without the durational marker isn't an effect-grammar pump (it's
         // a static anthem's job on a permanent).
         assert!(declines("Creatures you control get +1/+1."));

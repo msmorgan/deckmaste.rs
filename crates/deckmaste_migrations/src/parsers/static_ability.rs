@@ -27,6 +27,9 @@ fn parse(line: &str, kind: CardKind) -> Option<String> {
     if let Some((subj, pred)) = modify::split_marker(body, &[" can't ", " cannot "]) {
         return parse_restriction(subj, pred);
     }
+    if let Some((subj, pred)) = modify::split_marker(body, &[" can block "]) {
+        return parse_block_permission(subj, pred);
+    }
     if let Some((subj, pred)) = modify::split_marker(body, &[" attacks ", " attack "]) {
         return parse_requirement(subj, pred);
     }
@@ -69,9 +72,20 @@ fn parse_grant(subj: &str, pred: &str) -> Option<String> {
 
 /// "<subject> can't <action[ or action…]>" → one `Cant(<verb>)` per action.
 /// The subject is a bare `Filter` (Deontic actions carry `Filter`, not
-/// `Scope`). Any action outside the known verb set declines the whole.
+/// `Scope`). The active verbs ("attack"/"block") anchor the subject on the
+/// actor side (`by`); the passive "be blocked …" evasion forms anchor it on
+/// the blocked side (`on`) and read a blocker-quality clause. Any action
+/// outside the known set declines the whole.
 fn parse_restriction(subj: &str, pred: &str) -> Option<String> {
     let filter = modify::subject_to_filter(subj)?;
+    // The passive "be blocked …" evasion clause is a single clause whose tail
+    // ("by creatures with power 2 or less") contains its own "or" — handle it
+    // BEFORE the active-verb list split, which would shred that tail.
+    let low = pred.to_ascii_lowercase();
+    if low.starts_with("be blocked") {
+        let row = parse_cant_be_blocked(&filter, &low)?;
+        return Some(format!("Static(effects: [{row}])"));
+    }
     let effects: Option<Vec<String>> = modify::split_list(pred)
         .iter()
         .map(|act| match act.to_ascii_lowercase().as_str() {
@@ -82,6 +96,64 @@ fn parse_restriction(subj: &str, pred: &str) -> Option<String> {
         .collect();
     let effects = effects?;
     Some(format!("Static(effects: [{}])", effects.join(", ")))
+}
+
+/// The passive "be blocked …" evasion clause ([CR#509.1b], [CR#702]) — the
+/// subject (`on`) is the creature being blocked. `clause` is the lowercased
+/// predicate after "can't " (e.g. "be blocked", "be blocked by creatures with
+/// power 2 or less", "be blocked by more than one creature"). Returns one
+/// `Cant(Block(on: <subj>, …))` row, or `None` for an unrecognized tail.
+fn parse_cant_be_blocked(on: &str, clause: &str) -> Option<String> {
+    let tail = clause.strip_prefix("be blocked")?.trim();
+    // "~ can't be blocked." — unblockable: no blocker may block it.
+    if tail.is_empty() {
+        return Some(format!("Cant(Block(on: {on}))"));
+    }
+    // "… by more than one creature." — an arrangement bound: a blocker set
+    // larger than one is forbidden ([CR#509.1b]).
+    if tail == "by more than one creature" {
+        return Some(format!("Cant(Block(on: {on}, count: Greater(1)))"));
+    }
+    // "… except by N or more creatures." — menace generalized ([CR#702.111b]
+    // is the N=2 case): a blocker set of fewer than N is forbidden. N is a
+    // spelled cardinal ("three") or a digit.
+    if let Some(n) = tail
+        .strip_prefix("except by ")
+        .and_then(|t| t.strip_suffix(" or more creatures"))
+        .and_then(crate::parsers::effect::number_word)
+    {
+        return Some(format!("Cant(Block(on: {on}, count: Less({n})))"));
+    }
+    // "… by creatures with power N or less/greater." — a blocker-quality
+    // restriction (the candidate blocker's power).
+    let by = tail
+        .strip_prefix("by ")
+        .and_then(crate::parsers::filter::parse_phrase)?;
+    Some(format!("Cant(Block(on: {on}, by: {by}))"))
+}
+
+/// "<subject> can block <predicate>" → a blocking restriction/permission.
+///   - "only creatures with flying" → `Cant(Block(by: <subj>, on: Not(<X>)))`:
+///     the subject can't block anything that isn't `<X>` ([CR#509.1a]).
+///   - "an additional creature each combat" → a multi-block permission
+///     ([CR#509.1a] default = one). Not yet engine-evaluated (the May/Gate
+///     Block seam), but representable, so it graduates.
+fn parse_block_permission(subj: &str, pred: &str) -> Option<String> {
+    let by = modify::subject_to_filter(subj)?;
+    if let Some(only) = pred.strip_prefix("only ") {
+        let on = crate::parsers::filter::parse_phrase(only.trim())?;
+        return Some(format!(
+            "Static(effects: [Cant(Block(by: {by}, on: Not({on})))])"
+        ));
+    }
+    if pred == "an additional creature each combat" {
+        // The default per-blocker cap is one creature ([CR#509.1a]); this row
+        // raises it to two. A May permission over the second-block slot.
+        return Some(format!(
+            "Static(effects: [May(Block(by: {by}, count: AtMost(2)))])"
+        ));
+    }
+    None
 }
 
 /// "<subject> attack[s] each combat if able" → a `Must(Attack(by: <subject>))`
@@ -199,6 +271,115 @@ mod tests {
     #[test]
     fn restriction_declines_unknown_action() {
         assert!(stat("Enchanted creature can't transform.").is_none());
+    }
+
+    #[test]
+    fn cant_be_blocked_unblockable() {
+        // Unblockable: no blocker may block This ([CR#509.1b]).
+        assert_eq!(
+            stat("~ can't be blocked.").as_deref(),
+            Some("Static(effects: [Cant(Block(on: Ref(This)))])")
+        );
+        // Equipment/aura conferral: the host can't be blocked.
+        assert_eq!(
+            stat("Equipped creature can't be blocked.").as_deref(),
+            Some("Static(effects: [Cant(Block(on: Ref(AttachHostOf(This))))])")
+        );
+        assert_eq!(
+            stat("Enchanted creature can't be blocked.").as_deref(),
+            Some("Static(effects: [Cant(Block(on: Ref(AttachHostOf(This))))])")
+        );
+    }
+
+    #[test]
+    fn cant_be_blocked_by_power() {
+        // Blocker-quality power restriction (the candidate blocker's power).
+        assert_eq!(
+            stat("~ can't be blocked by creatures with power 2 or less.").as_deref(),
+            Some(
+                "Static(effects: [Cant(Block(on: Ref(This), by: AllOf([Creature, Stat(Power, AtMost, 2)])))])"
+            )
+        );
+        assert_eq!(
+            stat("~ can't be blocked by creatures with power 3 or greater.").as_deref(),
+            Some(
+                "Static(effects: [Cant(Block(on: Ref(This), by: AllOf([Creature, Stat(Power, AtLeast, 3)])))])"
+            )
+        );
+    }
+
+    #[test]
+    fn cant_be_blocked_by_more_than_one() {
+        // An arrangement bound: a blocker set larger than one is forbidden.
+        assert_eq!(
+            stat("~ can't be blocked by more than one creature.").as_deref(),
+            Some("Static(effects: [Cant(Block(on: Ref(This), count: Greater(1)))])")
+        );
+        // Conferred form on the equip host.
+        assert_eq!(
+            stat("Each creature you control can't be blocked by more than one creature.")
+                .as_deref(),
+            Some(
+                "Static(effects: [Cant(Block(on: AllOf([Creature, ControlledBy(Ref(You))]), count: Greater(1)))])"
+            )
+        );
+    }
+
+    #[test]
+    fn cant_be_blocked_except_by_n_or_more() {
+        // Menace generalized to N=3 — a spelled cardinal in the corpus.
+        assert_eq!(
+            stat("~ can't be blocked except by three or more creatures.").as_deref(),
+            Some("Static(effects: [Cant(Block(on: Ref(This), count: Less(3)))])")
+        );
+    }
+
+    #[test]
+    fn can_block_only_flying() {
+        // "can block only creatures with flying" → can't block non-flying
+        // ([CR#509.1a]).
+        assert_eq!(
+            stat("~ can block only creatures with flying.").as_deref(),
+            Some(
+                "Static(effects: [Cant(Block(by: Ref(This), on: Not(AllOf([Creature, Has(Flying)]))))])"
+            )
+        );
+    }
+
+    #[test]
+    fn can_block_additional_creature() {
+        // "can block an additional creature each combat" raises the per-blocker
+        // cap to two ([CR#509.1a]) — a May permission.
+        assert_eq!(
+            stat("~ can block an additional creature each combat.").as_deref(),
+            Some("Static(effects: [May(Block(by: Ref(This), count: AtMost(2)))])")
+        );
+    }
+
+    #[test]
+    fn equipped_creature_gets() {
+        // "Equipped creature gets +N/+N" → Modify on the attach host, the same
+        // shape as the already-wired "Enchanted creature".
+        assert_eq!(
+            stat("Equipped creature gets +2/+0.").as_deref(),
+            Some(
+                "Static(effects: [Modify(of: Of(AttachHostOf(This)), changes: [AddPower(2), AddToughness(0)])])"
+            )
+        );
+        assert_eq!(
+            stat("Equipped creature gets +1/+1 and has trample.").as_deref(),
+            Some(
+                "Static(effects: [Modify(of: Of(AttachHostOf(This)), changes: [AddPower(1), AddToughness(1), GainAbility(Keyword(Trample))])])"
+            )
+        );
+    }
+
+    #[test]
+    fn cant_be_blocked_declines_unknown_tail() {
+        // An unrecognized "be blocked …" tail (a phrase the filter parser can't
+        // resolve) declines — no wrong Block row.
+        assert!(stat("~ can't be blocked by creatures wearing hats.").is_none());
+        assert!(stat("~ can block only creatures wearing hats.").is_none());
     }
 
     #[test]

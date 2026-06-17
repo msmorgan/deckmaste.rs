@@ -314,12 +314,37 @@ mod tests {
         );
     }
 
+    /// The block-restriction shapes the static-ability parser emits read with
+    /// BARE-numeral count bounds (`Greater(1)`, `AtMost(2)`) through the
+    /// literal-aware core reader — no `Literal(…)` wrapper.
+    #[test]
+    fn block_restriction_bare_count_bounds_read() {
+        assert_eq!(
+            read("Cant(Block(on: Ref(This), count: Greater(1)))"),
+            Deontic::Cant(DeonticAction::Block {
+                by: Filter::Any,
+                on: Filter::Ref(Reference::This),
+                count: Some(CountBound::Greater(Count::Literal(1))),
+            }),
+        );
+        assert_eq!(
+            read("May(Block(by: Ref(This), count: AtMost(2)))"),
+            Deontic::May(DeonticAction::Block {
+                by: Filter::Ref(Reference::This),
+                on: Filter::Any,
+                count: Some(CountBound::AtMost(Count::Literal(2))),
+            }),
+        );
+    }
+
     /// Serialize → read returns the same value for each polarity shape.
     #[test]
     fn deontic_round_trips() {
         let cases = [
             "Cant(Attack(by: Ref(This)))",
             "Cant(Block(on: Ref(This), count: Less(Literal(2))))",
+            "Cant(Block(on: Ref(This), count: Greater(1)))",
+            "May(Block(by: Ref(This), count: AtMost(2)))",
             "May(Cast(what: Ref(This), window: InstantSpeed))",
             "Gate(Attack(on: Ref(You)), [Tap])",
         ];

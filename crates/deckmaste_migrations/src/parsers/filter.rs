@@ -144,6 +144,15 @@ fn strip_postfix(s: &str) -> Option<(String, &str)> {
         // Counter kinds are bare `CounterRef` idents, not strings.
         return Some(("HasCounter(P1P1Counter)".to_string(), head));
     }
+    // "… with <keyword>" → Has(<Keyword>) (a keyword-quality clause, e.g.
+    // "creatures with flying"). Only a catalog keyword qualifies — a "with …"
+    // tail naming anything else (a counter handled above, a stat clause caught
+    // by the regex) falls through and the head declines.
+    if let Some((head, kw)) = s.rsplit_once(" with ")
+        && let Some(name) = crate::parsers::keyword_ability::match_keyword_name(kw)
+    {
+        return Some((format!("Has({name})"), head));
+    }
     None
 }
 
@@ -448,6 +457,13 @@ mod tests {
         );
         // word-number is out of the regex's \d+ scope → declines
         assert!(parse_phrase("creatures with power three or greater").is_none());
+        // "with <keyword>" → Has(<Keyword>).
+        assert_eq!(
+            parse_phrase("creatures with flying").as_deref(),
+            Some("AllOf([Creature, Has(Flying)])")
+        );
+        // A non-keyword "with …" tail still declines (no Has atom minted).
+        assert!(parse_phrase("creatures with hats").is_none());
     }
 
     #[test]
