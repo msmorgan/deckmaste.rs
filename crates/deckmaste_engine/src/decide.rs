@@ -112,6 +112,7 @@ impl PendingDecision {
             | PendingDecision::PreGame { player, .. }
             | PendingDecision::LegendRule { player, .. } => *player,
             PendingDecision::ChooseReplacement { chooser, .. } => *chooser,
+            PendingDecision::Distribute { player, .. } => *player,
         }
     }
 
@@ -285,6 +286,17 @@ pub enum PendingDecision {
         player: PlayerId,
         candidates: Vec<ObjectId>,
     },
+    /// [CR#701.22a]: distribute the looked-at cards among the destination
+    /// `bins` — the controlling player orders each bin's pile (top to bottom
+    /// for library destinations, any order for Graveyard). `window` is the
+    /// ordered set of looked-at cards; `bins` is the ordered list of
+    /// destinations. The answer ([`Decision::Distribution`]) is one ordered
+    /// `Vec<ObjectId>` per bin, forming a total partition of `window`.
+    Distribute {
+        player: PlayerId,
+        window: Vec<ObjectId>,
+        bins: Vec<deckmaste_core::Bin>,
+    },
 }
 
 /// An answer to the pending decision.
@@ -326,6 +338,9 @@ pub enum Decision {
     Assignment(Vec<(ObjectId, Uint)>),
     /// Answers `ChooseObjects`: the chosen objects ([CR#608.2d]).
     Chosen(Vec<ObjectId>),
+    /// Answers `Distribute`: one ordered list of objects per bin, forming a
+    /// total partition of the looked-at `window` ([CR#701.22a]).
+    Distribution(Vec<Vec<ObjectId>>),
     /// Answers `ChooseXValue`: the chosen value of X ([CR#601.2b]).
     XValue(Uint),
     /// Answers `ChooseReplacement` ([CR#616.1]): which replacement the affected
@@ -432,6 +447,34 @@ use crate::event::Cause;
 use crate::event::GameEvent;
 use crate::event::Occurrence;
 use crate::state::GameState;
+
+/// [CR#701.22a]: validate that `lists` is a total partition of `window` —
+/// every card in `window` appears exactly once across all bins, no foreign
+/// cards, no duplicates. Factored as a free function so tests can call it
+/// directly with fabricated `ObjectId`s, without a live `GameState`.
+///
+/// # Errors
+///
+/// Returns `DecisionError::Illegal` when a card is missing, duplicated, or
+/// foreign, or when `lists` and `window` have differing total card counts.
+fn validate_partition(window: &[ObjectId], lists: &[Vec<ObjectId>]) -> Result<(), DecisionError> {
+    let mut seen: std::collections::HashSet<ObjectId> = std::collections::HashSet::new();
+    let mut total = 0usize;
+    for o in lists.iter().flatten() {
+        if !window.contains(o) || !seen.insert(*o) {
+            return Err(DecisionError::Illegal {
+                reason: "distribution must be a partition of the looked-at cards".into(),
+            });
+        }
+        total += 1;
+    }
+    if total != window.len() {
+        return Err(DecisionError::Illegal {
+            reason: format!("distribute all {} looked-at cards", window.len()),
+        });
+    }
+    Ok(())
+}
 
 impl GameState {
     /// Answers the pending decision: validates, does the decision's
@@ -1119,6 +1162,17 @@ impl GameState {
                 Ok(())
             }
             (
+                PendingDecision::Distribute {
+                    player,
+                    window,
+                    bins,
+                },
+                Decision::Distribution(lists),
+            ) => {
+                let (player, window, bins) = (*player, window.clone(), bins.clone());
+                self.submit_distribution(player, window, bins, lists)
+            }
+            (
                 PendingDecision::Division { .. }
                 | PendingDecision::Vote { .. }
                 | PendingDecision::PreGame { .. }
@@ -1331,6 +1385,41 @@ impl GameState {
         cd.queue.remove(0);
         self.open_next_assignment();
         Ok(())
+    }
+
+    /// [CR#701.22a]: apply a `Distribute` answer — validate the bin count and
+    /// partition, clear `pending`, and call the move-scheduling stub.
+    ///
+    /// # Errors
+    ///
+    /// `Illegal` when `lists.len() != bins.len()` or `lists` is not a total
+    /// partition of `window` (missing card, duplicate, foreign card).
+    fn submit_distribution(
+        &mut self,
+        player: PlayerId,
+        window: Vec<ObjectId>,
+        bins: Vec<deckmaste_core::Bin>,
+        lists: Vec<Vec<ObjectId>>,
+    ) -> Result<(), DecisionError> {
+        if lists.len() != bins.len() {
+            return Err(DecisionError::Illegal {
+                reason: "one ordered list per bin".into(),
+            });
+        }
+        validate_partition(&window, &lists)?;
+        self.pending = None;
+        // Task 6 fills apply_distribution with real move-scheduling.
+        self.apply_distribution(player, &bins, &lists);
+        Ok(())
+    }
+
+    /// Stub — Task 6 replaces this with real zone-move scheduling.
+    fn apply_distribution(
+        &mut self,
+        _player: PlayerId,
+        _bins: &[deckmaste_core::Bin],
+        _lists: &[Vec<ObjectId>],
+    ) {
     }
 
     /// [CR#702.19b]: how much damage `source` must assign to the creature
@@ -1593,5 +1682,31 @@ impl GameState {
             .as_mut()
             .expect("open priority round")
             .consecutive_passes = 0;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_partition;
+    use crate::object::ObjectId;
+
+    #[test]
+    fn distribution_must_be_a_total_partition() {
+        let a = ObjectId::from_raw(1);
+        let b = ObjectId::from_raw(2);
+        let c = ObjectId::from_raw(3);
+        let x = ObjectId::from_raw(99);
+
+        // valid partition: top=[a, c], other=[b]
+        assert!(validate_partition(&[a, b, c], &[vec![a, c], vec![b]]).is_ok());
+        // missing c — total < window.len():
+        assert!(validate_partition(&[a, b, c], &[vec![a], vec![b]]).is_err());
+        // duplicate a — seen check rejects the second occurrence:
+        assert!(validate_partition(&[a, b, c], &[vec![a, c], vec![a, b]]).is_err());
+        // foreign card x — not in window:
+        assert!(validate_partition(&[a, b, c], &[vec![a, c, x], vec![b]]).is_err());
+        // 1 list holding all 3 cards is a valid total partition; bin-count
+        // mismatch (lists.len() != bins.len()) is enforced by submit_distribution.
+        assert!(validate_partition(&[a, b, c], &[vec![a, b, c]]).is_ok());
     }
 }
