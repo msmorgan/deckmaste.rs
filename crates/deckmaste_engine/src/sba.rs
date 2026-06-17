@@ -1,8 +1,9 @@
 //! State-based actions ([CR#704]). Player losses: zero or less life
 //! ([CR#704.5a]), drew from an empty library ([CR#704.5b]), ten or more
-//! poison counters ([CR#704.5c]). Creatures with lethal marked damage are
-//! destroyed ([CR#704.5g]); tokens stranded off the battlefield cease to
-//! exist ([CR#704.5d]).
+//! poison counters ([CR#704.5c]). A permanent with both +1/+1 and -1/-1
+//! counters has the smaller count of each removed ([CR#704.5q]). Creatures
+//! with lethal marked damage are destroyed ([CR#704.5g]); tokens stranded off
+//! the battlefield cease to exist ([CR#704.5d]).
 
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
@@ -59,16 +60,22 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
         {
             // [CR#704.5c]: player counters live on the player's PROXY
             // object ([CR#122.1] — counters go on objects and players; one
-            // storage, never a parallel map). Live but dormant: nothing
-            // places counters yet (the PutCounters apply arm is a P0.W3
-            // seam). Two-Headed Giant swaps in the fifteen-counter TEAM
-            // check ([CR#704.6b]) — variant-gated, not built.
+            // storage, never a parallel map), placed/removed by the
+            // PutCounters/RemoveCounters apply arms. Two-Headed Giant swaps in
+            // the fifteen-counter TEAM check ([CR#704.6b]) — variant-gated, not
+            // built.
             actions.push(GameEvent::PlayerLost {
                 player: player.id,
                 reason: LossReason::Poison,
             });
         }
     }
+
+    // [CR#704.5q]: the +1/+1 vs -1/-1 annihilation is data-driven now — the
+    // `M1M1Counter` decl confers it as a `Property::StateBased` SBA, swept
+    // generically here alongside every other counter-conferred state-based
+    // action.
+    actions.extend(counter_state_based_sbas(state));
 
     // [CR#704.5g,704.5h]: a creature with lethal marked damage, or struck by
     // any damage from a deathtouch source, is destroyed. We collect the ids
@@ -184,21 +191,9 @@ fn attachment_sbas(state: &GameState, view: &crate::layer::LayeredView) -> Vec<G
             if !state.condition_holds(&when, &frame) {
                 continue;
             }
-            // Run `then`. For Stage 2 the only shape is `Act(<Action>)` (the
-            // Aura's `Move`, the Saga generalization's `Sacrifice`); the
-            // produced events are flattened out of the `Emit` work items. A
-            // non-`Act` `then` (Sequence, choices) is a documented seam.
-            let deckmaste_core::Effect::Act(action) = &then else {
-                todo!("SBA `then` is only Act(<Action>) in Stage 2 (got {then:?})");
-            };
-            for item in state.action_items(action, &frame) {
-                if let WorkItem::Emit(occ) = item {
-                    match occ {
-                        Occurrence::Single(ev) => out.push(ev),
-                        Occurrence::Batch(evs) => out.extend(evs),
-                    }
-                }
-            }
+            // Run `then` — `Act(<Action>)` (the Aura's `Move`, the Saga
+            // generalization's `Sacrifice`) or a `Sequence` of them.
+            out.extend(run_sba_effect(state, &then, &frame));
             // This object is being moved/removed by its own SBA this sweep;
             // pass 2 must not also unattach it.
             removed_by_sba.insert(id);
@@ -222,6 +217,78 @@ fn attachment_sbas(state: &GameState, view: &crate::layer::LayeredView) -> Vec<G
         }
     }
 
+    out
+}
+
+/// Counter-conferred state-based actions ([CR#122.1,704.3]): for each
+/// battlefield object, for each counter kind it holds, evaluate every
+/// `Property::StateBased { condition, effect }` the counter confers (a
+/// `This`-anchored frame resolves `Ref(This)` to the object) and run the
+/// `effect` of those whose `condition` holds. The +1/+1 vs -1/-1 annihilation
+/// ([CR#704.5q]) is the canonical instance — `M1M1Counter` confers it.
+fn counter_state_based_sbas(state: &GameState) -> Vec<GameEvent> {
+    let mut out = Vec::new();
+    for &id in &state.zones.battlefield {
+        let obj = state.objects.obj(id);
+        if obj.counters.is_empty() {
+            continue;
+        }
+        let frame = crate::stack::Frame {
+            source: id,
+            controller: obj.controller,
+            targets: Vec::new(),
+            bindings: None,
+            chosen: None,
+            x: None,
+        };
+        for kind in obj.counters.keys() {
+            let Some(decl) = state.counter_decls.get(kind) else {
+                continue;
+            };
+            for prop in &decl.confers {
+                let deckmaste_core::Property::StateBased { condition, effect } = prop else {
+                    continue;
+                };
+                if state.condition_holds(condition, &frame) {
+                    out.extend(run_sba_effect(state, effect, &frame));
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Run an SBA `then`/`effect` purely (no apply) into the events it produces:
+/// `Act(<Action>)`, or a `Sequence` of effects (each evaluated against the SAME
+/// pre-sweep state — so the annihilation's two `RemoveCounters` both read the
+/// pre-removal counts). Choice-bearing shapes are a documented seam.
+fn run_sba_effect(
+    state: &GameState,
+    effect: &deckmaste_core::Effect,
+    frame: &crate::stack::Frame,
+) -> Vec<GameEvent> {
+    use deckmaste_core::Effect;
+
+    let mut out = Vec::new();
+    match effect {
+        Effect::Act(action) => {
+            for item in state.action_items(action, frame) {
+                if let WorkItem::Emit(occ) = item {
+                    match occ {
+                        Occurrence::Single(ev) => out.push(ev),
+                        Occurrence::Batch(evs) => out.extend(evs),
+                    }
+                }
+            }
+        }
+        Effect::Sequence(children) => {
+            for child in children {
+                out.extend(run_sba_effect(state, child, frame));
+            }
+        }
+        Effect::Expanded(e) => out.extend(run_sba_effect(state, &e.value, frame)),
+        other => todo!("SBA effect is only Act/Sequence in this stage (got {other:?})"),
+    }
     out
 }
 
@@ -448,6 +515,97 @@ mod tests {
                 .iter()
                 .all(|e| !matches!(e, GameEvent::WillDestroy { .. })),
             "sweep should NOT include a destroy for Grizzly Bears at sublethal damage"
+        );
+    }
+
+    /// [CR#704.5q,122.3]: a permanent with both +1/+1 and -1/-1 counters has N
+    /// of each removed as a state-based action, where N is the smaller count.
+    /// The sweep emits a `CounterRemoved` per kind, cause-tagged as the SBA.
+    #[test]
+    fn plus_and_minus_counters_annihilate_in_the_sweep() {
+        let (mut state, bear) = bear_on_field();
+        state.counter_decls = builtin().counters;
+        state
+            .objects
+            .obj_mut(bear)
+            .counters
+            .insert("P1P1Counter".into(), 3);
+        state
+            .objects
+            .obj_mut(bear)
+            .counters
+            .insert("M1M1Counter".into(), 2);
+        let actions = sba::sweep(&state);
+        // [CR#704.5q]: N = min(3, 2) = 2 of EACH kind removed — data-driven via
+        // M1M1Counter's conferred `StateBased` annihilation, both legs taking
+        // `Min(count P1P1, count M1M1)`.
+        for kind in ["P1P1Counter", "M1M1Counter"] {
+            assert!(
+                actions.iter().any(|e| matches!(e,
+                    GameEvent::CounterRemoved { object, kind: k, count: 2, .. }
+                    if *object == bear && *k == deckmaste_core::Ident::from(kind))),
+                "removes 2 {kind}; got {actions:?}"
+            );
+        }
+    }
+
+    /// [CR#704.5q]: a permanent with only one of the two kinds is untouched —
+    /// no annihilation.
+    #[test]
+    fn one_sided_counters_do_not_annihilate() {
+        let (mut state, bear) = bear_on_field();
+        state.counter_decls = builtin().counters;
+        state
+            .objects
+            .obj_mut(bear)
+            .counters
+            .insert("P1P1Counter".into(), 3);
+        let actions = sba::sweep(&state);
+        assert!(
+            actions
+                .iter()
+                .all(|e| !matches!(e, GameEvent::CounterRemoved { .. })),
+            "no annihilation without both kinds; got {actions:?}"
+        );
+    }
+
+    /// [CR#704.5q] e2e: after the sweep applies, the permanent keeps the
+    /// surplus of the larger kind and none of the smaller (3 +1/+1 & 2 -1/-1
+    /// → 1 +1/+1, no -1/-1).
+    #[test]
+    fn annihilation_leaves_the_surplus() {
+        let (mut state, bear) = bear_on_field();
+        state.counter_decls = builtin().counters;
+        state
+            .objects
+            .obj_mut(bear)
+            .counters
+            .insert("P1P1Counter".into(), 3);
+        state
+            .objects
+            .obj_mut(bear)
+            .counters
+            .insert("M1M1Counter".into(), 2);
+        let actions = sba::sweep(&state);
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(actions))]);
+        let _ = state.step(); // both CounterRemoved apply atomically
+        assert_eq!(
+            state
+                .objects
+                .obj(bear)
+                .counters
+                .get(&deckmaste_core::Ident::from("P1P1Counter"))
+                .copied(),
+            Some(1),
+            "one P1P1Counter survives"
+        );
+        assert!(
+            !state
+                .objects
+                .obj(bear)
+                .counters
+                .contains_key(&deckmaste_core::Ident::from("M1M1Counter")),
+            "M1M1Counter fully annihilated"
         );
     }
 
