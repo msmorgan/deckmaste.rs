@@ -61,7 +61,11 @@ fn try_run() -> Result<()> {
     result
 }
 
-#[allow(clippy::too_many_lines)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "event loop + key-dispatch match; extracting key handling \
+              tracked in refactor-oversized-fns"
+)]
 fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Result<()> {
     let mut board = BoardState::new();
     let mut pass = PassState::new();

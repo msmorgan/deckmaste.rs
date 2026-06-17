@@ -179,9 +179,11 @@ impl GameState {
     /// replacement registries are empty). Returns the event as it occurred —
     /// apply-time bindings (a drawn card's identity) filled in, and a draw
     /// from an empty library occurring as `DrewFromEmpty` instead.
-    // TODO: split apply() by subsystem (stack / zone-change / player) as arms grow. The
-    //   action-driven zone-change collapse (draw / land / discard → ZoneWillChange) is done.
-    #[expect(clippy::too_many_lines)]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "decomposition by subsystem (stack / zone-change / player) \
+                  tracked in refactor-oversized-fns"
+    )]
     fn apply(&mut self, event: GameEvent) -> GameEvent {
         // Every amount-carrying event fixes the "that much" register
         // (`Count::ThatMuch`) as it actually happens — at the apply funnel,
