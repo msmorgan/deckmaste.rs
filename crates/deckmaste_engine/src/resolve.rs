@@ -1326,18 +1326,24 @@ impl GameState {
                 };
                 Uint::try_from(value.max(0)).expect("clamped stat fits Uint")
             }
-            // [CR#122.1]: the live count of a counter kind on the resolved
+            // [CR#122.1]: the count of a counter kind on the resolved
             // object/player proxy, read off the raw counter map (not the
             // derived view — counter quantities are base state, so no layers
             // recursion). An absent kind is zero.
+            //
+            // [CR#603.10a] LKI: a dies/leaves trigger reads "for each +1/+1
+            // counter on this permanent" AFTER the object is gone (Modular,
+            // [CR#702.43a]). `This`/`ThatObject` then resolves to the firing
+            // object's now-stale id; the live object store no longer holds it,
+            // so the count comes from the trigger's last-known snapshot instead.
             Count::CounterCount(reference, kind) => {
                 let id = self.eval_reference(reference, frame);
-                self.objects
-                    .obj(id)
-                    .counters
-                    .get(kind.as_str())
-                    .copied()
-                    .unwrap_or(0)
+                match self.objects.get(id) {
+                    Some(o) => o.counters.get(kind.as_str()).copied().unwrap_or(0),
+                    None => lki_counters(reference, frame)
+                        .and_then(|c| c.get(kind.as_str()).copied())
+                        .unwrap_or(0),
+                }
             }
             // [CR#704.5q]: the lesser of two magnitudes (annihilation removes
             // the smaller of the two counter counts of each kind).
@@ -1563,6 +1569,23 @@ impl GameState {
                 && crate::legal::target_forbidden_by(self, &rows, entry.id, chosen).is_none()
         })
     }
+}
+
+/// The last-known counter map for a `This`/`ThatObject` reference whose object
+/// is gone ([CR#603.10a]): the matching snapshot the fired trigger carried.
+/// `None` when the frame has no bindings (a spell frame — a spell's object is
+/// always live as it resolves) or the reference isn't a trigger-bound self.
+fn lki_counters<'f>(
+    reference: &Reference,
+    frame: &'f Frame,
+) -> Option<&'f std::collections::HashMap<deckmaste_core::Ident, Uint>> {
+    let bindings = frame.bindings.as_ref()?;
+    let snapshot = match reference {
+        Reference::This => bindings.this.as_ref(),
+        Reference::ThatObject => bindings.that_object.as_ref(),
+        _ => None,
+    }?;
+    Some(&snapshot.counters)
 }
 
 /// A `Choose`/`Random` selection lifted out of an action, owned so the action
@@ -3270,6 +3293,57 @@ mod tests {
             ),
             0,
             "an absent counter kind reads as zero"
+        );
+    }
+
+    /// [CR#603.10a,702.43a]: when the object a `CounterCount(This, _)` names is
+    /// GONE (a dies trigger — Modular's "for each +1/+1 counter on this
+    /// permanent" resolves after the creature left the battlefield), the count
+    /// comes from the trigger's last-known snapshot, not the stale id. Without
+    /// the LKI bridge `eval_count` would panic dereferencing the dead object.
+    #[test]
+    fn counter_count_reads_lki_when_the_object_is_gone() {
+        let (mut state, bear) = bear_on_field();
+        state
+            .objects
+            .obj_mut(bear)
+            .counters
+            .insert("P1P1Counter".into(), 2);
+        // Snapshot the creature, then remove it — `bear` is now a stale id, the
+        // exact state a dies trigger's `This` resolves to ([CR#603.10a]).
+        let snapshot = crate::lki::LkiSnapshot::capture(&state, bear);
+        state.objects.remove(bear);
+        assert!(state.objects.get(bear).is_none(), "the object is gone");
+
+        let frame = Frame {
+            source: bear,
+            controller: PlayerId(0),
+            targets: Vec::new(),
+            bindings: Some(crate::trigger::TriggerBindings {
+                this: Some(snapshot),
+                that_object: None,
+                that_player: None,
+            }),
+            chosen: None,
+            x: None,
+            subject: None,
+        };
+
+        assert_eq!(
+            state.eval_count(
+                &Count::CounterCount(Box::new(Reference::This), "P1P1Counter".into()),
+                &frame
+            ),
+            2,
+            "the dying creature's last-known +1/+1 counter count"
+        );
+        assert_eq!(
+            state.eval_count(
+                &Count::CounterCount(Box::new(Reference::This), "M1M1Counter".into()),
+                &frame
+            ),
+            0,
+            "an absent kind on the snapshot reads as zero"
         );
     }
 

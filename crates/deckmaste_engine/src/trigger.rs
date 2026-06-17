@@ -1130,6 +1130,7 @@ mod tests {
             controller: PlayerId(0),
             tapped: false,
             damage: 0,
+            counters: std::collections::HashMap::new(),
             left: Zone::Hand,
         };
         let enter_event = GameEvent::ZoneChanged {
@@ -1175,6 +1176,7 @@ mod tests {
             controller: PlayerId(1),
             tapped: false,
             damage: 0,
+            counters: std::collections::HashMap::new(),
             left: Zone::Battlefield,
         };
         let event = GameEvent::ZoneChanged {
@@ -1324,6 +1326,7 @@ mod tests {
             controller: PlayerId(0),
             tapped: false,
             damage: 0,
+            counters: std::collections::HashMap::new(),
             // For an enter, the snapshot's `left` represents what zone it came
             // from — Hand in this case.
             left: Zone::Hand,

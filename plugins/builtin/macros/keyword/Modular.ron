@@ -1,0 +1,57 @@
+// Modular = both a static ability and a triggered ability [CR#702.43a]:
+// "Modular N" means "This permanent enters with N +1/+1 counters on it" and
+// "When this permanent is put into a graveyard from the battlefield, you may
+// put a +1/+1 counter on target artifact creature for each +1/+1 counter on
+// this permanent." The printed N is the macro's `Count` param (the parser emits
+// the bare numeral `Modular(1)`, read as `Count::Literal(1)` for `Param(0)`);
+// multiple instances work separately ([CR#702.43b]).
+//
+// Two abilities, both representable:
+//   - STATIC enters-with-counters [CR#702.43a]: the enters-with-counters
+//     self-replacement, the [CR#614.1c] augment whose event is this object's
+//     own entry ([CR#614.12]). This is the shape the `AsEnters` macro expands
+//     to (`Also(would: ThisEnters, also: …)`), INLINED rather than invoked: a
+//     macro body can't thread its own `Param(0)` into a nested macro's argument
+//     slot ("Param(0) outside any macro expansion"), the same constraint that
+//     forces Enchant to inline its `AsEnters(Attach …)`. The count is the
+//     printed N.
+//   - TRIGGERED dies-migration [CR#702.43a]: `ThisDies` ([CR#603.6c] — the
+//     leaving object watches its own departure) → `May` ([CR#603.4] optional
+//     "you may") over a `Targeted` migration. The target is "artifact creature"
+//     (`AllOf([Type(Artifact), Type(Creature)])`, declared on the effect's
+//     `targets` per [CR#115.1,601.2c] — the same `Target(Exactly(1), filter)`
+//     shape Fortify uses). The placed amount is "for each +1/+1 counter on this
+//     permanent" = `CounterCount(This, P1P1Counter)`. By the time the trigger
+//     resolves the source is in the graveyard, so `This` reads the dying
+//     object's LAST-KNOWN counter count ([CR#603.10a]) — the count rides the
+//     trigger's LKI snapshot, not the (gone) live object.
+(
+    name: "Modular",
+    template: "modular ${0}",
+    kinds: [KeywordAbility],
+    params: [Count],
+    body: Composite(
+        name: "Modular",
+        abilities: [
+            // [CR#702.43a]: enters with N +1/+1 counters.
+            Static(effects: [
+                Replacement(Also(
+                    would: ThisEnters,
+                    also: PutCounters(This, P1P1Counter, Param(0)),
+                )),
+            ]),
+            // [CR#702.43a]: dies → may migrate its +1/+1 counters.
+            Triggered(
+                event: ThisDies,
+                effect: May(effect: Targeted(
+                    targets: [Target(Exactly(1), AllOf([Type(Artifact), Type(Creature)]))],
+                    effect: PutCounters(
+                        Target(0),
+                        P1P1Counter,
+                        CounterCount(This, P1P1Counter),
+                    ),
+                )),
+            ),
+        ],
+    ),
+)
