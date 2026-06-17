@@ -609,6 +609,7 @@ impl GameState {
                         bindings: Some(bindings.clone()),
                         chosen: None,
                         x: None,
+                        subject: None,
                     };
                     if !self.condition_holds(c, &frame) {
                         continue;
@@ -923,6 +924,7 @@ mod tests {
             bindings: None,
             chosen: None,
             x: None,
+            subject: None,
         }
     }
 

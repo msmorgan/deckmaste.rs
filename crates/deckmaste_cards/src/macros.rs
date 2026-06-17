@@ -65,6 +65,14 @@ pub fn param_types() -> ParamTypeSet {
             .map(drop)
             .map_err(|e| e.to_string())
     });
+    // A reference slot: the object/player a macro compares against
+    // (`SharesColorWith(Ref(This))`, `SharesColor(Subject, This)`).
+    param_types.add("Reference", |src, macros| {
+        macros
+            .read_str::<deckmaste_core::Reference>(src)
+            .map(drop)
+            .map_err(|e| e.to_string())
+    });
     // A keyword/cost slot: the bracketed cost-component list authored as the
     // macro's argument (`[Mana([Generic(2)])]`, `[Mana(...), Do(LoseLife(2))]`).
     param_types.add("Cost", |src, macros| {
@@ -546,6 +554,21 @@ mod tests {
                     body: Subtype(name: Param(0), types: [Land]),
                 )"#))
             .expect("a Color param type should be registered");
+    }
+
+    /// `Reference` is a registered param type, so a macro may take one — the
+    /// hook `SharesColorWith(ref)` / `SharesColor(a, b)` rely on.
+    #[test]
+    fn reference_is_a_registered_param_type() {
+        let mut macros = macro_set();
+        macros
+            .insert(&def(r#"(
+                    name: "IsThat",
+                    kinds: [Filter],
+                    params: [Reference],
+                    body: Ref(Param(0)),
+                )"#))
+            .expect("a Reference param type should be registered");
     }
 
     /// A `Color` param rejects a non-color at the call site, before the body

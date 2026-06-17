@@ -100,6 +100,7 @@ impl GameState {
                     bindings: None,
                     chosen: None,
                     x: None,
+                    subject: None,
                 };
                 let n = self.eval_count(count, &frame);
                 if n > 0 {

@@ -3,6 +3,7 @@ use serde::Serialize;
 
 use crate::Cmp;
 use crate::Color;
+use crate::Condition;
 use crate::Count;
 use crate::Expand;
 use crate::Expansion;
@@ -139,6 +140,16 @@ pub enum Filter {
     AllOf(Vec<Filter>),
     OneOf(Vec<Filter>),
     Not(Box<Filter>),
+    /// The candidate matches iff a [`Condition`] holds with `Subject` bound to
+    /// it — the bridge that lets a per-object filter slot reach the whole
+    /// condition language ([CR#603.4] predicates) against the object being
+    /// matched. `Reference::Subject` inside the condition resolves to that
+    /// candidate; `Ref(This)`/`Ref(You)` still anchor to the carrier. Boxed to
+    /// break the `Filter` → `Condition` → `Filter` size cycle. The one
+    /// candidate-relative escape hatch: "shares a color with ~", "has the same
+    /// name as ~", etc., expressed as `Where(SharesColor(Subject, This))` and
+    /// kin.
+    Where(Box<Condition>),
     /// Matches every object — the bare-Filter default for event participant
     /// slots (`Event::Performed`'s `by`/`on`).
     Any,

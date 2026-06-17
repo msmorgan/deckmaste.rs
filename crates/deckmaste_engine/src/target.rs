@@ -66,6 +66,40 @@ pub fn matches_with(
         Filter::AllOf(fs) => fs.iter().all(|f| matches_with(state, id, f, watcher)),
         Filter::OneOf(fs) => fs.iter().any(|f| matches_with(state, id, f, watcher)),
         Filter::Not(f) => !matches_with(state, id, f, watcher),
+        // The candidate matches iff the condition holds with `Subject` bound to
+        // it. `This`/`You` still anchor to the carrier, so build a match frame
+        // from the watcher (source → live carrier id + controller) and set
+        // `subject` to the candidate. Re-binding across nested relation filters
+        // is automatic: those arms recurse with a new `id`, so a nested `Where`
+        // sees the related object as `Subject`. A frameless caller (no watcher)
+        // or a gone carrier leaves `This` unresolvable — no match.
+        Filter::Where(cond) => match watcher {
+            None => todo!(
+                "Filter::Where at a frameless position — the matcher holds no carrier for This/You"
+            ),
+            Some(w) => {
+                match state
+                    .objects
+                    .iter()
+                    .find(|ob| ob.source == w)
+                    .map(|ob| (ob.id, ob.controller))
+                {
+                    None => false,
+                    Some((carrier, controller)) => {
+                        let frame = crate::stack::Frame {
+                            source: carrier,
+                            controller,
+                            targets: Vec::new(),
+                            bindings: None,
+                            chosen: None,
+                            x: None,
+                            subject: Some(id),
+                        };
+                        state.condition_holds(cond, &frame)
+                    }
+                }
+            }
+        },
         Filter::Any => true,
         // A filter-position macro (`kinds: [Filter]` — `Self`, evasion sets,
         // protection qualities) survives expansion as `Filter::Expanded`;
@@ -996,5 +1030,119 @@ mod tests {
             !matches(&state, a, &has_any_attachment),
             "a has nothing attached to it"
         );
+    }
+
+    /// A two-player game with a green Grizzly Bears (P0) and a black Diregraf
+    /// Ghoul (P1) both forced onto the battlefield — distinct colors, for the
+    /// `Subject` / `Where` shares-color tests.
+    fn game_with_bear_and_ghoul() -> (GameState, ObjectId, ObjectId) {
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let ghouls = Arc::new(canon().card("Diregraf Ghoul").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: vec![Arc::clone(&bears); 10],
+                },
+                PlayerConfig {
+                    deck: vec![Arc::clone(&ghouls); 10],
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        });
+        let creature = Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(
+            deckmaste_core::Type::Creature,
+        ));
+        let bear = *state.zones.hands[0]
+            .iter()
+            .find(|&&o| matches(&state, o, &creature))
+            .expect("a Grizzly Bears in P0's opening hand");
+        state.remove_from_hand(PlayerId(0), bear);
+        state.objects.obj_mut(bear).zone = Some(Zone::Battlefield);
+        state.zones.battlefield.push(bear);
+        let ghoul = *state.zones.hands[1]
+            .iter()
+            .find(|&&o| matches(&state, o, &creature))
+            .expect("a Diregraf Ghoul in P1's opening hand");
+        state.remove_from_hand(PlayerId(1), ghoul);
+        state.objects.obj_mut(ghoul).zone = Some(Zone::Battlefield);
+        state.zones.battlefield.push(ghoul);
+        (state, bear, ghoul)
+    }
+
+    fn where_is_subject_color(c: deckmaste_core::Color) -> Filter {
+        Filter::Where(Box::new(deckmaste_core::Condition::Is(
+            deckmaste_core::Reference::Subject,
+            Filter::Characteristic(deckmaste_core::CharacteristicFilter::ColorIs(c)),
+        )))
+    }
+
+    /// `Where(SharesColor(Subject, This))` spelled out: the candidate shares a
+    /// color with the carrier (`This`).
+    fn where_shares_color_with_carrier() -> Filter {
+        use deckmaste_core::CharacteristicFilter::ColorIs;
+        use deckmaste_core::Color::Black;
+        use deckmaste_core::Color::Blue;
+        use deckmaste_core::Color::Green;
+        use deckmaste_core::Color::Red;
+        use deckmaste_core::Color::White;
+        use deckmaste_core::Condition;
+        use deckmaste_core::Reference;
+        let branch = |c| {
+            Condition::AllOf(vec![
+                Condition::Is(Reference::Subject, Filter::Characteristic(ColorIs(c))),
+                Condition::Is(Reference::This, Filter::Characteristic(ColorIs(c))),
+            ])
+        };
+        Filter::Where(Box::new(Condition::OneOf(vec![
+            branch(White),
+            branch(Blue),
+            branch(Black),
+            branch(Red),
+            branch(Green),
+        ])))
+    }
+
+    /// `Subject` inside a `Where` condition resolves to the candidate being
+    /// matched: a green Grizzly Bears satisfies `Where(Is(Subject,
+    /// ColorIs(Green)))` but not `ColorIs(White)`.
+    #[test]
+    fn where_binds_subject_to_the_candidate() {
+        let (state, bear, _ghoul) = game_with_bear_and_ghoul();
+        let carrier = Some(state.objects.obj(bear).source);
+        assert!(matches_with(
+            &state,
+            bear,
+            &where_is_subject_color(deckmaste_core::Color::Green),
+            carrier
+        ));
+        assert!(!matches_with(
+            &state,
+            bear,
+            &where_is_subject_color(deckmaste_core::Color::White),
+            carrier
+        ));
+    }
+
+    /// `SharesColor(Subject, This)` compares the candidate to the carrier: a
+    /// green candidate shares a color with a green carrier; a black one does
+    /// not. `Subject` is the candidate, `This` the carrier (`watcher`).
+    #[test]
+    fn where_shares_color_compares_candidate_to_carrier() {
+        let (state, bear, ghoul) = game_with_bear_and_ghoul();
+        let carrier = Some(state.objects.obj(bear).source);
+        assert!(matches_with(
+            &state,
+            bear,
+            &where_shares_color_with_carrier(),
+            carrier
+        ));
+        assert!(!matches_with(
+            &state,
+            ghoul,
+            &where_shares_color_with_carrier(),
+            carrier
+        ));
     }
 }

@@ -292,6 +292,7 @@ mod tests {
             }),
             chosen: None,
             x: None,
+            subject: None,
         };
 
         let creature = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));

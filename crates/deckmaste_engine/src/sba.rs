@@ -180,6 +180,7 @@ fn attachment_sbas(state: &GameState, view: &crate::layer::LayeredView) -> Vec<G
             bindings: None,
             chosen: None,
             x: None,
+            subject: None,
         };
         let mut rows: Vec<(deckmaste_core::Condition, deckmaste_core::Effect)> = Vec::new();
         crate::legal::for_each_static(view, id, |e| {
@@ -240,6 +241,7 @@ fn counter_state_based_sbas(state: &GameState) -> Vec<GameEvent> {
             bindings: None,
             chosen: None,
             x: None,
+            subject: None,
         };
         for kind in obj.counters.keys() {
             let Some(decl) = state.counter_decls.get(kind) else {
@@ -674,6 +676,7 @@ mod tests {
             bindings: None,
             chosen: None,
             x: None,
+            subject: None,
         };
         let token = Token {
             color_indicator: vec![],

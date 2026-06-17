@@ -32,6 +32,14 @@ pub enum Reference {
     This,
     /// The controller of this ability ([CR#109.5]).
     You,
+    /// The object a per-object filter is currently testing — "it" relative to
+    /// the matched candidate, not the carrier. Bound only inside a
+    /// [`Filter::Where`](crate::Filter::Where) (and re-bound to the related
+    /// object across relation filters, since the matcher recurses with a new
+    /// candidate). Undefined at frameless positions, like the carrier
+    /// references. Lets candidate-relative predicates be spelled —
+    /// `SharesColor(Subject, This)`, "with the same name as ~".
+    Subject,
     /// The nth target this ability announced ([CR#115.3,601.2c]).
     Target(usize),
     /// The object that participated in the enclosing trigger's event —

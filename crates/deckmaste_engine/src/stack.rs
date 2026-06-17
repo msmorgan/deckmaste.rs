@@ -128,4 +128,9 @@ pub struct Frame {
     /// [CR#107.3a]: the announced X for the resolving object — read by
     /// `Count::X`. `None` for triggers and non-X spells.
     pub x: Option<deckmaste_core::Uint>,
+    /// The candidate a per-object filter is currently matching — bound only by
+    /// `Filter::Where` when it hands a condition to `condition_holds`, read by
+    /// `Reference::Subject`. `None` on every other frame (resolution, triggers,
+    /// activation): `Subject` is meaningful only inside filter matching.
+    pub subject: Option<ObjectId>,
 }

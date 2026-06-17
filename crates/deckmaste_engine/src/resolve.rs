@@ -108,6 +108,7 @@ impl GameState {
                         bindings: None,
                         chosen: None,
                         x: entry.x,
+                        subject: None,
                     };
                     let effect = self
                         .spell_effect(spell)
@@ -165,6 +166,7 @@ impl GameState {
                     bindings: Some(bindings.clone()),
                     chosen: None,
                     x: None,
+                    subject: None,
                 };
                 // [CR#603.4]: an intervening-if is rechecked as the ability
                 // resolves. If it no longer holds, the ability is removed from
@@ -207,6 +209,7 @@ impl GameState {
                         bindings: Some(bindings.clone()),
                         chosen: None,
                         x: entry.x,
+                        subject: None,
                     };
                     self.schedule_front(vec![
                         WorkItem::RunEffect {
@@ -1100,6 +1103,12 @@ impl GameState {
                 .and_then(|b| b.this.as_ref())
                 .map_or(frame.source, |s| s.object),
             Reference::You => self.player(frame.controller).object,
+            // The candidate a `Filter::Where` is matching — bound by that arm
+            // alone. Referenced anywhere else (no enclosing filter match) it is
+            // a malformed read, like a frameless carrier reference.
+            Reference::Subject => frame
+                .subject
+                .expect("Reference::Subject referenced outside a Filter::Where match"),
             // [CR#603.10a]: the trigger's moved object / affected player,
             // read from the bindings the fired trigger carried.
             Reference::ThatObject => frame
@@ -2140,6 +2149,7 @@ mod tests {
             bindings: None,
             chosen: Some(vec![bear]),
             x: None,
+            subject: None,
         };
         let sel = Selection::Choose(Quantity::Exactly(Count::Literal(1)), creatures);
         assert_eq!(state.eval_selection_set(&sel, &frame), vec![bear]);
@@ -2300,6 +2310,7 @@ mod tests {
             }),
             chosen: None,
             x: None,
+            subject: None,
         };
 
         assert_eq!(
@@ -2583,6 +2594,7 @@ mod tests {
             bindings: None,
             chosen: None,
             x: Some(3),
+            subject: None,
         };
         assert_eq!(state.eval_count(&Count::X, &frame), 3);
     }
