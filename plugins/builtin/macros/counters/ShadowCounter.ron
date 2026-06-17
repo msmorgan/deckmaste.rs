@@ -1,0 +1,16 @@
+// A shadow counter ([CR#122.1b]): its bearer gains shadow at layer 6
+// ([CR#613.1f]) — the FlyingCounter pattern with a different keyword.
+(
+    name: "ShadowCounter",
+    template: "shadow counter",
+    kinds: [Counter],
+    body: Counter(
+        name: "ShadowCounter",
+        confers: [
+            Continuous(
+                of: Of(This),
+                changes: [GainAbility(Keyword(Shadow))],
+            ),
+        ],
+    ),
+)

@@ -1,0 +1,16 @@
+// A first strike counter ([CR#122.1b]): its bearer gains first strike at layer 6
+// ([CR#613.1f]) — the FlyingCounter pattern with a different keyword.
+(
+    name: "FirstStrikeCounter",
+    template: "first strike counter",
+    kinds: [Counter],
+    body: Counter(
+        name: "FirstStrikeCounter",
+        confers: [
+            Continuous(
+                of: Of(This),
+                changes: [GainAbility(Keyword(FirstStrike))],
+            ),
+        ],
+    ),
+)

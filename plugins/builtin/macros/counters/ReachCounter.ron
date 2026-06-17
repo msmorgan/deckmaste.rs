@@ -1,0 +1,16 @@
+// A reach counter ([CR#122.1b]): its bearer gains reach at layer 6
+// ([CR#613.1f]) — the FlyingCounter pattern with a different keyword.
+(
+    name: "ReachCounter",
+    template: "reach counter",
+    kinds: [Counter],
+    body: Counter(
+        name: "ReachCounter",
+        confers: [
+            Continuous(
+                of: Of(This),
+                changes: [GainAbility(Keyword(Reach))],
+            ),
+        ],
+    ),
+)

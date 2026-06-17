@@ -67,7 +67,7 @@ coverage, and graduating its cards. Slug: `kw-<kebab-case>`.
 | Cascade | 94 | cast trigger: exile until cheaper, free cast |
 | Infect | 92 | damage as counters/poison (`engine-poison`) |
 | Foretell | 91 | exile face down + later alt cost |
-| Exalted | 90 | attacks-alone trigger |
+| Exalted | 90 | attacks-alone trigger; add ExaltedCounter keyword counter once the keyword lands |
 | Storm | 87 | stack copies × cast tally (`engine-copy-spells`) |
 | Hideaway | 87 | ETB exile face down + linked play permission |
 | Exhaust | 85 | once-per-game activation |
@@ -183,7 +183,7 @@ coverage, and graduating its cards. Slug: `kw-<kebab-case>`.
 | Epic | 7 | upkeep copies + cast lockout |
 | Tiered | 6 | (FIN) modal cost tiers |
 | Rampage | 5 | multi-block pump |
-| Decayed | 4 | can't block; sacrifice after attack |
+| Decayed | 4 | can't block; sacrifice after attack; add DecayedCounter keyword counter once the keyword lands |
 | Wizardcycling | (in Cycling) | — |
 | Fortify | 2 | equipment-for-lands |
 | Transfigure | 1 | sacrifice: tutor same mana value |
