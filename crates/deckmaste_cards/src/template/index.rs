@@ -124,6 +124,8 @@ fn try_conditional<F>(
 where
     F: FnMut(&str, &str) -> Option<(String, usize)>,
 {
+    // prefix/suffix are ASCII template literals; byte-length arithmetic below is
+    // panic-safe (`input.get(..)?`) and a non-ASCII literal would simply decline.
     let after_prefix = cursor + prefix.len();
     if !input
         .get(cursor..after_prefix)?
@@ -176,6 +178,8 @@ where
                 slot,
                 suffix,
             } => {
+                // An absent fragment never fails the pattern — the caller checks
+                // full-line consumption, so a conditional template can't over-claim.
                 if let Some((arg, new_cursor)) =
                     try_conditional(prefix, slot, suffix, input, cursor, slot_reader)
                 {

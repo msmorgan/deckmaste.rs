@@ -126,7 +126,7 @@ pub(super) fn parse_keyword_changes(pred: &str) -> Option<Vec<String>> {
     split_list(pred)
         .iter()
         .map(|kw| {
-            keyword_ability::match_keyword_name(kw)
+            keyword_ability::match_keyword_invocation(kw)
                 .map(|name| format!("GainAbility(Keyword({name}))"))
         })
         .collect()

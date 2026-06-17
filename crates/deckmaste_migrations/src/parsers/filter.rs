@@ -489,6 +489,22 @@ mod tests {
     }
 
     #[test]
+    fn with_hexproof_is_a_bare_keyword_reference() {
+        // `Has(...)` is a KeywordRef (bare unit ident) — a defaulted-param keyword
+        // must NOT acquire invocation parens here (that wouldn't read).
+        // Mirror the existing "creatures with flying" test's call shape.
+        assert_eq!(
+            parse_phrase("creatures with hexproof").as_deref(),
+            Some("AllOf([Creature, Has(Hexproof)])")
+        );
+        // Also confirm the parens form does NOT appear.
+        assert_ne!(
+            parse_phrase("creatures with hexproof").as_deref(),
+            Some("AllOf([Creature, Has(Hexproof())])")
+        );
+    }
+
+    #[test]
     fn on_the_battlefield_is_consumed() {
         // "on the battlefield" is the default scope — consumed, no atom. The
         // battlefield scope still rides the head atom ([CR#109.2]): `Permanent`

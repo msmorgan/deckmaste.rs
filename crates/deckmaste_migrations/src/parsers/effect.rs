@@ -971,7 +971,7 @@ fn parse_keyword_grants(clause: &str) -> Option<Vec<String>> {
         .map(str::trim)
         .filter(|piece| !piece.is_empty())
         .map(|piece| {
-            crate::parsers::keyword_ability::match_keyword_name(piece)
+            crate::parsers::keyword_ability::match_keyword_invocation(piece)
                 .map(|ident| format!("Keyword({ident})"))
         })
         .collect()
