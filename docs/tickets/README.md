@@ -120,5 +120,29 @@ Tickets tagged **[design]** require a design dialogue with the user before
 implementation — claiming one means opening that conversation, not coding solo.
 All CLAUDE.md jj constraints apply in full.
 
+## Claiming additional todos into a live workspace
+
+Partway through a feature you may realize the workspace should also take on
+another todo ("oh, I guess we're fixing this too now"). Rather than spin up a
+separate workspace, fold the extra todo into the one already going:
+
+```
+scripts/workflow claim <other-slug> --into <name>
+```
+
+This moves `<other-slug>.md` into `wip/` and **amends `<name>`'s claim commit** to
+carry the move, so the single workspace `../<name>` now owns both tickets. Fold in
+several at once with `claim <slug-a> <slug-b> --into <name>`. Notes:
+
+- Run it from `default`, like every other claim. `<name>` may be any live
+  workspace — a `claim`ed feature or an ad-hoc `start`ed one.
+- Amending the claim commit leaves `../<name>`'s working copy **stale** (its parent
+  was rewritten). That is routine: in `../<name>`, run `scripts/jj workspace
+  update-stale` (commit your work first) before your next commit.
+- `integrate <name>` then finishes **every** todo the claim owns — each moves
+  `wip/ → done/`, all in one completion commit — and `abandon <name>` reverts them
+  all back to triage. (The set is read off the claim commit's own diff, so it is
+  always exactly the todos that claim brought into `wip/`.)
+
 Census tables for card shapes, keyword abilities, keyword actions, and ability
 words live in `census.md` alongside this file.
