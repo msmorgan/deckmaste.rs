@@ -39,7 +39,7 @@ fn render(cost: &[String], parsed: &ParsedEffect) -> String {
         format!("Activated(cost: [{cost}], effect: {})", parsed.effect)
     } else {
         format!(
-            "Activated(cost: [{cost}], targets: [{}], effect: {})",
+            "Activated(cost: [{cost}], effect: Targeted(targets: [{}], effect: {}))",
             parsed.targets.join(", "),
             parsed.effect
         )
@@ -58,7 +58,9 @@ mod tests {
     fn tap_damage_like_prodigal_sorcerer() {
         assert_eq!(
             act("{T}: ~ deals 1 damage to any target.").as_deref(),
-            Some("Activated(cost: [Tap], targets: [AnyTarget], effect: DealDamage(Target(0), 1))")
+            Some(
+                "Activated(cost: [Tap], effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), 1)))"
+            )
         );
     }
 
@@ -101,8 +103,8 @@ mod tests {
         assert_eq!(
             act("{1}{R}, Sacrifice ~: It deals 1 damage to any target.").as_deref(),
             Some(
-                "Activated(cost: [Mana([Generic(1),Red]), SacrificeThis], targets: [AnyTarget], \
-                 effect: DealDamage(Target(0), 1))"
+                "Activated(cost: [Mana([Generic(1),Red]), SacrificeThis], effect: \
+                 Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), 1)))"
             )
         );
     }
@@ -123,7 +125,7 @@ mod tests {
             act("Sacrifice a creature: ~ deals 1 damage to any target.").as_deref(),
             Some(
                 "Activated(cost: [Do(Sacrifice(Choose(Exactly(Literal(1)), Creature)))], \
-                 targets: [AnyTarget], effect: DealDamage(Target(0), 1))"
+                 effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), 1)))"
             )
         );
     }

@@ -59,7 +59,7 @@ fn render(event: &str, parsed: &ParsedEffect) -> String {
         format!("Triggered(event: {event}, effect: {})", parsed.effect)
     } else {
         format!(
-            "Triggered(event: {event}, targets: [{}], effect: {})",
+            "Triggered(event: {event}, effect: Targeted(targets: [{}], effect: {}))",
             parsed.targets.join(", "),
             parsed.effect
         )
@@ -169,7 +169,7 @@ mod tests {
         assert_eq!(
             trig("When ~ dies, it deals 1 damage to any target.").as_deref(),
             Some(
-                "Triggered(event: ThisDies, targets: [AnyTarget], effect: DealDamage(Target(0), 1))"
+                "Triggered(event: ThisDies, effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), 1)))"
             )
         );
     }
@@ -259,8 +259,8 @@ mod tests {
         assert_eq!(
             trig("When ~ dies, destroy target creature.").as_deref(),
             Some(
-                "Triggered(event: ThisDies, targets: [TargetOne(Creature)], \
-                 effect: Destroy(Target(0)))"
+                "Triggered(event: ThisDies, effect: \
+                 Targeted(targets: [TargetOne(Creature)], effect: Destroy(Target(0))))"
             )
         );
     }
