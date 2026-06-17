@@ -1366,12 +1366,26 @@ impl GameState {
             // event-matcher, anchored to the frame's watcher (so `Ref(This)` in the
             // pattern resolves to the evaluating source).
             Count::EventCount(event, within) => {
-                let watcher = self.frame_watcher(frame);
-                let n = self
-                    .history
-                    .scan(*within, self.turn.turn_number)
-                    .filter(|fact| self.event_matches(event, fact, watcher))
-                    .count();
+                // Self/object-scoped ability-use count: resolve `by` to a
+                // concrete `ObjectId` via the frame and count `AbilityUsed`
+                // for that object — the generic matcher can't, since its
+                // watcher is an `ObjectSource`, not the resolved id
+                // ([CR#608.2i,603.2]).
+                let n = if let deckmaste_core::Event::Used { by } = &**event {
+                    let obj = self.eval_reference(by, frame);
+                    self.history
+                        .scan(*within, self.turn.turn_number)
+                        .filter(|fact| {
+                            matches!(fact, GameEvent::AbilityUsed { object, .. } if *object == obj)
+                        })
+                        .count()
+                } else {
+                    let watcher = self.frame_watcher(frame);
+                    self.history
+                        .scan(*within, self.turn.turn_number)
+                        .filter(|fact| self.event_matches(event, fact, watcher))
+                        .count()
+                };
                 Uint::try_from(n).expect("event count fits Uint")
             }
             // [CR#608.2i] history reads off the log — the evaluating player is
@@ -5060,6 +5074,157 @@ mod tests {
             ),
             2,
             "ThisGame still sees last turn's deaths"
+        );
+    }
+
+    /// `EventCount(Used(by: This))` is OBJECT-scoped: it resolves `by` to the
+    /// frame's source `ObjectId` and counts that object's `AbilityUsed` facts,
+    /// NOT a watcher-pattern match ([CR#608.2i,603.2]). Two uses by the frame
+    /// object this turn → 2 (a third use by a DIFFERENT object is excluded);
+    /// after a turn advance `ThisTurn` reads 0 while `ThisGame` still reads 2.
+    #[test]
+    fn event_count_used_counts_object_ability_uses() {
+        use deckmaste_core::Event;
+        use deckmaste_core::Window;
+
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig { deck: Vec::new() },
+                PlayerConfig { deck: Vec::new() },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        });
+        state.turn.turn_number = 1;
+
+        // The frame's source is `obj`; `Used(by: This)` resolves `This` to it.
+        let obj = ObjectId::from_raw(1);
+        let other = ObjectId::from_raw(2);
+        let frame = frame_src(obj);
+
+        let used = |n| {
+            Count::EventCount(
+                Box::new(Event::Used {
+                    by: Reference::This,
+                }),
+                n,
+            )
+        };
+
+        // No uses recorded yet → 0.
+        assert_eq!(
+            state.eval_count(&used(Window::ThisTurn), &frame),
+            0,
+            "no ability uses recorded yet"
+        );
+
+        // Two uses by `obj` this turn, and one by `other`.
+        state.history.record(
+            1,
+            GameEvent::AbilityUsed {
+                object: obj,
+                ability: 0,
+            },
+        );
+        state.history.record(
+            1,
+            GameEvent::AbilityUsed {
+                object: obj,
+                ability: 0,
+            },
+        );
+        state.history.record(
+            1,
+            GameEvent::AbilityUsed {
+                object: other,
+                ability: 0,
+            },
+        );
+
+        // Only `obj`'s two uses count (`This` == frame.source == obj).
+        assert_eq!(
+            state.eval_count(&used(Window::ThisTurn), &frame),
+            2,
+            "two uses by the frame object; the other object's use is excluded"
+        );
+
+        // Advance to turn 2: ThisTurn sees 0, ThisGame still sees the 2.
+        state.turn.turn_number = 2;
+        assert_eq!(
+            state.eval_count(&used(Window::ThisTurn), &frame),
+            0,
+            "ThisTurn no longer sees last turn's uses"
+        );
+        assert_eq!(
+            state.eval_count(&used(Window::ThisGame), &frame),
+            2,
+            "ThisGame still sees last turn's two uses"
+        );
+    }
+
+    /// The card-facing payoff: a self-use count drives a branching condition
+    /// (`If(Compare(EventCount(Used(by: This), ThisTurn), Eq, 2), then,
+    /// else)`). The `Compare` is FALSE after one recorded use of the frame
+    /// object and TRUE after the second — the ability's own use-count keys
+    /// the branch ([CR#608.2i]).
+    #[test]
+    fn event_count_self_drives_branching_condition() {
+        use deckmaste_core::Cmp;
+        use deckmaste_core::Condition;
+        use deckmaste_core::Event;
+        use deckmaste_core::Window;
+
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig { deck: Vec::new() },
+                PlayerConfig { deck: Vec::new() },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        });
+        state.turn.turn_number = 1;
+
+        let obj = ObjectId::from_raw(1);
+        let frame = frame_src(obj);
+
+        // "if this object's abilities have been used exactly twice this turn".
+        let twice = Condition::Compare(
+            Count::EventCount(
+                Box::new(Event::Used {
+                    by: Reference::This,
+                }),
+                Window::ThisTurn,
+            ),
+            Cmp::Eq,
+            Count::Literal(2),
+        );
+
+        // One use → not yet two → branch is FALSE.
+        state.history.record(
+            1,
+            GameEvent::AbilityUsed {
+                object: obj,
+                ability: 0,
+            },
+        );
+        assert!(
+            !state.condition_holds(&twice, &frame),
+            "one self-use does not satisfy `== 2`"
+        );
+
+        // Second use → exactly two → branch is TRUE.
+        state.history.record(
+            1,
+            GameEvent::AbilityUsed {
+                object: obj,
+                ability: 0,
+            },
+        );
+        assert!(
+            state.condition_holds(&twice, &frame),
+            "two self-uses satisfy `== 2`"
         );
     }
 }
