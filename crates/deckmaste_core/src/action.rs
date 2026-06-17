@@ -1,10 +1,24 @@
+use serde::Deserialize;
+use serde::Serialize;
+
 use crate::Count;
+use crate::Expand;
 use crate::Expansion;
 use crate::Reference;
 use crate::Selection;
 use crate::SupportsMacros;
 use crate::TokenSpec;
 use crate::mana::ManaProduction;
+
+/// A destination pile for `Distribute` ([CR#701.22a]). `Top`/`Bottom` are the
+/// looked-at library's ends (the cards' owner's library — so Fateseal returns
+/// to the opponent's library automatically); `Graveyard` is the owner's.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum Bin {
+    Top,
+    Bottom,
+    Graveyard,
+}
 
 /// An intrinsic game verb ([CR#700,701]) whose **agent is the source object or
 /// the effect itself**, not a player: the source deals the damage, the effect
@@ -144,6 +158,15 @@ pub enum PlayerAction {
     /// ([CR#401.7]). When the selection is two or more cards, the owner
     /// arranges them in any order ([CR#401.4]).
     PutInLibrary(Selection, Count),
+    /// Look at `group`, then partition the peeked cards into ordered `bins`
+    /// ([CR#701.22a]). One resolution decision; the peek is implicit (surfacing
+    /// the decision IS the look). `name` is the printed keyword carried for
+    /// trigger-matching, exactly like `KeywordAbility::Composite { name, .. }`.
+    Distribute {
+        group: crate::Selection,
+        bins: Vec<Bin>,
+        name: crate::Ident,
+    },
     /// "[Player] wins the game" ([CR#104.2b]) — immediate on resolution,
     /// suppressed by a matching `CantWin` outcome gate ([CR#101.1]
     /// precedence; the last-player-standing win [CR#104.2a] never rides
@@ -455,5 +478,25 @@ mod tests {
             !PlayerAction::PutInLibrary(Selection::Ref(Reference::This), Count::Literal(0))
                 .is_cost_eligible()
         );
+    }
+
+    #[test]
+    fn distribute_round_trips() {
+        let v = PlayerAction::Distribute {
+            group: Selection::Those,
+            bins: vec![Bin::Top, Bin::Bottom],
+            name: crate::Ident::new("Scry"),
+        };
+        assert_eq!(read_action(&write_action(&v)), v);
+        // Round-trip via programmatic construction is the oracle
+        let written = write_action(&v);
+        assert_eq!(read_action(&written), v);
+    }
+
+    fn read_action(source: &str) -> PlayerAction {
+        crate::ron::options().from_str(source).unwrap()
+    }
+    fn write_action(action: &PlayerAction) -> String {
+        crate::ron::options().to_string(action).unwrap()
     }
 }
