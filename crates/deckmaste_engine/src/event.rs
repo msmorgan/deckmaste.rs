@@ -106,6 +106,28 @@ impl Cause {
     pub fn play(agency: deckmaste_core::Agency, agent: Option<(ObjectId, PlayerId)>) -> Self {
         Self::verb("Play", agency, agent)
     }
+
+    /// "PutCounters" ([CR#122.1]) — putting counters on an object/player. A
+    /// distinct verb from the spell-/ability-"Counter" above ([CR#701.6a]):
+    /// these mark a permanent, they don't remove it from the stack.
+    #[must_use]
+    pub fn put_counters(
+        agency: deckmaste_core::Agency,
+        agent: Option<(ObjectId, PlayerId)>,
+    ) -> Self {
+        Self::verb("PutCounters", agency, agent)
+    }
+
+    /// "RemoveCounters" ([CR#122.1]) — removing counters from an object/player,
+    /// whether by an effect or as the +1/+1 vs −1/−1 annihilation state-based
+    /// action ([CR#704.5q], `Agency::StateBasedAction`).
+    #[must_use]
+    pub fn remove_counters(
+        agency: deckmaste_core::Agency,
+        agent: Option<(ObjectId, PlayerId)>,
+    ) -> Self {
+        Self::verb("RemoveCounters", agency, agent)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

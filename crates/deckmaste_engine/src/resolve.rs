@@ -745,11 +745,59 @@ impl GameState {
             // P0.W3 seams: grammar-complete verbs whose execution is unbuilt.
             PlayerAction::FlipCoins(..) => todo!("P0.W3: coin flips (emit CoinFlipped)"),
             PlayerAction::RollDice(..) => todo!("P0.W3: die rolls (emit DieRolled)"),
-            PlayerAction::PutCounters(..) => {
-                todo!("P0.W3: counters (emit CounterPlaced; storage is P0.W5)")
+            // [CR#122.1]: place/remove `n` counters of `kind` on each selected
+            // object or player proxy. `n == 0` (or an empty selection) is a
+            // no-op, so no event fires — a "counter is put on" trigger never
+            // sees a zero placement. The cause carries the effect-instruction
+            // agent so "you put a counter" reads ([CR#603.2e]-style transition
+            // views) resolve to the right controller.
+            PlayerAction::PutCounters(sel, kind, count) => {
+                let n = self.eval_count(count, frame);
+                if n == 0 {
+                    return vec![];
+                }
+                let events: Vec<GameEvent> = self
+                    .eval_selection_set(sel, frame)
+                    .into_iter()
+                    .map(|object| GameEvent::CounterPlaced {
+                        object,
+                        kind: kind.clone(),
+                        count: n,
+                        cause: Some(crate::event::Cause::put_counters(
+                            deckmaste_core::Agency::EffectInstruction,
+                            Some((frame.source, frame.controller)),
+                        )),
+                    })
+                    .collect();
+                if events.is_empty() {
+                    vec![]
+                } else {
+                    vec![WorkItem::Emit(occurrence_of(events))]
+                }
             }
-            PlayerAction::RemoveCounters(..) => {
-                todo!("P0.W3: counters (emit CounterRemoved; storage is P0.W5)")
+            PlayerAction::RemoveCounters(sel, kind, count) => {
+                let n = self.eval_count(count, frame);
+                if n == 0 {
+                    return vec![];
+                }
+                let events: Vec<GameEvent> = self
+                    .eval_selection_set(sel, frame)
+                    .into_iter()
+                    .map(|object| GameEvent::CounterRemoved {
+                        object,
+                        kind: kind.clone(),
+                        count: n,
+                        cause: Some(crate::event::Cause::remove_counters(
+                            deckmaste_core::Agency::EffectInstruction,
+                            Some((frame.source, frame.controller)),
+                        )),
+                    })
+                    .collect();
+                if events.is_empty() {
+                    vec![]
+                } else {
+                    vec![WorkItem::Emit(occurrence_of(events))]
+                }
             }
             PlayerAction::AddMana(qty, production) => {
                 let amount = self.eval_count(qty, frame);
@@ -2634,6 +2682,120 @@ mod tests {
         assert_eq!(
             items,
             vec![WorkItem::Emit(Occurrence::Single(GameEvent::Untapped(src)))]
+        );
+    }
+
+    /// [CR#122.1]: `PutCounters(This, "+1/+1", 2)` emits one `CounterPlaced`
+    /// per selected object, carrying the effect-instruction cause
+    /// (events.md §3) — its agent is the resolving source's controller.
+    #[test]
+    fn put_counters_emits_counter_placed() {
+        use deckmaste_core::Agency;
+
+        use crate::event::Cause;
+
+        let (state, bear) = bear_on_field();
+        let frame = frame_src(bear);
+        let items = state.action_items(
+            &by_you(PlayerAction::PutCounters(
+                sel_this(),
+                "+1/+1".into(),
+                Count::Literal(2),
+            )),
+            &frame,
+        );
+        assert_eq!(
+            items,
+            vec![WorkItem::Emit(Occurrence::Single(
+                GameEvent::CounterPlaced {
+                    object: bear,
+                    kind: "+1/+1".into(),
+                    count: 2,
+                    cause: Some(Cause::put_counters(
+                        Agency::EffectInstruction,
+                        Some((bear, PlayerId(0))),
+                    )),
+                }
+            ))]
+        );
+    }
+
+    /// [CR#122.1]: putting zero counters is a no-op — no event (so no
+    /// "counter is put on" trigger fires for nothing).
+    #[test]
+    fn put_zero_counters_emits_nothing() {
+        let (state, bear) = bear_on_field();
+        let frame = frame_src(bear);
+        let items = state.action_items(
+            &by_you(PlayerAction::PutCounters(
+                sel_this(),
+                "+1/+1".into(),
+                Count::Literal(0),
+            )),
+            &frame,
+        );
+        assert_eq!(items, vec![]);
+    }
+
+    /// Applying `CounterPlaced` adds to the object's counter map, and a second
+    /// placement of the same kind sums ([CR#122.1] — counters are
+    /// interchangeable).
+    #[test]
+    fn counter_placed_apply_is_additive() {
+        let (mut state, bear) = bear_on_field();
+        state
+            .objects
+            .obj_mut(bear)
+            .counters
+            .insert("+1/+1".into(), 1);
+        let frame = frame_src(bear);
+        state.run_effect(
+            Effect::Act(by_you(PlayerAction::PutCounters(
+                sel_this(),
+                "+1/+1".into(),
+                Count::Literal(2),
+            ))),
+            &frame,
+        );
+        let _ = state.step(); // applies CounterPlaced
+        assert_eq!(
+            state
+                .objects
+                .obj(bear)
+                .counters
+                .get(&deckmaste_core::Ident::from("+1/+1"))
+                .copied(),
+            Some(3)
+        );
+    }
+
+    /// Removing more counters than present clamps to zero and DROPS the key,
+    /// so `HasCounter` and the layer-7c P/T read both see absence ([CR#122.1]).
+    #[test]
+    fn counter_removed_clamps_and_drops_key() {
+        let (mut state, bear) = bear_on_field();
+        state
+            .objects
+            .obj_mut(bear)
+            .counters
+            .insert("+1/+1".into(), 1);
+        let frame = frame_src(bear);
+        state.run_effect(
+            Effect::Act(by_you(PlayerAction::RemoveCounters(
+                sel_this(),
+                "+1/+1".into(),
+                Count::Literal(2),
+            ))),
+            &frame,
+        );
+        let _ = state.step(); // applies CounterRemoved
+        assert!(
+            !state
+                .objects
+                .obj(bear)
+                .counters
+                .contains_key(&deckmaste_core::Ident::from("+1/+1")),
+            "a counter kind dropped to zero leaves no key behind"
         );
     }
 
