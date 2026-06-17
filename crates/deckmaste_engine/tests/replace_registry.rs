@@ -1,5 +1,6 @@
 //! End-to-end tests for the replacement-effect registry ([CR#614]).
 //! Task 4: `replace_event` loop + lineage + Instead/Also apply.
+//! Task 5: `ChooseReplacement` decision ([CR#616.1]).
 //!
 //! Pattern: synthetic `Card` scaffolding (in-Rust, no plugin), place a
 //! `WorkItem::CheckSbas` on the agenda to trigger the SBA sweep, then
@@ -26,11 +27,14 @@ use deckmaste_core::StaticEffect;
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
 use deckmaste_engine::CardId;
+use deckmaste_engine::Decision;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameState;
 use deckmaste_engine::ObjectId;
+use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
+use deckmaste_engine::ReplacementKey;
 use deckmaste_engine::StartingPlayer;
 use deckmaste_engine::StepOutcome;
 use deckmaste_engine::WorkItem;
@@ -262,6 +266,146 @@ fn indestructible_still_survives_via_cant_pass() {
     assert!(
         state.zones.graveyards[0].is_empty(),
         "must not be in graveyard"
+    );
+}
+
+/// Build a `GameState` with ONE creature that has TWO static abilities, each
+/// carrying an `Instead(would: Destroyed(This), instead: Sequence([]))`.
+/// When it receives lethal damage, the registry must gather both and surface a
+/// `ChooseReplacement` decision.
+fn creature_with_two_replacements() -> (GameState, ObjectId) {
+    let instead = Replacement::Instead {
+        would: destroyed_self(),
+        instead: Effect::Sequence(vec![]),
+    };
+    let card = Arc::new(Card::Normal(CardFace {
+        name: "Double Shield".into(),
+        types: vec![Type::Creature],
+        power: Some(StatValue::Number(2)),
+        toughness: Some(StatValue::Number(2)),
+        // Two SEPARATE static abilities so gather yields two different keys.
+        abilities: vec![
+            Ability::Static(StaticAbility {
+                characteristic_defining: false,
+                effects: vec![StaticEffect::Replacement(Box::new(instead.clone()))],
+                condition: None,
+            }),
+            Ability::Static(StaticAbility {
+                characteristic_defining: false,
+                effects: vec![StaticEffect::Replacement(Box::new(instead))],
+                condition: None,
+            }),
+        ],
+        ..CardFace::default()
+    }));
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck: vec![card] },
+            PlayerConfig { deck: vec![] },
+        ],
+        seed: 7,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+    });
+    let obj = find_in_hand(&state, "Double Shield");
+    force_onto_battlefield(&mut state, obj);
+    (state, obj)
+}
+
+/// Drive, stopping when a `NeedsDecision` is returned. Panics after 50 steps
+/// without surfacing one.
+fn drive_to_decision(state: &mut GameState) -> PendingDecision {
+    state.agenda.push_front(WorkItem::CheckSbas);
+    for _ in 0..50 {
+        match state.step() {
+            StepOutcome::NeedsDecision(dec) => return dec,
+            StepOutcome::Progress(_) => {}
+            StepOutcome::GameOver(_) => panic!("game ended before decision"),
+        }
+        if state.agenda.is_empty() {
+            break;
+        }
+    }
+    panic!("expected NeedsDecision but agenda drained first")
+}
+
+/// Drive until stable (no more progress) or game-over, ignoring decisions.
+fn drive(state: &mut GameState) {
+    for _ in 0..200 {
+        match state.step() {
+            StepOutcome::Progress(_) => {}
+            StepOutcome::NeedsDecision(_) | StepOutcome::GameOver(_) => break,
+        }
+        if state.agenda.is_empty() {
+            break;
+        }
+    }
+}
+
+/// [CR#616.1]: two applicable Instead-to-nothing replacements on one creature →
+/// lethal damage → `WillDestroy` → `ChooseReplacement` surfaces.
+/// Choosing either key cancels the event: creature survives, graveyard empty.
+#[test]
+fn two_applicable_replacements_surface_choice() {
+    let (mut state, id) = creature_with_two_replacements();
+    // Mark lethal damage (toughness 2).
+    state.objects.obj_mut(id).damage = 2;
+
+    // Drive to the ChooseReplacement decision.
+    let dec = drive_to_decision(&mut state);
+    let PendingDecision::ChooseReplacement { applicable, .. } = dec else {
+        panic!("expected ChooseReplacement, got {dec:?}");
+    };
+    assert!(!applicable.is_empty(), "at least one key in choice");
+
+    // Submit the first choice.
+    state
+        .submit_decision(Decision::ReplacementChoice(applicable[0]))
+        .expect("submit should succeed");
+
+    // Drive to stability.
+    drive(&mut state);
+
+    // Creature must survive (Instead-to-nothing replaced the destroy away).
+    assert!(
+        state.objects.get(id).is_some(),
+        "creature should survive after replacement choice"
+    );
+    assert!(
+        state.zones.graveyards[0].is_empty(),
+        "graveyard must be empty after Instead-to-nothing replacement"
+    );
+}
+
+/// Same setup but choosing the SECOND key — both branches must cancel the
+/// event.
+#[test]
+fn two_applicable_replacements_second_choice_also_survives() {
+    let (mut state, id) = creature_with_two_replacements();
+    state.objects.obj_mut(id).damage = 2;
+
+    let dec = drive_to_decision(&mut state);
+    let PendingDecision::ChooseReplacement { applicable, .. } = dec else {
+        panic!("expected ChooseReplacement, got {dec:?}");
+    };
+    let key1: ReplacementKey = applicable[0];
+    let _ = key1; // verify type
+
+    // Submit the second (last) key.
+    let last_key = *applicable.last().expect("at least one key");
+    state
+        .submit_decision(Decision::ReplacementChoice(last_key))
+        .expect("submit second key should succeed");
+
+    drive(&mut state);
+
+    assert!(
+        state.objects.get(id).is_some(),
+        "creature should survive after second replacement choice"
+    );
+    assert!(
+        state.zones.graveyards[0].is_empty(),
+        "graveyard must be empty"
     );
 }
 

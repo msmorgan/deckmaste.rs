@@ -110,6 +110,7 @@ impl PendingDecision {
             | PendingDecision::ChooseXValue { player, .. }
             | PendingDecision::ChooseObjects { player, .. }
             | PendingDecision::PreGame { player, .. } => *player,
+            PendingDecision::ChooseReplacement { chooser, .. } => *chooser,
         }
     }
 
@@ -255,6 +256,17 @@ pub enum PendingDecision {
     /// Order the replacement/prevention effects applicable to one event,
     /// affected player/controller choosing ([CR#616.1]) — shell.
     OrderReplacements { player: PlayerId, count: Uint },
+    /// [CR#616.1]: two or more replacement effects are applicable to one event;
+    /// the affected player chooses which to apply first. The loop resumes after
+    /// the choice via `ReplaceState` in `GameState.replace_state`.
+    ChooseReplacement {
+        chooser: PlayerId,
+        /// Index into the batch occurrence (0 for `Occurrence::Single`).
+        event_index: usize,
+        /// The replacement keys the player may choose among (all applicable
+        /// and not yet in the [CR#614.5] lineage set for this event chain).
+        applicable: Vec<crate::replace_registry::ReplacementKey>,
+    },
     /// A pre-game choice ([CR#103]) — shell.
     PreGame { player: PlayerId, kind: PreGameKind },
     /// [CR#608.2d]: choose objects at resolution. `candidates` is the matching
@@ -309,6 +321,9 @@ pub enum Decision {
     Chosen(Vec<ObjectId>),
     /// Answers `ChooseXValue`: the chosen value of X ([CR#601.2b]).
     XValue(Uint),
+    /// Answers `ChooseReplacement` ([CR#616.1]): which replacement the affected
+    /// player applies first. The key must be in the `applicable` list.
+    ReplacementChoice(crate::replace_registry::ReplacementKey),
 }
 
 /// What a priority holder can do in the skeleton.
@@ -1038,6 +1053,26 @@ impl GameState {
                     })
                     .collect();
                 self.schedule_front(items);
+                Ok(())
+            }
+            (
+                PendingDecision::ChooseReplacement { applicable, .. },
+                Decision::ReplacementChoice(key),
+            ) => {
+                // [CR#616.1]: validate the chosen key is in the offered set.
+                if !applicable.contains(&key) {
+                    return Err(DecisionError::Illegal {
+                        reason: "chosen replacement key not in the applicable set".into(),
+                    });
+                }
+                // Take the suspended replacement state.
+                let rs = self
+                    .replace_state
+                    .take()
+                    .expect("ChooseReplacement requires replace_state");
+                self.pending = None;
+                // Resume the replacement loop from the suspended state.
+                crate::replace_registry::resume_replacements(self, rs, key);
                 Ok(())
             }
             (
