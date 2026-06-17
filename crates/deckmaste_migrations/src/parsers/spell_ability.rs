@@ -29,7 +29,7 @@ fn render(parsed: &ParsedEffect) -> String {
         format!("Spell(effect: {})", parsed.effect)
     } else {
         format!(
-            "Spell(targets: [{}], effect: {})",
+            "Spell(effect: Targeted(targets: [{}], effect: {}))",
             parsed.targets.join(", "),
             parsed.effect
         )
@@ -48,7 +48,7 @@ mod tests {
     fn frames_targeted_damage_like_lightning_bolt() {
         assert_eq!(
             spell("~ deals 3 damage to any target.").as_deref(),
-            Some("Spell(targets: [AnyTarget], effect: DealDamage(Target(0), 3))")
+            Some("Spell(effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), 3)))")
         );
     }
 
@@ -57,7 +57,7 @@ mod tests {
         assert_eq!(
             spell("~ deals 3 damage to target player or planeswalker.").as_deref(),
             Some(
-                "Spell(targets: [TargetOne(OneOf([Player, Planeswalker]))], effect: DealDamage(Target(0), 3))"
+                "Spell(effect: Targeted(targets: [TargetOne(OneOf([Player, Planeswalker]))], effect: DealDamage(Target(0), 3)))"
             )
         );
     }
@@ -93,7 +93,9 @@ mod tests {
     fn frames_destroy_target_like_doom_blade() {
         assert_eq!(
             spell("Destroy target creature.").as_deref(),
-            Some("Spell(targets: [TargetOne(Creature)], effect: Destroy(Target(0)))")
+            Some(
+                "Spell(effect: Targeted(targets: [TargetOne(Creature)], effect: Destroy(Target(0))))"
+            )
         );
     }
 
