@@ -1,6 +1,6 @@
 #!/usr/bin/env fish
 
-source (status dirname)/lib/setup.fish jj perl flock
+source (status dirname)/lib/setup.fish jj flock
 or return
 
 alias jj (status dirname)/jj
