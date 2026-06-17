@@ -12,6 +12,7 @@ pub use ability::UseLimit;
 
 mod action;
 pub use action::Action;
+pub use action::Bin;
 pub use action::PlayerAction;
 
 mod count;

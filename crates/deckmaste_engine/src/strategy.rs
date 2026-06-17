@@ -389,7 +389,8 @@ impl StrategyEvaluator {
             other @ (PendingDecision::ChooseCostOptions { .. }
             | PendingDecision::OrderReplacements { .. }
             | PendingDecision::PreGame { .. }
-            | PendingDecision::LegendRule { .. }) => {
+            | PendingDecision::LegendRule { .. }
+            | PendingDecision::Distribute { .. }) => {
                 todo!("strategy fallback for {other:?} (no v1 deck surfaces it)")
             }
         }
