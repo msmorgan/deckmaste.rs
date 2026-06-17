@@ -357,6 +357,16 @@ impl MacroSet {
         self.macros.get(kind)?.get(name)
     }
 
+    /// Iterate every registered macro as `(kind, def)`, where `kind` is the
+    /// position kind it is registered under — a multi-kind macro yields once
+    /// per kind. Order is unspecified (it follows the backing hash maps).
+    /// The reverse-index builder consumes this to compile templates by kind.
+    pub fn iter(&self) -> impl Iterator<Item = (&Ident, &MacroDef)> {
+        self.macros
+            .iter()
+            .flat_map(|(kind, named)| named.values().map(move |def| (kind, def)))
+    }
+
     /// See [`Kind::literal_wrapper`](crate::Kind::literal_wrapper).
     pub(crate) fn literal_wrapper(&self, position: &str) -> Option<&'static str> {
         self.kinds.get(position)?.literal
