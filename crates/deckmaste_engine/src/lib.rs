@@ -79,9 +79,6 @@ pub use player::ManaPool;
 pub use player::PlayerId;
 pub use player::PlayerState;
 
-mod tally;
-pub use tally::ActivationLedger;
-
 mod replace;
 
 mod replace_registry;

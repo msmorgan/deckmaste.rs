@@ -178,16 +178,21 @@ impl GameState {
             }
         }
 
-        // [CR#602.5b]: use limits.
+        // [CR#602.5b]: use limits — gate via the turn/game history window.
+        let index_u = deckmaste_core::Uint::try_from(index).expect("ability index fits in Uint");
         for limit in &ability.limits {
             match limit {
                 UseLimit::OncePerTurn => {
-                    if self.activations.turn_count((object, index)) >= 1 {
+                    if self.ability_used_count(object, index_u, deckmaste_core::Window::ThisTurn)
+                        >= 1
+                    {
                         return false;
                     }
                 }
                 UseLimit::OncePerGame => {
-                    if self.activations.game_count((object, index)) >= 1 {
+                    if self.ability_used_count(object, index_u, deckmaste_core::Window::ThisGame)
+                        >= 1
+                    {
                         return false;
                     }
                 }
@@ -661,10 +666,16 @@ mod tests {
         let mut state = game();
         let player = PlayerId(0);
         let obj = make_object_on_battlefield(&mut state, player);
-        let key = (obj, 0);
 
-        // Bump the ledger to simulate a previous activation this turn.
-        state.activations.bump(key);
+        // Record an AbilityUsed fact in history to simulate a previous
+        // activation this turn (replaces the deleted ledger bump).
+        state.history.record(
+            state.turn.turn_number,
+            crate::event::GameEvent::AbilityUsed {
+                object: obj,
+                ability: 0,
+            },
+        );
 
         let ability = ActivatedAbility {
             from: None,
@@ -679,6 +690,15 @@ mod tests {
             !state.can_activate(&view, player, obj, 0, &ability),
             "OncePerTurn should block after one activation"
         );
+        // Confirm the gate passes after advancing to a new turn (ThisTurn window
+        // excludes prior-turn entries).
+        state.turn.turn_number += 1;
+        let view = state.layers();
+        assert!(
+            state.can_activate(&view, player, obj, 0, &ability),
+            "OncePerTurn should allow again on the next turn"
+        );
+        drop(view);
     }
 
     #[test]
@@ -686,11 +706,18 @@ mod tests {
         let mut state = game();
         let player = PlayerId(0);
         let obj = make_object_on_battlefield(&mut state, player);
-        let key = (obj, 0);
 
-        state.activations.bump(key);
-        // Simulate a new turn (reset_turn clears per-turn, not per-game).
-        state.activations.reset_turn();
+        // Record an AbilityUsed fact in history to simulate a previous
+        // activation (replaces the deleted ledger bump).
+        state.history.record(
+            state.turn.turn_number,
+            crate::event::GameEvent::AbilityUsed {
+                object: obj,
+                ability: 0,
+            },
+        );
+        // Advance to a new turn — the ThisGame window still sees the prior entry.
+        state.turn.turn_number += 1;
 
         let ability = ActivatedAbility {
             from: None,

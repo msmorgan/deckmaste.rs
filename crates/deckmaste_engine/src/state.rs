@@ -25,7 +25,6 @@ use crate::player::PlayerId;
 use crate::player::PlayerState;
 use crate::stack::PendingStackEntry;
 use crate::stack::StackEntry;
-use crate::tally::ActivationLedger;
 use crate::turn::TurnState;
 use crate::zone::Zones;
 
@@ -225,10 +224,6 @@ pub struct GameState {
     /// end of turn; a `one_shot` instance is removed when it is the chosen
     /// replacement.
     pub shields: Vec<crate::replace_registry::ReplacementInstance>,
-    /// Per-(object, ability-index) activation counts for "Activate only once …"
-    /// limits ([CR#602.5b]). Reset per turn in `begin_turn`; game-total
-    /// survives until the game ends.
-    pub activations: ActivationLedger,
     /// The designation registry ([CR#109.3] non-characteristic state).
     pub designations: DesignationStore,
     /// The counter-kind registry ([CR#122.1]) — a counter on an object is
@@ -331,7 +326,6 @@ impl GameState {
             rng,
             continuous: Vec::new(),
             shields: Vec::new(),
-            activations: ActivationLedger::default(),
             designations: DesignationStore::default(),
             counter_decls: std::collections::HashMap::new(),
             that_much: None,

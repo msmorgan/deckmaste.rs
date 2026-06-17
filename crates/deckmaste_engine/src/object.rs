@@ -25,7 +25,7 @@ slotmap::new_key_type! {
 #[cfg(test)]
 impl ObjectId {
     /// Fabricates a distinct id from a raw value, for in-crate tests that need
-    /// opaque ids without a live store (history / tally / combat fixtures).
+    /// opaque ids without a live store (history / combat fixtures).
     /// Engine code never calls this — real ids come only from
     /// [`ObjectStore::mint`].
     pub(crate) fn from_raw(n: u64) -> Self {
