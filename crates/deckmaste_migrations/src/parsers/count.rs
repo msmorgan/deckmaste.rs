@@ -4,7 +4,8 @@
 //!   ", where X is the number of <filter>"   (`Variable`)
 //!   " for each <filter>"                     (`ForEach`)
 //!   " equal to the number of <filter>"       (`EqualTo`)
-//! Engine history tallies (`Count::Query`) are a deferred follow-up.
+//! Engine history tallies (`Count::EventCount`/`Count::EventSum`) are a
+//! deferred follow-up.
 
 use std::sync::LazyLock;
 

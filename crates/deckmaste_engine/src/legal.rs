@@ -148,9 +148,7 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
 
     // [CR#116.2a,305.2]: a land from hand — sorcery timing (own turn, main
     // phase, empty stack), one per turn.
-    if state.sorcery_speed_ok(player)
-        && state.eval_query(deckmaste_core::QueryKey::LandsPlayedThisTurn, player) < 1
-    {
+    if state.sorcery_speed_ok(player) && state.lands_played_this_turn(player) < 1 {
         for &object in &state.zones.hands[player.index()] {
             // Derived type ([CR#613.1d]): a card that is a land in the layered
             // view is playable as a land, exactly as the battlefield reads do.
