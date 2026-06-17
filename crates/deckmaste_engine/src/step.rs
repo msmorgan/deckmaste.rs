@@ -1746,5 +1746,81 @@ mod tests {
                 "got {outcome:?}"
             );
         }
+
+        fn nonlegendary_creature(
+            state: &mut GameState,
+            name: &str,
+            controller: PlayerId,
+        ) -> ObjectId {
+            let card = Arc::new(Card::Normal(deckmaste_core::CardFace {
+                name: name.into(),
+                types: vec![Type::Creature],
+                supertypes: vec![],
+                power: Some(StatValue::Number(2)),
+                toughness: Some(StatValue::Number(2)),
+                ..deckmaste_core::CardFace::default()
+            }));
+            let card_id = state.cards.push(Arc::clone(&card), controller);
+            let id = state.objects.mint(
+                ObjectSource::Card(card_id),
+                controller,
+                Some(Zone::Battlefield),
+            );
+            state.zones.battlefield.push(id);
+            id
+        }
+
+        /// [CR#704.5j]: keeping one of three same-name legendaries puts the
+        /// other two into their owners' graveyards.
+        #[test]
+        fn legend_rule_keeps_one_graveyards_the_rest() {
+            use crate::decide::Decision;
+            let mut state = empty_game();
+            state.sba_rules = builtin().sba_rules;
+            let a = legendary_creature(&mut state, "Bob", PlayerId(0));
+            let b = legendary_creature(&mut state, "Bob", PlayerId(0));
+            let c = legendary_creature(&mut state, "Bob", PlayerId(0));
+            state.schedule_front(vec![WorkItem::CheckSbas]);
+            // Step until LegendRule surfaces.
+            let _ = state.step(); // CheckSbas sets pending
+            let _ = state.step(); // NeedsDecision
+            // Keep `a`; the other two go to the graveyard.
+            state
+                .submit_decision(Decision::Chosen(vec![a]))
+                .expect("valid legend-rule decision");
+            // Drive the scheduled graveyard moves + recheck to completion.
+            while matches!(state.step(), StepOutcome::Progress(_)) {}
+            assert!(
+                state.zones.battlefield.contains(&a),
+                "kept legend should still be on the battlefield"
+            );
+            assert!(
+                !state.zones.battlefield.contains(&b) && !state.zones.battlefield.contains(&c),
+                "the two non-kept Bobs should be off the battlefield"
+            );
+            assert_eq!(
+                state.zones.graveyards[0].len(),
+                2,
+                "the two non-kept Bobs should be in player 0's graveyard"
+            );
+        }
+
+        /// Non-legendary duplicates must not trigger the legend rule.
+        #[test]
+        fn nonlegendary_duplicates_do_not_trigger_legend_rule() {
+            let mut state = empty_game();
+            state.sba_rules = builtin().sba_rules;
+            nonlegendary_creature(&mut state, "Mox", PlayerId(0));
+            nonlegendary_creature(&mut state, "Mox", PlayerId(0));
+            state.schedule_front(vec![WorkItem::CheckSbas]);
+            assert!(!matches!(
+                state.step(),
+                StepOutcome::NeedsDecision(PendingDecision::LegendRule { .. })
+            ));
+            assert!(!matches!(
+                state.step(),
+                StepOutcome::NeedsDecision(PendingDecision::LegendRule { .. })
+            ));
+        }
     }
 }

@@ -1079,11 +1079,50 @@ impl GameState {
                 Ok(())
             }
             (
+                PendingDecision::LegendRule {
+                    player: _,
+                    candidates,
+                },
+                Decision::Chosen(kept),
+            ) => {
+                // [CR#704.5j]: the player keeps exactly one of the candidate
+                // legendaries; the rest are put into their owners' graveyards
+                // as a move (not a destroy — indestructible does not prevent
+                // this).
+                let kept_one = match kept.as_slice() {
+                    [one] if candidates.contains(one) => *one,
+                    _ => {
+                        return Err(DecisionError::Illegal {
+                            reason: "the legend rule keeps exactly one of the candidates".into(),
+                        });
+                    }
+                };
+                let losers: Vec<GameEvent> = candidates
+                    .iter()
+                    .copied()
+                    .filter(|id| *id != kept_one)
+                    .map(|id| GameEvent::ZoneWillChange {
+                        object: id,
+                        from: Some(Zone::Battlefield),
+                        to: Zone::Graveyard,
+                        enters: None,
+                        position: None,
+                        face: None,
+                        cause: None,
+                    })
+                    .collect();
+                self.pending = None;
+                self.schedule_front(vec![
+                    WorkItem::Emit(Occurrence::Batch(losers)),
+                    WorkItem::CheckSbas,
+                ]);
+                Ok(())
+            }
+            (
                 PendingDecision::Division { .. }
                 | PendingDecision::Vote { .. }
                 | PendingDecision::PreGame { .. }
-                | PendingDecision::OrderReplacements { .. }
-                | PendingDecision::LegendRule { .. },
+                | PendingDecision::OrderReplacements { .. },
                 _,
             ) => todo!("P0.W4/W7: submission handling for shell decision kinds"),
             _ => Err(DecisionError::WrongKind),
