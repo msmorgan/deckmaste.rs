@@ -80,7 +80,7 @@ impl Cards {
     /// # Panics
     ///
     /// Panics if the card table exceeds `Uint::MAX` entries.
-    pub fn push(&mut self, def: Arc<Card>, owner: PlayerId) -> CardId {
+    pub(crate) fn push(&mut self, def: Arc<Card>, owner: PlayerId) -> CardId {
         self.push_inner(def, owner, false)
     }
 

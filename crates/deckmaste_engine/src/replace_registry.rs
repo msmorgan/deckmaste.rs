@@ -507,8 +507,13 @@ fn apply_one(state: &mut GameState, e: GameEvent, a: &Applicable) -> Option<Game
             // [CR#614.1a,614.6]: the event is replaced — it does NOT happen.
             // Schedule the `instead` body; consume a one-shot shield if present.
             schedule_body(state, instead, a.source);
-            if let ReplacementKey::Floating(iid) = a.key {
-                // [CR#614.3]: consume a one-shot floating instance on first use.
+            // [CR#614.3]: only consume a floating instance when it is one-shot
+            // (e.g. a regeneration shield). Duration-only floating replacements
+            // (one_shot: false) persist until their duration expires and must
+            // NOT be consumed on use.
+            if let ReplacementKey::Floating(iid) = a.key
+                && state.shields.iter().any(|s| s.id == iid && s.one_shot)
+            {
                 consume_shield(state, iid);
             }
             None // event replaced away
