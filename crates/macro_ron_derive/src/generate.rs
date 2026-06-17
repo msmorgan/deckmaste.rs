@@ -379,9 +379,11 @@ fn gen_serialize(input: &Input) -> TokenStream {
         let name = v_ident.to_string();
         let index = u32::try_from(index).expect("variant index fits in u32");
         match (v.marker, &v.shape) {
-            // Invocation write-back, compartment transparency, and the
-            // name-erased newtype embed: all delegate to the payload.
-            (Some(Marker::Expanded | Marker::Flatten), _)
+            // Invocation write-back, compartment transparency, the bare-numeral
+            // literal, and the name-erased newtype embed: all delegate to the
+            // payload — so a literal writes `3`, never `Literal(3)`. (The read
+            // side is the literal-aware reader in `deckmaste_core::ron`.)
+            (Some(Marker::Expanded | Marker::Flatten | Marker::Literal), _)
             | (Some(Marker::Embed), Shape::Newtype(_)) => arms.push(quote! {
                 #ty::#v_ident(__f0) => ::serde::Serialize::serialize(__f0, serializer),
             }),

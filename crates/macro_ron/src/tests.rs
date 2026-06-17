@@ -1469,8 +1469,10 @@ mod derived {
         set
     }
 
-    /// The generated `Serialize`/`Deserialize` round-trip plain variants
-    /// through plain ron — no macro layer involved.
+    /// The generated `Serialize`/`Deserialize` round-trip the non-literal
+    /// variants through plain ron. A `literal` variant writes bare (`2`, not
+    /// `Lit(2)`), so reading it back needs the kind-aware reader that splices
+    /// the bare numeral — exercised via the 2-tuple case below.
     #[test]
     fn p1_round_trips() {
         // unit variant: "X" ↔ Amount::X
@@ -1486,11 +1488,12 @@ mod derived {
         let newtype_back: Amount = super::options().from_str(&newtype_text).unwrap();
         assert_eq!(newtype_back, newtype);
 
-        // 2-tuple variant: write→read round-trip
+        // 2-tuple variant carrying a literal: it writes bare (`Per("land", 2)`)
+        // and reads back through the kind-aware reader (bare-numeral splice).
         let amount = Amount::Per("land".to_owned(), Box::new(Amount::Lit(2)));
         let text = super::options().to_string(&amount).unwrap();
-        assert!(text.starts_with("Per("), "{text}");
-        let back: Amount = super::options().from_str(&text).unwrap();
+        assert_eq!(text, r#"Per("land",2)"#, "literal writes bare");
+        let back: Amount = amount_set().read_str(&text).unwrap();
         assert_eq!(back, amount);
     }
 
