@@ -63,10 +63,14 @@ fn starts_with_keyword(item: &str, keyword: &str) -> bool {
     item.is_char_boundary(keyword.len()) && item[..keyword.len()].eq_ignore_ascii_case(keyword)
 }
 
-/// Splits lines that are comma-separated lists of keyword abilities into one
-/// keyword per line, e.g. "Flying, vigilance" -> "Flying\nVigilance".
-/// Most lines aren't keyword lists, so nothing is allocated until one is.
+/// Splits lines that are separator-joined lists of keyword abilities into one
+/// keyword per line, e.g. "Flying, vigilance" -> "Flying\nVigilance". Keyword
+/// abilities chain on ", " — or, when a keyword carries reminder text
+/// ("First strike; reach (…)"), on "; ". Reminder text is stripped before
+/// this, so the separator is bare. Most lines aren't keyword lists, so nothing
+/// is allocated until one is.
 fn expand_keyword_lines(text: &str, keyword_abilities: &[DataStr<'_>]) -> String {
+    static SEPARATOR: LazyLock<Regex> = LazyLock::new(|| Regex::new(r", |; ").unwrap());
     let is_keyword = |item: &str| {
         keyword_abilities
             .iter()
@@ -74,8 +78,8 @@ fn expand_keyword_lines(text: &str, keyword_abilities: &[DataStr<'_>]) -> String
     };
     text.split('\n')
         .flat_map(|line| {
-            if line.split(", ").all(is_keyword) {
-                line.split(", ").map(capitalize).collect()
+            if SEPARATOR.split(line).all(is_keyword) {
+                SEPARATOR.split(line).map(capitalize).collect()
             } else {
                 vec![line.to_owned()]
             }
@@ -482,6 +486,24 @@ mod tests {
                 &keywords
             ),
             "First strike\nProtection from black and from red"
+        );
+        // Keyword abilities also chain on "; " — the form oracle text uses when
+        // a keyword carries reminder text ("First strike; reach (…)"). Reminder
+        // text is already stripped before this, so the separator is bare.
+        assert_eq!(
+            expand_keyword_lines("First strike; deathtouch", &keywords),
+            "First strike\nDeathtouch"
+        );
+        // A line may mix both separators.
+        assert_eq!(
+            expand_keyword_lines("First strike; deathtouch, protection from red", &keywords),
+            "First strike\nDeathtouch\nProtection from red"
+        );
+        // A "; " inside non-keyword prose is left alone (not every piece is a
+        // keyword, so the line isn't a keyword list).
+        assert_eq!(
+            expand_keyword_lines("Draw a card; then discard a card.", &keywords),
+            "Draw a card; then discard a card."
         );
     }
 
