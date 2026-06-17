@@ -467,6 +467,15 @@ impl GameState {
                 crate::target::stat_satisfies(snapshot_stat(self, snapshot, *stat), *cmp, count)
             }
 
+            // [CR#122.1]: counters are captured on the snapshot, so "had a
+            // +1/+1 counter on it" reads the DYING object's last-known counters
+            // ([CR#603.10a]) — the intervening-if of Undying/Persist
+            // ([CR#702.93a,702.79a]). Mirrors the live `HasCounter` arm
+            // (`target::matches_with`): present and positive.
+            Filter::State(StateFilter::HasCounter(kind)) => {
+                snapshot.counters.get(kind.as_str()).is_some_and(|&n| n > 0)
+            }
+
             // [CR#110.5]: tap state is captured on the snapshot; flip/face/
             // phasing are not (P0.W6).
             Filter::State(StateFilter::Status(status)) => {

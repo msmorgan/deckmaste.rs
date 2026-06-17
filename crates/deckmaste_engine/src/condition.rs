@@ -29,14 +29,34 @@ impl GameState {
             Condition::Exists(filter) => !crate::target::candidates(self, filter).is_empty(),
 
             // "if it is a [filter]" ([CR#603.4], "if it's a …"): resolve the
-            // reference to a live object and test the filter, anchoring
-            // `Ref(This)`/`Ref(You)` inside it to the ability's source. A
-            // snapshot-bound reference (e.g. `ThatObject` for an object that
-            // already left) rides `eval_reference`'s reference-breadth seam
-            // (`engine-resolve-selections`).
+            // reference and test the filter, anchoring `Ref(This)`/`Ref(You)`
+            // inside it to the ability's source.
+            //
+            // When the reference is an object that has LEFT (a dies-trigger's
+            // `This`/`ThatObject` — the live id is stale once it is in the
+            // graveyard), evaluate against its last-known information
+            // ([CR#603.10a]) via `filter_matches_snapshot`: Undying/Persist's
+            // intervening-if "if it had no +1/+1 (resp. -1/-1) counters on it"
+            // ([CR#702.93a,702.79a]) reads the DYING object's captured counters,
+            // which no live object holds. A live object takes the live path.
             Condition::Is(reference, filter) => {
+                let watcher = self.frame_watcher(frame);
                 let object = self.eval_reference(reference, frame);
-                self.filter_matches_live(filter, object, self.frame_watcher(frame))
+                if self.objects.get(object).is_some() {
+                    self.filter_matches_live(filter, object, watcher)
+                } else if let Some(snapshot) = Self::bound_snapshot(reference, frame) {
+                    self.filter_matches_snapshot(filter, snapshot, watcher)
+                } else {
+                    // A gone object with no bound snapshot: the reference cannot
+                    // be evaluated. No card reaches here today (the only gone
+                    // references are the snapshot-bound trigger roles); a future
+                    // gone-but-unbound reference is a real seam, not a silent
+                    // `false`.
+                    todo!(
+                        "engine-filter-breadth: Is({reference:?}, …) over a gone object with no \
+                         bound LKI snapshot"
+                    )
+                }
             }
 
             // [CR#701.3b,303.4d,704.5m]: the referenced attachment is legally
@@ -95,6 +115,25 @@ impl GameState {
         }
     }
 
+    /// The last-known-information snapshot a trigger bound for `reference`, if
+    /// any ([CR#603.10a]) — the fallback a `Condition::Is` over a gone object
+    /// reads. Only the snapshot-bearing trigger roles resolve: `This` → the
+    /// firing object's self, `ThatObject` → the moved object. Looks through an
+    /// `Expanded` macro reference, mirroring `eval_reference`.
+    fn bound_snapshot<'f>(
+        reference: &deckmaste_core::Reference,
+        frame: &'f Frame,
+    ) -> Option<&'f crate::lki::LkiSnapshot> {
+        use deckmaste_core::Reference;
+        let bindings = frame.bindings.as_ref()?;
+        match reference {
+            Reference::This => bindings.this.as_ref(),
+            Reference::ThatObject => bindings.that_object.as_ref(),
+            Reference::Expanded(e) => Self::bound_snapshot(&e.value, frame),
+            _ => None,
+        }
+    }
+
     /// [CR#307.1,117.1a]: `player` could cast a sorcery right now — their
     /// turn, a main phase, stack (and announce slot) empty. The same facts
     /// `Window::SorcerySpeed`'s activation gate reads; `kw-flash`'s
@@ -127,6 +166,7 @@ mod tests {
     use deckmaste_core::Reference;
     use deckmaste_core::StateFilter;
     use deckmaste_core::Type;
+    use deckmaste_core::Uint;
     use deckmaste_core::Window;
     use deckmaste_core::Zone;
 
@@ -423,6 +463,111 @@ mod tests {
         assert!(
             !runs_effect(false),
             "condition false at resolution → ability removed, no effect ([CR#603.4])"
+        );
+    }
+
+    /// [CR#603.10a,702.93a,702.79a]: a dies-trigger intervening-if reads the
+    /// DYING object's last-known counters. After the live object is gone (its
+    /// id stale), `Is(This, HasCounter(P1P1Counter))` resolves against the LKI
+    /// snapshot the fired trigger carries in `bindings.this`, not a live
+    /// object. With +1/+1 counters captured it holds (so Undying's
+    /// `Not(...)` intervening-if is false → no return); with none captured
+    /// it is false (so Undying fires). The -1/-1 mirror covers Persist.
+    #[test]
+    fn is_this_over_dying_object_reads_snapshot_counters() {
+        use deckmaste_core::CounterRef;
+
+        // Build a frame whose `This` is the snapshot of a since-removed creature
+        // carrying `counters`, and ask whether `Is(This, HasCounter(kind))`
+        // holds. The live object is removed so only the snapshot path can answer.
+        let holds = |counters: &[(&str, Uint)], kind: &str| -> bool {
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let mut state = GameState::new(GameConfig {
+                players: vec![
+                    PlayerConfig {
+                        deck: vec![Arc::clone(&bears); 4],
+                    },
+                    PlayerConfig {
+                        deck: vec![Arc::clone(&bears); 4],
+                    },
+                ],
+                seed: 9,
+                starting_life: 20,
+                starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            });
+            let bear_card = state.cards.push(Arc::clone(&bears), PlayerId(0));
+            let bear = state.objects.mint(
+                ObjectSource::Card(bear_card),
+                PlayerId(0),
+                Some(Zone::Battlefield),
+            );
+            for (k, n) in counters {
+                state.objects.obj_mut(bear).counters.insert((*k).into(), *n);
+            }
+            // Snapshot the creature, then remove it (it "died"): the id is now
+            // stale, so a live read would fail — only the snapshot can answer.
+            let snapshot = LkiSnapshot::capture(&state, bear);
+            state.objects.remove(bear);
+            assert!(
+                state.objects.get(bear).is_none(),
+                "the dying object's id is stale after removal"
+            );
+
+            let frame = Frame {
+                source: bear,
+                controller: PlayerId(0),
+                targets: vec![],
+                bindings: Some(TriggerBindings {
+                    this: Some(snapshot),
+                    that_object: None,
+                    that_player: None,
+                }),
+                chosen: None,
+                x: None,
+                subject: None,
+            };
+            let cond = Condition::Is(
+                Reference::This,
+                Filter::State(StateFilter::HasCounter(CounterRef::from(kind))),
+            );
+            state.condition_holds(&cond, &frame)
+        };
+
+        // Undying: "had no +1/+1 counters" reads the snapshot's +1/+1 count.
+        assert!(
+            holds(&[("P1P1Counter", 1)], "P1P1Counter"),
+            "a +1/+1 counter on the dying object reads true via LKI"
+        );
+        assert!(
+            !holds(&[], "P1P1Counter"),
+            "no counters → HasCounter(P1P1Counter) is false via LKI"
+        );
+        // A different kind on the object does not satisfy the queried kind.
+        assert!(
+            !holds(&[("M1M1Counter", 2)], "P1P1Counter"),
+            "only -1/-1 counters → HasCounter(P1P1Counter) is false"
+        );
+        // Persist: the -1/-1 mirror.
+        assert!(
+            holds(&[("M1M1Counter", 1)], "M1M1Counter"),
+            "a -1/-1 counter on the dying object reads true via LKI"
+        );
+        assert!(
+            !holds(&[], "M1M1Counter"),
+            "no counters → HasCounter(M1M1Counter) is false via LKI"
+        );
+
+        // The full Undying intervening-if `Not(Is(This, HasCounter(P1P1)))`:
+        // false (don't return) when a +1/+1 counter was present, true (return)
+        // when none.
+        let undying_if = |counters: &[(&str, Uint)]| -> bool { !holds(counters, "P1P1Counter") };
+        assert!(
+            !undying_if(&[("P1P1Counter", 1)]),
+            "Undying intervening-if is false when it had a +1/+1 counter"
+        );
+        assert!(
+            undying_if(&[]),
+            "Undying intervening-if is true when it had no +1/+1 counters"
         );
     }
 

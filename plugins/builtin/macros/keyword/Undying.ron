@@ -1,0 +1,45 @@
+// Undying = a triggered ability [CR#702.93a]: "Undying" means "When this
+// permanent is put into a graveyard from the battlefield, if it had no +1/+1
+// counters on it, return it to the battlefield under its owner's control with a
+// +1/+1 counter on it." A non-parameterized keyword (no printed argument), so
+// no `params` — the invocation is the bare name (`Undying`), like Wither/Infect.
+//
+// Pieces (all representable over existing primitives):
+//   - trigger:        `ThisDies` — the `ZoneMove(what: Ref(This), from:
+//                     Battlefield, to: Graveyard)` macro ([CR#700.4]). The same
+//                     dies-event the morbid window watches.
+//   - intervening-if [CR#603.4]: "if it had no +1/+1 counters on it" =
+//                     `Not(Is(This, HasCounter(P1P1Counter)))` — the dying
+//                     object (`This`, read through last-known information,
+//                     [CR#603.10a]) holds zero +1/+1 counters.
+//   - resolution:     a `Sequence` — first `Move(This, Battlefield)` (the
+//                     source-agent plain zone change that returns the dead card
+//                     to the battlefield under its owner's control, [CR#400.7];
+//                     a graveyard→battlefield destination is the object's
+//                     owner's), then `PutCounters(This, P1P1Counter, 1)` — the
+//                     reborn permanent enters with one +1/+1 counter
+//                     ([CR#122.1a]).
+//
+// The intervening-if reads the DYING object's last-known counters. The engine
+// captures the leaving object's counters on its `LkiSnapshot` and evaluates a
+// dies-trigger `Is(This, …)` against that snapshot once the live object is gone
+// (engine `filter_matches_snapshot`'s `HasCounter` arm); see the engine tests
+// `lki_snapshot_captures_counters` and `is_this_reads_dying_object_counters`.
+// Graduation (parse + round-trip) is independent of that and holds: this body
+// expands to valid RON and round-trips.
+(
+    name: "Undying",
+    template: "undying",
+    kinds: [KeywordAbility],
+    body: Composite(
+        name: "Undying",
+        abilities: [Triggered(
+            event: ThisDies,
+            condition: Not(Is(This, HasCounter(P1P1Counter))),
+            effect: Sequence([
+                Move(This, Battlefield),
+                PutCounters(This, P1P1Counter, 1),
+            ]),
+        )],
+    ),
+)

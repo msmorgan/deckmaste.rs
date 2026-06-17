@@ -1,0 +1,40 @@
+// Persist = a triggered ability [CR#702.79a]: "Persist" means "When this
+// permanent is put into a graveyard from the battlefield, if it had no -1/-1
+// counters on it, return it to the battlefield under its owner's control with a
+// -1/-1 counter on it." Undying's mirror: -1/-1 counters in place of +1/+1, in
+// both the intervening-if condition and the entering counter. A
+// non-parameterized keyword (no printed argument), so no `params`.
+//
+// Pieces (all representable over existing primitives):
+//   - trigger:        `ThisDies` — the `ZoneMove(what: Ref(This), from:
+//                     Battlefield, to: Graveyard)` macro ([CR#700.4]).
+//   - intervening-if [CR#603.4]: "if it had no -1/-1 counters on it" =
+//                     `Not(Is(This, HasCounter(M1M1Counter)))` — the dying
+//                     object (`This`, read through last-known information,
+//                     [CR#603.10a]) holds zero -1/-1 counters.
+//   - resolution:     a `Sequence` — first `Move(This, Battlefield)` (return
+//                     the dead card to the battlefield under its owner's
+//                     control, [CR#400.7]), then `PutCounters(This, M1M1Counter,
+//                     1)` — the reborn permanent enters with one -1/-1 counter
+//                     ([CR#122.1a]).
+//
+// The intervening-if reads the DYING object's last-known counters, via the same
+// `LkiSnapshot`-counter capture + `filter_matches_snapshot` `HasCounter` arm
+// Undying uses; see the engine tests. Graduation (parse + round-trip) holds:
+// this body expands to valid RON and round-trips.
+(
+    name: "Persist",
+    template: "persist",
+    kinds: [KeywordAbility],
+    body: Composite(
+        name: "Persist",
+        abilities: [Triggered(
+            event: ThisDies,
+            condition: Not(Is(This, HasCounter(M1M1Counter))),
+            effect: Sequence([
+                Move(This, Battlefield),
+                PutCounters(This, M1M1Counter, 1),
+            ]),
+        )],
+    ),
+)
