@@ -56,6 +56,11 @@ pub enum Effect {
     Unless(Unless),
     /// "For each [over], [do]" — binds the iterated object ([CR#608]).
     ForEach(ForEach),
+    /// `With(selection, body)` — binds the WHOLE ordered `selection` into the
+    /// frame as the plural anaphor `Those`, then runs `body` once. Never
+    /// distributes (that is `Each`/`ForEach`, which bind singular `That`).
+    /// `This` never rebinds; the moving roles are `That` / `Those`.
+    With(With),
     /// A delayed triggered ability created on resolution ([CR#603.7]).
     /// Note the object set the inner effect moves/touches under `key`
     /// ([CR#607.2a] exiled-with linkage).
@@ -177,6 +182,14 @@ fn ref_is_you(r: &Reference) -> bool {
 pub struct ForEach {
     pub over: Filter,
     pub effect: Box<Effect>,
+}
+
+/// `With { selection, body }` — `body`/`do` is a keyword, so the field is
+/// `body`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub struct With {
+    pub selection: crate::Selection,
+    pub body: Box<Effect>,
 }
 
 /// `Modal { choose, modes }` ([CR#700.2]).
@@ -385,5 +398,12 @@ mod tests {
             )),
         );
         assert_eq!(read(&write(&parsed)), parsed, "round-trip");
+    }
+
+    #[test]
+    fn with_binds_a_group() {
+        let v = read("With(selection:TopOfLibrary(count:2),body:Sequence([]))");
+        assert!(matches!(v, Effect::With(_)));
+        assert_eq!(read(&write(&v)), v);
     }
 }
