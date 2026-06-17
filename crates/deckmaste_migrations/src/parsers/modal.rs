@@ -201,7 +201,7 @@ pub(crate) fn fold_modal(face: &mut TodoCardFace, ctx: &ResolveCtx) -> bool {
     // EVERY bullet must parse, or we decline wholesale (no partial modal).
     let mut modes = Vec::with_capacity(bodies.len());
     for body in &bodies {
-        let Some(parsed) = effect::parse_clause(body) else {
+        let Some(parsed) = effect::parse_clause(body, ctx) else {
             return false;
         };
         modes.push(parsed);
