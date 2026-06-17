@@ -442,6 +442,34 @@ fn data_driven_plus_one_counter_pumps() {
     assert_eq!(view.toughness(bear), Some(4));
 }
 
+/// [CR#122.1b,613.1f]: a KEYWORD counter confers its keyword via the SAME
+/// data-driven mechanism as a +1/+1 counter — a `Continuous` boost, only the
+/// `Modification` differs (`GainAbility(Keyword(Flying))` vs `AddPower`). A
+/// `FlyingCounter` makes its bearer fly (layer 6).
+#[test]
+fn keyword_counter_confers_its_keyword() {
+    use deckmaste_core::Ident;
+    use deckmaste_engine::has_keyword_named;
+
+    let mut state = two_player_with("Grizzly Bears", 1, 10);
+    state.counter_decls = plugin("builtin").counters;
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    assert!(
+        !has_keyword_named(&state.layers(), bear, "Flying"),
+        "a plain Grizzly Bears does not fly"
+    );
+
+    state
+        .objects
+        .obj_mut(bear)
+        .counters
+        .insert(Ident::from("FlyingCounter"), 1);
+    assert!(
+        has_keyword_named(&state.layers(), bear, "Flying"),
+        "a FlyingCounter grants flying"
+    );
+}
+
 /// [CR#508.1a]: a permanent animated into a creature by a layer-4 effect is a
 /// legal attacker — combat legality reads the derived view, not the printed
 /// type.
