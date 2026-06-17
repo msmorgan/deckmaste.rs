@@ -261,8 +261,6 @@ pub enum PendingDecision {
     /// the choice via `ReplaceState` in `GameState.replace_state`.
     ChooseReplacement {
         chooser: PlayerId,
-        /// Index into the batch occurrence (0 for `Occurrence::Single`).
-        event_index: usize,
         /// The replacement keys the player may choose among (all applicable
         /// and not yet in the [CR#614.5] lineage set for this event chain).
         applicable: Vec<crate::replace_registry::ReplacementKey>,
