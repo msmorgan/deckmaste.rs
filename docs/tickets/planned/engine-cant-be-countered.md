@@ -2,7 +2,7 @@
 needs: []
 ---
 "Can't be countered" deontic. `Counter` exists only as an effect `Action`, not as
-a `DeonticAction` — so "~ can't be countered" [CR#701.5] has no representation,
+a `DeonticAction` — so "~ can't be countered" [CR#701.6a] has no representation,
 and the engine has no eval hook on the counter-resolution path to enforce it.
 
 Add `DeonticAction::Counter` (so a `Cant(Counter(This))` static can be authored)
