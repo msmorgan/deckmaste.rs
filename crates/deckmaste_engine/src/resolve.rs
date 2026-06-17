@@ -228,6 +228,36 @@ impl GameState {
         }
     }
 
+    /// [CR#614.3]: register a floating replacement shield (regeneration, "the
+    /// next time …") on `state.shields`. Mutates `&mut self`, so it can't ride
+    /// `action_items` (`&self`); the `Action::CreateReplacement` arm of
+    /// `run_effect` routes here.
+    fn create_shield(
+        &mut self,
+        replacement: deckmaste_core::Replacement,
+        subject: &deckmaste_core::Selection,
+        duration: deckmaste_core::Duration,
+        one_shot: bool,
+        frame: &Frame,
+    ) {
+        let id = self
+            .eval_selection_set(subject, frame)
+            .into_iter()
+            .next()
+            .expect("CreateReplacement subject must resolve to one object");
+        let iid = crate::replace_registry::InstanceId(self.next_shield_id);
+        self.next_shield_id += 1;
+        self.shields
+            .push(crate::replace_registry::ReplacementInstance {
+                id: iid,
+                replacement,
+                subject: id,
+                duration,
+                one_shot,
+                source: frame.source,
+            });
+    }
+
     /// Interpret one `Effect` node ([CR#608.2]). `Act` becomes one or more
     /// `Emit` work items (via `action_items`); `Sequence` expands to one
     /// `RunEffect` per child.
@@ -283,22 +313,7 @@ impl GameState {
                     one_shot,
                 } = action
                 {
-                    let id = self
-                        .eval_selection_set(&subject, frame)
-                        .into_iter()
-                        .next()
-                        .expect("CreateReplacement subject must resolve to one object");
-                    let iid = crate::replace_registry::InstanceId(self.next_shield_id);
-                    self.next_shield_id += 1;
-                    self.shields
-                        .push(crate::replace_registry::ReplacementInstance {
-                            id: iid,
-                            replacement: *replacement,
-                            subject: id,
-                            duration,
-                            one_shot,
-                            source: frame.source,
-                        });
+                    self.create_shield(*replacement, &subject, duration, one_shot, frame);
                 } else {
                     let items = self.action_items(&action, frame);
                     self.schedule_front(items);
