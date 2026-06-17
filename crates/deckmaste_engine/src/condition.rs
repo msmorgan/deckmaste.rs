@@ -699,6 +699,197 @@ mod tests {
         );
     }
 
+    /// [CR#702.100a] Evolve's intervening-if is a CROSS-OBJECT stat compare:
+    /// "that creature's power is greater than this creature's power AND/OR that
+    /// creature's toughness is greater than this creature's toughness". Because
+    /// `Condition::Compare` takes two full `Count`s (not a value-vs-literal),
+    /// `Compare(StatOf(ThatObject, _), Greater, StatOf(This, _))` compares two
+    /// DIFFERENT objects' derived stats directly — `This` = the Evolve carrier
+    /// (Grizzly Bears, 2/2), `ThatObject` = the entering creature, bound by the
+    /// trigger ([CR#603.10a]). The "and/or" is `OneOf`. No core addition is
+    /// needed; this test pins that the gap is already representable AND
+    /// engine-executable.
+    #[test]
+    fn evolve_cross_object_stat_compare() {
+        use deckmaste_core::Stat;
+
+        use crate::object::ObjectSource;
+
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap()); // 2/2 carrier
+        let courser = Arc::new(canon().card("Centaur Courser").unwrap()); // 3/3
+        let spider = Arc::new(canon().card("Giant Spider").unwrap()); // 2/4
+        let phantasm = Arc::new(canon().card("Phantasmal Bear").unwrap()); // 2/2
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 4],
+                },
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 4],
+                },
+            ],
+            seed: 5,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        });
+
+        // `This`: the Evolve carrier, a 2/2 Grizzly Bears.
+        let carrier_card = state.cards.push(bears, PlayerId(0));
+        let carrier = state.objects.mint(
+            ObjectSource::Card(carrier_card),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(carrier);
+
+        // The Evolve intervening-if, parameterized over the entering creature
+        // already bound as `ThatObject`.
+        let evolve_if = Condition::OneOf(vec![
+            Condition::Compare(
+                Count::StatOf(Reference::ThatObject, Stat::Power),
+                Cmp::Greater,
+                Count::StatOf(Reference::This, Stat::Power),
+            ),
+            Condition::Compare(
+                Count::StatOf(Reference::ThatObject, Stat::Toughness),
+                Cmp::Greater,
+                Count::StatOf(Reference::This, Stat::Toughness),
+            ),
+        ]);
+
+        // Build a trigger-style frame whose `This` is the carrier and whose
+        // `ThatObject` is the just-entered creature `entrant`.
+        let frame_for_entrant = |state: &GameState, entrant| Frame {
+            source: carrier,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: Some(TriggerBindings {
+                this: Some(LkiSnapshot::capture(state, carrier)),
+                that_object: Some(LkiSnapshot::capture(state, entrant)),
+                that_player: None,
+            }),
+            chosen: None,
+            x: None,
+            subject: None,
+        };
+
+        let enter = |state: &mut GameState, card: &Arc<deckmaste_core::Card>| {
+            let cid = state.cards.push(Arc::clone(card), PlayerId(0));
+            let id = state.objects.mint(
+                ObjectSource::Card(cid),
+                PlayerId(0),
+                Some(Zone::Battlefield),
+            );
+            state.zones.battlefield.push(id);
+            id
+        };
+
+        // 3/3 enters: greater power AND greater toughness → evolves.
+        let big = enter(&mut state, &courser);
+        assert!(
+            state.condition_holds(&evolve_if, &frame_for_entrant(&state, big)),
+            "a 3/3 entering vs a 2/2 carrier evolves (greater power and toughness)"
+        );
+
+        // 2/4 enters: equal power, GREATER toughness → still evolves (the OR's
+        // toughness branch carries it).
+        let tall = enter(&mut state, &spider);
+        assert!(
+            state.condition_holds(&evolve_if, &frame_for_entrant(&state, tall)),
+            "a 2/4 entering vs a 2/2 carrier evolves on toughness alone (and/or)"
+        );
+
+        // 2/2 enters: equal power AND equal toughness, neither GREATER → does
+        // not evolve ([CR#702.100a]: strictly greater, not >=).
+        let equal = enter(&mut state, &phantasm);
+        assert!(
+            !state.condition_holds(&evolve_if, &frame_for_entrant(&state, equal)),
+            "a 2/2 entering vs a 2/2 carrier does NOT evolve (no strictly-greater stat)"
+        );
+    }
+
+    /// [CR#702.54a] Bloodthirst's gate is the history condition "an opponent
+    /// was dealt damage this turn": `Happened(Performed(verb: "DealDamage", on:
+    /// OpponentOf(Ref(You))), within: ThisTurn)`. The engine's `Happened` scans
+    /// the turn history reusing the trigger matcher; `DealDamage` matches a
+    /// `DamageDealt` fact with `on` = the LIVE recipient ([CR#120.1]), so a
+    /// recipient who is an opponent of the carrier's controller passes
+    /// `OpponentOf(Ref(You))`. `Window::ThisTurn` is a real history-lookback
+    /// window — unlike Echo's "since your last upkeep", Bloodthirst needs no
+    /// new primitive. This test pins that the gap is already engine-executable:
+    /// false before any damage, true after damage to an opponent, and NOT
+    /// fooled by damage dealt to the carrier's own controller.
+    #[test]
+    fn bloodthirst_opponent_damaged_this_turn() {
+        use deckmaste_core::Filter;
+        use deckmaste_core::RelationFilter;
+
+        use crate::event::GameEvent;
+
+        let mut state = game();
+        state.turn.turn_number = 1;
+
+        // The Bloodthirst gate, evaluated from player 0's seat (You = P0).
+        let gate = Condition::Happened {
+            event: Event::Performed {
+                verb: "DealDamage".into(),
+                by: Filter::any(),
+                on: Filter::Relation(RelationFilter::OpponentOf(Box::new(Filter::Ref(
+                    Reference::You,
+                )))),
+            },
+            within: Window::ThisTurn,
+        };
+
+        // Player proxies are objects; damage to a player targets its proxy.
+        let p0 = state.player(PlayerId(0)).object;
+        let p1 = state.player(PlayerId(1)).object;
+
+        // No damage yet → the gate is false.
+        assert!(
+            !state.condition_holds(&gate, &frame_for(&state, PlayerId(0))),
+            "no opponent has been damaged yet"
+        );
+
+        // Damage dealt to player 0 (You) this turn must NOT satisfy "an
+        // opponent was dealt damage" from player 0's seat.
+        state.history.record(
+            1,
+            GameEvent::DamageDealt {
+                source: p1,
+                target: p0,
+                amount: 2,
+            },
+        );
+        assert!(
+            !state.condition_holds(&gate, &frame_for(&state, PlayerId(0))),
+            "damage to YOU is not damage to an opponent"
+        );
+
+        // Damage dealt to player 1 (an opponent of P0) this turn → the gate
+        // holds from player 0's seat.
+        state.history.record(
+            1,
+            GameEvent::DamageDealt {
+                source: p0,
+                target: p1,
+                amount: 3,
+            },
+        );
+        assert!(
+            state.condition_holds(&gate, &frame_for(&state, PlayerId(0))),
+            "an opponent was dealt damage this turn → Bloodthirst is on"
+        );
+
+        // Turn advances: the ThisTurn window no longer sees last turn's hit.
+        state.turn.turn_number = 2;
+        assert!(
+            !state.condition_holds(&gate, &frame_for(&state, PlayerId(0))),
+            "ThisTurn no longer sees last turn's opponent damage"
+        );
+    }
+
     /// Combinators: `Not(AllOf([OneOf([])]))` is true because `OneOf([])` is
     /// vacuously false → `AllOf` of a false is false → `Not` of false is true.
     #[test]

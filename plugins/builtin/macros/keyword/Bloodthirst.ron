@@ -1,0 +1,60 @@
+// Bloodthirst = a static ability [CR#702.54a]: "Bloodthirst N" means "If an
+// opponent was dealt damage this turn, this permanent enters with N +1/+1
+// counters on it." The printed N is the macro's `Count` param, threaded into
+// the magnitude of the conditional enters-with-counters. The parser emits the
+// bare numeral `Bloodthirst(6)`, which reads as `Count::Literal(6)` for
+// `Param(0)`.
+//
+// "Enters with N +1/+1 counters" is a self-replacement applied as this object
+// enters the battlefield ([CR#614.1c]): `Replacement::Also { would, also }`.
+// This is what the `AsEnters` prelude macro expands to (`Also(would:
+// ThisEnters, also: Param(0))`), but it is INLINED here rather than invoked:
+// a macro body can't thread its OWN `Param` into a nested macro's argument
+// slot (`AsEnters(...Param(0)...)` errors "Param(0) outside any macro
+// expansion") — the same constraint that forces Bushido's pump and
+// Intimidate's `SharesColorWith` to inline. The no-param `ThisEnters` event
+// macro carries nothing, so it stays an invocation; only the `also` effect,
+// which holds the forwarded `Param(0)`, must be inlined under `Also`.
+//
+// Here the `also` effect is CONDITIONAL — the counters land only "if an
+// opponent was dealt damage this turn" — so it is wrapped in
+// `If(condition, then)`:
+//   - condition = `Happened(event: Performed(verb: "DealDamage", on:
+//     OpponentOf(Ref(You))), within: ThisTurn)` ([CR#608.2i] history read):
+//     some damage was dealt this turn whose RECIPIENT (`on`) is an opponent of
+//     this permanent's controller. The engine's `Happened` scans the turn's
+//     history reusing the trigger event-matcher; `DealDamage` matches the
+//     `DamageDealt` fact with `on` = the live recipient, so a player recipient
+//     who is an opponent matches `OpponentOf(Ref(You))`. `Window::ThisTurn` is
+//     a real history-lookback window — unlike Echo's "since your last upkeep",
+//     this needs no new window, so Bloodthirst is FULLY engine-executable.
+//   - then = `PutCounters(This, P1P1Counter, Param(0))` ([CR#122.1a]): N +1/+1
+//     counters on this permanent.
+//
+// "Bloodthirst X" ([CR#702.54b], X = total damage dealt to your opponents this
+// turn) is a distinct special form (an unconditional enters-with-X-counters
+// whose magnitude is a damage tally) and is NOT this macro.
+//
+// Multiple bloodthirst instances apply separately ([CR#702.54c]); nothing here
+// dedupes, matching that.
+(
+    name: "Bloodthirst",
+    template: "bloodthirst ${0}",
+    kinds: [KeywordAbility],
+    params: [Count],
+    body: Composite(
+        name: "Bloodthirst",
+        abilities: [Static(effects: [
+            Replacement(Also(
+                would: ThisEnters,
+                also: If(
+                    condition: Happened(
+                        event: Performed(verb: "DealDamage", on: OpponentOf(Ref(You))),
+                        within: ThisTurn,
+                    ),
+                    then: PutCounters(This, P1P1Counter, Param(0)),
+                ),
+            )),
+        ])],
+    ),
+)
