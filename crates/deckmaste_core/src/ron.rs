@@ -29,6 +29,9 @@ pub fn kinds() -> KindSet {
     kinds.add(crate::Filter::kind());
     kinds.add(crate::KeywordAbility::kind());
     kinds.add(crate::ManaRider::kind());
+    // Change-bundling macros (`AddPowerToughness`, …) expand at `changes: [...]`
+    // positions to a `Several` bundle, flattened away before the engine.
+    kinds.add(crate::Modification::kind());
     kinds.add(crate::PlayerAction::kind());
     kinds.add(crate::Quantity::kind());
     kinds.add(crate::Reference::kind());

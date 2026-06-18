@@ -56,11 +56,19 @@ pub(super) fn filter_to_scope(f: &str) -> String {
     }
 }
 
-/// "+N/+M" / "-N/-M" / mixed → [<Add|Subtract>Power, <Add|Subtract>Toughness].
+/// "+N/+M" / "-N/-M" / mixed → the `changes` list. The both-positive case
+/// (`+N/+M`) emits the single `AddPowerToughness(N, M)` bundling macro, which
+/// expands to `Several([AddPower(N), AddToughness(M)])` and renders via its
+/// `"gets +{0}/+{1}"` template — the DRY anthem/pump form. Any negative side
+/// (the `-N` debuffs, mixed `+N/-M`) has no such macro, so it keeps the inline
+/// `[<Add|Subtract>Power, <Add|Subtract>Toughness]` pair.
 pub(super) fn parse_pt_changes(s: &str) -> Option<Vec<String>> {
     let (p, t) = s.split_once('/')?;
     let (pv, pn) = signed(p)?;
     let (tv, tn) = signed(t)?;
+    if pv == "Add" && tv == "Add" {
+        return Some(vec![format!("AddPowerToughness({pn}, {tn})")]);
+    }
     Some(vec![
         format!("{pv}Power({pn})"),
         format!("{tv}Toughness({tn})"),

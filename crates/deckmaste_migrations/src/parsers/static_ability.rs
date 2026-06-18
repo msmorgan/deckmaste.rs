@@ -182,7 +182,7 @@ mod tests {
         assert_eq!(
             stat("Creatures you control get +1/+1.").as_deref(),
             Some(
-                "Static(effects: [Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), changes: [AddPower(1), AddToughness(1)])])"
+                "Static(effects: [Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), changes: [AddPowerToughness(1, 1)])])"
             )
         );
     }
@@ -363,13 +363,13 @@ mod tests {
         assert_eq!(
             stat("Equipped creature gets +2/+0.").as_deref(),
             Some(
-                "Static(effects: [Modify(of: Of(AttachHostOf(This)), changes: [AddPower(2), AddToughness(0)])])"
+                "Static(effects: [Modify(of: Of(AttachHostOf(This)), changes: [AddPowerToughness(2, 0)])])"
             )
         );
         assert_eq!(
             stat("Equipped creature gets +1/+1 and has trample.").as_deref(),
             Some(
-                "Static(effects: [Modify(of: Of(AttachHostOf(This)), changes: [AddPower(1), AddToughness(1), GainAbility(Keyword(Trample))])])"
+                "Static(effects: [Modify(of: Of(AttachHostOf(This)), changes: [AddPowerToughness(1, 1), GainAbility(Keyword(Trample))])])"
             )
         );
     }
@@ -415,7 +415,7 @@ mod tests {
         assert_eq!(
             stat("Other Elf creatures you control get +1/+1.").as_deref(),
             Some(
-                "Static(effects: [Modify(of: Matching(AllOf([Creature, Not(Ref(This)), Subtype(\"Elf\"), ControlledBy(Ref(You))])), changes: [AddPower(1), AddToughness(1)])])"
+                "Static(effects: [Modify(of: Matching(AllOf([Creature, Not(Ref(This)), Subtype(\"Elf\"), ControlledBy(Ref(You))])), changes: [AddPowerToughness(1, 1)])])"
             )
         );
     }
@@ -425,7 +425,7 @@ mod tests {
         assert_eq!(
             stat("Other Goblins get +1/+1 and have mountainwalk.").as_deref(),
             Some(
-                "Static(effects: [Modify(of: Matching(AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])), changes: [AddPower(1), AddToughness(1), GainAbility(Keyword(Mountainwalk))])])"
+                "Static(effects: [Modify(of: Matching(AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])), changes: [AddPowerToughness(1, 1), GainAbility(Keyword(Mountainwalk))])])"
             )
         );
     }

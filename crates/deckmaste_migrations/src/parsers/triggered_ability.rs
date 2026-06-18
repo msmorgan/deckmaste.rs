@@ -546,7 +546,7 @@ mod tests {
             Some(
                 "Triggered(event: Enters(AllOf([Type(Land), ControlledBy(Ref(You))])), \
                  effect: Continuously(effect: Modify(of: Of(This), \
-                 changes: [AddPower(2), AddToughness(2)]), duration: FixedUntil(EndOfTurn)))"
+                 changes: [AddPowerToughness(2, 2)]), duration: FixedUntil(EndOfTurn)))"
             )
         );
     }

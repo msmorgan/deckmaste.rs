@@ -367,7 +367,7 @@ mod tests {
             rep("As ~ enters, ~ gets +1/+1 until end of turn.").as_deref(),
             Some(
                 "Static(effects: [Replacement(AsEnters(Continuously(effect: \
-                 Modify(of: Of(This), changes: [AddPower(1), AddToughness(1)]), \
+                 Modify(of: Of(This), changes: [AddPowerToughness(1, 1)]), \
                  duration: FixedUntil(EndOfTurn))))])"
             )
         );

@@ -90,6 +90,7 @@ mod tests {
     use deckmaste_core::Filter;
     use deckmaste_core::KeywordAbility;
     use deckmaste_core::ManaRider;
+    use deckmaste_core::Modification;
     use deckmaste_core::ObjectKind;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Quantity;
@@ -138,6 +139,7 @@ mod tests {
             name_of::<Filter>(),
             name_of::<KeywordAbility>(),
             name_of::<ManaRider>(),
+            name_of::<Modification>(),
             name_of::<PlayerAction>(),
             name_of::<Preference>(),
             name_of::<Quantity>(),
@@ -191,6 +193,73 @@ mod tests {
             ])
         );
         assert_eq!(arms.len(), 2);
+    }
+
+    /// A `Modification`-kind macro (`AddPowerToughness`) expands at a `changes:
+    /// [...]` slot: it is remembered as a `Modification::Expanded`, its body is
+    /// the `Several` bundle, the invocation round-trips as written, and
+    /// `Modification::flatten` (the engine boundary) splices it to the flat
+    /// two-op list. The keystone of the change-bundling design.
+    #[test]
+    fn modification_positions_expand_and_flatten() {
+        use deckmaste_core::Expand as _;
+        use deckmaste_core::Modification;
+        use deckmaste_core::Scope;
+
+        let mut macros = macro_set();
+        macros
+            .insert(&def(r#"(
+                    name: "AddPowerToughness",
+                    template: "gets +${0}/+${1}",
+                    kinds: [Modification],
+                    params: [Count, Count],
+                    body: Several([AddPower(Param(0)), AddToughness(Param(1))]),
+                )"#))
+            .unwrap();
+
+        // Read a whole `Modify` whose `changes` mixes the bundling macro with a
+        // plain ability grant — the Overrun shape.
+        let effect: StaticEffect = macros
+            .read_str("Modify(of: Of(This), changes: [AddPowerToughness(3, 3), GainAbility(Keyword(Trample))])")
+            .unwrap();
+        let StaticEffect::Modify { of, changes } = &effect else {
+            panic!("expected Modify, got {effect:?}");
+        };
+        assert_eq!(*of, Scope::Of(Reference::This));
+        // The macro is remembered as the first element; the grant is plain.
+        let Modification::Expanded(exp) = &changes[0] else {
+            panic!("expected a remembered modification, got {:?}", changes[0]);
+        };
+        assert_eq!(exp.name, "AddPowerToughness");
+        assert_eq!(
+            *exp.value,
+            Modification::Several(vec![
+                Modification::AddPower(Count::Literal(3)),
+                Modification::AddToughness(Count::Literal(3)),
+            ])
+        );
+
+        // Round-trips as the invocation, not the expansion.
+        let written = deckmaste_core::ron::options().to_string(&effect).unwrap();
+        assert_eq!(
+            written,
+            "Modify(of:Of(This),changes:[AddPowerToughness(3,3),GainAbility(Keyword(Trample))])"
+        );
+
+        // `expand_all` then `flatten` → the flat three-op engine-facing list:
+        // the bundle is spliced into the two P/T ops, the grant follows.
+        let StaticEffect::Modify { changes, .. } = effect.expand_all() else {
+            unreachable!()
+        };
+        let flat = Modification::flatten(changes);
+        assert_eq!(flat.len(), 3, "Several spliced to flat ops: {flat:?}");
+        assert_eq!(flat[0], Modification::AddPower(Count::Literal(3)));
+        assert_eq!(flat[1], Modification::AddToughness(Count::Literal(3)));
+        assert!(
+            matches!(flat[2], Modification::GainAbility(_)),
+            "the grant follows the P/T ops: {:?}",
+            flat[2]
+        );
     }
 
     /// Same pin for Selection positions: nothing exercises Selection macros

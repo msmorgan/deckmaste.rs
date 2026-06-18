@@ -63,7 +63,17 @@ pub enum Scope {
 /// CDA-flagged), `Switch` → 7d, types → 4, colors → 5, abilities → 6,
 /// controller → 2, text → 3 ([CR#613.1]). One effect's `changes` is a list
 /// because it can span layers applied to the same set ([CR#613.6]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+///
+/// `SupportsMacros` (not plain `Expand`) so a change-bundling macro can stand
+/// in a `changes: [...]` slot — the keystone being `AddPowerToughness(p, t)`,
+/// which expands to `Several([AddPower(p), AddToughness(t)])`. `Several` is the
+/// `Modification` analog of `Filter::AllOf`: a macro expands to ONE value, so a
+/// macro that must contribute several ops bundles them into a `Several`. Unlike
+/// `Filter::AllOf` (a conjunction the engine evaluates), `Several` is
+/// semantically inert — `changes` is already a flat, layer-spanning list
+/// ([CR#613.6]) — so it is flattened away once, at the engine boundary
+/// ([`Modification::flatten`]), and the engine layer loops never see it.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Modification {
     SetPower(Count),
     AddPower(Count),
@@ -109,6 +119,45 @@ pub enum Modification {
     /// gain the basic-land mana ability (Blood Moon). One intrinsic, not
     /// reachable from the plain `Set*` ops.
     BecomeBasicLandType(Vec<Ident>),
+    /// A bundle of ops contributed by one macro invocation — the analog of
+    /// `Filter::AllOf`. A macro expands to a single value, so a change-bundling
+    /// macro (`AddPowerToughness(p, t)`) produces `Several([AddPower(p),
+    /// AddToughness(t)])`. Semantically inert: `changes` is already a flat,
+    /// layer-spanning list ([CR#613.6]), so [`Modification::flatten`] splices a
+    /// `Several` into its parent list at the engine boundary and the engine
+    /// never sees this variant.
+    Several(Vec<Modification>),
+    /// A remembered `Modification` macro invocation. Serialized as the
+    /// invocation, not the struct; `expand_all` strips it to the bundled value.
+    #[macro_ron(expanded)]
+    Expanded(Expansion<Modification>),
+}
+
+impl Modification {
+    /// Splice every `Several` (recursively) into the parent list, the one
+    /// flatten-away pass for change-bundling macros. Run AFTER `expand_all`
+    /// (which turns `Expanded(AddPowerToughness(p, t))` into
+    /// `Several([AddPower, AddToughness])`) and BEFORE the engine consumes
+    /// `changes`: `changes` is semantically a flat, layer-spanning list
+    /// ([CR#613.6]), so `Several` is a pure expansion artifact normalized
+    /// away exactly once here. The engine's `layer_of`/`apply` then never
+    /// see `Several`/`Expanded`.
+    ///
+    /// Element-wise `expand_all` first (a stored `changes` list may still hold
+    /// `Expanded` invocations), then splice: a plain element passes through, a
+    /// `Several` recurses and splices its (already-flattened) members in place.
+    #[must_use]
+    pub fn flatten(changes: Vec<Modification>) -> Vec<Modification> {
+        use crate::Expand;
+        let mut out = Vec::with_capacity(changes.len());
+        for m in changes {
+            match m.expand_all() {
+                Modification::Several(inner) => out.extend(Modification::flatten(inner)),
+                other => out.push(other),
+            }
+        }
+        out
+    }
 }
 
 /// A step in the total-cost pipeline ([CR#601.2f]): base → +additional and
@@ -305,6 +354,61 @@ mod tests {
             "CantHappen(ZoneMove(what: Ref(This), from: Battlefield, to: Graveyard, cause: Cause(verb: \"Destroy\")))",
         );
         assert!(matches!(parsed, StaticEffect::CantHappen(_)));
+    }
+
+    /// `Modification::flatten` splices a `Several` bundle into its parent list
+    /// (recursively) and leaves plain ops untouched — the one flatten-away pass
+    /// for change-bundling macros. A `Several([AddPower, AddToughness])` (what
+    /// `AddPowerToughness(3, 3)` expands to) followed by a `GainAbility`
+    /// becomes the flat three-op list the engine consumes.
+    #[test]
+    fn flatten_splices_several() {
+        let changes = vec![
+            Modification::Several(vec![
+                Modification::AddPower(Count::Literal(3)),
+                Modification::AddToughness(Count::Literal(3)),
+            ]),
+            Modification::LoseAllAbilities,
+            // A nested Several splices recursively.
+            Modification::Several(vec![Modification::Several(vec![Modification::AddColors(
+                vec![Color::White],
+            )])]),
+        ];
+        assert_eq!(
+            Modification::flatten(changes),
+            vec![
+                Modification::AddPower(Count::Literal(3)),
+                Modification::AddToughness(Count::Literal(3)),
+                Modification::LoseAllAbilities,
+                Modification::AddColors(vec![Color::White]),
+            ],
+        );
+    }
+
+    /// `flatten` runs `expand_all` element-wise first, so a stored `changes`
+    /// list still holding an `Expanded(Several([...]))` invocation (the
+    /// `AddPowerToughness` shape) flattens to its bundled ops.
+    #[test]
+    fn flatten_strips_expanded_invocations() {
+        use crate::Expansion;
+        use crate::ExpansionArgs;
+        let expanded = Modification::Expanded(Expansion {
+            name: "AddPowerToughness".into(),
+            args: ExpansionArgs::Positional(vec!["2".into(), "0".into()]),
+            template: Some("gets +${0}/+${1}".into()),
+            value: Box::new(Modification::Several(vec![
+                Modification::AddPower(Count::Literal(2)),
+                Modification::AddToughness(Count::Literal(0)),
+            ])),
+        });
+        assert_eq!(
+            Modification::flatten(vec![expanded, Modification::SwitchPowerToughness]),
+            vec![
+                Modification::AddPower(Count::Literal(2)),
+                Modification::AddToughness(Count::Literal(0)),
+                Modification::SwitchPowerToughness,
+            ],
+        );
     }
 
     /// A deontic clause reads flat and serializes flat — the compartment
