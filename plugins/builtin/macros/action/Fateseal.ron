@@ -1,0 +1,13 @@
+// "Fateseal N" [CR#701.29a]: look at the top N cards of an opponent's library,
+// then put any number of them on the bottom of that library and the rest on top
+// in any order.
+(
+    name: "Fateseal",
+    template: "fateseal ${0}",
+    kinds: [Effect],
+    params: [Count],
+    body: With(
+        selection: TopOfLibrary(count: Param(0), of: Opponent),
+        body: Distribute(group: Those, bins: [Top, Bottom], name: "Fateseal"),
+    ),
+)

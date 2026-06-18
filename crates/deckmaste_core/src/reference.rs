@@ -15,6 +15,13 @@ mod tests {
         let w = crate::ron::options().to_string(&v).unwrap();
         assert_eq!(read(&w), v);
     }
+
+    #[test]
+    fn opponent_round_trips() {
+        let v = Reference::Opponent;
+        let w = crate::ron::options().to_string(&v).unwrap();
+        assert_eq!(read(&w), v);
+    }
 }
 
 /// A bound variable: a value fixed earlier (at announce, by the rules of
@@ -32,6 +39,10 @@ pub enum Reference {
     This,
     /// The controller of this ability ([CR#109.5]).
     You,
+    /// An opponent of `You` ([CR#102.1]); in a two-player game, the other
+    /// player. Multiplayer "an opponent" that requires a choice is a future
+    /// edge — single-opponent assumption for now.
+    Opponent,
     /// The object a per-object filter is currently testing — "it" relative to
     /// the matched candidate, not the carrier. Bound only inside a
     /// [`Filter::Where`](crate::Filter::Where) (and re-bound to the related
