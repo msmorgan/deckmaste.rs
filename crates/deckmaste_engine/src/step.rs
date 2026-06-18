@@ -1232,6 +1232,9 @@ impl GameState {
         bins: Vec<deckmaste_core::Bin>,
         name: deckmaste_core::Ident,
     ) -> Progress {
+        for &object in &window {
+            self.look_grants.insert((player, object));
+        }
         self.pending = Some(PendingDecision::Distribute {
             player,
             window,
@@ -1652,6 +1655,44 @@ mod tests {
         assert_eq!(top.x, Some(3));
         // The returned pending lets callers run their own debug-asserts.
         assert_eq!(pending.id, id);
+    }
+
+    /// `open_distribute` grants the DECIDER (looker) visibility over every
+    /// object in the window, not the owner. This is the invariant Fateseal
+    /// relies on: player 0 distributes cards owned/controlled by player 1, but
+    /// the look_grant goes to player 0, not player 1.
+    #[test]
+    fn distribute_grants_looker_visibility() {
+        let mut state = game();
+        // Mint two objects into player 1's library (owner is player 1).
+        let x = state.objects.mint(
+            ObjectSource::Player(PlayerId(1)),
+            PlayerId(1),
+            Some(Zone::Library),
+        );
+        let y = state.objects.mint(
+            ObjectSource::Player(PlayerId(1)),
+            PlayerId(1),
+            Some(Zone::Library),
+        );
+        let window = vec![x, y];
+        let bins = vec![deckmaste_core::Bin::Top, deckmaste_core::Bin::Bottom];
+        // Player 0 is the looker/decider (fateseal scenario).
+        state.open_distribute(PlayerId(0), window, bins, "Fateseal".into());
+        // Looker (player 0) gets grants for both objects.
+        assert!(
+            state.look_grants.contains(&(PlayerId(0), x)),
+            "looker gets grant for x"
+        );
+        assert!(
+            state.look_grants.contains(&(PlayerId(0), y)),
+            "looker gets grant for y"
+        );
+        // Owner (player 1) does NOT get a grant from player 0's look.
+        assert!(
+            !state.look_grants.contains(&(PlayerId(1), x)),
+            "owner is NOT granted by looker's distribute"
+        );
     }
 
     /// Applying `GotDesignation` writes the player-scope designation store, and
