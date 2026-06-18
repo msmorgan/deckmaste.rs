@@ -1561,4 +1561,48 @@ mod tests {
         nonlegendary_creature(&mut state, "Mox", PlayerId(0)); // not legendary
         assert!(sba::legend_rule_groups(&state).is_empty());
     }
+
+    /// Build a `This`-anchored frame for `id`, mirroring the literal used in
+    /// `attachment_sbas` and `global_sba_rules`.
+    fn this_frame(state: &GameState, id: crate::object::ObjectId) -> crate::stack::Frame {
+        crate::stack::Frame {
+            source: id,
+            controller: state.objects.obj(id).controller,
+            targets: Vec::new(),
+            bindings: None,
+            chosen: None,
+            x: None,
+            subject: None,
+        }
+    }
+
+    /// [CR#120.3]: `Count::Damage(Reference::This)` reads an object's marked
+    /// damage. Grizzly Bears has toughness 2; at 2 damage the lethal-damage
+    /// condition holds; at 1 it does not.
+    #[test]
+    fn damage_count_reads_marked_damage() {
+        use deckmaste_core::Cmp;
+        use deckmaste_core::Condition;
+        use deckmaste_core::Count;
+        use deckmaste_core::Reference;
+        use deckmaste_core::Stat;
+
+        let (mut state, bear) = bear_on_field(); // Grizzly Bears, toughness 2
+        let frame = this_frame(&state, bear);
+        let lethal = Condition::Compare(
+            Count::Damage(Reference::This),
+            Cmp::AtLeast,
+            Count::StatOf(Reference::This, Stat::Toughness),
+        );
+        state.objects.obj_mut(bear).damage = 2;
+        assert!(
+            state.condition_holds(&lethal, &frame),
+            "2 damage >= toughness 2"
+        );
+        state.objects.obj_mut(bear).damage = 1;
+        assert!(
+            !state.condition_holds(&lethal, &frame),
+            "1 damage < toughness 2"
+        );
+    }
 }

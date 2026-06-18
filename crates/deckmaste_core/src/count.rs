@@ -73,6 +73,10 @@ pub enum Count {
     EventSum(Box<crate::Event>, crate::Window),
     /// A noted number read back from a slot ([CR#607.2] linked values).
     Noted(crate::Ident),
+    /// Marked damage on a referenced object ([CR#120.3]) — "damage marked on
+    /// ~". Used by the lethal-damage SBA: `Compare(Damage(This), AtLeast,
+    /// StatOf(This, Toughness))`.
+    Damage(Reference),
     /// A remembered `Count` macro invocation.
     #[macro_ron(expanded)]
     Expanded(Expansion<Count>),

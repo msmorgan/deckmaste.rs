@@ -20,6 +20,16 @@ pub(super) fn count(c: &Count) -> String {
     match c {
         Count::Literal(n) => n.to_string(),
         Count::X => "X".to_string(),
+        Count::Damage(r) => format!(
+            "damage marked on {}",
+            reference(
+                r,
+                &Ctx {
+                    subject: "it",
+                    targets: &[]
+                }
+            )
+        ),
         other => format!("[unrendered: {other:?}]"),
     }
 }
