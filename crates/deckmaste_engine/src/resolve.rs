@@ -19,7 +19,6 @@ use deckmaste_core::TargetSpec;
 use deckmaste_core::Type;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
-
 use rand::seq::SliceRandom;
 
 use crate::agenda::WorkItem;
@@ -1645,6 +1644,12 @@ impl GameState {
         // evaluated — a hexproof granted after announce fizzles the spell.
         let view = self.layers();
         let rows = crate::legal::cant_target_rows(self, &view);
+        // The carrier is the stack object's source — for a trigger the stack id
+        // is minted with the ability's `source`, so this anchors `Ref(This)` /
+        // `StatOf(This, …)` in a target filter back to the source object, the
+        // same carrier the announce path used (Mentor's lesser-power recheck,
+        // [CR#702.134a,608.2b]).
+        let carrier = Some(self.objects.obj(entry.id).source);
         specs.iter().zip(&entry.targets).all(|(spec, &chosen)| {
             // [CR#608.2b]: a target that no longer exists (reminted on zone
             // change) is trivially illegal — the filter can't be satisfied.
@@ -1652,7 +1657,7 @@ impl GameState {
                 return false;
             }
             let filter = target_spec_filter(spec);
-            crate::target::matches(self, chosen, filter)
+            crate::target::matches_with(self, chosen, filter, carrier)
                 && crate::legal::target_forbidden_by(self, &rows, entry.id, chosen).is_none()
         })
     }
@@ -1839,10 +1844,10 @@ mod tests {
     use crate::state::StartingPlayer;
     use crate::step::Progress;
     use crate::step::StepOutcome;
-    use crate::trigger::TriggerBindings;
     use crate::test_support::frame_for;
     use crate::test_support::frame_src;
     use crate::test_support::frame_src_targets;
+    use crate::trigger::TriggerBindings;
 
     fn builtin() -> Plugin {
         Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
@@ -3648,10 +3653,11 @@ mod tests {
     fn counter_ability_ceases() {
         let (mut state, bear) = bear_on_field();
         // Mint a token id for the ability.
-        let ability_id =
-            state
-                .objects
-                .mint(ObjectSource::Player(PlayerId(0)), PlayerId(0), Some(Zone::Stack));
+        let ability_id = state.objects.mint(
+            ObjectSource::Player(PlayerId(0)),
+            PlayerId(0),
+            Some(Zone::Stack),
+        );
         state.stack.push(StackEntry {
             id: ability_id,
             object: StackObject::Triggered {
@@ -3683,9 +3689,10 @@ mod tests {
             "minted ability id gone"
         );
 
-        let found = state.history.scan(Window::ThisGame, state.turn.turn_number).any(|e| {
-            matches!(e, GameEvent::AbilityCountered { id, .. } if *id == ability_id)
-        });
+        let found = state
+            .history
+            .scan(Window::ThisGame, state.turn.turn_number)
+            .any(|e| matches!(e, GameEvent::AbilityCountered { id, .. } if *id == ability_id));
         assert!(found, "AbilityCountered event must be recorded in history");
     }
 
