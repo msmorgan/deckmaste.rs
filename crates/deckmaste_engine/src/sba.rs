@@ -301,11 +301,48 @@ fn global_sba_rules(state: &GameState) -> Vec<GameEvent> {
                 continue;
             }
             if state.condition_holds(&rule.when, &frame) {
-                out.extend(run_sba_effect(state, &rule.then, &frame));
+                for mut ev in run_sba_effect(state, &rule.then, &frame) {
+                    stamp_sba_cause(&mut ev);
+                    out.push(ev);
+                }
             }
         }
     }
     out
+}
+
+/// Re-attribute a rules-SBA-emitted event to the state-based action itself
+/// ([CR#704]): a state-based action has no agent — it is the game performing
+/// the action, not an effect or the object. Preserves the cause's verb when
+/// one already exists (e.g. the `WillDestroy` "Destroy" verb stays). For
+/// events whose `cause` is `None` (plain `Move` actions), upserts a
+/// `StateBasedAction` cause so no rules-SBA event goes unattributed.
+fn stamp_sba_cause(ev: &mut GameEvent) {
+    let cause_slot = match ev {
+        GameEvent::WillDestroy { cause, .. } | GameEvent::ZoneWillChange { cause, .. } => {
+            Some(cause)
+        }
+        _ => None,
+    };
+    let Some(cause_opt) = cause_slot else {
+        return;
+    };
+    match cause_opt {
+        Some(cause) => {
+            // Preserve the verb; only correct the agency and clear the agent.
+            cause.agency = deckmaste_core::Agency::StateBasedAction;
+            cause.agent = None;
+        }
+        None => {
+            // No verb yet (plain Move has no cause-verb fact); upsert a
+            // generic SBA cause so the event is attributed ([CR#704]).
+            *cause_opt = Some(crate::event::Cause {
+                verb: "Move".into(),
+                agency: deckmaste_core::Agency::StateBasedAction,
+                agent: None,
+            });
+        }
+    }
 }
 
 /// Run an SBA `then`/`effect` purely (no apply) into the events it produces:
@@ -1400,6 +1437,42 @@ mod tests {
             !state.zones.graveyards[0].is_empty(),
             "it went to the graveyard"
         );
+    }
+
+    /// [CR#704] rules-SBA events must carry `StateBasedAction` agency and no
+    /// agent — the game performs them, not an effect or the object itself.
+    /// The toughness-0 rule emits a `Move` (`ZoneWillChange`) with `cause:
+    /// None` today; after the stamp it must have `agency ==
+    /// StateBasedAction` and `agent.is_none()`.
+    #[test]
+    fn rules_sba_events_carry_state_based_action_cause() {
+        let (mut state, bear) = bear_on_field();
+        state.sba_rules = builtin().sba_rules;
+        state.counter_decls = builtin().counters;
+        // Grizzly Bears toughness 2; two -1/-1 counters drop it to 0.
+        state
+            .objects
+            .obj_mut(bear)
+            .counters
+            .insert("M1M1Counter".into(), 2);
+        let actions = sba::sweep(&state);
+        let move_ev = actions
+            .iter()
+            .find(|e| {
+                matches!(e,
+                    GameEvent::ZoneWillChange { object, to: Zone::Graveyard, .. }
+                    if *object == bear)
+            })
+            .expect("toughness-0 ZoneWillChange must be present");
+        let GameEvent::ZoneWillChange { cause: Some(c), .. } = move_ev else {
+            panic!("rules-SBA ZoneWillChange must carry a cause after the stamp; got {move_ev:?}")
+        };
+        assert_eq!(
+            c.agency,
+            deckmaste_core::Agency::StateBasedAction,
+            "rules-SBA event must have StateBasedAction agency"
+        );
+        assert!(c.agent.is_none(), "a state-based action has no agent");
     }
 
     /// [CR#704.5i]: a planeswalker with loyalty 0 is put into its owner's
