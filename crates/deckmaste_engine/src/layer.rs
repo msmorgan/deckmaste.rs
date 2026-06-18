@@ -739,13 +739,130 @@ fn resolve_scope(
 // Apply
 // ---------------------------------------------------------------------------
 
-/// Evaluate a `Count` to an `Int`. Only `Literal` is resolved here; all
-/// other variants default to `0` (documented limitation — CDAs and dynamic
-/// counts are a later task).
-fn eval_count(n: &Count) -> Int {
+/// Resolve a `Count`'s `Reference` to a concrete `ObjectId` against the working
+/// pass, anchoring carrier refs (`This`, `AttachHostOf(This)`, …) to the
+/// effect's `watcher` ([CR#611.2c]). The watcher's live carrier object (the one
+/// whose `source == watcher`) is the `This` `resolve_source_relative` resolves
+/// from. A `Frame`-only reference (`Target`, bindings, the player-valued
+/// `You`/`ControllerOf`/`OwnerOf`) yields nothing here — the same documented
+/// seam `resolve_source_relative` carries — so a count built on it defaults to
+/// `0`.
+fn resolve_count_ref(
+    state: &GameState,
+    reference: &deckmaste_core::Reference,
+    watcher: Option<ObjectSource>,
+) -> Option<ObjectId> {
+    let source = state.objects.iter().find(|o| Some(o.source) == watcher)?.id;
+    resolve_source_relative(state, source, reference)
+        .into_iter()
+        .next()
+}
+
+/// Evaluate a `Count` to an `Int` against the IN-PROGRESS derived map
+/// (`working`) being built this pass — never `self.layers()` (that would
+/// recurse the layer build) and never a `Frame` (which the layer pass lacks).
+/// This is the layer-side sibling of `resolve.rs::eval_count`, mirroring each
+/// variant's meaning but sourcing derived P/T from `working` instead of a
+/// rebuilt view.
+///
+/// FIXPOINT BOUNDARY: counts are evaluated against `working` exactly as applied
+/// so far this pass. The MTG layer order ([CR#613.3,613.7]) guarantees a count
+/// that depends on an EARLIER layer already sees that layer's final value (a 7a
+/// CDA counting creatures reads the post-L4 types). A count depending on
+/// another object's SAME-or-LATER-layer derived value is the separate
+/// `engine-layers-fixpoint` ticket; this evaluator does not iterate.
+fn eval_count(
+    n: &Count,
+    state: &GameState,
+    working: &BTreeMap<ObjectId, DerivedObject>,
+    watcher: Option<ObjectSource>,
+) -> Int {
+    use deckmaste_core::Stat;
     match n {
         Count::Literal(v) => (*v).cast_signed(),
-        _ => 0,
+        // "For each …": the filter's cardinality over the working derived map,
+        // matched the same way scopes are ([CR#613.6] — `matches_derived`), so a
+        // count over types/colors sees the values earlier layers produced.
+        Count::CountOf(filter) => {
+            let count = working
+                .keys()
+                .copied()
+                .filter(|&id| matches_derived(state, working, id, filter, watcher))
+                .count();
+            Int::try_from(count).expect("object count fits Int")
+        }
+        // "Equal to its power": resolve the reference, read the DERIVED stat off
+        // `working`. Mana value / loyalty / defense are layer-stable base state
+        // (read off the card face / counter map, as `resolve.rs` does). A
+        // negative result counts as `0` ([CR#107.1b,613]).
+        Count::StatOf(reference, stat) => {
+            let Some(id) = resolve_count_ref(state, reference, watcher) else {
+                return 0;
+            };
+            let value = match stat {
+                Stat::Power => working
+                    .get(&id)
+                    .and_then(|d| d.characteristics.power)
+                    .unwrap_or(0),
+                Stat::Toughness => working
+                    .get(&id)
+                    .and_then(|d| d.characteristics.toughness)
+                    .unwrap_or(0),
+                Stat::ManaValue => {
+                    Int::try_from(crate::derive::face(state.def(id)).mana_cost.mana_value())
+                        .expect("mana value fits Int")
+                }
+                // [CR#122.1e,122.1g]: loyalty/defense ARE the loyalty-/defense-
+                // counter counts (read off the counter map, base state).
+                Stat::Loyalty => Int::try_from(
+                    state
+                        .objects
+                        .obj(id)
+                        .counters
+                        .get("LoyaltyCounter")
+                        .copied()
+                        .unwrap_or(0),
+                )
+                .expect("loyalty fits Int"),
+                Stat::Defense => Int::try_from(
+                    state
+                        .objects
+                        .obj(id)
+                        .counters
+                        .get("DefenseCounter")
+                        .copied()
+                        .unwrap_or(0),
+                )
+                .expect("defense fits Int"),
+            };
+            // [CR#107.1b,613]: a stat used as a magnitude clamps negative to 0.
+            value.max(0)
+        }
+        // [CR#122.1]: the count of a counter kind on the resolved object, read
+        // off the raw counter map (base state — no derived/recursion). An absent
+        // object or kind is `0`.
+        Count::CounterCount(reference, kind) => resolve_count_ref(state, reference, watcher)
+            .and_then(|id| state.objects.get(id))
+            .and_then(|o| o.counters.get(kind.as_str()).copied())
+            .map_or(0, |c| Int::try_from(c).expect("counter count fits Int")),
+        // [CR#120.3]: marked damage on the resolved object (base state).
+        Count::Damage(reference) => resolve_count_ref(state, reference, watcher)
+            .and_then(|id| state.objects.get(id))
+            .map_or(0, |o| Int::try_from(o.damage).expect("damage fits Int")),
+        // [CR#704.5q]: the lesser of two magnitudes.
+        Count::Min(a, b) => {
+            eval_count(a, state, working, watcher).min(eval_count(b, state, working, watcher))
+        }
+        Count::Expanded(e) => eval_count(&e.value, state, working, watcher),
+        // Announce-time / history context (`X`, `ThatMuch`, `EventCount`,
+        // `EventSum`, `Noted`) is unavailable during layer derivation — those
+        // need a resolution `Frame` (`resolve.rs::eval_count`), so a continuous
+        // effect built on one defaults to `0` here (a documented seam).
+        Count::X
+        | Count::ThatMuch
+        | Count::EventCount(..)
+        | Count::EventSum(..)
+        | Count::Noted(_) => 0,
     }
 }
 
@@ -767,36 +884,99 @@ pub(crate) fn ability_is_named(a: &Ability, name: &Ident) -> bool {
 /// implemented. Subtypes ([CR#613.1d]) and `BecomeBasicLandType` ([CR#305.7])
 /// are explicit deferred stubs; controller/text ([CR#613.1b,613.1c]) and
 /// loyalty/defense (no 613 layer) are also stubs.
+/// `state`/`working`/`obj_id`/`watcher` are threaded for the count-bearing
+/// P/T arms: a dynamic `Count` ([CR#604.3] CDAs, "+X/+X for each …") is
+/// evaluated against `working` via `eval_count` BEFORE the object's entry is
+/// borrowed mutably, anchoring carrier refs to the effect's `watcher`. The
+/// immutable `working` read is scoped to end before the `get_mut`, so there is
+/// no borrow conflict.
 #[allow(clippy::match_same_arms)] // deferred stub arms will diverge as later tasks fill them
-fn apply(m: &Modification, effect_controller: PlayerId, d: &mut DerivedObject) {
-    let c = &mut d.characteristics;
+fn apply(
+    m: &Modification,
+    effect_controller: PlayerId,
+    state: &GameState,
+    working: &mut BTreeMap<ObjectId, DerivedObject>,
+    obj_id: ObjectId,
+    watcher: Option<ObjectSource>,
+) {
     match m {
         // --- Layer 7a / 7b: set base P/T ---
-        Modification::SetPower(n) => c.power = Some(eval_count(n)),
-        Modification::SetToughness(n) => c.toughness = Some(eval_count(n)),
+        Modification::SetPower(n) => {
+            let v = eval_count(n, state, working, watcher);
+            if let Some(d) = working.get_mut(&obj_id) {
+                d.characteristics.power = Some(v);
+            }
+        }
+        Modification::SetToughness(n) => {
+            let v = eval_count(n, state, working, watcher);
+            if let Some(d) = working.get_mut(&obj_id) {
+                d.characteristics.toughness = Some(v);
+            }
+        }
         // --- Layer 7c: add/subtract P/T ---
         // [CR#613.4c]: a 7c add/subtract modifies an EXISTING power/toughness —
         // it never materializes one on a P/T-less object (a +1/+1 counter or a
         // pump on a non-creature permanent does nothing P/T-wise, [CR#122.1a]).
         Modification::AddPower(n) => {
-            if let Some(p) = c.power {
-                c.power = Some(p + eval_count(n));
+            let v = eval_count(n, state, working, watcher);
+            if let Some(d) = working.get_mut(&obj_id)
+                && let Some(p) = d.characteristics.power
+            {
+                d.characteristics.power = Some(p + v);
             }
         }
         Modification::AddToughness(n) => {
-            if let Some(t) = c.toughness {
-                c.toughness = Some(t + eval_count(n));
+            let v = eval_count(n, state, working, watcher);
+            if let Some(d) = working.get_mut(&obj_id)
+                && let Some(t) = d.characteristics.toughness
+            {
+                d.characteristics.toughness = Some(t + v);
             }
         }
         Modification::SubtractPower(n) => {
-            if let Some(p) = c.power {
-                c.power = Some(p - eval_count(n));
+            let v = eval_count(n, state, working, watcher);
+            if let Some(d) = working.get_mut(&obj_id)
+                && let Some(p) = d.characteristics.power
+            {
+                d.characteristics.power = Some(p - v);
             }
         }
         Modification::SubtractToughness(n) => {
-            if let Some(t) = c.toughness {
-                c.toughness = Some(t - eval_count(n));
+            let v = eval_count(n, state, working, watcher);
+            if let Some(d) = working.get_mut(&obj_id)
+                && let Some(t) = d.characteristics.toughness
+            {
+                d.characteristics.toughness = Some(t - v);
             }
+        }
+        // Non-count ops: borrow the entry mutably and mutate in place.
+        m => apply_static(m, effect_controller, working, obj_id),
+    }
+}
+
+/// The count-free `Modification` arms (layers 2-6, 7d). Split out so the
+/// count-bearing 7a-7c arms in `apply` can resolve their `Count` against
+/// `working` immutably before taking the `&mut DerivedObject` here.
+#[allow(clippy::match_same_arms)] // deferred stub arms will diverge as later tasks fill them
+fn apply_static(
+    m: &Modification,
+    effect_controller: PlayerId,
+    working: &mut BTreeMap<ObjectId, DerivedObject>,
+    obj_id: ObjectId,
+) {
+    let Some(d) = working.get_mut(&obj_id) else {
+        return;
+    };
+    let c = &mut d.characteristics;
+    match m {
+        // The count-bearing P/T ops are handled in `apply`; never reach here.
+        Modification::SetPower(_)
+        | Modification::SetToughness(_)
+        | Modification::AddPower(_)
+        | Modification::AddToughness(_)
+        | Modification::SubtractPower(_)
+        | Modification::SubtractToughness(_) => {
+            unreachable!("count-bearing P/T ops are handled in `apply`")
         }
         // --- Layer 7d: switch ---
         Modification::SwitchPowerToughness => std::mem::swap(&mut c.power, &mut c.toughness),
@@ -943,10 +1123,10 @@ fn apply_effect_in_layer(
     }
     let targets = effect.locked.clone().expect("locked just set");
     for obj_id in targets {
-        if let Some(d) = working.get_mut(&obj_id) {
+        if working.contains_key(&obj_id) {
             for m in &effect.changes {
                 if layer_of(m, effect.is_cda) == Some(layer) {
-                    apply(m, effect.controller, d);
+                    apply(m, effect.controller, state, working, obj_id, effect.watcher);
                 }
             }
         }
@@ -964,10 +1144,10 @@ fn probe_apply(
 ) -> BTreeMap<ObjectId, DerivedObject> {
     let mut probe = working.clone();
     for obj_id in effect_targets(state, working, d) {
-        if let Some(dobj) = probe.get_mut(&obj_id) {
+        if probe.contains_key(&obj_id) {
             for m in &d.changes {
                 if layer_of(m, d.is_cda) == Some(layer) {
-                    apply(m, d.controller, dobj);
+                    apply(m, d.controller, state, &mut probe, obj_id, d.watcher);
                 }
             }
         }
@@ -1712,5 +1892,119 @@ mod tests {
             Some(2),
             "the opponent's creature is untouched (ControlledBy(Ref(You)))"
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // engine-layers-dynamic-counts: dynamic `Count` evaluation in the layer
+    // engine (CDAs, "+X/+X for each …").
+    // -----------------------------------------------------------------------
+
+    /// A self-CDA ([CR#604.3]) that SETS its own P/T to the number of creatures
+    /// on the battlefield (the Tarmogoyf/creature-count pattern). Authored as a
+    /// 7a `SetPower`/`SetToughness(CountOf(Creature))` scoped `Of(This)`. The
+    /// `characteristic_defining` flag routes both ops to layer 7a.
+    fn creature_count_cda() -> Ability {
+        use deckmaste_core::Reference;
+        let count = Count::CountOf(Box::new(Filter::creature()));
+        Ability::Static(StaticAbility {
+            condition: None,
+            effects: vec![StaticEffect::Modify {
+                of: Scope::Of(Reference::This),
+                changes: vec![
+                    Modification::SetPower(count.clone()),
+                    Modification::SetToughness(count),
+                ],
+            }],
+            characteristic_defining: true,
+        })
+    }
+
+    /// A CDA setting P/T to `CountOf(creatures on the battlefield)` resolves to
+    /// the live creature count, and tracks the board as creatures are added
+    /// ([CR#604.3,613.6] — the count is re-derived each layer pass).
+    #[test]
+    fn cda_sets_pt_to_dynamic_creature_count() {
+        // Lone creature carrying the CDA: it is the only creature → 1/1.
+        let (state, goyf) = creature_on_field(game(), vec![creature_count_cda()]);
+        let view = state.layers();
+        assert_eq!(
+            view.power(goyf),
+            Some(1),
+            "one creature on the battlefield → power 1"
+        );
+        assert_eq!(view.toughness(goyf), Some(1), "…and toughness 1");
+
+        // Add a second (plain) creature: now two creatures → the CDA derives 2/2.
+        let (state, _other) = creature_on_field(state, vec![]);
+        let view = state.layers();
+        assert_eq!(
+            view.power(goyf),
+            Some(2),
+            "adding a creature bumps the CDA to power 2"
+        );
+        assert_eq!(view.toughness(goyf), Some(2), "…and toughness 2");
+    }
+
+    /// A self-pump static ([CR#613.4c] layer 7c) that adds `CountOf(creatures)`
+    /// to its own P/T — "this creature gets +X/+X for each creature you
+    /// control", here counting every creature for simplicity. Scoped
+    /// `Of(This)`.
+    fn creature_count_pump() -> Ability {
+        use deckmaste_core::Reference;
+        let count = Count::CountOf(Box::new(Filter::creature()));
+        Ability::Static(StaticAbility {
+            condition: None,
+            effects: vec![StaticEffect::Modify {
+                of: Scope::Of(Reference::This),
+                changes: vec![
+                    Modification::AddPower(count.clone()),
+                    Modification::AddToughness(count),
+                ],
+            }],
+            characteristic_defining: false,
+        })
+    }
+
+    /// A dynamic 7c pump ("+X/+X for each creature") adds the live count to an
+    /// existing P/T: a lone 2/2 with the pump counts itself (one creature) → +1
+    /// → 3/3; with a second creature present → +2 → 4/4.
+    #[test]
+    fn dynamic_7c_pump_adds_creature_count() {
+        let (state, pumped) = creature_on_field(game(), vec![creature_count_pump()]);
+        let view = state.layers();
+        assert_eq!(
+            view.power(pumped),
+            Some(3),
+            "base 2 + (1 creature) = 3 power"
+        );
+        assert_eq!(view.toughness(pumped), Some(3), "…and 3 toughness");
+
+        // A second creature → the pump's count is now 2 → base 2 + 2 = 4.
+        let (state, _other) = creature_on_field(state, vec![]);
+        let view = state.layers();
+        assert_eq!(
+            view.power(pumped),
+            Some(4),
+            "base 2 + (2 creatures) = 4 power"
+        );
+    }
+
+    /// [CR#613.4c]: a dynamic 7c add is a no-op P/T-wise on a P/T-less
+    /// permanent — the existing 7c guard fires even when the count is nonzero.
+    /// A non-creature permanent carrying "+X/+X for each creature" derives no
+    /// power/toughness (the count would be 1, but there is nothing to add to).
+    #[test]
+    fn dynamic_7c_pump_is_noop_on_pt_less_permanent() {
+        // The pump is on a bare Enchantment (no printed P/T); a separate
+        // creature exists so the count is genuinely nonzero (1).
+        let (state, _creature) = creature_on_field(game(), vec![]);
+        let (state, ench) = permanent_on_field(state, vec![creature_count_pump()]);
+        let view = state.layers();
+        assert_eq!(
+            view.power(ench),
+            None,
+            "a dynamic +X/+X never materializes P/T on a P/T-less permanent"
+        );
+        assert_eq!(view.toughness(ench), None, "…toughness stays None too");
     }
 }
