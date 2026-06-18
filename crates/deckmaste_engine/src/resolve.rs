@@ -1872,6 +1872,7 @@ mod tests {
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
         })
     }
 
@@ -2165,6 +2166,7 @@ mod tests {
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
         });
         let bear = *state.zones.hands[0]
             .iter()
@@ -2203,6 +2205,7 @@ mod tests {
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
         });
         let m = *state.zones.hands[0]
             .iter()
@@ -3508,6 +3511,7 @@ mod tests {
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
         });
         let card_id = state.cards.push(card, PlayerId(0));
         let gob = state.objects.mint(
@@ -5254,6 +5258,7 @@ mod tests {
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
         });
         state.turn.turn_number = 1;
 
@@ -5380,6 +5385,7 @@ mod tests {
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
         });
         state.turn.turn_number = 1;
 
@@ -5474,6 +5480,7 @@ mod tests {
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
         });
         state.turn.turn_number = 1;
 
@@ -5563,6 +5570,7 @@ mod tests {
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
         });
         state.turn.turn_number = 1;
 

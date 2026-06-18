@@ -504,6 +504,7 @@ pub fn play(cards: &DeckCards, seed: u64, p0: &dyn Strategy, p1: &dyn Strategy) 
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
     });
     let strategies: [&dyn Strategy; 2] = [p0, p1];
 

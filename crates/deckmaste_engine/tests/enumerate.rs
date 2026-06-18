@@ -141,6 +141,7 @@ fn activation_game(seed: u64, name: &str, mountains: usize) -> GameState {
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
     });
     for _ in 0..mountains {
         force_onto_battlefield(&mut state, PlayerId(0), "Mountain");
@@ -168,6 +169,7 @@ fn bolt_game(seed: u64) -> GameState {
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
     })
 }
 
@@ -364,6 +366,7 @@ fn describe_action_bundles_cast_land_activate_pass_concede() {
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
     });
     let pinger_id = force_into_play(&mut state, PlayerId(0), PINGER);
     let mountain_id = force_into_play(&mut state, PlayerId(0), "Mountain");
@@ -497,6 +500,7 @@ fn priority_enumerates_all_action_kinds_at_one_window() {
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
     });
     let pinger_id = force_into_play(&mut state, PlayerId(0), PINGER);
     force_into_play(&mut state, PlayerId(0), "Mountain"); // Mountain A (will be tapped)
