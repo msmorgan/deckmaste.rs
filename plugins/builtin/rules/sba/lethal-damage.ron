@@ -1,0 +1,17 @@
+// [CR#704.5g,704.5h]: a creature with toughness > 0 that has lethal marked damage
+// OR was dealt damage by a deathtouch source is destroyed. One rule (not two): a
+// creature matching both must emit a single WillDestroy — two in a batch panics
+// (the second snapshots the deleted object). OneOf gives that dedup natively.
+[
+    SbaRule(
+        scope: Type(Creature),
+        when: AllOf([
+            Compare(StatOf(This, Toughness), Greater, 0),
+            OneOf([
+                Compare(Damage(This), AtLeast, StatOf(This, Toughness)),
+                DamagedByDeathtouch(This),
+            ]),
+        ]),
+        then: Destroy(This),
+    ),
+]

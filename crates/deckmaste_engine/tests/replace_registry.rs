@@ -8,8 +8,10 @@
 //! drive via `state.step()` until stable — similar to how the internal
 //! `sba.rs` tests work, but through the public API.
 
+use std::path::Path;
 use std::sync::Arc;
 
+use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::Card;
@@ -42,6 +44,14 @@ use deckmaste_engine::ReplacementKey;
 use deckmaste_engine::StartingPlayer;
 use deckmaste_engine::StepOutcome;
 use deckmaste_engine::WorkItem;
+
+/// Load the builtin plugin's `sba_rules` — used to populate `state.sba_rules`
+/// so data-driven SBAs (lethal-damage destroy, toughness-0 move, etc.) fire.
+fn builtin_sba_rules() -> Vec<deckmaste_core::SbaRule> {
+    Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"))
+        .unwrap()
+        .sba_rules
+}
 
 /// The abstract `Event` for "this permanent would be destroyed"
 /// (BF→GY with verb "Destroy").
@@ -113,6 +123,8 @@ fn creature_with_replacement(replacement: Replacement) -> (GameState, ObjectId) 
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
     });
+    // Load builtin rules so data-driven SBAs (lethal-damage destroy) fire.
+    state.sba_rules = builtin_sba_rules();
     let obj = find_in_hand(&state, "Test Creature");
     force_onto_battlefield(&mut state, obj);
     (state, obj)
@@ -143,6 +155,8 @@ fn creature_with_abilities(
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
     });
+    // Load builtin rules so data-driven SBAs (lethal-damage destroy) fire.
+    state.sba_rules = builtin_sba_rules();
     let obj = find_in_hand(&state, name);
     force_onto_battlefield(&mut state, obj);
     (state, obj)
@@ -311,6 +325,8 @@ fn creature_with_two_replacements() -> (GameState, ObjectId) {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
     });
+    // Load builtin rules so data-driven SBAs (lethal-damage destroy) fire.
+    state.sba_rules = builtin_sba_rules();
     let obj = find_in_hand(&state, "Double Shield");
     force_onto_battlefield(&mut state, obj);
     (state, obj)
@@ -585,6 +601,8 @@ fn regenerate_target_creature_heals_the_subject_not_the_source() {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
     });
+    // Load builtin rules so data-driven SBAs (lethal-damage destroy) fire.
+    state.sba_rules = builtin_sba_rules();
     let subject = find_in_hand(&state, "Subject");
     force_onto_battlefield(&mut state, subject);
     let source = find_in_hand(&state, "Source");
@@ -744,6 +762,8 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
     });
+    // Load builtin rules so data-driven SBAs (lethal-damage destroy) fire.
+    state.sba_rules = builtin_sba_rules();
 
     // Both cards are in hand after `GameState::new`; force them to the battlefield.
     let creature_obj = find_in_hand(&state, "Host Creature");
@@ -829,6 +849,8 @@ fn ordinary_destroy_goes_to_graveyard() {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
     });
+    // Load builtin rules so the lethal-damage SBA fires.
+    state.sba_rules = builtin_sba_rules();
     let obj = find_in_hand(&state, "Vanilla Creature");
     force_onto_battlefield(&mut state, obj);
     let card_id = state.objects.obj(obj).card_id().expect("backed by a card");

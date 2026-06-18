@@ -721,6 +721,9 @@ fn pinger_fizzles_when_target_dies() {
         .map(build)
         .find(|s| s.zones.hands[1].iter().any(|&o| is_card(s, o, INSTANT)))
         .expect("a seed with an instant in P1's opening hand");
+    // Load builtin rules so the lethal-damage SBA fires (bear dies when the
+    // instant deals 3 damage to a 2/2, fizzling the pinger [CR#608.2b]).
+    state.sba_rules = builtin().sba_rules;
     let pinger = force_into_play(&mut state, PlayerId(0), PINGER);
     state.objects.obj_mut(pinger).summoning_sick = false;
     let bear = force_into_play(&mut state, PlayerId(1), BEARS);

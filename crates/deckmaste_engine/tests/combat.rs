@@ -70,7 +70,7 @@ fn two_player_with(card: &str, seed: u64, deck_size: usize) -> GameState {
 fn two_player_decks(p0_card: &str, p1_card: &str, seed: u64, deck_size: usize) -> GameState {
     let p0 = card(p0_card);
     let p1 = card(p1_card);
-    GameState::new(GameConfig {
+    let mut state = GameState::new(GameConfig {
         players: vec![
             PlayerConfig {
                 deck: deck(&p0, deck_size),
@@ -82,7 +82,15 @@ fn two_player_decks(p0_card: &str, p1_card: &str, seed: u64, deck_size: usize) -
         seed,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
-    })
+    });
+    // Load builtin rules so data-driven SBAs (lethal-damage destroy, etc.)
+    // fire when the engine drives the SBA check during combat.
+    state.sba_rules = deckmaste_cards::plugin::Plugin::load(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"),
+    )
+    .unwrap()
+    .sba_rules;
+    state
 }
 
 // --- forcing onto the battlefield (copied from tests/stack.rs)

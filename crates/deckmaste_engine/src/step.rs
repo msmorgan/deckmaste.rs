@@ -1186,10 +1186,24 @@ impl GameState {
     /// must NOT re-trigger the check — otherwise a persistent condition (lethal
     /// damage on an indestructible creature) loops forever.
     fn emit_sba_batch(&mut self, events: Vec<GameEvent>) -> Progress {
+        // Snapshot the agenda length before applying: `apply_occurrence` may
+        // schedule follow-on work items at the front (e.g. `Emit(ZoneWillChange)`
+        // from a `WillDestroy.apply`). If we re-check immediately after, the
+        // follow-ons haven't run yet so the board looks unchanged — a destructible
+        // creature with lethal damage hasn't moved yet and the re-check re-emits
+        // a WillDestroy, looping. By inserting the re-check AFTER the follow-on
+        // slots the re-check runs once the ZoneWillChange and ZoneChanged facts
+        // have settled (and the creature is gone), so the next sweep is clean.
+        let n_before = self.agenda.len();
         let applied = self.apply_occurrence(Occurrence::Batch(events));
+        let n_after = self.agenda.len();
         let changed = !matches!(&applied, Occurrence::Batch(facts) if facts.is_empty());
         if changed {
-            self.schedule_front(vec![WorkItem::CheckSbas]);
+            // `n_after - n_before` items were prepended by apply_occurrence (the
+            // follow-on Emit(ZoneWillChange) etc). Insert the re-check right
+            // behind them so they settle before the next sweep.
+            let added = n_after.saturating_sub(n_before);
+            self.agenda.insert(added, WorkItem::CheckSbas);
         }
         Progress::Applied(applied)
     }
