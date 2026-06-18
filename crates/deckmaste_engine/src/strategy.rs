@@ -461,6 +461,8 @@ mod tests {
             seed: 1,
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
         })
     }
 
@@ -521,6 +523,8 @@ mod tests {
             seed: 1,
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
         });
 
         // A 2/2 Grizzly Bears on P0's battlefield — the candidate being scored.
@@ -565,6 +569,8 @@ mod tests {
             seed: 7,
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
         });
         let frame = eval_frame(&state, PlayerId(1), None);
         assert_eq!(

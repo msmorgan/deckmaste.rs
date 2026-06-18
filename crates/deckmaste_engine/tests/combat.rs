@@ -82,6 +82,8 @@ fn two_player_decks(p0_card: &str, p1_card: &str, seed: u64, deck_size: usize) -
         seed,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     });
     // Load builtin rules so data-driven SBAs (lethal-damage destroy, etc.)
     // fire when the engine drives the SBA check during combat.
@@ -1600,6 +1602,8 @@ fn flying_attacker_blockable_only_by_flying_or_reach() {
         seed: 11,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     });
     let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Baleful Strix");
     let bear = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
@@ -1639,6 +1643,8 @@ fn menace_attacker_needs_two_blockers() {
         seed: 13,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     });
     let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Boggart Brute");
     let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
@@ -1677,6 +1683,8 @@ fn defender_cannot_be_declared_as_an_attacker() {
         seed: 17,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     });
     let wall = force_onto_battlefield(&mut state, PlayerId(0), "Wall of Stone");
     let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
@@ -1719,6 +1727,8 @@ fn must_attack_requires_the_able_creature() {
         seed: 29,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     });
     let brigand = force_onto_battlefield(&mut state, PlayerId(0), "Goblin Brigand");
     let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
@@ -1761,6 +1771,8 @@ fn must_attack_waived_when_unable() {
         seed: 31,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     });
     let brigand = force_onto_battlefield(&mut state, PlayerId(0), "Goblin Brigand");
 
@@ -1799,6 +1811,8 @@ fn must_block_requires_every_able_blocker() {
         seed: 37,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     });
     let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Taunting Elf");
     let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");

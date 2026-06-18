@@ -39,11 +39,26 @@ pub fn build_game() -> Result<GameState> {
     let p0 = goblins.resolve(&[&canon, &builtin, &wizards])?;
     let p1 = elves.resolve(&[&canon, &builtin, &wizards])?;
 
+    let sba_rules = canon
+        .sba_rules
+        .iter()
+        .chain(builtin.sba_rules.iter())
+        .chain(wizards.sba_rules.iter())
+        .cloned()
+        .collect();
+
+    let mut counter_decls = std::collections::HashMap::new();
+    counter_decls.extend(canon.counters.clone());
+    counter_decls.extend(builtin.counters.clone());
+    counter_decls.extend(wizards.counters.clone());
+
     Ok(GameState::new(GameConfig {
         players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
         seed: SEED,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules,
+        counter_decls,
     }))
 }
 

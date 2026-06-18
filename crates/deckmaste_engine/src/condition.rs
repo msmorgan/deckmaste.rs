@@ -197,6 +197,8 @@ mod tests {
             seed: 7,
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
         })
     }
 
@@ -231,6 +233,8 @@ mod tests {
             seed: 1,
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
         });
         state.turn.turn_number = 1;
 
@@ -316,6 +320,8 @@ mod tests {
             seed: 1,
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
         });
 
         // A Grizzly Bears on the battlefield, and a frame whose `This`, sole
@@ -504,6 +510,8 @@ mod tests {
                 seed: 9,
                 starting_life: 20,
                 starting_player: StartingPlayer::Fixed(PlayerId(0)),
+                sba_rules: vec![],
+                counter_decls: std::collections::HashMap::new(),
             });
             let bear_card = state.cards.push(Arc::clone(&bears), PlayerId(0));
             let bear = state.objects.mint(
@@ -682,6 +690,8 @@ mod tests {
             seed: 3,
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
         });
         let bear_card = state.cards.push(bears, PlayerId(0));
         let bear = state.objects.mint(
@@ -743,6 +753,8 @@ mod tests {
             seed: 5,
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
         });
 
         // `This`: the Evolve carrier, a 2/2 Grizzly Bears.

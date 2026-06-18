@@ -923,6 +923,8 @@ pub(crate) mod tests_support {
             seed: 7,
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
         });
         let id = mint_creature_on_battlefield(&mut state);
         let view = state.layers();
@@ -955,6 +957,8 @@ pub(crate) mod tests_support {
             seed: 7,
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
         });
         let card = Arc::new(Card::Normal(CardFace {
             name: "Test Creature".into(),

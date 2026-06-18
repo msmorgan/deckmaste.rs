@@ -100,6 +100,8 @@ mod tests {
             seed: 5,
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
         });
         let bear_card = state.cards.push(Arc::clone(&bears), PlayerId(0));
         let bear = state.objects.mint(

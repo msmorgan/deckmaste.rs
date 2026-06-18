@@ -118,6 +118,8 @@ pub struct GameConfig {
     pub seed: u64,
     pub starting_life: Int,
     pub starting_player: StartingPlayer,
+    pub sba_rules: Vec<deckmaste_core::SbaRule>,
+    pub counter_decls: std::collections::HashMap<deckmaste_core::Ident, deckmaste_core::Counter>,
 }
 
 /// What to resume once a resolution-time decision is answered. Transient: set
@@ -342,8 +344,8 @@ impl GameState {
             continuous: Vec::new(),
             shields: Vec::new(),
             designations: DesignationStore::default(),
-            counter_decls: std::collections::HashMap::new(),
-            sba_rules: Vec::new(),
+            counter_decls: config.counter_decls,
+            sba_rules: config.sba_rules,
             that_much: None,
             history: crate::history::History::default(),
             replace_state: None,
