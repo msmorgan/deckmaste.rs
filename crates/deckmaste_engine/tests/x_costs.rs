@@ -141,6 +141,8 @@ fn x_game(seed: u64) -> GameState {
         seed,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     })
 }
 
@@ -302,6 +304,8 @@ fn bolt_game(seed: u64) -> GameState {
         seed,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     })
 }
 
@@ -345,6 +349,8 @@ fn artifact_x_game(seed: u64) -> GameState {
         seed,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     })
 }
 
@@ -425,6 +431,8 @@ fn x_burn_game(seed: u64) -> GameState {
         seed,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     })
 }
 

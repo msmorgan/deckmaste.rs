@@ -50,6 +50,8 @@ fn two_player_with(card_name: &str, seed: u64, deck_size: usize) -> GameState {
         seed,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     })
 }
 
@@ -71,6 +73,8 @@ fn game_with_p0_cards(names: &[&str], seed: u64) -> GameState {
         seed,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     })
 }
 

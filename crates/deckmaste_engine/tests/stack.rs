@@ -140,6 +140,8 @@ fn bolt_game(seed: u64, mountains: usize) -> GameState {
         seed,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     });
     // Load builtin rules so lethal-damage SBA fires after spells resolve.
     state.sba_rules = builtin().sba_rules;
@@ -169,6 +171,8 @@ fn bears_game(seed: u64, forests: usize) -> GameState {
         seed,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     });
     for _ in 0..forests {
         force_onto_battlefield(&mut state, PlayerId(0), "Forest");
@@ -385,6 +389,8 @@ fn prowess_fires_and_pumps_on_own_noncreature_cast() {
         seed: 1,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     });
     let expert = force_into_play(&mut state, PlayerId(0), "Bloodfire Expert");
     force_into_play(&mut state, PlayerId(0), "Mountain");
@@ -445,6 +451,8 @@ fn becomes_target_trigger_sacrifices_phantasmal_bear_and_bolt_fizzles() {
         seed: 1,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     });
     force_onto_battlefield(&mut state, PlayerId(0), "Mountain");
     let bear = force_onto_battlefield(&mut state, PlayerId(1), "Phantasmal Bear");
@@ -651,6 +659,8 @@ fn sorcery_speed_gate_blocks_bears_off_turn_and_on_a_nonempty_stack() {
                 seed,
                 starting_life: 20,
                 starting_player: StartingPlayer::Fixed(PlayerId(0)),
+                sba_rules: vec![],
+                counter_decls: std::collections::HashMap::new(),
             })
         };
         // Pick a seed whose P0 opening hand holds both an instant and a creature.
@@ -792,6 +802,8 @@ fn bears_with_bolts() -> GameState {
             seed,
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
         })
     };
     let mut state = (0u64..1000)
@@ -1161,6 +1173,8 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
             seed,
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
         })
     };
     // A seed whose P0 opening hand holds a bolt (cast from hand) — the fiend
@@ -1326,6 +1340,8 @@ fn etb_trigger_draws_a_card() {
             seed,
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
         })
     };
     let mut state = (0u64..1000)
@@ -1509,6 +1525,8 @@ fn occurrence_batch_and_apnap_ordering() {
             seed,
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
         })
     };
     let mut state = (0u64..2000)
@@ -1793,6 +1811,8 @@ fn simultaneous_loss_is_a_draw() {
             seed,
             starting_life: 4,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
         })
     };
     let mut state = (0u64..200)
@@ -1898,6 +1918,8 @@ fn two_triggers_same_player_order_triggers_surfaces() {
         seed: 1,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     });
     // Load builtin rules so the lethal-damage SBA fires when the bear's
     // damage is checked.
@@ -2027,6 +2049,8 @@ fn creature_enters_tapped_via_as_enters_replacement() {
             seed: 1,
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
         });
         force_into_play(&mut state, PlayerId(0), "Swamp");
 
@@ -2153,6 +2177,8 @@ fn hexproof_excludes_it_from_opposing_targets() {
         seed: 19,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     });
     let scout = force_into_play(&mut state, PlayerId(1), "Gladecover Scout");
     let bear = force_into_play(&mut state, PlayerId(1), "Grizzly Bears");
@@ -2206,6 +2232,8 @@ fn flash_creature_casts_at_instant_timing() {
         seed: 23,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     });
     for _ in 0..3 {
         force_onto_battlefield(&mut state, PlayerId(0), "Forest");
@@ -2288,6 +2316,8 @@ fn flagbearer_constrains_opposing_target_choice() {
         seed: 41,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     });
     let bearer = force_into_play(&mut state, PlayerId(1), "Standard Bearer");
     let bear = force_into_play(&mut state, PlayerId(1), "Grizzly Bears");
@@ -2341,6 +2371,8 @@ fn flagbearer_does_not_constrain_its_controllers_spells() {
         seed: 43,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     });
     force_into_play(&mut state, PlayerId(0), "Standard Bearer");
     let bear = force_into_play(&mut state, PlayerId(1), "Grizzly Bears");

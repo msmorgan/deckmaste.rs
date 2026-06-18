@@ -63,6 +63,8 @@ fn two_player_plains(seed: u64, deck_size: usize) -> GameState {
         seed,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     })
 }
 
@@ -80,6 +82,8 @@ fn two_player_with(card: &str, seed: u64, deck_size: usize) -> GameState {
         seed,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     })
 }
 
@@ -670,6 +674,8 @@ fn bear_on_field() -> (GameState, ObjectId) {
         seed: 1,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     });
     // Force a Grizzly Bears from player 0's hand onto the battlefield.
     let bear = *state.zones.hands[0]
@@ -909,6 +915,8 @@ fn decks_bolt_vs_bears_with_bear_on_field() -> (GameState, ObjectId) {
         seed: 1,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     });
     // Force a Grizzly Bears from player 1's hand onto the battlefield.
     let bear = *state.zones.hands[1]

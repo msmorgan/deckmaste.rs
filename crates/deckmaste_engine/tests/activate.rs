@@ -174,6 +174,8 @@ fn activation_game(seed: u64, name: &str, mountains: usize) -> GameState {
         seed,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     });
     for _ in 0..mountains {
         force_onto_battlefield(&mut state, PlayerId(0), "Mountain");
@@ -522,6 +524,8 @@ fn sorcery_speed_drawer_gated() {
             seed,
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
         })
     };
     let mut state = (0u64..1000)
@@ -715,6 +719,8 @@ fn pinger_fizzles_when_target_dies() {
             seed,
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
         })
     };
     let mut state = (0u64..1000)
@@ -865,6 +871,8 @@ fn cost_game(seed: u64, card: &Arc<Card>) -> GameState {
         seed,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     })
 }
 
@@ -1020,6 +1028,8 @@ fn activated_ability_pays_choose_sacrifice_cost() {
         seed: 7,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
     });
 
     // Force the artifact and two distinct bears onto the battlefield.

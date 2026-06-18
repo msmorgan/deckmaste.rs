@@ -1575,6 +1575,8 @@ mod tests {
             seed: 7,
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
         })
     }
 
@@ -1808,6 +1810,8 @@ mod tests {
                 seed: 1,
                 starting_life: 20,
                 starting_player: StartingPlayer::Fixed(PlayerId(0)),
+                sba_rules: vec![],
+                counter_decls: std::collections::HashMap::new(),
             });
             let m = *state.zones.hands[0]
                 .iter()
@@ -1904,6 +1908,8 @@ mod tests {
                 seed: 42,
                 starting_life: 20,
                 starting_player: StartingPlayer::Fixed(PlayerId(0)),
+                sba_rules: vec![],
+                counter_decls: std::collections::HashMap::new(),
             })
         }
 
