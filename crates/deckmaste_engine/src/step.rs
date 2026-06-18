@@ -99,6 +99,9 @@ pub enum Progress {
     CostPaid,
     /// A resolution step ran (dispatch or one effect node) for this object.
     Resolving(crate::object::ObjectId),
+    /// [CR#701.22a]: a `Distribute` decision was surfaced (or skipped for an
+    /// empty window — scry/surveil 0 no-op per [CR#701.22b]).
+    DistributeOpened,
 }
 
 impl GameState {
@@ -171,6 +174,12 @@ impl GameState {
                 self.run_effect(*effect, &frame);
                 Progress::Resolving(source)
             }
+            WorkItem::OpenDistribute {
+                player,
+                window,
+                bins,
+                name,
+            } => self.open_distribute(player, window, bins, name),
         };
         StepOutcome::Progress(progress)
     }
@@ -1213,6 +1222,25 @@ impl GameState {
     /// scheduled. An instruction to discard more cards than the hand holds
     /// discards the whole hand (the excess is impossible and ignored,
     /// [CR#101.3]); an empty hand (count 0) surfaces nothing.
+    /// [CR#701.22a]: surfaces a `Distribute` decision so the player can sort the
+    /// looked-at `window` into ordered `bins`. `name` (e.g. "Scry") is stashed
+    /// for the Task-8 event via [`ChoiceContinuation::Distribute`].
+    fn open_distribute(
+        &mut self,
+        player: PlayerId,
+        window: Vec<ObjectId>,
+        bins: Vec<deckmaste_core::Bin>,
+        name: deckmaste_core::Ident,
+    ) -> Progress {
+        self.pending = Some(PendingDecision::Distribute {
+            player,
+            window,
+            bins,
+        });
+        self.choice = Some(crate::state::ChoiceContinuation::Distribute { name });
+        Progress::DistributeOpened
+    }
+
     fn open_discard_cards(&mut self, player: PlayerId, count: Uint) -> Progress {
         let hand =
             Uint::try_from(self.zones.hands[player.index()].len()).expect("hand size fits in Uint");

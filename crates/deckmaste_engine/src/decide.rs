@@ -1408,18 +1408,115 @@ impl GameState {
         }
         validate_partition(&window, &lists)?;
         self.pending = None;
-        // Task 6 fills apply_distribution with real move-scheduling.
+        // Consume the continuation; `name` is stored for Task 8's event emission.
+        // Asserting the variant guards against stale state from a prior decision kind.
+        let _cont = self
+            .choice
+            .take()
+            .expect("a Distribute decision stashed its continuation");
+        debug_assert!(
+            matches!(_cont, crate::state::ChoiceContinuation::Distribute { .. }),
+            "Distribute continuation must be ChoiceContinuation::Distribute"
+        );
         self.apply_distribution(player, &bins, &lists);
         Ok(())
     }
 
-    /// Stub — Task 6 replaces this with real zone-move scheduling.
+    /// [CR#701.22a]: Apply the player's distribution answer.
+    ///
+    /// Top/Bottom bins are repositioned by direct VecDeque surgery (no remint,
+    /// ObjectIds preserved). Graveyard bins go through `ZoneWillChange`
+    /// (Library→Graveyard), a genuine zone change that remints normally.
+    ///
+    /// **Order reasoning for the Top bin** (`list` = authored top→down):
+    /// The library VecDeque has FRONT = TOP. To place `list[0]` at the very
+    /// front, we iterate *in reverse* and call `push_front` each time:
+    /// the last element pushed becomes the new front, so iterating `rev()`
+    /// and pushing front yields `list[0]` as the final front element — correct
+    /// authored order. For the Bottom bin we `push_back` in forward order.
     fn apply_distribution(
         &mut self,
         _player: PlayerId,
-        _bins: &[deckmaste_core::Bin],
-        _lists: &[Vec<ObjectId>],
+        bins: &[deckmaste_core::Bin],
+        lists: &[Vec<ObjectId>],
     ) {
+        use deckmaste_core::Bin;
+
+        // Collect graveyard items as ZoneWillChange work before touching the library.
+        // They are still in the library at this point; ZoneWillChange will remove them.
+        let mut graveyard_items: Vec<crate::agenda::WorkItem> = Vec::new();
+        for (bin, list) in bins.iter().zip(lists) {
+            if *bin == Bin::Graveyard {
+                for &object in list {
+                    graveyard_items.push(crate::agenda::WorkItem::Emit(
+                        crate::event::Occurrence::single(crate::event::GameEvent::ZoneWillChange {
+                            object,
+                            from: Some(deckmaste_core::Zone::Library),
+                            to: deckmaste_core::Zone::Graveyard,
+                            enters: None,
+                            position: None,
+                            face: None,
+                            cause: None,
+                        }),
+                    ));
+                }
+            }
+        }
+
+        // Remove Top/Bottom window cards from the library now (in the order they
+        // appear in the answer, via remove_from_library which searches by id).
+        // Graveyard cards are left in the library for ZoneWillChange to handle.
+        for (bin, list) in bins.iter().zip(lists) {
+            match bin {
+                Bin::Top | Bin::Bottom => {
+                    for &object in list {
+                        let owner = self.owner_of(object);
+                        self.remove_from_library(owner, object);
+                    }
+                }
+                Bin::Graveyard => {}
+            }
+        }
+
+        // Reinsert Top cards: iterate in reverse and push_front so list[0] ends
+        // up at the front of the VecDeque (= top of library).
+        // Reinsert Bottom cards: iterate forward and push_back.
+        for (bin, list) in bins.iter().zip(lists) {
+            match bin {
+                Bin::Top => {
+                    let owner = self.owner_of_list_first(list);
+                    let lib = &mut self.zones.libraries[owner.index()];
+                    for &object in list.iter().rev() {
+                        lib.push_front(object);
+                    }
+                }
+                Bin::Bottom => {
+                    let owner = self.owner_of_list_first(list);
+                    let lib = &mut self.zones.libraries[owner.index()];
+                    for &object in list {
+                        lib.push_back(object);
+                    }
+                }
+                Bin::Graveyard => {}
+            }
+        }
+
+        // Schedule graveyard moves last (they will execute after the repositioning
+        // above since the library is already in final order for top/bottom).
+        if !graveyard_items.is_empty() {
+            self.schedule_front(graveyard_items);
+        }
+    }
+
+    /// Returns the owner of the first object in `list`, panicking if the list
+    /// is empty. Helper used when all objects in a bin share an owner (library
+    /// cards are always owned by their deck's controller).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `list` is empty — callers only call this for non-empty bins.
+    fn owner_of_list_first(&self, list: &[ObjectId]) -> PlayerId {
+        self.owner_of(*list.first().expect("non-empty bin"))
     }
 
     /// [CR#702.19b]: how much damage `source` must assign to the creature

@@ -1083,9 +1083,19 @@ impl GameState {
             // Look through a remembered macro invocation.
             PlayerAction::Expanded(e) => self.player_action_items(&e.value, actor, frame),
             // [CR#701.22a]: Scry/Surveil put-back step — player distributes the
-            // looked-at group into top/bottom bins. Task 6 implements this.
-            PlayerAction::Distribute { .. } => {
-                todo!("Task 6: distribute resolution ([CR#701.22a])")
+            // looked-at group into top/bottom bins.
+            PlayerAction::Distribute { group, bins, name } => {
+                let window = self.eval_selection_set(group, frame);
+                if window.is_empty() {
+                    // [CR#701.22b]: scry/surveil 0 — no-op, no decision, no event.
+                    return vec![];
+                }
+                vec![WorkItem::OpenDistribute {
+                    player: actor,
+                    window,
+                    bins: bins.clone(),
+                    name: name.clone(),
+                }]
             }
         }
     }
@@ -5602,5 +5612,223 @@ mod tests {
         for _ in 0..10 {
             state.step();
         }
+    }
+
+    /// [CR#701.22a]: `Distribute` over a 3-card window surfaces a decision,
+    /// and submitting the answer repositions the cards in the library in the
+    /// exact authored order: top pile `[c, a]` (c on top) and bottom pile
+    /// `[b]` → final library `[c, a, b]` top→down. ObjectIds are preserved
+    /// (no remint) because the reposition is a direct VecDeque surgery.
+    #[test]
+    fn scry_partitions_top_three_in_order() {
+        use deckmaste_core::Bin;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::With;
+
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+        use crate::object::ObjectSource;
+        use crate::step::StepOutcome;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+
+        // Build three distinct library cards: a at top (front), then b, then c.
+        let make_card = |name: &str| {
+            Card::Normal(CardFace {
+                name: name.into(),
+                ..CardFace::default()
+            })
+        };
+        let card_a = state.cards.push(Arc::new(make_card("Alpha")), p0);
+        let card_b = state.cards.push(Arc::new(make_card("Beta")), p0);
+        let card_c = state.cards.push(Arc::new(make_card("Gamma")), p0);
+
+        let a = state
+            .objects
+            .mint(ObjectSource::Card(card_a), p0, Some(Zone::Library));
+        let b = state
+            .objects
+            .mint(ObjectSource::Card(card_b), p0, Some(Zone::Library));
+        let c = state
+            .objects
+            .mint(ObjectSource::Card(card_c), p0, Some(Zone::Library));
+
+        // Push in top→bottom order: a at front (index 0) = top of library.
+        state.zones.libraries[p0.index()].push_back(a);
+        state.zones.libraries[p0.index()].push_back(b);
+        state.zones.libraries[p0.index()].push_back(c);
+
+        let source = state.player(p0).object;
+        let frame = Frame {
+            source,
+            controller: p0,
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+            x: None,
+            subject: None,
+            those: None,
+        };
+
+        // Run `Effect::With(TopOfLibrary(3), Distribute(Those, [Top, Bottom],
+        // "Scry"))`.
+        state.run_effect(
+            Effect::With(With {
+                selection: Selection::TopOfLibrary {
+                    count: Count::Literal(3),
+                    of: deckmaste_core::Reference::You,
+                },
+                body: Box::new(Effect::act_by_you(PlayerAction::Distribute {
+                    group: Selection::Those,
+                    bins: vec![Bin::Top, Bin::Bottom],
+                    name: deckmaste_core::Ident::new("Scry"),
+                })),
+            }),
+            &frame,
+        );
+
+        // Step until the Distribute decision surfaces.
+        let pending = loop {
+            match state.step() {
+                StepOutcome::NeedsDecision(d) => break d,
+                StepOutcome::GameOver(_) => panic!("game ended unexpectedly"),
+                StepOutcome::Progress(_) => {}
+            }
+        };
+
+        // The decision must carry the full ordered window [a, b, c] top→down.
+        let (window, bins) = match &pending {
+            PendingDecision::Distribute { window, bins, .. } => (window.clone(), bins.clone()),
+            other => panic!("expected Distribute, got {other:?}"),
+        };
+        assert_eq!(
+            window,
+            vec![a, b, c],
+            "window is the top-3 in library order"
+        );
+        assert_eq!(bins, vec![Bin::Top, Bin::Bottom]);
+
+        // Submit: top pile [c, a] (c on top), bottom pile [b].
+        state
+            .submit_decision(Decision::Distribution(vec![vec![c, a], vec![b]]))
+            .unwrap();
+
+        // Step only through effect-induced work (Emit, RunEffect, OpenDistribute).
+        // Stop as soon as the front item is a turn-structure item (BeginStep,
+        // OpenPriority, etc.) — we don't need to advance the turn to check the
+        // library state.
+        for _ in 0..20 {
+            match state.agenda.front() {
+                Some(
+                    WorkItem::Emit(_)
+                    | WorkItem::RunEffect { .. }
+                    | WorkItem::OpenDistribute { .. },
+                ) => {
+                    let _ = state.step();
+                }
+                _ => break,
+            }
+        }
+
+        assert!(
+            state.pending.is_none(),
+            "no pending decision after distribution (got {:?})",
+            state.pending
+        );
+
+        // Final library must be [c, a, b]: c on top, a in middle, b on bottom.
+        let lib: Vec<_> = state.zones.libraries[p0.index()].iter().copied().collect();
+        assert_eq!(lib, vec![c, a, b], "c top, a middle, b bottom");
+    }
+
+    /// [CR#701.22b]: Distribute over an empty window (scry/surveil 0) is a
+    /// complete no-op — no pending decision, no library change, no event.
+    #[test]
+    fn scry_zero_is_a_noop() {
+        use deckmaste_core::Bin;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::With;
+
+        use crate::object::ObjectSource;
+        use crate::step::StepOutcome;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+
+        // Build three library cards.
+        let make_card = |name: &str| {
+            Card::Normal(CardFace {
+                name: name.into(),
+                ..CardFace::default()
+            })
+        };
+        let card_a = state.cards.push(Arc::new(make_card("Alpha")), p0);
+        let card_b = state.cards.push(Arc::new(make_card("Beta")), p0);
+        let card_c = state.cards.push(Arc::new(make_card("Gamma")), p0);
+
+        let a = state
+            .objects
+            .mint(ObjectSource::Card(card_a), p0, Some(Zone::Library));
+        let b = state
+            .objects
+            .mint(ObjectSource::Card(card_b), p0, Some(Zone::Library));
+        let c = state
+            .objects
+            .mint(ObjectSource::Card(card_c), p0, Some(Zone::Library));
+
+        state.zones.libraries[p0.index()].push_back(a);
+        state.zones.libraries[p0.index()].push_back(b);
+        state.zones.libraries[p0.index()].push_back(c);
+
+        let source = state.player(p0).object;
+        let frame = Frame {
+            source,
+            controller: p0,
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+            x: None,
+            subject: None,
+            those: None,
+        };
+
+        // Scry 0: TopOfLibrary(0) → empty window → no decision, no move.
+        state.run_effect(
+            Effect::With(With {
+                selection: Selection::TopOfLibrary {
+                    count: Count::Literal(0),
+                    of: deckmaste_core::Reference::You,
+                },
+                body: Box::new(Effect::act_by_you(PlayerAction::Distribute {
+                    group: Selection::Those,
+                    bins: vec![Bin::Top, Bin::Bottom],
+                    name: deckmaste_core::Ident::new("Scry"),
+                })),
+            }),
+            &frame,
+        );
+
+        // Drain injected work — must not surface a decision.
+        for _ in 0..20 {
+            match state.agenda.front() {
+                Some(
+                    WorkItem::Emit(_)
+                    | WorkItem::RunEffect { .. }
+                    | WorkItem::OpenDistribute { .. },
+                ) => match state.step() {
+                    StepOutcome::NeedsDecision(d) => {
+                        panic!("scry-0 must not surface a decision, got {d:?}")
+                    }
+                    StepOutcome::GameOver(_) => panic!("game ended unexpectedly"),
+                    StepOutcome::Progress(_) => {}
+                },
+                _ => break,
+            }
+        }
+
+        assert!(state.pending.is_none(), "no pending decision after scry-0");
+        let lib: Vec<_> = state.zones.libraries[p0.index()].iter().copied().collect();
+        assert_eq!(lib, vec![a, b, c], "library unchanged after scry-0");
     }
 }
