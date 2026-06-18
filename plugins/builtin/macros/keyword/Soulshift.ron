@@ -1,0 +1,56 @@
+// Soulshift = a triggered ability [CR#702.46a]: "Soulshift N" means "When this
+// permanent is put into a graveyard from the battlefield, you may return target
+// Spirit card with mana value N or less from your graveyard to your hand." The
+// printed N is the macro's `Count` param (the parser emits the bare numeral
+// `Soulshift(3)`, read as `Count::Literal(3)` for `Param(0)`); multiple
+// instances trigger separately ([CR#702.46b]).
+//
+// Pieces (all representable over existing primitives):
+//   - trigger:        `ThisDies` — the `ZoneMove(what: Ref(This), from:
+//                     Battlefield, to: Graveyard)` macro ([CR#700.4]); the same
+//                     dies-event Undying/Persist/Modular watch.
+//   - "you may":      `May` ([CR#603.4] / [CR#702.46a] "you may") wrapping the
+//                     targeted return.
+//   - target:         a `Targeted` ([CR#115.1,601.2c]) declaring one target on
+//                     the effect — a Spirit CARD in YOUR graveyard with mana
+//                     value N or less. The filter conjoins
+//                     `Subtype("Spirit")` ([CR#205.3m] subtype),
+//                     `InZone(Graveyard)` + `Owner(Ref(You))` ("your graveyard",
+//                     [CR#108.3,400.1]), and `Stat(ManaValue, AtMost, Param(0))`
+//                     — the printed N as a mana-value bound ([CR#202.3]). The
+//                     `Target(Exactly(1), …)` spec is the `TargetOne` macro
+//                     INLINED (not invoked): a macro body can't thread its own
+//                     `Param(0)` into a nested macro's argument slot ("Param(0)
+//                     outside any macro expansion"), the same constraint that
+//                     forces Modular to inline its `Target(Exactly(1), …)`. This
+//                     is the same graveyard-return filter shape (`AllOf([…,
+//                     InZone(Graveyard), Owner(Ref(You))])`) the engine's
+//                     graveyard-return cards use.
+//   - resolution:     `Move(Target(0), Hand)` — the source-agent plain zone
+//                     change returning the chosen card to its owner's hand
+//                     ([CR#400.7]).
+//
+// No engine gap: the mana-value target clause is the existing
+// `Stat(ManaValue, …)` characteristic filter ([CR#202.3]). Graduation (parse +
+// round-trip) holds: this body expands to valid RON and round-trips.
+(
+    name: "Soulshift",
+    template: "soulshift ${0}",
+    kinds: [KeywordAbility],
+    params: [Count],
+    body: Composite(
+        name: "Soulshift",
+        abilities: [Triggered(
+            event: ThisDies,
+            effect: May(effect: Targeted(
+                targets: [Target(Exactly(1), AllOf([
+                    Subtype("Spirit"),
+                    InZone(Graveyard),
+                    Owner(Ref(You)),
+                    Stat(ManaValue, AtMost, Param(0)),
+                ]))],
+                effect: Move(Target(0), Hand),
+            )),
+        )],
+    ),
+)

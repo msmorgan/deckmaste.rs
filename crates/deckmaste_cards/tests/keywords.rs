@@ -54,6 +54,8 @@ fn every_builtin_keyword_macro_expands() {
         ("Evolve", "Evolve"),
         ("Bloodthirst(6)", "Bloodthirst"),
         ("Graft(1)", "Graft"),
+        ("Soulshift(3)", "Soulshift"),
+        ("Afterlife(2)", "Afterlife"),
     ];
     let plugin = builtin();
     for (invocation, name) in cases {
@@ -382,6 +384,212 @@ fn cycling_confers_from_hand_discard_self_draw() {
     // (3) Effect = draw a card.
     let expected_effect: Effect = ron_options().from_str("Draw(Literal(1))").unwrap();
     assert_eq!(act.effect, expected_effect, "cycling draws a card");
+}
+
+/// [CR#702.46a]: **Soulshift N** confers a dies-triggered ability — `you may
+/// return target Spirit card with mana value N or less from your graveyard to
+/// your hand`. Proves the macro expands to a `Triggered(ThisDies)` whose effect
+/// is a `May` over a `Targeted` whose one target filters
+/// Spirit ∧ in-your-graveyard ∧ mana value ≤ N (the printed `Param(0)`), and
+/// whose inner effect is `Move(Target(0), Hand)`.
+#[test]
+fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::Action;
+    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::Cmp;
+    use deckmaste_core::Count;
+    use deckmaste_core::Effect;
+    use deckmaste_core::Event;
+    use deckmaste_core::Filter;
+    use deckmaste_core::Reference;
+    use deckmaste_core::RelationFilter;
+    use deckmaste_core::Selection;
+    use deckmaste_core::Stat;
+    use deckmaste_core::StateFilter;
+    use deckmaste_core::TargetSpec;
+    use deckmaste_core::Zone;
+
+    let plugin = builtin();
+    let kw: KeywordAbility = plugin
+        .macros
+        .read_str("Soulshift(3)")
+        .expect("Soulshift expands");
+    let KeywordAbility::Expanded(expanded) = &kw else {
+        panic!("expected Expanded, got {kw:?}");
+    };
+    assert_eq!(expanded.name.as_str(), "Soulshift", "carried name");
+    let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+        panic!("Soulshift body is a Composite");
+    };
+    let trig = abilities
+        .iter()
+        .find_map(|a| match a {
+            Ability::Triggered(t) => Some(t),
+            _ => None,
+        })
+        .expect("Soulshift confers a Triggered ability");
+    // Dies trigger ([CR#700.4]) — the `ThisDies` macro invocation.
+    assert!(
+        matches!(&trig.event, Event::Expanded(e) if e.name.as_str() == "ThisDies"),
+        "soulshift triggers on dies; got {:?}",
+        trig.event
+    );
+    // The effect is a `May` ([CR#702.46a] "you may").
+    let Effect::May(may) = &trig.effect else {
+        panic!("soulshift's effect is a May; got {:?}", trig.effect);
+    };
+    // … over a `Targeted` ([CR#115.1,601.2c]).
+    let Effect::Targeted(t) = &*may.effect else {
+        panic!("soulshift's May wraps a Targeted; got {:?}", may.effect);
+    };
+    // One target whose filter is Spirit ∧ in-graveyard ∧ owned-by-you ∧ MV ≤ N.
+    assert_eq!(t.targets.len(), 1, "soulshift targets exactly one card");
+    let TargetSpec::Target(_, filter) = &t.targets[0] else {
+        panic!("expected a Target spec; got {:?}", t.targets[0]);
+    };
+    let Filter::AllOf(clauses) = filter else {
+        panic!("soulshift target is an AllOf; got {filter:?}");
+    };
+    assert!(
+        clauses
+            .iter()
+            .any(|f| matches!(f, Filter::Characteristic(CharacteristicFilter::Subtype(s)) if s.as_str() == "Spirit")),
+        "soulshift target filters Spirit ([CR#702.46a]); got {clauses:?}"
+    );
+    assert!(
+        clauses
+            .iter()
+            .any(|f| matches!(f, Filter::State(StateFilter::InZone(Zone::Graveyard)))),
+        "soulshift target is in a graveyard; got {clauses:?}"
+    );
+    assert!(
+        clauses
+            .iter()
+            .any(|f| matches!(f, Filter::Relation(RelationFilter::Owner(o)) if matches!(&**o, Filter::Ref(Reference::You)))),
+        "soulshift target is owned by you (your graveyard); got {clauses:?}"
+    );
+    assert!(
+        clauses.iter().any(|f| matches!(
+            f,
+            Filter::Characteristic(CharacteristicFilter::Stat(
+                Stat::ManaValue,
+                Cmp::AtMost,
+                Count::Literal(3)
+            ))
+        )),
+        "soulshift target has mana value ≤ N (the printed Param(0)) ([CR#202.3]); got {clauses:?}"
+    );
+    // Inner effect returns the chosen card to its owner's hand ([CR#400.7]).
+    assert!(
+        matches!(
+            &*t.effect,
+            Effect::Act(Action::Move(
+                Selection::Ref(Reference::Target(0)),
+                Zone::Hand
+            ))
+        ),
+        "soulshift returns target to hand; got {:?}",
+        t.effect
+    );
+}
+
+/// [CR#702.135a]: **Afterlife N** confers a dies-triggered ability — `create N
+/// 1/1 white and black Spirit creature tokens with flying`. Proves the macro
+/// expands to a `Triggered(ThisDies)` whose effect creates `Param(0)` tokens of
+/// an inline creature `Token` that is W∧B (color indicator, [CR#202.2e]), 1/1
+/// ([CR#111.3]), a Spirit, and carries flying.
+#[test]
+fn afterlife_confers_dies_create_spirit_tokens_with_flying() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::Action;
+    use deckmaste_core::Color;
+    use deckmaste_core::Count;
+    use deckmaste_core::Effect;
+    use deckmaste_core::Event;
+    use deckmaste_core::PlayerAction;
+    use deckmaste_core::Reference;
+    use deckmaste_core::StatValue;
+    use deckmaste_core::TokenSpec;
+    use deckmaste_core::Type;
+
+    let plugin = builtin();
+    let kw: KeywordAbility = plugin
+        .macros
+        .read_str("Afterlife(2)")
+        .expect("Afterlife expands");
+    let KeywordAbility::Expanded(expanded) = &kw else {
+        panic!("expected Expanded, got {kw:?}");
+    };
+    assert_eq!(expanded.name.as_str(), "Afterlife", "carried name");
+    let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+        panic!("Afterlife body is a Composite");
+    };
+    let trig = abilities
+        .iter()
+        .find_map(|a| match a {
+            Ability::Triggered(t) => Some(t),
+            _ => None,
+        })
+        .expect("Afterlife confers a Triggered ability");
+    assert!(
+        matches!(&trig.event, Event::Expanded(e) if e.name.as_str() == "ThisDies"),
+        "afterlife triggers on dies; got {:?}",
+        trig.event
+    );
+    // Create is a player verb ([CR#111.1]) — `By(You, Create(…))`, the
+    // implicit-you default an effect-slot player verb reads as.
+    let Effect::Act(Action::By(
+        Reference::You,
+        PlayerAction::Create(count, TokenSpec::Token(token)),
+    )) = &trig.effect
+    else {
+        panic!(
+            "afterlife's effect creates inline tokens; got {:?}",
+            trig.effect
+        );
+    };
+    // N = the printed Param(0).
+    assert_eq!(*count, Count::Literal(2), "afterlife creates N tokens");
+    // 1/1 ([CR#111.3]).
+    assert_eq!(token.power, Some(StatValue::Number(1)), "token power 1");
+    assert_eq!(
+        token.toughness,
+        Some(StatValue::Number(1)),
+        "token toughness 1"
+    );
+    // White and black ([CR#202.2e] color indicator).
+    assert!(
+        token.color_indicator.contains(&Color::White)
+            && token.color_indicator.contains(&Color::Black),
+        "token is white and black; got {:?}",
+        token.color_indicator
+    );
+    // A creature Spirit.
+    assert!(token.types.contains(&Type::Creature), "token is a creature");
+    assert!(
+        token.subtypes.iter().any(|s| s.name.as_str() == "Spirit"),
+        "token is a Spirit; got {:?}",
+        token.subtypes
+    );
+    // With flying — a Keyword(Flying) ability (peel Expanded).
+    assert!(
+        token.abilities.iter().any(|a| names_keyword(a, "Flying")),
+        "token has flying; got {:?}",
+        token.abilities
+    );
+}
+
+/// Whether `a` is (or peels to) a keyword ability whose carried name is `name`
+/// — a `Keyword(Flying)` reads as `Ability::Keyword(KeywordAbility::Expanded)`,
+/// and an outer `Ability::Expanded` wrapper is looked through.
+fn names_keyword(a: &deckmaste_core::Ability, name: &str) -> bool {
+    use deckmaste_core::Ability;
+    match a {
+        Ability::Expanded(e) => e.name.as_str() == name || names_keyword(&e.value, name),
+        Ability::Keyword(KeywordAbility::Expanded(e)) => e.name.as_str() == name,
+        _ => false,
+    }
 }
 
 fn deontic_inner(d: &deckmaste_core::Deontic) -> Option<&deckmaste_core::DeonticAction> {
