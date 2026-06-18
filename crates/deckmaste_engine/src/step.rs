@@ -629,6 +629,10 @@ impl GameState {
             // ControlChanged's will re-home the object ([CR#603.2e] delta,
             // never a zone move).
             GameEvent::Revealed { .. } => todo!("P0.W6: reveal apply ([CR#701.20a])"),
+            // Notification only — no state mutation. The event fires once the
+            // distribute has completed (top/bottom repositioned, graveyard items
+            // scheduled), so triggers can observe it ([CR#701.22d]).
+            GameEvent::Distributed { .. } => event,
             GameEvent::DesignationChanged { .. } => {
                 todo!("P0.W6: game-scope designation flip apply ([CR#731.1a])")
             }

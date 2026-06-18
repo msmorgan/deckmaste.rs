@@ -5831,4 +5831,143 @@ mod tests {
         let lib: Vec<_> = state.zones.libraries[p0.index()].iter().copied().collect();
         assert_eq!(lib, vec![a, b, c], "library unchanged after scry-0");
     }
+
+    /// `GameEvent::Distributed` is recorded in history with the keyword name
+    /// and count after a non-empty Distribute completes ([CR#701.22d]), and
+    /// suppressed entirely when the window is empty ([CR#701.22b]).
+    #[test]
+    fn distribute_emits_named_event_and_suppresses_at_zero() {
+        use deckmaste_core::Bin;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::Window;
+        use deckmaste_core::With;
+
+        use crate::decide::Decision;
+        use crate::object::ObjectSource;
+        use crate::step::StepOutcome;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+
+        let make_card = |name: &str| {
+            Card::Normal(CardFace {
+                name: name.into(),
+                ..CardFace::default()
+            })
+        };
+        let card_a = state.cards.push(Arc::new(make_card("Alpha")), p0);
+        let card_b = state.cards.push(Arc::new(make_card("Beta")), p0);
+
+        let a = state
+            .objects
+            .mint(ObjectSource::Card(card_a), p0, Some(Zone::Library));
+        let b = state
+            .objects
+            .mint(ObjectSource::Card(card_b), p0, Some(Zone::Library));
+
+        state.zones.libraries[p0.index()].push_back(a);
+        state.zones.libraries[p0.index()].push_back(b);
+
+        let source = state.player(p0).object;
+        let frame = Frame {
+            source,
+            controller: p0,
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+            x: None,
+            subject: None,
+            those: None,
+        };
+
+        // — N=0 case: scry 0 emits no Distributed event.
+        state.run_effect(
+            Effect::With(With {
+                selection: Selection::TopOfLibrary {
+                    count: Count::Literal(0),
+                    of: deckmaste_core::Reference::You,
+                },
+                body: Box::new(Effect::act_by_you(PlayerAction::Distribute {
+                    group: Selection::Those,
+                    bins: vec![Bin::Top, Bin::Bottom],
+                    name: deckmaste_core::Ident::new("Scry"),
+                })),
+            }),
+            &frame,
+        );
+        // Drain the injected work items.
+        for _ in 0..20 {
+            match state.agenda.front() {
+                Some(
+                    WorkItem::Emit(_)
+                    | WorkItem::RunEffect { .. }
+                    | WorkItem::OpenDistribute { .. },
+                ) => match state.step() {
+                    StepOutcome::NeedsDecision(d) => {
+                        panic!("scry-0 must not surface a decision, got {d:?}")
+                    }
+                    StepOutcome::GameOver(_) => panic!("game ended unexpectedly"),
+                    StepOutcome::Progress(_) => {}
+                },
+                _ => break,
+            }
+        }
+        let has_distributed = state
+            .history
+            .scan(Window::ThisGame, state.turn.turn_number)
+            .any(|e| matches!(e, GameEvent::Distributed { .. }));
+        assert!(!has_distributed, "scry-0 must not emit Distributed");
+
+        // — N=2 case: scry 2 records Distributed { name: "Scry", count: 2 }.
+        state.run_effect(
+            Effect::With(With {
+                selection: Selection::TopOfLibrary {
+                    count: Count::Literal(2),
+                    of: deckmaste_core::Reference::You,
+                },
+                body: Box::new(Effect::act_by_you(PlayerAction::Distribute {
+                    group: Selection::Those,
+                    bins: vec![Bin::Top, Bin::Bottom],
+                    name: deckmaste_core::Ident::new("Scry"),
+                })),
+            }),
+            &frame,
+        );
+        // Step until the Distribute decision surfaces.
+        loop {
+            match state.step() {
+                StepOutcome::NeedsDecision(_) => break,
+                StepOutcome::GameOver(_) => panic!("game ended unexpectedly"),
+                StepOutcome::Progress(_) => {}
+            }
+        }
+        // Submit: top=[a], bottom=[b].
+        state
+            .submit_decision(Decision::Distribution(vec![vec![a], vec![b]]))
+            .unwrap();
+        // Drain until the Distributed event fires.
+        for _ in 0..20 {
+            match state.agenda.front() {
+                Some(
+                    WorkItem::Emit(_)
+                    | WorkItem::RunEffect { .. }
+                    | WorkItem::OpenDistribute { .. },
+                ) => {
+                    let _ = state.step();
+                }
+                _ => break,
+            }
+        }
+        let found = state
+            .history
+            .scan(Window::ThisGame, state.turn.turn_number)
+            .any(|e| {
+                matches!(e, GameEvent::Distributed { name, count, .. }
+                    if name.as_str() == "Scry" && *count == 2)
+            });
+        assert!(
+            found,
+            "scry-2 must record Distributed {{ name: Scry, count: 2 }}"
+        );
+    }
 }
