@@ -1,0 +1,62 @@
+// Graft = both a static ability and a triggered ability [CR#702.58a]:
+// "Graft N" means "This permanent enters with N +1/+1 counters on it" and
+// "Whenever another creature enters, if this permanent has a +1/+1 counter on
+// it, you may move a +1/+1 counter from this permanent onto that creature."
+// The printed N is the macro's `Count` param (the parser emits the bare numeral
+// `Graft(1)`, read as `Count::Literal(1)` for `Param(0)`); multiple instances
+// work separately ([CR#702.58b]).
+//
+// Two abilities, both representable (the same Modular [CR#702.43a] pairing,
+// only the trigger differs):
+//   - STATIC enters-with-counters [CR#702.58a]: the enters-with-counters
+//     self-replacement, the [CR#614.1c] augment whose event is this object's
+//     own entry ([CR#614.12]). This is the shape the `AsEnters` macro expands
+//     to (`Also(would: ThisEnters, also: …)`), INLINED rather than invoked: a
+//     macro body can't thread its own `Param(0)` into a nested macro's argument
+//     slot ("Param(0) outside any macro expansion"), the same constraint that
+//     forces Modular and Enchant to inline. The count is the printed N.
+//   - TRIGGERED move-a-counter [CR#702.58a]: "whenever ANOTHER creature
+//     enters" is the `Enters` ETB event ([CR#603.6]) filtered to OTHER
+//     creatures, `AllOf([Creature, Not(Ref(This))])` (no "you control"
+//     restriction — graft watches every other creature's entry, unlike
+//     Evolve). The matched entering creature binds to `ThatObject` — the
+//     zone-change trigger's "that object" ([CR#603.6], "do something to that
+//     object after it changes zones"). The intervening-if ([CR#603.4], "if this
+//     permanent has a +1/+1 counter on it") gates the trigger on This actually
+//     bearing a +1/+1 counter — `Compare(CounterCount(This, P1P1Counter),
+//     Greater, Literal(0))` — so the optional ability isn't even offered when
+//     there's no counter to move ([CR#702.58a] "move a +1/+1 counter from this
+//     permanent" presupposes one exists). The reward is a `May` ([CR#603.4]
+//     optional "you may") over the MOVE: removing one +1/+1 counter from This
+//     and putting one on ThatObject is, mechanically, a `RemoveCounters(This,
+//     P1P1Counter, 1)` then `PutCounters(ThatObject, P1P1Counter, 1)`, an
+//     ordered `Sequence` ([CR#608.2c]) of the two halves of the migration
+//     ([CR#122.1], counters move between objects this way).
+(
+    name: "Graft",
+    template: "graft ${0}",
+    kinds: [KeywordAbility],
+    params: [Count],
+    body: Composite(
+        name: "Graft",
+        abilities: [
+            // [CR#702.58a]: enters with N +1/+1 counters.
+            Static(effects: [
+                Replacement(Also(
+                    would: ThisEnters,
+                    also: PutCounters(This, P1P1Counter, Param(0)),
+                )),
+            ]),
+            // [CR#702.58a]: another creature enters, if This has a +1/+1
+            // counter → may move one from This onto that creature.
+            Triggered(
+                event: Enters(AllOf([Creature, Not(Ref(This))])),
+                condition: Compare(CounterCount(This, P1P1Counter), Greater, Literal(0)),
+                effect: May(effect: Sequence([
+                    RemoveCounters(This, P1P1Counter, 1),
+                    PutCounters(ThatObject, P1P1Counter, 1),
+                ])),
+            ),
+        ],
+    ),
+)
