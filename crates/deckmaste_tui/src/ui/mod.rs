@@ -135,7 +135,7 @@ pub fn render(
     let [fields, mid_row, hand_area] = Layout::vertical([
         Constraint::Fill(1),
         Constraint::Length(7),
-        Constraint::Length(5),
+        Constraint::Length(7),
     ])
     .areas(left);
     let [p0_area, p1_area] =
