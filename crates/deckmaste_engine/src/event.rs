@@ -322,6 +322,13 @@ pub enum GameEvent {
     /// [CR#608.2n]: a triggered or activated ability finished
     /// resolving (or fizzled) and vanishes — no zone move. Its apply removes
     /// the stack entry whose `id` is the carried (minted) token.
+    /// [CR#701.6a]: a triggered or activated ability was countered and
+    /// vanishes — no zone move. Its apply removes the stack entry whose `id`
+    /// is the carried (minted) token.
+    AbilityCountered {
+        id: ObjectId,
+        cause: Cause,
+    },
     AbilityResolved(ObjectId),
     /// Cards shown ([CR#701.20a]); `to: None` = revealed to ALL players,
     /// `Some` = "look at" — the same operation shown to a subset

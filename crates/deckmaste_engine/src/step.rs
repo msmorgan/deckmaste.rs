@@ -619,6 +619,12 @@ impl GameState {
             // [CR#608.2n]: the triggered or activated ability vanishes —
             // remove its stack entry and discard the minted token. No zone move; the
             // source (already gone for a dies-trigger) is untouched.
+            GameEvent::AbilityCountered { id, .. } => {
+                let id = id;
+                self.remove_stack_entry(id);
+                self.objects.remove(id);
+                event
+            }
             GameEvent::AbilityResolved(id) => {
                 self.remove_stack_entry(id);
                 self.objects.remove(id);
