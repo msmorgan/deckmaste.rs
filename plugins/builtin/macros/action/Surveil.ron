@@ -1,0 +1,13 @@
+// "Surveil N" [CR#701.25a]: look at the top N cards of your library, then put
+// any number of them into your graveyard and the rest on top of your library
+// in any order.
+(
+    name: "Surveil",
+    template: "surveil ${0}",
+    kinds: [Effect],
+    params: [Count],
+    body: With(
+        selection: TopOfLibrary(count: Param(0)),
+        body: Distribute(group: Those, bins: [Top, Graveyard], name: "Surveil"),
+    ),
+)
