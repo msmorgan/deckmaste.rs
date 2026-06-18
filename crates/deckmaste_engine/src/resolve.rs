@@ -1839,10 +1839,10 @@ mod tests {
     use crate::state::StartingPlayer;
     use crate::step::Progress;
     use crate::step::StepOutcome;
+    use crate::trigger::TriggerBindings;
     use crate::test_support::frame_for;
     use crate::test_support::frame_src;
     use crate::test_support::frame_src_targets;
-    use crate::trigger::TriggerBindings;
 
     fn builtin() -> Plugin {
         Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
@@ -3648,11 +3648,10 @@ mod tests {
     fn counter_ability_ceases() {
         let (mut state, bear) = bear_on_field();
         // Mint a token id for the ability.
-        let ability_id = state.objects.mint(
-            ObjectSource::Player(PlayerId(0)),
-            PlayerId(0),
-            Some(Zone::Stack),
-        );
+        let ability_id =
+            state
+                .objects
+                .mint(ObjectSource::Player(PlayerId(0)), PlayerId(0), Some(Zone::Stack));
         state.stack.push(StackEntry {
             id: ability_id,
             object: StackObject::Triggered {
@@ -3683,6 +3682,11 @@ mod tests {
             state.objects.get(ability_id).is_none(),
             "minted ability id gone"
         );
+
+        let found = state.history.scan(Window::ThisGame, state.turn.turn_number).any(|e| {
+            matches!(e, GameEvent::AbilityCountered { id, .. } if *id == ability_id)
+        });
+        assert!(found, "AbilityCountered event must be recorded in history");
     }
 
     /// [CR#401.7]: `PutInLibrary(This, 0)` puts the card on top; an index past
