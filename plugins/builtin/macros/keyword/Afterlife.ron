@@ -1,0 +1,50 @@
+// Afterlife = a triggered ability [CR#702.135a]: "Afterlife N" means "When this
+// permanent is put into a graveyard from the battlefield, create N 1/1 white
+// and black Spirit creature tokens with flying." The printed N is the macro's
+// `Count` param (the parser emits the bare numeral `Afterlife(2)`, read as
+// `Count::Literal(2)` for `Param(0)`); multiple instances trigger separately
+// ([CR#702.135b]).
+//
+// Pieces (all representable over existing primitives):
+//   - trigger:        `ThisDies` — the `ZoneMove(what: Ref(This), from:
+//                     Battlefield, to: Graveyard)` macro ([CR#700.4]).
+//   - resolution:     `Create(Param(0), Token(…))` — create N token permanents
+//                     ([CR#111.1]) of an INLINE creature token whose defined
+//                     characteristics ([CR#111.3]) are: color White ∧ Black via
+//                     a color indicator ([CR#202.2e] — a token has no mana cost,
+//                     so its color rides the indicator), a Creature Spirit, 1/1
+//                     (`power`/`toughness`), and the flying keyword ability
+//                     (`Keyword(Flying)`, [CR#702.9]).
+//
+// The Spirit subtype is spelled INLINE as `Subtype(name: "Spirit", types:
+// [Creature, Kindred])` — exactly what the bare `CreatureType(name: "Spirit")`
+// macro ([CR#205.3m]) expands to — rather than the bare `Spirit` invocation,
+// because the concrete creature-subtype macros are GENERATED under
+// `plugins/wizards/` (gitignored) and so aren't in the `plugins/builtin`-only
+// load the keyword-expansion test exercises. `Keyword(Flying)` is a builtin
+// macro and is invoked normally.
+//
+// No engine gap: the inline `Token` already carries `color_indicator`, `types`,
+// `subtypes`, `power`, `toughness`, and `abilities` — every field this 1/1 W/B
+// Spirit-with-flying needs. Graduation (parse + round-trip) holds: this body
+// expands to valid RON and round-trips.
+(
+    name: "Afterlife",
+    template: "afterlife ${0}",
+    kinds: [KeywordAbility],
+    params: [Count],
+    body: Composite(
+        name: "Afterlife",
+        abilities: [Triggered(
+            event: ThisDies,
+            effect: Create(Param(0), Token(
+                color_indicator: [White, Black],
+                types: [Creature],
+                subtypes: [Subtype(name: "Spirit", types: [Creature, Kindred])],
+                abilities: [Keyword(Flying)],
+                power: 1,
+                toughness: 1,
+            )),
+        )],
+    ),
+)
