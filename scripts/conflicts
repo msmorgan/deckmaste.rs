@@ -1,0 +1,269 @@
+#!/usr/bin/env python3
+"""
+Fast conflict helper for jj repos using the default diff+snapshot marker format.
+
+  scripts/conflicts list
+      List conflicted files (via jj resolve --list).
+
+  scripts/conflicts show [FILE ...]
+      Print only the conflict hunks with line numbers — not the whole file.
+      Omit FILE to show all conflicted files.
+
+  scripts/conflicts show --json [FILE ...]
+      Same but as a JSON array — each element has: file, hunk, total,
+      start_line, end_line, diff_header, diff_side, diff_base,
+      snap_header, snapshot.
+
+  scripts/conflicts accept FILE snapshot|diff|base
+      Resolve every hunk in FILE by picking one side:
+        snapshot  the +++ literal side
+        diff      the %%% diff-applied side (what the "to:" commit changed to)
+        base      the common ancestor extracted from the diff
+"""
+
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+JJ = str(SCRIPT_DIR / "jj")
+
+_START = re.compile(r"^(<{7,}) conflict (\d+) of (\d+)$")
+
+
+def _project_root():
+    d = Path.cwd()
+    while d != d.parent:
+        if (d / ".jj").exists():
+            return d
+        d = d.parent
+    return Path.cwd()
+
+
+PROJECT_ROOT = _project_root()
+
+
+# ---------------------------------------------------------------------------
+# Parser
+# ---------------------------------------------------------------------------
+
+def parse_file(path):
+    """Return (hunks, lines) — hunks is a list of dicts, lines is the raw file."""
+    text = path.read_text()
+    lines = text.splitlines(keepends=True)
+    hunks = []
+    i = 0
+    while i < len(lines):
+        m = _START.match(lines[i].rstrip("\n"))
+        if m:
+            n = len(m.group(1))
+            end_pfx = ">" * n
+            j = i + 1
+            while j < len(lines) and not lines[j].startswith(end_pfx + " conflict"):
+                j += 1
+            sides = _parse_sides(lines[i + 1:j], n)
+            hunks.append({
+                "file": str(path.relative_to(PROJECT_ROOT)),
+                "hunk": int(m.group(2)),
+                "total": int(m.group(3)),
+                "start_line": i + 1,   # 1-indexed
+                "end_line": j + 1,     # 1-indexed
+                "_start": i,           # 0-indexed for splicing
+                "_end": j,
+                "raw": lines[i:j + 1],
+                **sides,
+            })
+            i = j + 1
+        else:
+            i += 1
+    return hunks, lines
+
+
+def _parse_sides(inner, n):
+    diff_m, snap_m, cont_m = "%" * n, "+" * n, "\\" * n
+    sections, cur_kind, cur = [], None, []
+
+    for line in inner:
+        s = line.rstrip("\n")
+        if s.startswith(diff_m):
+            if cur_kind:
+                sections.append((cur_kind, cur))
+            cur_kind, cur = "diff", [s]
+        elif s.startswith(snap_m):
+            if cur_kind:
+                sections.append((cur_kind, cur))
+            cur_kind, cur = "snapshot", [s]
+        elif s.startswith(cont_m):
+            if cur:
+                cur.append(s)
+        elif cur_kind is not None:
+            cur.append(line)
+
+    if cur_kind:
+        sections.append((cur_kind, cur))
+
+    result = {"diff_header": None, "diff_side": [], "diff_base": [],
+               "snap_header": None, "snapshot": []}
+    has_removal = False
+
+    for kind, sec in sections:
+        if kind == "diff":
+            result["diff_header"] = sec[0]
+            for l in sec[1:]:
+                s = l.rstrip("\n")
+                if s.startswith(" "):
+                    result["diff_base"].append(s[1:] + "\n")
+                    result["diff_side"].append(s[1:] + "\n")
+                elif s.startswith("-"):
+                    has_removal = True
+                    result["diff_base"].append(s[1:] + "\n")
+                elif s.startswith("+"):
+                    result["diff_side"].append(s[1:] + "\n")
+        elif kind == "snapshot":
+            result["snap_header"] = sec[0]
+            result["snapshot"] = list(sec[1:])
+
+    # Both sides are purely additive relative to the base when the diff has no
+    # removals and the snapshot equals the base (neither side deleted anything).
+    result["stackable"] = (
+        not has_removal
+        and result["diff_side"] != result["diff_base"]  # diff-side actually added something
+        and result["snapshot"] != []
+    )
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Commands
+# ---------------------------------------------------------------------------
+
+def _conflicted_files():
+    r = subprocess.run([JJ, "resolve", "--list"], capture_output=True, text=True, cwd=PROJECT_ROOT)
+    return [line.split()[0] for line in r.stdout.splitlines() if line.split()]
+
+
+def _resolve_path(filepath):
+    for p in (PROJECT_ROOT / filepath, Path(filepath)):
+        if p.exists():
+            return p
+    return None
+
+
+def cmd_list(_args):
+    r = subprocess.run([JJ, "resolve", "--list"], capture_output=True, text=True, cwd=PROJECT_ROOT)
+    sys.stdout.write(r.stdout)
+    if r.returncode and not r.stdout:
+        sys.stderr.write(r.stderr)
+        sys.exit(r.returncode)
+
+
+def cmd_show(args):
+    as_json = "--json" in args
+    files = [a for a in args if a != "--json"]
+    if not files:
+        files = _conflicted_files()
+    if not files:
+        print("No conflicts found.")
+        return
+
+    all_hunks = []
+    for filepath in files:
+        path = _resolve_path(filepath)
+        if path is None:
+            print(f"Not found: {filepath}", file=sys.stderr)
+            continue
+        hunks, _ = parse_file(path)
+        all_hunks.extend(hunks)
+
+    if as_json:
+        out = []
+        for h in all_hunks:
+            out.append({k: v for k, v in h.items() if not k.startswith("_") and k != "raw"})
+        print(json.dumps(out, indent=2))
+        return
+
+    if not all_hunks:
+        print("No conflict hunks found.")
+        return
+
+    for h in all_hunks:
+        print("─" * 64)
+        print(f"File: {h['file']}  |  hunk {h['hunk']}/{h['total']}  |  lines {h['start_line']}–{h['end_line']}")
+        if h["diff_header"]:
+            print(f"  diff-side : {h['diff_header']}")
+        if h["snap_header"]:
+            print(f"  snapshot  : {h['snap_header']}")
+        print()
+        sys.stdout.writelines(h["raw"])
+        print()
+
+
+def cmd_accept(args):
+    if len(args) < 2:
+        print("Usage: scripts/conflicts accept FILE snapshot|diff|base|stack[,stack-snap-first]", file=sys.stderr)
+        sys.exit(1)
+    filepath, side = args[0], args[1]
+    valid = ("snapshot", "diff", "base", "stack", "stack-snap-first")
+    if side not in valid:
+        print(f"Unknown side '{side}'. Choose: {', '.join(valid)}", file=sys.stderr)
+        sys.exit(1)
+    path = _resolve_path(filepath)
+    if path is None:
+        print(f"Not found: {filepath}", file=sys.stderr)
+        sys.exit(1)
+    hunks, lines = parse_file(path)
+    if not hunks:
+        print(f"No conflicts in {filepath}")
+        return
+
+    key_map = {"snapshot": "snapshot", "diff": "diff_side", "base": "diff_base"}
+    for h in reversed(hunks):
+        if side in key_map:
+            resolution = h[key_map[side]]
+        elif side == "stack":
+            # diff-side first (our rebased change), then snapshot (the other add)
+            resolution = h["diff_side"] + h["snapshot"]
+        else:  # stack-snap-first
+            resolution = h["snapshot"] + h["diff_side"]
+        lines[h["_start"]:h["_end"] + 1] = resolution
+
+    path.write_text("".join(lines))
+    print(f"Resolved {len(hunks)} hunk(s) in {filepath} (accepted {side} side).")
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+_USAGE = """Usage: scripts/conflicts <command> [args]
+
+  list                          List conflicted files
+  show [--json] [FILE ...]      Print conflict hunks only (all files if no FILE)
+                                --json: structured output; each hunk includes
+                                  'stackable: true' when both sides are pure adds
+  accept FILE snapshot          Accept snapshot (+++) side for all hunks in FILE
+  accept FILE diff              Accept diff-applied side (%%%) for all hunks in FILE
+  accept FILE base              Accept merge base for all hunks in FILE
+  accept FILE stack             Stack both adds: diff-side first, then snapshot
+  accept FILE stack-snap-first  Stack both adds: snapshot first, then diff-side
+"""
+
+
+def main():
+    argv = sys.argv[1:]
+    if not argv:
+        print(_USAGE)
+        sys.exit(1)
+    cmd, rest = argv[0], argv[1:]
+    dispatch = {"list": cmd_list, "show": cmd_show, "accept": cmd_accept}
+    if cmd not in dispatch:
+        print(f"Unknown command: {cmd!r}\n", file=sys.stderr)
+        print(_USAGE, file=sys.stderr)
+        sys.exit(1)
+    dispatch[cmd](rest)
+
+
+if __name__ == "__main__":
+    main()

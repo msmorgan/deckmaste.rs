@@ -666,10 +666,17 @@ function __workflow_repair
         case 0
             echo >&2 "repair: conflicts resolved — branch clean, re-integrate."
         case 1
-            echo >&2 "repair: stopped on a conflict — remove ALL conflict markers from these file(s), then re-run 'scripts/workflow repair':"
+            echo >&2 "repair: stopped on a conflict. For each file above, resolve with:"
+            echo >&2 "    scripts/conflicts accept FILE stack          (both sides added — stack them)"
+            echo >&2 "    scripts/conflicts accept FILE snapshot|diff  (pick one side)"
+            echo >&2 "    [edit FILE directly]                         (complex/semantic conflict)"
+            echo >&2 "Then re-run 'scripts/workflow repair'."
+            echo >&2 ""
             for f in (jj resolve --list 2>/dev/null | string replace -r '\s.*$' '')
                 echo >&2 "    $f"
             end
+            echo >&2 ""
+            $scripts_dir/conflicts show >&2
         case '*'
             echo >&2 "repair: stopped (exit $rc) — finish removing markers and re-run, or get a human if jj rolled back."
     end

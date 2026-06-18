@@ -32,6 +32,17 @@ pub fn generate_stubs(plugin_dir: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Generate only subtype meta-invocations, skipping keyword/action/ability-word
+/// todo stubs. Does not require `data/rules/cr.json`.
+///
+/// # Errors
+/// If the plugin layout is unusable or the subtype generator fails.
+pub fn generate_subtype_stubs(plugin_dir: &Path) -> anyhow::Result<()> {
+    let plugin = PluginLayout::new(plugin_dir)?;
+    subtypes::generate(&plugin)?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::is_unimplemented;

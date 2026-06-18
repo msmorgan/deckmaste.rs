@@ -7,6 +7,12 @@ what each card does, and the engine implements the rules themselves — the stac
 triggered abilities, continuous effects, combat, and so on — applying them to
 that description.
 
+> I'm fond of language — natural and programming alike — and I'm fond of Magic:
+> The Gathering. I've long wondered if the rules text of Magic cards was a
+> structured data language in disguise. This is that project.
+
+---
+
 ## Design
 
 Magic's card pool is large and open-ended — on the order of thirty thousand
@@ -49,6 +55,8 @@ unregistered. Card descriptions are statically typed, so
 an ill-formed description fails to parse or validate rather than misbehaving at
 runtime.
 
+---
+
 ## What's implemented
 
 Concretely, the engine currently implements:
@@ -64,6 +72,8 @@ Concretely, the engine currently implements:
 - designations and history-window conditions ("died this turn", storm count)
 - player choices surfaced as explicit decision points (what the client drives)
 
+---
+
 ## Trying it
 
 `cargo run` launches an interactive terminal client (built on ratatui): a
@@ -75,6 +85,8 @@ enough.
 The engine's behavior is also covered by a test suite that exercises specific
 interactions, and `crates/deckmaste_engine/examples/full_game_1k.rs` runs a
 thousand complete games.
+
+---
 
 ## Architecture
 
@@ -94,6 +106,8 @@ Eight crates, plus a thin root binary that launches the client:
 - **`xtask`** — repository tooling: corpus generation, validation, and the
   citation checker.
 
+---
+
 ## Scope
 
 The implemented card set is a deliberate vertical slice rather than a complete
@@ -102,6 +116,8 @@ breadth of card coverage. A curated set of real cards is encoded by hand and
 graduated through the data pipeline, and the encoding grammar continues to expand
 toward the remaining mechanics. `docs/rules-taxonomy.md` records the plan for
 that work.
+
+---
 
 ## Motivation
 
@@ -155,6 +171,8 @@ suit an engine that mostly enumerates cases; naive code runs fast enough to keep
 the implementation plain for now; and moving the card tooling to Rust was roughly
 a 100× speedup.
 
+---
+
 ## Getting started
 
 Everything but the full card pipeline runs with no external data:
@@ -175,6 +193,8 @@ cargo xtask generate plugins/wizards     # build the stub corpus from it
 
 The repository uses jj rather than git; see `CLAUDE.md` for the workflow
 conventions.
+
+---
 
 ## License & fan content
 
