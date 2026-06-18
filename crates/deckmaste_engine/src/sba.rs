@@ -1605,4 +1605,26 @@ mod tests {
             "1 damage < toughness 2"
         );
     }
+
+    /// [CR#704.5h]: `Condition::DamagedByDeathtouch` reads the deal-time
+    /// `struck_by_deathtouch` flag on the referenced object. False by default;
+    /// true once the flag is set.
+    #[test]
+    fn damaged_by_deathtouch_reads_the_flag() {
+        use deckmaste_core::Condition;
+        use deckmaste_core::Reference;
+
+        let (mut state, bear) = bear_on_field();
+        let frame = this_frame(&state, bear);
+        let cond = Condition::DamagedByDeathtouch(Reference::This);
+        assert!(
+            !state.condition_holds(&cond, &frame),
+            "flag clear by default"
+        );
+        state.objects.obj_mut(bear).struck_by_deathtouch = true;
+        assert!(
+            state.condition_holds(&cond, &frame),
+            "flag set → condition holds"
+        );
+    }
 }
