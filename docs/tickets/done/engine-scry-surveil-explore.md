@@ -1,6 +1,20 @@
 ---
 needs: [engine-resolve-selections]
 ---
+## INTEGRATED 2026-06-17 — Scry / Surveil / Fateseal (Explore split out)
+
+Landed: the `Effect::With`→`Those` group binder, `Selection::{Those,TopOfLibrary}`,
+`PlayerAction::Distribute` + `Bin` with the `PendingDecision::Distribute` ordered-
+partition decision (direct VecDeque surgery for top/bottom — identity-preserving —
+graveyard via the event path), identity-keyed `look_grants`, the Composite-style
+`GameEvent::Distributed { name }`, `Reference::Opponent`, and the three
+`macros/action/{Scry,Surveil,Fateseal}.ron` macros. **Explore was SPLIT OUT to
+`engine-explore` (planned)** — it is a different shape (reveal-then-branch) and needs
+the unbuilt Reveal seam. Correct CR numbers (the body below is STALE): Scry
+[CR#701.22], Surveil [CR#701.25], Fateseal [CR#701.29], Explore [CR#701.44].
+
+---
+
 Look-at-top-of-library DECISION primitive — the single biggest graduation lever
 left (~1,866 cards: Scry 1,307 + Surveil 455 + Explore 99 + Fateseal 5; ~100+
 are one unparsed line away RIGHT NOW). The parse infrastructure is ready (the

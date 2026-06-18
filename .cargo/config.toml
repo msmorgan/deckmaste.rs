@@ -2,7 +2,7 @@
 # xtask owns all CLI parsing; the other crates are pure libraries it calls.
 #
 # Dev profile, so iterating on xtask stays fast to compile. `generate`
-# deserializes the ~600 MB AllPrintings.json, which is slow unoptimized -- the
+# deserializes the ~150 MB AtomicCards.json, which is slow unoptimized -- the
 # root Cargo.toml raises the dev opt-level of deckmaste_migrations + serde_json
 # so it stays fast to run without a release build of the whole tree.
 [alias]

@@ -3,45 +3,55 @@
 source (status dirname)/lib/setup.fish
 or return
 
-function fetch_mtgjson
-    set wanted_files \
-        Meta.json \
-        CompiledList.json \
-        EnumValues.json \
-        Keywords.json \
-        CardTypes.json \
-        SetList.json \
-        AllPrintings.json \
-        AtomicCards.json \
-        AllSetFiles.tar \
-        AllPrintings.sqlite
+argparse -S m/minimal -- $argv; or return
 
-    mtgjson download $wanted_files
+# --minimal: download only what `cargo xtask generate --minimal` needs.
+# Without the flag: download everything including reference files.
+set -q _flag_minimal; and set -g _minimal
+
+function fetch_mtgjson
+    set wanted AtomicCards.json
+    if not set -q _minimal
+        set -a wanted \
+            Meta.json \
+            CompiledList.json \
+            EnumValues.json \
+            Keywords.json \
+            CardTypes.json \
+            SetList.json \
+            AllPrintings.json \
+            AllSetFiles.tar \
+            AllPrintings.sqlite
+    end
+    mtgjson download $wanted
 end
 
 function fetch_rules
-    set wanted_files_map \
-        link/cr:cr.txt \
-        cr:cr.json \
-        cr/keywords:keywords.json \
-        cr/glossary:glossary.json \
-        cr/unofficial-glossary:unofficial-glossary.json \
-        mtr:mtr.json
-
-    academyruins download $wanted_files_map
+    # cr.json is only needed for keyword stub generation, which --minimal skips.
+    set wanted cr/keywords:keywords.json
+    if not set -q _minimal
+        set -a wanted \
+            link/cr:cr.txt \
+            cr:cr.json
+    end
+    academyruins download $wanted
 end
 
 function fetch_scryfall_catalogs
     set wanted_catalogs \
-        card-names artist-names word-bank supertypes card-types artifact-types \
-        battle-types creature-types enchantment-types land-types planeswalker-types \
-        spell-types powers toughnesses loyalties keyword-abilities keyword-actions \
-        ability-words flavor-words watermarks
+        artifact-types battle-types creature-types enchantment-types \
+        land-types planeswalker-types spell-types
+    if not set -q _minimal
+        set -a wanted_catalogs \
+            card-names artist-names word-bank supertypes card-types \
+            powers toughnesses loyalties keyword-abilities keyword-actions \
+            ability-words flavor-words watermarks
+    end
 
+    set wanted_files_map
     for catalog in $wanted_catalogs
         set -a wanted_files_map catalog/$catalog:$catalog.json
     end
-
     scryfall download $wanted_files_map
 end
 
