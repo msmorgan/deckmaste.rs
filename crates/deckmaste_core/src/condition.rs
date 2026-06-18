@@ -64,6 +64,12 @@ pub enum Condition {
     /// engine evaluates it through the one `attachment_legal` predicate (the
     /// same one the [CR#701.3b] attach no-op uses), never by subtype.
     LegallyAttached(Reference),
+    /// The referenced creature has been dealt damage by a source with
+    /// deathtouch since the last SBA check ([CR#704.5h]) — reads the
+    /// deal-time `struck_by_deathtouch` flag. (Bespoke placeholder; a later
+    /// damage-provenance pass replaces this with `Is(Ref(Source),
+    /// Has(Deathtouch))`.)
+    DamagedByDeathtouch(Reference),
     /// An event happened within a window (morbid/raid, [CR#608.2i]).
     Happened { event: Event, within: Window },
     /// It is the evaluating player's turn (the `you` of the evaluation

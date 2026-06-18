@@ -74,6 +74,15 @@ impl GameState {
                     .is_some_and(|host| crate::legal::attachment_legal(self, object, host))
             }
 
+            // [CR#704.5h]: the referenced creature was dealt damage by a
+            // deathtouch source since the last SBA check — reads the deal-time
+            // `struck_by_deathtouch` flag captured by `step.rs`. (Bespoke
+            // placeholder; a later damage-provenance pass replaces this.)
+            Condition::DamagedByDeathtouch(reference) => {
+                let object = self.eval_reference(reference, frame);
+                self.objects.obj(object).struck_by_deathtouch
+            }
+
             // Numeric comparison: both sides ride the one `eval_count`, so a
             // `CountOf` here counts live objects exactly as it does at
             // resolution — no frame-free subset to fall out of sync.
