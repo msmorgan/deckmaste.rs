@@ -309,15 +309,15 @@ mod tests {
     }
 
     #[test]
-    fn builtin_loads_three_sba_rules() {
+    fn builtin_loads_four_sba_rules() {
         let plugin = Plugin::load(
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"),
         )
         .unwrap();
         assert_eq!(
             plugin.sba_rules.len(),
-            3,
-            "toughness-0, loyalty-0, battle-defense-0"
+            4,
+            "toughness-0, loyalty-0, battle-defense-0, lethal-damage"
         );
         // Every row puts the object into a graveyard.
         assert!(

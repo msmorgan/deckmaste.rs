@@ -5,7 +5,6 @@
 //! with lethal marked damage are destroyed ([CR#704.5g]); tokens stranded off
 //! the battlefield cease to exist ([CR#704.5d]).
 
-use deckmaste_core::Type;
 use deckmaste_core::Zone;
 
 use crate::agenda::WorkItem;
@@ -81,54 +80,6 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
     // loyalty-0, battle-defense-0). Evaluated after counter SBAs so they join
     // the same simultaneous batch.
     actions.extend(global_sba_rules(state));
-
-    // [CR#704.5g,704.5h]: a creature with lethal marked damage, or struck by
-    // any damage from a deathtouch source, is destroyed. We collect the ids
-    // to destroy into a `BTreeSet` so that a creature triggering both checks
-    // (e.g. it has lethal damage AND was struck by deathtouch) emits only
-    // one `ZoneWillChange` event.
-    let mut to_destroy = std::collections::BTreeSet::new();
-    for &id in &state.zones.battlefield {
-        let obj = state.objects.obj(id);
-        let c = view.get(id);
-        if !c.card_types.contains(&Type::Creature) {
-            continue;
-        }
-        if let Some(toughness) = c.toughness {
-            // Both destroy SBAs require toughness > 0 ([CR#704.5g], [CR#704.5h]);
-            // toughness is an Int (i32) and a creature with toughness ≤ 0 is
-            // handled by other SBAs (not yet wired). Guard once for both and to
-            // avoid the cast underflow.
-            if toughness > 0 {
-                // [CR#704.5g]: lethal marked damage (damage >= toughness).
-                #[expect(clippy::cast_sign_loss)]
-                if obj.damage >= toughness as deckmaste_core::Uint {
-                    to_destroy.insert(id);
-                }
-                // [CR#704.5h]: dealt any damage by a deathtouch source.
-                if obj.struck_by_deathtouch {
-                    to_destroy.insert(id);
-                }
-            }
-        }
-    }
-    for id in to_destroy {
-        // Destroy through the replaceable `WillDestroy` intent so indestructible
-        // ([CR#702.12b]) and other cant-happen statics intercede via the event-side
-        // cant pass ([CR#614.17]) in `apply_occurrence`, suppressing the event
-        // before it reaches `apply`. For destructible permanents the intent
-        // commits the battlefield→graveyard move (capturing LKI then,
-        // [CR#400.7]). The cause names the verb — lethal-damage destruction is
-        // one of "destroyed"'s exactly two causes ([CR#701.8b]), so the named
-        // view can narrow on it.
-        actions.push(GameEvent::WillDestroy {
-            object: id,
-            cause: Some(crate::event::Cause::destroy(
-                deckmaste_core::Agency::StateBasedAction,
-                None,
-            )),
-        });
-    }
 
     // [CR#704.5d,111.7]: a token in a zone other than the battlefield ceases
     // to exist. The move that stranded it already fired its zone-leave
@@ -607,6 +558,8 @@ mod tests {
     #[test]
     fn indestructible_survives_lethal_damage() {
         let (mut state, myr) = myr_on_field();
+        // Load builtin rules so the lethal-damage SBA fires via the rule path.
+        state.sba_rules = builtin().sba_rules;
         state.objects.obj_mut(myr).damage = 1; // toughness 1 → lethal
         let actions = sba::sweep(&state);
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(actions))]);
@@ -622,6 +575,8 @@ mod tests {
     #[test]
     fn lethal_damage_destroys_a_creature_in_the_sba_sweep() {
         let (mut state, bear) = bear_on_field();
+        // Load builtin rules so the lethal-damage SBA fires via the rule path.
+        state.sba_rules = builtin().sba_rules;
 
         // Grizzly Bears has toughness 2; set lethal damage. The sweep emits
         // the destroy as a replaceable `WillDestroy` intent (its apply commits
@@ -881,6 +836,8 @@ mod tests {
     #[test]
     fn destroy_remints_old_id_gone_new_in_graveyard() {
         let (mut state, bear) = bear_on_field();
+        // Load builtin rules so the lethal-damage SBA fires.
+        state.sba_rules = builtin().sba_rules;
         // Grizzly Bears has toughness 2; set lethal damage.
         state.objects.obj_mut(bear).damage = 2;
         let actions = sba::sweep(&state);
@@ -1646,6 +1603,7 @@ mod tests {
             chosen: None,
             x: None,
             subject: None,
+            those: None,
         }
     }
 
@@ -1698,6 +1656,126 @@ mod tests {
         assert!(
             state.condition_holds(&cond, &frame),
             "flag set → condition holds"
+        );
+    }
+
+    // --- lethal-damage rule [CR#704.5g,704.5h] ----------------------------------
+
+    /// [CR#704.5g]: a creature with lethal marked damage is destroyed via the
+    /// rules-SBA rule, with `StateBasedAction` cause and verb "Destroy".
+    #[test]
+    fn lethal_damage_rule_destroys_via_state_based_action() {
+        let (mut state, bear) = bear_on_field(); // toughness 2
+        state.sba_rules = builtin().sba_rules;
+        state.objects.obj_mut(bear).damage = 2;
+        let actions = sba::sweep(&state);
+        let n = actions
+            .iter()
+            .filter(|e| matches!(e, GameEvent::WillDestroy { object, .. } if *object == bear))
+            .count();
+        assert_eq!(n, 1, "exactly one WillDestroy from the rule");
+        let ev = actions
+            .iter()
+            .find(|e| matches!(e, GameEvent::WillDestroy { object, .. } if *object == bear))
+            .unwrap();
+        let GameEvent::WillDestroy { cause: Some(c), .. } = ev else {
+            panic!("WillDestroy must carry a cause; got {ev:?}")
+        };
+        assert_eq!(
+            c.agency,
+            deckmaste_core::Agency::StateBasedAction,
+            "lethal-damage destroy must carry StateBasedAction agency"
+        );
+        assert_eq!(
+            c.verb,
+            deckmaste_core::Ident::from("Destroy"),
+            "lethal-damage destroy must carry the Destroy verb"
+        );
+    }
+
+    /// [CR#704.5h]: a creature struck by deathtouch is destroyed even if the
+    /// physical damage is sublethal.
+    #[test]
+    fn deathtouch_strike_rule_destroys() {
+        let (mut state, bear) = bear_on_field();
+        state.sba_rules = builtin().sba_rules;
+        // 1 damage (< toughness 2) but struck by deathtouch
+        state.objects.obj_mut(bear).damage = 1;
+        state.objects.obj_mut(bear).struck_by_deathtouch = true;
+        let actions = sba::sweep(&state);
+        assert!(
+            actions
+                .iter()
+                .any(|e| matches!(e, GameEvent::WillDestroy { object, .. } if *object == bear)),
+            "a creature struck by deathtouch must be destroyed ([CR#704.5h]); got {actions:?}"
+        );
+    }
+
+    /// [CR#704.5g,704.5h]: a creature with BOTH lethal damage AND a deathtouch
+    /// strike emits exactly one `WillDestroy` — the `OneOf` in the rule
+    /// prevents the rule from firing twice.
+    #[test]
+    fn lethal_and_deathtouch_emits_one_destroy() {
+        let (mut state, bear) = bear_on_field(); // toughness 2
+        state.sba_rules = builtin().sba_rules;
+        state.objects.obj_mut(bear).damage = 2;
+        state.objects.obj_mut(bear).struck_by_deathtouch = true;
+        let actions = sba::sweep(&state);
+        let n = actions
+            .iter()
+            .filter(|e| matches!(e, GameEvent::WillDestroy { object, .. } if *object == bear))
+            .count();
+        assert_eq!(
+            n, 1,
+            "OneOf dedups to a single WillDestroy — no double-destroy panic; got {actions:?}"
+        );
+    }
+
+    /// [CR#704.5g]: a creature with SUBLETHAL damage and NO deathtouch is not
+    /// destroyed.
+    #[test]
+    fn sublethal_no_deathtouch_survives() {
+        let (mut state, bear) = bear_on_field();
+        state.sba_rules = builtin().sba_rules;
+        state.objects.obj_mut(bear).damage = 1; // < toughness 2, no deathtouch
+        let actions = sba::sweep(&state);
+        assert!(
+            !actions
+                .iter()
+                .any(|e| matches!(e, GameEvent::WillDestroy { object, .. } if *object == bear)),
+            "sublethal damage without deathtouch must not destroy; got {actions:?}"
+        );
+    }
+
+    /// [CR#704.5f,704.5g]: a creature with toughness 0 and marked damage only
+    /// gets the Move [CR#704.5f], NOT also a Destroy (the `toughness > 0` guard
+    /// in the lethal-damage rule prevents it).
+    #[test]
+    fn zero_toughness_damaged_creature_moves_not_destroyed() {
+        let (mut state, bear) = bear_on_field();
+        state.sba_rules = builtin().sba_rules;
+        state.counter_decls = builtin().counters;
+        // Two -1/-1 counters: toughness 2 → 0.
+        state
+            .objects
+            .obj_mut(bear)
+            .counters
+            .insert("M1M1Counter".into(), 2);
+        state.objects.obj_mut(bear).damage = 5;
+        let actions = sba::sweep(&state);
+        assert!(
+            actions.iter().any(|e| matches!(
+                e,
+                GameEvent::ZoneWillChange { object, to: Zone::Graveyard, .. } if *object == bear
+            )),
+            "toughness-0 creature must get the Move; got {actions:?}"
+        );
+        assert!(
+            !actions
+                .iter()
+                .any(|e| matches!(e, GameEvent::WillDestroy { object, .. } if *object == bear)),
+            "toughness > 0 guard: no lethal-damage destroy on a 0-toughness creature; \
+             got {actions:?}"
         );
     }
 }

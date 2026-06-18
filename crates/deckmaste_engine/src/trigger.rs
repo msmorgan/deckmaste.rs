@@ -2394,6 +2394,9 @@ mod tests {
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
         });
+        // Load builtin rules so data-driven SBAs (lethal-damage destroy,
+        // toughness-0 move, etc.) fire when these tests drive `CheckSbas`.
+        state.sba_rules = builtin().sba_rules;
         let card_id = state.cards.push(card, PlayerId(0));
         let id = state.objects.mint(
             ObjectSource::Card(card_id),
@@ -3335,6 +3338,9 @@ mod tests {
     /// victims that can be lethally damaged.
     fn watcher_game(limits: Vec<deckmaste_core::UseLimit>) -> (GameState, ObjectId) {
         let mut state = empty_game();
+        // Load builtin rules so the data-driven lethal-damage SBA fires when
+        // `drain_sbas` drives `CheckSbas`.
+        state.sba_rules = builtin().sba_rules;
         state.turn.active_player = PlayerId(0);
         let watcher = put_synthetic_on_field(&mut state, dies_watcher(limits), PlayerId(0));
         // Drop the fresh game's queued turn machinery (`BeginStep(Untap)` and

@@ -141,6 +141,8 @@ fn bolt_game(seed: u64, mountains: usize) -> GameState {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
     });
+    // Load builtin rules so lethal-damage SBA fires after spells resolve.
+    state.sba_rules = builtin().sba_rules;
     // Mono-typed halves of each deck guarantee the opening seven holds both an
     // instant and a Mountain for player 0 and a Vanilla Creature for player 1.
     for _ in 0..mountains {
@@ -1171,6 +1173,8 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
                 .any(|&o| is_card(s, o, "Lightning Bolt"))
         })
         .expect("a seed with a bolt in P0's opening hand");
+    // Load builtin rules so the lethal-damage SBA fires after the bolt resolves.
+    state.sba_rules = builtin().sba_rules;
 
     let fiend_obj = force_into_play(&mut state, PlayerId(0), "Footlight Fiend");
     force_into_play(&mut state, PlayerId(0), "Mountain");
@@ -1515,6 +1519,8 @@ fn occurrence_batch_and_apnap_ordering() {
                 && hand.iter().any(|&o| is_card(s, o, "Mountain"))
         })
         .expect("a seed with Pyroclasm + Mountain in P0's opening hand");
+    // Load builtin rules so lethal-damage SBA fires after Pyroclasm resolves.
+    state.sba_rules = builtin().sba_rules;
 
     // Force mana sources onto the battlefield.
     force_into_play(&mut state, PlayerId(0), "Mountain");
@@ -1893,6 +1899,9 @@ fn two_triggers_same_player_order_triggers_surfaces() {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
     });
+    // Load builtin rules so the lethal-damage SBA fires when the bear's
+    // damage is checked.
+    state.sba_rules = builtin().sba_rules;
 
     // Place two watchers and a Grizzly Bears (the dying creature) under P0.
     let watcher0 = force_into_play(&mut state, PlayerId(0), "Moonlit Wake");
