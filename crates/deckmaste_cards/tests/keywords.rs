@@ -56,6 +56,8 @@ fn every_builtin_keyword_macro_expands() {
         ("Graft(1)", "Graft"),
         ("Soulshift(3)", "Soulshift"),
         ("Afterlife(2)", "Afterlife"),
+        ("Mentor", "Mentor"),
+        ("Training", "Training"),
     ];
     let plugin = builtin();
     for (invocation, name) in cases {

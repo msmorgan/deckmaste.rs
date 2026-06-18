@@ -1,0 +1,48 @@
+// Mentor = a triggered ability [CR#702.134a]: "Whenever this creature attacks,
+// put a +1/+1 counter on target attacking creature with power less than this
+// creature's power."
+//
+// The trigger is "whenever this creature attacks" — the same declare-attackers
+// transition Battle Cry watches: THIS creature becomes an attacker,
+// `StateBecomes(of: Ref(This), becomes: Attacking)` ([CR#508.1k] the chosen
+// creature becomes an attacking creature, the [CR#603.2e] becomes-delta keyed
+// on the carrier). No intervening-if: the ability always resolves; the
+// power restriction lives on the TARGET, not on a gate.
+//
+// The target ([CR#115.1,601.2c], declared on the `Targeted` wrapper, the same
+// `Target(Exactly(1), filter)` shape Modular uses) is "attacking creature with
+// power less than this creature's power":
+//   - `Type(Creature)` + `Attacking` ([CR#508.1a] a still-in-combat attacker);
+//   - the cross-object power comparison is a `Where(Compare(...))` filter arm
+//     ([CR#603.4] predicate language reached from a per-object filter slot):
+//     `Compare(StatOf(Subject, Power), Less, StatOf(This, Power))`. `Subject`
+//     is the candidate being tested ([CR#107.1] numeric comparison), `This` the
+//     carrier (the attacking creature whose ability this is) — so each
+//     candidate's power ([CR#208]) is compared against the carrier's. The
+//     carrier itself never qualifies (its power is not less than itself), and
+//     "with power less than" admits only strictly-smaller attackers. The
+//     candidate-vs-carrier comparison resolves because the targeting path
+//     threads the carrier as the filter's watcher.
+//
+// The resolution puts one +1/+1 counter ([CR#122.1a]) on the chosen target:
+// `PutCounters(Target(0), P1P1Counter, 1)` — the announced target read back via
+// `Target(0)`, the counter kind a bare identifier, the count a bare numeral.
+//
+// NOTE [CR#702.134b]: multiple instances of mentor trigger separately — the
+// engine's per-instance trigger handling, not anything this single-instance
+// body encodes.
+KeywordAbility(
+    name: "Mentor",
+    template: "mentor",
+    abilities: [Triggered(
+        event: StateBecomes(of: Ref(This), becomes: Attacking),
+        effect: Targeted(
+            targets: [Target(Exactly(1), AllOf([
+                Type(Creature),
+                Attacking,
+                Where(Compare(StatOf(Subject, Power), Less, StatOf(This, Power))),
+            ]))],
+            effect: PutCounters(Target(0), P1P1Counter, 1),
+        ),
+    )],
+)

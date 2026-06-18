@@ -201,10 +201,13 @@ impl GameState {
         }
 
         // [CR#601.2c,602.2b]: every target spec must admit at least one
-        // legal candidate.
+        // legal candidate. The carrier is the activation object's source —
+        // anchors a target filter's carrier-relative self-reference (`Ref(This)`,
+        // `StatOf(This, …)`).
+        let carrier = Some(self.objects.obj(object).source);
         if !crate::resolve::top_targets(&ability.effect)
             .iter()
-            .all(|spec| !self.legal_targets(spec).is_empty())
+            .all(|spec| !self.legal_targets(spec, carrier).is_empty())
         {
             return false;
         }

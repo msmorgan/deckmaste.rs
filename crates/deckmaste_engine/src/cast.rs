@@ -30,7 +30,6 @@ use crate::stack::Frame;
 use crate::stack::PendingStackEntry;
 use crate::stack::StackObject;
 use crate::state::GameState;
-use crate::target::candidates;
 
 /// The pool units spent on a cost ([CR#601.2g]): indices into the player's
 /// mana pool at payment time. The decision is atomic, so indices into the
@@ -594,9 +593,12 @@ impl GameState {
             return false;
         }
         // If the spell targets, every spec must admit at least one candidate.
+        // The carrier is the spell's own object source ([CR#601.2c]) — anchors a
+        // target filter's `Ref(This)` to the spell.
+        let carrier = Some(self.objects.obj(object).source);
         crate::resolve::spell_targets(view, object)
             .iter()
-            .all(|spec| !self.legal_targets(spec).is_empty())
+            .all(|spec| !self.legal_targets(spec, carrier).is_empty())
     }
 
     /// [CR#601.2a,601.2b]: move the spell from its controller's hand to the stack and
@@ -688,10 +690,16 @@ impl GameState {
     ) -> Uint {
         let view = self.layers();
         let rows = crate::legal::cant_target_rows(self, &view);
+        // The carrier is the targeting object's source — a spell's own source, an
+        // ability announce's minted-id source, or a placing trigger's minted-id
+        // source (minted with the trigger's `source`, so this is the ability's
+        // source object). It anchors a target filter's `Ref(This)`/`StatOf(This,
+        // …)` (Mentor's lesser-power clause, [CR#702.134a]).
+        let carrier = Some(self.objects.obj(targeting_id).source);
         let legal: Vec<Vec<ObjectId>> = specs
             .iter()
             .map(|s| {
-                self.legal_targets(s)
+                self.legal_targets(s, carrier)
                     .into_iter()
                     .filter(|&t| {
                         crate::legal::target_forbidden_by(self, &rows, targeting_id, t).is_none()
@@ -938,7 +946,13 @@ impl GameState {
     }
 
     /// [CR#115]: the legal candidates for a single `TargetSpec` (its filter's
-    /// matching objects, in id order).
+    /// matching objects, in id order). `carrier` is the targeting object's
+    /// `ObjectSource` (the spell, or the source of an activated/triggered
+    /// ability), anchoring a target filter's carrier-relative self-references
+    /// (`Ref(This)`, and the `StatOf(This, …)` a `Filter::Where` reaches) —
+    /// e.g. Mentor's "attacking creature with power less than this
+    /// creature's power" ([CR#702.134a]). Filters that never reference the
+    /// carrier ignore it.
     ///
     /// Delegates filter extraction to `resolve::target_spec_filter` so that
     /// announce-time and resolution-time `TargetSpec` handling stay in sync.
@@ -948,9 +962,13 @@ impl GameState {
     /// Panics on `TargetSpec` variants other than `Target` or `Expanded` —
     /// only those are wired for Stage 2.
     #[must_use]
-    pub(crate) fn legal_targets(&self, spec: &TargetSpec) -> Vec<ObjectId> {
+    pub(crate) fn legal_targets(
+        &self,
+        spec: &TargetSpec,
+        carrier: Option<crate::object::ObjectSource>,
+    ) -> Vec<ObjectId> {
         let filter = crate::resolve::target_spec_filter(spec);
-        candidates(self, filter)
+        crate::target::candidates_with(self, filter, carrier)
     }
 
     /// Auto-tap the in-flight `PayMana` decision ([CR#601.2g,106.6]), honoring

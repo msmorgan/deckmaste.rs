@@ -1435,6 +1435,121 @@ mod tests {
     }
 
     // -------------------------------------------------------------------------
+    // Training's intervening-if ([CR#702.149a,603.4]): "at least one other
+    // creature with power greater than this creature's power attacks" — the
+    // `Compare(CountOf(... Where(StatOf vs This) ...), AtLeast, 1)` the keyword
+    // macro emits. `CountOf` threads the carrier watcher into the filter, so the
+    // candidate-vs-carrier power comparison resolves `This` to the carrier.
+    // -------------------------------------------------------------------------
+
+    /// Build a board (all P0) of declared attackers: a 3/3 Centaur Courser
+    /// (the Training carrier) plus the named extra creatures. Returns the state
+    /// and the carrier id. A frame is built separately with `this` bound to the
+    /// carrier so `frame_watcher` anchors `This` to it.
+    fn attacking_board(extras: &[&str]) -> (GameState, ObjectId) {
+        let courser = Arc::new(canon().card("Centaur Courser").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: vec![Arc::clone(&courser); 10],
+                },
+                PlayerConfig {
+                    deck: vec![Arc::clone(&courser); 10],
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+        });
+        let put = |state: &mut GameState, name: &str| {
+            let card = Arc::new(canon().card(name).unwrap());
+            let cid = state.cards.push(card, PlayerId(0));
+            let id = state.objects.mint(
+                crate::object::ObjectSource::Card(cid),
+                PlayerId(0),
+                Some(Zone::Battlefield),
+            );
+            state.zones.battlefield.push(id);
+            state.combat.declare_attacker(id);
+            id
+        };
+        let carrier = put(&mut state, "Centaur Courser"); // 3/3
+        for name in extras {
+            put(&mut state, name);
+        }
+        (state, carrier)
+    }
+
+    /// A trigger-fire gate frame whose `this` binding is the carrier — mirrors
+    /// the real intervening-if frame (`bindings.this` set to the firing
+    /// object's snapshot), so `frame_watcher` resolves `This` to the carrier.
+    fn carrier_gate_frame(state: &GameState, carrier: ObjectId) -> Frame {
+        Frame {
+            source: carrier,
+            controller: PlayerId(0),
+            targets: Vec::new(),
+            bindings: Some(super::TriggerBindings {
+                this: Some(crate::lki::LkiSnapshot::capture(state, carrier)),
+                that_object: None,
+                that_player: None,
+            }),
+            chosen: None,
+            x: None,
+            subject: None,
+            those: None,
+        }
+    }
+
+    /// The Training intervening-if as the macro spells it.
+    fn training_condition() -> Condition {
+        use deckmaste_core::Cmp;
+        use deckmaste_core::Count;
+        use deckmaste_core::Reference;
+        use deckmaste_core::Stat;
+        use deckmaste_core::StateFilter;
+        Condition::Compare(
+            Count::CountOf(Box::new(Filter::AllOf(vec![
+                Filter::creature(),
+                Filter::State(StateFilter::Attacking),
+                Filter::Not(Box::new(Filter::Ref(Reference::This))),
+                Filter::Where(Box::new(Condition::Compare(
+                    Count::StatOf(Reference::Subject, Stat::Power),
+                    Cmp::Greater,
+                    Count::StatOf(Reference::This, Stat::Power),
+                ))),
+            ]))),
+            deckmaste_core::Cmp::AtLeast,
+            Count::Literal(1),
+        )
+    }
+
+    /// Holds when another attacker (4/4 Fangren Hunter) has power greater than
+    /// the 3/3 carrier.
+    #[test]
+    fn training_condition_holds_with_a_greater_power_attacker() {
+        let (state, carrier) = attacking_board(&["Fangren Hunter"]); // 4/4 > 3/3
+        assert!(
+            state.condition_holds(&training_condition(), &carrier_gate_frame(&state, carrier)),
+            "a 4/4 co-attacker has greater power than the 3/3 carrier ([CR#702.149a])"
+        );
+    }
+
+    /// Does NOT hold when the only other attacker is lesser/equal power: a 2/2
+    /// Grizzly Bears (lesser) and a second 3/3 Courser (equal — `Greater` is
+    /// strict) both fail the comparison, so no "other creature with greater
+    /// power" exists.
+    #[test]
+    fn training_condition_fails_without_a_greater_power_attacker() {
+        let (state, carrier) = attacking_board(&["Grizzly Bears", "Centaur Courser"]); // 2/2, 3/3
+        assert!(
+            !state.condition_holds(&training_condition(), &carrier_gate_frame(&state, carrier)),
+            "lesser (2/2) and equal (3/3) co-attackers do not satisfy 'greater power' ([CR#702.149a])"
+        );
+    }
+
+    // -------------------------------------------------------------------------
     // Event macro round-trip: Dies / Enters expand correctly
     // -------------------------------------------------------------------------
 

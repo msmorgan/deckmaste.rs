@@ -1,0 +1,51 @@
+// Training = a triggered ability [CR#702.149a]: "Whenever this creature and at
+// least one other creature with power greater than this creature's power
+// attack, put a +1/+1 counter on this creature."
+//
+// The trigger is "whenever this creature ... attack[s]" — the declare-attackers
+// transition for THIS creature (`StateBecomes(of: Ref(This), becomes:
+// Attacking)`, [CR#508.1k]/[CR#603.2e]), the same this-attacks trigger Battle
+// Cry and Mentor use. The "AND at least one other creature with greater power
+// also attacks" half is the intervening-if ([CR#603.4]), NOT a second trigger:
+// it is the condition checked when the event occurs and rechecked at
+// resolution.
+//
+// Intervening-if ([CR#603.4]): at least one OTHER attacking creature has power
+// greater than this creature's power — `Compare(CountOf(filter), AtLeast, 1)`,
+// the existential expressed as "the count of matching attackers is >= 1" (the
+// `CountOf` shape Exalted's `Compare(CountOf(Attacking), Eq, 1)` uses, which
+// threads the carrier watcher into its filter — so a candidate-vs-carrier
+// comparison resolves). The filter is:
+//   - `Type(Creature)` + `Attacking` ([CR#508.1a] a still-in-combat attacker);
+//   - `Not(Ref(This))` — "another" creature, excluding the carrier ([CR#702.149a]);
+//   - `Where(Compare(StatOf(Subject, Power), Greater, StatOf(This, Power)))` —
+//     the candidate's power ([CR#208]) is greater than the carrier's
+//     ([CR#107.1] numeric comparison; `Subject` is the candidate, `This` the
+//     carrier). The mirror of Evolve's cross-object stat comparison, here over
+//     fellow attackers rather than an entering creature.
+//
+// The resolution puts one +1/+1 counter ([CR#122.1a]) on THIS creature (no
+// target — the recipient is always the carrier): `PutCounters(This,
+// P1P1Counter, 1)`, the same self-counter tail Evolve uses.
+//
+// NOTE [CR#702.149b]: multiple instances of training trigger separately — the
+// engine's per-instance trigger handling, not anything this single-instance
+// body encodes.
+KeywordAbility(
+    name: "Training",
+    template: "training",
+    abilities: [Triggered(
+        event: StateBecomes(of: Ref(This), becomes: Attacking),
+        condition: Compare(
+            CountOf(AllOf([
+                Type(Creature),
+                Attacking,
+                Not(Ref(This)),
+                Where(Compare(StatOf(Subject, Power), Greater, StatOf(This, Power))),
+            ])),
+            AtLeast,
+            1,
+        ),
+        effect: PutCounters(This, P1P1Counter, 1),
+    )],
+)

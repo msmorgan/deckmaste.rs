@@ -421,14 +421,33 @@ fn const_count(count: &deckmaste_core::Count) -> Uint {
 }
 
 /// Every object (card objects in their zones + player proxies) matching
-/// `filter`, in deterministic id order.
+/// `filter`, in deterministic id order. The frameless form — no carrier — for
+/// the resolution-time selection sites (`Exists`, `ForEach`, `Selection`) whose
+/// filters never carry a carrier-relative self-reference.
 #[must_use]
 pub fn candidates(state: &GameState, filter: &Filter) -> Vec<ObjectId> {
+    candidates_with(state, filter, None)
+}
+
+/// Every object matching `filter`, with `watcher` anchoring carrier-relative
+/// self-references (`Ref(This)`/`Ref(You)`, and the `StatOf(This, …)` reads a
+/// `Filter::Where` reaches via [`GameState::condition_holds`]). The targeting
+/// path passes the targeting object's `ObjectSource` so a target filter can
+/// compare each candidate to the ability's source — "attacking creature with
+/// power less than this creature's power" (Mentor, [CR#702.134a]) is a
+/// `Where(Compare(StatOf(Subject, Power), Less, StatOf(This, Power)))` over
+/// this carrier. Frameless callers pass `None` (the [`candidates`] shorthand).
+#[must_use]
+pub fn candidates_with(
+    state: &GameState,
+    filter: &Filter,
+    watcher: Option<ObjectSource>,
+) -> Vec<ObjectId> {
     state
         .objects
         .iter()
         .map(|o| o.id)
-        .filter(|&id| matches(state, id, filter))
+        .filter(|&id| matches_with(state, id, filter, watcher))
         .collect()
 }
 
@@ -1179,5 +1198,114 @@ mod tests {
             &where_shares_color_with_carrier(),
             carrier
         ));
+    }
+
+    // -------------------------------------------------------------------------
+    // The Mentor target filter ([CR#702.134a]): a cross-object stat comparison
+    // in a TARGET filter — "attacking creature with power less than this
+    // creature's power" — evaluated by the watcher-threaded `candidates_with`.
+    // -------------------------------------------------------------------------
+
+    /// Force a fresh battlefield creature of card `name` (from canon) under
+    /// player 0, returning its object id.
+    fn put_canon_creature(state: &mut GameState, name: &str) -> ObjectId {
+        let card = Arc::new(canon().card(name).unwrap());
+        let cid = state.cards.push(card, PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(cid),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        id
+    }
+
+    /// A board with three creatures controlled by P0: a Centaur Courser (3/3,
+    /// the Mentor carrier), a Grizzly Bears (2/2, lesser power), and a Fangren
+    /// Hunter (4/4, greater power). All three are declared as attackers so
+    /// `Attacking` admits each.
+    fn mentor_board() -> (GameState, ObjectId, ObjectId, ObjectId) {
+        let courser = Arc::new(canon().card("Centaur Courser").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: vec![Arc::clone(&courser); 10],
+                },
+                PlayerConfig {
+                    deck: vec![Arc::clone(&courser); 10],
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+        });
+        let courser = put_canon_creature(&mut state, "Centaur Courser"); // 3/3 carrier
+        let bears = put_canon_creature(&mut state, "Grizzly Bears"); // 2/2 lesser
+        let hunter = put_canon_creature(&mut state, "Fangren Hunter"); // 4/4 greater
+        for &id in &[courser, bears, hunter] {
+            state.combat.declare_attacker(id);
+        }
+        (state, courser, bears, hunter)
+    }
+
+    /// The Mentor target filter: an attacking creature whose power is less than
+    /// the carrier's power ([CR#702.134a]) — the `Where`/`Subject`/`This`
+    /// cross-object stat comparison the keyword macro emits.
+    fn mentor_target_filter() -> Filter {
+        use deckmaste_core::Cmp;
+        use deckmaste_core::Condition;
+        use deckmaste_core::Count;
+        use deckmaste_core::Reference;
+        use deckmaste_core::Stat;
+        Filter::AllOf(vec![
+            Filter::State(StateFilter::Attacking),
+            Filter::Where(Box::new(Condition::Compare(
+                Count::StatOf(Reference::Subject, Stat::Power),
+                Cmp::Less,
+                Count::StatOf(Reference::This, Stat::Power),
+            ))),
+        ])
+    }
+
+    /// `candidates_with(.., Some(carrier))` over the Mentor filter admits ONLY
+    /// the lesser-power attacker: the 2/2 Bears (2 < 3), never the 4/4 Hunter
+    /// (4 < 3 is false) nor the 3/3 carrier itself (3 < 3 is false). This is
+    /// the load-bearing target-path fix — the carrier (`This`) resolves
+    /// through the threaded watcher, so the dynamic `StatOf(This, Power)`
+    /// bound evaluates instead of tripping the frameless `todo!`.
+    #[test]
+    fn mentor_filter_targets_only_lesser_power_attacker() {
+        let (state, courser, bears, hunter) = mentor_board();
+        let carrier = Some(state.objects.obj(courser).source);
+        let admitted = candidates_with(&state, &mentor_target_filter(), carrier);
+        assert!(
+            admitted.contains(&bears),
+            "the 2/2 Bears has power less than the 3/3 carrier — a legal Mentor target"
+        );
+        assert!(
+            !admitted.contains(&hunter),
+            "the 4/4 Hunter does NOT have lesser power — not a Mentor target"
+        );
+        assert!(
+            !admitted.contains(&courser),
+            "the carrier itself is not lesser-power than itself ([CR#702.134a])"
+        );
+        // Only the bears (the two player proxies have no power → the inner
+        // StatOf(Subject,Power) read fails their match, never the carrier's).
+        assert_eq!(admitted, vec![bears], "exactly the lesser-power attacker");
+    }
+
+    /// A per-candidate sanity slice of the same comparison via `matches_with`:
+    /// the carrier anchors `This`, `Subject` is each candidate.
+    #[test]
+    fn mentor_filter_matches_with_carrier() {
+        let (state, courser, bears, hunter) = mentor_board();
+        let carrier = Some(state.objects.obj(courser).source);
+        let f = mentor_target_filter();
+        assert!(matches_with(&state, bears, &f, carrier));
+        assert!(!matches_with(&state, hunter, &f, carrier));
+        assert!(!matches_with(&state, courser, &f, carrier));
     }
 }
