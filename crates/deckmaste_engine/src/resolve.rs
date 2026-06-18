@@ -1471,6 +1471,12 @@ impl GameState {
                     .sum()
             }
             Count::Noted(key) => todo!("P0.W4: noted read {key:?} (slot store is P0.W5)"),
+            // [CR#120.3]: the damage marked on the referenced object — read
+            // directly off the base state (damage is not a derived stat).
+            Count::Damage(reference) => {
+                let id = self.eval_reference(reference, frame);
+                self.objects.obj(id).damage
+            }
             Count::Expanded(e) => self.eval_count(&e.value, frame),
         }
     }
