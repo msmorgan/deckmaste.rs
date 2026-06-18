@@ -394,7 +394,20 @@ fn bake_counter_counts(
 ///
 /// Only unconditional effects are gathered here; `sa.condition` evaluation
 /// is a documented seam for a later task.
-fn gather(state: &GameState) -> Vec<ActiveEffect> {
+///
+/// `derived` is the fixpoint hook ([CR#613.7] re-evaluation): on the FIRST
+/// iteration of the layer pass it is `None`, so the static-ability effect
+/// sources are read from each object's PRINTED list — the cycle-safe base that
+/// breaks the `layers() → derive::abilities → layers()` recursion. On later
+/// iterations it is `Some(working)`, the derived map the previous iteration
+/// produced, so a static ability that was itself GRANTED by a layer-6
+/// `GainAbility` is now visible and gathered as its own effect source. Counter
+/// boosts and floating one-shots are unaffected — they never come from the
+/// ability list — so they are gathered identically every iteration.
+fn gather(
+    state: &GameState,
+    derived: Option<&BTreeMap<ObjectId, DerivedObject>>,
+) -> Vec<ActiveEffect> {
     let mut effects = Vec::new();
     for obj in state.objects.iter() {
         if obj.card_id().is_none() {
@@ -405,26 +418,45 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
             continue;
         }
         let timestamp = obj.timestamp;
-        // v1: uses printed_abilities (not the derived view) to break the
-        // layers() → derive::abilities → layers() recursion. As a result, a
-        // static ability that is itself *granted* by a layer-6 effect won't be
-        // re-gathered as an effect source (no fixpoint). No fixture requires that.
-        // Flatten the printed list the same way the engine-internal
-        // enumeration does (`derive::flatten_composites`): peel `Innate`
-        // ([CR#113.12]) — a subtype rule conferred as `Innate(Static(...))`
-        // (the Aura/Equipment/Fortification attachment rules) still functions
-        // as a [CR#604.1] static — AND splice the members of a composite
-        // keyword. A `KeywordAbility`-kind macro (Changeling, Devoid) expands
-        // to `Keyword(Composite { abilities: [Static(...)] })`; without
-        // splicing, the `Static` it carries would never be gathered, so the
-        // keyword's continuous effect (devoid → colorless, changeling → every
-        // creature type) would silently do nothing. This mirrors the flat
-        // ability space `abilities_of_source` builds for the trigger scan.
-        let mut printed = Vec::new();
-        for ability in crate::derive::printed_abilities(state, obj.id) {
-            crate::derive::flatten_composites(ability, &mut printed);
+        // Effect-source abilities come from the DERIVED list once the fixpoint
+        // is running ([CR#613.7]): the first iteration reads the PRINTED list
+        // (the cycle-safe base that breaks the `layers() → derive::abilities →
+        // layers()` recursion), and every later iteration reads the working
+        // derived map the previous iteration produced — so a static ability
+        // GRANTED by a layer-6 `GainAbility` is gathered as its own effect
+        // source (a lord that grants a lord; [CR#613.7] dependency
+        // re-evaluation). Reading the derived list is NOT recursive: it indexes
+        // the already-computed `working` map, never re-entering `layers()`.
+        //
+        // Flatten the source list the same way the engine-internal enumeration
+        // does (`derive::flatten_composites`): peel `Innate` ([CR#113.12]) — a
+        // subtype rule conferred as `Innate(Static(...))` (the
+        // Aura/Equipment/Fortification attachment rules) still functions as a
+        // [CR#604.1] static — AND splice the members of a composite keyword. A
+        // `KeywordAbility`-kind macro (Changeling, Devoid) expands to
+        // `Keyword(Composite { abilities: [Static(...)] })`; without splicing,
+        // the `Static` it carries would never be gathered, so the keyword's
+        // continuous effect (devoid → colorless, changeling → every creature
+        // type) would silently do nothing. This mirrors the flat ability space
+        // `abilities_of_source` builds for the trigger scan.
+        let mut sources = Vec::new();
+        match derived.and_then(|d| d.get(&obj.id)) {
+            // Later iterations: the derived ability list (granted statics
+            // included). `Arc<Vec<Ability>>`, indexed not re-derived.
+            Some(d) => {
+                for ability in d.characteristics.abilities.iter() {
+                    crate::derive::flatten_composites(ability, &mut sources);
+                }
+            }
+            // First iteration (or an object absent from the derived map):
+            // printed abilities.
+            None => {
+                for ability in crate::derive::printed_abilities(state, obj.id) {
+                    crate::derive::flatten_composites(ability, &mut sources);
+                }
+            }
         }
-        for ability in &printed {
+        for ability in &sources {
             let Ability::Static(sa) = ability else {
                 continue;
             };
@@ -1245,6 +1277,136 @@ fn depends_on(
 }
 
 // ---------------------------------------------------------------------------
+// Whole-pass fixpoint ([CR#613.7])
+// ---------------------------------------------------------------------------
+
+/// A content signature of a freshly-gathered effect set, used to detect the
+/// fixpoint: when two successive iterations gather an equal set, no newly-
+/// granted static appeared and derivation has converged ([CR#613.7]).
+///
+/// Built BEFORE the layer pass mutates any effect (so the per-effect `locked`
+/// set — `None` at gather time — never enters the signature). The signature is
+/// order-sensitive, but `gather` is deterministic ([CR#613.7] id/timestamp
+/// order), so a stable effect set yields a byte-stable signature. Cardinality
+/// alone would miss a same-iteration "one static vanished, another appeared"
+/// swap; the full content tuple does not.
+type EffectSignature = Vec<(Timestamp, bool, PlayerId, ScopeSig, Vec<Modification>)>;
+
+/// The `Eq`-able projection of a `ScopeResolved` for the signature.
+/// `ScopeResolved` itself is not `Eq` (it is a working value), so project it.
+#[derive(Clone, PartialEq, Eq)]
+enum ScopeSig {
+    Locked(Vec<ObjectId>),
+    Floating(Filter),
+}
+
+fn effect_signature(effects: &[ActiveEffect]) -> EffectSignature {
+    effects
+        .iter()
+        .map(|e| {
+            let scope = match &e.scope {
+                ScopeResolved::Locked(ids) => ScopeSig::Locked(ids.clone()),
+                ScopeResolved::Floating(f) => ScopeSig::Floating(f.clone()),
+            };
+            (
+                e.timestamp,
+                e.is_cda,
+                e.controller,
+                scope,
+                e.changes.clone(),
+            )
+        })
+        .collect()
+}
+
+/// The base derived map ([CR#613.1]) for every card-backed object: printed
+/// characteristics before any continuous effect. Rebuilt fresh each fixpoint
+/// iteration so the pass always re-derives the FULL layer order from base —
+/// see `run_layer_pass`.
+fn base_map(state: &GameState) -> BTreeMap<ObjectId, DerivedObject> {
+    let mut working: BTreeMap<ObjectId, DerivedObject> = BTreeMap::new();
+    for obj in state.objects.iter() {
+        if obj.card_id().is_none() {
+            continue; // player proxy — no characteristics
+        }
+        working.insert(obj.id, base_values(state, obj.id));
+    }
+    working
+}
+
+/// Run the FULL [CR#613.3] layer pass over a fresh base map, applying `effects`
+/// in layer + dependency order ([CR#613.8]). Consumes a starting `working`
+/// (the base map) and the gathered `effects` (whose `locked` sets it mutates),
+/// returning the derived map.
+///
+/// The pass re-derives from BASE through every layer in order — never "only
+/// layer 6 and later". A static granted at layer 6 can produce an effect in any
+/// earlier layer (a granted type-change is layer 4, a granted color effect
+/// layer 5, a granted CDA layer 7a), so re-evaluation ([CR#613.7]) must replay
+/// the whole order with the augmented effect set, not a suffix of it.
+fn run_layer_pass(
+    state: &GameState,
+    mut working: BTreeMap<ObjectId, DerivedObject>,
+    effects: &mut [ActiveEffect],
+) -> BTreeMap<ObjectId, DerivedObject> {
+    // Iterate layers in order, applying each effect's ops that belong to this
+    // layer ([CR#613.3]).
+    // SEAM [CR#305.6]: after L4 resolves, subtype-conferred abilities (e.g. a
+    // land subtype granting a mana ability) should be reinjected before L6
+    // ability additions/removals are applied. No fixture exercises this path
+    // yet; it's a documented gap for a later task.
+    for layer in [
+        Layer::L2,
+        Layer::L3,
+        Layer::L4,
+        Layer::L5,
+        Layer::L6,
+        Layer::L7a,
+        Layer::L7b,
+        Layer::L7c,
+        Layer::L7d,
+    ] {
+        // Effects with at least one op in this layer.
+        let mut pending: Vec<usize> = (0..effects.len())
+            .filter(|&i| {
+                effects[i]
+                    .changes
+                    .iter()
+                    .any(|m| layer_of(m, effects[i].is_cda) == Some(layer))
+            })
+            .collect();
+
+        // Base order: CDAs first ([CR#613.3]), then by timestamp ([CR#613.7]).
+        // This is the tiebreaker among independent effects and the fallback
+        // inside a dependency loop ([CR#613.8b]).
+        pending.sort_by_key(|&i| (!effects[i].is_cda, effects[i].timestamp));
+
+        // Apply in dependency order ([CR#613.8b,613.8c]): repeatedly take the
+        // earliest pending effect that depends on no other pending effect,
+        // re-evaluating after each application. If none is independent (a
+        // dependency loop), fall back to timestamp order — the first pending,
+        // since `pending` is sorted ([CR#613.8b]).
+        while !pending.is_empty() {
+            let pos = pending
+                .iter()
+                .position(|&e| {
+                    !pending.iter().any(|&d| {
+                        d != e && depends_on(state, &working, &effects[e], &effects[d], layer)
+                    })
+                })
+                .unwrap_or(0);
+            let i = pending.remove(pos);
+            apply_effect_in_layer(state, &mut working, &mut effects[i], layer);
+        }
+        // [CR#122.1a,613.4c,613.1f]: +1/+1 / -1/-1 P/T and keyword counters are
+        // data-driven now — gathered as counter-conferred `Continuous` boosts
+        // (see `gather` + `bake_counter_counts`) and applied as ordinary layer
+        // `Modification`s, so no hardcoded 7c counter read remains here.
+    }
+    working
+}
+
+// ---------------------------------------------------------------------------
 // GameState::layers
 // ---------------------------------------------------------------------------
 
@@ -1258,73 +1420,59 @@ impl GameState {
     /// set in the rules sense.
     #[must_use]
     pub fn layers(&self) -> LayeredView {
-        // Step 1: base values for all card-backed objects.
-        let mut working: BTreeMap<ObjectId, DerivedObject> = BTreeMap::new();
-        for obj in self.objects.iter() {
-            if obj.card_id().is_none() {
-                continue; // player proxy — no characteristics
+        // Whole-pass fixpoint ([CR#613.7] dependency / re-evaluation): a static
+        // ability can itself be GRANTED by a layer-6 `GainAbility` (a lord that
+        // grants a lord). The first pass gathers effect sources from PRINTED
+        // abilities (the recursion-breaking base); each subsequent pass
+        // re-gathers from the DERIVED ability list the previous pass produced,
+        // so a newly-granted static is picked up as its own effect source. We
+        // re-derive the FULL layer order from base each iteration (NOT just
+        // layer 6+): a granted static can act in any layer, including ones
+        // BEFORE layer 6 (a granted type-change is layer 4, a granted color
+        // effect layer 5, a granted CDA layer 7a), so only a full re-evaluation
+        // is correct ([CR#613.7]).
+        //
+        // The effect set grows monotonically toward the fixpoint (each new
+        // grant only adds sources), and a real card interaction reaches it in
+        // 1–2 iterations. The cap is a far-above-any-card guard against a
+        // pathological non-convergence; exceeding it is a bug, not a deeper
+        // board.
+        //
+        // PERF SEAM: re-deriving the whole pass a few times is the documented
+        // per-rebuild cost (perf is explicitly low priority here); `layers()`
+        // is already recomputed fresh on each call (caching is the noted later
+        // optimization). No micro-optimization — a partial re-run would be
+        // incorrect per the layer note above.
+        const MAX_FIXPOINT_ITERS: usize = 16;
+
+        // Iteration 0: gather from printed abilities (`derived = None`), run the
+        // full pass from base.
+        let mut effects = gather(self, None);
+        let mut signature = effect_signature(&effects);
+        let mut working = run_layer_pass(self, base_map(self), &mut effects);
+
+        // Iterations 1..: re-gather from the derived map. If the gathered effect
+        // set is unchanged, derivation has converged ([CR#613.7]) and `working`
+        // already reflects it — done. Otherwise re-derive the full pass from
+        // base with the augmented set and repeat.
+        let mut converged = false;
+        for _ in 1..MAX_FIXPOINT_ITERS {
+            let mut next_effects = gather(self, Some(&working));
+            let next_signature = effect_signature(&next_effects);
+            if next_signature == signature {
+                converged = true;
+                break;
             }
-            working.insert(obj.id, base_values(self, obj.id));
+            signature = next_signature;
+            working = run_layer_pass(self, base_map(self), &mut next_effects);
         }
-
-        // Step 2: gather all active static Modify effects.
-        let mut effects = gather(self);
-
-        // Step 3: iterate layers in order, applying each effect's ops that
-        // belong to this layer ([CR#613.3]).
-        // SEAM [CR#305.6]: after L4 resolves, subtype-conferred abilities
-        // (e.g. a land subtype granting a mana ability) should be reinjected
-        // before L6 ability additions/removals are applied. No fixture exercises
-        // this path yet; it's a documented gap for a later task.
-        for layer in [
-            Layer::L2,
-            Layer::L3,
-            Layer::L4,
-            Layer::L5,
-            Layer::L6,
-            Layer::L7a,
-            Layer::L7b,
-            Layer::L7c,
-            Layer::L7d,
-        ] {
-            // Effects with at least one op in this layer.
-            let mut pending: Vec<usize> = (0..effects.len())
-                .filter(|&i| {
-                    effects[i]
-                        .changes
-                        .iter()
-                        .any(|m| layer_of(m, effects[i].is_cda) == Some(layer))
-                })
-                .collect();
-
-            // Base order: CDAs first ([CR#613.3]), then by timestamp
-            // ([CR#613.7]). This is the tiebreaker among independent effects and
-            // the fallback inside a dependency loop ([CR#613.8b]).
-            pending.sort_by_key(|&i| (!effects[i].is_cda, effects[i].timestamp));
-
-            // Apply in dependency order ([CR#613.8b,613.8c]): repeatedly take the
-            // earliest pending effect that depends on no other pending effect,
-            // re-evaluating after each application. If none is independent (a
-            // dependency loop), fall back to timestamp order — the first pending,
-            // since `pending` is sorted ([CR#613.8b]).
-            while !pending.is_empty() {
-                let pos = pending
-                    .iter()
-                    .position(|&e| {
-                        !pending.iter().any(|&d| {
-                            d != e && depends_on(self, &working, &effects[e], &effects[d], layer)
-                        })
-                    })
-                    .unwrap_or(0);
-                let i = pending.remove(pos);
-                apply_effect_in_layer(self, &mut working, &mut effects[i], layer);
-            }
-            // [CR#122.1a,613.4c,613.1f]: +1/+1 / -1/-1 P/T and keyword counters
-            // are data-driven now — gathered as counter-conferred `Continuous`
-            // boosts (see `gather` + `bake_counter_counts`) and applied as
-            // ordinary layer `Modification`s, so no hardcoded 7c counter read
-            // remains here.
-        }
+        // The cap is far above any real card interaction ([CR#613.7] reaches a
+        // fixpoint in 1–2 iterations); hitting it means a non-converging effect
+        // set, which is a bug rather than a deeper board.
+        debug_assert!(
+            converged,
+            "layer fixpoint did not converge within {MAX_FIXPOINT_ITERS} iterations"
+        );
 
         LayeredView(working)
     }
@@ -2227,6 +2375,172 @@ mod tests {
         assert!(
             eldrazi.confers.is_empty() && eldrazi.types.is_empty(),
             "an unknown subtype carries no inherent rules: {eldrazi:?}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // engine-layers-fixpoint: a static ability GRANTED by a continuous effect
+    // ([CR#613.7] re-evaluation) is itself gathered as an effect source. The
+    // first layer pass reads effect sources from PRINTED abilities (the
+    // recursion-breaking base); each later pass re-gathers from the DERIVED
+    // ability list the previous pass produced, so a granted static functions.
+    // -----------------------------------------------------------------------
+
+    /// A SELF-pump `Static`: "this creature gets +1/+1", scoped `Of(This)` so a
+    /// holder pumps only itself by exactly +1/+1. Used as the GRANTED ability
+    /// (each creature that gains it pumps itself once), keeping the bonus
+    /// unambiguous regardless of how many creatures hold it.
+    fn self_pump_static() -> Ability {
+        use deckmaste_core::Reference;
+        Ability::Static(StaticAbility {
+            condition: None,
+            effects: vec![StaticEffect::Modify {
+                of: Scope::Of(Reference::This),
+                changes: vec![
+                    Modification::AddPower(Count::Literal(1)),
+                    Modification::AddToughness(Count::Literal(1)),
+                ],
+            }],
+            characteristic_defining: false,
+        })
+    }
+
+    /// A lord-granting-a-lord `Static`: "other creatures you control have
+    /// '<granted>'", i.e. `Modify { of: Matching(AllOf([Creature,
+    /// Not(Ref(This))])), changes: [GainAbility(granted)] }`. The grantor's
+    /// scope names `~` (`Ref(This)`) so it grants every OTHER creature (not
+    /// itself); the `granted` static is a layer-6 `GainAbility` payload that
+    /// only functions once the fixpoint re-gathers it from the derived list.
+    fn lord_granting_static(granted: Ability) -> Ability {
+        use deckmaste_core::Reference;
+        Ability::Static(StaticAbility {
+            condition: None,
+            effects: vec![StaticEffect::Modify {
+                of: Scope::Matching(Filter::AllOf(vec![
+                    Filter::creature(),
+                    Filter::Not(Box::new(Filter::Ref(Reference::This))),
+                ])),
+                changes: vec![Modification::GainAbility(Box::new(granted))],
+            }],
+            characteristic_defining: false,
+        })
+    }
+
+    /// engine-layers-fixpoint, THE granting case: a creature whose static
+    /// grants OTHER creatures a static that pumps the holder. Without the
+    /// fixpoint the granted static would be added to the derived ability
+    /// list (layer 6) but NEVER gathered as an effect source (gather ran
+    /// once, from printed), so the pump would silently do nothing. WITH the
+    /// fixpoint the second pass re-gathers the granted static from the
+    /// derived list and its +1/+1 applies.
+    #[test]
+    fn granted_static_is_gathered_to_fixpoint() {
+        // Grantor G grants every OTHER creature the self-pump.
+        let (state, grantor) =
+            creature_on_field(game(), vec![lord_granting_static(self_pump_static())]);
+        // A plain creature B — should gain the granted self-pump and become 3/3.
+        let (state, beneficiary) = creature_on_field(state, vec![]);
+
+        let view = state.layers();
+
+        // Layer 6 granted the static: B's DERIVED ability list now carries a
+        // `Static` (the grant happened), even though B prints no abilities.
+        assert!(
+            view.get(beneficiary)
+                .abilities
+                .iter()
+                .any(|a| matches!(a.peel_innate(), Ability::Static(_))),
+            "the granted static is present in B's derived ability list (layer 6)"
+        );
+        // The FIXPOINT payoff: the granted self-pump was re-gathered as an
+        // effect source, so B derives 3/3 ([CR#613.7]).
+        assert_eq!(
+            view.power(beneficiary),
+            Some(3),
+            "the granted +1/+1 static applies via the fixpoint re-gather"
+        );
+        assert_eq!(view.toughness(beneficiary), Some(3), "…on toughness too");
+        // The grantor does NOT grant itself (`Not(Ref(This))`), so it never
+        // gains the self-pump and stays 2/2 — proving the carrier-bound scope
+        // resolved against G even on the GRANTING static.
+        assert_eq!(
+            view.power(grantor),
+            Some(2),
+            "the grantor excludes itself (Not(Ref(This))) — no granted pump"
+        );
+    }
+
+    /// Control for the granting case: WITHOUT the grantor present, a plain
+    /// creature is never granted the pump and stays 2/2 — the +1/+1 in
+    /// `granted_static_is_gathered_to_fixpoint` is entirely attributable to the
+    /// grant + fixpoint, not to any baseline.
+    #[test]
+    fn ungranted_creature_is_not_pumped() {
+        let (state, plain) = creature_on_field(game(), vec![]);
+        let view = state.layers();
+        assert!(
+            view.get(plain).abilities.is_empty(),
+            "a plain creature has no derived abilities to gather"
+        );
+        assert_eq!(
+            view.power(plain),
+            Some(2),
+            "no grantor, no granted pump — base 2/2"
+        );
+    }
+
+    /// Convergence / no-regression: an ordinary board with NO granted statics
+    /// (a directly-carried self-anthem) derives correctly and reaches the
+    /// fixpoint without the granted-source machinery changing anything — the
+    /// re-gather sees the same effect set the printed gather did and converges
+    /// immediately. Same result as a single non-iterating pass would give.
+    #[test]
+    fn ordinary_board_converges_unchanged() {
+        // A creature directly carrying the self-anthem (+2/+2), no grants.
+        let (state, id) = creature_on_field(game(), vec![pump_static(false)]);
+        let view = state.layers();
+        // `pump_static` is a `Matching(Creature)` +2/+2 on the lone creature →
+        // it catches itself → 4/4. The fixpoint must not double-apply it.
+        assert_eq!(
+            view.power(id),
+            Some(4),
+            "a directly-carried +2/+2 anthem applies exactly once (base 2 → 4)"
+        );
+        assert_eq!(view.toughness(id), Some(4), "…toughness 4, applied once");
+    }
+
+    /// A granted-grants-granted chain still terminates and applies each link.
+    /// Grantor G grants other creatures a static that ITSELF grants other
+    /// creatures the self-pump. With two beneficiaries (B, C) the chain is:
+    /// iter 1 gathers G's grant → B and C gain the *granting* static; iter 2
+    /// gathers that → B and C grant EACH OTHER (and themselves are excluded by
+    /// `Not(Ref(This))`) the self-pump; iter 3 gathers the self-pump → B and C
+    /// each pump themselves. The fixpoint reaches this in a bounded number of
+    /// iterations (well under the cap) without looping forever.
+    #[test]
+    fn granted_grants_granted_chain_terminates() {
+        // The innermost ability each beneficiary eventually pumps with.
+        let inner = self_pump_static();
+        // A middle static that grants OTHER creatures `inner`.
+        let middle = lord_granting_static(inner);
+        // G grants OTHER creatures `middle`.
+        let (state, _grantor) = creature_on_field(game(), vec![lord_granting_static(middle)]);
+        let (state, b) = creature_on_field(state, vec![]);
+        let (state, c) = creature_on_field(state, vec![]);
+
+        // The critical property: this terminates (no infinite loop / no
+        // debug_assert fire). B and C each end up pumped by the self-pump they
+        // were granted by the OTHER beneficiary's middle static.
+        let view = state.layers();
+        assert_eq!(
+            view.power(b),
+            Some(3),
+            "B is granted (by C's middle static) the self-pump → 3/3"
+        );
+        assert_eq!(
+            view.power(c),
+            Some(3),
+            "C is granted (by B's middle static) the self-pump → 3/3"
         );
     }
 }
