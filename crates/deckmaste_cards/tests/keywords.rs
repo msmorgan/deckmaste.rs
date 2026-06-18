@@ -43,6 +43,7 @@ fn every_builtin_keyword_macro_expands() {
         ("Crew(2)", "Crew"),
         ("Affinity(Type(Artifact))", "Affinity"),
         ("Cycling([Mana([Generic(2)])])", "Cycling"),
+        ("Reinforce(1, [Mana([Generic(1),Green])])", "Reinforce"),
         ("Echo([Mana([Generic(1),Green])])", "Echo"),
         ("CumulativeUpkeep([Mana([Generic(1)])])", "CumulativeUpkeep"),
         ("Bushido(1)", "Bushido"),
@@ -458,6 +459,116 @@ fn cycling_confers_from_hand_discard_self_draw() {
     // (3) Effect = draw a card.
     let expected_effect: Effect = ron_options().from_str("Draw(Literal(1))").unwrap();
     assert_eq!(act.effect, expected_effect, "cycling draws a card");
+}
+
+/// [CR#702.77a]: **Reinforce N—[cost]** confers an Activated ability that
+/// functions from HAND, whose cost is the printed cost followed by "discard
+/// this card" (the Cycling discard-this construction), and whose effect is "put
+/// N +1/+1 counters on target creature". The printed cost is the macro's list
+/// param (`Param(1)`), spliced ahead of the fixed discard-self as a nested
+/// `Cost` that `Cost::normalize` flattens; N is `Param(0)`, the counter amount.
+#[test]
+fn reinforce_confers_from_hand_discard_self_put_counters() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::Action;
+    use deckmaste_core::Cost;
+    use deckmaste_core::Count;
+    use deckmaste_core::CounterRef;
+    use deckmaste_core::Effect;
+    use deckmaste_core::Filter;
+    use deckmaste_core::Normalize;
+    use deckmaste_core::PlayerAction;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Selection;
+    use deckmaste_core::TargetSpec;
+    use deckmaste_core::Type;
+    use deckmaste_core::Zone;
+    use deckmaste_core::ron::options as ron_options;
+
+    let plugin = builtin();
+    let kw: KeywordAbility = plugin
+        .macros
+        .read_str("Reinforce(2, [Mana([Generic(1),Green])])")
+        .expect("Reinforce expands");
+    let KeywordAbility::Expanded(expanded) = &kw else {
+        panic!("expected Expanded, got {kw:?}");
+    };
+    assert_eq!(expanded.name.as_str(), "Reinforce", "carried name");
+    let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+        panic!("Reinforce body is a Composite");
+    };
+    let act = abilities
+        .iter()
+        .find_map(|a| match a {
+            Ability::Activated(act) => Some(act),
+            _ => None,
+        })
+        .expect("Reinforce confers an Activated ability");
+
+    // (1) Functions from hand ([CR#702.77a]).
+    assert_eq!(act.from, Some(Zone::Hand), "reinforce activates from hand");
+
+    // (2) Cost = printed cost ({1}{G}) THEN discard this card. Read is faithful:
+    // the printed cost rides in a nested `Cost` ahead of the fixed
+    // discard-self, so the authored cost is LUMPY; `.normalize()` flattens it.
+    let lumpy_cost: Cost = ron_options()
+        .from_str("[Cost([Mana([Generic(1),Green])]), Do(Discard(count: Literal(1), what: This))]")
+        .unwrap();
+    assert_eq!(
+        act.cost, lumpy_cost,
+        "reinforce cost reads lumpy (nested Cost survives the macro splice)"
+    );
+    let flat_cost: Cost = ron_options()
+        .from_str("[Mana([Generic(1),Green]), Do(Discard(count: Literal(1), what: This))]")
+        .unwrap();
+    assert_eq!(
+        act.cost.clone().normalize(),
+        flat_cost,
+        "reinforce cost normalizes to printed cost + discard this card"
+    );
+
+    // (3) Effect = put N +1/+1 counters on target creature ([CR#702.77a]).
+    let Effect::Targeted(t) = &act.effect else {
+        panic!(
+            "reinforce's effect is a Targeted wrapper; got {:?}",
+            act.effect
+        );
+    };
+    assert_eq!(t.targets.len(), 1, "reinforce targets exactly one creature");
+    let TargetSpec::Target(_, filter) = &t.targets[0] else {
+        panic!("expected a Target spec; got {:?}", t.targets[0]);
+    };
+    assert_eq!(
+        filter,
+        &Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(Type::Creature)),
+        "reinforce targets a creature; got {filter:?}"
+    );
+    // Inner effect places N (= Param(0) = 2) +1/+1 counters on the target.
+    // PutCounters is a player verb ([CR#122.1]) — the implicit-you default
+    // reads as `Act(By(You, PutCounters(…)))`.
+    let Effect::Act(Action::By(Reference::You, PlayerAction::PutCounters(sel, counter, count))) =
+        &*t.effect
+    else {
+        panic!(
+            "reinforce's inner effect is PutCounters; got {:?}",
+            t.effect
+        );
+    };
+    assert_eq!(
+        *sel,
+        Selection::Ref(Reference::Target(0)),
+        "reinforce puts counters on the chosen target"
+    );
+    assert_eq!(
+        counter,
+        &CounterRef::from("P1P1Counter"),
+        "reinforce places +1/+1 counters; got {counter:?}"
+    );
+    assert_eq!(
+        *count,
+        Count::Literal(2),
+        "reinforce places N counters (Param(0))"
+    );
 }
 
 /// [CR#702.46a]: **Soulshift N** confers a dies-triggered ability — `you may

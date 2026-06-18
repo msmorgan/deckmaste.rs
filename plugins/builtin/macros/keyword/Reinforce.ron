@@ -1,0 +1,40 @@
+// Reinforce = an activated ability that functions only while the card with
+// reinforce is in a player's HAND [CR#702.77a]: "Reinforce N—[cost]" means
+// "[Cost], Discard this card: Put N +1/+1 counters on target creature." The
+// ability keeps existing in every other zone [CR#702.77b], but only the
+// from-hand activation is representable, so `from: Hand` is the
+// zone-of-function seam — the same one Cycling [CR#702.29a] uses.
+//
+// Two params, matching the arg shape the parser emits
+// (`Reinforce(N, [cost])`):
+//   - `Param(0)` = N, a `Count` (the bare numeral, e.g. `Reinforce(1, …)`),
+//     threaded into the counter amount as `Count::Literal(N)`.
+//   - `Param(1)` = the printed [cost], the macro's list param. Wrapping it as a
+//     nested `Cost(Param(1))` splices it ahead of the fixed discard-self, and
+//     `Cost`'s deserialize flattens the two into one cost list — exactly the
+//     Cycling discard-this construction. The discard is of THIS card
+//     (`Discard(what: This)`), not a free-choice discard.
+//
+// The effect is a `Targeted` ([CR#115.1,601.2c], the target declared on the
+// `Targeted` wrapper — the same `Target(Exactly(1), filter)` shape Modular and
+// Mentor use) over "target creature" (`Type(Creature)`), placing N +1/+1
+// counters [CR#122.1a] on the announced target: `PutCounters(Target(0),
+// P1P1Counter, Param(0))` — the chosen target read back via `Target(0)`, the
+// counter kind a bare identifier, the amount the printed N.
+(
+    name: "Reinforce",
+    template: "reinforce ${0}—${1}",
+    kinds: [KeywordAbility],
+    params: [Count, Cost],
+    body: Composite(
+        name: "Reinforce",
+        abilities: [Activated(
+            from: Hand,
+            cost: [Cost(Param(1)), Do(Discard(count: 1, what: This))],
+            effect: Targeted(
+                targets: [Target(Exactly(1), Type(Creature))],
+                effect: PutCounters(Target(0), P1P1Counter, Param(0)),
+            ),
+        )],
+    ),
+)
