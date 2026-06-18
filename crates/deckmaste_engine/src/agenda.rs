@@ -1,5 +1,6 @@
 use deckmaste_core::Phase;
 
+use crate::event::GameEvent;
 use crate::event::Occurrence;
 
 /// One unit of engine work. `step()` pops exactly one; handlers schedule
@@ -9,6 +10,14 @@ pub enum WorkItem {
     /// The interception seam: cant → replacements → apply → trigger-match.
     /// A `Single` event or a simultaneous `Batch`, applied together.
     Emit(Occurrence),
+    /// [CR#704.3]: apply a state-based-action batch produced by `check_sbas`'s
+    /// sweep, and re-schedule `CheckSbas` ONLY when the apply produced ≥1
+    /// fact. A batch where every event was suppressed (e.g. a `WillDestroy`
+    /// canted by indestructible) applies to an empty
+    /// `Occurrence::Batch(vec![])` — that "nothing changed" signal
+    /// terminates the SBA loop without looping forever on a persistent
+    /// condition.
+    EmitSbaBatch(Vec<GameEvent>),
     /// Turn-structure transition plus that step's schedule.
     BeginStep(Phase),
     /// [CR#704.3]: state-based actions, checked before anyone gets priority.
