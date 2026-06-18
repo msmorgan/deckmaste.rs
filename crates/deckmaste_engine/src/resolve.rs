@@ -1181,17 +1181,20 @@ impl GameState {
                 .clone()
                 .expect("Selection::Those outside an enclosing With"),
             // The top `count` cards of `of`'s library, front-to-back (top→down).
-            // `of: You` resolves to `frame.controller`'s library. Other player
-            // references (e.g. Fateseal's opponent) are deferred to Task 9.
+            // `of` resolves to a player via `eval_reference` → player proxy →
+            // PlayerId. Supports `You` (controller's library) and `Opponent`
+            // (the opponent's library, e.g. Fateseal [CR#701.29a]).
             Selection::TopOfLibrary { count, of } => {
-                let controller = match of {
-                    deckmaste_core::Reference::You => frame.controller,
+                use crate::object::ObjectSource;
+                let proxy = self.eval_reference(of, frame);
+                let pid = match self.objects.get(proxy).map(|o| o.source) {
+                    Some(ObjectSource::Player(p)) => p,
                     other => {
-                        todo!("Fateseal opponent ref — Task 9: non-You TopOfLibrary.of ({other:?})")
+                        panic!("TopOfLibrary.of must resolve to a player proxy, got {other:?}")
                     }
                 };
                 let n = self.eval_count(count, frame) as usize;
-                self.zones.libraries[controller.index()]
+                self.zones.libraries[pid.index()]
                     .iter()
                     .take(n)
                     .copied()
@@ -1240,6 +1243,12 @@ impl GameState {
                 .and_then(|b| b.this.as_ref())
                 .map_or(frame.source, |s| s.object),
             Reference::You => self.player(frame.controller).object,
+            // [CR#102.1]: in a 2-player game the opponent is the only other
+            // live player; picks the first opponent in turn order for >2.
+            Reference::Opponent => {
+                let opp = self.next_live_after(frame.controller);
+                self.player(opp).object
+            }
             // The candidate a `Filter::Where` is matching — bound by that arm
             // alone. Referenced anywhere else (no enclosing filter match) it is
             // a malformed read, like a frameless carrier reference.
@@ -5740,6 +5749,146 @@ mod tests {
         // Final library must be [c, a, b]: c on top, a in middle, b on bottom.
         let lib: Vec<_> = state.zones.libraries[p0.index()].iter().copied().collect();
         assert_eq!(lib, vec![c, a, b], "c top, a middle, b bottom");
+    }
+
+    /// [CR#701.29a]: Fateseal — controller (player 0) looks at the top N cards
+    /// of the opponent's (player 1's) library, then distributes them. The
+    /// look_grant goes to the LOOKER (player 0), not the owner (player 1).
+    /// The distribution applies to PLAYER 1's library, not player 0's.
+    #[test]
+    fn fateseal_partitions_opponents_library() {
+        use deckmaste_core::Bin;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::With;
+
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+        use crate::object::ObjectSource;
+        use crate::step::StepOutcome;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let p1 = PlayerId(1);
+
+        // Build three cards belonging to player 1.
+        let make_card = |name: &str| {
+            Card::Normal(CardFace {
+                name: name.into(),
+                ..CardFace::default()
+            })
+        };
+        let card_x = state.cards.push(Arc::new(make_card("X")), p1);
+        let card_y = state.cards.push(Arc::new(make_card("Y")), p1);
+        let card_z = state.cards.push(Arc::new(make_card("Z")), p1);
+
+        let x = state
+            .objects
+            .mint(ObjectSource::Card(card_x), p1, Some(Zone::Library));
+        let y = state
+            .objects
+            .mint(ObjectSource::Card(card_y), p1, Some(Zone::Library));
+        let z = state
+            .objects
+            .mint(ObjectSource::Card(card_z), p1, Some(Zone::Library));
+
+        // Push into p1's library top→bottom: x at front (index 0) = top.
+        state.zones.libraries[p1.index()].push_back(x);
+        state.zones.libraries[p1.index()].push_back(y);
+        state.zones.libraries[p1.index()].push_back(z);
+
+        // Frame: controller is player 0 (the fatesealer).
+        let source = state.player(p0).object;
+        let frame = Frame {
+            source,
+            controller: p0,
+            targets: vec![],
+            bindings: None,
+            chosen: None,
+            x: None,
+            subject: None,
+            those: None,
+        };
+
+        // Run Effect::With(TopOfLibrary(count:2, of:Opponent),
+        //                  Distribute(Those, [Top, Bottom], "Fateseal"))
+        // with controller=p0 — should look at the top 2 of p1's library.
+        state.run_effect(
+            Effect::With(With {
+                selection: Selection::TopOfLibrary {
+                    count: Count::Literal(2),
+                    of: deckmaste_core::Reference::Opponent,
+                },
+                body: Box::new(Effect::act_by_you(PlayerAction::Distribute {
+                    group: Selection::Those,
+                    bins: vec![Bin::Top, Bin::Bottom],
+                    name: deckmaste_core::Ident::new("Fateseal"),
+                })),
+            }),
+            &frame,
+        );
+
+        // Step until the Distribute decision surfaces.
+        let pending = loop {
+            match state.step() {
+                StepOutcome::NeedsDecision(d) => break d,
+                StepOutcome::GameOver(_) => panic!("game ended unexpectedly"),
+                StepOutcome::Progress(_) => {}
+            }
+        };
+
+        // Window must be [x, y] — the top 2 of PLAYER 1's library.
+        let (window, bins) = match &pending {
+            PendingDecision::Distribute { window, bins, .. } => (window.clone(), bins.clone()),
+            other => panic!("expected Distribute, got {other:?}"),
+        };
+        assert_eq!(window, vec![x, y], "window is top-2 of opponent's library");
+        assert_eq!(bins, vec![Bin::Top, Bin::Bottom]);
+
+        // (b) look_grants: LOOKER (p0) can see x and y; owner (p1) cannot.
+        assert!(
+            state.look_grants.contains(&(p0, x)),
+            "looker p0 granted visibility of x"
+        );
+        assert!(
+            state.look_grants.contains(&(p0, y)),
+            "looker p0 granted visibility of y"
+        );
+        assert!(
+            !state.look_grants.contains(&(p1, x)),
+            "owner p1 NOT granted by p0's fateseal"
+        );
+
+        // Submit: bottom x, keep y on top → top pile [y], bottom pile [x].
+        state
+            .submit_decision(Decision::Distribution(vec![vec![y], vec![x]]))
+            .unwrap();
+
+        // Drain effect-induced work items.
+        for _ in 0..20 {
+            match state.agenda.front() {
+                Some(
+                    WorkItem::Emit(_)
+                    | WorkItem::RunEffect { .. }
+                    | WorkItem::OpenDistribute { .. },
+                ) => {
+                    let _ = state.step();
+                }
+                _ => break,
+            }
+        }
+
+        assert!(state.pending.is_none(), "no pending after distribution");
+
+        // (a) PLAYER 1's library must now be [y, z, x]: y on top, z middle (untouched),
+        // x bottom.
+        let lib1: Vec<_> = state.zones.libraries[p1.index()].iter().copied().collect();
+        assert_eq!(lib1, vec![y, z, x], "p1 library: y top, z middle, x bottom");
+
+        // Player 0's library is unchanged (still empty from setup).
+        assert!(
+            state.zones.libraries[p0.index()].is_empty(),
+            "p0's library untouched"
+        );
     }
 
     /// [CR#701.22b]: Distribute over an empty window (scry/surveil 0) is a
