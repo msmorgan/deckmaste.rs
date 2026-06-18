@@ -1867,13 +1867,20 @@ mod tests {
     #[test]
     fn conditional_declines_unparseable_branch() {
         // Either branch failing to parse declines the whole `If` (no partial).
+        // The unparseable branch is a face-down effect (`engine-face-down` is
+        // unbuilt — no Manifest production or macro), so it robustly declines
+        // regardless of which keyword-action macros the effect grammar gains.
         assert!(
-            parsed_with_macros("Scry 2. If you have the city's blessing, draw a card instead.")
-                .is_none()
+            parsed_with_macros(
+                "Manifest the top card of your library. If you have the city's blessing, draw a card instead."
+            )
+            .is_none()
         );
         assert!(
-            parsed_with_macros("Draw a card. If you have the city's blessing, scry 2 instead.")
-                .is_none()
+            parsed_with_macros(
+                "Draw a card. If you have the city's blessing, manifest the top card of your library instead."
+            )
+            .is_none()
         );
     }
 
