@@ -142,7 +142,7 @@ mod tests {
             spell("Creatures you control get +3/+3 and gain trample until end of turn.").as_deref(),
             Some(
                 "Spell(effect: Continuously(effect: Modify(of: Matching(AllOf([Creature, \
-                 ControlledBy(Ref(You))])), changes: [AddPower(3), AddToughness(3), \
+                 ControlledBy(Ref(You))])), changes: [AddPowerToughness(3, 3), \
                  GainAbility(Keyword(Trample))]), duration: FixedUntil(EndOfTurn)))"
             )
         );

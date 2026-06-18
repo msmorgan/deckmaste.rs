@@ -144,6 +144,12 @@ pub(super) fn static_effect(e: &StaticEffect, ctx: &Ctx) -> Option<String> {
 fn modifications_predicate(changes: &[Modification], plural: bool) -> String {
     let mut clauses: Vec<String> = Vec::new();
 
+    // Flatten change-bundling macros (`AddPowerToughness` → `Several([AddPower,
+    // AddToughness])`, looked through `Expanded`) so the grouping below renders
+    // identically to the inline pair — the graduated-RON change is cosmetic.
+    let changes = Modification::flatten(changes.to_vec());
+    let changes = changes.as_slice();
+
     // Pre-scan to compute the combined values for the grouped cases.
     let delta = pt_delta_clause(changes, plural);
     let base = base_pt_clause(changes, plural);

@@ -312,8 +312,14 @@ fn layer_of(m: &Modification, is_cda: bool) -> Option<Layer> {
         | Modification::SubtractToughness(_) => Some(Layer::L7c),
         // Layer 7d: switch ([CR#613.4d]).
         Modification::SwitchPowerToughness => Some(Layer::L7d),
-        // No [CR#613] layer: loyalty/defense are not characteristics here.
-        Modification::SetBaseLoyalty(_) | Modification::SetBaseDefense(_) => None,
+        // No layer. Loyalty/defense are not [CR#613] characteristics here;
+        // `Several`/`Expanded` are change-bundling expansion artifacts that
+        // `Modification::flatten` (run at the `gather` boundary) splices away
+        // and strips before the layer pass, so neither reaches it — defensive.
+        Modification::SetBaseLoyalty(_)
+        | Modification::SetBaseDefense(_)
+        | Modification::Several(_)
+        | Modification::Expanded(_) => None,
     }
 }
 
@@ -460,7 +466,11 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
                     // permanent's controller.
                     controller: obj.controller,
                     scope,
-                    changes: changes.clone(),
+                    // The single flatten boundary: splice every change-bundling
+                    // `Several` away (and strip every `Expanded`) before the
+                    // layer pass, which is exhaustive over `Modification` but
+                    // treats both as `unreachable!`/no-layer.
+                    changes: Modification::flatten(changes.clone()),
                     // The carrier is the source permanent itself: a `Matching`
                     // scope's `Ref(This)` is this object and `Ref(You)` is its
                     // controller ([CR#603.10a,109.5]).
@@ -502,7 +512,13 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
                     is_cda: false,
                     controller: obj.controller,
                     scope,
-                    changes: bake_counter_counts(changes, &obj.counters),
+                    // Flatten first (so `bake` sees the flat P/T ops), then bake
+                    // the self-scoped counter counts — the same single boundary
+                    // as the static-ability path.
+                    changes: bake_counter_counts(
+                        &Modification::flatten(changes.clone()),
+                        &obj.counters,
+                    ),
                     watcher: Some(obj.source),
                     locked: None,
                 });
@@ -516,7 +532,9 @@ fn gather(state: &GameState) -> Vec<ActiveEffect> {
             is_cda: ce.is_cda,
             controller: ce.controller,
             scope: ce.scope.clone(),
-            changes: ce.changes.clone(),
+            // Same single boundary: a floating one-shot's `changes` (a granted
+            // `+N/+N until end of turn`) is flattened before the layer pass.
+            changes: Modification::flatten(ce.changes.clone()),
             // A spell-built floating effect's source spell has left the stack by
             // the time the layer pass runs, so `Ref(You)` anchors on the locked
             // controller's player proxy (`controller_of_source(Player(p)) == p`,
@@ -1069,6 +1087,12 @@ fn apply_static(
         // --- No [CR#613] layer ---
         Modification::SetBaseLoyalty(_) | Modification::SetBaseDefense(_) => {
             // Loyalty/defense are not characteristics here; no layer applies.
+        }
+        // `Modification::flatten` at the `gather` boundary splices every
+        // `Several` away and strips every `Expanded`, so neither reaches the
+        // layer pass.
+        Modification::Several(_) | Modification::Expanded(_) => {
+            unreachable!("Several/Expanded are flattened before the engine")
         }
     }
 }
