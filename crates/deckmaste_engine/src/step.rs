@@ -125,6 +125,7 @@ impl GameState {
             .expect("agenda is never empty while the game is on");
         let progress = match item {
             WorkItem::Emit(occ) => Progress::Applied(self.apply_occurrence(occ)),
+            WorkItem::EmitSbaBatch(events) => self.emit_sba_batch(events),
             WorkItem::BeginStep(s) => self.begin_step(s),
             WorkItem::CheckSbas => self.check_sbas(),
             WorkItem::PlaceTriggers => self.place_triggers(),
@@ -1179,6 +1180,20 @@ impl GameState {
         items
     }
 
+    /// [CR#704.3]: apply a state-based-action batch, then re-check ONLY if it
+    /// actually performed something. A batch whose events were all suppressed
+    /// (e.g. a destroy canted by indestructible) applies to an empty result and
+    /// must NOT re-trigger the check — otherwise a persistent condition (lethal
+    /// damage on an indestructible creature) loops forever.
+    fn emit_sba_batch(&mut self, events: Vec<GameEvent>) -> Progress {
+        let applied = self.apply_occurrence(Occurrence::Batch(events));
+        let changed = !matches!(&applied, Occurrence::Batch(facts) if facts.is_empty());
+        if changed {
+            self.schedule_front(vec![WorkItem::CheckSbas]);
+        }
+        Progress::Applied(applied)
+    }
+
     /// [CR#704.3]: sweep; if anything acted, emit the whole sweep as ONE
     /// simultaneous batch and re-check before the queued `OpenPriority` runs.
     fn check_sbas(&mut self) -> Progress {
@@ -1193,10 +1208,8 @@ impl GameState {
         let actions = sba::sweep(self);
         let count = Uint::try_from(actions.len()).expect("action count fits in Uint");
         if count > 0 {
-            self.schedule_front(vec![
-                WorkItem::Emit(crate::event::Occurrence::Batch(actions)),
-                WorkItem::CheckSbas,
-            ]);
+            // Re-check is conditional on this batch actually changing state.
+            self.schedule_front(vec![WorkItem::EmitSbaBatch(actions)]);
         }
         Progress::SbasChecked { actions: count }
     }
@@ -1726,6 +1739,113 @@ mod tests {
     }
 
     // --- Legend-rule wiring (Task C3) ---
+
+    // --- SBA loop termination (EmitSbaBatch) ---
+
+    mod sba_loop_termination {
+        use std::path::Path;
+        use std::sync::Arc;
+
+        use deckmaste_cards::plugin::Plugin;
+        use deckmaste_core::Card;
+        use deckmaste_core::Filter;
+        use deckmaste_core::Type;
+        use deckmaste_core::Zone;
+
+        use crate::agenda::WorkItem;
+        use crate::matches as obj_matches;
+        use crate::player::PlayerId;
+        use crate::state::GameConfig;
+        use crate::state::GameState;
+        use crate::state::PlayerConfig;
+        use crate::state::StartingPlayer;
+        use crate::step::StepOutcome;
+
+        fn builtin() -> Plugin {
+            Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"))
+                .unwrap()
+        }
+
+        fn canon() -> Plugin {
+            Plugin::load_with_sibling_prelude(
+                Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon"),
+            )
+            .unwrap()
+        }
+
+        fn deck(card: &Arc<Card>, n: usize) -> Vec<Arc<Card>> {
+            vec![Arc::clone(card); n]
+        }
+
+        /// Player 0's deck = Darksteel Myr (indestructible 0/1), one on the
+        /// field.
+        fn myr_on_field() -> (GameState, crate::object::ObjectId) {
+            let myr = Arc::new(canon().card("Darksteel Myr").unwrap());
+            let forest = Arc::new(builtin().card("Forest").unwrap());
+            let mut state = GameState::new(GameConfig {
+                players: vec![
+                    PlayerConfig {
+                        deck: deck(&myr, 10),
+                    },
+                    PlayerConfig {
+                        deck: deck(&forest, 10),
+                    },
+                ],
+                seed: 1,
+                starting_life: 20,
+                starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            });
+            let m = *state.zones.hands[0]
+                .iter()
+                .find(|&&o| {
+                    obj_matches(
+                        &state,
+                        o,
+                        &Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(
+                            Type::Creature,
+                        )),
+                    )
+                })
+                .expect("a Darksteel Myr in the opening hand");
+            state.zones.hands[PlayerId(0).index()].retain(|&o| o != m);
+            state.objects.obj_mut(m).zone = Some(Zone::Battlefield);
+            state.zones.battlefield.push(m);
+            (state, m)
+        }
+
+        /// [CR#704.3,704.5g,702.12b]: an indestructible creature with lethal
+        /// marked damage holds a persistent SBA condition (destroy is canted).
+        /// `check_sbas` must TERMINATE — the `EmitSbaBatch` handler re-checks
+        /// only when the batch actually changed state; a fully-suppressed batch
+        /// (the cant reduces it to `Batch(vec![])`) must NOT re-trigger the
+        /// check, or the loop runs forever.
+        #[test]
+        fn indestructible_lethal_damage_sba_check_terminates() {
+            let (mut state, myr) = myr_on_field();
+            state.objects.obj_mut(myr).damage = 1; // toughness 1 → lethal
+            state.schedule_front(vec![WorkItem::CheckSbas]);
+            // Bounded drive: a correct SBA loop settles in a handful of steps.
+            // If it hasn't settled in 50, it's the infinite loop.
+            let mut settled = false;
+            for _ in 0..50 {
+                match state.step() {
+                    StepOutcome::NeedsDecision(_) => {
+                        settled = true;
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+            assert!(
+                settled,
+                "the SBA check must terminate, not loop on the canted destroy"
+            );
+            assert!(
+                state.zones.battlefield.contains(&myr),
+                "indestructible creature survives"
+            );
+        }
+    }
 
     mod legend_choice {
         use std::path::Path;
