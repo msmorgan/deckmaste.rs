@@ -19,6 +19,7 @@ use deckmaste_core::TargetSpec;
 use deckmaste_core::Type;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
+
 use rand::seq::SliceRandom;
 
 use crate::agenda::WorkItem;
@@ -28,6 +29,7 @@ use crate::event::Occurrence;
 use crate::layer::ContinuousEffect;
 use crate::layer::ScopeResolved;
 use crate::object::ObjectId;
+use crate::object::ObjectSource;
 use crate::stack::Frame;
 use crate::stack::StackEntry;
 use crate::stack::StackObject;
@@ -136,7 +138,7 @@ impl GameState {
                             enters: None,
                             position: None,
                             face: None,
-                            cause: None,
+                            cause: Some(Cause::counter(Agency::StateBasedAction, None)),
                         },
                     ))]);
                 }
@@ -179,7 +181,7 @@ impl GameState {
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
                         GameEvent::AbilityResolved(entry.id),
                     ))]);
-                } else {
+                } else if self.targets_still_legal(&entry) {
                     self.schedule_front(vec![
                         WorkItem::RunEffect {
                             effect: Box::new(t.effect),
@@ -187,6 +189,14 @@ impl GameState {
                         },
                         WorkItem::Emit(Occurrence::single(GameEvent::AbilityResolved(entry.id))),
                     ]);
+                } else {
+                    // [CR#608.2b]: every target illegal — fizzle, vanish.
+                    self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+                        GameEvent::AbilityCountered {
+                            id: entry.id,
+                            cause: Cause::counter(Agency::StateBasedAction, None),
+                        },
+                    ))]);
                 }
             }
             // [CR#602.2a]: an activated ability resolves its carried text,
@@ -221,7 +231,10 @@ impl GameState {
                 } else {
                     // [CR#608.2b]: every target illegal — fizzle, vanish.
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                        GameEvent::AbilityResolved(entry.id),
+                        GameEvent::AbilityCountered {
+                            id: entry.id,
+                            cause: Cause::counter(Agency::StateBasedAction, None),
+                        },
                     ))]);
                 }
             }
@@ -636,10 +649,13 @@ impl GameState {
                             });
                         }
                         Some(StackObject::Triggered { .. } | StackObject::Activated { .. }) => {
-                            todo!(
-                                "kw-ward: countered ability ceases — remove from stack, \
-                                 no zone move ([CR#701.6a])"
-                            )
+                            events.push(GameEvent::AbilityCountered {
+                                id: object,
+                                cause: Cause::counter(
+                                    Agency::EffectInstruction,
+                                    Some((frame.source, frame.controller)),
+                                ),
+                            });
                         }
                         None => {}
                     }
@@ -1109,7 +1125,6 @@ impl GameState {
     /// Panics if `who` resolves to a non-player object — a player verb's agent
     /// must be a player ([CR#608.2]).
     fn acting_player(&self, who: &Reference, frame: &Frame) -> crate::player::PlayerId {
-        use crate::object::ObjectSource;
         let object = self.eval_reference(who, frame);
         match self.objects.get(object).map(|o| o.source) {
             Some(ObjectSource::Player(p)) => p,
@@ -1185,7 +1200,6 @@ impl GameState {
             // PlayerId. Supports `You` (controller's library) and `Opponent`
             // (the opponent's library, e.g. Fateseal [CR#701.29a]).
             Selection::TopOfLibrary { count, of } => {
-                use crate::object::ObjectSource;
                 let proxy = self.eval_reference(of, frame);
                 let pid = match self.objects.get(proxy).map(|o| o.source) {
                     Some(ObjectSource::Player(p)) => p,
@@ -1615,9 +1629,12 @@ impl GameState {
             // (possibly gone, possibly changed) source. Targets live on a
             // top-level `Effect::Targeted` wrapper ([CR#115.1,601.2c]).
             StackObject::Activated { ability, .. } => top_targets(&ability.effect).to_vec(),
-            StackObject::Triggered { .. } => unreachable!(
-                "the Triggered resolve arm does not re-check target legality (fizzle seam)"
-            ),
+            StackObject::Triggered {
+                source, ability, ..
+            } => match &crate::derive::abilities_of_source(self, *source)[*ability] {
+                Ability::Triggered(t) => top_targets(&t.effect).to_vec(),
+                _ => unreachable!(),
+            },
         };
         debug_assert_eq!(
             specs.len(),
@@ -1803,6 +1820,7 @@ mod tests {
     use deckmaste_core::Selection;
     use deckmaste_core::StateFilter;
     use deckmaste_core::Type;
+    use deckmaste_core::Window;
     use deckmaste_core::Zone;
 
     use crate::agenda::WorkItem;
@@ -1810,6 +1828,7 @@ mod tests {
     use crate::event::Occurrence;
     use crate::matches as obj_matches;
     use crate::object::ObjectId;
+    use crate::object::ObjectSource;
     use crate::player::PlayerId;
     use crate::stack::Frame;
     use crate::stack::StackEntry;
@@ -1823,6 +1842,7 @@ mod tests {
     use crate::test_support::frame_for;
     use crate::test_support::frame_src;
     use crate::test_support::frame_src_targets;
+    use crate::trigger::TriggerBindings;
 
     fn builtin() -> Plugin {
         Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
@@ -1881,11 +1901,9 @@ mod tests {
         use deckmaste_core::Event;
         use deckmaste_core::Filter;
         use deckmaste_core::Reference;
-        use deckmaste_core::Window;
 
         use crate::event::Cause;
         use crate::lki::LkiSnapshot;
-        use crate::object::ObjectSource;
 
         let mut state = game();
         state.turn.turn_number = 1;
@@ -2073,8 +2091,6 @@ mod tests {
     /// prior-turn entries, `ThisGame` includes them all.
     #[test]
     fn ability_used_count_keys_object_ability_window() {
-        use deckmaste_core::Window;
-
         let mut state = game();
         state.turn.turn_number = 1;
 
@@ -2332,8 +2348,6 @@ mod tests {
         use deckmaste_core::DeonticAction;
         use deckmaste_core::StaticAbility;
         use deckmaste_core::StaticEffect;
-
-        use crate::object::ObjectSource;
 
         let mut state = game();
         // The attachment: an artifact whose Innate rule forbids non-creature
@@ -3473,8 +3487,6 @@ mod tests {
     /// watches its own departure).
     #[test]
     fn sacrifice_fires_the_dying_objects_dies_trigger() {
-        use crate::object::ObjectSource;
-
         let card = Arc::new(canon().card("Footlight Fiend").unwrap());
         let forest = Arc::new(builtin().card("Forest").unwrap());
         let mut state = GameState::new(GameConfig {
@@ -3628,6 +3640,49 @@ mod tests {
         assert_eq!(state.zones.graveyards[0].len(), gy_before + 1);
         let countered = *state.zones.graveyards[0].last().expect("a countered spell");
         assert_eq!(state.objects.obj(countered).zone, Some(Zone::Graveyard));
+    }
+
+    /// [CR#701.6a]: countering an ability removes it from the stack and it
+    /// ceases (removed from stack and object store; no zone move).
+    #[test]
+    fn counter_ability_ceases() {
+        let (mut state, bear) = bear_on_field();
+        // Mint a token id for the ability.
+        let ability_id = state.objects.mint(
+            ObjectSource::Player(PlayerId(0)),
+            PlayerId(0),
+            Some(Zone::Stack),
+        );
+        state.stack.push(StackEntry {
+            id: ability_id,
+            object: StackObject::Triggered {
+                source: ObjectSource::Card(state.objects.obj(bear).card_id().unwrap()),
+                ability: 0,
+                bindings: TriggerBindings {
+                    this: None,
+                    that_object: None,
+                    that_player: None,
+                },
+            },
+            controller: PlayerId(0),
+            targets: vec![],
+            x: None,
+        });
+
+        // The source's effect counters that ability (chosen as Target(0)).
+        let frame = frame_src_targets(bear, vec![ability_id]);
+        state.run_effect(
+            Effect::Act(Action::Counter(Selection::Ref(Reference::Target(0)))),
+            &frame,
+        );
+        // AbilityResolved applies.
+        let _ = state.step();
+
+        assert!(state.stack.is_empty(), "ability removed from the stack");
+        assert!(
+            state.objects.get(ability_id).is_none(),
+            "minted ability id gone"
+        );
     }
 
     /// [CR#401.7]: `PutInLibrary(This, 0)` puts the card on top; an index past
@@ -3943,8 +3998,6 @@ mod tests {
     /// on (see `parsers::filter::head_noun`'s `Permanent` scope).
     #[test]
     fn count_you_control_excludes_the_activations_own_stack_copy() {
-        use crate::object::ObjectSource;
-
         // A Goblin permanent on the battlefield, player 0.
         fn goblin(state: &mut GameState, name: &str) -> ObjectId {
             mint_on_field(
@@ -4115,8 +4168,6 @@ mod tests {
     use deckmaste_core::StaticAbility;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::Subtype;
-
-    use crate::object::ObjectSource;
 
     /// Expand a builtin keyword macro invocation to an `Ability::Keyword`.
     fn keyword(invocation: &str) -> Ability {
@@ -4951,8 +5002,6 @@ mod tests {
         use deckmaste_core::CardFace;
         use deckmaste_core::SpellAbility;
 
-        use crate::object::ObjectSource;
-
         let mut state = game();
         let p0 = PlayerId(0);
 
@@ -5175,10 +5224,8 @@ mod tests {
     #[test]
     fn event_count_counts_matching_history() {
         use deckmaste_core::Event;
-        use deckmaste_core::Window;
 
         use crate::lki::LkiSnapshot;
-        use crate::object::ObjectSource;
 
         let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
         let forest = Arc::new(builtin().card("Forest").unwrap());
@@ -5311,7 +5358,6 @@ mod tests {
     #[test]
     fn event_sum_totals_amounts() {
         use deckmaste_core::Event;
-        use deckmaste_core::Window;
 
         let mut state = GameState::new(GameConfig {
             players: vec![
@@ -5406,7 +5452,6 @@ mod tests {
     #[test]
     fn event_count_used_counts_object_ability_uses() {
         use deckmaste_core::Event;
-        use deckmaste_core::Window;
 
         let mut state = GameState::new(GameConfig {
             players: vec![
@@ -5496,7 +5541,6 @@ mod tests {
         use deckmaste_core::Cmp;
         use deckmaste_core::Condition;
         use deckmaste_core::Event;
-        use deckmaste_core::Window;
 
         let mut state = GameState::new(GameConfig {
             players: vec![
@@ -5560,8 +5604,6 @@ mod tests {
     fn with_binds_those_and_top_of_library_is_ordered() {
         use deckmaste_core::CardFace;
         use deckmaste_core::With;
-
-        use crate::object::ObjectSource;
 
         let mut state = game();
         let p0 = PlayerId(0);
@@ -5658,7 +5700,6 @@ mod tests {
 
         use crate::decide::Decision;
         use crate::decide::PendingDecision;
-        use crate::object::ObjectSource;
         use crate::step::StepOutcome;
 
         let mut state = game();
@@ -5785,7 +5826,6 @@ mod tests {
 
         use crate::decide::Decision;
         use crate::decide::PendingDecision;
-        use crate::object::ObjectSource;
         use crate::step::StepOutcome;
 
         let mut state = game();
@@ -5921,7 +5961,6 @@ mod tests {
         use deckmaste_core::CardFace;
         use deckmaste_core::With;
 
-        use crate::object::ObjectSource;
         use crate::step::StepOutcome;
 
         let mut state = game();
@@ -6010,11 +6049,9 @@ mod tests {
     fn distribute_emits_named_event_and_suppresses_at_zero() {
         use deckmaste_core::Bin;
         use deckmaste_core::CardFace;
-        use deckmaste_core::Window;
         use deckmaste_core::With;
 
         use crate::decide::Decision;
-        use crate::object::ObjectSource;
         use crate::step::StepOutcome;
 
         let mut state = game();
