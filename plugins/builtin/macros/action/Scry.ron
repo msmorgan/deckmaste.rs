@@ -1,0 +1,13 @@
+// "Scry N" [CR#701.22a]: look at the top N cards of your library, then put
+// any number of them on the bottom of your library and the rest on top in any
+// order. N=0 is a no-op [CR#701.22b].
+(
+    name: "Scry",
+    template: "scry ${0}",
+    kinds: [Effect],
+    params: [Count],
+    body: With(
+        selection: TopOfLibrary(count: Param(0)),
+        body: Distribute(group: Those, bins: [Top, Bottom], name: "Scry"),
+    ),
+)
