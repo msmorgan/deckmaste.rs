@@ -86,4 +86,13 @@ pub enum WorkItem {
         effect: Box<deckmaste_core::Effect>,
         frame: crate::stack::Frame,
     },
+    /// [CR#701.22a]: surface a `Distribute` decision — player sorts `window`
+    /// into ordered `bins` (Top/Bottom/Graveyard). Dispatched from
+    /// `player_action_items` after evaluating the looked-at group.
+    OpenDistribute {
+        player: crate::player::PlayerId,
+        window: Vec<crate::object::ObjectId>,
+        bins: Vec<deckmaste_core::Bin>,
+        name: deckmaste_core::Ident,
+    },
 }

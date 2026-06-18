@@ -154,6 +154,10 @@ pub enum ChoiceContinuation {
         unless: Vec<deckmaste_core::CostComponent>,
         frame: crate::stack::Frame,
     },
+    /// A `Distribute` answer ([CR#701.22a]): stashes the effect `name`
+    /// (e.g. "Scry") for the event emitted in Task 8. Consumed in
+    /// `submit_distribution`; Task 8 reads `name` before taking it.
+    Distribute { name: deckmaste_core::Ident },
 }
 
 /// Suspended replacement-loop state ([CR#616.1]) — preserved across a
