@@ -113,6 +113,7 @@ fn bears_game(seed: u64, forests: usize) -> GameState {
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
     });
     for _ in 0..forests {
         let obj = find_in_hand(&state, PlayerId(0), "Forest");
@@ -301,6 +302,7 @@ fn snow_vs_plain_game(seed: u64) -> GameState {
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
     });
     for name in ["Snow-Covered Forest", "Forest"] {
         let obj = find_in_hand(&state, PlayerId(0), name);

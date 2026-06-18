@@ -52,6 +52,14 @@ pub fn build_game() -> Result<GameState> {
     counter_decls.extend(builtin.counters.clone());
     counter_decls.extend(wizards.counters.clone());
 
+    // Subtype registry ([CR#205.3]): the engine resolves a layer-4
+    // `Add/SetSubtypes` modification's bare `Ident` names against this map.
+    // Last plugin wins, mirroring `counter_decls`.
+    let mut subtypes = std::collections::HashMap::new();
+    subtypes.extend(canon.subtypes.clone());
+    subtypes.extend(builtin.subtypes.clone());
+    subtypes.extend(wizards.subtypes.clone());
+
     Ok(GameState::new(GameConfig {
         players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
         seed: SEED,
@@ -59,6 +67,7 @@ pub fn build_game() -> Result<GameState> {
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules,
         counter_decls,
+        subtypes,
     }))
 }
 

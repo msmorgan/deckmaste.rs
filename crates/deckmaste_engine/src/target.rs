@@ -499,6 +499,7 @@ mod tests {
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
         });
         // Force a Grizzly Bears from player 0's hand onto the battlefield.
         let bear = *state.zones.hands[0]
@@ -539,6 +540,7 @@ mod tests {
             starting_player: StartingPlayer::Fixed(PlayerId(1)),
             sba_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
         });
         // Force a Forest from player 1's hand onto the battlefield.
         let land = *state.zones.hands[1]
@@ -1104,6 +1106,7 @@ mod tests {
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
         });
         let creature = Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(
             deckmaste_core::Type::Creature,
@@ -1240,6 +1243,7 @@ mod tests {
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
         });
         let courser = put_canon_creature(&mut state, "Centaur Courser"); // 3/3 carrier
         let bears = put_canon_creature(&mut state, "Grizzly Bears"); // 2/2 lesser

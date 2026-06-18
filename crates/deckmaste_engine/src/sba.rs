@@ -448,6 +448,7 @@ mod tests {
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
         });
         // Force a Grizzly Bears from player 0's hand onto the battlefield.
         let bear = *state.zones.hands[0]
@@ -486,6 +487,7 @@ mod tests {
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
         });
         let m = *state.zones.hands[0]
             .iter()
@@ -537,6 +539,7 @@ mod tests {
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
         });
         let card_id = state.cards.push(gift, PlayerId(0));
         let aura = state.objects.mint(
@@ -739,6 +742,7 @@ mod tests {
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
         });
         state.players[0].life = 0;
         state.players[1].life = 0;
@@ -892,6 +896,7 @@ mod tests {
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
         })
     }
 

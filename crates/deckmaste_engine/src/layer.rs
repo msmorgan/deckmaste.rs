@@ -968,8 +968,26 @@ fn apply(
             }
         }
         // Non-count ops: borrow the entry mutably and mutate in place.
-        m => apply_static(m, effect_controller, working, obj_id),
+        m => apply_static(m, effect_controller, state, working, obj_id),
     }
+}
+
+/// Resolve a layer-4 subtype `Ident` to a full `Subtype` ([CR#205.3]): look it
+/// up in the engine's subtype registry (`state.subtypes`) so the granted
+/// subtype's inherent rules (`confers` — e.g. a basic land type's [CR#305.6]
+/// mana ability) ride along. An `Ident` absent from the registry yields a
+/// minimal name-only `Subtype` (no `confers`, no `types`) so the type still
+/// applies, carrying no inherent rules.
+fn resolve_subtype(state: &GameState, name: &Ident) -> Subtype {
+    state
+        .subtypes
+        .get(name)
+        .cloned()
+        .unwrap_or_else(|| Subtype {
+            name: *name,
+            types: Vec::new(),
+            confers: Vec::new(),
+        })
 }
 
 /// The count-free `Modification` arms (layers 2-6, 7d). Split out so the
@@ -979,6 +997,7 @@ fn apply(
 fn apply_static(
     m: &Modification,
     effect_controller: PlayerId,
+    state: &GameState,
     working: &mut BTreeMap<ObjectId, DerivedObject>,
     obj_id: ObjectId,
 ) {
@@ -1017,12 +1036,31 @@ fn apply_static(
             }
         }
         Modification::SetSupertypes(ss) => c.supertypes = Arc::new(ss.clone()),
-        // [CR#613.1d] subtype-set deferred: Ident→Subtype reconcile (no fixture yet)
-        // `Modification::SetSubtypes`/`AddSubtypes` carry `Vec<Ident>` but
-        // `Characteristics::subtypes` holds `Vec<Subtype>` (structs with confers/types).
-        // There is no clean `Ident → Subtype` conversion without plugin data, so these
-        // arms are left as explicit no-ops until a fixture exercises them.
-        Modification::SetSubtypes(_) | Modification::AddSubtypes(_) => {}
+        // --- Layer 4: subtype-changing ([CR#613.1d]) ---
+        // `Add/SetSubtypes` carry bare `Ident` names; `Characteristics::subtypes`
+        // holds full `Subtype` structs (with `confers`/`types`). Resolve each name
+        // through the engine's subtype registry (`state.subtypes`, populated from
+        // the loaded plugin), so a granted subtype's inherent rules ride along —
+        // e.g. a basic land type's mana ability ([CR#305.6]). An `Ident` absent
+        // from the registry applies as a minimal name-only `Subtype` (no `confers`,
+        // no `types`): the type still applies, it just carries no inherent rules.
+        Modification::AddSubtypes(names) => {
+            let subtypes = Arc::make_mut(&mut c.subtypes);
+            for name in names {
+                let resolved = resolve_subtype(state, name);
+                if !subtypes.iter().any(|s| s.name == resolved.name) {
+                    subtypes.push(resolved);
+                }
+            }
+        }
+        Modification::SetSubtypes(names) => {
+            c.subtypes = Arc::new(
+                names
+                    .iter()
+                    .map(|name| resolve_subtype(state, name))
+                    .collect(),
+            );
+        }
         // [CR#305.7] deferred: replace land subtypes + strip abilities + grant basic
         // mana ability (no fixture yet). Do NOT implement the mana-ability construction.
         Modification::BecomeBasicLandType(_) => {}
@@ -1328,6 +1366,7 @@ mod tests {
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
         })
     }
 
@@ -2030,5 +2069,164 @@ mod tests {
             "a dynamic +X/+X never materializes P/T on a P/T-less permanent"
         );
         assert_eq!(view.toughness(ench), None, "…toughness stays None too");
+    }
+
+    // -----------------------------------------------------------------------
+    // layers-layer-4-subtypes: layer-4 subtype-changing ([CR#613.1d]). An
+    // `Add/SetSubtypes` modification carries bare `Ident` names; the engine
+    // resolves each through the injected subtype registry (`state.subtypes`),
+    // so a granted subtype's `confers` ride along.
+    // -----------------------------------------------------------------------
+
+    /// Lock an `Add/SetSubtypes` (layer-4) continuous effect carrying the named
+    /// subtypes onto `id`.
+    fn lock_subtype_mod(state: &mut GameState, id: ObjectId, change: Modification) {
+        let timestamp = state.objects.next_timestamp();
+        state.continuous.push(ContinuousEffect {
+            timestamp,
+            controller: PlayerId(0),
+            scope: ScopeResolved::Locked(vec![id]),
+            changes: vec![change],
+            duration: Duration::EndOfGame,
+            is_cda: false,
+        });
+    }
+
+    /// Register `name` in the engine's subtype registry as a `Creature` subtype
+    /// conferring `Trample` ([CR#205.3]) — a stand-in for a tribal subtype
+    /// whose membership carries an inherent rule. Lets a test prove the
+    /// resolved `Subtype`'s `confers` ride along when the name is granted.
+    fn register_trample_subtype(state: &mut GameState, name: &str) {
+        use deckmaste_core::KeywordAbility;
+        use deckmaste_core::Property;
+        use deckmaste_core::Subtype;
+        state.subtypes.insert(
+            name.into(),
+            Subtype {
+                name: name.into(),
+                types: vec![Type::Creature],
+                confers: vec![Property::Ability(Box::new(Ability::Keyword(
+                    KeywordAbility::Trample,
+                )))],
+            },
+        );
+    }
+
+    /// [CR#613.1d]: `AddSubtypes([Sliver])` on a creature adds the registered
+    /// `Sliver` subtype to its derived list ("becomes a Sliver in addition to
+    /// its other types"), and the registry entry's `confers` ride along (so a
+    /// downstream consumer sees the inherent rule the subtype membership
+    /// carries).
+    #[test]
+    fn add_subtypes_appends_registered_subtype_with_confers() {
+        use deckmaste_core::Property;
+
+        let (mut state, id) = creature_on_field(game(), vec![]);
+        register_trample_subtype(&mut state, "Sliver");
+        lock_subtype_mod(
+            &mut state,
+            id,
+            Modification::AddSubtypes(vec!["Sliver".into()]),
+        );
+
+        let view = state.layers();
+        let sliver = view
+            .get(id)
+            .subtypes
+            .iter()
+            .find(|s| s.name == "Sliver")
+            .expect("derived subtypes include the granted Sliver");
+        // The registry's confers ride along on the resolved Subtype.
+        assert!(
+            sliver.confers.iter().any(|p| matches!(
+                p,
+                Property::Ability(a)
+                    if matches!(&**a, Ability::Keyword(deckmaste_core::KeywordAbility::Trample))
+            )),
+            "the granted Sliver carries its registered confers; got {:?}",
+            sliver.confers
+        );
+    }
+
+    /// [CR#613.1d]: `AddSubtypes` is additive — it keeps the printed subtype
+    /// ("in addition to its other types") and dedups, so granting a subtype the
+    /// object already prints does not duplicate it.
+    #[test]
+    fn add_subtypes_is_additive_and_dedups() {
+        // A creature that already prints the "Goblin" subtype.
+        let (mut state, id) = typed_creature(game(), "Goblin", PlayerId(0), vec![]);
+        register_trample_subtype(&mut state, "Sliver");
+        lock_subtype_mod(
+            &mut state,
+            id,
+            // Add Sliver AND a redundant Goblin (already printed): Goblin must
+            // not be duplicated.
+            Modification::AddSubtypes(vec!["Sliver".into(), "Goblin".into()]),
+        );
+
+        let view = state.layers();
+        let names: Vec<&str> = view
+            .get(id)
+            .subtypes
+            .iter()
+            .map(|s| s.name.as_str())
+            .collect();
+        assert!(names.contains(&"Goblin"), "printed Goblin survives");
+        assert!(names.contains(&"Sliver"), "granted Sliver added");
+        assert_eq!(
+            names.iter().filter(|n| **n == "Goblin").count(),
+            1,
+            "Goblin is not duplicated, got {names:?}"
+        );
+    }
+
+    /// [CR#613.1d]: `SetSubtypes` REPLACES the whole printed subtype list (the
+    /// "is a … and is no longer …" / basic-land-type pattern), resolving each
+    /// name through the registry.
+    #[test]
+    fn set_subtypes_replaces_printed_list() {
+        // Printed Goblin → set to Sliver only.
+        let (mut state, id) = typed_creature(game(), "Goblin", PlayerId(0), vec![]);
+        register_trample_subtype(&mut state, "Sliver");
+        lock_subtype_mod(
+            &mut state,
+            id,
+            Modification::SetSubtypes(vec!["Sliver".into()]),
+        );
+
+        let view = state.layers();
+        let names: Vec<&str> = view
+            .get(id)
+            .subtypes
+            .iter()
+            .map(|s| s.name.as_str())
+            .collect();
+        assert_eq!(names, vec!["Sliver"], "printed Goblin replaced by Sliver");
+    }
+
+    /// An `Ident` absent from the registry still applies as a minimal name-only
+    /// `Subtype` — the type applies, it just carries no inherent rules (no
+    /// `confers`, no `types`).
+    #[test]
+    fn unknown_subtype_applies_as_minimal() {
+        // No registry entry for "Eldrazi".
+        let (mut state, id) = creature_on_field(game(), vec![]);
+        lock_subtype_mod(
+            &mut state,
+            id,
+            Modification::AddSubtypes(vec!["Eldrazi".into()]),
+        );
+
+        let view = state.layers();
+        let eldrazi = view
+            .get(id)
+            .subtypes
+            .iter()
+            .find(|s| s.name == "Eldrazi")
+            .expect("an unregistered subtype still applies by name");
+        assert!(
+            eldrazi.confers.is_empty() && eldrazi.types.is_empty(),
+            "an unknown subtype carries no inherent rules: {eldrazi:?}"
+        );
     }
 }

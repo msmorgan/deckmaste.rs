@@ -120,6 +120,15 @@ pub struct GameConfig {
     pub starting_player: StartingPlayer,
     pub sba_rules: Vec<deckmaste_core::SbaRule>,
     pub counter_decls: std::collections::HashMap<deckmaste_core::Ident, deckmaste_core::Counter>,
+    /// The subtype registry ([CR#205.3]): `Ident → Subtype`. Unlike a counter's
+    /// confers (looked up by name), a subtype's confers normally ride the card
+    /// value — but a layer-4 `Add/SetSubtypes` modification carries only bare
+    /// `Ident` names, so the engine needs this registry to resolve them back to
+    /// `Subtype` structs (with their `confers`/`types`). Populated from the
+    /// loaded plugin's `subtypes` at construction; empty means a granted
+    /// subtype resolves to a minimal name-only `Subtype` (no inherent
+    /// rules).
+    pub subtypes: std::collections::HashMap<deckmaste_core::Ident, deckmaste_core::Subtype>,
 }
 
 /// What to resume once a resolution-time decision is answered. Transient: set
@@ -239,6 +248,13 @@ pub struct GameState {
     /// the loaded plugin's `counters` at game construction; empty means no
     /// counter confers anything (the pre-data behavior).
     pub counter_decls: std::collections::HashMap<deckmaste_core::Ident, deckmaste_core::Counter>,
+    /// The subtype registry ([CR#205.3]) — `Ident → Subtype`. The layer-4
+    /// `Add/SetSubtypes` modifications carry bare `Ident` names; this maps them
+    /// back to full `Subtype` structs (with `confers`/`types`). Populated from
+    /// the loaded plugin's `subtypes` at construction (like `counter_decls`);
+    /// empty means a granted subtype carries no inherent rules. An `Ident`
+    /// absent from this map applies as a minimal name-only `Subtype`.
+    pub subtypes: std::collections::HashMap<deckmaste_core::Ident, deckmaste_core::Subtype>,
     /// Rules-defined SBAs in force this game ([CR#704]). Injected by the
     /// consumer after construction (like `counter_decls`); the SBA sweep reads
     /// it. Empty = no rules-defined SBAs (the engine still runs the imperative
@@ -345,6 +361,7 @@ impl GameState {
             shields: Vec::new(),
             designations: DesignationStore::default(),
             counter_decls: config.counter_decls,
+            subtypes: config.subtypes,
             sba_rules: config.sba_rules,
             that_much: None,
             history: crate::history::History::default(),
