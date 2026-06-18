@@ -262,6 +262,11 @@ pub struct GameState {
     /// Monotonically increasing counter for `InstanceId` assignment. Bumped on
     /// every `CreateReplacement` action; yields unique ids across the game.
     pub next_shield_id: u32,
+    /// [CR#406.3] generalized: who is ALLOWED to see which object. Persistent,
+    /// keyed by object IDENTITY (`ObjectId`), which is freshly minted on every
+    /// zone change ([CR#400.7]) — so grants expire for free on shuffle. Written
+    /// by looks (Distribute); the redacted per-player VIEW is a runner concern.
+    pub look_grants: std::collections::HashSet<(crate::player::PlayerId, crate::object::ObjectId)>,
 }
 
 impl GameState {
@@ -343,6 +348,7 @@ impl GameState {
             history: crate::history::History::default(),
             replace_state: None,
             next_shield_id: 0,
+            look_grants: std::collections::HashSet::new(),
         }
     }
 
