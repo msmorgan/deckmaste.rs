@@ -60,6 +60,7 @@ fn every_builtin_keyword_macro_expands() {
         ("Mentor", "Mentor"),
         ("Training", "Training"),
         ("Outlast([Mana([White])])", "Outlast"),
+        ("Scavenge([Mana([Generic(2)])])", "Scavenge"),
     ];
     let plugin = builtin();
     for (invocation, name) in cases {
@@ -568,6 +569,123 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
         *count,
         Count::Literal(2),
         "reinforce places N counters (Param(0))"
+    );
+}
+
+/// [CR#702.97a]: **Scavenge** confers an Activated ability that functions from
+/// the GRAVEYARD, whose cost is the printed cost followed by "exile this card
+/// from your graveyard", that activates only as a sorcery, and whose effect
+/// puts a number of +1/+1 counters equal to this card's power on target
+/// creature. The printed cost is the macro's list param, spliced ahead of the
+/// fixed exile-self as a nested `Cost` (Cycling's discard-self twin); read is
+/// FAITHFUL (the nested `Cost` survives lumpy) and `.normalize()` flattens it.
+#[test]
+fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::Action;
+    use deckmaste_core::Cost;
+    use deckmaste_core::Count;
+    use deckmaste_core::CounterRef;
+    use deckmaste_core::Effect;
+    use deckmaste_core::Normalize;
+    use deckmaste_core::PlayerAction;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Selection;
+    use deckmaste_core::Stat;
+    use deckmaste_core::TargetSpec;
+    use deckmaste_core::Window;
+    use deckmaste_core::Zone;
+    use deckmaste_core::ron::options as ron_options;
+
+    let plugin = builtin();
+    let kw: KeywordAbility = plugin
+        .macros
+        .read_str("Scavenge([Mana([Generic(2)])])")
+        .expect("Scavenge expands");
+    let KeywordAbility::Expanded(expanded) = &kw else {
+        panic!("expected Expanded, got {kw:?}");
+    };
+    assert_eq!(expanded.name.as_str(), "Scavenge", "carried name");
+    let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+        panic!("Scavenge body is a Composite");
+    };
+    let act = abilities
+        .iter()
+        .find_map(|a| match a {
+            Ability::Activated(act) => Some(act),
+            _ => None,
+        })
+        .expect("Scavenge confers an Activated ability");
+
+    // (1) Functions from the graveyard ([CR#702.97a]).
+    assert_eq!(
+        act.from,
+        Some(Zone::Graveyard),
+        "scavenge activates from the graveyard"
+    );
+
+    // (2) Activate only as a sorcery ([CR#702.97a], [CR#602.5d]).
+    assert_eq!(
+        act.window,
+        Some(Window::SorcerySpeed),
+        "scavenge is sorcery-speed"
+    );
+
+    // (3) Cost = printed cost ({2}) THEN exile this card. Read is faithful: the
+    // printed cost rides in a nested `Cost` ahead of the fixed exile-self, so
+    // the authored cost is LUMPY (Cycling's discard-self twin).
+    let lumpy_cost: Cost = ron_options()
+        .from_str("[Cost([Mana([Generic(2)])]), Do(Exile(This))]")
+        .unwrap();
+    assert_eq!(
+        act.cost, lumpy_cost,
+        "scavenge cost reads lumpy (nested Cost survives the macro splice)"
+    );
+    // `.normalize()` splices the nested Cost into one flat list.
+    let flat_cost: Cost = ron_options()
+        .from_str("[Mana([Generic(2)]), Do(Exile(This))]")
+        .unwrap();
+    assert_eq!(
+        act.cost.clone().normalize(),
+        flat_cost,
+        "scavenge cost normalizes to printed cost + exile this card"
+    );
+
+    // (4) Effect = put +1/+1 counters equal to this card's power on target
+    // creature ([CR#702.97a]). One creature target, inner PutCounters reads
+    // `StatOf(This, Power)` for the magnitude.
+    let Effect::Targeted(t) = &act.effect else {
+        panic!(
+            "scavenge's effect is a Targeted wrapper; got {:?}",
+            act.effect
+        );
+    };
+    assert_eq!(t.targets.len(), 1, "scavenge targets exactly one creature");
+    let TargetSpec::Target(_, _) = &t.targets[0] else {
+        panic!("expected a Target spec; got {:?}", t.targets[0]);
+    };
+    let Effect::Act(Action::By(Reference::You, PlayerAction::PutCounters(sel, kind, count))) =
+        &*t.effect
+    else {
+        panic!(
+            "scavenge's inner effect puts counters on a player verb; got {:?}",
+            t.effect
+        );
+    };
+    assert_eq!(
+        sel,
+        &Selection::Ref(Reference::Target(0)),
+        "scavenge counters land on the chosen target ([CR#702.97a])"
+    );
+    assert_eq!(
+        kind,
+        &CounterRef::from("P1P1Counter"),
+        "scavenge places +1/+1 counters"
+    );
+    assert_eq!(
+        count,
+        &Count::StatOf(Reference::This, Stat::Power),
+        "scavenge counter count = this card's power ([CR#702.97a])"
     );
 }
 

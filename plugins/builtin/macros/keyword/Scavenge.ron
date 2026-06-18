@@ -1,0 +1,51 @@
+// Scavenge = an activated ability that functions only while the card with
+// scavenge is in a GRAVEYARD [CR#702.97a]: "Scavenge [cost]" means "[Cost],
+// Exile this card from your graveyard: Put a number of +1/+1 counters equal to
+// the power of the card you exiled on target creature. Activate only as a
+// sorcery." Cycling's graveyard twin ([CR#702.29a]): the printed [cost] is the
+// macro's list param; wrapping it as a nested cost (`Cost(Param(0))`) splices
+// it ahead of the fixed exile-self, and `Cost`'s deserialize flattens the two
+// into one cost list.
+//
+// Pieces (all representable over existing primitives — no engine gap):
+//   - from: Graveyard [CR#702.97a] — the zone-of-function seam ([CR#113.6]),
+//     the graveyard analogue of cycling's `from: Hand`. The ability functions
+//     only while the card is in a graveyard.
+//   - cost: the printed [cost] THEN exile this card. The exile-self is a
+//     cost-eligible player verb ([CR#701.13], `Exile(This)`) — the exile twin
+//     of cycling's discard-self (`Discard(count: 1, what: This)`). The card
+//     exiles ITSELF (`This`) from the graveyard as part of the cost
+//     ([CR#601.2b]); once paid it's too late to remove the card to fizzle the
+//     ability. `Do(Exile(This))` is a `CostComponent::Do` over that verb.
+//   - window: SorcerySpeed [CR#602.5d] — "Activate only as a sorcery" (the same
+//     `Only`-window refinement Equip [CR#702.6a] and Fortify [CR#702.67a] use).
+//   - effect: a `Targeted` ([CR#115.1,601.2c]) — one target creature
+//     (`Target(Exactly(1), Type(Creature))`), inner effect `PutCounters(Target(0),
+//     P1P1Counter, StatOf(This, Power))` ([CR#122.1a]). The count is the power
+//     of the exiled card. By resolution the card has left the graveyard for
+//     exile, so `This` reads its LAST-KNOWN power ([CR#603.10a]) — "the power of
+//     the card you exiled" is the card as it last existed in the graveyard
+//     before the exile-cost moved it (the same LKI read Modular's dies-migration
+//     uses for `This`). `StatOf(This, Power)` is the printed-power `Count`.
+//
+// Graduation (parse + round-trip) holds: this body expands to valid RON and
+// round-trips, and the parser already emits `Keyword(Scavenge([Mana(...)]))`
+// for the printed cost list.
+(
+    name: "Scavenge",
+    template: "scavenge ${0}",
+    kinds: [KeywordAbility],
+    params: [Cost],
+    body: Composite(
+        name: "Scavenge",
+        abilities: [Activated(
+            from: Graveyard,
+            cost: [Cost(Param(0)), Do(Exile(This))],
+            window: SorcerySpeed,
+            effect: Targeted(
+                targets: [Target(Exactly(1), Type(Creature))],
+                effect: PutCounters(Target(0), P1P1Counter, StatOf(This, Power)),
+            ),
+        )],
+    ),
+)
