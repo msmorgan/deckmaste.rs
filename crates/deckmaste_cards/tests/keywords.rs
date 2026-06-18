@@ -58,6 +58,7 @@ fn every_builtin_keyword_macro_expands() {
         ("Afterlife(2)", "Afterlife"),
         ("Mentor", "Mentor"),
         ("Training", "Training"),
+        ("Outlast([Mana([White])])", "Outlast"),
     ];
     let plugin = builtin();
     for (invocation, name) in cases {
@@ -241,6 +242,77 @@ fn reconfigure_confers_attach_and_unattach_activated() {
             .any(|a| matches!(&a.effect, Effect::Act(Action::Unattach(_)))),
         "reconfigure has an Unattach ability"
     );
+}
+
+/// [CR#702.107a]: **Outlast** confers an Activated ability — sorcery-speed,
+/// whose cost is the printed [cost] PLUS `{T}` ([CR#107.5]), and whose effect
+/// puts a +1/+1 counter on this creature ([CR#122.1a]). The printed cost is the
+/// macro's list param, spliced ahead of the fixed `Tap` as a nested `Cost`
+/// (the Cycling cost-splice); `Cost::normalize` flattens the two into one list.
+#[test]
+fn outlast_confers_sorcery_speed_tap_put_counter() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::Action;
+    use deckmaste_core::Cost;
+    use deckmaste_core::Count;
+    use deckmaste_core::Effect;
+    use deckmaste_core::Normalize;
+    use deckmaste_core::PlayerAction;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Window;
+    use deckmaste_core::ron::options as ron_options;
+
+    let plugin = builtin();
+    let kw: KeywordAbility = plugin
+        .macros
+        .read_str("Outlast([Mana([White])])")
+        .expect("Outlast expands");
+    let KeywordAbility::Expanded(expanded) = &kw else {
+        panic!("expected Expanded, got {kw:?}");
+    };
+    assert_eq!(expanded.name.as_str(), "Outlast", "carried name");
+    let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+        panic!("Outlast body is a Composite");
+    };
+    let act = abilities
+        .iter()
+        .find_map(|a| match a {
+            Ability::Activated(act) => Some(act),
+            _ => None,
+        })
+        .expect("Outlast confers an Activated ability");
+
+    // (1) Activate only as a sorcery ([CR#702.107a]/[CR#602.5d]).
+    assert!(
+        matches!(act.window, Some(Window::SorcerySpeed)),
+        "outlast is sorcery-speed ([CR#702.107a]); got {:?}",
+        act.window
+    );
+
+    // (2) Cost = printed cost ({W}) THEN {T}. The printed cost rides in a nested
+    // `Cost` ahead of the fixed `Tap`; `.normalize()` splices it into one flat
+    // list.
+    let flat_cost: Cost = ron_options().from_str("[Mana([White]), Tap]").unwrap();
+    assert_eq!(
+        act.cost.clone().normalize(),
+        flat_cost,
+        "outlast cost is the param cost plus {{T}} ([CR#702.107a])"
+    );
+
+    // (3) Effect puts one +1/+1 counter on THIS creature ([CR#122.1a]).
+    // PutCounters is a player verb — `By(You, PutCounters(…))`, the implicit-you
+    // default an effect-slot player verb reads as.
+    let Effect::Act(Action::By(Reference::You, PlayerAction::PutCounters(_, counter, count))) =
+        &act.effect
+    else {
+        panic!("outlast's effect is PutCounters; got {:?}", act.effect);
+    };
+    assert_eq!(
+        counter.as_str(),
+        "P1P1Counter",
+        "outlast puts a +1/+1 counter ([CR#122.1a])"
+    );
+    assert_eq!(*count, Count::Literal(1), "outlast puts ONE counter");
 }
 
 /// [CR#702.131b]: **Ascend** on a permanent confers a state-checked static —

@@ -1,0 +1,25 @@
+// Outlast = an activated ability [CR#702.107a]: "Outlast [cost]" means
+// "[Cost], {T}: Put a +1/+1 counter on this creature. Activate only as a
+// sorcery." The printed [cost] is the macro's list param; wrapping it as a
+// nested cost (`Cost(Param(0))`) splices it ahead of the fixed `{T}` (`Tap`),
+// and `Cost`'s deserialize flattens the two into one cost list (the same
+// cost-splice Cycling [CR#702.29a] uses). `{T}` is the literal tap symbol
+// ([CR#107.5]) the keyword adds on top of the param cost. The effect puts one
+// +1/+1 counter ([CR#122.1a]) on THIS creature — no target, the recipient is
+// always the carrier — `PutCounters(This, P1P1Counter, 1)` (the self-counter
+// tail Training/Evolve use). "Activate only as a sorcery" is the same
+// `window: SorcerySpeed` ([CR#602.5d]) Equip/Fortify/Reconfigure use.
+(
+    name: "Outlast",
+    template: "outlast ${0}",
+    kinds: [KeywordAbility],
+    params: [Cost],
+    body: Composite(
+        name: "Outlast",
+        abilities: [Activated(
+            cost: [Cost(Param(0)), Tap],
+            window: SorcerySpeed,
+            effect: PutCounters(This, P1P1Counter, 1),
+        )],
+    ),
+)
