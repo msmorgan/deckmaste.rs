@@ -33,7 +33,7 @@ anyF = OneOf
 
 public export
 notF : Filter b -> Filter b
-notF = Except
+notF = IsNot
 
 public export
 anyTarget : TargetSpec b
