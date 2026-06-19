@@ -39,6 +39,23 @@ tMay = May (Act (Draw (cast 1)))
 tIf : Effect Base
 tIf = If YourTurn (Act (Draw (cast 1)))
 
+-- a one-shot creating a continuous effect for a duration
+tContinuously : Effect Base
+tContinuously = Continuously (Modify This [PlusPT 1 1]) UntilEndOfTurn
+
+-- a modal effect: choose one of two modes
+tModal : Effect Base
+tModal = Modal (Choose (cast 1))
+  [ MkMode (Act (Draw (cast 1)))
+  , MkMode (Act (DealDamage (SelectFilter (IsType Creature)) (cast 2)))
+  ]
+
+-- `Reflexive` NESTS: inside a `With`, its body still sees `That` (no sibling scan)
+tReflexiveSeesThat : Effect Base
+tReflexiveSeesThat =
+  With (Produce (Move (SelectFilter (IsType Creature)) Exile))
+    (Reflexive (Act (Move That Battlefield)))
+
 -- NEGATIVE — each must be rejected --------------------------------------------
 
 -- a 2nd target where only one was bound

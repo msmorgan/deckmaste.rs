@@ -330,25 +330,18 @@ data Event : Bindings -> Type where
   OnStep : PhaseStep -> Event b
   PutIntoGraveyard : Filter b -> Event b           -- battlefield → graveyard ("dies"-style)
 
+-- A continuous effect's lifetime ([CR#611.2]). Rust: Duration.
 public export
-data Effect : Bindings -> Type where
-  Sequence : (List (Effect b)) -> Effect b
-  Targeted : (Vect n (TargetSpec b)) -> Effect (bindTargets n b) -> Effect b
-  -- binds `that` as `That` for `body`. `that` may PRODUCE a moved object (an
-  -- Action), so "exile X, then act on That" is one binder. Rust: Effect::With.
-  With : Bindable b -> Effect (bindThat b) -> Effect b
-  -- a single intrinsic instruction (the verb compartment). Rust: Effect::Act.
-  Act : Action b -> Effect b
-  -- "you may [effect]", with optional "if you do / if you don't". Rust: Effect::May.
-  May : (effect : Effect b) -> {default Nothing ifDid : Maybe (Effect b)} -> {default Nothing ifNot : Maybe (Effect b)} -> Effect b
-  -- "if [cond], [thenDo]; otherwise [else]". Rust: Effect::If.
-  If : Condition b -> (thenDo : Effect b) -> {default Nothing otherwise : Maybe (Effect b)} -> Effect b
-  -- "[effect] unless [who] pays [cost]". Rust: Effect::Unless (CostComponent; ManaCost stand-in here).
-  Unless : (effect : Effect b) -> {default You who : PlayerRef b} -> ManaCost -> Effect b
-  -- schedule `body` for when `event` fires. `unbindTargets` clears the targets
-  -- (stale post-move) but KEEPS bound anaphora like `That` — captured at registration;
-  -- the engine decides whether the object is still findable. Rust: Effect::Delayed.
-  Delayed : Event b -> Effect (unbindTargets b) -> Effect b
+data Duration : Bindings -> Type where
+  UntilEndOfTurn : Duration b
+  UntilEvent : Event b -> Duration b
+  ForAsLongAs : Condition b -> Duration b
+  Permanent : Duration b                       -- rest of game (Rust: EndOfGame)
+
+-- How many modes to choose, for a modal effect ([CR#700.2]). Rust: ChooseSpec.
+public export
+data ChooseSpec : Bindings -> Type where
+  Choose : (count : Count b) -> {default False upTo : Bool} -> {default False repeats : Bool} -> ChooseSpec b
 
 -- A keyword ability ([CR#702]). Rust: Ability::Keyword(KeywordAbility).
 public export
@@ -361,7 +354,40 @@ data KeywordAbility : Bindings -> Type where
   Trample : KeywordAbility b
   Vigilance : KeywordAbility b
 
+-- Effects, continuous effects, and abilities are mutually recursive: a one-shot
+-- can CREATE a continuous effect (`Continuously`), a static ability can grant an
+-- ability, and an ability wraps an effect.
 mutual
+  public export
+  data Effect : Bindings -> Type where
+    Sequence : (List (Effect b)) -> Effect b
+    Targeted : (Vect n (TargetSpec b)) -> Effect (bindTargets n b) -> Effect b
+    -- binds `that` as `That` for `body`. `that` may PRODUCE a moved object (an
+    -- Action), so "exile X, then act on That" is one binder. Rust: Effect::With.
+    With : Bindable b -> Effect (bindThat b) -> Effect b
+    -- a single intrinsic instruction (the verb compartment). Rust: Effect::Act.
+    Act : Action b -> Effect b
+    -- "you may [effect]", with optional "if you do / if you don't". Rust: Effect::May.
+    May : (effect : Effect b) -> {default Nothing ifDid : Maybe (Effect b)} -> {default Nothing ifNot : Maybe (Effect b)} -> Effect b
+    -- "if [cond], [thenDo]; otherwise [else]". Rust: Effect::If.
+    If : Condition b -> (thenDo : Effect b) -> {default Nothing otherwise : Maybe (Effect b)} -> Effect b
+    -- "[effect] unless [who] pays [cost]" (CostComponent; ManaCost stand-in). Rust: Effect::Unless.
+    Unless : (effect : Effect b) -> {default You who : PlayerRef b} -> ManaCost -> Effect b
+    -- create a continuous effect for a duration ([CR#611.2]). Rust: Effect::Continuously.
+    Continuously : StaticEffect b -> Duration b -> Effect b
+    -- choose modes, then apply them ([CR#700.2]). Rust: Effect::Modal.
+    Modal : ChooseSpec b -> List (Mode b) -> Effect b
+    -- "when you do [the preceding], [effect]" — a reflexive trigger. It NESTS here,
+    -- so `That`/targets stay in scope; no event-scanning sibling. Rust: Effect::Reflexive.
+    Reflexive : Effect b -> Effect b
+    -- schedule `body` for `event`; `unbindTargets` keeps `That`, drops targets. Rust: Effect::Delayed.
+    Delayed : Event b -> Effect (unbindTargets b) -> Effect b
+
+  -- one option of a modal effect: an effect plus an optional extra cost. Rust: Mode.
+  public export
+  data Mode : Bindings -> Type where
+    MkMode : (effect : Effect b) -> {default Nothing cost : Maybe ManaCost} -> Mode b
+
   -- A continuous modification a static ability applies to its subject.
   public export
   data Modification : Bindings -> Type where
