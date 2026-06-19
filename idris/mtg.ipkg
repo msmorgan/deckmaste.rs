@@ -1,0 +1,8 @@
+package mtg
+
+modules = Core
+        , Macros
+        , Cards
+        , Spec
+
+sourcedir = "src"

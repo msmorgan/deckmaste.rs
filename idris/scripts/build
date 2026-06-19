@@ -1,0 +1,3 @@
+#!/bin/sh
+# Build + typecheck all modules (Spec is the self-checking regression suite).
+exec idris2 --build mtg.ipkg "$@"
