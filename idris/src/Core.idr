@@ -115,21 +115,73 @@ subtypeCategory (ArtifactSub _) = Artifact
 subtypeCategory (LandSub _) = Land
 subtypeCategory (BattleSub _) = Battle
 
--- `Bindings` is a plain record so its fields are PROJECTIONS (targetCount, …)
--- we can write constraints against; it grows as the model binds more roles.
+-- Leaf types used inside the filter/condition language ---------------------
+
+public export
+data Stat = Power | Toughness
+
+public export
+data Cmp = Equal | GreaterEq | LessEq | Greater | Less
+
+-- What kind of object a filter matches ([CR#109.3]). Rust: ObjectKind.
+public export
+data ObjectKind = IsCard | IsEmblem | IsPlayerKind | IsSpell | IsToken
+
+public export
+data BeginningStep
+  = UntapStep
+  | UpkeepStep
+  | DrawStep
+
+public export
+data CombatStep
+  = BeginningOfCombatStep
+  | DeclareAttackersStep
+  | DeclareBlockersStep
+  | FirstCombatDamageStep
+  | CombatDamageStep
+  | EndOfCombatStep
+
+public export
+data EndingStep
+  = EndStep
+  | CleanupStep
+
+public export
+data PhaseStep
+  = BeginningPhase BeginningStep
+  | MainPhase Nat
+  | CombatPhase CombatStep
+  | EndingPhase EndingStep
+
+public export
+implementation Cast BeginningStep PhaseStep where
+  cast = BeginningPhase
+public export
+implementation Cast CombatStep PhaseStep where
+  cast = CombatPhase
+public export
+implementation Cast EndingStep PhaseStep where
+  cast = EndingPhase
+
+-- `Bindings`: the typestate of what references are in scope. Its fields are
+-- PROJECTIONS we write constraints against; it grows as the model binds roles.
 public export
 record Bindings where
   constructor MkBindings
-  targetCount : Nat
-  thatBound   : Bool   -- is a `With`-bound group in scope? (gates `That`)
-  itBound     : Bool   -- is a `ForEach`-bound element in scope? (gates `It`)
+  targetCount  : Nat
+  thatBound    : Bool   -- a `With`-bound group (`That`)
+  itBound      : Bool   -- a `ForEach`-bound element (`It`)
+  subjectBound : Bool   -- the candidate inside a filter (`Subject`)
 
--- The bindings a resolving spell starts in: no targets, no group bound yet.
+-- The bindings a resolving spell starts in: nothing bound yet.
 public export
 Base : Bindings
-Base = MkBindings 0 False False
+Base = MkBindings 0 False False False
 
--- A binder PROVIDES n targets to the bindings its body runs in.
+-- Record-update sugar keeps these indices INVERTIBLE for the unifier (so a
+-- polymorphic macro's `b` is inferable at use sites). The discrete-binder proofs
+-- (`thatBound`/`itBound`/target) only arise in concrete contexts and reduce there.
 public export
 bindTargets : Nat -> Bindings -> Bindings
 bindTargets n b = { targetCount := n } b
@@ -138,76 +190,106 @@ public export
 unbindTargets : Bindings -> Bindings
 unbindTargets b = { targetCount := 0 } b
 
--- `With` PROVIDES a bound group (the `That` anaphor) to its body's bindings.
 public export
 bindThat : Bindings -> Bindings
 bindThat b = { thatBound := True } b
 
--- `ForEach` PROVIDES a bound element (the `It` anaphor) to its body's bindings.
 public export
 bindIt : Bindings -> Bindings
 bindIt b = { itBound := True } b
 
--- "target n is a legal reference in bindings b". One place to enrich later
--- (e.g. class-matching once slots are typed); for now: the bindings bound enough.
+-- A filter context supplies the candidate (`Subject`). Reconstructed explicitly
+-- (not record-update sugar) so `subjectBound (bindSubject b)` reduces to True
+-- DEFINITIONALLY even for abstract `b` — the gate proof the polymorphic macros need.
+public export
+bindSubject : Bindings -> Bindings
+bindSubject b = MkBindings (targetCount b) (thatBound b) (itBound b) True
+
+-- "target n is a legal reference in bindings b".
 public export
 ValidTarget : Nat -> Bindings -> Type
 ValidTarget n b = LTE (S n) (targetCount b)
 
-mutual
-  public export
-  data Filter : Bindings -> Type where
-    IsAll : (List (Filter b)) -> Filter b
-    IsAny : (List (Filter b)) -> Filter b
-    IsPlayer : Filter b
-    IsInZone : Zone -> Filter b
-    IsType : Type_ -> Filter b
-    -- "requires at least one target bound" — a DEMAND, not a pin.
-    IsTargeted : {auto prf : ValidTarget Z b} -> Filter b
-    IsRef : Reference b -> Filter b
-    -- negation, for "another" (≠ a referenced object). Rust: Filter::Not.
-    IsNot : Filter b -> Filter b
+-- A keyword ability ([CR#702]). Rust: Ability::Keyword(KeywordAbility). Defined
+-- before the filter block so a `Filter` can ask `HasKeyword`.
+public export
+data KeywordAbility : Bindings -> Type where
+  Flying : KeywordAbility b
+  FirstStrike : KeywordAbility b
+  DoubleStrike : KeywordAbility b
+  Deathtouch : KeywordAbility b
+  Reach : KeywordAbility b
+  Trample : KeywordAbility b
+  Vigilance : KeywordAbility b
 
+-- Reference / Count / Condition are one mutually recursive predicate language.
+-- There is NO separate `Filter` type: a *filter* is just a `Condition` with the
+-- candidate (`Subject`) in scope — see the `Filter` alias below. The handful of
+-- atoms that read a `Reference` (`HasType`, `HasColor`, …) are the irreducible
+-- primitives; combinators (`AllOf`/`OneOf`/`Not`) and `Exists` build the rest.
+mutual
   -- A single GAME OBJECT. Player specifiers live in `PlayerRef`, not here.
   public export
   data Reference : Bindings -> Type where
     -- the source; always available — every spell/ability has one [CR#113.7].
     This : Reference b
-    -- polymorphic in b; DEMANDS the bindings bound at least an (n+1)-th target.
+    -- DEMANDS the bindings bound at least an (n+1)-th target.
     GetTarget : (n : Nat) -> {auto prf : ValidTarget n b} -> Reference b
-    Only : Filter b -> Reference b
-    -- the permanent R is attached to — an Aura's host ("enchanted creature"). Rust: AttachHostOf.
+    -- the unique object matching a predicate.
+    Only : Condition (bindSubject b) -> Reference b
+    -- the permanent R is attached to ("enchanted creature"); and its inverse.
     AttachHostOf : Reference b -> Reference b
-    -- the attachment ON R — inverse of AttachHostOf. Rust: Reference::AttachedTo.
     AttachedTo : Reference b -> Reference b
-    -- the element bound by an enclosing `ForEach` ("it"). Rust: Reference::Subject is the
-    -- filter-`Where` analogue; this is the per-iteration one. Gated by `itBound`.
+    -- the element bound by an enclosing `ForEach` ("it"). Gated by `itBound`.
     It : {auto prf : itBound b = True} -> Reference b
+    -- the candidate being tested in a filter. GATED by `subjectBound` so a CLOSED
+    -- `Condition` (a triggered intervening-if, `If`/`Unless`) can't use it. The
+    -- gate is discharged in filter contexts by the `subjectBoundAfterBind` %hint.
+    Subject : {auto prf : subjectBound b = True} -> Reference b
 
--- A PLAYER specifier (split out from `Reference`, which is objects-only). Used
--- as the `actor` of player actions and as a controller/owner derivation.
+  -- A numeric value ([CR#107.3]). `Literal` is a bare number; the rest read the
+  -- game state. (EventCount/EventSum/CounterCount/Min/ThatMuch deferred.)
+  public export
+  data Count : Bindings -> Type where
+    Literal : Nat -> Count b                          -- a bare number
+    X : Count b                                       -- the chosen {X} value
+    CountOf : Condition (bindSubject b) -> Count b    -- how many objects match a predicate
+    StatOf : Reference b -> Stat -> Count b           -- a referenced object's power/toughness
+
+  -- THE predicate language ([CR#603.4]). A *filter* is a `Condition` with `Subject`
+  -- bound (the `Filter` alias); a closed `Condition b` is an intervening-"if".
+  public export
+  data Condition : Bindings -> Type where
+    -- atoms: read a referenced object (the handful of irreducible primitives).
+    HasType : Reference b -> Type_ -> Condition b
+    HasSubtype : Reference b -> Subtype -> Condition b
+    HasColor : Reference b -> Color -> Condition b
+    OfKind : Reference b -> ObjectKind -> Condition b
+    InZone : Reference b -> Zone -> Condition b
+    HasKeyword : Reference b -> KeywordAbility b -> Condition b
+    SameObject : Reference b -> Reference b -> Condition b
+    -- numeric, quantifier, and game-state predicates:
+    Compare : Count b -> Cmp -> Count b -> Condition b
+    Exists : Condition (bindSubject b) -> Condition b   -- ∃ object satisfying a predicate
+    YourTurn : Condition b
+    DuringPhase : PhaseStep -> Condition b
+    -- combinators:
+    AllOf : List (Condition b) -> Condition b
+    OneOf : List (Condition b) -> Condition b
+    Not : Condition b -> Condition b
+
+-- A *filter* is a predicate on a candidate: a `Condition` with `Subject` in scope
+-- (`bindSubject b`), wrapped. The wrapper is a thin TAG, not a second predicate
+-- language — it exists only so `b` is injectively inferable at use sites (the bare
+-- `Condition (bindSubject b)` alias isn't, which breaks polymorphic macros). A
+-- closed `Condition b` (a triggered intervening-if) is the same language sans `Subject`.
 public export
-data PlayerRef : Bindings -> Type where
-  You : PlayerRef b                            -- controller of this ability ([CR#109.5])
-  Opponent : PlayerRef b                        -- an opponent ([CR#102.1]); single-opponent for now
-  ControllerOf : Reference b -> PlayerRef b     -- the controller of a referenced object
-  OwnerOf : Reference b -> PlayerRef b          -- the owner of a referenced object ([CR#108.3])
+data Filter : Bindings -> Type where
+  AsFilter : Condition (bindSubject b) -> Filter b
 
 public export
-data TargetSpec : Bindings -> Type where
-  Target : Nat -> Filter b -> TargetSpec b
-
-public export
-data Stat = Power | Toughness
-
--- A numeric value ([CR#107.3]). `Literal` is a bare number; the rest read the
--- game state. (EventCount/EventSum/CounterCount/Min/ThatMuch deferred.)
-public export
-data Count : Bindings -> Type where
-  Literal : Nat -> Count b                  -- a bare number
-  X : Count b                               -- the chosen {X} value
-  CountOf : Filter b -> Count b             -- cardinality of a filter match ("for each")
-  StatOf : Reference b -> Stat -> Count b   -- a referenced object's power/toughness
+unFilter : Filter b -> Condition (bindSubject b)
+unFilter (AsFilter c) = c
 
 public export
 implementation Cast Nat (Count b) where
@@ -228,6 +310,18 @@ data Quantity : Bindings -> Type where
 public export
 implementation Cast Integer (Quantity b) where
   cast = Exactly . Literal . cast {to=Nat}
+
+-- A PLAYER specifier (split out from `Reference`, which is objects-only).
+public export
+data PlayerRef : Bindings -> Type where
+  You : PlayerRef b                            -- controller of this ability ([CR#109.5])
+  Opponent : PlayerRef b                        -- an opponent ([CR#102.1]); single-opponent for now
+  ControllerOf : Reference b -> PlayerRef b     -- the controller of a referenced object
+  OwnerOf : Reference b -> PlayerRef b          -- the owner of a referenced object ([CR#108.3])
+
+public export
+data TargetSpec : Bindings -> Type where
+  Target : Nat -> Filter b -> TargetSpec b
 
 -- A resolution-time GROUP / choice. `Reference` is single-GameObject only, so
 -- the plural anaphor lives HERE, not there. Mirrors Rust `Selection`.
@@ -275,63 +369,7 @@ data Bindable : Bindings -> Type where
   Query   : Selection b -> Bindable b   -- bind existing objects (a plain selection)
   Produce : Action b -> Bindable b      -- run the action, bind its product (the moved object) as `That`
 
-public export
-data BeginningStep
-  = UntapStep
-  | UpkeepStep
-  | DrawStep
-
-public export
-data CombatStep
-  = BeginningOfCombatStep
-  | DeclareAttackersStep
-  | DeclareBlockersStep
-  | FirstCombatDamageStep
-  | CombatDamageStep
-  | EndOfCombatStep
-
-public export
-data EndingStep
-  = EndStep
-  | CleanupStep
-
-public export
-data PhaseStep
-  = BeginningPhase BeginningStep
-  | MainPhase Nat
-  | CombatPhase CombatStep
-  | EndingPhase EndingStep
-
-public export
-implementation Cast BeginningStep PhaseStep where
-  cast = BeginningPhase
-
-public export
-implementation Cast CombatStep PhaseStep where
-  cast = CombatPhase
-
-public export
-implementation Cast EndingStep PhaseStep where
-  cast = EndingPhase
-
-public export
-data Cmp = Equal | GreaterEq | LessEq | Greater | Less
-
--- A truth-valued test ([CR#603.4]-style intervening "if", etc.). Rust: Condition.
--- (Happened/LegallyAttached/DamagedByDeathtouch deferred — need Window/specifics.)
-public export
-data Condition : Bindings -> Type where
-  Compare : Count b -> Cmp -> Count b -> Condition b   -- numeric test
-  Exists : Filter b -> Condition b                      -- ≥1 object matches
-  Is : Reference b -> Filter b -> Condition b           -- the referenced object matches
-  YourTurn : Condition b
-  DuringPhase : PhaseStep -> Condition b
-  AllOf : List (Condition b) -> Condition b
-  OneOf : List (Condition b) -> Condition b
-  Not : Condition b -> Condition b
-
--- Trigger conditions a triggered/delayed ability waits for. Rust: the `Event`
--- enum (ZoneMove{to:Battlefield} for ETB; BeginningOf(Ending(End), …)).
+-- Trigger conditions a triggered/delayed ability waits for. Rust: the `Event` enum.
 public export
 data Event : Bindings -> Type where
   MovedTo : Zone -> Filter b -> Event b           -- matching object enters `Zone`
@@ -352,17 +390,6 @@ public export
 data ChooseSpec : Bindings -> Type where
   Choose : (count : Count b) -> {default False upTo : Bool} -> {default False repeats : Bool} -> ChooseSpec b
 
--- A keyword ability ([CR#702]). Rust: Ability::Keyword(KeywordAbility).
-public export
-data KeywordAbility : Bindings -> Type where
-  Flying : KeywordAbility b
-  FirstStrike : KeywordAbility b
-  DoubleStrike : KeywordAbility b
-  Deathtouch : KeywordAbility b
-  Reach : KeywordAbility b
-  Trample : KeywordAbility b
-  Vigilance : KeywordAbility b
-
 -- Effects, continuous effects, and abilities are mutually recursive: a one-shot
 -- can CREATE a continuous effect (`Continuously`), a static ability can grant an
 -- ability, and an ability wraps an effect.
@@ -371,8 +398,7 @@ mutual
   data Effect : Bindings -> Type where
     Sequence : (List (Effect b)) -> Effect b
     Targeted : (Vect n (TargetSpec b)) -> Effect (bindTargets n b) -> Effect b
-    -- binds `that` as `That` for `body`. `that` may PRODUCE a moved object (an
-    -- Action), so "exile X, then act on That" is one binder. Rust: Effect::With.
+    -- binds `that` as `That` for `body`. `that` may PRODUCE a moved object. Rust: Effect::With.
     With : Bindable b -> Effect (bindThat b) -> Effect b
     -- a single intrinsic instruction (the verb compartment). Rust: Effect::Act.
     Act : Action b -> Effect b
@@ -386,11 +412,11 @@ mutual
     Continuously : StaticEffect b -> Duration b -> Effect b
     -- choose modes, then apply them ([CR#700.2]). Rust: Effect::Modal.
     Modal : ChooseSpec b -> List (Mode b) -> Effect b
-    -- "for each [domain], [body]" — binds each element as `It`, runs `body` per
-    -- element. The distributive primitive (subsumes the old `Selection::Each`). Rust: Effect::ForEach.
+    -- "for each [domain], [body]" — binds each element as `It`. The distributive
+    -- primitive (subsumes the old `Selection::Each`). Rust: Effect::ForEach.
     ForEach : Selection b -> Effect (bindIt b) -> Effect b
-    -- "when you do [the preceding], [effect]" — a reflexive trigger. It NESTS here,
-    -- so `That`/targets stay in scope; no event-scanning sibling. Rust: Effect::Reflexive.
+    -- "when you do [the preceding], [effect]" — a reflexive trigger. It NESTS, so
+    -- `That`/targets stay in scope; no event-scanning sibling. Rust: Effect::Reflexive.
     Reflexive : Effect b -> Effect b
     -- schedule `body` for `event`; `unbindTargets` keeps `That`, drops targets. Rust: Effect::Delayed.
     Delayed : Event b -> Effect (unbindTargets b) -> Effect b

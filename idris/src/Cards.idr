@@ -15,7 +15,7 @@ LightningBolt = Normal $ fromDefault
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [anyTarget]
-          (Act (DealDamage (SelectAll (IsRef (GetTarget 0))) (cast 3)))
+          (Act (DealDamage (SelectAll (isRef (GetTarget 0))) (cast 3)))
         )
       ]
   }
@@ -65,7 +65,7 @@ Pyroclasm = Normal $ fromDefault
   , manaCost := [cast 1, cast Red]
   , types := [Sorcery]
   , abilities :=
-      [ Spell (Act (DealDamage (SelectAll (IsType Creature)) (cast 2)))
+      [ Spell (Act (DealDamage (SelectAll (creature)) (cast 2)))
       ]
   }
 
@@ -82,9 +82,9 @@ Flickerwisp = Normal $ fromDefault
   , subtypes := [cast Elemental]
   , abilities :=
       [ Keyword Flying
-      , Triggered (MovedTo Battlefield (IsRef This)) $
-          Targeted [Target 1 (IsAll [permanent, IsNot (IsRef This)])] $
-            With (Produce (Move (SelectAll (IsRef (GetTarget 0))) Exile)) $  -- exile the target, bind `That`
+      , Triggered (MovedTo Battlefield (isRef This)) $
+          Targeted [Target 1 (allF [permanent, notF (isRef This)])] $
+            With (Produce (Move (SelectAll (isRef (GetTarget 0))) Exile)) $  -- exile the target, bind `That`
               Delayed BeginningOfEndStep
                 (Act (Move That Battlefield))                        -- return `That` (captured; target gone)
       ]
@@ -104,7 +104,7 @@ Brainstorm = Normal $ fromDefault
   , abilities :=
       [ Spell $ Sequence
           [ Act (Draw (cast 3))
-          , Act (Move (SelectChoose (cast 2) (IsInZone Hand)) Library)
+          , Act (Move (SelectChoose (cast 2) (inHand)) Library)
           ]
       ]
   }
@@ -120,14 +120,14 @@ Rancor = Normal $ fromDefault
   , types := [Enchantment]
   , subtypes := [cast Aura]
   , abilities :=
-      [ Enchant (IsAll [permanent, IsType Creature])
+      [ Enchant (allF [permanent, creature])
       , Static (Modify (AttachHostOf This)
           [ PlusPT 2 0
           , GrantAbility (Keyword Trample)
           ])
       , Triggered
-          (PutIntoGraveyard (IsRef This))
-          (Act (Move (SelectAll (IsRef This)) Hand))
+          (PutIntoGraveyard (isRef This))
+          (Act (Move (SelectAll (isRef This)) Hand))
       ]
   }
 
@@ -140,8 +140,8 @@ Cloudshift = Normal $ fromDefault
   , manaCost := [cast White]
   , types := [Instant]
   , abilities :=
-      [ Spell $ Targeted [Target 1 (IsAll [permanent, IsType Creature])] $
-          With (Produce (Move (SelectAll (IsRef (GetTarget 0))) Exile)) $
+      [ Spell $ Targeted [Target 1 (allF [permanent, creature])] $
+          With (Produce (Move (SelectAll (isRef (GetTarget 0))) Exile)) $
             Act (Move That Battlefield)
       ]
   }
@@ -159,7 +159,7 @@ ThroughTheBreach = Normal $ fromDefault
   , types := [Instant]
   , abilities :=
       [ Spell $
-          With (Produce (Move (SelectChoose (cast 1) (IsAll [IsInZone Hand, IsType Creature])) Battlefield)) $
+          With (Produce (Move (SelectChoose (cast 1) (allF [inHand, creature])) Battlefield)) $
             Delayed BeginningOfEndStep
               (Act (Move That Graveyard))
       ]
