@@ -223,10 +223,10 @@ data KeywordAbility : Bindings -> Type where
   Vigilance : KeywordAbility b
 
 -- Reference / Count / Condition are one mutually recursive predicate language.
--- There is NO separate `Filter` type: a *filter* is just a `Condition` with the
--- candidate (`Subject`) in scope — see the `Filter` alias below. The handful of
--- atoms that read a `Reference` (`HasType`, `HasColor`, …) are the irreducible
--- primitives; combinators (`AllOf`/`OneOf`/`Not`) and `Exists` build the rest.
+-- A *filter* is just a `Condition` with the candidate (`Subject`) in scope, tagged
+-- by the `Filter`/`Where` newtype below. The handful of atoms that read a
+-- `Reference` (`HasType`, `HasColor`, …) are the irreducible primitives;
+-- combinators (`AllOf`/`OneOf`/`Not`) and `Exists` build the rest.
 mutual
   -- A single GAME OBJECT. Player specifiers live in `PlayerRef`, not here.
   public export
@@ -278,18 +278,18 @@ mutual
     OneOf : List (Condition b) -> Condition b
     Not : Condition b -> Condition b
 
--- A *filter* is a predicate on a candidate: a `Condition` with `Subject` in scope
--- (`bindSubject b`), wrapped. The wrapper is a thin TAG, not a second predicate
--- language — it exists only so `b` is injectively inferable at use sites (the bare
--- `Condition (bindSubject b)` alias isn't, which breaks polymorphic macros). A
--- closed `Condition b` (a triggered intervening-if) is the same language sans `Subject`.
+-- A *filter* is a `Condition` with `Subject` in scope (`bindSubject b`), tagged.
+-- Its sole constructor IS `Where` — exactly the old `Filter::Where` bridge: every
+-- filter is a `Where` around a subject-condition. The newtype (vs a bare alias)
+-- exists only so `b` is injectively inferable at use sites (the polymorphic macros).
+-- A closed `Condition b` (a triggered intervening-if) is the same language sans `Subject`.
 public export
 data Filter : Bindings -> Type where
-  AsFilter : Condition (bindSubject b) -> Filter b
+  Where : Condition (bindSubject b) -> Filter b
 
 public export
 unFilter : Filter b -> Condition (bindSubject b)
-unFilter (AsFilter c) = c
+unFilter (Where c) = c
 
 public export
 implementation Cast Nat (Count b) where

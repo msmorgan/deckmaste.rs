@@ -68,7 +68,7 @@ tClosedTypeCond = HasType This Creature
 
 -- ...and a filter is just that same language with `Subject` in scope.
 tSubjectFilter : Filter Base
-tSubjectFilter = AsFilter (HasType Subject Creature)
+tSubjectFilter = Where (HasType Subject Creature)
 
 -- NEGATIVE — each must be rejected --------------------------------------------
 
