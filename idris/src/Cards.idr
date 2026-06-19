@@ -15,7 +15,7 @@ LightningBolt = Normal $ fromDefault
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [anyTarget]
-          (Act (DealDamage (SelectAll (isRef (GetTarget 0))) (cast 3)))
+          (Act (DealDamage (SelectAll (SameAs (GetTarget 0))) (cast 3)))
         )
       ]
   }
@@ -82,9 +82,9 @@ Flickerwisp = Normal $ fromDefault
   , subtypes := [cast Elemental]
   , abilities :=
       [ Keyword Flying
-      , Triggered (MovedTo Battlefield (isRef This)) $
-          Targeted [Target 1 (allF [permanent, notF (isRef This)])] $
-            With (Produce (Move (SelectAll (isRef (GetTarget 0))) Exile)) $  -- exile the target, bind `That`
+      , Triggered (MovedTo Battlefield (SameAs This)) $
+          Targeted [Target 1 (AllOf [permanent, IsNot (SameAs This)])] $
+            With (Produce (Move (SelectAll (SameAs (GetTarget 0))) Exile)) $  -- exile the target, bind `That`
               Delayed BeginningOfEndStep
                 (Act (Move That Battlefield))                        -- return `That` (captured; target gone)
       ]
@@ -120,14 +120,14 @@ Rancor = Normal $ fromDefault
   , types := [Enchantment]
   , subtypes := [cast Aura]
   , abilities :=
-      [ Enchant (allF [permanent, creature])
+      [ Enchant (AllOf [permanent, creature])
       , Static (Modify (AttachHostOf This)
           [ PlusPT 2 0
           , GrantAbility (Keyword Trample)
           ])
       , Triggered
-          (PutIntoGraveyard (isRef This))
-          (Act (Move (SelectAll (isRef This)) Hand))
+          (PutIntoGraveyard (SameAs This))
+          (Act (Move (SelectAll (SameAs This)) Hand))
       ]
   }
 
@@ -140,8 +140,8 @@ Cloudshift = Normal $ fromDefault
   , manaCost := [cast White]
   , types := [Instant]
   , abilities :=
-      [ Spell $ Targeted [Target 1 (allF [permanent, creature])] $
-          With (Produce (Move (SelectAll (isRef (GetTarget 0))) Exile)) $
+      [ Spell $ Targeted [Target 1 (AllOf [permanent, creature])] $
+          With (Produce (Move (SelectAll (SameAs (GetTarget 0))) Exile)) $
             Act (Move That Battlefield)
       ]
   }
@@ -159,7 +159,7 @@ ThroughTheBreach = Normal $ fromDefault
   , types := [Instant]
   , abilities :=
       [ Spell $
-          With (Produce (Move (Choose (cast 1) (allF [inHand, creature])) Battlefield)) $
+          With (Produce (Move (Choose (cast 1) (AllOf [inHand, creature])) Battlefield)) $
             Delayed BeginningOfEndStep
               (Act (Move That Graveyard))
       ]

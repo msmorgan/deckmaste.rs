@@ -59,7 +59,7 @@ tReflexiveSeesThat =
 -- `ForEach` binds `It` per element; the body references `It`
 tForEach : Effect Base
 tForEach = ForEach (SelectAll (creature))
-  (Act (DealDamage (SelectAll (isRef It)) (cast 1)))
+  (Act (DealDamage (SelectAll (SameAs It)) (cast 1)))
 
 -- a CLOSED condition reaches a named object via `Matches` (apply a predicate to a
 -- reference) — "if ~ is a creature".
@@ -85,7 +85,7 @@ tQuantities =
 -- a 2nd target where only one was bound
 failing
   tBadTargetRange : Effect Base
-  tBadTargetRange = Targeted [anyTarget] (Act (DealDamage (SelectAll (isRef (GetTarget 1))) (cast 1)))
+  tBadTargetRange = Targeted [anyTarget] (Act (DealDamage (SelectAll (SameAs (GetTarget 1))) (cast 1)))
 
 -- `That` with no enclosing `With`
 failing
@@ -102,7 +102,7 @@ failing
 failing
   tBadDelayedTarget : Effect Base
   tBadDelayedTarget = Targeted [anyTarget]
-    (Delayed BeginningOfEndStep (Act (DealDamage (SelectAll (isRef (GetTarget 0))) (cast 1))))
+    (Delayed BeginningOfEndStep (Act (DealDamage (SelectAll (SameAs (GetTarget 0))) (cast 1))))
 
 -- `It` with no enclosing `ForEach`
 failing
