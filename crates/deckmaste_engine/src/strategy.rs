@@ -178,12 +178,18 @@ impl StrategyEvaluator {
     }
 
     /// Does `candidate` pass the selector's optional `among` filter? (`None` =
-    /// the whole set.) Evaluated with the candidate bound as `This`.
+    /// the whole set.) The filter reads from the acting SEAT's perspective: the
+    /// frame is anchored to the seat (not the candidate), so `Ref(You)` is the
+    /// seat and `Not(Ref(You))` names its opponent — a strategy's "target the
+    /// opponent" / "not my own permanents". The candidate is the object under
+    /// test (matched by `Kind`/`Type`/`Named`/…, and bound as `Subject` for a
+    /// `Where`). Ranking (`by`) keeps its own candidate-anchored frame in
+    /// [`Self::score`], so `StatOf(This, …)` still ranks by the candidate.
     fn matches_among(&self, state: &GameState, selector: &Selector, candidate: ObjectId) -> bool {
         match &selector.among {
             None => true,
             Some(filter) => {
-                let frame = eval_frame(state, self.seat, Some(candidate));
+                let frame = eval_frame(state, self.seat, None);
                 state.filter_matches_live(filter, candidate, state.frame_watcher(&frame))
             }
         }
