@@ -166,11 +166,20 @@ mutual
   data Reference : Bindings -> Type where
     -- the source; always available — every spell/ability has one [CR#113.7].
     This : Reference b
+    -- the controller of this ability ([CR#109.5]); always available.
+    You : Reference b
+    -- an opponent of `You` ([CR#102.1]); single-opponent assumption for now.
+    Opponent : Reference b
     -- polymorphic in b; DEMANDS the bindings bound at least an (n+1)-th target.
     GetTarget : (n : Nat) -> {auto prf : ValidTarget n b} -> Reference b
     Only : Filter b -> Reference b
     -- the permanent R is attached to — an Aura's host ("enchanted creature"). Rust: AttachHostOf.
     AttachHostOf : Reference b -> Reference b
+    -- the attachment ON R — inverse of AttachHostOf. Rust: Reference::AttachedTo.
+    AttachedTo : Reference b -> Reference b
+    -- the controller / owner of a referenced object ([CR#109.5,108.3]).
+    ControllerOf : Reference b -> Reference b
+    OwnerOf : Reference b -> Reference b
 
 public export
 data TargetSpec : Bindings -> Type where
@@ -186,6 +195,12 @@ data Selection : Bindings -> Type where
   That : {auto prf : thatBound b = True} -> Selection b
   -- choose exactly n matching objects at resolution. Rust: Selection::Choose(Qty, Filter).
   SelectChoose : Nat -> Filter b -> Selection b
+  -- every matching object, one at a time — distributive "each". Rust: Selection::Each.
+  Each : Filter b -> Selection b
+  -- a random n of the matching objects. Rust: Selection::Random.
+  Random : Nat -> Filter b -> Selection b
+  -- the top n cards of a library (default: yours). Rust: Selection::TopOfLibrary.
+  TopOfLibrary : (count : Nat) -> {default You whose : Reference b} -> Selection b
 
 -- What a binder (`With`) binds as `That`: a QUERY of existing objects, or a
 -- PRODUCER — a zone change run for effect, binding its product. The grammar only
