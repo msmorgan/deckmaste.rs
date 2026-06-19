@@ -56,6 +56,11 @@ tReflexiveSeesThat =
   With (Produce (Move (SelectFilter (IsType Creature)) Exile))
     (Reflexive (Act (Move That Battlefield)))
 
+-- `ForEach` binds `It` per element; the body references `It`
+tForEach : Effect Base
+tForEach = ForEach (SelectFilter (IsType Creature))
+  (Act (DealDamage (SelectRef It) (cast 1)))
+
 -- NEGATIVE — each must be rejected --------------------------------------------
 
 -- a 2nd target where only one was bound
@@ -84,3 +89,8 @@ failing
 failing
   tBadIsTargeted : Filter Base
   tBadIsTargeted = IsTargeted
+
+-- `It` with no enclosing `ForEach`
+failing
+  tBadItOutside : Reference Base
+  tBadItOutside = It
