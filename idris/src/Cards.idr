@@ -1,6 +1,7 @@
 ||| Card encodings. Each is a `Core.Card` built with the `fromDefault { … }`
-||| builder, using `Core` constructors and `Macros` templates. Adding a card
-||| here exercises the grammar; the `Core` types reject ill-formed ones.
+||| builder, using `Core` constructors and `Macros` templates. Verbs go through
+||| `Act` (the verb compartment); a binder that produces a moved object wraps
+||| the producing `Action` in `Produce`.
 module Cards
 
 import Core
@@ -14,7 +15,7 @@ LightningBolt = Normal $ fromDefault
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [anyTarget]
-          (Damage (SelectRef (GetTarget 0)) 3)
+          (Act (DealDamage (SelectRef (GetTarget 0)) 3))
         )
       ]
   }
@@ -56,7 +57,7 @@ GiantSpider = Normal $ fromDefault
   , toughness := Just 4
   }
 
--- Untargeted group damage: `Damage` to a `SelectFilter`, no `Targeted` wrapper.
+-- Untargeted group damage: `DealDamage` to a `SelectFilter`, no `Targeted`.
 export
 Pyroclasm : Card
 Pyroclasm = Normal $ fromDefault
@@ -64,7 +65,7 @@ Pyroclasm = Normal $ fromDefault
   , manaCost := [cast 1, cast Red]
   , types := [Sorcery]
   , abilities :=
-      [ Spell (Damage (SelectFilter (IsType Creature)) 2)
+      [ Spell (Act (DealDamage (SelectFilter (IsType Creature)) 2))
       ]
   }
 
@@ -83,9 +84,9 @@ Flickerwisp = Normal $ fromDefault
       [ Keyword Flying
       , Triggered (MovedTo Battlefield (IsRef This)) $
           Targeted [Target 1 (IsAll [permanent, IsNot (IsRef This)])] $
-            With (Produce (SelectRef (GetTarget 0)) Exile) $    -- exile the target, bind `That`
+            With (Produce (Move (SelectRef (GetTarget 0)) Exile)) $  -- exile the target, bind `That`
               Delayed BeginningOfEndStep
-                (Move That Battlefield)                         -- return `That` (captured; target gone)
+                (Act (Move That Battlefield))                        -- return `That` (captured; target gone)
       ]
   , power := Just 3
   , toughness := Just 1
@@ -102,8 +103,8 @@ Brainstorm = Normal $ fromDefault
   , types := [Instant]
   , abilities :=
       [ Spell $ Sequence
-          [ Draw 3
-          , Move (SelectChoose 2 (IsInZone Hand)) Library
+          [ Act (Draw 3)
+          , Act (Move (SelectChoose 2 (IsInZone Hand)) Library)
           ]
       ]
   }
@@ -126,12 +127,12 @@ Rancor = Normal $ fromDefault
           ])
       , Triggered
           (PutIntoGraveyard (IsRef This))
-          (Move (SelectRef This) Hand)
+          (Act (Move (SelectRef This) Hand))
       ]
   }
 
 -- TRICKY: Cloudshift — exile→return in ONE resolution (the pure [CR#400.7j] case).
--- `With (Produce …)` binds the exiled object as `That`; the body returns `That`.
+-- `With (Produce (Move …))` binds the exiled object as `That`; the body returns it.
 export
 Cloudshift : Card
 Cloudshift = Normal $ fromDefault
@@ -140,8 +141,8 @@ Cloudshift = Normal $ fromDefault
   , types := [Instant]
   , abilities :=
       [ Spell $ Targeted [Target 1 (IsAll [permanent, IsType Creature])] $
-          With (Produce (SelectRef (GetTarget 0)) Exile) $
-            Move That Battlefield
+          With (Produce (Move (SelectRef (GetTarget 0)) Exile)) $
+            Act (Move That Battlefield)
       ]
   }
 
@@ -158,8 +159,8 @@ ThroughTheBreach = Normal $ fromDefault
   , types := [Instant]
   , abilities :=
       [ Spell $
-          With (Produce (SelectChoose 1 (IsAll [IsInZone Hand, IsType Creature])) Battlefield) $
+          With (Produce (Move (SelectChoose 1 (IsAll [IsInZone Hand, IsType Creature])) Battlefield)) $
             Delayed BeginningOfEndStep
-              (Move That Graveyard)
+              (Act (Move That Graveyard))
       ]
   }

@@ -29,15 +29,15 @@ tLandCreature = Normal $ fromDefault
 -- `That`, bound by a `With`, SURVIVES into a delayed body (captured); targets don't
 tThatSurvivesDelay : Effect Base
 tThatSurvivesDelay =
-  With (Produce (SelectFilter (IsType Creature)) Exile)
-    (Delayed BeginningOfEndStep (Move That Battlefield))
+  With (Produce (Move (SelectFilter (IsType Creature)) Exile))
+    (Delayed BeginningOfEndStep (Act (Move That Battlefield)))
 
 -- NEGATIVE — each must be rejected --------------------------------------------
 
 -- a 2nd target where only one was bound
 failing
   tBadTargetRange : Effect Base
-  tBadTargetRange = Targeted [anyTarget] (Damage (SelectRef (GetTarget 1)) 1)
+  tBadTargetRange = Targeted [anyTarget] (Act (DealDamage (SelectRef (GetTarget 1)) 1))
 
 -- `That` with no enclosing `With`
 failing
@@ -54,7 +54,7 @@ failing
 failing
   tBadDelayedTarget : Effect Base
   tBadDelayedTarget = Targeted [anyTarget]
-    (Delayed BeginningOfEndStep (Damage (SelectRef (GetTarget 0)) 1))
+    (Delayed BeginningOfEndStep (Act (DealDamage (SelectRef (GetTarget 0)) 1)))
 
 -- `IsTargeted` where no target is bound
 failing
