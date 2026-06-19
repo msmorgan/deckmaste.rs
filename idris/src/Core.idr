@@ -223,7 +223,7 @@ data KeywordAbility : Bindings -> Type where
 -- NO `Subject` reference or `bindSubject` gate. A *filter* IS a `Predicate`. A
 -- `Condition` is a closed/game-state test that reaches objects only via
 -- `Matches : Reference -> Predicate` (or `exists`/`unique`, below). Combinators:
--- predicates use `AllOf`/`OneOf`/`Except`; conditions use `And`/`Or`/`Not`.
+-- predicates use `AllOf`/`OneOf`/`IsNot`; conditions use `And`/`Or`/`Not`.
 mutual
   -- A single GAME OBJECT. Player specifiers live in `PlayerRef`, not here.
   public export
@@ -260,11 +260,11 @@ mutual
     IsKind : ObjectKind -> Predicate b
     InZone : Zone -> Predicate b
     HasKeyword : KeywordAbility b -> Predicate b
-    SameAs : Reference b -> Predicate b        -- the candidate IS r ("another" = Except (SameAs This))
+    SameAs : Reference b -> Predicate b        -- the candidate IS r ("another" = IsNot (SameAs This))
     -- combinators (distinct from `Condition`'s And/Or/Not):
     AllOf : List (Predicate b) -> Predicate b
     OneOf : List (Predicate b) -> Predicate b
-    Except : Predicate b -> Predicate b        -- negation
+    IsNot : Predicate b -> Predicate b        -- negation
 
   -- A CLOSED / game-state test ([CR#603.4]); reaches objects only via `Matches`
   -- (apply a `Predicate` to a named `Reference`) or `exists`/`unique` (below).
