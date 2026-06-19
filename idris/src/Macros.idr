@@ -1,37 +1,35 @@
 ||| Reusable filter / target templates — the Idris analogue of the deckmaste
-||| plugin macros. A *filter* is a `Condition` with `Subject` in scope, wrapped as
-||| `Core.Filter`; these name the common Subject-predicates and lift the condition
-||| combinators through the wrapper, so cards read `SelectAll creature`.
+||| plugin macros. Named `Subject`-predicates (built on `Core`'s `where*`
+||| helpers) and the filter combinators, so cards read `SelectAll creature`.
 module Macros
 
 import public Core
 
 public export
 permanent : Filter b
-permanent = Where (InZone Subject Battlefield)
+permanent = whereInZone Battlefield
 
 public export
 creature : Filter b
-creature = Where (HasType Subject Creature)
+creature = whereHasType Creature
 
 public export
 inHand : Filter b
-inHand = Where (InZone Subject Hand)
+inHand = whereInZone Hand
 
--- "the candidate is exactly r" — the filter form of a single reference. `r` is
--- taken in the filter (subject) context; `This`/`GetTarget`/`It` are polymorphic.
+-- "the candidate is exactly r" — the filter form of a single reference.
 public export
 isRef : Reference (bindSubject b) -> Filter b
-isRef r = Where (SameObject Subject r)
+isRef = whereSame
 
--- filter combinators: the `Condition` combinators lifted through the wrapper.
+-- filter combinators: the `Condition` combinators lifted through the `Where` tag.
 public export
 allF : List (Filter b) -> Filter b
-allF fs = Where (AllOf (map unFilter fs))
+allF fs = Where (And (map unFilter fs))
 
 public export
 anyF : List (Filter b) -> Filter b
-anyF fs = Where (OneOf (map unFilter fs))
+anyF fs = Where (Or (map unFilter fs))
 
 public export
 notF : Filter b -> Filter b
@@ -40,15 +38,15 @@ notF = Where . Not . unFilter
 public export
 anyTarget : TargetSpec b
 anyTarget = Target 1 $ anyF
-  [ Where (OfKind Subject IsPlayerKind)
-  , allF [permanent, Where (HasType Subject Battle)]
+  [ whereIsKind IsPlayerKind
+  , allF [permanent, whereHasType Battle]
   , allF [permanent, creature]
-  , allF [permanent, Where (HasType Subject Planeswalker)]
+  , allF [permanent, whereHasType Planeswalker]
   ]
 
 public export
 playerOrPlaneswalker : TargetSpec b
 playerOrPlaneswalker = Target 1 $ anyF
-  [ Where (OfKind Subject IsPlayerKind)
-  , allF [permanent, Where (HasType Subject Planeswalker)]
+  [ whereIsKind IsPlayerKind
+  , allF [permanent, whereHasType Planeswalker]
   ]

@@ -37,7 +37,7 @@ tMay : Effect Base
 tMay = May (Act (Draw (cast 1)))
 
 tIf : Effect Base
-tIf = If YourTurn (Act (Draw (cast 1)))
+tIf = If yourTurn (Act (Draw (cast 1)))
 
 -- a one-shot creating a continuous effect for a duration
 tContinuously : Effect Base

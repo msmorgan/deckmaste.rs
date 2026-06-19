@@ -127,6 +127,10 @@ data Cmp = Equal | GreaterEq | LessEq | Greater | Less
 public export
 data ObjectKind = IsCard | IsEmblem | IsPlayerKind | IsSpell | IsToken
 
+-- Supertypes ([CR#205.4a]); independent of card type and subtype.
+public export
+data Supertype = Basic | Legendary | Ongoing | Snow | World
+
 public export
 data BeginningStep
   = UntapStep
@@ -257,26 +261,36 @@ mutual
     StatOf : Reference b -> Stat -> Count b           -- a referenced object's power/toughness
 
   -- THE predicate language ([CR#603.4]). A *filter* is a `Condition` with `Subject`
-  -- bound (the `Filter` alias); a closed `Condition b` is an intervening-"if".
+  -- bound (wrapped by the `Filter`/`Where` newtype); a closed `Condition b` is an
+  -- intervening-"if". `exists`/`unique` (below) are DERIVED, not primitives.
   public export
   data Condition : Bindings -> Type where
     -- atoms: read a referenced object (the handful of irreducible primitives).
     HasType : Reference b -> Type_ -> Condition b
+    HasSupertype : Reference b -> Supertype -> Condition b
     HasSubtype : Reference b -> Subtype -> Condition b
     HasColor : Reference b -> Color -> Condition b
-    OfKind : Reference b -> ObjectKind -> Condition b
+    IsKind : Reference b -> ObjectKind -> Condition b
     InZone : Reference b -> Zone -> Condition b
     HasKeyword : Reference b -> KeywordAbility b -> Condition b
-    SameObject : Reference b -> Reference b -> Condition b
-    -- numeric, quantifier, and game-state predicates:
+    Same : Reference b -> Reference b -> Condition b
+    -- numeric / game-state predicates:
     Compare : Count b -> Cmp -> Count b -> Condition b
-    Exists : Condition (bindSubject b) -> Condition b   -- ∃ object satisfying a predicate
-    YourTurn : Condition b
-    DuringPhase : PhaseStep -> Condition b
+    TurnOf : PlayerRef b -> Condition b   -- it's this player's turn (`yourTurn = TurnOf You`)
+    During : PhaseStep -> Condition b
     -- combinators:
-    AllOf : List (Condition b) -> Condition b
-    OneOf : List (Condition b) -> Condition b
+    And : List (Condition b) -> Condition b
+    Or : List (Condition b) -> Condition b
     Not : Condition b -> Condition b
+
+  -- A PLAYER specifier (split out from `Reference`, which is objects-only). In the
+  -- mutual block so `Condition.TurnOf` can name it.
+  public export
+  data PlayerRef : Bindings -> Type where
+    You : PlayerRef b                          -- controller of this ability ([CR#109.5])
+    Opponent : PlayerRef b                     -- an opponent ([CR#102.1]); single-opponent for now
+    ControllerOf : Reference b -> PlayerRef b  -- the controller of a referenced object
+    OwnerOf : Reference b -> PlayerRef b       -- the owner of a referenced object ([CR#108.3])
 
 
 -- A *filter* is a `Condition` with `Subject` in scope (`bindSubject b`), tagged.
@@ -288,9 +302,57 @@ public export
 data Filter : Bindings -> Type where
   Where : Condition (bindSubject b) -> Filter b
 
+-- `where<Atom>` helpers: build a `Filter` by testing `Subject` with one atom.
+public export
+whereHasType : Type_ -> Filter b
+whereHasType t = Where $ HasType Subject t
+
+public export
+whereHasSupertype : Supertype -> Filter b
+whereHasSupertype s = Where $ HasSupertype Subject s
+
+public export
+whereHasSubtype : Subtype -> Filter b
+whereHasSubtype s = Where $ HasSubtype Subject s
+
+public export
+whereHasColor : Color -> Filter b
+whereHasColor c = Where $ HasColor Subject c
+
+public export
+whereIsKind : ObjectKind -> Filter b
+whereIsKind k = Where $ IsKind Subject k
+
+public export
+whereInZone : Zone -> Filter b
+whereInZone z = Where $ InZone Subject z
+
+public export
+whereHasKeyword : KeywordAbility (bindSubject b) -> Filter b
+whereHasKeyword kw = Where $ HasKeyword Subject kw
+
+public export
+whereSame : Reference (bindSubject b) -> Filter b
+whereSame r = Where $ Same Subject r
+
 public export
 unFilter : Filter b -> Condition (bindSubject b)
 unFilter (Where c) = c
+
+-- "it's your turn" — the common specialization of `TurnOf`.
+public export
+yourTurn : Condition b
+yourTurn = TurnOf You
+
+-- `exists`/`unique`: a filter matches ≥1 / exactly-1 object. DERIVED (per the
+-- note) from `CountOf` + `Compare`, not primitive constructors.
+public export
+exists : Filter b -> Condition b
+exists f = Compare (CountOf (unFilter f)) Greater (Literal 0)
+
+public export
+unique : Filter b -> Condition b
+unique f = Compare (CountOf (unFilter f)) Equal (Literal 1)
 
 public export
 implementation Cast Nat (Count b) where
@@ -325,14 +387,6 @@ between lo hi = Range (Just lo) (Just hi)
 public export
 anyNumber : Quantity b
 anyNumber = Range Nothing Nothing
-
--- A PLAYER specifier (split out from `Reference`, which is objects-only).
-public export
-data PlayerRef : Bindings -> Type where
-  You : PlayerRef b                            -- controller of this ability ([CR#109.5])
-  Opponent : PlayerRef b                        -- an opponent ([CR#102.1]); single-opponent for now
-  ControllerOf : Reference b -> PlayerRef b     -- the controller of a referenced object
-  OwnerOf : Reference b -> PlayerRef b          -- the owner of a referenced object ([CR#108.3])
 
 public export
 data TargetSpec : Bindings -> Type where
