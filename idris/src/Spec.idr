@@ -71,7 +71,7 @@ tSubjectFilter : Filter Base
 tSubjectFilter = HasType Creature
 
 -- the unified `Quantity` (one `Range` constructor) + its helpers all typecheck
-tQuantities : List (Selection Base)
+tQuantities : List (Bindable Base)
 tQuantities =
   [ Choose (cast 2) creature              -- exactly 2 (the bare-numeral path)
   , Choose (atLeast (cast 1)) creature
