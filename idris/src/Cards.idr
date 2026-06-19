@@ -309,11 +309,10 @@ NotionThief = Normal $ fromDefault
   , toughness := Just 1
   }
 
--- Oblivion Ring — TWO linked abilities (ETB: exile another target nonland permanent;
--- LTB: return the exiled card). We have no linked-ability reference for "the exiled
--- card", so we FUSE them via With/Produce/That: the ETB exiles + binds `That`, and a
--- DELAYED trigger keyed on THIS leaving the battlefield returns `That` (same shape as
--- Flickerwisp). Contrast Banishing Light, which is a single "exile UNTIL" duration.
+-- Oblivion Ring — TWO linked abilities, AS WRITTEN: (ETB) exile another target nonland
+-- permanent; (LTB) return the cards exiled by this. The link is the `ExiledBy This`
+-- predicate (the engine holds the exile association), so the abilities are independent
+-- — no With/That fusion. Contrast Banishing Light's single "exile UNTIL" duration.
 export
 OblivionRing : Card
 OblivionRing = Normal $ fromDefault
@@ -321,11 +320,11 @@ OblivionRing = Normal $ fromDefault
   , manaCost := [cast 2, cast White]
   , types := [Enchantment]
   , abilities :=
-      [ Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)]) $
-          Targeted [Target 1 (AllOf [permanent, IsNot (HasType Land), IsNot (SameAs This)])] $
-            With (Produce (Move (SelectAll (SameAs (GetTarget 0))) Exile)) $
-              Delayed (Query [KindIs (ZoneChanged (Just Battlefield) Nothing), SourceMatches (SameAs This)])
-                (Act (Move That Battlefield))
+      [ Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
+          (Targeted [Target 1 (AllOf [permanent, IsNot (HasType Land), IsNot (SameAs This)])]
+            (Act (Move (SelectAll (SameAs (GetTarget 0))) Exile)))
+      , Triggered (Query [KindIs (ZoneChanged (Just Battlefield) Nothing), SourceMatches (SameAs This)])
+          (Act (Move (SelectAll (ExiledBy This)) Battlefield))
       ]
   }
 

@@ -286,6 +286,8 @@ mutual
     SameAs : Reference b -> Predicate b        -- the candidate IS r ("another" = IsNot (SameAs This))
     SameName : Reference b -> Predicate b      -- shares a name with r ("named [its own name]" = SameName This)
     WasCastFrom : Zone -> Predicate b          -- the object was cast from this zone (cast provenance)
+    ExiledBy : Reference b -> Predicate b      -- set aside by r's effect ("cards exiled by this" = ExiledBy
+                                               -- This); the engine holds the association ([CR#607] linked abilities)
     HasCounter : CounterKind -> Predicate b    -- has ≥1 of this counter ("without a fate counter" = IsNot (HasCounter Fate))
     ControlledBy : PlayerRef b -> Predicate b  -- "creature you control" = AllOf [HasType Creature, ControlledBy You]
     OwnedBy : PlayerRef b -> Predicate b
