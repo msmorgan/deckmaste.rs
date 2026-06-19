@@ -268,3 +268,43 @@ TideShaper = Normal $ fromDefault
   , power := Just 1
   , toughness := Just 1
   }
+
+-- Necropotence — replacement + trigger + pay-life ability, heavily flagged.
+-- FLAGS: "skip your draw step" is a Replaces→Skip on the draw-step-begin event
+-- (skipping a turn-based action, approximated); "exile that card" uses the UNGATED
+-- EventObject anaphora; "face down" is NOT modeled (the exiled card's hidden state).
+export
+Necropotence : Card
+Necropotence = Normal $ fromDefault
+  { name := "Necropotence"
+  , manaCost := [cast Black, cast Black, cast Black]
+  , types := [Enchantment]
+  , abilities :=
+      [ Replaces (Query [KindIs (BeginStep (BeginningPhase DrawStep)), DuringTurn You]) Skip
+      , Triggered (Query [KindIs Discarded, ActorIs You])
+          (Act (Move (SelectAll (SameAs EventObject)) Exile))
+      , Activated (PayLife (Literal 1))
+          (With (Produce (Move (TopOfLibrary (Literal 1)) Exile))
+            (Delayed nextEndStep (Act (Move That Hand))))
+      ]
+  }
+
+-- Notion Thief — a draw-replacement. FLAGS: the "except the first draw in each draw
+-- step" exception is APPROXIMATED as `Except (DuringStep draw-step)` — that excludes
+-- ALL draw-step draws, not just the first (the turn-based-draw / ordinal distinction
+-- isn't modeled); "that player skips that draw" is implicit in the replacement.
+export
+NotionThief : Card
+NotionThief = Normal $ fromDefault
+  { name := "Notion Thief"
+  , manaCost := [cast 2, cast Blue, cast Black]
+  , types := [Creature]
+  , abilities :=
+      [ Keyword Flash
+      , Replaces (Query [ KindIs Drew, ActorIs Opponent
+                        , Except (Query [DuringStep (BeginningPhase DrawStep)]) ])
+          (InsteadDo (Act (Draw {actor = You} (cast 1))))
+      ]
+  , power := Just 3
+  , toughness := Just 1
+  }
