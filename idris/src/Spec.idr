@@ -103,6 +103,14 @@ tCounters : Effect Base
 tCounters = Sequence [ Act (PutCounters P1P1 (Literal 1) (SelectAll creature))
                      , Act (Destroy (SelectAll (IsNot (HasCounter P1P1)))) ]
 
+-- anthem: a static `ModifyAll` over a controller-predicate filter, with layer mods
+tAnthem : Ability
+tAnthem = Static (ModifyAll (AllOf [HasType Creature, ControlledBy You]) [PlusPT 1 1, AddSubtype (cast Bear)])
+
+-- a loyalty ability: an Activated ability whose cost removes Loyalty counters
+tLoyalty : Ability
+tLoyalty = Activated (RemoveCounters Loyalty (Literal 2)) (Act (Draw (cast 1)))
+
 -- NEGATIVE — each must be rejected --------------------------------------------
 
 -- a 2nd target where only one was bound

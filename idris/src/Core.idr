@@ -283,6 +283,9 @@ mutual
     SameName : Reference b -> Predicate b      -- shares a name with r ("named [its own name]" = SameName This)
     WasCastFrom : Zone -> Predicate b          -- the object was cast from this zone (cast provenance)
     HasCounter : CounterKind -> Predicate b    -- has ≥1 of this counter ("without a fate counter" = IsNot (HasCounter Fate))
+    ControlledBy : PlayerRef b -> Predicate b  -- "creature you control" = AllOf [HasType Creature, ControlledBy You]
+    OwnedBy : PlayerRef b -> Predicate b
+    WasKicked : Predicate b                    -- FLAG: kicker as a boolean flag on the object (no cost-mode model)
     -- combinators (distinct from `Condition`'s And/Or/Not):
     AllOf : List (Predicate b) -> Predicate b
     OneOf : List (Predicate b) -> Predicate b
@@ -307,6 +310,9 @@ mutual
     Opponent : PlayerRef b                     -- an opponent ([CR#102.1]); single-opponent for now
     ControllerOf : Reference b -> PlayerRef b  -- the controller of a referenced object
     OwnerOf : Reference b -> PlayerRef b       -- the owner of a referenced object ([CR#108.3])
+    EachPlayer : PlayerRef b                   -- FLAG: a PLURAL player specifier ("each player")
+    EachOpponent : PlayerRef b                 -- FLAG: plural
+    TargetedPlayer : (n : Nat) -> {auto prf : ValidTarget n b} -> PlayerRef b  -- FLAG: nth target read as a player
 
   -- A query OVER EVENTS: the matcher for triggers, `EventCount`, and durations — the
   -- event analog of `Predicate`. Facets conjoin via `Query`; `Join`/`Except` are
@@ -442,6 +448,10 @@ data Action : Bindings -> Type where
   -- put / clear counters ([CR#122]). `RemoveAllCounters` clears every counter of a kind.
   PutCounters : CounterKind -> Count b -> Selection b -> Action b
   RemoveAllCounters : CounterKind -> Selection b -> Action b
+  -- player verbs: discard / lose life; and a chooser-verb where a player sacrifices.
+  Discard : {default You actor : PlayerRef b} -> Count b -> Action b
+  LoseLife : {default You actor : PlayerRef b} -> Count b -> Action b
+  Sacrifices : PlayerRef b -> Predicate b -> Action b   -- "[player] sacrifices a [pred]" (they choose which)
 
 -- What a binder (`With`) binds as `That`: a QUERY of existing objects, or a
 -- PRODUCER — an `Action` run for effect, binding its product. The grammar only
@@ -461,6 +471,8 @@ data Cost : Bindings -> Type where
   UntapSelf : Cost b                             -- "{Q}"
   PayLife   : Count b -> Cost b                  -- "Pay N life"
   Sacrifice : Selection b -> Cost b              -- "Sacrifice this" = Sacrifice (SelectAll (SameAs This))
+  AddCounters    : CounterKind -> Count b -> Cost b   -- a loyalty "+N" cost (put N counters on This)
+  RemoveCounters : CounterKind -> Count b -> Cost b   -- a loyalty "−N" cost (remove N from This)
   Costs     : List (Cost b) -> Cost b            -- all components together
 
 -- A continuous effect's lifetime ([CR#611.2]). Rust: Duration.
@@ -518,12 +530,18 @@ mutual
   public export
   data Modification : Bindings -> Type where
     PlusPT : Int -> Int -> Modification b               -- "gets +x/+y"
+    SetPT : Int -> Int -> Modification b                -- "base power/toughness are x/y" (layer 7b)
+    AddType : Type_ -> Modification b                   -- "is also a [type]"
+    AddSubtype : Subtype -> Modification b              -- "becomes an Island" (adds the subtype)
+    LoseAbilities : Modification b                      -- "loses all abilities" (Humility-style)
+    GainControl : PlayerRef b -> Modification b         -- "[player] gains control"
     GrantAbility : Ability -> Modification b
 
   -- A static (continuous) effect: `subject` gets the modifications. Rust: Ability::Static.
   public export
   data StaticEffect : Bindings -> Type where
     Modify : Reference b -> List (Modification b) -> StaticEffect b
+    ModifyAll : Filter b -> List (Modification b) -> StaticEffect b   -- anthem: "each [filter] gets [mods]"
 
   -- A castable spell resolves in `Base`: source bound, no top-level targets.
   public export
@@ -545,6 +563,7 @@ record Face where
   name : String
   manaCost : ManaCost
   types : List Type_
+  supertypes : List Supertype
   subtypes : List Subtype
   abilities : List Ability
   power : Maybe Int
@@ -566,6 +585,7 @@ implementation DefaultValue Face where
     { name = ""
     , manaCost = []
     , types = []
+    , supertypes = []
     , subtypes = []
     , abilities = []
     , power = Nothing
