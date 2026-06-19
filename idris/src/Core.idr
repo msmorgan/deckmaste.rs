@@ -122,11 +122,12 @@ record Bindings where
   constructor MkBindings
   targetCount : Nat
   thatBound   : Bool   -- is a `With`-bound group in scope? (gates `That`)
+  itBound     : Bool   -- is a `ForEach`-bound element in scope? (gates `It`)
 
 -- The bindings a resolving spell starts in: no targets, no group bound yet.
 public export
 Base : Bindings
-Base = MkBindings 0 False
+Base = MkBindings 0 False False
 
 -- A binder PROVIDES n targets to the bindings its body runs in.
 public export
@@ -141,6 +142,11 @@ unbindTargets b = { targetCount := 0 } b
 public export
 bindThat : Bindings -> Bindings
 bindThat b = { thatBound := True } b
+
+-- `ForEach` PROVIDES a bound element (the `It` anaphor) to its body's bindings.
+public export
+bindIt : Bindings -> Bindings
+bindIt b = { itBound := True } b
 
 -- "target n is a legal reference in bindings b". One place to enrich later
 -- (e.g. class-matching once slots are typed); for now: the bindings bound enough.
@@ -174,6 +180,9 @@ mutual
     AttachHostOf : Reference b -> Reference b
     -- the attachment ON R — inverse of AttachHostOf. Rust: Reference::AttachedTo.
     AttachedTo : Reference b -> Reference b
+    -- the element bound by an enclosing `ForEach` ("it"). Rust: Reference::Subject is the
+    -- filter-`Where` analogue; this is the per-iteration one. Gated by `itBound`.
+    It : {auto prf : itBound b = True} -> Reference b
 
 -- A PLAYER specifier (split out from `Reference`, which is objects-only). Used
 -- as the `actor` of player actions and as a controller/owner derivation.
@@ -230,8 +239,7 @@ data Selection : Bindings -> Type where
   That : {auto prf : thatBound b = True} -> Selection b
   -- a quantity of untargeted choices at resolution. Rust: Selection::Choose(Qty, Filter).
   SelectChoose : Quantity b -> Filter b -> Selection b
-  -- every matching object, one at a time — distributive "each". Rust: Selection::Each.
-  Each : Filter b -> Selection b
+  -- (no distributive `Each` operand: distribution is `ForEach`, the set is `SelectFilter`.)
   -- a random quantity of the matching objects. Rust: Selection::Random.
   Random : Quantity b -> Filter b -> Selection b
   -- the top n cards of a library (default: yours). Rust: Selection::TopOfLibrary.
@@ -377,6 +385,9 @@ mutual
     Continuously : StaticEffect b -> Duration b -> Effect b
     -- choose modes, then apply them ([CR#700.2]). Rust: Effect::Modal.
     Modal : ChooseSpec b -> List (Mode b) -> Effect b
+    -- "for each [domain], [body]" — binds each element as `It`, runs `body` per
+    -- element. The distributive primitive (subsumes the old `Selection::Each`). Rust: Effect::ForEach.
+    ForEach : Selection b -> Effect (bindIt b) -> Effect b
     -- "when you do [the preceding], [effect]" — a reflexive trigger. It NESTS here,
     -- so `That`/targets stay in scope; no event-scanning sibling. Rust: Effect::Reflexive.
     Reflexive : Effect b -> Effect b
