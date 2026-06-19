@@ -32,10 +32,23 @@ pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
     // "… and only if …" extension is a state predicate this parser does not
     // yet structure, so it stays attached and the body parse declines below.
     let (effect_clause, limits) = peel_use_limit(effect_clause);
+    let (effect_clause, from, window) = peel_activation_context(effect_clause);
     let Some(parsed) = effect::parse_clause(effect_clause, ctx)? else {
         return Ok(None);
     };
-    Ok(Some(render(&cost, limits, &parsed)))
+    Ok(Some(render(&cost, from, window, limits, &parsed)))
+}
+
+fn peel_activation_context(
+    effect_clause: &str,
+) -> (&str, Option<&'static str>, Option<&'static str>) {
+    let Some(effect) = effect_clause.strip_suffix(" Activate only during your upkeep.") else {
+        return (effect_clause, None, None);
+    };
+    let from = effect
+        .contains(" from your graveyard ")
+        .then_some("Graveyard");
+    (effect, from, Some("DuringStep(Beginning(Upkeep), Your)"))
 }
 
 /// Split a trailing "Activate only once each turn." / "Activate only once each
@@ -61,17 +74,25 @@ fn peel_use_limit(effect_clause: &str) -> (&str, Option<&'static str>) {
 /// `Activated` frame, emitting `limits:` only when a use-limit rider was peeled
 /// and `targets:` only when the effect declares any. The limit sits on the
 /// outer frame, beside (not inside) any `Targeted` wrapper.
-fn render(cost: &[String], limits: Option<&str>, parsed: &ParsedEffect) -> String {
+fn render(
+    cost: &[String],
+    from: Option<&str>,
+    window: Option<&str>,
+    limits: Option<&str>,
+    parsed: &ParsedEffect,
+) -> String {
     let cost = cost.join(", ");
+    let from = from.map_or(String::new(), |z| format!(", from: {z}"));
+    let window = window.map_or(String::new(), |w| format!(", window: {w}"));
     let limits = limits.map_or(String::new(), |l| format!(", limits: [{l}]"));
     if parsed.targets.is_empty() {
         format!(
-            "Activated(cost: [{cost}]{limits}, effect: {})",
+            "Activated(cost: [{cost}]{from}{window}{limits}, effect: {})",
             parsed.effect
         )
     } else {
         format!(
-            "Activated(cost: [{cost}]{limits}, effect: Targeted(targets: [{}], effect: {}))",
+            "Activated(cost: [{cost}]{from}{window}{limits}, effect: Targeted(targets: [{}], effect: {}))",
             parsed.targets.join(", "),
             parsed.effect
         )
@@ -330,6 +351,14 @@ mod tests {
             act("{0}: ~ gets +3/+3 until end of turn. \
                  Activate only once each turn and only if ~ is a creature.")
             .is_none()
+        );
+    }
+
+    #[test]
+    fn graveyard_activation_during_your_upkeep() {
+        assert_eq!(
+            act("{2}{R}{R}{R}: Return ~ from your graveyard to your hand. Activate only during your upkeep.").as_deref(),
+            Some("Activated(cost: [Mana([Generic(2),Red,Red,Red])], from: Graveyard, window: DuringStep(Beginning(Upkeep), Your), effect: Move(This, Hand))")
         );
     }
 }

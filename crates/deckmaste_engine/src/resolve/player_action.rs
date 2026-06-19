@@ -213,8 +213,20 @@ impl GameState {
             PlayerAction::RestartGame => {
                 todo!("P0.W6: restart ([CR#727.1] — a terminal with carryover, not a reset)")
             }
-            PlayerAction::Reveal { .. } => {
-                todo!("P0.W6: reveal/look (emit Revealed; window lifetime [CR#701.20a])")
+            PlayerAction::Reveal { what, to } => {
+                let object = self.eval_reference(what, frame);
+                if self.objects.get(object).is_none() {
+                    vec![]
+                } else {
+                    let to = to
+                        .as_ref()
+                        .and_then(|who| self.eval_player_ref(who, frame))
+                        .map(|player| vec![player]);
+                    vec![WorkItem::Emit(Occurrence::single(GameEvent::Revealed {
+                        objects: vec![object],
+                        to,
+                    }))]
+                }
             }
             // [CR#608.2c,608.2d,607.2] choose-and-note: a resolution choice
             // stored under a note key, KIND-GATED. Only note kinds with an
@@ -235,17 +247,16 @@ impl GameState {
                     player: actor,
                     key: *key,
                 }],
-                // No reader grammar exists yet — no chosen-color/name predicate
-                // (an `OfChosen`-equivalent), no `Selection::PilesOf` runtime —
-                // so wiring the write would be dead machinery. Stay loud.
+                // No reader grammar exists yet for chosen colors or piles, so
+                // those writes remain loud. CardName is read by `Named(key)`.
                 deckmaste_core::NotedKind::Color => todo!(
                     "engine seam: ChooseAndNote(Color) has no reader grammar \
                      (no chosen-color predicate) — write-only, unbuilt ([CR#607.2])"
                 ),
-                deckmaste_core::NotedKind::CardName => todo!(
-                    "engine seam: ChooseAndNote(CardName) has no reader grammar \
-                     (no chosen-name predicate) — write-only, unbuilt ([CR#607.2])"
-                ),
+                deckmaste_core::NotedKind::CardName => vec![WorkItem::ChooseNoteCardName {
+                    player: actor,
+                    key: *key,
+                }],
                 deckmaste_core::NotedKind::Piles => todo!(
                     "engine seam: ChooseAndNote(Piles) needs the pile store + \
                      Selection::PilesOf reader — unbuilt ([CR#700.3a])"

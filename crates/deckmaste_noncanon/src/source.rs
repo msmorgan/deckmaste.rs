@@ -1,5 +1,4 @@
-//! Card lookup over the loaded plugins: `noncanon` (matchup cards, loaded
-//! with the `builtin` sibling prelude) plus `builtin` itself (basic lands).
+//! Card lookup over the builtin, canon, and generated Wizards plugins.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -7,13 +6,17 @@ use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Card;
+use deckmaste_core::ConferralRule;
 use deckmaste_core::Counter;
+use deckmaste_core::DamageResultRule;
 use deckmaste_core::Ident;
 use deckmaste_core::SbaRule;
 use deckmaste_core::Subtype;
+use deckmaste_core::TypeDef;
 
 pub struct CardSource {
-    noncanon: Plugin,
+    wizards: Plugin,
+    canon: Plugin,
     builtin: Plugin,
 }
 
@@ -29,16 +32,15 @@ pub struct CardSource {
 #[derive(Clone)]
 pub struct EngineRules {
     pub sba_rules: Vec<SbaRule>,
+    pub conferral_rules: Vec<ConferralRule>,
+    pub damage_result_rules: Vec<DamageResultRule>,
     pub counter_decls: HashMap<Ident, Counter>,
     pub subtypes: HashMap<Ident, Subtype>,
+    pub types: HashMap<Ident, TypeDef>,
 }
 
 impl CardSource {
-    /// Loads both plugins from the repo's `plugins/` directory.
-    ///
-    /// Loads `builtin` once and passes it as the explicit prelude to
-    /// `noncanon`, so the builtin macro/subtype layer is shared rather than
-    /// loaded twice.
+    /// Loads the supported card plugins from the repo's `plugins/` directory.
     ///
     /// # Panics
     ///
@@ -47,45 +49,48 @@ impl CardSource {
     pub fn load() -> Self {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins");
         let builtin = Plugin::load(root.join("builtin")).expect("plugins/builtin loads");
-        let noncanon = Plugin::load_with_prelude(&builtin, root.join("noncanon"))
-            .expect("plugins/noncanon loads");
-        Self { noncanon, builtin }
+        let canon =
+            Plugin::load_with_prelude(&builtin, root.join("canon")).expect("plugins/canon loads");
+        let wizards = Plugin::load_with_prelude(&builtin, root.join("wizards"))
+            .expect("plugins/wizards loads");
+        Self {
+            wizards,
+            canon,
+            builtin,
+        }
     }
 
-    /// Resolves a card by name: basics come from builtin, the rest from
-    /// noncanon.
+    /// Resolves a card by name: builtin basics first, then authored canon,
+    /// then the generated Wizards corpus.
     ///
     /// # Panics
     ///
-    /// Panics when the name resolves in neither plugin — for ungraduated
-    /// cards this is the expected "not yet" signal.
+    /// Panics when the name resolves in no supported plugin.
     #[must_use]
     pub fn card(&self, name: &str) -> Arc<Card> {
         if let Ok(card) = self.builtin.card(name) {
             return Arc::new(card);
         }
-        match self.noncanon.card(name) {
-            Ok(card) => Arc::new(card),
-            Err(e) => panic!("card {name:?} not available: {e}"),
+        if let Ok(card) = self.canon.card(name) {
+            return Arc::new(card);
+        }
+        match self.wizards.card(name) {
+            Ok(card) => return Arc::new(card),
+            Err(error) => panic!("card {name:?} not available: {error:?}"),
         }
     }
 
     /// The engine registries to wire into a game's `GameConfig`. `sba_rules`
-    /// merges both plugins' `rules/sba/` (the core rules live in `builtin`;
-    /// `noncanon` adds none today but may); `counter_decls`/`subtypes` come
-    /// from `noncanon`, already a superset of `builtin`'s via the load prelude.
+    /// uses builtin rules plus the generated Wizards registries.
     #[must_use]
     pub fn engine_rules(&self) -> EngineRules {
         EngineRules {
-            sba_rules: self
-                .builtin
-                .sba_rules
-                .iter()
-                .chain(&self.noncanon.sba_rules)
-                .cloned()
-                .collect(),
-            counter_decls: self.noncanon.counters.clone(),
-            subtypes: self.noncanon.subtypes.clone(),
+            sba_rules: self.builtin.sba_rules.clone(),
+            conferral_rules: self.builtin.conferral_rules.clone(),
+            damage_result_rules: self.builtin.damage_result_rules.clone(),
+            counter_decls: self.wizards.counters.clone(),
+            subtypes: self.wizards.subtypes.clone(),
+            types: self.wizards.types.clone(),
         }
     }
 }

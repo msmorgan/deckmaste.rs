@@ -460,7 +460,8 @@ pub struct GameState {
     /// ([CR#608.2c] — the choice exists only within that instruction
     /// sequence; values that OUTLIVE resolution are linked abilities
     /// [CR#607] or as-enters choices, held by separate stores). Written by
-    /// `PlayerAction::ChooseAndNote`, read by `Count::Noted`.
+    /// `PlayerAction::ChooseAndNote`, read by `Count::Noted` and the dynamic
+    /// same-resolution `Named(key)` form.
     pub(crate) resolution_notes:
         std::collections::HashMap<deckmaste_core::Ident, crate::state::NotedValue>,
     /// [CR#401.4]: the armed post-pick arrange collector. `Some` while an
@@ -474,17 +475,17 @@ pub struct GameState {
 
 /// The scalar value a resolution note slot stores ([CR#607.2] slots;
 /// [CR#608.2c] a choice made while applying an effect). This P0.W5 store
-/// mints only `Number` — the one note kind with an existing engine READER
-/// (`Count::Noted`). Object-set notes ride the fact-backed `noted` product
-/// group (`NotedMember`) instead of this map; Color/CardName/Piles stay
-/// unbuilt until a reader grammar for them lands (kind wiring is
-/// reader-gated).
+/// mints scalar `Number` and `CardName` values. Object-set notes ride the
+/// fact-backed `noted` product group (`NotedMember`) instead of this map;
+/// Color/Piles stay unbuilt until reader grammar for them lands.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NotedValue {
     /// A chosen non-negative number ("note that number") — written by
     /// `PlayerAction::ChooseAndNote(_, NotedKind::Number)`, read by
     /// `Count::Noted`.
     Number(Uint),
+    /// A chosen card name, read by `Named(key)` during this resolution.
+    CardName(String),
 }
 
 /// One member of a noted product group ([CR#607.2a]): the enacted

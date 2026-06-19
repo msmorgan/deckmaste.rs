@@ -1,0 +1,23 @@
+// Fading N is two abilities: this permanent enters with N fade counters, and
+// its controller removes one at the beginning of their upkeep or sacrifices
+// it when none can be removed [CR#702.32a].
+(
+    name: "Fading",
+    template: "fading ${0}",
+    kinds: [KeywordAbility],
+    params: [Count],
+    body: Composite(
+        name: "Fading",
+        abilities: [
+            EntersWithCounters(FadeCounter, Param(0)),
+            Triggered(
+                event: StepBegins(at: Beginning(Upkeep), whose: Your),
+                effect: If(
+                    condition: Compare(CounterCount(This, FadeCounter), AtLeast, 1),
+                    then: RemoveCounters(This, FadeCounter, 1),
+                    otherwise: Sacrifice(This),
+                ),
+            ),
+        ],
+    ),
+)

@@ -1258,6 +1258,7 @@ mutual
       -- PLAYERS (the old `PlayerRef`, folded in here):
       You : Reference b APlayer                            -- controller of this ability [CR#109.5]
       ControllerOf : Reference b AnObject -> Reference b APlayer   -- the controller of an object
+      Coalesce : List (Reference b k) -> Reference b k
       OwnerOf : Reference b AnObject -> Reference b APlayer        -- the owner of an object [CR#108.3]
       EventActor : {auto 0 prf : hasActor (eventCaps b) = True} -> Reference b APlayer  -- the event's player ("that player") — only if supplied
       DefendingPlayer : {auto 0 prf : hasDefender (eventCaps b) = True} -> Reference b APlayer  -- the defending player of an attack/combat — ALWAYS a player, even vs a planeswalker/battle ([CR#506.2,508.5]); landwalk/Annihilator/Afflict
@@ -2529,6 +2530,7 @@ mutual
   public export
   refIntro : {k : RefKind} -> Reference b k -> List Ant
   refIntro (ControllerOf r) = refIntro r
+  refIntro (Coalesce rs) = concatMap refIntro rs
   refIntro (OwnerOf r) = refIntro r
   refIntro (AttachHostOf r) = refIntro r
   refIntro _ = []

@@ -403,9 +403,8 @@ pub enum GameEvent {
     /// Cards shown ([CR#701.20a]); `to: None` = revealed to ALL players,
     /// `Some` = "look at" — the same operation shown to a subset
     /// ([CR#701.20e]). Revealing never moves the card ([CR#701.20b]).
-    /// Shaped, unbuilt: the `Reveal` resolve seam emits it (P0.W6); the
-    /// reveal WINDOW (how long it stays shown) is effect-instance
-    /// machinery.
+    /// The reveal window lasts for the containing resolving instruction;
+    /// revealing itself changes no game-state characteristic or zone.
     Revealed {
         objects: Vec<ObjectId>,
         to: Option<Vec<PlayerId>>,

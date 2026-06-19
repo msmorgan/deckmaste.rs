@@ -408,6 +408,13 @@ impl StrategyEvaluator {
             PendingDecision::ChooseXValue { .. } | PendingDecision::ChooseNoteNumber { .. } => {
                 Decision::XValue(0)
             }
+            PendingDecision::ChooseNoteCardName { player, .. } => {
+                let name = state.zones.hands[player.index()]
+                    .first()
+                    .map(|&id| crate::derive::face(state.def(id)).name.clone())
+                    .unwrap_or_else(|| "Mountain".to_owned());
+                Decision::CardName(name)
+            }
             // Simple shells: a legal minimal default.
             PendingDecision::ChooseModes { min, .. } => Decision::Modes((0..*min).collect()),
             PendingDecision::Division { total, targets, .. } => {

@@ -1,8 +1,0 @@
-Normal(
-    name: "Shock",
-    mana_cost: [Red],
-    types: [Instant],
-    abilities: [
-        Spell(effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), 2))),
-    ],
-)

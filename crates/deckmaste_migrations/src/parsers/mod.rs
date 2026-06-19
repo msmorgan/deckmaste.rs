@@ -2,6 +2,7 @@
 //! the bare ability RON of one ability, or `None` to decline.
 
 pub(crate) mod activated_ability;
+pub(crate) mod alternative_cost;
 pub(crate) mod cost;
 pub(crate) mod count;
 pub(crate) mod effect;

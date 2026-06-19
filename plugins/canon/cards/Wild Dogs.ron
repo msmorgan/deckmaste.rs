@@ -1,0 +1,37 @@
+Normal(
+    name: "Wild Dogs",
+    mana_cost: [Green],
+    types: [Creature],
+    subtypes: [Dog],
+    abilities: [
+        Triggered(
+            event: StepBegins(at: Beginning(Upkeep), whose: Your),
+            condition: Compare(
+                CountOf(Players(Where(Compare(
+                    PlayerStatOf(It, Life),
+                    Eq,
+                    Aggregate(MaxOf, (
+                        of: Players(Player),
+                        by: PlayerStatOf(It, Life),
+                    )),
+                )))),
+                Eq,
+                1,
+            ),
+            effect: GainControl(
+                This,
+                Single(SelectAll(Where(Compare(
+                    PlayerStatOf(It, Life),
+                    Eq,
+                    Aggregate(MaxOf, (
+                        of: Players(Player),
+                        by: PlayerStatOf(It, Life),
+                    )),
+                )))),
+            ),
+        ),
+        Keyword(Cycling([Mana([Generic(2)])])),
+    ],
+    power: 2,
+    toughness: 1,
+)

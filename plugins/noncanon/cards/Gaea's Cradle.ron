@@ -1,8 +1,0 @@
-Normal(
-    name: "Gaea's Cradle",
-    supertypes: [Legendary],
-    types: [Land],
-    abilities: [
-        Unsupported("{T}: Add {G} for each creature you control."),
-    ],
-)

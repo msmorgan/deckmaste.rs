@@ -86,6 +86,25 @@ mod tests {
         let written = crate::ron::options().to_string(&v).unwrap();
         assert_eq!(read(&written), v);
     }
+
+    #[test]
+    fn coalesce_round_trips() {
+        let value = Reference::Coalesce(vec![
+            Reference::ControllerOf(Box::new(Reference::Target(0))),
+            Reference::Target(0),
+        ]);
+        let written = crate::ron::options().to_string(&value).unwrap();
+        assert_eq!(read(&written), value);
+    }
+
+    #[test]
+    fn single_round_trips() {
+        let value = Reference::Single(Box::new(crate::Selection::SelectAll(
+            crate::Predicate::Ref(Reference::You),
+        )));
+        let written = crate::ron::options().to_string(&value).unwrap();
+        assert_eq!(read(&written), value);
+    }
 }
 
 /// A bound variable: a value fixed earlier (at announce, by the rules of
@@ -101,6 +120,9 @@ mod tests {
 pub enum Reference {
     /// The object this ability is printed on / the resolving spell.
     This,
+    /// Demote a selection to its sole element. Empty and ambiguous
+    /// selections fail closed. Rust counterpart of Idris `Reference.Single`.
+    Single(Box<crate::Selection>),
     /// The controller of this ability ([CR#109.5]).
     You,
     /// An opponent of `You` ([CR#102.1]); in a two-player game, the other
@@ -169,6 +191,8 @@ pub enum Reference {
     Linked(crate::Ident),
     /// The controller of a referenced object ([CR#109.5]).
     ControllerOf(Box<Reference>),
+    /// The first reference in order that resolves to a non-null value.
+    Coalesce(Vec<Reference>),
     /// The owner of a referenced object ([CR#108.3]).
     OwnerOf(Box<Reference>),
     /// The permanent that attachment R is attached to — attachment→host

@@ -261,6 +261,10 @@ impl GameState {
                 Progress::CostPaid
             }
             WorkItem::ChooseNoteNumber { player, key } => self.open_choose_note_number(player, key),
+            WorkItem::ChooseNoteCardName { player, key } => {
+                self.pending = Some(PendingDecision::ChooseNoteCardName { player, key });
+                Progress::NoteChoiceOpened
+            }
             WorkItem::ChooseNoteObjects { player, key } => {
                 self.open_choose_note_objects(player, key)
             }
@@ -921,12 +925,11 @@ impl GameState {
                 self.objects.remove(id);
                 GameEvent::AbilityResolved(id)
             }
-            // P0.W6 seams: shaped, nothing emits them yet. Revealed's apply
-            // will open a reveal window ([CR#701.20a] lifetime);
-            // DesignationChanged's will write the W5 registry's game scope;
+            // P0.W6 seams: DesignationChanged will write the W5 registry's game scope;
             // ControlChanged's will re-home the object ([CR#603.2e] delta,
             // never a zone move).
-            GameEvent::Revealed { .. } => todo!("P0.W6: reveal apply ([CR#701.20a])"),
+            // Revealing is a public information event, not a state mutation.
+            GameEvent::Revealed { .. } => event,
             // Notification only — no state mutation. Fired once the keyword
             // action's body has completed ([CR#701.22d]), so triggers observe it.
             GameEvent::KeywordActionPerformed { .. } => event,

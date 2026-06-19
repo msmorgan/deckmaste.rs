@@ -1,8 +1,0 @@
-// Unsupported-keyword proxy — see Echo.ron. The engine's summoning-sickness
-// exemption is a separate seam; this proxy only carries the name.
-(
-    name: "Haste",
-    template: "Haste",
-    kinds: [Ability],
-    body: Keyword(Composite(name: "Haste", abilities: [])),
-)

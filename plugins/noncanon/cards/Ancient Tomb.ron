@@ -1,7 +1,0 @@
-Normal(
-    name: "Ancient Tomb",
-    types: [Land],
-    abilities: [
-        Unsupported("{T}: Add {C}{C}. ~ deals 2 damage to you."),
-    ],
-)

@@ -185,6 +185,11 @@ pub enum WorkItem {
         player: crate::player::PlayerId,
         key: deckmaste_core::Ident,
     },
+    /// A resolving `ChooseAndNote(key, CardName)` choice.
+    ChooseNoteCardName {
+        player: crate::player::PlayerId,
+        key: deckmaste_core::Ident,
+    },
     /// [CR#607.2a,608.2d]: a resolving `ChooseAndNote(key, NotedKind::Objects)`
     /// — surface a `ChooseObjects` pick for `player`; the submit records the
     /// chosen objects into the `noted` product group under `key` (read back by

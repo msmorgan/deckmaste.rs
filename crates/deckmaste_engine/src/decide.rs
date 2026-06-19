@@ -112,6 +112,7 @@ impl PendingDecision {
             | PendingDecision::ChooseCostOptions { player, .. }
             | PendingDecision::ChooseXValue { player, .. }
             | PendingDecision::ChooseNoteNumber { player, .. }
+            | PendingDecision::ChooseNoteCardName { player, .. }
             | PendingDecision::ChooseObjects { player, .. }
             | PendingDecision::PreGame { player, .. }
             | PendingDecision::LegendRule { player, .. }
@@ -297,6 +298,11 @@ pub enum PendingDecision {
         player: PlayerId,
         key: deckmaste_core::Ident,
     },
+    /// Choose a card name and note it for this resolution.
+    ChooseNoteCardName {
+        player: PlayerId,
+        key: deckmaste_core::Ident,
+    },
     /// Order the replacement/prevention effects applicable to one event,
     /// affected player/controller choosing ([CR#616.1]) — shell.
     OrderReplacements { player: PlayerId, count: Uint },
@@ -392,6 +398,8 @@ pub enum Decision {
     Arranged(Vec<ObjectId>),
     /// Answers `ChooseXValue`: the chosen value of X ([CR#601.2b]).
     XValue(Uint),
+    /// Answers `ChooseNoteCardName`.
+    CardName(String),
     /// Answers `ChooseReplacement` ([CR#616.1]): which replacement the affected
     /// player applies first. The key must be in the `applicable` list.
     ReplacementChoice(crate::replace_registry::ReplacementKey),
@@ -1260,6 +1268,18 @@ impl GameState {
                 self.pending = None;
                 self.resolution_notes
                     .insert(key, crate::state::NotedValue::Number(n));
+                Ok(())
+            }
+            (PendingDecision::ChooseNoteCardName { key, .. }, Decision::CardName(name)) => {
+                if name.is_empty() {
+                    return Err(DecisionError::Illegal {
+                        reason: "a card name can't be empty".to_owned(),
+                    });
+                }
+                let key = *key;
+                self.pending = None;
+                self.resolution_notes
+                    .insert(key, crate::state::NotedValue::CardName(name));
                 Ok(())
             }
             (PendingDecision::ChooseCostOptions { cost, .. }, Decision::CostOptions(choices)) => {

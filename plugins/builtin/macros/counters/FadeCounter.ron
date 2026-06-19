@@ -1,0 +1,8 @@
+// Fade counters are marker counters. Fading and cards such as Tangle Wire
+// count them, but the counters confer no behavior by themselves.
+(
+    name: "FadeCounter",
+    template: "fade counter",
+    kinds: [Counter],
+    body: Counter(name: "FadeCounter"),
+)

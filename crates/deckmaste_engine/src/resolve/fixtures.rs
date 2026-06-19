@@ -149,6 +149,7 @@ pub(super) fn run_injected(state: &mut GameState) {
                     | WorkItem::BeginNote { .. }
                     | WorkItem::EndNote
                     | WorkItem::ChooseNoteNumber { .. }
+                    | WorkItem::ChooseNoteCardName { .. }
                     | WorkItem::ChooseNoteObjects { .. }
             )
         );

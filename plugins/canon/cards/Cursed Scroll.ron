@@ -1,0 +1,32 @@
+// Cursed Scroll's choose-name/random-reveal sequence is deliberately authored
+// in canon: it is a singularly awkward Oracle template, not a useful general
+// migration-parser production.
+Normal(
+    name: "Cursed Scroll",
+    mana_cost: [Generic(1)],
+    types: [Artifact],
+    abilities: [
+        Activated(
+            cost: [Mana([Generic(3)]), Tap],
+            effect: Targeted(
+                targets: [AnyTarget],
+                effect: Sequentially([
+                    ChooseAndNote("CursedScrollName", CardName),
+                    Each(
+                        binder: Existing(Random(
+                            Exactly(1),
+                            And([Kind(Card), InZone(Hand), Owner(Ref(You))]),
+                        )),
+                        effect: Sequentially([
+                            Reveal(what: It),
+                            If(
+                                condition: Matches(It, Named("CursedScrollName")),
+                                then: DealDamage(This, 2, Target(0)),
+                            ),
+                        ]),
+                    ),
+                ]),
+            ),
+        ),
+    ],
+)

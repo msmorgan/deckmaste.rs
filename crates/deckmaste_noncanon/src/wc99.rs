@@ -1,9 +1,30 @@
-//! The WC99 matchup: Mark Le Pine's Sped Red vs Matt Linde's Mono-Green
-//! Stompy (Worlds 1999), plus the per-wave allowlists the subset builder
-//! consumes. Growing an allowlist is the per-wave ritual: graduate the card
-//! in plugins/noncanon, add it here, extend the probes.
+//! Historical deck fixtures: Mark Le Pine's Sped Red and Matt Linde's
+//! Mono-Green Stompy from Worlds 1999, plus Sigurd Eskeland's Worlds 2000
+//! RDW2K. The primary matchup is the two WC99 decks.
 
 use crate::deck::DeckSpec;
+
+/// Sigurd Eskeland's mono-red Standard deck from Worlds 2000.
+pub const RDW2K: DeckSpec = DeckSpec {
+    name: "RDW2K (Sigurd Eskeland, Worlds 2000)",
+    basics: ("Mountain", 16),
+    rest: &[
+        ("Goblin Patrol", 4),
+        ("Kris Mage", 1),
+        ("Goblin Cadets", 4),
+        ("Viashino Cutthroat", 2),
+        ("Hammer of Bogardan", 4),
+        ("Pillage", 3),
+        ("Arc Lightning", 4),
+        ("Lightning Blast", 2),
+        ("Rhystic Lightning", 3),
+        ("Shock", 4),
+        ("Parch", 2),
+        ("Seal of Fire", 4),
+        ("Ghitu Encampment", 3),
+        ("Rishadan Port", 4),
+    ],
+};
 
 pub const SPED_RED: DeckSpec = DeckSpec {
     name: "Sped Red (Mark Le Pine, WC99)",
@@ -43,32 +64,3 @@ pub const STOMPY: DeckSpec = DeckSpec {
         ("Uktabi Orangutan", 2),
     ],
 };
-
-/// What's graduated AND engine-runnable today. Graduated is not enough:
-/// Mogg Fanatic parses but its sacrifice can never activate — the engine's
-/// `cost_summary` rejects verb costs (`Do(Sacrifice(This))`), so the card
-/// would be pure burn-dilution. It joins the moment activation verb costs
-/// land.
-pub const SPED_RED_ALLOWLIST: &[&str] = &["Shock"];
-pub const STOMPY_ALLOWLIST: &[&str] = &["Llanowar Elves"];
-
-#[cfg(test)]
-mod tests {
-    use std::path::Path;
-
-    use super::*;
-
-    /// Every listed card has a frame (graduated or todo) in the plugin —
-    /// guards the seeding against decklist drift.
-    #[test]
-    fn all_wc99_frames_are_present() {
-        let cards = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/noncanon/cards");
-        for spec in [&SPED_RED, &STOMPY] {
-            for &(name, _) in spec.rest {
-                let graduated = cards.join(format!("{name}.ron")).exists();
-                let todo = cards.join(format!("{name}.ron.todo")).exists();
-                assert!(graduated || todo, "{name}: no frame in plugins/noncanon");
-            }
-        }
-    }
-}

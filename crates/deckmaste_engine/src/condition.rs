@@ -130,7 +130,13 @@ impl GameState {
                     shape_only: false,
                 };
                 self.history
-                    .in_window(*within, self.turn.turn_number)
+                    .in_window_for(
+                        *within,
+                        self.turn.turn_number,
+                        self.turn.current,
+                        self.turn.active_player,
+                        frame.controller,
+                    )
                     .filter_map(|(_, entry)| entry.view.as_ref())
                     .any(|view| self.eval(event, view, crate::eval::Lane::History, &bindings))
             }
@@ -1192,6 +1198,53 @@ mod tests {
                 &frame_for(&state, PlayerId(1))
             ),
             "from the opponent's seat the onset was on an opponent's turn"
+        );
+    }
+
+    /// Echo's upkeep lookback starts at the controller's PREVIOUS upkeep while
+    /// the current upkeep onset is firing. Once that upkeep has passed, the
+    /// current onset becomes the newest anchor ([CR#702.30a]).
+    #[test]
+    fn happened_since_your_upkeep_uses_the_previous_onset_while_firing() {
+        use crate::event::GameEvent;
+        use crate::object::ObjectId;
+
+        let mut state = game();
+        let upkeep = PhaseStep::Beginning(BeginningStep::Upkeep);
+
+        state.turn.turn_number = 0;
+        state.record_history_fact(0, None, GameEvent::SpellCast(ObjectId::from_raw(20)));
+
+        state.turn.turn_number = 1;
+        state.turn.active_player = PlayerId(0);
+        state.turn.current = upkeep;
+        state.record_history_fact(1, None, GameEvent::StepBegan(upkeep));
+
+        state.turn.turn_number = 2;
+        state.turn.active_player = PlayerId(1);
+        state.record_history_fact(2, None, GameEvent::SpellCast(ObjectId::from_raw(21)));
+
+        state.turn.turn_number = 3;
+        state.turn.active_player = PlayerId(0);
+        state.turn.current = upkeep;
+        state.record_history_fact(3, None, GameEvent::StepBegan(upkeep));
+
+        let cast_since = Condition::Happened {
+            event: EventFilter::Cast {
+                who: Predicate::any(),
+                what: Predicate::any(),
+            },
+            within: Lookback::SinceYour(upkeep),
+        };
+        assert!(
+            state.condition_holds(&cast_since, &frame_for(&state, PlayerId(0))),
+            "the spell after the prior upkeep is inside echo's firing window"
+        );
+
+        state.turn.current = PhaseStep::Beginning(BeginningStep::Draw);
+        assert!(
+            !state.condition_holds(&cast_since, &frame_for(&state, PlayerId(0))),
+            "after upkeep, the current upkeep onset is the newest anchor"
         );
     }
 

@@ -5,6 +5,6 @@
 (
     name: "PassBot",
     rules: [
-        (when: AllOf([]), prefer: Pass),
+        (when: And([]), prefer: Pass),
     ],
 )

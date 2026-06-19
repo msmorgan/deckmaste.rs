@@ -319,7 +319,13 @@ impl GameState {
                 };
                 let n = self
                     .history
-                    .in_window(*within, self.turn.turn_number)
+                    .in_window_for(
+                        *within,
+                        self.turn.turn_number,
+                        self.turn.current,
+                        self.turn.active_player,
+                        frame.controller,
+                    )
                     .filter_map(|(_, entry)| entry.view.as_ref())
                     .filter(|view| self.eval(event, view, crate::eval::Lane::History, &bindings))
                     .count();
@@ -336,7 +342,13 @@ impl GameState {
                     shape_only: false,
                 };
                 self.history
-                    .in_window(*within, self.turn.turn_number)
+                    .in_window_for(
+                        *within,
+                        self.turn.turn_number,
+                        self.turn.current,
+                        self.turn.active_player,
+                        frame.controller,
+                    )
                     .filter(|(_, entry)| {
                         entry.view.as_ref().is_some_and(|view| {
                             self.eval(event, view, crate::eval::Lane::History, &bindings)

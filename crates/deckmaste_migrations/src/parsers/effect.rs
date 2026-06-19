@@ -43,6 +43,18 @@ pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
     if let Some(p) = parse_may(line, ctx)? {
         return Ok(Some(p));
     }
+    if let Some(p) = parse_player_taps_per_counter(line, ctx)? {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_destroy_no_regen(line) {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_rhystic_damage(line) {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_becomes_creature(line) {
+        return Ok(Some(p));
+    }
     if let Some(p) = parse_sequence(line, ctx)? {
         return Ok(Some(p));
     }
@@ -53,6 +65,9 @@ pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
         return Ok(Some(p));
     }
     if let Some(p) = parse_return_that_card(line) {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_damage_and_damage(line) {
         return Ok(Some(p));
     }
     if let Some(p) = parse_deal_damage(line) {
@@ -79,6 +94,9 @@ pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
     if let Some(p) = parse_return_to_hand(line) {
         return Ok(Some(p));
     }
+    if let Some(p) = parse_gains_control(line) {
+        return Ok(Some(p));
+    }
     if let Some(p) = parse_reanimate(line) {
         return Ok(Some(p));
     }
@@ -89,6 +107,9 @@ pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
         return Ok(Some(p));
     }
     if let Some(p) = parse_destroy(line) {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_destroy_macro_target(line, ctx)? {
         return Ok(Some(p));
     }
     if let Some(p) = parse_sacrifice(line) {
@@ -116,6 +137,175 @@ pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
         return Ok(Some(p));
     }
     Ok(None)
+}
+
+/// "That player taps an untapped artifact, creature, or land they control for
+/// each <kind> counter on ~." The upkeep event binds "that player" as
+/// `EventActor`; the counter noun resolves through the Counter macro index, so
+/// this is a counter-family production rather than a Tangle Wire name check.
+/// `Exactly` is intentionally not pre-clamped: the resolver clamps a choice to
+/// the available candidates, implementing "as much as possible".
+fn parse_player_taps_per_counter(
+    line: &str,
+    ctx: &ResolveCtx,
+) -> anyhow::Result<Option<ParsedEffect>> {
+    let Some(counter_phrase) = line
+        .strip_prefix(
+            "that player taps an untapped artifact, creature, or land they control for each ",
+        )
+        .and_then(|rest| rest.strip_suffix(" on ~."))
+    else {
+        return Ok(None);
+    };
+    let Some(counter) = counter_kind(counter_phrase, ctx)? else {
+        return Ok(None);
+    };
+    Ok(Some(ParsedEffect {
+        targets: vec![],
+        effect: format!(
+            "Each(binder: Choose(quantity: Exactly(CounterCount(This, {counter})), \
+             filter: And([Permanent, Or([Type(\"Artifact\"), Type(\"Creature\"), \
+             Type(\"Land\")]), ControlledBy(Ref(EventActor)), Not(Status(Tapped))]), \
+             by: EventActor), effect: By(EventActor, Tap(It)))"
+        ),
+    }))
+}
+
+/// The original rhystic burn template: a chosen permanent's controller, or a
+/// chosen player directly, may pay the toll to replace the larger damage with
+/// the smaller damage. `Coalesce` selects the first live payer reference:
+/// `ControllerOf(Target(0))` for a permanent and `Target(0)` for a player.
+fn parse_rhystic_damage(line: &str) -> Option<ParsedEffect> {
+    let body = line.strip_suffix('.')?;
+    let (first, second) = body.split_once(". If they do, ")?;
+    let (lead, cost) =
+        first.split_once(" unless that permanent's controller or that player pays ")?;
+    let lead = lead.strip_prefix("~ deals ")?;
+    let high = lead.strip_suffix(" damage to any target")?;
+    let high = number_word(high)?;
+    let second = second.strip_prefix("~ deals ")?;
+    let low = second.strip_suffix(" damage to the permanent or player")?;
+    let low = number_word(low)?;
+    let cost =
+        crate::parsers::cost::parse_cost(cost, crate::parsers::cost::VariableMana::Decline, None)
+            .ok()
+            .flatten()?;
+    Some(ParsedEffect {
+        targets: vec!["AnyTarget".to_owned()],
+        effect: format!(
+            "MayPay(actor: Coalesce([ControllerOf(Target(0)), Target(0)]), cost: [{}], \
+             and_then: DealDamage(This, {low}, Target(0)), \
+             or_else: DealDamage(This, {high}, Target(0)))",
+            cost.join(", ")
+        ),
+    })
+}
+
+/// A self-animation line of the classic manland form. Becoming a creature
+/// sets the named characteristics for the duration while the explicit
+/// "still a land" sentence preserves the existing land type.
+fn parse_becomes_creature(line: &str) -> Option<ParsedEffect> {
+    let body = line
+        .strip_prefix("~ becomes a ")
+        .or_else(|| line.strip_prefix("~ becomes an "))?
+        .strip_suffix(" until end of turn. It's still a land.")?;
+    let (pt, descriptor) = body.split_once(' ')?;
+    let (power, toughness) = parse_pt(pt)?;
+    let (descriptor, keywords) = match descriptor.split_once(" with ") {
+        Some((head, tail)) => (head, parse_keyword_grants(tail)?),
+        None => (descriptor, Vec::new()),
+    };
+    let words: Vec<&str> = descriptor.split_whitespace().collect();
+    let creature = words.iter().position(|word| *word == "creature")?;
+    if creature == 0 || creature + 1 != words.len() {
+        return None;
+    }
+    let subtype = words[creature - 1];
+    if !is_subtype_word(subtype) {
+        return None;
+    }
+    let qualities = &words[..creature - 1];
+    let (color_words, artifact) = match qualities.last() {
+        Some(&"artifact") => (&qualities[..qualities.len() - 1], true),
+        _ => (qualities, false),
+    };
+    let colors: Option<Vec<&str>> = color_words
+        .iter()
+        .filter(|word| **word != "and")
+        .map(|word| match *word {
+            "white" => Some("White"),
+            "blue" => Some("Blue"),
+            "black" => Some("Black"),
+            "red" => Some("Red"),
+            "green" => Some("Green"),
+            _ => None,
+        })
+        .collect();
+    let colors = colors?;
+    if colors.is_empty() {
+        return None;
+    }
+    let mut modifications = vec!["CardTypes(Add(\"Creature\"))".to_owned()];
+    if artifact {
+        modifications.push("CardTypes(Add(\"Artifact\"))".to_owned());
+    }
+    modifications.extend([
+        format!("Subtypes(Add(\"{subtype}\"))"),
+        format!("Colors(Set([{}]))", colors.join(", ")),
+        format!("Power(Set({power}))"),
+        format!("Toughness(Set({toughness}))"),
+    ]);
+    modifications.extend(
+        keywords
+            .into_iter()
+            .map(|keyword| format!("GainAbility({keyword})")),
+    );
+    Some(ParsedEffect {
+        targets: Vec::new(),
+        effect: format!(
+            "Until(FixedUntil(EndOfTurn), [Modify(This, Several([{}]))])",
+            modifications.join(", ")
+        ),
+    })
+}
+
+/// `Target opponent gains control of it.` — the target player becomes the
+/// controller of the resolving source. Trigger framing rewrites the target
+/// read to `Target(0)` when an event also supplies an anaphoric object.
+fn parse_gains_control(line: &str) -> Option<ParsedEffect> {
+    let subject = strip_prefix_ci(line, "target ")?.strip_suffix(" gains control of it.")?;
+    let filter = match subject {
+        "opponent" => "OpponentOf(Ref(You))".to_owned(),
+        "player" => "Player".to_owned(),
+        _ => return None,
+    };
+    Some(ParsedEffect {
+        targets: vec![format!("TargetOne({filter})")],
+        effect: "GainControl(This, It)".to_owned(),
+    })
+}
+
+/// Two damage instructions sharing one grammatical subject:
+/// "~ deals N damage to X and M damage to Y." The first and second patients
+/// are parsed by the ordinary damage production, then executed sequentially.
+fn parse_damage_and_damage(line: &str) -> Option<ParsedEffect> {
+    let body = line.strip_suffix('.')?;
+    let (lead, rest) = body.split_once(" damage to ")?;
+    let (subject, first_amount) = lead.rsplit_once(" deals ")?;
+    let (first_patient, second) = rest.split_once(" and ")?;
+    if !second.contains(" damage to ") {
+        return None;
+    }
+    let first = parse_deal_damage(&format!(
+        "{subject} deals {first_amount} damage to {first_patient}."
+    ))?;
+    let second = parse_deal_damage(&format!("{subject} deals {second}."))?;
+    let mut targets = first.targets;
+    targets.extend(second.targets);
+    Some(ParsedEffect {
+        targets,
+        effect: format!("Sequentially([{}, {}])", first.effect, second.effect),
+    })
 }
 
 /// The final effect-clause fallthrough: route the whole clause back to the
@@ -795,6 +985,40 @@ fn parse_destroy(line: &str) -> Option<ParsedEffect> {
     })
 }
 
+/// The destroy family has two grammar shapes that deliberately route through
+/// builtin macros rather than duplicating their semantics here:
+///
+/// - "Destroy target X. It can't be regenerated." uses `DestroyNoRegen(It)`.
+/// - A target noun phrase supplied by a nullary `Predicate` macro (currently
+///   "nonbasic land") uses that macro as the target filter.
+fn parse_destroy_no_regen(line: &str) -> Option<ParsedEffect> {
+    let subject =
+        strip_prefix_ci(line, "destroy target ")?.strip_suffix(". It can't be regenerated.")?;
+    let filter = object_target_filter(subject)?;
+    Some(ParsedEffect {
+        targets: vec![format!("TargetOne({filter})")],
+        effect: "DestroyNoRegen(It)".to_owned(),
+    })
+}
+
+fn parse_destroy_macro_target(
+    line: &str,
+    ctx: &ResolveCtx,
+) -> anyhow::Result<Option<ParsedEffect>> {
+    let Some(subject) =
+        strip_prefix_ci(line, "destroy target ").and_then(|rest| rest.strip_suffix('.'))
+    else {
+        return Ok(None);
+    };
+    let Some(matched) = ctx.index.match_kind("Predicate", subject)? else {
+        return Ok(None);
+    };
+    Ok(Some(ParsedEffect {
+        targets: vec![format!("TargetOne({})", matched.macro_name)],
+        effect: "Destroy(It)".to_owned(),
+    }))
+}
+
 /// Self-sacrifice productions ([CR#701.16], the "sacrifice it/~" family that
 /// rides trigger bodies):
 /// - `Sacrifice it.` / `Sacrifice ~.` -> `Sacrifice(This)`, no target. The "it"
@@ -1034,6 +1258,12 @@ fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
         body,
         "~ to its owner's hand" | "it to its owner's hand" | "~ to your hand" | "it to your hand"
     ) {
+        return Some(ParsedEffect {
+            targets: Vec::new(),
+            effect: "Move(This, Hand)".to_owned(),
+        });
+    }
+    if body == "~ from your graveyard to your hand" {
         return Some(ParsedEffect {
             targets: Vec::new(),
             effect: "Move(This, Hand)".to_owned(),
@@ -1425,6 +1655,8 @@ fn parse_deal_damage(line: &str) -> Option<ParsedEffect> {
         _ => {
             let (amt, tail) = body.split_once(" damage to ")?;
             let amount = match &dynamic {
+                None if amt == "that much" => "ThatMuch".to_owned(),
+                None if amt == "X" => "X".to_owned(),
                 None => number_word(amt)?.to_string(),
                 Some(c) => match &c.binder {
                     count::Binder::Variable(var) => {
@@ -1446,6 +1678,12 @@ fn parse_deal_damage(line: &str) -> Option<ParsedEffect> {
         }
     };
     let (targets, selection) = damage_target(tail)?;
+    // Bare X is currently grounded only for mass-damage selections (the
+    // Hurricane family). Other X-damage frames need their surrounding spell
+    // cost threaded into this parser before they can safely opt in.
+    if amount == "X" && !selection.starts_with("SelectAll(") {
+        return None;
+    }
     // A verb takes a single `Reference`; a "to each / to all" shape's patient is
     // a `SelectAll(...)` SELECTION, which can't ride the verb directly — that
     // shape is the `DealsDamageToEach` macro
@@ -1795,6 +2033,7 @@ pub(super) fn number_word(word: &str) -> Option<u32> {
 fn damage_target(text: &str) -> Option<(Vec<String>, String)> {
     Some(match text {
         "any target" => (vec!["AnyTarget".to_owned()], "It".to_owned()),
+        "you" => (Vec::new(), "You".to_owned()),
         "target player" => (vec!["TargetOne(Player)".to_owned()], "It".to_owned()),
         // "target opponent" — a single opponent of you ([CR#102.2]).
         "target opponent" => (
@@ -1817,6 +2056,15 @@ fn damage_target(text: &str) -> Option<(Vec<String>, String)> {
         "each creature and each player" => {
             (Vec::new(), "SelectAll(Or([Creature, Player]))".to_owned())
         }
+        // A qualified creature class unioned with all players (Hurricane):
+        // preserve the creature qualifier on only that arm.
+        _ if text.starts_with("each ") && text.ends_with(" and each player") => {
+            let subject = text
+                .strip_prefix("each ")?
+                .strip_suffix(" and each player")?;
+            let filter = object_target_filter(subject)?;
+            (Vec::new(), format!("SelectAll(Or([{filter}, Player]))"))
+        }
         // A "each <subject>" mass-burn recipient class beyond the bare-noun
         // shapes above (the damage-sweeper family, ~186 corpus lines):
         // "each creature your opponents control" ([CR#608.2d] distributive
@@ -1827,17 +2075,6 @@ fn damage_target(text: &str) -> Option<(Vec<String>, String)> {
         _ if text.starts_with("each ") => {
             let subject = text.strip_prefix("each ")?;
             let filter = object_target_filter(subject)?;
-            // A "with/without <keyword>" quality clause ("each creature
-            // without flying") parses through to a `Has(...)`/`Not(Has(...))`
-            // atom, but the renderer ([`fragment::filter_noun`] in
-            // `deckmaste_cards`) has no arm for it yet — emitting the filter
-            // would silently drop the qualifier on render (the recurring
-            // "no render arm" trap). Decline rather than mint an effect that
-            // can't render back; left unmodeled for a follow-up once the
-            // renderer grows `Has` support.
-            if filter.contains("Has(") {
-                return None;
-            }
             (Vec::new(), format!("SelectAll({filter})"))
         }
         // A "target <subject>" object target whose subject parses through the
@@ -1873,6 +2110,28 @@ mod tests {
         parse_clause(line, &ctx)
             .unwrap()
             .map(|p| (p.targets.join(", "), p.effect))
+    }
+
+    #[test]
+    fn classic_manland_animation() {
+        assert_eq!(
+            parsed("~ becomes a 2/1 red Warrior creature with first strike until end of turn. It's still a land."),
+            Some((
+                String::new(),
+                "Until(FixedUntil(EndOfTurn), [Modify(This, Several([CardTypes(Add(\"Creature\")), Subtypes(Add(\"Warrior\")), Colors(Set([Red])), Power(Set(2)), Toughness(Set(1)), GainAbility(Keyword(FirstStrike))]))])".to_owned(),
+            ))
+        );
+    }
+
+    #[test]
+    fn rhystic_damage_uses_target_sensitive_payer() {
+        assert_eq!(
+            parsed("~ deals 4 damage to any target unless that permanent's controller or that player pays {2}. If they do, ~ deals 2 damage to the permanent or player."),
+            Some((
+                "AnyTarget".to_owned(),
+                "MayPay(actor: Coalesce([ControllerOf(Target(0)), Target(0)]), cost: [Mana([Generic(2)])], and_then: DealDamage(This, 2, Target(0)), or_else: DealDamage(This, 4, Target(0)))".to_owned(),
+            ))
+        );
     }
 
     /// Whether the clause declines under the EMPTY index (pins a bespoke
@@ -2143,12 +2402,12 @@ mod tests {
                     .to_owned()
             ))
         );
-        // "with/without <keyword>" recipients decline: the renderer has no
-        // `Has(...)` arm yet, so parsing one would mint an effect that can't
-        // render back ([`fragment::filter_noun`] in `deckmaste_cards`).
         assert_eq!(
             parsed("~ deals 2 damage to each creature with flying."),
-            None
+            Some((
+                String::new(),
+                "DealsDamageToEach(2, And([Creature, Has(Flying)]))".to_owned()
+            ))
         );
         assert_eq!(
             parsed("~ deals 2 damage to each creature without flying."),
@@ -2412,6 +2671,25 @@ mod tests {
                 "TargetOne(Creature)".to_owned(),
                 "DealDamage(This, 2, It)".to_owned()
             ))
+        );
+    }
+
+    #[test]
+    fn two_damage_instructions_share_the_subject() {
+        assert_eq!(
+            parsed("~ deals 1 damage to any target and 1 damage to you."),
+            Some((
+                "AnyTarget".to_owned(),
+                "Sequentially([DealDamage(This, 1, It), DealDamage(This, 1, You)])".to_owned(),
+            ))
+        );
+    }
+
+    #[test]
+    fn that_much_damage_to_you() {
+        assert_eq!(
+            parsed("it deals that much damage to you."),
+            Some((String::new(), "DealDamage(This, ThatMuch, You)".to_owned()))
         );
     }
 
@@ -3668,6 +3946,20 @@ mod tests {
             ))
         );
         assert_eq!(
+            parsed("Destroy target artifact or land. It can't be regenerated."),
+            Some((
+                "TargetOne(Or([Type(\"Artifact\"), Type(\"Land\")]))".to_owned(),
+                "DestroyNoRegen(It)".to_owned(),
+            ))
+        );
+        assert_eq!(
+            parsed_with_macros("Destroy target nonbasic land."),
+            Some((
+                "TargetOne(NonbasicLand)".to_owned(),
+                "Destroy(It)".to_owned(),
+            ))
+        );
+        assert_eq!(
             parsed("Destroy target artifact or land."),
             Some((
                 "TargetOne(Or([Type(\"Artifact\"), Type(\"Land\")]))".to_owned(),
@@ -3716,6 +4008,13 @@ mod tests {
             Some((
                 String::new(),
                 "DealsDamageToEach(2, Or([Creature, Player]))".to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed("~ deals X damage to each creature with flying and each player."),
+            Some((
+                String::new(),
+                "DealsDamageToEach(X, Or([And([Creature, Has(Flying)]), Player]))".to_owned()
             ))
         );
     }

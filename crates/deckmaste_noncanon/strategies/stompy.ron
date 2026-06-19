@@ -10,19 +10,19 @@
     name: "WC99 Mono-G Stompy",
     rules: [
         // Develop: play a land whenever able.
-        (when: AllOf([]), prefer: Play(what: (pick: First, by: Literal(1)))),
+        (when: And([]), prefer: Play(what: (pick: First, by: Literal(1)))),
         // Deploy the biggest creature the pool can already fund (never a land,
         // which can surface as a zero-cost CastSpell).
-        (when: AllOf([]), prefer: Cast(what: (pick: Max, by: StatOf(This, ManaValue), among: Not(Type(Land))))),
+        (when: And([]), prefer: Cast(what: (pick: Max, by: StatOf(This, ManaValue), among: Not(Type("Land"))))),
         // Ramp toward the next cast: tap lands first so creatures stay untapped
         // to attack; fall back to a mana dork only when lands are exhausted
         // (which still fires the nonland-tap probe when the seat floods).
-        (when: AllOf([]), prefer: Activate(what: (pick: First, by: Literal(1), among: Type(Land)))),
-        (when: AllOf([]), prefer: Activate(what: (pick: First, by: Literal(1), among: Named("Llanowar Elves")))),
+        (when: And([]), prefer: Activate(what: (pick: First, by: Literal(1), among: Type("Land")))),
+        (when: And([]), prefer: Activate(what: (pick: First, by: Literal(1), among: Named("Llanowar Elves")))),
         // Swing with everything that can legally attack.
-        (when: AllOf([]), prefer: Attack(what: (pick: First, by: Literal(1), among: Any))),
+        (when: And([]), prefer: Attack(what: (pick: First, by: Literal(1), among: Any))),
         // Hold the ground.
-        (when: AllOf([]), prefer: Block(BlockAll)),
-        (when: AllOf([]), prefer: Pass),
+        (when: And([]), prefer: Block(BlockAll)),
+        (when: And([]), prefer: Pass),
     ],
 )

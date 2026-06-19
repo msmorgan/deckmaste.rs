@@ -471,6 +471,10 @@ impl GameState {
                 .unwrap_or_else(|| {
                     Self::unbound_ref(reference, "announced target index out of range")
                 }),
+            Reference::Single(selection) => {
+                let values = self.eval_selection_set(selection, frame);
+                if let [only] = values.as_slice() { *only } else { ObjectId::null() }
+            }
             // [CR#603.10a,603.2e,608.2k]: the trigger's provenance-explicit
             // roles, read from the bindings the fired trigger carried. The
             // event OBJECT (the moved/acting object) — `EventObject`.
@@ -509,11 +513,20 @@ impl GameState {
             // [CR#109.5]: the derived controller of a referenced object.
             Reference::ControllerOf(inner) => {
                 let id = self.eval_reference(inner, frame);
-                if id.is_null() {
-                    return id;
+                if id.is_null()
+                    || self.players.iter().any(|p| p.object == id)
+                    || self.objects.get(id).is_none()
+                {
+                    ObjectId::null()
+                } else {
+                    self.player(self.layers().controller(id)).object
                 }
-                self.player(self.layers().controller(id)).object
             }
+            Reference::Coalesce(references) => references
+                .iter()
+                .map(|reference| self.eval_reference(reference, frame))
+                .find(|id| !id.is_null())
+                .unwrap_or_else(ObjectId::null),
             // [CR#108.3]: the owner of a referenced (card-backed) object.
             Reference::OwnerOf(inner) => {
                 let id = self.eval_reference(inner, frame);
@@ -582,6 +595,7 @@ mod tests {
     use deckmaste_core::Selection;
     use deckmaste_core::StatePredicate;
     use deckmaste_core::Zone;
+    use slotmap::Key;
 
     use crate::agenda::WorkItem;
     use crate::event::Occurrence;
@@ -931,6 +945,37 @@ mod tests {
             ),
             state.player(PlayerId(1)).object,
             "controller of player 1's creature is player 1"
+        );
+        let payer = Reference::Coalesce(vec![
+            Reference::ControllerOf(Box::new(Reference::Target(0))),
+            Reference::Target(0),
+        ]);
+        assert_eq!(
+            state.eval_reference(&payer, &frame),
+            state.player(PlayerId(1)).object,
+            "a nonplayer target selects its controller"
+        );
+        let mut player_frame = frame.clone();
+        player_frame.anaphora.targets = vec![vec![state.player(PlayerId(1)).object]];
+        assert_eq!(
+            state.eval_reference(&payer, &player_frame),
+            state.player(PlayerId(1)).object,
+            "a player target falls back to the player itself"
+        );
+        let only_you = Reference::Single(Box::new(Selection::SelectAll(Predicate::Ref(
+            Reference::You,
+        ))));
+        assert_eq!(
+            state.eval_reference(&only_you, &frame),
+            state.player(PlayerId(0)).object,
+            "Single resolves a singleton selection"
+        );
+        let ambiguous_players = Reference::Single(Box::new(Selection::SelectAll(Predicate::Kind(
+            deckmaste_core::ObjectKind::Player,
+        ))));
+        assert!(
+            state.eval_reference(&ambiguous_players, &frame).is_null(),
+            "Single fails closed when the selection has multiple values"
         );
         assert_eq!(
             state.eval_reference(&Reference::OwnerOf(Box::new(Reference::Target(0))), &frame),

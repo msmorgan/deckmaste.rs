@@ -58,8 +58,11 @@ pub fn play_game(setup: Setup, p0: &dyn Strategy, p1: &dyn Strategy) -> GameReco
         starting_life: setup.starting_life,
         starting_player: StartingPlayer::Random,
         sba_rules: setup.rules.sba_rules,
+        conferral_rules: setup.rules.conferral_rules,
+        damage_result_rules: setup.rules.damage_result_rules,
         counter_decls: setup.rules.counter_decls,
         subtypes: setup.rules.subtypes,
+        types: setup.rules.types,
     });
     let proxies = [state.players[0].object, state.players[1].object];
     let strategies: [&dyn Strategy; 2] = [p0, p1];
@@ -114,31 +117,7 @@ pub fn play_game(setup: Setup, p0: &dyn Strategy, p1: &dyn Strategy) -> GameReco
 /// The seat owning a pending decision. (Relocated from the deleted lookahead
 /// module; seam-agnostic.)
 fn pending_player(pending: &PendingDecision) -> PlayerId {
-    match pending {
-        PendingDecision::Priority { player, .. }
-        | PendingDecision::DiscardToHandSize { player, .. }
-        | PendingDecision::DiscardCards { player, .. }
-        | PendingDecision::ChooseManaColor { player, .. }
-        | PendingDecision::ChooseTargets { player, .. }
-        | PendingDecision::PayMana { player, .. }
-        | PendingDecision::OrderTriggers { player, .. }
-        | PendingDecision::DeclareAttackers { player, .. }
-        | PendingDecision::DeclareBlockers { player, .. }
-        | PendingDecision::AssignCombatDamage { player, .. }
-        | PendingDecision::ChooseModes { player, .. }
-        | PendingDecision::Division { player, .. }
-        | PendingDecision::Vote { player, .. }
-        | PendingDecision::YesNo { player, .. }
-        | PendingDecision::ChooseCostOptions { player, .. }
-        | PendingDecision::OrderReplacements { player, .. }
-        | PendingDecision::PreGame { player, .. }
-        | PendingDecision::ChooseObjects { player, .. }
-        | PendingDecision::ChooseXValue { player, .. }
-        | PendingDecision::LegendRule { player, .. }
-        | PendingDecision::Distribute { player, .. } => *player,
-        // [CR#616.1]: the replacement-ordering chooser is the affected player.
-        PendingDecision::ChooseReplacement { chooser, .. } => *chooser,
-    }
+    pending.decider_player()
 }
 
 /// The events of one step's progress (seam-agnostic; relocated from lookahead).
@@ -169,6 +148,7 @@ mod tests {
     /// Two draw-go seats deck out: the loop, mechanical fallbacks, and probes
     /// survive a full game with zero proactive actions.
     #[test]
+    #[cfg_attr(not(wizards_corpus), ignore = "needs generated plugins/wizards corpus")]
     fn passbots_deck_out() {
         let src = CardSource::load();
         let p0 = MatchupStrategy::pass_bot(PlayerId(0));
@@ -177,8 +157,8 @@ mod tests {
             let rec = play_game(
                 Setup {
                     decks: [
-                        deck::build_subset(&wc99::SPED_RED, wc99::SPED_RED_ALLOWLIST, &src),
-                        deck::build_subset(&wc99::STOMPY, wc99::STOMPY_ALLOWLIST, &src),
+                        deck::build_full(&wc99::SPED_RED, &src),
+                        deck::build_full(&wc99::STOMPY, &src),
                     ],
                     seed,
                     starting_life: 20,
@@ -195,5 +175,29 @@ mod tests {
             assert!(rec.loser_lost_for_real);
             assert_eq!(rec.probes.spells_cast, 0);
         }
+    }
+
+    /// One complete game over the exact Worlds 1999 Sped Red and Stompy
+    /// maindecks.
+    #[test]
+    #[cfg_attr(not(wizards_corpus), ignore = "needs generated plugins/wizards corpus")]
+    fn sped_red_vs_stompy99_completes() {
+        let src = CardSource::load();
+        let red = deck::build_full(&wc99::SPED_RED, &src);
+        let green = deck::build_full(&wc99::STOMPY, &src);
+        let rec = play_game(
+            Setup {
+                decks: [red, green],
+                seed: 0,
+                starting_life: 20,
+                rules: src.engine_rules(),
+            },
+            &MatchupStrategy::sped_red(PlayerId(0)),
+            &MatchupStrategy::stompy(PlayerId(1)),
+        );
+        assert!(matches!(rec.outcome, GameOutcome::Win(_)), "{rec:?}");
+        assert!(rec.loser_lost_for_real, "{rec:?}");
+        assert!(rec.turns < 200, "{rec:?}");
+        assert!(rec.probes.spells_cast > 0, "{rec:?}");
     }
 }

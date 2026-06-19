@@ -1,0 +1,8 @@
+// A nonbasic land is a land without the Basic supertype [CR#305.8]. This is
+// zone-agnostic so it also matches nonbasic land cards outside the battlefield.
+(
+    name: "NonbasicLand",
+    template: "nonbasic land",
+    kinds: [Predicate],
+    body: And([Type("Land"), Nonbasic]),
+)

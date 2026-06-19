@@ -1,0 +1,8 @@
+// "Nonbasic" is the reusable quality: lacking the Basic supertype. The
+// land-specific rules term composes this in `NonbasicLand` [CR#305.8].
+(
+    name: "Nonbasic",
+    template: "nonbasic",
+    kinds: [Predicate],
+    body: Not(Supertype(Basic)),
+)

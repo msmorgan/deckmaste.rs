@@ -271,8 +271,12 @@ pub fn matches_with(
 
         // "named X" ([CR#201]): printed face name; a player proxy has no card.
         Predicate::Characteristic(CharacteristicPredicate::Named(name)) => {
+            let expected = match state.resolution_notes.get(name) {
+                Some(crate::state::NotedValue::CardName(chosen)) => chosen.as_str(),
+                _ => name.as_str(),
+            };
             state.objects.obj(id).card_id().is_some()
-                && crate::derive::face(state.def(id)).name.as_str() == name.as_str()
+                && crate::derive::face(state.def(id)).name.as_str() == expected
         }
         // Color predicates over the DERIVED colors ([CR#105.2,202.2]) — a
         // layer-5 color change counts. Same per-call layers() perf seam as

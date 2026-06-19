@@ -487,6 +487,12 @@ pub(super) fn filter_noun(filter: &Predicate) -> String {
         // The trailing "card" noun (skipped when the base noun already IS
         // "card" — the untyped graveyard case above).
         let base = if is_graveyard_card && base != "card" { format!("{base} card") } else { base };
+        // A keyword-quality restrictor rides the noun: "creature with
+        // flying" / "creature without flying".
+        let base = match keyword_quality_suffix(filter) {
+            Some(suffix) => format!("{base} {suffix}"),
+            None => base,
+        };
         // A controller restrictor rides the noun: "creature you control",
         // "creature you don't control", "creature an opponent controls" —
         // the restrictor is printed text, never dropped.
@@ -516,6 +522,26 @@ pub(super) fn filter_noun(filter: &Predicate) -> String {
         }
         other => format!("[unrendered: {other:?}]"),
     }
+}
+
+/// The single keyword-quality phrase among a filter's `And` parts.
+fn keyword_quality_suffix(filter: &Predicate) -> Option<String> {
+    for part in flatten_all_of(filter) {
+        match strip_expanded(part) {
+            Predicate::Characteristic(CharacteristicPredicate::Has(keyword)) => {
+                return Some(format!("with {}", keyword.as_str().to_lowercase()));
+            }
+            Predicate::Not(inner) => {
+                if let Predicate::Characteristic(CharacteristicPredicate::Has(keyword)) =
+                    strip_expanded(inner)
+                {
+                    return Some(format!("without {}", keyword.as_str().to_lowercase()));
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 /// The controller-restrictor phrase among a filter's `And` parts:
@@ -1141,6 +1167,18 @@ mod tests {
             filter_noun(&Predicate::Relation(RelationPredicate::TeammateOf(you()))),
             "teammate"
         );
+        let flying = Predicate::And(vec![
+            Predicate::creature(),
+            Predicate::Characteristic(CharacteristicPredicate::Has("Flying".into())),
+        ]);
+        assert_eq!(filter_noun(&flying), "creature with flying");
+        let nonflying = Predicate::And(vec![
+            Predicate::creature(),
+            Predicate::Not(Box::new(Predicate::Characteristic(
+                CharacteristicPredicate::Has("Flying".into()),
+            ))),
+        ]);
+        assert_eq!(filter_noun(&nonflying), "creature without flying");
     }
 
     /// [`subject_phrase`]'s two inflections over the same qualified filter

@@ -54,23 +54,23 @@ impl Strategy for MatchupStrategy {
             // legendaries). Keep the first same-name legendary — identical
             // copies here, so the pick is strategy-neutral.
             PendingDecision::LegendRule { candidates, .. } => Decision::Chosen(vec![candidates[0]]),
-            // Aim targeted spells at the opponent's face. The data evaluator
-            // CANNOT express this: its `among` frame is candidate-anchored, so
-            // `Ref(You)` resolves to the candidate's own controller (excluding
-            // every player) and `Ref(Opponent)` is an unimplemented engine seam.
-            // Burn therefore has to be aimed here — the one decision pure RON
-            // can't reach. Each slot takes the opponent's face when legal, else
-            // its first legal candidate.
-            PendingDecision::ChooseTargets { player, legal, .. } => {
-                let opp = state.players[1 - player.index()].object;
-                Decision::Targets(
-                    legal
-                        .iter()
-                        .map(|slot| if slot.contains(&opp) { opp } else { slot[0] })
-                        .collect(),
-                )
-            }
+            // Burn targeting (aim at the opponent's face) is now pure RON: the
+            // strategy `among` filter resolves `Ref(You)` from the acting seat,
+            // so `AllOf([Kind(Player), Not(Ref(You))])` names the opponent.
             _ => self.inner.decide(state, pending),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sped_red_strategy_parses_for_both_seats() {
+        let _ = MatchupStrategy::sped_red(PlayerId(0));
+        let _ = MatchupStrategy::sped_red(PlayerId(1));
+        let _ = MatchupStrategy::stompy(PlayerId(0));
+        let _ = MatchupStrategy::stompy(PlayerId(1));
     }
 }

@@ -2128,9 +2128,7 @@ mod tests {
         );
     }
 
-    /// [CR#607.2] write-only note kinds with NO reader grammar stay LOUD
-    /// per-kind: `Color`/`CardName`/`Piles` trip a labeled `todo!` seam rather
-    /// than wire dead machinery.
+    /// [CR#607.2] note kinds without readers stay loud per-kind.
     #[test]
     #[should_panic(expected = "ChooseAndNote(Color)")]
     fn choose_and_note_color_is_a_loud_seam() {
@@ -2146,16 +2144,33 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "ChooseAndNote(CardName)")]
-    fn choose_and_note_card_name_is_a_loud_seam() {
+    fn choose_and_note_card_name_records_the_choice() {
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+
         let (mut state, a) = bear_on_field();
         let frame = frame_src(a);
+        let key = deckmaste_core::Ident::from("cn");
         state.run_effect(
             OneShotEffect::act_by_you(PlayerAction::ChooseAndNote(
-                deckmaste_core::Ident::from("cn"),
+                key,
                 deckmaste_core::NotedKind::CardName,
             )),
             &frame,
+        );
+        run_injected(&mut state);
+        assert!(matches!(
+            state.pending,
+            Some(PendingDecision::ChooseNoteCardName { key: pending, .. }) if pending == key
+        ));
+        state
+            .submit_decision(Decision::CardName("Grizzly Bears".to_owned()))
+            .unwrap();
+        assert_eq!(
+            state.resolution_notes.get(&key),
+            Some(&crate::state::NotedValue::CardName(
+                "Grizzly Bears".to_owned()
+            ))
         );
     }
 

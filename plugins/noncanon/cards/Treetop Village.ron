@@ -1,9 +1,0 @@
-Normal(
-    name: "Treetop Village",
-    types: [Land],
-    abilities: [
-        Static(effects: [Replacement(AsEnters(Tap(This)))]),
-        Activated(cost: [Tap], effect: AddMana(1, Green)),
-        Unsupported("{1}{G}: ~ becomes a 3/3 green Ape creature with trample until end of turn. It's still a land."),
-    ],
-)

@@ -460,6 +460,13 @@ pub(crate) fn mechanical(state: &GameState, pending: &PendingDecision) -> Decisi
         PendingDecision::ChooseXValue { .. } | PendingDecision::ChooseNoteNumber { .. } => {
             Decision::XValue(0)
         }
+        PendingDecision::ChooseNoteCardName { player, .. } => {
+            let name = state.zones.hands[player.index()]
+                .first()
+                .map(|&id| crate::derive::face(state.def(id)).name.clone())
+                .unwrap_or_else(|| "Mountain".to_owned());
+            Decision::CardName(name)
+        }
         // [CR#705.2]: the call is strategically null (win is a fair coin
         // either way) — the headless strategy always calls heads.
         PendingDecision::CallFlip { .. } => Decision::Answer(true),
@@ -513,6 +520,7 @@ pub(crate) fn pending_player(pending: &PendingDecision) -> PlayerId {
         | PendingDecision::AssignCombatDamage { player, .. }
         | PendingDecision::ChooseXValue { player, .. }
         | PendingDecision::ChooseNoteNumber { player, .. }
+        | PendingDecision::ChooseNoteCardName { player, .. }
         | PendingDecision::ChooseNewTargets { player, .. }
         | PendingDecision::LegendRule { player, .. }
         | PendingDecision::CallFlip { player } => *player,

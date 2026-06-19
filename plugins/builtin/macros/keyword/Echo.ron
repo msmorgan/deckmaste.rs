@@ -7,18 +7,10 @@
 // branch; the parser emits the same cost-list shape (`Echo([Mana(...)])`).
 //
 // The intervening-if ([CR#603.4]) is the "came under your control since the
-// beginning of your last upkeep" recheck. The control-change event is
-// representable (`ControlChanged(to: Ref(You))`,
-// [CR#603.2e]), but its lookback WINDOW is not: the closed `Window` vocabulary
-// has no "since your last upkeep" bound. SEAM — `within: ThisTurn` is the
-// closest representable window (correct only when the permanent entered on the
-// controller's own turn before its upkeep; it under-counts a permanent that
-// arrived during a prior turn's later steps, which echo still bills). A
-// faithful evaluation needs a new `Window::SinceYourLastUpkeep` (or an
-// equivalent upkeep-anchored lookback) in deckmaste_core::Window plus a
-// History::scan arm; until then engine execution of the intervening-if is a
-// seam. Graduation (parse-only) is unaffected: this body expands to valid RON
-// and round-trips.
+// beginning of your last upkeep" recheck. "Came under" includes both entering
+// the battlefield under your control and changing control in place; the
+// history query therefore joins `Enters` ([CR#603.6a]) with `ControlChanged`
+// ([CR#603.2e]) under the upkeep-anchored `SinceYour` window.
 (
     name: "Echo",
     template: "echo ${0}",
@@ -29,8 +21,11 @@
         abilities: [Triggered(
             event: StepBegins(at: Beginning(Upkeep), whose: Your),
             condition: Happened(
-                event: ControlChanged(of: Ref(This), to: Ref(You)),
-                within: ThisTurn,
+                event: OneOf([
+                    Enters(And([Ref(This), ControlledBy(Ref(You))])),
+                    ControlChanged(of: Ref(This), to: Ref(You)),
+                ]),
+                within: SinceYour(Beginning(Upkeep)),
             ),
             effect: MustPay(
                 cost: [Splice(Param(0))],

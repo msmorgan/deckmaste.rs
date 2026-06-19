@@ -1,25 +1,22 @@
-// WC99 Sped Red (Le Pine) — greedy data-driven play policy.
-//
-// Phase 1 of the Strategy-seam migration: pure greedy, no lookahead. Casts the
-// cheapest affordable spell each window; when that spell takes a target it is
-// aimed at the opponent's face (`Ref(Opponent)`), so burn goes upstairs. The
-// `Activate` rule floats land mana toward the next cast — restricted to lands
-// so it never sacrifices Mogg Fanatic (whose sac is a non-mana ability on a
-// creature, indistinguishable by object filter from a mana dork).
+// Mark Le Pine's Worlds 1999 Sped Red — greedy mono-red policy against Stompy.
 (
-    name: "WC99 Sped Red",
+    name: "Worlds 1999 Sped Red",
     rules: [
-        // Develop: play a land whenever able.
-        (when: AllOf([]), prefer: Play(what: (pick: First, by: Literal(1)))),
-        // Burn / deploy: cast the cheapest affordable non-land spell. Targeting
-        // (burn to the face) is supplied by `MatchupStrategy` — the data
-        // evaluator's candidate-anchored filter frame can't name a seat-relative
-        // target, so no `target` selector here.
-        (when: AllOf([]), prefer: Cast(what: (pick: Min, by: StatOf(This, ManaValue), among: Not(Type(Land))))),
-        // Ramp toward the next cast (lands only — never Mogg's sacrifice).
-        (when: AllOf([]), prefer: Activate(what: (pick: First, by: Literal(1), among: Type(Land)))),
-        // Swing with everything that can legally attack.
-        (when: AllOf([]), prefer: Attack(what: (pick: First, by: Literal(1), among: Any))),
-        (when: AllOf([]), prefer: Pass),
+        (when: And([]), prefer: Play(what: (pick: First, by: Literal(1)))),
+        (when: And([]), prefer: Cast(
+            what: (pick: Min, by: StatOf(This, ManaValue), among: Not(Type("Land"))),
+            target: (pick: First, by: Literal(1), among: And([Kind(Player), Not(Ref(You))])),
+        )),
+        (when: And([]), prefer: Activate(
+            what: (pick: First, by: Literal(1), among: Type("Land")),
+            target: (pick: First, by: Literal(1), among: Type("Land")),
+        )),
+        (when: And([]), prefer: Activate(
+            what: (pick: First, by: Literal(1), among: Not(Type("Land"))),
+            target: (pick: First, by: Literal(1), among: And([Kind(Player), Not(Ref(You))])),
+        )),
+        (when: And([]), prefer: Attack(what: (pick: First, by: Literal(1), among: Any))),
+        (when: And([]), prefer: Block(BlockAll)),
+        (when: And([]), prefer: Pass),
     ],
 )

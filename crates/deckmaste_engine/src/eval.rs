@@ -975,8 +975,25 @@ impl GameState {
             // current turn; live lanes REFUSE `Within` as vacuous — a
             // soundness property of the Idris model).
             EventFilter::Within(inner, within) => {
-                window_contains(*within, fact.time, self.turn.turn_number)
-                    && self.eval(inner, fact, lane, bindings)
+                let controller = bindings
+                    .frame
+                    .map(|frame| frame.controller)
+                    .or_else(|| self.controller_of_source(bindings.watcher));
+                let in_window = match (*within, fact.seq, controller) {
+                    (Lookback::SinceYour(_), Some(seq), Some(controller)) => {
+                        self.history.position_in_window_for(
+                            seq,
+                            *within,
+                            self.turn.turn_number,
+                            self.turn.current,
+                            self.turn.active_player,
+                            controller,
+                        )
+                    }
+                    (Lookback::SinceYour(_), _, _) => false,
+                    _ => window_contains(*within, fact.time, self.turn.turn_number),
+                };
+                in_window && self.eval(inner, fact, lane, bindings)
             }
 
             // [CR#702.40a,603.3]: the storm refinement — the fact matches iff
@@ -1121,7 +1138,14 @@ impl GameState {
         bindings: &Bindings<'_>,
     ) -> usize {
         self.history
-            .in_window(within, self.turn.turn_number)
+            .in_window_for(
+                within,
+                self.turn.turn_number,
+                self.turn.current,
+                self.turn.active_player,
+                self.controller_of_source(bindings.watcher)
+                    .unwrap_or(self.turn.active_player),
+            )
             .filter(|(seq, _)| upto.is_none_or(|u| *seq <= u))
             .filter_map(|(_, entry)| entry.view.as_ref())
             .filter(|view| self.eval(of, view, Lane::History, bindings))

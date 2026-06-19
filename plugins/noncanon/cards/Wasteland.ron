@@ -1,8 +1,0 @@
-Normal(
-    name: "Wasteland",
-    types: [Land],
-    abilities: [
-        Activated(cost: [Tap], effect: AddMana(1, Colorless)),
-        Unsupported("{T}, Sacrifice ~: Destroy target nonbasic land."),
-    ],
-)

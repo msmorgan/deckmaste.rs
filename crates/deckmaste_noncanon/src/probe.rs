@@ -12,7 +12,9 @@ use deckmaste_engine::ObjectId;
 /// The single card face (relocated from the deleted observe module).
 fn face(card: &Card) -> &CardFace {
     match card {
-        Card::Normal(f) | Card::ModalDfc(f, _) => f,
+        Card::Normal(f) => f,
+        // Two-faced cards (transform/MDFC/split/…): probe the primary face.
+        Card::TwoFaced { front, .. } => front,
     }
 }
 
@@ -51,13 +53,11 @@ impl Probes {
                 } => self.lands_played += 1,
                 GameEvent::SpellCast(_) => self.spells_cast += 1,
                 GameEvent::AbilityActivated { .. } => self.abilities_activated += 1,
-                GameEvent::Attacking(_) => self.attacks_declared += 1,
+                GameEvent::Attacking { .. } => self.attacks_declared += 1,
                 GameEvent::Blocked { .. } => self.blocks_declared += 1,
                 GameEvent::Tapped { object: o, .. }
                     if state.zones.battlefield.contains(o)
-                        && !face(state.def(*o))
-                            .types
-                            .contains(&deckmaste_core::Type::Land) =>
+                        && !face(state.def(*o)).types.iter().any(|t| t.name == "Land") =>
                 {
                     self.nonland_taps += 1;
                 }

@@ -9,11 +9,13 @@
 //! entries to read.
 
 use deckmaste_core::Lookback;
+use deckmaste_core::PhaseStep;
 use deckmaste_core::Uint;
 
 use crate::eval::FactView;
 use crate::eval::window_contains;
 use crate::event::GameEvent;
+use crate::player::PlayerId;
 
 /// One recorded fact and the turn ([CR#500.1]) it occurred in.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -92,6 +94,60 @@ impl History {
             .iter()
             .enumerate()
             .filter(move |(_, e)| window_contains(within, e.turn, current_turn))
+    }
+
+    /// The history entries in a watcher-relative window. `SinceYour(step)`
+    /// anchors immediately after the beginning of the watcher's previous
+    /// matching step. While that step is currently beginning, the just-recorded
+    /// onset is skipped: echo's trigger looks back to the preceding upkeep,
+    /// not to the event that is firing it ([CR#702.30a]).
+    pub(crate) fn in_window_for(
+        &self,
+        within: Lookback,
+        current_turn: Uint,
+        current_step: PhaseStep,
+        active_player: PlayerId,
+        watcher: PlayerId,
+    ) -> impl Iterator<Item = (usize, &HistEntry)> {
+        let anchor = match within {
+            Lookback::SinceYour(step) => {
+                let mut onsets = self.0.iter().enumerate().filter_map(|(seq, entry)| {
+                    entry.view.as_ref().and_then(|view| {
+                        (view.step == Some(step) && view.actor == Some(watcher)).then_some(seq)
+                    })
+                });
+                let latest = onsets.next_back();
+                if current_step == step && active_player == watcher {
+                    onsets.next_back()
+                } else {
+                    latest
+                }
+            }
+            _ => None,
+        };
+
+        self.0
+            .iter()
+            .enumerate()
+            .filter(move |(seq, entry)| match within {
+                Lookback::SinceYour(_) => anchor.is_none_or(|start| *seq > start),
+                _ => window_contains(within, entry.turn, current_turn),
+            })
+    }
+
+    /// Whether a particular history position lies in a watcher-relative
+    /// window. Used by nested `Within` filters after the outer history scan.
+    pub(crate) fn position_in_window_for(
+        &self,
+        seq: usize,
+        within: Lookback,
+        current_turn: Uint,
+        current_step: PhaseStep,
+        active_player: PlayerId,
+        watcher: PlayerId,
+    ) -> bool {
+        self.in_window_for(within, current_turn, current_step, active_player, watcher)
+            .any(|(candidate, _)| candidate == seq)
     }
 
     /// The facts visible through `within`, given `current_turn`

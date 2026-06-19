@@ -1,8 +1,0 @@
-Normal(
-    name: "Giant Growth",
-    mana_cost: [Green],
-    types: [Instant],
-    abilities: [
-        UnsupportedSpell("Target creature gets +3/+3 until end of turn."),
-    ],
-)

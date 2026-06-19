@@ -141,6 +141,9 @@ fn target_slot_reads(body: &str) -> String {
 /// replacement's `would:` is the same `EventFilter`, parsed from the same
 /// enters/dies clause grammar.
 pub(super) fn parse_event(clause: &str) -> Option<String> {
+    if clause == "~ blocks or becomes blocked" {
+        return Some("OneOf([ThisBlocks, ThisBecomesBlocked])".to_owned());
+    }
     // Cast trigger: "you cast X" — the `Cast` onset event ([CR#601.2i]),
     // filtered per [`parse_cast_event`]'s recognized shapes (self, bare
     // spell, card-type/noncreature/instant-or-sorcery, single subtype).
@@ -418,6 +421,8 @@ fn parse_beginning_of(rest: &str) -> Option<(String, &str)> {
     // The plain "<possessive> <step>" / "the <step>" forms.
     let (whose_turn, step) = if let Some(step) = step_clause.strip_prefix("your ") {
         ("Your", step)
+    } else if let Some(step) = step_clause.strip_prefix("each player's ") {
+        ("EachPlayers", step)
     } else {
         let step = step_clause.strip_prefix("the ")?;
         // No possessive -> every player's turn of that step.
@@ -780,6 +785,17 @@ mod tests {
     }
 
     #[test]
+    fn blocks_or_becomes_blocked_gives_target_opponent_control() {
+        assert_eq!(
+            trig("Whenever ~ blocks or becomes blocked, target opponent gains control of it.")
+                .as_deref(),
+            Some(
+                "Triggered(event: OneOf([ThisBlocks, ThisBecomesBlocked]), effect: Targeted(targets: [TargetOne(OpponentOf(Ref(You)))], effect: GainControl(This, Target(0))))"
+            )
+        );
+    }
+
+    #[test]
     fn cast_subtype_spell_with_may_rider() {
         // Lys Alana Huntmaster: "Whenever you cast an Elf spell, you may create a
         // 1/1 green Elf Warrior creature token." — a filtered-cast trigger
@@ -945,6 +961,19 @@ mod tests {
             Some(
                 "Triggered(event: StepBegins(at: Ending(End), whose: EachPlayers), \
                  effect: Sacrifice(This))"
+            )
+        );
+    }
+
+    #[test]
+    fn each_players_upkeep_taps_per_counter() {
+        assert_eq!(
+            trig_builtin(
+                "At the beginning of each player's upkeep, that player taps an untapped artifact, creature, or land they control for each fade counter on ~."
+            )
+            .as_deref(),
+            Some(
+                "Triggered(event: StepBegins(at: Beginning(Upkeep), whose: EachPlayers), effect: Each(binder: Choose(quantity: Exactly(CounterCount(This, FadeCounter)), filter: And([Permanent, Or([Type(\"Artifact\"), Type(\"Creature\"), Type(\"Land\")]), ControlledBy(Ref(EventActor)), Not(Status(Tapped))]), by: EventActor), effect: By(EventActor, Tap(It))))"
             )
         );
     }

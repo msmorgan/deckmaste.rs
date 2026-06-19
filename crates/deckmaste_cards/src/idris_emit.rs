@@ -539,6 +539,7 @@ fn emit_sort(s: &Sort) -> R {
 fn emit_reference(r: &Reference) -> R {
     Ok(match r {
         Reference::This => "This".to_string(),
+        Reference::Single(selection) => app("Single", vec![emit_selection(selection)?]),
         Reference::You => "You".to_string(),
         // No definite "the opponent" Reference in Idris; the closest sound
         // reading is the unique object matching the opponent predicate.
@@ -552,6 +553,7 @@ fn emit_reference(r: &Reference) -> R {
         // The nth announced target ([CR#115.3,601.2c]).
         Reference::Target(n) => app("Target", vec![n.to_string()]),
         Reference::ControllerOf(r) => app("ControllerOf", vec![emit_reference(r)?]),
+        Reference::Coalesce(rs) => app("Coalesce", vec![map_list(rs, emit_reference)?]),
         Reference::OwnerOf(r) => app("OwnerOf", vec![emit_reference(r)?]),
         Reference::AttachHostOf(r) => app("AttachHostOf", vec![emit_reference(r)?]),
         Reference::Bound(_) => {
