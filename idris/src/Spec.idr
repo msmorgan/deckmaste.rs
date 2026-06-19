@@ -30,7 +30,7 @@ tLandCreature = Normal $ fromDefault
 tThatSurvivesDelay : Effect Base
 tThatSurvivesDelay =
   With (Produce (Move (SelectAll (creature)) Exile))
-    (Delayed BeginningOfEndStep (Act (Move That Battlefield)))
+    (Delayed nextEndStep (Act (Move That Battlefield)))
 
 -- branching effects typecheck
 tMay : Effect Base
@@ -80,6 +80,19 @@ tQuantities =
   , Choose anyNumber creature
   ]
 
+-- the event-query language: facets conjoin (`Query`), `Except` negates, timing via
+-- `DuringTurn` — "a creature died, not during your turn".
+tEventQuery : EventQuery Base
+tEventQuery = Query [ KindIs (ZoneChanged (Just Battlefield) (Just Graveyard))
+                    , SourceMatches creature
+                    , Except (DuringTurn You) ]
+
+-- a log-derived history count feeds a condition, and a game `Outcome` wraps into an effect
+tHistoryThenWin : Effect Base
+tHistoryThenWin =
+  If (Compare (EventCount (Query [KindIs Cast, ActorIs You, Within ThisGame])) GreaterEq (Literal 2))
+     (Conclude (WinGame You))
+
 -- NEGATIVE — each must be rejected --------------------------------------------
 
 -- a 2nd target where only one was bound
@@ -102,7 +115,7 @@ failing
 failing
   tBadDelayedTarget : Effect Base
   tBadDelayedTarget = Targeted [anyTarget]
-    (Delayed BeginningOfEndStep (Act (DealDamage (SelectAll (SameAs (GetTarget 0))) (cast 1))))
+    (Delayed nextEndStep (Act (DealDamage (SelectAll (SameAs (GetTarget 0))) (cast 1))))
 
 -- `It` with no enclosing `ForEach`
 failing
