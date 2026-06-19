@@ -15,7 +15,7 @@ LightningBolt = Normal $ fromDefault
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [anyTarget]
-          (Act (DealDamage (SelectRef (GetTarget 0)) (cast 3)))
+          (Act (DealDamage (SelectAll (IsRef (GetTarget 0))) (cast 3)))
         )
       ]
   }
@@ -57,7 +57,7 @@ GiantSpider = Normal $ fromDefault
   , toughness := Just 4
   }
 
--- Untargeted group damage: `DealDamage` to a `SelectFilter`, no `Targeted`.
+-- Untargeted group damage: `DealDamage` to a `SelectAll`, no `Targeted`.
 export
 Pyroclasm : Card
 Pyroclasm = Normal $ fromDefault
@@ -65,7 +65,7 @@ Pyroclasm = Normal $ fromDefault
   , manaCost := [cast 1, cast Red]
   , types := [Sorcery]
   , abilities :=
-      [ Spell (Act (DealDamage (SelectFilter (IsType Creature)) (cast 2)))
+      [ Spell (Act (DealDamage (SelectAll (IsType Creature)) (cast 2)))
       ]
   }
 
@@ -84,7 +84,7 @@ Flickerwisp = Normal $ fromDefault
       [ Keyword Flying
       , Triggered (MovedTo Battlefield (IsRef This)) $
           Targeted [Target 1 (IsAll [permanent, IsNot (IsRef This)])] $
-            With (Produce (Move (SelectRef (GetTarget 0)) Exile)) $  -- exile the target, bind `That`
+            With (Produce (Move (SelectAll (IsRef (GetTarget 0))) Exile)) $  -- exile the target, bind `That`
               Delayed BeginningOfEndStep
                 (Act (Move That Battlefield))                        -- return `That` (captured; target gone)
       ]
@@ -127,7 +127,7 @@ Rancor = Normal $ fromDefault
           ])
       , Triggered
           (PutIntoGraveyard (IsRef This))
-          (Act (Move (SelectRef This) Hand))
+          (Act (Move (SelectAll (IsRef This)) Hand))
       ]
   }
 
@@ -141,7 +141,7 @@ Cloudshift = Normal $ fromDefault
   , types := [Instant]
   , abilities :=
       [ Spell $ Targeted [Target 1 (IsAll [permanent, IsType Creature])] $
-          With (Produce (Move (SelectRef (GetTarget 0)) Exile)) $
+          With (Produce (Move (SelectAll (IsRef (GetTarget 0))) Exile)) $
             Act (Move That Battlefield)
       ]
   }

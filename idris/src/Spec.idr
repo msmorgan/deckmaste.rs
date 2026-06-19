@@ -29,7 +29,7 @@ tLandCreature = Normal $ fromDefault
 -- `That`, bound by a `With`, SURVIVES into a delayed body (captured); targets don't
 tThatSurvivesDelay : Effect Base
 tThatSurvivesDelay =
-  With (Produce (Move (SelectFilter (IsType Creature)) Exile))
+  With (Produce (Move (SelectAll (IsType Creature)) Exile))
     (Delayed BeginningOfEndStep (Act (Move That Battlefield)))
 
 -- branching effects typecheck
@@ -47,26 +47,26 @@ tContinuously = Continuously (Modify This [PlusPT 1 1]) UntilEndOfTurn
 tModal : Effect Base
 tModal = Modal (Choose (cast 1))
   [ MkMode (Act (Draw (cast 1)))
-  , MkMode (Act (DealDamage (SelectFilter (IsType Creature)) (cast 2)))
+  , MkMode (Act (DealDamage (SelectAll (IsType Creature)) (cast 2)))
   ]
 
 -- `Reflexive` NESTS: inside a `With`, its body still sees `That` (no sibling scan)
 tReflexiveSeesThat : Effect Base
 tReflexiveSeesThat =
-  With (Produce (Move (SelectFilter (IsType Creature)) Exile))
+  With (Produce (Move (SelectAll (IsType Creature)) Exile))
     (Reflexive (Act (Move That Battlefield)))
 
 -- `ForEach` binds `It` per element; the body references `It`
 tForEach : Effect Base
-tForEach = ForEach (SelectFilter (IsType Creature))
-  (Act (DealDamage (SelectRef It) (cast 1)))
+tForEach = ForEach (SelectAll (IsType Creature))
+  (Act (DealDamage (SelectAll (IsRef It)) (cast 1)))
 
 -- NEGATIVE — each must be rejected --------------------------------------------
 
 -- a 2nd target where only one was bound
 failing
   tBadTargetRange : Effect Base
-  tBadTargetRange = Targeted [anyTarget] (Act (DealDamage (SelectRef (GetTarget 1)) (cast 1)))
+  tBadTargetRange = Targeted [anyTarget] (Act (DealDamage (SelectAll (IsRef (GetTarget 1))) (cast 1)))
 
 -- `That` with no enclosing `With`
 failing
@@ -83,7 +83,7 @@ failing
 failing
   tBadDelayedTarget : Effect Base
   tBadDelayedTarget = Targeted [anyTarget]
-    (Delayed BeginningOfEndStep (Act (DealDamage (SelectRef (GetTarget 0)) (cast 1))))
+    (Delayed BeginningOfEndStep (Act (DealDamage (SelectAll (IsRef (GetTarget 0))) (cast 1))))
 
 -- `IsTargeted` where no target is bound
 failing
