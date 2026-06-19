@@ -235,6 +235,7 @@ data KeywordAbility : Bindings -> Type where
   Reach : KeywordAbility b
   Trample : KeywordAbility b
   Vigilance : KeywordAbility b
+  Flash : KeywordAbility b
 
 -- Reference / Count / Predicate / Condition / PlayerRef are one mutually recursive
 -- language. A PREDICATE is an object test — its candidate is IMPLICIT, so there's
@@ -257,6 +258,9 @@ mutual
     AttachedTo : Reference b -> Reference b
     -- the element bound by an enclosing `ForEach` ("it"). Gated by `itBound`.
     It : {auto prf : itBound b = True} -> Reference b
+    -- FLAG: the triggering event's object ("that card"). UNGATED — should only be
+    -- available inside a Triggered/Delayed/Replaces body; no typestate for that yet.
+    EventObject : Reference b
 
   -- A numeric value ([CR#107.3]). `Literal` is a bare number; the rest read the
   -- game state. (EventCount/EventSum/CounterCount/Min/ThatMuch deferred.)
@@ -543,6 +547,12 @@ mutual
     Modify : Reference b -> List (Modification b) -> StaticEffect b
     ModifyAll : Filter b -> List (Modification b) -> StaticEffect b   -- anthem: "each [filter] gets [mods]"
 
+  -- What a replacement effect ([CR#614]) does to the event it intercepts.
+  public export
+  data ReplacementBody : Bindings -> Type where
+    Skip : ReplacementBody b                    -- the event doesn't happen ("skip")
+    InsteadDo : Effect b -> ReplacementBody b   -- do this effect instead
+
   -- A castable spell resolves in `Base`: source bound, no top-level targets.
   public export
   data Ability
@@ -556,6 +566,8 @@ mutual
     | Enchant (Filter Base)
     -- a static continuous ability. Rust: Ability::Static.
     | Static (StaticEffect Base)
+    -- "if [event] would happen, [body] instead" — a replacement effect ([CR#614]).
+    | Replaces (EventQuery Base) (ReplacementBody Base)
 
 public export
 record Face where
