@@ -233,13 +233,14 @@ implementation Cast Integer (Quantity b) where
 -- the plural anaphor lives HERE, not there. Mirrors Rust `Selection`.
 public export
 data Selection : Bindings -> Type where
-  SelectFilter : Filter b -> Selection b      -- the set matching a filter
-  SelectRef : Reference b -> Selection b   -- one object as a singleton group (Rust: Selection::Ref)
+  -- the matching objects as one set (Rust: Selection::Filter). A single object is
+  -- just `SelectAll (IsRef r)`, so there's no dedicated ref-to-selection variant.
+  SelectAll : Filter b -> Selection b
   -- the whole ordered group bound by an enclosing `With`. Rust: Selection::Those.
   That : {auto prf : thatBound b = True} -> Selection b
   -- a quantity of untargeted choices at resolution. Rust: Selection::Choose(Qty, Filter).
   SelectChoose : Quantity b -> Filter b -> Selection b
-  -- (no distributive `Each` operand: distribution is `ForEach`, the set is `SelectFilter`.)
+  -- (no distributive `Each` operand: distribution is `ForEach`, the set is `SelectAll`.)
   -- a random quantity of the matching objects. Rust: Selection::Random.
   Random : Quantity b -> Filter b -> Selection b
   -- the top n cards of a library (default: yours). Rust: Selection::TopOfLibrary.
