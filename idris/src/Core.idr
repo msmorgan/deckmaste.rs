@@ -543,11 +543,16 @@ mutual
     GainControl : PlayerRef b -> Modification b         -- "[player] gains control"
     GrantAbility : Ability -> Modification b
 
-  -- A static (continuous) effect: `subject` gets the modifications. Rust: Ability::Static.
+  -- A continuous effect a static (or `Continuously`) ability generates ([CR#611]):
+  -- modify a subject, modify a whole filter (anthem), or REPLACE an event — a
+  -- replacement effect is a continuous effect too ([CR#614]). Rust: the StaticEffect family.
   public export
   data StaticEffect : Bindings -> Type where
     Modify : Reference b -> List (Modification b) -> StaticEffect b
     ModifyAll : Filter b -> List (Modification b) -> StaticEffect b   -- anthem: "each [filter] gets [mods]"
+    -- "if [event] would happen, do [effect] instead" — the card names only the
+    -- replacement (empty = a pure skip); the engine skips the original + handles edges.
+    Replaces : EventQuery b -> Effect b -> StaticEffect b
 
   -- A castable spell resolves in `Base`: source bound, no top-level targets.
   public export
@@ -560,12 +565,9 @@ mutual
     | Triggered (EventQuery Base) (Effect Base)
     -- "Enchant <filter>": what this Aura may attach to. Rust: the Enchant keyword [CR#702.5].
     | Enchant (Filter Base)
-    -- a static continuous ability. Rust: Ability::Static.
+    -- a static continuous ability — modifications, anthems, AND replacement effects
+    -- all live in `StaticEffect` now. Rust: Ability::Static.
     | Static (StaticEffect Base)
-    -- "if [event] would happen, do [effect] instead" — a replacement ([CR#614]). The
-    -- card only specifies the replacement effect (empty = a pure skip); the engine
-    -- handles skipping the original and the rest of the rules, rules-accurately.
-    | Replaces (EventQuery Base) (Effect Base)
 
 public export
 record Face where
