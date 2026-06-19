@@ -32,6 +32,13 @@ tThatSurvivesDelay =
   With (Produce (Move (SelectFilter (IsType Creature)) Exile))
     (Delayed BeginningOfEndStep (Act (Move That Battlefield)))
 
+-- branching effects typecheck
+tMay : Effect Base
+tMay = May (Act (Draw (cast 1)))
+
+tIf : Effect Base
+tIf = If YourTurn (Act (Draw (cast 1)))
+
 -- NEGATIVE — each must be rejected --------------------------------------------
 
 -- a 2nd target where only one was bound
