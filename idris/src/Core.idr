@@ -179,28 +179,28 @@ public export
 Base : Bindings
 Base = MkBindings 0 False False False
 
--- Record-update sugar keeps these indices INVERTIBLE for the unifier (so a
--- polymorphic macro's `b` is inferable at use sites). The discrete-binder proofs
--- (`thatBound`/`itBound`/target) only arise in concrete contexts and reduce there.
+-- Each sets one field. All reconstruct `MkBindings` EXPLICITLY rather than using
+-- record-update sugar (`{ f := v } b`), so that a projection of a bind result
+-- reduces DEFINITIONALLY even when `b` is abstract — sugar has no get-after-set
+-- law for an abstract record, so e.g. `subjectBound (bindSubject b)` would get
+-- stuck. Only `Subject` (used in polymorphic macros) actually exposes this today,
+-- but keeping all five uniform avoids the footgun.
 public export
 bindTargets : Nat -> Bindings -> Bindings
-bindTargets n b = { targetCount := n } b
+bindTargets n b = MkBindings n (thatBound b) (itBound b) (subjectBound b)
 
 public export
 unbindTargets : Bindings -> Bindings
-unbindTargets b = { targetCount := 0 } b
+unbindTargets b = MkBindings 0 (thatBound b) (itBound b) (subjectBound b)
 
 public export
 bindThat : Bindings -> Bindings
-bindThat b = { thatBound := True } b
+bindThat b = MkBindings (targetCount b) True (itBound b) (subjectBound b)
 
 public export
 bindIt : Bindings -> Bindings
-bindIt b = { itBound := True } b
+bindIt b = MkBindings (targetCount b) (thatBound b) True (subjectBound b)
 
--- A filter context supplies the candidate (`Subject`). Reconstructed explicitly
--- (not record-update sugar) so `subjectBound (bindSubject b)` reduces to True
--- DEFINITIONALLY even for abstract `b` — the gate proof the polymorphic macros need.
 public export
 bindSubject : Bindings -> Bindings
 bindSubject b = MkBindings (targetCount b) (thatBound b) (itBound b) True
@@ -348,7 +348,7 @@ data Selection : Bindings -> Type where
   -- the whole ordered group bound by an enclosing `With`. Rust: Selection::Those.
   That : {auto prf : thatBound b = True} -> Selection b
   -- a quantity of untargeted choices at resolution. Rust: Selection::Choose(Qty, Filter).
-  SelectChoose : Quantity b -> Filter b -> Selection b
+  Choose : Quantity b -> Filter b -> Selection b
   -- (no distributive `Each` operand: distribution is `ForEach`, the set is `SelectAll`.)
   -- a random quantity of the matching objects. Rust: Selection::Random.
   Random : Quantity b -> Filter b -> Selection b
@@ -403,7 +403,7 @@ data Duration : Bindings -> Type where
 -- How many modes to choose, for a modal effect ([CR#700.2]). Rust: ChooseSpec.
 public export
 data ChooseSpec : Bindings -> Type where
-  Choose : (count : Count b) -> {default False upTo : Bool} -> {default False repeats : Bool} -> ChooseSpec b
+  MkChooseSpec : (count : Count b) -> {default False upTo : Bool} -> {default False repeats : Bool} -> ChooseSpec b
 
 -- Effects, continuous effects, and abilities are mutually recursive: a one-shot
 -- can CREATE a continuous effect (`Continuously`), a static ability can grant an

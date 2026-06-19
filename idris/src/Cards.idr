@@ -104,7 +104,7 @@ Brainstorm = Normal $ fromDefault
   , abilities :=
       [ Spell $ Sequence
           [ Act (Draw (cast 3))
-          , Act (Move (SelectChoose (cast 2) (inHand)) Library)
+          , Act (Move (Choose (cast 2) (inHand)) Library)
           ]
       ]
   }
@@ -159,7 +159,7 @@ ThroughTheBreach = Normal $ fromDefault
   , types := [Instant]
   , abilities :=
       [ Spell $
-          With (Produce (Move (SelectChoose (cast 1) (allF [inHand, creature])) Battlefield)) $
+          With (Produce (Move (Choose (cast 1) (allF [inHand, creature])) Battlefield)) $
             Delayed BeginningOfEndStep
               (Act (Move That Graveyard))
       ]
