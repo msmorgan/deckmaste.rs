@@ -305,6 +305,22 @@ public export
 implementation Cast EndingStep PhaseStep where
   cast = EndingPhase
 
+public export
+data Cmp = Equal | GreaterEq | LessEq | Greater | Less
+
+-- A truth-valued test ([CR#603.4]-style intervening "if", etc.). Rust: Condition.
+-- (Happened/LegallyAttached/DamagedByDeathtouch deferred — need Window/specifics.)
+public export
+data Condition : Bindings -> Type where
+  Compare : Count b -> Cmp -> Count b -> Condition b   -- numeric test
+  Exists : Filter b -> Condition b                      -- ≥1 object matches
+  Is : Reference b -> Filter b -> Condition b           -- the referenced object matches
+  YourTurn : Condition b
+  DuringPhase : PhaseStep -> Condition b
+  AllOf : List (Condition b) -> Condition b
+  OneOf : List (Condition b) -> Condition b
+  Not : Condition b -> Condition b
+
 -- Trigger conditions a triggered/delayed ability waits for. Rust: the `Event`
 -- enum (ZoneMove{to:Battlefield} for ETB; BeginningOf(Ending(End), …)).
 public export
@@ -323,6 +339,12 @@ data Effect : Bindings -> Type where
   With : Bindable b -> Effect (bindThat b) -> Effect b
   -- a single intrinsic instruction (the verb compartment). Rust: Effect::Act.
   Act : Action b -> Effect b
+  -- "you may [effect]", with optional "if you do / if you don't". Rust: Effect::May.
+  May : (effect : Effect b) -> {default Nothing ifDid : Maybe (Effect b)} -> {default Nothing ifNot : Maybe (Effect b)} -> Effect b
+  -- "if [cond], [thenDo]; otherwise [else]". Rust: Effect::If.
+  If : Condition b -> (thenDo : Effect b) -> {default Nothing otherwise : Maybe (Effect b)} -> Effect b
+  -- "[effect] unless [who] pays [cost]". Rust: Effect::Unless (CostComponent; ManaCost stand-in here).
+  Unless : (effect : Effect b) -> {default You who : PlayerRef b} -> ManaCost -> Effect b
   -- schedule `body` for when `event` fires. `unbindTargets` clears the targets
   -- (stale post-move) but KEEPS bound anaphora like `That` — captured at registration;
   -- the engine decides whether the object is still findable. Rust: Effect::Delayed.
