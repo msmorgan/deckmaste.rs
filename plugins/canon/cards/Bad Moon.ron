@@ -1,15 +1,17 @@
 // Hand-written ability: static prose is beyond the parsers today
 // ("Black creatures get +1/+1.").
 Normal(
-    name: "Bad Moon",
-    mana_cost: [
-        Generic(1),
-        Black,
-    ],
-    types: [Enchantment],
-    abilities: [
-        Static(effects: [
-            Modify(of: Matching(AllOf([Creature, ColorIs(Black)])), changes: [AddPower(1), AddToughness(1)]),
-        ]),
-    ],
+  name: "Bad Moon",
+  mana_cost: [
+    Generic(1),
+    Black,
+  ],
+  types: [
+    Enchantment,
+  ],
+  abilities: [
+    Static(effects: [
+      Modify(of: Matching(AllOf([Creature, ColorIs(Black)])), changes: [AddPower(1), AddToughness(1)]),
+    ]),
+  ],
 )

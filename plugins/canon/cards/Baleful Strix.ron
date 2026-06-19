@@ -1,19 +1,21 @@
 Normal(
-    name: "Baleful Strix",
-    mana_cost: [
-        Blue,
-        Black,
-    ],
-    types: [
-        Artifact,
-        Creature,
-    ],
-    subtypes: [Bird],
-    abilities: [
-        Keyword(Flying),
-        Keyword(Deathtouch),
-        Triggered(event: ThisEnters, effect: Draw(1)),
-    ],
-    power: 1,
-    toughness: 1,
+  name: "Baleful Strix",
+  mana_cost: [
+    Blue,
+    Black,
+  ],
+  types: [
+    Artifact,
+    Creature,
+  ],
+  subtypes: [
+    Bird,
+  ],
+  abilities: [
+    Keyword(Flying),
+    Keyword(Deathtouch),
+    Triggered(event: ThisEnters, effect: Draw(1)),
+  ],
+  power: 1,
+  toughness: 1,
 )

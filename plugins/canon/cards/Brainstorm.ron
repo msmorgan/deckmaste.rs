@@ -1,13 +1,17 @@
 Normal(
-    name: "Brainstorm",
-    mana_cost: [Blue],
-    types: [Instant],
-    abilities: [
-        Spell(
-            effect: Sequence([
-                Draw(3),
-                PutInLibrary(Choose(Exactly(2), AllOf([InZone(Hand), Owner(Ref(You))])), 0),
-            ])
-        )
-    ],
+  name: "Brainstorm",
+  mana_cost: [
+    Blue,
+  ],
+  types: [
+    Instant,
+  ],
+  abilities: [
+    Spell(
+      effect: Sequence([
+        Draw(3),
+        PutInLibrary(Choose(Exactly(2), AllOf([InZone(Hand), Owner(Ref(You))])), 0),
+      ])
+    ),
+  ],
 )

@@ -2,19 +2,23 @@
 // triggered-ability parser today ("Whenever ~ becomes blocked, you gain
 // 2 life.").
 Normal(
-    name: "Deepwood Tantiv",
-    mana_cost: [
-        Generic(4),
-        Green,
-    ],
-    types: [Creature],
-    subtypes: [Beast],
-    abilities: [
-        Triggered(
-            event: StateBecomes(of: Ref(This), becomes: Blocked),
-            effect: GainLife(2),
-        ),
-    ],
-    power: 2,
-    toughness: 4,
+  name: "Deepwood Tantiv",
+  mana_cost: [
+    Generic(4),
+    Green,
+  ],
+  types: [
+    Creature,
+  ],
+  subtypes: [
+    Beast,
+  ],
+  abilities: [
+    Triggered(
+      event: StateBecomes(of: Ref(This), becomes: Blocked),
+      effect: GainLife(2),
+    ),
+  ],
+  power: 2,
+  toughness: 4,
 )

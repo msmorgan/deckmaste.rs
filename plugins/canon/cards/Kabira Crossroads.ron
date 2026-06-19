@@ -1,9 +1,11 @@
 Normal(
-    name: "Kabira Crossroads",
-    types: [Land],
-    abilities: [
-        Static(effects: [Replacement(AsEnters(Tap(This)))]),
-        Triggered(event: ThisEnters, effect: GainLife(2)),
-        Activated(cost: [Tap], effect: AddMana(1, White)),
-    ],
+  name: "Kabira Crossroads",
+  types: [
+    Land,
+  ],
+  abilities: [
+    Static(effects: [Replacement(AsEnters(Tap(This)))]),
+    Triggered(event: ThisEnters, effect: GainLife(2)),
+    Activated(cost: [Tap], effect: AddMana(1, White)),
+  ],
 )

@@ -5,21 +5,26 @@
 // choice-time Must(Target) row; triggered abilities are exempt by the
 // printed wording, a discrimination the `by` grammar can't spell yet).
 Normal(
-    name: "Standard Bearer",
-    mana_cost: [
-        Generic(1),
-        White,
-    ],
-    types: [Creature],
-    subtypes: [Human, Flagbearer],
-    abilities: [
-        Static(effects: [
-            Must(Target(
-                by: ControlledBy(OpponentOf(Ref(You))),
-                on: AllOf([Permanent, Subtype("Flagbearer")]),
-            )),
-        ]),
-    ],
-    power: 1,
-    toughness: 1,
+  name: "Standard Bearer",
+  mana_cost: [
+    Generic(1),
+    White,
+  ],
+  types: [
+    Creature,
+  ],
+  subtypes: [
+    Human,
+    Flagbearer,
+  ],
+  abilities: [
+    Static(effects: [
+      Must(Target(
+        by: ControlledBy(OpponentOf(Ref(You))),
+        on: AllOf([Permanent, Subtype("Flagbearer")]),
+      )),
+    ]),
+  ],
+  power: 1,
+  toughness: 1,
 )

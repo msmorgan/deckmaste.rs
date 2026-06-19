@@ -1,15 +1,19 @@
 Normal(
-    name: "Wall of Stone",
-    mana_cost: [
-        Generic(1),
-        Red,
-        Red,
-    ],
-    types: [Creature],
-    subtypes: [Wall],
-    abilities: [
-        Keyword(Defender),
-    ],
-    power: 0,
-    toughness: 8,
+  name: "Wall of Stone",
+  mana_cost: [
+    Generic(1),
+    Red,
+    Red,
+  ],
+  types: [
+    Creature,
+  ],
+  subtypes: [
+    Wall,
+  ],
+  abilities: [
+    Keyword(Defender),
+  ],
+  power: 0,
+  toughness: 8,
 )

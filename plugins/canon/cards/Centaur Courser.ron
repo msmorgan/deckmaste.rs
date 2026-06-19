@@ -1,14 +1,16 @@
 Normal(
-    name: "Centaur Courser",
-    mana_cost: [
-        Generic(2),
-        Green,
-    ],
-    types: [Creature],
-    subtypes: [
-        Centaur,
-        Warrior,
-    ],
-    power: 3,
-    toughness: 3,
+  name: "Centaur Courser",
+  mana_cost: [
+    Generic(2),
+    Green,
+  ],
+  types: [
+    Creature,
+  ],
+  subtypes: [
+    Centaur,
+    Warrior,
+  ],
+  power: 3,
+  toughness: 3,
 )

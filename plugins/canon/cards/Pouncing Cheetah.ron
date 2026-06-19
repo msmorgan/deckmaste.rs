@@ -1,14 +1,18 @@
 Normal(
-    name: "Pouncing Cheetah",
-    mana_cost: [
-        Generic(2),
-        Green,
-    ],
-    types: [Creature],
-    subtypes: [Cat],
-    abilities: [
-        Keyword(Flash),
-    ],
-    power: 3,
-    toughness: 2,
+  name: "Pouncing Cheetah",
+  mana_cost: [
+    Generic(2),
+    Green,
+  ],
+  types: [
+    Creature,
+  ],
+  subtypes: [
+    Cat,
+  ],
+  abilities: [
+    Keyword(Flash),
+  ],
+  power: 3,
+  toughness: 2,
 )

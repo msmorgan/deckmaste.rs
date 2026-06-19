@@ -1,11 +1,17 @@
 Normal(
-    name: "Typhoid Rats",
-    mana_cost: [Black],
-    types: [Creature],
-    subtypes: [Rat],
-    abilities: [
-        Keyword(Deathtouch),
-    ],
-    power: 1,
-    toughness: 1,
+  name: "Typhoid Rats",
+  mana_cost: [
+    Black,
+  ],
+  types: [
+    Creature,
+  ],
+  subtypes: [
+    Rat,
+  ],
+  abilities: [
+    Keyword(Deathtouch),
+  ],
+  power: 1,
+  toughness: 1,
 )

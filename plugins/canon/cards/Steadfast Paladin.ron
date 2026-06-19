@@ -1,17 +1,19 @@
 Normal(
-    name: "Steadfast Paladin",
-    mana_cost: [
-        Generic(1),
-        White,
-    ],
-    types: [Creature],
-    subtypes: [
-        Dwarf,
-        Knight,
-    ],
-    abilities: [
-        Keyword(Lifelink),
-    ],
-    power: 2,
-    toughness: 2,
+  name: "Steadfast Paladin",
+  mana_cost: [
+    Generic(1),
+    White,
+  ],
+  types: [
+    Creature,
+  ],
+  subtypes: [
+    Dwarf,
+    Knight,
+  ],
+  abilities: [
+    Keyword(Lifelink),
+  ],
+  power: 2,
+  toughness: 2,
 )

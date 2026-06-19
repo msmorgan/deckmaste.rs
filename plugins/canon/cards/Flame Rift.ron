@@ -1,11 +1,13 @@
 Normal(
-    name: "Flame Rift",
-    mana_cost: [
-        Generic(1),
-        Red,
-    ],
-    types: [Sorcery],
-    abilities: [
-        Spell(effect: DealDamage(Filter(Player), 4)),
-    ],
+  name: "Flame Rift",
+  mana_cost: [
+    Generic(1),
+    Red,
+  ],
+  types: [
+    Sorcery,
+  ],
+  abilities: [
+    Spell(effect: DealDamage(Filter(Player), 4)),
+  ],
 )

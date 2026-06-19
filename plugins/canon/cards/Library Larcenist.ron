@@ -1,19 +1,21 @@
 // "Whenever ~ attacks, draw a card." — the attacks-trigger now rides the
 // shared ThisAttacks event macro (event/Attacks.ron).
 Normal(
-    name: "Library Larcenist",
-    mana_cost: [
-        Generic(2),
-        Blue,
-    ],
-    types: [Creature],
-    subtypes: [
-        Merfolk,
-        Rogue,
-    ],
-    abilities: [
-        Triggered(event: ThisAttacks, effect: Draw(1)),
-    ],
-    power: 1,
-    toughness: 2,
+  name: "Library Larcenist",
+  mana_cost: [
+    Generic(2),
+    Blue,
+  ],
+  types: [
+    Creature,
+  ],
+  subtypes: [
+    Merfolk,
+    Rogue,
+  ],
+  abilities: [
+    Triggered(event: ThisAttacks, effect: Draw(1)),
+  ],
+  power: 1,
+  toughness: 2,
 )

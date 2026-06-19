@@ -1,13 +1,18 @@
 Normal(
-    name: "Gladecover Scout",
-    mana_cost: [
-        Green,
-    ],
-    types: [Creature],
-    subtypes: [Elf, Scout],
-    abilities: [
-        Keyword(Hexproof()),
-    ],
-    power: 1,
-    toughness: 1,
+  name: "Gladecover Scout",
+  mana_cost: [
+    Green,
+  ],
+  types: [
+    Creature,
+  ],
+  subtypes: [
+    Elf,
+    Scout,
+  ],
+  abilities: [
+    Keyword(Hexproof()),
+  ],
+  power: 1,
+  toughness: 1,
 )

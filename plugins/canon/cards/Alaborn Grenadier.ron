@@ -1,17 +1,19 @@
 Normal(
-    name: "Alaborn Grenadier",
-    mana_cost: [
-        White,
-        White,
-    ],
-    types: [Creature],
-    subtypes: [
-        Human,
-        Soldier,
-    ],
-    abilities: [
-        Keyword(Vigilance),
-    ],
-    power: 2,
-    toughness: 2,
+  name: "Alaborn Grenadier",
+  mana_cost: [
+    White,
+    White,
+  ],
+  types: [
+    Creature,
+  ],
+  subtypes: [
+    Human,
+    Soldier,
+  ],
+  abilities: [
+    Keyword(Vigilance),
+  ],
+  power: 2,
+  toughness: 2,
 )
