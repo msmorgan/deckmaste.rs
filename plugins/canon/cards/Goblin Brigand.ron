@@ -1,18 +1,23 @@
 // Hand-written ability: requirement prose is beyond the parsers today
 // ("This creature attacks each combat if able.").
 Normal(
-    name: "Goblin Brigand",
-    mana_cost: [
-        Generic(1),
-        Red,
-    ],
-    types: [Creature],
-    subtypes: [Goblin, Warrior],
-    abilities: [
-        Static(effects: [
-            Must(Attack(by: Ref(This))),
-        ]),
-    ],
-    power: 2,
-    toughness: 2,
+  name: "Goblin Brigand",
+  mana_cost: [
+    Generic(1),
+    Red,
+  ],
+  types: [
+    Creature,
+  ],
+  subtypes: [
+    Goblin,
+    Warrior,
+  ],
+  abilities: [
+    Static(effects: [
+      Must(Attack(by: Ref(This))),
+    ]),
+  ],
+  power: 2,
+  toughness: 2,
 )

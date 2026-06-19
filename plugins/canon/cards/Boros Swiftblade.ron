@@ -1,17 +1,19 @@
 Normal(
-    name: "Boros Swiftblade",
-    mana_cost: [
-        Red,
-        White,
-    ],
-    types: [Creature],
-    subtypes: [
-        Human,
-        Soldier,
-    ],
-    abilities: [
-        Keyword(DoubleStrike),
-    ],
-    power: 1,
-    toughness: 2,
+  name: "Boros Swiftblade",
+  mana_cost: [
+    Red,
+    White,
+  ],
+  types: [
+    Creature,
+  ],
+  subtypes: [
+    Human,
+    Soldier,
+  ],
+  abilities: [
+    Keyword(DoubleStrike),
+  ],
+  power: 1,
+  toughness: 2,
 )

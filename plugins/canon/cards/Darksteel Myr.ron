@@ -1,16 +1,18 @@
 Normal(
-    name: "Darksteel Myr",
-    mana_cost: [
-        Generic(3),
-    ],
-    types: [
-        Artifact,
-        Creature,
-    ],
-    subtypes: [Myr],
-    abilities: [
-        Keyword(Indestructible),
-    ],
-    power: 0,
-    toughness: 1,
+  name: "Darksteel Myr",
+  mana_cost: [
+    Generic(3),
+  ],
+  types: [
+    Artifact,
+    Creature,
+  ],
+  subtypes: [
+    Myr,
+  ],
+  abilities: [
+    Keyword(Indestructible),
+  ],
+  power: 0,
+  toughness: 1,
 )

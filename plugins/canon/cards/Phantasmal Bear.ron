@@ -2,19 +2,23 @@
 // triggered-ability parser today ("When ~ becomes the target of a spell
 // or ability, sacrifice it.").
 Normal(
-    name: "Phantasmal Bear",
-    mana_cost: [Blue],
-    types: [Creature],
-    subtypes: [
-        Bear,
-        Illusion,
-    ],
-    abilities: [
-        Triggered(
-            event: BecomesTarget(what: Ref(This)),
-            effect: Sacrifice(This),
-        ),
-    ],
-    power: 2,
-    toughness: 2,
+  name: "Phantasmal Bear",
+  mana_cost: [
+    Blue,
+  ],
+  types: [
+    Creature,
+  ],
+  subtypes: [
+    Bear,
+    Illusion,
+  ],
+  abilities: [
+    Triggered(
+      event: BecomesTarget(what: Ref(This)),
+      effect: Sacrifice(This),
+    ),
+  ],
+  power: 2,
+  toughness: 2,
 )

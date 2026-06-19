@@ -91,14 +91,14 @@ mod tests {
         assert_eq!(
             serialized,
             r##"Todo(
-    name: "Flying",
-    template: "Flying",
-    rules: [
-        "702.9. Flying",
-        r#"702.9b A creature with flying can't be blocked. (See "Reach.")"#,
-        "104.3a A player can concede.
+  name: "Flying",
+  template: "Flying",
+  rules: [
+    "702.9. Flying",
+    r#"702.9b A creature with flying can't be blocked. (See "Reach.")"#,
+    "104.3a A player can concede.
 Example: Someone scooped.",
-    ],
+  ],
 )"##
         );
 

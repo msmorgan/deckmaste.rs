@@ -1,11 +1,13 @@
 Normal(
-    name: "Moonlit Wake",
-    mana_cost: [
-        Generic(2),
-        White,
-    ],
-    types: [Enchantment],
-    abilities: [
-        Triggered(event: Dies(Creature), effect: GainLife(1)),
-    ],
+  name: "Moonlit Wake",
+  mana_cost: [
+    Generic(2),
+    White,
+  ],
+  types: [
+    Enchantment,
+  ],
+  abilities: [
+    Triggered(event: Dies(Creature), effect: GainLife(1)),
+  ],
 )

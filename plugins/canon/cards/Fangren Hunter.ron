@@ -1,15 +1,19 @@
 Normal(
-    name: "Fangren Hunter",
-    mana_cost: [
-        Generic(3),
-        Green,
-        Green,
-    ],
-    types: [Creature],
-    subtypes: [Beast],
-    abilities: [
-        Keyword(Trample),
-    ],
-    power: 4,
-    toughness: 4,
+  name: "Fangren Hunter",
+  mana_cost: [
+    Generic(3),
+    Green,
+    Green,
+  ],
+  types: [
+    Creature,
+  ],
+  subtypes: [
+    Beast,
+  ],
+  abilities: [
+    Keyword(Trample),
+  ],
+  power: 4,
+  toughness: 4,
 )

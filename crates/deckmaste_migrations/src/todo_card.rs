@@ -95,31 +95,14 @@ impl Serialize for RawIdent {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct TodoCardFace {
     pub name: String,
-    #[serde(
-        default,
-        skip_serializing_if = "ManaCost::is_empty",
-        serialize_with = "crate::ron_output::one_line_if_single"
-    )]
+    #[serde(default, skip_serializing_if = "ManaCost::is_empty")]
     pub mana_cost: ManaCost,
-    #[serde(
-        default,
-        skip_serializing_if = "Vec::is_empty",
-        serialize_with = "crate::ron_output::one_line_if_single"
-    )]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub color_indicator: Vec<Color>,
-    #[serde(
-        default,
-        skip_serializing_if = "Vec::is_empty",
-        serialize_with = "crate::ron_output::one_line_if_single"
-    )]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub supertypes: Vec<RawIdent>,
-    #[serde(serialize_with = "crate::ron_output::one_line_if_single")]
     pub types: Vec<RawIdent>,
-    #[serde(
-        default,
-        skip_serializing_if = "Vec::is_empty",
-        serialize_with = "crate::ron_output::one_line_if_single"
-    )]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub subtypes: Vec<RawIdent>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub abilities: Vec<TodoAbility>,
@@ -178,21 +161,26 @@ mod tests {
     /// Keystone: a fully-resolved `TodoCard` (every ability `Parsed`) renders
     /// byte-identical to a finished core `Card` file, so graduation's rename
     /// produces a valid `.ron`. Uses the real `plugins/canon/Lightning Bolt`
-    /// bytes: a `mana_cost: [Red]` inline single array and a multi-line `Spell`
-    /// ability whose `RawValue` capture must reproduce it verbatim — the
-    /// bare-`3`/`AnyTarget` macro sugar a finished card may use is preserved
-    /// untouched (the graduate reader, not this layer, parses it as `Card`).
+    /// bytes: a chopped `mana_cost` array and a multi-line `Spell` ability
+    /// whose `RawValue` capture must reproduce it verbatim — the
+    /// bare-`3`/`AnyTarget` macro sugar a finished card may use is
+    /// preserved untouched (the graduate reader, not this layer, parses it
+    /// as `Card`).
     #[test]
     fn resolved_matches_canon_byte_for_byte() {
         let source = r#"Normal(
-    name: "Lightning Bolt",
-    mana_cost: [Red],
-    types: [Instant],
-    abilities: [
-        Spell(
-            effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), 3)),
-        ),
-    ],
+  name: "Lightning Bolt",
+  mana_cost: [
+    Red,
+  ],
+  types: [
+    Instant,
+  ],
+  abilities: [
+    Spell(
+      effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), 3)),
+    ),
+  ],
 )
 "#;
         // Every ability classified as `Parsed` (no `Unparsed` left).
@@ -224,24 +212,28 @@ mod tests {
         // Note: ron serialises ModalDfc tuple fields inline — `ModalDfc((<face1>),
         // (<face2>))`.
         let source = r#"ModalDfc((
-    name: "Front",
-    types: [Instant],
-    abilities: [
-        Unparsed("Draw a card."),
-    ],
+  name: "Front",
+  types: [
+    Instant,
+  ],
+  abilities: [
+    Unparsed("Draw a card."),
+  ],
 ), (
-    name: "Back",
-    types: [Sorcery],
-    abilities: [
-        Flying,
-    ],
+  name: "Back",
+  types: [
+    Sorcery,
+  ],
+  abilities: [
+    Flying,
+  ],
 ))
 "#;
         assert_eq!(render(&read(source)).unwrap(), source);
     }
 
-    /// A Normal face with structured fields + one Unparsed + a multi-element
-    /// `mana_cost` (chopped) and a single-element `types` (inline).
+    /// A Normal face with structured fields + one Unparsed; every array is
+    /// chopped one element per line (no single-element-inline shortcut).
     #[test]
     fn renders_normal_house_style() {
         let card = read(
@@ -250,17 +242,19 @@ mod tests {
         assert_eq!(
             render(&card).unwrap(),
             r#"Normal(
-    name: "Grizzly Bears",
-    mana_cost: [
-        Generic(1),
-        Green,
-    ],
-    types: [Creature],
-    abilities: [
-        Unparsed("When ~ dies, draw a card."),
-    ],
-    power: 2,
-    toughness: 2,
+  name: "Grizzly Bears",
+  mana_cost: [
+    Generic(1),
+    Green,
+  ],
+  types: [
+    Creature,
+  ],
+  abilities: [
+    Unparsed("When ~ dies, draw a card."),
+  ],
+  power: 2,
+  toughness: 2,
 )
 "#
         );
@@ -270,14 +264,16 @@ mod tests {
     #[test]
     fn round_trips() {
         let source = r#"Normal(
-    name: "X",
-    types: [Creature],
-    abilities: [
-        Unparsed("Draw a card."),
-        Flying,
-    ],
-    power: 1,
-    toughness: 1,
+  name: "X",
+  types: [
+    Creature,
+  ],
+  abilities: [
+    Unparsed("Draw a card."),
+    Flying,
+  ],
+  power: 1,
+  toughness: 1,
 )
 "#;
         let rendered = render(&read(source)).unwrap();

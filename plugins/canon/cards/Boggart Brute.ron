@@ -1,14 +1,19 @@
 Normal(
-    name: "Boggart Brute",
-    mana_cost: [
-        Generic(2),
-        Red,
-    ],
-    types: [Creature],
-    subtypes: [Goblin, Warrior],
-    abilities: [
-        Keyword(Menace),
-    ],
-    power: 3,
-    toughness: 2,
+  name: "Boggart Brute",
+  mana_cost: [
+    Generic(2),
+    Red,
+  ],
+  types: [
+    Creature,
+  ],
+  subtypes: [
+    Goblin,
+    Warrior,
+  ],
+  abilities: [
+    Keyword(Menace),
+  ],
+  power: 3,
+  toughness: 2,
 )

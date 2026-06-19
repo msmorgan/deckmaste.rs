@@ -1,11 +1,15 @@
 Normal(
-    name: "Grizzly Bears",
-    mana_cost: [
-        Generic(1),
-        Green,
-    ],
-    types: [Creature],
-    subtypes: [Bear],
-    power: 2,
-    toughness: 2,
+  name: "Grizzly Bears",
+  mana_cost: [
+    Generic(1),
+    Green,
+  ],
+  types: [
+    Creature,
+  ],
+  subtypes: [
+    Bear,
+  ],
+  power: 2,
+  toughness: 2,
 )

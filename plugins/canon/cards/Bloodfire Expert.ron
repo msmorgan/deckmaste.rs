@@ -1,17 +1,19 @@
 Normal(
-    name: "Bloodfire Expert",
-    mana_cost: [
-        Generic(2),
-        Red,
-    ],
-    types: [Creature],
-    subtypes: [
-        Efreet,
-        Monk,
-    ],
-    abilities: [
-        Keyword(Prowess),
-    ],
-    power: 3,
-    toughness: 1,
+  name: "Bloodfire Expert",
+  mana_cost: [
+    Generic(2),
+    Red,
+  ],
+  types: [
+    Creature,
+  ],
+  subtypes: [
+    Efreet,
+    Monk,
+  ],
+  abilities: [
+    Keyword(Prowess),
+  ],
+  power: 3,
+  toughness: 1,
 )

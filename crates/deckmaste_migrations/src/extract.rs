@@ -390,7 +390,10 @@ mod tests {
         // Render round-trip: the on-disk house style carries the bare subtype
         // ident and the Unparsed oracle line.
         let rendered = render(&todo).unwrap();
-        assert!(rendered.contains("subtypes: [Bear]"), "{rendered}");
+        assert!(
+            rendered.contains("subtypes: [\n    Bear,\n  ]"),
+            "{rendered}"
+        );
         assert!(rendered.contains(r#"Unparsed("Flying")"#), "{rendered}");
     }
 

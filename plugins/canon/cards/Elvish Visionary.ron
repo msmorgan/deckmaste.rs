@@ -1,17 +1,19 @@
 Normal(
-    name: "Elvish Visionary",
-    mana_cost: [
-        Generic(1),
-        Green,
-    ],
-    types: [Creature],
-    subtypes: [
-        Elf,
-        Shaman,
-    ],
-    abilities: [
-        Triggered(event: ThisEnters, effect: Draw(1)),
-    ],
-    power: 1,
-    toughness: 1,
+  name: "Elvish Visionary",
+  mana_cost: [
+    Generic(1),
+    Green,
+  ],
+  types: [
+    Creature,
+  ],
+  subtypes: [
+    Elf,
+    Shaman,
+  ],
+  abilities: [
+    Triggered(event: ThisEnters, effect: Draw(1)),
+  ],
+  power: 1,
+  toughness: 1,
 )
