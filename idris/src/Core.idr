@@ -1,6 +1,6 @@
 ||| Core grammar of the toy MTG card model: characteristics, the `Bindings`
 ||| typestate (what references are in scope), and the filter / reference /
-||| selection / effect / ability trees. Kept deliberately brief — one file.
+||| selection / action / effect / ability trees. Kept deliberately brief.
 module Core
 
 import public Data.Vect
@@ -162,14 +162,11 @@ mutual
     -- negation, for "another" (≠ a referenced object). Rust: Filter::Not.
     IsNot : Filter b -> Filter b
 
+  -- A single GAME OBJECT. Player specifiers live in `PlayerRef`, not here.
   public export
   data Reference : Bindings -> Type where
     -- the source; always available — every spell/ability has one [CR#113.7].
     This : Reference b
-    -- the controller of this ability ([CR#109.5]); always available.
-    You : Reference b
-    -- an opponent of `You` ([CR#102.1]); single-opponent assumption for now.
-    Opponent : Reference b
     -- polymorphic in b; DEMANDS the bindings bound at least an (n+1)-th target.
     GetTarget : (n : Nat) -> {auto prf : ValidTarget n b} -> Reference b
     Only : Filter b -> Reference b
@@ -177,9 +174,15 @@ mutual
     AttachHostOf : Reference b -> Reference b
     -- the attachment ON R — inverse of AttachHostOf. Rust: Reference::AttachedTo.
     AttachedTo : Reference b -> Reference b
-    -- the controller / owner of a referenced object ([CR#109.5,108.3]).
-    ControllerOf : Reference b -> Reference b
-    OwnerOf : Reference b -> Reference b
+
+-- A PLAYER specifier (split out from `Reference`, which is objects-only). Used
+-- as the `actor` of player actions and as a controller/owner derivation.
+public export
+data PlayerRef : Bindings -> Type where
+  You : PlayerRef b                            -- controller of this ability ([CR#109.5])
+  Opponent : PlayerRef b                        -- an opponent ([CR#102.1]); single-opponent for now
+  ControllerOf : Reference b -> PlayerRef b     -- the controller of a referenced object
+  OwnerOf : Reference b -> PlayerRef b          -- the owner of a referenced object ([CR#108.3])
 
 public export
 data TargetSpec : Bindings -> Type where
@@ -200,16 +203,36 @@ data Selection : Bindings -> Type where
   -- a random n of the matching objects. Rust: Selection::Random.
   Random : Nat -> Filter b -> Selection b
   -- the top n cards of a library (default: yours). Rust: Selection::TopOfLibrary.
-  TopOfLibrary : (count : Nat) -> {default You whose : Reference b} -> Selection b
+  TopOfLibrary : (count : Nat) -> {default You whose : PlayerRef b} -> Selection b
+
+-- The verbs ([CR#701]). `Effect::Act` wraps these. Object verbs carry an object
+-- `source` (default `This`); player verbs an `actor : PlayerRef` (default `You`).
+public export
+data Action : Bindings -> Type where
+  -- deal damage to a `Selection`; source object is the agent ([CR#120.1]).
+  DealDamage : {default This source : Reference b} -> Selection b -> Nat -> Action b
+  -- a plain zone change [CR#400.7]; owner-relative, control implicit.
+  Move : Selection b -> Zone -> Action b
+  -- destroy [CR#701.8] / return to hand / counter a stack object [CR#701.6a].
+  Destroy : Selection b -> Action b
+  ReturnToHand : Selection b -> Action b
+  Counter : Selection b -> Action b
+  -- tap / untap [CR#701.26]; attach / unattach [CR#701.3].
+  Tap : Selection b -> Action b
+  Untap : Selection b -> Action b
+  Attach : (what : Selection b) -> (to : Selection b) -> Action b
+  Unattach : Selection b -> Action b
+  -- a player verb: the `actor` draws n cards. Rust: PlayerAction::Draw(Count).
+  Draw : {default You actor : PlayerRef b} -> Nat -> Action b
 
 -- What a binder (`With`) binds as `That`: a QUERY of existing objects, or a
--- PRODUCER — a zone change run for effect, binding its product. The grammar only
+-- PRODUCER — an `Action` run for effect, binding its product. The grammar only
 -- names the role; the ENGINE resolves `That` to the live (reminted or gone)
 -- object, so `MovedRef`/lki/became is a runtime concern, NOT modeled here.
 public export
 data Bindable : Bindings -> Type where
-  Query   : Selection b -> Bindable b         -- bind existing objects (a plain selection)
-  Produce : Selection b -> Zone -> Bindable b -- move the selection to Zone, bind the product as `That`
+  Query   : Selection b -> Bindable b   -- bind existing objects (a plain selection)
+  Produce : Action b -> Bindable b      -- run the action, bind its product (the moved object) as `That`
 
 public export
 data BeginningStep
@@ -263,20 +286,15 @@ public export
 data Effect : Bindings -> Type where
   Sequence : (List (Effect b)) -> Effect b
   Targeted : (Vect n (TargetSpec b)) -> Effect (bindTargets n b) -> Effect b
-  -- binds `that` as `That` for `body`. `that` may PRODUCE a moved object (a zone
-  -- change), so "exile X, then act on That" is one binder. Rust: Effect::With.
+  -- binds `that` as `That` for `body`. `that` may PRODUCE a moved object (an
+  -- Action), so "exile X, then act on That" is one binder. Rust: Effect::With.
   With : Bindable b -> Effect (bindThat b) -> Effect b
-  -- damage goes to a `Selection` (a group), faithful to Rust `DealDamage(Selection, Count)`:
-  -- a single target is `SelectRef (GetTarget n)`; "each creature" is `SelectFilter …`.
-  Damage : {default This source : Reference b} -> (to : Selection b) -> Nat -> Effect b
-  -- a plain zone change [CR#400.7]; destination is owner-relative, control implicit. Rust: Action::Move.
-  Move : Selection b -> Zone -> Effect b
+  -- a single intrinsic instruction (the verb compartment). Rust: Effect::Act.
+  Act : Action b -> Effect b
   -- schedule `body` for when `event` fires. `unbindTargets` clears the targets
   -- (stale post-move) but KEEPS bound anaphora like `That` — captured at registration;
   -- the engine decides whether the object is still findable. Rust: Effect::Delayed.
   Delayed : Event b -> Effect (unbindTargets b) -> Effect b
-  -- a player draws n cards (implicit `You`). Rust: PlayerAction::Draw(Count).
-  Draw : Nat -> Effect b
 
 -- A keyword ability ([CR#702]). Rust: Ability::Keyword(KeywordAbility).
 public export
