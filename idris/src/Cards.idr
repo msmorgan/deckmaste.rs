@@ -190,3 +190,24 @@ ApproachOfTheSecondSun = Normal $ fromDefault
                  , Act (GainLife (cast 7)) ]) }
       ]
   }
+
+-- Two ACTIVATED abilities + a cost algebra + counters. `{4},{T}:` fate-counter a
+-- permanent; `{5},{T},Sacrifice this:` wrath everything not fate-protected, then
+-- clear the counters. Exercises Activated / Cost (mana+tap+sacrifice) / CounterKind /
+-- HasCounter / PutCounters / RemoveAllCounters.
+export
+OblivionStone : Card
+OblivionStone = Normal $ fromDefault
+  { name := "Oblivion Stone"
+  , manaCost := [cast 3]
+  , types := [Artifact]
+  , abilities :=
+      [ Activated (Costs [Mana [cast 4], TapSelf])
+          (Targeted [Target 1 permanent]
+            (Act (PutCounters Fate (Literal 1) (SelectAll (SameAs (GetTarget 0))))))
+      , Activated (Costs [Mana [cast 5], TapSelf, Sacrifice (SelectAll (SameAs This))])
+          (Sequence
+            [ Act (Destroy (SelectAll (AllOf [permanent, IsNot (HasType Land), IsNot (HasCounter Fate)])))
+            , Act (RemoveAllCounters Fate (SelectAll permanent)) ])
+      ]
+  }

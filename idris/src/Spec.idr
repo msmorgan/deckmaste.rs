@@ -93,6 +93,16 @@ tHistoryThenWin =
   If (Compare (EventCount (Query [KindIs Cast, ActorIs You, Within ThisGame])) GreaterEq (Literal 2))
      (Conclude (WinGame You))
 
+-- an activated ability: a multi-component cost algebra + an effect
+tActivated : Ability
+tActivated = Activated (Costs [Mana [cast 2], TapSelf, PayLife (Literal 1)])
+                       (Act (Draw (cast 1)))
+
+-- counters: the `HasCounter` predicate facet + the put/remove verbs
+tCounters : Effect Base
+tCounters = Sequence [ Act (PutCounters P1P1 (Literal 1) (SelectAll creature))
+                     , Act (Destroy (SelectAll (IsNot (HasCounter P1P1)))) ]
+
 -- NEGATIVE — each must be rejected --------------------------------------------
 
 -- a 2nd target where only one was bound

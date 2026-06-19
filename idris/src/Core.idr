@@ -131,6 +131,11 @@ data ObjectKind = IsCard | IsEmblem | IsPlayerKind | IsSpell | IsToken
 public export
 data Supertype = Basic | Legendary | Ongoing | Snow | World
 
+-- A kind of counter ([CR#122]). The TYPE is `CounterKind` — bare `Counter` is taken
+-- by the spell-countering `Action`.
+public export
+data CounterKind = Loyalty | Fate | Charge | P1P1 | M1M1
+
 public export
 data BeginningStep
   = UntapStep
@@ -277,6 +282,7 @@ mutual
     SameAs : Reference b -> Predicate b        -- the candidate IS r ("another" = IsNot (SameAs This))
     SameName : Reference b -> Predicate b      -- shares a name with r ("named [its own name]" = SameName This)
     WasCastFrom : Zone -> Predicate b          -- the object was cast from this zone (cast provenance)
+    HasCounter : CounterKind -> Predicate b    -- has ≥1 of this counter ("without a fate counter" = IsNot (HasCounter Fate))
     -- combinators (distinct from `Condition`'s And/Or/Not):
     AllOf : List (Predicate b) -> Predicate b
     OneOf : List (Predicate b) -> Predicate b
@@ -433,6 +439,9 @@ data Action : Bindings -> Type where
   GainLife : {default You actor : PlayerRef b} -> Count b -> Action b
   -- put a selection into its owner's library at a position ([CR#401]).
   PutIntoLibrary : Selection b -> LibraryPosition b -> Action b
+  -- put / clear counters ([CR#122]). `RemoveAllCounters` clears every counter of a kind.
+  PutCounters : CounterKind -> Count b -> Selection b -> Action b
+  RemoveAllCounters : CounterKind -> Selection b -> Action b
 
 -- What a binder (`With`) binds as `That`: a QUERY of existing objects, or a
 -- PRODUCER — an `Action` run for effect, binding its product. The grammar only
@@ -442,6 +451,17 @@ public export
 data Bindable : Bindings -> Type where
   Existing : Selection b -> Bindable b  -- bind existing objects (a plain selection)
   Produce : Action b -> Bindable b      -- run the action, bind its product (the moved object) as `That`
+
+-- A cost paid to activate an ability ([CR#118,602]). `Costs` conjoins components;
+-- `TapSelf`/`Sacrifice`/… read `This` (the ability's source). Rust: Cost.
+public export
+data Cost : Bindings -> Type where
+  Mana      : ManaCost -> Cost b                 -- "{4}"
+  TapSelf   : Cost b                             -- "{T}"
+  UntapSelf : Cost b                             -- "{Q}"
+  PayLife   : Count b -> Cost b                  -- "Pay N life"
+  Sacrifice : Selection b -> Cost b              -- "Sacrifice this" = Sacrifice (SelectAll (SameAs This))
+  Costs     : List (Cost b) -> Cost b            -- all components together
 
 -- A continuous effect's lifetime ([CR#611.2]). Rust: Duration.
 public export
@@ -510,6 +530,8 @@ mutual
   data Ability
     = Spell (Effect Base)
     | Keyword (KeywordAbility Base)
+    -- "{cost}: {effect}" — an activated ability ([CR#602]). Rust: Ability::Activated.
+    | Activated (Cost Base) (Effect Base)
     -- a triggered ability: when `event` fires, resolve `effect`. Rust: Ability::Triggered.
     | Triggered (EventQuery Base) (Effect Base)
     -- "Enchant <filter>": what this Aura may attach to. Rust: the Enchant keyword [CR#702.5].
