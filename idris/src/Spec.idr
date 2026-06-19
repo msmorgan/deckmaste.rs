@@ -61,14 +61,14 @@ tForEach : Effect Base
 tForEach = ForEach (SelectAll (creature))
   (Act (DealDamage (SelectAll (isRef It)) (cast 1)))
 
--- the collapse: one predicate language. A CLOSED condition can read `This`
--- ("if ~ is a creature") — something a `Filter` could never say...
+-- a CLOSED condition reaches a named object via `Matches` (apply a predicate to a
+-- reference) — "if ~ is a creature".
 tClosedTypeCond : Condition Base
-tClosedTypeCond = HasType This Creature
+tClosedTypeCond = Matches This (HasType Creature)
 
--- ...and a filter is just that same language with `Subject` in scope.
+-- ...and a filter is just a `Predicate` — the candidate is implicit, no `Subject`.
 tSubjectFilter : Filter Base
-tSubjectFilter = Where (HasType Subject Creature)
+tSubjectFilter = HasType Creature
 
 -- the unified `Quantity` (one `Range` constructor) + its helpers all typecheck
 tQuantities : List (Selection Base)
@@ -109,8 +109,8 @@ failing
   tBadItOutside : Reference Base
   tBadItOutside = It
 
--- the gate stays: `Subject` is rejected in a CLOSED condition (no candidate),
--- which is why `Condition` is still useful for triggered intervening-ifs
+-- the split makes the old `CountOf (During …)` category error ILL-TYPED: `CountOf`
+-- takes a `Predicate`, but `During` (a game-state test) is a `Condition`.
 failing
-  tBadSubjectClosed : Condition Base
-  tBadSubjectClosed = HasType Subject Creature
+  tBadCountOfCondition : Count Base
+  tBadCountOfCondition = CountOf (During (MainPhase 0))

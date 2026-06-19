@@ -173,41 +173,33 @@ implementation Cast EndingStep PhaseStep where
 public export
 record Bindings where
   constructor MkBindings
-  targetCount  : Nat
-  thatBound    : Bool   -- a `With`-bound group (`That`)
-  itBound      : Bool   -- a `ForEach`-bound element (`It`)
-  subjectBound : Bool   -- the candidate inside a filter (`Subject`)
+  targetCount : Nat
+  thatBound   : Bool   -- a `With`-bound group (`That`)
+  itBound     : Bool   -- a `ForEach`-bound element (`It`)
 
 -- The bindings a resolving spell starts in: nothing bound yet.
 public export
 Base : Bindings
-Base = MkBindings 0 False False False
+Base = MkBindings 0 False False
 
--- Each sets one field. All reconstruct `MkBindings` EXPLICITLY rather than using
--- record-update sugar (`{ f := v } b`), so that a projection of a bind result
--- reduces DEFINITIONALLY even when `b` is abstract — sugar has no get-after-set
--- law for an abstract record, so e.g. `subjectBound (bindSubject b)` would get
--- stuck. Only `Subject` (used in polymorphic macros) actually exposes this today,
--- but keeping all five uniform avoids the footgun.
+-- Each sets one field, reconstructing `MkBindings` explicitly so a projection of a
+-- bind result reduces definitionally even for abstract `b` (record-update sugar
+-- has no get-after-set law for an abstract record).
 public export
 bindTargets : Nat -> Bindings -> Bindings
-bindTargets n b = MkBindings n (thatBound b) (itBound b) (subjectBound b)
+bindTargets n b = MkBindings n (thatBound b) (itBound b)
 
 public export
 unbindTargets : Bindings -> Bindings
-unbindTargets b = MkBindings 0 (thatBound b) (itBound b) (subjectBound b)
+unbindTargets b = MkBindings 0 (thatBound b) (itBound b)
 
 public export
 bindThat : Bindings -> Bindings
-bindThat b = MkBindings (targetCount b) True (itBound b) (subjectBound b)
+bindThat b = MkBindings (targetCount b) True (itBound b)
 
 public export
 bindIt : Bindings -> Bindings
-bindIt b = MkBindings (targetCount b) (thatBound b) True (subjectBound b)
-
-public export
-bindSubject : Bindings -> Bindings
-bindSubject b = MkBindings (targetCount b) (thatBound b) (itBound b) True
+bindIt b = MkBindings (targetCount b) (thatBound b) True
 
 -- "target n is a legal reference in bindings b".
 public export
@@ -226,11 +218,12 @@ data KeywordAbility : Bindings -> Type where
   Trample : KeywordAbility b
   Vigilance : KeywordAbility b
 
--- Reference / Count / Condition are one mutually recursive predicate language.
--- A *filter* is just a `Condition` with the candidate (`Subject`) in scope, tagged
--- by the `Filter`/`Where` newtype below. The handful of atoms that read a
--- `Reference` (`HasType`, `HasColor`, …) are the irreducible primitives;
--- combinators (`AllOf`/`OneOf`/`Not`) and `Exists` build the rest.
+-- Reference / Count / Predicate / Condition / PlayerRef are one mutually recursive
+-- language. A PREDICATE is an object test — its candidate is IMPLICIT, so there's
+-- NO `Subject` reference or `bindSubject` gate. A *filter* IS a `Predicate`. A
+-- `Condition` is a closed/game-state test that reaches objects only via
+-- `Matches : Reference -> Predicate` (or `exists`/`unique`, below). Combinators:
+-- predicates use `AllOf`/`OneOf`/`Except`; conditions use `And`/`Or`/`Not`.
 mutual
   -- A single GAME OBJECT. Player specifiers live in `PlayerRef`, not here.
   public export
@@ -240,51 +233,52 @@ mutual
     -- DEMANDS the bindings bound at least an (n+1)-th target.
     GetTarget : (n : Nat) -> {auto prf : ValidTarget n b} -> Reference b
     -- the unique object matching a predicate.
-    Only : Condition (bindSubject b) -> Reference b
+    Only : Predicate b -> Reference b
     -- the permanent R is attached to ("enchanted creature"); and its inverse.
     AttachHostOf : Reference b -> Reference b
     AttachedTo : Reference b -> Reference b
     -- the element bound by an enclosing `ForEach` ("it"). Gated by `itBound`.
     It : {auto prf : itBound b = True} -> Reference b
-    -- the candidate being tested in a filter. GATED by `subjectBound` so a CLOSED
-    -- `Condition` (a triggered intervening-if, `If`/`Unless`) can't use it. The
-    -- gate is discharged in filter contexts by the `subjectBoundAfterBind` %hint.
-    Subject : {auto prf : subjectBound b = True} -> Reference b
 
   -- A numeric value ([CR#107.3]). `Literal` is a bare number; the rest read the
   -- game state. (EventCount/EventSum/CounterCount/Min/ThatMuch deferred.)
   public export
   data Count : Bindings -> Type where
-    Literal : Nat -> Count b                          -- a bare number
-    X : Count b                                       -- the chosen {X} value
-    CountOf : Condition (bindSubject b) -> Count b    -- how many objects match a predicate
-    StatOf : Reference b -> Stat -> Count b           -- a referenced object's power/toughness
+    Literal : Nat -> Count b                  -- a bare number
+    X : Count b                               -- the chosen {X} value
+    CountOf : Predicate b -> Count b          -- how many objects match a predicate
+    StatOf : Reference b -> Stat -> Count b   -- a referenced object's power/toughness
 
-  -- THE predicate language ([CR#603.4]). A *filter* is a `Condition` with `Subject`
-  -- bound (wrapped by the `Filter`/`Where` newtype); a closed `Condition b` is an
-  -- intervening-"if". `exists`/`unique` (below) are DERIVED, not primitives.
+  -- A PREDICATE: a test on a single IMPLICIT candidate object — i.e. a *filter*.
+  -- The atoms read the candidate's characteristics; `SameAs r` tests identity.
+  public export
+  data Predicate : Bindings -> Type where
+    HasType : Type_ -> Predicate b
+    HasSupertype : Supertype -> Predicate b
+    HasSubtype : Subtype -> Predicate b
+    HasColor : Color -> Predicate b
+    IsKind : ObjectKind -> Predicate b
+    InZone : Zone -> Predicate b
+    HasKeyword : KeywordAbility b -> Predicate b
+    SameAs : Reference b -> Predicate b        -- the candidate IS r ("another" = Except (SameAs This))
+    -- combinators (distinct from `Condition`'s And/Or/Not):
+    AllOf : List (Predicate b) -> Predicate b
+    OneOf : List (Predicate b) -> Predicate b
+    Except : Predicate b -> Predicate b        -- negation
+
+  -- A CLOSED / game-state test ([CR#603.4]); reaches objects only via `Matches`
+  -- (apply a `Predicate` to a named `Reference`) or `exists`/`unique` (below).
   public export
   data Condition : Bindings -> Type where
-    -- atoms: read a referenced object (the handful of irreducible primitives).
-    HasType : Reference b -> Type_ -> Condition b
-    HasSupertype : Reference b -> Supertype -> Condition b
-    HasSubtype : Reference b -> Subtype -> Condition b
-    HasColor : Reference b -> Color -> Condition b
-    IsKind : Reference b -> ObjectKind -> Condition b
-    InZone : Reference b -> Zone -> Condition b
-    HasKeyword : Reference b -> KeywordAbility b -> Condition b
-    Same : Reference b -> Reference b -> Condition b
-    -- numeric / game-state predicates:
+    Matches : Reference b -> Predicate b -> Condition b   -- does r satisfy the predicate
     Compare : Count b -> Cmp -> Count b -> Condition b
     TurnOf : PlayerRef b -> Condition b   -- it's this player's turn (`yourTurn = TurnOf You`)
     During : PhaseStep -> Condition b
-    -- combinators:
     And : List (Condition b) -> Condition b
     Or : List (Condition b) -> Condition b
     Not : Condition b -> Condition b
 
-  -- A PLAYER specifier (split out from `Reference`, which is objects-only). In the
-  -- mutual block so `Condition.TurnOf` can name it.
+  -- A PLAYER specifier (objects live in `Reference`). In the block so `TurnOf` can name it.
   public export
   data PlayerRef : Bindings -> Type where
     You : PlayerRef b                          -- controller of this ability ([CR#109.5])
@@ -293,66 +287,28 @@ mutual
     OwnerOf : Reference b -> PlayerRef b       -- the owner of a referenced object ([CR#108.3])
 
 
--- A *filter* is a `Condition` with `Subject` in scope (`bindSubject b`), tagged.
--- Its sole constructor IS `Where` — exactly the old `Filter::Where` bridge: every
--- filter is a `Where` around a subject-condition. The newtype (vs a bare alias)
--- exists only so `b` is injectively inferable at use sites (the polymorphic macros).
--- A closed `Condition b` (a triggered intervening-if) is the same language sans `Subject`.
+-- A *filter* is just a `Predicate` — the candidate is the predicate's IMPLICIT
+-- argument, so there's no `Where`/`Subject`/`bindSubject`. The alias is kept only
+-- so selection/target/event signatures read "filter" rather than "predicate".
 public export
-data Filter : Bindings -> Type where
-  Where : Condition (bindSubject b) -> Filter b
-
--- `where<Atom>` helpers: build a `Filter` by testing `Subject` with one atom.
-public export
-whereHasType : Type_ -> Filter b
-whereHasType t = Where $ HasType Subject t
-
-public export
-whereHasSupertype : Supertype -> Filter b
-whereHasSupertype s = Where $ HasSupertype Subject s
-
-public export
-whereHasSubtype : Subtype -> Filter b
-whereHasSubtype s = Where $ HasSubtype Subject s
-
-public export
-whereHasColor : Color -> Filter b
-whereHasColor c = Where $ HasColor Subject c
-
-public export
-whereIsKind : ObjectKind -> Filter b
-whereIsKind k = Where $ IsKind Subject k
-
-public export
-whereInZone : Zone -> Filter b
-whereInZone z = Where $ InZone Subject z
-
-public export
-whereHasKeyword : KeywordAbility (bindSubject b) -> Filter b
-whereHasKeyword kw = Where $ HasKeyword Subject kw
-
-public export
-whereSame : Reference (bindSubject b) -> Filter b
-whereSame r = Where $ Same Subject r
-
-public export
-unFilter : Filter b -> Condition (bindSubject b)
-unFilter (Where c) = c
+Filter : Bindings -> Type
+Filter b = Predicate b
 
 -- "it's your turn" — the common specialization of `TurnOf`.
 public export
 yourTurn : Condition b
 yourTurn = TurnOf You
 
--- `exists`/`unique`: a filter matches ≥1 / exactly-1 object. DERIVED (per the
--- note) from `CountOf` + `Compare`, not primitive constructors.
+-- `exists`/`unique`: a predicate matches ≥1 / exactly-1 object. DERIVED from
+-- `CountOf` + `Compare`, not primitive constructors. (`CountOf` takes a `Predicate`,
+-- so `exists (During …)` is now a TYPE error, not a degenerate term.)
 public export
-exists : Filter b -> Condition b
-exists f = Compare (CountOf (unFilter f)) Greater (Literal 0)
+exists : Predicate b -> Condition b
+exists p = Compare (CountOf p) Greater (Literal 0)
 
 public export
-unique : Filter b -> Condition b
-unique f = Compare (CountOf (unFilter f)) Equal (Literal 1)
+unique : Predicate b -> Condition b
+unique p = Compare (CountOf p) Equal (Literal 1)
 
 public export
 implementation Cast Nat (Count b) where
@@ -397,7 +353,7 @@ data TargetSpec : Bindings -> Type where
 public export
 data Selection : Bindings -> Type where
   -- the matching objects as one set (Rust: Selection::Filter). A single object is
-  -- just `SelectAll (IsRef r)`, so there's no dedicated ref-to-selection variant.
+  -- just `SelectAll (SameAs r)`, so there's no dedicated ref-to-selection variant.
   SelectAll : Filter b -> Selection b
   -- the whole ordered group bound by an enclosing `With`. Rust: Selection::Those.
   That : {auto prf : thatBound b = True} -> Selection b
