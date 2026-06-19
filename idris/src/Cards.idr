@@ -92,9 +92,8 @@ Flickerwisp = Normal $ fromDefault
   , toughness := Just 1
   }
 
--- TRICKY: Draw, then choose two cards from hand and move them onto the library.
--- Faithful to Rust `Sequence([Draw(3), PutInLibrary(Choose(2, hand), top)])`
--- (no `With`/`That` — Brainstorm uses a `Choose`, not the ordered anaphor).
+-- TRICKY: Draw 3, then choose two cards from hand and put them on the library. The
+-- `Choose` is a `Bindable` — it binds the chosen cards as `That`; the body moves `That`.
 export
 Brainstorm : Card
 Brainstorm = Normal $ fromDefault
@@ -104,7 +103,7 @@ Brainstorm = Normal $ fromDefault
   , abilities :=
       [ Spell $ Sequence
           [ Act (Draw (cast 3))
-          , Act (Move (Choose (cast 2) (inHand)) Library)
+          , With (Choose (cast 2) inHand) (Act (Move That Library))
           ]
       ]
   }
@@ -159,9 +158,10 @@ ThroughTheBreach = Normal $ fromDefault
   , types := [Instant]
   , abilities :=
       [ Spell $
-          With (Produce (Move (Choose (cast 1) (AllOf [inHand, creature])) Battlefield)) $
-            Delayed nextEndStep
-              (Act (Move That Graveyard))
+          With (Choose (cast 1) (AllOf [inHand, creature])) $
+            Sequence
+              [ Act (Move That Battlefield)
+              , Delayed nextEndStep (Act (Move That Graveyard)) ]
       ]
   }
 
@@ -269,10 +269,10 @@ TideShaper = Normal $ fromDefault
   , toughness := Just 1
   }
 
--- Necropotence — replacement + trigger + pay-life ability, heavily flagged.
--- FLAGS: "skip your draw step" is a Replaces→Skip on the draw-step-begin event
--- (skipping a turn-based action, approximated); "exile that card" uses the UNGATED
--- EventObject anaphora; "face down" is NOT modeled (the exiled card's hidden state).
+-- Necropotence — "skip your draw step" is a replacement whose effect is nothing (the
+-- engine skips the step); the discard trigger exiles the discarded card; the pay-life
+-- ability draws into exile, deferred to your end step. FLAGS (grammar, not engine): the
+-- "that card" anaphora uses the UNGATED `EventObject`; "face down" isn't modeled.
 export
 Necropotence : Card
 Necropotence = Normal $ fromDefault
@@ -280,7 +280,7 @@ Necropotence = Normal $ fromDefault
   , manaCost := [cast Black, cast Black, cast Black]
   , types := [Enchantment]
   , abilities :=
-      [ Replaces (Query [KindIs (BeginStep (BeginningPhase DrawStep)), DuringTurn You]) Skip
+      [ Replaces (Query [KindIs (BeginStep (BeginningPhase DrawStep)), DuringTurn You]) (Sequence [])
       , Triggered (Query [KindIs Discarded, ActorIs You])
           (Act (Move (SelectAll (SameAs EventObject)) Exile))
       , Activated (PayLife (Literal 1))
@@ -289,10 +289,10 @@ Necropotence = Normal $ fromDefault
       ]
   }
 
--- Notion Thief — a draw-replacement. FLAGS: the "except the first draw in each draw
--- step" exception is APPROXIMATED as `Except (DuringStep draw-step)` — that excludes
--- ALL draw-step draws, not just the first (the turn-based-draw / ordinal distinction
--- isn't modeled); "that player skips that draw" is implicit in the replacement.
+-- Notion Thief — replace an opponent's draw with "you draw a card" instead; the card
+-- just names the replacement, the engine handles the opponent skipping their draw.
+-- FLAG (grammar): "except the first draw each draw step" is approximated as `Except
+-- (DuringStep draw-step)` — we have no ordinal facet to say "the first".
 export
 NotionThief : Card
 NotionThief = Normal $ fromDefault
@@ -303,7 +303,7 @@ NotionThief = Normal $ fromDefault
       [ Keyword Flash
       , Replaces (Query [ KindIs Drew, ActorIs Opponent
                         , Except (Query [DuringStep (BeginningPhase DrawStep)]) ])
-          (InsteadDo (Act (Draw {actor = You} (cast 1))))
+          (Act (Draw {actor = You} (cast 1)))
       ]
   , power := Just 3
   , toughness := Just 1

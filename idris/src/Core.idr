@@ -418,9 +418,8 @@ data Selection : Bindings -> Type where
   SelectAll : Filter b -> Selection b
   -- the whole ordered group bound by an enclosing `With`. Rust: Selection::Those.
   That : {auto prf : thatBound b = True} -> Selection b
-  -- a quantity of untargeted choices at resolution. Rust: Selection::Choose(Qty, Filter).
-  Choose : Quantity b -> Filter b -> Selection b
-  -- (no distributive `Each` operand: distribution is `ForEach`, the set is `SelectAll`.)
+  -- (choosing is interactive — it's a `Bindable`, not a `Selection`. No distributive
+  -- `Each` operand either: distribution is `ForEach`, the set is `SelectAll`.)
   -- a random quantity of the matching objects. Rust: Selection::Random.
   Random : Quantity b -> Filter b -> Selection b
   -- the top n cards of a library (default: yours). Rust: Selection::TopOfLibrary.
@@ -457,14 +456,17 @@ data Action : Bindings -> Type where
   LoseLife : {default You actor : PlayerRef b} -> Count b -> Action b
   Sacrifices : PlayerRef b -> Predicate b -> Action b   -- "[player] sacrifices a [pred]" (they choose which)
 
--- What a binder (`With`) binds as `That`: a QUERY of existing objects, or a
--- PRODUCER — an `Action` run for effect, binding its product. The grammar only
--- names the role; the ENGINE resolves `That` to the live (reminted or gone)
--- object, so `MovedRef`/lki/became is a runtime concern, NOT modeled here.
+-- What a binder (`With`) binds as `That`: a QUERY of existing objects, a PRODUCER
+-- (an `Action` run for effect, binding its product), or a CHOICE (a player picks).
+-- The grammar only names the role; the ENGINE resolves `That` to the live (reminted
+-- or gone) object, so `MovedRef`/lki/became is a runtime concern, NOT modeled here.
 public export
 data Bindable : Bindings -> Type where
   Existing : Selection b -> Bindable b  -- bind existing objects (a plain selection)
   Produce : Action b -> Bindable b      -- run the action, bind its product (the moved object) as `That`
+  -- `by` chooses a `Quantity` of objects matching the filter; the chosen are bound as
+  -- `That`. Choosing is interactive, so it lives here, not in `Selection`. Rust: Selection::Choose.
+  Choose : {default You by : PlayerRef b} -> Quantity b -> Filter b -> Bindable b
 
 -- A cost paid to activate an ability ([CR#118,602]). `Costs` conjoins components;
 -- `TapSelf`/`Sacrifice`/… read `This` (the ability's source). Rust: Cost.
@@ -547,12 +549,6 @@ mutual
     Modify : Reference b -> List (Modification b) -> StaticEffect b
     ModifyAll : Filter b -> List (Modification b) -> StaticEffect b   -- anthem: "each [filter] gets [mods]"
 
-  -- What a replacement effect ([CR#614]) does to the event it intercepts.
-  public export
-  data ReplacementBody : Bindings -> Type where
-    Skip : ReplacementBody b                    -- the event doesn't happen ("skip")
-    InsteadDo : Effect b -> ReplacementBody b   -- do this effect instead
-
   -- A castable spell resolves in `Base`: source bound, no top-level targets.
   public export
   data Ability
@@ -566,8 +562,10 @@ mutual
     | Enchant (Filter Base)
     -- a static continuous ability. Rust: Ability::Static.
     | Static (StaticEffect Base)
-    -- "if [event] would happen, [body] instead" — a replacement effect ([CR#614]).
-    | Replaces (EventQuery Base) (ReplacementBody Base)
+    -- "if [event] would happen, do [effect] instead" — a replacement ([CR#614]). The
+    -- card only specifies the replacement effect (empty = a pure skip); the engine
+    -- handles skipping the original and the rest of the rules, rules-accurately.
+    | Replaces (EventQuery Base) (Effect Base)
 
 public export
 record Face where
