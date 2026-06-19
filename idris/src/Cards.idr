@@ -211,3 +211,60 @@ OblivionStone = Normal $ fromDefault
             , Act (RemoveAllCounters Fate (SelectAll permanent)) ])
       ]
   }
+
+-- A clean ANTHEM: a static `ModifyAll` over "creatures you control". Exercises
+-- ModifyAll + ControlledBy (the controller predicate).
+export
+GloriousAnthem : Card
+GloriousAnthem = Normal $ fromDefault
+  { name := "Glorious Anthem"
+  , manaCost := [cast 1, cast White, cast White]
+  , types := [Enchantment]
+  , abilities :=
+      [ Static (ModifyAll (AllOf [HasType Creature, ControlledBy You]) [PlusPT 1 1]) ]
+  }
+
+-- Liliana of the Veil — the "planeswalkers are pure composite" thesis: loyalty
+-- abilities are Activated abilities whose cost adds/removes Loyalty counters, and the
+-- printed loyalty (3) is "enters with 3 Loyalty counters" (Face.loyalty).
+-- FLAGS: the once-per-turn / sorcery-speed use-limit is NOT modeled; "each player" and
+-- "target player" use the dubious EachPlayer / TargetedPlayer; the −6 pile ultimate is
+-- OMITTED (unrepresentable without pile-division); the "Liliana" planeswalker subtype
+-- is omitted (no planeswalker-subtype enum).
+export
+LilianaOfTheVeil : Card
+LilianaOfTheVeil = Normal $ fromDefault
+  { name := "Liliana of the Veil"
+  , manaCost := [cast 1, cast Black, cast Black]
+  , types := [Planeswalker]
+  , supertypes := [Legendary]
+  , loyalty := Just 3
+  , abilities :=
+      [ Activated (AddCounters Loyalty (Literal 1))
+          (Act (Discard {actor = EachPlayer} (cast 1)))
+      , Activated (RemoveCounters Loyalty (Literal 2))
+          (Targeted [Target 1 (IsKind IsPlayerKind)]
+            (Act (Sacrifices (TargetedPlayer 0) creature)))
+      ]
+  }
+
+-- Tide Shaper — layers + kicker, heavily flagged. The kicked ETB makes a target land
+-- an Island for a duration (AddSubtype + ForAsLongAs). FLAGS: kicker is the WasKicked
+-- boolean (no cost-mode model); the "+1/+1 as long as an opponent controls an Island"
+-- static is OMITTED (no conditional statics); Merfolk/Wizard subtypes omitted.
+export
+TideShaper : Card
+TideShaper = Normal $ fromDefault
+  { name := "Tide Shaper"
+  , manaCost := [cast Blue]
+  , types := [Creature]
+  , abilities :=
+      [ Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
+          (If (Matches This WasKicked)
+              (Targeted [Target 1 (HasType Land)]
+                (Continuously (Modify (GetTarget 0) [AddSubtype (cast Island)])
+                              (ForAsLongAs (Matches This (InZone Battlefield))))))
+      ]
+  , power := Just 1
+  , toughness := Just 1
+  }
