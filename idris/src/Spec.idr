@@ -70,6 +70,16 @@ tClosedTypeCond = HasType This Creature
 tSubjectFilter : Filter Base
 tSubjectFilter = Where (HasType Subject Creature)
 
+-- the unified `Quantity` (one `Range` constructor) + its helpers all typecheck
+tQuantities : List (Selection Base)
+tQuantities =
+  [ SelectChoose (cast 2) creature              -- exactly 2 (the bare-numeral path)
+  , SelectChoose (atLeast (cast 1)) creature
+  , SelectChoose (atMost (cast 3)) creature
+  , SelectChoose (between (cast 1) (cast 3)) creature
+  , SelectChoose anyNumber creature
+  ]
+
 -- NEGATIVE — each must be rejected --------------------------------------------
 
 -- a 2nd target where only one was bound

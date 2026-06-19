@@ -72,16 +72,16 @@ data CreatureSubtype
   = Bear | Rat | Spider | Human | Knight | Goblin | Elf | Zombie | Elemental  -- creature types
 public export
 data EnchantmentSubtype
-  = Aura            -- enchantment type
+  = Aura
 public export
 data ArtifactSubtype
-  = Equipment       -- artifact type
+  = Equipment
 public export
 data LandSubtype
-  = Island          -- land type
+  = Island
 public export
 data BattleSubtype
-  = Siege           -- battle type
+  = Siege
 
 public export
 data Subtype
@@ -278,6 +278,7 @@ mutual
     OneOf : List (Condition b) -> Condition b
     Not : Condition b -> Condition b
 
+
 -- A *filter* is a `Condition` with `Subject` in scope (`bindSubject b`), tagged.
 -- Its sole constructor IS `Where` — exactly the old `Filter::Where` bridge: every
 -- filter is a `Where` around a subject-condition. The newtype (vs a bare alias)
@@ -301,15 +302,29 @@ implementation Cast Integer (Count b) where
 -- A cardinality spec for a choice ([CR#107.3]). Rust: Quantity.
 public export
 data Quantity : Bindings -> Type where
-  Exactly : Count b -> Quantity b
-  AtLeast : Count b -> Quantity b
-  AtMost : Count b -> Quantity b
-  Between : Count b -> Count b -> Quantity b
-  AnyNumber : Quantity b
+  Range : Maybe (Count b) -> Maybe (Count b) -> Quantity b
 
+-- `Range lo hi`: `Nothing` bound = unbounded that side. A bare numeral is the
+-- EXACTLY case (`Range (Just n) (Just n)`); the helpers below name the rest.
 public export
 implementation Cast Integer (Quantity b) where
-  cast = Exactly . Literal . cast {to=Nat}
+  cast n = let k = Literal (cast {to=Nat} n) in Range (Just k) (Just k)
+
+public export
+atLeast : Count b -> Quantity b
+atLeast n = Range (Just n) Nothing
+
+public export
+atMost : Count b -> Quantity b
+atMost n = Range Nothing (Just n)
+
+public export
+between : Count b -> Count b -> Quantity b
+between lo hi = Range (Just lo) (Just hi)
+
+public export
+anyNumber : Quantity b
+anyNumber = Range Nothing Nothing
 
 -- A PLAYER specifier (split out from `Reference`, which is objects-only).
 public export
