@@ -15,7 +15,7 @@ LightningBolt = Normal $ fromDefault
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [anyTarget]
-          (Act (DealDamage (SelectRef (GetTarget 0)) 3))
+          (Act (DealDamage (SelectRef (GetTarget 0)) (cast 3)))
         )
       ]
   }
@@ -65,7 +65,7 @@ Pyroclasm = Normal $ fromDefault
   , manaCost := [cast 1, cast Red]
   , types := [Sorcery]
   , abilities :=
-      [ Spell (Act (DealDamage (SelectFilter (IsType Creature)) 2))
+      [ Spell (Act (DealDamage (SelectFilter (IsType Creature)) (cast 2)))
       ]
   }
 
@@ -103,8 +103,8 @@ Brainstorm = Normal $ fromDefault
   , types := [Instant]
   , abilities :=
       [ Spell $ Sequence
-          [ Act (Draw 3)
-          , Act (Move (SelectChoose 2 (IsInZone Hand)) Library)
+          [ Act (Draw (cast 3))
+          , Act (Move (SelectChoose (cast 2) (IsInZone Hand)) Library)
           ]
       ]
   }
@@ -159,7 +159,7 @@ ThroughTheBreach = Normal $ fromDefault
   , types := [Instant]
   , abilities :=
       [ Spell $
-          With (Produce (Move (SelectChoose 1 (IsAll [IsInZone Hand, IsType Creature])) Battlefield)) $
+          With (Produce (Move (SelectChoose (cast 1) (IsAll [IsInZone Hand, IsType Creature])) Battlefield)) $
             Delayed BeginningOfEndStep
               (Act (Move That Graveyard))
       ]

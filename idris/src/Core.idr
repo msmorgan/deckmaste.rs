@@ -188,6 +188,38 @@ public export
 data TargetSpec : Bindings -> Type where
   Target : Nat -> Filter b -> TargetSpec b
 
+public export
+data Stat = Power | Toughness
+
+-- A numeric value ([CR#107.3]). `Literal` is a bare number; the rest read the
+-- game state. (EventCount/EventSum/CounterCount/Min/ThatMuch deferred.)
+public export
+data Count : Bindings -> Type where
+  Literal : Nat -> Count b                  -- a bare number
+  X : Count b                               -- the chosen {X} value
+  CountOf : Filter b -> Count b             -- cardinality of a filter match ("for each")
+  StatOf : Reference b -> Stat -> Count b   -- a referenced object's power/toughness
+
+public export
+implementation Cast Nat (Count b) where
+  cast = Literal
+public export
+implementation Cast Integer (Count b) where
+  cast = Literal . cast {to=Nat}
+
+-- A cardinality spec for a choice ([CR#107.3]). Rust: Quantity.
+public export
+data Quantity : Bindings -> Type where
+  Exactly : Count b -> Quantity b
+  AtLeast : Count b -> Quantity b
+  AtMost : Count b -> Quantity b
+  Between : Count b -> Count b -> Quantity b
+  AnyNumber : Quantity b
+
+public export
+implementation Cast Integer (Quantity b) where
+  cast = Exactly . Literal . cast {to=Nat}
+
 -- A resolution-time GROUP / choice. `Reference` is single-GameObject only, so
 -- the plural anaphor lives HERE, not there. Mirrors Rust `Selection`.
 public export
@@ -196,21 +228,21 @@ data Selection : Bindings -> Type where
   SelectRef : Reference b -> Selection b   -- one object as a singleton group (Rust: Selection::Ref)
   -- the whole ordered group bound by an enclosing `With`. Rust: Selection::Those.
   That : {auto prf : thatBound b = True} -> Selection b
-  -- choose exactly n matching objects at resolution. Rust: Selection::Choose(Qty, Filter).
-  SelectChoose : Nat -> Filter b -> Selection b
+  -- a quantity of untargeted choices at resolution. Rust: Selection::Choose(Qty, Filter).
+  SelectChoose : Quantity b -> Filter b -> Selection b
   -- every matching object, one at a time — distributive "each". Rust: Selection::Each.
   Each : Filter b -> Selection b
-  -- a random n of the matching objects. Rust: Selection::Random.
-  Random : Nat -> Filter b -> Selection b
+  -- a random quantity of the matching objects. Rust: Selection::Random.
+  Random : Quantity b -> Filter b -> Selection b
   -- the top n cards of a library (default: yours). Rust: Selection::TopOfLibrary.
-  TopOfLibrary : (count : Nat) -> {default You whose : PlayerRef b} -> Selection b
+  TopOfLibrary : (count : Count b) -> {default You whose : PlayerRef b} -> Selection b
 
 -- The verbs ([CR#701]). `Effect::Act` wraps these. Object verbs carry an object
 -- `source` (default `This`); player verbs an `actor : PlayerRef` (default `You`).
 public export
 data Action : Bindings -> Type where
   -- deal damage to a `Selection`; source object is the agent ([CR#120.1]).
-  DealDamage : {default This source : Reference b} -> Selection b -> Nat -> Action b
+  DealDamage : {default This source : Reference b} -> Selection b -> Count b -> Action b
   -- a plain zone change [CR#400.7]; owner-relative, control implicit.
   Move : Selection b -> Zone -> Action b
   -- destroy [CR#701.8] / return to hand / counter a stack object [CR#701.6a].
@@ -223,7 +255,7 @@ data Action : Bindings -> Type where
   Attach : (what : Selection b) -> (to : Selection b) -> Action b
   Unattach : Selection b -> Action b
   -- a player verb: the `actor` draws n cards. Rust: PlayerAction::Draw(Count).
-  Draw : {default You actor : PlayerRef b} -> Nat -> Action b
+  Draw : {default You actor : PlayerRef b} -> Count b -> Action b
 
 -- What a binder (`With`) binds as `That`: a QUERY of existing objects, or a
 -- PRODUCER — an `Action` run for effect, binding its product. The grammar only

@@ -37,7 +37,7 @@ tThatSurvivesDelay =
 -- a 2nd target where only one was bound
 failing
   tBadTargetRange : Effect Base
-  tBadTargetRange = Targeted [anyTarget] (Act (DealDamage (SelectRef (GetTarget 1)) 1))
+  tBadTargetRange = Targeted [anyTarget] (Act (DealDamage (SelectRef (GetTarget 1)) (cast 1)))
 
 -- `That` with no enclosing `With`
 failing
@@ -54,7 +54,7 @@ failing
 failing
   tBadDelayedTarget : Effect Base
   tBadDelayedTarget = Targeted [anyTarget]
-    (Delayed BeginningOfEndStep (Act (DealDamage (SelectRef (GetTarget 0)) 1)))
+    (Delayed BeginningOfEndStep (Act (DealDamage (SelectRef (GetTarget 0)) (cast 1))))
 
 -- `IsTargeted` where no target is bound
 failing
