@@ -82,10 +82,10 @@ Flickerwisp = Normal $ fromDefault
   , subtypes := [cast Elemental]
   , abilities :=
       [ Keyword Flying
-      , Triggered (MovedTo Battlefield (SameAs This)) $
+      , Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)]) $
           Targeted [Target 1 (AllOf [permanent, IsNot (SameAs This)])] $
             With (Produce (Move (SelectAll (SameAs (GetTarget 0))) Exile)) $  -- exile the target, bind `That`
-              Delayed BeginningOfEndStep
+              Delayed nextEndStep
                 (Act (Move That Battlefield))                        -- return `That` (captured; target gone)
       ]
   , power := Just 3
@@ -126,7 +126,7 @@ Rancor = Normal $ fromDefault
           , GrantAbility (Keyword Trample)
           ])
       , Triggered
-          (PutIntoGraveyard (SameAs This))
+          (Query [KindIs (ZoneChanged (Just Battlefield) (Just Graveyard)), SourceMatches (SameAs This)])
           (Act (Move (SelectAll (SameAs This)) Hand))
       ]
   }
@@ -160,7 +160,33 @@ ThroughTheBreach = Normal $ fromDefault
   , abilities :=
       [ Spell $
           With (Produce (Move (Choose (cast 1) (AllOf [inHand, creature])) Battlefield)) $
-            Delayed BeginningOfEndStep
+            Delayed nextEndStep
               (Act (Move That Graveyard))
+      ]
+  }
+
+-- TRICKY: Approach of the Second Sun — an alternate WIN CONDITION gated on game
+-- history. `EventCount` (log-derived) counts this game's prior casts of this same
+-- spell; ≥2 (the current cast is itself logged) ⇒ you win. Otherwise burrow it 7th
+-- from the top and gain 7. Exercises Outcome / EventQuery / SameName / WasCastFrom /
+-- positional library / GainLife.
+export
+ApproachOfTheSecondSun : Card
+ApproachOfTheSecondSun = Normal $ fromDefault
+  { name := "Approach of the Second Sun"
+  , manaCost := [cast 6, cast White]
+  , types := [Sorcery]
+  , abilities :=
+      [ Spell $
+          If (And [ Matches This (WasCastFrom Hand)
+                  , Compare (EventCount (Query [ KindIs Cast
+                                               , ActorIs You
+                                               , SourceMatches (SameName This)
+                                               , Within ThisGame ]))
+                            GreaterEq (Literal 2) ])
+             (Conclude (WinGame You))
+             { otherwise = Just (Sequence
+                 [ Act (PutIntoLibrary (SelectAll (SameAs This)) (FromTop (cast 6)))
+                 , Act (GainLife (cast 7)) ]) }
       ]
   }

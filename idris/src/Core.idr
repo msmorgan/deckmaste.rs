@@ -168,6 +168,19 @@ public export
 implementation Cast EndingStep PhaseStep where
   cast = EndingPhase
 
+-- A history-lookback / timing scope for an `EventQuery`. Rust: Window.
+public export
+data Window = ThisGame | ThisTurn | LastTurn | ThisCombat | ThisStep
+
+-- What KIND of event an `EventQuery` matches. `ZoneChanged`/`BeginStep` carry data;
+-- "dies" = ZoneChanged (Just Battlefield) (Just Graveyard). (`Drew`/`DealtDamage` are
+-- past-tense to avoid clashing with the `Action` verbs `Draw`/`DealDamage`.)
+public export
+data EventKind
+  = Cast | Sacrificed | Drew | Discarded | DealtDamage
+  | ZoneChanged (Maybe Zone) (Maybe Zone)
+  | BeginStep PhaseStep
+
 -- `Bindings`: the typestate of what references are in scope. Its fields are
 -- PROJECTIONS we write constraints against; it grows as the model binds roles.
 public export
@@ -248,6 +261,7 @@ mutual
     X : Count b                               -- the chosen {X} value
     CountOf : Predicate b -> Count b          -- how many objects match a predicate
     StatOf : Reference b -> Stat -> Count b   -- a referenced object's power/toughness
+    EventCount : EventQuery b -> Count b      -- how many matching events occurred (window is in the query)
 
   -- A PREDICATE: a test on a single IMPLICIT candidate object — i.e. a *filter*.
   -- The atoms read the candidate's characteristics; `SameAs r` tests identity.
@@ -261,6 +275,8 @@ mutual
     InZone : Zone -> Predicate b
     HasKeyword : KeywordAbility b -> Predicate b
     SameAs : Reference b -> Predicate b        -- the candidate IS r ("another" = IsNot (SameAs This))
+    SameName : Reference b -> Predicate b      -- shares a name with r ("named [its own name]" = SameName This)
+    WasCastFrom : Zone -> Predicate b          -- the object was cast from this zone (cast provenance)
     -- combinators (distinct from `Condition`'s And/Or/Not):
     AllOf : List (Predicate b) -> Predicate b
     OneOf : List (Predicate b) -> Predicate b
@@ -285,6 +301,22 @@ mutual
     Opponent : PlayerRef b                     -- an opponent ([CR#102.1]); single-opponent for now
     ControllerOf : Reference b -> PlayerRef b  -- the controller of a referenced object
     OwnerOf : Reference b -> PlayerRef b       -- the owner of a referenced object ([CR#108.3])
+
+  -- A query OVER EVENTS: the matcher for triggers, `EventCount`, and durations — the
+  -- event analog of `Predicate`. Facets conjoin via `Query`; `Join`/`Except` are
+  -- or/not. `SourceMatches` embeds the object language; `Within`/`DuringStep`/
+  -- `DuringTurn` are the timing facets ("not during your turn" = `Except (DuringTurn You)`).
+  public export
+  data EventQuery : Bindings -> Type where
+    KindIs        : EventKind -> EventQuery b
+    SourceMatches : Predicate b -> EventQuery b
+    ActorIs       : PlayerRef b -> EventQuery b
+    Within        : Window -> EventQuery b
+    DuringStep    : PhaseStep -> EventQuery b
+    DuringTurn    : PlayerRef b -> EventQuery b
+    Query  : List (EventQuery b) -> EventQuery b   -- AND
+    Join   : List (EventQuery b) -> EventQuery b   -- OR
+    Except : EventQuery b -> EventQuery b          -- NOT
 
 
 -- A *filter* is just a `Predicate` — the candidate is the predicate's IMPLICIT
@@ -316,6 +348,19 @@ implementation Cast Nat (Count b) where
 public export
 implementation Cast Integer (Count b) where
   cast = Literal . cast {to=Nat}
+
+-- A game-result effect ([CR#104]). Its own category above `Action` — a game-ender
+-- isn't just another verb; `Effect`'s `Conclude` wraps it.
+public export
+data Outcome : Bindings -> Type where
+  WinGame  : PlayerRef b -> Outcome b
+  LoseGame : PlayerRef b -> Outcome b
+
+-- Where a card goes in a library ([CR#401]). `FromTop (Literal 0)` = on top.
+public export
+data LibraryPosition : Bindings -> Type where
+  FromTop    : Count b -> LibraryPosition b
+  FromBottom : Count b -> LibraryPosition b
 
 -- A cardinality spec for a choice ([CR#107.3]). Rust: Quantity.
 public export
@@ -384,6 +429,10 @@ data Action : Bindings -> Type where
   Unattach : Selection b -> Action b
   -- a player verb: the `actor` draws n cards. Rust: PlayerAction::Draw(Count).
   Draw : {default You actor : PlayerRef b} -> Count b -> Action b
+  -- the `actor` gains n life. Rust: PlayerAction::GainLife(Count).
+  GainLife : {default You actor : PlayerRef b} -> Count b -> Action b
+  -- put a selection into its owner's library at a position ([CR#401]).
+  PutIntoLibrary : Selection b -> LibraryPosition b -> Action b
 
 -- What a binder (`With`) binds as `That`: a QUERY of existing objects, or a
 -- PRODUCER — an `Action` run for effect, binding its product. The grammar only
@@ -391,22 +440,14 @@ data Action : Bindings -> Type where
 -- object, so `MovedRef`/lki/became is a runtime concern, NOT modeled here.
 public export
 data Bindable : Bindings -> Type where
-  Query   : Selection b -> Bindable b   -- bind existing objects (a plain selection)
+  Existing : Selection b -> Bindable b  -- bind existing objects (a plain selection)
   Produce : Action b -> Bindable b      -- run the action, bind its product (the moved object) as `That`
-
--- Trigger conditions a triggered/delayed ability waits for. Rust: the `Event` enum.
-public export
-data Event : Bindings -> Type where
-  MovedTo : Zone -> Filter b -> Event b           -- matching object enters `Zone`
-  BeginningOfEndStep : Event b                     -- "at the beginning of the next end step"
-  OnStep : PhaseStep -> Event b
-  PutIntoGraveyard : Filter b -> Event b           -- battlefield → graveyard ("dies"-style)
 
 -- A continuous effect's lifetime ([CR#611.2]). Rust: Duration.
 public export
 data Duration : Bindings -> Type where
   UntilEndOfTurn : Duration b
-  UntilEvent : Event b -> Duration b
+  UntilEvent : EventQuery b -> Duration b
   ForAsLongAs : Condition b -> Duration b
   Permanent : Duration b                       -- rest of game (Rust: EndOfGame)
 
@@ -427,6 +468,8 @@ mutual
     With : Bindable b -> Effect (bindThat b) -> Effect b
     -- a single intrinsic instruction (the verb compartment). Rust: Effect::Act.
     Act : Action b -> Effect b
+    -- end the game (or a player's part in it) — the `Outcome` compartment. Rust: Effect::Conclude.
+    Conclude : Outcome b -> Effect b
     -- "you may [effect]", with optional "if you do / if you don't". Rust: Effect::May.
     May : (effect : Effect b) -> {default Nothing ifDid : Maybe (Effect b)} -> {default Nothing ifNot : Maybe (Effect b)} -> Effect b
     -- "if [cond], [thenDo]; otherwise [else]". Rust: Effect::If.
@@ -444,7 +487,7 @@ mutual
     -- `That`/targets stay in scope; no event-scanning sibling. Rust: Effect::Reflexive.
     Reflexive : Effect b -> Effect b
     -- schedule `body` for `event`; `unbindTargets` keeps `That`, drops targets. Rust: Effect::Delayed.
-    Delayed : Event b -> Effect (unbindTargets b) -> Effect b
+    Delayed : EventQuery b -> Effect (unbindTargets b) -> Effect b
 
   -- one option of a modal effect: an effect plus an optional extra cost. Rust: Mode.
   public export
@@ -468,7 +511,7 @@ mutual
     = Spell (Effect Base)
     | Keyword (KeywordAbility Base)
     -- a triggered ability: when `event` fires, resolve `effect`. Rust: Ability::Triggered.
-    | Triggered (Event Base) (Effect Base)
+    | Triggered (EventQuery Base) (Effect Base)
     -- "Enchant <filter>": what this Aura may attach to. Rust: the Enchant keyword [CR#702.5].
     | Enchant (Filter Base)
     -- a static continuous ability. Rust: Ability::Static.

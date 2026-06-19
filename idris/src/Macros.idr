@@ -18,6 +18,11 @@ public export
 inHand : Filter b
 inHand = InZone Hand
 
+-- "at the beginning of the next end step" — the common delayed-trigger event.
+public export
+nextEndStep : EventQuery b
+nextEndStep = KindIs (BeginStep (EndingPhase EndStep))
+
 public export
 anyTarget : TargetSpec b
 anyTarget = Target 1 $ OneOf
