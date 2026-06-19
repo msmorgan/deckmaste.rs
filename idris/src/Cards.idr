@@ -308,3 +308,23 @@ NotionThief = Normal $ fromDefault
   , power := Just 3
   , toughness := Just 1
   }
+
+-- Banishing Light — the O-Ring "exile until this leaves" pattern, fully representable
+-- with no new machinery. The ETB exiles a target (an opponent's nonland permanent, via
+-- the ControlledBy predicate) and binds it as `That`; a DELAYED trigger keyed on THIS
+-- leaving the battlefield returns `That`. The "until" is just a Delayed on the
+-- leave-event — same Produce/That/Delayed shape as Flickerwisp.
+export
+BanishingLight : Card
+BanishingLight = Normal $ fromDefault
+  { name := "Banishing Light"
+  , manaCost := [cast 2, cast White]
+  , types := [Enchantment]
+  , abilities :=
+      [ Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)]) $
+          Targeted [Target 1 (AllOf [permanent, IsNot (HasType Land), ControlledBy Opponent])] $
+            With (Produce (Move (SelectAll (SameAs (GetTarget 0))) Exile)) $
+              Delayed (Query [KindIs (ZoneChanged (Just Battlefield) Nothing), SourceMatches (SameAs This)])
+                (Act (Move That Battlefield))
+      ]
+  }
