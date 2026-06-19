@@ -29,7 +29,7 @@ tLandCreature = Normal $ fromDefault
 -- `That`, bound by a `With`, SURVIVES into a delayed body (captured); targets don't
 tThatSurvivesDelay : Effect Base
 tThatSurvivesDelay =
-  With (Produce (Move (SelectAll (IsType Creature)) Exile))
+  With (Produce (Move (SelectAll (creature)) Exile))
     (Delayed BeginningOfEndStep (Act (Move That Battlefield)))
 
 -- branching effects typecheck
@@ -47,26 +47,35 @@ tContinuously = Continuously (Modify This [PlusPT 1 1]) UntilEndOfTurn
 tModal : Effect Base
 tModal = Modal (Choose (cast 1))
   [ MkMode (Act (Draw (cast 1)))
-  , MkMode (Act (DealDamage (SelectAll (IsType Creature)) (cast 2)))
+  , MkMode (Act (DealDamage (SelectAll (creature)) (cast 2)))
   ]
 
 -- `Reflexive` NESTS: inside a `With`, its body still sees `That` (no sibling scan)
 tReflexiveSeesThat : Effect Base
 tReflexiveSeesThat =
-  With (Produce (Move (SelectAll (IsType Creature)) Exile))
+  With (Produce (Move (SelectAll (creature)) Exile))
     (Reflexive (Act (Move That Battlefield)))
 
 -- `ForEach` binds `It` per element; the body references `It`
 tForEach : Effect Base
-tForEach = ForEach (SelectAll (IsType Creature))
-  (Act (DealDamage (SelectAll (IsRef It)) (cast 1)))
+tForEach = ForEach (SelectAll (creature))
+  (Act (DealDamage (SelectAll (isRef It)) (cast 1)))
+
+-- the collapse: one predicate language. A CLOSED condition can read `This`
+-- ("if ~ is a creature") — something a `Filter` could never say...
+tClosedTypeCond : Condition Base
+tClosedTypeCond = HasType This Creature
+
+-- ...and a filter is just that same language with `Subject` in scope.
+tSubjectFilter : Filter Base
+tSubjectFilter = AsFilter (HasType Subject Creature)
 
 -- NEGATIVE — each must be rejected --------------------------------------------
 
 -- a 2nd target where only one was bound
 failing
   tBadTargetRange : Effect Base
-  tBadTargetRange = Targeted [anyTarget] (Act (DealDamage (SelectAll (IsRef (GetTarget 1))) (cast 1)))
+  tBadTargetRange = Targeted [anyTarget] (Act (DealDamage (SelectAll (isRef (GetTarget 1))) (cast 1)))
 
 -- `That` with no enclosing `With`
 failing
@@ -83,14 +92,15 @@ failing
 failing
   tBadDelayedTarget : Effect Base
   tBadDelayedTarget = Targeted [anyTarget]
-    (Delayed BeginningOfEndStep (Act (DealDamage (SelectAll (IsRef (GetTarget 0))) (cast 1))))
-
--- `IsTargeted` where no target is bound
-failing
-  tBadIsTargeted : Filter Base
-  tBadIsTargeted = IsTargeted
+    (Delayed BeginningOfEndStep (Act (DealDamage (SelectAll (isRef (GetTarget 0))) (cast 1))))
 
 -- `It` with no enclosing `ForEach`
 failing
   tBadItOutside : Reference Base
   tBadItOutside = It
+
+-- the gate stays: `Subject` is rejected in a CLOSED condition (no candidate),
+-- which is why `Condition` is still useful for triggered intervening-ifs
+failing
+  tBadSubjectClosed : Condition Base
+  tBadSubjectClosed = HasType Subject Creature
