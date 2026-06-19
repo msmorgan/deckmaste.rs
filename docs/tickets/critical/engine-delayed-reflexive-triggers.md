@@ -1,5 +1,5 @@
 ---
-needs: [engine-resolve-effects]
+needs: [engine-resolve-effects, engine-find-moved-object]
 ---
 Delayed ([CR#603.7]) and reflexive ([CR#603.12]) triggered abilities created
 during effect resolution. `Effect::Delayed(TriggeredAbility)` and
