@@ -378,6 +378,15 @@ data LibraryPosition : Bindings -> Type where
   FromTop    : Count b -> LibraryPosition b
   FromBottom : Count b -> LibraryPosition b
 
+-- A continuous effect's lifetime ([CR#611.2]). Rust: Duration. (Above `Action` so a
+-- duration-bounded verb like `ExileUntil` can name it.)
+public export
+data Duration : Bindings -> Type where
+  UntilEndOfTurn : Duration b
+  UntilEvent : EventQuery b -> Duration b
+  ForAsLongAs : Condition b -> Duration b
+  Permanent : Duration b                       -- rest of game (Rust: EndOfGame)
+
 -- A cardinality spec for a choice ([CR#107.3]). Rust: Quantity.
 public export
 data Quantity : Bindings -> Type where
@@ -433,6 +442,9 @@ data Action : Bindings -> Type where
   DealDamage : {default This source : Reference b} -> Selection b -> Count b -> Action b
   -- a plain zone change [CR#400.7]; owner-relative, control implicit.
   Move : Selection b -> Zone -> Action b
+  -- exile a selection UNTIL a duration ends, then return it — the duration-bounded
+  -- "exile until ~" form ([CR#603.6e]), NOT a leave-triggered return (see Oblivion Ring).
+  ExileUntil : Selection b -> Duration b -> Action b
   -- destroy [CR#701.8] / return to hand / counter a stack object [CR#701.6a].
   Destroy : Selection b -> Action b
   ReturnToHand : Selection b -> Action b
@@ -480,14 +492,6 @@ data Cost : Bindings -> Type where
   AddCounters    : CounterKind -> Count b -> Cost b   -- a loyalty "+N" cost (put N counters on This)
   RemoveCounters : CounterKind -> Count b -> Cost b   -- a loyalty "−N" cost (remove N from This)
   Costs     : List (Cost b) -> Cost b            -- all components together
-
--- A continuous effect's lifetime ([CR#611.2]). Rust: Duration.
-public export
-data Duration : Bindings -> Type where
-  UntilEndOfTurn : Duration b
-  UntilEvent : EventQuery b -> Duration b
-  ForAsLongAs : Condition b -> Duration b
-  Permanent : Duration b                       -- rest of game (Rust: EndOfGame)
 
 -- How many modes to choose, for a modal effect ([CR#700.2]). Rust: ChooseSpec.
 public export
