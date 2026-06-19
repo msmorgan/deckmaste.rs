@@ -280,7 +280,7 @@ Necropotence = Normal $ fromDefault
   , manaCost := [cast Black, cast Black, cast Black]
   , types := [Enchantment]
   , abilities :=
-      [ Replaces (Query [KindIs (BeginStep (BeginningPhase DrawStep)), DuringTurn You]) (Sequence [])
+      [ Static (Replaces (Query [KindIs (BeginStep (BeginningPhase DrawStep)), DuringTurn You]) (Sequence []))
       , Triggered (Query [KindIs Discarded, ActorIs You])
           (Act (Move (SelectAll (SameAs EventObject)) Exile))
       , Activated (PayLife (Literal 1))
@@ -301,9 +301,9 @@ NotionThief = Normal $ fromDefault
   , types := [Creature]
   , abilities :=
       [ Keyword Flash
-      , Replaces (Query [ KindIs Drew, ActorIs Opponent
-                        , Except (Query [DuringStep (BeginningPhase DrawStep)]) ])
-          (Act (Draw {actor = You} (cast 1)))
+      , Static (Replaces (Query [ KindIs Drew, ActorIs Opponent
+                                , Except (Query [DuringStep (BeginningPhase DrawStep)]) ])
+          (Act (Draw {actor = You} (cast 1))))
       ]
   , power := Just 3
   , toughness := Just 1
