@@ -45,7 +45,7 @@ tContinuously = Continuously (Modify This [PlusPT 1 1]) UntilEndOfTurn
 
 -- a modal effect: choose one of two modes
 tModal : Effect Base
-tModal = Modal (Choose (cast 1))
+tModal = Modal (MkChooseSpec (cast 1))
   [ MkMode (Act (Draw (cast 1)))
   , MkMode (Act (DealDamage (SelectAll (creature)) (cast 2)))
   ]
@@ -73,11 +73,11 @@ tSubjectFilter = Where (HasType Subject Creature)
 -- the unified `Quantity` (one `Range` constructor) + its helpers all typecheck
 tQuantities : List (Selection Base)
 tQuantities =
-  [ SelectChoose (cast 2) creature              -- exactly 2 (the bare-numeral path)
-  , SelectChoose (atLeast (cast 1)) creature
-  , SelectChoose (atMost (cast 3)) creature
-  , SelectChoose (between (cast 1) (cast 3)) creature
-  , SelectChoose anyNumber creature
+  [ Choose (cast 2) creature              -- exactly 2 (the bare-numeral path)
+  , Choose (atLeast (cast 1)) creature
+  , Choose (atMost (cast 3)) creature
+  , Choose (between (cast 1) (cast 3)) creature
+  , Choose anyNumber creature
   ]
 
 -- NEGATIVE — each must be rejected --------------------------------------------
