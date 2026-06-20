@@ -512,7 +512,6 @@ data Action : Bindings -> Type where
   Fight : (x : Selection b) -> (y : Selection b) -> Action b   -- each deals damage equal to its power to the other
   Reveal : Selection b -> Action b
   Shuffle : {default You actor : PlayerRef b} -> Action b
-  SearchFor : {default You actor : PlayerRef b} -> Predicate b -> (to : Zone) -> Action b  -- actor searches their own library
   CreateToken : Count b -> TokenSpec -> Action b        -- FLAG: vanilla token spec (no abilities)
   CopySpell : Selection b -> Action b                   -- "copy target spell" — FLAG: copy semantics deferred to engine
   AddMana : {default You actor : PlayerRef b} -> ManaCost -> Action b   -- "add {G}" (mana ability effect); pool/paying is engine
@@ -528,6 +527,11 @@ data Bindable : Bindings -> Type where
   -- `by` chooses a `Quantity` of objects matching the filter; the chosen are bound as
   -- `That`. Choosing is interactive, so it lives here, not in `Selection`. Rust: Selection::Choose.
   Choose : {default You by : PlayerRef b} -> Quantity b -> Filter b -> Bindable b
+  -- `by` searches `whose`'s `from`-zone (default: you, your own library) for matching
+  -- cards, bound as `That` — like `Choose`, but from a (hidden) zone the engine
+  -- reveals/shuffles. You can search ANOTHER player's library (set `whose`). The found
+  -- card's destination is a following owner-routed `Move That …`. Rust: Selection::Search.
+  Search : {default You by : PlayerRef b} -> {default You whose : PlayerRef b} -> {default Library from : Zone} -> Quantity b -> Filter b -> Bindable b
 
 -- A cost paid to activate an ability ([CR#118,602]). `Costs` conjoins components;
 -- `TapSelf`/`Sacrifice`/… read `This` (the ability's source). Rust: Cost.

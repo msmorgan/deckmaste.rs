@@ -127,8 +127,13 @@ tVerbs =
   [ Act (Scry (Literal 2))
   , Act (Fight (SelectAll (SameAs This)) (SelectAll creature))
   , Act (CreateToken (Literal 2) (MkToken "Soldier" [Creature] [] [White] 1 1))
-  , Act (SearchFor (AllOf [HasType Creature, HasName "Forest"]) Hand)
+  , With (Search (cast 1) (HasName "Forest")) (Act (Move That Hand))   -- tutor: find a Forest, to hand
   , Act (CopySpell (SelectAll (IsKind IsSpell))) ]
+
+-- searching ANOTHER player's library (Bribery-style): `whose` names the zone owner;
+-- the found creature goes to the battlefield via an owner-routed Move.
+tSearchOther : Effect Base
+tSearchOther = With (Search {whose = Opponent} (cast 1) creature) (Act (Move That Battlefield))
 
 -- a conditional static, and an activation-limited (loyalty-style) ability
 tConditionalStatic : Ability
