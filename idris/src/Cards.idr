@@ -224,13 +224,12 @@ GloriousAnthem = Normal $ fromDefault
       [ Static (ModifyAll (AllOf [HasType Creature, ControlledBy You]) [PlusPT 1 1]) ]
   }
 
--- Liliana of the Veil — the "planeswalkers are pure composite" thesis: loyalty
--- abilities are Activated abilities whose cost adds/removes Loyalty counters, and the
--- printed loyalty (3) is "enters with 3 Loyalty counters" (Face.loyalty).
--- FLAGS: the once-per-turn / sorcery-speed use-limit is NOT modeled; "each player" and
--- "target player" use the dubious EachPlayer / TargetedPlayer; the −6 pile ultimate is
--- OMITTED (unrepresentable without pile-division); the "Liliana" planeswalker subtype
--- is omitted (no planeswalker-subtype enum).
+-- Liliana of the Veil — "planeswalkers are pure composite": loyalty abilities are
+-- Activated abilities whose cost adds/removes Loyalty counters, carrying [SorcerySpeed,
+-- OncePerTurn] limits; the printed loyalty (3) is "enters with 3 Loyalty counters"
+-- (Face.loyalty). FLAGS: "each player"/"target player" use the dubious EachPlayer /
+-- TargetedPlayer; the −6 pile ultimate is OMITTED (no pile-division); the "Liliana"
+-- planeswalker subtype is omitted (no planeswalker-subtype enum).
 export
 LilianaOfTheVeil : Card
 LilianaOfTheVeil = Normal $ fromDefault
@@ -241,17 +240,17 @@ LilianaOfTheVeil = Normal $ fromDefault
   , loyalty := Just 3
   , abilities :=
       [ Activated (AddCounters Loyalty (Literal 1))
-          (Act (Discard {actor = EachPlayer} (cast 1)))
+          (Act (Discard {actor = EachPlayer} (cast 1))) {limits = [SorcerySpeed, OncePerTurn]}
       , Activated (RemoveCounters Loyalty (Literal 2))
           (Targeted [Target 1 (IsKind IsPlayerKind)]
-            (Act (Sacrifices (TargetedPlayer 0) creature)))
+            (Act (Sacrifices (TargetedPlayer 0) creature))) {limits = [SorcerySpeed, OncePerTurn]}
       ]
   }
 
--- Tide Shaper — layers + kicker, heavily flagged. The kicked ETB makes a target land
--- an Island for a duration (AddSubtype + ForAsLongAs). FLAGS: kicker is the WasKicked
--- boolean (no cost-mode model); the "+1/+1 as long as an opponent controls an Island"
--- static is OMITTED (no conditional statics); Merfolk/Wizard subtypes omitted.
+-- Tide Shaper — layers + kicker. The kicked ETB makes a target land an Island for a
+-- duration (AddSubtype + ForAsLongAs); a conditional static grants +1/+1 while an
+-- opponent controls an Island (`While` + `exists`). FLAG: kicker is the WasKicked
+-- boolean (no cost-mode model); Merfolk/Wizard subtypes omitted.
 export
 TideShaper : Card
 TideShaper = Normal $ fromDefault
@@ -264,6 +263,8 @@ TideShaper = Normal $ fromDefault
               (Targeted [Target 1 (HasType Land)]
                 (Continuously (Modify (GetTarget 0) [AddSubtype (cast Island)])
                               (ForAsLongAs (Matches This (InZone Battlefield))))))
+      , Static (While (exists (AllOf [InZone Battlefield, HasSubtype (cast Island), ControlledBy Opponent]))
+                      (Modify This [PlusPT 1 1]))
       ]
   , power := Just 1
   , toughness := Just 1

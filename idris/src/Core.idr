@@ -118,14 +118,14 @@ subtypeCategory (BattleSub _) = Battle
 -- Leaf types used inside the filter/condition language ---------------------
 
 public export
-data Stat = Power | Toughness
+data Stat = Power | Toughness | ManaValue | Defense
 
 public export
 data Cmp = Equal | GreaterEq | LessEq | Greater | Less
 
 -- What kind of object a filter matches ([CR#109.3]). Rust: ObjectKind.
 public export
-data ObjectKind = IsCard | IsEmblem | IsPlayerKind | IsSpell | IsToken
+data ObjectKind = IsCard | IsEmblem | IsPlayerKind | IsSpell | IsToken | IsAbility
 
 -- Supertypes ([CR#205.4a]); independent of card type and subtype.
 public export
@@ -135,6 +135,11 @@ data Supertype = Basic | Legendary | Ongoing | Snow | World
 -- by the spell-countering `Action`.
 public export
 data CounterKind = Loyalty | Fate | Charge | P1P1 | M1M1
+
+-- Activation restrictions on an activated ability ([CR#602.5]). Loyalty abilities are
+-- `[SorcerySpeed, OncePerTurn]`.
+public export
+data Restriction = SorcerySpeed | OncePerTurn | OncePerGame
 
 public export
 data BeginningStep
@@ -271,6 +276,15 @@ mutual
     CountOf : Predicate b -> Count b          -- how many objects match a predicate
     StatOf : Reference b -> Stat -> Count b   -- a referenced object's power/toughness
     EventCount : EventQuery b -> Count b      -- how many matching events occurred (window is in the query)
+    CountersOn : CounterKind -> Reference b -> Count b   -- number of [kind] counters on r
+    LifeTotal : PlayerRef b -> Count b                   -- a player's life total
+    HandSize : PlayerRef b -> Count b                    -- cards in a player's hand
+    Plus  : Count b -> Count b -> Count b                -- arithmetic on values
+    Minus : Count b -> Count b -> Count b
+    Times : Count b -> Count b -> Count b
+    HalfUp : Count b -> Count b                          -- "half, rounded up"
+    HalfDown : Count b -> Count b
+    ThatMuch : Count b                                   -- FLAG: amount-anaphora (the preceding amount; ungated)
 
   -- A PREDICATE: a test on a single IMPLICIT candidate object — i.e. a *filter*.
   -- The atoms read the candidate's characteristics; `SameAs r` tests identity.
@@ -288,6 +302,7 @@ mutual
     WasCastFrom : Zone -> Predicate b          -- the object was cast from this zone (cast provenance)
     ExiledBy : Reference b -> Predicate b      -- set aside by r's effect ("cards exiled by this" = ExiledBy
                                                -- This); the engine holds the association ([CR#607] linked abilities)
+    HasName : String -> Predicate b            -- named a specific card (tutors / token names)
     HasCounter : CounterKind -> Predicate b    -- has ≥1 of this counter ("without a fate counter" = IsNot (HasCounter Fate))
     ControlledBy : PlayerRef b -> Predicate b  -- "creature you control" = AllOf [HasType Creature, ControlledBy You]
     OwnedBy : PlayerRef b -> Predicate b
@@ -319,6 +334,7 @@ mutual
     EachPlayer : PlayerRef b                   -- FLAG: a PLURAL player specifier ("each player")
     EachOpponent : PlayerRef b                 -- FLAG: plural
     TargetedPlayer : (n : Nat) -> {auto prf : ValidTarget n b} -> PlayerRef b  -- FLAG: nth target read as a player
+    EventActor : PlayerRef b                   -- FLAG: the triggering event's player ("that player"); ungated like EventObject
 
   -- A query OVER EVENTS: the matcher for triggers, `EventCount`, and durations — the
   -- event analog of `Predicate`. Facets conjoin via `Query`; `Join`/`Except` are
@@ -435,6 +451,20 @@ data Selection : Bindings -> Type where
   Random : Quantity b -> Filter b -> Selection b
   -- the top n cards of a library (default: yours). Rust: Selection::TopOfLibrary.
   TopOfLibrary : (count : Count b) -> {default You whose : PlayerRef b} -> Selection b
+  -- the bottom n cards of a library (positional reference beyond the top). Rust: Selection::BottomOfLibrary.
+  BottomOfLibrary : (count : Count b) -> {default You whose : PlayerRef b} -> Selection b
+
+-- A token's characteristics ([CR#111.1]). Vanilla — FLAG: token abilities/keywords
+-- aren't modeled here (most common tokens are vanilla creatures).
+public export
+record TokenSpec where
+  constructor MkToken
+  tokName : String
+  tokTypes : List Type_
+  tokSubtypes : List Subtype
+  tokColors : List Color
+  tokPower : Int
+  tokToughness : Int
 
 -- The verbs ([CR#701]). `Effect::Act` wraps these. Object verbs carry an object
 -- `source` (default `This`); player verbs an `actor : PlayerRef` (default `You`).
@@ -469,6 +499,17 @@ data Action : Bindings -> Type where
   Discard : {default You actor : PlayerRef b} -> Count b -> Action b
   LoseLife : {default You actor : PlayerRef b} -> Count b -> Action b
   Sacrifices : PlayerRef b -> Predicate b -> Action b   -- "[player] sacrifices a [pred]" (they choose which)
+  -- keyword actions / further verbs ([CR#701]). The interactive bits (reorder, search
+  -- choice, copy characteristics) are the engine's; the grammar names the verb.
+  Scry : Count b -> Action b                            -- look at top n, reorder / bottom some
+  Surveil : Count b -> Action b
+  Fight : (x : Selection b) -> (y : Selection b) -> Action b   -- each deals damage equal to its power to the other
+  Reveal : Selection b -> Action b
+  Shuffle : {default You who : PlayerRef b} -> Action b
+  SearchFor : {default You who : PlayerRef b} -> Predicate b -> (to : Zone) -> Action b  -- search who's library
+  CreateToken : Count b -> TokenSpec -> Action b        -- FLAG: vanilla token spec (no abilities)
+  CopySpell : Selection b -> Action b                   -- "copy target spell" — FLAG: copy semantics deferred to engine
+  AddMana : {default You who : PlayerRef b} -> ManaCost -> Action b   -- "add {G}" (mana ability effect); pool/paying is engine
 
 -- What a binder (`With`) binds as `That`: a QUERY of existing objects, a PRODUCER
 -- (an `Action` run for effect, binding its product), or a CHOICE (a player picks).
@@ -559,21 +600,24 @@ mutual
     -- "if [event] would happen, do [effect] instead" — the card names only the
     -- replacement (empty = a pure skip); the engine skips the original + handles edges.
     Replaces : EventQuery b -> Effect b -> StaticEffect b
+    -- the inner continuous effect applies only WHILE the condition holds ([CR#604.3]) —
+    -- a conditional static ("gets +1/+1 as long as …").
+    While : Condition b -> StaticEffect b -> StaticEffect b
 
   -- A castable spell resolves in `Base`: source bound, no top-level targets.
   public export
-  data Ability
-    = Spell (Effect Base)
-    | Keyword (KeywordAbility Base)
-    -- "{cost}: {effect}" — an activated ability ([CR#602]). Rust: Ability::Activated.
-    | Activated (Cost Base) (Effect Base)
+  data Ability : Type where
+    Spell : Effect Base -> Ability
+    Keyword : KeywordAbility Base -> Ability
+    -- "{cost}: {effect}" — an activated ability ([CR#602]). `limits` are the activation
+    -- restrictions (a loyalty ability is `{limits = [SorcerySpeed, OncePerTurn]}`).
+    Activated : Cost Base -> Effect Base -> {default [] limits : List Restriction} -> Ability
     -- a triggered ability: when `event` fires, resolve `effect`. Rust: Ability::Triggered.
-    | Triggered (EventQuery Base) (Effect Base)
-    -- "Enchant <filter>": what this Aura may attach to. Rust: the Enchant keyword [CR#702.5].
-    | Enchant (Filter Base)
-    -- a static continuous ability — modifications, anthems, AND replacement effects
-    -- all live in `StaticEffect` now. Rust: Ability::Static.
-    | Static (StaticEffect Base)
+    Triggered : EventQuery Base -> Effect Base -> Ability
+    -- "Enchant <filter>": what this Aura may attach to ([CR#702.5]).
+    Enchant : Filter Base -> Ability
+    -- a static continuous ability — modifications, anthems, AND replacements live in `StaticEffect`.
+    Static : StaticEffect Base -> Ability
 
 public export
 record Face where

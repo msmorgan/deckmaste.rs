@@ -111,6 +111,33 @@ tAnthem = Static (ModifyAll (AllOf [HasType Creature, ControlledBy You]) [PlusPT
 tLoyalty : Ability
 tLoyalty = Activated (RemoveCounters Loyalty (Literal 2)) (Act (Draw (cast 1)))
 
+-- the value language: arithmetic, player attributes, counters-on, new stats, that-much
+tValues : List (Count Base)
+tValues =
+  [ Plus (LifeTotal You) (HandSize Opponent)
+  , Times (CountOf creature) (Literal 2)
+  , HalfUp (StatOf This Power)
+  , CountersOn P1P1 This
+  , StatOf This ManaValue
+  , ThatMuch ]
+
+-- new verbs (scry/fight/token/search/copy) all typecheck
+tVerbs : List (Effect Base)
+tVerbs =
+  [ Act (Scry (Literal 2))
+  , Act (Fight (SelectAll (SameAs This)) (SelectAll creature))
+  , Act (CreateToken (Literal 2) (MkToken "Soldier" [Creature] [] [White] 1 1))
+  , Act (SearchFor (AllOf [HasType Creature, HasName "Forest"]) Hand)
+  , Act (CopySpell (SelectAll (IsKind IsSpell))) ]
+
+-- a conditional static, and an activation-limited (loyalty-style) ability
+tConditionalStatic : Ability
+tConditionalStatic = Static (While (exists (ControlledBy Opponent)) (Modify This [PlusPT 1 1]))
+
+tLimitedAbility : Ability
+tLimitedAbility =
+  Activated (RemoveCounters Loyalty (Literal 1)) (Act (Draw (cast 1))) {limits = [SorcerySpeed, OncePerTurn]}
+
 -- NEGATIVE — each must be rejected --------------------------------------------
 
 -- a 2nd target where only one was bound
