@@ -139,7 +139,7 @@ Cloudshift = Normal $ fromDefault
   , manaCost := [cast White]
   , types := [Instant]
   , abilities :=
-      [ Spell $ Targeted [Target 1 (AllOf [permanent, creature])] $
+      [ Spell $ Targeted [Target 1 (AllOf [permanent, creature, ControlledBy You])] $
           With (Produce (Move (SelectAll (SameAs (GetTarget 0))) Exile)) $
             Act (Move That Battlefield)
       ]

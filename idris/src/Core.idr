@@ -199,30 +199,36 @@ record Bindings where
   targetCount : Nat
   thatBound   : Bool   -- a `With`-bound group (`That`)
   itBound     : Bool   -- a `ForEach`-bound element (`It`)
+  eventBound  : Bool   -- inside a trigger/replacement/delayed body (`EventObject`/`EventActor`)
 
 -- The bindings a resolving spell starts in: nothing bound yet.
 public export
 Base : Bindings
-Base = MkBindings 0 False False
+Base = MkBindings 0 False False False
 
 -- Each sets one field, reconstructing `MkBindings` explicitly so a projection of a
 -- bind result reduces definitionally even for abstract `b` (record-update sugar
 -- has no get-after-set law for an abstract record).
 public export
 bindTargets : Nat -> Bindings -> Bindings
-bindTargets n b = MkBindings n (thatBound b) (itBound b)
+bindTargets n b = MkBindings n (thatBound b) (itBound b) (eventBound b)
 
 public export
 unbindTargets : Bindings -> Bindings
-unbindTargets b = MkBindings 0 (thatBound b) (itBound b)
+unbindTargets b = MkBindings 0 (thatBound b) (itBound b) (eventBound b)
 
 public export
 bindThat : Bindings -> Bindings
-bindThat b = MkBindings (targetCount b) True (itBound b)
+bindThat b = MkBindings (targetCount b) True (itBound b) (eventBound b)
 
 public export
 bindIt : Bindings -> Bindings
-bindIt b = MkBindings (targetCount b) (thatBound b) True
+bindIt b = MkBindings (targetCount b) (thatBound b) True (eventBound b)
+
+-- entering a trigger/replacement/delayed body, where the event's object/player are bound.
+public export
+bindEvent : Bindings -> Bindings
+bindEvent b = MkBindings (targetCount b) (thatBound b) (itBound b) True
 
 -- "target n is a legal reference in bindings b".
 public export
@@ -263,12 +269,12 @@ mutual
     AttachedTo : Reference b -> Reference b
     -- the element bound by an enclosing `ForEach` ("it"). Gated by `itBound`.
     It : {auto prf : itBound b = True} -> Reference b
-    -- FLAG: the triggering event's object ("that card"). UNGATED — should only be
-    -- available inside a Triggered/Delayed/Replaces body; no typestate for that yet.
-    EventObject : Reference b
+    -- the triggering event's object ("that card"). Gated by `eventBound` — only inside
+    -- a Triggered / Delayed / Replaces body ([CR#608.2g]).
+    EventObject : {auto prf : eventBound b = True} -> Reference b
 
-  -- A numeric value ([CR#107.3]). `Literal` is a bare number; the rest read the
-  -- game state. (EventCount/EventSum/CounterCount/Min/ThatMuch deferred.)
+  -- A numeric value ([CR#107.3]). `Literal` is a bare number; the rest read the game
+  -- state — object counts, stats, counters, life/hand totals, event tallies, arithmetic.
   public export
   data Count : Bindings -> Type where
     Literal : Nat -> Count b                  -- a bare number
@@ -334,7 +340,7 @@ mutual
     EachPlayer : PlayerRef b                   -- FLAG: a PLURAL player specifier ("each player")
     EachOpponent : PlayerRef b                 -- FLAG: plural
     TargetedPlayer : (n : Nat) -> {auto prf : ValidTarget n b} -> PlayerRef b  -- FLAG: nth target read as a player
-    EventActor : PlayerRef b                   -- FLAG: the triggering event's player ("that player"); ungated like EventObject
+    EventActor : {auto prf : eventBound b = True} -> PlayerRef b  -- the event's player ("that player"); gated like EventObject
 
   -- A query OVER EVENTS: the matcher for triggers, `EventCount`, and durations — the
   -- event analog of `Predicate`. Facets conjoin via `Query`; `Join`/`Except` are
@@ -477,9 +483,9 @@ data Action : Bindings -> Type where
   -- exile a selection UNTIL a duration ends, then return it — the duration-bounded
   -- "exile until ~" form ([CR#603.6e]), NOT a leave-triggered return (see Oblivion Ring).
   ExileUntil : Selection b -> Duration b -> Action b
-  -- destroy [CR#701.8] / return to hand / counter a stack object [CR#701.6a].
+  -- destroy [CR#701.8] / counter a stack object [CR#701.6a]. (Return-to-hand is just
+  -- `Move … Hand` — `Move` is owner-relative — so there's no dedicated bounce verb.)
   Destroy : Selection b -> Action b
-  ReturnToHand : Selection b -> Action b
   Counter : Selection b -> Action b
   -- tap / untap [CR#701.26]; attach / unattach [CR#701.3].
   Tap : Selection b -> Action b
@@ -505,11 +511,11 @@ data Action : Bindings -> Type where
   Surveil : Count b -> Action b
   Fight : (x : Selection b) -> (y : Selection b) -> Action b   -- each deals damage equal to its power to the other
   Reveal : Selection b -> Action b
-  Shuffle : {default You who : PlayerRef b} -> Action b
-  SearchFor : {default You who : PlayerRef b} -> Predicate b -> (to : Zone) -> Action b  -- search who's library
+  Shuffle : {default You actor : PlayerRef b} -> Action b
+  SearchFor : {default You actor : PlayerRef b} -> Predicate b -> (to : Zone) -> Action b  -- search who's library
   CreateToken : Count b -> TokenSpec -> Action b        -- FLAG: vanilla token spec (no abilities)
   CopySpell : Selection b -> Action b                   -- "copy target spell" — FLAG: copy semantics deferred to engine
-  AddMana : {default You who : PlayerRef b} -> ManaCost -> Action b   -- "add {G}" (mana ability effect); pool/paying is engine
+  AddMana : {default You actor : PlayerRef b} -> ManaCost -> Action b   -- "add {G}" (mana ability effect); pool/paying is engine
 
 -- What a binder (`With`) binds as `That`: a QUERY of existing objects, a PRODUCER
 -- (an `Action` run for effect, binding its product), or a CHOICE (a player picks).
@@ -560,7 +566,7 @@ mutual
     -- "if [cond], [thenDo]; otherwise [else]". Rust: Effect::If.
     If : Condition b -> (thenDo : Effect b) -> {default Nothing otherwise : Maybe (Effect b)} -> Effect b
     -- "[effect] unless [who] pays [cost]" (CostComponent; ManaCost stand-in). Rust: Effect::Unless.
-    Unless : (effect : Effect b) -> {default You who : PlayerRef b} -> ManaCost -> Effect b
+    Unless : (effect : Effect b) -> {default You actor : PlayerRef b} -> ManaCost -> Effect b
     -- create a continuous effect for a duration ([CR#611.2]). Rust: Effect::Continuously.
     Continuously : StaticEffect b -> Duration b -> Effect b
     -- choose modes, then apply them ([CR#700.2]). Rust: Effect::Modal.
@@ -572,7 +578,7 @@ mutual
     -- `That`/targets stay in scope; no event-scanning sibling. Rust: Effect::Reflexive.
     Reflexive : Effect b -> Effect b
     -- schedule `body` for `event`; `unbindTargets` keeps `That`, drops targets. Rust: Effect::Delayed.
-    Delayed : EventQuery b -> Effect (unbindTargets b) -> Effect b
+    Delayed : EventQuery b -> Effect (bindEvent (unbindTargets b)) -> Effect b
 
   -- one option of a modal effect: an effect plus an optional extra cost. Rust: Mode.
   public export
@@ -599,7 +605,7 @@ mutual
     ModifyAll : Filter b -> List (Modification b) -> StaticEffect b   -- anthem: "each [filter] gets [mods]"
     -- "if [event] would happen, do [effect] instead" — the card names only the
     -- replacement (empty = a pure skip); the engine skips the original + handles edges.
-    Replaces : EventQuery b -> Effect b -> StaticEffect b
+    Replaces : EventQuery b -> Effect (bindEvent b) -> StaticEffect b
     -- the inner continuous effect applies only WHILE the condition holds ([CR#604.3]) —
     -- a conditional static ("gets +1/+1 as long as …").
     While : Condition b -> StaticEffect b -> StaticEffect b
@@ -613,7 +619,7 @@ mutual
     -- restrictions (a loyalty ability is `{limits = [SorcerySpeed, OncePerTurn]}`).
     Activated : Cost Base -> Effect Base -> {default [] limits : List Restriction} -> Ability
     -- a triggered ability: when `event` fires, resolve `effect`. Rust: Ability::Triggered.
-    Triggered : EventQuery Base -> Effect Base -> Ability
+    Triggered : EventQuery Base -> Effect (bindEvent Base) -> Ability
     -- "Enchant <filter>": what this Aura may attach to ([CR#702.5]).
     Enchant : Filter Base -> Ability
     -- a static continuous ability — modifications, anthems, AND replacements live in `StaticEffect`.
