@@ -512,7 +512,7 @@ data Action : Bindings -> Type where
   Fight : (x : Selection b) -> (y : Selection b) -> Action b   -- each deals damage equal to its power to the other
   Reveal : Selection b -> Action b
   Shuffle : {default You actor : PlayerRef b} -> Action b
-  SearchFor : {default You actor : PlayerRef b} -> Predicate b -> (to : Zone) -> Action b  -- search who's library
+  SearchFor : {default You actor : PlayerRef b} -> Predicate b -> (to : Zone) -> Action b  -- actor searches their own library
   CreateToken : Count b -> TokenSpec -> Action b        -- FLAG: vanilla token spec (no abilities)
   CopySpell : Selection b -> Action b                   -- "copy target spell" — FLAG: copy semantics deferred to engine
   AddMana : {default You actor : PlayerRef b} -> ManaCost -> Action b   -- "add {G}" (mana ability effect); pool/paying is engine
