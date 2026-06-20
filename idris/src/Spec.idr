@@ -172,3 +172,9 @@ failing
 failing
   tBadCountOfCondition : Count Base
   tBadCountOfCondition = CountOf (During (MainPhase 0))
+
+-- `EventObject` ("that card") is rejected outside a trigger/replacement/delayed body
+-- (no `eventBound`) — the review fix that closed the ungated-anaphora hole.
+failing
+  tBadEventObjectOutside : Reference Base
+  tBadEventObjectOutside = EventObject
