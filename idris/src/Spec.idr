@@ -67,7 +67,7 @@ tClosedTypeCond : Condition Base
 tClosedTypeCond = Matches This (HasType Creature)
 
 -- ...and a filter is just a `Predicate` — the candidate is implicit, no `Subject`.
-tSubjectFilter : Filter Base
+tSubjectFilter : Predicate Base
 tSubjectFilter = HasType Creature
 
 -- the unified `Quantity` (one `Range` constructor) + its helpers all typecheck
