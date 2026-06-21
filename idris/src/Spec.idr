@@ -41,7 +41,7 @@ tIf = If yourTurn (Act (Draw (cast 1)))
 
 -- a one-shot creating a continuous effect for a duration
 tContinuously : Effect Base
-tContinuously = Continuously (Modify This [PlusPT 1 1]) UntilEndOfTurn
+tContinuously = Continuously (Modify This [ModifyPT (cast 1) (cast 1)]) UntilEndOfTurn
 
 -- a modal effect: choose one of two modes
 tModal : Effect Base
@@ -105,7 +105,7 @@ tCounters = Sequence [ Act (PutCounters P1P1 (Literal 1) (SelectAll creature))
 
 -- anthem: a static `ModifyAll` over a controller-predicate filter, with layer mods
 tAnthem : Ability
-tAnthem = Static (ModifyAll (AllOf [HasType Creature, ControlledBy You]) [PlusPT 1 1, AddSubtype (cast Bear)])
+tAnthem = Static (ModifyAll (AllOf [HasType Creature, ControlledBy You]) [ModifyPT (cast 1) (cast 1), AddSubtype (cast Bear)])
 
 -- a loyalty ability: an Activated ability whose cost removes Loyalty counters
 tLoyalty : Ability
@@ -137,11 +137,25 @@ tSearchOther = With (Search {whose = Opponent} (cast 1) creature) (Act (Move Tha
 
 -- a conditional static, and an activation-limited (loyalty-style) ability
 tConditionalStatic : Ability
-tConditionalStatic = Static (While (exists (ControlledBy Opponent)) (Modify This [PlusPT 1 1]))
+tConditionalStatic = Static (While (exists (ControlledBy Opponent)) (Modify This [ModifyPT (cast 1) (cast 1)]))
 
 tLimitedAbility : Ability
 tLimitedAbility =
   Activated (RemoveCounters Loyalty (Literal 1)) (Act (Draw (cast 1))) {limits = [SorcerySpeed, OncePerTurn]}
+
+-- P/T is in the value language now: SIGNED deltas (Up/Down) and a dynamic base via SetPT
+tPTMods : List (Modification Base)
+tPTMods =
+  [ ModifyPT (Up (Literal 2)) (Down (Literal 1))     -- "+2/-1"
+  , SetPT (CountOf creature) (CountOf creature) ]     -- Tarmogoyf-style "*/*" base P/T
+
+-- a "*/*" creature: printed power/toughness are a `Count` (CDA), not a bare Int
+tCDA : Card
+tCDA = Normal $ fromDefault
+  { name := "Test CDA"
+  , types := [Creature]
+  , power := Just (CountOf (HasType Land))
+  , toughness := Just (Plus (CountOf (HasType Land)) (Literal 1)) }
 
 -- NEGATIVE — each must be rejected --------------------------------------------
 

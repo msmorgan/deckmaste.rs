@@ -389,6 +389,25 @@ public export
 implementation Cast Integer (Count b) where
   cast = Literal . cast {to=Nat}
 
+-- Integer literals + `+`/`*` sugar for the value language (so `power := Just 2` and
+-- `SetPT 1 1` typecheck; `Plus`/`Times` back the operators).
+public export
+implementation Num (Count b) where
+  (+) = Plus
+  (*) = Times
+  fromInteger = Literal . cast {to=Nat}
+
+-- A SIGNED change to a value (layer-7c "+N/+N" P/T modifications). `cast` builds it from
+-- an Integer (`cast 2` = Up 2, `cast (-1)` = Down 1); use `Up`/`Down` for dynamic deltas.
+public export
+data Delta : Bindings -> Type where
+  Up   : Count b -> Delta b   -- "+N"
+  Down : Count b -> Delta b   -- "−N"
+
+public export
+implementation Cast Integer (Delta b) where
+  cast n = if n >= 0 then Up (cast n) else Down (cast (negate n))
+
 -- A game-result effect ([CR#104]). Its own category above `Action` — a game-ender
 -- isn't just another verb; `Effect`'s `Conclude` wraps it.
 public export
@@ -469,8 +488,8 @@ record TokenSpec where
   tokTypes : List Type_
   tokSubtypes : List Subtype
   tokColors : List Color
-  tokPower : Int
-  tokToughness : Int
+  tokPower : Count Base
+  tokToughness : Count Base
 
 -- The verbs ([CR#701]). `Effect::Act` wraps these. Object verbs carry an object
 -- `source` (default `This`); player verbs an `actor : PlayerRef` (default `You`).
@@ -592,8 +611,8 @@ mutual
   -- A continuous modification a static ability applies to its subject.
   public export
   data Modification : Bindings -> Type where
-    PlusPT : Int -> Int -> Modification b               -- "gets +x/+y"
-    SetPT : Int -> Int -> Modification b                -- "base power/toughness are x/y" (layer 7b)
+    ModifyPT : Delta b -> Delta b -> Modification b     -- "gets +x/+y" (SIGNED, layer 7c — Up/Down)
+    SetPT : Count b -> Count b -> Modification b         -- "base p/t are x/y" (layer 7b; x/y may be dynamic — CDA `*/*`)
     AddType : Type_ -> Modification b                   -- "is also a [type]"
     AddSubtype : Subtype -> Modification b              -- "becomes an Island" (adds the subtype)
     LoseAbilities : Modification b                      -- "loses all abilities" (Humility-style)
@@ -638,10 +657,10 @@ record Face where
   supertypes : List Supertype
   subtypes : List Subtype
   abilities : List Ability
-  power : Maybe Int
-  toughness : Maybe Int
-  loyalty : Maybe Int
-  defense : Maybe Int
+  power : Maybe (Count Base)
+  toughness : Maybe (Count Base)
+  loyalty : Maybe (Count Base)
+  defense : Maybe (Count Base)
 
 public export
 interface DefaultValue a where
