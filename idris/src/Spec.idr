@@ -127,7 +127,7 @@ tVerbs =
   [ Act (Scry (Literal 2))
   , Act (Fight (SelectAll (SameAs This)) (SelectAll creature))
   , Act (CreateToken (Literal 2) (MkToken "Soldier" [Creature] [] [White] 1 1))
-  , With (Search (cast 1) (HasName "Forest")) (Act (Move That Hand))   -- tutor: find a Forest, to hand
+  , With (Search {from = [Library, Graveyard]} (cast 1) (HasName "Forest")) (Act (Move That Hand))  -- tutor across two zones
   , Act (CopySpell (SelectAll (IsKind IsSpell))) ]
 
 -- searching ANOTHER player's library (Bribery-style): `whose` names the zone owner;
