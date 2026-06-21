@@ -527,11 +527,11 @@ data Bindable : Bindings -> Type where
   -- `by` chooses a `Quantity` of objects matching the filter; the chosen are bound as
   -- `That`. Choosing is interactive, so it lives here, not in `Selection`. Rust: Selection::Choose.
   Choose : {default You by : PlayerRef b} -> Quantity b -> Filter b -> Bindable b
-  -- `by` searches `whose`'s `from`-zone (default: you, your own library) for matching
-  -- cards, bound as `That` — like `Choose`, but from a (hidden) zone the engine
-  -- reveals/shuffles. You can search ANOTHER player's library (set `whose`). The found
-  -- card's destination is a following owner-routed `Move That …`. Rust: Selection::Search.
-  Search : {default You by : PlayerRef b} -> {default You whose : PlayerRef b} -> {default Library from : Zone} -> Quantity b -> Filter b -> Bindable b
+  -- `by` searches `whose`'s `from`-zones (one or more — "library and/or graveyard") for
+  -- matching cards, bound as `That` — like `Choose`, but from (hidden) zones the engine
+  -- reveals/shuffles. Search ANOTHER player's via `whose`; the found card's destination
+  -- is a following owner-routed `Move That …`. Rust: Selection::Search.
+  Search : {default You by : PlayerRef b} -> {default You whose : PlayerRef b} -> {default [Library] from : List Zone} -> Quantity b -> Filter b -> Bindable b
 
 -- A cost paid to activate an ability ([CR#118,602]). `Costs` conjoins components;
 -- `TapSelf`/`Sacrifice`/… read `This` (the ability's source). Rust: Cost.
