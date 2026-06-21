@@ -7,15 +7,15 @@ module Macros
 import public Core
 
 public export
-permanent : Filter b
+permanent : Predicate b
 permanent = InZone Battlefield
 
 public export
-creature : Filter b
+creature : Predicate b
 creature = HasType Creature
 
 public export
-inHand : Filter b
+inHand : Predicate b
 inHand = InZone Hand
 
 -- "at the beginning of the next end step" — the common delayed-trigger event.

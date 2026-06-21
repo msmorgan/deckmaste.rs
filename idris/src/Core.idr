@@ -236,7 +236,7 @@ ValidTarget : Nat -> Bindings -> Type
 ValidTarget n b = LTE (S n) (targetCount b)
 
 -- A keyword ability ([CR#702]). Rust: Ability::Keyword(KeywordAbility). Defined
--- before the filter block so a `Filter` can ask `HasKeyword`.
+-- before the predicate block so a `Predicate` can ask `HasKeyword`.
 public export
 data KeywordAbility : Bindings -> Type where
   Flying : KeywordAbility b
@@ -359,13 +359,6 @@ mutual
     Except : EventQuery b -> EventQuery b          -- NOT
 
 
--- A *filter* is just a `Predicate` — the candidate is the predicate's IMPLICIT
--- argument, so there's no `Where`/`Subject`/`bindSubject`. The alias is kept only
--- so selection/target/event signatures read "filter" rather than "predicate".
-public export
-Filter : Bindings -> Type
-Filter b = Predicate b
-
 -- "it's your turn" — the common specialization of `TurnOf`.
 public export
 yourTurn : Condition b
@@ -459,7 +452,7 @@ anyNumber = Range Nothing Nothing
 
 public export
 data TargetSpec : Bindings -> Type where
-  Target : Nat -> Filter b -> TargetSpec b
+  Target : Nat -> Predicate b -> TargetSpec b
 
 -- A resolution-time GROUP / choice. `Reference` is single-GameObject only, so
 -- the plural anaphor lives HERE, not there. Mirrors Rust `Selection`.
@@ -467,13 +460,13 @@ public export
 data Selection : Bindings -> Type where
   -- the matching objects as one set (Rust: Selection::Filter). A single object is
   -- just `SelectAll (SameAs r)`, so there's no dedicated ref-to-selection variant.
-  SelectAll : Filter b -> Selection b
+  SelectAll : Predicate b -> Selection b
   -- the whole ordered group bound by an enclosing `With`. Rust: Selection::Those.
   That : {auto prf : thatBound b = True} -> Selection b
   -- (choosing is interactive — it's a `Bindable`, not a `Selection`. No distributive
   -- `Each` operand either: distribution is `ForEach`, the set is `SelectAll`.)
   -- a random quantity of the matching objects. Rust: Selection::Random.
-  Random : Quantity b -> Filter b -> Selection b
+  Random : Quantity b -> Predicate b -> Selection b
   -- the top n cards of a library (default: yours). Rust: Selection::TopOfLibrary.
   TopOfLibrary : (count : Count b) -> {default You whose : PlayerRef b} -> Selection b
   -- the bottom n cards of a library (positional reference beyond the top). Rust: Selection::BottomOfLibrary.
@@ -545,12 +538,12 @@ data Bindable : Bindings -> Type where
   Produce : Action b -> Bindable b      -- run the action, bind its product (the moved object) as `That`
   -- `by` chooses a `Quantity` of objects matching the filter; the chosen are bound as
   -- `That`. Choosing is interactive, so it lives here, not in `Selection`. Rust: Selection::Choose.
-  Choose : {default You by : PlayerRef b} -> Quantity b -> Filter b -> Bindable b
+  Choose : {default You by : PlayerRef b} -> Quantity b -> Predicate b -> Bindable b
   -- `by` searches `whose`'s `from`-zones (one or more — "library and/or graveyard") for
   -- matching cards, bound as `That` — like `Choose`, but from (hidden) zones the engine
   -- reveals/shuffles. Search ANOTHER player's via `whose`; the found card's destination
   -- is a following owner-routed `Move That …`. Rust: Selection::Search.
-  Search : {default You by : PlayerRef b} -> {default You whose : PlayerRef b} -> {default [Library] from : List Zone} -> Quantity b -> Filter b -> Bindable b
+  Search : {default You by : PlayerRef b} -> {default You whose : PlayerRef b} -> {default [Library] from : List Zone} -> Quantity b -> Predicate b -> Bindable b
 
 -- A cost paid to activate an ability ([CR#118,602]). `Costs` conjoins components;
 -- `TapSelf`/`Sacrifice`/… read `This` (the ability's source). Rust: Cost.
@@ -625,7 +618,7 @@ mutual
   public export
   data StaticEffect : Bindings -> Type where
     Modify : Reference b -> List (Modification b) -> StaticEffect b
-    ModifyAll : Filter b -> List (Modification b) -> StaticEffect b   -- anthem: "each [filter] gets [mods]"
+    ModifyAll : Predicate b -> List (Modification b) -> StaticEffect b   -- anthem: "each [filter] gets [mods]"
     -- "if [event] would happen, do [effect] instead" — the card names only the
     -- replacement (empty = a pure skip); the engine skips the original + handles edges.
     Replaces : EventQuery b -> Effect (bindEvent b) -> StaticEffect b
@@ -644,7 +637,7 @@ mutual
     -- a triggered ability: when `event` fires, resolve `effect`. Rust: Ability::Triggered.
     Triggered : EventQuery Base -> Effect (bindEvent Base) -> Ability
     -- "Enchant <filter>": what this Aura may attach to ([CR#702.5]).
-    Enchant : Filter Base -> Ability
+    Enchant : Predicate Base -> Ability
     -- a static continuous ability — modifications, anthems, AND replacements live in `StaticEffect`.
     Static : StaticEffect Base -> Ability
 
