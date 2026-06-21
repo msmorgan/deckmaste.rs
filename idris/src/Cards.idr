@@ -121,7 +121,7 @@ Rancor = Normal $ fromDefault
   , abilities :=
       [ Enchant (AllOf [permanent, creature])
       , Static (Modify (AttachHostOf This)
-          [ PlusPT 2 0
+          [ ModifyPT (cast 2) (cast 0)
           , GrantAbility (Keyword Trample)
           ])
       , Triggered
@@ -221,7 +221,7 @@ GloriousAnthem = Normal $ fromDefault
   , manaCost := [cast 1, cast White, cast White]
   , types := [Enchantment]
   , abilities :=
-      [ Static (ModifyAll (AllOf [HasType Creature, ControlledBy You]) [PlusPT 1 1]) ]
+      [ Static (ModifyAll (AllOf [HasType Creature, ControlledBy You]) [ModifyPT (cast 1) (cast 1)]) ]
   }
 
 -- Liliana of the Veil — "planeswalkers are pure composite": loyalty abilities are
@@ -264,7 +264,7 @@ TideShaper = Normal $ fromDefault
                 (Continuously (Modify (GetTarget 0) [AddSubtype (cast Island)])
                               (ForAsLongAs (Matches This (InZone Battlefield))))))
       , Static (While (exists (AllOf [InZone Battlefield, HasSubtype (cast Island), ControlledBy Opponent]))
-                      (Modify This [PlusPT 1 1]))
+                      (Modify This [ModifyPT (cast 1) (cast 1)]))
       ]
   , power := Just 1
   , toughness := Just 1
