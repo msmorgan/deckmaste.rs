@@ -21,7 +21,7 @@ tThatInWith = That
 -- a multi-type card may carry one subtype per card type [CR#205.3c]
 tLandCreature : Card
 tLandCreature = Normal $ ^:
-  { name := "Test Land Creature"
+  { name := Just "Test Land Creature"
   , types := [Land, Creature]
   , subtypes := [^Island, ^Bear]
   }
@@ -138,7 +138,7 @@ tVerbs : List (OneShotEffect Base)
 tVerbs =
   [ Act (Scry (Literal 2))
   , Act (Fight This (Only creature))
-  , Act (CreateToken (Literal 2) (^: { name := "Soldier", types := [Creature], colors := [White], power := Just 1, toughness := Just 1 }))
+  , Act (CreateToken (Literal 2) (^: { name := Just "Soldier", types := [Creature], colors := [White], power := Just 1, toughness := Just 1 }))
   , With (Search {from = [Library, Graveyard]} (^1) (HasName "Forest")) (ForEach That (Act (Move It Hand)))  -- tutor across two zones
   , Act (CopySpell (Only (IsKind IsSpell))) ]
 
@@ -147,8 +147,14 @@ tVerbs =
 -- Base`, but a token's stats can read the live context, and both share the `^: { … }` builder.
 tDynamicToken : OneShotEffect Base
 tDynamicToken = Act (CreateToken (^1)
-  (^: { name := "Ooze", types := [Creature], colors := [Green]
+  (^: { name := Just "Ooze", types := [Creature], colors := [Green]
       , power := Just (CountOf creature), toughness := Just (CountOf creature) }))
+
+-- a NAMELESS token (name defaults to Nothing): most tokens have no name. Only the lenient floor
+-- (CharacteristicsOk: ≥1 type) is required — no name, no P/T-vs-type coupling (Vehicle/Tarmogoyf).
+tNamelessToken : OneShotEffect Base
+tNamelessToken = Act (CreateToken (^2)
+  (^: { types := [Creature], colors := [White], power := Just 1, toughness := Just 1 }))
 
 -- searching ANOTHER player's library (Bribery: "search target OPPONENT's library"): the
 -- opponent is now a TARGET (player-predicate `opponent`), so `whose` is that targeted player.
@@ -173,7 +179,7 @@ tPTMods =
 -- a "*/*" creature: printed power/toughness are a `Count` (CDA), not a bare Int
 tCDA : Card
 tCDA = Normal $ ^:
-  { name := "Test CDA"
+  { name := Just "Test CDA"
   , types := [Creature]
   , power := Just (CountOf (HasType Land))
   , toughness := Just (Plus (CountOf (HasType Land)) (Literal 1)) }
@@ -269,10 +275,20 @@ failing
   tBadTargetRange : OneShotEffect Base
   tBadTargetRange = Targeted [anyTarget] (Act (DealDamage (GetTarget 1) (^1)))
 
--- a target slot can't target ZERO — `NonZeroTargets` rejects a statically-zero upper bound
+-- a target slot can't target ZERO — `NonZeroQ` rejects a statically-zero upper bound
 failing
   tBadZeroTarget : TargetSpec Base AnObject
   tBadZeroTarget = Target (^0) creature
+
+-- a card with NO card types is rejected — `CharacteristicsOk` (the one lenient well-formedness floor)
+failing
+  tBadTypeless : Card
+  tBadTypeless = Normal $ ^: { name := Just "Typeless" }
+
+-- a 0-size block is rejected — a declared block has ≥1 blocker (`NonZeroQ` on `BlockedBy`'s size)
+failing
+  tBadZeroBlock : StaticEffect Base
+  tBadZeroBlock = Cant (BlockedBy (SameAs This) (^0))
 
 -- `That` with no enclosing `With`
 failing
@@ -283,7 +299,7 @@ failing
 failing
   tBadSubtype : Card
   tBadSubtype = Normal $ ^:
-    { name := "Bad", types := [Creature], subtypes := [^Aura] }
+    { name := Just "Bad", types := [Creature], subtypes := [^Aura] }
 
 -- a target leaking into a delayed body (`unbindTargets` clears it; only `That` crosses)
 failing

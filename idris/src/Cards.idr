@@ -10,7 +10,7 @@ import Macros
 export
 LightningBolt : Card
 LightningBolt = Normal $ ^:
-  { name := "Lightning Bolt"
+  { name := Just "Lightning Bolt"
   , manaCost := [^Red]
   , types := [Instant]
   , abilities :=
@@ -24,7 +24,7 @@ LightningBolt = Normal $ ^:
 export
 Pyroclasm : Card
 Pyroclasm = Normal $ ^:
-  { name := "Pyroclasm"
+  { name := Just "Pyroclasm"
   , manaCost := [^1, ^Red]
   , types := [Sorcery]
   , abilities :=
@@ -36,7 +36,7 @@ Pyroclasm = Normal $ ^:
 export
 GrizzlyBears : Card
 GrizzlyBears = Normal $ ^:
-  { name := "Grizzly Bears"
+  { name := Just "Grizzly Bears"
   , manaCost := [^1, ^Green]
   , types := [Creature]
   , subtypes := [^Bear]
@@ -48,7 +48,7 @@ GrizzlyBears = Normal $ ^:
 export
 TyphoidRats : Card
 TyphoidRats = Normal $ ^:
-  { name := "Typhoid Rats"
+  { name := Just "Typhoid Rats"
   , manaCost := [^Black]
   , types := [Creature]
   , subtypes := [^Rat]
@@ -60,7 +60,7 @@ TyphoidRats = Normal $ ^:
 export
 GiantSpider : Card
 GiantSpider = Normal $ ^:
-  { name := "Giant Spider"
+  { name := Just "Giant Spider"
   , manaCost := [^3, ^Green]
   , types := [Creature]
   , subtypes := [^Spider]
@@ -76,7 +76,7 @@ GiantSpider = Normal $ ^:
 export
 Flickerwisp : Card
 Flickerwisp = Normal $ ^:
-  { name := "Flickerwisp"
+  { name := Just "Flickerwisp"
   , manaCost := [^1, ^White, ^White]
   , types := [Creature]
   , subtypes := [^Elemental]
@@ -97,7 +97,7 @@ Flickerwisp = Normal $ ^:
 export
 Brainstorm : Card
 Brainstorm = Normal $ ^:
-  { name := "Brainstorm"
+  { name := Just "Brainstorm"
   , manaCost := [^Blue]
   , types := [Instant]
   , abilities :=
@@ -115,7 +115,7 @@ Brainstorm = Normal $ ^:
 export
 Rancor : Card
 Rancor = Normal $ ^:
-  { name := "Rancor"
+  { name := Just "Rancor"
   , manaCost := [^Green]
   , types := [Enchantment]
   , subtypes := [^Aura]
@@ -138,7 +138,7 @@ Rancor = Normal $ ^:
 export
 Cloudshift : Card
 Cloudshift = Normal $ ^:
-  { name := "Cloudshift"
+  { name := Just "Cloudshift"
   , manaCost := [^White]
   , types := [Instant]
   , abilities :=
@@ -160,7 +160,7 @@ Cloudshift = Normal $ ^:
 export
 ThroughTheBreach : Card
 ThroughTheBreach = Normal $ ^:
-  { name := "Through the Breach"
+  { name := Just "Through the Breach"
   , manaCost := [^4, ^Red]
   , types := [Instant]
   , abilities :=
@@ -180,7 +180,7 @@ ThroughTheBreach = Normal $ ^:
 export
 ApproachOfTheSecondSun : Card
 ApproachOfTheSecondSun = Normal $ ^:
-  { name := "Approach of the Second Sun"
+  { name := Just "Approach of the Second Sun"
   , manaCost := [^6, ^White]
   , types := [Sorcery]
   , abilities :=
@@ -205,7 +205,7 @@ ApproachOfTheSecondSun = Normal $ ^:
 export
 OblivionStone : Card
 OblivionStone = Normal $ ^:
-  { name := "Oblivion Stone"
+  { name := Just "Oblivion Stone"
   , manaCost := [^3]
   , types := [Artifact]
   , abilities :=
@@ -224,7 +224,7 @@ OblivionStone = Normal $ ^:
 export
 GloriousAnthem : Card
 GloriousAnthem = Normal $ ^:
-  { name := "Glorious Anthem"
+  { name := Just "Glorious Anthem"
   , manaCost := [^1, ^White, ^White]
   , types := [Enchantment]
   , abilities :=
@@ -241,7 +241,7 @@ GloriousAnthem = Normal $ ^:
 export
 LilianaOfTheVeil : Card
 LilianaOfTheVeil = Normal $ ^:
-  { name := "Liliana of the Veil"
+  { name := Just "Liliana of the Veil"
   , manaCost := [^1, ^Black, ^Black]
   , types := [Planeswalker]
   , supertypes := [Legendary]
@@ -262,7 +262,7 @@ LilianaOfTheVeil = Normal $ ^:
 export
 TideShaper : Card
 TideShaper = Normal $ ^:
-  { name := "Tide Shaper"
+  { name := Just "Tide Shaper"
   , manaCost := [^Blue]
   , types := [Creature]
   , abilities :=
@@ -285,7 +285,7 @@ TideShaper = Normal $ ^:
 export
 Necropotence : Card
 Necropotence = Normal $ ^:
-  { name := "Necropotence"
+  { name := Just "Necropotence"
   , manaCost := [^Black, ^Black, ^Black]
   , types := [Enchantment]
   , abilities :=
@@ -306,7 +306,7 @@ Necropotence = Normal $ ^:
 export
 NotionThief : Card
 NotionThief = Normal $ ^:
-  { name := "Notion Thief"
+  { name := Just "Notion Thief"
   , manaCost := [^2, ^Blue, ^Black]
   , types := [Creature]
   , abilities :=
@@ -326,7 +326,7 @@ NotionThief = Normal $ ^:
 export
 OblivionRing : Card
 OblivionRing = Normal $ ^:
-  { name := "Oblivion Ring"
+  { name := Just "Oblivion Ring"
   , manaCost := [^2, ^White]
   , types := [Enchantment]
   , abilities :=
@@ -345,7 +345,7 @@ OblivionRing = Normal $ ^:
 export
 BanishingLight : Card
 BanishingLight = Normal $ ^:
-  { name := "Banishing Light"
+  { name := Just "Banishing Light"
   , manaCost := [^2, ^White]
   , types := [Enchantment]
   , abilities :=
@@ -364,7 +364,7 @@ BanishingLight = Normal $ ^:
 export
 Donate : Card
 Donate = Normal $ ^:
-  { name := "Donate"
+  { name := Just "Donate"
   , manaCost := [^2, ^Blue]
   , types := [Sorcery]
   , abilities :=
@@ -381,7 +381,7 @@ Donate = Normal $ ^:
 export
 Pacifism : Card
 Pacifism = Normal $ ^:
-  { name := "Pacifism"
+  { name := Just "Pacifism"
   , manaCost := [^1, ^White]
   , types := [Enchantment]
   , subtypes := [^Aura]
@@ -397,7 +397,7 @@ Pacifism = Normal $ ^:
 export
 Juggernaut : Card
 Juggernaut = Normal $ ^:
-  { name := "Juggernaut"
+  { name := Just "Juggernaut"
   , manaCost := [^4]
   , types := [Artifact, Creature]
   , power := Just 5
@@ -416,7 +416,7 @@ Juggernaut = Normal $ ^:
 export
 GhostlyPrison : Card
 GhostlyPrison = Normal $ ^:
-  { name := "Ghostly Prison"
+  { name := Just "Ghostly Prison"
   , manaCost := [^2, ^White]
   , types := [Enchantment]
   , abilities :=
@@ -429,7 +429,7 @@ GhostlyPrison = Normal $ ^:
 export
 WallOfOmens : Card
 WallOfOmens = Normal $ ^:
-  { name := "Wall of Omens"
+  { name := Just "Wall of Omens"
   , manaCost := [^1, ^White]
   , types := [Creature]
   , subtypes := [^Wall]
@@ -449,7 +449,7 @@ WallOfOmens = Normal $ ^:
 export
 ManaLeak : Card
 ManaLeak = Normal $ ^:
-  { name := "Mana Leak"
+  { name := Just "Mana Leak"
   , manaCost := [^1, ^Blue]
   , types := [Instant]
   , abilities :=
@@ -464,7 +464,7 @@ ManaLeak = Normal $ ^:
 export
 InvisibleStalker : Card
 InvisibleStalker = Normal $ ^:
-  { name := "Invisible Stalker"
+  { name := Just "Invisible Stalker"
   , manaCost := [^1, ^Blue]
   , types := [Creature]
   , subtypes := [^Human]
@@ -481,7 +481,7 @@ InvisibleStalker = Normal $ ^:
 export
 CrypticCommand : Card
 CrypticCommand = Normal $ ^:
-  { name := "Cryptic Command"
+  { name := Just "Cryptic Command"
   , manaCost := [^1, ^Blue, ^Blue, ^Blue]
   , types := [Instant]
   , abilities :=
@@ -499,7 +499,7 @@ CrypticCommand = Normal $ ^:
 export
 Electrolyze : Card
 Electrolyze = Normal $ ^:
-  { name := "Electrolyze"
+  { name := Just "Electrolyze"
   , manaCost := [^1, ^Blue, ^Red]
   , types := [Instant]
   , abilities :=
@@ -516,7 +516,7 @@ Electrolyze = Normal $ ^:
 export
 AmbushViper : Card
 AmbushViper = Normal $ ^:
-  { name := "Ambush Viper"
+  { name := Just "Ambush Viper"
   , manaCost := [^1, ^Green]
   , types := [Creature]
   , abilities := [keyword Flash, keyword Deathtouch]
@@ -529,7 +529,7 @@ AmbushViper = Normal $ ^:
 export
 BoggartBrute : Card
 BoggartBrute = Normal $ ^:
-  { name := "Boggart Brute"
+  { name := Just "Boggart Brute"
   , manaCost := [^2, ^Red]
   , types := [Creature]
   , subtypes := [^Goblin]
@@ -543,12 +543,12 @@ BoggartBrute = Normal $ ^:
 export
 MidnightHaunting : Card
 MidnightHaunting = Normal $ ^:
-  { name := "Midnight Haunting"
+  { name := Just "Midnight Haunting"
   , manaCost := [^2, ^White]
   , types := [Instant]
   , abilities :=
       [ Spell (Act (CreateToken (^2)
-          (^: { name := "Spirit", types := [Creature], subtypes := [^Spirit]
+          (^: { name := Just "Spirit", types := [Creature], subtypes := [^Spirit]
               , colors := [White], power := Just 1, toughness := Just 1
               , abilities := [keyword Flying] })))
       ]
