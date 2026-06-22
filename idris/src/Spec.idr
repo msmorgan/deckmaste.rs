@@ -189,6 +189,14 @@ tEmptyOneOf = OneOf []
 tWard : StaticEffect Base
 tWard = Toll (Mana [cast 2]) (TargetedBy (SameAs This) (ControlledBy opponent))
 
+-- keyword-desugaring: a deontic keyword IS a `Cant` clause over the `Deed` carrier; a
+-- non-deontic one is `Nothing` (the §6 boundary at the keyword level). Pinned by Refl.
+tDefenderDesugars : keywordDeed Defender (SameAs This) = Just (Cant (Attacks (SameAs This)))
+tDefenderDesugars = Refl
+
+tFirstStrikeNotDeontic : keywordDeed FirstStrike (SameAs This) = Nothing
+tFirstStrikeNotDeontic = Refl
+
 -- NEGATIVE — each must be rejected --------------------------------------------
 
 -- a 2nd target where only one was bound

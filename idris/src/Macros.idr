@@ -53,3 +53,22 @@ playerOrPlaneswalker = Target 1 $ OneOf [ AllOf [permanent, HasType Planeswalker
 public export
 eachPlayer : Selection b APlayer
 eachPlayer = SelectAll Anyone
+
+-- "any spell or ability" — the universal targeting SOURCE (for shroud/hexproof).
+public export
+spellOrAbility : Predicate b AnObject
+spellOrAbility = OneOf [IsKind IsSpell, IsKind IsAbility]
+
+-- KEYWORD-DESUGARING: the deontic MEANING of a keyword, if it has one ([CR#702] + the
+-- intrinsic/composite/deontic classification). The evasion/restriction family desugars to a
+-- `Cant` clause over `subj` (the creature with the keyword); everything else is NOT deontic
+-- (`Nothing`) — FirstStrike/DoubleStrike/Deathtouch/Trample are damage-pipeline intrinsics,
+-- Vigilance is an event-edit ("doesn't tap"), Reach/Flash are a flag / permission-window.
+-- (Flying reads `HasKeyword Flying`/`Reach` on the BLOCKER — the tag its own clause consults.)
+public export
+keywordDeed : KeywordAbility b -> (subj : Predicate b AnObject) -> Maybe (StaticEffect b)
+keywordDeed Flying   subj = Just (Cant (Blocks (IsNot (OneOf [HasKeyword Flying, HasKeyword Reach])) subj))
+keywordDeed Defender subj = Just (Cant (Attacks subj))
+keywordDeed Shroud   subj = Just (Cant (TargetedBy subj spellOrAbility))
+keywordDeed Hexproof subj = Just (Cant (TargetedBy subj (AllOf [spellOrAbility, ControlledBy opponent])))
+keywordDeed _ _ = Nothing
