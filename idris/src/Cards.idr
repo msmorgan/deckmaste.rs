@@ -11,12 +11,12 @@ export
 LightningBolt : Card
 LightningBolt = Normal $ fromDefault
   { name := "Lightning Bolt"
-  , manaCost := [promote Red]
+  , manaCost := [^Red]
   , types := [Instant]
   , abilities :=
       [ Spell $
           Targeted [anyTarget] $
-          (Act (DealDamage (GetTarget 0) (promote 3)))
+          (Act (DealDamage (GetTarget 0) (^3)))
       ]
   }
 
@@ -25,10 +25,10 @@ export
 Pyroclasm : Card
 Pyroclasm = Normal $ fromDefault
   { name := "Pyroclasm"
-  , manaCost := [promote 1, promote Red]
+  , manaCost := [^1, ^Red]
   , types := [Sorcery]
   , abilities :=
-      [ Spell (ForEach (SelectAll creature) (Act (DealDamage It (promote 2))))
+      [ Spell (ForEach (SelectAll creature) (Act (DealDamage It (^2))))
       ]
   }
 
@@ -37,9 +37,9 @@ export
 GrizzlyBears : Card
 GrizzlyBears = Normal $ fromDefault
   { name := "Grizzly Bears"
-  , manaCost := [promote 1, promote Green]
+  , manaCost := [^1, ^Green]
   , types := [Creature]
-  , subtypes := [promote Bear]
+  , subtypes := [^Bear]
   , power := Just 2
   , toughness := Just 2
   }
@@ -49,9 +49,9 @@ export
 TyphoidRats : Card
 TyphoidRats = Normal $ fromDefault
   { name := "Typhoid Rats"
-  , manaCost := [promote Black]
+  , manaCost := [^Black]
   , types := [Creature]
-  , subtypes := [promote Rat]
+  , subtypes := [^Rat]
   , abilities := [keyword Deathtouch]
   , power := Just 1
   , toughness := Just 1
@@ -61,9 +61,9 @@ export
 GiantSpider : Card
 GiantSpider = Normal $ fromDefault
   { name := "Giant Spider"
-  , manaCost := [promote 3, promote Green]
+  , manaCost := [^3, ^Green]
   , types := [Creature]
-  , subtypes := [promote Spider]
+  , subtypes := [^Spider]
   , abilities := [keyword Reach]
   , power := Just 2
   , toughness := Just 4
@@ -77,9 +77,9 @@ export
 Flickerwisp : Card
 Flickerwisp = Normal $ fromDefault
   { name := "Flickerwisp"
-  , manaCost := [promote 1, promote White, promote White]
+  , manaCost := [^1, ^White, ^White]
   , types := [Creature]
-  , subtypes := [promote Elemental]
+  , subtypes := [^Elemental]
   , abilities :=
       [ keyword Flying
       , Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)]) $
@@ -98,13 +98,13 @@ export
 Brainstorm : Card
 Brainstorm = Normal $ fromDefault
   { name := "Brainstorm"
-  , manaCost := [promote Blue]
+  , manaCost := [^Blue]
   , types := [Instant]
   , abilities :=
       [ Spell $
           Sequence
-          [ Act (Draw (promote 3))
-          , With (Choose (promote 2) inHand) (ForEach That (Act (Move It Library)))
+          [ Act (Draw (^3))
+          , With (Choose (^2) inHand) (ForEach That (Act (Move It Library)))
           ]
       ]
   }
@@ -116,13 +116,13 @@ export
 Rancor : Card
 Rancor = Normal $ fromDefault
   { name := "Rancor"
-  , manaCost := [promote Green]
+  , manaCost := [^Green]
   , types := [Enchantment]
-  , subtypes := [promote Aura]
+  , subtypes := [^Aura]
   , abilities :=
       [ Enchant (AllOf [permanent, creature])
       , Static (Modify (AttachHostOf This)
-          [ ModifyPT (promote 2) (promote 0)
+          [ ModifyPT (^2) (^0)
           , GrantAbility (keyword Trample)
           ])
       , Triggered
@@ -139,7 +139,7 @@ export
 Cloudshift : Card
 Cloudshift = Normal $ fromDefault
   { name := "Cloudshift"
-  , manaCost := [promote White]
+  , manaCost := [^White]
   , types := [Instant]
   , abilities :=
       [ Spell $
@@ -161,11 +161,11 @@ export
 ThroughTheBreach : Card
 ThroughTheBreach = Normal $ fromDefault
   { name := "Through the Breach"
-  , manaCost := [promote 4, promote Red]
+  , manaCost := [^4, ^Red]
   , types := [Instant]
   , abilities :=
       [ Spell $
-          With (Choose (promote 1) (AllOf [inHand, creature])) $
+          With (Choose (^1) (AllOf [inHand, creature])) $
             Sequence
               [ ForEach That (Act (Move It Battlefield))
               , Delayed nextEndStep (ForEach That (Act (Move It Graveyard))) ]
@@ -181,7 +181,7 @@ export
 ApproachOfTheSecondSun : Card
 ApproachOfTheSecondSun = Normal $ fromDefault
   { name := "Approach of the Second Sun"
-  , manaCost := [promote 6, promote White]
+  , manaCost := [^6, ^White]
   , types := [Sorcery]
   , abilities :=
       [ Spell $
@@ -193,8 +193,8 @@ ApproachOfTheSecondSun = Normal $ fromDefault
                             GreaterEq (Literal 2) ])
              (Conclude (WinGame You))
              { otherwise = Just (Sequence
-                 [ Act (PutIntoLibrary (This) (FromTop (promote 6)))
-                 , Act (GainLife (promote 7)) ]) }
+                 [ Act (PutIntoLibrary (This) (FromTop (^6)))
+                 , Act (GainLife (^7)) ]) }
       ]
   }
 
@@ -206,13 +206,13 @@ export
 OblivionStone : Card
 OblivionStone = Normal $ fromDefault
   { name := "Oblivion Stone"
-  , manaCost := [promote 3]
+  , manaCost := [^3]
   , types := [Artifact]
   , abilities :=
-      [ Activated (Costs [Mana [promote 4], TapSelf])
+      [ Activated (Costs [Mana [^4], TapSelf])
           (Targeted [Target 1 permanent]
             (Act (PutCounters Fate (Literal 1) ((GetTarget 0)))))
-      , Activated (Costs [Mana [promote 5], TapSelf, Sacrifice (This)])
+      , Activated (Costs [Mana [^5], TapSelf, Sacrifice (This)])
           (Sequence
             [ ForEach (SelectAll (AllOf [permanent, IsNot (HasType Land), IsNot (HasCounter Fate)])) (Act (Destroy It))
             , ForEach (SelectAll permanent) (Act (RemoveAllCounters Fate It)) ])
@@ -225,10 +225,10 @@ export
 GloriousAnthem : Card
 GloriousAnthem = Normal $ fromDefault
   { name := "Glorious Anthem"
-  , manaCost := [promote 1, promote White, promote White]
+  , manaCost := [^1, ^White, ^White]
   , types := [Enchantment]
   , abilities :=
-      [ Static (ModifyAll (AllOf [HasType Creature, ControlledBy you]) [ModifyPT (promote 1) (promote 1)]) ]
+      [ Static (ModifyAll (AllOf [HasType Creature, ControlledBy you]) [ModifyPT (^1) (^1)]) ]
   }
 
 -- Liliana of the Veil — "planeswalkers are pure composite": loyalty abilities are
@@ -242,13 +242,13 @@ export
 LilianaOfTheVeil : Card
 LilianaOfTheVeil = Normal $ fromDefault
   { name := "Liliana of the Veil"
-  , manaCost := [promote 1, promote Black, promote Black]
+  , manaCost := [^1, ^Black, ^Black]
   , types := [Planeswalker]
   , supertypes := [Legendary]
   , loyalty := Just 3
   , abilities :=
       [ Activated (AddCounters Loyalty (Literal 1))
-          (ForEach eachPlayer (Act (Discard {actor = It} (promote 1)))) {limits = [SorcerySpeed, OncePerTurn]}
+          (ForEach eachPlayer (Act (Discard {actor = It} (^1)))) {limits = [SorcerySpeed, OncePerTurn]}
       , Activated (RemoveCounters Loyalty (Literal 2))
           (Targeted [Target 1 Anyone]
             (Act (Sacrifices (GetTarget 0) creature))) {limits = [SorcerySpeed, OncePerTurn]}
@@ -263,16 +263,16 @@ export
 TideShaper : Card
 TideShaper = Normal $ fromDefault
   { name := "Tide Shaper"
-  , manaCost := [promote Blue]
+  , manaCost := [^Blue]
   , types := [Creature]
   , abilities :=
       [ Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
           (If (Matches This WasKicked)
               (Targeted [Target 1 (HasType Land)]
-                (Continuously (Modify (GetTarget 0) [AddSubtype (promote Island)])
+                (Continuously (Modify (GetTarget 0) [AddSubtype (^Island)])
                               (ForAsLongAs (Matches This (InZone Battlefield))))))
-      , Static (While (exists (AllOf [InZone Battlefield, HasSubtype (promote Island), ControlledBy opponent]))
-                      (Modify This [ModifyPT (promote 1) (promote 1)]))
+      , Static (While (exists (AllOf [InZone Battlefield, HasSubtype (^Island), ControlledBy opponent]))
+                      (Modify This [ModifyPT (^1) (^1)]))
       ]
   , power := Just 1
   , toughness := Just 1
@@ -286,7 +286,7 @@ export
 Necropotence : Card
 Necropotence = Normal $ fromDefault
   { name := "Necropotence"
-  , manaCost := [promote Black, promote Black, promote Black]
+  , manaCost := [^Black, ^Black, ^Black]
   , types := [Enchantment]
   , abilities :=
       [ Static (Replaces (Query [KindIs (BeginStep (BeginningPhase DrawStep)), DuringTurn you]) (Sequence []))
@@ -307,13 +307,13 @@ export
 NotionThief : Card
 NotionThief = Normal $ fromDefault
   { name := "Notion Thief"
-  , manaCost := [promote 2, promote Blue, promote Black]
+  , manaCost := [^2, ^Blue, ^Black]
   , types := [Creature]
   , abilities :=
       [ keyword Flash
       , Static (Replaces (Query [ KindIs Drew, ActorIs opponent
                                 , Except (Query [DuringStep (BeginningPhase DrawStep)]) ])
-          (Act (Draw {actor = You} (promote 1))))
+          (Act (Draw {actor = You} (^1))))
       ]
   , power := Just 3
   , toughness := Just 1
@@ -327,7 +327,7 @@ export
 OblivionRing : Card
 OblivionRing = Normal $ fromDefault
   { name := "Oblivion Ring"
-  , manaCost := [promote 2, promote White]
+  , manaCost := [^2, ^White]
   , types := [Enchantment]
   , abilities :=
       [ Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
@@ -346,7 +346,7 @@ export
 BanishingLight : Card
 BanishingLight = Normal $ fromDefault
   { name := "Banishing Light"
-  , manaCost := [promote 2, promote White]
+  , manaCost := [^2, ^White]
   , types := [Enchantment]
   , abilities :=
       [ Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)]) $
@@ -365,7 +365,7 @@ export
 Donate : Card
 Donate = Normal $ fromDefault
   { name := "Donate"
-  , manaCost := [promote 2, promote Blue]
+  , manaCost := [^2, ^Blue]
   , types := [Sorcery]
   , abilities :=
       [ Spell (Targeted [ Target 1 Anyone
@@ -382,9 +382,9 @@ export
 Pacifism : Card
 Pacifism = Normal $ fromDefault
   { name := "Pacifism"
-  , manaCost := [promote 1, promote White]
+  , manaCost := [^1, ^White]
   , types := [Enchantment]
-  , subtypes := [promote Aura]
+  , subtypes := [^Aura]
   , abilities :=
       [ Enchant (AllOf [permanent, creature])
       , Static (Cant (Attacks (SameAs (AttachHostOf This))))
@@ -398,29 +398,29 @@ export
 Juggernaut : Card
 Juggernaut = Normal $ fromDefault
   { name := "Juggernaut"
-  , manaCost := [promote 4]
+  , manaCost := [^4]
   , types := [Artifact, Creature]
   , power := Just 5
   , toughness := Just 3
   , abilities :=
       [ Static (Must (Attacks (SameAs This)))
-      , Static (Cant (Blocks (HasSubtype (promote Wall)) (SameAs This)))
+      , Static (Cant (Blocks (HasSubtype (^Wall)) (SameAs This)))
       ]
   }
 
 -- Ghostly Prison — "Creatures can't attack you unless their controller pays {2} …" — a `Gate`
 -- (cost FIRST): the attack is legal only if the toll is paid, never compulsory. The "{2} for
--- EACH attacking creature" scaling is now expressible via `Scaled (CountOf …) (Mana [promote 2])`,
+-- EACH attacking creature" scaling is now expressible via `Scaled (CountOf …) (Mana [^2])`,
 -- but the count "creatures attacking you" needs an "is-attacking" combat-state predicate we
 -- don't have yet — so this stays flat {2} for now.
 export
 GhostlyPrison : Card
 GhostlyPrison = Normal $ fromDefault
   { name := "Ghostly Prison"
-  , manaCost := [promote 2, promote White]
+  , manaCost := [^2, ^White]
   , types := [Enchantment]
   , abilities :=
-      [ Static (Gate (Mana [promote 2]) (Attacks creature {whom = you})) ]
+      [ Static (Gate (Mana [^2]) (Attacks creature {whom = you})) ]
   }
 
 -- Wall of Omens — a DEONTIC KEYWORD card: `keyword Defender` expands to a `Composite` whose tag is
@@ -430,15 +430,15 @@ export
 WallOfOmens : Card
 WallOfOmens = Normal $ fromDefault
   { name := "Wall of Omens"
-  , manaCost := [promote 1, promote White]
+  , manaCost := [^1, ^White]
   , types := [Creature]
-  , subtypes := [promote Wall]
+  , subtypes := [^Wall]
   , power := Just 0
   , toughness := Just 4
   , abilities :=
       [ keyword Defender
       , Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
-          (Act (Draw (promote 1)))
+          (Act (Draw (^1)))
       ]
   }
 
@@ -450,11 +450,11 @@ export
 ManaLeak : Card
 ManaLeak = Normal $ fromDefault
   { name := "Mana Leak"
-  , manaCost := [promote 1, promote Blue]
+  , manaCost := [^1, ^Blue]
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [Target 1 (IsKind IsSpell)]
-          (MustPay {actor = ControllerOf (GetTarget 0)} (Mana [promote 3])
+          (MustPay {actor = ControllerOf (GetTarget 0)} (Mana [^3])
             (Act (Counter ((GetTarget 0)))))) ]
   }
 
@@ -465,9 +465,9 @@ export
 InvisibleStalker : Card
 InvisibleStalker = Normal $ fromDefault
   { name := "Invisible Stalker"
-  , manaCost := [promote 1, promote Blue]
+  , manaCost := [^1, ^Blue]
   , types := [Creature]
-  , subtypes := [promote Human]
+  , subtypes := [^Human]
   , power := Just 1
   , toughness := Just 1
   , abilities :=
@@ -482,14 +482,14 @@ export
 CrypticCommand : Card
 CrypticCommand = Normal $ fromDefault
   { name := "Cryptic Command"
-  , manaCost := [promote 1, promote Blue, promote Blue, promote Blue]
+  , manaCost := [^1, ^Blue, ^Blue, ^Blue]
   , types := [Instant]
   , abilities :=
-      [ Spell (Modal (MkChooseSpec (promote 2))
+      [ Spell (Modal (MkChooseSpec (^2))
           [ MkMode (Targeted [Target 1 (IsKind IsSpell)] (Act (Counter ((GetTarget 0)))))
           , MkMode (Targeted [Target 1 permanent] (Act (Move ((GetTarget 0)) Hand)))
           , MkMode (ForEach (SelectAll (AllOf [creature, ControlledBy opponent])) (Act (Tap It)))
-          , MkMode (Act (Draw (promote 1)))
+          , MkMode (Act (Draw (^1)))
           ]) ]
   }
 
