@@ -554,4 +554,26 @@ MidnightHaunting = Normal $ ^:
       ]
   }
 
+-- Leveler ([CR#711]) — "a list of conditional statics keyed on the level-counter count": a `Level`
+-- counter added by the level-up ability, and one `While (CountersOn Level This in range)` tier per
+-- band. NO new machinery beyond the `Level` counter — While/CountersOn/SetPT/GrantAbility did it all.
+export
+StudentOfWarfare : Card
+StudentOfWarfare = Normal $ ^:
+  { name := Just "Student of Warfare"
+  , manaCost := [^White]
+  , types := [Creature]
+  , subtypes := [^Human, ^Knight]
+  , power := Just 1
+  , toughness := Just 1
+  , abilities :=
+      [ Activated (Mana [^White]) (Act (PutCounters Level (^1) This)) {window = SorceryWindow}  -- "level up only as a sorcery"
+      , Static (While (And [ Compare (CountersOn Level This) GreaterEq (^2)
+                           , Compare (CountersOn Level This) LessEq (^6) ])
+          (Modify This [SetPT (^3) (^3), GrantAbility (keyword FirstStrike)]))            -- LEVEL 2–6: 3/3 first strike
+      , Static (While (Compare (CountersOn Level This) GreaterEq (^7))
+          (Modify This [SetPT (^4) (^4), GrantAbility (keyword DoubleStrike)]))           -- LEVEL 7+: 4/4 double strike
+      ]
+  }
+
 --:vim:sts=2 sw=2:
