@@ -18,33 +18,27 @@ public export
 inHand : Predicate b AnObject
 inHand = InZone Hand
 
--- "any player" — the player top-predicate ("target player" = `Target 1 anyPlayer`). It
--- pins the slot kind to `APlayer` concretely, so callers never annotate `Anyone {k=…}`.
-public export
-anyPlayer : Predicate b APlayer
-anyPlayer = Anyone
-
 -- "at the beginning of the next end step" — the common delayed-trigger event.
 public export
 nextEndStep : EventQuery b
 nextEndStep = KindIs (BeginStep (EndingPhase EndStep))
 
 -- "any target" ([CR#115.4]): a creature/planeswalker/battle permanent, OR any player —
--- a genuine object-or-player union, so its kind is `Anything` (via `AnyOf`).
+-- an object-or-player union, built by `Widen`ing each arm into the `Anything` kind.
 public export
 anyTarget : TargetSpec b Anything
-anyTarget = Target 1 $ AnyOf
-  (OneOf [ AllOf [permanent, HasType Battle]
-         , AllOf [permanent, creature]
-         , AllOf [permanent, HasType Planeswalker] ])
-  anyPlayer
+anyTarget = Target 1 $ OneOf
+  [ Widen (OneOf [ AllOf [permanent, HasType Battle]
+                 , AllOf [permanent, creature]
+                 , AllOf [permanent, HasType Planeswalker] ])
+  , Widen Anyone ]
 
 public export
 playerOrPlaneswalker : TargetSpec b Anything
-playerOrPlaneswalker = Target 1 $ AnyOf (AllOf [permanent, HasType Planeswalker]) anyPlayer
+playerOrPlaneswalker = Target 1 $ OneOf [ Widen (AllOf [permanent, HasType Planeswalker]), Widen Anyone ]
 
 -- "each player": a player-`Selection` for `ForEach` to distribute over (the old plural
 -- `EachPlayer` reference is gone — plurality lives in `Selection`, kinded `APlayer`).
 public export
 eachPlayer : Selection b APlayer
-eachPlayer = SelectAll anyPlayer
+eachPlayer = SelectAll Anyone
