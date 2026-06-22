@@ -216,6 +216,21 @@ tReachComposite = Refl
 tHexproofFrom : Ability Base
 tHexproofFrom = keyword (Hexproof (Just (HasColor Red)))
 
+-- the deontic permission floor `Can` (the 5th polarity, pairing with `Cant`)
+tDeonticCan : Ability Base
+tDeonticCan = Static (Can (Attacks (SameAs This)))
+
+-- `AsThough` wraps a clause in a scoped counterfactual: "attack this turn as though it didn't
+-- have defender" — a permission whose premise lifts defender's `Cant`.
+tAsThough : OneShotEffect Base
+tAsThough = Continuously
+  (AsThough (Matches This (IsNot (HasKeyword Defender))) (Can (Attacks (SameAs This))))
+  UntilEndOfTurn
+
+-- Flash's desugaring is pinned by Refl: a `Can`-cast at instant speed (a widened window).
+tFlashWindow : keyword Flash = the (Ability Base) (Keyword (Composite Flash [Static (Can (Casts (SameAs You) (SameAs This)) {window = Just InstantWindow})]))
+tFlashWindow = Refl
+
 -- the `^` prefix alias = `promote`: terse in lists / delimited position (`[^Red, ^1]`). In a
 -- juxtaposed ARGUMENT it needs parens — `Draw (^1)` — since bare `Draw ^1` reads `^` as infix.
 tPromoteOp : ManaCost

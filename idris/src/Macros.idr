@@ -85,12 +85,18 @@ public export
 hexproofFrom : Predicate b AnObject -> Ability b
 hexproofFrom f = Keyword (Composite (Hexproof (Just f)) [Static (Cant (BeTargeted (SameAs This) {by = AllOf [ControlledBy opponent, f]}))])
 
+-- Flash ([CR#702.8a]): a deontic `Can` to cast THIS at instant speed — a widened cast window, not
+-- an as-though. ("Granted as-though-flash" for OTHER spells is `AsThough`, the deferred-tail case.)
+public export
+flash : Ability b
+flash = Keyword (Composite Flash [Static (Can (Casts you (SameAs This)) {window = Just InstantWindow})])
+
 -- desugar a `KeywordSpec` into its full `Ability` — dispatches to the macros above. EXHAUSTIVE
 -- (no catch-all): adding a `KeywordSpec` constructor forces a clause here. `Bare` = an engine-
 -- PRIMITIVE keyword the grammar can't desugar (FirstStrike/DoubleStrike/Deathtouch/Trample =
 -- damage pipeline; Vigilance = attack event-edit). The rest are `Composite`: the deontic ones
--- carry a `Cant`; `Reach` carries `[]` (just a flag `flying`'s clause reads); `Flash` carries
--- `[]` FOR NOW — really `[May (cast this) {AsInstant}]`, pending the deferred explicit-`May`.
+-- carry a `Cant`; `Reach` carries `[]` (just a flag `flying`'s clause reads); `Flash` carries a
+-- `Can (Casts …) {window = InstantWindow}` — you may cast it at instant speed ([CR#702.8a]).
 -- (A plain function, NOT an interface instance: a polymorphic spec's `b` is a metavar interface search can't fire on.)
 public export
 keyword : KeywordSpec b -> Ability b
@@ -101,7 +107,7 @@ keyword Deathtouch          = Keyword (Bare Deathtouch)
 keyword Trample             = Keyword (Bare Trample)
 keyword Vigilance           = Keyword (Bare Vigilance)
 keyword Reach               = Keyword (Composite Reach [])
-keyword Flash               = Keyword (Composite Flash [])
+keyword Flash               = flash
 keyword Defender            = defender
 keyword Shroud              = shroud
 keyword (Hexproof Nothing)  = hexproof
