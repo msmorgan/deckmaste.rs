@@ -47,7 +47,7 @@ tContinuously = Continuously (Modify This [ModifyPT (cast 1) (cast 1)]) UntilEnd
 tModal : Effect Base
 tModal = Modal (MkChooseSpec (cast 1))
   [ MkMode (Act (Draw (cast 1)))
-  , MkMode (Act (DealDamage (SelectAll (creature)) (cast 2)))
+  , MkMode (Act (DealDamage (SelectAll (creature)) (cast 2))) {cost = Just (PayLife (Literal 2))}  -- mode cost is now a full Cost
   ]
 
 -- `Reflexive` NESTS: inside a `With`, its body still sees `That` (no sibling scan)
@@ -97,6 +97,15 @@ tHistoryThenWin =
 tActivated : Ability
 tActivated = Activated (Costs [Mana [cast 2], TapSelf, PayLife (Literal 1)])
                        (Act (Draw (cast 1)))
+
+-- cost-unification: `Unless` takes the full `Cost` algebra now (here a life payment), not the
+-- bare `ManaCost` it used to — so "you sacrifice a creature unless you pay 3 life" is expressible.
+tUnless : Effect Base
+tUnless = Unless (Act (Sacrifices You creature)) (PayLife (Literal 3))
+
+-- scaled cost: "{2} for each creature" — `Scaled` pays the inner cost once per the count.
+tScaledCost : Cost Base
+tScaledCost = Scaled (CountOf creature) (Mana [cast 2])
 
 -- counters: the `HasCounter` predicate facet + the put/remove verbs
 tCounters : Effect Base
