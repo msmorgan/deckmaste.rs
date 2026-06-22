@@ -530,9 +530,48 @@ public export
 Only : Predicate b AnObject -> Reference b AnObject
 Only p = Single (SelectAll p)
 
--- One big mutual block: tokens carry `Ability`s, but `Ability → OneShotEffect → Action →
--- CreateToken → TokenSpec` is a cycle, so `TokenSpec`/`Action`/`Bindable` join the effect/ability
--- block below (the leaf `Cost`/`ChooseSpec`/`Deed` ride along harmlessly).
+-- A cost paid to activate an ability ([CR#118,602]). `Costs` conjoins components;
+-- `TapSelf`/`Sacrifice`/… read `This` (the ability's source). Rust: Cost.
+public export
+data Cost : Bindings -> Type where
+  Mana      : ManaCost -> Cost b                 -- "{4}"
+  TapSelf   : Cost b                             -- "{T}"
+  UntapSelf : Cost b                             -- "{Q}"
+  PayLife   : Count b -> Cost b                  -- "Pay N life"
+  Sacrifice : Reference b AnObject -> Cost b              -- "Sacrifice this" = Sacrifice This
+  AddCounters    : CounterKind -> Count b -> Cost b   -- a loyalty "+N" cost (put N counters on This)
+  RemoveCounters : CounterKind -> Count b -> Cost b   -- a loyalty "−N" cost (remove N from This)
+  Scaled    : Count b -> Cost b -> Cost b         -- the cost paid once per unit of the count ("{2} for each X" = Scaled (CountOf X) (Mana [promote 2]))
+  Costs     : List (Cost b) -> Cost b            -- all components together
+
+-- How many modes to choose, for a modal effect ([CR#700.2]). Rust: ChooseSpec.
+public export
+data ChooseSpec : Bindings -> Type where
+  MkChooseSpec : (count : Count b) -> {default False upTo : Bool} -> {default False repeats : Bool} -> ChooseSpec b
+
+-- A DEONTIC clause's carrier: a game ACTION a player may attempt ([CR#101.2,601.3] the deontic
+-- layer) — distinct from the resolving `Action` verbs. Each names its participants; the CR's
+-- "where ⟨pred⟩" qualifier rides the variable participant (`who`/`blocker`/`source`). The
+-- polarities `Cant`/`Must`/`Gate`/`Toll` (in `StaticEffect`) wrap a `Deed`. BOUNDARY [CR#614.17]:
+-- this is choice-LEGALITY ("can't attack"); event-edits ("doesn't tap", "can't be regenerated",
+-- "can't lose") are `Replaces`/SBA, NOT a `Cant`.
+public export
+data Deed : Bindings -> Type where
+  Attacks    : (who : Predicate b AnObject) -> {default Anyone whom : Predicate b APlayer} -> Deed b
+  Blocks     : (blocker : Predicate b AnObject) -> (attacker : Predicate b AnObject) -> Deed b
+  -- SET-LEVEL block ([CR#509.1c],[CR#702.111b]): "[attacker] is blocked by a DECLARED set of `size`
+  -- creatures" (a block, so size ≥ 1 by construction). `Cant (BlockedBy This …)` constrains the
+  -- WHOLE blocker set, not one blocker at a time — Menace = `Cant (BlockedBy (SameAs This) (^1))`
+  -- (forbid the lone blocker; 0 = unblocked and 2+ stay legal). [CR#509.1c] judges the whole set.
+  BlockedBy  : (attacker : Predicate b AnObject) -> (size : Quantity b) -> Deed b
+  -- "[object] is targeted BY a source matching `by`"; `by` defaults to any spell or ability.
+  BeTargeted : (object : Predicate b AnObject) -> {default (OneOf [IsKind IsSpell, IsKind IsAbility]) by : Predicate b AnObject} -> Deed b
+  Casts      : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
+  Activates  : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
+
+-- One big mutual block: `Ability → OneShotEffect → Action → CreateToken → TokenSpec` is a cycle,
+-- so `TokenSpec`/`Action`/`Bindable` join the effect/ability block below. (The leaf `Cost`/
+-- `ChooseSpec`/`Deed` stay OUT — they only reach into block 1.)
 mutual
   -- A token's characteristics ([CR#111.1]). `tokAbilities` mirrors a card face's `List (Ability
   -- Base)` — keyword tokens (flying Spirits), ETB triggers, Treasure-style activateds all fit.
@@ -611,45 +650,6 @@ mutual
     -- reveals/shuffles. Search ANOTHER player's via `whose`; the found card's destination
     -- is a following owner-routed `Move That …`. Rust: Selection::Search.
     Search : {default You by : Reference b APlayer} -> {default You whose : Reference b APlayer} -> {default [Library] from : List Zone} -> Quantity b -> Predicate b k -> Bindable b k
-
-  -- A cost paid to activate an ability ([CR#118,602]). `Costs` conjoins components;
-  -- `TapSelf`/`Sacrifice`/… read `This` (the ability's source). Rust: Cost.
-  public export
-  data Cost : Bindings -> Type where
-    Mana      : ManaCost -> Cost b                 -- "{4}"
-    TapSelf   : Cost b                             -- "{T}"
-    UntapSelf : Cost b                             -- "{Q}"
-    PayLife   : Count b -> Cost b                  -- "Pay N life"
-    Sacrifice : Reference b AnObject -> Cost b              -- "Sacrifice this" = Sacrifice This
-    AddCounters    : CounterKind -> Count b -> Cost b   -- a loyalty "+N" cost (put N counters on This)
-    RemoveCounters : CounterKind -> Count b -> Cost b   -- a loyalty "−N" cost (remove N from This)
-    Scaled    : Count b -> Cost b -> Cost b         -- the cost paid once per unit of the count ("{2} for each X" = Scaled (CountOf X) (Mana [promote 2]))
-    Costs     : List (Cost b) -> Cost b            -- all components together
-
-  -- How many modes to choose, for a modal effect ([CR#700.2]). Rust: ChooseSpec.
-  public export
-  data ChooseSpec : Bindings -> Type where
-    MkChooseSpec : (count : Count b) -> {default False upTo : Bool} -> {default False repeats : Bool} -> ChooseSpec b
-
-  -- A DEONTIC clause's carrier: a game ACTION a player may attempt ([CR#101.2,601.3] the deontic
-  -- layer) — distinct from the resolving `Action` verbs. Each names its participants; the CR's
-  -- "where ⟨pred⟩" qualifier rides the variable participant (`who`/`blocker`/`source`). The
-  -- polarities `Cant`/`Must`/`Gate`/`Toll` (in `StaticEffect`) wrap a `Deed`. BOUNDARY [CR#614.17]:
-  -- this is choice-LEGALITY ("can't attack"); event-edits ("doesn't tap", "can't be regenerated",
-  -- "can't lose") are `Replaces`/SBA, NOT a `Cant`.
-  public export
-  data Deed : Bindings -> Type where
-    Attacks    : (who : Predicate b AnObject) -> {default Anyone whom : Predicate b APlayer} -> Deed b
-    Blocks     : (blocker : Predicate b AnObject) -> (attacker : Predicate b AnObject) -> Deed b
-    -- SET-LEVEL block ([CR#509.1c],[CR#702.111b]): "[attacker] is blocked by a DECLARED set of `size`
-    -- creatures" (a block, so size ≥ 1 by construction). `Cant (BlockedBy This …)` constrains the
-    -- WHOLE blocker set, not one blocker at a time — Menace = `Cant (BlockedBy (SameAs This) (^1))`
-    -- (forbid the lone blocker; 0 = unblocked and 2+ stay legal). [CR#509.1c] judges the whole set.
-    BlockedBy  : (attacker : Predicate b AnObject) -> (size : Quantity b) -> Deed b
-    -- "[object] is targeted BY a source matching `by`"; `by` defaults to any spell or ability.
-    BeTargeted : (object : Predicate b AnObject) -> {default (OneOf [IsKind IsSpell, IsKind IsAbility]) by : Predicate b AnObject} -> Deed b
-    Casts      : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
-    Activates  : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
 
   -- Effects, continuous effects, and abilities are mutually recursive: a one-shot
   -- can CREATE a continuous effect (`Continuously`), a static ability can grant an
