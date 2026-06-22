@@ -413,3 +413,22 @@ GhostlyPrison = Normal $ fromDefault
   , abilities :=
       [ Static (Gate (Mana [cast 2]) (Attacks creature {whom = you})) ]
   }
+
+-- Wall of Omens — a DEONTIC KEYWORD card: it just TAGS `Keyword Defender`; the can't-attack
+-- restriction is the keyword's derived meaning (`keywordDeed Defender (SameAs This)`), not
+-- written here. (+ a plain ETB draw trigger.)
+export
+WallOfOmens : Card
+WallOfOmens = Normal $ fromDefault
+  { name := "Wall of Omens"
+  , manaCost := [cast 1, cast White]
+  , types := [Creature]
+  , subtypes := [cast Wall]
+  , power := Just 0
+  , toughness := Just 4
+  , abilities :=
+      [ Keyword Defender
+      , Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
+          (Act (Draw (cast 1)))
+      ]
+  }

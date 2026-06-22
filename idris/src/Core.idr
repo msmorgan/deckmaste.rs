@@ -263,6 +263,12 @@ data KeywordAbility : Bindings -> Type where
   Trample : KeywordAbility b
   Vigilance : KeywordAbility b
   Flash : KeywordAbility b
+  -- the deontic-RESTRICTION family ([CR#702]): these desugar to `Cant` clauses (see Macros'
+  -- `keywordDeed`). They're still keyword TAGS — e.g. `HasKeyword Flying` reads the tag, which
+  -- flying's own restriction clause consults on blockers. (Menace is omitted: it's set-level.)
+  Defender : KeywordAbility b
+  Shroud : KeywordAbility b
+  Hexproof : KeywordAbility b
 
 -- Reference / Count / Predicate / Condition / EventQuery are one mutually recursive
 -- language. A PREDICATE is an object test — its candidate is IMPLICIT, so there's
