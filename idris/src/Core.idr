@@ -672,6 +672,10 @@ mutual
     -- cost-gate. `Gate`'s price is paid at declaration (never compulsory, [CR#508.1d]); `Toll`'s
     -- is punished downstream by a trigger/resolution (ward, [CR#702.21a]). Cost comes FIRST.
     -- These gate CHOICES — the §6 sibling of `Replaces` (event-edits), never conflated with it.
+    -- DEFERRED: the `May` permission FLOOR is implicit here, so the `Only`/`AsThough` modifiers
+    -- ([CR#602.5d]/[CR#609.4]) and bare May-grants have nothing to attach to yet — making `May`
+    -- first-class is the deontic layer's next frontier. (Activation-`Only` already exists as
+    -- `Restriction`; `Menace` needs a set-level `Deed`; both noted where relevant.)
     Cant : Deed b -> StaticEffect b
     Must : Deed b -> StaticEffect b
     Gate : Cost b -> Deed b -> StaticEffect b
