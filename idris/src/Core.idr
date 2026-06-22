@@ -659,7 +659,7 @@ mutual
     AddSubtype : Subtype -> Modification b              -- "becomes an Island" (adds the subtype)
     LoseAbilities : Modification b                      -- "loses all abilities" (Humility-style)
     GainControl : Reference b APlayer -> Modification b         -- "[player] gains control"
-    GrantAbility : Ability -> Modification b
+    GrantAbility : Ability b -> Modification b
 
   -- A continuous effect a static (or `Continuously`) ability generates ([CR#611]):
   -- modify a subject, modify a whole filter (anthem), or REPLACE an event — a
@@ -687,20 +687,22 @@ mutual
     Gate : Cost b -> Deed b -> StaticEffect b
     Toll : Cost b -> Deed b -> StaticEffect b
 
-  -- A castable spell resolves in `Base`: source bound, no top-level targets.
+  -- An ability, INDEXED by its context `b`. A card's top-level abilities are `Ability Base`
+  -- (source bound, no targets); a keyword desugaring can be `Ability b` so its clause may
+  -- reference an anaphor — "protection from the CHOSEN color/player" (Mother of Runes).
   public export
-  data Ability : Type where
-    Spell : OneShotEffect Base -> Ability
-    Keyword : KeywordAbility Base -> Ability
+  data Ability : Bindings -> Type where
+    Spell : OneShotEffect b -> Ability b
+    Keyword : KeywordAbility b -> Ability b
     -- "{cost}: {effect}" — an activated ability ([CR#602]). `limits` are the activation
     -- restrictions (a loyalty ability is `{limits = [SorcerySpeed, OncePerTurn]}`).
-    Activated : Cost Base -> OneShotEffect Base -> {default [] limits : List Restriction} -> Ability
+    Activated : Cost b -> OneShotEffect b -> {default [] limits : List Restriction} -> Ability b
     -- a triggered ability: when `event` fires, resolve `effect`. Rust: Ability::Triggered.
-    Triggered : EventQuery Base -> OneShotEffect (bindEvent Base) -> Ability
+    Triggered : EventQuery b -> OneShotEffect (bindEvent b) -> Ability b
     -- "Enchant <filter>": what this Aura may attach to ([CR#702.5]).
-    Enchant : Predicate Base AnObject -> Ability
+    Enchant : Predicate b AnObject -> Ability b
     -- a static continuous ability — modifications, anthems, AND replacements live in `StaticEffect`.
-    Static : StaticEffect Base -> Ability
+    Static : StaticEffect b -> Ability b
 
 public export
 record Face where
@@ -710,7 +712,7 @@ record Face where
   types : List Type_
   supertypes : List Supertype
   subtypes : List Subtype
-  abilities : List Ability
+  abilities : List (Ability Base)
   power : Maybe (Count Base)
   toughness : Maybe (Count Base)
   loyalty : Maybe (Count Base)
