@@ -38,6 +38,13 @@ public export
 interface Promote a b where
   promote : a -> b
 
+-- `^x` — a terse PREFIX alias for `promote x` (e.g. `^Red`, `^2`). (`~` would mirror the
+-- self-reference sigil but is reserved for Delay/Force; `^` is free — no infix `^` in base.)
+export prefix 10 ^
+public export
+(^) : Promote a b => a -> b
+(^) = promote
+
 public export
 implementation Promote Nat ManaSymbol where
   promote = Simple . Generic
