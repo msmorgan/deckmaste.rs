@@ -686,10 +686,12 @@ mutual
     Gate : Cost b -> Deed b -> StaticEffect b
     Toll : Cost b -> Deed b -> StaticEffect b
 
-  -- A keyword as it sits on a permanent ([CR#702]): either `Bare` — an engine-INTRINSIC keyword
-  -- (FirstStrike/DoubleStrike/Deathtouch/Reach/Trample/Vigilance/Flash) with NO grammar-level
-  -- desugaring — or a `Composite` of its tag + the `Ability`s it desugars to (the deontic family:
-  -- flying/defender/shroud/hexproof → a `Cant`). `Keyword` wraps it; `keyword` (Macros) builds it.
+  -- A keyword as it sits on a permanent ([CR#702]): either `Bare` — an engine-PRIMITIVE keyword
+  -- the grammar can't desugar (FirstStrike/DoubleStrike/Deathtouch/Trample = damage pipeline;
+  -- Vigilance = attack event-edit) — or a `Composite` of its tag + the `Ability`s it desugars to:
+  -- Flying/Defender/Shroud/Hexproof → a `Cant`; Reach → `[]` (a flag flying's clause reads, no
+  -- ability of its own); Flash → `[]` for now (really a May-cast-as-instant, pending explicit-May).
+  -- `Keyword` wraps it; `keyword` (Macros) builds it.
   public export
   data KeywordAbility : Bindings -> Type where
     Bare      : KeywordSpec b -> KeywordAbility b

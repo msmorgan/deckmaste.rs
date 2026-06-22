@@ -86,20 +86,22 @@ hexproofFrom : Predicate b AnObject -> Ability b
 hexproofFrom f = Keyword (Composite (Hexproof (Just f)) [Static (Cant (BeTargeted (SameAs This) {by = AllOf [ControlledBy opponent, f]}))])
 
 -- desugar a `KeywordSpec` into its full `Ability` — dispatches to the macros above. EXHAUSTIVE
--- (no catch-all): adding a `KeywordSpec` constructor forces a clause here, so a new keyword can't
--- silently fall through. The engine-intrinsic keywords are `Bare` (no desugaring); the deontic
--- ones are a `Composite` carrying their `Cant` clause. (A plain function, NOT a `Cast` instance:
--- a polymorphic spec's `b` is a metavar at the call site, which interface search can't fire on.)
+-- (no catch-all): adding a `KeywordSpec` constructor forces a clause here. `Bare` = an engine-
+-- PRIMITIVE keyword the grammar can't desugar (FirstStrike/DoubleStrike/Deathtouch/Trample =
+-- damage pipeline; Vigilance = attack event-edit). The rest are `Composite`: the deontic ones
+-- carry a `Cant`; `Reach` carries `[]` (just a flag `flying`'s clause reads); `Flash` carries
+-- `[]` FOR NOW — really `[May (cast this) {AsInstant}]`, pending the deferred explicit-`May`.
+-- (A plain function, NOT a `Cast`: a polymorphic spec's `b` is a metavar interface search can't fire on.)
 public export
 keyword : KeywordSpec b -> Ability b
 keyword Flying              = flying
 keyword FirstStrike         = Keyword (Bare FirstStrike)
 keyword DoubleStrike        = Keyword (Bare DoubleStrike)
 keyword Deathtouch          = Keyword (Bare Deathtouch)
-keyword Reach               = Keyword (Bare Reach)
 keyword Trample             = Keyword (Bare Trample)
 keyword Vigilance           = Keyword (Bare Vigilance)
-keyword Flash               = Keyword (Bare Flash)
+keyword Reach               = Keyword (Composite Reach [])
+keyword Flash               = Keyword (Composite Flash [])
 keyword Defender            = defender
 keyword Shroud              = shroud
 keyword (Hexproof Nothing)  = hexproof
