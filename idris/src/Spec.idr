@@ -138,7 +138,7 @@ tVerbs : List (OneShotEffect Base)
 tVerbs =
   [ Act (Scry (Literal 2))
   , Act (Fight This (Only creature))
-  , Act (CreateToken (Literal 2) (MkToken "Soldier" [Creature] [] [White] 1 1))
+  , Act (CreateToken (Literal 2) (MkToken "Soldier" [Creature] [] [White] 1 1 []))
   , With (Search {from = [Library, Graveyard]} (^1) (HasName "Forest")) (ForEach That (Act (Move It Hand)))  -- tutor across two zones
   , Act (CopySpell (Only (IsKind IsSpell))) ]
 
