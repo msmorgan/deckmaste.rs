@@ -83,7 +83,7 @@ Flickerwisp = Normal $ fromDefault
   , abilities :=
       [ keyword Flying
       , Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)]) $
-          Targeted [Target 1 (AllOf [permanent, IsNot (SameAs This)])] $
+          Targeted [Target (^1) (AllOf [permanent, IsNot (SameAs This)])] $
             With (Produce (Move ((GetTarget 0)) Exile)) $  -- exile the target, bind `That`
               Delayed nextEndStep
                 (ForEach That (Act (Move It Battlefield)))                        -- return `That` (captured; target gone)
@@ -143,7 +143,7 @@ Cloudshift = Normal $ fromDefault
   , types := [Instant]
   , abilities :=
       [ Spell $
-          Targeted [ Target 1 (AllOf [ permanent, creature
+          Targeted [ Target (^1) (AllOf [ permanent, creature
                                      , ControlledBy you
                                      ])
                    ] $
@@ -210,7 +210,7 @@ OblivionStone = Normal $ fromDefault
   , types := [Artifact]
   , abilities :=
       [ Activated (Costs [Mana [^4], TapSelf])
-          (Targeted [Target 1 permanent]
+          (Targeted [Target (^1) permanent]
             (Act (PutCounters Fate (Literal 1) ((GetTarget 0)))))
       , Activated (Costs [Mana [^5], TapSelf, Sacrifice (This)])
           (Sequence
@@ -250,7 +250,7 @@ LilianaOfTheVeil = Normal $ fromDefault
       [ Activated (AddCounters Loyalty (Literal 1))
           (ForEach eachPlayer (Act (Discard {actor = It} (^1)))) {limits = [SorcerySpeed, OncePerTurn]}
       , Activated (RemoveCounters Loyalty (Literal 2))
-          (Targeted [Target 1 Anyone]
+          (Targeted [Target (^1) Anyone]
             (Act (Sacrifices (GetTarget 0) creature))) {limits = [SorcerySpeed, OncePerTurn]}
       ]
   }
@@ -268,7 +268,7 @@ TideShaper = Normal $ fromDefault
   , abilities :=
       [ Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
           (If (Matches This WasKicked)
-              (Targeted [Target 1 (HasType Land)]
+              (Targeted [Target (^1) (HasType Land)]
                 (Continuously (Modify (GetTarget 0) [AddSubtype (^Island)])
                               (ForAsLongAs (Matches This (InZone Battlefield))))))
       , Static (While (exists (AllOf [InZone Battlefield, HasSubtype (^Island), ControlledBy opponent]))
@@ -331,7 +331,7 @@ OblivionRing = Normal $ fromDefault
   , types := [Enchantment]
   , abilities :=
       [ Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
-          (Targeted [Target 1 (AllOf [permanent, IsNot (HasType Land), IsNot (SameAs This)])]
+          (Targeted [Target (^1) (AllOf [permanent, IsNot (HasType Land), IsNot (SameAs This)])]
             (Act (Move ((GetTarget 0)) Exile)))
       , Triggered (Query [KindIs (ZoneChanged (Just Battlefield) Nothing), SourceMatches (SameAs This)])
           (ForEach (SelectAll (ExiledBy This)) (Act (Move It Battlefield)))
@@ -350,7 +350,7 @@ BanishingLight = Normal $ fromDefault
   , types := [Enchantment]
   , abilities :=
       [ Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)]) $
-          Targeted [Target 1 (AllOf [permanent, IsNot (HasType Land), ControlledBy opponent])] $
+          Targeted [Target (^1) (AllOf [permanent, IsNot (HasType Land), ControlledBy opponent])] $
             Act (ExileUntil ((GetTarget 0))
                             (UntilEvent (Query [ KindIs (ZoneChanged (Just Battlefield) Nothing)
                                                , SourceMatches (SameAs This) ])))
@@ -368,8 +368,8 @@ Donate = Normal $ fromDefault
   , manaCost := [^2, ^Blue]
   , types := [Sorcery]
   , abilities :=
-      [ Spell (Targeted [ Target 1 Anyone
-                        , Target 1 (AllOf [permanent, ControlledBy you]) ]
+      [ Spell (Targeted [ Target (^1) Anyone
+                        , Target (^1) (AllOf [permanent, ControlledBy you]) ]
           (Continuously (Modify (GetTarget 1) [GainControl (GetTarget 0)]) Permanent))
       ]
   }
@@ -453,7 +453,7 @@ ManaLeak = Normal $ fromDefault
   , manaCost := [^1, ^Blue]
   , types := [Instant]
   , abilities :=
-      [ Spell (Targeted [Target 1 (IsKind IsSpell)]
+      [ Spell (Targeted [Target (^1) (IsKind IsSpell)]
           (MustPay {actor = ControllerOf (GetTarget 0)} (Mana [^3])
             (Act (Counter ((GetTarget 0)))))) ]
   }
@@ -486,11 +486,28 @@ CrypticCommand = Normal $ fromDefault
   , types := [Instant]
   , abilities :=
       [ Spell (Modal (MkChooseSpec (^2))
-          [ MkMode (Targeted [Target 1 (IsKind IsSpell)] (Act (Counter ((GetTarget 0)))))
-          , MkMode (Targeted [Target 1 permanent] (Act (Move ((GetTarget 0)) Hand)))
+          [ MkMode (Targeted [Target (^1) (IsKind IsSpell)] (Act (Counter ((GetTarget 0)))))
+          , MkMode (Targeted [Target (^1) permanent] (Act (Move ((GetTarget 0)) Hand)))
           , MkMode (ForEach (SelectAll (AllOf [creature, ControlledBy opponent])) (Act (Tap It)))
           , MkMode (Act (Draw (^1)))
           ]) ]
+  }
+
+-- PLURAL targets + divided damage. "deals 2 damage divided as you choose among one or two target
+-- creatures and/or players" — a single slot with a NON-ZERO range cardinality (1–2), referenced as
+-- the GROUP `GetTargets 0` and fed to `DealDamageDivided`. Then an untargeted draw.
+export
+Electrolyze : Card
+Electrolyze = Normal $ fromDefault
+  { name := "Electrolyze"
+  , manaCost := [^1, ^Blue, ^Red]
+  , types := [Instant]
+  , abilities :=
+      [ Spell (Targeted [Target (between (^1) (^2)) (OneOf [creature, Anyone])]
+          (Sequence
+            [ Act (DealDamageDivided (^2) (GetTargets 0))
+            , Act (Draw (^1)) ]))
+      ]
   }
 
 --:vim:sts=2 sw=2:

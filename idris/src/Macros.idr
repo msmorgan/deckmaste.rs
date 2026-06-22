@@ -19,7 +19,7 @@ inHand : Predicate b AnObject
 inHand = InZone Hand
 
 -- player-predicates ([CR#102.1]): `you` is the controller; `opponent` is any OTHER player
--- (team-free — "a player who isn't you"). Feed `ControlledBy`/`ActorIs`/`Target 1`/`SelectAll`.
+-- (team-free — "a player who isn't you"). Feed `ControlledBy`/`ActorIs`/`Target (^1)`/`SelectAll`.
 public export
 you : Predicate b APlayer
 you = SameAs You
@@ -38,7 +38,7 @@ nextEndStep = KindIs (BeginStep (EndingPhase EndStep))
 -- kind is their join (`Anything`), computed by `\/`. No `Widen`.
 public export
 anyTarget : TargetSpec b Anything
-anyTarget = Target 1 $ OneOf
+anyTarget = Target (^1) $ OneOf
   [ AllOf [permanent, HasType Battle]
   , AllOf [permanent, creature]
   , AllOf [permanent, HasType Planeswalker]
@@ -46,7 +46,7 @@ anyTarget = Target 1 $ OneOf
 
 public export
 playerOrPlaneswalker : TargetSpec b Anything
-playerOrPlaneswalker = Target 1 $ OneOf [ AllOf [permanent, HasType Planeswalker], Anyone ]
+playerOrPlaneswalker = Target (^1) $ OneOf [ AllOf [permanent, HasType Planeswalker], Anyone ]
 
 -- "each player": a player-`Selection` for `ForEach` to distribute over (the old plural
 -- `EachPlayer` reference is gone — plurality lives in `Selection`, kinded `APlayer`).
