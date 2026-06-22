@@ -301,11 +301,9 @@ mutual
   data Reference : Bindings -> Ent -> Type where
     -- the source object; always available [CR#113.7].
     This : Reference b AnObject
-    -- the n-th target; its kind comes from the slot's filter (recorded in `targetKinds`),
-    -- so `GetTarget` is strictly kinded — a creature slot is `AnObject`, a player slot `APlayer`.
-    GetTarget : (n : Nat) -> {auto prf : InBounds n (targetKinds b)} -> Reference b (index n (targetKinds b))
-    -- the unique object matching a predicate.
-    Only : Predicate b AnObject -> Reference b AnObject
+    -- demote a `Selection` to its SOLE element. Partial — the author asserts singularity, exactly
+    -- like `Only` (undefined on a 0- or 2+-element set). `GetTarget`/`Only` are sugar over it.
+    Single : Selection b k -> Reference b k
     -- the host this is attached to ("enchanted creature"); and its inverse.
     AttachHostOf : Reference b AnObject -> Reference b AnObject
     AttachedTo : Reference b AnObject -> Reference b AnObject
@@ -398,6 +396,22 @@ mutual
     Join   : List (EventQuery b) -> EventQuery b   -- OR
     Except : EventQuery b -> EventQuery b          -- NOT
 
+  -- A cardinality spec for a choice ([CR#107.3]). In the mutual block so `Selection` can use it.
+  public export
+  data Quantity : Bindings -> Type where
+    Range : Maybe (Count b) -> Maybe (Count b) -> Quantity b
+
+  -- A resolution-time GROUP / choice. In the mutual block because `Single` (a `Reference`)
+  -- demotes it. `GetTargets n` = the n-th target slot's targets (`GetTarget` demotes to one).
+  public export
+  data Selection : Bindings -> Ent -> Type where
+    SelectAll : Predicate b k -> Selection b k                  -- every match (a group)
+    That : {auto prf : thatKind b = Just k} -> Selection b k    -- the `With`-bound group
+    GetTargets : (n : Nat) -> {auto prf : InBounds n (targetKinds b)} -> Selection b (index n (targetKinds b))
+    Random : Quantity b -> Predicate b k -> Selection b k
+    TopOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
+    BottomOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
+
 
 -- "it's your turn" — the common specialization of `TurnOf`.
 public export
@@ -463,11 +477,6 @@ data Duration : Bindings -> Type where
   ForAsLongAs : Condition b -> Duration b
   Permanent : Duration b                       -- rest of game (Rust: EndOfGame)
 
--- A cardinality spec for a choice ([CR#107.3]). Rust: Quantity.
-public export
-data Quantity : Bindings -> Type where
-  Range : Maybe (Count b) -> Maybe (Count b) -> Quantity b
-
 -- `Range lo hi`: `Nothing` bound = unbounded that side. A bare numeral is the
 -- EXACTLY case (`Range (Just n) (Just n)`); the helpers below name the rest.
 public export
@@ -490,29 +499,30 @@ public export
 anyNumber : Quantity b
 anyNumber = Range Nothing Nothing
 
+-- A target slot's `Quantity` must permit ≥1 target ([CR#115.1] — a slot can't target nothing).
+-- Guards the UPPER bound: a statically-zero max ("up to 0") is rejected; "up to N>0" (lower 0) is fine.
+public export
+NonZeroTargets : Quantity b -> Type
+NonZeroTargets (Range _ (Just (Literal Z))) = Void
+NonZeroTargets _ = ()
+
 public export
 data TargetSpec : Bindings -> Ent -> Type where
-  Target : Nat -> Predicate b k -> TargetSpec b k
+  -- a target slot: a NON-ZERO `Quantity` of targets matching the predicate (`Target (^1)` = one;
+  -- `Target (between (^1) (^2))` = "one or two"). The slot's targets are `GetTargets n` (a group);
+  -- `GetTarget n` demotes a single-target slot to a `Reference`.
+  Target : (q : Quantity b) -> {auto 0 prf : NonZeroTargets q} -> Predicate b k -> TargetSpec b k
 
--- A resolution-time GROUP / choice. `Reference` is single-GameObject only, so
--- the plural anaphor lives HERE, not there. Mirrors Rust `Selection`.
+-- the n-th target as a single `Reference` (the common case) — sugar that demotes the slot's
+-- targets via `Single`. A plural slot (`Target (between …)`) uses `GetTargets` directly.
 public export
-data Selection : Bindings -> Ent -> Type where
-  -- the matching entities as one set (Rust: Selection::Filter) — a GROUP, consumed by
-  -- `ForEach`/`With`, NOT by the verbs (which act on a single `Reference`; a singleton is
-  -- just that `Reference`). Its kind is the predicate's — a player-predicate gives a
-  -- player-`Selection` ("each player").
-  SelectAll : Predicate b k -> Selection b k
-  -- the whole ordered group bound by an enclosing `With`; kind from `thatKind`. Rust: Selection::Those.
-  That : {auto prf : thatKind b = Just k} -> Selection b k
-  -- (choosing is interactive — it's a `Bindable`, not a `Selection`. No distributive
-  -- `Each` operand either: distribution is `ForEach`, the set is `SelectAll`.)
-  -- a random quantity of the matching entities. Rust: Selection::Random.
-  Random : Quantity b -> Predicate b k -> Selection b k
-  -- the top n cards of a library (default: yours). Rust: Selection::TopOfLibrary.
-  TopOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
-  -- the bottom n cards of a library (positional reference beyond the top). Rust: Selection::BottomOfLibrary.
-  BottomOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
+GetTarget : (n : Nat) -> {auto prf : InBounds n (targetKinds b)} -> Reference b (index n (targetKinds b))
+GetTarget n = Single (GetTargets n)
+
+-- "the unique object matching a predicate" — sugar: the sole element of `SelectAll p`.
+public export
+Only : Predicate b AnObject -> Reference b AnObject
+Only p = Single (SelectAll p)
 
 -- A token's characteristics ([CR#111.1]). Vanilla — FLAG: token abilities/keywords
 -- aren't modeled here (most common tokens are vanilla creatures).
@@ -533,6 +543,9 @@ data Action : Bindings -> Type where
   -- deal damage to ONE recipient ([CR#120.1] — damage is to a single object/player per event);
   -- `source` object is the agent. "Deals N to EACH …" is a `ForEach` over the recipients.
   DealDamage : {default This source : Reference b AnObject} -> Reference b k -> Count b -> Action b
+  -- "N damage divided as you choose among [a group]" ([CR#120.1] — Electrolyze). The split is the
+  -- engine's; the grammar names the total and the recipient set (a `Selection`, ≥1 each).
+  DealDamageDivided : {default This source : Reference b AnObject} -> Count b -> Selection b k -> Action b
   -- a plain zone change [CR#400.7]; owner-relative, control implicit.
   Move : Reference b AnObject -> Zone -> Action b
   -- exile a selection UNTIL a duration ends, then return it — the duration-bounded

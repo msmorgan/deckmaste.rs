@@ -145,7 +145,7 @@ tVerbs =
 -- searching ANOTHER player's library (Bribery: "search target OPPONENT's library"): the
 -- opponent is now a TARGET (player-predicate `opponent`), so `whose` is that targeted player.
 tSearchOther : OneShotEffect Base
-tSearchOther = Targeted [Target 1 opponent]
+tSearchOther = Targeted [Target (^1) opponent]
   (With (Search {whose = GetTarget 0} (^1) creature) (ForEach That (Act (Move It Battlefield))))
 
 -- a conditional static, and an activation-limited (loyalty-style) ability
@@ -182,7 +182,7 @@ tEachPlayerForEach = ForEach eachPlayer (Act (Draw {actor = It} (^1)))
 -- slot 0 is a player, slot 1 an object — each `GetTarget` strictly kinded by its own slot.
 tMixedTargets : OneShotEffect Base
 tMixedTargets =
-  Targeted [Target 1 Anyone, Target 1 (AllOf [permanent, ControlledBy you])]
+  Targeted [Target (^1) Anyone, Target (^1) (AllOf [permanent, ControlledBy you])]
     (Continuously (Modify (GetTarget 1) [GainControl (GetTarget 0)]) Permanent)
 
 -- `OneOf` computes its result kind by JOINING its arms' kinds (`\/`): same-kind stays
@@ -224,12 +224,27 @@ tPromoteOp = [^Red, ^1, ^Blue]
 tPromoteOpArg : OneShotEffect Base
 tPromoteOpArg = Act (Draw (^1))
 
+-- `Single` demotes a selection to its sole element (the dual of `Only`); `GetTarget n` is sugar
+-- for `Single (GetTargets n)`, so a plural slot is referenced as the group `GetTargets`.
+tSingle : Reference Base AnObject
+tSingle = Single (SelectAll creature)
+
+-- a PLURAL target slot (1–2) feeds divided damage; the kind is the union (`Anything`)
+tPluralTarget : OneShotEffect Base
+tPluralTarget = Targeted [Target (between (^1) (^2)) (OneOf [creature, Anyone])]
+  (Act (DealDamageDivided (^2) (GetTargets 0)))
+
 -- NEGATIVE — each must be rejected --------------------------------------------
 
 -- a 2nd target where only one was bound
 failing
   tBadTargetRange : OneShotEffect Base
   tBadTargetRange = Targeted [anyTarget] (Act (DealDamage (GetTarget 1) (^1)))
+
+-- a target slot can't target ZERO — `NonZeroTargets` rejects a statically-zero upper bound
+failing
+  tBadZeroTarget : TargetSpec Base AnObject
+  tBadZeroTarget = Target (^0) creature
 
 -- `That` with no enclosing `With`
 failing
