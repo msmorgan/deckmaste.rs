@@ -11,11 +11,11 @@ import Macros
 -- POSITIVE — must typecheck ---------------------------------------------------
 
 -- target 0 is referenceable once a 1-target scope is open
-tTargetInScope : Reference (bindTargets 1 Base) AnObject
+tTargetInScope : Reference (bindTargets [AnObject] Base) AnObject
 tTargetInScope = GetTarget 0
 
--- `That` is available inside a `With`-bound bindings
-tThatInWith : Selection (bindThat Base)
+-- `That` is available inside a `With`-bound bindings (kind comes from the binding)
+tThatInWith : Selection (bindThat AnObject Base) AnObject
 tThatInWith = That
 
 -- a multi-type card may carry one subtype per card type [CR#205.3c]
@@ -67,11 +67,11 @@ tClosedTypeCond : Condition Base
 tClosedTypeCond = Matches This (HasType Creature)
 
 -- ...and a filter is just a `Predicate` — the candidate is implicit, no `Subject`.
-tSubjectFilter : Predicate Base
+tSubjectFilter : Predicate Base AnObject
 tSubjectFilter = HasType Creature
 
 -- the unified `Quantity` (one `Range` constructor) + its helpers all typecheck
-tQuantities : List (Bindable Base)
+tQuantities : List (Bindable Base AnObject)
 tQuantities =
   [ Choose (cast 2) creature              -- exactly 2 (the bare-numeral path)
   , Choose (atLeast (cast 1)) creature
@@ -157,6 +157,14 @@ tCDA = Normal $ fromDefault
   , power := Just (CountOf (HasType Land))
   , toughness := Just (Plus (CountOf (HasType Land)) (Literal 1)) }
 
+-- Stage 2: a target's kind comes from its slot's filter — a PLAYER target reads as a player
+tPlayerTarget : Count (bindTargets [APlayer] Base)
+tPlayerTarget = LifeTotal (GetTarget 0)
+
+-- "each player" is a player-`Selection`; `ForEach` binds a player `It` (EachPlayer dissolved)
+tEachPlayerForEach : Effect Base
+tEachPlayerForEach = ForEach eachPlayer (Act (Draw {actor = It} (cast 1)))
+
 -- NEGATIVE — each must be rejected --------------------------------------------
 
 -- a 2nd target where only one was bound
@@ -207,3 +215,9 @@ failing
 failing
   tBadLifeOfObject : Count Base
   tBadLifeOfObject = LifeTotal This         -- This : AnObject, LifeTotal wants APlayer
+
+-- Stage-2 strictness: a CREATURE target can't be read as a player — the hole the flex
+-- `GetTarget` left open in Stage 1, now closed (its kind comes from `targetKinds`).
+failing
+  tBadLifeOfCreatureTarget : Count (bindTargets [AnObject] Base)
+  tBadLifeOfCreatureTarget = LifeTotal (GetTarget 0)

@@ -5,6 +5,7 @@ module Core
 
 import public Data.Vect
 import public Data.Nat
+import public Data.List
 import public Data.List.Elem
 import public Data.List.Quantifiers
 
@@ -143,8 +144,10 @@ data Restriction = SorcerySpeed | OncePerTurn | OncePerGame
 
 -- Whether a `Reference` denotes an object or a player ([CR#109.1]). One reference
 -- language, indexed by this — strict on the kind where it matters, lax where it doesn't.
+-- `Anything` is the union kind for "any target" ([CR#115.4]) — an object OR a player;
+-- only lax ops (damage) accept it, so it can't be read as a definite object/player.
 public export
-data Ent = AnObject | APlayer
+data Ent = AnObject | APlayer | Anything
 
 public export
 data BeginningStep
@@ -201,44 +204,39 @@ data EventKind
 public export
 record Bindings where
   constructor MkBindings
-  targetCount : Nat
-  thatBound   : Bool   -- a `With`-bound group (`That`)
-  itBound     : Bool   -- a `ForEach`-bound element (`It`)
-  eventBound  : Bool   -- inside a trigger/replacement/delayed body (`EventObject`/`EventActor`)
+  targetKinds : List Ent     -- one `Ent` per target slot (the slot's kind, from its filter)
+  thatKind    : Maybe Ent    -- a `With`-bound group's element kind (`That`), if bound
+  itKind      : Maybe Ent    -- a `ForEach`-bound element's kind (`It`), if bound
+  eventBound  : Bool         -- inside a trigger/replacement/delayed body (`EventObject`/`EventActor`)
 
 -- The bindings a resolving spell starts in: nothing bound yet.
 public export
 Base : Bindings
-Base = MkBindings 0 False False False
+Base = MkBindings [] Nothing Nothing False
 
 -- Each sets one field, reconstructing `MkBindings` explicitly so a projection of a
 -- bind result reduces definitionally even for abstract `b` (record-update sugar
 -- has no get-after-set law for an abstract record).
 public export
-bindTargets : Nat -> Bindings -> Bindings
-bindTargets n b = MkBindings n (thatBound b) (itBound b) (eventBound b)
+bindTargets : List Ent -> Bindings -> Bindings
+bindTargets ks b = MkBindings ks (thatKind b) (itKind b) (eventBound b)
 
 public export
 unbindTargets : Bindings -> Bindings
-unbindTargets b = MkBindings 0 (thatBound b) (itBound b) (eventBound b)
+unbindTargets b = MkBindings [] (thatKind b) (itKind b) (eventBound b)
 
 public export
-bindThat : Bindings -> Bindings
-bindThat b = MkBindings (targetCount b) True (itBound b) (eventBound b)
+bindThat : Ent -> Bindings -> Bindings
+bindThat k b = MkBindings (targetKinds b) (Just k) (itKind b) (eventBound b)
 
 public export
-bindIt : Bindings -> Bindings
-bindIt b = MkBindings (targetCount b) (thatBound b) True (eventBound b)
+bindIt : Ent -> Bindings -> Bindings
+bindIt k b = MkBindings (targetKinds b) (thatKind b) (Just k) (eventBound b)
 
 -- entering a trigger/replacement/delayed body, where the event's object/player are bound.
 public export
 bindEvent : Bindings -> Bindings
-bindEvent b = MkBindings (targetCount b) (thatBound b) (itBound b) True
-
--- "target n is a legal reference in bindings b".
-public export
-ValidTarget : Nat -> Bindings -> Type
-ValidTarget n b = LTE (S n) (targetCount b)
+bindEvent b = MkBindings (targetKinds b) (thatKind b) (itKind b) True
 
 -- A keyword ability ([CR#702]). Rust: Ability::Keyword(KeywordAbility). Defined
 -- before the predicate block so a `Predicate` can ask `HasKeyword`.
@@ -269,15 +267,16 @@ mutual
   data Reference : Bindings -> Ent -> Type where
     -- the source object; always available [CR#113.7].
     This : Reference b AnObject
-    -- a target; kind flexes (default `AnObject`, becomes `APlayer` where a player op forces it).
-    GetTarget : (n : Nat) -> {auto prf : ValidTarget n b} -> {default AnObject k : Ent} -> Reference b k
+    -- the n-th target; its kind comes from the slot's filter (recorded in `targetKinds`),
+    -- so `GetTarget` is strictly kinded — a creature slot is `AnObject`, a player slot `APlayer`.
+    GetTarget : (n : Nat) -> {auto prf : InBounds n (targetKinds b)} -> Reference b (index n (targetKinds b))
     -- the unique object matching a predicate.
-    Only : Predicate b -> Reference b AnObject
+    Only : Predicate b AnObject -> Reference b AnObject
     -- the host this is attached to ("enchanted creature"); and its inverse.
     AttachHostOf : Reference b AnObject -> Reference b AnObject
     AttachedTo : Reference b AnObject -> Reference b AnObject
-    -- the `ForEach`-bound element ("it"); gated by `itBound`.
-    It : {auto prf : itBound b = True} -> Reference b AnObject
+    -- the `ForEach`-bound element ("it"); its kind is the loop domain's (`itKind`).
+    It : {auto prf : itKind b = Just k} -> Reference b k
     -- the triggering event's object ("that card"); gated by `eventBound` ([CR#608.2g]).
     EventObject : {auto prf : eventBound b = True} -> Reference b AnObject
     -- PLAYERS (the old `PlayerRef`, folded in here):
@@ -286,8 +285,6 @@ mutual
     ControllerOf : Reference b AnObject -> Reference b APlayer   -- the controller of an object
     OwnerOf : Reference b AnObject -> Reference b APlayer        -- the owner of an object [CR#108.3]
     EventActor : {auto prf : eventBound b = True} -> Reference b APlayer  -- the event's player ("that player")
-    EachPlayer : Reference b APlayer      -- FLAG: PLURAL (Stage 2 dissolves this into a player `Selection`)
-    EachOpponent : Reference b APlayer    -- FLAG: plural
 
   -- A numeric value ([CR#107.3]). `Literal` is a bare number; the rest read the game
   -- state — object counts, stats, counters, life/hand totals, event tallies, arithmetic.
@@ -295,7 +292,7 @@ mutual
   data Count : Bindings -> Type where
     Literal : Nat -> Count b                  -- a bare number
     X : Count b                               -- the chosen {X} value
-    CountOf : Predicate b -> Count b          -- how many objects match a predicate
+    CountOf : Predicate b k -> Count b        -- how many entities match a predicate
     StatOf : Reference b AnObject -> Stat -> Count b     -- an object's power/toughness/etc.
     EventCount : EventQuery b -> Count b      -- how many matching events occurred (window is in the query)
     CountersOn : CounterKind -> Reference b AnObject -> Count b   -- number of [kind] counters on r
@@ -311,34 +308,38 @@ mutual
   -- A PREDICATE: a test on a single IMPLICIT candidate object — i.e. a *filter*.
   -- The atoms read the candidate's characteristics; `SameAs r` tests identity.
   public export
-  data Predicate : Bindings -> Type where
-    HasType : Type_ -> Predicate b
-    HasSupertype : Supertype -> Predicate b
-    HasSubtype : Subtype -> Predicate b
-    HasColor : Color -> Predicate b
-    IsKind : ObjectKind -> Predicate b
-    InZone : Zone -> Predicate b
-    HasKeyword : KeywordAbility b -> Predicate b
-    SameAs : Reference b k -> Predicate b      -- the candidate IS r (ANY kind; "another" = IsNot (SameAs This))
-    SameName : Reference b AnObject -> Predicate b   -- shares a name with r ("named [its own name]" = SameName This)
-    WasCastFrom : Zone -> Predicate b          -- the object was cast from this zone (cast provenance)
-    ExiledBy : Reference b AnObject -> Predicate b   -- set aside by r's effect ("cards exiled by this" = ExiledBy
+  data Predicate : Bindings -> Ent -> Type where
+    HasType : Type_ -> Predicate b AnObject
+    HasSupertype : Supertype -> Predicate b AnObject
+    HasSubtype : Subtype -> Predicate b AnObject
+    HasColor : Color -> Predicate b AnObject
+    IsKind : ObjectKind -> Predicate b AnObject
+    InZone : Zone -> Predicate b AnObject
+    HasKeyword : KeywordAbility b -> Predicate b AnObject
+    SameAs : Reference b k -> Predicate b k    -- the candidate IS r (same kind; "another" = IsNot (SameAs This))
+    SameName : Reference b AnObject -> Predicate b AnObject   -- shares a name with r ("named [its own name]" = SameName This)
+    WasCastFrom : Zone -> Predicate b AnObject -- the object was cast from this zone (cast provenance)
+    ExiledBy : Reference b AnObject -> Predicate b AnObject   -- set aside by r's effect ("cards exiled by this" = ExiledBy
                                                -- This); the engine holds the association ([CR#607] linked abilities)
-    HasName : String -> Predicate b            -- named a specific card (tutors / token names)
-    HasCounter : CounterKind -> Predicate b    -- has ≥1 of this counter ("without a fate counter" = IsNot (HasCounter Fate))
-    ControlledBy : Reference b APlayer -> Predicate b   -- "creature you control" = AllOf [HasType Creature, ControlledBy You]
-    OwnedBy : Reference b APlayer -> Predicate b
-    WasKicked : Predicate b                    -- FLAG: kicker as a boolean flag on the object (no cost-mode model)
-    -- combinators (distinct from `Condition`'s And/Or/Not):
-    AllOf : List (Predicate b) -> Predicate b
-    OneOf : List (Predicate b) -> Predicate b
-    IsNot : Predicate b -> Predicate b        -- negation
+    HasName : String -> Predicate b AnObject   -- named a specific card (tutors / token names)
+    HasCounter : CounterKind -> Predicate b AnObject   -- has ≥1 of this counter ("without a fate counter" = IsNot (HasCounter Fate))
+    ControlledBy : Reference b APlayer -> Predicate b AnObject   -- "creature you control" = AllOf [HasType Creature, ControlledBy You]
+    OwnedBy : Reference b APlayer -> Predicate b AnObject
+    WasKicked : Predicate b AnObject           -- FLAG: kicker as a boolean flag on the object (no cost-mode model)
+    -- top / union predicates: `Anyone` matches any entity of its kind (e.g. "each player"
+    -- = `SelectAll (Anyone {k=APlayer})`); `AnyOf` is the object-OR-player union ("any target").
+    Anyone : Predicate b k
+    AnyOf : Predicate b AnObject -> Predicate b APlayer -> Predicate b Anything
+    -- combinators (kind-preserving; distinct from `Condition`'s And/Or/Not):
+    AllOf : List (Predicate b k) -> Predicate b k
+    OneOf : List (Predicate b k) -> Predicate b k
+    IsNot : Predicate b k -> Predicate b k     -- negation
 
   -- A CLOSED / game-state test ([CR#603.4]); reaches objects only via `Matches`
   -- (apply a `Predicate` to a named `Reference`) or `exists`/`unique` (below).
   public export
   data Condition : Bindings -> Type where
-    Matches : Reference b AnObject -> Predicate b -> Condition b   -- does object r satisfy the predicate
+    Matches : Reference b k -> Predicate b k -> Condition b   -- does r satisfy the (same-kind) predicate
     Compare : Count b -> Cmp -> Count b -> Condition b
     TurnOf : Reference b APlayer -> Condition b   -- it's this player's turn (`yourTurn = TurnOf You`)
     During : PhaseStep -> Condition b
@@ -353,7 +354,7 @@ mutual
   public export
   data EventQuery : Bindings -> Type where
     KindIs        : EventKind -> EventQuery b
-    SourceMatches : Predicate b -> EventQuery b
+    SourceMatches : Predicate b AnObject -> EventQuery b
     ActorIs       : Reference b APlayer -> EventQuery b
     Within        : Window -> EventQuery b
     DuringStep    : PhaseStep -> EventQuery b
@@ -372,11 +373,11 @@ yourTurn = TurnOf You
 -- `CountOf` + `Compare`, not primitive constructors. (`CountOf` takes a `Predicate`,
 -- so `exists (During …)` is now a TYPE error, not a degenerate term.)
 public export
-exists : Predicate b -> Condition b
+exists : Predicate b k -> Condition b
 exists p = Compare (CountOf p) Greater (Literal 0)
 
 public export
-unique : Predicate b -> Condition b
+unique : Predicate b k -> Condition b
 unique p = Compare (CountOf p) Equal (Literal 1)
 
 public export
@@ -455,26 +456,27 @@ anyNumber : Quantity b
 anyNumber = Range Nothing Nothing
 
 public export
-data TargetSpec : Bindings -> Type where
-  Target : Nat -> Predicate b -> TargetSpec b
+data TargetSpec : Bindings -> Ent -> Type where
+  Target : Nat -> Predicate b k -> TargetSpec b k
 
 -- A resolution-time GROUP / choice. `Reference` is single-GameObject only, so
 -- the plural anaphor lives HERE, not there. Mirrors Rust `Selection`.
 public export
-data Selection : Bindings -> Type where
-  -- the matching objects as one set (Rust: Selection::Filter). A single object is
-  -- just `SelectAll (SameAs r)`, so there's no dedicated ref-to-selection variant.
-  SelectAll : Predicate b -> Selection b
-  -- the whole ordered group bound by an enclosing `With`. Rust: Selection::Those.
-  That : {auto prf : thatBound b = True} -> Selection b
+data Selection : Bindings -> Ent -> Type where
+  -- the matching entities as one set (Rust: Selection::Filter). A single entity is
+  -- just `SelectAll (SameAs r)`, so there's no dedicated ref-to-selection variant. Its
+  -- kind is the predicate's — a player-predicate gives a player-`Selection` ("each player").
+  SelectAll : Predicate b k -> Selection b k
+  -- the whole ordered group bound by an enclosing `With`; kind from `thatKind`. Rust: Selection::Those.
+  That : {auto prf : thatKind b = Just k} -> Selection b k
   -- (choosing is interactive — it's a `Bindable`, not a `Selection`. No distributive
   -- `Each` operand either: distribution is `ForEach`, the set is `SelectAll`.)
-  -- a random quantity of the matching objects. Rust: Selection::Random.
-  Random : Quantity b -> Predicate b -> Selection b
+  -- a random quantity of the matching entities. Rust: Selection::Random.
+  Random : Quantity b -> Predicate b k -> Selection b k
   -- the top n cards of a library (default: yours). Rust: Selection::TopOfLibrary.
-  TopOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b
+  TopOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
   -- the bottom n cards of a library (positional reference beyond the top). Rust: Selection::BottomOfLibrary.
-  BottomOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b
+  BottomOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
 
 -- A token's characteristics ([CR#111.1]). Vanilla — FLAG: token abilities/keywords
 -- aren't modeled here (most common tokens are vanilla creatures).
@@ -493,43 +495,43 @@ record TokenSpec where
 public export
 data Action : Bindings -> Type where
   -- deal damage to a `Selection`; source object is the agent ([CR#120.1]).
-  DealDamage : {default This source : Reference b AnObject} -> Selection b -> Count b -> Action b
+  DealDamage : {default This source : Reference b AnObject} -> Selection b k -> Count b -> Action b
   -- a plain zone change [CR#400.7]; owner-relative, control implicit.
-  Move : Selection b -> Zone -> Action b
+  Move : Selection b AnObject -> Zone -> Action b
   -- exile a selection UNTIL a duration ends, then return it — the duration-bounded
   -- "exile until ~" form ([CR#603.6e]), NOT a leave-triggered return (see Oblivion Ring).
-  ExileUntil : Selection b -> Duration b -> Action b
+  ExileUntil : Selection b AnObject -> Duration b -> Action b
   -- destroy [CR#701.8] / counter a stack object [CR#701.6a]. (Return-to-hand is just
   -- `Move … Hand` — `Move` is owner-relative — so there's no dedicated bounce verb.)
-  Destroy : Selection b -> Action b
-  Counter : Selection b -> Action b
+  Destroy : Selection b AnObject -> Action b
+  Counter : Selection b AnObject -> Action b
   -- tap / untap [CR#701.26]; attach / unattach [CR#701.3].
-  Tap : Selection b -> Action b
-  Untap : Selection b -> Action b
-  Attach : (what : Selection b) -> (to : Selection b) -> Action b
-  Unattach : Selection b -> Action b
+  Tap : Selection b AnObject -> Action b
+  Untap : Selection b AnObject -> Action b
+  Attach : (what : Selection b AnObject) -> (to : Selection b AnObject) -> Action b
+  Unattach : Selection b AnObject -> Action b
   -- a player verb: the `actor` draws n cards. Rust: PlayerAction::Draw(Count).
   Draw : {default You actor : Reference b APlayer} -> Count b -> Action b
   -- the `actor` gains n life. Rust: PlayerAction::GainLife(Count).
   GainLife : {default You actor : Reference b APlayer} -> Count b -> Action b
   -- put a selection into its owner's library at a position ([CR#401]).
-  PutIntoLibrary : Selection b -> LibraryPosition b -> Action b
+  PutIntoLibrary : Selection b AnObject -> LibraryPosition b -> Action b
   -- put / clear counters ([CR#122]). `RemoveAllCounters` clears every counter of a kind.
-  PutCounters : CounterKind -> Count b -> Selection b -> Action b
-  RemoveAllCounters : CounterKind -> Selection b -> Action b
+  PutCounters : CounterKind -> Count b -> Selection b AnObject -> Action b
+  RemoveAllCounters : CounterKind -> Selection b AnObject -> Action b
   -- player verbs: discard / lose life; and a chooser-verb where a player sacrifices.
   Discard : {default You actor : Reference b APlayer} -> Count b -> Action b
   LoseLife : {default You actor : Reference b APlayer} -> Count b -> Action b
-  Sacrifices : Reference b APlayer -> Predicate b -> Action b   -- "[player] sacrifices a [pred]" (they choose which)
+  Sacrifices : Reference b APlayer -> Predicate b AnObject -> Action b   -- "[player] sacrifices a [pred]" (they choose which)
   -- keyword actions / further verbs ([CR#701]). The interactive bits (reorder, search
   -- choice, copy characteristics) are the engine's; the grammar names the verb.
   Scry : Count b -> Action b                            -- look at top n, reorder / bottom some
   Surveil : Count b -> Action b
-  Fight : (x : Selection b) -> (y : Selection b) -> Action b   -- each deals damage equal to its power to the other
-  Reveal : Selection b -> Action b
+  Fight : (x : Selection b AnObject) -> (y : Selection b AnObject) -> Action b   -- each deals damage equal to its power to the other
+  Reveal : Selection b AnObject -> Action b
   Shuffle : {default You actor : Reference b APlayer} -> Action b
   CreateToken : Count b -> TokenSpec -> Action b        -- FLAG: vanilla token spec (no abilities)
-  CopySpell : Selection b -> Action b                   -- "copy target spell" — FLAG: copy semantics deferred to engine
+  CopySpell : Selection b AnObject -> Action b                   -- "copy target spell" — FLAG: copy semantics deferred to engine
   AddMana : {default You actor : Reference b APlayer} -> ManaCost -> Action b   -- "add {G}" (mana ability effect); pool/paying is engine
 
 -- What a binder (`With`) binds as `That`: a QUERY of existing objects, a PRODUCER
@@ -537,17 +539,17 @@ data Action : Bindings -> Type where
 -- The grammar only names the role; the ENGINE resolves `That` to the live (reminted
 -- or gone) object, so `MovedRef`/lki/became is a runtime concern, NOT modeled here.
 public export
-data Bindable : Bindings -> Type where
-  Existing : Selection b -> Bindable b  -- bind existing objects (a plain selection)
-  Produce : Action b -> Bindable b      -- run the action, bind its product (the moved object) as `That`
-  -- `by` chooses a `Quantity` of objects matching the filter; the chosen are bound as
+data Bindable : Bindings -> Ent -> Type where
+  Existing : Selection b k -> Bindable b k  -- bind existing entities (a plain selection)
+  Produce : Action b -> Bindable b AnObject -- run the action, bind its product (the moved object) as `That`
+  -- `by` chooses a `Quantity` of entities matching the filter; the chosen are bound as
   -- `That`. Choosing is interactive, so it lives here, not in `Selection`. Rust: Selection::Choose.
-  Choose : {default You by : Reference b APlayer} -> Quantity b -> Predicate b -> Bindable b
+  Choose : {default You by : Reference b APlayer} -> Quantity b -> Predicate b k -> Bindable b k
   -- `by` searches `whose`'s `from`-zones (one or more — "library and/or graveyard") for
   -- matching cards, bound as `That` — like `Choose`, but from (hidden) zones the engine
   -- reveals/shuffles. Search ANOTHER player's via `whose`; the found card's destination
   -- is a following owner-routed `Move That …`. Rust: Selection::Search.
-  Search : {default You by : Reference b APlayer} -> {default You whose : Reference b APlayer} -> {default [Library] from : List Zone} -> Quantity b -> Predicate b -> Bindable b
+  Search : {default You by : Reference b APlayer} -> {default You whose : Reference b APlayer} -> {default [Library] from : List Zone} -> Quantity b -> Predicate b k -> Bindable b k
 
 -- A cost paid to activate an ability ([CR#118,602]). `Costs` conjoins components;
 -- `TapSelf`/`Sacrifice`/… read `This` (the ability's source). Rust: Cost.
@@ -557,7 +559,7 @@ data Cost : Bindings -> Type where
   TapSelf   : Cost b                             -- "{T}"
   UntapSelf : Cost b                             -- "{Q}"
   PayLife   : Count b -> Cost b                  -- "Pay N life"
-  Sacrifice : Selection b -> Cost b              -- "Sacrifice this" = Sacrifice (SelectAll (SameAs This))
+  Sacrifice : Selection b AnObject -> Cost b              -- "Sacrifice this" = Sacrifice (SelectAll (SameAs This))
   AddCounters    : CounterKind -> Count b -> Cost b   -- a loyalty "+N" cost (put N counters on This)
   RemoveCounters : CounterKind -> Count b -> Cost b   -- a loyalty "−N" cost (remove N from This)
   Costs     : List (Cost b) -> Cost b            -- all components together
@@ -574,9 +576,12 @@ mutual
   public export
   data Effect : Bindings -> Type where
     Sequence : (List (Effect b)) -> Effect b
-    Targeted : (Vect n (TargetSpec b)) -> Effect (bindTargets n b) -> Effect b
-    -- binds `that` as `That` for `body`. `that` may PRODUCE a moved object. Rust: Effect::With.
-    With : Bindable b -> Effect (bindThat b) -> Effect b
+    -- target slots all share one kind `k` (their filter's) — recorded as `replicate n k`
+    -- in `targetKinds`, so the body's `GetTarget i` is strictly kinded. (Mixed-kind multi-
+    -- target — "target creature and target player" — isn't expressible; not in the corpus.)
+    Targeted : Vect n (TargetSpec b k) -> Effect (bindTargets (replicate n k) b) -> Effect b
+    -- binds `that` as `That` (of the bound kind) for `body`; `that` may PRODUCE a moved object. Rust: Effect::With.
+    With : Bindable b k -> Effect (bindThat k b) -> Effect b
     -- a single intrinsic instruction (the verb compartment). Rust: Effect::Act.
     Act : Action b -> Effect b
     -- end the game (or a player's part in it) — the `Outcome` compartment. Rust: Effect::Conclude.
@@ -593,7 +598,7 @@ mutual
     Modal : ChooseSpec b -> List (Mode b) -> Effect b
     -- "for each [domain], [body]" — binds each element as `It`. The distributive
     -- primitive (subsumes the old `Selection::Each`). Rust: Effect::ForEach.
-    ForEach : Selection b -> Effect (bindIt b) -> Effect b
+    ForEach : Selection b k -> Effect (bindIt k b) -> Effect b
     -- "when you do [the preceding], [effect]" — a reflexive trigger. It NESTS, so
     -- `That`/targets stay in scope; no event-scanning sibling. Rust: Effect::Reflexive.
     Reflexive : Effect b -> Effect b
@@ -622,7 +627,7 @@ mutual
   public export
   data StaticEffect : Bindings -> Type where
     Modify : Reference b AnObject -> List (Modification b) -> StaticEffect b
-    ModifyAll : Predicate b -> List (Modification b) -> StaticEffect b   -- anthem: "each [filter] gets [mods]"
+    ModifyAll : Predicate b AnObject -> List (Modification b) -> StaticEffect b   -- anthem: "each [filter] gets [mods]"
     -- "if [event] would happen, do [effect] instead" — the card names only the
     -- replacement (empty = a pure skip); the engine skips the original + handles edges.
     Replaces : EventQuery b -> Effect (bindEvent b) -> StaticEffect b
@@ -641,7 +646,7 @@ mutual
     -- a triggered ability: when `event` fires, resolve `effect`. Rust: Ability::Triggered.
     Triggered : EventQuery Base -> Effect (bindEvent Base) -> Ability
     -- "Enchant <filter>": what this Aura may attach to ([CR#702.5]).
-    Enchant : Predicate Base -> Ability
+    Enchant : Predicate Base AnObject -> Ability
     -- a static continuous ability — modifications, anthems, AND replacements live in `StaticEffect`.
     Static : StaticEffect Base -> Ability
 

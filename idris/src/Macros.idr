@@ -7,15 +7,15 @@ module Macros
 import public Core
 
 public export
-permanent : Predicate b
+permanent : Predicate b AnObject
 permanent = InZone Battlefield
 
 public export
-creature : Predicate b
+creature : Predicate b AnObject
 creature = HasType Creature
 
 public export
-inHand : Predicate b
+inHand : Predicate b AnObject
 inHand = InZone Hand
 
 -- "at the beginning of the next end step" — the common delayed-trigger event.
@@ -23,18 +23,22 @@ public export
 nextEndStep : EventQuery b
 nextEndStep = KindIs (BeginStep (EndingPhase EndStep))
 
+-- "any target" ([CR#115.4]): a creature/planeswalker/battle permanent, OR any player —
+-- a genuine object-or-player union, so its kind is `Anything` (via `AnyOf`).
 public export
-anyTarget : TargetSpec b
-anyTarget = Target 1 $ OneOf
-  [ IsKind IsPlayerKind
-  , AllOf [permanent, HasType Battle]
-  , AllOf [permanent, creature]
-  , AllOf [permanent, HasType Planeswalker]
-  ]
+anyTarget : TargetSpec b Anything
+anyTarget = Target 1 $ AnyOf
+  (OneOf [ AllOf [permanent, HasType Battle]
+         , AllOf [permanent, creature]
+         , AllOf [permanent, HasType Planeswalker] ])
+  Anyone
 
 public export
-playerOrPlaneswalker : TargetSpec b
-playerOrPlaneswalker = Target 1 $ OneOf
-  [ IsKind IsPlayerKind
-  , AllOf [permanent, HasType Planeswalker]
-  ]
+playerOrPlaneswalker : TargetSpec b Anything
+playerOrPlaneswalker = Target 1 $ AnyOf (AllOf [permanent, HasType Planeswalker]) Anyone
+
+-- "each player": a player-`Selection` for `ForEach` to distribute over (the old plural
+-- `EachPlayer` reference is gone — plurality lives in `Selection`, kinded `APlayer`).
+public export
+eachPlayer : Selection b APlayer
+eachPlayer = SelectAll Anyone
