@@ -576,10 +576,10 @@ mutual
   public export
   data Effect : Bindings -> Type where
     Sequence : (List (Effect b)) -> Effect b
-    -- target slots all share one kind `k` (their filter's) — recorded as `replicate n k`
-    -- in `targetKinds`, so the body's `GetTarget i` is strictly kinded. (Mixed-kind multi-
-    -- target — "target creature and target player" — isn't expressible; not in the corpus.)
-    Targeted : Vect n (TargetSpec b k) -> Effect (bindTargets (replicate n k) b) -> Effect b
+    -- each target slot carries its OWN kind (its filter's), gathered as `ks : List Ent`
+    -- (a heterogeneous `All`), so the body's `GetTarget i` is strictly kinded PER SLOT —
+    -- mixed-kind multi-target ("target player gains control of target creature", Donate) works.
+    Targeted : {ks : List Ent} -> All (TargetSpec b) ks -> Effect (bindTargets ks b) -> Effect b
     -- binds `that` as `That` (of the bound kind) for `body`; `that` may PRODUCE a moved object. Rust: Effect::With.
     With : Bindable b k -> Effect (bindThat k b) -> Effect b
     -- a single intrinsic instruction (the verb compartment). Rust: Effect::Act.
