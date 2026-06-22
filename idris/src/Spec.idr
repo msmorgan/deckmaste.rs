@@ -94,7 +94,7 @@ tHistoryThenWin =
      (Conclude (WinGame You))
 
 -- an activated ability: a multi-component cost algebra + an effect
-tActivated : Ability
+tActivated : Ability Base
 tActivated = Activated (Costs [Mana [cast 2], TapSelf, PayLife (Literal 1)])
                        (Act (Draw (cast 1)))
 
@@ -116,11 +116,11 @@ tCounters = Sequence [ Act (PutCounters P1P1 (Literal 1) (SelectAll creature))
                      , Act (Destroy (SelectAll (IsNot (HasCounter P1P1)))) ]
 
 -- anthem: a static `ModifyAll` over a controller-predicate filter, with layer mods
-tAnthem : Ability
+tAnthem : Ability Base
 tAnthem = Static (ModifyAll (AllOf [HasType Creature, ControlledBy you]) [ModifyPT (cast 1) (cast 1), AddSubtype (cast Bear)])
 
 -- a loyalty ability: an Activated ability whose cost removes Loyalty counters
-tLoyalty : Ability
+tLoyalty : Ability Base
 tLoyalty = Activated (RemoveCounters Loyalty (Literal 2)) (Act (Draw (cast 1)))
 
 -- the value language: arithmetic, player attributes, counters-on, new stats, that-much
@@ -149,10 +149,10 @@ tSearchOther = Targeted [Target 1 opponent]
   (With (Search {whose = GetTarget 0} (cast 1) creature) (Act (Move That Battlefield)))
 
 -- a conditional static, and an activation-limited (loyalty-style) ability
-tConditionalStatic : Ability
+tConditionalStatic : Ability Base
 tConditionalStatic = Static (While (exists (ControlledBy opponent)) (Modify This [ModifyPT (cast 1) (cast 1)]))
 
-tLimitedAbility : Ability
+tLimitedAbility : Ability Base
 tLimitedAbility =
   Activated (RemoveCounters Loyalty (Literal 1)) (Act (Draw (cast 1))) {limits = [SorcerySpeed, OncePerTurn]}
 
