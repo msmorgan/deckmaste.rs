@@ -172,6 +172,11 @@ tMixedTargets =
   Targeted [Target 1 Anyone, Target 1 (AllOf [permanent, ControlledBy You])]
     (Continuously (Modify (GetTarget 1) [GainControl (GetTarget 0)]) Permanent)
 
+-- `OneOf` computes its result kind by JOINING its arms' kinds (`\/`): same-kind stays
+-- precise (`AnObject`), a mix of object + player widens to `Anything` — no `Widen` needed.
+tOneOfKinds : (Predicate Base AnObject, Predicate Base Anything)
+tOneOfKinds = (OneOf [creature, permanent], OneOf [creature, Anyone])
+
 -- NEGATIVE — each must be rejected --------------------------------------------
 
 -- a 2nd target where only one was bound
