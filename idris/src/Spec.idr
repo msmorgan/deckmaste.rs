@@ -199,15 +199,16 @@ tEmptyOneOf = OneOf []
 -- but a trigger counters it unless {2} is paid (cost FIRST). The 4th polarity (Cant/Must/Gate
 -- ride the deontic cards; Toll here).
 tWard : StaticEffect Base
-tWard = Toll (Mana [cast 2]) (TargetedBy (SameAs This) (ControlledBy opponent))
+tWard = Toll (Mana [cast 2]) (BeTargeted (SameAs This) {by = ControlledBy opponent})
 
--- keyword-desugaring: a deontic keyword IS a `Cant` clause over the `Deed` carrier; a
--- non-deontic one is `Nothing` (the §6 boundary at the keyword level). Pinned by Refl.
-tDefenderDesugars : keywordDeed Defender (SameAs This) = Just (Cant (Attacks (SameAs This)))
-tDefenderDesugars = Refl
+-- keyword-desugaring via Cast/Composite: a keyword spec casts to its full `Ability` — a
+-- `Composite` carrying the `Cant` clause (deontic) or `[]` (intrinsic). `tDefender` keeps the
+-- desugaring pinned by Refl; `tHexproofFrom` shows the parameterized "from [filter]" case.
+tDefender : keyword Defender = the (Ability Base) (Keyword (Composite Defender [Static (Cant (Attacks (SameAs This)))]))
+tDefender = Refl
 
-tFirstStrikeNotDeontic : keywordDeed FirstStrike (SameAs This) = Nothing
-tFirstStrikeNotDeontic = Refl
+tHexproofFrom : Ability Base
+tHexproofFrom = keyword (Hexproof (Just (HasColor Red)))
 
 -- NEGATIVE — each must be rejected --------------------------------------------
 

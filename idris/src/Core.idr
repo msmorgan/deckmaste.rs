@@ -251,32 +251,30 @@ public export
 bindEvent : Bindings -> Bindings
 bindEvent b = MkBindings (targetKinds b) (thatKind b) (itKind b) True
 
--- A keyword ability ([CR#702]). Rust: Ability::Keyword(KeywordAbility). Defined
--- before the predicate block so a `Predicate` can ask `HasKeyword`.
-public export
-data KeywordAbility : Bindings -> Type where
-  Flying : KeywordAbility b
-  FirstStrike : KeywordAbility b
-  DoubleStrike : KeywordAbility b
-  Deathtouch : KeywordAbility b
-  Reach : KeywordAbility b
-  Trample : KeywordAbility b
-  Vigilance : KeywordAbility b
-  Flash : KeywordAbility b
-  -- the deontic-RESTRICTION family ([CR#702]): these desugar to `Cant` clauses (see Macros'
-  -- `keywordDeed`). They're still keyword TAGS — e.g. `HasKeyword Flying` reads the tag, which
-  -- flying's own restriction clause consults on blockers. (Menace is omitted: it's set-level.)
-  Defender : KeywordAbility b
-  Shroud : KeywordAbility b
-  Hexproof : KeywordAbility b
-
--- Reference / Count / Predicate / Condition / EventQuery are one mutually recursive
--- language. A PREDICATE is an object test — its candidate is IMPLICIT, so there's
--- NO `Subject` reference or `bindSubject` gate. A *filter* IS a `Predicate`. A
--- `Condition` is a closed/game-state test that reaches objects only via
--- `Matches : Reference -> Predicate` (or `exists`/`unique`, below). Combinators:
+-- KeywordSpec / Reference / Count / Predicate / Condition / EventQuery are one mutually
+-- recursive language. A PREDICATE is an object test — its candidate is IMPLICIT. A `Condition`
+-- is a closed/game-state test reaching objects via `Matches`/`exists`/`unique`. Combinators:
 -- predicates use `AllOf`/`OneOf`/`IsNot`; conditions use `And`/`Or`/`Not`.
 mutual
+  -- A KEYWORD's tag + params ([CR#702]) — the "name" side of a keyword. In this block so
+  -- `HasKeyword` can read it and `Hexproof`'s "from" filter can be a `Predicate` (which may name
+  -- an anaphor — "from the CHOSEN color"). `Cast` (Macros) desugars a spec into its full `Ability`
+  -- (a `Composite`): the deontic ones (Flying/Defender/Shroud/Hexproof) get a `Cant`; the rest
+  -- (FirstStrike/Deathtouch/Trample = damage; Vigilance = event-edit; Reach/Flash = flag/window)
+  -- carry no clause. (Menace omitted: set-level.)
+  public export
+  data KeywordSpec : Bindings -> Type where
+    Flying : KeywordSpec b
+    FirstStrike : KeywordSpec b
+    DoubleStrike : KeywordSpec b
+    Deathtouch : KeywordSpec b
+    Reach : KeywordSpec b
+    Trample : KeywordSpec b
+    Vigilance : KeywordSpec b
+    Flash : KeywordSpec b
+    Defender : KeywordSpec b
+    Shroud : KeywordSpec b
+    Hexproof : Maybe (Predicate b AnObject) -> KeywordSpec b   -- optional "from [filter]"
   -- A REFERENCE to a single game entity, indexed by `Ent` (object vs player). One
   -- reference language now: object-refs and player-refs together, strict on the kind
   -- where it matters (`StatOf` needs `AnObject`, `LifeTotal` needs `APlayer`) and lax
@@ -333,7 +331,7 @@ mutual
     HasColor : Color -> Predicate b AnObject
     IsKind : ObjectKind -> Predicate b AnObject
     InZone : Zone -> Predicate b AnObject
-    HasKeyword : KeywordAbility b -> Predicate b AnObject
+    HasKeyword : KeywordSpec b -> Predicate b AnObject
     SameAs : Reference b k -> Predicate b k    -- the candidate IS r (same kind; "another" = IsNot (SameAs This))
     SameName : Reference b AnObject -> Predicate b AnObject   -- shares a name with r ("named [its own name]" = SameName This)
     WasCastFrom : Zone -> Predicate b AnObject -- the object was cast from this zone (cast provenance)
@@ -600,7 +598,8 @@ public export
 data Deed : Bindings -> Type where
   Attacks    : (who : Predicate b AnObject) -> {default Anyone whom : Predicate b APlayer} -> Deed b
   Blocks     : (blocker : Predicate b AnObject) -> (attacker : Predicate b AnObject) -> Deed b
-  TargetedBy : (object : Predicate b AnObject) -> (source : Predicate b AnObject) -> Deed b
+  -- "[object] is targeted BY a source matching `by`"; `by` defaults to any spell or ability.
+  BeTargeted : (object : Predicate b AnObject) -> {default (OneOf [IsKind IsSpell, IsKind IsAbility]) by : Predicate b AnObject} -> Deed b
   Casts      : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
   Activates  : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
 
@@ -686,6 +685,13 @@ mutual
     Must : Deed b -> StaticEffect b
     Gate : Cost b -> Deed b -> StaticEffect b
     Toll : Cost b -> Deed b -> StaticEffect b
+
+  -- A keyword as it sits on a permanent: its `KeywordSpec` tag + the `Ability`s it desugars to
+  -- ([CR#702]). Intrinsics carry `[]`; deontic keywords (flying/defender/shroud/hexproof) carry a
+  -- `Cant` clause. `Keyword` wraps it; `Cast` (Macros) builds it from a bare `KeywordSpec`.
+  public export
+  data KeywordAbility : Bindings -> Type where
+    Composite : KeywordSpec b -> List (Ability b) -> KeywordAbility b
 
   -- An ability, INDEXED by its context `b`. A card's top-level abilities are `Ability Base`
   -- (source bound, no targets); a keyword desugaring can be `Ability b` so its clause may
