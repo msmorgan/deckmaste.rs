@@ -524,4 +524,18 @@ AmbushViper = Normal $ fromDefault
   , toughness := Just 1
   }
 
+-- Menace: a SET-LEVEL `Cant` (the whole blocker set must be ≥2, not a per-blocker check) — the
+-- `BlockedBy` deed the doc flags as mandatory. (Warrior subtype omitted — not in the enum.)
+export
+BoggartBrute : Card
+BoggartBrute = Normal $ fromDefault
+  { name := "Boggart Brute"
+  , manaCost := [^2, ^Red]
+  , types := [Creature]
+  , subtypes := [^Goblin]
+  , abilities := [keyword Menace]
+  , power := Just 3
+  , toughness := Just 2
+  }
+
 --:vim:sts=2 sw=2:
