@@ -686,11 +686,13 @@ mutual
     Gate : Cost b -> Deed b -> StaticEffect b
     Toll : Cost b -> Deed b -> StaticEffect b
 
-  -- A keyword as it sits on a permanent: its `KeywordSpec` tag + the `Ability`s it desugars to
-  -- ([CR#702]). Intrinsics carry `[]`; deontic keywords (flying/defender/shroud/hexproof) carry a
-  -- `Cant` clause. `Keyword` wraps it; `Cast` (Macros) builds it from a bare `KeywordSpec`.
+  -- A keyword as it sits on a permanent ([CR#702]): either `Bare` — an engine-INTRINSIC keyword
+  -- (FirstStrike/DoubleStrike/Deathtouch/Reach/Trample/Vigilance/Flash) with NO grammar-level
+  -- desugaring — or a `Composite` of its tag + the `Ability`s it desugars to (the deontic family:
+  -- flying/defender/shroud/hexproof → a `Cant`). `Keyword` wraps it; `keyword` (Macros) builds it.
   public export
   data KeywordAbility : Bindings -> Type where
+    Bare      : KeywordSpec b -> KeywordAbility b
     Composite : KeywordSpec b -> List (Ability b) -> KeywordAbility b
 
   -- An ability, INDEXED by its context `b`. A card's top-level abilities are `Ability Base`
