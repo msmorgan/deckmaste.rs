@@ -365,3 +365,51 @@ Donate = Normal $ fromDefault
           (Continuously (Modify (GetTarget 1) [GainControl (GetTarget 0)]) Permanent))
       ]
   }
+
+-- DEONTIC cards ----------------------------------------------------------------
+
+-- Pacifism — "Enchanted creature can't attack or block." Two `Cant` clauses over the host
+-- (`AttachHostOf This`): can't attack at all, and can't block any creature. Pure deontic.
+export
+Pacifism : Card
+Pacifism = Normal $ fromDefault
+  { name := "Pacifism"
+  , manaCost := [cast 1, cast White]
+  , types := [Enchantment]
+  , subtypes := [cast Aura]
+  , abilities :=
+      [ Enchant (AllOf [permanent, creature])
+      , Static (Cant (Attacks (SameAs (AttachHostOf This))))
+      , Static (Cant (Blocks (SameAs (AttachHostOf This)) creature))
+      ]
+  }
+
+-- Juggernaut — "attacks each combat if able" (a `Must`) + "can't be blocked by Walls" (a
+-- `Cant` on the blocker). The Juggernaut creature-subtype is omitted (not in the enum).
+export
+Juggernaut : Card
+Juggernaut = Normal $ fromDefault
+  { name := "Juggernaut"
+  , manaCost := [cast 4]
+  , types := [Artifact, Creature]
+  , power := Just 5
+  , toughness := Just 3
+  , abilities :=
+      [ Static (Must (Attacks (SameAs This)))
+      , Static (Cant (Blocks (HasSubtype (cast Wall)) (SameAs This)))
+      ]
+  }
+
+-- Ghostly Prison — "Creatures can't attack you unless their controller pays {2} …" — a `Gate`
+-- (cost FIRST): the attack is legal only if the toll is paid, never compulsory. FLAG: the real
+-- cost is "{2} for EACH attacking creature"; the `Cost` algebra has no Count-scaled mana yet, so
+-- this encodes the flat {2} per the shape, with the per-creature scaling deferred.
+export
+GhostlyPrison : Card
+GhostlyPrison = Normal $ fromDefault
+  { name := "Ghostly Prison"
+  , manaCost := [cast 2, cast White]
+  , types := [Enchantment]
+  , abilities :=
+      [ Static (Gate (Mana [cast 2]) (Attacks creature {whom = SameAs You})) ]
+  }

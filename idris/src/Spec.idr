@@ -182,6 +182,12 @@ tOneOfKinds = (OneOf [creature, permanent], OneOf [creature, Anyone])
 tEmptyOneOf : Predicate Base Empty
 tEmptyOneOf = OneOf []
 
+-- a deontic Toll: Ward {2} — being targeted by an opponent's spell/ability stays fully legal,
+-- but a trigger counters it unless {2} is paid (cost FIRST). The 4th polarity (Cant/Must/Gate
+-- ride the deontic cards; Toll here).
+tWard : StaticEffect Base
+tWard = Toll (Mana [cast 2]) (TargetedBy (SameAs This) (ControlledBy Opponent))
+
 -- NEGATIVE — each must be rejected --------------------------------------------
 
 -- a 2nd target where only one was bound
