@@ -348,3 +348,20 @@ BanishingLight = Normal $ fromDefault
                                                , SourceMatches (SameAs This) ])))
       ]
   }
+
+-- Donate — "Target player gains control of target permanent you control." The MIXED-kind
+-- multi-target case: slot 0 is a player (`APlayer`), slot 1 an object (`AnObject`), so
+-- `GetTarget 0`/`GetTarget 1` are strictly kinded by their own slots. The control shift is
+-- a rest-of-game continuous effect (`Continuously … Permanent`).
+export
+Donate : Card
+Donate = Normal $ fromDefault
+  { name := "Donate"
+  , manaCost := [cast 2, cast Blue]
+  , types := [Sorcery]
+  , abilities :=
+      [ Spell (Targeted [ Target 1 (Anyone {k = APlayer})
+                        , Target 1 (AllOf [permanent, ControlledBy You]) ]
+          (Continuously (Modify (GetTarget 1) [GainControl (GetTarget 0)]) Permanent))
+      ]
+  }

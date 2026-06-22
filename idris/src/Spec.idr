@@ -165,6 +165,13 @@ tPlayerTarget = LifeTotal (GetTarget 0)
 tEachPlayerForEach : Effect Base
 tEachPlayerForEach = ForEach eachPlayer (Act (Draw {actor = It} (cast 1)))
 
+-- MIXED-kind multi-target (Donate: "target player gains control of target permanent"):
+-- slot 0 is a player, slot 1 an object — each `GetTarget` strictly kinded by its own slot.
+tMixedTargets : Effect Base
+tMixedTargets =
+  Targeted [Target 1 (Anyone {k = APlayer}), Target 1 (AllOf [permanent, ControlledBy You])]
+    (Continuously (Modify (GetTarget 1) [GainControl (GetTarget 0)]) Permanent)
+
 -- NEGATIVE — each must be rejected --------------------------------------------
 
 -- a 2nd target where only one was bound
