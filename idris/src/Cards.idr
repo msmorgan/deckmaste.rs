@@ -228,7 +228,7 @@ GloriousAnthem = Normal $ fromDefault
 -- Activated abilities whose cost adds/removes Loyalty counters, carrying [SorcerySpeed,
 -- OncePerTurn] limits; the printed loyalty (3) is "enters with 3 Loyalty counters"
 -- (Face.loyalty). "Each player" is `ForEach eachPlayer` (a player-`Selection`); "target
--- player" is a player-kinded target (`anyPlayer`), so `GetTarget 0` is `APlayer` with no
+-- player" is a player-kinded target (`Anyone`), so `GetTarget 0` is `APlayer` with no
 -- annotation. The −6 pile ultimate is OMITTED (no pile-division); the "Liliana"
 -- planeswalker subtype is omitted (no planeswalker-subtype enum).
 export
@@ -243,7 +243,7 @@ LilianaOfTheVeil = Normal $ fromDefault
       [ Activated (AddCounters Loyalty (Literal 1))
           (ForEach eachPlayer (Act (Discard {actor = It} (cast 1)))) {limits = [SorcerySpeed, OncePerTurn]}
       , Activated (RemoveCounters Loyalty (Literal 2))
-          (Targeted [Target 1 anyPlayer]
+          (Targeted [Target 1 Anyone]
             (Act (Sacrifices (GetTarget 0) creature))) {limits = [SorcerySpeed, OncePerTurn]}
       ]
   }
@@ -360,7 +360,7 @@ Donate = Normal $ fromDefault
   , manaCost := [cast 2, cast Blue]
   , types := [Sorcery]
   , abilities :=
-      [ Spell (Targeted [ Target 1 anyPlayer
+      [ Spell (Targeted [ Target 1 Anyone
                         , Target 1 (AllOf [permanent, ControlledBy You]) ]
           (Continuously (Modify (GetTarget 1) [GainControl (GetTarget 0)]) Permanent))
       ]
