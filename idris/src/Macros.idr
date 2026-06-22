@@ -18,6 +18,12 @@ public export
 inHand : Predicate b AnObject
 inHand = InZone Hand
 
+-- "any player" — the player top-predicate ("target player" = `Target 1 anyPlayer`). It
+-- pins the slot kind to `APlayer` concretely, so callers never annotate `Anyone {k=…}`.
+public export
+anyPlayer : Predicate b APlayer
+anyPlayer = Anyone
+
 -- "at the beginning of the next end step" — the common delayed-trigger event.
 public export
 nextEndStep : EventQuery b
@@ -31,14 +37,14 @@ anyTarget = Target 1 $ AnyOf
   (OneOf [ AllOf [permanent, HasType Battle]
          , AllOf [permanent, creature]
          , AllOf [permanent, HasType Planeswalker] ])
-  Anyone
+  anyPlayer
 
 public export
 playerOrPlaneswalker : TargetSpec b Anything
-playerOrPlaneswalker = Target 1 $ AnyOf (AllOf [permanent, HasType Planeswalker]) Anyone
+playerOrPlaneswalker = Target 1 $ AnyOf (AllOf [permanent, HasType Planeswalker]) anyPlayer
 
 -- "each player": a player-`Selection` for `ForEach` to distribute over (the old plural
 -- `EachPlayer` reference is gone — plurality lives in `Selection`, kinded `APlayer`).
 public export
 eachPlayer : Selection b APlayer
-eachPlayer = SelectAll Anyone
+eachPlayer = SelectAll anyPlayer

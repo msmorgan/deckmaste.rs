@@ -326,8 +326,8 @@ mutual
     ControlledBy : Reference b APlayer -> Predicate b AnObject   -- "creature you control" = AllOf [HasType Creature, ControlledBy You]
     OwnedBy : Reference b APlayer -> Predicate b AnObject
     WasKicked : Predicate b AnObject           -- FLAG: kicker as a boolean flag on the object (no cost-mode model)
-    -- top / union predicates: `Anyone` matches any entity of its kind (e.g. "each player"
-    -- = `SelectAll (Anyone {k=APlayer})`); `AnyOf` is the object-OR-player union ("any target").
+    -- top / union predicates: `Anyone` matches any entity of its kind; Macros' `anyPlayer`
+    -- pins it to `APlayer` so callers need no `{k=…}`. `AnyOf` is the object-OR-player union.
     Anyone : Predicate b k
     AnyOf : Predicate b AnObject -> Predicate b APlayer -> Predicate b Anything
     -- combinators (kind-preserving; distinct from `Condition`'s And/Or/Not):
