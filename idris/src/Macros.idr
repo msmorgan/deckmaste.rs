@@ -91,6 +91,13 @@ public export
 flash : Ability b
 flash = Keyword (Composite Flash [Static (Can (Casts you (SameAs This)) {window = Just InstantWindow})])
 
+-- Menace ([CR#702.111b]): a SET-LEVEL `Cant` — "can't be blocked except by two or more", i.e.
+-- can't be blocked by a lone (size-1) blocker set. The whole-set predicate [CR#509.1c] needs the
+-- `BlockedBy` deed, not the per-blocker `Blocks` (which flying/Cant uses).
+public export
+menace : Ability b
+menace = Keyword (Composite Menace [Static (Cant (BlockedBy (SameAs This) (^1)))])
+
 -- desugar a `KeywordSpec` into its full `Ability` — dispatches to the macros above. EXHAUSTIVE
 -- (no catch-all): adding a `KeywordSpec` constructor forces a clause here. `Bare` = an engine-
 -- PRIMITIVE keyword the grammar can't desugar (FirstStrike/DoubleStrike/Deathtouch/Trample =
@@ -110,5 +117,6 @@ keyword Reach               = Keyword (Composite Reach [])
 keyword Flash               = flash
 keyword Defender            = defender
 keyword Shroud              = shroud
+keyword Menace              = menace
 keyword (Hexproof Nothing)  = hexproof
 keyword (Hexproof (Just f)) = hexproofFrom f

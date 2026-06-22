@@ -231,6 +231,11 @@ tAsThough = Continuously
 tFlashWindow : keyword Flash = the (Ability Base) (Keyword (Composite Flash [Static (Can (Casts (SameAs You) (SameAs This)) {window = Just InstantWindow})]))
 tFlashWindow = Refl
 
+-- Menace's desugaring (Refl): a SET-LEVEL `Cant` forbidding the lone-blocker (size-1) block —
+-- `BlockedBy` constrains the whole set, unlike the per-blocker `Blocks` that flying uses.
+tMenace : keyword Menace = the (Ability Base) (Keyword (Composite Menace [Static (Cant (BlockedBy (SameAs This) (^1)))]))
+tMenace = Refl
+
 -- the `^` prefix alias = `promote`: terse in lists / delimited position (`[^Red, ^1]`). In a
 -- juxtaposed ARGUMENT it needs parens — `Draw (^1)` — since bare `Draw ^1` reads `^` as infix.
 tPromoteOp : ManaCost

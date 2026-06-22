@@ -296,6 +296,7 @@ mutual
     Flash : KeywordSpec b
     Defender : KeywordSpec b
     Shroud : KeywordSpec b
+    Menace : KeywordSpec b
     Hexproof : Maybe (Predicate b AnObject) -> KeywordSpec b   -- optional "from [filter]"
   -- A REFERENCE to a single game entity, indexed by `Ent` (object vs player). One
   -- reference language now: object-refs and player-refs together, strict on the kind
@@ -635,6 +636,11 @@ public export
 data Deed : Bindings -> Type where
   Attacks    : (who : Predicate b AnObject) -> {default Anyone whom : Predicate b APlayer} -> Deed b
   Blocks     : (blocker : Predicate b AnObject) -> (attacker : Predicate b AnObject) -> Deed b
+  -- SET-LEVEL block ([CR#509.1c],[CR#702.111b]): "[attacker] is blocked by a DECLARED set of `size`
+  -- creatures" (a block, so size ≥ 1 by construction). `Cant (BlockedBy This …)` constrains the
+  -- WHOLE blocker set, not one blocker at a time — Menace = `Cant (BlockedBy (SameAs This) (^1))`
+  -- (forbid the lone blocker; 0 = unblocked and 2+ stay legal). [CR#509.1c] judges the whole set.
+  BlockedBy  : (attacker : Predicate b AnObject) -> (size : Quantity b) -> Deed b
   -- "[object] is targeted BY a source matching `by`"; `by` defaults to any spell or ability.
   BeTargeted : (object : Predicate b AnObject) -> {default (OneOf [IsKind IsSpell, IsKind IsAbility]) by : Predicate b AnObject} -> Deed b
   Casts      : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
@@ -733,7 +739,7 @@ mutual
   -- A keyword as it sits on a permanent ([CR#702]): either `Bare` — an engine-PRIMITIVE keyword
   -- the grammar can't desugar (FirstStrike/DoubleStrike/Deathtouch/Trample = damage pipeline;
   -- Vigilance = attack event-edit) — or a `Composite` of its tag + the `Ability`s it desugars to:
-  -- Flying/Defender/Shroud/Hexproof → a `Cant`; Reach → `[]` (a flag flying's clause reads, no
+  -- Flying/Defender/Shroud/Hexproof/Menace → a `Cant` (Menace's is SET-level, `BlockedBy`); Reach → `[]` (a flag flying's clause reads, no
   -- ability of its own); Flash → a `Can (Casts …) {window = InstantWindow}` (cast at instant speed).
   -- `Keyword` wraps it; `keyword` (Macros) builds it.
   public export
