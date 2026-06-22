@@ -20,7 +20,7 @@ tThatInWith = That
 
 -- a multi-type card may carry one subtype per card type [CR#205.3c]
 tLandCreature : Card
-tLandCreature = Normal $ fromDefault
+tLandCreature = Normal $ ^:
   { name := "Test Land Creature"
   , types := [Land, Creature]
   , subtypes := [^Island, ^Bear]
@@ -138,9 +138,17 @@ tVerbs : List (OneShotEffect Base)
 tVerbs =
   [ Act (Scry (Literal 2))
   , Act (Fight This (Only creature))
-  , Act (CreateToken (Literal 2) (MkToken "Soldier" [Creature] [] [White] 1 1 []))
+  , Act (CreateToken (Literal 2) (^: { name := "Soldier", types := [Creature], colors := [White], power := Just 1, toughness := Just 1 }))
   , With (Search {from = [Library, Graveyard]} (^1) (HasName "Forest")) (ForEach That (Act (Move It Hand)))  -- tutor across two zones
   , Act (CopySpell (Only (IsKind IsSpell))) ]
+
+-- a token whose P/T is a `Count b` known at creation — "an X/X where X = creatures you control".
+-- This is the payoff of parameterizing `Characteristics` by `b`: a card `Face` is `Characteristics
+-- Base`, but a token's stats can read the live context, and both share the `^: { … }` builder.
+tDynamicToken : OneShotEffect Base
+tDynamicToken = Act (CreateToken (^1)
+  (^: { name := "Ooze", types := [Creature], colors := [Green]
+      , power := Just (CountOf creature), toughness := Just (CountOf creature) }))
 
 -- searching ANOTHER player's library (Bribery: "search target OPPONENT's library"): the
 -- opponent is now a TARGET (player-predicate `opponent`), so `whose` is that targeted player.
@@ -164,7 +172,7 @@ tPTMods =
 
 -- a "*/*" creature: printed power/toughness are a `Count` (CDA), not a bare Int
 tCDA : Card
-tCDA = Normal $ fromDefault
+tCDA = Normal $ ^:
   { name := "Test CDA"
   , types := [Creature]
   , power := Just (CountOf (HasType Land))
@@ -274,7 +282,7 @@ failing
 -- a subtype whose category isn't among the card's types [CR#205.3d]
 failing
   tBadSubtype : Card
-  tBadSubtype = Normal $ fromDefault
+  tBadSubtype = Normal $ ^:
     { name := "Bad", types := [Creature], subtypes := [^Aura] }
 
 -- a target leaking into a delayed body (`unbindTargets` clears it; only `That` crosses)

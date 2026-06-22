@@ -1,4 +1,4 @@
-||| Card encodings. Each is a `Core.Card` built with the `fromDefault { … }`
+||| Card encodings. Each is a `Core.Card` built with the `^: { … }`
 ||| builder, using `Core` constructors and `Macros` templates. Verbs go through
 ||| `Act` (the verb compartment); a binder that produces a moved object wraps
 ||| the producing `Action` in `Produce`.
@@ -9,7 +9,7 @@ import Macros
 
 export
 LightningBolt : Card
-LightningBolt = Normal $ fromDefault
+LightningBolt = Normal $ ^:
   { name := "Lightning Bolt"
   , manaCost := [^Red]
   , types := [Instant]
@@ -23,7 +23,7 @@ LightningBolt = Normal $ fromDefault
 -- Untargeted group damage: a `ForEach` over all creatures, dealing to each `It` (no `Targeted`).
 export
 Pyroclasm : Card
-Pyroclasm = Normal $ fromDefault
+Pyroclasm = Normal $ ^:
   { name := "Pyroclasm"
   , manaCost := [^1, ^Red]
   , types := [Sorcery]
@@ -35,7 +35,7 @@ Pyroclasm = Normal $ fromDefault
 -- Vanilla creature: no abilities, just power/toughness. No new data variant.
 export
 GrizzlyBears : Card
-GrizzlyBears = Normal $ fromDefault
+GrizzlyBears = Normal $ ^:
   { name := "Grizzly Bears"
   , manaCost := [^1, ^Green]
   , types := [Creature]
@@ -47,7 +47,7 @@ GrizzlyBears = Normal $ fromDefault
 -- French vanilla: a single keyword ability.
 export
 TyphoidRats : Card
-TyphoidRats = Normal $ fromDefault
+TyphoidRats = Normal $ ^:
   { name := "Typhoid Rats"
   , manaCost := [^Black]
   , types := [Creature]
@@ -59,7 +59,7 @@ TyphoidRats = Normal $ fromDefault
 
 export
 GiantSpider : Card
-GiantSpider = Normal $ fromDefault
+GiantSpider = Normal $ ^:
   { name := "Giant Spider"
   , manaCost := [^3, ^Green]
   , types := [Creature]
@@ -75,7 +75,7 @@ GiantSpider = Normal $ fromDefault
 -- engine resolves `That` to the reminted (or gone) object [CR#400.7].
 export
 Flickerwisp : Card
-Flickerwisp = Normal $ fromDefault
+Flickerwisp = Normal $ ^:
   { name := "Flickerwisp"
   , manaCost := [^1, ^White, ^White]
   , types := [Creature]
@@ -96,7 +96,7 @@ Flickerwisp = Normal $ fromDefault
 -- `Choose` is a `Bindable` — it binds the chosen cards as `That`; the body moves `That`.
 export
 Brainstorm : Card
-Brainstorm = Normal $ fromDefault
+Brainstorm = Normal $ ^:
   { name := "Brainstorm"
   , manaCost := [^Blue]
   , types := [Instant]
@@ -114,7 +114,7 @@ Brainstorm = Normal $ fromDefault
 -- returns it to hand. (Aura is an enchantment subtype, so it's allowed here.)
 export
 Rancor : Card
-Rancor = Normal $ fromDefault
+Rancor = Normal $ ^:
   { name := "Rancor"
   , manaCost := [^Green]
   , types := [Enchantment]
@@ -137,7 +137,7 @@ Rancor = Normal $ fromDefault
 -- `With (Produce (Move …))` binds the exiled object as `That`; the body returns it.
 export
 Cloudshift : Card
-Cloudshift = Normal $ fromDefault
+Cloudshift = Normal $ ^:
   { name := "Cloudshift"
   , manaCost := [^White]
   , types := [Instant]
@@ -159,7 +159,7 @@ Cloudshift = Normal $ fromDefault
 -- ("may" and "gains haste" omitted for focus.)
 export
 ThroughTheBreach : Card
-ThroughTheBreach = Normal $ fromDefault
+ThroughTheBreach = Normal $ ^:
   { name := "Through the Breach"
   , manaCost := [^4, ^Red]
   , types := [Instant]
@@ -179,7 +179,7 @@ ThroughTheBreach = Normal $ fromDefault
 -- positional library / GainLife.
 export
 ApproachOfTheSecondSun : Card
-ApproachOfTheSecondSun = Normal $ fromDefault
+ApproachOfTheSecondSun = Normal $ ^:
   { name := "Approach of the Second Sun"
   , manaCost := [^6, ^White]
   , types := [Sorcery]
@@ -204,7 +204,7 @@ ApproachOfTheSecondSun = Normal $ fromDefault
 -- HasCounter / PutCounters / RemoveAllCounters.
 export
 OblivionStone : Card
-OblivionStone = Normal $ fromDefault
+OblivionStone = Normal $ ^:
   { name := "Oblivion Stone"
   , manaCost := [^3]
   , types := [Artifact]
@@ -223,7 +223,7 @@ OblivionStone = Normal $ fromDefault
 -- ModifyAll + ControlledBy (the controller predicate).
 export
 GloriousAnthem : Card
-GloriousAnthem = Normal $ fromDefault
+GloriousAnthem = Normal $ ^:
   { name := "Glorious Anthem"
   , manaCost := [^1, ^White, ^White]
   , types := [Enchantment]
@@ -240,7 +240,7 @@ GloriousAnthem = Normal $ fromDefault
 -- planeswalker subtype is omitted (no planeswalker-subtype enum).
 export
 LilianaOfTheVeil : Card
-LilianaOfTheVeil = Normal $ fromDefault
+LilianaOfTheVeil = Normal $ ^:
   { name := "Liliana of the Veil"
   , manaCost := [^1, ^Black, ^Black]
   , types := [Planeswalker]
@@ -261,7 +261,7 @@ LilianaOfTheVeil = Normal $ fromDefault
 -- boolean (no cost-mode model); Merfolk/Wizard subtypes omitted.
 export
 TideShaper : Card
-TideShaper = Normal $ fromDefault
+TideShaper = Normal $ ^:
   { name := "Tide Shaper"
   , manaCost := [^Blue]
   , types := [Creature]
@@ -284,7 +284,7 @@ TideShaper = Normal $ fromDefault
 -- "that card" anaphora uses the UNGATED `EventObject`; "face down" isn't modeled.
 export
 Necropotence : Card
-Necropotence = Normal $ fromDefault
+Necropotence = Normal $ ^:
   { name := "Necropotence"
   , manaCost := [^Black, ^Black, ^Black]
   , types := [Enchantment]
@@ -305,7 +305,7 @@ Necropotence = Normal $ fromDefault
 -- (DuringStep draw-step)` — we have no ordinal facet to say "the first".
 export
 NotionThief : Card
-NotionThief = Normal $ fromDefault
+NotionThief = Normal $ ^:
   { name := "Notion Thief"
   , manaCost := [^2, ^Blue, ^Black]
   , types := [Creature]
@@ -325,7 +325,7 @@ NotionThief = Normal $ fromDefault
 -- — no With/That fusion. Contrast Banishing Light's single "exile UNTIL" duration.
 export
 OblivionRing : Card
-OblivionRing = Normal $ fromDefault
+OblivionRing = Normal $ ^:
   { name := "Oblivion Ring"
   , manaCost := [^2, ^White]
   , types := [Enchantment]
@@ -344,7 +344,7 @@ OblivionRing = Normal $ fromDefault
 -- that's the rules difference from Oblivion Ring's two linked abilities.
 export
 BanishingLight : Card
-BanishingLight = Normal $ fromDefault
+BanishingLight = Normal $ ^:
   { name := "Banishing Light"
   , manaCost := [^2, ^White]
   , types := [Enchantment]
@@ -363,7 +363,7 @@ BanishingLight = Normal $ fromDefault
 -- a rest-of-game continuous effect (`Continuously … Permanent`).
 export
 Donate : Card
-Donate = Normal $ fromDefault
+Donate = Normal $ ^:
   { name := "Donate"
   , manaCost := [^2, ^Blue]
   , types := [Sorcery]
@@ -380,7 +380,7 @@ Donate = Normal $ fromDefault
 -- (`AttachHostOf This`): can't attack at all, and can't block any creature. Pure deontic.
 export
 Pacifism : Card
-Pacifism = Normal $ fromDefault
+Pacifism = Normal $ ^:
   { name := "Pacifism"
   , manaCost := [^1, ^White]
   , types := [Enchantment]
@@ -396,7 +396,7 @@ Pacifism = Normal $ fromDefault
 -- `Cant` on the blocker). The Juggernaut creature-subtype is omitted (not in the enum).
 export
 Juggernaut : Card
-Juggernaut = Normal $ fromDefault
+Juggernaut = Normal $ ^:
   { name := "Juggernaut"
   , manaCost := [^4]
   , types := [Artifact, Creature]
@@ -415,7 +415,7 @@ Juggernaut = Normal $ fromDefault
 -- don't have yet — so this stays flat {2} for now.
 export
 GhostlyPrison : Card
-GhostlyPrison = Normal $ fromDefault
+GhostlyPrison = Normal $ ^:
   { name := "Ghostly Prison"
   , manaCost := [^2, ^White]
   , types := [Enchantment]
@@ -428,7 +428,7 @@ GhostlyPrison = Normal $ fromDefault
 -- keyword, not written on the card. (+ a plain ETB draw trigger.)
 export
 WallOfOmens : Card
-WallOfOmens = Normal $ fromDefault
+WallOfOmens = Normal $ ^:
   { name := "Wall of Omens"
   , manaCost := [^1, ^White]
   , types := [Creature]
@@ -448,7 +448,7 @@ WallOfOmens = Normal $ fromDefault
 -- it's countered. Exercises MustPay / ControllerOf (the targeted spell's controller) / a spell target.
 export
 ManaLeak : Card
-ManaLeak = Normal $ fromDefault
+ManaLeak = Normal $ ^:
   { name := "Mana Leak"
   , manaCost := [^1, ^Blue]
   , types := [Instant]
@@ -463,7 +463,7 @@ ManaLeak = Normal $ fromDefault
 -- block it). (Rogue subtype omitted — not in the enum.)
 export
 InvisibleStalker : Card
-InvisibleStalker = Normal $ fromDefault
+InvisibleStalker = Normal $ ^:
   { name := "Invisible Stalker"
   , manaCost := [^1, ^Blue]
   , types := [Creature]
@@ -480,7 +480,7 @@ InvisibleStalker = Normal $ fromDefault
 -- targets). Exercises Modal / per-mode Targeted / Counter / Move / Tap / ControlledBy opponent.
 export
 CrypticCommand : Card
-CrypticCommand = Normal $ fromDefault
+CrypticCommand = Normal $ ^:
   { name := "Cryptic Command"
   , manaCost := [^1, ^Blue, ^Blue, ^Blue]
   , types := [Instant]
@@ -498,7 +498,7 @@ CrypticCommand = Normal $ fromDefault
 -- the GROUP `GetTargets 0` and fed to `DealDamageDivided`. Then an untargeted draw.
 export
 Electrolyze : Card
-Electrolyze = Normal $ fromDefault
+Electrolyze = Normal $ ^:
   { name := "Electrolyze"
   , manaCost := [^1, ^Blue, ^Red]
   , types := [Instant]
@@ -515,7 +515,7 @@ Electrolyze = Normal $ fromDefault
 -- omitted — not in the enum.)
 export
 AmbushViper : Card
-AmbushViper = Normal $ fromDefault
+AmbushViper = Normal $ ^:
   { name := "Ambush Viper"
   , manaCost := [^1, ^Green]
   , types := [Creature]
@@ -528,7 +528,7 @@ AmbushViper = Normal $ fromDefault
 -- `BlockedBy` deed the doc flags as mandatory. (Warrior subtype omitted — not in the enum.)
 export
 BoggartBrute : Card
-BoggartBrute = Normal $ fromDefault
+BoggartBrute = Normal $ ^:
   { name := "Boggart Brute"
   , manaCost := [^2, ^Red]
   , types := [Creature]
@@ -542,13 +542,15 @@ BoggartBrute = Normal $ fromDefault
 -- flying" — the `TokenSpec` now carries `[keyword Flying]`, mirroring a card face's abilities.
 export
 MidnightHaunting : Card
-MidnightHaunting = Normal $ fromDefault
+MidnightHaunting = Normal $ ^:
   { name := "Midnight Haunting"
   , manaCost := [^2, ^White]
   , types := [Instant]
   , abilities :=
       [ Spell (Act (CreateToken (^2)
-          (MkToken "Spirit" [Creature] [^Spirit] [White] 1 1 [keyword Flying])))
+          (^: { name := "Spirit", types := [Creature], subtypes := [^Spirit]
+              , colors := [White], power := Just 1, toughness := Just 1
+              , abilities := [keyword Flying] })))
       ]
   }
 

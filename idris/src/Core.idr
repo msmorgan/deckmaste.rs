@@ -569,22 +569,28 @@ data Deed : Bindings -> Type where
   Casts      : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
   Activates  : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
 
--- One big mutual block: `Ability → OneShotEffect → Action → CreateToken → TokenSpec` is a cycle,
--- so `TokenSpec`/`Action`/`Bindable` join the effect/ability block below. (The leaf `Cost`/
--- `ChooseSpec`/`Deed` stay OUT — they only reach into block 1.)
+-- One big mutual block: `Ability → OneShotEffect → Action → CreateToken → Characteristics` is a
+-- cycle, so `Characteristics`/`Action`/`Bindable` join the effect/ability block below. (The leaf
+-- `Cost`/`ChooseSpec`/`Deed` stay OUT — they only reach into block 1.)
 mutual
-  -- A token's characteristics ([CR#111.1]). `tokAbilities` mirrors a card face's `List (Ability
-  -- Base)` — keyword tokens (flying Spirits), ETB triggers, Treasure-style activateds all fit.
+  -- The printable CHARACTERISTICS of an object ([CR#109.3]) — shared by a card `Face`
+  -- (`Characteristics Base`) and a created token (`Characteristics b`, so a token's P/T can be a
+  -- `Count b`: "an X/X where X = [a value known at creation]"). `colors` is the explicit color (a
+  -- color indicator [CR#107.4a] / a token's printed color); a card's color-FROM-MANA is derived.
   public export
-  record TokenSpec where
-    constructor MkToken
-    tokName : String
-    tokTypes : List Type_
-    tokSubtypes : List Subtype
-    tokColors : List Color
-    tokPower : Count Base
-    tokToughness : Count Base
-    tokAbilities : List (Ability Base)
+  record Characteristics (b : Bindings) where
+    constructor MkCharacteristics
+    name : String
+    manaCost : ManaCost
+    colors : List Color
+    types : List Type_
+    supertypes : List Supertype
+    subtypes : List Subtype
+    abilities : List (Ability b)
+    power : Maybe (Count b)
+    toughness : Maybe (Count b)
+    loyalty : Maybe (Count b)
+    defense : Maybe (Count b)
 
   -- The verbs ([CR#701]). `Effect::Act` wraps these. Object verbs carry an object
   -- `source` (default `This`); player verbs an `actor : Reference b APlayer` (default `You`).
@@ -630,7 +636,7 @@ mutual
     Fight : (x : Reference b AnObject) -> (y : Reference b AnObject) -> Action b   -- each deals damage equal to its power to the other
     Reveal : Reference b AnObject -> Action b
     Shuffle : {default You actor : Reference b APlayer} -> Action b
-    CreateToken : Count b -> TokenSpec -> Action b        -- FLAG: vanilla token spec (no abilities)
+    CreateToken : Count b -> Characteristics b -> Action b   -- the token's full characteristics (P/T may be a `Count b`)
     CopySpell : Reference b AnObject -> Action b                   -- "copy target spell" — FLAG: copy semantics deferred to engine
     AddMana : {default You actor : Reference b APlayer} -> ManaCost -> Action b   -- "add {G}" (mana ability effect); pool/paying is engine
 
@@ -768,19 +774,10 @@ mutual
     -- a static continuous ability — modifications, anthems, AND replacements live in `StaticEffect`.
     Static : StaticEffect b -> Ability b
 
+-- A card's printed face is just `Characteristics` at the empty bindings.
 public export
-record Face where
-  constructor MkFace
-  name : String
-  manaCost : ManaCost
-  types : List Type_
-  supertypes : List Supertype
-  subtypes : List Subtype
-  abilities : List (Ability Base)
-  power : Maybe (Count Base)
-  toughness : Maybe (Count Base)
-  loyalty : Maybe (Count Base)
-  defense : Maybe (Count Base)
+Face : Type
+Face = Characteristics Base
 
 public export
 interface DefaultValue a where
@@ -790,11 +787,20 @@ public export
 fromDefault : (DefaultValue a) => (a -> a) -> a
 fromDefault b = b defaultValue
 
+-- `^: { field := value … }` = `fromDefault` — build a record from its defaults + named overrides.
+-- A distinct prefix (overloading `^` is ambiguous on a bare `^1`; `&`/`#` are reserved/builtin) —
+-- the caret keeps the "lift into the expected type" flavor of `^`.
+export prefix 10 ^:
 public export
-implementation DefaultValue Face where
-  defaultValue = MkFace
+(^:) : (DefaultValue a) => (a -> a) -> a
+(^:) = fromDefault
+
+public export
+implementation DefaultValue (Characteristics b) where
+  defaultValue = MkCharacteristics
     { name = ""
     , manaCost = []
+    , colors = []
     , types = []
     , supertypes = []
     , subtypes = []
@@ -807,11 +813,11 @@ implementation DefaultValue Face where
 
 -- [CR#205.3d]: every subtype's governing card type must be among the card's
 -- types. The proof is demanded at `Normal`, so `types`/`subtypes` stay plain
--- fields the `fromDefault { … := … }` builder can still set.
+-- fields the `^ { … := … }` builder can still set.
 public export
-SubtypesOk : Face -> Type
-SubtypesOk b = All (\s => Elem (subtypeCategory s) (types b)) (subtypes b)
+SubtypesOk : Characteristics Base -> Type
+SubtypesOk c = All (\s => Elem (subtypeCategory s) (types c)) (subtypes c)
 
 public export
 data Card : Type where
-  Normal : (b : Face) -> {auto ok : SubtypesOk b} -> Card
+  Normal : (c : Characteristics Base) -> {auto ok : SubtypesOk c} -> Card
