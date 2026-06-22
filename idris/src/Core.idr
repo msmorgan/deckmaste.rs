@@ -427,7 +427,7 @@ implementation Cast Integer (Delta b) where
   cast n = if n >= 0 then Up (cast n) else Down (cast (negate n))
 
 -- A game-result effect ([CR#104]). Its own category above `Action` — a game-ender
--- isn't just another verb; `Effect`'s `Conclude` wraps it.
+-- isn't just another verb; `OneShotEffect`'s `Conclude` wraps it.
 public export
 data Outcome : Bindings -> Type where
   WinGame  : Reference b APlayer -> Outcome b
@@ -609,42 +609,46 @@ data Deed : Bindings -> Type where
 -- ability, and an ability wraps an effect.
 mutual
   public export
-  data Effect : Bindings -> Type where
-    Sequence : (List (Effect b)) -> Effect b
+  data OneShotEffect : Bindings -> Type where
+    Sequence : (List (OneShotEffect b)) -> OneShotEffect b
     -- each target slot carries its OWN kind (its filter's), gathered as `ks : List Ent`
     -- (a heterogeneous `All`), so the body's `GetTarget i` is strictly kinded PER SLOT —
     -- mixed-kind multi-target ("target player gains control of target creature", Donate) works.
-    Targeted : {ks : List Ent} -> All (TargetSpec b) ks -> Effect (bindTargets ks b) -> Effect b
+    Targeted : {ks : List Ent} -> All (TargetSpec b) ks -> OneShotEffect (bindTargets ks b) -> OneShotEffect b
     -- binds `that` as `That` (of the bound kind) for `body`; `that` may PRODUCE a moved object. Rust: Effect::With.
-    With : Bindable b k -> Effect (bindThat k b) -> Effect b
+    With : Bindable b k -> OneShotEffect (bindThat k b) -> OneShotEffect b
     -- a single intrinsic instruction (the verb compartment). Rust: Effect::Act.
-    Act : Action b -> Effect b
+    Act : Action b -> OneShotEffect b
     -- end the game (or a player's part in it) — the `Outcome` compartment. Rust: Effect::Conclude.
-    Conclude : Outcome b -> Effect b
+    Conclude : Outcome b -> OneShotEffect b
     -- "you may [effect]", with optional "if you do / if you don't". Rust: Effect::May.
-    May : (effect : Effect b) -> {default Nothing ifDid : Maybe (Effect b)} -> {default Nothing ifNot : Maybe (Effect b)} -> Effect b
+    May : (effect : OneShotEffect b) -> {default Nothing ifDid : Maybe (OneShotEffect b)} -> {default Nothing ifNot : Maybe (OneShotEffect b)} -> OneShotEffect b
     -- "if [cond], [thenDo]; otherwise [else]". Rust: Effect::If.
-    If : Condition b -> (thenDo : Effect b) -> {default Nothing otherwise : Maybe (Effect b)} -> Effect b
-    -- "[effect] unless [who] pays [cost]" — the full `Cost` algebra (sacrifice / pay-life /
-    -- counters / mana / scaled), not just mana. Rust: Effect::Unless.
-    Unless : (effect : Effect b) -> {default You actor : Reference b APlayer} -> Cost b -> Effect b
+    If : Condition b -> (thenDo : OneShotEffect b) -> {default Nothing otherwise : Maybe (OneShotEffect b)} -> OneShotEffect b
+    -- COST-payment DECISIONS — a player chooses whether to pay (the common decider slice; the
+    -- full `Cost` algebra rides both). Rust: Effect::MayPay / Effect::MustPay.
+    --  • `MayPay`  — "[actor] MAY pay [cost]; if they do → `and_then`; if not → optional `or_else`."
+    --  • `MustPay` — "[actor] must pay [cost], OR ELSE `or_else`" — the resolution-stage punisher
+    --    (Mana Leak: "counter target spell unless its controller pays {2}"; supersedes `Unless`).
+    MayPay  : {default You actor : Reference b APlayer} -> Cost b -> (and_then : OneShotEffect b) -> {default Nothing or_else : Maybe (OneShotEffect b)} -> OneShotEffect b
+    MustPay : {default You actor : Reference b APlayer} -> Cost b -> (or_else : OneShotEffect b) -> OneShotEffect b
     -- create a continuous effect for a duration ([CR#611.2]). Rust: Effect::Continuously.
-    Continuously : StaticEffect b -> Duration b -> Effect b
+    Continuously : StaticEffect b -> Duration b -> OneShotEffect b
     -- choose modes, then apply them ([CR#700.2]). Rust: Effect::Modal.
-    Modal : ChooseSpec b -> List (Mode b) -> Effect b
+    Modal : ChooseSpec b -> List (Mode b) -> OneShotEffect b
     -- "for each [domain], [body]" — binds each element as `It`. The distributive
     -- primitive (subsumes the old `Selection::Each`). Rust: Effect::ForEach.
-    ForEach : Selection b k -> Effect (bindIt k b) -> Effect b
+    ForEach : Selection b k -> OneShotEffect (bindIt k b) -> OneShotEffect b
     -- "when you do [the preceding], [effect]" — a reflexive trigger. It NESTS, so
     -- `That`/targets stay in scope; no event-scanning sibling. Rust: Effect::Reflexive.
-    Reflexive : Effect b -> Effect b
+    Reflexive : OneShotEffect b -> OneShotEffect b
     -- schedule `body` for `event`; `unbindTargets` keeps `That`, drops targets. Rust: Effect::Delayed.
-    Delayed : EventQuery b -> Effect (bindEvent (unbindTargets b)) -> Effect b
+    Delayed : EventQuery b -> OneShotEffect (bindEvent (unbindTargets b)) -> OneShotEffect b
 
   -- one option of a modal effect: an effect plus an optional extra cost. Rust: Mode.
   public export
   data Mode : Bindings -> Type where
-    MkMode : (effect : Effect b) -> {default Nothing cost : Maybe (Cost b)} -> Mode b
+    MkMode : (effect : OneShotEffect b) -> {default Nothing cost : Maybe (Cost b)} -> Mode b
 
   -- A continuous modification a static ability applies to its subject.
   public export
@@ -666,7 +670,7 @@ mutual
     ModifyAll : Predicate b AnObject -> List (Modification b) -> StaticEffect b   -- anthem: "each [filter] gets [mods]"
     -- "if [event] would happen, do [effect] instead" — the card names only the
     -- replacement (empty = a pure skip); the engine skips the original + handles edges.
-    Replaces : EventQuery b -> Effect (bindEvent b) -> StaticEffect b
+    Replaces : EventQuery b -> OneShotEffect (bindEvent b) -> StaticEffect b
     -- the inner continuous effect applies only WHILE the condition holds ([CR#604.3]) —
     -- a conditional static ("gets +1/+1 as long as …").
     While : Condition b -> StaticEffect b -> StaticEffect b
@@ -686,13 +690,13 @@ mutual
   -- A castable spell resolves in `Base`: source bound, no top-level targets.
   public export
   data Ability : Type where
-    Spell : Effect Base -> Ability
+    Spell : OneShotEffect Base -> Ability
     Keyword : KeywordAbility Base -> Ability
     -- "{cost}: {effect}" — an activated ability ([CR#602]). `limits` are the activation
     -- restrictions (a loyalty ability is `{limits = [SorcerySpeed, OncePerTurn]}`).
-    Activated : Cost Base -> Effect Base -> {default [] limits : List Restriction} -> Ability
+    Activated : Cost Base -> OneShotEffect Base -> {default [] limits : List Restriction} -> Ability
     -- a triggered ability: when `event` fires, resolve `effect`. Rust: Ability::Triggered.
-    Triggered : EventQuery Base -> Effect (bindEvent Base) -> Ability
+    Triggered : EventQuery Base -> OneShotEffect (bindEvent Base) -> Ability
     -- "Enchant <filter>": what this Aura may attach to ([CR#702.5]).
     Enchant : Predicate Base AnObject -> Ability
     -- a static continuous ability — modifications, anthems, AND replacements live in `StaticEffect`.
