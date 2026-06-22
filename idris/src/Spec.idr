@@ -201,11 +201,14 @@ tEmptyOneOf = OneOf []
 tWard : StaticEffect Base
 tWard = Toll (Mana [cast 2]) (BeTargeted (SameAs This) {by = ControlledBy opponent})
 
--- keyword-desugaring via Cast/Composite: a keyword spec casts to its full `Ability` — a
--- `Composite` carrying the `Cant` clause (deontic) or `[]` (intrinsic). `tDefender` keeps the
--- desugaring pinned by Refl; `tHexproofFrom` shows the parameterized "from [filter]" case.
+-- `keyword` desugars a spec to its `Ability`: a DEONTIC keyword is a `Composite` carrying a
+-- `Cant` clause; an engine-INTRINSIC keyword is `Bare` (no desugaring). Both pinned by Refl;
+-- `tHexproofFrom` shows the parameterized "from [filter]" case.
 tDefender : keyword Defender = the (Ability Base) (Keyword (Composite Defender [Static (Cant (Attacks (SameAs This)))]))
 tDefender = Refl
+
+tFirstStrikeBare : keyword FirstStrike = the (Ability Base) (Keyword (Bare FirstStrike))
+tFirstStrikeBare = Refl
 
 tHexproofFrom : Ability Base
 tHexproofFrom = keyword (Hexproof (Just (HasColor Red)))

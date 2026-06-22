@@ -87,19 +87,19 @@ hexproofFrom f = Keyword (Composite (Hexproof (Just f)) [Static (Cant (BeTargete
 
 -- desugar a `KeywordSpec` into its full `Ability` — dispatches to the macros above. EXHAUSTIVE
 -- (no catch-all): adding a `KeywordSpec` constructor forces a clause here, so a new keyword can't
--- silently fall through to an empty `Composite`. The intrinsic keywords are spelled out as
--- clause-free `Composite`s (engine-handled). (A plain function, NOT a `Cast` instance: a
--- polymorphic spec's `b` is a metavar at the call site, which interface search can't fire on.)
+-- silently fall through. The engine-intrinsic keywords are `Bare` (no desugaring); the deontic
+-- ones are a `Composite` carrying their `Cant` clause. (A plain function, NOT a `Cast` instance:
+-- a polymorphic spec's `b` is a metavar at the call site, which interface search can't fire on.)
 public export
 keyword : KeywordSpec b -> Ability b
 keyword Flying              = flying
-keyword FirstStrike         = Keyword (Composite FirstStrike [])
-keyword DoubleStrike        = Keyword (Composite DoubleStrike [])
-keyword Deathtouch          = Keyword (Composite Deathtouch [])
-keyword Reach               = Keyword (Composite Reach [])
-keyword Trample             = Keyword (Composite Trample [])
-keyword Vigilance           = Keyword (Composite Vigilance [])
-keyword Flash               = Keyword (Composite Flash [])
+keyword FirstStrike         = Keyword (Bare FirstStrike)
+keyword DoubleStrike        = Keyword (Bare DoubleStrike)
+keyword Deathtouch          = Keyword (Bare Deathtouch)
+keyword Reach               = Keyword (Bare Reach)
+keyword Trample             = Keyword (Bare Trample)
+keyword Vigilance           = Keyword (Bare Vigilance)
+keyword Flash               = Keyword (Bare Flash)
 keyword Defender            = defender
 keyword Shroud              = shroud
 keyword (Hexproof Nothing)  = hexproof
