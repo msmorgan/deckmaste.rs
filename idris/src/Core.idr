@@ -518,8 +518,9 @@ record TokenSpec where
 -- `source` (default `This`); player verbs an `actor : Reference b APlayer` (default `You`).
 public export
 data Action : Bindings -> Type where
-  -- deal damage to a `Selection`; source object is the agent ([CR#120.1]).
-  DealDamage : {default This source : Reference b AnObject} -> Selection b k -> Count b -> Action b
+  -- deal damage to ONE recipient ([CR#120.1] — damage is to a single object/player per event);
+  -- `source` object is the agent. "Deals N to EACH …" is a `ForEach` over the recipients.
+  DealDamage : {default This source : Reference b AnObject} -> Reference b k -> Count b -> Action b
   -- a plain zone change [CR#400.7]; owner-relative, control implicit.
   Move : Selection b AnObject -> Zone -> Action b
   -- exile a selection UNTIL a duration ends, then return it — the duration-bounded
