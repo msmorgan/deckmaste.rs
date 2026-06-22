@@ -11,7 +11,7 @@ import Macros
 -- POSITIVE — must typecheck ---------------------------------------------------
 
 -- target 0 is referenceable once a 1-target scope is open
-tTargetInScope : Reference (bindTargets 1 Base)
+tTargetInScope : Reference (bindTargets 1 Base) AnObject
 tTargetInScope = GetTarget 0
 
 -- `That` is available inside a `With`-bound bindings
@@ -183,7 +183,7 @@ failing
 
 -- `It` with no enclosing `ForEach`
 failing
-  tBadItOutside : Reference Base
+  tBadItOutside : Reference Base AnObject
   tBadItOutside = It
 
 -- the split makes the old `CountOf (During …)` category error ILL-TYPED: `CountOf`
@@ -195,5 +195,15 @@ failing
 -- `EventObject` ("that card") is rejected outside a trigger/replacement/delayed body
 -- (no `eventBound`) — the review fix that closed the ungated-anaphora hole.
 failing
-  tBadEventObjectOutside : Reference Base
+  tBadEventObjectOutside : Reference Base AnObject
   tBadEventObjectOutside = EventObject
+
+-- one Reference, but the kind still bites: a player has no power/toughness
+failing
+  tBadStatOfPlayer : Count Base
+  tBadStatOfPlayer = StatOf You Power       -- You : APlayer, StatOf wants AnObject
+
+-- ...and an object has no life total
+failing
+  tBadLifeOfObject : Count Base
+  tBadLifeOfObject = LifeTotal This         -- This : AnObject, LifeTotal wants APlayer
