@@ -18,6 +18,16 @@ public export
 inHand : Predicate b AnObject
 inHand = InZone Hand
 
+-- player-predicates ([CR#102.1]): `you` is the controller; `opponent` is any OTHER player
+-- (team-free — "a player who isn't you"). Feed `ControlledBy`/`ActorIs`/`Target 1`/`SelectAll`.
+public export
+you : Predicate b APlayer
+you = SameAs You
+
+public export
+opponent : Predicate b APlayer
+opponent = IsNot (SameAs You)
+
 -- "at the beginning of the next end step" — the common delayed-trigger event.
 public export
 nextEndStep : EventQuery b
