@@ -433,3 +433,54 @@ WallOfOmens = Normal $ fromDefault
           (Act (Draw (cast 1)))
       ]
   }
+
+-- HIGH-COVERAGE cards (exercise multiple subsystems at once) -------------------
+
+-- Mana Leak — the cost-payment DECIDER on a card: the spell's CONTROLLER `MustPay` {3}, OR ELSE
+-- it's countered. Exercises MustPay / ControllerOf (the targeted spell's controller) / a spell target.
+export
+ManaLeak : Card
+ManaLeak = Normal $ fromDefault
+  { name := "Mana Leak"
+  , manaCost := [cast 1, cast Blue]
+  , types := [Instant]
+  , abilities :=
+      [ Spell (Targeted [Target 1 (IsKind IsSpell)]
+          (MustPay {actor = ControllerOf (GetTarget 0)} (Mana [cast 3])
+            (Act (Counter (SelectAll (SameAs (GetTarget 0))))))) ]
+  }
+
+-- Invisible Stalker — a DEONTIC-KEYWORD creature: `keyword (Hexproof Nothing)` is a `Composite`
+-- carrying its can't-be-targeted `Cant`; "can't be blocked" is a second `Cant` (no creature may
+-- block it). (Rogue subtype omitted — not in the enum.)
+export
+InvisibleStalker : Card
+InvisibleStalker = Normal $ fromDefault
+  { name := "Invisible Stalker"
+  , manaCost := [cast 1, cast Blue]
+  , types := [Creature]
+  , subtypes := [cast Human]
+  , power := Just 1
+  , toughness := Just 1
+  , abilities :=
+      [ keyword (Hexproof Nothing)
+      , Static (Cant (Blocks creature (SameAs This)))
+      ]
+  }
+
+-- Cryptic Command — a MODAL spell ("choose two"), each mode its own effect (two with their own
+-- targets). Exercises Modal / per-mode Targeted / Counter / Move / Tap / ControlledBy opponent.
+export
+CrypticCommand : Card
+CrypticCommand = Normal $ fromDefault
+  { name := "Cryptic Command"
+  , manaCost := [cast 1, cast Blue, cast Blue, cast Blue]
+  , types := [Instant]
+  , abilities :=
+      [ Spell (Modal (MkChooseSpec (cast 2))
+          [ MkMode (Targeted [Target 1 (IsKind IsSpell)] (Act (Counter (SelectAll (SameAs (GetTarget 0))))))
+          , MkMode (Targeted [Target 1 permanent] (Act (Move (SelectAll (SameAs (GetTarget 0))) Hand)))
+          , MkMode (Act (Tap (SelectAll (AllOf [creature, ControlledBy opponent]))))
+          , MkMode (Act (Draw (cast 1)))
+          ]) ]
+  }
