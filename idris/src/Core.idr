@@ -159,6 +159,11 @@ data CounterKind = Loyalty | Fate | Charge | P1P1 | M1M1
 public export
 data Restriction = SorcerySpeed | OncePerTurn | OncePerGame
 
+-- The cast-timing WINDOW a deontic `May` opens ([CR#601.3,702.8a]): the speed at which the
+-- permission lets a card be cast. Flash widens a noninstant's window to `InstantWindow`.
+public export
+data TimingWindow = InstantWindow | SorceryWindow
+
 -- Whether a `Reference` denotes an object or a player ([CR#109.1]). One reference
 -- language, indexed by this — strict on the kind where it matters, lax where it doesn't.
 -- `Anything` is the union kind for "any target" ([CR#115.4]) — an object OR a player;
@@ -705,14 +710,21 @@ mutual
     -- the inner continuous effect applies only WHILE the condition holds ([CR#604.3]) —
     -- a conditional static ("gets +1/+1 as long as …").
     While : Condition b -> StaticEffect b -> StaticEffect b
-    -- DEONTIC clauses over a `Deed` (choice-legality, [CR#101.2]): a continuous can't / must /
-    -- cost-gate. `Gate`'s price is paid at declaration (never compulsory, [CR#508.1d]); `Toll`'s
-    -- is punished downstream by a trigger/resolution (ward, [CR#702.21a]). Cost comes FIRST.
-    -- These gate CHOICES — the §6 sibling of `Replaces` (event-edits), never conflated with it.
-    -- DEFERRED: the `May` permission FLOOR is implicit here, so the `Only`/`AsThough` modifiers
-    -- ([CR#602.5d]/[CR#609.4]) and bare May-grants have nothing to attach to yet — making `May`
-    -- first-class is the deontic layer's next frontier. (Activation-`Only` already exists as
-    -- `Restriction`; `Menace` needs a set-level `Deed`; both noted where relevant.)
+    -- DEONTIC clauses over a `Deed` (choice-legality, [CR#101.2]): the permission FLOOR (`Can`, the
+    -- deontic "may" — named `Can` to pair with `Cant` and avoid the one-shot `May`), a can't, a
+    -- must, or a cost-gate. The engine arbitrates Cant-beats-Can ([CR#101.2]); the grammar only
+    -- records the clauses. `Gate`'s price is paid at declaration (never compulsory, [CR#508.1d]);
+    -- `Toll`'s is punished downstream (ward, [CR#702.21a]). Cost comes FIRST. These gate CHOICES —
+    -- the §6 sibling of `Replaces` (event-edits), never conflated with it.
+    --  • `Can` — the permission floor made explicit ([CR#101.2,601.3]). A `Can (Casts …)` carries a
+    --    `window`; Flash widens it to `InstantWindow` ([CR#702.8a] — a wider window, NOT an as-though).
+    --  • `AsThough` — a scoped COUNTERFACTUAL premise ([CR#609.4]) wrapping a clause: "[clause]
+    --    treated as though [condition] held." "attack as though it didn't have defender" =
+    --    `AsThough (Matches This (IsNot (HasKeyword Defender))) (Can (Attacks (SameAs This)))`.
+    -- (Window-NARROWING `Only` stays as `Restriction` on activated abilities; the as-though of a
+    -- deed-INTERNAL participant — "as though the BLOCKER's attacker lacked flying" — is still deferred.)
+    Can  : Deed b -> {default Nothing window : Maybe TimingWindow} -> StaticEffect b
+    AsThough : Condition b -> StaticEffect b -> StaticEffect b
     Cant : Deed b -> StaticEffect b
     Must : Deed b -> StaticEffect b
     Gate : Cost b -> Deed b -> StaticEffect b
@@ -722,7 +734,7 @@ mutual
   -- the grammar can't desugar (FirstStrike/DoubleStrike/Deathtouch/Trample = damage pipeline;
   -- Vigilance = attack event-edit) — or a `Composite` of its tag + the `Ability`s it desugars to:
   -- Flying/Defender/Shroud/Hexproof → a `Cant`; Reach → `[]` (a flag flying's clause reads, no
-  -- ability of its own); Flash → `[]` for now (really a May-cast-as-instant, pending explicit-May).
+  -- ability of its own); Flash → a `Can (Casts …) {window = InstantWindow}` (cast at instant speed).
   -- `Keyword` wraps it; `keyword` (Macros) builds it.
   public export
   data KeywordAbility : Bindings -> Type where

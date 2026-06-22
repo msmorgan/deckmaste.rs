@@ -510,4 +510,18 @@ Electrolyze = Normal $ fromDefault
       ]
   }
 
+-- Flash made real: `keyword Flash` now carries a `Can`-cast-at-instant-speed (the deontic permission
+-- floor). Pairs a Composite keyword (Flash → the `Can`) with a Bare one (Deathtouch). (Snake subtype
+-- omitted — not in the enum.)
+export
+AmbushViper : Card
+AmbushViper = Normal $ fromDefault
+  { name := "Ambush Viper"
+  , manaCost := [^1, ^Green]
+  , types := [Creature]
+  , abilities := [keyword Flash, keyword Deathtouch]
+  , power := Just 2
+  , toughness := Just 1
+  }
+
 --:vim:sts=2 sw=2:
