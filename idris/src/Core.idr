@@ -87,7 +87,7 @@ data Zone
 -- exactly one card type. `subtypeCategory` is that (total) correlation.
 public export
 data CreatureSubtype
-  = Bear | Rat | Spider | Human | Knight | Goblin | Elf | Zombie | Elemental | Wall  -- creature types
+  = Bear | Rat | Spider | Human | Knight | Goblin | Elf | Zombie | Elemental | Wall | Spirit  -- creature types
 public export
 data EnchantmentSubtype
   = Aura
@@ -530,126 +530,130 @@ public export
 Only : Predicate b AnObject -> Reference b AnObject
 Only p = Single (SelectAll p)
 
--- A token's characteristics ([CR#111.1]). Vanilla — FLAG: token abilities/keywords
--- aren't modeled here (most common tokens are vanilla creatures).
-public export
-record TokenSpec where
-  constructor MkToken
-  tokName : String
-  tokTypes : List Type_
-  tokSubtypes : List Subtype
-  tokColors : List Color
-  tokPower : Count Base
-  tokToughness : Count Base
-
--- The verbs ([CR#701]). `Effect::Act` wraps these. Object verbs carry an object
--- `source` (default `This`); player verbs an `actor : Reference b APlayer` (default `You`).
-public export
-data Action : Bindings -> Type where
-  -- deal damage to ONE recipient ([CR#120.1] — damage is to a single object/player per event);
-  -- `source` object is the agent. "Deals N to EACH …" is a `ForEach` over the recipients.
-  DealDamage : {default This source : Reference b AnObject} -> Reference b k -> Count b -> Action b
-  -- "N damage divided as you choose among [a group]" ([CR#120.1] — Electrolyze). The split is the
-  -- engine's; the grammar names the total and the recipient set (a `Selection`, ≥1 each).
-  DealDamageDivided : {default This source : Reference b AnObject} -> Count b -> Selection b k -> Action b
-  -- a plain zone change [CR#400.7]; owner-relative, control implicit.
-  Move : Reference b AnObject -> Zone -> Action b
-  -- exile a selection UNTIL a duration ends, then return it — the duration-bounded
-  -- "exile until ~" form ([CR#603.6e]), NOT a leave-triggered return (see Oblivion Ring).
-  ExileUntil : Reference b AnObject -> Duration b -> Action b
-  -- destroy [CR#701.8] / counter a stack object [CR#701.6a]. (Return-to-hand is just
-  -- `Move … Hand` — `Move` is owner-relative — so there's no dedicated bounce verb.)
-  Destroy : Reference b AnObject -> Action b
-  Counter : Reference b AnObject -> Action b
-  -- tap / untap [CR#701.26]; attach / unattach [CR#701.3].
-  Tap : Reference b AnObject -> Action b
-  Untap : Reference b AnObject -> Action b
-  Attach : (what : Reference b AnObject) -> (to : Reference b AnObject) -> Action b
-  Unattach : Reference b AnObject -> Action b
-  -- a player verb: the `actor` draws n cards. Rust: PlayerAction::Draw(Count).
-  Draw : {default You actor : Reference b APlayer} -> Count b -> Action b
-  -- the `actor` gains n life. Rust: PlayerAction::GainLife(Count).
-  GainLife : {default You actor : Reference b APlayer} -> Count b -> Action b
-  -- put a selection into its owner's library at a position ([CR#401]).
-  PutIntoLibrary : Reference b AnObject -> LibraryPosition b -> Action b
-  -- put / clear counters ([CR#122]). `RemoveAllCounters` clears every counter of a kind.
-  PutCounters : CounterKind -> Count b -> Reference b AnObject -> Action b
-  RemoveAllCounters : CounterKind -> Reference b AnObject -> Action b
-  -- player verbs: discard / lose life; and a chooser-verb where a player sacrifices.
-  Discard : {default You actor : Reference b APlayer} -> Count b -> Action b
-  LoseLife : {default You actor : Reference b APlayer} -> Count b -> Action b
-  Sacrifices : Reference b APlayer -> Predicate b AnObject -> Action b   -- "[player] sacrifices a [pred]" (they choose which)
-  -- keyword actions / further verbs ([CR#701]). The interactive bits (reorder, search
-  -- choice, copy characteristics) are the engine's; the grammar names the verb.
-  Scry : Count b -> Action b                            -- look at top n, reorder / bottom some
-  Surveil : Count b -> Action b
-  Fight : (x : Reference b AnObject) -> (y : Reference b AnObject) -> Action b   -- each deals damage equal to its power to the other
-  Reveal : Reference b AnObject -> Action b
-  Shuffle : {default You actor : Reference b APlayer} -> Action b
-  CreateToken : Count b -> TokenSpec -> Action b        -- FLAG: vanilla token spec (no abilities)
-  CopySpell : Reference b AnObject -> Action b                   -- "copy target spell" — FLAG: copy semantics deferred to engine
-  AddMana : {default You actor : Reference b APlayer} -> ManaCost -> Action b   -- "add {G}" (mana ability effect); pool/paying is engine
-
--- What a binder (`With`) binds as `That`: a QUERY of existing objects, a PRODUCER
--- (an `Action` run for effect, binding its product), or a CHOICE (a player picks).
--- The grammar only names the role; the ENGINE resolves `That` to the live (reminted
--- or gone) object, so `MovedRef`/lki/became is a runtime concern, NOT modeled here.
-public export
-data Bindable : Bindings -> Ent -> Type where
-  Existing : Selection b k -> Bindable b k  -- bind existing entities (a plain selection)
-  Produce : Action b -> Bindable b AnObject -- run the action, bind its product (the moved object) as `That`
-  -- `by` chooses a `Quantity` of entities matching the filter; the chosen are bound as
-  -- `That`. Choosing is interactive, so it lives here, not in `Selection`. Rust: Selection::Choose.
-  Choose : {default You by : Reference b APlayer} -> Quantity b -> Predicate b k -> Bindable b k
-  -- `by` searches `whose`'s `from`-zones (one or more — "library and/or graveyard") for
-  -- matching cards, bound as `That` — like `Choose`, but from (hidden) zones the engine
-  -- reveals/shuffles. Search ANOTHER player's via `whose`; the found card's destination
-  -- is a following owner-routed `Move That …`. Rust: Selection::Search.
-  Search : {default You by : Reference b APlayer} -> {default You whose : Reference b APlayer} -> {default [Library] from : List Zone} -> Quantity b -> Predicate b k -> Bindable b k
-
--- A cost paid to activate an ability ([CR#118,602]). `Costs` conjoins components;
--- `TapSelf`/`Sacrifice`/… read `This` (the ability's source). Rust: Cost.
-public export
-data Cost : Bindings -> Type where
-  Mana      : ManaCost -> Cost b                 -- "{4}"
-  TapSelf   : Cost b                             -- "{T}"
-  UntapSelf : Cost b                             -- "{Q}"
-  PayLife   : Count b -> Cost b                  -- "Pay N life"
-  Sacrifice : Reference b AnObject -> Cost b              -- "Sacrifice this" = Sacrifice This
-  AddCounters    : CounterKind -> Count b -> Cost b   -- a loyalty "+N" cost (put N counters on This)
-  RemoveCounters : CounterKind -> Count b -> Cost b   -- a loyalty "−N" cost (remove N from This)
-  Scaled    : Count b -> Cost b -> Cost b         -- the cost paid once per unit of the count ("{2} for each X" = Scaled (CountOf X) (Mana [promote 2]))
-  Costs     : List (Cost b) -> Cost b            -- all components together
-
--- How many modes to choose, for a modal effect ([CR#700.2]). Rust: ChooseSpec.
-public export
-data ChooseSpec : Bindings -> Type where
-  MkChooseSpec : (count : Count b) -> {default False upTo : Bool} -> {default False repeats : Bool} -> ChooseSpec b
-
--- A DEONTIC clause's carrier: a game ACTION a player may attempt ([CR#101.2,601.3] the deontic
--- layer) — distinct from the resolving `Action` verbs. Each names its participants; the CR's
--- "where ⟨pred⟩" qualifier rides the variable participant (`who`/`blocker`/`source`). The
--- polarities `Cant`/`Must`/`Gate`/`Toll` (in `StaticEffect`) wrap a `Deed`. BOUNDARY [CR#614.17]:
--- this is choice-LEGALITY ("can't attack"); event-edits ("doesn't tap", "can't be regenerated",
--- "can't lose") are `Replaces`/SBA, NOT a `Cant`.
-public export
-data Deed : Bindings -> Type where
-  Attacks    : (who : Predicate b AnObject) -> {default Anyone whom : Predicate b APlayer} -> Deed b
-  Blocks     : (blocker : Predicate b AnObject) -> (attacker : Predicate b AnObject) -> Deed b
-  -- SET-LEVEL block ([CR#509.1c],[CR#702.111b]): "[attacker] is blocked by a DECLARED set of `size`
-  -- creatures" (a block, so size ≥ 1 by construction). `Cant (BlockedBy This …)` constrains the
-  -- WHOLE blocker set, not one blocker at a time — Menace = `Cant (BlockedBy (SameAs This) (^1))`
-  -- (forbid the lone blocker; 0 = unblocked and 2+ stay legal). [CR#509.1c] judges the whole set.
-  BlockedBy  : (attacker : Predicate b AnObject) -> (size : Quantity b) -> Deed b
-  -- "[object] is targeted BY a source matching `by`"; `by` defaults to any spell or ability.
-  BeTargeted : (object : Predicate b AnObject) -> {default (OneOf [IsKind IsSpell, IsKind IsAbility]) by : Predicate b AnObject} -> Deed b
-  Casts      : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
-  Activates  : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
-
--- Effects, continuous effects, and abilities are mutually recursive: a one-shot
--- can CREATE a continuous effect (`Continuously`), a static ability can grant an
--- ability, and an ability wraps an effect.
+-- One big mutual block: tokens carry `Ability`s, but `Ability → OneShotEffect → Action →
+-- CreateToken → TokenSpec` is a cycle, so `TokenSpec`/`Action`/`Bindable` join the effect/ability
+-- block below (the leaf `Cost`/`ChooseSpec`/`Deed` ride along harmlessly).
 mutual
+  -- A token's characteristics ([CR#111.1]). `tokAbilities` mirrors a card face's `List (Ability
+  -- Base)` — keyword tokens (flying Spirits), ETB triggers, Treasure-style activateds all fit.
+  public export
+  record TokenSpec where
+    constructor MkToken
+    tokName : String
+    tokTypes : List Type_
+    tokSubtypes : List Subtype
+    tokColors : List Color
+    tokPower : Count Base
+    tokToughness : Count Base
+    tokAbilities : List (Ability Base)
+
+  -- The verbs ([CR#701]). `Effect::Act` wraps these. Object verbs carry an object
+  -- `source` (default `This`); player verbs an `actor : Reference b APlayer` (default `You`).
+  public export
+  data Action : Bindings -> Type where
+    -- deal damage to ONE recipient ([CR#120.1] — damage is to a single object/player per event);
+    -- `source` object is the agent. "Deals N to EACH …" is a `ForEach` over the recipients.
+    DealDamage : {default This source : Reference b AnObject} -> Reference b k -> Count b -> Action b
+    -- "N damage divided as you choose among [a group]" ([CR#120.1] — Electrolyze). The split is the
+    -- engine's; the grammar names the total and the recipient set (a `Selection`, ≥1 each).
+    DealDamageDivided : {default This source : Reference b AnObject} -> Count b -> Selection b k -> Action b
+    -- a plain zone change [CR#400.7]; owner-relative, control implicit.
+    Move : Reference b AnObject -> Zone -> Action b
+    -- exile a selection UNTIL a duration ends, then return it — the duration-bounded
+    -- "exile until ~" form ([CR#603.6e]), NOT a leave-triggered return (see Oblivion Ring).
+    ExileUntil : Reference b AnObject -> Duration b -> Action b
+    -- destroy [CR#701.8] / counter a stack object [CR#701.6a]. (Return-to-hand is just
+    -- `Move … Hand` — `Move` is owner-relative — so there's no dedicated bounce verb.)
+    Destroy : Reference b AnObject -> Action b
+    Counter : Reference b AnObject -> Action b
+    -- tap / untap [CR#701.26]; attach / unattach [CR#701.3].
+    Tap : Reference b AnObject -> Action b
+    Untap : Reference b AnObject -> Action b
+    Attach : (what : Reference b AnObject) -> (to : Reference b AnObject) -> Action b
+    Unattach : Reference b AnObject -> Action b
+    -- a player verb: the `actor` draws n cards. Rust: PlayerAction::Draw(Count).
+    Draw : {default You actor : Reference b APlayer} -> Count b -> Action b
+    -- the `actor` gains n life. Rust: PlayerAction::GainLife(Count).
+    GainLife : {default You actor : Reference b APlayer} -> Count b -> Action b
+    -- put a selection into its owner's library at a position ([CR#401]).
+    PutIntoLibrary : Reference b AnObject -> LibraryPosition b -> Action b
+    -- put / clear counters ([CR#122]). `RemoveAllCounters` clears every counter of a kind.
+    PutCounters : CounterKind -> Count b -> Reference b AnObject -> Action b
+    RemoveAllCounters : CounterKind -> Reference b AnObject -> Action b
+    -- player verbs: discard / lose life; and a chooser-verb where a player sacrifices.
+    Discard : {default You actor : Reference b APlayer} -> Count b -> Action b
+    LoseLife : {default You actor : Reference b APlayer} -> Count b -> Action b
+    Sacrifices : Reference b APlayer -> Predicate b AnObject -> Action b   -- "[player] sacrifices a [pred]" (they choose which)
+    -- keyword actions / further verbs ([CR#701]). The interactive bits (reorder, search
+    -- choice, copy characteristics) are the engine's; the grammar names the verb.
+    Scry : Count b -> Action b                            -- look at top n, reorder / bottom some
+    Surveil : Count b -> Action b
+    Fight : (x : Reference b AnObject) -> (y : Reference b AnObject) -> Action b   -- each deals damage equal to its power to the other
+    Reveal : Reference b AnObject -> Action b
+    Shuffle : {default You actor : Reference b APlayer} -> Action b
+    CreateToken : Count b -> TokenSpec -> Action b        -- FLAG: vanilla token spec (no abilities)
+    CopySpell : Reference b AnObject -> Action b                   -- "copy target spell" — FLAG: copy semantics deferred to engine
+    AddMana : {default You actor : Reference b APlayer} -> ManaCost -> Action b   -- "add {G}" (mana ability effect); pool/paying is engine
+
+  -- What a binder (`With`) binds as `That`: a QUERY of existing objects, a PRODUCER
+  -- (an `Action` run for effect, binding its product), or a CHOICE (a player picks).
+  -- The grammar only names the role; the ENGINE resolves `That` to the live (reminted
+  -- or gone) object, so `MovedRef`/lki/became is a runtime concern, NOT modeled here.
+  public export
+  data Bindable : Bindings -> Ent -> Type where
+    Existing : Selection b k -> Bindable b k  -- bind existing entities (a plain selection)
+    Produce : Action b -> Bindable b AnObject -- run the action, bind its product (the moved object) as `That`
+    -- `by` chooses a `Quantity` of entities matching the filter; the chosen are bound as
+    -- `That`. Choosing is interactive, so it lives here, not in `Selection`. Rust: Selection::Choose.
+    Choose : {default You by : Reference b APlayer} -> Quantity b -> Predicate b k -> Bindable b k
+    -- `by` searches `whose`'s `from`-zones (one or more — "library and/or graveyard") for
+    -- matching cards, bound as `That` — like `Choose`, but from (hidden) zones the engine
+    -- reveals/shuffles. Search ANOTHER player's via `whose`; the found card's destination
+    -- is a following owner-routed `Move That …`. Rust: Selection::Search.
+    Search : {default You by : Reference b APlayer} -> {default You whose : Reference b APlayer} -> {default [Library] from : List Zone} -> Quantity b -> Predicate b k -> Bindable b k
+
+  -- A cost paid to activate an ability ([CR#118,602]). `Costs` conjoins components;
+  -- `TapSelf`/`Sacrifice`/… read `This` (the ability's source). Rust: Cost.
+  public export
+  data Cost : Bindings -> Type where
+    Mana      : ManaCost -> Cost b                 -- "{4}"
+    TapSelf   : Cost b                             -- "{T}"
+    UntapSelf : Cost b                             -- "{Q}"
+    PayLife   : Count b -> Cost b                  -- "Pay N life"
+    Sacrifice : Reference b AnObject -> Cost b              -- "Sacrifice this" = Sacrifice This
+    AddCounters    : CounterKind -> Count b -> Cost b   -- a loyalty "+N" cost (put N counters on This)
+    RemoveCounters : CounterKind -> Count b -> Cost b   -- a loyalty "−N" cost (remove N from This)
+    Scaled    : Count b -> Cost b -> Cost b         -- the cost paid once per unit of the count ("{2} for each X" = Scaled (CountOf X) (Mana [promote 2]))
+    Costs     : List (Cost b) -> Cost b            -- all components together
+
+  -- How many modes to choose, for a modal effect ([CR#700.2]). Rust: ChooseSpec.
+  public export
+  data ChooseSpec : Bindings -> Type where
+    MkChooseSpec : (count : Count b) -> {default False upTo : Bool} -> {default False repeats : Bool} -> ChooseSpec b
+
+  -- A DEONTIC clause's carrier: a game ACTION a player may attempt ([CR#101.2,601.3] the deontic
+  -- layer) — distinct from the resolving `Action` verbs. Each names its participants; the CR's
+  -- "where ⟨pred⟩" qualifier rides the variable participant (`who`/`blocker`/`source`). The
+  -- polarities `Cant`/`Must`/`Gate`/`Toll` (in `StaticEffect`) wrap a `Deed`. BOUNDARY [CR#614.17]:
+  -- this is choice-LEGALITY ("can't attack"); event-edits ("doesn't tap", "can't be regenerated",
+  -- "can't lose") are `Replaces`/SBA, NOT a `Cant`.
+  public export
+  data Deed : Bindings -> Type where
+    Attacks    : (who : Predicate b AnObject) -> {default Anyone whom : Predicate b APlayer} -> Deed b
+    Blocks     : (blocker : Predicate b AnObject) -> (attacker : Predicate b AnObject) -> Deed b
+    -- SET-LEVEL block ([CR#509.1c],[CR#702.111b]): "[attacker] is blocked by a DECLARED set of `size`
+    -- creatures" (a block, so size ≥ 1 by construction). `Cant (BlockedBy This …)` constrains the
+    -- WHOLE blocker set, not one blocker at a time — Menace = `Cant (BlockedBy (SameAs This) (^1))`
+    -- (forbid the lone blocker; 0 = unblocked and 2+ stay legal). [CR#509.1c] judges the whole set.
+    BlockedBy  : (attacker : Predicate b AnObject) -> (size : Quantity b) -> Deed b
+    -- "[object] is targeted BY a source matching `by`"; `by` defaults to any spell or ability.
+    BeTargeted : (object : Predicate b AnObject) -> {default (OneOf [IsKind IsSpell, IsKind IsAbility]) by : Predicate b AnObject} -> Deed b
+    Casts      : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
+    Activates  : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
+
+  -- Effects, continuous effects, and abilities are mutually recursive: a one-shot
+  -- can CREATE a continuous effect (`Continuously`), a static ability can grant an
+  -- ability, and an ability wraps an effect.
   public export
   data OneShotEffect : Bindings -> Type where
     Sequence : (List (OneShotEffect b)) -> OneShotEffect b

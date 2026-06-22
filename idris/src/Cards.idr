@@ -538,4 +538,18 @@ BoggartBrute = Normal $ fromDefault
   , toughness := Just 2
   }
 
+-- Token ABILITIES (no longer vanilla-only): "create two 1/1 white Spirit creature tokens with
+-- flying" — the `TokenSpec` now carries `[keyword Flying]`, mirroring a card face's abilities.
+export
+MidnightHaunting : Card
+MidnightHaunting = Normal $ fromDefault
+  { name := "Midnight Haunting"
+  , manaCost := [^2, ^White]
+  , types := [Instant]
+  , abilities :=
+      [ Spell (Act (CreateToken (^2)
+          (MkToken "Spirit" [Creature] [^Spirit] [White] 1 1 [keyword Flying])))
+      ]
+  }
+
 --:vim:sts=2 sw=2:
