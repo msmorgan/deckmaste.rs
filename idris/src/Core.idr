@@ -154,15 +154,18 @@ data Supertype = Basic | Legendary | Ongoing | Snow | World
 public export
 data CounterKind = Loyalty | Fate | Charge | P1P1 | M1M1
 
--- Activation restrictions on an activated ability ([CR#602.5]). Loyalty abilities are
--- `[SorcerySpeed, OncePerTurn]`.
-public export
-data Restriction = SorcerySpeed | OncePerTurn | OncePerGame
-
--- The cast-timing WINDOW a deontic `May` opens ([CR#601.3,702.8a]): the speed at which the
--- permission lets a card be cast. Flash widens a noninstant's window to `InstantWindow`.
+-- A timing WINDOW — the speed at which an action is allowed: `InstantWindow` (any time you have
+-- priority) or `SorceryWindow` (your main phase, empty stack — [CR#601.3,602.5d]). The ONE timing
+-- notion, shared by a deontic `Can (Casts …)` (Flash widens to `InstantWindow`, [CR#702.8a]) and
+-- by `Activated` (instant by default; "activate only as a sorcery" narrows to `SorceryWindow`).
 public export
 data TimingWindow = InstantWindow | SorceryWindow
+
+-- Activation USE-LIMITS on an activated ability ([CR#602.5b]) — frequency caps, NOT timing (that's
+-- `TimingWindow` above; the two used to overlap on a `SorcerySpeed` constructor). A loyalty ability
+-- is `{window = SorceryWindow, limits = [OncePerTurn]}`.
+public export
+data Restriction = OncePerTurn | OncePerGame
 
 -- Whether a `Reference` denotes an object or a player ([CR#109.1]). One reference
 -- language, indexed by this — strict on the kind where it matters, lax where it doesn't.
@@ -297,7 +300,7 @@ mutual
     Defender : KeywordSpec b
     Shroud : KeywordSpec b
     Menace : KeywordSpec b
-    Hexproof : Maybe (Predicate b AnObject) -> KeywordSpec b   -- optional "from [filter]"
+    Hexproof : Maybe (Predicate b AnObject) -> KeywordSpec b   -- "from [filter]" — a SOURCE predicate (objects); "from a player" = ControlledBy that player
   -- A REFERENCE to a single game entity, indexed by `Ent` (object vs player). One
   -- reference language now: object-refs and player-refs together, strict on the kind
   -- where it matters (`StatOf` needs `AnObject`, `LifeTotal` needs `APlayer`) and lax
@@ -737,8 +740,8 @@ mutual
     --  • `AsThough` — a scoped COUNTERFACTUAL premise ([CR#609.4]) wrapping a clause: "[clause]
     --    treated as though [condition] held." "attack as though it didn't have defender" =
     --    `AsThough (Matches This (IsNot (HasKeyword Defender))) (Can (Attacks (SameAs This)))`.
-    -- (Window-NARROWING `Only` stays as `Restriction` on activated abilities; the as-though of a
-    -- deed-INTERNAL participant — "as though the BLOCKER's attacker lacked flying" — is still deferred.)
+    -- (Window-NARROWING `Only` is the `window : TimingWindow` on `Activated` — `SorceryWindow`; the
+    -- as-though of a deed-INTERNAL participant — "as though the BLOCKER's attacker lacked flying" — is still deferred.)
     Can  : Deed b -> {default Nothing window : Maybe TimingWindow} -> StaticEffect b
     AsThough : Condition b -> StaticEffect b -> StaticEffect b
     Cant : Deed b -> StaticEffect b
@@ -764,9 +767,10 @@ mutual
   data Ability : Bindings -> Type where
     Spell : OneShotEffect b -> Ability b
     Keyword : KeywordAbility b -> Ability b
-    -- "{cost}: {effect}" — an activated ability ([CR#602]). `limits` are the activation
-    -- restrictions (a loyalty ability is `{limits = [SorcerySpeed, OncePerTurn]}`).
-    Activated : Cost b -> OneShotEffect b -> {default [] limits : List Restriction} -> Ability b
+    -- "{cost}: {effect}" — an activated ability ([CR#602]). `window` is its activation timing
+    -- (instant by default; `SorceryWindow` = "activate only as a sorcery"); `limits` are the
+    -- use-frequency caps. A loyalty ability is `{window = SorceryWindow, limits = [OncePerTurn]}`.
+    Activated : Cost b -> OneShotEffect b -> {default InstantWindow window : TimingWindow} -> {default [] limits : List Restriction} -> Ability b
     -- a triggered ability: when `event` fires, resolve `effect`. Rust: Ability::Triggered.
     Triggered : EventQuery b -> OneShotEffect (bindEvent b) -> Ability b
     -- "Enchant <filter>": what this Aura may attach to ([CR#702.5]).
