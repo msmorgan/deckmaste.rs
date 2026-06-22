@@ -172,15 +172,15 @@ data Restriction = OncePerTurn | OncePerGame
 -- `Anything` is the union kind for "any target" ([CR#115.4]) — an object OR a player;
 -- only lax ops (damage) accept it, so it can't be read as a definite object/player.
 public export
-data Ent = Empty | AnObject | APlayer | Anything
+data RefKind = Empty | AnObject | APlayer | Anything
 
--- The JOIN on `Ent` (least upper bound): `Empty` is the identity (bottom), like-with-like is
--- itself, two distinct kinds widen to `Anything` (the top) — so `(Ent, \/, Empty)` is a
+-- The JOIN on `RefKind` (least upper bound): `Empty` is the identity (bottom), like-with-like is
+-- itself, two distinct kinds widen to `Anything` (the top) — so `(RefKind, \/, Empty)` is a
 -- bounded join-semilattice. Spelled `\/` (a lattice join), not `||` — it isn't boolean OR.
 -- `OneOf` folds it over its arms' kinds (base `Empty`) to COMPUTE a union's kind — what
 -- retires `Widen`; an empty union folds to `Empty` (a vacuous predicate, matches nothing).
 public export
-(\/) : Ent -> Ent -> Ent
+(\/) : RefKind -> RefKind -> RefKind
 (\/) Empty x = x
 (\/) x Empty = x
 (\/) AnObject AnObject = AnObject
@@ -242,9 +242,9 @@ data EventKind
 public export
 record Bindings where
   constructor MkBindings
-  targetKinds : List Ent     -- one `Ent` per target slot (the slot's kind, from its filter)
-  thatKind    : Maybe Ent    -- a `With`-bound group's element kind (`That`), if bound
-  itKind      : Maybe Ent    -- a `ForEach`-bound element's kind (`It`), if bound
+  targetKinds : List RefKind     -- one `RefKind` per target slot (the slot's kind, from its filter)
+  thatKind    : Maybe RefKind    -- a `With`-bound group's element kind (`That`), if bound
+  itKind      : Maybe RefKind    -- a `ForEach`-bound element's kind (`It`), if bound
   eventBound  : Bool         -- inside a trigger/replacement/delayed body (`EventObject`/`EventActor`)
 
 -- The bindings a resolving spell starts in: nothing bound yet.
@@ -256,7 +256,7 @@ Base = MkBindings [] Nothing Nothing False
 -- bind result reduces definitionally even for abstract `b` (record-update sugar
 -- has no get-after-set law for an abstract record).
 public export
-bindTargets : List Ent -> Bindings -> Bindings
+bindTargets : List RefKind -> Bindings -> Bindings
 bindTargets ks b = MkBindings ks (thatKind b) (itKind b) (eventBound b)
 
 public export
@@ -264,11 +264,11 @@ unbindTargets : Bindings -> Bindings
 unbindTargets b = MkBindings [] (thatKind b) (itKind b) (eventBound b)
 
 public export
-bindThat : Ent -> Bindings -> Bindings
+bindThat : RefKind -> Bindings -> Bindings
 bindThat k b = MkBindings (targetKinds b) (Just k) (itKind b) (eventBound b)
 
 public export
-bindIt : Ent -> Bindings -> Bindings
+bindIt : RefKind -> Bindings -> Bindings
 bindIt k b = MkBindings (targetKinds b) (thatKind b) (Just k) (eventBound b)
 
 -- entering a trigger/replacement/delayed body, where the event's object/player are bound.
@@ -301,13 +301,13 @@ mutual
     Shroud : KeywordSpec b
     Menace : KeywordSpec b
     Hexproof : Maybe (Predicate b AnObject) -> KeywordSpec b   -- "from [filter]" — a SOURCE predicate (objects); "from a player" = ControlledBy that player
-  -- A REFERENCE to a single game entity, indexed by `Ent` (object vs player). One
+  -- A REFERENCE to a single game entity, indexed by `RefKind` (object vs player). One
   -- reference language now: object-refs and player-refs together, strict on the kind
   -- where it matters (`StatOf` needs `AnObject`, `LifeTotal` needs `APlayer`) and lax
   -- where it doesn't (`SameAs`, damage). A target's kind FLEXES — `AnObject` by default,
   -- `APlayer` where a player op forces it.
   public export
-  data Reference : Bindings -> Ent -> Type where
+  data Reference : Bindings -> RefKind -> Type where
     -- the source object; always available [CR#113.7].
     This : Reference b AnObject
     -- demote a `Selection` to its SOLE element. Partial — the author asserts singularity, exactly
@@ -348,7 +348,7 @@ mutual
   -- A PREDICATE: a test on a single IMPLICIT candidate object — i.e. a *filter*.
   -- The atoms read the candidate's characteristics; `SameAs r` tests identity.
   public export
-  data Predicate : Bindings -> Ent -> Type where
+  data Predicate : Bindings -> RefKind -> Type where
     HasType : Type_ -> Predicate b AnObject
     HasSupertype : Supertype -> Predicate b AnObject
     HasSubtype : Subtype -> Predicate b AnObject
@@ -374,7 +374,7 @@ mutual
     -- the arms' kinds), so a OneOf mixing object and player predicates is `Anything` — no
     -- `Widen`/`AnyOf`. "Any target" = `OneOf [creature…, Anyone]`; an empty `OneOf` is `Empty`.
     AllOf : List (Predicate b k) -> Predicate b k
-    OneOf : {ks : List Ent} -> All (Predicate b) ks -> Predicate b (foldr (\/) Empty ks)
+    OneOf : {ks : List RefKind} -> All (Predicate b) ks -> Predicate b (foldr (\/) Empty ks)
     IsNot : Predicate b k -> Predicate b k     -- negation
 
   -- A CLOSED / game-state test ([CR#603.4]); reaches objects only via `Matches`
@@ -413,7 +413,7 @@ mutual
   -- A resolution-time GROUP / choice. In the mutual block because `Single` (a `Reference`)
   -- demotes it. `GetTargets n` = the n-th target slot's targets (`GetTarget` demotes to one).
   public export
-  data Selection : Bindings -> Ent -> Type where
+  data Selection : Bindings -> RefKind -> Type where
     SelectAll : Predicate b k -> Selection b k                  -- every match (a group)
     That : {auto prf : thatKind b = Just k} -> Selection b k    -- the `With`-bound group
     GetTargets : (n : Nat) -> {auto prf : InBounds n (targetKinds b)} -> Selection b (index n (targetKinds b))
@@ -516,7 +516,7 @@ NonZeroTargets (Range _ (Just (Literal Z))) = Void
 NonZeroTargets _ = ()
 
 public export
-data TargetSpec : Bindings -> Ent -> Type where
+data TargetSpec : Bindings -> RefKind -> Type where
   -- a target slot: a NON-ZERO `Quantity` of targets matching the predicate (`Target (^1)` = one;
   -- `Target (between (^1) (^2))` = "one or two"). The slot's targets are `GetTargets n` (a group);
   -- `GetTarget n` demotes a single-target slot to a `Reference`.
@@ -648,7 +648,7 @@ mutual
   -- The grammar only names the role; the ENGINE resolves `That` to the live (reminted
   -- or gone) object, so `MovedRef`/lki/became is a runtime concern, NOT modeled here.
   public export
-  data Bindable : Bindings -> Ent -> Type where
+  data Bindable : Bindings -> RefKind -> Type where
     Existing : Selection b k -> Bindable b k  -- bind existing entities (a plain selection)
     Produce : Action b -> Bindable b AnObject -- run the action, bind its product (the moved object) as `That`
     -- `by` chooses a `Quantity` of entities matching the filter; the chosen are bound as
@@ -666,10 +666,10 @@ mutual
   public export
   data OneShotEffect : Bindings -> Type where
     Sequence : (List (OneShotEffect b)) -> OneShotEffect b
-    -- each target slot carries its OWN kind (its filter's), gathered as `ks : List Ent`
+    -- each target slot carries its OWN kind (its filter's), gathered as `ks : List RefKind`
     -- (a heterogeneous `All`), so the body's `GetTarget i` is strictly kinded PER SLOT —
     -- mixed-kind multi-target ("target player gains control of target creature", Donate) works.
-    Targeted : {ks : List Ent} -> All (TargetSpec b) ks -> OneShotEffect (bindTargets ks b) -> OneShotEffect b
+    Targeted : {ks : List RefKind} -> All (TargetSpec b) ks -> OneShotEffect (bindTargets ks b) -> OneShotEffect b
     -- binds `that` as `That` (of the bound kind) for `body`; `that` may PRODUCE a moved object. Rust: Effect::With.
     With : Bindable b k -> OneShotEffect (bindThat k b) -> OneShotEffect b
     -- a single intrinsic instruction (the verb compartment). Rust: Effect::Act.
