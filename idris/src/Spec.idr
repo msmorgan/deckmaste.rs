@@ -233,3 +233,9 @@ failing
 failing
   tBadLifeOfCreatureTarget : Count (bindTargets [AnObject] Base)
   tBadLifeOfCreatureTarget = LifeTotal (GetTarget 0)
+
+-- an EMPTY union is rejected: `OneOf` is non-empty (head `::` tail), so there's no
+-- degenerate "matches nothing" predicate and no need for an `Ent` identity element.
+failing
+  tBadEmptyOneOf : Predicate Base AnObject
+  tBadEmptyOneOf = OneOf []
