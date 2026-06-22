@@ -84,9 +84,9 @@ Flickerwisp = Normal $ fromDefault
       [ keyword Flying
       , Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)]) $
           Targeted [Target 1 (AllOf [permanent, IsNot (SameAs This)])] $
-            With (Produce (Move (SelectAll (SameAs (GetTarget 0))) Exile)) $  -- exile the target, bind `That`
+            With (Produce (Move ((GetTarget 0)) Exile)) $  -- exile the target, bind `That`
               Delayed nextEndStep
-                (Act (Move That Battlefield))                        -- return `That` (captured; target gone)
+                (ForEach That (Act (Move It Battlefield)))                        -- return `That` (captured; target gone)
       ]
   , power := Just 3
   , toughness := Just 1
@@ -104,7 +104,7 @@ Brainstorm = Normal $ fromDefault
       [ Spell $
           Sequence
           [ Act (Draw (promote 3))
-          , With (Choose (promote 2) inHand) (Act (Move That Library))
+          , With (Choose (promote 2) inHand) (ForEach That (Act (Move It Library)))
           ]
       ]
   }
@@ -129,7 +129,7 @@ Rancor = Normal $ fromDefault
           (Query [ KindIs (ZoneChanged (Just Battlefield) (Just Graveyard))
                  , SourceMatches (SameAs This)
                  ])
-          (Act (Move (SelectAll (SameAs This)) Hand))
+          (Act (Move (This) Hand))
       ]
   }
 
@@ -147,8 +147,8 @@ Cloudshift = Normal $ fromDefault
                                      , ControlledBy you
                                      ])
                    ] $
-          With (Produce (Move (SelectAll (SameAs (GetTarget 0))) Exile)) $
-          Act (Move That Battlefield)
+          With (Produce (Move ((GetTarget 0)) Exile)) $
+          ForEach That (Act (Move It Battlefield))
       ]
   }
 
@@ -167,8 +167,8 @@ ThroughTheBreach = Normal $ fromDefault
       [ Spell $
           With (Choose (promote 1) (AllOf [inHand, creature])) $
             Sequence
-              [ Act (Move That Battlefield)
-              , Delayed nextEndStep (Act (Move That Graveyard)) ]
+              [ ForEach That (Act (Move It Battlefield))
+              , Delayed nextEndStep (ForEach That (Act (Move It Graveyard))) ]
       ]
   }
 
@@ -193,7 +193,7 @@ ApproachOfTheSecondSun = Normal $ fromDefault
                             GreaterEq (Literal 2) ])
              (Conclude (WinGame You))
              { otherwise = Just (Sequence
-                 [ Act (PutIntoLibrary (SelectAll (SameAs This)) (FromTop (promote 6)))
+                 [ Act (PutIntoLibrary (This) (FromTop (promote 6)))
                  , Act (GainLife (promote 7)) ]) }
       ]
   }
@@ -211,11 +211,11 @@ OblivionStone = Normal $ fromDefault
   , abilities :=
       [ Activated (Costs [Mana [promote 4], TapSelf])
           (Targeted [Target 1 permanent]
-            (Act (PutCounters Fate (Literal 1) (SelectAll (SameAs (GetTarget 0))))))
-      , Activated (Costs [Mana [promote 5], TapSelf, Sacrifice (SelectAll (SameAs This))])
+            (Act (PutCounters Fate (Literal 1) ((GetTarget 0)))))
+      , Activated (Costs [Mana [promote 5], TapSelf, Sacrifice (This)])
           (Sequence
-            [ Act (Destroy (SelectAll (AllOf [permanent, IsNot (HasType Land), IsNot (HasCounter Fate)])))
-            , Act (RemoveAllCounters Fate (SelectAll permanent)) ])
+            [ ForEach (SelectAll (AllOf [permanent, IsNot (HasType Land), IsNot (HasCounter Fate)])) (Act (Destroy It))
+            , ForEach (SelectAll permanent) (Act (RemoveAllCounters Fate It)) ])
       ]
   }
 
@@ -291,10 +291,11 @@ Necropotence = Normal $ fromDefault
   , abilities :=
       [ Static (Replaces (Query [KindIs (BeginStep (BeginningPhase DrawStep)), DuringTurn you]) (Sequence []))
       , Triggered (Query [KindIs Discarded, ActorIs you])
-          (Act (Move (SelectAll (SameAs EventObject)) Exile))
+          (Act (Move EventObject Exile))
       , Activated (PayLife (Literal 1))
-          (With (Produce (Move (TopOfLibrary (Literal 1)) Exile))
-            (Delayed nextEndStep (Act (Move That Hand))))
+          (ForEach (TopOfLibrary (Literal 1))
+            (With (Produce (Move It Exile))
+              (Delayed nextEndStep (ForEach That (Act (Move It Hand))))))
       ]
   }
 
@@ -331,9 +332,9 @@ OblivionRing = Normal $ fromDefault
   , abilities :=
       [ Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
           (Targeted [Target 1 (AllOf [permanent, IsNot (HasType Land), IsNot (SameAs This)])]
-            (Act (Move (SelectAll (SameAs (GetTarget 0))) Exile)))
+            (Act (Move ((GetTarget 0)) Exile)))
       , Triggered (Query [KindIs (ZoneChanged (Just Battlefield) Nothing), SourceMatches (SameAs This)])
-          (Act (Move (SelectAll (ExiledBy This)) Battlefield))
+          (ForEach (SelectAll (ExiledBy This)) (Act (Move It Battlefield)))
       ]
   }
 
@@ -350,7 +351,7 @@ BanishingLight = Normal $ fromDefault
   , abilities :=
       [ Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)]) $
           Targeted [Target 1 (AllOf [permanent, IsNot (HasType Land), ControlledBy opponent])] $
-            Act (ExileUntil (SelectAll (SameAs (GetTarget 0)))
+            Act (ExileUntil ((GetTarget 0))
                             (UntilEvent (Query [ KindIs (ZoneChanged (Just Battlefield) Nothing)
                                                , SourceMatches (SameAs This) ])))
       ]
@@ -454,7 +455,7 @@ ManaLeak = Normal $ fromDefault
   , abilities :=
       [ Spell (Targeted [Target 1 (IsKind IsSpell)]
           (MustPay {actor = ControllerOf (GetTarget 0)} (Mana [promote 3])
-            (Act (Counter (SelectAll (SameAs (GetTarget 0))))))) ]
+            (Act (Counter ((GetTarget 0)))))) ]
   }
 
 -- Invisible Stalker — a DEONTIC-KEYWORD creature: `keyword (Hexproof Nothing)` is a `Composite`
@@ -485,9 +486,9 @@ CrypticCommand = Normal $ fromDefault
   , types := [Instant]
   , abilities :=
       [ Spell (Modal (MkChooseSpec (promote 2))
-          [ MkMode (Targeted [Target 1 (IsKind IsSpell)] (Act (Counter (SelectAll (SameAs (GetTarget 0))))))
-          , MkMode (Targeted [Target 1 permanent] (Act (Move (SelectAll (SameAs (GetTarget 0))) Hand)))
-          , MkMode (Act (Tap (SelectAll (AllOf [creature, ControlledBy opponent]))))
+          [ MkMode (Targeted [Target 1 (IsKind IsSpell)] (Act (Counter ((GetTarget 0)))))
+          , MkMode (Targeted [Target 1 permanent] (Act (Move ((GetTarget 0)) Hand)))
+          , MkMode (ForEach (SelectAll (AllOf [creature, ControlledBy opponent])) (Act (Tap It)))
           , MkMode (Act (Draw (promote 1)))
           ]) ]
   }
