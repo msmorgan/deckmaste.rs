@@ -152,7 +152,7 @@ data Supertype = Basic | Legendary | Ongoing | Snow | World
 -- A kind of counter ([CR#122]). The TYPE is `CounterKind` — bare `Counter` is taken
 -- by the spell-countering `Action`.
 public export
-data CounterKind = Loyalty | Fate | Charge | P1P1 | M1M1
+data CounterKind = Loyalty | Fate | Charge | P1P1 | M1M1 | Level
 
 -- A timing WINDOW — the speed at which an action is allowed: `InstantWindow` (any time you have
 -- priority) or `SorceryWindow` (your main phase, empty stack — [CR#601.3,602.5d]). The ONE timing
@@ -166,6 +166,12 @@ data TimingWindow = InstantWindow | SorceryWindow
 -- is `{window = SorceryWindow, limits = [OncePerTurn]}`.
 public export
 data Restriction = OncePerTurn | OncePerGame
+
+-- Runtime object STATE (not a printed characteristic) — what a `HasState` predicate tests
+-- ([CR#509] combat, [CR#701.3] attach, [CR#701.20] tap). Negatives via `IsNot` ("untapped
+-- creature" = `IsNot (HasState Tapped)`, "unblocked attacker" = `IsNot (HasState Blocked)`).
+public export
+data ObjectState = Tapped | Attacking | Blocking | Blocked | Attached
 
 -- Whether a `Reference` denotes an object or a player ([CR#109.1]). One reference
 -- language, indexed by this — strict on the kind where it matters, lax where it doesn't.
@@ -364,6 +370,11 @@ mutual
                                                -- This); the engine holds the association ([CR#607] linked abilities)
     HasName : String -> Predicate b AnObject   -- named a specific card (tutors / token names)
     HasCounter : CounterKind -> Predicate b AnObject   -- has ≥1 of this counter ("without a fate counter" = IsNot (HasCounter Fate))
+    HasState : ObjectState -> Predicate b AnObject      -- runtime state: "target ATTACKING / TAPPED creature"
+    -- a numeric STAT comparison on the candidate — "target creature with power ≤ 2" =
+    -- `AllOf [creature, StatCmp Power LessEq (^2)]`. (Closes the "no stat filter" hole — stat
+    -- comparison was a `Condition` only; this lifts it into the `Predicate`/filter language.)
+    StatCmp : Stat -> Cmp -> Count b -> Predicate b AnObject
     ControlledBy : Predicate b APlayer -> Predicate b AnObject   -- controller MATCHES a player-pred: "you control" = ControlledBy you, "an opponent controls" = ControlledBy opponent
     OwnedBy : Predicate b APlayer -> Predicate b AnObject
     WasKicked : Predicate b AnObject           -- FLAG: kicker as a boolean flag on the object (no cost-mode model)

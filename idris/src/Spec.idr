@@ -70,6 +70,14 @@ tClosedTypeCond = Matches This (HasType Creature)
 tSubjectFilter : Predicate Base AnObject
 tSubjectFilter = HasType Creature
 
+-- new filter atoms (close the audit's #1 hole): a numeric STAT comparison ("creature with power ≤
+-- 2") and runtime OBJECT STATE ("an attacking creature") — both now `Predicate`s, not just `Condition`s.
+tStatFilter : Predicate Base AnObject
+tStatFilter = AllOf [creature, StatCmp Power LessEq (^2)]
+
+tStateFilter : Predicate Base AnObject
+tStateFilter = AllOf [creature, HasState Attacking, IsNot (HasState Tapped)]
+
 -- the unified `Quantity` (one `Range` constructor) + its helpers all typecheck
 tQuantities : List (Bindable Base AnObject)
 tQuantities =
