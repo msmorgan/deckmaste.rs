@@ -40,7 +40,7 @@ TyphoidRats = Normal $ fromDefault
   , manaCost := [cast Black]
   , types := [Creature]
   , subtypes := [cast Rat]
-  , abilities := [Keyword Deathtouch]
+  , abilities := [keyword Deathtouch]
   , power := Just 1
   , toughness := Just 1
   }
@@ -52,7 +52,7 @@ GiantSpider = Normal $ fromDefault
   , manaCost := [cast 3, cast Green]
   , types := [Creature]
   , subtypes := [cast Spider]
-  , abilities := [Keyword Reach]
+  , abilities := [keyword Reach]
   , power := Just 2
   , toughness := Just 4
   }
@@ -81,7 +81,7 @@ Flickerwisp = Normal $ fromDefault
   , types := [Creature]
   , subtypes := [cast Elemental]
   , abilities :=
-      [ Keyword Flying
+      [ keyword Flying
       , Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)]) $
           Targeted [Target 1 (AllOf [permanent, IsNot (SameAs This)])] $
             With (Produce (Move (SelectAll (SameAs (GetTarget 0))) Exile)) $  -- exile the target, bind `That`
@@ -122,7 +122,7 @@ Rancor = Normal $ fromDefault
       [ Enchant (AllOf [permanent, creature])
       , Static (Modify (AttachHostOf This)
           [ ModifyPT (cast 2) (cast 0)
-          , GrantAbility (Keyword Trample)
+          , GrantAbility (keyword Trample)
           ])
       , Triggered
           (Query [KindIs (ZoneChanged (Just Battlefield) (Just Graveyard)), SourceMatches (SameAs This)])
@@ -302,7 +302,7 @@ NotionThief = Normal $ fromDefault
   , manaCost := [cast 2, cast Blue, cast Black]
   , types := [Creature]
   , abilities :=
-      [ Keyword Flash
+      [ keyword Flash
       , Static (Replaces (Query [ KindIs Drew, ActorIs opponent
                                 , Except (Query [DuringStep (BeginningPhase DrawStep)]) ])
           (Act (Draw {actor = You} (cast 1))))
@@ -415,9 +415,9 @@ GhostlyPrison = Normal $ fromDefault
       [ Static (Gate (Mana [cast 2]) (Attacks creature {whom = you})) ]
   }
 
--- Wall of Omens — a DEONTIC KEYWORD card: it just TAGS `Keyword Defender`; the can't-attack
--- restriction is the keyword's derived meaning (`keywordDeed Defender (SameAs This)`), not
--- written here. (+ a plain ETB draw trigger.)
+-- Wall of Omens — a DEONTIC KEYWORD card: `keyword Defender` expands to a `Composite` whose tag is
+-- `Defender` and whose body is the can't-attack `Cant` clause — the meaning is intrinsic to the
+-- keyword, not written on the card. (+ a plain ETB draw trigger.)
 export
 WallOfOmens : Card
 WallOfOmens = Normal $ fromDefault
@@ -428,7 +428,7 @@ WallOfOmens = Normal $ fromDefault
   , power := Just 0
   , toughness := Just 4
   , abilities :=
-      [ Keyword Defender
+      [ keyword Defender
       , Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
           (Act (Draw (cast 1)))
       ]
