@@ -14,9 +14,21 @@ LightningBolt = Normal $ fromDefault
   , manaCost := [promote Red]
   , types := [Instant]
   , abilities :=
-      [ Spell (Targeted [anyTarget]
-          (Act (DealDamage (SelectAll (SameAs (GetTarget 0))) (promote 3)))
-        )
+      [ Spell $
+          Targeted [anyTarget] $
+          (Act (DealDamage (GetTarget 0) (promote 3)))
+      ]
+  }
+
+-- Untargeted group damage: a `ForEach` over all creatures, dealing to each `It` (no `Targeted`).
+export
+Pyroclasm : Card
+Pyroclasm = Normal $ fromDefault
+  { name := "Pyroclasm"
+  , manaCost := [promote 1, promote Red]
+  , types := [Sorcery]
+  , abilities :=
+      [ Spell (ForEach (SelectAll creature) (Act (DealDamage It (promote 2))))
       ]
   }
 
@@ -57,18 +69,6 @@ GiantSpider = Normal $ fromDefault
   , toughness := Just 4
   }
 
--- Untargeted group damage: `DealDamage` to a `SelectAll`, no `Targeted`.
-export
-Pyroclasm : Card
-Pyroclasm = Normal $ fromDefault
-  { name := "Pyroclasm"
-  , manaCost := [promote 1, promote Red]
-  , types := [Sorcery]
-  , abilities :=
-      [ Spell (Act (DealDamage (SelectAll (creature)) (promote 2)))
-      ]
-  }
-
 -- TRICKY: ETB trigger exiles "another target permanent", binding it as `That`; a
 -- DELAYED trigger returns `That` next end step. `unbindTargets` drops the target
 -- (stale post-move) but KEEPS the captured `That` — no key, no MovedRef. The
@@ -101,7 +101,8 @@ Brainstorm = Normal $ fromDefault
   , manaCost := [promote Blue]
   , types := [Instant]
   , abilities :=
-      [ Spell $ Sequence
+      [ Spell $
+          Sequence
           [ Act (Draw (promote 3))
           , With (Choose (promote 2) inHand) (Act (Move That Library))
           ]
@@ -141,9 +142,13 @@ Cloudshift = Normal $ fromDefault
   , manaCost := [promote White]
   , types := [Instant]
   , abilities :=
-      [ Spell $ Targeted [Target 1 (AllOf [permanent, creature, ControlledBy you])] $
+      [ Spell $
+          Targeted [ Target 1 (AllOf [ permanent, creature
+                                     , ControlledBy you
+                                     ])
+                   ] $
           With (Produce (Move (SelectAll (SameAs (GetTarget 0))) Exile)) $
-            Act (Move That Battlefield)
+          Act (Move That Battlefield)
       ]
   }
 
@@ -486,3 +491,5 @@ CrypticCommand = Normal $ fromDefault
           , MkMode (Act (Draw (promote 1)))
           ]) ]
   }
+
+--:vim:sts=2 sw=2:

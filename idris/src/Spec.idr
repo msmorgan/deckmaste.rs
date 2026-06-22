@@ -47,7 +47,7 @@ tContinuously = Continuously (Modify This [ModifyPT (promote 1) (promote 1)]) Un
 tModal : OneShotEffect Base
 tModal = Modal (MkChooseSpec (promote 1))
   [ MkMode (Act (Draw (promote 1)))
-  , MkMode (Act (DealDamage (SelectAll (creature)) (promote 2))) {cost = Just (PayLife (Literal 2))}  -- mode cost is now a full Cost
+  , MkMode (ForEach (SelectAll creature) (Act (DealDamage It (promote 2)))) {cost = Just (PayLife (Literal 2))}  -- mode cost is now a full Cost
   ]
 
 -- `Reflexive` NESTS: inside a `With`, its body still sees `That` (no sibling scan)
@@ -59,7 +59,7 @@ tReflexiveSeesThat =
 -- `ForEach` binds `It` per element; the body references `It`
 tForEach : OneShotEffect Base
 tForEach = ForEach (SelectAll (creature))
-  (Act (DealDamage (SelectAll (SameAs It)) (promote 1)))
+  (Act (DealDamage It (promote 1)))
 
 -- a CLOSED condition reaches a named object via `Matches` (apply a predicate to a
 -- reference) — "if ~ is a creature".
@@ -221,7 +221,7 @@ tHexproofFrom = keyword (Hexproof (Just (HasColor Red)))
 -- a 2nd target where only one was bound
 failing
   tBadTargetRange : OneShotEffect Base
-  tBadTargetRange = Targeted [anyTarget] (Act (DealDamage (SelectAll (SameAs (GetTarget 1))) (promote 1)))
+  tBadTargetRange = Targeted [anyTarget] (Act (DealDamage (GetTarget 1) (promote 1)))
 
 -- `That` with no enclosing `With`
 failing
@@ -238,7 +238,7 @@ failing
 failing
   tBadDelayedTarget : OneShotEffect Base
   tBadDelayedTarget = Targeted [anyTarget]
-    (Delayed nextEndStep (Act (DealDamage (SelectAll (SameAs (GetTarget 0))) (promote 1))))
+    (Delayed nextEndStep (Act (DealDamage (GetTarget 0) (promote 1))))
 
 -- `It` with no enclosing `ForEach`
 failing
