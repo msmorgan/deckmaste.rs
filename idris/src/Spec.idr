@@ -27,37 +27,37 @@ tLandCreature = Normal $ fromDefault
   }
 
 -- `That`, bound by a `With`, SURVIVES into a delayed body (captured); targets don't
-tThatSurvivesDelay : Effect Base
+tThatSurvivesDelay : OneShotEffect Base
 tThatSurvivesDelay =
   With (Produce (Move (SelectAll (creature)) Exile))
     (Delayed nextEndStep (Act (Move That Battlefield)))
 
 -- branching effects typecheck
-tMay : Effect Base
+tMay : OneShotEffect Base
 tMay = May (Act (Draw (cast 1)))
 
-tIf : Effect Base
+tIf : OneShotEffect Base
 tIf = If yourTurn (Act (Draw (cast 1)))
 
 -- a one-shot creating a continuous effect for a duration
-tContinuously : Effect Base
+tContinuously : OneShotEffect Base
 tContinuously = Continuously (Modify This [ModifyPT (cast 1) (cast 1)]) UntilEndOfTurn
 
 -- a modal effect: choose one of two modes
-tModal : Effect Base
+tModal : OneShotEffect Base
 tModal = Modal (MkChooseSpec (cast 1))
   [ MkMode (Act (Draw (cast 1)))
   , MkMode (Act (DealDamage (SelectAll (creature)) (cast 2))) {cost = Just (PayLife (Literal 2))}  -- mode cost is now a full Cost
   ]
 
 -- `Reflexive` NESTS: inside a `With`, its body still sees `That` (no sibling scan)
-tReflexiveSeesThat : Effect Base
+tReflexiveSeesThat : OneShotEffect Base
 tReflexiveSeesThat =
   With (Produce (Move (SelectAll (creature)) Exile))
     (Reflexive (Act (Move That Battlefield)))
 
 -- `ForEach` binds `It` per element; the body references `It`
-tForEach : Effect Base
+tForEach : OneShotEffect Base
 tForEach = ForEach (SelectAll (creature))
   (Act (DealDamage (SelectAll (SameAs It)) (cast 1)))
 
@@ -88,7 +88,7 @@ tEventQuery = Query [ KindIs (ZoneChanged (Just Battlefield) (Just Graveyard))
                     , Except (DuringTurn you) ]
 
 -- a log-derived history count feeds a condition, and a game `Outcome` wraps into an effect
-tHistoryThenWin : Effect Base
+tHistoryThenWin : OneShotEffect Base
 tHistoryThenWin =
   If (Compare (EventCount (Query [KindIs Cast, ActorIs you, Within ThisGame])) GreaterEq (Literal 2))
      (Conclude (WinGame You))
@@ -98,17 +98,20 @@ tActivated : Ability
 tActivated = Activated (Costs [Mana [cast 2], TapSelf, PayLife (Literal 1)])
                        (Act (Draw (cast 1)))
 
--- cost-unification: `Unless` takes the full `Cost` algebra now (here a life payment), not the
--- bare `ManaCost` it used to — so "you sacrifice a creature unless you pay 3 life" is expressible.
-tUnless : Effect Base
-tUnless = Unless (Act (Sacrifices You creature)) (PayLife (Literal 3))
+-- cost-payment DECISIONS (supersede `Unless`): MAY-pay (optional, reward + downside) and
+-- MUST-pay (pay or be punished). The full `Cost` algebra rides both (here life / mana).
+tMayPay : OneShotEffect Base
+tMayPay = MayPay (PayLife (Literal 2)) (Act (Draw (cast 1))) {or_else = Just (Act (LoseLife (cast 1)))}
+
+tMustPay : OneShotEffect Base
+tMustPay = MustPay (Mana [cast 2]) (Act (Counter (SelectAll (IsKind IsSpell))))
 
 -- scaled cost: "{2} for each creature" — `Scaled` pays the inner cost once per the count.
 tScaledCost : Cost Base
 tScaledCost = Scaled (CountOf creature) (Mana [cast 2])
 
 -- counters: the `HasCounter` predicate facet + the put/remove verbs
-tCounters : Effect Base
+tCounters : OneShotEffect Base
 tCounters = Sequence [ Act (PutCounters P1P1 (Literal 1) (SelectAll creature))
                      , Act (Destroy (SelectAll (IsNot (HasCounter P1P1)))) ]
 
@@ -131,7 +134,7 @@ tValues =
   , ThatMuch ]
 
 -- new verbs (scry/fight/token/search/copy) all typecheck
-tVerbs : List (Effect Base)
+tVerbs : List (OneShotEffect Base)
 tVerbs =
   [ Act (Scry (Literal 2))
   , Act (Fight (SelectAll (SameAs This)) (SelectAll creature))
@@ -141,7 +144,7 @@ tVerbs =
 
 -- searching ANOTHER player's library (Bribery: "search target OPPONENT's library"): the
 -- opponent is now a TARGET (player-predicate `opponent`), so `whose` is that targeted player.
-tSearchOther : Effect Base
+tSearchOther : OneShotEffect Base
 tSearchOther = Targeted [Target 1 opponent]
   (With (Search {whose = GetTarget 0} (cast 1) creature) (Act (Move That Battlefield)))
 
@@ -172,12 +175,12 @@ tPlayerTarget : Count (bindTargets [APlayer] Base)
 tPlayerTarget = LifeTotal (GetTarget 0)
 
 -- "each player" is a player-`Selection`; `ForEach` binds a player `It` (EachPlayer dissolved)
-tEachPlayerForEach : Effect Base
+tEachPlayerForEach : OneShotEffect Base
 tEachPlayerForEach = ForEach eachPlayer (Act (Draw {actor = It} (cast 1)))
 
 -- MIXED-kind multi-target (Donate: "target player gains control of target permanent"):
 -- slot 0 is a player, slot 1 an object — each `GetTarget` strictly kinded by its own slot.
-tMixedTargets : Effect Base
+tMixedTargets : OneShotEffect Base
 tMixedTargets =
   Targeted [Target 1 Anyone, Target 1 (AllOf [permanent, ControlledBy you])]
     (Continuously (Modify (GetTarget 1) [GainControl (GetTarget 0)]) Permanent)
@@ -210,7 +213,7 @@ tFirstStrikeNotDeontic = Refl
 
 -- a 2nd target where only one was bound
 failing
-  tBadTargetRange : Effect Base
+  tBadTargetRange : OneShotEffect Base
   tBadTargetRange = Targeted [anyTarget] (Act (DealDamage (SelectAll (SameAs (GetTarget 1))) (cast 1)))
 
 -- `That` with no enclosing `With`
@@ -226,7 +229,7 @@ failing
 
 -- a target leaking into a delayed body (`unbindTargets` clears it; only `That` crosses)
 failing
-  tBadDelayedTarget : Effect Base
+  tBadDelayedTarget : OneShotEffect Base
   tBadDelayedTarget = Targeted [anyTarget]
     (Delayed nextEndStep (Act (DealDamage (SelectAll (SameAs (GetTarget 0))) (cast 1))))
 
