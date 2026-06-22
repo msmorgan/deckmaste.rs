@@ -294,7 +294,6 @@ mutual
     EventObject : {auto prf : eventBound b = True} -> Reference b AnObject
     -- PLAYERS (the old `PlayerRef`, folded in here):
     You : Reference b APlayer                            -- controller of this ability [CR#109.5]
-    Opponent : Reference b APlayer                       -- an opponent [CR#102.1]; single-opponent for now
     ControllerOf : Reference b AnObject -> Reference b APlayer   -- the controller of an object
     OwnerOf : Reference b AnObject -> Reference b APlayer        -- the owner of an object [CR#108.3]
     EventActor : {auto prf : eventBound b = True} -> Reference b APlayer  -- the event's player ("that player")
@@ -336,8 +335,8 @@ mutual
                                                -- This); the engine holds the association ([CR#607] linked abilities)
     HasName : String -> Predicate b AnObject   -- named a specific card (tutors / token names)
     HasCounter : CounterKind -> Predicate b AnObject   -- has ≥1 of this counter ("without a fate counter" = IsNot (HasCounter Fate))
-    ControlledBy : Reference b APlayer -> Predicate b AnObject   -- "creature you control" = AllOf [HasType Creature, ControlledBy You]
-    OwnedBy : Reference b APlayer -> Predicate b AnObject
+    ControlledBy : Predicate b APlayer -> Predicate b AnObject   -- controller MATCHES a player-pred: "you control" = ControlledBy you, "an opponent controls" = ControlledBy opponent
+    OwnedBy : Predicate b APlayer -> Predicate b AnObject
     WasKicked : Predicate b AnObject           -- FLAG: kicker as a boolean flag on the object (no cost-mode model)
     -- `Anyone` is the player top-predicate ("any player" — a person, hence `APlayer`).
     Anyone : Predicate b APlayer
@@ -356,7 +355,7 @@ mutual
   data Condition : Bindings -> Type where
     Matches : Reference b k -> Predicate b k -> Condition b   -- does r satisfy the (same-kind) predicate
     Compare : Count b -> Cmp -> Count b -> Condition b
-    TurnOf : Reference b APlayer -> Condition b   -- it's this player's turn (`yourTurn = TurnOf You`)
+    TurnOf : Predicate b APlayer -> Condition b   -- it's a (matching) player's turn (`yourTurn = TurnOf (SameAs You)`)
     During : PhaseStep -> Condition b
     And : List (Condition b) -> Condition b
     Or : List (Condition b) -> Condition b
@@ -370,10 +369,10 @@ mutual
   data EventQuery : Bindings -> Type where
     KindIs        : EventKind -> EventQuery b
     SourceMatches : Predicate b AnObject -> EventQuery b
-    ActorIs       : Reference b APlayer -> EventQuery b
+    ActorIs       : Predicate b APlayer -> EventQuery b   -- the event's actor matches a player-pred (you / opponent)
     Within        : Window -> EventQuery b
     DuringStep    : PhaseStep -> EventQuery b
-    DuringTurn    : Reference b APlayer -> EventQuery b
+    DuringTurn    : Predicate b APlayer -> EventQuery b   -- the turn's player matches a player-pred
     Query  : List (EventQuery b) -> EventQuery b   -- AND
     Join   : List (EventQuery b) -> EventQuery b   -- OR
     Except : EventQuery b -> EventQuery b          -- NOT
@@ -382,7 +381,7 @@ mutual
 -- "it's your turn" — the common specialization of `TurnOf`.
 public export
 yourTurn : Condition b
-yourTurn = TurnOf You
+yourTurn = TurnOf (SameAs You)
 
 -- `exists`/`unique`: a predicate matches ≥1 / exactly-1 object. DERIVED from
 -- `CountOf` + `Compare`, not primitive constructors. (`CountOf` takes a `Predicate`,

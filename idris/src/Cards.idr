@@ -139,7 +139,7 @@ Cloudshift = Normal $ fromDefault
   , manaCost := [cast White]
   , types := [Instant]
   , abilities :=
-      [ Spell $ Targeted [Target 1 (AllOf [permanent, creature, ControlledBy You])] $
+      [ Spell $ Targeted [Target 1 (AllOf [permanent, creature, ControlledBy you])] $
           With (Produce (Move (SelectAll (SameAs (GetTarget 0))) Exile)) $
             Act (Move That Battlefield)
       ]
@@ -180,7 +180,7 @@ ApproachOfTheSecondSun = Normal $ fromDefault
       [ Spell $
           If (And [ Matches This (WasCastFrom Hand)
                   , Compare (EventCount (Query [ KindIs Cast
-                                               , ActorIs You
+                                               , ActorIs you
                                                , SourceMatches (SameName This)
                                                , Within ThisGame ]))
                             GreaterEq (Literal 2) ])
@@ -221,7 +221,7 @@ GloriousAnthem = Normal $ fromDefault
   , manaCost := [cast 1, cast White, cast White]
   , types := [Enchantment]
   , abilities :=
-      [ Static (ModifyAll (AllOf [HasType Creature, ControlledBy You]) [ModifyPT (cast 1) (cast 1)]) ]
+      [ Static (ModifyAll (AllOf [HasType Creature, ControlledBy you]) [ModifyPT (cast 1) (cast 1)]) ]
   }
 
 -- Liliana of the Veil — "planeswalkers are pure composite": loyalty abilities are
@@ -264,7 +264,7 @@ TideShaper = Normal $ fromDefault
               (Targeted [Target 1 (HasType Land)]
                 (Continuously (Modify (GetTarget 0) [AddSubtype (cast Island)])
                               (ForAsLongAs (Matches This (InZone Battlefield))))))
-      , Static (While (exists (AllOf [InZone Battlefield, HasSubtype (cast Island), ControlledBy Opponent]))
+      , Static (While (exists (AllOf [InZone Battlefield, HasSubtype (cast Island), ControlledBy opponent]))
                       (Modify This [ModifyPT (cast 1) (cast 1)]))
       ]
   , power := Just 1
@@ -282,8 +282,8 @@ Necropotence = Normal $ fromDefault
   , manaCost := [cast Black, cast Black, cast Black]
   , types := [Enchantment]
   , abilities :=
-      [ Static (Replaces (Query [KindIs (BeginStep (BeginningPhase DrawStep)), DuringTurn You]) (Sequence []))
-      , Triggered (Query [KindIs Discarded, ActorIs You])
+      [ Static (Replaces (Query [KindIs (BeginStep (BeginningPhase DrawStep)), DuringTurn you]) (Sequence []))
+      , Triggered (Query [KindIs Discarded, ActorIs you])
           (Act (Move (SelectAll (SameAs EventObject)) Exile))
       , Activated (PayLife (Literal 1))
           (With (Produce (Move (TopOfLibrary (Literal 1)) Exile))
@@ -303,7 +303,7 @@ NotionThief = Normal $ fromDefault
   , types := [Creature]
   , abilities :=
       [ Keyword Flash
-      , Static (Replaces (Query [ KindIs Drew, ActorIs Opponent
+      , Static (Replaces (Query [ KindIs Drew, ActorIs opponent
                                 , Except (Query [DuringStep (BeginningPhase DrawStep)]) ])
           (Act (Draw {actor = You} (cast 1))))
       ]
@@ -342,7 +342,7 @@ BanishingLight = Normal $ fromDefault
   , types := [Enchantment]
   , abilities :=
       [ Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)]) $
-          Targeted [Target 1 (AllOf [permanent, IsNot (HasType Land), ControlledBy Opponent])] $
+          Targeted [Target 1 (AllOf [permanent, IsNot (HasType Land), ControlledBy opponent])] $
             Act (ExileUntil (SelectAll (SameAs (GetTarget 0)))
                             (UntilEvent (Query [ KindIs (ZoneChanged (Just Battlefield) Nothing)
                                                , SourceMatches (SameAs This) ])))
@@ -361,7 +361,7 @@ Donate = Normal $ fromDefault
   , types := [Sorcery]
   , abilities :=
       [ Spell (Targeted [ Target 1 Anyone
-                        , Target 1 (AllOf [permanent, ControlledBy You]) ]
+                        , Target 1 (AllOf [permanent, ControlledBy you]) ]
           (Continuously (Modify (GetTarget 1) [GainControl (GetTarget 0)]) Permanent))
       ]
   }
@@ -411,5 +411,5 @@ GhostlyPrison = Normal $ fromDefault
   , manaCost := [cast 2, cast White]
   , types := [Enchantment]
   , abilities :=
-      [ Static (Gate (Mana [cast 2]) (Attacks creature {whom = SameAs You})) ]
+      [ Static (Gate (Mana [cast 2]) (Attacks creature {whom = you})) ]
   }

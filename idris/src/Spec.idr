@@ -85,12 +85,12 @@ tQuantities =
 tEventQuery : EventQuery Base
 tEventQuery = Query [ KindIs (ZoneChanged (Just Battlefield) (Just Graveyard))
                     , SourceMatches creature
-                    , Except (DuringTurn You) ]
+                    , Except (DuringTurn you) ]
 
 -- a log-derived history count feeds a condition, and a game `Outcome` wraps into an effect
 tHistoryThenWin : Effect Base
 tHistoryThenWin =
-  If (Compare (EventCount (Query [KindIs Cast, ActorIs You, Within ThisGame])) GreaterEq (Literal 2))
+  If (Compare (EventCount (Query [KindIs Cast, ActorIs you, Within ThisGame])) GreaterEq (Literal 2))
      (Conclude (WinGame You))
 
 -- an activated ability: a multi-component cost algebra + an effect
@@ -105,7 +105,7 @@ tCounters = Sequence [ Act (PutCounters P1P1 (Literal 1) (SelectAll creature))
 
 -- anthem: a static `ModifyAll` over a controller-predicate filter, with layer mods
 tAnthem : Ability
-tAnthem = Static (ModifyAll (AllOf [HasType Creature, ControlledBy You]) [ModifyPT (cast 1) (cast 1), AddSubtype (cast Bear)])
+tAnthem = Static (ModifyAll (AllOf [HasType Creature, ControlledBy you]) [ModifyPT (cast 1) (cast 1), AddSubtype (cast Bear)])
 
 -- a loyalty ability: an Activated ability whose cost removes Loyalty counters
 tLoyalty : Ability
@@ -114,7 +114,7 @@ tLoyalty = Activated (RemoveCounters Loyalty (Literal 2)) (Act (Draw (cast 1)))
 -- the value language: arithmetic, player attributes, counters-on, new stats, that-much
 tValues : List (Count Base)
 tValues =
-  [ Plus (LifeTotal You) (HandSize Opponent)
+  [ Plus (LifeTotal You) (HandSize You)
   , Times (CountOf creature) (Literal 2)
   , HalfUp (StatOf This Power)
   , CountersOn P1P1 This
@@ -130,14 +130,15 @@ tVerbs =
   , With (Search {from = [Library, Graveyard]} (cast 1) (HasName "Forest")) (Act (Move That Hand))  -- tutor across two zones
   , Act (CopySpell (SelectAll (IsKind IsSpell))) ]
 
--- searching ANOTHER player's library (Bribery-style): `whose` names the zone owner;
--- the found creature goes to the battlefield via an owner-routed Move.
+-- searching ANOTHER player's library (Bribery: "search target OPPONENT's library"): the
+-- opponent is now a TARGET (player-predicate `opponent`), so `whose` is that targeted player.
 tSearchOther : Effect Base
-tSearchOther = With (Search {whose = Opponent} (cast 1) creature) (Act (Move That Battlefield))
+tSearchOther = Targeted [Target 1 opponent]
+  (With (Search {whose = GetTarget 0} (cast 1) creature) (Act (Move That Battlefield)))
 
 -- a conditional static, and an activation-limited (loyalty-style) ability
 tConditionalStatic : Ability
-tConditionalStatic = Static (While (exists (ControlledBy Opponent)) (Modify This [ModifyPT (cast 1) (cast 1)]))
+tConditionalStatic = Static (While (exists (ControlledBy opponent)) (Modify This [ModifyPT (cast 1) (cast 1)]))
 
 tLimitedAbility : Ability
 tLimitedAbility =
@@ -169,7 +170,7 @@ tEachPlayerForEach = ForEach eachPlayer (Act (Draw {actor = It} (cast 1)))
 -- slot 0 is a player, slot 1 an object — each `GetTarget` strictly kinded by its own slot.
 tMixedTargets : Effect Base
 tMixedTargets =
-  Targeted [Target 1 Anyone, Target 1 (AllOf [permanent, ControlledBy You])]
+  Targeted [Target 1 Anyone, Target 1 (AllOf [permanent, ControlledBy you])]
     (Continuously (Modify (GetTarget 1) [GainControl (GetTarget 0)]) Permanent)
 
 -- `OneOf` computes its result kind by JOINING its arms' kinds (`\/`): same-kind stays
@@ -186,7 +187,7 @@ tEmptyOneOf = OneOf []
 -- but a trigger counters it unless {2} is paid (cost FIRST). The 4th polarity (Cant/Must/Gate
 -- ride the deontic cards; Toll here).
 tWard : StaticEffect Base
-tWard = Toll (Mana [cast 2]) (TargetedBy (SameAs This) (ControlledBy Opponent))
+tWard = Toll (Mana [cast 2]) (TargetedBy (SameAs This) (ControlledBy opponent))
 
 -- NEGATIVE — each must be rejected --------------------------------------------
 
