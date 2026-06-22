@@ -174,11 +174,12 @@ data Restriction = OncePerTurn | OncePerGame
 public export
 data RefKind = Empty | AnObject | APlayer | Anything
 
--- The JOIN on `RefKind` (least upper bound): `Empty` is the identity (bottom), like-with-like is
--- itself, two distinct kinds widen to `Anything` (the top) — so `(RefKind, \/, Empty)` is a
--- bounded join-semilattice. Spelled `\/` (a lattice join), not `||` — it isn't boolean OR.
--- `OneOf` folds it over its arms' kinds (base `Empty`) to COMPUTE a union's kind — what
--- retires `Widen`; an empty union folds to `Empty` (a vacuous predicate, matches nothing).
+-- The JOIN on `RefKind` (least upper bound): `Empty` is the identity (bottom),
+-- like-with-like is itself, two distinct kinds widen to `Anything` (the top) —
+-- so `(RefKind, \/, Empty)` is a bounded join-semilattice. `OneOf` folds it
+-- over its arms' kinds (base `Empty`) to COMPUTE a union's kind — what retires
+-- `Widen`; an empty union folds to `Empty` (a vacuous predicate, matches
+-- nothing).
 public export
 (\/) : RefKind -> RefKind -> RefKind
 (\/) Empty x = x
@@ -511,16 +512,16 @@ anyNumber = Range Nothing Nothing
 -- A target slot's `Quantity` must permit ≥1 target ([CR#115.1] — a slot can't target nothing).
 -- Guards the UPPER bound: a statically-zero max ("up to 0") is rejected; "up to N>0" (lower 0) is fine.
 public export
-NonZeroTargets : Quantity b -> Type
-NonZeroTargets (Range _ (Just (Literal Z))) = Void
-NonZeroTargets _ = ()
+NonZeroQ : Quantity b -> Type
+NonZeroQ (Range _ (Just (Literal Z))) = Void
+NonZeroQ _ = ()
 
 public export
 data TargetSpec : Bindings -> RefKind -> Type where
   -- a target slot: a NON-ZERO `Quantity` of targets matching the predicate (`Target (^1)` = one;
   -- `Target (between (^1) (^2))` = "one or two"). The slot's targets are `GetTargets n` (a group);
   -- `GetTarget n` demotes a single-target slot to a `Reference`.
-  Target : (q : Quantity b) -> {auto 0 prf : NonZeroTargets q} -> Predicate b k -> TargetSpec b k
+  Target : (q : Quantity b) -> {auto 0 prf : NonZeroQ q} -> Predicate b k -> TargetSpec b k
 
 -- the n-th target as a single `Reference` (the common case) — sugar that demotes the slot's
 -- targets via `Single`. A plural slot (`Target (between …)`) uses `GetTargets` directly.
@@ -563,10 +564,10 @@ data Deed : Bindings -> Type where
   Attacks    : (who : Predicate b AnObject) -> {default Anyone whom : Predicate b APlayer} -> Deed b
   Blocks     : (blocker : Predicate b AnObject) -> (attacker : Predicate b AnObject) -> Deed b
   -- SET-LEVEL block ([CR#509.1c],[CR#702.111b]): "[attacker] is blocked by a DECLARED set of `size`
-  -- creatures" (a block, so size ≥ 1 by construction). `Cant (BlockedBy This …)` constrains the
+  -- creatures" (a block, so size ≥ 1 — ENFORCED by `NonZeroQ`). `Cant (BlockedBy This …)` constrains the
   -- WHOLE blocker set, not one blocker at a time — Menace = `Cant (BlockedBy (SameAs This) (^1))`
   -- (forbid the lone blocker; 0 = unblocked and 2+ stay legal). [CR#509.1c] judges the whole set.
-  BlockedBy  : (attacker : Predicate b AnObject) -> (size : Quantity b) -> Deed b
+  BlockedBy  : (attacker : Predicate b AnObject) -> (size : Quantity b) -> {auto prf : NonZeroQ size} -> Deed b
   -- "[object] is targeted BY a source matching `by`"; `by` defaults to any spell or ability.
   BeTargeted : (object : Predicate b AnObject) -> {default (OneOf [IsKind IsSpell, IsKind IsAbility]) by : Predicate b AnObject} -> Deed b
   Casts      : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
@@ -583,7 +584,7 @@ mutual
   public export
   record Characteristics (b : Bindings) where
     constructor MkCharacteristics
-    name : String
+    name : Maybe String          -- optional — most tokens are nameless ([CR#111.4])
     manaCost : ManaCost
     colors : List Color
     types : List Type_
@@ -594,6 +595,14 @@ mutual
     toughness : Maybe (Count b)
     loyalty : Maybe (Count b)
     defense : Maybe (Count b)
+
+  -- A DELIBERATELY LENIENT well-formedness floor ([CR#109.3]): an object has ≥1 card type. That's
+  -- the only safe universal — printed stats can't be pinned to types (a Vehicle is an Artifact with
+  -- P/T; Tarmogoyf is a Creature whose P/T come from a CDA, not printed fields), and `name` is
+  -- optional. Demanded at `Normal` and `CreateToken`.
+  public export
+  CharacteristicsOk : Characteristics b -> Type
+  CharacteristicsOk c = NonEmpty (types c)
 
   -- The verbs ([CR#701]). `Effect::Act` wraps these. Object verbs carry an object
   -- `source` (default `This`); player verbs an `actor : Reference b APlayer` (default `You`).
@@ -639,7 +648,7 @@ mutual
     Fight : (x : Reference b AnObject) -> (y : Reference b AnObject) -> Action b   -- each deals damage equal to its power to the other
     Reveal : Reference b AnObject -> Action b
     Shuffle : {default You actor : Reference b APlayer} -> Action b
-    CreateToken : Count b -> Characteristics b -> Action b   -- the token's full characteristics (P/T may be a `Count b`)
+    CreateToken : Count b -> (c : Characteristics b) -> {auto wf : CharacteristicsOk c} -> Action b   -- the token's full characteristics (P/T may be a `Count b`)
     CopySpell : Reference b AnObject -> Action b                   -- "copy target spell" — FLAG: copy semantics deferred to engine
     AddMana : {default You actor : Reference b APlayer} -> ManaCost -> Action b   -- "add {G}" (mana ability effect); pool/paying is engine
 
@@ -802,7 +811,7 @@ public export
 public export
 implementation DefaultValue (Characteristics b) where
   defaultValue = MkCharacteristics
-    { name = ""
+    { name = Nothing
     , manaCost = []
     , colors = []
     , types = []
@@ -824,4 +833,4 @@ SubtypesOk c = All (\s => Elem (subtypeCategory s) (types c)) (subtypes c)
 
 public export
 data Card : Type where
-  Normal : (c : Characteristics Base) -> {auto ok : SubtypesOk c} -> Card
+  Normal : (c : Characteristics Base) -> {auto ok : SubtypesOk c} -> {auto wf : CharacteristicsOk c} -> Card
