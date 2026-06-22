@@ -141,6 +141,11 @@ data CounterKind = Loyalty | Fate | Charge | P1P1 | M1M1
 public export
 data Restriction = SorcerySpeed | OncePerTurn | OncePerGame
 
+-- Whether a `Reference` denotes an object or a player ([CR#109.1]). One reference
+-- language, indexed by this — strict on the kind where it matters, lax where it doesn't.
+public export
+data Ent = AnObject | APlayer
+
 public export
 data BeginningStep
   = UntapStep
@@ -248,30 +253,41 @@ data KeywordAbility : Bindings -> Type where
   Vigilance : KeywordAbility b
   Flash : KeywordAbility b
 
--- Reference / Count / Predicate / Condition / PlayerRef are one mutually recursive
+-- Reference / Count / Predicate / Condition / EventQuery are one mutually recursive
 -- language. A PREDICATE is an object test — its candidate is IMPLICIT, so there's
 -- NO `Subject` reference or `bindSubject` gate. A *filter* IS a `Predicate`. A
 -- `Condition` is a closed/game-state test that reaches objects only via
 -- `Matches : Reference -> Predicate` (or `exists`/`unique`, below). Combinators:
 -- predicates use `AllOf`/`OneOf`/`IsNot`; conditions use `And`/`Or`/`Not`.
 mutual
-  -- A single GAME OBJECT. Player specifiers live in `PlayerRef`, not here.
+  -- A REFERENCE to a single game entity, indexed by `Ent` (object vs player). One
+  -- reference language now: object-refs and player-refs together, strict on the kind
+  -- where it matters (`StatOf` needs `AnObject`, `LifeTotal` needs `APlayer`) and lax
+  -- where it doesn't (`SameAs`, damage). A target's kind FLEXES — `AnObject` by default,
+  -- `APlayer` where a player op forces it.
   public export
-  data Reference : Bindings -> Type where
-    -- the source; always available — every spell/ability has one [CR#113.7].
-    This : Reference b
-    -- DEMANDS the bindings bound at least an (n+1)-th target.
-    GetTarget : (n : Nat) -> {auto prf : ValidTarget n b} -> Reference b
+  data Reference : Bindings -> Ent -> Type where
+    -- the source object; always available [CR#113.7].
+    This : Reference b AnObject
+    -- a target; kind flexes (default `AnObject`, becomes `APlayer` where a player op forces it).
+    GetTarget : (n : Nat) -> {auto prf : ValidTarget n b} -> {default AnObject k : Ent} -> Reference b k
     -- the unique object matching a predicate.
-    Only : Predicate b -> Reference b
-    -- the permanent R is attached to ("enchanted creature"); and its inverse.
-    AttachHostOf : Reference b -> Reference b
-    AttachedTo : Reference b -> Reference b
-    -- the element bound by an enclosing `ForEach` ("it"). Gated by `itBound`.
-    It : {auto prf : itBound b = True} -> Reference b
-    -- the triggering event's object ("that card"). Gated by `eventBound` — only inside
-    -- a Triggered / Delayed / Replaces body ([CR#608.2g]).
-    EventObject : {auto prf : eventBound b = True} -> Reference b
+    Only : Predicate b -> Reference b AnObject
+    -- the host this is attached to ("enchanted creature"); and its inverse.
+    AttachHostOf : Reference b AnObject -> Reference b AnObject
+    AttachedTo : Reference b AnObject -> Reference b AnObject
+    -- the `ForEach`-bound element ("it"); gated by `itBound`.
+    It : {auto prf : itBound b = True} -> Reference b AnObject
+    -- the triggering event's object ("that card"); gated by `eventBound` ([CR#608.2g]).
+    EventObject : {auto prf : eventBound b = True} -> Reference b AnObject
+    -- PLAYERS (the old `PlayerRef`, folded in here):
+    You : Reference b APlayer                            -- controller of this ability [CR#109.5]
+    Opponent : Reference b APlayer                       -- an opponent [CR#102.1]; single-opponent for now
+    ControllerOf : Reference b AnObject -> Reference b APlayer   -- the controller of an object
+    OwnerOf : Reference b AnObject -> Reference b APlayer        -- the owner of an object [CR#108.3]
+    EventActor : {auto prf : eventBound b = True} -> Reference b APlayer  -- the event's player ("that player")
+    EachPlayer : Reference b APlayer      -- FLAG: PLURAL (Stage 2 dissolves this into a player `Selection`)
+    EachOpponent : Reference b APlayer    -- FLAG: plural
 
   -- A numeric value ([CR#107.3]). `Literal` is a bare number; the rest read the game
   -- state — object counts, stats, counters, life/hand totals, event tallies, arithmetic.
@@ -280,11 +296,11 @@ mutual
     Literal : Nat -> Count b                  -- a bare number
     X : Count b                               -- the chosen {X} value
     CountOf : Predicate b -> Count b          -- how many objects match a predicate
-    StatOf : Reference b -> Stat -> Count b   -- a referenced object's power/toughness
+    StatOf : Reference b AnObject -> Stat -> Count b     -- an object's power/toughness/etc.
     EventCount : EventQuery b -> Count b      -- how many matching events occurred (window is in the query)
-    CountersOn : CounterKind -> Reference b -> Count b   -- number of [kind] counters on r
-    LifeTotal : PlayerRef b -> Count b                   -- a player's life total
-    HandSize : PlayerRef b -> Count b                    -- cards in a player's hand
+    CountersOn : CounterKind -> Reference b AnObject -> Count b   -- number of [kind] counters on r
+    LifeTotal : Reference b APlayer -> Count b           -- a player's life total
+    HandSize : Reference b APlayer -> Count b            -- cards in a player's hand
     Plus  : Count b -> Count b -> Count b                -- arithmetic on values
     Minus : Count b -> Count b -> Count b
     Times : Count b -> Count b -> Count b
@@ -303,15 +319,15 @@ mutual
     IsKind : ObjectKind -> Predicate b
     InZone : Zone -> Predicate b
     HasKeyword : KeywordAbility b -> Predicate b
-    SameAs : Reference b -> Predicate b        -- the candidate IS r ("another" = IsNot (SameAs This))
-    SameName : Reference b -> Predicate b      -- shares a name with r ("named [its own name]" = SameName This)
+    SameAs : Reference b k -> Predicate b      -- the candidate IS r (ANY kind; "another" = IsNot (SameAs This))
+    SameName : Reference b AnObject -> Predicate b   -- shares a name with r ("named [its own name]" = SameName This)
     WasCastFrom : Zone -> Predicate b          -- the object was cast from this zone (cast provenance)
-    ExiledBy : Reference b -> Predicate b      -- set aside by r's effect ("cards exiled by this" = ExiledBy
+    ExiledBy : Reference b AnObject -> Predicate b   -- set aside by r's effect ("cards exiled by this" = ExiledBy
                                                -- This); the engine holds the association ([CR#607] linked abilities)
     HasName : String -> Predicate b            -- named a specific card (tutors / token names)
     HasCounter : CounterKind -> Predicate b    -- has ≥1 of this counter ("without a fate counter" = IsNot (HasCounter Fate))
-    ControlledBy : PlayerRef b -> Predicate b  -- "creature you control" = AllOf [HasType Creature, ControlledBy You]
-    OwnedBy : PlayerRef b -> Predicate b
+    ControlledBy : Reference b APlayer -> Predicate b   -- "creature you control" = AllOf [HasType Creature, ControlledBy You]
+    OwnedBy : Reference b APlayer -> Predicate b
     WasKicked : Predicate b                    -- FLAG: kicker as a boolean flag on the object (no cost-mode model)
     -- combinators (distinct from `Condition`'s And/Or/Not):
     AllOf : List (Predicate b) -> Predicate b
@@ -322,25 +338,13 @@ mutual
   -- (apply a `Predicate` to a named `Reference`) or `exists`/`unique` (below).
   public export
   data Condition : Bindings -> Type where
-    Matches : Reference b -> Predicate b -> Condition b   -- does r satisfy the predicate
+    Matches : Reference b AnObject -> Predicate b -> Condition b   -- does object r satisfy the predicate
     Compare : Count b -> Cmp -> Count b -> Condition b
-    TurnOf : PlayerRef b -> Condition b   -- it's this player's turn (`yourTurn = TurnOf You`)
+    TurnOf : Reference b APlayer -> Condition b   -- it's this player's turn (`yourTurn = TurnOf You`)
     During : PhaseStep -> Condition b
     And : List (Condition b) -> Condition b
     Or : List (Condition b) -> Condition b
     Not : Condition b -> Condition b
-
-  -- A PLAYER specifier (objects live in `Reference`). In the block so `TurnOf` can name it.
-  public export
-  data PlayerRef : Bindings -> Type where
-    You : PlayerRef b                          -- controller of this ability ([CR#109.5])
-    Opponent : PlayerRef b                     -- an opponent ([CR#102.1]); single-opponent for now
-    ControllerOf : Reference b -> PlayerRef b  -- the controller of a referenced object
-    OwnerOf : Reference b -> PlayerRef b       -- the owner of a referenced object ([CR#108.3])
-    EachPlayer : PlayerRef b                   -- FLAG: a PLURAL player specifier ("each player")
-    EachOpponent : PlayerRef b                 -- FLAG: plural
-    TargetedPlayer : (n : Nat) -> {auto prf : ValidTarget n b} -> PlayerRef b  -- FLAG: nth target read as a player
-    EventActor : {auto prf : eventBound b = True} -> PlayerRef b  -- the event's player ("that player"); gated like EventObject
 
   -- A query OVER EVENTS: the matcher for triggers, `EventCount`, and durations — the
   -- event analog of `Predicate`. Facets conjoin via `Query`; `Join`/`Except` are
@@ -350,10 +354,10 @@ mutual
   data EventQuery : Bindings -> Type where
     KindIs        : EventKind -> EventQuery b
     SourceMatches : Predicate b -> EventQuery b
-    ActorIs       : PlayerRef b -> EventQuery b
+    ActorIs       : Reference b APlayer -> EventQuery b
     Within        : Window -> EventQuery b
     DuringStep    : PhaseStep -> EventQuery b
-    DuringTurn    : PlayerRef b -> EventQuery b
+    DuringTurn    : Reference b APlayer -> EventQuery b
     Query  : List (EventQuery b) -> EventQuery b   -- AND
     Join   : List (EventQuery b) -> EventQuery b   -- OR
     Except : EventQuery b -> EventQuery b          -- NOT
@@ -405,8 +409,8 @@ implementation Cast Integer (Delta b) where
 -- isn't just another verb; `Effect`'s `Conclude` wraps it.
 public export
 data Outcome : Bindings -> Type where
-  WinGame  : PlayerRef b -> Outcome b
-  LoseGame : PlayerRef b -> Outcome b
+  WinGame  : Reference b APlayer -> Outcome b
+  LoseGame : Reference b APlayer -> Outcome b
 
 -- Where a card goes in a library ([CR#401]). `FromTop (Literal 0)` = on top.
 public export
@@ -468,9 +472,9 @@ data Selection : Bindings -> Type where
   -- a random quantity of the matching objects. Rust: Selection::Random.
   Random : Quantity b -> Predicate b -> Selection b
   -- the top n cards of a library (default: yours). Rust: Selection::TopOfLibrary.
-  TopOfLibrary : (count : Count b) -> {default You whose : PlayerRef b} -> Selection b
+  TopOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b
   -- the bottom n cards of a library (positional reference beyond the top). Rust: Selection::BottomOfLibrary.
-  BottomOfLibrary : (count : Count b) -> {default You whose : PlayerRef b} -> Selection b
+  BottomOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b
 
 -- A token's characteristics ([CR#111.1]). Vanilla — FLAG: token abilities/keywords
 -- aren't modeled here (most common tokens are vanilla creatures).
@@ -485,11 +489,11 @@ record TokenSpec where
   tokToughness : Count Base
 
 -- The verbs ([CR#701]). `Effect::Act` wraps these. Object verbs carry an object
--- `source` (default `This`); player verbs an `actor : PlayerRef` (default `You`).
+-- `source` (default `This`); player verbs an `actor : Reference b APlayer` (default `You`).
 public export
 data Action : Bindings -> Type where
   -- deal damage to a `Selection`; source object is the agent ([CR#120.1]).
-  DealDamage : {default This source : Reference b} -> Selection b -> Count b -> Action b
+  DealDamage : {default This source : Reference b AnObject} -> Selection b -> Count b -> Action b
   -- a plain zone change [CR#400.7]; owner-relative, control implicit.
   Move : Selection b -> Zone -> Action b
   -- exile a selection UNTIL a duration ends, then return it — the duration-bounded
@@ -505,28 +509,28 @@ data Action : Bindings -> Type where
   Attach : (what : Selection b) -> (to : Selection b) -> Action b
   Unattach : Selection b -> Action b
   -- a player verb: the `actor` draws n cards. Rust: PlayerAction::Draw(Count).
-  Draw : {default You actor : PlayerRef b} -> Count b -> Action b
+  Draw : {default You actor : Reference b APlayer} -> Count b -> Action b
   -- the `actor` gains n life. Rust: PlayerAction::GainLife(Count).
-  GainLife : {default You actor : PlayerRef b} -> Count b -> Action b
+  GainLife : {default You actor : Reference b APlayer} -> Count b -> Action b
   -- put a selection into its owner's library at a position ([CR#401]).
   PutIntoLibrary : Selection b -> LibraryPosition b -> Action b
   -- put / clear counters ([CR#122]). `RemoveAllCounters` clears every counter of a kind.
   PutCounters : CounterKind -> Count b -> Selection b -> Action b
   RemoveAllCounters : CounterKind -> Selection b -> Action b
   -- player verbs: discard / lose life; and a chooser-verb where a player sacrifices.
-  Discard : {default You actor : PlayerRef b} -> Count b -> Action b
-  LoseLife : {default You actor : PlayerRef b} -> Count b -> Action b
-  Sacrifices : PlayerRef b -> Predicate b -> Action b   -- "[player] sacrifices a [pred]" (they choose which)
+  Discard : {default You actor : Reference b APlayer} -> Count b -> Action b
+  LoseLife : {default You actor : Reference b APlayer} -> Count b -> Action b
+  Sacrifices : Reference b APlayer -> Predicate b -> Action b   -- "[player] sacrifices a [pred]" (they choose which)
   -- keyword actions / further verbs ([CR#701]). The interactive bits (reorder, search
   -- choice, copy characteristics) are the engine's; the grammar names the verb.
   Scry : Count b -> Action b                            -- look at top n, reorder / bottom some
   Surveil : Count b -> Action b
   Fight : (x : Selection b) -> (y : Selection b) -> Action b   -- each deals damage equal to its power to the other
   Reveal : Selection b -> Action b
-  Shuffle : {default You actor : PlayerRef b} -> Action b
+  Shuffle : {default You actor : Reference b APlayer} -> Action b
   CreateToken : Count b -> TokenSpec -> Action b        -- FLAG: vanilla token spec (no abilities)
   CopySpell : Selection b -> Action b                   -- "copy target spell" — FLAG: copy semantics deferred to engine
-  AddMana : {default You actor : PlayerRef b} -> ManaCost -> Action b   -- "add {G}" (mana ability effect); pool/paying is engine
+  AddMana : {default You actor : Reference b APlayer} -> ManaCost -> Action b   -- "add {G}" (mana ability effect); pool/paying is engine
 
 -- What a binder (`With`) binds as `That`: a QUERY of existing objects, a PRODUCER
 -- (an `Action` run for effect, binding its product), or a CHOICE (a player picks).
@@ -538,12 +542,12 @@ data Bindable : Bindings -> Type where
   Produce : Action b -> Bindable b      -- run the action, bind its product (the moved object) as `That`
   -- `by` chooses a `Quantity` of objects matching the filter; the chosen are bound as
   -- `That`. Choosing is interactive, so it lives here, not in `Selection`. Rust: Selection::Choose.
-  Choose : {default You by : PlayerRef b} -> Quantity b -> Predicate b -> Bindable b
+  Choose : {default You by : Reference b APlayer} -> Quantity b -> Predicate b -> Bindable b
   -- `by` searches `whose`'s `from`-zones (one or more — "library and/or graveyard") for
   -- matching cards, bound as `That` — like `Choose`, but from (hidden) zones the engine
   -- reveals/shuffles. Search ANOTHER player's via `whose`; the found card's destination
   -- is a following owner-routed `Move That …`. Rust: Selection::Search.
-  Search : {default You by : PlayerRef b} -> {default You whose : PlayerRef b} -> {default [Library] from : List Zone} -> Quantity b -> Predicate b -> Bindable b
+  Search : {default You by : Reference b APlayer} -> {default You whose : Reference b APlayer} -> {default [Library] from : List Zone} -> Quantity b -> Predicate b -> Bindable b
 
 -- A cost paid to activate an ability ([CR#118,602]). `Costs` conjoins components;
 -- `TapSelf`/`Sacrifice`/… read `This` (the ability's source). Rust: Cost.
@@ -582,7 +586,7 @@ mutual
     -- "if [cond], [thenDo]; otherwise [else]". Rust: Effect::If.
     If : Condition b -> (thenDo : Effect b) -> {default Nothing otherwise : Maybe (Effect b)} -> Effect b
     -- "[effect] unless [who] pays [cost]" (CostComponent; ManaCost stand-in). Rust: Effect::Unless.
-    Unless : (effect : Effect b) -> {default You actor : PlayerRef b} -> ManaCost -> Effect b
+    Unless : (effect : Effect b) -> {default You actor : Reference b APlayer} -> ManaCost -> Effect b
     -- create a continuous effect for a duration ([CR#611.2]). Rust: Effect::Continuously.
     Continuously : StaticEffect b -> Duration b -> Effect b
     -- choose modes, then apply them ([CR#700.2]). Rust: Effect::Modal.
@@ -609,7 +613,7 @@ mutual
     AddType : Type_ -> Modification b                   -- "is also a [type]"
     AddSubtype : Subtype -> Modification b              -- "becomes an Island" (adds the subtype)
     LoseAbilities : Modification b                      -- "loses all abilities" (Humility-style)
-    GainControl : PlayerRef b -> Modification b         -- "[player] gains control"
+    GainControl : Reference b APlayer -> Modification b         -- "[player] gains control"
     GrantAbility : Ability -> Modification b
 
   -- A continuous effect a static (or `Continuously`) ability generates ([CR#611]):
@@ -617,7 +621,7 @@ mutual
   -- replacement effect is a continuous effect too ([CR#614]). Rust: the StaticEffect family.
   public export
   data StaticEffect : Bindings -> Type where
-    Modify : Reference b -> List (Modification b) -> StaticEffect b
+    Modify : Reference b AnObject -> List (Modification b) -> StaticEffect b
     ModifyAll : Predicate b -> List (Modification b) -> StaticEffect b   -- anthem: "each [filter] gets [mods]"
     -- "if [event] would happen, do [effect] instead" — the card names only the
     -- replacement (empty = a pure skip); the engine skips the original + handles edges.

@@ -243,7 +243,7 @@ LilianaOfTheVeil = Normal $ fromDefault
           (Act (Discard {actor = EachPlayer} (cast 1))) {limits = [SorcerySpeed, OncePerTurn]}
       , Activated (RemoveCounters Loyalty (Literal 2))
           (Targeted [Target 1 (IsKind IsPlayerKind)]
-            (Act (Sacrifices (TargetedPlayer 0) creature))) {limits = [SorcerySpeed, OncePerTurn]}
+            (Act (Sacrifices (GetTarget {k = APlayer} 0) creature))) {limits = [SorcerySpeed, OncePerTurn]}
       ]
   }
 
