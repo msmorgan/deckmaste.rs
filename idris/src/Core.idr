@@ -582,6 +582,7 @@ data Cost : Bindings -> Type where
   Sacrifice : Selection b AnObject -> Cost b              -- "Sacrifice this" = Sacrifice (SelectAll (SameAs This))
   AddCounters    : CounterKind -> Count b -> Cost b   -- a loyalty "+N" cost (put N counters on This)
   RemoveCounters : CounterKind -> Count b -> Cost b   -- a loyalty "−N" cost (remove N from This)
+  Scaled    : Count b -> Cost b -> Cost b         -- the cost paid once per unit of the count ("{2} for each X" = Scaled (CountOf X) (Mana [cast 2]))
   Costs     : List (Cost b) -> Cost b            -- all components together
 
 -- How many modes to choose, for a modal effect ([CR#700.2]). Rust: ChooseSpec.
@@ -624,8 +625,9 @@ mutual
     May : (effect : Effect b) -> {default Nothing ifDid : Maybe (Effect b)} -> {default Nothing ifNot : Maybe (Effect b)} -> Effect b
     -- "if [cond], [thenDo]; otherwise [else]". Rust: Effect::If.
     If : Condition b -> (thenDo : Effect b) -> {default Nothing otherwise : Maybe (Effect b)} -> Effect b
-    -- "[effect] unless [who] pays [cost]" (CostComponent; ManaCost stand-in). Rust: Effect::Unless.
-    Unless : (effect : Effect b) -> {default You actor : Reference b APlayer} -> ManaCost -> Effect b
+    -- "[effect] unless [who] pays [cost]" — the full `Cost` algebra (sacrifice / pay-life /
+    -- counters / mana / scaled), not just mana. Rust: Effect::Unless.
+    Unless : (effect : Effect b) -> {default You actor : Reference b APlayer} -> Cost b -> Effect b
     -- create a continuous effect for a duration ([CR#611.2]). Rust: Effect::Continuously.
     Continuously : StaticEffect b -> Duration b -> Effect b
     -- choose modes, then apply them ([CR#700.2]). Rust: Effect::Modal.
@@ -642,7 +644,7 @@ mutual
   -- one option of a modal effect: an effect plus an optional extra cost. Rust: Mode.
   public export
   data Mode : Bindings -> Type where
-    MkMode : (effect : Effect b) -> {default Nothing cost : Maybe ManaCost} -> Mode b
+    MkMode : (effect : Effect b) -> {default Nothing cost : Maybe (Cost b)} -> Mode b
 
   -- A continuous modification a static ability applies to its subject.
   public export

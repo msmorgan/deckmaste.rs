@@ -401,9 +401,10 @@ Juggernaut = Normal $ fromDefault
   }
 
 -- Ghostly Prison — "Creatures can't attack you unless their controller pays {2} …" — a `Gate`
--- (cost FIRST): the attack is legal only if the toll is paid, never compulsory. FLAG: the real
--- cost is "{2} for EACH attacking creature"; the `Cost` algebra has no Count-scaled mana yet, so
--- this encodes the flat {2} per the shape, with the per-creature scaling deferred.
+-- (cost FIRST): the attack is legal only if the toll is paid, never compulsory. The "{2} for
+-- EACH attacking creature" scaling is now expressible via `Scaled (CountOf …) (Mana [cast 2])`,
+-- but the count "creatures attacking you" needs an "is-attacking" combat-state predicate we
+-- don't have yet — so this stays flat {2} for now.
 export
 GhostlyPrison : Card
 GhostlyPrison = Normal $ fromDefault
