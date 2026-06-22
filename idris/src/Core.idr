@@ -147,14 +147,17 @@ data Restriction = SorcerySpeed | OncePerTurn | OncePerGame
 -- `Anything` is the union kind for "any target" ([CR#115.4]) — an object OR a player;
 -- only lax ops (damage) accept it, so it can't be read as a definite object/player.
 public export
-data Ent = AnObject | APlayer | Anything
+data Ent = Empty | AnObject | APlayer | Anything
 
--- The JOIN on `Ent` (least upper bound): like-with-like is itself; two distinct kinds widen
--- to `Anything`, the top. Spelled `\/` (a lattice join), not `||` — it isn't boolean OR.
--- `OneOf` folds it over its (non-empty) arms' kinds to COMPUTE a union's kind — what retires
--- `Widen`. No bottom/identity element is needed: a union has at least one arm.
+-- The JOIN on `Ent` (least upper bound): `Empty` is the identity (bottom), like-with-like is
+-- itself, two distinct kinds widen to `Anything` (the top) — so `(Ent, \/, Empty)` is a
+-- bounded join-semilattice. Spelled `\/` (a lattice join), not `||` — it isn't boolean OR.
+-- `OneOf` folds it over its arms' kinds (base `Empty`) to COMPUTE a union's kind — what
+-- retires `Widen`; an empty union folds to `Empty` (a vacuous predicate, matches nothing).
 public export
 (\/) : Ent -> Ent -> Ent
+(\/) Empty x = x
+(\/) x Empty = x
 (\/) AnObject AnObject = AnObject
 (\/) APlayer APlayer = APlayer
 (\/) _ _ = Anything
@@ -339,12 +342,12 @@ mutual
     -- `Anyone` is the player top-predicate ("any player" — a person, hence `APlayer`).
     Anyone : Predicate b APlayer
     -- combinators (distinct from `Condition`'s And/Or/Not). `AllOf` (AND) is same-kind — a
-    -- candidate is ONE kind, so all conjuncts share it. `OneOf` (OR/union) is HETEROGENEOUS
-    -- and NON-EMPTY (head `::` tail): its arms may differ in kind and the result kind is their
-    -- JOIN (`foldr (\/)` with the head's kind as base), so a OneOf mixing object and player
-    -- predicates is `Anything` — no `Widen`/`AnyOf`. "Any target" = `OneOf [creature…, Anyone]`.
+    -- candidate is ONE kind, so all conjuncts share it. `OneOf` (OR/union) is HETEROGENEOUS:
+    -- its arms may differ in kind and the result kind is their JOIN (`foldr (\/) Empty` over
+    -- the arms' kinds), so a OneOf mixing object and player predicates is `Anything` — no
+    -- `Widen`/`AnyOf`. "Any target" = `OneOf [creature…, Anyone]`; an empty `OneOf` is `Empty`.
     AllOf : List (Predicate b k) -> Predicate b k
-    OneOf : {k : Ent} -> {ks : List Ent} -> All (Predicate b) (k :: ks) -> Predicate b (foldr (\/) k ks)
+    OneOf : {ks : List Ent} -> All (Predicate b) ks -> Predicate b (foldr (\/) Empty ks)
     IsNot : Predicate b k -> Predicate b k     -- negation
 
   -- A CLOSED / game-state test ([CR#603.4]); reaches objects only via `Matches`

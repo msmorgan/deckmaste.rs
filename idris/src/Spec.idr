@@ -177,6 +177,11 @@ tMixedTargets =
 tOneOfKinds : (Predicate Base AnObject, Predicate Base Anything)
 tOneOfKinds = (OneOf [creature, permanent], OneOf [creature, Anyone])
 
+-- the join identity: an EMPTY `OneOf` folds to `Empty` (a vacuous union — matches nothing).
+-- `Empty` is a distinct bottom kind, unusable where a real `AnObject`/`APlayer` is wanted.
+tEmptyOneOf : Predicate Base Empty
+tEmptyOneOf = OneOf []
+
 -- NEGATIVE — each must be rejected --------------------------------------------
 
 -- a 2nd target where only one was bound
@@ -233,9 +238,3 @@ failing
 failing
   tBadLifeOfCreatureTarget : Count (bindTargets [AnObject] Base)
   tBadLifeOfCreatureTarget = LifeTotal (GetTarget 0)
-
--- an EMPTY union is rejected: `OneOf` is non-empty (head `::` tail), so there's no
--- degenerate "matches nothing" predicate and no need for an `Ent` identity element.
-failing
-  tBadEmptyOneOf : Predicate Base AnObject
-  tBadEmptyOneOf = OneOf []
