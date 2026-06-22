@@ -162,7 +162,7 @@ tConditionalStatic = Static (While (exists (ControlledBy opponent)) (Modify This
 
 tLimitedAbility : Ability Base
 tLimitedAbility =
-  Activated (RemoveCounters Loyalty (Literal 1)) (Act (Draw (^1))) {limits = [SorcerySpeed, OncePerTurn]}
+  Activated (RemoveCounters Loyalty (Literal 1)) (Act (Draw (^1))) {window = SorceryWindow, limits = [OncePerTurn]}
 
 -- P/T is in the value language now: SIGNED deltas (Up/Down) and a dynamic base via SetPT
 tPTMods : List (Modification Base)

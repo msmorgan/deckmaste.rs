@@ -232,8 +232,8 @@ GloriousAnthem = Normal $ ^:
   }
 
 -- Liliana of the Veil — "planeswalkers are pure composite": loyalty abilities are
--- Activated abilities whose cost adds/removes Loyalty counters, carrying [SorcerySpeed,
--- OncePerTurn] limits; the printed loyalty (3) is "enters with 3 Loyalty counters"
+-- Activated abilities whose cost adds/removes Loyalty counters, carrying {window = SorceryWindow,
+-- limits = [OncePerTurn]}; the printed loyalty (3) is "enters with 3 Loyalty counters"
 -- (Face.loyalty). "Each player" is `ForEach eachPlayer` (a player-`Selection`); "target
 -- player" is a player-kinded target (`Anyone`), so `GetTarget 0` is `APlayer` with no
 -- annotation. The −6 pile ultimate is OMITTED (no pile-division); the "Liliana"
@@ -248,10 +248,10 @@ LilianaOfTheVeil = Normal $ ^:
   , loyalty := Just 3
   , abilities :=
       [ Activated (AddCounters Loyalty (Literal 1))
-          (ForEach eachPlayer (Act (Discard {actor = It} (^1)))) {limits = [SorcerySpeed, OncePerTurn]}
+          (ForEach eachPlayer (Act (Discard {actor = It} (^1)))) {window = SorceryWindow, limits = [OncePerTurn]}
       , Activated (RemoveCounters Loyalty (Literal 2))
           (Targeted [Target (^1) Anyone]
-            (Act (Sacrifices (GetTarget 0) creature))) {limits = [SorcerySpeed, OncePerTurn]}
+            (Act (Sacrifices (GetTarget 0) creature))) {window = SorceryWindow, limits = [OncePerTurn]}
       ]
   }
 
