@@ -18,6 +18,10 @@ data Color
   | Green
 
 public export
+Colorless : Maybe Color
+Colorless = Nothing
+
+public export
 data SimpleManaSymbol
   = Generic Nat
   | Specific (Maybe Color)
@@ -487,9 +491,10 @@ data TargetSpec : Bindings -> Ent -> Type where
 -- the plural anaphor lives HERE, not there. Mirrors Rust `Selection`.
 public export
 data Selection : Bindings -> Ent -> Type where
-  -- the matching entities as one set (Rust: Selection::Filter). A single entity is
-  -- just `SelectAll (SameAs r)`, so there's no dedicated ref-to-selection variant. Its
-  -- kind is the predicate's — a player-predicate gives a player-`Selection` ("each player").
+  -- the matching entities as one set (Rust: Selection::Filter) — a GROUP, consumed by
+  -- `ForEach`/`With`, NOT by the verbs (which act on a single `Reference`; a singleton is
+  -- just that `Reference`). Its kind is the predicate's — a player-predicate gives a
+  -- player-`Selection` ("each player").
   SelectAll : Predicate b k -> Selection b k
   -- the whole ordered group bound by an enclosing `With`; kind from `thatKind`. Rust: Selection::Those.
   That : {auto prf : thatKind b = Just k} -> Selection b k
@@ -522,28 +527,28 @@ data Action : Bindings -> Type where
   -- `source` object is the agent. "Deals N to EACH …" is a `ForEach` over the recipients.
   DealDamage : {default This source : Reference b AnObject} -> Reference b k -> Count b -> Action b
   -- a plain zone change [CR#400.7]; owner-relative, control implicit.
-  Move : Selection b AnObject -> Zone -> Action b
+  Move : Reference b AnObject -> Zone -> Action b
   -- exile a selection UNTIL a duration ends, then return it — the duration-bounded
   -- "exile until ~" form ([CR#603.6e]), NOT a leave-triggered return (see Oblivion Ring).
-  ExileUntil : Selection b AnObject -> Duration b -> Action b
+  ExileUntil : Reference b AnObject -> Duration b -> Action b
   -- destroy [CR#701.8] / counter a stack object [CR#701.6a]. (Return-to-hand is just
   -- `Move … Hand` — `Move` is owner-relative — so there's no dedicated bounce verb.)
-  Destroy : Selection b AnObject -> Action b
-  Counter : Selection b AnObject -> Action b
+  Destroy : Reference b AnObject -> Action b
+  Counter : Reference b AnObject -> Action b
   -- tap / untap [CR#701.26]; attach / unattach [CR#701.3].
-  Tap : Selection b AnObject -> Action b
-  Untap : Selection b AnObject -> Action b
-  Attach : (what : Selection b AnObject) -> (to : Selection b AnObject) -> Action b
-  Unattach : Selection b AnObject -> Action b
+  Tap : Reference b AnObject -> Action b
+  Untap : Reference b AnObject -> Action b
+  Attach : (what : Reference b AnObject) -> (to : Reference b AnObject) -> Action b
+  Unattach : Reference b AnObject -> Action b
   -- a player verb: the `actor` draws n cards. Rust: PlayerAction::Draw(Count).
   Draw : {default You actor : Reference b APlayer} -> Count b -> Action b
   -- the `actor` gains n life. Rust: PlayerAction::GainLife(Count).
   GainLife : {default You actor : Reference b APlayer} -> Count b -> Action b
   -- put a selection into its owner's library at a position ([CR#401]).
-  PutIntoLibrary : Selection b AnObject -> LibraryPosition b -> Action b
+  PutIntoLibrary : Reference b AnObject -> LibraryPosition b -> Action b
   -- put / clear counters ([CR#122]). `RemoveAllCounters` clears every counter of a kind.
-  PutCounters : CounterKind -> Count b -> Selection b AnObject -> Action b
-  RemoveAllCounters : CounterKind -> Selection b AnObject -> Action b
+  PutCounters : CounterKind -> Count b -> Reference b AnObject -> Action b
+  RemoveAllCounters : CounterKind -> Reference b AnObject -> Action b
   -- player verbs: discard / lose life; and a chooser-verb where a player sacrifices.
   Discard : {default You actor : Reference b APlayer} -> Count b -> Action b
   LoseLife : {default You actor : Reference b APlayer} -> Count b -> Action b
@@ -552,11 +557,11 @@ data Action : Bindings -> Type where
   -- choice, copy characteristics) are the engine's; the grammar names the verb.
   Scry : Count b -> Action b                            -- look at top n, reorder / bottom some
   Surveil : Count b -> Action b
-  Fight : (x : Selection b AnObject) -> (y : Selection b AnObject) -> Action b   -- each deals damage equal to its power to the other
-  Reveal : Selection b AnObject -> Action b
+  Fight : (x : Reference b AnObject) -> (y : Reference b AnObject) -> Action b   -- each deals damage equal to its power to the other
+  Reveal : Reference b AnObject -> Action b
   Shuffle : {default You actor : Reference b APlayer} -> Action b
   CreateToken : Count b -> TokenSpec -> Action b        -- FLAG: vanilla token spec (no abilities)
-  CopySpell : Selection b AnObject -> Action b                   -- "copy target spell" — FLAG: copy semantics deferred to engine
+  CopySpell : Reference b AnObject -> Action b                   -- "copy target spell" — FLAG: copy semantics deferred to engine
   AddMana : {default You actor : Reference b APlayer} -> ManaCost -> Action b   -- "add {G}" (mana ability effect); pool/paying is engine
 
 -- What a binder (`With`) binds as `That`: a QUERY of existing objects, a PRODUCER
@@ -584,7 +589,7 @@ data Cost : Bindings -> Type where
   TapSelf   : Cost b                             -- "{T}"
   UntapSelf : Cost b                             -- "{Q}"
   PayLife   : Count b -> Cost b                  -- "Pay N life"
-  Sacrifice : Selection b AnObject -> Cost b              -- "Sacrifice this" = Sacrifice (SelectAll (SameAs This))
+  Sacrifice : Reference b AnObject -> Cost b              -- "Sacrifice this" = Sacrifice This
   AddCounters    : CounterKind -> Count b -> Cost b   -- a loyalty "+N" cost (put N counters on This)
   RemoveCounters : CounterKind -> Count b -> Cost b   -- a loyalty "−N" cost (remove N from This)
   Scaled    : Count b -> Cost b -> Cost b         -- the cost paid once per unit of the count ("{2} for each X" = Scaled (CountOf X) (Mana [promote 2]))

@@ -29,8 +29,8 @@ tLandCreature = Normal $ fromDefault
 -- `That`, bound by a `With`, SURVIVES into a delayed body (captured); targets don't
 tThatSurvivesDelay : OneShotEffect Base
 tThatSurvivesDelay =
-  With (Produce (Move (SelectAll (creature)) Exile))
-    (Delayed nextEndStep (Act (Move That Battlefield)))
+  With (Produce (Move (Only creature) Exile))
+    (Delayed nextEndStep (ForEach That (Act (Move It Battlefield))))
 
 -- branching effects typecheck
 tMay : OneShotEffect Base
@@ -53,8 +53,8 @@ tModal = Modal (MkChooseSpec (promote 1))
 -- `Reflexive` NESTS: inside a `With`, its body still sees `That` (no sibling scan)
 tReflexiveSeesThat : OneShotEffect Base
 tReflexiveSeesThat =
-  With (Produce (Move (SelectAll (creature)) Exile))
-    (Reflexive (Act (Move That Battlefield)))
+  With (Produce (Move (Only creature) Exile))
+    (Reflexive (ForEach That (Act (Move It Battlefield))))
 
 -- `ForEach` binds `It` per element; the body references `It`
 tForEach : OneShotEffect Base
@@ -104,7 +104,7 @@ tMayPay : OneShotEffect Base
 tMayPay = MayPay (PayLife (Literal 2)) (Act (Draw (promote 1))) {or_else = Just (Act (LoseLife (promote 1)))}
 
 tMustPay : OneShotEffect Base
-tMustPay = MustPay (Mana [promote 2]) (Act (Counter (SelectAll (IsKind IsSpell))))
+tMustPay = MustPay (Mana [promote 2]) (Act (Counter (Only (IsKind IsSpell))))
 
 -- scaled cost: "{2} for each creature" — `Scaled` pays the inner cost once per the count.
 tScaledCost : Cost Base
@@ -112,8 +112,8 @@ tScaledCost = Scaled (CountOf creature) (Mana [promote 2])
 
 -- counters: the `HasCounter` predicate facet + the put/remove verbs
 tCounters : OneShotEffect Base
-tCounters = Sequence [ Act (PutCounters P1P1 (Literal 1) (SelectAll creature))
-                     , Act (Destroy (SelectAll (IsNot (HasCounter P1P1)))) ]
+tCounters = Sequence [ ForEach (SelectAll creature) (Act (PutCounters P1P1 (Literal 1) It))
+                     , ForEach (SelectAll (IsNot (HasCounter P1P1))) (Act (Destroy It)) ]
 
 -- anthem: a static `ModifyAll` over a controller-predicate filter, with layer mods
 tAnthem : Ability Base
@@ -137,16 +137,16 @@ tValues =
 tVerbs : List (OneShotEffect Base)
 tVerbs =
   [ Act (Scry (Literal 2))
-  , Act (Fight (SelectAll (SameAs This)) (SelectAll creature))
+  , Act (Fight This (Only creature))
   , Act (CreateToken (Literal 2) (MkToken "Soldier" [Creature] [] [White] 1 1))
-  , With (Search {from = [Library, Graveyard]} (promote 1) (HasName "Forest")) (Act (Move That Hand))  -- tutor across two zones
-  , Act (CopySpell (SelectAll (IsKind IsSpell))) ]
+  , With (Search {from = [Library, Graveyard]} (promote 1) (HasName "Forest")) (ForEach That (Act (Move It Hand)))  -- tutor across two zones
+  , Act (CopySpell (Only (IsKind IsSpell))) ]
 
 -- searching ANOTHER player's library (Bribery: "search target OPPONENT's library"): the
 -- opponent is now a TARGET (player-predicate `opponent`), so `whose` is that targeted player.
 tSearchOther : OneShotEffect Base
 tSearchOther = Targeted [Target 1 opponent]
-  (With (Search {whose = GetTarget 0} (promote 1) creature) (Act (Move That Battlefield)))
+  (With (Search {whose = GetTarget 0} (promote 1) creature) (ForEach That (Act (Move It Battlefield))))
 
 -- a conditional static, and an activation-limited (loyalty-style) ability
 tConditionalStatic : Ability Base
