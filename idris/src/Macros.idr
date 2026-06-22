@@ -23,19 +23,20 @@ public export
 nextEndStep : EventQuery b
 nextEndStep = KindIs (BeginStep (EndingPhase EndStep))
 
--- "any target" ([CR#115.4]): a creature/planeswalker/battle permanent, OR any player —
--- an object-or-player union, built by `Widen`ing each arm into the `Anything` kind.
+-- "any target" ([CR#115.4]): a creature/planeswalker/battle permanent, OR any player. A
+-- FLAT `OneOf` — the player arm (`Anyone`) sits beside the object arms, and the result
+-- kind is their join (`Anything`), computed by `\/`. No `Widen`.
 public export
 anyTarget : TargetSpec b Anything
 anyTarget = Target 1 $ OneOf
-  [ Widen (OneOf [ AllOf [permanent, HasType Battle]
-                 , AllOf [permanent, creature]
-                 , AllOf [permanent, HasType Planeswalker] ])
-  , Widen Anyone ]
+  [ AllOf [permanent, HasType Battle]
+  , AllOf [permanent, creature]
+  , AllOf [permanent, HasType Planeswalker]
+  , Anyone ]
 
 public export
 playerOrPlaneswalker : TargetSpec b Anything
-playerOrPlaneswalker = Target 1 $ OneOf [ Widen (AllOf [permanent, HasType Planeswalker]), Widen Anyone ]
+playerOrPlaneswalker = Target 1 $ OneOf [ AllOf [permanent, HasType Planeswalker], Anyone ]
 
 -- "each player": a player-`Selection` for `ForEach` to distribute over (the old plural
 -- `EachPlayer` reference is gone — plurality lives in `Selection`, kinded `APlayer`).
