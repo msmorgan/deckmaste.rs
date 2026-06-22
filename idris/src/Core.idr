@@ -70,7 +70,7 @@ data Zone
 -- exactly one card type. `subtypeCategory` is that (total) correlation.
 public export
 data CreatureSubtype
-  = Bear | Rat | Spider | Human | Knight | Goblin | Elf | Zombie | Elemental  -- creature types
+  = Bear | Rat | Spider | Human | Knight | Goblin | Elf | Zombie | Elemental | Wall  -- creature types
 public export
 data EnchantmentSubtype
   = Aura
@@ -584,6 +584,20 @@ public export
 data ChooseSpec : Bindings -> Type where
   MkChooseSpec : (count : Count b) -> {default False upTo : Bool} -> {default False repeats : Bool} -> ChooseSpec b
 
+-- A DEONTIC clause's carrier: a game ACTION a player may attempt ([CR#101.2,601.3] the deontic
+-- layer) — distinct from the resolving `Action` verbs. Each names its participants; the CR's
+-- "where ⟨pred⟩" qualifier rides the variable participant (`who`/`blocker`/`source`). The
+-- polarities `Cant`/`Must`/`Gate`/`Toll` (in `StaticEffect`) wrap a `Deed`. BOUNDARY [CR#614.17]:
+-- this is choice-LEGALITY ("can't attack"); event-edits ("doesn't tap", "can't be regenerated",
+-- "can't lose") are `Replaces`/SBA, NOT a `Cant`.
+public export
+data Deed : Bindings -> Type where
+  Attacks    : (who : Predicate b AnObject) -> {default Anyone whom : Predicate b APlayer} -> Deed b
+  Blocks     : (blocker : Predicate b AnObject) -> (attacker : Predicate b AnObject) -> Deed b
+  TargetedBy : (object : Predicate b AnObject) -> (source : Predicate b AnObject) -> Deed b
+  Casts      : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
+  Activates  : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
+
 -- Effects, continuous effects, and abilities are mutually recursive: a one-shot
 -- can CREATE a continuous effect (`Continuously`), a static ability can grant an
 -- ability, and an ability wraps an effect.
@@ -649,6 +663,14 @@ mutual
     -- the inner continuous effect applies only WHILE the condition holds ([CR#604.3]) —
     -- a conditional static ("gets +1/+1 as long as …").
     While : Condition b -> StaticEffect b -> StaticEffect b
+    -- DEONTIC clauses over a `Deed` (choice-legality, [CR#101.2]): a continuous can't / must /
+    -- cost-gate. `Gate`'s price is paid at declaration (never compulsory, [CR#508.1d]); `Toll`'s
+    -- is punished downstream by a trigger/resolution (ward, [CR#702.21a]). Cost comes FIRST.
+    -- These gate CHOICES — the §6 sibling of `Replaces` (event-edits), never conflated with it.
+    Cant : Deed b -> StaticEffect b
+    Must : Deed b -> StaticEffect b
+    Gate : Cost b -> Deed b -> StaticEffect b
+    Toll : Cost b -> Deed b -> StaticEffect b
 
   -- A castable spell resolves in `Base`: source bound, no top-level targets.
   public export
