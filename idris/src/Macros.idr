@@ -91,7 +91,7 @@ hexproofFrom f = Keyword (Composite (Hexproof (Just f)) [Static (Cant (BeTargete
 -- damage pipeline; Vigilance = attack event-edit). The rest are `Composite`: the deontic ones
 -- carry a `Cant`; `Reach` carries `[]` (just a flag `flying`'s clause reads); `Flash` carries
 -- `[]` FOR NOW — really `[May (cast this) {AsInstant}]`, pending the deferred explicit-`May`.
--- (A plain function, NOT a `Cast`: a polymorphic spec's `b` is a metavar interface search can't fire on.)
+-- (A plain function, NOT an interface instance: a polymorphic spec's `b` is a metavar interface search can't fire on.)
 public export
 keyword : KeywordSpec b -> Ability b
 keyword Flying              = flying

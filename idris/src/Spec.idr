@@ -23,7 +23,7 @@ tLandCreature : Card
 tLandCreature = Normal $ fromDefault
   { name := "Test Land Creature"
   , types := [Land, Creature]
-  , subtypes := [cast Island, cast Bear]
+  , subtypes := [promote Island, promote Bear]
   }
 
 -- `That`, bound by a `With`, SURVIVES into a delayed body (captured); targets don't
@@ -34,20 +34,20 @@ tThatSurvivesDelay =
 
 -- branching effects typecheck
 tMay : OneShotEffect Base
-tMay = May (Act (Draw (cast 1)))
+tMay = May (Act (Draw (promote 1)))
 
 tIf : OneShotEffect Base
-tIf = If yourTurn (Act (Draw (cast 1)))
+tIf = If yourTurn (Act (Draw (promote 1)))
 
 -- a one-shot creating a continuous effect for a duration
 tContinuously : OneShotEffect Base
-tContinuously = Continuously (Modify This [ModifyPT (cast 1) (cast 1)]) UntilEndOfTurn
+tContinuously = Continuously (Modify This [ModifyPT (promote 1) (promote 1)]) UntilEndOfTurn
 
 -- a modal effect: choose one of two modes
 tModal : OneShotEffect Base
-tModal = Modal (MkChooseSpec (cast 1))
-  [ MkMode (Act (Draw (cast 1)))
-  , MkMode (Act (DealDamage (SelectAll (creature)) (cast 2))) {cost = Just (PayLife (Literal 2))}  -- mode cost is now a full Cost
+tModal = Modal (MkChooseSpec (promote 1))
+  [ MkMode (Act (Draw (promote 1)))
+  , MkMode (Act (DealDamage (SelectAll (creature)) (promote 2))) {cost = Just (PayLife (Literal 2))}  -- mode cost is now a full Cost
   ]
 
 -- `Reflexive` NESTS: inside a `With`, its body still sees `That` (no sibling scan)
@@ -59,7 +59,7 @@ tReflexiveSeesThat =
 -- `ForEach` binds `It` per element; the body references `It`
 tForEach : OneShotEffect Base
 tForEach = ForEach (SelectAll (creature))
-  (Act (DealDamage (SelectAll (SameAs It)) (cast 1)))
+  (Act (DealDamage (SelectAll (SameAs It)) (promote 1)))
 
 -- a CLOSED condition reaches a named object via `Matches` (apply a predicate to a
 -- reference) — "if ~ is a creature".
@@ -73,10 +73,10 @@ tSubjectFilter = HasType Creature
 -- the unified `Quantity` (one `Range` constructor) + its helpers all typecheck
 tQuantities : List (Bindable Base AnObject)
 tQuantities =
-  [ Choose (cast 2) creature              -- exactly 2 (the bare-numeral path)
-  , Choose (atLeast (cast 1)) creature
-  , Choose (atMost (cast 3)) creature
-  , Choose (between (cast 1) (cast 3)) creature
+  [ Choose (promote 2) creature              -- exactly 2 (the bare-numeral path)
+  , Choose (atLeast (promote 1)) creature
+  , Choose (atMost (promote 3)) creature
+  , Choose (between (promote 1) (promote 3)) creature
   , Choose anyNumber creature
   ]
 
@@ -95,20 +95,20 @@ tHistoryThenWin =
 
 -- an activated ability: a multi-component cost algebra + an effect
 tActivated : Ability Base
-tActivated = Activated (Costs [Mana [cast 2], TapSelf, PayLife (Literal 1)])
-                       (Act (Draw (cast 1)))
+tActivated = Activated (Costs [Mana [promote 2], TapSelf, PayLife (Literal 1)])
+                       (Act (Draw (promote 1)))
 
 -- cost-payment DECISIONS (supersede `Unless`): MAY-pay (optional, reward + downside) and
 -- MUST-pay (pay or be punished). The full `Cost` algebra rides both (here life / mana).
 tMayPay : OneShotEffect Base
-tMayPay = MayPay (PayLife (Literal 2)) (Act (Draw (cast 1))) {or_else = Just (Act (LoseLife (cast 1)))}
+tMayPay = MayPay (PayLife (Literal 2)) (Act (Draw (promote 1))) {or_else = Just (Act (LoseLife (promote 1)))}
 
 tMustPay : OneShotEffect Base
-tMustPay = MustPay (Mana [cast 2]) (Act (Counter (SelectAll (IsKind IsSpell))))
+tMustPay = MustPay (Mana [promote 2]) (Act (Counter (SelectAll (IsKind IsSpell))))
 
 -- scaled cost: "{2} for each creature" — `Scaled` pays the inner cost once per the count.
 tScaledCost : Cost Base
-tScaledCost = Scaled (CountOf creature) (Mana [cast 2])
+tScaledCost = Scaled (CountOf creature) (Mana [promote 2])
 
 -- counters: the `HasCounter` predicate facet + the put/remove verbs
 tCounters : OneShotEffect Base
@@ -117,11 +117,11 @@ tCounters = Sequence [ Act (PutCounters P1P1 (Literal 1) (SelectAll creature))
 
 -- anthem: a static `ModifyAll` over a controller-predicate filter, with layer mods
 tAnthem : Ability Base
-tAnthem = Static (ModifyAll (AllOf [HasType Creature, ControlledBy you]) [ModifyPT (cast 1) (cast 1), AddSubtype (cast Bear)])
+tAnthem = Static (ModifyAll (AllOf [HasType Creature, ControlledBy you]) [ModifyPT (promote 1) (promote 1), AddSubtype (promote Bear)])
 
 -- a loyalty ability: an Activated ability whose cost removes Loyalty counters
 tLoyalty : Ability Base
-tLoyalty = Activated (RemoveCounters Loyalty (Literal 2)) (Act (Draw (cast 1)))
+tLoyalty = Activated (RemoveCounters Loyalty (Literal 2)) (Act (Draw (promote 1)))
 
 -- the value language: arithmetic, player attributes, counters-on, new stats, that-much
 tValues : List (Count Base)
@@ -139,22 +139,22 @@ tVerbs =
   [ Act (Scry (Literal 2))
   , Act (Fight (SelectAll (SameAs This)) (SelectAll creature))
   , Act (CreateToken (Literal 2) (MkToken "Soldier" [Creature] [] [White] 1 1))
-  , With (Search {from = [Library, Graveyard]} (cast 1) (HasName "Forest")) (Act (Move That Hand))  -- tutor across two zones
+  , With (Search {from = [Library, Graveyard]} (promote 1) (HasName "Forest")) (Act (Move That Hand))  -- tutor across two zones
   , Act (CopySpell (SelectAll (IsKind IsSpell))) ]
 
 -- searching ANOTHER player's library (Bribery: "search target OPPONENT's library"): the
 -- opponent is now a TARGET (player-predicate `opponent`), so `whose` is that targeted player.
 tSearchOther : OneShotEffect Base
 tSearchOther = Targeted [Target 1 opponent]
-  (With (Search {whose = GetTarget 0} (cast 1) creature) (Act (Move That Battlefield)))
+  (With (Search {whose = GetTarget 0} (promote 1) creature) (Act (Move That Battlefield)))
 
 -- a conditional static, and an activation-limited (loyalty-style) ability
 tConditionalStatic : Ability Base
-tConditionalStatic = Static (While (exists (ControlledBy opponent)) (Modify This [ModifyPT (cast 1) (cast 1)]))
+tConditionalStatic = Static (While (exists (ControlledBy opponent)) (Modify This [ModifyPT (promote 1) (promote 1)]))
 
 tLimitedAbility : Ability Base
 tLimitedAbility =
-  Activated (RemoveCounters Loyalty (Literal 1)) (Act (Draw (cast 1))) {limits = [SorcerySpeed, OncePerTurn]}
+  Activated (RemoveCounters Loyalty (Literal 1)) (Act (Draw (promote 1))) {limits = [SorcerySpeed, OncePerTurn]}
 
 -- P/T is in the value language now: SIGNED deltas (Up/Down) and a dynamic base via SetPT
 tPTMods : List (Modification Base)
@@ -176,7 +176,7 @@ tPlayerTarget = LifeTotal (GetTarget 0)
 
 -- "each player" is a player-`Selection`; `ForEach` binds a player `It` (EachPlayer dissolved)
 tEachPlayerForEach : OneShotEffect Base
-tEachPlayerForEach = ForEach eachPlayer (Act (Draw {actor = It} (cast 1)))
+tEachPlayerForEach = ForEach eachPlayer (Act (Draw {actor = It} (promote 1)))
 
 -- MIXED-kind multi-target (Donate: "target player gains control of target permanent"):
 -- slot 0 is a player, slot 1 an object — each `GetTarget` strictly kinded by its own slot.
@@ -199,7 +199,7 @@ tEmptyOneOf = OneOf []
 -- but a trigger counters it unless {2} is paid (cost FIRST). The 4th polarity (Cant/Must/Gate
 -- ride the deontic cards; Toll here).
 tWard : StaticEffect Base
-tWard = Toll (Mana [cast 2]) (BeTargeted (SameAs This) {by = ControlledBy opponent})
+tWard = Toll (Mana [promote 2]) (BeTargeted (SameAs This) {by = ControlledBy opponent})
 
 -- `keyword` desugars a spec to its `Ability`, in three flavors (all pinned by Refl): a DEONTIC
 -- keyword is a `Composite` with a `Cant` clause; an engine-PRIMITIVE keyword is `Bare`; a
@@ -221,7 +221,7 @@ tHexproofFrom = keyword (Hexproof (Just (HasColor Red)))
 -- a 2nd target where only one was bound
 failing
   tBadTargetRange : OneShotEffect Base
-  tBadTargetRange = Targeted [anyTarget] (Act (DealDamage (SelectAll (SameAs (GetTarget 1))) (cast 1)))
+  tBadTargetRange = Targeted [anyTarget] (Act (DealDamage (SelectAll (SameAs (GetTarget 1))) (promote 1)))
 
 -- `That` with no enclosing `With`
 failing
@@ -232,13 +232,13 @@ failing
 failing
   tBadSubtype : Card
   tBadSubtype = Normal $ fromDefault
-    { name := "Bad", types := [Creature], subtypes := [cast Aura] }
+    { name := "Bad", types := [Creature], subtypes := [promote Aura] }
 
 -- a target leaking into a delayed body (`unbindTargets` clears it; only `That` crosses)
 failing
   tBadDelayedTarget : OneShotEffect Base
   tBadDelayedTarget = Targeted [anyTarget]
-    (Delayed nextEndStep (Act (DealDamage (SelectAll (SameAs (GetTarget 0))) (cast 1))))
+    (Delayed nextEndStep (Act (DealDamage (SelectAll (SameAs (GetTarget 0))) (promote 1))))
 
 -- `It` with no enclosing `ForEach`
 failing

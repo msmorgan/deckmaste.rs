@@ -28,17 +28,23 @@ data ManaSymbol
   | Hybrid SimpleManaSymbol Color
   | Variable
 
+-- `Promote a b` (method `promote`) is the toy's value-injection interface — formerly Prelude's
+-- `Cast`/`cast`, renamed so the precious MTG words `cast`/`Cast` stay free for actual casting.
 public export
-implementation Cast Nat ManaSymbol where
-  cast = Simple . Generic
+interface Promote a b where
+  promote : a -> b
 
 public export
-implementation Cast Integer ManaSymbol where
-  cast = cast . cast {to=Nat}
+implementation Promote Nat ManaSymbol where
+  promote = Simple . Generic
 
 public export
-implementation Cast Color ManaSymbol where
-  cast = Simple . Specific . Just
+implementation Promote Integer ManaSymbol where
+  promote = promote . integerToNat
+
+public export
+implementation Promote Color ManaSymbol where
+  promote = Simple . Specific . Just
 
 public export
 ManaCost : Type
@@ -93,20 +99,20 @@ data Subtype
   | BattleSub BattleSubtype
 
 public export
-implementation Cast CreatureSubtype Subtype where
-  cast = CreatureSub
+implementation Promote CreatureSubtype Subtype where
+  promote = CreatureSub
 public export
-implementation Cast EnchantmentSubtype Subtype where
-  cast = EnchantmentSub
+implementation Promote EnchantmentSubtype Subtype where
+  promote = EnchantmentSub
 public export
-implementation Cast LandSubtype Subtype where
-  cast = LandSub
+implementation Promote LandSubtype Subtype where
+  promote = LandSub
 public export
-implementation Cast ArtifactSubtype Subtype where
-  cast = ArtifactSub
+implementation Promote ArtifactSubtype Subtype where
+  promote = ArtifactSub
 public export
-implementation Cast BattleSubtype Subtype where
-  cast = BattleSub
+implementation Promote BattleSubtype Subtype where
+  promote = BattleSub
 
 public export
 subtypeCategory : Subtype -> Type_
@@ -190,14 +196,14 @@ data PhaseStep
   | EndingPhase EndingStep
 
 public export
-implementation Cast BeginningStep PhaseStep where
-  cast = BeginningPhase
+implementation Promote BeginningStep PhaseStep where
+  promote = BeginningPhase
 public export
-implementation Cast CombatStep PhaseStep where
-  cast = CombatPhase
+implementation Promote CombatStep PhaseStep where
+  promote = CombatPhase
 public export
-implementation Cast EndingStep PhaseStep where
-  cast = EndingPhase
+implementation Promote EndingStep PhaseStep where
+  promote = EndingPhase
 
 -- A history-lookback / timing scope for an `EventQuery`. Rust: Window.
 public export
@@ -258,7 +264,7 @@ bindEvent b = MkBindings (targetKinds b) (thatKind b) (itKind b) True
 mutual
   -- A KEYWORD's tag + params ([CR#702]) — the "name" side of a keyword. In this block so
   -- `HasKeyword` can read it and `Hexproof`'s "from" filter can be a `Predicate` (which may name
-  -- an anaphor — "from the CHOSEN color"). `Cast` (Macros) desugars a spec into its full `Ability`
+  -- an anaphor — "from the CHOSEN color"). `keyword` (Macros) desugars a spec into its full `Ability`
   -- (a `Composite`): the deontic ones (Flying/Defender/Shroud/Hexproof) get a `Cant`; the rest
   -- (FirstStrike/Deathtouch/Trample = damage; Vigilance = event-edit; Reach/Flash = flag/window)
   -- carry no clause. (Menace omitted: set-level.)
@@ -399,11 +405,11 @@ unique : Predicate b k -> Condition b
 unique p = Compare (CountOf p) Equal (Literal 1)
 
 public export
-implementation Cast Nat (Count b) where
-  cast = Literal
+implementation Promote Nat (Count b) where
+  promote = Literal
 public export
-implementation Cast Integer (Count b) where
-  cast = Literal . cast {to=Nat}
+implementation Promote Integer (Count b) where
+  promote = Literal . integerToNat
 
 -- Integer literals + `+`/`*` sugar for the value language (so `power := Just 2` and
 -- `SetPT 1 1` typecheck; `Plus`/`Times` back the operators).
@@ -411,18 +417,18 @@ public export
 implementation Num (Count b) where
   (+) = Plus
   (*) = Times
-  fromInteger = Literal . cast {to=Nat}
+  fromInteger = Literal . integerToNat
 
--- A SIGNED change to a value (layer-7c "+N/+N" P/T modifications). `cast` builds it from
--- an Integer (`cast 2` = Up 2, `cast (-1)` = Down 1); use `Up`/`Down` for dynamic deltas.
+-- A SIGNED change to a value (layer-7c "+N/+N" P/T modifications). `promote` builds it from
+-- an Integer (`promote 2` = Up 2, `promote (-1)` = Down 1); use `Up`/`Down` for dynamic deltas.
 public export
 data Delta : Bindings -> Type where
   Up   : Count b -> Delta b   -- "+N"
   Down : Count b -> Delta b   -- "−N"
 
 public export
-implementation Cast Integer (Delta b) where
-  cast n = if n >= 0 then Up (cast n) else Down (cast (negate n))
+implementation Promote Integer (Delta b) where
+  promote n = if n >= 0 then Up (promote n) else Down (promote (negate n))
 
 -- A game-result effect ([CR#104]). Its own category above `Action` — a game-ender
 -- isn't just another verb; `OneShotEffect`'s `Conclude` wraps it.
@@ -454,8 +460,8 @@ data Quantity : Bindings -> Type where
 -- `Range lo hi`: `Nothing` bound = unbounded that side. A bare numeral is the
 -- EXACTLY case (`Range (Just n) (Just n)`); the helpers below name the rest.
 public export
-implementation Cast Integer (Quantity b) where
-  cast n = let k = Literal (cast {to=Nat} n) in Range (Just k) (Just k)
+implementation Promote Integer (Quantity b) where
+  promote n = let k = Literal (integerToNat n) in Range (Just k) (Just k)
 
 public export
 atLeast : Count b -> Quantity b
@@ -580,7 +586,7 @@ data Cost : Bindings -> Type where
   Sacrifice : Selection b AnObject -> Cost b              -- "Sacrifice this" = Sacrifice (SelectAll (SameAs This))
   AddCounters    : CounterKind -> Count b -> Cost b   -- a loyalty "+N" cost (put N counters on This)
   RemoveCounters : CounterKind -> Count b -> Cost b   -- a loyalty "−N" cost (remove N from This)
-  Scaled    : Count b -> Cost b -> Cost b         -- the cost paid once per unit of the count ("{2} for each X" = Scaled (CountOf X) (Mana [cast 2]))
+  Scaled    : Count b -> Cost b -> Cost b         -- the cost paid once per unit of the count ("{2} for each X" = Scaled (CountOf X) (Mana [promote 2]))
   Costs     : List (Cost b) -> Cost b            -- all components together
 
 -- How many modes to choose, for a modal effect ([CR#700.2]). Rust: ChooseSpec.
