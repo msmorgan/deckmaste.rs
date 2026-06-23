@@ -98,6 +98,17 @@ public export
 menace : Ability b
 menace = Keyword (Composite Menace [Static (Cant (BlockedBy (SameAs This) (^1)))])
 
+-- Haste ([CR#702.10]): a CONTINUOUS grant letting THIS attack and tap-activate "as though it had
+-- been controlled continuously" — i.e. as though it weren't summoning-sick ([CR#302.6]). Built with
+-- the AsThough machinery: pretend `IsNot (HasState SummoningSick)`, then `Can` the deed. (Grantable
+-- via `GrantAbility (keyword Haste)` — e.g. Through the Breach. The doc spells haste as a flag the
+-- summoning-sickness `Cant` reads; the as-though framing is the dual, and the one the toy carries.)
+public export
+haste : Ability b
+haste = Keyword (Composite Haste
+  [ Static (AsThough (Matches This (IsNot (HasState SummoningSick))) (Can (Attacks (SameAs This))))
+  , Static (AsThough (Matches This (IsNot (HasState SummoningSick))) (Can (Activates you (SameAs This)))) ])
+
 -- desugar a `KeywordSpec` into its full `Ability` — dispatches to the macros above. EXHAUSTIVE
 -- (no catch-all): adding a `KeywordSpec` constructor forces a clause here. `Bare` = an engine-
 -- PRIMITIVE keyword the grammar can't desugar (FirstStrike/DoubleStrike/Deathtouch/Trample =
@@ -115,6 +126,7 @@ keyword Trample             = Keyword (Bare Trample)
 keyword Vigilance           = Keyword (Bare Vigilance)
 keyword Reach               = Keyword (Composite Reach [])
 keyword Flash               = flash
+keyword Haste               = haste
 keyword Defender            = defender
 keyword Shroud              = shroud
 keyword Menace              = menace
