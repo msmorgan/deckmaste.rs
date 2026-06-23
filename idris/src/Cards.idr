@@ -961,4 +961,20 @@ card_KarametrasAcolyte = Normal $ ^:
   , toughness := Just 4
   }
 
+-- Coat of Arms — the anthem SELF-REFERENCE that motivated Rust's `Subject`, here via `It`. "Each
+-- creature gets +1/+1 for each OTHER creature that shares a creature type with it": `ModifyAll` binds
+-- the anthem'd creature as `It`, and the per-subject `CountOf` already has its OWN implicit candidate
+-- (the counted creature), so `It` names just the outer one. No `Subject`, no `Where`.
+export
+card_CoatOfArms : Card
+card_CoatOfArms = Normal $ ^:
+  { name := Just "Coat of Arms"
+  , manaCost := [^2]
+  , types := [Artifact]
+  , abilities :=
+      [ Static (ModifyAll creature
+          [ ModifyPT (Up (CountOf (And [creature, SharesSubtype It, Not (SameAs It)])))
+                     (Up (CountOf (And [creature, SharesSubtype It, Not (SameAs It)]))) ]) ]
+  }
+
 --:vim:sts=2 sw=2:

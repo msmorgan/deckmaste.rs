@@ -392,7 +392,9 @@ mutual
     -- the host this is attached to ("enchanted creature"); and its inverse.
     AttachHostOf : Reference b AnObject -> Reference b AnObject
     AttachedTo : Reference b AnObject -> Reference b AnObject
-    -- the `ForEach`-bound element ("it"); its kind is the loop domain's (`itKind`).
+    -- the current element ("it"): the `ForEach`-bound loop element OR the `ModifyAll`-bound per-subject
+    -- object (an anthem's candidate); its kind is the binder's (`itKind`). Serves as the "Subject" an
+    -- anthem's mods read, without a dedicated reference — predicates are already candidate-implicit.
     It : {auto prf : itKind b = Just k} -> Reference b k
     -- the triggering event's object ("that card"); gated by `eventBound` ([CR#608.2g]).
     EventObject : {auto prf : eventBound b = True} -> Reference b AnObject
@@ -436,6 +438,7 @@ mutual
       HasKeyword : KeywordSpec b -> Predicate b AnObject
       SameAs : Reference b k -> Predicate b k    -- the candidate IS r (same kind; "another" = Not (SameAs This))
       SameName : Reference b AnObject -> Predicate b AnObject   -- shares a name with r ("named [its own name]" = SameName This)
+      SharesSubtype : Reference b AnObject -> Predicate b AnObject   -- shares ≥1 subtype with r (Coat of Arms: "shares a creature type with It")
       WasCastFrom : Zone -> Predicate b AnObject -- the object was cast from this zone (cast provenance)
       ExiledBy : Reference b AnObject -> Predicate b AnObject   -- set aside by r's effect ("cards exiled by this" = ExiledBy
                                                  -- This); the engine holds the association ([CR#607] linked abilities)
@@ -873,7 +876,11 @@ mutual
   public export
   data StaticEffect : Bindings -> Type where
     Modify : Reference b AnObject -> List (Modification b) -> StaticEffect b
-    ModifyAll : Predicate b AnObject -> List (Modification b) -> StaticEffect b   -- anthem: "each [filter] gets [mods]"
+    -- anthem: "each [filter] gets [mods]". The per-match object is bound as `It` for the mods (reusing
+    -- the `ForEach` element binder — no new `Subject` reference, since a `Predicate`'s candidate is
+    -- already implicit), so a PER-SUBJECT mod can read it: Coat of Arms = "+X/+X where X = other
+    -- creatures sharing a type with It" = `ModifyPT (Up (CountOf (And [creature, SharesSubtype It, Not (SameAs It)]))) …`.
+    ModifyAll : Predicate b AnObject -> List (Modification (bindIt AnObject b)) -> StaticEffect b
     -- continuous COST modification ([CR#118.7]): spells/abilities matching `of_` get the `change`.
     -- "Instant/sorcery spells you cast cost {1} less" = `CostModifier (And […, ControlledBy you]) (Reduce
     -- [Mana [^1]])`; affinity is a SELF modifier `CostModifier (SameAs This) (ScaledBy (Reduce …) (CountOf …))`.
