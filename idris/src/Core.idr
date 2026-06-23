@@ -103,7 +103,7 @@ data ArtifactSubtype
   = Equipment
 public export
 data LandSubtype
-  = Island
+  = Plains | Island | Swamp | Mountain | Forest   -- the basic land types
 public export
 data BattleSubtype
   = Siege
@@ -155,6 +155,11 @@ data ObjectKind = IsCard | IsEmblem | IsPlayerKind | IsSpell | IsToken | IsAbili
 -- Supertypes ([CR#205.4a]); independent of card type and subtype.
 public export
 data Supertype = Basic | Legendary | Ongoing | Snow | World
+
+-- The word classes a TEXT-CHANGE effect may swap ([CR#612.1]): a color word (white/blue/…) or a basic
+-- land type (Plains/Island/…). Mind Bend allows either; the specific words are a player's choice.
+public export
+data TextWordClass = ColorWords | BasicLandTypes
 
 -- A kind of counter ([CR#122]). The TYPE is `CounterKind` — bare `Counter` is taken
 -- by the spell-countering `Action`.
@@ -801,6 +806,10 @@ mutual
     SetPT : Count b -> Count b -> Modification b         -- "base p/t are x/y" (layer 7b; x/y may be dynamic — CDA `*/*`)
     AddType : Type_ -> Modification b                   -- "is also a [type]"
     AddSubtype : Subtype -> Modification b              -- "becomes an Island" (adds the subtype)
+    -- TEXT-CHANGE ([CR#612], a layer-3 mod): "replace all instances of one word with another of its
+    -- class" — the eligible classes are listed; the two specific words are the player's resolution-time
+    -- choice (engine-resolved, like `Choose`). Mind Bend = `ChangeText [ColorWords, BasicLandTypes]`.
+    ChangeText : List TextWordClass -> Modification b
     LoseAbilities : Modification b                      -- "loses all abilities" (Humility-style)
     GainControl : Reference b APlayer -> Modification b         -- "[player] gains control"
     GrantAbility : Ability b -> Modification b
