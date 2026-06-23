@@ -78,6 +78,11 @@ tStatFilter = And [creature, StatCmp Power LessEq (^2)]
 tStateFilter : Predicate Base AnObject
 tStateFilter = And [creature, HasState Attacking, Not (HasState Tapped)]
 
+-- designations: ONE predicate, scope by type — `HasDesignation Monarch` is a PLAYER test (you're the
+-- monarch), `HasDesignation Monstrous` an OBJECT test. The carrier follows `designationScope`.
+tMonarchTest : Predicate Base APlayer
+tMonarchTest = HasDesignation Monarch
+
 -- an as-enters value choice in scope: `OfChosen` reads "the chosen color" under a `bindChosen AColor`
 -- binding (Iona: "spells of the chosen color"). The card-level `AsEntersChoosing` opens this binding.
 tOfChosen : Predicate (bindChosen AColor Base) AnObject
@@ -330,6 +335,11 @@ failing
 failing
   tBadPoisonOnObject : Action Base
   tBadPoisonOnObject = PutCounters Poison (^1) This
+
+-- granting a PLAYER designation to an object is a type error — `designationScope Monarch = APlayer`
+failing
+  tBadDesignationScope : Action Base
+  tBadDesignationScope = GrantDesignation Monarch This
 
 -- a 0-size block is rejected — a declared block has ≥1 blocker (`NonZeroQ` on `BlockedBy`'s size)
 failing
