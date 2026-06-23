@@ -147,13 +147,6 @@ subtypeCategory (BattleSub _) = Battle
 public export
 data Stat = Power | Toughness | ManaValue | Defense
 
--- which stats can be SUMMED across a chosen creature set for a `TapTotal` cost (Crew/Convoke). `Defense`
--- is a battle stat — meaningless to total over creatures; the rest are fine. (`IsCharDomain` idiom.)
-public export
-IsTappableStat : Stat -> Type
-IsTappableStat Defense = Void
-IsTappableStat _       = ()
-
 public export
 data Cmp = Equal | GreaterEq | LessEq | Greater | Less
 
@@ -316,14 +309,40 @@ namespace EventKind
     -- "whenever ~ BECOMES [state]" — TRANSITION states only (gated; not `SummoningSick`).
     Becomes : (s : ObjectState) -> {auto prf : IsBecomesState s} -> EventKind
 
--- which event-kinds carry a numeric AMOUNT (the thing `ReplaceAmount`/`EventSum`/`ThatMuch` operate on).
--- Damage / token-count / counter-count do; a Cast/ZoneChanged/BeginStep/Becomes does not.
+-- the per-event CAPABILITIES an event provides its body's anaphora: a distinguished OBJECT ("that card"),
+-- an ACTOR ("that player"), a numeric AMOUNT. Read by `EventObject`/`EventActor`/`ThatMuch` so each is
+-- valid ONLY where the event actually supplies it — the invalid-reference gate.
+public export
+record EventCaps where
+  constructor MkCaps
+  hasObject : Bool
+  hasActor  : Bool
+  hasAmount : Bool
+
+public export
+noCaps : EventCaps
+noCaps = MkCaps False False False
+
+-- what each event-kind supplies. Damage/token/counter carry an amount; a step-begin carries nothing; a
+-- zone-change/destroy/becomes has an object but no actor; a cast/draw/discard/sacrifice has an actor.
+public export
+eventKindCaps : EventKind -> EventCaps
+eventKindCaps Cast              = MkCaps True  True  False
+eventKindCaps Sacrifice         = MkCaps True  True  False
+eventKindCaps Draw              = MkCaps False True  False
+eventKindCaps Discard           = MkCaps True  True  False
+eventKindCaps DealDamage        = MkCaps True  True  True
+eventKindCaps CreateToken       = MkCaps True  True  True
+eventKindCaps PutCounters       = MkCaps True  True  True
+eventKindCaps Destroyed         = MkCaps True  False False
+eventKindCaps (ZoneChanged _ _) = MkCaps True  False False
+eventKindCaps (BeginStep _)     = MkCaps False False False
+eventKindCaps (Becomes _)       = MkCaps True  False False
+
+-- which event-kinds carry an AMOUNT (gates `ReplaceAmount`/`EventSum`) — derived from the caps.
 public export
 eventKindHasAmount : EventKind -> Bool
-eventKindHasAmount DealDamage  = True
-eventKindHasAmount CreateToken = True
-eventKindHasAmount PutCounters = True
-eventKindHasAmount _           = False
+eventKindHasAmount k = hasAmount (eventKindCaps k)
 
 -- A value-choice DOMAIN: what an as-enters "choose …" picks from ([CR#614.12]). The chosen value is
 -- bound in `Bindings.chosenKind` and read back by the `OfChosen` anaphor. Characteristic domains
@@ -351,42 +370,42 @@ record Bindings where
   targetKinds : List RefKind     -- one `RefKind` per target slot (the slot's kind, from its filter)
   thatKind    : Maybe RefKind    -- a `With`-bound group's element kind (`That`), if bound
   itKind      : Maybe RefKind    -- a `ForEach`-bound element's kind (`It`), if bound
-  eventBound  : Bool         -- inside a trigger/replacement/delayed body (`EventObject`/`EventActor`)
+  evCaps      : EventCaps    -- the surrounding event's caps (`noCaps` outside an event body) — gates `EventObject`/`EventActor`/`ThatMuch`
   chosenKind  : Maybe ChooseDomain  -- an as-enters "choose …" value in scope (`OfChosen`), if bound
 
 -- The bindings a resolving spell starts in: nothing bound yet.
 public export
 Base : Bindings
-Base = MkBindings [] Nothing Nothing False Nothing
+Base = MkBindings [] Nothing Nothing noCaps Nothing
 
 -- Each sets one field, reconstructing `MkBindings` explicitly so a projection of a
 -- bind result reduces definitionally even for abstract `b` (record-update sugar
 -- has no get-after-set law for an abstract record).
 public export
 bindTargets : List RefKind -> Bindings -> Bindings
-bindTargets ks b = MkBindings ks (thatKind b) (itKind b) (eventBound b) (chosenKind b)
+bindTargets ks b = MkBindings ks (thatKind b) (itKind b) (evCaps b) (chosenKind b)
 
 public export
 unbindTargets : Bindings -> Bindings
-unbindTargets b = MkBindings [] (thatKind b) (itKind b) (eventBound b) (chosenKind b)
+unbindTargets b = MkBindings [] (thatKind b) (itKind b) (evCaps b) (chosenKind b)
 
 public export
 bindThat : RefKind -> Bindings -> Bindings
-bindThat k b = MkBindings (targetKinds b) (Just k) (itKind b) (eventBound b) (chosenKind b)
+bindThat k b = MkBindings (targetKinds b) (Just k) (itKind b) (evCaps b) (chosenKind b)
 
 public export
 bindIt : RefKind -> Bindings -> Bindings
-bindIt k b = MkBindings (targetKinds b) (thatKind b) (Just k) (eventBound b) (chosenKind b)
+bindIt k b = MkBindings (targetKinds b) (thatKind b) (Just k) (evCaps b) (chosenKind b)
 
--- entering a trigger/replacement/delayed body, where the event's object/player are bound.
+-- entering a trigger/replacement/delayed body, carrying the event's CAPS (what anaphora it supplies).
 public export
-bindEvent : Bindings -> Bindings
-bindEvent b = MkBindings (targetKinds b) (thatKind b) (itKind b) True (chosenKind b)
+bindEvent : EventCaps -> Bindings -> Bindings
+bindEvent caps b = MkBindings (targetKinds b) (thatKind b) (itKind b) caps (chosenKind b)
 
 -- the as-enters value choice ([CR#614.12]): binds `chosenKind` for the whole card's abilities.
 public export
 bindChosen : ChooseDomain -> Bindings -> Bindings
-bindChosen d b = MkBindings (targetKinds b) (thatKind b) (itKind b) (eventBound b) (Just d)
+bindChosen d b = MkBindings (targetKinds b) (thatKind b) (itKind b) (evCaps b) (Just d)
 
 -- KeywordSpec / Reference / Count / Predicate / Condition / EventQuery are one mutually
 -- recursive language. A PREDICATE is an object test — its candidate is IMPLICIT. A `Condition`
@@ -435,13 +454,13 @@ mutual
     -- object (an anthem's candidate); its kind is the binder's (`itKind`). Serves as the "Subject" an
     -- anthem's mods read, without a dedicated reference — predicates are already candidate-implicit.
     It : {auto prf : itKind b = Just k} -> Reference b k
-    -- the triggering event's object ("that card"); gated by `eventBound` ([CR#608.2g]).
-    EventObject : {auto prf : eventBound b = True} -> Reference b AnObject
+    -- the triggering event's object ("that card") — valid only if the event SUPPLIES one ([CR#608.2g]).
+    EventObject : {auto prf : hasObject (evCaps b) = True} -> Reference b AnObject
     -- PLAYERS (the old `PlayerRef`, folded in here):
     You : Reference b APlayer                            -- controller of this ability [CR#109.5]
     ControllerOf : Reference b AnObject -> Reference b APlayer   -- the controller of an object
     OwnerOf : Reference b AnObject -> Reference b APlayer        -- the owner of an object [CR#108.3]
-    EventActor : {auto prf : eventBound b = True} -> Reference b APlayer  -- the event's player ("that player")
+    EventActor : {auto prf : hasActor (evCaps b) = True} -> Reference b APlayer  -- the event's player ("that player") — only if supplied
 
   -- A numeric value ([CR#107.3]). `Literal` is a bare number; the rest read the game
   -- state — object counts, stats, counters, life/hand totals, event tallies, arithmetic.
@@ -467,7 +486,7 @@ mutual
     HalfDown : Count b -> Count b
     Min : Count b -> Count b -> Count b                  -- the lesser ([CR#704.5q] +1/+1 vs −1/−1 annihilation; "the lesser of X and Y")
     Max : Count b -> Count b -> Count b                  -- the greater
-    ThatMuch : Count b                                   -- FLAG: amount-anaphora (the preceding amount; ungated)
+    ThatMuch : {auto prf : hasAmount (evCaps b) = True} -> Count b   -- the event's amount — valid only where the event SUPPLIES one
     ChosenNumber : {auto prf : chosenKind b = Just ANumber} -> Count b   -- the as-enters chosen NUMBER (the value-anaphor twin of OfChosen/ChosenIs)
 
   -- A PREDICATE: a test on a single IMPLICIT candidate object — i.e. a *filter*.
@@ -581,6 +600,23 @@ mutual
     TopOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
     BottomOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
 
+
+-- the caps a whole event-QUERY guarantees its body: a conjoined `KindIs` pins the kind (an `And` takes
+-- any conjunct's caps); an `Or` guarantees a cap only if EVERY branch does. Feeds `bindEvent`.
+public export
+orCaps : EventCaps -> EventCaps -> EventCaps
+orCaps (MkCaps o1 a1 m1) (MkCaps o2 a2 m2) = MkCaps (o1 || o2) (a1 || a2) (m1 || m2)
+
+public export
+andCaps : EventCaps -> EventCaps -> EventCaps
+andCaps (MkCaps o1 a1 m1) (MkCaps o2 a2 m2) = MkCaps (o1 && o2) (a1 && a2) (m1 && m2)
+
+public export
+eventQueryCaps : EventQuery b -> EventCaps
+eventQueryCaps (KindIs k) = eventKindCaps k
+eventQueryCaps (And qs)   = foldr orCaps noCaps (map eventQueryCaps qs)
+eventQueryCaps (Or qs)    = foldr andCaps (MkCaps True True True) (map eventQueryCaps qs)
+eventQueryCaps _          = noCaps
 
 -- "it's your turn" — the common specialization of `TurnOf`.
 public export
@@ -716,7 +752,7 @@ data Cost : Bindings -> Type where
   -- AGGREGATE cost: tap a chosen subset of [of_] whose summed [stat] satisfies [cmp] [n]. ONE shape
   -- for Crew ("tap creatures, total power ≥ N" = `TapTotal Power GreaterEq (^n) creature`) — and the
   -- Convoke/devotion-scaling family the engine's authors flagged it should subsume.
-  TapTotal  : (s : Stat) -> {auto prf : IsTappableStat s} -> Cmp -> Count b -> (of_ : Predicate b AnObject) -> Cost b
+  TapTotal  : Stat -> Cmp -> Count b -> (of_ : Predicate b AnObject) -> Cost b
 
 -- A continuous CHANGE to a spell/ability cost ([CR#118.7]), carried by `StaticEffect::CostModifier`.
 -- Borrowed from the Rust engine's key split: this MODIFIES an existing base — it is NOT an alternative
@@ -928,7 +964,7 @@ mutual
     -- `That`/targets stay in scope; no event-scanning sibling. Rust: Effect::Reflexive.
     Reflexive : OneShotEffect b -> OneShotEffect b
     -- schedule `body` for `event`; `unbindTargets` keeps `That`, drops targets. Rust: Effect::Delayed.
-    Delayed : EventQuery b -> OneShotEffect (bindEvent (unbindTargets b)) -> OneShotEffect b
+    Delayed : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) (unbindTargets b)) -> OneShotEffect b
 
   -- one option of a modal effect: an effect plus an optional extra cost. Rust: Mode.
   public export
@@ -968,7 +1004,7 @@ mutual
     -- "if [event] would happen, do [effect] INSTEAD" — a replacement ([CR#614]). Empty body = a SKIP
     -- (a replacement that removes the event — e.g. "skip your draw step"). This is NOT a prohibition:
     -- the event still "would happen" and is intercepted; for "can't happen", use `CantHappen` below.
-    Replaces : EventQuery b -> OneShotEffect (bindEvent b) -> StaticEffect b
+    Replaces : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) b) -> StaticEffect b
     -- "[event] CAN'T happen" — a continuous PROHIBITION, semantically distinct from replacing-with-
     -- nothing: it's not a one-shot ([CR#614.5]) application, isn't ordered against other replacements
     -- ([CR#616]), and the event never "would happen". Indestructible = `CantHappen (KindIs Destroyed +
@@ -979,14 +1015,14 @@ mutual
     -- `newAmount` (a `Count` over the event body, so it can read `ThatMuch`). Furnace of Rath =
     -- `ReplaceAmount DealDamage (Times ThatMuch (^2))`. The KIND is explicit + amount-gated, so
     -- `ReplaceAmount Cast …` (a Cast has no amount) is a TYPE ERROR; `facets` adds non-kind conditions.
-    ReplaceAmount : (k : EventKind) -> {auto amt : eventKindHasAmount k = True} -> {default Nothing facets : Maybe (EventQuery b)} -> (newAmount : Count (bindEvent b)) -> StaticEffect b
+    ReplaceAmount : (k : EventKind) -> {auto amt : eventKindHasAmount k = True} -> {default Nothing facets : Maybe (EventQuery b)} -> (newAmount : Count (bindEvent (eventKindCaps k) b)) -> StaticEffect b
     -- a static OUTCOME suppressor: the matching players can't lose / can't win ([CR#104.3a]). Platinum
     -- Angel = `OutcomeGate CantLose you` + `OutcomeGate CantWin opponent`. (Distinct from `CantHappen` —
     -- game-loss isn't a replaceable event — and from a deontic `Cant` — it's not a player action.)
     OutcomeGate : OutcomeGateKind -> Predicate b APlayer -> StaticEffect b
     -- ADDITIVE replacement ([CR#614.13] "as well as"): when [event] happens it STILL happens, but
     -- [effect] also runs. An Aura enters attached via `Also thisEnters (Act (Attach This host))`.
-    Also : EventQuery b -> OneShotEffect (bindEvent b) -> StaticEffect b
+    Also : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) b) -> StaticEffect b
     -- a STATE-BASED ACTION as data ([CR#704]): whenever [when] holds (with `This` = the carrier), do
     -- [then] in the SBA sweep. ONE primitive for the Aura graveyard rule (`Sba (Not (LegallyAttached
     -- This)) (Act (Move This Graveyard))`, [CR#704.5m]) AND a Saga's final-chapter sacrifice — the sweep
@@ -1045,7 +1081,7 @@ mutual
     -- use-frequency caps. A loyalty ability is `{window = SorceryWindow, limits = [OncePerTurn]}`.
     Activated : Cost b -> OneShotEffect b -> {default InstantWindow window : TimingWindow} -> {default [] limits : List Restriction} -> Ability b
     -- a triggered ability: when `event` fires, resolve `effect`. Rust: Ability::Triggered.
-    Triggered : EventQuery b -> OneShotEffect (bindEvent b) -> Ability b
+    Triggered : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) b) -> Ability b
     -- (Retired `Enchant`: the engine has no dedicated aura ability — the host restriction is a
     --  `Cant (Attaches …)` deed, enters-attached an `Also`, falls-off an `Sba`. No subtype special-casing.)
     -- a static continuous ability — modifications, anthems, AND replacements live in `StaticEffect`.

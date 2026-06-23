@@ -282,9 +282,9 @@ card_TideShaper = Normal $ ^:
   }
 
 -- Necropotence — "skip your draw step" is a replacement whose effect is nothing (the
--- engine skips the step); the discard trigger exiles the discarded card; the pay-life
--- ability draws into exile, deferred to your end step. FLAGS (grammar, not engine): the
--- "that card" anaphora uses the UNGATED `EventObject`; "face down" isn't modeled.
+-- engine skips the step); the discard trigger exiles the discarded card via `EventObject`
+-- ("that card") — now GATED, and valid here because a `Discard` event supplies an object;
+-- the pay-life ability draws into exile, deferred to your end step. ("face down" isn't modeled.)
 export
 card_Necropotence : Card
 card_Necropotence = Normal $ ^:
