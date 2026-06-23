@@ -471,6 +471,14 @@ failing
 tEventActorValid : Ability Base
 tEventActorValid = Triggered (KindIs Cast) (Conclude (WinGame EventActor))
 
+-- "whenever a creature enters, draw THAT MANY cards" — meaningless: a creature entering (`ZoneChanged`)
+-- carries no amount, so `ThatMuch` has no referent. The caps gate rejects it.
+failing
+  tBadDrawThatManyOnEnter : Ability Base
+  tBadDrawThatManyOnEnter =
+    Triggered (And [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches creature])
+      (Act (Draw ThatMuch))
+
 
 -- a 0-size block is rejected — a declared block has ≥1 blocker (`NonZeroQ` on `BlockedBy`'s size)
 failing
