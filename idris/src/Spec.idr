@@ -122,6 +122,17 @@ tEventQuery = And [ KindIs (ZoneChanged (Just Battlefield) (Just Graveyard))
 tReplaceAmount : StaticEffect Base
 tReplaceAmount = ReplaceAmount (KindIs DealDamage) (Times ThatMuch (^2))
 
+-- prevention and indestructibility need NO dedicated constructor (they subsume Rust's Prevention /
+-- CantHappen): prevention = the damage amount set to zero; indestructible = the destroy event skipped.
+tPrevention : StaticEffect Base
+tPrevention = ReplaceAmount (KindIs DealDamage) (^0)
+
+tIndestructible : StaticEffect Base
+tIndestructible = Replaces (And [KindIs Destroyed, SourceMatches (SameAs This)]) (Sequence [])
+
+tOutcomeGate : StaticEffect Base
+tOutcomeGate = OutcomeGate CantLose you
+
 -- a log-derived history count feeds a condition, and a game `Outcome` wraps into an effect
 tHistoryThenWin : OneShotEffect Base
 tHistoryThenWin =
