@@ -78,6 +78,22 @@ tStatFilter = And [creature, StatCmp Power LessEq (^2)]
 tStateFilter : Predicate Base AnObject
 tStateFilter = And [creature, HasState Attacking, Not (HasState Tapped)]
 
+-- new filter atoms: multicolored / colorless objects; stack-object filters (a spell targeting you, a
+-- single-target spell); an unblocked attacker. `Controls` is the `ControlledBy` inverse (a player).
+tFilterAtoms : List (Predicate Base AnObject)
+tFilterAtoms =
+  [ Multicolored
+  , IsColorless
+  , And [IsKind IsSpell, Targets (SameAs You)]
+  , TargetCount Equal (^1)
+  , And [creature, HasState Unblocked] ]
+
+tControlsPlayer : Predicate Base APlayer
+tControlsPlayer = Controls creature
+
+tBecomesBlocked : EventQuery Base
+tBecomesBlocked = And [KindIs (Becomes Blocked), SourceMatches (SameAs This)]
+
 -- designations: ONE predicate, scope by type — `HasDesignation Monarch` is a PLAYER test (you're the
 -- monarch), `HasDesignation Monstrous` an OBJECT test. The carrier follows `designationScope`.
 tMonarchTest : Predicate Base APlayer

@@ -188,6 +188,7 @@ data Restriction = OncePerTurn | OncePerGame
 -- "may attack/tap as though it weren't summoning-sick" (an `AsThough` premise, see Macros).
 public export
 data ObjectState = Tapped | Attacking | Blocking | Blocked | Attached | SummoningSick
+                 | Unblocked   -- an attacker past declare-blockers with no blocker ([CR#509.1h])
 
 -- Whether a `Reference` denotes an object or a player ([CR#109.1]). One reference
 -- language, indexed by this — strict on the kind where it matters, lax where it doesn't.
@@ -288,6 +289,7 @@ namespace EventKind
     = Cast | Sacrifice | Draw | Discard | DealDamage | CreateToken | PutCounters | Destroyed
     | ZoneChanged (Maybe Zone) (Maybe Zone)
     | BeginStep PhaseStep
+    | Becomes ObjectState   -- "whenever ~ BECOMES [state]" (becomes blocked/tapped/…; Bushido reads becomes-blocking)
 
 -- A value-choice DOMAIN: what an as-enters "choose …" picks from ([CR#614.12]). The chosen value is
 -- bound in `Bindings.chosenKind` and read back by the `OfChosen` anaphor. Characteristic domains
@@ -459,6 +461,13 @@ mutual
       StatCmp : Stat -> Cmp -> Count b -> Predicate b AnObject
       ControlledBy : Predicate b APlayer -> Predicate b AnObject   -- controller MATCHES a player-pred: "you control" = ControlledBy you, "an opponent controls" = ControlledBy opponent
       OwnedBy : Predicate b APlayer -> Predicate b AnObject
+      Controls : Predicate b AnObject -> Predicate b APlayer   -- the INVERSE: a PLAYER who controls a [pred] ("each player who controls a creature")
+      Multicolored : Predicate b AnObject   -- ≥2 colors ([CR#105.2b])
+      IsColorless : Predicate b AnObject    -- 0 colors (named to avoid the `Colorless : Maybe Color` value)
+      -- STACK-object filters: a spell/ability BY its targets ([CR#115]). "Spell that targets you" =
+      -- `And [IsKind IsSpell, Targets (SameAs You)]`; "single-target spell" = `TargetCount Equal (^1)`.
+      Targets : Predicate b k -> Predicate b AnObject
+      TargetCount : Cmp -> Count b -> Predicate b AnObject
       WasKicked : Predicate b AnObject           -- FLAG: kicker as a boolean flag on the object (no cost-mode model)
       -- ANAPHOR: "the candidate has the chosen characteristic" — the chosen color (Iona: "spells of the
       -- chosen color") or creature type (Cavern: "a creature spell of the chosen type"). Gated on an
