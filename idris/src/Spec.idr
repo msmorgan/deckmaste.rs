@@ -127,8 +127,8 @@ tReplaceAmount = ReplaceAmount (KindIs DealDamage) (Times ThatMuch (^2))
 tPrevention : StaticEffect Base
 tPrevention = ReplaceAmount (KindIs DealDamage) (^0)
 
-tIndestructible : StaticEffect Base
-tIndestructible = Replaces (And [KindIs Destroyed, SourceMatches (SameAs This)]) (Sequence [])
+tIndestructible : Ability Base
+tIndestructible = keyword Indestructible
 
 tOutcomeGate : StaticEffect Base
 tOutcomeGate = OutcomeGate CantLose you
