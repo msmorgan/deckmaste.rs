@@ -1060,4 +1060,21 @@ card_HistoryOfBenalia = Normal $ ^:
       ]
   }
 
+-- Meddling Mage — NAME read-back: "as ~ enters, choose a card name; spells with the chosen name can't
+-- be cast." `AsEnters AName` notes the name; `OfChosen` at that binding reads "has the chosen name"
+-- (the same anaphor as the color/type cases — `AName` just joined `IsCharDomain`).
+export
+card_MeddlingMage : Card
+card_MeddlingMage = Normal $ ^:
+  { name := Just "Meddling Mage"
+  , manaCost := [^White, ^Blue]
+  , types := [Creature]
+  , subtypes := [^Human, ^Wizard]
+  , abilities :=
+      [ AsEnters AName
+          [ Static (Cant (Casts Anyone (And [IsKind IsSpell, OfChosen]))) ] ]
+  , power := Just 2
+  , toughness := Just 2
+  }
+
 --:vim:sts=2 sw=2:

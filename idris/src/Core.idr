@@ -297,7 +297,7 @@ namespace EventKind
 -- bound in `Bindings.chosenKind` and read back by the `OfChosen` anaphor. Characteristic domains
 -- (color / creature type) name something an object can HAVE; a mode domain (later) won't.
 public export
-data ChooseDomain = AColor | ACreatureType | AMode Nat   -- `AMode n` = an n-way mode pick (Outpost/Citadel: Khans/Dragons)
+data ChooseDomain = AColor | ACreatureType | AMode Nat | AName | ANumber   -- `AMode n` = an n-way mode pick; AName = a card name (Meddling Mage); ANumber = a chosen number
 
 -- which domains name a CHARACTERISTIC `OfChosen` can test on an object — the gate on that anaphor (a
 -- mode choice is not a characteristic — it gates abilities via `ChosenIs`; no choice can't be read).
@@ -306,7 +306,9 @@ public export
 IsCharDomain : Maybe ChooseDomain -> Type
 IsCharDomain (Just AColor)        = ()
 IsCharDomain (Just ACreatureType) = ()
+IsCharDomain (Just AName)         = ()   -- "has the chosen NAME" is an `OfChosen` test (Meddling Mage)
 IsCharDomain (Just (AMode _))     = Void
+IsCharDomain (Just ANumber)       = Void  -- a number isn't a characteristic — read it with `ChosenNumber`
 IsCharDomain Nothing              = Void
 
 -- `Bindings`: the typestate of what references are in scope. Its fields are
@@ -432,6 +434,7 @@ mutual
     Min : Count b -> Count b -> Count b                  -- the lesser ([CR#704.5q] +1/+1 vs −1/−1 annihilation; "the lesser of X and Y")
     Max : Count b -> Count b -> Count b                  -- the greater
     ThatMuch : Count b                                   -- FLAG: amount-anaphora (the preceding amount; ungated)
+    ChosenNumber : {auto prf : chosenKind b = Just ANumber} -> Count b   -- the as-enters chosen NUMBER (the value-anaphor twin of OfChosen/ChosenIs)
 
   -- A PREDICATE: a test on a single IMPLICIT candidate object — i.e. a *filter*.
   -- The atoms read the candidate's characteristics; `SameAs r` tests identity.
