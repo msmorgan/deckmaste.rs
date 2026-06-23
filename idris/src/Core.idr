@@ -716,6 +716,11 @@ mutual
     Fight : (x : Reference b AnObject) -> (y : Reference b AnObject) -> Action b   -- each deals damage equal to its power to the other
     Reveal : Reference b AnObject -> Action b
     Shuffle : {default You actor : Reference b APlayer} -> Action b
+    -- "[player] takes an extra turn after this one" ([CR#505, #725]) — Time Walk.
+    ExtraTurn : {default You who : Reference b APlayer} -> Action b
+    -- "you control [whom] during their next turn" ([CR#720]) — Mindslaver: you make all of their
+    -- decisions. The next-turn duration is the standard one the engine applies.
+    ControlPlayer : (whom : Reference b APlayer) -> Action b
     CreateToken : Count b -> (c : Characteristics b) -> {auto wf : CharacteristicsOk c} -> Action b   -- the token's full characteristics (P/T may be a `Count b`)
     CopySpell : Reference b AnObject -> Action b                   -- "copy target spell" — FLAG: copy semantics deferred to engine
     -- "add {G}" (a mana-ability effect; pool/paying is engine). RESTRICTED mana ([CR#106.5]):
