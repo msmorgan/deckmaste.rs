@@ -803,4 +803,33 @@ card_Mindslaver = Normal $ ^:
           (Targeted [Target (^1) Anyone] (Act (ControlPlayer (GetTarget 0)))) ]
   }
 
+-- Mind Bend — TEXT-CHANGE ([CR#612]): "change the text of target permanent or spell by replacing one
+-- color word or basic land type with another." A continuous `ChangeText` mod naming the operation +
+-- the eligible word classes; the two specific words are the caster's resolution-time choice.
+export
+card_MindBend : Card
+card_MindBend = Normal $ ^:
+  { name := Just "Mind Bend"
+  , manaCost := [^1, ^Blue]
+  , types := [Sorcery]
+  , abilities :=
+      [ Spell (Targeted [Target (^1) (Or [permanent, IsKind IsSpell])]
+          (Continuously (Modify (GetTarget 0) [ChangeText [ColorWords, BasicLandTypes]]) Permanent)) ]
+  }
+
+-- Flooded Strand — a FETCH LAND: {T}, pay 1 life, sacrifice it → search your library for a Plains or
+-- Island card, put it onto the battlefield, then shuffle. (Fetches anything with those land types,
+-- so duals/shocks too — hence the bare subtype filter, no `Basic` supertype.)
+export
+card_FloodedStrand : Card
+card_FloodedStrand = Normal $ ^:
+  { name := Just "Flooded Strand"
+  , types := [Land]
+  , abilities :=
+      [ Activated (Costs [TapSelf, PayLife (^1), Sacrifice This])
+          (With (Search {from = [Library]} (^1) (Or [HasSubtype (^Plains), HasSubtype (^Island)]))
+            (Sequence [ ForEach That (Act (Move It Battlefield))
+                      , Act Shuffle ])) ]
+  }
+
 --:vim:sts=2 sw=2:
