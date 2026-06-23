@@ -170,7 +170,7 @@ data Restriction = OncePerTurn | OncePerGame
 
 -- Runtime object STATE (not a printed characteristic) — what a `HasState` predicate tests
 -- ([CR#509] combat, [CR#701.3] attach, [CR#701.20] tap, [CR#302.6] summoning sickness). Negatives
--- via `IsNot` ("untapped" = `IsNot (HasState Tapped)`). `SummoningSick` is what `haste` lifts —
+-- via `Not` ("untapped" = `Not (HasState Tapped)`). `SummoningSick` is what `haste` lifts —
 -- "may attack/tap as though it weren't summoning-sick" (an `AsThough` premise, see Macros).
 public export
 data ObjectState = Tapped | Attacking | Blocking | Blocked | Attached | SummoningSick
@@ -184,7 +184,7 @@ data RefKind = Empty | AnObject | APlayer | Anything
 
 -- The JOIN on `RefKind` (least upper bound): `Empty` is the identity (bottom),
 -- like-with-like is itself, two distinct kinds widen to `Anything` (the top) —
--- so `(RefKind, \/, Empty)` is a bounded join-semilattice. `OneOf` folds it
+-- so `(RefKind, \/, Empty)` is a bounded join-semilattice. `Or` folds it
 -- over its arms' kinds (base `Empty`) to COMPUTE a union's kind — what retires
 -- `Widen`; an empty union folds to `Empty` (a vacuous predicate, matches
 -- nothing).
@@ -237,14 +237,16 @@ implementation Promote EndingStep PhaseStep where
 public export
 data Window = ThisGame | ThisTurn | LastTurn | ThisCombat | ThisStep
 
--- What KIND of event an `EventQuery` matches. `ZoneChanged`/`BeginStep` carry data;
--- "dies" = ZoneChanged (Just Battlefield) (Just Graveyard). (`Drew`/`DealtDamage` are
--- past-tense to avoid clashing with the `Action` verbs `Draw`/`DealDamage`.)
-public export
-data EventKind
-  = Cast | Sacrificed | Drew | Discarded | DealtDamage
-  | ZoneChanged (Maybe Zone) (Maybe Zone)
-  | BeginStep PhaseStep
+-- What KIND of event an `EventQuery` matches. `ZoneChanged`/`BeginStep` carry data; "dies" =
+-- ZoneChanged (Just Battlefield) (Just Graveyard). The verb-named events live in `namespace
+-- EventKind` so they REUSE the `Action` verb names — `KindIs Draw` pins `EventKind`, `Act (Draw …)`
+-- pins `Action` (type-directed disambiguation; no more past-tense `Drew`/`DealtDamage`).
+namespace EventKind
+  public export
+  data EventKind
+    = Cast | Sacrifice | Draw | Discard | DealDamage
+    | ZoneChanged (Maybe Zone) (Maybe Zone)
+    | BeginStep PhaseStep
 
 -- `Bindings`: the typestate of what references are in scope. Its fields are
 -- PROJECTIONS we write constraints against; it grows as the model binds roles.
@@ -287,8 +289,9 @@ bindEvent b = MkBindings (targetKinds b) (thatKind b) (itKind b) True
 
 -- KeywordSpec / Reference / Count / Predicate / Condition / EventQuery are one mutually
 -- recursive language. A PREDICATE is an object test — its candidate is IMPLICIT. A `Condition`
--- is a closed/game-state test reaching objects via `Matches`/`exists`/`unique`. Combinators:
--- predicates use `AllOf`/`OneOf`/`IsNot`; conditions use `And`/`Or`/`Not`.
+-- is a closed/game-state test reaching objects via `Matches`/`exists`/`unique`. `Predicate`,
+-- `Condition`, and `EventQuery` SHARE the combinator names `And`/`Or`/`Not` — each in its own
+-- `namespace`, resolved by the expected type at the use site (no `AllOf`/`Query` aliasing).
 mutual
   -- A KEYWORD's tag + params ([CR#702]) — the "name" side of a keyword. In this block so
   -- `HasKeyword` can read it and `Hexproof`'s "from" filter can be a `Predicate` (which may name
@@ -357,72 +360,75 @@ mutual
 
   -- A PREDICATE: a test on a single IMPLICIT candidate object — i.e. a *filter*.
   -- The atoms read the candidate's characteristics; `SameAs r` tests identity.
-  public export
-  data Predicate : Bindings -> RefKind -> Type where
-    HasType : Type_ -> Predicate b AnObject
-    HasSupertype : Supertype -> Predicate b AnObject
-    HasSubtype : Subtype -> Predicate b AnObject
-    HasColor : Color -> Predicate b AnObject
-    IsKind : ObjectKind -> Predicate b AnObject
-    InZone : Zone -> Predicate b AnObject
-    HasKeyword : KeywordSpec b -> Predicate b AnObject
-    SameAs : Reference b k -> Predicate b k    -- the candidate IS r (same kind; "another" = IsNot (SameAs This))
-    SameName : Reference b AnObject -> Predicate b AnObject   -- shares a name with r ("named [its own name]" = SameName This)
-    WasCastFrom : Zone -> Predicate b AnObject -- the object was cast from this zone (cast provenance)
-    ExiledBy : Reference b AnObject -> Predicate b AnObject   -- set aside by r's effect ("cards exiled by this" = ExiledBy
-                                               -- This); the engine holds the association ([CR#607] linked abilities)
-    HasName : String -> Predicate b AnObject   -- named a specific card (tutors / token names)
-    HasCounter : CounterKind -> Predicate b AnObject   -- has ≥1 of this counter ("without a fate counter" = IsNot (HasCounter Fate))
-    HasState : ObjectState -> Predicate b AnObject      -- runtime state: "target ATTACKING / TAPPED creature"
-    -- a numeric STAT comparison on the candidate — "target creature with power ≤ 2" =
-    -- `AllOf [creature, StatCmp Power LessEq (^2)]`. (Closes the "no stat filter" hole — stat
-    -- comparison was a `Condition` only; this lifts it into the `Predicate`/filter language.)
-    StatCmp : Stat -> Cmp -> Count b -> Predicate b AnObject
-    ControlledBy : Predicate b APlayer -> Predicate b AnObject   -- controller MATCHES a player-pred: "you control" = ControlledBy you, "an opponent controls" = ControlledBy opponent
-    OwnedBy : Predicate b APlayer -> Predicate b AnObject
-    WasKicked : Predicate b AnObject           -- FLAG: kicker as a boolean flag on the object (no cost-mode model)
-    -- `Anyone` is the player top-predicate ("any player" — a person, hence `APlayer`).
-    Anyone : Predicate b APlayer
-    -- combinators (distinct from `Condition`'s And/Or/Not). `AllOf` (AND) is same-kind — a
-    -- candidate is ONE kind, so all conjuncts share it. `OneOf` (OR/union) is HETEROGENEOUS:
-    -- its arms may differ in kind and the result kind is their JOIN (`foldr (\/) Empty` over
-    -- the arms' kinds), so a OneOf mixing object and player predicates is `Anything` — no
-    -- `Widen`/`AnyOf`. "Any target" = `OneOf [creature…, Anyone]`; an empty `OneOf` is `Empty`.
-    AllOf : List (Predicate b k) -> Predicate b k
-    OneOf : {ks : List RefKind} -> All (Predicate b) ks -> Predicate b (foldr (\/) Empty ks)
-    IsNot : Predicate b k -> Predicate b k     -- negation
+  namespace Predicate
+    public export
+    data Predicate : Bindings -> RefKind -> Type where
+      HasType : Type_ -> Predicate b AnObject
+      HasSupertype : Supertype -> Predicate b AnObject
+      HasSubtype : Subtype -> Predicate b AnObject
+      HasColor : Color -> Predicate b AnObject
+      IsKind : ObjectKind -> Predicate b AnObject
+      InZone : Zone -> Predicate b AnObject
+      HasKeyword : KeywordSpec b -> Predicate b AnObject
+      SameAs : Reference b k -> Predicate b k    -- the candidate IS r (same kind; "another" = Not (SameAs This))
+      SameName : Reference b AnObject -> Predicate b AnObject   -- shares a name with r ("named [its own name]" = SameName This)
+      WasCastFrom : Zone -> Predicate b AnObject -- the object was cast from this zone (cast provenance)
+      ExiledBy : Reference b AnObject -> Predicate b AnObject   -- set aside by r's effect ("cards exiled by this" = ExiledBy
+                                                 -- This); the engine holds the association ([CR#607] linked abilities)
+      HasName : String -> Predicate b AnObject   -- named a specific card (tutors / token names)
+      HasCounter : CounterKind -> Predicate b AnObject   -- has ≥1 of this counter ("without a fate counter" = Not (HasCounter Fate))
+      HasState : ObjectState -> Predicate b AnObject      -- runtime state: "target ATTACKING / TAPPED creature"
+      -- a numeric STAT comparison on the candidate — "target creature with power ≤ 2" =
+      -- `And [creature, StatCmp Power LessEq (^2)]`. (Closes the "no stat filter" hole — stat
+      -- comparison was a `Condition` only; this lifts it into the `Predicate`/filter language.)
+      StatCmp : Stat -> Cmp -> Count b -> Predicate b AnObject
+      ControlledBy : Predicate b APlayer -> Predicate b AnObject   -- controller MATCHES a player-pred: "you control" = ControlledBy you, "an opponent controls" = ControlledBy opponent
+      OwnedBy : Predicate b APlayer -> Predicate b AnObject
+      WasKicked : Predicate b AnObject           -- FLAG: kicker as a boolean flag on the object (no cost-mode model)
+      -- `Anyone` is the player top-predicate ("any player" — a person, hence `APlayer`).
+      Anyone : Predicate b APlayer
+      -- combinators (`Predicate.And/Or/Not`, sharing names with `Condition`/`EventQuery`). `And`
+      -- is same-kind — a candidate is ONE kind, so all conjuncts share it. `Or` (the union) is
+      -- HETEROGENEOUS: its arms may differ in kind and the result kind is their JOIN
+      -- (`foldr (\/) Empty` over the arms' kinds), so an `Or` mixing object and player predicates is
+      -- `Anything` — no `Widen`. "Any target" = `Or [creature…, Anyone]`; an empty `Or` is `Empty`.
+      And : List (Predicate b k) -> Predicate b k
+      Or : {ks : List RefKind} -> All (Predicate b) ks -> Predicate b (foldr (\/) Empty ks)
+      Not : Predicate b k -> Predicate b k     -- negation
 
   -- A CLOSED / game-state test ([CR#603.4]); reaches objects only via `Matches`
   -- (apply a `Predicate` to a named `Reference`) or `exists`/`unique` (below).
-  public export
-  data Condition : Bindings -> Type where
-    Matches : Reference b k -> Predicate b k -> Condition b   -- does r satisfy the (same-kind) predicate
-    Compare : Count b -> Cmp -> Count b -> Condition b
-    TurnOf : Predicate b APlayer -> Condition b   -- it's a (matching) player's turn (`yourTurn = TurnOf (SameAs You)`)
-    During : PhaseStep -> Condition b
-    And : List (Condition b) -> Condition b
-    Or : List (Condition b) -> Condition b
-    Not : Condition b -> Condition b
+  namespace Condition
+    public export
+    data Condition : Bindings -> Type where
+      Matches : Reference b k -> Predicate b k -> Condition b   -- does r satisfy the (same-kind) predicate
+      Compare : Count b -> Cmp -> Count b -> Condition b
+      TurnOf : Predicate b APlayer -> Condition b   -- it's a (matching) player's turn (`yourTurn = TurnOf (SameAs You)`)
+      During : PhaseStep -> Condition b
+      And : List (Condition b) -> Condition b
+      Or : List (Condition b) -> Condition b
+      Not : Condition b -> Condition b
 
   -- A query OVER EVENTS: the matcher for triggers, `EventCount`, and durations — the
-  -- event analog of `Predicate`. Facets conjoin via `Query`; `Join`/`Except` are
-  -- or/not. `SourceMatches` embeds the object language; `Within`/`DuringStep`/
-  -- `DuringTurn` are the timing facets ("not during your turn" = `Except (DuringTurn You)`).
-  public export
-  data EventQuery : Bindings -> Type where
-    KindIs        : EventKind -> EventQuery b
-    SourceMatches : Predicate b AnObject -> EventQuery b
-    ActorIs       : Predicate b APlayer -> EventQuery b   -- the event's actor matches a player-pred (you / opponent)
-    Within        : Window -> EventQuery b
-    DuringStep    : PhaseStep -> EventQuery b
-    DuringTurn    : Predicate b APlayer -> EventQuery b   -- the turn's player matches a player-pred
-    -- "this is the FIRST event (matching the surrounding facets) in the window" — an ORDINAL facet,
-    -- engine-resolved like `EventCount` ([CR#603.2e] "the first time each…"). Notion Thief: "except the
-    -- first draw each draw step" = `Except (Query [DuringStep drawStep, IsFirst ThisStep])`.
-    IsFirst       : Window -> EventQuery b
-    Query  : List (EventQuery b) -> EventQuery b   -- AND
-    Join   : List (EventQuery b) -> EventQuery b   -- OR
-    Except : EventQuery b -> EventQuery b          -- NOT
+  -- event analog of `Predicate`. Facets conjoin via `And`; `Or` disjoins, `Not` negates (same
+  -- combinator names as the other two, in this namespace). `SourceMatches` embeds the object language; `Within`/`DuringStep`/
+  -- `DuringTurn` are the timing facets ("not during your turn" = `Not (DuringTurn You)`).
+  namespace EventQuery
+    public export
+    data EventQuery : Bindings -> Type where
+      KindIs        : EventKind -> EventQuery b
+      SourceMatches : Predicate b AnObject -> EventQuery b
+      ActorIs       : Predicate b APlayer -> EventQuery b   -- the event's actor matches a player-pred (you / opponent)
+      Within        : Window -> EventQuery b
+      DuringStep    : PhaseStep -> EventQuery b
+      DuringTurn    : Predicate b APlayer -> EventQuery b   -- the turn's player matches a player-pred
+      -- "this is the FIRST event (matching the surrounding facets) in the window" — an ORDINAL facet,
+      -- engine-resolved like `EventCount` ([CR#603.2e] "the first time each…"). Notion Thief: "except the
+      -- first draw each draw step" = `Not (And [DuringStep drawStep, IsFirst ThisStep])`.
+      IsFirst       : Window -> EventQuery b
+      And  : List (EventQuery b) -> EventQuery b   -- AND
+      Or   : List (EventQuery b) -> EventQuery b   -- OR
+      Not : EventQuery b -> EventQuery b          -- NOT
 
   -- A cardinality spec for a choice ([CR#107.3]). In the mutual block so `Selection` can use it.
   public export
@@ -587,7 +593,7 @@ data Deed : Bindings -> Type where
   -- (forbid the lone blocker; 0 = unblocked and 2+ stay legal). [CR#509.1c] judges the whole set.
   BlockedBy  : (attacker : Predicate b AnObject) -> (size : Quantity b) -> {auto prf : NonZeroQ size} -> Deed b
   -- "[object] is targeted BY a source matching `by`"; `by` defaults to any spell or ability.
-  BeTargeted : (object : Predicate b AnObject) -> {default (OneOf [IsKind IsSpell, IsKind IsAbility]) by : Predicate b AnObject} -> Deed b
+  BeTargeted : (object : Predicate b AnObject) -> {default (Or [IsKind IsSpell, IsKind IsAbility]) by : Predicate b AnObject} -> Deed b
   Casts      : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
   Activates  : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
 
@@ -766,7 +772,7 @@ mutual
     --    `window`; Flash widens it to `InstantWindow` ([CR#702.8a] — a wider window, NOT an as-though).
     --  • `AsThough` — a scoped COUNTERFACTUAL premise ([CR#609.4]) wrapping a clause: "[clause]
     --    treated as though [condition] held." "attack as though it didn't have defender" =
-    --    `AsThough (Matches This (IsNot (HasKeyword Defender))) (Can (Attacks (SameAs This)))`.
+    --    `AsThough (Matches This (Not (HasKeyword Defender))) (Can (Attacks (SameAs This)))`.
     -- (Window-NARROWING `Only` is the `window : TimingWindow` on `Activated` — `SorceryWindow`; the
     -- as-though of a deed-INTERNAL participant — "as though the BLOCKER's attacker lacked flying" — is still deferred.)
     Can  : Deed b -> {default Nothing window : Maybe TimingWindow} -> StaticEffect b

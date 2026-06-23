@@ -1,6 +1,6 @@
 ||| Reusable named filters — the Idris analogue of the deckmaste plugin macros:
 ||| a `Predicate` given a domain name, so cards read `SelectAll creature`. The
-||| combinators (`AllOf`/`OneOf`/`IsNot`) and identity test (`SameAs`) are `Core`
+||| combinators (`And`/`Or`/`Not`) and identity test (`SameAs`) are `Core`
 ||| constructors used directly — no redundant `allF`/`notF`/`isRef` aliases.
 module Macros
 
@@ -26,7 +26,7 @@ you = SameAs You
 
 public export
 opponent : Predicate b APlayer
-opponent = IsNot (SameAs You)
+opponent = Not (SameAs You)
 
 -- "at the beginning of the next end step" — the common delayed-trigger event.
 public export
@@ -34,19 +34,19 @@ nextEndStep : EventQuery b
 nextEndStep = KindIs (BeginStep (EndingPhase EndStep))
 
 -- "any target" ([CR#115.4]): a creature/planeswalker/battle permanent, OR any player. A
--- FLAT `OneOf` — the player arm (`Anyone`) sits beside the object arms, and the result
+-- FLAT `Or` — the player arm (`Anyone`) sits beside the object arms, and the result
 -- kind is their join (`Anything`), computed by `\/`. No `Widen`.
 public export
 anyTarget : TargetSpec b Anything
-anyTarget = Target (^1) $ OneOf
-  [ AllOf [permanent, HasType Battle]
-  , AllOf [permanent, creature]
-  , AllOf [permanent, HasType Planeswalker]
+anyTarget = Target (^1) $ Or
+  [ And [permanent, HasType Battle]
+  , And [permanent, creature]
+  , And [permanent, HasType Planeswalker]
   , Anyone ]
 
 public export
 playerOrPlaneswalker : TargetSpec b Anything
-playerOrPlaneswalker = Target (^1) $ OneOf [ AllOf [permanent, HasType Planeswalker], Anyone ]
+playerOrPlaneswalker = Target (^1) $ Or [ And [permanent, HasType Planeswalker], Anyone ]
 
 -- "each player": a player-`Selection` for `ForEach` to distribute over (the old plural
 -- `EachPlayer` reference is gone — plurality lives in `Selection`, kinded `APlayer`).
@@ -57,7 +57,7 @@ eachPlayer = SelectAll Anyone
 -- "any spell or ability" — the universal targeting SOURCE.
 public export
 spellOrAbility : Predicate b AnObject
-spellOrAbility = OneOf [IsKind IsSpell, IsKind IsAbility]
+spellOrAbility = Or [IsKind IsSpell, IsKind IsAbility]
 
 -- KEYWORD macros: each builds the FULL keyword `Ability` — a `Composite` of the `KeywordSpec`
 -- tag + the `Cant` clause it desugars to (over `This`). The non-deontic keywords (FirstStrike/
@@ -65,7 +65,7 @@ spellOrAbility = OneOf [IsKind IsSpell, IsKind IsAbility]
 -- clause. (Flying reads `HasKeyword Flying`/`Reach` on the BLOCKER — the tag its clause consults.)
 public export
 flying : Ability b
-flying = Keyword (Composite Flying [Static (Cant (Blocks (IsNot (OneOf [HasKeyword Flying, HasKeyword Reach])) (SameAs This)))])
+flying = Keyword (Composite Flying [Static (Cant (Blocks (Not (Or [HasKeyword Flying, HasKeyword Reach])) (SameAs This)))])
 
 public export
 defender : Ability b
@@ -83,7 +83,7 @@ hexproof = Keyword (Composite (Hexproof Nothing) [Static (Cant (BeTargeted (Same
 -- ANAPHOR ("from the CHOSEN color") — the reason `Ability` is `Bindings`-indexed.
 public export
 hexproofFrom : Predicate b AnObject -> Ability b
-hexproofFrom f = Keyword (Composite (Hexproof (Just f)) [Static (Cant (BeTargeted (SameAs This) {by = AllOf [ControlledBy opponent, f]}))])
+hexproofFrom f = Keyword (Composite (Hexproof (Just f)) [Static (Cant (BeTargeted (SameAs This) {by = And [ControlledBy opponent, f]}))])
 
 -- Flash ([CR#702.8a]): a deontic `Can` to cast THIS at instant speed — a widened cast window, not
 -- an as-though. ("Granted as-though-flash" for OTHER spells is `AsThough`, the deferred-tail case.)
@@ -100,14 +100,14 @@ menace = Keyword (Composite Menace [Static (Cant (BlockedBy (SameAs This) (^1)))
 
 -- Haste ([CR#702.10]): a CONTINUOUS grant letting THIS attack and tap-activate "as though it had
 -- been controlled continuously" — i.e. as though it weren't summoning-sick ([CR#302.6]). Built with
--- the AsThough machinery: pretend `IsNot (HasState SummoningSick)`, then `Can` the deed. (Grantable
+-- the AsThough machinery: pretend `Not (HasState SummoningSick)`, then `Can` the deed. (Grantable
 -- via `GrantAbility (keyword Haste)` — e.g. Through the Breach. The doc spells haste as a flag the
 -- summoning-sickness `Cant` reads; the as-though framing is the dual, and the one the toy carries.)
 public export
 haste : Ability b
 haste = Keyword (Composite Haste
-  [ Static (AsThough (Matches This (IsNot (HasState SummoningSick))) (Can (Attacks (SameAs This))))
-  , Static (AsThough (Matches This (IsNot (HasState SummoningSick))) (Can (Activates you (SameAs This)))) ])
+  [ Static (AsThough (Matches This (Not (HasState SummoningSick))) (Can (Attacks (SameAs This))))
+  , Static (AsThough (Matches This (Not (HasState SummoningSick))) (Can (Activates you (SameAs This)))) ])
 
 -- desugar a `KeywordSpec` into its full `Ability` — dispatches to the macros above. EXHAUSTIVE
 -- (no catch-all): adding a `KeywordSpec` constructor forces a clause here. `Bare` = an engine-

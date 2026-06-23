@@ -82,8 +82,8 @@ card_Flickerwisp = Normal $ ^:
   , subtypes := [^Elemental]
   , abilities :=
       [ keyword Flying
-      , Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)]) $
-          Targeted [Target (^1) (AllOf [permanent, IsNot (SameAs This)])] $
+      , Triggered (And [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)]) $
+          Targeted [Target (^1) (And [permanent, Not (SameAs This)])] $
             With (Produce (Move ((GetTarget 0)) Exile)) $  -- exile the target, bind `That`
               Delayed nextEndStep
                 (ForEach That (Act (Move It Battlefield)))                        -- return `That` (captured; target gone)
@@ -120,13 +120,13 @@ card_Rancor = Normal $ ^:
   , types := [Enchantment]
   , subtypes := [^Aura]
   , abilities :=
-      [ Enchant (AllOf [permanent, creature])
+      [ Enchant (And [permanent, creature])
       , Static (Modify (AttachHostOf This)
           [ ModifyPT (^2) (^0)
           , GrantAbility (keyword Trample)
           ])
       , Triggered
-          (Query [ KindIs (ZoneChanged (Just Battlefield) (Just Graveyard))
+          (And [ KindIs (ZoneChanged (Just Battlefield) (Just Graveyard))
                  , SourceMatches (SameAs This)
                  ])
           (Act (Move (This) Hand))
@@ -143,7 +143,7 @@ card_Cloudshift = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell $
-          Targeted [ Target (^1) (AllOf [ permanent, creature
+          Targeted [ Target (^1) (And [ permanent, creature
                                      , ControlledBy you
                                      ])
                    ] $
@@ -165,7 +165,7 @@ card_ThroughTheBreach = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell $
-          With (Choose (^1) (AllOf [inHand, creature])) $
+          With (Choose (^1) (And [inHand, creature])) $
             Sequence
               [ ForEach That (Act (Move It Battlefield))
               , Continuously (Modify (Single That) [GrantAbility (keyword Haste)]) UntilEndOfTurn  -- "it gains haste"
@@ -187,7 +187,7 @@ card_ApproachOfTheSecondSun = Normal $ ^:
   , abilities :=
       [ Spell $
           If (And [ Matches This (WasCastFrom Hand)
-                  , Compare (EventCount (Query [ KindIs Cast
+                  , Compare (EventCount (And [ KindIs Cast
                                                , ActorIs you
                                                , SourceMatches (SameName This)
                                                , Within ThisGame ]))
@@ -215,7 +215,7 @@ card_OblivionStone = Normal $ ^:
             (Act (PutCounters Fate (Literal 1) ((GetTarget 0)))))
       , Activated (Costs [Mana [^5], TapSelf, Sacrifice (This)])
           (Sequence
-            [ ForEach (SelectAll (AllOf [permanent, IsNot (HasType Land), IsNot (HasCounter Fate)])) (Act (Destroy It))
+            [ ForEach (SelectAll (And [permanent, Not (HasType Land), Not (HasCounter Fate)])) (Act (Destroy It))
             , ForEach (SelectAll permanent) (Act (RemoveAllCounters Fate It)) ])
       ]
   }
@@ -229,7 +229,7 @@ card_GloriousAnthem = Normal $ ^:
   , manaCost := [^1, ^White, ^White]
   , types := [Enchantment]
   , abilities :=
-      [ Static (ModifyAll (AllOf [HasType Creature, ControlledBy you]) [ModifyPT (^1) (^1)]) ]
+      [ Static (ModifyAll (And [HasType Creature, ControlledBy you]) [ModifyPT (^1) (^1)]) ]
   }
 
 -- Liliana of the Veil — "planeswalkers are pure composite": loyalty abilities are
@@ -268,12 +268,12 @@ card_TideShaper = Normal $ ^:
   , types := [Creature]
   , subtypes := [^Merfolk, ^Wizard]
   , abilities :=
-      [ Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
+      [ Triggered (And [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
           (If (Matches This WasKicked)
               (Targeted [Target (^1) (HasType Land)]
                 (Continuously (Modify (GetTarget 0) [AddSubtype (^Island)])
                               (ForAsLongAs (Matches This (InZone Battlefield))))))
-      , Static (While (exists (AllOf [InZone Battlefield, HasSubtype (^Island), ControlledBy opponent]))
+      , Static (While (exists (And [InZone Battlefield, HasSubtype (^Island), ControlledBy opponent]))
                       (Modify This [ModifyPT (^1) (^1)]))
       ]
   , power := Just 1
@@ -291,8 +291,8 @@ card_Necropotence = Normal $ ^:
   , manaCost := [^Black, ^Black, ^Black]
   , types := [Enchantment]
   , abilities :=
-      [ Static (Replaces (Query [KindIs (BeginStep (BeginningPhase DrawStep)), DuringTurn you]) (Sequence []))
-      , Triggered (Query [KindIs Discarded, ActorIs you])
+      [ Static (Replaces (And [KindIs (BeginStep (BeginningPhase DrawStep)), DuringTurn you]) (Sequence []))
+      , Triggered (And [KindIs Discard, ActorIs you])
           (Act (Move EventObject Exile))
       , Activated (PayLife (Literal 1))
           (ForEach (TopOfLibrary (Literal 1))
@@ -301,7 +301,7 @@ card_Necropotence = Normal $ ^:
       ]
   }
 
--- Notion Thief — replace an opponent's draw with "you draw a card" instead. "Except the FIRST one
+-- Notion Thief — replace an opponent's draw with "you draw a card" instead. "Not the FIRST one
 -- they draw in each of their draw steps" is now FAITHFUL via the ordinal `IsFirst` facet: only the
 -- first draw-step draw is exempt, so a SECOND draw-step draw (or any draw outside it) is still
 -- stolen — exactly as written. (Rogue subtype now in the enum.)
@@ -314,8 +314,8 @@ card_NotionThief = Normal $ ^:
   , subtypes := [^Human, ^Rogue]
   , abilities :=
       [ keyword Flash
-      , Static (Replaces (Query [ KindIs Drew, ActorIs opponent
-                                , Except (Query [DuringStep (BeginningPhase DrawStep), IsFirst ThisStep]) ])
+      , Static (Replaces (And [ KindIs Draw, ActorIs opponent
+                                , Not (And [DuringStep (BeginningPhase DrawStep), IsFirst ThisStep]) ])
           (Act (Draw {actor = You} (^1))))
       ]
   , power := Just 3
@@ -333,10 +333,10 @@ card_OblivionRing = Normal $ ^:
   , manaCost := [^2, ^White]
   , types := [Enchantment]
   , abilities :=
-      [ Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
-          (Targeted [Target (^1) (AllOf [permanent, IsNot (HasType Land), IsNot (SameAs This)])]
+      [ Triggered (And [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
+          (Targeted [Target (^1) (And [permanent, Not (HasType Land), Not (SameAs This)])]
             (Act (Move ((GetTarget 0)) Exile)))
-      , Triggered (Query [KindIs (ZoneChanged (Just Battlefield) Nothing), SourceMatches (SameAs This)])
+      , Triggered (And [KindIs (ZoneChanged (Just Battlefield) Nothing), SourceMatches (SameAs This)])
           (ForEach (SelectAll (ExiledBy This)) (Act (Move It Battlefield)))
       ]
   }
@@ -352,10 +352,10 @@ card_BanishingLight = Normal $ ^:
   , manaCost := [^2, ^White]
   , types := [Enchantment]
   , abilities :=
-      [ Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)]) $
-          Targeted [Target (^1) (AllOf [permanent, IsNot (HasType Land), ControlledBy opponent])] $
+      [ Triggered (And [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)]) $
+          Targeted [Target (^1) (And [permanent, Not (HasType Land), ControlledBy opponent])] $
             Act (ExileUntil ((GetTarget 0))
-                            (UntilEvent (Query [ KindIs (ZoneChanged (Just Battlefield) Nothing)
+                            (UntilEvent (And [ KindIs (ZoneChanged (Just Battlefield) Nothing)
                                                , SourceMatches (SameAs This) ])))
       ]
   }
@@ -372,7 +372,7 @@ card_Donate = Normal $ ^:
   , types := [Sorcery]
   , abilities :=
       [ Spell (Targeted [ Target (^1) Anyone
-                        , Target (^1) (AllOf [permanent, ControlledBy you]) ]
+                        , Target (^1) (And [permanent, ControlledBy you]) ]
           (Continuously (Modify (GetTarget 1) [GainControl (GetTarget 0)]) Permanent))
       ]
   }
@@ -389,7 +389,7 @@ card_Pacifism = Normal $ ^:
   , types := [Enchantment]
   , subtypes := [^Aura]
   , abilities :=
-      [ Enchant (AllOf [permanent, creature])
+      [ Enchant (And [permanent, creature])
       , Static (Cant (Attacks (SameAs (AttachHostOf This))))
       , Static (Cant (Blocks (SameAs (AttachHostOf This)) creature))
       ]
@@ -440,7 +440,7 @@ card_WallOfOmens = Normal $ ^:
   , toughness := Just 4
   , abilities :=
       [ keyword Defender
-      , Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
+      , Triggered (And [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
           (Act (Draw (^1)))
       ]
   }
@@ -491,7 +491,7 @@ card_CrypticCommand = Normal $ ^:
       [ Spell (Modal (MkChooseSpec (^2))
           [ MkMode (Targeted [Target (^1) (IsKind IsSpell)] (Act (Counter ((GetTarget 0)))))
           , MkMode (Targeted [Target (^1) permanent] (Act (Move ((GetTarget 0)) Hand)))
-          , MkMode (ForEach (SelectAll (AllOf [creature, ControlledBy opponent])) (Act (Tap It)))
+          , MkMode (ForEach (SelectAll (And [creature, ControlledBy opponent])) (Act (Tap It)))
           , MkMode (Act (Draw (^1)))
           ]) ]
   }
@@ -506,7 +506,7 @@ card_Electrolyze = Normal $ ^:
   , manaCost := [^1, ^Blue, ^Red]
   , types := [Instant]
   , abilities :=
-      [ Spell (Targeted [Target (between (^1) (^2)) (OneOf [creature, Anyone])]
+      [ Spell (Targeted [Target (between (^1) (^2)) (Or [creature, Anyone])]
           (Sequence
             [ Act (DealDamageDivided (^2) (GetTargets 0))
             , Act (Draw (^1)) ]))
