@@ -888,4 +888,77 @@ card_FleecemaneLion = Normal $ ^:
   , toughness := Just 3
   }
 
+-- Goblin Electromancer — continuous COST reduction: "instant and sorcery spells you cast cost {1}
+-- less" = a `CostModifier` over a spell filter carrying `Reduce`.
+export
+card_GoblinElectromancer : Card
+card_GoblinElectromancer = Normal $ ^:
+  { name := Just "Goblin Electromancer"
+  , manaCost := [^Blue, ^Red]
+  , types := [Creature]
+  , subtypes := [^Goblin, ^Wizard]
+  , abilities :=
+      [ Static (CostModifier (And [Or [HasType Instant, HasType Sorcery], ControlledBy you])
+          (Reduce [Mana [^1]])) ]
+  , power := Just 2
+  , toughness := Just 2
+  }
+
+-- Thalia, Guardian of Thraben — a TAXER: "noncreature spells cost {1} more" = `Increase`.
+export
+card_Thalia : Card
+card_Thalia = Normal $ ^:
+  { name := Just "Thalia, Guardian of Thraben"
+  , manaCost := [^1, ^White]
+  , types := [Creature]
+  , supertypes := [Legendary]
+  , subtypes := [^Human]
+  , abilities :=
+      [ keyword FirstStrike
+      , Static (CostModifier (And [IsKind IsSpell, Not (HasType Creature)]) (Increase [Mana [^1]])) ]
+  , power := Just 2
+  , toughness := Just 1
+  }
+
+-- Frogmite — AFFINITY for artifacts: "this costs {1} less for each artifact you control." A SELF
+-- `CostModifier` whose `Reduce` is `ScaledBy` the artifact count — affinity needs no own constructor.
+export
+card_Frogmite : Card
+card_Frogmite = Normal $ ^:
+  { name := Just "Frogmite"
+  , manaCost := [^4]
+  , types := [Artifact, Creature]
+  , abilities :=
+      [ Static (CostModifier (SameAs This)
+          (ScaledBy (Reduce [Mana [^1]]) (CountOf (And [HasType Artifact, ControlledBy you])))) ]
+  , power := Just 2
+  , toughness := Just 2
+  }
+
+-- Gaea's Cradle — VARIABLE mana: "{T}: Add {G} for each creature you control" = `AddManaFor (CountOf …)`.
+export
+card_GaeasCradle : Card
+card_GaeasCradle = Normal $ ^:
+  { name := Just "Gaea's Cradle"
+  , types := [Land]
+  , supertypes := [Legendary]
+  , abilities :=
+      [ Activated TapSelf (Act (AddManaFor (CountOf (And [creature, ControlledBy you])) (^Green))) ]
+  }
+
+-- Karametra's Acolyte — DEVOTION: "{T}: Add {G} equal to your devotion to green" = `AddManaFor
+-- (Devotion [Green]) (^Green)`. Devotion is a `Count`, so it drops into mana production for free.
+export
+card_KarametrasAcolyte : Card
+card_KarametrasAcolyte = Normal $ ^:
+  { name := Just "Karametra's Acolyte"
+  , manaCost := [^3, ^Green]
+  , types := [Creature]
+  , subtypes := [^Human]
+  , abilities :=
+      [ Activated TapSelf (Act (AddManaFor (Devotion [Green]) (^Green))) ]
+  , power := Just 1
+  , toughness := Just 4
+  }
+
 --:vim:sts=2 sw=2:

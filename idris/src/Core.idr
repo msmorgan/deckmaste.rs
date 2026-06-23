@@ -410,6 +410,7 @@ mutual
     X : Count b                               -- the chosen {X} value
     CountOf : Predicate b k -> Count b        -- how many entities match a predicate
     StatOf : Reference b AnObject -> Stat -> Count b     -- an object's power/toughness/etc.
+    Devotion : List Color -> Count b          -- devotion ([CR#contributes]): count of mana pips of these colors among your permanents
     EventCount : EventQuery b -> Count b      -- how many matching events occurred (window is in the query)
     CountersOn : (c : CounterKind) -> Reference b (counterCarrier c) -> Count b   -- number of [kind] counters on r (object or player, per `counterCarrier`)
     LifeTotal : Reference b APlayer -> Count b           -- a player's life total
@@ -648,6 +649,17 @@ data Cost : Bindings -> Type where
   Scaled    : Count b -> Cost b -> Cost b         -- the cost paid once per unit of the count ("{2} for each X" = Scaled (CountOf X) (Mana [promote 2]))
   Costs     : List (Cost b) -> Cost b            -- all components together
 
+-- A continuous CHANGE to a spell/ability cost ([CR#118.7]), carried by `StaticEffect::CostModifier`.
+-- Borrowed from the Rust engine's key split: this MODIFIES an existing base — it is NOT an alternative
+-- cost (a base SWAP), which would be a separate type. Count-scaling is ONE recursive node, so affinity
+-- (`ScaledBy (Reduce [Mana [^1]]) (CountOf …)`) and taxers (scale an `Increase`) need no own constructor.
+public export
+data CostChange : Bindings -> Type where
+  Reduce     : List (Cost b) -> CostChange b            -- "costs {…} less"
+  Increase   : List (Cost b) -> CostChange b            -- "costs {…} more"
+  Additional : List (Cost b) -> Bool -> CostChange b    -- "as an additional cost, …"; the Bool = OPTIONAL (the kicker shape)
+  ScaledBy   : CostChange b -> Count b -> CostChange b  -- the change applied once per unit of the count (affinity)
+
 -- How many modes to choose, for a modal effect ([CR#700.2]). Rust: ChooseSpec.
 public export
 data ChooseSpec : Bindings -> Type where
@@ -773,6 +785,10 @@ mutual
               -> {default Nothing onlyToCast : Maybe (Predicate b AnObject)}
               -> {default [] confers : List (StaticEffect (bindIt AnObject b))}
               -> Action b
+    -- VARIABLE mana production: add `amount` mana of `of_` ("{G} for each creature you control"; Cabal
+    -- Coffers; "equal to your devotion to green"). The amount is any `Count` — so devotion-scaled,
+    -- count-scaled, and {X} production all fall out of the value language. ([CR#106.1])
+    AddManaFor : (amount : Count b) -> (of_ : ManaSymbol) -> Action b
 
   -- What a binder (`With`) binds as `That`: a QUERY of existing objects, a PRODUCER
   -- (an `Action` run for effect, binding its product), or a CHOICE (a player picks).
@@ -858,6 +874,10 @@ mutual
   data StaticEffect : Bindings -> Type where
     Modify : Reference b AnObject -> List (Modification b) -> StaticEffect b
     ModifyAll : Predicate b AnObject -> List (Modification b) -> StaticEffect b   -- anthem: "each [filter] gets [mods]"
+    -- continuous COST modification ([CR#118.7]): spells/abilities matching `of_` get the `change`.
+    -- "Instant/sorcery spells you cast cost {1} less" = `CostModifier (And […, ControlledBy you]) (Reduce
+    -- [Mana [^1]])`; affinity is a SELF modifier `CostModifier (SameAs This) (ScaledBy (Reduce …) (CountOf …))`.
+    CostModifier : Predicate b AnObject -> CostChange b -> StaticEffect b
     -- "if [event] would happen, do [effect] instead" — the card names only the
     -- replacement (empty = a pure skip); the engine skips the original + handles edges.
     Replaces : EventQuery b -> OneShotEffect (bindEvent b) -> StaticEffect b
