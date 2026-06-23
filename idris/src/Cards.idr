@@ -580,12 +580,12 @@ card_StudentOfWarfare = Normal $ ^:
   }
 
 -- Iona, Shield of Emeria — an AS-ENTERS value choice ([CR#614.12]): "choose a color", then a static
--- reads it. `AsEntersChoosing AColor` scopes the choice over the card's abilities, which therefore
--- elaborate under `bindChosen AColor Base`; "spells of the chosen color" is `And [IsKind IsSpell,
--- OfChosen]` (`OfChosen` = "has the chosen color", the engine resolving the domain).
+-- reads it. The choice is ONE ability — `AsEnters AColor [...]` — scoping only the static that reads
+-- it (which nests at `bindChosen AColor Base`); `Flying` and the printed face stay at `Base`. "Spells
+-- of the chosen color" is `And [IsKind IsSpell, OfChosen]` (`OfChosen` = "has the chosen color").
 export
 card_Iona : Card
-card_Iona = AsEntersChoosing AColor $ ^:
+card_Iona = Normal $ ^:
   { name := Just "Iona, Shield of Emeria"
   , manaCost := [^6, ^White, ^White, ^White]
   , types := [Creature]
@@ -593,50 +593,51 @@ card_Iona = AsEntersChoosing AColor $ ^:
   , subtypes := [^Angel]
   , abilities :=
       [ keyword Flying
-      , Static (Cant (Casts opponent (And [IsKind IsSpell, OfChosen])))
+      , AsEnters AColor
+          [ Static (Cant (Casts opponent (And [IsKind IsSpell, OfChosen]))) ]
       ]
   , power := Just 7
   , toughness := Just 7
   }
 
--- Steely Resolve — the creature-type companion to Iona's color choice: `AsEntersChoosing ACreatureType`,
--- then `OfChosen` filters "creatures of the chosen type" in a `ModifyAll` that grants shroud. (Cavern
--- of Souls is the iconic creature-type chooser, but its payoff is a RESTRICTED mana ability — "spend
--- this mana only to cast a creature spell of the chosen type" — which needs a restricted-mana
--- subsystem the toy doesn't model [the `AddMana` pool is engine-side]; Steely Resolve exercises the
--- very same `OfChosen` anaphor, faithfully and in full.)
+-- Steely Resolve — the creature-type companion to Iona's color choice: an `AsEnters ACreatureType`
+-- ability wraps the static that filters "creatures of the chosen type" via `OfChosen` (a `ModifyAll`
+-- granting shroud). (Cavern of Souls is the other iconic creature-type chooser.)
 export
 card_SteelyResolve : Card
-card_SteelyResolve = AsEntersChoosing ACreatureType $ ^:
+card_SteelyResolve = Normal $ ^:
   { name := Just "Steely Resolve"
   , manaCost := [^1, ^Green]
   , types := [Enchantment]
   , abilities :=
-      [ Static (ModifyAll (And [creature, OfChosen]) [GrantAbility (keyword Shroud)]) ]
+      [ AsEnters ACreatureType
+          [ Static (ModifyAll (And [creature, OfChosen]) [GrantAbility (keyword Shroud)]) ] ]
   }
 
--- Citadel Siege — the MODAL choose-on-enter case (Outpost Siege's class): `AsEntersChoosing (AMode 2)`
--- picks Khans (0) or Dragons (1); each triggered ability gates on `ChosenIs`. Both abilities are
--- present and fire at begin-of-combat; the unchosen mode's `If (ChosenIs …)` is inert — the toy gates
--- the EFFECT (since `ChosenIs` is a `Condition`), not the ability's existence. "That player controls"
--- (Dragons) reads as `ControlledBy opponent` — exact in two-player.
+-- Citadel Siege — the MODAL choose-on-enter case (Outpost Siege's class): an `AsEnters (AMode 2)`
+-- ability wraps the two triggered abilities, each gated on `ChosenIs`. Both fire at begin-of-combat;
+-- the unchosen mode's `If (ChosenIs …)` is inert — the toy gates the EFFECT (since `ChosenIs` is a
+-- `Condition`), not the ability's existence. "That player controls" (Dragons) reads as
+-- `ControlledBy opponent` — exact in two-player.
 export
 card_CitadelSiege : Card
-card_CitadelSiege = AsEntersChoosing (AMode 2) $ ^:
+card_CitadelSiege = Normal $ ^:
   { name := Just "Citadel Siege"
   , manaCost := [^3, ^White]
   , types := [Enchantment]
   , abilities :=
-      [ -- Khans (0): begin combat on YOUR turn → two +1/+1 counters on a creature you control
-        Triggered (And [KindIs (BeginStep (CombatPhase BeginningOfCombatStep)), DuringTurn you])
-          (If (ChosenIs 0)
-              (Targeted [Target (^1) (And [creature, ControlledBy you])]
-                (Act (PutCounters P1P1 (^2) (GetTarget 0)))))
-      , -- Dragons (1): begin combat on an OPPONENT's turn → tap a creature that opponent controls
-        Triggered (And [KindIs (BeginStep (CombatPhase BeginningOfCombatStep)), DuringTurn opponent])
-          (If (ChosenIs 1)
-              (Targeted [Target (^1) (And [creature, ControlledBy opponent])]
-                (Act (Tap (GetTarget 0)))))
+      [ AsEnters (AMode 2)
+          [ -- Khans (0): begin combat on YOUR turn → two +1/+1 counters on a creature you control
+            Triggered (And [KindIs (BeginStep (CombatPhase BeginningOfCombatStep)), DuringTurn you])
+              (If (ChosenIs 0)
+                  (Targeted [Target (^1) (And [creature, ControlledBy you])]
+                    (Act (PutCounters P1P1 (^2) (GetTarget 0)))))
+          , -- Dragons (1): begin combat on an OPPONENT's turn → tap a creature that opponent controls
+            Triggered (And [KindIs (BeginStep (CombatPhase BeginningOfCombatStep)), DuringTurn opponent])
+              (If (ChosenIs 1)
+                  (Targeted [Target (^1) (And [creature, ControlledBy opponent])]
+                    (Act (Tap (GetTarget 0)))))
+          ]
       ]
   }
 
@@ -646,21 +647,23 @@ card_CitadelSiege = AsEntersChoosing (AMode 2) $ ^:
 -- `That`), then a continuous `Can (Plays …)` on `That`. Dragons pings on a creature you control leaving.
 export
 card_OutpostSiege : Card
-card_OutpostSiege = AsEntersChoosing (AMode 2) $ ^:
+card_OutpostSiege = Normal $ ^:
   { name := Just "Outpost Siege"
   , manaCost := [^3, ^Red]
   , types := [Enchantment]
   , abilities :=
-      [ -- Khans (0): at your upkeep, exile the top card of your library; until eot you may play it
-        Triggered (And [KindIs (BeginStep (BeginningPhase UpkeepStep)), DuringTurn you])
-          (If (ChosenIs 0)
-              (With (Produce (Move (Single (TopOfLibrary (^1))) Exile))
-                (Continuously (Can (Plays you (SameAs (Single That)))) UntilEndOfTurn)))
-      , -- Dragons (1): when a creature you control leaves the battlefield, deal 1 to any target
-        Triggered (And [ KindIs (ZoneChanged (Just Battlefield) Nothing)
-                       , SourceMatches (And [creature, ControlledBy you]) ])
-          (If (ChosenIs 1)
-              (Targeted [anyTarget] (Act (DealDamage (GetTarget 0) (^1)))))
+      [ AsEnters (AMode 2)
+          [ -- Khans (0): at your upkeep, exile the top card of your library; until eot you may play it
+            Triggered (And [KindIs (BeginStep (BeginningPhase UpkeepStep)), DuringTurn you])
+              (If (ChosenIs 0)
+                  (With (Produce (Move (Single (TopOfLibrary (^1))) Exile))
+                    (Continuously (Can (Plays you (SameAs (Single That)))) UntilEndOfTurn)))
+          , -- Dragons (1): when a creature you control leaves the battlefield, deal 1 to any target
+            Triggered (And [ KindIs (ZoneChanged (Just Battlefield) Nothing)
+                           , SourceMatches (And [creature, ControlledBy you]) ])
+              (If (ChosenIs 1)
+                  (Targeted [anyTarget] (Act (DealDamage (GetTarget 0) (^1)))))
+          ]
       ]
   }
 

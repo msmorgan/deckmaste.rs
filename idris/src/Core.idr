@@ -844,6 +844,10 @@ mutual
     Enchant : Predicate b AnObject -> Ability b
     -- a static continuous ability — modifications, anthems, AND replacements live in `StaticEffect`.
     Static : StaticEffect b -> Ability b
+    -- "As ~ enters, choose a [d]" ([CR#614.12]): a single ability that makes the as-enters choice and
+    -- SCOPES it to the abilities that read it — those nest at `bindChosen d b` (so `OfChosen`/`ChosenIs`
+    -- resolve), while the card's other abilities (and its whole printed face) stay at `b`, untouched.
+    AsEnters : (d : ChooseDomain) -> List (Ability (bindChosen d b)) -> Ability b
 
 -- A card's printed face is just `Characteristics` at the empty bindings.
 public export
@@ -886,13 +890,9 @@ implementation DefaultValue (Characteristics b) where
 -- types. The proof is demanded at `Normal`, so `types`/`subtypes` stay plain
 -- fields the `^ { … := … }` builder can still set.
 public export
-SubtypesOk : Characteristics b -> Type
+SubtypesOk : Characteristics Base -> Type
 SubtypesOk c = All (\s => Elem (subtypeCategory s) (types c)) (subtypes c)
 
 public export
 data Card : Type where
   Normal : (c : Characteristics Base) -> {auto ok : SubtypesOk c} -> {auto wf : CharacteristicsOk c} -> Card
-  -- "As ~ enters, choose a [d]" ([CR#614.12]): the choice scopes the WHOLE card, so its abilities
-  -- elaborate under `bindChosen d Base` and may read the choice via `OfChosen` (Iona, Cavern).
-  AsEntersChoosing : (d : ChooseDomain) -> (c : Characteristics (bindChosen d Base)) ->
-                     {auto ok : SubtypesOk c} -> {auto wf : CharacteristicsOk c} -> Card
