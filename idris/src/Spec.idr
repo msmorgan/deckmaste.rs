@@ -173,6 +173,13 @@ tCounterConfers = counterConfers P1P1
 tSubtypeConfers : List (Property Base)
 tSubtypeConfers = subtypeConfers (^Saga)
 
+-- note read-back: a chosen card NAME is read by `OfChosen` (Meddling Mage), a chosen NUMBER by `ChosenNumber`.
+tChosenName : Predicate (bindChosen AName Base) AnObject
+tChosenName = And [IsKind IsSpell, OfChosen]
+
+tChosenNumber : Count (bindChosen ANumber Base)
+tChosenNumber = ChosenNumber
+
 -- a log-derived history count feeds a condition, and a game `Outcome` wraps into an effect
 tHistoryThenWin : OneShotEffect Base
 tHistoryThenWin =
