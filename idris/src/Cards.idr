@@ -754,4 +754,29 @@ card_DelverOfSecrets = TwoFaced Transforming
       , toughness := Just 2
       })
 
+-- Furnace of Rath — PAYLOAD replacement ([CR#616]): "if a source would deal damage, it deals double
+-- instead." `ReplaceAmount` keeps the damage event but scales its amount to `Times ThatMuch (^2)`.
+export
+card_FurnaceOfRath : Card
+card_FurnaceOfRath = Normal $ ^:
+  { name := Just "Furnace of Rath"
+  , manaCost := [^3, ^Red]
+  , types := [Enchantment]
+  , abilities := [ Static (ReplaceAmount (KindIs DealDamage) (Times ThatMuch (^2))) ]
+  }
+
+-- Doubling Season — two payload replacements: twice the tokens you'd create, and twice the counters
+-- that'd be placed on a permanent you control. The token/counter EVENT-KINDS reuse the verb names.
+export
+card_DoublingSeason : Card
+card_DoublingSeason = Normal $ ^:
+  { name := Just "Doubling Season"
+  , manaCost := [^4, ^Green]
+  , types := [Enchantment]
+  , abilities :=
+      [ Static (ReplaceAmount (And [KindIs CreateToken, ActorIs you]) (Times ThatMuch (^2)))
+      , Static (ReplaceAmount (And [KindIs PutCounters, SourceMatches (ControlledBy you)]) (Times ThatMuch (^2)))
+      ]
+  }
+
 --:vim:sts=2 sw=2:
