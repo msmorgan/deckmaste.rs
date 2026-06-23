@@ -147,6 +147,13 @@ subtypeCategory (BattleSub _) = Battle
 public export
 data Stat = Power | Toughness | ManaValue | Defense
 
+-- which stats can be SUMMED across a chosen creature set for a `TapTotal` cost (Crew/Convoke). `Defense`
+-- is a battle stat — meaningless to total over creatures; the rest are fine. (`IsCharDomain` idiom.)
+public export
+IsTappableStat : Stat -> Type
+IsTappableStat Defense = Void
+IsTappableStat _       = ()
+
 public export
 data Cmp = Equal | GreaterEq | LessEq | Greater | Less
 
@@ -192,6 +199,13 @@ public export
 data ObjectState = Tapped | Attacking | Blocking | Blocked | Attached | SummoningSick
                  | Unblocked       -- an attacker past declare-blockers with no blocker ([CR#509.1h])
                  | PhasedOut       -- phased out ([CR#702.26]); "becomes phased" = `Becomes PhasedOut`
+
+-- which `ObjectState`s an object TRANSITIONS into as a game event (gates `Becomes`). `SummoningSick`
+-- isn't one — it's a derived continuous condition `haste` lifts, never a "becomes" event. (`IsCharDomain` idiom.)
+public export
+IsBecomesState : ObjectState -> Type
+IsBecomesState SummoningSick = Void
+IsBecomesState _             = ()
 
 -- Whether a `Reference` denotes an object or a player ([CR#109.1]). One reference
 -- language, indexed by this — strict on the kind where it matters, lax where it doesn't.
@@ -288,11 +302,28 @@ data Window = ThisGame | ThisTurn | LastTurn | ThisCombat | ThisStep
 -- pins `Action` (type-directed disambiguation; no more past-tense `Drew`/`DealtDamage`).
 namespace EventKind
   public export
-  data EventKind
-    = Cast | Sacrifice | Draw | Discard | DealDamage | CreateToken | PutCounters | Destroyed
-    | ZoneChanged (Maybe Zone) (Maybe Zone)
-    | BeginStep PhaseStep
-    | Becomes ObjectState   -- "whenever ~ BECOMES [state]" (becomes blocked/tapped/…; Bushido reads becomes-blocking)
+  data EventKind : Type where
+    Cast : EventKind
+    Sacrifice : EventKind
+    Draw : EventKind
+    Discard : EventKind
+    DealDamage : EventKind
+    CreateToken : EventKind
+    PutCounters : EventKind
+    Destroyed : EventKind
+    ZoneChanged : Maybe Zone -> Maybe Zone -> EventKind
+    BeginStep : PhaseStep -> EventKind
+    -- "whenever ~ BECOMES [state]" — TRANSITION states only (gated; not `SummoningSick`).
+    Becomes : (s : ObjectState) -> {auto prf : IsBecomesState s} -> EventKind
+
+-- which event-kinds carry a numeric AMOUNT (the thing `ReplaceAmount`/`EventSum`/`ThatMuch` operate on).
+-- Damage / token-count / counter-count do; a Cast/ZoneChanged/BeginStep/Becomes does not.
+public export
+eventKindHasAmount : EventKind -> Bool
+eventKindHasAmount DealDamage  = True
+eventKindHasAmount CreateToken = True
+eventKindHasAmount PutCounters = True
+eventKindHasAmount _           = False
 
 -- A value-choice DOMAIN: what an as-enters "choose …" picks from ([CR#614.12]). The chosen value is
 -- bound in `Bindings.chosenKind` and read back by the `OfChosen` anaphor. Characteristic domains
@@ -420,9 +451,11 @@ mutual
     X : Count b                               -- the chosen {X} value
     CountOf : Predicate b k -> Count b        -- how many entities match a predicate
     StatOf : Reference b AnObject -> Stat -> Count b     -- an object's power/toughness/etc.
-    Devotion : List Color -> Count b          -- devotion ([CR#contributes]): count of mana pips of these colors among your permanents
+    Devotion : (colors : List Color) -> {auto prf : NonEmpty colors} -> Count b   -- devotion: pips of these (≥1) colors among your permanents
     EventCount : EventQuery b -> Count b      -- how many matching events occurred (window is in the query)
-    EventSum : EventQuery b -> Count b        -- the SUM of the matching events' amounts ("life lost this turn"), the amount-twin of EventCount
+    -- the SUM of the matching events' amounts (the amount-twin of `EventCount`). Takes the amount-bearing
+    -- KIND explicitly (gated by `eventKindHasAmount`, so `EventSum Cast` is rejected) + optional facets.
+    EventSum : (k : EventKind) -> {auto amt : eventKindHasAmount k = True} -> {default Nothing facets : Maybe (EventQuery b)} -> Count b
     Damage : Reference b AnObject -> Count b  -- marked damage on r ([CR#120.3]); the lethal-damage SBA reads `Compare (Damage This) GreaterEq (StatOf This Toughness)`
     CountersOn : (c : CounterKind) -> Reference b (counterCarrier c) -> Count b   -- number of [kind] counters on r (object or player, per `counterCarrier`)
     LifeTotal : Reference b APlayer -> Count b           -- a player's life total
@@ -683,7 +716,7 @@ data Cost : Bindings -> Type where
   -- AGGREGATE cost: tap a chosen subset of [of_] whose summed [stat] satisfies [cmp] [n]. ONE shape
   -- for Crew ("tap creatures, total power ≥ N" = `TapTotal Power GreaterEq (^n) creature`) — and the
   -- Convoke/devotion-scaling family the engine's authors flagged it should subsume.
-  TapTotal  : Stat -> Cmp -> Count b -> (of_ : Predicate b AnObject) -> Cost b
+  TapTotal  : (s : Stat) -> {auto prf : IsTappableStat s} -> Cmp -> Count b -> (of_ : Predicate b AnObject) -> Cost b
 
 -- A continuous CHANGE to a spell/ability cost ([CR#118.7]), carried by `StaticEffect::CostModifier`.
 -- Borrowed from the Rust engine's key split: this MODIFIES an existing base — it is NOT an alternative
@@ -944,8 +977,9 @@ mutual
     CantHappen : EventQuery b -> StaticEffect b
     -- PAYLOAD replacement ([CR#616]): the event still happens, but its numeric amount becomes
     -- `newAmount` (a `Count` over the event body, so it can read `ThatMuch`). Furnace of Rath =
-    -- `ReplaceAmount [KindIs DealDamage] (Times ThatMuch (^2))`; Gisela's "prevent half" scales down.
-    ReplaceAmount : EventQuery b -> (newAmount : Count (bindEvent b)) -> StaticEffect b
+    -- `ReplaceAmount DealDamage (Times ThatMuch (^2))`. The KIND is explicit + amount-gated, so
+    -- `ReplaceAmount Cast …` (a Cast has no amount) is a TYPE ERROR; `facets` adds non-kind conditions.
+    ReplaceAmount : (k : EventKind) -> {auto amt : eventKindHasAmount k = True} -> {default Nothing facets : Maybe (EventQuery b)} -> (newAmount : Count (bindEvent b)) -> StaticEffect b
     -- a static OUTCOME suppressor: the matching players can't lose / can't win ([CR#104.3a]). Platinum
     -- Angel = `OutcomeGate CantLose you` + `OutcomeGate CantWin opponent`. (Distinct from `CantHappen` —
     -- game-loss isn't a replaceable event — and from a deontic `Cant` — it's not a player action.)
