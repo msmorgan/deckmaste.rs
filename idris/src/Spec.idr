@@ -161,6 +161,10 @@ tAuraEnters = Also thisEnters (With (Choose (^1) creature) (ForEach That (Act (A
 tAuraFallsOff : StaticEffect Base
 tAuraFallsOff = Sba (Not (LegallyAttached This)) (Act (Move This Graveyard))
 
+-- "your unspent mana doesn't empty" (Kruphix/Omnath) — a pool-policy static.
+tManaPersists : StaticEffect Base
+tManaPersists = ManaPersists you
+
 -- a log-derived history count feeds a condition, and a game `Outcome` wraps into an effect
 tHistoryThenWin : OneShotEffect Base
 tHistoryThenWin =
