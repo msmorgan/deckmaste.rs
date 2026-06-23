@@ -667,4 +667,24 @@ card_OutpostSiege = Normal $ ^:
       ]
   }
 
+-- Cavern of Souls — the iconic creature-type chooser, now fully modeled. The {C} ability doesn't read
+-- the choice, so it's a plain sibling; the second ability (which does) nests in `AsEnters
+-- ACreatureType`. That one is RESTRICTED mana: `onlyToCast` allows it only for "a creature spell of
+-- the chosen type" (`OfChosen`), and `confers` makes that spell uncounterable — the paid-for spell is
+-- bound as `It`, so the rider reads `Cant (Countered (SameAs It))`.
+export
+card_CavernOfSouls : Card
+card_CavernOfSouls = Normal $ ^:
+  { name := Just "Cavern of Souls"
+  , types := [Land]
+  , abilities :=
+      [ Activated TapSelf (Act (AddMana [^Colorless]))                              -- {T}: Add {C}
+      , AsEnters ACreatureType
+          [ Activated TapSelf (Act (AddMana [AnyColor]
+              { onlyToCast = Just (And [IsKind IsSpell, creature, OfChosen])
+              , confers    = [Cant (Countered (SameAs It))] }))                     -- {T}: any color — only for a creature spell of the chosen type, uncounterable
+          ]
+      ]
+  }
+
 --:vim:sts=2 sw=2:

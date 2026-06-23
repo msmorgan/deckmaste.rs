@@ -88,6 +88,13 @@ tOfChosen = And [IsKind IsSpell, OfChosen]
 tChosenMode : Condition (bindChosen (AMode 2) Base)
 tChosenMode = ChosenIs 1
 
+-- restricted mana ([CR#106.5]): `onlyToCast` constrains the spend; `confers` rides the paid-for spell,
+-- which is bound as `It` — Cavern's "creature spell of the chosen type, and that spell can't be countered".
+tRestrictedMana : Action (bindChosen ACreatureType Base)
+tRestrictedMana = AddMana [AnyColor]
+  { onlyToCast = Just (And [IsKind IsSpell, creature, OfChosen])
+  , confers    = [Cant (Countered (SameAs It))] }
+
 -- the unified `Quantity` (one `Range` constructor) + its helpers all typecheck
 tQuantities : List (Bindable Base AnObject)
 tQuantities =

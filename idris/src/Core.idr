@@ -31,6 +31,7 @@ data ManaSymbol
   = Simple SimpleManaSymbol
   | Hybrid SimpleManaSymbol Color
   | Variable
+  | AnyColor                  -- "one mana of any color" (the producer picks); Cavern's restricted ability
 
 -- `Promote a b` (method `promote`) is the toy's value-injection interface — formerly Prelude's
 -- `Cast`/`cast`, renamed so the precious MTG words `cast`/`Cast` stay free for actual casting.
@@ -56,6 +57,11 @@ implementation Promote Integer ManaSymbol where
 public export
 implementation Promote Color ManaSymbol where
   promote = Simple . Specific . Just
+
+-- `^Colorless` = {C} (and `^(Just c)` = {c}); `Specific Nothing` is the colorless pip.
+public export
+implementation Promote (Maybe Color) ManaSymbol where
+  promote = Simple . Specific
 
 public export
 ManaCost : Type
@@ -630,6 +636,9 @@ data Deed : Bindings -> Type where
   -- "[player] PLAYS [object]" — cast a spell OR play a land ([CR#601,605]); broader than `Casts`. The
   -- impulse "until end of turn, you may play that card" is `Can (Plays you (SameAs (Single That)))`.
   Plays      : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
+  -- "[the spell] is COUNTERED" — a PASSIVE deed (like `BeTargeted`): `Cant (Countered …)` = "can't be
+  -- countered" (Cavern confers it on the spell its restricted mana pays for).
+  Countered  : (what : Predicate b AnObject) -> Deed b
 
 -- One big mutual block: `Ability → OneShotEffect → Action → CreateToken → Characteristics` is a
 -- cycle, so `Characteristics`/`Action`/`Bindable` join the effect/ability block below. (The leaf
@@ -708,7 +717,14 @@ mutual
     Shuffle : {default You actor : Reference b APlayer} -> Action b
     CreateToken : Count b -> (c : Characteristics b) -> {auto wf : CharacteristicsOk c} -> Action b   -- the token's full characteristics (P/T may be a `Count b`)
     CopySpell : Reference b AnObject -> Action b                   -- "copy target spell" — FLAG: copy semantics deferred to engine
-    AddMana : {default You actor : Reference b APlayer} -> ManaCost -> Action b   -- "add {G}" (mana ability effect); pool/paying is engine
+    -- "add {G}" (a mana-ability effect; pool/paying is engine). RESTRICTED mana ([CR#106.5]):
+    -- `onlyToCast` is the spend constraint ("spend only to cast a [pred] spell"); `confers` are
+    -- continuous effects the engine applies to the spell the mana DOES pay for — that spell is bound
+    -- as `It`, so Cavern's "and that spell can't be countered" is `[Cant (Countered (SameAs It))]`.
+    AddMana : {default You actor : Reference b APlayer} -> ManaCost
+              -> {default Nothing onlyToCast : Maybe (Predicate b AnObject)}
+              -> {default [] confers : List (StaticEffect (bindIt AnObject b))}
+              -> Action b
 
   -- What a binder (`With`) binds as `That`: a QUERY of existing objects, a PRODUCER
   -- (an `Action` run for effect, binding its product), or a CHOICE (a player picks).
