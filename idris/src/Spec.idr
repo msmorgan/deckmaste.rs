@@ -145,6 +145,14 @@ tMustPay = MustPay (Mana [^2]) (Act (Counter (Only (IsKind IsSpell))))
 tScaledCost : Cost Base
 tScaledCost = Scaled (CountOf creature) (Mana [^2])
 
+-- continuous cost modification: affinity = a `Reduce` `ScaledBy` a count (one recursive node), and
+-- devotion is just a `Count`, so it drops into mana production and cost-scaling alike.
+tAffinity : StaticEffect Base
+tAffinity = CostModifier (SameAs This) (ScaledBy (Reduce [Mana [^1]]) (CountOf (HasType Artifact)))
+
+tDevotion : Count Base
+tDevotion = Devotion [Black, Green]
+
 -- counters: the `HasCounter` predicate facet + the put/remove verbs
 tCounters : OneShotEffect Base
 tCounters = Sequence [ ForEach (SelectAll creature) (Act (PutCounters P1P1 (Literal 1) It))
