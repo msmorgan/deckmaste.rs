@@ -73,10 +73,10 @@ tSubjectFilter = HasType Creature
 -- new filter atoms (close the audit's #1 hole): a numeric STAT comparison ("creature with power ≤
 -- 2") and runtime OBJECT STATE ("an attacking creature") — both now `Predicate`s, not just `Condition`s.
 tStatFilter : Predicate Base AnObject
-tStatFilter = AllOf [creature, StatCmp Power LessEq (^2)]
+tStatFilter = And [creature, StatCmp Power LessEq (^2)]
 
 tStateFilter : Predicate Base AnObject
-tStateFilter = AllOf [creature, HasState Attacking, IsNot (HasState Tapped)]
+tStateFilter = And [creature, HasState Attacking, Not (HasState Tapped)]
 
 -- the unified `Quantity` (one `Range` constructor) + its helpers all typecheck
 tQuantities : List (Bindable Base AnObject)
@@ -88,17 +88,17 @@ tQuantities =
   , Choose anyNumber creature
   ]
 
--- the event-query language: facets conjoin (`Query`), `Except` negates, timing via
+-- the event-query language: facets conjoin (`And`), `Not` negates, timing via
 -- `DuringTurn` — "a creature died, not during your turn".
 tEventQuery : EventQuery Base
-tEventQuery = Query [ KindIs (ZoneChanged (Just Battlefield) (Just Graveyard))
+tEventQuery = And [ KindIs (ZoneChanged (Just Battlefield) (Just Graveyard))
                     , SourceMatches creature
-                    , Except (DuringTurn you) ]
+                    , Not (DuringTurn you) ]
 
 -- a log-derived history count feeds a condition, and a game `Outcome` wraps into an effect
 tHistoryThenWin : OneShotEffect Base
 tHistoryThenWin =
-  If (Compare (EventCount (Query [KindIs Cast, ActorIs you, Within ThisGame])) GreaterEq (Literal 2))
+  If (Compare (EventCount (And [KindIs Cast, ActorIs you, Within ThisGame])) GreaterEq (Literal 2))
      (Conclude (WinGame You))
 
 -- an activated ability: a multi-component cost algebra + an effect
@@ -121,11 +121,11 @@ tScaledCost = Scaled (CountOf creature) (Mana [^2])
 -- counters: the `HasCounter` predicate facet + the put/remove verbs
 tCounters : OneShotEffect Base
 tCounters = Sequence [ ForEach (SelectAll creature) (Act (PutCounters P1P1 (Literal 1) It))
-                     , ForEach (SelectAll (IsNot (HasCounter P1P1))) (Act (Destroy It)) ]
+                     , ForEach (SelectAll (Not (HasCounter P1P1))) (Act (Destroy It)) ]
 
 -- anthem: a static `ModifyAll` over a controller-predicate filter, with layer mods
 tAnthem : Ability Base
-tAnthem = Static (ModifyAll (AllOf [HasType Creature, ControlledBy you]) [ModifyPT (^1) (^1), AddSubtype (^Bear)])
+tAnthem = Static (ModifyAll (And [HasType Creature, ControlledBy you]) [ModifyPT (^1) (^1), AddSubtype (^Bear)])
 
 -- a loyalty ability: an Activated ability whose cost removes Loyalty counters
 tLoyalty : Ability Base
@@ -204,18 +204,18 @@ tEachPlayerForEach = ForEach eachPlayer (Act (Draw {actor = It} (^1)))
 -- slot 0 is a player, slot 1 an object — each `GetTarget` strictly kinded by its own slot.
 tMixedTargets : OneShotEffect Base
 tMixedTargets =
-  Targeted [Target (^1) Anyone, Target (^1) (AllOf [permanent, ControlledBy you])]
+  Targeted [Target (^1) Anyone, Target (^1) (And [permanent, ControlledBy you])]
     (Continuously (Modify (GetTarget 1) [GainControl (GetTarget 0)]) Permanent)
 
--- `OneOf` computes its result kind by JOINING its arms' kinds (`\/`): same-kind stays
+-- `Or` computes its result kind by JOINING its arms' kinds (`\/`): same-kind stays
 -- precise (`AnObject`), a mix of object + player widens to `Anything` — no `Widen` needed.
 tOneOfKinds : (Predicate Base AnObject, Predicate Base Anything)
-tOneOfKinds = (OneOf [creature, permanent], OneOf [creature, Anyone])
+tOneOfKinds = (Or [creature, permanent], Or [creature, Anyone])
 
--- the join identity: an EMPTY `OneOf` folds to `Empty` (a vacuous union — matches nothing).
+-- the join identity: an EMPTY `Or` folds to `Empty` (a vacuous union — matches nothing).
 -- `Empty` is a distinct bottom kind, unusable where a real `AnObject`/`APlayer` is wanted.
 tEmptyOneOf : Predicate Base Empty
-tEmptyOneOf = OneOf []
+tEmptyOneOf = Or []
 
 -- a deontic Toll: Ward {2} — being targeted by an opponent's spell/ability stays fully legal,
 -- but a trigger counters it unless {2} is paid (cost FIRST). The 4th polarity (Cant/Must/Gate
@@ -246,7 +246,7 @@ tDeonticCan = Static (Can (Attacks (SameAs This)))
 -- have defender" — a permission whose premise lifts defender's `Cant`.
 tAsThough : OneShotEffect Base
 tAsThough = Continuously
-  (AsThough (Matches This (IsNot (HasKeyword Defender))) (Can (Attacks (SameAs This))))
+  (AsThough (Matches This (Not (HasKeyword Defender))) (Can (Attacks (SameAs This))))
   UntilEndOfTurn
 
 -- Flash's desugaring is pinned by Refl: a `Can`-cast at instant speed (a widened window).
@@ -278,7 +278,7 @@ tSingle = Single (SelectAll creature)
 
 -- a PLURAL target slot (1–2) feeds divided damage; the kind is the union (`Anything`)
 tPluralTarget : OneShotEffect Base
-tPluralTarget = Targeted [Target (between (^1) (^2)) (OneOf [creature, Anyone])]
+tPluralTarget = Targeted [Target (between (^1) (^2)) (Or [creature, Anyone])]
   (Act (DealDamageDivided (^2) (GetTargets 0)))
 
 -- NEGATIVE — each must be rejected --------------------------------------------
