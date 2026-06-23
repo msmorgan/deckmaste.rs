@@ -197,7 +197,15 @@ tValues =
   , HalfUp (StatOf This Power)
   , CountersOn P1P1 This
   , StatOf This ManaValue
-  , ThatMuch ]
+  , ThatMuch
+  , Min (CountersOn P1P1 This) (CountersOn M1M1 This)   -- net counters after annihilation
+  , Max (StatOf This Power) (^0)
+  , Damage This                                          -- marked damage
+  , EventSum (And [KindIs DealDamage, ActorIs opponent]) ]  -- amount-twin of EventCount
+
+-- the lethal-damage SBA now states directly: marked damage ≥ toughness.
+tLethalSba : Condition Base
+tLethalSba = Compare (Damage This) GreaterEq (StatOf This Toughness)
 
 -- new verbs (scry/fight/token/search/copy) all typecheck
 tVerbs : List (OneShotEffect Base)

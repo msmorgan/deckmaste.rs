@@ -415,6 +415,8 @@ mutual
     StatOf : Reference b AnObject -> Stat -> Count b     -- an object's power/toughness/etc.
     Devotion : List Color -> Count b          -- devotion ([CR#contributes]): count of mana pips of these colors among your permanents
     EventCount : EventQuery b -> Count b      -- how many matching events occurred (window is in the query)
+    EventSum : EventQuery b -> Count b        -- the SUM of the matching events' amounts ("life lost this turn"), the amount-twin of EventCount
+    Damage : Reference b AnObject -> Count b  -- marked damage on r ([CR#120.3]); the lethal-damage SBA reads `Compare (Damage This) GreaterEq (StatOf This Toughness)`
     CountersOn : (c : CounterKind) -> Reference b (counterCarrier c) -> Count b   -- number of [kind] counters on r (object or player, per `counterCarrier`)
     LifeTotal : Reference b APlayer -> Count b           -- a player's life total
     HandSize : Reference b APlayer -> Count b            -- cards in a player's hand
@@ -423,6 +425,8 @@ mutual
     Times : Count b -> Count b -> Count b
     HalfUp : Count b -> Count b                          -- "half, rounded up"
     HalfDown : Count b -> Count b
+    Min : Count b -> Count b -> Count b                  -- the lesser ([CR#704.5q] +1/+1 vs −1/−1 annihilation; "the lesser of X and Y")
+    Max : Count b -> Count b -> Count b                  -- the greater
     ThatMuch : Count b                                   -- FLAG: amount-anaphora (the preceding amount; ungated)
 
   -- A PREDICATE: a test on a single IMPLICIT candidate object — i.e. a *filter*.
