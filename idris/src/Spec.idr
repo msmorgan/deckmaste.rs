@@ -258,6 +258,11 @@ tFlashWindow = Refl
 tMenace : keyword Menace = the (Ability Base) (Keyword (Composite Menace [Static (Cant (BlockedBy (SameAs This) (^1)))]))
 tMenace = Refl
 
+-- Haste is a GRANTABLE keyword built from the as-though machinery (continuous; lifts summoning
+-- sickness). Typechecks as an `Ability`; granted in real use via `GrantAbility (keyword Haste)`.
+tHaste : Ability Base
+tHaste = keyword Haste
+
 -- the `^` prefix alias = `promote`: terse in lists / delimited position (`[^Red, ^1]`). In a
 -- juxtaposed ARGUMENT it needs parens — `Draw (^1)` — since bare `Draw ^1` reads `^` as infix.
 tPromoteOp : ManaCost

@@ -152,11 +152,11 @@ Cloudshift = Normal $ ^:
       ]
   }
 
--- TRICKY: Through the Breach — put a creature onto the battlefield (binding it as
--- `That`), then a DELAYED trigger sacrifices `That` at the next end step. The
--- captured `That` is the acceptance test: if the engine can't still find the
--- object at fire time (it was blinked away), the sacrifice does nothing.
--- ("may" and "gains haste" omitted for focus.)
+-- TRICKY: Through the Breach — put a creature onto the battlefield (binding it as `That`); it GAINS
+-- HASTE (now a grantable keyword — a continuous `GrantAbility (keyword Haste)` until end of turn);
+-- then a DELAYED trigger sacrifices `That` at the next end step. The captured `That` is the
+-- acceptance test: if the engine can't still find the object at fire time, the sacrifice does
+-- nothing. (The alternative cast cost stays casting machinery, not a card-effect clause.)
 export
 ThroughTheBreach : Card
 ThroughTheBreach = Normal $ ^:
@@ -168,6 +168,7 @@ ThroughTheBreach = Normal $ ^:
           With (Choose (^1) (AllOf [inHand, creature])) $
             Sequence
               [ ForEach That (Act (Move It Battlefield))
+              , Continuously (Modify (Single That) [GrantAbility (keyword Haste)]) UntilEndOfTurn  -- "it gains haste"
               , Delayed nextEndStep (ForEach That (Act (Move It Graveyard))) ]
       ]
   }
@@ -258,13 +259,14 @@ LilianaOfTheVeil = Normal $ ^:
 -- Tide Shaper — layers + kicker. The kicked ETB makes a target land an Island for a
 -- duration (AddSubtype + ForAsLongAs); a conditional static grants +1/+1 while an
 -- opponent controls an Island (`While` + `exists`). FLAG: kicker is the WasKicked
--- boolean (no cost-mode model); Merfolk/Wizard subtypes omitted.
+-- boolean (no cost-mode model).
 export
 TideShaper : Card
 TideShaper = Normal $ ^:
   { name := Just "Tide Shaper"
   , manaCost := [^Blue]
   , types := [Creature]
+  , subtypes := [^Merfolk, ^Wizard]
   , abilities :=
       [ Triggered (Query [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
           (If (Matches This WasKicked)
@@ -299,20 +301,21 @@ Necropotence = Normal $ ^:
       ]
   }
 
--- Notion Thief — replace an opponent's draw with "you draw a card" instead; the card
--- just names the replacement, the engine handles the opponent skipping their draw.
--- FLAG (grammar): "except the first draw each draw step" is approximated as `Except
--- (DuringStep draw-step)` — we have no ordinal facet to say "the first".
+-- Notion Thief — replace an opponent's draw with "you draw a card" instead. "Except the FIRST one
+-- they draw in each of their draw steps" is now FAITHFUL via the ordinal `IsFirst` facet: only the
+-- first draw-step draw is exempt, so a SECOND draw-step draw (or any draw outside it) is still
+-- stolen — exactly as written. (Rogue subtype now in the enum.)
 export
 NotionThief : Card
 NotionThief = Normal $ ^:
   { name := Just "Notion Thief"
   , manaCost := [^2, ^Blue, ^Black]
   , types := [Creature]
+  , subtypes := [^Human, ^Rogue]
   , abilities :=
       [ keyword Flash
       , Static (Replaces (Query [ KindIs Drew, ActorIs opponent
-                                , Except (Query [DuringStep (BeginningPhase DrawStep)]) ])
+                                , Except (Query [DuringStep (BeginningPhase DrawStep), IsFirst ThisStep]) ])
           (Act (Draw {actor = You} (^1))))
       ]
   , power := Just 3
@@ -393,13 +396,14 @@ Pacifism = Normal $ ^:
   }
 
 -- Juggernaut — "attacks each combat if able" (a `Must`) + "can't be blocked by Walls" (a
--- `Cant` on the blocker). The Juggernaut creature-subtype is omitted (not in the enum).
+-- `Cant` on the blocker).
 export
 Juggernaut : Card
 Juggernaut = Normal $ ^:
   { name := Just "Juggernaut"
   , manaCost := [^4]
   , types := [Artifact, Creature]
+  , subtypes := [^(Core.Juggernaut)]   -- qualify: the subtype, not this card
   , power := Just 5
   , toughness := Just 3
   , abilities :=
@@ -408,11 +412,10 @@ Juggernaut = Normal $ ^:
       ]
   }
 
--- Ghostly Prison — "Creatures can't attack you unless their controller pays {2} …" — a `Gate`
--- (cost FIRST): the attack is legal only if the toll is paid, never compulsory. The "{2} for
--- EACH attacking creature" scaling is now expressible via `Scaled (CountOf …) (Mana [^2])`,
--- but the count "creatures attacking you" needs an "is-attacking" combat-state predicate we
--- don't have yet — so this stays flat {2} for now.
+-- Ghostly Prison — "Creatures can't attack you unless their controller pays {2} for each creature
+-- they control that's attacking you" — a `Gate` (cost FIRST; never compulsory). This is NOT a flat
+-- approximation: the `Deed` is PER-ATTACKER (`Attacks creature {whom = you}`), so the Gate charges
+-- {2} per attacker attacking you — N attackers ⇒ {2}N, exactly the printed cost. (No `Scaled` needed.)
 export
 GhostlyPrison : Card
 GhostlyPrison = Normal $ ^:
@@ -460,14 +463,14 @@ ManaLeak = Normal $ ^:
 
 -- Invisible Stalker — a DEONTIC-KEYWORD creature: `keyword (Hexproof Nothing)` is a `Composite`
 -- carrying its can't-be-targeted `Cant`; "can't be blocked" is a second `Cant` (no creature may
--- block it). (Rogue subtype omitted — not in the enum.)
+-- block it).
 export
 InvisibleStalker : Card
 InvisibleStalker = Normal $ ^:
   { name := Just "Invisible Stalker"
   , manaCost := [^1, ^Blue]
   , types := [Creature]
-  , subtypes := [^Human]
+  , subtypes := [^Human, ^Rogue]
   , power := Just 1
   , toughness := Just 1
   , abilities :=
@@ -525,14 +528,14 @@ AmbushViper = Normal $ ^:
   }
 
 -- Menace: a SET-LEVEL `Cant` (the whole blocker set must be ≥2, not a per-blocker check) — the
--- `BlockedBy` deed the doc flags as mandatory. (Warrior subtype omitted — not in the enum.)
+-- `BlockedBy` deed the doc flags as mandatory.
 export
 BoggartBrute : Card
 BoggartBrute = Normal $ ^:
   { name := Just "Boggart Brute"
   , manaCost := [^2, ^Red]
   , types := [Creature]
-  , subtypes := [^Goblin]
+  , subtypes := [^Goblin, ^Warrior]
   , abilities := [keyword Menace]
   , power := Just 3
   , toughness := Just 2

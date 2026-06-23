@@ -87,7 +87,8 @@ data Zone
 -- exactly one card type. `subtypeCategory` is that (total) correlation.
 public export
 data CreatureSubtype
-  = Bear | Rat | Spider | Human | Knight | Goblin | Elf | Zombie | Elemental | Wall | Spirit  -- creature types
+  = Bear | Rat | Spider | Human | Knight | Goblin | Elf | Zombie | Elemental | Wall | Spirit
+  | Rogue | Warrior | Merfolk | Wizard | Juggernaut  -- creature types
 public export
 data EnchantmentSubtype
   = Aura
@@ -168,10 +169,11 @@ public export
 data Restriction = OncePerTurn | OncePerGame
 
 -- Runtime object STATE (not a printed characteristic) — what a `HasState` predicate tests
--- ([CR#509] combat, [CR#701.3] attach, [CR#701.20] tap). Negatives via `IsNot` ("untapped
--- creature" = `IsNot (HasState Tapped)`, "unblocked attacker" = `IsNot (HasState Blocked)`).
+-- ([CR#509] combat, [CR#701.3] attach, [CR#701.20] tap, [CR#302.6] summoning sickness). Negatives
+-- via `IsNot` ("untapped" = `IsNot (HasState Tapped)`). `SummoningSick` is what `haste` lifts —
+-- "may attack/tap as though it weren't summoning-sick" (an `AsThough` premise, see Macros).
 public export
-data ObjectState = Tapped | Attacking | Blocking | Blocked | Attached
+data ObjectState = Tapped | Attacking | Blocking | Blocked | Attached | SummoningSick
 
 -- Whether a `Reference` denotes an object or a player ([CR#109.1]). One reference
 -- language, indexed by this — strict on the kind where it matters, lax where it doesn't.
@@ -291,9 +293,9 @@ mutual
   -- A KEYWORD's tag + params ([CR#702]) — the "name" side of a keyword. In this block so
   -- `HasKeyword` can read it and `Hexproof`'s "from" filter can be a `Predicate` (which may name
   -- an anaphor — "from the CHOSEN color"). `keyword` (Macros) desugars a spec into its full `Ability`
-  -- (a `Composite`): the deontic ones (Flying/Defender/Shroud/Hexproof) get a `Cant`; the rest
-  -- (FirstStrike/Deathtouch/Trample = damage; Vigilance = event-edit; Reach/Flash = flag/window)
-  -- carry no clause. (Menace omitted: set-level.)
+  -- (a `Composite`): the deontic ones (Flying/Defender/Shroud/Hexproof/Menace) get a `Cant` (Menace's
+  -- is the SET-level `BlockedBy`); the rest (FirstStrike/Deathtouch/Trample = damage; Vigilance =
+  -- event-edit; Reach/Flash = flag/window) carry no clause.
   public export
   data KeywordSpec : Bindings -> Type where
     Flying : KeywordSpec b
@@ -304,6 +306,7 @@ mutual
     Trample : KeywordSpec b
     Vigilance : KeywordSpec b
     Flash : KeywordSpec b
+    Haste : KeywordSpec b
     Defender : KeywordSpec b
     Shroud : KeywordSpec b
     Menace : KeywordSpec b
@@ -413,6 +416,10 @@ mutual
     Within        : Window -> EventQuery b
     DuringStep    : PhaseStep -> EventQuery b
     DuringTurn    : Predicate b APlayer -> EventQuery b   -- the turn's player matches a player-pred
+    -- "this is the FIRST event (matching the surrounding facets) in the window" — an ORDINAL facet,
+    -- engine-resolved like `EventCount` ([CR#603.2e] "the first time each…"). Notion Thief: "except the
+    -- first draw each draw step" = `Except (Query [DuringStep drawStep, IsFirst ThisStep])`.
+    IsFirst       : Window -> EventQuery b
     Query  : List (EventQuery b) -> EventQuery b   -- AND
     Join   : List (EventQuery b) -> EventQuery b   -- OR
     Except : EventQuery b -> EventQuery b          -- NOT
