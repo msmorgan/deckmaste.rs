@@ -78,6 +78,11 @@ tStatFilter = And [creature, StatCmp Power LessEq (^2)]
 tStateFilter : Predicate Base AnObject
 tStateFilter = And [creature, HasState Attacking, Not (HasState Tapped)]
 
+-- an as-enters value choice in scope: `OfChosen` reads "the chosen color" under a `bindChosen AColor`
+-- binding (Iona: "spells of the chosen color"). The card-level `AsEntersChoosing` opens this binding.
+tOfChosen : Predicate (bindChosen AColor Base) AnObject
+tOfChosen = And [IsKind IsSpell, OfChosen]
+
 -- the unified `Quantity` (one `Range` constructor) + its helpers all typecheck
 tQuantities : List (Bindable Base AnObject)
 tQuantities =
@@ -302,6 +307,11 @@ failing
 failing
   tBadZeroBlock : StaticEffect Base
   tBadZeroBlock = Cant (BlockedBy (SameAs This) (^0))
+
+-- `OfChosen` with no as-enters choice in scope — `IsCharDomain Nothing = Void` denies the anaphor
+failing
+  tBadOfChosenNoChoice : Predicate Base AnObject
+  tBadOfChosenNoChoice = OfChosen
 
 -- `That` with no enclosing `With`
 failing
