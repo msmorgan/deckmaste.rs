@@ -1033,4 +1033,31 @@ card_Skred = Normal $ ^:
           (Act (DealDamage (GetTarget 0) (CountOf (And [HasSupertype Snow, ControlledBy you]))))) ]
   }
 
+-- History of Benalia — a SAGA, via the `Property` mechanism. The `Saga` subtype CONFERS the lore-
+-- increment (`subtypeConfers (^Saga)` = a `PropTurnBased` adding a Lore counter each precombat main),
+-- so the card only spells its CHAPTERS (triggered on the Lore count) + the final-chapter `Sba` sacrifice.
+export
+card_HistoryOfBenalia : Card
+card_HistoryOfBenalia = Normal $ ^:
+  { name := Just "History of Benalia"
+  , manaCost := [^1, ^White]
+  , types := [Enchantment]
+  , subtypes := [^Saga]
+  , abilities :=
+      [ -- I, II — create a 2/2 white Knight
+        Triggered (And [KindIs PutCounters, SourceMatches (SameAs This)])
+          (If (Or [ Compare (CountersOn Lore This) Equal (^1)
+                  , Compare (CountersOn Lore This) Equal (^2) ])
+              (Act (CreateToken (^1)
+                (^: { name := Just "Knight", types := [Creature], subtypes := [^Knight]
+                    , colors := [White], power := Just 2, toughness := Just 2 }))))
+      , -- III — Knights you control get +2/+1 until end of turn
+        Triggered (And [KindIs PutCounters, SourceMatches (SameAs This)])
+          (If (Compare (CountersOn Lore This) Equal (^3))
+              (Continuously (ModifyAll (And [HasSubtype (^Knight), ControlledBy you]) [ModifyPT (^2) (^1)]) UntilEndOfTurn))
+      , -- sacrifice after the final chapter ([CR#714.4])
+        Static (Sba (Compare (CountersOn Lore This) GreaterEq (^3)) (Act (Move This Graveyard)))
+      ]
+  }
+
 --:vim:sts=2 sw=2:
