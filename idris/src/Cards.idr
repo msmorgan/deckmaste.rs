@@ -1009,4 +1009,28 @@ card_DarksteelCitadel = Normal $ ^:
       ]
   }
 
+-- Mutagenic Growth — PHYREXIAN mana ({G/P}: pay {G} or 2 life): target creature gets +2/+2.
+export
+card_MutagenicGrowth : Card
+card_MutagenicGrowth = Normal $ ^:
+  { name := Just "Mutagenic Growth"
+  , manaCost := [Phyrexian Green]
+  , types := [Instant]
+  , abilities :=
+      [ Spell (Targeted [Target (^1) creature]
+          (Continuously (Modify (GetTarget 0) [ModifyPT (^2) (^2)]) UntilEndOfTurn)) ]
+  }
+
+-- Skred — SNOW mana ({S}): deals damage to target creature equal to the snow permanents you control.
+export
+card_Skred : Card
+card_Skred = Normal $ ^:
+  { name := Just "Skred"
+  , manaCost := [SnowMana, ^Red]
+  , types := [Sorcery]
+  , abilities :=
+      [ Spell (Targeted [Target (^1) creature]
+          (Act (DealDamage (GetTarget 0) (CountOf (And [HasSupertype Snow, ControlledBy you]))))) ]
+  }
+
 --:vim:sts=2 sw=2:

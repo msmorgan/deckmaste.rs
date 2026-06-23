@@ -32,6 +32,8 @@ data ManaSymbol
   | Hybrid SimpleManaSymbol Color
   | Variable
   | AnyColor                  -- "one mana of any color" (the producer picks); Cavern's restricted ability
+  | Phyrexian Color           -- "{W/P}" — pay the color OR 2 life ([CR#107.4f])
+  | SnowMana                  -- "{S}" — one mana from a snow source ([CR#107.4g]); `SnowMana`, not `Snow` (the supertype)
 
 -- `Promote a b` (method `promote`) is the toy's value-injection interface — formerly Prelude's
 -- `Cast`/`cast`, renamed so the precious MTG words `cast`/`Cast` stay free for actual casting.
@@ -934,6 +936,9 @@ mutual
     -- never branches on subtype. (The engine confers the Aura one via the Aura subtype's `Property`,
     -- which the toy has no analogue for — so it's a shared rule here, shown once, not per-card.)
     Sba : Condition b -> OneShotEffect b -> StaticEffect b
+    -- "[who]'s unspent mana doesn't empty" ([CR#500.4] exception) — Kruphix/Omnath. A pool-policy
+    -- static (the per-mana `ManaRider::Persistent` case folds into this blanket form). Engine resolves.
+    ManaPersists : Predicate b APlayer -> StaticEffect b
     -- the inner continuous effect applies only WHILE the condition holds ([CR#604.3]) —
     -- a conditional static ("gets +1/+1 as long as …").
     While : Condition b -> StaticEffect b -> StaticEffect b
