@@ -325,6 +325,12 @@ failing
   tBadTwoFacedBack : Card
   tBadTwoFacedBack = TwoFaced Split (^: { types := [Instant] }) (^: { name := Just "Back" })
 
+-- a PLAYER-carried counter can't go on an object — `counterCarrier Poison = APlayer`, so `This`
+-- (an `AnObject` reference) is rejected with no runtime check. The dependent carrier is load-bearing.
+failing
+  tBadPoisonOnObject : Action Base
+  tBadPoisonOnObject = PutCounters Poison (^1) This
+
 -- a 0-size block is rejected — a declared block has ≥1 blocker (`NonZeroQ` on `BlockedBy`'s size)
 failing
   tBadZeroBlock : StaticEffect Base
