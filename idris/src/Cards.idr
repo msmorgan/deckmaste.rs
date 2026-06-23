@@ -599,4 +599,20 @@ card_Iona = AsEntersChoosing AColor $ ^:
   , toughness := Just 7
   }
 
+-- Steely Resolve — the creature-type companion to Iona's color choice: `AsEntersChoosing ACreatureType`,
+-- then `OfChosen` filters "creatures of the chosen type" in a `ModifyAll` that grants shroud. (Cavern
+-- of Souls is the iconic creature-type chooser, but its payoff is a RESTRICTED mana ability — "spend
+-- this mana only to cast a creature spell of the chosen type" — which needs a restricted-mana
+-- subsystem the toy doesn't model [the `AddMana` pool is engine-side]; Steely Resolve exercises the
+-- very same `OfChosen` anaphor, faithfully and in full.)
+export
+card_SteelyResolve : Card
+card_SteelyResolve = AsEntersChoosing ACreatureType $ ^:
+  { name := Just "Steely Resolve"
+  , manaCost := [^1, ^Green]
+  , types := [Enchantment]
+  , abilities :=
+      [ Static (ModifyAll (And [creature, OfChosen]) [GrantAbility (keyword Shroud)]) ]
+  }
+
 --:vim:sts=2 sw=2:
