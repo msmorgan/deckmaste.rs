@@ -248,7 +248,6 @@ tValues =
   , HalfUp (StatOf This Power)
   , CountersOn P1P1 This
   , StatOf This ManaValue
-  , ThatMuch
   , Min (CountersOn P1P1 This) (CountersOn M1M1 This)   -- net counters after annihilation
   , Max (StatOf This Power) (^0)
   , Damage This                                          -- marked damage
@@ -451,10 +450,27 @@ failing
   tBadDevotionEmpty : Count Base
   tBadDevotionEmpty = Devotion []
 
--- a `TapTotal` over `Defense` (a battle stat) is rejected — `IsTappableStat Defense = Void`
+-- THE INVALID-REFERENCE GATE: an event anaphor is valid only where the event SUPPLIES it (`eventQueryCaps`).
+-- `EventObject` ("that card") in a step-begin body — a `BeginStep` event has no object.
 failing
-  tBadTapDefense : Cost Base
-  tBadTapDefense = TapTotal Defense GreaterEq (^3) creature
+  tBadEventObjectNoObject : Ability Base
+  tBadEventObjectNoObject =
+    Triggered (KindIs (BeginStep (BeginningPhase UpkeepStep))) (Act (Move EventObject Exile))
+
+-- `ThatMuch` (the amount) in a Cast body — a Cast carries no amount.
+failing
+  tBadThatMuchNoAmount : StaticEffect Base
+  tBadThatMuchNoAmount = Replaces (KindIs Cast) (Act (DealDamage This ThatMuch))
+
+-- `EventActor` ("that player") in a Destroyed body — a destruction has no actor.
+failing
+  tBadEventActorNoActor : Ability Base
+  tBadEventActorNoActor = Triggered (KindIs Destroyed) (Conclude (WinGame EventActor))
+
+-- ...and the anaphora DO work where the event supplies them: `EventActor` in a Cast body (the caster).
+tEventActorValid : Ability Base
+tEventActorValid = Triggered (KindIs Cast) (Conclude (WinGame EventActor))
+
 
 -- a 0-size block is rejected — a declared block has ≥1 blocker (`NonZeroQ` on `BlockedBy`'s size)
 failing
