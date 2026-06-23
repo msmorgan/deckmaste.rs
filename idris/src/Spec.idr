@@ -180,6 +180,10 @@ tChosenName = And [IsKind IsSpell, OfChosen]
 tChosenNumber : Count (bindChosen ANumber Base)
 tChosenNumber = ChosenNumber
 
+-- phasing: the `PhasedOut` state filters a phased permanent; `PhaseOut` is the verb.
+tPhasedFilter : Predicate Base AnObject
+tPhasedFilter = And [creature, HasState PhasedOut]
+
 -- a log-derived history count feeds a condition, and a game `Outcome` wraps into an effect
 tHistoryThenWin : OneShotEffect Base
 tHistoryThenWin =

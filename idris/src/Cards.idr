@@ -1077,4 +1077,20 @@ card_MeddlingMage = Normal $ ^:
   , toughness := Just 2
   }
 
+-- Vodalian Illusionist — PHASING: "{2}, {T}: Target creature phases out." `PhaseOut` verb +
+-- `PhasedOut` state; phasing back in is the engine's turn-based action.
+export
+card_VodalianIllusionist : Card
+card_VodalianIllusionist = Normal $ ^:
+  { name := Just "Vodalian Illusionist"
+  , manaCost := [^1, ^Blue]
+  , types := [Creature]
+  , subtypes := [^Merfolk, ^Wizard]
+  , abilities :=
+      [ Activated (Costs [Mana [^2], TapSelf])
+          (Targeted [Target (^1) creature] (Act (PhaseOut (GetTarget 0)))) ]
+  , power := Just 1
+  , toughness := Just 1
+  }
+
 --:vim:sts=2 sw=2:
