@@ -94,7 +94,7 @@ data Zone
 public export
 data CreatureSubtype
   = Bear | Rat | Spider | Human | Knight | Goblin | Elf | Zombie | Elemental | Wall | Spirit
-  | Rogue | Warrior | Merfolk | Wizard | Juggernaut | Angel  -- creature types
+  | Rogue | Warrior | Merfolk | Wizard | Juggernaut | Angel | Faerie | Insect  -- creature types
 public export
 data EnchantmentSubtype
   = Aura
@@ -693,6 +693,7 @@ mutual
     -- tap / untap [CR#701.26]; attach / unattach [CR#701.3].
     Tap : Reference b AnObject -> Action b
     Untap : Reference b AnObject -> Action b
+    Transform : Reference b AnObject -> Action b   -- turn a transforming DFC to its other face ([CR#712.4])
     Attach : (what : Reference b AnObject) -> (to : Reference b AnObject) -> Action b
     Unattach : Reference b AnObject -> Action b
     -- a player verb: the `actor` draws n cards. Rust: PlayerAction::Draw(Count).
@@ -909,6 +910,17 @@ public export
 SubtypesOk : Characteristics Base -> Type
 SubtypesOk c = All (\s => Elem (subtypeCategory s) (types c)) (subtypes c)
 
+-- How a multi-faced card's two faces are arranged ([CR#712] transforming/modal DFC, [CR#709] split,
+-- [CR#715] adventurer, [CR#710] flip). The LAYOUT carries the access rules; both faces are full faces.
+public export
+data FaceLayout = Transforming | ModalDFC | Split | Adventure | Flip
+
 public export
 data Card : Type where
   Normal : (c : Characteristics Base) -> {auto ok : SubtypesOk c} -> {auto wf : CharacteristicsOk c} -> Card
+  -- a TWO-faced card: `front` (the primary/default face) and `back`, arranged per `layout`. Each face
+  -- is a full `Face` with its own well-formedness ([CR#712.3] each face has its own characteristics);
+  -- transform / cast-the-other-face is the engine's job — the grammar just holds both faces.
+  TwoFaced : (layout : FaceLayout) -> (front : Face) -> (back : Face) ->
+             {auto okF : SubtypesOk front} -> {auto wfF : CharacteristicsOk front} ->
+             {auto okB : SubtypesOk back} -> {auto wfB : CharacteristicsOk back} -> Card

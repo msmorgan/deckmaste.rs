@@ -687,4 +687,71 @@ card_CavernOfSouls = Normal $ ^:
       ]
   }
 
+-- Wear // Tear — a SPLIT card ([CR#709]): two independent instant halves, each a full `Face`. The
+-- `TwoFaced Split` holds both; "cast either half" is the engine's.
+export
+card_WearTear : Card
+card_WearTear = TwoFaced Split
+  (^: { name := Just "Wear"
+      , manaCost := [^1, ^Red]
+      , types := [Instant]
+      , abilities := [ Spell (Targeted [Target (^1) (HasType Artifact)] (Act (Destroy (GetTarget 0)))) ]
+      })
+  (^: { name := Just "Tear"
+      , manaCost := [^White]
+      , types := [Instant]
+      , abilities := [ Spell (Targeted [Target (^1) (HasType Enchantment)] (Act (Destroy (GetTarget 0)))) ]
+      })
+
+-- Brazen Borrower // Petty Theft — an ADVENTURE card ([CR#715]): a creature whose "adventure" half is
+-- an instant. `TwoFaced Adventure` holds the creature `front` and the spell `back`; the cast-the-
+-- adventure-then-exile-then-cast-the-creature flow is the engine's.
+export
+card_BrazenBorrower : Card
+card_BrazenBorrower = TwoFaced Adventure
+  (^: { name := Just "Brazen Borrower"
+      , manaCost := [^1, ^Blue, ^Blue]
+      , types := [Creature]
+      , subtypes := [^Faerie, ^Rogue]
+      , abilities :=
+          [ keyword Flash
+          , keyword Flying
+          , Static (Cant (Blocks (SameAs This) (Not (HasKeyword Flying))))   -- "can block only creatures with flying"
+          ]
+      , power := Just 3
+      , toughness := Just 1
+      })
+  (^: { name := Just "Petty Theft"
+      , manaCost := [^1, ^Blue]
+      , types := [Instant]
+      , abilities := [ Spell (Targeted [Target (^1) (And [permanent, Not (HasType Land)])] (Act (Move (GetTarget 0) Hand))) ]
+      })
+
+-- Delver of Secrets // Insectile Aberration — a TRANSFORMING DFC ([CR#712]). The front's upkeep trigger
+-- reads the top card (full-info, so the "look" is just the condition) and MAY reveal an instant/sorcery
+-- to `Transform This` to the back. `TwoFaced Transforming` holds both faces.
+export
+card_DelverOfSecrets : Card
+card_DelverOfSecrets = TwoFaced Transforming
+  (^: { name := Just "Delver of Secrets"
+      , manaCost := [^Blue]
+      , types := [Creature]
+      , subtypes := [^Human, ^Wizard]
+      , abilities :=
+          [ Triggered (And [KindIs (BeginStep (BeginningPhase UpkeepStep)), DuringTurn you])
+              (If (Matches (Single (TopOfLibrary (^1))) (Or [HasType Instant, HasType Sorcery]))
+                  (May (Sequence [ Act (Reveal (Single (TopOfLibrary (^1))))
+                                 , Act (Transform This) ])))
+          ]
+      , power := Just 1
+      , toughness := Just 1
+      })
+  (^: { name := Just "Insectile Aberration"
+      , types := [Creature]
+      , subtypes := [^Human, ^Insect]
+      , abilities := [ keyword Flying ]
+      , power := Just 3
+      , toughness := Just 2
+      })
+
 --:vim:sts=2 sw=2:

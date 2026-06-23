@@ -315,6 +315,11 @@ failing
   tBadTypeless : Card
   tBadTypeless = Normal $ ^: { name := Just "Typeless" }
 
+-- a two-faced card's BACK face is well-formedness-checked too, not just the front — a typeless back fails
+failing
+  tBadTwoFacedBack : Card
+  tBadTwoFacedBack = TwoFaced Split (^: { types := [Instant] }) (^: { name := Just "Back" })
+
 -- a 0-size block is rejected — a declared block has ≥1 blocker (`NonZeroQ` on `BlockedBy`'s size)
 failing
   tBadZeroBlock : StaticEffect Base
