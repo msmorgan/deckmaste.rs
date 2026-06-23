@@ -190,7 +190,8 @@ data Restriction = OncePerTurn | OncePerGame
 -- "may attack/tap as though it weren't summoning-sick" (an `AsThough` premise, see Macros).
 public export
 data ObjectState = Tapped | Attacking | Blocking | Blocked | Attached | SummoningSick
-                 | Unblocked   -- an attacker past declare-blockers with no blocker ([CR#509.1h])
+                 | Unblocked       -- an attacker past declare-blockers with no blocker ([CR#509.1h])
+                 | PhasedOut       -- phased out ([CR#702.26]); "becomes phased" = `Becomes PhasedOut`
 
 -- Whether a `Reference` denotes an object or a player ([CR#109.1]). One reference
 -- language, indexed by this — strict on the kind where it matters, lax where it doesn't.
@@ -781,6 +782,7 @@ mutual
     Tap : Reference b AnObject -> Action b
     Untap : Reference b AnObject -> Action b
     Transform : Reference b AnObject -> Action b   -- turn a transforming DFC to its other face ([CR#712.4])
+    PhaseOut : Reference b AnObject -> Action b     -- phase a permanent out ([CR#702.26]); phasing back in is the engine's turn-based action
     -- "[r] becomes/gets the designation" — the target's kind follows `designationScope` (you become the
     -- monarch; this creature becomes monstrous). Single-holder eviction (monarch) is the engine's.
     GrantDesignation : (d : Designation) -> Reference b (designationScope d) -> Action b
