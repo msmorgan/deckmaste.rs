@@ -250,7 +250,7 @@ data Window = ThisGame | ThisTurn | LastTurn | ThisCombat | ThisStep
 namespace EventKind
   public export
   data EventKind
-    = Cast | Sacrifice | Draw | Discard | DealDamage
+    = Cast | Sacrifice | Draw | Discard | DealDamage | CreateToken | PutCounters
     | ZoneChanged (Maybe Zone) (Maybe Zone)
     | BeginStep PhaseStep
 
@@ -810,6 +810,10 @@ mutual
     -- "if [event] would happen, do [effect] instead" — the card names only the
     -- replacement (empty = a pure skip); the engine skips the original + handles edges.
     Replaces : EventQuery b -> OneShotEffect (bindEvent b) -> StaticEffect b
+    -- PAYLOAD replacement ([CR#616]): the event still happens, but its numeric amount becomes
+    -- `newAmount` (a `Count` over the event body, so it can read `ThatMuch`). Furnace of Rath =
+    -- `ReplaceAmount [KindIs DealDamage] (Times ThatMuch (^2))`; Gisela's "prevent half" scales down.
+    ReplaceAmount : EventQuery b -> (newAmount : Count (bindEvent b)) -> StaticEffect b
     -- the inner continuous effect applies only WHILE the condition holds ([CR#604.3]) —
     -- a conditional static ("gets +1/+1 as long as …").
     While : Condition b -> StaticEffect b -> StaticEffect b

@@ -112,6 +112,11 @@ tEventQuery = And [ KindIs (ZoneChanged (Just Battlefield) (Just Graveyard))
                     , SourceMatches creature
                     , Not (DuringTurn you) ]
 
+-- PAYLOAD replacement: the event survives but its amount is rewritten — Furnace of Rath doubles damage
+-- by scaling `ThatMuch` (the event's own amount). The `newAmount` reads the event body.
+tReplaceAmount : StaticEffect Base
+tReplaceAmount = ReplaceAmount (KindIs DealDamage) (Times ThatMuch (^2))
+
 -- a log-derived history count feeds a condition, and a game `Outcome` wraps into an effect
 tHistoryThenWin : OneShotEffect Base
 tHistoryThenWin =
