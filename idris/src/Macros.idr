@@ -33,6 +33,11 @@ public export
 nextEndStep : EventQuery b
 nextEndStep = KindIs (BeginStep (EndingPhase EndStep))
 
+-- "when THIS enters the battlefield" — the ETB trigger event, inlined across most permanents.
+public export
+thisEnters : EventQuery b
+thisEnters = And [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)]
+
 -- "any target" ([CR#115.4]): a creature/planeswalker/battle permanent, OR any player. A
 -- FLAT `Or` — the player arm (`Anyone`) sits beside the object arms, and the result
 -- kind is their join (`Anything`), computed by `\/`. No `Widen`.
@@ -109,6 +114,14 @@ haste = Keyword (Composite Haste
   [ Static (AsThough (Matches This (Not (HasState SummoningSick))) (Can (Attacks (SameAs This))))
   , Static (AsThough (Matches This (Not (HasState SummoningSick))) (Can (Activates you (SameAs This)))) ])
 
+-- Indestructible ([CR#702.12]): "can't be destroyed by damage or 'destroy'." No engine primitive — a
+-- `Composite` whose clause REPLACES the destroy of THIS with nothing (`Sequence []`, a pure skip), so
+-- the `Replaces`-empty machinery subsumes Rust's `CantHappen`. Grantable like any keyword.
+public export
+indestructible : Ability b
+indestructible = Keyword (Composite Indestructible
+  [Static (Replaces (And [KindIs Destroyed, SourceMatches (SameAs This)]) (Sequence []))])
+
 -- desugar a `KeywordSpec` into its full `Ability` — dispatches to the macros above. EXHAUSTIVE
 -- (no catch-all): adding a `KeywordSpec` constructor forces a clause here. `Bare` = an engine-
 -- PRIMITIVE keyword the grammar can't desugar (FirstStrike/DoubleStrike/Deathtouch/Trample =
@@ -127,8 +140,25 @@ keyword Vigilance           = Keyword (Bare Vigilance)
 keyword Reach               = Keyword (Composite Reach [])
 keyword Flash               = flash
 keyword Haste               = haste
+keyword Indestructible      = indestructible
 keyword Defender            = defender
 keyword Shroud              = shroud
 keyword Menace              = menace
 keyword (Hexproof Nothing)  = hexproof
 keyword (Hexproof (Just f)) = hexproofFrom f
+
+-- KEYWORD ACTIONS (composite verbs over the primitives — the Idris analogue of the engine's
+-- keyword-action macros; named here rather than inlined per card).
+
+-- "Monstrosity N" ([CR#701.32]): if THIS isn't monstrous, put N +1/+1 counters on it and it becomes
+-- monstrous. An activated ability whose cost varies per card.
+public export
+monstrosity : Cost b -> Count b -> Ability b
+monstrosity cost n = Activated cost
+  (If (Matches This (Not (HasDesignation Monstrous)))
+      (Sequence [ Act (PutCounters P1P1 n This), Act (GrantDesignation Monstrous This) ]))
+
+-- "Level up [cost]" ([CR#702.87]): put a level counter on THIS; sorcery-speed only.
+public export
+levelUp : Cost b -> Ability b
+levelUp cost = Activated cost (Act (PutCounters Level (^1) This)) {window = SorceryWindow}

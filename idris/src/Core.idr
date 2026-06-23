@@ -373,6 +373,7 @@ mutual
     Vigilance : KeywordSpec b
     Flash : KeywordSpec b
     Haste : KeywordSpec b
+    Indestructible : KeywordSpec b
     Defender : KeywordSpec b
     Shroud : KeywordSpec b
     Menace : KeywordSpec b

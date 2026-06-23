@@ -82,7 +82,7 @@ card_Flickerwisp = Normal $ ^:
   , subtypes := [^Elemental]
   , abilities :=
       [ keyword Flying
-      , Triggered (And [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)]) $
+      , Triggered (thisEnters) $
           Targeted [Target (^1) (And [permanent, Not (SameAs This)])] $
             With (Produce (Move ((GetTarget 0)) Exile)) $  -- exile the target, bind `That`
               Delayed nextEndStep
@@ -268,7 +268,7 @@ card_TideShaper = Normal $ ^:
   , types := [Creature]
   , subtypes := [^Merfolk, ^Wizard]
   , abilities :=
-      [ Triggered (And [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
+      [ Triggered (thisEnters)
           (If (Matches This WasKicked)
               (Targeted [Target (^1) (HasType Land)]
                 (Continuously (Modify (GetTarget 0) [AddSubtype (^Island)])
@@ -333,7 +333,7 @@ card_OblivionRing = Normal $ ^:
   , manaCost := [^2, ^White]
   , types := [Enchantment]
   , abilities :=
-      [ Triggered (And [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
+      [ Triggered (thisEnters)
           (Targeted [Target (^1) (And [permanent, Not (HasType Land), Not (SameAs This)])]
             (Act (Move ((GetTarget 0)) Exile)))
       , Triggered (And [KindIs (ZoneChanged (Just Battlefield) Nothing), SourceMatches (SameAs This)])
@@ -352,7 +352,7 @@ card_BanishingLight = Normal $ ^:
   , manaCost := [^2, ^White]
   , types := [Enchantment]
   , abilities :=
-      [ Triggered (And [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)]) $
+      [ Triggered (thisEnters) $
           Targeted [Target (^1) (And [permanent, Not (HasType Land), ControlledBy opponent])] $
             Act (ExileUntil ((GetTarget 0))
                             (UntilEvent (And [ KindIs (ZoneChanged (Just Battlefield) Nothing)
@@ -440,7 +440,7 @@ card_WallOfOmens = Normal $ ^:
   , toughness := Just 4
   , abilities :=
       [ keyword Defender
-      , Triggered (And [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
+      , Triggered (thisEnters)
           (Act (Draw (^1)))
       ]
   }
@@ -570,7 +570,7 @@ card_StudentOfWarfare = Normal $ ^:
   , power := Just 1
   , toughness := Just 1
   , abilities :=
-      [ Activated (Mana [^White]) (Act (PutCounters Level (^1) This)) {window = SorceryWindow}  -- "level up only as a sorcery"
+      [ levelUp (Mana [^White])                                                                  -- "Level up {W}"
       , Static (While (And [ Compare (CountersOn Level This) GreaterEq (^2)
                            , Compare (CountersOn Level This) LessEq (^6) ])
           (Modify This [SetPT (^3) (^3), GrantAbility (keyword FirstStrike)]))            -- LEVEL 2–6: 3/3 first strike
@@ -841,7 +841,7 @@ card_AetherHub = Normal $ ^:
   { name := Just "Aether Hub"
   , types := [Land]
   , abilities :=
-      [ Triggered (And [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
+      [ Triggered (thisEnters)
           (Act (PutCounters Energy (^2) You))                                  -- "you get {E}{E}"
       , Activated TapSelf (Act (AddMana [^Colorless]))                         -- {T}: Add {C}
       , Activated (Costs [TapSelf, PayEnergy (^1)]) (Act (AddMana [AnyColor]))  -- {T}, Pay {E}: add one mana of any color
@@ -859,7 +859,7 @@ card_ThornOfTheBlackRose = Normal $ ^:
   , subtypes := [^Human]
   , abilities :=
       [ keyword Deathtouch
-      , Triggered (And [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
+      , Triggered (thisEnters)
           (Act (GrantDesignation Monarch You))   -- "you become the monarch"
       ]
   , power := Just 1
@@ -878,13 +878,10 @@ card_FleecemaneLion = Normal $ ^:
   , types := [Creature]
   , subtypes := [^Cat]
   , abilities :=
-      [ Activated (Mana [^3, ^Green, ^White])
-          (Sequence [ Act (PutCounters P1P1 (^1) This)
-                    , Act (GrantDesignation Monstrous This) ])              -- Monstrosity 1
+      [ monstrosity (Mana [^3, ^Green, ^White]) (^1)                       -- Monstrosity 1
       , Static (While (Matches This (HasDesignation Monstrous))
-          (Modify This [GrantAbility (keyword (Hexproof Nothing))]))        -- while monstrous: hexproof
-      , Static (While (Matches This (HasDesignation Monstrous))
-          (Replaces (And [KindIs Destroyed, SourceMatches (SameAs This)]) (Sequence [])))   -- …and indestructible
+          (Modify This [ GrantAbility (keyword (Hexproof Nothing))
+                       , GrantAbility (keyword Indestructible) ]))          -- while monstrous: hexproof + indestructible
       ]
   , power := Just 3
   , toughness := Just 3
@@ -998,16 +995,16 @@ card_PlatinumAngel = Normal $ ^:
   , toughness := Just 4
   }
 
--- Darksteel Citadel — INDESTRUCTIBLE with no new constructor: `Replaces` the destroy of This with
--- `Sequence []` (a pure skip). The `Replaces`-empty machinery already subsumes Rust's `CantHappen`.
+-- Darksteel Citadel — INDESTRUCTIBLE as a keyword (its `Composite` desugars to the `Replaces`-the-
+-- destroy-with-`Sequence []` skip, so the `Replaces`-empty machinery subsumes Rust's `CantHappen`).
 export
 card_DarksteelCitadel : Card
 card_DarksteelCitadel = Normal $ ^:
   { name := Just "Darksteel Citadel"
   , types := [Artifact, Land]
   , abilities :=
-      [ Static (Replaces (And [KindIs Destroyed, SourceMatches (SameAs This)]) (Sequence []))   -- Indestructible
-      , Activated TapSelf (Act (AddMana [^Colorless]))                                          -- {T}: Add {C}
+      [ keyword Indestructible                              -- Indestructible
+      , Activated TapSelf (Act (AddMana [^Colorless]))      -- {T}: Add {C}
       ]
   }
 
