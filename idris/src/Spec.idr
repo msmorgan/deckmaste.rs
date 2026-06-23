@@ -83,6 +83,11 @@ tStateFilter = And [creature, HasState Attacking, Not (HasState Tapped)]
 tOfChosen : Predicate (bindChosen AColor Base) AnObject
 tOfChosen = And [IsKind IsSpell, OfChosen]
 
+-- a MODAL as-enters choice: `ChosenIs i` reads the chosen mode, bounded by the mode count (Citadel/
+-- Outpost Siege gate each ability on it). `AMode 2` ⇒ valid indices 0 and 1.
+tChosenMode : Condition (bindChosen (AMode 2) Base)
+tChosenMode = ChosenIs 1
+
 -- the unified `Quantity` (one `Range` constructor) + its helpers all typecheck
 tQuantities : List (Bindable Base AnObject)
 tQuantities =
@@ -312,6 +317,16 @@ failing
 failing
   tBadOfChosenNoChoice : Predicate Base AnObject
   tBadOfChosenNoChoice = OfChosen
+
+-- `ChosenIs` past the mode count is rejected — `LT 2 2` is uninhabited (a 2-mode card, index 2)
+failing
+  tBadChosenMode : Condition (bindChosen (AMode 2) Base)
+  tBadChosenMode = ChosenIs 2
+
+-- `OfChosen` on a MODE choice is rejected — a mode isn't a characteristic (`IsCharDomain (AMode _) = Void`)
+failing
+  tBadOfChosenMode : Predicate (bindChosen (AMode 2) Base) AnObject
+  tBadOfChosenMode = OfChosen
 
 -- `That` with no enclosing `With`
 failing
