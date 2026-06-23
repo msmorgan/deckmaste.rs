@@ -848,4 +848,44 @@ card_AetherHub = Normal $ ^:
       ]
   }
 
+-- Thorn of the Black Rose — a PLAYER designation (monarch): ETB → "you become the monarch" =
+-- `GrantDesignation Monarch You`, which typechecks because `designationScope Monarch = APlayer`.
+export
+card_ThornOfTheBlackRose : Card
+card_ThornOfTheBlackRose = Normal $ ^:
+  { name := Just "Thorn of the Black Rose"
+  , manaCost := [^2, ^Black]
+  , types := [Creature]
+  , subtypes := [^Human]
+  , abilities :=
+      [ keyword Deathtouch
+      , Triggered (And [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
+          (Act (GrantDesignation Monarch You))   -- "you become the monarch"
+      ]
+  , power := Just 1
+  , toughness := Just 4
+  }
+
+-- Fleecemane Lion — an OBJECT designation (monstrous): Monstrosity grants it (`GrantDesignation
+-- Monstrous This`), and a static reads it (`HasDesignation Monstrous`, an object test). One mechanism,
+-- both scopes, kept apart by type. (Indestructible isn't modeled yet — awaits the CantHappen pass; the
+-- monstrous-gated hexproof is faithful.)
+export
+card_FleecemaneLion : Card
+card_FleecemaneLion = Normal $ ^:
+  { name := Just "Fleecemane Lion"
+  , manaCost := [^Green, ^White]
+  , types := [Creature]
+  , subtypes := [^Cat]
+  , abilities :=
+      [ Activated (Mana [^3, ^Green, ^White])
+          (Sequence [ Act (PutCounters P1P1 (^1) This)
+                    , Act (GrantDesignation Monstrous This) ])              -- Monstrosity 1
+      , Static (While (Matches This (HasDesignation Monstrous))
+          (Modify This [GrantAbility (keyword (Hexproof Nothing))]))        -- while monstrous: hexproof
+      ]
+  , power := Just 3
+  , toughness := Just 3
+  }
+
 --:vim:sts=2 sw=2:

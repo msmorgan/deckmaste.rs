@@ -94,7 +94,7 @@ data Zone
 public export
 data CreatureSubtype
   = Bear | Rat | Spider | Human | Knight | Goblin | Elf | Zombie | Elemental | Wall | Spirit
-  | Rogue | Warrior | Merfolk | Wizard | Juggernaut | Angel | Faerie | Insect  -- creature types
+  | Rogue | Warrior | Merfolk | Wizard | Juggernaut | Angel | Faerie | Insect | Cat  -- creature types
 public export
 data EnchantmentSubtype
   = Aura
@@ -220,6 +220,22 @@ counterCarrier Poison     = APlayer
 counterCarrier Energy     = APlayer
 counterCarrier Experience = APlayer
 counterCarrier _          = AnObject
+
+-- DESIGNATIONS ([CR#700-ish global flags]: monarch, the initiative, city's blessing, monstrous,
+-- goaded, renowned, suspected, saddled, solved…). The Rust engine carries these as an OPEN name +
+-- a runtime `Decl` whose `scope` field says object/player/game — needed for plugins. The curated toy
+-- uses a CLOSED enum + a total `designationScope`, so ONE `HasDesignation`/`GrantDesignation` pair
+-- covers every flag with the carrier (player vs object) enforced dependently — no runtime scope check.
+public export
+data Designation = Monarch | TheInitiative | CitysBlessing      -- player-borne
+                 | Monstrous | Goaded | Renowned | Suspected | Saddled | Solved   -- object-borne
+
+public export
+designationScope : Designation -> RefKind
+designationScope Monarch       = APlayer
+designationScope TheInitiative = APlayer
+designationScope CitysBlessing = APlayer
+designationScope _             = AnObject
 
 public export
 data BeginningStep
@@ -425,6 +441,9 @@ mutual
       HasName : String -> Predicate b AnObject   -- named a specific card (tutors / token names)
       HasCounter : (c : CounterKind) -> Predicate b (counterCarrier c)   -- has ≥1 of this counter; the candidate's kind follows the carrier ("ten poison" tests a player)
       HasState : ObjectState -> Predicate b AnObject      -- runtime state: "target ATTACKING / TAPPED creature"
+      -- carries a DESIGNATION; the candidate's kind follows `designationScope` ("you're the monarch" =
+      -- `HasDesignation Monarch` is a player test, "while ~ is monstrous" an object test).
+      HasDesignation : (d : Designation) -> Predicate b (designationScope d)
       -- a numeric STAT comparison on the candidate — "target creature with power ≤ 2" =
       -- `And [creature, StatCmp Power LessEq (^2)]`. (Closes the "no stat filter" hole — stat
       -- comparison was a `Condition` only; this lifts it into the `Predicate`/filter language.)
@@ -714,6 +733,9 @@ mutual
     Tap : Reference b AnObject -> Action b
     Untap : Reference b AnObject -> Action b
     Transform : Reference b AnObject -> Action b   -- turn a transforming DFC to its other face ([CR#712.4])
+    -- "[r] becomes/gets the designation" — the target's kind follows `designationScope` (you become the
+    -- monarch; this creature becomes monstrous). Single-holder eviction (monarch) is the engine's.
+    GrantDesignation : (d : Designation) -> Reference b (designationScope d) -> Action b
     Attach : (what : Reference b AnObject) -> (to : Reference b AnObject) -> Action b
     Unattach : Reference b AnObject -> Action b
     -- a player verb: the `actor` draws n cards. Rust: PlayerAction::Draw(Count).
