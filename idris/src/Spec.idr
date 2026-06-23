@@ -133,6 +133,18 @@ tIndestructible = keyword Indestructible
 tOutcomeGate : StaticEffect Base
 tOutcomeGate = OutcomeGate CantLose you
 
+-- Auras the engine's way: no dedicated `Enchant`. The host restriction is a `Cant (Attaches …)` DEED
+-- (predicate args); the INTRINSIC enters-attached / falls-off rules are the shared `Also` / `Sba`
+-- primitives (the `Attach` ACTION takes references — `Attach This It`). One `Sba` serves auras AND sagas.
+tEnchantRestriction : StaticEffect Base
+tEnchantRestriction = Cant (Attaches (SameAs This) (Not creature))
+
+tAuraEnters : StaticEffect Base
+tAuraEnters = Also thisEnters (With (Choose (^1) creature) (ForEach That (Act (Attach This It))))
+
+tAuraFallsOff : StaticEffect Base
+tAuraFallsOff = Sba (Not (LegallyAttached This)) (Act (Move This Graveyard))
+
 -- a log-derived history count feeds a condition, and a game `Outcome` wraps into an effect
 tHistoryThenWin : OneShotEffect Base
 tHistoryThenWin =

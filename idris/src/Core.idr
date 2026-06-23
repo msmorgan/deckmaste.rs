@@ -481,6 +481,9 @@ mutual
       Compare : Count b -> Cmp -> Count b -> Condition b
       TurnOf : Predicate b APlayer -> Condition b   -- it's a (matching) player's turn (`yourTurn = TurnOf (SameAs You)`)
       During : PhaseStep -> Condition b
+      -- "[r] is LEGALLY attached" ([CR#701.3b,303.4d]): has a host that passes the attach-legality
+      -- predicate. The Aura graveyard SBA reads its negation (`Not (LegallyAttached This)`).
+      LegallyAttached : Reference b AnObject -> Condition b
       -- ANAPHOR (modal): "the chosen MODE is index i" — reads an as-enters `AMode` choice ([CR#614.12]).
       -- `i` is bounded by the choice's mode count `n` (recovered from `chosenKind b = Just (AMode n)`),
       -- so `ChosenIs 2` on a 2-mode card is rejected. Each siege ability gates on it: `If (ChosenIs k) …`.
@@ -700,6 +703,11 @@ data Deed : Bindings -> Type where
   -- "[the spell] is COUNTERED" — a PASSIVE deed (like `BeTargeted`): `Cant (Countered …)` = "can't be
   -- countered" (Cavern confers it on the spell its restricted mana pays for).
   Countered  : (what : Predicate b AnObject) -> Deed b
+  -- "[what] attaches to [to]" ([CR#701.3a] legality) — the ENCHANTABILITY restriction lives here, not
+  -- on a dedicated `Enchant` ability (matching the engine: one attach family for auras/equipment).
+  -- "Enchant creature" = `Cant (Attaches (SameAs This) (Not creature))`; protection's can't-be-enchanted too.
+  -- (Verb-form like `Casts`/`Plays`; the `Attach` ACTION keeps that name for the actual verb.)
+  Attaches   : (what : Predicate b AnObject) -> (to : Predicate b AnObject) -> Deed b
 
 -- One big mutual block: `Ability → OneShotEffect → Action → CreateToken → Characteristics` is a
 -- cycle, so `Characteristics`/`Action`/`Bindable` join the effect/ability block below. (The leaf
@@ -904,6 +912,15 @@ mutual
     -- constructor — it's `Replaces (KindIs Destroyed + this) (Sequence [])`, a skip; prevention is
     -- `ReplaceAmount … (^0)`. Both already subsume their Rust `CantHappen`/`Prevention` families.)
     OutcomeGate : OutcomeGateKind -> Predicate b APlayer -> StaticEffect b
+    -- ADDITIVE replacement ([CR#614.13] "as well as"): when [event] happens it STILL happens, but
+    -- [effect] also runs. An Aura enters attached via `Also thisEnters (Act (Attach This host))`.
+    Also : EventQuery b -> OneShotEffect (bindEvent b) -> StaticEffect b
+    -- a STATE-BASED ACTION as data ([CR#704]): whenever [when] holds (with `This` = the carrier), do
+    -- [then] in the SBA sweep. ONE primitive for the Aura graveyard rule (`Sba (Not (LegallyAttached
+    -- This)) (Act (Move This Graveyard))`, [CR#704.5m]) AND a Saga's final-chapter sacrifice — the sweep
+    -- never branches on subtype. (The engine confers the Aura one via the Aura subtype's `Property`,
+    -- which the toy has no analogue for — so it's a shared rule here, shown once, not per-card.)
+    Sba : Condition b -> OneShotEffect b -> StaticEffect b
     -- the inner continuous effect applies only WHILE the condition holds ([CR#604.3]) —
     -- a conditional static ("gets +1/+1 as long as …").
     While : Condition b -> StaticEffect b -> StaticEffect b
@@ -951,8 +968,8 @@ mutual
     Activated : Cost b -> OneShotEffect b -> {default InstantWindow window : TimingWindow} -> {default [] limits : List Restriction} -> Ability b
     -- a triggered ability: when `event` fires, resolve `effect`. Rust: Ability::Triggered.
     Triggered : EventQuery b -> OneShotEffect (bindEvent b) -> Ability b
-    -- "Enchant <filter>": what this Aura may attach to ([CR#702.5]).
-    Enchant : Predicate b AnObject -> Ability b
+    -- (Retired `Enchant`: the engine has no dedicated aura ability — the host restriction is a
+    --  `Cant (Attaches …)` deed, enters-attached an `Also`, falls-off an `Sba`. No subtype special-casing.)
     -- a static continuous ability — modifications, anthems, AND replacements live in `StaticEffect`.
     Static : StaticEffect b -> Ability b
     -- "As ~ enters, choose a [d]" ([CR#614.12]): a single ability that makes the as-enters choice and
