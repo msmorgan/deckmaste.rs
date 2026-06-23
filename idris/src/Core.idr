@@ -627,6 +627,9 @@ data Deed : Bindings -> Type where
   BeTargeted : (object : Predicate b AnObject) -> {default (Or [IsKind IsSpell, IsKind IsAbility]) by : Predicate b AnObject} -> Deed b
   Casts      : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
   Activates  : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
+  -- "[player] PLAYS [object]" — cast a spell OR play a land ([CR#601,605]); broader than `Casts`. The
+  -- impulse "until end of turn, you may play that card" is `Can (Plays you (SameAs (Single That)))`.
+  Plays      : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
 
 -- One big mutual block: `Ability → OneShotEffect → Action → CreateToken → Characteristics` is a
 -- cycle, so `Characteristics`/`Action`/`Bindable` join the effect/ability block below. (The leaf

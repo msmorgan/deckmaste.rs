@@ -640,4 +640,28 @@ card_CitadelSiege = AsEntersChoosing (AMode 2) $ ^:
       ]
   }
 
+-- Outpost Siege — the namesake siege, now fully modeled (was substituted by Citadel Siege earlier).
+-- The existing `TopOfLibrary` selection + the new `Plays` deed close Khans's impulse-draw: "exile the
+-- top card; until end of turn you may play that card" = exile `Single (TopOfLibrary (^1))` (bind
+-- `That`), then a continuous `Can (Plays …)` on `That`. Dragons pings on a creature you control leaving.
+export
+card_OutpostSiege : Card
+card_OutpostSiege = AsEntersChoosing (AMode 2) $ ^:
+  { name := Just "Outpost Siege"
+  , manaCost := [^3, ^Red]
+  , types := [Enchantment]
+  , abilities :=
+      [ -- Khans (0): at your upkeep, exile the top card of your library; until eot you may play it
+        Triggered (And [KindIs (BeginStep (BeginningPhase UpkeepStep)), DuringTurn you])
+          (If (ChosenIs 0)
+              (With (Produce (Move (Single (TopOfLibrary (^1))) Exile))
+                (Continuously (Can (Plays you (SameAs (Single That)))) UntilEndOfTurn)))
+      , -- Dragons (1): when a creature you control leaves the battlefield, deal 1 to any target
+        Triggered (And [ KindIs (ZoneChanged (Just Battlefield) Nothing)
+                       , SourceMatches (And [creature, ControlledBy you]) ])
+          (If (ChosenIs 1)
+              (Targeted [anyTarget] (Act (DealDamage (GetTarget 0) (^1)))))
+      ]
+  }
+
 --:vim:sts=2 sw=2:
