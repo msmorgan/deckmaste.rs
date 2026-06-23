@@ -1093,4 +1093,36 @@ card_VodalianIllusionist = Normal $ ^:
   , toughness := Just 1
   }
 
+-- Smuggler's Copter — a VEHICLE with CREW (the aggregate-stat cost): "Crew 1" = tap creatures with
+-- total power ≥ 1 to make this Vehicle an artifact creature until end of turn. + loot on attack/block
+-- (the `Becomes` event from Pass B).
+export
+card_SmugglersCopter : Card
+card_SmugglersCopter = Normal $ ^:
+  { name := Just "Smuggler's Copter"
+  , manaCost := [^2]
+  , types := [Artifact]
+  , subtypes := [^Vehicle]
+  , abilities :=
+      [ keyword Flying
+      , Triggered (And [Or [KindIs (Becomes Attacking), KindIs (Becomes Blocking)], SourceMatches (SameAs This)])
+          (May (Sequence [Act (Draw (^1)), Act (Discard (^1))]))   -- loot on attack or block
+      , crew (^1)                                                  -- Crew 1
+      ]
+  , power := Just 3
+  , toughness := Just 3
+  }
+
+-- Solemnity — "players can't get counters; counters can't be put on permanents." SUBSUMED, no new
+-- constructor: `Replaces` the counter-placement event with `Sequence []` (the same skip as
+-- indestructible) — it reaches counters because the `PutCounters` event-kind exists.
+export
+card_Solemnity : Card
+card_Solemnity = Normal $ ^:
+  { name := Just "Solemnity"
+  , manaCost := [^1, ^White]
+  , types := [Enchantment]
+  , abilities := [ Static (Replaces (KindIs PutCounters) (Sequence [])) ]
+  }
+
 --:vim:sts=2 sw=2:

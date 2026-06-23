@@ -102,7 +102,7 @@ data EnchantmentSubtype
   = Aura | Saga
 public export
 data ArtifactSubtype
-  = Equipment
+  = Equipment | Vehicle
 public export
 data LandSubtype
   = Plains | Island | Swamp | Mountain | Forest   -- the basic land types
@@ -680,6 +680,10 @@ data Cost : Bindings -> Type where
   RemoveCounters : CounterKind -> Count b -> Cost b   -- a loyalty "−N" cost (remove N from This)
   Scaled    : Count b -> Cost b -> Cost b         -- the cost paid once per unit of the count ("{2} for each X" = Scaled (CountOf X) (Mana [promote 2]))
   Costs     : List (Cost b) -> Cost b            -- all components together
+  -- AGGREGATE cost: tap a chosen subset of [of_] whose summed [stat] satisfies [cmp] [n]. ONE shape
+  -- for Crew ("tap creatures, total power ≥ N" = `TapTotal Power GreaterEq (^n) creature`) — and the
+  -- Convoke/devotion-scaling family the engine's authors flagged it should subsume.
+  TapTotal  : Stat -> Cmp -> Count b -> (of_ : Predicate b AnObject) -> Cost b
 
 -- A continuous CHANGE to a spell/ability cost ([CR#118.7]), carried by `StaticEffect::CostModifier`.
 -- Borrowed from the Rust engine's key split: this MODIFIES an existing base — it is NOT an alternative
@@ -691,6 +695,13 @@ data CostChange : Bindings -> Type where
   Increase   : List (Cost b) -> CostChange b            -- "costs {…} more"
   Additional : List (Cost b) -> Bool -> CostChange b    -- "as an additional cost, …"; the Bool = OPTIONAL (the kicker shape)
   ScaledBy   : CostChange b -> Count b -> CostChange b  -- the change applied once per unit of the count (affinity)
+
+-- An ALTERNATIVE base cost ([CR#118.9]) — a base SWAP, the type the engine keeps DISTINCT from
+-- `CostChange` (a base modify). "Without paying its mana cost" = `FreeCast`; Force of Will = `AltCost […]`.
+public export
+data AlternativeCost : Bindings -> Type where
+  FreeCast : AlternativeCost b
+  AltCost  : List (Cost b) -> AlternativeCost b
 
 -- How many modes to choose, for a modal effect ([CR#700.2]). Rust: ChooseSpec.
 public export
@@ -783,6 +794,7 @@ mutual
     Untap : Reference b AnObject -> Action b
     Transform : Reference b AnObject -> Action b   -- turn a transforming DFC to its other face ([CR#712.4])
     PhaseOut : Reference b AnObject -> Action b     -- phase a permanent out ([CR#702.26]); phasing back in is the engine's turn-based action
+    MoveAllCounters : (from : Reference b AnObject) -> (to : Reference b AnObject) -> Action b   -- move ALL counters (every kind) X→Y (Ozolith); the all-kinds case `RemoveAllCounters` (one kind) can't reach
     -- "[r] becomes/gets the designation" — the target's kind follows `designationScope` (you become the
     -- monarch; this creature becomes monstrous). Single-holder eviction (monarch) is the engine's.
     GrantDesignation : (d : Designation) -> Reference b (designationScope d) -> Action b
@@ -944,6 +956,9 @@ mutual
     -- "[who]'s unspent mana doesn't empty" ([CR#500.4] exception) — Kruphix/Omnath. A pool-policy
     -- static (the per-mana `ManaRider::Persistent` case folds into this blanket form). Engine resolves.
     ManaPersists : Predicate b APlayer -> StaticEffect b
+    -- "you may cast THIS for [alt]" ([CR#118.9]) — the alternative-cost permission (base swap, distinct
+    -- from `CostModifier`'s base modify). Force of Will = `MayCastFor (AltCost [PayLife (^1), …])`.
+    MayCastFor : AlternativeCost b -> StaticEffect b
     -- the inner continuous effect applies only WHILE the condition holds ([CR#604.3]) —
     -- a conditional static ("gets +1/+1 as long as …").
     While : Condition b -> StaticEffect b -> StaticEffect b

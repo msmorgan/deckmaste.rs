@@ -162,3 +162,10 @@ monstrosity cost n = Activated cost
 public export
 levelUp : Cost b -> Ability b
 levelUp cost = Activated cost (Act (PutCounters Level (^1) This)) {window = SorceryWindow}
+
+-- "Crew N" ([CR#702.122]): tap any creatures with total power ≥ N → this Vehicle becomes an artifact
+-- creature until end of turn. The aggregate-tap cost is `TapTotal`.
+public export
+crew : Count b -> Ability b
+crew n = Activated (TapTotal Power GreaterEq n creature)
+  (Continuously (Modify This [AddType Creature]) UntilEndOfTurn)

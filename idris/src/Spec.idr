@@ -184,6 +184,17 @@ tChosenNumber = ChosenNumber
 tPhasedFilter : Predicate Base AnObject
 tPhasedFilter = And [creature, HasState PhasedOut]
 
+-- the structural holes: aggregate-stat cost (Crew), all-counters move (Ozolith), alternative base
+-- cost (the base-SWAP type, distinct from CostChange). Solemnity is subsumed by Replaces+skip (a card).
+tCrewCost : Cost Base
+tCrewCost = TapTotal Power GreaterEq (^3) creature
+
+tMoveAllCounters : OneShotEffect Base
+tMoveAllCounters = Targeted [Target (^1) creature] (Act (MoveAllCounters This (GetTarget 0)))
+
+tMayCastFor : StaticEffect Base
+tMayCastFor = MayCastFor (AltCost [PayLife (^1)])
+
 -- a log-derived history count feeds a condition, and a game `Outcome` wraps into an effect
 tHistoryThenWin : OneShotEffect Base
 tHistoryThenWin =
