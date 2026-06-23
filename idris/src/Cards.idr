@@ -8,8 +8,8 @@ import Core
 import Macros
 
 export
-LightningBolt : Card
-LightningBolt = Normal $ ^:
+card_LightningBolt : Card
+card_LightningBolt = Normal $ ^:
   { name := Just "Lightning Bolt"
   , manaCost := [^Red]
   , types := [Instant]
@@ -22,8 +22,8 @@ LightningBolt = Normal $ ^:
 
 -- Untargeted group damage: a `ForEach` over all creatures, dealing to each `It` (no `Targeted`).
 export
-Pyroclasm : Card
-Pyroclasm = Normal $ ^:
+card_Pyroclasm : Card
+card_Pyroclasm = Normal $ ^:
   { name := Just "Pyroclasm"
   , manaCost := [^1, ^Red]
   , types := [Sorcery]
@@ -34,8 +34,8 @@ Pyroclasm = Normal $ ^:
 
 -- Vanilla creature: no abilities, just power/toughness. No new data variant.
 export
-GrizzlyBears : Card
-GrizzlyBears = Normal $ ^:
+card_GrizzlyBears : Card
+card_GrizzlyBears = Normal $ ^:
   { name := Just "Grizzly Bears"
   , manaCost := [^1, ^Green]
   , types := [Creature]
@@ -46,8 +46,8 @@ GrizzlyBears = Normal $ ^:
 
 -- French vanilla: a single keyword ability.
 export
-TyphoidRats : Card
-TyphoidRats = Normal $ ^:
+card_TyphoidRats : Card
+card_TyphoidRats = Normal $ ^:
   { name := Just "Typhoid Rats"
   , manaCost := [^Black]
   , types := [Creature]
@@ -58,8 +58,8 @@ TyphoidRats = Normal $ ^:
   }
 
 export
-GiantSpider : Card
-GiantSpider = Normal $ ^:
+card_GiantSpider : Card
+card_GiantSpider = Normal $ ^:
   { name := Just "Giant Spider"
   , manaCost := [^3, ^Green]
   , types := [Creature]
@@ -74,8 +74,8 @@ GiantSpider = Normal $ ^:
 -- (stale post-move) but KEEPS the captured `That` — no key, no MovedRef. The
 -- engine resolves `That` to the reminted (or gone) object [CR#400.7].
 export
-Flickerwisp : Card
-Flickerwisp = Normal $ ^:
+card_Flickerwisp : Card
+card_Flickerwisp = Normal $ ^:
   { name := Just "Flickerwisp"
   , manaCost := [^1, ^White, ^White]
   , types := [Creature]
@@ -95,8 +95,8 @@ Flickerwisp = Normal $ ^:
 -- TRICKY: Draw 3, then choose two cards from hand and put them on the library. The
 -- `Choose` is a `Bindable` — it binds the chosen cards as `That`; the body moves `That`.
 export
-Brainstorm : Card
-Brainstorm = Normal $ ^:
+card_Brainstorm : Card
+card_Brainstorm = Normal $ ^:
   { name := Just "Brainstorm"
   , manaCost := [^Blue]
   , types := [Instant]
@@ -113,8 +113,8 @@ Brainstorm = Normal $ ^:
 -- the host (`AttachHostOf This`) with +2/+0 and trample; a graveyard trigger
 -- returns it to hand. (Aura is an enchantment subtype, so it's allowed here.)
 export
-Rancor : Card
-Rancor = Normal $ ^:
+card_Rancor : Card
+card_Rancor = Normal $ ^:
   { name := Just "Rancor"
   , manaCost := [^Green]
   , types := [Enchantment]
@@ -136,8 +136,8 @@ Rancor = Normal $ ^:
 -- TRICKY: Cloudshift — exile→return in ONE resolution (the pure [CR#400.7j] case).
 -- `With (Produce (Move …))` binds the exiled object as `That`; the body returns it.
 export
-Cloudshift : Card
-Cloudshift = Normal $ ^:
+card_Cloudshift : Card
+card_Cloudshift = Normal $ ^:
   { name := Just "Cloudshift"
   , manaCost := [^White]
   , types := [Instant]
@@ -158,8 +158,8 @@ Cloudshift = Normal $ ^:
 -- acceptance test: if the engine can't still find the object at fire time, the sacrifice does
 -- nothing. (The alternative cast cost stays casting machinery, not a card-effect clause.)
 export
-ThroughTheBreach : Card
-ThroughTheBreach = Normal $ ^:
+card_ThroughTheBreach : Card
+card_ThroughTheBreach = Normal $ ^:
   { name := Just "Through the Breach"
   , manaCost := [^4, ^Red]
   , types := [Instant]
@@ -179,8 +179,8 @@ ThroughTheBreach = Normal $ ^:
 -- from the top and gain 7. Exercises Outcome / EventQuery / SameName / WasCastFrom /
 -- positional library / GainLife.
 export
-ApproachOfTheSecondSun : Card
-ApproachOfTheSecondSun = Normal $ ^:
+card_ApproachOfTheSecondSun : Card
+card_ApproachOfTheSecondSun = Normal $ ^:
   { name := Just "Approach of the Second Sun"
   , manaCost := [^6, ^White]
   , types := [Sorcery]
@@ -204,8 +204,8 @@ ApproachOfTheSecondSun = Normal $ ^:
 -- clear the counters. Exercises Activated / Cost (mana+tap+sacrifice) / CounterKind /
 -- HasCounter / PutCounters / RemoveAllCounters.
 export
-OblivionStone : Card
-OblivionStone = Normal $ ^:
+card_OblivionStone : Card
+card_OblivionStone = Normal $ ^:
   { name := Just "Oblivion Stone"
   , manaCost := [^3]
   , types := [Artifact]
@@ -223,8 +223,8 @@ OblivionStone = Normal $ ^:
 -- A clean ANTHEM: a static `ModifyAll` over "creatures you control". Exercises
 -- ModifyAll + ControlledBy (the controller predicate).
 export
-GloriousAnthem : Card
-GloriousAnthem = Normal $ ^:
+card_GloriousAnthem : Card
+card_GloriousAnthem = Normal $ ^:
   { name := Just "Glorious Anthem"
   , manaCost := [^1, ^White, ^White]
   , types := [Enchantment]
@@ -240,8 +240,8 @@ GloriousAnthem = Normal $ ^:
 -- annotation. The −6 pile ultimate is OMITTED (no pile-division); the "Liliana"
 -- planeswalker subtype is omitted (no planeswalker-subtype enum).
 export
-LilianaOfTheVeil : Card
-LilianaOfTheVeil = Normal $ ^:
+card_LilianaOfTheVeil : Card
+card_LilianaOfTheVeil = Normal $ ^:
   { name := Just "Liliana of the Veil"
   , manaCost := [^1, ^Black, ^Black]
   , types := [Planeswalker]
@@ -261,8 +261,8 @@ LilianaOfTheVeil = Normal $ ^:
 -- opponent controls an Island (`While` + `exists`). FLAG: kicker is the WasKicked
 -- boolean (no cost-mode model).
 export
-TideShaper : Card
-TideShaper = Normal $ ^:
+card_TideShaper : Card
+card_TideShaper = Normal $ ^:
   { name := Just "Tide Shaper"
   , manaCost := [^Blue]
   , types := [Creature]
@@ -285,8 +285,8 @@ TideShaper = Normal $ ^:
 -- ability draws into exile, deferred to your end step. FLAGS (grammar, not engine): the
 -- "that card" anaphora uses the UNGATED `EventObject`; "face down" isn't modeled.
 export
-Necropotence : Card
-Necropotence = Normal $ ^:
+card_Necropotence : Card
+card_Necropotence = Normal $ ^:
   { name := Just "Necropotence"
   , manaCost := [^Black, ^Black, ^Black]
   , types := [Enchantment]
@@ -306,8 +306,8 @@ Necropotence = Normal $ ^:
 -- first draw-step draw is exempt, so a SECOND draw-step draw (or any draw outside it) is still
 -- stolen — exactly as written. (Rogue subtype now in the enum.)
 export
-NotionThief : Card
-NotionThief = Normal $ ^:
+card_NotionThief : Card
+card_NotionThief = Normal $ ^:
   { name := Just "Notion Thief"
   , manaCost := [^2, ^Blue, ^Black]
   , types := [Creature]
@@ -327,8 +327,8 @@ NotionThief = Normal $ ^:
 -- predicate (the engine holds the exile association), so the abilities are independent
 -- — no With/That fusion. Contrast Banishing Light's single "exile UNTIL" duration.
 export
-OblivionRing : Card
-OblivionRing = Normal $ ^:
+card_OblivionRing : Card
+card_OblivionRing = Normal $ ^:
   { name := Just "Oblivion Ring"
   , manaCost := [^2, ^White]
   , types := [Enchantment]
@@ -346,8 +346,8 @@ OblivionRing = Normal $ ^:
 -- (this leaves the battlefield))`. The "until" is a `Duration`, not a leave-trigger —
 -- that's the rules difference from Oblivion Ring's two linked abilities.
 export
-BanishingLight : Card
-BanishingLight = Normal $ ^:
+card_BanishingLight : Card
+card_BanishingLight = Normal $ ^:
   { name := Just "Banishing Light"
   , manaCost := [^2, ^White]
   , types := [Enchantment]
@@ -365,8 +365,8 @@ BanishingLight = Normal $ ^:
 -- `GetTarget 0`/`GetTarget 1` are strictly kinded by their own slots. The control shift is
 -- a rest-of-game continuous effect (`Continuously … Permanent`).
 export
-Donate : Card
-Donate = Normal $ ^:
+card_Donate : Card
+card_Donate = Normal $ ^:
   { name := Just "Donate"
   , manaCost := [^2, ^Blue]
   , types := [Sorcery]
@@ -382,8 +382,8 @@ Donate = Normal $ ^:
 -- Pacifism — "Enchanted creature can't attack or block." Two `Cant` clauses over the host
 -- (`AttachHostOf This`): can't attack at all, and can't block any creature. Pure deontic.
 export
-Pacifism : Card
-Pacifism = Normal $ ^:
+card_Pacifism : Card
+card_Pacifism = Normal $ ^:
   { name := Just "Pacifism"
   , manaCost := [^1, ^White]
   , types := [Enchantment]
@@ -398,12 +398,12 @@ Pacifism = Normal $ ^:
 -- Juggernaut — "attacks each combat if able" (a `Must`) + "can't be blocked by Walls" (a
 -- `Cant` on the blocker).
 export
-Juggernaut : Card
-Juggernaut = Normal $ ^:
+card_Juggernaut : Card
+card_Juggernaut = Normal $ ^:
   { name := Just "Juggernaut"
   , manaCost := [^4]
   , types := [Artifact, Creature]
-  , subtypes := [^(Core.Juggernaut)]   -- qualify: the subtype, not this card
+  , subtypes := [^Juggernaut]
   , power := Just 5
   , toughness := Just 3
   , abilities :=
@@ -417,8 +417,8 @@ Juggernaut = Normal $ ^:
 -- approximation: the `Deed` is PER-ATTACKER (`Attacks creature {whom = you}`), so the Gate charges
 -- {2} per attacker attacking you — N attackers ⇒ {2}N, exactly the printed cost. (No `Scaled` needed.)
 export
-GhostlyPrison : Card
-GhostlyPrison = Normal $ ^:
+card_GhostlyPrison : Card
+card_GhostlyPrison = Normal $ ^:
   { name := Just "Ghostly Prison"
   , manaCost := [^2, ^White]
   , types := [Enchantment]
@@ -430,8 +430,8 @@ GhostlyPrison = Normal $ ^:
 -- `Defender` and whose body is the can't-attack `Cant` clause — the meaning is intrinsic to the
 -- keyword, not written on the card. (+ a plain ETB draw trigger.)
 export
-WallOfOmens : Card
-WallOfOmens = Normal $ ^:
+card_WallOfOmens : Card
+card_WallOfOmens = Normal $ ^:
   { name := Just "Wall of Omens"
   , manaCost := [^1, ^White]
   , types := [Creature]
@@ -450,8 +450,8 @@ WallOfOmens = Normal $ ^:
 -- Mana Leak — the cost-payment DECIDER on a card: the spell's CONTROLLER `MustPay` {3}, OR ELSE
 -- it's countered. Exercises MustPay / ControllerOf (the targeted spell's controller) / a spell target.
 export
-ManaLeak : Card
-ManaLeak = Normal $ ^:
+card_ManaLeak : Card
+card_ManaLeak = Normal $ ^:
   { name := Just "Mana Leak"
   , manaCost := [^1, ^Blue]
   , types := [Instant]
@@ -465,8 +465,8 @@ ManaLeak = Normal $ ^:
 -- carrying its can't-be-targeted `Cant`; "can't be blocked" is a second `Cant` (no creature may
 -- block it).
 export
-InvisibleStalker : Card
-InvisibleStalker = Normal $ ^:
+card_InvisibleStalker : Card
+card_InvisibleStalker = Normal $ ^:
   { name := Just "Invisible Stalker"
   , manaCost := [^1, ^Blue]
   , types := [Creature]
@@ -482,8 +482,8 @@ InvisibleStalker = Normal $ ^:
 -- Cryptic Command — a MODAL spell ("choose two"), each mode its own effect (two with their own
 -- targets). Exercises Modal / per-mode Targeted / Counter / Move / Tap / ControlledBy opponent.
 export
-CrypticCommand : Card
-CrypticCommand = Normal $ ^:
+card_CrypticCommand : Card
+card_CrypticCommand = Normal $ ^:
   { name := Just "Cryptic Command"
   , manaCost := [^1, ^Blue, ^Blue, ^Blue]
   , types := [Instant]
@@ -500,8 +500,8 @@ CrypticCommand = Normal $ ^:
 -- creatures and/or players" — a single slot with a NON-ZERO range cardinality (1–2), referenced as
 -- the GROUP `GetTargets 0` and fed to `DealDamageDivided`. Then an untargeted draw.
 export
-Electrolyze : Card
-Electrolyze = Normal $ ^:
+card_Electrolyze : Card
+card_Electrolyze = Normal $ ^:
   { name := Just "Electrolyze"
   , manaCost := [^1, ^Blue, ^Red]
   , types := [Instant]
@@ -517,8 +517,8 @@ Electrolyze = Normal $ ^:
 -- floor). Pairs a Composite keyword (Flash → the `Can`) with a Bare one (Deathtouch). (Snake subtype
 -- omitted — not in the enum.)
 export
-AmbushViper : Card
-AmbushViper = Normal $ ^:
+card_AmbushViper : Card
+card_AmbushViper = Normal $ ^:
   { name := Just "Ambush Viper"
   , manaCost := [^1, ^Green]
   , types := [Creature]
@@ -530,8 +530,8 @@ AmbushViper = Normal $ ^:
 -- Menace: a SET-LEVEL `Cant` (the whole blocker set must be ≥2, not a per-blocker check) — the
 -- `BlockedBy` deed the doc flags as mandatory.
 export
-BoggartBrute : Card
-BoggartBrute = Normal $ ^:
+card_BoggartBrute : Card
+card_BoggartBrute = Normal $ ^:
   { name := Just "Boggart Brute"
   , manaCost := [^2, ^Red]
   , types := [Creature]
@@ -544,8 +544,8 @@ BoggartBrute = Normal $ ^:
 -- Token ABILITIES (no longer vanilla-only): "create two 1/1 white Spirit creature tokens with
 -- flying" — the `TokenSpec` now carries `[keyword Flying]`, mirroring a card face's abilities.
 export
-MidnightHaunting : Card
-MidnightHaunting = Normal $ ^:
+card_MidnightHaunting : Card
+card_MidnightHaunting = Normal $ ^:
   { name := Just "Midnight Haunting"
   , manaCost := [^2, ^White]
   , types := [Instant]
@@ -561,8 +561,8 @@ MidnightHaunting = Normal $ ^:
 -- counter added by the level-up ability, and one `While (CountersOn Level This in range)` tier per
 -- band. NO new machinery beyond the `Level` counter — While/CountersOn/SetPT/GrantAbility did it all.
 export
-StudentOfWarfare : Card
-StudentOfWarfare = Normal $ ^:
+card_StudentOfWarfare : Card
+card_StudentOfWarfare = Normal $ ^:
   { name := Just "Student of Warfare"
   , manaCost := [^White]
   , types := [Creature]
