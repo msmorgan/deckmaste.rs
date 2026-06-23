@@ -165,6 +165,14 @@ tAuraFallsOff = Sba (Not (LegallyAttached This)) (Act (Move This Graveyard))
 tManaPersists : StaticEffect Base
 tManaPersists = ManaPersists you
 
+-- the Property mechanism: a +1/+1 counter confers its OWN P/T pump (`counterConfers`), and the Saga
+-- subtype confers the lore-increment turn-based action (`subtypeConfers`) — engine-read, no special-casing.
+tCounterConfers : List (Property Base)
+tCounterConfers = counterConfers P1P1
+
+tSubtypeConfers : List (Property Base)
+tSubtypeConfers = subtypeConfers (^Saga)
+
 -- a log-derived history count feeds a condition, and a game `Outcome` wraps into an effect
 tHistoryThenWin : OneShotEffect Base
 tHistoryThenWin =

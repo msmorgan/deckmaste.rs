@@ -99,7 +99,7 @@ data CreatureSubtype
   | Rogue | Warrior | Merfolk | Wizard | Juggernaut | Angel | Faerie | Insect | Cat  -- creature types
 public export
 data EnchantmentSubtype
-  = Aura
+  = Aura | Saga
 public export
 data ArtifactSubtype
   = Equipment
@@ -1053,3 +1053,29 @@ data Card : Type where
   TwoFaced : (layout : FaceLayout) -> (front : Face) -> (back : Face) ->
              {auto okF : SubtypesOk front} -> {auto wfF : CharacteristicsOk front} ->
              {auto okB : SubtypesOk back} -> {auto wfB : CharacteristicsOk back} -> Card
+
+-- A PROPERTY a subtype or counter CONFERS on its bearer — the engine's mechanism for intrinsic behavior
+-- with NO subtype special-casing. `This` = the bearer. Closed; attached via the total functions below
+-- (the dependent-index style of `counterCarrier`/`designationScope`), not an open registry.
+public export
+data Property : Bindings -> Type where
+  PropAbility    : Ability b -> Property b                        -- confers a (keyword) ability
+  PropContinuous : List (Modification b) -> Property b            -- a continuous self-modification (the +1/+1 counter's P/T pump)
+  PropStateBased : Condition b -> OneShotEffect b -> Property b   -- an SBA (the Aura falls-off rule)
+  PropTurnBased  : PhaseStep -> OneShotEffect b -> Property b     -- a turn-based action (the Saga lore-increment)
+
+-- what a COUNTER confers on the object it sits on. +1/+1 and −1/−1 carry their OWN P/T pump here, so it's
+-- not a hard-coded engine rule (`CountersOn c This` reads the count). The rest confer nothing intrinsic.
+public export
+counterConfers : CounterKind -> List (Property b)
+counterConfers P1P1 = [PropContinuous [ModifyPT (Up (CountersOn P1P1 This)) (Up (CountersOn P1P1 This))]]
+counterConfers M1M1 = [PropContinuous [ModifyPT (Down (CountersOn M1M1 This)) (Down (CountersOn M1M1 This))]]
+counterConfers _    = []
+
+-- what a SUBTYPE confers on its bearer. The Aura falls-off SBA ([CR#704.5m]) and the Saga lore-increment
+-- ([CR#714.2]) live here — shared rules, not per-card statics, and never a subtype `if`-branch.
+public export
+subtypeConfers : Subtype -> List (Property b)
+subtypeConfers (EnchantmentSub Aura) = [PropStateBased (Not (LegallyAttached This)) (Act (Move This Graveyard))]
+subtypeConfers (EnchantmentSub Saga) = [PropTurnBased (MainPhase 0) (Act (PutCounters Lore (^1) This))]
+subtypeConfers _                     = []
