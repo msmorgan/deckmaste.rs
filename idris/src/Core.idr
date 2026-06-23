@@ -932,17 +932,23 @@ mutual
     -- "Instant/sorcery spells you cast cost {1} less" = `CostModifier (And […, ControlledBy you]) (Reduce
     -- [Mana [^1]])`; affinity is a SELF modifier `CostModifier (SameAs This) (ScaledBy (Reduce …) (CountOf …))`.
     CostModifier : Predicate b AnObject -> CostChange b -> StaticEffect b
-    -- "if [event] would happen, do [effect] instead" — the card names only the
-    -- replacement (empty = a pure skip); the engine skips the original + handles edges.
+    -- "if [event] would happen, do [effect] INSTEAD" — a replacement ([CR#614]). Empty body = a SKIP
+    -- (a replacement that removes the event — e.g. "skip your draw step"). This is NOT a prohibition:
+    -- the event still "would happen" and is intercepted; for "can't happen", use `CantHappen` below.
     Replaces : EventQuery b -> OneShotEffect (bindEvent b) -> StaticEffect b
+    -- "[event] CAN'T happen" — a continuous PROHIBITION, semantically distinct from replacing-with-
+    -- nothing: it's not a one-shot ([CR#614.5]) application, isn't ordered against other replacements
+    -- ([CR#616]), and the event never "would happen". Indestructible = `CantHappen (KindIs Destroyed +
+    -- this)`; Solemnity = `CantHappen (KindIs PutCounters)`. (Event-level; the deontic `Cant` is its
+    -- player-ACTION sibling — "can't attack".)
+    CantHappen : EventQuery b -> StaticEffect b
     -- PAYLOAD replacement ([CR#616]): the event still happens, but its numeric amount becomes
     -- `newAmount` (a `Count` over the event body, so it can read `ThatMuch`). Furnace of Rath =
     -- `ReplaceAmount [KindIs DealDamage] (Times ThatMuch (^2))`; Gisela's "prevent half" scales down.
     ReplaceAmount : EventQuery b -> (newAmount : Count (bindEvent b)) -> StaticEffect b
     -- a static OUTCOME suppressor: the matching players can't lose / can't win ([CR#104.3a]). Platinum
-    -- Angel = `OutcomeGate CantLose you` + `OutcomeGate CantWin opponent`. (Indestructible needs NO new
-    -- constructor — it's `Replaces (KindIs Destroyed + this) (Sequence [])`, a skip; prevention is
-    -- `ReplaceAmount … (^0)`. Both already subsume their Rust `CantHappen`/`Prevention` families.)
+    -- Angel = `OutcomeGate CantLose you` + `OutcomeGate CantWin opponent`. (Distinct from `CantHappen` —
+    -- game-loss isn't a replaceable event — and from a deontic `Cant` — it's not a player action.)
     OutcomeGate : OutcomeGateKind -> Predicate b APlayer -> StaticEffect b
     -- ADDITIVE replacement ([CR#614.13] "as well as"): when [event] happens it STILL happens, but
     -- [effect] also runs. An Aura enters attached via `Also thisEnters (Act (Attach This host))`.

@@ -138,8 +138,9 @@ tEventQuery = And [ KindIs (ZoneChanged (Just Battlefield) (Just Graveyard))
 tReplaceAmount : StaticEffect Base
 tReplaceAmount = ReplaceAmount (KindIs DealDamage) (Times ThatMuch (^2))
 
--- prevention and indestructibility need NO dedicated constructor (they subsume Rust's Prevention /
--- CantHappen): prevention = the damage amount set to zero; indestructible = the destroy event skipped.
+-- prevention is a REPLACEMENT (the damage amount set to zero) — fine as ReplaceAmount. But
+-- indestructible is a PROHIBITION, not a replace-with-nothing: `keyword Indestructible` desugars to
+-- `CantHappen (destroy of This)` (the two are semantically distinct — see CantHappen's note).
 tPrevention : StaticEffect Base
 tPrevention = ReplaceAmount (KindIs DealDamage) (^0)
 

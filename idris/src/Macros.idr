@@ -114,13 +114,13 @@ haste = Keyword (Composite Haste
   [ Static (AsThough (Matches This (Not (HasState SummoningSick))) (Can (Attacks (SameAs This))))
   , Static (AsThough (Matches This (Not (HasState SummoningSick))) (Can (Activates you (SameAs This)))) ])
 
--- Indestructible ([CR#702.12]): "can't be destroyed by damage or 'destroy'." No engine primitive — a
--- `Composite` whose clause REPLACES the destroy of THIS with nothing (`Sequence []`, a pure skip), so
--- the `Replaces`-empty machinery subsumes Rust's `CantHappen`. Grantable like any keyword.
+-- Indestructible ([CR#702.12]): "can't be destroyed by damage or 'destroy'." A continuous PROHIBITION,
+-- not a replace-with-nothing — its `Composite` clause is `CantHappen` (the destroy of THIS can't happen),
+-- semantically distinct from a `Replaces`-empty skip. Grantable like any keyword.
 public export
 indestructible : Ability b
 indestructible = Keyword (Composite Indestructible
-  [Static (Replaces (And [KindIs Destroyed, SourceMatches (SameAs This)]) (Sequence []))])
+  [Static (CantHappen (And [KindIs Destroyed, SourceMatches (SameAs This)]))])
 
 -- desugar a `KeywordSpec` into its full `Ability` — dispatches to the macros above. EXHAUSTIVE
 -- (no catch-all): adding a `KeywordSpec` constructor forces a clause here. `Bare` = an engine-

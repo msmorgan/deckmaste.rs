@@ -1113,16 +1113,16 @@ card_SmugglersCopter = Normal $ ^:
   , toughness := Just 3
   }
 
--- Solemnity — "players can't get counters; counters can't be put on permanents." SUBSUMED, no new
--- constructor: `Replaces` the counter-placement event with `Sequence []` (the same skip as
--- indestructible) — it reaches counters because the `PutCounters` event-kind exists.
+-- Solemnity — "players can't get counters; counters can't be put on permanents." A PROHIBITION (not a
+-- replace-with-nothing): `CantHappen` the counter-placement event — reaching counters because the
+-- `PutCounters` event-kind exists.
 export
 card_Solemnity : Card
 card_Solemnity = Normal $ ^:
   { name := Just "Solemnity"
   , manaCost := [^1, ^White]
   , types := [Enchantment]
-  , abilities := [ Static (Replaces (KindIs PutCounters) (Sequence [])) ]
+  , abilities := [ Static (CantHappen (KindIs PutCounters)) ]
   }
 
 --:vim:sts=2 sw=2:
