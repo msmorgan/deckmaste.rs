@@ -285,7 +285,7 @@ data Window = ThisGame | ThisTurn | LastTurn | ThisCombat | ThisStep
 namespace EventKind
   public export
   data EventKind
-    = Cast | Sacrifice | Draw | Discard | DealDamage | CreateToken | PutCounters
+    = Cast | Sacrifice | Draw | Discard | DealDamage | CreateToken | PutCounters | Destroyed
     | ZoneChanged (Maybe Zone) (Maybe Zone)
     | BeginStep PhaseStep
 
@@ -574,6 +574,12 @@ public export
 data Outcome : Bindings -> Type where
   WinGame  : Reference b APlayer -> Outcome b
   LoseGame : Reference b APlayer -> Outcome b
+
+-- A STATIC suppressor of a game outcome ([CR#104.3a/720]) — distinct from the imperative `Outcome`
+-- above (Rust's lesson: win/lose-the-game is not a deontic over actions, nor a replaceable event, so
+-- it needs its own static channel). `OutcomeGate CantLose you` = Platinum Angel's first clause.
+public export
+data OutcomeGateKind = CantLose | CantWin
 
 -- Where a card goes in a library ([CR#401]). `FromTop (Literal 0)` = on top.
 public export
@@ -892,6 +898,11 @@ mutual
     -- `newAmount` (a `Count` over the event body, so it can read `ThatMuch`). Furnace of Rath =
     -- `ReplaceAmount [KindIs DealDamage] (Times ThatMuch (^2))`; Gisela's "prevent half" scales down.
     ReplaceAmount : EventQuery b -> (newAmount : Count (bindEvent b)) -> StaticEffect b
+    -- a static OUTCOME suppressor: the matching players can't lose / can't win ([CR#104.3a]). Platinum
+    -- Angel = `OutcomeGate CantLose you` + `OutcomeGate CantWin opponent`. (Indestructible needs NO new
+    -- constructor — it's `Replaces (KindIs Destroyed + this) (Sequence [])`, a skip; prevention is
+    -- `ReplaceAmount … (^0)`. Both already subsume their Rust `CantHappen`/`Prevention` families.)
+    OutcomeGate : OutcomeGateKind -> Predicate b APlayer -> StaticEffect b
     -- the inner continuous effect applies only WHILE the condition holds ([CR#604.3]) —
     -- a conditional static ("gets +1/+1 as long as …").
     While : Condition b -> StaticEffect b -> StaticEffect b

@@ -867,9 +867,9 @@ card_ThornOfTheBlackRose = Normal $ ^:
   }
 
 -- Fleecemane Lion — an OBJECT designation (monstrous): Monstrosity grants it (`GrantDesignation
--- Monstrous This`), and a static reads it (`HasDesignation Monstrous`, an object test). One mechanism,
--- both scopes, kept apart by type. (Indestructible isn't modeled yet — awaits the CantHappen pass; the
--- monstrous-gated hexproof is faithful.)
+-- Monstrous This`), and the statics read it (`HasDesignation Monstrous`, an object test) to confer
+-- hexproof AND indestructible while monstrous. Indestructible needs no new construct — it's `Replaces`
+-- (the destroy of This) with `Sequence []` (a pure skip).
 export
 card_FleecemaneLion : Card
 card_FleecemaneLion = Normal $ ^:
@@ -883,6 +883,8 @@ card_FleecemaneLion = Normal $ ^:
                     , Act (GrantDesignation Monstrous This) ])              -- Monstrosity 1
       , Static (While (Matches This (HasDesignation Monstrous))
           (Modify This [GrantAbility (keyword (Hexproof Nothing))]))        -- while monstrous: hexproof
+      , Static (While (Matches This (HasDesignation Monstrous))
+          (Replaces (And [KindIs Destroyed, SourceMatches (SameAs This)]) (Sequence [])))   -- …and indestructible
       ]
   , power := Just 3
   , toughness := Just 3
@@ -975,6 +977,38 @@ card_CoatOfArms = Normal $ ^:
       [ Static (ModifyAll creature
           [ ModifyPT (Up (CountOf (And [creature, SharesSubtype It, Not (SameAs It)])))
                      (Up (CountOf (And [creature, SharesSubtype It, Not (SameAs It)]))) ]) ]
+  }
+
+-- Platinum Angel — the OUTCOME gate: "you can't lose the game and your opponents can't win." Two
+-- `OutcomeGate` statics — a dedicated channel, since game-loss is neither a deontic action nor a
+-- replaceable event ([CR#104.3a]).
+export
+card_PlatinumAngel : Card
+card_PlatinumAngel = Normal $ ^:
+  { name := Just "Platinum Angel"
+  , manaCost := [^7]
+  , types := [Artifact, Creature]
+  , subtypes := [^Angel]
+  , abilities :=
+      [ keyword Flying
+      , Static (OutcomeGate CantLose you)
+      , Static (OutcomeGate CantWin opponent)
+      ]
+  , power := Just 4
+  , toughness := Just 4
+  }
+
+-- Darksteel Citadel — INDESTRUCTIBLE with no new constructor: `Replaces` the destroy of This with
+-- `Sequence []` (a pure skip). The `Replaces`-empty machinery already subsumes Rust's `CantHappen`.
+export
+card_DarksteelCitadel : Card
+card_DarksteelCitadel = Normal $ ^:
+  { name := Just "Darksteel Citadel"
+  , types := [Artifact, Land]
+  , abilities :=
+      [ Static (Replaces (And [KindIs Destroyed, SourceMatches (SameAs This)]) (Sequence []))   -- Indestructible
+      , Activated TapSelf (Act (AddMana [^Colorless]))                                          -- {T}: Add {C}
+      ]
   }
 
 --:vim:sts=2 sw=2:
