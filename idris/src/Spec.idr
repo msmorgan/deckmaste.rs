@@ -136,13 +136,13 @@ tEventQuery = And [ KindIs (ZoneChanged (Just Battlefield) (Just Graveyard))
 -- PAYLOAD replacement: the event survives but its amount is rewritten — Furnace of Rath doubles damage
 -- by scaling `ThatMuch` (the event's own amount). The `newAmount` reads the event body.
 tReplaceAmount : StaticEffect Base
-tReplaceAmount = ReplaceAmount (KindIs DealDamage) (Times ThatMuch (^2))
+tReplaceAmount = ReplaceAmount DealDamage (Times ThatMuch (^2))
 
 -- prevention is a REPLACEMENT (the damage amount set to zero) — fine as ReplaceAmount. But
 -- indestructible is a PROHIBITION, not a replace-with-nothing: `keyword Indestructible` desugars to
 -- `CantHappen (destroy of This)` (the two are semantically distinct — see CantHappen's note).
 tPrevention : StaticEffect Base
-tPrevention = ReplaceAmount (KindIs DealDamage) (^0)
+tPrevention = ReplaceAmount DealDamage (^0)
 
 tIndestructible : Ability Base
 tIndestructible = keyword Indestructible
@@ -252,7 +252,7 @@ tValues =
   , Min (CountersOn P1P1 This) (CountersOn M1M1 This)   -- net counters after annihilation
   , Max (StatOf This Power) (^0)
   , Damage This                                          -- marked damage
-  , EventSum (And [KindIs DealDamage, ActorIs opponent]) ]  -- amount-twin of EventCount
+  , EventSum DealDamage {facets = Just (ActorIs opponent)} ]  -- amount-twin of EventCount; kind is gated
 
 -- the lethal-damage SBA now states directly: marked damage ≥ toughness.
 tLethalSba : Condition Base
@@ -430,6 +430,31 @@ failing
 failing
   tBadDesignationScope : Action Base
   tBadDesignationScope = GrantDesignation Monarch This
+
+-- replacing the AMOUNT of an amountless event is rejected — a Cast has no numeric payload
+failing
+  tBadReplaceAmountless : StaticEffect Base
+  tBadReplaceAmountless = ReplaceAmount Cast (^0)
+
+-- summing the amount of an amountless event is rejected likewise
+failing
+  tBadEventSumAmountless : Count Base
+  tBadEventSumAmountless = EventSum Cast
+
+-- "becomes summoning-sick" isn't a transition event — `IsBecomesState SummoningSick = Void`
+failing
+  tBadBecomesSummoningSick : EventKind
+  tBadBecomesSummoningSick = Becomes SummoningSick
+
+-- devotion to NO colors is rejected (vacuous) — `NonEmpty []` is uninhabited
+failing
+  tBadDevotionEmpty : Count Base
+  tBadDevotionEmpty = Devotion []
+
+-- a `TapTotal` over `Defense` (a battle stat) is rejected — `IsTappableStat Defense = Void`
+failing
+  tBadTapDefense : Cost Base
+  tBadTapDefense = TapTotal Defense GreaterEq (^3) creature
 
 -- a 0-size block is rejected — a declared block has ≥1 blocker (`NonZeroQ` on `BlockedBy`'s size)
 failing
