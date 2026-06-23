@@ -4,5 +4,6 @@ modules = Core
         , Macros
         , Cards
         , Spec
+        , Experimental
 
 sourcedir = "src"
