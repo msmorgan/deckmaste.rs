@@ -109,9 +109,10 @@ card_Brainstorm = Normal $ ^:
       ]
   }
 
--- TRICKY: an Aura. `Enchant` says what it attaches to; a `Static` ability buffs
--- the host (`AttachHostOf This`) with +2/+0 and trample; a graveyard trigger
--- returns it to hand. (Aura is an enchantment subtype, so it's allowed here.)
+-- TRICKY: an Aura, the ENGINE's way (no dedicated `Enchant`): the host restriction is `Cant (Attaches
+-- (SameAs This) (Not creature))` — "enchant creature"; a `Static` buffs the host (`AttachHostOf This`)
+-- with +2/+0 and trample; a graveyard trigger returns it to hand. The intrinsic enters-attached /
+-- falls-off rules (`Also`/`Sba`) are SHARED statics (engine: conferred by the Aura subtype) — see Spec.
 export
 card_Rancor : Card
 card_Rancor = Normal $ ^:
@@ -120,7 +121,7 @@ card_Rancor = Normal $ ^:
   , types := [Enchantment]
   , subtypes := [^Aura]
   , abilities :=
-      [ Enchant (And [permanent, creature])
+      [ Static (Cant (Attaches (SameAs This) (Not creature)))
       , Static (Modify (AttachHostOf This)
           [ ModifyPT (^2) (^0)
           , GrantAbility (keyword Trample)
@@ -389,7 +390,7 @@ card_Pacifism = Normal $ ^:
   , types := [Enchantment]
   , subtypes := [^Aura]
   , abilities :=
-      [ Enchant (And [permanent, creature])
+      [ Static (Cant (Attaches (SameAs This) (Not creature)))
       , Static (Cant (Attacks (SameAs (AttachHostOf This))))
       , Static (Cant (Blocks (SameAs (AttachHostOf This)) creature))
       ]
