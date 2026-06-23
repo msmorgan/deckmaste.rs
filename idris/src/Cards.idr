@@ -779,4 +779,28 @@ card_DoublingSeason = Normal $ ^:
       ]
   }
 
+-- Time Walk — "target player takes an extra turn after this one." `ExtraTurn {who = …}` on the
+-- targeted player ([CR#505]).
+export
+card_TimeWalk : Card
+card_TimeWalk = Normal $ ^:
+  { name := Just "Time Walk"
+  , manaCost := [^1, ^Blue]
+  , types := [Sorcery]
+  , abilities := [ Spell (Targeted [Target (^1) Anyone] (Act (ExtraTurn {who = GetTarget 0}))) ]
+  }
+
+-- Mindslaver — "{T}, Sacrifice Mindslaver: You control target player during that player's next turn."
+-- `ControlPlayer` on the targeted player; the next-turn duration is the engine's ([CR#720]).
+export
+card_Mindslaver : Card
+card_Mindslaver = Normal $ ^:
+  { name := Just "Mindslaver"
+  , manaCost := [^6]
+  , types := [Artifact]
+  , abilities :=
+      [ Activated (Costs [TapSelf, Sacrifice This])
+          (Targeted [Target (^1) Anyone] (Act (ControlPlayer (GetTarget 0)))) ]
+  }
+
 --:vim:sts=2 sw=2:
