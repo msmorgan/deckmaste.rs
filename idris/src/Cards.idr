@@ -579,4 +579,24 @@ card_StudentOfWarfare = Normal $ ^:
       ]
   }
 
+-- Iona, Shield of Emeria — an AS-ENTERS value choice ([CR#614.12]): "choose a color", then a static
+-- reads it. `AsEntersChoosing AColor` scopes the choice over the card's abilities, which therefore
+-- elaborate under `bindChosen AColor Base`; "spells of the chosen color" is `And [IsKind IsSpell,
+-- OfChosen]` (`OfChosen` = "has the chosen color", the engine resolving the domain).
+export
+card_Iona : Card
+card_Iona = AsEntersChoosing AColor $ ^:
+  { name := Just "Iona, Shield of Emeria"
+  , manaCost := [^6, ^White, ^White, ^White]
+  , types := [Creature]
+  , supertypes := [Legendary]
+  , subtypes := [^Angel]
+  , abilities :=
+      [ keyword Flying
+      , Static (Cant (Casts opponent (And [IsKind IsSpell, OfChosen])))
+      ]
+  , power := Just 7
+  , toughness := Just 7
+  }
+
 --:vim:sts=2 sw=2:

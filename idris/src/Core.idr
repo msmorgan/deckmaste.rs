@@ -88,7 +88,7 @@ data Zone
 public export
 data CreatureSubtype
   = Bear | Rat | Spider | Human | Knight | Goblin | Elf | Zombie | Elemental | Wall | Spirit
-  | Rogue | Warrior | Merfolk | Wizard | Juggernaut  -- creature types
+  | Rogue | Warrior | Merfolk | Wizard | Juggernaut | Angel  -- creature types
 public export
 data EnchantmentSubtype
   = Aura
@@ -248,6 +248,20 @@ namespace EventKind
     | ZoneChanged (Maybe Zone) (Maybe Zone)
     | BeginStep PhaseStep
 
+-- A value-choice DOMAIN: what an as-enters "choose …" picks from ([CR#614.12]). The chosen value is
+-- bound in `Bindings.chosenKind` and read back by the `OfChosen` anaphor. Characteristic domains
+-- (color / creature type) name something an object can HAVE; a mode domain (later) won't.
+public export
+data ChooseDomain = AColor | ACreatureType
+
+-- which domains name a CHARACTERISTIC `OfChosen` can test on an object — the gate on that anaphor (a
+-- mode choice is not a characteristic, and no choice at all can't be read). Total over the domain.
+public export
+IsCharDomain : Maybe ChooseDomain -> Type
+IsCharDomain (Just AColor)       = ()
+IsCharDomain (Just ACreatureType) = ()
+IsCharDomain Nothing             = Void
+
 -- `Bindings`: the typestate of what references are in scope. Its fields are
 -- PROJECTIONS we write constraints against; it grows as the model binds roles.
 public export
@@ -257,35 +271,41 @@ record Bindings where
   thatKind    : Maybe RefKind    -- a `With`-bound group's element kind (`That`), if bound
   itKind      : Maybe RefKind    -- a `ForEach`-bound element's kind (`It`), if bound
   eventBound  : Bool         -- inside a trigger/replacement/delayed body (`EventObject`/`EventActor`)
+  chosenKind  : Maybe ChooseDomain  -- an as-enters "choose …" value in scope (`OfChosen`), if bound
 
 -- The bindings a resolving spell starts in: nothing bound yet.
 public export
 Base : Bindings
-Base = MkBindings [] Nothing Nothing False
+Base = MkBindings [] Nothing Nothing False Nothing
 
 -- Each sets one field, reconstructing `MkBindings` explicitly so a projection of a
 -- bind result reduces definitionally even for abstract `b` (record-update sugar
 -- has no get-after-set law for an abstract record).
 public export
 bindTargets : List RefKind -> Bindings -> Bindings
-bindTargets ks b = MkBindings ks (thatKind b) (itKind b) (eventBound b)
+bindTargets ks b = MkBindings ks (thatKind b) (itKind b) (eventBound b) (chosenKind b)
 
 public export
 unbindTargets : Bindings -> Bindings
-unbindTargets b = MkBindings [] (thatKind b) (itKind b) (eventBound b)
+unbindTargets b = MkBindings [] (thatKind b) (itKind b) (eventBound b) (chosenKind b)
 
 public export
 bindThat : RefKind -> Bindings -> Bindings
-bindThat k b = MkBindings (targetKinds b) (Just k) (itKind b) (eventBound b)
+bindThat k b = MkBindings (targetKinds b) (Just k) (itKind b) (eventBound b) (chosenKind b)
 
 public export
 bindIt : RefKind -> Bindings -> Bindings
-bindIt k b = MkBindings (targetKinds b) (thatKind b) (Just k) (eventBound b)
+bindIt k b = MkBindings (targetKinds b) (thatKind b) (Just k) (eventBound b) (chosenKind b)
 
 -- entering a trigger/replacement/delayed body, where the event's object/player are bound.
 public export
 bindEvent : Bindings -> Bindings
-bindEvent b = MkBindings (targetKinds b) (thatKind b) (itKind b) True
+bindEvent b = MkBindings (targetKinds b) (thatKind b) (itKind b) True (chosenKind b)
+
+-- the as-enters value choice ([CR#614.12]): binds `chosenKind` for the whole card's abilities.
+public export
+bindChosen : ChooseDomain -> Bindings -> Bindings
+bindChosen d b = MkBindings (targetKinds b) (thatKind b) (itKind b) (eventBound b) (Just d)
 
 -- KeywordSpec / Reference / Count / Predicate / Condition / EventQuery are one mutually
 -- recursive language. A PREDICATE is an object test — its candidate is IMPLICIT. A `Condition`
@@ -385,6 +405,11 @@ mutual
       ControlledBy : Predicate b APlayer -> Predicate b AnObject   -- controller MATCHES a player-pred: "you control" = ControlledBy you, "an opponent controls" = ControlledBy opponent
       OwnedBy : Predicate b APlayer -> Predicate b AnObject
       WasKicked : Predicate b AnObject           -- FLAG: kicker as a boolean flag on the object (no cost-mode model)
+      -- ANAPHOR: "the candidate has the chosen characteristic" — the chosen color (Iona: "spells of the
+      -- chosen color") or creature type (Cavern: "a creature spell of the chosen type"). Gated on an
+      -- as-enters CHARACTERISTIC choice being in scope (`IsCharDomain (chosenKind b)`); the engine
+      -- resolves which characteristic to test from the domain. No per-color/-type literal anaphor needed.
+      OfChosen : {auto prf : IsCharDomain (chosenKind b)} -> Predicate b AnObject
       -- `Anyone` is the player top-predicate ("any player" — a person, hence `APlayer`).
       Anyone : Predicate b APlayer
       -- combinators (`Predicate.And/Or/Not`, sharing names with `Condition`/`EventQuery`). `And`
@@ -852,9 +877,13 @@ implementation DefaultValue (Characteristics b) where
 -- types. The proof is demanded at `Normal`, so `types`/`subtypes` stay plain
 -- fields the `^ { … := … }` builder can still set.
 public export
-SubtypesOk : Characteristics Base -> Type
+SubtypesOk : Characteristics b -> Type
 SubtypesOk c = All (\s => Elem (subtypeCategory s) (types c)) (subtypes c)
 
 public export
 data Card : Type where
   Normal : (c : Characteristics Base) -> {auto ok : SubtypesOk c} -> {auto wf : CharacteristicsOk c} -> Card
+  -- "As ~ enters, choose a [d]" ([CR#614.12]): the choice scopes the WHOLE card, so its abilities
+  -- elaborate under `bindChosen d Base` and may read the choice via `OfChosen` (Iona, Cavern).
+  AsEntersChoosing : (d : ChooseDomain) -> (c : Characteristics (bindChosen d Base)) ->
+                     {auto ok : SubtypesOk c} -> {auto wf : CharacteristicsOk c} -> Card
