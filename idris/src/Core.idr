@@ -161,10 +161,13 @@ data Supertype = Basic | Legendary | Ongoing | Snow | World
 public export
 data TextWordClass = ColorWords | BasicLandTypes
 
--- A kind of counter ([CR#122]). The TYPE is `CounterKind` — bare `Counter` is taken
--- by the spell-countering `Action`.
+-- A kind of counter ([CR#122]). The TYPE is `CounterKind` — bare `Counter` is taken by the spell-
+-- countering `Action`. A CLOSED set (curated — NOT an open name+registry like the Rust engine, which
+-- needs that for plugins); the carrier (object vs player) is the total function `counterCarrier`
+-- below, which indexes the counter ops dependently.
 public export
-data CounterKind = Loyalty | Fate | Charge | P1P1 | M1M1 | Level
+data CounterKind = Loyalty | Fate | Charge | P1P1 | M1M1 | Level | Lore | Stun | Shield
+                 | Poison | Energy | Experience
 
 -- A timing WINDOW — the speed at which an action is allowed: `InstantWindow` (any time you have
 -- priority) or `SorceryWindow` (your main phase, empty stack — [CR#601.3,602.5d]). The ONE timing
@@ -206,6 +209,17 @@ public export
 (\/) AnObject AnObject = AnObject
 (\/) APlayer APlayer = APlayer
 (\/) _ _ = Anything
+
+-- the CARRIER of a counter ([CR#122.1]): most are object-borne; poison/energy/experience are borne by
+-- PLAYERS. This indexes the counter ops dependently — `PutCounters Poison n You` typechecks and
+-- `PutCounters Poison n <object>` does not, with no runtime check. (Players-are-objects: the `Reference`
+-- language already names players, so a player-carried counter needs no new machinery, just this kind.)
+public export
+counterCarrier : CounterKind -> RefKind
+counterCarrier Poison     = APlayer
+counterCarrier Energy     = APlayer
+counterCarrier Experience = APlayer
+counterCarrier _          = AnObject
 
 public export
 data BeginningStep
@@ -381,7 +395,7 @@ mutual
     CountOf : Predicate b k -> Count b        -- how many entities match a predicate
     StatOf : Reference b AnObject -> Stat -> Count b     -- an object's power/toughness/etc.
     EventCount : EventQuery b -> Count b      -- how many matching events occurred (window is in the query)
-    CountersOn : CounterKind -> Reference b AnObject -> Count b   -- number of [kind] counters on r
+    CountersOn : (c : CounterKind) -> Reference b (counterCarrier c) -> Count b   -- number of [kind] counters on r (object or player, per `counterCarrier`)
     LifeTotal : Reference b APlayer -> Count b           -- a player's life total
     HandSize : Reference b APlayer -> Count b            -- cards in a player's hand
     Plus  : Count b -> Count b -> Count b                -- arithmetic on values
@@ -409,7 +423,7 @@ mutual
       ExiledBy : Reference b AnObject -> Predicate b AnObject   -- set aside by r's effect ("cards exiled by this" = ExiledBy
                                                  -- This); the engine holds the association ([CR#607] linked abilities)
       HasName : String -> Predicate b AnObject   -- named a specific card (tutors / token names)
-      HasCounter : CounterKind -> Predicate b AnObject   -- has ≥1 of this counter ("without a fate counter" = Not (HasCounter Fate))
+      HasCounter : (c : CounterKind) -> Predicate b (counterCarrier c)   -- has ≥1 of this counter; the candidate's kind follows the carrier ("ten poison" tests a player)
       HasState : ObjectState -> Predicate b AnObject      -- runtime state: "target ATTACKING / TAPPED creature"
       -- a numeric STAT comparison on the candidate — "target creature with power ≤ 2" =
       -- `And [creature, StatCmp Power LessEq (^2)]`. (Closes the "no stat filter" hole — stat
@@ -608,6 +622,7 @@ data Cost : Bindings -> Type where
   TapSelf   : Cost b                             -- "{T}"
   UntapSelf : Cost b                             -- "{Q}"
   PayLife   : Count b -> Cost b                  -- "Pay N life"
+  PayEnergy : Count b -> Cost b                  -- "Pay {E}×N" — spend N energy counters from you
   Sacrifice : Reference b AnObject -> Cost b              -- "Sacrifice this" = Sacrifice This
   AddCounters    : CounterKind -> Count b -> Cost b   -- a loyalty "+N" cost (put N counters on This)
   RemoveCounters : CounterKind -> Count b -> Cost b   -- a loyalty "−N" cost (remove N from This)
@@ -708,8 +723,8 @@ mutual
     -- put a selection into its owner's library at a position ([CR#401]).
     PutIntoLibrary : Reference b AnObject -> LibraryPosition b -> Action b
     -- put / clear counters ([CR#122]). `RemoveAllCounters` clears every counter of a kind.
-    PutCounters : CounterKind -> Count b -> Reference b AnObject -> Action b
-    RemoveAllCounters : CounterKind -> Reference b AnObject -> Action b
+    PutCounters : (c : CounterKind) -> Count b -> Reference b (counterCarrier c) -> Action b
+    RemoveAllCounters : (c : CounterKind) -> Reference b (counterCarrier c) -> Action b
     -- player verbs: discard / lose life; and a chooser-verb where a player sacrifices.
     Discard : {default You actor : Reference b APlayer} -> Count b -> Action b
     LoseLife : {default You actor : Reference b APlayer} -> Count b -> Action b

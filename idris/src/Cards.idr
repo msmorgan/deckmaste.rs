@@ -832,4 +832,20 @@ card_FloodedStrand = Normal $ ^:
                       , Act Shuffle ])) ]
   }
 
+-- Aether Hub — a PLAYER-COUNTER (energy) demo. "You get {E}{E}" is `PutCounters Energy (^2) You`, which
+-- typechecks ONLY because `counterCarrier Energy = APlayer` (energy on an object is a type error);
+-- "Pay {E}" is the new `PayEnergy` cost. The dependent carrier puts the counter on the player by type.
+export
+card_AetherHub : Card
+card_AetherHub = Normal $ ^:
+  { name := Just "Aether Hub"
+  , types := [Land]
+  , abilities :=
+      [ Triggered (And [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)])
+          (Act (PutCounters Energy (^2) You))                                  -- "you get {E}{E}"
+      , Activated TapSelf (Act (AddMana [^Colorless]))                         -- {T}: Add {C}
+      , Activated (Costs [TapSelf, PayEnergy (^1)]) (Act (AddMana [AnyColor]))  -- {T}, Pay {E}: add one mana of any color
+      ]
+  }
+
 --:vim:sts=2 sw=2:
