@@ -615,4 +615,29 @@ card_SteelyResolve = AsEntersChoosing ACreatureType $ ^:
       [ Static (ModifyAll (And [creature, OfChosen]) [GrantAbility (keyword Shroud)]) ]
   }
 
+-- Citadel Siege — the MODAL choose-on-enter case (Outpost Siege's class): `AsEntersChoosing (AMode 2)`
+-- picks Khans (0) or Dragons (1); each triggered ability gates on `ChosenIs`. Both abilities are
+-- present and fire at begin-of-combat; the unchosen mode's `If (ChosenIs …)` is inert — the toy gates
+-- the EFFECT (since `ChosenIs` is a `Condition`), not the ability's existence. "That player controls"
+-- (Dragons) reads as `ControlledBy opponent` — exact in two-player.
+export
+card_CitadelSiege : Card
+card_CitadelSiege = AsEntersChoosing (AMode 2) $ ^:
+  { name := Just "Citadel Siege"
+  , manaCost := [^3, ^White]
+  , types := [Enchantment]
+  , abilities :=
+      [ -- Khans (0): begin combat on YOUR turn → two +1/+1 counters on a creature you control
+        Triggered (And [KindIs (BeginStep (CombatPhase BeginningOfCombatStep)), DuringTurn you])
+          (If (ChosenIs 0)
+              (Targeted [Target (^1) (And [creature, ControlledBy you])]
+                (Act (PutCounters P1P1 (^2) (GetTarget 0)))))
+      , -- Dragons (1): begin combat on an OPPONENT's turn → tap a creature that opponent controls
+        Triggered (And [KindIs (BeginStep (CombatPhase BeginningOfCombatStep)), DuringTurn opponent])
+          (If (ChosenIs 1)
+              (Targeted [Target (^1) (And [creature, ControlledBy opponent])]
+                (Act (Tap (GetTarget 0)))))
+      ]
+  }
+
 --:vim:sts=2 sw=2:

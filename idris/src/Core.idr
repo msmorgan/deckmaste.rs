@@ -252,15 +252,17 @@ namespace EventKind
 -- bound in `Bindings.chosenKind` and read back by the `OfChosen` anaphor. Characteristic domains
 -- (color / creature type) name something an object can HAVE; a mode domain (later) won't.
 public export
-data ChooseDomain = AColor | ACreatureType
+data ChooseDomain = AColor | ACreatureType | AMode Nat   -- `AMode n` = an n-way mode pick (Outpost/Citadel: Khans/Dragons)
 
 -- which domains name a CHARACTERISTIC `OfChosen` can test on an object — the gate on that anaphor (a
--- mode choice is not a characteristic, and no choice at all can't be read). Total over the domain.
+-- mode choice is not a characteristic — it gates abilities via `ChosenIs`; no choice can't be read).
+-- Total over the domain.
 public export
 IsCharDomain : Maybe ChooseDomain -> Type
-IsCharDomain (Just AColor)       = ()
+IsCharDomain (Just AColor)        = ()
 IsCharDomain (Just ACreatureType) = ()
-IsCharDomain Nothing             = Void
+IsCharDomain (Just (AMode _))     = Void
+IsCharDomain Nothing              = Void
 
 -- `Bindings`: the typestate of what references are in scope. Its fields are
 -- PROJECTIONS we write constraints against; it grows as the model binds roles.
@@ -430,6 +432,10 @@ mutual
       Compare : Count b -> Cmp -> Count b -> Condition b
       TurnOf : Predicate b APlayer -> Condition b   -- it's a (matching) player's turn (`yourTurn = TurnOf (SameAs You)`)
       During : PhaseStep -> Condition b
+      -- ANAPHOR (modal): "the chosen MODE is index i" — reads an as-enters `AMode` choice ([CR#614.12]).
+      -- `i` is bounded by the choice's mode count `n` (recovered from `chosenKind b = Just (AMode n)`),
+      -- so `ChosenIs 2` on a 2-mode card is rejected. Each siege ability gates on it: `If (ChosenIs k) …`.
+      ChosenIs : (i : Nat) -> {auto prf : chosenKind b = Just (AMode n)} -> {auto inb : LT i n} -> Condition b
       And : List (Condition b) -> Condition b
       Or : List (Condition b) -> Condition b
       Not : Condition b -> Condition b
