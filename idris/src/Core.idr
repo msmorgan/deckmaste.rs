@@ -27,11 +27,12 @@ data SimpleManaSymbol
   | Specific (Maybe Color)
 
 public export
+-- the PRINTED cost language ([CR#107.4]) — what appears on a card as a mana cost. NOT what a mana
+-- ability produces (that's `ProducedMana` below — a different domain; the user's distinction).
 data ManaSymbol
   = Simple SimpleManaSymbol
   | Hybrid SimpleManaSymbol Color
   | Variable
-  | AnyColor                  -- "one mana of any color" (the producer picks); Cavern's restricted ability
   | Phyrexian Color           -- "{W/P}" — pay the color OR 2 life ([CR#107.4f])
   | SnowMana                  -- "{S}" — one mana from a snow source ([CR#107.4g]); `SnowMana`, not `Snow` (the supertype)
 
@@ -64,6 +65,20 @@ implementation Promote Color ManaSymbol where
 public export
 implementation Promote (Maybe Color) ManaSymbol where
   promote = Simple . Specific
+
+-- PRODUCED mana ([CR#106.1]) — actual mana a mana ability adds. A DIFFERENT domain from the printed
+-- cost `ManaSymbol`: you produce colored/colorless units or "any color", never `{X}`/`{W/P}`/`{S}`.
+public export
+data ProducedMana = OfColor (Maybe Color)   -- `OfColor (Just c)` = one {c}; `OfColor Nothing` = one {C}
+                  | AnyColor                 -- one mana of any color (the producer picks)
+
+public export
+implementation Promote Color ProducedMana where
+  promote = OfColor . Just
+
+public export
+implementation Promote (Maybe Color) ProducedMana where
+  promote = OfColor
 
 public export
 ManaCost : Type
@@ -929,14 +944,14 @@ mutual
     -- `onlyToCast` is the spend constraint ("spend only to cast a [pred] spell"); `confers` are
     -- continuous effects the engine applies to the spell the mana DOES pay for — that spell is bound
     -- as `It`, so Cavern's "and that spell can't be countered" is `[Cant (Countered (SameAs It))]`.
-    AddMana : {default You actor : Reference b APlayer} -> ManaCost
+    AddMana : {default You actor : Reference b APlayer} -> List ProducedMana
               -> {default Nothing onlyToCast : Maybe (Predicate b AnObject)}
               -> {default [] confers : List (StaticEffect (bindIt AnObject b))}
               -> Action b
     -- VARIABLE mana production: add `amount` mana of `of_` ("{G} for each creature you control"; Cabal
     -- Coffers; "equal to your devotion to green"). The amount is any `Count` — so devotion-scaled,
     -- count-scaled, and {X} production all fall out of the value language. ([CR#106.1])
-    AddManaFor : (amount : Count b) -> (of_ : ManaSymbol) -> Action b
+    AddManaFor : (amount : Count b) -> (of_ : ProducedMana) -> Action b
 
   -- What a binder (`With`) binds as `That`: a QUERY of existing objects, a PRODUCER
   -- (an `Action` run for effect, binding its product), or a CHOICE (a player picks).

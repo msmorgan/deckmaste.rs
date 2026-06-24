@@ -517,6 +517,22 @@ failing
   tBadModeDomainZero : Ability Base
   tBadModeDomainZero = AsEnters (AMode 0) []
 
+-- MANA cost-vs-production split: printed `ManaSymbol` and `ProducedMana` are different domains.
+-- "any color" is a PRODUCTION concept — not a printed cost.
+failing
+  tBadAnyColorCost : Cost Base
+  tBadAnyColorCost = Mana [AnyColor]
+
+-- {X} is a COST symbol — you don't PRODUCE {X}.
+failing
+  tBadProduceVariable : Action Base
+  tBadProduceVariable = AddMana [Variable]
+
+-- {W/P} (Phyrexian) is a COST symbol — you don't produce a Phyrexian pip.
+failing
+  tBadProducePhyrexian : Action Base
+  tBadProducePhyrexian = AddMana [Phyrexian Red]
+
 
 -- a 0-size block is rejected — a declared block has ≥1 blocker (`NonZeroQ` on `BlockedBy`'s size)
 failing
