@@ -220,6 +220,11 @@ tMoveAllCounters = Targeted [Target (^1) creature] (Act (MoveAllCounters This (G
 tMayCastFor : StaticEffect Base
 tMayCastFor = MayCastFor (AltCost [PayLife (^1)])
 
+-- cast-from-zone: the alt-cost's `from` defaults to Hand; a non-default zone is the flashback family
+-- ("cast this from your graveyard for {3}{U}"). The exile-after / exile-N riders compose on separately.
+tCastFromGrave : StaticEffect Base
+tCastFromGrave = MayCastFor (AltCost [Mana [^3, ^Blue]]) {from = Graveyard}
+
 -- a log-derived history count feeds a condition, and a game `Outcome` wraps into an effect
 tHistoryThenWin : OneShotEffect Base
 tHistoryThenWin =
