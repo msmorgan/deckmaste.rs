@@ -147,6 +147,10 @@ tPrevention = ReplaceAmount DealDamage (^0)
 tIndestructible : Ability Base
 tIndestructible = keyword Indestructible
 
+-- Devoid: "this is colorless" — now expressible via the unified `Set` clearing the color set.
+tDevoid : Ability Base
+tDevoid = keyword Devoid
+
 tOutcomeGate : StaticEffect Base
 tOutcomeGate = OutcomeGate CantLose you
 
