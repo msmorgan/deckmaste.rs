@@ -128,7 +128,7 @@ card_Rancor = Normal $ ^:
           ])
       , Triggered
           (MkQuery [ZoneChanged (Just Battlefield) (Just Graveyard)]
-                   [SourceMatches (SameAs This)])
+                   [Agent (SameAs This)])
           (Act (Move (This) Hand))
       ]
   }
@@ -188,8 +188,8 @@ card_ApproachOfTheSecondSun = Normal $ ^:
       [ Spell $
           If (And [ Matches This (WasCastFrom Hand)
                   , Compare (EventCount (MkQuery [Cast]
-                                               [ ActorIs you
-                                               , SourceMatches (SameName This)
+                                               [ Actor you
+                                               , Patient (SameName This)
                                                , Within ThisGame ]))
                             GreaterEq (Literal 2) ])
              (Conclude (WinGame You))
@@ -292,7 +292,7 @@ card_Necropotence = Normal $ ^:
   , types := [Enchantment]
   , abilities :=
       [ Static (Replaces (MkQuery [BeginStep (BeginningPhase DrawStep)] [DuringTurn you]) (Sequence []))
-      , Triggered (MkQuery [Discard] [ActorIs you])
+      , Triggered (MkQuery [Discard] [Actor you])
           (Act (Move EventObject Exile))
       , Activated (PayLife (Literal 1))
           (ForEach (TopOfLibrary (Literal 1))
@@ -315,7 +315,7 @@ card_NotionThief = Normal $ ^:
   , abilities :=
       [ keyword Flash
       , Static (Replaces (MkQuery [Draw]
-                                [ ActorIs opponent
+                                [ Actor opponent
                                 , Not (And [DuringStep (BeginningPhase DrawStep), IsFirst ThisStep]) ])
           (Act (Draw {actor = You} (^1))))
       ]
@@ -337,7 +337,7 @@ card_OblivionRing = Normal $ ^:
       [ Triggered (thisEnters)
           (Targeted [Target (^1) (And [permanent, Not (HasType Land), Not (SameAs This)])]
             (Act (Move ((GetTarget 0)) Exile)))
-      , Triggered (MkQuery [ZoneChanged (Just Battlefield) Nothing] [SourceMatches (SameAs This)])
+      , Triggered (MkQuery [ZoneChanged (Just Battlefield) Nothing] [Agent (SameAs This)])
           (ForEach (SelectAll (ExiledBy This)) (Act (Move It Battlefield)))
       ]
   }
@@ -357,7 +357,7 @@ card_BanishingLight = Normal $ ^:
           Targeted [Target (^1) (And [permanent, Not (HasType Land), ControlledBy opponent])] $
             Act (ExileUntil ((GetTarget 0))
                             (UntilEvent (MkQuery [ZoneChanged (Just Battlefield) Nothing]
-                                               [SourceMatches (SameAs This)])))
+                                               [Agent (SameAs This)])))
       ]
   }
 
@@ -661,7 +661,7 @@ card_OutpostSiege = Normal $ ^:
                     (Continuously (Can (Plays you (SameAs (Single That)))) UntilEndOfTurn)))
           , -- Dragons (1): when a creature you control leaves the battlefield, deal 1 to any target
             Triggered (MkQuery [ZoneChanged (Just Battlefield) Nothing]
-                           [SourceMatches (And [creature, ControlledBy you])])
+                           [Agent (And [creature, ControlledBy you])])
               (If (ChosenIs 1)
                   (Targeted [anyTarget] (Act (DealDamage (GetTarget 0) (^1)))))
           ]
@@ -775,8 +775,8 @@ card_DoublingSeason = Normal $ ^:
   , manaCost := [^4, ^Green]
   , types := [Enchantment]
   , abilities :=
-      [ Static (ReplaceAmount CreateToken (Times ThatMuch (^2)) {facets = [ActorIs you]})
-      , Static (ReplaceAmount PutCounters (Times ThatMuch (^2)) {facets = [SourceMatches (ControlledBy you)]})
+      [ Static (ReplaceAmount CreateToken (Times ThatMuch (^2)) {facets = [Actor you]})
+      , Static (ReplaceAmount PutCounters (Times ThatMuch (^2)) {facets = [Patient (ControlledBy you)]})
       ]
   }
 
@@ -1045,14 +1045,14 @@ card_HistoryOfBenalia = Normal $ ^:
   , subtypes := [^Saga]
   , abilities :=
       [ -- I, II — create a 2/2 white Knight
-        Triggered (MkQuery [PutCounters] [SourceMatches (SameAs This)])
+        Triggered (MkQuery [PutCounters] [Patient (SameAs This)])
           (If (Or [ Compare (CountersOn Lore This) Equal (^1)
                   , Compare (CountersOn Lore This) Equal (^2) ])
               (Act (CreateToken (^1)
                 (^: { name := Just "Knight", types := [Creature], subtypes := [^Knight]
                     , colors := [White], power := Just 2, toughness := Just 2 }))))
       , -- III — Knights you control get +2/+1 until end of turn
-        Triggered (MkQuery [PutCounters] [SourceMatches (SameAs This)])
+        Triggered (MkQuery [PutCounters] [Patient (SameAs This)])
           (If (Compare (CountersOn Lore This) Equal (^3))
               (Continuously (ModifyAll (And [HasSubtype (^Knight), ControlledBy you]) [ModifyPT (^2) (^1)]) UntilEndOfTurn))
       , -- sacrifice after the final chapter ([CR#714.4])
@@ -1105,7 +1105,7 @@ card_SmugglersCopter = Normal $ ^:
   , subtypes := [^Vehicle]
   , abilities :=
       [ keyword Flying
-      , Triggered (MkQuery [Becomes Attacking, Becomes Blocking] [SourceMatches (SameAs This)])
+      , Triggered (MkQuery [Becomes Attacking, Becomes Blocking] [Agent (SameAs This)])
           (May (Sequence [Act (Draw (^1)), Act (Discard (^1))]))   -- loot on attack or block
       , crew (^1)                                                  -- Crew 1
       ]

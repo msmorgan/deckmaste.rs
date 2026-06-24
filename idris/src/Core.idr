@@ -597,14 +597,19 @@ mutual
 
   -- The kind-free EVENT-FACET language: conditions refining WHICH event (never its kind, which lives in
   -- the `EventQuery` record's `kinds` slot). Facets conjoin via `And`; `Or` disjoins, `Not` negates (same
-  -- combinator names as Predicate/Condition, in this namespace). `SourceMatches` embeds the object
-  -- language; `Within`/`DuringStep`/`DuringTurn` are timing facets ("not during your turn" = `Not (DuringTurn You)`).
+  -- combinator names as Predicate/Condition, in this namespace). The THEMATIC-ROLE facets embed the object/
+  -- player language; `Within`/`DuringStep`/`DuringTurn` are timing facets ("not during your turn" = `Not (DuringTurn You)`).
   namespace Facet
     public export
     data Facet : Bindings -> Type where
-      SourceMatches : Predicate b AnObject -> Facet b
-      DamageFrom : Predicate b AnObject -> Facet b   -- the damage event's SOURCE (the object dealing it) matches — distinct from `SourceMatches` (the affected); protection's D leg
-      ActorIs       : Predicate b APlayer -> Facet b   -- the event's actor matches a player-pred (you / opponent)
+      -- ACTOR: the event's controlling player matches a player-pred (you / opponent).
+      Actor   : Predicate b APlayer -> Facet b
+      -- AGENT: the event's DOER/INITIATOR object matches — the moving object of a zone-change, or the
+      -- SOURCE of damage (the object dealing it; protection's D leg). The two feed the SAME role.
+      Agent   : Predicate b AnObject -> Facet b
+      -- PATIENT: the ACTED-UPON object matches — a damage recipient, a destroyed/countered object, the
+      -- spell being cast, the object gaining counters. Distinct from the `Agent` (the doer).
+      Patient : Predicate b AnObject -> Facet b
       Within        : Window -> Facet b
       DuringStep    : PhaseStep -> Facet b
       DuringTurn    : Predicate b APlayer -> Facet b   -- the turn's player matches a player-pred
