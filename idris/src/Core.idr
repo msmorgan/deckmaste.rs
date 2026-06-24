@@ -834,7 +834,11 @@ ModalCountOk _ _ = ()
 -- "can't lose") are `Replaces`/SBA, NOT a `Cant`.
 public export
 data Deed : Bindings -> Type where
-  Attacks    : (who : Predicate b AnObject) -> {default Anyone whom : Predicate b APlayer} -> Deed b
+  -- "[who] attacks [whom]" — the DEFENDER `whom` is a player OR a permanent (planeswalker/battle), so it's
+  -- KIND-POLYMORPHIC and explicit (`k` is always solved from the argument — no default to pin it). The same
+  -- verb covers `Attacks creature Anyone` (a player) and a planeswalker's conferred `Can (Attacks creature
+  -- (SameAs This))` (itself, an object). Attackability is a granted permission ([CR#508.1]).
+  Attacks    : (who : Predicate b AnObject) -> (whom : Predicate b k) -> Deed b
   Blocks     : (blocker : Predicate b AnObject) -> (attacker : Predicate b AnObject) -> Deed b
   -- SET-LEVEL block ([CR#509.1c],[CR#702.111b]): "[attacker] is blocked by a DECLARED set of `size`
   -- creatures" (a block, so size ≥ 1 — ENFORCED by `NonZeroQ`). `Cant (BlockedBy This …)` constrains the
@@ -1236,3 +1240,12 @@ subtypeConfers : Subtype -> List (Property b)
 subtypeConfers (EnchantmentSub Aura) = [PropStateBased (Not (LegallyAttached This)) (Act (Move This Graveyard))]
 subtypeConfers (EnchantmentSub Saga) = [PropTurnBased (MainPhase PreCombat) (Act (PutCounters Lore (^1) This))]
 subtypeConfers _                     = []
+
+-- what a card TYPE confers on its bearer (parallel to `subtypeConfers`). A Planeswalker or Battle CREATES
+-- a deontic permitting creatures to attack IT ([CR#508.1] — attackability is a granted permission, not a
+-- hardcoded target list), using the same `Attacks` verb with the permanent itself as the object defender.
+public export
+typeConfers : Type_ -> List (Property b)
+typeConfers Planeswalker = [PropAbility (Static (Can (Attacks (HasType Creature) (SameAs This))))]
+typeConfers Battle       = [PropAbility (Static (Can (Attacks (HasType Creature) (SameAs This))))]
+typeConfers _            = []
