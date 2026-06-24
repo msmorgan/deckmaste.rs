@@ -711,7 +711,7 @@ data Outcome : Bindings -> Type where
   WinGame  : Reference b APlayer -> Outcome b
   LoseGame : Reference b APlayer -> Outcome b
 
--- A STATIC suppressor of a game outcome ([CR#104.3a/720]) — distinct from the imperative `Outcome`
+-- A STATIC suppressor of a game outcome ([CR#104.2b,104.3e]) — distinct from the imperative `Outcome`
 -- above (Rust's lesson: win/lose-the-game is not a deontic over actions, nor a replaceable event, so
 -- it needs its own static channel). `OutcomeGate CantLose you` = Platinum Angel's first clause.
 public export
@@ -971,9 +971,9 @@ mutual
     Fight : (x : Reference b AnObject) -> (y : Reference b AnObject) -> Action b   -- each deals damage equal to its power to the other
     Reveal : Reference b AnObject -> Action b
     Shuffle : {default You actor : Reference b APlayer} -> Action b
-    -- "[player] takes an extra turn after this one" ([CR#505, #725]) — Time Walk.
+    -- "[player] takes an extra turn after this one" ([CR#500.7]) — Time Walk.
     ExtraTurn : {default You who : Reference b APlayer} -> Action b
-    -- "you control [whom] during their next turn" ([CR#720]) — Mindslaver: you make all of their
+    -- "you control [whom] during their next turn" ([CR#723]) — Mindslaver: you make all of their
     -- decisions. The next-turn duration is the standard one the engine applies.
     ControlPlayer : (whom : Reference b APlayer) -> Action b
     CreateToken : Count b -> (c : Characteristics b) -> {auto wf : CharacteristicsOk c} -> Action b   -- the token's full characteristics (P/T may be a `Count b`)
@@ -1105,7 +1105,7 @@ mutual
     -- `ReplaceAmount DealDamage (Times ThatMuch (^2))`. The KIND is explicit + amount-gated, so
     -- `ReplaceAmount Cast …` (a Cast has no amount) is a TYPE ERROR; `facets` adds non-kind conditions.
     ReplaceAmount : (k : EventKind) -> {auto amt : eventKindHasAmount k = True} -> {default [] facets : List (Facet b)} -> (newAmount : Count (bindEvent (eventKindCaps k) b)) -> StaticEffect b
-    -- a static OUTCOME suppressor: the matching players can't lose / can't win ([CR#104.3a]). Platinum
+    -- a static OUTCOME suppressor: the matching players can't lose / can't win ([CR#104.2b,104.3e]). Platinum
     -- Angel = `OutcomeGate CantLose you` + `OutcomeGate CantWin opponent`. (Distinct from `CantHappen` —
     -- game-loss isn't a replaceable event — and from a deontic `Cant` — it's not a player action.)
     OutcomeGate : OutcomeGateKind -> Predicate b APlayer -> StaticEffect b
