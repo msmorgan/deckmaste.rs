@@ -181,6 +181,14 @@ tChosenName = And [IsKind IsSpell, OfChosen]
 tChosenNumber : Count (bindChosen ANumber Base)
 tChosenNumber = ChosenNumber
 
+-- ...and a chosen PLAYER by `ChosenPlayer` ("as ~ enters, choose a player; that player …").
+tChosenPlayer : Reference (bindChosen APlayerChoice Base) APlayer
+tChosenPlayer = ChosenPlayer
+
+-- "sacrifice a [pred]" as a COST — the payer chooses which (not a specific `Sacrifice This`).
+tSacrificeCost : Cost Base
+tSacrificeCost = SacrificeA creature
+
 -- phasing: the `PhasedOut` state filters a phased permanent; `PhaseOut` is the verb.
 tPhasedFilter : Predicate Base AnObject
 tPhasedFilter = And [creature, HasState PhasedOut]
