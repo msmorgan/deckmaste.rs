@@ -184,3 +184,14 @@ crew n = Activated (TapTotal Power GreaterEq n creature)
 public export
 morph : Cost b -> Ability b
 morph c = Keyword (Composite Morph [ Static (CastFaceDown (Mana [^3])), TurnFaceUp c ])
+
+-- the number of card TYPES among cards in all graveyards (Tarmogoyf's `*`) — a sum of per-type
+-- INDICATORS: `Min (CountOf (graveyard ∧ that type)) 1` is 1 when present, else 0, over every card type.
+public export
+typesInGraveyards : Count b
+typesInGraveyards = foldr Plus (Literal 0) (map indicator allCardTypes)
+  where
+    allCardTypes : List Type_
+    allCardTypes = [Artifact, Battle, Creature, Enchantment, Instant, Kindred, Land, Planeswalker, Sorcery]
+    indicator : Type_ -> Count b
+    indicator t = Min (CountOf (And [InZone Graveyard, HasType t])) (Literal 1)

@@ -340,7 +340,7 @@ tLimitedAbility =
 tPTMods : List (Modification Base)
 tPTMods =
   [ ModifyPT (Up (Literal 2)) (Down (Literal 1))     -- "+2/-1"
-  , Set BasePower (CountOf creature), Set BaseToughness (CountOf creature) ]   -- Tarmogoyf-style "*/*" base P/T
+  , Set BasePower (CountOf creature), Set BaseToughness (CountOf creature) ]   -- a dynamic base-P/T set (the real */1+* CDA is card_Tarmogoyf)
 
 -- the unified `Set` overwrites ANY characteristic, value-typed by `CharValue`: "becomes blue", "loses all
 -- creature types" (`Set Subtypes []`), "becomes a legendary artifact creature".

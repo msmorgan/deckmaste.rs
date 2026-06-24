@@ -1154,4 +1154,18 @@ card_CacklingCounterpart = Normal $ ^:
           (Act (CreateTokenCopy (GetTarget 0)))) ]
   }
 
+-- Tarmogoyf — the canonical CDA: "*/1+*, where * is the number of card types among cards in all
+-- graveyards." No printed P/T (the fields are omitted); a `Static (Modify This [Set …])` DEFINES them
+-- from `typesInGraveyards` (a sum of per-type indicators), toughness = power + 1. Real, not a stand-in.
+export
+card_Tarmogoyf : Card
+card_Tarmogoyf = Normal $ ^:
+  { name := Just "Tarmogoyf"
+  , manaCost := [^1, ^Green]
+  , types := [Creature]
+  , abilities :=
+      [ Static (Modify This [ Set BasePower typesInGraveyards
+                            , Set BaseToughness (Plus typesInGraveyards (Literal 1)) ]) ]
+  }
+
 --:vim:sts=2 sw=2:
