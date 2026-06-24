@@ -139,6 +139,17 @@ regenerate = Continuously
             {limit = UpTo (^1)})
   UntilEndOfTurn
 
+-- "Protection from [q]" ([CR#702.16]): the DEBT bundle, keyed to the quality `q` — can't be Damaged by
+-- `q` sources, Enchanted/equipped by `q`, Blocked by `q`, or Targeted by `q`. ONE construct over the
+-- existing `Cant`/`ReplaceAmount` parts (+ the new `DamageFrom` facet for the D leg).
+public export
+protection : Predicate b AnObject -> Ability b
+protection q = Keyword (Composite (Protection q)
+  [ Static (ReplaceAmount DealDamage (^0) {facets = [SourceMatches (SameAs This), DamageFrom q]})   -- D
+  , Static (Cant (Attaches q (SameAs This)))            -- E
+  , Static (Cant (Blocks q (SameAs This)))              -- B
+  , Static (Cant (BeTargeted (SameAs This) {by = q})) ])  -- T
+
 -- desugar a `KeywordSpec` into its full `Ability` — dispatches to the macros above. EXHAUSTIVE
 -- (no catch-all): adding a `KeywordSpec` constructor forces a clause here. `Bare` = an engine-
 -- PRIMITIVE keyword the grammar can't desugar (FirstStrike/DoubleStrike/Deathtouch/Trample =
@@ -165,6 +176,7 @@ keyword (Hexproof Nothing)  = hexproof
 keyword (Hexproof (Just f)) = hexproofFrom f
 keyword Morph               = Keyword (Bare Morph)   -- DEGENERATE (bare morph carries no cost) — use the `morph <cost>` macro for the real ability
 keyword Devoid              = devoid
+keyword (Protection q)      = protection q
 
 -- KEYWORD ACTIONS (composite verbs over the primitives — the Idris analogue of the engine's
 -- keyword-action macros; named here rather than inlined per card).

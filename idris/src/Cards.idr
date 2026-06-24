@@ -1182,4 +1182,18 @@ card_DrudgeSkeletons = Normal $ ^:
   , toughness := Just 1
   }
 
+-- White Knight — PROTECTION: "First strike; protection from black." The `protection (HasColor Black)`
+-- macro is the whole DEBT bundle (can't be damaged/enchanted/blocked/targeted by black) in one clause.
+export
+card_WhiteKnight : Card
+card_WhiteKnight = Normal $ ^:
+  { name := Just "White Knight"
+  , manaCost := [^White, ^White]
+  , types := [Creature]
+  , subtypes := [^Human, ^Knight]
+  , abilities := [ keyword FirstStrike, protection (HasColor Black) ]
+  , power := Just 2
+  , toughness := Just 2
+  }
+
 --:vim:sts=2 sw=2:

@@ -169,6 +169,10 @@ tIndestructible = keyword Indestructible
 tDevoid : Ability Base
 tDevoid = keyword Devoid
 
+-- protection from red: the DEBT bundle (damage/enchant/block/target from red) as ONE keyword macro.
+tProtection : Ability Base
+tProtection = protection (HasColor Red)
+
 tOutcomeGate : StaticEffect Base
 tOutcomeGate = OutcomeGate CantLose you
 
