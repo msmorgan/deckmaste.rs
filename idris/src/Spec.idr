@@ -479,6 +479,31 @@ failing
     Triggered (And [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches creature])
       (Act (Draw ThatMuch))
 
+-- BOUNDED-NUMERIC gates. An inverted range ("between 5 and 2") — `OrderedRange` rejects `lo > hi`.
+failing
+  tBadInvertedRange : Bindable Base AnObject
+  tBadInvertedRange = Choose (between (^5) (^2)) creature
+
+-- `MainPhase` is a closed 2-value enum now, not a `Nat` — `MainPhase 99` doesn't typecheck.
+failing
+  tBadMainPhase99 : PhaseStep
+  tBadMainPhase99 = MainPhase 99
+
+-- a modal "choose 5" of a single mode — `ModalCountOk` bounds the literal count by the mode count.
+failing
+  tBadModalOverCount : OneShotEffect Base
+  tBadModalOverCount = Modal (MkChooseSpec (^5)) [ MkMode (Act (Draw (^1))) ]
+
+-- a modal with NO modes — `NonEmpty modes` rejects it.
+failing
+  tBadModalEmptyModes : OneShotEffect Base
+  tBadModalEmptyModes = Modal (MkChooseSpec (^1)) []
+
+-- a 0-way mode domain — `ModeDomainOk (AMode 0)` is `LT 0 0` = uninhabited.
+failing
+  tBadModeDomainZero : Ability Base
+  tBadModeDomainZero = AsEnters (AMode 0) []
+
 
 -- a 0-size block is rejected — a declared block has ≥1 blocker (`NonZeroQ` on `BlockedBy`'s size)
 failing
