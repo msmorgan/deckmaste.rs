@@ -128,6 +128,17 @@ public export
 devoid : Ability b
 devoid = Keyword (Composite Devoid [Static (Modify This [Set Colors []])])
 
+-- "Regenerate this" ([CR#701.19]): a ONE-SHOT, this-turn shield — the next time This would be destroyed,
+-- instead remove all damage, tap it, and remove it from combat. The `UpTo (^1)` limit consumes the
+-- replacement after one destroy (vs `Replaces`'s default `Unlimited`).
+public export
+regenerate : OneShotEffect b
+regenerate = Continuously
+  (Replaces (MkQuery [Destroyed] [SourceMatches (SameAs This)])
+            (Sequence [Act (RemoveAllDamage This), Act (Tap This), Act (RemoveFromCombat This)])
+            {limit = UpTo (^1)})
+  UntilEndOfTurn
+
 -- desugar a `KeywordSpec` into its full `Ability` — dispatches to the macros above. EXHAUSTIVE
 -- (no catch-all): adding a `KeywordSpec` constructor forces a clause here. `Bare` = an engine-
 -- PRIMITIVE keyword the grammar can't desugar (FirstStrike/DoubleStrike/Deathtouch/Trample =

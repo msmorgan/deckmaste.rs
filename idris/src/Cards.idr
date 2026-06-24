@@ -1168,4 +1168,18 @@ card_Tarmogoyf = Normal $ ^:
                             , Set BaseToughness (Plus typesInGraveyards (Literal 1)) ]) ]
   }
 
+-- Drudge Skeletons — REGENERATION: "{B}: Regenerate this." The `regenerate` macro sets up the one-shot
+-- this-turn shield (a `Replaces` of the next destroy with heal-tap-remove, `{limit = UpTo 1}`); the
+-- heal-tap-remove is spelled from primitives (RemoveAllDamage / Tap / RemoveFromCombat).
+export
+card_DrudgeSkeletons : Card
+card_DrudgeSkeletons = Normal $ ^:
+  { name := Just "Drudge Skeletons"
+  , manaCost := [^1, ^Black]
+  , types := [Creature]
+  , abilities := [ Activated (Mana [^Black]) regenerate ]
+  , power := Just 1
+  , toughness := Just 1
+  }
+
 --:vim:sts=2 sw=2:
