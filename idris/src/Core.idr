@@ -1085,9 +1085,11 @@ mutual
     -- "[who]'s unspent mana doesn't empty" ([CR#500.4] exception) — Kruphix/Omnath. A pool-policy
     -- static (the per-mana `ManaRider::Persistent` case folds into this blanket form). Engine resolves.
     ManaPersists : Predicate b APlayer -> StaticEffect b
-    -- "you may cast THIS for [alt]" ([CR#118.9]) — the alternative-cost permission (base swap, distinct
-    -- from `CostModifier`'s base modify). Force of Will = `MayCastFor (AltCost [PayLife (^1), …])`.
-    MayCastFor : AlternativeCost b -> StaticEffect b
+    -- "you may cast THIS for [alt] from [from]" ([CR#118.9]) — the alternative-cost permission (base swap,
+    -- distinct from `CostModifier`'s base modify). `from` defaults to Hand; a non-default zone is the
+    -- cast-from-zone family ([CR#702.34] flashback = `{from = Graveyard}`; escape/jump-start add a rider).
+    -- Force of Will = `MayCastFor (AltCost [PayLife (^1), …])`.
+    MayCastFor : AlternativeCost b -> {default Hand from : Zone} -> StaticEffect b
     -- "you may cast THIS face down for [cost]" ([CR#702.37]) — an alternative cast that ALSO turns the
     -- object face down; the engine then applies the global [CR#708.2] 2/2-colorless-vanilla override.
     CastFaceDown : Cost b -> StaticEffect b
