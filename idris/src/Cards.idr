@@ -1140,4 +1140,18 @@ card_PineWalker = Normal $ ^:
   , toughness := Just 5
   }
 
+-- Cackling Counterpart — token COPY: "Create a token that's a copy of target creature you control."
+-- `CreateTokenCopy` over a target; no alterations, so nothing layers on. (Flashback omitted — cast-from-
+-- graveyard is a separate gap.)
+export
+card_CacklingCounterpart : Card
+card_CacklingCounterpart = Normal $ ^:
+  { name := Just "Cackling Counterpart"
+  , manaCost := [^1, ^Blue, ^Blue]
+  , types := [Instant]
+  , abilities :=
+      [ Spell (Targeted [Target (^1) (And [creature, ControlledBy you])]
+          (Act (CreateTokenCopy (GetTarget 0)))) ]
+  }
+
 --:vim:sts=2 sw=2:

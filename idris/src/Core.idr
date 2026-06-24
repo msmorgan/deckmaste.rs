@@ -944,7 +944,8 @@ mutual
     -- decisions. The next-turn duration is the standard one the engine applies.
     ControlPlayer : (whom : Reference b APlayer) -> Action b
     CreateToken : Count b -> (c : Characteristics b) -> {auto wf : CharacteristicsOk c} -> Action b   -- the token's full characteristics (P/T may be a `Count b`)
-    CopySpell : Reference b AnObject -> Action b                   -- "copy target spell" — FLAG: copy semantics deferred to engine
+    CopySpell : Reference b AnObject -> Action b                   -- "copy target SPELL" (a copy on the stack); permanent-copy is `BecomeCopyOf`/`CreateTokenCopy`
+    CreateTokenCopy : Reference b AnObject -> Action b             -- "create a token that's a COPY of [r]" ([CR#707.2]); alterations layer on separately
     -- "add {G}" (a mana-ability effect; pool/paying is engine). RESTRICTED mana ([CR#106.5]):
     -- `onlyToCast` is the spend constraint ("spend only to cast a [pred] spell"); `confers` are
     -- continuous effects the engine applies to the spell the mana DOES pay for — that spell is bound
@@ -1034,6 +1035,9 @@ mutual
     LoseAbilities : Modification b                      -- "loses all abilities" (Humility-style)
     GainControl : Reference b APlayer -> Modification b         -- "[player] gains control"
     GrantAbility : Ability b -> Modification b
+    -- "becomes a COPY of [r]" ([CR#707.2], layer 1 — copiable values). Alterations ("a copy, except it's
+    -- a 4/4") are SEPARATE higher-layer mods (Continuously/Modify on the result), not bundled here.
+    BecomeCopyOf : Reference b AnObject -> Modification b
 
   -- A continuous effect a static (or `Continuously`) ability generates ([CR#611]):
   -- modify a subject, modify a whole filter (anthem), or REPLACE an event — a
