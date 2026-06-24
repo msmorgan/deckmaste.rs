@@ -146,6 +146,7 @@ keyword Shroud              = shroud
 keyword Menace              = menace
 keyword (Hexproof Nothing)  = hexproof
 keyword (Hexproof (Just f)) = hexproofFrom f
+keyword Morph               = Keyword (Bare Morph)   -- DEGENERATE (bare morph carries no cost) — use the `morph <cost>` macro for the real ability
 
 -- KEYWORD ACTIONS (composite verbs over the primitives — the Idris analogue of the engine's
 -- keyword-action macros; named here rather than inlined per card).
@@ -169,3 +170,10 @@ public export
 crew : Count b -> Ability b
 crew n = Activated (TapTotal Power GreaterEq n creature)
   (Continuously (Modify This [AddType Creature]) UntilEndOfTurn)
+
+-- "Morph [cost]" ([CR#702.37]): you may cast this face down as a 2/2 for {3} (`CastFaceDown`), and turn
+-- it face up any time for [cost] (`TurnFaceUp`). The 2/2-colorless-vanilla face-down body is the global
+-- [CR#708.2] rule (engine-applied on the `FaceDown` state), not restated here.
+public export
+morph : Cost b -> Ability b
+morph c = Keyword (Composite Morph [ Static (CastFaceDown (Mana [^3])), TurnFaceUp c ])
