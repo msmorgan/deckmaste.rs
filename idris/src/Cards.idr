@@ -391,7 +391,7 @@ card_Pacifism = Normal $ ^:
   , subtypes := [^Aura]
   , abilities :=
       [ Static (Cant (Attaches (SameAs This) (Not creature)))
-      , Static (Cant (Attacks (SameAs (AttachHostOf This))))
+      , Static (Cant (Attacks (SameAs (AttachHostOf This)) Anyone))
       , Static (Cant (Blocks (SameAs (AttachHostOf This)) creature))
       ]
   }
@@ -408,7 +408,7 @@ card_Juggernaut = Normal $ ^:
   , power := Just 5
   , toughness := Just 3
   , abilities :=
-      [ Static (Must (Attacks (SameAs This)))
+      [ Static (Must (Attacks (SameAs This) Anyone))
       , Static (Cant (Blocks (HasSubtype (^Wall)) (SameAs This)))
       ]
   }
@@ -424,7 +424,7 @@ card_GhostlyPrison = Normal $ ^:
   , manaCost := [^2, ^White]
   , types := [Enchantment]
   , abilities :=
-      [ Static (Gate (Mana [^2]) (Attacks creature {whom = you})) ]
+      [ Static (Gate (Mana [^2]) (Attacks creature you)) ]
   }
 
 -- Wall of Omens — a DEONTIC KEYWORD card: `keyword Defender` expands to a `Composite` whose tag is

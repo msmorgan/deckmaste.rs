@@ -74,7 +74,7 @@ flying = Keyword (Composite Flying [Static (Cant (Blocks (Not (Or [HasKeyword Fl
 
 public export
 defender : Ability b
-defender = Keyword (Composite Defender [Static (Cant (Attacks (SameAs This)))])
+defender = Keyword (Composite Defender [Static (Cant (Attacks (SameAs This) Anyone))])
 
 public export
 shroud : Ability b
@@ -111,7 +111,7 @@ menace = Keyword (Composite Menace [Static (Cant (BlockedBy (SameAs This) (^1)))
 public export
 haste : Ability b
 haste = Keyword (Composite Haste
-  [ Static (AsThough (Matches This (Not (HasState SummoningSick))) (Can (Attacks (SameAs This))))
+  [ Static (AsThough (Matches This (Not (HasState SummoningSick))) (Can (Attacks (SameAs This) Anyone)))
   , Static (AsThough (Matches This (Not (HasState SummoningSick))) (Can (Activates you (SameAs This)))) ])
 
 -- Indestructible ([CR#702.12]): "can't be destroyed by damage or 'destroy'." A continuous PROHIBITION,

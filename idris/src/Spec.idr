@@ -174,6 +174,15 @@ tCounterConfers = counterConfers P1P1
 tSubtypeConfers : List (Property Base)
 tSubtypeConfers = subtypeConfers (^Saga)
 
+-- attacking a planeswalker: the TYPE confers a deontic permitting attacks on IT (`typeConfers`), not a
+-- widening of the attacker. `Attacks`'s `whom` is now kind-polymorphic, so the permission names the
+-- permanent itself (`SameAs This`, an OBJECT) as the defender.
+tTypeConfers : List (Property Base)
+tTypeConfers = typeConfers Planeswalker
+
+tAttacksObject : Deed Base
+tAttacksObject = Attacks (HasType Creature) (SameAs This)
+
 -- note read-back: a chosen card NAME is read by `OfChosen` (Meddling Mage), a chosen NUMBER by `ChosenNumber`.
 tChosenName : Predicate (bindChosen AName Base) AnObject
 tChosenName = And [IsKind IsSpell, OfChosen]
@@ -371,7 +380,7 @@ tWard = Toll (Mana [^2]) (BeTargeted (SameAs This) {by = ControlledBy opponent})
 -- `keyword` desugars a spec to its `Ability`, in three flavors (all pinned by Refl): a DEONTIC
 -- keyword is a `Composite` with a `Cant` clause; an engine-PRIMITIVE keyword is `Bare`; a
 -- grammar FLAG (Reach) is a `Composite []`. `tHexproofFrom` shows the parameterized "from" case.
-tDefender : keyword Defender = the (Ability Base) (Keyword (Composite Defender [Static (Cant (Attacks (SameAs This)))]))
+tDefender : keyword Defender = the (Ability Base) (Keyword (Composite Defender [Static (Cant (Attacks (SameAs This) Anyone))]))
 tDefender = Refl
 
 tFirstStrikeBare : keyword FirstStrike = the (Ability Base) (Keyword (Bare FirstStrike))
@@ -385,13 +394,13 @@ tHexproofFrom = keyword (Hexproof (Just (HasColor Red)))
 
 -- the deontic permission floor `Can` (the 5th polarity, pairing with `Cant`)
 tDeonticCan : Ability Base
-tDeonticCan = Static (Can (Attacks (SameAs This)))
+tDeonticCan = Static (Can (Attacks (SameAs This) Anyone))
 
 -- `AsThough` wraps a clause in a scoped counterfactual: "attack this turn as though it didn't
 -- have defender" — a permission whose premise lifts defender's `Cant`.
 tAsThough : OneShotEffect Base
 tAsThough = Continuously
-  (AsThough (Matches This (Not (HasKeyword Defender))) (Can (Attacks (SameAs This))))
+  (AsThough (Matches This (Not (HasKeyword Defender))) (Can (Attacks (SameAs This) Anyone)))
   UntilEndOfTurn
 
 -- Flash's desugaring is pinned by Refl: a `Can`-cast at instant speed (a widened window).
