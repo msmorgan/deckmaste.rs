@@ -92,7 +92,7 @@ tControlsPlayer : Predicate Base APlayer
 tControlsPlayer = Controls creature
 
 tBecomesBlocked : EventQuery Base
-tBecomesBlocked = MkQuery [Becomes Blocked] [SourceMatches (SameAs This)]
+tBecomesBlocked = MkQuery [Becomes Blocked] [Patient (SameAs This)]
 
 -- designations: ONE predicate, scope by type — `HasDesignation Monarch` is a PLAYER test (you're the
 -- monarch), `HasDesignation Monstrous` an OBJECT test. The carrier follows `designationScope`.
@@ -130,7 +130,7 @@ tQuantities =
 -- `DuringTurn` — "a creature died, not during your turn".
 tEventQuery : EventQuery Base
 tEventQuery = MkQuery [ZoneChanged (Just Battlefield) (Just Graveyard)]
-                      [ SourceMatches creature
+                      [ Agent creature
                       , Not (DuringTurn you) ]
 
 -- PAYLOAD replacement: the event survives but its amount is rewritten — Furnace of Rath doubles damage
@@ -146,20 +146,20 @@ tPrevention = ReplaceAmount DealDamage (^0)
 
 -- CONSUMABLE shields (the `Replaces` use-limit). Regeneration = the next destroy → heal/tap/remove, one
 -- use (`regenerate` macro). Prevention = "prevent the next 3 damage to This" — a damage `Replaces` whose
--- `UpTo (^3)` limit is consumed by 3 damage-points (`SourceMatches (SameAs This)` = the affected object).
+-- `UpTo (^3)` limit is consumed by 3 damage-points (`Patient (SameAs This)` = the affected object).
 tRegenerate : OneShotEffect Base
 tRegenerate = regenerate
 
 tPreventNext : OneShotEffect Base
 tPreventNext = Continuously
-  (Replaces (MkQuery [DealDamage] [SourceMatches (SameAs This)]) (Sequence []) {limit = UpTo (^3)})
+  (Replaces (MkQuery [DealDamage] [Patient (SameAs This)]) (Sequence []) {limit = UpTo (^3)})
   UntilEndOfTurn
 
 -- Ward {2} ([CR#702.21a]): NO new machinery — a triggered ability over existing parts. When an opponent
 -- casts a spell targeting This, that player (`EventActor`) MAY pay {2}; if not, the spell (`EventObject`)
 -- is countered. Targets / MayPay (the unless-pay) / Counter were all already here.
 tWard : Ability Base
-tWard = Triggered (MkQuery [Cast] [SourceMatches (Targets (SameAs This)), ActorIs opponent])
+tWard = Triggered (MkQuery [Cast] [Patient (Targets (SameAs This)), Actor opponent])
   (MayPay {actor = EventActor} (Mana [^2]) (Sequence []) {or_else = Just (Act (Counter EventObject))})
 
 tIndestructible : Ability Base
@@ -263,7 +263,7 @@ tCastFromGrave = MayCastFor (AltCost [Mana [^3, ^Blue]]) {from = Graveyard}
 -- a log-derived history count feeds a condition, and a game `Outcome` wraps into an effect
 tHistoryThenWin : OneShotEffect Base
 tHistoryThenWin =
-  If (Compare (EventCount (MkQuery [Cast] [ActorIs you, Within ThisGame])) GreaterEq (Literal 2))
+  If (Compare (EventCount (MkQuery [Cast] [Actor you, Within ThisGame])) GreaterEq (Literal 2))
      (Conclude (WinGame You))
 
 -- an activated ability: a multi-component cost algebra + an effect
@@ -315,7 +315,7 @@ tValues =
   , Min (CountersOn P1P1 This) (CountersOn M1M1 This)   -- net counters after annihilation
   , Max (StatOf This Power) (^0)
   , Damage This                                          -- marked damage
-  , EventSum DealDamage {facets = [ActorIs opponent]} ]  -- amount-twin of EventCount; kind is gated, facets kind-free
+  , EventSum DealDamage {facets = [Actor opponent]} ]  -- amount-twin of EventCount; kind is gated, facets kind-free
 
 -- the lethal-damage SBA now states directly: marked damage ≥ toughness.
 tLethalSba : Condition Base
@@ -566,7 +566,7 @@ tEventObjectMultiKind =
 failing
   tBadDrawThatManyOnEnter : Ability Base
   tBadDrawThatManyOnEnter =
-    Triggered (MkQuery [ZoneChanged Nothing (Just Battlefield)] [SourceMatches creature])
+    Triggered (MkQuery [ZoneChanged Nothing (Just Battlefield)] [Agent creature])
       (Act (Draw ThatMuch))
 
 -- BOUNDED-NUMERIC gates. An inverted range ("between 5 and 2") — `OrderedRange` rejects `lo > hi`.

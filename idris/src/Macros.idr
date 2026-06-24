@@ -19,7 +19,7 @@ inHand : Predicate b AnObject
 inHand = InZone Hand
 
 -- player-predicates ([CR#102.1]): `you` is the controller; `opponent` is any OTHER player
--- (team-free — "a player who isn't you"). Feed `ControlledBy`/`ActorIs`/`Target (^1)`/`SelectAll`.
+-- (team-free — "a player who isn't you"). Feed `ControlledBy`/`Actor`/`Target (^1)`/`SelectAll`.
 public export
 you : Predicate b APlayer
 you = SameAs You
@@ -36,7 +36,7 @@ nextEndStep = MkQuery [BeginStep (EndingPhase EndStep)] []
 -- "when THIS enters the battlefield" — the ETB trigger event, inlined across most permanents.
 public export
 thisEnters : EventQuery b
-thisEnters = MkQuery [ZoneChanged Nothing (Just Battlefield)] [SourceMatches (SameAs This)]
+thisEnters = MkQuery [ZoneChanged Nothing (Just Battlefield)] [Agent (SameAs This)]
 
 -- "any target" ([CR#115.4]): a creature/planeswalker/battle permanent, OR any player. A
 -- FLAT `Or` — the player arm (`Anyone`) sits beside the object arms, and the result
@@ -120,7 +120,7 @@ haste = Keyword (Composite Haste
 public export
 indestructible : Ability b
 indestructible = Keyword (Composite Indestructible
-  [Static (CantHappen (MkQuery [Destroyed] [SourceMatches (SameAs This)]))])
+  [Static (CantHappen (MkQuery [Destroyed] [Patient (SameAs This)]))])
 
 -- Devoid ([CR#702.114]): "this object is colorless" — a CDA, expressible now that the unified `Set`
 -- can CLEAR a characteristic. `Set Colors []` on This empties its color set (the Tarmogoyf-`*/*` pattern).
@@ -134,18 +134,18 @@ devoid = Keyword (Composite Devoid [Static (Modify This [Set Colors []])])
 public export
 regenerate : OneShotEffect b
 regenerate = Continuously
-  (Replaces (MkQuery [Destroyed] [SourceMatches (SameAs This)])
+  (Replaces (MkQuery [Destroyed] [Patient (SameAs This)])
             (Sequence [Act (RemoveAllDamage This), Act (Tap This), Act (RemoveFromCombat This)])
             {limit = UpTo (^1)})
   UntilEndOfTurn
 
 -- "Protection from [q]" ([CR#702.16]): the DEBT bundle, keyed to the quality `q` — can't be Damaged by
 -- `q` sources, Enchanted/equipped by `q`, Blocked by `q`, or Targeted by `q`. ONE construct over the
--- existing `Cant`/`ReplaceAmount` parts (+ the new `DamageFrom` facet for the D leg).
+-- existing `Cant`/`ReplaceAmount` parts (the `Agent` facet — the damage source — for the D leg).
 public export
 protection : Predicate b AnObject -> Ability b
 protection q = Keyword (Composite (Protection q)
-  [ Static (ReplaceAmount DealDamage (^0) {facets = [SourceMatches (SameAs This), DamageFrom q]})   -- D
+  [ Static (ReplaceAmount DealDamage (^0) {facets = [Patient (SameAs This), Agent q]})   -- D
   , Static (Cant (Attaches q (SameAs This)))            -- E
   , Static (Cant (Blocks q (SameAs This)))              -- B
   , Static (Cant (BeTargeted (SameAs This) {by = q})) ])  -- T
