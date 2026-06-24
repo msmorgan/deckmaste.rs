@@ -155,6 +155,13 @@ tPreventNext = Continuously
   (Replaces (MkQuery [DealDamage] [SourceMatches (SameAs This)]) (Sequence []) {limit = UpTo (^3)})
   UntilEndOfTurn
 
+-- Ward {2} ([CR#702.21a]): NO new machinery — a triggered ability over existing parts. When an opponent
+-- casts a spell targeting This, that player (`EventActor`) MAY pay {2}; if not, the spell (`EventObject`)
+-- is countered. Targets / MayPay (the unless-pay) / Counter were all already here.
+tWard : Ability Base
+tWard = Triggered (MkQuery [Cast] [SourceMatches (Targets (SameAs This)), ActorIs opponent])
+  (MayPay {actor = EventActor} (Mana [^2]) (Sequence []) {or_else = Just (Act (Counter EventObject))})
+
 tIndestructible : Ability Base
 tIndestructible = keyword Indestructible
 
@@ -400,11 +407,10 @@ tOneOfKinds = (Or [creature, permanent], Or [creature, Anyone])
 tEmptyOneOf : Predicate Base Empty
 tEmptyOneOf = Or []
 
--- a deontic Toll: Ward {2} — being targeted by an opponent's spell/ability stays fully legal,
--- but a trigger counters it unless {2} is paid (cost FIRST). The 4th polarity (Cant/Must/Gate
--- ride the deontic cards; Toll here).
-tWard : StaticEffect Base
-tWard = Toll (Mana [^2]) (BeTargeted (SameAs This) {by = ControlledBy opponent})
+-- a deontic Toll: Propaganda — creatures can't attack you UNLESS {2} is paid (cost FIRST). A toll is
+-- pay-to-DO-the-action; ward is NOT one (it's a trigger that counters AFTER — see tWard).
+tToll : StaticEffect Base
+tToll = Toll (Mana [^2]) (Attacks creature you)
 
 -- `keyword` desugars a spec to its `Ability`, in three flavors (all pinned by Refl): a DEONTIC
 -- keyword is a `Composite` with a `Cant` clause; an engine-PRIMITIVE keyword is `Bare`; a
