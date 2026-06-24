@@ -464,6 +464,7 @@ mutual
     Menace : KeywordSpec b
     Hexproof : Maybe (Predicate b AnObject) -> KeywordSpec b   -- "from [filter]" — a SOURCE predicate (objects); "from a player" = ControlledBy that player
     Morph : KeywordSpec b   -- the tag for the `morph` macro ([CR#702.37]); the face-up cost rides its desugared `TurnFaceUp` (bare here — `KeywordSpec` precedes `Cost`)
+    Devoid : KeywordSpec b  -- "this object is colorless" ([CR#702.114]) — a CDA; desugars to `Set Colors []` on This
   -- A REFERENCE to a single game entity, indexed by `RefKind` (object vs player). One
   -- reference language now: object-refs and player-refs together, strict on the kind
   -- where it matters (`StatOf` needs `AnObject`, `LifeTotal` needs `APlayer`) and lax

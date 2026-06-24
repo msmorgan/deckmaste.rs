@@ -122,6 +122,12 @@ indestructible : Ability b
 indestructible = Keyword (Composite Indestructible
   [Static (CantHappen (MkQuery [Destroyed] [SourceMatches (SameAs This)]))])
 
+-- Devoid ([CR#702.114]): "this object is colorless" — a CDA, expressible now that the unified `Set`
+-- can CLEAR a characteristic. `Set Colors []` on This empties its color set (the Tarmogoyf-`*/*` pattern).
+public export
+devoid : Ability b
+devoid = Keyword (Composite Devoid [Static (Modify This [Set Colors []])])
+
 -- desugar a `KeywordSpec` into its full `Ability` — dispatches to the macros above. EXHAUSTIVE
 -- (no catch-all): adding a `KeywordSpec` constructor forces a clause here. `Bare` = an engine-
 -- PRIMITIVE keyword the grammar can't desugar (FirstStrike/DoubleStrike/Deathtouch/Trample =
@@ -147,6 +153,7 @@ keyword Menace              = menace
 keyword (Hexproof Nothing)  = hexproof
 keyword (Hexproof (Just f)) = hexproofFrom f
 keyword Morph               = Keyword (Bare Morph)   -- DEGENERATE (bare morph carries no cost) — use the `morph <cost>` macro for the real ability
+keyword Devoid              = devoid
 
 -- KEYWORD ACTIONS (composite verbs over the primitives — the Idris analogue of the engine's
 -- keyword-action macros; named here rather than inlined per card).
