@@ -367,7 +367,7 @@ eventKindHasAmount k = hasAmount (eventKindCaps k)
 -- bound in `Bindings.chosenKind` and read back by the `OfChosen` anaphor. Characteristic domains
 -- (color / creature type) name something an object can HAVE; a mode domain (later) won't.
 public export
-data ChooseDomain = AColor | ACreatureType | AMode Nat | AName | ANumber   -- `AMode n` = an n-way mode pick; AName = a card name (Meddling Mage); ANumber = a chosen number
+data ChooseDomain = AColor | ACreatureType | AMode Nat | AName | ANumber | APlayerChoice   -- `AMode n` = an n-way mode pick; AName = a card name; ANumber = a number; APlayerChoice = a player (read back with `ChosenPlayer`)
 
 -- a mode domain must offer ≥1 mode ([CR#700.2]) — gates `AsEnters` (not `AMode` itself, which stays a
 -- plain constructor so `ChosenIs`'s `AMode n` equality keeps working). Lenient for non-mode domains.
@@ -386,6 +386,7 @@ IsCharDomain (Just ACreatureType) = ()
 IsCharDomain (Just AName)         = ()   -- "has the chosen NAME" is an `OfChosen` test (Meddling Mage)
 IsCharDomain (Just (AMode _))     = Void
 IsCharDomain (Just ANumber)       = Void  -- a number isn't a characteristic — read it with `ChosenNumber`
+IsCharDomain (Just APlayerChoice) = Void  -- a player isn't a characteristic — read it with `ChosenPlayer`
 IsCharDomain Nothing              = Void
 
 -- `Bindings`: the typestate of what references are in scope. Its fields are
@@ -487,6 +488,7 @@ mutual
     ControllerOf : Reference b AnObject -> Reference b APlayer   -- the controller of an object
     OwnerOf : Reference b AnObject -> Reference b APlayer        -- the owner of an object [CR#108.3]
     EventActor : {auto prf : hasActor (evCaps b) = True} -> Reference b APlayer  -- the event's player ("that player") — only if supplied
+    ChosenPlayer : {auto prf : chosenKind b = Just APlayerChoice} -> Reference b APlayer  -- the as-enters chosen PLAYER (the reference-anaphor twin of OfChosen/ChosenNumber)
 
   -- A numeric value ([CR#107.3]). `Literal` is a bare number; the rest read the game
   -- state — object counts, stats, counters, life/hand totals, event tallies, arithmetic.
@@ -782,6 +784,7 @@ data Cost : Bindings -> Type where
   PayLife   : Count b -> Cost b                  -- "Pay N life"
   PayEnergy : Count b -> Cost b                  -- "Pay {E}×N" — spend N energy counters from you
   Sacrifice : Reference b AnObject -> Cost b              -- "Sacrifice this" = Sacrifice This
+  SacrificeA : Predicate b AnObject -> Cost b             -- "Sacrifice a [pred]" — the PAYER chooses which (≠ `Sacrifice (Only …)`, which asserts uniqueness)
   AddCounters    : CounterKind -> Count b -> Cost b   -- a loyalty "+N" cost (put N counters on This)
   RemoveCounters : CounterKind -> Count b -> Cost b   -- a loyalty "−N" cost (remove N from This)
   Scaled    : Count b -> Cost b -> Cost b         -- the cost paid once per unit of the count ("{2} for each X" = Scaled (CountOf X) (Mana [promote 2]))
