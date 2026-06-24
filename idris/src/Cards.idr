@@ -1125,4 +1125,19 @@ card_Solemnity = Normal $ ^:
   , abilities := [ Static (CantHappen (MkQuery [PutCounters] [])) ]
   }
 
+-- Pine Walker — a clean vanilla MORPH creature: "{4}{G} 5/5; Morph {4}{G}." The `morph` macro is the
+-- whole encoding — cast face down as a 2/2 for {3} + turn up for {4}{G}; the face-down 2/2 body is the
+-- engine's global [CR#708.2] rule, not on the card.
+export
+card_PineWalker : Card
+card_PineWalker = Normal $ ^:
+  { name := Just "Pine Walker"
+  , manaCost := [^4, ^Green]
+  , types := [Creature]
+  , subtypes := [^Elemental]
+  , abilities := [ morph (Mana [^4, ^Green]) ]
+  , power := Just 5
+  , toughness := Just 5
+  }
+
 --:vim:sts=2 sw=2:

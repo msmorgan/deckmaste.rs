@@ -207,6 +207,7 @@ public export
 data ObjectState = Tapped | Attacking | Blocking | Blocked | Attached | SummoningSick
                  | Unblocked       -- an attacker past declare-blockers with no blocker ([CR#509.1h])
                  | PhasedOut       -- phased out ([CR#702.26]); "becomes phased" = `Becomes PhasedOut`
+                 | FaceDown        -- face down ([CR#708]); the engine applies the global 2/2-colorless-vanilla override here
 
 -- which `ObjectState`s an object TRANSITIONS into as a game event (gates `Becomes`). `SummoningSick`
 -- isn't one — it's a derived continuous condition `haste` lifts, never a "becomes" event. (`IsCharDomain` idiom.)
@@ -462,6 +463,7 @@ mutual
     Shroud : KeywordSpec b
     Menace : KeywordSpec b
     Hexproof : Maybe (Predicate b AnObject) -> KeywordSpec b   -- "from [filter]" — a SOURCE predicate (objects); "from a player" = ControlledBy that player
+    Morph : KeywordSpec b   -- the tag for the `morph` macro ([CR#702.37]); the face-up cost rides its desugared `TurnFaceUp` (bare here — `KeywordSpec` precedes `Cost`)
   -- A REFERENCE to a single game entity, indexed by `RefKind` (object vs player). One
   -- reference language now: object-refs and player-refs together, strict on the kind
   -- where it matters (`StatOf` needs `AnObject`, `LifeTotal` needs `APlayer`) and lax
@@ -1082,6 +1084,9 @@ mutual
     -- "you may cast THIS for [alt]" ([CR#118.9]) — the alternative-cost permission (base swap, distinct
     -- from `CostModifier`'s base modify). Force of Will = `MayCastFor (AltCost [PayLife (^1), …])`.
     MayCastFor : AlternativeCost b -> StaticEffect b
+    -- "you may cast THIS face down for [cost]" ([CR#702.37]) — an alternative cast that ALSO turns the
+    -- object face down; the engine then applies the global [CR#708.2] 2/2-colorless-vanilla override.
+    CastFaceDown : Cost b -> StaticEffect b
     -- the inner continuous effect applies only WHILE the condition holds ([CR#604.3]) —
     -- a conditional static ("gets +1/+1 as long as …").
     While : Condition b -> StaticEffect b -> StaticEffect b
@@ -1133,6 +1138,9 @@ mutual
     --  `Cant (Attaches …)` deed, enters-attached an `Also`, falls-off an `Sba`. No subtype special-casing.)
     -- a static continuous ability — modifications, anthems, AND replacements live in `StaticEffect`.
     Static : StaticEffect b -> Ability b
+    -- "[cost]: turn This face up" ([CR#708.9]) — a SPECIAL action (not stack-using), not an `Activated`
+    -- ability. Pays [cost], removes `FaceDown`. The face-up cost of `morph`/`disguise`.
+    TurnFaceUp : Cost b -> Ability b
     -- "As ~ enters, choose a [d]" ([CR#614.12]): a single ability that makes the as-enters choice and
     -- SCOPES it to the abilities that read it — those nest at `bindChosen d b` (so `OfChosen`/`ChosenIs`
     -- resolve), while the card's other abilities (and its whole printed face) stay at `b`, untouched.

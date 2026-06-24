@@ -193,6 +193,14 @@ tSacrificeCost = SacrificeA creature
 tPhasedFilter : Predicate Base AnObject
 tPhasedFilter = And [creature, HasState PhasedOut]
 
+-- morph: the `morph` macro = CastFaceDown ({3}) + TurnFaceUp ([cost]); `FaceDown` filters a morphed
+-- permanent (its 2/2-vanilla body is the engine's global [CR#708.2] override).
+tMorph : Ability Base
+tMorph = morph (Mana [^1, ^Blue])
+
+tFaceDownFilter : Predicate Base AnObject
+tFaceDownFilter = And [creature, HasState FaceDown]
+
 -- the structural holes: aggregate-stat cost (Crew), all-counters move (Ozolith), alternative base
 -- cost (the base-SWAP type, distinct from CostChange). Solemnity is subsumed by Replaces+skip (a card).
 tCrewCost : Cost Base
