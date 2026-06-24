@@ -268,10 +268,14 @@ data EndingStep
   = EndStep
   | CleanupStep
 
+-- a turn has exactly TWO main phases ([CR#505.1]) — a closed enum, not an open `Nat`.
+public export
+data MainPhaseKind = PreCombat | PostCombat
+
 public export
 data PhaseStep
   = BeginningPhase BeginningStep
-  | MainPhase Nat
+  | MainPhase MainPhaseKind
   | CombatPhase CombatStep
   | EndingPhase EndingStep
 
@@ -349,6 +353,13 @@ eventKindHasAmount k = hasAmount (eventKindCaps k)
 -- (color / creature type) name something an object can HAVE; a mode domain (later) won't.
 public export
 data ChooseDomain = AColor | ACreatureType | AMode Nat | AName | ANumber   -- `AMode n` = an n-way mode pick; AName = a card name (Meddling Mage); ANumber = a chosen number
+
+-- a mode domain must offer ≥1 mode ([CR#700.2]) — gates `AsEnters` (not `AMode` itself, which stays a
+-- plain constructor so `ChosenIs`'s `AMode n` equality keeps working). Lenient for non-mode domains.
+public export
+ModeDomainOk : ChooseDomain -> Type
+ModeDomainOk (AMode n) = LT 0 n
+ModeDomainOk _         = ()
 
 -- which domains name a CHARACTERISTIC `OfChosen` can test on an object — the gate on that anaphor (a
 -- mode choice is not a characteristic — it gates abilities via `ChosenIs`; no choice can't be read).
@@ -584,6 +595,13 @@ mutual
       Or   : List (EventQuery b) -> EventQuery b   -- OR
       Not : EventQuery b -> EventQuery b          -- NOT
 
+  -- whether a literal `Range`'s bounds are ORDERED (lo ≤ hi). Only literal-vs-literal is checked — a
+  -- dynamic bound (any `Count` expression) is lenient, exactly like `NonZeroQ`.
+  public export
+  OrderedRange : Maybe (Count b) -> Maybe (Count b) -> Type
+  OrderedRange (Just (Literal lo)) (Just (Literal hi)) = LTE lo hi
+  OrderedRange _ _ = ()
+
   -- A cardinality spec for a choice ([CR#107.3]). In the mutual block so `Selection` can use it.
   public export
   data Quantity : Bindings -> Type where
@@ -703,7 +721,7 @@ atMost : Count b -> Quantity b
 atMost n = Range Nothing (Just n)
 
 public export
-between : Count b -> Count b -> Quantity b
+between : (lo : Count b) -> (hi : Count b) -> {auto 0 prf : OrderedRange (Just lo) (Just hi)} -> Quantity b
 between lo hi = Range (Just lo) (Just hi)
 
 public export
@@ -776,6 +794,13 @@ data AlternativeCost : Bindings -> Type where
 public export
 data ChooseSpec : Bindings -> Type where
   MkChooseSpec : (count : Count b) -> {default False upTo : Bool} -> {default False repeats : Bool} -> ChooseSpec b
+
+-- a modal choose-count must not exceed the number of modes ([CR#700.2d]) — checked only when the count
+-- is a LITERAL and modes can't repeat (a repeating choice may pick the same mode again); lenient otherwise.
+public export
+ModalCountOk : ChooseSpec b -> (modeCount : Nat) -> Type
+ModalCountOk (MkChooseSpec (Literal n) {repeats = False}) modeCount = LTE n modeCount
+ModalCountOk _ _ = ()
 
 -- A DEONTIC clause's carrier: a game ACTION a player may attempt ([CR#101.2,601.3] the deontic
 -- layer) — distinct from the resolving `Action` verbs. Each names its participants; the CR's
@@ -956,7 +981,7 @@ mutual
     -- create a continuous effect for a duration ([CR#611.2]). Rust: Effect::Continuously.
     Continuously : StaticEffect b -> Duration b -> OneShotEffect b
     -- choose modes, then apply them ([CR#700.2]). Rust: Effect::Modal.
-    Modal : ChooseSpec b -> List (Mode b) -> OneShotEffect b
+    Modal : (spec : ChooseSpec b) -> (modes : List (Mode b)) -> {auto 0 ne : NonEmpty modes} -> {auto 0 cnt : ModalCountOk spec (length modes)} -> OneShotEffect b
     -- "for each [domain], [body]" — binds each element as `It`. The distributive
     -- primitive (subsumes the old `Selection::Each`). Rust: Effect::ForEach.
     ForEach : Selection b k -> OneShotEffect (bindIt k b) -> OneShotEffect b
@@ -1089,7 +1114,7 @@ mutual
     -- "As ~ enters, choose a [d]" ([CR#614.12]): a single ability that makes the as-enters choice and
     -- SCOPES it to the abilities that read it — those nest at `bindChosen d b` (so `OfChosen`/`ChosenIs`
     -- resolve), while the card's other abilities (and its whole printed face) stay at `b`, untouched.
-    AsEnters : (d : ChooseDomain) -> List (Ability (bindChosen d b)) -> Ability b
+    AsEnters : (d : ChooseDomain) -> {auto 0 ok : ModeDomainOk d} -> List (Ability (bindChosen d b)) -> Ability b
 
 -- A card's printed face is just `Characteristics` at the empty bindings.
 public export
@@ -1173,5 +1198,5 @@ counterConfers _    = []
 public export
 subtypeConfers : Subtype -> List (Property b)
 subtypeConfers (EnchantmentSub Aura) = [PropStateBased (Not (LegallyAttached This)) (Act (Move This Graveyard))]
-subtypeConfers (EnchantmentSub Saga) = [PropTurnBased (MainPhase 0) (Act (PutCounters Lore (^1) This))]
+subtypeConfers (EnchantmentSub Saga) = [PropTurnBased (MainPhase PreCombat) (Act (PutCounters Lore (^1) This))]
 subtypeConfers _                     = []
