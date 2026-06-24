@@ -332,11 +332,25 @@ tLimitedAbility : Ability Base
 tLimitedAbility =
   Activated (RemoveCounters Loyalty (Literal 1)) (Act (Draw (^1))) {window = SorceryWindow, limits = [OncePerTurn]}
 
--- P/T is in the value language now: SIGNED deltas (Up/Down) and a dynamic base via SetPT
+-- P/T in the value language: SIGNED deltas (Up/Down, ModifyPT) and a dynamic base via the unified `Set`.
 tPTMods : List (Modification Base)
 tPTMods =
   [ ModifyPT (Up (Literal 2)) (Down (Literal 1))     -- "+2/-1"
-  , SetPT (CountOf creature) (CountOf creature) ]     -- Tarmogoyf-style "*/*" base P/T
+  , Set BasePower (CountOf creature), Set BaseToughness (CountOf creature) ]   -- Tarmogoyf-style "*/*" base P/T
+
+-- the unified `Set` overwrites ANY characteristic, value-typed by `CharValue`: "becomes blue", "loses all
+-- creature types" (`Set Subtypes []`), "becomes a legendary artifact creature".
+tSetChars : List (Modification Base)
+tSetChars =
+  [ Set Colors [Blue]
+  , Set Subtypes []
+  , Set CardTypes [Artifact, Creature]
+  , Set Supertypes [Legendary] ]
+
+-- ...and it's VALUE-TYPED by construction: a non-Color value for `Colors` is a type error.
+failing
+  tBadSetColorValue : Modification Base
+  tBadSetColorValue = Set Colors [Creature]
 
 -- a "*/*" creature: printed power/toughness are a `Count` (CDA), not a bare Int
 tCDA : Card

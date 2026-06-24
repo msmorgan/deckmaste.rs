@@ -574,9 +574,9 @@ card_StudentOfWarfare = Normal $ ^:
       [ levelUp (Mana [^White])                                                                  -- "Level up {W}"
       , Static (While (And [ Compare (CountersOn Level This) GreaterEq (^2)
                            , Compare (CountersOn Level This) LessEq (^6) ])
-          (Modify This [SetPT (^3) (^3), GrantAbility (keyword FirstStrike)]))            -- LEVEL 2–6: 3/3 first strike
+          (Modify This [Set BasePower (^3), Set BaseToughness (^3), GrantAbility (keyword FirstStrike)]))   -- LEVEL 2–6: 3/3 first strike
       , Static (While (Compare (CountersOn Level This) GreaterEq (^7))
-          (Modify This [SetPT (^4) (^4), GrantAbility (keyword DoubleStrike)]))           -- LEVEL 7+: 4/4 double strike
+          (Modify This [Set BasePower (^4), Set BaseToughness (^4), GrantAbility (keyword DoubleStrike)]))   -- LEVEL 7+: 4/4 double strike
       ]
   }
 
