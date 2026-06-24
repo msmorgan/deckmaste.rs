@@ -295,7 +295,7 @@ data Window = ThisGame | ThisTurn | LastTurn | ThisCombat | ThisStep
 
 -- What KIND of event an `EventQuery` matches. `ZoneChanged`/`BeginStep` carry data; "dies" =
 -- ZoneChanged (Just Battlefield) (Just Graveyard). The verb-named events live in `namespace
--- EventKind` so they REUSE the `Action` verb names — `KindIs Draw` pins `EventKind`, `Act (Draw …)`
+-- EventKind` so they REUSE the `Action` verb names — a `kinds` slot `[Draw]` pins `EventKind`, `Act (Draw …)`
 -- pins `Action` (type-directed disambiguation; no more past-tense `Drew`/`DealtDamage`).
 namespace EventKind
   public export
@@ -485,7 +485,7 @@ mutual
     EventCount : EventQuery b -> Count b      -- how many matching events occurred (window is in the query)
     -- the SUM of the matching events' amounts (the amount-twin of `EventCount`). Takes the amount-bearing
     -- KIND explicitly (gated by `eventKindHasAmount`, so `EventSum Cast` is rejected) + optional facets.
-    EventSum : (k : EventKind) -> {auto amt : eventKindHasAmount k = True} -> {default Nothing facets : Maybe (EventQuery b)} -> Count b
+    EventSum : (k : EventKind) -> {auto amt : eventKindHasAmount k = True} -> {default [] facets : List (Facet b)} -> Count b
     Damage : Reference b AnObject -> Count b  -- marked damage on r ([CR#120.3]); the lethal-damage SBA reads `Compare (Damage This) GreaterEq (StatOf This Toughness)`
     CountersOn : (c : CounterKind) -> Reference b (counterCarrier c) -> Count b   -- number of [kind] counters on r (object or player, per `counterCarrier`)
     LifeTotal : Reference b APlayer -> Count b           -- a player's life total
@@ -574,26 +574,34 @@ mutual
       Or : List (Condition b) -> Condition b
       Not : Condition b -> Condition b
 
-  -- A query OVER EVENTS: the matcher for triggers, `EventCount`, and durations — the
-  -- event analog of `Predicate`. Facets conjoin via `And`; `Or` disjoins, `Not` negates (same
-  -- combinator names as the other two, in this namespace). `SourceMatches` embeds the object language; `Within`/`DuringStep`/
-  -- `DuringTurn` are the timing facets ("not during your turn" = `Not (DuringTurn You)`).
-  namespace EventQuery
+  -- The kind-free EVENT-FACET language: conditions refining WHICH event (never its kind, which lives in
+  -- the `EventQuery` record's `kinds` slot). Facets conjoin via `And`; `Or` disjoins, `Not` negates (same
+  -- combinator names as Predicate/Condition, in this namespace). `SourceMatches` embeds the object
+  -- language; `Within`/`DuringStep`/`DuringTurn` are timing facets ("not during your turn" = `Not (DuringTurn You)`).
+  namespace Facet
     public export
-    data EventQuery : Bindings -> Type where
-      KindIs        : EventKind -> EventQuery b
-      SourceMatches : Predicate b AnObject -> EventQuery b
-      ActorIs       : Predicate b APlayer -> EventQuery b   -- the event's actor matches a player-pred (you / opponent)
-      Within        : Window -> EventQuery b
-      DuringStep    : PhaseStep -> EventQuery b
-      DuringTurn    : Predicate b APlayer -> EventQuery b   -- the turn's player matches a player-pred
+    data Facet : Bindings -> Type where
+      SourceMatches : Predicate b AnObject -> Facet b
+      ActorIs       : Predicate b APlayer -> Facet b   -- the event's actor matches a player-pred (you / opponent)
+      Within        : Window -> Facet b
+      DuringStep    : PhaseStep -> Facet b
+      DuringTurn    : Predicate b APlayer -> Facet b   -- the turn's player matches a player-pred
       -- "this is the FIRST event (matching the surrounding facets) in the window" — an ORDINAL facet,
       -- engine-resolved like `EventCount` ([CR#603.2e] "the first time each…"). Notion Thief: "except the
       -- first draw each draw step" = `Not (And [DuringStep drawStep, IsFirst ThisStep])`.
-      IsFirst       : Window -> EventQuery b
-      And  : List (EventQuery b) -> EventQuery b   -- AND
-      Or   : List (EventQuery b) -> EventQuery b   -- OR
-      Not : EventQuery b -> EventQuery b          -- NOT
+      IsFirst       : Window -> Facet b
+      And  : List (Facet b) -> Facet b   -- AND
+      Or   : List (Facet b) -> Facet b   -- OR
+      Not : Facet b -> Facet b          -- NOT
+
+  -- an EVENT QUERY = an optional kind-DISJUNCTION + kind-free facets ([CR#603.2]). `kinds` empty = any
+  -- kind; `[k]` = exactly k; `[k1,k2]` = any of these (an OR). Facets (implicitly AND-ed) refine WHICH
+  -- event. The kind lives in ONE slot, never a facet — so caps stay sound (the INTERSECTION over `kinds`).
+  public export
+  record EventQuery b where
+    constructor MkQuery
+    kinds  : List EventKind
+    facets : List (Facet b)
 
   -- whether a literal `Range`'s bounds are ORDERED (lo ≤ hi). Only literal-vs-literal is checked — a
   -- dynamic bound (any `Count` expression) is lenient, exactly like `NonZeroQ`.
@@ -619,22 +627,18 @@ mutual
     BottomOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
 
 
--- the caps a whole event-QUERY guarantees its body: a conjoined `KindIs` pins the kind (an `And` takes
--- any conjunct's caps); an `Or` guarantees a cap only if EVERY branch does. Feeds `bindEvent`.
-public export
-orCaps : EventCaps -> EventCaps -> EventCaps
-orCaps (MkCaps o1 a1 m1) (MkCaps o2 a2 m2) = MkCaps (o1 || o2) (a1 || a2) (m1 || m2)
-
 public export
 andCaps : EventCaps -> EventCaps -> EventCaps
 andCaps (MkCaps o1 a1 m1) (MkCaps o2 a2 m2) = MkCaps (o1 && o2) (a1 && a2) (m1 && m2)
 
+-- the caps a whole event-QUERY guarantees its body: the INTERSECTION over its kind-disjunction — the
+-- body gets only anaphora that EVERY listed kind supplies. Empty `kinds` (any kind) ⇒ `noCaps`. So a
+-- multi-kind trigger ("attacks or blocks") is sound, and there is no way to union incompatible kinds.
 public export
 eventQueryCaps : EventQuery b -> EventCaps
-eventQueryCaps (KindIs k) = eventKindCaps k
-eventQueryCaps (And qs)   = foldr orCaps noCaps (map eventQueryCaps qs)
-eventQueryCaps (Or qs)    = foldr andCaps (MkCaps True True True) (map eventQueryCaps qs)
-eventQueryCaps _          = noCaps
+eventQueryCaps q = case q.kinds of
+  []        => noCaps
+  (k :: ks) => foldl andCaps (eventKindCaps k) (map eventKindCaps ks)
 
 -- "it's your turn" — the common specialization of `TurnOf`.
 public export
@@ -1032,15 +1036,15 @@ mutual
     Replaces : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) b) -> StaticEffect b
     -- "[event] CAN'T happen" — a continuous PROHIBITION, semantically distinct from replacing-with-
     -- nothing: it's not a one-shot ([CR#614.5]) application, isn't ordered against other replacements
-    -- ([CR#616]), and the event never "would happen". Indestructible = `CantHappen (KindIs Destroyed +
-    -- this)`; Solemnity = `CantHappen (KindIs PutCounters)`. (Event-level; the deontic `Cant` is its
-    -- player-ACTION sibling — "can't attack".)
+    -- ([CR#616]), and the event never "would happen". Indestructible = `CantHappen (MkQuery [Destroyed]
+    -- [this])`; Solemnity = `CantHappen (MkQuery [PutCounters] [])`. (Event-level; the deontic `Cant` is
+    -- its player-ACTION sibling — "can't attack".)
     CantHappen : EventQuery b -> StaticEffect b
     -- PAYLOAD replacement ([CR#616]): the event still happens, but its numeric amount becomes
     -- `newAmount` (a `Count` over the event body, so it can read `ThatMuch`). Furnace of Rath =
     -- `ReplaceAmount DealDamage (Times ThatMuch (^2))`. The KIND is explicit + amount-gated, so
     -- `ReplaceAmount Cast …` (a Cast has no amount) is a TYPE ERROR; `facets` adds non-kind conditions.
-    ReplaceAmount : (k : EventKind) -> {auto amt : eventKindHasAmount k = True} -> {default Nothing facets : Maybe (EventQuery b)} -> (newAmount : Count (bindEvent (eventKindCaps k) b)) -> StaticEffect b
+    ReplaceAmount : (k : EventKind) -> {auto amt : eventKindHasAmount k = True} -> {default [] facets : List (Facet b)} -> (newAmount : Count (bindEvent (eventKindCaps k) b)) -> StaticEffect b
     -- a static OUTCOME suppressor: the matching players can't lose / can't win ([CR#104.3a]). Platinum
     -- Angel = `OutcomeGate CantLose you` + `OutcomeGate CantWin opponent`. (Distinct from `CantHappen` —
     -- game-loss isn't a replaceable event — and from a deontic `Cant` — it's not a player action.)

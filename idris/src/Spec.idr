@@ -92,7 +92,7 @@ tControlsPlayer : Predicate Base APlayer
 tControlsPlayer = Controls creature
 
 tBecomesBlocked : EventQuery Base
-tBecomesBlocked = And [KindIs (Becomes Blocked), SourceMatches (SameAs This)]
+tBecomesBlocked = MkQuery [Becomes Blocked] [SourceMatches (SameAs This)]
 
 -- designations: ONE predicate, scope by type — `HasDesignation Monarch` is a PLAYER test (you're the
 -- monarch), `HasDesignation Monstrous` an OBJECT test. The carrier follows `designationScope`.
@@ -129,9 +129,9 @@ tQuantities =
 -- the event-query language: facets conjoin (`And`), `Not` negates, timing via
 -- `DuringTurn` — "a creature died, not during your turn".
 tEventQuery : EventQuery Base
-tEventQuery = And [ KindIs (ZoneChanged (Just Battlefield) (Just Graveyard))
-                    , SourceMatches creature
-                    , Not (DuringTurn you) ]
+tEventQuery = MkQuery [ZoneChanged (Just Battlefield) (Just Graveyard)]
+                      [ SourceMatches creature
+                      , Not (DuringTurn you) ]
 
 -- PAYLOAD replacement: the event survives but its amount is rewritten — Furnace of Rath doubles damage
 -- by scaling `ThatMuch` (the event's own amount). The `newAmount` reads the event body.
@@ -199,7 +199,7 @@ tMayCastFor = MayCastFor (AltCost [PayLife (^1)])
 -- a log-derived history count feeds a condition, and a game `Outcome` wraps into an effect
 tHistoryThenWin : OneShotEffect Base
 tHistoryThenWin =
-  If (Compare (EventCount (And [KindIs Cast, ActorIs you, Within ThisGame])) GreaterEq (Literal 2))
+  If (Compare (EventCount (MkQuery [Cast] [ActorIs you, Within ThisGame])) GreaterEq (Literal 2))
      (Conclude (WinGame You))
 
 -- an activated ability: a multi-component cost algebra + an effect
@@ -251,7 +251,7 @@ tValues =
   , Min (CountersOn P1P1 This) (CountersOn M1M1 This)   -- net counters after annihilation
   , Max (StatOf This Power) (^0)
   , Damage This                                          -- marked damage
-  , EventSum DealDamage {facets = Just (ActorIs opponent)} ]  -- amount-twin of EventCount; kind is gated
+  , EventSum DealDamage {facets = [ActorIs opponent]} ]  -- amount-twin of EventCount; kind is gated, facets kind-free
 
 -- the lethal-damage SBA now states directly: marked damage ≥ toughness.
 tLethalSba : Condition Base
@@ -455,28 +455,41 @@ failing
 failing
   tBadEventObjectNoObject : Ability Base
   tBadEventObjectNoObject =
-    Triggered (KindIs (BeginStep (BeginningPhase UpkeepStep))) (Act (Move EventObject Exile))
+    Triggered (MkQuery [BeginStep (BeginningPhase UpkeepStep)] []) (Act (Move EventObject Exile))
 
 -- `ThatMuch` (the amount) in a Cast body — a Cast carries no amount.
 failing
   tBadThatMuchNoAmount : StaticEffect Base
-  tBadThatMuchNoAmount = Replaces (KindIs Cast) (Act (DealDamage This ThatMuch))
+  tBadThatMuchNoAmount = Replaces (MkQuery [Cast] []) (Act (DealDamage This ThatMuch))
 
 -- `EventActor` ("that player") in a Destroyed body — a destruction has no actor.
 failing
   tBadEventActorNoActor : Ability Base
-  tBadEventActorNoActor = Triggered (KindIs Destroyed) (Conclude (WinGame EventActor))
+  tBadEventActorNoActor = Triggered (MkQuery [Destroyed] []) (Conclude (WinGame EventActor))
 
 -- ...and the anaphora DO work where the event supplies them: `EventActor` in a Cast body (the caster).
 tEventActorValid : Ability Base
-tEventActorValid = Triggered (KindIs Cast) (Conclude (WinGame EventActor))
+tEventActorValid = Triggered (MkQuery [Cast] []) (Conclude (WinGame EventActor))
+
+-- MULTI-KIND SOUNDNESS (the EventQuery restructure): a multi-kind query's caps are the INTERSECTION —
+-- the body gets only anaphora EVERY listed kind supplies. `EventActor` under `[Cast, Destroyed]` is
+-- rejected (a Destroyed event has no actor), so the old union-cap leak (A6) is gone.
+failing
+  tBadEventActorMultiKind : Ability Base
+  tBadEventActorMultiKind = Triggered (MkQuery [Cast, Destroyed] []) (Conclude (WinGame EventActor))
+
+-- ...but when EVERY listed kind supplies the anaphor it's fine: "attacks or blocks" both supply an
+-- object, so `EventObject` is valid (Smuggler's Copter's single trigger over two kinds).
+tEventObjectMultiKind : Ability Base
+tEventObjectMultiKind =
+  Triggered (MkQuery [Becomes Attacking, Becomes Blocking] []) (Act (Move EventObject Exile))
 
 -- "whenever a creature enters, draw THAT MANY cards" — meaningless: a creature entering (`ZoneChanged`)
 -- carries no amount, so `ThatMuch` has no referent. The caps gate rejects it.
 failing
   tBadDrawThatManyOnEnter : Ability Base
   tBadDrawThatManyOnEnter =
-    Triggered (And [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches creature])
+    Triggered (MkQuery [ZoneChanged Nothing (Just Battlefield)] [SourceMatches creature])
       (Act (Draw ThatMuch))
 
 -- BOUNDED-NUMERIC gates. An inverted range ("between 5 and 2") — `OrderedRange` rejects `lo > hi`.
