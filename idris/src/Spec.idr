@@ -201,6 +201,14 @@ tMorph = morph (Mana [^1, ^Blue])
 tFaceDownFilter : Predicate Base AnObject
 tFaceDownFilter = And [creature, HasState FaceDown]
 
+-- copy (minimal): a permanent BECOMES a copy of a reference (layer-1 Modification); a token COPY of a
+-- reference. "a copy, except …" layers on as a separate higher-layer mod, not bundled here.
+tBecomeCopy : Modification (bindTargets [AnObject] Base)
+tBecomeCopy = BecomeCopyOf (GetTarget 0)
+
+tCreateTokenCopy : Action (bindTargets [AnObject] Base)
+tCreateTokenCopy = CreateTokenCopy (GetTarget 0)
+
 -- the structural holes: aggregate-stat cost (Crew), all-counters move (Ozolith), alternative base
 -- cost (the base-SWAP type, distinct from CostChange). Solemnity is subsumed by Replaces+skip (a card).
 tCrewCost : Cost Base
