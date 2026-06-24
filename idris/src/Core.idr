@@ -861,6 +861,22 @@ data Deed : Bindings -> Type where
   -- (Verb-form like `Casts`/`Plays`; the `Attach` ACTION keeps that name for the actual verb.)
   Attaches   : (what : Predicate b AnObject) -> (to : Predicate b AnObject) -> Deed b
 
+-- A CHARACTERISTIC a `Set` modification can OVERWRITE ([CR#613] at the layer the engine knows per
+-- characteristic — colors L5, types L4, P/T L7b, …). ONE mechanism for all of them: each maps to its
+-- value TYPE via the total `CharValue`, so `Set` takes the right value by construction.
+public export
+data Characteristic = Colors | CardTypes | Subtypes | Supertypes | BasePower | BaseToughness | Name
+
+public export
+CharValue : Bindings -> Characteristic -> Type
+CharValue _ Colors        = List Color
+CharValue _ CardTypes     = List Type_
+CharValue _ Subtypes      = List Subtype
+CharValue _ Supertypes    = List Supertype
+CharValue b BasePower     = Count b        -- may be dynamic (a CDA "*/*")
+CharValue b BaseToughness = Count b
+CharValue _ Name          = Maybe String   -- `Nothing` = "has no name"
+
 -- One big mutual block: `Ability → OneShotEffect → Action → CreateToken → Characteristics` is a
 -- cycle, so `Characteristics`/`Action`/`Bindable` join the effect/ability block below. (The leaf
 -- `Cost`/`ChooseSpec`/`Deed` stay OUT — they only reach into block 1.)
@@ -1029,7 +1045,10 @@ mutual
   public export
   data Modification : Bindings -> Type where
     ModifyPT : Delta b -> Delta b -> Modification b     -- "gets +x/+y" (SIGNED, layer 7c — Up/Down)
-    SetPT : Count b -> Count b -> Modification b         -- "base p/t are x/y" (layer 7b; x/y may be dynamic — CDA `*/*`)
+    -- SET any characteristic to a value ([CR#613]): "becomes blue" = `Set Colors [Blue]`; "loses all
+    -- creature types" = `Set Subtypes []`; "base p/t are x/y" = `Set BasePower x` + `Set BaseToughness y`
+    -- (a CDA `*/*` sets a dynamic `Count`). One mechanism, value-typed by `CharValue`; subsumes old `SetPT`.
+    Set : (c : Characteristic) -> CharValue b c -> Modification b
     AddType : Type_ -> Modification b                   -- "is also a [type]"
     AddSubtype : Subtype -> Modification b              -- "becomes an Island" (adds the subtype)
     -- TEXT-CHANGE ([CR#612], a layer-3 mod): "replace all instances of one word with another of its
