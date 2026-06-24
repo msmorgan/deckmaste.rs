@@ -144,6 +144,17 @@ tReplaceAmount = ReplaceAmount DealDamage (Times ThatMuch (^2))
 tPrevention : StaticEffect Base
 tPrevention = ReplaceAmount DealDamage (^0)
 
+-- CONSUMABLE shields (the `Replaces` use-limit). Regeneration = the next destroy → heal/tap/remove, one
+-- use (`regenerate` macro). Prevention = "prevent the next 3 damage to This" — a damage `Replaces` whose
+-- `UpTo (^3)` limit is consumed by 3 damage-points (`SourceMatches (SameAs This)` = the affected object).
+tRegenerate : OneShotEffect Base
+tRegenerate = regenerate
+
+tPreventNext : OneShotEffect Base
+tPreventNext = Continuously
+  (Replaces (MkQuery [DealDamage] [SourceMatches (SameAs This)]) (Sequence []) {limit = UpTo (^3)})
+  UntilEndOfTurn
+
 tIndestructible : Ability Base
 tIndestructible = keyword Indestructible
 

@@ -815,6 +815,14 @@ data AlternativeCost : Bindings -> Type where
   FreeCast : AlternativeCost b
   AltCost  : List (Cost b) -> AlternativeCost b
 
+-- a use-LIMIT on a `Replaces` — how many times it fires before it's CONSUMED (a shield). `Unlimited` =
+-- today's continuous replacement; `UpTo n` = "the next n" — n OCCURRENCES for an amountless event
+-- (regeneration: the next destroy), n AMOUNT-POINTS for an amount event (prevention: the next n damage).
+public export
+data ReplaceLimit : Bindings -> Type where
+  Unlimited : ReplaceLimit b
+  UpTo : Count b -> ReplaceLimit b
+
 -- How many modes to choose, for a modal effect ([CR#700.2]). Rust: ChooseSpec.
 public export
 data ChooseSpec : Bindings -> Type where
@@ -931,6 +939,8 @@ mutual
     -- tap / untap [CR#701.26]; attach / unattach [CR#701.3].
     Tap : Reference b AnObject -> Action b
     Untap : Reference b AnObject -> Action b
+    RemoveAllDamage : Reference b AnObject -> Action b    -- remove all damage marked on r (regeneration's heal, [CR#701.19])
+    RemoveFromCombat : Reference b AnObject -> Action b   -- remove r from combat ([CR#506.4])
     Transform : Reference b AnObject -> Action b   -- turn a transforming DFC to its other face ([CR#712.4])
     PhaseOut : Reference b AnObject -> Action b     -- phase a permanent out ([CR#702.26]); phasing back in is the engine's turn-based action
     MoveAllCounters : (from : Reference b AnObject) -> (to : Reference b AnObject) -> Action b   -- move ALL counters (every kind) X→Y (Ozolith); the all-kinds case `RemoveAllCounters` (one kind) can't reach
@@ -1081,7 +1091,7 @@ mutual
     -- "if [event] would happen, do [effect] INSTEAD" — a replacement ([CR#614]). Empty body = a SKIP
     -- (a replacement that removes the event — e.g. "skip your draw step"). This is NOT a prohibition:
     -- the event still "would happen" and is intercepted; for "can't happen", use `CantHappen` below.
-    Replaces : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) b) -> StaticEffect b
+    Replaces : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) b) -> {default Unlimited limit : ReplaceLimit b} -> StaticEffect b
     -- "[event] CAN'T happen" — a continuous PROHIBITION, semantically distinct from replacing-with-
     -- nothing: it's not a one-shot ([CR#614.5]) application, isn't ordered against other replacements
     -- ([CR#616]), and the event never "would happen". Indestructible = `CantHappen (MkQuery [Destroyed]
