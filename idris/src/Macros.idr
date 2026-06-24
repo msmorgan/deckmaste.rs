@@ -31,12 +31,12 @@ opponent = Not (SameAs You)
 -- "at the beginning of the next end step" — the common delayed-trigger event.
 public export
 nextEndStep : EventQuery b
-nextEndStep = KindIs (BeginStep (EndingPhase EndStep))
+nextEndStep = MkQuery [BeginStep (EndingPhase EndStep)] []
 
 -- "when THIS enters the battlefield" — the ETB trigger event, inlined across most permanents.
 public export
 thisEnters : EventQuery b
-thisEnters = And [KindIs (ZoneChanged Nothing (Just Battlefield)), SourceMatches (SameAs This)]
+thisEnters = MkQuery [ZoneChanged Nothing (Just Battlefield)] [SourceMatches (SameAs This)]
 
 -- "any target" ([CR#115.4]): a creature/planeswalker/battle permanent, OR any player. A
 -- FLAT `Or` — the player arm (`Anyone`) sits beside the object arms, and the result
@@ -120,7 +120,7 @@ haste = Keyword (Composite Haste
 public export
 indestructible : Ability b
 indestructible = Keyword (Composite Indestructible
-  [Static (CantHappen (And [KindIs Destroyed, SourceMatches (SameAs This)]))])
+  [Static (CantHappen (MkQuery [Destroyed] [SourceMatches (SameAs This)]))])
 
 -- desugar a `KeywordSpec` into its full `Ability` — dispatches to the macros above. EXHAUSTIVE
 -- (no catch-all): adding a `KeywordSpec` constructor forces a clause here. `Bare` = an engine-

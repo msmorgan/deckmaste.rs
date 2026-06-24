@@ -127,9 +127,8 @@ card_Rancor = Normal $ ^:
           , GrantAbility (keyword Trample)
           ])
       , Triggered
-          (And [ KindIs (ZoneChanged (Just Battlefield) (Just Graveyard))
-                 , SourceMatches (SameAs This)
-                 ])
+          (MkQuery [ZoneChanged (Just Battlefield) (Just Graveyard)]
+                   [SourceMatches (SameAs This)])
           (Act (Move (This) Hand))
       ]
   }
@@ -188,8 +187,8 @@ card_ApproachOfTheSecondSun = Normal $ ^:
   , abilities :=
       [ Spell $
           If (And [ Matches This (WasCastFrom Hand)
-                  , Compare (EventCount (And [ KindIs Cast
-                                               , ActorIs you
+                  , Compare (EventCount (MkQuery [Cast]
+                                               [ ActorIs you
                                                , SourceMatches (SameName This)
                                                , Within ThisGame ]))
                             GreaterEq (Literal 2) ])
@@ -292,8 +291,8 @@ card_Necropotence = Normal $ ^:
   , manaCost := [^Black, ^Black, ^Black]
   , types := [Enchantment]
   , abilities :=
-      [ Static (Replaces (And [KindIs (BeginStep (BeginningPhase DrawStep)), DuringTurn you]) (Sequence []))
-      , Triggered (And [KindIs Discard, ActorIs you])
+      [ Static (Replaces (MkQuery [BeginStep (BeginningPhase DrawStep)] [DuringTurn you]) (Sequence []))
+      , Triggered (MkQuery [Discard] [ActorIs you])
           (Act (Move EventObject Exile))
       , Activated (PayLife (Literal 1))
           (ForEach (TopOfLibrary (Literal 1))
@@ -315,7 +314,8 @@ card_NotionThief = Normal $ ^:
   , subtypes := [^Human, ^Rogue]
   , abilities :=
       [ keyword Flash
-      , Static (Replaces (And [ KindIs Draw, ActorIs opponent
+      , Static (Replaces (MkQuery [Draw]
+                                [ ActorIs opponent
                                 , Not (And [DuringStep (BeginningPhase DrawStep), IsFirst ThisStep]) ])
           (Act (Draw {actor = You} (^1))))
       ]
@@ -337,7 +337,7 @@ card_OblivionRing = Normal $ ^:
       [ Triggered (thisEnters)
           (Targeted [Target (^1) (And [permanent, Not (HasType Land), Not (SameAs This)])]
             (Act (Move ((GetTarget 0)) Exile)))
-      , Triggered (And [KindIs (ZoneChanged (Just Battlefield) Nothing), SourceMatches (SameAs This)])
+      , Triggered (MkQuery [ZoneChanged (Just Battlefield) Nothing] [SourceMatches (SameAs This)])
           (ForEach (SelectAll (ExiledBy This)) (Act (Move It Battlefield)))
       ]
   }
@@ -356,8 +356,8 @@ card_BanishingLight = Normal $ ^:
       [ Triggered (thisEnters) $
           Targeted [Target (^1) (And [permanent, Not (HasType Land), ControlledBy opponent])] $
             Act (ExileUntil ((GetTarget 0))
-                            (UntilEvent (And [ KindIs (ZoneChanged (Just Battlefield) Nothing)
-                                               , SourceMatches (SameAs This) ])))
+                            (UntilEvent (MkQuery [ZoneChanged (Just Battlefield) Nothing]
+                                               [SourceMatches (SameAs This)])))
       ]
   }
 
@@ -629,12 +629,12 @@ card_CitadelSiege = Normal $ ^:
   , abilities :=
       [ AsEnters (AMode 2)
           [ -- Khans (0): begin combat on YOUR turn → two +1/+1 counters on a creature you control
-            Triggered (And [KindIs (BeginStep (CombatPhase BeginningOfCombatStep)), DuringTurn you])
+            Triggered (MkQuery [BeginStep (CombatPhase BeginningOfCombatStep)] [DuringTurn you])
               (If (ChosenIs 0)
                   (Targeted [Target (^1) (And [creature, ControlledBy you])]
                     (Act (PutCounters P1P1 (^2) (GetTarget 0)))))
           , -- Dragons (1): begin combat on an OPPONENT's turn → tap a creature that opponent controls
-            Triggered (And [KindIs (BeginStep (CombatPhase BeginningOfCombatStep)), DuringTurn opponent])
+            Triggered (MkQuery [BeginStep (CombatPhase BeginningOfCombatStep)] [DuringTurn opponent])
               (If (ChosenIs 1)
                   (Targeted [Target (^1) (And [creature, ControlledBy opponent])]
                     (Act (Tap (GetTarget 0)))))
@@ -655,13 +655,13 @@ card_OutpostSiege = Normal $ ^:
   , abilities :=
       [ AsEnters (AMode 2)
           [ -- Khans (0): at your upkeep, exile the top card of your library; until eot you may play it
-            Triggered (And [KindIs (BeginStep (BeginningPhase UpkeepStep)), DuringTurn you])
+            Triggered (MkQuery [BeginStep (BeginningPhase UpkeepStep)] [DuringTurn you])
               (If (ChosenIs 0)
                   (With (Produce (Move (Single (TopOfLibrary (^1))) Exile))
                     (Continuously (Can (Plays you (SameAs (Single That)))) UntilEndOfTurn)))
           , -- Dragons (1): when a creature you control leaves the battlefield, deal 1 to any target
-            Triggered (And [ KindIs (ZoneChanged (Just Battlefield) Nothing)
-                           , SourceMatches (And [creature, ControlledBy you]) ])
+            Triggered (MkQuery [ZoneChanged (Just Battlefield) Nothing]
+                           [SourceMatches (And [creature, ControlledBy you])])
               (If (ChosenIs 1)
                   (Targeted [anyTarget] (Act (DealDamage (GetTarget 0) (^1)))))
           ]
@@ -739,7 +739,7 @@ card_DelverOfSecrets = TwoFaced Transforming
       , types := [Creature]
       , subtypes := [^Human, ^Wizard]
       , abilities :=
-          [ Triggered (And [KindIs (BeginStep (BeginningPhase UpkeepStep)), DuringTurn you])
+          [ Triggered (MkQuery [BeginStep (BeginningPhase UpkeepStep)] [DuringTurn you])
               (If (Matches (Single (TopOfLibrary (^1))) (Or [HasType Instant, HasType Sorcery]))
                   (May (Sequence [ Act (Reveal (Single (TopOfLibrary (^1))))
                                  , Act (Transform This) ])))
@@ -775,8 +775,8 @@ card_DoublingSeason = Normal $ ^:
   , manaCost := [^4, ^Green]
   , types := [Enchantment]
   , abilities :=
-      [ Static (ReplaceAmount CreateToken (Times ThatMuch (^2)) {facets = Just (ActorIs you)})
-      , Static (ReplaceAmount PutCounters (Times ThatMuch (^2)) {facets = Just (SourceMatches (ControlledBy you))})
+      [ Static (ReplaceAmount CreateToken (Times ThatMuch (^2)) {facets = [ActorIs you]})
+      , Static (ReplaceAmount PutCounters (Times ThatMuch (^2)) {facets = [SourceMatches (ControlledBy you)]})
       ]
   }
 
@@ -1045,14 +1045,14 @@ card_HistoryOfBenalia = Normal $ ^:
   , subtypes := [^Saga]
   , abilities :=
       [ -- I, II — create a 2/2 white Knight
-        Triggered (And [KindIs PutCounters, SourceMatches (SameAs This)])
+        Triggered (MkQuery [PutCounters] [SourceMatches (SameAs This)])
           (If (Or [ Compare (CountersOn Lore This) Equal (^1)
                   , Compare (CountersOn Lore This) Equal (^2) ])
               (Act (CreateToken (^1)
                 (^: { name := Just "Knight", types := [Creature], subtypes := [^Knight]
                     , colors := [White], power := Just 2, toughness := Just 2 }))))
       , -- III — Knights you control get +2/+1 until end of turn
-        Triggered (And [KindIs PutCounters, SourceMatches (SameAs This)])
+        Triggered (MkQuery [PutCounters] [SourceMatches (SameAs This)])
           (If (Compare (CountersOn Lore This) Equal (^3))
               (Continuously (ModifyAll (And [HasSubtype (^Knight), ControlledBy you]) [ModifyPT (^2) (^1)]) UntilEndOfTurn))
       , -- sacrifice after the final chapter ([CR#714.4])
@@ -1105,7 +1105,7 @@ card_SmugglersCopter = Normal $ ^:
   , subtypes := [^Vehicle]
   , abilities :=
       [ keyword Flying
-      , Triggered (And [Or [KindIs (Becomes Attacking), KindIs (Becomes Blocking)], SourceMatches (SameAs This)])
+      , Triggered (MkQuery [Becomes Attacking, Becomes Blocking] [SourceMatches (SameAs This)])
           (May (Sequence [Act (Draw (^1)), Act (Discard (^1))]))   -- loot on attack or block
       , crew (^1)                                                  -- Crew 1
       ]
@@ -1122,7 +1122,7 @@ card_Solemnity = Normal $ ^:
   { name := Just "Solemnity"
   , manaCost := [^1, ^White]
   , types := [Enchantment]
-  , abilities := [ Static (CantHappen (KindIs PutCounters)) ]
+  , abilities := [ Static (CantHappen (MkQuery [PutCounters] [])) ]
   }
 
 --:vim:sts=2 sw=2:
