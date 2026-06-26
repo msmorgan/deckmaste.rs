@@ -837,7 +837,8 @@ card_FloodedStrand = Normal $ ^:
 
 -- Aether Hub — a PLAYER-COUNTER (energy) demo. "You get {E}{E}" is `PutCounters Energy (^2) You`, which
 -- typechecks ONLY because `counterCarrier Energy = APlayer` (energy on an object is a type error);
--- "Pay {E}" is the new `PayEnergy` cost. The dependent carrier puts the counter on the player by type.
+-- "Pay {E}" is `Do (RemoveCounters Energy (^1) You)` — energy rides `Do` like any cost-as-action
+-- ([CR#118.3]); no dedicated `PayEnergy` verb. The dependent carrier puts the counter on the player by type.
 export
 card_AetherHub : Card
 card_AetherHub = Normal $ ^:
@@ -847,7 +848,7 @@ card_AetherHub = Normal $ ^:
       [ Triggered (thisEnters)
           (Act (PutCounters Energy (^2) You))                                  -- "you get {E}{E}"
       , Activated (Do (Tap This)) (Act (AddMana (^1) (^Colorless)))                         -- {T}: Add {C}
-      , Activated (Costs [Do (Tap This), PayEnergy (^1)]) (Act (AddMana (^1) AnyColor))  -- {T}, Pay {E}: add one mana of any color
+      , Activated (Costs [Do (Tap This), Do (RemoveCounters Energy (^1) You)]) (Act (AddMana (^1) AnyColor))  -- {T}, Pay {E}: add one mana of any color
       ]
   }
 
