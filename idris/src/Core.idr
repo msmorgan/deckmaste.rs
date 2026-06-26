@@ -187,7 +187,7 @@ data TextWordClass = ColorWords | BasicLandTypes
 
 -- A kind of counter ([CR#122]). The TYPE is `CounterKind` — bare `Counter` is taken by the spell-
 -- countering `Action`. A CLOSED set (curated — NOT an open name+registry like the Rust engine, which
--- needs that for plugins); the carrier (object vs player) is the total function `counterCarrier`
+-- needs that for plugins); the carrier (object vs player) is the total function `counterScope`
 -- below, which indexes the counter ops dependently. Counter kinds are engine-OPEN but grammar-CURATED,
 -- the SAME family as `Designation` and `KeywordSpec` (each a curated enum + a dependent scope fn) — so
 -- coverage grows by adding curated entries here as the canon needs them, never by an open string hatch.
@@ -195,18 +195,18 @@ public export
 data CounterKind = Loyalty | Fate | Charge | P1P1 | M1M1 | Level | Lore | Stun | Shield
                  | Poison | Energy | Experience
 
--- A timing WINDOW — the speed at which an action is allowed: `InstantWindow` (any time you have
--- priority) or `SorceryWindow` (your main phase, empty stack — [CR#601.3,602.5d]). The ONE timing
--- notion, shared by a deontic `Can (Casts …)` (Flash widens to `InstantWindow`, [CR#702.8a]) and
--- by `Activated` (instant by default; "activate only as a sorcery" narrows to `SorceryWindow`).
+-- A timing WINDOW — the speed at which an action is allowed: `AsInstant` (any time you have
+-- priority) or `AsSorcery` (your main phase, empty stack — [CR#601.3,602.5d]). The ONE timing
+-- notion, shared by a deontic `Can (Casts …)` (Flash widens to `AsInstant`, [CR#702.8a]) and
+-- by `Activated` (instant by default; "activate only as a sorcery" narrows to `AsSorcery`).
 public export
-data TimingWindow = InstantWindow | SorceryWindow
+data Timing = AsInstant | AsSorcery
 
 -- Activation USE-LIMITS on an activated ability ([CR#602.5b]) — frequency caps, NOT timing (that's
--- `TimingWindow` above; the two used to overlap on a `SorcerySpeed` constructor). A loyalty ability
--- is `{window = SorceryWindow, limits = [OncePerTurn]}`.
+-- `Timing` above; the two used to overlap on a `SorcerySpeed` constructor). A loyalty ability
+-- is `{window = AsSorcery, limits = [OncePerTurn]}`.
 public export
-data Restriction = OncePerTurn | OncePerGame
+data UsageLimit = OncePerTurn | OncePerGame
 
 -- Runtime object STATE (not a printed characteristic) — what a `HasState` predicate tests
 -- ([CR#701.20] tap, [CR#302.6] summoning sickness, [CR#702.26] phasing, [CR#708] face-down). The RELATIONAL
@@ -251,16 +251,16 @@ public export
 -- `PutCounters Poison n <object>` does not, with no runtime check. (Players-are-objects: the `Reference`
 -- language already names players, so a player-carried counter needs no new machinery, just this kind.)
 public export
-counterCarrier : CounterKind -> RefKind
-counterCarrier Poison     = APlayer
-counterCarrier Energy     = APlayer
-counterCarrier Experience = APlayer
-counterCarrier _          = AnObject
+counterScope : CounterKind -> RefKind
+counterScope Poison     = APlayer
+counterScope Energy     = APlayer
+counterScope Experience = APlayer
+counterScope _          = AnObject
 
 -- RELATION SPINE. A `Relation` is an agent→patient relation the game tracks; from ONE relation we derive
 -- three ASPECTS — durative (`Holds`, a state predicate), inchoative (`Begins`, an event), deontic (`Enact`,
--- a deed). `agentKind` fixes the AGENT's kind per relation (the Agent/Actor resolution: ONE agent slot, an
--- OBJECT for combat/attach/target/counter, a PLAYER for cast/activate/play) — `counterCarrier`'s sibling.
+-- a deed). `agentScope` fixes the AGENT's kind per relation (the Agent/Actor resolution: ONE agent slot, an
+-- OBJECT for combat/attach/target/counter, a PLAYER for cast/activate/play) — `counterScope`'s sibling.
 -- The PATIENT stays kind-poly (an attack's defender is a player/planeswalker/battle). The constructors are
 -- NAMESPACED — `Target`/`Counter`/`Attach` clash with the TargetSpec/Action of the same
 -- name — and disambiguate by type, like `Facet.Patient`/`Role.Patient` share `Patient`.
@@ -272,15 +272,15 @@ namespace Relation
                 | Target | Counter           -- a source (spell/ability, object) targets / counters an object
 
 public export
-agentKind : Relation -> RefKind
-agentKind Attack   = AnObject
-agentKind Block    = AnObject
-agentKind Cast     = APlayer
-agentKind Activate = APlayer
-agentKind Play     = APlayer
-agentKind Attach   = AnObject
-agentKind Target   = AnObject   -- the source (a spell/ability) does the targeting
-agentKind Counter  = AnObject   -- the source (a spell/ability) does the countering
+agentScope : Relation -> RefKind
+agentScope Attack   = AnObject
+agentScope Block    = AnObject
+agentScope Cast     = APlayer
+agentScope Activate = APlayer
+agentScope Play     = APlayer
+agentScope Attach   = AnObject
+agentScope Target   = AnObject   -- the source (a spell/ability) does the targeting
+agentScope Counter  = AnObject   -- the source (a spell/ability) does the countering
 
 -- the two participant SLOTS, as role selectors for the durative aspect (`Holds Attack Agent` = an attacker,
 -- `Holds Block Patient` = a blocked creature). `Agent`/`Patient` are the SAME role pair the event `Facet`s
@@ -376,7 +376,7 @@ namespace EventKind
     -- Attack` fires once per attack; FACETS pick the side (`[Agent This]` = it attacks, `[Patient you]` =
     -- you're attacked). Unifies the paired `Becomes Attacking`/`Becomes Attacked` (one happening, two
     -- views). The STACK relations fold in too: a cast is `Begins Cast` (no bespoke `Cast` kind — it was
-    -- redundant), the caster supplied as its actor (the `agentKind`-driven caps below).
+    -- redundant), the caster supplied as its actor (the `agentScope`-driven caps below).
     Begins : Relation -> EventKind
 
 -- the per-event CAPABILITIES an event provides its body's anaphora: a distinguished OBJECT ("that card"),
@@ -412,7 +412,7 @@ eventKindCaps (Becomes _)       = MkCaps True  False False
 -- (cast/activate/play); an object-agent onset (combat/attach/target/counter) reaches the controller via
 -- `ControlledBy`. There is always a distinguished object, never an amount.
 eventKindCaps (Begins r)        =
-  case agentKind r of
+  case agentScope r of
     APlayer => MkCaps True True  False
     _       => MkCaps True False False
 
@@ -595,7 +595,7 @@ mutual
     -- KIND explicitly (gated by `eventKindHasAmount`, so `EventSum (Begins Cast)` is rejected) + optional facets.
     EventSum : (k : EventKind) -> {auto amt : eventKindHasAmount k = True} -> {default [] facets : List (Facet b)} -> Count b
     Damage : Reference b AnObject -> Count b  -- marked damage on r ([CR#120.3]); the lethal-damage SBA reads `Compare (Damage This) GreaterEq (StatOf This Toughness)`
-    CountersOn : (c : CounterKind) -> Reference b (counterCarrier c) -> Count b   -- number of [kind] counters on r (object or player, per `counterCarrier`)
+    CountersOn : (c : CounterKind) -> Reference b (counterScope c) -> Count b   -- number of [kind] counters on r (object or player, per `counterScope`)
     LifeTotal : Reference b APlayer -> Count b           -- a player's life total
     HandSize : Reference b APlayer -> Count b            -- cards in a player's hand
     Plus  : Count b -> Count b -> Count b                -- arithmetic on values
@@ -630,7 +630,7 @@ mutual
       DamagedBy : Reference b AnObject -> Predicate b AnObject  -- was dealt damage by r THIS TURN ("a creature dealt damage
                                                  -- by ~ this turn" = And [creature, DamagedBy This]); engine-held, like ExiledBy. Turn-scoped reset is the engine's.
       HasName : String -> Predicate b AnObject   -- named a specific card (tutors / token names)
-      HasCounter : (c : CounterKind) -> Predicate b (counterCarrier c)   -- has ≥1 of this counter; the candidate's kind follows the carrier ("ten poison" tests a player)
+      HasCounter : (c : CounterKind) -> Predicate b (counterScope c)   -- has ≥1 of this counter; the candidate's kind follows the carrier ("ten poison" tests a player)
       HasState : ObjectState -> Predicate b AnObject      -- runtime state: "target ATTACKING / TAPPED creature"
       -- the DURATIVE aspect of the relation spine: "the candidate currently fills [role] of [r]" — object-only
       -- (only objects bear durative state; a player defender has none). `Holds Attack Agent` = an attacker,
@@ -957,7 +957,7 @@ data TollTiming = AtDeclaration | Downstream
 public export
 data Deed : Bindings -> Type where
   -- the DEONTIC aspect of the relation spine: "[agent] enacts [r] upon [patient]" (under Can/Constrain/
-  -- Priced). The AGENT's kind is fixed by `agentKind r` (ONE agent slot — no `Agent`/`Actor` split): a PLAYER for
+  -- Priced). The AGENT's kind is fixed by `agentScope r` (ONE agent slot — no `Agent`/`Actor` split): a PLAYER for
   -- Cast/Activate/Play, the SOURCE OBJECT for Attack/Block/Attach/Target/Counter. The PATIENT stays kind-
   -- poly (an attack's defender is a player OR a permanent, [CR#508.1]). The two PASSIVE deeds fold in once
   -- the source is the explicit agent. Examples:
@@ -966,9 +966,9 @@ data Deed : Bindings -> Type where
   --   "Enchant creature"   = `Can  (Enact Attach (SameAs This) creature)`  ([CR#701.3a]) — attach is default-FORBIDDEN, Enchant ENABLES it
   --   Shroud               = `cant (Enact Target spellOrAbility (SameAs This))`  (the source spell/ability is the agent)
   --   "can't be countered" = `cant (Enact Counter spellOrAbility (SameAs This))`
-  --   flash                = `Can  (Enact Cast you (SameAs This)) {window = InstantWindow}`  ([CR#702.8a])
+  --   flash                = `Can  (Enact Cast you (SameAs This)) {window = AsInstant}`  ([CR#702.8a])
   -- (Subsumed the old Attacks/Blocks/Attaches/BeTargeted/Casts/Activates/Plays/Countered verbs.)
-  Enact      : (r : Relation) -> (agent : Predicate b (agentKind r)) -> (patient : Predicate b k) -> Deed b
+  Enact      : (r : Relation) -> (agent : Predicate b (agentScope r)) -> (patient : Predicate b k) -> Deed b
   -- SET-LEVEL block ([CR#509.1c],[CR#702.111b]): "[attacker] is blocked by a DECLARED set of `size`
   -- creatures" (a block, so size ≥ 1 — ENFORCED by `NonZeroQ`). `cant (BlockedBy This …)` constrains the
   -- WHOLE blocker set, not one blocker at a time — Menace = `cant (BlockedBy (SameAs This) (^1))`
@@ -1113,11 +1113,11 @@ mutual
     -- put / remove counters ([CR#122]). `RemoveCounters` is symmetric with `PutCounters` (a `Count`);
     -- "remove all of a kind" is `RemoveCounters c (CountersOn c r) r`. Loyalty/counter COSTS reuse these via
     -- `Do` (e.g. "−2" = `Do (RemoveCounters Loyalty (^2) This)`), so there is no duplicate counter-cost verb.
-    PutCounters : (c : CounterKind) -> Count b -> Reference b (counterCarrier c) -> Action b
-    RemoveCounters : (c : CounterKind) -> Count b -> Reference b (counterCarrier c) -> Action b
+    PutCounters : (c : CounterKind) -> Count b -> Reference b (counterScope c) -> Action b
+    RemoveCounters : (c : CounterKind) -> Count b -> Reference b (counterScope c) -> Action b
     -- MOVE counters object→object ([CR#122.5] = remove-from + put-on, one operation). The `CounterSpec`
     -- says which: `Some c n` (Power Conduit, Leech Bonder) or `AllKinds` (Ozolith). Both ends are objects
-    -- (counters don't move between players), so no `counterCarrier` indexing — a senseless kind just no-ops.
+    -- (counters don't move between players), so no `counterScope` indexing — a senseless kind just no-ops.
     MoveCounters : CounterSpec b -> (from : Reference b AnObject) -> (to : Reference b AnObject) -> Action b
     -- player verbs: discard / lose life; and a chooser-verb where a player sacrifices.
     Discard : {default You actor : Reference b APlayer} -> Count b -> Action b
@@ -1303,13 +1303,13 @@ mutual
     -- `AtDeclaration` (paid up front, never compulsory, [CR#508.1d]) or `Downstream` (ward, [CR#702.21a]).
     -- These gate CHOICES — the §6 sibling of `Replaces` (event-edits), never conflated with it.
     --  • `Can` — the permission floor made explicit ([CR#101.2,601.3]). A `Can (Casts …)` carries a
-    --    `window`; Flash widens it to `InstantWindow` ([CR#702.8a] — a wider window, NOT an as-though).
+    --    `window`; Flash widens it to `AsInstant` ([CR#702.8a] — a wider window, NOT an as-though).
     --  • `AsThough` — a scoped COUNTERFACTUAL premise ([CR#609.4]) wrapping a clause: "[clause]
     --    treated as though [condition] held." "attack as though it didn't have defender" =
     --    `AsThough (Matches This (Not (HasKeyword Defender))) (Can (Enact Attack (SameAs This) Anyone))`.
-    -- (Window-NARROWING `Only` is the `window : TimingWindow` on `Activated` — `SorceryWindow`; the
+    -- (Window-NARROWING `Only` is the `window : Timing` on `Activated` — `AsSorcery`; the
     -- as-though of a deed-INTERNAL participant — "as though the BLOCKER's attacker lacked flying" — is still deferred.)
-    Can  : Deed b -> {default Nothing window : Maybe TimingWindow} -> StaticEffect b
+    Can  : Deed b -> {default Nothing window : Maybe Timing} -> StaticEffect b
     AsThough : Condition b -> StaticEffect b -> StaticEffect b
     Constrain : Compulsion -> Deed b -> StaticEffect b   -- Forbid = a restriction (can't), Require = a requirement (must); the combat solver balances both ([CR#508.1c,508.1d])
     -- a PRICED deed (cost comes FIRST): `AtDeclaration` = paid up front (the old `Gate`, never compulsory);
@@ -1320,7 +1320,7 @@ mutual
   -- the grammar can't desugar (FirstStrike/DoubleStrike/Deathtouch/Trample = damage pipeline;
   -- Vigilance = attack event-edit) — or a `Composite` of its tag + the `Ability`s it desugars to:
   -- Flying/Defender/Shroud/Hexproof/Menace → a `cant` (Menace's is SET-level, `BlockedBy`); Reach → `[]` (a flag flying's clause reads, no
-  -- ability of its own); Flash → a `Can (Casts …) {window = InstantWindow}` (cast at instant speed).
+  -- ability of its own); Flash → a `Can (Casts …) {window = AsInstant}` (cast at instant speed).
   -- `Keyword` wraps it; `keyword` (Macros) builds it.
   public export
   data KeywordAbility : Bindings -> Type where
@@ -1335,13 +1335,13 @@ mutual
     Spell : OneShotEffect b -> Ability b
     Keyword : KeywordAbility b -> Ability b
     -- "{cost}: {effect}" — an activated ability ([CR#602]). `window` is its activation timing
-    -- (instant by default; `SorceryWindow` = "activate only as a sorcery"); `limits` are the
-    -- use-frequency caps. A loyalty ability is `{window = SorceryWindow, limits = [OncePerTurn]}`.
-    Activated : Cost b -> OneShotEffect b -> {default InstantWindow window : TimingWindow} -> {default [] limits : List Restriction} -> Ability b
+    -- (instant by default; `AsSorcery` = "activate only as a sorcery"); `limits` are the
+    -- use-frequency caps. A loyalty ability is `{window = AsSorcery, limits = [OncePerTurn]}`.
+    Activated : Cost b -> OneShotEffect b -> {default AsInstant window : Timing} -> {default [] limits : List UsageLimit} -> Ability b
     -- a triggered ability: when `event` fires, resolve `effect`. `limits` are use-frequency caps —
-    -- "triggers only once each turn" = `{limits = [OncePerTurn]}` — the same `Restriction` list
+    -- "triggers only once each turn" = `{limits = [OncePerTurn]}` — the same `UsageLimit` list
     -- `Activated` carries. Rust: Ability::Triggered.
-    Triggered : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) b) -> {default [] limits : List Restriction} -> Ability b
+    Triggered : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) b) -> {default [] limits : List UsageLimit} -> Ability b
     -- a TURN-BASED action ([CR#703]) intrinsic to the bearer: at `phase`, perform `effect` automatically —
     -- no stack, unlike `Triggered`. The Saga lore-increment ([CR#714.3c], conferred by the Saga subtype):
     -- `TurnBased (MainPhase PreCombat) (Act (PutCounters Lore (^1) This))`. (Was the old `PropTurnBased`.)
@@ -1443,7 +1443,7 @@ data Card : Type where
 -- mechanism for intrinsic behavior with NO subtype special-casing (`This` = the bearer). There is no
 -- `Property` wrapper: a conferral IS an ability (`Static (Modify …)` for a continuous self-mod, `Static
 -- (Sba …)` for an SBA, `TurnBased …` for a turn-based action, a plain `Static`/keyword otherwise).
--- Closed; attached via the total functions below (the dependent-index style of `counterCarrier`/
+-- Closed; attached via the total functions below (the dependent-index style of `counterScope`/
 -- `designationScope`), not an open registry.
 
 -- +1/+1 and −1/−1 carry their OWN P/T pump (a `Static (Modify …)`), so it's not a hard-coded engine rule

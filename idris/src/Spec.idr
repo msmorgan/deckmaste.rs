@@ -427,7 +427,7 @@ tConditionalStatic = Static (While (exists (ControlledBy opponent)) (Modify (Sel
 
 tLimitedAbility : Ability Base
 tLimitedAbility =
-  Activated (Do (RemoveCounters Loyalty (Literal 1) This)) (Act (Draw (^1))) {window = SorceryWindow, limits = [OncePerTurn]}
+  Activated (Do (RemoveCounters Loyalty (Literal 1) This)) (Act (Draw (^1))) {window = AsSorcery, limits = [OncePerTurn]}
 
 -- P/T in the value language: SIGNED deltas (Up/Down, ModifyPT) and a dynamic base via the unified `Set`.
 tPTMods : List (Modification Base)
@@ -514,7 +514,7 @@ tAsThough = Continuously
   UntilEndOfTurn
 
 -- Flash's desugaring is pinned by Refl: a `Can`-cast at instant speed (a widened window).
-tFlashWindow : keyword Flash = the (Ability Base) (Keyword (Composite Flash [Static (Can (Enact Cast (SameAs You) (SameAs This)) {window = Just InstantWindow})]))
+tFlashWindow : keyword Flash = the (Ability Base) (Keyword (Composite Flash [Static (Can (Enact Cast (SameAs You) (SameAs This)) {window = Just AsInstant})]))
 tFlashWindow = Refl
 
 -- Menace's desugaring (Refl): a SET-LEVEL `cant` forbidding the lone-blocker (size-1) block —
@@ -574,7 +574,7 @@ failing
   tBadTwoFacedBack : Card
   tBadTwoFacedBack = TwoFaced Split (^: { types := [Instant] }) (^: { name := Just "Back" })
 
--- a PLAYER-carried counter can't go on an object — `counterCarrier Poison = APlayer`, so `This`
+-- a PLAYER-carried counter can't go on an object — `counterScope Poison = APlayer`, so `This`
 -- (an `AnObject` reference) is rejected with no runtime check. The dependent carrier is load-bearing.
 failing
   tBadPoisonOnObject : Action Base
