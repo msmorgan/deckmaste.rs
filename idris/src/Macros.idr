@@ -211,7 +211,7 @@ keyword (Protection q)      = protection q
 -- KEYWORD ACTIONS (composite verbs over the primitives — the Idris analogue of the engine's
 -- keyword-action macros; named here rather than inlined per card).
 
--- "Monstrosity N" ([CR#701.32]): if THIS isn't monstrous, put N +1/+1 counters on it and it becomes
+-- "Monstrosity N" ([CR#701.37]): if THIS isn't monstrous, put N +1/+1 counters on it and it becomes
 -- monstrous. An activated ability whose cost varies per card.
 public export
 monstrosity : Cost b -> Count b -> Ability b
