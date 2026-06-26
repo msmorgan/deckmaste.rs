@@ -416,11 +416,13 @@ public export
 eventKindHasAmount : EventKind -> Bool
 eventKindHasAmount k = hasAmount (eventKindCaps k)
 
--- A value-choice DOMAIN: what an as-enters "choose …" picks from ([CR#614.12]). The chosen value is
--- bound in `Bindings.chosenKind` and read back by the `OfChosen` anaphor. Characteristic domains
--- (color / creature type) name something an object can HAVE; a mode domain (later) won't.
+-- A VALUE-choice DOMAIN: what an as-enters "choose …" picks from when the pick is a VALUE, not a game
+-- entity ([CR#614.12]). The chosen value is bound in `Bindings.chosenKind` and read back by `OfChosen`
+-- (characteristic domains) / `ChosenIs` (mode) / `ChosenNumber`. Characteristic domains (color / creature
+-- type / name) name something an object can HAVE; a mode/number domain won't. Choosing a game ENTITY (a
+-- creature to copy, a player) is NOT a value — it's a filtered `AsEntersChoosing` binding `chosenRefKind`.
 public export
-data ChooseDomain = AColor | ACreatureType | AMode Nat | AName | ANumber | APlayerChoice | AnObjectChoice   -- `AMode n` = an n-way mode pick; AName = a card name; ANumber = a number; APlayerChoice = a player (read back with `ChosenPlayer`); AnObjectChoice = an object (read back with `ChosenObject`, Clone). Like `APlayerChoice`, UNCONSTRAINED — restricting the choosable set ("a creature") is a separate gap.
+data ChooseDomain = AColor | ACreatureType | AMode Nat | AName | ANumber   -- `AMode n` = an n-way mode pick; AName = a card name; ANumber = a number
 
 -- a mode domain must offer ≥1 mode ([CR#700.2]) — gates `AsEnters` (not `AMode` itself, which stays a
 -- plain constructor so `ChosenIs`'s `AMode n` equality keeps working). Lenient for non-mode domains.
@@ -439,9 +441,16 @@ IsCharDomain (Just ACreatureType) = ()
 IsCharDomain (Just AName)         = ()   -- "has the chosen NAME" is an `OfChosen` test (Meddling Mage)
 IsCharDomain (Just (AMode _))     = Void
 IsCharDomain (Just ANumber)       = Void  -- a number isn't a characteristic — read it with `ChosenNumber`
-IsCharDomain (Just APlayerChoice) = Void  -- a player isn't a characteristic — read it with `ChosenPlayer`
-IsCharDomain (Just AnObjectChoice) = Void -- an object isn't a characteristic — read it with `ChosenObject` (identity, not `OfChosen`)
 IsCharDomain Nothing              = Void
+
+-- which `RefKind`s an as-enters ENTITY choice (`AsEntersChoosing`) may pick: a game object (Clone's
+-- creature) or a player ("choose a player"). `Empty`/`Anything` are not pickable entities. The gate that
+-- makes `chosenRefKind` only ever hold an object or a player — the `ChosenObject`/`ChosenPlayer` twins.
+public export
+ChoiceRefKind : RefKind -> Type
+ChoiceRefKind AnObject = ()
+ChoiceRefKind APlayer  = ()
+ChoiceRefKind _        = Void
 
 -- `Bindings`: the typestate of what references are in scope. Its fields are
 -- PROJECTIONS we write constraints against; it grows as the model binds roles.
@@ -452,48 +461,56 @@ record Bindings where
   thatKind    : Maybe RefKind    -- a `With`-bound group's element kind (`That`), if bound
   itKind      : Maybe RefKind    -- a `ForEach`-bound element's kind (`It`), if bound
   evCaps      : EventCaps    -- the surrounding event's caps (`noCaps` outside an event body) — gates `EventObject`/`EventActor`/`ThatMuch`
-  chosenKind  : Maybe ChooseDomain  -- an as-enters "choose …" value in scope (`OfChosen`), if bound
+  chosenKind  : Maybe ChooseDomain  -- an as-enters "choose …" VALUE (color/type/name/number/mode) in scope (`OfChosen`/`ChosenIs`/`ChosenNumber`), if bound
+  chosenRefKind : Maybe RefKind  -- an as-enters "choose …" GAME ENTITY (an object/player) in scope (`ChosenObject`/`ChosenPlayer`), if bound — the identity twin of `chosenKind`
   hasAllotment : Bool    -- inside a `Distribute` body: a per-element share is in scope (gates `Allotment`)
 
 -- The bindings a resolving spell starts in: nothing bound yet.
 public export
 Base : Bindings
-Base = MkBindings [] Nothing Nothing noCaps Nothing False
+Base = MkBindings [] Nothing Nothing noCaps Nothing Nothing False
 
 -- Each sets one field, reconstructing `MkBindings` explicitly so a projection of a
 -- bind result reduces definitionally even for abstract `b` (record-update sugar
 -- has no get-after-set law for an abstract record).
 public export
 bindTargets : List RefKind -> Bindings -> Bindings
-bindTargets ks b = MkBindings ks (thatKind b) (itKind b) (evCaps b) (chosenKind b) (hasAllotment b)
+bindTargets ks b = MkBindings ks (thatKind b) (itKind b) (evCaps b) (chosenKind b) (chosenRefKind b) (hasAllotment b)
 
 public export
 unbindTargets : Bindings -> Bindings
-unbindTargets b = MkBindings [] (thatKind b) (itKind b) (evCaps b) (chosenKind b) (hasAllotment b)
+unbindTargets b = MkBindings [] (thatKind b) (itKind b) (evCaps b) (chosenKind b) (chosenRefKind b) (hasAllotment b)
 
 public export
 bindThat : RefKind -> Bindings -> Bindings
-bindThat k b = MkBindings (targetKinds b) (Just k) (itKind b) (evCaps b) (chosenKind b) (hasAllotment b)
+bindThat k b = MkBindings (targetKinds b) (Just k) (itKind b) (evCaps b) (chosenKind b) (chosenRefKind b) (hasAllotment b)
 
 public export
 bindIt : RefKind -> Bindings -> Bindings
-bindIt k b = MkBindings (targetKinds b) (thatKind b) (Just k) (evCaps b) (chosenKind b) (hasAllotment b)
+bindIt k b = MkBindings (targetKinds b) (thatKind b) (Just k) (evCaps b) (chosenKind b) (chosenRefKind b) (hasAllotment b)
 
 -- entering a trigger/replacement/delayed body, carrying the event's CAPS (what anaphora it supplies).
 public export
 bindEvent : EventCaps -> Bindings -> Bindings
-bindEvent caps b = MkBindings (targetKinds b) (thatKind b) (itKind b) caps (chosenKind b) (hasAllotment b)
+bindEvent caps b = MkBindings (targetKinds b) (thatKind b) (itKind b) caps (chosenKind b) (chosenRefKind b) (hasAllotment b)
 
--- the as-enters value choice ([CR#614.12]): binds `chosenKind` for the whole card's abilities.
+-- the as-enters VALUE choice ([CR#614.12]): binds `chosenKind` (a color/type/name/number/mode) for the
+-- whole card's abilities.
 public export
 bindChosen : ChooseDomain -> Bindings -> Bindings
-bindChosen d b = MkBindings (targetKinds b) (thatKind b) (itKind b) (evCaps b) (Just d) (hasAllotment b)
+bindChosen d b = MkBindings (targetKinds b) (thatKind b) (itKind b) (evCaps b) (Just d) (chosenRefKind b) (hasAllotment b)
+
+-- the as-enters GAME-ENTITY choice ([CR#614.12]): binds `chosenRefKind` (a chosen object/player) for the
+-- whole card's abilities — the identity-reference twin of `bindChosen`, opened by `AsEntersChoosing`.
+public export
+bindChosenRef : RefKind -> Bindings -> Bindings
+bindChosenRef k b = MkBindings (targetKinds b) (thatKind b) (itKind b) (evCaps b) (chosenKind b) (Just k) (hasAllotment b)
 
 -- a `Distribute` body ([CR#601.2d] division): binds the loop element `It` of kind k AND marks a per-element
 -- share in scope (read back by `Allotment`). The allotment-bearing twin of `bindIt`.
 public export
 bindAllot : RefKind -> Bindings -> Bindings
-bindAllot k b = MkBindings (targetKinds b) (thatKind b) (Just k) (evCaps b) (chosenKind b) True
+bindAllot k b = MkBindings (targetKinds b) (thatKind b) (Just k) (evCaps b) (chosenKind b) (chosenRefKind b) True
 
 -- KeywordSpec / Reference / Count / Predicate / Condition / EventQuery are one mutually
 -- recursive language. A PREDICATE is an object test — its candidate is IMPLICIT. A `Condition`
@@ -552,8 +569,8 @@ mutual
     ControllerOf : Reference b AnObject -> Reference b APlayer   -- the controller of an object
     OwnerOf : Reference b AnObject -> Reference b APlayer        -- the owner of an object [CR#108.3]
     EventActor : {auto prf : hasActor (evCaps b) = True} -> Reference b APlayer  -- the event's player ("that player") — only if supplied
-    ChosenPlayer : {auto prf : chosenKind b = Just APlayerChoice} -> Reference b APlayer  -- the as-enters chosen PLAYER (the reference-anaphor twin of OfChosen/ChosenNumber)
-    ChosenObject : {auto prf : chosenKind b = Just AnObjectChoice} -> Reference b AnObject  -- the as-enters chosen OBJECT (the object-twin of `ChosenPlayer`; Clone copies it via `BecomeCopyOf ChosenObject`)
+    ChosenPlayer : {auto prf : chosenRefKind b = Just APlayer} -> Reference b APlayer  -- the as-enters chosen PLAYER (the identity-reference twin of OfChosen/ChosenNumber); opened by `AsEntersChoosing APlayer …`
+    ChosenObject : {auto prf : chosenRefKind b = Just AnObject} -> Reference b AnObject  -- the as-enters chosen OBJECT (the object-twin of `ChosenPlayer`; Clone copies it via `BecomeCopyOf ChosenObject`); opened by `AsEntersChoosing AnObject …`
 
   -- A numeric value ([CR#107.3]). `Literal` is a bare number; the rest read the game
   -- state — object counts, stats, counters, life/hand totals, event tallies, arithmetic.
@@ -861,44 +878,6 @@ public export
 Only : Predicate b AnObject -> Reference b AnObject
 Only p = Single (SelectAll p)
 
--- A cost paid to activate an ability ([CR#118,602]). `Costs` conjoins components;
--- `TapSelf`/`Sacrifice`/… read `This` (the ability's source). Rust: Cost.
-public export
-data Cost : Bindings -> Type where
-  Mana      : ManaCost -> Cost b                 -- "{4}"
-  TapSelf   : Cost b                             -- "{T}"
-  UntapSelf : Cost b                             -- "{Q}"
-  PayLife   : Count b -> Cost b                  -- "Pay N life"
-  PayEnergy : Count b -> Cost b                  -- "Pay {E}×N" — spend N energy counters from you
-  Sacrifice : Reference b AnObject -> Cost b              -- "Sacrifice this" = Sacrifice This
-  SacrificeA : Predicate b AnObject -> Cost b             -- "Sacrifice a [pred]" — the PAYER chooses which (≠ `Sacrifice (Only …)`, which asserts uniqueness)
-  AddCounters    : CounterKind -> Count b -> Cost b   -- a loyalty "+N" cost (put N counters on This)
-  RemoveCounters : CounterKind -> Count b -> Cost b   -- a loyalty "−N" cost (remove N from This)
-  Scaled    : Count b -> Cost b -> Cost b         -- the cost paid once per unit of the count ("{2} for each X" = Scaled (CountOf X) (Mana [promote 2]))
-  Costs     : List (Cost b) -> Cost b            -- all components together
-  -- AGGREGATE cost: tap a chosen subset of [of_] whose summed [stat] satisfies [cmp] [n]. ONE shape
-  -- for Crew ("tap creatures, total power ≥ N" = `TapTotal Power GreaterEq (^n) creature`) — and the
-  -- Convoke/devotion-scaling family the engine's authors flagged it should subsume.
-  TapTotal  : Stat -> Cmp -> Count b -> (of_ : Predicate b AnObject) -> Cost b
-
--- A continuous CHANGE to a spell/ability cost ([CR#118.7]), carried by `StaticEffect::CostModifier`.
--- Borrowed from the Rust engine's key split: this MODIFIES an existing base — it is NOT an alternative
--- cost (a base SWAP), which would be a separate type. Count-scaling is ONE recursive node, so affinity
--- (`ScaledBy (Reduce [Mana [^1]]) (CountOf …)`) and taxers (scale an `Increase`) need no own constructor.
-public export
-data CostChange : Bindings -> Type where
-  Reduce     : List (Cost b) -> CostChange b            -- "costs {…} less"
-  Increase   : List (Cost b) -> CostChange b            -- "costs {…} more"
-  Additional : List (Cost b) -> Bool -> CostChange b    -- "as an additional cost, …"; the Bool = OPTIONAL (the kicker shape)
-  ScaledBy   : CostChange b -> Count b -> CostChange b  -- the change applied once per unit of the count (affinity)
-
--- An ALTERNATIVE base cost ([CR#118.9]) — a base SWAP, the type the engine keeps DISTINCT from
--- `CostChange` (a base modify). "Without paying its mana cost" = `FreeCast`; Force of Will = `AltCost […]`.
-public export
-data AlternativeCost : Bindings -> Type where
-  FreeCast : AlternativeCost b
-  AltCost  : List (Cost b) -> AlternativeCost b
-
 -- a use-LIMIT on a `Replaces` — how many times it fires before it's CONSUMED (a shield). `Unlimited` =
 -- today's continuous replacement; `UpTo n` = "the next n" — n OCCURRENCES for an amountless event
 -- (regeneration: the next destroy), n AMOUNT-POINTS for an amount event (prevention: the next n damage).
@@ -906,6 +885,16 @@ public export
 data ReplaceLimit : Bindings -> Type where
   Unlimited : ReplaceLimit b
   UpTo : Count b -> ReplaceLimit b
+
+-- WHICH counters a `MoveCounters` relocates ([CR#122.5]). `Some c n` = n counters of one kind (Power
+-- Conduit, Leech Bonder; "all of that kind" = `Some c (CountersOn c from)`, the `RemoveCounters` idiom).
+-- `AllKinds` = every counter regardless of kind (Ozolith, Fate Transfer) — the one move case the single-
+-- kind form can't reach, since it quantifies over kinds rather than naming one. So move stays ONE verb;
+-- the kind/quantity (or "everything") is data, not a second constructor.
+public export
+data CounterSpec : Bindings -> Type where
+  Some : (c : CounterKind) -> Count b -> CounterSpec b
+  AllKinds : CounterSpec b
 
 -- How many modes to choose, for a modal effect ([CR#700.2]). Rust: ChooseSpec. The count is a `Quantity`
 -- (the same range language as `Target`), so "choose one" = `^1`, "choose one or both" = `between (^1) (^2)`,
@@ -925,7 +914,7 @@ ModalCountOk _ _ = ()
 -- A DEONTIC clause's carrier: a game ACTION a player may attempt ([CR#101.2,601.3] the deontic
 -- layer) — distinct from the resolving `Action` verbs. Each names its participants; the CR's
 -- "where ⟨pred⟩" qualifier rides the variable participant (`who`/`blocker`/`source`). The
--- polarities `Constrain` (Require/Forbid)/`Gate`/`Toll` (in `StaticEffect`) wrap a `Deed`. BOUNDARY [CR#614.17]:
+-- polarities `Constrain` (Require/Forbid)/`Priced` (in `StaticEffect`) wrap a `Deed`. BOUNDARY [CR#614.17]:
 -- this is choice-LEGALITY ("can't attack"); event-edits ("doesn't tap", "can't be regenerated",
 -- "can't lose") are `Replaces`/SBA, NOT a `Constrain`.
 -- the two COMPULSION polarities of a declaration constraint — the pair the combat solver balances
@@ -934,10 +923,16 @@ ModalCountOk _ _ = ()
 public export
 data Compulsion = Require | Forbid
 
+-- the two PRICED-deed timings, folded into one `Priced` constructor: `AtDeclaration` = the cost is paid
+-- when the deed is declared (the old `Gate`, never compulsory, [CR#508.1d]); `Downstream` = it is punished
+-- after the fact (the old `Toll`, ward [CR#702.21a]).
+public export
+data TollTiming = AtDeclaration | Downstream
+
 public export
 data Deed : Bindings -> Type where
-  -- the DEONTIC aspect of the relation spine: "[agent] enacts [r] upon [patient]" (under Can/Constrain/Gate/
-  -- Toll). The AGENT's kind is fixed by `agentKind r` (ONE agent slot — no `Agent`/`Actor` split): a PLAYER for
+  -- the DEONTIC aspect of the relation spine: "[agent] enacts [r] upon [patient]" (under Can/Constrain/
+  -- Priced). The AGENT's kind is fixed by `agentKind r` (ONE agent slot — no `Agent`/`Actor` split): a PLAYER for
   -- Cast/Activate/Play, the SOURCE OBJECT for Attack/Block/Attach/Target/Counter. The PATIENT stays kind-
   -- poly (an attack's defender is a player OR a permanent, [CR#508.1]). The two PASSIVE deeds fold in once
   -- the source is the explicit agent. Examples:
@@ -973,9 +968,46 @@ CharValue b BaseToughness = Count b
 CharValue _ Name          = Maybe String   -- `Nothing` = "has no name"
 
 -- One big mutual block: `Ability → OneShotEffect → Action → CreateToken → Characteristics` is a
--- cycle, so `Characteristics`/`Action`/`Bindable` join the effect/ability block below. (The leaf
--- `Cost`/`ChooseSpec`/`Deed` stay OUT — they only reach into block 1.)
+-- cycle, so `Characteristics`/`Action`/`Bindable` join the effect/ability block below. `Cost` joins
+-- too — its `Do` wraps an `Action` ([CR#118.3]) — dragging the Cost-referencing `CostChange`/
+-- `AlternativeCost` in with it. (The leaf `ChooseSpec`/`Deed` stay OUT — they only reach into block 1.)
 mutual
+  -- A cost paid to activate an ability ([CR#118,602]). `Costs` conjoins components. Most costs ARE actions
+  -- the payer performs ([CR#118.3]), so they ride `Do` rather than each getting a duplicate cost verb.
+  public export
+  data Cost : Bindings -> Type where
+    Mana      : ManaCost -> Cost b                 -- "{4}"
+    PayEnergy : Count b -> Cost b                  -- "Pay {E}×N" — spend N energy counters from you (not an Action)
+    -- pay a cost by PERFORMING an action ([CR#118.3]): "{T}" = `Do (Tap This)`, "Pay N life" =
+    -- `Do (LoseLife (^N))`, "Sacrifice this" = `Do (Sacrifices You (SameAs This))`, loyalty "+N"/"−N" =
+    -- `Do (PutCounters/RemoveCounters Loyalty (^N) This)`. UNRESTRICTED — ANY action (even scry/shuffle as a
+    -- cost is legal); a senseless cost just no-ops, and nonsense is the grammar layer's to catch, not a gate.
+    Do        : Action b -> Cost b
+    Scaled    : Count b -> Cost b -> Cost b         -- the cost paid once per unit of the count ("{2} for each X" = Scaled (CountOf X) (Mana [promote 2]))
+    Costs     : List (Cost b) -> Cost b            -- all components together
+    -- AGGREGATE cost: tap a chosen subset of [of_] whose summed [stat] satisfies [cmp] [n]. ONE shape
+    -- for Crew ("tap creatures, total power ≥ N" = `TapTotal Power GreaterEq (^n) creature`) — and the
+    -- Convoke/devotion-scaling family the engine's authors flagged it should subsume.
+    TapTotal  : Stat -> Cmp -> Count b -> (of_ : Predicate b AnObject) -> Cost b
+
+  -- A continuous CHANGE to a spell/ability cost ([CR#118.7]), carried by `StaticEffect::CostModifier`.
+  -- Borrowed from the Rust engine's key split: this MODIFIES an existing base — it is NOT an alternative
+  -- cost (a base SWAP), which would be a separate type. Count-scaling is ONE recursive node, so affinity
+  -- (`ScaledBy (Reduce [Mana [^1]]) (CountOf …)`) and taxers (scale an `Increase`) need no own constructor.
+  public export
+  data CostChange : Bindings -> Type where
+    Reduce     : List (Cost b) -> CostChange b            -- "costs {…} less"
+    Increase   : List (Cost b) -> CostChange b            -- "costs {…} more"
+    Additional : List (Cost b) -> Bool -> CostChange b    -- "as an additional cost, …"; the Bool = OPTIONAL (the kicker shape)
+    ScaledBy   : CostChange b -> Count b -> CostChange b  -- the change applied once per unit of the count (affinity)
+
+  -- An ALTERNATIVE base cost ([CR#118.9]) — a base SWAP, the type the engine keeps DISTINCT from
+  -- `CostChange` (a base modify). "Without paying its mana cost" = `FreeCast`; Force of Will = `AltCost […]`.
+  public export
+  data AlternativeCost : Bindings -> Type where
+    FreeCast : AlternativeCost b
+    AltCost  : List (Cost b) -> AlternativeCost b
+
   -- The printable CHARACTERISTICS of an object ([CR#109.3]) — shared by a card `Face`
   -- (`Characteristics Base`) and a created token (`Characteristics b`, so a token's P/T can be a
   -- `Count b`: "an X/X where X = [a value known at creation]"). `colors` is the explicit color (a
@@ -1028,7 +1060,6 @@ mutual
     RemoveFromCombat : Reference b AnObject -> Action b   -- remove r from combat ([CR#506.4])
     Transform : Reference b AnObject -> Action b   -- turn a transforming DFC to its other face ([CR#701.27])
     PhaseOut : Reference b AnObject -> Action b     -- phase a permanent out ([CR#702.26]); phasing back in is the engine's turn-based action
-    MoveAllCounters : (from : Reference b AnObject) -> (to : Reference b AnObject) -> Action b   -- move ALL counters (every kind) X→Y (Ozolith); the all-kinds case `RemoveAllCounters` (one kind) can't reach
     -- "[r] becomes/gets the designation" — the target's kind follows `designationScope` (you become the
     -- monarch; this creature becomes monstrous). Single-holder eviction (monarch) is the engine's.
     GrantDesignation : (d : Designation) -> Reference b (designationScope d) -> Action b
@@ -1040,9 +1071,15 @@ mutual
     GainLife : {default You actor : Reference b APlayer} -> Count b -> Action b
     -- put a selection into its owner's library at a position ([CR#401]).
     PutIntoLibrary : Reference b AnObject -> LibraryPosition b -> Action b
-    -- put / clear counters ([CR#122]). `RemoveAllCounters` clears every counter of a kind.
+    -- put / remove counters ([CR#122]). `RemoveCounters` is symmetric with `PutCounters` (a `Count`);
+    -- "remove all of a kind" is `RemoveCounters c (CountersOn c r) r`. Loyalty/counter COSTS reuse these via
+    -- `Do` (e.g. "−2" = `Do (RemoveCounters Loyalty (^2) This)`), so there is no duplicate counter-cost verb.
     PutCounters : (c : CounterKind) -> Count b -> Reference b (counterCarrier c) -> Action b
-    RemoveAllCounters : (c : CounterKind) -> Reference b (counterCarrier c) -> Action b
+    RemoveCounters : (c : CounterKind) -> Count b -> Reference b (counterCarrier c) -> Action b
+    -- MOVE counters object→object ([CR#122.5] = remove-from + put-on, one operation). The `CounterSpec`
+    -- says which: `Some c n` (Power Conduit, Leech Bonder) or `AllKinds` (Ozolith). Both ends are objects
+    -- (counters don't move between players), so no `counterCarrier` indexing — a senseless kind just no-ops.
+    MoveCounters : CounterSpec b -> (from : Reference b AnObject) -> (to : Reference b AnObject) -> Action b
     -- player verbs: discard / lose life; and a chooser-verb where a player sacrifices.
     Discard : {default You actor : Reference b APlayer} -> Count b -> Action b
     LoseLife : {default You actor : Reference b APlayer} -> Count b -> Action b
@@ -1214,7 +1251,7 @@ mutual
     -- "you may cast THIS for [alt] from [from]" ([CR#118.9]) — the alternative-cost permission (base swap,
     -- distinct from `CostModifier`'s base modify). `from` defaults to Hand; a non-default zone is the
     -- cast-from-zone family ([CR#702.34] flashback = `{from = Graveyard}`; escape/jump-start add a rider).
-    -- Force of Will = `MayCastFor (AltCost [PayLife (^1), …])`.
+    -- Force of Will = `MayCastFor (AltCost [Do (LoseLife (^1)), …])`.
     MayCastFor : AlternativeCost b -> {default Hand from : Zone} -> StaticEffect b
     -- "you may cast THIS face down for [cost]" ([CR#702.37]) — an alternative cast that ALSO turns the
     -- object face down; the engine then applies the global [CR#708.2] 2/2-colorless-vanilla override.
@@ -1226,8 +1263,8 @@ mutual
     -- deontic "may" — named `Can` to avoid the one-shot `May`), a `Constrain` (the two COMPULSION
     -- polarities — `Forbid` = a restriction "can't", `Require` = a requirement "must"; `cant`/`must`
     -- are the Macros aliases), or a cost-gate. The engine arbitrates can't-beats-can/must
-    -- ([CR#101.2,508.1d]); the grammar only records the clauses. `Gate`'s price is paid at declaration (never
-    -- compulsory, [CR#508.1d]); `Toll`'s is punished downstream (ward, [CR#702.21a]). Cost comes FIRST.
+    -- ([CR#101.2,508.1d]); the grammar only records the clauses. A `Priced` deed's cost comes FIRST —
+    -- `AtDeclaration` (paid up front, never compulsory, [CR#508.1d]) or `Downstream` (ward, [CR#702.21a]).
     -- These gate CHOICES — the §6 sibling of `Replaces` (event-edits), never conflated with it.
     --  • `Can` — the permission floor made explicit ([CR#101.2,601.3]). A `Can (Casts …)` carries a
     --    `window`; Flash widens it to `InstantWindow` ([CR#702.8a] — a wider window, NOT an as-though).
@@ -1239,8 +1276,9 @@ mutual
     Can  : Deed b -> {default Nothing window : Maybe TimingWindow} -> StaticEffect b
     AsThough : Condition b -> StaticEffect b -> StaticEffect b
     Constrain : Compulsion -> Deed b -> StaticEffect b   -- Forbid = a restriction (can't), Require = a requirement (must); the combat solver balances both ([CR#508.1c,508.1d])
-    Gate : Cost b -> Deed b -> StaticEffect b
-    Toll : Cost b -> Deed b -> StaticEffect b
+    -- a PRICED deed (cost comes FIRST): `AtDeclaration` = paid up front (the old `Gate`, never compulsory);
+    -- `Downstream` = punished after the fact (the old `Toll`, ward [CR#702.21a]).
+    Priced : TollTiming -> Cost b -> Deed b -> StaticEffect b
 
   -- A keyword as it sits on a permanent ([CR#702]): either `Bare` — an engine-PRIMITIVE keyword
   -- the grammar can't desugar (FirstStrike/DoubleStrike/Deathtouch/Trample = damage pipeline;
@@ -1274,10 +1312,16 @@ mutual
     -- "[cost]: turn This face up" ([CR#708.9]) — a SPECIAL action (not stack-using), not an `Activated`
     -- ability. Pays [cost], removes `FaceDown`. The face-up cost of `morph`/`disguise`.
     TurnFaceUp : Cost b -> Ability b
-    -- "As ~ enters, choose a [d]" ([CR#614.12]): a single ability that makes the as-enters choice and
-    -- SCOPES it to the abilities that read it — those nest at `bindChosen d b` (so `OfChosen`/`ChosenIs`
-    -- resolve), while the card's other abilities (and its whole printed face) stay at `b`, untouched.
+    -- "As ~ enters, choose a [d]" ([CR#614.12]) for a VALUE choice: a single ability that makes the
+    -- as-enters choice and SCOPES it to the abilities that read it — those nest at `bindChosen d b` (so
+    -- `OfChosen`/`ChosenIs` resolve), while the card's other abilities (and its whole printed face) stay
+    -- at `b`, untouched. `d` is value-only now; a chosen ENTITY goes through `AsEntersChoosing`.
     AsEnters : (d : ChooseDomain) -> {auto 0 ok : ModeDomainOk d} -> List (Ability (bindChosen d b)) -> Ability b
+    -- "As ~ enters, choose a [filtered ENTITY]" ([CR#614.12]) — the game-entity twin of `AsEnters`. The
+    -- `Predicate b k` is the choosable set (Clone's "a creature", lost when this was the unconstrained
+    -- `AnObjectChoice`); `k` is gated to object/player by `ChoiceRefKind`. The chosen entity binds
+    -- `chosenRefKind k`, read back by `ChosenObject`/`ChosenPlayer` in the nested abilities.
+    AsEntersChoosing : (k : RefKind) -> {auto 0 ok : ChoiceRefKind k} -> Predicate b k -> List (Ability (bindChosenRef k b)) -> Ability b
 
 -- A card's printed face is just `Characteristics` at the empty bindings.
 public export

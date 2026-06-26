@@ -202,7 +202,7 @@ card_ApproachOfTheSecondSun = Normal $ ^:
 -- Two ACTIVATED abilities + a cost algebra + counters. `{4},{T}:` fate-counter a
 -- permanent; `{5},{T},Sacrifice this:` wrath everything not fate-protected, then
 -- clear the counters. Exercises Activated / Cost (mana+tap+sacrifice) / CounterKind /
--- HasCounter / PutCounters / RemoveAllCounters.
+-- HasCounter / PutCounters / RemoveCounters.
 export
 card_OblivionStone : Card
 card_OblivionStone = Normal $ ^:
@@ -210,13 +210,13 @@ card_OblivionStone = Normal $ ^:
   , manaCost := [^3]
   , types := [Artifact]
   , abilities :=
-      [ Activated (Costs [Mana [^4], TapSelf])
+      [ Activated (Costs [Mana [^4], Do (Tap This)])
           (Targeted [Target (^1) permanent]
             (Act (PutCounters Fate (Literal 1) ((GetTarget 0)))))
-      , Activated (Costs [Mana [^5], TapSelf, Sacrifice (This)])
+      , Activated (Costs [Mana [^5], Do (Tap This), Do (Sacrifices You (SameAs This))])
           (Sequence
             [ ForEach (SelectAll (And [permanent, Not (HasType Land), Not (HasCounter Fate)])) (Act (Destroy It))
-            , ForEach (SelectAll permanent) (Act (RemoveAllCounters Fate It)) ])
+            , ForEach (SelectAll permanent) (Act (RemoveCounters Fate (CountersOn Fate It) It)) ])
       ]
   }
 
@@ -248,9 +248,9 @@ card_LilianaOfTheVeil = Normal $ ^:
   , supertypes := [Legendary]
   , loyalty := Just 3
   , abilities :=
-      [ Activated (AddCounters Loyalty (Literal 1))
+      [ Activated (Do (PutCounters Loyalty (Literal 1) This))
           (ForEach eachPlayer (Act (Discard {actor = It} (^1)))) {window = SorceryWindow, limits = [OncePerTurn]}
-      , Activated (RemoveCounters Loyalty (Literal 2))
+      , Activated (Do (RemoveCounters Loyalty (Literal 2) This))
           (Targeted [Target (^1) Anyone]
             (Act (Sacrifices (GetTarget 0) creature))) {window = SorceryWindow, limits = [OncePerTurn]}
       ]
@@ -294,7 +294,7 @@ card_Necropotence = Normal $ ^:
       [ Static (Replaces (MkQuery [BeginStep (BeginningPhase DrawStep)] [DuringTurn you]) (Sequence []))
       , Triggered (MkQuery [Discard] [Actor you])
           (Act (Move EventObject Exile))
-      , Activated (PayLife (Literal 1))
+      , Activated (Do (LoseLife (Literal 1)))
           (ForEach (TopOfLibrary (Literal 1))
             (With (Produce (Move It Exile))
               (Delayed nextEndStep (ForEach That (Act (Move It Hand))))))
@@ -425,7 +425,7 @@ card_GhostlyPrison = Normal $ ^:
   , manaCost := [^2, ^White]
   , types := [Enchantment]
   , abilities :=
-      [ Static (Gate (Mana [^2]) (Enact Attack creature you)) ]
+      [ Static (Priced AtDeclaration (Mana [^2]) (Enact Attack creature you)) ]
   }
 
 -- Wall of Omens — a DEONTIC KEYWORD card: `keyword Defender` expands to a `Composite` whose tag is
@@ -681,9 +681,9 @@ card_CavernOfSouls = Normal $ ^:
   { name := Just "Cavern of Souls"
   , types := [Land]
   , abilities :=
-      [ Activated TapSelf (Act (AddMana [^Colorless]))                              -- {T}: Add {C}
+      [ Activated (Do (Tap This)) (Act (AddMana [^Colorless]))                              -- {T}: Add {C}
       , AsEnters ACreatureType
-          [ Activated TapSelf (Act (AddMana [AnyColor]
+          [ Activated (Do (Tap This)) (Act (AddMana [AnyColor]
               { onlyToCast = Just (And [IsKind IsSpell, creature, OfChosen])
               , confers    = [cant (Enact Counter spellOrAbility (SameAs It))] }))     -- {T}: any color — creature spell of the chosen type, uncounterable
           ]
@@ -802,7 +802,7 @@ card_Mindslaver = Normal $ ^:
   , manaCost := [^6]
   , types := [Artifact]
   , abilities :=
-      [ Activated (Costs [TapSelf, Sacrifice This])
+      [ Activated (Costs [Do (Tap This), Do (Sacrifices You (SameAs This))])
           (Targeted [Target (^1) Anyone] (Act (ControlPlayer (GetTarget 0)))) ]
   }
 
@@ -829,7 +829,7 @@ card_FloodedStrand = Normal $ ^:
   { name := Just "Flooded Strand"
   , types := [Land]
   , abilities :=
-      [ Activated (Costs [TapSelf, PayLife (^1), Sacrifice This])
+      [ Activated (Costs [Do (Tap This), Do (LoseLife (^1)), Do (Sacrifices You (SameAs This))])
           (With (Search {from = [Library]} (^1) (Or [HasSubtype (^Plains), HasSubtype (^Island)]))
             (Sequence [ ForEach That (Act (Move It Battlefield))
                       , Act Shuffle ])) ]
@@ -846,8 +846,8 @@ card_AetherHub = Normal $ ^:
   , abilities :=
       [ Triggered (thisEnters)
           (Act (PutCounters Energy (^2) You))                                  -- "you get {E}{E}"
-      , Activated TapSelf (Act (AddMana [^Colorless]))                         -- {T}: Add {C}
-      , Activated (Costs [TapSelf, PayEnergy (^1)]) (Act (AddMana [AnyColor]))  -- {T}, Pay {E}: add one mana of any color
+      , Activated (Do (Tap This)) (Act (AddMana [^Colorless]))                         -- {T}: Add {C}
+      , Activated (Costs [Do (Tap This), PayEnergy (^1)]) (Act (AddMana [AnyColor]))  -- {T}, Pay {E}: add one mana of any color
       ]
   }
 
@@ -945,7 +945,7 @@ card_GaeasCradle = Normal $ ^:
   , types := [Land]
   , supertypes := [Legendary]
   , abilities :=
-      [ Activated TapSelf (Act (AddManaFor (CountOf (And [creature, ControlledBy you])) (^Green))) ]
+      [ Activated (Do (Tap This)) (Act (AddManaFor (CountOf (And [creature, ControlledBy you])) (^Green))) ]
   }
 
 -- Karametra's Acolyte — DEVOTION: "{T}: Add {G} equal to your devotion to green" = `AddManaFor
@@ -958,7 +958,7 @@ card_KarametrasAcolyte = Normal $ ^:
   , types := [Creature]
   , subtypes := [^Human]
   , abilities :=
-      [ Activated TapSelf (Act (AddManaFor (Devotion [Green]) (^Green))) ]
+      [ Activated (Do (Tap This)) (Act (AddManaFor (Devotion [Green]) (^Green))) ]
   , power := Just 1
   , toughness := Just 4
   }
@@ -1007,7 +1007,7 @@ card_DarksteelCitadel = Normal $ ^:
   , types := [Artifact, Land]
   , abilities :=
       [ keyword Indestructible                              -- Indestructible
-      , Activated TapSelf (Act (AddMana [^Colorless]))      -- {T}: Add {C}
+      , Activated (Do (Tap This)) (Act (AddMana [^Colorless]))      -- {T}: Add {C}
       ]
   }
 
@@ -1089,7 +1089,7 @@ card_VodalianIllusionist = Normal $ ^:
   , types := [Creature]
   , subtypes := [^Merfolk, ^Wizard]
   , abilities :=
-      [ Activated (Costs [Mana [^2], TapSelf])
+      [ Activated (Costs [Mana [^2], Do (Tap This)])
           (Targeted [Target (^1) creature] (Act (PhaseOut (GetTarget 0)))) ]
   , power := Just 1
   , toughness := Just 1

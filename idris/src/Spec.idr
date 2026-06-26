@@ -47,7 +47,7 @@ tContinuously = Continuously (Modify (SelectAll (SameAs This)) [ModifyPT (^1) (^
 tModal : OneShotEffect Base
 tModal = Modal (MkChooseSpec (^1))
   [ MkMode (Act (Draw (^1)))
-  , MkMode (ForEach (SelectAll creature) (Act (DealDamage It (^2)))) {cost = Just (PayLife (Literal 2))}  -- mode cost is now a full Cost
+  , MkMode (ForEach (SelectAll creature) (Act (DealDamage It (^2)))) {cost = Just (Do (LoseLife (Literal 2)))}  -- mode cost is now a full Cost
   ]
 
 -- VARIABLE-count modals: the choose-count is a `Quantity`. "Choose one or both" = `between (^1) (^2)`;
@@ -136,7 +136,7 @@ tMonarchTest : Predicate Base APlayer
 tMonarchTest = HasDesignation Monarch
 
 -- an as-enters value choice in scope: `OfChosen` reads "the chosen color" under a `bindChosen AColor`
--- binding (Iona: "spells of the chosen color"). The card-level `AsEntersChoosing` opens this binding.
+-- binding (Iona: "spells of the chosen color"). The card-level `AsEnters AColor` opens this binding.
 tOfChosen : Predicate (bindChosen AColor Base) AnObject
 tOfChosen = And [IsKind IsSpell, OfChosen]
 
@@ -255,18 +255,19 @@ tChosenNumber : Count (bindChosen ANumber Base)
 tChosenNumber = ChosenNumber
 
 -- ...and a chosen PLAYER by `ChosenPlayer` ("as ~ enters, choose a player; that player …").
-tChosenPlayer : Reference (bindChosen APlayerChoice Base) APlayer
+tChosenPlayer : Reference (bindChosenRef APlayer Base) APlayer
 tChosenPlayer = ChosenPlayer
 
 -- ...and a chosen OBJECT by `ChosenObject` — Clone ([CR#706.2]): "as ~ enters, you may have it enter as a
 -- copy of a creature you choose." The copy is a continuous self-modification reading the chosen object.
--- (The "you may" and the "a creature" restriction are separable refinements; the core is the anaphor.)
+-- The "a creature" restriction now rides `AsEntersChoosing`'s filter (no longer a separable gap); the
+-- "you may" is the one remaining separable refinement.
 tClone : Ability Base
-tClone = AsEnters AnObjectChoice [ Static (Modify (SelectAll (SameAs This)) [BecomeCopyOf ChosenObject]) ]
+tClone = AsEntersChoosing AnObject creature [ Static (Modify (SelectAll (SameAs This)) [BecomeCopyOf ChosenObject]) ]
 
 -- "sacrifice a [pred]" as a COST — the payer chooses which (not a specific `Sacrifice This`).
 tSacrificeCost : Cost Base
-tSacrificeCost = SacrificeA creature
+tSacrificeCost = Do (Sacrifices You creature)
 
 -- phasing: the `PhasedOut` state filters a phased permanent; `PhaseOut` is the verb.
 tPhasedFilter : Predicate Base AnObject
@@ -293,11 +294,16 @@ tCreateTokenCopy = CreateTokenCopy (GetTarget 0)
 tCrewCost : Cost Base
 tCrewCost = TapTotal Power GreaterEq (^3) creature
 
+-- every-kind move (Ozolith / Fate Transfer): `MoveCounters AllKinds`
 tMoveAllCounters : OneShotEffect Base
-tMoveAllCounters = Targeted [Target (^1) creature] (Act (MoveAllCounters This (GetTarget 0)))
+tMoveAllCounters = Targeted [Target (^1) creature] (Act (MoveCounters AllKinds This (GetTarget 0)))
+
+-- single-kind move (Power Conduit / Leech Bonder): the general primitive that was previously inexpressible
+tMoveSomeCounters : OneShotEffect Base
+tMoveSomeCounters = Targeted [Target (^1) creature] (Act (MoveCounters (Some P1P1 (^1)) This (GetTarget 0)))
 
 tMayCastFor : StaticEffect Base
-tMayCastFor = MayCastFor (AltCost [PayLife (^1)])
+tMayCastFor = MayCastFor (AltCost [Do (LoseLife (^1))])
 
 -- cast-from-zone: the alt-cost's `from` defaults to Hand; a non-default zone is the flashback family
 -- ("cast this from your graveyard for {3}{U}"). The exile-after / exile-N riders compose on separately.
@@ -312,13 +318,13 @@ tHistoryThenWin =
 
 -- an activated ability: a multi-component cost algebra + an effect
 tActivated : Ability Base
-tActivated = Activated (Costs [Mana [^2], TapSelf, PayLife (Literal 1)])
+tActivated = Activated (Costs [Mana [^2], Do (Tap This), Do (LoseLife (Literal 1))])
                        (Act (Draw (^1)))
 
 -- cost-payment DECISIONS (supersede `Unless`): MAY-pay (optional, reward + downside) and
 -- MUST-pay (pay or be punished). The full `Cost` algebra rides both (here life / mana).
 tMayPay : OneShotEffect Base
-tMayPay = MayPay (PayLife (Literal 2)) (Act (Draw (^1))) {or_else = Just (Act (LoseLife (^1)))}
+tMayPay = MayPay (Do (LoseLife (Literal 2))) (Act (Draw (^1))) {or_else = Just (Act (LoseLife (^1)))}
 
 tMustPay : OneShotEffect Base
 tMustPay = MustPay (Mana [^2]) (Act (Counter (Only (IsKind IsSpell))))
@@ -346,7 +352,7 @@ tAnthem = Static (Modify (SelectAll (And [HasType Creature, ControlledBy you])) 
 
 -- a loyalty ability: an Activated ability whose cost removes Loyalty counters
 tLoyalty : Ability Base
-tLoyalty = Activated (RemoveCounters Loyalty (Literal 2)) (Act (Draw (^1)))
+tLoyalty = Activated (Do (RemoveCounters Loyalty (Literal 2) This)) (Act (Draw (^1)))
 
 -- the value language: arithmetic, player attributes, counters-on, new stats, that-much
 tValues : List (Count Base)
@@ -402,7 +408,7 @@ tConditionalStatic = Static (While (exists (ControlledBy opponent)) (Modify (Sel
 
 tLimitedAbility : Ability Base
 tLimitedAbility =
-  Activated (RemoveCounters Loyalty (Literal 1)) (Act (Draw (^1))) {window = SorceryWindow, limits = [OncePerTurn]}
+  Activated (Do (RemoveCounters Loyalty (Literal 1) This)) (Act (Draw (^1))) {window = SorceryWindow, limits = [OncePerTurn]}
 
 -- P/T in the value language: SIGNED deltas (Up/Down, ModifyPT) and a dynamic base via the unified `Set`.
 tPTMods : List (Modification Base)
@@ -457,10 +463,10 @@ tOneOfKinds = (Or [creature, permanent], Or [creature, Anyone])
 tEmptyOneOf : Predicate Base Empty
 tEmptyOneOf = Or []
 
--- a deontic Toll: Propaganda — creatures can't attack you UNLESS {2} is paid (cost FIRST). A toll is
+-- a deontic toll (`Priced Downstream`): Propaganda — creatures can't attack you UNLESS {2} is paid (cost FIRST). A toll is
 -- pay-to-DO-the-action; ward is NOT one (it's a trigger that counters AFTER — see tWard).
 tToll : StaticEffect Base
-tToll = Toll (Mana [^2]) (Enact Attack creature you)
+tToll = Priced Downstream (Mana [^2]) (Enact Attack creature you)
 
 -- `keyword` desugars a spec to its `Ability`, in three flavors (all pinned by Refl): a DEONTIC
 -- keyword is a `Composite` with a `cant` clause; an engine-PRIMITIVE keyword is `Bare`; a
@@ -684,10 +690,11 @@ failing
   tBadOfChosenMode : Predicate (bindChosen (AMode 2) Base) AnObject
   tBadOfChosenMode = OfChosen
 
--- `OfChosen` on an OBJECT choice is rejected — an object is identity, not a characteristic
--- (`IsCharDomain (AnObjectChoice) = Void`); read it with `ChosenObject`/`SameAs`, never `OfChosen`.
+-- `OfChosen` on an as-enters ENTITY choice is rejected — an object is identity, not a characteristic, and
+-- it binds `chosenRefKind` (NOT `chosenKind`), so `OfChosen`'s `IsCharDomain (chosenKind b)` finds
+-- `Nothing` → `Void`. Read a chosen object with `ChosenObject`/`SameAs`, never `OfChosen`.
 failing
-  tBadOfChosenObject : Predicate (bindChosen AnObjectChoice Base) AnObject
+  tBadOfChosenObject : Predicate (bindChosenRef AnObject Base) AnObject
   tBadOfChosenObject = OfChosen
 
 -- `That` with no enclosing `With`
