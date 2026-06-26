@@ -390,8 +390,8 @@ record EventCaps where
   hasAmount : Bool
 
 public export
-noCaps : EventCaps
-noCaps = MkCaps False False False
+NoCaps : EventCaps
+NoCaps = MkCaps False False False
 
 -- what each event-kind supplies. Damage/token/counter carry an amount; a step-begin carries nothing; a
 -- zone-change/destroy/becomes has an object but no actor; a cast/draw/discard/sacrifice has an actor.
@@ -474,7 +474,7 @@ record Bindings where
   targetKinds : List RefKind     -- one `RefKind` per target slot (the slot's kind, from its filter)
   thatKind    : Maybe RefKind    -- a `With`-bound group's element kind (`That`), if bound
   itKind      : Maybe RefKind    -- a `Each`-bound element's kind (`It`), if bound
-  evCaps      : EventCaps    -- the surrounding event's caps (`noCaps` outside an event body) — gates `EventObject`/`EventActor`/`ThatMuch`
+  evCaps      : EventCaps    -- the surrounding event's caps (`NoCaps` outside an event body) — gates `EventObject`/`EventActor`/`ThatMuch`
   chosenKind  : Maybe ChooseDomain  -- an as-enters "choose …" VALUE (color/type/name/number/mode) in scope (`OfChosen`/`ChosenIs`/`ChosenNumber`), if bound
   chosenRefKind : Maybe RefKind  -- an as-enters "choose …" GAME ENTITY (an object/player) in scope (`ChosenObject`/`ChosenPlayer`), if bound — the identity twin of `chosenKind`
   hasAllotment : Bool    -- inside a `Distribute` body: a per-element share is in scope (gates `Allotment`)
@@ -482,7 +482,7 @@ record Bindings where
 -- The bindings a resolving spell starts in: nothing bound yet.
 public export
 Base : Bindings
-Base = MkBindings [] Nothing Nothing noCaps Nothing Nothing False
+Base = MkBindings [] Nothing Nothing NoCaps Nothing Nothing False
 
 -- Each sets one field, reconstructing `MkBindings` explicitly so a projection of a
 -- bind result reduces definitionally even for abstract `b` (record-update sugar
@@ -780,12 +780,12 @@ andCaps : EventCaps -> EventCaps -> EventCaps
 andCaps (MkCaps o1 a1 m1) (MkCaps o2 a2 m2) = MkCaps (o1 && o2) (a1 && a2) (m1 && m2)
 
 -- the caps a whole event-QUERY guarantees its body: the INTERSECTION over its kind-disjunction — the
--- body gets only anaphora that EVERY listed kind supplies. Empty `kinds` (any kind) ⇒ `noCaps`. So a
+-- body gets only anaphora that EVERY listed kind supplies. Empty `kinds` (any kind) ⇒ `NoCaps`. So a
 -- multi-kind trigger ("attacks or blocks") is sound, and there is no way to union incompatible kinds.
 public export
 eventQueryCaps : EventQuery b -> EventCaps
 eventQueryCaps q = case q.kinds of
-  []        => noCaps
+  []        => NoCaps
   (k :: ks) => foldl andCaps (eventKindCaps k) (map eventKindCaps ks)
 
 -- "it's your turn" — the common specialization of `TurnOf`.
