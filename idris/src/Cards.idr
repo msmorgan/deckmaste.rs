@@ -681,11 +681,11 @@ card_CavernOfSouls = Normal $ ^:
   { name := Just "Cavern of Souls"
   , types := [Land]
   , abilities :=
-      [ Activated (Do (Tap This)) (Act (AddMana [^Colorless]))                              -- {T}: Add {C}
+      [ Activated (Do (Tap This)) (Act (AddMana (^1) (^Colorless)))                          -- {T}: Add {C}
       , AsEnters ACreatureType
-          [ Activated (Do (Tap This)) (Act (AddMana [AnyColor]
-              { onlyToCast = Just (And [IsKind IsSpell, creature, OfChosen])
-              , confers    = [cant (Enact Counter spellOrAbility (SameAs It))] }))     -- {T}: any color — creature spell of the chosen type, uncounterable
+          [ Activated (Do (Tap This)) (Act (AddMana (^1) AnyColor
+              { riders = [ SpendOnly (And [IsKind IsSpell, creature, OfChosen])
+                         , GrantOnSpend (cant (Enact Counter spellOrAbility (SameAs It))) ] }))  -- {T}: any color — creature spell of the chosen type, uncounterable
           ]
       ]
   }
@@ -846,8 +846,8 @@ card_AetherHub = Normal $ ^:
   , abilities :=
       [ Triggered (thisEnters)
           (Act (PutCounters Energy (^2) You))                                  -- "you get {E}{E}"
-      , Activated (Do (Tap This)) (Act (AddMana [^Colorless]))                         -- {T}: Add {C}
-      , Activated (Costs [Do (Tap This), PayEnergy (^1)]) (Act (AddMana [AnyColor]))  -- {T}, Pay {E}: add one mana of any color
+      , Activated (Do (Tap This)) (Act (AddMana (^1) (^Colorless)))                         -- {T}: Add {C}
+      , Activated (Costs [Do (Tap This), PayEnergy (^1)]) (Act (AddMana (^1) AnyColor))  -- {T}, Pay {E}: add one mana of any color
       ]
   }
 
@@ -937,7 +937,7 @@ card_Frogmite = Normal $ ^:
   , toughness := Just 2
   }
 
--- Gaea's Cradle — VARIABLE mana: "{T}: Add {G} for each creature you control" = `AddManaFor (CountOf …)`.
+-- Gaea's Cradle — VARIABLE mana: "{T}: Add {G} for each creature you control" = `AddMana (CountOf …) (^Green)`.
 export
 card_GaeasCradle : Card
 card_GaeasCradle = Normal $ ^:
@@ -945,10 +945,10 @@ card_GaeasCradle = Normal $ ^:
   , types := [Land]
   , supertypes := [Legendary]
   , abilities :=
-      [ Activated (Do (Tap This)) (Act (AddManaFor (CountOf (And [creature, ControlledBy you])) (^Green))) ]
+      [ Activated (Do (Tap This)) (Act (AddMana (CountOf (And [creature, ControlledBy you])) (^Green))) ]
   }
 
--- Karametra's Acolyte — DEVOTION: "{T}: Add {G} equal to your devotion to green" = `AddManaFor
+-- Karametra's Acolyte — DEVOTION: "{T}: Add {G} equal to your devotion to green" = `AddMana
 -- (Devotion [Green]) (^Green)`. Devotion is a `Count`, so it drops into mana production for free.
 export
 card_KarametrasAcolyte : Card
@@ -958,7 +958,7 @@ card_KarametrasAcolyte = Normal $ ^:
   , types := [Creature]
   , subtypes := [^Human]
   , abilities :=
-      [ Activated (Do (Tap This)) (Act (AddManaFor (Devotion [Green]) (^Green))) ]
+      [ Activated (Do (Tap This)) (Act (AddMana (Devotion [Green]) (^Green))) ]
   , power := Just 1
   , toughness := Just 4
   }
@@ -1007,7 +1007,7 @@ card_DarksteelCitadel = Normal $ ^:
   , types := [Artifact, Land]
   , abilities :=
       [ keyword Indestructible                              -- Indestructible
-      , Activated (Do (Tap This)) (Act (AddMana [^Colorless]))      -- {T}: Add {C}
+      , Activated (Do (Tap This)) (Act (AddMana (^1) (^Colorless)))      -- {T}: Add {C}
       ]
   }
 
@@ -1016,7 +1016,7 @@ export
 card_MutagenicGrowth : Card
 card_MutagenicGrowth = Normal $ ^:
   { name := Just "Mutagenic Growth"
-  , manaCost := [Phyrexian Green]
+  , manaCost := [Phyrexian Green Nothing]
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [Target (^1) creature]

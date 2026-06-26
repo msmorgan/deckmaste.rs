@@ -145,12 +145,12 @@ tOfChosen = And [IsKind IsSpell, OfChosen]
 tChosenMode : Condition (bindChosen (AMode 2) Base)
 tChosenMode = ChosenIs 1
 
--- restricted mana ([CR#106.6]): `onlyToCast` constrains the spend; `confers` rides the paid-for spell,
--- which is bound as `It` — Cavern's "creature spell of the chosen type, and that spell can't be countered".
+-- restricted mana ([CR#106.6]): per-mana `riders` — `SpendOnly` constrains the spend; `GrantOnSpend`
+-- rides the paid-for spell, bound as `It` — Cavern's "creature spell of the chosen type, uncounterable".
 tRestrictedMana : Action (bindChosen ACreatureType Base)
-tRestrictedMana = AddMana [AnyColor]
-  { onlyToCast = Just (And [IsKind IsSpell, creature, OfChosen])
-  , confers    = [cant (Enact Counter spellOrAbility (SameAs It))] }
+tRestrictedMana = AddMana (^1) AnyColor
+  { riders = [ SpendOnly (And [IsKind IsSpell, creature, OfChosen])
+             , GrantOnSpend (cant (Enact Counter spellOrAbility (SameAs It))) ] }
 
 -- the unified `Quantity` (one `Range` constructor) + its helpers all typecheck
 tQuantities : List (Bindable Base AnObject)
@@ -653,22 +653,9 @@ failing
   tBadModeDomainZero : Ability Base
   tBadModeDomainZero = AsEnters (AMode 0) []
 
--- MANA cost-vs-production split: printed `ManaSymbol` and `ProducedMana` are different domains.
--- "any color" is a PRODUCTION concept — not a printed cost.
-failing
-  tBadAnyColorCost : Cost Base
-  tBadAnyColorCost = Mana [AnyColor]
-
--- {X} is a COST symbol — you don't PRODUCE {X}.
-failing
-  tBadProduceVariable : Action Base
-  tBadProduceVariable = AddMana [Variable]
-
--- {W/P} (Phyrexian) is a COST symbol — you don't produce a Phyrexian pip.
-failing
-  tBadProducePhyrexian : Action Base
-  tBadProducePhyrexian = AddMana [Phyrexian Red]
-
+-- (No `tBad…` for "produce {X}/{W/P}" or "cost with any-color": printed `ManaSymbol` and `ProducedMana`
+-- are SEPARATE types, so those are unrepresentable by construction — a `failing` block there would only
+-- test the type distinction, not the model.)
 
 -- a 0-size block is rejected — a declared block has ≥1 blocker (`NonZeroQ` on `BlockedBy`'s size)
 failing
