@@ -921,7 +921,7 @@ data Deed : Bindings -> Type where
   -- the source is the explicit doer. Examples:
   --   Defender             = `Cant (Enact Attack (SameAs This) Anyone)`
   --   "q can't block this" = `Cant (Enact Block q (SameAs This))`
-  --   "Enchant creature"   = `Cant (Enact Attach (SameAs This) (Not creature))`  ([CR#701.3a])
+  --   "Enchant creature"   = `Can  (Enact Attach (SameAs This) creature)`  ([CR#701.3a]) — attach is default-FORBIDDEN, Enchant ENABLES it
   --   Shroud               = `Cant (Enact Target spellOrAbility (SameAs This))`  (the source spell/ability is the doer)
   --   "can't be countered" = `Cant (Enact Counter spellOrAbility (SameAs This))`
   --   flash                = `Can  (Enact Cast you (SameAs This)) {window = InstantWindow}`  ([CR#702.8a])
@@ -1243,8 +1243,9 @@ mutual
     Activated : Cost b -> OneShotEffect b -> {default InstantWindow window : TimingWindow} -> {default [] limits : List Restriction} -> Ability b
     -- a triggered ability: when `event` fires, resolve `effect`. Rust: Ability::Triggered.
     Triggered : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) b) -> Ability b
-    -- (Retired `Enchant`: the engine has no dedicated aura ability — the host restriction is a
-    --  `Cant (Attaches …)` deed, enters-attached an `Also`, falls-off an `Sba`. No subtype special-casing.)
+    -- (Retired `Enchant`: the engine has no dedicated aura ability — "enchant X" is a `Can (Enact Attach …)`
+    --  PERMISSION (attaching is default-forbidden, so the aura ENABLES it), enters-attached an `Also`,
+    --  falls-off an `Sba`. No subtype special-casing.)
     -- a static continuous ability — modifications, anthems, AND replacements live in `StaticEffect`.
     Static : StaticEffect b -> Ability b
     -- "[cost]: turn This face up" ([CR#708.9]) — a SPECIAL action (not stack-using), not an `Activated`
