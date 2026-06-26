@@ -376,7 +376,7 @@ eventKindHasAmount k = hasAmount (eventKindCaps k)
 -- bound in `Bindings.chosenKind` and read back by the `OfChosen` anaphor. Characteristic domains
 -- (color / creature type) name something an object can HAVE; a mode domain (later) won't.
 public export
-data ChooseDomain = AColor | ACreatureType | AMode Nat | AName | ANumber | APlayerChoice   -- `AMode n` = an n-way mode pick; AName = a card name; ANumber = a number; APlayerChoice = a player (read back with `ChosenPlayer`)
+data ChooseDomain = AColor | ACreatureType | AMode Nat | AName | ANumber | APlayerChoice | AnObjectChoice   -- `AMode n` = an n-way mode pick; AName = a card name; ANumber = a number; APlayerChoice = a player (read back with `ChosenPlayer`); AnObjectChoice = an object (read back with `ChosenObject`, Clone). Like `APlayerChoice`, UNCONSTRAINED — restricting the choosable set ("a creature") is a separate gap.
 
 -- a mode domain must offer ≥1 mode ([CR#700.2]) — gates `AsEnters` (not `AMode` itself, which stays a
 -- plain constructor so `ChosenIs`'s `AMode n` equality keeps working). Lenient for non-mode domains.
@@ -396,6 +396,7 @@ IsCharDomain (Just AName)         = ()   -- "has the chosen NAME" is an `OfChose
 IsCharDomain (Just (AMode _))     = Void
 IsCharDomain (Just ANumber)       = Void  -- a number isn't a characteristic — read it with `ChosenNumber`
 IsCharDomain (Just APlayerChoice) = Void  -- a player isn't a characteristic — read it with `ChosenPlayer`
+IsCharDomain (Just AnObjectChoice) = Void -- an object isn't a characteristic — read it with `ChosenObject` (identity, not `OfChosen`)
 IsCharDomain Nothing              = Void
 
 -- `Bindings`: the typestate of what references are in scope. Its fields are
@@ -501,6 +502,7 @@ mutual
     OwnerOf : Reference b AnObject -> Reference b APlayer        -- the owner of an object [CR#108.3]
     EventActor : {auto prf : hasActor (evCaps b) = True} -> Reference b APlayer  -- the event's player ("that player") — only if supplied
     ChosenPlayer : {auto prf : chosenKind b = Just APlayerChoice} -> Reference b APlayer  -- the as-enters chosen PLAYER (the reference-anaphor twin of OfChosen/ChosenNumber)
+    ChosenObject : {auto prf : chosenKind b = Just AnObjectChoice} -> Reference b AnObject  -- the as-enters chosen OBJECT (the object-twin of `ChosenPlayer`; Clone copies it via `BecomeCopyOf ChosenObject`)
 
   -- A numeric value ([CR#107.3]). `Literal` is a bare number; the rest read the game
   -- state — object counts, stats, counters, life/hand totals, event tallies, arithmetic.

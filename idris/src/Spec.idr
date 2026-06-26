@@ -236,6 +236,12 @@ tChosenNumber = ChosenNumber
 tChosenPlayer : Reference (bindChosen APlayerChoice Base) APlayer
 tChosenPlayer = ChosenPlayer
 
+-- ...and a chosen OBJECT by `ChosenObject` — Clone ([CR#706.2]): "as ~ enters, you may have it enter as a
+-- copy of a creature you choose." The copy is a continuous self-modification reading the chosen object.
+-- (The "you may" and the "a creature" restriction are separable refinements; the core is the anaphor.)
+tClone : Ability Base
+tClone = AsEnters AnObjectChoice [ Static (Modify This [BecomeCopyOf ChosenObject]) ]
+
 -- "sacrifice a [pred]" as a COST — the payer chooses which (not a specific `Sacrifice This`).
 tSacrificeCost : Cost Base
 tSacrificeCost = SacrificeA creature
@@ -648,6 +654,12 @@ failing
 failing
   tBadOfChosenMode : Predicate (bindChosen (AMode 2) Base) AnObject
   tBadOfChosenMode = OfChosen
+
+-- `OfChosen` on an OBJECT choice is rejected — an object is identity, not a characteristic
+-- (`IsCharDomain (AnObjectChoice) = Void`); read it with `ChosenObject`/`SameAs`, never `OfChosen`.
+failing
+  tBadOfChosenObject : Predicate (bindChosen AnObjectChoice Base) AnObject
+  tBadOfChosenObject = OfChosen
 
 -- `That` with no enclosing `With`
 failing
