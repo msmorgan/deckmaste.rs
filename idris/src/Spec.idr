@@ -331,7 +331,9 @@ tValues =
   , Min (CountersOn P1P1 This) (CountersOn M1M1 This)   -- net counters after annihilation
   , Max (StatOf This Power) (^0)
   , Damage This                                          -- marked damage
-  , EventSum DealDamage {facets = [Actor opponent]} ]  -- amount-twin of EventCount; kind is gated, facets kind-free
+  , EventSum DealDamage {facets = [Actor opponent]}    -- amount-twin of EventCount; kind is gated, facets kind-free
+  , Aggregate Greatest Power (And [creature, ControlledBy you])   -- "the greatest power among creatures you control"
+  , Aggregate Total Power (And [creature, ControlledBy you]) ]    -- "the total power of creatures you control"
 
 -- the lethal-damage SBA now states directly: marked damage ≥ toughness.
 tLethalSba : Condition Base
