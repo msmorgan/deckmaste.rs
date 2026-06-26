@@ -105,7 +105,7 @@ hexproofFrom f = Keyword (Composite (Hexproof (Just f)) [Static (cant (Enact Tar
 -- an as-though. ("Granted as-though-flash" for OTHER spells is `AsThough`, the deferred-tail case.)
 public export
 flash : Ability b
-flash = Keyword (Composite Flash [Static (Can (Enact Cast you (SameAs This)) {window = Just InstantWindow})])
+flash = Keyword (Composite Flash [Static (Can (Enact Cast you (SameAs This)) {window = Just AsInstant})])
 
 -- Menace ([CR#702.111b]): a SET-LEVEL `cant` — "can't be blocked except by two or more", i.e.
 -- can't be blocked by a lone (size-1) blocker set. The whole-set predicate [CR#509.1c] needs the
@@ -222,7 +222,7 @@ enchant hosts =
 -- PRIMITIVE keyword the grammar can't desugar (FirstStrike/DoubleStrike/Deathtouch/Trample =
 -- damage pipeline; Vigilance = attack event-edit). The rest are `Composite`: the deontic ones
 -- carry a `cant`; `Reach` carries `[]` (just a flag `flying`'s clause reads); `Flash` carries a
--- `Can (Casts …) {window = InstantWindow}` — you may cast it at instant speed ([CR#702.8a]).
+-- `Can (Casts …) {window = AsInstant}` — you may cast it at instant speed ([CR#702.8a]).
 -- (A plain function, NOT an interface instance: a polymorphic spec's `b` is a metavar interface search can't fire on.)
 public export
 keyword : KeywordSpec b -> Ability b
@@ -259,7 +259,7 @@ monstrosity cost n = Activated cost
 -- "Level up [cost]" ([CR#702.87]): put a level counter on THIS; sorcery-speed only.
 public export
 levelUp : Cost b -> Ability b
-levelUp cost = Activated cost (Act (PutCounters Level (^1) This)) {window = SorceryWindow}
+levelUp cost = Activated cost (Act (PutCounters Level (^1) This)) {window = AsSorcery}
 
 -- "Crew N" ([CR#702.122]): tap any creatures with total power ≥ N → this Vehicle becomes an artifact
 -- creature until end of turn. The aggregate-tap cost is `TapTotal`.

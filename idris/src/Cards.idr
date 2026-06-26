@@ -233,7 +233,7 @@ card_GloriousAnthem = Normal $ ^:
   }
 
 -- Liliana of the Veil — "planeswalkers are pure composite": loyalty abilities are
--- Activated abilities whose cost adds/removes Loyalty counters, carrying {window = SorceryWindow,
+-- Activated abilities whose cost adds/removes Loyalty counters, carrying {window = AsSorcery,
 -- limits = [OncePerTurn]}; the printed loyalty (3) is "enters with 3 Loyalty counters"
 -- (Face.loyalty). "Each player" is `Each eachPlayer` (a player-`Selection`); "target
 -- player" is a player-kinded target (`Anyone`), so `GetTarget 0` is `APlayer` with no
@@ -249,10 +249,10 @@ card_LilianaOfTheVeil = Normal $ ^:
   , loyalty := Just 3
   , abilities :=
       [ Activated (Do (PutCounters Loyalty (Literal 1) This))
-          (Each eachPlayer (Act (Discard {actor = It} (^1)))) {window = SorceryWindow, limits = [OncePerTurn]}
+          (Each eachPlayer (Act (Discard {actor = It} (^1)))) {window = AsSorcery, limits = [OncePerTurn]}
       , Activated (Do (RemoveCounters Loyalty (Literal 2) This))
           (Targeted [Target (^1) Anyone]
-            (Act (Sacrifice (GetTarget 0) creature))) {window = SorceryWindow, limits = [OncePerTurn]}
+            (Act (Sacrifice (GetTarget 0) creature))) {window = AsSorcery, limits = [OncePerTurn]}
       ]
   }
 
@@ -836,7 +836,7 @@ card_FloodedStrand = Normal $ ^:
   }
 
 -- Aether Hub — a PLAYER-COUNTER (energy) demo. "You get {E}{E}" is `PutCounters Energy (^2) You`, which
--- typechecks ONLY because `counterCarrier Energy = APlayer` (energy on an object is a type error);
+-- typechecks ONLY because `counterScope Energy = APlayer` (energy on an object is a type error);
 -- "Pay {E}" is `Do (RemoveCounters Energy (^1) You)` — energy rides `Do` like any cost-as-action
 -- ([CR#118.3]); no dedicated `PayEnergy` verb. The dependent carrier puts the counter on the player by type.
 export
