@@ -20,7 +20,7 @@ card_LightningBolt = Normal $ ^:
       ]
   }
 
--- Untargeted group damage: a `ForEach` over all creatures, dealing to each `It` (no `Targeted`).
+-- Untargeted group damage: a `Each` over all creatures, dealing to each `It` (no `Targeted`).
 export
 card_Pyroclasm : Card
 card_Pyroclasm = Normal $ ^:
@@ -28,7 +28,7 @@ card_Pyroclasm = Normal $ ^:
   , manaCost := [^1, ^Red]
   , types := [Sorcery]
   , abilities :=
-      [ Spell (ForEach (SelectAll creature) (Act (DealDamage It (^2))))
+      [ Spell (Each (SelectAll creature) (Act (DealDamage It (^2))))
       ]
   }
 
@@ -86,7 +86,7 @@ card_Flickerwisp = Normal $ ^:
           Targeted [Target (^1) (And [permanent, Not (SameAs This)])] $
             With (Produce (Move ((GetTarget 0)) Exile)) $  -- exile the target, bind `That`
               Delayed nextEndStep
-                (ForEach That (Act (Move It Battlefield)))                        -- return `That` (captured; target gone)
+                (Each That (Act (Move It Battlefield)))                        -- return `That` (captured; target gone)
       ]
   , power := Just 3
   , toughness := Just 1
@@ -104,7 +104,7 @@ card_Brainstorm = Normal $ ^:
       [ Spell $
           Sequence
           [ Act (Draw (^3))
-          , With (Choose (^2) inHand) (ForEach That (Act (Move It Library)))
+          , With (Choose (^2) inHand) (Each That (Act (Move It Library)))
           ]
       ]
   }
@@ -148,7 +148,7 @@ card_Cloudshift = Normal $ ^:
                                      ])
                    ] $
           With (Produce (Move ((GetTarget 0)) Exile)) $
-          ForEach That (Act (Move It Battlefield))
+          Each That (Act (Move It Battlefield))
       ]
   }
 
@@ -167,9 +167,9 @@ card_ThroughTheBreach = Normal $ ^:
       [ Spell $
           With (Choose (^1) (And [inHand, creature])) $
             Sequence
-              [ ForEach That (Act (Move It Battlefield))
+              [ Each That (Act (Move It Battlefield))
               , Continuously (Modify That [GrantAbility (keyword Haste)]) UntilEndOfTurn  -- "it gains haste"
-              , Delayed nextEndStep (ForEach That (Act (Move It Graveyard))) ]
+              , Delayed nextEndStep (Each That (Act (Move It Graveyard))) ]
       ]
   }
 
@@ -213,10 +213,10 @@ card_OblivionStone = Normal $ ^:
       [ Activated (Costs [Mana [^4], Do (Tap This)])
           (Targeted [Target (^1) permanent]
             (Act (PutCounters Fate (Literal 1) ((GetTarget 0)))))
-      , Activated (Costs [Mana [^5], Do (Tap This), Do (Sacrifices You (SameAs This))])
+      , Activated (Costs [Mana [^5], Do (Tap This), Do (Sacrifice You (SameAs This))])
           (Sequence
-            [ ForEach (SelectAll (And [permanent, Not (HasType Land), Not (HasCounter Fate)])) (Act (Destroy It))
-            , ForEach (SelectAll permanent) (Act (RemoveCounters Fate (CountersOn Fate It) It)) ])
+            [ Each (SelectAll (And [permanent, Not (HasType Land), Not (HasCounter Fate)])) (Act (Destroy It))
+            , Each (SelectAll permanent) (Act (RemoveCounters Fate (CountersOn Fate It) It)) ])
       ]
   }
 
@@ -235,7 +235,7 @@ card_GloriousAnthem = Normal $ ^:
 -- Liliana of the Veil — "planeswalkers are pure composite": loyalty abilities are
 -- Activated abilities whose cost adds/removes Loyalty counters, carrying {window = SorceryWindow,
 -- limits = [OncePerTurn]}; the printed loyalty (3) is "enters with 3 Loyalty counters"
--- (Face.loyalty). "Each player" is `ForEach eachPlayer` (a player-`Selection`); "target
+-- (Face.loyalty). "Each player" is `Each eachPlayer` (a player-`Selection`); "target
 -- player" is a player-kinded target (`Anyone`), so `GetTarget 0` is `APlayer` with no
 -- annotation. The −6 pile ultimate is OMITTED (no pile-division); the "Liliana"
 -- planeswalker subtype is omitted (no planeswalker-subtype enum).
@@ -249,10 +249,10 @@ card_LilianaOfTheVeil = Normal $ ^:
   , loyalty := Just 3
   , abilities :=
       [ Activated (Do (PutCounters Loyalty (Literal 1) This))
-          (ForEach eachPlayer (Act (Discard {actor = It} (^1)))) {window = SorceryWindow, limits = [OncePerTurn]}
+          (Each eachPlayer (Act (Discard {actor = It} (^1)))) {window = SorceryWindow, limits = [OncePerTurn]}
       , Activated (Do (RemoveCounters Loyalty (Literal 2) This))
           (Targeted [Target (^1) Anyone]
-            (Act (Sacrifices (GetTarget 0) creature))) {window = SorceryWindow, limits = [OncePerTurn]}
+            (Act (Sacrifice (GetTarget 0) creature))) {window = SorceryWindow, limits = [OncePerTurn]}
       ]
   }
 
@@ -295,9 +295,9 @@ card_Necropotence = Normal $ ^:
       , Triggered (MkQuery [Discard] [Actor you])
           (Act (Move EventObject Exile))
       , Activated (Do (LoseLife (Literal 1)))
-          (ForEach (TopOfLibrary (Literal 1))
+          (Each (TopOfLibrary (Literal 1))
             (With (Produce (Move It Exile))
-              (Delayed nextEndStep (ForEach That (Act (Move It Hand))))))
+              (Delayed nextEndStep (Each That (Act (Move It Hand))))))
       ]
   }
 
@@ -338,7 +338,7 @@ card_OblivionRing = Normal $ ^:
           (Targeted [Target (^1) (And [permanent, Not (HasType Land), Not (SameAs This)])]
             (Act (Move ((GetTarget 0)) Exile)))
       , Triggered (MkQuery [ZoneChanged (Just Battlefield) Nothing] [Agent (SameAs This)])
-          (ForEach (SelectAll (ExiledBy This)) (Act (Move It Battlefield)))
+          (Each (SelectAll (ExiledBy This)) (Act (Move It Battlefield)))
       ]
   }
 
@@ -493,7 +493,7 @@ card_CrypticCommand = Normal $ ^:
       [ Spell (Modal (MkChooseSpec (^2))
           [ MkMode (Targeted [Target (^1) (IsKind IsSpell)] (Act (Counter ((GetTarget 0)))))
           , MkMode (Targeted [Target (^1) permanent] (Act (Move ((GetTarget 0)) Hand)))
-          , MkMode (ForEach (SelectAll (And [creature, ControlledBy opponent])) (Act (Tap It)))
+          , MkMode (Each (SelectAll (And [creature, ControlledBy opponent])) (Act (Tap It)))
           , MkMode (Act (Draw (^1)))
           ]) ]
   }
@@ -782,7 +782,7 @@ card_DoublingSeason = Normal $ ^:
       ]
   }
 
--- Time Walk — "target player takes an extra turn after this one." `ExtraTurn {who = …}` on the
+-- Time Walk — "target player takes an extra turn after this one." `ExtraTurn {actor = …}` on the
 -- targeted player ([CR#505]).
 export
 card_TimeWalk : Card
@@ -790,7 +790,7 @@ card_TimeWalk = Normal $ ^:
   { name := Just "Time Walk"
   , manaCost := [^1, ^Blue]
   , types := [Sorcery]
-  , abilities := [ Spell (Targeted [Target (^1) Anyone] (Act (ExtraTurn {who = GetTarget 0}))) ]
+  , abilities := [ Spell (Targeted [Target (^1) Anyone] (Act (ExtraTurn {actor = GetTarget 0}))) ]
   }
 
 -- Mindslaver — "{T}, Sacrifice Mindslaver: You control target player during that player's next turn."
@@ -802,7 +802,7 @@ card_Mindslaver = Normal $ ^:
   , manaCost := [^6]
   , types := [Artifact]
   , abilities :=
-      [ Activated (Costs [Do (Tap This), Do (Sacrifices You (SameAs This))])
+      [ Activated (Costs [Do (Tap This), Do (Sacrifice You (SameAs This))])
           (Targeted [Target (^1) Anyone] (Act (ControlPlayer (GetTarget 0)))) ]
   }
 
@@ -829,9 +829,9 @@ card_FloodedStrand = Normal $ ^:
   { name := Just "Flooded Strand"
   , types := [Land]
   , abilities :=
-      [ Activated (Costs [Do (Tap This), Do (LoseLife (^1)), Do (Sacrifices You (SameAs This))])
+      [ Activated (Costs [Do (Tap This), Do (LoseLife (^1)), Do (Sacrifice You (SameAs This))])
           (With (Search {from = [Library]} (^1) (Or [HasSubtype (^Plains), HasSubtype (^Island)]))
-            (Sequence [ ForEach That (Act (Move It Battlefield))
+            (Sequence [ Each That (Act (Move It Battlefield))
                       , Act Shuffle ])) ]
   }
 

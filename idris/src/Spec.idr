@@ -30,7 +30,7 @@ tLandCreature = Normal $ ^:
 tThatSurvivesDelay : OneShotEffect Base
 tThatSurvivesDelay =
   With (Produce (Move (Only creature) Exile))
-    (Delayed nextEndStep (ForEach That (Act (Move It Battlefield))))
+    (Delayed nextEndStep (Each That (Act (Move It Battlefield))))
 
 -- branching effects typecheck
 tMay : OneShotEffect Base
@@ -47,7 +47,7 @@ tContinuously = Continuously (Modify (SelectAll (SameAs This)) [ModifyPT (^1) (^
 tModal : OneShotEffect Base
 tModal = Modal (MkChooseSpec (^1))
   [ MkMode (Act (Draw (^1)))
-  , MkMode (ForEach (SelectAll creature) (Act (DealDamage It (^2)))) {cost = Just (Do (LoseLife (Literal 2)))}  -- mode cost is now a full Cost
+  , MkMode (Each (SelectAll creature) (Act (DealDamage It (^2)))) {cost = Just (Do (LoseLife (Literal 2)))}  -- mode cost is now a full Cost
   ]
 
 -- VARIABLE-count modals: the choose-count is a `Quantity`. "Choose one or both" = `between (^1) (^2)`;
@@ -61,11 +61,11 @@ tModalVariable =
 tReflexiveSeesThat : OneShotEffect Base
 tReflexiveSeesThat =
   With (Produce (Move (Only creature) Exile))
-    (Reflexive (ForEach That (Act (Move It Battlefield))))
+    (Reflexive (Each That (Act (Move It Battlefield))))
 
--- `ForEach` binds `It` per element; the body references `It`
+-- `Each` binds `It` per element; the body references `It`
 tForEach : OneShotEffect Base
-tForEach = ForEach (SelectAll (creature))
+tForEach = Each (SelectAll (creature))
   (Act (DealDamage It (^1)))
 
 -- a CLOSED condition reaches a named object via `Matches` (apply a predicate to a
@@ -221,7 +221,7 @@ tEnchant : List (Ability Base)
 tEnchant = enchant creature
 
 tAuraEnters : StaticEffect Base
-tAuraEnters = Also thisEnters (With (Choose (^1) creature) (ForEach That (Act (Attach This It))))
+tAuraEnters = Also thisEnters (With (Choose (^1) creature) (Each That (Act (Attach This It))))
 
 tAuraFallsOff : StaticEffect Base
 tAuraFallsOff = Sba (Not (LegallyAttached This)) (Act (Move This Graveyard))
@@ -267,7 +267,7 @@ tClone = AsEntersChoosing AnObject creature [ Static (Modify (SelectAll (SameAs 
 
 -- "sacrifice a [pred]" as a COST — the payer chooses which (not a specific `Sacrifice This`).
 tSacrificeCost : Cost Base
-tSacrificeCost = Do (Sacrifices You creature)
+tSacrificeCost = Do (Sacrifice You creature)
 
 -- phasing: the `PhasedOut` state filters a phased permanent; `PhaseOut` is the verb.
 tPhasedFilter : Predicate Base AnObject
@@ -343,8 +343,8 @@ tDevotion = Devotion [Black, Green]
 
 -- counters: the `HasCounter` predicate facet + the put/remove verbs
 tCounters : OneShotEffect Base
-tCounters = Sequence [ ForEach (SelectAll creature) (Act (PutCounters P1P1 (Literal 1) It))
-                     , ForEach (SelectAll (Not (HasCounter P1P1))) (Act (Destroy It)) ]
+tCounters = Sequence [ Each (SelectAll creature) (Act (PutCounters P1P1 (Literal 1) It))
+                     , Each (SelectAll (Not (HasCounter P1P1))) (Act (Destroy It)) ]
 
 -- anthem: a static `ModifyAll` over a controller-predicate filter, with layer mods
 tAnthem : Ability Base
@@ -369,17 +369,35 @@ tValues =
   , Aggregate Greatest Power (And [creature, ControlledBy you])   -- "the greatest power among creatures you control"
   , Aggregate Total Power (And [creature, ControlledBy you]) ]    -- "the total power of creatures you control"
 
--- the lethal-damage SBA now states directly: marked damage ≥ toughness.
-tLethalSba : Condition Base
-tLethalSba = Compare (Damage This) GreaterEq (StatOf This Toughness)
+-- the GLOBAL [CR#704.5] state-based actions AS DATA — replacing the old loose `tLethalSba`, which was a
+-- bare `Condition` with no scope (it silently assumed `This` was a creature) and no effect (the destroy
+-- was gone). Each `SbaRule` now carries its domain (`scope`), trigger (`when`), AND action (`thenDo`).
+-- Deathtouch [CR#704.5h] is ABSENT by design: it's intrinsic to the `Deathtouch` keyword ([CR#702.2c]
+-- prospective lethality), not a keyword-independent global rule, so the engine bakes it in.
+tGlobalSbas : List SbaRule
+tGlobalSbas =
+  [ -- lethal damage [CR#704.5g]: a creature with toughness > 0 whose marked damage ≥ toughness is destroyed
+    MkSbaRule (And [creature, InZone Battlefield])
+              (And [ Compare (StatOf This Toughness) Greater (^0)
+                   , Compare (Damage This) GreaterEq (StatOf This Toughness) ])
+              (Act (Destroy This))
+    -- 0-toughness [CR#704.5f]: toughness ≤ 0 → PUT INTO graveyard (a `Move`, NOT a `Destroy` — regeneration
+    -- can't replace it; the Move-vs-Destroy choice is exactly what encodes that)
+  , MkSbaRule (And [creature, InZone Battlefield])
+              (Compare (StatOf This Toughness) LessEq (^0))
+              (Act (Move This Graveyard))
+    -- loyalty-0 [CR#704.5i]: a planeswalker with 0 loyalty counters → put into graveyard
+  , MkSbaRule (And [HasType Planeswalker, InZone Battlefield])
+              (Compare (CountersOn Loyalty This) Equal (^0))
+              (Act (Move This Graveyard)) ]
 
 -- new verbs (scry/fight/token/search/copy) all typecheck
 tVerbs : List (OneShotEffect Base)
 tVerbs =
-  [ Act (Scry (Literal 2))
-  , Act (Fight This (Only creature))
+  [ scry (Literal 2)
+  , fight This (Only creature)
   , Act (CreateToken (Literal 2) (^: { name := Just "Soldier", types := [Creature], colors := [White], power := Just 1, toughness := Just 1 }))
-  , With (Search {from = [Library, Graveyard]} (^1) (HasName "Forest")) (ForEach That (Act (Move It Hand)))  -- tutor across two zones
+  , With (Search {from = [Library, Graveyard]} (^1) (HasName "Forest")) (Each That (Act (Move It Hand)))  -- tutor across two zones
   , Act (CopySpell (Only (IsKind IsSpell))) ]
 
 -- a token whose P/T is a `Count b` known at creation — "an X/X where X = creatures you control".
@@ -400,7 +418,7 @@ tNamelessToken = Act (CreateToken (^2)
 -- opponent is now a TARGET (player-predicate `opponent`), so `whose` is that targeted player.
 tSearchOther : OneShotEffect Base
 tSearchOther = Targeted [Target (^1) opponent]
-  (With (Search {whose = GetTarget 0} (^1) creature) (ForEach That (Act (Move It Battlefield))))
+  (With (Search {whose = GetTarget 0} (^1) creature) (Each That (Act (Move It Battlefield))))
 
 -- a conditional static, and an activation-limited (loyalty-style) ability
 tConditionalStatic : Ability Base
@@ -442,9 +460,9 @@ tCDA = Normal $ ^:
 tPlayerTarget : Count (bindTargets [APlayer] Base)
 tPlayerTarget = LifeTotal (GetTarget 0)
 
--- "each player" is a player-`Selection`; `ForEach` binds a player `It` (EachPlayer dissolved)
+-- "each player" is a player-`Selection`; `Each` binds a player `It` (EachPlayer dissolved)
 tEachPlayerForEach : OneShotEffect Base
-tEachPlayerForEach = ForEach eachPlayer (Act (Draw {actor = It} (^1)))
+tEachPlayerForEach = Each eachPlayer (Act (Draw {actor = It} (^1)))
 
 -- MIXED-kind multi-target (Donate: "target player gains control of target permanent"):
 -- slot 0 is a player, slot 1 an object — each `GetTarget` strictly kinded by its own slot.
@@ -598,21 +616,21 @@ failing
   tBadThatMuchNoAmount : StaticEffect Base
   tBadThatMuchNoAmount = Replaces (MkQuery [Begins Cast] []) (Act (DealDamage This ThatMuch))
 
--- `EventActor` ("that player") in a Destroyed body — a destruction has no actor.
+-- `EventActor` ("that player") in a Destroy body — a destruction has no actor.
 failing
   tBadEventActorNoActor : Ability Base
-  tBadEventActorNoActor = Triggered (MkQuery [Destroyed] []) (Conclude (WinGame EventActor))
+  tBadEventActorNoActor = Triggered (MkQuery [Destroy] []) (Conclude (WinGame EventActor))
 
 -- ...and the anaphora DO work where the event supplies them: `EventActor` in a `Begins Cast` body (the caster).
 tEventActorValid : Ability Base
 tEventActorValid = Triggered (MkQuery [Begins Cast] []) (Conclude (WinGame EventActor))
 
 -- MULTI-KIND SOUNDNESS (the EventQuery restructure): a multi-kind query's caps are the INTERSECTION —
--- the body gets only anaphora EVERY listed kind supplies. `EventActor` under `[Begins Cast, Destroyed]` is
--- rejected (a Destroyed event has no actor), so the old union-cap leak (A6) is gone.
+-- the body gets only anaphora EVERY listed kind supplies. `EventActor` under `[Begins Cast, Destroy]` is
+-- rejected (a Destroy event has no actor), so the old union-cap leak (A6) is gone.
 failing
   tBadEventActorMultiKind : Ability Base
-  tBadEventActorMultiKind = Triggered (MkQuery [Begins Cast, Destroyed] []) (Conclude (WinGame EventActor))
+  tBadEventActorMultiKind = Triggered (MkQuery [Begins Cast, Destroy] []) (Conclude (WinGame EventActor))
 
 -- ...but when EVERY listed kind supplies the anaphor it's fine: "attacks or blocks" both supply an
 -- object, so `EventObject` is valid (Smuggler's Copter's single trigger over two kinds).
@@ -701,7 +719,7 @@ failing
   tBadDelayedTarget = Targeted [anyTarget]
     (Delayed nextEndStep (Act (DealDamage (GetTarget 0) (^1))))
 
--- `It` with no enclosing `ForEach`
+-- `It` with no enclosing `Each`
 failing
   tBadItOutside : Reference Base AnObject
   tBadItOutside = It
