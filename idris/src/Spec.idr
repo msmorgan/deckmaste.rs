@@ -117,6 +117,39 @@ tAttackedFilter = And [HasType Planeswalker, HasState Attacked]
 tYouAreAttacked : EventQuery Base
 tYouAreAttacked = MkQuery [Becomes Attacking] [Patient you]
 
+-- ════ RELATION SPINE (combat slice) — the same combat facts, expressed through ONE Attack/Block relation
+-- viewed as three aspects, built ALONGSIDE the legacy encodings above (which migrate + retire later). ════
+
+-- DURATIVE aspect (`Holds r role`): the legacy combat states, unified. The blocking/is-blocked pair is just
+-- the two SLOTS of one Block relation; "unblocked" is derived (an attacker that is no block's patient).
+tRelAttackingCreature : Predicate Base AnObject
+tRelAttackingCreature = And [creature, Holds Attack Doer, Not (HasState Tapped)]   -- cf tStateFilter (HasState Attacking)
+
+tRelAttackedPlaneswalker : Predicate Base AnObject
+tRelAttackedPlaneswalker = And [HasType Planeswalker, Holds Attack Patient]        -- cf tAttackedFilter (HasState Attacked)
+
+tRelBlockingIsBlocked : List (Predicate Base AnObject)
+tRelBlockingIsBlocked = [ Holds Block Doer, Holds Block Patient ]   -- cf HasState Blocking / HasState Blocked — ONE relation
+
+tRelUnblocked : Predicate Base AnObject
+tRelUnblocked = And [Holds Attack Doer, Not (Holds Block Patient)]  -- cf HasState Unblocked — now DERIVED, no state
+
+-- DEONTIC aspect (`Enact r doer patient`): subsumes the `Attacks`/`Blocks` deeds. Doer kind fixed by
+-- `doerKind r`; patient kind-poly (`Anyone` = a player defender, `creature` = an object).
+tRelDefender : Deed Base
+tRelDefender = Enact Attack (SameAs This) Anyone                    -- cf tDefender (Cant (Attacks (SameAs This) Anyone))
+
+tRelBlocksWall : Deed Base
+tRelBlocksWall = Enact Block (HasSubtype (^Wall)) (SameAs This)     -- cf Blocks — a per-blocker block deed
+
+-- INCHOATIVE aspect (`Begins r`): one onset event; facets pick the side. `Begins Attack` unifies the legacy
+-- paired `Becomes Attacking` (Agent side) and `Becomes Attacked` (Patient side).
+tRelYouAreAttacked : EventQuery Base
+tRelYouAreAttacked = MkQuery [Begins Attack] [Patient you]          -- cf tYouAreAttacked (Becomes Attacking, Patient side)
+
+tRelAttacksOrBlocks : EventQuery Base
+tRelAttacksOrBlocks = MkQuery [Begins Attack, Begins Block] [Agent (SameAs This)]  -- cf Smuggler's Becomes Attacking/Blocking
+
 -- designations: ONE predicate, scope by type — `HasDesignation Monarch` is a PLAYER test (you're the
 -- monarch), `HasDesignation Monstrous` an OBJECT test. The carrier follows `designationScope`.
 tMonarchTest : Predicate Base APlayer
