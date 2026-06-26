@@ -162,6 +162,12 @@ subtypeCategory (BattleSub _) = Battle
 public export
 data Stat = Power | Toughness | ManaValue | Defense
 
+-- how to FOLD a `Stat` over a predicate-matched SET of objects (`Aggregate`, a `Count`): the SUM, the
+-- GREATEST, or the LEAST. Over the empty set all three are 0 ("the greatest power among" no creatures = 0),
+-- an engine detail. (Cardinality is `CountOf`, not an `AggOp`; folding event amounts over time is `EventSum`.)
+public export
+data AggOp = Total | Greatest | Least
+
 public export
 data Cmp = Equal | GreaterEq | LessEq | Greater | Less
 
@@ -504,6 +510,10 @@ mutual
     X : Count b                               -- the chosen {X} value
     CountOf : Predicate b k -> Count b        -- how many entities match a predicate
     StatOf : Reference b AnObject -> Stat -> Count b     -- an object's power/toughness/etc.
+    -- a `Stat` FOLDED over the SET of objects matching a predicate, per `AggOp` ("greatest power among
+    -- creatures you control" = `Aggregate Greatest Power (And [creature, ControlledBy you])`). The set-twin
+    -- of `StatOf` (one object) and the spatial-twin of `EventSum` (event amounts over a window).
+    Aggregate : AggOp -> Stat -> Predicate b AnObject -> Count b
     Devotion : (colors : List Color) -> {auto prf : NonEmpty colors} -> Count b   -- devotion: pips of these (≥1) colors among your permanents
     EventCount : EventQuery b -> Count b      -- how many matching events occurred (window is in the query)
     -- the SUM of the matching events' amounts (the amount-twin of `EventCount`). Takes the amount-bearing
