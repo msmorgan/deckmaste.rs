@@ -765,7 +765,7 @@ card_FurnaceOfRath = Normal $ ^:
   { name := Just "Furnace of Rath"
   , manaCost := [^3, ^Red]
   , types := [Enchantment]
-  , abilities := [ Static (ReplaceAmount (DealDamage Nothing) (Times ThatMuch (^2))) ]
+  , abilities := [ Static (ReplaceAmount (MkQuery [DealDamage Nothing] []) (Times ThatMuch (^2))) ]
   }
 
 -- Doubling Season — two payload replacements: twice the tokens you'd create, and twice the counters
@@ -777,8 +777,8 @@ card_DoublingSeason = Normal $ ^:
   , manaCost := [^4, ^Green]
   , types := [Enchantment]
   , abilities :=
-      [ Static (ReplaceAmount CreateToken (Times ThatMuch (^2)) {facets = [Actor you]})
-      , Static (ReplaceAmount PutCounters (Times ThatMuch (^2)) {facets = [Patient (ControlledBy you)]})
+      [ Static (ReplaceAmount (MkQuery [CreateToken] [Actor you]) (Times ThatMuch (^2)))
+      , Static (ReplaceAmount (MkQuery [PutCounters] [Patient (ControlledBy you)]) (Times ThatMuch (^2)))
       ]
   }
 

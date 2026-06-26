@@ -416,10 +416,19 @@ eventKindCaps (Begins r)        =
     APlayer => MkCaps True True  False
     _       => MkCaps True False False
 
--- which event-kinds carry an AMOUNT (gates `ReplaceAmount`/`EventSum`) — derived from the caps.
+-- which event-kinds carry an AMOUNT — derived from the caps; the per-kind base for `kindsHaveAmount`.
 public export
 eventKindHasAmount : EventKind -> Bool
 eventKindHasAmount k = hasAmount (eventKindCaps k)
+
+-- whether an event-QUERY's kind-disjunction guarantees an amount to sum/replace (gates `ReplaceAmount`/
+-- `EventSum`): EVERY listed kind must carry one, and empty `kinds` (any kind) guarantees nothing. This is
+-- `hasAmount (eventQueryCaps q)` by construction (the query's caps INTERSECT over its disjunction), phrased
+-- over the `kinds` list so it is in scope for the constructor signatures (above the `EventQuery` record).
+public export
+kindsHaveAmount : List EventKind -> Bool
+kindsHaveAmount []        = False
+kindsHaveAmount (k :: ks) = eventKindHasAmount k && all eventKindHasAmount ks
 
 -- A VALUE-choice DOMAIN: what an as-enters "choose …" picks from when the pick is a VALUE, not a game
 -- entity ([CR#614.12]). The chosen value is bound in `Bindings.chosenKind` and read back by `OfChosen`
@@ -577,6 +586,27 @@ mutual
     ChosenPlayer : {auto prf : chosenRefKind b = Just APlayer} -> Reference b APlayer  -- the as-enters chosen PLAYER (the identity-reference twin of OfChosen/ChosenNumber); opened by `AsEntersChoosing APlayer …`
     ChosenObject : {auto prf : chosenRefKind b = Just AnObject} -> Reference b AnObject  -- the as-enters chosen OBJECT (the object-twin of `ChosenPlayer`; Clone copies it via `BecomeCopyOf ChosenObject`); opened by `AsEntersChoosing AnObject …`
 
+  -- an EVENT QUERY = an optional kind-DISJUNCTION + kind-free facets ([CR#603.2]). `kinds` empty = any
+  -- kind; `[k]` = exactly k; `[k1,k2]` = any of these (an OR). Facets (implicitly AND-ed) refine WHICH
+  -- event. The kind lives in ONE slot, never a facet — so caps stay sound (the INTERSECTION over `kinds`).
+  -- Declared ABOVE `Count` (not at its old spot after `Predicate`) so the gate below — and `Count`'s
+  -- `EventSum` — can name it; `Count`↔`EventQuery` were already mutually referenced either way.
+  public export
+  record EventQuery (b : Bindings) where
+    constructor MkQuery
+    kinds  : List EventKind
+    facets : List (Facet b)
+
+  -- whether an event-QUERY guarantees an amount to sum/replace: lifts `kindsHaveAmount` onto the bundled
+  -- query (every listed kind must carry one; empty `kinds` = any kind ⇒ False). Phrased as a DECLARED
+  -- function over the record (defined just above), so `EventSum`/`ReplaceAmount` — whose constructor types
+  -- sit just below — can name it (a record `.kinds` projection would not yet be in scope there). Refines the
+  -- plain `EventQuery` that `EventCount`/`Triggered`/`Replaces` accept, rejecting amountless kinds
+  -- (`MkQuery [Begins Cast] []`) at the type level.
+  public export
+  eventQueryHasAmount : EventQuery b -> Bool
+  eventQueryHasAmount (MkQuery ks _) = kindsHaveAmount ks
+
   -- A numeric value ([CR#107.3]). `Literal` is a bare number; the rest read the game
   -- state — object counts, stats, counters, life/hand totals, event tallies, arithmetic.
   public export
@@ -591,9 +621,10 @@ mutual
     Aggregate : AggOp -> Stat -> Predicate b AnObject -> Count b
     Devotion : (colors : List Color) -> {auto prf : NonEmpty colors} -> Count b   -- devotion: pips of these (≥1) colors among your permanents
     EventCount : EventQuery b -> Count b      -- how many matching events occurred (window is in the query)
-    -- the SUM of the matching events' amounts (the amount-twin of `EventCount`). Takes the amount-bearing
-    -- KIND explicitly (gated by `eventKindHasAmount`, so `EventSum (Begins Cast)` is rejected) + optional facets.
-    EventSum : (k : EventKind) -> {auto amt : eventKindHasAmount k = True} -> {default [] facets : List (Facet b)} -> Count b
+    -- the SUM of the matching events' amounts (the amount-twin of `EventCount`, same `EventQuery` shape — kinds
+    -- + facets, window via a `Within` facet). Gated by `kindsHaveAmount`, so every queried kind must carry an
+    -- amount (`EventSum (MkQuery [Begins Cast] [])` is rejected — a cast has none).
+    EventSum : (q : EventQuery b) -> {auto amt : eventQueryHasAmount q = True} -> Count b
     Damage : Reference b AnObject -> Count b  -- marked damage on r ([CR#120.3]); the lethal-damage SBA reads `Compare (Damage This) GreaterEq (StatOf This Toughness)`
     CountersOn : (c : CounterKind) -> Reference b (counterScope c) -> Count b   -- number of [kind] counters on r (object or player, per `counterScope`)
     LifeTotal : Reference b APlayer -> Count b           -- a player's life total
@@ -718,15 +749,6 @@ mutual
       And  : List (Facet b) -> Facet b   -- AND
       Or   : List (Facet b) -> Facet b   -- OR
       Not : Facet b -> Facet b          -- NOT
-
-  -- an EVENT QUERY = an optional kind-DISJUNCTION + kind-free facets ([CR#603.2]). `kinds` empty = any
-  -- kind; `[k]` = exactly k; `[k1,k2]` = any of these (an OR). Facets (implicitly AND-ed) refine WHICH
-  -- event. The kind lives in ONE slot, never a facet — so caps stay sound (the INTERSECTION over `kinds`).
-  public export
-  record EventQuery b where
-    constructor MkQuery
-    kinds  : List EventKind
-    facets : List (Facet b)
 
   -- whether a literal `Range`'s bounds are ORDERED (lo ≤ hi). Only literal-vs-literal is checked — a
   -- dynamic bound (any `Count` expression) is lenient, exactly like `NonZeroQ`.
@@ -1264,9 +1286,10 @@ mutual
     CantHappen : EventQuery b -> StaticEffect b
     -- PAYLOAD replacement ([CR#616]): the event still happens, but its numeric amount becomes
     -- `newAmount` (a `Count` over the event body, so it can read `ThatMuch`). Furnace of Rath =
-    -- `ReplaceAmount DealDamage (Times ThatMuch (^2))`. The KIND is explicit + amount-gated, so
-    -- `ReplaceAmount (Begins Cast) …` (a cast has no amount) is a TYPE ERROR; `facets` adds non-kind conditions.
-    ReplaceAmount : (k : EventKind) -> {auto amt : eventKindHasAmount k = True} -> {default [] facets : List (Facet b)} -> (newAmount : Count (bindEvent (eventKindCaps k) b)) -> StaticEffect b
+    -- `ReplaceAmount (MkQuery [DealDamage Nothing] []) (Times ThatMuch (^2))`. Takes the same `EventQuery` as
+    -- `Replaces`/`Also`, gated so every queried kind carries an amount — `ReplaceAmount (MkQuery [Begins Cast] []) …`
+    -- (a cast has no amount) is a TYPE ERROR; the query's facets add the non-kind conditions.
+    ReplaceAmount : (q : EventQuery b) -> {auto amt : eventQueryHasAmount q = True} -> (newAmount : Count (bindEvent (eventQueryCaps q) b)) -> StaticEffect b
     -- a static OUTCOME suppressor: the matching players can't lose / can't win ([CR#104.2b,104.3e]). Platinum
     -- Angel = `OutcomeGate CantLose you` + `OutcomeGate CantWin opponent`. (Distinct from `CantHappen` —
     -- game-loss isn't a replaceable event — and from a deontic `cant` — it's not a player action.)

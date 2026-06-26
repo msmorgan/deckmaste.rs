@@ -172,13 +172,13 @@ tEventQuery = MkQuery [ZoneChanged (Just Battlefield) (Just Graveyard)]
 -- PAYLOAD replacement: the event survives but its amount is rewritten — Furnace of Rath doubles damage
 -- by scaling `ThatMuch` (the event's own amount). The `newAmount` reads the event body.
 tReplaceAmount : StaticEffect Base
-tReplaceAmount = ReplaceAmount (DealDamage Nothing) (Times ThatMuch (^2))
+tReplaceAmount = ReplaceAmount (MkQuery [DealDamage Nothing] []) (Times ThatMuch (^2))
 
 -- prevention is a REPLACEMENT (the damage amount set to zero) — fine as ReplaceAmount. But
 -- indestructible is a PROHIBITION, not a replace-with-nothing: `keyword Indestructible` desugars to
 -- `CantHappen (destroy of This)` (the two are semantically distinct — see CantHappen's note).
 tPrevention : StaticEffect Base
-tPrevention = ReplaceAmount (DealDamage Nothing) (^0)
+tPrevention = ReplaceAmount (MkQuery [DealDamage Nothing] []) (^0)
 
 -- CONSUMABLE shields (the `Replaces` use-limit). Regeneration = the next destroy → heal/tap/remove, one
 -- use (`regenerate` macro). Prevention = "prevent the next 3 damage to This" — a damage `Replaces` whose
@@ -366,7 +366,7 @@ tValues =
   , Min (CountersOn P1P1 This) (CountersOn M1M1 This)   -- net counters after annihilation
   , Max (StatOf This Power) (^0)
   , Damage This                                          -- marked damage
-  , EventSum (DealDamage Nothing) {facets = [Actor opponent]}    -- amount-twin of EventCount; kind is gated, facets kind-free
+  , EventSum (MkQuery [DealDamage Nothing] [Actor opponent])    -- amount-twin of EventCount; same query shape, kinds amount-gated
   , Aggregate Greatest Power (And [creature, ControlledBy you])   -- "the greatest power among creatures you control"
   , Aggregate Total Power (And [creature, ControlledBy you]) ]    -- "the total power of creatures you control"
 
@@ -588,12 +588,12 @@ failing
 -- replacing the AMOUNT of an amountless event is rejected — a Cast has no numeric payload
 failing
   tBadReplaceAmountless : StaticEffect Base
-  tBadReplaceAmountless = ReplaceAmount (Begins Cast) (^0)
+  tBadReplaceAmountless = ReplaceAmount (MkQuery [Begins Cast] []) (^0)
 
 -- summing the amount of an amountless event is rejected likewise
 failing
   tBadEventSumAmountless : Count Base
-  tBadEventSumAmountless = EventSum (Begins Cast)
+  tBadEventSumAmountless = EventSum (MkQuery [Begins Cast] [])
 
 -- "becomes summoning-sick" isn't a transition event — `IsBecomesState SummoningSick = Void`
 failing
