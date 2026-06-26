@@ -53,7 +53,7 @@ public export
 playerOrPlaneswalker : TargetSpec b Anything
 playerOrPlaneswalker = Target (^1) $ Or [ And [permanent, HasType Planeswalker], Anyone ]
 
--- "each player": a player-`Selection` for `ForEach` to distribute over (the old plural
+-- "each player": a player-`Selection` for `Each` to distribute over (the old plural
 -- `EachPlayer` reference is gone — plurality lives in `Selection`, kinded `APlayer`).
 public export
 eachPlayer : Selection b APlayer
@@ -109,7 +109,7 @@ flash = Keyword (Composite Flash [Static (Can (Enact Cast you (SameAs This)) {wi
 
 -- Menace ([CR#702.111b]): a SET-LEVEL `cant` — "can't be blocked except by two or more", i.e.
 -- can't be blocked by a lone (size-1) blocker set. The whole-set predicate [CR#509.1c] needs the
--- `BlockedBy` deed, not the per-blocker `Blocks` (which flying/cant uses).
+-- `BlockedBy` deed, not the per-blocker `Enact Block` (which flying/cant uses).
 public export
 menace : Ability b
 menace = Keyword (Composite Menace [Static (cant (BlockedBy (SameAs This) (^1)))])
@@ -131,7 +131,7 @@ haste = Keyword (Composite Haste
 public export
 indestructible : Ability b
 indestructible = Keyword (Composite Indestructible
-  [Static (CantHappen (MkQuery [Destroyed] [Patient (SameAs This)]))])
+  [Static (CantHappen (MkQuery [Destroy] [Patient (SameAs This)]))])
 
 -- Devoid ([CR#702.114]): "this object is colorless" — a CDA, expressible now that the unified `Set`
 -- can CLEAR a characteristic. `Set Colors []` on This empties its color set (the Tarmogoyf-`*/*` pattern).
@@ -145,10 +145,47 @@ devoid = Keyword (Composite Devoid [Static (Modify (SelectAll (SameAs This)) [Se
 public export
 regenerate : OneShotEffect b
 regenerate = Continuously
-  (Replaces (MkQuery [Destroyed] [Patient (SameAs This)])
+  (Replaces (MkQuery [Destroy] [Patient (SameAs This)])
             (Sequence [Act (RemoveAllDamage This), Act (Tap This), Act (RemoveFromCombat This)])
             {limit = UpTo (^1)})
   UntilEndOfTurn
+
+-- KEYWORD ACTIONS as macros over primitives ([CR#701]) — the action-side twin of the keyword
+-- ABILITIES above. Each is a plain `OneShotEffect` (used directly, no `Act` wrapper), composited from
+-- `Each`/`With`/`Modal`/`PutIntoLibrary`/`Move`/`DealDamage`, so there are no bespoke `Scry`/`Surveil`/
+-- `Fight` verbs in `Action`.
+
+-- mill n ([CR#701.17a]): put the top n of your library into your graveyard. The graveyard is unordered,
+-- so a simultaneous `Each` over the top-n needs no `Arrangement`.
+public export
+mill : Count b -> OneShotEffect b
+mill n = Each (TopOfLibrary n) (Act (Move It Graveyard))
+
+-- scry n ([CR#701.22a]): look at the top n, then put each on top or on the bottom; the within-group
+-- order is the [CR#401.4] "any order" freebie (simultaneous `Each`). The per-card top/bottom pick is a
+-- 1-of-2 `Modal`.
+public export
+scry : Count b -> OneShotEffect b
+scry n = With (Existing (TopOfLibrary n))
+  (Each That
+    (Modal (MkChooseSpec (Range (Just (^1)) (Just (^1))))
+      [ MkMode (Act (PutIntoLibrary It (FromTop (^0))))
+      , MkMode (Act (PutIntoLibrary It (FromBottom (^0)))) ]))
+
+-- surveil n ([CR#701.25a]): scry's shape, but the spill zone is the graveyard, not the library bottom.
+public export
+surveil : Count b -> OneShotEffect b
+surveil n = With (Existing (TopOfLibrary n))
+  (Each That
+    (Modal (MkChooseSpec (Range (Just (^1)) (Just (^1))))
+      [ MkMode (Act (PutIntoLibrary It (FromTop (^0))))
+      , MkMode (Act (Move It Graveyard)) ]))
+
+-- fight ([CR#701.14a]): two creatures each deal damage equal to their power to the other (simultaneous).
+public export
+fight : Reference b AnObject -> Reference b AnObject -> OneShotEffect b
+fight x y = Sequence [ Act (DealDamage {source = x} y (StatOf x Power))
+                     , Act (DealDamage {source = y} x (StatOf y Power)) ]
 
 -- "Protection from [q]" ([CR#702.16]): the DEBT bundle, keyed to the quality `q` — can't be Damaged by
 -- `q` sources, Enchanted/equipped by `q`, Blocked by `q`, or Targeted by `q`. ONE construct over the

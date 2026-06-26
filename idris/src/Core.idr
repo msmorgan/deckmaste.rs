@@ -174,7 +174,7 @@ data Cmp = Equal | GreaterEq | LessEq | Greater | Less
 
 -- What kind of object a filter matches ([CR#109.3]). Rust: ObjectKind.
 public export
-data ObjectKind = IsCard | IsEmblem | IsPlayerKind | IsSpell | IsToken | IsAbility
+data ObjectKind = IsCard | IsEmblem | IsSpell | IsToken | IsAbility
 
 -- Supertypes ([CR#205.4a]); independent of card type and subtype.
 public export
@@ -188,7 +188,9 @@ data TextWordClass = ColorWords | BasicLandTypes
 -- A kind of counter ([CR#122]). The TYPE is `CounterKind` — bare `Counter` is taken by the spell-
 -- countering `Action`. A CLOSED set (curated — NOT an open name+registry like the Rust engine, which
 -- needs that for plugins); the carrier (object vs player) is the total function `counterCarrier`
--- below, which indexes the counter ops dependently.
+-- below, which indexes the counter ops dependently. Counter kinds are engine-OPEN but grammar-CURATED,
+-- the SAME family as `Designation` and `KeywordSpec` (each a curated enum + a dependent scope fn) — so
+-- coverage grows by adding curated entries here as the canon needs them, never by an open string hatch.
 public export
 data CounterKind = Loyalty | Fate | Charge | P1P1 | M1M1 | Level | Lore | Stun | Shield
                  | Poison | Energy | Experience
@@ -260,7 +262,7 @@ counterCarrier _          = AnObject
 -- a deed). `agentKind` fixes the AGENT's kind per relation (the Agent/Actor resolution: ONE agent slot, an
 -- OBJECT for combat/attach/target/counter, a PLAYER for cast/activate/play) — `counterCarrier`'s sibling.
 -- The PATIENT stays kind-poly (an attack's defender is a player/planeswalker/battle). The constructors are
--- NAMESPACED — `Cast`/`Target`/`Counter`/`Attach` clash with the EventKind/TargetSpec/Action of the same
+-- NAMESPACED — `Target`/`Counter`/`Attach` clash with the TargetSpec/Action of the same
 -- name — and disambiguate by type, like `Facet.Patient`/`Role.Patient` share `Patient`.
 namespace Relation
   public export
@@ -364,7 +366,8 @@ namespace EventKind
     DealDamage : Maybe Bool -> EventKind
     CreateToken : EventKind
     PutCounters : EventKind
-    Destroyed : EventKind
+    RemoveCounters : EventKind
+    Destroy : EventKind
     ZoneChanged : Maybe Zone -> Maybe Zone -> EventKind
     BeginStep : PhaseStep -> EventKind
     -- "whenever ~ BECOMES [state]" — TRANSITION states only (gated; not `SummoningSick`).
@@ -400,7 +403,8 @@ eventKindCaps Discard           = MkCaps True  True  False
 eventKindCaps (DealDamage _)    = MkCaps True  True  True
 eventKindCaps CreateToken       = MkCaps True  True  True
 eventKindCaps PutCounters       = MkCaps True  True  True
-eventKindCaps Destroyed         = MkCaps True  False False
+eventKindCaps RemoveCounters    = MkCaps True  True  True
+eventKindCaps Destroy         = MkCaps True  False False
 eventKindCaps (ZoneChanged _ _) = MkCaps True  False False
 eventKindCaps (BeginStep _)     = MkCaps False False False
 eventKindCaps (Becomes _)       = MkCaps True  False False
@@ -460,7 +464,7 @@ record Bindings where
   constructor MkBindings
   targetKinds : List RefKind     -- one `RefKind` per target slot (the slot's kind, from its filter)
   thatKind    : Maybe RefKind    -- a `With`-bound group's element kind (`That`), if bound
-  itKind      : Maybe RefKind    -- a `ForEach`-bound element's kind (`It`), if bound
+  itKind      : Maybe RefKind    -- a `Each`-bound element's kind (`It`), if bound
   evCaps      : EventCaps    -- the surrounding event's caps (`noCaps` outside an event body) — gates `EventObject`/`EventActor`/`ThatMuch`
   chosenKind  : Maybe ChooseDomain  -- an as-enters "choose …" VALUE (color/type/name/number/mode) in scope (`OfChosen`/`ChosenIs`/`ChosenNumber`), if bound
   chosenRefKind : Maybe RefKind  -- an as-enters "choose …" GAME ENTITY (an object/player) in scope (`ChosenObject`/`ChosenPlayer`), if bound — the identity twin of `chosenKind`
@@ -559,7 +563,7 @@ mutual
     -- the host this is attached to ("enchanted creature"); and its inverse.
     AttachHostOf : Reference b AnObject -> Reference b AnObject
     AttachedTo : Reference b AnObject -> Reference b AnObject
-    -- the current element ("it"): the `ForEach`-bound loop element OR the `Modify`-bound per-subject
+    -- the current element ("it"): the `Each`-bound loop element OR the `Modify`-bound per-subject
     -- object (an anthem's candidate); its kind is the binder's (`itKind`). Serves as the "Subject" an
     -- anthem's mods read, without a dedicated reference — predicates are already candidate-implicit.
     It : {auto prf : itKind b = Just k} -> Reference b k
@@ -741,7 +745,7 @@ mutual
   public export
   data Selection : Bindings -> RefKind -> Type where
     SelectAll : Predicate b k -> Selection b k                  -- every match (a group)
-    Union : Selection b k -> Selection b k -> Selection b k     -- two groups combined ("each X and each Y"); a fixed set = `Union` of `SameAs` singletons
+    Union : List (Selection b k) -> Selection b k              -- groups combined ("each X and each Y"); a fixed set = `Union` of `SameAs` singletons
     That : {auto prf : thatKind b = Just k} -> Selection b k    -- the `With`-bound group
     GetTargets : (n : Nat) -> {auto prf : InBounds n (targetKinds b)} -> Selection b (index n (targetKinds b))
     Random : Quantity b -> Predicate b k -> Selection b k
@@ -822,6 +826,16 @@ public export
 data LibraryPosition : Bindings -> Type where
   FromTop    : Count b -> LibraryPosition b
   FromBottom : Count b -> LibraryPosition b
+
+-- How a SIMULTANEOUS group of cards is ordered as it lands at a position in an ORDERED zone — the
+-- order is a property of the PLACEMENT, not the loop. `ChosenOrder` = the owner arranges them, the
+-- [CR#401.4] "any order" default; `RandomOrder` = shuffled into place ([MTR 3.10], a randomized pile
+-- is the same kind of object as a shuffled library); `SameOrder` = preserve the source order (only
+-- meaningful from an already-ordered source). A single object has no internal order, so only
+-- `MoveArranged` (a group) carries it. The `…Order` suffix keeps `RandomOrder` distinct from the
+-- `Selection.Random` constructor ("N random objects").
+public export
+data Arrangement = ChosenOrder | RandomOrder | SameOrder
 
 -- A continuous effect's lifetime ([CR#611.2]). Rust: Duration. (Above `Action` so a
 -- duration-bounded verb like `ExileUntil` can name it.)
@@ -980,7 +994,7 @@ mutual
     Mana      : ManaCost -> Cost b                 -- "{4}"
     PayEnergy : Count b -> Cost b                  -- "Pay {E}×N" — spend N energy counters from you (not an Action)
     -- pay a cost by PERFORMING an action ([CR#118.3]): "{T}" = `Do (Tap This)`, "Pay N life" =
-    -- `Do (LoseLife (^N))`, "Sacrifice this" = `Do (Sacrifices You (SameAs This))`, loyalty "+N"/"−N" =
+    -- `Do (LoseLife (^N))`, "Sacrifice this" = `Do (Sacrifice You (SameAs This))`, loyalty "+N"/"−N" =
     -- `Do (PutCounters/RemoveCounters Loyalty (^N) This)`. UNRESTRICTED — ANY action (even scry/shuffle as a
     -- cost is legal); a senseless cost just no-ops, and nonsense is the grammar layer's to catch, not a gate.
     Do        : Action b -> Cost b
@@ -1003,10 +1017,9 @@ mutual
     ScaledBy   : CostChange b -> Count b -> CostChange b  -- the change applied once per unit of the count (affinity)
 
   -- An ALTERNATIVE base cost ([CR#118.9]) — a base SWAP, the type the engine keeps DISTINCT from
-  -- `CostChange` (a base modify). "Without paying its mana cost" = `FreeCast`; Force of Will = `AltCost […]`.
+  -- `CostChange` (a base modify). "Without paying its mana cost" = `AltCost []`; Force of Will = `AltCost […]`.
   public export
   data AlternativeCost : Bindings -> Type where
-    FreeCast : AlternativeCost b
     AltCost  : List (Cost b) -> AlternativeCost b
 
   -- The printable CHARACTERISTICS of an object ([CR#109.3]) — shared by a card `Face`
@@ -1051,7 +1064,7 @@ mutual
   public export
   data Action : Bindings -> Type where
     -- deal damage to ONE recipient ([CR#120.1] — damage is to a single object/player per event);
-    -- `source` object is the agent. "Deals N to EACH …" is a `ForEach` over the recipients.
+    -- `source` object is the agent. "Deals N to EACH …" is a `Each` over the recipients.
     DealDamage : {default This source : Reference b AnObject} -> Reference b k -> Count b -> Action b
     -- (divided damage — "N damage divided as you choose among [a group]" — is the general `Distribute`
     --  effect: `Distribute (^n) group (Act (DealDamage It Allotment))`, not a bespoke action.)
@@ -1080,8 +1093,15 @@ mutual
     Draw : {default You actor : Reference b APlayer} -> Count b -> Action b
     -- the `actor` gains n life. Rust: PlayerAction::GainLife(Count).
     GainLife : {default You actor : Reference b APlayer} -> Count b -> Action b
-    -- put a selection into its owner's library at a position ([CR#401]).
+    -- put a SINGLE object into its owner's library at a position ([CR#401]); one object has no
+    -- internal order, so no `Arrangement`. A GROUP placed at a position is `MoveArranged` below.
     PutIntoLibrary : Reference b AnObject -> LibraryPosition b -> Action b
+    -- put a GROUP at an ordered position with an `Arrangement` ([CR#401.4]): "put the top three on the
+    -- bottom in any order" = `MoveArranged (TopOfLibrary (^3)) ChosenOrder Library (FromBottom (^0))`;
+    -- "...in a random order" = `… RandomOrder …`. Distinct from single `Move`/`PutIntoLibrary` — order
+    -- only EMERGES for a simultaneous group landing in an ordered zone. (Per `DealDamage`-single +
+    -- group-via-`Each` house style, single moves stay `Move`/`PutIntoLibrary`; this is the group verb.)
+    MoveArranged : Selection b AnObject -> Arrangement -> Zone -> LibraryPosition b -> Action b
     -- put / remove counters ([CR#122]). `RemoveCounters` is symmetric with `PutCounters` (a `Count`);
     -- "remove all of a kind" is `RemoveCounters c (CountersOn c r) r`. Loyalty/counter COSTS reuse these via
     -- `Do` (e.g. "−2" = `Do (RemoveCounters Loyalty (^2) This)`), so there is no duplicate counter-cost verb.
@@ -1094,16 +1114,15 @@ mutual
     -- player verbs: discard / lose life; and a chooser-verb where a player sacrifices.
     Discard : {default You actor : Reference b APlayer} -> Count b -> Action b
     LoseLife : {default You actor : Reference b APlayer} -> Count b -> Action b
-    Sacrifices : Reference b APlayer -> Predicate b AnObject -> Action b   -- "[player] sacrifices a [pred]" (they choose which)
-    -- keyword actions / further verbs ([CR#701]). The interactive bits (reorder, search
-    -- choice, copy characteristics) are the engine's; the grammar names the verb.
-    Scry : Count b -> Action b                            -- look at top n, reorder / bottom some
-    Surveil : Count b -> Action b
-    Fight : (x : Reference b AnObject) -> (y : Reference b AnObject) -> Action b   -- each deals damage equal to its power to the other
+    Sacrifice : Reference b APlayer -> Predicate b AnObject -> Action b   -- "[player] sacrifices a [pred]" (they choose which)
+    -- further keyword-action verbs ([CR#701]). The interactive bits (reorder, search choice, copy
+    -- characteristics) are the engine's; the grammar names the verb. Scry/Surveil/Fight are NOT verbs
+    -- here — they COMPOSITE over primitives (`Each`/`With`/`Modal`/`PutIntoLibrary`/`DealDamage`) as
+    -- macros in `Macros.idr`, exactly like the keyword ABILITIES.
     Reveal : Reference b AnObject -> Action b
     Shuffle : {default You actor : Reference b APlayer} -> Action b
     -- "[player] takes an extra turn after this one" ([CR#500.7]) — Time Walk.
-    ExtraTurn : {default You who : Reference b APlayer} -> Action b
+    ExtraTurn : {default You actor : Reference b APlayer} -> Action b
     -- "you control [whom] during their next turn" ([CR#723]) — Mindslaver: you make all of their
     -- decisions. The next-turn duration is the standard one the engine applies.
     ControlPlayer : (whom : Reference b APlayer) -> Action b
@@ -1170,7 +1189,7 @@ mutual
     Modal : (spec : ChooseSpec b) -> (modes : List (Mode b)) -> {auto 0 ne : NonEmpty modes} -> {auto 0 cnt : ModalCountOk spec (length modes)} -> OneShotEffect b
     -- "for each [domain], [body]" — binds each element as `It`. The distributive
     -- primitive (subsumes the old `Selection::Each`). Rust: Effect::ForEach.
-    ForEach : Selection b k -> OneShotEffect (bindIt k b) -> OneShotEffect b
+    Each : Selection b k -> OneShotEffect (bindIt k b) -> OneShotEffect b
     -- "[amount] divided as you choose among [a group]" ([CR#601.2d]): bind each element as `It` with its
     -- `Allotment` (the split is engine-resolved, ≥1 each summing to amount), then apply `body`. GENERAL over
     -- the per-element effect — subsumes divided damage (`Act (DealDamage It Allotment)`) and divided
@@ -1231,7 +1250,7 @@ mutual
     Replaces : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) b) -> {default Unlimited limit : ReplaceLimit b} -> StaticEffect b
     -- "[event] CAN'T happen" — a continuous PROHIBITION, semantically distinct from replacing-with-
     -- nothing: it's not a one-shot ([CR#614.5]) application, isn't ordered against other replacements
-    -- ([CR#616]), and the event never "would happen". Indestructible = `CantHappen (MkQuery [Destroyed]
+    -- ([CR#616]), and the event never "would happen". Indestructible = `CantHappen (MkQuery [Destroy]
     -- [this])`; Solemnity = `CantHappen (MkQuery [PutCounters] [])`. (Event-level; the deontic `cant` is
     -- its player-ACTION sibling — "can't attack".)
     CantHappen : EventQuery b -> StaticEffect b
@@ -1254,7 +1273,8 @@ mutual
     -- which the toy has no analogue for — so it's a shared rule here, shown once, not per-card.)
     Sba : Condition b -> OneShotEffect b -> StaticEffect b
     -- "[who]'s unspent mana doesn't empty" ([CR#106.4] exception) — Kruphix/Omnath. A pool-policy
-    -- static (the per-mana `ManaRider::Persistent` case folds into this blanket form). Engine resolves.
+    -- static over ALL your mana — which is WHY "doesn't empty" is NOT a per-mana `ManaRider` (that would
+    -- double-represent this blanket form); the `ManaRider` set is exactly the [CR#106.6] trio. Engine resolves.
     ManaPersists : Predicate b APlayer -> StaticEffect b
     -- "you may cast THIS for [alt] from [from]" ([CR#118.9]) — the alternative-cost permission (base swap,
     -- distinct from `CostModifier`'s base modify). `from` defaults to Hand; a non-default zone is the
@@ -1336,6 +1356,21 @@ public export
 Face : Type
 Face = Characteristics Base
 
+-- A GLOBAL state-based action as data ([CR#704.5]) — the [CR#704.5] tier that belongs to NO object and
+-- ranges over the battlefield, unlike the carrier-bound conferred SBA (`StaticEffect::Sba`, an Aura's
+-- falls-off rule). `scope` is the binding domain for `This` (checked first — what makes a rule that lives
+-- on no card range over objects, exactly the Rust `SbaRule { scope, when, then }`); `when` fires it (with
+-- `This` = the scoped object); `thenDo` is the sweep action. This is a factoring of existing pieces
+-- (`Predicate`/`Condition`/`OneShotEffect`), not a new primitive. INTRINSIC-keyword SBAs do NOT live here:
+-- deathtouch's [CR#704.5h] rides the `Deathtouch` keyword (intrinsic — its prospective lethality rewrite
+-- [CR#702.2c] can't be composed), so it is engine-baked, not a data rule.
+public export
+record SbaRule where
+  constructor MkSbaRule
+  scope  : Predicate Base AnObject  -- the domain `This` ranges over (e.g. a creature on the battlefield)
+  when   : Condition Base           -- fires when this holds, with `This` = the scoped object
+  thenDo : OneShotEffect Base       -- the sweep action (`then` is a reserved word, hence `thenDo`)
+
 public export
 interface DefaultValue a where
   defaultValue : a
@@ -1397,7 +1432,7 @@ public export
 data Property : Bindings -> Type where
   PropAbility    : Ability b -> Property b                        -- confers a (keyword) ability
   PropContinuous : List (Modification b) -> Property b            -- a continuous self-modification (the +1/+1 counter's P/T pump)
-  PropStateBased : Condition b -> OneShotEffect b -> Property b   -- an SBA (the Aura falls-off rule)
+  PropSba : Condition b -> OneShotEffect b -> Property b   -- an SBA (the Aura falls-off rule)
   PropTurnBased  : PhaseStep -> OneShotEffect b -> Property b     -- a turn-based action (the Saga lore-increment)
 
 -- what a COUNTER confers on the object it sits on. +1/+1 and −1/−1 carry their OWN P/T pump here, so it's
@@ -1412,7 +1447,7 @@ counterConfers _    = []
 -- ([CR#714.3c]) live here — shared rules, not per-card statics, and never a subtype `if`-branch.
 public export
 subtypeConfers : Subtype -> List (Property b)
-subtypeConfers (EnchantmentSub Aura) = [PropStateBased (Not (LegallyAttached This)) (Act (Move This Graveyard))]
+subtypeConfers (EnchantmentSub Aura) = [PropSba (Not (LegallyAttached This)) (Act (Move This Graveyard))]
 subtypeConfers (EnchantmentSub Saga) = [PropTurnBased (MainPhase PreCombat) (Act (PutCounters Lore (^1) This))]
 subtypeConfers _                     = []
 
