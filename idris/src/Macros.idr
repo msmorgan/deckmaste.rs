@@ -150,6 +150,19 @@ protection q = Keyword (Composite (Protection q)
   , Static (Cant (Enact Block q (SameAs This)))         -- B
   , Static (Cant (Enact Target q (SameAs This))) ])     -- T
 
+-- "Enchant [hosts]" ([CR#303.4],[CR#702.5]): NOT an engine keyword — a MACRO bundling the aura's per-card
+-- behaviour, parameterised by the legal-host filter, spliced into `abilities` with `++`. (1) the PERMISSION
+-- to attach (attaching is default-forbidden, so this ENABLES it — the dual of a planeswalker's `Can (Enact
+-- Attack … This)`); (2) the aura's SPELL — cast it targeting a valid host, attach to that host on resolution.
+-- The falls-off SBA ("no valid attachment → graveyard", [CR#704.5n]) is conferred by the Aura SUBTYPE
+-- (`subtypeConfers`), not here. PENDING the non-cast "choose a valid host on ETB" rule ([CR#303.4f]) — it
+-- needs a constrained-choice primitive (`AnObjectChoice` is unconstrained).
+public export
+enchant : Predicate b AnObject -> List (Ability b)
+enchant hosts =
+  [ Static (Can (Enact Attach (SameAs This) hosts))                            -- permission to attach to hosts
+  , Spell (Targeted [Target (^1) hosts] (Act (Attach This (GetTarget 0)))) ]   -- cast → target a host → attach
+
 -- desugar a `KeywordSpec` into its full `Ability` — dispatches to the macros above. EXHAUSTIVE
 -- (no catch-all): adding a `KeywordSpec` constructor forces a clause here. `Bare` = an engine-
 -- PRIMITIVE keyword the grammar can't desugar (FirstStrike/DoubleStrike/Deathtouch/Trample =

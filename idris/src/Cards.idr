@@ -121,9 +121,8 @@ card_Rancor = Normal $ ^:
   , manaCost := [^Green]
   , types := [Enchantment]
   , subtypes := [^Aura]
-  , abilities :=
-      [ Static (Can (Enact Attach (SameAs This) creature))   -- enchant creature (permission, not restriction)
-      , Static (Modify (AttachHostOf This)
+  , abilities := enchant creature ++
+      [ Static (Modify (AttachHostOf This)
           [ ModifyPT (^2) (^0)
           , GrantAbility (keyword Trample)
           ])
@@ -392,8 +391,8 @@ card_Pacifism = Normal $ ^:
   , types := [Enchantment]
   , subtypes := [^Aura]
   , abilities :=
-      [ Static (Can (Enact Attach (SameAs This) creature))   -- enchant creature (permission)
-      , Static (Cant (Enact Attack (SameAs (AttachHostOf This)) Anyone))
+      enchant creature ++
+      [ Static (Cant (Enact Attack (SameAs (AttachHostOf This)) Anyone))
       , Static (Cant (Enact Block (SameAs (AttachHostOf This)) creature))
       ]
   }
