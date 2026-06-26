@@ -409,40 +409,47 @@ record Bindings where
   itKind      : Maybe RefKind    -- a `ForEach`-bound element's kind (`It`), if bound
   evCaps      : EventCaps    -- the surrounding event's caps (`noCaps` outside an event body) — gates `EventObject`/`EventActor`/`ThatMuch`
   chosenKind  : Maybe ChooseDomain  -- an as-enters "choose …" value in scope (`OfChosen`), if bound
+  hasAllotment : Bool    -- inside a `Distribute` body: a per-element share is in scope (gates `Allotment`)
 
 -- The bindings a resolving spell starts in: nothing bound yet.
 public export
 Base : Bindings
-Base = MkBindings [] Nothing Nothing noCaps Nothing
+Base = MkBindings [] Nothing Nothing noCaps Nothing False
 
 -- Each sets one field, reconstructing `MkBindings` explicitly so a projection of a
 -- bind result reduces definitionally even for abstract `b` (record-update sugar
 -- has no get-after-set law for an abstract record).
 public export
 bindTargets : List RefKind -> Bindings -> Bindings
-bindTargets ks b = MkBindings ks (thatKind b) (itKind b) (evCaps b) (chosenKind b)
+bindTargets ks b = MkBindings ks (thatKind b) (itKind b) (evCaps b) (chosenKind b) (hasAllotment b)
 
 public export
 unbindTargets : Bindings -> Bindings
-unbindTargets b = MkBindings [] (thatKind b) (itKind b) (evCaps b) (chosenKind b)
+unbindTargets b = MkBindings [] (thatKind b) (itKind b) (evCaps b) (chosenKind b) (hasAllotment b)
 
 public export
 bindThat : RefKind -> Bindings -> Bindings
-bindThat k b = MkBindings (targetKinds b) (Just k) (itKind b) (evCaps b) (chosenKind b)
+bindThat k b = MkBindings (targetKinds b) (Just k) (itKind b) (evCaps b) (chosenKind b) (hasAllotment b)
 
 public export
 bindIt : RefKind -> Bindings -> Bindings
-bindIt k b = MkBindings (targetKinds b) (thatKind b) (Just k) (evCaps b) (chosenKind b)
+bindIt k b = MkBindings (targetKinds b) (thatKind b) (Just k) (evCaps b) (chosenKind b) (hasAllotment b)
 
 -- entering a trigger/replacement/delayed body, carrying the event's CAPS (what anaphora it supplies).
 public export
 bindEvent : EventCaps -> Bindings -> Bindings
-bindEvent caps b = MkBindings (targetKinds b) (thatKind b) (itKind b) caps (chosenKind b)
+bindEvent caps b = MkBindings (targetKinds b) (thatKind b) (itKind b) caps (chosenKind b) (hasAllotment b)
 
 -- the as-enters value choice ([CR#614.12]): binds `chosenKind` for the whole card's abilities.
 public export
 bindChosen : ChooseDomain -> Bindings -> Bindings
-bindChosen d b = MkBindings (targetKinds b) (thatKind b) (itKind b) (evCaps b) (Just d)
+bindChosen d b = MkBindings (targetKinds b) (thatKind b) (itKind b) (evCaps b) (Just d) (hasAllotment b)
+
+-- a `Distribute` body ([CR#601.2d] division): binds the loop element `It` of kind k AND marks a per-element
+-- share in scope (read back by `Allotment`). The allotment-bearing twin of `bindIt`.
+public export
+bindAllot : RefKind -> Bindings -> Bindings
+bindAllot k b = MkBindings (targetKinds b) (thatKind b) (Just k) (evCaps b) (chosenKind b) True
 
 -- KeywordSpec / Reference / Count / Predicate / Condition / EventQuery are one mutually
 -- recursive language. A PREDICATE is an object test — its candidate is IMPLICIT. A `Condition`
@@ -533,6 +540,7 @@ mutual
     Min : Count b -> Count b -> Count b                  -- the lesser ([CR#704.5q] +1/+1 vs −1/−1 annihilation; "the lesser of X and Y")
     Max : Count b -> Count b -> Count b                  -- the greater
     ThatMuch : {auto prf : hasAmount (evCaps b) = True} -> Count b   -- the event's amount — valid only where the event SUPPLIES one
+    Allotment : {auto prf : hasAllotment b = True} -> Count b   -- inside a `Distribute`: the share allotted to the current element ([CR#601.2d])
     ChosenNumber : {auto prf : chosenKind b = Just ANumber} -> Count b   -- the as-enters chosen NUMBER (the value-anaphor twin of OfChosen/ChosenIs)
 
   -- A PREDICATE: a test on a single IMPLICIT candidate object — i.e. a *filter*.
@@ -947,9 +955,8 @@ mutual
     -- deal damage to ONE recipient ([CR#120.1] — damage is to a single object/player per event);
     -- `source` object is the agent. "Deals N to EACH …" is a `ForEach` over the recipients.
     DealDamage : {default This source : Reference b AnObject} -> Reference b k -> Count b -> Action b
-    -- "N damage divided as you choose among [a group]" ([CR#120.1] — Electrolyze). The split is the
-    -- engine's; the grammar names the total and the recipient set (a `Selection`, ≥1 each).
-    DealDamageDivided : {default This source : Reference b AnObject} -> Count b -> Selection b k -> Action b
+    -- (divided damage — "N damage divided as you choose among [a group]" — is the general `Distribute`
+    --  effect: `Distribute (^n) group (Act (DealDamage It Allotment))`, not a bespoke action.)
     -- a plain zone change [CR#400.7]; owner-relative, control implicit.
     Move : Reference b AnObject -> Zone -> Action b
     -- exile a selection UNTIL a duration ends, then return it — the duration-bounded
@@ -1064,6 +1071,12 @@ mutual
     -- "for each [domain], [body]" — binds each element as `It`. The distributive
     -- primitive (subsumes the old `Selection::Each`). Rust: Effect::ForEach.
     ForEach : Selection b k -> OneShotEffect (bindIt k b) -> OneShotEffect b
+    -- "[amount] divided as you choose among [a group]" ([CR#601.2d]): bind each element as `It` with its
+    -- `Allotment` (the split is engine-resolved, ≥1 each summing to amount), then apply `body`. GENERAL over
+    -- the per-element effect — subsumes divided damage (`Act (DealDamage It Allotment)`) and divided
+    -- counters (`Act (PutCounters c Allotment It)`); replaced the bespoke `DealDamageDivided`. (`amount`,
+    -- not `total` — the latter is a reserved totality keyword.)
+    Distribute : (amount : Count b) -> Selection b k -> OneShotEffect (bindAllot k b) -> OneShotEffect b
     -- "when you do [the preceding], [effect]" — a reflexive trigger. It NESTS, so
     -- `That`/targets stay in scope; no event-scanning sibling. Rust: Effect::Reflexive.
     Reflexive : OneShotEffect b -> OneShotEffect b
