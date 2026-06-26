@@ -314,7 +314,7 @@ tCastFromGrave = MayCastFor (AltCost [Mana [^3, ^Blue]]) {from = Graveyard}
 -- a log-derived history count feeds a condition, and a game `Outcome` wraps into an effect
 tHistoryThenWin : OneShotEffect Base
 tHistoryThenWin =
-  If (Compare (EventCount (MkQuery [Begins Cast] [Actor you, Within ThisGame])) GreaterEq (Literal 2))
+  If (Compare (CountEvents (MkQuery [Begins Cast] [Actor you, Within ThisGame])) GreaterEq (Literal 2))
      (Conclude (WinGame You))
 
 -- an activated ability: a multi-component cost algebra + an effect
@@ -332,15 +332,19 @@ tMustPay = MustPay (Mana [^2]) (Act (Counter (Only (IsKind IsSpell))))
 
 -- scaled cost: "{2} for each creature" — `Scaled` pays the inner cost once per the count.
 tScaledCost : Cost Base
-tScaledCost = Scaled (CountOf creature) (Mana [^2])
+tScaledCost = Scaled (CountMatching creature) (Mana [^2])
 
 -- continuous cost modification: affinity = a `Reduce` `ScaledBy` a count (one recursive node), and
 -- devotion is just a `Count`, so it drops into mana production and cost-scaling alike.
 tAffinity : StaticEffect Base
-tAffinity = CostModifier (SameAs This) (ScaledBy (Reduce [Mana [^1]]) (CountOf (HasType Artifact)))
+tAffinity = CostModifier (SameAs This) (ScaledBy (Reduce [Mana [^1]]) (CountMatching (HasType Artifact)))
 
+-- devotion to {B}{G} = SUM, over permanents you control, of the {B}/{G} pips in each one's printed cost
+-- ([CR#700.5]): an `Aggregate SumOf` of a per-permanent symbol-count. A single `Or`-predicate (not two summed
+-- counts), so a {B/G} hybrid pip counts once. (Was the bespoke `Devotion [Black, Green]`.)
 tDevotion : Count Base
-tDevotion = Devotion [Black, Green]
+tDevotion = Aggregate SumOf (eachOf (And [permanent, ControlledBy you])
+                                    (CountOf (ManaSymbols It (Or [CountsAs Black, CountsAs Green]))))
 
 -- counters: the `HasCounter` predicate facet + the put/remove verbs
 tCounters : OneShotEffect Base
@@ -359,16 +363,33 @@ tLoyalty = Activated (Do (RemoveCounters Loyalty (Literal 2) This)) (Act (Draw (
 tValues : List (Count Base)
 tValues =
   [ Plus (LifeTotal You) (HandSize You)
-  , Times (CountOf creature) (Literal 2)
-  , HalfUp (StatOf This Power)
+  , Times (CountMatching creature) (Literal 2)
+  , Half RoundUp (StatOf This Power)
   , CountersOn P1P1 This
   , StatOf This ManaValue
   , Min (CountersOn P1P1 This) (CountersOn M1M1 This)   -- net counters after annihilation
   , Max (StatOf This Power) (^0)
   , Damage This                                          -- marked damage
-  , EventSum (MkQuery [DealDamage Nothing] [Actor opponent])    -- amount-twin of EventCount; same query shape, kinds amount-gated
-  , Aggregate Greatest Power (And [creature, ControlledBy you])   -- "the greatest power among creatures you control"
-  , Aggregate Total Power (And [creature, ControlledBy you]) ]    -- "the total power of creatures you control"
+  , EventAgg SumOf (MkQuery [DealDamage Nothing] [Actor opponent])    -- fold matching events' amounts (old `EventSum`); kinds amount-gated
+  , Aggregate MaxOf (eachOf (And [permanent, creature, ControlledBy you]) (StatOf It Power))   -- "the greatest power among creatures you control" (on the battlefield, [CR#109.2])
+  , Aggregate SumOf (eachOf (And [permanent, creature, ControlledBy you]) (StatOf It Power)) ] -- "the total power of creatures you control"
+
+-- the aggregation value-language's headline cases, each the real card/keyword it models — positive coverage
+-- for `CountDistinct` (every attribute × valid source), the `AverageOf`/`MinOf` folds, and the `Players` source.
+tAggregations : List (Count Base)
+tAggregations =
+  [ CountDistinct OfBasicLandType (Objects (And [permanent, HasType Land, ControlledBy you]))  -- Domain
+  , CountDistinct (OfStat Power) (Objects (And [permanent, ControlledBy you]))                 -- Collector's Cage: distinct powers
+  , CountDistinct OfColor ManaSpent                                                            -- Sunburst / Converge: distinct colours of mana spent
+  , CountDistinct OfName (Objects (InZone Graveyard))                                          -- distinct names in graveyards
+  , Aggregate (AverageOf RoundDown) (eachOf (And [permanent, creature, ControlledBy you]) (StatOf It Power))  -- rounded mean power
+  , Aggregate MinOf (eachOf (And [permanent, creature, ControlledBy you]) (StatOf It Toughness))              -- least toughness
+  , CountOf (Players (Controls creature)) ]                                                    -- number of players who control a creature
+
+-- the extremal-ELEMENT form (`Pick`): "the creature with the greatest power among creatures you control" —
+-- returns a `Selection`, reusing the very `Projection` the `Aggregate MaxOf` above folds to a value.
+tGreatestPowerCreature : Selection Base AnObject
+tGreatestPowerCreature = Pick MaxOf (eachOf (And [permanent, creature, ControlledBy you]) (StatOf It Power))
 
 -- the GLOBAL [CR#704.5] state-based actions AS DATA — replacing the old loose `tLethalSba`, which was a
 -- bare `Condition` with no scope (it silently assumed `This` was a creature) and no effect (the destroy
@@ -407,7 +428,7 @@ tVerbs =
 tDynamicToken : OneShotEffect Base
 tDynamicToken = Act (CreateToken (^1)
   (^: { name := Just "Ooze", types := [Creature], colors := [Green]
-      , power := Just (CountOf creature), toughness := Just (CountOf creature) }))
+      , power := Just (CountMatching creature), toughness := Just (CountMatching creature) }))
 
 -- a NAMELESS token (name defaults to Nothing): most tokens have no name. Only the lenient floor
 -- (CharacteristicsOk: ≥1 type) is required — no name, no P/T-vs-type coupling (Vehicle/Tarmogoyf).
@@ -433,7 +454,7 @@ tLimitedAbility =
 tPTMods : List (Modification Base)
 tPTMods =
   [ ModifyPT (Up (Literal 2)) (Down (Literal 1))     -- "+2/-1"
-  , Set BasePower (CountOf creature), Set BaseToughness (CountOf creature) ]   -- a dynamic base-P/T set (the real */1+* CDA is card_Tarmogoyf)
+  , Set BasePower (CountMatching creature), Set BaseToughness (CountMatching creature) ]   -- a dynamic base-P/T set (the real */1+* CDA is card_Tarmogoyf)
 
 -- the unified `Set` overwrites ANY characteristic, value-typed by `CharValue`: "becomes blue", "loses all
 -- creature types" (`Set Subtypes []`), "becomes a legendary artifact creature".
@@ -454,8 +475,8 @@ tCDA : Card
 tCDA = Normal $ ^:
   { name := Just "Test CDA"
   , types := [Creature]
-  , power := Just (CountOf (HasType Land))
-  , toughness := Just (Plus (CountOf (HasType Land)) (Literal 1)) }
+  , power := Just (CountMatching (HasType Land))
+  , toughness := Just (Plus (CountMatching (HasType Land)) (Literal 1)) }
 
 -- Stage 2: a target's kind comes from its slot's filter — a PLAYER target reads as a player
 tPlayerTarget : Count (bindTargets [APlayer] Base)
@@ -590,20 +611,48 @@ failing
   tBadReplaceAmountless : StaticEffect Base
   tBadReplaceAmountless = ReplaceAmount (MkQuery [Begins Cast] []) (^0)
 
--- summing the amount of an amountless event is rejected likewise
+-- folding the amount of an amountless event is rejected likewise
 failing
-  tBadEventSumAmountless : Count Base
-  tBadEventSumAmountless = EventSum (MkQuery [Begins Cast] [])
+  tBadEventAggAmountless : Count Base
+  tBadEventAggAmountless = EventAgg SumOf (MkQuery [Begins Cast] [])
 
 -- "becomes summoning-sick" isn't a transition event — `IsBecomesState SummoningSick = Void`
 failing
   tBadBecomesSummoningSick : EventKind
   tBadBecomesSummoningSick = Becomes SummoningSick
 
--- devotion to NO colors is rejected (vacuous) — `NonEmpty []` is uninhabited
+-- projecting a NON-object `Countable` is rejected — only `Objects` is `Projectable`, so `Project (Events …)`
+-- has no `Projectable (Events …)` proof (you cannot bind `It` over an atomic event).
 failing
-  tBadDevotionEmpty : Count Base
-  tBadDevotionEmpty = Devotion []
+  tBadProjectEvents : Projection Base
+  tBadProjectEvents = Project (Events (MkQuery [DealDamage Nothing] [])) (Literal 0)
+
+-- `CountDistinct` is gated by `attributeReadableOn`: an object-only attribute over a non-object source is
+-- rejected — "distinct powers of the mana you spent" is nonsense (`attributeReadableOn (OfStat Power) ManaSpent = False`).
+failing
+  tBadDistinctStatOfMana : Count Base
+  tBadDistinctStatOfMana = CountDistinct (OfStat Power) ManaSpent
+
+-- ...and a non-colour attribute over events is rejected too (`OfName` reads nothing off an event).
+failing
+  tBadDistinctNameOfEvents : Count Base
+  tBadDistinctNameOfEvents = CountDistinct OfName (Events (MkQuery [DealDamage Nothing] []))
+
+-- `Pick` is gated to the EXTREMAL ops by `IsExtremal`: argmax-by-SUM is meaningless (`IsExtremal SumOf` is uninhabited).
+failing
+  tBadPickNonExtremal : Selection Base AnObject
+  tBadPickNonExtremal = Pick SumOf (eachOf creature (StatOf It Power))
+
+-- an empty symbol disjunction ("devotion to no colours") is rejected — the restored `NonEmpty` guard.
+failing
+  tBadEmptySymbolOr : Countable Base
+  tBadEmptySymbolOr = ManaSymbols This (Or [])
+
+-- a `Distribute` share (`Allotment`) can't leak into a `Projection` accessor — `eachOf`/`Project` rebind `It`
+-- via `bindElem`, which clears `hasAllotment`, so `Allotment` has no proof there (it was indexed to a DIFFERENT loop element).
+failing
+  tBadAllotmentInProjection : Projection Base
+  tBadAllotmentInProjection = eachOf creature Allotment
 
 -- THE INVALID-REFERENCE GATE: an event anaphor is valid only where the event SUPPLIES it (`eventQueryCaps`).
 -- `EventObject` ("that card") in a step-begin body — a `BeginStep` event has no object.

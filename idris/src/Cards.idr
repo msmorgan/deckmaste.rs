@@ -187,7 +187,7 @@ card_ApproachOfTheSecondSun = Normal $ ^:
   , abilities :=
       [ Spell $
           If (And [ Matches This (WasCastFrom Hand)
-                  , Compare (EventCount (MkQuery [Begins Cast]
+                  , Compare (CountEvents (MkQuery [Begins Cast]
                                                [ Actor you
                                                , Patient (SameName This)
                                                , Within ThisGame ]))
@@ -933,12 +933,12 @@ card_Frogmite = Normal $ ^:
   , types := [Artifact, Creature]
   , abilities :=
       [ Static (CostModifier (SameAs This)
-          (ScaledBy (Reduce [Mana [^1]]) (CountOf (And [HasType Artifact, ControlledBy you])))) ]
+          (ScaledBy (Reduce [Mana [^1]]) (CountMatching (And [HasType Artifact, ControlledBy you])))) ]
   , power := Just 2
   , toughness := Just 2
   }
 
--- Gaea's Cradle — VARIABLE mana: "{T}: Add {G} for each creature you control" = `AddMana (CountOf …) (^Green)`.
+-- Gaea's Cradle — VARIABLE mana: "{T}: Add {G} for each creature you control" = `AddMana (CountMatching …) (^Green)`.
 export
 card_GaeasCradle : Card
 card_GaeasCradle = Normal $ ^:
@@ -946,11 +946,12 @@ card_GaeasCradle = Normal $ ^:
   , types := [Land]
   , supertypes := [Legendary]
   , abilities :=
-      [ Activated (Do (Tap This)) (Act (AddMana (CountOf (And [creature, ControlledBy you])) (^Green))) ]
+      [ Activated (Do (Tap This)) (Act (AddMana (CountMatching (And [permanent, creature, ControlledBy you])) (^Green))) ]
   }
 
--- Karametra's Acolyte — DEVOTION: "{T}: Add {G} equal to your devotion to green" = `AddMana
--- (Devotion [Green]) (^Green)`. Devotion is a `Count`, so it drops into mana production for free.
+-- Karametra's Acolyte — DEVOTION: "{T}: Add {G} equal to your devotion to green" ([CR#700.5]). Devotion
+-- decomposes to `Aggregate SumOf` of each permanent-you-control's green-pip count — still a `Count`, so it
+-- drops into mana production for free (the bespoke `Devotion` constructor is gone).
 export
 card_KarametrasAcolyte : Card
 card_KarametrasAcolyte = Normal $ ^:
@@ -959,7 +960,10 @@ card_KarametrasAcolyte = Normal $ ^:
   , types := [Creature]
   , subtypes := [^Human]
   , abilities :=
-      [ Activated (Do (Tap This)) (Act (AddMana (Devotion [Green]) (^Green))) ]
+      [ Activated (Do (Tap This))
+          (Act (AddMana (Aggregate SumOf (eachOf (And [permanent, ControlledBy you])
+                                                 (CountOf (ManaSymbols It (CountsAs Green)))))
+                        (^Green))) ]
   , power := Just 1
   , toughness := Just 4
   }
@@ -976,8 +980,8 @@ card_CoatOfArms = Normal $ ^:
   , types := [Artifact]
   , abilities :=
       [ Static (Modify (SelectAll creature)
-          [ ModifyPT (Up (CountOf (And [creature, SharesSubtype It, Not (SameAs It)])))
-                     (Up (CountOf (And [creature, SharesSubtype It, Not (SameAs It)]))) ]) ]
+          [ ModifyPT (Up (CountMatching (And [permanent, creature, SharesSubtype It, Not (SameAs It)])))
+                     (Up (CountMatching (And [permanent, creature, SharesSubtype It, Not (SameAs It)]))) ]) ]
   }
 
 -- Platinum Angel — the OUTCOME gate: "you can't lose the game and your opponents can't win." Two
@@ -1033,7 +1037,7 @@ card_Skred = Normal $ ^:
   , types := [Sorcery]
   , abilities :=
       [ Spell (Targeted [Target (^1) creature]
-          (Act (DealDamage (GetTarget 0) (CountOf (And [HasSupertype Snow, ControlledBy you]))))) ]
+          (Act (DealDamage (GetTarget 0) (CountMatching (And [permanent, HasSupertype Snow, ControlledBy you]))))) ]
   }
 
 -- History of Benalia — a SAGA. The `Saga` subtype CONFERS the lore-increment (`subtypeConfers (^Saga)`
@@ -1159,7 +1163,7 @@ card_CacklingCounterpart = Normal $ ^:
 
 -- Tarmogoyf — the canonical CDA: "*/1+*, where * is the number of card types among cards in all
 -- graveyards." No printed P/T (the fields are omitted); a `Static (Modify (SelectAll (SameAs This)) [Set …])` DEFINES them
--- from `typesInGraveyards` (a sum of per-type indicators), toughness = power + 1. Real, not a stand-in.
+-- from `typesInGraveyards` (a `CountDistinct OfCardType` over graveyards), toughness = power + 1. Real, not a stand-in.
 export
 card_Tarmogoyf : Card
 card_Tarmogoyf = Normal $ ^:

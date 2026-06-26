@@ -132,8 +132,25 @@ implementation ToRon Subtype where
 -- prints the RON unit-variant name. (Types with payloads are rendered by hand below.)
 %runElab derive "Stat" [Show]
 implementation ToRon Stat where toRon _ x = show x
-%runElab derive "AggOp" [Show]
-implementation ToRon AggOp where toRon _ x = show x
+%runElab derive "RoundMode" [Show]
+implementation ToRon RoundMode where toRon _ x = show x
+implementation ToRon AggregateOp where
+    toRon _ SumOf = "SumOf"
+    toRon _ MinOf = "MinOf"
+    toRon _ MaxOf = "MaxOf"
+    toRon i (AverageOf rm) = ctor "AverageOf" [toRon i rm]
+implementation ToRon Attribute where
+    toRon _ OfColor = "OfColor"
+    toRon _ OfName = "OfName"
+    toRon _ OfBasicLandType = "OfBasicLandType"
+    toRon _ OfCardType = "OfCardType"
+    toRon i (OfStat s) = ctor "OfStat" [toRon i s]
+implementation ToRon SymbolPred where
+    toRon i (CountsAs c) = ctor "CountsAs" [toRon i c]
+    toRon _ IsGeneric = "IsGeneric"
+    toRon i (And ps) = ctor "And" [toRon i ps]
+    toRon i (Or ps) = ctor "Or" [toRon i ps]
+    toRon i (Not p) = ctor "Not" [toRon i p]
 %runElab derive "Cmp" [Show]
 implementation ToRon Cmp where toRon _ x = show x
 %runElab derive "ObjectKind" [Show]
@@ -261,12 +278,11 @@ mutual
   implementation ToRon (Count b) where
     toRon _ (Literal k) = show k
     toRon _ X = "X"
-    toRon i (CountOf p) = ctor "CountOf" [toRon i p]
+    toRon i (CountOf c) = ctor "CountOf" [toRon i c]
+    toRon i (CountDistinct a c) = ctor "CountDistinct" [toRon i a, toRon i c]
     toRon i (StatOf r s) = ctor "StatOf" [toRon i r, toRon i s]
-    toRon i (Aggregate op s p) = ctor "Aggregate" [toRon i op, toRon i s, toRon i p]
-    toRon i (Devotion colors) = ctor "Devotion" [toRon i colors]
-    toRon i (EventCount q) = ctor "EventCount" [toRon i q]
-    toRon i (EventSum q) = ctor "EventSum" [toRon i q]
+    toRon i (Aggregate op cs) = ctor "Aggregate" [toRon i op, toRon i cs]
+    toRon i (EventAgg op q) = ctor "EventAgg" [toRon i op, toRon i q]
     toRon i (Damage r) = ctor "Damage" [toRon i r]
     toRon i (CountersOn c r) = ctor "CountersOn" [toRon i c, toRon i r]
     toRon i (LifeTotal r) = ctor "LifeTotal" [toRon i r]
@@ -274,13 +290,22 @@ mutual
     toRon i (Plus x y) = ctor "Plus" [toRon i x, toRon i y]
     toRon i (Minus x y) = ctor "Minus" [toRon i x, toRon i y]
     toRon i (Times x y) = ctor "Times" [toRon i x, toRon i y]
-    toRon i (HalfUp x) = ctor "HalfUp" [toRon i x]
-    toRon i (HalfDown x) = ctor "HalfDown" [toRon i x]
+    toRon i (Half rm x) = ctor "Half" [toRon i rm, toRon i x]
     toRon i (Min x y) = ctor "Min" [toRon i x, toRon i y]
     toRon i (Max x y) = ctor "Max" [toRon i x, toRon i y]
     toRon _ ThatMuch = "ThatMuch"
     toRon _ Allotment = "Allotment"
     toRon _ ChosenNumber = "ChosenNumber"
+
+  implementation ToRon (Countable b) where
+    toRon i (Objects p) = ctor "Objects" [toRon i p]
+    toRon i (Players p) = ctor "Players" [toRon i p]
+    toRon i (Events q) = ctor "Events" [toRon i q]
+    toRon i (ManaSymbols r sp) = ctor "ManaSymbols" [toRon i r, toRon i sp]
+    toRon i (ManaSpent {forObj}) = ctor "ManaSpent" [toRon i forObj]
+
+  implementation ToRon (Projection b) where
+    toRon i (Project src acc) = ctor "Project" [toRon i src, toRon i acc]
 
   implementation ToRon (Quantity b) where
     toRon i (Range lo hi) = ctor "Range" [ronOpt i lo, ronOpt i hi]
@@ -293,6 +318,7 @@ mutual
     toRon i (Random q p) = ctor "Random" [toRon i q, toRon i p]
     toRon i (TopOfLibrary c {whose}) = ctor "TopOfLibrary" [toRon i c, toRon i whose]
     toRon i (BottomOfLibrary c {whose}) = ctor "BottomOfLibrary" [toRon i c, toRon i whose]
+    toRon i (Pick op pr) = ctor "Pick" [toRon i op, toRon i pr]
 
   implementation ToRon (Predicate b k) where
     toRon i (HasType t) = ctor "HasType" [toRon i t]
