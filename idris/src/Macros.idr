@@ -137,7 +137,7 @@ indestructible = Keyword (Composite Indestructible
 -- can CLEAR a characteristic. `Set Colors []` on This empties its color set (the Tarmogoyf-`*/*` pattern).
 public export
 devoid : Ability b
-devoid = Keyword (Composite Devoid [Static (Modify This [Set Colors []])])
+devoid = Keyword (Composite Devoid [Static (Modify (SelectAll (SameAs This)) [Set Colors []])])
 
 -- "Regenerate this" ([CR#701.19]): a ONE-SHOT, this-turn shield — the next time This would be destroyed,
 -- instead remove all damage, tap it, and remove it from combat. The `UpTo (^1)` limit consumes the
@@ -229,7 +229,7 @@ levelUp cost = Activated cost (Act (PutCounters Level (^1) This)) {window = Sorc
 public export
 crew : Count b -> Ability b
 crew n = Activated (TapTotal Power GreaterEq n creature)
-  (Continuously (Modify This [AddType Creature]) UntilEndOfTurn)
+  (Continuously (Modify (SelectAll (SameAs This)) [AddType Creature]) UntilEndOfTurn)
 
 -- "Morph [cost]" ([CR#702.37]): you may cast this face down as a 2/2 for {3} (`CastFaceDown`), and turn
 -- it face up any time for [cost] (`TurnFaceUp`). The 2/2-colorless-vanilla face-down body is the global

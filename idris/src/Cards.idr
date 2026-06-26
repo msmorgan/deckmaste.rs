@@ -122,7 +122,7 @@ card_Rancor = Normal $ ^:
   , types := [Enchantment]
   , subtypes := [^Aura]
   , abilities := enchant creature ++
-      [ Static (Modify (AttachHostOf This)
+      [ Static (Modify (SelectAll (SameAs (AttachHostOf This)))
           [ ModifyPT (^2) (^0)
           , GrantAbility (keyword Trample)
           ])
@@ -168,7 +168,7 @@ card_ThroughTheBreach = Normal $ ^:
           With (Choose (^1) (And [inHand, creature])) $
             Sequence
               [ ForEach That (Act (Move It Battlefield))
-              , Continuously (Modify (Single That) [GrantAbility (keyword Haste)]) UntilEndOfTurn  -- "it gains haste"
+              , Continuously (Modify That [GrantAbility (keyword Haste)]) UntilEndOfTurn  -- "it gains haste"
               , Delayed nextEndStep (ForEach That (Act (Move It Graveyard))) ]
       ]
   }
@@ -229,7 +229,7 @@ card_GloriousAnthem = Normal $ ^:
   , manaCost := [^1, ^White, ^White]
   , types := [Enchantment]
   , abilities :=
-      [ Static (ModifyAll (And [HasType Creature, ControlledBy you]) [ModifyPT (^1) (^1)]) ]
+      [ Static (Modify (SelectAll (And [HasType Creature, ControlledBy you])) [ModifyPT (^1) (^1)]) ]
   }
 
 -- Liliana of the Veil — "planeswalkers are pure composite": loyalty abilities are
@@ -271,10 +271,10 @@ card_TideShaper = Normal $ ^:
       [ Triggered (thisEnters)
           (If (Matches This WasKicked)
               (Targeted [Target (^1) (HasType Land)]
-                (Continuously (Modify (GetTarget 0) [AddSubtype (^Island)])
+                (Continuously (Modify (SelectAll (SameAs (GetTarget 0))) [AddSubtype (^Island)])
                               (ForAsLongAs (Matches This (InZone Battlefield))))))
       , Static (While (exists (And [InZone Battlefield, HasSubtype (^Island), ControlledBy opponent]))
-                      (Modify This [ModifyPT (^1) (^1)]))
+                      (Modify (SelectAll (SameAs This)) [ModifyPT (^1) (^1)]))
       ]
   , power := Just 1
   , toughness := Just 1
@@ -374,7 +374,7 @@ card_Donate = Normal $ ^:
   , abilities :=
       [ Spell (Targeted [ Target (^1) Anyone
                         , Target (^1) (And [permanent, ControlledBy you]) ]
-          (Continuously (Modify (GetTarget 1) [GainControl (GetTarget 0)]) Permanent))
+          (Continuously (Modify (SelectAll (SameAs (GetTarget 1))) [GainControl (GetTarget 0)]) Permanent))
       ]
   }
 
@@ -576,9 +576,9 @@ card_StudentOfWarfare = Normal $ ^:
       [ levelUp (Mana [^White])                                                                  -- "Level up {W}"
       , Static (While (And [ Compare (CountersOn Level This) GreaterEq (^2)
                            , Compare (CountersOn Level This) LessEq (^6) ])
-          (Modify This [Set BasePower (^3), Set BaseToughness (^3), GrantAbility (keyword FirstStrike)]))   -- LEVEL 2–6: 3/3 first strike
+          (Modify (SelectAll (SameAs This)) [Set BasePower (^3), Set BaseToughness (^3), GrantAbility (keyword FirstStrike)]))   -- LEVEL 2–6: 3/3 first strike
       , Static (While (Compare (CountersOn Level This) GreaterEq (^7))
-          (Modify This [Set BasePower (^4), Set BaseToughness (^4), GrantAbility (keyword DoubleStrike)]))   -- LEVEL 7+: 4/4 double strike
+          (Modify (SelectAll (SameAs This)) [Set BasePower (^4), Set BaseToughness (^4), GrantAbility (keyword DoubleStrike)]))   -- LEVEL 7+: 4/4 double strike
       ]
   }
 
@@ -614,7 +614,7 @@ card_SteelyResolve = Normal $ ^:
   , types := [Enchantment]
   , abilities :=
       [ AsEnters ACreatureType
-          [ Static (ModifyAll (And [creature, OfChosen]) [GrantAbility (keyword Shroud)]) ] ]
+          [ Static (Modify (SelectAll (And [creature, OfChosen])) [GrantAbility (keyword Shroud)]) ] ]
   }
 
 -- Citadel Siege — the MODAL choose-on-enter case (Outpost Siege's class): an `AsEnters (AMode 2)`
@@ -817,7 +817,7 @@ card_MindBend = Normal $ ^:
   , types := [Sorcery]
   , abilities :=
       [ Spell (Targeted [Target (^1) (Or [permanent, IsKind IsSpell])]
-          (Continuously (Modify (GetTarget 0) [ChangeText [ColorWords, BasicLandTypes]]) Permanent)) ]
+          (Continuously (Modify (SelectAll (SameAs (GetTarget 0))) [ChangeText [ColorWords, BasicLandTypes]]) Permanent)) ]
   }
 
 -- Flooded Strand — a FETCH LAND: {T}, pay 1 life, sacrifice it → search your library for a Plains or
@@ -883,7 +883,7 @@ card_FleecemaneLion = Normal $ ^:
   , abilities :=
       [ monstrosity (Mana [^3, ^Green, ^White]) (^1)                       -- Monstrosity 1
       , Static (While (Matches This (HasDesignation Monstrous))
-          (Modify This [ GrantAbility (keyword (Hexproof Nothing))
+          (Modify (SelectAll (SameAs This)) [ GrantAbility (keyword (Hexproof Nothing))
                        , GrantAbility (keyword Indestructible) ]))          -- while monstrous: hexproof + indestructible
       ]
   , power := Just 3
@@ -974,7 +974,7 @@ card_CoatOfArms = Normal $ ^:
   , manaCost := [^2]
   , types := [Artifact]
   , abilities :=
-      [ Static (ModifyAll creature
+      [ Static (Modify (SelectAll creature)
           [ ModifyPT (Up (CountOf (And [creature, SharesSubtype It, Not (SameAs It)])))
                      (Up (CountOf (And [creature, SharesSubtype It, Not (SameAs It)]))) ]) ]
   }
@@ -1020,7 +1020,7 @@ card_MutagenicGrowth = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [Target (^1) creature]
-          (Continuously (Modify (GetTarget 0) [ModifyPT (^2) (^2)]) UntilEndOfTurn)) ]
+          (Continuously (Modify (SelectAll (SameAs (GetTarget 0))) [ModifyPT (^2) (^2)]) UntilEndOfTurn)) ]
   }
 
 -- Skred — SNOW mana ({S}): deals damage to target creature equal to the snow permanents you control.
@@ -1056,7 +1056,7 @@ card_HistoryOfBenalia = Normal $ ^:
       , -- III — Knights you control get +2/+1 until end of turn
         Triggered (MkQuery [PutCounters] [Patient (SameAs This)])
           (If (Compare (CountersOn Lore This) Equal (^3))
-              (Continuously (ModifyAll (And [HasSubtype (^Knight), ControlledBy you]) [ModifyPT (^2) (^1)]) UntilEndOfTurn))
+              (Continuously (Modify (SelectAll (And [HasSubtype (^Knight), ControlledBy you])) [ModifyPT (^2) (^1)]) UntilEndOfTurn))
       , -- sacrifice after the final chapter ([CR#714.4])
         Static (Sba (Compare (CountersOn Lore This) GreaterEq (^3)) (Act (Move This Graveyard)))
       ]
@@ -1157,7 +1157,7 @@ card_CacklingCounterpart = Normal $ ^:
   }
 
 -- Tarmogoyf — the canonical CDA: "*/1+*, where * is the number of card types among cards in all
--- graveyards." No printed P/T (the fields are omitted); a `Static (Modify This [Set …])` DEFINES them
+-- graveyards." No printed P/T (the fields are omitted); a `Static (Modify (SelectAll (SameAs This)) [Set …])` DEFINES them
 -- from `typesInGraveyards` (a sum of per-type indicators), toughness = power + 1. Real, not a stand-in.
 export
 card_Tarmogoyf : Card
@@ -1166,7 +1166,7 @@ card_Tarmogoyf = Normal $ ^:
   , manaCost := [^1, ^Green]
   , types := [Creature]
   , abilities :=
-      [ Static (Modify This [ Set BasePower typesInGraveyards
+      [ Static (Modify (SelectAll (SameAs This)) [ Set BasePower typesInGraveyards
                             , Set BaseToughness (Plus typesInGraveyards (Literal 1)) ]) ]
   }
 

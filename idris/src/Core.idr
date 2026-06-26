@@ -541,7 +541,7 @@ mutual
     -- the host this is attached to ("enchanted creature"); and its inverse.
     AttachHostOf : Reference b AnObject -> Reference b AnObject
     AttachedTo : Reference b AnObject -> Reference b AnObject
-    -- the current element ("it"): the `ForEach`-bound loop element OR the `ModifyAll`-bound per-subject
+    -- the current element ("it"): the `ForEach`-bound loop element OR the `Modify`-bound per-subject
     -- object (an anthem's candidate); its kind is the binder's (`itKind`). Serves as the "Subject" an
     -- anthem's mods read, without a dedicated reference — predicates are already candidate-implicit.
     It : {auto prf : itKind b = Just k} -> Reference b k
@@ -723,6 +723,7 @@ mutual
   public export
   data Selection : Bindings -> RefKind -> Type where
     SelectAll : Predicate b k -> Selection b k                  -- every match (a group)
+    Union : Selection b k -> Selection b k -> Selection b k     -- two groups combined ("each X and each Y"); a fixed set = `Union` of `SameAs` singletons
     That : {auto prf : thatKind b = Just k} -> Selection b k    -- the `With`-bound group
     GetTargets : (n : Nat) -> {auto prf : InBounds n (targetKinds b)} -> Selection b (index n (targetKinds b))
     Random : Quantity b -> Predicate b k -> Selection b k
@@ -1168,12 +1169,13 @@ mutual
   -- replacement effect is a continuous effect too ([CR#614]). Rust: the StaticEffect family.
   public export
   data StaticEffect : Bindings -> Type where
-    Modify : Reference b AnObject -> List (Modification b) -> StaticEffect b
-    -- anthem: "each [filter] gets [mods]". The per-match object is bound as `It` for the mods (reusing
-    -- the `ForEach` element binder — no new `Subject` reference, since a `Predicate`'s candidate is
-    -- already implicit), so a PER-SUBJECT mod can read it: Coat of Arms = "+X/+X where X = other
-    -- creatures sharing a type with It" = `ModifyPT (Up (CountOf (And [creature, SharesSubtype It, Not (SameAs It)]))) …`.
-    ModifyAll : Predicate b AnObject -> List (Modification (bindIt AnObject b)) -> StaticEffect b
+    -- continuous modification over a SELECTION (the one set-language): singleton = `SelectAll (SameAs r)`,
+    -- anthem/filter = `SelectAll pred`, fixed set = `Union` of singletons. Each element is bound as `It`
+    -- for the mods (the per-subject binder — no `Subject` reference, since a `Predicate`'s candidate is
+    -- already implicit), so a PER-SUBJECT mod can read it: Coat of Arms = "+X/+X where X = other creatures
+    -- sharing a type with It" = `ModifyPT (Up (CountOf (And [creature, SharesSubtype It, Not (SameAs It)]))) …`.
+    -- Unifies the former `Modify`(singleton)/`ModifyAll`(filter) split and reaches the fixed-set case neither could.
+    Modify : Selection b AnObject -> List (Modification (bindIt AnObject b)) -> StaticEffect b
     -- continuous COST modification ([CR#118.7]): spells/abilities matching `of_` get the `change`.
     -- "Instant/sorcery spells you cast cost {1} less" = `CostModifier (And […, ControlledBy you]) (Reduce
     -- [Mana [^1]])`; affinity is a SELF modifier `CostModifier (SameAs This) (ScaledBy (Reduce …) (CountOf …))`.
