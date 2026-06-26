@@ -256,6 +256,25 @@ counterCarrier Energy     = APlayer
 counterCarrier Experience = APlayer
 counterCarrier _          = AnObject
 
+-- RELATION SPINE (combat slice — PROTOTYPE, built alongside the legacy `Attacking`/`Attacks`/`Becomes`
+-- combat constructors; those migrate + retire later). A `Relation` is an agent→patient relation the game
+-- tracks; from ONE relation we derive three ASPECTS — durative (`Holds`, a state predicate), inchoative
+-- (`Begins`, an event), deontic (`Enact`, a deed). `doerKind` fixes the DOER's kind per relation (the
+-- Agent/Actor resolution: one doer slot, object for combat, a player for `Cast` later) — `counterCarrier`'s
+-- sibling. The PATIENT stays kind-poly (an attack's defender is a player/planeswalker/battle).
+public export
+data Relation = Attack | Block
+
+public export
+doerKind : Relation -> RefKind
+doerKind Attack = AnObject
+doerKind Block  = AnObject
+
+-- the two participant SLOTS, as role selectors for the durative aspect (`Holds Attack Doer` = an attacker,
+-- `Holds Block Patient` = a blocked creature). Unifies the old `Attacking`/`Blocking`/`Blocked` states.
+public export
+data Role = Doer | Patient
+
 -- DESIGNATIONS ([CR#700-ish global flags]: monarch, the initiative, city's blessing, monstrous,
 -- goaded, renowned, suspected, saddled, solved…). The Rust engine carries these as an OPEN name +
 -- a runtime `Decl` whose `scope` field says object/player/game — needed for plugins. The curated toy
@@ -336,6 +355,10 @@ namespace EventKind
     BeginStep : PhaseStep -> EventKind
     -- "whenever ~ BECOMES [state]" — TRANSITION states only (gated; not `SummoningSick`).
     Becomes : (s : ObjectState) -> {auto prf : IsBecomesState s} -> EventKind
+    -- the ONSET of a relation ([CR#508],[CR#509]) — the inchoative aspect of the relation spine. `Begins
+    -- Attack` fires once per attack; FACETS pick the side (`[Agent This]` = it attacks, `[Patient you]` =
+    -- you're attacked). Unifies the paired `Becomes Attacking`/`Becomes Attacked` (one happening, two views).
+    Begins : Relation -> EventKind
 
 -- the per-event CAPABILITIES an event provides its body's anaphora: a distinguished OBJECT ("that card"),
 -- an ACTOR ("that player"), a numeric AMOUNT. Read by `EventObject`/`EventActor`/`ThatMuch` so each is
@@ -366,6 +389,7 @@ eventKindCaps Destroyed         = MkCaps True  False False
 eventKindCaps (ZoneChanged _ _) = MkCaps True  False False
 eventKindCaps (BeginStep _)     = MkCaps False False False
 eventKindCaps (Becomes _)       = MkCaps True  False False
+eventKindCaps (Begins _)        = MkCaps True  False False
 
 -- which event-kinds carry an AMOUNT (gates `ReplaceAmount`/`EventSum`) — derived from the caps.
 public export
@@ -564,6 +588,10 @@ mutual
       HasName : String -> Predicate b AnObject   -- named a specific card (tutors / token names)
       HasCounter : (c : CounterKind) -> Predicate b (counterCarrier c)   -- has ≥1 of this counter; the candidate's kind follows the carrier ("ten poison" tests a player)
       HasState : ObjectState -> Predicate b AnObject      -- runtime state: "target ATTACKING / TAPPED creature"
+      -- the DURATIVE aspect of the relation spine: "the candidate currently fills [role] of [r]" — object-only
+      -- (only objects bear durative state; a player defender has none). `Holds Attack Doer` = an attacker,
+      -- `Holds Block Patient` = a blocked creature. Unifies the legacy `Attacking`/`Blocking`/`Blocked` states.
+      Holds : Relation -> Role -> Predicate b AnObject
       -- carries a DESIGNATION; the candidate's kind follows `designationScope` ("you're the monarch" =
       -- `HasDesignation Monarch` is a player test, "while ~ is monstrous" an object test).
       HasDesignation : (d : Designation) -> Predicate b (designationScope d)
@@ -883,6 +911,10 @@ data Deed : Bindings -> Type where
   -- (SameAs This))` (itself, an object). Attackability is a granted permission ([CR#508.1]).
   Attacks    : (who : Predicate b AnObject) -> (whom : Predicate b k) -> Deed b
   Blocks     : (blocker : Predicate b AnObject) -> (attacker : Predicate b AnObject) -> Deed b
+  -- the DEONTIC aspect of the relation spine: "[doer] enacts [r] upon [patient]" (under Can/Cant/Must/Gate/
+  -- Toll). The DOER's kind is fixed by `doerKind r` (one slot — no Agent/Actor split); the PATIENT stays
+  -- kind-poly. `Cant (Enact Attack (SameAs This) Anyone)` = Defender; subsumes `Attacks`/`Blocks` (migrate later).
+  Enact      : (r : Relation) -> Predicate b (doerKind r) -> (patient : Predicate b k) -> Deed b
   -- SET-LEVEL block ([CR#509.1c],[CR#702.111b]): "[attacker] is blocked by a DECLARED set of `size`
   -- creatures" (a block, so size ≥ 1 — ENFORCED by `NonZeroQ`). `Cant (BlockedBy This …)` constrains the
   -- WHOLE blocker set, not one blocker at a time — Menace = `Cant (BlockedBy (SameAs This) (^1))`
