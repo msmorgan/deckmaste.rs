@@ -138,9 +138,13 @@ object that can perform it. Each is an invariant the Rust types currently leave 
 a runtime check.
 
 The probe is exploratory and stands apart from the engine — it models the
-*grammar*, not the rules, and runs no games. Its purpose is to inform a future
-refactor of `deckmaste_core`'s encoding types: an invariant the grammar shows can
-be made unrepresentable becomes a candidate to lift into the Rust types, and a
+*grammar*, not the rules, and runs no games. It does not, and is not meant to,
+make the Rust engine sound: dependent types are what render ill-formed encodings
+unrepresentable, and Rust goes on validating its data at runtime. What carries
+over is the *shape* of a sound data model — which distinctions earn their own
+type, which constructors are really one parameterized constructor, which
+invariants ought to hold. A structure the grammar shows to be well-founded informs
+how the Rust types are organized (still runtime-checked, never proven), and a
 mechanic the grammar cannot express cleanly marks a gap in the shared vocabulary
 of primitives. Like the rest of the repository, its rules-bearing code cites the
 Comprehensive Rules by number and is checked by `cargo xtask cite`.
