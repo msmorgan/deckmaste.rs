@@ -70,11 +70,11 @@ spellOrAbility = Or [IsKind IsSpell, IsKind IsAbility]
 -- clause. (Flying reads `HasKeyword Flying`/`Reach` on the BLOCKER — the tag its clause consults.)
 public export
 flying : Ability b
-flying = Keyword (Composite Flying [Static (Cant (Blocks (Not (Or [HasKeyword Flying, HasKeyword Reach])) (SameAs This)))])
+flying = Keyword (Composite Flying [Static (Cant (Enact Block (Not (Or [HasKeyword Flying, HasKeyword Reach])) (SameAs This)))])
 
 public export
 defender : Ability b
-defender = Keyword (Composite Defender [Static (Cant (Attacks (SameAs This) Anyone))])
+defender = Keyword (Composite Defender [Static (Cant (Enact Attack (SameAs This) Anyone))])
 
 public export
 shroud : Ability b
@@ -111,7 +111,7 @@ menace = Keyword (Composite Menace [Static (Cant (BlockedBy (SameAs This) (^1)))
 public export
 haste : Ability b
 haste = Keyword (Composite Haste
-  [ Static (AsThough (Matches This (Not (HasState SummoningSick))) (Can (Attacks (SameAs This) Anyone)))
+  [ Static (AsThough (Matches This (Not (HasState SummoningSick))) (Can (Enact Attack (SameAs This) Anyone)))
   , Static (AsThough (Matches This (Not (HasState SummoningSick))) (Can (Activates you (SameAs This)))) ])
 
 -- Indestructible ([CR#702.12]): "can't be destroyed by damage or 'destroy'." A continuous PROHIBITION,
@@ -147,7 +147,7 @@ protection : Predicate b AnObject -> Ability b
 protection q = Keyword (Composite (Protection q)
   [ Static (ReplaceAmount DealDamage (^0) {facets = [Patient (SameAs This), Agent q]})   -- D
   , Static (Cant (Attaches q (SameAs This)))            -- E
-  , Static (Cant (Blocks q (SameAs This)))              -- B
+  , Static (Cant (Enact Block q (SameAs This)))         -- B
   , Static (Cant (BeTargeted (SameAs This) {by = q})) ])  -- T
 
 -- desugar a `KeywordSpec` into its full `Ability` — dispatches to the macros above. EXHAUSTIVE

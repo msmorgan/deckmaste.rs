@@ -82,73 +82,53 @@ tSubjectFilter = HasType Creature
 tStatFilter : Predicate Base AnObject
 tStatFilter = And [creature, StatCmp Power LessEq (^2)]
 
+-- DURATIVE aspect of the relation spine (`Holds r role`): "an attacking creature" (cf the retired
+-- `HasState Attacking`).
 tStateFilter : Predicate Base AnObject
-tStateFilter = And [creature, HasState Attacking, Not (HasState Tapped)]
+tStateFilter = And [creature, Holds Attack Doer, Not (HasState Tapped)]
 
--- new filter atoms: multicolored / colorless objects; stack-object filters (a spell targeting you, a
--- single-target spell); an unblocked attacker. `Controls` is the `ControlledBy` inverse (a player).
+-- filter atoms: multicolored / colorless objects; stack-object filters (a spell targeting you, a single-
+-- target spell); and the COMBAT states via the spine — `Blocking`/`Blocked` are the two SLOTS of one Block
+-- relation, and "unblocked" is DERIVED (an attacker that is no block's patient). `Controls` is the
+-- `ControlledBy` inverse (a player).
 tFilterAtoms : List (Predicate Base AnObject)
 tFilterAtoms =
   [ Multicolored
   , IsColorless
   , And [IsKind IsSpell, Targets (SameAs You)]
   , TargetCount Equal (^1)
-  , And [creature, HasState Unblocked] ]
+  , Holds Block Doer                                                -- "a blocking creature"
+  , Holds Block Patient                                             -- "a blocked creature"
+  , And [creature, Holds Attack Doer, Not (Holds Block Patient)] ]  -- "an unblocked attacker" (derived, no state)
 
 tControlsPlayer : Predicate Base APlayer
 tControlsPlayer = Controls creature
 
+-- INCHOATIVE aspect (`Begins r`): ONE onset event per attack/block; a FACET picks the side. `Begins Attack`
+-- unifies what were the paired `Becomes Attacking` (doer side) and `Becomes Attacked` (patient side).
+--   * "whenever this is blocked" — the patient side of a Block onset:
 tBecomesBlocked : EventQuery Base
-tBecomesBlocked = MkQuery [Becomes Blocked] [Patient (SameAs This)]
+tBecomesBlocked = MkQuery [Begins Block] [Patient (SameAs This)]
 
--- DEFENDER-SIDE of combat ([CR#508.1]): the attack relation is attacker (AGENT) → defender (PATIENT).
--- The defender is kind-poly — a player, planeswalker, or battle — so it rides the now kind-poly `Patient`.
---   * OBJECT defender (planeswalker/battle): has the `Attacked` ObjectState + a `Becomes Attacked` event.
---     "whenever this planeswalker is attacked":
+-- DEFENDER-SIDE of combat ([CR#508.1]): an attack is attacker (DOER) → defender (PATIENT), the defender
+-- kind-poly (a player, planeswalker, or battle) on the now kind-poly `Patient` facet.
+--   * OBJECT defender — "whenever this planeswalker is attacked" (patient side of an Attack onset):
 tBecomesAttacked : EventQuery Base
-tBecomesAttacked = MkQuery [Becomes Attacked] [Patient (SameAs This)]
+tBecomesAttacked = MkQuery [Begins Attack] [Patient (SameAs This)]
 
---   * the static filter "the attacked planeswalker":
+--   * the durative filter "the attacked planeswalker" — `Holds` is object-only (only objects bear durative
+--     state; a player defender has none, and rides the event's `Patient` facet instead):
 tAttackedFilter : Predicate Base AnObject
-tAttackedFilter = And [HasType Planeswalker, HasState Attacked]
+tAttackedFilter = And [HasType Planeswalker, Holds Attack Patient]
 
---   * PLAYER defender (no ObjectState): triggers off the attacker's `Becomes Attacking`, the defender named
---     by the `Patient` facet — "whenever you're attacked" (i.e. a creature attacks you):
+--   * PLAYER defender — "whenever you're attacked" (the kind-poly patient of an Attack onset):
 tYouAreAttacked : EventQuery Base
-tYouAreAttacked = MkQuery [Becomes Attacking] [Patient you]
+tYouAreAttacked = MkQuery [Begins Attack] [Patient you]
 
--- ════ RELATION SPINE (combat slice) — the same combat facts, expressed through ONE Attack/Block relation
--- viewed as three aspects, built ALONGSIDE the legacy encodings above (which migrate + retire later). ════
-
--- DURATIVE aspect (`Holds r role`): the legacy combat states, unified. The blocking/is-blocked pair is just
--- the two SLOTS of one Block relation; "unblocked" is derived (an attacker that is no block's patient).
-tRelAttackingCreature : Predicate Base AnObject
-tRelAttackingCreature = And [creature, Holds Attack Doer, Not (HasState Tapped)]   -- cf tStateFilter (HasState Attacking)
-
-tRelAttackedPlaneswalker : Predicate Base AnObject
-tRelAttackedPlaneswalker = And [HasType Planeswalker, Holds Attack Patient]        -- cf tAttackedFilter (HasState Attacked)
-
-tRelBlockingIsBlocked : List (Predicate Base AnObject)
-tRelBlockingIsBlocked = [ Holds Block Doer, Holds Block Patient ]   -- cf HasState Blocking / HasState Blocked — ONE relation
-
-tRelUnblocked : Predicate Base AnObject
-tRelUnblocked = And [Holds Attack Doer, Not (Holds Block Patient)]  -- cf HasState Unblocked — now DERIVED, no state
-
--- DEONTIC aspect (`Enact r doer patient`): subsumes the `Attacks`/`Blocks` deeds. Doer kind fixed by
--- `doerKind r`; patient kind-poly (`Anyone` = a player defender, `creature` = an object).
-tRelDefender : Deed Base
-tRelDefender = Enact Attack (SameAs This) Anyone                    -- cf tDefender (Cant (Attacks (SameAs This) Anyone))
-
-tRelBlocksWall : Deed Base
-tRelBlocksWall = Enact Block (HasSubtype (^Wall)) (SameAs This)     -- cf Blocks — a per-blocker block deed
-
--- INCHOATIVE aspect (`Begins r`): one onset event; facets pick the side. `Begins Attack` unifies the legacy
--- paired `Becomes Attacking` (Agent side) and `Becomes Attacked` (Patient side).
-tRelYouAreAttacked : EventQuery Base
-tRelYouAreAttacked = MkQuery [Begins Attack] [Patient you]          -- cf tYouAreAttacked (Becomes Attacking, Patient side)
-
-tRelAttacksOrBlocks : EventQuery Base
-tRelAttacksOrBlocks = MkQuery [Begins Attack, Begins Block] [Agent (SameAs This)]  -- cf Smuggler's Becomes Attacking/Blocking
+-- the DOER side: "whenever this attacks or blocks" (Smuggler's Copter) — one `Begins` per relation, the
+-- `Agent` facet pinning the attacker/blocker (the counterpart to the patient-side defender pins above).
+tAttacksOrBlocks : EventQuery Base
+tAttacksOrBlocks = MkQuery [Begins Attack, Begins Block] [Agent (SameAs This)]
 
 -- designations: ONE predicate, scope by type — `HasDesignation Monarch` is a PLAYER test (you're the
 -- monarch), `HasDesignation Monstrous` an OBJECT test. The carrier follows `designationScope`.
@@ -263,7 +243,7 @@ tTypeConfers : List (Property Base)
 tTypeConfers = typeConfers Planeswalker
 
 tAttacksObject : Deed Base
-tAttacksObject = Attacks (HasType Creature) (SameAs This)
+tAttacksObject = Enact Attack (HasType Creature) (SameAs This)
 
 -- note read-back: a chosen card NAME is read by `OfChosen` (Meddling Mage), a chosen NUMBER by `ChosenNumber`.
 tChosenName : Predicate (bindChosen AName Base) AnObject
@@ -478,12 +458,12 @@ tEmptyOneOf = Or []
 -- a deontic Toll: Propaganda — creatures can't attack you UNLESS {2} is paid (cost FIRST). A toll is
 -- pay-to-DO-the-action; ward is NOT one (it's a trigger that counters AFTER — see tWard).
 tToll : StaticEffect Base
-tToll = Toll (Mana [^2]) (Attacks creature you)
+tToll = Toll (Mana [^2]) (Enact Attack creature you)
 
 -- `keyword` desugars a spec to its `Ability`, in three flavors (all pinned by Refl): a DEONTIC
 -- keyword is a `Composite` with a `Cant` clause; an engine-PRIMITIVE keyword is `Bare`; a
 -- grammar FLAG (Reach) is a `Composite []`. `tHexproofFrom` shows the parameterized "from" case.
-tDefender : keyword Defender = the (Ability Base) (Keyword (Composite Defender [Static (Cant (Attacks (SameAs This) Anyone))]))
+tDefender : keyword Defender = the (Ability Base) (Keyword (Composite Defender [Static (Cant (Enact Attack (SameAs This) Anyone))]))
 tDefender = Refl
 
 tFirstStrikeBare : keyword FirstStrike = the (Ability Base) (Keyword (Bare FirstStrike))
@@ -497,13 +477,13 @@ tHexproofFrom = keyword (Hexproof (Just (HasColor Red)))
 
 -- the deontic permission floor `Can` (the 5th polarity, pairing with `Cant`)
 tDeonticCan : Ability Base
-tDeonticCan = Static (Can (Attacks (SameAs This) Anyone))
+tDeonticCan = Static (Can (Enact Attack (SameAs This) Anyone))
 
 -- `AsThough` wraps a clause in a scoped counterfactual: "attack this turn as though it didn't
 -- have defender" — a permission whose premise lifts defender's `Cant`.
 tAsThough : OneShotEffect Base
 tAsThough = Continuously
-  (AsThough (Matches This (Not (HasKeyword Defender))) (Can (Attacks (SameAs This) Anyone)))
+  (AsThough (Matches This (Not (HasKeyword Defender))) (Can (Enact Attack (SameAs This) Anyone)))
   UntilEndOfTurn
 
 -- Flash's desugaring is pinned by Refl: a `Can`-cast at instant speed (a widened window).
@@ -630,7 +610,7 @@ failing
 -- object, so `EventObject` is valid (Smuggler's Copter's single trigger over two kinds).
 tEventObjectMultiKind : Ability Base
 tEventObjectMultiKind =
-  Triggered (MkQuery [Becomes Attacking, Becomes Blocking] []) (Act (Move EventObject Exile))
+  Triggered (MkQuery [Begins Attack, Begins Block] []) (Act (Move EventObject Exile))
 
 -- "whenever a creature enters, draw THAT MANY cards" — meaningless: a creature entering (`ZoneChanged`)
 -- carries no amount, so `ThatMuch` has no referent. The caps gate rejects it.
