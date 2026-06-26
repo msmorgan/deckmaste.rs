@@ -80,7 +80,7 @@ implementation ToRon ManaSymbol where
     toRon indent (Simple s) = toRon indent s
     toRon indent (Hybrid x y) = ctor "Hybrid" [toRon indent x, toRon indent y]
     toRon indent Variable = "Variable"
-    toRon indent (Phyrexian x) = ctor "Phyrexian" [toRon indent x]
+    toRon indent (Phyrexian c mc) = ctor "Phyrexian" [toRon indent c, toRon indent mc]
     toRon indent SnowMana = "Snow"
 
 implementation ToRon a => ToRon (List a) where
@@ -150,10 +150,22 @@ implementation ToRon Role where toRon _ x = show x
 implementation ToRon ObjectState where toRon _ x = show x
 %runElab derive "TextWordClass" [Show]
 implementation ToRon TextWordClass where toRon _ x = show x
-%runElab derive "TimingWindow" [Show]
-implementation ToRon TimingWindow where toRon _ x = show x
-%runElab derive "Restriction" [Show]
-implementation ToRon Restriction where toRon _ x = show x
+%runElab derive "Timing" [Show]
+implementation ToRon Timing where toRon _ x = show x
+%runElab derive "UsageLimit" [Show]
+implementation ToRon UsageLimit where toRon _ x = show x
+implementation ToRon Arrangement where
+    toRon _ ChosenOrder = "ChosenOrder"
+    toRon _ RandomOrder = "RandomOrder"
+    toRon _ SameOrder = "SameOrder"
+implementation ToRon TollTiming where
+    toRon _ AtDeclaration = "AtDeclaration"
+    toRon _ Downstream = "Downstream"
+implementation ToRon RefKind where
+    toRon _ Empty = "Empty"
+    toRon _ AnObject = "AnObject"
+    toRon _ APlayer = "APlayer"
+    toRon _ Anything = "Anything"
 %runElab derive "BeginningStep" [Show]
 implementation ToRon BeginningStep where toRon _ x = show x
 %runElab derive "CombatStep" [Show]
@@ -191,14 +203,13 @@ implementation ToRon PhaseStep where
 implementation ToRon ChooseDomain where
     toRon _ AColor = "AColor"
     toRon _ ACreatureType = "ACreatureType"
-    toRon _ (AMode n) = ctor "AMode" [show n]
+    toRon i (AMode n) = ctor "AMode" [show n]
     toRon _ AName = "AName"
     toRon _ ANumber = "ANumber"
-    toRon _ APlayerChoice = "APlayerChoice"
-    toRon _ AnObjectChoice = "AnObjectChoice"
 
 implementation ToRon ProducedMana where
     toRon i (OfColor c) = ctor "OfColor" [toRon i c]
+    toRon i (OneOf cs) = ctor "OneOf" [toRon i cs]
     toRon _ AnyColor = "AnyColor"
 
 implementation ToRon EventKind where
@@ -208,11 +219,12 @@ implementation ToRon EventKind where
     toRon i (DealDamage mb) = ctor "DealDamage" [ronOpt i mb]
     toRon _ CreateToken = "CreateToken"
     toRon _ PutCounters = "PutCounters"
-    toRon _ Destroyed = "Destroyed"
+    toRon _ Destroy = "Destroy"
     toRon i (ZoneChanged from to) = ctor "ZoneChanged" [ronOpt i from, ronOpt i to]
     toRon i (BeginStep ps) = ctor "BeginStep" [toRon i ps]
     toRon i (Becomes s) = ctor "Becomes" [toRon i s]
     toRon i (Begins r) = ctor "Begins" [toRon i r]
+    toRon _ RemoveCounters = "RemoveCounters"
 
 
 -- The grammar proper. Count / Reference / Predicate / Condition / … and the
@@ -254,7 +266,7 @@ mutual
     toRon i (Aggregate op s p) = ctor "Aggregate" [toRon i op, toRon i s, toRon i p]
     toRon i (Devotion colors) = ctor "Devotion" [toRon i colors]
     toRon i (EventCount q) = ctor "EventCount" [toRon i q]
-    toRon i (EventSum k {facets}) = ctor "EventSum" [toRon i k, toRon i facets]
+    toRon i (EventSum q) = ctor "EventSum" [toRon i q]
     toRon i (Damage r) = ctor "Damage" [toRon i r]
     toRon i (CountersOn c r) = ctor "CountersOn" [toRon i c, toRon i r]
     toRon i (LifeTotal r) = ctor "LifeTotal" [toRon i r]
@@ -275,6 +287,7 @@ mutual
 
   implementation ToRon (Selection b k) where
     toRon i (SelectAll p) = ctor "SelectAll" [toRon i p]
+    toRon i (Union sels) = ctor "Union" [toRon i sels]
     toRon _ That = "That"
     toRon _ (GetTargets n) = ctor "GetTargets" [show n]
     toRon i (Random q p) = ctor "Random" [toRon i q, toRon i p]
@@ -350,7 +363,7 @@ mutual
     toRon i (WinGame r) = ctor "WinGame" [toRon i r]
     toRon i (LoseGame r) = ctor "LoseGame" [toRon i r]
 
-  implementation ToRon (LibraryPosition b) where
+  implementation ToRon (Anchor b) where
     toRon i (FromTop c) = ctor "FromTop" [toRon i c]
     toRon i (FromBottom c) = ctor "FromBottom" [toRon i c]
 
@@ -362,14 +375,7 @@ mutual
 
   implementation ToRon (Cost b) where
     toRon i (Mana m) = ctor "Mana" [toRon i m]
-    toRon _ TapSelf = "TapSelf"
-    toRon _ UntapSelf = "UntapSelf"
-    toRon i (PayLife c) = ctor "PayLife" [toRon i c]
-    toRon i (PayEnergy c) = ctor "PayEnergy" [toRon i c]
-    toRon i (Sacrifice r) = ctor "Sacrifice" [toRon i r]
-    toRon i (SacrificeA p) = ctor "SacrificeA" [toRon i p]
-    toRon i (AddCounters c n) = ctor "AddCounters" [toRon i c, toRon i n]
-    toRon i (RemoveCounters c n) = ctor "RemoveCounters" [toRon i c, toRon i n]
+    toRon i (Do a) = ctor "Do" [toRon i a]
     toRon i (Scaled c cost) = ctor "Scaled" [toRon i c, toRon i cost]
     toRon i (Costs cs) = ctor "Costs" [toRon i cs]
     toRon i (TapTotal s c n p) = ctor "TapTotal" [toRon i s, toRon i c, toRon i n, toRon i p]
@@ -381,7 +387,6 @@ mutual
     toRon i (ScaledBy ch c) = ctor "ScaledBy" [toRon i ch, toRon i c]
 
   implementation ToRon (AlternativeCost b) where
-    toRon _ FreeCast = "FreeCast"
     toRon i (AltCost cs) = ctor "AltCost" [toRon i cs]
 
   implementation ToRon (ReplaceLimit b) where
@@ -406,6 +411,19 @@ mutual
     toRon i (Search q p {by} {whose} {from}) =
       ctor "Search" [toRon i by, toRon i whose, toRon i from, toRon i q, toRon i p]
 
+  implementation ToRon (Destination b) where
+    toRon i (ToZone z) = ctor "ToZone" [toRon i z]
+    toRon i (ToLibrary a) = ctor "ToLibrary" [toRon i a]
+
+  implementation ToRon (CounterSpec b) where
+    toRon i (Some c n) = ctor "Some" [toRon i c, toRon i n]
+    toRon _ AllKinds = "AllKinds"
+
+  implementation ToRon (ManaRider b) where
+    toRon i (SpendOnly p) = ctor "SpendOnly" [toRon i p]
+    toRon i (GrantOnSpend se) = ctor "GrantOnSpend" [toRon i se]
+    toRon i (TriggerOnSpend e) = ctor "TriggerOnSpend" [toRon i e]
+
   implementation ToRon (Action b) where
     toRon i (DealDamage {source} r n) = ctor "DealDamage" [toRon i source, toRon i r, toRon i n]
     toRon i (Move r z) = ctor "Move" [toRon i r, toRon i z]
@@ -417,32 +435,28 @@ mutual
     toRon i (RemoveAllDamage r) = ctor "RemoveAllDamage" [toRon i r]
     toRon i (RemoveFromCombat r) = ctor "RemoveFromCombat" [toRon i r]
     toRon i (Transform r) = ctor "Transform" [toRon i r]
-    toRon i (PhaseOut r) = ctor "PhaseOut" [toRon i r]
-    toRon i (MoveAllCounters from to) = ctor "MoveAllCounters" [toRon i from, toRon i to]
     toRon i (GrantDesignation d r) = ctor "GrantDesignation" [toRon i d, toRon i r]
     toRon i (Attach what to) = ctor "Attach" [toRon i what, toRon i to]
     toRon i (Unattach r) = ctor "Unattach" [toRon i r]
     toRon i (Draw {actor} n) = ctor "Draw" [toRon i actor, toRon i n]
     toRon i (GainLife {actor} n) = ctor "GainLife" [toRon i actor, toRon i n]
-    toRon i (PutIntoLibrary r p) = ctor "PutIntoLibrary" [toRon i r, toRon i p]
     toRon i (PutCounters c n r) = ctor "PutCounters" [toRon i c, toRon i n, toRon i r]
-    toRon i (RemoveAllCounters c r) = ctor "RemoveAllCounters" [toRon i c, toRon i r]
     toRon i (Discard {actor} n) = ctor "Discard" [toRon i actor, toRon i n]
     toRon i (LoseLife {actor} n) = ctor "LoseLife" [toRon i actor, toRon i n]
-    toRon i (Sacrifices r p) = ctor "Sacrifices" [toRon i r, toRon i p]
-    toRon i (Scry n) = ctor "Scry" [toRon i n]
-    toRon i (Surveil n) = ctor "Surveil" [toRon i n]
-    toRon i (Fight x y) = ctor "Fight" [toRon i x, toRon i y]
+    toRon i (Sacrifice r p) = ctor "Sacrifice" [toRon i r, toRon i p]
+    toRon i (PhaseOut r) = ctor "PhaseOut" [toRon i r]
+    toRon i (MoveArranged sel arr dest) = ctor "MoveArranged" [toRon i sel, toRon i arr, toRon i dest]
+    toRon i (RemoveCounters c n r) = ctor "RemoveCounters" [toRon i c, toRon i n, toRon i r]
+    toRon i (MoveCounters cs from to) = ctor "MoveCounters" [toRon i cs, toRon i from, toRon i to]
     toRon i (Reveal r) = ctor "Reveal" [toRon i r]
     toRon i (Shuffle {actor}) = ctor "Shuffle" [toRon i actor]
-    toRon i (ExtraTurn {who}) = ctor "ExtraTurn" [toRon i who]
+    toRon i (ExtraTurn {actor}) = ctor "ExtraTurn" [toRon i actor]
     toRon i (ControlPlayer whom) = ctor "ControlPlayer" [toRon i whom]
     toRon i (CreateToken n c) = ctor "CreateToken" [toRon i n, toRon i c]
     toRon i (CopySpell r) = ctor "CopySpell" [toRon i r]
     toRon i (CreateTokenCopy r) = ctor "CreateTokenCopy" [toRon i r]
-    toRon i (AddMana {actor} produced {onlyToCast} {confers}) =
-      ctor "AddMana" [toRon i actor, toRon i produced, ronOpt i onlyToCast, toRon i confers]
-    toRon i (AddManaFor amount of_) = ctor "AddManaFor" [toRon i amount, toRon i of_]
+    toRon i (AddMana {actor} amount produced {riders}) =
+      ctor "AddMana" [toRon i actor, toRon i amount, toRon i produced, toRon i riders]
 
   implementation ToRon (Mode b) where
     toRon i (MkMode effect {cost}) =
@@ -467,12 +481,9 @@ mutual
 
   implementation ToRon (StaticEffect b) where
     toRon i (Modify r mods) = ctor "Modify" [toRon i r, toRon i mods]
-    toRon i (ModifyAll p mods) = ctor "ModifyAll" [toRon i p, toRon i mods]
     toRon i (CostModifier p ch) = ctor "CostModifier" [toRon i p, toRon i ch]
     toRon i (Replaces q body {limit}) = ctor "Replaces" [toRon i q, toRon i body, toRon i limit]
     toRon i (CantHappen q) = ctor "CantHappen" [toRon i q]
-    toRon i (ReplaceAmount k {facets} newAmount) =
-      ctor "ReplaceAmount" [toRon i k, toRon i facets, toRon i newAmount]
     toRon i (OutcomeGate g p) = ctor "OutcomeGate" [toRon i g, toRon i p]
     toRon i (Also q body) = ctor "Also" [toRon i q, toRon i body]
     toRon i (Sba c body) = ctor "Sba" [toRon i c, toRon i body]
@@ -483,8 +494,8 @@ mutual
     toRon i (Can d {window}) = ctor "Can" [toRon i d, ronOpt i window]
     toRon i (AsThough c se) = ctor "AsThough" [toRon i c, toRon i se]
     toRon i (Constrain comp d) = ctor "Constrain" [toRon i comp, toRon i d]
-    toRon i (Gate c d) = ctor "Gate" [toRon i c, toRon i d]
-    toRon i (Toll c d) = ctor "Toll" [toRon i c, toRon i d]
+    toRon i (ReplaceAmount q newAmount) = ctor "ReplaceAmount" [toRon i q, toRon i newAmount]
+    toRon i (Priced t cost deed) = ctor "Priced" [toRon i t, toRon i cost, toRon i deed]
 
   implementation ToRon (OneShotEffect b) where
     toRon i (Sequence xs) = ctor "Sequence" [toRon i xs]
@@ -502,7 +513,7 @@ mutual
       ctor "MustPay" [toRon i actor, toRon i cost, toRon i orElse]
     toRon i (Continuously se d) = ctor "Continuously" [toRon i se, toRon i d]
     toRon i (Modal spec modes) = ctor "Modal" [toRon i spec, toRon i modes]
-    toRon i (ForEach sel body) = ctor "ForEach" [toRon i sel, toRon i body]
+    toRon i (Each sel body) = ctor "Each" [toRon i sel, toRon i body]
     toRon i (Distribute amount sel body) =
       ctor "Distribute" [toRon i amount, toRon i sel, toRon i body]
     toRon i (Reflexive e) = ctor "Reflexive" [toRon i e]
@@ -538,42 +549,43 @@ mutual
     toRon i (Keyword x) = toRon i x
     toRon i (Activated cost effect {window} {limits}) =
       ctor "Activated" [toRon i cost, toRon i effect, toRon i window, toRon i limits]
-    toRon i (Triggered q effect) = ctor "Triggered" [toRon i q, toRon i effect]
+    toRon i (Triggered q effect {limits}) =
+      ctor "Triggered" [toRon i q, toRon i effect, toRon i limits]
+    toRon i (TurnBased ps e) = ctor "TurnBased" [toRon i ps, toRon i e]
     toRon i (Static se) = ctor "Static" [toRon i se]
     toRon i (TurnFaceUp cost) = ctor "TurnFaceUp" [toRon i cost]
     toRon i (AsEnters d xs) = ctor "AsEnters" [toRon i d, toRon i xs]
+    toRon i (AsEntersChoosing k p xs) = ctor "AsEntersChoosing" [toRon i k, toRon i p, toRon i xs]
 
   -- a printed face: a struct whose absent (empty / `Nothing`) fields are omitted.
   implementation ToRon (Characteristics b) where
     toRon indent (MkCharacteristics name manaCost colors types supertypes
                                      subtypes abilities power toughness
-                                     loyalty defense) = fastConcat $
-           [ ronProperty indent "name" name
-           , ronProperty indent "mana_cost" (nonEmpty manaCost)
-           , ronProperty indent "color_indicator" (nonEmpty colors)
-           , ronProperty indent "types" (Just types)
-           , ronProperty indent "supertypes" (nonEmpty supertypes)
-           , ronProperty indent "subtypes" (nonEmpty subtypes)
-           , ronProperty indent "abilities" (nonEmpty abilities)
-           , ronProperty indent "power" power
-           , ronProperty indent "toughness" toughness
-           , ronProperty indent "loyalty" loyalty
-           , ronProperty indent "defense" defense
-           ]
-
-  implementation ToRon Card where
-    toRon indent (Normal face) = "Normal(\n"
-                              ++ toRon (S indent) face
-                              ++ mkIndent indent ++ ")"
-    toRon indent (TwoFaced layout front back) =
-      "TwoFaced(\n"
-        ++ mkIndent (S indent) ++ "layout: " ++ toRon (S indent) layout ++ ",\n"
-        ++ mkIndent (S indent) ++ "front: (\n"
-        ++ toRon (S (S indent)) front ++ mkIndent (S indent) ++ "),\n"
-        ++ mkIndent (S indent) ++ "back: (\n"
-        ++ toRon (S (S indent)) back ++ mkIndent (S indent) ++ "),\n"
+                                     loyalty defense) =
+      "(\n"
+        ++ fastConcat [ ronProperty (S indent) "name" name
+                      , ronProperty (S indent) "mana_cost" (nonEmpty manaCost)
+                      , ronProperty (S indent) "color_indicator" (nonEmpty colors)
+                      , ronProperty (S indent) "types" (Just types)
+                      , ronProperty (S indent) "supertypes" (nonEmpty supertypes)
+                      , ronProperty (S indent) "subtypes" (nonEmpty subtypes)
+                      , ronProperty (S indent) "abilities" (nonEmpty abilities)
+                      , ronProperty (S indent) "power" power
+                      , ronProperty (S indent) "toughness" toughness
+                      , ronProperty (S indent) "loyalty" loyalty
+                      , ronProperty (S indent) "defense" defense
+                      ]
         ++ mkIndent indent ++ ")"
 
+  implementation ToRon Card where
+    toRon indent (Normal face) = "Normal" ++ toRon (S indent) face
+    toRon indent (TwoFaced layout front back) =
+      "TwoFaced(\n"
+        ++ fastConcat [ ronProperty (S indent) "layout" (Just layout)
+                      , ronProperty (S indent) "front" (Just front)
+                      , ronProperty (S indent) "back" (Just back)
+                      ]
+        ++ mkIndent indent ++ ")"
 
 -- A tiny demonstration entry point: print a few cards from `Cards` as RON.
 main : IO ()
