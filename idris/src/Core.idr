@@ -207,8 +207,8 @@ data Restriction = OncePerTurn | OncePerGame
 
 -- Runtime object STATE (not a printed characteristic) — what a `HasState` predicate tests
 -- ([CR#701.20] tap, [CR#302.6] summoning sickness, [CR#702.26] phasing, [CR#708] face-down). The RELATIONAL
--- states moved to the spine: combat (attacking/blocking/blocked) is `Holds Attack/Block Doer/Patient`, and
--- "attached" is `Holds Attach Doer` — none are `HasState`. Negatives via `Not` ("untapped" = `Not (HasState
+-- states moved to the spine: combat (attacking/blocking/blocked) is `Holds Attack/Block Agent/Patient`, and
+-- "attached" is `Holds Attach Agent` — none are `HasState`. Negatives via `Not` ("untapped" = `Not (HasState
 -- Tapped)`). `SummoningSick` is what `haste` lifts — "as though not summoning-sick" (`AsThough`, see Macros).
 public export
 data ObjectState = Tapped | SummoningSick
@@ -256,7 +256,7 @@ counterCarrier _          = AnObject
 
 -- RELATION SPINE. A `Relation` is an agent→patient relation the game tracks; from ONE relation we derive
 -- three ASPECTS — durative (`Holds`, a state predicate), inchoative (`Begins`, an event), deontic (`Enact`,
--- a deed). `doerKind` fixes the DOER's kind per relation (the Agent/Actor resolution: ONE doer slot, an
+-- a deed). `agentKind` fixes the AGENT's kind per relation (the Agent/Actor resolution: ONE agent slot, an
 -- OBJECT for combat/attach/target/counter, a PLAYER for cast/activate/play) — `counterCarrier`'s sibling.
 -- The PATIENT stays kind-poly (an attack's defender is a player/planeswalker/battle). The constructors are
 -- NAMESPACED — `Cast`/`Target`/`Counter`/`Attach` clash with the EventKind/TargetSpec/Action of the same
@@ -269,20 +269,22 @@ namespace Relation
                 | Target | Counter           -- a source (spell/ability, object) targets / counters an object
 
 public export
-doerKind : Relation -> RefKind
-doerKind Attack   = AnObject
-doerKind Block    = AnObject
-doerKind Cast     = APlayer
-doerKind Activate = APlayer
-doerKind Play     = APlayer
-doerKind Attach   = AnObject
-doerKind Target   = AnObject   -- the source (a spell/ability) does the targeting
-doerKind Counter  = AnObject   -- the source (a spell/ability) does the countering
+agentKind : Relation -> RefKind
+agentKind Attack   = AnObject
+agentKind Block    = AnObject
+agentKind Cast     = APlayer
+agentKind Activate = APlayer
+agentKind Play     = APlayer
+agentKind Attach   = AnObject
+agentKind Target   = AnObject   -- the source (a spell/ability) does the targeting
+agentKind Counter  = AnObject   -- the source (a spell/ability) does the countering
 
--- the two participant SLOTS, as role selectors for the durative aspect (`Holds Attack Doer` = an attacker,
--- `Holds Block Patient` = a blocked creature). Unifies the old `Attacking`/`Blocking`/`Blocked` states.
+-- the two participant SLOTS, as role selectors for the durative aspect (`Holds Attack Agent` = an attacker,
+-- `Holds Block Patient` = a blocked creature). `Agent`/`Patient` are the SAME role pair the event `Facet`s
+-- use — ONE vocabulary across the spine's aspects. (`Actor`, the responsible PLAYER, is a separate axis,
+-- not a role.) Unifies the old `Attacking`/`Blocking`/`Blocked` states.
 public export
-data Role = Doer | Patient
+data Role = Agent | Patient
 
 -- DESIGNATIONS ([CR#700-ish global flags]: monarch, the initiative, city's blessing, monstrous,
 -- goaded, renowned, suspected, saddled, solved…). The Rust engine carries these as an OPEN name +
@@ -598,7 +600,7 @@ mutual
       HasCounter : (c : CounterKind) -> Predicate b (counterCarrier c)   -- has ≥1 of this counter; the candidate's kind follows the carrier ("ten poison" tests a player)
       HasState : ObjectState -> Predicate b AnObject      -- runtime state: "target ATTACKING / TAPPED creature"
       -- the DURATIVE aspect of the relation spine: "the candidate currently fills [role] of [r]" — object-only
-      -- (only objects bear durative state; a player defender has none). `Holds Attack Doer` = an attacker,
+      -- (only objects bear durative state; a player defender has none). `Holds Attack Agent` = an attacker,
       -- `Holds Block Patient` = a blocked creature. Unifies the legacy `Attacking`/`Blocking`/`Blocked` states.
       Holds : Relation -> Role -> Predicate b AnObject
       -- carries a DESIGNATION; the candidate's kind follows `designationScope` ("you're the monarch" =
@@ -661,7 +663,9 @@ mutual
   namespace Facet
     public export
     data Facet : Bindings -> Type where
-      -- ACTOR: the event's controlling player matches a player-pred (you / opponent).
+      -- ACTOR: the responsible PLAYER matches a player-pred (you / opponent) — the player AXIS, orthogonal to
+      -- the agent→patient relation, NOT a third role. Double duty: the direct doer of a player-event
+      -- (`[Cast] [Actor you]`) and the CONTROLLER behind an object-`Agent` (`[DealDamage] [Agent ~, Actor you]`).
       Actor   : Predicate b APlayer -> Facet b
       -- AGENT: the event's DOER/INITIATOR object matches — the moving object of a zone-change, or the
       -- SOURCE of damage (the object dealing it; protection's D leg). The two feed the SAME role.
@@ -914,19 +918,19 @@ ModalCountOk _ _ = ()
 -- "can't lose") are `Replaces`/SBA, NOT a `Cant`.
 public export
 data Deed : Bindings -> Type where
-  -- the DEONTIC aspect of the relation spine: "[doer] enacts [r] upon [patient]" (under Can/Cant/Must/Gate/
-  -- Toll). The DOER's kind is fixed by `doerKind r` (ONE doer slot — no Agent/Actor split): a PLAYER for
+  -- the DEONTIC aspect of the relation spine: "[agent] enacts [r] upon [patient]" (under Can/Cant/Must/Gate/
+  -- Toll). The AGENT's kind is fixed by `agentKind r` (ONE agent slot — no `Agent`/`Actor` split): a PLAYER for
   -- Cast/Activate/Play, the SOURCE OBJECT for Attack/Block/Attach/Target/Counter. The PATIENT stays kind-
   -- poly (an attack's defender is a player OR a permanent, [CR#508.1]). The two PASSIVE deeds fold in once
-  -- the source is the explicit doer. Examples:
+  -- the source is the explicit agent. Examples:
   --   Defender             = `Cant (Enact Attack (SameAs This) Anyone)`
   --   "q can't block this" = `Cant (Enact Block q (SameAs This))`
   --   "Enchant creature"   = `Can  (Enact Attach (SameAs This) creature)`  ([CR#701.3a]) — attach is default-FORBIDDEN, Enchant ENABLES it
-  --   Shroud               = `Cant (Enact Target spellOrAbility (SameAs This))`  (the source spell/ability is the doer)
+  --   Shroud               = `Cant (Enact Target spellOrAbility (SameAs This))`  (the source spell/ability is the agent)
   --   "can't be countered" = `Cant (Enact Counter spellOrAbility (SameAs This))`
   --   flash                = `Can  (Enact Cast you (SameAs This)) {window = InstantWindow}`  ([CR#702.8a])
   -- (Subsumed the old Attacks/Blocks/Attaches/BeTargeted/Casts/Activates/Plays/Countered verbs.)
-  Enact      : (r : Relation) -> Predicate b (doerKind r) -> (patient : Predicate b k) -> Deed b
+  Enact      : (r : Relation) -> (agent : Predicate b (agentKind r)) -> (patient : Predicate b k) -> Deed b
   -- SET-LEVEL block ([CR#509.1c],[CR#702.111b]): "[attacker] is blocked by a DECLARED set of `size`
   -- creatures" (a block, so size ≥ 1 — ENFORCED by `NonZeroQ`). `Cant (BlockedBy This …)` constrains the
   -- WHOLE blocker set, not one blocker at a time — Menace = `Cant (BlockedBy (SameAs This) (^1))`
