@@ -237,8 +237,8 @@ tSubtypeConfers : List (Property Base)
 tSubtypeConfers = subtypeConfers (^Saga)
 
 -- attacking a planeswalker: the TYPE confers a deontic permitting attacks on IT (`typeConfers`), not a
--- widening of the attacker. `Attacks`'s `whom` is now kind-polymorphic, so the permission names the
--- permanent itself (`SameAs This`, an OBJECT) as the defender.
+-- widening of the attacker. `Enact Attack`'s patient is kind-poly, so the permission names the permanent
+-- itself (`SameAs This`, an OBJECT) as the defender.
 tTypeConfers : List (Property Base)
 tTypeConfers = typeConfers Planeswalker
 
