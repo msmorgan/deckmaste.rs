@@ -29,8 +29,8 @@ tLandCreature = Normal $ ^:
 -- `That`, bound by a `With`, SURVIVES into a delayed body (captured); targets don't
 tThatSurvivesDelay : OneShotEffect Base
 tThatSurvivesDelay =
-  With (Produce (Move (Only creature) Exile))
-    (Delayed nextEndStep (Each That (Act (Move It Battlefield))))
+  With (Produce (Move (Only creature) (ToZone Exile)))
+    (Delayed nextEndStep (Each That (Act (Move It (ToZone Battlefield)))))
 
 -- branching effects typecheck
 tMay : OneShotEffect Base
@@ -60,8 +60,8 @@ tModalVariable =
 -- `Reflexive` NESTS: inside a `With`, its body still sees `That` (no sibling scan)
 tReflexiveSeesThat : OneShotEffect Base
 tReflexiveSeesThat =
-  With (Produce (Move (Only creature) Exile))
-    (Reflexive (Each That (Act (Move It Battlefield))))
+  With (Produce (Move (Only creature) (ToZone Exile)))
+    (Reflexive (Each That (Act (Move It (ToZone Battlefield)))))
 
 -- `Each` binds `It` per element; the body references `It`
 tForEach : OneShotEffect Base
@@ -224,7 +224,7 @@ tAuraEnters : StaticEffect Base
 tAuraEnters = Also thisEnters (With (Choose (^1) creature) (Each That (Act (Attach This It))))
 
 tAuraFallsOff : StaticEffect Base
-tAuraFallsOff = Sba (Not (LegallyAttached This)) (Act (Move This Graveyard))
+tAuraFallsOff = Sba (Not (LegallyAttached This)) (Act (Move This (ToZone Graveyard)))
 
 -- "your unspent mana doesn't empty" (Kruphix/Omnath) — a pool-policy static.
 tManaPersists : StaticEffect Base
@@ -385,11 +385,11 @@ tGlobalSbas =
     -- can't replace it; the Move-vs-Destroy choice is exactly what encodes that)
   , MkSbaRule (And [creature, InZone Battlefield])
               (Compare (StatOf This Toughness) LessEq (^0))
-              (Act (Move This Graveyard))
+              (Act (Move This (ToZone Graveyard)))
     -- loyalty-0 [CR#704.5i]: a planeswalker with 0 loyalty counters → put into graveyard
   , MkSbaRule (And [HasType Planeswalker, InZone Battlefield])
               (Compare (CountersOn Loyalty This) Equal (^0))
-              (Act (Move This Graveyard)) ]
+              (Act (Move This (ToZone Graveyard))) ]
 
 -- new verbs (scry/fight/token/search/copy) all typecheck
 tVerbs : List (OneShotEffect Base)
@@ -397,7 +397,7 @@ tVerbs =
   [ scry (Literal 2)
   , fight This (Only creature)
   , Act (CreateToken (Literal 2) (^: { name := Just "Soldier", types := [Creature], colors := [White], power := Just 1, toughness := Just 1 }))
-  , With (Search {from = [Library, Graveyard]} (^1) (HasName "Forest")) (Each That (Act (Move It Hand)))  -- tutor across two zones
+  , With (Search {from = [Library, Graveyard]} (^1) (HasName "Forest")) (Each That (Act (Move It (ToZone Hand))))  -- tutor across two zones
   , Act (CopySpell (Only (IsKind IsSpell))) ]
 
 -- a token whose P/T is a `Count b` known at creation — "an X/X where X = creatures you control".
@@ -418,7 +418,7 @@ tNamelessToken = Act (CreateToken (^2)
 -- opponent is now a TARGET (player-predicate `opponent`), so `whose` is that targeted player.
 tSearchOther : OneShotEffect Base
 tSearchOther = Targeted [Target (^1) opponent]
-  (With (Search {whose = GetTarget 0} (^1) creature) (Each That (Act (Move It Battlefield))))
+  (With (Search {whose = GetTarget 0} (^1) creature) (Each That (Act (Move It (ToZone Battlefield)))))
 
 -- a conditional static, and an activation-limited (loyalty-style) ability
 tConditionalStatic : Ability Base
@@ -609,7 +609,7 @@ failing
 failing
   tBadEventObjectNoObject : Ability Base
   tBadEventObjectNoObject =
-    Triggered (MkQuery [BeginStep (BeginningPhase UpkeepStep)] []) (Act (Move EventObject Exile))
+    Triggered (MkQuery [BeginStep (BeginningPhase UpkeepStep)] []) (Act (Move EventObject (ToZone Exile)))
 
 -- `ThatMuch` (the amount) in a `Begins Cast` body — a cast carries no amount.
 failing
@@ -636,7 +636,7 @@ failing
 -- object, so `EventObject` is valid (Smuggler's Copter's single trigger over two kinds).
 tEventObjectMultiKind : Ability Base
 tEventObjectMultiKind =
-  Triggered (MkQuery [Begins Attack, Begins Block] []) (Act (Move EventObject Exile))
+  Triggered (MkQuery [Begins Attack, Begins Block] []) (Act (Move EventObject (ToZone Exile)))
 
 -- "whenever a creature enters, draw THAT MANY cards" — meaningless: a creature entering (`ZoneChanged`)
 -- carries no amount, so `ThatMuch` has no referent. The caps gate rejects it.

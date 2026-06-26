@@ -152,14 +152,14 @@ regenerate = Continuously
 
 -- KEYWORD ACTIONS as macros over primitives ([CR#701]) — the action-side twin of the keyword
 -- ABILITIES above. Each is a plain `OneShotEffect` (used directly, no `Act` wrapper), composited from
--- `Each`/`With`/`Modal`/`PutIntoLibrary`/`Move`/`DealDamage`, so there are no bespoke `Scry`/`Surveil`/
+-- `Each`/`With`/`Modal`/`Move`/`ToLibrary`/`DealDamage`, so there are no bespoke `Scry`/`Surveil`/
 -- `Fight` verbs in `Action`.
 
 -- mill n ([CR#701.17a]): put the top n of your library into your graveyard. The graveyard is unordered,
 -- so a simultaneous `Each` over the top-n needs no `Arrangement`.
 public export
 mill : Count b -> OneShotEffect b
-mill n = Each (TopOfLibrary n) (Act (Move It Graveyard))
+mill n = Each (TopOfLibrary n) (Act (Move It (ToZone Graveyard)))
 
 -- scry n ([CR#701.22a]): look at the top n, then put each on top or on the bottom; the within-group
 -- order is the [CR#401.4] "any order" freebie (simultaneous `Each`). The per-card top/bottom pick is a
@@ -169,8 +169,8 @@ scry : Count b -> OneShotEffect b
 scry n = With (Existing (TopOfLibrary n))
   (Each That
     (Modal (MkChooseSpec (Range (Just (^1)) (Just (^1))))
-      [ MkMode (Act (PutIntoLibrary It (FromTop (^0))))
-      , MkMode (Act (PutIntoLibrary It (FromBottom (^0)))) ]))
+      [ MkMode (Act (Move It (ToLibrary (FromTop (^0)))))
+      , MkMode (Act (Move It (ToLibrary (FromBottom (^0))))) ]))
 
 -- surveil n ([CR#701.25a]): scry's shape, but the spill zone is the graveyard, not the library bottom.
 public export
@@ -178,8 +178,8 @@ surveil : Count b -> OneShotEffect b
 surveil n = With (Existing (TopOfLibrary n))
   (Each That
     (Modal (MkChooseSpec (Range (Just (^1)) (Just (^1))))
-      [ MkMode (Act (PutIntoLibrary It (FromTop (^0))))
-      , MkMode (Act (Move It Graveyard)) ]))
+      [ MkMode (Act (Move It (ToLibrary (FromTop (^0)))))
+      , MkMode (Act (Move It (ToZone Graveyard))) ]))
 
 -- fight ([CR#701.14a]): two creatures each deal damage equal to their power to the other (simultaneous).
 public export
