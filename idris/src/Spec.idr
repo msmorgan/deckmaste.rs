@@ -230,18 +230,19 @@ tAuraFallsOff = Sba (Not (LegallyAttached This)) (Act (Move This (ToZone Graveya
 tManaPersists : StaticEffect Base
 tManaPersists = ManaPersists you
 
--- the Property mechanism: a +1/+1 counter confers its OWN P/T pump (`counterConfers`), and the Saga
--- subtype confers the lore-increment turn-based action (`subtypeConfers`) — engine-read, no special-casing.
-tCounterConfers : List (Property Base)
+-- conferrals are just `Ability`s (no `Property` wrapper): a +1/+1 counter confers its OWN P/T pump
+-- (`counterConfers` → `Static (Modify …)`), and the Saga subtype confers the lore-increment `TurnBased`
+-- action (`subtypeConfers`) — engine-read, no special-casing.
+tCounterConfers : List (Ability Base)
 tCounterConfers = counterConfers P1P1
 
-tSubtypeConfers : List (Property Base)
+tSubtypeConfers : List (Ability Base)
 tSubtypeConfers = subtypeConfers (^Saga)
 
 -- attacking a planeswalker: the TYPE confers a deontic permitting attacks on IT (`typeConfers`), not a
 -- widening of the attacker. `Enact Attack`'s patient is kind-poly, so the permission names the permanent
 -- itself (`SameAs This`, an OBJECT) as the defender.
-tTypeConfers : List (Property Base)
+tTypeConfers : List (Ability Base)
 tTypeConfers = typeConfers Planeswalker
 
 tAttacksObject : Deed Base

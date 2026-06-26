@@ -1036,9 +1036,9 @@ card_Skred = Normal $ ^:
           (Act (DealDamage (GetTarget 0) (CountOf (And [HasSupertype Snow, ControlledBy you]))))) ]
   }
 
--- History of Benalia — a SAGA, via the `Property` mechanism. The `Saga` subtype CONFERS the lore-
--- increment (`subtypeConfers (^Saga)` = a `PropTurnBased` adding a Lore counter each precombat main),
--- so the card only spells its CHAPTERS (triggered on the Lore count) + the final-chapter `Sba` sacrifice.
+-- History of Benalia — a SAGA. The `Saga` subtype CONFERS the lore-increment (`subtypeConfers (^Saga)`
+-- = a `TurnBased` ability adding a Lore counter each precombat main), so the card only spells its
+-- CHAPTERS (triggered on the Lore count) + the final-chapter `Sba` sacrifice.
 export
 card_HistoryOfBenalia : Card
 card_HistoryOfBenalia = Normal $ ^:
