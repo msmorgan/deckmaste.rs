@@ -415,7 +415,7 @@ card_Juggernaut = Normal $ ^:
 
 -- Ghostly Prison — "Creatures can't attack you unless their controller pays {2} for each creature
 -- they control that's attacking you" — a `Gate` (cost FIRST; never compulsory). This is NOT a flat
--- approximation: the `Deed` is PER-ATTACKER (`Attacks creature {whom = you}`), so the Gate charges
+-- approximation: the `Deed` is PER-ATTACKER (`Enact Attack creature you`), so the Gate charges
 -- {2} per attacker attacking you — N attackers ⇒ {2}N, exactly the printed cost. (No `Scaled` needed.)
 export
 card_GhostlyPrison : Card
@@ -1096,7 +1096,7 @@ card_VodalianIllusionist = Normal $ ^:
 
 -- Smuggler's Copter — a VEHICLE with CREW (the aggregate-stat cost): "Crew 1" = tap creatures with
 -- total power ≥ 1 to make this Vehicle an artifact creature until end of turn. + loot on attack/block
--- (the `Becomes` event from Pass B).
+-- (the `Begins Attack`/`Begins Block` onset event).
 export
 card_SmugglersCopter : Card
 card_SmugglersCopter = Normal $ ^:
