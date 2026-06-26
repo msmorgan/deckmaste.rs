@@ -111,7 +111,7 @@ data Zone
 public export
 data CreatureSubtype
   = Bear | Rat | Spider | Human | Knight | Goblin | Elf | Zombie | Elemental | Wall | Spirit
-  | Rogue | Warrior | Merfolk | Wizard | Juggernaut | Angel | Faerie | Insect | Cat  -- creature types
+  | Rogue | Warrior | Merfolk | Wizard | Juggernaut | Angel | Faerie | Insect | Cat | Vampire | Noble  -- creature types
 public export
 data EnchantmentSubtype
   = Aura | Saga
@@ -357,7 +357,10 @@ namespace EventKind
     Sacrifice : EventKind
     Draw : EventKind
     Discard : EventKind
-    DealDamage : EventKind
+    -- damage ([CR#120]). The `Maybe Bool` is the COMBAT flag — intrinsic event data, so it rides the
+    -- KIND (like `ZoneChanged`'s zones), wildcarded the same way: `Nothing` = any damage (Furnace,
+    -- protection, prevention), `Just True` = combat damage ([CR#510]), `Just False` = noncombat.
+    DealDamage : Maybe Bool -> EventKind
     CreateToken : EventKind
     PutCounters : EventKind
     Destroyed : EventKind
@@ -393,7 +396,7 @@ eventKindCaps : EventKind -> EventCaps
 eventKindCaps Sacrifice         = MkCaps True  True  False
 eventKindCaps Draw              = MkCaps False True  False
 eventKindCaps Discard           = MkCaps True  True  False
-eventKindCaps DealDamage        = MkCaps True  True  True
+eventKindCaps (DealDamage _)    = MkCaps True  True  True
 eventKindCaps CreateToken       = MkCaps True  True  True
 eventKindCaps PutCounters       = MkCaps True  True  True
 eventKindCaps Destroyed         = MkCaps True  False False
@@ -602,6 +605,8 @@ mutual
       WasCastFrom : Zone -> Predicate b AnObject -- the object was cast from this zone (cast provenance)
       ExiledBy : Reference b AnObject -> Predicate b AnObject   -- set aside by r's effect ("cards exiled by this" = ExiledBy
                                                  -- This); the engine holds the association ([CR#607] linked abilities)
+      DamagedBy : Reference b AnObject -> Predicate b AnObject  -- was dealt damage by r THIS TURN ("a creature dealt damage
+                                                 -- by ~ this turn" = And [creature, DamagedBy This]); engine-held, like ExiledBy. Turn-scoped reset is the engine's.
       HasName : String -> Predicate b AnObject   -- named a specific card (tutors / token names)
       HasCounter : (c : CounterKind) -> Predicate b (counterCarrier c)   -- has ≥1 of this counter; the candidate's kind follows the carrier ("ten poison" tests a player)
       HasState : ObjectState -> Predicate b AnObject      -- runtime state: "target ATTACKING / TAPPED creature"

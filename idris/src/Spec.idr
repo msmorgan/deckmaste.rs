@@ -172,13 +172,13 @@ tEventQuery = MkQuery [ZoneChanged (Just Battlefield) (Just Graveyard)]
 -- PAYLOAD replacement: the event survives but its amount is rewritten — Furnace of Rath doubles damage
 -- by scaling `ThatMuch` (the event's own amount). The `newAmount` reads the event body.
 tReplaceAmount : StaticEffect Base
-tReplaceAmount = ReplaceAmount DealDamage (Times ThatMuch (^2))
+tReplaceAmount = ReplaceAmount (DealDamage Nothing) (Times ThatMuch (^2))
 
 -- prevention is a REPLACEMENT (the damage amount set to zero) — fine as ReplaceAmount. But
 -- indestructible is a PROHIBITION, not a replace-with-nothing: `keyword Indestructible` desugars to
 -- `CantHappen (destroy of This)` (the two are semantically distinct — see CantHappen's note).
 tPrevention : StaticEffect Base
-tPrevention = ReplaceAmount DealDamage (^0)
+tPrevention = ReplaceAmount (DealDamage Nothing) (^0)
 
 -- CONSUMABLE shields (the `Replaces` use-limit). Regeneration = the next destroy → heal/tap/remove, one
 -- use (`regenerate` macro). Prevention = "prevent the next 3 damage to This" — a damage `Replaces` whose
@@ -188,7 +188,7 @@ tRegenerate = regenerate
 
 tPreventNext : OneShotEffect Base
 tPreventNext = Continuously
-  (Replaces (MkQuery [DealDamage] [Patient (SameAs This)]) (Sequence []) {limit = UpTo (^3)})
+  (Replaces (MkQuery [DealDamage Nothing] [Patient (SameAs This)]) (Sequence []) {limit = UpTo (^3)})
   UntilEndOfTurn
 
 -- Ward {2} ([CR#702.21a]): NO new machinery — a triggered ability over existing parts. When an opponent
@@ -359,7 +359,7 @@ tValues =
   , Min (CountersOn P1P1 This) (CountersOn M1M1 This)   -- net counters after annihilation
   , Max (StatOf This Power) (^0)
   , Damage This                                          -- marked damage
-  , EventSum DealDamage {facets = [Actor opponent]}    -- amount-twin of EventCount; kind is gated, facets kind-free
+  , EventSum (DealDamage Nothing) {facets = [Actor opponent]}    -- amount-twin of EventCount; kind is gated, facets kind-free
   , Aggregate Greatest Power (And [creature, ControlledBy you])   -- "the greatest power among creatures you control"
   , Aggregate Total Power (And [creature, ControlledBy you]) ]    -- "the total power of creatures you control"
 
