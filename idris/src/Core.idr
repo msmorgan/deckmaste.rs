@@ -821,11 +821,21 @@ data Outcome : Bindings -> Type where
 public export
 data OutcomeGateKind = CantLose | CantWin
 
--- Where a card goes in a library ([CR#401]). `FromTop (Literal 0)` = on top.
+-- A position in an ORDERED zone ([CR#401]) — an END plus an offset. `FromTop (^0)` = on top. Named
+-- `Anchor` (general over ordered zones — currently the library) rather than `LibraryPosition`.
 public export
-data LibraryPosition : Bindings -> Type where
-  FromTop    : Count b -> LibraryPosition b
-  FromBottom : Count b -> LibraryPosition b
+data Anchor : Bindings -> Type where
+  FromTop    : Count b -> Anchor b
+  FromBottom : Count b -> Anchor b
+
+-- WHERE a card goes: a plain (unordered) zone, or an ordered zone at an `Anchor`. ONE notion of a
+-- destination — subsumes the old bare-`Zone` `Move` argument AND the single-object `PutIntoLibrary`.
+-- Sound by construction: only `ToLibrary` carries a position, so "graveyard at FromBottom 0" is
+-- unrepresentable.
+public export
+data Destination : Bindings -> Type where
+  ToZone    : Zone -> Destination b
+  ToLibrary : Anchor b -> Destination b
 
 -- How a SIMULTANEOUS group of cards is ordered as it lands at a position in an ORDERED zone — the
 -- order is a property of the PLACEMENT, not the loop. `ChosenOrder` = the owner arranges them, the
@@ -1069,7 +1079,7 @@ mutual
     -- (divided damage — "N damage divided as you choose among [a group]" — is the general `Distribute`
     --  effect: `Distribute (^n) group (Act (DealDamage It Allotment))`, not a bespoke action.)
     -- a plain zone change [CR#400.7]; owner-relative, control implicit.
-    Move : Reference b AnObject -> Zone -> Action b
+    Move : Reference b AnObject -> Destination b -> Action b
     -- exile a selection UNTIL a duration ends, then return it — the duration-bounded
     -- "exile until ~" form (return via a delayed trigger, [CR#603.7a]), NOT a leave-triggered return (see Oblivion Ring).
     ExileUntil : Reference b AnObject -> Duration b -> Action b
@@ -1093,15 +1103,12 @@ mutual
     Draw : {default You actor : Reference b APlayer} -> Count b -> Action b
     -- the `actor` gains n life. Rust: PlayerAction::GainLife(Count).
     GainLife : {default You actor : Reference b APlayer} -> Count b -> Action b
-    -- put a SINGLE object into its owner's library at a position ([CR#401]); one object has no
-    -- internal order, so no `Arrangement`. A GROUP placed at a position is `MoveArranged` below.
-    PutIntoLibrary : Reference b AnObject -> LibraryPosition b -> Action b
     -- put a GROUP at an ordered position with an `Arrangement` ([CR#401.4]): "put the top three on the
-    -- bottom in any order" = `MoveArranged (TopOfLibrary (^3)) ChosenOrder Library (FromBottom (^0))`;
-    -- "...in a random order" = `… RandomOrder …`. Distinct from single `Move`/`PutIntoLibrary` — order
+    -- bottom in any order" = `MoveArranged (TopOfLibrary (^3)) ChosenOrder (ToLibrary (FromBottom (^0)))`;
+    -- "...in a random order" = `… RandomOrder …`. Distinct from single `Move` — order
     -- only EMERGES for a simultaneous group landing in an ordered zone. (Per `DealDamage`-single +
-    -- group-via-`Each` house style, single moves stay `Move`/`PutIntoLibrary`; this is the group verb.)
-    MoveArranged : Selection b AnObject -> Arrangement -> Zone -> LibraryPosition b -> Action b
+    -- group-via-`Each` house style, single moves stay `Move`; this is the group verb.)
+    MoveArranged : Selection b AnObject -> Arrangement -> Destination b -> Action b
     -- put / remove counters ([CR#122]). `RemoveCounters` is symmetric with `PutCounters` (a `Count`);
     -- "remove all of a kind" is `RemoveCounters c (CountersOn c r) r`. Loyalty/counter COSTS reuse these via
     -- `Do` (e.g. "−2" = `Do (RemoveCounters Loyalty (^2) This)`), so there is no duplicate counter-cost verb.
@@ -1117,7 +1124,7 @@ mutual
     Sacrifice : Reference b APlayer -> Predicate b AnObject -> Action b   -- "[player] sacrifices a [pred]" (they choose which)
     -- further keyword-action verbs ([CR#701]). The interactive bits (reorder, search choice, copy
     -- characteristics) are the engine's; the grammar names the verb. Scry/Surveil/Fight are NOT verbs
-    -- here — they COMPOSITE over primitives (`Each`/`With`/`Modal`/`PutIntoLibrary`/`DealDamage`) as
+    -- here — they COMPOSITE over primitives (`Each`/`With`/`Modal`/`Move`/`DealDamage`) as
     -- macros in `Macros.idr`, exactly like the keyword ABILITIES.
     Reveal : Reference b AnObject -> Action b
     Shuffle : {default You actor : Reference b APlayer} -> Action b
@@ -1447,7 +1454,7 @@ counterConfers _    = []
 -- ([CR#714.3c]) live here — shared rules, not per-card statics, and never a subtype `if`-branch.
 public export
 subtypeConfers : Subtype -> List (Property b)
-subtypeConfers (EnchantmentSub Aura) = [PropSba (Not (LegallyAttached This)) (Act (Move This Graveyard))]
+subtypeConfers (EnchantmentSub Aura) = [PropSba (Not (LegallyAttached This)) (Act (Move This (ToZone Graveyard)))]
 subtypeConfers (EnchantmentSub Saga) = [PropTurnBased (MainPhase PreCombat) (Act (PutCounters Lore (^1) This))]
 subtypeConfers _                     = []
 

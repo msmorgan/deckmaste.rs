@@ -84,9 +84,9 @@ card_Flickerwisp = Normal $ ^:
       [ keyword Flying
       , Triggered (thisEnters) $
           Targeted [Target (^1) (And [permanent, Not (SameAs This)])] $
-            With (Produce (Move ((GetTarget 0)) Exile)) $  -- exile the target, bind `That`
+            With (Produce (Move ((GetTarget 0)) (ToZone Exile))) $  -- exile the target, bind `That`
               Delayed nextEndStep
-                (Each That (Act (Move It Battlefield)))                        -- return `That` (captured; target gone)
+                (Each That (Act (Move It (ToZone Battlefield))))                        -- return `That` (captured; target gone)
       ]
   , power := Just 3
   , toughness := Just 1
@@ -104,7 +104,7 @@ card_Brainstorm = Normal $ ^:
       [ Spell $
           Sequence
           [ Act (Draw (^3))
-          , With (Choose (^2) inHand) (Each That (Act (Move It Library)))
+          , With (Choose (^2) inHand) (Each That (Act (Move It (ToZone Library))))
           ]
       ]
   }
@@ -129,7 +129,7 @@ card_Rancor = Normal $ ^:
       , Triggered
           (MkQuery [ZoneChanged (Just Battlefield) (Just Graveyard)]
                    [Agent (SameAs This)])
-          (Act (Move (This) Hand))
+          (Act (Move (This) (ToZone Hand)))
       ]
   }
 
@@ -147,8 +147,8 @@ card_Cloudshift = Normal $ ^:
                                      , ControlledBy you
                                      ])
                    ] $
-          With (Produce (Move ((GetTarget 0)) Exile)) $
-          Each That (Act (Move It Battlefield))
+          With (Produce (Move ((GetTarget 0)) (ToZone Exile))) $
+          Each That (Act (Move It (ToZone Battlefield)))
       ]
   }
 
@@ -167,9 +167,9 @@ card_ThroughTheBreach = Normal $ ^:
       [ Spell $
           With (Choose (^1) (And [inHand, creature])) $
             Sequence
-              [ Each That (Act (Move It Battlefield))
+              [ Each That (Act (Move It (ToZone Battlefield)))
               , Continuously (Modify That [GrantAbility (keyword Haste)]) UntilEndOfTurn  -- "it gains haste"
-              , Delayed nextEndStep (Each That (Act (Move It Graveyard))) ]
+              , Delayed nextEndStep (Each That (Act (Move It (ToZone Graveyard)))) ]
       ]
   }
 
@@ -194,7 +194,7 @@ card_ApproachOfTheSecondSun = Normal $ ^:
                             GreaterEq (Literal 2) ])
              (Conclude (WinGame You))
              { otherwise = Just (Sequence
-                 [ Act (PutIntoLibrary (This) (FromTop (^6)))
+                 [ Act (Move (This) (ToLibrary (FromTop (^6))))
                  , Act (GainLife (^7)) ]) }
       ]
   }
@@ -293,11 +293,11 @@ card_Necropotence = Normal $ ^:
   , abilities :=
       [ Static (Replaces (MkQuery [BeginStep (BeginningPhase DrawStep)] [DuringTurn you]) (Sequence []))
       , Triggered (MkQuery [Discard] [Actor you])
-          (Act (Move EventObject Exile))
+          (Act (Move EventObject (ToZone Exile)))
       , Activated (Do (LoseLife (Literal 1)))
           (Each (TopOfLibrary (Literal 1))
-            (With (Produce (Move It Exile))
-              (Delayed nextEndStep (Each That (Act (Move It Hand))))))
+            (With (Produce (Move It (ToZone Exile)))
+              (Delayed nextEndStep (Each That (Act (Move It (ToZone Hand)))))))
       ]
   }
 
@@ -336,9 +336,9 @@ card_OblivionRing = Normal $ ^:
   , abilities :=
       [ Triggered (thisEnters)
           (Targeted [Target (^1) (And [permanent, Not (HasType Land), Not (SameAs This)])]
-            (Act (Move ((GetTarget 0)) Exile)))
+            (Act (Move ((GetTarget 0)) (ToZone Exile))))
       , Triggered (MkQuery [ZoneChanged (Just Battlefield) Nothing] [Agent (SameAs This)])
-          (Each (SelectAll (ExiledBy This)) (Act (Move It Battlefield)))
+          (Each (SelectAll (ExiledBy This)) (Act (Move It (ToZone Battlefield))))
       ]
   }
 
@@ -492,7 +492,7 @@ card_CrypticCommand = Normal $ ^:
   , abilities :=
       [ Spell (Modal (MkChooseSpec (^2))
           [ MkMode (Targeted [Target (^1) (IsKind IsSpell)] (Act (Counter ((GetTarget 0)))))
-          , MkMode (Targeted [Target (^1) permanent] (Act (Move ((GetTarget 0)) Hand)))
+          , MkMode (Targeted [Target (^1) permanent] (Act (Move ((GetTarget 0)) (ToZone Hand))))
           , MkMode (Each (SelectAll (And [creature, ControlledBy opponent])) (Act (Tap It)))
           , MkMode (Act (Draw (^1)))
           ]) ]
@@ -659,7 +659,7 @@ card_OutpostSiege = Normal $ ^:
           [ -- Khans (0): at your upkeep, exile the top card of your library; until eot you may play it
             Triggered (MkQuery [BeginStep (BeginningPhase UpkeepStep)] [DuringTurn you])
               (If (ChosenIs 0)
-                  (With (Produce (Move (Single (TopOfLibrary (^1))) Exile))
+                  (With (Produce (Move (Single (TopOfLibrary (^1))) (ToZone Exile)))
                     (Continuously (Can (Enact Play you (SameAs (Single That)))) UntilEndOfTurn)))
           , -- Dragons (1): when a creature you control leaves the battlefield, deal 1 to any target
             Triggered (MkQuery [ZoneChanged (Just Battlefield) Nothing]
@@ -727,7 +727,7 @@ card_BrazenBorrower = TwoFaced Adventure
   (^: { name := Just "Petty Theft"
       , manaCost := [^1, ^Blue]
       , types := [Instant]
-      , abilities := [ Spell (Targeted [Target (^1) (And [permanent, Not (HasType Land)])] (Act (Move (GetTarget 0) Hand))) ]
+      , abilities := [ Spell (Targeted [Target (^1) (And [permanent, Not (HasType Land)])] (Act (Move (GetTarget 0) (ToZone Hand)))) ]
       })
 
 -- Delver of Secrets // Insectile Aberration — a TRANSFORMING DFC ([CR#712]). The front's upkeep trigger
@@ -831,7 +831,7 @@ card_FloodedStrand = Normal $ ^:
   , abilities :=
       [ Activated (Costs [Do (Tap This), Do (LoseLife (^1)), Do (Sacrifice You (SameAs This))])
           (With (Search {from = [Library]} (^1) (Or [HasSubtype (^Plains), HasSubtype (^Island)]))
-            (Sequence [ Each That (Act (Move It Battlefield))
+            (Sequence [ Each That (Act (Move It (ToZone Battlefield)))
                       , Act Shuffle ])) ]
   }
 
@@ -1058,7 +1058,7 @@ card_HistoryOfBenalia = Normal $ ^:
           (If (Compare (CountersOn Lore This) Equal (^3))
               (Continuously (Modify (SelectAll (And [HasSubtype (^Knight), ControlledBy you])) [ModifyPT (^2) (^1)]) UntilEndOfTurn))
       , -- sacrifice after the final chapter ([CR#714.4])
-        Static (Sba (Compare (CountersOn Lore This) GreaterEq (^3)) (Act (Move This Graveyard)))
+        Static (Sba (Compare (CountersOn Lore This) GreaterEq (^3)) (Act (Move This (ToZone Graveyard))))
       ]
   }
 
