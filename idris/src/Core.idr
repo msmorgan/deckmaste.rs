@@ -1002,11 +1002,12 @@ mutual
   public export
   data Cost : Bindings -> Type where
     Mana      : ManaCost -> Cost b                 -- "{4}"
-    PayEnergy : Count b -> Cost b                  -- "Pay {E}×N" — spend N energy counters from you (not an Action)
     -- pay a cost by PERFORMING an action ([CR#118.3]): "{T}" = `Do (Tap This)`, "Pay N life" =
-    -- `Do (LoseLife (^N))`, "Sacrifice this" = `Do (Sacrifice You (SameAs This))`, loyalty "+N"/"−N" =
-    -- `Do (PutCounters/RemoveCounters Loyalty (^N) This)`. UNRESTRICTED — ANY action (even scry/shuffle as a
-    -- cost is legal); a senseless cost just no-ops, and nonsense is the grammar layer's to catch, not a gate.
+    -- `Do (LoseLife (^N))`, "Sacrifice this" = `Do (Sacrifice You (SameAs This))`, "Pay {E}×N" =
+    -- `Do (RemoveCounters Energy (^N) You)` (energy is a player counter — no dedicated `PayEnergy` verb),
+    -- loyalty "+N"/"−N" = `Do (PutCounters/RemoveCounters Loyalty (^N) This)`. UNRESTRICTED — ANY action
+    -- (even scry/shuffle as a cost is legal); a senseless cost just no-ops, and nonsense is the grammar
+    -- layer's to catch, not a gate.
     Do        : Action b -> Cost b
     Scaled    : Count b -> Cost b -> Cost b         -- the cost paid once per unit of the count ("{2} for each X" = Scaled (CountOf X) (Mana [promote 2]))
     Costs     : List (Cost b) -> Cost b            -- all components together
@@ -1337,8 +1338,10 @@ mutual
     -- (instant by default; `SorceryWindow` = "activate only as a sorcery"); `limits` are the
     -- use-frequency caps. A loyalty ability is `{window = SorceryWindow, limits = [OncePerTurn]}`.
     Activated : Cost b -> OneShotEffect b -> {default InstantWindow window : TimingWindow} -> {default [] limits : List Restriction} -> Ability b
-    -- a triggered ability: when `event` fires, resolve `effect`. Rust: Ability::Triggered.
-    Triggered : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) b) -> Ability b
+    -- a triggered ability: when `event` fires, resolve `effect`. `limits` are use-frequency caps —
+    -- "triggers only once each turn" = `{limits = [OncePerTurn]}` — the same `Restriction` list
+    -- `Activated` carries. Rust: Ability::Triggered.
+    Triggered : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) b) -> {default [] limits : List Restriction} -> Ability b
     -- (Retired `Enchant`: the engine has no dedicated aura ability — "enchant X" is a `Can (Enact Attach …)`
     --  PERMISSION (attaching is default-forbidden, so the aura ENABLES it), enters-attached an `Also`,
     --  falls-off an `Sba`. No subtype special-casing.)
