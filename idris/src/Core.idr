@@ -495,7 +495,7 @@ mutual
   -- A KEYWORD's tag + params ([CR#702]) — the "name" side of a keyword. In this block so
   -- `HasKeyword` can read it and `Hexproof`'s "from" filter can be a `Predicate` (which may name
   -- an anaphor — "from the CHOSEN color"). `keyword` (Macros) desugars a spec into its full `Ability`
-  -- (a `Composite`): the deontic ones (Flying/Defender/Shroud/Hexproof/Menace) get a `Cant` (Menace's
+  -- (a `Composite`): the deontic ones (Flying/Defender/Shroud/Hexproof/Menace) get a `cant` (Menace's
   -- is the SET-level `BlockedBy`); the rest (FirstStrike/Deathtouch/Trample = damage; Vigilance =
   -- event-edit; Reach/Flash = flag/window) carry no clause.
   public export
@@ -913,27 +913,33 @@ ModalCountOk _ _ = ()
 -- A DEONTIC clause's carrier: a game ACTION a player may attempt ([CR#101.2,601.3] the deontic
 -- layer) — distinct from the resolving `Action` verbs. Each names its participants; the CR's
 -- "where ⟨pred⟩" qualifier rides the variable participant (`who`/`blocker`/`source`). The
--- polarities `Cant`/`Must`/`Gate`/`Toll` (in `StaticEffect`) wrap a `Deed`. BOUNDARY [CR#614.17]:
+-- polarities `Constrain` (Require/Forbid)/`Gate`/`Toll` (in `StaticEffect`) wrap a `Deed`. BOUNDARY [CR#614.17]:
 -- this is choice-LEGALITY ("can't attack"); event-edits ("doesn't tap", "can't be regenerated",
--- "can't lose") are `Replaces`/SBA, NOT a `Cant`.
+-- "can't lose") are `Replaces`/SBA, NOT a `Constrain`.
+-- the two COMPULSION polarities of a declaration constraint — the pair the combat solver balances
+-- ([CR#508.1c] restriction / [CR#508.1d] requirement): `Forbid` prevents the deed, `Require` forces
+-- it if able. `Constrain` (in `StaticEffect`) carries one; `cant`/`must` (Macros) are the aliases.
+public export
+data Compulsion = Require | Forbid
+
 public export
 data Deed : Bindings -> Type where
-  -- the DEONTIC aspect of the relation spine: "[agent] enacts [r] upon [patient]" (under Can/Cant/Must/Gate/
+  -- the DEONTIC aspect of the relation spine: "[agent] enacts [r] upon [patient]" (under Can/Constrain/Gate/
   -- Toll). The AGENT's kind is fixed by `agentKind r` (ONE agent slot — no `Agent`/`Actor` split): a PLAYER for
   -- Cast/Activate/Play, the SOURCE OBJECT for Attack/Block/Attach/Target/Counter. The PATIENT stays kind-
   -- poly (an attack's defender is a player OR a permanent, [CR#508.1]). The two PASSIVE deeds fold in once
   -- the source is the explicit agent. Examples:
-  --   Defender             = `Cant (Enact Attack (SameAs This) Anyone)`
-  --   "q can't block this" = `Cant (Enact Block q (SameAs This))`
+  --   Defender             = `cant (Enact Attack (SameAs This) Anyone)`
+  --   "q can't block this" = `cant (Enact Block q (SameAs This))`
   --   "Enchant creature"   = `Can  (Enact Attach (SameAs This) creature)`  ([CR#701.3a]) — attach is default-FORBIDDEN, Enchant ENABLES it
-  --   Shroud               = `Cant (Enact Target spellOrAbility (SameAs This))`  (the source spell/ability is the agent)
-  --   "can't be countered" = `Cant (Enact Counter spellOrAbility (SameAs This))`
+  --   Shroud               = `cant (Enact Target spellOrAbility (SameAs This))`  (the source spell/ability is the agent)
+  --   "can't be countered" = `cant (Enact Counter spellOrAbility (SameAs This))`
   --   flash                = `Can  (Enact Cast you (SameAs This)) {window = InstantWindow}`  ([CR#702.8a])
   -- (Subsumed the old Attacks/Blocks/Attaches/BeTargeted/Casts/Activates/Plays/Countered verbs.)
   Enact      : (r : Relation) -> (agent : Predicate b (agentKind r)) -> (patient : Predicate b k) -> Deed b
   -- SET-LEVEL block ([CR#509.1c],[CR#702.111b]): "[attacker] is blocked by a DECLARED set of `size`
-  -- creatures" (a block, so size ≥ 1 — ENFORCED by `NonZeroQ`). `Cant (BlockedBy This …)` constrains the
-  -- WHOLE blocker set, not one blocker at a time — Menace = `Cant (BlockedBy (SameAs This) (^1))`
+  -- creatures" (a block, so size ≥ 1 — ENFORCED by `NonZeroQ`). `cant (BlockedBy This …)` constrains the
+  -- WHOLE blocker set, not one blocker at a time — Menace = `cant (BlockedBy (SameAs This) (^1))`
   -- (forbid the lone blocker; 0 = unblocked and 2+ stay legal). The one combat constraint the identity
   -- spine doesn't subsume: it's about HOW MANY blockers, not WHICH. [CR#509.1c] judges the whole set.
   BlockedBy  : (attacker : Predicate b AnObject) -> (size : Quantity b) -> {auto prf : NonZeroQ size} -> Deed b
@@ -1047,7 +1053,7 @@ mutual
     -- "add {G}" (a mana-ability effect; pool/paying is engine). RESTRICTED mana ([CR#106.5]):
     -- `onlyToCast` is the spend constraint ("spend only to cast a [pred] spell"); `confers` are
     -- continuous effects the engine applies to the spell the mana DOES pay for — that spell is bound
-    -- as `It`, so Cavern's "and that spell can't be countered" is `[Cant (Enact Counter spellOrAbility (SameAs It))]`.
+    -- as `It`, so Cavern's "and that spell can't be countered" is `[cant (Enact Counter spellOrAbility (SameAs It))]`.
     AddMana : {default You actor : Reference b APlayer} -> List ProducedMana
               -> {default Nothing onlyToCast : Maybe (Predicate b AnObject)}
               -> {default [] confers : List (StaticEffect (bindIt AnObject b))}
@@ -1168,7 +1174,7 @@ mutual
     -- "[event] CAN'T happen" — a continuous PROHIBITION, semantically distinct from replacing-with-
     -- nothing: it's not a one-shot ([CR#614.5]) application, isn't ordered against other replacements
     -- ([CR#616]), and the event never "would happen". Indestructible = `CantHappen (MkQuery [Destroyed]
-    -- [this])`; Solemnity = `CantHappen (MkQuery [PutCounters] [])`. (Event-level; the deontic `Cant` is
+    -- [this])`; Solemnity = `CantHappen (MkQuery [PutCounters] [])`. (Event-level; the deontic `cant` is
     -- its player-ACTION sibling — "can't attack".)
     CantHappen : EventQuery b -> StaticEffect b
     -- PAYLOAD replacement ([CR#616]): the event still happens, but its numeric amount becomes
@@ -1178,7 +1184,7 @@ mutual
     ReplaceAmount : (k : EventKind) -> {auto amt : eventKindHasAmount k = True} -> {default [] facets : List (Facet b)} -> (newAmount : Count (bindEvent (eventKindCaps k) b)) -> StaticEffect b
     -- a static OUTCOME suppressor: the matching players can't lose / can't win ([CR#104.2b,104.3e]). Platinum
     -- Angel = `OutcomeGate CantLose you` + `OutcomeGate CantWin opponent`. (Distinct from `CantHappen` —
-    -- game-loss isn't a replaceable event — and from a deontic `Cant` — it's not a player action.)
+    -- game-loss isn't a replaceable event — and from a deontic `cant` — it's not a player action.)
     OutcomeGate : OutcomeGateKind -> Predicate b APlayer -> StaticEffect b
     -- ADDITIVE replacement ([CR#614.13] "as well as"): when [event] happens it STILL happens, but
     -- [effect] also runs. An Aura enters attached via `Also thisEnters (Act (Attach This host))`.
@@ -1204,11 +1210,12 @@ mutual
     -- a conditional static ("gets +1/+1 as long as …").
     While : Condition b -> StaticEffect b -> StaticEffect b
     -- DEONTIC clauses over a `Deed` (choice-legality, [CR#101.2]): the permission FLOOR (`Can`, the
-    -- deontic "may" — named `Can` to pair with `Cant` and avoid the one-shot `May`), a can't, a
-    -- must, or a cost-gate. The engine arbitrates Cant-beats-Can ([CR#101.2]); the grammar only
-    -- records the clauses. `Gate`'s price is paid at declaration (never compulsory, [CR#508.1d]);
-    -- `Toll`'s is punished downstream (ward, [CR#702.21a]). Cost comes FIRST. These gate CHOICES —
-    -- the §6 sibling of `Replaces` (event-edits), never conflated with it.
+    -- deontic "may" — named `Can` to avoid the one-shot `May`), a `Constrain` (the two COMPULSION
+    -- polarities — `Forbid` = a restriction "can't", `Require` = a requirement "must"; `cant`/`must`
+    -- are the Macros aliases), or a cost-gate. The engine arbitrates can't-beats-can/must ([CR#101.2,
+    -- 508.1d]); the grammar only records the clauses. `Gate`'s price is paid at declaration (never
+    -- compulsory, [CR#508.1d]); `Toll`'s is punished downstream (ward, [CR#702.21a]). Cost comes FIRST.
+    -- These gate CHOICES — the §6 sibling of `Replaces` (event-edits), never conflated with it.
     --  • `Can` — the permission floor made explicit ([CR#101.2,601.3]). A `Can (Casts …)` carries a
     --    `window`; Flash widens it to `InstantWindow` ([CR#702.8a] — a wider window, NOT an as-though).
     --  • `AsThough` — a scoped COUNTERFACTUAL premise ([CR#609.4]) wrapping a clause: "[clause]
@@ -1218,15 +1225,14 @@ mutual
     -- as-though of a deed-INTERNAL participant — "as though the BLOCKER's attacker lacked flying" — is still deferred.)
     Can  : Deed b -> {default Nothing window : Maybe TimingWindow} -> StaticEffect b
     AsThough : Condition b -> StaticEffect b -> StaticEffect b
-    Cant : Deed b -> StaticEffect b
-    Must : Deed b -> StaticEffect b
+    Constrain : Compulsion -> Deed b -> StaticEffect b   -- Forbid = a restriction (can't), Require = a requirement (must); the combat solver balances both ([CR#508.1c,508.1d])
     Gate : Cost b -> Deed b -> StaticEffect b
     Toll : Cost b -> Deed b -> StaticEffect b
 
   -- A keyword as it sits on a permanent ([CR#702]): either `Bare` — an engine-PRIMITIVE keyword
   -- the grammar can't desugar (FirstStrike/DoubleStrike/Deathtouch/Trample = damage pipeline;
   -- Vigilance = attack event-edit) — or a `Composite` of its tag + the `Ability`s it desugars to:
-  -- Flying/Defender/Shroud/Hexproof/Menace → a `Cant` (Menace's is SET-level, `BlockedBy`); Reach → `[]` (a flag flying's clause reads, no
+  -- Flying/Defender/Shroud/Hexproof/Menace → a `cant` (Menace's is SET-level, `BlockedBy`); Reach → `[]` (a flag flying's clause reads, no
   -- ability of its own); Flash → a `Can (Casts …) {window = InstantWindow}` (cast at instant speed).
   -- `Keyword` wraps it; `keyword` (Macros) builds it.
   public export

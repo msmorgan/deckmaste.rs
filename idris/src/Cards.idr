@@ -381,7 +381,7 @@ card_Donate = Normal $ ^:
 -- DEONTIC cards ----------------------------------------------------------------
 
 -- Pacifism — an Aura: "enchant creature" (a `Can (Enact Attach …)` PERMISSION, since attaching is
--- default-forbidden), then two `Cant` clauses over the host (`AttachHostOf This`): can't attack at all,
+-- default-forbidden), then two `cant` clauses over the host (`AttachHostOf This`): can't attack at all,
 -- can't block any creature. Pure deontic.
 export
 card_Pacifism : Card
@@ -392,13 +392,13 @@ card_Pacifism = Normal $ ^:
   , subtypes := [^Aura]
   , abilities :=
       enchant creature ++
-      [ Static (Cant (Enact Attack (SameAs (AttachHostOf This)) Anyone))
-      , Static (Cant (Enact Block (SameAs (AttachHostOf This)) creature))
+      [ Static (cant (Enact Attack (SameAs (AttachHostOf This)) Anyone))
+      , Static (cant (Enact Block (SameAs (AttachHostOf This)) creature))
       ]
   }
 
--- Juggernaut — "attacks each combat if able" (a `Must`) + "can't be blocked by Walls" (a
--- `Cant` on the blocker).
+-- Juggernaut — "attacks each combat if able" (a `must`) + "can't be blocked by Walls" (a
+-- `cant` on the blocker).
 export
 card_Juggernaut : Card
 card_Juggernaut = Normal $ ^:
@@ -409,8 +409,8 @@ card_Juggernaut = Normal $ ^:
   , power := Just 5
   , toughness := Just 3
   , abilities :=
-      [ Static (Must (Enact Attack (SameAs This) Anyone))
-      , Static (Cant (Enact Block (HasSubtype (^Wall)) (SameAs This)))
+      [ Static (must (Enact Attack (SameAs This) Anyone))
+      , Static (cant (Enact Block (HasSubtype (^Wall)) (SameAs This)))
       ]
   }
 
@@ -429,7 +429,7 @@ card_GhostlyPrison = Normal $ ^:
   }
 
 -- Wall of Omens — a DEONTIC KEYWORD card: `keyword Defender` expands to a `Composite` whose tag is
--- `Defender` and whose body is the can't-attack `Cant` clause — the meaning is intrinsic to the
+-- `Defender` and whose body is the can't-attack `cant` clause — the meaning is intrinsic to the
 -- keyword, not written on the card. (+ a plain ETB draw trigger.)
 export
 card_WallOfOmens : Card
@@ -464,7 +464,7 @@ card_ManaLeak = Normal $ ^:
   }
 
 -- Invisible Stalker — a DEONTIC-KEYWORD creature: `keyword (Hexproof Nothing)` is a `Composite`
--- carrying its can't-be-targeted `Cant`; "can't be blocked" is a second `Cant` (no creature may
+-- carrying its can't-be-targeted `cant`; "can't be blocked" is a second `cant` (no creature may
 -- block it).
 export
 card_InvisibleStalker : Card
@@ -477,7 +477,7 @@ card_InvisibleStalker = Normal $ ^:
   , toughness := Just 1
   , abilities :=
       [ keyword (Hexproof Nothing)
-      , Static (Cant (Enact Block creature (SameAs This)))
+      , Static (cant (Enact Block creature (SameAs This)))
       ]
   }
 
@@ -530,7 +530,7 @@ card_AmbushViper = Normal $ ^:
   , toughness := Just 1
   }
 
--- Menace: a SET-LEVEL `Cant` (the whole blocker set must be ≥2, not a per-blocker check) — the
+-- Menace: a SET-LEVEL `cant` (the whole blocker set must be ≥2, not a per-blocker check) — the
 -- `BlockedBy` deed the doc flags as mandatory.
 export
 card_BoggartBrute : Card
@@ -597,7 +597,7 @@ card_Iona = Normal $ ^:
   , abilities :=
       [ keyword Flying
       , AsEnters AColor
-          [ Static (Cant (Enact Cast opponent (And [IsKind IsSpell, OfChosen]))) ]
+          [ Static (cant (Enact Cast opponent (And [IsKind IsSpell, OfChosen]))) ]
       ]
   , power := Just 7
   , toughness := Just 7
@@ -674,7 +674,7 @@ card_OutpostSiege = Normal $ ^:
 -- the choice, so it's a plain sibling; the second ability (which does) nests in `AsEnters
 -- ACreatureType`. That one is RESTRICTED mana: `onlyToCast` allows it only for "a creature spell of
 -- the chosen type" (`OfChosen`), and `confers` makes that spell uncounterable — the paid-for spell is
--- bound as `It`, so the rider reads `Cant (Enact Counter spellOrAbility (SameAs It))`.
+-- bound as `It`, so the rider reads `cant (Enact Counter spellOrAbility (SameAs It))`.
 export
 card_CavernOfSouls : Card
 card_CavernOfSouls = Normal $ ^:
@@ -685,7 +685,7 @@ card_CavernOfSouls = Normal $ ^:
       , AsEnters ACreatureType
           [ Activated TapSelf (Act (AddMana [AnyColor]
               { onlyToCast = Just (And [IsKind IsSpell, creature, OfChosen])
-              , confers    = [Cant (Enact Counter spellOrAbility (SameAs It))] }))     -- {T}: any color — creature spell of the chosen type, uncounterable
+              , confers    = [cant (Enact Counter spellOrAbility (SameAs It))] }))     -- {T}: any color — creature spell of the chosen type, uncounterable
           ]
       ]
   }
@@ -719,7 +719,7 @@ card_BrazenBorrower = TwoFaced Adventure
       , abilities :=
           [ keyword Flash
           , keyword Flying
-          , Static (Cant (Enact Block (SameAs This) (Not (HasKeyword Flying))))   -- "can block only creatures with flying"
+          , Static (cant (Enact Block (SameAs This) (Not (HasKeyword Flying))))   -- "can block only creatures with flying"
           ]
       , power := Just 3
       , toughness := Just 1
@@ -1074,7 +1074,7 @@ card_MeddlingMage = Normal $ ^:
   , subtypes := [^Human, ^Wizard]
   , abilities :=
       [ AsEnters AName
-          [ Static (Cant (Enact Cast Anyone (And [IsKind IsSpell, OfChosen]))) ] ]
+          [ Static (cant (Enact Cast Anyone (And [IsKind IsSpell, OfChosen]))) ] ]
   , power := Just 2
   , toughness := Just 2
   }

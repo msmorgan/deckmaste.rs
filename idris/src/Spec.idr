@@ -150,7 +150,7 @@ tChosenMode = ChosenIs 1
 tRestrictedMana : Action (bindChosen ACreatureType Base)
 tRestrictedMana = AddMana [AnyColor]
   { onlyToCast = Just (And [IsKind IsSpell, creature, OfChosen])
-  , confers    = [Cant (Enact Counter spellOrAbility (SameAs It))] }
+  , confers    = [cant (Enact Counter spellOrAbility (SameAs It))] }
 
 -- the unified `Quantity` (one `Range` constructor) + its helpers all typecheck
 tQuantities : List (Bindable Base AnObject)
@@ -463,9 +463,9 @@ tToll : StaticEffect Base
 tToll = Toll (Mana [^2]) (Enact Attack creature you)
 
 -- `keyword` desugars a spec to its `Ability`, in three flavors (all pinned by Refl): a DEONTIC
--- keyword is a `Composite` with a `Cant` clause; an engine-PRIMITIVE keyword is `Bare`; a
+-- keyword is a `Composite` with a `cant` clause; an engine-PRIMITIVE keyword is `Bare`; a
 -- grammar FLAG (Reach) is a `Composite []`. `tHexproofFrom` shows the parameterized "from" case.
-tDefender : keyword Defender = the (Ability Base) (Keyword (Composite Defender [Static (Cant (Enact Attack (SameAs This) Anyone))]))
+tDefender : keyword Defender = the (Ability Base) (Keyword (Composite Defender [Static (cant (Enact Attack (SameAs This) Anyone))]))
 tDefender = Refl
 
 tFirstStrikeBare : keyword FirstStrike = the (Ability Base) (Keyword (Bare FirstStrike))
@@ -477,12 +477,12 @@ tReachComposite = Refl
 tHexproofFrom : Ability Base
 tHexproofFrom = keyword (Hexproof (Just (HasColor Red)))
 
--- the deontic permission floor `Can` (the 5th polarity, pairing with `Cant`)
+-- the deontic permission floor `Can` (the 5th polarity, pairing with `cant`)
 tDeonticCan : Ability Base
 tDeonticCan = Static (Can (Enact Attack (SameAs This) Anyone))
 
 -- `AsThough` wraps a clause in a scoped counterfactual: "attack this turn as though it didn't
--- have defender" — a permission whose premise lifts defender's `Cant`.
+-- have defender" — a permission whose premise lifts defender's `cant`.
 tAsThough : OneShotEffect Base
 tAsThough = Continuously
   (AsThough (Matches This (Not (HasKeyword Defender))) (Can (Enact Attack (SameAs This) Anyone)))
@@ -492,9 +492,9 @@ tAsThough = Continuously
 tFlashWindow : keyword Flash = the (Ability Base) (Keyword (Composite Flash [Static (Can (Enact Cast (SameAs You) (SameAs This)) {window = Just InstantWindow})]))
 tFlashWindow = Refl
 
--- Menace's desugaring (Refl): a SET-LEVEL `Cant` forbidding the lone-blocker (size-1) block —
+-- Menace's desugaring (Refl): a SET-LEVEL `cant` forbidding the lone-blocker (size-1) block —
 -- `BlockedBy` constrains the whole set, unlike the per-blocker `Blocks` that flying uses.
-tMenace : keyword Menace = the (Ability Base) (Keyword (Composite Menace [Static (Cant (BlockedBy (SameAs This) (^1)))]))
+tMenace : keyword Menace = the (Ability Base) (Keyword (Composite Menace [Static (cant (BlockedBy (SameAs This) (^1)))]))
 tMenace = Refl
 
 -- Haste is a GRANTABLE keyword built from the as-though machinery (continuous; lifts summoning
@@ -667,7 +667,7 @@ failing
 -- a 0-size block is rejected — a declared block has ≥1 blocker (`NonZeroQ` on `BlockedBy`'s size)
 failing
   tBadZeroBlock : StaticEffect Base
-  tBadZeroBlock = Cant (BlockedBy (SameAs This) (^0))
+  tBadZeroBlock = cant (BlockedBy (SameAs This) (^0))
 
 -- `OfChosen` with no as-enters choice in scope — `IsCharDomain Nothing = Void` denies the anaphor
 failing
