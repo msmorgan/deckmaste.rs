@@ -206,6 +206,8 @@ data Restriction = OncePerTurn | OncePerGame
 public export
 data ObjectState = Tapped | Attacking | Blocking | Blocked | Attached | SummoningSick
                  | Unblocked       -- an attacker past declare-blockers with no blocker ([CR#509.1h])
+                 | Attacked        -- a planeswalker/battle being attacked (defender side, [CR#508.1]); a PLAYER
+                                   -- defender has no ObjectState — read it as `Becomes Attacking [Patient you]`
                  | PhasedOut       -- phased out ([CR#702.26]); "becomes phased" = `Becomes PhasedOut`
                  | FaceDown        -- face down ([CR#708]); the engine applies the global 2/2-colorless-vanilla override here
 
@@ -607,9 +609,11 @@ mutual
       -- AGENT: the event's DOER/INITIATOR object matches — the moving object of a zone-change, or the
       -- SOURCE of damage (the object dealing it; protection's D leg). The two feed the SAME role.
       Agent   : Predicate b AnObject -> Facet b
-      -- PATIENT: the ACTED-UPON object matches — a damage recipient, a destroyed/countered object, the
-      -- spell being cast, the object gaining counters. Distinct from the `Agent` (the doer).
-      Patient : Predicate b AnObject -> Facet b
+      -- PATIENT: the ACTED-UPON thing matches — a damage recipient, a destroyed/countered object, the spell
+      -- being cast, the object gaining counters, OR the DEFENDER of an attack ([CR#508.1]). KIND-POLY (the
+      -- defender, like a damage recipient, may be a PLAYER): "whenever YOU are attacked" = `[Becomes Attacking]
+      -- [Patient you]`; "deals damage to you" = `Patient you`. Distinct from the `Agent` (the doer).
+      Patient : Predicate b k -> Facet b
       Within        : Window -> Facet b
       DuringStep    : PhaseStep -> Facet b
       DuringTurn    : Predicate b APlayer -> Facet b   -- the turn's player matches a player-pred
