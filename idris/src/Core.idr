@@ -1276,9 +1276,9 @@ mutual
     Also : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) b) -> StaticEffect b
     -- a STATE-BASED ACTION as data ([CR#704]): whenever [when] holds (with `This` = the carrier), do
     -- [then] in the SBA sweep. ONE primitive for the Aura graveyard rule (`Sba (Not (LegallyAttached
-    -- This)) (Act (Move This Graveyard))`, [CR#704.5m]) AND a Saga's final-chapter sacrifice — the sweep
-    -- never branches on subtype. (The engine confers the Aura one via the Aura subtype's `Property`,
-    -- which the toy has no analogue for — so it's a shared rule here, shown once, not per-card.)
+    -- This)) (Act (Move This (ToZone Graveyard)))`, [CR#704.5m]) AND a Saga's final-chapter sacrifice — the
+    -- sweep never branches on subtype. (The engine confers the Aura one via the Aura subtype's conferral
+    -- (`subtypeConfers` — a `Static (Sba …)`), so it's a shared rule here, shown once, not per-card.)
     Sba : Condition b -> OneShotEffect b -> StaticEffect b
     -- "[who]'s unspent mana doesn't empty" ([CR#106.4] exception) — Kruphix/Omnath. A pool-policy
     -- static over ALL your mana — which is WHY "doesn't empty" is NOT a per-mana `ManaRider` (that would
@@ -1342,6 +1342,10 @@ mutual
     -- "triggers only once each turn" = `{limits = [OncePerTurn]}` — the same `Restriction` list
     -- `Activated` carries. Rust: Ability::Triggered.
     Triggered : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) b) -> {default [] limits : List Restriction} -> Ability b
+    -- a TURN-BASED action ([CR#703]) intrinsic to the bearer: at `phase`, perform `effect` automatically —
+    -- no stack, unlike `Triggered`. The Saga lore-increment ([CR#714.3c], conferred by the Saga subtype):
+    -- `TurnBased (MainPhase PreCombat) (Act (PutCounters Lore (^1) This))`. (Was the old `PropTurnBased`.)
+    TurnBased : PhaseStep -> OneShotEffect b -> Ability b
     -- (Retired `Enchant`: the engine has no dedicated aura ability — "enchant X" is a `Can (Enact Attach …)`
     --  PERMISSION (attaching is default-forbidden, so the aura ENABLES it), enters-attached an `Also`,
     --  falls-off an `Sba`. No subtype special-casing.)
@@ -1435,37 +1439,35 @@ data Card : Type where
              {auto okF : SubtypesOk front} -> {auto wfF : CharacteristicsOk front} ->
              {auto okB : SubtypesOk back} -> {auto wfB : CharacteristicsOk back} -> Card
 
--- A PROPERTY a subtype or counter CONFERS on its bearer — the engine's mechanism for intrinsic behavior
--- with NO subtype special-casing. `This` = the bearer. Closed; attached via the total functions below
--- (the dependent-index style of `counterCarrier`/`designationScope`), not an open registry.
-public export
-data Property : Bindings -> Type where
-  PropAbility    : Ability b -> Property b                        -- confers a (keyword) ability
-  PropContinuous : List (Modification b) -> Property b            -- a continuous self-modification (the +1/+1 counter's P/T pump)
-  PropSba : Condition b -> OneShotEffect b -> Property b   -- an SBA (the Aura falls-off rule)
-  PropTurnBased  : PhaseStep -> OneShotEffect b -> Property b     -- a turn-based action (the Saga lore-increment)
+-- What a counter / subtype / type CONFERS on its bearer is just a list of `Ability`s — the engine's
+-- mechanism for intrinsic behavior with NO subtype special-casing (`This` = the bearer). There is no
+-- `Property` wrapper: a conferral IS an ability (`Static (Modify …)` for a continuous self-mod, `Static
+-- (Sba …)` for an SBA, `TurnBased …` for a turn-based action, a plain `Static`/keyword otherwise).
+-- Closed; attached via the total functions below (the dependent-index style of `counterCarrier`/
+-- `designationScope`), not an open registry.
 
--- what a COUNTER confers on the object it sits on. +1/+1 and −1/−1 carry their OWN P/T pump here, so it's
--- not a hard-coded engine rule (`CountersOn c This` reads the count). The rest confer nothing intrinsic.
+-- +1/+1 and −1/−1 carry their OWN P/T pump (a `Static (Modify …)`), so it's not a hard-coded engine rule
+-- (`CountersOn c This` reads the count). The rest confer nothing intrinsic.
 public export
-counterConfers : CounterKind -> List (Property b)
-counterConfers P1P1 = [PropContinuous [ModifyPT (Up (CountersOn P1P1 This)) (Up (CountersOn P1P1 This))]]
-counterConfers M1M1 = [PropContinuous [ModifyPT (Down (CountersOn M1M1 This)) (Down (CountersOn M1M1 This))]]
+counterConfers : CounterKind -> List (Ability b)
+counterConfers P1P1 = [Static (Modify (SelectAll (SameAs This)) [ModifyPT (Up (CountersOn P1P1 This)) (Up (CountersOn P1P1 This))])]
+counterConfers M1M1 = [Static (Modify (SelectAll (SameAs This)) [ModifyPT (Down (CountersOn M1M1 This)) (Down (CountersOn M1M1 This))])]
 counterConfers _    = []
 
--- what a SUBTYPE confers on its bearer. The Aura falls-off SBA ([CR#704.5m]) and the Saga lore-increment
--- ([CR#714.3c]) live here — shared rules, not per-card statics, and never a subtype `if`-branch.
+-- what a SUBTYPE confers on its bearer. The Aura falls-off SBA ([CR#704.5m], a `Static (Sba …)`) and the
+-- Saga lore-increment ([CR#714.3c], a `TurnBased` action) live here — shared rules, not per-card statics,
+-- and never a subtype `if`-branch.
 public export
-subtypeConfers : Subtype -> List (Property b)
-subtypeConfers (EnchantmentSub Aura) = [PropSba (Not (LegallyAttached This)) (Act (Move This (ToZone Graveyard)))]
-subtypeConfers (EnchantmentSub Saga) = [PropTurnBased (MainPhase PreCombat) (Act (PutCounters Lore (^1) This))]
+subtypeConfers : Subtype -> List (Ability b)
+subtypeConfers (EnchantmentSub Aura) = [Static (Sba (Not (LegallyAttached This)) (Act (Move This (ToZone Graveyard))))]
+subtypeConfers (EnchantmentSub Saga) = [TurnBased (MainPhase PreCombat) (Act (PutCounters Lore (^1) This))]
 subtypeConfers _                     = []
 
 -- what a card TYPE confers on its bearer (parallel to `subtypeConfers`). A Planeswalker or Battle CREATES
 -- a deontic permitting creatures to attack IT ([CR#508.1] — attackability is a granted permission, not a
 -- hardcoded target list), using `Enact Attack` with the permanent itself as the object (patient) defender.
 public export
-typeConfers : Type_ -> List (Property b)
-typeConfers Planeswalker = [PropAbility (Static (Can (Enact Attack (HasType Creature) (SameAs This))))]
-typeConfers Battle       = [PropAbility (Static (Can (Enact Attack (HasType Creature) (SameAs This))))]
+typeConfers : Type_ -> List (Ability b)
+typeConfers Planeswalker = [Static (Can (Enact Attack (HasType Creature) (SameAs This)))]
+typeConfers Battle       = [Static (Can (Enact Attack (HasType Creature) (SameAs This)))]
 typeConfers _            = []
