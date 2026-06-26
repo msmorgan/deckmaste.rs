@@ -41,7 +41,7 @@ tIf = If yourTurn (Act (Draw (^1)))
 
 -- a one-shot creating a continuous effect for a duration
 tContinuously : OneShotEffect Base
-tContinuously = Continuously (Modify This [ModifyPT (^1) (^1)]) UntilEndOfTurn
+tContinuously = Continuously (Modify (SelectAll (SameAs This)) [ModifyPT (^1) (^1)]) UntilEndOfTurn
 
 -- a modal effect: choose one of two modes
 tModal : OneShotEffect Base
@@ -262,7 +262,7 @@ tChosenPlayer = ChosenPlayer
 -- copy of a creature you choose." The copy is a continuous self-modification reading the chosen object.
 -- (The "you may" and the "a creature" restriction are separable refinements; the core is the anaphor.)
 tClone : Ability Base
-tClone = AsEnters AnObjectChoice [ Static (Modify This [BecomeCopyOf ChosenObject]) ]
+tClone = AsEnters AnObjectChoice [ Static (Modify (SelectAll (SameAs This)) [BecomeCopyOf ChosenObject]) ]
 
 -- "sacrifice a [pred]" as a COST — the payer chooses which (not a specific `Sacrifice This`).
 tSacrificeCost : Cost Base
@@ -342,7 +342,7 @@ tCounters = Sequence [ ForEach (SelectAll creature) (Act (PutCounters P1P1 (Lite
 
 -- anthem: a static `ModifyAll` over a controller-predicate filter, with layer mods
 tAnthem : Ability Base
-tAnthem = Static (ModifyAll (And [HasType Creature, ControlledBy you]) [ModifyPT (^1) (^1), AddSubtype (^Bear)])
+tAnthem = Static (Modify (SelectAll (And [HasType Creature, ControlledBy you])) [ModifyPT (^1) (^1), AddSubtype (^Bear)])
 
 -- a loyalty ability: an Activated ability whose cost removes Loyalty counters
 tLoyalty : Ability Base
@@ -398,7 +398,7 @@ tSearchOther = Targeted [Target (^1) opponent]
 
 -- a conditional static, and an activation-limited (loyalty-style) ability
 tConditionalStatic : Ability Base
-tConditionalStatic = Static (While (exists (ControlledBy opponent)) (Modify This [ModifyPT (^1) (^1)]))
+tConditionalStatic = Static (While (exists (ControlledBy opponent)) (Modify (SelectAll (SameAs This)) [ModifyPT (^1) (^1)]))
 
 tLimitedAbility : Ability Base
 tLimitedAbility =
@@ -445,7 +445,7 @@ tEachPlayerForEach = ForEach eachPlayer (Act (Draw {actor = It} (^1)))
 tMixedTargets : OneShotEffect Base
 tMixedTargets =
   Targeted [Target (^1) Anyone, Target (^1) (And [permanent, ControlledBy you])]
-    (Continuously (Modify (GetTarget 1) [GainControl (GetTarget 0)]) Permanent)
+    (Continuously (Modify (SelectAll (SameAs (GetTarget 1))) [GainControl (GetTarget 0)]) Permanent)
 
 -- `Or` computes its result kind by JOINING its arms' kinds (`\/`): same-kind stays
 -- precise (`AnObject`), a mix of object + player widens to `Anything` — no `Widen` needed.
