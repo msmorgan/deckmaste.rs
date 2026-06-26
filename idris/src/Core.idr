@@ -33,7 +33,7 @@ data ManaSymbol
   = Simple SimpleManaSymbol
   | Hybrid SimpleManaSymbol Color
   | Variable
-  | Phyrexian Color           -- "{W/P}" — pay the color OR 2 life ([CR#107.4f])
+  | Phyrexian Color (Maybe Color)  -- "{W/P}" = `Phyrexian White Nothing` (pay the color OR 2 life); a HYBRID Phyrexian "{G/U/P}" = `Phyrexian Green (Just Blue)` is both component colors ([CR#107.4f])
   | SnowMana                  -- "{S}" — one mana from a snow source ([CR#107.4h]); `SnowMana`, not `Snow` (the supertype)
 
 -- `Promote a b` (method `promote`) is the toy's value-injection interface — formerly Prelude's
@@ -71,6 +71,7 @@ implementation Promote (Maybe Color) ManaSymbol where
 public export
 data ProducedMana = OfColor (Maybe Color)   -- `OfColor (Just c)` = one {c}; `OfColor Nothing` = one {C}
                   | AnyColor                 -- one mana of any color (the producer picks)
+                  | OneOf (List (Maybe Color)) -- one mana, the producer choosing from a FIXED set ("add {W} or {U}" = `OneOf [Just White, Just Blue]`); distinct from `AnyColor` (all five) and from a heterogeneous list (add ALL) ([CR#106.1])
 
 public export
 implementation Promote Color ProducedMana where
@@ -1035,6 +1036,16 @@ mutual
   CharacteristicsOk : Characteristics b -> Type
   CharacteristicsOk c = NonEmpty (types c)
 
+  -- A per-mana STRING attached to produced mana ([CR#106.6] enumerates exactly these three; they ride
+  -- EACH mana the production makes, [CR#106.6a]). NOT snow (that's the source's `Snow` supertype) nor
+  -- "doesn't empty" (a separate static/replacement over all your mana — Omnath/Upwelling), which would
+  -- double-represent. The paid-for object is bound `It` in the two effect-bearing riders.
+  public export
+  data ManaRider : Bindings -> Type where
+    SpendOnly      : Predicate b AnObject -> ManaRider b               -- (1) "spend only to cast/activate a [pred]" (Cavern's creature spell of the chosen type)
+    GrantOnSpend   : StaticEffect (bindIt AnObject b) -> ManaRider b   -- (2) the object it's spent on (`It`) gains [static] (Cavern's "that spell can't be countered")
+    TriggerOnSpend : OneShotEffect (bindIt AnObject b) -> ManaRider b  -- (3) a delayed trigger when the mana is spent ([CR#603.7a]); `It` = the object paid for
+
   -- The verbs ([CR#701]). `Effect::Act` wraps these. Object verbs carry an object
   -- `source` (default `This`); player verbs an `actor : Reference b APlayer` (default `You`).
   public export
@@ -1099,18 +1110,15 @@ mutual
     CreateToken : Count b -> (c : Characteristics b) -> {auto wf : CharacteristicsOk c} -> Action b   -- the token's full characteristics (P/T may be a `Count b`)
     CopySpell : Reference b AnObject -> Action b                   -- "copy target SPELL" (a copy on the stack); permanent-copy is `BecomeCopyOf`/`CreateTokenCopy`
     CreateTokenCopy : Reference b AnObject -> Action b             -- "create a token that's a COPY of [r]" ([CR#707.2]); alterations layer on separately
-    -- "add {G}" (a mana-ability effect; pool/paying is engine). RESTRICTED mana ([CR#106.6]):
-    -- `onlyToCast` is the spend constraint ("spend only to cast a [pred] spell"); `confers` are
-    -- continuous effects the engine applies to the spell the mana DOES pay for — that spell is bound
-    -- as `It`, so Cavern's "and that spell can't be countered" is `[cant (Enact Counter spellOrAbility (SameAs It))]`.
-    AddMana : {default You actor : Reference b APlayer} -> List ProducedMana
-              -> {default Nothing onlyToCast : Maybe (Predicate b AnObject)}
-              -> {default [] confers : List (StaticEffect (bindIt AnObject b))}
-              -> Action b
-    -- VARIABLE mana production: add `amount` mana of `of_` ("{G} for each creature you control"; Cabal
-    -- Coffers; "equal to your devotion to green"). The amount is any `Count` — so devotion-scaled,
-    -- count-scaled, and {X} production all fall out of the value language. ([CR#106.1])
-    AddManaFor : (amount : Count b) -> (of_ : ProducedMana) -> Action b
+    -- "add mana" (a mana-ability effect; pool/paying is engine) ([CR#106.1,106.4]). ONE verb (merges the
+    -- old `AddMana` + `AddManaFor`): `amount` copies of one `ProducedMana`, so fixed "{C}" (`amount = ^1`),
+    -- {X}/devotion/count-scaled production (Gaea's Cradle, Karametra's Acolyte), and a producer-chosen
+    -- color (`OneOf`/`AnyColor`) all fall out of the value language. `riders` are the per-mana strings of
+    -- [CR#106.6] applied to each of the `amount` mana ([CR#106.6a]) — Cavern: a chosen color, only to cast
+    -- the chosen creature type, uncounterable. (Fixed HETEROGENEOUS production — "add {R}{G}" — is a
+    -- `Sequence` of `AddMana`s, so the old per-action list is gone.)
+    AddMana : {default You actor : Reference b APlayer} -> (amount : Count b) -> ProducedMana
+              -> {default [] riders : List (ManaRider b)} -> Action b
 
   -- What a binder (`With`) binds as `That`: a QUERY of existing objects, a PRODUCER
   -- (an `Action` run for effect, binding its product), or a CHOICE (a player picks).
