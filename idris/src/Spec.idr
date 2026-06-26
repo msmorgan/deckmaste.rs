@@ -150,7 +150,7 @@ tChosenMode = ChosenIs 1
 tRestrictedMana : Action (bindChosen ACreatureType Base)
 tRestrictedMana = AddMana [AnyColor]
   { onlyToCast = Just (And [IsKind IsSpell, creature, OfChosen])
-  , confers    = [Cant (Countered (SameAs It))] }
+  , confers    = [Cant (Enact Counter spellOrAbility (SameAs It))] }
 
 -- the unified `Quantity` (one `Range` constructor) + its helpers all typecheck
 tQuantities : List (Bindable Base AnObject)
@@ -216,7 +216,7 @@ tOutcomeGate = OutcomeGate CantLose you
 -- (predicate args); the INTRINSIC enters-attached / falls-off rules are the shared `Also` / `Sba`
 -- primitives (the `Attach` ACTION takes references — `Attach This It`). One `Sba` serves auras AND sagas.
 tEnchantRestriction : StaticEffect Base
-tEnchantRestriction = Cant (Attaches (SameAs This) (Not creature))
+tEnchantRestriction = Cant (Enact Attach (SameAs This) (Not creature))
 
 tAuraEnters : StaticEffect Base
 tAuraEnters = Also thisEnters (With (Choose (^1) creature) (ForEach That (Act (Attach This It))))
@@ -487,7 +487,7 @@ tAsThough = Continuously
   UntilEndOfTurn
 
 -- Flash's desugaring is pinned by Refl: a `Can`-cast at instant speed (a widened window).
-tFlashWindow : keyword Flash = the (Ability Base) (Keyword (Composite Flash [Static (Can (Casts (SameAs You) (SameAs This)) {window = Just InstantWindow})]))
+tFlashWindow : keyword Flash = the (Ability Base) (Keyword (Composite Flash [Static (Can (Enact Cast (SameAs You) (SameAs This)) {window = Just InstantWindow})]))
 tFlashWindow = Refl
 
 -- Menace's desugaring (Refl): a SET-LEVEL `Cant` forbidding the lone-blocker (size-1) block —
