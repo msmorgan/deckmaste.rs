@@ -354,7 +354,6 @@ data Window = ThisGame | ThisTurn | LastTurn | ThisCombat | ThisStep
 namespace EventKind
   public export
   data EventKind : Type where
-    Cast : EventKind
     Sacrifice : EventKind
     Draw : EventKind
     Discard : EventKind
@@ -368,7 +367,9 @@ namespace EventKind
     Becomes : (s : ObjectState) -> {auto prf : IsBecomesState s} -> EventKind
     -- the ONSET of a relation ([CR#508],[CR#509]) — the inchoative aspect of the relation spine. `Begins
     -- Attack` fires once per attack; FACETS pick the side (`[Agent This]` = it attacks, `[Patient you]` =
-    -- you're attacked). Unifies the paired `Becomes Attacking`/`Becomes Attacked` (one happening, two views).
+    -- you're attacked). Unifies the paired `Becomes Attacking`/`Becomes Attacked` (one happening, two
+    -- views). The STACK relations fold in too: a cast is `Begins Cast` (no bespoke `Cast` kind — it was
+    -- redundant), the caster supplied as its actor (the `agentKind`-driven caps below).
     Begins : Relation -> EventKind
 
 -- the per-event CAPABILITIES an event provides its body's anaphora: a distinguished OBJECT ("that card"),
@@ -389,7 +390,6 @@ noCaps = MkCaps False False False
 -- zone-change/destroy/becomes has an object but no actor; a cast/draw/discard/sacrifice has an actor.
 public export
 eventKindCaps : EventKind -> EventCaps
-eventKindCaps Cast              = MkCaps True  True  False
 eventKindCaps Sacrifice         = MkCaps True  True  False
 eventKindCaps Draw              = MkCaps False True  False
 eventKindCaps Discard           = MkCaps True  True  False
@@ -400,7 +400,13 @@ eventKindCaps Destroyed         = MkCaps True  False False
 eventKindCaps (ZoneChanged _ _) = MkCaps True  False False
 eventKindCaps (BeginStep _)     = MkCaps False False False
 eventKindCaps (Becomes _)       = MkCaps True  False False
-eventKindCaps (Begins _)        = MkCaps True  False False
+-- a relation-ONSET supplies the agent's player as "that player" ONLY when the agent IS a player
+-- (cast/activate/play); an object-agent onset (combat/attach/target/counter) reaches the controller via
+-- `ControlledBy`. There is always a distinguished object, never an amount.
+eventKindCaps (Begins r)        =
+  case agentKind r of
+    APlayer => MkCaps True True  False
+    _       => MkCaps True False False
 
 -- which event-kinds carry an AMOUNT (gates `ReplaceAmount`/`EventSum`) — derived from the caps.
 public export
@@ -561,7 +567,7 @@ mutual
     Devotion : (colors : List Color) -> {auto prf : NonEmpty colors} -> Count b   -- devotion: pips of these (≥1) colors among your permanents
     EventCount : EventQuery b -> Count b      -- how many matching events occurred (window is in the query)
     -- the SUM of the matching events' amounts (the amount-twin of `EventCount`). Takes the amount-bearing
-    -- KIND explicitly (gated by `eventKindHasAmount`, so `EventSum Cast` is rejected) + optional facets.
+    -- KIND explicitly (gated by `eventKindHasAmount`, so `EventSum (Begins Cast)` is rejected) + optional facets.
     EventSum : (k : EventKind) -> {auto amt : eventKindHasAmount k = True} -> {default [] facets : List (Facet b)} -> Count b
     Damage : Reference b AnObject -> Count b  -- marked damage on r ([CR#120.3]); the lethal-damage SBA reads `Compare (Damage This) GreaterEq (StatOf This Toughness)`
     CountersOn : (c : CounterKind) -> Reference b (counterCarrier c) -> Count b   -- number of [kind] counters on r (object or player, per `counterCarrier`)
@@ -665,7 +671,7 @@ mutual
     data Facet : Bindings -> Type where
       -- ACTOR: the responsible PLAYER matches a player-pred (you / opponent) — the player AXIS, orthogonal to
       -- the agent→patient relation, NOT a third role. Double duty: the direct doer of a player-event
-      -- (`[Cast] [Actor you]`) and the CONTROLLER behind an object-`Agent` (`[DealDamage] [Agent ~, Actor you]`).
+      -- (`[Begins Cast] [Actor you]`) and the CONTROLLER behind an object-`Agent` (`[DealDamage] [Agent ~, Actor you]`).
       Actor   : Predicate b APlayer -> Facet b
       -- AGENT: the event's DOER/INITIATOR object matches — the moving object of a zone-change, or the
       -- SOURCE of damage (the object dealing it; protection's D leg). The two feed the SAME role.
@@ -1180,7 +1186,7 @@ mutual
     -- PAYLOAD replacement ([CR#616]): the event still happens, but its numeric amount becomes
     -- `newAmount` (a `Count` over the event body, so it can read `ThatMuch`). Furnace of Rath =
     -- `ReplaceAmount DealDamage (Times ThatMuch (^2))`. The KIND is explicit + amount-gated, so
-    -- `ReplaceAmount Cast …` (a Cast has no amount) is a TYPE ERROR; `facets` adds non-kind conditions.
+    -- `ReplaceAmount (Begins Cast) …` (a cast has no amount) is a TYPE ERROR; `facets` adds non-kind conditions.
     ReplaceAmount : (k : EventKind) -> {auto amt : eventKindHasAmount k = True} -> {default [] facets : List (Facet b)} -> (newAmount : Count (bindEvent (eventKindCaps k) b)) -> StaticEffect b
     -- a static OUTCOME suppressor: the matching players can't lose / can't win ([CR#104.2b,104.3e]). Platinum
     -- Angel = `OutcomeGate CantLose you` + `OutcomeGate CantWin opponent`. (Distinct from `CantHappen` —
