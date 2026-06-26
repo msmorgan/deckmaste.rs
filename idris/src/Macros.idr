@@ -153,15 +153,21 @@ protection q = Keyword (Composite (Protection q)
 -- "Enchant [hosts]" ([CR#303.4],[CR#702.5]): NOT an engine keyword — a MACRO bundling the aura's per-card
 -- behaviour, parameterised by the legal-host filter, spliced into `abilities` with `++`. (1) the PERMISSION
 -- to attach (attaching is default-forbidden, so this ENABLES it — the dual of a planeswalker's `Can (Enact
--- Attack … This)`); (2) the aura's SPELL — cast it targeting a valid host, attach to that host on resolution.
--- The falls-off SBA ("no valid attachment → graveyard", [CR#704.5n]) is conferred by the Aura SUBTYPE
--- (`subtypeConfers`), not here. PENDING the non-cast "choose a valid host on ETB" rule ([CR#303.4f]) — it
--- needs a constrained-choice primitive (`AnObjectChoice` is unconstrained).
+-- Attack … This)`); (2) the non-cast ENTRY rule ([CR#303.4f]) — as This enters, if it isn't already
+-- attached, choose a valid host and enter attached (`Also thisEnters`, the documented enters-attached
+-- idiom; host chosen via `Choose`, read back as `That`). The `If (Not (LegallyAttached This))` guard is
+-- what scopes this to NON-cast entry: a cast aura entered attached to its target (ability 3), so the
+-- guard skips it. That guard is the SAME condition the falls-off SBA reads, so the two compose — choose a
+-- host on entry, and if none is legal the SBA sweeps it. (3) the aura's SPELL — cast it targeting a valid
+-- host, attach to that host on resolution. The falls-off SBA ("no valid attachment → graveyard",
+-- [CR#704.5n]) is conferred by the Aura SUBTYPE (`subtypeConfers`), not here.
 public export
-enchant : Predicate b AnObject -> List (Ability b)
+enchant : {b : Bindings} -> ({0 c : Bindings} -> Predicate c AnObject) -> List (Ability b)
 enchant hosts =
-  [ Static (Can (Enact Attach (SameAs This) hosts))                            -- permission to attach to hosts
-  , Spell (Targeted [Target (^1) hosts] (Act (Attach This (GetTarget 0)))) ]   -- cast → target a host → attach
+  [ Static (Can (Enact Attach (SameAs This) hosts))                                  -- (1) permission: the aura ENABLES attaching
+  , Static (Also thisEnters (If (Not (LegallyAttached This))                         -- (2) [CR#303.4f] non-cast entry only (cast path is already attached):
+              (With (Choose (^1) hosts) (Act (Attach This (Single That))))))         --     choose a valid host, enter attached
+  , Spell (Targeted [Target (^1) hosts] (Act (Attach This (GetTarget 0)))) ]         -- (3) cast → target a host → attach on resolution
 
 -- desugar a `KeywordSpec` into its full `Ability` — dispatches to the macros above. EXHAUSTIVE
 -- (no catch-all): adding a `KeywordSpec` constructor forces a clause here. `Bare` = an engine-
