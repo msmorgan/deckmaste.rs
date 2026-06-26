@@ -85,7 +85,7 @@ tStatFilter = And [creature, StatCmp Power LessEq (^2)]
 -- DURATIVE aspect of the relation spine (`Holds r role`): "an attacking creature" (cf the retired
 -- `HasState Attacking`).
 tStateFilter : Predicate Base AnObject
-tStateFilter = And [creature, Holds Attack Doer, Not (HasState Tapped)]
+tStateFilter = And [creature, Holds Attack Agent, Not (HasState Tapped)]
 
 -- filter atoms: multicolored / colorless objects; stack-object filters (a spell targeting you, a single-
 -- target spell); and the COMBAT states via the spine — `Blocking`/`Blocked` are the two SLOTS of one Block
@@ -97,9 +97,9 @@ tFilterAtoms =
   , IsColorless
   , And [IsKind IsSpell, Targets (SameAs You)]
   , TargetCount Equal (^1)
-  , Holds Block Doer                                                -- "a blocking creature"
+  , Holds Block Agent                                                -- "a blocking creature"
   , Holds Block Patient                                             -- "a blocked creature"
-  , And [creature, Holds Attack Doer, Not (Holds Block Patient)] ]  -- "an unblocked attacker" (derived, no state)
+  , And [creature, Holds Attack Agent, Not (Holds Block Patient)] ]  -- "an unblocked attacker" (derived, no state)
 
 tControlsPlayer : Predicate Base APlayer
 tControlsPlayer = Controls creature
