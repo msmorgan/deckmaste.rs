@@ -163,11 +163,51 @@ subtypeCategory (BattleSub _) = Battle
 public export
 data Stat = Power | Toughness | ManaValue | Defense
 
--- how to FOLD a `Stat` over a predicate-matched SET of objects (`Aggregate`, a `Count`): the SUM, the
--- GREATEST, or the LEAST. Over the empty set all three are 0 ("the greatest power among" no creatures = 0),
--- an engine detail. (Cardinality is `CountOf`, not an `AggOp`; folding event amounts over time is `EventSum`.)
+-- how to ROUND a fractional value — the spell/ability states the direction ([CR#107.1a]). Shared by the
+-- `AverageOf` fold AND the `Half` value constructor (one rounding vocabulary, not two).
 public export
-data AggOp = Total | Greatest | Least
+data RoundMode = RoundUp | RoundDown
+
+-- how to FOLD a collection of values into ONE: the sum, the least, the greatest, or the (rounded) mean.
+-- `SumOf` of the EMPTY collection is 0 ([CR#107.2] — a value that can't be determined is 0); `MinOf`/`MaxOf`/
+-- `AverageOf` of the empty collection are genuinely undefined (no extremum; a 0/0 mean), so the ENGINE must
+-- guard the empty case — the grammar can't, there is no cardinality evidence here. Shared by object-projection
+-- (`Aggregate` over a `Projection`) and event-amounts (`EventAgg`). Replaces the old `Stat`-only `AggOp`
+-- (Total/Greatest/Least -> SumOf/MinOf/MaxOf), adding the mean. (Cardinality is `CountOf`, not an op.)
+public export
+data AggregateOp = SumOf | MinOf | MaxOf | AverageOf RoundMode
+
+-- the EXTREMAL ops — the subset of `AggregateOp` along which you can pick an extremal ELEMENT (`Pick`). A
+-- PROOF (the file's superset-enum + legal-subset idiom, cf. `Projectable`/`IsCharDomain`), NOT a parallel
+-- `Highest`/`Lowest` enum re-encoding min/max: so `Pick MinOf`/`Pick MaxOf` are the only well-typed picks
+-- and `Pick SumOf`/`Pick (AverageOf …)` are unrepresentable.
+public export
+data IsExtremal : AggregateOp -> Type where
+  MinIsExtremal : IsExtremal MinOf
+  MaxIsExtremal : IsExtremal MaxOf
+
+-- a small predicate algebra over MANA SYMBOLS, for filtering a printed/spent cost ([CR#107.4]). `CountsAs c`
+-- = the symbol counts as colour c (hybrid {W/U} counts as both; Phyrexian {W/P} as white; a generic symbol
+-- as none) — the one home for "counts as colour" identity. Its own namespace: `And`/`Or`/`Not` are shared
+-- combinator names (Predicate/Condition/EventQuery each carry their own), disambiguated by expected type.
+namespace SymbolPred
+  public export
+  data SymbolPred : Type where
+    CountsAs : Color -> SymbolPred
+    IsGeneric : SymbolPred
+    -- `And`/`Or` are NON-EMPTY: an empty conjunction/disjunction of symbol filters is meaningless (and a
+    -- vacuous `Or []` is exactly "devotion to no colours", which the old `Devotion`'s `NonEmpty` guard rejected
+    -- — preserved here rather than dropped).
+    And : (ps : List SymbolPred) -> {auto 0 ne : NonEmpty ps} -> SymbolPred
+    Or : (ps : List SymbolPred) -> {auto 0 ne : NonEmpty ps} -> SymbolPred
+    Not : SymbolPred -> SymbolPred
+
+-- the single attribute `CountDistinct` reads off each element to size its DISTINCT union ([CR#107.3]): a
+-- characteristic (colour/name/basic-land-type/card-type) or a CURRENT numeric stat (Collector's Cage counts
+-- distinct POWERS). Wraps `Stat` for the numeric cases rather than duplicating them.
+namespace Attribute
+  public export
+  data Attribute = OfColor | OfName | OfBasicLandType | OfCardType | OfStat Stat
 
 public export
 data Cmp = Equal | GreaterEq | LessEq | Greater | Less
@@ -503,6 +543,15 @@ public export
 bindIt : RefKind -> Bindings -> Bindings
 bindIt k b = MkBindings (targetKinds b) (thatKind b) (Just k) (evCaps b) (chosenKind b) (chosenRefKind b) (hasAllotment b)
 
+-- entering a `Projection` accessor (`Project`/`eachOf`): bind the per-element `It` of kind k AND clear the
+-- loop-local `hasAllotment`. A `Distribute` share is indexed to ITS loop element; once a `Project` re-binds
+-- `It` to the projection element, that share no longer makes sense, so `Allotment` must not leak through. The
+-- allotment-clearing twin of `bindIt` (everything else — targets, `That`, event caps, as-enters choices — is
+-- legitimately still in scope for the projected value).
+public export
+bindElem : RefKind -> Bindings -> Bindings
+bindElem k b = MkBindings (targetKinds b) (thatKind b) (Just k) (evCaps b) (chosenKind b) (chosenRefKind b) False
+
 -- entering a trigger/replacement/delayed body, carrying the event's CAPS (what anaphora it supplies).
 public export
 bindEvent : EventCaps -> Bindings -> Bindings
@@ -607,24 +656,73 @@ mutual
   eventQueryHasAmount : EventQuery b -> Bool
   eventQueryHasAmount (MkQuery ks _) = kindsHaveAmount ks
 
-  -- A numeric value ([CR#107.3]). `Literal` is a bare number; the rest read the game
-  -- state — object counts, stats, counters, life/hand totals, event tallies, arithmetic.
+  -- A COUNTABLE: any set the value-language ranges over — objects, players, events, or an object's mana
+  -- symbols (printed cost) / mana spent. The ONE set vocabulary: `CountOf`/`CountDistinct`/`Project` all
+  -- take a `Countable` (the earlier `Filter`/`SetOf` split collapses into this). `ManaSymbols` (printed) and
+  -- `ManaSpent` (paid) are deliberately distinct sources ([CR#107.4]): devotion reads printed symbols,
+  -- Sunburst/Converge read mana spent. `Objects` is the only PROJECTABLE case — see `Projectable`. `Players`
+  -- keeps player-cardinality expressible ("the number of players who control a creature") — the old
+  -- kind-polymorphic `CountOf : Predicate b k` could count players; this preserves that.
+  public export
+  data Countable : Bindings -> Type where
+    Objects     : Predicate b AnObject -> Countable b
+    Players     : Predicate b APlayer -> Countable b
+    Events      : EventQuery b -> Countable b
+    ManaSymbols : Reference b AnObject -> SymbolPred -> Countable b
+    ManaSpent   : {default This forObj : Reference b AnObject} -> Countable b   -- mana SPENT to cast/activate `forObj` (default `This`)
+
+  -- which `Countable`s can be PROJECTED per-element (bind `It` to each element and read a value): only
+  -- objects — an atomic mana symbol, player count, or event has no element to bind. A PROOF on the `Countable`,
+  -- not a second type: `Project` demands it, so `Project (Events …) …` is ill-typed (no `Projectable (Events
+  -- …)`). Same auto-implicit idiom as `eventQueryHasAmount`/`NonEmpty`.
+  public export
+  data Projectable : Countable b -> Type where
+    ObjectsAreProjectable : Projectable (Objects p)
+
+  -- which ATTRIBUTE can be read off each element of a `Countable` — the gate on `CountDistinct`, mirroring
+  -- `Projectable`/`eventQueryHasAmount`. Colour is readable off objects AND mana (Sunburst counts colours of
+  -- mana spent); the other attributes (name / basic-land-type / card-type / current stat) are object-only;
+  -- players and events carry none. So `CountDistinct (OfStat Power) (Events …)` and `CountDistinct OfName
+  -- ManaSpent` are ill-typed. Declared as a function (like `eventQueryHasAmount`) so the `Count` gate below can
+  -- name it.
+  public export
+  attributeReadableOn : Attribute -> Countable b -> Bool
+  attributeReadableOn OfColor (Objects _)       = True
+  attributeReadableOn OfColor (ManaSymbols _ _) = True
+  attributeReadableOn OfColor ManaSpent         = True
+  attributeReadableOn _       (Objects _)       = True
+  attributeReadableOn _       _                 = False
+
+  -- a PROJECTION: one value per element of a projectable `Countable`, given by the per-element `acc` (a `Count`
+  -- with `It` bound to the element via `bindElem` — which clears `hasAllotment`, so a `Distribute` share can't
+  -- leak across the re-scope). The shared substrate — `Aggregate` folds it to a value, `Pick` (a `Selection`)
+  -- takes the extremal element. `Project` is the only constructor; `eachOf` is sugar. Named `Projection` (not
+  -- `Counts`) to avoid colliding with `Count` — and because the projected values needn't be counts (e.g. a power).
+  public export
+  data Projection : Bindings -> Type where
+    Project : (src : Countable b) -> {auto 0 prj : Projectable src} -> Count (bindElem AnObject b) -> Projection b
+
+  -- A numeric value ([CR#107.3] reads {X}; the rest are general values). `Literal` is a bare number; the rest
+  -- read the game state — object counts, stats, counters, life/hand totals, event tallies, arithmetic.
   public export
   data Count : Bindings -> Type where
     Literal : Nat -> Count b                  -- a bare number
-    X : Count b                               -- the chosen {X} value
-    CountOf : Predicate b k -> Count b        -- how many entities match a predicate
+    X : Count b                               -- the chosen {X} value ([CR#107.3])
+    CountOf : Countable b -> Count b          -- the CARDINALITY of a countable (|set|); `CountMatching`/`CountEvents` are sugar
+    -- size of the DISTINCT union of an attribute across a set (Domain = `CountDistinct OfBasicLandType (Objects
+    -- yourLands)`). Gated by `attributeReadableOn`, so the attribute must be readable off the source's elements
+    -- (`CountDistinct (OfStat Power) (Events …)` and `CountDistinct OfName ManaSpent` are rejected).
+    CountDistinct : (a : Attribute) -> (src : Countable b) -> {auto 0 ok : attributeReadableOn a src = True} -> Count b
     StatOf : Reference b AnObject -> Stat -> Count b     -- an object's power/toughness/etc.
-    -- a `Stat` FOLDED over the SET of objects matching a predicate, per `AggOp` ("greatest power among
-    -- creatures you control" = `Aggregate Greatest Power (And [creature, ControlledBy you])`). The set-twin
-    -- of `StatOf` (one object) and the spatial-twin of `EventSum` (event amounts over a window).
-    Aggregate : AggOp -> Stat -> Predicate b AnObject -> Count b
-    Devotion : (colors : List Color) -> {auto prf : NonEmpty colors} -> Count b   -- devotion: pips of these (≥1) colors among your permanents
-    EventCount : EventQuery b -> Count b      -- how many matching events occurred (window is in the query)
-    -- the SUM of the matching events' amounts (the amount-twin of `EventCount`, same `EventQuery` shape — kinds
-    -- + facets, window via a `Within` facet). Gated by `kindsHaveAmount`, so every queried kind must carry an
-    -- amount (`EventSum (MkQuery [Begins Cast] [])` is rejected — a cast has none).
-    EventSum : (q : EventQuery b) -> {auto amt : eventQueryHasAmount q = True} -> Count b
+    -- FOLD a `Projection` to one value, per `AggregateOp` ("greatest power among creatures you control" =
+    -- `Aggregate MaxOf (eachOf yourCreatures (StatOf It Power))`; devotion sums a per-permanent pip-count).
+    -- The value-twin of `Pick` (which takes the extremal element from the same `Projection`).
+    Aggregate : AggregateOp -> Projection b -> Count b
+    -- fold the matching events' AMOUNTS, per `AggregateOp` (`EventAgg SumOf q` is the old `EventSum`; events
+    -- have no `It` to bind, so they fold their single amount rather than a projection). Gated by
+    -- `eventQueryHasAmount`, so every queried kind must carry one (`EventAgg SumOf (MkQuery [Begins Cast] [])`
+    -- is rejected — a cast has no amount). Cardinality of events is `CountEvents q` = `CountOf (Events q)`.
+    EventAgg : AggregateOp -> (q : EventQuery b) -> {auto amt : eventQueryHasAmount q = True} -> Count b
     Damage : Reference b AnObject -> Count b  -- marked damage on r ([CR#120.3]); the lethal-damage SBA reads `Compare (Damage This) GreaterEq (StatOf This Toughness)`
     CountersOn : (c : CounterKind) -> Reference b (counterScope c) -> Count b   -- number of [kind] counters on r (object or player, per `counterScope`)
     LifeTotal : Reference b APlayer -> Count b           -- a player's life total
@@ -632,8 +730,7 @@ mutual
     Plus  : Count b -> Count b -> Count b                -- arithmetic on values
     Minus : Count b -> Count b -> Count b
     Times : Count b -> Count b -> Count b
-    HalfUp : Count b -> Count b                          -- "half, rounded up"
-    HalfDown : Count b -> Count b
+    Half : RoundMode -> Count b -> Count b               -- half, rounded per `RoundMode` ([CR#107.1a]); one rounding vocabulary, shared with `AverageOf`
     Min : Count b -> Count b -> Count b                  -- the lesser ([CR#704.5q] +1/+1 vs −1/−1 annihilation; "the lesser of X and Y")
     Max : Count b -> Count b -> Count b                  -- the greater
     ThatMuch : {auto prf : hasAmount (evCaps b) = True} -> Count b   -- the event's amount — valid only where the event SUPPLIES one
@@ -773,6 +870,11 @@ mutual
     Random : Quantity b -> Predicate b k -> Selection b k
     TopOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
     BottomOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
+    -- the extremal ELEMENT(s) of a `Projection` ("the creature with the greatest power" = `Pick MaxOf (eachOf
+    -- yourCreatures (StatOf It Power))`). The element-twin of `Aggregate` (which folds the same `Projection` to
+    -- a value); the op is gated to the extremal ones by `IsExtremal` (no `Pick SumOf`); ties yield the whole
+    -- group, narrowed by the usual `Single`/choice path.
+    Pick : (op : AggregateOp) -> {auto 0 ext : IsExtremal op} -> Projection b -> Selection b AnObject
 
 
 public export
@@ -793,16 +895,33 @@ public export
 yourTurn : Condition b
 yourTurn = TurnOf (SameAs You)
 
--- `exists`/`unique`: a predicate matches ≥1 / exactly-1 object. DERIVED from
--- `CountOf` + `Compare`, not primitive constructors. (`CountOf` takes a `Predicate`,
--- so `exists (During …)` is now a TYPE error, not a degenerate term.)
+-- Sugar over the `Countable` core — readable common cases, no redundant constructors. `CountMatching`/
+-- `CountEvents` are the old `CountOf (Predicate)` / `EventCount`; `eachOf` builds a `Projection` without
+-- spelling `Objects` (so devotion reads `Aggregate SumOf (eachOf yourPermanents …)`). These are the canonical
+-- object/event spellings; raw `CountOf (Objects …)` / `Project (Objects …)` are reserved for the negative
+-- tests, and raw `CountOf (ManaSymbols …)` / `CountOf (Players …)` are the only spelling for those sources.
 public export
-exists : Predicate b k -> Condition b
-exists p = Compare (CountOf p) Greater (Literal 0)
+CountMatching : Predicate b AnObject -> Count b
+CountMatching p = CountOf (Objects p)
 
 public export
-unique : Predicate b k -> Condition b
-unique p = Compare (CountOf p) Equal (Literal 1)
+CountEvents : EventQuery b -> Count b
+CountEvents q = CountOf (Events q)
+
+public export
+eachOf : Predicate b AnObject -> Count (bindElem AnObject b) -> Projection b
+eachOf p acc = Project (Objects p) acc
+
+-- `exists`/`unique`: a predicate matches ≥1 / exactly-1 object. DERIVED from `CountOf` + `Compare`, not
+-- primitive constructors. `CountOf` takes a `Countable`, so `exists (During …)` is a TYPE error (a
+-- `Condition` is not a `Countable`), not a degenerate term.
+public export
+exists : Predicate b AnObject -> Condition b
+exists p = Compare (CountMatching p) Greater (Literal 0)
+
+public export
+unique : Predicate b AnObject -> Condition b
+unique p = Compare (CountMatching p) Equal (Literal 1)
 
 public export
 implementation Promote Nat (Count b) where

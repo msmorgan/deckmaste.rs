@@ -275,13 +275,9 @@ public export
 morph : Cost b -> Ability b
 morph c = Keyword (Composite Morph [ Static (CastFaceDown (Mana [^3])), TurnFaceUp c ])
 
--- the number of card TYPES among cards in all graveyards (Tarmogoyf's `*`) — a sum of per-type
--- INDICATORS: `Min (CountOf (graveyard ∧ that type)) 1` is 1 when present, else 0, over every card type.
+-- the number of distinct card TYPES among cards in all graveyards (Tarmogoyf's `*`) — directly the
+-- DISTINCT-union count the value-language now provides, replacing the old hand-rolled sum of per-type
+-- `Min (CountOf (graveyard ∧ that type)) 1` indicators over an enumerated card-type list.
 public export
 typesInGraveyards : Count b
-typesInGraveyards = foldr Plus (Literal 0) (map indicator allCardTypes)
-  where
-    allCardTypes : List Type_
-    allCardTypes = [Artifact, Battle, Creature, Enchantment, Instant, Kindred, Land, Planeswalker, Sorcery]
-    indicator : Type_ -> Count b
-    indicator t = Min (CountOf (And [InZone Graveyard, HasType t])) (Literal 1)
+typesInGraveyards = CountDistinct OfCardType (Objects (InZone Graveyard))
