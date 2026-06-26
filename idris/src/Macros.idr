@@ -156,7 +156,7 @@ regenerate = Continuously
 public export
 protection : Predicate b AnObject -> Ability b
 protection q = Keyword (Composite (Protection q)
-  [ Static (ReplaceAmount DealDamage (^0) {facets = [Patient (SameAs This), Agent q]})   -- D
+  [ Static (ReplaceAmount (DealDamage Nothing) (^0) {facets = [Patient (SameAs This), Agent q]})   -- D
   , Static (cant (Enact Attach q (SameAs This)))        -- E
   , Static (cant (Enact Block q (SameAs This)))         -- B
   , Static (cant (Enact Target q (SameAs This))) ])     -- T

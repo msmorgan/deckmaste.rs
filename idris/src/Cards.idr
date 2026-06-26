@@ -765,7 +765,7 @@ card_FurnaceOfRath = Normal $ ^:
   { name := Just "Furnace of Rath"
   , manaCost := [^3, ^Red]
   , types := [Enchantment]
-  , abilities := [ Static (ReplaceAmount DealDamage (Times ThatMuch (^2))) ]
+  , abilities := [ Static (ReplaceAmount (DealDamage Nothing) (Times ThatMuch (^2))) ]
   }
 
 -- Doubling Season — two payload replacements: twice the tokens you'd create, and twice the counters
@@ -1196,6 +1196,35 @@ card_WhiteKnight = Normal $ ^:
   , abilities := [ keyword FirstStrike, protection (HasColor Black) ]
   , power := Just 2
   , toughness := Just 2
+  }
+
+-- Garza Zol, Plague Queen — the DAMAGE-PROVENANCE + COMBAT-flag exemplar. Ability 1 is a death trigger
+-- gated on `DamagedBy This` (the turn-scoped "a creature dealt damage by ~ this turn"); ability 2 reads
+-- the combat boolean now on the damage event — `DealDamage (Just True)` = "deals combat damage" — and the
+-- draw is OPTIONAL (`May`), faithful to "you may draw a card".
+export
+card_GarzaZol : Card
+card_GarzaZol = Normal $ ^:
+  { name := Just "Garza Zol, Plague Queen"
+  , manaCost := [^4, ^Blue, ^Black, ^Red]
+  , types := [Creature]
+  , supertypes := [Legendary]
+  , subtypes := [^Vampire, ^Noble]
+  , abilities :=
+      [ keyword Flying
+      , haste
+      , -- "Whenever a creature dealt damage by ~ this turn dies, put a +1/+1 counter on ~."
+        Triggered
+          (MkQuery [ZoneChanged (Just Battlefield) (Just Graveyard)]
+                   [Agent (And [creature, DamagedBy This])])
+          (Act (PutCounters P1P1 (^1) This))
+      , -- "Whenever ~ deals combat damage to a player, you may draw a card."
+        Triggered
+          (MkQuery [DealDamage (Just True)] [Agent (SameAs This), Patient Anyone])
+          (May (Act (Draw (^1))))
+      ]
+  , power := Just 5
+  , toughness := Just 5
   }
 
 --:vim:sts=2 sw=2:
