@@ -109,10 +109,11 @@ card_Brainstorm = Normal $ ^:
       ]
   }
 
--- TRICKY: an Aura, the ENGINE's way (no dedicated `Enchant`): the host restriction is `Cant (Attaches
--- (SameAs This) (Not creature))` — "enchant creature"; a `Static` buffs the host (`AttachHostOf This`)
--- with +2/+0 and trample; a graveyard trigger returns it to hand. The intrinsic enters-attached /
--- falls-off rules (`Also`/`Sba`) are SHARED statics (engine: conferred by the Aura subtype) — see Spec.
+-- TRICKY: an Aura, the ENGINE's way (no dedicated `Enchant`): "enchant creature" is the PERMISSION
+-- `Can (Enact Attach (SameAs This) creature)` — attaching is default-forbidden, so the aura ENABLES itself
+-- to attach to creatures; a `Static` buffs the host (`AttachHostOf This`) with +2/+0 and trample; a
+-- graveyard trigger returns it to hand. The intrinsic enters-attached / falls-off rules (`Also`/`Sba`) are
+-- SHARED statics (engine: conferred by the Aura subtype) — see Spec.
 export
 card_Rancor : Card
 card_Rancor = Normal $ ^:
@@ -121,7 +122,7 @@ card_Rancor = Normal $ ^:
   , types := [Enchantment]
   , subtypes := [^Aura]
   , abilities :=
-      [ Static (Cant (Enact Attach (SameAs This) (Not creature)))
+      [ Static (Can (Enact Attach (SameAs This) creature))   -- enchant creature (permission, not restriction)
       , Static (Modify (AttachHostOf This)
           [ ModifyPT (^2) (^0)
           , GrantAbility (keyword Trample)
@@ -380,8 +381,9 @@ card_Donate = Normal $ ^:
 
 -- DEONTIC cards ----------------------------------------------------------------
 
--- Pacifism — "Enchanted creature can't attack or block." Two `Cant` clauses over the host
--- (`AttachHostOf This`): can't attack at all, and can't block any creature. Pure deontic.
+-- Pacifism — an Aura: "enchant creature" (a `Can (Enact Attach …)` PERMISSION, since attaching is
+-- default-forbidden), then two `Cant` clauses over the host (`AttachHostOf This`): can't attack at all,
+-- can't block any creature. Pure deontic.
 export
 card_Pacifism : Card
 card_Pacifism = Normal $ ^:
@@ -390,7 +392,7 @@ card_Pacifism = Normal $ ^:
   , types := [Enchantment]
   , subtypes := [^Aura]
   , abilities :=
-      [ Static (Cant (Enact Attach (SameAs This) (Not creature)))
+      [ Static (Can (Enact Attach (SameAs This) creature))   -- enchant creature (permission)
       , Static (Cant (Enact Attack (SameAs (AttachHostOf This)) Anyone))
       , Static (Cant (Enact Block (SameAs (AttachHostOf This)) creature))
       ]

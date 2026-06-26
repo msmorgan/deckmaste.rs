@@ -212,11 +212,13 @@ tProtection = protection (HasColor Red)
 tOutcomeGate : StaticEffect Base
 tOutcomeGate = OutcomeGate CantLose you
 
--- Auras the engine's way: no dedicated `Enchant`. The host restriction is a `Cant (Attaches …)` DEED
--- (predicate args); the INTRINSIC enters-attached / falls-off rules are the shared `Also` / `Sba`
--- primitives (the `Attach` ACTION takes references — `Attach This It`). One `Sba` serves auras AND sagas.
-tEnchantRestriction : StaticEffect Base
-tEnchantRestriction = Cant (Enact Attach (SameAs This) (Not creature))
+-- Auras the engine's way: no dedicated `Enchant`. "Enchant creature" is a `Can (Enact Attach …)` PERMISSION
+-- — attaching is forbidden by DEFAULT (most objects can't attach to anything), so the Enchant ability ENABLES
+-- this aura to attach to creatures (the dual of a planeswalker granting `Can (Enact Attack … This)`). The
+-- intrinsic enters-attached / falls-off rules are the shared `Also` / `Sba` primitives (the `Attach` ACTION
+-- takes references — `Attach This It`). One `Sba` serves auras AND sagas.
+tEnchant : StaticEffect Base
+tEnchant = Can (Enact Attach (SameAs This) creature)
 
 tAuraEnters : StaticEffect Base
 tAuraEnters = Also thisEnters (With (Choose (^1) creature) (ForEach That (Act (Attach This It))))
