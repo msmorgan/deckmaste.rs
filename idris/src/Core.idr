@@ -854,16 +854,19 @@ data ReplaceLimit : Bindings -> Type where
   Unlimited : ReplaceLimit b
   UpTo : Count b -> ReplaceLimit b
 
--- How many modes to choose, for a modal effect ([CR#700.2]). Rust: ChooseSpec.
+-- How many modes to choose, for a modal effect ([CR#700.2]). Rust: ChooseSpec. The count is a `Quantity`
+-- (the same range language as `Target`), so "choose one" = `^1`, "choose one or both" = `between (^1) (^2)`,
+-- "choose one or more" = `atLeast (^1)`, "choose up to two" = `atMost (^2)` (subsumes the old `upTo` flag).
 public export
 data ChooseSpec : Bindings -> Type where
-  MkChooseSpec : (count : Count b) -> {default False upTo : Bool} -> {default False repeats : Bool} -> ChooseSpec b
+  MkChooseSpec : (count : Quantity b) -> {default False repeats : Bool} -> ChooseSpec b
 
--- a modal choose-count must not exceed the number of modes ([CR#700.2d]) — checked only when the count
--- is a LITERAL and modes can't repeat (a repeating choice may pick the same mode again); lenient otherwise.
+-- a modal choose-count must not exceed the number of modes ([CR#700.2d]) — checked only when the UPPER
+-- bound is a LITERAL and modes can't repeat (a repeating choice, or an unbounded "one or more", is lenient,
+-- exactly like `NonZeroQ` guards only a literal bound). An unbounded upper is implicitly the mode count.
 public export
 ModalCountOk : ChooseSpec b -> (modeCount : Nat) -> Type
-ModalCountOk (MkChooseSpec (Literal n) {repeats = False}) modeCount = LTE n modeCount
+ModalCountOk (MkChooseSpec (Range _ (Just (Literal hi))) {repeats = False}) modeCount = LTE hi modeCount
 ModalCountOk _ _ = ()
 
 -- A DEONTIC clause's carrier: a game ACTION a player may attempt ([CR#101.2,601.3] the deontic

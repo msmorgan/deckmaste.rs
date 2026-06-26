@@ -50,6 +50,13 @@ tModal = Modal (MkChooseSpec (^1))
   , MkMode (ForEach (SelectAll creature) (Act (DealDamage It (^2)))) {cost = Just (PayLife (Literal 2))}  -- mode cost is now a full Cost
   ]
 
+-- VARIABLE-count modals: the choose-count is a `Quantity`. "Choose one or both" = `between (^1) (^2)`;
+-- "choose one or more" (escalate-style) = `atLeast (^1)` (unbounded upper = implicitly the mode count).
+tModalVariable : List (OneShotEffect Base)
+tModalVariable =
+  [ Modal (MkChooseSpec (between (^1) (^2))) [ MkMode (Act (Draw (^1))), MkMode (Act (GainLife (^2))) ]
+  , Modal (MkChooseSpec (atLeast (^1)))      [ MkMode (Act (Draw (^1))), MkMode (Act (GainLife (^2))) ] ]
+
 -- `Reflexive` NESTS: inside a `With`, its body still sees `That` (no sibling scan)
 tReflexiveSeesThat : OneShotEffect Base
 tReflexiveSeesThat =
