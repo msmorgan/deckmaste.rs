@@ -493,10 +493,17 @@ tPromoteOpArg = Act (Draw (^1))
 tSingle : Reference Base AnObject
 tSingle = Single (SelectAll creature)
 
--- a PLURAL target slot (1–2) feeds divided damage; the kind is the union (`Anything`)
+-- a PLURAL target slot (1–2) feeds divided damage; the kind is the union (`Anything`). Divided damage is
+-- the general `Distribute`: total `(^2)` split among the target group, each element dealt its `Allotment`.
 tPluralTarget : OneShotEffect Base
 tPluralTarget = Targeted [Target (between (^1) (^2)) (Or [creature, Anyone])]
-  (Act (DealDamageDivided (^2) (GetTargets 0)))
+  (Distribute (^2) (GetTargets 0) (Act (DealDamage It Allotment)))
+
+-- the SAME `Distribute` over a different body: "distribute three +1/+1 counters among any number of target
+-- creatures" (Hunting Triad) — `PutCounters` per element, each getting its `Allotment`. Carrier-typed.
+tDistributeCounters : OneShotEffect Base
+tDistributeCounters = Targeted [Target (between (^1) (^3)) creature]
+  (Distribute (^3) (GetTargets 0) (Act (PutCounters P1P1 Allotment It)))
 
 -- NEGATIVE — each must be rejected --------------------------------------------
 

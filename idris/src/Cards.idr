@@ -499,7 +499,8 @@ card_CrypticCommand = Normal $ ^:
 
 -- PLURAL targets + divided damage. "deals 2 damage divided as you choose among one or two target
 -- creatures and/or players" — a single slot with a NON-ZERO range cardinality (1–2), referenced as
--- the GROUP `GetTargets 0` and fed to `DealDamageDivided`. Then an untargeted draw.
+-- the GROUP `GetTargets 0` and fed to the general `Distribute` (each element dealt its `Allotment`).
+-- Then an untargeted draw.
 export
 card_Electrolyze : Card
 card_Electrolyze = Normal $ ^:
@@ -509,7 +510,7 @@ card_Electrolyze = Normal $ ^:
   , abilities :=
       [ Spell (Targeted [Target (between (^1) (^2)) (Or [creature, Anyone])]
           (Sequence
-            [ Act (DealDamageDivided (^2) (GetTargets 0))
+            [ Distribute (^2) (GetTargets 0) (Act (DealDamage It Allotment))
             , Act (Draw (^1)) ]))
       ]
   }
