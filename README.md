@@ -119,6 +119,34 @@ that work.
 
 ---
 
+## The grammar probe (`idris/`)
+
+`idris/` holds a separate, smaller exploration: a dependently-typed model of the
+card-encoding grammar, written in Idris 2. It asks a narrower version of the
+project's open question — not *how much* of Magic the primitives can capture, but
+*how much of a card's well-formedness the type system can guarantee outright*.
+
+The Rust encoding language validates a description after constructing it: an
+ill-formed card fails to parse or fails a check. The Idris model pushes that
+earlier, into the types. Its grammar is built from closed enums refined by total
+type-functions, so that whole classes of nonsense are unrepresentable rather than
+merely rejected — there is no ill-formed term to write down in the first place.
+For example: the "that card" anaphor cannot be named in a trigger whose event
+supplies no object; a counter's carrier — a player versus a permanent — is fixed
+by the counter's kind; the agent of a relation is constrained to the kind of
+object that can perform it. Each is an invariant the Rust types currently leave to
+a runtime check.
+
+The probe is exploratory and stands apart from the engine — it models the
+*grammar*, not the rules, and runs no games. Its purpose is to inform a future
+refactor of `deckmaste_core`'s encoding types: an invariant the grammar shows can
+be made unrepresentable becomes a candidate to lift into the Rust types, and a
+mechanic the grammar cannot express cleanly marks a gap in the shared vocabulary
+of primitives. Like the rest of the repository, its rules-bearing code cites the
+Comprehensive Rules by number and is checked by `cargo xtask cite`.
+
+---
+
 ## Motivation
 
 I'm drawn to language — natural, formal, and programming alike — and a Magic card

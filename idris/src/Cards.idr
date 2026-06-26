@@ -794,7 +794,7 @@ card_TimeWalk = Normal $ ^:
   }
 
 -- Mindslaver — "{T}, Sacrifice Mindslaver: You control target player during that player's next turn."
--- `ControlPlayer` on the targeted player; the next-turn duration is the engine's ([CR#720]).
+-- `ControlPlayer` on the targeted player; the next-turn duration is the engine's ([CR#723]).
 export
 card_Mindslaver : Card
 card_Mindslaver = Normal $ ^:

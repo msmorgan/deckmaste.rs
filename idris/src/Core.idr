@@ -34,7 +34,7 @@ data ManaSymbol
   | Hybrid SimpleManaSymbol Color
   | Variable
   | Phyrexian Color           -- "{W/P}" — pay the color OR 2 life ([CR#107.4f])
-  | SnowMana                  -- "{S}" — one mana from a snow source ([CR#107.4g]); `SnowMana`, not `Snow` (the supertype)
+  | SnowMana                  -- "{S}" — one mana from a snow source ([CR#107.4h]); `SnowMana`, not `Snow` (the supertype)
 
 -- `Promote a b` (method `promote`) is the toy's value-injection interface — formerly Prelude's
 -- `Cast`/`cast`, renamed so the precious MTG words `cast`/`Cast` stay free for actual casting.
@@ -286,7 +286,7 @@ agentKind Counter  = AnObject   -- the source (a spell/ability) does the counter
 public export
 data Role = Agent | Patient
 
--- DESIGNATIONS ([CR#700-ish global flags]: monarch, the initiative, city's blessing, monstrous,
+-- DESIGNATIONS (the 700-ish global flags: monarch, the initiative, city's blessing, monstrous,
 -- goaded, renowned, suspected, saddled, solved…). The Rust engine carries these as an OPEN name +
 -- a runtime `Decl` whose `scope` field says object/player/game — needed for plugins. The curated toy
 -- uses a CLOSED enum + a total `designationScope`, so ONE `HasDesignation`/`GrantDesignation` pair
@@ -545,7 +545,7 @@ mutual
     -- object (an anthem's candidate); its kind is the binder's (`itKind`). Serves as the "Subject" an
     -- anthem's mods read, without a dedicated reference — predicates are already candidate-implicit.
     It : {auto prf : itKind b = Just k} -> Reference b k
-    -- the triggering event's object ("that card") — valid only if the event SUPPLIES one ([CR#608.2g]).
+    -- the triggering event's object ("that card") — valid only if the event SUPPLIES one ([CR#608.2k]).
     EventObject : {auto prf : hasObject (evCaps b) = True} -> Reference b AnObject
     -- PLAYERS (the old `PlayerRef`, folded in here):
     You : Reference b APlayer                            -- controller of this ability [CR#109.5]
@@ -978,7 +978,7 @@ mutual
   -- The printable CHARACTERISTICS of an object ([CR#109.3]) — shared by a card `Face`
   -- (`Characteristics Base`) and a created token (`Characteristics b`, so a token's P/T can be a
   -- `Count b`: "an X/X where X = [a value known at creation]"). `colors` is the explicit color (a
-  -- color indicator [CR#107.4a] / a token's printed color); a card's color-FROM-MANA is derived.
+  -- color indicator [CR#204.2] / a token's printed color); a card's color-FROM-MANA is derived.
   public export
   record Characteristics (b : Bindings) where
     constructor MkCharacteristics
@@ -1014,7 +1014,7 @@ mutual
     -- a plain zone change [CR#400.7]; owner-relative, control implicit.
     Move : Reference b AnObject -> Zone -> Action b
     -- exile a selection UNTIL a duration ends, then return it — the duration-bounded
-    -- "exile until ~" form ([CR#603.6e]), NOT a leave-triggered return (see Oblivion Ring).
+    -- "exile until ~" form (return via a delayed trigger, [CR#603.7a]), NOT a leave-triggered return (see Oblivion Ring).
     ExileUntil : Reference b AnObject -> Duration b -> Action b
     -- destroy [CR#701.8] / counter a stack object [CR#701.6a]. (Return-to-hand is just
     -- `Move … Hand` — `Move` is owner-relative — so there's no dedicated bounce verb.)
@@ -1025,7 +1025,7 @@ mutual
     Untap : Reference b AnObject -> Action b
     RemoveAllDamage : Reference b AnObject -> Action b    -- remove all damage marked on r (regeneration's heal, [CR#701.19])
     RemoveFromCombat : Reference b AnObject -> Action b   -- remove r from combat ([CR#506.4])
-    Transform : Reference b AnObject -> Action b   -- turn a transforming DFC to its other face ([CR#712.4])
+    Transform : Reference b AnObject -> Action b   -- turn a transforming DFC to its other face ([CR#701.27])
     PhaseOut : Reference b AnObject -> Action b     -- phase a permanent out ([CR#702.26]); phasing back in is the engine's turn-based action
     MoveAllCounters : (from : Reference b AnObject) -> (to : Reference b AnObject) -> Action b   -- move ALL counters (every kind) X→Y (Ozolith); the all-kinds case `RemoveAllCounters` (one kind) can't reach
     -- "[r] becomes/gets the designation" — the target's kind follows `designationScope` (you become the
@@ -1061,7 +1061,7 @@ mutual
     CreateToken : Count b -> (c : Characteristics b) -> {auto wf : CharacteristicsOk c} -> Action b   -- the token's full characteristics (P/T may be a `Count b`)
     CopySpell : Reference b AnObject -> Action b                   -- "copy target SPELL" (a copy on the stack); permanent-copy is `BecomeCopyOf`/`CreateTokenCopy`
     CreateTokenCopy : Reference b AnObject -> Action b             -- "create a token that's a COPY of [r]" ([CR#707.2]); alterations layer on separately
-    -- "add {G}" (a mana-ability effect; pool/paying is engine). RESTRICTED mana ([CR#106.5]):
+    -- "add {G}" (a mana-ability effect; pool/paying is engine). RESTRICTED mana ([CR#106.6]):
     -- `onlyToCast` is the spend constraint ("spend only to cast a [pred] spell"); `confers` are
     -- continuous effects the engine applies to the spell the mana DOES pay for — that spell is bound
     -- as `It`, so Cavern's "and that spell can't be countered" is `[cant (Enact Counter spellOrAbility (SameAs It))]`.
@@ -1206,7 +1206,7 @@ mutual
     -- never branches on subtype. (The engine confers the Aura one via the Aura subtype's `Property`,
     -- which the toy has no analogue for — so it's a shared rule here, shown once, not per-card.)
     Sba : Condition b -> OneShotEffect b -> StaticEffect b
-    -- "[who]'s unspent mana doesn't empty" ([CR#500.4] exception) — Kruphix/Omnath. A pool-policy
+    -- "[who]'s unspent mana doesn't empty" ([CR#106.4] exception) — Kruphix/Omnath. A pool-policy
     -- static (the per-mana `ManaRider::Persistent` case folds into this blanket form). Engine resolves.
     ManaPersists : Predicate b APlayer -> StaticEffect b
     -- "you may cast THIS for [alt] from [from]" ([CR#118.9]) — the alternative-cost permission (base swap,
@@ -1223,8 +1223,8 @@ mutual
     -- DEONTIC clauses over a `Deed` (choice-legality, [CR#101.2]): the permission FLOOR (`Can`, the
     -- deontic "may" — named `Can` to avoid the one-shot `May`), a `Constrain` (the two COMPULSION
     -- polarities — `Forbid` = a restriction "can't", `Require` = a requirement "must"; `cant`/`must`
-    -- are the Macros aliases), or a cost-gate. The engine arbitrates can't-beats-can/must ([CR#101.2,
-    -- 508.1d]); the grammar only records the clauses. `Gate`'s price is paid at declaration (never
+    -- are the Macros aliases), or a cost-gate. The engine arbitrates can't-beats-can/must
+    -- ([CR#101.2,508.1d]); the grammar only records the clauses. `Gate`'s price is paid at declaration (never
     -- compulsory, [CR#508.1d]); `Toll`'s is punished downstream (ward, [CR#702.21a]). Cost comes FIRST.
     -- These gate CHOICES — the §6 sibling of `Replaces` (event-edits), never conflated with it.
     --  • `Can` — the permission floor made explicit ([CR#101.2,601.3]). A `Can (Casts …)` carries a
@@ -1330,7 +1330,7 @@ public export
 data Card : Type where
   Normal : (c : Characteristics Base) -> {auto ok : SubtypesOk c} -> {auto wf : CharacteristicsOk c} -> Card
   -- a TWO-faced card: `front` (the primary/default face) and `back`, arranged per `layout`. Each face
-  -- is a full `Face` with its own well-formedness ([CR#712.3] each face has its own characteristics);
+  -- is a full `Face` with its own well-formedness ([CR#712.8] each face has its own characteristics);
   -- transform / cast-the-other-face is the engine's job — the grammar just holds both faces.
   TwoFaced : (layout : FaceLayout) -> (front : Face) -> (back : Face) ->
              {auto okF : SubtypesOk front} -> {auto wfF : CharacteristicsOk front} ->
@@ -1355,7 +1355,7 @@ counterConfers M1M1 = [PropContinuous [ModifyPT (Down (CountersOn M1M1 This)) (D
 counterConfers _    = []
 
 -- what a SUBTYPE confers on its bearer. The Aura falls-off SBA ([CR#704.5m]) and the Saga lore-increment
--- ([CR#714.2]) live here — shared rules, not per-card statics, and never a subtype `if`-branch.
+-- ([CR#714.3c]) live here — shared rules, not per-card statics, and never a subtype `if`-branch.
 public export
 subtypeConfers : Subtype -> List (Property b)
 subtypeConfers (EnchantmentSub Aura) = [PropStateBased (Not (LegallyAttached This)) (Act (Move This Graveyard))]
