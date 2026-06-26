@@ -94,6 +94,22 @@ tControlsPlayer = Controls creature
 tBecomesBlocked : EventQuery Base
 tBecomesBlocked = MkQuery [Becomes Blocked] [Patient (SameAs This)]
 
+-- DEFENDER-SIDE of combat ([CR#508.1]): the attack relation is attacker (AGENT) → defender (PATIENT).
+-- The defender is kind-poly — a player, planeswalker, or battle — so it rides the now kind-poly `Patient`.
+--   * OBJECT defender (planeswalker/battle): has the `Attacked` ObjectState + a `Becomes Attacked` event.
+--     "whenever this planeswalker is attacked":
+tBecomesAttacked : EventQuery Base
+tBecomesAttacked = MkQuery [Becomes Attacked] [Patient (SameAs This)]
+
+--   * the static filter "the attacked planeswalker":
+tAttackedFilter : Predicate Base AnObject
+tAttackedFilter = And [HasType Planeswalker, HasState Attacked]
+
+--   * PLAYER defender (no ObjectState): triggers off the attacker's `Becomes Attacking`, the defender named
+--     by the `Patient` facet — "whenever you're attacked" (i.e. a creature attacks you):
+tYouAreAttacked : EventQuery Base
+tYouAreAttacked = MkQuery [Becomes Attacking] [Patient you]
+
 -- designations: ONE predicate, scope by type — `HasDesignation Monarch` is a PLAYER test (you're the
 -- monarch), `HasDesignation Monstrous` an OBJECT test. The carrier follows `designationScope`.
 tMonarchTest : Predicate Base APlayer
