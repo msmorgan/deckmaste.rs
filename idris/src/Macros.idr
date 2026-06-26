@@ -64,31 +64,42 @@ public export
 spellOrAbility : Predicate b AnObject
 spellOrAbility = Or [IsKind IsSpell, IsKind IsAbility]
 
+-- the two COMPULSION aliases over the single polarized `Constrain` ([CR#508.1c] restriction /
+-- [CR#508.1d] requirement): `cant d` forbids the deed, `must d` requires it (the combat solver
+-- balances both). The deed-legality surface stays ergonomic; the primitive stays one constructor.
+public export
+cant : Deed b -> StaticEffect b
+cant = Constrain Forbid
+
+public export
+must : Deed b -> StaticEffect b
+must = Constrain Require
+
 -- KEYWORD macros: each builds the FULL keyword `Ability` — a `Composite` of the `KeywordSpec`
--- tag + the `Cant` clause it desugars to (over `This`). The non-deontic keywords (FirstStrike/
+-- tag + the deontic clause it desugars to (over `This`). The non-deontic keywords (FirstStrike/
 -- Deathtouch/Trample = damage; Vigilance = event-edit; Reach/Flash = flag/window) carry no
 -- clause. (Flying reads `HasKeyword Flying`/`Reach` on the BLOCKER — the tag its clause consults.)
 public export
 flying : Ability b
-flying = Keyword (Composite Flying [Static (Cant (Enact Block (Not (Or [HasKeyword Flying, HasKeyword Reach])) (SameAs This)))])
+flying = Keyword (Composite Flying [Static (cant (Enact Block (Not (Or [HasKeyword Flying, HasKeyword Reach])) (SameAs This)))])
 
 public export
 defender : Ability b
-defender = Keyword (Composite Defender [Static (Cant (Enact Attack (SameAs This) Anyone))])
+defender = Keyword (Composite Defender [Static (cant (Enact Attack (SameAs This) Anyone))])
 
 public export
 shroud : Ability b
-shroud = Keyword (Composite Shroud [Static (Cant (Enact Target spellOrAbility (SameAs This)))])   -- by any spell/ability
+shroud = Keyword (Composite Shroud [Static (cant (Enact Target spellOrAbility (SameAs This)))])   -- by any spell/ability
 
 public export
 hexproof : Ability b
-hexproof = Keyword (Composite (Hexproof Nothing) [Static (Cant (Enact Target (ControlledBy opponent) (SameAs This)))])
+hexproof = Keyword (Composite (Hexproof Nothing) [Static (cant (Enact Target (ControlledBy opponent) (SameAs This)))])
 
 -- "hexproof from [f]": can't be targeted by an opponent's source matching `f`. `f` may be an
 -- ANAPHOR ("from the CHOSEN color") — the reason `Ability` is `Bindings`-indexed.
 public export
 hexproofFrom : Predicate b AnObject -> Ability b
-hexproofFrom f = Keyword (Composite (Hexproof (Just f)) [Static (Cant (Enact Target (And [ControlledBy opponent, f]) (SameAs This)))])
+hexproofFrom f = Keyword (Composite (Hexproof (Just f)) [Static (cant (Enact Target (And [ControlledBy opponent, f]) (SameAs This)))])
 
 -- Flash ([CR#702.8a]): a deontic `Can` to cast THIS at instant speed — a widened cast window, not
 -- an as-though. ("Granted as-though-flash" for OTHER spells is `AsThough`, the deferred-tail case.)
@@ -96,18 +107,18 @@ public export
 flash : Ability b
 flash = Keyword (Composite Flash [Static (Can (Enact Cast you (SameAs This)) {window = Just InstantWindow})])
 
--- Menace ([CR#702.111b]): a SET-LEVEL `Cant` — "can't be blocked except by two or more", i.e.
+-- Menace ([CR#702.111b]): a SET-LEVEL `cant` — "can't be blocked except by two or more", i.e.
 -- can't be blocked by a lone (size-1) blocker set. The whole-set predicate [CR#509.1c] needs the
--- `BlockedBy` deed, not the per-blocker `Blocks` (which flying/Cant uses).
+-- `BlockedBy` deed, not the per-blocker `Blocks` (which flying/cant uses).
 public export
 menace : Ability b
-menace = Keyword (Composite Menace [Static (Cant (BlockedBy (SameAs This) (^1)))])
+menace = Keyword (Composite Menace [Static (cant (BlockedBy (SameAs This) (^1)))])
 
 -- Haste ([CR#702.10]): a CONTINUOUS grant letting THIS attack and tap-activate "as though it had
 -- been controlled continuously" — i.e. as though it weren't summoning-sick ([CR#302.6]). Built with
 -- the AsThough machinery: pretend `Not (HasState SummoningSick)`, then `Can` the deed. (Grantable
 -- via `GrantAbility (keyword Haste)` — e.g. Through the Breach. The doc spells haste as a flag the
--- summoning-sickness `Cant` reads; the as-though framing is the dual, and the one the toy carries.)
+-- summoning-sickness `cant` reads; the as-though framing is the dual, and the one the toy carries.)
 public export
 haste : Ability b
 haste = Keyword (Composite Haste
@@ -141,14 +152,14 @@ regenerate = Continuously
 
 -- "Protection from [q]" ([CR#702.16]): the DEBT bundle, keyed to the quality `q` — can't be Damaged by
 -- `q` sources, Enchanted/equipped by `q`, Blocked by `q`, or Targeted by `q`. ONE construct over the
--- existing `Cant`/`ReplaceAmount` parts (the `Agent` facet — the damage source — for the D leg).
+-- existing `cant`/`ReplaceAmount` parts (the `Agent` facet — the damage source — for the D leg).
 public export
 protection : Predicate b AnObject -> Ability b
 protection q = Keyword (Composite (Protection q)
   [ Static (ReplaceAmount DealDamage (^0) {facets = [Patient (SameAs This), Agent q]})   -- D
-  , Static (Cant (Enact Attach q (SameAs This)))        -- E
-  , Static (Cant (Enact Block q (SameAs This)))         -- B
-  , Static (Cant (Enact Target q (SameAs This))) ])     -- T
+  , Static (cant (Enact Attach q (SameAs This)))        -- E
+  , Static (cant (Enact Block q (SameAs This)))         -- B
+  , Static (cant (Enact Target q (SameAs This))) ])     -- T
 
 -- "Enchant [hosts]" ([CR#303.4],[CR#702.5]): NOT an engine keyword — a MACRO bundling the aura's per-card
 -- behaviour, parameterised by the legal-host filter, spliced into `abilities` with `++`. (1) the PERMISSION
@@ -173,7 +184,7 @@ enchant hosts =
 -- (no catch-all): adding a `KeywordSpec` constructor forces a clause here. `Bare` = an engine-
 -- PRIMITIVE keyword the grammar can't desugar (FirstStrike/DoubleStrike/Deathtouch/Trample =
 -- damage pipeline; Vigilance = attack event-edit). The rest are `Composite`: the deontic ones
--- carry a `Cant`; `Reach` carries `[]` (just a flag `flying`'s clause reads); `Flash` carries a
+-- carry a `cant`; `Reach` carries `[]` (just a flag `flying`'s clause reads); `Flash` carries a
 -- `Can (Casts …) {window = InstantWindow}` — you may cast it at instant speed ([CR#702.8a]).
 -- (A plain function, NOT an interface instance: a polymorphic spec's `b` is a metavar interface search can't fire on.)
 public export
