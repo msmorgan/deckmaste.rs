@@ -193,7 +193,7 @@ fight x y = Sequence [ Act (DealDamage {source = x} y (StatOf x Power))
 public export
 protection : Predicate b AnObject -> Ability b
 protection q = Keyword (Composite (Protection q)
-  [ Static (ReplaceAmount (DealDamage Nothing) (^0) {facets = [Patient (SameAs This), Agent q]})   -- D
+  [ Static (ReplaceAmount (MkQuery [DealDamage Nothing] [Patient (SameAs This), Agent q]) (^0))   -- D
   , Static (cant (Enact Attach q (SameAs This)))        -- E
   , Static (cant (Enact Block q (SameAs This)))         -- B
   , Static (cant (Enact Target q (SameAs This))) ])     -- T
