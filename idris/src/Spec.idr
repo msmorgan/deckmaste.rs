@@ -195,7 +195,7 @@ tPreventNext = Continuously
 -- casts a spell targeting This, that player (`EventActor`) MAY pay {2}; if not, the spell (`EventObject`)
 -- is countered. Targets / MayPay (the unless-pay) / Counter were all already here.
 tWard : Ability Base
-tWard = Triggered (MkQuery [Cast] [Patient (Targets (SameAs This)), Actor opponent])
+tWard = Triggered (MkQuery [Begins Cast] [Patient (Targets (SameAs This)), Actor opponent])
   (MayPay {actor = EventActor} (Mana [^2]) (Sequence []) {or_else = Just (Act (Counter EventObject))})
 
 tIndestructible : Ability Base
@@ -307,7 +307,7 @@ tCastFromGrave = MayCastFor (AltCost [Mana [^3, ^Blue]]) {from = Graveyard}
 -- a log-derived history count feeds a condition, and a game `Outcome` wraps into an effect
 tHistoryThenWin : OneShotEffect Base
 tHistoryThenWin =
-  If (Compare (EventCount (MkQuery [Cast] [Actor you, Within ThisGame])) GreaterEq (Literal 2))
+  If (Compare (EventCount (MkQuery [Begins Cast] [Actor you, Within ThisGame])) GreaterEq (Literal 2))
      (Conclude (WinGame You))
 
 -- an activated ability: a multi-component cost algebra + an effect
@@ -563,12 +563,12 @@ failing
 -- replacing the AMOUNT of an amountless event is rejected — a Cast has no numeric payload
 failing
   tBadReplaceAmountless : StaticEffect Base
-  tBadReplaceAmountless = ReplaceAmount Cast (^0)
+  tBadReplaceAmountless = ReplaceAmount (Begins Cast) (^0)
 
 -- summing the amount of an amountless event is rejected likewise
 failing
   tBadEventSumAmountless : Count Base
-  tBadEventSumAmountless = EventSum Cast
+  tBadEventSumAmountless = EventSum (Begins Cast)
 
 -- "becomes summoning-sick" isn't a transition event — `IsBecomesState SummoningSick = Void`
 failing
@@ -587,26 +587,26 @@ failing
   tBadEventObjectNoObject =
     Triggered (MkQuery [BeginStep (BeginningPhase UpkeepStep)] []) (Act (Move EventObject Exile))
 
--- `ThatMuch` (the amount) in a Cast body — a Cast carries no amount.
+-- `ThatMuch` (the amount) in a `Begins Cast` body — a cast carries no amount.
 failing
   tBadThatMuchNoAmount : StaticEffect Base
-  tBadThatMuchNoAmount = Replaces (MkQuery [Cast] []) (Act (DealDamage This ThatMuch))
+  tBadThatMuchNoAmount = Replaces (MkQuery [Begins Cast] []) (Act (DealDamage This ThatMuch))
 
 -- `EventActor` ("that player") in a Destroyed body — a destruction has no actor.
 failing
   tBadEventActorNoActor : Ability Base
   tBadEventActorNoActor = Triggered (MkQuery [Destroyed] []) (Conclude (WinGame EventActor))
 
--- ...and the anaphora DO work where the event supplies them: `EventActor` in a Cast body (the caster).
+-- ...and the anaphora DO work where the event supplies them: `EventActor` in a `Begins Cast` body (the caster).
 tEventActorValid : Ability Base
-tEventActorValid = Triggered (MkQuery [Cast] []) (Conclude (WinGame EventActor))
+tEventActorValid = Triggered (MkQuery [Begins Cast] []) (Conclude (WinGame EventActor))
 
 -- MULTI-KIND SOUNDNESS (the EventQuery restructure): a multi-kind query's caps are the INTERSECTION —
--- the body gets only anaphora EVERY listed kind supplies. `EventActor` under `[Cast, Destroyed]` is
+-- the body gets only anaphora EVERY listed kind supplies. `EventActor` under `[Begins Cast, Destroyed]` is
 -- rejected (a Destroyed event has no actor), so the old union-cap leak (A6) is gone.
 failing
   tBadEventActorMultiKind : Ability Base
-  tBadEventActorMultiKind = Triggered (MkQuery [Cast, Destroyed] []) (Conclude (WinGame EventActor))
+  tBadEventActorMultiKind = Triggered (MkQuery [Begins Cast, Destroyed] []) (Conclude (WinGame EventActor))
 
 -- ...but when EVERY listed kind supplies the anaphor it's fine: "attacks or blocks" both supply an
 -- object, so `EventObject` is valid (Smuggler's Copter's single trigger over two kinds).

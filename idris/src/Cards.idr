@@ -187,7 +187,7 @@ card_ApproachOfTheSecondSun = Normal $ ^:
   , abilities :=
       [ Spell $
           If (And [ Matches This (WasCastFrom Hand)
-                  , Compare (EventCount (MkQuery [Cast]
+                  , Compare (EventCount (MkQuery [Begins Cast]
                                                [ Actor you
                                                , Patient (SameName This)
                                                , Within ThisGame ]))
