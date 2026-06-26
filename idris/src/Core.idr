@@ -206,14 +206,12 @@ public export
 data Restriction = OncePerTurn | OncePerGame
 
 -- Runtime object STATE (not a printed characteristic) — what a `HasState` predicate tests
--- ([CR#509] combat, [CR#701.3] attach, [CR#701.20] tap, [CR#302.6] summoning sickness). Negatives
--- via `Not` ("untapped" = `Not (HasState Tapped)`). `SummoningSick` is what `haste` lifts —
--- "may attack/tap as though it weren't summoning-sick" (an `AsThough` premise, see Macros).
+-- ([CR#701.3] attach, [CR#701.20] tap, [CR#302.6] summoning sickness). The COMBAT states (attacking/
+-- blocking/blocked/unblocked) moved to the relation spine — they're `Holds Attack/Block Doer/Patient`,
+-- not `HasState`. Negatives via `Not` ("untapped" = `Not (HasState Tapped)`). `SummoningSick` is what
+-- `haste` lifts — "may attack/tap as though it weren't summoning-sick" (an `AsThough` premise, see Macros).
 public export
-data ObjectState = Tapped | Attacking | Blocking | Blocked | Attached | SummoningSick
-                 | Unblocked       -- an attacker past declare-blockers with no blocker ([CR#509.1h])
-                 | Attacked        -- a planeswalker/battle being attacked (defender side, [CR#508.1]); a PLAYER
-                                   -- defender has no ObjectState — read it as `Becomes Attacking [Patient you]`
+data ObjectState = Tapped | Attached | SummoningSick
                  | PhasedOut       -- phased out ([CR#702.26]); "becomes phased" = `Becomes PhasedOut`
                  | FaceDown        -- face down ([CR#708]); the engine applies the global 2/2-colorless-vanilla override here
 
@@ -256,8 +254,8 @@ counterCarrier Energy     = APlayer
 counterCarrier Experience = APlayer
 counterCarrier _          = AnObject
 
--- RELATION SPINE (combat slice — PROTOTYPE, built alongside the legacy `Attacking`/`Attacks`/`Becomes`
--- combat constructors; those migrate + retire later). A `Relation` is an agent→patient relation the game
+-- RELATION SPINE (combat slice). The legacy `Attacking`/`Attacks`/`Becomes`-combat constructors have been
+-- migrated onto this and retired. A `Relation` is an agent→patient relation the game
 -- tracks; from ONE relation we derive three ASPECTS — durative (`Holds`, a state predicate), inchoative
 -- (`Begins`, an event), deontic (`Enact`, a deed). `doerKind` fixes the DOER's kind per relation (the
 -- Agent/Actor resolution: one doer slot, object for combat, a player for `Cast` later) — `counterCarrier`'s
@@ -659,7 +657,7 @@ mutual
       Agent   : Predicate b AnObject -> Facet b
       -- PATIENT: the ACTED-UPON thing matches — a damage recipient, a destroyed/countered object, the spell
       -- being cast, the object gaining counters, OR the DEFENDER of an attack ([CR#508.1]). KIND-POLY (the
-      -- defender, like a damage recipient, may be a PLAYER): "whenever YOU are attacked" = `[Becomes Attacking]
+      -- defender, like a damage recipient, may be a PLAYER): "whenever YOU are attacked" = `[Begins Attack]
       -- [Patient you]`; "deals damage to you" = `Patient you`. Distinct from the `Agent` (the doer).
       Patient : Predicate b k -> Facet b
       Within        : Window -> Facet b
@@ -905,15 +903,11 @@ ModalCountOk _ _ = ()
 -- "can't lose") are `Replaces`/SBA, NOT a `Cant`.
 public export
 data Deed : Bindings -> Type where
-  -- "[who] attacks [whom]" — the DEFENDER `whom` is a player OR a permanent (planeswalker/battle), so it's
-  -- KIND-POLYMORPHIC and explicit (`k` is always solved from the argument — no default to pin it). The same
-  -- verb covers `Attacks creature Anyone` (a player) and a planeswalker's conferred `Can (Attacks creature
-  -- (SameAs This))` (itself, an object). Attackability is a granted permission ([CR#508.1]).
-  Attacks    : (who : Predicate b AnObject) -> (whom : Predicate b k) -> Deed b
-  Blocks     : (blocker : Predicate b AnObject) -> (attacker : Predicate b AnObject) -> Deed b
   -- the DEONTIC aspect of the relation spine: "[doer] enacts [r] upon [patient]" (under Can/Cant/Must/Gate/
-  -- Toll). The DOER's kind is fixed by `doerKind r` (one slot — no Agent/Actor split); the PATIENT stays
-  -- kind-poly. `Cant (Enact Attack (SameAs This) Anyone)` = Defender; subsumes `Attacks`/`Blocks` (migrate later).
+  -- Toll). The DOER's kind is fixed by `doerKind r` (ONE doer slot — no Agent/Actor split); the PATIENT
+  -- stays kind-poly (an attack's defender is a player OR a permanent, [CR#508.1]). `Cant (Enact Attack
+  -- (SameAs This) Anyone)` = Defender; `Cant (Enact Block q (SameAs This))` = "q can't block this".
+  -- (Subsumed the old `Attacks who whom` / `Blocks blocker attacker` verbs.)
   Enact      : (r : Relation) -> Predicate b (doerKind r) -> (patient : Predicate b k) -> Deed b
   -- SET-LEVEL block ([CR#509.1c],[CR#702.111b]): "[attacker] is blocked by a DECLARED set of `size`
   -- creatures" (a block, so size ≥ 1 — ENFORCED by `NonZeroQ`). `Cant (BlockedBy This …)` constrains the
@@ -1211,7 +1205,7 @@ mutual
     --    `window`; Flash widens it to `InstantWindow` ([CR#702.8a] — a wider window, NOT an as-though).
     --  • `AsThough` — a scoped COUNTERFACTUAL premise ([CR#609.4]) wrapping a clause: "[clause]
     --    treated as though [condition] held." "attack as though it didn't have defender" =
-    --    `AsThough (Matches This (Not (HasKeyword Defender))) (Can (Attacks (SameAs This)))`.
+    --    `AsThough (Matches This (Not (HasKeyword Defender))) (Can (Enact Attack (SameAs This) Anyone))`.
     -- (Window-NARROWING `Only` is the `window : TimingWindow` on `Activated` — `SorceryWindow`; the
     -- as-though of a deed-INTERNAL participant — "as though the BLOCKER's attacker lacked flying" — is still deferred.)
     Can  : Deed b -> {default Nothing window : Maybe TimingWindow} -> StaticEffect b
@@ -1344,9 +1338,9 @@ subtypeConfers _                     = []
 
 -- what a card TYPE confers on its bearer (parallel to `subtypeConfers`). A Planeswalker or Battle CREATES
 -- a deontic permitting creatures to attack IT ([CR#508.1] — attackability is a granted permission, not a
--- hardcoded target list), using the same `Attacks` verb with the permanent itself as the object defender.
+-- hardcoded target list), using `Enact Attack` with the permanent itself as the object (patient) defender.
 public export
 typeConfers : Type_ -> List (Property b)
-typeConfers Planeswalker = [PropAbility (Static (Can (Attacks (HasType Creature) (SameAs This))))]
-typeConfers Battle       = [PropAbility (Static (Can (Attacks (HasType Creature) (SameAs This))))]
+typeConfers Planeswalker = [PropAbility (Static (Can (Enact Attack (HasType Creature) (SameAs This))))]
+typeConfers Battle       = [PropAbility (Static (Can (Enact Attack (HasType Creature) (SameAs This))))]
 typeConfers _            = []

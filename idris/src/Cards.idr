@@ -391,8 +391,8 @@ card_Pacifism = Normal $ ^:
   , subtypes := [^Aura]
   , abilities :=
       [ Static (Cant (Attaches (SameAs This) (Not creature)))
-      , Static (Cant (Attacks (SameAs (AttachHostOf This)) Anyone))
-      , Static (Cant (Blocks (SameAs (AttachHostOf This)) creature))
+      , Static (Cant (Enact Attack (SameAs (AttachHostOf This)) Anyone))
+      , Static (Cant (Enact Block (SameAs (AttachHostOf This)) creature))
       ]
   }
 
@@ -408,8 +408,8 @@ card_Juggernaut = Normal $ ^:
   , power := Just 5
   , toughness := Just 3
   , abilities :=
-      [ Static (Must (Attacks (SameAs This) Anyone))
-      , Static (Cant (Blocks (HasSubtype (^Wall)) (SameAs This)))
+      [ Static (Must (Enact Attack (SameAs This) Anyone))
+      , Static (Cant (Enact Block (HasSubtype (^Wall)) (SameAs This)))
       ]
   }
 
@@ -424,7 +424,7 @@ card_GhostlyPrison = Normal $ ^:
   , manaCost := [^2, ^White]
   , types := [Enchantment]
   , abilities :=
-      [ Static (Gate (Mana [^2]) (Attacks creature you)) ]
+      [ Static (Gate (Mana [^2]) (Enact Attack creature you)) ]
   }
 
 -- Wall of Omens — a DEONTIC KEYWORD card: `keyword Defender` expands to a `Composite` whose tag is
@@ -476,7 +476,7 @@ card_InvisibleStalker = Normal $ ^:
   , toughness := Just 1
   , abilities :=
       [ keyword (Hexproof Nothing)
-      , Static (Cant (Blocks creature (SameAs This)))
+      , Static (Cant (Enact Block creature (SameAs This)))
       ]
   }
 
@@ -718,7 +718,7 @@ card_BrazenBorrower = TwoFaced Adventure
       , abilities :=
           [ keyword Flash
           , keyword Flying
-          , Static (Cant (Blocks (SameAs This) (Not (HasKeyword Flying))))   -- "can block only creatures with flying"
+          , Static (Cant (Enact Block (SameAs This) (Not (HasKeyword Flying))))   -- "can block only creatures with flying"
           ]
       , power := Just 3
       , toughness := Just 1
@@ -1106,7 +1106,7 @@ card_SmugglersCopter = Normal $ ^:
   , subtypes := [^Vehicle]
   , abilities :=
       [ keyword Flying
-      , Triggered (MkQuery [Becomes Attacking, Becomes Blocking] [Agent (SameAs This)])
+      , Triggered (MkQuery [Begins Attack, Begins Block] [Agent (SameAs This)])
           (May (Sequence [Act (Draw (^1)), Act (Discard (^1))]))   -- loot on attack or block
       , crew (^1)                                                  -- Crew 1
       ]
