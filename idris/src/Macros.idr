@@ -78,23 +78,23 @@ defender = Keyword (Composite Defender [Static (Cant (Enact Attack (SameAs This)
 
 public export
 shroud : Ability b
-shroud = Keyword (Composite Shroud [Static (Cant (BeTargeted (SameAs This)))])   -- by = any spell/ability (default)
+shroud = Keyword (Composite Shroud [Static (Cant (Enact Target spellOrAbility (SameAs This)))])   -- by any spell/ability
 
 public export
 hexproof : Ability b
-hexproof = Keyword (Composite (Hexproof Nothing) [Static (Cant (BeTargeted (SameAs This) {by = ControlledBy opponent}))])
+hexproof = Keyword (Composite (Hexproof Nothing) [Static (Cant (Enact Target (ControlledBy opponent) (SameAs This)))])
 
 -- "hexproof from [f]": can't be targeted by an opponent's source matching `f`. `f` may be an
 -- ANAPHOR ("from the CHOSEN color") — the reason `Ability` is `Bindings`-indexed.
 public export
 hexproofFrom : Predicate b AnObject -> Ability b
-hexproofFrom f = Keyword (Composite (Hexproof (Just f)) [Static (Cant (BeTargeted (SameAs This) {by = And [ControlledBy opponent, f]}))])
+hexproofFrom f = Keyword (Composite (Hexproof (Just f)) [Static (Cant (Enact Target (And [ControlledBy opponent, f]) (SameAs This)))])
 
 -- Flash ([CR#702.8a]): a deontic `Can` to cast THIS at instant speed — a widened cast window, not
 -- an as-though. ("Granted as-though-flash" for OTHER spells is `AsThough`, the deferred-tail case.)
 public export
 flash : Ability b
-flash = Keyword (Composite Flash [Static (Can (Casts you (SameAs This)) {window = Just InstantWindow})])
+flash = Keyword (Composite Flash [Static (Can (Enact Cast you (SameAs This)) {window = Just InstantWindow})])
 
 -- Menace ([CR#702.111b]): a SET-LEVEL `Cant` — "can't be blocked except by two or more", i.e.
 -- can't be blocked by a lone (size-1) blocker set. The whole-set predicate [CR#509.1c] needs the
@@ -112,7 +112,7 @@ public export
 haste : Ability b
 haste = Keyword (Composite Haste
   [ Static (AsThough (Matches This (Not (HasState SummoningSick))) (Can (Enact Attack (SameAs This) Anyone)))
-  , Static (AsThough (Matches This (Not (HasState SummoningSick))) (Can (Activates you (SameAs This)))) ])
+  , Static (AsThough (Matches This (Not (HasState SummoningSick))) (Can (Enact Activate you (SameAs This)))) ])
 
 -- Indestructible ([CR#702.12]): "can't be destroyed by damage or 'destroy'." A continuous PROHIBITION,
 -- not a replace-with-nothing — its `Composite` clause is `CantHappen` (the destroy of THIS can't happen),
@@ -146,9 +146,9 @@ public export
 protection : Predicate b AnObject -> Ability b
 protection q = Keyword (Composite (Protection q)
   [ Static (ReplaceAmount DealDamage (^0) {facets = [Patient (SameAs This), Agent q]})   -- D
-  , Static (Cant (Attaches q (SameAs This)))            -- E
+  , Static (Cant (Enact Attach q (SameAs This)))        -- E
   , Static (Cant (Enact Block q (SameAs This)))         -- B
-  , Static (Cant (BeTargeted (SameAs This) {by = q})) ])  -- T
+  , Static (Cant (Enact Target q (SameAs This))) ])     -- T
 
 -- desugar a `KeywordSpec` into its full `Ability` — dispatches to the macros above. EXHAUSTIVE
 -- (no catch-all): adding a `KeywordSpec` constructor forces a clause here. `Bare` = an engine-

@@ -206,12 +206,12 @@ public export
 data Restriction = OncePerTurn | OncePerGame
 
 -- Runtime object STATE (not a printed characteristic) — what a `HasState` predicate tests
--- ([CR#701.3] attach, [CR#701.20] tap, [CR#302.6] summoning sickness). The COMBAT states (attacking/
--- blocking/blocked/unblocked) moved to the relation spine — they're `Holds Attack/Block Doer/Patient`,
--- not `HasState`. Negatives via `Not` ("untapped" = `Not (HasState Tapped)`). `SummoningSick` is what
--- `haste` lifts — "may attack/tap as though it weren't summoning-sick" (an `AsThough` premise, see Macros).
+-- ([CR#701.20] tap, [CR#302.6] summoning sickness, [CR#702.26] phasing, [CR#708] face-down). The RELATIONAL
+-- states moved to the spine: combat (attacking/blocking/blocked) is `Holds Attack/Block Doer/Patient`, and
+-- "attached" is `Holds Attach Doer` — none are `HasState`. Negatives via `Not` ("untapped" = `Not (HasState
+-- Tapped)`). `SummoningSick` is what `haste` lifts — "as though not summoning-sick" (`AsThough`, see Macros).
 public export
-data ObjectState = Tapped | Attached | SummoningSick
+data ObjectState = Tapped | SummoningSick
                  | PhasedOut       -- phased out ([CR#702.26]); "becomes phased" = `Becomes PhasedOut`
                  | FaceDown        -- face down ([CR#708]); the engine applies the global 2/2-colorless-vanilla override here
 
@@ -254,19 +254,30 @@ counterCarrier Energy     = APlayer
 counterCarrier Experience = APlayer
 counterCarrier _          = AnObject
 
--- RELATION SPINE (combat slice). The legacy `Attacking`/`Attacks`/`Becomes`-combat constructors have been
--- migrated onto this and retired. A `Relation` is an agent→patient relation the game
--- tracks; from ONE relation we derive three ASPECTS — durative (`Holds`, a state predicate), inchoative
--- (`Begins`, an event), deontic (`Enact`, a deed). `doerKind` fixes the DOER's kind per relation (the
--- Agent/Actor resolution: one doer slot, object for combat, a player for `Cast` later) — `counterCarrier`'s
--- sibling. The PATIENT stays kind-poly (an attack's defender is a player/planeswalker/battle).
-public export
-data Relation = Attack | Block
+-- RELATION SPINE. A `Relation` is an agent→patient relation the game tracks; from ONE relation we derive
+-- three ASPECTS — durative (`Holds`, a state predicate), inchoative (`Begins`, an event), deontic (`Enact`,
+-- a deed). `doerKind` fixes the DOER's kind per relation (the Agent/Actor resolution: ONE doer slot, an
+-- OBJECT for combat/attach/target/counter, a PLAYER for cast/activate/play) — `counterCarrier`'s sibling.
+-- The PATIENT stays kind-poly (an attack's defender is a player/planeswalker/battle). The constructors are
+-- NAMESPACED — `Cast`/`Target`/`Counter`/`Attach` clash with the EventKind/TargetSpec/Action of the same
+-- name — and disambiguate by type, like `Facet.Patient`/`Role.Patient` share `Patient`.
+namespace Relation
+  public export
+  data Relation = Attack | Block            -- combat
+                | Cast | Activate | Play     -- the stack: a PLAYER casts a spell / activates an ability / plays a card
+                | Attach                      -- an aura/equipment (object) attaches to a host
+                | Target | Counter           -- a source (spell/ability, object) targets / counters an object
 
 public export
 doerKind : Relation -> RefKind
-doerKind Attack = AnObject
-doerKind Block  = AnObject
+doerKind Attack   = AnObject
+doerKind Block    = AnObject
+doerKind Cast     = APlayer
+doerKind Activate = APlayer
+doerKind Play     = APlayer
+doerKind Attach   = AnObject
+doerKind Target   = AnObject   -- the source (a spell/ability) does the targeting
+doerKind Counter  = AnObject   -- the source (a spell/ability) does the countering
 
 -- the two participant SLOTS, as role selectors for the durative aspect (`Holds Attack Doer` = an attacker,
 -- `Holds Block Patient` = a blocked creature). Unifies the old `Attacking`/`Blocking`/`Blocked` states.
@@ -904,31 +915,24 @@ ModalCountOk _ _ = ()
 public export
 data Deed : Bindings -> Type where
   -- the DEONTIC aspect of the relation spine: "[doer] enacts [r] upon [patient]" (under Can/Cant/Must/Gate/
-  -- Toll). The DOER's kind is fixed by `doerKind r` (ONE doer slot — no Agent/Actor split); the PATIENT
-  -- stays kind-poly (an attack's defender is a player OR a permanent, [CR#508.1]). `Cant (Enact Attack
-  -- (SameAs This) Anyone)` = Defender; `Cant (Enact Block q (SameAs This))` = "q can't block this".
-  -- (Subsumed the old `Attacks who whom` / `Blocks blocker attacker` verbs.)
+  -- Toll). The DOER's kind is fixed by `doerKind r` (ONE doer slot — no Agent/Actor split): a PLAYER for
+  -- Cast/Activate/Play, the SOURCE OBJECT for Attack/Block/Attach/Target/Counter. The PATIENT stays kind-
+  -- poly (an attack's defender is a player OR a permanent, [CR#508.1]). The two PASSIVE deeds fold in once
+  -- the source is the explicit doer. Examples:
+  --   Defender             = `Cant (Enact Attack (SameAs This) Anyone)`
+  --   "q can't block this" = `Cant (Enact Block q (SameAs This))`
+  --   "Enchant creature"   = `Cant (Enact Attach (SameAs This) (Not creature))`  ([CR#701.3a])
+  --   Shroud               = `Cant (Enact Target spellOrAbility (SameAs This))`  (the source spell/ability is the doer)
+  --   "can't be countered" = `Cant (Enact Counter spellOrAbility (SameAs This))`
+  --   flash                = `Can  (Enact Cast you (SameAs This)) {window = InstantWindow}`  ([CR#702.8a])
+  -- (Subsumed the old Attacks/Blocks/Attaches/BeTargeted/Casts/Activates/Plays/Countered verbs.)
   Enact      : (r : Relation) -> Predicate b (doerKind r) -> (patient : Predicate b k) -> Deed b
   -- SET-LEVEL block ([CR#509.1c],[CR#702.111b]): "[attacker] is blocked by a DECLARED set of `size`
   -- creatures" (a block, so size ≥ 1 — ENFORCED by `NonZeroQ`). `Cant (BlockedBy This …)` constrains the
   -- WHOLE blocker set, not one blocker at a time — Menace = `Cant (BlockedBy (SameAs This) (^1))`
-  -- (forbid the lone blocker; 0 = unblocked and 2+ stay legal). [CR#509.1c] judges the whole set.
+  -- (forbid the lone blocker; 0 = unblocked and 2+ stay legal). The one combat constraint the identity
+  -- spine doesn't subsume: it's about HOW MANY blockers, not WHICH. [CR#509.1c] judges the whole set.
   BlockedBy  : (attacker : Predicate b AnObject) -> (size : Quantity b) -> {auto prf : NonZeroQ size} -> Deed b
-  -- "[object] is targeted BY a source matching `by`"; `by` defaults to any spell or ability.
-  BeTargeted : (object : Predicate b AnObject) -> {default (Or [IsKind IsSpell, IsKind IsAbility]) by : Predicate b AnObject} -> Deed b
-  Casts      : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
-  Activates  : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
-  -- "[player] PLAYS [object]" — cast a spell OR play a land ([CR#601,605]); broader than `Casts`. The
-  -- impulse "until end of turn, you may play that card" is `Can (Plays you (SameAs (Single That)))`.
-  Plays      : (who : Predicate b APlayer) -> (what : Predicate b AnObject) -> Deed b
-  -- "[the spell] is COUNTERED" — a PASSIVE deed (like `BeTargeted`): `Cant (Countered …)` = "can't be
-  -- countered" (Cavern confers it on the spell its restricted mana pays for).
-  Countered  : (what : Predicate b AnObject) -> Deed b
-  -- "[what] attaches to [to]" ([CR#701.3a] legality) — the ENCHANTABILITY restriction lives here, not
-  -- on a dedicated `Enchant` ability (matching the engine: one attach family for auras/equipment).
-  -- "Enchant creature" = `Cant (Attaches (SameAs This) (Not creature))`; protection's can't-be-enchanted too.
-  -- (Verb-form like `Casts`/`Plays`; the `Attach` ACTION keeps that name for the actual verb.)
-  Attaches   : (what : Predicate b AnObject) -> (to : Predicate b AnObject) -> Deed b
 
 -- A CHARACTERISTIC a `Set` modification can OVERWRITE ([CR#613] at the layer the engine knows per
 -- characteristic — colors L5, types L4, P/T L7b, …). ONE mechanism for all of them: each maps to its
@@ -1039,7 +1043,7 @@ mutual
     -- "add {G}" (a mana-ability effect; pool/paying is engine). RESTRICTED mana ([CR#106.5]):
     -- `onlyToCast` is the spend constraint ("spend only to cast a [pred] spell"); `confers` are
     -- continuous effects the engine applies to the spell the mana DOES pay for — that spell is bound
-    -- as `It`, so Cavern's "and that spell can't be countered" is `[Cant (Countered (SameAs It))]`.
+    -- as `It`, so Cavern's "and that spell can't be countered" is `[Cant (Enact Counter spellOrAbility (SameAs It))]`.
     AddMana : {default You actor : Reference b APlayer} -> List ProducedMana
               -> {default Nothing onlyToCast : Maybe (Predicate b AnObject)}
               -> {default [] confers : List (StaticEffect (bindIt AnObject b))}

@@ -121,7 +121,7 @@ card_Rancor = Normal $ ^:
   , types := [Enchantment]
   , subtypes := [^Aura]
   , abilities :=
-      [ Static (Cant (Attaches (SameAs This) (Not creature)))
+      [ Static (Cant (Enact Attach (SameAs This) (Not creature)))
       , Static (Modify (AttachHostOf This)
           [ ModifyPT (^2) (^0)
           , GrantAbility (keyword Trample)
@@ -390,7 +390,7 @@ card_Pacifism = Normal $ ^:
   , types := [Enchantment]
   , subtypes := [^Aura]
   , abilities :=
-      [ Static (Cant (Attaches (SameAs This) (Not creature)))
+      [ Static (Cant (Enact Attach (SameAs This) (Not creature)))
       , Static (Cant (Enact Attack (SameAs (AttachHostOf This)) Anyone))
       , Static (Cant (Enact Block (SameAs (AttachHostOf This)) creature))
       ]
@@ -596,7 +596,7 @@ card_Iona = Normal $ ^:
   , abilities :=
       [ keyword Flying
       , AsEnters AColor
-          [ Static (Cant (Casts opponent (And [IsKind IsSpell, OfChosen]))) ]
+          [ Static (Cant (Enact Cast opponent (And [IsKind IsSpell, OfChosen]))) ]
       ]
   , power := Just 7
   , toughness := Just 7
@@ -644,7 +644,7 @@ card_CitadelSiege = Normal $ ^:
   }
 
 -- Outpost Siege — the namesake siege, now fully modeled (was substituted by Citadel Siege earlier).
--- The existing `TopOfLibrary` selection + the new `Plays` deed close Khans's impulse-draw: "exile the
+-- The existing `TopOfLibrary` selection + `Enact Play` close Khans's impulse-draw: "exile the
 -- top card; until end of turn you may play that card" = exile `Single (TopOfLibrary (^1))` (bind
 -- `That`), then a continuous `Can (Plays …)` on `That`. Dragons pings on a creature you control leaving.
 export
@@ -659,7 +659,7 @@ card_OutpostSiege = Normal $ ^:
             Triggered (MkQuery [BeginStep (BeginningPhase UpkeepStep)] [DuringTurn you])
               (If (ChosenIs 0)
                   (With (Produce (Move (Single (TopOfLibrary (^1))) Exile))
-                    (Continuously (Can (Plays you (SameAs (Single That)))) UntilEndOfTurn)))
+                    (Continuously (Can (Enact Play you (SameAs (Single That)))) UntilEndOfTurn)))
           , -- Dragons (1): when a creature you control leaves the battlefield, deal 1 to any target
             Triggered (MkQuery [ZoneChanged (Just Battlefield) Nothing]
                            [Agent (And [creature, ControlledBy you])])
@@ -673,7 +673,7 @@ card_OutpostSiege = Normal $ ^:
 -- the choice, so it's a plain sibling; the second ability (which does) nests in `AsEnters
 -- ACreatureType`. That one is RESTRICTED mana: `onlyToCast` allows it only for "a creature spell of
 -- the chosen type" (`OfChosen`), and `confers` makes that spell uncounterable — the paid-for spell is
--- bound as `It`, so the rider reads `Cant (Countered (SameAs It))`.
+-- bound as `It`, so the rider reads `Cant (Enact Counter spellOrAbility (SameAs It))`.
 export
 card_CavernOfSouls : Card
 card_CavernOfSouls = Normal $ ^:
@@ -684,7 +684,7 @@ card_CavernOfSouls = Normal $ ^:
       , AsEnters ACreatureType
           [ Activated TapSelf (Act (AddMana [AnyColor]
               { onlyToCast = Just (And [IsKind IsSpell, creature, OfChosen])
-              , confers    = [Cant (Countered (SameAs It))] }))                     -- {T}: any color — only for a creature spell of the chosen type, uncounterable
+              , confers    = [Cant (Enact Counter spellOrAbility (SameAs It))] }))     -- {T}: any color — creature spell of the chosen type, uncounterable
           ]
       ]
   }
@@ -1073,7 +1073,7 @@ card_MeddlingMage = Normal $ ^:
   , subtypes := [^Human, ^Wizard]
   , abilities :=
       [ AsEnters AName
-          [ Static (Cant (Casts Anyone (And [IsKind IsSpell, OfChosen]))) ] ]
+          [ Static (Cant (Enact Cast Anyone (And [IsKind IsSpell, OfChosen]))) ] ]
   , power := Just 2
   , toughness := Just 2
   }
