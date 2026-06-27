@@ -132,6 +132,8 @@ implementation ToRon Subtype where
 -- prints the RON unit-variant name. (Types with payloads are rendered by hand below.)
 %runElab derive "Stat" [Show]
 implementation ToRon Stat where toRon _ x = show x
+%runElab derive "Characteristic" [Show]
+implementation ToRon Characteristic where toRon _ x = show x
 %runElab derive "RoundMode" [Show]
 implementation ToRon RoundMode where toRon _ x = show x
 implementation ToRon AggregateOp where
@@ -381,10 +383,6 @@ mutual
     toRon i (MkQuery kinds facets) =
       "(kinds: " ++ toRon i kinds ++ ", facets: " ++ toRon i facets ++ ")"
 
-  implementation ToRon (Delta b) where
-    toRon i (Up c) = ctor "Up" [toRon i c]
-    toRon i (Down c) = ctor "Down" [toRon i c]
-
   implementation ToRon (Outcome b) where
     toRon i (WinGame r) = ctor "WinGame" [toRon i r]
     toRon i (LoseGame r) = ctor "LoseGame" [toRon i r]
@@ -488,17 +486,30 @@ mutual
     toRon i (MkMode effect {cost}) =
       "(effect: " ++ toRon i effect ++ ", cost: " ++ ronOpt i cost ++ ")"
 
+  -- a `ModificationOp` renders as its op-ctor; the `Set` value type and the `Add`/`Remove` element type
+  -- depend on the characteristic, so those dispatch on `c` (mirroring the former hand-rolled `Set` clauses).
+  -- `Up`/`Down` always carry a `Count`, so they're characteristic-agnostic.
+  ronModOp : Nat -> (c : Characteristic) -> ModificationOp b c -> String
+  ronModOp i Colors     (Set v) = ctor "Set" [toRon i v]
+  ronModOp i CardTypes  (Set v) = ctor "Set" [toRon i v]
+  ronModOp i Subtypes   (Set v) = ctor "Set" [toRon i v]
+  ronModOp i Supertypes (Set v) = ctor "Set" [toRon i v]
+  ronModOp i Power      (Set v) = ctor "Set" [toRon i v]
+  ronModOp i Toughness  (Set v) = ctor "Set" [toRon i v]
+  ronModOp i Name       (Set v) = ctor "Set" [ronOpt i v]
+  ronModOp i _ (Up x)   = ctor "Up" [toRon i x]
+  ronModOp i _ (Down x) = ctor "Down" [toRon i x]
+  ronModOp i Colors     (Add e)    = ctor "Add" [toRon i e]
+  ronModOp i CardTypes  (Add e)    = ctor "Add" [toRon i e]
+  ronModOp i Subtypes   (Add e)    = ctor "Add" [toRon i e]
+  ronModOp i Supertypes (Add e)    = ctor "Add" [toRon i e]
+  ronModOp i Colors     (Remove e) = ctor "Remove" [toRon i e]
+  ronModOp i CardTypes  (Remove e) = ctor "Remove" [toRon i e]
+  ronModOp i Subtypes   (Remove e) = ctor "Remove" [toRon i e]
+  ronModOp i Supertypes (Remove e) = ctor "Remove" [toRon i e]
+
   implementation ToRon (Modification b) where
-    toRon i (ModifyPT x y) = ctor "ModifyPT" [toRon i x, toRon i y]
-    toRon i (Set Colors v) = ctor "Set" ["Colors", toRon i v]
-    toRon i (Set CardTypes v) = ctor "Set" ["CardTypes", toRon i v]
-    toRon i (Set Subtypes v) = ctor "Set" ["Subtypes", toRon i v]
-    toRon i (Set Supertypes v) = ctor "Set" ["Supertypes", toRon i v]
-    toRon i (Set BasePower v) = ctor "Set" ["BasePower", toRon i v]
-    toRon i (Set BaseToughness v) = ctor "Set" ["BaseToughness", toRon i v]
-    toRon i (Set Name v) = ctor "Set" ["Name", ronOpt i v]
-    toRon i (AddType t) = ctor "AddType" [toRon i t]
-    toRon i (AddSubtype s) = ctor "AddSubtype" [toRon i s]
+    toRon i (Alter c op) = ctor "Alter" [toRon i c, ronModOp i c op]
     toRon i (ChangeText ws) = ctor "ChangeText" [toRon i ws]
     toRon _ LoseAbilities = "LoseAbilities"
     toRon i (GainControl r) = ctor "GainControl" [toRon i r]
