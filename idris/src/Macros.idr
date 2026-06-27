@@ -137,7 +137,7 @@ indestructible = Keyword (Composite Indestructible
 -- a characteristic. `Alter Colors (Set [])` on This empties its color set (the Tarmogoyf-`*/*` pattern).
 public export
 devoid : Ability b
-devoid = Keyword (Composite Devoid [Static (Modify This [Alter Colors (Set [])])])
+devoid = Keyword (Composite Devoid [Static (Modify This (Alter Colors (Set [])))])
 
 -- "Regenerate this" ([CR#701.19]): a ONE-SHOT, this-turn shield — the next time This would be destroyed,
 -- instead remove all damage, tap it, and remove it from combat. The `UpTo (^1)` limit consumes the
@@ -148,6 +148,21 @@ regenerate = Continuously UntilEndOfTurn
   (Replaces (MkQuery [Destroy] [Patient (SameAs This)])
             (Sequence [Act (RemoveAllDamage This), Act (Tap This), Act (RemoveFromCombat This)])
             {limit = UpTo (^1)})
+
+-- transport a P-op to toughness: power and toughness share a value class (`CharValue _ Power = Count =
+-- CharValue _ Toughness`) and both are `Numeric`, so the op carries over by definitional equality.
+public export
+ptTwin : ModificationOp b Power -> ModificationOp b Toughness
+ptTwin (Set v)  = Set v
+ptTwin (Up x)   = Up x
+ptTwin (Down x) = Down x
+
+-- "+x/+x" (any SYMMETRIC P/T mod): `ModifyPT` is no longer a primitive — the same `ModificationOp` on both
+-- axes is just two `Alter`s. `modifyPT` doubles a P-op, returning a `List` ready to splice into `Several`:
+-- "gets +3/+3" = `Modify This (Several (modifyPT (Up (^3))))`. Asymmetric "+2/-1" writes the two `Alter`s.
+public export
+modifyPT : ModificationOp b Power -> List (Modification b)
+modifyPT op = [Alter Power op, Alter Toughness (ptTwin op)]
 
 -- KEYWORD ACTIONS as macros over primitives ([CR#701]) — the action-side twin of the keyword
 -- ABILITIES above. Each is a plain `OneShotEffect` (used directly, no `Act` wrapper), composited from
@@ -265,7 +280,7 @@ levelUp cost = Activated cost (Act (PutCounters Level (^1) This)) {window = AsSo
 public export
 crew : Count b -> Ability b
 crew n = Activated (TapTotal Power GreaterEq n creature)
-  (Continuously UntilEndOfTurn (Modify This [Alter CardTypes (Add Creature)]))
+  (Continuously UntilEndOfTurn (Modify This (Alter CardTypes (Add Creature))))
 
 -- "Morph [cost]" ([CR#702.37]): you may cast this face down as a 2/2 for {3} (`CastFaceDown`), and turn
 -- it face up any time for [cost] (`TurnFaceUp`). The 2/2-colorless-vanilla face-down body is the global

@@ -505,6 +505,7 @@ mutual
 
   implementation ToRon (Modification b) where
     toRon i (Alter c op) = ctor "Alter" [toRon i c, ronModOp i c op]
+    toRon i (Several mods) = ctor "Several" [toRon i mods]
     toRon i (ChangeText ws) = ctor "ChangeText" [toRon i ws]
     toRon _ LoseAbilities = "LoseAbilities"
     toRon i (GainControl r) = ctor "GainControl" [toRon i r]
