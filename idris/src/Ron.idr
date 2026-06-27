@@ -132,6 +132,8 @@ implementation ToRon Subtype where
 -- prints the RON unit-variant name. (Types with payloads are rendered by hand below.)
 %runElab derive "Characteristic" [Show]
 implementation ToRon Characteristic where toRon _ x = show x
+%runElab derive "PlayerAttr" [Show]
+implementation ToRon PlayerAttr where toRon _ x = show x
 %runElab derive "RoundMode" [Show]
 implementation ToRon RoundMode where toRon _ x = show x
 implementation ToRon AggregateOp where
@@ -280,8 +282,7 @@ mutual
     toRon i (EventAgg op q) = ctor "EventAgg" [toRon i op, toRon i q]
     toRon i (Damage r) = ctor "Damage" [toRon i r]
     toRon i (CountersOn c r) = ctor "CountersOn" [toRon i c, toRon i r]
-    toRon i (LifeTotal r) = ctor "LifeTotal" [toRon i r]
-    toRon i (HandSize r) = ctor "HandSize" [toRon i r]
+    toRon i (PlayerStatOf r a) = ctor "PlayerStatOf" [toRon i r, toRon i a]
     toRon i (Plus x y) = ctor "Plus" [toRon i x, toRon i y]
     toRon i (Minus x y) = ctor "Minus" [toRon i x, toRon i y]
     toRon i (Times x y) = ctor "Times" [toRon i x, toRon i y]
@@ -316,16 +317,16 @@ mutual
     toRon i (Pick op pr) = ctor "Pick" [toRon i op, toRon i pr]
 
   implementation ToRon (Predicate b k) where
-    toRon i (HasType t) = ctor "HasType" [toRon i t]
-    toRon i (HasSupertype s) = ctor "HasSupertype" [toRon i s]
-    toRon i (HasSubtype s) = ctor "HasSubtype" [toRon i s]
-    toRon i (HasColor c) = ctor "HasColor" [toRon i c]
+    toRon i (HasChar Colors     e) = ctor "HasChar" [toRon i Colors,     toRon i e]
+    toRon i (HasChar CardTypes  e) = ctor "HasChar" [toRon i CardTypes,  toRon i e]
+    toRon i (HasChar Subtypes   e) = ctor "HasChar" [toRon i Subtypes,   toRon i e]
+    toRon i (HasChar Supertypes e) = ctor "HasChar" [toRon i Supertypes, toRon i e]
     toRon i (IsKind k) = ctor "IsKind" [toRon i k]
     toRon i (InZone z) = ctor "InZone" [toRon i z]
     toRon i (HasKeyword ks) = ctor "HasKeyword" [toRon i ks]
     toRon i (SameAs r) = ctor "SameAs" [toRon i r]
     toRon i (SameName r) = ctor "SameName" [toRon i r]
-    toRon i (SharesSubtype r) = ctor "SharesSubtype" [toRon i r]
+    toRon i (SharesChar c r) = ctor "SharesChar" [toRon i c, toRon i r]
     toRon i (WasCastFrom z) = ctor "WasCastFrom" [toRon i z]
     toRon i (ExiledBy r) = ctor "ExiledBy" [toRon i r]
     toRon i (DamagedBy r) = ctor "DamagedBy" [toRon i r]

@@ -71,11 +71,11 @@ tForEach = Each (SelectAll (creature))
 -- a CLOSED condition reaches a named object via `Matches` (apply a predicate to a
 -- reference) — "if ~ is a creature".
 tClosedTypeCond : Condition Base
-tClosedTypeCond = Matches This (HasType Creature)
+tClosedTypeCond = Matches This (hasType Creature)
 
 -- ...and a filter is just a `Predicate` — the candidate is implicit, no `Subject`.
 tSubjectFilter : Predicate Base AnObject
-tSubjectFilter = HasType Creature
+tSubjectFilter = hasType Creature
 
 -- new filter atoms (close the audit's #1 hole): a numeric STAT comparison ("creature with power ≤
 -- 2") and runtime OBJECT STATE ("an attacking creature") — both now `Predicate`s, not just `Condition`s.
@@ -119,7 +119,7 @@ tBecomesAttacked = MkQuery [Begins Attack] [Patient (SameAs This)]
 --   * the durative filter "the attacked planeswalker" — `Holds` is object-only (only objects bear durative
 --     state; a player defender has none, and rides the event's `Patient` facet instead):
 tAttackedFilter : Predicate Base AnObject
-tAttackedFilter = And [HasType Planeswalker, Holds Attack Patient]
+tAttackedFilter = And [hasType Planeswalker, Holds Attack Patient]
 
 --   * PLAYER defender — "whenever you're attacked" (the kind-poly patient of an Attack onset):
 tYouAreAttacked : EventQuery Base
@@ -206,7 +206,7 @@ tDevoid = keyword Devoid
 
 -- protection from red: the DEBT bundle (damage/enchant/block/target from red) as ONE keyword macro.
 tProtection : Ability Base
-tProtection = protection (HasColor Red)
+tProtection = protection (hasColor Red)
 
 tOutcomeGate : StaticEffect Base
 tOutcomeGate = OutcomeGate CantLose you
@@ -245,7 +245,7 @@ tTypeConfers : List (Ability Base)
 tTypeConfers = typeConfers Planeswalker
 
 tAttacksObject : Deed Base
-tAttacksObject = Enact Attack (HasType Creature) (SameAs This)
+tAttacksObject = Enact Attack (hasType Creature) (SameAs This)
 
 -- note read-back: a chosen card NAME is read by `OfChosen` (Meddling Mage), a chosen NUMBER by `ChosenNumber`.
 tChosenName : Predicate (bindChosen AName Base) AnObject
@@ -336,7 +336,7 @@ tScaledCost = Scaled (CountMatching creature) (Mana [^2])
 -- continuous cost modification: affinity = a `Reduce` `ScaledBy` a count (one recursive node), and
 -- devotion is just a `Count`, so it drops into mana production and cost-scaling alike.
 tAffinity : StaticEffect Base
-tAffinity = CostModifier (SameAs This) (ScaledBy (Reduce [^1]) (CountMatching (HasType Artifact)))
+tAffinity = CostModifier (SameAs This) (ScaledBy (Reduce [^1]) (CountMatching (hasType Artifact)))
 
 -- devotion to {B}{G} = SUM, over permanents you control, of the {B}/{G} pips in each one's printed cost
 -- ([CR#700.5]): an `Aggregate SumOf` of a per-permanent symbol-count. A single `Or`-predicate (not two summed
@@ -352,7 +352,7 @@ tCounters = Sequence [ Each (SelectAll creature) (Act (PutCounters P1P1 (Literal
 
 -- anthem: a static `ModifyAll` over a controller-predicate filter, with layer mods
 tAnthem : Ability Base
-tAnthem = Static (Each (SelectAll (And [HasType Creature, ControlledBy you])) (Modify It (ApplyAll [Alter Power (Up (^1)), Alter Toughness (Up (^1)), Alter Subtypes (Add (^Bear))])))
+tAnthem = Static (Each (SelectAll (And [hasType Creature, ControlledBy you])) (Modify It (ApplyAll [Alter Power (Up (^1)), Alter Toughness (Up (^1)), Alter Subtypes (Add (^Bear))])))
 
 -- a loyalty ability: an Activated ability whose cost removes Loyalty counters
 tLoyalty : Ability Base
@@ -361,7 +361,7 @@ tLoyalty = Activated (Do (RemoveCounters Loyalty (Literal 2) This)) (Act (Draw (
 -- the value language: arithmetic, player attributes, counters-on, new stats, that-much
 tValues : List (Count Base)
 tValues =
-  [ Plus (LifeTotal You) (HandSize You)
+  [ Plus (lifeTotal You) (handSize You)
   , Times (CountMatching creature) (Literal 2)
   , Half RoundUp (StatOf This Power)
   , CountersOn P1P1 This
@@ -377,7 +377,7 @@ tValues =
 -- for `CountDistinct` (characteristic × valid source), the `AverageOf`/`MinOf` folds, and the `Players` source.
 tAggregations : List (Count Base)
 tAggregations =
-  [ CountDistinct Subtypes (Objects (And [permanent, HasType Land, ControlledBy you]))  -- Domain (granularity from the source filter)
+  [ CountDistinct Subtypes (Objects (And [permanent, hasType Land, ControlledBy you]))  -- Domain (granularity from the source filter)
   , CountDistinct Power (Objects (And [permanent, ControlledBy you]))                   -- Collector's Cage: distinct powers
   , CountDistinct Colors ManaSpent                                                      -- Sunburst / Converge: distinct colours of mana spent
   , CountDistinct Name (Objects (InZone Graveyard))                                     -- distinct names in graveyards
@@ -408,7 +408,7 @@ tGlobalSbas =
               (Compare (StatOf This Toughness) LessEq (^0))
               (Act (Move This (ToZone Graveyard)))
     -- loyalty-0 [CR#704.5i]: a planeswalker with 0 loyalty counters → put into graveyard
-  , MkSbaRule (And [HasType Planeswalker, InZone Battlefield])
+  , MkSbaRule (And [hasType Planeswalker, InZone Battlefield])
               (Compare (CountersOn Loyalty This) Equal (^0))
               (Act (Move This (ToZone Graveyard))) ]
 
@@ -474,12 +474,12 @@ tCDA : Card
 tCDA = Normal $ ^:
   { name := Just "Test CDA"
   , types := [Creature]
-  , power := Just (CountMatching (HasType Land))
-  , toughness := Just (Plus (CountMatching (HasType Land)) (Literal 1)) }
+  , power := Just (CountMatching (hasType Land))
+  , toughness := Just (Plus (CountMatching (hasType Land)) (Literal 1)) }
 
 -- Stage 2: a target's kind comes from its slot's filter — a PLAYER target reads as a player
 tPlayerTarget : Count (bindTargets [APlayer] Base)
-tPlayerTarget = LifeTotal (GetTarget 0)
+tPlayerTarget = lifeTotal (GetTarget 0)
 
 -- "each player" is a player-`Selection`; `Each` binds a player `It` (EachPlayer dissolved)
 tEachPlayerForEach : OneShotEffect Base
@@ -520,7 +520,7 @@ tReachComposite : keyword Reach = the (Ability Base) (Keyword (Composite Reach [
 tReachComposite = Refl
 
 tHexproofFrom : Ability Base
-tHexproofFrom = keyword (Hexproof (Just (HasColor Red)))
+tHexproofFrom = keyword (Hexproof (Just (hasColor Red)))
 
 -- the deontic permission floor `Can` (the 5th polarity, pairing with `cant`)
 tDeonticCan : Ability Base
@@ -792,10 +792,10 @@ failing
 -- ...and an object has no life total
 failing
   tBadLifeOfObject : Count Base
-  tBadLifeOfObject = LifeTotal This         -- This : AnObject, LifeTotal wants APlayer
+  tBadLifeOfObject = lifeTotal This         -- This : AnObject, lifeTotal wants APlayer
 
 -- Stage-2 strictness: a CREATURE target can't be read as a player — the hole the flex
 -- `GetTarget` left open in Stage 1, now closed (its kind comes from `targetKinds`).
 failing
   tBadLifeOfCreatureTarget : Count (bindTargets [AnObject] Base)
-  tBadLifeOfCreatureTarget = LifeTotal (GetTarget 0)
+  tBadLifeOfCreatureTarget = lifeTotal (GetTarget 0)
