@@ -286,6 +286,7 @@ keyword Menace              = menace
 keyword (Hexproof Nothing)  = hexproof
 keyword (Hexproof (Just f)) = hexproofFrom f
 keyword Morph               = Keyword (Bare Morph)   -- DEGENERATE (bare morph carries no cost) — use the `morph <cost>` macro for the real ability
+keyword Flashback           = Keyword (Bare Flashback)  -- DEGENERATE (bare flashback carries no cost) — use the `flashback <cost>` macro for the real ability
 keyword Devoid              = devoid
 keyword (Protection q)      = protection q
 
@@ -318,6 +319,13 @@ crew n = Activated (TapTotal Power GreaterEq n creature)
 public export
 morph : Cost b -> Ability b
 morph c = Keyword (Composite Morph [ Static (CastFaceDown (Mana [^3])), TurnFaceUp c ])
+
+-- "Flashback [cost]" ([CR#702.34]): you may cast this from your graveyard for [cost] rather than its mana
+-- cost (`MayCastFor … {from = [Graveyard]}`); the engine exiles it afterward off the `Flashback` tag
+-- ([CR#702.34a]), so that rider isn't restated here (cf. `morph`/[CR#708.2]).
+public export
+flashback : List (Cost b) -> Ability b
+flashback costs = Keyword (Composite Flashback [ Static (MayCastFor costs {from = [Graveyard]}) ])
 
 -- the number of distinct card TYPES among cards in all graveyards (Tarmogoyf's `*`) — directly the
 -- DISTINCT-union count the value-language now provides, replacing the old hand-rolled sum of per-type

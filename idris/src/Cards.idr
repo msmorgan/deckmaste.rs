@@ -291,7 +291,7 @@ card_Necropotence = Normal $ ^:
   , manaCost := [^Black, ^Black, ^Black]
   , types := [Enchantment]
   , abilities :=
-      [ Static (Replaces (MkEventQuery [BeginStep (BeginningPhase DrawStep)] [DuringTurn you]) (Sequence []))
+      [ Static (Replaces (MkEventQuery [BeginStep (BeginningPhase DrawStep)] [Whenever (TurnOf you)]) (Sequence []))
       , Triggered (MkEventQuery [Discard] [Actor you])
           (Act (Move EventObject (ToZone Exile)))
       , Activated (Do (LoseLife (Literal 1)))
@@ -316,7 +316,7 @@ card_NotionThief = Normal $ ^:
       [ keyword Flash
       , Static (Replaces (MkEventQuery [Draw]
                                 [ Actor opponent
-                                , Not (And [DuringStep (BeginningPhase DrawStep), IsFirst ThisStep]) ])
+                                , Not (And [Whenever (During (BeginningPhase DrawStep)), IsFirst ThisStep]) ])
           (Act (Draw {actor = You} (^1))))
       ]
   , power := Just 3
@@ -342,10 +342,13 @@ card_OblivionRing = Normal $ ^:
       ]
   }
 
--- Banishing Light — ONE ability with a duration-bounded exile: "exile target nonland
--- permanent an opponent controls UNTIL this leaves" = `ExileUntil … (UntilEvent
--- (this leaves the battlefield))`. The "until" is a `Duration`, not a leave-trigger —
--- that's the rules difference from Oblivion Ring's two linked abilities.
+-- Banishing Light — ONE ability: "exile target nonland permanent an opponent controls
+-- UNTIL this leaves". A duration-bounded zone change, NOT a delayed trigger: the ETB trigger
+-- targets, then a `Relocate` static (battlefield→exile) holds for the `UntilEvent (this leaves
+-- the battlefield)` duration. When the duration ends the target returns — as a NEW object
+-- ([CR#400.7], per the rulings) since `Relocate`'s edges are real zone changes. The "until" is
+-- the duration, not a leave-trigger — that's the rules difference from Oblivion Ring's two
+-- linked abilities.
 export
 card_BanishingLight : Card
 card_BanishingLight = Normal $ ^:
@@ -355,9 +358,9 @@ card_BanishingLight = Normal $ ^:
   , abilities :=
       [ Triggered (thisEnters) $
           Targeted [Target (^1) (And [permanent, Not (hasType Land), ControlledBy opponent])] $
-            Act (ExileUntil ((GetTarget 0))
-                            (UntilEvent (MkEventQuery [ZoneChanged (Just Battlefield) Nothing]
-                                               [Agent (SameAs This)])))
+            Continuously (UntilEvent (MkEventQuery [ZoneChanged (Just Battlefield) Nothing]
+                                                   [Agent (SameAs This)]))
+                         (Relocate (GetTarget 0) Battlefield Exile)
       ]
   }
 
@@ -631,12 +634,12 @@ card_CitadelSiege = Normal $ ^:
   , abilities :=
       [ AsEnters (AMode 2)
           [ -- Khans (0): begin combat on YOUR turn → two +1/+1 counters on a creature you control
-            Triggered (MkEventQuery [BeginStep (CombatPhase BeginningOfCombatStep)] [DuringTurn you])
+            Triggered (MkEventQuery [BeginStep (CombatPhase BeginningOfCombatStep)] [Whenever (TurnOf you)])
               (If (ChosenIs 0)
                   (Targeted [Target (^1) (And [creature, ControlledBy you])]
                     (Act (PutCounters P1P1 (^2) (GetTarget 0)))))
           , -- Dragons (1): begin combat on an OPPONENT's turn → tap a creature that opponent controls
-            Triggered (MkEventQuery [BeginStep (CombatPhase BeginningOfCombatStep)] [DuringTurn opponent])
+            Triggered (MkEventQuery [BeginStep (CombatPhase BeginningOfCombatStep)] [Whenever (TurnOf opponent)])
               (If (ChosenIs 1)
                   (Targeted [Target (^1) (And [creature, ControlledBy opponent])]
                     (Act (Tap (GetTarget 0)))))
@@ -657,7 +660,7 @@ card_OutpostSiege = Normal $ ^:
   , abilities :=
       [ AsEnters (AMode 2)
           [ -- Khans (0): at your upkeep, exile the top card of your library; until eot you may play it
-            Triggered (MkEventQuery [BeginStep (BeginningPhase UpkeepStep)] [DuringTurn you])
+            Triggered (MkEventQuery [BeginStep (BeginningPhase UpkeepStep)] [Whenever (TurnOf you)])
               (If (ChosenIs 0)
                   (With (Produce (Move (Single (TopOfLibrary (^1))) (ToZone Exile)))
                     (Continuously UntilEndOfTurn (Can (Enact Play you (SameAs (Single That)))))))
@@ -741,7 +744,7 @@ card_DelverOfSecrets = TwoFaced Transforming
       , types := [Creature]
       , subtypes := [^Human, ^Wizard]
       , abilities :=
-          [ Triggered (MkEventQuery [BeginStep (BeginningPhase UpkeepStep)] [DuringTurn you])
+          [ Triggered (MkEventQuery [BeginStep (BeginningPhase UpkeepStep)] [Whenever (TurnOf you)])
               (If (Matches (Single (TopOfLibrary (^1))) (Or [hasType Instant, hasType Sorcery]))
                   (May (Sequence [ Act (Reveal (Single (TopOfLibrary (^1))))
                                  , Act (Transform This) ])))
@@ -1230,6 +1233,28 @@ card_GarzaZol = Normal $ ^:
       ]
   , power := Just 5
   , toughness := Just 5
+  }
+
+-- Snapcaster Mage — STRESS TEST for the `flashback` macro + keyword grant. Flash, plus an ETB that GRANTS
+-- flashback to a target instant/sorcery in your graveyard "until end of turn", with "flashback cost equal to
+-- its mana cost". The grant is `Modify … (GrantAbility (flashback …))` under `Continuously UntilEndOfTurn`; the
+-- cost reads the target's full colored mana cost via `ManaCostOf` (the cost-language twin of `ManaValueOf`).
+export
+card_SnapcasterMage : Card
+card_SnapcasterMage = Normal $ ^:
+  { name := Just "Snapcaster Mage"
+  , manaCost := [^1, ^Blue]
+  , types := [Creature]
+  , subtypes := [^Human, ^Wizard]
+  , abilities :=
+      [ keyword Flash
+      , Triggered thisEnters $
+          Targeted [Target (^1) (And [Or [hasType Instant, hasType Sorcery], InZone Graveyard, OwnedBy you])] $
+            Continuously UntilEndOfTurn
+              (Modify (GetTarget 0) (GrantAbility (flashback [ManaCostOf (GetTarget 0)])))
+      ]
+  , power := Just 2
+  , toughness := Just 1
   }
 
 --:vim:sts=2 sw=2:

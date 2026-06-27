@@ -607,17 +607,13 @@ bindThat : RefKind -> Bindings -> Bindings
 bindThat k b = MkBindings (targetKinds b) (Just k) (itKind b) (eventCaps b) (chosenKind b) (chosenRefKind b) (hasAllotment b)
 
 public export
+-- bind the per-element `It` of kind k (for `Each`/`Project`/`eachOf` loop bodies) AND clear the loop-local
+-- `hasAllotment`: a `Distribute` share is indexed to ITS element, so once an inner loop re-binds `It` to a
+-- different element that share no longer makes sense and `Allotment` must not leak through (everything else —
+-- targets, `That`, event caps, as-enters choices — legitimately stays in scope). Formerly split into a
+-- share-preserving `bindIt` (which leaked the share into a nested `Each`) and an allotment-clearing `bindIt`; merged.
 bindIt : RefKind -> Bindings -> Bindings
-bindIt k b = MkBindings (targetKinds b) (thatKind b) (Just k) (eventCaps b) (chosenKind b) (chosenRefKind b) (hasAllotment b)
-
--- entering a `Projection` accessor (`Project`/`eachOf`): bind the per-element `It` of kind k AND clear the
--- loop-local `hasAllotment`. A `Distribute` share is indexed to ITS loop element; once a `Project` re-binds
--- `It` to the projection element, that share no longer makes sense, so `Allotment` must not leak through. The
--- allotment-clearing twin of `bindIt` (everything else — targets, `That`, event caps, as-enters choices — is
--- legitimately still in scope for the projected value).
-public export
-bindElem : RefKind -> Bindings -> Bindings
-bindElem k b = MkBindings (targetKinds b) (thatKind b) (Just k) (eventCaps b) (chosenKind b) (chosenRefKind b) False
+bindIt k b = MkBindings (targetKinds b) (thatKind b) (Just k) (eventCaps b) (chosenKind b) (chosenRefKind b) False
 
 -- entering a trigger/replacement/delayed body, carrying the event's CAPS (what anaphora it supplies).
 public export
@@ -672,6 +668,7 @@ mutual
       Menace : KeywordSpec b
       Hexproof : Maybe (Predicate b AnObject) -> KeywordSpec b   -- "from [filter]" — a SOURCE predicate (objects); "from a player" = ControlledBy that player
       Morph : KeywordSpec b   -- the tag for the `morph` macro ([CR#702.37]); the face-up cost rides its desugared `TurnFaceUp` (bare here — `KeywordSpec` precedes `Cost`)
+      Flashback : KeywordSpec b -- the tag for the `flashback` macro ([CR#702.34]); the cost rides its desugared `MayCastFor` (bare — `KeywordSpec` precedes `Cost`). Engine applies the [CR#702.34a] exile-instead-of-graveyard off this tag.
       Devoid : KeywordSpec b  -- "this object is colorless" ([CR#702.114]) — a CDA; desugars to `Set Colors []` on This
       Protection : Predicate b AnObject -> KeywordSpec b   -- "protection from [quality]" ([CR#702.16]) — the tag carries q; desugars to the DEBT bundle (`protection` macro)
   -- A REFERENCE to a single game entity, indexed by `RefKind` (object vs player). One
@@ -764,14 +761,14 @@ mutual
   readableOn _      _                 = Void
 
   -- a PROJECTION: one value per element of a projectable `Countable`, given by the per-element `acc` (a `Count`
-  -- with `It` bound to the element via `bindElem` — which clears `hasAllotment`, so a `Distribute` share can't
+  -- with `It` bound to the element via `bindIt` — which clears `hasAllotment`, so a `Distribute` share can't
   -- leak across the re-scope). The shared substrate — `Aggregate` folds it to a value, `Pick` (a `Selection`)
   -- takes the extremal element. `Project` is the only constructor; `eachOf` is sugar. Named `Projection` (not
   -- `Counts`) to avoid colliding with `Count` — and because the projected values needn't be counts (e.g. a power).
   namespace Projection
     public export
     data Projection : Bindings -> Type where
-      Project : (src : Countable b) -> {auto 0 prj : Projectable src} -> Count (bindElem AnObject b) -> Projection b
+      Project : (src : Countable b) -> {auto 0 prj : Projectable src} -> Count (bindIt AnObject b) -> Projection b
 
   -- A numeric value ([CR#107.3] reads {X}; the rest are general values). `Literal` is a bare number; the rest
   -- read the game state — object counts, stats, counters, life/hand totals, event tallies, arithmetic.
@@ -894,7 +891,7 @@ mutual
   -- The kind-free EVENT-FACET language: conditions refining WHICH event (never its kind, which lives in
   -- the `EventQuery` record's `kinds` slot). Facets conjoin via `And`; `Or` disjoins, `Not` negates (same
   -- combinator names as Predicate/Condition, in this namespace). The THEMATIC-ROLE facets embed the object/
-  -- player language; `Within`/`DuringStep`/`DuringTurn` are timing facets ("not during your turn" = `Not (DuringTurn You)`).
+  -- player language; `Within` and `Whenever` (over `During`/`TurnOf`) are the timing facets ("not during your turn" = `Not (Whenever (TurnOf You))`).
   namespace Facet
     public export
     data Facet : Bindings -> Type where
@@ -911,11 +908,13 @@ mutual
       -- [Patient you]`; "deals damage to you" = `Patient you`. Distinct from the `Agent` (the doer).
       Patient : Predicate b k -> Facet b
       Within        : Window -> Facet b
-      DuringStep    : PhaseStep -> Facet b
-      DuringTurn    : Predicate b APlayer -> Facet b   -- the turn's player matches a player-pred
+      -- BRIDGE: any game-state `Condition` (timing or otherwise) as an event facet — "the event matches when
+      -- [cond] holds". Subsumes the former `DuringStep`/`DuringTurn` (now `Whenever (During …)` / `Whenever
+      -- (TurnOf …)`), so timing atoms live once in `Condition` ([CR#603.2]). `Within` stays (no Condition twin).
+      Whenever : Condition b -> Facet b
       -- "this is the FIRST event (matching the surrounding facets) in the window" — an ORDINAL facet,
       -- engine-resolved like `EventCount` ([CR#603.2e] "the first time each…"). Notion Thief: "except the
-      -- first draw each draw step" = `Not (And [DuringStep drawStep, IsFirst ThisStep])`.
+      -- first draw each draw step" = `Not (And [Whenever (During drawStep), IsFirst ThisStep])`.
       IsFirst       : Window -> Facet b
       And  : List (Facet b) -> Facet b   -- AND
       Or   : List (Facet b) -> Facet b   -- OR
@@ -985,7 +984,7 @@ CountEvents : EventQuery b -> Count b
 CountEvents q = CountOf (Events q)
 
 public export
-eachOf : Predicate b AnObject -> Count (bindElem AnObject b) -> Projection b
+eachOf : Predicate b AnObject -> Count (bindIt AnObject b) -> Projection b
 eachOf p acc = Project (Objects p) acc
 
 -- `exists`/`unique`: a predicate matches ≥1 / exactly-1 object. DERIVED from `CountOf` + `Compare`, not
@@ -1058,14 +1057,14 @@ namespace Arrangement
   public export
   data Arrangement = ChosenOrder | RandomOrder | SameOrder
 
--- A continuous effect's lifetime ([CR#611.2]). Rust: Duration. (Above `Action` so a
--- duration-bounded verb like `ExileUntil` can name it.)
+-- A continuous effect's lifetime ([CR#611.2]). Rust: Duration. (Above the effect types
+-- so `Continuously` can name it.)
 namespace Duration
   public export
   data Duration : Bindings -> Type where
     UntilEndOfTurn : Duration b
     UntilEvent : EventQuery b -> Duration b
-    ForAsLongAs : Condition b -> Duration b
+    ForAsLongAs : Condition b -> Duration b   -- a resolution effect's duration: affected set FIXED at start, ends when the cond lapses ([CR#611.2b,611.2c]). DISTINCT from the re-evaluated conditional static `StaticEffect.While` ([CR#604.3]) — NOT a redundancy.
     Forever : Duration b                         -- rest of game (Rust: EndOfGame)
 
 -- `Range lo hi`: `Nothing` bound = unbounded that side. A bare numeral is the
@@ -1226,8 +1225,8 @@ namespace ModificationOp
 
 -- One big mutual block: `Ability → OneShotEffect → Action → CreateToken → Characteristics` is a
 -- cycle, so `Characteristics`/`Action`/`Bindable` join the effect/ability block below. `Cost` joins
--- too — its `Do` wraps an `Action` ([CR#118.3]) — dragging the Cost-referencing `CostChange`/
--- `AlternativeCost` in with it. (The leaf `ChooseSpec`/`Deed` stay OUT — they only reach into block 1.)
+-- too — its `Do` wraps an `Action` ([CR#118.3]) — dragging the Cost-referencing `CostChange`
+-- in with it. (The leaf `ChooseSpec`/`Deed` stay OUT — they only reach into block 1.)
 mutual
   -- A cost paid to activate an ability ([CR#118,602]). `Costs` conjoins components. Most costs ARE actions
   -- the payer performs ([CR#118.3]), so they ride `Do` rather than each getting a duplicate cost verb.
@@ -1235,6 +1234,9 @@ mutual
     public export
     data Cost : Bindings -> Type where
       Mana      : ManaCost -> Cost b                 -- "{4}"
+      -- pay mana equal to an object's MANA COST ([CR#202.1]) — the full COLORED cost, the cost-language twin of
+      -- the numeric `ManaValueOf`. "The flashback cost is equal to its mana cost" (Snapcaster's granted flashback).
+      ManaCostOf : Reference b AnObject -> Cost b
       -- pay a cost by PERFORMING an action ([CR#118.3]): "{T}" = `Do (Tap This)`, "Pay N life" =
       -- `Do (LoseLife (^N))`, "Sacrifice this" = `Do (Sacrifice (SameAs This))`, "Pay {E}×N" =
       -- `Do (RemoveCounters Energy (^N) You)` (energy is a player counter — no dedicated `PayEnergy` verb),
@@ -1261,13 +1263,6 @@ mutual
       Additional : List (Cost b) -> CostChange b            -- mandatory "as an additional cost, …"; may be NON-mana (sacrifice/discard/life) [CR#118.8]
       Optional   : List (Cost b) -> CostChange b            -- Additional's baby brother: "you may pay …" (the kicker/buyback shape) [CR#118.8b]
       ScaledBy   : CostChange b -> Count b -> CostChange b  -- the change applied once per unit of the count (affinity)
-
-  -- An ALTERNATIVE base cost ([CR#118.9]) — a base SWAP, the type the engine keeps DISTINCT from
-  -- `CostChange` (a base modify). "Without paying its mana cost" = `AltCost []`; Force of Will = `AltCost […]`.
-  namespace AlternativeCost
-    public export
-    data AlternativeCost : Bindings -> Type where
-      AltCost  : List (Cost b) -> AlternativeCost b
 
   -- The printable CHARACTERISTICS of an object ([CR#109.3]) — shared by a card `Face`
   -- (`Characteristics Base`) and a created token (`Characteristics b`, so a token's P/T can be a
@@ -1319,9 +1314,9 @@ mutual
       --  effect: `Distribute (^n) group (Act (DealDamage It Allotment))`, not a bespoke action.)
       -- a plain zone change [CR#400.7]; owner-relative, control implicit.
       Move : Reference b AnObject -> Destination b -> Action b
-      -- exile a selection UNTIL a duration ends, then return it — the duration-bounded
-      -- "exile until ~" form (return via a delayed trigger, [CR#603.7a]), NOT a leave-triggered return (see Oblivion Ring).
-      ExileUntil : Reference b AnObject -> Duration b -> Action b
+      -- (There is no "exile until ~" verb. A duration-bounded zone change is `Relocate` (a
+      --  StaticEffect) under a `Continuously`/`While` duration — see `Relocate` and
+      --  card_BanishingLight. Permanent exile is just `Move … (ToZone Exile)`.)
       -- destroy [CR#701.8] / counter a stack object [CR#701.6a]. (Return-to-hand is just
       -- `Move … Hand` — `Move` is owner-relative — so there's no dedicated bounce verb.)
       Destroy : Reference b AnObject -> Action b
@@ -1540,16 +1535,25 @@ mutual
       -- static over ALL your mana — which is WHY "doesn't empty" is NOT a per-mana `ManaRider` (that would
       -- double-represent this blanket form); the `ManaRider` set is exactly the [CR#106.6] trio. Engine resolves.
       ManaPersists : Predicate b APlayer -> StaticEffect b
-      -- "you may cast THIS for [alt] from [from]" ([CR#118.9]) — the alternative-cost permission (base swap,
-      -- distinct from `CostModifier`'s base modify). `from` defaults to Hand; a non-default zone is the
-      -- cast-from-zone family ([CR#702.34] flashback = `{from = Graveyard}`; escape/jump-start add a rider).
-      -- Force of Will = `MayCastFor (AltCost [Do (LoseLife (^1)), …])`.
-      MayCastFor : AlternativeCost b -> {default Hand from : Zone} -> StaticEffect b
+      -- "you may cast THIS for [costs] from [from]" ([CR#118.9]) — the alternative-cost permission (a base SWAP,
+      -- distinct from `CostModifier`'s base modify; that distinction is carried HERE, by the consumer, so the
+      -- cost list needs no `AltCost` wrapper). `costs` is the swapped-in cost ([] = "without paying its mana
+      -- cost"). `from` defaults to Hand; a non-default zone is the cast-from-zone family ([CR#702.34] flashback =
+      -- `{from = [Graveyard]}`; escape/jump-start add a rider). Force of Will = `MayCastFor [Do (LoseLife (^1)), …]`.
+      MayCastFor : List (Cost b) -> {default [Hand] from : List Zone} -> StaticEffect b
       -- "you may cast THIS face down for [cost]" ([CR#702.37]) — an alternative cast that ALSO turns the
       -- object face down; the engine then applies the global [CR#708.2] 2/2-colorless-vanilla override.
       CastFaceDown : Cost b -> StaticEffect b
-      -- the inner continuous effect applies only WHILE the condition holds ([CR#604.3]) —
-      -- a conditional static ("gets +1/+1 as long as …").
+      -- a duration-bounded ZONE CHANGE — "exile UNTIL ~", the modern `Banishing Light` form. Under an enclosing
+      -- duration (`Continuously (UntilEvent …)` / `While …`), `r` moves `from`→`to`; when that duration ends it
+      -- returns `from`. BOTH edges are real `ZoneChanged` events, so the returned object is a NEW object
+      -- ([CR#400.7] — counters vanish, Auras fall off, tokens don't return; matches the official rulings). This is
+      -- NOT layer-style zone "membership" (which would preserve identity) and NOT a delayed trigger.
+      Relocate : Reference b AnObject -> (from : Zone) -> (to : Zone) -> StaticEffect b
+      -- the inner continuous effect applies only WHILE the condition holds ([CR#604.3]) — a conditional static
+      -- ("gets +1/+1 as long as …"), RE-EVALUATED continuously (toggles with the condition). DISTINCT from the
+      -- `Duration.ForAsLongAs` of a resolution-created effect, whose affected set is FIXED at the start
+      -- ([CR#611.2c] "works differently than a continuous effect from a static ability") — NOT a redundancy.
       While : Condition b -> StaticEffect b -> StaticEffect b
       -- DEONTIC clauses over a `Deed` (choice-legality, [CR#101.2]): the permission FLOOR (`Can`, the
       -- deontic "may" — named `Can` to avoid the one-shot `May`), a `Constrain` (the two COMPULSION
