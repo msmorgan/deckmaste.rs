@@ -1462,6 +1462,10 @@ mutual
       -- "base p/t are x/y" = `Alter Power (Set x)` + `Alter Toughness (Set y)` (a CDA `*/*` sets a dynamic
       -- `Count`). ONE mechanism; subsumes the former `ModifyPT`/`Set`/`AddType`/`AddSubtype`.
       Alter : (c : Characteristic) -> ModificationOp b c -> Modification b
+      -- SEVERAL modifications as one ([CR#613] — "+2/+1 and gains flying"). The plural wrapper that lets
+      -- `Modify` take a SINGLE `Modification`: a bare `List` never floats as an argument — it's always named
+      -- (`Several`, like `Sequence`/`And`/`Or`). `Modify This (Several [Alter Power (Up …), GrantAbility …])`.
+      Several : List (Modification b) -> Modification b
       -- TEXT-CHANGE ([CR#612], a layer-3 mod): "replace all instances of one word with another of its
       -- class" — the eligible classes are listed; the two specific words are the player's resolution-time
       -- choice (engine-resolved, like `Choose`). Mind Bend = `ChangeText [ColorWords, BasicLandTypes]`.
@@ -1482,9 +1486,10 @@ mutual
       -- continuous modification of ONE subject ([CR#613]): "this gets +1/+1 and gains flying" =
       -- `Modify This [Alter Power (Up …), Alter Toughness (Up …), GrantAbility …]`. The subject is a SINGULAR
       -- `Reference` (`This`, a target, or `It` when iterated). Plurality is lifted OUT to `Each` (below) — there
-      -- is no `Selection` here. A per-subject mod reads the subject as `It` under the `Each` (Coat of Arms =
-      -- `Modify It [Alter Power (Up (CountOf (And [creature, SharesSubtype It, Not (SameAs It)])))]`).
-      Modify : Reference b AnObject -> List (Modification b) -> StaticEffect b
+      -- is no `Selection` here, and exactly ONE `Modification` (use `Several […]` for more than one). A
+      -- per-subject mod reads the subject as `It` under the `Each` (Coat of Arms =
+      -- `Modify It (Several [Alter Power (Up (CountOf (And [creature, SharesSubtype It, Not (SameAs It)])))])`).
+      Modify : Reference b AnObject -> Modification b -> StaticEffect b
       -- iterate a `Selection`, binding each element as `It`, applying a static effect to each — the STATIC twin
       -- of the one-shot `Each` ([CR#611]). Anthem = `Each (SelectAll (And [creature, ControlledBy you])) (Modify
       -- It […])`; fixed set = `Each (Union …) …`. Because a `StaticEffect` is re-evaluated each layer pass, the
@@ -1699,8 +1704,8 @@ namespace Card
 -- (`CountersOn c This` reads the count). The rest confer nothing intrinsic.
 public export
 counterConfers : CounterKind -> List (Ability b)
-counterConfers P1P1 = [Static (Modify This [Alter Power (Up (CountersOn P1P1 This)), Alter Toughness (Up (CountersOn P1P1 This))])]
-counterConfers M1M1 = [Static (Modify This [Alter Power (Down (CountersOn M1M1 This)), Alter Toughness (Down (CountersOn M1M1 This))])]
+counterConfers P1P1 = [Static (Modify This (Several [Alter Power (Up (CountersOn P1P1 This)), Alter Toughness (Up (CountersOn P1P1 This))]))]
+counterConfers M1M1 = [Static (Modify This (Several [Alter Power (Down (CountersOn M1M1 This)), Alter Toughness (Down (CountersOn M1M1 This))]))]
 counterConfers _    = []
 
 -- what a SUBTYPE confers on its bearer. The Aura falls-off SBA ([CR#704.5m], a `Static (Sba …)`) and the
