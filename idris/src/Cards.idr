@@ -1151,7 +1151,7 @@ card_PineWalker = Normal $ ^:
   }
 
 -- Cackling Counterpart — token COPY: "Create a token that's a copy of target creature you control."
--- `CreateTokenCopy` over a target; no alterations, so nothing layers on. (Flashback omitted — cast-from-
+-- `Copy` over a target; no alterations, so nothing layers on. (Flashback omitted — cast-from-
 -- graveyard is a separate gap.)
 export
 card_CacklingCounterpart : Card
@@ -1161,7 +1161,7 @@ card_CacklingCounterpart = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [Target (^1) (And [creature, ControlledBy you])]
-          (Act (CreateTokenCopy (GetTarget 0)))) ]
+          (Act (Copy (GetTarget 0)))) ]
   }
 
 -- Tarmogoyf — the canonical CDA: "*/1+*, where * is the number of card types among cards in all
