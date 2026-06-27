@@ -48,15 +48,21 @@ public export
 inHand : Predicate b AnObject
 inHand = InZone Hand
 
--- player-predicates ([CR#102.1]): `you` is the controller; `opponent` is any OTHER player
--- (team-free — "a player who isn't you"). Feed `ControlledBy`/`Actor`/`Target (^1)`/`SelectAll`.
+-- player-predicates: `you` is the controller; `opponent`/`teammate` are TEAM-relative ([CR#102.3]) — an
+-- opponent is a player NOT on your team (NOT merely "not you": a teammate in Two-Headed Giant is neither),
+-- a teammate another player ON your team. Lowercase sugar for the `Opponent`/`Teammate` engine primitives.
+-- Feed `ControlledBy`/`Actor`/`Target (^1)`/`SelectAll`.
 public export
 you : Predicate b APlayer
 you = SameAs You
 
 public export
 opponent : Predicate b APlayer
-opponent = Not (SameAs You)
+opponent = Opponent
+
+public export
+teammate : Predicate b APlayer
+teammate = Teammate
 
 -- "at the beginning of the next end step" — the common delayed-trigger event.
 public export
@@ -203,33 +209,36 @@ modifyPT op = [Alter Power op, Alter Toughness (ptTwin op)]
 -- so a simultaneous `Each` over the top-n needs no `Arrangement`.
 public export
 mill : Count b -> OneShotEffect b
-mill n = Each (TopOfLibrary n) (Act (Move It (ToZone Graveyard)))
+mill n = Act (Composite Mill (Each (TopOfLibrary n) (Act (Move It (ToZone Graveyard)))))
 
 -- scry n ([CR#701.22a]): look at the top n, then put each on top or on the bottom; the within-group
 -- order is the [CR#401.4] "any order" freebie (simultaneous `Each`). The per-card top/bottom pick is a
 -- 1-of-2 `Modal`.
 public export
 scry : Count b -> OneShotEffect b
-scry n = With (Existing (TopOfLibrary n))
-  (Each That
-    (Modal (MkChooseSpec (Range (Just (^1)) (Just (^1))))
-      [ MkMode (Act (Move It (ToLibrary (FromTop (^0)))))
-      , MkMode (Act (Move It (ToLibrary (FromBottom (^0))))) ]))
+scry n = Act (Composite Scry
+  (With (Existing (TopOfLibrary n))
+    (Each That
+      (Modal (MkChooseSpec (Range (Just (^1)) (Just (^1))))
+        [ MkMode (Act (Move It (ToLibrary (FromTop (^0)))))
+        , MkMode (Act (Move It (ToLibrary (FromBottom (^0))))) ]))))
 
 -- surveil n ([CR#701.25a]): scry's shape, but the spill zone is the graveyard, not the library bottom.
 public export
 surveil : Count b -> OneShotEffect b
-surveil n = With (Existing (TopOfLibrary n))
-  (Each That
-    (Modal (MkChooseSpec (Range (Just (^1)) (Just (^1))))
-      [ MkMode (Act (Move It (ToLibrary (FromTop (^0)))))
-      , MkMode (Act (Move It (ToZone Graveyard))) ]))
+surveil n = Act (Composite Surveil
+  (With (Existing (TopOfLibrary n))
+    (Each That
+      (Modal (MkChooseSpec (Range (Just (^1)) (Just (^1))))
+        [ MkMode (Act (Move It (ToLibrary (FromTop (^0)))))
+        , MkMode (Act (Move It (ToZone Graveyard))) ]))))
 
 -- fight ([CR#701.14a]): two creatures each deal damage equal to their power to the other (simultaneous).
 public export
 fight : Reference b AnObject -> Reference b AnObject -> OneShotEffect b
-fight x y = Sequence [ Act (DealDamage {source = x} y (StatOf x Power))
-                     , Act (DealDamage {source = y} x (StatOf y Power)) ]
+fight x y = Act (Composite Fight
+  (Sequence [ Act (DealDamage {source = x} y (StatOf x Power))
+            , Act (DealDamage {source = y} x (StatOf y Power)) ]))
 
 -- "Protection from [q]" ([CR#702.16]): the DEBT bundle, keyed to the quality `q` — can't be Damaged by
 -- `q` sources, Enchanted/equipped by `q`, Blocked by `q`, or Targeted by `q`. ONE construct over the
@@ -287,8 +296,15 @@ keyword (Hexproof Nothing)  = hexproof
 keyword (Hexproof (Just f)) = hexproofFrom f
 keyword Morph               = Keyword (Bare Morph)   -- DEGENERATE (bare morph carries no cost) — use the `morph <cost>` macro for the real ability
 keyword Flashback           = Keyword (Bare Flashback)  -- DEGENERATE (bare flashback carries no cost) — use the `flashback <cost>` macro for the real ability
+keyword Dash                = Keyword (Bare Dash)        -- DEGENERATE (alt cost + rider ride a `dash <cost>` macro)
+keyword Evoke               = Keyword (Bare Evoke)       -- DEGENERATE (use an `evoke <cost>` macro)
+keyword Blitz               = Keyword (Bare Blitz)       -- DEGENERATE (use a `blitz <cost>` macro)
+keyword Prowl               = Keyword (Bare Prowl)       -- DEGENERATE (alt cost + `when` guard ride a `prowl <cost>` macro)
+keyword Spectacle           = Keyword (Bare Spectacle)   -- DEGENERATE (use a `spectacle <cost>` macro)
 keyword Devoid              = devoid
 keyword (Protection q)      = protection q
+keyword (Banding mq)        = Keyword (Bare (Banding mq))  -- INTRINSIC; the engine bakes banding's combat rules off the tag
+keyword Mutate              = Keyword (Bare Mutate)        -- DEGENERATE (alt cost + merge ride a `mutate <cost>` macro)
 
 -- KEYWORD ACTIONS (composite verbs over the primitives — the Idris analogue of the engine's
 -- keyword-action macros; named here rather than inlined per card).

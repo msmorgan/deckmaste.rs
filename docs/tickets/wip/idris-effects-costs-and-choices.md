@@ -39,9 +39,13 @@ pressure.
 9. **Ability modification.** `LoseKeyword : KeywordSpec -> Modification` (selective — "loses
    flying"; `LoseAbilities` is all-or-nothing) and `InheritAbilities : Reference b AnObject ->
    Modification` (grant a runtime object's abilities — Conspicuous Snoop, Necrotic Ooze).
-10. **`CantReplace : EventQuery -> Predicate -> StaticEffect`** — suppress a replacement class
-    ("can't be regenerated", "damage can't be prevented", Split Second). `CantHappen` targets
-    events, not effects.
+10. ~~`CantReplace`~~ **— STRUCK; not a gap.** These aren't replacement-suppression: "can't be
+    countered/regenerated" is the `cant` deontic on the `Enact` spine (`cant (Enact Counter …)`
+    already works); Split Second is `Continuously (UntilEvent <leaves Stack>) (cant (Enact
+    Cast/Activate Anyone …))` (with a mana-ability carve-out); and "damage can't be prevented" is
+    PREVENTION ([CR#615]), a separate mechanism from replacement ([CR#614]). The only residual is
+    a micro-extension: add `Regenerate` to the `Enact` `Relation` set so "can't be regenerated"
+    expresses on the spine. (Prevention machinery, if needed, is its own item — not this.)
 11. **`Modify` reaching non-battlefield zones** — graveyard/hand statics (Satoru hand-ninjutsu,
     Riftstone Portal). Add a source-zone field on `Modify`.
 12. **Enter attacking** — optional `enteringAttacking : Maybe (Reference b APlayer)` on

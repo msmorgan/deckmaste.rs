@@ -111,6 +111,8 @@ namespace Zone
     | Graveyard
     | Hand
     | Library
+    | Sideboard   -- a private, searchable, UNORDERED out-of-game store ([MTR 2.4] sideboard) — Wishes (Burning/Living Wish)
+                  -- fetch from here. NOT the CR's nebulous "outside the game": a concrete zone (deck 75 = library 60 + sideboard 15).
     | Stack
 
 -- Subtypes are partitioned by card type [CR#205.3g..205.3q]; each belongs to
@@ -242,9 +244,11 @@ namespace Characteristic
 
 -- a PLAYER's numeric attributes — the player-side twin of the object `Characteristic`
 -- numeric axes. Read via `PlayerStatOf` (a `Count`), mirroring `StatOf` for objects.
+-- `HandSizeLimit` (normally 7) and `LandPlaysPerTurn` (normally 1) are caps modified by
+-- statics (Reliquary Tower / Exploration) via `ModifyPlayer`; "no maximum" is `NoMax` (not a value).
 namespace PlayerAttr
   public export
-  data PlayerAttr = Life | HandSize
+  data PlayerAttr = Life | HandSize | HandSizeLimit | LandPlaysPerTurn
 
 -- the numeric axes — gate `Up`/`Down` (write delta, layer 7c) AND the numeric reads (`StatOf`/`StatCmp`/
 -- `TapTotal`). `Defense` is lax-included (setting/pumping it is a describable no-op, like loyalty). The file's
@@ -368,6 +372,7 @@ namespace Relation
                 | Cast | Activate | Play     -- the stack: a PLAYER casts a spell / activates an ability / plays a card
                 | Attach                      -- an aura/equipment (object) attaches to a host
                 | Target | Counter           -- a source (spell/ability, object) targets / counters an object
+                | Regenerate                  -- a player regenerates an object ([CR#701.19]); lets `cant (Enact Regenerate Anyone (SameAs This))` express "can't be regenerated"
 
 public export
 agentScope : Relation -> RefKind
@@ -379,6 +384,7 @@ agentScope Play     = APlayer
 agentScope Attach   = AnObject
 agentScope Target   = AnObject   -- the source (a spell/ability) does the targeting
 agentScope Counter  = AnObject   -- the source (a spell/ability) does the countering
+agentScope Regenerate = APlayer  -- the controller regenerates the creature
 
 -- the two participant SLOTS, as role selectors for the durative aspect (`Holds Attack Agent` = an attacker,
 -- `Holds Block Patient` = a blocked creature). `Agent`/`Patient` are the SAME role pair the event `Facet`s
@@ -669,8 +675,25 @@ mutual
       Hexproof : Maybe (Predicate b AnObject) -> KeywordSpec b   -- "from [filter]" — a SOURCE predicate (objects); "from a player" = ControlledBy that player
       Morph : KeywordSpec b   -- the tag for the `morph` macro ([CR#702.37]); the face-up cost rides its desugared `TurnFaceUp` (bare here — `KeywordSpec` precedes `Cost`)
       Flashback : KeywordSpec b -- the tag for the `flashback` macro ([CR#702.34]); the cost rides its desugared `MayCastFor` (bare — `KeywordSpec` precedes `Cost`). Engine applies the [CR#702.34a] exile-instead-of-graveyard off this tag.
+      -- ALTERNATIVE-COST tags: each is `MayCastFor [altCost] {tag = Just X}` + a rider keyed on `WasCastWith X`
+      -- ("if its X cost was paid"). Dash ([CR#702.109]): haste + return to hand at end of turn. Evoke
+      -- ([CR#702.74]): sacrifice on ETB. Blitz ([CR#702.152]): haste + sac EOT + draw-on-death. Prowl
+      -- ([CR#702.76]) and Spectacle ([CR#702.137]) ride a `{when}` availability guard instead of an ETB rider.
+      Dash : KeywordSpec b
+      Evoke : KeywordSpec b
+      Blitz : KeywordSpec b
+      Prowl : KeywordSpec b
+      Spectacle : KeywordSpec b
       Devoid : KeywordSpec b  -- "this object is colorless" ([CR#702.114]) — a CDA; desugars to `Set Colors []` on This
       Protection : Predicate b AnObject -> KeywordSpec b   -- "protection from [quality]" ([CR#702.16]) — the tag carries q; desugars to the DEBT bundle (`protection` macro)
+      -- INTRINSIC combat keyword ([CR#702.22]): the band-attacking + damage-assignment-delegation rules are
+      -- engine-baked (not composable data, like Deathtouch). `Nothing` = plain banding; `Just q` = "bands with
+      -- other [q]" ([CR#702.22b], the quality-restricted band). Bare — `keyword (Banding mq) = Bare (Banding mq)`.
+      Banding : Maybe (Predicate b AnObject) -> KeywordSpec b
+      -- the tag for the `mutate <cost>` macro ([CR#702.140]): an ALTERNATIVE cost (rides `MayCastFor {tag = Just
+      -- Mutate}`, like Dash) whose intrinsic MERGE ([CR#730]) the engine bakes off this tag. Bare here (the cost
+      -- rides the macro); degenerate in `keyword`, like Flashback/Morph.
+      Mutate : KeywordSpec b
   -- A REFERENCE to a single game entity, indexed by `RefKind` (object vs player). One
   -- reference language now: object-refs and player-refs together, strict on the kind
   -- where it matters (`StatOf` needs `AnObject`, `PlayerStatOf` needs `APlayer`) and lax
@@ -824,6 +847,8 @@ mutual
       SameName : Reference b AnObject -> Predicate b AnObject   -- shares a name with r ("named [its own name]" = SameName This)
       SharesChar : (c : Characteristic) -> {auto 0 _ : Collection c} -> Reference b AnObject -> Predicate b AnObject   -- shares ≥1 element of collection axis c with r (Coat of Arms: `SharesChar Subtypes It`); `SharesColor`/`SharesType` are just `SharesChar Colors`/`SharesChar Types`. Sugar: `sharesSubtype`.
       WasCastFrom : Zone -> Predicate b AnObject -- the object was cast from this zone (cast provenance)
+      WasCastWith : KeywordSpec b -> Predicate b AnObject  -- cast using the keyword's ALTERNATIVE cost ("if its dash cost was paid",
+                                                 -- [CR#702.109a] etc.) — the alt-cost twin of `WasCastFrom`; engine records the `MayCastFor` tag used
       ExiledBy : Reference b AnObject -> Predicate b AnObject   -- set aside by r's effect ("cards exiled by this" = ExiledBy
                                                  -- This); the engine holds the association ([CR#607] linked abilities)
       DamagedBy : Reference b AnObject -> Predicate b AnObject  -- was dealt damage by r THIS TURN ("a creature dealt damage
@@ -842,6 +867,9 @@ mutual
       -- `And [creature, StatCmp Power LessEq (^2)]`. (Closes the "no stat filter" hole — stat
       -- comparison was a `Condition` only; this lifts it into the `Predicate`/filter language.)
       StatCmp : (c : Characteristic) -> {auto 0 _ : Numeric c} -> Cmp -> Count b -> Predicate b AnObject
+      -- the PLAYER-side stat filter — "an opponent has 10 or less life" = `And [opponent, PlayerStatCmp Life LessEq (^10)]`.
+      -- The player twin of `StatCmp`; reads the SUBJECT player's `PlayerAttr`.
+      PlayerStatCmp : PlayerAttr -> Cmp -> Count b -> Predicate b APlayer
       ControlledBy : Predicate b APlayer -> Predicate b AnObject   -- controller MATCHES a player-pred: "you control" = ControlledBy you, "an opponent controls" = ControlledBy opponent
       OwnedBy : Predicate b APlayer -> Predicate b AnObject
       Controls : Predicate b AnObject -> Predicate b APlayer   -- the INVERSE: a PLAYER who controls a [pred] ("each player who controls a creature")
@@ -859,6 +887,12 @@ mutual
       OfChosen : {auto prf : IsCharDomain (chosenKind b)} -> Predicate b AnObject
       -- `Anyone` is the player top-predicate ("any player" — a person, hence `APlayer`).
       Anyone : Predicate b APlayer
+      -- team-relative player predicates ([CR#102.3]): `Opponent` = a player NOT on your team; `Teammate` = another
+      -- player ON your team. PRIMITIVE — the engine resolves team membership; they are NOT `Not (SameAs You)`, which
+      -- wrongly counts a teammate as an opponent in Two-Headed Giant ([CR#810]) and other team games. ("you" stays
+      -- the derived `SameAs You`; "your team" [CR#102.4] = `Or [SameAs You, Teammate]`.)
+      Opponent : Predicate b APlayer
+      Teammate : Predicate b APlayer
       -- combinators (`Predicate.And/Or/Not`, sharing names with `Condition`/`EventQuery`). `And`
       -- is same-kind — a candidate is ONE kind, so all conjuncts share it. `Or` (the union) is
       -- HETEROGENEOUS: its arms may differ in kind and the result kind is their JOIN
@@ -955,6 +989,12 @@ mutual
 public export
 andCaps : EventCaps -> EventCaps -> EventCaps
 andCaps (MkEventCaps o1 a1 m1) (MkEventCaps o2 a2 m2) = MkEventCaps (o1 && o2) (a1 && a2) (m1 && m2)
+
+-- the UNION twin of `andCaps`: a body gets an anaphor if ANY combined source supplies it. Used to fold the
+-- caps of a composite COST (`Costs […]`) — if one component sacrifices an object, the payment event binds it.
+public export
+orCaps : EventCaps -> EventCaps -> EventCaps
+orCaps (MkEventCaps o1 a1 m1) (MkEventCaps o2 a2 m2) = MkEventCaps (o1 || o2) (a1 || a2) (m1 || m2)
 
 -- the caps a whole event-QUERY guarantees its body: the INTERSECTION over its kind-disjunction — the
 -- body gets only anaphora that EVERY listed kind supplies. Empty `kinds` (any kind) ⇒ `NoCaps`. So a
@@ -1264,6 +1304,18 @@ mutual
       Optional   : List (Cost b) -> CostChange b            -- Additional's baby brother: "you may pay …" (the kicker/buyback shape) [CR#118.8b]
       ScaledBy   : CostChange b -> Count b -> CostChange b  -- the change applied once per unit of the count (affinity)
 
+  -- which pips of a spell's total cost an alternative payment ([CR#601.2]) may cover.
+  namespace PipClass
+    public export
+    data PipClass = GenericPip | ColorPip   -- generic {1}, or a colored pip the helper must color-match (convoke's colored clause)
+
+  -- the per-{1} alternative-payment action for `PayPips` ([CR#601.2]) — the object is chosen at payment time.
+  namespace PayAct
+    public export
+    data PayAct : Bindings -> Type where
+      TapToPay   : Predicate b AnObject -> PayAct b   -- tap an untapped matching permanent you control (convoke creatures / improvise artifacts / waterbend artifacts-or-creatures)
+      ExileToPay : Predicate b AnObject -> PayAct b   -- exile a matching card from your graveyard (delve)
+
   -- The printable CHARACTERISTICS of an object ([CR#109.3]) — shared by a card `Face`
   -- (`Characteristics Base`) and a created token (`Characteristics b`, so a token's P/T can be a
   -- `Count b`: "an X/X where X = [a value known at creation]"). `colors` is the explicit color (a
@@ -1302,6 +1354,16 @@ mutual
       GrantOnSpend   : StaticEffect (bindIt AnObject b) -> ManaRider b   -- (2) the object it's spent on (`It`) gains [static] (Cavern's "that spell can't be countered")
       TriggerOnSpend : OneShotEffect (bindIt AnObject b) -> ManaRider b  -- (3) a delayed trigger when the mana is spent ([CR#603.7a]); `It` = the object paid for
 
+  -- the COMPOSITE keyword actions ([CR#701]) — the ones the grammar desugars rather than naming as a
+  -- primitive verb (Reveal/Shuffle/Destroy/… ARE primitive verbs below). Their mechanics are just the
+  -- primitives, but the engine must still RECOGNIZE the verb so triggers/replacements can name it
+  -- ("whenever you scry", Aang's "whenever you waterbend …"). The amount/operands ride the desugared
+  -- body, so the tag is a unit; `Action.Composite` carries it. Minimal set today — the four with macros;
+  -- grows with card pressure (Surveil, Proliferate, the bends, …).
+  namespace KeywordActionSpec
+    public export
+    data KeywordActionSpec = Scry | Surveil | Mill | Fight
+
   -- The verbs ([CR#701]). `Effect::Act` wraps these. Object verbs carry an object
   -- `source` (default `This`); player verbs an `actor : Reference b APlayer` (default `You`).
   namespace Action
@@ -1312,8 +1374,10 @@ mutual
       DealDamage : {default This source : Reference b AnObject} -> Reference b k -> Count b -> Action b
       -- (divided damage — "N damage divided as you choose among [a group]" — is the general `Distribute`
       --  effect: `Distribute (^n) group (Act (DealDamage It Allotment))`, not a bespoke action.)
-      -- a plain zone change [CR#400.7]; owner-relative, control implicit.
-      Move : Reference b AnObject -> Destination b -> Action b
+      -- a plain zone change [CR#400.7]; owner-relative, control implicit. `enteringAttacking` ([CR#508.4],
+      -- default `Nothing`): on a battlefield destination, put the object on ATTACKING the named player
+      -- (Ninjutsu's "tapped and attacking", Encore) — senseless (no-op) for any non-battlefield destination.
+      Move : Reference b AnObject -> Destination b -> {default Nothing enteringAttacking : Maybe (Reference b APlayer)} -> Action b
       -- (There is no "exile until ~" verb. A duration-bounded zone change is `Relocate` (a
       --  StaticEffect) under a `Continuously`/`While` duration — see `Relocate` and
       --  card_BanishingLight. Permanent exile is just `Move … (ToZone Exile)`.)
@@ -1355,11 +1419,15 @@ mutual
       -- player verbs: discard / lose life; and a chooser-verb where a player sacrifices.
       Discard : {default You actor : Reference b APlayer} -> Count b -> Action b
       LoseLife : {default You actor : Reference b APlayer} -> Count b -> Action b
+      -- SET a player's life to N ([CR#119.5] — the player GAINS or LOSES the difference to reach N, so this DOES
+      -- fire life-change triggers; it's distinct from `GainLife`/`LoseLife` only in naming the target total). Biorhythm.
+      SetLifeTo : {default You actor : Reference b APlayer} -> Count b -> Action b
       Sacrifice : {default You actor : Reference b APlayer} -> Predicate b AnObject -> Action b   -- "sacrifices a [pred]" (the actor chooses which; defaults to You)
       -- further keyword-action verbs ([CR#701]). The interactive bits (reorder, search choice, copy
-      -- characteristics) are the engine's; the grammar names the verb. Scry/Surveil/Fight are NOT verbs
-      -- here — they COMPOSITE over primitives (`Each`/`With`/`Modal`/`Move`/`DealDamage`) as
-      -- macros in `Macros.idr`, exactly like the keyword ABILITIES.
+      -- characteristics) are the engine's; the grammar names the verb. Scry/Surveil/Mill/Fight are NOT
+      -- primitive verbs — they COMPOSITE over these primitives (`Each`/`With`/`Modal`/`Move`/`DealDamage`)
+      -- as macros in `Macros.idr`, then wrap that desugaring in `Composite` (below) so the engine still
+      -- RECOGNIZES the action — exactly the keyword ABILITIES' `Bare`/`Composite` split, on the verb side.
       Reveal : Reference b AnObject -> Action b
       Shuffle : {default You actor : Reference b APlayer} -> Action b
       -- "[player] takes an extra turn after this one" ([CR#500.7]) — Time Walk.
@@ -1367,9 +1435,12 @@ mutual
       -- "you control [whom] during their next turn" ([CR#723]) — Mindslaver: you make all of their
       -- decisions. The next-turn duration is the standard one the engine applies.
       ControlPlayer : (whom : Reference b APlayer) -> Action b
-      CreateToken : Count b -> (c : Characteristics b) -> {auto wf : CharacteristicsOk c} -> Action b   -- the token's full characteristics (P/T may be a `Count b`)
-      CopySpell : Reference b AnObject -> Action b                   -- "copy target SPELL" (a copy on the stack); permanent-copy is `BecomeCopyOf`/`CreateTokenCopy`
-      CreateTokenCopy : Reference b AnObject -> Action b             -- "create a token that's a COPY of [r]" ([CR#707.2]); alterations layer on separately
+      -- the token's full characteristics (P/T may be a `Count b`); `enteringAttacking` ([CR#508.4], default
+      -- `Nothing`) = create it ATTACKING the named player (Myriad/Encore's "attacking that [opponent]").
+      CreateToken : Count b -> (c : Characteristics b) -> {auto wf : CharacteristicsOk c} -> {default Nothing enteringAttacking : Maybe (Reference b APlayer)} -> Action b
+      Copy : Reference b AnObject -> Action b                        -- "copy [r]" — a spell/ability copy on the stack ([CR#707.10]) or a token copy of a permanent ([CR#707.2]); a permanent BECOMING a copy is `BecomeCopyOf`. Copies carry the original's modes/targets/X; "you may choose new targets" is a separate `ChooseNewTargets`
+      ChangeTarget : (of_ : Reference b AnObject) -> (to : Reference b AnObject) -> Action b  -- redirect [of_]'s target to the NAMED [to] (Spellskite → `This`); engine leaves it unchanged if [to] isn't a legal target ([CR#115.7a])
+      ChooseNewTargets : (of_ : Reference b AnObject) -> {default You by : Reference b APlayer} -> Action b  -- [by] PICKS new legal targets for [of_], bound by the original targetspec (Bolt Bend, Redirect, copy-with-new-targets) ([CR#115.7d])
       -- "add mana" (a mana-ability effect; pool/paying is engine) ([CR#106.1,106.4]). ONE verb (merges the
       -- old `AddMana` + `AddManaFor`): `amount` copies of one `ProducedMana`, so fixed "{C}" (`amount = ^1`),
       -- {X}/devotion/count-scaled production (Gaea's Cradle, Karametra's Acolyte), and a producer-chosen
@@ -1379,6 +1450,33 @@ mutual
       -- `Sequence` of `AddMana`s, so the old per-action list is gone.)
       AddMana : {default You actor : Reference b APlayer} -> (amount : Count b) -> ProducedMana
                 -> {default [] riders : List (ManaRider b)} -> Action b
+      -- a COMPOSITE keyword action ([CR#701]): `tag` NAMES the verb, `body` is its primitive desugaring
+      -- (`Each`/`With`/`Modal`/`Sequence` over the verbs above). The action-side twin of
+      -- `KeywordAbility.Composite` — the mechanics are just the primitives, but the tag lets the engine
+      -- RECOGNIZE the action ("scry 2" = `Composite Scry (…)`) so "whenever you scry"/Aang's "whenever
+      -- you waterbend" match. Built by the `scry`/`surveil`/`mill`/`fight` macros. Rust: Effect::KeywordAction.
+      Composite : KeywordActionSpec -> OneShotEffect b -> Action b
+
+  -- the event-anaphor caps the PAYMENT of a cost-action supplies its `AdditionalCost` body — the cost-side
+  -- twin of `eventKindCaps`, for the object-moving cost verbs. Sacrifice/Discard bind the moved object
+  -- (`EventObject`) + payer (`EventActor`); a zone change (exile-to-pay) binds the object. Mana/tap/life pay
+  -- with no object to name → `NoCaps`. (Extend as exile/discard cost-references appear.)
+  public export
+  actionEventCaps : Action b -> EventCaps
+  actionEventCaps (Sacrifice _) = eventKindCaps Sacrifice
+  actionEventCaps (Discard _)   = eventKindCaps Discard
+  actionEventCaps (Move _ _)    = eventKindCaps (ZoneChanged Nothing Nothing)
+  actionEventCaps _             = NoCaps
+
+  -- the caps a COST's payment supplies its `AdditionalCost` body: an action pays via its event; a composite
+  -- `Costs […]` UNIONS (any object-moving component binds), `Scaled` rides its inner cost; pure mana binds
+  -- nothing. Mirrors `eventQueryCaps` — the value-driven cap derivation an `AdditionalCost` body's type uses.
+  public export
+  costCaps : Cost b -> EventCaps
+  costCaps (Do a)       = actionEventCaps a
+  costCaps (Scaled _ c) = costCaps c
+  costCaps (Costs cs)   = foldl orCaps NoCaps (map costCaps cs)
+  costCaps _            = NoCaps
 
   -- What a binder (`With`) binds as `That`: a QUERY of existing objects, a PRODUCER
   -- (an `Action` run for effect, binding its product), or a CHOICE (a player picks).
@@ -1411,6 +1509,11 @@ mutual
       Targeted : {ks : List RefKind} -> All (TargetSpec b) ks -> OneShotEffect (bindTargets ks b) -> OneShotEffect b
       -- binds `that` as `That` (of the bound kind) for `body`; `that` may PRODUCE a moved object. Rust: Effect::With.
       With : Bindable b k -> OneShotEffect (bindThat k b) -> OneShotEffect b
+      -- mid-resolution VALUE choice: "choose a [color/type/name/number/mode], then [body]".
+      -- The effect-level twin of `AsEnters` (which is enters-only) — `body` runs at `bindChosen d b`, reading the
+      -- pick via `OfChosen`/`ChosenIs`/`ChosenNumber`. Three Tree City's "{2},{T}: Choose a color. Add mana of
+      -- that color…" = `WithChosenValue AColor (Act (AddMana … <of the chosen color>))`. Rust: Effect::WithChosenValue.
+      WithChosenValue : (d : ChooseDomain) -> {auto 0 ok : ModeDomainOk d} -> OneShotEffect (bindChosen d b) -> OneShotEffect b
       -- a single intrinsic instruction (the verb compartment). Rust: Effect::Act.
       Act : Action b -> OneShotEffect b
       -- end the game (or a player's part in it) — the `Outcome` compartment. Rust: Effect::Conclude.
@@ -1426,11 +1529,30 @@ mutual
       --    (Mana Leak: "counter target spell unless its controller pays {2}"; supersedes `Unless`).
       MayPay  : {default You actor : Reference b APlayer} -> Cost b -> (and_then : OneShotEffect b) -> {default Nothing or_else : Maybe (OneShotEffect b)} -> OneShotEffect b
       MustPay : {default You actor : Reference b APlayer} -> Cost b -> (or_else : OneShotEffect b) -> OneShotEffect b
+      -- "As an additional cost, [pay]." Mirrors the printed additional-cost CLAUSE: the payment is an EVENT, so
+      -- `body` reads the sacrificed/exiled object through the SAME `EventObject`/`EventActor`/`EventAmount`
+      -- anaphors a trigger uses ("the sacrificed creature's power" = `StatOf EventObject Power`; Fling/Momentous
+      -- Fall). At the ROOT of a `Spell`/`Activated` effect the engine HOISTS it to cast/activation time (the
+      -- printed additional cost, [CR#601.2f,118.8]); nested, it's an extra resolution-time cost. The body's caps
+      -- are value-derived (`costCaps pay`), exactly like `Delayed`/`Triggered`. Rust: Effect::AdditionalCost.
+      AdditionalCost : (pay : Cost b) -> OneShotEffect (bindEvent (costCaps pay) b) -> OneShotEffect b
       -- create a continuous effect for a duration ([CR#611.2]): `Continuously UntilEndOfTurn (Modify This …)`.
       -- Duration FIRST so it reads "continuously, for [duration], [effect]". Rust: Effect::Continuously.
       Continuously : Duration b -> StaticEffect b -> OneShotEffect b
       -- choose modes, then apply them ([CR#700.2]). Rust: Effect::Modal.
       Modal : (spec : ChooseSpec b) -> (modes : List (Mode b)) -> {auto 0 ne : NonEmpty modes} -> {auto 0 cnt : ModalCountOk spec (length modes)} -> OneShotEffect b
+      -- a VOTE ([CR#701.38]): starting with `starting` and proceeding in turn order ([CR#701.38a]), each player
+      -- votes for one option on the `ballot`; the tally drives the effect. The two CR option kinds ([CR#701.38b])
+      -- are the two `Ballot` arms (objects vs labeled outcomes) — Council's Judgment / Tyrant's Choice. The
+      -- per-player vote and tally are engine-resolved; the grammar names the starting player + the ballot. Rust: Effect::Vote.
+      Vote : {default You starting : Reference b APlayer} -> Ballot b -> OneShotEffect b
+      -- DIVIDE AND CHOOSE (Fact or Fiction): the `divider` splits `group` into two piles; the `chooser` picks one
+      -- as the "chosen" pile, the rest is "other". Each pile is just a BOUND GROUP, so it rides the existing `That`
+      -- anaphor — `chosen`/`other` run at `bindThat AnObject` and read their pile as `That` (no bespoke pile slot;
+      -- a pile IS what `With` binds). FoF = `DivideAndChoose (TopOfLibrary (^5)) (Single (SelectAll Opponent))
+      -- (chosen = Each That (Act (Move It (ToZone Hand)))) (other = Each That (Act (Move It (ToZone Graveyard))))`.
+      -- The split + pick are engine-resolved; the grammar names who does each and the per-pile fate. Rust: Effect::DivideAndChoose.
+      DivideAndChoose : (group : Selection b AnObject) -> (divider : Reference b APlayer) -> {default You chooser : Reference b APlayer} -> (chosen : OneShotEffect (bindThat AnObject b)) -> (other : OneShotEffect (bindThat AnObject b)) -> OneShotEffect b
       -- "for each [domain], [body]" — binds each element as `It`. The distributive
       -- primitive (subsumes the old `Selection::Each`). Rust: Effect::ForEach.
       Each : Selection b k -> OneShotEffect (bindIt k b) -> OneShotEffect b
@@ -1452,6 +1574,38 @@ mutual
     data Mode : Bindings -> Type where
       MkMode : (effect : OneShotEffect b) -> {default Nothing cost : Maybe (Cost b)} -> Mode b
 
+  -- one labeled option of an OUTCOME vote ([CR#701.38b]): a `word` with no rules meaning (cosmetic — it appears
+  -- on the card and players say it aloud) paired with the `effect` that runs if it wins. Its mechanical identity
+  -- is its POSITION in the `Outcomes` list (what `tiebreak` indexes); `word` is for rendering/communication.
+  namespace VoteOption
+    public export
+    data VoteOption : Bindings -> Type where
+      MkVoteOption : (word : String) -> (effect : OneShotEffect b) -> VoteOption b
+
+  -- a vote's BALLOT — the two CR option kinds ([CR#701.38b]). `OverMatching`: each player votes for one object
+  -- matching the predicate; the engine tallies and binds each WINNER (most votes — ties all included) as `It`,
+  -- running `perWinner` once per winner (Council's Judgment = `OverMatching <nonland perm you don't control>
+  -- (Act (Move It (ToZone Exile)))`). `Outcomes`: a fixed nonempty list of labeled outcomes; the winning option's
+  -- effect runs, with `tiebreak` (an index into `options`, default the first) naming who wins a tie (Tyrant's
+  -- Choice = torture). An out-of-range `tiebreak` is a senseless no-op (grammar-layer concern, not gated).
+  namespace Ballot
+    public export
+    data Ballot : Bindings -> Type where
+      OverMatching : Predicate b AnObject -> OneShotEffect (bindIt AnObject b) -> Ballot b
+      Outcomes : (options : List (VoteOption b)) -> {auto 0 ne : NonEmpty options} -> {default 0 tiebreak : Nat} -> Ballot b
+
+  -- a continuous modification to a PLAYER attribute — the player-side twin of `ModificationOp`. `Raise`/`Lower`/
+  -- `SetTo` adjust a count-valued attr (Exploration = `Raise LandPlaysPerTurn (^1)`); `NoMax` removes a cap
+  -- (Reliquary Tower = `NoMax HandSizeLimit`, the "no maximum hand size" case — kept an op, not a `Maybe Count`
+  -- value, since `PlayerStatOf` is a `Count` reader). Carried by `ModifyPlayer`.
+  namespace PlayerMod
+    public export
+    data PlayerMod : Bindings -> Type where
+      SetTo : PlayerAttr -> Count b -> PlayerMod b
+      Raise : PlayerAttr -> Count b -> PlayerMod b
+      Lower : PlayerAttr -> Count b -> PlayerMod b
+      NoMax : PlayerAttr -> PlayerMod b
+
   -- A continuous modification a static ability applies to its subject.
   namespace Modification
     public export
@@ -1472,8 +1626,12 @@ mutual
       -- choice (engine-resolved, like `Choose`). Mind Bend = `ChangeText [ColorWords, BasicLandTypes]`.
       ChangeText : List TextWordClass -> Modification b
       LoseAbilities : Modification b                      -- "loses all abilities" (Humility-style)
+      LoseKeyword : KeywordSpec b -> Modification b       -- SELECTIVE removal — "loses flying" (vs `LoseAbilities`' all-or-nothing)
       GainControl : Reference b APlayer -> Modification b         -- "[player] gains control"
       GrantAbility : Ability b -> Modification b
+      -- gain ALL of another object's abilities at runtime (the set is resolved from `r`, not statically listed) —
+      -- Necrotic Ooze (abilities of creature cards in graveyards), Conspicuous Snoop (top card of your library).
+      InheritAbilities : Reference b AnObject -> Modification b
       -- "becomes a COPY of [r]" ([CR#707.2], layer 1 — copiable values). Alterations ("a copy, except it's
       -- a 4/4") are SEPARATE higher-layer mods (Continuously/Modify on the result), not bundled here.
       BecomeCopyOf : Reference b AnObject -> Modification b
@@ -1491,6 +1649,9 @@ mutual
       -- per-subject mod reads the subject as `It` under the `Each` (Coat of Arms =
       -- `Modify It (ApplyAll [Alter Power (Up (CountOf (And [creature, SharesChar Subtypes It, Not (SameAs It)])))])`).
       Modify : Reference b AnObject -> Modification b -> StaticEffect b
+      -- the PLAYER-side `Modify`: a continuous modification to a player's attribute (Exploration's extra land
+      -- play, Reliquary Tower's no-maximum-hand-size). The player twin of `Modify`.
+      ModifyPlayer : Reference b APlayer -> PlayerMod b -> StaticEffect b
       -- iterate a `Selection`, binding each element as `It`, applying a static effect to each — the STATIC twin
       -- of the one-shot `Each` ([CR#611]). Anthem = `Each (SelectAll (And [creature, ControlledBy you])) (Modify
       -- It […])`; fixed set = `Each (Union …) …`. Because a `StaticEffect` is re-evaluated each layer pass, the
@@ -1502,6 +1663,11 @@ mutual
       -- "Instant/sorcery spells you cast cost {1} less" = `CostModifier (And […, ControlledBy you]) (Reduce
       -- [^1])`; affinity is a SELF modifier `CostModifier (SameAs This) (ScaledBy (Reduce …) (CountOf …))`.
       CostModifier : Predicate b AnObject -> CostChange b -> StaticEffect b
+      -- ALTERNATIVE PAYMENT of individual cost pips ([CR#601.2] — NOT mana production, NOT a `CostChange` reduction):
+      -- "for each [pips] of THIS spell's total cost, you may [PayAct] rather than pay that mana." A static that
+      -- functions while this is being cast ([CR#702.51a] convoke / [CR#702.66a] delve / [CR#702.126a] improvise; Avatar's
+      -- waterbend bundles it into a named cost). The engine applies it at payment ([CR#601.2g..601.2h]); nothing enters the pool.
+      PayPips : PipClass -> PayAct b -> StaticEffect b
       -- "if [event] would happen, do [effect] INSTEAD" — a replacement ([CR#614]). Empty body = a SKIP
       -- (a replacement that removes the event — e.g. "skip your draw step"). This is NOT a prohibition:
       -- the event still "would happen" and is intercepted; for "can't happen", use `CantHappen` below.
@@ -1540,7 +1706,11 @@ mutual
       -- cost list needs no `AltCost` wrapper). `costs` is the swapped-in cost ([] = "without paying its mana
       -- cost"). `from` defaults to Hand; a non-default zone is the cast-from-zone family ([CR#702.34] flashback =
       -- `{from = [Graveyard]}`; escape/jump-start add a rider). Force of Will = `MayCastFor [Do (LoseLife (^1)), …]`.
-      MayCastFor : List (Cost b) -> {default [Hand] from : List Zone} -> StaticEffect b
+      -- `tag` (default `Nothing`) NAMES the alt cost so a rider can ask `WasCastWith tag` ("if its dash cost was
+      -- paid", Dash/Evoke/Blitz); `when` (default `Nothing`) is an AVAILABILITY guard ([CR#702.76a],[CR#702.137a])
+      -- — the permission only exists if the condition holds (Prowl = combat damage dealt; Spectacle = an opponent
+      -- lost life this turn), unlike an unconditional alt cost.
+      MayCastFor : List (Cost b) -> {default [Hand] from : List Zone} -> {default Nothing tag : Maybe (KeywordSpec b)} -> {default Nothing when : Maybe (Condition b)} -> StaticEffect b
       -- "you may cast THIS face down for [cost]" ([CR#702.37]) — an alternative cast that ALSO turns the
       -- object face down; the engine then applies the global [CR#708.2] 2/2-colorless-vanilla override.
       CastFaceDown : Cost b -> StaticEffect b
@@ -1599,11 +1769,17 @@ mutual
       -- "{cost}: {effect}" — an activated ability ([CR#602]). `window` is its activation timing
       -- (instant by default; `AsSorcery` = "activate only as a sorcery"); `limits` are the
       -- use-frequency caps. A loyalty ability is `{window = AsSorcery, limits = [OncePerTurn]}`.
-      Activated : Cost b -> OneShotEffect b -> {default AsInstant window : Timing} -> {default [] limits : List UsageLimit} -> Ability b
+      -- `from` = the zone(s) the ability FUNCTIONS in ([CR#113.6b], default `[Battlefield]`): Cycling/
+      -- Channel/Forecast from `[Hand]`, Embalm/Unearth from `[Graveyard]` (mirrors engine `ActivatedAbility.from`).
+      -- `activationGuard` = an extra LEGALITY condition ([CR#602.5,702.142a], "activate only if …" — Boast's
+      -- "attacked this turn", Metalcraft, "if you control 3+ Caves"). It gates ACTIVATABILITY, unlike an `If` in
+      -- the body (which leaves the cost payable then fizzles); default `Nothing`.
+      Activated : Cost b -> OneShotEffect b -> {default AsInstant window : Timing} -> {default [] limits : List UsageLimit} -> {default [Battlefield] from : List Zone} -> {default Nothing activationGuard : Maybe (Condition b)} -> Ability b
       -- a triggered ability: when `event` fires, resolve `effect`. `limits` are use-frequency caps —
       -- "triggers only once each turn" = `{limits = [OncePerTurn]}` — the same `UsageLimit` list
-      -- `Activated` carries. Rust: Ability::Triggered.
-      Triggered : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) b) -> {default [] limits : List UsageLimit} -> Ability b
+      -- `Activated` carries. `from` = the zone(s) it functions in ([CR#113.6b], default `[Battlefield]`): a
+      -- graveyard/hand trigger (Madness, "while in your graveyard") sets `[Graveyard]`/`[Hand]`. Rust: Ability::Triggered.
+      Triggered : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) b) -> {default [] limits : List UsageLimit} -> {default [Battlefield] from : List Zone} -> Ability b
       -- a TURN-BASED action ([CR#703]) intrinsic to the bearer: at `phase`, perform `effect` automatically —
       -- no stack, unlike `Triggered`. The Saga lore-increment ([CR#714.3c], conferred by the Saga subtype):
       -- `TurnBased (MainPhase PreCombat) (Act (PutCounters Lore (^1) This))`. (Was the old `PropTurnBased`.)
@@ -1612,7 +1788,10 @@ mutual
       --  PERMISSION (attaching is default-forbidden, so the aura ENABLES it), enters-attached an `Also`,
       --  falls-off an `Sba`. No subtype special-casing.)
       -- a static continuous ability — modifications, anthems, AND replacements live in `StaticEffect`.
-      Static : StaticEffect b -> Ability b
+      -- `from` = the zone(s) the ability FUNCTIONS in ([CR#113.6b], default `[Battlefield]`): a graveyard/hand
+      -- static (Riftstone Portal's land-mana from the graveyard, Satoru hand-ninjutsu enablers) sets
+      -- `[Graveyard]`/`[Hand]`. Unifies with `from` on `Activated`/`Triggered` — function-zone is ability-level.
+      Static : StaticEffect b -> {default [Battlefield] from : List Zone} -> Ability b
       -- "[cost]: turn This face up" ([CR#708.9]) — a SPECIAL action (not stack-using), not an `Activated`
       -- ability. Pays [cost], removes `FaceDown`. The face-up cost of `morph`/`disguise`.
       TurnFaceUp : Cost b -> Ability b

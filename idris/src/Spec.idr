@@ -286,8 +286,16 @@ tFaceDownFilter = And [creature, HasState FaceDown]
 tBecomeCopy : Modification (bindTargets [AnObject] Base)
 tBecomeCopy = BecomeCopyOf (GetTarget 0)
 
-tCreateTokenCopy : Action (bindTargets [AnObject] Base)
-tCreateTokenCopy = CreateTokenCopy (GetTarget 0)
+tCopy : Action (bindTargets [AnObject] Base)
+tCopy = Copy (GetTarget 0)
+
+-- stack-object redirection. `ChangeTarget … This` is Spellskite (named new target);
+-- `ChooseNewTargets` is Bolt Bend / Redirect (a player picks). Both ride the original targetspec.
+tChangeTarget : Action (bindTargets [AnObject] Base)
+tChangeTarget = ChangeTarget (GetTarget 0) This
+
+tChooseNewTargets : Action (bindTargets [AnObject] Base)
+tChooseNewTargets = ChooseNewTargets (GetTarget 0)
 
 -- the structural holes: aggregate-stat cost (Crew), all-counters move (Ozolith), alternative base
 -- cost (the base-SWAP type, distinct from CostChange). Solemnity is subsumed by Replaces+skip (a card).
@@ -419,7 +427,7 @@ tVerbs =
   , fight This (Only creature)
   , Act (CreateToken (Literal 2) (^: { name := Just "Soldier", types := [Creature], colors := [White], power := Just 1, toughness := Just 1 }))
   , With (Search {from = [Library, Graveyard]} (^1) (HasName "Forest")) (Each That (Act (Move It (ToZone Hand))))  -- tutor across two zones
-  , Act (CopySpell (Only (IsKind IsSpell))) ]
+  , Act (Copy (Only (IsKind IsSpell))) ]
 
 -- a token whose P/T is a `Count b` known at creation — "an X/X where X = creatures you control".
 -- This is the payoff of parameterizing `Characteristics` by `b`: a card `Face` is `Characteristics

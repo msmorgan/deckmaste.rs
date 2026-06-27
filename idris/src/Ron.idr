@@ -149,6 +149,10 @@ implementation ToRon SymbolPred where
     toRon i (Not p) = ctor "Not" [toRon i p]
 %runElab derive "Cmp" [Show]
 implementation ToRon Cmp where toRon _ x = show x
+%runElab derive "PipClass" [Show]
+implementation ToRon PipClass where toRon _ x = show x
+%runElab derive "KeywordActionSpec" [Show]
+implementation ToRon KeywordActionSpec where toRon _ x = show x
 %runElab derive "ObjectKind" [Show]
 implementation ToRon ObjectKind where toRon _ x = show x
 %runElab derive "Zone" [Show]
@@ -206,6 +210,7 @@ implementation ToRon Relation where
     toRon _ Attach = "Attach"
     toRon _ Target = "Target"
     toRon _ Counter = "Counter"
+    toRon _ Regenerate = "Regenerate"
 
 implementation ToRon PhaseStep where
     toRon i (BeginningPhase s) = ctor "BeginningPhase" [toRon i s]
@@ -328,6 +333,7 @@ mutual
     toRon i (SameName r) = ctor "SameName" [toRon i r]
     toRon i (SharesChar c r) = ctor "SharesChar" [toRon i c, toRon i r]
     toRon i (WasCastFrom z) = ctor "WasCastFrom" [toRon i z]
+    toRon i (WasCastWith k) = ctor "WasCastWith" [toRon i k]
     toRon i (ExiledBy r) = ctor "ExiledBy" [toRon i r]
     toRon i (DamagedBy r) = ctor "DamagedBy" [toRon i r]
     toRon i (HasName n) = ctor "HasName" [toRon i n]
@@ -336,6 +342,7 @@ mutual
     toRon i (Holds rel role) = ctor "Holds" [toRon i rel, toRon i role]
     toRon i (HasDesignation d) = ctor "HasDesignation" [toRon i d]
     toRon i (StatCmp s c n) = ctor "StatCmp" [toRon i s, toRon i c, toRon i n]
+    toRon i (PlayerStatCmp a c n) = ctor "PlayerStatCmp" [toRon i a, toRon i c, toRon i n]
     toRon i (ControlledBy p) = ctor "ControlledBy" [toRon i p]
     toRon i (OwnedBy p) = ctor "OwnedBy" [toRon i p]
     toRon i (Controls p) = ctor "Controls" [toRon i p]
@@ -346,6 +353,8 @@ mutual
     toRon _ WasKicked = "WasKicked"
     toRon _ OfChosen = "OfChosen"
     toRon _ Anyone = "Anyone"
+    toRon _ Opponent = "Opponent"
+    toRon _ Teammate = "Teammate"
     toRon i (And ps) = ctor "And" [toRon i ps]
     toRon i (Or ps) = ctor "Or" [ronBracket (ronPreds i ps)]
     toRon i (Not p) = ctor "Not" [toRon i p]
@@ -398,6 +407,10 @@ mutual
     toRon i (Costs cs) = ctor "Costs" [toRon i cs]
     toRon i (TapTotal s c n p) = ctor "TapTotal" [toRon i s, toRon i c, toRon i n, toRon i p]
 
+  implementation ToRon (PayAct b) where
+    toRon i (TapToPay p) = ctor "TapToPay" [toRon i p]
+    toRon i (ExileToPay p) = ctor "ExileToPay" [toRon i p]
+
   implementation ToRon (CostChange b) where
     toRon i (Reduce m) = ctor "Reduce" [toRon i m]
     toRon i (Increase m) = ctor "Increase" [toRon i m]
@@ -442,7 +455,7 @@ mutual
 
   implementation ToRon (Action b) where
     toRon i (DealDamage {source} r n) = ctor "DealDamage" [toRon i source, toRon i r, toRon i n]
-    toRon i (Move r z) = ctor "Move" [toRon i r, toRon i z]
+    toRon i (Move r z {enteringAttacking}) = ctor "Move" [toRon i r, toRon i z, ronOpt i enteringAttacking]
     toRon i (Destroy r) = ctor "Destroy" [toRon i r]
     toRon i (Counter r) = ctor "Counter" [toRon i r]
     toRon i (Tap r) = ctor "Tap" [toRon i r]
@@ -458,6 +471,7 @@ mutual
     toRon i (PutCounters c n r) = ctor "PutCounters" [toRon i c, toRon i n, toRon i r]
     toRon i (Discard {actor} n) = ctor "Discard" [toRon i actor, toRon i n]
     toRon i (LoseLife {actor} n) = ctor "LoseLife" [toRon i actor, toRon i n]
+    toRon i (SetLifeTo {actor} n) = ctor "SetLifeTo" [toRon i actor, toRon i n]
     toRon i (Sacrifice {actor} p) = ctor "Sacrifice" [toRon i actor, toRon i p]
     toRon i (PhaseOut r) = ctor "PhaseOut" [toRon i r]
     toRon i (MoveArranged sel arr dest) = ctor "MoveArranged" [toRon i sel, toRon i arr, toRon i dest]
@@ -467,15 +481,25 @@ mutual
     toRon i (Shuffle {actor}) = ctor "Shuffle" [toRon i actor]
     toRon i (ExtraTurn {actor}) = ctor "ExtraTurn" [toRon i actor]
     toRon i (ControlPlayer whom) = ctor "ControlPlayer" [toRon i whom]
-    toRon i (CreateToken n c) = ctor "CreateToken" [toRon i n, toRon i c]
-    toRon i (CopySpell r) = ctor "CopySpell" [toRon i r]
-    toRon i (CreateTokenCopy r) = ctor "CreateTokenCopy" [toRon i r]
+    toRon i (CreateToken n c {enteringAttacking}) = ctor "CreateToken" [toRon i n, toRon i c, ronOpt i enteringAttacking]
+    toRon i (Copy r) = ctor "Copy" [toRon i r]
+    toRon i (ChangeTarget of_ to) = ctor "ChangeTarget" [toRon i of_, toRon i to]
+    toRon i (ChooseNewTargets of_ {by}) = ctor "ChooseNewTargets" [toRon i of_, toRon i by]
     toRon i (AddMana {actor} amount produced {riders}) =
       ctor "AddMana" [toRon i actor, toRon i amount, toRon i produced, toRon i riders]
+    toRon i (Composite tag body) = ctor "Composite" [toRon i tag, toRon i body]
 
   implementation ToRon (Mode b) where
     toRon i (MkMode effect {cost}) =
       "(effect: " ++ toRon i effect ++ ", cost: " ++ ronOpt i cost ++ ")"
+
+  implementation ToRon (VoteOption b) where
+    toRon i (MkVoteOption word effect) =
+      "(word: " ++ toRon i word ++ ", effect: " ++ toRon i effect ++ ")"
+
+  implementation ToRon (Ballot b) where
+    toRon i (OverMatching pred body) = ctor "OverMatching" [toRon i pred, toRon i body]
+    toRon i (Outcomes options {tiebreak}) = ctor "Outcomes" [toRon i options, toRon i tiebreak]
 
   -- a `ModificationOp` renders as its op-ctor; the `Set` value type and the `Add`/`Remove` element type
   -- depend on the characteristic, so those dispatch on `c` (mirroring the former hand-rolled `Set` clauses).
@@ -506,21 +530,31 @@ mutual
     toRon i (ApplyAll mods) = ctor "ApplyAll" [toRon i mods]
     toRon i (ChangeText ws) = ctor "ChangeText" [toRon i ws]
     toRon _ LoseAbilities = "LoseAbilities"
+    toRon i (LoseKeyword k) = ctor "LoseKeyword" [toRon i k]
     toRon i (GainControl r) = ctor "GainControl" [toRon i r]
     toRon i (GrantAbility a) = ctor "GrantAbility" [toRon i a]
+    toRon i (InheritAbilities r) = ctor "InheritAbilities" [toRon i r]
     toRon i (BecomeCopyOf r) = ctor "BecomeCopyOf" [toRon i r]
+
+  implementation ToRon (PlayerMod b) where
+    toRon i (SetTo a n) = ctor "SetTo" [toRon i a, toRon i n]
+    toRon i (Raise a n) = ctor "Raise" [toRon i a, toRon i n]
+    toRon i (Lower a n) = ctor "Lower" [toRon i a, toRon i n]
+    toRon i (NoMax a) = ctor "NoMax" [toRon i a]
 
   implementation ToRon (StaticEffect b) where
     toRon i (Modify r mods) = ctor "Modify" [toRon i r, toRon i mods]
+    toRon i (ModifyPlayer r m) = ctor "ModifyPlayer" [toRon i r, toRon i m]
     toRon i (Each sel body) = ctor "Each" [toRon i sel, toRon i body]
     toRon i (CostModifier p ch) = ctor "CostModifier" [toRon i p, toRon i ch]
+    toRon i (PayPips cls act) = ctor "PayPips" [toRon i cls, toRon i act]
     toRon i (Replaces q body {limit}) = ctor "Replaces" [toRon i q, toRon i body, toRon i limit]
     toRon i (CantHappen q) = ctor "CantHappen" [toRon i q]
     toRon i (OutcomeGate g p) = ctor "OutcomeGate" [toRon i g, toRon i p]
     toRon i (Also q body) = ctor "Also" [toRon i q, toRon i body]
     toRon i (Sba c body) = ctor "Sba" [toRon i c, toRon i body]
     toRon i (ManaPersists p) = ctor "ManaPersists" [toRon i p]
-    toRon i (MayCastFor costs {from}) = ctor "MayCastFor" [toRon i costs, toRon i from]
+    toRon i (MayCastFor costs {from} {tag} {when}) = ctor "MayCastFor" [toRon i costs, toRon i from, ronOpt i tag, ronOpt i when]
     toRon i (CastFaceDown c) = ctor "CastFaceDown" [toRon i c]
     toRon i (Relocate r from to) = ctor "Relocate" [toRon i r, toRon i from, toRon i to]
     toRon i (While c se) = ctor "While" [toRon i c, toRon i se]
@@ -534,6 +568,7 @@ mutual
     toRon i (Sequence xs) = ctor "Sequence" [toRon i xs]
     toRon i (Targeted ts body) = ctor "Targeted" [ronBracket (ronTargets i ts), toRon i body]
     toRon i (With bnd body) = ctor "With" [toRon i bnd, toRon i body]
+    toRon i (WithChosenValue d body) = ctor "WithChosenValue" [toRon i d, toRon i body]
     toRon i (Act a) = ctor "Act" [toRon i a]
     toRon i (Conclude o) = ctor "Conclude" [toRon i o]
     toRon i (May effect {ifDid} {ifNot}) =
@@ -544,8 +579,12 @@ mutual
       ctor "MayPay" [toRon i actor, toRon i cost, toRon i andThen, ronOpt i or_else]
     toRon i (MustPay {actor} cost orElse) =
       ctor "MustPay" [toRon i actor, toRon i cost, toRon i orElse]
+    toRon i (AdditionalCost pay body) = ctor "AdditionalCost" [toRon i pay, toRon i body]
     toRon i (Continuously d se) = ctor "Continuously" [toRon i d, toRon i se]
     toRon i (Modal spec modes) = ctor "Modal" [toRon i spec, toRon i modes]
+    toRon i (Vote {starting} ballot) = ctor "Vote" [toRon i starting, toRon i ballot]
+    toRon i (DivideAndChoose group divider {chooser} chosen other) =
+      ctor "DivideAndChoose" [toRon i group, toRon i divider, toRon i chooser, toRon i chosen, toRon i other]
     toRon i (Each sel body) = ctor "Each" [toRon i sel, toRon i body]
     toRon i (Distribute amount sel body) =
       ctor "Distribute" [toRon i amount, toRon i sel, toRon i body]
@@ -569,8 +608,15 @@ mutual
     toRon i (Hexproof mp) = ctor "Hexproof" [ronOpt i mp]
     toRon _ Morph = "Morph"
     toRon _ Flashback = "Flashback"
+    toRon _ Dash = "Dash"
+    toRon _ Evoke = "Evoke"
+    toRon _ Blitz = "Blitz"
+    toRon _ Prowl = "Prowl"
+    toRon _ Spectacle = "Spectacle"
     toRon _ Devoid = "Devoid"
     toRon i (Protection p) = ctor "Protection" [toRon i p]
+    toRon i (Banding mq) = ctor "Banding" [ronOpt i mq]
+    toRon _ Mutate = "Mutate"
 
   implementation ToRon (KeywordAbility b) where
     toRon i (Bare x) = toRon i x
@@ -581,12 +627,12 @@ mutual
                           ++ toRon (S indent) x ++ "\n"
                           ++ mkIndent indent ++ ")"
     toRon i (Keyword x) = toRon i x
-    toRon i (Activated cost effect {window} {limits}) =
-      ctor "Activated" [toRon i cost, toRon i effect, toRon i window, toRon i limits]
-    toRon i (Triggered q effect {limits}) =
-      ctor "Triggered" [toRon i q, toRon i effect, toRon i limits]
+    toRon i (Activated cost effect {window} {limits} {from} {activationGuard}) =
+      ctor "Activated" [toRon i cost, toRon i effect, toRon i window, toRon i limits, toRon i from, ronOpt i activationGuard]
+    toRon i (Triggered q effect {limits} {from}) =
+      ctor "Triggered" [toRon i q, toRon i effect, toRon i limits, toRon i from]
     toRon i (TurnBased ps e) = ctor "TurnBased" [toRon i ps, toRon i e]
-    toRon i (Static se) = ctor "Static" [toRon i se]
+    toRon i (Static se {from}) = ctor "Static" [toRon i se, toRon i from]
     toRon i (TurnFaceUp cost) = ctor "TurnFaceUp" [toRon i cost]
     toRon i (AsEnters d xs) = ctor "AsEnters" [toRon i d, toRon i xs]
     toRon i (AsEntersChoosing k p xs) = ctor "AsEntersChoosing" [toRon i k, toRon i p, toRon i xs]
