@@ -10,7 +10,7 @@ import public Core
 -- so card source stays readable (the primitive is what the RON serializes).
 public export
 hasType : Type_ -> Predicate b AnObject
-hasType t = HasChar CardTypes t
+hasType t = HasChar Types t
 
 public export
 hasColor : Color -> Predicate b AnObject
@@ -61,12 +61,12 @@ opponent = Not (SameAs You)
 -- "at the beginning of the next end step" — the common delayed-trigger event.
 public export
 nextEndStep : EventQuery b
-nextEndStep = MkQuery [BeginStep (EndingPhase EndStep)] []
+nextEndStep = MkEventQuery [BeginStep (EndingPhase EndStep)] []
 
 -- "when THIS enters the battlefield" — the ETB trigger event, inlined across most permanents.
 public export
 thisEnters : EventQuery b
-thisEnters = MkQuery [ZoneChanged Nothing (Just Battlefield)] [Agent (SameAs This)]
+thisEnters = MkEventQuery [ZoneChanged Nothing (Just Battlefield)] [Agent (SameAs This)]
 
 -- "any target" ([CR#115.4]): a creature/planeswalker/battle permanent, OR any player. A
 -- FLAT `Or` — the player arm (`Anyone`) sits beside the object arms, and the result
@@ -161,7 +161,7 @@ haste = Keyword (Composite Haste
 public export
 indestructible : Ability b
 indestructible = Keyword (Composite Indestructible
-  [Static (CantHappen (MkQuery [Destroy] [Patient (SameAs This)]))])
+  [Static (CantHappen (MkEventQuery [Destroy] [Patient (SameAs This)]))])
 
 -- Devoid ([CR#702.114]): "this object is colorless" — a CDA, expressible now that an `Alter` op can CLEAR
 -- a characteristic. `Alter Colors (Set [])` on This empties its color set (the Tarmogoyf-`*/*` pattern).
@@ -175,7 +175,7 @@ devoid = Keyword (Composite Devoid [Static (Modify This (Alter Colors (Set [])))
 public export
 regenerate : OneShotEffect b
 regenerate = Continuously UntilEndOfTurn
-  (Replaces (MkQuery [Destroy] [Patient (SameAs This)])
+  (Replaces (MkEventQuery [Destroy] [Patient (SameAs This)])
             (Sequence [Act (RemoveAllDamage This), Act (Tap This), Act (RemoveFromCombat This)])
             {limit = UpTo (^1)})
 
@@ -237,7 +237,7 @@ fight x y = Sequence [ Act (DealDamage {source = x} y (StatOf x Power))
 public export
 protection : Predicate b AnObject -> Ability b
 protection q = Keyword (Composite (Protection q)
-  [ Static (ReplaceAmount (MkQuery [DealDamage Nothing] [Patient (SameAs This), Agent q]) (^0))   -- D
+  [ Static (ReplaceAmount (MkEventQuery [DealDamage Nothing] [Patient (SameAs This), Agent q]) (^0))   -- D
   , Static (cant (Enact Attach q (SameAs This)))        -- E
   , Static (cant (Enact Block q (SameAs This)))         -- B
   , Static (cant (Enact Target q (SameAs This))) ])     -- T
@@ -310,7 +310,7 @@ levelUp cost = Activated cost (Act (PutCounters Level (^1) This)) {window = AsSo
 public export
 crew : Count b -> Ability b
 crew n = Activated (TapTotal Power GreaterEq n creature)
-  (Continuously UntilEndOfTurn (Modify This (Alter CardTypes (Add Creature))))
+  (Continuously UntilEndOfTurn (Modify This (Alter Types (Add Creature))))
 
 -- "Morph [cost]" ([CR#702.37]): you may cast this face down as a 2/2 for {3} (`CastFaceDown`), and turn
 -- it face up any time for [cost] (`TurnFaceUp`). The 2/2-colorless-vanilla face-down body is the global
@@ -324,4 +324,4 @@ morph c = Keyword (Composite Morph [ Static (CastFaceDown (Mana [^3])), TurnFace
 -- `Min (CountOf (graveyard ∧ that type)) 1` indicators over an enumerated card-type list.
 public export
 typesInGraveyards : Count b
-typesInGraveyards = CountDistinct CardTypes (Objects (InZone Graveyard))
+typesInGraveyards = CountDistinct Types (Objects (InZone Graveyard))

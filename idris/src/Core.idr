@@ -153,11 +153,11 @@ public export
 implementation Promote EnchantmentSubtype Subtype where
   promote = EnchantmentSub
 public export
-implementation Promote LandSubtype Subtype where
-  promote = LandSub
-public export
 implementation Promote ArtifactSubtype Subtype where
   promote = ArtifactSub
+public export
+implementation Promote LandSubtype Subtype where
+  promote = LandSub
 public export
 implementation Promote BattleSubtype Subtype where
   promote = BattleSub
@@ -238,7 +238,7 @@ namespace Supertype
 -- tidy (`Name`/`Defense`/… are generic).
 namespace Characteristic
   public export
-  data Characteristic = Colors | CardTypes | Subtypes | Supertypes | Power | Toughness | Defense | ManaCost | Name
+  data Characteristic = Colors | Types | Subtypes | Supertypes | Power | Toughness | Defense | ManaCost | Name
 
 -- a PLAYER's numeric attributes — the player-side twin of the object `Characteristic`
 -- numeric axes. Read via `PlayerStatOf` (a `Count`), mirroring `StatOf` for objects.
@@ -259,7 +259,7 @@ Numeric _         = Void
 public export
 Collection : Characteristic -> Type     -- accepts element `Add`/`Remove` (the "set-kinded" list axes)
 Collection Colors     = ()
-Collection CardTypes  = ()
+Collection Types  = ()
 Collection Subtypes   = ()
 Collection Supertypes = ()
 Collection _          = Void
@@ -267,7 +267,7 @@ Collection _          = Void
 public export
 ElemOf : Characteristic -> Type         -- the element `Add`/`Remove` takes (only consulted under `Collection`)
 ElemOf Colors     = Color
-ElemOf CardTypes  = Type_
+ElemOf Types  = Type_
 ElemOf Subtypes   = Subtype
 ElemOf Supertypes = Supertype
 ElemOf _          = Unit
@@ -486,41 +486,41 @@ namespace EventKind
     Begins : Relation -> EventKind
 
 -- the per-event CAPABILITIES an event provides its body's anaphora: a distinguished OBJECT ("that card"),
--- an ACTOR ("that player"), a numeric AMOUNT. Read by `EventObject`/`EventActor`/`ThatMuch` so each is
+-- an ACTOR ("that player"), a numeric AMOUNT. Read by `EventObject`/`EventActor`/`EventAmount` so each is
 -- valid ONLY where the event actually supplies it — the invalid-reference gate.
 public export
 record EventCaps where
-  constructor MkCaps
+  constructor MkEventCaps
   hasObject : Bool
   hasActor  : Bool
   hasAmount : Bool
 
 public export
 NoCaps : EventCaps
-NoCaps = MkCaps False False False
+NoCaps = MkEventCaps False False False
 
 -- what each event-kind supplies. Damage/token/counter carry an amount; a step-begin carries nothing; a
 -- zone-change/destroy/becomes has an object but no actor; a cast/draw/discard/sacrifice has an actor.
 public export
 eventKindCaps : EventKind -> EventCaps
-eventKindCaps Sacrifice         = MkCaps True  True  False
-eventKindCaps Draw              = MkCaps False True  False
-eventKindCaps Discard           = MkCaps True  True  False
-eventKindCaps (DealDamage _)    = MkCaps True  True  True
-eventKindCaps CreateToken       = MkCaps True  True  True
-eventKindCaps PutCounters       = MkCaps True  True  True
-eventKindCaps RemoveCounters    = MkCaps True  True  True
-eventKindCaps Destroy         = MkCaps True  False False
-eventKindCaps (ZoneChanged _ _) = MkCaps True  False False
-eventKindCaps (BeginStep _)     = MkCaps False False False
-eventKindCaps (Becomes _)       = MkCaps True  False False
+eventKindCaps Sacrifice         = MkEventCaps True  True  False
+eventKindCaps Draw              = MkEventCaps False True  False
+eventKindCaps Discard           = MkEventCaps True  True  False
+eventKindCaps (DealDamage _)    = MkEventCaps True  True  True
+eventKindCaps CreateToken       = MkEventCaps True  True  True
+eventKindCaps PutCounters       = MkEventCaps True  True  True
+eventKindCaps RemoveCounters    = MkEventCaps True  True  True
+eventKindCaps Destroy         = MkEventCaps True  False False
+eventKindCaps (ZoneChanged _ _) = MkEventCaps True  False False
+eventKindCaps (BeginStep _)     = MkEventCaps False False False
+eventKindCaps (Becomes _)       = MkEventCaps True  False False
 -- a relation-ONSET supplies the agent's player as "that player" ONLY when the agent IS a player
 -- (cast/activate/play); an object-agent onset (combat/attach/target/counter) reaches the controller via
 -- `ControlledBy`. There is always a distinguished object, never an amount.
 eventKindCaps (Begins r)        =
   case agentScope r of
-    APlayer => MkCaps True True  False
-    _       => MkCaps True False False
+    APlayer => MkEventCaps True True  False
+    _       => MkEventCaps True False False
 
 -- which event-kinds carry an AMOUNT — derived from the caps; the per-kind base for `kindsHaveAmount`.
 public export
@@ -568,10 +568,10 @@ IsCharDomain Nothing              = Void
 -- creature) or a player ("choose a player"). `Empty`/`Anything` are not pickable entities. The gate that
 -- makes `chosenRefKind` only ever hold an object or a player — the `ChosenObject`/`ChosenPlayer` twins.
 public export
-ChoiceRefKind : RefKind -> Type
-ChoiceRefKind AnObject = ()
-ChoiceRefKind APlayer  = ()
-ChoiceRefKind _        = Void
+ChoiceRefKindOk : RefKind -> Type
+ChoiceRefKindOk AnObject = ()
+ChoiceRefKindOk APlayer  = ()
+ChoiceRefKindOk _        = Void
 
 -- `Bindings`: the typestate of what references are in scope. Its fields are
 -- PROJECTIONS we write constraints against; it grows as the model binds roles.
@@ -581,7 +581,7 @@ record Bindings where
   targetKinds : List RefKind     -- one `RefKind` per target slot (the slot's kind, from its filter)
   thatKind    : Maybe RefKind    -- a `With`-bound group's element kind (`That`), if bound
   itKind      : Maybe RefKind    -- a `Each`-bound element's kind (`It`), if bound
-  evCaps      : EventCaps    -- the surrounding event's caps (`NoCaps` outside an event body) — gates `EventObject`/`EventActor`/`ThatMuch`
+  eventCaps      : EventCaps    -- the surrounding event's caps (`NoCaps` outside an event body) — gates `EventObject`/`EventActor`/`EventAmount`
   chosenKind  : Maybe ChooseDomain  -- an as-enters "choose …" VALUE (color/type/name/number/mode) in scope (`OfChosen`/`ChosenIs`/`ChosenNumber`), if bound
   chosenRefKind : Maybe RefKind  -- an as-enters "choose …" GAME ENTITY (an object/player) in scope (`ChosenObject`/`ChosenPlayer`), if bound — the identity twin of `chosenKind`
   hasAllotment : Bool    -- inside a `Distribute` body: a per-element share is in scope (gates `Allotment`)
@@ -596,19 +596,19 @@ Base = MkBindings [] Nothing Nothing NoCaps Nothing Nothing False
 -- has no get-after-set law for an abstract record).
 public export
 bindTargets : List RefKind -> Bindings -> Bindings
-bindTargets ks b = MkBindings ks (thatKind b) (itKind b) (evCaps b) (chosenKind b) (chosenRefKind b) (hasAllotment b)
+bindTargets ks b = MkBindings ks (thatKind b) (itKind b) (eventCaps b) (chosenKind b) (chosenRefKind b) (hasAllotment b)
 
 public export
 unbindTargets : Bindings -> Bindings
-unbindTargets b = MkBindings [] (thatKind b) (itKind b) (evCaps b) (chosenKind b) (chosenRefKind b) (hasAllotment b)
+unbindTargets b = MkBindings [] (thatKind b) (itKind b) (eventCaps b) (chosenKind b) (chosenRefKind b) (hasAllotment b)
 
 public export
 bindThat : RefKind -> Bindings -> Bindings
-bindThat k b = MkBindings (targetKinds b) (Just k) (itKind b) (evCaps b) (chosenKind b) (chosenRefKind b) (hasAllotment b)
+bindThat k b = MkBindings (targetKinds b) (Just k) (itKind b) (eventCaps b) (chosenKind b) (chosenRefKind b) (hasAllotment b)
 
 public export
 bindIt : RefKind -> Bindings -> Bindings
-bindIt k b = MkBindings (targetKinds b) (thatKind b) (Just k) (evCaps b) (chosenKind b) (chosenRefKind b) (hasAllotment b)
+bindIt k b = MkBindings (targetKinds b) (thatKind b) (Just k) (eventCaps b) (chosenKind b) (chosenRefKind b) (hasAllotment b)
 
 -- entering a `Projection` accessor (`Project`/`eachOf`): bind the per-element `It` of kind k AND clear the
 -- loop-local `hasAllotment`. A `Distribute` share is indexed to ITS loop element; once a `Project` re-binds
@@ -617,7 +617,7 @@ bindIt k b = MkBindings (targetKinds b) (thatKind b) (Just k) (evCaps b) (chosen
 -- legitimately still in scope for the projected value).
 public export
 bindElem : RefKind -> Bindings -> Bindings
-bindElem k b = MkBindings (targetKinds b) (thatKind b) (Just k) (evCaps b) (chosenKind b) (chosenRefKind b) False
+bindElem k b = MkBindings (targetKinds b) (thatKind b) (Just k) (eventCaps b) (chosenKind b) (chosenRefKind b) False
 
 -- entering a trigger/replacement/delayed body, carrying the event's CAPS (what anaphora it supplies).
 public export
@@ -628,19 +628,19 @@ bindEvent caps b = MkBindings (targetKinds b) (thatKind b) (itKind b) caps (chos
 -- whole card's abilities.
 public export
 bindChosen : ChooseDomain -> Bindings -> Bindings
-bindChosen d b = MkBindings (targetKinds b) (thatKind b) (itKind b) (evCaps b) (Just d) (chosenRefKind b) (hasAllotment b)
+bindChosen d b = MkBindings (targetKinds b) (thatKind b) (itKind b) (eventCaps b) (Just d) (chosenRefKind b) (hasAllotment b)
 
 -- the as-enters GAME-ENTITY choice ([CR#614.12]): binds `chosenRefKind` (a chosen object/player) for the
 -- whole card's abilities — the identity-reference twin of `bindChosen`, opened by `AsEntersChoosing`.
 public export
 bindChosenRef : RefKind -> Bindings -> Bindings
-bindChosenRef k b = MkBindings (targetKinds b) (thatKind b) (itKind b) (evCaps b) (chosenKind b) (Just k) (hasAllotment b)
+bindChosenRef k b = MkBindings (targetKinds b) (thatKind b) (itKind b) (eventCaps b) (chosenKind b) (Just k) (hasAllotment b)
 
 -- a `Distribute` body ([CR#601.2d] division): binds the loop element `It` of kind k AND marks a per-element
 -- share in scope (read back by `Allotment`). The allotment-bearing twin of `bindIt`.
 public export
 bindAllot : RefKind -> Bindings -> Bindings
-bindAllot k b = MkBindings (targetKinds b) (thatKind b) (Just k) (evCaps b) (chosenKind b) (chosenRefKind b) True
+bindAllot k b = MkBindings (targetKinds b) (thatKind b) (Just k) (eventCaps b) (chosenKind b) (chosenRefKind b) True
 
 -- KeywordSpec / Reference / Count / Predicate / Condition / EventQuery are one mutually
 -- recursive language. A PREDICATE is an object test — its candidate is IMPLICIT. A `Condition`
@@ -695,12 +695,12 @@ mutual
       -- anthem's mods read, without a dedicated reference — predicates are already candidate-implicit.
       It : {auto prf : itKind b = Just k} -> Reference b k
       -- the triggering event's object ("that card") — valid only if the event SUPPLIES one ([CR#608.2k]).
-      EventObject : {auto prf : hasObject (evCaps b) = True} -> Reference b AnObject
+      EventObject : {auto prf : hasObject (eventCaps b) = True} -> Reference b AnObject
       -- PLAYERS (the old `PlayerRef`, folded in here):
       You : Reference b APlayer                            -- controller of this ability [CR#109.5]
       ControllerOf : Reference b AnObject -> Reference b APlayer   -- the controller of an object
       OwnerOf : Reference b AnObject -> Reference b APlayer        -- the owner of an object [CR#108.3]
-      EventActor : {auto prf : hasActor (evCaps b) = True} -> Reference b APlayer  -- the event's player ("that player") — only if supplied
+      EventActor : {auto prf : hasActor (eventCaps b) = True} -> Reference b APlayer  -- the event's player ("that player") — only if supplied
       ChosenPlayer : {auto prf : chosenRefKind b = Just APlayer} -> Reference b APlayer  -- the as-enters chosen PLAYER (the identity-reference twin of OfChosen/ChosenNumber); opened by `AsEntersChoosing APlayer …`
       ChosenObject : {auto prf : chosenRefKind b = Just AnObject} -> Reference b AnObject  -- the as-enters chosen OBJECT (the object-twin of `ChosenPlayer`; Clone copies it via `BecomeCopyOf ChosenObject`); opened by `AsEntersChoosing AnObject …`
 
@@ -711,7 +711,7 @@ mutual
   -- `EventSum` — can name it; `Count`↔`EventQuery` were already mutually referenced either way.
   public export
   record EventQuery (b : Bindings) where
-    constructor MkQuery
+    constructor MkEventQuery
     kinds  : List EventKind
     facets : List (Facet b)
 
@@ -720,10 +720,10 @@ mutual
   -- function over the record (defined just above), so `EventSum`/`ReplaceAmount` — whose constructor types
   -- sit just below — can name it (a record `.kinds` projection would not yet be in scope there). Refines the
   -- plain `EventQuery` that `EventCount`/`Triggered`/`Replaces` accept, rejecting amountless kinds
-  -- (`MkQuery [Begins Cast] []`) at the type level.
+  -- (`MkEventQuery [Begins Cast] []`) at the type level.
   public export
   eventQueryHasAmount : EventQuery b -> Bool
-  eventQueryHasAmount (MkQuery ks _) = kindsHaveAmount ks
+  eventQueryHasAmount (MkEventQuery ks _) = kindsHaveAmount ks
 
   -- A COUNTABLE: any set the value-language ranges over — objects, players, events, or an object's mana
   -- symbols (printed cost) / mana spent. The ONE set vocabulary: `CountOf`/`CountDistinct`/`Project` all
@@ -795,7 +795,7 @@ mutual
       Aggregate : AggregateOp -> Projection b -> Count b
       -- fold the matching events' AMOUNTS, per `AggregateOp` (`EventAgg SumOf q` is the old `EventSum`; events
       -- have no `It` to bind, so they fold their single amount rather than a projection). Gated by
-      -- `eventQueryHasAmount`, so every queried kind must carry one (`EventAgg SumOf (MkQuery [Begins Cast] [])`
+      -- `eventQueryHasAmount`, so every queried kind must carry one (`EventAgg SumOf (MkEventQuery [Begins Cast] [])`
       -- is rejected — a cast has no amount). Cardinality of events is `CountEvents q` = `CountOf (Events q)`.
       EventAgg : AggregateOp -> (q : EventQuery b) -> {auto amt : eventQueryHasAmount q = True} -> Count b
       Damage : Reference b AnObject -> Count b  -- marked damage on r ([CR#120.3]); the lethal-damage SBA reads `Compare (Damage This) GreaterEq (StatOf This Toughness)`
@@ -807,7 +807,7 @@ mutual
       Half : RoundMode -> Count b -> Count b               -- half, rounded per `RoundMode` ([CR#107.1a]); one rounding vocabulary, shared with `AverageOf`
       Min : Count b -> Count b -> Count b                  -- the lesser ([CR#704.5q] +1/+1 vs −1/−1 annihilation; "the lesser of X and Y")
       Max : Count b -> Count b -> Count b                  -- the greater
-      ThatMuch : {auto prf : hasAmount (evCaps b) = True} -> Count b   -- the event's amount — valid only where the event SUPPLIES one
+      EventAmount : {auto prf : hasAmount (eventCaps b) = True} -> Count b   -- the event's amount — valid only where the event SUPPLIES one
       Allotment : {auto prf : hasAllotment b = True} -> Count b   -- inside a `Distribute`: the share allotted to the current element ([CR#601.2d])
       ChosenNumber : {auto prf : chosenKind b = Just ANumber} -> Count b   -- the as-enters chosen NUMBER (the value-anaphor twin of OfChosen/ChosenIs)
 
@@ -825,7 +825,7 @@ mutual
       HasKeyword : KeywordSpec b -> Predicate b AnObject
       SameAs : Reference b k -> Predicate b k    -- the candidate IS r (same kind; "another" = Not (SameAs This))
       SameName : Reference b AnObject -> Predicate b AnObject   -- shares a name with r ("named [its own name]" = SameName This)
-      SharesChar : (c : Characteristic) -> {auto 0 _ : Collection c} -> Reference b AnObject -> Predicate b AnObject   -- shares ≥1 element of collection axis c with r (Coat of Arms: `SharesChar Subtypes It`); `SharesColor`/`SharesType` are just `SharesChar Colors`/`SharesChar CardTypes`. Sugar: `sharesSubtype`.
+      SharesChar : (c : Characteristic) -> {auto 0 _ : Collection c} -> Reference b AnObject -> Predicate b AnObject   -- shares ≥1 element of collection axis c with r (Coat of Arms: `SharesChar Subtypes It`); `SharesColor`/`SharesType` are just `SharesChar Colors`/`SharesChar Types`. Sugar: `sharesSubtype`.
       WasCastFrom : Zone -> Predicate b AnObject -- the object was cast from this zone (cast provenance)
       ExiledBy : Reference b AnObject -> Predicate b AnObject   -- set aside by r's effect ("cards exiled by this" = ExiledBy
                                                  -- This); the engine holds the association ([CR#607] linked abilities)
@@ -955,7 +955,7 @@ mutual
 
 public export
 andCaps : EventCaps -> EventCaps -> EventCaps
-andCaps (MkCaps o1 a1 m1) (MkCaps o2 a2 m2) = MkCaps (o1 && o2) (a1 && a2) (m1 && m2)
+andCaps (MkEventCaps o1 a1 m1) (MkEventCaps o2 a2 m2) = MkEventCaps (o1 && o2) (a1 && a2) (m1 && m2)
 
 -- the caps a whole event-QUERY guarantees its body: the INTERSECTION over its kind-disjunction — the
 -- body gets only anaphora that EVERY listed kind supplies. Empty `kinds` (any kind) ⇒ `NoCaps`. So a
@@ -1168,9 +1168,9 @@ namespace Compulsion
 -- the two PRICED-deed timings, folded into one `Priced` constructor: `AtDeclaration` = the cost is paid
 -- when the deed is declared (the old `Gate`, never compulsory, [CR#508.1d]); `Downstream` = it is punished
 -- after the fact (the old `Toll`, ward [CR#702.21a]).
-namespace TollTiming
+namespace PricedTiming
   public export
-  data TollTiming = AtDeclaration | Downstream
+  data PricedTiming = AtDeclaration | Downstream
 
 namespace Deed
   public export
@@ -1202,7 +1202,7 @@ namespace Deed
 public export
 CharValue : Bindings -> Characteristic -> Type
 CharValue _ Colors     = List Color
-CharValue _ CardTypes  = List Type_
+CharValue _ Types  = List Type_
 CharValue _ Subtypes   = List Subtype
 CharValue _ Supertypes = List Supertype
 CharValue b Power      = Count b        -- specify a (possibly dynamic, CDA "*/*") value in the amount language
@@ -1236,7 +1236,7 @@ mutual
     data Cost : Bindings -> Type where
       Mana      : ManaCost -> Cost b                 -- "{4}"
       -- pay a cost by PERFORMING an action ([CR#118.3]): "{T}" = `Do (Tap This)`, "Pay N life" =
-      -- `Do (LoseLife (^N))`, "Sacrifice this" = `Do (Sacrifice You (SameAs This))`, "Pay {E}×N" =
+      -- `Do (LoseLife (^N))`, "Sacrifice this" = `Do (Sacrifice (SameAs This))`, "Pay {E}×N" =
       -- `Do (RemoveCounters Energy (^N) You)` (energy is a player counter — no dedicated `PayEnergy` verb),
       -- loyalty "+N"/"−N" = `Do (PutCounters/RemoveCounters Loyalty (^N) This)`. UNRESTRICTED — ANY action
       -- (even scry/shuffle as a cost is legal); a senseless cost just no-ops, and nonsense is the grammar
@@ -1360,7 +1360,7 @@ mutual
       -- player verbs: discard / lose life; and a chooser-verb where a player sacrifices.
       Discard : {default You actor : Reference b APlayer} -> Count b -> Action b
       LoseLife : {default You actor : Reference b APlayer} -> Count b -> Action b
-      Sacrifice : Reference b APlayer -> Predicate b AnObject -> Action b   -- "[player] sacrifices a [pred]" (they choose which)
+      Sacrifice : {default You actor : Reference b APlayer} -> Predicate b AnObject -> Action b   -- "sacrifices a [pred]" (the actor chooses which; defaults to You)
       -- further keyword-action verbs ([CR#701]). The interactive bits (reorder, search choice, copy
       -- characteristics) are the engine's; the grammar names the verb. Scry/Surveil/Fight are NOT verbs
       -- here — they COMPOSITE over primitives (`Each`/`With`/`Modal`/`Move`/`DealDamage`) as
@@ -1463,7 +1463,7 @@ mutual
     data Modification : Bindings -> Type where
       -- modify one CHARACTERISTIC axis with a (gated) `ModificationOp` ([CR#613]). The operation carries the
       -- layer/base-vs-current: "gets +2/+1" = `Alter Power (Up (^2))` + `Alter Toughness (Up (^1))`; "becomes
-      -- blue" = `Alter Colors (Set [Blue])`; "is also an artifact" = `Alter CardTypes (Add Artifact)`; "becomes
+      -- blue" = `Alter Colors (Set [Blue])`; "is also an artifact" = `Alter Types (Add Artifact)`; "becomes
       -- an Island" = `Alter Subtypes (Add (^Island))`; "loses all creature types" = `Alter Subtypes (Set [])`;
       -- "base p/t are x/y" = `Alter Power (Set x)` + `Alter Toughness (Set y)` (a CDA `*/*` sets a dynamic
       -- `Count`). ONE mechanism; subsumes the former `ModifyPT`/`Set`/`AddType`/`AddSubtype`.
@@ -1513,14 +1513,14 @@ mutual
       Replaces : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) b) -> {default Unlimited limit : ReplaceLimit b} -> StaticEffect b
       -- "[event] CAN'T happen" — a continuous PROHIBITION, semantically distinct from replacing-with-
       -- nothing: it's not a one-shot ([CR#614.5]) application, isn't ordered against other replacements
-      -- ([CR#616]), and the event never "would happen". Indestructible = `CantHappen (MkQuery [Destroy]
-      -- [this])`; Solemnity = `CantHappen (MkQuery [PutCounters] [])`. (Event-level; the deontic `cant` is
+      -- ([CR#616]), and the event never "would happen". Indestructible = `CantHappen (MkEventQuery [Destroy]
+      -- [this])`; Solemnity = `CantHappen (MkEventQuery [PutCounters] [])`. (Event-level; the deontic `cant` is
       -- its player-ACTION sibling — "can't attack".)
       CantHappen : EventQuery b -> StaticEffect b
       -- PAYLOAD replacement ([CR#616]): the event still happens, but its numeric amount becomes
-      -- `newAmount` (a `Count` over the event body, so it can read `ThatMuch`). Furnace of Rath =
-      -- `ReplaceAmount (MkQuery [DealDamage Nothing] []) (Times ThatMuch (^2))`. Takes the same `EventQuery` as
-      -- `Replaces`/`Also`, gated so every queried kind carries an amount — `ReplaceAmount (MkQuery [Begins Cast] []) …`
+      -- `newAmount` (a `Count` over the event body, so it can read `EventAmount`). Furnace of Rath =
+      -- `ReplaceAmount (MkEventQuery [DealDamage Nothing] []) (Times EventAmount (^2))`. Takes the same `EventQuery` as
+      -- `Replaces`/`Also`, gated so every queried kind carries an amount — `ReplaceAmount (MkEventQuery [Begins Cast] []) …`
       -- (a cast has no amount) is a TYPE ERROR; the query's facets add the non-kind conditions.
       ReplaceAmount : (q : EventQuery b) -> {auto amt : eventQueryHasAmount q = True} -> (newAmount : Count (bindEvent (eventQueryCaps q) b)) -> StaticEffect b
       -- a static OUTCOME suppressor: the matching players can't lose / can't win ([CR#104.2b,104.3e]). Platinum
@@ -1570,7 +1570,7 @@ mutual
       Constrain : Compulsion -> Deed b -> StaticEffect b   -- Forbid = a restriction (can't), Require = a requirement (must); the combat solver balances both ([CR#508.1c,508.1d])
       -- a PRICED deed (cost comes FIRST): `AtDeclaration` = paid up front (the old `Gate`, never compulsory);
       -- `Downstream` = punished after the fact (the old `Toll`, ward [CR#702.21a]).
-      Priced : TollTiming -> Cost b -> Deed b -> StaticEffect b
+      Priced : PricedTiming -> Cost b -> Deed b -> StaticEffect b
 
   -- A keyword as it sits on a permanent ([CR#702]): either `Bare` — an engine-PRIMITIVE keyword
   -- the grammar can't desugar (FirstStrike/DoubleStrike/Deathtouch/Trample = damage pipeline;
@@ -1619,9 +1619,9 @@ mutual
       AsEnters : (d : ChooseDomain) -> {auto 0 ok : ModeDomainOk d} -> List (Ability (bindChosen d b)) -> Ability b
       -- "As ~ enters, choose a [filtered ENTITY]" ([CR#614.12]) — the game-entity twin of `AsEnters`. The
       -- `Predicate b k` is the choosable set (Clone's "a creature", lost when this was the unconstrained
-      -- `AnObjectChoice`); `k` is gated to object/player by `ChoiceRefKind`. The chosen entity binds
+      -- `AnObjectChoice`); `k` is gated to object/player by `ChoiceRefKindOk`. The chosen entity binds
       -- `chosenRefKind k`, read back by `ChosenObject`/`ChosenPlayer` in the nested abilities.
-      AsEntersChoosing : (k : RefKind) -> {auto 0 ok : ChoiceRefKind k} -> Predicate b k -> List (Ability (bindChosenRef k b)) -> Ability b
+      AsEntersChoosing : (k : RefKind) -> {auto 0 ok : ChoiceRefKindOk k} -> Predicate b k -> List (Ability (bindChosenRef k b)) -> Ability b
 
 -- A card's printed face is just `Characteristics` at the empty bindings.
 public export
@@ -1728,6 +1728,6 @@ subtypeConfers _                     = []
 -- hardcoded target list), using `Enact Attack` with the permanent itself as the object (patient) defender.
 public export
 typeConfers : Type_ -> List (Ability b)
-typeConfers Planeswalker = [Static (Can (Enact Attack (HasChar CardTypes Creature) (SameAs This)))]
-typeConfers Battle       = [Static (Can (Enact Attack (HasChar CardTypes Creature) (SameAs This)))]
+typeConfers Planeswalker = [Static (Can (Enact Attack (HasChar Types Creature) (SameAs This)))]
+typeConfers Battle       = [Static (Can (Enact Attack (HasChar Types Creature) (SameAs This)))]
 typeConfers _            = []
