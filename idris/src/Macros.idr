@@ -158,8 +158,8 @@ ptTwin (Up x)   = Up x
 ptTwin (Down x) = Down x
 
 -- "+x/+x" (any SYMMETRIC P/T mod): `ModifyPT` is no longer a primitive — the same `ModificationOp` on both
--- axes is just two `Alter`s. `modifyPT` doubles a P-op, returning a `List` ready to splice into `Several`:
--- "gets +3/+3" = `Modify This (Several (modifyPT (Up (^3))))`. Asymmetric "+2/-1" writes the two `Alter`s.
+-- axes is just two `Alter`s. `modifyPT` doubles a P-op, returning a `List` ready to splice into `ApplyAll`:
+-- "gets +3/+3" = `Modify This (ApplyAll (modifyPT (Up (^3))))`. Asymmetric "+2/-1" writes the two `Alter`s.
 public export
 modifyPT : ModificationOp b Power -> List (Modification b)
 modifyPT op = [Alter Power op, Alter Toughness (ptTwin op)]

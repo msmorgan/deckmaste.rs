@@ -123,7 +123,7 @@ card_Rancor = Normal $ ^:
   , subtypes := [^Aura]
   , abilities := enchant creature ++
       [ Static (Modify (AttachHostOf This)
-          (Several [ Alter Power (Up (^2))
+          (ApplyAll [ Alter Power (Up (^2))
           , GrantAbility (keyword Trample)
           ]))
       , Triggered
@@ -229,7 +229,7 @@ card_GloriousAnthem = Normal $ ^:
   , manaCost := [^1, ^White, ^White]
   , types := [Enchantment]
   , abilities :=
-      [ Static (Each (SelectAll (And [HasType Creature, ControlledBy you])) (Modify It (Several (modifyPT (Up (^1)))))) ]
+      [ Static (Each (SelectAll (And [HasType Creature, ControlledBy you])) (Modify It (ApplyAll (modifyPT (Up (^1)))))) ]
   }
 
 -- Liliana of the Veil — "planeswalkers are pure composite": loyalty abilities are
@@ -274,7 +274,7 @@ card_TideShaper = Normal $ ^:
                 (Continuously (ForAsLongAs (Matches This (InZone Battlefield)))
                               (Modify (GetTarget 0) (Alter Subtypes (Add (^Island)))))))
       , Static (While (exists (And [InZone Battlefield, HasSubtype (^Island), ControlledBy opponent]))
-                      (Modify This (Several (modifyPT (Up (^1))))))
+                      (Modify This (ApplyAll (modifyPT (Up (^1))))))
       ]
   , power := Just 1
   , toughness := Just 1
@@ -576,9 +576,9 @@ card_StudentOfWarfare = Normal $ ^:
       [ levelUp (Mana [^White])                                                                  -- "Level up {W}"
       , Static (While (And [ Compare (CountersOn Level This) GreaterEq (^2)
                            , Compare (CountersOn Level This) LessEq (^6) ])
-          (Modify This (Several [Alter Power (Set (^3)), Alter Toughness (Set (^3)), GrantAbility (keyword FirstStrike)])))   -- LEVEL 2–6: 3/3 first strike
+          (Modify This (ApplyAll [Alter Power (Set (^3)), Alter Toughness (Set (^3)), GrantAbility (keyword FirstStrike)])))   -- LEVEL 2–6: 3/3 first strike
       , Static (While (Compare (CountersOn Level This) GreaterEq (^7))
-          (Modify This (Several [Alter Power (Set (^4)), Alter Toughness (Set (^4)), GrantAbility (keyword DoubleStrike)])))   -- LEVEL 7+: 4/4 double strike
+          (Modify This (ApplyAll [Alter Power (Set (^4)), Alter Toughness (Set (^4)), GrantAbility (keyword DoubleStrike)])))   -- LEVEL 7+: 4/4 double strike
       ]
   }
 
@@ -884,7 +884,7 @@ card_FleecemaneLion = Normal $ ^:
   , abilities :=
       [ monstrosity (Mana [^3, ^Green, ^White]) (^1)                       -- Monstrosity 1
       , Static (While (Matches This (HasDesignation Monstrous))
-          (Modify This (Several [ GrantAbility (keyword (Hexproof Nothing))
+          (Modify This (ApplyAll [ GrantAbility (keyword (Hexproof Nothing))
                        , GrantAbility (keyword Indestructible) ])))          -- while monstrous: hexproof + indestructible
       ]
   , power := Just 3
@@ -980,7 +980,7 @@ card_CoatOfArms = Normal $ ^:
   , types := [Artifact]
   , abilities :=
       [ Static (Each (SelectAll creature) (Modify It
-          (Several [ Alter Power (Up (CountMatching (And [permanent, creature, SharesSubtype It, Not (SameAs It)])))
+          (ApplyAll [ Alter Power (Up (CountMatching (And [permanent, creature, SharesSubtype It, Not (SameAs It)])))
           , Alter Toughness (Up (CountMatching (And [permanent, creature, SharesSubtype It, Not (SameAs It)]))) ]))) ]
   }
 
@@ -1025,7 +1025,7 @@ card_MutagenicGrowth = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [Target (^1) creature]
-          (Continuously UntilEndOfTurn (Modify (GetTarget 0) (Several (modifyPT (Up (^2))))))) ]
+          (Continuously UntilEndOfTurn (Modify (GetTarget 0) (ApplyAll (modifyPT (Up (^2))))))) ]
   }
 
 -- Skred — SNOW mana ({S}): deals damage to target creature equal to the snow permanents you control.
@@ -1061,7 +1061,7 @@ card_HistoryOfBenalia = Normal $ ^:
       , -- III — Knights you control get +2/+1 until end of turn
         Triggered (MkQuery [PutCounters] [Patient (SameAs This)])
           (If (Compare (CountersOn Lore This) Equal (^3))
-              (Continuously UntilEndOfTurn (Each (SelectAll (And [HasSubtype (^Knight), ControlledBy you])) (Modify It (Several [Alter Power (Up (^2)), Alter Toughness (Up (^1))])))))
+              (Continuously UntilEndOfTurn (Each (SelectAll (And [HasSubtype (^Knight), ControlledBy you])) (Modify It (ApplyAll [Alter Power (Up (^2)), Alter Toughness (Up (^1))])))))
       , -- sacrifice after the final chapter ([CR#714.4])
         Static (Sba (Compare (CountersOn Lore This) GreaterEq (^3)) (Act (Move This (ToZone Graveyard))))
       ]
@@ -1171,7 +1171,7 @@ card_Tarmogoyf = Normal $ ^:
   , manaCost := [^1, ^Green]
   , types := [Creature]
   , abilities :=
-      [ Static (Modify This (Several [ Alter Power (Set typesInGraveyards)
+      [ Static (Modify This (ApplyAll [ Alter Power (Set typesInGraveyards)
                             , Alter Toughness (Set (Plus typesInGraveyards (Literal 1))) ])) ]
   }
 
