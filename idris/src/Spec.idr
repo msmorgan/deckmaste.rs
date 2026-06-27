@@ -41,7 +41,7 @@ tIf = If yourTurn (Act (Draw (^1)))
 
 -- a one-shot creating a continuous effect for a duration
 tContinuously : OneShotEffect Base
-tContinuously = Continuously (Modify (SelectAll (SameAs This)) [Alter Power (Up (^1)), Alter Toughness (Up (^1))]) UntilEndOfTurn
+tContinuously = Continuously (Modify This [Alter Power (Up (^1)), Alter Toughness (Up (^1))]) UntilEndOfTurn
 
 -- a modal effect: choose one of two modes
 tModal : OneShotEffect Base
@@ -264,7 +264,7 @@ tChosenPlayer = ChosenPlayer
 -- The "a creature" restriction now rides `AsEntersChoosing`'s filter (no longer a separable gap); the
 -- "you may" is the one remaining separable refinement.
 tClone : Ability Base
-tClone = AsEntersChoosing AnObject creature [ Static (Modify (SelectAll (SameAs This)) [BecomeCopyOf ChosenObject]) ]
+tClone = AsEntersChoosing AnObject creature [ Static (Modify This [BecomeCopyOf ChosenObject]) ]
 
 -- "sacrifice a [pred]" as a COST — the payer chooses which (not a specific `Sacrifice This`).
 tSacrificeCost : Cost Base
@@ -353,7 +353,7 @@ tCounters = Sequence [ Each (SelectAll creature) (Act (PutCounters P1P1 (Literal
 
 -- anthem: a static `ModifyAll` over a controller-predicate filter, with layer mods
 tAnthem : Ability Base
-tAnthem = Static (Modify (SelectAll (And [HasType Creature, ControlledBy you])) [Alter Power (Up (^1)), Alter Toughness (Up (^1)), Alter Subtypes (Add (^Bear))])
+tAnthem = Static (Each (SelectAll (And [HasType Creature, ControlledBy you])) (Modify It [Alter Power (Up (^1)), Alter Toughness (Up (^1)), Alter Subtypes (Add (^Bear))]))
 
 -- a loyalty ability: an Activated ability whose cost removes Loyalty counters
 tLoyalty : Ability Base
@@ -444,7 +444,7 @@ tSearchOther = Targeted [Target (^1) opponent]
 
 -- a conditional static, and an activation-limited (loyalty-style) ability
 tConditionalStatic : Ability Base
-tConditionalStatic = Static (While (exists (ControlledBy opponent)) (Modify (SelectAll (SameAs This)) [Alter Power (Up (^1)), Alter Toughness (Up (^1))]))
+tConditionalStatic = Static (While (exists (ControlledBy opponent)) (Modify This [Alter Power (Up (^1)), Alter Toughness (Up (^1))]))
 
 tLimitedAbility : Ability Base
 tLimitedAbility =
@@ -491,7 +491,7 @@ tEachPlayerForEach = Each eachPlayer (Act (Draw {actor = It} (^1)))
 tMixedTargets : OneShotEffect Base
 tMixedTargets =
   Targeted [Target (^1) Anyone, Target (^1) (And [permanent, ControlledBy you])]
-    (Continuously (Modify (SelectAll (SameAs (GetTarget 1))) [GainControl (GetTarget 0)]) Permanent)
+    (Continuously (Modify (GetTarget 1) [GainControl (GetTarget 0)]) Permanent)
 
 -- `Or` computes its result kind by JOINING its arms' kinds (`\/`): same-kind stays
 -- precise (`AnObject`), a mix of object + player widens to `Anything` — no `Widen` needed.

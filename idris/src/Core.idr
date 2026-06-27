@@ -1478,13 +1478,19 @@ mutual
   namespace StaticEffect
     public export
     data StaticEffect : Bindings -> Type where
-      -- continuous modification over a SELECTION (the one set-language): singleton = `SelectAll (SameAs r)`,
-      -- anthem/filter = `SelectAll pred`, fixed set = `Union` of singletons. Each element is bound as `It`
-      -- for the mods (the per-subject binder — no `Subject` reference, since a `Predicate`'s candidate is
-      -- already implicit), so a PER-SUBJECT mod can read it: Coat of Arms = "+X/+X where X = other creatures
-      -- sharing a type with It" = `Alter Power (Up (CountOf (And [creature, SharesSubtype It, Not (SameAs It)]))) …`.
-      -- Unifies the former `Modify`(singleton)/`ModifyAll`(filter) split and reaches the fixed-set case neither could.
-      Modify : Selection b AnObject -> List (Modification (bindIt AnObject b)) -> StaticEffect b
+      -- continuous modification of ONE subject ([CR#613]): "this gets +1/+1 and gains flying" =
+      -- `Modify This [Alter Power (Up …), Alter Toughness (Up …), GrantAbility …]`. The subject is a SINGULAR
+      -- `Reference` (`This`, a target, or `It` when iterated). Plurality is lifted OUT to `Each` (below) — there
+      -- is no `Selection` here. A per-subject mod reads the subject as `It` under the `Each` (Coat of Arms =
+      -- `Modify It [Alter Power (Up (CountOf (And [creature, SharesSubtype It, Not (SameAs It)])))]`).
+      Modify : Reference b AnObject -> List (Modification b) -> StaticEffect b
+      -- iterate a `Selection`, binding each element as `It`, applying a static effect to each — the STATIC twin
+      -- of the one-shot `Each` ([CR#611]). Anthem = `Each (SelectAll (And [creature, ControlledBy you])) (Modify
+      -- It […])`; fixed set = `Each (Union …) …`. Because a `StaticEffect` is re-evaluated each layer pass, the
+      -- selection re-gathers continuously (a LIVE filter — creatures get the buff as they enter), unlike one-shot
+      -- `Each` which fixes the set once. Shares the bare name `Each` with `OneShotEffect.Each` (its own namespace,
+      -- disambiguated by type). Subsumes the former `Modify`-over-`Selection`/`ModifyAll` split.
+      Each : Selection b k -> StaticEffect (bindIt k b) -> StaticEffect b
       -- continuous COST modification ([CR#118.7]): spells/abilities matching `of_` get the `change`.
       -- "Instant/sorcery spells you cast cost {1} less" = `CostModifier (And […, ControlledBy you]) (Reduce
       -- [Mana [^1]])`; affinity is a SELF modifier `CostModifier (SameAs This) (ScaledBy (Reduce …) (CountOf …))`.
@@ -1692,8 +1698,8 @@ namespace Card
 -- (`CountersOn c This` reads the count). The rest confer nothing intrinsic.
 public export
 counterConfers : CounterKind -> List (Ability b)
-counterConfers P1P1 = [Static (Modify (SelectAll (SameAs This)) [Alter Power (Up (CountersOn P1P1 This)), Alter Toughness (Up (CountersOn P1P1 This))])]
-counterConfers M1M1 = [Static (Modify (SelectAll (SameAs This)) [Alter Power (Down (CountersOn M1M1 This)), Alter Toughness (Down (CountersOn M1M1 This))])]
+counterConfers P1P1 = [Static (Modify This [Alter Power (Up (CountersOn P1P1 This)), Alter Toughness (Up (CountersOn P1P1 This))])]
+counterConfers M1M1 = [Static (Modify This [Alter Power (Down (CountersOn M1M1 This)), Alter Toughness (Down (CountersOn M1M1 This))])]
 counterConfers _    = []
 
 -- what a SUBTYPE confers on its bearer. The Aura falls-off SBA ([CR#704.5m], a `Static (Sba …)`) and the
