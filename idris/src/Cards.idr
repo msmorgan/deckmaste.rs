@@ -902,7 +902,7 @@ card_GoblinElectromancer = Normal $ ^:
   , subtypes := [^Goblin, ^Wizard]
   , abilities :=
       [ Static (CostModifier (And [Or [HasType Instant, HasType Sorcery], ControlledBy you])
-          (Reduce [Mana [^1]])) ]
+          (Reduce [^1])) ]
   , power := Just 2
   , toughness := Just 2
   }
@@ -918,7 +918,7 @@ card_Thalia = Normal $ ^:
   , subtypes := [^Human]
   , abilities :=
       [ keyword FirstStrike
-      , Static (CostModifier (And [IsKind IsSpell, Not (HasType Creature)]) (Increase [Mana [^1]])) ]
+      , Static (CostModifier (And [IsKind IsSpell, Not (HasType Creature)]) (Increase [^1])) ]
   , power := Just 2
   , toughness := Just 1
   }
@@ -933,7 +933,7 @@ card_Frogmite = Normal $ ^:
   , types := [Artifact, Creature]
   , abilities :=
       [ Static (CostModifier (SameAs This)
-          (ScaledBy (Reduce [Mana [^1]]) (CountMatching (And [HasType Artifact, ControlledBy you])))) ]
+          (ScaledBy (Reduce [^1]) (CountMatching (And [HasType Artifact, ControlledBy you])))) ]
   , power := Just 2
   , toughness := Just 2
   }
