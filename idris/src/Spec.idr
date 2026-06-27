@@ -366,7 +366,7 @@ tValues =
   , Times (CountMatching creature) (Literal 2)
   , Half RoundUp (StatOf This Power)
   , CountersOn P1P1 This
-  , StatOf This ManaValue
+  , ManaValueOf This                                     -- derived mana value ([CR#202.3]) — not a characteristic
   , Min (CountersOn P1P1 This) (CountersOn M1M1 This)   -- net counters after annihilation
   , Max (StatOf This Power) (^0)
   , Damage This                                          -- marked damage
@@ -375,13 +375,13 @@ tValues =
   , Aggregate SumOf (eachOf (And [permanent, creature, ControlledBy you]) (StatOf It Power)) ] -- "the total power of creatures you control"
 
 -- the aggregation value-language's headline cases, each the real card/keyword it models — positive coverage
--- for `CountDistinct` (every attribute × valid source), the `AverageOf`/`MinOf` folds, and the `Players` source.
+-- for `CountDistinct` (characteristic × valid source), the `AverageOf`/`MinOf` folds, and the `Players` source.
 tAggregations : List (Count Base)
 tAggregations =
-  [ CountDistinct OfBasicLandType (Objects (And [permanent, HasType Land, ControlledBy you]))  -- Domain
-  , CountDistinct (OfStat Power) (Objects (And [permanent, ControlledBy you]))                 -- Collector's Cage: distinct powers
-  , CountDistinct OfColor ManaSpent                                                            -- Sunburst / Converge: distinct colours of mana spent
-  , CountDistinct OfName (Objects (InZone Graveyard))                                          -- distinct names in graveyards
+  [ CountDistinct Subtypes (Objects (And [permanent, HasType Land, ControlledBy you]))  -- Domain (granularity from the source filter)
+  , CountDistinct Power (Objects (And [permanent, ControlledBy you]))                   -- Collector's Cage: distinct powers
+  , CountDistinct Colors ManaSpent                                                      -- Sunburst / Converge: distinct colours of mana spent
+  , CountDistinct Name (Objects (InZone Graveyard))                                     -- distinct names in graveyards
   , Aggregate (AverageOf RoundDown) (eachOf (And [permanent, creature, ControlledBy you]) (StatOf It Power))  -- rounded mean power
   , Aggregate MinOf (eachOf (And [permanent, creature, ControlledBy you]) (StatOf It Toughness))              -- least toughness
   , CountOf (Players (Controls creature)) ]                                                    -- number of players who control a creature
@@ -627,16 +627,16 @@ failing
   tBadProjectEvents : Projection Base
   tBadProjectEvents = Project (Events (MkQuery [DealDamage Nothing] [])) (Literal 0)
 
--- `CountDistinct` is gated by `attributeReadableOn`: an object-only attribute over a non-object source is
--- rejected — "distinct powers of the mana you spent" is nonsense (`attributeReadableOn (OfStat Power) ManaSpent = False`).
+-- `CountDistinct` is gated by `readableOn`: an object-only characteristic over a non-object source is
+-- rejected — "distinct powers of the mana you spent" is nonsense (`readableOn Power ManaSpent = Void`).
 failing
   tBadDistinctStatOfMana : Count Base
-  tBadDistinctStatOfMana = CountDistinct (OfStat Power) ManaSpent
+  tBadDistinctStatOfMana = CountDistinct Power ManaSpent
 
--- ...and a non-colour attribute over events is rejected too (`OfName` reads nothing off an event).
+-- ...and a non-colour characteristic over events is rejected too (`Name` reads nothing off an event).
 failing
   tBadDistinctNameOfEvents : Count Base
-  tBadDistinctNameOfEvents = CountDistinct OfName (Events (MkQuery [DealDamage Nothing] []))
+  tBadDistinctNameOfEvents = CountDistinct Name (Events (MkQuery [DealDamage Nothing] []))
 
 -- `Pick` is gated to the EXTREMAL ops by `IsExtremal`: argmax-by-SUM is meaningless (`IsExtremal SumOf` is uninhabited).
 failing

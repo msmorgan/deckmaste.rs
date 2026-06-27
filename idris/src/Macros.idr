@@ -280,4 +280,4 @@ morph c = Keyword (Composite Morph [ Static (CastFaceDown (Mana [^3])), TurnFace
 -- `Min (CountOf (graveyard ∧ that type)) 1` indicators over an enumerated card-type list.
 public export
 typesInGraveyards : Count b
-typesInGraveyards = CountDistinct OfCardType (Objects (InZone Graveyard))
+typesInGraveyards = CountDistinct CardTypes (Objects (InZone Graveyard))

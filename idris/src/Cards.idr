@@ -257,7 +257,7 @@ card_LilianaOfTheVeil = Normal $ ^:
   }
 
 -- Tide Shaper — layers + kicker. The kicked ETB makes a target land an Island for a
--- duration (AddSubtype + ForAsLongAs); a conditional static grants +1/+1 while an
+-- duration (`Alter Subtypes (Add …)` + ForAsLongAs); a conditional static grants +1/+1 while an
 -- opponent controls an Island (`While` + `exists`). FLAG: kicker is the WasKicked
 -- boolean (no cost-mode model).
 export
@@ -1163,7 +1163,7 @@ card_CacklingCounterpart = Normal $ ^:
 
 -- Tarmogoyf — the canonical CDA: "*/1+*, where * is the number of card types among cards in all
 -- graveyards." No printed P/T (the fields are omitted); a `Static (Modify (SelectAll (SameAs This)) [Set …])` DEFINES them
--- from `typesInGraveyards` (a `CountDistinct OfCardType` over graveyards), toughness = power + 1. Real, not a stand-in.
+-- from `typesInGraveyards` (a `CountDistinct CardTypes` over graveyards), toughness = power + 1. Real, not a stand-in.
 export
 card_Tarmogoyf : Card
 card_Tarmogoyf = Normal $ ^:
