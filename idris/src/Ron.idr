@@ -513,6 +513,7 @@ mutual
 
   implementation ToRon (StaticEffect b) where
     toRon i (Modify r mods) = ctor "Modify" [toRon i r, toRon i mods]
+    toRon i (Each sel body) = ctor "Each" [toRon i sel, toRon i body]
     toRon i (CostModifier p ch) = ctor "CostModifier" [toRon i p, toRon i ch]
     toRon i (Replaces q body {limit}) = ctor "Replaces" [toRon i q, toRon i body, toRon i limit]
     toRon i (CantHappen q) = ctor "CantHappen" [toRon i q]
