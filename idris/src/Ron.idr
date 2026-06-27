@@ -130,8 +130,6 @@ implementation ToRon Subtype where
 
 -- The remaining leaf enums: nullary constructors, so a derived `Show` already
 -- prints the RON unit-variant name. (Types with payloads are rendered by hand below.)
-%runElab derive "Stat" [Show]
-implementation ToRon Stat where toRon _ x = show x
 %runElab derive "Characteristic" [Show]
 implementation ToRon Characteristic where toRon _ x = show x
 %runElab derive "RoundMode" [Show]
@@ -141,12 +139,6 @@ implementation ToRon AggregateOp where
     toRon _ MinOf = "MinOf"
     toRon _ MaxOf = "MaxOf"
     toRon i (AverageOf rm) = ctor "AverageOf" [toRon i rm]
-implementation ToRon Attribute where
-    toRon _ OfColor = "OfColor"
-    toRon _ OfName = "OfName"
-    toRon _ OfBasicLandType = "OfBasicLandType"
-    toRon _ OfCardType = "OfCardType"
-    toRon i (OfStat s) = ctor "OfStat" [toRon i s]
 implementation ToRon SymbolPred where
     toRon i (CountsAs c) = ctor "CountsAs" [toRon i c]
     toRon _ IsGeneric = "IsGeneric"
@@ -283,6 +275,7 @@ mutual
     toRon i (CountOf c) = ctor "CountOf" [toRon i c]
     toRon i (CountDistinct a c) = ctor "CountDistinct" [toRon i a, toRon i c]
     toRon i (StatOf r s) = ctor "StatOf" [toRon i r, toRon i s]
+    toRon i (ManaValueOf r) = ctor "ManaValueOf" [toRon i r]
     toRon i (Aggregate op cs) = ctor "Aggregate" [toRon i op, toRon i cs]
     toRon i (EventAgg op q) = ctor "EventAgg" [toRon i op, toRon i q]
     toRon i (Damage r) = ctor "Damage" [toRon i r]
@@ -496,6 +489,8 @@ mutual
   ronModOp i Supertypes (Set v) = ctor "Set" [toRon i v]
   ronModOp i Power      (Set v) = ctor "Set" [toRon i v]
   ronModOp i Toughness  (Set v) = ctor "Set" [toRon i v]
+  ronModOp i Defense    (Set v) = ctor "Set" [toRon i v]
+  ronModOp i ManaCost   (Set v) = ctor "Set" [toRon i v]
   ronModOp i Name       (Set v) = ctor "Set" [ronOpt i v]
   ronModOp i _ (Up x)   = ctor "Up" [toRon i x]
   ronModOp i _ (Down x) = ctor "Down" [toRon i x]

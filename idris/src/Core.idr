@@ -160,9 +160,6 @@ subtypeCategory (BattleSub _) = Battle
 
 -- Leaf types used inside the filter/condition language ---------------------
 
-public export
-data Stat = Power | Toughness | ManaValue | Defense
-
 -- how to ROUND a fractional value — the spell/ability states the direction ([CR#107.1a]). Shared by the
 -- `AverageOf` fold AND the `Half` value constructor (one rounding vocabulary, not two).
 public export
@@ -202,13 +199,6 @@ namespace SymbolPred
     Or : (ps : List SymbolPred) -> {auto 0 ne : NonEmpty ps} -> SymbolPred
     Not : SymbolPred -> SymbolPred
 
--- the single attribute `CountDistinct` reads off each element to size its DISTINCT union ([CR#107.3]): a
--- characteristic (colour/name/basic-land-type/card-type) or a CURRENT numeric stat (Collector's Cage counts
--- distinct POWERS). Wraps `Stat` for the numeric cases rather than duplicating them.
-namespace Attribute
-  public export
-  data Attribute = OfColor | OfName | OfBasicLandType | OfCardType | OfStat Stat
-
 public export
 data Cmp = Equal | GreaterEq | LessEq | Greater | Less
 
@@ -219,6 +209,44 @@ data ObjectKind = IsCard | IsEmblem | IsSpell | IsToken | IsAbility
 -- Supertypes ([CR#205.4a]); independent of card type and subtype.
 public export
 data Supertype = Basic | Legendary | Ongoing | Snow | World
+
+-- A CHARACTERISTIC axis of an object ([CR#109.3]/[CR#613]) — name, colour, types, power/toughness, defense,
+-- mana cost, … ONE vocabulary shared by the reads (`StatOf`/`StatCmp`/`CountDistinct`, in the mutual block
+-- below) and the writes (`ModificationOp`/`Alter`, further down). Defined HERE so both sides see it. Membership
+-- IS settability: every characteristic can be `Set`. The DERIVED mana value is NOT a characteristic ([CR#202.3])
+-- — it has no axis here and is read via `ManaValueOf`. The object's actual VALUE (`Maybe Int`, …) is the
+-- engine's; the grammar only *specifies* it (via `Count`) and *classifies* the axis (the families below), never
+-- materializes it (no `valueOf` — it couldn't cross the RON boundary). Its own `namespace` keeps the leaf names
+-- tidy (`Name`/`Defense`/… are generic).
+namespace Characteristic
+  public export
+  data Characteristic = Colors | CardTypes | Subtypes | Supertypes | Power | Toughness | Defense | ManaCost | Name
+
+-- the numeric axes — gate `Up`/`Down` (write delta, layer 7c) AND the numeric reads (`StatOf`/`StatCmp`/
+-- `TapTotal`). `Defense` is lax-included (setting/pumping it is a describable no-op, like loyalty). The file's
+-- `IsCharDomain` idiom: a Type-returning subset fn (`()`/`Void`), not a Bool flag.
+public export
+Numeric : Characteristic -> Type
+Numeric Power     = ()
+Numeric Toughness = ()
+Numeric Defense   = ()
+Numeric _         = Void
+
+public export
+Collection : Characteristic -> Type     -- accepts element `Add`/`Remove` (the "set-kinded" list axes)
+Collection Colors     = ()
+Collection CardTypes  = ()
+Collection Subtypes   = ()
+Collection Supertypes = ()
+Collection _          = Void
+
+public export
+ElemOf : Characteristic -> Type         -- the element `Add`/`Remove` takes (only consulted under `Collection`)
+ElemOf Colors     = Color
+ElemOf CardTypes  = Type_
+ElemOf Subtypes   = Subtype
+ElemOf Supertypes = Supertype
+ElemOf _          = Unit
 
 -- The word classes a TEXT-CHANGE effect may swap ([CR#612.1]): a color word (white/blue/…) or a basic
 -- land type (Plains/Island/…). Mind Bend allows either; the specific words are a player's choice.
@@ -679,19 +707,18 @@ mutual
   data Projectable : Countable b -> Type where
     ObjectsAreProjectable : Projectable (Objects p)
 
-  -- which ATTRIBUTE can be read off each element of a `Countable` — the gate on `CountDistinct`, mirroring
-  -- `Projectable`/`eventQueryHasAmount`. Colour is readable off objects AND mana (Sunburst counts colours of
-  -- mana spent); the other attributes (name / basic-land-type / card-type / current stat) are object-only;
-  -- players and events carry none. So `CountDistinct (OfStat Power) (Events …)` and `CountDistinct OfName
-  -- ManaSpent` are ill-typed. Declared as a function (like `eventQueryHasAmount`) so the `Count` gate below can
-  -- name it.
+  -- which CHARACTERISTIC can be read off each element of a `Countable` — the gate on `CountDistinct`, mirroring
+  -- `Projectable`/`eventQueryHasAmount`. `Colors` is readable off objects AND mana (Sunburst counts colours of
+  -- mana spent); the other axes (name / subtypes / card-types / a numeric stat) are object-only; players and
+  -- events carry none. So `CountDistinct Power (Events …)` and `CountDistinct Name ManaSpent` are ill-typed. A
+  -- Type-returning subset fn (the file's `IsCharDomain` idiom — `()`/`Void`), named so the `Count` gate can reach it.
   public export
-  attributeReadableOn : Attribute -> Countable b -> Bool
-  attributeReadableOn OfColor (Objects _)       = True
-  attributeReadableOn OfColor (ManaSymbols _ _) = True
-  attributeReadableOn OfColor ManaSpent         = True
-  attributeReadableOn _       (Objects _)       = True
-  attributeReadableOn _       _                 = False
+  readableOn : Characteristic -> Countable b -> Type
+  readableOn Colors (Objects _)       = ()
+  readableOn Colors (ManaSymbols _ _) = ()
+  readableOn Colors ManaSpent         = ()
+  readableOn _      (Objects _)       = ()
+  readableOn _      _                 = Void
 
   -- a PROJECTION: one value per element of a projectable `Countable`, given by the per-element `acc` (a `Count`
   -- with `It` bound to the element via `bindElem` — which clears `hasAllotment`, so a `Distribute` share can't
@@ -709,11 +736,14 @@ mutual
     Literal : Nat -> Count b                  -- a bare number
     X : Count b                               -- the chosen {X} value ([CR#107.3])
     CountOf : Countable b -> Count b          -- the CARDINALITY of a countable (|set|); `CountMatching`/`CountEvents` are sugar
-    -- size of the DISTINCT union of an attribute across a set (Domain = `CountDistinct OfBasicLandType (Objects
-    -- yourLands)`). Gated by `attributeReadableOn`, so the attribute must be readable off the source's elements
-    -- (`CountDistinct (OfStat Power) (Events …)` and `CountDistinct OfName ManaSpent` are rejected).
-    CountDistinct : (a : Attribute) -> (src : Countable b) -> {auto 0 ok : attributeReadableOn a src = True} -> Count b
-    StatOf : Reference b AnObject -> Stat -> Count b     -- an object's power/toughness/etc.
+    -- size of the DISTINCT union of a characteristic across a set (Domain = `CountDistinct Subtypes (Objects
+    -- yourLands)` — granularity from the source filter; Collector's Cage = `CountDistinct Power (Objects …)`).
+    -- Gated by `readableOn`, so the axis must be readable off the source's elements (`CountDistinct Power
+    -- (Events …)` and `CountDistinct Name ManaSpent` are rejected).
+    CountDistinct : (c : Characteristic) -> (src : Countable b) -> {auto 0 ok : readableOn c src} -> Count b
+    -- read an object's CURRENT numeric characteristic ([CR#613]) — power/toughness/defense (`Numeric`-gated).
+    StatOf : Reference b AnObject -> (c : Characteristic) -> {auto 0 _ : Numeric c} -> Count b
+    ManaValueOf : Reference b AnObject -> Count b   -- an object's DERIVED mana value ([CR#202.3]) — a number, not a characteristic axis
     -- FOLD a `Projection` to one value, per `AggregateOp` ("greatest power among creatures you control" =
     -- `Aggregate MaxOf (eachOf yourCreatures (StatOf It Power))`; devotion sums a per-permanent pip-count).
     -- The value-twin of `Pick` (which takes the extremal element from the same `Projection`).
@@ -767,10 +797,10 @@ mutual
       -- carries a DESIGNATION; the candidate's kind follows `designationScope` ("you're the monarch" =
       -- `HasDesignation Monarch` is a player test, "while ~ is monstrous" an object test).
       HasDesignation : (d : Designation) -> Predicate b (designationScope d)
-      -- a numeric STAT comparison on the candidate — "target creature with power ≤ 2" =
+      -- a numeric-characteristic comparison on the candidate — "target creature with power ≤ 2" =
       -- `And [creature, StatCmp Power LessEq (^2)]`. (Closes the "no stat filter" hole — stat
       -- comparison was a `Condition` only; this lifts it into the `Predicate`/filter language.)
-      StatCmp : Stat -> Cmp -> Count b -> Predicate b AnObject
+      StatCmp : (c : Characteristic) -> {auto 0 _ : Numeric c} -> Cmp -> Count b -> Predicate b AnObject
       ControlledBy : Predicate b APlayer -> Predicate b AnObject   -- controller MATCHES a player-pred: "you control" = ControlledBy you, "an opponent controls" = ControlledBy opponent
       OwnedBy : Predicate b APlayer -> Predicate b AnObject
       Controls : Predicate b AnObject -> Predicate b APlayer   -- the INVERSE: a PLAYER who controls a [pred] ("each player who controls a creature")
@@ -1106,51 +1136,21 @@ data Deed : Bindings -> Type where
   -- spine doesn't subsume: it's about HOW MANY blockers, not WHICH. [CR#509.1c] judges the whole set.
   BlockedBy  : (attacker : Predicate b AnObject) -> (size : Quantity b) -> {auto prf : NonZeroQ size} -> Deed b
 
--- A CHARACTERISTIC axis a modification can WRITE ([CR#613]). The flat axis enum the write ops
--- (`ModificationOp`) name; the read axes (`Stat`'s numerics, `Attribute`'s) fold onto it next, so for now it
--- lives in its own `namespace` — `Power`/`Toughness` overlap `Stat`'s constructors, disambiguated by type.
--- The *operation* carries the layer/base-vs-current (`Set Power` = base 7b, `Up`/`Down` = delta 7c), so
--- `Power`/`Toughness` drop the "Base". Every axis here is settable; the read-only numerics (`ManaValue` is
--- *derived* from mana cost — you read it, never set it) join with the read side. The object's actual VALUE
--- (`Maybe Int`, …) is the engine's — the grammar only *specifies* it (in the `Count` amount language) and
--- *classifies* the axis below; no value type appears in the model.
-namespace Characteristic
-  public export
-  data Characteristic = Colors | CardTypes | Subtypes | Supertypes | Power | Toughness | Name
-
--- the value class of each axis, as plain total functions (the file's `IsCharDomain`/`CharValue` idiom — NOT a
--- value-type index, which would tempt a non-RON `valueOf : Ref -> Characteristic t -> t`).
+-- the value class of each `Characteristic` axis (defined far above, before the mutual block) — the type a
+-- `Set` op overwrites it with. Lives HERE, apart from the enum, because the numeric axes' value is a `Count`
+-- ([CR#613] — a possibly-dynamic CDA "*/*"), and `Count` is defined in the mutual block above. NOT a value-type
+-- index, which would tempt a non-RON `valueOf : Ref -> Characteristic t -> t`.
 public export
-CharValue : Bindings -> Characteristic -> Type   -- the type `Set` overwrites this axis with
+CharValue : Bindings -> Characteristic -> Type
 CharValue _ Colors     = List Color
 CharValue _ CardTypes  = List Type_
 CharValue _ Subtypes   = List Subtype
 CharValue _ Supertypes = List Supertype
 CharValue b Power      = Count b        -- specify a (possibly dynamic, CDA "*/*") value in the amount language
 CharValue b Toughness  = Count b
+CharValue b Defense    = Count b
+CharValue _ ManaCost   = ManaCost       -- the symbol list ("no mana cost" = `Set ManaCost []`, eternalize)
 CharValue _ Name       = Maybe String   -- `Nothing` = "has no name"
-
-public export
-Numeric : Characteristic -> Type        -- accepts +/- (`Up`/`Down`); the read side will share it for `StatOf`
-Numeric Power     = ()
-Numeric Toughness = ()
-Numeric _         = Void
-
-public export
-Collection : Characteristic -> Type     -- accepts element `Add`/`Remove` (the "set-kinded" list axes)
-Collection Colors     = ()
-Collection CardTypes  = ()
-Collection Subtypes   = ()
-Collection Supertypes = ()
-Collection _          = Void
-
-public export
-ElemOf : Characteristic -> Type         -- the element `Add`/`Remove` takes (only consulted under `Collection`)
-ElemOf Colors     = Color
-ElemOf CardTypes  = Type_
-ElemOf Subtypes   = Subtype
-ElemOf Supertypes = Supertype
-ElemOf _          = Unit
 
 -- A modification OPERATION on one characteristic axis `c` ([CR#613]) — the layer/base-vs-current is the
 -- OPERATION, not the axis name (so `Power`/`Toughness` drop the "Base"). `Set` overwrites any axis; `Up`/
@@ -1183,10 +1183,10 @@ mutual
     Do        : Action b -> Cost b
     Scaled    : Count b -> Cost b -> Cost b         -- the cost paid once per unit of the count ("{2} for each X" = Scaled (CountOf X) (Mana [promote 2]))
     Costs     : List (Cost b) -> Cost b            -- all components together
-    -- AGGREGATE cost: tap a chosen subset of [of_] whose summed [stat] satisfies [cmp] [n]. ONE shape
-    -- for Crew ("tap creatures, total power ≥ N" = `TapTotal Power GreaterEq (^n) creature`) — and the
+    -- AGGREGATE cost: tap a chosen subset of [of_] whose summed numeric characteristic [c] satisfies [cmp] [n].
+    -- ONE shape for Crew ("tap creatures, total power ≥ N" = `TapTotal Power GreaterEq (^n) creature`) — and the
     -- Convoke/devotion-scaling family the engine's authors flagged it should subsume.
-    TapTotal  : Stat -> Cmp -> Count b -> (of_ : Predicate b AnObject) -> Cost b
+    TapTotal  : (c : Characteristic) -> {auto 0 _ : Numeric c} -> Cmp -> Count b -> (of_ : Predicate b AnObject) -> Cost b
 
   -- A continuous CHANGE to a spell/ability cost ([CR#118.7]), carried by `StaticEffect::CostModifier`.
   -- Borrowed from the Rust engine's key split: this MODIFIES an existing base — it is NOT an alternative
