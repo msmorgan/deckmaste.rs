@@ -366,8 +366,7 @@ mutual
     toRon i (Agent p) = ctor "Agent" [toRon i p]
     toRon i (Patient p) = ctor "Patient" [toRon i p]
     toRon i (Within w) = ctor "Within" [toRon i w]
-    toRon i (DuringStep ps) = ctor "DuringStep" [toRon i ps]
-    toRon i (DuringTurn p) = ctor "DuringTurn" [toRon i p]
+    toRon i (Whenever c) = ctor "Whenever" [toRon i c]
     toRon i (IsFirst w) = ctor "IsFirst" [toRon i w]
     toRon i (And fs) = ctor "And" [toRon i fs]
     toRon i (Or fs) = ctor "Or" [toRon i fs]
@@ -393,6 +392,7 @@ mutual
 
   implementation ToRon (Cost b) where
     toRon i (Mana m) = ctor "Mana" [toRon i m]
+    toRon i (ManaCostOf r) = ctor "ManaCostOf" [toRon i r]
     toRon i (Do a) = ctor "Do" [toRon i a]
     toRon i (Scaled c cost) = ctor "Scaled" [toRon i c, toRon i cost]
     toRon i (Costs cs) = ctor "Costs" [toRon i cs]
@@ -404,9 +404,6 @@ mutual
     toRon i (Additional cs) = ctor "Additional" [toRon i cs]
     toRon i (Optional cs) = ctor "Optional" [toRon i cs]
     toRon i (ScaledBy ch c) = ctor "ScaledBy" [toRon i ch, toRon i c]
-
-  implementation ToRon (AlternativeCost b) where
-    toRon i (AltCost cs) = ctor "AltCost" [toRon i cs]
 
   implementation ToRon (ReplaceLimit b) where
     toRon _ Unlimited = "Unlimited"
@@ -446,7 +443,6 @@ mutual
   implementation ToRon (Action b) where
     toRon i (DealDamage {source} r n) = ctor "DealDamage" [toRon i source, toRon i r, toRon i n]
     toRon i (Move r z) = ctor "Move" [toRon i r, toRon i z]
-    toRon i (ExileUntil r d) = ctor "ExileUntil" [toRon i r, toRon i d]
     toRon i (Destroy r) = ctor "Destroy" [toRon i r]
     toRon i (Counter r) = ctor "Counter" [toRon i r]
     toRon i (Tap r) = ctor "Tap" [toRon i r]
@@ -524,8 +520,9 @@ mutual
     toRon i (Also q body) = ctor "Also" [toRon i q, toRon i body]
     toRon i (Sba c body) = ctor "Sba" [toRon i c, toRon i body]
     toRon i (ManaPersists p) = ctor "ManaPersists" [toRon i p]
-    toRon i (MayCastFor alt {from}) = ctor "MayCastFor" [toRon i alt, toRon i from]
+    toRon i (MayCastFor costs {from}) = ctor "MayCastFor" [toRon i costs, toRon i from]
     toRon i (CastFaceDown c) = ctor "CastFaceDown" [toRon i c]
+    toRon i (Relocate r from to) = ctor "Relocate" [toRon i r, toRon i from, toRon i to]
     toRon i (While c se) = ctor "While" [toRon i c, toRon i se]
     toRon i (Can d {window}) = ctor "Can" [toRon i d, ronOpt i window]
     toRon i (AsThough c se) = ctor "AsThough" [toRon i c, toRon i se]
@@ -571,6 +568,7 @@ mutual
     toRon _ Menace = "Menace"
     toRon i (Hexproof mp) = ctor "Hexproof" [ronOpt i mp]
     toRon _ Morph = "Morph"
+    toRon _ Flashback = "Flashback"
     toRon _ Devoid = "Devoid"
     toRon i (Protection p) = ctor "Protection" [toRon i p]
 

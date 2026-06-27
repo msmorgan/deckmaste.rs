@@ -163,11 +163,11 @@ tQuantities =
   ]
 
 -- the event-query language: facets conjoin (`And`), `Not` negates, timing via
--- `DuringTurn` — "a creature died, not during your turn".
+-- `Whenever (TurnOf …)` — "a creature died, not during your turn".
 tEventQuery : EventQuery Base
 tEventQuery = MkEventQuery [ZoneChanged (Just Battlefield) (Just Graveyard)]
                       [ Agent creature
-                      , Not (DuringTurn you) ]
+                      , Not (Whenever (TurnOf you)) ]
 
 -- PAYLOAD replacement: the event survives but its amount is rewritten — Furnace of Rath doubles damage
 -- by scaling `EventAmount` (the event's own amount). The `newAmount` reads the event body.
@@ -303,12 +303,12 @@ tMoveSomeCounters : OneShotEffect Base
 tMoveSomeCounters = Targeted [Target (^1) creature] (Act (MoveCounters (Some P1P1 (^1)) This (GetTarget 0)))
 
 tMayCastFor : StaticEffect Base
-tMayCastFor = MayCastFor (AltCost [Do (LoseLife (^1))])
+tMayCastFor = MayCastFor [Do (LoseLife (^1))]
 
 -- cast-from-zone: the alt-cost's `from` defaults to Hand; a non-default zone is the flashback family
 -- ("cast this from your graveyard for {3}{U}"). The exile-after / exile-N riders compose on separately.
 tCastFromGrave : StaticEffect Base
-tCastFromGrave = MayCastFor (AltCost [Mana [^3, ^Blue]]) {from = Graveyard}
+tCastFromGrave = MayCastFor [Mana [^3, ^Blue]] {from = [Graveyard]}
 
 -- a log-derived history count feeds a condition, and a game `Outcome` wraps into an effect
 tHistoryThenWin : OneShotEffect Base
@@ -647,7 +647,7 @@ failing
   tBadEmptySymbolOr = ManaSymbols This (Or [])
 
 -- a `Distribute` share (`Allotment`) can't leak into a `Projection` accessor — `eachOf`/`Project` rebind `It`
--- via `bindElem`, which clears `hasAllotment`, so `Allotment` has no proof there (it was indexed to a DIFFERENT loop element).
+-- via `bindIt`, which clears `hasAllotment`, so `Allotment` has no proof there (it was indexed to a DIFFERENT loop element).
 failing
   tBadAllotmentInProjection : Projection Base
   tBadAllotmentInProjection = eachOf creature Allotment
