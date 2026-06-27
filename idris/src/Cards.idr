@@ -123,7 +123,7 @@ card_Rancor = Normal $ ^:
   , subtypes := [^Aura]
   , abilities := enchant creature ++
       [ Static (Modify (SelectAll (SameAs (AttachHostOf This)))
-          [ ModifyPT (^2) (^0)
+          [ Alter Power (Up (^2))
           , GrantAbility (keyword Trample)
           ])
       , Triggered
@@ -229,7 +229,7 @@ card_GloriousAnthem = Normal $ ^:
   , manaCost := [^1, ^White, ^White]
   , types := [Enchantment]
   , abilities :=
-      [ Static (Modify (SelectAll (And [HasType Creature, ControlledBy you])) [ModifyPT (^1) (^1)]) ]
+      [ Static (Modify (SelectAll (And [HasType Creature, ControlledBy you])) [Alter Power (Up (^1)), Alter Toughness (Up (^1))]) ]
   }
 
 -- Liliana of the Veil — "planeswalkers are pure composite": loyalty abilities are
@@ -271,10 +271,10 @@ card_TideShaper = Normal $ ^:
       [ Triggered (thisEnters)
           (If (Matches This WasKicked)
               (Targeted [Target (^1) (HasType Land)]
-                (Continuously (Modify (SelectAll (SameAs (GetTarget 0))) [AddSubtype (^Island)])
+                (Continuously (Modify (SelectAll (SameAs (GetTarget 0))) [Alter Subtypes (Add (^Island))])
                               (ForAsLongAs (Matches This (InZone Battlefield))))))
       , Static (While (exists (And [InZone Battlefield, HasSubtype (^Island), ControlledBy opponent]))
-                      (Modify (SelectAll (SameAs This)) [ModifyPT (^1) (^1)]))
+                      (Modify (SelectAll (SameAs This)) [Alter Power (Up (^1)), Alter Toughness (Up (^1))]))
       ]
   , power := Just 1
   , toughness := Just 1
@@ -576,9 +576,9 @@ card_StudentOfWarfare = Normal $ ^:
       [ levelUp (Mana [^White])                                                                  -- "Level up {W}"
       , Static (While (And [ Compare (CountersOn Level This) GreaterEq (^2)
                            , Compare (CountersOn Level This) LessEq (^6) ])
-          (Modify (SelectAll (SameAs This)) [Set BasePower (^3), Set BaseToughness (^3), GrantAbility (keyword FirstStrike)]))   -- LEVEL 2–6: 3/3 first strike
+          (Modify (SelectAll (SameAs This)) [Alter Power (Set (^3)), Alter Toughness (Set (^3)), GrantAbility (keyword FirstStrike)]))   -- LEVEL 2–6: 3/3 first strike
       , Static (While (Compare (CountersOn Level This) GreaterEq (^7))
-          (Modify (SelectAll (SameAs This)) [Set BasePower (^4), Set BaseToughness (^4), GrantAbility (keyword DoubleStrike)]))   -- LEVEL 7+: 4/4 double strike
+          (Modify (SelectAll (SameAs This)) [Alter Power (Set (^4)), Alter Toughness (Set (^4)), GrantAbility (keyword DoubleStrike)]))   -- LEVEL 7+: 4/4 double strike
       ]
   }
 
@@ -980,8 +980,8 @@ card_CoatOfArms = Normal $ ^:
   , types := [Artifact]
   , abilities :=
       [ Static (Modify (SelectAll creature)
-          [ ModifyPT (Up (CountMatching (And [permanent, creature, SharesSubtype It, Not (SameAs It)])))
-                     (Up (CountMatching (And [permanent, creature, SharesSubtype It, Not (SameAs It)]))) ]) ]
+          [ Alter Power (Up (CountMatching (And [permanent, creature, SharesSubtype It, Not (SameAs It)])))
+          , Alter Toughness (Up (CountMatching (And [permanent, creature, SharesSubtype It, Not (SameAs It)]))) ]) ]
   }
 
 -- Platinum Angel — the OUTCOME gate: "you can't lose the game and your opponents can't win." Two
@@ -1025,7 +1025,7 @@ card_MutagenicGrowth = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [Target (^1) creature]
-          (Continuously (Modify (SelectAll (SameAs (GetTarget 0))) [ModifyPT (^2) (^2)]) UntilEndOfTurn)) ]
+          (Continuously (Modify (SelectAll (SameAs (GetTarget 0))) [Alter Power (Up (^2)), Alter Toughness (Up (^2))]) UntilEndOfTurn)) ]
   }
 
 -- Skred — SNOW mana ({S}): deals damage to target creature equal to the snow permanents you control.
@@ -1061,7 +1061,7 @@ card_HistoryOfBenalia = Normal $ ^:
       , -- III — Knights you control get +2/+1 until end of turn
         Triggered (MkQuery [PutCounters] [Patient (SameAs This)])
           (If (Compare (CountersOn Lore This) Equal (^3))
-              (Continuously (Modify (SelectAll (And [HasSubtype (^Knight), ControlledBy you])) [ModifyPT (^2) (^1)]) UntilEndOfTurn))
+              (Continuously (Modify (SelectAll (And [HasSubtype (^Knight), ControlledBy you])) [Alter Power (Up (^2)), Alter Toughness (Up (^1))]) UntilEndOfTurn))
       , -- sacrifice after the final chapter ([CR#714.4])
         Static (Sba (Compare (CountersOn Lore This) GreaterEq (^3)) (Act (Move This (ToZone Graveyard))))
       ]
@@ -1171,8 +1171,8 @@ card_Tarmogoyf = Normal $ ^:
   , manaCost := [^1, ^Green]
   , types := [Creature]
   , abilities :=
-      [ Static (Modify (SelectAll (SameAs This)) [ Set BasePower typesInGraveyards
-                            , Set BaseToughness (Plus typesInGraveyards (Literal 1)) ]) ]
+      [ Static (Modify (SelectAll (SameAs This)) [ Alter Power (Set typesInGraveyards)
+                            , Alter Toughness (Set (Plus typesInGraveyards (Literal 1))) ]) ]
   }
 
 -- Drudge Skeletons — REGENERATION: "{B}: Regenerate this." The `regenerate` macro sets up the one-shot

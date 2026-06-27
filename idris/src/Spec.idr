@@ -41,7 +41,7 @@ tIf = If yourTurn (Act (Draw (^1)))
 
 -- a one-shot creating a continuous effect for a duration
 tContinuously : OneShotEffect Base
-tContinuously = Continuously (Modify (SelectAll (SameAs This)) [ModifyPT (^1) (^1)]) UntilEndOfTurn
+tContinuously = Continuously (Modify (SelectAll (SameAs This)) [Alter Power (Up (^1)), Alter Toughness (Up (^1))]) UntilEndOfTurn
 
 -- a modal effect: choose one of two modes
 tModal : OneShotEffect Base
@@ -353,7 +353,7 @@ tCounters = Sequence [ Each (SelectAll creature) (Act (PutCounters P1P1 (Literal
 
 -- anthem: a static `ModifyAll` over a controller-predicate filter, with layer mods
 tAnthem : Ability Base
-tAnthem = Static (Modify (SelectAll (And [HasType Creature, ControlledBy you])) [ModifyPT (^1) (^1), AddSubtype (^Bear)])
+tAnthem = Static (Modify (SelectAll (And [HasType Creature, ControlledBy you])) [Alter Power (Up (^1)), Alter Toughness (Up (^1)), Alter Subtypes (Add (^Bear))])
 
 -- a loyalty ability: an Activated ability whose cost removes Loyalty counters
 tLoyalty : Ability Base
@@ -444,31 +444,31 @@ tSearchOther = Targeted [Target (^1) opponent]
 
 -- a conditional static, and an activation-limited (loyalty-style) ability
 tConditionalStatic : Ability Base
-tConditionalStatic = Static (While (exists (ControlledBy opponent)) (Modify (SelectAll (SameAs This)) [ModifyPT (^1) (^1)]))
+tConditionalStatic = Static (While (exists (ControlledBy opponent)) (Modify (SelectAll (SameAs This)) [Alter Power (Up (^1)), Alter Toughness (Up (^1))]))
 
 tLimitedAbility : Ability Base
 tLimitedAbility =
   Activated (Do (RemoveCounters Loyalty (Literal 1) This)) (Act (Draw (^1))) {window = AsSorcery, limits = [OncePerTurn]}
 
--- P/T in the value language: SIGNED deltas (Up/Down, ModifyPT) and a dynamic base via the unified `Set`.
+-- P/T in the value language: SIGNED deltas (Alter Power/Toughness Up/Down) and a dynamic base via `Set`.
 tPTMods : List (Modification Base)
 tPTMods =
-  [ ModifyPT (Up (Literal 2)) (Down (Literal 1))     -- "+2/-1"
-  , Set BasePower (CountMatching creature), Set BaseToughness (CountMatching creature) ]   -- a dynamic base-P/T set (the real */1+* CDA is card_Tarmogoyf)
+  [ Alter Power (Up (Literal 2)), Alter Toughness (Down (Literal 1))     -- "+2/-1"
+  , Alter Power (Set (CountMatching creature)), Alter Toughness (Set (CountMatching creature)) ]   -- a dynamic base-P/T set (the real */1+* CDA is card_Tarmogoyf)
 
--- the unified `Set` overwrites ANY characteristic, value-typed by `CharValue`: "becomes blue", "loses all
--- creature types" (`Set Subtypes []`), "becomes a legendary artifact creature".
+-- the `Set` op overwrites ANY characteristic, value-typed by `CharValue`: "becomes blue", "loses all
+-- creature types" (`Alter Subtypes (Set [])`), "becomes a legendary artifact creature".
 tSetChars : List (Modification Base)
 tSetChars =
-  [ Set Colors [Blue]
-  , Set Subtypes []
-  , Set CardTypes [Artifact, Creature]
-  , Set Supertypes [Legendary] ]
+  [ Alter Colors (Set [Blue])
+  , Alter Subtypes (Set [])
+  , Alter CardTypes (Set [Artifact, Creature])
+  , Alter Supertypes (Set [Legendary]) ]
 
 -- ...and it's VALUE-TYPED by construction: a non-Color value for `Colors` is a type error.
 failing
   tBadSetColorValue : Modification Base
-  tBadSetColorValue = Set Colors [Creature]
+  tBadSetColorValue = Alter Colors (Set [Creature])
 
 -- a "*/*" creature: printed power/toughness are a `Count` (CDA), not a bare Int
 tCDA : Card

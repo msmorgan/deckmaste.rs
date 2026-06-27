@@ -938,17 +938,6 @@ implementation Num (Count b) where
   (*) = Times
   fromInteger = Literal . integerToNat
 
--- A SIGNED change to a value (layer-7c "+N/+N" P/T modifications). `promote` builds it from
--- an Integer (`promote 2` = Up 2, `promote (-1)` = Down 1); use `Up`/`Down` for dynamic deltas.
-public export
-data Delta : Bindings -> Type where
-  Up   : Count b -> Delta b   -- "+N"
-  Down : Count b -> Delta b   -- "−N"
-
-public export
-implementation Promote Integer (Delta b) where
-  promote n = if n >= 0 then Up (promote n) else Down (promote (negate n))
-
 -- A game-result effect ([CR#104]). Its own category above `Action` — a game-ender
 -- isn't just another verb; `OneShotEffect`'s `Conclude` wraps it.
 public export
@@ -1117,21 +1106,63 @@ data Deed : Bindings -> Type where
   -- spine doesn't subsume: it's about HOW MANY blockers, not WHICH. [CR#509.1c] judges the whole set.
   BlockedBy  : (attacker : Predicate b AnObject) -> (size : Quantity b) -> {auto prf : NonZeroQ size} -> Deed b
 
--- A CHARACTERISTIC a `Set` modification can OVERWRITE ([CR#613] at the layer the engine knows per
--- characteristic — colors L5, types L4, P/T L7b, …). ONE mechanism for all of them: each maps to its
--- value TYPE via the total `CharValue`, so `Set` takes the right value by construction.
+-- A CHARACTERISTIC axis a modification can WRITE ([CR#613]). The flat axis enum the write ops
+-- (`ModificationOp`) name; the read axes (`Stat`'s numerics, `Attribute`'s) fold onto it next, so for now it
+-- lives in its own `namespace` — `Power`/`Toughness` overlap `Stat`'s constructors, disambiguated by type.
+-- The *operation* carries the layer/base-vs-current (`Set Power` = base 7b, `Up`/`Down` = delta 7c), so
+-- `Power`/`Toughness` drop the "Base". Every axis here is settable; the read-only numerics (`ManaValue` is
+-- *derived* from mana cost — you read it, never set it) join with the read side. The object's actual VALUE
+-- (`Maybe Int`, …) is the engine's — the grammar only *specifies* it (in the `Count` amount language) and
+-- *classifies* the axis below; no value type appears in the model.
+namespace Characteristic
+  public export
+  data Characteristic = Colors | CardTypes | Subtypes | Supertypes | Power | Toughness | Name
+
+-- the value class of each axis, as plain total functions (the file's `IsCharDomain`/`CharValue` idiom — NOT a
+-- value-type index, which would tempt a non-RON `valueOf : Ref -> Characteristic t -> t`).
 public export
-data Characteristic = Colors | CardTypes | Subtypes | Supertypes | BasePower | BaseToughness | Name
+CharValue : Bindings -> Characteristic -> Type   -- the type `Set` overwrites this axis with
+CharValue _ Colors     = List Color
+CharValue _ CardTypes  = List Type_
+CharValue _ Subtypes   = List Subtype
+CharValue _ Supertypes = List Supertype
+CharValue b Power      = Count b        -- specify a (possibly dynamic, CDA "*/*") value in the amount language
+CharValue b Toughness  = Count b
+CharValue _ Name       = Maybe String   -- `Nothing` = "has no name"
 
 public export
-CharValue : Bindings -> Characteristic -> Type
-CharValue _ Colors        = List Color
-CharValue _ CardTypes     = List Type_
-CharValue _ Subtypes      = List Subtype
-CharValue _ Supertypes    = List Supertype
-CharValue b BasePower     = Count b        -- may be dynamic (a CDA "*/*")
-CharValue b BaseToughness = Count b
-CharValue _ Name          = Maybe String   -- `Nothing` = "has no name"
+Numeric : Characteristic -> Type        -- accepts +/- (`Up`/`Down`); the read side will share it for `StatOf`
+Numeric Power     = ()
+Numeric Toughness = ()
+Numeric _         = Void
+
+public export
+Collection : Characteristic -> Type     -- accepts element `Add`/`Remove` (the "set-kinded" list axes)
+Collection Colors     = ()
+Collection CardTypes  = ()
+Collection Subtypes   = ()
+Collection Supertypes = ()
+Collection _          = Void
+
+public export
+ElemOf : Characteristic -> Type         -- the element `Add`/`Remove` takes (only consulted under `Collection`)
+ElemOf Colors     = Color
+ElemOf CardTypes  = Type_
+ElemOf Subtypes   = Subtype
+ElemOf Supertypes = Supertype
+ElemOf _          = Unit
+
+-- A modification OPERATION on one characteristic axis `c` ([CR#613]) — the layer/base-vs-current is the
+-- OPERATION, not the axis name (so `Power`/`Toughness` drop the "Base"). `Set` overwrites any axis; `Up`/
+-- `Down` are the signed numeric deltas (layer 7c); `Add`/`Remove` add/remove one element of a collection
+-- axis. The gates make the mismatches unrepresentable: `Up` on `Colors` and `Add` on `Power` are ill-typed.
+public export
+data ModificationOp : Bindings -> Characteristic -> Type where
+  Set    : CharValue b c -> ModificationOp b c                          -- overwrite (any axis)
+  Up     : {auto 0 _ : Numeric c}    -> Count b  -> ModificationOp b c   -- "+N" (numeric, layer 7c)
+  Down   : {auto 0 _ : Numeric c}    -> Count b  -> ModificationOp b c   -- "−N"
+  Add    : {auto 0 _ : Collection c} -> ElemOf c -> ModificationOp b c   -- add one element (collection)
+  Remove : {auto 0 _ : Collection c} -> ElemOf c -> ModificationOp b c
 
 -- One big mutual block: `Ability → OneShotEffect → Action → CreateToken → Characteristics` is a
 -- cycle, so `Characteristics`/`Action`/`Bindable` join the effect/ability block below. `Cost` joins
@@ -1359,13 +1390,13 @@ mutual
   -- A continuous modification a static ability applies to its subject.
   public export
   data Modification : Bindings -> Type where
-    ModifyPT : Delta b -> Delta b -> Modification b     -- "gets +x/+y" (SIGNED, layer 7c — Up/Down)
-    -- SET any characteristic to a value ([CR#613]): "becomes blue" = `Set Colors [Blue]`; "loses all
-    -- creature types" = `Set Subtypes []`; "base p/t are x/y" = `Set BasePower x` + `Set BaseToughness y`
-    -- (a CDA `*/*` sets a dynamic `Count`). One mechanism, value-typed by `CharValue`; subsumes old `SetPT`.
-    Set : (c : Characteristic) -> CharValue b c -> Modification b
-    AddType : Type_ -> Modification b                   -- "is also a [type]"
-    AddSubtype : Subtype -> Modification b              -- "becomes an Island" (adds the subtype)
+    -- modify one CHARACTERISTIC axis with a (gated) `ModificationOp` ([CR#613]). The operation carries the
+    -- layer/base-vs-current: "gets +2/+1" = `Alter Power (Up (^2))` + `Alter Toughness (Up (^1))`; "becomes
+    -- blue" = `Alter Colors (Set [Blue])`; "is also an artifact" = `Alter CardTypes (Add Artifact)`; "becomes
+    -- an Island" = `Alter Subtypes (Add (^Island))`; "loses all creature types" = `Alter Subtypes (Set [])`;
+    -- "base p/t are x/y" = `Alter Power (Set x)` + `Alter Toughness (Set y)` (a CDA `*/*` sets a dynamic
+    -- `Count`). ONE mechanism; subsumes the former `ModifyPT`/`Set`/`AddType`/`AddSubtype`.
+    Alter : (c : Characteristic) -> ModificationOp b c -> Modification b
     -- TEXT-CHANGE ([CR#612], a layer-3 mod): "replace all instances of one word with another of its
     -- class" — the eligible classes are listed; the two specific words are the player's resolution-time
     -- choice (engine-resolved, like `Choose`). Mind Bend = `ChangeText [ColorWords, BasicLandTypes]`.
@@ -1386,7 +1417,7 @@ mutual
     -- anthem/filter = `SelectAll pred`, fixed set = `Union` of singletons. Each element is bound as `It`
     -- for the mods (the per-subject binder — no `Subject` reference, since a `Predicate`'s candidate is
     -- already implicit), so a PER-SUBJECT mod can read it: Coat of Arms = "+X/+X where X = other creatures
-    -- sharing a type with It" = `ModifyPT (Up (CountOf (And [creature, SharesSubtype It, Not (SameAs It)]))) …`.
+    -- sharing a type with It" = `Alter Power (Up (CountOf (And [creature, SharesSubtype It, Not (SameAs It)]))) …`.
     -- Unifies the former `Modify`(singleton)/`ModifyAll`(filter) split and reaches the fixed-set case neither could.
     Modify : Selection b AnObject -> List (Modification (bindIt AnObject b)) -> StaticEffect b
     -- continuous COST modification ([CR#118.7]): spells/abilities matching `of_` get the `change`.
@@ -1592,8 +1623,8 @@ data Card : Type where
 -- (`CountersOn c This` reads the count). The rest confer nothing intrinsic.
 public export
 counterConfers : CounterKind -> List (Ability b)
-counterConfers P1P1 = [Static (Modify (SelectAll (SameAs This)) [ModifyPT (Up (CountersOn P1P1 This)) (Up (CountersOn P1P1 This))])]
-counterConfers M1M1 = [Static (Modify (SelectAll (SameAs This)) [ModifyPT (Down (CountersOn M1M1 This)) (Down (CountersOn M1M1 This))])]
+counterConfers P1P1 = [Static (Modify (SelectAll (SameAs This)) [Alter Power (Up (CountersOn P1P1 This)), Alter Toughness (Up (CountersOn P1P1 This))])]
+counterConfers M1M1 = [Static (Modify (SelectAll (SameAs This)) [Alter Power (Down (CountersOn M1M1 This)), Alter Toughness (Down (CountersOn M1M1 This))])]
 counterConfers _    = []
 
 -- what a SUBTYPE confers on its bearer. The Aura falls-off SBA ([CR#704.5m], a `Static (Sba …)`) and the
