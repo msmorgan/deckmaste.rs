@@ -108,13 +108,13 @@ tControlsPlayer = Controls creature
 -- unifies what were the paired `Becomes Attacking` (doer side) and `Becomes Attacked` (patient side).
 --   * "whenever this is blocked" — the patient side of a Block onset:
 tBecomesBlocked : EventQuery Base
-tBecomesBlocked = MkQuery [Begins Block] [Patient (SameAs This)]
+tBecomesBlocked = MkEventQuery [Begins Block] [Patient (SameAs This)]
 
 -- DEFENDER-SIDE of combat ([CR#508.1]): an attack is attacker (DOER) → defender (PATIENT), the defender
 -- kind-poly (a player, planeswalker, or battle) on the now kind-poly `Patient` facet.
 --   * OBJECT defender — "whenever this planeswalker is attacked" (patient side of an Attack onset):
 tBecomesAttacked : EventQuery Base
-tBecomesAttacked = MkQuery [Begins Attack] [Patient (SameAs This)]
+tBecomesAttacked = MkEventQuery [Begins Attack] [Patient (SameAs This)]
 
 --   * the durative filter "the attacked planeswalker" — `Holds` is object-only (only objects bear durative
 --     state; a player defender has none, and rides the event's `Patient` facet instead):
@@ -123,12 +123,12 @@ tAttackedFilter = And [hasType Planeswalker, Holds Attack Patient]
 
 --   * PLAYER defender — "whenever you're attacked" (the kind-poly patient of an Attack onset):
 tYouAreAttacked : EventQuery Base
-tYouAreAttacked = MkQuery [Begins Attack] [Patient you]
+tYouAreAttacked = MkEventQuery [Begins Attack] [Patient you]
 
 -- the DOER side: "whenever this attacks or blocks" (Smuggler's Copter) — one `Begins` per relation, the
 -- `Agent` facet pinning the attacker/blocker (the counterpart to the patient-side defender pins above).
 tAttacksOrBlocks : EventQuery Base
-tAttacksOrBlocks = MkQuery [Begins Attack, Begins Block] [Agent (SameAs This)]
+tAttacksOrBlocks = MkEventQuery [Begins Attack, Begins Block] [Agent (SameAs This)]
 
 -- designations: ONE predicate, scope by type — `HasDesignation Monarch` is a PLAYER test (you're the
 -- monarch), `HasDesignation Monstrous` an OBJECT test. The carrier follows `designationScope`.
@@ -165,20 +165,20 @@ tQuantities =
 -- the event-query language: facets conjoin (`And`), `Not` negates, timing via
 -- `DuringTurn` — "a creature died, not during your turn".
 tEventQuery : EventQuery Base
-tEventQuery = MkQuery [ZoneChanged (Just Battlefield) (Just Graveyard)]
+tEventQuery = MkEventQuery [ZoneChanged (Just Battlefield) (Just Graveyard)]
                       [ Agent creature
                       , Not (DuringTurn you) ]
 
 -- PAYLOAD replacement: the event survives but its amount is rewritten — Furnace of Rath doubles damage
--- by scaling `ThatMuch` (the event's own amount). The `newAmount` reads the event body.
+-- by scaling `EventAmount` (the event's own amount). The `newAmount` reads the event body.
 tReplaceAmount : StaticEffect Base
-tReplaceAmount = ReplaceAmount (MkQuery [DealDamage Nothing] []) (Times ThatMuch (^2))
+tReplaceAmount = ReplaceAmount (MkEventQuery [DealDamage Nothing] []) (Times EventAmount (^2))
 
 -- prevention is a REPLACEMENT (the damage amount set to zero) — fine as ReplaceAmount. But
 -- indestructible is a PROHIBITION, not a replace-with-nothing: `keyword Indestructible` desugars to
 -- `CantHappen (destroy of This)` (the two are semantically distinct — see CantHappen's note).
 tPrevention : StaticEffect Base
-tPrevention = ReplaceAmount (MkQuery [DealDamage Nothing] []) (^0)
+tPrevention = ReplaceAmount (MkEventQuery [DealDamage Nothing] []) (^0)
 
 -- CONSUMABLE shields (the `Replaces` use-limit). Regeneration = the next destroy → heal/tap/remove, one
 -- use (`regenerate` macro). Prevention = "prevent the next 3 damage to This" — a damage `Replaces` whose
@@ -188,13 +188,13 @@ tRegenerate = regenerate
 
 tPreventNext : OneShotEffect Base
 tPreventNext = Continuously UntilEndOfTurn
-  (Replaces (MkQuery [DealDamage Nothing] [Patient (SameAs This)]) (Sequence []) {limit = UpTo (^3)})
+  (Replaces (MkEventQuery [DealDamage Nothing] [Patient (SameAs This)]) (Sequence []) {limit = UpTo (^3)})
 
 -- Ward {2} ([CR#702.21a]): NO new machinery — a triggered ability over existing parts. When an opponent
 -- casts a spell targeting This, that player (`EventActor`) MAY pay {2}; if not, the spell (`EventObject`)
 -- is countered. Targets / MayPay (the unless-pay) / Counter were all already here.
 tWard : Ability Base
-tWard = Triggered (MkQuery [Begins Cast] [Patient (Targets (SameAs This)), Actor opponent])
+tWard = Triggered (MkEventQuery [Begins Cast] [Patient (Targets (SameAs This)), Actor opponent])
   (MayPay {actor = EventActor} (Mana [^2]) (Sequence []) {or_else = Just (Act (Counter EventObject))})
 
 tIndestructible : Ability Base
@@ -267,7 +267,7 @@ tClone = AsEntersChoosing AnObject creature [ Static (Modify This (BecomeCopyOf 
 
 -- "sacrifice a [pred]" as a COST — the payer chooses which (not a specific `Sacrifice This`).
 tSacrificeCost : Cost Base
-tSacrificeCost = Do (Sacrifice You creature)
+tSacrificeCost = Do (Sacrifice creature)
 
 -- phasing: the `PhasedOut` state filters a phased permanent; `PhaseOut` is the verb.
 tPhasedFilter : Predicate Base AnObject
@@ -313,7 +313,7 @@ tCastFromGrave = MayCastFor (AltCost [Mana [^3, ^Blue]]) {from = Graveyard}
 -- a log-derived history count feeds a condition, and a game `Outcome` wraps into an effect
 tHistoryThenWin : OneShotEffect Base
 tHistoryThenWin =
-  If (Compare (CountEvents (MkQuery [Begins Cast] [Actor you, Within ThisGame])) GreaterEq (Literal 2))
+  If (Compare (CountEvents (MkEventQuery [Begins Cast] [Actor you, Within ThisGame])) GreaterEq (Literal 2))
      (Conclude (WinGame You))
 
 -- an activated ability: a multi-component cost algebra + an effect
@@ -369,7 +369,7 @@ tValues =
   , Min (CountersOn P1P1 This) (CountersOn M1M1 This)   -- net counters after annihilation
   , Max (StatOf This Power) (^0)
   , Damage This                                          -- marked damage
-  , EventAgg SumOf (MkQuery [DealDamage Nothing] [Actor opponent])    -- fold matching events' amounts (old `EventSum`); kinds amount-gated
+  , EventAgg SumOf (MkEventQuery [DealDamage Nothing] [Actor opponent])    -- fold matching events' amounts (old `EventSum`); kinds amount-gated
   , Aggregate MaxOf (eachOf (And [permanent, creature, ControlledBy you]) (StatOf It Power))   -- "the greatest power among creatures you control" (on the battlefield, [CR#109.2])
   , Aggregate SumOf (eachOf (And [permanent, creature, ControlledBy you]) (StatOf It Power)) ] -- "the total power of creatures you control"
 
@@ -461,7 +461,7 @@ tSetChars : List (Modification Base)
 tSetChars =
   [ Alter Colors (Set [Blue])
   , Alter Subtypes (Set [])
-  , Alter CardTypes (Set [Artifact, Creature])
+  , Alter Types (Set [Artifact, Creature])
   , Alter Supertypes (Set [Legendary]) ]
 
 -- ...and it's VALUE-TYPED by construction: a non-Color value for `Colors` is a type error.
@@ -607,12 +607,12 @@ failing
 -- replacing the AMOUNT of an amountless event is rejected — a Cast has no numeric payload
 failing
   tBadReplaceAmountless : StaticEffect Base
-  tBadReplaceAmountless = ReplaceAmount (MkQuery [Begins Cast] []) (^0)
+  tBadReplaceAmountless = ReplaceAmount (MkEventQuery [Begins Cast] []) (^0)
 
 -- folding the amount of an amountless event is rejected likewise
 failing
   tBadEventAggAmountless : Count Base
-  tBadEventAggAmountless = EventAgg SumOf (MkQuery [Begins Cast] [])
+  tBadEventAggAmountless = EventAgg SumOf (MkEventQuery [Begins Cast] [])
 
 -- "becomes summoning-sick" isn't a transition event — `IsBecomesState SummoningSick = Void`
 failing
@@ -623,7 +623,7 @@ failing
 -- has no `Projectable (Events …)` proof (you cannot bind `It` over an atomic event).
 failing
   tBadProjectEvents : Projection Base
-  tBadProjectEvents = Project (Events (MkQuery [DealDamage Nothing] [])) (Literal 0)
+  tBadProjectEvents = Project (Events (MkEventQuery [DealDamage Nothing] [])) (Literal 0)
 
 -- `CountDistinct` is gated by `readableOn`: an object-only characteristic over a non-object source is
 -- rejected — "distinct powers of the mana you spent" is nonsense (`readableOn Power ManaSpent = Void`).
@@ -634,7 +634,7 @@ failing
 -- ...and a non-colour characteristic over events is rejected too (`Name` reads nothing off an event).
 failing
   tBadDistinctNameOfEvents : Count Base
-  tBadDistinctNameOfEvents = CountDistinct Name (Events (MkQuery [DealDamage Nothing] []))
+  tBadDistinctNameOfEvents = CountDistinct Name (Events (MkEventQuery [DealDamage Nothing] []))
 
 -- `Pick` is gated to the EXTREMAL ops by `IsExtremal`: argmax-by-SUM is meaningless (`IsExtremal SumOf` is uninhabited).
 failing
@@ -657,42 +657,42 @@ failing
 failing
   tBadEventObjectNoObject : Ability Base
   tBadEventObjectNoObject =
-    Triggered (MkQuery [BeginStep (BeginningPhase UpkeepStep)] []) (Act (Move EventObject (ToZone Exile)))
+    Triggered (MkEventQuery [BeginStep (BeginningPhase UpkeepStep)] []) (Act (Move EventObject (ToZone Exile)))
 
--- `ThatMuch` (the amount) in a `Begins Cast` body — a cast carries no amount.
+-- `EventAmount` (the amount) in a `Begins Cast` body — a cast carries no amount.
 failing
   tBadThatMuchNoAmount : StaticEffect Base
-  tBadThatMuchNoAmount = Replaces (MkQuery [Begins Cast] []) (Act (DealDamage This ThatMuch))
+  tBadThatMuchNoAmount = Replaces (MkEventQuery [Begins Cast] []) (Act (DealDamage This EventAmount))
 
 -- `EventActor` ("that player") in a Destroy body — a destruction has no actor.
 failing
   tBadEventActorNoActor : Ability Base
-  tBadEventActorNoActor = Triggered (MkQuery [Destroy] []) (Conclude (WinGame EventActor))
+  tBadEventActorNoActor = Triggered (MkEventQuery [Destroy] []) (Conclude (WinGame EventActor))
 
 -- ...and the anaphora DO work where the event supplies them: `EventActor` in a `Begins Cast` body (the caster).
 tEventActorValid : Ability Base
-tEventActorValid = Triggered (MkQuery [Begins Cast] []) (Conclude (WinGame EventActor))
+tEventActorValid = Triggered (MkEventQuery [Begins Cast] []) (Conclude (WinGame EventActor))
 
 -- MULTI-KIND SOUNDNESS (the EventQuery restructure): a multi-kind query's caps are the INTERSECTION —
 -- the body gets only anaphora EVERY listed kind supplies. `EventActor` under `[Begins Cast, Destroy]` is
 -- rejected (a Destroy event has no actor), so the old union-cap leak (A6) is gone.
 failing
   tBadEventActorMultiKind : Ability Base
-  tBadEventActorMultiKind = Triggered (MkQuery [Begins Cast, Destroy] []) (Conclude (WinGame EventActor))
+  tBadEventActorMultiKind = Triggered (MkEventQuery [Begins Cast, Destroy] []) (Conclude (WinGame EventActor))
 
 -- ...but when EVERY listed kind supplies the anaphor it's fine: "attacks or blocks" both supply an
 -- object, so `EventObject` is valid (Smuggler's Copter's single trigger over two kinds).
 tEventObjectMultiKind : Ability Base
 tEventObjectMultiKind =
-  Triggered (MkQuery [Begins Attack, Begins Block] []) (Act (Move EventObject (ToZone Exile)))
+  Triggered (MkEventQuery [Begins Attack, Begins Block] []) (Act (Move EventObject (ToZone Exile)))
 
 -- "whenever a creature enters, draw THAT MANY cards" — meaningless: a creature entering (`ZoneChanged`)
--- carries no amount, so `ThatMuch` has no referent. The caps gate rejects it.
+-- carries no amount, so `EventAmount` has no referent. The caps gate rejects it.
 failing
   tBadDrawThatManyOnEnter : Ability Base
   tBadDrawThatManyOnEnter =
-    Triggered (MkQuery [ZoneChanged Nothing (Just Battlefield)] [Agent creature])
-      (Act (Draw ThatMuch))
+    Triggered (MkEventQuery [ZoneChanged Nothing (Just Battlefield)] [Agent creature])
+      (Act (Draw EventAmount))
 
 -- BOUNDED-NUMERIC gates. An inverted range ("between 5 and 2") — `OrderedRange` rejects `lo > hi`.
 failing

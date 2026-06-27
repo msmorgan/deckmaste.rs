@@ -171,7 +171,7 @@ implementation ToRon Arrangement where
     toRon _ ChosenOrder = "ChosenOrder"
     toRon _ RandomOrder = "RandomOrder"
     toRon _ SameOrder = "SameOrder"
-implementation ToRon TollTiming where
+implementation ToRon PricedTiming where
     toRon _ AtDeclaration = "AtDeclaration"
     toRon _ Downstream = "Downstream"
 implementation ToRon RefKind where
@@ -289,7 +289,7 @@ mutual
     toRon i (Half rm x) = ctor "Half" [toRon i rm, toRon i x]
     toRon i (Min x y) = ctor "Min" [toRon i x, toRon i y]
     toRon i (Max x y) = ctor "Max" [toRon i x, toRon i y]
-    toRon _ ThatMuch = "ThatMuch"
+    toRon _ EventAmount = "EventAmount"
     toRon _ Allotment = "Allotment"
     toRon _ ChosenNumber = "ChosenNumber"
 
@@ -318,7 +318,7 @@ mutual
 
   implementation ToRon (Predicate b k) where
     toRon i (HasChar Colors     e) = ctor "HasChar" [toRon i Colors,     toRon i e]
-    toRon i (HasChar CardTypes  e) = ctor "HasChar" [toRon i CardTypes,  toRon i e]
+    toRon i (HasChar Types  e) = ctor "HasChar" [toRon i Types,  toRon i e]
     toRon i (HasChar Subtypes   e) = ctor "HasChar" [toRon i Subtypes,   toRon i e]
     toRon i (HasChar Supertypes e) = ctor "HasChar" [toRon i Supertypes, toRon i e]
     toRon i (IsKind k) = ctor "IsKind" [toRon i k]
@@ -374,7 +374,7 @@ mutual
     toRon i (Not f) = ctor "Not" [toRon i f]
 
   implementation ToRon (EventQuery b) where
-    toRon i (MkQuery kinds facets) =
+    toRon i (MkEventQuery kinds facets) =
       "(kinds: " ++ toRon i kinds ++ ", facets: " ++ toRon i facets ++ ")"
 
   implementation ToRon (Outcome b) where
@@ -462,7 +462,7 @@ mutual
     toRon i (PutCounters c n r) = ctor "PutCounters" [toRon i c, toRon i n, toRon i r]
     toRon i (Discard {actor} n) = ctor "Discard" [toRon i actor, toRon i n]
     toRon i (LoseLife {actor} n) = ctor "LoseLife" [toRon i actor, toRon i n]
-    toRon i (Sacrifice r p) = ctor "Sacrifice" [toRon i r, toRon i p]
+    toRon i (Sacrifice {actor} p) = ctor "Sacrifice" [toRon i actor, toRon i p]
     toRon i (PhaseOut r) = ctor "PhaseOut" [toRon i r]
     toRon i (MoveArranged sel arr dest) = ctor "MoveArranged" [toRon i sel, toRon i arr, toRon i dest]
     toRon i (RemoveCounters c n r) = ctor "RemoveCounters" [toRon i c, toRon i n, toRon i r]
@@ -486,7 +486,7 @@ mutual
   -- `Up`/`Down` always carry a `Count`, so they're characteristic-agnostic.
   ronModOp : Nat -> (c : Characteristic) -> ModificationOp b c -> String
   ronModOp i Colors     (Set v) = ctor "Set" [toRon i v]
-  ronModOp i CardTypes  (Set v) = ctor "Set" [toRon i v]
+  ronModOp i Types  (Set v) = ctor "Set" [toRon i v]
   ronModOp i Subtypes   (Set v) = ctor "Set" [toRon i v]
   ronModOp i Supertypes (Set v) = ctor "Set" [toRon i v]
   ronModOp i Power      (Set v) = ctor "Set" [toRon i v]
@@ -497,11 +497,11 @@ mutual
   ronModOp i _ (Up x)   = ctor "Up" [toRon i x]
   ronModOp i _ (Down x) = ctor "Down" [toRon i x]
   ronModOp i Colors     (Add e)    = ctor "Add" [toRon i e]
-  ronModOp i CardTypes  (Add e)    = ctor "Add" [toRon i e]
+  ronModOp i Types  (Add e)    = ctor "Add" [toRon i e]
   ronModOp i Subtypes   (Add e)    = ctor "Add" [toRon i e]
   ronModOp i Supertypes (Add e)    = ctor "Add" [toRon i e]
   ronModOp i Colors     (Remove e) = ctor "Remove" [toRon i e]
-  ronModOp i CardTypes  (Remove e) = ctor "Remove" [toRon i e]
+  ronModOp i Types  (Remove e) = ctor "Remove" [toRon i e]
   ronModOp i Subtypes   (Remove e) = ctor "Remove" [toRon i e]
   ronModOp i Supertypes (Remove e) = ctor "Remove" [toRon i e]
 

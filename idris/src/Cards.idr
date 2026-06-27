@@ -127,7 +127,7 @@ card_Rancor = Normal $ ^:
           , GrantAbility (keyword Trample)
           ]))
       , Triggered
-          (MkQuery [ZoneChanged (Just Battlefield) (Just Graveyard)]
+          (MkEventQuery [ZoneChanged (Just Battlefield) (Just Graveyard)]
                    [Agent (SameAs This)])
           (Act (Move (This) (ToZone Hand)))
       ]
@@ -187,7 +187,7 @@ card_ApproachOfTheSecondSun = Normal $ ^:
   , abilities :=
       [ Spell $
           If (And [ Matches This (WasCastFrom Hand)
-                  , Compare (CountEvents (MkQuery [Begins Cast]
+                  , Compare (CountEvents (MkEventQuery [Begins Cast]
                                                [ Actor you
                                                , Patient (SameName This)
                                                , Within ThisGame ]))
@@ -213,7 +213,7 @@ card_OblivionStone = Normal $ ^:
       [ Activated (Costs [Mana [^4], Do (Tap This)])
           (Targeted [Target (^1) permanent]
             (Act (PutCounters Fate (Literal 1) ((GetTarget 0)))))
-      , Activated (Costs [Mana [^5], Do (Tap This), Do (Sacrifice You (SameAs This))])
+      , Activated (Costs [Mana [^5], Do (Tap This), Do (Sacrifice (SameAs This))])
           (Sequence
             [ Each (SelectAll (And [permanent, Not (hasType Land), Not (HasCounter Fate)])) (Act (Destroy It))
             , Each (SelectAll permanent) (Act (RemoveCounters Fate (CountersOn Fate It) It)) ])
@@ -252,7 +252,7 @@ card_LilianaOfTheVeil = Normal $ ^:
           (Each eachPlayer (Act (Discard {actor = It} (^1)))) {window = AsSorcery, limits = [OncePerTurn]}
       , Activated (Do (RemoveCounters Loyalty (Literal 2) This))
           (Targeted [Target (^1) Anyone]
-            (Act (Sacrifice (GetTarget 0) creature))) {window = AsSorcery, limits = [OncePerTurn]}
+            (Act (Sacrifice creature {actor = GetTarget 0}))) {window = AsSorcery, limits = [OncePerTurn]}
       ]
   }
 
@@ -291,8 +291,8 @@ card_Necropotence = Normal $ ^:
   , manaCost := [^Black, ^Black, ^Black]
   , types := [Enchantment]
   , abilities :=
-      [ Static (Replaces (MkQuery [BeginStep (BeginningPhase DrawStep)] [DuringTurn you]) (Sequence []))
-      , Triggered (MkQuery [Discard] [Actor you])
+      [ Static (Replaces (MkEventQuery [BeginStep (BeginningPhase DrawStep)] [DuringTurn you]) (Sequence []))
+      , Triggered (MkEventQuery [Discard] [Actor you])
           (Act (Move EventObject (ToZone Exile)))
       , Activated (Do (LoseLife (Literal 1)))
           (Each (TopOfLibrary (Literal 1))
@@ -314,7 +314,7 @@ card_NotionThief = Normal $ ^:
   , subtypes := [^Human, ^Rogue]
   , abilities :=
       [ keyword Flash
-      , Static (Replaces (MkQuery [Draw]
+      , Static (Replaces (MkEventQuery [Draw]
                                 [ Actor opponent
                                 , Not (And [DuringStep (BeginningPhase DrawStep), IsFirst ThisStep]) ])
           (Act (Draw {actor = You} (^1))))
@@ -337,7 +337,7 @@ card_OblivionRing = Normal $ ^:
       [ Triggered (thisEnters)
           (Targeted [Target (^1) (And [permanent, Not (hasType Land), Not (SameAs This)])]
             (Act (Move ((GetTarget 0)) (ToZone Exile))))
-      , Triggered (MkQuery [ZoneChanged (Just Battlefield) Nothing] [Agent (SameAs This)])
+      , Triggered (MkEventQuery [ZoneChanged (Just Battlefield) Nothing] [Agent (SameAs This)])
           (Each (SelectAll (ExiledBy This)) (Act (Move It (ToZone Battlefield))))
       ]
   }
@@ -356,7 +356,7 @@ card_BanishingLight = Normal $ ^:
       [ Triggered (thisEnters) $
           Targeted [Target (^1) (And [permanent, Not (hasType Land), ControlledBy opponent])] $
             Act (ExileUntil ((GetTarget 0))
-                            (UntilEvent (MkQuery [ZoneChanged (Just Battlefield) Nothing]
+                            (UntilEvent (MkEventQuery [ZoneChanged (Just Battlefield) Nothing]
                                                [Agent (SameAs This)])))
       ]
   }
@@ -631,12 +631,12 @@ card_CitadelSiege = Normal $ ^:
   , abilities :=
       [ AsEnters (AMode 2)
           [ -- Khans (0): begin combat on YOUR turn → two +1/+1 counters on a creature you control
-            Triggered (MkQuery [BeginStep (CombatPhase BeginningOfCombatStep)] [DuringTurn you])
+            Triggered (MkEventQuery [BeginStep (CombatPhase BeginningOfCombatStep)] [DuringTurn you])
               (If (ChosenIs 0)
                   (Targeted [Target (^1) (And [creature, ControlledBy you])]
                     (Act (PutCounters P1P1 (^2) (GetTarget 0)))))
           , -- Dragons (1): begin combat on an OPPONENT's turn → tap a creature that opponent controls
-            Triggered (MkQuery [BeginStep (CombatPhase BeginningOfCombatStep)] [DuringTurn opponent])
+            Triggered (MkEventQuery [BeginStep (CombatPhase BeginningOfCombatStep)] [DuringTurn opponent])
               (If (ChosenIs 1)
                   (Targeted [Target (^1) (And [creature, ControlledBy opponent])]
                     (Act (Tap (GetTarget 0)))))
@@ -657,12 +657,12 @@ card_OutpostSiege = Normal $ ^:
   , abilities :=
       [ AsEnters (AMode 2)
           [ -- Khans (0): at your upkeep, exile the top card of your library; until eot you may play it
-            Triggered (MkQuery [BeginStep (BeginningPhase UpkeepStep)] [DuringTurn you])
+            Triggered (MkEventQuery [BeginStep (BeginningPhase UpkeepStep)] [DuringTurn you])
               (If (ChosenIs 0)
                   (With (Produce (Move (Single (TopOfLibrary (^1))) (ToZone Exile)))
                     (Continuously UntilEndOfTurn (Can (Enact Play you (SameAs (Single That)))))))
           , -- Dragons (1): when a creature you control leaves the battlefield, deal 1 to any target
-            Triggered (MkQuery [ZoneChanged (Just Battlefield) Nothing]
+            Triggered (MkEventQuery [ZoneChanged (Just Battlefield) Nothing]
                            [Agent (And [creature, ControlledBy you])])
               (If (ChosenIs 1)
                   (Targeted [anyTarget] (Act (DealDamage (GetTarget 0) (^1)))))
@@ -741,7 +741,7 @@ card_DelverOfSecrets = TwoFaced Transforming
       , types := [Creature]
       , subtypes := [^Human, ^Wizard]
       , abilities :=
-          [ Triggered (MkQuery [BeginStep (BeginningPhase UpkeepStep)] [DuringTurn you])
+          [ Triggered (MkEventQuery [BeginStep (BeginningPhase UpkeepStep)] [DuringTurn you])
               (If (Matches (Single (TopOfLibrary (^1))) (Or [hasType Instant, hasType Sorcery]))
                   (May (Sequence [ Act (Reveal (Single (TopOfLibrary (^1))))
                                  , Act (Transform This) ])))
@@ -758,14 +758,14 @@ card_DelverOfSecrets = TwoFaced Transforming
       })
 
 -- Furnace of Rath — PAYLOAD replacement ([CR#616]): "if a source would deal damage, it deals double
--- instead." `ReplaceAmount` keeps the damage event but scales its amount to `Times ThatMuch (^2)`.
+-- instead." `ReplaceAmount` keeps the damage event but scales its amount to `Times EventAmount (^2)`.
 export
 card_FurnaceOfRath : Card
 card_FurnaceOfRath = Normal $ ^:
   { name := Just "Furnace of Rath"
   , manaCost := [^3, ^Red]
   , types := [Enchantment]
-  , abilities := [ Static (ReplaceAmount (MkQuery [DealDamage Nothing] []) (Times ThatMuch (^2))) ]
+  , abilities := [ Static (ReplaceAmount (MkEventQuery [DealDamage Nothing] []) (Times EventAmount (^2))) ]
   }
 
 -- Doubling Season — two payload replacements: twice the tokens you'd create, and twice the counters
@@ -777,8 +777,8 @@ card_DoublingSeason = Normal $ ^:
   , manaCost := [^4, ^Green]
   , types := [Enchantment]
   , abilities :=
-      [ Static (ReplaceAmount (MkQuery [CreateToken] [Actor you]) (Times ThatMuch (^2)))
-      , Static (ReplaceAmount (MkQuery [PutCounters] [Patient (ControlledBy you)]) (Times ThatMuch (^2)))
+      [ Static (ReplaceAmount (MkEventQuery [CreateToken] [Actor you]) (Times EventAmount (^2)))
+      , Static (ReplaceAmount (MkEventQuery [PutCounters] [Patient (ControlledBy you)]) (Times EventAmount (^2)))
       ]
   }
 
@@ -802,7 +802,7 @@ card_Mindslaver = Normal $ ^:
   , manaCost := [^6]
   , types := [Artifact]
   , abilities :=
-      [ Activated (Costs [Do (Tap This), Do (Sacrifice You (SameAs This))])
+      [ Activated (Costs [Do (Tap This), Do (Sacrifice (SameAs This))])
           (Targeted [Target (^1) Anyone] (Act (ControlPlayer (GetTarget 0)))) ]
   }
 
@@ -829,7 +829,7 @@ card_FloodedStrand = Normal $ ^:
   { name := Just "Flooded Strand"
   , types := [Land]
   , abilities :=
-      [ Activated (Costs [Do (Tap This), Do (LoseLife (^1)), Do (Sacrifice You (SameAs This))])
+      [ Activated (Costs [Do (Tap This), Do (LoseLife (^1)), Do (Sacrifice (SameAs This))])
           (With (Search {from = [Library]} (^1) (Or [hasSubtype (^Plains), hasSubtype (^Island)]))
             (Sequence [ Each That (Act (Move It (ToZone Battlefield)))
                       , Act Shuffle ])) ]
@@ -1052,14 +1052,14 @@ card_HistoryOfBenalia = Normal $ ^:
   , subtypes := [^Saga]
   , abilities :=
       [ -- I, II — create a 2/2 white Knight
-        Triggered (MkQuery [PutCounters] [Patient (SameAs This)])
+        Triggered (MkEventQuery [PutCounters] [Patient (SameAs This)])
           (If (Or [ Compare (CountersOn Lore This) Equal (^1)
                   , Compare (CountersOn Lore This) Equal (^2) ])
               (Act (CreateToken (^1)
                 (^: { name := Just "Knight", types := [Creature], subtypes := [^Knight]
                     , colors := [White], power := Just 2, toughness := Just 2 }))))
       , -- III — Knights you control get +2/+1 until end of turn
-        Triggered (MkQuery [PutCounters] [Patient (SameAs This)])
+        Triggered (MkEventQuery [PutCounters] [Patient (SameAs This)])
           (If (Compare (CountersOn Lore This) Equal (^3))
               (Continuously UntilEndOfTurn (Each (SelectAll (And [hasSubtype (^Knight), ControlledBy you])) (Modify It (ApplyAll [Alter Power (Up (^2)), Alter Toughness (Up (^1))])))))
       , -- sacrifice after the final chapter ([CR#714.4])
@@ -1112,7 +1112,7 @@ card_SmugglersCopter = Normal $ ^:
   , subtypes := [^Vehicle]
   , abilities :=
       [ keyword Flying
-      , Triggered (MkQuery [Begins Attack, Begins Block] [Agent (SameAs This)])
+      , Triggered (MkEventQuery [Begins Attack, Begins Block] [Agent (SameAs This)])
           (May (Sequence [Act (Draw (^1)), Act (Discard (^1))]))   -- loot on attack or block
       , crew (^1)                                                  -- Crew 1
       ]
@@ -1129,7 +1129,7 @@ card_Solemnity = Normal $ ^:
   { name := Just "Solemnity"
   , manaCost := [^1, ^White]
   , types := [Enchantment]
-  , abilities := [ Static (CantHappen (MkQuery [PutCounters] [])) ]
+  , abilities := [ Static (CantHappen (MkEventQuery [PutCounters] [])) ]
   }
 
 -- Pine Walker — a clean vanilla MORPH creature: "{4}{G} 5/5; Morph {4}{G}." The `morph` macro is the
@@ -1163,7 +1163,7 @@ card_CacklingCounterpart = Normal $ ^:
 
 -- Tarmogoyf — the canonical CDA: "*/1+*, where * is the number of card types among cards in all
 -- graveyards." No printed P/T (the fields are omitted); a `Static (Modify This [Alter Power (Set …) …])` DEFINES them
--- from `typesInGraveyards` (a `CountDistinct CardTypes` over graveyards), toughness = power + 1. Real, not a stand-in.
+-- from `typesInGraveyards` (a `CountDistinct Types` over graveyards), toughness = power + 1. Real, not a stand-in.
 export
 card_Tarmogoyf : Card
 card_Tarmogoyf = Normal $ ^:
@@ -1220,12 +1220,12 @@ card_GarzaZol = Normal $ ^:
       , haste
       , -- "Whenever a creature dealt damage by ~ this turn dies, put a +1/+1 counter on ~."
         Triggered
-          (MkQuery [ZoneChanged (Just Battlefield) (Just Graveyard)]
+          (MkEventQuery [ZoneChanged (Just Battlefield) (Just Graveyard)]
                    [Agent (And [creature, DamagedBy This])])
           (Act (PutCounters P1P1 (^1) This))
       , -- "Whenever ~ deals combat damage to a player, you may draw a card."
         Triggered
-          (MkQuery [DealDamage (Just True)] [Agent (SameAs This), Patient Anyone])
+          (MkEventQuery [DealDamage (Just True)] [Agent (SameAs This), Patient Anyone])
           (May (Act (Draw (^1))))
       ]
   , power := Just 5
