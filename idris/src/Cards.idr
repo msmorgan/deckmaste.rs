@@ -168,7 +168,7 @@ card_ThroughTheBreach = Normal $ ^:
           With (Choose (^1) (And [inHand, creature])) $
             Sequence
               [ Each That (Act (Move It (ToZone Battlefield)))
-              , Continuously (Each That (Modify It [GrantAbility (keyword Haste)])) UntilEndOfTurn  -- "it gains haste"
+              , Continuously UntilEndOfTurn (Each That (Modify It [GrantAbility (keyword Haste)]))  -- "it gains haste"
               , Delayed nextEndStep (Each That (Act (Move It (ToZone Graveyard)))) ]
       ]
   }
@@ -271,8 +271,8 @@ card_TideShaper = Normal $ ^:
       [ Triggered (thisEnters)
           (If (Matches This WasKicked)
               (Targeted [Target (^1) (HasType Land)]
-                (Continuously (Modify (GetTarget 0) [Alter Subtypes (Add (^Island))])
-                              (ForAsLongAs (Matches This (InZone Battlefield))))))
+                (Continuously (ForAsLongAs (Matches This (InZone Battlefield)))
+                              (Modify (GetTarget 0) [Alter Subtypes (Add (^Island))]))))
       , Static (While (exists (And [InZone Battlefield, HasSubtype (^Island), ControlledBy opponent]))
                       (Modify This [Alter Power (Up (^1)), Alter Toughness (Up (^1))]))
       ]
@@ -374,7 +374,7 @@ card_Donate = Normal $ ^:
   , abilities :=
       [ Spell (Targeted [ Target (^1) Anyone
                         , Target (^1) (And [permanent, ControlledBy you]) ]
-          (Continuously (Modify (GetTarget 1) [GainControl (GetTarget 0)]) Permanent))
+          (Continuously Permanent (Modify (GetTarget 1) [GainControl (GetTarget 0)])))
       ]
   }
 
@@ -660,7 +660,7 @@ card_OutpostSiege = Normal $ ^:
             Triggered (MkQuery [BeginStep (BeginningPhase UpkeepStep)] [DuringTurn you])
               (If (ChosenIs 0)
                   (With (Produce (Move (Single (TopOfLibrary (^1))) (ToZone Exile)))
-                    (Continuously (Can (Enact Play you (SameAs (Single That)))) UntilEndOfTurn)))
+                    (Continuously UntilEndOfTurn (Can (Enact Play you (SameAs (Single That)))))))
           , -- Dragons (1): when a creature you control leaves the battlefield, deal 1 to any target
             Triggered (MkQuery [ZoneChanged (Just Battlefield) Nothing]
                            [Agent (And [creature, ControlledBy you])])
@@ -817,7 +817,7 @@ card_MindBend = Normal $ ^:
   , types := [Sorcery]
   , abilities :=
       [ Spell (Targeted [Target (^1) (Or [permanent, IsKind IsSpell])]
-          (Continuously (Modify (GetTarget 0) [ChangeText [ColorWords, BasicLandTypes]]) Permanent)) ]
+          (Continuously Permanent (Modify (GetTarget 0) [ChangeText [ColorWords, BasicLandTypes]]))) ]
   }
 
 -- Flooded Strand — a FETCH LAND: {T}, pay 1 life, sacrifice it → search your library for a Plains or
@@ -1025,7 +1025,7 @@ card_MutagenicGrowth = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [Target (^1) creature]
-          (Continuously (Modify (GetTarget 0) [Alter Power (Up (^2)), Alter Toughness (Up (^2))]) UntilEndOfTurn)) ]
+          (Continuously UntilEndOfTurn (Modify (GetTarget 0) [Alter Power (Up (^2)), Alter Toughness (Up (^2))]))) ]
   }
 
 -- Skred — SNOW mana ({S}): deals damage to target creature equal to the snow permanents you control.
@@ -1061,7 +1061,7 @@ card_HistoryOfBenalia = Normal $ ^:
       , -- III — Knights you control get +2/+1 until end of turn
         Triggered (MkQuery [PutCounters] [Patient (SameAs This)])
           (If (Compare (CountersOn Lore This) Equal (^3))
-              (Continuously (Each (SelectAll (And [HasSubtype (^Knight), ControlledBy you])) (Modify It [Alter Power (Up (^2)), Alter Toughness (Up (^1))])) UntilEndOfTurn))
+              (Continuously UntilEndOfTurn (Each (SelectAll (And [HasSubtype (^Knight), ControlledBy you])) (Modify It [Alter Power (Up (^2)), Alter Toughness (Up (^1))]))))
       , -- sacrifice after the final chapter ([CR#714.4])
         Static (Sba (Compare (CountersOn Lore This) GreaterEq (^3)) (Act (Move This (ToZone Graveyard))))
       ]

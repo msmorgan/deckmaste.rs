@@ -41,7 +41,7 @@ tIf = If yourTurn (Act (Draw (^1)))
 
 -- a one-shot creating a continuous effect for a duration
 tContinuously : OneShotEffect Base
-tContinuously = Continuously (Modify This [Alter Power (Up (^1)), Alter Toughness (Up (^1))]) UntilEndOfTurn
+tContinuously = Continuously UntilEndOfTurn (Modify This [Alter Power (Up (^1)), Alter Toughness (Up (^1))])
 
 -- a modal effect: choose one of two modes
 tModal : OneShotEffect Base
@@ -187,9 +187,8 @@ tRegenerate : OneShotEffect Base
 tRegenerate = regenerate
 
 tPreventNext : OneShotEffect Base
-tPreventNext = Continuously
+tPreventNext = Continuously UntilEndOfTurn
   (Replaces (MkQuery [DealDamage Nothing] [Patient (SameAs This)]) (Sequence []) {limit = UpTo (^3)})
-  UntilEndOfTurn
 
 -- Ward {2} ([CR#702.21a]): NO new machinery — a triggered ability over existing parts. When an opponent
 -- casts a spell targeting This, that player (`EventActor`) MAY pay {2}; if not, the spell (`EventObject`)
@@ -491,7 +490,7 @@ tEachPlayerForEach = Each eachPlayer (Act (Draw {actor = It} (^1)))
 tMixedTargets : OneShotEffect Base
 tMixedTargets =
   Targeted [Target (^1) Anyone, Target (^1) (And [permanent, ControlledBy you])]
-    (Continuously (Modify (GetTarget 1) [GainControl (GetTarget 0)]) Permanent)
+    (Continuously Permanent (Modify (GetTarget 1) [GainControl (GetTarget 0)]))
 
 -- `Or` computes its result kind by JOINING its arms' kinds (`\/`): same-kind stays
 -- precise (`AnObject`), a mix of object + player widens to `Anything` — no `Widen` needed.
@@ -530,9 +529,8 @@ tDeonticCan = Static (Can (Enact Attack (SameAs This) Anyone))
 -- `AsThough` wraps a clause in a scoped counterfactual: "attack this turn as though it didn't
 -- have defender" — a permission whose premise lifts defender's `cant`.
 tAsThough : OneShotEffect Base
-tAsThough = Continuously
+tAsThough = Continuously UntilEndOfTurn
   (AsThough (Matches This (Not (HasKeyword Defender))) (Can (Enact Attack (SameAs This) Anyone)))
-  UntilEndOfTurn
 
 -- Flash's desugaring is pinned by Refl: a `Can`-cast at instant speed (a widened window).
 tFlashWindow : keyword Flash = the (Ability Base) (Keyword (Composite Flash [Static (Can (Enact Cast (SameAs You) (SameAs This)) {window = Just AsInstant})]))

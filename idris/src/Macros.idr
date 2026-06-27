@@ -144,11 +144,10 @@ devoid = Keyword (Composite Devoid [Static (Modify This [Alter Colors (Set [])])
 -- replacement after one destroy (vs `Replaces`'s default `Unlimited`).
 public export
 regenerate : OneShotEffect b
-regenerate = Continuously
+regenerate = Continuously UntilEndOfTurn
   (Replaces (MkQuery [Destroy] [Patient (SameAs This)])
             (Sequence [Act (RemoveAllDamage This), Act (Tap This), Act (RemoveFromCombat This)])
             {limit = UpTo (^1)})
-  UntilEndOfTurn
 
 -- KEYWORD ACTIONS as macros over primitives ([CR#701]) — the action-side twin of the keyword
 -- ABILITIES above. Each is a plain `OneShotEffect` (used directly, no `Act` wrapper), composited from
@@ -266,7 +265,7 @@ levelUp cost = Activated cost (Act (PutCounters Level (^1) This)) {window = AsSo
 public export
 crew : Count b -> Ability b
 crew n = Activated (TapTotal Power GreaterEq n creature)
-  (Continuously (Modify This [Alter CardTypes (Add Creature)]) UntilEndOfTurn)
+  (Continuously UntilEndOfTurn (Modify This [Alter CardTypes (Add Creature)]))
 
 -- "Morph [cost]" ([CR#702.37]): you may cast this face down as a 2/2 for {3} (`CastFaceDown`), and turn
 -- it face up any time for [cost] (`TurnFaceUp`). The 2/2-colorless-vanilla face-down body is the global

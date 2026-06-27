@@ -544,7 +544,7 @@ mutual
       ctor "MayPay" [toRon i actor, toRon i cost, toRon i andThen, ronOpt i or_else]
     toRon i (MustPay {actor} cost orElse) =
       ctor "MustPay" [toRon i actor, toRon i cost, toRon i orElse]
-    toRon i (Continuously se d) = ctor "Continuously" [toRon i se, toRon i d]
+    toRon i (Continuously d se) = ctor "Continuously" [toRon i d, toRon i se]
     toRon i (Modal spec modes) = ctor "Modal" [toRon i spec, toRon i modes]
     toRon i (Each sel body) = ctor "Each" [toRon i sel, toRon i body]
     toRon i (Distribute amount sel body) =

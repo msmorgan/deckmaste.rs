@@ -1425,8 +1425,9 @@ mutual
       --    (Mana Leak: "counter target spell unless its controller pays {2}"; supersedes `Unless`).
       MayPay  : {default You actor : Reference b APlayer} -> Cost b -> (and_then : OneShotEffect b) -> {default Nothing or_else : Maybe (OneShotEffect b)} -> OneShotEffect b
       MustPay : {default You actor : Reference b APlayer} -> Cost b -> (or_else : OneShotEffect b) -> OneShotEffect b
-      -- create a continuous effect for a duration ([CR#611.2]). Rust: Effect::Continuously.
-      Continuously : StaticEffect b -> Duration b -> OneShotEffect b
+      -- create a continuous effect for a duration ([CR#611.2]): `Continuously UntilEndOfTurn (Modify This …)`.
+      -- Duration FIRST so it reads "continuously, for [duration], [effect]". Rust: Effect::Continuously.
+      Continuously : Duration b -> StaticEffect b -> OneShotEffect b
       -- choose modes, then apply them ([CR#700.2]). Rust: Effect::Modal.
       Modal : (spec : ChooseSpec b) -> (modes : List (Mode b)) -> {auto 0 ne : NonEmpty modes} -> {auto 0 cnt : ModalCountOk spec (length modes)} -> OneShotEffect b
       -- "for each [domain], [body]" — binds each element as `It`. The distributive
