@@ -41,7 +41,7 @@ tIf = If yourTurn (Act (Draw (^1)))
 
 -- a one-shot creating a continuous effect for a duration
 tContinuously : OneShotEffect Base
-tContinuously = Continuously UntilEndOfTurn (Modify This (Several (modifyPT (Up (^1)))))
+tContinuously = Continuously UntilEndOfTurn (Modify This (ApplyAll (modifyPT (Up (^1)))))
 
 -- a modal effect: choose one of two modes
 tModal : OneShotEffect Base
@@ -352,7 +352,7 @@ tCounters = Sequence [ Each (SelectAll creature) (Act (PutCounters P1P1 (Literal
 
 -- anthem: a static `ModifyAll` over a controller-predicate filter, with layer mods
 tAnthem : Ability Base
-tAnthem = Static (Each (SelectAll (And [HasType Creature, ControlledBy you])) (Modify It (Several [Alter Power (Up (^1)), Alter Toughness (Up (^1)), Alter Subtypes (Add (^Bear))])))
+tAnthem = Static (Each (SelectAll (And [HasType Creature, ControlledBy you])) (Modify It (ApplyAll [Alter Power (Up (^1)), Alter Toughness (Up (^1)), Alter Subtypes (Add (^Bear))])))
 
 -- a loyalty ability: an Activated ability whose cost removes Loyalty counters
 tLoyalty : Ability Base
@@ -443,7 +443,7 @@ tSearchOther = Targeted [Target (^1) opponent]
 
 -- a conditional static, and an activation-limited (loyalty-style) ability
 tConditionalStatic : Ability Base
-tConditionalStatic = Static (While (exists (ControlledBy opponent)) (Modify This (Several (modifyPT (Up (^1))))))
+tConditionalStatic = Static (While (exists (ControlledBy opponent)) (Modify This (ApplyAll (modifyPT (Up (^1))))))
 
 tLimitedAbility : Ability Base
 tLimitedAbility =
