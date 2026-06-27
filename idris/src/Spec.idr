@@ -490,7 +490,7 @@ tEachPlayerForEach = Each eachPlayer (Act (Draw {actor = It} (^1)))
 tMixedTargets : OneShotEffect Base
 tMixedTargets =
   Targeted [Target (^1) Anyone, Target (^1) (And [permanent, ControlledBy you])]
-    (Continuously Permanent (Modify (GetTarget 1) (GainControl (GetTarget 0))))
+    (Continuously Forever (Modify (GetTarget 1) (GainControl (GetTarget 0))))
 
 -- `Or` computes its result kind by JOINING its arms' kinds (`\/`): same-kind stays
 -- precise (`AnObject`), a mix of object + player widens to `Anything` — no `Widen` needed.

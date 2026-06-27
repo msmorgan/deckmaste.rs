@@ -388,7 +388,7 @@ mutual
     toRon _ UntilEndOfTurn = "UntilEndOfTurn"
     toRon i (UntilEvent q) = ctor "UntilEvent" [toRon i q]
     toRon i (ForAsLongAs c) = ctor "ForAsLongAs" [toRon i c]
-    toRon _ Permanent = "Permanent"
+    toRon _ Forever = "Forever"
 
   implementation ToRon (Cost b) where
     toRon i (Mana m) = ctor "Mana" [toRon i m]
