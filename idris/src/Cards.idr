@@ -364,7 +364,7 @@ card_BanishingLight = Normal $ ^:
 -- Donate — "Target player gains control of target permanent you control." The MIXED-kind
 -- multi-target case: slot 0 is a player (`APlayer`), slot 1 an object (`AnObject`), so
 -- `GetTarget 0`/`GetTarget 1` are strictly kinded by their own slots. The control shift is
--- a rest-of-game continuous effect (`Continuously … Permanent`).
+-- a rest-of-game continuous effect (`Continuously … Forever`).
 export
 card_Donate : Card
 card_Donate = Normal $ ^:
@@ -374,7 +374,7 @@ card_Donate = Normal $ ^:
   , abilities :=
       [ Spell (Targeted [ Target (^1) Anyone
                         , Target (^1) (And [permanent, ControlledBy you]) ]
-          (Continuously Permanent (Modify (GetTarget 1) (GainControl (GetTarget 0)))))
+          (Continuously Forever (Modify (GetTarget 1) (GainControl (GetTarget 0)))))
       ]
   }
 
@@ -817,7 +817,7 @@ card_MindBend = Normal $ ^:
   , types := [Sorcery]
   , abilities :=
       [ Spell (Targeted [Target (^1) (Or [permanent, IsKind IsSpell])]
-          (Continuously Permanent (Modify (GetTarget 0) (ChangeText [ColorWords, BasicLandTypes])))) ]
+          (Continuously Forever (Modify (GetTarget 0) (ChangeText [ColorWords, BasicLandTypes])))) ]
   }
 
 -- Flooded Strand — a FETCH LAND: {T}, pay 1 life, sacrifice it → search your library for a Plains or

@@ -1061,7 +1061,7 @@ namespace Duration
     UntilEndOfTurn : Duration b
     UntilEvent : EventQuery b -> Duration b
     ForAsLongAs : Condition b -> Duration b
-    Permanent : Duration b                       -- rest of game (Rust: EndOfGame)
+    Forever : Duration b                         -- rest of game (Rust: EndOfGame)
 
 -- `Range lo hi`: `Nothing` bound = unbounded that side. A bare numeral is the
 -- EXACTLY case (`Range (Just n) (Just n)`); the helpers below name the rest.
