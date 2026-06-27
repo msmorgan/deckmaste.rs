@@ -316,6 +316,7 @@ namespace UsageLimit
 namespace ObjectState
   public export
   data ObjectState = Tapped | SummoningSick
+                   | Untapped        -- untapped ([CR#502.3]); "becomes untapped" = `Becomes Untapped` (the untap event, symmetric with `Becomes Tapped`); `HasState Untapped` = "an untapped permanent". "Doesn't untap during your untap step" is a window-scoped SKIP: `Replaces [Becomes Untapped] [Agent (SameAs This), <during your untap step>] (Sequence [])`
                    | PhasedOut       -- phased out ([CR#702.26]); "becomes phased" = `Becomes PhasedOut`
                    | FaceDown        -- face down ([CR#708]); the engine applies the global 2/2-colorless-vanilla override here
 
@@ -475,7 +476,11 @@ namespace EventKind
     -- damage ([CR#120]). The `Maybe Bool` is the COMBAT flag — intrinsic event data, so it rides the
     -- KIND (like `ZoneChanged`'s zones), wildcarded the same way: `Nothing` = any damage (Furnace,
     -- protection, prevention), `Just True` = combat damage ([CR#510]), `Just False` = noncombat.
-    DealDamage : Maybe Bool -> EventKind
+    -- `toKind` is the RECIPIENT's kind — also intrinsic event data riding the kind, keeping the patient
+    -- binder sound under caps-from-kinds ([CR#120.3] "a player or permanent"): `Just APlayer` = "damage
+    -- to a player" → `EventPatient : Reference b APlayer`; `Just AnObject` = "to a creature/permanent";
+    -- `Nothing` (default) = any recipient, patient unreachable. The `Patient` FACET still refines WHICH.
+    DealDamage : Maybe Bool -> {default Nothing toKind : Maybe RefKind} -> EventKind
     CreateToken : EventKind
     PutCounters : EventKind
     RemoveCounters : EventKind
@@ -490,6 +495,16 @@ namespace EventKind
     -- views). The STACK relations fold in too: a cast is `Begins Cast` (no bespoke `Cast` kind — it was
     -- redundant), the caster supplied as its actor (the `agentScope`-driven caps below).
     Begins : Relation -> EventKind
+    -- life-change ([CR#119.3]) — the EVENT twin of the `GainLife`/`LoseLife` actions (verb names reused,
+    -- like `Draw`/`Discard`): "whenever you gain/lose life". Supplies the affected player (actor) + the amount,
+    -- so `EventAgg`/`ReplaceAmount` work over them. No object, no patient.
+    GainLife : EventKind
+    LoseLife : EventKind
+    -- control change ([CR#613.1b]) — NOT a zone change, so `ZoneChanged` misses it. Named for the GAINER so
+    -- the `Actor` is unambiguous (the NEW controller): "whenever you gain control of a creature" =
+    -- `[GainControl] [Actor you, Agent creature]`. Verb-name reuse with the `GainControl` MODIFICATION
+    -- (type-directed, like `GainLife`). Supplies the permanent (object) + the gainer (actor); no amount.
+    GainControl : EventKind
 
 -- the per-event CAPABILITIES an event provides its body's anaphora: a distinguished OBJECT ("that card"),
 -- an ACTOR ("that player"), a numeric AMOUNT. Read by `EventObject`/`EventActor`/`EventAmount` so each is
@@ -500,33 +515,44 @@ record EventCaps where
   hasObject : Bool
   hasActor  : Bool
   hasAmount : Bool
+  patientKind : Maybe RefKind   -- the ACTED-UPON thing's kind when the event FIXES one (gates `EventPatient`); distinct from the Agent exposed via `hasObject`. `Nothing` = no sound patient binder
+  hasDefender : Bool            -- combat scope: a defending player is in scope (gates `DefendingPlayer`) ([CR#506.2])
 
 public export
 NoCaps : EventCaps
-NoCaps = MkEventCaps False False False
+NoCaps = MkEventCaps False False False Nothing False
 
 -- what each event-kind supplies. Damage/token/counter carry an amount; a step-begin carries nothing; a
 -- zone-change/destroy/becomes has an object but no actor; a cast/draw/discard/sacrifice has an actor.
 public export
 eventKindCaps : EventKind -> EventCaps
-eventKindCaps Sacrifice         = MkEventCaps True  True  False
-eventKindCaps Draw              = MkEventCaps False True  False
-eventKindCaps Discard           = MkEventCaps True  True  False
-eventKindCaps (DealDamage _)    = MkEventCaps True  True  True
-eventKindCaps CreateToken       = MkEventCaps True  True  True
-eventKindCaps PutCounters       = MkEventCaps True  True  True
-eventKindCaps RemoveCounters    = MkEventCaps True  True  True
-eventKindCaps Destroy         = MkEventCaps True  False False
-eventKindCaps (ZoneChanged _ _) = MkEventCaps True  False False
-eventKindCaps (BeginStep _)     = MkEventCaps False False False
-eventKindCaps (Becomes _)       = MkEventCaps True  False False
+eventKindCaps Sacrifice         = MkEventCaps True  True  False Nothing       False
+eventKindCaps Draw              = MkEventCaps False True  False Nothing       False
+eventKindCaps GainLife          = MkEventCaps False True  True  Nothing       False
+eventKindCaps LoseLife          = MkEventCaps False True  True  Nothing       False
+eventKindCaps GainControl       = MkEventCaps True  True  False Nothing       False
+eventKindCaps Discard           = MkEventCaps True  True  False Nothing       False
+-- damage: the source object is the Agent (`hasObject`), its controller the actor, the amount the amount,
+-- and the RECIPIENT's kind rides the kind as `toKind` → the patient (`EventPatient`).
+eventKindCaps (DealDamage _ {toKind}) = MkEventCaps True True True toKind False
+eventKindCaps CreateToken       = MkEventCaps True  True  True  Nothing       False
+eventKindCaps PutCounters       = MkEventCaps True  True  True  Nothing       False
+eventKindCaps RemoveCounters    = MkEventCaps True  True  True  Nothing       False
+eventKindCaps Destroy           = MkEventCaps True  False False Nothing       False
+eventKindCaps (ZoneChanged _ _) = MkEventCaps True  False False Nothing       False
+eventKindCaps (BeginStep _)     = MkEventCaps False False False Nothing       False
+eventKindCaps (Becomes _)       = MkEventCaps True  False False Nothing       False
 -- a relation-ONSET supplies the agent's player as "that player" ONLY when the agent IS a player
 -- (cast/activate/play); an object-agent onset (combat/attach/target/counter) reaches the controller via
--- `ControlledBy`. There is always a distinguished object, never an amount.
+-- `ControlledBy`. There is always a distinguished object, never an amount. Combat onsets (`Attack`/`Block`)
+-- additionally put the DEFENDING PLAYER in scope (`DefendingPlayer`) — always a player, even vs a
+-- planeswalker/battle ([CR#506.2,508.5]).
+eventKindCaps (Begins Attack)   = MkEventCaps True  False False Nothing       True
+eventKindCaps (Begins Block)    = MkEventCaps True  False False Nothing       True
 eventKindCaps (Begins r)        =
   case agentScope r of
-    APlayer => MkEventCaps True True  False
-    _       => MkEventCaps True False False
+    APlayer => MkEventCaps True True  False Nothing       False
+    _       => MkEventCaps True False False Nothing       False
 
 -- which event-kinds carry an AMOUNT — derived from the caps; the per-kind base for `kindsHaveAmount`.
 public export
@@ -716,11 +742,16 @@ mutual
       It : {auto prf : itKind b = Just k} -> Reference b k
       -- the triggering event's object ("that card") — valid only if the event SUPPLIES one ([CR#608.2k]).
       EventObject : {auto prf : hasObject (eventCaps b) = True} -> Reference b AnObject
+      -- the triggering event's PATIENT — the acted-upon thing (damage recipient, …), KIND-POLY but fixed by
+      -- the event's `patientKind` cap so the binder stays sound ([CR#120.3]); distinct from the Agent
+      -- (`EventObject`). For the combat DEFENDER specifically, prefer `DefendingPlayer` (always a player).
+      EventPatient : {auto prf : patientKind (eventCaps b) = Just k} -> Reference b k
       -- PLAYERS (the old `PlayerRef`, folded in here):
       You : Reference b APlayer                            -- controller of this ability [CR#109.5]
       ControllerOf : Reference b AnObject -> Reference b APlayer   -- the controller of an object
       OwnerOf : Reference b AnObject -> Reference b APlayer        -- the owner of an object [CR#108.3]
       EventActor : {auto prf : hasActor (eventCaps b) = True} -> Reference b APlayer  -- the event's player ("that player") — only if supplied
+      DefendingPlayer : {auto prf : hasDefender (eventCaps b) = True} -> Reference b APlayer  -- the defending player of an attack/combat — ALWAYS a player, even vs a planeswalker/battle ([CR#506.2,508.5]); landwalk/Annihilator/Afflict
       ChosenPlayer : {auto prf : chosenRefKind b = Just APlayer} -> Reference b APlayer  -- the as-enters chosen PLAYER (the identity-reference twin of OfChosen/ChosenNumber); opened by `AsEntersChoosing APlayer …`
       ChosenObject : {auto prf : chosenRefKind b = Just AnObject} -> Reference b AnObject  -- the as-enters chosen OBJECT (the object-twin of `ChosenPlayer`; Clone copies it via `BecomeCopyOf ChosenObject`); opened by `AsEntersChoosing AnObject …`
 
@@ -946,13 +977,20 @@ mutual
       -- [cond] holds". Subsumes the former `DuringStep`/`DuringTurn` (now `Whenever (During …)` / `Whenever
       -- (TurnOf …)`), so timing atoms live once in `Condition` ([CR#603.2]). `Within` stays (no Condition twin).
       Whenever : Condition b -> Facet b
-      -- "this is the FIRST event (matching the surrounding facets) in the window" — an ORDINAL facet,
-      -- engine-resolved like `EventCount` ([CR#603.2e] "the first time each…"). Notion Thief: "except the
-      -- first draw each draw step" = `Not (And [Whenever (During drawStep), IsFirst ThisStep])`.
-      IsFirst       : Window -> Facet b
+      -- "this is the Nth event (matching the surrounding facets) in the window" — an ORDINAL facet,
+      -- engine-resolved like `EventCount` ([CR#603.2e] "the first time each…"). `IsFirst` is the `n=1`
+      -- sugar (below). Erayo "4th spell cast each turn" = `IsNth 4 ThisTurn`; "your second draw each turn"
+      -- = `IsNth 2 ThisTurn`. `n=0` never matches (a harmless no-op). Notion Thief: "except the first draw
+      -- each draw step" = `Not (And [Whenever (During drawStep), IsFirst ThisStep])`.
+      IsNth : Nat -> Window -> Facet b
       And  : List (Facet b) -> Facet b   -- AND
       Or   : List (Facet b) -> Facet b   -- OR
       Not : Facet b -> Facet b          -- NOT
+
+    -- "the FIRST matching event in the window" — sugar for the `n=1` ordinal ([CR#603.2e]).
+    public export
+    IsFirst : Window -> Facet b
+    IsFirst = IsNth 1
 
   -- whether a literal `Range`'s bounds are ORDERED (lo ≤ hi). Only literal-vs-literal is checked — a
   -- dynamic bound (any `Count` expression) is lenient, exactly like `NonZeroQ`.
@@ -986,15 +1024,27 @@ mutual
       Pick : (op : AggregateOp) -> {auto 0 ext : IsExtremal op} -> Projection b -> Selection b AnObject
 
 
+-- the patient kind survives a cap-combine only when BOTH sources agree on it (a disjunction's body can
+-- name the patient soundly iff every queried kind fixes the SAME kind); any mismatch or gap collapses to
+-- `Nothing`. No `Eq RefKind` needed — matched structurally.
+public export
+sameKind : Maybe RefKind -> Maybe RefKind -> Maybe RefKind
+sameKind (Just AnObject) (Just AnObject) = Just AnObject
+sameKind (Just APlayer)  (Just APlayer)  = Just APlayer
+sameKind (Just Anything) (Just Anything) = Just Anything
+sameKind (Just Empty)    (Just Empty)    = Just Empty
+sameKind _ _ = Nothing
+
 public export
 andCaps : EventCaps -> EventCaps -> EventCaps
-andCaps (MkEventCaps o1 a1 m1) (MkEventCaps o2 a2 m2) = MkEventCaps (o1 && o2) (a1 && a2) (m1 && m2)
+andCaps (MkEventCaps o1 a1 m1 p1 d1) (MkEventCaps o2 a2 m2 p2 d2) = MkEventCaps (o1 && o2) (a1 && a2) (m1 && m2) (sameKind p1 p2) (d1 && d2)
 
 -- the UNION twin of `andCaps`: a body gets an anaphor if ANY combined source supplies it. Used to fold the
 -- caps of a composite COST (`Costs […]`) — if one component sacrifices an object, the payment event binds it.
+-- The patient kind still needs agreement (`sameKind`), since a kind can't be unioned soundly.
 public export
 orCaps : EventCaps -> EventCaps -> EventCaps
-orCaps (MkEventCaps o1 a1 m1) (MkEventCaps o2 a2 m2) = MkEventCaps (o1 || o2) (a1 || a2) (m1 || m2)
+orCaps (MkEventCaps o1 a1 m1 p1 d1) (MkEventCaps o2 a2 m2 p2 d2) = MkEventCaps (o1 || o2) (a1 || a2) (m1 || m2) (sameKind p1 p2) (d1 || d2)
 
 -- the caps a whole event-QUERY guarantees its body: the INTERSECTION over its kind-disjunction — the
 -- body gets only anaphora that EVERY listed kind supplies. Empty `kinds` (any kind) ⇒ `NoCaps`. So a
@@ -1691,6 +1741,13 @@ mutual
       -- ADDITIVE replacement ([CR#614.13] "as well as"): when [event] happens it STILL happens, but
       -- [effect] also runs. An Aura enters attached via `Also thisEnters (Act (Attach This host))`.
       Also : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) b) -> StaticEffect b
+      -- TRIGGER MULTIPLICATION ([CR#603.2d]): a matching triggered ability triggers `extra` ADDITIONAL times.
+      -- NOT a copy ([CR#707.10]) — each instance chooses its OWN modes/targets, and multipliers ADD rather
+      -- than compound (two Panharmonicons → 3×, not 4×). `cause` is the EVENT whose resulting triggers are
+      -- multiplied (an artifact/creature ETB); `affected` filters the affected ability's SOURCE permanent,
+      -- defaulting to "you control" (Panharmonicon/Teysa) — override for any/opponent doublers. Panharmonicon
+      -- = `TriggerMultiplier (MkEventQuery [ZoneChanged Nothing (Just Battlefield)] [Agent (Or [artifact, creature])]) (^1)`.
+      TriggerMultiplier : (cause : EventQuery b) -> (extra : Count b) -> {default (ControlledBy (SameAs You)) affected : Predicate b AnObject} -> StaticEffect b
       -- a STATE-BASED ACTION as data ([CR#704]): whenever [when] holds (with `This` = the carrier), do
       -- [then] in the SBA sweep. ONE primitive for the Aura graveyard rule (`Sba (Not (LegallyAttached
       -- This)) (Act (Move This (ToZone Graveyard)))`, [CR#704.5m]) AND a Saga's final-chapter sacrifice — the
@@ -1793,8 +1850,10 @@ mutual
       -- `[Graveyard]`/`[Hand]`. Unifies with `from` on `Activated`/`Triggered` — function-zone is ability-level.
       Static : StaticEffect b -> {default [Battlefield] from : List Zone} -> Ability b
       -- "[cost]: turn This face up" ([CR#708.9]) — a SPECIAL action (not stack-using), not an `Activated`
-      -- ability. Pays [cost], removes `FaceDown`. The face-up cost of `morph`/`disguise`.
-      TurnFaceUp : Cost b -> Ability b
+      -- ability. Pays [cost], removes `FaceDown`. The face-up cost of `morph`/`disguise`. `onTurnUp` is an
+      -- optional effect that fires AS it's turned face up "this way" ([CR#702.37b]) — Megamorph's "+1/+1
+      -- counter if its megamorph cost was paid" rides the face-up ability, not a separate trigger.
+      TurnFaceUp : Cost b -> {default Nothing onTurnUp : Maybe (OneShotEffect b)} -> Ability b
       -- "As ~ enters, choose a [d]" ([CR#614.12]) for a VALUE choice: a single ability that makes the
       -- as-enters choice and SCOPES it to the abilities that read it — those nest at `bindChosen d b` (so
       -- `OfChosen`/`ChosenIs` resolve), while the card's other abilities (and its whole printed face) stay
