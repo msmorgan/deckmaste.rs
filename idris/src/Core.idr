@@ -240,6 +240,12 @@ namespace Characteristic
   public export
   data Characteristic = Colors | CardTypes | Subtypes | Supertypes | Power | Toughness | Defense | ManaCost | Name
 
+-- a PLAYER's numeric attributes — the player-side twin of the object `Characteristic`
+-- numeric axes. Read via `PlayerStatOf` (a `Count`), mirroring `StatOf` for objects.
+namespace PlayerAttr
+  public export
+  data PlayerAttr = Life | HandSize
+
 -- the numeric axes — gate `Up`/`Down` (write delta, layer 7c) AND the numeric reads (`StatOf`/`StatCmp`/
 -- `TapTotal`). `Defense` is lax-included (setting/pumping it is a describable no-op, like loyalty). The file's
 -- `IsCharDomain` idiom: a Type-returning subset fn (`()`/`Void`), not a Bool flag.
@@ -670,7 +676,7 @@ mutual
       Protection : Predicate b AnObject -> KeywordSpec b   -- "protection from [quality]" ([CR#702.16]) — the tag carries q; desugars to the DEBT bundle (`protection` macro)
   -- A REFERENCE to a single game entity, indexed by `RefKind` (object vs player). One
   -- reference language now: object-refs and player-refs together, strict on the kind
-  -- where it matters (`StatOf` needs `AnObject`, `LifeTotal` needs `APlayer`) and lax
+  -- where it matters (`StatOf` needs `AnObject`, `PlayerStatOf` needs `APlayer`) and lax
   -- where it doesn't (`SameAs`, damage). A target's kind FLEXES — `AnObject` by default,
   -- `APlayer` where a player op forces it.
   namespace Reference
@@ -794,8 +800,7 @@ mutual
       EventAgg : AggregateOp -> (q : EventQuery b) -> {auto amt : eventQueryHasAmount q = True} -> Count b
       Damage : Reference b AnObject -> Count b  -- marked damage on r ([CR#120.3]); the lethal-damage SBA reads `Compare (Damage This) GreaterEq (StatOf This Toughness)`
       CountersOn : (c : CounterKind) -> Reference b (counterScope c) -> Count b   -- number of [kind] counters on r (object or player, per `counterScope`)
-      LifeTotal : Reference b APlayer -> Count b           -- a player's life total
-      HandSize : Reference b APlayer -> Count b            -- cards in a player's hand
+      PlayerStatOf : Reference b APlayer -> PlayerAttr -> Count b   -- a player's numeric attribute (`Life`/`HandSize`) — the player-side twin of `StatOf`. Sugar: `lifeTotal`/`handSize`.
       Plus  : Count b -> Count b -> Count b                -- arithmetic on values
       Minus : Count b -> Count b -> Count b
       Times : Count b -> Count b -> Count b
@@ -811,16 +816,16 @@ mutual
   namespace Predicate
     public export
     data Predicate : Bindings -> RefKind -> Type where
-      HasType : Type_ -> Predicate b AnObject
-      HasSupertype : Supertype -> Predicate b AnObject
-      HasSubtype : Subtype -> Predicate b AnObject
-      HasColor : Color -> Predicate b AnObject
+      -- the candidate's collection axis `c` CONTAINS this element — the read mirror of
+      -- `Alter c (Add …)`. Gated by `Collection` (the 4 set-kinded axes); `ElemOf c` is the
+      -- element type. Terse sugar: `hasType`/`hasColor`/`hasSubtype`/`hasSupertype`.
+      HasChar : (c : Characteristic) -> {auto 0 _ : Collection c} -> ElemOf c -> Predicate b AnObject
       IsKind : ObjectKind -> Predicate b AnObject
       InZone : Zone -> Predicate b AnObject
       HasKeyword : KeywordSpec b -> Predicate b AnObject
       SameAs : Reference b k -> Predicate b k    -- the candidate IS r (same kind; "another" = Not (SameAs This))
       SameName : Reference b AnObject -> Predicate b AnObject   -- shares a name with r ("named [its own name]" = SameName This)
-      SharesSubtype : Reference b AnObject -> Predicate b AnObject   -- shares ≥1 subtype with r (Coat of Arms: "shares a creature type with It")
+      SharesChar : (c : Characteristic) -> {auto 0 _ : Collection c} -> Reference b AnObject -> Predicate b AnObject   -- shares ≥1 element of collection axis c with r (Coat of Arms: `SharesChar Subtypes It`); `SharesColor`/`SharesType` are just `SharesChar Colors`/`SharesChar CardTypes`. Sugar: `sharesSubtype`.
       WasCastFrom : Zone -> Predicate b AnObject -- the object was cast from this zone (cast provenance)
       ExiledBy : Reference b AnObject -> Predicate b AnObject   -- set aside by r's effect ("cards exiled by this" = ExiledBy
                                                  -- This); the engine holds the association ([CR#607] linked abilities)
@@ -1489,7 +1494,7 @@ mutual
       -- `Reference` (`This`, a target, or `It` when iterated). Plurality is lifted OUT to `Each` (below) — there
       -- is no `Selection` here, and exactly ONE `Modification` (use `ApplyAll […]` for more than one). A
       -- per-subject mod reads the subject as `It` under the `Each` (Coat of Arms =
-      -- `Modify It (ApplyAll [Alter Power (Up (CountOf (And [creature, SharesSubtype It, Not (SameAs It)])))])`).
+      -- `Modify It (ApplyAll [Alter Power (Up (CountOf (And [creature, SharesChar Subtypes It, Not (SameAs It)])))])`).
       Modify : Reference b AnObject -> Modification b -> StaticEffect b
       -- iterate a `Selection`, binding each element as `It`, applying a static effect to each — the STATIC twin
       -- of the one-shot `Each` ([CR#611]). Anthem = `Each (SelectAll (And [creature, ControlledBy you])) (Modify
@@ -1723,6 +1728,6 @@ subtypeConfers _                     = []
 -- hardcoded target list), using `Enact Attack` with the permanent itself as the object (patient) defender.
 public export
 typeConfers : Type_ -> List (Ability b)
-typeConfers Planeswalker = [Static (Can (Enact Attack (HasType Creature) (SameAs This)))]
-typeConfers Battle       = [Static (Can (Enact Attack (HasType Creature) (SameAs This)))]
+typeConfers Planeswalker = [Static (Can (Enact Attack (HasChar CardTypes Creature) (SameAs This)))]
+typeConfers Battle       = [Static (Can (Enact Attack (HasChar CardTypes Creature) (SameAs This)))]
 typeConfers _            = []

@@ -215,7 +215,7 @@ card_OblivionStone = Normal $ ^:
             (Act (PutCounters Fate (Literal 1) ((GetTarget 0)))))
       , Activated (Costs [Mana [^5], Do (Tap This), Do (Sacrifice You (SameAs This))])
           (Sequence
-            [ Each (SelectAll (And [permanent, Not (HasType Land), Not (HasCounter Fate)])) (Act (Destroy It))
+            [ Each (SelectAll (And [permanent, Not (hasType Land), Not (HasCounter Fate)])) (Act (Destroy It))
             , Each (SelectAll permanent) (Act (RemoveCounters Fate (CountersOn Fate It) It)) ])
       ]
   }
@@ -229,7 +229,7 @@ card_GloriousAnthem = Normal $ ^:
   , manaCost := [^1, ^White, ^White]
   , types := [Enchantment]
   , abilities :=
-      [ Static (Each (SelectAll (And [HasType Creature, ControlledBy you])) (Modify It (ApplyAll (modifyPT (Up (^1)))))) ]
+      [ Static (Each (SelectAll (And [hasType Creature, ControlledBy you])) (Modify It (ApplyAll (modifyPT (Up (^1)))))) ]
   }
 
 -- Liliana of the Veil — "planeswalkers are pure composite": loyalty abilities are
@@ -270,10 +270,10 @@ card_TideShaper = Normal $ ^:
   , abilities :=
       [ Triggered (thisEnters)
           (If (Matches This WasKicked)
-              (Targeted [Target (^1) (HasType Land)]
+              (Targeted [Target (^1) (hasType Land)]
                 (Continuously (ForAsLongAs (Matches This (InZone Battlefield)))
                               (Modify (GetTarget 0) (Alter Subtypes (Add (^Island)))))))
-      , Static (While (exists (And [InZone Battlefield, HasSubtype (^Island), ControlledBy opponent]))
+      , Static (While (exists (And [InZone Battlefield, hasSubtype (^Island), ControlledBy opponent]))
                       (Modify This (ApplyAll (modifyPT (Up (^1))))))
       ]
   , power := Just 1
@@ -335,7 +335,7 @@ card_OblivionRing = Normal $ ^:
   , types := [Enchantment]
   , abilities :=
       [ Triggered (thisEnters)
-          (Targeted [Target (^1) (And [permanent, Not (HasType Land), Not (SameAs This)])]
+          (Targeted [Target (^1) (And [permanent, Not (hasType Land), Not (SameAs This)])]
             (Act (Move ((GetTarget 0)) (ToZone Exile))))
       , Triggered (MkQuery [ZoneChanged (Just Battlefield) Nothing] [Agent (SameAs This)])
           (Each (SelectAll (ExiledBy This)) (Act (Move It (ToZone Battlefield))))
@@ -354,7 +354,7 @@ card_BanishingLight = Normal $ ^:
   , types := [Enchantment]
   , abilities :=
       [ Triggered (thisEnters) $
-          Targeted [Target (^1) (And [permanent, Not (HasType Land), ControlledBy opponent])] $
+          Targeted [Target (^1) (And [permanent, Not (hasType Land), ControlledBy opponent])] $
             Act (ExileUntil ((GetTarget 0))
                             (UntilEvent (MkQuery [ZoneChanged (Just Battlefield) Nothing]
                                                [Agent (SameAs This)])))
@@ -410,7 +410,7 @@ card_Juggernaut = Normal $ ^:
   , toughness := Just 3
   , abilities :=
       [ Static (must (Enact Attack (SameAs This) Anyone))
-      , Static (cant (Enact Block (HasSubtype (^Wall)) (SameAs This)))
+      , Static (cant (Enact Block (hasSubtype (^Wall)) (SameAs This)))
       ]
   }
 
@@ -698,12 +698,12 @@ card_WearTear = TwoFaced Split
   (^: { name := Just "Wear"
       , manaCost := [^1, ^Red]
       , types := [Instant]
-      , abilities := [ Spell (Targeted [Target (^1) (HasType Artifact)] (Act (Destroy (GetTarget 0)))) ]
+      , abilities := [ Spell (Targeted [Target (^1) (hasType Artifact)] (Act (Destroy (GetTarget 0)))) ]
       })
   (^: { name := Just "Tear"
       , manaCost := [^White]
       , types := [Instant]
-      , abilities := [ Spell (Targeted [Target (^1) (HasType Enchantment)] (Act (Destroy (GetTarget 0)))) ]
+      , abilities := [ Spell (Targeted [Target (^1) (hasType Enchantment)] (Act (Destroy (GetTarget 0)))) ]
       })
 
 -- Brazen Borrower // Petty Theft — an ADVENTURE card ([CR#715]): a creature whose "adventure" half is
@@ -727,7 +727,7 @@ card_BrazenBorrower = TwoFaced Adventure
   (^: { name := Just "Petty Theft"
       , manaCost := [^1, ^Blue]
       , types := [Instant]
-      , abilities := [ Spell (Targeted [Target (^1) (And [permanent, Not (HasType Land)])] (Act (Move (GetTarget 0) (ToZone Hand)))) ]
+      , abilities := [ Spell (Targeted [Target (^1) (And [permanent, Not (hasType Land)])] (Act (Move (GetTarget 0) (ToZone Hand)))) ]
       })
 
 -- Delver of Secrets // Insectile Aberration — a TRANSFORMING DFC ([CR#712]). The front's upkeep trigger
@@ -742,7 +742,7 @@ card_DelverOfSecrets = TwoFaced Transforming
       , subtypes := [^Human, ^Wizard]
       , abilities :=
           [ Triggered (MkQuery [BeginStep (BeginningPhase UpkeepStep)] [DuringTurn you])
-              (If (Matches (Single (TopOfLibrary (^1))) (Or [HasType Instant, HasType Sorcery]))
+              (If (Matches (Single (TopOfLibrary (^1))) (Or [hasType Instant, hasType Sorcery]))
                   (May (Sequence [ Act (Reveal (Single (TopOfLibrary (^1))))
                                  , Act (Transform This) ])))
           ]
@@ -830,7 +830,7 @@ card_FloodedStrand = Normal $ ^:
   , types := [Land]
   , abilities :=
       [ Activated (Costs [Do (Tap This), Do (LoseLife (^1)), Do (Sacrifice You (SameAs This))])
-          (With (Search {from = [Library]} (^1) (Or [HasSubtype (^Plains), HasSubtype (^Island)]))
+          (With (Search {from = [Library]} (^1) (Or [hasSubtype (^Plains), hasSubtype (^Island)]))
             (Sequence [ Each That (Act (Move It (ToZone Battlefield)))
                       , Act Shuffle ])) ]
   }
@@ -901,7 +901,7 @@ card_GoblinElectromancer = Normal $ ^:
   , types := [Creature]
   , subtypes := [^Goblin, ^Wizard]
   , abilities :=
-      [ Static (CostModifier (And [Or [HasType Instant, HasType Sorcery], ControlledBy you])
+      [ Static (CostModifier (And [Or [hasType Instant, hasType Sorcery], ControlledBy you])
           (Reduce [^1])) ]
   , power := Just 2
   , toughness := Just 2
@@ -918,7 +918,7 @@ card_Thalia = Normal $ ^:
   , subtypes := [^Human]
   , abilities :=
       [ keyword FirstStrike
-      , Static (CostModifier (And [IsKind IsSpell, Not (HasType Creature)]) (Increase [^1])) ]
+      , Static (CostModifier (And [IsKind IsSpell, Not (hasType Creature)]) (Increase [^1])) ]
   , power := Just 2
   , toughness := Just 1
   }
@@ -933,7 +933,7 @@ card_Frogmite = Normal $ ^:
   , types := [Artifact, Creature]
   , abilities :=
       [ Static (CostModifier (SameAs This)
-          (ScaledBy (Reduce [^1]) (CountMatching (And [HasType Artifact, ControlledBy you])))) ]
+          (ScaledBy (Reduce [^1]) (CountMatching (And [hasType Artifact, ControlledBy you])))) ]
   , power := Just 2
   , toughness := Just 2
   }
@@ -980,8 +980,8 @@ card_CoatOfArms = Normal $ ^:
   , types := [Artifact]
   , abilities :=
       [ Static (Each (SelectAll creature) (Modify It
-          (ApplyAll [ Alter Power (Up (CountMatching (And [permanent, creature, SharesSubtype It, Not (SameAs It)])))
-          , Alter Toughness (Up (CountMatching (And [permanent, creature, SharesSubtype It, Not (SameAs It)]))) ]))) ]
+          (ApplyAll [ Alter Power (Up (CountMatching (And [permanent, creature, sharesSubtype It, Not (SameAs It)])))
+          , Alter Toughness (Up (CountMatching (And [permanent, creature, sharesSubtype It, Not (SameAs It)]))) ]))) ]
   }
 
 -- Platinum Angel — the OUTCOME gate: "you can't lose the game and your opponents can't win." Two
@@ -1037,7 +1037,7 @@ card_Skred = Normal $ ^:
   , types := [Sorcery]
   , abilities :=
       [ Spell (Targeted [Target (^1) creature]
-          (Act (DealDamage (GetTarget 0) (CountMatching (And [permanent, HasSupertype Snow, ControlledBy you]))))) ]
+          (Act (DealDamage (GetTarget 0) (CountMatching (And [permanent, hasSupertype Snow, ControlledBy you]))))) ]
   }
 
 -- History of Benalia — a SAGA. The `Saga` subtype CONFERS the lore-increment (`subtypeConfers (^Saga)`
@@ -1061,7 +1061,7 @@ card_HistoryOfBenalia = Normal $ ^:
       , -- III — Knights you control get +2/+1 until end of turn
         Triggered (MkQuery [PutCounters] [Patient (SameAs This)])
           (If (Compare (CountersOn Lore This) Equal (^3))
-              (Continuously UntilEndOfTurn (Each (SelectAll (And [HasSubtype (^Knight), ControlledBy you])) (Modify It (ApplyAll [Alter Power (Up (^2)), Alter Toughness (Up (^1))])))))
+              (Continuously UntilEndOfTurn (Each (SelectAll (And [hasSubtype (^Knight), ControlledBy you])) (Modify It (ApplyAll [Alter Power (Up (^2)), Alter Toughness (Up (^1))])))))
       , -- sacrifice after the final chapter ([CR#714.4])
         Static (Sba (Compare (CountersOn Lore This) GreaterEq (^3)) (Act (Move This (ToZone Graveyard))))
       ]
@@ -1189,7 +1189,7 @@ card_DrudgeSkeletons = Normal $ ^:
   , toughness := Just 1
   }
 
--- White Knight — PROTECTION: "First strike; protection from black." The `protection (HasColor Black)`
+-- White Knight — PROTECTION: "First strike; protection from black." The `protection (hasColor Black)`
 -- macro is the whole DEBT bundle (can't be damaged/enchanted/blocked/targeted by black) in one clause.
 export
 card_WhiteKnight : Card
@@ -1198,7 +1198,7 @@ card_WhiteKnight = Normal $ ^:
   , manaCost := [^White, ^White]
   , types := [Creature]
   , subtypes := [^Human, ^Knight]
-  , abilities := [ keyword FirstStrike, protection (HasColor Black) ]
+  , abilities := [ keyword FirstStrike, protection (hasColor Black) ]
   , power := Just 2
   , toughness := Just 2
   }

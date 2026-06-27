@@ -6,13 +6,43 @@ module Macros
 
 import public Core
 
+-- terse read sugar over the unified `HasChar`/`SharesChar`/`PlayerStatOf` primitives,
+-- so card source stays readable (the primitive is what the RON serializes).
+public export
+hasType : Type_ -> Predicate b AnObject
+hasType t = HasChar CardTypes t
+
+public export
+hasColor : Color -> Predicate b AnObject
+hasColor c = HasChar Colors c
+
+public export
+hasSubtype : Subtype -> Predicate b AnObject
+hasSubtype s = HasChar Subtypes s
+
+public export
+hasSupertype : Supertype -> Predicate b AnObject
+hasSupertype s = HasChar Supertypes s
+
+public export
+sharesSubtype : Reference b AnObject -> Predicate b AnObject
+sharesSubtype r = SharesChar Subtypes r
+
+public export
+lifeTotal : Reference b APlayer -> Count b
+lifeTotal r = PlayerStatOf r Life
+
+public export
+handSize : Reference b APlayer -> Count b
+handSize r = PlayerStatOf r HandSize
+
 public export
 permanent : Predicate b AnObject
 permanent = InZone Battlefield
 
 public export
 creature : Predicate b AnObject
-creature = HasType Creature
+creature = hasType Creature
 
 public export
 inHand : Predicate b AnObject
@@ -44,14 +74,14 @@ thisEnters = MkQuery [ZoneChanged Nothing (Just Battlefield)] [Agent (SameAs Thi
 public export
 anyTarget : TargetSpec b Anything
 anyTarget = Target (^1) $ Or
-  [ And [permanent, HasType Battle]
+  [ And [permanent, hasType Battle]
   , And [permanent, creature]
-  , And [permanent, HasType Planeswalker]
+  , And [permanent, hasType Planeswalker]
   , Anyone ]
 
 public export
 playerOrPlaneswalker : TargetSpec b Anything
-playerOrPlaneswalker = Target (^1) $ Or [ And [permanent, HasType Planeswalker], Anyone ]
+playerOrPlaneswalker = Target (^1) $ Or [ And [permanent, hasType Planeswalker], Anyone ]
 
 -- "each player": a player-`Selection` for `Each` to distribute over (the old plural
 -- `EachPlayer` reference is gone — plurality lives in `Selection`, kinded `APlayer`).
