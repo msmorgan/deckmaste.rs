@@ -398,9 +398,10 @@ mutual
     toRon i (TapTotal s c n p) = ctor "TapTotal" [toRon i s, toRon i c, toRon i n, toRon i p]
 
   implementation ToRon (CostChange b) where
-    toRon i (Reduce cs) = ctor "Reduce" [toRon i cs]
-    toRon i (Increase cs) = ctor "Increase" [toRon i cs]
-    toRon i (Additional cs opt) = ctor "Additional" [toRon i cs, toRon i opt]
+    toRon i (Reduce m) = ctor "Reduce" [toRon i m]
+    toRon i (Increase m) = ctor "Increase" [toRon i m]
+    toRon i (Additional cs) = ctor "Additional" [toRon i cs]
+    toRon i (Optional cs) = ctor "Optional" [toRon i cs]
     toRon i (ScaledBy ch c) = ctor "ScaledBy" [toRon i ch, toRon i c]
 
   implementation ToRon (AlternativeCost b) where

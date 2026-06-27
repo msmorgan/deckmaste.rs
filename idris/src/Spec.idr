@@ -336,7 +336,7 @@ tScaledCost = Scaled (CountMatching creature) (Mana [^2])
 -- continuous cost modification: affinity = a `Reduce` `ScaledBy` a count (one recursive node), and
 -- devotion is just a `Count`, so it drops into mana production and cost-scaling alike.
 tAffinity : StaticEffect Base
-tAffinity = CostModifier (SameAs This) (ScaledBy (Reduce [Mana [^1]]) (CountMatching (HasType Artifact)))
+tAffinity = CostModifier (SameAs This) (ScaledBy (Reduce [^1]) (CountMatching (HasType Artifact)))
 
 -- devotion to {B}{G} = SUM, over permanents you control, of the {B}/{G} pips in each one's printed cost
 -- ([CR#700.5]): an `Aggregate SumOf` of a per-permanent symbol-count. A single `Or`-predicate (not two summed

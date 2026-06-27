@@ -1247,13 +1247,14 @@ mutual
   -- A continuous CHANGE to a spell/ability cost ([CR#118.7]), carried by `StaticEffect::CostModifier`.
   -- Borrowed from the Rust engine's key split: this MODIFIES an existing base — it is NOT an alternative
   -- cost (a base SWAP), which would be a separate type. Count-scaling is ONE recursive node, so affinity
-  -- (`ScaledBy (Reduce [Mana [^1]]) (CountOf …)`) and taxers (scale an `Increase`) need no own constructor.
+  -- (`ScaledBy (Reduce [^1]) (CountOf …)`) and taxers (scale an `Increase`) need no own constructor.
   namespace CostChange
     public export
     data CostChange : Bindings -> Type where
-      Reduce     : List (Cost b) -> CostChange b            -- "costs {…} less"
-      Increase   : List (Cost b) -> CostChange b            -- "costs {…} more"
-      Additional : List (Cost b) -> Bool -> CostChange b    -- "as an additional cost, …"; the Bool = OPTIONAL (the kicker shape)
+      Reduce     : ManaCost -> CostChange b                 -- "costs {…} less" — a mana amount only (the mana-numeric layer [CR#118.7a])
+      Increase   : ManaCost -> CostChange b                 -- "costs {…} more" — likewise mana-only; non-mana extras go through `Additional`
+      Additional : List (Cost b) -> CostChange b            -- mandatory "as an additional cost, …"; may be NON-mana (sacrifice/discard/life) [CR#118.8]
+      Optional   : List (Cost b) -> CostChange b            -- Additional's baby brother: "you may pay …" (the kicker/buyback shape) [CR#118.8b]
       ScaledBy   : CostChange b -> Count b -> CostChange b  -- the change applied once per unit of the count (affinity)
 
   -- An ALTERNATIVE base cost ([CR#118.9]) — a base SWAP, the type the engine keeps DISTINCT from
@@ -1499,7 +1500,7 @@ mutual
       Each : Selection b k -> StaticEffect (bindIt k b) -> StaticEffect b
       -- continuous COST modification ([CR#118.7]): spells/abilities matching `of_` get the `change`.
       -- "Instant/sorcery spells you cast cost {1} less" = `CostModifier (And […, ControlledBy you]) (Reduce
-      -- [Mana [^1]])`; affinity is a SELF modifier `CostModifier (SameAs This) (ScaledBy (Reduce …) (CountOf …))`.
+      -- [^1])`; affinity is a SELF modifier `CostModifier (SameAs This) (ScaledBy (Reduce …) (CountOf …))`.
       CostModifier : Predicate b AnObject -> CostChange b -> StaticEffect b
       -- "if [event] would happen, do [effect] INSTEAD" — a replacement ([CR#614]). Empty body = a SKIP
       -- (a replacement that removes the event — e.g. "skip your draw step"). This is NOT a prohibition:
