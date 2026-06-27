@@ -234,7 +234,10 @@ implementation ToRon EventKind where
     toRon _ Sacrifice = "Sacrifice"
     toRon _ Draw = "Draw"
     toRon _ Discard = "Discard"
-    toRon i (DealDamage mb) = ctor "DealDamage" [ronOpt i mb]
+    toRon _ GainLife = "GainLife"
+    toRon _ LoseLife = "LoseLife"
+    toRon _ GainControl = "GainControl"
+    toRon i (DealDamage mb {toKind}) = ctor "DealDamage" [ronOpt i mb, ronOpt i toKind]
     toRon _ CreateToken = "CreateToken"
     toRon _ PutCounters = "PutCounters"
     toRon _ Destroy = "Destroy"
@@ -269,10 +272,12 @@ mutual
     toRon i (AttachedTo r) = ctor "AttachedTo" [toRon i r]
     toRon _ It = "It"
     toRon _ EventObject = "EventObject"
+    toRon _ EventPatient = "EventPatient"
     toRon _ You = "You"
     toRon i (ControllerOf r) = ctor "ControllerOf" [toRon i r]
     toRon i (OwnerOf r) = ctor "OwnerOf" [toRon i r]
     toRon _ EventActor = "EventActor"
+    toRon _ DefendingPlayer = "DefendingPlayer"
     toRon _ ChosenPlayer = "ChosenPlayer"
     toRon _ ChosenObject = "ChosenObject"
 
@@ -376,7 +381,7 @@ mutual
     toRon i (Patient p) = ctor "Patient" [toRon i p]
     toRon i (Within w) = ctor "Within" [toRon i w]
     toRon i (Whenever c) = ctor "Whenever" [toRon i c]
-    toRon i (IsFirst w) = ctor "IsFirst" [toRon i w]
+    toRon i (IsNth n w) = ctor "IsNth" [toRon i n, toRon i w]
     toRon i (And fs) = ctor "And" [toRon i fs]
     toRon i (Or fs) = ctor "Or" [toRon i fs]
     toRon i (Not f) = ctor "Not" [toRon i f]
@@ -552,6 +557,7 @@ mutual
     toRon i (CantHappen q) = ctor "CantHappen" [toRon i q]
     toRon i (OutcomeGate g p) = ctor "OutcomeGate" [toRon i g, toRon i p]
     toRon i (Also q body) = ctor "Also" [toRon i q, toRon i body]
+    toRon i (TriggerMultiplier cause extra {affected}) = ctor "TriggerMultiplier" [toRon i cause, toRon i extra, toRon i affected]
     toRon i (Sba c body) = ctor "Sba" [toRon i c, toRon i body]
     toRon i (ManaPersists p) = ctor "ManaPersists" [toRon i p]
     toRon i (MayCastFor costs {from} {tag} {when}) = ctor "MayCastFor" [toRon i costs, toRon i from, ronOpt i tag, ronOpt i when]
@@ -633,7 +639,7 @@ mutual
       ctor "Triggered" [toRon i q, toRon i effect, toRon i limits, toRon i from]
     toRon i (TurnBased ps e) = ctor "TurnBased" [toRon i ps, toRon i e]
     toRon i (Static se {from}) = ctor "Static" [toRon i se, toRon i from]
-    toRon i (TurnFaceUp cost) = ctor "TurnFaceUp" [toRon i cost]
+    toRon i (TurnFaceUp cost {onTurnUp}) = ctor "TurnFaceUp" [toRon i cost, ronOpt i onTurnUp]
     toRon i (AsEnters d xs) = ctor "AsEnters" [toRon i d, toRon i xs]
     toRon i (AsEntersChoosing k p xs) = ctor "AsEntersChoosing" [toRon i k, toRon i p, toRon i xs]
 
