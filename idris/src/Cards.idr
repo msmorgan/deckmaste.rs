@@ -28,7 +28,7 @@ card_Pyroclasm = Normal $ ^:
   , manaCost := [^1, ^Red]
   , types := [Sorcery]
   , abilities :=
-      [ Spell (Each (SelectAll creature) (Act (DealDamage It (^2))))
+      [ Spell (Each (Existing (SelectAll creature)) (Act (DealDamage It (^2))))
       ]
   }
 
@@ -86,7 +86,7 @@ card_Flickerwisp = Normal $ ^:
           Targeted [Target (^1) (And [permanent, Not (SameAs This)])] $
             With (Produce (Move ((GetTarget 0)) (ToZone Exile))) $  -- exile the target, bind `That`
               Delayed nextEndStep
-                (Each That (Act (Move It (ToZone Battlefield))))                        -- return `That` (captured; target gone)
+                (Act (Move That (ToZone Battlefield)))                                  -- return `That` (captured; target gone)
       ]
   , power := Just 3
   , toughness := Just 1
@@ -104,7 +104,7 @@ card_Brainstorm = Normal $ ^:
       [ Spell $
           Sequence
           [ Act (Draw (^3))
-          , With (Choose (^2) inHand) (Each That (Act (Move It (ToZone Library))))
+          , Each (Choose (^2) inHand) (Act (Move It (ToZone Library)))
           ]
       ]
   }
@@ -148,7 +148,7 @@ card_Cloudshift = Normal $ ^:
                                      ])
                    ] $
           With (Produce (Move ((GetTarget 0)) (ToZone Exile))) $
-          Each That (Act (Move It (ToZone Battlefield)))
+          Act (Move That (ToZone Battlefield))
       ]
   }
 
@@ -165,11 +165,11 @@ card_ThroughTheBreach = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell $
-          With (Choose (^1) (And [inHand, creature])) $
+          With (ChooseOne (And [inHand, creature])) $
             Sequence
-              [ Each That (Act (Move It (ToZone Battlefield)))
-              , Continuously UntilEndOfTurn (Each That (Modify It (GrantAbility (keyword Haste))))  -- "it gains haste"
-              , Delayed nextEndStep (Each That (Act (Move It (ToZone Graveyard)))) ]
+              [ Act (Move That (ToZone Battlefield))
+              , Continuously UntilEndOfTurn (Modify That (GrantAbility (keyword Haste)))  -- "it gains haste"
+              , Delayed nextEndStep (Act (Move That (ToZone Graveyard))) ]
       ]
   }
 
@@ -215,8 +215,8 @@ card_OblivionStone = Normal $ ^:
             (Act (PutCounters Fate (Literal 1) ((GetTarget 0)))))
       , Activated (Costs [Mana [^5], Do (Tap This), Do (Sacrifice (SameAs This))])
           (Sequence
-            [ Each (SelectAll (And [permanent, Not (hasType Land), Not (HasCounter Fate)])) (Act (Destroy It))
-            , Each (SelectAll permanent) (Act (RemoveCounters Fate (CountersOn Fate It) It)) ])
+            [ Each (Existing (SelectAll (And [permanent, Not (hasType Land), Not (HasCounter Fate)]))) (Act (Destroy It))
+            , Each (Existing (SelectAll permanent)) (Act (RemoveCounters Fate (CountersOn Fate It) It)) ])
       ]
   }
 
@@ -229,7 +229,7 @@ card_GloriousAnthem = Normal $ ^:
   , manaCost := [^1, ^White, ^White]
   , types := [Enchantment]
   , abilities :=
-      [ Static (Each (SelectAll (And [hasType Creature, ControlledBy you])) (Modify It (ApplyAll (modifyPT (Up (^1)))))) ]
+      [ Static (Each (Existing (SelectAll (And [hasType Creature, ControlledBy you]))) (Modify It (ApplyAll (modifyPT (Up (^1)))))) ]
   }
 
 -- Liliana of the Veil — "planeswalkers are pure composite": loyalty abilities are
@@ -249,7 +249,7 @@ card_LilianaOfTheVeil = Normal $ ^:
   , loyalty := Just 3
   , abilities :=
       [ Activated (Do (PutCounters Loyalty (Literal 1) This))
-          (Each eachPlayer (Act (Discard {actor = It} (^1)))) {window = AsSorcery, limits = [OncePerTurn]}
+          (Each (Existing eachPlayer) (Act (Discard {actor = It} (^1)))) {window = AsSorcery, limits = [OncePerTurn]}
       , Activated (Do (RemoveCounters Loyalty (Literal 2) This))
           (Targeted [Target (^1) Anyone]
             (Act (Sacrifice creature {actor = GetTarget 0}))) {window = AsSorcery, limits = [OncePerTurn]}
@@ -295,9 +295,9 @@ card_Necropotence = Normal $ ^:
       , Triggered (MkEventQuery [Discard] [Actor you])
           (Act (Move EventObject (ToZone Exile)))
       , Activated (Do (LoseLife (Literal 1)))
-          (Each (TopOfLibrary (Literal 1))
+          (Each (Existing (TopOfLibrary (Literal 1)))
             (With (Produce (Move It (ToZone Exile)))
-              (Delayed nextEndStep (Each That (Act (Move It (ToZone Hand)))))))
+              (Delayed nextEndStep (Act (Move That (ToZone Hand))))))
       ]
   }
 
@@ -338,7 +338,7 @@ card_OblivionRing = Normal $ ^:
           (Targeted [Target (^1) (And [permanent, Not (hasType Land), Not (SameAs This)])]
             (Act (Move ((GetTarget 0)) (ToZone Exile))))
       , Triggered (MkEventQuery [ZoneChanged (Just Battlefield) Nothing] [Agent (SameAs This)])
-          (Each (SelectAll (ExiledBy This)) (Act (Move It (ToZone Battlefield))))
+          (Each (Existing (SelectAll (ExiledBy This))) (Act (Move It (ToZone Battlefield))))
       ]
   }
 
@@ -496,7 +496,7 @@ card_CrypticCommand = Normal $ ^:
       [ Spell (Modal (MkChooseSpec (^2))
           [ MkMode (Targeted [Target (^1) (IsKind IsSpell)] (Act (Counter ((GetTarget 0)))))
           , MkMode (Targeted [Target (^1) permanent] (Act (Move ((GetTarget 0)) (ToZone Hand))))
-          , MkMode (Each (SelectAll (And [creature, ControlledBy opponent])) (Act (Tap It)))
+          , MkMode (Each (Existing (SelectAll (And [creature, ControlledBy opponent]))) (Act (Tap It)))
           , MkMode (Act (Draw (^1)))
           ]) ]
   }
@@ -514,7 +514,7 @@ card_Electrolyze = Normal $ ^:
   , abilities :=
       [ Spell (Targeted [Target (between (^1) (^2)) (Or [creature, Anyone])]
           (Sequence
-            [ Distribute (^2) (GetTargets 0) (Act (DealDamage It Allotment))
+            [ Distribute (^2) (Existing (GetTargets 0)) (Act (DealDamage It Allotment))
             , Act (Draw (^1)) ]))
       ]
   }
@@ -617,7 +617,7 @@ card_SteelyResolve = Normal $ ^:
   , types := [Enchantment]
   , abilities :=
       [ AsEnters ACreatureType
-          [ Static (Each (SelectAll (And [creature, OfChosen])) (Modify It (GrantAbility (keyword Shroud)))) ] ]
+          [ Static (Each (Existing (SelectAll (And [creature, OfChosen]))) (Modify It (GrantAbility (keyword Shroud)))) ] ]
   }
 
 -- Citadel Siege — the MODAL choose-on-enter case (Outpost Siege's class): an `AsEnters (AMode 2)`
@@ -663,7 +663,7 @@ card_OutpostSiege = Normal $ ^:
             Triggered (MkEventQuery [BeginStep (BeginningPhase UpkeepStep)] [Whenever (TurnOf you)])
               (If (ChosenIs 0)
                   (With (Produce (Move (Single (TopOfLibrary (^1))) (ToZone Exile)))
-                    (Continuously UntilEndOfTurn (Can (Enact Play you (SameAs (Single That)))))))
+                    (Continuously UntilEndOfTurn (Can (Enact Play you (SameAs That))))))
           , -- Dragons (1): when a creature you control leaves the battlefield, deal 1 to any target
             Triggered (MkEventQuery [ZoneChanged (Just Battlefield) Nothing]
                            [Agent (And [creature, ControlledBy you])])
@@ -833,8 +833,8 @@ card_FloodedStrand = Normal $ ^:
   , types := [Land]
   , abilities :=
       [ Activated (Costs [Do (Tap This), Do (LoseLife (^1)), Do (Sacrifice (SameAs This))])
-          (With (Search {from = [Library]} (^1) (Or [hasSubtype (^Plains), hasSubtype (^Island)]))
-            (Sequence [ Each That (Act (Move It (ToZone Battlefield)))
+          (With (SearchOne {from = [Library]} (Or [hasSubtype (^Plains), hasSubtype (^Island)]))
+            (Sequence [ Act (Move That (ToZone Battlefield))
                       , Act Shuffle ])) ]
   }
 
@@ -982,7 +982,7 @@ card_CoatOfArms = Normal $ ^:
   , manaCost := [^2]
   , types := [Artifact]
   , abilities :=
-      [ Static (Each (SelectAll creature) (Modify It
+      [ Static (Each (Existing (SelectAll creature)) (Modify It
           (ApplyAll [ Alter Power (Up (CountMatching (And [permanent, creature, sharesSubtype It, Not (SameAs It)])))
           , Alter Toughness (Up (CountMatching (And [permanent, creature, sharesSubtype It, Not (SameAs It)]))) ]))) ]
   }
@@ -1064,7 +1064,7 @@ card_HistoryOfBenalia = Normal $ ^:
       , -- III — Knights you control get +2/+1 until end of turn
         Triggered (MkEventQuery [PutCounters] [Patient (SameAs This)])
           (If (Compare (CountersOn Lore This) Equal (^3))
-              (Continuously UntilEndOfTurn (Each (SelectAll (And [hasSubtype (^Knight), ControlledBy you])) (Modify It (ApplyAll [Alter Power (Up (^2)), Alter Toughness (Up (^1))])))))
+              (Continuously UntilEndOfTurn (Each (Existing (SelectAll (And [hasSubtype (^Knight), ControlledBy you]))) (Modify It (ApplyAll [Alter Power (Up (^2)), Alter Toughness (Up (^1))])))))
       , -- sacrifice after the final chapter ([CR#714.4])
         Static (Sba (Compare (CountersOn Lore This) GreaterEq (^3)) (Act (Move This (ToZone Graveyard))))
       ]

@@ -335,6 +335,12 @@ namespace RefKind
   public export
   data RefKind = Empty | AnObject | APlayer | Anything
 
+-- One vs many: the type-level CARDINALITY of a binder. A one-binder's `That` is a single `Reference`; a
+-- many-binder's `That` is a `Selection` you `Each` over. `^1`/`^3` share the one `Quantity` type, so
+-- cardinality can't ride the quantity value — it lives in the `Bindable` CONSTRUCTOR (`ChooseOne` vs `Choose`).
+public export
+data Cardinality = One | Many
+
 -- The JOIN on `RefKind` (least upper bound): `Empty` is the identity (bottom),
 -- like-with-like is itself, two distinct kinds widen to `Anything` (the top) —
 -- so `(RefKind, \/, Empty)` is a bounded join-semilattice. `Or` folds it
@@ -611,7 +617,7 @@ public export
 record Bindings where
   constructor MkBindings
   targetKinds : List RefKind     -- one `RefKind` per target slot (the slot's kind, from its filter)
-  thatKind    : Maybe RefKind    -- a `With`-bound group's element kind (`That`), if bound
+  thatKind    : Maybe (Cardinality, RefKind)  -- a `With`-bound `That`'s CARDINALITY + element kind, if bound: `(One, k)` → `That : Reference b k`; `(Many, k)` → `That : Selection b k`
   itKind      : Maybe RefKind    -- a `Each`-bound element's kind (`It`), if bound
   eventCaps      : EventCaps    -- the surrounding event's caps (`NoCaps` outside an event body) — gates `EventObject`/`EventActor`/`EventAmount`
   chosenKind  : Maybe ChooseDomain  -- an as-enters "choose …" VALUE (color/type/name/number/mode) in scope (`OfChosen`/`ChosenIs`/`ChosenNumber`), if bound
@@ -635,8 +641,8 @@ unbindTargets : Bindings -> Bindings
 unbindTargets b = MkBindings [] (thatKind b) (itKind b) (eventCaps b) (chosenKind b) (chosenRefKind b) (hasAllotment b)
 
 public export
-bindThat : RefKind -> Bindings -> Bindings
-bindThat k b = MkBindings (targetKinds b) (Just k) (itKind b) (eventCaps b) (chosenKind b) (chosenRefKind b) (hasAllotment b)
+bindThat : Cardinality -> RefKind -> Bindings -> Bindings
+bindThat c k b = MkBindings (targetKinds b) (Just (c, k)) (itKind b) (eventCaps b) (chosenKind b) (chosenRefKind b) (hasAllotment b)
 
 public export
 -- bind the per-element `It` of kind k (for `Each`/`Project`/`eachOf` loop bodies) AND clear the loop-local
@@ -740,6 +746,10 @@ mutual
       -- object (an anthem's candidate); its kind is the binder's (`itKind`). Serves as the "Subject" an
       -- anthem's mods read, without a dedicated reference — predicates are already candidate-implicit.
       It : {auto prf : itKind b = Just k} -> Reference b k
+      -- the `With`-bound SINGLE object (a one-binder — `ChooseOne`/`SearchOne`/`Produce`/`TheRef`); a
+      -- many-binder's `That` is a `Selection` (`Selection.That`), iterated with `Each`. No more `Each That`
+      -- over a guaranteed singleton — the cardinality makes that unwritable.
+      That : {auto prf : thatKind b = Just (One, k)} -> Reference b k
       -- the triggering event's object ("that card") — valid only if the event SUPPLIES one ([CR#608.2k]).
       EventObject : {auto prf : hasObject (eventCaps b) = True} -> Reference b AnObject
       -- the triggering event's PATIENT — the acted-upon thing (damage recipient, …), KIND-POLY but fixed by
@@ -1012,7 +1022,7 @@ mutual
     data Selection : Bindings -> RefKind -> Type where
       SelectAll : Predicate b k -> Selection b k                  -- every match (a group)
       Union : List (Selection b k) -> Selection b k              -- groups combined ("each X and each Y"); a fixed set = `Union` of `SameAs` singletons
-      That : {auto prf : thatKind b = Just k} -> Selection b k    -- the `With`-bound group
+      That : {auto prf : thatKind b = Just (Many, k)} -> Selection b k    -- the `With`-bound MANY group (a one-binder's `That` is `Reference.That`, a single object)
       GetTargets : (n : Nat) -> {auto prf : InBounds n (targetKinds b)} -> Selection b (index n (targetKinds b))
       Random : Quantity b -> Predicate b k -> Selection b k
       TopOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
@@ -1534,17 +1544,25 @@ mutual
   -- or gone) object, so `MovedRef`/lki/became is a runtime concern, NOT modeled here.
   namespace Bindable
     public export
-    data Bindable : Bindings -> RefKind -> Type where
-      Existing : Selection b k -> Bindable b k  -- bind existing entities (a plain selection)
-      Produce : Action b -> Bindable b AnObject -- run the action, bind its product (the moved object) as `That`
+    -- CARDINALITY-typed (`One`/`Many`): a `One`-binder's `That` reads back as a single `Reference`; a
+    -- `Many`-binder's `That` is a `Selection` you `Each` over. The `^1`/`^3` quantities share one type, so the
+    -- ONE-ness can't ride the quantity — it's a dedicated constructor (`ChooseOne` vs `Choose`).
+    data Bindable : Bindings -> Cardinality -> RefKind -> Type where
+      -- ONE-binders → `That : Reference b k` (a single object):
+      Produce : Action b -> Bindable b One AnObject  -- run the action, bind its product (the moved object) as `That`
+      ChooseOne : {default You by : Reference b APlayer} -> Predicate b k -> Bindable b One k  -- `by` chooses exactly ONE match (interactive, so here not in `Selection`)
+      SearchOne : {default You by : Reference b APlayer} -> {default You whose : Reference b APlayer} -> {default [Library] from : List Zone} -> Predicate b k -> Bindable b One k  -- search `whose`'s `from`-zones for exactly ONE
+      TheRef : Reference b k -> Bindable b One k  -- bind an EXISTING single reference (a captured target / `This`)
+      -- MANY-binders → `That : Selection b k` (a group, `Each`-iterated):
+      Existing : Selection b k -> Bindable b Many k  -- bind existing entities (a plain selection / group)
       -- `by` chooses a `Quantity` of entities matching the filter; the chosen are bound as
       -- `That`. Choosing is interactive, so it lives here, not in `Selection`. Rust: Selection::Choose.
-      Choose : {default You by : Reference b APlayer} -> Quantity b -> Predicate b k -> Bindable b k
+      Choose : {default You by : Reference b APlayer} -> Quantity b -> Predicate b k -> Bindable b Many k
       -- `by` searches `whose`'s `from`-zones (one or more — "library and/or graveyard") for
       -- matching cards, bound as `That` — like `Choose`, but from (hidden) zones the engine
       -- reveals/shuffles. Search ANOTHER player's via `whose`; the found card's destination
       -- is a following owner-routed `Move That …`. Rust: Selection::Search.
-      Search : {default You by : Reference b APlayer} -> {default You whose : Reference b APlayer} -> {default [Library] from : List Zone} -> Quantity b -> Predicate b k -> Bindable b k
+      Search : {default You by : Reference b APlayer} -> {default You whose : Reference b APlayer} -> {default [Library] from : List Zone} -> Quantity b -> Predicate b k -> Bindable b Many k
 
   -- Effects, continuous effects, and abilities are mutually recursive: a one-shot
   -- can CREATE a continuous effect (`Continuously`), a static ability can grant an
@@ -1558,7 +1576,7 @@ mutual
       -- mixed-kind multi-target ("target player gains control of target creature", Donate) works.
       Targeted : {ks : List RefKind} -> All (TargetSpec b) ks -> OneShotEffect (bindTargets ks b) -> OneShotEffect b
       -- binds `that` as `That` (of the bound kind) for `body`; `that` may PRODUCE a moved object. Rust: Effect::With.
-      With : Bindable b k -> OneShotEffect (bindThat k b) -> OneShotEffect b
+      With : Bindable b card k -> OneShotEffect (bindThat card k b) -> OneShotEffect b
       -- mid-resolution VALUE choice: "choose a [color/type/name/number/mode], then [body]".
       -- The effect-level twin of `AsEnters` (which is enters-only) — `body` runs at `bindChosen d b`, reading the
       -- pick via `OfChosen`/`ChosenIs`/`ChosenNumber`. Three Tree City's "{2},{T}: Choose a color. Add mana of
@@ -1602,16 +1620,16 @@ mutual
       -- a pile IS what `With` binds). FoF = `DivideAndChoose (TopOfLibrary (^5)) (Single (SelectAll Opponent))
       -- (chosen = Each That (Act (Move It (ToZone Hand)))) (other = Each That (Act (Move It (ToZone Graveyard))))`.
       -- The split + pick are engine-resolved; the grammar names who does each and the per-pile fate. Rust: Effect::DivideAndChoose.
-      DivideAndChoose : (group : Selection b AnObject) -> (divider : Reference b APlayer) -> {default You chooser : Reference b APlayer} -> (chosen : OneShotEffect (bindThat AnObject b)) -> (other : OneShotEffect (bindThat AnObject b)) -> OneShotEffect b
+      DivideAndChoose : (group : Selection b AnObject) -> (divider : Reference b APlayer) -> {default You chooser : Reference b APlayer} -> (chosen : OneShotEffect (bindThat Many AnObject b)) -> (other : OneShotEffect (bindThat Many AnObject b)) -> OneShotEffect b
       -- "for each [domain], [body]" — binds each element as `It`. The distributive
       -- primitive (subsumes the old `Selection::Each`). Rust: Effect::ForEach.
-      Each : Selection b k -> OneShotEffect (bindIt k b) -> OneShotEffect b
+      Each : Bindable b Many k -> OneShotEffect (bindIt k b) -> OneShotEffect b
       -- "[amount] divided as you choose among [a group]" ([CR#601.2d]): bind each element as `It` with its
       -- `Allotment` (the split is engine-resolved, ≥1 each summing to amount), then apply `body`. GENERAL over
       -- the per-element effect — subsumes divided damage (`Act (DealDamage It Allotment)`) and divided
       -- counters (`Act (PutCounters c Allotment It)`); replaced the bespoke `DealDamageDivided`. (`amount`,
       -- not `total` — the latter is a reserved totality keyword.)
-      Distribute : (amount : Count b) -> Selection b k -> OneShotEffect (bindAllot k b) -> OneShotEffect b
+      Distribute : (amount : Count b) -> Bindable b Many k -> OneShotEffect (bindAllot k b) -> OneShotEffect b
       -- "when you do [the preceding], [effect]" — a reflexive trigger. It NESTS, so
       -- `That`/targets stay in scope; no event-scanning sibling. Rust: Effect::Reflexive.
       Reflexive : OneShotEffect b -> OneShotEffect b
@@ -1708,7 +1726,7 @@ mutual
       -- selection re-gathers continuously (a LIVE filter — creatures get the buff as they enter), unlike one-shot
       -- `Each` which fixes the set once. Shares the bare name `Each` with `OneShotEffect.Each` (its own namespace,
       -- disambiguated by type). Subsumes the former `Modify`-over-`Selection`/`ModifyAll` split.
-      Each : Selection b k -> StaticEffect (bindIt k b) -> StaticEffect b
+      Each : Bindable b Many k -> StaticEffect (bindIt k b) -> StaticEffect b
       -- continuous COST modification ([CR#118.7]): spells/abilities matching `of_` get the `change`.
       -- "Instant/sorcery spells you cast cost {1} less" = `CostModifier (And […, ControlledBy you]) (Reduce
       -- [^1])`; affinity is a SELF modifier `CostModifier (SameAs This) (ScaledBy (Reduce …) (CountOf …))`.
