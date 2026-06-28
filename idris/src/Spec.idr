@@ -310,6 +310,14 @@ tChangeTarget = ChangeTarget (GetTarget 0) This
 tChooseNewTargets : Action (bindTargets [AnObject] Base)
 tChooseNewTargets = ChooseNewTargets (GetTarget 0)
 
+-- Bolt Bend ([CR#115.7d]) end-to-end: TARGET a "spell or ability with a SINGLE target" — the single-target
+-- restriction is just `TargetCount Equal (^1)` (an existing predicate, no new machinery) conjoined with
+-- `spellOrAbility` — then the caster picks its new target. Pins the restriction TO the redirect action.
+tBoltBend : OneShotEffect Base
+tBoltBend =
+  Targeted [Target (^1) (And [spellOrAbility, TargetCount Equal (^1)])]
+    (Act (ChooseNewTargets (GetTarget 0)))
+
 -- the structural holes: aggregate-stat cost (Crew), all-counters move (Ozolith), alternative base
 -- cost (the base-SWAP type, distinct from CostChange). Solemnity is subsumed by Replaces+skip (a card).
 tCrewCost : Cost Base
