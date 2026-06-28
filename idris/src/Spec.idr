@@ -15,8 +15,12 @@ tTargetInScope : Reference (bindTargets [AnObject] Base) AnObject
 tTargetInScope = GetTarget 0
 
 -- `That` is available inside a `With`-bound bindings (kind comes from the binding)
-tThatInWith : Selection (bindThat AnObject Base) AnObject
+tThatInWith : Selection (bindThat Many AnObject Base) AnObject
 tThatInWith = That
+
+-- a ONE-binder's `That` reads back as a single `Reference` (no `Each`/`Single`)
+tThatOneInWith : Reference (bindThat One AnObject Base) AnObject
+tThatOneInWith = That
 
 -- a multi-type card may carry one subtype per card type [CR#205.3c]
 tLandCreature : Card
@@ -30,7 +34,7 @@ tLandCreature = Normal $ ^:
 tThatSurvivesDelay : OneShotEffect Base
 tThatSurvivesDelay =
   With (Produce (Move (Only creature) (ToZone Exile)))
-    (Delayed nextEndStep (Each That (Act (Move It (ToZone Battlefield)))))
+    (Delayed nextEndStep (Act (Move That (ToZone Battlefield))))
 
 -- branching effects typecheck
 tMay : OneShotEffect Base
@@ -47,7 +51,7 @@ tContinuously = Continuously UntilEndOfTurn (Modify This (ApplyAll (modifyPT (Up
 tModal : OneShotEffect Base
 tModal = Modal (MkChooseSpec (^1))
   [ MkMode (Act (Draw (^1)))
-  , MkMode (Each (SelectAll creature) (Act (DealDamage It (^2)))) {cost = Just (Do (LoseLife (Literal 2)))}  -- mode cost is now a full Cost
+  , MkMode (Each (Existing (SelectAll creature)) (Act (DealDamage It (^2)))) {cost = Just (Do (LoseLife (Literal 2)))}  -- mode cost is now a full Cost
   ]
 
 -- VARIABLE-count modals: the choose-count is a `Quantity`. "Choose one or both" = `between (^1) (^2)`;
@@ -61,11 +65,11 @@ tModalVariable =
 tReflexiveSeesThat : OneShotEffect Base
 tReflexiveSeesThat =
   With (Produce (Move (Only creature) (ToZone Exile)))
-    (Reflexive (Each That (Act (Move It (ToZone Battlefield)))))
+    (Reflexive (Act (Move That (ToZone Battlefield))))
 
 -- `Each` binds `It` per element; the body references `It`
 tForEach : OneShotEffect Base
-tForEach = Each (SelectAll (creature))
+tForEach = Each (Existing (SelectAll (creature)))
   (Act (DealDamage It (^1)))
 
 -- a CLOSED condition reaches a named object via `Matches` (apply a predicate to a
@@ -152,14 +156,23 @@ tRestrictedMana = AddMana (^1) AnyColor
   { riders = [ SpendOnly (And [IsKind IsSpell, creature, OfChosen])
              , GrantOnSpend (cant (Enact Counter spellOrAbility (SameAs It))) ] }
 
--- the unified `Quantity` (one `Range` constructor) + its helpers all typecheck
-tQuantities : List (Bindable Base AnObject)
+-- the unified `Quantity` (one `Range` constructor) + its helpers all typecheck — `Choose` is a MANY binder
+tQuantities : List (Bindable Base Many AnObject)
 tQuantities =
   [ Choose (^2) creature              -- exactly 2 (the bare-numeral path)
   , Choose (atLeast (^1)) creature
   , Choose (atMost (^3)) creature
   , Choose (between (^1) (^3)) creature
   , Choose anyNumber creature
+  ]
+
+-- the ONE-binders: each binds a single object, read back as `That : Reference` (no `Each`/`Single`)
+tOneBinders : List (Bindable Base One AnObject)
+tOneBinders =
+  [ Produce (Move (Only creature) (ToZone Exile))
+  , ChooseOne creature
+  , SearchOne {from = [Library]} (HasName "Forest")
+  , TheRef (Only creature)
   ]
 
 -- the event-query language: facets conjoin (`And`), `Not` negates, timing via
@@ -220,7 +233,7 @@ tEnchant : List (Ability Base)
 tEnchant = enchant creature
 
 tAuraEnters : StaticEffect Base
-tAuraEnters = Also thisEnters (With (Choose (^1) creature) (Each That (Act (Attach This It))))
+tAuraEnters = Also thisEnters (With (ChooseOne creature) (Act (Attach This That)))
 
 tAuraFallsOff : StaticEffect Base
 tAuraFallsOff = Sba (Not (LegallyAttached This)) (Act (Move This (ToZone Graveyard)))
@@ -355,12 +368,12 @@ tDevotion = Aggregate SumOf (eachOf (And [permanent, ControlledBy you])
 
 -- counters: the `HasCounter` predicate facet + the put/remove verbs
 tCounters : OneShotEffect Base
-tCounters = Sequence [ Each (SelectAll creature) (Act (PutCounters P1P1 (Literal 1) It))
-                     , Each (SelectAll (Not (HasCounter P1P1))) (Act (Destroy It)) ]
+tCounters = Sequence [ Each (Existing (SelectAll creature)) (Act (PutCounters P1P1 (Literal 1) It))
+                     , Each (Existing (SelectAll (Not (HasCounter P1P1)))) (Act (Destroy It)) ]
 
 -- anthem: a static `ModifyAll` over a controller-predicate filter, with layer mods
 tAnthem : Ability Base
-tAnthem = Static (Each (SelectAll (And [hasType Creature, ControlledBy you])) (Modify It (ApplyAll [Alter Power (Up (^1)), Alter Toughness (Up (^1)), Alter Subtypes (Add (^Bear))])))
+tAnthem = Static (Each (Existing (SelectAll (And [hasType Creature, ControlledBy you]))) (Modify It (ApplyAll [Alter Power (Up (^1)), Alter Toughness (Up (^1)), Alter Subtypes (Add (^Bear))])))
 
 -- a loyalty ability: an Activated ability whose cost removes Loyalty counters
 tLoyalty : Ability Base
@@ -426,7 +439,7 @@ tVerbs =
   [ scry (Literal 2)
   , fight This (Only creature)
   , Act (CreateToken (Literal 2) (^: { name := Just "Soldier", types := [Creature], colors := [White], power := Just 1, toughness := Just 1 }))
-  , With (Search {from = [Library, Graveyard]} (^1) (HasName "Forest")) (Each That (Act (Move It (ToZone Hand))))  -- tutor across two zones
+  , With (SearchOne {from = [Library, Graveyard]} (HasName "Forest")) (Act (Move That (ToZone Hand)))  -- tutor across two zones
   , Act (Copy (Only (IsKind IsSpell))) ]
 
 -- a token whose P/T is a `Count b` known at creation — "an X/X where X = creatures you control".
@@ -447,7 +460,7 @@ tNamelessToken = Act (CreateToken (^2)
 -- opponent is now a TARGET (player-predicate `opponent`), so `whose` is that targeted player.
 tSearchOther : OneShotEffect Base
 tSearchOther = Targeted [Target (^1) opponent]
-  (With (Search {whose = GetTarget 0} (^1) creature) (Each That (Act (Move It (ToZone Battlefield)))))
+  (With (SearchOne {whose = GetTarget 0} creature) (Act (Move That (ToZone Battlefield))))
 
 -- a conditional static, and an activation-limited (loyalty-style) ability
 tConditionalStatic : Ability Base
@@ -491,7 +504,7 @@ tPlayerTarget = lifeTotal (GetTarget 0)
 
 -- "each player" is a player-`Selection`; `Each` binds a player `It` (EachPlayer dissolved)
 tEachPlayerForEach : OneShotEffect Base
-tEachPlayerForEach = Each eachPlayer (Act (Draw {actor = It} (^1)))
+tEachPlayerForEach = Each (Existing eachPlayer) (Act (Draw {actor = It} (^1)))
 
 -- MIXED-kind multi-target (Donate: "target player gains control of target permanent"):
 -- slot 0 is a player, slot 1 an object — each `GetTarget` strictly kinded by its own slot.
@@ -571,13 +584,13 @@ tSingle = Single (SelectAll creature)
 -- the general `Distribute`: total `(^2)` split among the target group, each element dealt its `Allotment`.
 tPluralTarget : OneShotEffect Base
 tPluralTarget = Targeted [Target (between (^1) (^2)) (Or [creature, Anyone])]
-  (Distribute (^2) (GetTargets 0) (Act (DealDamage It Allotment)))
+  (Distribute (^2) (Existing (GetTargets 0)) (Act (DealDamage It Allotment)))
 
 -- the SAME `Distribute` over a different body: "distribute three +1/+1 counters among any number of target
 -- creatures" (Hunting Triad) — `PutCounters` per element, each getting its `Allotment`. Carrier-typed.
 tDistributeCounters : OneShotEffect Base
 tDistributeCounters = Targeted [Target (between (^1) (^3)) creature]
-  (Distribute (^3) (GetTargets 0) (Act (PutCounters P1P1 Allotment It)))
+  (Distribute (^3) (Existing (GetTargets 0)) (Act (PutCounters P1P1 Allotment It)))
 
 -- NEGATIVE — each must be rejected --------------------------------------------
 

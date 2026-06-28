@@ -209,7 +209,7 @@ modifyPT op = [Alter Power op, Alter Toughness (ptTwin op)]
 -- so a simultaneous `Each` over the top-n needs no `Arrangement`.
 public export
 mill : Count b -> OneShotEffect b
-mill n = Act (Composite Mill (Each (TopOfLibrary n) (Act (Move It (ToZone Graveyard)))))
+mill n = Act (Composite Mill (Each (Existing (TopOfLibrary n)) (Act (Move It (ToZone Graveyard)))))
 
 -- scry n ([CR#701.22a]): look at the top n, then put each on top or on the bottom; the within-group
 -- order is the [CR#401.4] "any order" freebie (simultaneous `Each`). The per-card top/bottom pick is a
@@ -217,21 +217,19 @@ mill n = Act (Composite Mill (Each (TopOfLibrary n) (Act (Move It (ToZone Gravey
 public export
 scry : Count b -> OneShotEffect b
 scry n = Act (Composite Scry
-  (With (Existing (TopOfLibrary n))
-    (Each That
-      (Modal (MkChooseSpec (Range (Just (^1)) (Just (^1))))
-        [ MkMode (Act (Move It (ToLibrary (FromTop (^0)))))
-        , MkMode (Act (Move It (ToLibrary (FromBottom (^0))))) ]))))
+  (Each (Existing (TopOfLibrary n))
+    (Modal (MkChooseSpec (Range (Just (^1)) (Just (^1))))
+      [ MkMode (Act (Move It (ToLibrary (FromTop (^0)))))
+      , MkMode (Act (Move It (ToLibrary (FromBottom (^0))))) ])))
 
 -- surveil n ([CR#701.25a]): scry's shape, but the spill zone is the graveyard, not the library bottom.
 public export
 surveil : Count b -> OneShotEffect b
 surveil n = Act (Composite Surveil
-  (With (Existing (TopOfLibrary n))
-    (Each That
-      (Modal (MkChooseSpec (Range (Just (^1)) (Just (^1))))
-        [ MkMode (Act (Move It (ToLibrary (FromTop (^0)))))
-        , MkMode (Act (Move It (ToZone Graveyard))) ]))))
+  (Each (Existing (TopOfLibrary n))
+    (Modal (MkChooseSpec (Range (Just (^1)) (Just (^1))))
+      [ MkMode (Act (Move It (ToLibrary (FromTop (^0)))))
+      , MkMode (Act (Move It (ToZone Graveyard))) ])))
 
 -- fight ([CR#701.14a]): two creatures each deal damage equal to their power to the other (simultaneous).
 public export
@@ -267,7 +265,7 @@ enchant : {b : Bindings} -> ({0 c : Bindings} -> Predicate c AnObject) -> List (
 enchant hosts =
   [ Static (Can (Enact Attach (SameAs This) hosts))                                  -- (1) permission: the aura ENABLES attaching
   , Static (Also thisEnters (If (Not (LegallyAttached This))                         -- (2) [CR#303.4f] non-cast entry only (cast path is already attached):
-              (With (Choose (^1) hosts) (Act (Attach This (Single That))))))         --     choose a valid host, enter attached
+              (With (ChooseOne hosts) (Act (Attach This That)))))                    --     choose a valid host, enter attached
   , Spell (Targeted [Target (^1) hosts] (Act (Attach This (GetTarget 0)))) ]         -- (3) cast → target a host → attach on resolution
 
 -- desugar a `KeywordSpec` into its full `Ability` — dispatches to the macros above. EXHAUSTIVE

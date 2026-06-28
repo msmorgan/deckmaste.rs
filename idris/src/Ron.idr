@@ -271,6 +271,7 @@ mutual
     toRon i (AttachHostOf r) = ctor "AttachHostOf" [toRon i r]
     toRon i (AttachedTo r) = ctor "AttachedTo" [toRon i r]
     toRon _ It = "It"
+    toRon _ That = "That"
     toRon _ EventObject = "EventObject"
     toRon _ EventPatient = "EventPatient"
     toRon _ You = "You"
@@ -438,12 +439,16 @@ mutual
   implementation ToRon (TargetSpec b k) where
     toRon i (Target q p) = ctor "Target" [toRon i q, toRon i p]
 
-  implementation ToRon (Bindable b k) where
+  implementation ToRon (Bindable b card k) where
     toRon i (Existing s) = ctor "Existing" [toRon i s]
     toRon i (Produce a) = ctor "Produce" [toRon i a]
     toRon i (Choose q p {by}) = ctor "Choose" [toRon i by, toRon i q, toRon i p]
     toRon i (Search q p {by} {whose} {from}) =
       ctor "Search" [toRon i by, toRon i whose, toRon i from, toRon i q, toRon i p]
+    toRon i (ChooseOne p {by}) = ctor "ChooseOne" [toRon i by, toRon i p]
+    toRon i (SearchOne p {by} {whose} {from}) =
+      ctor "SearchOne" [toRon i by, toRon i whose, toRon i from, toRon i p]
+    toRon i (TheRef r) = ctor "TheRef" [toRon i r]
 
   implementation ToRon (Destination b) where
     toRon i (ToZone z) = ctor "ToZone" [toRon i z]
