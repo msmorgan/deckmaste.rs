@@ -18,6 +18,19 @@ use deckmaste_core::TurnMarker;
 use super::Ctx;
 use super::fragment;
 
+/// MTG card text uses second-person verb agreement only for the pronoun "you";
+/// every other payer ("that player", "its controller", a player's name) takes
+/// the third-person `-s` form. Returns the `(does, doesn't, pays)` verb forms
+/// agreeing with the ALREADY-RENDERED `payer` so a `MayPay`/`MustPay` clause
+/// reads "you may pay … if you **do**, …" rather than "if you **does**, …".
+fn payer_verbs(payer: &str) -> (&'static str, &'static str, &'static str) {
+    if payer.eq_ignore_ascii_case("you") {
+        ("do", "don't", "pay")
+    } else {
+        ("does", "doesn't", "pays")
+    }
+}
+
 /// Render an `Effect` as one or more sentences joined into a single rules
 /// string.
 pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
@@ -67,9 +80,10 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
         // rendering (e.g. a `Do(...)` verb cost).
         Effect::MustPay(m) => {
             let payer = fragment::reference(&m.actor, ctx);
+            let (_, _, pays) = payer_verbs(&payer);
             match super::template::render_cost(&m.cost.0) {
                 Some(c) => format!(
-                    "{} unless {payer} pays {c}.",
+                    "{} unless {payer} {pays} {c}.",
                     trim_period(&effect(&m.or_else, ctx))
                 ),
                 None => format!("[unrendered: {m:?}]."),
@@ -79,16 +93,17 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
         // if [actor] doesn't, [or_else]" — a resolution-time kicker.
         Effect::MayPay(m) => {
             let payer = fragment::reference(&m.actor, ctx);
+            let (does, doesnt, _) = payer_verbs(&payer);
             match super::template::render_cost(&m.cost.0) {
                 Some(c) => {
                     let did = super::ability::lower_first(&trim_period(&effect(&m.and_then, ctx)));
                     let tail = m.or_else.as_ref().map_or_else(String::new, |or_else| {
                         let didnt =
                             super::ability::lower_first(&trim_period(&effect(or_else, ctx)));
-                        format!("; if {payer} doesn't, {didnt}")
+                        format!("; if {payer} {doesnt}, {didnt}")
                     });
                     fragment::capitalize(&format!(
-                        "{payer} may pay {c}. If {payer} does, {did}{tail}."
+                        "{payer} may pay {c}. If {payer} {does}, {did}{tail}."
                     ))
                 }
                 None => format!("[unrendered: {m:?}]."),
@@ -406,6 +421,88 @@ mod tests {
 
     use super::Ctx;
     use super::action;
+    use super::effect;
+
+    /// `MayPay`/`MustPay` agree the payer's verb with its grammatical person
+    /// ([CR#603,608,118.12a]): the default `you` actor takes second-person
+    /// "do / don't / pay", a third-person actor ("that player") takes "does /
+    /// doesn't / pays". Regression for the hardcoded third-person forms that
+    /// rendered the ungrammatical "if you **does**, …" / "unless you **pays**".
+    #[test]
+    fn pay_clauses_agree_verb_person_with_payer() {
+        use deckmaste_core::Cost;
+        use deckmaste_core::CostComponent;
+        use deckmaste_core::Effect;
+        use deckmaste_core::MayPay;
+        use deckmaste_core::MustPay;
+        use deckmaste_core::PlayerAction;
+
+        let ctx = Ctx {
+            subject: "it",
+            targets: &[],
+        };
+        let one = || Cost(vec![CostComponent::Mana("{1}".parse().unwrap())]);
+        let draw = || Box::new(Effect::act_by_you(PlayerAction::Draw(Count::Literal(1))));
+        let lose = || {
+            Box::new(Effect::act_by_you(PlayerAction::LoseLife(Count::Literal(
+                1,
+            ))))
+        };
+
+        // -- MayPay: "[payer] may pay {1}. If [payer] do(es), draw a card; if
+        //    [payer] do(esn't), [lose]." --
+        let may_you = Effect::MayPay(MayPay {
+            actor: Reference::You,
+            cost: one(),
+            and_then: draw(),
+            or_else: Some(lose()),
+        });
+        let rendered = effect(&may_you, &ctx);
+        assert!(
+            rendered.contains("If you do, ") && rendered.contains("; if you don't, "),
+            "second-person MayPay: {rendered}"
+        );
+        assert!(
+            !rendered.contains("you does") && !rendered.contains("you doesn't"),
+            "no third-person -s for the `you` payer: {rendered}"
+        );
+
+        let may_them = Effect::MayPay(MayPay {
+            actor: Reference::ThatPlayer,
+            cost: one(),
+            and_then: draw(),
+            or_else: Some(lose()),
+        });
+        let rendered = effect(&may_them, &ctx);
+        assert!(
+            rendered.contains("If that player does, ")
+                && rendered.contains("; if that player doesn't, "),
+            "third-person MayPay: {rendered}"
+        );
+
+        // -- MustPay: "[or_else] unless [payer] pay(s) {1}." --
+        let must_you = Effect::MustPay(MustPay {
+            actor: Reference::You,
+            cost: one(),
+            or_else: lose(),
+        });
+        let rendered = effect(&must_you, &ctx);
+        assert!(
+            rendered.contains("unless you pay {1}") && !rendered.contains("unless you pays"),
+            "second-person MustPay: {rendered}"
+        );
+
+        let must_them = Effect::MustPay(MustPay {
+            actor: Reference::ThatPlayer,
+            cost: one(),
+            or_else: lose(),
+        });
+        let rendered = effect(&must_them, &ctx);
+        assert!(
+            rendered.contains("unless that player pays {1}"),
+            "third-person MustPay: {rendered}"
+        );
+    }
 
     /// The default `This` source renders the implicit "Deal N damage to X";
     /// an explicit non-`This` source names the dealer — "<dealer> deals N
