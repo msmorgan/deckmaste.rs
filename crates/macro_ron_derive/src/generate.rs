@@ -289,39 +289,63 @@ fn from_variant_arm(ty: &Ident, v: &Variant) -> Result<TokenStream> {
         Shape::Newtype(_) => quote! {
             ::serde::de::VariantAccess::newtype_variant(access).map(#ty::#v_ident)
         },
-        Shape::Tuple(fields) => match fields.as_slice() {
-            [a, b] => {
-                let (ta, tb) = (&a.ty, &b.ty);
-                quote! {
-                    ::serde::de::VariantAccess::tuple_variant(
-                        access,
-                        2usize,
-                        ::macro_ron::Pair::<#ta, #tb>::new(),
-                    )
-                    .map(|(__f0, __f1)| #ty::#v_ident(__f0, __f1))
+        // A tuple embed (`By`) keeps its tag and always reads every field
+        // positionally — its defaults drive only the bare-write guard, never
+        // the read. Plain (non-embed) tuples may carry trailing defaults, read
+        // through `PairPlusDefault`.
+        Shape::Tuple(fields) => {
+            let trailing_default =
+                v.marker != Some(Marker::Embed) && fields.iter().any(|f| f.default.is_some());
+            match (trailing_default, fields.as_slice()) {
+                (false, [a, b]) => {
+                    let (ta, tb) = (&a.ty, &b.ty);
+                    quote! {
+                        ::serde::de::VariantAccess::tuple_variant(
+                            access,
+                            2usize,
+                            ::macro_ron::Pair::<#ta, #tb>::new(),
+                        )
+                        .map(|(__f0, __f1)| #ty::#v_ident(__f0, __f1))
+                    }
+                }
+                (false, [a, b, c]) => {
+                    let (ta, tb, tc) = (&a.ty, &b.ty, &c.ty);
+                    quote! {
+                        ::serde::de::VariantAccess::tuple_variant(
+                            access,
+                            3usize,
+                            ::macro_ron::Triple::<#ta, #tb, #tc>::new(),
+                        )
+                        .map(|(__f0, __f1, __f2)| #ty::#v_ident(__f0, __f1, __f2))
+                    }
+                }
+                // Two required fields + one trailing-defaulted field: the short
+                // form `V(a, b)` fills the third with its default, the long
+                // form `V(a, b, c)` supplies it (`PairPlusDefault`).
+                (true, [a, b, c]) if a.default.is_none() && b.default.is_none() => {
+                    let (ta, tb, tc) = (&a.ty, &b.ty, &c.ty);
+                    let default_c = c.default.as_ref().expect("trailing default present");
+                    quote! {
+                        ::serde::de::VariantAccess::tuple_variant(
+                            access,
+                            3usize,
+                            ::macro_ron::PairPlusDefault::<#ta, #tb, #tc>::new(#default_c),
+                        )
+                        .map(|(__f0, __f1, __f2)| #ty::#v_ident(__f0, __f1, __f2))
+                    }
+                }
+                (_, fields) => {
+                    return Err(Error::new(
+                        v_ident.span(),
+                        format!(
+                            "tuple variants of arity {} (with this default layout) are \
+                             unsupported; add a runtime visitor",
+                            fields.len()
+                        ),
+                    ));
                 }
             }
-            [a, b, c] => {
-                let (ta, tb, tc) = (&a.ty, &b.ty, &c.ty);
-                quote! {
-                    ::serde::de::VariantAccess::tuple_variant(
-                        access,
-                        3usize,
-                        ::macro_ron::Triple::<#ta, #tb, #tc>::new(),
-                    )
-                    .map(|(__f0, __f1, __f2)| #ty::#v_ident(__f0, __f1, __f2))
-                }
-            }
-            fields => {
-                return Err(Error::new(
-                    v_ident.span(),
-                    format!(
-                        "tuple variants of arity {} are unsupported; add a runtime visitor",
-                        fields.len()
-                    ),
-                ));
-            }
-        },
+        }
         Shape::Struct(fields) => {
             let helper = helper_ident(ty, v_ident);
             let names = field_names(fields);
@@ -416,7 +440,29 @@ fn gen_serialize(input: &Input) -> TokenStream {
                     serializer, #ty_name, #index, #name, __f0,
                 ),
             }),
+            (_, Shape::Tuple(fields)) if fields.iter().all(|f| f.default.is_none()) => {
+                arms.push(tuple_arm(ty, &ty_name, index, v_ident, &name, fields.len()));
+            }
+            // A non-embed tuple with trailing defaults: the short form omits
+            // every defaulted field (when each equals its default), the full
+            // form writes them all.
             (_, Shape::Tuple(fields)) => {
+                let required = fields.iter().filter(|f| f.default.is_none()).count();
+                let pats: Vec<Ident> = (0..fields.len()).map(|i| format_ident!("__f{i}")).collect();
+                let guards = fields
+                    .iter()
+                    .zip(&pats)
+                    .filter_map(|(f, p)| f.default.as_ref().map(|d| quote!(*#p == (#d))));
+                let short = &pats[..required];
+                arms.push(quote! {
+                    #ty::#v_ident(#(#pats),*) if #(#guards)&&* => {
+                        let mut __tv = ::serde::Serializer::serialize_tuple_variant(
+                            serializer, #ty_name, #index, #name, #required,
+                        )?;
+                        #(::serde::ser::SerializeTupleVariant::serialize_field(&mut __tv, #short)?;)*
+                        ::serde::ser::SerializeTupleVariant::end(__tv)
+                    },
+                });
                 arms.push(tuple_arm(ty, &ty_name, index, v_ident, &name, fields.len()));
             }
             // The struct variant clones its fields into the owned helper

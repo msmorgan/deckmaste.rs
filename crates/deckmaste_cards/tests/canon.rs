@@ -91,7 +91,7 @@ fn lightning_bolt_expands_target_macros() {
         vec![Ability::Spell(SpellAbility {
             effect: Effect::Targeted(deckmaste_core::Targeted::new(
                 vec![any_target],
-                Effect::Act(Action::DealDamage(
+                Effect::Act(Action::deal_damage(
                     Selection::Ref(Reference::Target(0)),
                     Count::Literal(3),
                 )),

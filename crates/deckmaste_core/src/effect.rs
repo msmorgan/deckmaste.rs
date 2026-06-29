@@ -282,9 +282,9 @@ mod tests {
         );
         assert_eq!(
             read("DealDamage(Target(0), Literal(3))"),
-            Effect::Act(Action::DealDamage(
+            Effect::Act(Action::deal_damage(
                 Selection::Ref(Reference::Target(0)),
-                Count::Literal(3)
+                Count::Literal(3),
             )),
         );
         assert_eq!(
@@ -490,7 +490,7 @@ mod tests {
         assert_eq!(te.targets.len(), 1);
         assert_eq!(
             *te.effect,
-            Effect::Act(Action::DealDamage(
+            Effect::Act(Action::deal_damage(
                 Selection::Ref(Reference::Target(0)),
                 Count::Literal(3),
             )),

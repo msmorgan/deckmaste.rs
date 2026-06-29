@@ -1019,7 +1019,7 @@ fn double_damage_lineage_terminates() {
 
     // The `instead` body: deal 10 damage to this creature (a fixed amount
     // rather than a doubled one — see doc-comment above for rationale).
-    let instead_body = Effect::Act(deckmaste_core::Action::DealDamage(
+    let instead_body = Effect::Act(deckmaste_core::Action::deal_damage(
         Selection::this(),
         Count::Literal(10),
     ));

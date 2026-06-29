@@ -50,6 +50,7 @@ pub use set::MacroDef;
 pub use set::MacroSet;
 pub use set::Params;
 pub use support::Pair;
+pub use support::PairPlusDefault;
 pub use support::SupportsMacros;
 pub use support::Triple;
 pub use support::concat_variants;

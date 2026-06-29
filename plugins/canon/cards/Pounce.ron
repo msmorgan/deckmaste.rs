@@ -1,0 +1,30 @@
+// Pounce — "Target creature you control fights target creature you don't
+// control." Fight ([CR#701.14a]) is two redirectable-source `DealDamage`
+// instructions: each creature deals damage equal to its power to the other,
+// expressed through the optional `source` slot (the dealer is the OTHER
+// creature, not this spell). Hand-written: the fight clause is beyond the
+// effect parser today.
+Normal(
+  name: "Pounce",
+  mana_cost: [
+    Generic(1),
+    Green,
+  ],
+  types: [
+    Sorcery,
+  ],
+  abilities: [
+    Spell(
+      effect: Targeted(
+        targets: [
+          TargetOne(AllOf([Creature, ControlledBy(Ref(You))])),
+          TargetOne(AllOf([Creature, Not(ControlledBy(Ref(You)))])),
+        ],
+        effect: Sequence([
+          DealDamage(Target(1), StatOf(Target(0), Power), Target(0)),
+          DealDamage(Target(0), StatOf(Target(1), Power), Target(1)),
+        ]),
+      ),
+    ),
+  ],
+)

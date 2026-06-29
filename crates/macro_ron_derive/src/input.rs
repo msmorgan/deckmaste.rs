@@ -266,13 +266,34 @@ fn validate(ident: &Ident, marker: Option<Marker>, shape: &Shape) -> Result<()> 
             }
         },
     }
+    // `#[macro_ron(default = ...)]` on a struct-variant field is meaningless
+    // (struct variants forward `#[serde(default = ...)]` instead); reject it.
     if !matches!(marker, Some(Marker::Embed))
-        && matches!(shape, Shape::Tuple(fs) | Shape::Struct(fs) if fs.iter().any(|f| f.default.is_some()))
+        && matches!(shape, Shape::Struct(fs) if fs.iter().any(|f| f.default.is_some()))
     {
         return Err(Error::new(
             ident.span(),
-            "#[macro_ron(default = ...)] is only meaningful inside an embed variant",
+            "#[macro_ron(default = ...)] is not used on struct variants \
+             (forward #[serde(default = ...)] instead)",
         ));
+    }
+    // A non-embed *tuple* variant may carry trailing defaults: the short form
+    // omits them on write and fills them on read (`PairPlusDefault`). The
+    // defaulted fields must form a contiguous suffix — a required field after a
+    // defaulted one has no positional reading.
+    if !matches!(marker, Some(Marker::Embed))
+        && let Shape::Tuple(fs) = shape
+    {
+        let first_default = fs.iter().position(|f| f.default.is_some());
+        if let Some(first) = first_default
+            && fs[first..].iter().any(|f| f.default.is_none())
+        {
+            return Err(Error::new(
+                ident.span(),
+                "defaulted tuple fields must be a trailing run \
+                 (no required field after a defaulted one)",
+            ));
+        }
     }
     // Serde attrs on fields of non-struct shapes are silently ignored — reject
     // them.
