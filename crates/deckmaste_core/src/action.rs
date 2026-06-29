@@ -5,7 +5,6 @@ use crate::Count;
 use crate::Expand;
 use crate::Expansion;
 use crate::Reference;
-use crate::Selection;
 use crate::SupportsMacros;
 use crate::TokenSpec;
 use crate::mana::ManaProduction;
@@ -70,49 +69,49 @@ pub enum Destination {
 /// `PlayerAction`; the writer emits the bare `PlayerAction`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Action {
-    /// Deal an amount of damage to a selection ([CR#120.1]). `source` is the
-    /// **dealer** — the object whose damage this is. It defaults to `This` (the
-    /// ability's source object / the resolving spell, the implicit agent) and
-    /// is omitted on write when default, so the common case stays
-    /// `DealDamage(Target(0), 3)`. An explicit source expresses
+    /// Deal an amount of damage to the patient object or player ([CR#120.1]).
+    /// `source` is the **dealer** — the object whose damage this is. It
+    /// defaults to `This` (the ability's source object / the resolving spell,
+    /// the implicit agent) and is omitted on write when default, so the common
+    /// case stays `DealDamage(Target(0), 3)`. An explicit source expresses
     /// redirected/arbitrary-source damage and "fight" ([CR#701.14a] — each of
     /// two creatures deals damage equal to its power to the other:
     /// `DealDamage(Target(0), StatOf(This, Power))` plus
     /// `DealDamage(This, StatOf(Target(0), Power), Target(0))`).
     DealDamage(
-        Selection,
+        Reference,
         Count,
         #[macro_ron(default = "Reference::This")] Reference,
     ),
-    /// Destroy a selected permanent ([CR#701.8]).
-    Destroy(Selection),
-    /// Return a selection to its owner's hand.
-    ReturnToHand(Selection),
-    /// Counter a selected spell or ability on the stack ([CR#701.6a]) — a
+    /// Destroy the referenced permanent ([CR#701.8]).
+    Destroy(Reference),
+    /// Return the referenced object to its owner's hand.
+    ReturnToHand(Reference),
+    /// Counter the referenced spell or ability on the stack ([CR#701.6a]) — a
     /// countered spell moves to its owner's graveyard; a countered ability
     /// simply ceases. "Can't be countered" is deontic-layer territory, not
     /// part of the verb.
-    Counter(Selection),
+    Counter(Reference),
     /// Attach `what` to `to` ([CR#701.3a..701.3b]) — the one verb the whole
     /// attachment family shares (Equipment, Auras, Fortifications). The
     /// attachment RELATION (storage; the illegal-attachment SBAs,
     /// [CR#704.5m..704.5n]) is engine machinery.
-    Attach { what: Selection, to: Selection },
-    /// Unattach a selected attachment from its host ([CR#701.3d]) — the inverse
-    /// of [`Attach`](Action::Attach). Used by Reconfigure's unattach ability
-    /// and the illegal-attachment SBA's unattach path. No-op on a selection
-    /// that isn't attached.
-    Unattach(Selection),
-    /// Move a selection to a [`Destination`] ([CR#400.7]) — a plain zone change
-    /// (emits `ZoneWillChange`), NOT destruction (so indestructible does not
-    /// apply, distinct from [`Destroy`](Action::Destroy)) and NOT a sacrifice.
-    /// A graveyard/hand/library destination is the object's *owner's*; exile is
-    /// the shared exile zone. The destination is a bare zone name
-    /// (`Move(Ref(This), Graveyard)` — the [CR#704.5m] Aura graveyard SBA) or
-    /// the library at an anchor (`Move(sel, Library(FromTop(0)))` — top of
+    Attach { what: Reference, to: Reference },
+    /// Unattach the referenced attachment from its host ([CR#701.3d]) — the
+    /// inverse of [`Attach`](Action::Attach). Used by Reconfigure's unattach
+    /// ability and the illegal-attachment SBA's unattach path. No-op on a
+    /// reference that isn't attached.
+    Unattach(Reference),
+    /// Move the referenced object to a [`Destination`] ([CR#400.7]) — a plain
+    /// zone change (emits `ZoneWillChange`), NOT destruction (so indestructible
+    /// does not apply, distinct from [`Destroy`](Action::Destroy)) and NOT a
+    /// sacrifice. A graveyard/hand/library destination is the object's
+    /// *owner's*; exile is the shared exile zone. The destination is a bare
+    /// zone name (`Move(This, Graveyard)` — the [CR#704.5m] Aura graveyard SBA)
+    /// or the library at an anchor (`Move(This, Library(FromTop(0)))` — top of
     /// library, the former `PutInLibrary`; `Library(FromBottom(0))` — bottom,
     /// [CR#401.7]). This one verb subsumes the old `Move`/`PutInLibrary` split.
-    Move(Selection, Destination),
+    Move(Reference, Destination),
     /// Move counters from one object onto another ([CR#122] — counters move
     /// object→object as a single operation, distinct from a separate
     /// remove-then-put). The [`CounterSpec`](crate::CounterSpec) names a
@@ -127,7 +126,7 @@ pub enum Action {
     /// ([CR#614.3]). [CR#701.19a,614.8]
     CreateReplacement {
         replacement: Box<crate::replacement::Replacement>,
-        subject: crate::Selection,
+        subject: Reference,
         duration: crate::continuous::Duration,
         one_shot: bool,
     },
@@ -158,7 +157,7 @@ pub enum PlayerAction {
     Discard {
         count: Count,
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        what: Option<Selection>,
+        what: Option<Reference>,
     },
     /// Gain an amount of life ([CR#119.3]).
     GainLife(Count),
@@ -169,14 +168,18 @@ pub enum PlayerAction {
     AddMana(Count, ManaProduction),
     /// Create a number of token permanents ([CR#111.1,701.7]).
     Create(Count, TokenSpec),
-    /// Sacrifice a selected permanent ([CR#701.21]).
-    Sacrifice(Selection),
-    /// Exile a selection ([CR#701.13]).
-    Exile(Selection),
-    /// Tap a selection ([CR#701.26a]).
-    Tap(Selection),
-    /// Untap a selection ([CR#701.26b]).
-    Untap(Selection),
+    /// Sacrifice the referenced permanent ([CR#701.21]).
+    Sacrifice(Reference),
+    /// A player-performed relocation to a [`Destination`] ([CR#400.7]) — the
+    /// player-agent twin of [`Action::Move`], reachable from a cost
+    /// (`CostComponent::Do`). Exiling is a pure zone move ([CR#701.13]), so it
+    /// has no dedicated verb: cost-side/self exile is `Move(This, Exile)`
+    /// (Scavenge), and bottom-of-library tuck, etc., ride the same verb.
+    Move(Reference, Destination),
+    /// Tap the referenced object ([CR#701.26a]).
+    Tap(Reference),
+    /// Untap the referenced object ([CR#701.26b]).
+    Untap(Reference),
     /// "You get an emblem with [abilities]" — a command-zone object that
     /// never touches the battlefield (rules-taxonomy §6: a degenerate
     /// token definition; [CR#114.1,114.4]).
@@ -190,23 +193,23 @@ pub enum PlayerAction {
     /// A resolution choice stored under a note key ([CR#608.2d] choice +
     /// [CR#607.2] slot): "choose a color" and kin.
     ChooseAndNote(crate::Ident, crate::NotedKind),
-    /// Put a copy of each selected spell on the stack ([CR#707.10] — a
+    /// Put a copy of the referenced spell on the stack ([CR#707.10] — a
     /// copy on the stack, NOT casting one; [CR#707.12] casting rides the
     /// 601 pipeline).
-    CopySpell(Selection),
+    CopySpell(Reference),
     /// Flip that many coins ([CR#705.1]) — results are events; call/win
     /// framing is the consumer's ([CR#705.2]).
     FlipCoins(Count),
     /// Roll that many dice with the given number of sides ([CR#706.1]);
     /// an IGNORED roll is considered to have never happened ([CR#706.6]).
     RollDice(Count, crate::Uint),
-    /// Put counters of the named kind on each selected object/player
+    /// Put counters of the named kind on the referenced object/player
     /// ([CR#122.1] — counters go on objects AND players). The kind is a bare
     /// `CounterRef` (`PutCounters(~, P1P1Counter, 2)`), not a string.
-    PutCounters(Selection, crate::CounterRef, Count),
+    PutCounters(Reference, crate::CounterRef, Count),
     /// Remove counters of the named kind ([CR#122.1]; cost-eligible —
     /// "Remove a +1/+1 counter from this creature:").
-    RemoveCounters(Selection, crate::CounterRef, Count),
+    RemoveCounters(Reference, crate::CounterRef, Count),
     /// Look at `group`, then partition the peeked cards into ordered `bins`
     /// ([CR#701.22a]). One resolution decision; the peek is implicit (surfacing
     /// the decision IS the look). `name` is the printed keyword carried for
@@ -243,20 +246,21 @@ pub enum PlayerAction {
     /// or loss of the necessary difference — triggers see the gain/loss,
     /// never a "set" event. Equal totals = no event (transition-only).
     SetLife(Count),
-    /// Reveal a selection to all players ([CR#701.20a]); `to` names a
+    /// Reveal the referenced object to all players ([CR#701.20a]); `to` names a
     /// player instead = "look at" — same operation shown to a subset
     /// ([CR#701.20e]). Revealing never moves the card ([CR#701.20b]).
     /// The reveal WINDOW (how long it stays shown, [CR#701.20a]) is the
     /// engine's effect-instance machinery, not grammar.
     Reveal {
-        what: Selection,
+        what: Reference,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         to: Option<Reference>,
     },
-    /// Remove all marked damage from a selection ([CR#614.8] regeneration body;
-    /// [CR#701.19a] heal clause). Applied in the regeneration `instead` body
-    /// before tapping to restore the permanent to a clean damage state.
-    RemoveDamage(crate::Selection),
+    /// Remove all marked damage from the referenced object ([CR#614.8]
+    /// regeneration body; [CR#701.19a] heal clause). Applied in the
+    /// regeneration `instead` body before tapping to restore the permanent to a
+    /// clean damage state.
+    RemoveDamage(Reference),
     /// A remembered `PlayerAction` macro invocation.
     #[macro_ron(expanded)]
     Expanded(Expansion<PlayerAction>),
@@ -274,15 +278,15 @@ impl Action {
     /// `DealDamage` from the implicit source (`This`) — the common case, where
     /// the dealer is the ability's source object / the resolving spell.
     #[must_use]
-    pub fn deal_damage(selection: Selection, amount: Count) -> Action {
-        Action::DealDamage(selection, amount, Reference::This)
+    pub fn deal_damage(target: Reference, amount: Count) -> Action {
+        Action::DealDamage(target, amount, Reference::This)
     }
 
-    /// `Move` to a plain zone — the common relocation (`Move(sel, Graveyard)`),
-    /// without spelling the `Destination::Zone` wrapper.
+    /// `Move` to a plain zone — the common relocation (`Move(This,
+    /// Graveyard)`), without spelling the `Destination::Zone` wrapper.
     #[must_use]
-    pub fn move_to(selection: Selection, zone: crate::Zone) -> Action {
-        Action::Move(selection, Destination::Zone(zone))
+    pub fn move_to(what: Reference, zone: crate::Zone) -> Action {
+        Action::Move(what, Destination::Zone(zone))
     }
 }
 
@@ -290,15 +294,16 @@ impl PlayerAction {
     /// Whether this verb may appear in a cost (`CostComponent::Do`): the
     /// payer performs it, nothing targets ([CR#601.2b..601.2c]). Cost-eligible
     /// verbs are the self-directed ones a player can pay with — sacrifice,
-    /// exile, tap, untap, discard, pay-life (`LoseLife`), and reveal
-    /// ("reveal a blue card from your hand:" — a reveal that is part of a
-    /// cost stays shown until the spell leaves the stack, [CR#701.20a]).
+    /// relocate (`Move`, e.g. self-exile to pay — [CR#701.13]), tap, untap,
+    /// discard, pay-life (`LoseLife`), and reveal ("reveal a blue card from
+    /// your hand:" — a reveal that is part of a cost stays shown until the
+    /// spell leaves the stack, [CR#701.20a]).
     #[must_use]
     pub fn is_cost_eligible(&self) -> bool {
         matches!(
             self,
             PlayerAction::Sacrifice(_)
-                | PlayerAction::Exile(_)
+                | PlayerAction::Move(..)
                 | PlayerAction::Tap(_)
                 | PlayerAction::Untap(_)
                 | PlayerAction::Discard { .. }
@@ -325,10 +330,13 @@ mod tests {
 
     #[test]
     fn is_cost_eligible_covers_self_directed_verbs() {
-        assert!(PlayerAction::Sacrifice(Selection::Ref(Reference::This)).is_cost_eligible());
-        assert!(PlayerAction::Exile(Selection::Ref(Reference::This)).is_cost_eligible());
-        assert!(PlayerAction::Tap(Selection::Ref(Reference::This)).is_cost_eligible());
-        assert!(PlayerAction::Untap(Selection::Ref(Reference::This)).is_cost_eligible());
+        assert!(PlayerAction::Sacrifice(Reference::This).is_cost_eligible());
+        assert!(
+            PlayerAction::Move(Reference::This, Destination::Zone(crate::Zone::Exile))
+                .is_cost_eligible()
+        );
+        assert!(PlayerAction::Tap(Reference::This).is_cost_eligible());
+        assert!(PlayerAction::Untap(Reference::This).is_cost_eligible());
         assert!(
             PlayerAction::Discard {
                 count: Count::Literal(1),
@@ -370,7 +378,7 @@ mod tests {
                 Reference::You,
                 PlayerAction::Discard {
                     count: Count::Literal(1),
-                    what: Some(Selection::Ref(Reference::This)),
+                    what: Some(Reference::This),
                 },
             ),
         );
@@ -392,7 +400,7 @@ mod tests {
             Reference::You,
             PlayerAction::Discard {
                 count: Count::Literal(1),
-                what: Some(Selection::Ref(Reference::This)),
+                what: Some(Reference::This),
             },
         );
         assert_eq!(read(&write(&this)), this);
@@ -409,17 +417,11 @@ mod tests {
         );
         assert_eq!(
             read("Sacrifice(This)"),
-            Action::By(
-                Reference::You,
-                PlayerAction::Sacrifice(Selection::Ref(Reference::This)),
-            ),
+            Action::By(Reference::You, PlayerAction::Sacrifice(Reference::This),),
         );
         assert_eq!(
             read("Tap(This)"),
-            Action::By(
-                Reference::You,
-                PlayerAction::Tap(Selection::Ref(Reference::This)),
-            ),
+            Action::By(Reference::You, PlayerAction::Tap(Reference::This),),
         );
     }
 
@@ -439,16 +441,9 @@ mod tests {
     fn source_verbs_read_natively() {
         assert_eq!(
             read("DealDamage(Target(0), Literal(3))"),
-            Action::DealDamage(
-                Selection::Ref(Reference::Target(0)),
-                Count::Literal(3),
-                Reference::This,
-            ),
+            Action::DealDamage(Reference::Target(0), Count::Literal(3), Reference::This,),
         );
-        assert_eq!(
-            read("Destroy(This)"),
-            Action::Destroy(Selection::Ref(Reference::This)),
-        );
+        assert_eq!(read("Destroy(This)"), Action::Destroy(Reference::This),);
     }
 
     /// `DealDamage`'s optional `source` defaults to `This` and is omitted on
@@ -457,7 +452,7 @@ mod tests {
     #[test]
     fn deal_damage_source_defaults_and_round_trips() {
         // Default source: written bare (two-element form), no third slot.
-        let default = Action::deal_damage(Selection::Ref(Reference::Target(0)), Count::Literal(3));
+        let default = Action::deal_damage(Reference::Target(0), Count::Literal(3));
         let written = write(&default);
         assert_eq!(written, "DealDamage(Target(0),3)", "default source omitted");
         assert_eq!(read(&written), default);
@@ -465,7 +460,7 @@ mod tests {
         // Explicit source: the fight shape — Target(0) deals damage to This,
         // and the dealer is Target(0).
         let sourced = Action::DealDamage(
-            Selection::Ref(Reference::This),
+            Reference::This,
             Count::StatOf(Reference::Target(0), crate::count::Stat::Power),
             Reference::Target(0),
         );
@@ -487,11 +482,11 @@ mod tests {
     #[test]
     fn attach_verbs_round_trip() {
         let attach = Action::Attach {
-            what: Selection::Ref(Reference::This),
-            to: Selection::Ref(Reference::Target(0)),
+            what: Reference::This,
+            to: Reference::Target(0),
         };
         assert_eq!(read(&write(&attach)), attach);
-        let unattach = Action::Unattach(Selection::Ref(Reference::This));
+        let unattach = Action::Unattach(Reference::This);
         assert_eq!(read("Unattach(This)"), unattach);
         assert_eq!(read(&write(&unattach)), unattach);
     }
@@ -502,7 +497,7 @@ mod tests {
     #[test]
     fn move_verb_round_trips() {
         use crate::Zone;
-        let mv = Action::move_to(Selection::Ref(Reference::This), Zone::Graveyard);
+        let mv = Action::move_to(Reference::This, Zone::Graveyard);
         assert_eq!(read("Move(This, Graveyard)"), mv);
         // The bare zone name is the flattened Destination::Zone — written bare.
         assert_eq!(write(&mv), "Move(This,Graveyard)");
@@ -562,14 +557,14 @@ mod tests {
     #[test]
     fn move_to_library_anchors_round_trip() {
         let top = Action::Move(
-            Selection::Ref(Reference::This),
+            Reference::This,
             Destination::Library(Anchor::FromTop(Count::Literal(0))),
         );
         assert_eq!(read("Move(This, Library(FromTop(0)))"), top);
         assert_eq!(read(&write(&top)), top);
 
         let bottom = Action::Move(
-            Selection::Ref(Reference::This),
+            Reference::This,
             Destination::Library(Anchor::FromBottom(Count::Literal(0))),
         );
         assert_eq!(read("Move(This, Library(FromBottom(0)))"), bottom);

@@ -224,7 +224,6 @@ mod tests {
     use super::*;
     use crate::Count;
     use crate::Reference;
-    use crate::Selection;
     use crate::action::Action;
     use crate::action::PlayerAction;
     use crate::cost::CostComponent;
@@ -521,9 +520,7 @@ mod tests {
         };
         assert_eq!(
             activated.cost[1],
-            CostComponent::Do(Box::new(PlayerAction::Sacrifice(Selection::Ref(
-                Reference::This
-            ))))
+            CostComponent::Do(Box::new(PlayerAction::Sacrifice(Reference::This)))
         );
     }
 }

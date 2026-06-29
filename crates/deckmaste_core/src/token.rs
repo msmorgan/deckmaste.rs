@@ -165,16 +165,13 @@ impl PredefinedToken {
         use crate::mana::ManaSymbol;
         use crate::mana::SimpleManaSymbol;
         use crate::reference::Reference;
-        use crate::selection::Selection;
 
         let subtype = Subtype {
             name: self.name().into(),
             types: vec![Type::Artifact],
             confers: vec![],
         };
-        let sac = CostComponent::Do(Box::new(PlayerAction::Sacrifice(Selection::from(
-            Reference::This,
-        ))));
+        let sac = CostComponent::Do(Box::new(PlayerAction::Sacrifice(Reference::This)));
         let mana = |n: u32| {
             CostComponent::Mana(ManaCost::from(vec![ManaSymbol::Simple(
                 SimpleManaSymbol::Generic(n),
@@ -266,7 +263,6 @@ mod tests {
     use crate::effect::Effect;
     use crate::mana::ManaSpec;
     use crate::reference::Reference;
-    use crate::selection::Selection;
 
     fn read(source: &str) -> Token {
         crate::ron::options().from_str(source).unwrap()
@@ -306,9 +302,7 @@ mod tests {
                 window: None,
                 cost: vec![
                     CostComponent::Tap,
-                    CostComponent::Do(Box::new(PlayerAction::Sacrifice(Selection::from(
-                        Reference::This
-                    )))),
+                    CostComponent::Do(Box::new(PlayerAction::Sacrifice(Reference::This))),
                 ]
                 .into(),
                 condition: None,
@@ -444,9 +438,7 @@ mod tests {
                 window: None,
                 cost: vec![
                     CostComponent::Tap,
-                    CostComponent::Do(Box::new(PlayerAction::Sacrifice(Selection::from(
-                        Reference::This
-                    )))),
+                    CostComponent::Do(Box::new(PlayerAction::Sacrifice(Reference::This))),
                 ]
                 .into(),
                 condition: None,
