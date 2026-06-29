@@ -37,9 +37,20 @@ pub enum Bin {
 /// `PlayerAction`; the writer emits the bare `PlayerAction`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Action {
-    /// Deal an amount of damage to a selection ([CR#120.1]) — the source object
-    /// is the agent.
-    DealDamage(Selection, Count),
+    /// Deal an amount of damage to a selection ([CR#120.1]). `source` is the
+    /// **dealer** — the object whose damage this is. It defaults to `This` (the
+    /// ability's source object / the resolving spell, the implicit agent) and
+    /// is omitted on write when default, so the common case stays
+    /// `DealDamage(Target(0), 3)`. An explicit source expresses
+    /// redirected/arbitrary-source damage and "fight" ([CR#701.14a] — each of
+    /// two creatures deals damage equal to its power to the other:
+    /// `DealDamage(Target(0), StatOf(This, Power))` plus
+    /// `DealDamage(This, StatOf(Target(0), Power), Target(0))`).
+    DealDamage(
+        Selection,
+        Count,
+        #[macro_ron(default = "Reference::This")] Reference,
+    ),
     /// Destroy a selected permanent ([CR#701.8]).
     Destroy(Selection),
     /// Return a selection to its owner's hand.
@@ -221,6 +232,13 @@ impl Action {
     pub fn by_you(action: PlayerAction) -> Action {
         Action::By(Reference::You, action)
     }
+
+    /// `DealDamage` from the implicit source (`This`) — the common case, where
+    /// the dealer is the ability's source object / the resolving spell.
+    #[must_use]
+    pub fn deal_damage(selection: Selection, amount: Count) -> Action {
+        Action::DealDamage(selection, amount, Reference::This)
+    }
 }
 
 impl PlayerAction {
@@ -370,16 +388,52 @@ mod tests {
         );
     }
 
-    /// The source-agent verbs read natively.
+    /// The source-agent verbs read natively. A bare `DealDamage(sel, n)` reads
+    /// with the implicit `This` source — the common case is unchanged.
     #[test]
     fn source_verbs_read_natively() {
         assert_eq!(
             read("DealDamage(Target(0), Literal(3))"),
-            Action::DealDamage(Selection::Ref(Reference::Target(0)), Count::Literal(3)),
+            Action::DealDamage(
+                Selection::Ref(Reference::Target(0)),
+                Count::Literal(3),
+                Reference::This,
+            ),
         );
         assert_eq!(
             read("Destroy(This)"),
             Action::Destroy(Selection::Ref(Reference::This)),
+        );
+    }
+
+    /// `DealDamage`'s optional `source` defaults to `This` and is omitted on
+    /// write; an explicit non-`This` source (the "fight" / redirected-damage
+    /// case) reads via the third positional slot and round-trips.
+    #[test]
+    fn deal_damage_source_defaults_and_round_trips() {
+        // Default source: written bare (two-element form), no third slot.
+        let default = Action::deal_damage(Selection::Ref(Reference::Target(0)), Count::Literal(3));
+        let written = write(&default);
+        assert_eq!(written, "DealDamage(Target(0),3)", "default source omitted");
+        assert_eq!(read(&written), default);
+
+        // Explicit source: the fight shape — Target(0) deals damage to This,
+        // and the dealer is Target(0).
+        let sourced = Action::DealDamage(
+            Selection::Ref(Reference::This),
+            Count::StatOf(Reference::Target(0), crate::count::Stat::Power),
+            Reference::Target(0),
+        );
+        let written = write(&sourced);
+        assert!(
+            written.contains("Target(0)") && written.ends_with(')'),
+            "explicit source written in the third slot: {written}"
+        );
+        assert_eq!(read(&written), sourced);
+        // Long-form read with an explicit source.
+        assert_eq!(
+            read("DealDamage(This, StatOf(Target(0), Power), Target(0))"),
+            sourced,
         );
     }
 

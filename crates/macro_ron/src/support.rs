@@ -127,6 +127,52 @@ impl<'de, A: Deserialize<'de>, B: Deserialize<'de>> Visitor<'de> for Pair<A, B> 
     }
 }
 
+/// Seq visitor for a 3-field tuple variant whose LAST field is defaulted:
+/// reads two required elements then an optional third, falling back to the
+/// `default_c` value the generated code supplies when the third is absent.
+/// Backs a non-embed tuple variant with one trailing `#[macro_ron(default =
+/// "…")]` field (e.g. `DealDamage(Selection, Count, source)` with `source`
+/// defaulting to `This`) — the short form `DealDamage(sel, n)` reads here, the
+/// long form `DealDamage(sel, n, src)` supplies the third.
+pub struct PairPlusDefault<A, B, C> {
+    default_c: C,
+    _p: PhantomData<(A, B)>,
+}
+
+impl<A, B, C> PairPlusDefault<A, B, C> {
+    #[must_use]
+    pub fn new(default_c: C) -> Self {
+        PairPlusDefault {
+            default_c,
+            _p: PhantomData,
+        }
+    }
+}
+
+impl<'de, A, B, C> Visitor<'de> for PairPlusDefault<A, B, C>
+where
+    A: Deserialize<'de>,
+    B: Deserialize<'de>,
+    C: Deserialize<'de>,
+{
+    type Value = (A, B, C);
+
+    fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("a 2- or 3-element tuple variant")
+    }
+
+    fn visit_seq<S: SeqAccess<'de>>(self, mut seq: S) -> Result<Self::Value, S::Error> {
+        let a = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+        let b = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+        let c = seq.next_element()?.unwrap_or(self.default_c);
+        Ok((a, b, c))
+    }
+}
+
 /// Seq visitor for 3-field tuple variants.
 pub struct Triple<A, B, C>(PhantomData<(A, B, C)>);
 

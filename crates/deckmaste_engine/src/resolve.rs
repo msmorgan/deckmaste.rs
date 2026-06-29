@@ -586,13 +586,18 @@ impl GameState {
     /// drawing N is N sequential `Single`s ([CR#121.2] — drawn one at a time).
     pub(crate) fn action_items(&self, action: &Action, frame: &Frame) -> Vec<WorkItem> {
         match action {
-            Action::DealDamage(sel, qty) => {
+            // The dealer is the resolved `source` — `This` (the default) is the
+            // ability's source object / resolving spell, so the common case is
+            // unchanged; an explicit source carries non-self-source damage and
+            // "fight" ([CR#120.1,701.14a]).
+            Action::DealDamage(sel, qty, source) => {
                 let amount = self.eval_count(qty, frame);
+                let dealer = self.eval_reference(source, frame);
                 let targets = self.eval_selection_set(sel, frame);
                 let events: Vec<GameEvent> = targets
                     .into_iter()
                     .map(|target| GameEvent::DamageDealt {
-                        source: frame.source,
+                        source: dealer,
                         target,
                         amount,
                     })
@@ -1896,7 +1901,7 @@ fn unresolved_choice(action: &Action) -> Option<PendingChoice> {
         }
     }
     match action {
-        Action::DealDamage(s, _)
+        Action::DealDamage(s, _, _)
         | Action::Destroy(s)
         | Action::ReturnToHand(s)
         | Action::Counter(s)
@@ -3190,7 +3195,7 @@ mod tests {
         let frame = frame_src_targets(bear, vec![bear]);
         state.run_effect(
             Effect::Sequence(vec![
-                Effect::Act(Action::DealDamage(
+                Effect::Act(Action::deal_damage(
                     Selection::Ref(Reference::Target(0)),
                     Count::Literal(3),
                 )),
@@ -3216,7 +3221,7 @@ mod tests {
         state.run_effect(
             Effect::Targeted(deckmaste_core::Targeted::new(
                 vec![],
-                Effect::Act(Action::DealDamage(
+                Effect::Act(Action::deal_damage(
                     Selection::Ref(Reference::Target(0)),
                     Count::Literal(3),
                 )),
@@ -3239,13 +3244,13 @@ mod tests {
             deckmaste_core::TargetSpec::Target(deckmaste_core::Quantity::one(), Filter::creature());
         let wrapped = Effect::Targeted(deckmaste_core::Targeted::new(
             vec![spec.clone()],
-            Effect::Act(Action::DealDamage(
+            Effect::Act(Action::deal_damage(
                 Selection::Ref(Reference::Target(0)),
                 Count::Literal(3),
             )),
         ));
         assert_eq!(super::top_targets(&wrapped), std::slice::from_ref(&spec));
-        let bare = Effect::Act(Action::DealDamage(
+        let bare = Effect::Act(Action::deal_damage(
             Selection::Ref(Reference::Target(0)),
             Count::Literal(1),
         ));
@@ -3308,7 +3313,7 @@ mod tests {
         let frame = frame_src(src);
 
         // Build the effect directly: DealDamage(Each(Kind(Player)), 20)
-        let effect = Effect::Act(Action::DealDamage(
+        let effect = Effect::Act(Action::deal_damage(
             Selection::Each(Filter::Kind(ObjectKind::Player)),
             Count::Literal(20),
         ));
@@ -3363,7 +3368,7 @@ mod tests {
         state.zones.battlefield.push(b);
 
         let frame = frame_src(a);
-        let effect = Effect::Act(Action::DealDamage(
+        let effect = Effect::Act(Action::deal_damage(
             Selection::Each(Filter::AllOf(vec![
                 Filter::State(StateFilter::InZone(Zone::Battlefield)),
                 Filter::creature(),
@@ -3392,6 +3397,38 @@ mod tests {
         let mut want = vec![(a, 2u32), (b, 2u32)];
         want.sort();
         assert_eq!(got, want);
+    }
+
+    /// [CR#120.1,701.14a]: `DealDamage`'s explicit `source` is the dealer — the
+    /// emitted `DamageDealt` carries it, NOT `frame.source`. The fight shape:
+    /// `b` (Target(1)) deals damage equal to its power to `a` (Target(0)), with
+    /// the frame source set to `a`.
+    #[test]
+    fn deal_damage_uses_explicit_source_not_frame_source() {
+        let (mut state, a, b) = two_permanents_on_field();
+        let frame = frame_src_targets(a, vec![a, b]);
+        state.run_effect(
+            Effect::Act(Action::DealDamage(
+                Selection::Ref(Reference::Target(0)),
+                Count::StatOf(Reference::Target(1), deckmaste_core::Stat::Power),
+                Reference::Target(1),
+            )),
+            &frame,
+        );
+        run_injected(&mut state);
+        assert_eq!(
+            state.objects.obj(a).damage,
+            2,
+            "a took b's power (2) in damage"
+        );
+        assert!(
+            logged(&state, |e| matches!(
+                e,
+                GameEvent::DamageDealt { source, target, amount }
+                    if *source == b && *target == a && *amount == 2
+            )),
+            "DamageDealt carries the explicit source b, not frame.source a"
+        );
     }
 
     /// [CR#611.2]/[CR#611.2c]: `Effect::Continuously(Modify(Matching(...), ...),

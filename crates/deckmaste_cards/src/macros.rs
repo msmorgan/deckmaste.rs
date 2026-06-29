@@ -372,7 +372,7 @@ mod tests {
         let macros = macro_set();
         assert_eq!(
             macros.read_str::<Action>("DealDamage(This, 3)").unwrap(),
-            Action::DealDamage(Selection::this(), Count::Literal(3)),
+            Action::deal_damage(Selection::this(), Count::Literal(3)),
         );
     }
 

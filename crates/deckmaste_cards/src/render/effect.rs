@@ -7,6 +7,7 @@ use deckmaste_core::Count;
 use deckmaste_core::Duration;
 use deckmaste_core::Effect;
 use deckmaste_core::PlayerAction;
+use deckmaste_core::Reference;
 use deckmaste_core::StatValue;
 use deckmaste_core::Token;
 use deckmaste_core::TokenSpec;
@@ -113,8 +114,17 @@ fn turn_marker(m: TurnMarker) -> &'static str {
 
 fn action(a: &Action, ctx: &Ctx) -> String {
     match a {
-        Action::DealDamage(target, amount) => format!(
+        // Default source (`This`): the implicit "deal N damage to X". An
+        // explicit non-`This` source names the dealer — "<source> deals N
+        // damage to <target>" (the fight / redirected-damage surface).
+        Action::DealDamage(target, amount, Reference::This) => format!(
             "Deal {} damage to {}.",
+            fragment::count(amount),
+            fragment::selection(target, ctx)
+        ),
+        Action::DealDamage(target, amount, source) => format!(
+            "{} deals {} damage to {}.",
+            capitalize_first(&fragment::reference(source, ctx)),
             fragment::count(amount),
             fragment::selection(target, ctx)
         ),
@@ -275,6 +285,55 @@ fn trim_period(s: &str) -> String {
     s.strip_suffix('.').unwrap_or(s).to_string()
 }
 
+/// Capitalize the first character (sentence-start use, e.g. a named damage
+/// source: "Target creature deals …").
+fn capitalize_first(s: &str) -> String {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(first) => first.to_uppercase().chain(chars).collect(),
+        None => String::new(),
+    }
+}
+
 fn ensure_period(s: &str) -> String {
     if s.ends_with(['.', '!', '?']) { s.to_string() } else { format!("{s}.") }
+}
+
+#[cfg(test)]
+mod tests {
+    use deckmaste_core::Action;
+    use deckmaste_core::Count;
+    use deckmaste_core::Filter;
+    use deckmaste_core::Quantity;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Selection;
+    use deckmaste_core::TargetSpec;
+
+    use super::Ctx;
+    use super::action;
+
+    /// The default `This` source renders the implicit "Deal N damage to X";
+    /// an explicit non-`This` source names the dealer — "<dealer> deals N
+    /// damage to <target>" (the fight / redirected-damage surface).
+    #[test]
+    fn deal_damage_source_renders_dealer_phrase() {
+        let target = TargetSpec::Target(Quantity::Exactly(Count::Literal(1)), Filter::creature());
+        let ctx = Ctx {
+            subject: "Pouncer",
+            targets: std::slice::from_ref(&target),
+        };
+
+        let default = Action::deal_damage(Selection::Ref(Reference::Target(0)), Count::Literal(3));
+        assert_eq!(action(&default, &ctx), "Deal 3 damage to target creature.");
+
+        let sourced = Action::DealDamage(
+            Selection::Ref(Reference::Target(0)),
+            Count::Literal(3),
+            Reference::Target(0),
+        );
+        assert_eq!(
+            action(&sourced, &ctx),
+            "Target creature deals 3 damage to target creature."
+        );
+    }
 }
