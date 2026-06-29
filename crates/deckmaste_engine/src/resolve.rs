@@ -272,6 +272,29 @@ impl GameState {
             });
     }
 
+    /// Bind one iterated element of a `ForEach`/`DivideAmong` as the iteration
+    /// anaphor ([CR#608.2]), kind-poly over the element's source ([CR#120.3]).
+    /// A card/token binds its LKI snapshot as `that_object` plus the object
+    /// patient; a player proxy is zoneless, so it carries NO snapshot — it
+    /// binds as the player patient (mirroring `replace_registry`'s patient
+    /// binding) and leaves `that_object` unset, so the `ThatObject` read falls
+    /// back to the patient. Only the element slots are overwritten; other
+    /// inherited frame bindings (e.g. `this`) are preserved.
+    fn bind_element(&self, bindings: &mut crate::trigger::TriggerBindings, obj: ObjectId) {
+        match self.objects.obj(obj).source {
+            ObjectSource::Player(p) => {
+                bindings.that_object = None;
+                bindings.that_player = Some(p);
+                bindings.that_patient = Some(crate::trigger::EventPatient::Player(p));
+            }
+            ObjectSource::Card(_) => {
+                let snap = crate::lki::LkiSnapshot::capture(self, obj);
+                bindings.that_object = Some(snap.clone());
+                bindings.that_patient = Some(crate::trigger::EventPatient::Object(snap));
+            }
+        }
+    }
+
     /// Interpret one `Effect` node ([CR#608.2]). `Act` becomes one or more
     /// `Emit` work items (via `action_items`); `Sequence` expands to one
     /// `RunEffect` per child.
@@ -417,7 +440,7 @@ impl GameState {
                     .map(|obj| {
                         let mut next = frame.clone();
                         let mut bindings = next.bindings.clone().unwrap_or_default();
-                        bindings.that_object = Some(crate::lki::LkiSnapshot::capture(self, obj));
+                        self.bind_element(&mut bindings, obj);
                         next.bindings = Some(bindings);
                         WorkItem::RunEffect {
                             effect: fe.effect.clone(),
@@ -456,17 +479,8 @@ impl GameState {
                     .zip(shares)
                     .map(|(obj, share)| {
                         let mut next = frame.clone();
-                        let mut bindings =
-                            next.bindings
-                                .clone()
-                                .unwrap_or(crate::trigger::TriggerBindings {
-                                    this: None,
-                                    that_object: None,
-                                    that_player: None,
-                                    that_patient: None,
-                                    defending_player: None,
-                                });
-                        bindings.that_object = Some(crate::lki::LkiSnapshot::capture(self, obj));
+                        let mut bindings = next.bindings.clone().unwrap_or_default();
+                        self.bind_element(&mut bindings, obj);
                         next.bindings = Some(bindings);
                         WorkItem::RunEffect {
                             effect: Box::new(bake_allotment(&divide.body, share)),
@@ -1508,12 +1522,29 @@ impl GameState {
             // roles, read from the bindings the fired trigger carried. The
             // AGENT (the moved/acting object) — `EventAgent`, with `ThatObject`
             // its migration alias.
-            Reference::ThatObject | Reference::EventAgent => frame
-                .bindings
-                .as_ref()
-                .and_then(|b| b.that_object.as_ref())
-                .map(|s| s.object)
-                .expect("EventAgent referenced where the trigger bound one"),
+            Reference::ThatObject | Reference::EventAgent => {
+                let bindings = frame
+                    .bindings
+                    .as_ref()
+                    .expect("EventAgent referenced where the trigger bound one");
+                // The AGENT is normally the bound LKI snapshot. A
+                // ForEach/DivideAmong element that is a player proxy carries no
+                // snapshot ([CR#120.3]: the patient is kind-poly and a player is
+                // zoneless), so when `that_object` is unset the iteration anaphor
+                // falls back to the patient — leaving existing snapshot-bearing
+                // reads unchanged.
+                match &bindings.that_object {
+                    Some(s) => s.object,
+                    None => match bindings
+                        .that_patient
+                        .as_ref()
+                        .expect("EventAgent referenced where the trigger bound one")
+                    {
+                        crate::trigger::EventPatient::Object(s) => s.object,
+                        crate::trigger::EventPatient::Player(p) => self.player(*p).object,
+                    },
+                }
+            }
             // The ACTOR (the responsible player) — `EventActor`, with
             // `ThatPlayer` its migration alias.
             Reference::ThatPlayer | Reference::EventActor => {
@@ -4378,6 +4409,78 @@ mod tests {
             da >= 1 && db >= 1,
             "each creature got at least 1 ({da}, {db})"
         );
+    }
+
+    /// [CR#601.2d,120.3]: dividing damage among a MIXED group — a creature AND a
+    /// player (Arc Lightning's `CreatureOrPlayer`) — must not panic. The player
+    /// element is a zoneless proxy with no LKI snapshot, so it binds as the
+    /// player patient and the body's `ThatObject` falls back to it: the
+    /// creature takes its share as marked damage, the player loses life by
+    /// its share.
+    #[test]
+    fn divide_among_handles_a_player_element_without_panicking() {
+        use deckmaste_core::DivideAmong;
+        use deckmaste_core::Quantity;
+
+        let (mut state, creature) = bear_on_field();
+        let player = state.players[1].object;
+        let life0 = state.player(PlayerId(1)).life;
+        // The group is pre-chosen (Arc Lightning's `Choose(AnyNumber,
+        // CreatureOrPlayer)`); `split_evenly(3, 2)` is [2, 1], so the
+        // first-listed creature takes 2, the player takes 1.
+        let frame = Frame {
+            chosen: Some(vec![creature, player]),
+            ..frame_src(creature)
+        };
+        let effect = Effect::DivideAmong(DivideAmong {
+            amount: Count::Literal(3),
+            group: Selection::Choose(Quantity::one(), Filter::Any),
+            body: Box::new(Effect::Act(Action::deal_damage(
+                Selection::Ref(Reference::ThatObject),
+                Count::Allotment,
+            ))),
+        });
+        state.run_effect(effect, &frame);
+        run_injected(&mut state);
+        assert_eq!(
+            state.objects.obj(creature).damage,
+            2,
+            "the creature took its 2-damage share as marked damage"
+        );
+        assert_eq!(
+            state.player(PlayerId(1)).life,
+            life0 - 1,
+            "the player lost life equal to its 1-damage share"
+        );
+    }
+
+    /// [CR#608.2,120.3]: `ForEach` over the players binds each zoneless player
+    /// proxy as the iteration anaphor — the body's `DealDamage(ThatObject, 1)`
+    /// resolves to the player and each loses 1 life, with no panic on the
+    /// snapshotless element.
+    #[test]
+    fn foreach_over_players_binds_each_player_as_that_object() {
+        use deckmaste_core::ForEach;
+
+        let (mut state, bear) = bear_on_field();
+        let life0 = [
+            state.player(PlayerId(0)).life,
+            state.player(PlayerId(1)).life,
+        ];
+        let frame = frame_src(bear);
+        state.run_effect(
+            Effect::ForEach(ForEach {
+                over: Filter::Kind(ObjectKind::Player),
+                effect: Box::new(Effect::Act(Action::deal_damage(
+                    Selection::Ref(Reference::ThatObject),
+                    Count::Literal(1),
+                ))),
+            }),
+            &frame,
+        );
+        run_injected(&mut state);
+        assert_eq!(state.player(PlayerId(0)).life, life0[0] - 1);
+        assert_eq!(state.player(PlayerId(1)).life, life0[1] - 1);
     }
 
     /// `AddMana(2, Green)` needs no choice and lands in the pool ([CR#106.4]);
