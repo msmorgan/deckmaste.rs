@@ -440,6 +440,42 @@ impl GameState {
                     frame: next,
                 }]);
             }
+            // [CR#601.2d]: divide `amount` among the group "as you choose" — bind
+            // each element as `ThatObject` (the iteration anaphor, like
+            // `ForEach`) and substitute its `Allotment` share into a per-element
+            // copy of `body`, then schedule one `RunEffect` per element (order
+            // preserved, each pausing independently if its body surfaces a
+            // choice). v1 splits the amount as evenly as possible; surfacing the
+            // "as you choose" division as a player decision is a seam.
+            Effect::DivideAmong(divide) => {
+                let group = self.eval_selection_set(&divide.group, frame);
+                let total = self.eval_count(&divide.amount, frame);
+                let shares = split_evenly(total, group.len());
+                let items: Vec<WorkItem> = group
+                    .into_iter()
+                    .zip(shares)
+                    .map(|(obj, share)| {
+                        let mut next = frame.clone();
+                        let mut bindings =
+                            next.bindings
+                                .clone()
+                                .unwrap_or(crate::trigger::TriggerBindings {
+                                    this: None,
+                                    that_object: None,
+                                    that_player: None,
+                                    that_patient: None,
+                                    defending_player: None,
+                                });
+                        bindings.that_object = Some(crate::lki::LkiSnapshot::capture(self, obj));
+                        next.bindings = Some(bindings);
+                        WorkItem::RunEffect {
+                            effect: Box::new(bake_allotment(&divide.body, share)),
+                            frame: next,
+                        }
+                    })
+                    .collect();
+                self.schedule_front(items);
+            }
             // [CR#118.12]: "[A player] may [do]. If they do/don't, …". Surface a
             // yes/no to the controller; the chosen branch (effect + if_did on
             // yes, if_not on no) runs when the answer comes back — the `May`
@@ -1621,6 +1657,14 @@ impl GameState {
                      are the engine-trigger-events bindings seam"
                 )
             }),
+            // [CR#601.2d]: the per-element share inside a `DivideAmong` body is
+            // substituted to a literal when that element's body is scheduled
+            // (see `bake_allotment`), so a live `Allotment` here means it was
+            // used outside a divided distribution — a malformed card.
+            Count::Allotment => unreachable!(
+                "Count::Allotment outside a DivideAmong body — the per-element \
+                 share is baked to a literal at schedule time"
+            ),
             // [CR#107.3a]: while a spell/ability is on the stack, X equals the
             // value announced as it was cast (engine-x-costs threads it onto the
             // resolution frame). [CR#107.3f] text-X chosen at resolution is a
@@ -2004,6 +2048,67 @@ fn spell_ability_effect(ability: &Ability) -> Option<&Effect> {
         Ability::Spell(s) => Some(&s.effect),
         Ability::Expanded(e) => spell_ability_effect(&e.value),
         _ => None,
+    }
+}
+
+/// Split `total` among `n` recipients as evenly as possible ([CR#601.2d] — the
+/// resolution-time division, summing to `total`): the first `total % n` get one
+/// extra. v1 placeholder for the "as you choose" player decision; an empty
+/// group yields no shares.
+fn split_evenly(total: Uint, n: usize) -> Vec<Uint> {
+    let Ok(n_u) = Uint::try_from(n) else {
+        return vec![];
+    };
+    if n_u == 0 {
+        return vec![];
+    }
+    let base = total / n_u;
+    let rem = total % n_u;
+    (0..n_u).map(|i| base + Uint::from(i < rem)).collect()
+}
+
+/// Substitute a divided distribution's per-element [`Count::Allotment`] with
+/// the concrete `share` in a copy of the body ([CR#601.2d]). Handles the
+/// realistic bodies — a single `Act` (divided damage / counters / life) or a
+/// `Sequence` of them; an `Allotment` in a deeper structural form passes
+/// through unbaked and trips the loud `eval_count` arm (a seam).
+fn bake_allotment(effect: &Effect, share: Uint) -> Effect {
+    use deckmaste_core::Action;
+    use deckmaste_core::Count;
+    use deckmaste_core::PlayerAction;
+
+    fn count(c: &Count, share: Uint) -> Count {
+        if matches!(c, Count::Allotment) { Count::Literal(share) } else { c.clone() }
+    }
+    fn player_action(pa: &PlayerAction, share: Uint) -> PlayerAction {
+        match pa {
+            PlayerAction::PutCounters(s, k, c) => {
+                PlayerAction::PutCounters(s.clone(), *k, count(c, share))
+            }
+            PlayerAction::RemoveCounters(s, k, c) => {
+                PlayerAction::RemoveCounters(s.clone(), *k, count(c, share))
+            }
+            PlayerAction::GainLife(c) => PlayerAction::GainLife(count(c, share)),
+            PlayerAction::LoseLife(c) => PlayerAction::LoseLife(count(c, share)),
+            PlayerAction::Draw(c) => PlayerAction::Draw(count(c, share)),
+            other => other.clone(),
+        }
+    }
+    fn action(a: &Action, share: Uint) -> Action {
+        match a {
+            Action::DealDamage(s, c, src) => {
+                Action::DealDamage(s.clone(), count(c, share), src.clone())
+            }
+            Action::By(who, pa) => Action::By(who.clone(), player_action(pa, share)),
+            other => other.clone(),
+        }
+    }
+    match effect {
+        Effect::Act(a) => Effect::Act(action(a, share)),
+        Effect::Sequence(v) => {
+            Effect::Sequence(v.iter().map(|e| bake_allotment(e, share)).collect())
+        }
+        other => other.clone(),
     }
 }
 
@@ -4152,6 +4257,40 @@ mod tests {
             "2 of 3 moved, 1 remains on source"
         );
         assert_eq!(state.objects.obj(b).counters.get(&p1p1).copied(), Some(2));
+    }
+
+    /// [CR#601.2d]: `DivideAmong` splits the amount across the group and bakes
+    /// each element's `Allotment` into its body — divided damage deals the
+    /// split shares, summing to the total, ≥1 to each.
+    #[test]
+    fn divide_among_splits_amount_and_bakes_allotment() {
+        use deckmaste_core::DivideAmong;
+        let (mut state, a, b) = two_permanents_on_field();
+        let frame = frame_src(a);
+        let effect = Effect::DivideAmong(DivideAmong {
+            amount: Count::Literal(3),
+            group: Selection::Each(Filter::AllOf(vec![
+                Filter::State(StateFilter::InZone(Zone::Battlefield)),
+                Filter::creature(),
+            ])),
+            body: Box::new(Effect::Act(Action::deal_damage(
+                Selection::Ref(Reference::ThatObject),
+                Count::Allotment,
+            ))),
+        });
+        state.run_effect(effect, &frame);
+        run_injected(&mut state);
+        let da = state.objects.obj(a).damage;
+        let db = state.objects.obj(b).damage;
+        assert_eq!(
+            da + db,
+            3,
+            "the 3 damage was divided across the two creatures"
+        );
+        assert!(
+            da >= 1 && db >= 1,
+            "each creature got at least 1 ({da}, {db})"
+        );
     }
 
     /// `AddMana(2, Green)` needs no choice and lands in the pool ([CR#106.4]);

@@ -115,7 +115,7 @@ fn tribal_flames_expands_the_domain_count() {
     let Effect::Targeted(ref te) = spell.effect else {
         panic!("expected a Targeted wrapper, got {:?}", spell.effect);
     };
-    let Effect::Act(Action::DealDamage(_, count)) = te.effect.as_ref() else {
+    let Effect::Act(Action::DealDamage(_, count, _)) = te.effect.as_ref() else {
         panic!("expected DealDamage, got {:?}", te.effect);
     };
     let Count::Expanded(exp) = count else {

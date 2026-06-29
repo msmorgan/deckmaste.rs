@@ -121,6 +121,12 @@ pub enum Count {
     /// Magnitude anaphora: "that much" / "that many" — the amount fixed by
     /// an earlier instruction ([CR#107.3]).
     ThatMuch,
+    /// The amount allotted to the current element of a divided distribution
+    /// ([CR#601.2d] — "N damage/counters divided as you choose"): the
+    /// per-element anaphor read inside an
+    /// [`Effect::DivideAmong`](crate::Effect::DivideAmong) body, where it
+    /// stands for that element's share of the divided amount.
+    Allotment,
     /// How many times an event matching `Event` occurred within `Window`
     /// ([CR#608.2i] history reads) — the count-valued twin of
     /// `Condition::Happened`. `Event` is boxed (it is large) to keep `Count`
@@ -184,6 +190,8 @@ mod tests {
     fn constructors_read_named() {
         assert_eq!(read("X"), Count::X);
         assert_eq!(read("ThatMuch"), Count::ThatMuch);
+        assert_eq!(read("Allotment"), Count::Allotment);
+        assert_eq!(write(&Count::Allotment), "Allotment");
         assert_eq!(
             read("StatOf(This, Power)"),
             Count::StatOf(Reference::This, Stat::Power),

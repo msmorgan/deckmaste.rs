@@ -944,6 +944,7 @@ fn eval_count(
         // effect built on one defaults to `0` here (a documented seam).
         Count::X
         | Count::ThatMuch
+        | Count::Allotment
         | Count::EventCount(..)
         | Count::EventSum(..)
         | Count::Noted(_) => 0,

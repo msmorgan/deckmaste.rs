@@ -81,6 +81,7 @@ pub use temporal::Window;
 
 mod effect;
 pub use effect::Continuously;
+pub use effect::DivideAmong;
 pub use effect::Effect;
 pub use effect::ForEach;
 pub use effect::If;
