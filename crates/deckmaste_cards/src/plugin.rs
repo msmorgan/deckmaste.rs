@@ -346,7 +346,8 @@ mod tests {
     /// [CR#122.1a]: the `+1/+1` counter is a `Counter`-kind macro in
     /// `builtin/macros/counters`, expanded into the counter registry under its
     /// rusty identity `P1P1Counter`, conferring a `Continuous` P/T boost
-    /// (`AddPower`) — not an ability. Reaches WIZARDS through the prelude.
+    /// (`Power(Up(...))`) — not an ability. Reaches WIZARDS through the
+    /// prelude.
     #[test]
     fn builtin_defines_the_plus_one_counter() {
         use deckmaste_core::Modification;
@@ -361,8 +362,8 @@ mod tests {
         assert!(
             counter.confers.iter().any(|p| matches!(p,
                 Property::Continuous { changes, .. }
-                    if changes.iter().any(|m| matches!(m, Modification::AddPower(_))))),
-            "confers a Continuous AddPower boost; got {:?}",
+                    if changes.iter().any(|m| matches!(m, Modification::Power(_))))),
+            "confers a Continuous Power(Up) boost; got {:?}",
             counter.confers
         );
         // Reaches the wizards corpus via the sibling prelude.

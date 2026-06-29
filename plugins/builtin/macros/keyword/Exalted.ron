@@ -27,7 +27,7 @@ KeywordAbility(
         ),
         condition: Compare(CountOf(Attacking), Eq, 1),
         effect: Continuously(
-            effect: Modify(of: Of(ThatObject), changes: [AddPower(1), AddToughness(1)]),
+            effect: Modify(of: Of(ThatObject), changes: [Power(Up(1)), Toughness(Up(1))]),
             duration: FixedUntil(EndOfTurn),
         ),
     )],

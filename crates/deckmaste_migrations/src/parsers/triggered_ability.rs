@@ -389,8 +389,8 @@ mod tests {
                 .as_deref(),
             Some(
                 "Triggered(event: ThisAttacks, effect: Continuously(effect: Modify(of: Of(This), \
-                 changes: [AddPower(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This)), Attacking]))), \
-                 AddToughness(0)]), duration: FixedUntil(EndOfTurn)))"
+                 changes: [Power(Up(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This)), Attacking])))), \
+                 Toughness(Up(0))]), duration: FixedUntil(EndOfTurn)))"
             )
         );
     }

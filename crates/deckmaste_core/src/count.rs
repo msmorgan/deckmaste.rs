@@ -95,9 +95,10 @@ pub enum Count {
     /// How many counters of the named kind sit on a referenced object or
     /// player proxy ([CR#122.1]) — "for each +1/+1 counter on ~", and the
     /// magnitude a counter's own conferred effect scales by (a +1/+1 counter
-    /// confers `AddPower(CounterCount(This, P1P1Counter))`). The kind is a bare
-    /// `CounterRef`, not a string. The `Reference` is boxed (it is 80 bytes) so
-    /// this variant doesn't make `Count` larger than its `StatOf` peer.
+    /// confers `Power(Up(CounterCount(This, P1P1Counter)))`). The kind is a
+    /// bare `CounterRef`, not a string. The `Reference` is boxed (it is 80
+    /// bytes) so this variant doesn't make `Count` larger than its `StatOf`
+    /// peer.
     CounterCount(Box<Reference>, crate::CounterRef),
     /// The smaller of two counts — the +1/+1 vs -1/-1 annihilation removes
     /// `Min(CounterCount(+1/+1), CounterCount(-1/-1))` of each ([CR#704.5q]),

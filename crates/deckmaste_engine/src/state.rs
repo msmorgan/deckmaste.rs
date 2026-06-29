@@ -122,7 +122,7 @@ pub struct GameConfig {
     pub counter_decls: std::collections::HashMap<deckmaste_core::Ident, deckmaste_core::Counter>,
     /// The subtype registry ([CR#205.3]): `Ident → Subtype`. Unlike a counter's
     /// confers (looked up by name), a subtype's confers normally ride the card
-    /// value — but a layer-4 `Add/SetSubtypes` modification carries only bare
+    /// value — but a layer-4 `Subtypes(...)` modification carries only bare
     /// `Ident` names, so the engine needs this registry to resolve them back to
     /// `Subtype` structs (with their `confers`/`types`). Populated from the
     /// loaded plugin's `subtypes` at construction; empty means a granted
@@ -261,7 +261,7 @@ pub struct GameState {
     /// counter confers anything (the pre-data behavior).
     pub counter_decls: std::collections::HashMap<deckmaste_core::Ident, deckmaste_core::Counter>,
     /// The subtype registry ([CR#205.3]) — `Ident → Subtype`. The layer-4
-    /// `Add/SetSubtypes` modifications carry bare `Ident` names; this maps them
+    /// `Subtypes(...)` modifications carry bare `Ident` names; this maps them
     /// back to full `Subtype` structs (with `confers`/`types`). Populated from
     /// the loaded plugin's `subtypes` at construction (like `counter_decls`);
     /// empty means a granted subtype carries no inherent rules. An `Ident`

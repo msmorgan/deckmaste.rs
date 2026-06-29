@@ -17,8 +17,8 @@
             Continuous(
                 of: Of(This),
                 changes: [
-                    SubtractPower(CounterCount(This, M1M1Counter)),
-                    SubtractToughness(CounterCount(This, M1M1Counter)),
+                    Power(Down(CounterCount(This, M1M1Counter))),
+                    Toughness(Down(CounterCount(This, M1M1Counter))),
                 ],
             ),
             StateBased(

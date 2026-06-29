@@ -58,33 +58,33 @@ pub(super) fn filter_to_scope(f: &str) -> String {
 
 /// "+N/+M" / "-N/-M" / mixed → the `changes` list. The both-positive case
 /// (`+N/+M`) emits the single `AddPowerToughness(N, M)` bundling macro, which
-/// expands to `Several([AddPower(N), AddToughness(M)])` and renders via its
+/// expands to `Several([Power(Up(N)), Toughness(Up(M))])` and renders via its
 /// `"gets +{0}/+{1}"` template — the DRY anthem/pump form. Any negative side
 /// (the `-N` debuffs, mixed `+N/-M`) has no such macro, so it keeps the inline
-/// `[<Add|Subtract>Power, <Add|Subtract>Toughness]` pair.
+/// `[Power(Up|Down(N)), Toughness(Up|Down(M))]` pair.
 pub(super) fn parse_pt_changes(s: &str) -> Option<Vec<String>> {
     let (p, t) = s.split_once('/')?;
     let (pv, pn) = signed(p)?;
     let (tv, tn) = signed(t)?;
-    if pv == "Add" && tv == "Add" {
+    if pv == "Up" && tv == "Up" {
         return Some(vec![format!("AddPowerToughness({pn}, {tn})")]);
     }
     Some(vec![
-        format!("{pv}Power({pn})"),
-        format!("{tv}Toughness({tn})"),
+        format!("Power({pv}({pn}))"),
+        format!("Toughness({tv}({tn}))"),
     ])
 }
 
 /// "+1/+1" / "+1/+0" with a dynamic `count` (a `CountOf(…)` RON) ->
-/// [Add Power, Add Toughness]. Each side must be `+1` (scales to `count`) or
-/// `+0` (bare `0`); any other magnitude or a negative sign declines — the
-/// `Count` grammar has no product form, and a negative count is meaningless
-/// (object counts are non-negative [CR#107.1b]).
+/// [Power(Up(...)), Toughness(Up(...))]. Each side must be `+1` (scales to
+/// `count`) or `+0` (bare `0`); any other magnitude or a negative sign declines
+/// — the `Count` grammar has no product form, and a negative count is
+/// meaningless (object counts are non-negative [CR#107.1b]).
 pub(super) fn parse_pt_changes_scaled(s: &str, count: &str) -> Option<Vec<String>> {
     let (p, t) = s.split_once('/')?;
     Some(vec![
-        format!("AddPower({})", scaled_side(p, count)?),
-        format!("AddToughness({})", scaled_side(t, count)?),
+        format!("Power(Up({}))", scaled_side(p, count)?),
+        format!("Toughness(Up({}))", scaled_side(t, count)?),
     ])
 }
 
@@ -98,14 +98,16 @@ fn scaled_side(tok: &str, count: &str) -> Option<String> {
     }
 }
 
+/// One signed P/T token → (`NumericOp` op name, magnitude): `+N` → `Up`, `-N` →
+/// `Down`.
 fn signed(tok: &str) -> Option<(&'static str, u32)> {
     let tok = tok.trim();
     // std u32::parse tolerates a leading '+', so "++1" would collapse to +1;
     // harmless — oracle text never produces it.
     if let Some(n) = tok.strip_prefix('+') {
-        Some(("Add", n.parse().ok()?))
+        Some(("Up", n.parse().ok()?))
     } else if let Some(n) = tok.strip_prefix('-') {
-        Some(("Subtract", n.parse().ok()?))
+        Some(("Down", n.parse().ok()?))
     } else {
         None
     }

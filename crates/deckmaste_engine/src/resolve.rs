@@ -3352,7 +3352,9 @@ mod tests {
             timestamp,
             controller: PlayerId(0),
             scope: crate::layer::ScopeResolved::Locked(vec![bear]),
-            changes: vec![deckmaste_core::Modification::AddPower(Count::Literal(1))],
+            changes: vec![deckmaste_core::Modification::Power(
+                deckmaste_core::NumericOp::Up(Count::Literal(1)),
+            )],
             duration: deckmaste_core::Duration::EndOfGame,
             is_cda: false,
         });
@@ -3615,6 +3617,7 @@ mod tests {
         use deckmaste_core::Effect;
         use deckmaste_core::Filter;
         use deckmaste_core::Modification;
+        use deckmaste_core::NumericOp;
         use deckmaste_core::Scope;
         use deckmaste_core::StaticEffect;
 
@@ -3627,7 +3630,7 @@ mod tests {
         let effect = Effect::Continuously(Continuously {
             effect: Box::new(StaticEffect::Modify {
                 of: Scope::Matching(filter.clone()),
-                changes: vec![Modification::AddPower(Count::Literal(1))],
+                changes: vec![Modification::Power(NumericOp::Up(Count::Literal(1)))],
             }),
             duration: Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
         });
@@ -3643,7 +3646,10 @@ mod tests {
             ce.duration,
             Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn)
         );
-        assert_eq!(ce.changes, vec![Modification::AddPower(Count::Literal(1))]);
+        assert_eq!(
+            ce.changes,
+            vec![Modification::Power(NumericOp::Up(Count::Literal(1)))]
+        );
         assert!(!ce.is_cda);
     }
 
@@ -3656,6 +3662,7 @@ mod tests {
         use deckmaste_core::Duration;
         use deckmaste_core::Effect;
         use deckmaste_core::Modification;
+        use deckmaste_core::NumericOp;
         use deckmaste_core::Reference;
         use deckmaste_core::Scope;
         use deckmaste_core::StaticEffect;
@@ -3666,7 +3673,7 @@ mod tests {
         let effect = Effect::Continuously(Continuously {
             effect: Box::new(StaticEffect::Modify {
                 of: Scope::Of(Reference::This),
-                changes: vec![Modification::AddToughness(Count::Literal(2))],
+                changes: vec![Modification::Toughness(NumericOp::Up(Count::Literal(2)))],
             }),
             duration: Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
         });
@@ -3680,7 +3687,7 @@ mod tests {
         );
         assert_eq!(
             ce.changes,
-            vec![Modification::AddToughness(Count::Literal(2))]
+            vec![Modification::Toughness(NumericOp::Up(Count::Literal(2)))]
         );
     }
 
@@ -4731,6 +4738,7 @@ mod tests {
     use deckmaste_core::Ability;
     use deckmaste_core::CardFace;
     use deckmaste_core::Modification;
+    use deckmaste_core::NumericOp;
     use deckmaste_core::Scope;
     use deckmaste_core::StaticAbility;
     use deckmaste_core::StaticEffect;
@@ -4759,8 +4767,8 @@ mod tests {
             effects: vec![StaticEffect::Modify {
                 of: Scope::Of(Reference::AttachHostOf(Box::new(Reference::This))),
                 changes: vec![
-                    Modification::AddPower(Count::Literal(n)),
-                    Modification::AddToughness(Count::Literal(n)),
+                    Modification::Power(NumericOp::Up(Count::Literal(n))),
+                    Modification::Toughness(NumericOp::Up(Count::Literal(n))),
                 ],
             }],
             characteristic_defining: false,

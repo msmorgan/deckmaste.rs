@@ -623,9 +623,9 @@ mod tests {
             timestamp: Timestamp(1_000),
             controller: PlayerId(1),
             scope: ScopeResolved::Locked(vec![land]),
-            changes: vec![Modification::AddCardTypes(vec![
+            changes: vec![Modification::CardTypes(deckmaste_core::CollectionOp::Add(
                 deckmaste_core::Type::Creature,
-            ])],
+            ))],
             duration: Duration::EndOfGame,
             is_cda: false,
         });
@@ -750,7 +750,9 @@ mod tests {
             timestamp: Timestamp(1_000),
             controller: PlayerId(0),
             scope: ScopeResolved::Locked(vec![bear]),
-            changes: vec![Modification::AddColors(vec![Color::Red])],
+            changes: vec![Modification::Colors(deckmaste_core::CollectionOp::Add(
+                Color::Red,
+            ))],
             duration: Duration::EndOfGame,
             is_cda: false,
         });

@@ -11,7 +11,7 @@ Normal(
   ],
   abilities: [
     Static(effects: [
-      Modify(of: Matching(AllOf([Creature, ColorIs(Black)])), changes: [AddPower(1), AddToughness(1)]),
+      Modify(of: Matching(AllOf([Creature, ColorIs(Black)])), changes: [Power(Up(1)), Toughness(Up(1))]),
     ]),
   ],
 )

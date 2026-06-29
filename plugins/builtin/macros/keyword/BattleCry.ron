@@ -8,7 +8,7 @@
 // "each other attacking creature" = every attacking creature that ISN'T this
 // one: an anthem-shaped `Matching` set over `AllOf([Type(Creature),
 // Attacking, Not(Ref(This))])` ([CR#509.1a] still-in-combat attackers minus
-// the carrier). The boost is +1/+0 (`AddPower(1)`, no toughness change),
+// the carrier). The boost is +1/+0 (`Power(Up(1))`, no toughness change),
 // lasting until end of turn ([CR#611.2a]).
 //
 // NOTE [CR#702.91b]: multiple instances of battle cry trigger separately —
@@ -22,7 +22,7 @@ KeywordAbility(
         effect: Continuously(
             effect: Modify(
                 of: Matching(AllOf([Type(Creature), Attacking, Not(Ref(This))])),
-                changes: [AddPower(1)],
+                changes: [Power(Up(1))],
             ),
             duration: FixedUntil(EndOfTurn),
         ),

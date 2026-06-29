@@ -13,7 +13,7 @@ Normal(
   abilities: [
     Static(effects: [
       Modify(of: Matching(Creature), changes: [
-        LoseAllAbilities, SetPower(1), SetToughness(1),
+        LoseAllAbilities, Power(Set(1)), Toughness(Set(1)),
       ]),
     ]),
   ],
