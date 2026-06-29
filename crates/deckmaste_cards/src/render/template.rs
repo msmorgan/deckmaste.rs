@@ -108,6 +108,13 @@ fn render_cost(cost: &[deckmaste_core::CostComponent]) -> Option<String> {
             CostComponent::Mana(mc) => out.push_str(&super::card::mana_cost(Some(mc))),
             CostComponent::Tap => out.push_str("{T}"),
             CostComponent::Untap => out.push_str("{Q}"),
+            // "Pay mana equal to its mana cost" ([CR#202.1]) — the
+            // granted-flashback phrase (Snapcaster). Only the carrier-relative
+            // `This` ("its") has a frameless rendering here; any other
+            // reference needs a `Ctx`, so decline to the structural fallback.
+            CostComponent::ManaCostOf(deckmaste_core::Reference::This) => {
+                out.push_str("its mana cost");
+            }
             _ => return None,
         }
     }
@@ -121,6 +128,24 @@ mod tests {
 
     use super::expanded;
     use super::fill;
+    use super::render_cost;
+
+    /// `ManaCostOf(This)` renders to the granted-flashback phrase "its mana
+    /// cost" ([CR#202.1]); a non-`This` reference declines to the structural
+    /// fallback (no `Ctx` to render it frameless).
+    #[test]
+    fn render_cost_renders_mana_cost_of_this() {
+        use deckmaste_core::CostComponent;
+        use deckmaste_core::Reference;
+        assert_eq!(
+            render_cost(&[CostComponent::ManaCostOf(Reference::This)]).as_deref(),
+            Some("its mana cost"),
+        );
+        assert_eq!(
+            render_cost(&[CostComponent::ManaCostOf(Reference::Opponent)]),
+            None,
+        );
+    }
 
     /// A placeholder expanded value: `expanded` never looks at it (it renders
     /// from `template`/`args`), so any type works.

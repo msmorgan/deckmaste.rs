@@ -7,6 +7,7 @@ use crate::Normalize;
 use crate::SupportsMacros;
 use crate::action::PlayerAction;
 use crate::mana::ManaCost;
+use crate::reference::Reference;
 
 /// A single component of an ability's cost ([CR#601.2b]).
 ///
@@ -16,6 +17,14 @@ use crate::mana::ManaCost;
 pub enum CostComponent {
     /// Mana payment, e.g. `Mana([Generic(2)])`.
     Mana(ManaCost),
+    /// Pay mana equal to a referenced object's printed mana cost
+    /// ([CR#202.1]) — the full *colored* cost, the cost-language twin of the
+    /// numeric `ManaValueOf` read. Spells the granted-flashback "the flashback
+    /// cost is equal to its mana cost" (Snapcaster Mage), where the referenced
+    /// object is the card the flashback ability rides on (`This`). The engine
+    /// resolves the reference, reads that object's mana cost, and requires
+    /// paying it ([CR#601.2h]).
+    ManaCostOf(Reference),
     /// The {T} symbol ([CR#107.5]).
     Tap,
     /// The {Q} symbol.
@@ -225,6 +234,20 @@ mod tests {
                 Reference::This
             )))),
         );
+    }
+
+    /// `ManaCostOf(Reference)` reads and round-trips through the
+    /// `SupportsMacros` serde (a referenced object's mana cost,
+    /// [CR#202.1]).
+    #[test]
+    fn mana_cost_of_round_trips() {
+        assert_eq!(
+            read("ManaCostOf(This)"),
+            CostComponent::ManaCostOf(Reference::This),
+        );
+        let v = CostComponent::ManaCostOf(Reference::ControllerOf(Box::new(Reference::This)));
+        let written = crate::ron::options().to_string(&v).unwrap();
+        assert_eq!(read(&written), v, "round-trips: {written}");
     }
 
     #[test]

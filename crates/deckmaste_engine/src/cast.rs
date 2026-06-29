@@ -774,10 +774,16 @@ impl GameState {
             StackObject::Spell(o) => self
                 .mana_cost(*o)
                 .expect("a castable spell has a printed cost"),
-            StackObject::Activated { ability, .. } => {
-                crate::activate::cost_summary(&ability.cost)
-                    .expect("can_activate vetted the cost")
-                    .mana
+            StackObject::Activated {
+                source, ability, ..
+            } => {
+                // [CR#202.1]: resolve any `ManaCostOf(reference)` against the
+                // live source so the concretized cost the stash carries — and
+                // thus what `pay_cost` makes the player pay — includes the
+                // referenced object's mana cost ("equal to its mana cost").
+                let summary = crate::activate::cost_summary(&ability.cost)
+                    .expect("can_activate vetted the cost");
+                self.resolve_cost_mana(&summary, *source, controller)
             }
             StackObject::Triggered { .. } => {
                 unreachable!("a triggered ability has no cost and never occupies the announce slot")

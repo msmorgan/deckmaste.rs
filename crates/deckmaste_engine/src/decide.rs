@@ -431,7 +431,9 @@ fn unless_cost_action(
         CostComponent::Cost(_) => {
             unreachable!("nested Cost is spliced away by normalize at the Unless boundary")
         }
-        CostComponent::Mana(_) => todo!(
+        // Both spell mana 'unless' costs and "equal to its mana cost"
+        // ([CR#202.1]) are announce-slot-bound — the same seam.
+        CostComponent::Mana(_) | CostComponent::ManaCostOf(_) => todo!(
             "engine-resolve-effects seam: a mid-resolution mana 'unless' cost \
              ([CR#118.12a]) — the PayCost/PayMana flow is announce-slot-bound"
         ),

@@ -10,6 +10,7 @@ use deckmaste_core::CostComponent;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::PlayerAction;
+use deckmaste_core::Reference;
 use deckmaste_core::Selection;
 use deckmaste_core::Type;
 use deckmaste_core::UseLimit;
@@ -48,6 +49,12 @@ pub(crate) struct CostSummary {
     /// Reveal. Collected for payment; non-eligible `Do(_)` causes
     /// `cost_summary` to return `None`.
     pub verbs: Vec<PlayerAction>,
+    /// `ManaCostOf(reference)` components: pay mana equal to the referenced
+    /// object's printed mana cost ([CR#202.1]). The reference can only be
+    /// resolved against a live frame, so it is collected here and folded into
+    /// the mana to pay by [`GameState::resolve_cost_mana`] at the gate and the
+    /// payment step.
+    pub mana_cost_of: Vec<Reference>,
 }
 
 /// Summarize `cost` in one walk (so the `can_activate` gate and the pay step
@@ -62,9 +69,14 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
     let mut tap = false;
     let mut untap = false;
     let mut verbs: Vec<PlayerAction> = Vec::new();
+    let mut mana_cost_of: Vec<Reference> = Vec::new();
     for component in cost {
         match component {
             CostComponent::Mana(m) => symbols.extend_from_slice(m),
+            // Resolved against a live frame at the gate / payment step
+            // (`resolve_cost_mana`): the cost walk has no game state, so the
+            // reference is collected, not read, here.
+            CostComponent::ManaCostOf(reference) => mana_cost_of.push(reference.clone()),
             CostComponent::Tap => tap = true,
             CostComponent::Untap => untap = true,
             CostComponent::Do(action) => {
@@ -82,6 +94,7 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
                 tap |= inner.tap;
                 untap |= inner.untap;
                 verbs.extend(inner.verbs);
+                mana_cost_of.extend(inner.mana_cost_of);
             }
             // A nested cost (the macro list-splice shape) survives faithful
             // read; recurse to splice it into the summary — this walk is the
@@ -92,6 +105,7 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
                 tap |= inner.tap;
                 untap |= inner.untap;
                 verbs.extend(inner.verbs);
+                mana_cost_of.extend(inner.mana_cost_of);
             }
         }
     }
@@ -100,10 +114,48 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
         tap,
         untap,
         verbs,
+        mana_cost_of,
     })
 }
 
 impl GameState {
+    /// The mana a cost summary requires, with every `ManaCostOf(reference)`
+    /// resolved ([CR#202.1]): the literal `Mana(...)` symbols plus, for each
+    /// referenced object, that object's printed mana cost — the colored
+    /// cost-language twin of `ManaValueOf`. `source`/`controller` anchor the
+    /// references (`This` is the cost's source, `You` its payer), mirroring the
+    /// announce-gate frame. Cheap-paths to the summary's own mana when there is
+    /// no `ManaCostOf` component, so a plain cost is untouched.
+    #[must_use]
+    pub(crate) fn resolve_cost_mana(
+        &self,
+        summary: &CostSummary,
+        source: ObjectId,
+        controller: PlayerId,
+    ) -> ManaCost {
+        if summary.mana_cost_of.is_empty() {
+            return summary.mana.clone();
+        }
+        let frame = Frame {
+            source,
+            controller,
+            targets: Vec::new(),
+            bindings: None,
+            chosen: None,
+            x: None,
+            subject: None,
+            those: None,
+        };
+        let mut symbols: Vec<ManaSymbol> = summary.mana.iter().copied().collect();
+        for reference in &summary.mana_cost_of {
+            let object = self.eval_reference(reference, &frame);
+            if let Some(printed) = self.mana_cost(object) {
+                symbols.extend_from_slice(&printed);
+            }
+        }
+        ManaCost::from(symbols)
+    }
+
     /// [CR#602.1,602.5]: may `player` activate this non-mana activated
     /// ability of `object` right now? `index` is the position in the derived
     /// ability list (the ledger key).
@@ -124,7 +176,11 @@ impl GameState {
         };
         // [CR#601.2b,601.2g,107.3a]: gate mana affordability under all legal
         // readings (concretizes {X} to 0, then plain or hybrid/Phyrexian path).
-        if !self.gate_mana_affordable(player, &summary.mana, object) {
+        // `ManaCostOf` components ([CR#202.1]) are resolved against the live
+        // source here so "pay mana equal to its mana cost" gates on the real
+        // amount, not a free read.
+        let mana = self.resolve_cost_mana(&summary, object, player);
+        if !self.gate_mana_affordable(player, &mana, object) {
             return false;
         }
 
@@ -915,6 +971,100 @@ mod tests {
             loyalty: None,
             defense: None,
         }))
+    }
+
+    /// A card with the given printed mana cost whose only ability is `act`
+    /// (an artifact, so {T}/{Q}-free activation faces no summoning sickness).
+    fn card_with_cost_and_activated(
+        mana_cost: ManaCost,
+        act: ActivatedAbility,
+    ) -> std::sync::Arc<deckmaste_core::Card> {
+        std::sync::Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+            name: "ManaCostOf Fixture".into(),
+            mana_cost,
+            color_indicator: vec![],
+            supertypes: vec![],
+            types: vec![deckmaste_core::Type::Artifact],
+            subtypes: vec![],
+            abilities: vec![Ability::Activated(act)],
+            power: None,
+            toughness: None,
+            loyalty: None,
+            defense: None,
+        }))
+    }
+
+    /// `ManaCostOf(This)` resolves to the source object's printed mana cost
+    /// ([CR#202.1]) — the cost-language "pay mana equal to its mana cost". The
+    /// summary collects the reference (mana stays empty), and
+    /// `resolve_cost_mana` reads the live source's {1}{U}.
+    #[test]
+    fn resolve_cost_mana_reads_sources_printed_cost() {
+        let mut state = game();
+        let player = PlayerId(0);
+        let printed: ManaCost = "{1}{U}".parse().unwrap();
+        let act = activated(
+            vec![CostComponent::ManaCostOf(Reference::This)],
+            noop_effect(),
+        );
+        let card_id = state.cards.push(
+            card_with_cost_and_activated(printed.clone(), act.clone()),
+            player,
+        );
+        let obj = state
+            .objects
+            .mint(ObjectSource::Card(card_id), player, Some(Zone::Battlefield));
+        state.zones.battlefield.push(obj);
+
+        let summary = cost_summary(&act.cost).expect("ManaCostOf cost summarizes");
+        assert!(summary.mana.is_empty(), "no literal mana, only ManaCostOf");
+        assert_eq!(summary.mana_cost_of, vec![Reference::This]);
+
+        let resolved = state.resolve_cost_mana(&summary, obj, player);
+        assert_eq!(
+            resolved, printed,
+            "ManaCostOf(This) pays the source's printed {{1}}{{U}}"
+        );
+    }
+
+    /// `can_activate` gates "pay mana equal to its mana cost" on the RESOLVED
+    /// amount ([CR#202.1,601.2g]), not a free read: an empty pool can't afford
+    /// the source's {1}{U}, a matching pool can.
+    #[test]
+    fn can_activate_gates_on_resolved_mana_cost_of() {
+        let mut state = game();
+        let player = PlayerId(0);
+        let printed: ManaCost = "{1}{U}".parse().unwrap();
+        let act = activated(
+            vec![CostComponent::ManaCostOf(Reference::This)],
+            noop_effect(),
+        );
+        let card_id = state
+            .cards
+            .push(card_with_cost_and_activated(printed, act.clone()), player);
+        let obj = state
+            .objects
+            .mint(ObjectSource::Card(card_id), player, Some(Zone::Battlefield));
+        state.zones.battlefield.push(obj);
+
+        let view = state.layers();
+        assert!(
+            !state.can_activate(&view, player, obj, 0, &act),
+            "an empty pool can't pay the resolved {{1}}{{U}}"
+        );
+
+        // Fund exactly the resolved cost: {1} generic + {U}.
+        let pool = &mut state.player_mut(player).mana_pool;
+        pool.add(deckmaste_core::ColorOrColorless::Colorless, 1);
+        pool.add(
+            deckmaste_core::ColorOrColorless::from(deckmaste_core::Color::Blue),
+            1,
+        );
+        let view = state.layers();
+        assert!(
+            state.can_activate(&view, player, obj, 0, &act),
+            "a {{1}}{{U}} pool affords the resolved ManaCostOf cost"
+        );
     }
 
     #[test]
