@@ -592,8 +592,7 @@ impl GameState {
         // as for a fresh trigger outside any event context.
         let bindings = TriggerBindings {
             this: Some(LkiSnapshot::capture(self, object)),
-            that_object: None,
-            that_player: None,
+            ..Default::default()
         };
         // [CR#602.2a]: the ability is created on the stack as the FIRST step
         // of announcing — mint its stack identity now, so announce-time

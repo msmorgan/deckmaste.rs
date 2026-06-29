@@ -25,6 +25,7 @@ use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::player::PlayerId;
 use crate::state::GameState;
+use crate::trigger::EventPatient;
 use crate::trigger::TriggerBindings;
 
 /// What an intent affects — the object being moved/changed, or the player
@@ -682,22 +683,29 @@ fn schedule_body(
     that: Option<ObjectId>,
 ) {
     let controller = state.objects.obj(source).controller;
-    // [CR#608.2]: bind `That` to the affected recipient so the body can read it
-    // — `This` falls back to `source` (`bindings.this` is `None`), never moving
-    // off the ability. A frameless body (`that == None`) leaves bindings unset.
-    // A player proxy (no zone) can't be LKI-snapshotted, so it binds as
-    // `ThatPlayer`; a card/token recipient binds as `ThatObject`.
+    // [CR#608.2,608.2k]: bind the affected recipient — the event PATIENT
+    // ([CR#120.3]) — so the body can read it while `This` falls back to
+    // `source` (`bindings.this` is `None`, the agent never moving off the
+    // ability). A frameless body (`that == None`) leaves bindings unset. The
+    // recipient is the provenance-explicit `EventPatient`; it ALSO mirrors into
+    // the legacy `that_object`/`that_player` so `ThatObject`/`ThatPlayer` bodies
+    // keep reading it during migration (a player proxy is zoneless, so it has no
+    // LKI snapshot — it binds as the player patient; a card/token recipient
+    // binds as the object patient).
     let bindings = that.map(|id| match state.objects.obj(id).source {
         ObjectSource::Player(p) => TriggerBindings {
-            this: None,
-            that_object: None,
             that_player: Some(p),
+            that_patient: Some(EventPatient::Player(p)),
+            ..Default::default()
         },
-        ObjectSource::Card(_) => TriggerBindings {
-            this: None,
-            that_object: Some(LkiSnapshot::capture(state, id)),
-            that_player: None,
-        },
+        ObjectSource::Card(_) => {
+            let snapshot = LkiSnapshot::capture(state, id);
+            TriggerBindings {
+                that_object: Some(snapshot.clone()),
+                that_patient: Some(EventPatient::Object(snapshot)),
+                ..Default::default()
+            }
+        }
     });
     let frame = crate::stack::Frame {
         source,

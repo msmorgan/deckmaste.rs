@@ -137,7 +137,14 @@ impl GameState {
         let bindings = frame.bindings.as_ref()?;
         match reference {
             Reference::This => bindings.this.as_ref(),
-            Reference::ThatObject => bindings.that_object.as_ref(),
+            // The event AGENT (and its `ThatObject` alias) — the moved object's
+            // snapshot ([CR#603.2e]).
+            Reference::ThatObject | Reference::EventAgent => bindings.that_object.as_ref(),
+            // An OBJECT patient carries a snapshot; a player patient has none.
+            Reference::EventPatient => match bindings.that_patient.as_ref()? {
+                crate::trigger::EventPatient::Object(s) => Some(s),
+                crate::trigger::EventPatient::Player(_) => None,
+            },
             Reference::Expanded(e) => Self::bound_snapshot(&e.value, frame),
             _ => None,
         }
@@ -342,8 +349,7 @@ mod tests {
             targets: vec![bear],
             bindings: Some(TriggerBindings {
                 this: Some(LkiSnapshot::capture(&state, bear)),
-                that_object: None,
-                that_player: None,
+                ..Default::default()
             }),
             chosen: None,
             x: None,
@@ -459,8 +465,7 @@ mod tests {
                     ability: 0,
                     bindings: TriggerBindings {
                         this: Some(LkiSnapshot::capture(&state, source)),
-                        that_object: None,
-                        that_player: None,
+                        ..Default::default()
                     },
                 },
                 controller: PlayerId(0),
@@ -541,8 +546,7 @@ mod tests {
                 targets: vec![],
                 bindings: Some(TriggerBindings {
                     this: Some(snapshot),
-                    that_object: None,
-                    that_player: None,
+                    ..Default::default()
                 }),
                 chosen: None,
                 x: None,
@@ -796,7 +800,7 @@ mod tests {
             bindings: Some(TriggerBindings {
                 this: Some(LkiSnapshot::capture(state, carrier)),
                 that_object: Some(LkiSnapshot::capture(state, entrant)),
-                that_player: None,
+                ..Default::default()
             }),
             chosen: None,
             x: None,

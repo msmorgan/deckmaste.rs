@@ -34,16 +34,43 @@ use crate::stack::StackObject;
 use crate::state::GameState;
 use crate::step::Progress;
 
-/// The last-known information a fired trigger carries to its placement and
-/// resolution ([CR#603.10a], [CR#608.2]): `~`/`This`/source, the moved object,
-/// and the affected player.
+/// The acted-upon participant of an event ([CR#608.2k]) — the PATIENT, bound
+/// distinctly from the agent so a two-object event names both. Kind-poly: a
+/// damage recipient (or destroyed/countered thing) may be an object or a player
+/// ([CR#120.3]). An object patient carries its LKI snapshot (regeneration,
+/// wither read it like any moved object); a player patient carries the id.
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EventPatient {
+    /// A card/token recipient — read as `EventPatient` resolving to its object.
+    Object(LkiSnapshot),
+    /// A player recipient — read as `EventPatient` resolving to the proxy.
+    Player(PlayerId),
+}
+
+/// The last-known information a fired trigger carries to its placement and
+/// resolution ([CR#603.10a], [CR#608.2]): `~`/`This`/source, and the event's
+/// provenance-explicit roles ([CR#603.2e,608.2k]) — the agent (the moved/acting
+/// object), the actor (the responsible player), the kind-poly patient (the
+/// acted-upon thing), and the combat defending player.
+///
+/// `Default` is all-`None` (a frameless body); construct with `..` for the
+/// roles an event actually supplies.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TriggerBindings {
     /// The firing object's last-known self (`~`/`This`/source).
     pub this: Option<LkiSnapshot>,
-    /// The moved object for a `ZoneMove` trigger.
+    /// The event AGENT — the moved object of a `ZoneMove`, the damage source.
+    /// Read by `Reference::EventAgent` (and its `ThatObject` migration alias).
     pub that_object: Option<LkiSnapshot>,
+    /// The event ACTOR — the responsible player ("that player"). Read by
+    /// `Reference::EventActor` (and its `ThatPlayer` migration alias).
     pub that_player: Option<PlayerId>,
+    /// The event PATIENT — the acted-upon thing (damage recipient, …),
+    /// kind-poly ([CR#120.3]). Read by `Reference::EventPatient`.
+    pub that_patient: Option<EventPatient>,
+    /// The combat DEFENDING player ([CR#506.2,508.5]) — always a player. Read
+    /// by `Reference::DefendingPlayer`.
+    pub defending_player: Option<PlayerId>,
 }
 
 /// A trigger that has fired but is not yet on the stack ([CR#603.2]). Noted by
@@ -609,6 +636,16 @@ impl GameState {
             _ => None,
         };
 
+        // The combat DEFENDING player of an attack-declaration fact
+        // ([CR#506.2,508.5]) — always a player; in a 2-player game the sole
+        // opponent of the attacker's controller. Read by
+        // `Reference::DefendingPlayer`. Purely additive: it sits in a role no
+        // pre-provenance body read.
+        let defending_player: Option<PlayerId> = match event {
+            GameEvent::Attacking(o) => Some(self.next_live_after(self.objects.obj(*o).controller)),
+            _ => None,
+        };
+
         // The watcher set ([CR#603.6]): every live battlefield permanent, plus
         // the leaving object's snapshot for a battlefield-leave.
         let mut watchers: Vec<Watcher> = self
@@ -652,6 +689,8 @@ impl GameState {
                     this: Some(this.clone()),
                     that_object: subject.cloned(),
                     that_player: None,
+                    that_patient: None,
+                    defending_player,
                 };
                 // [CR#603.4]: the intervening-if gate — the condition is checked
                 // when the event occurs (no targets are chosen yet, so the gate
@@ -1499,8 +1538,7 @@ mod tests {
             targets: Vec::new(),
             bindings: Some(super::TriggerBindings {
                 this: Some(crate::lki::LkiSnapshot::capture(state, carrier)),
-                that_object: None,
-                that_player: None,
+                ..Default::default()
             }),
             chosen: None,
             x: None,
@@ -2936,11 +2974,7 @@ mod tests {
             source,
             ability: 0,
             controller,
-            bindings: super::TriggerBindings {
-                this: None,
-                that_object: None,
-                that_player: None,
-            },
+            bindings: super::TriggerBindings::default(),
         });
 
         let progress = state.place_triggers();
@@ -2978,11 +3012,7 @@ mod tests {
             source,
             ability: 0,
             controller,
-            bindings: super::TriggerBindings {
-                this: None,
-                that_object: None,
-                that_player: None,
-            },
+            bindings: super::TriggerBindings::default(),
         });
 
         let progress = state.place_triggers();
@@ -3028,11 +3058,7 @@ mod tests {
             source,
             ability: 0,
             controller,
-            bindings: super::TriggerBindings {
-                this: None,
-                that_object: None,
-                that_player: None,
-            },
+            bindings: super::TriggerBindings::default(),
         });
 
         let progress = state.place_triggers();
@@ -3073,11 +3099,7 @@ mod tests {
             source,
             ability: 0,
             controller,
-            bindings: super::TriggerBindings {
-                this: None,
-                that_object: None,
-                that_player: None,
-            },
+            bindings: super::TriggerBindings::default(),
         });
 
         state.place_triggers();
@@ -3153,11 +3175,7 @@ mod tests {
             source: state.objects.obj(pinger).source,
             ability: 0,
             controller: PlayerId(0),
-            bindings: super::TriggerBindings {
-                this: None,
-                that_object: None,
-                that_player: None,
-            },
+            bindings: super::TriggerBindings::default(),
         });
 
         let progress = state.place_triggers();
@@ -3199,11 +3217,7 @@ mod tests {
         // Two dies-watchers under player 0 (non-targeting `LoseLife`).
         let (mut state, w0) = fixture_on_field("Moonlit Wake");
         let source = state.objects.obj(w0).source;
-        let bindings = || super::TriggerBindings {
-            this: None,
-            that_object: None,
-            that_player: None,
-        };
+        let bindings = || super::TriggerBindings::default();
         // Two notes from the same controller (as if two creatures died at once).
         state.pending_triggers.push(super::NotedTrigger {
             source,
