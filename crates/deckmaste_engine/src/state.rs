@@ -165,6 +165,18 @@ pub enum ChoiceContinuation {
         unless: Vec<deckmaste_core::CostComponent>,
         frame: crate::stack::Frame,
     },
+    /// A `YesNo` answer for `Effect::MayPay` ([CR#603,608]): yes → pay the
+    /// `cost` (each component as `actor`'s action) then run `and_then`; no →
+    /// run `or_else` (or nothing). `actor` is the paying player. Unlike
+    /// `Unless`, the PAID branch also runs an effect (`and_then`) — the
+    /// resolution-time kicker.
+    MayPay {
+        actor: deckmaste_core::Reference,
+        cost: Vec<deckmaste_core::CostComponent>,
+        and_then: Box<deckmaste_core::Effect>,
+        or_else: Option<Box<deckmaste_core::Effect>>,
+        frame: crate::stack::Frame,
+    },
     /// A `Distribute` answer ([CR#701.22a]): stashes the effect `name`
     /// (e.g. "Scry") for the event emitted in Task 8. Consumed in
     /// `submit_distribution`; Task 8 reads `name` before taking it.

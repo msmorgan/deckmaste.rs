@@ -151,7 +151,7 @@ fn reference_subject(r: &Reference, ctx: &super::Ctx) -> String {
 }
 
 /// Capitalize the first character of a string.
-fn capitalize(s: &str) -> String {
+pub(super) fn capitalize(s: &str) -> String {
     let mut c = s.chars();
     match c.next() {
         Some(first) => first.to_uppercase().chain(c).collect(),

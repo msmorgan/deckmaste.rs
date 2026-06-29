@@ -1,0 +1,27 @@
+// Hand-written canon entry (see docs/card-data.md): exercises the resolution-
+// time `MustPay` punisher over the full `Cost` algebra — "counter target spell
+// unless its controller pays {3}" ([CR#118.12a]). `MustPay` supersedes the
+// bare-component `Unless` sugar the pipeline still emits; the parser has no
+// MustPay production yet, so this body is authored directly.
+Normal(
+  name: "Mana Leak",
+  mana_cost: [
+    Generic(1),
+    Blue,
+  ],
+  types: [
+    Instant,
+  ],
+  abilities: [
+    Spell(
+      effect: Targeted(
+        targets: [TargetOne(Spell)],
+        effect: MustPay(
+          actor: ControllerOf(Target(0)),
+          cost: [Mana([Generic(3)])],
+          or_else: Counter(Target(0)),
+        ),
+      ),
+    ),
+  ],
+)

@@ -58,6 +58,39 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
                 targets: &t.targets,
             },
         ),
+        // [CR#118.12a]: "[or_else] unless [actor] pays [cost]" — the resolution-
+        // time punisher (Mana Leak). Starts with the rendered punisher effect
+        // (already capitalized). Declines structurally if the cost has no symbol
+        // rendering (e.g. a `Do(...)` verb cost).
+        Effect::MustPay(m) => {
+            let payer = fragment::reference(&m.actor, ctx);
+            match super::template::render_cost(&m.cost.0) {
+                Some(c) => format!(
+                    "{} unless {payer} pays {c}.",
+                    trim_period(&effect(&m.or_else, ctx))
+                ),
+                None => format!("[unrendered: {m:?}]."),
+            }
+        }
+        // [CR#603,608]: "[actor] may pay [cost]. If [actor] does, [and_then];
+        // if [actor] doesn't, [or_else]" — a resolution-time kicker.
+        Effect::MayPay(m) => {
+            let payer = fragment::reference(&m.actor, ctx);
+            match super::template::render_cost(&m.cost.0) {
+                Some(c) => {
+                    let did = super::ability::lower_first(&trim_period(&effect(&m.and_then, ctx)));
+                    let tail = m.or_else.as_ref().map_or_else(String::new, |or_else| {
+                        let didnt =
+                            super::ability::lower_first(&trim_period(&effect(or_else, ctx)));
+                        format!("; if {payer} doesn't, {didnt}")
+                    });
+                    fragment::capitalize(&format!(
+                        "{payer} may pay {c}. If {payer} does, {did}{tail}."
+                    ))
+                }
+                None => format!("[unrendered: {m:?}]."),
+            }
+        }
         other => format!("[unrendered: {other:?}]."),
     }
 }

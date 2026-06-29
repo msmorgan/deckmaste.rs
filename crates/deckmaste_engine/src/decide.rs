@@ -1062,6 +1062,41 @@ impl GameState {
                         };
                         self.schedule_front(items);
                     }
+                    // [CR#603,608]: `Effect::MayPay` — yes pays the cost (each
+                    // component as `actor`'s action) THEN runs `and_then`; no
+                    // runs `or_else` (or nothing). Front-scheduled in order so
+                    // the payment precedes `and_then`.
+                    crate::state::ChoiceContinuation::MayPay {
+                        actor,
+                        cost,
+                        and_then,
+                        or_else,
+                        frame,
+                    } => {
+                        let items: Vec<WorkItem> = if yes {
+                            cost.iter()
+                                .map(|c| WorkItem::RunEffect {
+                                    effect: Box::new(deckmaste_core::Effect::Act(
+                                        unless_cost_action(c, &actor),
+                                    )),
+                                    frame: frame.clone(),
+                                })
+                                .chain(std::iter::once(WorkItem::RunEffect {
+                                    effect: and_then,
+                                    frame: frame.clone(),
+                                }))
+                                .collect()
+                        } else {
+                            or_else
+                                .into_iter()
+                                .map(|effect| WorkItem::RunEffect {
+                                    effect,
+                                    frame: frame.clone(),
+                                })
+                                .collect()
+                        };
+                        self.schedule_front(items);
+                    }
                     other => {
                         unreachable!("a YesNo decision stashed a non-YesNo continuation: {other:?}")
                     }
