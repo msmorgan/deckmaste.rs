@@ -628,14 +628,80 @@ impl GameState {
         }
     }
 
+    /// The AGENT roles of an object that ACTED in an event
+    /// ([CR#603.2e,608.2k]): its LKI snapshot (`that_object`) and the
+    /// responsible-player ACTOR (`that_player`, its controller). An agent
+    /// is an object, so a player-proxy id (zoneless — [CR#120.3]) or a
+    /// stale/missing id yields no snapshot.
+    fn event_agent(&self, id: ObjectId) -> (Option<LkiSnapshot>, Option<PlayerId>) {
+        match self.objects.get(id) {
+            Some(o) if matches!(o.source, ObjectSource::Card(_)) => {
+                (Some(LkiSnapshot::capture(self, id)), Some(o.controller))
+            }
+            _ => (None, None),
+        }
+    }
+
+    /// The kind-poly PATIENT of an event ([CR#120.3]): a card/token recipient
+    /// carries its LKI snapshot, a player-proxy recipient carries its id
+    /// (zoneless — never snapshotted). A stale/missing id yields no patient.
+    /// Mirrors `resolve::bind_element` / `replace_registry::schedule_body`.
+    fn event_patient(&self, id: ObjectId) -> Option<EventPatient> {
+        match self.objects.get(id)?.source {
+            ObjectSource::Player(p) => Some(EventPatient::Player(p)),
+            ObjectSource::Card(_) => Some(EventPatient::Object(LkiSnapshot::capture(self, id))),
+        }
+    }
+
     /// Scan one occurred fact against every watcher, pushing a `TriggerFired`
     /// emit per match onto `emits`.
     fn scan_event(&self, event: &GameEvent, emits: &mut Vec<WorkItem>) {
-        // The moved object's snapshot for a zone change (the trigger's
-        // `that_object`); `None` for any other fact.
-        let subject: Option<&LkiSnapshot> = match event {
-            GameEvent::ZoneChanged { snapshot, .. } => Some(snapshot),
-            _ => None,
+        // The firing event's provenance ([CR#603.2e,608.2k]) — the AGENT (the
+        // acting/moved object) bound as `that_object` with its responsible-
+        // player ACTOR as `that_player`, and the kind-poly PATIENT (the acted-
+        // upon thing, [CR#120.3]) as `that_patient`. Derived per `GameEvent`
+        // kind, symmetric with `defending_player` below; read by
+        // `Reference::ThatObject`/`EventAgent`, `ThatPlayer`/`EventActor`, and
+        // `EventPatient`. A `ZoneChanged` keeps using the fact's own carried
+        // snapshot; kinds with no clear agent/patient leave every slot `None`
+        // (status quo). Card-backed roles carry an LKI snapshot ([CR#603.10a]);
+        // a player-proxy id is zoneless and is NEVER snapshotted ([CR#120.3] —
+        // `LkiSnapshot::capture` would panic), and a stale/missing id yields no
+        // role (the actor already left).
+        let (that_object, that_player, that_patient): (
+            Option<LkiSnapshot>,
+            Option<PlayerId>,
+            Option<EventPatient>,
+        ) = match event {
+            // The zone-change FACT carries the moved object's snapshot.
+            GameEvent::ZoneChanged { snapshot, .. } => (Some(snapshot.clone()), None, None),
+            // [CR#603.2e] becomes-state transitions: the transitioning object
+            // is the agent ("it") with its controller the actor — Exalted
+            // ([CR#702.83a]) reads the lone attacker via `ThatObject`.
+            GameEvent::Attacking(o)
+            | GameEvent::Untapped(o)
+            | GameEvent::Tapped { object: o, .. } => {
+                let (agent, actor) = self.event_agent(*o);
+                (agent, actor, None)
+            }
+            // [CR#601.2c] becomes-target / [CR#120.3] damage: the source/agent
+            // (the targeting spell-or-ability, or the damage source) binds as
+            // `ThatObject`, the recipient (the targeted permanent, or the damage
+            // recipient — object or player) as the kind-poly patient. Ward's
+            // `Counter(ThatObject)` ([CR#702.21a]) counters "it" (the source on
+            // the stack), not the warded permanent.
+            GameEvent::BecameTarget { target, source }
+            | GameEvent::DamageDealt { source, target, .. } => {
+                let (agent, actor) = self.event_agent(*source);
+                (agent, actor, self.event_patient(*target))
+            }
+            // [CR#109.5] control change: the moved object is the agent, the new
+            // controller the responsible actor.
+            GameEvent::ControlChanged { object, to } => {
+                let (agent, _) = self.event_agent(*object);
+                (agent, Some(*to), None)
+            }
+            _ => (None, None, None),
         };
 
         // The combat DEFENDING player of an attack-declaration fact
@@ -710,9 +776,9 @@ impl GameState {
                 // also the context for the intervening-if gate ([CR#603.4]).
                 let bindings = TriggerBindings {
                     this: Some(this.clone()),
-                    that_object: subject.cloned(),
-                    that_player: None,
-                    that_patient: None,
+                    that_object: that_object.clone(),
+                    that_player,
+                    that_patient: that_patient.clone(),
                     defending_player,
                 };
                 // [CR#603.4]: the intervening-if gate — the condition is checked

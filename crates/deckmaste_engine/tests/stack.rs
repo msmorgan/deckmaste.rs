@@ -350,6 +350,134 @@ fn bolt_kills_grizzly_bears() {
     assert!(state.stack.is_empty());
 }
 
+/// A `plugins/testing` mock card (macro-aware, builtin prelude) — the home of
+/// fixtures for mechanics no canon card carries (e.g. Ward, [CR#702.21a]).
+fn testing_card(name: &str) -> Arc<Card> {
+    Arc::new(
+        Plugin::load_with_sibling_prelude(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/testing"),
+        )
+        .unwrap()
+        .card(name)
+        .unwrap(),
+    )
+}
+
+/// P0 holds Lightning Bolt + Mountains (the targeting spell + its mana); P1's
+/// deck is Ward Creatures (the warded target). One Mountain is forced onto P0's
+/// battlefield.
+fn ward_game(seed: u64) -> GameState {
+    let bolt = card("Lightning Bolt");
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let ward = testing_card("Ward Creature");
+    let mut p0 = vec![Arc::clone(&bolt); 5];
+    p0.extend(vec![Arc::clone(&mountain); 5]);
+    let p1 = vec![Arc::clone(&ward); 10];
+    let mut state = GameState::new(GameConfig {
+        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
+        seed,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+    });
+    state.sba_rules = builtin().sba_rules;
+    force_onto_battlefield(&mut state, PlayerId(0), "Mountain");
+    state
+}
+
+/// [CR#702.21a,601.2c]: Ward reads the event provenance of a `BecameTarget`
+/// fact (NOT a zone change) — `Counter(ThatObject)` must counter the targeting
+/// SPELL ("counter it"), which the engine binds as `ThatObject` (the agent =
+/// the source on the stack), with the warded permanent the patient. Before the
+/// provenance fix this panicked at resolution (`ThatObject` unbound for a
+/// non-`ZoneChanged` event). P0 bolts P1's Ward creature; P1 (the warded
+/// permanent's controller, the default `who` of the toll) declines to pay → the
+/// Bolt is countered, the creature takes no damage.
+#[test]
+fn ward_counters_targeting_spell_via_that_object() {
+    let mut state = ward_game(7);
+    let ward = force_into_play(&mut state, PlayerId(1), "Ward Creature");
+    assert_eq!(state.players[1].life, 20, "defender starts at 20");
+
+    // P0's precombat main: float {R} and cast Bolt at P1's Ward creature.
+    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 1); // {R}
+    let bolt = find_in_hand(&state, PlayerId(0), "Lightning Bolt");
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+        panic!("expected ChooseTargets, got {stop:?}");
+    };
+    assert!(
+        legal[0].contains(&ward),
+        "the Ward creature is a legal target of the Bolt"
+    );
+    state
+        .submit_decision(Decision::Targets(vec![ward]))
+        .unwrap();
+
+    // Choosing the target fires the BecameTarget fact → Ward triggers (P1's),
+    // placed above the Bolt. Pass priority; when the Ward toll's YesNo surfaces,
+    // P1 declines → Counter(ThatObject) counters the Bolt. Drive to an empty
+    // stack.
+    let mut declined = false;
+    loop {
+        let (_t, stop) = step_to_stop(&mut state);
+        match stop {
+            StepOutcome::NeedsDecision(PendingDecision::YesNo { player }) => {
+                assert_eq!(
+                    player,
+                    PlayerId(1),
+                    "the Ward toll's default payer is the warded permanent's controller"
+                );
+                declined = true;
+                state.submit_decision(Decision::Answer(false)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+                let pay = state.auto_pay_pending();
+                state.submit_decision(Decision::Pay(pay)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                if state.stack.is_empty() {
+                    break;
+                }
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            other => panic!("unexpected stop while resolving Ward: {other:?}"),
+        }
+    }
+    assert!(
+        declined,
+        "the Ward toll's YesNo decision surfaced and was declined"
+    );
+
+    // The Bolt was countered: it left the stack and reminted into P0's graveyard
+    // ([CR#701.6a]) WITHOUT resolving — the Ward creature is unharmed (proving
+    // `Counter(ThatObject)` hit the spell, not the warded permanent).
+    assert!(
+        state.objects.get(bolt).is_none(),
+        "the old Bolt stack id is gone (countered → reminted)"
+    );
+    assert_eq!(
+        state.zones.graveyards[0].len(),
+        1,
+        "the countered Bolt sits in P0's graveyard ([CR#701.6a])"
+    );
+    assert!(
+        state.zones.battlefield.contains(&ward),
+        "the warded creature is untouched (the Bolt never resolved)"
+    );
+    assert_eq!(
+        state.objects.obj(ward).damage,
+        0,
+        "the warded creature took no damage — Counter hit the Bolt, not the creature"
+    );
+}
+
 /// Moves the first `name` card from `player`'s library into their hand
 /// (when it isn't in hand already) and returns its id — the test-setup dual
 /// of `force_into_play` for cards that must be CAST.

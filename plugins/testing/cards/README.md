@@ -19,6 +19,12 @@ verified against the full corpus, not vibes. Current residents:
   nothing). Pins that a layer-6 affected set is evaluated when the effect
   applies ([CR#611.3a]): no fixpoint loop, no grant to trample-less creatures,
   a redundant ([CR#702.19g]) second instance on tramplers.
+- **Exalted Creature** / **Ward Creature** — minimal vanilla carriers of two
+  evergreen keywords ([CR#702.83a], [CR#702.21a]) that no card in the canon
+  corpus has. Both keywords read event provenance (`ThatObject`) on a
+  NON-`ZoneChanged` fact (an `Attacking` / `BecameTarget`), so they isolate the
+  trigger-provenance RESOLUTION path the engine derives per `GameEvent` kind —
+  the half no canon fixture can reach.
 
 If a mechanic lands that makes one of these encodable with a real card,
 canonize the real card and delete the mock.

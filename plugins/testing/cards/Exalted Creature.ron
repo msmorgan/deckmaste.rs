@@ -1,0 +1,14 @@
+// A 2/2 vanilla carrying ONLY Exalted ([CR#702.83a]) — "Whenever a creature
+// you control attacks alone, that creature gets +1/+1 until end of turn." No
+// card in the canon corpus has Exalted, so this minimal carrier isolates the
+// keyword's trigger RESOLUTION: the lone attacker must bind as `ThatObject`
+// (the event-provenance the engine derives for an `Attacking` fact) so the
+// `Continuously(Modify(of: Of(ThatObject)))` pump lands on it.
+Normal(
+    name: "Exalted Creature",
+    mana_cost: [Generic(1), White],
+    types: [Creature],
+    power: 2,
+    toughness: 2,
+    abilities: [Keyword(Exalted)],
+)
