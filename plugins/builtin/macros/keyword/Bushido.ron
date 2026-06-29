@@ -39,7 +39,7 @@
             effect: Continuously(
                 effect: Modify(
                     of: Of(This),
-                    changes: [AddPower(Param(0)), AddToughness(Param(0))],
+                    changes: [Power(Up(Param(0))), Toughness(Up(Param(0)))],
                 ),
                 duration: FixedUntil(EndOfTurn),
             ),

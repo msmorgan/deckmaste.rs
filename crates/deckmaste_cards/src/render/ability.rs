@@ -2,11 +2,13 @@
 //! effect).
 
 use deckmaste_core::Ability;
+use deckmaste_core::CollectionOp;
 use deckmaste_core::Color;
 use deckmaste_core::Count;
 use deckmaste_core::Event;
 use deckmaste_core::Filter;
 use deckmaste_core::Modification;
+use deckmaste_core::NumericOp;
 use deckmaste_core::Reference;
 use deckmaste_core::StateFilterEvent;
 use deckmaste_core::StaticAbility;
@@ -166,10 +168,10 @@ pub(super) fn static_effect(e: &StaticEffect, ctx: &Ctx) -> Option<String> {
 ///
 /// Clauses are emitted in the order they appear in `changes`, with three
 /// exceptions:
-/// - All Add/SubtractPower/Toughness deltas are summed and emitted at the
+/// - All `Power`/`Toughness(Up|Down)` deltas are summed and emitted at the
 ///   position of the first such modification.
-/// - `SetPower` + `SetToughness` are combined into one "base P/T N/M" clause at
-///   the position of the first `SetPower`/`SetToughness` in the list.
+/// - `Power(Set)` + `Toughness(Set)` are combined into one "base P/T N/M"
+///   clause at the position of the first such op in the list.
 fn modifications_predicate(changes: &[Modification], plural: bool) -> String {
     let mut clauses: Vec<String> = Vec::new();
 
@@ -188,11 +190,10 @@ fn modifications_predicate(changes: &[Modification], plural: bool) -> String {
 
     for m in changes {
         match m {
-            // P/T delta group: emit once at first occurrence.
-            Modification::AddPower(_)
-            | Modification::AddToughness(_)
-            | Modification::SubtractPower(_)
-            | Modification::SubtractToughness(_) => {
+            // P/T delta group (`Up`/`Down` on power/toughness): emit once at
+            // first occurrence.
+            Modification::Power(NumericOp::Up(_) | NumericOp::Down(_))
+            | Modification::Toughness(NumericOp::Up(_) | NumericOp::Down(_)) => {
                 if !delta_emitted {
                     if let Some(ref d) = delta {
                         clauses.push(d.clone());
@@ -200,8 +201,8 @@ fn modifications_predicate(changes: &[Modification], plural: bool) -> String {
                     delta_emitted = true;
                 }
             }
-            // Base P/T group: emit once at first SetPower/SetToughness.
-            Modification::SetPower(_) | Modification::SetToughness(_) => {
+            // Base P/T group (`Set` on power/toughness): emit once at first.
+            Modification::Power(NumericOp::Set(_)) | Modification::Toughness(NumericOp::Set(_)) => {
                 if !base_emitted {
                     if let Some(ref b) = base {
                         clauses.push(b.clone());
@@ -209,7 +210,7 @@ fn modifications_predicate(changes: &[Modification], plural: bool) -> String {
                     base_emitted = true;
                 }
             }
-            Modification::SetColors(cs) => {
+            Modification::Colors(CollectionOp::Set(cs)) => {
                 clauses.push(format!("{} {}", be(plural), colors_phrase(cs)));
             }
             Modification::GainAbility(a) => {
@@ -227,7 +228,7 @@ fn modifications_predicate(changes: &[Modification], plural: bool) -> String {
     clauses.join(" and ")
 }
 
-/// "+N/+N" or "-N/-N" clause from Add/Subtract Power/Toughness, or `None` if
+/// "+N/+N" or "-N/-N" clause from `Power`/`Toughness(Up|Down)`, or `None` if
 /// none present.
 fn pt_delta_clause(changes: &[Modification], plural: bool) -> Option<String> {
     let mut p: i64 = 0;
@@ -235,19 +236,19 @@ fn pt_delta_clause(changes: &[Modification], plural: bool) -> Option<String> {
     let mut found = false;
     for c in changes {
         match c {
-            Modification::AddPower(Count::Literal(n)) => {
+            Modification::Power(NumericOp::Up(Count::Literal(n))) => {
                 p += i64::from(*n);
                 found = true;
             }
-            Modification::AddToughness(Count::Literal(n)) => {
+            Modification::Toughness(NumericOp::Up(Count::Literal(n))) => {
                 t += i64::from(*n);
                 found = true;
             }
-            Modification::SubtractPower(Count::Literal(n)) => {
+            Modification::Power(NumericOp::Down(Count::Literal(n))) => {
                 p -= i64::from(*n);
                 found = true;
             }
-            Modification::SubtractToughness(Count::Literal(n)) => {
+            Modification::Toughness(NumericOp::Down(Count::Literal(n))) => {
                 t -= i64::from(*n);
                 found = true;
             }
@@ -260,14 +261,14 @@ fn pt_delta_clause(changes: &[Modification], plural: bool) -> Option<String> {
     Some(format!("{} {p:+}/{t:+}", get(plural)))
 }
 
-/// "have base power and toughness N/M" from `SetPower` + `SetToughness`.
+/// "have base power and toughness N/M" from `Power(Set)` + `Toughness(Set)`.
 fn base_pt_clause(changes: &[Modification], plural: bool) -> Option<String> {
     let mut sp: Option<i64> = None;
     let mut st: Option<i64> = None;
     for c in changes {
         match c {
-            Modification::SetPower(Count::Literal(n)) => sp = Some(i64::from(*n)),
-            Modification::SetToughness(Count::Literal(n)) => st = Some(i64::from(*n)),
+            Modification::Power(NumericOp::Set(Count::Literal(n))) => sp = Some(i64::from(*n)),
+            Modification::Toughness(NumericOp::Set(Count::Literal(n))) => st = Some(i64::from(*n)),
             _ => {}
         }
     }

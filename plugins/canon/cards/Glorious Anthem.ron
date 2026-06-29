@@ -9,6 +9,6 @@ Normal(
     Enchantment,
   ],
   abilities: [
-    Static(effects: [Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), changes: [AddPower(1), AddToughness(1)])]),
+    Static(effects: [Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), changes: [Power(Up(1)), Toughness(Up(1))])]),
   ],
 )

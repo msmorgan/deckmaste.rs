@@ -171,8 +171,8 @@ fn one_shot_pump_expires_at_cleanup() {
         controller: PlayerId(0),
         scope: ScopeResolved::Locked(vec![bear]),
         changes: vec![
-            Modification::AddPower(Count::Literal(3)),
-            Modification::AddToughness(Count::Literal(3)),
+            Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(3))),
+            Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(3))),
         ],
         duration: Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
         is_cda: false,
@@ -205,8 +205,8 @@ fn negative_modify_lowers_power_and_toughness() {
         controller: PlayerId(0),
         scope: ScopeResolved::Locked(vec![bear]),
         changes: vec![
-            Modification::SubtractPower(Count::Literal(1)),
-            Modification::SubtractToughness(Count::Literal(1)),
+            Modification::Power(deckmaste_core::NumericOp::Down(Count::Literal(1))),
+            Modification::Toughness(deckmaste_core::NumericOp::Down(Count::Literal(1))),
         ],
         duration: Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
         is_cda: false,
@@ -450,7 +450,7 @@ fn data_driven_plus_one_counter_pumps() {
 
 /// [CR#122.1b,613.1f]: a KEYWORD counter confers its keyword via the SAME
 /// data-driven mechanism as a +1/+1 counter — a `Continuous` boost, only the
-/// `Modification` differs (`GainAbility(Keyword(Flying))` vs `AddPower`). A
+/// `Modification` differs (`GainAbility(Keyword(Flying))` vs `Power(Up)`). A
 /// `FlyingCounter` makes its bearer fly (layer 6).
 #[test]
 fn keyword_counter_confers_its_keyword() {
@@ -633,7 +633,9 @@ fn dependency_orders_dependent_effect_after_its_dependency() {
         scope: ScopeResolved::Floating(Filter::Characteristic(CharacteristicFilter::Type(
             Type::Creature,
         ))),
-        changes: vec![Modification::AddCardTypes(vec![Type::Enchantment])],
+        changes: vec![Modification::CardTypes(deckmaste_core::CollectionOp::Add(
+            Type::Enchantment,
+        ))],
         duration: Duration::EndOfGame,
         is_cda: false,
     });
@@ -644,7 +646,9 @@ fn dependency_orders_dependent_effect_after_its_dependency() {
         scope: ScopeResolved::Floating(Filter::Characteristic(CharacteristicFilter::Type(
             Type::Enchantment,
         ))),
-        changes: vec![Modification::AddCardTypes(vec![Type::Artifact])],
+        changes: vec![Modification::CardTypes(deckmaste_core::CollectionOp::Add(
+            Type::Artifact,
+        ))],
         duration: Duration::EndOfGame,
         is_cda: false,
     });
@@ -680,7 +684,9 @@ fn independent_effects_keep_timestamp_order() {
         timestamp: Timestamp(1_000),
         controller: PlayerId(0),
         scope: ScopeResolved::Locked(vec![bear]),
-        changes: vec![Modification::SetColors(vec![Color::Red])],
+        changes: vec![Modification::Colors(deckmaste_core::CollectionOp::Set(
+            vec![Color::Red],
+        ))],
         duration: Duration::EndOfGame,
         is_cda: false,
     });
@@ -688,7 +694,9 @@ fn independent_effects_keep_timestamp_order() {
         timestamp: Timestamp(2_000),
         controller: PlayerId(0),
         scope: ScopeResolved::Locked(vec![bear]),
-        changes: vec![Modification::SetColors(vec![Color::Blue])],
+        changes: vec![Modification::Colors(deckmaste_core::CollectionOp::Set(
+            vec![Color::Blue],
+        ))],
         duration: Duration::EndOfGame,
         is_cda: false,
     });
@@ -729,7 +737,9 @@ fn dependency_loop_falls_back_to_timestamp() {
         scope: ScopeResolved::Floating(Filter::Characteristic(CharacteristicFilter::Type(
             Type::Creature,
         ))),
-        changes: vec![Modification::AddCardTypes(vec![Type::Enchantment])],
+        changes: vec![Modification::CardTypes(deckmaste_core::CollectionOp::Add(
+            Type::Enchantment,
+        ))],
         duration: Duration::EndOfGame,
         is_cda: false,
     });
@@ -740,7 +750,9 @@ fn dependency_loop_falls_back_to_timestamp() {
         scope: ScopeResolved::Floating(Filter::Characteristic(CharacteristicFilter::Type(
             Type::Enchantment,
         ))),
-        changes: vec![Modification::AddCardTypes(vec![Type::Creature])],
+        changes: vec![Modification::CardTypes(deckmaste_core::CollectionOp::Add(
+            Type::Creature,
+        ))],
         duration: Duration::EndOfGame,
         is_cda: false,
     });

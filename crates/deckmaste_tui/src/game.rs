@@ -53,7 +53,7 @@ pub fn build_game() -> Result<GameState> {
     counter_decls.extend(wizards.counters.clone());
 
     // Subtype registry ([CR#205.3]): the engine resolves a layer-4
-    // `Add/SetSubtypes` modification's bare `Ident` names against this map.
+    // `Subtypes(...)` modification's bare `Ident` names against this map.
     // Last plugin wins, mirroring `counter_decls`.
     let mut subtypes = std::collections::HashMap::new();
     subtypes.extend(canon.subtypes.clone());

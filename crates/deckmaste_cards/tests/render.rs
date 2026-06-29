@@ -485,8 +485,8 @@ fn renders_scope_of_singular() {
             effects: vec![StaticEffect::Modify {
                 of: Scope::Of(Reference::This),
                 changes: vec![
-                    Modification::AddPower(Count::Literal(1)),
-                    Modification::AddToughness(Count::Literal(1)),
+                    Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(1))),
+                    Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(1))),
                 ],
             }],
             characteristic_defining: false,
@@ -520,8 +520,8 @@ fn renders_aura_host_pump() {
             effects: vec![StaticEffect::Modify {
                 of: Scope::Of(Reference::AttachHostOf(Box::new(Reference::This))),
                 changes: vec![
-                    Modification::AddPower(Count::Literal(2)),
-                    Modification::AddToughness(Count::Literal(2)),
+                    Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(2))),
+                    Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(2))),
                 ],
             }],
             characteristic_defining: false,
@@ -567,8 +567,10 @@ fn renders_continuously_pump_until_eot() {
                     effect: Box::new(StaticEffect::Modify {
                         of: Scope::Of(Reference::Target(0)),
                         changes: vec![
-                            Modification::AddPower(Count::Literal(3)),
-                            Modification::AddToughness(Count::Literal(3)),
+                            Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(3))),
+                            Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(
+                                3,
+                            ))),
                         ],
                     }),
                     duration: Duration::FixedUntil(TurnMarker::EndOfTurn),

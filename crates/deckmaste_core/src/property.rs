@@ -23,8 +23,8 @@ pub enum Property {
     /// `GainAbility`, colors, types, controller, …), so "any layer is
     /// conferrable". NOT an ability, so it is inherently strip-immune — a
     /// +1/+1 counter still pumps under `LoseAllAbilities`. A +1/+1 counter
-    /// confers `Continuous(of: Of(This), changes: [AddPower(CounterCount(This,
-    /// P1P1Counter)), …])` directly, rather than an ability that grants a
+    /// confers `Continuous(of: Of(This), changes: [Power(Up(CounterCount(This,
+    /// P1P1Counter))), …])` directly, rather than an ability that grants a
     /// boost.
     Continuous {
         of: Scope,

@@ -1564,8 +1564,8 @@ mod tests {
             Some((
                 String::new(),
                 "Continuously(effect: Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), \
-                 changes: [AddPower(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), \
-                 AddToughness(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))]), \
+                 changes: [Power(Up(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))), \
+                 Toughness(Up(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))))]), \
                  duration: FixedUntil(EndOfTurn))".to_owned()
             ))
         );
@@ -1579,8 +1579,8 @@ mod tests {
             Some((
                 String::new(),
                 "Continuously(effect: Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), \
-                 changes: [AddPower(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), \
-                 AddToughness(0)]), \
+                 changes: [Power(Up(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))), \
+                 Toughness(Up(0))]), \
                  duration: FixedUntil(EndOfTurn))".to_owned()
             ))
         );

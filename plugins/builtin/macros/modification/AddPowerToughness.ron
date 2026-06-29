@@ -1,7 +1,7 @@
 // "AddPowerToughness" = the change-bundling keystone ([CR#613.4c] layer 7c): a
 // single `Modification`-kind macro standing in a `changes: [...]` slot that
 // expands to the +N/+M power-and-toughness boost the pump/anthem family writes
-// inline as `[AddPower(N), AddToughness(M)]`. A macro expands to ONE value, so
+// inline as `[Power(Up(N)), Toughness(Up(M))]`. A macro expands to ONE value, so
 // the two ops are bundled in a `Several`; `Modification::flatten` splices that
 // away at the engine boundary, so the layer pass sees the same two flat ops as
 // before. Usage: AddPowerToughness(p, t) — e.g. AddPowerToughness(3, 3) for the
@@ -9,12 +9,12 @@
 //
 // Both params are a `Count` (the bare numeral reads as `Count::Literal`, a
 // dynamic count as `CountOf`/`StatOf`). NEGATIVE magnitudes are NOT this macro:
-// "-N/-N" debuffs and mixed "+N/-M" use `Subtract*` ops, which this macro can't
+// "-N/-N" debuffs and mixed "+N/-M" use `Down` ops, which this macro can't
 // express — the emitter keeps the inline pair for those.
 (
     name: "AddPowerToughness",
     template: "gets +${0}/+${1}",
     kinds: [Modification],
     params: [Count, Count],
-    body: Several([AddPower(Param(0)), AddToughness(Param(1))]),
+    body: Several([Power(Up(Param(0))), Toughness(Up(Param(1)))]),
 )

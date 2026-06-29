@@ -10,7 +10,7 @@ Normal(
   ],
   abilities: [
     Static(effects: [
-      Modify(of: Matching(Creature), changes: [SetColors([Black])]),
+      Modify(of: Matching(Creature), changes: [Colors(Set([Black]))]),
     ]),
   ],
 )

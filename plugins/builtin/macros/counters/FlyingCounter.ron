@@ -1,7 +1,7 @@
 // A keyword counter ([CR#122.1b]): a flying counter makes its bearer gain
 // flying (layer 6, [CR#613.1f]). The SAME data-driven shape as a +1/+1
 // counter — a `Continuous` boost — only the `Modification` differs
-// (`GainAbility` instead of `AddPower`). The other [CR#122.1b] keyword counters
+// (`GainAbility` instead of `Power(Up)`). The other [CR#122.1b] keyword counters
 // (first strike, deathtouch, vigilance, …) are the identical pattern with a
 // different keyword. Strip-immune, like every counter bearing.
 (

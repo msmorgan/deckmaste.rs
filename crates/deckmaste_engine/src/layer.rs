@@ -12,6 +12,7 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use deckmaste_core::Ability;
+use deckmaste_core::CollectionOp;
 use deckmaste_core::Color;
 use deckmaste_core::Count;
 use deckmaste_core::Duration;
@@ -20,6 +21,7 @@ use deckmaste_core::Ident;
 use deckmaste_core::Int;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::Modification;
+use deckmaste_core::NumericOp;
 use deckmaste_core::Scope;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::Subtype;
@@ -281,43 +283,39 @@ fn layer_of(m: &Modification, is_cda: bool) -> Option<Layer> {
         // real word-replacement engine exists (its own todo).
         Modification::SetText(_) => Some(Layer::L3),
         // Layer 4: type-changing ([CR#613.1d]).
-        Modification::SetCardTypes(_)
-        | Modification::AddCardTypes(_)
-        | Modification::SetSubtypes(_)
-        | Modification::AddSubtypes(_)
-        | Modification::SetSupertypes(_)
-        | Modification::AddSupertypes(_)
+        Modification::CardTypes(_)
+        | Modification::Subtypes(_)
+        | Modification::Supertypes(_)
         | Modification::AllCreatureTypes
         | Modification::BecomeBasicLandType(_) => Some(Layer::L4),
         // Layer 5: color-changing ([CR#613.1e]).
-        Modification::SetColors(_) | Modification::AddColors(_) => Some(Layer::L5),
+        Modification::Colors(_) => Some(Layer::L5),
         // Layer 6: ability-adding/removing ([CR#613.1f]).
         Modification::GainAbility(_)
         | Modification::LoseAbility(_)
         | Modification::LoseAllAbilities
         | Modification::CantHaveAbility(_) => Some(Layer::L6),
-        // Layer 7a or 7b: SetPower/SetToughness ([CR#613.4a,613.4b]).
-        // CDAs ([CR#604.3]) apply in 7a; all other set-ops apply in 7b.
-        Modification::SetPower(_) | Modification::SetToughness(_) => {
-            if is_cda {
-                Some(Layer::L7a)
-            } else {
-                Some(Layer::L7b)
+        // Layer 7a/7b/7c: power/toughness ([CR#613.4]). A `Set` base op is 7a
+        // for a CDA ([CR#604.3]), else 7b ([CR#613.4a,613.4b]); `Up`/`Down`
+        // modifications are 7c ([CR#613.4c]).
+        Modification::Power(op) | Modification::Toughness(op) => match op {
+            NumericOp::Set(_) => {
+                if is_cda {
+                    Some(Layer::L7a)
+                } else {
+                    Some(Layer::L7b)
+                }
             }
-        }
-        // Layer 7c: P/T modification ([CR#613.4c]).
-        Modification::AddPower(_)
-        | Modification::AddToughness(_)
-        | Modification::SubtractPower(_)
-        | Modification::SubtractToughness(_) => Some(Layer::L7c),
+            NumericOp::Up(_) | NumericOp::Down(_) => Some(Layer::L7c),
+        },
         // Layer 7d: switch ([CR#613.4d]).
         Modification::SwitchPowerToughness => Some(Layer::L7d),
         // No layer. Loyalty/defense are not [CR#613] characteristics here;
         // `Several`/`Expanded` are change-bundling expansion artifacts that
         // `Modification::flatten` (run at the `gather` boundary) splices away
         // and strips before the layer pass, so neither reaches it — defensive.
-        Modification::SetBaseLoyalty(_)
-        | Modification::SetBaseDefense(_)
+        Modification::BaseLoyalty(_)
+        | Modification::BaseDefense(_)
         | Modification::Several(_)
         | Modification::Expanded(_) => None,
     }
@@ -372,17 +370,21 @@ fn bake_counter_counts(
             other => other.clone(),
         }
     };
+    // Bake the `Count` each numeric op carries (Set/Up/Down all hold one).
+    let bake_op = |op: &NumericOp| -> NumericOp {
+        match op {
+            NumericOp::Set(n) => NumericOp::Set(bake(n)),
+            NumericOp::Up(n) => NumericOp::Up(bake(n)),
+            NumericOp::Down(n) => NumericOp::Down(bake(n)),
+        }
+    };
     changes
         .iter()
         .map(|m| match m {
-            Modification::AddPower(n) => Modification::AddPower(bake(n)),
-            Modification::AddToughness(n) => Modification::AddToughness(bake(n)),
-            Modification::SubtractPower(n) => Modification::SubtractPower(bake(n)),
-            Modification::SubtractToughness(n) => Modification::SubtractToughness(bake(n)),
-            Modification::SetPower(n) => Modification::SetPower(bake(n)),
-            Modification::SetToughness(n) => Modification::SetToughness(bake(n)),
-            Modification::SetBaseLoyalty(n) => Modification::SetBaseLoyalty(bake(n)),
-            Modification::SetBaseDefense(n) => Modification::SetBaseDefense(bake(n)),
+            Modification::Power(op) => Modification::Power(bake_op(op)),
+            Modification::Toughness(op) => Modification::Toughness(bake_op(op)),
+            Modification::BaseLoyalty(op) => Modification::BaseLoyalty(bake_op(op)),
+            Modification::BaseDefense(op) => Modification::BaseDefense(bake_op(op)),
             other => other.clone(),
         })
         .collect()
@@ -1046,57 +1048,53 @@ fn apply(
     watcher: Option<ObjectSource>,
 ) {
     match m {
-        // --- Layer 7a / 7b: set base P/T ---
-        Modification::SetPower(n) => {
-            let v = eval_count(n, state, working, watcher);
+        // --- Layer 7a/7b/7c: power / toughness ([CR#613.4]) ---
+        // `Set` overwrites the base (7a/7b); `Up`/`Down` modify an EXISTING
+        // value (7c) — a 7c op never materializes a P/T on a P/T-less object (a
+        // +1/+1 counter or a pump on a non-creature does nothing P/T-wise,
+        // [CR#122.1a,613.4c]). The count is evaluated against `working`
+        // immutably before the `get_mut`.
+        Modification::Power(op) => {
+            let v = eval_count(numeric_amount(op), state, working, watcher);
             if let Some(d) = working.get_mut(&obj_id) {
-                d.characteristics.power = Some(v);
+                apply_numeric(op, &mut d.characteristics.power, v);
             }
         }
-        Modification::SetToughness(n) => {
-            let v = eval_count(n, state, working, watcher);
+        Modification::Toughness(op) => {
+            let v = eval_count(numeric_amount(op), state, working, watcher);
             if let Some(d) = working.get_mut(&obj_id) {
-                d.characteristics.toughness = Some(v);
-            }
-        }
-        // --- Layer 7c: add/subtract P/T ---
-        // [CR#613.4c]: a 7c add/subtract modifies an EXISTING power/toughness —
-        // it never materializes one on a P/T-less object (a +1/+1 counter or a
-        // pump on a non-creature permanent does nothing P/T-wise, [CR#122.1a]).
-        Modification::AddPower(n) => {
-            let v = eval_count(n, state, working, watcher);
-            if let Some(d) = working.get_mut(&obj_id)
-                && let Some(p) = d.characteristics.power
-            {
-                d.characteristics.power = Some(p + v);
-            }
-        }
-        Modification::AddToughness(n) => {
-            let v = eval_count(n, state, working, watcher);
-            if let Some(d) = working.get_mut(&obj_id)
-                && let Some(t) = d.characteristics.toughness
-            {
-                d.characteristics.toughness = Some(t + v);
-            }
-        }
-        Modification::SubtractPower(n) => {
-            let v = eval_count(n, state, working, watcher);
-            if let Some(d) = working.get_mut(&obj_id)
-                && let Some(p) = d.characteristics.power
-            {
-                d.characteristics.power = Some(p - v);
-            }
-        }
-        Modification::SubtractToughness(n) => {
-            let v = eval_count(n, state, working, watcher);
-            if let Some(d) = working.get_mut(&obj_id)
-                && let Some(t) = d.characteristics.toughness
-            {
-                d.characteristics.toughness = Some(t - v);
+                apply_numeric(op, &mut d.characteristics.toughness, v);
             }
         }
         // Non-count ops: borrow the entry mutably and mutate in place.
         m => apply_static(m, effect_controller, state, working, obj_id),
+    }
+}
+
+/// The `Count` a numeric op evaluates — `Set`/`Up`/`Down` all carry exactly
+/// one.
+fn numeric_amount(op: &NumericOp) -> &Count {
+    match op {
+        NumericOp::Set(n) | NumericOp::Up(n) | NumericOp::Down(n) => n,
+    }
+}
+
+/// Apply an already-evaluated numeric op (`v` = its count) to one optional stat
+/// field. `Set` overwrites unconditionally (layer 7a/7b base set); `Up`/`Down`
+/// modify only an EXISTING value (layer 7c, [CR#613.4c]).
+fn apply_numeric(op: &NumericOp, field: &mut Option<Int>, v: Int) {
+    match op {
+        NumericOp::Set(_) => *field = Some(v),
+        NumericOp::Up(_) => {
+            if let Some(cur) = field {
+                *field = Some(*cur + v);
+            }
+        }
+        NumericOp::Down(_) => {
+            if let Some(cur) = field {
+                *field = Some(*cur - v);
+            }
+        }
     }
 }
 
@@ -1135,60 +1133,61 @@ fn apply_static(
     let c = &mut d.characteristics;
     match m {
         // The count-bearing P/T ops are handled in `apply`; never reach here.
-        Modification::SetPower(_)
-        | Modification::SetToughness(_)
-        | Modification::AddPower(_)
-        | Modification::AddToughness(_)
-        | Modification::SubtractPower(_)
-        | Modification::SubtractToughness(_) => {
+        Modification::Power(_) | Modification::Toughness(_) => {
             unreachable!("count-bearing P/T ops are handled in `apply`")
         }
         // --- Layer 7d: switch ---
         Modification::SwitchPowerToughness => std::mem::swap(&mut c.power, &mut c.toughness),
         // --- Layer 4: type-changing ([CR#613.1d]) ---
-        Modification::AddCardTypes(ts) => {
-            let types = Arc::make_mut(&mut c.card_types);
-            for t in ts {
+        // `Set` overwrites the whole list; `Add`/`Remove` affect one element.
+        Modification::CardTypes(op) => match op {
+            CollectionOp::Set(ts) => c.card_types = Arc::new(ts.clone()),
+            CollectionOp::Add(t) => {
+                let types = Arc::make_mut(&mut c.card_types);
                 if !types.contains(t) {
                     types.push(*t);
                 }
             }
-        }
-        Modification::SetCardTypes(ts) => c.card_types = Arc::new(ts.clone()),
-        Modification::AddSupertypes(ss) => {
-            let supertypes = Arc::make_mut(&mut c.supertypes);
-            for s in ss {
+            CollectionOp::Remove(t) => Arc::make_mut(&mut c.card_types).retain(|x| x != t),
+        },
+        Modification::Supertypes(op) => match op {
+            CollectionOp::Set(ss) => c.supertypes = Arc::new(ss.clone()),
+            CollectionOp::Add(s) => {
+                let supertypes = Arc::make_mut(&mut c.supertypes);
                 if !supertypes.contains(s) {
                     supertypes.push(*s);
                 }
             }
-        }
-        Modification::SetSupertypes(ss) => c.supertypes = Arc::new(ss.clone()),
+            CollectionOp::Remove(s) => Arc::make_mut(&mut c.supertypes).retain(|x| x != s),
+        },
         // --- Layer 4: subtype-changing ([CR#613.1d]) ---
-        // `Add/SetSubtypes` carry bare `Ident` names; `Characteristics::subtypes`
+        // The op's elements are bare `Ident` names; `Characteristics::subtypes`
         // holds full `Subtype` structs (with `confers`/`types`). Resolve each name
         // through the engine's subtype registry (`state.subtypes`, populated from
         // the loaded plugin), so a granted subtype's inherent rules ride along —
         // e.g. a basic land type's mana ability ([CR#305.6]). An `Ident` absent
         // from the registry applies as a minimal name-only `Subtype` (no `confers`,
         // no `types`): the type still applies, it just carries no inherent rules.
-        Modification::AddSubtypes(names) => {
-            let subtypes = Arc::make_mut(&mut c.subtypes);
-            for name in names {
+        Modification::Subtypes(op) => match op {
+            CollectionOp::Set(names) => {
+                c.subtypes = Arc::new(
+                    names
+                        .iter()
+                        .map(|name| resolve_subtype(state, name))
+                        .collect(),
+                );
+            }
+            CollectionOp::Add(name) => {
+                let subtypes = Arc::make_mut(&mut c.subtypes);
                 let resolved = resolve_subtype(state, name);
                 if !subtypes.iter().any(|s| s.name == resolved.name) {
                     subtypes.push(resolved);
                 }
             }
-        }
-        Modification::SetSubtypes(names) => {
-            c.subtypes = Arc::new(
-                names
-                    .iter()
-                    .map(|name| resolve_subtype(state, name))
-                    .collect(),
-            );
-        }
+            CollectionOp::Remove(name) => {
+                Arc::make_mut(&mut c.subtypes).retain(|s| s.name != *name);
+            }
+        },
         // [CR#305.7] deferred: replace land subtypes + strip abilities + grant basic
         // mana ability (no fixture yet). Do NOT implement the mana-ability construction.
         Modification::BecomeBasicLandType(_) => {}
@@ -1198,18 +1197,19 @@ fn apply_static(
         // the declared creature-type registry threaded into the layer engine;
         // a changeling deriving as typeless-for-now is strictly better than a
         // panic, and matches the sibling deferred stubs in this match
-        // (`SetSubtypes`/`BecomeBasicLandType`). Do NOT implement the fill here.
+        // (`Subtypes`/`BecomeBasicLandType`). Do NOT implement the fill here.
         Modification::AllCreatureTypes => {}
         // --- Layer 5: color-changing ([CR#613.1e]) ---
-        Modification::AddColors(cl) => {
-            let colors = Arc::make_mut(&mut c.colors);
-            for x in cl {
+        Modification::Colors(op) => match op {
+            CollectionOp::Set(cl) => c.colors = Arc::new(cl.clone()),
+            CollectionOp::Add(x) => {
+                let colors = Arc::make_mut(&mut c.colors);
                 if !colors.contains(x) {
                     colors.push(*x);
                 }
             }
-        }
-        Modification::SetColors(cl) => c.colors = Arc::new(cl.clone()),
+            CollectionOp::Remove(x) => Arc::make_mut(&mut c.colors).retain(|y| y != x),
+        },
         // --- Layer 6: ability-adding/removing ([CR#613.1f]) ---
         // `Arc::make_mut` realizes the copy-on-write: the shared per-card base
         // list is cloned only here, only for the objects an effect touches.
@@ -1251,7 +1251,7 @@ fn apply_static(
         // layer-3 position in the pass (so dependency ordering sees it).
         Modification::SetText(_) => {}
         // --- No [CR#613] layer ---
-        Modification::SetBaseLoyalty(_) | Modification::SetBaseDefense(_) => {
+        Modification::BaseLoyalty(_) | Modification::BaseDefense(_) => {
             // Loyalty/defense are not characteristics here; no layer applies.
         }
         // `Modification::flatten` at the `gather` boundary splices every
@@ -1580,11 +1580,13 @@ mod tests {
 
     use deckmaste_core::Ability;
     use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::CollectionOp;
     use deckmaste_core::Count;
     use deckmaste_core::Duration;
     use deckmaste_core::Filter;
     use deckmaste_core::KeywordAbility;
     use deckmaste_core::Modification;
+    use deckmaste_core::NumericOp;
     use deckmaste_core::Scope;
     use deckmaste_core::StatValue;
     use deckmaste_core::StaticAbility;
@@ -1626,8 +1628,8 @@ mod tests {
                     Type::Creature,
                 ))),
                 changes: vec![
-                    Modification::AddPower(Count::Literal(2)),
-                    Modification::AddToughness(Count::Literal(2)),
+                    Modification::Power(NumericOp::Up(Count::Literal(2))),
+                    Modification::Toughness(NumericOp::Up(Count::Literal(2))),
                 ],
             }],
             characteristic_defining: false,
@@ -1860,8 +1862,8 @@ mod tests {
             effects: vec![StaticEffect::Modify {
                 of: Scope::Of(Reference::AttachHostOf(Box::new(Reference::This))),
                 changes: vec![
-                    Modification::AddPower(Count::Literal(n)),
-                    Modification::AddToughness(Count::Literal(n)),
+                    Modification::Power(NumericOp::Up(Count::Literal(n))),
+                    Modification::Toughness(NumericOp::Up(Count::Literal(n))),
                 ],
             }],
             characteristic_defining: false,
@@ -1962,7 +1964,7 @@ mod tests {
             condition: None,
             effects: vec![StaticEffect::Modify {
                 of: Scope::These(vec![Reference::This, Reference::This]),
-                changes: vec![Modification::AddPower(Count::Literal(1))],
+                changes: vec![Modification::Power(NumericOp::Up(Count::Literal(1)))],
             }],
             characteristic_defining: false,
         });
@@ -2040,13 +2042,13 @@ mod tests {
         );
     }
 
-    /// Devoid runs the IMPLEMENTED `SetColors([])` arm (not a panic): a devoid
-    /// permanent derives colorless ([CR#604.3,105.2c]). This is the intended,
-    /// correct behavior un-gated alongside Changeling by Stage 3.
+    /// Devoid runs the IMPLEMENTED `Colors(Set([]))` arm (not a panic): a
+    /// devoid permanent derives colorless ([CR#604.3,105.2c]). This is the
+    /// intended, correct behavior un-gated alongside Changeling by Stage 3.
     #[test]
     fn devoid_derives_colorless() {
         // Havoc Sower: a Black creature with `Keyword(Devoid)` — Devoid's CDA
-        // `Modify(of: Of(This), changes: [SetColors([])])` makes it colorless.
+        // `Modify(of: Of(This), changes: [Colors(Set([]))])` makes it colorless.
         let (state, id) = wizards_permanent("Havoc Sower");
 
         let view = state.layers();
@@ -2114,8 +2116,8 @@ mod tests {
                     )))),
                 ])),
                 changes: vec![
-                    Modification::AddPower(Count::Literal(1)),
-                    Modification::AddToughness(Count::Literal(1)),
+                    Modification::Power(NumericOp::Up(Count::Literal(1))),
+                    Modification::Toughness(NumericOp::Up(Count::Literal(1))),
                 ],
             }],
             characteristic_defining: false,
@@ -2185,8 +2187,8 @@ mod tests {
                 )))),
             ])),
             changes: vec![
-                Modification::AddPower(Count::Literal(2)),
-                Modification::AddToughness(Count::Literal(2)),
+                Modification::Power(NumericOp::Up(Count::Literal(2))),
+                Modification::Toughness(NumericOp::Up(Count::Literal(2))),
             ],
             duration: Duration::EndOfGame,
             is_cda: false,
@@ -2212,7 +2214,7 @@ mod tests {
 
     /// A self-CDA ([CR#604.3]) that SETS its own P/T to the number of creatures
     /// on the battlefield (the Tarmogoyf/creature-count pattern). Authored as a
-    /// 7a `SetPower`/`SetToughness(CountOf(Creature))` scoped `Of(This)`. The
+    /// 7a `Power`/`Toughness(Set(CountOf(Creature)))` scoped `Of(This)`. The
     /// `characteristic_defining` flag routes both ops to layer 7a.
     fn creature_count_cda() -> Ability {
         use deckmaste_core::Reference;
@@ -2223,8 +2225,8 @@ mod tests {
             effects: vec![StaticEffect::Modify {
                 of: Scope::Of(Reference::This),
                 changes: vec![
-                    Modification::SetPower(count.clone()),
-                    Modification::SetToughness(count),
+                    Modification::Power(NumericOp::Set(count.clone())),
+                    Modification::Toughness(NumericOp::Set(count)),
                 ],
             }],
             characteristic_defining: true,
@@ -2270,8 +2272,8 @@ mod tests {
             effects: vec![StaticEffect::Modify {
                 of: Scope::Of(Reference::This),
                 changes: vec![
-                    Modification::AddPower(count.clone()),
-                    Modification::AddToughness(count),
+                    Modification::Power(NumericOp::Up(count.clone())),
+                    Modification::Toughness(NumericOp::Up(count)),
                 ],
             }],
             characteristic_defining: false,
@@ -2322,21 +2324,21 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
-    // layers-layer-4-subtypes: layer-4 subtype-changing ([CR#613.1d]). An
-    // `Add/SetSubtypes` modification carries bare `Ident` names; the engine
+    // layers-layer-4-subtypes: layer-4 subtype-changing ([CR#613.1d]). A
+    // `Subtypes(...)` modification carries bare `Ident` names; the engine
     // resolves each through the injected subtype registry (`state.subtypes`),
     // so a granted subtype's `confers` ride along.
     // -----------------------------------------------------------------------
 
-    /// Lock an `Add/SetSubtypes` (layer-4) continuous effect carrying the named
+    /// Lock `Subtypes(...)` (layer-4) continuous changes carrying the named
     /// subtypes onto `id`.
-    fn lock_subtype_mod(state: &mut GameState, id: ObjectId, change: Modification) {
+    fn lock_subtype_mod(state: &mut GameState, id: ObjectId, changes: Vec<Modification>) {
         let timestamp = state.objects.next_timestamp();
         state.continuous.push(ContinuousEffect {
             timestamp,
             controller: PlayerId(0),
             scope: ScopeResolved::Locked(vec![id]),
-            changes: vec![change],
+            changes,
             duration: Duration::EndOfGame,
             is_cda: false,
         });
@@ -2362,7 +2364,7 @@ mod tests {
         );
     }
 
-    /// [CR#613.1d]: `AddSubtypes([Sliver])` on a creature adds the registered
+    /// [CR#613.1d]: `Subtypes(Add(Sliver))` on a creature adds the registered
     /// `Sliver` subtype to its derived list ("becomes a Sliver in addition to
     /// its other types"), and the registry entry's `confers` ride along (so a
     /// downstream consumer sees the inherent rule the subtype membership
@@ -2376,7 +2378,7 @@ mod tests {
         lock_subtype_mod(
             &mut state,
             id,
-            Modification::AddSubtypes(vec!["Sliver".into()]),
+            vec![Modification::Subtypes(CollectionOp::Add("Sliver".into()))],
         );
 
         let view = state.layers();
@@ -2398,9 +2400,9 @@ mod tests {
         );
     }
 
-    /// [CR#613.1d]: `AddSubtypes` is additive — it keeps the printed subtype
-    /// ("in addition to its other types") and dedups, so granting a subtype the
-    /// object already prints does not duplicate it.
+    /// [CR#613.1d]: `Subtypes(Add(...))` is additive — it keeps the printed
+    /// subtype ("in addition to its other types") and dedups, so granting a
+    /// subtype the object already prints does not duplicate it.
     #[test]
     fn add_subtypes_is_additive_and_dedups() {
         // A creature that already prints the "Goblin" subtype.
@@ -2410,8 +2412,11 @@ mod tests {
             &mut state,
             id,
             // Add Sliver AND a redundant Goblin (already printed): Goblin must
-            // not be duplicated.
-            Modification::AddSubtypes(vec!["Sliver".into(), "Goblin".into()]),
+            // not be duplicated. Each `Add` is one element ([CR#613.1d]).
+            vec![
+                Modification::Subtypes(CollectionOp::Add("Sliver".into())),
+                Modification::Subtypes(CollectionOp::Add("Goblin".into())),
+            ],
         );
 
         let view = state.layers();
@@ -2430,9 +2435,9 @@ mod tests {
         );
     }
 
-    /// [CR#613.1d]: `SetSubtypes` REPLACES the whole printed subtype list (the
-    /// "is a … and is no longer …" / basic-land-type pattern), resolving each
-    /// name through the registry.
+    /// [CR#613.1d]: `Subtypes(Set(...))` REPLACES the whole printed subtype list
+    /// (the "is a … and is no longer …" / basic-land-type pattern), resolving
+    /// each name through the registry.
     #[test]
     fn set_subtypes_replaces_printed_list() {
         // Printed Goblin → set to Sliver only.
@@ -2441,7 +2446,9 @@ mod tests {
         lock_subtype_mod(
             &mut state,
             id,
-            Modification::SetSubtypes(vec!["Sliver".into()]),
+            vec![Modification::Subtypes(CollectionOp::Set(vec![
+                "Sliver".into(),
+            ]))],
         );
 
         let view = state.layers();
@@ -2464,7 +2471,7 @@ mod tests {
         lock_subtype_mod(
             &mut state,
             id,
-            Modification::AddSubtypes(vec!["Eldrazi".into()]),
+            vec![Modification::Subtypes(CollectionOp::Add("Eldrazi".into()))],
         );
 
         let view = state.layers();
@@ -2500,8 +2507,8 @@ mod tests {
             effects: vec![StaticEffect::Modify {
                 of: Scope::Of(Reference::This),
                 changes: vec![
-                    Modification::AddPower(Count::Literal(1)),
-                    Modification::AddToughness(Count::Literal(1)),
+                    Modification::Power(NumericOp::Up(Count::Literal(1))),
+                    Modification::Toughness(NumericOp::Up(Count::Literal(1))),
                 ],
             }],
             characteristic_defining: false,

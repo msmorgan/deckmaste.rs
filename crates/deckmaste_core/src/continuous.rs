@@ -58,41 +58,96 @@ pub enum Scope {
     Matching(Filter),
 }
 
+/// A shared op for the NUMERIC characteristic axes — power, toughness, base
+/// defense, base loyalty. `Set` overwrites the base value (layer 7b, or 7a when
+/// CDA-flagged), `Up`/`Down` are the ±N modifications (layer 7c)
+/// ([CR#613.4a..613.4c]). The op↔axis pairing is the soundness gate: a numeric
+/// axis variant (`Modification::Power`, …) takes a `NumericOp`, recovering
+/// Idris's `Numeric` type-class gate (`idris/src/Core.idr`) structurally.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum NumericOp {
+    /// Overwrite the base value — layer 7b, or 7a when CDA-flagged
+    /// ([CR#613.4a,613.4b]).
+    Set(Count),
+    /// "+N" ([CR#613.4c], layer 7c).
+    Up(Count),
+    /// "−N" ([CR#613.4c], layer 7c).
+    Down(Count),
+}
+
+/// A shared op for the SET-shaped characteristic axes — colors, card types,
+/// subtypes, supertypes. `Set` overwrites the whole list; `Add`/`Remove`
+/// affect a SINGLE element ([CR#613.1d,613.1e]). The op↔axis pairing is the
+/// soundness gate: a collection axis variant (`Modification::Colors`, …) takes
+/// a `CollectionOp`, which has no `Up`/`Down`, recovering Idris's `Collection`
+/// type-class gate (`idris/src/Core.idr`) structurally.
+///
+/// Generic over the element type, so it can't `#[derive(Expand)]` (that derive
+/// rejects generics); the `Expand` impl is hand-written just below. serde's
+/// derive handles the generic fine.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum CollectionOp<T> {
+    /// Overwrite the whole list (layer 4 types / layer 5 colors).
+    Set(Vec<T>),
+    /// Add one element.
+    Add(T),
+    /// Remove one element.
+    Remove(T),
+}
+
+impl<T: Expand> Expand for CollectionOp<T> {
+    fn expand_all(self) -> Self {
+        match self {
+            CollectionOp::Set(v) => CollectionOp::Set(v.expand_all()),
+            CollectionOp::Add(t) => CollectionOp::Add(t.expand_all()),
+            CollectionOp::Remove(t) => CollectionOp::Remove(t.expand_all()),
+        }
+    }
+}
+
 /// A flat primitive characteristic-change op ([CR#613]). Layers are DERIVED
-/// from the op, never written: `Add*` stats → 7c, `Set*` stats → 7b (7a when
-/// CDA-flagged), `Switch` → 7d, types → 4, colors → 5, abilities → 6,
-/// controller → 2, text → 3 ([CR#613.1]). One effect's `changes` is a list
-/// because it can span layers applied to the same set ([CR#613.6]).
+/// from the op, never written: the numeric axes (`Power`/`Toughness`/…) carry a
+/// [`NumericOp`] whose `Up`/`Down` → 7c and `Set` → 7b (7a when CDA-flagged);
+/// the set-shaped axes (`Colors`/`CardTypes`/`Subtypes`/`Supertypes`) carry a
+/// [`CollectionOp`] → layer 4 (types) / 5 (colors); `SwitchPowerToughness` →
+/// 7d, abilities → 6, controller → 2, text → 3 ([CR#613.1]). One effect's
+/// `changes` is a list because it can span layers applied to the same set
+/// ([CR#613.6]).
+///
+/// The per-axis ops are factored into the two shared op enums ([`NumericOp`],
+/// [`CollectionOp`]) but the AXIS stays named at the variant level — a
+/// deliberately-partial unification of Idris's fully-unified `Alter
+/// (Characteristic) (ModificationOp)` (`idris/src/Core.idr`): the variant↔op
+/// pairing recovers the op↔axis soundness gate structurally (a `Colors` takes a
+/// `CollectionOp`, which has no `Up`, so "raise a color" is unrepresentable),
+/// while keeping RON readable (`Power(Up(1))`, `Colors(Add(Blue))`).
 ///
 /// `SupportsMacros` (not plain `Expand`) so a change-bundling macro can stand
 /// in a `changes: [...]` slot — the keystone being `AddPowerToughness(p, t)`,
-/// which expands to `Several([AddPower(p), AddToughness(t)])`. `Several` is the
-/// `Modification` analog of `Filter::AllOf`: a macro expands to ONE value, so a
-/// macro that must contribute several ops bundles them into a `Several`. Unlike
-/// `Filter::AllOf` (a conjunction the engine evaluates), `Several` is
+/// which expands to `Several([Power(Up(p)), Toughness(Up(t))])`. `Several` is
+/// the `Modification` analog of `Filter::AllOf`: a macro expands to ONE value,
+/// so a macro that must contribute several ops bundles them into a `Several`.
+/// Unlike `Filter::AllOf` (a conjunction the engine evaluates), `Several` is
 /// semantically inert — `changes` is already a flat, layer-spanning list
 /// ([CR#613.6]) — so it is flattened away once, at the engine boundary
 /// ([`Modification::flatten`]), and the engine layer loops never see it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Modification {
-    SetPower(Count),
-    AddPower(Count),
-    SetToughness(Count),
-    AddToughness(Count),
-    SubtractPower(Count),
-    SubtractToughness(Count),
+    /// Power ([CR#613.4]): `Set` base (7a/7b), `Up`/`Down` (7c).
+    Power(NumericOp),
+    /// Toughness ([CR#613.4]): `Set` base (7a/7b), `Up`/`Down` (7c).
+    Toughness(NumericOp),
     /// Switch power and toughness ([CR#613.4d]).
     SwitchPowerToughness,
-    SetColors(Vec<Color>),
-    AddColors(Vec<Color>),
-    SetCardTypes(Vec<Type>),
-    AddCardTypes(Vec<Type>),
+    /// Colors ([CR#613.1e], layer 5).
+    Colors(CollectionOp<Color>),
+    /// Card types ([CR#613.1d], layer 4).
+    CardTypes(CollectionOp<Type>),
     /// Subtypes by name (the class is derivable from the values — each card
-    /// type has its own closed subtype set, [CR#205.3b]).
-    SetSubtypes(Vec<Ident>),
-    AddSubtypes(Vec<Ident>),
-    SetSupertypes(Vec<Supertype>),
-    AddSupertypes(Vec<Supertype>),
+    /// type has its own closed subtype set, [CR#205.3b]); layer 4.
+    Subtypes(CollectionOp<Ident>),
+    /// Supertypes ([CR#613.1d], layer 4).
+    Supertypes(CollectionOp<Supertype>),
     /// Gain an ability ([CR#613.1f]). Boxed: `Ability` is the enum's largest
     /// variant by far, so indirection keeps `Modification` small.
     GainAbility(Box<Ability>),
@@ -110,19 +165,21 @@ pub enum Modification {
     /// open creature-type set) — an open-set subtype FILL, not a list op;
     /// layer 4, normally CDA-flagged.
     AllCreatureTypes,
-    /// Set base loyalty ([CR#306.5b..306.5c] — the printed-loyalty baseline
-    /// the counters start from; no 613 layer covers loyalty).
-    SetBaseLoyalty(Count),
-    /// Set base defense (battle).
-    SetBaseDefense(Count),
+    /// Base loyalty ([CR#306.5b..306.5c] — the printed-loyalty baseline the
+    /// counters start from; no 613 layer covers loyalty). Only `Set` is
+    /// meaningful today; the `NumericOp` shares the numeric op vocabulary.
+    BaseLoyalty(NumericOp),
+    /// Base defense (battle). Only `Set` is meaningful today; the `NumericOp`
+    /// shares the numeric op vocabulary.
+    BaseDefense(NumericOp),
     /// The [CR#305.7] bundle: replace land types ∧ lose printed abilities ∧
     /// gain the basic-land mana ability (Blood Moon). One intrinsic, not
     /// reachable from the plain `Set*` ops.
     BecomeBasicLandType(Vec<Ident>),
     /// A bundle of ops contributed by one macro invocation — the analog of
     /// `Filter::AllOf`. A macro expands to a single value, so a change-bundling
-    /// macro (`AddPowerToughness(p, t)`) produces `Several([AddPower(p),
-    /// AddToughness(t)])`. Semantically inert: `changes` is already a flat,
+    /// macro (`AddPowerToughness(p, t)`) produces `Several([Power(Up(p)),
+    /// Toughness(Up(t))])`. Semantically inert: `changes` is already a flat,
     /// layer-spanning list ([CR#613.6]), so [`Modification::flatten`] splices a
     /// `Several` into its parent list at the engine boundary and the engine
     /// never sees this variant.
@@ -283,7 +340,7 @@ mod tests {
     #[test]
     fn modify_reads_flat() {
         let parsed = read(
-            "Modify(of: Matching(Type(Creature)), changes: [AddPower(Literal(1)), AddToughness(Literal(1))])",
+            "Modify(of: Matching(Type(Creature)), changes: [Power(Up(Literal(1))), Toughness(Up(Literal(1)))])",
         );
         assert_eq!(
             parsed,
@@ -292,8 +349,8 @@ mod tests {
                     Type::Creature
                 ))),
                 changes: vec![
-                    Modification::AddPower(Count::Literal(1)),
-                    Modification::AddToughness(Count::Literal(1)),
+                    Modification::Power(NumericOp::Up(Count::Literal(1))),
+                    Modification::Toughness(NumericOp::Up(Count::Literal(1))),
                 ],
             },
         );
@@ -305,7 +362,7 @@ mod tests {
     #[test]
     fn subtract_modify_round_trips() {
         let parsed = read(
-            "Modify(of: Matching(Type(Creature)), changes: [SubtractPower(Literal(1)), SubtractToughness(Literal(1))])",
+            "Modify(of: Matching(Type(Creature)), changes: [Power(Down(Literal(1))), Toughness(Down(Literal(1)))])",
         );
         assert_eq!(
             parsed,
@@ -314,8 +371,32 @@ mod tests {
                     Type::Creature
                 ))),
                 changes: vec![
-                    Modification::SubtractPower(Count::Literal(1)),
-                    Modification::SubtractToughness(Count::Literal(1)),
+                    Modification::Power(NumericOp::Down(Count::Literal(1))),
+                    Modification::Toughness(NumericOp::Down(Count::Literal(1))),
+                ],
+            },
+        );
+        let written = crate::ron::options().to_string(&parsed).unwrap();
+        assert_eq!(read(&written), parsed);
+    }
+
+    /// A collection-axis op reads flat and round-trips: `Colors(Set([...]))`
+    /// (layer 5) and the single-element `Add`/`Remove` forms ([CR#613.1d]).
+    #[test]
+    fn collection_op_round_trips() {
+        let parsed = read(
+            "Modify(of: Matching(Type(Creature)), changes: [Colors(Set([Black])), CardTypes(Add(Artifact)), Subtypes(Remove(\"Goblin\"))])",
+        );
+        assert_eq!(
+            parsed,
+            StaticEffect::Modify {
+                of: Scope::Matching(Filter::Characteristic(crate::CharacteristicFilter::Type(
+                    Type::Creature
+                ))),
+                changes: vec![
+                    Modification::Colors(CollectionOp::Set(vec![Color::Black])),
+                    Modification::CardTypes(CollectionOp::Add(Type::Artifact)),
+                    Modification::Subtypes(CollectionOp::Remove("Goblin".into())),
                 ],
             },
         );
@@ -358,29 +439,29 @@ mod tests {
 
     /// `Modification::flatten` splices a `Several` bundle into its parent list
     /// (recursively) and leaves plain ops untouched — the one flatten-away pass
-    /// for change-bundling macros. A `Several([AddPower, AddToughness])` (what
-    /// `AddPowerToughness(3, 3)` expands to) followed by a `GainAbility`
-    /// becomes the flat three-op list the engine consumes.
+    /// for change-bundling macros. A `Several([Power(Up), Toughness(Up)])`
+    /// (what `AddPowerToughness(3, 3)` expands to) followed by a
+    /// `GainAbility` becomes the flat three-op list the engine consumes.
     #[test]
     fn flatten_splices_several() {
         let changes = vec![
             Modification::Several(vec![
-                Modification::AddPower(Count::Literal(3)),
-                Modification::AddToughness(Count::Literal(3)),
+                Modification::Power(NumericOp::Up(Count::Literal(3))),
+                Modification::Toughness(NumericOp::Up(Count::Literal(3))),
             ]),
             Modification::LoseAllAbilities,
             // A nested Several splices recursively.
-            Modification::Several(vec![Modification::Several(vec![Modification::AddColors(
-                vec![Color::White],
+            Modification::Several(vec![Modification::Several(vec![Modification::Colors(
+                CollectionOp::Set(vec![Color::White]),
             )])]),
         ];
         assert_eq!(
             Modification::flatten(changes),
             vec![
-                Modification::AddPower(Count::Literal(3)),
-                Modification::AddToughness(Count::Literal(3)),
+                Modification::Power(NumericOp::Up(Count::Literal(3))),
+                Modification::Toughness(NumericOp::Up(Count::Literal(3))),
                 Modification::LoseAllAbilities,
-                Modification::AddColors(vec![Color::White]),
+                Modification::Colors(CollectionOp::Set(vec![Color::White])),
             ],
         );
     }
@@ -397,15 +478,15 @@ mod tests {
             args: ExpansionArgs::Positional(vec!["2".into(), "0".into()]),
             template: Some("gets +${0}/+${1}".into()),
             value: Box::new(Modification::Several(vec![
-                Modification::AddPower(Count::Literal(2)),
-                Modification::AddToughness(Count::Literal(0)),
+                Modification::Power(NumericOp::Up(Count::Literal(2))),
+                Modification::Toughness(NumericOp::Up(Count::Literal(0))),
             ])),
         });
         assert_eq!(
             Modification::flatten(vec![expanded, Modification::SwitchPowerToughness]),
             vec![
-                Modification::AddPower(Count::Literal(2)),
-                Modification::AddToughness(Count::Literal(0)),
+                Modification::Power(NumericOp::Up(Count::Literal(2))),
+                Modification::Toughness(NumericOp::Up(Count::Literal(0))),
                 Modification::SwitchPowerToughness,
             ],
         );

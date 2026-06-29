@@ -207,6 +207,7 @@ mod tests {
     fn modification_positions_expand_and_flatten() {
         use deckmaste_core::Expand as _;
         use deckmaste_core::Modification;
+        use deckmaste_core::NumericOp;
         use deckmaste_core::Scope;
 
         let mut macros = macro_set();
@@ -216,7 +217,7 @@ mod tests {
                     template: "gets +${0}/+${1}",
                     kinds: [Modification],
                     params: [Count, Count],
-                    body: Several([AddPower(Param(0)), AddToughness(Param(1))]),
+                    body: Several([Power(Up(Param(0))), Toughness(Up(Param(1)))]),
                 )"#))
             .unwrap();
 
@@ -237,8 +238,8 @@ mod tests {
         assert_eq!(
             *exp.value,
             Modification::Several(vec![
-                Modification::AddPower(Count::Literal(3)),
-                Modification::AddToughness(Count::Literal(3)),
+                Modification::Power(NumericOp::Up(Count::Literal(3))),
+                Modification::Toughness(NumericOp::Up(Count::Literal(3))),
             ])
         );
 
@@ -256,8 +257,14 @@ mod tests {
         };
         let flat = Modification::flatten(changes);
         assert_eq!(flat.len(), 3, "Several spliced to flat ops: {flat:?}");
-        assert_eq!(flat[0], Modification::AddPower(Count::Literal(3)));
-        assert_eq!(flat[1], Modification::AddToughness(Count::Literal(3)));
+        assert_eq!(
+            flat[0],
+            Modification::Power(NumericOp::Up(Count::Literal(3)))
+        );
+        assert_eq!(
+            flat[1],
+            Modification::Toughness(NumericOp::Up(Count::Literal(3)))
+        );
         assert!(
             matches!(flat[2], Modification::GainAbility(_)),
             "the grant follows the P/T ops: {:?}",

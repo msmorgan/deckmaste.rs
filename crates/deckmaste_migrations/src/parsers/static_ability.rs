@@ -192,13 +192,13 @@ mod tests {
         assert_eq!(
             stat("Creatures your opponents control get -1/-1.").as_deref(),
             Some(
-                "Static(effects: [Modify(of: Matching(AllOf([Creature, ControlledBy(OpponentOf(Ref(You)))])), changes: [SubtractPower(1), SubtractToughness(1)])])"
+                "Static(effects: [Modify(of: Matching(AllOf([Creature, ControlledBy(OpponentOf(Ref(You)))])), changes: [Power(Down(1)), Toughness(Down(1))])])"
             )
         );
         assert_eq!(
             stat("~ gets +1/-1.").as_deref(),
             Some(
-                "Static(effects: [Modify(of: Of(This), changes: [AddPower(1), SubtractToughness(1)])])"
+                "Static(effects: [Modify(of: Of(This), changes: [Power(Up(1)), Toughness(Down(1))])])"
             )
         );
     }

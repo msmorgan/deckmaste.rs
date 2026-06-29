@@ -14,8 +14,8 @@
             Continuous(
                 of: Of(This),
                 changes: [
-                    AddPower(CounterCount(This, P1P1Counter)),
-                    AddToughness(CounterCount(This, P1P1Counter)),
+                    Power(Up(CounterCount(This, P1P1Counter))),
+                    Toughness(Up(CounterCount(This, P1P1Counter))),
                 ],
             ),
         ],
