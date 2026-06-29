@@ -4,6 +4,7 @@ use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::Color;
 use deckmaste_core::Count;
+use deckmaste_core::CounterSpec;
 use deckmaste_core::Destination;
 use deckmaste_core::Duration;
 use deckmaste_core::Effect;
@@ -130,6 +131,25 @@ fn action(a: &Action, ctx: &Ctx) -> String {
             fragment::selection(target, ctx)
         ),
         Action::Destroy(sel) => format!("Destroy {}.", fragment::selection(sel, ctx)),
+        // [CR#122]: move counters between two objects. `AllKinds` -> "all
+        // counters"; a named kind -> "<n> <kind> counter(s)".
+        Action::MoveCounters(spec, from, to) => {
+            let from_p = fragment::reference(from, ctx);
+            let to_p = fragment::reference(to, ctx);
+            match spec {
+                CounterSpec::AllKinds => {
+                    format!("Move all counters from {from_p} onto {to_p}.")
+                }
+                CounterSpec::Named(kind, count) => {
+                    let plural = if count.literal_value() == Some(1) { "" } else { "s" };
+                    format!(
+                        "Move {} {} counter{plural} from {from_p} onto {to_p}.",
+                        fragment::count(count),
+                        kind.as_str(),
+                    )
+                }
+            }
+        }
         // [CR#401.7]: a library destination — "Put <cards> on top/the bottom of
         // your library." (the former `PutInLibrary`, now a `Move` destination).
         Action::Move(sel, Destination::Library(anchor)) => format!(
@@ -362,6 +382,39 @@ mod tests {
         assert_eq!(
             action(&bottom, &ctx),
             "Put it on the bottom of your library."
+        );
+    }
+
+    /// `MoveCounters` renders the `AllKinds` and named-kind forms ([CR#122]);
+    /// `from`/`to` resolve through `ctx.targets`.
+    #[test]
+    fn move_counters_renders_all_kinds_and_named() {
+        use deckmaste_core::CounterRef;
+        use deckmaste_core::CounterSpec;
+
+        let creature = TargetSpec::Target(Quantity::Exactly(Count::Literal(1)), Filter::creature());
+        let targets = [creature.clone(), creature];
+        let ctx = Ctx {
+            subject: "it",
+            targets: &targets,
+        };
+        let all = Action::MoveCounters(
+            CounterSpec::AllKinds,
+            Reference::Target(0),
+            Reference::Target(1),
+        );
+        assert_eq!(
+            action(&all, &ctx),
+            "Move all counters from target creature onto target creature."
+        );
+        let named = Action::MoveCounters(
+            CounterSpec::Named(CounterRef::from("P1P1Counter"), Count::Literal(1)),
+            Reference::Target(0),
+            Reference::Target(1),
+        );
+        assert_eq!(
+            action(&named, &ctx),
+            "Move 1 P1P1Counter counter from target creature onto target creature."
         );
     }
 }

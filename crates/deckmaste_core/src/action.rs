@@ -113,6 +113,14 @@ pub enum Action {
     /// library, the former `PutInLibrary`; `Library(FromBottom(0))` — bottom,
     /// [CR#401.7]). This one verb subsumes the old `Move`/`PutInLibrary` split.
     Move(Selection, Destination),
+    /// Move counters from one object onto another ([CR#122] — counters move
+    /// object→object as a single operation, distinct from a separate
+    /// remove-then-put). The [`CounterSpec`](crate::CounterSpec) names a
+    /// specific kind+count (Power Conduit / Leech Bonder) or `AllKinds`
+    /// (Ozolith / Fate Transfer — every counter of every kind at once, the
+    /// case single-kind remove+put can't reach atomically); `from`/`to` are
+    /// the source and destination objects.
+    MoveCounters(crate::CounterSpec, Reference, Reference),
     /// Register a floating replacement effect ([CR#614.3]) — "the next time …"
     /// shields (regeneration, one-shot prevention). `subject` resolves to the
     /// protected permanent; `one_shot` consumes the shield on first use
@@ -566,6 +574,31 @@ mod tests {
         );
         assert_eq!(read("Move(This, Library(FromBottom(0)))"), bottom);
         assert_eq!(read(&write(&bottom)), bottom);
+    }
+
+    /// `MoveCounters(spec, from, to)` reads natively for both a named
+    /// kind+count (Power Conduit / Leech Bonder) and `AllKinds` (Ozolith /
+    /// Fate Transfer), and round-trips ([CR#122]).
+    #[test]
+    fn move_counters_round_trips() {
+        let named = Action::MoveCounters(
+            crate::CounterSpec::Named(crate::CounterRef::from("P1P1Counter"), Count::Literal(1)),
+            Reference::Target(0),
+            Reference::Target(1),
+        );
+        assert_eq!(
+            read("MoveCounters(Named(P1P1Counter, 1), Target(0), Target(1))"),
+            named,
+        );
+        assert_eq!(read(&write(&named)), named);
+
+        let all = Action::MoveCounters(
+            crate::CounterSpec::AllKinds,
+            Reference::Target(0),
+            Reference::Target(1),
+        );
+        assert_eq!(read("MoveCounters(AllKinds, Target(0), Target(1))"), all);
+        assert_eq!(read(&write(&all)), all);
     }
 
     #[test]

@@ -3,6 +3,8 @@ use std::fmt;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::Count;
+use crate::Expand;
 use crate::Ident;
 use crate::Property;
 
@@ -69,6 +71,22 @@ impl<'de> Deserialize<'de> for CounterRef {
     }
 }
 
+/// Which counters a [`MoveCounters`](crate::Action::MoveCounters) operation
+/// relocates ([CR#122] — counters move object→object as one operation). The
+/// Idris `CounterSpec = Some CounterKind Count | AllKinds`.
+///
+/// `Named` names a specific kind and how many (Power Conduit / Leech Bonder);
+/// `AllKinds` moves every counter of every kind at once (Ozolith / Fate
+/// Transfer) — the one case a single-kind remove+put can't reach, because it
+/// quantifies over the kinds present.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum CounterSpec {
+    /// A specific counter kind and count.
+    Named(CounterRef, Count),
+    /// Every counter, of every kind.
+    AllKinds,
+}
+
 /// A counter-kind declaration ([CR#122], §6): an open `Ident` vocabulary with
 /// an optional payload (e.g. a keyword counter's `GainAbility(Flying)`, a stun
 /// / shield counter's replacement payload). This is a declaration-file type
@@ -107,5 +125,35 @@ mod tests {
                 .is_err(),
             "a quoted string is not a counter ref"
         );
+    }
+
+    /// `CounterSpec` reads both forms: a named kind+count (bare counter ident,
+    /// bare numeral) and the unit `AllKinds`. Both round-trip.
+    #[test]
+    fn counter_spec_round_trips() {
+        let named = CounterSpec::Named(CounterRef::from("P1P1Counter"), Count::Literal(2));
+        assert_eq!(
+            crate::ron::options()
+                .from_str::<CounterSpec>("Named(P1P1Counter, 2)")
+                .unwrap(),
+            named,
+        );
+        let written = crate::ron::options().to_string(&named).unwrap();
+        assert_eq!(
+            crate::ron::options()
+                .from_str::<CounterSpec>(&written)
+                .unwrap(),
+            named,
+        );
+
+        let all = CounterSpec::AllKinds;
+        assert_eq!(
+            crate::ron::options()
+                .from_str::<CounterSpec>("AllKinds")
+                .unwrap(),
+            all,
+        );
+        let written = crate::ron::options().to_string(&all).unwrap();
+        assert_eq!(written, "AllKinds");
     }
 }

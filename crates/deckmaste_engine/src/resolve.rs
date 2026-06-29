@@ -781,6 +781,59 @@ impl GameState {
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
+            // [CR#122]: move counters object→object — a remove from `from` plus
+            // a place on `to`, emitted as one simultaneous batch (the apply
+            // touches the two distinct counter maps). `Named` moves up to the
+            // requested count of one kind (clamped to what `from` holds);
+            // `AllKinds` moves every kind `from` holds at its full count — the
+            // case a single-kind remove+put can't express. Counts that resolve
+            // to zero (or an empty source) emit nothing.
+            Action::MoveCounters(spec, from, to) => {
+                let from_id = self.eval_reference(from, frame);
+                let to_id = self.eval_reference(to, frame);
+                let held = &self.objects.obj(from_id).counters;
+                let moves: Vec<(deckmaste_core::Ident, Uint)> = match spec {
+                    deckmaste_core::CounterSpec::Named(kind, count) => {
+                        let want = self.eval_count(count, frame);
+                        let have = held.get(&kind.0).copied().unwrap_or(0);
+                        let n = want.min(have);
+                        if n == 0 { vec![] } else { vec![(kind.0, n)] }
+                    }
+                    deckmaste_core::CounterSpec::AllKinds => held
+                        .iter()
+                        .map(|(k, n)| (*k, *n))
+                        .filter(|&(_, n)| n > 0)
+                        .collect(),
+                };
+                let remove_cause = Some(crate::event::Cause::remove_counters(
+                    deckmaste_core::Agency::EffectInstruction,
+                    Some((frame.source, frame.controller)),
+                ));
+                let place_cause = Some(crate::event::Cause::put_counters(
+                    deckmaste_core::Agency::EffectInstruction,
+                    Some((frame.source, frame.controller)),
+                ));
+                let mut events = Vec::with_capacity(moves.len() * 2);
+                for (kind, n) in moves {
+                    events.push(GameEvent::CounterRemoved {
+                        object: from_id,
+                        kind,
+                        count: n,
+                        cause: remove_cause.clone(),
+                    });
+                    events.push(GameEvent::CounterPlaced {
+                        object: to_id,
+                        kind,
+                        count: n,
+                        cause: place_cause.clone(),
+                    });
+                }
+                if events.is_empty() {
+                    vec![]
+                } else {
+                    vec![WorkItem::Emit(occurrence_of(events))]
+                }
+            }
             // `CreateReplacement` directly mutates `state.shields` — it is
             // intercepted in `run_effect` before `action_items` is called.
             // This arm is unreachable by design.
@@ -1921,6 +1974,9 @@ fn unresolved_choice(action: &Action) -> Option<PendingChoice> {
         | Action::Move(s, _) => lift(s),
         Action::By(_, p) => lift_pa(p),
         Action::Attach { .. } => None,
+        // `MoveCounters`'s from/to are bare `Reference`s (announced targets),
+        // not a `Choose` selection — nothing to lift here.
+        Action::MoveCounters(..) => None,
         // `CreateReplacement.subject` could be a Choose; inspect it.
         Action::CreateReplacement { subject, .. } => lift(subject),
     }
@@ -4039,6 +4095,63 @@ mod tests {
         assert_eq!(state.zones.libraries[0].len(), lib_before + 1);
         let bottom = *state.zones.libraries[0].back().expect("non-empty library");
         assert_eq!(state.objects.obj(bottom).card_id(), Some(bear_card));
+    }
+
+    /// [CR#122]: `MoveCounters(AllKinds, from, to)` relocates every counter of
+    /// every kind from the source onto the destination (Fate Transfer / Ozolith
+    /// shape) — the case single-kind remove+put can't reach atomically.
+    #[test]
+    fn move_counters_all_kinds_relocates_every_counter() {
+        use deckmaste_core::CounterSpec;
+        let (mut state, a, b) = two_permanents_on_field();
+        let p1p1: deckmaste_core::Ident = "P1P1Counter".into();
+        let charge: deckmaste_core::Ident = "ChargeCounter".into();
+        state.objects.obj_mut(a).counters.insert(p1p1, 2);
+        state.objects.obj_mut(a).counters.insert(charge, 1);
+        let frame = frame_src_targets(a, vec![a, b]);
+        state.run_effect(
+            Effect::Act(Action::MoveCounters(
+                CounterSpec::AllKinds,
+                Reference::Target(0),
+                Reference::Target(1),
+            )),
+            &frame,
+        );
+        run_injected(&mut state);
+        assert!(
+            state.objects.obj(a).counters.is_empty(),
+            "source emptied of all counters"
+        );
+        assert_eq!(state.objects.obj(b).counters.get(&p1p1).copied(), Some(2));
+        assert_eq!(state.objects.obj(b).counters.get(&charge).copied(), Some(1));
+    }
+
+    /// [CR#122]: `MoveCounters(Named(kind, n), from, to)` moves up to `n`
+    /// counters of that kind (clamped to what the source holds) — Power Conduit
+    /// / Leech Bonder shape.
+    #[test]
+    fn move_counters_named_moves_up_to_available() {
+        use deckmaste_core::CounterRef;
+        use deckmaste_core::CounterSpec;
+        let (mut state, a, b) = two_permanents_on_field();
+        let p1p1: deckmaste_core::Ident = "P1P1Counter".into();
+        state.objects.obj_mut(a).counters.insert(p1p1, 3);
+        let frame = frame_src_targets(a, vec![a, b]);
+        state.run_effect(
+            Effect::Act(Action::MoveCounters(
+                CounterSpec::Named(CounterRef::from("P1P1Counter"), Count::Literal(2)),
+                Reference::Target(0),
+                Reference::Target(1),
+            )),
+            &frame,
+        );
+        run_injected(&mut state);
+        assert_eq!(
+            state.objects.obj(a).counters.get(&p1p1).copied(),
+            Some(1),
+            "2 of 3 moved, 1 remains on source"
+        );
+        assert_eq!(state.objects.obj(b).counters.get(&p1p1).copied(), Some(2));
     }
 
     /// `AddMana(2, Green)` needs no choice and lands in the pool ([CR#106.4]);
