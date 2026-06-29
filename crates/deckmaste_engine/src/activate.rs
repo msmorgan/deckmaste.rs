@@ -391,6 +391,13 @@ impl GameState {
         let view = self.layers();
         let candidates: Vec<(ObjectId, Uint)> = crate::target::candidates_with(self, &req.filter, Some(watcher))
                 .into_iter()
+                // Only a *permanent* (an object on the battlefield, [CR#110.1])
+                // may be tapped to pay: `candidates_with` is zone-agnostic and
+                // `ControlledBy(You)` matches the `controller` field on a
+                // library/hand object too, so without this guard a controlled
+                // non-battlefield creature would wrongly qualify to crew
+                // ([CR#702.122a]). Mirrors the `PayPips` zone guard in cast.rs.
+                .filter(|&id| self.objects.obj(id).zone == Some(Zone::Battlefield))
                 // Only an *untapped* permanent can be tapped to pay ([CR#107.5]).
                 .filter(|&id| !self.objects.obj(id).tapped)
                 .filter_map(|id| self.cost_stat_value(&view, id, req.stat).map(|v| (id, v)))
@@ -890,6 +897,100 @@ mod tests {
         assert_eq!(
             greedy_tap_subset(vec![(a, 2)], Cmp::AtMost, 3),
             Some(vec![])
+        );
+    }
+
+    // -- tap_total_subset (the crew candidate set) --
+
+    /// A vanilla creature card with the given printed power/toughness.
+    fn creature_card(power: i32, toughness: i32) -> std::sync::Arc<deckmaste_core::Card> {
+        std::sync::Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+            name: "Crew Fixture".into(),
+            mana_cost: ManaCost::from(vec![]),
+            color_indicator: vec![],
+            supertypes: vec![],
+            types: vec![deckmaste_core::Type::Creature],
+            subtypes: vec![],
+            abilities: vec![],
+            power: Some(deckmaste_core::StatValue::Number(power)),
+            toughness: Some(deckmaste_core::StatValue::Number(toughness)),
+            loyalty: None,
+            defense: None,
+        }))
+    }
+
+    /// [CR#702.122a,110.1]: only a creature ON THE BATTLEFIELD may be tapped to
+    /// crew a Vehicle. `candidates_with` scans every object regardless of zone
+    /// and `ControlledBy` matches the `controller` field a library card carries
+    /// too — so without the battlefield zone guard a controlled library
+    /// creature would wrongly count toward (and be tapped for) the
+    /// aggregate power. Here a power-2 creature is on the battlefield and
+    /// an identical one sits in the library: a Crew 4 (total power ≥ 4) is
+    /// UNPAYABLE (the lone battlefield 2 falls short — the library creature
+    /// must not contribute), while a Crew 2 taps exactly the battlefield
+    /// creature, never the library one.
+    #[test]
+    fn tap_total_subset_excludes_a_library_creature() {
+        let mut state = game();
+        let player = PlayerId(0);
+        let card_id = state.cards.push(creature_card(2, 2), player);
+
+        let on_field =
+            state
+                .objects
+                .mint(ObjectSource::Card(card_id), player, Some(Zone::Battlefield));
+        state.zones.battlefield.push(on_field);
+        // An identical creature controlled by the same player, but in the library.
+        let in_library =
+            state
+                .objects
+                .mint(ObjectSource::Card(card_id), player, Some(Zone::Library));
+
+        // Sanity: the library creature really is a zone-agnostic creature
+        // candidate with a readable power — so the *only* thing that can keep it
+        // out of the crew set is the battlefield zone guard, not an incidental
+        // filter/stat mismatch (this is what makes the assertions below a real
+        // regression test of the guard).
+        let raw = crate::target::candidates_with(&state, &Filter::creature(), None);
+        assert!(
+            raw.contains(&in_library) && raw.contains(&on_field),
+            "both creatures match the zone-agnostic creature filter"
+        );
+        let view = state.layers();
+        assert_eq!(
+            state.cost_stat_value(&view, in_library, Stat::Power),
+            Some(2),
+            "the library creature has a readable power 2"
+        );
+
+        let crew_4 = TapTotalReq {
+            stat: Stat::Power,
+            cmp: Cmp::AtLeast,
+            count: Count::Literal(4),
+            filter: Filter::creature(),
+        };
+        let crew_2 = TapTotalReq {
+            stat: Stat::Power,
+            cmp: Cmp::AtLeast,
+            count: Count::Literal(2),
+            filter: Filter::creature(),
+        };
+
+        // Crew 4: the lone battlefield power-2 can't reach 4, and the library
+        // creature must not be borrowed to make up the difference.
+        assert!(
+            state.tap_total_subset(&crew_4, on_field, player).is_none(),
+            "a library creature must not contribute to crew (Crew 4 is unpayable)"
+        );
+
+        // Crew 2: payable by tapping ONLY the battlefield creature.
+        let chosen = state
+            .tap_total_subset(&crew_2, on_field, player)
+            .expect("the battlefield power-2 crews a Crew 2");
+        assert_eq!(
+            chosen,
+            vec![on_field],
+            "only the battlefield creature is tapped — never the library one"
         );
     }
 
