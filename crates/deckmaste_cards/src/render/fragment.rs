@@ -49,6 +49,14 @@ pub(super) fn reference(r: &Reference, ctx: &Ctx) -> String {
         Reference::Target(i) => target_phrase(*i, ctx),
         Reference::This => ctx.subject.to_string(),
         Reference::You => "you".to_string(),
+        // The triggering event's roles ([CR#603.2e,608.2k]). Agent/patient
+        // render as the generic anaphor "it" (no type info at this layer);
+        // `ThatObject` is the agent's migration alias.
+        Reference::EventAgent | Reference::EventPatient | Reference::ThatObject => "it".to_string(),
+        // The responsible player ("that player"); `ThatPlayer` is its alias.
+        Reference::EventActor | Reference::ThatPlayer => "that player".to_string(),
+        // The combat defender ([CR#506.2]) — always a player.
+        Reference::DefendingPlayer => "the defending player".to_string(),
         other => format!("[unrendered: {other:?}]"),
     }
 }
@@ -273,5 +281,35 @@ pub(super) fn library_position(c: &Count) -> String {
     match c {
         Count::Literal(0) => "top".to_string(),
         _ => "the bottom".to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ctx() -> Ctx<'static> {
+        Ctx {
+            subject: "Grizzly Bears",
+            targets: &[],
+        }
+    }
+
+    /// The provenance-explicit event roles render as English anaphora: the
+    /// agent/patient as "it", the actor as "that player", and the combat
+    /// defender as "the defending player" ([CR#603.2e,608.2k,506.2]). The
+    /// legacy `ThatObject`/`ThatPlayer` aliases render like their roles.
+    #[test]
+    fn event_role_references_render() {
+        let c = ctx();
+        assert_eq!(reference(&Reference::EventAgent, &c), "it");
+        assert_eq!(reference(&Reference::EventPatient, &c), "it");
+        assert_eq!(reference(&Reference::ThatObject, &c), "it");
+        assert_eq!(reference(&Reference::EventActor, &c), "that player");
+        assert_eq!(reference(&Reference::ThatPlayer, &c), "that player");
+        assert_eq!(
+            reference(&Reference::DefendingPlayer, &c),
+            "the defending player"
+        );
     }
 }

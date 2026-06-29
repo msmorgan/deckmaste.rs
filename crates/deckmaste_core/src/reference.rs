@@ -22,6 +22,37 @@ mod tests {
         let w = crate::ron::options().to_string(&v).unwrap();
         assert_eq!(read(&w), v);
     }
+
+    /// The provenance-explicit event roles read as bare variant names and
+    /// round-trip — the agent/patient/actor split plus the first-class
+    /// defending player ([CR#603.2e,608.2k,506.2]).
+    #[test]
+    fn event_roles_round_trip() {
+        for (source, value) in [
+            ("EventAgent", Reference::EventAgent),
+            ("EventPatient", Reference::EventPatient),
+            ("EventActor", Reference::EventActor),
+            ("DefendingPlayer", Reference::DefendingPlayer),
+        ] {
+            assert_eq!(read(source), value, "reads bare: {source}");
+            let written = crate::ron::options().to_string(&value).unwrap();
+            assert_eq!(read(&written), value, "round-trips: {written}");
+        }
+    }
+
+    /// The legacy `ThatObject`/`ThatPlayer` spellings still read (migration
+    /// aliases for the agent/actor roles).
+    #[test]
+    fn legacy_event_aliases_round_trip() {
+        for (source, value) in [
+            ("ThatObject", Reference::ThatObject),
+            ("ThatPlayer", Reference::ThatPlayer),
+        ] {
+            assert_eq!(read(source), value);
+            let written = crate::ron::options().to_string(&value).unwrap();
+            assert_eq!(read(&written), value, "round-trips: {written}");
+        }
+    }
 }
 
 /// A bound variable: a value fixed earlier (at announce, by the rules of
@@ -53,11 +84,39 @@ pub enum Reference {
     Subject,
     /// The nth target this ability announced ([CR#115.3,601.2c]).
     Target(usize),
+    /// The triggering event's AGENT — the doer/source: the moving object of a
+    /// zone change, the source of damage ([CR#603.2e,608.2k]). The
+    /// provenance-explicit name for the moved/acting object; `ThatObject` is
+    /// kept as a migration alias resolving the same way.
+    EventAgent,
+    /// The triggering event's PATIENT — the acted-upon thing (a damage
+    /// recipient, a destroyed/countered object), kind-polymorphic: a player OR
+    /// an object, fixed by the event ([CR#120.3,608.2k]). Distinct from the
+    /// agent ([`EventAgent`](Reference::EventAgent)), so a two-object event
+    /// ("whenever a creature deals damage to another creature") can name source
+    /// and recipient separately — unspellable with the flat
+    /// `ThatObject`/`ThatPlayer` pair. For the combat defender prefer
+    /// [`DefendingPlayer`](Reference::DefendingPlayer) (always a player).
+    EventPatient,
+    /// The triggering event's responsible player ("that player") — the event's
+    /// ACTOR ([CR#603.2e]). The provenance-explicit name for `ThatPlayer`,
+    /// kept as a migration alias resolving the same way.
+    EventActor,
+    /// The defending player of an attack/combat — ALWAYS a player, even versus
+    /// a planeswalker or battle ([CR#506.2,508.5]). Reachable today otherwise
+    /// only as a [`DeciderSpec::DefendingPlayer`](crate::DeciderSpec) — this is
+    /// the first-class reference for bodies that name "the defending player"
+    /// (landwalk, Annihilator, Afflict).
+    DefendingPlayer,
     /// The object that participated in the enclosing trigger's event —
     /// bound by the trigger's event pattern ([CR#603.2e], "that creature").
+    /// Migration alias for [`EventAgent`](Reference::EventAgent); resolves to
+    /// the event's agent.
     ThatObject,
     /// The player that participated in the enclosing trigger's event —
     /// bound by the trigger's event pattern ([CR#603.2e], "that player").
+    /// Migration alias for [`EventActor`](Reference::EventActor); resolves to
+    /// the event's actor.
     ThatPlayer,
     /// A named role bound by an event pattern or instruction (e.g. the
     /// attacker vs. the blocker).

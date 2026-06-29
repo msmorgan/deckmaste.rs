@@ -1322,3 +1322,74 @@ fn by_matcher_fires_only_for_damage_from_its_own_source() {
         "the wither replacement DOES fire for damage from its own source"
     );
 }
+
+// ── EventPatient: the recipient read through the provenance-explicit role ────
+//
+// The damage recipient IS the event PATIENT ([CR#608.2k,120.3]) — the
+// acted-upon thing, distinct from the agent (the source, reachable as `This`).
+// The replacement frame binder now binds it as `EventPatient` (kind-poly), so a
+// body reads the recipient through the role instead of the flat `ThatObject`/
+// `ThatPlayer` aliases. These drive the same wither/infect shape through the
+// new reference, proving the binder populates the patient slot end-to-end.
+
+/// [CR#702.80a,608.2k]: a Wither source reading its creature recipient via the
+/// kind-poly `EventPatient` (an OBJECT patient) places the -1/-1 counters on
+/// it.
+#[test]
+fn event_patient_object_reads_the_damage_recipient_creature() {
+    let wither = damage_as_counters_static(
+        Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(Type::Creature)),
+        Reference::EventPatient,
+        "M1M1Counter",
+    );
+    let (mut state, source, target) = source_and_target(vec![wither]);
+    let m1m1: deckmaste_core::Ident = "M1M1Counter".into();
+
+    deal_damage(&mut state, source, target, 3);
+
+    assert_eq!(
+        state.objects.obj(target).counters.get(&m1m1).copied(),
+        Some(3),
+        "EventPatient resolves to the creature recipient (object patient)"
+    );
+    assert_eq!(
+        state.objects.obj(target).damage,
+        0,
+        "the damage is replaced, not marked"
+    );
+}
+
+/// [CR#702.90b,608.2k,120.3]: an Infect source reading its PLAYER recipient via
+/// `EventPatient` (a PLAYER patient — the proxy is zoneless) gives that player
+/// the poison counters. The same role spells both kinds of recipient.
+#[test]
+fn event_patient_player_reads_the_damage_recipient_player() {
+    let infect_player = damage_as_counters_static(
+        Filter::Kind(deckmaste_core::ObjectKind::Player),
+        Reference::EventPatient,
+        "Poison",
+    );
+    let (mut state, source, _target) = source_and_target(vec![infect_player]);
+    let poison: deckmaste_core::Ident = "Poison".into();
+    let victim = PlayerId(1);
+    let victim_proxy = state.player(victim).object;
+    let life_before = state.players[victim.index()].life;
+
+    deal_damage(&mut state, source, victim_proxy, 3);
+
+    assert_eq!(
+        state
+            .objects
+            .obj(victim_proxy)
+            .counters
+            .get(&poison)
+            .copied(),
+        Some(3),
+        "EventPatient resolves to the player recipient (player patient)"
+    );
+    assert_eq!(
+        state.players[victim.index()].life,
+        life_before,
+        "the damage is replaced, not life loss"
+    );
+}

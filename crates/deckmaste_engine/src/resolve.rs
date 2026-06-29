@@ -414,14 +414,7 @@ impl GameState {
                     .into_iter()
                     .map(|obj| {
                         let mut next = frame.clone();
-                        let mut bindings =
-                            next.bindings
-                                .clone()
-                                .unwrap_or(crate::trigger::TriggerBindings {
-                                    this: None,
-                                    that_object: None,
-                                    that_player: None,
-                                });
+                        let mut bindings = next.bindings.clone().unwrap_or_default();
                         bindings.that_object = Some(crate::lki::LkiSnapshot::capture(self, obj));
                         next.bindings = Some(bindings);
                         WorkItem::RunEffect {
@@ -1268,20 +1261,46 @@ impl GameState {
             Reference::Subject => frame
                 .subject
                 .expect("Reference::Subject referenced outside a Filter::Where match"),
-            // [CR#603.10a]: the trigger's moved object / affected player,
-            // read from the bindings the fired trigger carried.
-            Reference::ThatObject => frame
+            // [CR#603.10a,603.2e,608.2k]: the trigger's provenance-explicit
+            // roles, read from the bindings the fired trigger carried. The
+            // AGENT (the moved/acting object) — `EventAgent`, with `ThatObject`
+            // its migration alias.
+            Reference::ThatObject | Reference::EventAgent => frame
                 .bindings
                 .as_ref()
                 .and_then(|b| b.that_object.as_ref())
                 .map(|s| s.object)
-                .expect("ThatObject referenced where the trigger bound one"),
-            Reference::ThatPlayer => {
+                .expect("EventAgent referenced where the trigger bound one"),
+            // The ACTOR (the responsible player) — `EventActor`, with
+            // `ThatPlayer` its migration alias.
+            Reference::ThatPlayer | Reference::EventActor => {
                 let p = frame
                     .bindings
                     .as_ref()
                     .and_then(|b| b.that_player)
-                    .expect("ThatPlayer referenced where the trigger bound one");
+                    .expect("EventActor referenced where the trigger bound one");
+                self.player(p).object
+            }
+            // [CR#608.2k,120.3]: the PATIENT (the acted-upon thing) —
+            // kind-poly, an object or a player proxy.
+            Reference::EventPatient => {
+                let patient = frame
+                    .bindings
+                    .as_ref()
+                    .and_then(|b| b.that_patient.as_ref())
+                    .expect("EventPatient referenced where the trigger bound one");
+                match patient {
+                    crate::trigger::EventPatient::Object(s) => s.object,
+                    crate::trigger::EventPatient::Player(p) => self.player(*p).object,
+                }
+            }
+            // [CR#506.2,508.5]: the combat DEFENDING player — always a player.
+            Reference::DefendingPlayer => {
+                let p = frame
+                    .bindings
+                    .as_ref()
+                    .and_then(|b| b.defending_player)
+                    .expect("DefendingPlayer referenced where the trigger bound one");
                 self.player(p).object
             }
             // [CR#109.5]: the derived controller of a referenced object.
@@ -1674,7 +1693,11 @@ fn lki_counters<'f>(
     let bindings = frame.bindings.as_ref()?;
     let snapshot = match reference {
         Reference::This => bindings.this.as_ref(),
-        Reference::ThatObject => bindings.that_object.as_ref(),
+        Reference::ThatObject | Reference::EventAgent => bindings.that_object.as_ref(),
+        Reference::EventPatient => match bindings.that_patient.as_ref()? {
+            crate::trigger::EventPatient::Object(s) => Some(s),
+            crate::trigger::EventPatient::Player(_) => None,
+        },
         _ => None,
     }?;
     Some(&snapshot.counters)
@@ -2661,6 +2684,7 @@ mod tests {
                 this: Some(crate::lki::LkiSnapshot::capture(&state, bear)),
                 that_object: Some(crate::lki::LkiSnapshot::capture(&state, theirs)),
                 that_player: Some(PlayerId(1)),
+                ..Default::default()
             }),
             chosen: None,
             x: None,
@@ -2690,6 +2714,78 @@ mod tests {
             state.eval_reference(&Reference::ThatPlayer, &frame),
             state.player(PlayerId(1)).object,
             "ThatPlayer is the bound player's proxy"
+        );
+        // The provenance-explicit aliases resolve identically to the legacy
+        // spellings: agent ≡ ThatObject, actor ≡ ThatPlayer ([CR#603.2e]).
+        assert_eq!(
+            state.eval_reference(&Reference::EventAgent, &frame),
+            theirs,
+            "EventAgent is the agent (the moved/acting object)"
+        );
+        assert_eq!(
+            state.eval_reference(&Reference::EventActor, &frame),
+            state.player(PlayerId(1)).object,
+            "EventActor is the responsible player"
+        );
+    }
+
+    /// The provenance-explicit patient and defending-player roles resolve from
+    /// their dedicated binding slots ([CR#608.2k,120.3,506.2]): a kind-poly
+    /// `EventPatient` (object or player) and an always-player
+    /// `DefendingPlayer`, both distinct from the agent/actor.
+    #[test]
+    fn event_patient_and_defending_player_resolve() {
+        let (mut state, bear) = bear_on_field();
+        let theirs = second_bear_to_player_1(&mut state);
+
+        // An OBJECT patient (a damage recipient creature) distinct from the
+        // agent — what makes a two-object event spellable.
+        let object_patient = Frame {
+            source: bear,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: Some(crate::trigger::TriggerBindings {
+                this: Some(crate::lki::LkiSnapshot::capture(&state, bear)),
+                that_patient: Some(crate::trigger::EventPatient::Object(
+                    crate::lki::LkiSnapshot::capture(&state, theirs),
+                )),
+                defending_player: Some(PlayerId(1)),
+                ..Default::default()
+            }),
+            chosen: None,
+            x: None,
+            subject: None,
+            those: None,
+        };
+        assert_eq!(
+            state.eval_reference(&Reference::EventPatient, &object_patient),
+            theirs,
+            "an object patient resolves to its object"
+        );
+        assert_eq!(
+            state.eval_reference(&Reference::DefendingPlayer, &object_patient),
+            state.player(PlayerId(1)).object,
+            "DefendingPlayer is always the player proxy"
+        );
+
+        // A PLAYER patient (a damage recipient player) resolves to the proxy.
+        let player_patient = Frame {
+            source: bear,
+            controller: PlayerId(0),
+            targets: vec![],
+            bindings: Some(crate::trigger::TriggerBindings {
+                that_patient: Some(crate::trigger::EventPatient::Player(PlayerId(1))),
+                ..Default::default()
+            }),
+            chosen: None,
+            x: None,
+            subject: None,
+            those: None,
+        };
+        assert_eq!(
+            state.eval_reference(&Reference::EventPatient, &player_patient),
+            state.player(PlayerId(1)).object,
+            "a player patient resolves to the player proxy"
         );
     }
 
@@ -3422,8 +3518,7 @@ mod tests {
             targets: Vec::new(),
             bindings: Some(crate::trigger::TriggerBindings {
                 this: Some(snapshot),
-                that_object: None,
-                that_player: None,
+                ..Default::default()
             }),
             chosen: None,
             x: None,
@@ -3667,11 +3762,7 @@ mod tests {
             object: StackObject::Triggered {
                 source: ObjectSource::Card(state.objects.obj(bear).card_id().unwrap()),
                 ability: 0,
-                bindings: TriggerBindings {
-                    this: None,
-                    that_object: None,
-                    that_player: None,
-                },
+                bindings: TriggerBindings::default(),
             },
             controller: PlayerId(0),
             targets: vec![],
