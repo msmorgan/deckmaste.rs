@@ -1,0 +1,13 @@
+// "You have no maximum hand size." plus "{T}: Add {C}". The cap removal is a
+// continuous player static ([CR#402.2] — the maximum hand size, normally seven,
+// is removed entirely): `NoMax(HandSizeLimit)` is a dedicated op, not a value.
+Normal(
+  name: "Reliquary Tower",
+  types: [
+    Land,
+  ],
+  abilities: [
+    Static(effects: [ModifyPlayer(You, NoMax(HandSizeLimit))]),
+    Activated(cost: [Tap], effect: AddMana(1, Colorless)),
+  ],
+)
