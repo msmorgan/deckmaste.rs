@@ -1241,10 +1241,14 @@ impl GameState {
     /// emits ahead of it, so the sweep still runs after the discards apply.
     fn check_hand_size(&mut self) -> Progress {
         let active = self.turn.active_player;
-        let player = self.player(active);
         let hand =
             Uint::try_from(self.zones.hands[active.index()].len()).expect("hand size fits in Uint");
-        let discarding = hand.saturating_sub(player.max_hand_size);
+        // [CR#402.2]: discard to the EFFECTIVE maximum hand size — `None` means
+        // no maximum (Reliquary Tower), so nothing is discarded.
+        let discarding = match self.effective_max_hand_size(active) {
+            Some(max) => hand.saturating_sub(max),
+            None => 0,
+        };
         if discarding > 0 {
             self.pending = Some(PendingDecision::DiscardToHandSize {
                 player: active,

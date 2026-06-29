@@ -9,6 +9,8 @@ use deckmaste_core::Event;
 use deckmaste_core::Filter;
 use deckmaste_core::Modification;
 use deckmaste_core::NumericOp;
+use deckmaste_core::PlayerAttr;
+use deckmaste_core::PlayerMod;
 use deckmaste_core::Reference;
 use deckmaste_core::StateFilterEvent;
 use deckmaste_core::StaticAbility;
@@ -153,6 +155,7 @@ pub(super) fn static_effect(e: &StaticEffect, ctx: &Ctx) -> Option<String> {
                 modifications_predicate(changes, plural)
             ))
         }
+        StaticEffect::ModifyPlayer(who, m) => Some(modify_player(who, m)),
         StaticEffect::Deontic(d) => Some(super::deontic::deontic(d, ctx.subject)),
         StaticEffect::Replacement(r) => Some(super::replacement::replacement(r, ctx)),
         StaticEffect::CantHappen(_event) => Some("[can't happen]".to_string()), /* keyword cards render via their template */
@@ -277,6 +280,47 @@ fn base_pt_clause(changes: &[Modification], plural: bool) -> Option<String> {
         (Some(p), None) => Some(format!("{} base power {p}", have(plural))),
         (None, Some(t)) => Some(format!("{} base toughness {t}", have(plural))),
         (None, None) => None,
+    }
+}
+
+// ── ModifyPlayer rendering ──────────────────────────────────────────────────
+
+/// Render a `ModifyPlayer` static ([CR#611]) as a sentence: Reliquary Tower's
+/// "You have no maximum hand size." ([CR#402.2]) and Exploration's "You may
+/// play an additional land on each of your turns." ([CR#305.2]) are the
+/// canonical shapes; other attributes fall through to a generic phrasing.
+fn modify_player(who: &Reference, m: &PlayerMod) -> String {
+    let subj = player_subject(who);
+    match m {
+        PlayerMod::NoMax(PlayerAttr::HandSizeLimit) => {
+            format!("{subj} have no maximum hand size.")
+        }
+        PlayerMod::Raise(PlayerAttr::LandPlaysPerTurn, n) => {
+            let lands = match literal_count(n) {
+                Some(1) => "an additional land".to_string(),
+                Some(k) => format!("{k} additional lands"),
+                None => "additional lands".to_string(),
+            };
+            format!("{subj} may play {lands} on each of your turns.")
+        }
+        other => format!("[unrendered: {other:?}]."),
+    }
+}
+
+/// The subject word for a `ModifyPlayer`'s affected player. `You` renders as
+/// "You" (the controller); other references fall through to a debug form.
+fn player_subject(who: &Reference) -> String {
+    match who {
+        Reference::You => "You".to_string(),
+        other => format!("[{other:?}]"),
+    }
+}
+
+/// A `Count`'s literal value, or `None` if it is dynamic.
+fn literal_count(c: &Count) -> Option<i64> {
+    match c {
+        Count::Literal(n) => Some(i64::from(*n)),
+        _ => None,
     }
 }
 

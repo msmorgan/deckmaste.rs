@@ -43,6 +43,8 @@ pub use continuous::Duration;
 pub use continuous::Modification;
 pub use continuous::NumericOp;
 pub use continuous::OutcomeGateKind;
+pub use continuous::PlayerAttr;
+pub use continuous::PlayerMod;
 pub use continuous::Scope;
 pub use continuous::StaticEffect;
 

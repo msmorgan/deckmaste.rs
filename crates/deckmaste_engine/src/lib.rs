@@ -79,6 +79,8 @@ pub use player::ManaPool;
 pub use player::PlayerId;
 pub use player::PlayerState;
 
+mod player_statics;
+
 mod replace;
 
 mod replace_registry;

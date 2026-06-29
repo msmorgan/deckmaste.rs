@@ -147,8 +147,11 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     let mut legal = vec![Action::Pass, Action::Concede];
 
     // [CR#116.2a,305.2]: a land from hand — sorcery timing (own turn, main
-    // phase, empty stack), one per turn.
-    if state.sorcery_speed_ok(player) && state.lands_played_this_turn(player) < 1 {
+    // phase, empty stack), up to the effective land plays per turn (one by
+    // default; Exploration and other continuous statics raise it).
+    if state.sorcery_speed_ok(player)
+        && state.lands_played_this_turn(player) < state.effective_land_plays_per_turn(player)
+    {
         for &object in &state.zones.hands[player.index()] {
             // Derived type ([CR#613.1d]): a card that is a land in the layered
             // view is playable as a land, exactly as the battlefield reads do.

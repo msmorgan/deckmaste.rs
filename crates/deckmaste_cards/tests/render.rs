@@ -119,6 +119,27 @@ fn renders_elesh_norn() {
     );
 }
 
+/// A `ModifyPlayer` continuous static over a player attribute: Exploration's
+/// extra land play ([CR#305.2]).
+#[test]
+fn renders_modify_player_exploration() {
+    let r = render_card_face(&face("Exploration"));
+    assert_eq!(r.type_line, "Enchantment");
+    assert_eq!(
+        r.rules,
+        vec!["You may play an additional land on each of your turns.".to_string()]
+    );
+}
+
+/// Reliquary Tower's "no maximum hand size" cap removal ([CR#402.2]) plus its
+/// `{T}: Add {C}` mana ability.
+#[test]
+fn renders_modify_player_reliquary_tower() {
+    let r = render_card_face(&face("Reliquary Tower"));
+    assert_eq!(r.type_line, "Land");
+    assert_eq!(r.rules[0], "You have no maximum hand size.".to_string());
+}
+
 #[test]
 fn renders_must_attack_goblin_brigand() {
     let r = render_card_face(&face("Goblin Brigand"));

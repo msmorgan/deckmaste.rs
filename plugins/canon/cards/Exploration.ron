@@ -1,0 +1,15 @@
+// "You may play an additional land on each of your turns." A continuous static
+// over a PLAYER attribute ([CR#305.2] — continuous effects may raise the
+// one-land-per-turn number), the player-side twin of an anthem.
+Normal(
+  name: "Exploration",
+  mana_cost: [
+    Green,
+  ],
+  types: [
+    Enchantment,
+  ],
+  abilities: [
+    Static(effects: [ModifyPlayer(You, Raise(LandPlaysPerTurn, 1))]),
+  ],
+)

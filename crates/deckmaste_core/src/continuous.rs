@@ -268,6 +268,14 @@ pub enum StaticEffect {
     Deontic(Deontic),
     /// A cost modifier ([CR#118.7]).
     CostModifier { of: Filter, change: CostChange },
+    /// A continuous modification to a player's numeric attribute ([CR#611]):
+    /// extra land plays (Exploration = `ModifyPlayer(Ref(You),
+    /// Raise(LandPlaysPerTurn, 1))`, [CR#305.2]) or no maximum hand size
+    /// (Reliquary Tower = `ModifyPlayer(Ref(You), NoMax(HandSizeLimit))`,
+    /// [CR#402.2]). The object-modifying `Modify` touches objects only; this is
+    /// its player-side twin. The `Reference` is the affected player ("you" by
+    /// default — the source's controller).
+    ModifyPlayer(Reference, PlayerMod),
     /// A replacement effect ([CR#614]). Boxed: `Replacement` is by far the
     /// largest payload here, so boxing keeps `StaticEffect` small
     /// (`clippy::large_enum_variant`).
@@ -326,6 +334,39 @@ pub enum OutcomeGateKind {
     /// Suppresses "wins the game" effect outcomes ([CR#104.2b]); the
     /// all-opponents-left win ([CR#104.2a]) bypasses it.
     CantWin,
+}
+
+/// A player's numeric attribute a [`StaticEffect::ModifyPlayer`] adjusts — the
+/// player-side twin of an object [`Modification`] axis. `HandSizeLimit`
+/// (normally seven, [CR#402.2]) and `LandPlaysPerTurn` (normally one,
+/// [CR#305.2]) are the caps continuous statics modify (Reliquary Tower /
+/// Exploration); `Life` ([CR#119.1]) and `HandSize` ([CR#402.2]) round out the
+/// readable player attributes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum PlayerAttr {
+    Life,
+    HandSize,
+    HandSizeLimit,
+    LandPlaysPerTurn,
+}
+
+/// A continuous modification to a player attribute, carried by
+/// [`StaticEffect::ModifyPlayer`] — the player-side twin of [`NumericOp`]
+/// ([CR#611]; players have no [CR#613] layers, so these apply directly).
+/// `SetTo`/`Raise`/`Lower` adjust a count-valued attribute (Exploration =
+/// `Raise(LandPlaysPerTurn, 1)`); `NoMax` removes a cap (Reliquary Tower =
+/// `NoMax(HandSizeLimit)`, "no maximum hand size") — kept a dedicated op, not a
+/// `Maybe Count` value, since a player attribute reads as a count.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum PlayerMod {
+    /// Overwrite the attribute with a fixed value.
+    SetTo(PlayerAttr, Count),
+    /// "+N" the attribute.
+    Raise(PlayerAttr, Count),
+    /// "−N" the attribute.
+    Lower(PlayerAttr, Count),
+    /// Remove the attribute's maximum ("no maximum hand size").
+    NoMax(PlayerAttr),
 }
 
 #[cfg(test)]
@@ -490,6 +531,31 @@ mod tests {
                 Modification::SwitchPowerToughness,
             ],
         );
+    }
+
+    /// `ModifyPlayer` reads flat and round-trips: the Exploration land-plays
+    /// raise ([CR#305.2]) and the Reliquary Tower no-maximum-hand-size cap
+    /// removal ([CR#402.2]).
+    #[test]
+    fn modify_player_round_trips() {
+        let parsed = read("ModifyPlayer(You, Raise(LandPlaysPerTurn, 1))");
+        assert_eq!(
+            parsed,
+            StaticEffect::ModifyPlayer(
+                Reference::You,
+                PlayerMod::Raise(PlayerAttr::LandPlaysPerTurn, Count::Literal(1)),
+            ),
+        );
+        let written = crate::ron::options().to_string(&parsed).unwrap();
+        assert_eq!(read(&written), parsed);
+
+        let no_max = read("ModifyPlayer(You, NoMax(HandSizeLimit))");
+        assert_eq!(
+            no_max,
+            StaticEffect::ModifyPlayer(Reference::You, PlayerMod::NoMax(PlayerAttr::HandSizeLimit),),
+        );
+        let written = crate::ron::options().to_string(&no_max).unwrap();
+        assert_eq!(read(&written), no_max);
     }
 
     /// A deontic clause reads flat and serializes flat — the compartment
