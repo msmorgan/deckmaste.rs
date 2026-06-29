@@ -4,6 +4,7 @@ use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::Color;
 use deckmaste_core::Count;
+use deckmaste_core::Destination;
 use deckmaste_core::Duration;
 use deckmaste_core::Effect;
 use deckmaste_core::PlayerAction;
@@ -129,6 +130,13 @@ fn action(a: &Action, ctx: &Ctx) -> String {
             fragment::selection(target, ctx)
         ),
         Action::Destroy(sel) => format!("Destroy {}.", fragment::selection(sel, ctx)),
+        // [CR#401.7]: a library destination — "Put <cards> on top/the bottom of
+        // your library." (the former `PutInLibrary`, now a `Move` destination).
+        Action::Move(sel, Destination::Library(anchor)) => format!(
+            "Put {} on {} of your library.",
+            fragment::selection_object(sel, ctx),
+            fragment::library_position(anchor),
+        ),
         Action::By(_who, pa) => player_action(pa, ctx),
         // [CR#701.19a]: a regeneration shield — rendered as "Regenerate <target>."
         // when the replacement body has the standard structure. The top-level
@@ -146,11 +154,6 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
         PlayerAction::Draw(c) => format!("Draw {} cards.", fragment::count(c)),
         PlayerAction::GainLife(c) => format!("Gain {} life.", fragment::count(c)),
         PlayerAction::LoseLife(c) => format!("Lose {} life.", fragment::count(c)),
-        PlayerAction::PutInLibrary(sel, position) => format!(
-            "Put {} on {} of your library.",
-            fragment::selection_object(sel, ctx),
-            fragment::library_position(position),
-        ),
         PlayerAction::Create(count, spec) => create_text(count, spec),
         PlayerAction::Tap(sel) => format!("Tap {}.", fragment::selection(sel, ctx)),
         PlayerAction::Untap(sel) => format!("Untap {}.", fragment::selection(sel, ctx)),
@@ -334,6 +337,31 @@ mod tests {
         assert_eq!(
             action(&sourced, &ctx),
             "Target creature deals 3 damage to target creature."
+        );
+    }
+
+    /// A `Move`-to-library destination renders the anchor: `FromTop(0)` ->
+    /// "top", `FromBottom(0)` -> "the bottom" ([CR#401.7]).
+    #[test]
+    fn move_to_library_renders_top_and_bottom() {
+        use deckmaste_core::Anchor;
+        use deckmaste_core::Destination;
+        let ctx = Ctx {
+            subject: "it",
+            targets: &[],
+        };
+        let top = Action::Move(
+            Selection::Ref(Reference::This),
+            Destination::Library(Anchor::FromTop(Count::Literal(0))),
+        );
+        assert_eq!(action(&top, &ctx), "Put it on top of your library.");
+        let bottom = Action::Move(
+            Selection::Ref(Reference::This),
+            Destination::Library(Anchor::FromBottom(Count::Literal(0))),
+        );
+        assert_eq!(
+            action(&bottom, &ctx),
+            "Put it on the bottom of your library."
         );
     }
 }

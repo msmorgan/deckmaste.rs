@@ -4,9 +4,11 @@
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::Agency;
+use deckmaste_core::Anchor;
 use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::Count;
+use deckmaste_core::Destination;
 use deckmaste_core::Effect;
 use deckmaste_core::ManaSpec;
 use deckmaste_core::Normalize;
@@ -742,23 +744,39 @@ impl GameState {
             }
             // [CR#400.7]: a PLAIN zone move (no `WillDestroy` intent, no
             // cause-verb fact) — each selected object moves from whatever zone
-            // it's in to `zone`. The apply remints into the owner's
+            // it's in to the `Destination`. The apply remints into the owner's
             // graveyard/hand/library (or the shared exile), exactly like
             // `ReturnToHand`/`Exile`. NOT destruction (indestructible doesn't
             // apply) and NOT a sacrifice — the [CR#704.5m] Aura graveyard SBA's
-            // mover.
-            Action::Move(sel, zone) => {
+            // mover. A library destination ([CR#401.7]) carries an insertion
+            // index: `FromTop(n)` is a from-top index (0 = top); `FromBottom(n)`
+            // is converted to one against the owner's current library size
+            // (`len - n`), clamped at apply ("an index past the bottom places it
+            // on the bottom"). This arm subsumes the former `PutInLibrary`.
+            Action::Move(sel, destination) => {
+                let to = match destination {
+                    Destination::Zone(z) => *z,
+                    Destination::Library(_) => Zone::Library,
+                };
                 let events: Vec<GameEvent> = self
                     .eval_selection_set(sel, frame)
                     .into_iter()
-                    .map(|object| GameEvent::ZoneWillChange {
-                        object,
-                        from: Some(self.objects.obj(object).zone.expect("move a zoned object")),
-                        to: *zone,
-                        enters: None,
-                        position: None,
-                        face: None,
-                        cause: None,
+                    .map(|object| {
+                        let position = match destination {
+                            Destination::Zone(_) => None,
+                            Destination::Library(anchor) => {
+                                Some(self.library_index(object, anchor, frame))
+                            }
+                        };
+                        GameEvent::ZoneWillChange {
+                            object,
+                            from: Some(self.objects.obj(object).zone.expect("move a zoned object")),
+                            to,
+                            enters: None,
+                            position,
+                            face: None,
+                            cause: None,
+                        }
                     })
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
@@ -770,6 +788,23 @@ impl GameState {
                 unreachable!(
                     "CreateReplacement is handled in run_effect before action_items is called"
                 )
+            }
+        }
+    }
+
+    /// The from-top insertion index for a library [`Anchor`] ([CR#401.7]),
+    /// resolved against the OWNER's current library size. `FromTop(n)` is the
+    /// index itself (`0` = top); `FromBottom(n)` is `len - n` (`0` = the very
+    /// bottom). The apply clamps an index past the bottom to the bottom, so a
+    /// from-bottom anchor on a card entering from elsewhere lands correctly.
+    fn library_index(&self, object: ObjectId, anchor: &Anchor, frame: &Frame) -> Uint {
+        match anchor {
+            Anchor::FromTop(c) => self.eval_count(c, frame),
+            Anchor::FromBottom(c) => {
+                let owner = self.owner_of(object);
+                let len = Uint::try_from(self.zones.libraries[owner.index()].len())
+                    .expect("library size fits Uint");
+                len.saturating_sub(self.eval_count(c, frame))
             }
         }
     }
@@ -886,28 +921,6 @@ impl GameState {
                     .map(|object| self.relocate_from_current(object, Zone::Exile, None))
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
-            }
-            PlayerAction::PutInLibrary(sel, pos) => {
-                // [CR#401.7]: `pos` indexes from the top (0 = top), clamped to
-                // the bottom at apply. [CR#401.4]: the owner's arrangement
-                // choice for a multi-card selection is a seam — cards move one
-                // at a time in selection order, each inserting at the same
-                // index (so the last placed ends up frontmost of the group).
-                let position = self.eval_count(pos, frame);
-                self.eval_selection_set(sel, frame)
-                    .into_iter()
-                    .map(|object| {
-                        WorkItem::Emit(Occurrence::Single(GameEvent::ZoneWillChange {
-                            object,
-                            from: Some(self.objects.obj(object).zone.expect("a zoned object")),
-                            to: Zone::Library,
-                            enters: None,
-                            position: Some(position),
-                            face: None,
-                            cause: None,
-                        }))
-                    })
-                    .collect()
             }
             // P0.W5 seam: emblem minting into the command zone.
             PlayerAction::GetEmblem(..) => todo!("P0.W5: emblems ([CR#114.1])"),
@@ -1893,7 +1906,6 @@ fn unresolved_choice(action: &Action) -> Option<PendingChoice> {
             | PlayerAction::CopySpell(s)
             | PlayerAction::PutCounters(s, _, _)
             | PlayerAction::RemoveCounters(s, _, _)
-            | PlayerAction::PutInLibrary(s, _)
             | PlayerAction::RemoveDamage(s) => lift(s),
             PlayerAction::Reveal { what, .. } => lift(what),
             PlayerAction::Expanded(e) => lift_pa(&e.value),
@@ -2999,7 +3011,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src(bear);
         state.run_effect(
-            Effect::Act(Action::Move(Selection::this(), Zone::Graveyard)),
+            Effect::Act(Action::move_to(Selection::this(), Zone::Graveyard)),
             &frame,
         );
         // ZoneWillChange → ZoneChanged (one fewer step than Destroy — no
@@ -3984,18 +3996,22 @@ mod tests {
         assert!(found, "AbilityCountered event must be recorded in history");
     }
 
-    /// [CR#401.7]: `PutInLibrary(This, 0)` puts the card on top; an index past
-    /// the bottom clamps to the bottom.
+    /// [CR#401.7]: `Move(This, Library(FromTop(0)))` puts the card on top;
+    /// `Library(FromBottom(0))` puts it on the bottom (the placement no
+    /// from-top index could name without the library size).
     #[test]
-    fn put_in_library_top_and_clamped_bottom() {
+    fn move_to_library_top_and_bottom() {
+        use deckmaste_core::Anchor;
+        use deckmaste_core::Destination;
+
         let (mut state, bear) = bear_on_field();
         let bear_card = state.objects.obj(bear).card_id().expect("card-backed");
         let lib_before = state.zones.libraries[0].len();
         let frame = frame_src(bear);
         state.run_effect(
-            Effect::act_by_you(PlayerAction::PutInLibrary(
+            Effect::Act(Action::Move(
                 Selection::this(),
-                Count::Literal(0),
+                Destination::Library(Anchor::FromTop(Count::Literal(0))),
             )),
             &frame,
         );
@@ -4008,12 +4024,12 @@ mod tests {
         assert_eq!(state.objects.obj(top).card_id(), Some(bear_card));
         assert_eq!(state.objects.obj(top).zone, Some(Zone::Library));
 
-        // Past the bottom ([CR#401.7]): index 99 places it on the bottom.
+        // Bottom of library ([CR#401.7]): FromBottom(0) lands at the back.
         let frame = frame_src(top);
         state.run_effect(
-            Effect::act_by_you(PlayerAction::PutInLibrary(
+            Effect::Act(Action::Move(
                 Selection::this(),
-                Count::Literal(99),
+                Destination::Library(Anchor::FromBottom(Count::Literal(0))),
             )),
             &frame,
         );
