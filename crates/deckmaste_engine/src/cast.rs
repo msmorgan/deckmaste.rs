@@ -10,8 +10,11 @@ use deckmaste_core::CostComponent;
 use deckmaste_core::Effect;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
+use deckmaste_core::PayAct;
+use deckmaste_core::PipClass;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::SimpleManaSymbol;
+use deckmaste_core::StaticEffect;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Type;
 use deckmaste_core::Uint;
@@ -24,6 +27,7 @@ use crate::event::Cause;
 use crate::event::GameEvent;
 use crate::event::Occurrence;
 use crate::object::ObjectId;
+use crate::object::ObjectSource;
 use crate::player::ManaPool;
 use crate::player::PlayerId;
 use crate::stack::Frame;
@@ -146,6 +150,46 @@ fn pips(req: &Requirement) -> Vec<Pip> {
     pips.extend(std::iter::repeat_n(Pip::Snow, req.snow as usize));
     pips.extend(std::iter::repeat_n(Pip::Generic, req.generic as usize));
     pips
+}
+
+/// The index in `symbols` of the first pip a [`PipClass`] alternative may pay
+/// ([CR#601.2g]): a `Generic(n>0)` for `PipClass::Generic` (delve / improvise /
+/// convoke's generic clause), or a colored pip of the named color for
+/// `PipClass::Colored` (convoke's per-color clause, [CR#702.51a]). `None` when
+/// no such pip remains. Snow and colorless pips are never matched — those
+/// keywords pay only generic / colored mana.
+fn pip_index(symbols: &[ManaSymbol], class: PipClass) -> Option<usize> {
+    symbols.iter().position(|s| match (class, s) {
+        (PipClass::Generic, ManaSymbol::Simple(SimpleManaSymbol::Generic(n))) => *n > 0,
+        (
+            PipClass::Colored(color),
+            ManaSymbol::Simple(SimpleManaSymbol::Specific(ColorOrColorless::Color(c))),
+        ) => *c == color,
+        _ => false,
+    })
+}
+
+/// Remove ONE pip at `idx` from the working payment list — the pip an
+/// alternative covered, so it "isn't paid with mana" ([CR#702.51a] "rather than
+/// pay that mana"). A colored pip is one symbol, dropped outright; a
+/// `Generic(n)` bundles n pips, so its count is decremented (the symbol dropped
+/// at 0). Edits ONLY the working list: the printed cost and mana value
+/// ([CR#202.3]) are never touched — paying this way still counts as paying the
+/// original cost ([CR#118.7]).
+fn remove_one_pip(symbols: &mut Vec<ManaSymbol>, idx: usize, class: PipClass) {
+    match class {
+        PipClass::Generic => {
+            if let ManaSymbol::Simple(SimpleManaSymbol::Generic(n)) = &mut symbols[idx] {
+                *n -= 1;
+                if *n == 0 {
+                    symbols.remove(idx);
+                }
+            }
+        }
+        PipClass::Colored(_) => {
+            symbols.remove(idx);
+        }
+    }
 }
 
 /// Maximum bipartite matching (Kuhn's augmenting-path algorithm) of `pips` to
@@ -856,13 +900,20 @@ impl GameState {
                 // decision (if any) and ahead of the `SpellCast` becomes-cast
                 // step. The source is the spell object; the payer its
                 // controller.
-                let items = verb_payment_items(&extra_verbs, object, controller);
-                if !items.is_empty() {
-                    self.schedule_front(items);
-                }
+                let mut items = verb_payment_items(&extra_verbs, object, controller);
                 // [CR#601.2b]: apply the announced X to the concretized mana
                 // ({X} -> Generic(announced_x); hybrid/Phyrexian already resolved).
                 let mana = concretize_x(&mana, announced_x);
+                // [CR#601.2g..601.2h]: convoke/delve/improvise — offer each
+                // eligible pip of the now-locked-in cost its `PayPips`
+                // alternative; pips paid that way drop out of the mana decision
+                // (the total cost / mana value are untouched, [CR#702.51b]). The
+                // tap/exile items join the same payment window as the verbs.
+                let (mana, pip_items) = self.assemble_pip_payments(object, controller, &mana);
+                items.extend(pip_items);
+                if !items.is_empty() {
+                    self.schedule_front(items);
+                }
                 if !mana.is_empty() {
                     let pool = self.player(controller).mana_pool.clone();
                     self.pending = Some(PendingDecision::PayMana {
@@ -951,6 +1002,116 @@ impl GameState {
             StackObject::Triggered { .. } => {
                 unreachable!("a triggered ability has no cost and never occupies the announce slot")
             }
+        }
+    }
+
+    /// [CR#601.2g..601.2h]: the per-pip alternative-payment hook for a spell
+    /// being cast (convoke / delve / improvise) — the SINGLE engine consumer of
+    /// [`StaticEffect::PayPips`]. Gathers the spell's `PayPips` statics, walks
+    /// the locked-in `mana`'s pips, and for each eligible pip with an available
+    /// resource pays it that way ([CR#702.51a] "rather than pay that mana"):
+    /// tapping a permanent ([CR#107.5]) or exiling a graveyard card
+    /// ([CR#702.66a]). Returns the mana the player must still pay (covered pips
+    /// removed) plus the tap/exile work items for the payment window.
+    ///
+    /// Reading it ONLY here encodes the active window structurally: the static
+    /// "functions while the spell is on the stack" ([CR#702.51a]) but is
+    /// EXERCISABLE only in this casting's payment window ([CR#601.2g]) — no
+    /// stack-lifetime "is it active?" predicate. The total cost and mana value
+    /// ([CR#202.3]) are never mutated — it "isn't an additional or alternative
+    /// cost" ([CR#702.51b]) and paying this way still counts as paying the
+    /// original ([CR#118.7]); only HOW each pip is paid changes.
+    ///
+    /// DEFERRED — interactive picker: the payer is entitled to CHOOSE which
+    /// permanent to tap / card to exile and WHICH pips to cover ([CR#601.2g]);
+    /// this takes a deterministic first-eligible subset (each resource spent at
+    /// most once), exactly as [`GameState::tap_total_subset`] does for Crew.
+    /// The interactive choice is a follow-up seam needing a payment-time
+    /// decision point; the chosen subset is always a legal payment.
+    fn assemble_pip_payments(
+        &self,
+        spell: ObjectId,
+        controller: PlayerId,
+        mana: &ManaCost,
+    ) -> (ManaCost, Vec<WorkItem>) {
+        // The static functions while the spell is on the stack ([CR#702.51a]),
+        // so it rides the spell object's own derived ability list.
+        let view = self.layers();
+        let mut acts: Vec<(PipClass, PayAct)> = Vec::new();
+        crate::legal::for_each_static(&view, spell, |e| {
+            if let StaticEffect::PayPips(class, act) = e {
+                acts.push((*class, act.clone()));
+            }
+        });
+        if acts.is_empty() {
+            return (mana.clone(), Vec::new());
+        }
+        // The filter's `Ref(This)`/`Ref(You)` anchor on the spell's source.
+        let watcher = self.objects.obj(spell).source;
+        let mut symbols: Vec<ManaSymbol> = mana.iter().copied().collect();
+        let mut used: std::collections::HashSet<ObjectId> = std::collections::HashSet::new();
+        let mut items: Vec<WorkItem> = Vec::new();
+        for (class, act) in &acts {
+            // One static may pay several matching pips ([CR#702.51a] "for each
+            // ... mana"); loop until pips or eligible resources run out.
+            while let Some(idx) = pip_index(&symbols, *class) {
+                let Some(resource) = self.first_pip_resource(act, watcher, &used) else {
+                    break;
+                };
+                used.insert(resource);
+                remove_one_pip(&mut symbols, idx, *class);
+                items.push(self.pip_payment_item(act, resource, spell, controller));
+            }
+        }
+        (ManaCost::from(symbols), items)
+    }
+
+    /// The first eligible object for a [`PayAct`] alternative not already spent
+    /// ([CR#601.2g]), in deterministic id order: an untapped battlefield
+    /// permanent matching the filter for `TapToPay` ([CR#107.5]), or a card in
+    /// a graveyard for `ExileToPay` ([CR#702.66a]). The zone guard is explicit
+    /// (not left to the filter), so a permissive plugin filter still can't tap
+    /// a graveyard card or exile a battlefield permanent. `watcher` anchors the
+    /// filter's self-references.
+    fn first_pip_resource(
+        &self,
+        act: &PayAct,
+        watcher: ObjectSource,
+        used: &std::collections::HashSet<ObjectId>,
+    ) -> Option<ObjectId> {
+        let (filter, zone, untapped_only) = match act {
+            PayAct::TapToPay(f) => (f, Zone::Battlefield, true),
+            PayAct::ExileToPay(f) => (f, Zone::Graveyard, false),
+        };
+        crate::target::candidates_with(self, filter, Some(watcher))
+            .into_iter()
+            .find(|&id| {
+                !used.contains(&id)
+                    && self.objects.obj(id).zone == Some(zone)
+                    && (!untapped_only || !self.objects.obj(id).tapped)
+            })
+    }
+
+    /// The payment work item for one pip satisfied by an alternative
+    /// ([CR#601.2h]): a `Tapped` event with the cost-payment cause for
+    /// `TapToPay` (convoke / improvise, [CR#702.51a,702.126a]), or a move to
+    /// exile for `ExileToPay` (delve, [CR#702.66a]). Front-scheduled into the
+    /// same payment window as the other cost payments.
+    fn pip_payment_item(
+        &self,
+        act: &PayAct,
+        resource: ObjectId,
+        spell: ObjectId,
+        controller: PlayerId,
+    ) -> WorkItem {
+        match act {
+            PayAct::TapToPay(_) => WorkItem::Emit(Occurrence::single(GameEvent::Tapped {
+                object: resource,
+                cause: Some(Cause::tap(Agency::CostPayment, Some((spell, controller)))),
+            })),
+            PayAct::ExileToPay(_) => WorkItem::Emit(Occurrence::single(
+                self.relocate_from_current(resource, Zone::Exile, None),
+            )),
         }
     }
 

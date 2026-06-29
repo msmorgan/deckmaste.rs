@@ -356,6 +356,21 @@ pub enum StaticEffect {
     /// event can be touched only by a self-replacement, so the cant pass
     /// pre-empts the replacement registry entirely.
     CantHappen(Event),
+    /// ALTERNATIVE PAYMENT of individual cost pips — NOT a cost reduction and
+    /// NOT mana production. "For each [`PipClass`] pip in this spell's total
+    /// cost, you may [`PayAct`] rather than pay that mana": convoke
+    /// ([CR#702.51a]), delve ([CR#702.66a]), improvise ([CR#702.126a]). It
+    /// "isn't an additional or alternative cost and applies only after the
+    /// total cost of the spell ... is determined" ([CR#702.51b]); the total
+    /// cost and the mana value ([CR#202.3]) are NEVER mutated — paying a pip
+    /// this way still counts as paying the original cost ([CR#118.7]). The
+    /// engine reads this in exactly ONE step, the cost-payment window
+    /// ([CR#601.2g..601.2h]) of the casting that grants it: it walks the
+    /// locked-in cost's pips and offers each eligible pip its alternative,
+    /// substituting how the pip is paid, never the total. Read by no other
+    /// engine step, so the "while on the stack" lifetime ([CR#702.51a]) needs
+    /// no separate is-active predicate.
+    PayPips(PipClass, PayAct),
     /// A remembered `StaticEffect` macro invocation. Serialized as the
     /// invocation, not the struct.
     #[macro_ron(expanded)]
@@ -371,6 +386,36 @@ pub enum OutcomeGateKind {
     /// Suppresses "wins the game" effect outcomes ([CR#104.2b]); the
     /// all-opponents-left win ([CR#104.2a]) bypasses it.
     CantWin,
+}
+
+/// Which pips of a spell's locked-in total cost a [`StaticEffect::PayPips`]
+/// alternative may pay ([CR#601.2g]). `Generic` matches a generic pip (delve /
+/// improvise / convoke's generic clause); `Colored` a colored pip of the named
+/// color (convoke's per-color clause — "an untapped creature of that color",
+/// [CR#702.51a]). Spelled `Colored(Color)` rather than the Idris `ColorPip`'s
+/// implicit color-match: the color is named here, and a convoke keyword expands
+/// to one variant per color so the tapped creature's color is enforced
+/// structurally.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum PipClass {
+    /// A generic pip ({1}) — delve, improvise, convoke's generic clause.
+    Generic,
+    /// A colored pip of the named color — convoke's colored clause
+    /// ([CR#702.51a]).
+    Colored(Color),
+}
+
+/// The per-pip alternative-payment action a [`StaticEffect::PayPips`] performs
+/// "rather than pay that mana" ([CR#702.51a,702.66a,702.126a]). The object is
+/// chosen at payment time ([CR#601.2g]); `Filter` is open (plugin-safe).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum PayAct {
+    /// Tap an untapped permanent matching the filter you control
+    /// ([CR#107.5]): convoke taps a creature ([CR#702.51a]), improvise an
+    /// artifact ([CR#702.126a]).
+    TapToPay(Filter),
+    /// Exile a matching card from your graveyard: delve ([CR#702.66a]).
+    ExileToPay(Filter),
 }
 
 /// A player's numeric attribute a [`StaticEffect::ModifyPlayer`] adjusts — the
@@ -625,6 +670,52 @@ mod tests {
         let written = crate::ron::options().to_string(&opp).unwrap();
         assert!(written.contains("affected"), "non-default affected kept");
         assert_eq!(read(&written), opp);
+    }
+
+    /// `PayPips` reads flat and round-trips: convoke's colored clause
+    /// (`Colored(White)` + tap a white creature you control, [CR#702.51a]) and
+    /// delve's generic clause (`Generic` + exile a graveyard card,
+    /// [CR#702.66a]). The `Filter` fields are open and read flat.
+    #[test]
+    fn pay_pips_round_trips() {
+        use crate::CharacteristicFilter;
+        use crate::RelationFilter;
+        use crate::StateFilter;
+        use crate::Zone;
+
+        // Convoke's colored clause: tap a white creature you control rather
+        // than pay a {W} pip.
+        let convoke = read(
+            "PayPips(Colored(White), TapToPay(AllOf([Type(Creature), ColorIs(White), ControlledBy(Ref(You))])))",
+        );
+        assert_eq!(
+            convoke,
+            StaticEffect::PayPips(
+                PipClass::Colored(Color::White),
+                PayAct::TapToPay(Filter::AllOf(vec![
+                    Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                    Filter::Characteristic(CharacteristicFilter::ColorIs(Color::White)),
+                    Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+                        Reference::You
+                    )))),
+                ])),
+            ),
+        );
+        let written = crate::ron::options().to_string(&convoke).unwrap();
+        assert_eq!(read(&written), convoke, "convoke round-trips: {written}");
+
+        // Delve's generic clause: exile a card from your graveyard rather than
+        // pay a generic pip.
+        let delve = read("PayPips(Generic, ExileToPay(InZone(Graveyard)))");
+        assert_eq!(
+            delve,
+            StaticEffect::PayPips(
+                PipClass::Generic,
+                PayAct::ExileToPay(Filter::State(StateFilter::InZone(Zone::Graveyard))),
+            ),
+        );
+        let written = crate::ron::options().to_string(&delve).unwrap();
+        assert_eq!(read(&written), delve, "delve round-trips: {written}");
     }
 
     /// A deontic clause reads flat and serializes flat — the compartment

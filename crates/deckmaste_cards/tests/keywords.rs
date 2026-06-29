@@ -61,6 +61,11 @@ fn every_builtin_keyword_macro_expands() {
         ("Training", "Training"),
         ("Outlast([Mana([White])])", "Outlast"),
         ("Scavenge([Mana([Generic(2)])])", "Scavenge"),
+        // Per-pip alternative payment ([CR#702.51a,702.66a,702.126a]): each
+        // confers `PayPips` statics; all nullary.
+        ("Convoke", "Convoke"),
+        ("Delve", "Delve"),
+        ("Improvise", "Improvise"),
     ];
     let plugin = builtin();
     for (invocation, name) in cases {

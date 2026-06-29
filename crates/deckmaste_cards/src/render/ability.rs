@@ -10,6 +10,7 @@ use deckmaste_core::Event;
 use deckmaste_core::Filter;
 use deckmaste_core::Modification;
 use deckmaste_core::NumericOp;
+use deckmaste_core::PayAct;
 use deckmaste_core::PlayerAttr;
 use deckmaste_core::PlayerMod;
 use deckmaste_core::Reference;
@@ -17,6 +18,7 @@ use deckmaste_core::StateFilterEvent;
 use deckmaste_core::StaticAbility;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::TriggeredAbility;
+use deckmaste_core::Type;
 use deckmaste_core::Zone;
 
 use super::CardView;
@@ -165,7 +167,26 @@ pub(super) fn static_effect(e: &StaticEffect, ctx: &Ctx) -> Option<String> {
         StaticEffect::Deontic(d) => Some(super::deontic::deontic(d, ctx.subject)),
         StaticEffect::Replacement(r) => Some(super::replacement::replacement(r, ctx)),
         StaticEffect::CantHappen(_event) => Some("[can't happen]".to_string()), /* keyword cards render via their template */
+        StaticEffect::PayPips(_class, act) => Some(pay_pips_keyword(act)),
         other => Some(format!("[unrendered: {other:?}].")),
+    }
+}
+
+/// The printed keyword clause for a `PayPips` alternative-payment static
+/// ([CR#702.51a,702.66a,702.126a]). Delve exiles, so `ExileToPay` → "Delve";
+/// convoke and improvise both tap, told apart by what they tap — improvise an
+/// artifact ([CR#702.126a]), convoke a creature ([CR#702.51a]). Keyword cards
+/// normally render through their macro template (the `Expanded` invocation
+/// carries one); this is the fallback for a directly written `PayPips` static.
+fn pay_pips_keyword(act: &PayAct) -> String {
+    match act {
+        PayAct::ExileToPay(_) => "Delve".to_string(),
+        PayAct::TapToPay(filter)
+            if super::fragment::find_card_type(filter) == Some(Type::Artifact) =>
+        {
+            "Improvise".to_string()
+        }
+        PayAct::TapToPay(_) => "Convoke".to_string(),
     }
 }
 
@@ -484,5 +505,51 @@ mod tests {
             from_zone_qualified(Some(Zone::Hand), "Force of Will", "Foo.".into()),
             "As long as Force of Will is in your hand, foo."
         );
+    }
+
+    /// A bare `PayPips` static renders to its keyword name
+    /// ([CR#702.51a,702.66a,702.126a]): delve exiles → "Delve"; convoke /
+    /// improvise tap, told apart by what they tap (creature → "Convoke",
+    /// artifact → "Improvise"). (Keyword cards render via their macro template;
+    /// this is the fallback arm for a directly written static.)
+    #[test]
+    fn pay_pips_renders_its_keyword_name() {
+        use deckmaste_core::CharacteristicFilter;
+        use deckmaste_core::PayAct;
+        use deckmaste_core::PipClass;
+        use deckmaste_core::RelationFilter;
+        use deckmaste_core::StateFilter;
+
+        let ctx = Ctx {
+            subject: "Test",
+            targets: &[],
+        };
+        let you = || {
+            Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+                Reference::You,
+            ))))
+        };
+        let ty = |t| Filter::Characteristic(CharacteristicFilter::Type(t));
+
+        let convoke = StaticEffect::PayPips(
+            PipClass::Generic,
+            PayAct::TapToPay(Filter::AllOf(vec![ty(Type::Creature), you()])),
+        );
+        assert_eq!(static_effect(&convoke, &ctx).as_deref(), Some("Convoke"));
+
+        let improvise = StaticEffect::PayPips(
+            PipClass::Generic,
+            PayAct::TapToPay(Filter::AllOf(vec![ty(Type::Artifact), you()])),
+        );
+        assert_eq!(
+            static_effect(&improvise, &ctx).as_deref(),
+            Some("Improvise")
+        );
+
+        let delve = StaticEffect::PayPips(
+            PipClass::Generic,
+            PayAct::ExileToPay(Filter::State(StateFilter::InZone(Zone::Graveyard))),
+        );
+        assert_eq!(static_effect(&delve, &ctx).as_deref(), Some("Delve"));
     }
 }
