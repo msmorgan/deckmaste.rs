@@ -116,6 +116,13 @@ pub(super) fn reference(r: &Reference, ctx: &Ctx) -> String {
         Reference::EventActor | Reference::ThatPlayer => "that player".to_string(),
         // The combat defender ([CR#506.2]) — always a player.
         Reference::DefendingPlayer => "the defending player".to_string(),
+        // A player derived from an object: the possessive pronoun stands for
+        // the wrapped object, which the surrounding clause already names —
+        // Mana Leak's "counter target spell unless its controller pays {3}"
+        // ([CR#118.12a]). An object's controller ([CR#109.4]) / owner
+        // ([CR#108.3]).
+        Reference::ControllerOf(_) => "its controller".to_string(),
+        Reference::OwnerOf(_) => "its owner".to_string(),
         other => format!("[unrendered: {other:?}]"),
     }
 }

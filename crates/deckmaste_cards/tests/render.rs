@@ -57,6 +57,20 @@ fn renders_spell_lightning_bolt() {
     assert_eq!(r.rules, vec!["Deal 3 damage to any target.".to_string()]);
 }
 
+/// `MustPay(actor: ControllerOf(Target(0)), …)` renders the derived-player
+/// reference as "its controller" ([CR#109.4]), not a debug marker — the
+/// canonical Mana Leak punisher ([CR#118.12a]).
+#[test]
+fn renders_must_pay_controller_of_mana_leak() {
+    let r = render_card_face(&face("Mana Leak"));
+    assert_eq!(r.mana_cost, "{1}{U}");
+    assert_eq!(r.type_line, "Instant");
+    assert_eq!(
+        r.rules,
+        vec!["Counter target spell unless its controller pays {3}.".to_string()]
+    );
+}
+
 /// The `Domain` count macro rides its template into rules text: Tribal Flames'
 /// damage amount renders "domain", not the expanded `CountDistinct`.
 #[test]
@@ -324,7 +338,7 @@ fn renders_every_canon_card_without_panicking() {
     assert!(total > 0, "no canon cards found");
 }
 
-/// Anchor completeness: the ten cards exercised by the golden tests must
+/// Anchor completeness: the cards exercised by the golden tests must
 /// render with NO `[unrendered]` markers (they are in-scope by definition).
 #[test]
 fn anchor_cards_fully_rendered() {
@@ -339,6 +353,7 @@ fn anchor_cards_fully_rendered() {
         "Grizzly Bears",
         "Goblin Medics",
         "Pacifism",
+        "Mana Leak",
     ] {
         let r = render_card_face(&face(name));
         let blob = format!("{} {} {:?}", r.mana_cost, r.type_line, r.rules);
