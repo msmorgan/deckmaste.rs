@@ -431,6 +431,14 @@ fn unless_cost_action(
         CostComponent::Cost(_) => {
             unreachable!("nested Cost is spliced away by normalize at the Unless boundary")
         }
+        // An aggregate-stat (tap-total) cost ([CR#702.122a] Crew) as an
+        // 'unless' cost needs the payer's subset choice, which has no single
+        // `Action` rendering. Crew-family costs are activation costs, never
+        // 'unless' costs, so this seam is unreached today.
+        CostComponent::TapTotal { .. } => todo!(
+            "engine-resolve-effects seam: an aggregate-stat (tap-total) 'unless' cost \
+             ([CR#118.12a,702.122a]) needs a payment-time subset choice"
+        ),
         // Both spell mana 'unless' costs and "equal to its mana cost"
         // ([CR#202.1]) are announce-slot-bound — the same seam.
         CostComponent::Mana(_) | CostComponent::ManaCostOf(_) => todo!(

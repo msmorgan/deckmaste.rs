@@ -101,7 +101,9 @@ fn render_arg(raw: &str) -> Option<String> {
 /// → "{2}"). Declines on any component without a simple rendering (e.g. a
 /// `Do(...)` verb cost), so the keyword falls back to its bare name.
 fn render_cost(cost: &[deckmaste_core::CostComponent]) -> Option<String> {
+    use deckmaste_core::Cmp;
     use deckmaste_core::CostComponent;
+    use deckmaste_core::Stat;
     let mut out = String::new();
     for component in cost {
         match component {
@@ -114,6 +116,39 @@ fn render_cost(cost: &[deckmaste_core::CostComponent]) -> Option<String> {
             // reference needs a `Ctx`, so decline to the structural fallback.
             CostComponent::ManaCostOf(deckmaste_core::Reference::This) => {
                 out.push_str("its mana cost");
+            }
+            // An aggregate-stat cost ([CR#702.122a]): "tap any number of
+            // [filter] with total [stat] [bound]" — the Crew reminder shape.
+            // Only a bare-literal count renders here; a dynamic count declines
+            // to the structural fallback.
+            CostComponent::TapTotal {
+                stat,
+                cmp,
+                count,
+                filter,
+            } => {
+                let n = count.literal_value()?;
+                let subject = super::fragment::filter_subject(filter).to_lowercase();
+                let stat_word = match stat {
+                    Stat::Power => "power",
+                    Stat::Toughness => "toughness",
+                    Stat::ManaValue => "mana value",
+                    Stat::Loyalty => "loyalty",
+                    Stat::Defense => "defense",
+                };
+                let bound = match cmp {
+                    Cmp::AtLeast => format!("{n} or greater"),
+                    Cmp::Greater => format!("greater than {n}"),
+                    Cmp::AtMost => format!("{n} or less"),
+                    Cmp::Less => format!("less than {n}"),
+                    Cmp::Eq => format!("exactly {n}"),
+                };
+                out.push_str("tap any number of ");
+                out.push_str(&subject);
+                out.push_str(" with total ");
+                out.push_str(stat_word);
+                out.push(' ');
+                out.push_str(&bound);
             }
             _ => return None,
         }
@@ -145,6 +180,50 @@ mod tests {
             render_cost(&[CostComponent::ManaCostOf(Reference::Opponent)]),
             None,
         );
+    }
+
+    /// The aggregate-stat (Crew) cost renders to its reminder-text shape
+    /// ([CR#702.122a]): "tap any number of [filter] with total [stat] [bound]".
+    /// A dynamic (non-literal) count declines to the structural fallback.
+    #[test]
+    fn render_cost_renders_tap_total_crew() {
+        use deckmaste_core::CharacteristicFilter;
+        use deckmaste_core::Cmp;
+        use deckmaste_core::CostComponent;
+        use deckmaste_core::Count;
+        use deckmaste_core::Filter;
+        use deckmaste_core::Reference;
+        use deckmaste_core::RelationFilter;
+        use deckmaste_core::Stat;
+        use deckmaste_core::Type;
+
+        // "tap any number of other creatures you control with total power 3 or
+        // greater" — the Crew 3 cost ([CR#702.122a]).
+        let crew = CostComponent::TapTotal {
+            stat: Stat::Power,
+            cmp: Cmp::AtLeast,
+            count: Count::Literal(3),
+            filter: Box::new(Filter::AllOf(vec![
+                Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                Filter::Not(Box::new(Filter::Ref(Reference::This))),
+                Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+                    Reference::You,
+                )))),
+            ])),
+        };
+        assert_eq!(
+            render_cost(&[crew]).as_deref(),
+            Some("tap any number of other creatures you control with total power 3 or greater"),
+        );
+
+        // A dynamic count (no literal) declines to the structural fallback.
+        let dynamic = CostComponent::TapTotal {
+            stat: Stat::Power,
+            cmp: Cmp::AtLeast,
+            count: Count::X,
+            filter: Box::new(Filter::creature()),
+        };
+        assert_eq!(render_cost(&[dynamic]), None);
     }
 
     /// A placeholder expanded value: `expanded` never looks at it (it renders
