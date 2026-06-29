@@ -4,6 +4,7 @@
 
 mod ability;
 mod card;
+mod condition;
 mod deontic;
 mod effect;
 mod fragment;

@@ -974,6 +974,7 @@ pub(crate) mod tests_support {
             name: "Test Creature".into(),
             types: vec![Type::Creature],
             abilities: vec![Ability::Static(StaticAbility {
+                from: None,
                 characteristic_defining: false,
                 effects: vec![effect],
                 condition: None,

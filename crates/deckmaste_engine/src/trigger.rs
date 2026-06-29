@@ -646,14 +646,21 @@ impl GameState {
             _ => None,
         };
 
-        // The watcher set ([CR#603.6]): every live battlefield permanent, plus
-        // the leaving object's snapshot for a battlefield-leave.
+        // The watcher set ([CR#603.6,113.6b]): every live battlefield permanent,
+        // plus every object in a graveyard or hand (for graveyard/hand-
+        // FUNCTIONING triggers — Madness, Bridge from Below; a per-ability
+        // `from`-zone gate below keeps a battlefield-default ability on such an
+        // object from firing), plus the leaving object's snapshot for a
+        // battlefield-leave.
         let mut watchers: Vec<Watcher> = self
             .zones
             .battlefield
             .iter()
             .map(|&id| Watcher::Live(id))
             .collect();
+        for zone in self.zones.graveyards.iter().chain(self.zones.hands.iter()) {
+            watchers.extend(zone.iter().map(|&id| Watcher::Live(id)));
+        }
         if let GameEvent::ZoneChanged {
             snapshot,
             from: Some(Zone::Battlefield),
@@ -666,6 +673,13 @@ impl GameState {
         }
 
         for watcher in watchers {
+            // [CR#113.6,113.6b]: the zone this watcher currently functions in —
+            // its live zone, or the battlefield for a just-left object (its
+            // dies-trigger functions from the battlefield it left).
+            let watcher_zone = match &watcher {
+                Watcher::Live(id) => self.objects.obj(*id).zone,
+                Watcher::Leaving(_) => Some(Zone::Battlefield),
+            };
             let (source, controller, this) = match watcher {
                 Watcher::Live(id) => {
                     let o = self.objects.obj(id);
@@ -680,6 +694,13 @@ impl GameState {
                 let Ability::Triggered(t) = ability else {
                     continue;
                 };
+                // [CR#113.6,113.6b]: the ability triggers only while its source
+                // is in its function-zone (`from`, default battlefield). A
+                // graveyard/hand object considers only its graveyard/hand
+                // triggers; a battlefield permanent only its battlefield ones.
+                if watcher_zone != Some(t.from.unwrap_or(Zone::Battlefield)) {
+                    continue;
+                }
                 if !self.event_matches(&t.event, event, source) {
                     continue;
                 }
@@ -2710,6 +2731,7 @@ mod tests {
             name: "Rabblemaster".into(),
             types: vec![Type::Creature],
             abilities: vec![Ability::Triggered(TriggeredAbility {
+                from: None,
                 event: Event::BeginningOf(
                     Phase::Combat(CombatStep::BeginningOfCombat),
                     WhoseTurn::Your,
@@ -2837,6 +2859,119 @@ mod tests {
         assert_eq!(
             fired, 0,
             "a `Your`-scoped trigger must stay silent on an opponent's turn"
+        );
+    }
+
+    /// A synthetic creature whose sole ability is an "at the beginning of your
+    /// upkeep, draw a card" trigger that FUNCTIONS from the given zone
+    /// (`from`).
+    fn upkeep_trigger_from(from: Option<Zone>) -> deckmaste_core::Card {
+        use deckmaste_core::Ability;
+        use deckmaste_core::Action;
+        use deckmaste_core::BeginningStep;
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::Count;
+        use deckmaste_core::Effect;
+        use deckmaste_core::Event;
+        use deckmaste_core::Phase;
+        use deckmaste_core::PlayerAction;
+        use deckmaste_core::Reference;
+        use deckmaste_core::TriggeredAbility;
+        use deckmaste_core::WhoseTurn;
+
+        Card::Normal(CardFace {
+            name: "Graveyard Echo".into(),
+            types: vec![Type::Creature],
+            abilities: vec![Ability::Triggered(TriggeredAbility {
+                from,
+                event: Event::BeginningOf(Phase::Beginning(BeginningStep::Upkeep), WhoseTurn::Your),
+                condition: None,
+                limits: Vec::new(),
+                effect: Effect::Act(Action::By(
+                    Reference::You,
+                    PlayerAction::Draw(Count::Literal(1)),
+                )),
+            })],
+            ..CardFace::default()
+        })
+    }
+
+    /// Put a synthetic in-Rust card into `controller`'s graveyard.
+    fn put_synthetic_in_graveyard(
+        state: &mut GameState,
+        card: deckmaste_core::Card,
+        controller: PlayerId,
+    ) -> ObjectId {
+        let card_id = state.cards.push(Arc::new(card), controller);
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            controller,
+            Some(Zone::Graveyard),
+        );
+        state.zones.graveyards[controller.index()].push(id);
+        id
+    }
+
+    /// [CR#113.6,113.6b]: a triggered ability functions only from its `from`
+    /// zone. A `from: Graveyard` upkeep trigger fires while its source is in
+    /// the graveyard; the same trigger left on the battlefield, and a
+    /// battlefield- default trigger sitting in the graveyard, both stay
+    /// silent.
+    #[test]
+    fn graveyard_trigger_fires_only_from_its_function_zone() {
+        use deckmaste_core::BeginningStep;
+        use deckmaste_core::Phase;
+
+        use crate::agenda::WorkItem;
+        use crate::event::Occurrence;
+
+        let mut state = empty_game();
+        state.turn.active_player = PlayerId(0);
+
+        // The one that should fire: graveyard-functioning, in the graveyard.
+        let gy = put_synthetic_in_graveyard(
+            &mut state,
+            upkeep_trigger_from(Some(Zone::Graveyard)),
+            PlayerId(0),
+        );
+        // A battlefield-default trigger in the graveyard: out of its zone.
+        let _bf_default_in_gy =
+            put_synthetic_in_graveyard(&mut state, upkeep_trigger_from(None), PlayerId(0));
+        // A graveyard-functioning trigger on the battlefield: out of its zone.
+        let _gy_func_on_bf = put_synthetic_on_field(
+            &mut state,
+            upkeep_trigger_from(Some(Zone::Graveyard)),
+            PlayerId(0),
+        );
+
+        state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(Phase::Beginning(
+            BeginningStep::Upkeep,
+        ))));
+
+        let fired: Vec<&WorkItem> = state
+            .agenda
+            .iter()
+            .filter(|w| {
+                matches!(
+                    w,
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { .. }))
+                )
+            })
+            .collect();
+        assert_eq!(
+            fired.len(),
+            1,
+            "only the graveyard-functioning trigger IN the graveyard fires"
+        );
+        let WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { source, .. })) = fired[0]
+        else {
+            unreachable!()
+        };
+        assert_eq!(
+            *source,
+            state.objects.obj(gy).source,
+            "the firing trigger is the in-graveyard graveyard-functioning one"
         );
     }
 
@@ -3470,6 +3605,7 @@ mod tests {
             name: "Death Watcher".into(),
             types: vec![Type::Creature],
             abilities: vec![Ability::Triggered(TriggeredAbility {
+                from: None,
                 event: Event::ZoneMove {
                     what: Filter::creature(),
                     from: Some(Zone::Battlefield),

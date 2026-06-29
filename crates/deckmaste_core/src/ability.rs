@@ -71,6 +71,13 @@ pub enum UseLimit {
 pub struct TriggeredAbility {
     /// The event that triggers it ([CR#603.2]).
     pub event: Event,
+    /// The zone the ability functions from ([CR#113.6,113.6b]). `None` = the
+    /// battlefield default (omitted on write); a `Some` names another zone the
+    /// source must be in for the ability to trigger — a graveyard/hand trigger
+    /// (Madness, "while this is in your graveyard, …") sets `from: Graveyard` /
+    /// `from: Hand`. Mirrors [`ActivatedAbility::from`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from: Option<crate::Zone>,
     /// Intervening-if ([CR#603.4]) — `condition`, not `when_if`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub condition: Option<Condition>,
@@ -84,6 +91,16 @@ pub struct TriggeredAbility {
 /// functions ([CR#611.3]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct StaticAbility {
+    /// The zone the ability functions from ([CR#113.6,604.3]). `None` = the
+    /// battlefield default (omitted on write); a `Some` names another zone the
+    /// source must be in for the static to apply — a graveyard/hand static
+    /// (Riftstone Portal's land-mana from the graveyard, the incarnation
+    /// cycle's "as long as this is in your graveyard …") sets `from:
+    /// Graveyard` / `from: Hand`. Mirrors [`ActivatedAbility::from`] /
+    /// [`TriggeredAbility::from`]; engine zone-gating for statics lands with
+    /// `engine-static-ability-zone-gating`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from: Option<crate::Zone>,
     /// When the ability functions, if conditional ([CR#611.3a] — the effect
     /// is never locked in; it applies to whatever its text indicates).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -300,6 +317,35 @@ mod tests {
         );
         assert!(triggered.condition.is_none());
         assert!(triggered.limits.is_empty());
+        // `from` defaults to the battlefield (None).
+        assert_eq!(triggered.from, None);
+    }
+
+    /// A triggered ability's `from` defaults to the battlefield (`None`,
+    /// omitted on write); `from: Graveyard` reads as `Some(Graveyard)` and
+    /// round-trips — the graveyard-functioning trigger ([CR#113.6b]).
+    #[test]
+    fn triggered_from_zone_defaults_battlefield_and_reads_graveyard() {
+        let omitted: TriggeredAbility = crate::ron::options()
+            .from_str("(event: ZoneMove(what: Ref(This), to: Graveyard), effect: Draw(Literal(1)))")
+            .unwrap();
+        assert_eq!(omitted.from, None);
+        let written = crate::ron::options().to_string(&omitted).unwrap();
+        assert!(!written.contains("from"), "absent from omitted: {written}");
+
+        let from_gy: TriggeredAbility = crate::ron::options()
+            .from_str(
+                r#"(event: Performed(verb: "Cast"), from: Graveyard, effect: Draw(Literal(1)))"#,
+            )
+            .unwrap();
+        assert_eq!(from_gy.from, Some(crate::Zone::Graveyard));
+        let reser = crate::ron::options().to_string(&from_gy).unwrap();
+        assert!(
+            reser.contains("from:Graveyard"),
+            "from: Graveyard written: {reser}"
+        );
+        let reparsed: TriggeredAbility = crate::ron::options().from_str(&reser).unwrap();
+        assert_eq!(reparsed, from_gy);
     }
 
     /// `Ability::Static` is now a struct variant carrying a `StaticAbility`;
@@ -317,6 +363,32 @@ mod tests {
             "false CDA flag should be omitted: {written}"
         );
         assert!(!written.contains("condition"), "absent condition omitted");
+        // `from` defaults to the battlefield (None), omitted on write.
+        assert!(!written.contains("from"), "absent from omitted: {written}");
+    }
+
+    /// A static ability's `from` defaults to the battlefield (`None`, omitted
+    /// on write); `from: Graveyard` reads as `Some(Graveyard)` and
+    /// round-trips — the graveyard-functioning static (Riftstone Portal,
+    /// [CR#604.3]).
+    #[test]
+    fn static_from_zone_defaults_battlefield_and_reads_graveyard() {
+        let omitted: StaticAbility = crate::ron::options()
+            .from_str("(effects: [Cant(Attack(by: Ref(This)))])")
+            .unwrap();
+        assert_eq!(omitted.from, None);
+
+        let from_gy: StaticAbility = crate::ron::options()
+            .from_str("(from: Graveyard, effects: [Cant(Attack(by: Ref(This)))])")
+            .unwrap();
+        assert_eq!(from_gy.from, Some(crate::Zone::Graveyard));
+        let reser = crate::ron::options().to_string(&from_gy).unwrap();
+        assert!(
+            reser.contains("from:Graveyard"),
+            "from: Graveyard written: {reser}"
+        );
+        let reparsed: StaticAbility = crate::ron::options().from_str(&reser).unwrap();
+        assert_eq!(reparsed, from_gy);
     }
 
     /// `Keyword(Trample)` parses to the *known* `Ability::Keyword` variant —
@@ -366,6 +438,7 @@ mod tests {
         use crate::StaticEffect;
 
         let inner = Ability::Static(StaticAbility {
+            from: None,
             condition: None,
             effects: vec![StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Attach {
@@ -399,6 +472,7 @@ mod tests {
         use crate::ExpansionArgs;
 
         let inner = Ability::Static(StaticAbility {
+            from: None,
             condition: None,
             effects: vec![],
             characteristic_defining: false,

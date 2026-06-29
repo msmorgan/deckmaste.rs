@@ -21,6 +21,13 @@ use crate::Zone;
 /// too — the engine gives players `ObjectId`s.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum ObjectKind {
+    /// An activated or triggered ability on the stack
+    /// ([CR#602.2a,603.3]). Distinct from `Spell` (a card on the
+    /// stack): an ability on the stack has no card identity of its own. The
+    /// `Kind(Ability)` filter is what "counter target activated ability" /
+    /// "target activated or triggered ability" (Stifle, Disallow) selects
+    /// over.
+    Ability,
     Card,
     Emblem,
     Player,
@@ -105,8 +112,15 @@ pub enum RelationFilter {
     Controls(Box<Filter>),
     /// The object's owner matches ([CR#108.3]).
     Owner(Box<Filter>),
-    /// The object is an opponent of a matching player ([CR#102.2,102.3]).
+    /// The object is an opponent of a matching player ([CR#102.2,102.3]) — a
+    /// player NOT on the matching player's team.
     OpponentOf(Box<Filter>),
+    /// The object is a teammate of a matching player ([CR#102.3,810.1]) —
+    /// ANOTHER player on the matching player's team (never that player itself).
+    /// PRIMITIVE, not `Not(OpponentOf …)`: in Two-Headed Giant a teammate is
+    /// neither you nor an opponent ([CR#810]). "your team" ([CR#102.4]) is
+    /// `OneOf([Ref(You), TeammateOf(Ref(You))])`.
+    TeammateOf(Box<Filter>),
     /// The object is attached to a matching object ([CR#301.5,303.4]).
     AttachedTo(Box<Filter>),
     /// The object has a matching attachment ([CR#301.5,303.4]).
@@ -199,6 +213,7 @@ impl Normalize for RelationFilter {
             R::Controls(f) => R::Controls(f.normalize()),
             R::Owner(f) => R::Owner(f.normalize()),
             R::OpponentOf(f) => R::OpponentOf(f.normalize()),
+            R::TeammateOf(f) => R::TeammateOf(f.normalize()),
             R::AttachedTo(f) => R::AttachedTo(f.normalize()),
             R::Attachment(f) => R::Attachment(f.normalize()),
         }
@@ -304,7 +319,35 @@ mod tests {
             Filter::State(StateFilter::InZone(Zone::Battlefield)),
         );
         assert_eq!(read("Kind(Player)"), Filter::Kind(ObjectKind::Player));
+        assert_eq!(read("Kind(Ability)"), Filter::Kind(ObjectKind::Ability));
         assert_eq!(read("Any"), Filter::Any);
+    }
+
+    /// The team-relative player relation `TeammateOf` reads flat alongside its
+    /// `OpponentOf` sibling and round-trips ([CR#102.3,810.1]).
+    #[test]
+    fn teammate_of_reads_and_round_trips() {
+        use crate::Reference;
+        let v = read("TeammateOf(Ref(You))");
+        assert_eq!(
+            v,
+            Filter::Relation(RelationFilter::TeammateOf(Box::new(Filter::Ref(
+                Reference::You
+            )))),
+        );
+        let written = crate::ron::options().to_string(&v).unwrap();
+        assert_eq!(written, "TeammateOf(Ref(You))");
+        assert_eq!(read(&written), v);
+        // "your team" ([CR#102.4]) composes from the two primitives.
+        assert_eq!(
+            read("OneOf([Ref(You), TeammateOf(Ref(You))])"),
+            Filter::OneOf(vec![
+                Filter::Ref(Reference::You),
+                Filter::Relation(RelationFilter::TeammateOf(Box::new(Filter::Ref(
+                    Reference::You
+                )))),
+            ]),
+        );
     }
 
     /// The new §1 atoms read flat through their compartments.
@@ -480,6 +523,7 @@ mod tests {
             "Controls(InZone(Battlefield))",
             "Owner(Kind(Player))",
             "OpponentOf(Kind(Player))",
+            "TeammateOf(Kind(Player))",
             "AttachedTo(Type(Creature))",
             "Attachment(Type(Enchantment))",
             "InZone(Battlefield)",

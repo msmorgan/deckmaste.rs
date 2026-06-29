@@ -73,8 +73,16 @@ pub enum Condition {
     /// An event happened within a window (morbid/raid, [CR#608.2i]).
     Happened { event: Event, within: Window },
     /// It is the evaluating player's turn (the `you` of the evaluation
-    /// context — an ability's controller).
+    /// context — an ability's controller). Sugar for `TurnOf(Ref(You))`, kept
+    /// as the common, frame-robust specialization.
     YourTurn,
+    /// It is a matching player's turn ([CR#603.4]) — the active player
+    /// satisfies the player predicate. Generalizes
+    /// [`YourTurn`](Condition::YourTurn) (which is `TurnOf(Ref(You))`):
+    /// "during an opponent's turn" is `TurnOf(OpponentOf(Ref(You)))`. The
+    /// `Filter` is a player predicate (`Ref(You)`, `OpponentOf(Ref(You))`,
+    /// `Kind(Player)`, …).
+    TurnOf(Filter),
     /// The current phase/step is exactly the given one. Main phases are
     /// single-step bare variants, so `DuringPhase(PrecombatMain)` works
     /// today; phase-class matching (any combat step) accretes when a card
@@ -111,6 +119,26 @@ mod tests {
     #[test]
     fn your_turn_reads() {
         assert_eq!(read("YourTurn"), Condition::YourTurn);
+    }
+
+    /// `TurnOf(<player predicate>)` reads flat and round-trips; it carries the
+    /// player filter `YourTurn` leaves implicit ([CR#603.4]).
+    #[test]
+    fn turn_of_reads_and_round_trips() {
+        assert_eq!(
+            read("TurnOf(Ref(You))"),
+            Condition::TurnOf(Filter::Ref(Reference::You)),
+        );
+        // "during an opponent's turn".
+        let opp = read("TurnOf(OpponentOf(Ref(You)))");
+        assert_eq!(
+            opp,
+            Condition::TurnOf(Filter::Relation(crate::RelationFilter::OpponentOf(
+                Box::new(Filter::Ref(Reference::You))
+            ))),
+        );
+        let written = crate::ron::options().to_string(&opp).unwrap();
+        assert_eq!(read(&written), opp);
     }
 
     #[test]

@@ -400,6 +400,26 @@ impl GameState {
         &mut self.players[p.index()]
     }
 
+    /// [CR#102.4,810.1]: whether two players are on the same team — the single
+    /// seam the team-relative player filters (`OpponentOf` = different team,
+    /// `TeammateOf` = same team, excluding self) route through.
+    ///
+    /// Team membership is not yet modeled (there is no `team` field on
+    /// `PlayerState`), so each player is their own singleton team: `p` and `q`
+    /// share a team iff they are the same player. This makes `OpponentOf` mean
+    /// "a different player" (correct for 1v1 and free-for-all) and `TeammateOf`
+    /// match nobody (also correct outside Two-Headed Giant / team play). When
+    /// real team grouping lands (`engine` team support), only this predicate
+    /// changes; both relation filters follow.
+    #[must_use]
+    #[expect(
+        clippy::unused_self,
+        reason = "team-membership seam: reads `self`'s PlayerState teams once team play is modeled"
+    )]
+    pub(crate) fn same_team(&self, p: PlayerId, q: PlayerId) -> bool {
+        p == q
+    }
+
     /// The card behind an object (card-backed objects only).
     ///
     /// # Panics

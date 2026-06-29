@@ -828,6 +828,7 @@ mod tests {
 
     fn static_ability(effects: Vec<StaticEffect>) -> Ability {
         Ability::Static(StaticAbility {
+            from: None,
             condition: None,
             effects,
             characteristic_defining: false,
@@ -961,6 +962,7 @@ mod tests {
     /// conferred host-restriction shape (Equipment/Fortification subtype rule).
     fn innate_cant_attach(what: Filter, to: Filter) -> Ability {
         Ability::Innate(Box::new(Ability::Static(StaticAbility {
+            from: None,
             condition: None,
             effects: vec![StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Attach { what, to },
@@ -1033,6 +1035,7 @@ mod tests {
             "Protected Bear",
             vec![Type::Creature],
             vec![Ability::Static(StaticAbility {
+                from: None,
                 condition: None,
                 effects: vec![StaticEffect::Deontic(Deontic::Cant(
                     DeonticAction::Attach {
@@ -1089,6 +1092,7 @@ mod tests {
     /// filters OUT of the card-facing list — the source of the index skew.
     fn innate_static() -> Ability {
         Ability::Innate(Box::new(Ability::Static(StaticAbility {
+            from: None,
             condition: None,
             effects: vec![StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Attach {
@@ -1171,6 +1175,7 @@ mod tests {
         let enchant_composite = Ability::Keyword(KeywordAbility::Composite {
             name: "Enchant".into(),
             abilities: vec![Ability::Static(StaticAbility {
+                from: None,
                 condition: None,
                 effects: vec![StaticEffect::Deontic(Deontic::Cant(
                     DeonticAction::Attach {

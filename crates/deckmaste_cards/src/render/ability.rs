@@ -18,7 +18,9 @@ use super::CardView;
 use super::Ctx;
 use super::effect;
 
-/// "When/Whenever <event>, <effect>."
+/// "When/Whenever <event>, [if <cond>,] <effect>.", with a leading
+/// "While ~ is in your <zone>," qualifier for a graveyard/hand-functioning
+/// trigger ([CR#113.6,113.6b]).
 pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
     // Targeting lives on an `Effect::Targeted` wrapper, which the effect walk
     // rebinds `ctx.targets` from ([CR#115.1]).
@@ -28,7 +30,31 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
     };
     let (lead, clause) = event_clause(&t.event, &ctx);
     let body = lower_first(&effect::effect(&t.effect, &ctx));
-    format!("{lead} {clause}, {body}")
+    // Intervening-if ([CR#603.4]): "…, if <cond>, <effect>."
+    let cond = match &t.condition {
+        Some(c) => format!("if {}, ", super::condition::condition(c, &ctx)),
+        None => String::new(),
+    };
+    let trig = format!("{lead} {clause}, {cond}{body}");
+    from_zone_qualified(t.from, view.name, trig)
+}
+
+/// Prefix a "While ~ is in your <zone>," function-zone qualifier
+/// ([CR#113.6,113.6b]) for a non-battlefield `from`; the battlefield default
+/// (and `None`) is left bare.
+pub(super) fn from_zone_qualified(
+    from: Option<deckmaste_core::Zone>,
+    subject: &str,
+    text: String,
+) -> String {
+    match from {
+        None | Some(Zone::Battlefield) => text,
+        Some(zone) => format!(
+            "As long as {subject} is in your {}, {}",
+            super::fragment::zone_word(zone),
+            lower_first(&text)
+        ),
+    }
 }
 
 /// Returns (lead word, the event clause).
@@ -102,11 +128,14 @@ pub(super) fn lower_first(s: &str) -> String {
 
 // ── Static abilities ─────────────────────────────────────────────────────────
 
-/// Render a `Static` ability's effects, one rules string each.
+/// Render a `Static` ability's effects, one rules string each. A non-default
+/// `from` zone ([CR#113.6,604.3] — a graveyard/hand static) prefixes each
+/// effect with an "As long as ~ is in your <zone>," qualifier.
 pub(super) fn static_ability(s: &StaticAbility, ctx: &Ctx) -> Vec<String> {
     s.effects
         .iter()
         .filter_map(|e| static_effect(e, ctx))
+        .map(|line| from_zone_qualified(s.from, ctx.subject, line))
         .collect()
 }
 
@@ -290,5 +319,38 @@ fn ability_noun(a: &Ability) -> String {
     match a {
         Ability::Keyword(k) => super::keyword::keyword_name(k).to_lowercase(),
         other => format!("[unrendered: {other:?}]"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The function-zone qualifier ([CR#113.6,113.6b]) shared by the triggered
+    /// and static renderers: the battlefield default (and `None`) is bare; a
+    /// graveyard/hand `from` prefixes "As long as ~ is in your <zone>," and
+    /// lowercases the wrapped clause's first letter.
+    #[test]
+    fn from_zone_qualifier_prefixes_nonbattlefield_only() {
+        assert_eq!(
+            from_zone_qualified(None, "X", "Creatures you control get +1/+1.".into()),
+            "Creatures you control get +1/+1."
+        );
+        assert_eq!(
+            from_zone_qualified(Some(Zone::Battlefield), "X", "Foo.".into()),
+            "Foo."
+        );
+        assert_eq!(
+            from_zone_qualified(
+                Some(Zone::Graveyard),
+                "Anger",
+                "Creatures you control have haste.".into()
+            ),
+            "As long as Anger is in your graveyard, creatures you control have haste."
+        );
+        assert_eq!(
+            from_zone_qualified(Some(Zone::Hand), "Force of Will", "Foo.".into()),
+            "As long as Force of Will is in your hand, foo."
+        );
     }
 }

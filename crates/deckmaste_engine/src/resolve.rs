@@ -2542,6 +2542,7 @@ mod tests {
             name: "Test Equipment".into(),
             types: vec![Type::Artifact],
             abilities: vec![Ability::Innate(Box::new(Ability::Static(StaticAbility {
+                from: None,
                 condition: None,
                 effects: vec![StaticEffect::Deontic(Deontic::Cant(
                     DeonticAction::Attach {
@@ -4448,6 +4449,7 @@ mod tests {
     /// (`Of(AttachHostOf(This))`) — the equipped/enchanted-creature bonus.
     fn host_pump(n: u32) -> Ability {
         Ability::Static(StaticAbility {
+            from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {
                 of: Scope::Of(Reference::AttachHostOf(Box::new(Reference::This))),
@@ -4662,6 +4664,7 @@ mod tests {
                 power: Some(deckmaste_core::StatValue::Number(2)),
                 toughness: Some(deckmaste_core::StatValue::Number(2)),
                 abilities: vec![Ability::Static(StaticAbility {
+                    from: None,
                     condition: None,
                     effects: vec![StaticEffect::Deontic(Deontic::Cant(
                         DeonticAction::Attach {

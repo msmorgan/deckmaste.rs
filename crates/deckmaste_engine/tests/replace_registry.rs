@@ -108,6 +108,7 @@ fn creature_with_replacement(replacement: Replacement) -> (GameState, ObjectId) 
         power: Some(StatValue::Number(2)),
         toughness: Some(StatValue::Number(2)),
         abilities: vec![Ability::Static(StaticAbility {
+            from: None,
             characteristic_defining: false,
             effects: vec![StaticEffect::Replacement(Box::new(replacement))],
             condition: None,
@@ -261,6 +262,7 @@ fn indestructible_still_survives_via_cant_pass() {
         1,
         1,
         vec![Ability::Static(StaticAbility {
+            from: None,
             characteristic_defining: false,
             effects: vec![StaticEffect::CantHappen(Event::ZoneMove {
                 what: Filter::Ref(Reference::This),
@@ -310,11 +312,13 @@ fn creature_with_two_replacements() -> (GameState, ObjectId) {
         // Two SEPARATE static abilities so gather yields two different keys.
         abilities: vec![
             Ability::Static(StaticAbility {
+                from: None,
                 characteristic_defining: false,
                 effects: vec![StaticEffect::Replacement(Box::new(instead.clone()))],
                 condition: None,
             }),
             Ability::Static(StaticAbility {
+                from: None,
                 characteristic_defining: false,
                 effects: vec![StaticEffect::Replacement(Box::new(instead))],
                 condition: None,
@@ -756,6 +760,7 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
         name: "Umbra Armor".into(),
         types: vec![Type::Enchantment],
         abilities: vec![Ability::Static(StaticAbility {
+            from: None,
             characteristic_defining: false,
             effects: vec![StaticEffect::Replacement(Box::new(umbra_armor))],
             condition: None,
@@ -1098,6 +1103,7 @@ fn damage_as_counters_static(on: Filter, recipient: Reference, kind: &str) -> Ab
         PlayerAction::PutCounters(Selection::Ref(recipient), kind.into(), Count::ThatMuch),
     ));
     Ability::Static(StaticAbility {
+        from: None,
         characteristic_defining: false,
         effects: vec![StaticEffect::Replacement(Box::new(Replacement::Instead {
             would,

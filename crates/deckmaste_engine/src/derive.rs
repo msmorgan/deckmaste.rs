@@ -222,6 +222,7 @@ mod tests {
     fn abilities_of_source_peels_innate_triggered() {
         let mut state = game();
         let trigger = TriggeredAbility {
+            from: None,
             event: Event::ZoneMove {
                 what: deckmaste_core::Filter::Ref(Reference::This),
                 from: None,

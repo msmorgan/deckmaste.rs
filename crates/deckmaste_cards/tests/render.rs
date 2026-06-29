@@ -480,6 +480,7 @@ fn renders_scope_of_singular() {
         name: "Test Aura".into(),
         types: vec![Type::Enchantment],
         abilities: vec![Ability::Static(StaticAbility {
+            from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {
                 of: Scope::Of(Reference::This),
@@ -514,6 +515,7 @@ fn renders_aura_host_pump() {
         name: "Test Buff Aura".into(),
         types: vec![Type::Enchantment],
         abilities: vec![Ability::Static(StaticAbility {
+            from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {
                 of: Scope::Of(Reference::AttachHostOf(Box::new(Reference::This))),
@@ -721,5 +723,98 @@ fn renders_get_designation() {
     assert_eq!(
         render_card_face(&face).rules,
         vec!["You get the city's blessing.".to_string()]
+    );
+}
+
+/// A graveyard-FUNCTIONING static ([CR#113.6,604.3]) renders its "As long as ~
+/// is in your graveyard," function-zone qualifier (the incarnation cycle
+/// shape).
+#[test]
+fn renders_graveyard_static_from_zone() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::CardFace;
+    use deckmaste_core::Count;
+    use deckmaste_core::Filter;
+    use deckmaste_core::Modification;
+    use deckmaste_core::Reference;
+    use deckmaste_core::RelationFilter;
+    use deckmaste_core::Scope;
+    use deckmaste_core::StaticAbility;
+    use deckmaste_core::StaticEffect;
+    use deckmaste_core::Zone;
+    let face = CardFace {
+        name: "Test Incarnation".into(),
+        types: vec![Type::Creature],
+        abilities: vec![Ability::Static(StaticAbility {
+            from: Some(Zone::Graveyard),
+            condition: None,
+            effects: vec![StaticEffect::Modify {
+                of: Scope::Matching(Filter::AllOf(vec![
+                    Filter::type_(Type::Creature),
+                    Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+                        Reference::You,
+                    )))),
+                ])),
+                changes: vec![
+                    Modification::AddPower(Count::Literal(1)),
+                    Modification::AddToughness(Count::Literal(1)),
+                ],
+            }],
+            characteristic_defining: false,
+        })],
+        ..CardFace::default()
+    };
+    assert_eq!(
+        render_card_face(&face).rules,
+        vec![
+            "As long as Test Incarnation is in your graveyard, creatures you control get +1/+1."
+                .to_string()
+        ]
+    );
+}
+
+/// A triggered ability with a `TurnOf` intervening-if ([CR#603.4]) renders the
+/// "if it's …'s turn," clause between event and effect.
+#[test]
+fn renders_trigger_with_turnof_intervening_if() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::Action;
+    use deckmaste_core::CardFace;
+    use deckmaste_core::Condition;
+    use deckmaste_core::Count;
+    use deckmaste_core::Effect;
+    use deckmaste_core::Event;
+    use deckmaste_core::Filter;
+    use deckmaste_core::PlayerAction;
+    use deckmaste_core::Reference;
+    use deckmaste_core::RelationFilter;
+    use deckmaste_core::TriggeredAbility;
+    use deckmaste_core::Zone;
+    let face = CardFace {
+        name: "Vigil Keeper".into(),
+        types: vec![Type::Creature],
+        abilities: vec![Ability::Triggered(TriggeredAbility {
+            event: Event::ZoneMove {
+                what: Filter::type_(Type::Creature),
+                from: Some(Zone::Battlefield),
+                to: Some(Zone::Graveyard),
+                face: None,
+                cause: None,
+            },
+            from: None,
+            condition: Some(Condition::TurnOf(Filter::Relation(
+                RelationFilter::OpponentOf(Box::new(Filter::Ref(Reference::You))),
+            ))),
+            limits: vec![],
+            effect: Effect::Act(Action::By(
+                Reference::You,
+                PlayerAction::Draw(Count::Literal(1)),
+            )),
+        })],
+        ..CardFace::default()
+    };
+    assert_eq!(
+        render_card_face(&face).rules,
+        vec!["Whenever a creature dies, if it's an opponent's turn, draw a card.".to_string()]
     );
 }

@@ -161,11 +161,38 @@ pub(super) fn filter_noun(filter: &Filter) -> String {
             super::effect::color_word(*c).to_string()
         }
         Filter::Kind(ObjectKind::Player) => "player".to_string(),
+        // An ability on the stack ([CR#602.2a,603.3]): "counter target ability".
+        Filter::Kind(ObjectKind::Ability) => "ability".to_string(),
+        // Team-relative player nouns ([CR#102.3]): "target opponent" /
+        // "target teammate" (relative to the carrier's controller).
+        Filter::Relation(RelationFilter::OpponentOf(inner))
+            if matches!(strip_expanded(inner), Filter::Ref(Reference::You)) =>
+        {
+            "opponent".to_string()
+        }
+        Filter::Relation(RelationFilter::TeammateOf(inner))
+            if matches!(strip_expanded(inner), Filter::Ref(Reference::You)) =>
+        {
+            "teammate".to_string()
+        }
         other => format!("[unrendered: {other:?}]"),
     }
 }
 
 // ── Static-ability subject phrases ──────────────────────────────────────────
+
+/// A zone as the noun used in "in your <zone>" / "from your <zone>" phrases.
+pub(super) fn zone_word(z: Zone) -> &'static str {
+    match z {
+        Zone::Battlefield => "battlefield",
+        Zone::Command => "command zone",
+        Zone::Exile => "exile",
+        Zone::Graveyard => "graveyard",
+        Zone::Hand => "hand",
+        Zone::Library => "library",
+        Zone::Stack => "stack",
+    }
+}
 
 /// See through macro-provenance wrappers on a `Filter`.
 pub(super) fn strip_expanded(f: &Filter) -> &Filter {
@@ -283,6 +310,11 @@ fn controller_phrase(f: &Filter) -> String {
         {
             "your opponents control".to_string()
         }
+        Filter::Relation(RelationFilter::TeammateOf(inner))
+            if matches!(strip_expanded(inner), Filter::Ref(Reference::You)) =>
+        {
+            "your teammates control".to_string()
+        }
         other => format!("[unrendered: {other:?}]"),
     }
 }
@@ -372,5 +404,34 @@ mod tests {
             reference(&Reference::DefendingPlayer, &c),
             "the defending player"
         );
+    }
+
+    /// The new filter nouns: an ability on the stack, and the team-relative
+    /// player relations relative to "you".
+    #[test]
+    fn filter_noun_renders_ability_and_team_relative_players() {
+        let you = || Box::new(Filter::Ref(Reference::You));
+        assert_eq!(filter_noun(&Filter::Kind(ObjectKind::Ability)), "ability");
+        assert_eq!(
+            filter_noun(&Filter::Relation(RelationFilter::OpponentOf(you()))),
+            "opponent"
+        );
+        assert_eq!(
+            filter_noun(&Filter::Relation(RelationFilter::TeammateOf(you()))),
+            "teammate"
+        );
+    }
+
+    /// "creatures your teammates control" — the team-relative controller phrase
+    /// inside a plural subject ([CR#102.3]).
+    #[test]
+    fn filter_subject_renders_teammate_controller_phrase() {
+        let f = Filter::AllOf(vec![
+            Filter::Characteristic(CharacteristicFilter::Type(deckmaste_core::Type::Creature)),
+            Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Relation(
+                RelationFilter::TeammateOf(Box::new(Filter::Ref(Reference::You))),
+            )))),
+        ]);
+        assert_eq!(filter_subject(&f), "Creatures your teammates control");
     }
 }
