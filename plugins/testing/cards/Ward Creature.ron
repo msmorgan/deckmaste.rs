@@ -1,0 +1,15 @@
+// A 2/2 vanilla carrying ONLY Ward {2} ([CR#702.21a]) — "Whenever this
+// permanent becomes the target of a spell or ability an opponent controls,
+// counter it unless that player pays {2}." No card in the canon corpus has
+// Ward, so this minimal carrier isolates the keyword's trigger RESOLUTION: the
+// targeting spell must bind as `ThatObject` (the event-provenance the engine
+// derives for a `BecameTarget` fact) so `Counter(ThatObject)` counters the
+// spell on the stack, not the warded permanent.
+Normal(
+    name: "Ward Creature",
+    mana_cost: [Generic(1), Blue],
+    types: [Creature],
+    power: 2,
+    toughness: 2,
+    abilities: [Keyword(Ward([Mana([Generic(2)])]))],
+)

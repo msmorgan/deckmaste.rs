@@ -1008,6 +1008,55 @@ fn attacks_trigger_fires_and_resolves() {
     );
 }
 
+/// [CR#702.83a,603.2e]: Exalted reads the event provenance of a NON-zone-change
+/// fact — its `Continuously(Modify(of: Of(ThatObject)))` ([CR#611.2a]) pumps
+/// "that creature" (the lone attacker), which the engine must bind as
+/// `ThatObject` off the `Attacking` fact. Before the provenance fix this
+/// panicked at resolution (`ThatObject` was unbound for every non-`ZoneChanged`
+/// event). A 2/2 Exalted creature that attacks ALONE resolves its trigger and
+/// becomes 3/3 for the turn (the intervening-if `CountOf(Attacking) == 1`
+/// holds, [CR#702.83b]).
+#[test]
+fn exalted_lone_attacker_pumps_via_that_object() {
+    let mut state = two_player_decks("Exalted Creature", "Grizzly Bears", 7, 20);
+    let exalted = force_onto_battlefield(&mut state, PlayerId(0), "Exalted Creature");
+    assert_eq!(state.layers().power(exalted), Some(2), "base 2/2 power");
+    assert_eq!(
+        state.layers().toughness(exalted),
+        Some(2),
+        "base 2/2 toughness"
+    );
+
+    // Drive to Declare Attackers and attack ALONE with the Exalted creature.
+    let (_trace, stop) = pass_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+        panic!("expected a DeclareAttackers decision, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Attackers(vec![exalted]))
+        .unwrap();
+
+    // The Attacking fact fires Exalted; its trigger places (no target) and
+    // resolves while priority passes — binding the attacker as ThatObject and
+    // registering the +1/+1 continuous effect ([CR#702.83a]). No panic.
+    pass_to_postcombat_main(&mut state);
+
+    assert!(
+        on_battlefield(&state, exalted),
+        "the lone unblocked attacker survives the phase"
+    );
+    assert_eq!(
+        state.layers().power(exalted),
+        Some(3),
+        "Exalted's +1/+1 landed on the attacker via ThatObject (2 → 3)"
+    );
+    assert_eq!(
+        state.layers().toughness(exalted),
+        Some(3),
+        "Exalted's +1/+1 landed on the attacker via ThatObject (2 → 3)"
+    );
+}
+
 /// [CR#508.1f,603.2e]: the attack-declaration tap is a real "becomes
 /// tapped" transition — canon Goblin Medics ("Whenever this creature
 /// becomes tapped, it deals 1 damage to any target") fires off its own
