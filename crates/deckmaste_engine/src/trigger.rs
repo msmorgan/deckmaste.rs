@@ -10,11 +10,13 @@
 
 use deckmaste_core::Ability;
 use deckmaste_core::CharacteristicFilter;
+use deckmaste_core::Count;
 use deckmaste_core::Event;
 use deckmaste_core::Filter;
 use deckmaste_core::Reference;
 use deckmaste_core::StateFilter;
 use deckmaste_core::StateFilterEvent;
+use deckmaste_core::StaticEffect;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Type;
 use deckmaste_core::Uint;
@@ -731,16 +733,68 @@ impl GameState {
                         continue;
                     }
                 }
-                emits.push(WorkItem::Emit(Occurrence::single(
-                    GameEvent::TriggerFired {
-                        source,
-                        ability: Uint::try_from(idx).expect("ability index fits in Uint"),
-                        controller,
-                        bindings,
-                    },
-                )));
+                // [CR#603.2d]: trigger multipliers (Panharmonicon, Yarok,
+                // Doubling Season's trigger half). The same fired trigger is
+                // emitted `1 + extra` times — NOT a copy, so each emit is an
+                // independent `TriggerFired` that places its own stack instance
+                // ([CR#603.3]) and chooses its own modes/targets. Multipliers ADD.
+                let extra = self.trigger_multiplier_extra(event, this.object);
+                let fired = GameEvent::TriggerFired {
+                    source,
+                    ability: Uint::try_from(idx).expect("ability index fits in Uint"),
+                    controller,
+                    bindings,
+                };
+                for _ in 0..=extra {
+                    emits.push(WorkItem::Emit(Occurrence::single(fired.clone())));
+                }
             }
         }
+    }
+
+    /// The number of ADDITIONAL times a trigger fires under
+    /// [`StaticEffect::TriggerMultiplier`] statics ([CR#603.2d]):
+    /// Panharmonicon, Yarok, Doubling Season's trigger half. A multiplier
+    /// applies when its `cause` matches the triggering `event` AND the fired
+    /// trigger's source permanent (`trig_object`) matches the multiplier's
+    /// `affected` filter (default "you control", anchored on the multiplier's
+    /// controller). Multipliers ADD — two Panharmonicons give +2 (a 3× total),
+    /// never compound.
+    ///
+    /// Effect sources are read from PRINTED abilities (cycle-safe, like the
+    /// object-layer and player-attribute scans). Seam: a fired trigger whose
+    /// source is leaving the battlefield carries a stale `trig_object`, so a
+    /// `Filter`-based `affected` can't re-find it and contributes 0 — the
+    /// canonical doublers act on ENTER triggers, whose source stays live.
+    fn trigger_multiplier_extra(&self, event: &GameEvent, trig_object: ObjectId) -> Uint {
+        let mut extra: Uint = 0;
+        for &mid in &self.zones.battlefield {
+            let multiplier_source = self.objects.obj(mid).source;
+            for ability in crate::derive::abilities_of_source(self, multiplier_source) {
+                let Ability::Static(sa) = &ability else {
+                    continue;
+                };
+                for effect in &sa.effects {
+                    let StaticEffect::TriggerMultiplier {
+                        cause,
+                        extra: count,
+                        affected,
+                    } = effect
+                    else {
+                        continue;
+                    };
+                    // The fact that fired the trigger must match the cause, and
+                    // the trigger's source permanent must match `affected` (with
+                    // `Ref(You)` anchored on the multiplier's controller).
+                    if self.event_matches(cause, event, multiplier_source)
+                        && self.filter_matches_live(affected, trig_object, multiplier_source)
+                    {
+                        extra = extra.saturating_add(literal_count(count));
+                    }
+                }
+            }
+        }
+        extra
     }
 
     /// [CR#603.3]: the placement barrier. Puts noted triggers on the stack in
@@ -954,6 +1008,17 @@ enum Watcher {
     Leaving(LkiSnapshot),
 }
 
+/// A `TriggerMultiplier`'s `extra` count as a literal. Only `Count::Literal` is
+/// supported (the doublers are literal `1`s); a dynamic count is a documented
+/// seam and contributes 0 additional firings until the resolve-time evaluator
+/// is threaded in.
+fn literal_count(count: &Count) -> Uint {
+    match count {
+        Count::Literal(v) => *v,
+        _ => 0,
+    }
+}
+
 /// Whether `zone_constraint` (from the trigger pattern) is satisfied by
 /// `actual` (from the `ZoneChanged` event).
 ///
@@ -1019,7 +1084,9 @@ mod tests {
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
 
+    use crate::agenda::WorkItem;
     use crate::event::GameEvent;
+    use crate::event::Occurrence;
     use crate::lki::LkiSnapshot;
     use crate::object::ObjectId;
     use crate::object::ObjectSource;
@@ -1100,6 +1167,152 @@ mod tests {
             from: Some(from),
             to,
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // TriggerMultiplier (Panharmonicon, [CR#603.2d])
+    // -------------------------------------------------------------------------
+
+    /// Put `card` onto the battlefield under `controller`, returning its id.
+    fn put_bf(
+        state: &mut GameState,
+        card: Arc<deckmaste_core::Card>,
+        controller: PlayerId,
+    ) -> ObjectId {
+        let card_id = state.cards.push(card, controller);
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            controller,
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        id
+    }
+
+    /// How many `TriggerFired` emits in `emits` name `source`.
+    fn count_fired(emits: &[WorkItem], source: ObjectSource) -> usize {
+        emits
+            .iter()
+            .filter(|w| {
+                matches!(
+                    w,
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { source: s, .. }))
+                        if *s == source
+                )
+            })
+            .count()
+    }
+
+    fn empty_two_player_game() -> GameState {
+        GameState::new(GameConfig {
+            players: vec![PlayerConfig { deck: vec![] }, PlayerConfig { deck: vec![] }],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+        })
+    }
+
+    /// [CR#603.2d]: Panharmonicon makes an ETB triggered ability of a permanent
+    /// you control trigger an additional time. Elvish Visionary's `ThisEnters`
+    /// draw fires twice with one Panharmonicon out, once without it.
+    #[test]
+    fn panharmonicon_doubles_your_etb_trigger() {
+        let canon = canon();
+        let mut state = empty_two_player_game();
+        let visionary = put_bf(
+            &mut state,
+            Arc::new(canon.card("Elvish Visionary").unwrap()),
+            PlayerId(0),
+        );
+        let vis_source = state.objects.obj(visionary).source;
+        let pan = put_bf(
+            &mut state,
+            Arc::new(canon.card("Panharmonicon").unwrap()),
+            PlayerId(0),
+        );
+
+        let etb = zone_changed_event(&state, visionary, Zone::Hand, Zone::Battlefield);
+
+        let mut emits = Vec::new();
+        state.scan_event(&etb, &mut emits);
+        assert_eq!(
+            count_fired(&emits, vis_source),
+            2,
+            "one Panharmonicon → the ETB trigger fires an additional time"
+        );
+
+        // Remove Panharmonicon: the trigger fires exactly once.
+        state.zones.battlefield.retain(|&o| o != pan);
+        let mut emits = Vec::new();
+        state.scan_event(&etb, &mut emits);
+        assert_eq!(
+            count_fired(&emits, vis_source),
+            1,
+            "no multiplier → a single fire"
+        );
+    }
+
+    /// [CR#603.2d]: multipliers ADD, never compound — two Panharmonicons make
+    /// the ETB trigger fire three times (1 + 1 + 1), not four.
+    #[test]
+    fn two_panharmonicons_add_to_three_fires() {
+        let canon = canon();
+        let mut state = empty_two_player_game();
+        let visionary = put_bf(
+            &mut state,
+            Arc::new(canon.card("Elvish Visionary").unwrap()),
+            PlayerId(0),
+        );
+        let vis_source = state.objects.obj(visionary).source;
+        for _ in 0..2 {
+            put_bf(
+                &mut state,
+                Arc::new(canon.card("Panharmonicon").unwrap()),
+                PlayerId(0),
+            );
+        }
+
+        let etb = zone_changed_event(&state, visionary, Zone::Hand, Zone::Battlefield);
+        let mut emits = Vec::new();
+        state.scan_event(&etb, &mut emits);
+        assert_eq!(
+            count_fired(&emits, vis_source),
+            3,
+            "two Panharmonicons add (3×), not compound (4×)"
+        );
+    }
+
+    /// An OPPONENT's Panharmonicon does not double your ETB trigger (the
+    /// default `affected` is "you control" — the multiplier's controller,
+    /// [CR#603.2d]).
+    #[test]
+    fn opponents_panharmonicon_does_not_double_your_trigger() {
+        let canon = canon();
+        let mut state = empty_two_player_game();
+        let visionary = put_bf(
+            &mut state,
+            Arc::new(canon.card("Elvish Visionary").unwrap()),
+            PlayerId(0),
+        );
+        let vis_source = state.objects.obj(visionary).source;
+        // Panharmonicon controlled by the OPPONENT (player 1).
+        put_bf(
+            &mut state,
+            Arc::new(canon.card("Panharmonicon").unwrap()),
+            PlayerId(1),
+        );
+
+        let etb = zone_changed_event(&state, visionary, Zone::Hand, Zone::Battlefield);
+        let mut emits = Vec::new();
+        state.scan_event(&etb, &mut emits);
+        assert_eq!(
+            count_fired(&emits, vis_source),
+            1,
+            "the opponent's doubler doesn't reach your permanent's trigger"
+        );
     }
 
     // -------------------------------------------------------------------------

@@ -1,0 +1,22 @@
+// "If an artifact or creature entering the battlefield causes a triggered
+// ability of a permanent you control to trigger, that ability triggers an
+// additional time." A trigger multiplier ([CR#603.2d] — an ability that makes a
+// triggered ability trigger additional times; additive, not a copy). The
+// `affected` filter defaults to "you control", so it is omitted.
+Normal(
+  name: "Panharmonicon",
+  mana_cost: [
+    Generic(4),
+  ],
+  types: [
+    Artifact,
+  ],
+  abilities: [
+    Static(effects: [
+      TriggerMultiplier(
+        cause: ZoneMove(what: OneOf([Type(Artifact), Type(Creature)]), to: Battlefield),
+        extra: 1,
+      ),
+    ]),
+  ],
+)

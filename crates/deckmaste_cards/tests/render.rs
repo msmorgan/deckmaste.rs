@@ -140,6 +140,20 @@ fn renders_modify_player_reliquary_tower() {
     assert_eq!(r.rules[0], "You have no maximum hand size.".to_string());
 }
 
+/// A `TriggerMultiplier` static: Panharmonicon's artifact/creature-ETB doubler
+/// ([CR#603.2d]).
+#[test]
+fn renders_trigger_multiplier_panharmonicon() {
+    let r = render_card_face(&face("Panharmonicon"));
+    assert_eq!(r.type_line, "Artifact");
+    assert_eq!(
+        r.rules,
+        vec![
+            "If an artifact or creature entering the battlefield causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.".to_string()
+        ]
+    );
+}
+
 #[test]
 fn renders_must_attack_goblin_brigand() {
     let r = render_card_face(&face("Goblin Brigand"));
@@ -779,8 +793,8 @@ fn renders_graveyard_static_from_zone() {
                     )))),
                 ])),
                 changes: vec![
-                    Modification::AddPower(Count::Literal(1)),
-                    Modification::AddToughness(Count::Literal(1)),
+                    Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(1))),
+                    Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(1))),
                 ],
             }],
             characteristic_defining: false,

@@ -14,6 +14,7 @@ use crate::Expansion;
 use crate::Filter;
 use crate::Ident;
 use crate::Reference;
+use crate::RelationFilter;
 use crate::Supertype;
 use crate::SupportsMacros;
 use crate::TurnMarker;
@@ -247,6 +248,21 @@ pub enum CostChange {
     },
 }
 
+/// The default `affected` for a [`StaticEffect::TriggerMultiplier`]: "you
+/// control" — the source permanent's controller ([CR#603.2c]). The common case
+/// (Panharmonicon / Yarok), so it is the serde default and is omitted from RON.
+fn affected_you_control() -> Filter {
+    Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+        Reference::You,
+    ))))
+}
+
+/// Whether an `affected` filter equals the "you control" default — skips it on
+/// write so the common case stays flat.
+fn is_affected_you_control(f: &Filter) -> bool {
+    *f == affected_you_control()
+}
+
 /// The shared currency between an "anthem" static ability and a "+3/+3 until
 /// end of turn" one-shot ([CR#611]). The difference is who wraps it: a static
 /// ability (`StaticAbility`) or a one-shot `Effect::Continuously`.
@@ -268,6 +284,27 @@ pub enum StaticEffect {
     Deontic(Deontic),
     /// A cost modifier ([CR#118.7]).
     CostModifier { of: Filter, change: CostChange },
+    /// A trigger multiplier ([CR#603.2d] — "triggers additional times"):
+    /// Panharmonicon, Yarok, and the trigger half of Doubling Season. A
+    /// triggered ability whose trigger matches `cause`, carried by a permanent
+    /// matching `affected` (default "you control"), fires `extra` ADDITIONAL
+    /// times. It is NOT a copy — each firing chooses its own modes and targets
+    /// — and multipliers ADD rather than compound (two Panharmonicons → 3×,
+    /// not 4×; [CR#603.2d] "doesn't invoke itself repeatedly").
+    /// Panharmonicon = `TriggerMultiplier(cause: ZoneMove(what:
+    /// OneOf([Type(Artifact), Type(Creature)]), to: Battlefield), extra:
+    /// 1)`.
+    TriggerMultiplier {
+        cause: Event,
+        extra: Count,
+        /// The affected ability's source permanent; defaults to "you control"
+        /// (the source's controller), overridden for opponent/any-doublers.
+        #[serde(
+            default = "affected_you_control",
+            skip_serializing_if = "is_affected_you_control"
+        )]
+        affected: Filter,
+    },
     /// A continuous modification to a player's numeric attribute ([CR#611]):
     /// extra land plays (Exploration = `ModifyPlayer(Ref(You),
     /// Raise(LandPlaysPerTurn, 1))`, [CR#305.2]) or no maximum hand size
@@ -556,6 +593,38 @@ mod tests {
         );
         let written = crate::ron::options().to_string(&no_max).unwrap();
         assert_eq!(read(&written), no_max);
+    }
+
+    /// `TriggerMultiplier` round-trips: Panharmonicon's artifact/creature-ETB
+    /// cause with the default "you control" affected omitted from RON
+    /// ([CR#603.2d]), and an explicit non-default affected preserved.
+    #[test]
+    fn trigger_multiplier_round_trips() {
+        let parsed = read(
+            "TriggerMultiplier(cause: ZoneMove(what: OneOf([Type(Artifact), Type(Creature)]), to: Battlefield), extra: 1)",
+        );
+        let StaticEffect::TriggerMultiplier {
+            extra, affected, ..
+        } = &parsed
+        else {
+            panic!("expected TriggerMultiplier, got {parsed:?}");
+        };
+        assert_eq!(*extra, Count::Literal(1));
+        assert_eq!(*affected, affected_you_control(), "default is you-control");
+        let written = crate::ron::options().to_string(&parsed).unwrap();
+        assert!(
+            !written.contains("affected"),
+            "the default affected is omitted: {written}"
+        );
+        assert_eq!(read(&written), parsed);
+
+        // An explicit non-default affected (an opponent doubler) is preserved.
+        let opp = read(
+            "TriggerMultiplier(cause: ZoneMove(what: Type(Creature), to: Battlefield), extra: 1, affected: ControlledBy(OpponentOf(Ref(You))))",
+        );
+        let written = crate::ron::options().to_string(&opp).unwrap();
+        assert!(written.contains("affected"), "non-default affected kept");
+        assert_eq!(read(&written), opp);
     }
 
     /// A deontic clause reads flat and serializes flat — the compartment

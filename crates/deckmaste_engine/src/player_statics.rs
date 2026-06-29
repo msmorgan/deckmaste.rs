@@ -177,6 +177,7 @@ mod tests {
             types: vec![Type::Enchantment],
             abilities: vec![Ability::Static(StaticAbility {
                 condition: None,
+                from: None,
                 effects: vec![StaticEffect::ModifyPlayer(Reference::You, pmod)],
                 characteristic_defining: false,
             })],
