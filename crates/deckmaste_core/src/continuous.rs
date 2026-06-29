@@ -535,7 +535,6 @@ mod tests {
         use crate::Action;
         use crate::Condition;
         use crate::Effect;
-        use crate::Selection;
         use crate::Zone;
 
         let sba = StaticEffect::Sba {
@@ -543,7 +542,7 @@ mod tests {
                 Reference::This,
             )))),
             then: Box::new(Effect::Act(Action::move_to(
-                Selection::Ref(Reference::This),
+                Reference::This,
                 Zone::Graveyard,
             ))),
         };

@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::Binder;
 use crate::Cmp;
 use crate::Count;
 use crate::Expand;
@@ -73,6 +74,17 @@ pub enum CostComponent {
         count: Count,
         filter: Box<Filter>,
     },
+    /// A choice/bind step made BEFORE the cost actions it scopes
+    /// ([CR#601.2b]) — the cost-level twin of [`Effect::With`](crate::Effect).
+    /// The `binder` makes the choice (e.g. `ChooseOne(Creature)`) and binds it
+    /// as [`Reference::That`](crate::Reference)/
+    /// [`Selection::Those`](crate::Selection), then `body` (a nested cost)
+    /// pays using that binding: "sacrifice a creature" = `With(binder:
+    /// ChooseOne(Creature), body: [Do(Sacrifice(That))])`. Keeps choosing
+    /// OUT of the verb — the cost action receives an already-bound
+    /// reference. `binder` is boxed (an open `Binder` is large and
+    /// `CostComponent` rides in `Vec<CostComponent>` cost lists).
+    With { binder: Box<Binder>, body: Cost },
     /// A remembered `CostComponent` macro invocation (`SacrificeThis`, loyalty
     /// sugar, …).
     #[macro_ron(expanded)]
@@ -110,6 +122,12 @@ impl Normalize for CostComponent {
     fn normalize(self) -> Self {
         match self {
             CostComponent::Cost(inner) => CostComponent::Cost(inner.normalize()),
+            // Recurse into a `With` step's scoped body so a macro-spliced nested
+            // cost there still flattens.
+            CostComponent::With { binder, body } => CostComponent::With {
+                binder,
+                body: body.normalize(),
+            },
             other => other,
         }
     }
@@ -180,10 +198,48 @@ mod tests {
     use crate::mana::ManaSymbol;
     use crate::mana::SimpleManaSymbol;
     use crate::reference::Reference;
-    use crate::selection::Selection;
 
     fn read(source: &str) -> CostComponent {
         crate::ron::options().from_str(source).unwrap()
+    }
+
+    fn to_string(value: &CostComponent) -> String {
+        crate::ron::options().to_string(value).unwrap()
+    }
+
+    /// The cost-level `With` step keeps choosing OUT of the verb — it binds the
+    /// choice as `Reference::That` BEFORE the action that pays. And exile,
+    /// being a pure zone move, is paid as `Do(Move(This, Exile))`
+    /// (Scavenge), not a dedicated verb. Both round-trip.
+    #[test]
+    fn with_choice_step_and_move_are_cost_forms() {
+        use crate::Binder;
+        use crate::CharacteristicFilter;
+        use crate::Filter;
+        use crate::Type;
+        use crate::action::Destination;
+        use crate::action::PlayerAction;
+
+        // "sacrifice a creature": choose one creature, then Sacrifice(That).
+        let creature = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));
+        let with = CostComponent::With {
+            binder: Box::new(Binder::ChooseOne(creature)),
+            body: Cost(vec![CostComponent::do_(PlayerAction::Sacrifice(
+                Reference::That,
+            ))]),
+        };
+        assert_eq!(read(&to_string(&with)), with, "With cost round-trips");
+
+        // Exile-as-cost is a player Move to the Exile zone.
+        let exile = CostComponent::do_(PlayerAction::Move(
+            Reference::This,
+            Destination::Zone(crate::Zone::Exile),
+        ));
+        assert_eq!(
+            read(&to_string(&exile)),
+            exile,
+            "Do(Move(This, Exile)) round-trips"
+        );
     }
 
     /// Read is FAITHFUL: a nested `Cost` component survives deserialization
@@ -214,7 +270,7 @@ mod tests {
         )]));
         let discard_self = CostComponent::Do(Box::new(PlayerAction::Discard {
             count: Count::Literal(1),
-            what: Some(Selection::Ref(Reference::This)),
+            what: Some(Reference::This),
         }));
         assert_eq!(
             lumpy,
@@ -258,9 +314,7 @@ mod tests {
         assert_eq!(read("Tap"), CostComponent::Tap);
         assert_eq!(
             read("Do(Sacrifice(This))"),
-            CostComponent::Do(Box::new(PlayerAction::Sacrifice(Selection::from(
-                Reference::This
-            )))),
+            CostComponent::Do(Box::new(PlayerAction::Sacrifice(Reference::This))),
         );
     }
 

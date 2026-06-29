@@ -17,6 +17,9 @@ pub use action::Bin;
 pub use action::Destination;
 pub use action::PlayerAction;
 
+mod binder;
+pub use binder::Binder;
+
 mod count;
 pub use count::Characteristic;
 pub use count::Count;

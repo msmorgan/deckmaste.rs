@@ -6,7 +6,6 @@ use crate::Condition;
 use crate::Cost;
 use crate::Expand;
 use crate::Expansion;
-use crate::Filter;
 use crate::Mode;
 use crate::SupportsMacros;
 use crate::TargetSpec;
@@ -77,12 +76,21 @@ pub enum Effect {
     /// [CR#601.2f]); nested, it is an extra resolution-time cost. Mirrors
     /// the Idris `AdditionalCost (pay : Cost) body`.
     AdditionalCost(AdditionalCost),
-    /// "For each [over], [do]" — binds the iterated object ([CR#608]).
+    /// "For each [over], [do]" — iterates the `over`
+    /// [`Selection`](crate::Selection) group, binding each element in turn as
+    /// the iteration anaphor `ThatObject`, then runs the body once per element
+    /// ([CR#608]).
     ForEach(ForEach),
-    /// `With(selection, body)` — binds the WHOLE ordered `selection` into the
-    /// frame as the plural anaphor `Those`, then runs `body` once. Never
-    /// distributes (that is `Each`/`ForEach`, which bind singular `That`).
-    /// `This` never rebinds; the moving roles are `That` / `Those`.
+    /// `With(binder, body)` — binds what `binder` yields into the frame as the
+    /// body's anaphor, then runs `body` once. A one-binder
+    /// ([`Binder::TheRef`](crate::Binder::TheRef) /
+    /// [`Binder::ChooseOne`](crate::Binder::ChooseOne)) binds a single object
+    /// read as [`Reference::That`](crate::Reference::That); a many-binder
+    /// ([`Binder::Choose`](crate::Binder::Choose) /
+    /// [`Binder::Existing`](crate::Binder::Existing)) binds a group read as
+    /// [`Selection::Those`](crate::Selection::Those). Never distributes (that
+    /// is `ForEach`, which binds `ThatObject` per element); `This` never
+    /// rebinds.
     With(With),
     /// Divide an `amount` among a group "as you choose", binding each element
     /// in turn as the iteration anaphor (`ThatObject`) with its
@@ -259,17 +267,20 @@ pub struct AdditionalCost {
 }
 
 /// `ForEach { over, do }` — `do` is a keyword, so the field is `effect`.
+/// `over` is the [`Selection`](crate::Selection) group iterated; each element
+/// binds in turn as `ThatObject` for one run of `effect` ([CR#608]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct ForEach {
-    pub over: Filter,
+    pub over: crate::Selection,
     pub effect: Box<Effect>,
 }
 
-/// `With { selection, body }` — `body`/`do` is a keyword, so the field is
-/// `body`.
+/// `With { binder, body }` — `body`/`do` is a keyword, so the field is `body`.
+/// `binder` is the [`Binder`](crate::Binder) whose one/many cardinality picks
+/// the body's anaphor: a one-binder binds `That`, a many-binder binds `Those`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct With {
-    pub selection: crate::Selection,
+    pub binder: crate::Binder,
     pub body: Box<Effect>,
 }
 
@@ -327,14 +338,11 @@ mod tests {
         );
         assert_eq!(
             read("Sacrifice(This)"),
-            act_by_you(PlayerAction::Sacrifice(Selection::Ref(Reference::This))),
+            act_by_you(PlayerAction::Sacrifice(Reference::This)),
         );
         assert_eq!(
             read("DealDamage(Target(0), Literal(3))"),
-            Effect::Act(Action::deal_damage(
-                Selection::Ref(Reference::Target(0)),
-                Count::Literal(3),
-            )),
+            Effect::Act(Action::deal_damage(Reference::Target(0), Count::Literal(3),)),
         );
         assert_eq!(
             read("AddMana(Literal(1), AnyColor)"),
@@ -346,17 +354,16 @@ mod tests {
     }
 
     /// The source verbs read native; the player verbs read as `By(You, …)`.
+    /// Verb patients are now a single bare [`Reference`].
     #[test]
     fn new_verbs_read_flat() {
         assert_eq!(
-            read("Destroy(Each(Type(Creature)))"),
-            Effect::Act(Action::Destroy(Selection::Each(Filter::Characteristic(
-                crate::CharacteristicFilter::Type(crate::Type::Creature)
-            )))),
+            read("Destroy(This)"),
+            Effect::Act(Action::Destroy(Reference::This)),
         );
         assert_eq!(
             read("Tap(This)"),
-            act_by_you(PlayerAction::Tap(Selection::Ref(Reference::This))),
+            act_by_you(PlayerAction::Tap(Reference::This)),
         );
         assert_eq!(
             read("Discard(count: Literal(1))"),
@@ -377,7 +384,7 @@ mod tests {
         assert_eq!(
             read("Move(This, Library(FromTop(0)))"),
             Effect::Act(Action::Move(
-                Selection::Ref(Reference::This),
+                Reference::This,
                 Destination::Library(Anchor::FromTop(Count::Literal(0))),
             )),
         );
@@ -435,14 +442,20 @@ mod tests {
             "By(Target(0),Draw(Literal(3)))",
             "DealDamage(Target(0),Literal(3))",
             "AddMana(Literal(1),AnyColor)",
-            "Destroy(Each(Type(Creature)))",
+            // Verb patients are a single bare `Reference` now.
+            "Destroy(This)",
             "Sequence([Draw(Literal(1)),GainLife(Literal(1))])",
             "May(effect:Draw(Literal(1)))",
-            "ForEach(over:Type(Creature),effect:Draw(Literal(1)))",
-            // Brainstorm's shape: choose 2 cards, put them on top of library.
+            // `ForEach.over` is a `Selection` group (the set of all creatures),
+            // binding `ThatObject` per element.
+            "ForEach(over:Filter(Type(Creature)),effect:Draw(Literal(1)))",
+            // Brainstorm's shape in the new model: choose 2 cards (a many-binder
+            // `With`), then `ForEach` over `Those`, moving each onto the library.
             // Core reader has no macros, so the `Quantity` is the bare `Range`
             // primitive (`Exactly(2)` is the cards-layer macro spelling).
-            "Move(Choose(Range(Literal(2),Literal(2)),InZone(Hand)),Library(FromTop(Literal(0))))",
+            "With(binder:Choose(Range(Literal(2),Literal(2)),InZone(Hand)),\
+             body:ForEach(over:Those,\
+             effect:Move(ThatObject,Library(FromTop(Literal(0))))))",
         ];
         for source in cases {
             let parsed = read(source);
@@ -539,7 +552,7 @@ mod tests {
         assert_eq!(
             *ac.body,
             Effect::Act(Action::deal_damage(
-                Selection::Ref(Reference::Target(0)),
+                Reference::Target(0),
                 Count::StatOf(Reference::EventAgent, crate::Stat::Power),
             )),
             "the body reads the paid object via EventAgent",
@@ -570,18 +583,23 @@ mod tests {
         assert_eq!(te.targets.len(), 1);
         assert_eq!(
             *te.effect,
-            Effect::Act(Action::deal_damage(
-                Selection::Ref(Reference::Target(0)),
-                Count::Literal(3),
-            )),
+            Effect::Act(Action::deal_damage(Reference::Target(0), Count::Literal(3),)),
         );
         assert_eq!(read(&write(&parsed)), parsed, "round-trip");
     }
 
+    /// `With.binder` carries a [`Binder`](crate::Binder); a many-binder
+    /// `Existing(<selection>)` binds the group as `Those`.
     #[test]
     fn with_binds_a_group() {
-        let v = read("With(selection:TopOfLibrary(count:2),body:Sequence([]))");
-        assert!(matches!(v, Effect::With(_)));
+        let v = read("With(binder:Existing(TopOfLibrary(count:2)),body:Sequence([]))");
+        let Effect::With(w) = &v else {
+            panic!("expected With, got {v:?}");
+        };
+        assert!(matches!(
+            w.binder,
+            crate::Binder::Existing(Selection::TopOfLibrary { .. })
+        ));
         assert_eq!(read(&write(&v)), v);
     }
 
@@ -591,7 +609,7 @@ mod tests {
     #[test]
     fn divide_among_reads_and_round_trips() {
         let damage = read(
-            "DivideAmong(amount: 3, group: Each(Type(Creature)), \
+            "DivideAmong(amount: 3, group: Filter(Type(Creature)), \
              body: DealDamage(ThatObject, Allotment))",
         );
         let Effect::DivideAmong(d) = &damage else {
@@ -600,10 +618,7 @@ mod tests {
         assert_eq!(d.amount, Count::Literal(3));
         assert_eq!(
             *d.body,
-            Effect::Act(Action::deal_damage(
-                Selection::Ref(Reference::ThatObject),
-                Count::Allotment,
-            )),
+            Effect::Act(Action::deal_damage(Reference::ThatObject, Count::Allotment,)),
         );
         assert_eq!(read(&write(&damage)), damage, "round-trip");
 

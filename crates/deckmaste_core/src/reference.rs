@@ -108,6 +108,13 @@ pub enum Reference {
     /// the first-class reference for bodies that name "the defending player"
     /// (landwalk, Annihilator, Afflict).
     DefendingPlayer,
+    /// The single object bound by an enclosing [`With`](crate::With)
+    /// one-binder ([`Binder::ChooseOne`](crate::Binder::ChooseOne) /
+    /// [`Binder::TheRef`](crate::Binder::TheRef)) — the Idris `That` (One).
+    /// Distinct from [`ThatObject`](Reference::ThatObject), which is the
+    /// `ForEach`/`DivideAmong` per-element binding and the event agent.
+    /// Carries no payload.
+    That,
     /// The object that participated in the enclosing trigger's event —
     /// bound by the trigger's event pattern ([CR#603.2e], "that creature").
     /// Migration alias for [`EventAgent`](Reference::EventAgent); resolves to
