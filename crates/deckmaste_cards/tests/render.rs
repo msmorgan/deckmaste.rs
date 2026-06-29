@@ -154,6 +154,31 @@ fn renders_trigger_multiplier_panharmonicon() {
     );
 }
 
+/// The `Delve` keyword ([CR#702.66a]) — a `PayPips` static — renders to its
+/// printed keyword name, and the non-cost "Draw three cards." effect renders
+/// alongside it. No `[unrendered]` fallback markers leak (the `PayPips` static
+/// must not surface raw debug text).
+#[test]
+fn renders_delve_treasure_cruise() {
+    let r = render_card_face(&face("Treasure Cruise"));
+    assert_eq!(r.mana_cost, "{7}{U}");
+    assert_eq!(r.type_line, "Sorcery");
+    assert_eq!(
+        r.rules[0], "Delve",
+        "the keyword line renders the printed name"
+    );
+    assert!(
+        r.rules.iter().any(|line| line.contains("Draw")),
+        "the draw effect renders: {:?}",
+        r.rules
+    );
+    assert!(
+        r.rules.iter().all(|line| !line.contains("[unrendered")),
+        "no fallback markers leak: {:?}",
+        r.rules
+    );
+}
+
 #[test]
 fn renders_must_attack_goblin_brigand() {
     let r = render_card_face(&face("Goblin Brigand"));

@@ -1,0 +1,26 @@
+// Convoke = a static ability [CR#702.51a] that functions while the spell with
+// convoke is on the stack: "For each colored mana in this spell's total cost,
+// you may tap an untapped creature of that color you control rather than pay
+// that mana. For each generic mana in this spell's total cost, you may tap an
+// untapped creature you control rather than pay that mana." Modeled as per-pip
+// ALTERNATIVE PAYMENT (`PayPips`), NOT a cost reduction: it "isn't an additional
+// or alternative cost and applies only after the total cost ... is determined"
+// ([CR#702.51b]) — the engine reads it only in the cost-payment window
+// ([CR#601.2g..601.2h]) and never lowers the mana value ([CR#202.3]).
+//
+// Spelled as one `PayPips` row PER pip class: a `Generic` clause (tap any
+// creature you control) and one `Colored(c)` clause per color (tap a creature
+// of that color), so the tapped creature's color is matched structurally. The
+// creature tapped is chosen at payment time ([CR#107.5]).
+KeywordAbility(
+    name: "Convoke",
+    template: "convoke",
+    abilities: [Static(effects: [
+        PayPips(Generic, TapToPay(AllOf([Type(Creature), ControlledBy(Ref(You))]))),
+        PayPips(Colored(White), TapToPay(AllOf([Type(Creature), ColorIs(White), ControlledBy(Ref(You))]))),
+        PayPips(Colored(Blue), TapToPay(AllOf([Type(Creature), ColorIs(Blue), ControlledBy(Ref(You))]))),
+        PayPips(Colored(Black), TapToPay(AllOf([Type(Creature), ColorIs(Black), ControlledBy(Ref(You))]))),
+        PayPips(Colored(Red), TapToPay(AllOf([Type(Creature), ColorIs(Red), ControlledBy(Ref(You))]))),
+        PayPips(Colored(Green), TapToPay(AllOf([Type(Creature), ColorIs(Green), ControlledBy(Ref(You))]))),
+    ])],
+)

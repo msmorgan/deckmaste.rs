@@ -1,0 +1,21 @@
+// {2} sorcery: "draw a card. Delve." Pins the exile arm of the per-pip
+// alternative-payment hook (PayPips): delve lets a generic pip be paid by
+// exiling a card from your graveyard ([CR#702.66a]) — "rather than pay that
+// mana", without lowering the {2} mana value ([CR#202.3,702.51b]). Treasure
+// Cruise (the canon delve card) draws three for {7}{U}; this minimal {2}
+// twin isolates the exile pip hook for a small, deterministic engine test.
+// Per plugins/testing/README.md, the canon card carries the real keyword.
+//
+// The delve static is spelled DIRECTLY as a `PayPips` row so the engine test
+// does not depend on the keyword layer.
+Normal(
+    name: "Sorcery Delve Draw",
+    mana_cost: [Generic(2)],
+    types: [Sorcery],
+    abilities: [
+        Spell(effect: Draw(1)),
+        Static(effects: [
+            PayPips(Generic, ExileToPay(AllOf([InZone(Graveyard), Owner(Ref(You))]))),
+        ]),
+    ],
+)

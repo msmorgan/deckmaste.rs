@@ -1,0 +1,24 @@
+// {1}{G} sorcery: "draw a card. Convoke." Pins the per-pip alternative-payment
+// hook (PayPips) end to end: convoke lets a generic pip be paid by tapping a
+// creature you control, and a colored pip by tapping a creature of that color
+// ([CR#702.51a]) — "rather than pay that mana", without lowering the {2} mana
+// value ([CR#202.3,702.51b]). No real convoke spell is canonized yet whose
+// non-cost effect ("draw a card") is this minimal; the mock isolates the pip
+// hook from any other mechanic. Per plugins/testing/README.md, canonize a real
+// convoke spell and delete this once one lands.
+//
+// The convoke static is spelled DIRECTLY as two `PayPips` rows (the keyword
+// macro sugar is exercised on the canon card) so the engine test does not
+// depend on the keyword layer.
+Normal(
+    name: "Sorcery Convoke Draw",
+    mana_cost: [Generic(1), Green],
+    types: [Sorcery],
+    abilities: [
+        Spell(effect: Draw(1)),
+        Static(effects: [
+            PayPips(Generic, TapToPay(AllOf([Creature, ControlledBy(Ref(You))]))),
+            PayPips(Colored(Green), TapToPay(AllOf([Creature, ColorIs(Green), ControlledBy(Ref(You))]))),
+        ]),
+    ],
+)
