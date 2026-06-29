@@ -410,7 +410,7 @@ impl std::error::Error for DecisionError {}
 /// The action one `unless` cost component performs, paid by `who`
 /// ([CR#118.12a]). v1 covers verb costs (`Do`) and {T}/{Q}; a mid-resolution
 /// mana cost is a loud seam (the PayCost/PayMana flow is announce-slot-bound).
-fn unless_cost_action(
+pub(crate) fn unless_cost_action(
     component: &deckmaste_core::CostComponent,
     who: &deckmaste_core::Reference,
 ) -> deckmaste_core::Action {

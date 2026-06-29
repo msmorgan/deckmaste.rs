@@ -94,6 +94,15 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
                 None => format!("[unrendered: {m:?}]."),
             }
         }
+        // [CR#601.2f,118.8]: "As an additional cost, [pay]. [body]" — the
+        // printed/nested additional-cost clause whose body reads the paid object
+        // (via the event references). The payment renders as a symbol cost
+        // ("pay {2}") or an object-moving verb phrase ("sacrifice a creature");
+        // declines structurally if the cost has no clean rendering.
+        Effect::AdditionalCost(ac) => match additional_payment(&ac.pay.0, ctx) {
+            Some(pay) => format!("As an additional cost, {pay}. {}", effect(&ac.body, ctx)),
+            None => format!("[unrendered: {ac:?}]."),
+        },
         // [CR#601.2d]: a divided distribution — the body picks the verb
         // ("deal … damage" vs "distribute … counters"), the amount is divided
         // "as you choose" among the group.
@@ -191,6 +200,34 @@ fn divide_among(d: &deckmaste_core::DivideAmong, ctx: &Ctx) -> String {
     }
 }
 
+/// The payment clause of an [`Effect::AdditionalCost`] ([CR#601.2f]): an
+/// all-symbol cost reads "pay {cost}"; an object-moving verb cost reads as its
+/// lowercased verb phrase ("sacrifice a creature"). Declines (`None`) on an
+/// empty or no-clean-rendering cost, so the effect falls back to the structural
+/// form.
+fn additional_payment(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) -> Option<String> {
+    use deckmaste_core::CostComponent;
+    if cost.is_empty() {
+        return None;
+    }
+    // An all-symbol cost ({2}, {T}) reads "pay {cost}".
+    if let Some(symbols) = super::template::render_cost(cost) {
+        return Some(format!("pay {symbols}"));
+    }
+    // Otherwise render each component as its lowercased verb clause.
+    let mut parts = Vec::new();
+    for component in cost {
+        match component {
+            CostComponent::Do(pa) => {
+                let phrase = trim_period(&player_action(pa, ctx));
+                parts.push(super::ability::lower_first(&phrase));
+            }
+            _ => return None,
+        }
+    }
+    Some(parts.join(" and "))
+}
+
 fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
     match pa {
         PlayerAction::Draw(Count::Literal(1)) => "Draw a card.".to_string(),
@@ -200,6 +237,18 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
         PlayerAction::Create(count, spec) => create_text(count, spec),
         PlayerAction::Tap(sel) => format!("Tap {}.", fragment::selection(sel, ctx)),
         PlayerAction::Untap(sel) => format!("Untap {}.", fragment::selection(sel, ctx)),
+        // A sacrifice ([CR#701.21]) — as an additional/activation cost it names a
+        // chosen permanent ("sacrifice a creature", Fling); a referenced one
+        // names the object directly.
+        PlayerAction::Sacrifice(deckmaste_core::Selection::Choose(q, f))
+            if matches!(
+                q.bounds(),
+                (Some(Count::Literal(1)), Some(Count::Literal(1)))
+            ) =>
+        {
+            format!("Sacrifice a {}.", fragment::filter_noun(f))
+        }
+        PlayerAction::Sacrifice(sel) => format!("Sacrifice {}.", fragment::selection(sel, ctx)),
         PlayerAction::GetDesignation(name) if name.as_ref() == "CitysBlessing" => {
             "You get the city's blessing.".to_string()
         }
@@ -465,6 +514,37 @@ mod tests {
         assert_eq!(
             divide,
             "Deal 3 damage divided as you choose among each creature."
+        );
+    }
+
+    /// `AdditionalCost` renders the printed clause: a chosen-creature sacrifice
+    /// cost reads "As an additional cost, sacrifice a creature." followed by
+    /// the body sentence ([CR#601.2f,118.8]).
+    #[test]
+    fn additional_cost_renders_sacrifice_clause() {
+        use deckmaste_core::AdditionalCost;
+        use deckmaste_core::Cost;
+        use deckmaste_core::CostComponent;
+        use deckmaste_core::PlayerAction;
+
+        let ctx = Ctx {
+            subject: "Fling",
+            targets: &[],
+        };
+        let fling = super::effect(
+            &deckmaste_core::Effect::AdditionalCost(AdditionalCost {
+                pay: Cost(vec![CostComponent::do_(PlayerAction::Sacrifice(
+                    Selection::Choose(Quantity::one(), Filter::creature()),
+                ))]),
+                body: Box::new(deckmaste_core::Effect::act_by_you(PlayerAction::Draw(
+                    Count::Literal(1),
+                ))),
+            }),
+            &ctx,
+        );
+        assert_eq!(
+            fling,
+            "As an additional cost, sacrifice a creature. Draw a card."
         );
     }
 }
