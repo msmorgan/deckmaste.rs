@@ -911,6 +911,23 @@ impl GameState {
                 // concretization's Phyrexian-life verbs.
                 items.extend(verb_payment_items(&summary.verbs, source, controller));
                 items.extend(verb_payment_items(&extra_verbs, source, controller));
+                // [CR#601.2h,702.122a]: pay each aggregate-stat (tap-total) cost
+                // by tapping a qualifying subset (Crew taps creatures with the
+                // required total power). One `Tapped` event per chosen
+                // permanent, in the same payment window as the {T}/verb costs.
+                for req in &summary.tap_totals {
+                    if let Some(subset) = self.tap_total_subset(req, source, controller) {
+                        for tapped in subset {
+                            items.push(WorkItem::Emit(Occurrence::single(GameEvent::Tapped {
+                                object: tapped,
+                                cause: Some(Cause::tap(
+                                    Agency::CostPayment,
+                                    Some((source, controller)),
+                                )),
+                            })));
+                        }
+                    }
+                }
                 if !items.is_empty() {
                     self.schedule_front(items);
                 }

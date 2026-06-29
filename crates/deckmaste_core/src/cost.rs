@@ -1,9 +1,13 @@
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::Cmp;
+use crate::Count;
 use crate::Expand;
 use crate::Expansion;
+use crate::Filter;
 use crate::Normalize;
+use crate::Stat;
 use crate::SupportsMacros;
 use crate::action::PlayerAction;
 use crate::mana::ManaCost;
@@ -45,6 +49,30 @@ pub enum CostComponent {
     /// is what splices it into the surrounding list — call it at the boundary
     /// before consuming a (possibly macro-spliced) cost.
     Cost(Cost),
+    /// An *aggregate-stat* cost: tap a chosen subset of the permanents matching
+    /// `filter` whose summed `stat` satisfies `cmp` `count` ([CR#601.2b],
+    /// tapping [CR#107.5]). The one shape for Crew — "Crew N" = "tap any number
+    /// of other untapped creatures you control with total power N or greater"
+    /// ([CR#702.122a]) is `TapTotal(Power, AtLeast, N, <those creatures>)` —
+    /// and the convoke/devotion-scaling cost family the engine authors
+    /// flagged it should subsume. The payer chooses which qualifying
+    /// permanents to tap; the engine taps a subset whose summed `stat`
+    /// meets the bound. `stat` is a numeric axis (power/toughness/defense).
+    /// `filter` is an open [`Filter`], so it stays plugin-safe; it is boxed
+    /// because an open filter is large and `CostComponent` rides in
+    /// `Vec<CostComponent>` cost lists, so an unboxed field would size
+    /// every element to it (`clippy::large_enum_variant`).
+    ///
+    /// A struct variant (it reads flat in RON through a generated helper
+    /// struct, like [`Condition::Happened`](crate::Condition)): four fields
+    /// exceed the `SupportsMacros` tuple-variant arity, and the named
+    /// fields read better than four bare positionals.
+    TapTotal {
+        stat: Stat,
+        cmp: Cmp,
+        count: Count,
+        filter: Box<Filter>,
+    },
     /// A remembered `CostComponent` macro invocation (`SacrificeThis`, loyalty
     /// sugar, …).
     #[macro_ron(expanded)]
@@ -248,6 +276,36 @@ mod tests {
         let v = CostComponent::ManaCostOf(Reference::ControllerOf(Box::new(Reference::This)));
         let written = crate::ron::options().to_string(&v).unwrap();
         assert_eq!(read(&written), v, "round-trips: {written}");
+    }
+
+    /// `TapTotal(stat, cmp, count, filter)` reads flat and round-trips — the
+    /// aggregate-stat (Crew) cost shape ([CR#702.122a]). The `filter` field is
+    /// a boxed open [`Filter`], so a bare `Type(Creature)` reads into it
+    /// transparently.
+    #[test]
+    fn tap_total_reads_and_round_trips() {
+        use crate::Cmp;
+        use crate::Count;
+        use crate::Filter;
+        use crate::Stat;
+
+        // The Crew shape: "tap any number of creatures with total power 3 or
+        // greater" ([CR#702.122a]).
+        let crew = CostComponent::TapTotal {
+            stat: Stat::Power,
+            cmp: Cmp::AtLeast,
+            count: Count::Literal(3),
+            filter: Box::new(Filter::creature()),
+        };
+        assert_eq!(
+            read("TapTotal(stat: Power, cmp: AtLeast, count: 3, filter: Type(Creature))"),
+            crew,
+        );
+
+        // Serialize -> read is identity (the highest-risk arm — a 4-field tuple
+        // variant with a boxed filter and a bare-literal count).
+        let written = crate::ron::options().to_string(&crew).unwrap();
+        assert_eq!(read(&written), crew, "round-trips: {written}");
     }
 
     #[test]

@@ -6,13 +6,18 @@
 
 use deckmaste_core::Ability;
 use deckmaste_core::ActivatedAbility;
+use deckmaste_core::Cmp;
 use deckmaste_core::CostComponent;
+use deckmaste_core::Count;
+use deckmaste_core::Filter;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::Reference;
 use deckmaste_core::Selection;
+use deckmaste_core::Stat;
 use deckmaste_core::Type;
+use deckmaste_core::Uint;
 use deckmaste_core::UseLimit;
 use deckmaste_core::Zone;
 
@@ -55,6 +60,25 @@ pub(crate) struct CostSummary {
     /// the mana to pay by [`GameState::resolve_cost_mana`] at the gate and the
     /// payment step.
     pub mana_cost_of: Vec<Reference>,
+    /// Aggregate-stat (tap-total) requirements ([CR#702.122a] Crew): each is a
+    /// "tap a subset of [filter] whose summed [stat] satisfies [cmp] [count]"
+    /// obligation. Like `ManaCostOf`, it can only be checked/paid against a
+    /// live frame, so it is collected here and resolved by
+    /// [`GameState::tap_total_subset`] at the gate (feasibility) and the
+    /// payment step (which subset to tap).
+    pub tap_totals: Vec<TapTotalReq>,
+}
+
+/// One aggregate-stat (tap-total) cost obligation collected by [`cost_summary`]
+/// ([CR#601.2b,702.122a]): tap a chosen subset of `filter`'s untapped matches
+/// whose summed `stat` satisfies `cmp` `count`. The owned twin of
+/// `CostComponent::TapTotal`, hoisted into the summary so the gate and the pay
+/// step share one reading.
+pub(crate) struct TapTotalReq {
+    pub stat: Stat,
+    pub cmp: Cmp,
+    pub count: Count,
+    pub filter: Filter,
 }
 
 /// Summarize `cost` in one walk (so the `can_activate` gate and the pay step
@@ -70,6 +94,7 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
     let mut untap = false;
     let mut verbs: Vec<PlayerAction> = Vec::new();
     let mut mana_cost_of: Vec<Reference> = Vec::new();
+    let mut tap_totals: Vec<TapTotalReq> = Vec::new();
     for component in cost {
         match component {
             CostComponent::Mana(m) => symbols.extend_from_slice(m),
@@ -79,6 +104,20 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
             CostComponent::ManaCostOf(reference) => mana_cost_of.push(reference.clone()),
             CostComponent::Tap => tap = true,
             CostComponent::Untap => untap = true,
+            // An aggregate-stat cost ([CR#702.122a] Crew): collect the
+            // requirement; feasibility and the subset to tap are resolved
+            // against a live frame at the gate / pay step.
+            CostComponent::TapTotal {
+                stat,
+                cmp,
+                count,
+                filter,
+            } => tap_totals.push(TapTotalReq {
+                stat: *stat,
+                cmp: *cmp,
+                count: count.clone(),
+                filter: (**filter).clone(),
+            }),
             CostComponent::Do(action) => {
                 if action.is_cost_eligible() {
                     verbs.push(*action.clone());
@@ -95,6 +134,7 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
                 untap |= inner.untap;
                 verbs.extend(inner.verbs);
                 mana_cost_of.extend(inner.mana_cost_of);
+                tap_totals.extend(inner.tap_totals);
             }
             // A nested cost (the macro list-splice shape) survives faithful
             // read; recurse to splice it into the summary — this walk is the
@@ -106,6 +146,7 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
                 untap |= inner.untap;
                 verbs.extend(inner.verbs);
                 mana_cost_of.extend(inner.mana_cost_of);
+                tap_totals.extend(inner.tap_totals);
             }
         }
     }
@@ -115,7 +156,40 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
         untap,
         verbs,
         mana_cost_of,
+        tap_totals,
     })
+}
+
+/// A minimal subset of `(object, stat)` candidates whose summed stat satisfies
+/// `cmp` `need`, or `None` when no subset does ([CR#702.122a] Crew payment).
+///
+/// Greedy from the highest stat (a stable sort, so equal stats keep id order):
+/// for the lower-bound comparators a card actually uses (`AtLeast`/`Greater` —
+/// "total power N or greater"), adding the largest contributors reaches the
+/// bound with the fewest taps, and once it holds it stays held. The empty
+/// subset is returned when `cmp 0 need` already holds (e.g. `AtMost`, or a zero
+/// bound), since tapping nothing is then a legal payment.
+fn greedy_tap_subset(
+    mut candidates: Vec<(ObjectId, Uint)>,
+    cmp: Cmp,
+    need: Uint,
+) -> Option<Vec<ObjectId>> {
+    let mut sum: Uint = 0;
+    let mut chosen: Vec<ObjectId> = Vec::new();
+    if cmp.apply(sum, need) {
+        return Some(chosen);
+    }
+    // Highest stat first; stable, so equal-stat ties keep the id order
+    // `candidates_with` produced.
+    candidates.sort_by_key(|&(_, stat)| std::cmp::Reverse(stat));
+    for (id, stat) in candidates {
+        chosen.push(id);
+        sum = sum.saturating_add(stat);
+        if cmp.apply(sum, need) {
+            return Some(chosen);
+        }
+    }
+    None
 }
 
 impl GameState {
@@ -270,7 +344,85 @@ impl GameState {
 
         // [CR#601.2h,118.3]: the non-mana verb/life costs must be fully
         // payable too — partial payment is forbidden.
-        self.can_pay_verbs(player, &summary.verbs, object)
+        if !self.can_pay_verbs(player, &summary.verbs, object) {
+            return false;
+        }
+
+        // [CR#601.2h,702.122a]: every aggregate-stat (tap-total) cost must have
+        // a qualifying untapped subset to tap (Crew: enough total power) —
+        // partial payment is forbidden, so an infeasible requirement bars
+        // activation.
+        summary
+            .tap_totals
+            .iter()
+            .all(|req| self.tap_total_subset(req, object, player).is_some())
+    }
+
+    /// The subset of untapped permanents `player` would tap to pay one
+    /// aggregate-stat cost `req` for `source` ([CR#601.2h,702.122a] Crew), or
+    /// `None` when no qualifying subset exists (the cost is unpayable). The
+    /// candidates are `req.filter`'s untapped matches (anchored on `source` so
+    /// `Ref(You)`/`Ref(This)` resolve), each contributing its derived
+    /// `req.stat`; the greedy reading taps the fewest (highest-stat first)
+    /// that meet `req.cmp` `req.count`.
+    ///
+    /// The payer is entitled to *choose* which qualifying permanents to tap
+    /// ([CR#601.2h]); this picks a deterministic minimal subset. The
+    /// interactive choice is a follow-up seam (it needs a new payment-time
+    /// decision point) — the chosen subset is always a legal payment.
+    pub(crate) fn tap_total_subset(
+        &self,
+        req: &TapTotalReq,
+        source: ObjectId,
+        controller: PlayerId,
+    ) -> Option<Vec<ObjectId>> {
+        let frame = Frame {
+            source,
+            controller,
+            targets: Vec::new(),
+            bindings: None,
+            chosen: None,
+            x: None,
+            subject: None,
+            those: None,
+        };
+        let need = self.eval_count(&req.count, &frame);
+        let watcher = self.objects.obj(source).source;
+        let view = self.layers();
+        let candidates: Vec<(ObjectId, Uint)> = crate::target::candidates_with(self, &req.filter, Some(watcher))
+                .into_iter()
+                // Only an *untapped* permanent can be tapped to pay ([CR#107.5]).
+                .filter(|&id| !self.objects.obj(id).tapped)
+                .filter_map(|id| self.cost_stat_value(&view, id, req.stat).map(|v| (id, v)))
+                .collect();
+        greedy_tap_subset(candidates, req.cmp, need)
+    }
+
+    /// The derived numeric value of `stat` for the card-backed object `id`,
+    /// clamped to a non-negative [`Uint`] ([CR#107.1b]) — the aggregate-stat
+    /// cost summand. `None` for a non-card object (a player proxy has no stat)
+    /// or a stat axis whose engine machinery is unbuilt (loyalty/defense). The
+    /// view is built once by the caller and threaded in.
+    fn cost_stat_value(
+        &self,
+        view: &crate::layer::LayeredView,
+        id: ObjectId,
+        stat: Stat,
+    ) -> Option<Uint> {
+        // A non-card object (a player proxy) has no stat.
+        self.objects.obj(id).card_id()?;
+        let raw: Option<deckmaste_core::Int> = match stat {
+            Stat::Power => view.power(id),
+            Stat::Toughness => view.toughness(id),
+            Stat::ManaValue => deckmaste_core::Int::try_from(
+                crate::derive::face(self.def(id)).mana_cost.mana_value(),
+            )
+            .ok(),
+            // Aggregate-stat costs over loyalty/defense have no canon card and
+            // ride the same unbuilt counter machinery as `eval_count`.
+            Stat::Loyalty | Stat::Defense => None,
+        };
+        raw.map(|v| Uint::try_from(v.max(0)).unwrap_or(0))
     }
 
     /// [CR#601.2h,118.3]: can `player` fully pay every cost-eligible verb in
@@ -674,6 +826,71 @@ mod tests {
         let summary = cost_summary(&cost).expect("a wrapped {Q} should summarize");
         assert!(summary.untap, "{{Q}} is seen through the macro wrapper");
         assert!(!summary.tap);
+    }
+
+    /// A `TapTotal` component is well-formed (it never aborts the summary) and
+    /// is hoisted into `tap_totals` for the gate / pay step ([CR#702.122a]).
+    #[test]
+    fn cost_summary_collects_tap_total() {
+        let cost = vec![
+            CostComponent::Mana("{1}".parse().unwrap()),
+            CostComponent::TapTotal {
+                stat: Stat::Power,
+                cmp: Cmp::AtLeast,
+                count: Count::Literal(3),
+                filter: Box::new(Filter::creature()),
+            },
+        ];
+        let summary = cost_summary(&cost).expect("a TapTotal cost summarizes");
+        assert_eq!(summary.tap_totals.len(), 1);
+        assert_eq!(summary.tap_totals[0].stat, Stat::Power);
+        assert_eq!(summary.tap_totals[0].cmp, Cmp::AtLeast);
+        assert_eq!(summary.tap_totals[0].count, Count::Literal(3));
+        // The plain {1} still rides the mana lane.
+        assert_eq!(summary.mana, "{1}".parse().unwrap());
+    }
+
+    // -- greedy_tap_subset (the aggregate-stat payment reading) --
+
+    #[test]
+    fn greedy_tap_subset_meets_lower_bound_with_fewest_taps() {
+        let a = ObjectId::from_raw(1);
+        let b = ObjectId::from_raw(2);
+        let c = ObjectId::from_raw(3);
+        // Highest-stat first: a single power-3 covers "total power 3 or greater".
+        let chosen = greedy_tap_subset(vec![(a, 1), (b, 3), (c, 2)], Cmp::AtLeast, 3)
+            .expect("3+2+1 = 6 can reach 3");
+        assert_eq!(chosen, vec![b], "tap only the power-3 permanent");
+
+        // Two power-2 bears sum to 4 >= 3 (one is not enough).
+        let two =
+            greedy_tap_subset(vec![(a, 2), (b, 2)], Cmp::AtLeast, 3).expect("2+2 = 4 reaches 3");
+        assert_eq!(two.len(), 2, "needs both bears to clear 3");
+    }
+
+    #[test]
+    fn greedy_tap_subset_none_when_total_falls_short() {
+        let a = ObjectId::from_raw(1);
+        let b = ObjectId::from_raw(2);
+        // Total power 4 can never reach 5 ([CR#601.2h] no partial payment).
+        assert!(greedy_tap_subset(vec![(a, 2), (b, 2)], Cmp::AtLeast, 5).is_none());
+        // No candidates and a positive bound is unpayable.
+        assert!(greedy_tap_subset(vec![], Cmp::AtLeast, 1).is_none());
+    }
+
+    #[test]
+    fn greedy_tap_subset_empty_satisfies_trivial_bound() {
+        let a = ObjectId::from_raw(1);
+        // "total power 0 or greater" holds by tapping nothing.
+        assert_eq!(
+            greedy_tap_subset(vec![(a, 2)], Cmp::AtLeast, 0),
+            Some(vec![])
+        );
+        // An at-most bound is met by the empty subset (sum 0 <= N).
+        assert_eq!(
+            greedy_tap_subset(vec![(a, 2)], Cmp::AtMost, 3),
+            Some(vec![])
+        );
     }
 
     // -- can_activate gate --
