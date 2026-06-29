@@ -1,10 +1,12 @@
-use serde::Deserialize;
-use serde::Serialize;
-
-use crate::Expand;
+use crate::SupportsMacros;
 
 /// A game zone ([CR#400.1]). Vintage-legal scope: no ante.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+///
+/// `SupportsMacros` (rather than a plain serde derive) so a zone name can be
+/// `#[macro_ron(flatten)]`-lifted into [`Destination`](crate::Destination): a
+/// bare `Graveyard` reads as `Destination::Zone(Zone::Graveyard)`, keeping
+/// `Move(This, Graveyard)` spelled as-is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Zone {
     Battlefield,
     Command,

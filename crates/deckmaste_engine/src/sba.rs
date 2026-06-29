@@ -932,7 +932,7 @@ mod tests {
                 when: Box::new(Condition::Not(Box::new(Condition::LegallyAttached(
                     Reference::This,
                 )))),
-                then: Box::new(Effect::Act(deckmaste_core::Action::Move(
+                then: Box::new(Effect::Act(deckmaste_core::Action::move_to(
                     Selection::this(),
                     Zone::Graveyard,
                 ))),

@@ -318,16 +318,18 @@ mod tests {
         );
     }
 
-    /// Brainstorm's second half: a bare `PutInLibrary` reads at an effect slot
-    /// as the implicit-`You` default, with the position a `Count` (0 = top).
-    /// The 2-tuple `(Selection, Count)` exercises the `Pair` visitor.
+    /// Brainstorm's second half: putting cards on top of the library is the
+    /// `Move`-to-library form — a source verb read natively at an effect slot,
+    /// with the position an `Anchor` (`FromTop(0)` = top). [CR#401.7]
     #[test]
-    fn put_in_library_reads_at_effect_slot() {
+    fn move_to_library_reads_at_effect_slot() {
+        use crate::Anchor;
+        use crate::Destination;
         assert_eq!(
-            read("PutInLibrary(This, Literal(0))"),
-            act_by_you(PlayerAction::PutInLibrary(
+            read("Move(This, Library(FromTop(0)))"),
+            Effect::Act(Action::Move(
                 Selection::Ref(Reference::This),
-                Count::Literal(0),
+                Destination::Library(Anchor::FromTop(Count::Literal(0))),
             )),
         );
     }
@@ -388,10 +390,10 @@ mod tests {
             "Sequence([Draw(Literal(1)),GainLife(Literal(1))])",
             "May(effect:Draw(Literal(1)))",
             "ForEach(over:Type(Creature),effect:Draw(Literal(1)))",
-            // Brainstorm's shape: choose 2 cards, put them on top (position 0).
+            // Brainstorm's shape: choose 2 cards, put them on top of library.
             // Core reader has no macros, so the `Quantity` is the bare `Range`
             // primitive (`Exactly(2)` is the cards-layer macro spelling).
-            "PutInLibrary(Choose(Range(Literal(2),Literal(2)),InZone(Hand)),Literal(0))",
+            "Move(Choose(Range(Literal(2),Literal(2)),InZone(Hand)),Library(FromTop(Literal(0))))",
         ];
         for source in cases {
             let parsed = read(source);

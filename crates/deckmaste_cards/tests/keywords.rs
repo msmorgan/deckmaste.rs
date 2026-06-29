@@ -702,6 +702,7 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
     use deckmaste_core::CharacteristicFilter;
     use deckmaste_core::Cmp;
     use deckmaste_core::Count;
+    use deckmaste_core::Destination;
     use deckmaste_core::Effect;
     use deckmaste_core::Event;
     use deckmaste_core::Filter;
@@ -789,7 +790,7 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
             &*t.effect,
             Effect::Act(Action::Move(
                 Selection::Ref(Reference::Target(0)),
-                Zone::Hand
+                Destination::Zone(Zone::Hand)
             ))
         ),
         "soulshift returns target to hand; got {:?}",

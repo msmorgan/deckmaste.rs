@@ -338,7 +338,7 @@ mod tests {
             when: Box::new(Condition::Not(Box::new(Condition::LegallyAttached(
                 Reference::This,
             )))),
-            then: Box::new(Effect::Act(Action::Move(
+            then: Box::new(Effect::Act(Action::move_to(
                 Selection::Ref(Reference::This),
                 Zone::Graveyard,
             ))),

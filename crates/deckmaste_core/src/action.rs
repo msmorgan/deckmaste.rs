@@ -20,6 +20,39 @@ pub enum Bin {
     Graveyard,
 }
 
+/// A position within a library ([CR#401.7]): an offset counted from the top or
+/// from the bottom. `FromTop(0)` is the very top, `FromBottom(0)` the very
+/// bottom; larger offsets index inward. The Idris `Anchor = FromTop Count |
+/// FromBottom Count`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+pub enum Anchor {
+    /// `n` cards from the top (`0` = on top).
+    FromTop(Count),
+    /// `n` cards from the bottom (`0` = on the bottom) — the placement no
+    /// from-top index could name without first knowing the library's size.
+    FromBottom(Count),
+}
+
+/// Where a relocation puts an object ([CR#400.7]). A plain zone (the object's
+/// *owner's* graveyard/hand/library, the shared exile, the battlefield), or the
+/// library at an anchored position ([CR#401.7]). The Idris `Destination =
+/// ToZone Zone | ToLibrary Anchor`; this unifies `Move`'s zone change and the
+/// former `PutInLibrary`'s library-position placement into one notion (and adds
+/// bottom-of-library by construction).
+///
+/// A bare zone name reads as [`Destination::Zone`] — the
+/// `#[macro_ron(flatten)]` marker lifts [`Zone`](crate::Zone)'s variant names
+/// into `Destination`'s dispatch — so `Move(This, Graveyard)` is unchanged; the
+/// library form is `Move(This, Library(FromTop(0)))`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+pub enum Destination {
+    /// A plain zone change ([CR#400.7]) — written as the bare zone name.
+    #[macro_ron(flatten)]
+    Zone(crate::Zone),
+    /// The library at an anchored position ([CR#401.7]).
+    Library(Anchor),
+}
+
 /// An intrinsic game verb ([CR#700,701]) whose **agent is the source object or
 /// the effect itself**, not a player: the source deals the damage, the effect
 /// destroys/returns the object. Player-performed verbs (draw, sacrifice, …)
@@ -70,13 +103,16 @@ pub enum Action {
     /// and the illegal-attachment SBA's unattach path. No-op on a selection
     /// that isn't attached.
     Unattach(Selection),
-    /// Move a selection to a zone ([CR#400.7]) — a plain zone change (emits
-    /// `ZoneWillChange`), NOT destruction (so indestructible does not apply,
-    /// distinct from [`Destroy`](Action::Destroy)) and NOT a sacrifice. A
-    /// graveyard/hand/library destination is the object's *owner's*; exile is
-    /// the shared exile zone. The [CR#704.5m] Aura graveyard SBA is its first
-    /// user (`Move(Ref(This), Graveyard)`).
-    Move(Selection, crate::Zone),
+    /// Move a selection to a [`Destination`] ([CR#400.7]) — a plain zone change
+    /// (emits `ZoneWillChange`), NOT destruction (so indestructible does not
+    /// apply, distinct from [`Destroy`](Action::Destroy)) and NOT a sacrifice.
+    /// A graveyard/hand/library destination is the object's *owner's*; exile is
+    /// the shared exile zone. The destination is a bare zone name
+    /// (`Move(Ref(This), Graveyard)` — the [CR#704.5m] Aura graveyard SBA) or
+    /// the library at an anchor (`Move(sel, Library(FromTop(0)))` — top of
+    /// library, the former `PutInLibrary`; `Library(FromBottom(0))` — bottom,
+    /// [CR#401.7]). This one verb subsumes the old `Move`/`PutInLibrary` split.
+    Move(Selection, Destination),
     /// Register a floating replacement effect ([CR#614.3]) — "the next time …"
     /// shields (regeneration, one-shot prevention). `subject` resolves to the
     /// protected permanent; `one_shot` consumes the shield on first use
@@ -163,12 +199,6 @@ pub enum PlayerAction {
     /// Remove counters of the named kind ([CR#122.1]; cost-eligible —
     /// "Remove a +1/+1 counter from this creature:").
     RemoveCounters(Selection, crate::CounterRef, Count),
-    /// Put a selection of cards into their owner's library at a `Count`
-    /// position counted from the top: `0` = top, `CardsInLibrary(owner)` =
-    /// bottom. An index past the bottom places the card on the bottom
-    /// ([CR#401.7]). When the selection is two or more cards, the owner
-    /// arranges them in any order ([CR#401.4]).
-    PutInLibrary(Selection, Count),
     /// Look at `group`, then partition the peeked cards into ordered `bins`
     /// ([CR#701.22a]). One resolution decision; the peek is implicit (surfacing
     /// the decision IS the look). `name` is the printed keyword carried for
@@ -238,6 +268,13 @@ impl Action {
     #[must_use]
     pub fn deal_damage(selection: Selection, amount: Count) -> Action {
         Action::DealDamage(selection, amount, Reference::This)
+    }
+
+    /// `Move` to a plain zone — the common relocation (`Move(sel, Graveyard)`),
+    /// without spelling the `Destination::Zone` wrapper.
+    #[must_use]
+    pub fn move_to(selection: Selection, zone: crate::Zone) -> Action {
+        Action::Move(selection, Destination::Zone(zone))
     }
 }
 
@@ -452,12 +489,15 @@ mod tests {
     }
 
     /// `Move(This, Graveyard)` (the source-agent plain-relocation verb the
-    /// [CR#704.5m] Aura SBA uses) reads natively and round-trips.
+    /// [CR#704.5m] Aura SBA uses) reads natively with a bare zone name (the
+    /// flattened `Destination::Zone`) and round-trips.
     #[test]
     fn move_verb_round_trips() {
         use crate::Zone;
-        let mv = Action::Move(Selection::Ref(Reference::This), Zone::Graveyard);
+        let mv = Action::move_to(Selection::Ref(Reference::This), Zone::Graveyard);
         assert_eq!(read("Move(This, Graveyard)"), mv);
+        // The bare zone name is the flattened Destination::Zone — written bare.
+        assert_eq!(write(&mv), "Move(This,Graveyard)");
         assert_eq!(read(&write(&mv)), mv);
     }
 
@@ -507,31 +547,25 @@ mod tests {
         assert_eq!(read(&written), v);
     }
 
-    /// `PutInLibrary` under the implicit-`You` agent writes bare (no `By(`)
-    /// through the new 2-tuple `(Selection, Count)` serialize arm, and
-    /// round-trips back to the same value.
+    /// Library destinations: top-of-library (the former `PutInLibrary`, now
+    /// `Move(sel, Library(FromTop(0)))`) and bottom-of-library
+    /// (`Library(FromBottom(0))`, newly expressible) read natively and
+    /// round-trip ([CR#401.7]).
     #[test]
-    fn put_in_library_round_trips_bare() {
-        let v = Action::By(
-            Reference::You,
-            PlayerAction::PutInLibrary(Selection::Ref(Reference::This), Count::Literal(0)),
+    fn move_to_library_anchors_round_trip() {
+        let top = Action::Move(
+            Selection::Ref(Reference::This),
+            Destination::Library(Anchor::FromTop(Count::Literal(0))),
         );
-        let written = write(&v);
-        assert!(
-            !written.contains("By("),
-            "By(You, …) should write bare, got {written}"
-        );
-        assert_eq!(read(&written), v);
-    }
+        assert_eq!(read("Move(This, Library(FromTop(0)))"), top);
+        assert_eq!(read(&write(&top)), top);
 
-    /// `PutInLibrary` is not cost-eligible — it isn't a self-directed cost
-    /// the payer can offer.
-    #[test]
-    fn put_in_library_is_not_cost_eligible() {
-        assert!(
-            !PlayerAction::PutInLibrary(Selection::Ref(Reference::This), Count::Literal(0))
-                .is_cost_eligible()
+        let bottom = Action::Move(
+            Selection::Ref(Reference::This),
+            Destination::Library(Anchor::FromBottom(Count::Literal(0))),
         );
+        assert_eq!(read("Move(This, Library(FromBottom(0)))"), bottom);
+        assert_eq!(read(&write(&bottom)), bottom);
     }
 
     #[test]

@@ -24,6 +24,10 @@ pub fn kinds() -> KindSet {
     kinds.add(crate::Condition::kind());
     kinds.add(crate::CostComponent::kind());
     kinds.add(crate::Count::kind());
+    // `Move`'s destination: a bare zone name flattens in from `Zone`, the
+    // library form is `Library(FromTop/FromBottom(Count))`.
+    kinds.add(crate::Destination::kind());
+    kinds.add(crate::Zone::kind());
     kinds.add(crate::Effect::kind());
     kinds.add(crate::Event::kind());
     kinds.add(crate::Filter::kind());

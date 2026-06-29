@@ -1,5 +1,6 @@
 //! Shared noun-phrase / count fragment renderers.
 
+use deckmaste_core::Anchor;
 use deckmaste_core::Characteristic;
 use deckmaste_core::CharacteristicFilter;
 use deckmaste_core::Count;
@@ -369,11 +370,15 @@ fn filter_object(f: &Filter) -> String {
     }
 }
 
-/// Library position from a `Count`: 0 -> "top", else "the bottom".
-pub(super) fn library_position(c: &Count) -> String {
-    match c {
-        Count::Literal(0) => "top".to_string(),
-        _ => "the bottom".to_string(),
+/// Library position from an [`Anchor`] ([CR#401.7]): `FromTop(0)` -> "top",
+/// `FromBottom(0)` -> "the bottom"; deeper offsets fall back to a generic
+/// phrase.
+pub(super) fn library_position(anchor: &Anchor) -> String {
+    match anchor {
+        Anchor::FromTop(Count::Literal(0)) => "top".to_string(),
+        Anchor::FromBottom(Count::Literal(0)) => "the bottom".to_string(),
+        Anchor::FromTop(c) => format!("{} from the top", count(c)),
+        Anchor::FromBottom(c) => format!("{} from the bottom", count(c)),
     }
 }
 

@@ -85,6 +85,7 @@ mod tests {
     use deckmaste_core::CostComponent;
     use deckmaste_core::Count;
     use deckmaste_core::Counter;
+    use deckmaste_core::Destination;
     use deckmaste_core::Effect;
     use deckmaste_core::Event;
     use deckmaste_core::Filter;
@@ -134,6 +135,8 @@ mod tests {
             name_of::<Condition>(),
             name_of::<Count>(),
             name_of::<CostComponent>(),
+            name_of::<Destination>(),
+            name_of::<Zone>(),
             name_of::<Effect>(),
             name_of::<Event>(),
             name_of::<Filter>(),
@@ -547,12 +550,14 @@ mod tests {
         assert_eq!(count, Count::X);
     }
 
-    /// A `Count` macro expands at the *position* slot of `PutInLibrary`,
-    /// read at an `Action` slot through the implicit-`You` embed. This is the
-    /// seam that lets a `CardsInLibrary(...)`-style macro name the bottom of
-    /// the library — the position stays macro-aware inside the 2-tuple verb.
+    /// A `Count` macro expands at the *anchor* slot of a `Move`-to-library
+    /// destination, read natively at an `Action` slot. This is the seam that
+    /// lets a `CardsInLibrary(...)`-style macro name a library position — the
+    /// `Count` stays macro-aware inside `Library(FromTop(...))`.
     #[test]
-    fn count_macro_expands_at_put_in_library_position() {
+    fn count_macro_expands_at_library_anchor_position() {
+        use deckmaste_core::Anchor;
+        use deckmaste_core::Destination;
         let mut macros = macro_set();
         macros
             .insert(&def(r#"(
@@ -561,13 +566,15 @@ mod tests {
                     body: CountOf(InZone(Library)),
                 )"#))
             .unwrap();
-        let action: Action = macros.read_str("PutInLibrary(This, DeckSize)").unwrap();
-        let Action::By(Reference::You, PlayerAction::PutInLibrary(sel, pos)) = action else {
-            panic!("expected By(You, PutInLibrary(..)), got {action:?}");
+        let action: Action = macros
+            .read_str("Move(This, Library(FromTop(DeckSize)))")
+            .unwrap();
+        let Action::Move(sel, Destination::Library(Anchor::FromTop(pos))) = action else {
+            panic!("expected Move(.., Library(FromTop(..))), got {action:?}");
         };
         assert_eq!(sel, Selection::this());
         let Count::Expanded(expanded) = pos else {
-            panic!("expected a remembered count at the position, got {pos:?}");
+            panic!("expected a remembered count at the anchor, got {pos:?}");
         };
         assert_eq!(expanded.name, "DeckSize");
     }
