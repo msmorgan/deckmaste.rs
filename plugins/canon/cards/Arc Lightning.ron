@@ -1,0 +1,25 @@
+// Arc Lightning — "Arc Lightning deals 3 damage divided as you choose among any
+// number of target creatures and/or players." The divided-distribution effect
+// ([CR#601.2d]): 3 is split across the chosen group, each element bound in turn
+// as `ThatObject` with its `Allotment` share, which the body
+// (`DealDamage(ThatObject, Allotment)`) reads. One primitive expresses divided
+// damage; the same shape with a `PutCounters` body is divided counters.
+Normal(
+  name: "Arc Lightning",
+  mana_cost: [
+    Generic(2),
+    Red,
+  ],
+  types: [
+    Sorcery,
+  ],
+  abilities: [
+    Spell(
+      effect: DivideAmong(
+        amount: 3,
+        group: Choose(AnyNumber, CreatureOrPlayer),
+        body: DealDamage(ThatObject, Allotment),
+      ),
+    ),
+  ],
+)

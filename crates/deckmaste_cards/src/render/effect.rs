@@ -94,6 +94,10 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
                 None => format!("[unrendered: {m:?}]."),
             }
         }
+        // [CR#601.2d]: a divided distribution — the body picks the verb
+        // ("deal … damage" vs "distribute … counters"), the amount is divided
+        // "as you choose" among the group.
+        Effect::DivideAmong(d) => divide_among(d, ctx),
         other => format!("[unrendered: {other:?}]."),
     }
 }
@@ -163,6 +167,25 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         // `Regenerate` keyword macro emits this via its template.
         Action::CreateReplacement { subject, .. } => {
             format!("Regenerate {}.", fragment::selection(subject, ctx))
+        }
+        other => format!("[unrendered: {other:?}]."),
+    }
+}
+
+/// Render a divided distribution ([CR#601.2d]). The body selects the verb;
+/// `group` is rendered as the set it divides among.
+fn divide_among(d: &deckmaste_core::DivideAmong, ctx: &Ctx) -> String {
+    let amount = fragment::count(&d.amount);
+    let group = fragment::selection(&d.group, ctx);
+    match &*d.body {
+        Effect::Act(Action::DealDamage(..)) => {
+            format!("Deal {amount} damage divided as you choose among {group}.")
+        }
+        Effect::Act(Action::By(_, PlayerAction::PutCounters(_, kind, _))) => {
+            format!(
+                "Distribute {amount} {} counters among {group}.",
+                kind.as_str()
+            )
         }
         other => format!("[unrendered: {other:?}]."),
     }
@@ -340,7 +363,7 @@ mod tests {
     /// damage to <target>" (the fight / redirected-damage surface).
     #[test]
     fn deal_damage_source_renders_dealer_phrase() {
-        let target = TargetSpec::Target(Quantity::Exactly(Count::Literal(1)), Filter::creature());
+        let target = TargetSpec::Target(Quantity::one(), Filter::creature());
         let ctx = Ctx {
             subject: "Pouncer",
             targets: std::slice::from_ref(&target),
@@ -392,7 +415,7 @@ mod tests {
         use deckmaste_core::CounterRef;
         use deckmaste_core::CounterSpec;
 
-        let creature = TargetSpec::Target(Quantity::Exactly(Count::Literal(1)), Filter::creature());
+        let creature = TargetSpec::Target(Quantity::one(), Filter::creature());
         let targets = [creature.clone(), creature];
         let ctx = Ctx {
             subject: "it",
@@ -415,6 +438,33 @@ mod tests {
         assert_eq!(
             action(&named, &ctx),
             "Move 1 P1P1Counter counter from target creature onto target creature."
+        );
+    }
+
+    /// `DivideAmong` renders by its body: a `DealDamage` body -> "Deal N damage
+    /// divided as you choose among <group>" ([CR#601.2d]).
+    #[test]
+    fn divide_among_renders_divided_damage() {
+        use deckmaste_core::DivideAmong;
+        use deckmaste_core::Filter;
+        let ctx = Ctx {
+            subject: "it",
+            targets: &[],
+        };
+        let divide = super::effect(
+            &deckmaste_core::Effect::DivideAmong(DivideAmong {
+                amount: Count::Literal(3),
+                group: Selection::Each(Filter::creature()),
+                body: Box::new(deckmaste_core::Effect::Act(Action::deal_damage(
+                    Selection::Ref(Reference::ThatObject),
+                    Count::Allotment,
+                ))),
+            }),
+            &ctx,
+        );
+        assert_eq!(
+            divide,
+            "Deal 3 damage divided as you choose among each creature."
         );
     }
 }
