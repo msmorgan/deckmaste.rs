@@ -159,6 +159,9 @@ fn action(a: &Action, ctx: &Ctx) -> String {
             fragment::selection(target, ctx)
         ),
         Action::Destroy(sel) => format!("Destroy {}.", fragment::selection(sel, ctx)),
+        // [CR#701.6a]: counter a spell or ability on the stack — "Counter
+        // target spell" (Mana Leak's punisher branch).
+        Action::Counter(sel) => format!("Counter {}.", fragment::selection(sel, ctx)),
         // [CR#122]: move counters between two objects. `AllKinds` -> "all
         // counters"; a named kind -> "<n> <kind> counter(s)".
         Action::MoveCounters(spec, from, to) => {
