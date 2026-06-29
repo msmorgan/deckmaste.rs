@@ -1,0 +1,9 @@
+// "Up to N" ([CR#601.2c]) — an upper bound only; the lower bound is 0
+// (`Range(None, Some N)`).
+(
+    name: "AtMost",
+    template: "up to ${0}",
+    kinds: [Quantity],
+    params: [Count],
+    body: Range(None, Param(0)),
+)

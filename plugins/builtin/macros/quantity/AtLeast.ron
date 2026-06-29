@@ -1,0 +1,9 @@
+// "N or more" ([CR#601.2c]) — a lower bound only; the upper bound is
+// unbounded (`Range(Some N, None)`).
+(
+    name: "AtLeast",
+    template: "${0} or more",
+    kinds: [Quantity],
+    params: [Count],
+    body: Range(Param(0), None),
+)

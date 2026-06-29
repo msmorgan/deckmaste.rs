@@ -16,7 +16,9 @@ pub use action::Bin;
 pub use action::PlayerAction;
 
 mod count;
+pub use count::Characteristic;
 pub use count::Count;
+pub use count::RoundMode;
 pub use count::Stat;
 
 mod card;
@@ -154,6 +156,7 @@ pub use symbol::Symbol;
 pub mod ron;
 
 mod selection;
+pub use selection::Extremum;
 pub use selection::Selection;
 
 // Play-policy types (`strategy::Strategy`, `Preference`, …). Deliberately NOT

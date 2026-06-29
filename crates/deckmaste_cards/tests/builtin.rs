@@ -253,3 +253,50 @@ fn regenerate_macro_expands_with_typed_reference_param() {
         tex.value
     );
 }
+
+/// Ticket core-quantity-range: the named `Quantity` forms are builtin macros
+/// over the single `Range` primitive, and each round-trips BYTE-IDENTICALLY at
+/// the RON surface — the headline guarantee that existing cards don't churn.
+#[test]
+fn named_quantity_macros_round_trip_byte_identical() {
+    use deckmaste_core::Quantity;
+    let plugin = builtin();
+    for surface in [
+        "Exactly(1)",
+        "Exactly(2)",
+        "AtMost(2)",
+        "AtLeast(3)",
+        "Between(1,3)",
+        "AnyNumber",
+    ] {
+        let parsed: Quantity = plugin
+            .macros
+            .read_str(surface)
+            .unwrap_or_else(|e| panic!("parsing {surface}: {e}"));
+        let written = ron_options().to_string(&parsed).unwrap();
+        assert_eq!(written, surface, "surface RON changed for {surface}");
+    }
+}
+
+/// The macros expand to the right `Range` shape under the remembered
+/// invocation — `Exactly` fills both bounds, `AtMost`/`AtLeast` one, `Between`
+/// both distinct, `AnyNumber` neither.
+#[test]
+fn named_quantity_macros_expand_to_range() {
+    use deckmaste_core::Count;
+    use deckmaste_core::Quantity;
+    let plugin = builtin();
+    let q = |s: &str| -> Quantity { plugin.macros.read_str(s).unwrap() };
+    assert_eq!(
+        q("Exactly(2)").bounds(),
+        (Some(&Count::Literal(2)), Some(&Count::Literal(2)))
+    );
+    assert_eq!(q("AtLeast(3)").bounds(), (Some(&Count::Literal(3)), None));
+    assert_eq!(q("AtMost(2)").bounds(), (None, Some(&Count::Literal(2))));
+    assert_eq!(
+        q("Between(1,3)").bounds(),
+        (Some(&Count::Literal(1)), Some(&Count::Literal(3)))
+    );
+    assert_eq!(q("AnyNumber").bounds(), (None, None));
+    assert!(q("Exactly(1)").is_one());
+}

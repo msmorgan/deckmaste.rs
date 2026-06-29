@@ -903,6 +903,40 @@ fn eval_count(
         Count::Min(a, b) => {
             eval_count(a, state, working, watcher).min(eval_count(b, state, working, watcher))
         }
+        // [CR#107.1] basic value arithmetic over the derived view. `Minus`
+        // floors at 0 ([CR#107.1b]); `Half` rounds per the mode on the
+        // non-negative magnitude.
+        Count::Max(a, b) => {
+            eval_count(a, state, working, watcher).max(eval_count(b, state, working, watcher))
+        }
+        Count::Plus(a, b) => eval_count(a, state, working, watcher)
+            .saturating_add(eval_count(b, state, working, watcher)),
+        Count::Minus(a, b) => {
+            (eval_count(a, state, working, watcher) - eval_count(b, state, working, watcher)).max(0)
+        }
+        Count::Times(a, b) => eval_count(a, state, working, watcher)
+            .saturating_mul(eval_count(b, state, working, watcher)),
+        Count::Half(mode, inner) => {
+            let v = eval_count(inner, state, working, watcher).max(0);
+            match mode {
+                deckmaste_core::RoundMode::RoundUp => (v + 1) / 2,
+                deckmaste_core::RoundMode::RoundDown => v / 2,
+            }
+        }
+        // [CR#107.3]: distinct-union count over the derived working set.
+        // Printed axes read the card face; power/toughness read the in-progress
+        // derived characteristics, matched the same way `CountOf` is.
+        Count::CountDistinct(characteristic, filter) => {
+            let mut seen = std::collections::BTreeSet::new();
+            for id in working.keys().copied() {
+                if matches_derived(state, working, id, filter, watcher) {
+                    for key in distinct_keys_derived(state, working, id, *characteristic) {
+                        seen.insert(key);
+                    }
+                }
+            }
+            Int::try_from(seen.len()).expect("distinct count fits Int")
+        }
         Count::Expanded(e) => eval_count(&e.value, state, working, watcher),
         // Announce-time / history context (`X`, `ThatMuch`, `EventCount`,
         // `EventSum`, `Noted`) is unavailable during layer derivation — those
@@ -913,6 +947,67 @@ fn eval_count(
         | Count::EventCount(..)
         | Count::EventSum(..)
         | Count::Noted(_) => 0,
+    }
+}
+
+/// The distinct-value keys object `id` contributes to a
+/// [`Count::CountDistinct`] union along `characteristic`, read from the
+/// in-progress derived view. The layer-time twin of `resolve.rs`'s
+/// `distinct_keys`: power/toughness come from the derived `working` map (no
+/// `self.layers()` recursion), the rest from the printed face.
+fn distinct_keys_derived(
+    state: &GameState,
+    working: &BTreeMap<ObjectId, DerivedObject>,
+    id: ObjectId,
+    characteristic: deckmaste_core::Characteristic,
+) -> Vec<String> {
+    use deckmaste_core::Characteristic as Ch;
+    let face = crate::derive::face(state.def(id));
+    match characteristic {
+        Ch::Types => face.types.iter().map(|t| format!("{t:?}")).collect(),
+        Ch::Subtypes => face.subtypes.iter().map(|s| s.name.to_string()).collect(),
+        Ch::Supertypes => face.supertypes.iter().map(|s| format!("{s:?}")).collect(),
+        Ch::Name => vec![face.name.clone()],
+        Ch::ManaCost => vec![format!("{}", face.mana_cost.mana_value())],
+        Ch::Colors => {
+            use deckmaste_core::ManaSymbol;
+            let mut colors: Vec<deckmaste_core::Color> = face.color_indicator.clone();
+            for sym in face.mana_cost.iter() {
+                match sym {
+                    ManaSymbol::Simple(s) => colors.extend(s.color()),
+                    ManaSymbol::Hybrid(s, c) => {
+                        colors.extend(s.color());
+                        colors.push(*c);
+                    }
+                    ManaSymbol::Phyrexian(c, c2) => {
+                        colors.push(*c);
+                        colors.extend(*c2);
+                    }
+                    ManaSymbol::Variable | ManaSymbol::Snow => {}
+                }
+            }
+            colors.iter().map(|c| format!("{c:?}")).collect()
+        }
+        Ch::Power => working
+            .get(&id)
+            .and_then(|d| d.characteristics.power)
+            .map(|p| vec![p.max(0).to_string()])
+            .unwrap_or_default(),
+        Ch::Toughness => working
+            .get(&id)
+            .and_then(|d| d.characteristics.toughness)
+            .map(|t| vec![t.max(0).to_string()])
+            .unwrap_or_default(),
+        Ch::Defense => vec![
+            state
+                .objects
+                .obj(id)
+                .counters
+                .get("DefenseCounter")
+                .copied()
+                .unwrap_or(0)
+                .to_string(),
+        ],
     }
 }
 
