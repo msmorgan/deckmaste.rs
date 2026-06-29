@@ -84,6 +84,7 @@ pub use temporal::TurnMarker;
 pub use temporal::Window;
 
 mod effect;
+pub use effect::AdditionalCost;
 pub use effect::Continuously;
 pub use effect::DivideAmong;
 pub use effect::Effect;

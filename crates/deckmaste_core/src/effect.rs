@@ -66,6 +66,17 @@ pub enum Effect {
     /// controller pays {N}") over the full [`Cost`] algebra. Supersedes
     /// [`Unless`](Effect::Unless).
     MustPay(MustPay),
+    /// "As an additional cost, [pay]; then [body]" ([CR#601.2f,118.8]) —
+    /// imposes an additional cost whose paid object the body reads through
+    /// the event references (`EventAgent`/`EventActor`/`EventPatient`):
+    /// "sacrifice a creature: ~ deals damage equal to its power" (Fling,
+    /// Momentous Fall). The payment is an event, so
+    /// [`AdditionalCost::body`] reads the sacrificed/exiled object with the
+    /// SAME anaphors a trigger uses. At a spell/ability root the engine
+    /// hoists it to cast/activation time (the printed additional cost,
+    /// [CR#601.2f]); nested, it is an extra resolution-time cost. Mirrors
+    /// the Idris `AdditionalCost (pay : Cost) body`.
+    AdditionalCost(AdditionalCost),
     /// "For each [over], [do]" — binds the iterated object ([CR#608]).
     ForEach(ForEach),
     /// `With(selection, body)` — binds the WHOLE ordered `selection` into the
@@ -229,6 +240,22 @@ pub struct MustPay {
     pub actor: Reference,
     pub cost: Cost,
     pub or_else: Box<Effect>,
+}
+
+/// `AdditionalCost { pay, body }` — "As an additional cost, [pay]; then run
+/// [body]" ([CR#601.2f,118.8]). The payment is an event, so `body` reads the
+/// sacrificed/exiled object through the event references
+/// (`EventAgent`/`EventActor`/`EventPatient`) — the cost-side twin of a
+/// trigger's `that`-bindings ("the sacrificed creature's power" =
+/// `StatOf(EventAgent, Power)`, Fling/Momentous Fall). Unlike
+/// [`MayPay`]/[`MustPay`] there is no `actor`: an additional cost is always
+/// paid by the spell/ability's controller ([CR#601.2b]). `body` is boxed to
+/// break the `Effect` → `AdditionalCost` → `Effect` size cycle (mirrors
+/// [`May`]).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub struct AdditionalCost {
+    pub pay: Cost,
+    pub body: Box<Effect>,
 }
 
 /// `ForEach { over, do }` — `do` is a keyword, so the field is `effect`.
@@ -490,6 +517,35 @@ mod tests {
         // With an explicit actor and an "if you don't" branch.
         let full = "MayPay(actor:Target(0),cost:[Mana([Generic(2)])],and_then:Draw(2),or_else:LoseLife(1))";
         assert_eq!(write(&read(full)), full, "full MayPay round-trips");
+    }
+
+    /// `AdditionalCost { pay, body }` reads flat over the full `Cost` algebra
+    /// and round-trips — the printed/nested additional-cost shape
+    /// ([CR#601.2f,118.8]) whose body reads the paid object via the event
+    /// references (Fling's "sacrifice a creature: ~ deals damage equal to
+    /// its power", over the core primitives — no card-layer macros).
+    #[test]
+    fn additional_cost_reads_and_round_trips() {
+        let src = "AdditionalCost(pay:[Do(Sacrifice(This))],body:DealDamage(Target(0),StatOf(EventAgent,Power)))";
+        let parsed = read(src);
+        let Effect::AdditionalCost(ac) = &parsed else {
+            panic!("expected AdditionalCost, got {parsed:?}");
+        };
+        assert_eq!(
+            ac.pay.0.len(),
+            1,
+            "the additional cost carries the sacrifice"
+        );
+        assert_eq!(
+            *ac.body,
+            Effect::Act(Action::deal_damage(
+                Selection::Ref(Reference::Target(0)),
+                Count::StatOf(Reference::EventAgent, crate::Stat::Power),
+            )),
+            "the body reads the paid object via EventAgent",
+        );
+        assert_eq!(read(&write(&parsed)), parsed, "round-trip");
+        assert_eq!(write(&parsed), src, "writes back to the flat form");
     }
 
     #[test]

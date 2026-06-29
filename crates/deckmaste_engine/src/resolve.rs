@@ -581,8 +581,88 @@ impl GameState {
             // wrappers would need a per-scope target stack (left a loud seam by
             // falling through to the `other` arm if a wrapper nests).
             Effect::Targeted(te) => self.run_effect(*te.effect, frame),
+            // [CR#601.2f,118.8]: "As an additional cost, [pay]; then [body]." The
+            // NESTED (resolution-time) form — an extra cost paid mid-resolution,
+            // after which `body` runs reading the paid object via the event
+            // references. The payer is the controller (an additional cost is
+            // never another player's, [CR#601.2b]), so each component runs as
+            // `You`'s action, exactly like the `Unless`/`MayPay` payment walk.
+            // When the cost moves a single resolvable object (`Sacrifice(This)`,
+            // …) its last-known snapshot ([CR#603.10a]) is bound as the event
+            // AGENT, so `body` reads "the sacrificed creature" via `EventAgent`
+            // (`StatOf(EventAgent, Power)` = Fling). Cost items are
+            // front-scheduled BEFORE the body so the payment precedes it.
+            //
+            // SEAMS (deferred, see the ticket): (1) ROOT-level HOISTING to
+            // cast/activation time ([CR#601.2f]) — a resolution node can't reach
+            // back into the announce-time cost pipeline; this arm interprets only
+            // the nested form. (2) A cost whose moved object is an INTERACTIVE
+            // choice (`Sacrifice(Choose …)`) — the paid object isn't known until
+            // the choice resolves, so `EventAgent` is left unbound here (it needs
+            // a payment-time capture continuation).
+            Effect::AdditionalCost(ac) => {
+                let cost = ac.pay.normalize().0;
+                let mut body_frame = frame.clone();
+                if let Some(snapshot) = self.additional_cost_paid_object(&cost, frame) {
+                    let mut bindings = body_frame.bindings.clone().unwrap_or_default();
+                    bindings.that_object = Some(snapshot);
+                    body_frame.bindings = Some(bindings);
+                }
+                let mut items: Vec<WorkItem> = cost
+                    .iter()
+                    .map(|c| WorkItem::RunEffect {
+                        effect: Box::new(Effect::Act(crate::decide::unless_cost_action(
+                            c,
+                            &Reference::You,
+                        ))),
+                        frame: frame.clone(),
+                    })
+                    .collect();
+                items.push(WorkItem::RunEffect {
+                    effect: ac.body,
+                    frame: body_frame,
+                });
+                self.schedule_front(items);
+            }
             other => todo!("stage 3 does not interpret effect {other:?} (the choice seam)"),
         }
+    }
+
+    /// The last-known snapshot of the object an [`Effect::AdditionalCost`]
+    /// moves, when its cost is a single object-moving verb
+    /// (`Sacrifice`/`Exile`, or a `Discard` that names *what*) over a
+    /// directly-resolvable reference selection (`Sacrifice(This)`, …).
+    /// Captured BEFORE payment, so it is the object's last-known
+    /// information ([CR#603.10a]) — exactly what the body's `EventAgent`
+    /// should read. Returns `None` for a cost that moves no object
+    /// (mana/tap/life — nothing to bind), or one whose moved object is an
+    /// interactive `Choose` (not known until the choice resolves — a documented
+    /// payment-time capture seam, see the `AdditionalCost` arm).
+    fn additional_cost_paid_object(
+        &self,
+        cost: &[deckmaste_core::CostComponent],
+        frame: &Frame,
+    ) -> Option<crate::lki::LkiSnapshot> {
+        for component in cost {
+            let deckmaste_core::CostComponent::Do(pa) = component else {
+                continue;
+            };
+            let sel = match pa.as_ref() {
+                PlayerAction::Sacrifice(sel)
+                | PlayerAction::Exile(sel)
+                | PlayerAction::Discard {
+                    what: Some(sel), ..
+                } => Some(sel),
+                _ => None,
+            };
+            // Only a directly-resolvable reference selection is captured here;
+            // an interactive `Choose`/`Random` has no fixed object yet (seam).
+            if let Some(Selection::Ref(reference)) = sel {
+                let object = self.eval_reference(reference, frame);
+                return Some(crate::lki::LkiSnapshot::capture(self, object));
+            }
+        }
+        None
     }
 
     /// A `ZoneWillChange` intent ([CR#400.7]) moving `object` to `to` from
@@ -5601,6 +5681,58 @@ mod tests {
         state.submit_decision(Decision::Answer(false)).unwrap();
         let _ = drain_progress(&mut state, 40);
         assert_eq!(state.player(p0).life, life0 + 1, "decline → or_else runs");
+    }
+
+    /// [CR#601.2f,118.8]: `Effect::AdditionalCost` (nested, resolution-time) —
+    /// the cost is PAID (the source is sacrificed) and the body then reads the
+    /// paid object through the event reference `EventAgent`. The bear is
+    /// sacrificed carrying three +1/+1 counters; the body gains life equal to
+    /// the SACRIFICED creature's counter count, read via its last-known
+    /// snapshot ([CR#603.10a]) — proving the paid object is bound for the
+    /// body even after it has left the battlefield.
+    #[test]
+    fn run_effect_additional_cost_binds_paid_object_for_body() {
+        use deckmaste_core::AdditionalCost;
+        use deckmaste_core::Cost;
+        use deckmaste_core::CostComponent;
+
+        let (mut state, bear) = bear_on_field();
+        state
+            .objects
+            .obj_mut(bear)
+            .counters
+            .insert("P1P1Counter".into(), 3);
+        let p0 = PlayerId(0);
+        let life0 = state.player(p0).life;
+        let frame = frame_src(bear);
+
+        state.run_effect(
+            Effect::AdditionalCost(AdditionalCost {
+                pay: Cost(vec![CostComponent::do_(PlayerAction::Sacrifice(
+                    Selection::this(),
+                ))]),
+                body: Box::new(Effect::act_by_you(PlayerAction::GainLife(
+                    Count::CounterCount(Box::new(Reference::EventAgent), "P1P1Counter".into()),
+                ))),
+            }),
+            &frame,
+        );
+        let _ = drain_progress(&mut state, 40);
+
+        assert!(
+            state.objects.get(bear).is_none(),
+            "the additional cost was paid: the source is sacrificed (old id gone)"
+        );
+        assert_eq!(
+            state.zones.graveyards[0].len(),
+            1,
+            "the sacrificed creature is in its owner's graveyard"
+        );
+        assert_eq!(
+            state.player(p0).life,
+            life0 + 3,
+            "the body read the sacrificed object's counters via EventAgent"
+        );
     }
 
     // --- Ascend (spell form) e2e ([CR#702.131a]) -------------------------------
