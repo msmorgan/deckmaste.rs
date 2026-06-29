@@ -124,3 +124,48 @@ fn any_target_expansion_carries_its_template() {
         other => panic!("expected AnyTarget expansion, got {other:?}"),
     }
 }
+
+/// Mana Leak (hand-written canon) exercises the resolution-time `MustPay`
+/// punisher over the full `Cost` algebra: "counter target spell unless its
+/// controller pays {3}" ([CR#118.12a]). The body reads to a `Targeted` wrapper
+/// over `MustPay { actor: ControllerOf(Target(0)), cost: {3}, or_else: Counter
+/// }`.
+#[test]
+fn mana_leak_reads_to_a_must_pay_punisher() {
+    use deckmaste_core::Cost;
+    use deckmaste_core::CostComponent;
+    use deckmaste_core::ManaCost;
+    use deckmaste_core::ManaSymbol;
+    use deckmaste_core::SimpleManaSymbol;
+
+    let plugin = canon();
+    let Card::Normal(face) = plugin.card("Mana Leak").unwrap() else {
+        panic!("Mana Leak should be single-faced");
+    };
+    let Ability::Spell(ref spell) = face.abilities[0] else {
+        panic!("expected a spell ability");
+    };
+    let Effect::Targeted(ref te) = spell.effect else {
+        panic!("expected a Targeted wrapper, got {:?}", spell.effect);
+    };
+    let Effect::MustPay(ref m) = *te.effect else {
+        panic!("expected MustPay, got {:?}", te.effect);
+    };
+    assert_eq!(
+        m.actor,
+        Reference::ControllerOf(Box::new(Reference::Target(0))),
+        "the payer is the targeted spell's controller"
+    );
+    assert_eq!(
+        m.cost,
+        Cost(vec![CostComponent::Mana(ManaCost::from(vec![
+            ManaSymbol::Simple(SimpleManaSymbol::Generic(3)),
+        ]))]),
+        "the toll is the full {{3}} Cost"
+    );
+    assert_eq!(
+        *m.or_else,
+        Effect::Act(Action::Counter(Selection::Ref(Reference::Target(0)))),
+        "unpaid → counter the spell"
+    );
+}

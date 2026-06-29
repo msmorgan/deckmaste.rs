@@ -3,6 +3,7 @@ use serde::Serialize;
 
 use crate::ChooseSpec;
 use crate::Condition;
+use crate::Cost;
 use crate::Expand;
 use crate::Expansion;
 use crate::Filter;
@@ -52,8 +53,19 @@ pub enum Effect {
     May(May),
     /// "If [condition], [then]; otherwise [else]" ([CR#603.4]-style branch).
     If(If),
-    /// "[do] unless [you pay]" ([CR#118.12a]).
+    /// "[do] unless [you pay]" ([CR#118.12a]). The bare-[`CostComponent`]-list
+    /// sugar that [`MustPay`](Effect::MustPay) supersedes; kept for the corpus
+    /// already spelled with it.
     Unless(Unless),
+    /// "[actor] may pay [cost]; if they do, [`and_then`], else [`or_else`]"
+    /// ([CR#603,608]) — a resolution-time kicker over the full [`Cost`] algebra
+    /// (the may-pay→branch shape `Unless` can't spell).
+    MayPay(MayPay),
+    /// "[actor] must pay [cost], or else [`or_else`]" ([CR#118.12a]) — the
+    /// resolution-time punisher (Mana Leak's "counter target spell unless its
+    /// controller pays {N}") over the full [`Cost`] algebra. Supersedes
+    /// [`Unless`](Effect::Unless).
+    MustPay(MustPay),
     /// "For each [over], [do]" — binds the iterated object ([CR#608]).
     ForEach(ForEach),
     /// `With(selection, body)` — binds the WHOLE ordered `selection` into the
@@ -175,6 +187,38 @@ fn ref_you() -> Reference {
 /// is omitted from RON.
 fn ref_is_you(r: &Reference) -> bool {
     matches!(r, Reference::You)
+}
+
+/// `MayPay { actor, cost, and_then, or_else }` — "[actor] may pay [cost]; if
+/// they do, [`and_then`]; if they don't, [`or_else`]" ([CR#603,608]): a
+/// resolution-time kicker over the full [`Cost`] algebra. `actor` is the paying
+/// player ("you" unless the text names another); it defaults to `You` and is
+/// omitted from RON when it is. `or_else` (the "if you don't" branch) is
+/// omitted when absent.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub struct MayPay {
+    #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
+    pub actor: Reference,
+    pub cost: Cost,
+    pub and_then: Box<Effect>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub or_else: Option<Box<Effect>>,
+}
+
+/// `MustPay { actor, cost, or_else }` — "[actor] must pay [cost], or else
+/// [`or_else`]" ([CR#118.12a]): the resolution-time punisher (Mana Leak's
+/// "counter target spell unless its controller pays {N}") over the full
+/// [`Cost`] algebra. Supersedes [`Unless`](Effect::Unless), whose `unless` is a
+/// bare [`CostComponent`](crate::CostComponent) list:
+/// `MustPay { actor, cost, or_else }` is exactly
+/// `Unless { who: actor, unless: cost, effect: or_else }`. `actor` defaults to
+/// `You` and is omitted from RON when it is.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub struct MustPay {
+    #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
+    pub actor: Reference,
+    pub cost: Cost,
+    pub or_else: Box<Effect>,
 }
 
 /// `ForEach { over, do }` — `do` is a keyword, so the field is `effect`.
@@ -368,6 +412,58 @@ mod tests {
 
         let explicit = "Unless(effect:LoseLife(1),who:Target(0),unless:[Mana([Generic(2)])])";
         assert_eq!(write(&read(explicit)), explicit, "explicit who round-trips");
+    }
+
+    /// `MustPay` reads flat over the full `Cost` algebra, defaults `actor` to
+    /// `You` (omitted on write), and round-trips — the Mana Leak shape
+    /// ([CR#118.12a]) that supersedes `Unless`.
+    #[test]
+    fn must_pay_defaults_actor_and_round_trips() {
+        // Mana Leak: "counter target spell unless its controller pays {3}".
+        let mana_leak = "MustPay(actor:ControllerOf(Target(0)),cost:[Mana([Generic(3)])],or_else:Counter(Target(0)))";
+        let parsed = read(mana_leak);
+        let Effect::MustPay(m) = &parsed else {
+            panic!("expected MustPay, got {parsed:?}");
+        };
+        assert_eq!(
+            m.actor,
+            Reference::ControllerOf(Box::new(Reference::Target(0)))
+        );
+        assert_eq!(
+            m.cost.0.len(),
+            1,
+            "the full Cost carries the {{3}} component"
+        );
+        assert_eq!(write(&parsed), mana_leak, "Mana Leak shape round-trips");
+
+        // Default actor (You) is omitted on write.
+        let omitted = "MustPay(cost:[Mana([Generic(2)])],or_else:LoseLife(1))";
+        let parsed = read(omitted);
+        let Effect::MustPay(m) = &parsed else {
+            panic!("expected MustPay");
+        };
+        assert_eq!(m.actor, Reference::You, "omitted actor defaults to You");
+        assert_eq!(write(&parsed), omitted, "default actor is omitted on write");
+    }
+
+    /// `MayPay` reads flat, omits the default `actor` and the absent `or_else`,
+    /// and round-trips with and without the "if you don't" branch
+    /// ([CR#603,608]).
+    #[test]
+    fn may_pay_round_trips_with_and_without_or_else() {
+        // No "if you don't" branch — `or_else` omitted.
+        let bare = "MayPay(cost:[Mana([Generic(1)])],and_then:Draw(1))";
+        let parsed = read(bare);
+        let Effect::MayPay(m) = &parsed else {
+            panic!("expected MayPay, got {parsed:?}");
+        };
+        assert_eq!(m.actor, Reference::You);
+        assert!(m.or_else.is_none());
+        assert_eq!(write(&parsed), bare, "bare MayPay round-trips");
+
+        // With an explicit actor and an "if you don't" branch.
+        let full = "MayPay(actor:Target(0),cost:[Mana([Generic(2)])],and_then:Draw(2),or_else:LoseLife(1))";
+        assert_eq!(write(&read(full)), full, "full MayPay round-trips");
     }
 
     #[test]

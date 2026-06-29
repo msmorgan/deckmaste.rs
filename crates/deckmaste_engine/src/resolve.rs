@@ -504,6 +504,38 @@ impl GameState {
                     frame: frame.clone(),
                 });
             }
+            // [CR#118.12a]: "[actor] must pay [cost], or else [or_else]" — the
+            // Mana Leak punisher over the full `Cost`. Identical in shape to
+            // `Unless` (pay → the punisher is skipped; don't pay → it runs), so
+            // it reuses the `Unless` continuation: `or_else` is the unpaid
+            // effect, `actor` the payer, `cost` the toll.
+            Effect::MustPay(m) => {
+                let payer = self.acting_player(&m.actor, frame);
+                self.pending = Some(crate::decide::PendingDecision::YesNo { player: payer });
+                self.choice = Some(crate::state::ChoiceContinuation::Unless {
+                    effect: m.or_else,
+                    who: m.actor,
+                    // The full `Cost` is normalized here (a macro-spliced nested
+                    // cost arrives lumpy), exactly like `Unless`.
+                    unless: m.cost.normalize().0,
+                    frame: frame.clone(),
+                });
+            }
+            // [CR#603,608]: "[actor] may pay [cost]; if they do → and_then,
+            // else → or_else" — a resolution-time kicker. Unlike `MustPay`, the
+            // PAID branch also runs an effect, so it carries its own
+            // continuation.
+            Effect::MayPay(m) => {
+                let payer = self.acting_player(&m.actor, frame);
+                self.pending = Some(crate::decide::PendingDecision::YesNo { player: payer });
+                self.choice = Some(crate::state::ChoiceContinuation::MayPay {
+                    actor: m.actor,
+                    cost: m.cost.normalize().0,
+                    and_then: m.and_then,
+                    or_else: m.or_else,
+                    frame: frame.clone(),
+                });
+            }
             // [CR#115.1,601.2c]: a target-scoping wrapper. Targets were chosen
             // at announcement and already live in `frame.targets`; for a single
             // top-level wrapper (the only shape today) this node is transparent
@@ -5023,6 +5055,113 @@ mod tests {
         state.submit_decision(Decision::Answer(false)).unwrap();
         let _ = drain_progress(&mut state, 40);
         assert_eq!(state.player(p0).life, life0 + 10, "decline → effect runs");
+    }
+
+    /// [CR#118.12a]: `Effect::MustPay` — the Mana Leak punisher over the full
+    /// `Cost`. Pay → the cost runs and `or_else` is skipped; decline →
+    /// `or_else` runs. Behaves exactly like `Unless`, proving the shared
+    /// continuation.
+    #[test]
+    fn run_effect_must_pay_pays_or_suffers_or_else() {
+        use deckmaste_core::Cost;
+        use deckmaste_core::CostComponent;
+        use deckmaste_core::MustPay;
+
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+
+        let p0 = PlayerId(0);
+        let must_pay = || MustPay {
+            actor: Reference::You,
+            cost: Cost(vec![CostComponent::do_(PlayerAction::LoseLife(
+                Count::Literal(2),
+            ))]),
+            or_else: Box::new(Effect::Act(Action::By(
+                Reference::You,
+                PlayerAction::GainLife(Count::Literal(10)),
+            ))),
+        };
+
+        // "I'll pay" → lose 2, the punisher (gain 10) skipped.
+        let mut state = game();
+        let frame = frame_for(&state, p0);
+        let life0 = state.player(p0).life;
+        state.run_effect(Effect::MustPay(must_pay()), &frame);
+        let StepOutcome::NeedsDecision(PendingDecision::YesNo { player }) = state.step() else {
+            panic!("expected YesNo, got {:?}", state.pending);
+        };
+        assert_eq!(player, p0, "the payer decides");
+        state.submit_decision(Decision::Answer(true)).unwrap();
+        let _ = drain_progress(&mut state, 40);
+        assert_eq!(
+            state.player(p0).life,
+            life0 - 2,
+            "pay → cost paid, or_else skipped"
+        );
+
+        // "won't pay" → the punisher runs (gain 10).
+        let mut state = game();
+        let frame = frame_for(&state, p0);
+        let life0 = state.player(p0).life;
+        state.run_effect(Effect::MustPay(must_pay()), &frame);
+        state.submit_decision(Decision::Answer(false)).unwrap();
+        let _ = drain_progress(&mut state, 40);
+        assert_eq!(state.player(p0).life, life0 + 10, "decline → or_else runs");
+    }
+
+    /// [CR#603,608]: `Effect::MayPay` — a resolution-time kicker. Pay → the cost
+    /// runs THEN `and_then`; decline → `or_else`. The PAID branch running a
+    /// follow-up effect is what `Unless`/`MustPay` cannot express.
+    #[test]
+    fn run_effect_may_pay_runs_and_then_on_pay_or_else_on_decline() {
+        use deckmaste_core::Cost;
+        use deckmaste_core::CostComponent;
+        use deckmaste_core::MayPay;
+
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+
+        let p0 = PlayerId(0);
+        let may_pay = || MayPay {
+            actor: Reference::You,
+            cost: Cost(vec![CostComponent::do_(PlayerAction::LoseLife(
+                Count::Literal(2),
+            ))]),
+            and_then: Box::new(Effect::Act(Action::By(
+                Reference::You,
+                PlayerAction::GainLife(Count::Literal(10)),
+            ))),
+            or_else: Some(Box::new(Effect::Act(Action::By(
+                Reference::You,
+                PlayerAction::GainLife(Count::Literal(1)),
+            )))),
+        };
+
+        // "I'll pay" → lose 2 THEN gain 10 (net +8) — the kicker fires.
+        let mut state = game();
+        let frame = frame_for(&state, p0);
+        let life0 = state.player(p0).life;
+        state.run_effect(Effect::MayPay(may_pay()), &frame);
+        let StepOutcome::NeedsDecision(PendingDecision::YesNo { player }) = state.step() else {
+            panic!("expected YesNo, got {:?}", state.pending);
+        };
+        assert_eq!(player, p0, "the payer decides");
+        state.submit_decision(Decision::Answer(true)).unwrap();
+        let _ = drain_progress(&mut state, 40);
+        assert_eq!(
+            state.player(p0).life,
+            life0 + 8,
+            "pay → cost (−2) then and_then (+10)"
+        );
+
+        // "won't pay" → or_else runs (gain 1).
+        let mut state = game();
+        let frame = frame_for(&state, p0);
+        let life0 = state.player(p0).life;
+        state.run_effect(Effect::MayPay(may_pay()), &frame);
+        state.submit_decision(Decision::Answer(false)).unwrap();
+        let _ = drain_progress(&mut state, 40);
+        assert_eq!(state.player(p0).life, life0 + 1, "decline → or_else runs");
     }
 
     // --- Ascend (spell form) e2e ([CR#702.131a]) -------------------------------

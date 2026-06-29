@@ -100,7 +100,7 @@ fn render_arg(raw: &str) -> Option<String> {
 /// Render a cost-component list to its symbol/word text (`[Mana([Generic(2)])]`
 /// → "{2}"). Declines on any component without a simple rendering (e.g. a
 /// `Do(...)` verb cost), so the keyword falls back to its bare name.
-fn render_cost(cost: &[deckmaste_core::CostComponent]) -> Option<String> {
+pub(super) fn render_cost(cost: &[deckmaste_core::CostComponent]) -> Option<String> {
     use deckmaste_core::Cmp;
     use deckmaste_core::CostComponent;
     use deckmaste_core::Stat;
