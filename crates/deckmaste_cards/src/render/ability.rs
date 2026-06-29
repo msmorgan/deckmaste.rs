@@ -2,6 +2,7 @@
 //! effect).
 
 use deckmaste_core::Ability;
+use deckmaste_core::CharacteristicFilter;
 use deckmaste_core::CollectionOp;
 use deckmaste_core::Color;
 use deckmaste_core::Count;
@@ -156,6 +157,11 @@ pub(super) fn static_effect(e: &StaticEffect, ctx: &Ctx) -> Option<String> {
             ))
         }
         StaticEffect::ModifyPlayer(who, m) => Some(modify_player(who, m)),
+        StaticEffect::TriggerMultiplier {
+            cause,
+            extra,
+            affected,
+        } => Some(trigger_multiplier(cause, extra, affected)),
         StaticEffect::Deontic(d) => Some(super::deontic::deontic(d, ctx.subject)),
         StaticEffect::Replacement(r) => Some(super::replacement::replacement(r, ctx)),
         StaticEffect::CantHappen(_event) => Some("[can't happen]".to_string()), /* keyword cards render via their template */
@@ -321,6 +327,87 @@ fn literal_count(c: &Count) -> Option<i64> {
     match c {
         Count::Literal(n) => Some(i64::from(*n)),
         _ => None,
+    }
+}
+
+// ── TriggerMultiplier rendering ──────────────────────────────────────────────
+
+/// Render a `TriggerMultiplier` static ([CR#603.2d]): Panharmonicon's "If an
+/// artifact or creature entering the battlefield causes a triggered ability of
+/// a permanent you control to trigger, that ability triggers an additional
+/// time." The canonical enter-cause and you-control affected shapes render
+/// faithfully; other shapes fall through to generic phrasing.
+fn trigger_multiplier(cause: &Event, extra: &Count, affected: &Filter) -> String {
+    let times = match literal_count(extra) {
+        Some(1) => "an additional time".to_string(),
+        Some(n) => format!("{n} additional times"),
+        None => "additional times".to_string(),
+    };
+    let cause_phrase = cause_phrase(cause);
+    let affected_phrase = affected_phrase(affected);
+    format!(
+        "If {cause_phrase} causes a triggered ability of {affected_phrase} to trigger, that ability triggers {times}."
+    )
+}
+
+/// The cause clause: an enter-the-battlefield event renders as "{noun} entering
+/// the battlefield"; anything else as a generic "an event".
+fn cause_phrase(cause: &Event) -> String {
+    if let Event::ZoneMove {
+        what,
+        to: Some(deckmaste_core::Zone::Battlefield),
+        ..
+    } = cause
+    {
+        return format!("{} entering the battlefield", types_noun(what));
+    }
+    "an event".to_string()
+}
+
+/// The affected-source clause: the "you control" default renders as "a
+/// permanent you control"; anything else as a generic "an affected permanent".
+fn affected_phrase(affected: &Filter) -> String {
+    use deckmaste_core::RelationFilter;
+    if matches!(
+        affected,
+        Filter::Relation(RelationFilter::ControlledBy(inner))
+            if matches!(&**inner, Filter::Ref(Reference::You))
+    ) {
+        return "a permanent you control".to_string();
+    }
+    "an affected permanent".to_string()
+}
+
+/// A type filter as an indefinite noun: a single `Type` → "a creature"; a
+/// `OneOf` of types → "an artifact or creature"; anything else → "an object".
+fn types_noun(what: &Filter) -> String {
+    let names: Vec<String> = match what {
+        Filter::Characteristic(CharacteristicFilter::Type(t)) => {
+            vec![super::card::type_str(*t).to_lowercase()]
+        }
+        Filter::OneOf(items) => items
+            .iter()
+            .filter_map(|f| match f {
+                Filter::Characteristic(CharacteristicFilter::Type(t)) => {
+                    Some(super::card::type_str(*t).to_lowercase())
+                }
+                _ => None,
+            })
+            .collect(),
+        _ => Vec::new(),
+    };
+    if names.is_empty() {
+        return "an object".to_string();
+    }
+    let joined = names.join(" or ");
+    format!("{} {joined}", article_for(&joined))
+}
+
+/// "a" or "an" for `word` by its leading sound (vowel-letter heuristic).
+fn article_for(word: &str) -> &'static str {
+    match word.chars().next() {
+        Some(c) if "aeiou".contains(c.to_ascii_lowercase()) => "an",
+        _ => "a",
     }
 }
 
