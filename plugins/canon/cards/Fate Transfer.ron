@@ -1,0 +1,24 @@
+// Fate Transfer — "Move all counters from target creature onto another target
+// creature." The `AllKinds` counter move ([CR#122]): every counter of every
+// kind relocates at once, the case a single-kind remove+put can't reach.
+Normal(
+  name: "Fate Transfer",
+  mana_cost: [
+    Generic(1),
+    Black,
+  ],
+  types: [
+    Instant,
+  ],
+  abilities: [
+    Spell(
+      effect: Targeted(
+        targets: [
+          TargetOne(Creature),
+          TargetOne(Creature),
+        ],
+        effect: MoveCounters(AllKinds, Target(0), Target(1)),
+      ),
+    ),
+  ],
+)

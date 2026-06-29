@@ -52,6 +52,7 @@ pub use cost::TotalCost;
 mod counter;
 pub use counter::Counter;
 pub use counter::CounterRef;
+pub use counter::CounterSpec;
 
 mod decision;
 pub use decision::DeciderSpec;
