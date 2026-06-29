@@ -1,0 +1,10 @@
+// "Exactly N" ([CR#601.2c]) — a fixed cardinality. The single count goes in
+// BOTH bounds of the underlying `Range`, so `Exactly(1)` ≡ `Range(Some 1,
+// Some 1)`. The most common quantity by far (single targets / single choices).
+(
+    name: "Exactly",
+    template: "exactly ${0}",
+    kinds: [Quantity],
+    params: [Count],
+    body: Range(Param(0), Param(0)),
+)

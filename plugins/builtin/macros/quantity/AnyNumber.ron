@@ -1,0 +1,8 @@
+// "Any number" ([CR#601.2c]) — wholly unbounded (`Range(None, None)`): the
+// "any number of target …" cardinality.
+(
+    name: "AnyNumber",
+    template: "any number of",
+    kinds: [Quantity],
+    body: Range(None, None),
+)

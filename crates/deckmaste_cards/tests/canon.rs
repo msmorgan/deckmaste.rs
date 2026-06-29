@@ -100,6 +100,34 @@ fn lightning_bolt_expands_target_macros() {
     );
 }
 
+/// The `Domain` count macro expands at a `Count` position through real data:
+/// Tribal Flames' damage amount is a remembered `Domain` invocation wrapping
+/// the distinct-union count of the land-subtype axis.
+#[test]
+fn tribal_flames_expands_the_domain_count() {
+    let plugin = canon();
+    let Card::Normal(face) = plugin.card("Tribal Flames").unwrap() else {
+        panic!("Tribal Flames should be single-faced");
+    };
+    let Ability::Spell(ref spell) = face.abilities[0] else {
+        panic!("expected a spell ability");
+    };
+    let Effect::Targeted(ref te) = spell.effect else {
+        panic!("expected a Targeted wrapper, got {:?}", spell.effect);
+    };
+    let Effect::Act(Action::DealDamage(_, count)) = te.effect.as_ref() else {
+        panic!("expected DealDamage, got {:?}", te.effect);
+    };
+    let Count::Expanded(exp) = count else {
+        panic!("expected a remembered Domain count, got {count:?}");
+    };
+    assert_eq!(exp.name, "Domain");
+    assert!(matches!(
+        exp.value.as_ref(),
+        Count::CountDistinct(deckmaste_core::Characteristic::Subtypes, _),
+    ));
+}
+
 /// End-to-end proof that `template:` from a macro def rides the expansion all
 /// the way through the real loader. `AnyTarget.ron` carries `template: "any
 /// target"`; after loading, `TargetSpec::Expanded(exp)` must have it.
@@ -167,5 +195,22 @@ fn mana_leak_reads_to_a_must_pay_punisher() {
         *m.or_else,
         Effect::Act(Action::Counter(Selection::Ref(Reference::Target(0)))),
         "unpaid → counter the spell"
+    );
+}
+
+/// An existing card's named `Quantity` survives the collapse byte-for-byte:
+/// Brainstorm's `Choose(Exactly(2), …)` re-serializes with `Exactly(2)`
+/// intact, not the bare `Range(2, 2)` primitive — the no-card-churn guarantee.
+#[test]
+fn brainstorm_exactly_two_round_trips() {
+    let card = canon().card("Brainstorm").unwrap();
+    let written = deckmaste_core::ron::options().to_string(&card).unwrap();
+    assert!(
+        written.contains("Exactly(2)"),
+        "Exactly(2) should round-trip intact, got: {written}"
+    );
+    assert!(
+        !written.contains("Range("),
+        "the Range primitive should not surface in card RON, got: {written}"
     );
 }

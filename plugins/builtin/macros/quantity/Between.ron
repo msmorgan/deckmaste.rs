@@ -1,0 +1,9 @@
+// "Between lo and hi" ([CR#601.2c]) — both bounds given (`Range(Some lo,
+// Some hi)`). Ordering (lo ≤ hi) is a runtime concern, not enforced here.
+(
+    name: "Between",
+    template: "${0} to ${1}",
+    kinds: [Quantity],
+    params: [Count, Count],
+    body: Range(Param(0), Param(1)),
+)

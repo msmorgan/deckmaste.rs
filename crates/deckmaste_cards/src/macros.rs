@@ -405,7 +405,7 @@ mod tests {
             .insert(&def(r#"(
                     name: "TargetCreature",
                     kinds: [TargetSpec],
-                    body: Target(Exactly(Literal(1)), Type(Creature)),
+                    body: Target(Range(1, 1), Type(Creature)),
                 )"#))
             .unwrap();
         let spec: TargetSpec = macros.read_str("TargetCreature").unwrap();

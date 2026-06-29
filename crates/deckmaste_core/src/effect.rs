@@ -389,7 +389,9 @@ mod tests {
             "May(effect:Draw(Literal(1)))",
             "ForEach(over:Type(Creature),effect:Draw(Literal(1)))",
             // Brainstorm's shape: choose 2 cards, put them on top (position 0).
-            "PutInLibrary(Choose(Exactly(Literal(2)),InZone(Hand)),Literal(0))",
+            // Core reader has no macros, so the `Quantity` is the bare `Range`
+            // primitive (`Exactly(2)` is the cards-layer macro spelling).
+            "PutInLibrary(Choose(Range(Literal(2),Literal(2)),InZone(Hand)),Literal(0))",
         ];
         for source in cases {
             let parsed = read(source);
@@ -480,7 +482,7 @@ mod tests {
     /// round-trips ([CR#115.1,601.2c]).
     #[test]
     fn targeted_effect_reads_and_round_trips() {
-        let src = "Targeted(targets:[Target(Exactly(Literal(1)),Type(Creature))],effect:DealDamage(Target(0),Literal(3)))";
+        let src = "Targeted(targets:[Target(Range(Literal(1),Literal(1)),Type(Creature))],effect:DealDamage(Target(0),Literal(3)))";
         let parsed = read(src);
         let Effect::Targeted(te) = &parsed else {
             panic!("expected Targeted, got {parsed:?}");

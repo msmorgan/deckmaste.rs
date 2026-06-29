@@ -24,6 +24,45 @@ pub enum Stat {
     Defense,
 }
 
+/// Which way `Count::Half` rounds a non-integer result ([CR#107.1a]). One
+/// rounding vocabulary shared by every halving — "half its power, rounded up"
+/// vs "rounded down".
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum RoundMode {
+    /// Round the half up (the common "rounded up" wording).
+    RoundUp,
+    /// Round the half down.
+    RoundDown,
+}
+
+/// A characteristic *axis* read off an object ([CR#109.3]) — the dimension
+/// `Count::CountDistinct` collapses to its distinct-value count. Distinct from
+/// [`Stat`] (a single numeric reader): this names a whole axis (colors, types,
+/// subtypes, …) so "the number of distinct land types" (Domain), "creatures
+/// with distinct powers" (Coven), and "card types among graveyards"
+/// (Tarmogoyf) all share one constructor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum Characteristic {
+    /// Colors ([CR#105.1]).
+    Colors,
+    /// Card types ([CR#205]).
+    Types,
+    /// Subtypes ([CR#205.3]) — Domain's land-type axis.
+    Subtypes,
+    /// Supertypes ([CR#205.4]).
+    Supertypes,
+    /// Power ([CR#208]) — Coven's distinct-power axis.
+    Power,
+    /// Toughness ([CR#208]).
+    Toughness,
+    /// Defense ([CR#210]).
+    Defense,
+    /// Mana cost ([CR#202]).
+    ManaCost,
+    /// Name ([CR#201]).
+    Name,
+}
+
 /// A scalar magnitude an effect computes at resolution: an amount, never an
 /// object (objects are `Reference`s, [CR#107.1,107.3]).
 ///
@@ -44,6 +83,13 @@ pub enum Count {
     /// How many objects match a filter ([CR#107.3], "for each"). Boxed to
     /// break the `Filter` → `Stat` → `Count` → `Filter` size cycle.
     CountOf(Box<Filter>),
+    /// The size of the DISTINCT union of a characteristic across the objects
+    /// matching a filter ([CR#107.3]): Domain = `CountDistinct(Subtypes, <your
+    /// lands>)` (distinct land subtypes), Coven = `CountDistinct(Power, <your
+    /// creatures>)` (distinct powers), Tarmogoyf = `CountDistinct(Types, <cards
+    /// in graveyards>)`. The granularity comes from the source filter; the
+    /// axis from the [`Characteristic`]. Boxed `Filter`, like `CountOf`.
+    CountDistinct(Characteristic, Box<Filter>),
     /// A referenced object's stat ([CR#107.3], "equal to its power").
     StatOf(Reference, Stat),
     /// How many counters of the named kind sit on a referenced object or
@@ -58,6 +104,20 @@ pub enum Count {
     /// and "the lesser of X and Y" appears across the card base. Boxed to keep
     /// `Count` small.
     Min(Box<Count>, Box<Count>),
+    /// The greater of two counts ([CR#107.1], "the greater of X and Y") — the
+    /// twin of `Min`. Boxed to keep `Count` small.
+    Max(Box<Count>, Box<Count>),
+    /// The sum of two counts ([CR#107.1], "X plus N"). Boxed.
+    Plus(Box<Count>, Box<Count>),
+    /// The difference of two counts, floored at 0 ([CR#107.1b] — a count never
+    /// goes negative). Boxed.
+    Minus(Box<Count>, Box<Count>),
+    /// The product of two counts ([CR#107.1], "twice X" = `Times(2, X)`).
+    /// Boxed.
+    Times(Box<Count>, Box<Count>),
+    /// Half a count, rounded per [`RoundMode`] ([CR#107.1a], "half its power
+    /// rounded up"). Boxed.
+    Half(RoundMode, Box<Count>),
     /// Magnitude anaphora: "that much" / "that many" — the amount fixed by
     /// an earlier instruction ([CR#107.3]).
     ThatMuch,
@@ -168,6 +228,58 @@ mod tests {
         // Serialize → read round-trip.
         let written = write(&parsed);
         assert_eq!(read(&written), parsed);
+    }
+
+    /// The arithmetic constructors parse from named RON and round-trip — the
+    /// value-language parity headline ([CR#107.1]).
+    #[test]
+    fn arithmetic_reads_and_round_trips() {
+        let cases = [
+            (
+                "Plus(X, 1)",
+                Count::Plus(Box::new(Count::X), Box::new(Count::Literal(1))),
+            ),
+            (
+                "Minus(3, X)",
+                Count::Minus(Box::new(Count::Literal(3)), Box::new(Count::X)),
+            ),
+            (
+                "Times(2, X)",
+                Count::Times(Box::new(Count::Literal(2)), Box::new(Count::X)),
+            ),
+            (
+                "Max(X, 1)",
+                Count::Max(Box::new(Count::X), Box::new(Count::Literal(1))),
+            ),
+            (
+                "Half(RoundUp, StatOf(This, Power))",
+                Count::Half(
+                    RoundMode::RoundUp,
+                    Box::new(Count::StatOf(Reference::This, Stat::Power)),
+                ),
+            ),
+        ];
+        for (src, want) in cases {
+            assert_eq!(read(src), want, "parse failed for {src}");
+            assert_eq!(read(&write(&want)), want, "round-trip failed for {src}");
+        }
+    }
+
+    /// `CountDistinct(Characteristic, Filter)` — the distinct-union count
+    /// (Domain / Coven / Tarmogoyf) parses and round-trips.
+    #[test]
+    fn count_distinct_round_trips() {
+        let value = Count::CountDistinct(
+            Characteristic::Subtypes,
+            Box::new(Filter::Characteristic(crate::CharacteristicFilter::Type(
+                crate::Type::Land,
+            ))),
+        );
+        assert_eq!(read(&write(&value)), value);
+        assert!(matches!(
+            read("CountDistinct(Power, Type(Creature))"),
+            Count::CountDistinct(Characteristic::Power, _)
+        ));
     }
 
     /// `EventSum(Event, Window)` parses and round-trips — the sum-valued twin

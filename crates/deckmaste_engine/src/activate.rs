@@ -549,10 +549,10 @@ impl GameState {
             // payable for now.
             // TODO(engine-cost-payment follow-up): payability for AmongNoted/Random selections.
             Selection::Ref(_) | Selection::AmongNoted(..) | Selection::Random(..) => true,
-            // Those/TopOfLibrary are not valid cost-selection forms.
-            Selection::TopOfLibrary { .. } | Selection::Those => {
+            // Those/TopOfLibrary/Pick are not valid cost-selection forms.
+            Selection::TopOfLibrary { .. } | Selection::Those | Selection::Pick { .. } => {
                 todo!(
-                    "engine-cost-payment: TopOfLibrary/Those as a cost selection is not supported"
+                    "engine-cost-payment: TopOfLibrary/Those/Pick as a cost selection is not supported"
                 )
             }
         }

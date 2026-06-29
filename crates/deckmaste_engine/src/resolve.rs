@@ -1166,31 +1166,25 @@ impl GameState {
         n: usize,
         frame: &Frame,
     ) -> (Uint, Uint) {
-        use deckmaste_core::Quantity;
         let cap = Uint::try_from(n).expect("candidate count fits Uint");
         let ev = |c: &Count| self.eval_count(c, frame).min(cap);
-        match quantity {
-            Quantity::Exactly(c) => {
-                let v = ev(c);
-                (v, v)
-            }
-            Quantity::AtLeast(c) => (ev(c), cap),
-            Quantity::AtMost(c) => (0, ev(c)),
-            Quantity::Between(lo, hi) => (ev(lo), ev(hi)),
-            Quantity::AnyNumber => (0, cap),
-            Quantity::Expanded(e) => self.choice_bounds(&e.value, n, frame),
-        }
+        // `Quantity` collapsed to one `Range(lo, hi)` primitive (seen through a
+        // remembered `Exactly`/`AtMost`/… macro by `bounds`): an absent lower
+        // bound floors at 0, an absent upper bound caps at the candidate count
+        // ([CR#608.2d] — choose as many as able).
+        let (lo, hi) = quantity.bounds();
+        (lo.map_or(0, ev), hi.map_or(cap, ev))
     }
 
     /// How many objects a `Random` selection picks. v1 supports `Exactly`
     /// (clamped to the candidate count); ranged random is a loud seam.
     fn random_count(&self, quantity: &deckmaste_core::Quantity, n: usize, frame: &Frame) -> usize {
-        use deckmaste_core::Quantity;
-        match quantity {
-            Quantity::Exactly(c) => usize::try_from(self.eval_count(c, frame))
+        // v1 supports the exactly-N range (`Range(Some(c), Some(c))`, seen
+        // through a remembered `Exactly` macro); ranged random is a loud seam.
+        match quantity.bounds() {
+            (Some(lo), Some(hi)) if lo == hi => usize::try_from(self.eval_count(lo, frame))
                 .expect("count fits usize")
                 .min(n),
-            Quantity::Expanded(e) => self.random_count(&e.value, n, frame),
             other => todo!(
                 "engine-resolve-selections follow-up: ranged Random {other:?} (Exactly only in v1)"
             ),
@@ -1205,6 +1199,36 @@ impl GameState {
     pub(crate) fn eval_selection_set(&self, sel: &Selection, frame: &Frame) -> Vec<ObjectId> {
         match sel {
             Selection::Each(f) | Selection::Filter(f) => crate::target::candidates(self, f),
+            // [CR#107.1]: the extremal element(s) of a set, ranked by the
+            // per-element projection. Each candidate is bound as the frame's
+            // `Subject` so the projection (`by`) reads it; ties yield the whole
+            // tied group (the usual single/choice path narrows downstream).
+            Selection::Pick { op, of, by } => {
+                use deckmaste_core::Extremum;
+                let candidates = crate::target::candidates(self, of);
+                let scored: Vec<(ObjectId, Uint)> = candidates
+                    .into_iter()
+                    .map(|id| {
+                        let sub = Frame {
+                            subject: Some(id),
+                            ..frame.clone()
+                        };
+                        (id, self.eval_count(by, &sub))
+                    })
+                    .collect();
+                let extremum = match op {
+                    Extremum::Greatest => scored.iter().map(|(_, v)| *v).max(),
+                    Extremum::Least => scored.iter().map(|(_, v)| *v).min(),
+                };
+                match extremum {
+                    Some(target) => scored
+                        .into_iter()
+                        .filter(|(_, v)| *v == target)
+                        .map(|(id, _)| id)
+                        .collect(),
+                    None => Vec::new(),
+                }
+            }
             // The chooser's/RNG's picks, bound into the frame before the action
             // re-runs ([CR#608.2d]).
             Selection::Choose(..) | Selection::Random(..) => frame
@@ -1476,6 +1500,44 @@ impl GameState {
             // [CR#704.5q]: the lesser of two magnitudes (annihilation removes
             // the smaller of the two counter counts of each kind).
             Count::Min(a, b) => self.eval_count(a, frame).min(self.eval_count(b, frame)),
+            // [CR#107.1] basic value arithmetic. A count never goes negative
+            // ([CR#107.1b]), so `Minus` floors at 0 (saturating); `Plus`/`Times`
+            // saturate at the `Uint` ceiling rather than wrapping.
+            Count::Max(a, b) => self.eval_count(a, frame).max(self.eval_count(b, frame)),
+            Count::Plus(a, b) => self
+                .eval_count(a, frame)
+                .saturating_add(self.eval_count(b, frame)),
+            Count::Minus(a, b) => self
+                .eval_count(a, frame)
+                .saturating_sub(self.eval_count(b, frame)),
+            Count::Times(a, b) => self
+                .eval_count(a, frame)
+                .saturating_mul(self.eval_count(b, frame)),
+            // [CR#107.1a]: half, rounded per the mode ("half its power rounded
+            // up" = `Half(RoundUp, StatOf(This, Power))`).
+            Count::Half(mode, inner) => {
+                let v = self.eval_count(inner, frame);
+                match mode {
+                    deckmaste_core::RoundMode::RoundUp => v.div_ceil(2),
+                    deckmaste_core::RoundMode::RoundDown => v / 2,
+                }
+            }
+            // [CR#107.3]: the size of the distinct union of a characteristic
+            // across the matching objects (Domain = distinct land subtypes;
+            // Coven = distinct creature powers; Tarmogoyf = distinct card types
+            // in graveyards). Anchors `Ref(This)` like `CountOf`.
+            Count::CountDistinct(characteristic, filter) => {
+                let watcher = self.frame_watcher(frame);
+                let mut seen = std::collections::BTreeSet::new();
+                for ob in self.objects.iter() {
+                    if self.filter_matches_live(filter, ob.id, watcher) {
+                        for key in self.distinct_keys(*characteristic, ob.id) {
+                            seen.insert(key);
+                        }
+                    }
+                }
+                Uint::try_from(seen.len()).expect("distinct count fits Uint")
+            }
             // The amount fixed by an earlier instruction of this resolution —
             // recorded at the apply funnel (so it reads what actually
             // happened, post-replacement), cleared by `resolve_object`. A
@@ -1542,6 +1604,67 @@ impl GameState {
                 self.objects.obj(id).damage
             }
             Count::Expanded(e) => self.eval_count(&e.value, frame),
+        }
+    }
+
+    /// The distinct-value keys a single object contributes to a
+    /// [`Count::CountDistinct`] union along `characteristic` ([CR#109.3]).
+    /// Each axis yields zero or more stable string keys (a creature with two
+    /// card types contributes both); the caller unions them across the matched
+    /// set. Derived axes (power/toughness) read the layer view; the rest read
+    /// the printed face — a v1 that matches how `is_permanent_spell` reads
+    /// printed types.
+    fn distinct_keys(
+        &self,
+        characteristic: deckmaste_core::Characteristic,
+        id: ObjectId,
+    ) -> Vec<String> {
+        use deckmaste_core::Characteristic as Ch;
+        let face = crate::derive::face(self.def(id));
+        match characteristic {
+            Ch::Types => face.types.iter().map(|t| format!("{t:?}")).collect(),
+            Ch::Subtypes => face.subtypes.iter().map(|s| s.name.to_string()).collect(),
+            Ch::Supertypes => face.supertypes.iter().map(|s| format!("{s:?}")).collect(),
+            Ch::Name => vec![face.name.clone()],
+            Ch::ManaCost => vec![format!("{}", face.mana_cost.mana_value())],
+            Ch::Colors => {
+                use deckmaste_core::ManaSymbol;
+                let mut colors: Vec<deckmaste_core::Color> = face.color_indicator.clone();
+                for sym in face.mana_cost.iter() {
+                    match sym {
+                        ManaSymbol::Simple(s) => colors.extend(s.color()),
+                        ManaSymbol::Hybrid(s, c) => {
+                            colors.extend(s.color());
+                            colors.push(*c);
+                        }
+                        ManaSymbol::Phyrexian(c, c2) => {
+                            colors.push(*c);
+                            colors.extend(*c2);
+                        }
+                        ManaSymbol::Variable | ManaSymbol::Snow => {}
+                    }
+                }
+                colors.iter().map(|c| format!("{c:?}")).collect()
+            }
+            Ch::Power => self
+                .layers()
+                .power(id)
+                .map(|p| vec![p.max(0).to_string()])
+                .unwrap_or_default(),
+            Ch::Toughness => self
+                .layers()
+                .toughness(id)
+                .map(|t| vec![t.max(0).to_string()])
+                .unwrap_or_default(),
+            Ch::Defense => vec![
+                self.objects
+                    .obj(id)
+                    .counters
+                    .get("DefenseCounter")
+                    .copied()
+                    .unwrap_or(0)
+                    .to_string(),
+            ],
         }
     }
 
@@ -6425,6 +6548,149 @@ mod tests {
         assert!(
             found,
             "scry-2 must record Distributed {{ name: Scry, count: 2 }}"
+        );
+    }
+
+    /// `Count` arithmetic ([CR#107.1]) evaluates structurally — no board
+    /// needed. `Minus` floors at 0 ([CR#107.1b]); `Half` rounds per the mode.
+    #[test]
+    fn count_arithmetic_evaluates() {
+        let state = game();
+        let frame = frame_for(&state, PlayerId(0));
+        let lit = |n| Box::new(Count::Literal(n));
+        let ev = |c: &Count| state.eval_count(c, &frame);
+        assert_eq!(ev(&Count::Plus(lit(2), lit(3))), 5);
+        assert_eq!(ev(&Count::Minus(lit(2), lit(5))), 0, "a count floors at 0");
+        assert_eq!(ev(&Count::Times(lit(2), lit(3))), 6);
+        assert_eq!(ev(&Count::Max(lit(2), lit(3))), 3);
+        assert_eq!(
+            ev(&Count::Half(deckmaste_core::RoundMode::RoundUp, lit(3))),
+            2,
+        );
+        assert_eq!(
+            ev(&Count::Half(deckmaste_core::RoundMode::RoundDown, lit(3))),
+            1,
+        );
+    }
+
+    /// Build a one-player game whose deck holds `names` (padded with Bears so
+    /// the opening draw never empties the library), force each named card onto
+    /// P0's battlefield, and return their ids.
+    fn battlefield_with(names: &[&str]) -> (GameState, Vec<ObjectId>) {
+        let mut deck: Vec<Arc<Card>> = names
+            .iter()
+            .map(|n| Arc::new(canon().card(n).unwrap()))
+            .collect();
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        while deck.len() < 12 {
+            deck.push(Arc::clone(&bears));
+        }
+        let mut state = GameState::new(GameConfig {
+            players: vec![PlayerConfig { deck }, PlayerConfig { deck: vec![] }],
+            seed: 7,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+        });
+        let mut ids = Vec::new();
+        for name in names {
+            let p = PlayerId(0).index();
+            let obj = state.zones.hands[p]
+                .iter()
+                .copied()
+                .find(|&o| {
+                    state.objects.obj(o).card_id().is_some()
+                        && matches!(state.def(o), Card::Normal(f) | Card::ModalDfc(f, _) if f.name == *name)
+                })
+                .or_else(|| {
+                    state.zones.libraries[p].iter().copied().find(|&o| {
+                        state.objects.obj(o).card_id().is_some()
+                            && matches!(state.def(o), Card::Normal(f) | Card::ModalDfc(f, _) if f.name == *name)
+                    })
+                })
+                .unwrap_or_else(|| panic!("no {name} in P0's hand or library"));
+            state.zones.hands[p].retain(|&o| o != obj);
+            state.zones.libraries[p].retain(|&o| o != obj);
+            state.objects.obj_mut(obj).zone = Some(Zone::Battlefield);
+            state.zones.battlefield.push(obj);
+            ids.push(obj);
+        }
+        (state, ids)
+    }
+
+    /// A battlefield-scoped creature filter (canonical card filters carry
+    /// their own zone narrowing) — keeps the deck's hand/library bears out of
+    /// the matched set.
+    fn creatures_in_play() -> Filter {
+        Filter::AllOf(vec![
+            Filter::State(StateFilter::InZone(Zone::Battlefield)),
+            Filter::creature(),
+        ])
+    }
+
+    /// `CountDistinct` ([CR#107.3]) is the distinct-union size of an axis over
+    /// the matched set: three creatures of powers 2/2/3 give two distinct
+    /// powers (Coven), and three distinct toughnesses 2/4/3.
+    #[test]
+    fn count_distinct_over_creatures() {
+        let (state, _) = battlefield_with(&["Grizzly Bears", "Giant Spider", "Centaur Courser"]);
+        let frame = frame_for(&state, PlayerId(0));
+        let powers = Count::CountDistinct(
+            deckmaste_core::Characteristic::Power,
+            Box::new(creatures_in_play()),
+        );
+        assert_eq!(
+            state.eval_count(&powers, &frame),
+            2,
+            "distinct powers {{2,3}}"
+        );
+        let toughnesses = Count::CountDistinct(
+            deckmaste_core::Characteristic::Toughness,
+            Box::new(creatures_in_play()),
+        );
+        assert_eq!(
+            state.eval_count(&toughnesses, &frame),
+            3,
+            "distinct toughnesses {{2,4,3}}",
+        );
+    }
+
+    /// `Selection::Pick` ([CR#107.1]) takes the extremal element: the creature
+    /// with the greatest power is the 3/3 Centaur Courser; the least-power pick
+    /// is the whole tied 2-power group.
+    #[test]
+    fn pick_extremal_creature_by_power() {
+        let (state, ids) = battlefield_with(&["Grizzly Bears", "Giant Spider", "Centaur Courser"]);
+        let courser = ids[2];
+        let frame = frame_for(&state, PlayerId(0));
+        let greatest = Selection::Pick {
+            op: deckmaste_core::Extremum::Greatest,
+            of: creatures_in_play(),
+            by: Box::new(Count::StatOf(
+                Reference::Subject,
+                deckmaste_core::Stat::Power,
+            )),
+        };
+        assert_eq!(
+            state.eval_selection_set(&greatest, &frame),
+            vec![courser],
+            "Centaur Courser (3 power) is the unique greatest",
+        );
+        let least = Selection::Pick {
+            op: deckmaste_core::Extremum::Least,
+            of: creatures_in_play(),
+            by: Box::new(Count::StatOf(
+                Reference::Subject,
+                deckmaste_core::Stat::Power,
+            )),
+        };
+        let picked = state.eval_selection_set(&least, &frame);
+        assert_eq!(picked.len(), 2, "the two 2-power creatures tie for least");
+        assert!(
+            !picked.contains(&courser),
+            "the 3-power creature is not least"
         );
     }
 }

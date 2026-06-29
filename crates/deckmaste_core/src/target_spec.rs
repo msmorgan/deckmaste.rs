@@ -17,9 +17,10 @@ use crate::SupportsMacros;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum TargetSpec {
     /// A quantity of targets matching the filter ([CR#115.1,115.6,601.2c]).
-    /// Use `Quantity::Exactly(Count::Literal(1))` for a single target,
-    /// `Quantity::AtMost(n)` for "up to N", and `Quantity::AnyNumber` for
-    /// "any number of targets".
+    /// Use `Quantity::one()` for a single target, `Quantity::Range(None,
+    /// Some(n))` for "up to N", and `Quantity::Range(None, None)` for "any
+    /// number of targets" (or the `Exactly`/`AtMost`/`AnyNumber` macros at the
+    /// RON surface).
     Target(Quantity, Filter),
     /// A co-target set-distinctness constraint ([CR#115.7e], Arc Trail's
     /// "any *other* target"): this spec's final picks must not overlap the
@@ -50,20 +51,26 @@ mod tests {
     }
 
     /// The announce-list grammar: `Target(Quantity, Filter)`, distinct from
-    /// `Selection`'s resolution choices.
+    /// `Selection`'s resolution choices. The core reader carries no macros, so
+    /// these spell the underlying `Range` primitive directly (the named
+    /// `Exactly`/`AtMost`/`AnyNumber` forms are exercised at the cards layer,
+    /// where the builtin macros are loaded).
     #[test]
     fn announce_forms_read() {
         assert_eq!(
-            read("Target(Exactly(Literal(1)), Type(Creature))"),
-            TargetSpec::Target(Quantity::Exactly(Count::Literal(1)), creature_filter(),),
+            read("Target(Range(1, 1), Type(Creature))"),
+            TargetSpec::Target(Quantity::one(), creature_filter()),
         );
         assert_eq!(
-            read("Target(AtMost(Literal(2)), Type(Creature))"),
-            TargetSpec::Target(Quantity::AtMost(Count::Literal(2)), creature_filter(),),
+            read("Target(Range(None, 2), Type(Creature))"),
+            TargetSpec::Target(
+                Quantity::Range(None, Some(Count::Literal(2))),
+                creature_filter(),
+            ),
         );
         assert_eq!(
-            read("Target(AnyNumber, Type(Creature))"),
-            TargetSpec::Target(Quantity::AnyNumber, creature_filter()),
+            read("Target(Range(None, None), Type(Creature))"),
+            TargetSpec::Target(Quantity::Range(None, None), creature_filter()),
         );
     }
 
@@ -71,9 +78,12 @@ mod tests {
     #[test]
     fn target_round_trips() {
         for value in [
-            TargetSpec::Target(Quantity::Exactly(Count::Literal(1)), creature_filter()),
-            TargetSpec::Target(Quantity::AnyNumber, creature_filter()),
-            TargetSpec::Target(Quantity::AtMost(Count::Literal(2)), creature_filter()),
+            TargetSpec::Target(Quantity::one(), creature_filter()),
+            TargetSpec::Target(Quantity::Range(None, None), creature_filter()),
+            TargetSpec::Target(
+                Quantity::Range(None, Some(Count::Literal(2))),
+                creature_filter(),
+            ),
         ] {
             let written = crate::ron::options().to_string(&value).unwrap();
             assert_eq!(read(&written), value, "round-trip failed for {value:?}");

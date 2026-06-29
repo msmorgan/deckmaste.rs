@@ -1,0 +1,15 @@
+Normal(
+  name: "Tribal Flames",
+  mana_cost: [
+    Generic(1),
+    Red,
+  ],
+  types: [
+    Sorcery,
+  ],
+  abilities: [
+    Spell(
+      effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), Domain)),
+    ),
+  ],
+)

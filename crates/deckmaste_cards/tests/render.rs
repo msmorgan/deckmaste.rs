@@ -57,6 +57,19 @@ fn renders_spell_lightning_bolt() {
     assert_eq!(r.rules, vec!["Deal 3 damage to any target.".to_string()]);
 }
 
+/// The `Domain` count macro rides its template into rules text: Tribal Flames'
+/// damage amount renders "domain", not the expanded `CountDistinct`.
+#[test]
+fn renders_domain_count_tribal_flames() {
+    let r = render_card_face(&face("Tribal Flames"));
+    assert_eq!(r.mana_cost, "{1}{R}");
+    assert_eq!(r.type_line, "Sorcery");
+    assert_eq!(
+        r.rules,
+        vec!["Deal domain damage to any target.".to_string()]
+    );
+}
+
 #[test]
 fn renders_keywords_and_etb_trigger_baleful_strix() {
     let r = render_card_face(&face("Baleful Strix"));

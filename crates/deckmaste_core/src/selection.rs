@@ -1,9 +1,26 @@
+use serde::Deserialize;
+use serde::Serialize;
+
 use crate::Count;
+use crate::Expand;
 use crate::Expansion;
 use crate::Filter;
 use crate::Quantity;
 use crate::Reference;
 use crate::SupportsMacros;
+
+/// Which extreme a [`Selection::Pick`] takes — the subset of the aggregate
+/// ops along which an *element* is well-defined ([CR#107.1]). Only the
+/// extremal ops are representable here (no "pick the sum"); the value-twin
+/// fold over the same projection is the aggregate-count work.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum Extremum {
+    /// The element with the greatest projected value ("the creature with the
+    /// greatest power").
+    Greatest,
+    /// The element with the least projected value.
+    Least,
+}
 
 /// A Filter lifted into a resolution-time choice context: who picks, when,
 /// how many ([CR#608.2d]). Verb object slots take exactly one `Selection`.
@@ -51,6 +68,17 @@ pub enum Selection {
     /// plural anaphor. Resolves to the frame's `those` binding, order
     /// preserved. Distinct from singular `That` (a `Reference`).
     Those,
+    /// The extremal element(s) of a set, ranked by a per-element projection
+    /// ([CR#107.1]): "the creature with the greatest power" =
+    /// `Pick(op: Greatest, of: Type(Creature), by: StatOf(Subject, Power))`.
+    /// The element-twin of the aggregate fold; the projection `by` reads each
+    /// candidate via `Reference::Subject`, and ties yield the whole group
+    /// (narrowed by the usual single/choice path downstream).
+    Pick {
+        op: Extremum,
+        of: Filter,
+        by: Box<Count>,
+    },
     /// A bound object reference, lifted into a choice slot. Written bare in
     /// RON (no `Ref(...)` wrapper) — see the type docs.
     #[macro_ron(embed)]
@@ -125,7 +153,7 @@ mod tests {
     #[test]
     fn choose_single_round_trip() {
         let v = Selection::Choose(
-            Quantity::Exactly(Count::Literal(1)),
+            Quantity::one(),
             Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
         );
         assert_eq!(read(&to_string(&v)), v);
@@ -193,5 +221,24 @@ mod tests {
     fn those_round_trips() {
         assert_eq!(read("Those"), Selection::Those);
         assert_eq!(read(&to_string(&Selection::Those)), Selection::Those);
+    }
+
+    /// `Pick` (extremal element) parses from named RON and round-trips — the
+    /// element-twin of the aggregate fold.
+    #[test]
+    fn pick_round_trips() {
+        let v = Selection::Pick {
+            op: Extremum::Greatest,
+            of: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            by: Box::new(Count::StatOf(crate::Reference::This, crate::Stat::Power)),
+        };
+        assert_eq!(read(&to_string(&v)), v);
+        assert!(matches!(
+            read("Pick(op: Least, of: Type(Creature), by: StatOf(Subject, Toughness))"),
+            Selection::Pick {
+                op: Extremum::Least,
+                ..
+            },
+        ));
     }
 }

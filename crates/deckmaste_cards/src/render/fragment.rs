@@ -1,14 +1,18 @@
 //! Shared noun-phrase / count fragment renderers.
 
+use deckmaste_core::Characteristic;
 use deckmaste_core::CharacteristicFilter;
 use deckmaste_core::Count;
+use deckmaste_core::Extremum;
 use deckmaste_core::Filter;
 use deckmaste_core::ObjectKind;
 use deckmaste_core::Quantity;
 use deckmaste_core::Reference;
 use deckmaste_core::RelationFilter;
+use deckmaste_core::RoundMode;
 use deckmaste_core::Scope;
 use deckmaste_core::Selection;
+use deckmaste_core::Stat;
 use deckmaste_core::StateFilter;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Zone;
@@ -30,7 +34,47 @@ pub(super) fn count(c: &Count) -> String {
                 }
             )
         ),
+        // [CR#107.1] value arithmetic.
+        Count::Plus(a, b) => format!("{} plus {}", count(a), count(b)),
+        Count::Minus(a, b) => format!("{} minus {}", count(a), count(b)),
+        Count::Times(a, b) => format!("{} times {}", count(a), count(b)),
+        Count::Max(a, b) => format!("the greater of {} and {}", count(a), count(b)),
+        Count::Min(a, b) => format!("the lesser of {} and {}", count(a), count(b)),
+        Count::Half(mode, inner) => {
+            let rounding = match mode {
+                RoundMode::RoundUp => "rounded up",
+                RoundMode::RoundDown => "rounded down",
+            };
+            format!("half {}, {rounding}", count(inner))
+        }
+        // [CR#107.3] distinct-union count (Domain / Coven / Tarmogoyf).
+        Count::CountDistinct(axis, filter) => {
+            format!(
+                "the number of {} among {}",
+                characteristic_word(*axis),
+                filter_noun(filter)
+            )
+        }
+        // A remembered count macro (e.g. `Domain`): prefer its own template,
+        // else render the expansion structurally.
+        Count::Expanded(e) => super::template::expanded(e, "it").unwrap_or_else(|| count(&e.value)),
         other => format!("[unrendered: {other:?}]"),
+    }
+}
+
+/// The plural noun for a [`Characteristic`] axis, used by the distinct-count
+/// phrase ("the number of subtypes among …").
+fn characteristic_word(axis: Characteristic) -> &'static str {
+    match axis {
+        Characteristic::Colors => "colors",
+        Characteristic::Types => "types",
+        Characteristic::Subtypes => "subtypes",
+        Characteristic::Supertypes => "supertypes",
+        Characteristic::Power => "powers",
+        Characteristic::Toughness => "toughnesses",
+        Characteristic::Defense => "defenses",
+        Characteristic::ManaCost => "mana costs",
+        Characteristic::Name => "names",
     }
 }
 
@@ -39,6 +83,20 @@ pub(super) fn selection(sel: &Selection, ctx: &Ctx) -> String {
     match sel {
         Selection::Ref(r) => reference(r, ctx),
         Selection::Each(f) | Selection::Filter(f) => format!("each {}", filter_noun(f)),
+        // [CR#107.1] the extremal element: "the creature with the greatest
+        // power". The projection's axis is named when it is a simple stat read.
+        Selection::Pick { op, of, by } => {
+            let extreme = match op {
+                Extremum::Greatest => "greatest",
+                Extremum::Least => "least",
+            };
+            let axis = match by.as_ref() {
+                Count::StatOf(_, Stat::Power) => " power",
+                Count::StatOf(_, Stat::Toughness) => " toughness",
+                _ => "",
+            };
+            format!("the {} with the {extreme}{axis}", filter_noun(of))
+        }
         other => format!("[unrendered: {other:?}]"),
     }
 }
@@ -78,7 +136,7 @@ pub(super) fn target_spec(spec: &TargetSpec) -> String {
         TargetSpec::Expanded(exp) => {
             super::template::expanded(exp, "").unwrap_or_else(|| target_spec(&exp.value))
         }
-        TargetSpec::Target(Quantity::Exactly(Count::Literal(1)), filter) => {
+        TargetSpec::Target(q, filter) if q.is_one() => {
             format!("target {}", filter_noun(filter))
         }
         other => format!("[unrendered: {other:?}]"),
@@ -247,8 +305,11 @@ pub(super) fn selection_object(sel: &Selection, ctx: &Ctx) -> String {
 }
 
 fn quantity(q: &Quantity) -> String {
-    match q {
-        Quantity::Exactly(c) => count(c),
+    // `Quantity` is one `Range(lo, hi)` primitive (seen through a remembered
+    // macro by `bounds`). An exactly-N range renders as the count; richer
+    // phrasings ("up to N", "any number of") are a renderer follow-up.
+    match q.bounds() {
+        (Some(lo), Some(hi)) if lo == hi => count(lo),
         other => format!("[unrendered: {other:?}]"),
     }
 }
