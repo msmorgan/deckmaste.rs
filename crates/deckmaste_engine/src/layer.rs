@@ -1618,6 +1618,7 @@ mod tests {
     /// reference needed). Wrapped or not per `innate`.
     fn pump_static(innate: bool) -> Ability {
         let s = Ability::Static(StaticAbility {
+            from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {
                 of: Scope::Matching(Filter::Characteristic(CharacteristicFilter::Type(
@@ -1853,6 +1854,7 @@ mod tests {
     fn host_pump_static(n: u32) -> Ability {
         use deckmaste_core::Reference;
         Ability::Static(StaticAbility {
+            from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {
                 of: Scope::Of(Reference::AttachHostOf(Box::new(Reference::This))),
@@ -1955,6 +1957,7 @@ mod tests {
         use deckmaste_core::Reference;
 
         let dup_pump = Ability::Static(StaticAbility {
+            from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {
                 of: Scope::These(vec![Reference::This, Reference::This]),
@@ -2098,6 +2101,7 @@ mod tests {
         use deckmaste_core::Reference;
         use deckmaste_core::RelationFilter;
         Ability::Static(StaticAbility {
+            from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {
                 of: Scope::Matching(Filter::AllOf(vec![
@@ -2213,6 +2217,7 @@ mod tests {
         use deckmaste_core::Reference;
         let count = Count::CountOf(Box::new(Filter::creature()));
         Ability::Static(StaticAbility {
+            from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {
                 of: Scope::Of(Reference::This),
@@ -2259,6 +2264,7 @@ mod tests {
         use deckmaste_core::Reference;
         let count = Count::CountOf(Box::new(Filter::creature()));
         Ability::Static(StaticAbility {
+            from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {
                 of: Scope::Of(Reference::This),
@@ -2488,6 +2494,7 @@ mod tests {
     fn self_pump_static() -> Ability {
         use deckmaste_core::Reference;
         Ability::Static(StaticAbility {
+            from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {
                 of: Scope::Of(Reference::This),
@@ -2509,6 +2516,7 @@ mod tests {
     fn lord_granting_static(granted: Ability) -> Ability {
         use deckmaste_core::Reference;
         Ability::Static(StaticAbility {
+            from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {
                 of: Scope::Matching(Filter::AllOf(vec![

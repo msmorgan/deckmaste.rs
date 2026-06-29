@@ -116,8 +116,20 @@ impl GameState {
                 }
             }
 
-            // It is the evaluating player's turn.
+            // It is the evaluating player's turn — the frame-robust sugar for
+            // `TurnOf(Ref(You))` (reads `you` directly, no carrier needed).
             Condition::YourTurn => self.turn.active_player == you,
+
+            // It is a matching player's turn ([CR#603.4]): the active player's
+            // proxy satisfies the player predicate, with `Ref(You)`/`Ref(This)`
+            // in it anchored to the ability's carrier. `TurnOf(Ref(You))`
+            // reduces to `YourTurn`; `TurnOf(OpponentOf(Ref(You)))` is "during
+            // an opponent's turn".
+            Condition::TurnOf(filter) => {
+                let watcher = self.frame_watcher(frame);
+                let active = self.player(self.turn.active_player).object;
+                self.filter_matches_live(filter, active, watcher)
+            }
 
             // The current phase/step is exactly the given one.
             Condition::DuringPhase(p) => self.turn.current == *p,
@@ -423,6 +435,7 @@ mod tests {
                 name: "Conditional Trigger Artifact".into(),
                 types: vec![Type::Artifact],
                 abilities: vec![Ability::Triggered(TriggeredAbility {
+                    from: None,
                     event: Event::OneOf(Vec::new()),
                     condition: Some(Condition::Exists(Filter::Characteristic(
                         CharacteristicFilter::Type(Type::Creature),
@@ -631,6 +644,42 @@ mod tests {
             ),
             "DuringPhase(PostcombatMain) should not hold during PrecombatMain"
         );
+    }
+
+    /// `TurnOf(<player predicate>)` generalizes `YourTurn`: `TurnOf(Ref(You))`
+    /// agrees with `YourTurn` for every (active player, evaluator) pairing, and
+    /// `TurnOf(OpponentOf(Ref(You)))` is its complement — "during an opponent's
+    /// turn" ([CR#603.4]).
+    #[test]
+    fn turn_of_generalizes_your_turn() {
+        use deckmaste_core::RelationFilter;
+
+        let your_turn = Condition::YourTurn;
+        let turn_of_you = Condition::TurnOf(Filter::Ref(Reference::You));
+        let turn_of_opp = Condition::TurnOf(Filter::Relation(RelationFilter::OpponentOf(
+            Box::new(Filter::Ref(Reference::You)),
+        )));
+
+        for active in [PlayerId(0), PlayerId(1)] {
+            let mut state = game();
+            state.turn.active_player = active;
+            for evaluator in [PlayerId(0), PlayerId(1)] {
+                let frame = frame_for(&state, evaluator);
+                let is_your_turn = state.condition_holds(&your_turn, &frame);
+                // `TurnOf(Ref(You))` matches `YourTurn` exactly.
+                assert_eq!(
+                    state.condition_holds(&turn_of_you, &frame),
+                    is_your_turn,
+                    "TurnOf(Ref(You)) must agree with YourTurn (active={active:?}, eval={evaluator:?})"
+                );
+                // An opponent's turn is the complement of your turn (1v1).
+                assert_eq!(
+                    state.condition_holds(&turn_of_opp, &frame),
+                    !is_your_turn,
+                    "TurnOf(OpponentOf(You)) is the complement of YourTurn (active={active:?}, eval={evaluator:?})"
+                );
+            }
+        }
     }
 
     /// `Compare(CountOf(InZone(Stack)), Eq, Literal(0))` is the core of the

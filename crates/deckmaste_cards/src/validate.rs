@@ -485,6 +485,7 @@ mod tests {
             types: vec![Type::Artifact],
             subtypes: vec![],
             abilities: vec![Ability::Static(StaticAbility {
+                from: None,
                 condition: None,
                 effects: vec![StaticEffect::Deontic(Deontic::Cant(
                     DeonticAction::Attack {

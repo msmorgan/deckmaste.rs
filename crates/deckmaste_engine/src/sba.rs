@@ -926,6 +926,7 @@ mod tests {
     /// LegallyAttached(Ref(This))), Move(Ref(This), Graveyard))]))`.
     fn aura_graveyard_sba() -> Ability {
         Ability::Innate(Box::new(Ability::Static(StaticAbility {
+            from: None,
             condition: None,
             effects: vec![StaticEffect::Sba {
                 when: Box::new(Condition::Not(Box::new(Condition::LegallyAttached(
@@ -944,6 +945,7 @@ mod tests {
     /// Ref(This), to: Not(Creature)))]))`.
     fn equipment_host_rule() -> Ability {
         Ability::Innate(Box::new(Ability::Static(StaticAbility {
+            from: None,
             condition: None,
             effects: vec![StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Attach {
@@ -1109,6 +1111,7 @@ mod tests {
             "Protected",
             vec![Type::Creature],
             vec![Ability::Static(StaticAbility {
+                from: None,
                 condition: None,
                 effects: vec![StaticEffect::Deontic(Deontic::Cant(
                     DeonticAction::Attach {
@@ -1167,6 +1170,7 @@ mod tests {
             ))),
         ]);
         let ascend = Ability::Static(StaticAbility {
+            from: None,
             condition: None,
             effects: vec![StaticEffect::Sba {
                 when: Box::new(gate),
@@ -1245,6 +1249,7 @@ mod tests {
         // controller's permanents and grants to that controller.
         let ascend = || {
             Ability::Static(StaticAbility {
+                from: None,
                 condition: None,
                 effects: vec![StaticEffect::Sba {
                     when: Box::new(Condition::AllOf(vec![

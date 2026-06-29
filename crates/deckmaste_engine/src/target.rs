@@ -13,15 +13,32 @@ use deckmaste_core::Zone;
 
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
+use crate::stack::StackObject;
 use crate::state::GameState;
 
-/// The object's kind ([CR#109.1]) as the corpus needs it: a player proxy is a
+/// The object's kind ([CR#109.1]) as the corpus needs it: an activated/
+/// triggered ability on the stack is an `Ability`; a player proxy is a
 /// `Player`; a card on the stack is a `Spell`; a created token is a `Token`
-/// ([CR#111.6] — not a card); otherwise a `Card`. The stack check outranks
-/// the token check: a stack entry minted from a token source (its activated
-/// ability) is an ability on the stack, not the token itself.
+/// ([CR#111.6] — not a card); otherwise a `Card`.
+///
+/// The ability check outranks all the source-based ones: an ability on the
+/// stack ([CR#602.2a,603.3]) carries a freshly minted `StackEntry.id` that
+/// *shares the source's `ObjectSource`* (the card/player it came from), so the
+/// match below would misread it as a `Spell` (card-in-stack) or `Player`. Its
+/// stack identity is the only place its abilityhood is knowable, so consult the
+/// stack first — that also covers an ability minted from a token source (the
+/// ability on the stack, not the token itself).
 #[must_use]
 pub fn object_kind(state: &GameState, id: ObjectId) -> ObjectKind {
+    if state.stack.iter().any(|e| {
+        e.id == id
+            && matches!(
+                e.object,
+                StackObject::Triggered { .. } | StackObject::Activated { .. }
+            )
+    }) {
+        return ObjectKind::Ability;
+    }
     let obj = state.objects.obj(id);
     match obj.source {
         ObjectSource::Player(_) => ObjectKind::Player,
@@ -239,12 +256,27 @@ pub fn matches_with(
             matches_with(state, proxy, f, watcher)
         }
         // `id` is a player who is an opponent of a matching player
-        // ([CR#102.2,102.3]).
+        // ([CR#102.2,102.3,810.1]): on a DIFFERENT team. Routed through
+        // `same_team` so it stays sound when team play (Two-Headed Giant) is
+        // modeled — today, with singleton teams, "different team" == "different
+        // player", the prior behavior.
         Filter::Relation(RelationFilter::OpponentOf(f)) => match state.objects.obj(id).source {
             ObjectSource::Player(p) => state
                 .players
                 .iter()
-                .any(|q| q.id != p && matches_with(state, q.object, f, watcher)),
+                .any(|q| !state.same_team(p, q.id) && matches_with(state, q.object, f, watcher)),
+            ObjectSource::Card(_) => false,
+        },
+        // `id` is a player who is a teammate of a matching player
+        // ([CR#102.3,810.1]): ANOTHER player (never `q` itself) on the SAME
+        // team. Team membership isn't modeled yet (singleton teams), so this
+        // matches nobody outside a team game — the correct answer for 1v1 and
+        // free-for-all, where no two players share a team. See
+        // `GameState::same_team`.
+        Filter::Relation(RelationFilter::TeammateOf(f)) => match state.objects.obj(id).source {
+            ObjectSource::Player(p) => state.players.iter().any(|q| {
+                q.id != p && state.same_team(p, q.id) && matches_with(state, q.object, f, watcher)
+            }),
             ObjectSource::Card(_) => false,
         },
         // The object's owner, as a player proxy ([CR#108.3]); a player proxy
@@ -952,6 +984,105 @@ mod tests {
         assert!(matches(&state, p0, &f)); // P0 controls the bear
         assert!(!matches(&state, p1, &f)); // P1 controls no creature
         assert!(!matches(&state, bear, &f)); // a creature is not a controlling player
+    }
+
+    /// `TeammateOf` matches ANOTHER player on the same team. Team membership is
+    /// not modeled (singleton teams), so it matches nobody in a 1v1 game —
+    /// neither the matched player itself nor the opponent ([CR#102.3,810.1]).
+    /// (`OpponentOf`, the sibling, still matches the opponent.)
+    #[test]
+    fn teammate_of_matches_nobody_without_team_modeling() {
+        let (state, _bear, _p1_card) = marked_p0_game();
+        let p0 = state.players[0].object;
+        let p1 = state.players[1].object;
+        let teammate = Filter::Relation(RelationFilter::TeammateOf(Box::new(marked())));
+        assert!(
+            !matches(&state, p0, &teammate),
+            "a player is never their own teammate"
+        );
+        assert!(
+            !matches(&state, p1, &teammate),
+            "no teammates exist in a 1v1 game (singleton teams)"
+        );
+        // The opponent relation still resolves (P1 is an opponent of marked P0).
+        let opponent = Filter::Relation(RelationFilter::OpponentOf(Box::new(marked())));
+        assert!(matches(&state, p1, &opponent));
+    }
+
+    /// An activated/triggered ability on the stack is `ObjectKind::Ability`,
+    /// not `Spell`, even though its freshly minted stack id shares the
+    /// source card's `ObjectSource` ([CR#602.2a,603.3]). A real spell
+    /// stays a `Spell`, and the ability is a `Kind(Ability)` target
+    /// candidate.
+    #[test]
+    fn ability_on_stack_is_kind_ability_not_spell() {
+        use crate::stack::StackEntry;
+        use crate::stack::StackObject;
+        use crate::trigger::TriggerBindings;
+
+        let (mut state, _bear) = game_with_a_bear_on_the_field();
+        let cid = state
+            .cards
+            .push(Arc::new(builtin().card("Forest").unwrap()), PlayerId(0));
+
+        // A triggered ability's stack token (shares the card source).
+        let ability_id =
+            state
+                .objects
+                .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack));
+        state.stack.push(StackEntry {
+            id: ability_id,
+            object: StackObject::Triggered {
+                source: ObjectSource::Card(cid),
+                ability: 0,
+                bindings: TriggerBindings {
+                    this: None,
+                    that_object: None,
+                    that_player: None,
+                    that_patient: None,
+                    defending_player: None,
+                },
+            },
+            controller: PlayerId(0),
+            targets: vec![],
+            x: None,
+        });
+        // A real spell on the stack, for contrast.
+        let spell_id = state
+            .objects
+            .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack));
+        state.stack.push(StackEntry {
+            id: spell_id,
+            object: StackObject::Spell(spell_id),
+            controller: PlayerId(0),
+            targets: vec![],
+            x: None,
+        });
+
+        assert_eq!(object_kind(&state, ability_id), ObjectKind::Ability);
+        assert!(matches(
+            &state,
+            ability_id,
+            &Filter::Kind(ObjectKind::Ability)
+        ));
+        assert!(!matches(
+            &state,
+            ability_id,
+            &Filter::Kind(ObjectKind::Spell)
+        ));
+
+        assert_eq!(object_kind(&state, spell_id), ObjectKind::Spell);
+        assert!(matches(&state, spell_id, &Filter::Kind(ObjectKind::Spell)));
+        assert!(!matches(
+            &state,
+            spell_id,
+            &Filter::Kind(ObjectKind::Ability)
+        ));
+
+        // "counter target ability": the ability is a candidate, the spell isn't.
+        let abilities = candidates(&state, &Filter::Kind(ObjectKind::Ability));
+        assert!(abilities.contains(&ability_id));
+        assert!(!abilities.contains(&spell_id));
     }
 
     // -------------------------------------------------------------------------

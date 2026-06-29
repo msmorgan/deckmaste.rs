@@ -710,6 +710,7 @@ mod tests {
     fn as_activated_returns_none_for_non_activated() {
         assert!(
             as_activated(&Ability::Static(deckmaste_core::StaticAbility {
+                from: None,
                 condition: None,
                 effects: vec![],
                 characteristic_defining: false,
