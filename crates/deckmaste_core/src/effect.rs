@@ -670,4 +670,34 @@ mod tests {
         ));
         assert_eq!(read(&write(&over_group)), over_group, "round-trip");
     }
+
+    /// The one `That` anaphor is resolved BY SLOT: the same `That` token reads
+    /// as [`Reference::That`] in a `Reference`-typed position and as
+    /// [`Selection::That`] in a `Selection`-typed position — serde/RON picks
+    /// the variant from the field's type. Both forms round-trip; there is
+    /// no `Those` spelling. (The Idris `Reference.That` / `Selection.That`
+    /// split.)
+    #[test]
+    fn that_resolves_by_slot() {
+        // Reference slot: `Destroy(That)`'s patient is a single `Reference`.
+        let reference_slot = read("Destroy(That)");
+        assert_eq!(
+            reference_slot,
+            Effect::Act(Action::Destroy(Reference::That)),
+            "`That` in a Reference slot is Reference::That",
+        );
+        assert_eq!(read(&write(&reference_slot)), reference_slot, "round-trip");
+
+        // Selection slot: a many-`Binder` `Existing(That)` wraps a `Selection`.
+        let selection_slot = read("With(binder:Existing(That),body:Sequence([]))");
+        let Effect::With(w) = &selection_slot else {
+            panic!("expected With, got {selection_slot:?}");
+        };
+        assert_eq!(
+            w.binder,
+            crate::Binder::Existing(Selection::That),
+            "`That` in a Selection slot is Selection::That",
+        );
+        assert_eq!(read(&write(&selection_slot)), selection_slot, "round-trip");
+    }
 }
