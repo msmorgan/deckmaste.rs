@@ -28,3 +28,16 @@ then switch Brainstorm (and any other many-binder group-move) to the
 `Each(over: Those, …)` body, and add an engine-resolution test asserting BOTH
 cards move. Surfaced during the core-verb-patient-cardinality refactor (the
 verb→`Reference` split made group-moves go through `Each`/`Those`).
+
+3. **Root cause — `frame.those` is overloaded for both one- and many-binders.**
+   A one-binder (`TheRef`/`ChooseOne`) stores its single object as the sole
+   element of the plural `those: Option<Vec<ObjectId>>` slot (read by
+   `Reference::That` via `frame.those.first()`), while a many-binder stores the
+   group there (read by `Selection::Those`). That single Vec slot is exactly what
+   makes the first-of-many read above *representable*: a many-binder body that
+   says `That` instead of `Those` silently acts on element 0 with no type error.
+   The principled fix is a dedicated `that: Option<ObjectId>` Frame field so the
+   one-vs-many split is type-level and `That`-over-a-group is unrepresentable. The
+   cost (and why it was overloaded during the refactor) is the ~48 `Frame {…}`
+   literals a new field touches; do it alongside the renderer/Brainstorm work
+   here so it's one coherent change.

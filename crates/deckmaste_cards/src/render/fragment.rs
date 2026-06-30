@@ -118,8 +118,12 @@ pub(super) fn reference(r: &Reference, ctx: &Ctx) -> String {
         Reference::You => "you".to_string(),
         // The single object bound by an enclosing `With` one-binder
         // ([`Binder::ChooseOne`]/[`Binder::TheRef`]): reads the binder's noun
-        // phrase ("a creature"), falling back to the bare "it".
-        Reference::That => ctx.that.unwrap_or("it").to_string(),
+        // phrase ("a creature"). Outside a `With` it is a mis-encode (the engine
+        // panics there too), so surface the unrendered marker rather than "it".
+        Reference::That => ctx
+            .that
+            .map(|t| t.to_string())
+            .unwrap_or_else(|| "[unrendered: That]".to_string()),
         // The triggering event's roles ([CR#603.2e,608.2k]). Agent/patient
         // render as the generic anaphor "it" (no type info at this layer);
         // `ThatObject` is the agent's migration alias.

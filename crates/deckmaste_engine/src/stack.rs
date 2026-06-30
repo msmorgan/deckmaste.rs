@@ -133,7 +133,13 @@ pub struct Frame {
     /// `Reference::Subject`. `None` on every other frame (resolution, triggers,
     /// activation): `Subject` is meaningful only inside filter matching.
     pub subject: Option<ObjectId>,
-    /// The ordered plural group bound by an enclosing `Effect::With` — read by
-    /// `Selection::Those`. Order-preserved (top→down for a library window).
+    /// The ordered group bound by an enclosing `Effect::With`/cost `With`,
+    /// order-preserved (top→down for a library window). A many-binder
+    /// (`Choose`/`Existing`) group is read by `Selection::Those`; a one-binder
+    /// (`TheRef`/`ChooseOne`) stores its single object as the sole element
+    /// here, read by `Reference::That`. (A dedicated `that:
+    /// Option<ObjectId>` field would make the one-vs-many split type-level
+    /// and the first-of-many read unrepresentable — see the
+    /// `core-many-binder-group-move` ticket.)
     pub those: Option<Vec<ObjectId>>,
 }
