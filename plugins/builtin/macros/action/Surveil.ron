@@ -8,6 +8,6 @@
     params: [Count],
     body: With(
         binder: Existing(TopOfLibrary(count: Param(0))),
-        body: Distribute(group: Those, bins: [Top, Graveyard], name: "Surveil"),
+        body: Distribute(group: That, bins: [Top, Graveyard], name: "Surveil"),
     ),
 )

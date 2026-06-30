@@ -116,18 +116,22 @@ pub(super) fn reference(r: &Reference, ctx: &Ctx) -> String {
         Reference::Target(i) => target_phrase(*i, ctx),
         Reference::This => ctx.subject.to_string(),
         Reference::You => "you".to_string(),
-        // The single object bound by an enclosing `With` one-binder
-        // ([`Binder::ChooseOne`]/[`Binder::TheRef`]): reads the binder's noun
-        // phrase ("a creature"). Outside a `With` it is a mis-encode (the engine
-        // panics there too), so surface the unrendered marker rather than "it".
+        // The single object/element bound by an enclosing binder, read from the
+        // shared `ctx.that` slot ([CR#601.2b,608]): `That` is a `With`
+        // one-binder's object ("a creature"); `It` is an `Each`/`DivideAmong`
+        // element (the group-move collapse handles `It` directly, so a bare `It`
+        // here is a per-element body or — with no binder in scope — a mis-encode,
+        // which the engine panics on too). Outside any binder, surface the
+        // unrendered marker rather than a silent "it".
         Reference::That => ctx
             .that
-            .map(|t| t.to_string())
-            .unwrap_or_else(|| "[unrendered: That]".to_string()),
-        // The triggering event's roles ([CR#603.2e,608.2k]). Agent/patient
-        // render as the generic anaphor "it" (no type info at this layer);
-        // `ThatObject` is the agent's migration alias.
-        Reference::EventObject | Reference::EventPatient | Reference::It => "it".to_string(),
+            .map_or_else(|| "[unrendered: That]".to_string(), str::to_string),
+        Reference::It => ctx
+            .that
+            .map_or_else(|| "[unrendered: It]".to_string(), str::to_string),
+        // The triggering event's object/patient ([CR#603.2e,608.2k]) render as
+        // the generic anaphor "it" (no type info at this layer).
+        Reference::EventObject | Reference::EventPatient => "it".to_string(),
         // The responsible player ("that player").
         Reference::EventActor => "that player".to_string(),
         // The combat defender ([CR#506.2]) — always a player.
@@ -430,21 +434,33 @@ mod tests {
     }
 
     /// The provenance-explicit event roles render as English anaphora: the
-    /// agent/patient as "it", the actor as "that player", and the combat
-    /// defender as "the defending player" ([CR#603.2e,608.2k,506.2]). The
-    /// legacy `ThatObject`/`ThatPlayer` aliases render like their roles.
+    /// object/patient as "it", the actor as "that player", and the combat
+    /// defender as "the defending player" ([CR#603.2e,608.2k,506.2]).
     #[test]
     fn event_role_references_render() {
         let c = ctx();
-        assert_eq!(reference(&Reference::EventAgent, &c), "it");
+        assert_eq!(reference(&Reference::EventObject, &c), "it");
         assert_eq!(reference(&Reference::EventPatient, &c), "it");
-        assert_eq!(reference(&Reference::ThatObject, &c), "it");
         assert_eq!(reference(&Reference::EventActor, &c), "that player");
-        assert_eq!(reference(&Reference::ThatPlayer, &c), "that player");
         assert_eq!(
             reference(&Reference::DefendingPlayer, &c),
             "the defending player"
         );
+    }
+
+    /// `Reference::It` — the `Each`/`DivideAmong` element — reads the enclosing
+    /// binder's phrase from `ctx.that`, and surfaces the unrendered marker at a
+    /// frameless position rather than a silent "it" ([CR#608]).
+    #[test]
+    fn it_anaphor_reads_binder_phrase_else_marks() {
+        let frameless = ctx(); // that: None
+        assert_eq!(reference(&Reference::It, &frameless), "[unrendered: It]");
+        let scoped = Ctx {
+            subject: "Grizzly Bears",
+            targets: &[],
+            that: Some("each creature"),
+        };
+        assert_eq!(reference(&Reference::It, &scoped), "each creature");
     }
 
     /// The new filter nouns: an ability on the stack, and the team-relative

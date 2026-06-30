@@ -18,11 +18,11 @@
 // comparison resolves). The filter is:
 //   - `Type(Creature)` + `Attacking` ([CR#508.1a] a still-in-combat attacker);
 //   - `Not(Ref(This))` — "another" creature, excluding the carrier ([CR#702.149a]);
-//   - `Where(Compare(StatOf(Subject, Power), Greater, StatOf(This, Power)))` —
+//   - `Where(Compare(StatOf(It, Power), Greater, StatOf(This, Power)))` —
 //     the candidate's power ([CR#208]) is greater than the carrier's
-//     ([CR#107.1] numeric comparison; `Subject` is the candidate, `This` the
-//     carrier). The mirror of Evolve's cross-object stat comparison, here over
-//     fellow attackers rather than an entering creature.
+//     ([CR#107.1] numeric comparison; `It` is the candidate being filtered,
+//     `This` the carrier). The mirror of Evolve's cross-object stat comparison,
+//     here over fellow attackers rather than an entering creature.
 //
 // The resolution puts one +1/+1 counter ([CR#122.1a]) on THIS creature (no
 // target — the recipient is always the carrier): `PutCounters(This,
@@ -41,7 +41,7 @@ KeywordAbility(
                 Type(Creature),
                 Attacking,
                 Not(Ref(This)),
-                Where(Compare(StatOf(Subject, Power), Greater, StatOf(This, Power))),
+                Where(Compare(StatOf(It, Power), Greater, StatOf(This, Power))),
             ])),
             AtLeast,
             1,
