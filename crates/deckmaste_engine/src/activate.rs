@@ -409,6 +409,17 @@ impl GameState {
                 let need = lo.map_or(0, |c| self.eval_count(c, &frame));
                 Uint::try_from(candidates.len()).unwrap_or(Uint::MAX) >= need
             }
+            // SEAM: producer/search cost binders — payability needs the same
+            // produce-and-capture / library-search primitive the resolution
+            // spine lacks, so it can't be decided here. No corpus card uses
+            // these in a cost; an explicit labeled arm keeps a future use a
+            // loud seam rather than a silent `true`/`false`.
+            Binder::Produce(_) | Binder::Search { .. } | Binder::SearchOne { .. } => {
+                unimplemented!(
+                    "Binder::{{Produce,Search,SearchOne}} as a cost binder: producer/search binders \
+                 are not yet wired (no runtime produce-and-capture / library-search primitive)"
+                )
+            }
             Binder::Expanded(_) => unreachable!("peeled above"),
         }
     }

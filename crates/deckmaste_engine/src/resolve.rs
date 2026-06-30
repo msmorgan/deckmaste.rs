@@ -310,6 +310,27 @@ impl GameState {
                 .chosen
                 .clone()
                 .expect("a chooser binder re-runs with its picks bound"),
+            // SEAM: producer binder ([CR#608.2]). `Produce` must run its
+            // `Action` for effect and bind the moved/created object as `That`,
+            // but the binder-resolution spine is read-only (`&self`, resolving
+            // to existing ids) — there is no produce-and-capture primitive that
+            // executes an `Action` and yields its product object. Wiring this
+            // needs a mutating run-action-and-capture step feeding the `That`
+            // binding; until then this is an explicit labeled seam, not a
+            // fabricated default.
+            Binder::Produce(_) => unimplemented!(
+                "Binder::Produce: no produce-and-capture primitive — running an Action for its \
+                 product and binding the moved/created object as `That` is not yet wired"
+            ),
+            // SEAM: search/tutor binders ([CR#701.23a]). Selecting from hidden
+            // zones (library/graveyard) with the reveal + shuffle (and
+            // fail-to-find) discipline has no runtime primitive; resolving
+            // these via the plain `ChooseObjects` chooser would silently skip
+            // reveal/shuffle, so this stays an explicit labeled seam.
+            Binder::Search { .. } | Binder::SearchOne { .. } => unimplemented!(
+                "Binder::Search/SearchOne: no library-search/tutor primitive — searching hidden \
+                 zones (reveal + shuffle) is not yet wired"
+            ),
             Binder::Expanded(_) => unreachable!("peeled above"),
         }
     }
@@ -322,8 +343,14 @@ impl GameState {
 
         use crate::stack::Cardinality;
         match peel_binder(binder) {
-            Binder::TheRef(_) | Binder::ChooseOne(_) => Cardinality::One,
-            Binder::Choose(..) | Binder::Existing(_) => Cardinality::Many,
+            // `Produce`/`SearchOne` are One-binders (Idris `Bindable b One …`);
+            // `Search` is Many. This cardinality is a pure structural fact from
+            // the Idris constructors, valid independent of the resolution seam.
+            Binder::TheRef(_)
+            | Binder::ChooseOne(_)
+            | Binder::Produce(_)
+            | Binder::SearchOne { .. } => Cardinality::One,
+            Binder::Choose(..) | Binder::Existing(_) | Binder::Search { .. } => Cardinality::Many,
             Binder::Expanded(_) => unreachable!("peeled above"),
         }
     }

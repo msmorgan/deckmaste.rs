@@ -173,6 +173,22 @@ fn binder_phrase(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
         }
         Binder::TheRef(r) => fragment::reference(r, ctx),
         Binder::Existing(sel) => fragment::selection(sel, ctx),
+        // The producer/search binders have no corpus card yet (their engine
+        // resolution is a seam); these arms render the bound object's noun the
+        // body's `That` reads — the found card (`SearchOne`/`Search`) or the
+        // produced object (`Produce`) — so the enum stays exhaustive without
+        // fabricating the search/produce verb text.
+        Binder::SearchOne { filter, .. } => format!("a {}", fragment::filter_noun(filter)),
+        Binder::Search {
+            quantity, filter, ..
+        } => {
+            format!(
+                "{} {}",
+                fragment::quantity(quantity),
+                fragment::filter_object(filter)
+            )
+        }
+        Binder::Produce(_) => "the produced object".to_string(),
         Binder::Expanded(e) => binder_phrase(&e.value, ctx),
     }
 }
