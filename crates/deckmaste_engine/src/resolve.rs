@@ -415,15 +415,33 @@ impl GameState {
                 let matches = self.eval_selection_set(&each.over, frame);
                 match peel(&each.effect) {
                     Effect::Act(action) if !matches!(action, Action::CreateReplacement { .. }) => {
-                        let mut events: Vec<GameEvent> = Vec::new();
-                        for obj in matches {
-                            let mut next = frame.clone();
-                            let mut bindings = next.bindings.clone().unwrap_or_default();
-                            self.bind_element(&mut bindings, obj);
-                            next.bindings = Some(bindings);
-                            // A verb emits only `Emit` work items; flatten their
-                            // events into the one simultaneous batch.
-                            for item in self.action_items(action, &next) {
+                        // Resolve every element's work items up front. Only a
+                        // pure-event body — one whose items are all `Emit` —
+                        // collapses to a single simultaneous batch ([CR#700.1]).
+                        // A choice-bearing body (e.g. `By(player, Discard)`,
+                        // whose `action_items` yield `DiscardCards` /
+                        // `ChooseManaColor` / `OpenDistribute`) must NOT be
+                        // batched: those items pause per element, and keeping
+                        // only the `Emit`s would silently drop them (each player
+                        // would no-op). `action_items` is pure, so this probe is
+                        // free of side effects.
+                        let per_element: Vec<Vec<WorkItem>> = matches
+                            .into_iter()
+                            .map(|obj| {
+                                let mut next = frame.clone();
+                                let mut bindings = next.bindings.clone().unwrap_or_default();
+                                self.bind_element(&mut bindings, obj);
+                                next.bindings = Some(bindings);
+                                self.action_items(action, &next)
+                            })
+                            .collect();
+                        let all_emit = per_element
+                            .iter()
+                            .flatten()
+                            .all(|item| matches!(item, WorkItem::Emit(_)));
+                        if all_emit {
+                            let mut events: Vec<GameEvent> = Vec::new();
+                            for item in per_element.into_iter().flatten() {
                                 if let WorkItem::Emit(occ) = item {
                                     match occ {
                                         crate::event::Occurrence::Single(e) => events.push(e),
@@ -431,9 +449,13 @@ impl GameState {
                                     }
                                 }
                             }
-                        }
-                        if !events.is_empty() {
-                            self.schedule_front(vec![WorkItem::Emit(occurrence_of(events))]);
+                            if !events.is_empty() {
+                                self.schedule_front(vec![WorkItem::Emit(occurrence_of(events))]);
+                            }
+                        } else {
+                            // Not batchable — schedule each element's items in
+                            // order so the choice-bearing ones actually run.
+                            self.schedule_front(per_element.into_iter().flatten().collect());
                         }
                     }
                     _ => {
@@ -1547,18 +1569,16 @@ impl GameState {
                     .copied()
                     .collect()
             }
-            other => vec![self.eval_selection(other, frame)],
+            // Grammar-valid but not yet wired: there is no `noted` object-set on
+            // the frame to select among. An explicit named arm (not a catch-all)
+            // so a future `Selection` variant is a compile error here rather than
+            // a silent runtime panic.
+            Selection::AmongNoted(label, _quantity) => {
+                unimplemented!(
+                    "Selection::AmongNoted({label:?}): noted-object sets are not yet wired"
+                )
+            }
         }
-    }
-
-    /// Resolve a unary `Selection` to an `ObjectId` ([CR#608.2d] / references).
-    ///
-    /// # Panics
-    ///
-    /// Panics on a `Selection` not wired for Stage 3, or an out-of-range
-    /// `Target(n)` index.
-    fn eval_selection(&self, _sel: &Selection, _frame: &Frame) -> ObjectId {
-        todo!("stage 3 does not evaluate selection {_sel:?}")
     }
 
     /// The object(s) a verb's [`Reference`] patient acts on — exactly one.
@@ -3716,6 +3736,62 @@ mod tests {
         let mut want = vec![(a, 2u32), (b, 2u32)];
         want.sort();
         assert_eq!(got, want);
+    }
+
+    #[test]
+    fn each_over_choice_bearing_body_schedules_its_work_items() {
+        // Regression: the `Each` single-`Act` batch path must NOT batch a
+        // choice-bearing body. `By(You, Discard)` yields a `DiscardCards` work
+        // item (not an `Emit`); the old code kept only `Emit`s, so the discards
+        // were silently dropped ("each player discards a card" would no-op). Here
+        // the body must instead be scheduled, one item per element. (Synthetic
+        // "for each creature, you discard a card" shape — chosen to exercise the
+        // non-`Emit` seam without standing up a player-matching `over`.)
+        let (mut state, a) = bear_on_field();
+        let b = *state.zones.hands[0]
+            .iter()
+            .find(|&&o| {
+                obj_matches(
+                    &state,
+                    o,
+                    &Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(
+                        Type::Creature,
+                    )),
+                )
+            })
+            .expect("a second Grizzly Bears in the opening hand");
+        state.zones.hands[PlayerId(0).index()].retain(|&o| o != b);
+        state.objects.obj_mut(b).zone = Some(Zone::Battlefield);
+        state.zones.battlefield.push(b);
+
+        let frame = frame_src(a);
+        let effect = Effect::Each(deckmaste_core::Each {
+            over: Selection::Filter(Filter::AllOf(vec![
+                Filter::State(StateFilter::InZone(Zone::Battlefield)),
+                Filter::creature(),
+            ])),
+            effect: Box::new(Effect::act_by_you(PlayerAction::Discard {
+                count: Count::Literal(1),
+                what: None,
+            })),
+        });
+        state.run_effect(effect, &frame);
+
+        // Each element's choice-bearing item is scheduled — not folded into (and
+        // lost by) a simultaneous `Emit` batch.
+        let discards = state
+            .agenda
+            .iter()
+            .filter(|item| matches!(item, WorkItem::DiscardCards { .. }))
+            .count();
+        assert_eq!(
+            discards, 2,
+            "each element's discard work item is scheduled, not dropped"
+        );
+        assert!(
+            !matches!(state.agenda.front(), Some(WorkItem::Emit(_))),
+            "a choice-bearing Each body must not collapse to a simultaneous Emit batch"
+        );
     }
 
     /// [CR#120.1,701.14a]: `DealDamage`'s explicit `source` is the dealer — the
