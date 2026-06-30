@@ -599,7 +599,7 @@ mod tests {
     #[test]
     fn distribute_round_trips() {
         let v = PlayerAction::Distribute {
-            group: Selection::Those,
+            group: Selection::That,
             bins: vec![Bin::Top, Bin::Bottom],
             name: crate::Ident::new("Scry"),
         };

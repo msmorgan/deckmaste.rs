@@ -78,7 +78,7 @@ pub enum CostComponent {
     /// ([CR#601.2b]) — the cost-level twin of [`Effect::With`](crate::Effect).
     /// The `binder` makes the choice (e.g. `ChooseOne(Creature)`) and binds it
     /// as [`Reference::That`](crate::Reference)/
-    /// [`Selection::Those`](crate::Selection), then `body` (a nested cost)
+    /// [`Selection::That`](crate::Selection), then `body` (a nested cost)
     /// pays using that binding: "sacrifice a creature" = `With(binder:
     /// ChooseOne(Creature), body: [Do(Sacrifice(That))])`. Keeps choosing
     /// OUT of the verb — the cost action receives an already-bound

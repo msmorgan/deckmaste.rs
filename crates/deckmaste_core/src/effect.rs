@@ -67,7 +67,7 @@ pub enum Effect {
     MustPay(MustPay),
     /// "As an additional cost, [pay]; then [body]" ([CR#601.2f,118.8]) —
     /// imposes an additional cost whose paid object the body reads through
-    /// the event references (`EventAgent`/`EventActor`/`EventPatient`):
+    /// the event references (`EventObject`/`EventActor`/`EventPatient`):
     /// "sacrifice a creature: ~ deals damage equal to its power" (Fling,
     /// Momentous Fall). The payment is an event, so
     /// [`AdditionalCost::body`] reads the sacrificed/exiled object with the
@@ -76,10 +76,11 @@ pub enum Effect {
     /// [CR#601.2f]); nested, it is an extra resolution-time cost. Mirrors
     /// the Idris `AdditionalCost (pay : Cost) body`.
     AdditionalCost(AdditionalCost),
-    /// "For each [over], [do]" — iterates the `over`
-    /// [`Selection`](crate::Selection) group, binding each element in turn as
-    /// the iteration anaphor `ThatObject`, then runs the body once per element
-    /// ([CR#608]).
+    /// "For each [element of `binder`], [do]" — iterates the many-binder
+    /// ([`Binder`](crate::Binder), cardinality Many), binding each element in
+    /// turn as the iteration anaphor [`Reference::It`](crate::Reference::It),
+    /// then runs the body once per element ([CR#608]). Mirrors the Idris
+    /// `Each : Bindable b Many k -> …`.
     Each(Each),
     /// `With(binder, body)` — binds what `binder` yields into the frame as the
     /// body's anaphor, then runs `body` once. A one-binder
@@ -88,18 +89,21 @@ pub enum Effect {
     /// read as [`Reference::That`](crate::Reference::That); a many-binder
     /// ([`Binder::Choose`](crate::Binder::Choose) /
     /// [`Binder::Existing`](crate::Binder::Existing)) binds a group read as
-    /// [`Selection::Those`](crate::Selection::Those). Never distributes (that
-    /// is `Each`, which binds `ThatObject` per element); `This` never
-    /// rebinds.
+    /// [`Selection::That`](crate::Selection::That). Never distributes (that
+    /// is `Each`, which exposes [`Reference::It`](crate::Reference::It) per
+    /// element); `This` never rebinds. Mirrors the Idris
+    /// `With : Bindable b card k -> …`.
     With(With),
-    /// Divide an `amount` among a group "as you choose", binding each element
-    /// in turn as the iteration anaphor (`ThatObject`) with its
-    /// [`Count::Allotment`](crate::Count::Allotment) share, then running `body`
-    /// once per element ([CR#601.2d]). The split is resolution-time (≥1 each,
-    /// summing to `amount`). One primitive subsumes divided damage
-    /// (`body: DealDamage(ThatObject, Allotment)`) AND divided counters
-    /// (`body: PutCounters(ThatObject, <kind>, Allotment)`) — the body reads
-    /// the allotment anaphor. Named `DivideAmong` to avoid colliding with
+    /// Divide an `amount` among the elements of a many-binder
+    /// ([`Binder`](crate::Binder)) "as you choose", binding each element in
+    /// turn as the iteration anaphor [`Reference::It`](crate::Reference::It)
+    /// with its [`Count::Allotment`](crate::Count::Allotment) share, then
+    /// running `body` once per element ([CR#601.2d]). The split is
+    /// resolution-time (≥1 each, summing to `amount`). One primitive subsumes
+    /// divided damage (`body: DealDamage(It, Allotment)`) AND divided counters
+    /// (`body: PutCounters(It, <kind>, Allotment)`) — the body reads the
+    /// allotment anaphor. Mirrors the Idris `Distribute : Count b ->
+    /// Bindable b Many k -> …`; named `DivideAmong` to avoid colliding with
     /// the unrelated scry-partition `PlayerAction::Distribute`.
     DivideAmong(DivideAmong),
     /// A delayed triggered ability created on resolution ([CR#603.7]).
@@ -253,9 +257,9 @@ pub struct MustPay {
 /// `AdditionalCost { pay, body }` — "As an additional cost, [pay]; then run
 /// [body]" ([CR#601.2f,118.8]). The payment is an event, so `body` reads the
 /// sacrificed/exiled object through the event references
-/// (`EventAgent`/`EventActor`/`EventPatient`) — the cost-side twin of a
-/// trigger's `that`-bindings ("the sacrificed creature's power" =
-/// `StatOf(EventAgent, Power)`, Fling/Momentous Fall). Unlike
+/// (`EventObject`/`EventActor`/`EventPatient`) — the cost-side twin of a
+/// trigger's event bindings ("the sacrificed creature's power" =
+/// `StatOf(EventObject, Power)`, Fling/Momentous Fall). Unlike
 /// [`MayPay`]/[`MustPay`] there is no `actor`: an additional cost is always
 /// paid by the spell/ability's controller ([CR#601.2b]). `body` is boxed to
 /// break the `Effect` → `AdditionalCost` → `Effect` size cycle (mirrors
@@ -266,33 +270,38 @@ pub struct AdditionalCost {
     pub body: Box<Effect>,
 }
 
-/// `Each { over, do }` — `do` is a keyword, so the field is `effect`.
-/// `over` is the [`Selection`](crate::Selection) group iterated; each element
-/// binds in turn as `ThatObject` for one run of `effect` ([CR#608]).
+/// `Each { binder, do }` — `do` is a keyword, so the field is `effect`.
+/// `binder` is the many-cardinality [`Binder`](crate::Binder) iterated; each
+/// element binds in turn as [`Reference::It`](crate::Reference::It) for one run
+/// of `effect` ([CR#608]). Mirrors the Idris `Each : Bindable b Many k -> …`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct Each {
-    pub over: crate::Selection,
+    pub binder: crate::Binder,
     pub effect: Box<Effect>,
 }
 
 /// `With { binder, body }` — `body`/`do` is a keyword, so the field is `body`.
 /// `binder` is the [`Binder`](crate::Binder) whose one/many cardinality picks
-/// the body's anaphor: a one-binder binds `That`, a many-binder binds `Those`.
+/// the body's anaphor: a one-binder binds
+/// [`Reference::That`](crate::Reference::That), a many-binder binds
+/// [`Selection::That`](crate::Selection::That).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct With {
     pub binder: crate::Binder,
     pub body: Box<Effect>,
 }
 
-/// `DivideAmong { amount, group, body }` — see [`Effect::DivideAmong`].
-/// `amount` is the total to split, `group` the recipients (each bound as
-/// `ThatObject` in turn), and `body` the per-element effect that reads
-/// [`Count::Allotment`](crate::Count::Allotment) for that element's share.
-/// `body` is boxed to break the `Effect` → `DivideAmong` → `Effect` size cycle.
+/// `DivideAmong { amount, binder, body }` — see [`Effect::DivideAmong`].
+/// `amount` is the total to split, `binder` the many-cardinality
+/// [`Binder`](crate::Binder) of recipients (each bound as
+/// [`Reference::It`](crate::Reference::It) in turn), and `body` the per-element
+/// effect that reads [`Count::Allotment`](crate::Count::Allotment) for that
+/// element's share. `body` is boxed to break the `Effect` → `DivideAmong` →
+/// `Effect` size cycle.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct DivideAmong {
     pub amount: crate::Count,
-    pub group: crate::Selection,
+    pub binder: crate::Binder,
     pub body: Box<Effect>,
 }
 
@@ -446,16 +455,17 @@ mod tests {
             "Destroy(This)",
             "Sequence([Draw(Literal(1)),GainLife(Literal(1))])",
             "May(effect:Draw(Literal(1)))",
-            // `Each.over` is a `Selection` group (the set of all creatures),
-            // binding `ThatObject` per element.
-            "Each(over:Filter(Type(Creature)),effect:Draw(Literal(1)))",
+            // `Each.binder` is a many-`Binder` (the set of all creatures wrapped
+            // in `Existing`), binding `It` per element.
+            "Each(binder:Existing(Filter(Type(Creature))),effect:Draw(Literal(1)))",
             // Brainstorm's shape in the new model: choose 2 cards (a many-binder
-            // `With`), then `Each` over `Those`, moving each onto the library.
-            // Core reader has no macros, so the `Quantity` is the bare `Range`
-            // primitive (`Exactly(2)` is the cards-layer macro spelling).
+            // `With`), then `Each` over the bound group (`Existing(That)`), moving
+            // each onto the library via the `It` element. Core reader has no
+            // macros, so the `Quantity` is the bare `Range` primitive
+            // (`Exactly(2)` is the cards-layer macro spelling).
             "With(binder:Choose(Range(Literal(2),Literal(2)),InZone(Hand)),\
-             body:Each(over:Those,\
-             effect:Move(ThatObject,Library(FromTop(Literal(0))))))",
+             body:Each(binder:Existing(That),\
+             effect:Move(It,Library(FromTop(Literal(0))))))",
         ];
         for source in cases {
             let parsed = read(source);
@@ -539,7 +549,7 @@ mod tests {
     /// its power", over the core primitives — no card-layer macros).
     #[test]
     fn additional_cost_reads_and_round_trips() {
-        let src = "AdditionalCost(pay:[Do(Sacrifice(This))],body:DealDamage(Target(0),StatOf(EventAgent,Power)))";
+        let src = "AdditionalCost(pay:[Do(Sacrifice(This))],body:DealDamage(Target(0),StatOf(EventObject,Power)))";
         let parsed = read(src);
         let Effect::AdditionalCost(ac) = &parsed else {
             panic!("expected AdditionalCost, got {parsed:?}");
@@ -553,9 +563,9 @@ mod tests {
             *ac.body,
             Effect::Act(Action::deal_damage(
                 Reference::Target(0),
-                Count::StatOf(Reference::EventAgent, crate::Stat::Power),
+                Count::StatOf(Reference::EventObject, crate::Stat::Power),
             )),
-            "the body reads the paid object via EventAgent",
+            "the body reads the paid object via EventObject",
         );
         assert_eq!(read(&write(&parsed)), parsed, "round-trip");
         assert_eq!(write(&parsed), src, "writes back to the flat form");
@@ -589,7 +599,7 @@ mod tests {
     }
 
     /// `With.binder` carries a [`Binder`](crate::Binder); a many-binder
-    /// `Existing(<selection>)` binds the group as `Those`.
+    /// `Existing(<selection>)` binds the group as `Selection::That`.
     #[test]
     fn with_binds_a_group() {
         let v = read("With(binder:Existing(TopOfLibrary(count:2)),body:Sequence([]))");
@@ -604,30 +614,60 @@ mod tests {
     }
 
     /// `DivideAmong` reads flat through the newtype variant; its body reads the
-    /// `Allotment` anaphor — divided damage (`DealDamage(ThatObject,
-    /// Allotment)`) and divided counters round-trip ([CR#601.2d]).
+    /// `Allotment` anaphor over the per-element `It` — divided damage
+    /// (`DealDamage(It, Allotment)`) and divided counters round-trip
+    /// ([CR#601.2d]). `binder` is a many-`Binder`.
     #[test]
     fn divide_among_reads_and_round_trips() {
         let damage = read(
-            "DivideAmong(amount: 3, group: Filter(Type(Creature)), \
-             body: DealDamage(ThatObject, Allotment))",
+            "DivideAmong(amount: 3, binder: Existing(Filter(Type(Creature))), \
+             body: DealDamage(It, Allotment))",
         );
         let Effect::DivideAmong(d) = &damage else {
             panic!("expected DivideAmong, got {damage:?}");
         };
         assert_eq!(d.amount, Count::Literal(3));
+        assert!(matches!(
+            d.binder,
+            crate::Binder::Existing(Selection::Filter(_))
+        ));
         assert_eq!(
             *d.body,
-            Effect::Act(Action::deal_damage(Reference::ThatObject, Count::Allotment,)),
+            Effect::Act(Action::deal_damage(Reference::It, Count::Allotment,)),
         );
         assert_eq!(read(&write(&damage)), damage, "round-trip");
 
-        // Divided counters: the same primitive, a different body.
+        // Divided counters: the same primitive, a different body, iterating the
+        // With-bound group (`Existing(That)`).
         let counters = read(
-            "DivideAmong(amount: X, group: Those, \
-             body: PutCounters(ThatObject, P1P1Counter, Allotment))",
+            "DivideAmong(amount: X, binder: Existing(That), \
+             body: PutCounters(It, P1P1Counter, Allotment))",
         );
         assert!(matches!(counters, Effect::DivideAmong(_)));
         assert_eq!(read(&write(&counters)), counters, "round-trip");
+    }
+
+    /// `Each` iterates a many-`Binder`, exposing each element as
+    /// [`Reference::It`]; it reads flat and round-trips (the Idris
+    /// `Each : Bindable b Many k -> …`).
+    #[test]
+    fn each_binds_via_binder() {
+        let v = read("Each(binder:Existing(Filter(Type(Creature))),effect:Draw(Literal(1)))");
+        let Effect::Each(e) = &v else {
+            panic!("expected Each, got {v:?}");
+        };
+        assert!(matches!(
+            e.binder,
+            crate::Binder::Existing(Selection::Filter(_))
+        ));
+        assert_eq!(read(&write(&v)), v, "round-trip");
+
+        // Iterating the With-bound group: `Each(Existing(That), …)` reads `It`.
+        let over_group = read("Each(binder:Existing(That),effect:Destroy(It))");
+        assert!(matches!(
+            over_group,
+            Effect::Each(ref e) if matches!(e.binder, crate::Binder::Existing(Selection::That)),
+        ));
+        assert_eq!(read(&write(&over_group)), over_group, "round-trip");
     }
 }

@@ -56,10 +56,14 @@ pub enum Selection {
         #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
         of: Reference,
     },
-    /// The whole ordered group bound by an enclosing `Effect::With` — the
-    /// plural anaphor. Resolves to the frame's `those` binding, order
-    /// preserved. Distinct from singular `That` (a `Reference`).
-    Those,
+    /// The whole ordered group bound by an enclosing many-binder
+    /// ([`Effect::With`](crate::With) / [`Each`](crate::Each) /
+    /// [`DivideAmong`](crate::DivideAmong)) — the Idris `Selection.That`
+    /// (Many). Resolves to the frame's bound group, order preserved; iterated
+    /// with [`Each`](crate::Each) (per-element [`Reference::It`]). The same
+    /// anaphor name as singular [`Reference::That`](crate::Reference::That),
+    /// resolved by slot — a `Selection` position here, a `Reference` there.
+    That,
     /// The set of objects chosen for the nth announced target spec
     /// ([CR#115.3,601.2c]) — the plural-target group fed to
     /// [`DivideAmong`](crate::DivideAmong) / [`Each`](crate::Each)
@@ -67,10 +71,11 @@ pub enum Selection {
     GetTargets(usize),
     /// The extremal element(s) of a set, ranked by a per-element projection
     /// ([CR#107.1]): "the creature with the greatest power" =
-    /// `Pick(op: Greatest, of: Type(Creature), by: StatOf(Subject, Power))`.
+    /// `Pick(op: Greatest, of: Type(Creature), by: StatOf(It, Power))`.
     /// The element-twin of the aggregate fold; the projection `by` reads each
-    /// candidate via `Reference::Subject`, and ties yield the whole group
-    /// (narrowed by the usual single/choice path downstream).
+    /// candidate via [`Reference::It`](crate::Reference::It), and ties yield
+    /// the whole group (narrowed by the usual single/choice path
+    /// downstream).
     Pick {
         op: Extremum,
         of: Filter,
@@ -145,10 +150,13 @@ mod tests {
         assert_eq!(read(&to_string(&v)), v);
     }
 
+    /// `That` — the With/Each/DivideAmong-bound many group — reads bare and
+    /// round-trips (the Idris `Selection.That`, the same anaphor name as
+    /// singular `Reference::That`, resolved by slot).
     #[test]
-    fn those_round_trips() {
-        assert_eq!(read("Those"), Selection::Those);
-        assert_eq!(read(&to_string(&Selection::Those)), Selection::Those);
+    fn that_round_trips() {
+        assert_eq!(read("That"), Selection::That);
+        assert_eq!(read(&to_string(&Selection::That)), Selection::That);
     }
 
     /// `Pick` (extremal element) parses from named RON and round-trips — the
@@ -162,7 +170,7 @@ mod tests {
         };
         assert_eq!(read(&to_string(&v)), v);
         assert!(matches!(
-            read("Pick(op: Least, of: Type(Creature), by: StatOf(Subject, Toughness))"),
+            read("Pick(op: Least, of: Type(Creature), by: StatOf(It, Toughness))"),
             Selection::Pick {
                 op: Extremum::Least,
                 ..

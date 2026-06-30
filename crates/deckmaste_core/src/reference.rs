@@ -23,13 +23,14 @@ mod tests {
         assert_eq!(read(&w), v);
     }
 
-    /// The provenance-explicit event roles read as bare variant names and
-    /// round-trip — the agent/patient/actor split plus the first-class
-    /// defending player ([CR#603.2e,608.2k,506.2]).
+    /// The event roles read as bare variant names and round-trip — the
+    /// object/patient/actor split plus the first-class defending player,
+    /// mirroring the Idris `EventObject`/`EventPatient`/`EventActor`
+    /// ([CR#603.2e,608.2k,506.2]).
     #[test]
     fn event_roles_round_trip() {
         for (source, value) in [
-            ("EventAgent", Reference::EventAgent),
+            ("EventObject", Reference::EventObject),
             ("EventPatient", Reference::EventPatient),
             ("EventActor", Reference::EventActor),
             ("DefendingPlayer", Reference::DefendingPlayer),
@@ -40,18 +41,13 @@ mod tests {
         }
     }
 
-    /// The legacy `ThatObject`/`ThatPlayer` spellings still read (migration
-    /// aliases for the agent/actor roles).
+    /// `It` — the iteration / projection element ("it") — reads bare and
+    /// round-trips (the Idris `Reference.It`).
     #[test]
-    fn legacy_event_aliases_round_trip() {
-        for (source, value) in [
-            ("ThatObject", Reference::ThatObject),
-            ("ThatPlayer", Reference::ThatPlayer),
-        ] {
-            assert_eq!(read(source), value);
-            let written = crate::ron::options().to_string(&value).unwrap();
-            assert_eq!(read(&written), value, "round-trips: {written}");
-        }
+    fn it_round_trips() {
+        assert_eq!(read("It"), Reference::It);
+        let written = crate::ron::options().to_string(&Reference::It).unwrap();
+        assert_eq!(read(&written), Reference::It);
     }
 }
 
@@ -74,33 +70,37 @@ pub enum Reference {
     /// player. Multiplayer "an opponent" that requires a choice is a future
     /// edge — single-opponent assumption for now.
     Opponent,
-    /// The object a per-object filter is currently testing — "it" relative to
-    /// the matched candidate, not the carrier. Bound only inside a
-    /// [`Filter::Where`](crate::Filter::Where) (and re-bound to the related
-    /// object across relation filters, since the matcher recurses with a new
-    /// candidate). Undefined at frameless positions, like the carrier
-    /// references. Lets candidate-relative predicates be spelled —
-    /// `SharesColor(Subject, This)`, "with the same name as ~".
-    Subject,
+    /// The current iteration / projection element — "it". Mirrors the Idris
+    /// `Reference.It` (`itKind`), one anaphor for every per-element role:
+    /// the loop variable of [`Each`](crate::Each) /
+    /// [`DivideAmong`](crate::DivideAmong), the per-subject candidate a
+    /// continuous modifier reads, and the candidate a per-object filter
+    /// ([`Filter::Where`](crate::Filter::Where)) or extremal projection
+    /// ([`Selection::Pick`](crate::Selection::Pick)) is currently testing —
+    /// subsuming the old `Subject` role (candidate-relative predicates spell
+    /// as `SharesColor(It, This)`, "with the same name as ~"). Its kind is the
+    /// binder's; undefined at frameless positions, like the carrier references.
+    It,
     /// The nth target this ability announced ([CR#115.3,601.2c]).
     Target(usize),
-    /// The triggering event's AGENT — the doer/source: the moving object of a
-    /// zone change, the source of damage ([CR#603.2e,608.2k]). The
-    /// provenance-explicit name for the moved/acting object; `ThatObject` is
-    /// kept as a migration alias resolving the same way.
-    EventAgent,
+    /// The triggering event's OBJECT — the doer/source ("that card"): the
+    /// moving object of a zone change, the source of damage
+    /// ([CR#603.2e,608.2k]). Mirrors the Idris `Reference.EventObject`
+    /// (`hasObject`); distinct from the
+    /// [`EventPatient`](Reference::EventPatient) it acts upon and the
+    /// [`EventActor`](Reference::EventActor) player.
+    EventObject,
     /// The triggering event's PATIENT — the acted-upon thing (a damage
     /// recipient, a destroyed/countered object), kind-polymorphic: a player OR
     /// an object, fixed by the event ([CR#120.3,608.2k]). Distinct from the
-    /// agent ([`EventAgent`](Reference::EventAgent)), so a two-object event
+    /// doer ([`EventObject`](Reference::EventObject)), so a two-object event
     /// ("whenever a creature deals damage to another creature") can name source
-    /// and recipient separately — unspellable with the flat
-    /// `ThatObject`/`ThatPlayer` pair. For the combat defender prefer
+    /// and recipient separately. For the combat defender prefer
     /// [`DefendingPlayer`](Reference::DefendingPlayer) (always a player).
     EventPatient,
     /// The triggering event's responsible player ("that player") — the event's
-    /// ACTOR ([CR#603.2e]). The provenance-explicit name for `ThatPlayer`,
-    /// kept as a migration alias resolving the same way.
+    /// ACTOR ([CR#603.2e]). Mirrors the Idris `Reference.EventActor`
+    /// (`hasActor`).
     EventActor,
     /// The defending player of an attack/combat — ALWAYS a player, even versus
     /// a planeswalker or battle ([CR#506.2,508.5]). Reachable today otherwise
@@ -110,21 +110,12 @@ pub enum Reference {
     DefendingPlayer,
     /// The single object bound by an enclosing [`With`](crate::With)
     /// one-binder ([`Binder::ChooseOne`](crate::Binder::ChooseOne) /
-    /// [`Binder::TheRef`](crate::Binder::TheRef)) — the Idris `That` (One).
-    /// Distinct from [`ThatObject`](Reference::ThatObject), which is the
-    /// `Each`/`DivideAmong` per-element binding and the event agent.
-    /// Carries no payload.
+    /// [`Binder::TheRef`](crate::Binder::TheRef)) — the Idris `Reference.That`
+    /// (One). A many-binder's group is read instead as
+    /// [`Selection::That`](crate::Selection::That) (the same anaphor name,
+    /// resolved by slot) and iterated with [`Each`](crate::Each), whose
+    /// per-element variable is [`It`](Reference::It). Carries no payload.
     That,
-    /// The object that participated in the enclosing trigger's event —
-    /// bound by the trigger's event pattern ([CR#603.2e], "that creature").
-    /// Migration alias for [`EventAgent`](Reference::EventAgent); resolves to
-    /// the event's agent.
-    ThatObject,
-    /// The player that participated in the enclosing trigger's event —
-    /// bound by the trigger's event pattern ([CR#603.2e], "that player").
-    /// Migration alias for [`EventActor`](Reference::EventActor); resolves to
-    /// the event's actor.
-    ThatPlayer,
     /// A named role bound by an event pattern or instruction (e.g. the
     /// attacker vs. the blocker).
     Bound(crate::Ident),
