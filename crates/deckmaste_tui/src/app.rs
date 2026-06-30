@@ -1,5 +1,6 @@
 use std::process::ExitCode;
 
+use anyhow::Context as _;
 use anyhow::Result;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
@@ -38,13 +39,20 @@ pub fn run() -> ExitCode {
 }
 
 fn try_run() -> Result<()> {
-    let headless = std::env::args().skip(1).any(|a| a == "--headless");
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let headless = args.iter().any(|a| a == "--headless");
+    // Reproducible on demand: `--seed N` pins the shuffle, otherwise we draw a
+    // fresh entropy seed so each run differs. The chosen value is announced so
+    // a game can be replayed with `--seed`.
+    let seed = parse_seed(&args)?.unwrap_or_else(entropy_seed);
+
     // `GreedyDemo`, not `GreedyCreatures`: headless auto-resolves *every*
     // decision via the strategy (including the demo's targeted burn), so the
     // strategy must answer priority/targeting — `GreedyCreatures` punts those.
-    let mut driver = Driver::new(game::build_game()?, Box::new(GreedyDemo));
+    let mut driver = Driver::new(game::build_game_with_seed(seed)?, Box::new(GreedyDemo));
 
     if headless {
+        eprintln!("shuffle seed: {seed} (pass --seed {seed} to replay)");
         let stop = driver.run_to_end(HEADLESS_BUDGET)?;
         match stop {
             Stop::GameOver(outcome) => println!("game over: {outcome:?}"),
@@ -59,7 +67,42 @@ fn try_run() -> Result<()> {
     let mut terminal = ratatui::init();
     let result = interactive_loop(&mut terminal, &mut driver);
     ratatui::restore();
+    // The alternate screen swallowed any startup print, so announce the seed on
+    // the restored terminal — that's where the player can read it to replay.
+    eprintln!("shuffle seed: {seed} (pass --seed {seed} to replay)");
     result
+}
+
+/// Parse an optional `--seed N` / `--seed=N` shuffle seed from CLI args.
+/// `Ok(None)` means none was given (the caller seeds from entropy); `Err` means
+/// the flag was present but its value was missing or not a `u64`.
+fn parse_seed(args: &[String]) -> Result<Option<u64>> {
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
+        let raw = if let Some(rest) = arg.strip_prefix("--seed=") {
+            rest.to_owned()
+        } else if arg == "--seed" {
+            iter.next().context("--seed requires a value")?.clone()
+        } else {
+            continue;
+        };
+        let seed = raw
+            .parse::<u64>()
+            .with_context(|| format!("invalid --seed value: {raw:?}"))?;
+        return Ok(Some(seed));
+    }
+    Ok(None)
+}
+
+/// A best-effort entropy seed from the wall clock — enough to vary the demo's
+/// shuffle from run to run (`ChaCha8` diffuses it). The value is printed so the
+/// game can be reproduced with `--seed`.
+fn entropy_seed() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .and_then(|d| u64::try_from(d.as_nanos()).ok())
+        .unwrap_or(0)
 }
 
 #[expect(
@@ -336,5 +379,45 @@ fn priority_legal(stop: &Stop) -> Option<&[Action]> {
     match stop {
         Stop::Decision(PendingDecision::Priority { legal, .. }) => Some(legal),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn args(xs: &[&str]) -> Vec<String> {
+        xs.iter().map(|s| (*s).to_string()).collect()
+    }
+
+    #[test]
+    fn no_seed_arg_is_none() {
+        assert_eq!(parse_seed(&args(&[])).unwrap(), None);
+        assert_eq!(parse_seed(&args(&["--headless"])).unwrap(), None);
+    }
+
+    #[test]
+    fn seed_accepts_space_and_equals_forms() {
+        assert_eq!(parse_seed(&args(&["--seed", "42"])).unwrap(), Some(42));
+        assert_eq!(parse_seed(&args(&["--seed=42"])).unwrap(), Some(42));
+    }
+
+    #[test]
+    fn seed_found_among_other_args() {
+        assert_eq!(
+            parse_seed(&args(&["--headless", "--seed", "7"])).unwrap(),
+            Some(7)
+        );
+    }
+
+    #[test]
+    fn malformed_seed_value_is_an_error() {
+        assert!(parse_seed(&args(&["--seed", "nope"])).is_err());
+        assert!(parse_seed(&args(&["--seed=nope"])).is_err());
+    }
+
+    #[test]
+    fn seed_flag_without_a_value_is_an_error() {
+        assert!(parse_seed(&args(&["--seed"])).is_err());
     }
 }
