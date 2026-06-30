@@ -10,13 +10,13 @@
 // satisfy the intervening-if — nothing has greater stats than itself at that
 // instant — so `Not(Ref(This))` is a faithful, cheaper equivalent and matches
 // the Champion-of-Lambholt idiom.) The matched entering creature binds to
-// `ThatObject` ([CR#603.2e], "that creature").
+// `EventObject` ([CR#603.2e], "that creature").
 //
 // The intervening-if ([CR#603.4], "if that creature's power/toughness is
 // greater") is a cross-object stat comparison. `Condition::Compare` takes two
 // full `Count`s (not a value-vs-literal), so two different objects' stats
-// compare directly via `Count::StatOf(Reference, Stat)`: `ThatObject`'s power
-// vs `This`'s power, OR ([CR#702.100a] "and/or" — `OneOf`) `ThatObject`'s
+// compare directly via `Count::StatOf(Reference, Stat)`: `EventObject`'s power
+// vs `This`'s power, OR ([CR#702.100a] "and/or" — `OneOf`) `EventObject`'s
 // toughness vs `This`'s toughness, each with `Cmp::Greater`. ([CR#702.100c]
 // "a creature can't have greater power or toughness than a noncreature
 // permanent" needs no special-casing here: the trigger only admits creature
@@ -31,8 +31,8 @@ KeywordAbility(
     abilities: [Triggered(
         event: Enters(AllOf([Creature, Not(Ref(This)), ControlledBy(Ref(You))])),
         condition: OneOf([
-            Compare(StatOf(ThatObject, Power), Greater, StatOf(This, Power)),
-            Compare(StatOf(ThatObject, Toughness), Greater, StatOf(This, Toughness)),
+            Compare(StatOf(EventObject, Power), Greater, StatOf(This, Power)),
+            Compare(StatOf(EventObject, Toughness), Greater, StatOf(This, Toughness)),
         ]),
         effect: PutCounters(This, P1P1Counter, 1),
     )],

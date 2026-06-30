@@ -459,7 +459,7 @@ fn regenerate_effect(subject_ref: Reference) -> Effect {
     // `That`; the watch and body refer to that captured permanent as
     // `ThatObject` (NOT `This` — `This` stays the source ability).
     let would = Event::ZoneMove {
-        what: Filter::Ref(Reference::ThatObject),
+        what: Filter::Ref(Reference::EventObject),
         from: Some(Zone::Battlefield),
         to: Some(Zone::Graveyard),
         face: None,
@@ -473,12 +473,12 @@ fn regenerate_effect(subject_ref: Reference) -> Effect {
         // [CR#701.19a]: remove all damage from That (the regenerated permanent).
         Effect::Act(Action::By(
             Reference::You,
-            PlayerAction::RemoveDamage(Reference::ThatObject),
+            PlayerAction::RemoveDamage(Reference::EventObject),
         )),
         // [CR#701.19a]: its controller taps it.
         Effect::Act(Action::By(
             Reference::You,
-            PlayerAction::Tap(Reference::ThatObject),
+            PlayerAction::Tap(Reference::EventObject),
         )),
     ]);
     Effect::Act(Action::CreateReplacement {
@@ -511,8 +511,9 @@ fn resolve_and_drive(state: &mut GameState, effect: Effect, source: ObjectId) {
             bindings: None,
             chosen: None,
             x: None,
-            subject: None,
-            those: None,
+            it: None,
+            that: None,
+            allotment: None,
         },
     });
     drive(state);
@@ -1174,7 +1175,7 @@ fn deal_damage(state: &mut GameState, source: ObjectId, target: ObjectId, amount
 fn wither_source_puts_minus_counters_not_marked_damage() {
     let wither = damage_as_counters_static(
         Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(Type::Creature)),
-        Reference::ThatObject,
+        Reference::EventObject,
         "M1M1Counter",
     );
     let (mut state, source, target) = source_and_target(vec![wither]);
@@ -1200,7 +1201,7 @@ fn wither_source_puts_minus_counters_not_marked_damage() {
 fn infect_source_puts_minus_counters_on_a_creature() {
     let infect_creature = damage_as_counters_static(
         Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(Type::Creature)),
-        Reference::ThatObject,
+        Reference::EventObject,
         "M1M1Counter",
     );
     let (mut state, source, target) = source_and_target(vec![infect_creature]);
@@ -1226,7 +1227,7 @@ fn infect_source_puts_minus_counters_on_a_creature() {
 fn infect_source_gives_player_poison_not_life_loss() {
     let infect_player = damage_as_counters_static(
         Filter::Kind(deckmaste_core::ObjectKind::Player),
-        Reference::ThatPlayer,
+        Reference::EventActor,
         "Poison",
     );
     let (mut state, source, _target) = source_and_target(vec![infect_player]);
@@ -1260,7 +1261,7 @@ fn infect_source_gives_player_poison_not_life_loss() {
 fn ten_poison_counters_lose_the_game() {
     let infect_player = damage_as_counters_static(
         Filter::Kind(deckmaste_core::ObjectKind::Player),
-        Reference::ThatPlayer,
+        Reference::EventActor,
         "Poison",
     );
     let (mut state, source, _target) = source_and_target(vec![infect_player]);
@@ -1298,7 +1299,7 @@ fn ten_poison_counters_lose_the_game() {
 fn by_matcher_fires_only_for_damage_from_its_own_source() {
     let wither = damage_as_counters_static(
         Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(Type::Creature)),
-        Reference::ThatObject,
+        Reference::EventObject,
         "M1M1Counter",
     );
     let (mut state, wither_src, target) = source_and_target(vec![wither]);

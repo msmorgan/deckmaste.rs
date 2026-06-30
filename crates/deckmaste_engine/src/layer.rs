@@ -628,7 +628,7 @@ fn resolve_source_relative(
         // Look through a remembered macro invocation.
         Reference::Expanded(e) => resolve_source_relative(state, source, &e.value),
         // Frame-dependent references only: `Target`, bindings (`Bound`,
-        // `Linked`, `ThatObject`, `ThatPlayer`) — and the player-valued
+        // `Linked`, `EventObject`, `EventActor`) — and the player-valued
         // `You`/`ControllerOf`/`OwnerOf` — cannot be resolved without a `Frame`
         // in gather, so they stay an empty locked set (a documented seam; these
         // need `eval_reference`, which `gather` deliberately lacks to avoid the

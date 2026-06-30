@@ -591,8 +591,9 @@ pub(crate) fn arrangement_forbidden_by(
                 bindings: None,
                 chosen: None,
                 x: None,
-                subject: None,
-                those: None,
+                it: None,
+                that: None,
+                allotment: None,
             };
             r.count
                 .as_ref()

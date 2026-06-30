@@ -61,11 +61,11 @@ pub enum EventPatient {
 pub struct TriggerBindings {
     /// The firing object's last-known self (`~`/`This`/source).
     pub this: Option<LkiSnapshot>,
-    /// The event AGENT — the moved object of a `ZoneMove`, the damage source.
-    /// Read by `Reference::EventAgent` (and its `ThatObject` migration alias).
+    /// The event OBJECT — the moved object of a `ZoneMove`, the damage source.
+    /// Read by `Reference::EventObject`.
     pub that_object: Option<LkiSnapshot>,
     /// The event ACTOR — the responsible player ("that player"). Read by
-    /// `Reference::EventActor` (and its `ThatPlayer` migration alias).
+    /// `Reference::EventActor`.
     pub that_player: Option<PlayerId>,
     /// The event PATIENT — the acted-upon thing (damage recipient, …),
     /// kind-poly ([CR#120.3]). Read by `Reference::EventPatient`.
@@ -661,7 +661,7 @@ impl GameState {
         // player ACTOR as `that_player`, and the kind-poly PATIENT (the acted-
         // upon thing, [CR#120.3]) as `that_patient`. Derived per `GameEvent`
         // kind, symmetric with `defending_player` below; read by
-        // `Reference::ThatObject`/`EventAgent`, `ThatPlayer`/`EventActor`, and
+        // `Reference::EventObject`/`EventObject`, `EventActor`/`EventActor`, and
         // `EventPatient`. A `ZoneChanged` keeps using the fact's own carried
         // snapshot; kinds with no clear agent/patient leave every slot `None`
         // (status quo). Card-backed roles carry an LKI snapshot ([CR#603.10a]);
@@ -677,7 +677,7 @@ impl GameState {
             GameEvent::ZoneChanged { snapshot, .. } => (Some(snapshot.clone()), None, None),
             // [CR#603.2e] becomes-state transitions: the transitioning object
             // is the agent ("it") with its controller the actor — Exalted
-            // ([CR#702.83a]) reads the lone attacker via `ThatObject`.
+            // ([CR#702.83a]) reads the lone attacker via `EventObject`.
             GameEvent::Attacking(o)
             | GameEvent::Untapped(o)
             | GameEvent::Tapped { object: o, .. } => {
@@ -686,9 +686,9 @@ impl GameState {
             }
             // [CR#601.2c] becomes-target / [CR#120.3] damage: the source/agent
             // (the targeting spell-or-ability, or the damage source) binds as
-            // `ThatObject`, the recipient (the targeted permanent, or the damage
+            // `EventObject`, the recipient (the targeted permanent, or the damage
             // recipient — object or player) as the kind-poly patient. Ward's
-            // `Counter(ThatObject)` ([CR#702.21a]) counters "it" (the source on
+            // `Counter(EventObject)` ([CR#702.21a]) counters "it" (the source on
             // the stack), not the warded permanent.
             GameEvent::BecameTarget { target, source }
             | GameEvent::DamageDealt { source, target, .. } => {
@@ -792,8 +792,9 @@ impl GameState {
                         bindings: Some(bindings.clone()),
                         chosen: None,
                         x: None,
-                        subject: None,
-                        those: None,
+                        it: None,
+                        that: None,
+                        allotment: None,
                     };
                     if !self.condition_holds(c, &frame) {
                         continue;
@@ -1174,8 +1175,9 @@ mod tests {
             bindings: None,
             chosen: None,
             x: None,
-            subject: None,
-            those: None,
+            it: None,
+            that: None,
+            allotment: None,
         }
     }
 
@@ -1842,8 +1844,9 @@ mod tests {
             }),
             chosen: None,
             x: None,
-            subject: None,
-            those: None,
+            it: None,
+            that: None,
+            allotment: None,
         }
     }
 
@@ -1860,7 +1863,7 @@ mod tests {
                 Filter::State(StateFilter::Attacking),
                 Filter::Not(Box::new(Filter::Ref(Reference::This))),
                 Filter::Where(Box::new(Condition::Compare(
-                    Count::StatOf(Reference::Subject, Stat::Power),
+                    Count::StatOf(Reference::It, Stat::Power),
                     Cmp::Greater,
                     Count::StatOf(Reference::This, Stat::Power),
                 ))),

@@ -464,7 +464,7 @@ fn replacement_would(
 /// Whether a FLOATING shield watches intent `e`. A shield's `subject` was
 /// resolved to a concrete object when the shield was created (its captured
 /// `That`), so matching is by SUBJECT IDENTITY — the `would`'s `what`
-/// (typically `Ref(ThatObject)`, which a frameless gather can't re-resolve) is
+/// (typically `Ref(EventObject)`, which a frameless gather can't re-resolve) is
 /// NOT re-evaluated — paired with the event SHAPE (kind + from/to/face/cause).
 fn floating_watches(replacement: &Replacement, subject: ObjectId, e: &GameEvent) -> bool {
     let Some((abstract_ev, affected)) = intent_event(e) else {
@@ -541,9 +541,9 @@ pub(crate) enum ReplaceOutcome {
 /// lineage set. Returns the modified event to apply, nothing (replaced away),
 /// or a suspension waiting for a `ChooseReplacement` decision.
 ///
-/// The affected object IS threaded into the body frame as `ThatObject` (via
-/// `schedule_body`), so a body reads it with `Ref(ThatObject)` while `This`
-/// stays the source ability.
+/// The affected object IS threaded into the body frame as the event
+/// `EventObject` (via `schedule_body`), so a body reads it with
+/// `Ref(EventObject)` while `This` stays the source ability.
 ///
 /// Seam: general [CR#614.15] self-replacement (resolution-time) is a
 /// `todo!`-tagged future concern; APNAP multi-player 616 ordering is also
@@ -671,11 +671,11 @@ fn apply_one(state: &mut GameState, e: GameEvent, a: &Applicable) -> Option<Game
 /// Schedule an `instead`/`also` body effect as a `RunEffect` work item at
 /// the agenda front. The frame is anchored on `source`, with the replaced
 /// intent's affected recipient bound for the body to read while `This` stays
-/// the source ability. A card-backed recipient binds as `ThatObject` (a body
-/// reads `Ref(ThatObject)` — regeneration heals it, wither/infect put -1/-1
+/// the source ability. A card-backed recipient binds as `EventObject` (a body
+/// reads `Ref(EventObject)` — regeneration heals it, wither/infect put -1/-1
 /// counters on it, [CR#702.80a,702.90c]); a PLAYER recipient (the proxy is
-/// zoneless, so it has no LKI snapshot) binds as `ThatPlayer` instead, read as
-/// `Ref(ThatPlayer)` — infect gives that player poison counters ([CR#702.90b]).
+/// zoneless, so it has no LKI snapshot) binds as `EventActor` instead, read as
+/// `Ref(EventActor)` — infect gives that player poison counters ([CR#702.90b]).
 fn schedule_body(
     state: &mut GameState,
     effect: deckmaste_core::Effect,
@@ -688,10 +688,10 @@ fn schedule_body(
     // `source` (`bindings.this` is `None`, the agent never moving off the
     // ability). A frameless body (`that == None`) leaves bindings unset. The
     // recipient is the provenance-explicit `EventPatient`; it ALSO mirrors into
-    // the legacy `that_object`/`that_player` so `ThatObject`/`ThatPlayer` bodies
-    // keep reading it during migration (a player proxy is zoneless, so it has no
-    // LKI snapshot — it binds as the player patient; a card/token recipient
-    // binds as the object patient).
+    // `that_object`/`that_player` so `EventObject`/`EventActor` bodies keep
+    // reading it (a player proxy is zoneless, so it has no LKI snapshot — it
+    // binds as the player patient; a card/token recipient binds as the object
+    // patient).
     let bindings = that.map(|id| match state.objects.obj(id).source {
         ObjectSource::Player(p) => TriggerBindings {
             that_player: Some(p),
@@ -714,8 +714,9 @@ fn schedule_body(
         bindings,
         chosen: None,
         x: None,
-        subject: None,
-        those: None,
+        it: None,
+        that: None,
+        allotment: None,
     };
     state.schedule_front(vec![crate::agenda::WorkItem::RunEffect {
         effect: Box::new(effect),

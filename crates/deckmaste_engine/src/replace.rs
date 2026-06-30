@@ -133,8 +133,9 @@ impl GameState {
             bindings: None,
             chosen: None,
             x: None,
-            subject: None,
-            those: None,
+            it: None,
+            that: None,
+            allotment: None,
         }
     }
 

@@ -83,13 +83,13 @@ pub fn matches_with(
         Filter::AllOf(fs) => fs.iter().all(|f| matches_with(state, id, f, watcher)),
         Filter::OneOf(fs) => fs.iter().any(|f| matches_with(state, id, f, watcher)),
         Filter::Not(f) => !matches_with(state, id, f, watcher),
-        // The candidate matches iff the condition holds with `Subject` bound to
-        // it. `This`/`You` still anchor to the carrier, so build a match frame
-        // from the watcher (source → live carrier id + controller) and set
-        // `subject` to the candidate. Re-binding across nested relation filters
-        // is automatic: those arms recurse with a new `id`, so a nested `Where`
-        // sees the related object as `Subject`. A frameless caller (no watcher)
-        // or a gone carrier leaves `This` unresolvable — no match.
+        // The candidate matches iff the condition holds with the iteration
+        // anaphor `It` bound to it. `This`/`You` still anchor to the carrier, so
+        // build a match frame from the watcher (source → live carrier id +
+        // controller) and set `it` to the candidate. Re-binding across nested
+        // relation filters is automatic: those arms recurse with a new `id`, so
+        // a nested `Where` sees the related object as `It`. A frameless caller
+        // (no watcher) or a gone carrier leaves `This` unresolvable — no match.
         Filter::Where(cond) => match watcher {
             None => todo!(
                 "Filter::Where at a frameless position — the matcher holds no carrier for This/You"
@@ -110,8 +110,9 @@ pub fn matches_with(
                             bindings: None,
                             chosen: None,
                             x: None,
-                            subject: Some(id),
-                            those: None,
+                            it: Some(state.it_binding(id)),
+                            that: None,
+                            allotment: None,
                         };
                         state.condition_holds(cond, &frame)
                     }
@@ -1263,7 +1264,7 @@ mod tests {
 
     fn where_is_subject_color(c: deckmaste_core::Color) -> Filter {
         Filter::Where(Box::new(deckmaste_core::Condition::Is(
-            deckmaste_core::Reference::Subject,
+            deckmaste_core::Reference::It,
             Filter::Characteristic(deckmaste_core::CharacteristicFilter::ColorIs(c)),
         )))
     }
@@ -1281,7 +1282,7 @@ mod tests {
         use deckmaste_core::Reference;
         let branch = |c| {
             Condition::AllOf(vec![
-                Condition::Is(Reference::Subject, Filter::Characteristic(ColorIs(c))),
+                Condition::Is(Reference::It, Filter::Characteristic(ColorIs(c))),
                 Condition::Is(Reference::This, Filter::Characteristic(ColorIs(c))),
             ])
         };
@@ -1399,7 +1400,7 @@ mod tests {
         Filter::AllOf(vec![
             Filter::State(StateFilter::Attacking),
             Filter::Where(Box::new(Condition::Compare(
-                Count::StatOf(Reference::Subject, Stat::Power),
+                Count::StatOf(Reference::It, Stat::Power),
                 Cmp::Less,
                 Count::StatOf(Reference::This, Stat::Power),
             ))),

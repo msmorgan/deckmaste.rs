@@ -2,15 +2,15 @@
 // control attacks alone, that creature gets +1/+1 until end of turn." The
 // trigger fires when a creature you control becomes an attacker
 // (`StateBecomes(becomes: Attacking)`, the [CR#508.1k]/[CR#603.2e] declare-
-// attackers transition), binding the attacking creature to `ThatObject`.
+// attackers transition), binding the attacking creature to `EventObject`.
 //
 // "attacks alone" [CR#702.83b] = "it's the only creature declared as an
 // attacker in a given combat phase" (see [CR#506.5]). That is the intervening-
 // if ([CR#603.4]): exactly one creature is attacking right now —
 // `Compare(CountOf(Attacking), Eq, 1)`. Since the lone attacker IS that
-// creature, the pump targets `ThatObject`, NOT the carrier: the keyword's
+// creature, the pump targets `EventObject`, NOT the carrier: the keyword's
 // source is some other permanent (a Knight of Glory, an aura). So the pump is
-// a `Continuously(Modify(of: Of(ThatObject), ...))` rather than the self-
+// a `Continuously(Modify(of: Of(EventObject), ...))` rather than the self-
 // pumping `PumpThisUntilEot` tail prowess/bushido reuse — the +1/+1 lands on
 // the attacker, lasting until end of turn ([CR#611.2a]).
 //
@@ -27,7 +27,7 @@ KeywordAbility(
         ),
         condition: Compare(CountOf(Attacking), Eq, 1),
         effect: Continuously(
-            effect: Modify(of: Of(ThatObject), changes: [Power(Up(1)), Toughness(Up(1))]),
+            effect: Modify(of: Of(EventObject), changes: [Power(Up(1)), Toughness(Up(1))]),
             duration: FixedUntil(EndOfTurn),
         ),
     )],

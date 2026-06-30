@@ -7,6 +7,7 @@ use deckmaste_core::CostComponent;
 use deckmaste_core::ManaCost;
 use deckmaste_core::Zone;
 
+use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::player::PlayerId;
@@ -109,8 +110,89 @@ pub struct PendingStackEntry {
     pub concretized: Option<(ManaCost, Vec<CostComponent>)>,
 }
 
-/// The bindings an effect reads during resolution ([CR#608.2]). Grows `x`,
-/// `that_object`, bound roles, etc. in later stages.
+/// Cardinality of a binder/anaphor slot ([CR#608.2]) — mirrors the Idris
+/// `Cardinality`. A one-binder (`TheRef`/`ChooseOne`) binds `One`, read as the
+/// singular [`Reference::That`](deckmaste_core::Reference::That); a many-binder
+/// (`Choose`/`Existing`) binds `Many`, read as the group
+/// [`Selection::That`](deckmaste_core::Selection::That). Keeping the
+/// cardinality on the binding makes the first-of-many read structurally
+/// impossible: a singular read of a `Many` slot is an error, never `.first()`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Cardinality {
+    /// A single bound element.
+    One,
+    /// A bound group of elements.
+    Many,
+}
+
+/// The element kind of a bound slot — object vs. player ([CR#120.3]). Mirrors
+/// the engine-relevant arms of the Idris `RefKind` (`AnObject`/`APlayer`); the
+/// engine needs only the object/player split (a player proxy is zoneless and
+/// carries no LKI snapshot).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RefKind {
+    /// A card/token element.
+    Object,
+    /// A player element (resolves via the player's proxy object).
+    Player,
+}
+
+/// A bound iteration/projection element — the [`Reference::It`] anaphor's value
+/// ([CR#608.2]). Kind-poly ([CR#120.3]): a card/token element carries its LKI
+/// snapshot so reads survive its removal (an `Each(creatures, Destroy(It))`
+/// element read after destruction), while a player element is zoneless and
+/// carries only its id.
+///
+/// [`Reference::It`]: deckmaste_core::Reference::It
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ItBinding {
+    /// A card/token element: its LKI snapshot (id + last-known counters/state).
+    Object(LkiSnapshot),
+    /// A player element: resolves via the player's proxy object.
+    Player(PlayerId),
+}
+
+impl ItBinding {
+    /// This element's [`RefKind`].
+    #[must_use]
+    pub fn kind(&self) -> RefKind {
+        match self {
+            ItBinding::Object(_) => RefKind::Object,
+            ItBinding::Player(_) => RefKind::Player,
+        }
+    }
+}
+
+/// The group bound by an enclosing [`Effect::With`](deckmaste_core::With) /
+/// [`Each`](deckmaste_core::Each) /
+/// [`DivideAmong`](deckmaste_core::DivideAmong) many-binder — the
+/// [`Reference::That`]/[`Selection::That`] anaphor's value, carrying per-slot
+/// **kind + cardinality** (the Idris `thatKind : Maybe (Cardinality,
+/// RefKind)`). The `group` holds the bound ids, order-preserved (top→down for a
+/// library window); a one-binder stores its single element as the sole member.
+/// Reads resolve by slot: [`Reference::That`] requires a `(One, k)` binding
+/// (returns the single id), [`Selection::That`] requires a `(Many, k)` binding
+/// (returns the group) — a singular read of a `Many` binding is an error,
+/// making the dropped-cardinality first-of-many bug unrepresentable.
+///
+/// [`Reference::That`]: deckmaste_core::Reference::That
+/// [`Selection::That`]: deckmaste_core::Selection::That
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ThatBinding {
+    /// One (a one-binder) vs. Many (a many-binder group).
+    pub cardinality: Cardinality,
+    /// The bound elements' kind ([CR#120.3]).
+    pub kind: RefKind,
+    /// The bound ids, order-preserved; a one-binder is a singleton.
+    pub group: Vec<ObjectId>,
+}
+
+/// The bindings an effect reads during resolution ([CR#608.2]) — the binding
+/// environment, mirroring the Idris `Bindings` typestate. Carries the
+/// announce/event state (`targets`, `bindings`, `chosen`, `x`) plus the
+/// per-slot anaphor bindings threaded by `With`/`Each`/`DivideAmong`: the `It`
+/// iteration/projection element, the `That` one/many group (kind +
+/// cardinality), and the `DivideAmong` per-element allotment share.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Frame {
     pub source: ObjectId,
@@ -128,18 +210,23 @@ pub struct Frame {
     /// [CR#107.3a]: the announced X for the resolving object — read by
     /// `Count::X`. `None` for triggers and non-X spells.
     pub x: Option<deckmaste_core::Uint>,
-    /// The candidate a per-object filter is currently matching — bound only by
-    /// `Filter::Where` when it hands a condition to `condition_holds`, read by
-    /// `Reference::Subject`. `None` on every other frame (resolution, triggers,
-    /// activation): `Subject` is meaningful only inside filter matching.
-    pub subject: Option<ObjectId>,
-    /// The ordered group bound by an enclosing `Effect::With`/cost `With`,
-    /// order-preserved (top→down for a library window). A many-binder
-    /// (`Choose`/`Existing`) group is read by `Selection::Those`; a one-binder
-    /// (`TheRef`/`ChooseOne`) stores its single object as the sole element
-    /// here, read by `Reference::That`. (A dedicated `that:
-    /// Option<ObjectId>` field would make the one-vs-many split type-level
-    /// and the first-of-many read unrepresentable — see the
-    /// `core-many-binder-group-move` ticket.)
-    pub those: Option<Vec<ObjectId>>,
+    /// The current iteration / projection element — the `It` anaphor
+    /// ([CR#608.2]). Bound per element by an enclosing `Each`/`DivideAmong`
+    /// loop, and by `Filter::Where` / `Selection::Pick` while they test a
+    /// candidate (the role the old `Subject` named). `None` at every frameless
+    /// position. Mirrors the Idris `itKind` + its `It` value.
+    pub it: Option<ItBinding>,
+    /// The group bound by an enclosing `Effect::With`/cost `With` many-binder,
+    /// carrying cardinality + kind so the singular `Reference::That` and the
+    /// group `Selection::That` resolve by slot (the Idris `thatKind`). `None`
+    /// outside a `With`. Replaces the old untyped `those` whose dropped
+    /// cardinality caused the first-of-many bug.
+    pub that: Option<ThatBinding>,
+    /// The per-element share in scope inside a `DivideAmong` body — read by
+    /// `Count::Allotment` ([CR#601.2d]). Set per element when `DivideAmong`
+    /// binds its loop element (the Idris `bindAllot`), and CLEARED whenever an
+    /// inner `Each`/`DivideAmong` rebinds `It` (the Idris allotment-clearing
+    /// `bindIt`), so an outer share can never leak into a nested loop. `None`
+    /// outside a `DivideAmong` body.
+    pub allotment: Option<deckmaste_core::Uint>,
 }
