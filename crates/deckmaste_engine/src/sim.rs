@@ -190,7 +190,7 @@ impl Strategy for GreedyRemoval {
 /// chooses targets for the burn / sac-outlet pings ("any target"), and divides
 /// a multi-blocked attacker's combat damage. It plays only legally, not well.
 ///
-/// The targeting arm runs in the deterministic demo (seed `0xD00D`); the
+/// The targeting arm runs in the deterministic demo (its fixed seed); the
 /// damage-division arm is a defensive capability — no multi-block arises in
 /// that line because neither seat blocks — covered directly by
 /// `greedy_demo_divides_a_multi_blocked_attacker` in the combat suite.
