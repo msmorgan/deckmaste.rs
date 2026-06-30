@@ -5,8 +5,8 @@
 // for damage from the very object carrying wither, and only when the recipient
 // is a creature (`on: Type(Creature)`); damage to anything else is unaffected.
 //
-// The body replaces the `DealDamage` event with `PutCounters(ThatObject,
-// M1M1Counter, ThatMuch)`: `ThatObject` is the damaged creature (the
+// The body replaces the `DealDamage` event with `PutCounters(EventObject,
+// M1M1Counter, ThatMuch)`: `EventObject` is the damaged creature (the
 // replacement binds the affected recipient as `That`), and `ThatMuch`
 // ([CR#107.3], "that many") is the damage amount the replaced event carried.
 // `This` stays the wither source. Multiple wither instances are redundant
@@ -18,7 +18,7 @@ KeywordAbility(
     abilities: [Static(effects: [
         Replacement(Instead(
             would: Performed(verb: "DealDamage", by: Ref(This), on: Type(Creature)),
-            instead: PutCounters(ThatObject, M1M1Counter, ThatMuch),
+            instead: PutCounters(EventObject, M1M1Counter, ThatMuch),
         )),
     ])],
 )

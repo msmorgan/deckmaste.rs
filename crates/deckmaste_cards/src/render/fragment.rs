@@ -89,7 +89,7 @@ pub(super) fn selection(sel: &Selection, ctx: &Ctx) -> String {
         Selection::Filter(f) => format!("each {}", filter_noun(f)),
         // The plural anaphor bound by an enclosing `With` ([CR#608.2d]): reads
         // the bound group's noun phrase, falling back to the bare "them".
-        Selection::Those => ctx.that.unwrap_or("them").to_string(),
+        Selection::That => ctx.that.unwrap_or("them").to_string(),
         // The announced-target set of the nth spec ([CR#115.3,601.2c]).
         Selection::GetTargets(_) => "them".to_string(),
         // [CR#107.1] the extremal element: "the creature with the greatest
@@ -127,9 +127,9 @@ pub(super) fn reference(r: &Reference, ctx: &Ctx) -> String {
         // The triggering event's roles ([CR#603.2e,608.2k]). Agent/patient
         // render as the generic anaphor "it" (no type info at this layer);
         // `ThatObject` is the agent's migration alias.
-        Reference::EventAgent | Reference::EventPatient | Reference::ThatObject => "it".to_string(),
-        // The responsible player ("that player"); `ThatPlayer` is its alias.
-        Reference::EventActor | Reference::ThatPlayer => "that player".to_string(),
+        Reference::EventObject | Reference::EventPatient | Reference::It => "it".to_string(),
+        // The responsible player ("that player").
+        Reference::EventActor => "that player".to_string(),
         // The combat defender ([CR#506.2]) — always a player.
         Reference::DefendingPlayer => "the defending player".to_string(),
         // A player derived from an object: the possessive pronoun stands for
@@ -362,7 +362,7 @@ pub(super) fn selection_object(sel: &Selection, ctx: &Ctx) -> String {
     match sel {
         // The plural anaphor / announced-target group as the moved object: reads
         // the bound phrase when present, else the bare "them".
-        Selection::Those | Selection::GetTargets(_) => ctx.that.unwrap_or("them").to_string(),
+        Selection::That | Selection::GetTargets(_) => ctx.that.unwrap_or("them").to_string(),
         other => selection(other, ctx),
     }
 }

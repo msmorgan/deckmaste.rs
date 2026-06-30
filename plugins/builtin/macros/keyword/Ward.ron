@@ -18,7 +18,7 @@
                 by: AllOf([InZone(Stack), ControlledBy(OpponentOf(Ref(You)))]),
             ),
             effect: Unless(
-                effect: Counter(ThatObject),
+                effect: Counter(EventObject),
                 unless: Param(0),
             ),
         )],

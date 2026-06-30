@@ -135,13 +135,13 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
         // [CR#608]: iterate a group, the body reading each element as
         // `ThatObject` ("it") — "For each creature, destroy it."
         Effect::Each(fe) => {
-            let group = group_noun(&fe.over, ctx);
+            let group = binder_phrase(&fe.binder, ctx);
             // A damage body whose patient is the per-element anaphor reads as the
             // natural "to each <group>" form — "Deal 2 damage to each creature."
             // (Pyroclasm), "Deal 4 damage to each player." (Flame Rift) — not the
             // distributive "For each creature, deal 2 damage to it." ([CR#608]).
             if let Effect::Act(Action::DealDamage(target, amount, source)) = &*fe.effect
-                && matches!(target, Reference::ThatObject | Reference::EventAgent)
+                && matches!(target, Reference::It)
             {
                 let recipients = format!("each {group}");
                 return match source {
@@ -182,9 +182,12 @@ fn binder_phrase(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
     }
 }
 
-/// The bare group noun for a `Each.over` iterator — "creature" (no "each"
+/// The bare group noun for a `Each` iterator — "creature" (no "each"
 /// prefix; the surrounding "For each …" supplies it), else the selection
-/// phrase.
+/// phrase. Retained for the `ron-emitter-bindable` follow-up (binder-aware
+/// rendering); the engine-anaphor-threading compile-fix routes through
+/// `binder_phrase` in the meantime.
+#[allow(dead_code)]
 fn group_noun(sel: &deckmaste_core::Selection, ctx: &Ctx) -> String {
     use deckmaste_core::Selection;
     match sel {
@@ -270,7 +273,7 @@ fn action(a: &Action, ctx: &Ctx) -> String {
 /// `group` is rendered as the set it divides among.
 fn divide_among(d: &deckmaste_core::DivideAmong, ctx: &Ctx) -> String {
     let amount = fragment::count(&d.amount);
-    let group = fragment::selection(&d.group, ctx);
+    let group = binder_phrase(&d.binder, ctx);
     match &*d.body {
         Effect::Act(Action::DealDamage(..)) => {
             format!("Deal {amount} damage divided as you choose among {group}.")

@@ -19,7 +19,7 @@
 //     enters" is the `Enters` ETB event ([CR#603.6]) filtered to OTHER
 //     creatures, `AllOf([Creature, Not(Ref(This))])` (no "you control"
 //     restriction — graft watches every other creature's entry, unlike
-//     Evolve). The matched entering creature binds to `ThatObject` — the
+//     Evolve). The matched entering creature binds to `EventObject` — the
 //     zone-change trigger's "that object" ([CR#603.6], "do something to that
 //     object after it changes zones"). The intervening-if ([CR#603.4], "if this
 //     permanent has a +1/+1 counter on it") gates the trigger on This actually
@@ -28,8 +28,8 @@
 //     there's no counter to move ([CR#702.58a] "move a +1/+1 counter from this
 //     permanent" presupposes one exists). The reward is a `May` ([CR#603.4]
 //     optional "you may") over the MOVE: removing one +1/+1 counter from This
-//     and putting one on ThatObject is, mechanically, a `RemoveCounters(This,
-//     P1P1Counter, 1)` then `PutCounters(ThatObject, P1P1Counter, 1)`, an
+//     and putting one on EventObject is, mechanically, a `RemoveCounters(This,
+//     P1P1Counter, 1)` then `PutCounters(EventObject, P1P1Counter, 1)`, an
 //     ordered `Sequence` ([CR#608.2c]) of the two halves of the migration
 //     ([CR#122.1], counters move between objects this way).
 (
@@ -54,7 +54,7 @@
                 condition: Compare(CounterCount(This, P1P1Counter), Greater, Literal(0)),
                 effect: May(effect: Sequence([
                     RemoveCounters(This, P1P1Counter, 1),
-                    PutCounters(ThatObject, P1P1Counter, 1),
+                    PutCounters(EventObject, P1P1Counter, 1),
                 ])),
             ),
         ],

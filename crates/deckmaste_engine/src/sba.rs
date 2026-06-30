@@ -143,8 +143,9 @@ fn attachment_sbas(state: &GameState, view: &crate::layer::LayeredView) -> Vec<G
             bindings: None,
             chosen: None,
             x: None,
-            subject: None,
-            those: None,
+            it: None,
+            that: None,
+            allotment: None,
         };
         let mut rows: Vec<(deckmaste_core::Condition, deckmaste_core::Effect)> = Vec::new();
         crate::legal::for_each_static(view, id, |e| {
@@ -205,8 +206,9 @@ fn counter_state_based_sbas(state: &GameState) -> Vec<GameEvent> {
             bindings: None,
             chosen: None,
             x: None,
-            subject: None,
-            those: None,
+            it: None,
+            that: None,
+            allotment: None,
         };
         for kind in obj.counters.keys() {
             let Some(decl) = state.counter_decls.get(kind) else {
@@ -242,8 +244,9 @@ fn global_sba_rules(state: &GameState) -> Vec<GameEvent> {
             bindings: None,
             chosen: None,
             x: None,
-            subject: None,
-            those: None,
+            it: None,
+            that: None,
+            allotment: None,
         };
         for rule in &state.sba_rules {
             // `scope` binds `This`: only objects in the rule's domain reach
@@ -776,8 +779,9 @@ mod tests {
             bindings: None,
             chosen: None,
             x: None,
-            subject: None,
-            those: None,
+            it: None,
+            that: None,
+            allotment: None,
         };
         let token = Token {
             color_indicator: vec![],
@@ -1621,8 +1625,9 @@ mod tests {
             bindings: None,
             chosen: None,
             x: None,
-            subject: None,
-            those: None,
+            it: None,
+            that: None,
+            allotment: None,
         }
     }
 

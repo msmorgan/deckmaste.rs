@@ -11,9 +11,9 @@ Normal(
     Spell(
       // "deals 2 damage to each creature" — the verb takes a single
       // `Reference` now, so plurality is the `Each` iterator binding each
-      // creature as `ThatObject`; `Each` emits a simultaneous batch
+      // creature as `It`; `Each` emits a simultaneous batch
       // ([CR#608,700.1]).
-      effect: Each(over: Filter(Creature), effect: DealDamage(ThatObject, 2)),
+      effect: Each(binder: Existing(Filter(Creature)), effect: DealDamage(It, 2)),
     ),
   ],
 )

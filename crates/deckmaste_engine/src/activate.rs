@@ -237,8 +237,9 @@ impl GameState {
             bindings: None,
             chosen: None,
             x: None,
-            subject: None,
-            those: None,
+            it: None,
+            that: None,
+            allotment: None,
         };
         let mut symbols: Vec<ManaSymbol> = summary.mana.iter().copied().collect();
         for reference in &summary.mana_cost_of {
@@ -321,8 +322,9 @@ impl GameState {
                 bindings: None,
                 chosen: None,
                 x: None,
-                subject: None,
-                those: None,
+                it: None,
+                that: None,
+                allotment: None,
             };
             if !self.condition_holds(c, &frame) {
                 return false;
@@ -429,8 +431,9 @@ impl GameState {
                     bindings: None,
                     chosen: None,
                     x: None,
-                    subject: None,
-                    those: None,
+                    it: None,
+                    that: None,
+                    allotment: None,
                 };
                 let (lo, _hi) = quantity.bounds();
                 let need = lo.map_or(0, |c| self.eval_count(c, &frame));
@@ -465,8 +468,9 @@ impl GameState {
             bindings: None,
             chosen: None,
             x: None,
-            subject: None,
-            those: None,
+            it: None,
+            that: None,
+            allotment: None,
         };
         let need = self.eval_count(&req.count, &frame);
         let watcher = self.objects.obj(source).source;
@@ -537,8 +541,9 @@ impl GameState {
             chosen: None,
             // A cost-payability gate reads no announced X.
             x: None,
-            subject: None,
-            those: None,
+            it: None,
+            that: None,
+            allotment: None,
         };
         // TODO(engine-cost-payment / deontics): [CR#119.8] "can't pay life" is
         // NOT YET ENFORCED. Under a continuous effect saying a player can't lose

@@ -11,8 +11,8 @@
 // the `on` filter (`Type(Creature)` vs `Kind(Player)`) — the cleanest
 // representable form: each branch is an independent replacement the registry
 // gathers and the body's recipient binding differs (a creature recipient binds
-// as `ThatObject`; a player recipient — the proxy is zoneless, no LKI snapshot
-// — binds as `ThatPlayer`). `ThatMuch` ([CR#107.3], "that many") is the damage
+// as `EventObject`; a player recipient — the proxy is zoneless, no LKI snapshot
+// — binds as `EventActor`). `ThatMuch` ([CR#107.3], "that many") is the damage
 // amount the replaced event carried; `This` stays the infect source. Multiple
 // infect instances are redundant ([CR#702.90f]) — the lineage set ([CR#614.5])
 // stops a second copy from applying twice to one event.
@@ -23,12 +23,12 @@ KeywordAbility(
         // [CR#702.90c]: damage to a creature → -1/-1 counters.
         Replacement(Instead(
             would: Performed(verb: "DealDamage", by: Ref(This), on: Type(Creature)),
-            instead: PutCounters(ThatObject, M1M1Counter, ThatMuch),
+            instead: PutCounters(EventObject, M1M1Counter, ThatMuch),
         )),
         // [CR#702.90b]: damage to a player → poison counters.
         Replacement(Instead(
             would: Performed(verb: "DealDamage", by: Ref(This), on: Kind(Player)),
-            instead: PutCounters(ThatPlayer, Poison, ThatMuch),
+            instead: PutCounters(EventActor, Poison, ThatMuch),
         )),
     ])],
 )

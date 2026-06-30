@@ -33,7 +33,7 @@ impl GameState {
             // inside it to the ability's source.
             //
             // When the reference is an object that has LEFT (a dies-trigger's
-            // `This`/`ThatObject` — the live id is stale once it is in the
+            // `This`/`EventObject` — the live id is stale once it is in the
             // graveyard), evaluate against its last-known information
             // ([CR#603.10a]) via `filter_matches_snapshot`: Undying/Persist's
             // intervening-if "if it had no +1/+1 (resp. -1/-1) counters on it"
@@ -138,20 +138,28 @@ impl GameState {
 
     /// The last-known-information snapshot a trigger bound for `reference`, if
     /// any ([CR#603.10a]) — the fallback a `Condition::Is` over a gone object
-    /// reads. Only the snapshot-bearing trigger roles resolve: `This` → the
-    /// firing object's self, `ThatObject` → the moved object. Looks through an
-    /// `Expanded` macro reference, mirroring `eval_reference`.
+    /// reads. Only the snapshot-bearing references resolve: `This` → the firing
+    /// object's self, `EventObject` → the moved object, `It` → the
+    /// iteration/projection element. Looks through an `Expanded` macro
+    /// reference, mirroring `eval_reference`.
     fn bound_snapshot<'f>(
         reference: &deckmaste_core::Reference,
         frame: &'f Frame,
     ) -> Option<&'f crate::lki::LkiSnapshot> {
         use deckmaste_core::Reference;
+        // The iteration/projection element ([CR#608.2]): a card element carries
+        // a snapshot; a player element is zoneless and has none.
+        if let Reference::It = reference {
+            return match frame.it.as_ref()? {
+                crate::stack::ItBinding::Object(s) => Some(s),
+                crate::stack::ItBinding::Player(_) => None,
+            };
+        }
         let bindings = frame.bindings.as_ref()?;
         match reference {
             Reference::This => bindings.this.as_ref(),
-            // The event AGENT (and its `ThatObject` alias) — the moved object's
-            // snapshot ([CR#603.2e]).
-            Reference::ThatObject | Reference::EventAgent => bindings.that_object.as_ref(),
+            // The event OBJECT — the moved object's snapshot ([CR#603.2e]).
+            Reference::EventObject => bindings.that_object.as_ref(),
             // An OBJECT patient carries a snapshot; a player patient has none.
             Reference::EventPatient => match bindings.that_patient.as_ref()? {
                 crate::trigger::EventPatient::Object(s) => Some(s),
@@ -365,8 +373,9 @@ mod tests {
             }),
             chosen: None,
             x: None,
-            subject: None,
-            those: None,
+            it: None,
+            that: None,
+            allotment: None,
         };
 
         let creature = Filter::creature();
@@ -563,8 +572,9 @@ mod tests {
                 }),
                 chosen: None,
                 x: None,
-                subject: None,
-                those: None,
+                it: None,
+                that: None,
+                allotment: None,
             };
             let cond = Condition::Is(
                 Reference::This,
@@ -782,12 +792,12 @@ mod tests {
     /// "that creature's power is greater than this creature's power AND/OR that
     /// creature's toughness is greater than this creature's toughness". Because
     /// `Condition::Compare` takes two full `Count`s (not a value-vs-literal),
-    /// `Compare(StatOf(ThatObject, _), Greater, StatOf(This, _))` compares two
+    /// `Compare(StatOf(EventObject, _), Greater, StatOf(This, _))` compares two
     /// DIFFERENT objects' derived stats directly — `This` = the Evolve carrier
-    /// (Grizzly Bears, 2/2), `ThatObject` = the entering creature, bound by the
-    /// trigger ([CR#603.10a]). The "and/or" is `OneOf`. No core addition is
-    /// needed; this test pins that the gap is already representable AND
-    /// engine-executable.
+    /// (Grizzly Bears, 2/2), `EventObject` = the entering creature, bound by
+    /// the trigger ([CR#603.10a]). The "and/or" is `OneOf`. No core
+    /// addition is needed; this test pins that the gap is already
+    /// representable AND engine-executable.
     #[test]
     fn evolve_cross_object_stat_compare() {
         use deckmaste_core::Stat;
@@ -826,22 +836,22 @@ mod tests {
         state.zones.battlefield.push(carrier);
 
         // The Evolve intervening-if, parameterized over the entering creature
-        // already bound as `ThatObject`.
+        // already bound as the event `EventObject`.
         let evolve_if = Condition::OneOf(vec![
             Condition::Compare(
-                Count::StatOf(Reference::ThatObject, Stat::Power),
+                Count::StatOf(Reference::EventObject, Stat::Power),
                 Cmp::Greater,
                 Count::StatOf(Reference::This, Stat::Power),
             ),
             Condition::Compare(
-                Count::StatOf(Reference::ThatObject, Stat::Toughness),
+                Count::StatOf(Reference::EventObject, Stat::Toughness),
                 Cmp::Greater,
                 Count::StatOf(Reference::This, Stat::Toughness),
             ),
         ]);
 
         // Build a trigger-style frame whose `This` is the carrier and whose
-        // `ThatObject` is the just-entered creature `entrant`.
+        // `EventObject` is the just-entered creature `entrant`.
         let frame_for_entrant = |state: &GameState, entrant| Frame {
             source: carrier,
             controller: PlayerId(0),
@@ -853,8 +863,9 @@ mod tests {
             }),
             chosen: None,
             x: None,
-            subject: None,
-            those: None,
+            it: None,
+            that: None,
+            allotment: None,
         };
 
         let enter = |state: &mut GameState, card: &Arc<deckmaste_core::Card>| {

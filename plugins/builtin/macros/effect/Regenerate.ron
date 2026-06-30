@@ -9,7 +9,7 @@
 // The param is a `Reference` (the permanent to regenerate — `This` or a bound
 // `Target`). It appears in exactly ONE slot: `subject`, which the shield
 // resolves to a concrete object and remembers as its `That`. The watch and the
-// heal/tap body refer to that captured permanent as `ThatObject` — so `This`
+// heal/tap body refer to that captured permanent as `EventObject` — so `This`
 // is free to keep meaning the source ability (it never moves), and the shield
 // works for "regenerate target creature" (source ≠ subject), not just self.
 //
@@ -25,14 +25,14 @@
     body: CreateReplacement(
         replacement: Instead(
             would: ZoneMove(
-                what: Ref(ThatObject),
+                what: Ref(EventObject),
                 from: Battlefield,
                 to: Graveyard,
                 cause: Cause(verb: "Destroy"),
             ),
             instead: Sequence([
-                RemoveDamage(ThatObject),
-                Tap(ThatObject),
+                RemoveDamage(EventObject),
+                Tap(EventObject),
             ]),
         ),
         subject: Param(0),

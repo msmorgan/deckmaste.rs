@@ -17,8 +17,9 @@ pub(crate) fn frame_for(state: &GameState, player: PlayerId) -> Frame {
         bindings: None,
         chosen: None,
         x: None,
-        subject: None,
-        those: None,
+        it: None,
+        that: None,
+        allotment: None,
     }
 }
 
@@ -42,7 +43,8 @@ pub(crate) fn frame_src_targets(
         bindings: None,
         chosen: None,
         x: None,
-        subject: None,
-        those: None,
+        it: None,
+        that: None,
+        allotment: None,
     }
 }
