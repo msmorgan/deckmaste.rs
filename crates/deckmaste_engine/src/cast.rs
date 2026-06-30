@@ -962,6 +962,30 @@ impl GameState {
                 // concretization's Phyrexian-life verbs.
                 items.extend(verb_payment_items(&summary.verbs, source, controller));
                 items.extend(verb_payment_items(&extra_verbs, source, controller));
+                // [CR#601.2b,601.2h]: pay each cost-side `With` choose-then-pay
+                // step. Rendered as an `Effect::With` (choosing kept OUT of the
+                // verb) and run over a fresh frame whose controller is the
+                // activator — so the binder surfaces a `ChooseObjects` decision,
+                // binds `That`/`Those`, then the body's verb pays against it,
+                // exactly like the effect-side `With`. One `RunEffect` per step,
+                // in the same payment window as the verb costs.
+                for with in &summary.withs {
+                    let effect =
+                        crate::decide::unless_cost_effect(with, &deckmaste_core::Reference::You);
+                    items.push(WorkItem::RunEffect {
+                        effect: Box::new(effect),
+                        frame: Frame {
+                            source,
+                            controller,
+                            targets: vec![],
+                            bindings: None,
+                            chosen: None,
+                            x: None,
+                            subject: None,
+                            those: None,
+                        },
+                    });
+                }
                 // [CR#601.2h,702.122a]: pay each aggregate-stat (tap-total) cost
                 // by tapping a qualifying subset (Crew taps creatures with the
                 // required total power). One `Tapped` event per chosen

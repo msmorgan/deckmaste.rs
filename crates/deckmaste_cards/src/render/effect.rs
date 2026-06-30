@@ -14,6 +14,7 @@ use deckmaste_core::StatValue;
 use deckmaste_core::Token;
 use deckmaste_core::TokenSpec;
 use deckmaste_core::TurnMarker;
+use deckmaste_core::Zone;
 
 use super::Ctx;
 use super::fragment;
@@ -72,6 +73,7 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
             &Ctx {
                 subject: ctx.subject,
                 targets: &t.targets,
+                that: ctx.that,
             },
         ),
         // [CR#118.12a]: "[or_else] unless [actor] pays [cost]" — the resolution-
@@ -122,7 +124,53 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
         // ("deal … damage" vs "distribute … counters"), the amount is divided
         // "as you choose" among the group.
         Effect::DivideAmong(d) => divide_among(d, ctx),
+        // [CR#601.2b]: a choose-then-act binder. The binder's noun phrase
+        // ("a creature", "two cards") is bound as the body's `That`/`Those`
+        // anaphor, so `With(ChooseOne(Creature), Sacrifice(That))` renders
+        // "Sacrifice a creature."
+        Effect::With(w) => {
+            let phrase = binder_phrase(&w.binder, ctx);
+            effect(&w.body, &ctx.with_that(&phrase))
+        }
+        // [CR#608]: iterate a group, the body reading each element as
+        // `ThatObject` ("it") — "For each creature, destroy it."
+        Effect::Each(fe) => {
+            let group = group_noun(&fe.over, ctx);
+            format!(
+                "For each {group}, {}.",
+                super::ability::lower_first(&trim_period(&effect(&fe.effect, ctx)))
+            )
+        }
         other => format!("[unrendered: {other:?}]."),
+    }
+}
+
+/// The noun phrase a [`Binder`](deckmaste_core::Binder) contributes to its
+/// `Effect::With` / `CostComponent::With` body — read by the body's `That` /
+/// `Those` anaphor ([CR#601.2b]). A one-binder yields "a creature"; a
+/// many-binder yields "two cards"; the reference/existing forms defer to the
+/// shared fragment renderers.
+fn binder_phrase(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
+    use deckmaste_core::Binder;
+    match binder {
+        Binder::ChooseOne(f) => format!("a {}", fragment::filter_noun(f)),
+        Binder::Choose(q, f) => {
+            format!("{} {}", fragment::quantity(q), fragment::filter_object(f))
+        }
+        Binder::TheRef(r) => fragment::reference(r, ctx),
+        Binder::Existing(sel) => fragment::selection(sel, ctx),
+        Binder::Expanded(e) => binder_phrase(&e.value, ctx),
+    }
+}
+
+/// The bare group noun for a `Each.over` iterator — "creature" (no "each"
+/// prefix; the surrounding "For each …" supplies it), else the selection
+/// phrase.
+fn group_noun(sel: &deckmaste_core::Selection, ctx: &Ctx) -> String {
+    use deckmaste_core::Selection;
+    match sel {
+        Selection::Filter(f) => fragment::filter_noun(f),
+        other => fragment::selection(other, ctx),
     }
 }
 
@@ -150,18 +198,18 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         Action::DealDamage(target, amount, Reference::This) => format!(
             "Deal {} damage to {}.",
             fragment::count(amount),
-            fragment::selection(target, ctx)
+            fragment::reference(target, ctx)
         ),
         Action::DealDamage(target, amount, source) => format!(
             "{} deals {} damage to {}.",
             capitalize_first(&fragment::reference(source, ctx)),
             fragment::count(amount),
-            fragment::selection(target, ctx)
+            fragment::reference(target, ctx)
         ),
-        Action::Destroy(sel) => format!("Destroy {}.", fragment::selection(sel, ctx)),
+        Action::Destroy(r) => format!("Destroy {}.", fragment::reference(r, ctx)),
         // [CR#701.6a]: counter a spell or ability on the stack — "Counter
         // target spell" (Mana Leak's punisher branch).
-        Action::Counter(sel) => format!("Counter {}.", fragment::selection(sel, ctx)),
+        Action::Counter(r) => format!("Counter {}.", fragment::reference(r, ctx)),
         // [CR#122]: move counters between two objects. `AllKinds` -> "all
         // counters"; a named kind -> "<n> <kind> counter(s)".
         Action::MoveCounters(spec, from, to) => {
@@ -183,9 +231,9 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         }
         // [CR#401.7]: a library destination — "Put <cards> on top/the bottom of
         // your library." (the former `PutInLibrary`, now a `Move` destination).
-        Action::Move(sel, Destination::Library(anchor)) => format!(
+        Action::Move(r, Destination::Library(anchor)) => format!(
             "Put {} on {} of your library.",
-            fragment::selection_object(sel, ctx),
+            fragment::reference(r, ctx),
             fragment::library_position(anchor),
         ),
         Action::By(_who, pa) => player_action(pa, ctx),
@@ -193,7 +241,7 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         // when the replacement body has the standard structure. The top-level
         // `Regenerate` keyword macro emits this via its template.
         Action::CreateReplacement { subject, .. } => {
-            format!("Regenerate {}.", fragment::selection(subject, ctx))
+            format!("Regenerate {}.", fragment::reference(subject, ctx))
         }
         other => format!("[unrendered: {other:?}]."),
     }
@@ -240,6 +288,22 @@ fn additional_payment(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) -> Opti
                 let phrase = trim_period(&player_action(pa, ctx));
                 parts.push(super::ability::lower_first(&phrase));
             }
+            // A cost-side choose-then-pay step ([CR#601.2b]): bind the binder's
+            // noun phrase as the body verbs' `That`/`Those` anaphor, then render
+            // the body's `Do` verbs — "sacrifice a creature".
+            CostComponent::With { binder, body } => {
+                let phrase = binder_phrase(binder, ctx);
+                let inner = ctx.with_that(&phrase);
+                for inner_comp in body.iter() {
+                    match inner_comp {
+                        CostComponent::Do(pa) => {
+                            let p = trim_period(&player_action(pa, &inner));
+                            parts.push(super::ability::lower_first(&p));
+                        }
+                        _ => return None,
+                    }
+                }
+            }
             _ => return None,
         }
     }
@@ -253,27 +317,42 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
         PlayerAction::GainLife(c) => format!("Gain {} life.", fragment::count(c)),
         PlayerAction::LoseLife(c) => format!("Lose {} life.", fragment::count(c)),
         PlayerAction::Create(count, spec) => create_text(count, spec),
-        PlayerAction::Tap(sel) => format!("Tap {}.", fragment::selection(sel, ctx)),
-        PlayerAction::Untap(sel) => format!("Untap {}.", fragment::selection(sel, ctx)),
-        // A sacrifice ([CR#701.21]) — as an additional/activation cost it names a
-        // chosen permanent ("sacrifice a creature", Fling); a referenced one
-        // names the object directly.
-        PlayerAction::Sacrifice(deckmaste_core::Selection::Choose(q, f))
-            if matches!(
-                q.bounds(),
-                (Some(Count::Literal(1)), Some(Count::Literal(1)))
-            ) =>
-        {
-            format!("Sacrifice a {}.", fragment::filter_noun(f))
+        PlayerAction::Tap(r) => format!("Tap {}.", fragment::reference(r, ctx)),
+        PlayerAction::Untap(r) => format!("Untap {}.", fragment::reference(r, ctx)),
+        // A sacrifice ([CR#701.21]) — the patient is a single reference. A
+        // chosen permanent ("sacrifice a creature", Fling) arrives pre-bound as
+        // `Reference::That` from an enclosing `With`, which supplies the phrase.
+        PlayerAction::Sacrifice(r) => format!("Sacrifice {}.", fragment::reference(r, ctx)),
+        // Discard ([CR#701.9]): a named card via `what` (e.g. the `With`-bound
+        // anaphor), else `count` cards chosen from hand.
+        PlayerAction::Discard { what: Some(r), .. } => {
+            format!("Discard {}.", fragment::reference(r, ctx))
         }
-        PlayerAction::Sacrifice(sel) => format!("Sacrifice {}.", fragment::selection(sel, ctx)),
+        PlayerAction::Discard {
+            count: Count::Literal(1),
+            what: None,
+        } => "Discard a card.".to_string(),
+        PlayerAction::Discard { count, what: None } => {
+            format!("Discard {} cards.", fragment::count(count))
+        }
+        // A player-performed relocation ([CR#400.7]). Exiling is a pure zone
+        // move ([CR#701.13]) — "Exile X."; a library destination mirrors
+        // `Action::Move`'s "Put X on top/the bottom of your library."
+        PlayerAction::Move(r, Destination::Zone(Zone::Exile)) => {
+            format!("Exile {}.", fragment::reference(r, ctx))
+        }
+        PlayerAction::Move(r, Destination::Library(anchor)) => format!(
+            "Put {} on {} of your library.",
+            fragment::reference(r, ctx),
+            fragment::library_position(anchor),
+        ),
         PlayerAction::GetDesignation(name) if name.as_ref() == "CitysBlessing" => {
             "You get the city's blessing.".to_string()
         }
         PlayerAction::GetDesignation(name) => format!("You get {name}."),
         // [CR#701.19a]: remove all damage as part of regeneration.
-        PlayerAction::RemoveDamage(sel) => {
-            format!("Remove all damage from {}.", fragment::selection(sel, ctx))
+        PlayerAction::RemoveDamage(r) => {
+            format!("Remove all damage from {}.", fragment::reference(r, ctx))
         }
         other => format!("[unrendered: {other:?}]."),
     }
@@ -415,12 +494,18 @@ fn ensure_period(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use deckmaste_core::Action;
+    use deckmaste_core::Binder;
     use deckmaste_core::Count;
+    use deckmaste_core::Destination;
+    use deckmaste_core::Each;
+    use deckmaste_core::Effect;
     use deckmaste_core::Filter;
     use deckmaste_core::Quantity;
     use deckmaste_core::Reference;
     use deckmaste_core::Selection;
     use deckmaste_core::TargetSpec;
+    use deckmaste_core::With;
+    use deckmaste_core::Zone;
 
     use super::Ctx;
     use super::action;
@@ -435,7 +520,6 @@ mod tests {
     fn pay_clauses_agree_verb_person_with_payer() {
         use deckmaste_core::Cost;
         use deckmaste_core::CostComponent;
-        use deckmaste_core::Effect;
         use deckmaste_core::MayPay;
         use deckmaste_core::MustPay;
         use deckmaste_core::PlayerAction;
@@ -443,6 +527,7 @@ mod tests {
         let ctx = Ctx {
             subject: "it",
             targets: &[],
+            that: None,
         };
         let one = || Cost(vec![CostComponent::Mana("{1}".parse().unwrap())]);
         let draw = || Box::new(Effect::act_by_you(PlayerAction::Draw(Count::Literal(1))));
@@ -516,13 +601,14 @@ mod tests {
         let ctx = Ctx {
             subject: "Pouncer",
             targets: std::slice::from_ref(&target),
+            that: None,
         };
 
-        let default = Action::deal_damage(Selection::Ref(Reference::Target(0)), Count::Literal(3));
+        let default = Action::deal_damage(Reference::Target(0), Count::Literal(3));
         assert_eq!(action(&default, &ctx), "Deal 3 damage to target creature.");
 
         let sourced = Action::DealDamage(
-            Selection::Ref(Reference::Target(0)),
+            Reference::Target(0),
             Count::Literal(3),
             Reference::Target(0),
         );
@@ -537,18 +623,18 @@ mod tests {
     #[test]
     fn move_to_library_renders_top_and_bottom() {
         use deckmaste_core::Anchor;
-        use deckmaste_core::Destination;
         let ctx = Ctx {
             subject: "it",
             targets: &[],
+            that: None,
         };
         let top = Action::Move(
-            Selection::Ref(Reference::This),
+            Reference::This,
             Destination::Library(Anchor::FromTop(Count::Literal(0))),
         );
         assert_eq!(action(&top, &ctx), "Put it on top of your library.");
         let bottom = Action::Move(
-            Selection::Ref(Reference::This),
+            Reference::This,
             Destination::Library(Anchor::FromBottom(Count::Literal(0))),
         );
         assert_eq!(
@@ -569,6 +655,7 @@ mod tests {
         let ctx = Ctx {
             subject: "it",
             targets: &targets,
+            that: None,
         };
         let all = Action::MoveCounters(
             CounterSpec::AllKinds,
@@ -599,13 +686,14 @@ mod tests {
         let ctx = Ctx {
             subject: "it",
             targets: &[],
+            that: None,
         };
         let divide = super::effect(
             &deckmaste_core::Effect::DivideAmong(DivideAmong {
                 amount: Count::Literal(3),
-                group: Selection::Each(Filter::creature()),
+                group: Selection::Filter(Filter::creature()),
                 body: Box::new(deckmaste_core::Effect::Act(Action::deal_damage(
-                    Selection::Ref(Reference::ThatObject),
+                    Reference::ThatObject,
                     Count::Allotment,
                 ))),
             }),
@@ -630,12 +718,18 @@ mod tests {
         let ctx = Ctx {
             subject: "Fling",
             targets: &[],
+            that: None,
         };
         let fling = super::effect(
             &deckmaste_core::Effect::AdditionalCost(AdditionalCost {
-                pay: Cost(vec![CostComponent::do_(PlayerAction::Sacrifice(
-                    Selection::Choose(Quantity::one(), Filter::creature()),
-                ))]),
+                // "sacrifice a creature" is now the choose-then-pay `With` cost
+                // step: ChooseOne(Creature) binds `That`, then `Sacrifice(That)`.
+                pay: Cost(vec![CostComponent::With {
+                    binder: Box::new(Binder::ChooseOne(Filter::creature())),
+                    body: Cost(vec![CostComponent::do_(PlayerAction::Sacrifice(
+                        Reference::That,
+                    ))]),
+                }]),
                 body: Box::new(deckmaste_core::Effect::act_by_you(PlayerAction::Draw(
                     Count::Literal(1),
                 ))),
@@ -646,5 +740,83 @@ mod tests {
             fling,
             "As an additional cost, sacrifice a creature. Draw a card."
         );
+    }
+
+    /// `Effect::With` binds the binder's noun phrase as the body's `That`
+    /// anaphor ([CR#601.2b]): a `ChooseOne` one-binder renders "Sacrifice a
+    /// creature." — the choose-then-act surface that replaced the old
+    /// verb-patient `Choose`.
+    #[test]
+    fn with_choose_one_renders_sacrifice_a_creature() {
+        use deckmaste_core::PlayerAction;
+        let ctx = Ctx {
+            subject: "Altar",
+            targets: &[],
+            that: None,
+        };
+        let with = Effect::With(With {
+            binder: Binder::ChooseOne(Filter::creature()),
+            body: Box::new(Effect::act_by_you(PlayerAction::Sacrifice(Reference::That))),
+        });
+        assert_eq!(effect(&with, &ctx), "Sacrifice a creature.");
+    }
+
+    /// A `Choose` many-binder contributes its "N <object>" phrase to the body's
+    /// anaphor: `With(Choose(2, cards), Discard(That))` renders "Discard 2
+    /// cards." ([CR#601.2b]).
+    #[test]
+    fn with_choose_many_renders_discard_two_cards() {
+        use deckmaste_core::ObjectKind;
+        use deckmaste_core::PlayerAction;
+        let ctx = Ctx {
+            subject: "Wheel",
+            targets: &[],
+            that: None,
+        };
+        let with = Effect::With(With {
+            binder: Binder::Choose(
+                Quantity::Range(Some(Count::Literal(2)), Some(Count::Literal(2))),
+                Filter::Kind(ObjectKind::Card),
+            ),
+            body: Box::new(Effect::act_by_you(PlayerAction::Discard {
+                count: Count::Literal(2),
+                what: Some(Reference::That),
+            })),
+        });
+        assert_eq!(effect(&with, &ctx), "Discard 2 cards.");
+    }
+
+    /// `Effect::Each` iterates its `over` group, the body reading each
+    /// element as `ThatObject` ("it"): "For each creature, destroy it."
+    /// ([CR#608]).
+    #[test]
+    fn for_each_renders_per_element_clause() {
+        let ctx = Ctx {
+            subject: "it",
+            targets: &[],
+            that: None,
+        };
+        let fe = Effect::Each(Each {
+            over: Selection::Filter(Filter::creature()),
+            effect: Box::new(Effect::Act(Action::Destroy(Reference::ThatObject))),
+        });
+        assert_eq!(effect(&fe, &ctx), "For each creature, destroy it.");
+    }
+
+    /// A player `Move` to the exile zone renders "Exile <subject>." — exiling
+    /// is a pure zone move, not a dedicated verb ([CR#701.13]).
+    #[test]
+    fn player_move_to_exile_renders_exile_subject() {
+        use deckmaste_core::PlayerAction;
+        let ctx = Ctx {
+            subject: "Scavenger",
+            targets: &[],
+            that: None,
+        };
+        let exile = Action::by_you(PlayerAction::Move(
+            Reference::This,
+            Destination::Zone(Zone::Exile),
+        ));
+        assert_eq!(action(&exile, &ctx), "Exile Scavenger.");
     }
 }

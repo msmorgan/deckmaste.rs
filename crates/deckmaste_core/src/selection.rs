@@ -26,7 +26,7 @@ pub enum Extremum {
 /// shape a combinator binds ([CR#608.2d]). This is the pure group/query type:
 /// effect verbs no longer take a `Selection` patient (they take a single
 /// [`Reference`]); plurality and choice live in the
-/// [`ForEach`](crate::ForEach) / [`DivideAmong`](crate::DivideAmong)
+/// [`Each`](crate::Each) / [`DivideAmong`](crate::DivideAmong)
 /// iterators and the [`With`](crate::With) [`Binder`](crate::Binder).
 ///
 /// Targeting is NOT here — it lives in [`crate::TargetSpec`], the announce
@@ -62,7 +62,7 @@ pub enum Selection {
     Those,
     /// The set of objects chosen for the nth announced target spec
     /// ([CR#115.3,601.2c]) — the plural-target group fed to
-    /// [`DivideAmong`](crate::DivideAmong) / [`ForEach`](crate::ForEach)
+    /// [`DivideAmong`](crate::DivideAmong) / [`Each`](crate::Each)
     /// (Idris `GetTargets`). Reads the announced-target set.
     GetTargets(usize),
     /// The extremal element(s) of a set, ranked by a per-element projection
@@ -126,7 +126,7 @@ mod tests {
     }
 
     /// `GetTargets(n)` carries the announced-target index and round-trips — the
-    /// plural-target group fed to `DivideAmong`/`ForEach` ([CR#115.3,601.2c]).
+    /// plural-target group fed to `DivideAmong`/`Each` ([CR#115.3,601.2c]).
     #[test]
     fn get_targets_round_trips() {
         assert_eq!(read("GetTargets(0)"), Selection::GetTargets(0));

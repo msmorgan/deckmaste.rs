@@ -454,7 +454,7 @@ fn const_count(count: &deckmaste_core::Count) -> Uint {
 
 /// Every object (card objects in their zones + player proxies) matching
 /// `filter`, in deterministic id order. The frameless form — no carrier — for
-/// the resolution-time selection sites (`Exists`, `ForEach`, `Selection`) whose
+/// the resolution-time selection sites (`Exists`, `Each`, `Selection`) whose
 /// filters never carry a carrier-relative self-reference.
 #[must_use]
 pub fn candidates(state: &GameState, filter: &Filter) -> Vec<ObjectId> {

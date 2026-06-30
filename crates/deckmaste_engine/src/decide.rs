@@ -417,14 +417,23 @@ pub(crate) fn unless_cost_action(
     use deckmaste_core::Action;
     use deckmaste_core::CostComponent;
     use deckmaste_core::PlayerAction;
-    use deckmaste_core::Selection;
+    use deckmaste_core::Reference;
     match component {
         // A verb cost is paid by `who` performing it ([CR#601.2h]).
         CostComponent::Do(pa) => Action::By(who.clone(), (**pa).clone()),
         // {T}/{Q} tap/untap the source permanent the cost rides on.
-        CostComponent::Tap => Action::By(who.clone(), PlayerAction::Tap(Selection::this())),
-        CostComponent::Untap => Action::By(who.clone(), PlayerAction::Untap(Selection::this())),
+        CostComponent::Tap => Action::By(who.clone(), PlayerAction::Tap(Reference::This)),
+        CostComponent::Untap => Action::By(who.clone(), PlayerAction::Untap(Reference::This)),
         CostComponent::Expanded(e) => unless_cost_action(&e.value, who),
+        // A cost-side `With` ([CR#601.2b]) is a choose-then-pay step with no
+        // single-`Action` rendering — it must surface a payment-time choice and
+        // bind `That`/`Those`. Every caller that can see a `With` routes through
+        // `unless_cost_effect` (which renders it as an `Effect::With`), so this
+        // Action-only path is never reached for one.
+        CostComponent::With { .. } => unreachable!(
+            "a cost-side With ([CR#601.2b]) is rendered by unless_cost_effect as an \
+             Effect::With, never as a single Action"
+        ),
         // The `unless` cost list is `Cost::normalize`d at the `Effect::Unless`
         // boundary (see `resolve.rs`), which splices every nested `Cost` flat,
         // so a `Cost` component never survives to here.
@@ -445,6 +454,52 @@ pub(crate) fn unless_cost_action(
             "engine-resolve-effects seam: a mid-resolution mana 'unless' cost \
              ([CR#118.12a]) — the PayCost/PayMana flow is announce-slot-bound"
         ),
+    }
+}
+
+/// One cost component rendered as the effect `who` runs to pay it
+/// ([CR#118.12a,601.2b]) — the entry point every cost-to-effect payment walk
+/// (the `Unless`/`MayPay` continuations, the `AdditionalCost` arm, and the
+/// activation cost-`With` step) uses. Most components are a single payer
+/// `Action`, so they wrap [`unless_cost_action`] in [`Effect::Act`]; a
+/// cost-side [`With`](deckmaste_core::CostComponent::With) is a choose-then-pay
+/// step with no single-`Action` rendering, so it becomes an [`Effect::With`]:
+/// the binder surfaces the controller's `ChooseObjects` choice (bound as
+/// `That`/`Those`), then the body pays against it — exactly the effect-side
+/// `With` machinery, reused here so cost choosing stays OUT of the verb.
+pub(crate) fn unless_cost_effect(
+    component: &deckmaste_core::CostComponent,
+    who: &deckmaste_core::Reference,
+) -> deckmaste_core::Effect {
+    use deckmaste_core::CostComponent;
+    use deckmaste_core::Effect;
+    match component {
+        // [CR#601.2b]: the binder's choice binds `That`/`Those`; the body pays
+        // against that binding. Recurse on the body (a nested `With` still
+        // surfaces its own choice) and reuse the `Effect::With` interpreter.
+        CostComponent::With { binder, body } => Effect::With(deckmaste_core::With {
+            binder: (**binder).clone(),
+            body: Box::new(cost_body_effect(body, who)),
+        }),
+        // Look through a remembered macro invocation so a wrapped `With` is
+        // still intercepted here (not delegated to the Action-only path).
+        CostComponent::Expanded(e) => unless_cost_effect(&e.value, who),
+        other => Effect::Act(unless_cost_action(other, who)),
+    }
+}
+
+/// A cost-`With`'s body (a [`Cost`](deckmaste_core::Cost)) as the single effect
+/// `who` runs to pay it ([CR#601.2b]): each component rendered by
+/// [`unless_cost_effect`], sequenced in order (a lone component stays bare).
+fn cost_body_effect(
+    body: &deckmaste_core::Cost,
+    who: &deckmaste_core::Reference,
+) -> deckmaste_core::Effect {
+    let mut effects: Vec<deckmaste_core::Effect> =
+        body.iter().map(|c| unless_cost_effect(c, who)).collect();
+    match effects.len() {
+        1 => effects.pop().expect("len 1"),
+        _ => deckmaste_core::Effect::Sequence(effects),
     }
 }
 
@@ -1051,9 +1106,7 @@ impl GameState {
                             unless
                                 .iter()
                                 .map(|c| WorkItem::RunEffect {
-                                    effect: Box::new(deckmaste_core::Effect::Act(
-                                        unless_cost_action(c, &who),
-                                    )),
+                                    effect: Box::new(unless_cost_effect(c, &who)),
                                     frame: frame.clone(),
                                 })
                                 .collect()
@@ -1076,9 +1129,7 @@ impl GameState {
                         let items: Vec<WorkItem> = if yes {
                             cost.iter()
                                 .map(|c| WorkItem::RunEffect {
-                                    effect: Box::new(deckmaste_core::Effect::Act(
-                                        unless_cost_action(c, &actor),
-                                    )),
+                                    effect: Box::new(unless_cost_effect(c, &actor)),
                                     frame: frame.clone(),
                                 })
                                 .chain(std::iter::once(WorkItem::RunEffect {

@@ -402,7 +402,6 @@ fn renders_synthesized_lose_life_and_destroy() {
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Quantity;
     use deckmaste_core::Reference;
-    use deckmaste_core::Selection;
     use deckmaste_core::SpellAbility;
     use deckmaste_core::TargetSpec;
     use deckmaste_core::Type;
@@ -430,7 +429,7 @@ fn renders_synthesized_lose_life_and_destroy() {
         abilities: vec![Ability::Spell(SpellAbility {
             effect: Effect::Targeted(deckmaste_core::Targeted::new(
                 vec![TargetSpec::Target(Quantity::one(), Filter::creature())],
-                Effect::Act(Action::Destroy(Selection::Ref(Reference::Target(0)))),
+                Effect::Act(Action::Destroy(Reference::Target(0))),
             )),
         })],
         ..CardFace::default()

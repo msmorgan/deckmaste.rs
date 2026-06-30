@@ -30,9 +30,7 @@ use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::Phase;
 use deckmaste_core::PlayerAction;
-use deckmaste_core::Quantity;
 use deckmaste_core::Reference;
-use deckmaste_core::Selection;
 use deckmaste_core::SimpleManaSymbol;
 use deckmaste_core::StateFilter;
 use deckmaste_core::Type;
@@ -921,7 +919,7 @@ fn activated_ability_pays_self_sacrifice_cost() {
         NAME,
         vec![
             CostComponent::Mana("{0}".parse().unwrap()),
-            CostComponent::do_(PlayerAction::Sacrifice(Selection::Ref(Reference::This))),
+            CostComponent::do_(PlayerAction::Sacrifice(Reference::This)),
         ],
     );
     let mut state = cost_game(7, &card);
@@ -995,10 +993,11 @@ fn activated_ability_pays_life_cost() {
     );
 }
 
-/// [CR#601.2h,608.2d]: a `Do(Sacrifice(Choose(1, creature)))` cost surfaces a
-/// `ChooseObjects` decision during payment; the chosen creature is sacrificed
-/// (leaving the battlefield for its owner's graveyard) and the other is left
-/// untouched.
+/// [CR#601.2b,601.2h,608.2d]: a `With(ChooseOne(creature), Do(Sacrifice(That)))`
+/// cost surfaces a `ChooseObjects` decision during payment — choosing is the
+/// cost-side `With` pre-step, never part of the verb; the chosen creature is
+/// sacrificed (leaving the battlefield for its owner's graveyard) and the
+/// other is left untouched.
 #[test]
 fn activated_ability_pays_choose_sacrifice_cost() {
     const ARTIFACT_NAME: &str = "Choose-sacrifice test artifact";
@@ -1011,10 +1010,14 @@ fn activated_ability_pays_choose_sacrifice_cost() {
         ARTIFACT_NAME,
         vec![
             CostComponent::Mana("{0}".parse().unwrap()),
-            CostComponent::do_(PlayerAction::Sacrifice(Selection::Choose(
-                Quantity::one(),
-                creature_filter,
-            ))),
+            // "sacrifice a creature": the cost-side choose-then-pay `With` step
+            // ([CR#601.2b]) — ChooseOne binds `That`, then `Sacrifice(That)`.
+            CostComponent::With {
+                binder: Box::new(deckmaste_core::Binder::ChooseOne(creature_filter)),
+                body: deckmaste_core::Cost(vec![CostComponent::do_(PlayerAction::Sacrifice(
+                    Reference::That,
+                ))]),
+            },
         ],
     );
 

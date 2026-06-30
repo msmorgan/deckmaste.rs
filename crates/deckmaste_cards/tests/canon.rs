@@ -13,7 +13,6 @@ use deckmaste_core::Card;
 use deckmaste_core::Count;
 use deckmaste_core::Effect;
 use deckmaste_core::Reference;
-use deckmaste_core::Selection;
 use deckmaste_core::SpellAbility;
 use deckmaste_core::StatValue;
 use deckmaste_core::Subtype;
@@ -91,10 +90,7 @@ fn lightning_bolt_expands_target_macros() {
         vec![Ability::Spell(SpellAbility {
             effect: Effect::Targeted(deckmaste_core::Targeted::new(
                 vec![any_target],
-                Effect::Act(Action::deal_damage(
-                    Selection::Ref(Reference::Target(0)),
-                    Count::Literal(3),
-                )),
+                Effect::Act(Action::deal_damage(Reference::Target(0), Count::Literal(3),)),
             )),
         })]
     );
@@ -193,7 +189,7 @@ fn mana_leak_reads_to_a_must_pay_punisher() {
     );
     assert_eq!(
         *m.or_else,
-        Effect::Act(Action::Counter(Selection::Ref(Reference::Target(0)))),
+        Effect::Act(Action::Counter(Reference::Target(0))),
         "unpaid → counter the spell"
     );
 }

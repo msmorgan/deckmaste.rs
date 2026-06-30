@@ -884,7 +884,6 @@ mod tests {
     use deckmaste_core::DeonticAction;
     use deckmaste_core::Effect;
     use deckmaste_core::Reference;
-    use deckmaste_core::Selection;
     use deckmaste_core::StaticAbility;
     use deckmaste_core::StaticEffect;
 
@@ -933,7 +932,7 @@ mod tests {
                     Reference::This,
                 )))),
                 then: Box::new(Effect::Act(deckmaste_core::Action::move_to(
-                    Selection::this(),
+                    Reference::This,
                     Zone::Graveyard,
                 ))),
             }],

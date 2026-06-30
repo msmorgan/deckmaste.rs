@@ -21,7 +21,6 @@ use deckmaste_core::TargetSpec;
 use deckmaste_core::Type;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
-use rand::seq::SliceRandom;
 
 use crate::agenda::WorkItem;
 use crate::event::Cause;
@@ -249,16 +248,12 @@ impl GameState {
     fn create_shield(
         &mut self,
         replacement: deckmaste_core::Replacement,
-        subject: &deckmaste_core::Selection,
+        subject: &deckmaste_core::Reference,
         duration: deckmaste_core::Duration,
         one_shot: bool,
         frame: &Frame,
     ) {
-        let id = self
-            .eval_selection_set(subject, frame)
-            .into_iter()
-            .next()
-            .expect("CreateReplacement subject must resolve to one object");
+        let id = self.eval_reference(subject, frame);
         let iid = crate::replace_registry::InstanceId(self.next_shield_id);
         self.next_shield_id += 1;
         self.shields
@@ -272,7 +267,7 @@ impl GameState {
             });
     }
 
-    /// Bind one iterated element of a `ForEach`/`DivideAmong` as the iteration
+    /// Bind one iterated element of a `Each`/`DivideAmong` as the iteration
     /// anaphor ([CR#608.2]), kind-poly over the element's source ([CR#120.3]).
     /// A card/token binds its LKI snapshot as `that_object` plus the object
     /// patient; a player proxy is zoneless, so it carries NO snapshot — it
@@ -309,37 +304,9 @@ impl GameState {
     pub(crate) fn run_effect(&mut self, effect: Effect, frame: &Frame) {
         match effect {
             Effect::Act(action) => {
-                if frame.chosen.is_none()
-                    && let Some(choice) = unresolved_choice(&action)
-                {
-                    match choice {
-                        PendingChoice::Choose(quantity, filter) => {
-                            let candidates = crate::target::candidates(self, &filter);
-                            let (min, max) = self.choice_bounds(&quantity, candidates.len(), frame);
-                            self.pending = Some(crate::decide::PendingDecision::ChooseObjects {
-                                player: frame.controller,
-                                candidates,
-                                min,
-                                max,
-                            });
-                            self.choice = Some(crate::state::ChoiceContinuation::BindChoice {
-                                effect: Box::new(Effect::Act(action)),
-                                frame: frame.clone(),
-                            });
-                            return;
-                        }
-                        PendingChoice::Random(quantity, filter) => {
-                            let mut pool = crate::target::candidates(self, &filter);
-                            let k = self.random_count(&quantity, pool.len(), frame);
-                            pool.shuffle(&mut self.rng);
-                            pool.truncate(k);
-                            let mut next = frame.clone();
-                            next.chosen = Some(pool);
-                            self.run_effect(Effect::Act(action), &next);
-                            return;
-                        }
-                    }
-                }
+                // A verb acts on an already-bound `Reference` — choosing is a
+                // separate preceding step (`Effect::With(ChooseOne/Choose, …)`),
+                // never the verb's, so an `Act` never surfaces a choice itself.
                 // `CreateReplacement` directly mutates `state.shields` — it
                 // cannot go through `action_items` (which is `&self`). Handle
                 // it here, mirroring how `Effect::Continuously` works.
@@ -427,37 +394,127 @@ impl GameState {
                     self.run_effect(*otherwise, frame);
                 }
             }
-            // [CR#608.2]: "for each [over], [do]". The matched set is fixed
-            // once — when this node resolves ([CR#608.2h]) — then the inner
-            // effect runs once per match with that object bound as `ThatObject`
-            // (so a body like `Destroy(ThatObject)` reads "it"). Per-object
-            // `RunEffect`s scheduled at the front preserve their order and each
-            // pauses independently if the body surfaces a choice.
-            Effect::ForEach(fe) => {
-                let matches = crate::target::candidates(self, &fe.over);
-                let items: Vec<WorkItem> = matches
-                    .into_iter()
-                    .map(|obj| {
-                        let mut next = frame.clone();
-                        let mut bindings = next.bindings.clone().unwrap_or_default();
-                        self.bind_element(&mut bindings, obj);
-                        next.bindings = Some(bindings);
-                        WorkItem::RunEffect {
-                            effect: fe.effect.clone(),
-                            frame: next,
+            // [CR#608.2,700.1]: "[do] to each [over]" — a *simultaneous*
+            // distributive. The matched set is fixed once when this node
+            // resolves ([CR#608.2h]); each element binds as `ThatObject` (so a
+            // body like `Destroy(ThatObject)` reads "it"). Because a verb takes a
+            // single `Reference` and never pauses for a choice, a single-`Act`
+            // body resolves for EVERY element at once — one `Occurrence::Batch`,
+            // so death triggers / SBAs / the loss-is-a-draw check see them
+            // together (the simultaneity the old verb-over-`Filter` carried). A
+            // body that can pause (Sequence/With/If, or `CreateReplacement` which
+            // bypasses `action_items`) keeps per-element scheduling, where each
+            // element runs and pauses independently.
+            Effect::Each(each) => {
+                fn peel(e: &Effect) -> &Effect {
+                    match e {
+                        Effect::Expanded(x) => peel(&x.value),
+                        other => other,
+                    }
+                }
+                let matches = self.eval_selection_set(&each.over, frame);
+                match peel(&each.effect) {
+                    Effect::Act(action) if !matches!(action, Action::CreateReplacement { .. }) => {
+                        let mut events: Vec<GameEvent> = Vec::new();
+                        for obj in matches {
+                            let mut next = frame.clone();
+                            let mut bindings = next.bindings.clone().unwrap_or_default();
+                            self.bind_element(&mut bindings, obj);
+                            next.bindings = Some(bindings);
+                            // A verb emits only `Emit` work items; flatten their
+                            // events into the one simultaneous batch.
+                            for item in self.action_items(action, &next) {
+                                if let WorkItem::Emit(occ) = item {
+                                    match occ {
+                                        crate::event::Occurrence::Single(e) => events.push(e),
+                                        crate::event::Occurrence::Batch(v) => events.extend(v),
+                                    }
+                                }
+                            }
                         }
-                    })
-                    .collect();
-                self.schedule_front(items);
+                        if !events.is_empty() {
+                            self.schedule_front(vec![WorkItem::Emit(occurrence_of(events))]);
+                        }
+                    }
+                    _ => {
+                        let items: Vec<WorkItem> = matches
+                            .into_iter()
+                            .map(|obj| {
+                                let mut next = frame.clone();
+                                let mut bindings = next.bindings.clone().unwrap_or_default();
+                                self.bind_element(&mut bindings, obj);
+                                next.bindings = Some(bindings);
+                                WorkItem::RunEffect {
+                                    effect: each.effect.clone(),
+                                    frame: next,
+                                }
+                            })
+                            .collect();
+                        self.schedule_front(items);
+                    }
+                }
             }
-            // Bind the plural anaphor: evaluate `with.selection` at this
-            // moment (order preserved, top→down for a library window), then
-            // schedule `with.body` under a frame carrying that group as `those`
-            // so `Selection::Those` resolves inside the body.
+            // Bind the With anaphor BEFORE the body ([CR#608.2]) — choosing is a
+            // separate step, never part of the verb. A one-binder
+            // (`TheRef`/`ChooseOne`) binds a single object read as
+            // `Reference::That`; a many-binder (`Choose`/`Existing`) binds a
+            // group read as `Selection::Those` (order preserved, top→down for a
+            // library window). Both ride the `those` slot (a one-binder is a
+            // singleton). A chooser binder (`ChooseOne`/`Choose`) first surfaces
+            // the controller's choice and re-runs this node with the picks in
+            // `frame.chosen`, exactly like the `Act` choice path.
             Effect::With(with) => {
-                let group = self.eval_selection_set(&with.selection, frame);
+                use deckmaste_core::Binder;
+                fn peel(b: &Binder) -> &Binder {
+                    match b {
+                        Binder::Expanded(e) => peel(&e.value),
+                        other => other,
+                    }
+                }
+                let need_choice = frame.chosen.is_none()
+                    && matches!(
+                        peel(&with.binder),
+                        Binder::ChooseOne(_) | Binder::Choose(..)
+                    );
+                if need_choice {
+                    let (candidates, min, max) = match peel(&with.binder) {
+                        Binder::ChooseOne(filter) => {
+                            (crate::target::candidates(self, filter), 1, 1)
+                        }
+                        Binder::Choose(quantity, filter) => {
+                            let candidates = crate::target::candidates(self, filter);
+                            let (min, max) = self.choice_bounds(quantity, candidates.len(), frame);
+                            (candidates, min, max)
+                        }
+                        _ => unreachable!("need_choice implies a chooser binder"),
+                    };
+                    self.pending = Some(crate::decide::PendingDecision::ChooseObjects {
+                        player: frame.controller,
+                        candidates,
+                        min,
+                        max,
+                    });
+                    self.choice = Some(crate::state::ChoiceContinuation::BindChoice {
+                        effect: Box::new(Effect::With(with)),
+                        frame: frame.clone(),
+                    });
+                    return;
+                }
+                let bound: Vec<ObjectId> = match peel(&with.binder) {
+                    Binder::TheRef(reference) => vec![self.eval_reference(reference, frame)],
+                    Binder::Existing(selection) => self.eval_selection_set(selection, frame),
+                    // Re-run after the choice: the picks are in `frame.chosen`.
+                    Binder::ChooseOne(_) | Binder::Choose(..) => frame
+                        .chosen
+                        .clone()
+                        .expect("a chooser binder re-runs with its picks bound"),
+                    Binder::Expanded(_) => unreachable!("peeled above"),
+                };
                 let mut next = frame.clone();
-                next.those = Some(group);
+                next.those = Some(bound);
+                // The body opens a fresh choice scope: a nested `With` surfaces
+                // its own choice rather than reading this one's picks.
+                next.chosen = None;
                 self.schedule_front(vec![WorkItem::RunEffect {
                     effect: with.body,
                     frame: next,
@@ -465,7 +522,7 @@ impl GameState {
             }
             // [CR#601.2d]: divide `amount` among the group "as you choose" — bind
             // each element as `ThatObject` (the iteration anaphor, like
-            // `ForEach`) and substitute its `Allotment` share into a per-element
+            // `Each`) and substitute its `Allotment` share into a per-element
             // copy of `body`, then schedule one `RunEffect` per element (order
             // preserved, each pausing independently if its body surfaces a
             // choice). v1 splits the amount as evenly as possible; surfacing the
@@ -625,10 +682,10 @@ impl GameState {
                 let mut items: Vec<WorkItem> = cost
                     .iter()
                     .map(|c| WorkItem::RunEffect {
-                        effect: Box::new(Effect::Act(crate::decide::unless_cost_action(
-                            c,
-                            &Reference::You,
-                        ))),
+                        // Render each cost component as the controller's payment
+                        // effect; a cost-side `With` becomes an `Effect::With`
+                        // (its choice surfaced at payment), not a single action.
+                        effect: Box::new(crate::decide::unless_cost_effect(c, &Reference::You)),
                         frame: frame.clone(),
                     })
                     .collect();
@@ -643,14 +700,14 @@ impl GameState {
     }
 
     /// The last-known snapshot of the object an [`Effect::AdditionalCost`]
-    /// moves, when its cost is a single object-moving verb
-    /// (`Sacrifice`/`Exile`, or a `Discard` that names *what*) over a
-    /// directly-resolvable reference selection (`Sacrifice(This)`, …).
-    /// Captured BEFORE payment, so it is the object's last-known
-    /// information ([CR#603.10a]) — exactly what the body's `EventAgent`
-    /// should read. Returns `None` for a cost that moves no object
-    /// (mana/tap/life — nothing to bind), or one whose moved object is an
-    /// interactive `Choose` (not known until the choice resolves — a documented
+    /// moves, when its cost is a single object-moving verb (`Sacrifice`/`Move`
+    /// — exile is `Move(_, Exile)` — or a `Discard` that names *what*) over a
+    /// directly-resolvable reference (`Sacrifice(This)`, …). Captured BEFORE
+    /// payment, so it is the object's last-known information ([CR#603.10a]) —
+    /// exactly what the body's `EventAgent` should read. Returns `None` for a
+    /// cost that moves no object (mana/tap/life — nothing to bind), or one
+    /// whose moved object is bound by an enclosing cost `With(ChooseOne, …)`
+    /// (a `That` not fixed until the choice resolves — a documented
     /// payment-time capture seam, see the `AdditionalCost` arm).
     fn additional_cost_paid_object(
         &self,
@@ -661,17 +718,18 @@ impl GameState {
             let deckmaste_core::CostComponent::Do(pa) = component else {
                 continue;
             };
-            let sel = match pa.as_ref() {
-                PlayerAction::Sacrifice(sel)
-                | PlayerAction::Exile(sel)
-                | PlayerAction::Discard {
-                    what: Some(sel), ..
-                } => Some(sel),
+            let reference = match pa.as_ref() {
+                PlayerAction::Sacrifice(r)
+                | PlayerAction::Move(r, _)
+                | PlayerAction::Discard { what: Some(r), .. } => Some(r),
                 _ => None,
             };
-            // Only a directly-resolvable reference selection is captured here;
-            // an interactive `Choose`/`Random` has no fixed object yet (seam).
-            if let Some(Selection::Ref(reference)) = sel {
+            // Only a directly-resolvable reference is captured here; a `That`
+            // bound by an enclosing cost `With(ChooseOne, …)` has no fixed
+            // object until the choice resolves (seam).
+            if let Some(reference) = reference
+                && !matches!(reference, Reference::That)
+            {
                 let object = self.eval_reference(reference, frame);
                 return Some(crate::lki::LkiSnapshot::capture(self, object));
             }
@@ -725,7 +783,7 @@ impl GameState {
             Action::DealDamage(sel, qty, source) => {
                 let amount = self.eval_count(qty, frame);
                 let dealer = self.eval_reference(source, frame);
-                let targets = self.eval_selection_set(sel, frame);
+                let targets = self.eval_reference_set(sel, frame);
                 let events: Vec<GameEvent> = targets
                     .into_iter()
                     .map(|target| GameEvent::DamageDealt {
@@ -744,7 +802,7 @@ impl GameState {
             // — this verb or the lethal-damage SBA are its only two causes).
             Action::Destroy(sel) => {
                 let events: Vec<GameEvent> = self
-                    .eval_selection_set(sel, frame)
+                    .eval_reference_set(sel, frame)
                     .into_iter()
                     .map(|object| GameEvent::WillDestroy {
                         object,
@@ -772,7 +830,7 @@ impl GameState {
             // match on).
             Action::ReturnToHand(sel) => {
                 let events: Vec<GameEvent> = self
-                    .eval_selection_set(sel, frame)
+                    .eval_reference_set(sel, frame)
                     .into_iter()
                     .map(|object| self.relocate_from_current(object, Zone::Hand, None))
                     .collect();
@@ -788,7 +846,7 @@ impl GameState {
             // ([CR#608.2b]) is a no-op. Spell is the happy path (ward's verb).
             Action::Counter(sel) => {
                 let mut events = Vec::new();
-                for object in self.eval_selection_set(sel, frame) {
+                for object in self.eval_reference_set(sel, frame) {
                     match self
                         .stack
                         .iter()
@@ -831,9 +889,9 @@ impl GameState {
             // transition-only idiom ([CR#603.2e]) — on the host it is already
             // on, or a host that is the attachment itself ([CR#303.4d]).
             Action::Attach { what, to } => {
-                let hosts = self.eval_selection_set(to, frame);
+                let hosts = self.eval_reference_set(to, frame);
                 let mut events = Vec::new();
-                for attachment in self.eval_selection_set(what, frame) {
+                for attachment in self.eval_reference_set(what, frame) {
                     for &host in &hosts {
                         if host == attachment {
                             continue; // [CR#303.4d]: can't attach to itself.
@@ -859,7 +917,7 @@ impl GameState {
             // attached, mirroring the transition-only idiom ([CR#603.2e]).
             Action::Unattach(sel) => {
                 let events: Vec<GameEvent> = self
-                    .eval_selection_set(sel, frame)
+                    .eval_reference_set(sel, frame)
                     .into_iter()
                     .filter_map(|attachment| {
                         self.objects.obj(attachment).attached_to.map(|former_host| {
@@ -889,7 +947,7 @@ impl GameState {
                     Destination::Library(_) => Zone::Library,
                 };
                 let events: Vec<GameEvent> = self
-                    .eval_selection_set(sel, frame)
+                    .eval_reference_set(sel, frame)
                     .into_iter()
                     .map(|object| {
                         let position = match destination {
@@ -1011,7 +1069,7 @@ impl GameState {
                 // no-op is no event ([CR#603.2e] "becomes tapped" fires on
                 // the transition only).
                 let events: Vec<GameEvent> = self
-                    .eval_selection_set(sel, frame)
+                    .eval_reference_set(sel, frame)
                     .into_iter()
                     .filter(|&object| !self.objects.obj(object).tapped)
                     .map(|object| GameEvent::Tapped {
@@ -1057,7 +1115,7 @@ impl GameState {
                 // [CR#701.26b]: the mirror of `Tap` above — only a tapped
                 // permanent can be untapped, a no-op is no event.
                 let events: Vec<GameEvent> = self
-                    .eval_selection_set(sel, frame)
+                    .eval_reference_set(sel, frame)
                     .into_iter()
                     .filter(|&object| self.objects.obj(object).tapped)
                     .map(GameEvent::Untapped)
@@ -1075,7 +1133,7 @@ impl GameState {
                 // the actor controls is the grammar's contract; a legality
                 // pass is a later seam.
                 let events: Vec<GameEvent> = self
-                    .eval_selection_set(sel, frame)
+                    .eval_reference_set(sel, frame)
                     .into_iter()
                     .map(|object| GameEvent::ZoneWillChange {
                         object,
@@ -1094,14 +1152,42 @@ impl GameState {
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
-            PlayerAction::Exile(sel) => {
-                // [CR#701.13a]: move each selected object to exile from
-                // whatever zone it's in ([CR#406.2]) — bound at schedule time,
-                // like every selection here.
+            PlayerAction::Move(reference, destination) => {
+                // [CR#400.7]: the actor relocates the referenced object to
+                // `destination` from whatever zone it's in ([CR#406.2]).
+                // Exiling is a pure zone move ([CR#701.13a]) — `Move(This,
+                // Exile)`, e.g. a self-exile cost (Scavenge); a tuck rides the
+                // same verb via a library anchor. The player-agent twin of
+                // `Action::Move`.
+                let to = match destination {
+                    Destination::Zone(z) => *z,
+                    Destination::Library(_) => Zone::Library,
+                };
                 let events: Vec<GameEvent> = self
-                    .eval_selection_set(sel, frame)
+                    .eval_reference_set(reference, frame)
                     .into_iter()
-                    .map(|object| self.relocate_from_current(object, Zone::Exile, None))
+                    .map(|object| {
+                        let position = match destination {
+                            Destination::Zone(_) => None,
+                            Destination::Library(anchor) => {
+                                Some(self.library_index(object, anchor, frame))
+                            }
+                        };
+                        GameEvent::ZoneWillChange {
+                            object,
+                            from: Some(
+                                self.objects
+                                    .obj(object)
+                                    .zone
+                                    .expect("relocate a zoned object"),
+                            ),
+                            to,
+                            enters: None,
+                            position,
+                            face: None,
+                            cause: None,
+                        }
+                    })
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
@@ -1168,7 +1254,7 @@ impl GameState {
                     return vec![];
                 }
                 let events: Vec<GameEvent> = self
-                    .eval_selection_set(sel, frame)
+                    .eval_reference_set(sel, frame)
                     .into_iter()
                     .map(|object| GameEvent::CounterPlaced {
                         object,
@@ -1194,7 +1280,7 @@ impl GameState {
                     return vec![];
                 }
                 let events: Vec<GameEvent> = self
-                    .eval_selection_set(sel, frame)
+                    .eval_reference_set(sel, frame)
                     .into_iter()
                     .map(|object| GameEvent::CounterRemoved {
                         object,
@@ -1311,7 +1397,7 @@ impl GameState {
             // and calls `combat.remove_object`.
             PlayerAction::RemoveDamage(sel) => {
                 let events: Vec<GameEvent> = self
-                    .eval_selection_set(sel, frame)
+                    .eval_reference_set(sel, frame)
                     .into_iter()
                     .map(|object| GameEvent::DamageRemoved { object })
                     .collect();
@@ -1377,29 +1463,25 @@ impl GameState {
         (lo.map_or(0, ev), hi.map_or(cap, ev))
     }
 
-    /// How many objects a `Random` selection picks. v1 supports `Exactly`
-    /// (clamped to the candidate count); ranged random is a loud seam.
-    fn random_count(&self, quantity: &deckmaste_core::Quantity, n: usize, frame: &Frame) -> usize {
-        // v1 supports the exactly-N range (`Range(Some(c), Some(c))`, seen
-        // through a remembered `Exactly` macro); ranged random is a loud seam.
-        match quantity.bounds() {
-            (Some(lo), Some(hi)) if lo == hi => usize::try_from(self.eval_count(lo, frame))
-                .expect("count fits usize")
-                .min(n),
-            other => todo!(
-                "engine-resolve-selections follow-up: ranged Random {other:?} (Exactly only in v1)"
-            ),
-        }
-    }
-
-    /// A selection resolved to its full set ([CR#608.2d]). `Each` is the
-    /// distributive "for each matching object" and `Filter` is the same
-    /// matching set taken at once — both enumerate here, since a per-object
-    /// instruction (deal damage, destroy) applies to every member either way.
-    /// Unary references resolve to a 1-element set.
+    /// A selection (a GROUP) resolved to its full set ([CR#608.2d]) — the
+    /// home of plurality now that verbs take a single [`Reference`]. `Filter`
+    /// enumerates the matching set; `Those`/`GetTargets`/`TopOfLibrary` name an
+    /// already-bound group. A per-object instruction runs over this set via an
+    /// enclosing `Each`/`DivideAmong`/`With`, never the verb itself.
     pub(crate) fn eval_selection_set(&self, sel: &Selection, frame: &Frame) -> Vec<ObjectId> {
         match sel {
-            Selection::Each(f) | Selection::Filter(f) => crate::target::candidates(self, f),
+            Selection::Filter(f) => crate::target::candidates(self, f),
+            // The announced targets of the `spec`-th target spec ([CR#601.2c]).
+            // v1 has a single (possibly plural) target spec, so spec 0's set is
+            // the whole announced target list (Arc Lightning's 1–3 targets); a
+            // multi-spec spell needs per-spec offsets — a seam.
+            Selection::GetTargets(spec) => {
+                assert_eq!(
+                    *spec, 0,
+                    "GetTargets({spec}): multi target-spec announce not yet wired"
+                );
+                frame.targets.clone()
+            }
             // [CR#107.1]: the extremal element(s) of a set, ranked by the
             // per-element projection. Each candidate is bound as the frame's
             // `Subject` so the projection (`by`) reads it; ties yield the whole
@@ -1430,12 +1512,14 @@ impl GameState {
                     None => Vec::new(),
                 }
             }
-            // The chooser's/RNG's picks, bound into the frame before the action
-            // re-runs ([CR#608.2d]).
-            Selection::Choose(..) | Selection::Random(..) => frame
+            // The RNG's picks, bound into the frame before the selection is
+            // read ([CR#608.2d]). No current card surfaces a `Random` group
+            // (player choice now lives in `With(ChooseOne/Choose, …)`); this
+            // stays a dormant seam until one does.
+            Selection::Random(..) => frame
                 .chosen
                 .clone()
-                .expect("a Choose/Random selection is bound into the frame before its action runs"),
+                .expect("a Random selection is bound into the frame before it is read"),
             Selection::Expanded(e) => self.eval_selection_set(&e.value, frame),
             // The ordered plural group bound by the enclosing `Effect::With`.
             // Order-preserved exactly as set by `With` (top→down for a library
@@ -1473,13 +1557,17 @@ impl GameState {
     ///
     /// Panics on a `Selection` not wired for Stage 3, or an out-of-range
     /// `Target(n)` index.
-    fn eval_selection(&self, sel: &Selection, frame: &Frame) -> ObjectId {
-        match sel {
-            // A bound reference lifted into a choice slot: funnel to the
-            // reference resolver.
-            Selection::Ref(reference) => self.eval_reference(reference, frame),
-            other => todo!("stage 3 does not evaluate selection {other:?}"),
-        }
+    fn eval_selection(&self, _sel: &Selection, _frame: &Frame) -> ObjectId {
+        todo!("stage 3 does not evaluate selection {_sel:?}")
+    }
+
+    /// The object(s) a verb's [`Reference`] patient acts on — exactly one.
+    /// Plurality is never the verb's: a "for each"/"all" instruction is an
+    /// enclosing [`Effect::Each`]/[`Effect::DivideAmong`] whose body names a
+    /// single reference per element ([CR#608.2]). A 1-element vector so the
+    /// verb arms keep their batch-shaped `.into_iter()…` bodies.
+    pub(crate) fn eval_reference_set(&self, reference: &Reference, frame: &Frame) -> Vec<ObjectId> {
+        vec![self.eval_reference(reference, frame)]
     }
 
     /// Resolve a [`Reference`] to an `ObjectId` (the bound-object resolver
@@ -1518,6 +1606,18 @@ impl GameState {
             Reference::Subject => frame
                 .subject
                 .expect("Reference::Subject referenced outside a Filter::Where match"),
+            // The single object bound by an enclosing `Effect::With`/cost
+            // `With` one-binder (`TheRef`/`ChooseOne`) — the choice made BEFORE
+            // the verb, so the verb reads an already-bound reference
+            // ([CR#608.2]). Stored as the sole element of the `those` set (a
+            // one-binder is a singleton group); a many-binder body reads the
+            // group as `Selection::Those` instead. Panics outside an enclosing
+            // one-binder `With` — always a bug.
+            Reference::That => *frame
+                .those
+                .as_ref()
+                .and_then(|g| g.first())
+                .expect("Reference::That outside an enclosing With one-binder"),
             // [CR#603.10a,603.2e,608.2k]: the trigger's provenance-explicit
             // roles, read from the bindings the fired trigger carried. The
             // AGENT (the moved/acting object) — `EventAgent`, with `ThatObject`
@@ -1528,7 +1628,7 @@ impl GameState {
                     .as_ref()
                     .expect("EventAgent referenced where the trigger bound one");
                 // The AGENT is normally the bound LKI snapshot. A
-                // ForEach/DivideAmong element that is a player proxy carries no
+                // Each/DivideAmong element that is a player proxy carries no
                 // snapshot ([CR#120.3]: the patient is kind-poly and a player is
                 // zoneless), so when `that_object` is unset the iteration anaphor
                 // falls back to the patient — leaving existing snapshot-bearing
@@ -2082,59 +2182,6 @@ fn lki_counters<'f>(
         _ => None,
     }?;
     Some(&snapshot.counters)
-}
-
-/// A `Choose`/`Random` selection lifted out of an action, owned so the action
-/// can be moved into a continuation afterward. v1 assumes <=1 per effect node;
-/// grammar gives one selection slot per action.
-enum PendingChoice {
-    Choose(deckmaste_core::Quantity, deckmaste_core::Filter),
-    Random(deckmaste_core::Quantity, deckmaste_core::Filter),
-}
-
-/// The lone unresolved `Choose`/`Random` selection in `action` (looking through
-/// `Expanded`), cloned out. `Attach`'s two slots are both refs/targets in the
-/// keyword macros (never `Choose`/`Random`), so it stays `None`; `Unattach`'s
-/// single selection lifts like the other one-slot verbs.
-fn unresolved_choice(action: &Action) -> Option<PendingChoice> {
-    fn lift(sel: &Selection) -> Option<PendingChoice> {
-        match sel {
-            Selection::Choose(q, f) => Some(PendingChoice::Choose(q.clone(), f.clone())),
-            Selection::Random(q, f) => Some(PendingChoice::Random(q.clone(), f.clone())),
-            Selection::Expanded(e) => lift(&e.value),
-            _ => None,
-        }
-    }
-    fn lift_pa(pa: &PlayerAction) -> Option<PendingChoice> {
-        match pa {
-            PlayerAction::Sacrifice(s)
-            | PlayerAction::Exile(s)
-            | PlayerAction::Tap(s)
-            | PlayerAction::Untap(s)
-            | PlayerAction::CopySpell(s)
-            | PlayerAction::PutCounters(s, _, _)
-            | PlayerAction::RemoveCounters(s, _, _)
-            | PlayerAction::RemoveDamage(s) => lift(s),
-            PlayerAction::Reveal { what, .. } => lift(what),
-            PlayerAction::Expanded(e) => lift_pa(&e.value),
-            _ => None,
-        }
-    }
-    match action {
-        Action::DealDamage(s, _, _)
-        | Action::Destroy(s)
-        | Action::ReturnToHand(s)
-        | Action::Counter(s)
-        | Action::Unattach(s)
-        | Action::Move(s, _) => lift(s),
-        Action::By(_, p) => lift_pa(p),
-        Action::Attach { .. } => None,
-        // `MoveCounters`'s from/to are bare `Reference`s (announced targets),
-        // not a `Choose` selection — nothing to lift here.
-        Action::MoveCounters(..) => None,
-        // `CreateReplacement.subject` could be a Choose; inspect it.
-        Action::CreateReplacement { subject, .. } => lift(subject),
-    }
 }
 
 /// The `SpellAbility.targets` of the spell (empty for permanent spells).
@@ -2747,8 +2794,8 @@ mod tests {
         let frame = frame_src_targets(a, vec![b]);
         state.run_effect(
             Effect::Act(Action::Attach {
-                what: Selection::this(),
-                to: Selection::Ref(Reference::Target(0)),
+                what: Reference::This,
+                to: Reference::Target(0),
             }),
             &frame,
         );
@@ -2777,8 +2824,8 @@ mod tests {
         let frame = frame_src_targets(a, vec![b]);
         state.run_effect(
             Effect::Act(Action::Attach {
-                what: Selection::this(),
-                to: Selection::Ref(Reference::Target(0)),
+                what: Reference::This,
+                to: Reference::Target(0),
             }),
             &frame,
         );
@@ -2797,8 +2844,8 @@ mod tests {
         let frame = frame_src_targets(a, vec![a]);
         state.run_effect(
             Effect::Act(Action::Attach {
-                what: Selection::this(),
-                to: Selection::Ref(Reference::Target(0)),
+                what: Reference::This,
+                to: Reference::Target(0),
             }),
             &frame,
         );
@@ -2870,8 +2917,8 @@ mod tests {
         let frame = frame_src_targets(equip, vec![rock]);
         state.run_effect(
             Effect::Act(Action::Attach {
-                what: Selection::this(),
-                to: Selection::Ref(Reference::Target(0)),
+                what: Reference::This,
+                to: Reference::Target(0),
             }),
             &frame,
         );
@@ -2894,7 +2941,7 @@ mod tests {
         let (mut state, a, b) = two_permanents_on_field();
         state.objects.obj_mut(a).attached_to = Some(b);
         let frame = frame_src(a);
-        state.run_effect(Effect::Act(Action::Unattach(Selection::this())), &frame);
+        state.run_effect(Effect::Act(Action::Unattach(Reference::This)), &frame);
         drain(&mut state);
         assert_eq!(
             state.objects.obj(a).attached_to,
@@ -2917,7 +2964,7 @@ mod tests {
     fn unattach_of_an_unattached_object_is_a_noop() {
         let (mut state, a, _b) = two_permanents_on_field();
         let frame = frame_src(a);
-        state.run_effect(Effect::Act(Action::Unattach(Selection::this())), &frame);
+        state.run_effect(Effect::Act(Action::Unattach(Reference::This)), &frame);
         drain(&mut state);
         assert_eq!(state.objects.obj(a).attached_to, None);
         assert!(
@@ -2952,8 +2999,9 @@ mod tests {
         );
     }
 
-    /// `eval_selection_set` returns the bound set for a `Choose`/`Random` slot
-    /// (the value the decision/RNG wrote into the frame), instead of surfacing.
+    /// `eval_selection_set` returns the bound set for a `Random` slot (the
+    /// value the RNG wrote into `frame.chosen`), instead of surfacing. (Player
+    /// choice now rides `With(ChooseOne/Choose, …)`, bound as `Those`.)
     #[test]
     fn eval_selection_set_reads_bound_choice() {
         use deckmaste_core::Quantity;
@@ -2973,14 +3021,19 @@ mod tests {
             subject: None,
             those: None,
         };
-        let sel = Selection::Choose(Quantity::one(), creatures);
+        let sel = Selection::Random(Quantity::one(), creatures);
         assert_eq!(state.eval_selection_set(&sel, &frame), vec![bear]);
     }
 
-    /// `Destroy(Random(Exactly 1, creature))` resolves via the seeded RNG —
-    /// exactly one creature is destroyed and NO decision is surfaced.
+    /// A `Random` group bound into the frame drives a verb with NO surfaced
+    /// decision: `Each(Random(Exactly 1, creature), Destroy(ThatObject))`
+    /// over a frame whose `chosen` holds the RNG's pick destroys exactly that
+    /// one creature. (Verbs take a single `Reference`, so plurality/choice is
+    /// the enclosing `Each`; the `Random` inline-RNG resolution is a dormant
+    /// seam that reads `frame.chosen` — [CR#608.2d].)
     #[test]
     fn destroy_random_destroys_one_without_a_decision() {
+        use deckmaste_core::Each;
         use deckmaste_core::Quantity;
 
         use crate::step::StepOutcome;
@@ -2992,7 +3045,11 @@ mod tests {
             Filter::State(StateFilter::InZone(Zone::Battlefield)),
             Filter::creature(),
         ]);
-        let frame = frame_src(bear);
+        // The RNG's pick is bound into the frame before the group is read.
+        let frame = Frame {
+            chosen: Some(vec![theirs]),
+            ..frame_src(bear)
+        };
         let before = [bear, theirs]
             .iter()
             .filter(|o| state.zones.battlefield.contains(o))
@@ -3000,16 +3057,16 @@ mod tests {
         assert_eq!(before, 2);
 
         state.run_effect(
-            Effect::Act(Action::Destroy(Selection::Random(
-                Quantity::one(),
-                creatures,
-            ))),
+            Effect::Each(Each {
+                over: Selection::Random(Quantity::one(), creatures),
+                effect: Box::new(Effect::Act(Action::Destroy(Reference::ThatObject))),
+            }),
             &frame,
         );
-        // No decision: Random is resolved inline by the RNG.
+        // No decision: the Random group is already bound in the frame.
         assert!(
             !matches!(state.step(), StepOutcome::NeedsDecision(_)),
-            "Random surfaces no decision"
+            "a bound Random group surfaces no decision"
         );
         // Pump the agenda to completion (bounded safety cap; assert on the
         // post-condition, not the iteration count).
@@ -3027,15 +3084,17 @@ mod tests {
             .iter()
             .filter(|o| state.zones.battlefield.contains(o))
             .count();
-        assert_eq!(alive, 1, "exactly one creature destroyed at random");
+        assert_eq!(alive, 1, "exactly one creature destroyed (the bound pick)");
     }
 
-    /// `Destroy(Choose(Exactly 1, creature))` surfaces `ChooseObjects`; an
+    /// `With(ChooseOne(creature), Destroy(That))` surfaces `ChooseObjects`; an
     /// out-of-range count and an out-of-pool object are rejected; a legal pick
-    /// destroys exactly that creature ([CR#608.2d]).
+    /// destroys exactly that creature ([CR#608.2d]). Choosing is a pre-step
+    /// (`With`) bound as `That`, never part of the verb.
     #[test]
     fn destroy_choose_surfaces_decision_validates_and_destroys() {
-        use deckmaste_core::Quantity;
+        use deckmaste_core::Binder;
+        use deckmaste_core::With;
 
         use crate::decide::Decision;
         use crate::decide::PendingDecision;
@@ -3050,10 +3109,10 @@ mod tests {
         ]);
         let frame = frame_src(bear);
         state.run_effect(
-            Effect::Act(Action::Destroy(Selection::Choose(
-                Quantity::one(),
-                creatures,
-            ))),
+            Effect::With(With {
+                binder: Binder::ChooseOne(creatures),
+                body: Box::new(Effect::Act(Action::Destroy(Reference::That))),
+            }),
             &frame,
         );
 
@@ -3242,7 +3301,7 @@ mod tests {
     fn indestructible_survives_destroy_action() {
         let (mut state, myr) = myr_on_field();
         let frame = frame_src(myr);
-        state.run_effect(Effect::Act(Action::Destroy(Selection::this())), &frame);
+        state.run_effect(Effect::Act(Action::Destroy(Reference::This)), &frame);
         // WillDestroy applies and schedules no zone move (replaced to nothing).
         let _ = state.step();
         assert!(
@@ -3263,7 +3322,7 @@ mod tests {
     fn destroy_action_sends_a_normal_creature_to_its_graveyard() {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src(bear);
-        state.run_effect(Effect::Act(Action::Destroy(Selection::this())), &frame);
+        state.run_effect(Effect::Act(Action::Destroy(Reference::This)), &frame);
         // WillDestroy → ZoneWillChange → ZoneChanged.
         for _ in 0..3 {
             let _ = state.step();
@@ -3283,7 +3342,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src(bear);
         state.run_effect(
-            Effect::Act(Action::move_to(Selection::this(), Zone::Graveyard)),
+            Effect::Act(Action::move_to(Reference::This, Zone::Graveyard)),
             &frame,
         );
         // ZoneWillChange → ZoneChanged (one fewer step than Destroy — no
@@ -3307,10 +3366,7 @@ mod tests {
 
         // By(You, Tap(This)) -> one Single(Tapped(src)) carrying the
         // effect-instruction cause triple (events.md §3).
-        let items = state.action_items(
-            &Action::by_you(PlayerAction::Tap(Selection::this())),
-            &frame,
-        );
+        let items = state.action_items(&Action::by_you(PlayerAction::Tap(Reference::This)), &frame);
         assert_eq!(
             items,
             vec![WorkItem::Emit(Occurrence::Single(GameEvent::Tapped {
@@ -3359,10 +3415,7 @@ mod tests {
         let (mut state, src) = bear_on_field();
         state.objects.obj_mut(src).tapped = true;
         let frame = frame_src(src);
-        let items = state.action_items(
-            &Action::by_you(PlayerAction::Tap(Selection::this())),
-            &frame,
-        );
+        let items = state.action_items(&Action::by_you(PlayerAction::Tap(Reference::This)), &frame);
         assert_eq!(
             items,
             vec![],
@@ -3377,7 +3430,7 @@ mod tests {
         let (state, src) = bear_on_field();
         let frame = frame_src(src);
         let items = state.action_items(
-            &Action::by_you(PlayerAction::Untap(Selection::this())),
+            &Action::by_you(PlayerAction::Untap(Reference::This)),
             &frame,
         );
         assert_eq!(
@@ -3481,10 +3534,7 @@ mod tests {
         let frame = frame_src_targets(bear, vec![bear]);
         state.run_effect(
             Effect::Sequence(vec![
-                Effect::Act(Action::deal_damage(
-                    Selection::Ref(Reference::Target(0)),
-                    Count::Literal(3),
-                )),
+                Effect::Act(Action::deal_damage(Reference::Target(0), Count::Literal(3))),
                 Effect::act_by_you(PlayerAction::GainLife(Count::ThatMuch)),
             ]),
             &frame,
@@ -3507,10 +3557,7 @@ mod tests {
         state.run_effect(
             Effect::Targeted(deckmaste_core::Targeted::new(
                 vec![],
-                Effect::Act(Action::deal_damage(
-                    Selection::Ref(Reference::Target(0)),
-                    Count::Literal(3),
-                )),
+                Effect::Act(Action::deal_damage(Reference::Target(0), Count::Literal(3))),
             )),
             &frame,
         );
@@ -3530,16 +3577,10 @@ mod tests {
             deckmaste_core::TargetSpec::Target(deckmaste_core::Quantity::one(), Filter::creature());
         let wrapped = Effect::Targeted(deckmaste_core::Targeted::new(
             vec![spec.clone()],
-            Effect::Act(Action::deal_damage(
-                Selection::Ref(Reference::Target(0)),
-                Count::Literal(3),
-            )),
+            Effect::Act(Action::deal_damage(Reference::Target(0), Count::Literal(3))),
         ));
         assert_eq!(super::top_targets(&wrapped), std::slice::from_ref(&spec));
-        let bare = Effect::Act(Action::deal_damage(
-            Selection::Ref(Reference::Target(0)),
-            Count::Literal(1),
-        ));
+        let bare = Effect::Act(Action::deal_damage(Reference::Target(0), Count::Literal(1)));
         assert!(super::top_targets(&bare).is_empty());
     }
 
@@ -3584,57 +3625,48 @@ mod tests {
             Filter::State(StateFilter::InZone(Zone::Battlefield)),
             Filter::creature(),
         ]);
-        let mut got = state.eval_selection_set(&Selection::Each(filter), &frame);
+        let mut got = state.eval_selection_set(&Selection::Filter(filter), &frame);
         got.sort();
         let mut want = vec![a, b];
         want.sort();
         assert_eq!(got, want);
     }
 
-    /// `Each(Kind(Player))` yields exactly the two player proxies (no card
-    /// objects), and `DealDamage` wraps them in ONE simultaneous `Batch`.
+    /// `Each(Kind(Player), DealDamage(ThatObject, 20))` deals 20 damage to
+    /// each of the two players. A verb's patient is a single `Reference`, so
+    /// the spread over the player set is the enclosing `Each` — one
+    /// `DamageDealt` per element rather than the old single multi-target
+    /// `Batch` ([CR#608.2,120.1]).
     #[test]
-    fn each_player_deal_damage_emits_one_batch() {
+    fn each_player_deal_damage_hits_both_players() {
         let (mut state, src) = bear_on_field();
         let frame = frame_src(src);
 
-        // Build the effect directly: DealDamage(Each(Kind(Player)), 20)
-        let effect = Effect::Act(Action::deal_damage(
-            Selection::Each(Filter::Kind(ObjectKind::Player)),
-            Count::Literal(20),
-        ));
+        let effect = Effect::Each(deckmaste_core::Each {
+            over: Selection::Filter(Filter::Kind(ObjectKind::Player)),
+            effect: Box::new(Effect::Act(Action::deal_damage(
+                Reference::ThatObject,
+                Count::Literal(20),
+            ))),
+        });
         state.run_effect(effect, &frame);
 
-        // The agenda front should now have a single Emit(Batch([...])) item.
-        let outcome = state.step();
-        let Progress::Applied(Occurrence::Batch(events)) = (match outcome {
-            StepOutcome::Progress(p) => p,
-            other => panic!("expected Progress, got {other:?}"),
-        }) else {
-            panic!("expected Applied(Batch(…))");
-        };
-
-        // Both players took 20 damage, order-independent.
+        // Collect every DamageDealt across the per-element runs.
         let p0_obj = state.players[0].object;
         let p1_obj = state.players[1].object;
-        let mut got: Vec<_> = events
-            .iter()
-            .map(|e| match e {
-                GameEvent::DamageDealt { target, amount, .. } => (*target, *amount),
-                other => panic!("unexpected event {other:?}"),
-            })
-            .collect();
+        let mut got = collect_damage_dealt(&mut state, 40);
         got.sort();
         let mut want = vec![(p0_obj, 20u32), (p1_obj, 20u32)];
         want.sort();
-        assert_eq!(got, want);
+        assert_eq!(got, want, "each player takes 20 damage, one event apiece");
     }
 
-    /// `DealDamage(Each(AllOf([InZone(Battlefield), Type(Creature)])), 2)` with
-    /// two creatures on the field emits ONE `Batch` of two `DamageDealt`
-    /// events — the sweep fixture drives simultaneous deaths later.
+    /// `Each(AllOf([InZone(Battlefield), Type(Creature)]), DealDamage(
+    /// ThatObject, 2))` deals 2 damage to each of the two battlefield creatures
+    /// — one `DamageDealt` per iterated element (the verb's patient is a single
+    /// `Reference`).
     #[test]
-    fn each_creature_deal_damage_emits_one_batch() {
+    fn each_creature_deal_damage_hits_both_creatures() {
         let (mut state, a) = bear_on_field();
         // Force a second creature onto the battlefield.
         let b = *state.zones.hands[0]
@@ -3654,31 +3686,32 @@ mod tests {
         state.zones.battlefield.push(b);
 
         let frame = frame_src(a);
-        let effect = Effect::Act(Action::deal_damage(
-            Selection::Each(Filter::AllOf(vec![
+        let effect = Effect::Each(deckmaste_core::Each {
+            over: Selection::Filter(Filter::AllOf(vec![
                 Filter::State(StateFilter::InZone(Zone::Battlefield)),
                 Filter::creature(),
             ])),
-            Count::Literal(2),
-        ));
+            effect: Box::new(Effect::Act(Action::deal_damage(
+                Reference::ThatObject,
+                Count::Literal(2),
+            ))),
+        });
         state.run_effect(effect, &frame);
 
-        let outcome = state.step();
-        let Progress::Applied(Occurrence::Batch(events)) = (match outcome {
-            StepOutcome::Progress(p) => p,
-            other => panic!("expected Progress, got {other:?}"),
-        }) else {
-            panic!("expected Applied(Batch(…))");
-        };
+        // Simultaneity ([CR#700.1]): a single-verb `Each` body resolves for
+        // every element at once — both `DamageDealt`s ride ONE `Occurrence::Batch`
+        // (not two sequential singles), so death triggers / SBAs see them
+        // together. This is the "to each" simultaneity the old verb-over-`Filter`
+        // carried, restored after the verb→`Reference` split.
+        match state.agenda.front() {
+            Some(WorkItem::Emit(crate::event::Occurrence::Batch(evs))) => {
+                assert_eq!(evs.len(), 2, "both hits land in one simultaneous batch");
+            }
+            other => panic!("expected one simultaneous Emit(Batch), got {other:?}"),
+        }
 
-        // Both creatures took 2 damage.
-        let mut got: Vec<_> = events
-            .iter()
-            .map(|e| match e {
-                GameEvent::DamageDealt { target, amount, .. } => (*target, *amount),
-                other => panic!("unexpected event {other:?}"),
-            })
-            .collect();
+        // Both creatures took 2 damage — one DamageDealt per iterated element.
+        let mut got = collect_damage_dealt(&mut state, 40);
         got.sort();
         let mut want = vec![(a, 2u32), (b, 2u32)];
         want.sort();
@@ -3695,7 +3728,7 @@ mod tests {
         let frame = frame_src_targets(a, vec![a, b]);
         state.run_effect(
             Effect::Act(Action::DealDamage(
-                Selection::Ref(Reference::Target(0)),
+                Reference::Target(0),
                 Count::StatOf(Reference::Target(1), deckmaste_core::Stat::Power),
                 Reference::Target(1),
             )),
@@ -3824,7 +3857,7 @@ mod tests {
         );
 
         let items = state.action_items(
-            &Action::by_you(PlayerAction::Untap(Selection::this())),
+            &Action::by_you(PlayerAction::Untap(Reference::This)),
             &frame,
         );
         assert_eq!(
@@ -3847,7 +3880,7 @@ mod tests {
         let frame = frame_src(bear);
         let items = state.action_items(
             &Action::by_you(PlayerAction::PutCounters(
-                Selection::this(),
+                Reference::This,
                 "P1P1Counter".into(),
                 Count::Literal(2),
             )),
@@ -3877,7 +3910,7 @@ mod tests {
         let frame = frame_src(bear);
         let items = state.action_items(
             &Action::by_you(PlayerAction::PutCounters(
-                Selection::this(),
+                Reference::This,
                 "P1P1Counter".into(),
                 Count::Literal(0),
             )),
@@ -3900,7 +3933,7 @@ mod tests {
         let frame = frame_src(bear);
         state.run_effect(
             Effect::act_by_you(PlayerAction::PutCounters(
-                Selection::this(),
+                Reference::This,
                 "P1P1Counter".into(),
                 Count::Literal(2),
             )),
@@ -3931,7 +3964,7 @@ mod tests {
         let frame = frame_src(bear);
         state.run_effect(
             Effect::act_by_you(PlayerAction::RemoveCounters(
-                Selection::this(),
+                Reference::This,
                 "P1P1Counter".into(),
                 Count::Literal(2),
             )),
@@ -4056,7 +4089,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src(bear);
         state.run_effect(
-            Effect::act_by_you(PlayerAction::Sacrifice(Selection::this())),
+            Effect::act_by_you(PlayerAction::Sacrifice(Reference::This)),
             &frame,
         );
         // Sacrificed → ZoneWillChange → ZoneChanged.
@@ -4102,7 +4135,7 @@ mod tests {
 
         let frame = frame_src(gob);
         state.run_effect(
-            Effect::act_by_you(PlayerAction::Sacrifice(Selection::this())),
+            Effect::act_by_you(PlayerAction::Sacrifice(Reference::This)),
             &frame,
         );
         for _ in 0..10 {
@@ -4127,7 +4160,10 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src(bear);
         state.run_effect(
-            Effect::act_by_you(PlayerAction::Exile(Selection::this())),
+            Effect::act_by_you(PlayerAction::Move(
+                Reference::This,
+                deckmaste_core::Destination::Zone(Zone::Exile),
+            )),
             &frame,
         );
         // ZoneWillChange → ZoneChanged.
@@ -4146,7 +4182,10 @@ mod tests {
         state.zones.graveyards[0].push(card);
         let frame = frame_src(card);
         state.run_effect(
-            Effect::act_by_you(PlayerAction::Exile(Selection::this())),
+            Effect::act_by_you(PlayerAction::Move(
+                Reference::This,
+                deckmaste_core::Destination::Zone(Zone::Exile),
+            )),
             &frame,
         );
         for _ in 0..2 {
@@ -4166,7 +4205,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let hand_before = state.zones.hands[0].len();
         let frame = frame_src(bear);
-        state.run_effect(Effect::Act(Action::ReturnToHand(Selection::this())), &frame);
+        state.run_effect(Effect::Act(Action::ReturnToHand(Reference::This)), &frame);
         // ZoneWillChange → ZoneChanged.
         for _ in 0..2 {
             let _ = state.step();
@@ -4185,7 +4224,7 @@ mod tests {
         state.zones.graveyards[0].push(card);
         let gy_hand_before = state.zones.hands[0].len();
         let frame = frame_src(card);
-        state.run_effect(Effect::Act(Action::ReturnToHand(Selection::this())), &frame);
+        state.run_effect(Effect::Act(Action::ReturnToHand(Reference::This)), &frame);
         for _ in 0..2 {
             let _ = state.step();
         }
@@ -4215,10 +4254,7 @@ mod tests {
 
         // The source's effect counters that spell (chosen as Target(0)).
         let frame = frame_src_targets(bear, vec![spell]);
-        state.run_effect(
-            Effect::Act(Action::Counter(Selection::Ref(Reference::Target(0)))),
-            &frame,
-        );
+        state.run_effect(Effect::Act(Action::Counter(Reference::Target(0))), &frame);
         // ZoneWillChange → ZoneChanged.
         for _ in 0..2 {
             let _ = state.step();
@@ -4255,10 +4291,7 @@ mod tests {
 
         // The source's effect counters that ability (chosen as Target(0)).
         let frame = frame_src_targets(bear, vec![ability_id]);
-        state.run_effect(
-            Effect::Act(Action::Counter(Selection::Ref(Reference::Target(0)))),
-            &frame,
-        );
+        state.run_effect(Effect::Act(Action::Counter(Reference::Target(0))), &frame);
         // AbilityResolved applies.
         let _ = state.step();
 
@@ -4289,7 +4322,7 @@ mod tests {
         let frame = frame_src(bear);
         state.run_effect(
             Effect::Act(Action::Move(
-                Selection::this(),
+                Reference::This,
                 Destination::Library(Anchor::FromTop(Count::Literal(0))),
             )),
             &frame,
@@ -4307,7 +4340,7 @@ mod tests {
         let frame = frame_src(top);
         state.run_effect(
             Effect::Act(Action::Move(
-                Selection::this(),
+                Reference::This,
                 Destination::Library(Anchor::FromBottom(Count::Literal(0))),
             )),
             &frame,
@@ -4387,12 +4420,12 @@ mod tests {
         let frame = frame_src(a);
         let effect = Effect::DivideAmong(DivideAmong {
             amount: Count::Literal(3),
-            group: Selection::Each(Filter::AllOf(vec![
+            group: Selection::Filter(Filter::AllOf(vec![
                 Filter::State(StateFilter::InZone(Zone::Battlefield)),
                 Filter::creature(),
             ])),
             body: Box::new(Effect::Act(Action::deal_damage(
-                Selection::Ref(Reference::ThatObject),
+                Reference::ThatObject,
                 Count::Allotment,
             ))),
         });
@@ -4420,23 +4453,23 @@ mod tests {
     #[test]
     fn divide_among_handles_a_player_element_without_panicking() {
         use deckmaste_core::DivideAmong;
-        use deckmaste_core::Quantity;
 
         let (mut state, creature) = bear_on_field();
         let player = state.players[1].object;
         let life0 = state.player(PlayerId(1)).life;
-        // The group is pre-chosen (Arc Lightning's `Choose(AnyNumber,
-        // CreatureOrPlayer)`); `split_evenly(3, 2)` is [2, 1], so the
-        // first-listed creature takes 2, the player takes 1.
+        // The group is pre-bound as `Those` (Arc Lightning's chosen
+        // `CreatureOrPlayer` set, bound by an enclosing `With`); `split_evenly(3,
+        // 2)` is [2, 1], so the first-listed creature takes 2, the player takes
+        // 1.
         let frame = Frame {
-            chosen: Some(vec![creature, player]),
+            those: Some(vec![creature, player]),
             ..frame_src(creature)
         };
         let effect = Effect::DivideAmong(DivideAmong {
             amount: Count::Literal(3),
-            group: Selection::Choose(Quantity::one(), Filter::Any),
+            group: Selection::Those,
             body: Box::new(Effect::Act(Action::deal_damage(
-                Selection::Ref(Reference::ThatObject),
+                Reference::ThatObject,
                 Count::Allotment,
             ))),
         });
@@ -4454,13 +4487,13 @@ mod tests {
         );
     }
 
-    /// [CR#608.2,120.3]: `ForEach` over the players binds each zoneless player
+    /// [CR#608.2,120.3]: `Each` over the players binds each zoneless player
     /// proxy as the iteration anaphor — the body's `DealDamage(ThatObject, 1)`
     /// resolves to the player and each loses 1 life, with no panic on the
     /// snapshotless element.
     #[test]
     fn foreach_over_players_binds_each_player_as_that_object() {
-        use deckmaste_core::ForEach;
+        use deckmaste_core::Each;
 
         let (mut state, bear) = bear_on_field();
         let life0 = [
@@ -4469,10 +4502,10 @@ mod tests {
         ];
         let frame = frame_src(bear);
         state.run_effect(
-            Effect::ForEach(ForEach {
-                over: Filter::Kind(ObjectKind::Player),
+            Effect::Each(Each {
+                over: Selection::Filter(Filter::Kind(ObjectKind::Player)),
                 effect: Box::new(Effect::Act(Action::deal_damage(
-                    Selection::Ref(Reference::ThatObject),
+                    Reference::ThatObject,
                     Count::Literal(1),
                 ))),
             }),
@@ -5012,8 +5045,8 @@ mod tests {
         let frame = frame_src_targets(equipment, vec![host]);
         state.run_effect(
             Effect::Act(Action::Attach {
-                what: Selection::this(),
-                to: Selection::Ref(Reference::Target(0)),
+                what: Reference::This,
+                to: Reference::Target(0),
             }),
             &frame,
         );
@@ -5086,7 +5119,7 @@ mod tests {
         // Destroy the host (source = host, `This` = the dying creature); the SBA
         // sweep then sends the now-unattached Aura to the graveyard ([CR#704.5m]).
         let frame = frame_src(host);
-        state.run_effect(Effect::Act(Action::Destroy(Selection::this())), &frame);
+        state.run_effect(Effect::Act(Action::Destroy(Reference::This)), &frame);
         run_injected(&mut state);
         for e in crate::sba::sweep(&state) {
             state.schedule_front(vec![WorkItem::Emit(Occurrence::single(e))]);
@@ -5120,10 +5153,7 @@ mod tests {
 
         // Host dies.
         let frame = frame_src_targets(equipment, vec![host]);
-        state.run_effect(
-            Effect::Act(Action::Destroy(Selection::Ref(Reference::Target(0)))),
-            &frame,
-        );
+        state.run_effect(Effect::Act(Action::Destroy(Reference::Target(0))), &frame);
         drain(&mut state);
         for e in crate::sba::sweep(&state) {
             state.schedule_front(vec![WorkItem::Emit(Occurrence::single(e))]);
@@ -5226,8 +5256,8 @@ mod tests {
         let frame = frame_src_targets(fortification, vec![land]);
         state.run_effect(
             Effect::Act(Action::Attach {
-                what: Selection::this(),
-                to: Selection::Ref(Reference::Target(0)),
+                what: Reference::This,
+                to: Reference::Target(0),
             }),
             &frame,
         );
@@ -5266,8 +5296,8 @@ mod tests {
         let frame = frame_src_targets(equip_creature, vec![host]);
         state.run_effect(
             Effect::Act(Action::Attach {
-                what: Selection::this(),
-                to: Selection::Ref(Reference::Target(0)),
+                what: Reference::This,
+                to: Reference::Target(0),
             }),
             &frame,
         );
@@ -5280,7 +5310,7 @@ mod tests {
 
         // Unattach (reconfigure's second ability).
         let frame = frame_src(equip_creature);
-        state.run_effect(Effect::Act(Action::Unattach(Selection::this())), &frame);
+        state.run_effect(Effect::Act(Action::Unattach(Reference::This)), &frame);
         run_injected(&mut state);
         assert_eq!(
             state.objects.obj(equip_creature).attached_to,
@@ -5419,7 +5449,7 @@ mod tests {
         );
     }
 
-    /// [CR#608.2]: `Effect::ForEach` evaluates `over` once at resolution and
+    /// [CR#608.2]: `Effect::Each` evaluates `over` once at resolution and
     /// runs the inner effect once per matched object, binding each iterated
     /// object as `ThatObject` (a per-iteration `bindings.that_object`). Proven
     /// via `Destroy(ThatObject)` over the battlefield creatures: every creature
@@ -5427,7 +5457,7 @@ mod tests {
     /// that iteration's object.
     #[test]
     fn run_effect_foreach_binds_each_match_as_that_object() {
-        use deckmaste_core::ForEach;
+        use deckmaste_core::Each;
 
         let (mut state, bear) = bear_on_field();
         let theirs = second_bear_to_player_1(&mut state);
@@ -5437,11 +5467,9 @@ mod tests {
         ]);
         let frame = frame_src(bear);
         state.run_effect(
-            Effect::ForEach(ForEach {
-                over: creatures,
-                effect: Box::new(Effect::Act(Action::Destroy(Selection::Ref(
-                    Reference::ThatObject,
-                )))),
+            Effect::Each(Each {
+                over: Selection::Filter(creatures),
+                effect: Box::new(Effect::Act(Action::Destroy(Reference::ThatObject))),
             }),
             &frame,
         );
@@ -5452,11 +5480,11 @@ mod tests {
         );
     }
 
-    /// [CR#608.2]: `Effect::ForEach` runs the inner effect once per match — a
+    /// [CR#608.2]: `Effect::Each` runs the inner effect once per match — a
     /// non-binding body (gain 1 life) over two creatures gains 2 life.
     #[test]
     fn run_effect_foreach_runs_once_per_match() {
-        use deckmaste_core::ForEach;
+        use deckmaste_core::Each;
 
         let (mut state, bear) = bear_on_field();
         let _theirs = second_bear_to_player_1(&mut state);
@@ -5467,8 +5495,8 @@ mod tests {
         let frame = frame_src(bear);
         let life0 = state.player(PlayerId(0)).life;
         state.run_effect(
-            Effect::ForEach(ForEach {
-                over: creatures,
+            Effect::Each(Each {
+                over: Selection::Filter(creatures),
                 effect: Box::new(Effect::Act(Action::By(
                     Reference::You,
                     PlayerAction::GainLife(Count::Literal(1)),
@@ -5812,7 +5840,7 @@ mod tests {
         state.run_effect(
             Effect::AdditionalCost(AdditionalCost {
                 pay: Cost(vec![CostComponent::do_(PlayerAction::Sacrifice(
-                    Selection::this(),
+                    Reference::This,
                 ))]),
                 body: Box::new(Effect::act_by_you(PlayerAction::GainLife(
                     Count::CounterCount(Box::new(Reference::EventAgent), "P1P1Counter".into()),
@@ -5996,6 +6024,28 @@ mod tests {
             }
         }
         out
+    }
+
+    /// Pump up to `n` steps, collecting every `(target, amount)` of the
+    /// `DamageDealt` events applied along the way — the per-element emissions a
+    /// `Each(.., DealDamage(ThatObject, ..))` produces (a verb deals to a
+    /// single `Reference`, so the spread is the iterator).
+    fn collect_damage_dealt(state: &mut GameState, n: usize) -> Vec<(ObjectId, u32)> {
+        let mut got = Vec::new();
+        for p in drain_progress(state, n) {
+            if let Progress::Applied(occ) = p {
+                let events = match occ {
+                    Occurrence::Single(e) => vec![e],
+                    Occurrence::Batch(es) => es,
+                };
+                for e in events {
+                    if let GameEvent::DamageDealt { target, amount, .. } = e {
+                        got.push((target, amount));
+                    }
+                }
+            }
+        }
+        got
     }
 
     /// Isolation guard: proves the spell-form fixture is sound independent of
@@ -6595,10 +6645,10 @@ mod tests {
         // We check indirectly by scheduling a no-op body and confirming no panic.
         state.run_effect(
             Effect::With(With {
-                selection: Selection::TopOfLibrary {
+                binder: deckmaste_core::Binder::Existing(Selection::TopOfLibrary {
                     count: Count::Literal(2),
                     of: deckmaste_core::Reference::You,
-                },
+                }),
                 body: Box::new(Effect::Sequence(vec![])),
             }),
             &frame,
@@ -6670,10 +6720,10 @@ mod tests {
         // "Scry"))`.
         state.run_effect(
             Effect::With(With {
-                selection: Selection::TopOfLibrary {
+                binder: deckmaste_core::Binder::Existing(Selection::TopOfLibrary {
                     count: Count::Literal(3),
                     of: deckmaste_core::Reference::You,
-                },
+                }),
                 body: Box::new(Effect::act_by_you(PlayerAction::Distribute {
                     group: Selection::Those,
                     bins: vec![Bin::Top, Bin::Bottom],
@@ -6799,10 +6849,10 @@ mod tests {
         // with controller=p0 — should look at the top 2 of p1's library.
         state.run_effect(
             Effect::With(With {
-                selection: Selection::TopOfLibrary {
+                binder: deckmaste_core::Binder::Existing(Selection::TopOfLibrary {
                     count: Count::Literal(2),
                     of: deckmaste_core::Reference::Opponent,
-                },
+                }),
                 body: Box::new(Effect::act_by_you(PlayerAction::Distribute {
                     group: Selection::Those,
                     bins: vec![Bin::Top, Bin::Bottom],
@@ -6929,10 +6979,10 @@ mod tests {
         // Scry 0: TopOfLibrary(0) → empty window → no decision, no move.
         state.run_effect(
             Effect::With(With {
-                selection: Selection::TopOfLibrary {
+                binder: deckmaste_core::Binder::Existing(Selection::TopOfLibrary {
                     count: Count::Literal(0),
                     of: deckmaste_core::Reference::You,
-                },
+                }),
                 body: Box::new(Effect::act_by_you(PlayerAction::Distribute {
                     group: Selection::Those,
                     bins: vec![Bin::Top, Bin::Bottom],
@@ -7014,10 +7064,10 @@ mod tests {
         // — N=0 case: scry 0 emits no Distributed event.
         state.run_effect(
             Effect::With(With {
-                selection: Selection::TopOfLibrary {
+                binder: deckmaste_core::Binder::Existing(Selection::TopOfLibrary {
                     count: Count::Literal(0),
                     of: deckmaste_core::Reference::You,
-                },
+                }),
                 body: Box::new(Effect::act_by_you(PlayerAction::Distribute {
                     group: Selection::Those,
                     bins: vec![Bin::Top, Bin::Bottom],
@@ -7052,10 +7102,10 @@ mod tests {
         // — N=2 case: scry 2 records Distributed { name: "Scry", count: 2 }.
         state.run_effect(
             Effect::With(With {
-                selection: Selection::TopOfLibrary {
+                binder: deckmaste_core::Binder::Existing(Selection::TopOfLibrary {
                     count: Count::Literal(2),
                     of: deckmaste_core::Reference::You,
-                },
+                }),
                 body: Box::new(Effect::act_by_you(PlayerAction::Distribute {
                     group: Selection::Those,
                     bins: vec![Bin::Top, Bin::Bottom],

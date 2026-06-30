@@ -79,16 +79,20 @@ fn discard(text: &str) -> Option<String> {
     Some(format!("Do(Discard(count: {n}))"))
 }
 
-/// `Sacrifice <subject>` (non-self) -> `Do(Sacrifice(Choose(Exactly(N),
-/// <filter>)))`: a chosen sacrifice, the payer picking N matching permanents as
-/// the cost is paid ([CR#601.2h]). The implicit "you control" restriction is
-/// the Sacrifice verb's own ([CR#701.21a]), not part of the printed-text filter
-/// — matching the self-sacrifice form (`Sacrifice ~` -> `SacrificeThis`). The
-/// leading determiner fixes N: `a`/`an`/`another`/`other` mean one and stay in
-/// the phrase (so the filter parser reads `another`/`other` as self-exclusion);
-/// a spelled count (`one`, `two`, …) is stripped and sets N. An unrecognized
-/// leader or a subject the filter grammar can't parse declines. The self form
-/// `Sacrifice ~` is matched earlier and never reaches here (it has no space).
+/// `Sacrifice <subject>` (non-self) -> the cost-side choose-then-pay `With`
+/// step ([CR#601.2b]): `With(binder: ChooseOne(<filter>), body:
+/// [Do(Sacrifice(That))])` for one, or `With(binder: Choose(Exactly(N),
+/// <filter>), body: [Do(Sacrifice(That))])` for N>1. The binder makes the
+/// choice (bound as `That`) and `Sacrifice(That)` pays against it — choosing
+/// kept OUT of the verb (a verb takes a single [`Reference`]). The implicit
+/// "you control" restriction is the Sacrifice verb's own ([CR#701.21a]), not
+/// part of the printed-text filter — matching the self-sacrifice form
+/// (`Sacrifice ~` -> `SacrificeThis`). The leading determiner fixes N:
+/// `a`/`an`/`another`/`other` mean one and stay in the phrase (so the filter
+/// parser reads `another`/`other` as self-exclusion); a spelled count (`one`,
+/// `two`, …) is stripped and sets N. An unrecognized leader or a subject the
+/// filter grammar can't parse declines. The self form `Sacrifice ~` is matched
+/// earlier and never reaches here (it has no space).
 fn sacrifice(text: &str) -> Option<String> {
     let rest = text.strip_prefix("Sacrifice ")?;
     let (first, tail) = rest.split_once(' ')?;
@@ -97,7 +101,14 @@ fn sacrifice(text: &str) -> Option<String> {
         _ => (effect::number_word(first)?, tail),
     };
     let filter = filter::parse_phrase(phrase)?;
-    Some(format!("Do(Sacrifice(Choose(Exactly({count}), {filter})))"))
+    let binder = if count == 1 {
+        format!("ChooseOne({filter})")
+    } else {
+        format!("Choose(Exactly({count}), {filter})")
+    };
+    Some(format!(
+        "With(binder: {binder}, body: [Do(Sacrifice(That))])"
+    ))
 }
 
 /// A run of mana symbols -> `Mana([...])`. Declines on non-mana text, the

@@ -31,7 +31,8 @@ pub(super) fn count(c: &Count) -> String {
                 r,
                 &Ctx {
                     subject: "it",
-                    targets: &[]
+                    targets: &[],
+                    that: None,
                 }
             )
         ),
@@ -79,11 +80,18 @@ fn characteristic_word(axis: Characteristic) -> &'static str {
     }
 }
 
-/// A `Selection` as the object of a verb.
+/// A `Selection` GROUP as the noun phrase a combinator divides/iterates over
+/// (`DivideAmong.group`, `Each.over`). Verb patients are single objects now
+/// and render via [`reference`].
 pub(super) fn selection(sel: &Selection, ctx: &Ctx) -> String {
     match sel {
-        Selection::Ref(r) => reference(r, ctx),
-        Selection::Each(f) | Selection::Filter(f) => format!("each {}", filter_noun(f)),
+        // [CR#608.2d] the whole matching set — "each creature".
+        Selection::Filter(f) => format!("each {}", filter_noun(f)),
+        // The plural anaphor bound by an enclosing `With` ([CR#608.2d]): reads
+        // the bound group's noun phrase, falling back to the bare "them".
+        Selection::Those => ctx.that.unwrap_or("them").to_string(),
+        // The announced-target set of the nth spec ([CR#115.3,601.2c]).
+        Selection::GetTargets(_) => "them".to_string(),
         // [CR#107.1] the extremal element: "the creature with the greatest
         // power". The projection's axis is named when it is a simple stat read.
         Selection::Pick { op, of, by } => {
@@ -108,6 +116,10 @@ pub(super) fn reference(r: &Reference, ctx: &Ctx) -> String {
         Reference::Target(i) => target_phrase(*i, ctx),
         Reference::This => ctx.subject.to_string(),
         Reference::You => "you".to_string(),
+        // The single object bound by an enclosing `With` one-binder
+        // ([`Binder::ChooseOne`]/[`Binder::TheRef`]): reads the binder's noun
+        // phrase ("a creature"), falling back to the bare "it".
+        Reference::That => ctx.that.unwrap_or("it").to_string(),
         // The triggering event's roles ([CR#603.2e,608.2k]). Agent/patient
         // render as the generic anaphor "it" (no type info at this layer);
         // `ThatObject` is the agent's migration alias.
@@ -336,15 +348,22 @@ fn flatten_all_of(f: &Filter) -> Vec<&Filter> {
 
 // ── PutInLibrary helpers ─────────────────────────────────────────────────────
 
-/// A `Selection` as the object of "put __": "2 cards from your hand".
+/// A `Selection` GROUP as the object of "put __": "them" for a bound group.
+/// Retained for the group "put __" surface — the single-object verb patient
+/// now renders via [`reference`], so a moved-object phrase has no caller in
+/// this stage; kept (per the migration plan) for the group sites a later stage
+/// re-wires.
+#[allow(dead_code)]
 pub(super) fn selection_object(sel: &Selection, ctx: &Ctx) -> String {
     match sel {
-        Selection::Choose(q, filter) => format!("{} {}", quantity(q), filter_object(filter)),
+        // The plural anaphor / announced-target group as the moved object: reads
+        // the bound phrase when present, else the bare "them".
+        Selection::Those | Selection::GetTargets(_) => ctx.that.unwrap_or("them").to_string(),
         other => selection(other, ctx),
     }
 }
 
-fn quantity(q: &Quantity) -> String {
+pub(super) fn quantity(q: &Quantity) -> String {
     // `Quantity` is one `Range(lo, hi)` primitive (seen through a remembered
     // macro by `bounds`). An exactly-N range renders as the count; richer
     // phrasings ("up to N", "any number of") are a renderer follow-up.
@@ -354,8 +373,13 @@ fn quantity(q: &Quantity) -> String {
     }
 }
 
-/// A `Filter` as the object noun for cards: "cards from your hand".
-fn filter_object(f: &Filter) -> String {
+/// A `Filter` as the object noun for cards: "cards from your hand", or a bare
+/// "cards" for the unqualified card kind.
+pub(super) fn filter_object(f: &Filter) -> String {
+    // A bare card kind ([CR#108.2]) reads as the plain plural "cards".
+    if matches!(strip_expanded(f), Filter::Kind(ObjectKind::Card)) {
+        return "cards".to_string();
+    }
     let parts = flatten_all_of(f);
     let mut zone = "";
     let mut yours = false;
@@ -397,6 +421,7 @@ mod tests {
         Ctx {
             subject: "Grizzly Bears",
             targets: &[],
+            that: None,
         }
     }
 

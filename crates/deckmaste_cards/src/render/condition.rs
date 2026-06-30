@@ -59,6 +59,7 @@ mod tests {
         Ctx {
             subject: "~",
             targets: &[],
+            that: None,
         }
     }
 

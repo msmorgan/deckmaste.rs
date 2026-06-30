@@ -24,7 +24,6 @@ use deckmaste_core::Filter;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::Reference;
 use deckmaste_core::Replacement;
-use deckmaste_core::Selection;
 use deckmaste_core::StatValue;
 use deckmaste_core::StaticAbility;
 use deckmaste_core::StaticEffect;
@@ -222,7 +221,10 @@ fn instead_redirects_destruction_to_exile() {
     // `Exile` is a `PlayerAction`; By(You, ...) is the implicit agent sugar.
     let instead_body = Effect::Act(Action::By(
         Reference::You,
-        PlayerAction::Exile(Selection::this()),
+        PlayerAction::Move(
+            Reference::This,
+            deckmaste_core::Destination::Zone(Zone::Exile),
+        ),
     ));
     let (mut state, id) = creature_with_replacement(Replacement::Instead {
         would: destroyed_self(),
@@ -471,17 +473,17 @@ fn regenerate_effect(subject_ref: Reference) -> Effect {
         // [CR#701.19a]: remove all damage from That (the regenerated permanent).
         Effect::Act(Action::By(
             Reference::You,
-            PlayerAction::RemoveDamage(Selection::Ref(Reference::ThatObject)),
+            PlayerAction::RemoveDamage(Reference::ThatObject),
         )),
         // [CR#701.19a]: its controller taps it.
         Effect::Act(Action::By(
             Reference::You,
-            PlayerAction::Tap(Selection::Ref(Reference::ThatObject)),
+            PlayerAction::Tap(Reference::ThatObject),
         )),
     ]);
     Effect::Act(Action::CreateReplacement {
         replacement: Box::new(Replacement::Instead { would, instead }),
-        subject: Selection::Ref(subject_ref),
+        subject: subject_ref,
         duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
         one_shot: true,
     })
@@ -723,12 +725,10 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
         // [CR#701.19a,702.89a]: remove all damage from the enchanted permanent.
         Effect::Act(Action::By(
             Reference::You,
-            PlayerAction::RemoveDamage(Selection::Ref(Reference::AttachHostOf(Box::new(
-                Reference::This,
-            )))),
+            PlayerAction::RemoveDamage(Reference::AttachHostOf(Box::new(Reference::This))),
         )),
         // [CR#702.89a]: destroy this Aura.
-        Effect::Act(Action::Destroy(Selection::this())),
+        Effect::Act(Action::Destroy(Reference::This)),
     ]);
 
     let umbra_armor = Replacement::Instead {
@@ -1020,7 +1020,7 @@ fn double_damage_lineage_terminates() {
     // The `instead` body: deal 10 damage to this creature (a fixed amount
     // rather than a doubled one — see doc-comment above for rationale).
     let instead_body = Effect::Act(deckmaste_core::Action::deal_damage(
-        Selection::this(),
+        Reference::This,
         Count::Literal(10),
     ));
 
@@ -1100,7 +1100,7 @@ fn damage_as_counters_static(on: Filter, recipient: Reference, kind: &str) -> Ab
     };
     let instead = Effect::Act(Action::By(
         Reference::You,
-        PlayerAction::PutCounters(Selection::Ref(recipient), kind.into(), Count::ThatMuch),
+        PlayerAction::PutCounters(recipient, kind.into(), Count::ThatMuch),
     ));
     Ability::Static(StaticAbility {
         from: None,

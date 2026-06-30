@@ -11,7 +11,6 @@ use deckmaste_core::Filter;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::Reference;
 use deckmaste_core::Replacement;
-use deckmaste_core::Selection;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::Zone;
 
@@ -79,20 +78,24 @@ impl GameState {
         match effect {
             // `Tap` is a `PlayerAction`, so the `AsEnters` sugar expands to
             // `Act(By(You, Tap(This)))` (the agent is irrelevant here).
-            Effect::Act(Action::By(_, PlayerAction::Tap(Selection::Ref(Reference::This)))) => {
+            Effect::Act(Action::By(_, PlayerAction::Tap(Reference::This))) => {
                 status.tapped = true;
             }
-            // [CR#303.4]: enters attached. `what` is always this object (the
-            // self-replacement watcher); the host is whatever `to` resolves to.
-            Effect::Act(Action::Attach { what, to }) if is_self_selection(what) => {
-                status.attach_to = self.enters_attached_host(entering, to);
+            // [CR#303.4,303.4f]: enters attached. The enters-attached shape is
+            // `With(ChooseOne(quality), Attach(This, That))` — as it enters, the
+            // controller chooses a legal host matching the Aura's enchant
+            // quality (choosing BEFORE the attach, never inside the verb). v1
+            // picks the first legal candidate; the cast-path choice is Stage-4.
+            Effect::With(_) if enters_attached_quality(effect).is_some() => {
+                let filter = enters_attached_quality(effect).expect("guarded just above");
+                status.attach_to = self.enters_attached_host(entering, filter);
             }
             // [CR#122.6a,614.1c]: enters with counters. `PutCounters(This, kind,
             // n)` self-replacement → fold `(kind, n)` into the entering status.
             // `n` is evaluated against a `This`-anchored frame so a count that
             // scales ("a +1/+1 counter for each …") resolves at entry.
             Effect::Act(Action::By(_, PlayerAction::PutCounters(what, kind, count)))
-                if is_self_selection(what) =>
+                if is_self_reference(what) =>
             {
                 let frame = self.enters_frame(entering);
                 let n = self.eval_count(count, &frame);
@@ -151,9 +154,8 @@ impl GameState {
     fn enters_attached_host(
         &self,
         entering: crate::object::ObjectId,
-        to: &Selection,
+        filter: &Filter,
     ) -> Option<crate::object::ObjectId> {
-        let filter = host_filter(to)?;
         crate::target::candidates(self, filter)
             .into_iter()
             .find(|&id| {
@@ -163,39 +165,50 @@ impl GameState {
     }
 }
 
-/// The legal-host `Filter` carried by an `Attach`'s `to` selection, if it is a
-/// filter-position selection (`Filter`/`Each`, or an `Expanded` wrapper). A
-/// bare `Ref`/`Target`/`Choose` `to` is the cast-path host (Stage-4 wiring),
-/// so it yields `None` here.
-fn host_filter(to: &Selection) -> Option<&Filter> {
-    match to {
-        Selection::Filter(f) | Selection::Each(f) => Some(f),
-        Selection::Expanded(e) => host_filter(&e.value),
+/// The host-quality `Filter` of an enters-attached self-replacement —
+/// `With(ChooseOne(quality), Attach(This, That))` ([CR#303.4f]: as it enters,
+/// the controller chooses a legal host matching the Aura's enchant quality),
+/// looked through `Expanded`. `None` for any other shape.
+fn enters_attached_quality(effect: &Effect) -> Option<&Filter> {
+    match effect {
+        Effect::With(with) => {
+            let body_is_self_attach = matches!(
+                &*with.body,
+                Effect::Act(Action::Attach { what, to })
+                    if is_self_reference(what) && matches!(to, Reference::That)
+            );
+            if body_is_self_attach { host_quality(&with.binder) } else { None }
+        }
+        Effect::Expanded(e) => enters_attached_quality(&e.value),
         _ => None,
     }
 }
 
-/// Whether a `Selection` is this object itself (`Ref(This)`/`Ref(Ref(This))`),
-/// looked through any remembered macro invocation.
-fn is_self_selection(sel: &Selection) -> bool {
-    match sel {
-        Selection::Ref(Reference::This) => true,
-        Selection::Ref(Reference::Expanded(e)) => {
-            is_self_selection(&Selection::Ref((*e.value).clone()))
-        }
-        Selection::Expanded(e) => is_self_selection(&e.value),
+/// The `Filter` a `ChooseOne` binder chooses among (the host quality), through
+/// a remembered macro invocation.
+fn host_quality(binder: &deckmaste_core::Binder) -> Option<&Filter> {
+    match binder {
+        deckmaste_core::Binder::ChooseOne(f) => Some(f),
+        deckmaste_core::Binder::Expanded(e) => host_quality(&e.value),
+        _ => None,
+    }
+}
+
+/// Whether a `Reference` is this object itself (`This`), looked through any
+/// remembered macro invocation.
+fn is_self_reference(r: &Reference) -> bool {
+    match r {
+        Reference::This => true,
+        Reference::Expanded(e) => is_self_reference(&e.value),
         _ => false,
     }
 }
 
-/// Whether an `also` effect is this object attaching itself (`Attach(what:
-/// This, to: …)`), looked through `Expanded` — the enters-attached shape.
+/// Whether an `also` effect is this object attaching itself on entry — the
+/// enters-attached shape `With(ChooseOne(quality), Attach(This, That))`,
+/// looked through `Expanded`.
 fn also_is_self_attach(effect: &Effect) -> bool {
-    match effect {
-        Effect::Act(Action::Attach { what, .. }) => is_self_selection(what),
-        Effect::Expanded(e) => also_is_self_attach(&e.value),
-        _ => false,
-    }
+    enters_attached_quality(effect).is_some()
 }
 
 /// Look through a remembered `Replacement` macro invocation (`AsEnters`, …) to
@@ -269,8 +282,10 @@ mod tests {
     }
 
     /// A synthetic enchantment whose sole ability is the enters-attached
-    /// self-replacement `AsEnters(Attach(This, to: <a creature on the
-    /// battlefield>))` — the `to` is a filter, the Stage-1 candidate-set form.
+    /// self-replacement `AsEnters(With(ChooseOne(<a creature on the
+    /// battlefield>), Attach(This, to: That)))` — the host quality is the
+    /// `ChooseOne` filter; the controller chooses a legal host as it enters
+    /// ([CR#303.4f]).
     fn enchant_aura_card() -> Card {
         Card::Normal(CardFace {
             name: "Test Aura".into(),
@@ -286,12 +301,15 @@ mod tests {
                         face: None,
                         cause: None,
                     },
-                    also: Effect::Act(Action::Attach {
-                        what: Selection::this(),
-                        to: Selection::Filter(Filter::AllOf(vec![
+                    also: Effect::With(deckmaste_core::With {
+                        binder: deckmaste_core::Binder::ChooseOne(Filter::AllOf(vec![
                             Filter::State(deckmaste_core::StateFilter::InZone(Zone::Battlefield)),
                             Filter::creature(),
                         ])),
+                        body: Box::new(Effect::Act(Action::Attach {
+                            what: Reference::This,
+                            to: Reference::That,
+                        })),
                     }),
                 }))],
                 characteristic_defining: false,
@@ -416,7 +434,7 @@ mod tests {
                     also: Effect::Act(Action::By(
                         Reference::You,
                         PlayerAction::PutCounters(
-                            Selection::this(),
+                            Reference::This,
                             "P1P1Counter".into(),
                             Count::Literal(2),
                         ),
@@ -510,7 +528,7 @@ mod tests {
                         condition: Condition::Not(Box::new(gate)),
                         then: Box::new(Effect::Act(Action::By(
                             Reference::You,
-                            PlayerAction::Tap(Selection::this()),
+                            PlayerAction::Tap(Reference::This),
                         ))),
                         otherwise: None,
                     }),
