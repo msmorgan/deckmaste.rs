@@ -7,7 +7,7 @@
     kinds: [Effect],
     params: [Count],
     body: With(
-        selection: TopOfLibrary(count: Param(0), of: Opponent),
+        binder: Existing(TopOfLibrary(count: Param(0), of: Opponent)),
         body: Distribute(group: Those, bins: [Top, Bottom], name: "Fateseal"),
     ),
 )

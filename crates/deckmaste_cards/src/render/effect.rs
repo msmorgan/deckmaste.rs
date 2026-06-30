@@ -136,6 +136,25 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
         // `ThatObject` ("it") — "For each creature, destroy it."
         Effect::Each(fe) => {
             let group = group_noun(&fe.over, ctx);
+            // A damage body whose patient is the per-element anaphor reads as the
+            // natural "to each <group>" form — "Deal 2 damage to each creature."
+            // (Pyroclasm), "Deal 4 damage to each player." (Flame Rift) — not the
+            // distributive "For each creature, deal 2 damage to it." ([CR#608]).
+            if let Effect::Act(Action::DealDamage(target, amount, source)) = &*fe.effect
+                && matches!(target, Reference::ThatObject | Reference::EventAgent)
+            {
+                let recipients = format!("each {group}");
+                return match source {
+                    Reference::This => {
+                        format!("Deal {} damage to {recipients}.", fragment::count(amount))
+                    }
+                    _ => format!(
+                        "{} deals {} damage to {recipients}.",
+                        capitalize_first(&fragment::reference(source, ctx)),
+                        fragment::count(amount),
+                    ),
+                };
+            }
             format!(
                 "For each {group}, {}.",
                 super::ability::lower_first(&trim_period(&effect(&fe.effect, ctx)))

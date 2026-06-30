@@ -634,11 +634,12 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
         "scavenge is sorcery-speed"
     );
 
-    // (3) Cost = printed cost ({2}) THEN exile this card. Read is faithful: the
-    // printed cost rides in a nested `Cost` ahead of the fixed exile-self, so
-    // the authored cost is LUMPY (Cycling's discard-self twin).
+    // (3) Cost = printed cost ({2}) THEN exile this card. Exile is a pure zone
+    // move now (`Move(This, Exile)`, [CR#701.13]). Read is faithful: the printed
+    // cost rides in a nested `Cost` ahead of the fixed exile-self, so the
+    // authored cost is LUMPY (Cycling's discard-self twin).
     let lumpy_cost: Cost = ron_options()
-        .from_str("[Cost([Mana([Generic(2)])]), Do(Exile(This))]")
+        .from_str("[Cost([Mana([Generic(2)])]), Do(Move(This, Exile))]")
         .unwrap();
     assert_eq!(
         act.cost, lumpy_cost,
@@ -646,7 +647,7 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
     );
     // `.normalize()` splices the nested Cost into one flat list.
     let flat_cost: Cost = ron_options()
-        .from_str("[Mana([Generic(2)]), Do(Exile(This))]")
+        .from_str("[Mana([Generic(2)]), Do(Move(This, Exile))]")
         .unwrap();
     assert_eq!(
         act.cost.clone().normalize(),
