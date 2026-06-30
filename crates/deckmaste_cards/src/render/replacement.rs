@@ -15,6 +15,7 @@ pub(super) fn replacement(r: &Replacement, ctx: &Ctx) -> String {
             let it = Ctx {
                 subject: "it",
                 targets: ctx.targets,
+                that: None,
             };
             let act = ability::lower_first(&effect::effect(also, &it));
             format!("As {when}, {act}")
@@ -24,6 +25,7 @@ pub(super) fn replacement(r: &Replacement, ctx: &Ctx) -> String {
             let it = Ctx {
                 subject: "it",
                 targets: ctx.targets,
+                that: None,
             };
             format!(
                 "If {when} would happen, {} instead.",

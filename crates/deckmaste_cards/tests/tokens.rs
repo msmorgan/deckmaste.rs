@@ -18,7 +18,7 @@ use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSpec;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::PlayerAction;
-use deckmaste_core::Selection;
+use deckmaste_core::Reference;
 use deckmaste_core::SimpleManaSymbol;
 use deckmaste_core::Subtype;
 use deckmaste_core::Token;
@@ -42,9 +42,7 @@ fn sacrifice_this() -> CostComponent {
         name: "SacrificeThis".into(),
         args: ExpansionArgs::none(),
         template: None,
-        value: Box::new(CostComponent::do_(PlayerAction::Sacrifice(
-            Selection::this(),
-        ))),
+        value: Box::new(CostComponent::do_(PlayerAction::Sacrifice(Reference::This))),
     })
 }
 

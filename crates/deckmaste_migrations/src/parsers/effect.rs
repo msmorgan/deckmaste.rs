@@ -739,10 +739,17 @@ fn parse_deal_damage(line: &str) -> Option<ParsedEffect> {
         }
     };
     let (targets, selection) = damage_target(tail)?;
-    Some(ParsedEffect {
-        targets,
-        effect: format!("DealDamage({selection}, {amount})"),
-    })
+    // A verb takes a single `Reference`; a "to each / to all" shape's patient is
+    // a `Filter(...)` SELECTION, which can't ride the verb directly. Wrap it in
+    // `Each`, binding each member as `ThatObject` per element ([CR#608.2d]
+    // to-each), with the verb taking that anaphor. A targeted shape's patient is
+    // a `Reference` (`Target(0)`) and rides the verb unchanged.
+    let effect = if selection.starts_with("Filter(") {
+        format!("Each(over: {selection}, effect: DealDamage(ThatObject, {amount}))")
+    } else {
+        format!("DealDamage({selection}, {amount})")
+    };
+    Some(ParsedEffect { targets, effect })
 }
 
 /// `Draw N card(s).` — no targets. Case-insensitive lead ("draw" or "Draw").
@@ -1092,20 +1099,30 @@ mod tests {
 
     #[test]
     fn deal_damage_each_shapes() {
+        // A "to each" shape wraps the verb in `Each` over the filter selection,
+        // binding `ThatObject` per member ([CR#608.2d]) — a verb takes a single
+        // `Reference`, never a `Filter`.
         assert_eq!(
             parsed("~ deals 2 damage to each creature."),
-            Some((String::new(), "DealDamage(Filter(Creature), 2)".to_owned()))
+            Some((
+                String::new(),
+                "Each(over: Filter(Creature), effect: DealDamage(ThatObject, 2))".to_owned()
+            ))
         );
         assert_eq!(
             parsed("~ deals 20 damage to each player."),
-            Some((String::new(), "DealDamage(Filter(Player), 20)".to_owned()))
+            Some((
+                String::new(),
+                "Each(over: Filter(Player), effect: DealDamage(ThatObject, 20))".to_owned()
+            ))
         );
         // "each opponent" -> the player set "opponents of you".
         assert_eq!(
             parsed("~ deals 1 damage to each opponent."),
             Some((
                 String::new(),
-                "DealDamage(Filter(OpponentOf(Ref(You))), 1)".to_owned()
+                "Each(over: Filter(OpponentOf(Ref(You))), effect: DealDamage(ThatObject, 1))"
+                    .to_owned()
             ))
         );
     }
@@ -2123,12 +2140,14 @@ mod tests {
                 "DealDamage(Target(0), 5)".to_owned()
             ))
         );
-        // "each creature and each player" — the unioned distributive sweep.
+        // "each creature and each player" — the unioned distributive sweep,
+        // wrapped in `Each` over the unioned filter ([CR#608.2d]).
         assert_eq!(
             parsed("~ deals 2 damage to each creature and each player."),
             Some((
                 String::new(),
-                "DealDamage(Filter(OneOf([Creature, Player])), 2)".to_owned()
+                "Each(over: Filter(OneOf([Creature, Player])), effect: DealDamage(ThatObject, 2))"
+                    .to_owned()
             ))
         );
     }

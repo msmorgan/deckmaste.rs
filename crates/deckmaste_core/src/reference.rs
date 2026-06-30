@@ -112,7 +112,7 @@ pub enum Reference {
     /// one-binder ([`Binder::ChooseOne`](crate::Binder::ChooseOne) /
     /// [`Binder::TheRef`](crate::Binder::TheRef)) — the Idris `That` (One).
     /// Distinct from [`ThatObject`](Reference::ThatObject), which is the
-    /// `ForEach`/`DivideAmong` per-element binding and the event agent.
+    /// `Each`/`DivideAmong` per-element binding and the event agent.
     /// Carries no payload.
     That,
     /// The object that participated in the enclosing trigger's event —

@@ -485,7 +485,6 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
     use deckmaste_core::Normalize;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
-    use deckmaste_core::Selection;
     use deckmaste_core::TargetSpec;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
@@ -562,7 +561,7 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
     };
     assert_eq!(
         *sel,
-        Selection::Ref(Reference::Target(0)),
+        Reference::Target(0),
         "reinforce puts counters on the chosen target"
     );
     assert_eq!(
@@ -595,7 +594,6 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
     use deckmaste_core::Normalize;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
-    use deckmaste_core::Selection;
     use deckmaste_core::Stat;
     use deckmaste_core::TargetSpec;
     use deckmaste_core::Window;
@@ -679,7 +677,7 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
     };
     assert_eq!(
         sel,
-        &Selection::Ref(Reference::Target(0)),
+        &Reference::Target(0),
         "scavenge counters land on the chosen target ([CR#702.97a])"
     );
     assert_eq!(
@@ -713,7 +711,6 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
     use deckmaste_core::Filter;
     use deckmaste_core::Reference;
     use deckmaste_core::RelationFilter;
-    use deckmaste_core::Selection;
     use deckmaste_core::Stat;
     use deckmaste_core::StateFilter;
     use deckmaste_core::TargetSpec;
@@ -794,7 +791,7 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
         matches!(
             &*t.effect,
             Effect::Act(Action::Move(
-                Selection::Ref(Reference::Target(0)),
+                Reference::Target(0),
                 Destination::Zone(Zone::Hand)
             ))
         ),

@@ -34,6 +34,7 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
     let ctx = Ctx {
         subject: view.name,
         targets: &[],
+        that: None,
     };
     let (lead, clause) = event_clause(&t.event, &ctx);
     let body = lower_first(&effect::effect(&t.effect, &ctx));
@@ -523,6 +524,7 @@ mod tests {
         let ctx = Ctx {
             subject: "Test",
             targets: &[],
+            that: None,
         };
         let you = || {
             Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(

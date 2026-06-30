@@ -362,7 +362,6 @@ mod tests {
     use deckmaste_core::ManaSpec;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
-    use deckmaste_core::Selection;
     use deckmaste_core::StaticAbility;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::Subtype;
@@ -428,7 +427,7 @@ mod tests {
                 window: None,
                 cost: vec![
                     CostComponent::Tap,
-                    CostComponent::do_(PlayerAction::Sacrifice(Selection::from(Reference::This))),
+                    CostComponent::do_(PlayerAction::Sacrifice(Reference::This)),
                 ]
                 .into(),
                 condition: None,

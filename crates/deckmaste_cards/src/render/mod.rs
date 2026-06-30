@@ -68,6 +68,23 @@ pub(crate) struct Ctx<'a> {
     pub subject: &'a str,
     /// The current ability's targets, so `Reference::Target(i)` can resolve.
     pub targets: &'a [TargetSpec],
+    /// The noun phrase the enclosing `Effect::With` bound, so the body's
+    /// `Reference::That` / `Selection::Those` anaphor renders as that phrase
+    /// ("Sacrifice a creature"). `None` outside a `With` body.
+    pub that: Option<&'a str>,
+}
+
+impl<'a> Ctx<'a> {
+    /// Re-bind the `that` anaphor over an inner render — the `Effect::With`
+    /// body sees its binder's noun phrase via `Reference::That` /
+    /// `Selection::Those`.
+    pub(super) fn with_that(&self, phrase: &'a str) -> Ctx<'a> {
+        Ctx {
+            subject: self.subject,
+            targets: self.targets,
+            that: Some(phrase),
+        }
+    }
 }
 
 /// Convenience entry for a printed face.
@@ -88,6 +105,7 @@ fn rules(view: &CardView) -> Vec<String> {
                 let ctx = Ctx {
                     subject: view.name,
                     targets: &[],
+                    that: None,
                 };
                 body.push(effect::effect(&s.effect, &ctx));
             }
@@ -97,6 +115,7 @@ fn rules(view: &CardView) -> Vec<String> {
                 &Ctx {
                     subject: view.name,
                     targets: &[],
+                    that: None,
                 },
             )),
             _ => {} // Activated: later tasks

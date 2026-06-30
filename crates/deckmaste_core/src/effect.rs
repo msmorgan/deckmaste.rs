@@ -80,7 +80,7 @@ pub enum Effect {
     /// [`Selection`](crate::Selection) group, binding each element in turn as
     /// the iteration anaphor `ThatObject`, then runs the body once per element
     /// ([CR#608]).
-    ForEach(ForEach),
+    Each(Each),
     /// `With(binder, body)` — binds what `binder` yields into the frame as the
     /// body's anaphor, then runs `body` once. A one-binder
     /// ([`Binder::TheRef`](crate::Binder::TheRef) /
@@ -89,7 +89,7 @@ pub enum Effect {
     /// ([`Binder::Choose`](crate::Binder::Choose) /
     /// [`Binder::Existing`](crate::Binder::Existing)) binds a group read as
     /// [`Selection::Those`](crate::Selection::Those). Never distributes (that
-    /// is `ForEach`, which binds `ThatObject` per element); `This` never
+    /// is `Each`, which binds `ThatObject` per element); `This` never
     /// rebinds.
     With(With),
     /// Divide an `amount` among a group "as you choose", binding each element
@@ -266,11 +266,11 @@ pub struct AdditionalCost {
     pub body: Box<Effect>,
 }
 
-/// `ForEach { over, do }` — `do` is a keyword, so the field is `effect`.
+/// `Each { over, do }` — `do` is a keyword, so the field is `effect`.
 /// `over` is the [`Selection`](crate::Selection) group iterated; each element
 /// binds in turn as `ThatObject` for one run of `effect` ([CR#608]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub struct ForEach {
+pub struct Each {
     pub over: crate::Selection,
     pub effect: Box<Effect>,
 }
@@ -446,15 +446,15 @@ mod tests {
             "Destroy(This)",
             "Sequence([Draw(Literal(1)),GainLife(Literal(1))])",
             "May(effect:Draw(Literal(1)))",
-            // `ForEach.over` is a `Selection` group (the set of all creatures),
+            // `Each.over` is a `Selection` group (the set of all creatures),
             // binding `ThatObject` per element.
-            "ForEach(over:Filter(Type(Creature)),effect:Draw(Literal(1)))",
+            "Each(over:Filter(Type(Creature)),effect:Draw(Literal(1)))",
             // Brainstorm's shape in the new model: choose 2 cards (a many-binder
-            // `With`), then `ForEach` over `Those`, moving each onto the library.
+            // `With`), then `Each` over `Those`, moving each onto the library.
             // Core reader has no macros, so the `Quantity` is the bare `Range`
             // primitive (`Exactly(2)` is the cards-layer macro spelling).
             "With(binder:Choose(Range(Literal(2),Literal(2)),InZone(Hand)),\
-             body:ForEach(over:Those,\
+             body:Each(over:Those,\
              effect:Move(ThatObject,Library(FromTop(Literal(0))))))",
         ];
         for source in cases {

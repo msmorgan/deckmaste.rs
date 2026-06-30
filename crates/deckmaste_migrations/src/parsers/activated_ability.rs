@@ -174,7 +174,7 @@ mod tests {
         assert_eq!(
             act("Sacrifice a creature: ~ deals 1 damage to any target.").as_deref(),
             Some(
-                "Activated(cost: [Do(Sacrifice(Choose(Exactly(1), Creature)))], \
+                "Activated(cost: [With(binder: ChooseOne(Creature), body: [Do(Sacrifice(That))])], \
                  effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), 1)))"
             )
         );
@@ -186,8 +186,9 @@ mod tests {
         assert_eq!(
             act("Sacrifice another Goblin: Draw a card.").as_deref(),
             Some(
-                "Activated(cost: [Do(Sacrifice(Choose(Exactly(1), \
-                 AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This))]))))], effect: Draw(1))"
+                "Activated(cost: [With(binder: ChooseOne(\
+                 AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])), \
+                 body: [Do(Sacrifice(That))])], effect: Draw(1))"
             )
         );
     }
@@ -198,7 +199,8 @@ mod tests {
         assert_eq!(
             act("Sacrifice two creatures: Draw a card.").as_deref(),
             Some(
-                "Activated(cost: [Do(Sacrifice(Choose(Exactly(2), Creature)))], \
+                "Activated(cost: [With(binder: Choose(Exactly(2), Creature), \
+                 body: [Do(Sacrifice(That))])], \
                  effect: Draw(1))"
             )
         );

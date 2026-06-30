@@ -14,7 +14,6 @@ use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::Reference;
-use deckmaste_core::Selection;
 use deckmaste_core::Stat;
 use deckmaste_core::Type;
 use deckmaste_core::Uint;
@@ -67,6 +66,17 @@ pub(crate) struct CostSummary {
     /// [`GameState::tap_total_subset`] at the gate (feasibility) and the
     /// payment step (which subset to tap).
     pub tap_totals: Vec<TapTotalReq>,
+    /// Cost-side choose-then-pay steps ([CR#601.2b], `CostComponent::With`):
+    /// "sacrifice a creature" = `With(ChooseOne(Creature),
+    /// [Do(Sacrifice(That))])`. The binder makes a choice (bound as
+    /// `That`/`Those`) the body's verbs pay against — choosing kept OUT of
+    /// the verb. Collected verbatim because the choice can only be surfaced
+    /// against a live frame: the gate ([`GameState::can_activate`]) checks
+    /// the binder's choose-feasibility, and the pay step
+    /// ([`GameState::pay_cost`]) runs each as an `Effect::With`
+    /// (which surfaces `ChooseObjects` and binds `frame.those`, exactly like
+    /// the effect-side `With`).
+    pub withs: Vec<CostComponent>,
 }
 
 /// One aggregate-stat (tap-total) cost obligation collected by [`cost_summary`]
@@ -95,6 +105,7 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
     let mut verbs: Vec<PlayerAction> = Vec::new();
     let mut mana_cost_of: Vec<Reference> = Vec::new();
     let mut tap_totals: Vec<TapTotalReq> = Vec::new();
+    let mut withs: Vec<CostComponent> = Vec::new();
     for component in cost {
         match component {
             CostComponent::Mana(m) => symbols.extend_from_slice(m),
@@ -126,6 +137,12 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
                     return None;
                 }
             }
+            // A cost-side choose-then-pay step ([CR#601.2b]) — bind the choice
+            // as `That`/`Those`, then pay the body. Collected verbatim: the
+            // choice can only be surfaced against a live frame, so the gate
+            // checks the binder's choose-feasibility and the pay step runs each
+            // as an `Effect::With` (mirroring `ManaCostOf`/`TapTotal`).
+            CostComponent::With { .. } => withs.push(component.clone()),
             // Recurse through macro wrappers.
             CostComponent::Expanded(e) => {
                 let inner = cost_summary(std::slice::from_ref(&e.value))?;
@@ -135,6 +152,7 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
                 verbs.extend(inner.verbs);
                 mana_cost_of.extend(inner.mana_cost_of);
                 tap_totals.extend(inner.tap_totals);
+                withs.extend(inner.withs);
             }
             // A nested cost (the macro list-splice shape) survives faithful
             // read; recurse to splice it into the summary — this walk is the
@@ -147,6 +165,7 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
                 verbs.extend(inner.verbs);
                 mana_cost_of.extend(inner.mana_cost_of);
                 tap_totals.extend(inner.tap_totals);
+                withs.extend(inner.withs);
             }
         }
     }
@@ -157,6 +176,7 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
         verbs,
         mana_cost_of,
         tap_totals,
+        withs,
     })
 }
 
@@ -348,6 +368,18 @@ impl GameState {
             return false;
         }
 
+        // [CR#601.2b,601.2h]: every cost-side `With` choose-then-pay step must
+        // have a legal choice — the choose-feasibility that used to live in the
+        // verb ("sacrifice a creature" needs a creature to choose). A directly-
+        // resolved binder (`TheRef`/`Existing`) is always feasible.
+        if !summary
+            .withs
+            .iter()
+            .all(|w| self.with_cost_feasible(w, object, player))
+        {
+            return false;
+        }
+
         // [CR#601.2h,702.122a]: every aggregate-stat (tap-total) cost must have
         // a qualifying untapped subset to tap (Crew: enough total power) —
         // partial payment is forbidden, so an infeasible requirement bars
@@ -356,6 +388,56 @@ impl GameState {
             .tap_totals
             .iter()
             .all(|req| self.tap_total_subset(req, object, player).is_some())
+    }
+
+    /// [CR#601.2b,601.2h]: is the cost-side `With`'s binder a payable choice for
+    /// `source`'s controller? A chooser binder (`ChooseOne`/`Choose`) needs
+    /// enough legal candidates matching its filter — ≥ 1 for `ChooseOne`, ≥ the
+    /// quantity's lower bound for `Choose` (partial payment is forbidden, so
+    /// "sacrifice two creatures" with one creature is unpayable). A directly-
+    /// resolved binder (`TheRef`/`Existing`) names its object(s) and is always
+    /// feasible. `with` is a `CostComponent::With` (the only shape
+    /// [`cost_summary`] collects into `withs`).
+    fn with_cost_feasible(
+        &self,
+        with: &CostComponent,
+        source: ObjectId,
+        controller: PlayerId,
+    ) -> bool {
+        use deckmaste_core::Binder;
+        let CostComponent::With { binder, .. } = with else {
+            unreachable!("cost_summary collects only With components into `withs`");
+        };
+        fn peel(b: &Binder) -> &Binder {
+            match b {
+                Binder::Expanded(e) => peel(&e.value),
+                other => other,
+            }
+        }
+        match peel(binder) {
+            // A captured reference / existing selection resolves directly.
+            Binder::TheRef(_) | Binder::Existing(_) => true,
+            // ≥ 1 candidate to choose ([CR#601.2b]).
+            Binder::ChooseOne(filter) => !crate::target::candidates(self, filter).is_empty(),
+            // ≥ the quantity's lower bound of candidates (no partial payment).
+            Binder::Choose(quantity, filter) => {
+                let candidates = crate::target::candidates(self, filter);
+                let frame = Frame {
+                    source,
+                    controller,
+                    targets: Vec::new(),
+                    bindings: None,
+                    chosen: None,
+                    x: None,
+                    subject: None,
+                    those: None,
+                };
+                let (lo, _hi) = quantity.bounds();
+                let need = lo.map_or(0, |c| self.eval_count(c, &frame));
+                Uint::try_from(candidates.len()).unwrap_or(Uint::MAX) >= need
+            }
+            Binder::Expanded(_) => unreachable!("peeled above"),
+        }
     }
 
     /// The subset of untapped permanents `player` would tap to pay one
@@ -499,14 +581,20 @@ impl GameState {
                     let need = self.eval_count(count, frame) as usize;
                     self.zones.hands[player.index()].len() >= need
                 }
-                Some(sel) => self.selection_cost_payable(sel, frame),
+                // A named `what` is a single `Reference` (`This`/a target/a
+                // cost-`With`-bound `That`) — it always names its one card, so
+                // it is payable ([CR#601.2h]). The choose-feasibility of
+                // "discard a card you choose" lives in the cost `With` binder.
+                Some(_) => true,
             },
-            // Sacrifice/Exile/Tap/Untap: enough legal candidates for the
-            // selection's required count ([CR#601.2h]).
-            PlayerAction::Sacrifice(sel)
-            | PlayerAction::Exile(sel)
-            | PlayerAction::Tap(sel)
-            | PlayerAction::Untap(sel) => self.selection_cost_payable(sel, frame),
+            // Sacrifice/Move (exile is `Move(_, Exile)`)/Tap/Untap take a single
+            // `Reference` — it always names its one object, so it is payable.
+            // The choose-feasibility of "sacrifice a creature" lives in the
+            // cost `With(ChooseOne(filter), …)` binder, not the verb.
+            PlayerAction::Sacrifice(_)
+            | PlayerAction::Move(..)
+            | PlayerAction::Tap(_)
+            | PlayerAction::Untap(_) => true,
             // Out of this ticket's listed scope — counter storage and the
             // reveal window are unbuilt, so treat as payable for now.
             // TODO(engine-cost-payment follow-up): payability for RemoveCounters
@@ -517,51 +605,6 @@ impl GameState {
             // `cost_summary` only collects cost-eligible verbs, so nothing else
             // reaches here.
             other => unreachable!("non-cost-eligible verb in a cost summary: {other:?}"),
-        }
-    }
-
-    /// The minimum number of objects a `quantity` requires, independent of how
-    /// many candidates exist — `choice_bounds`'s floor read with an unbounded
-    /// pool (`Uint::MAX as usize` round-trips cleanly, never clamping the
-    /// floor).
-    fn required_minimum(
-        &self,
-        quantity: &deckmaste_core::Quantity,
-        frame: &Frame,
-    ) -> deckmaste_core::Uint {
-        self.choice_bounds(quantity, deckmaste_core::Uint::MAX as usize, frame)
-            .0
-    }
-
-    /// Whether a selection-bearing verb cost (sacrifice/exile/tap/untap) has
-    /// enough legal candidates to pay it ([CR#601.2h]). For `Choose` the
-    /// required count is the quantity's lower bound (via `choice_bounds`); the
-    /// fixed forms (`This`/`Each`/`Filter`) succeed when non-empty — a `This`
-    /// self-cost always names its one object.
-    fn selection_cost_payable(&self, sel: &Selection, frame: &Frame) -> bool {
-        match sel {
-            Selection::Choose(quantity, filter) => {
-                let available = crate::target::candidates(self, filter).len();
-                let required = self.required_minimum(quantity, frame);
-                deckmaste_core::Uint::try_from(available).unwrap_or(deckmaste_core::Uint::MAX)
-                    >= required
-            }
-            Selection::Each(filter) | Selection::Filter(filter) => {
-                !crate::target::candidates(self, filter).is_empty()
-            }
-            Selection::Expanded(e) => self.selection_cost_payable(&e.value, frame),
-            // `Ref` (a bound `This`/`Target`/… ) always names its one object, so
-            // it is payable. `AmongNoted`/`Random` are out of this ticket's scope
-            // (no noted-slot store yet; random isn't a cost form) — treat as
-            // payable for now.
-            // TODO(engine-cost-payment follow-up): payability for AmongNoted/Random selections.
-            Selection::Ref(_) | Selection::AmongNoted(..) | Selection::Random(..) => true,
-            // Those/TopOfLibrary/Pick are not valid cost-selection forms.
-            Selection::TopOfLibrary { .. } | Selection::Those | Selection::Pick { .. } => {
-                todo!(
-                    "engine-cost-payment: TopOfLibrary/Those/Pick as a cost selection is not supported"
-                )
-            }
         }
     }
 
@@ -639,7 +682,6 @@ mod tests {
     use deckmaste_core::ManaSymbol;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
-    use deckmaste_core::Selection;
     use deckmaste_core::SimpleManaSymbol;
     use deckmaste_core::UseLimit;
     use deckmaste_core::Zone;
@@ -682,7 +724,7 @@ mod tests {
         // A no-target effect: By(You, Sacrifice(This)) — available in core.
         Effect::Act(Action::By(
             Reference::You,
-            PlayerAction::Sacrifice(Selection::this()),
+            PlayerAction::Sacrifice(Reference::This),
         ))
     }
 
@@ -744,7 +786,7 @@ mod tests {
         let cost = vec![
             CostComponent::Mana("{1}".parse().unwrap()),
             CostComponent::Tap,
-            CostComponent::do_(PlayerAction::Sacrifice(Selection::Ref(Reference::This))),
+            CostComponent::do_(PlayerAction::Sacrifice(Reference::This)),
         ];
         let summary = cost_summary(&cost).expect("verb costs no longer abort the summary");
         assert_eq!(summary.mana, "{1}".parse().unwrap());
@@ -1265,7 +1307,7 @@ mod tests {
         let player = PlayerId(0);
         let obj = make_object_on_battlefield(&mut state, player);
         assert!(
-            state.can_pay_verbs(player, &[PlayerAction::Sacrifice(Selection::this())], obj,),
+            state.can_pay_verbs(player, &[PlayerAction::Sacrifice(Reference::This)], obj,),
             "a self-sacrifice always has its one object to pay with"
         );
     }

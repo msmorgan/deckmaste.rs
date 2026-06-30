@@ -23,7 +23,6 @@ use deckmaste_core::PlayerAction;
 use deckmaste_core::Property;
 use deckmaste_core::Reference;
 use deckmaste_core::Replacement;
-use deckmaste_core::Selection;
 use deckmaste_core::Subtype;
 use deckmaste_core::Supertype;
 use deckmaste_core::Type;
@@ -185,7 +184,7 @@ fn subtype_confers_round_trips_and_omits_empty() {
 }
 
 /// The `Regenerate` macro types its param as a `Reference` (not `Any`), and the
-/// one reference value splices into BOTH slot kinds: bare into the `Selection`
+/// one reference value splices into BOTH slot kinds: bare into the `Reference`
 /// slots (`subject`, the heal/tap) and wrapped `Ref(...)` into the event
 /// `would`'s `Filter` slot. Both the self form (`This`) and the bound-target
 /// form (`Target(0)`) parse — the corpus's only two regeneration shapes
@@ -217,8 +216,8 @@ fn regenerate_macro_expands_with_typed_reference_param() {
     };
     assert_eq!(
         subject,
-        Selection::this(),
-        "subject lands as a bare Selection::Ref"
+        Reference::This,
+        "subject lands as a bare reference"
     );
     assert!(one_shot, "a regeneration shield is one-shot [CR#614.3]");
     assert_eq!(
@@ -245,7 +244,7 @@ fn regenerate_macro_expands_with_typed_reference_param() {
         matches!(
             *tex.value,
             Effect::Act(Action::CreateReplacement {
-                subject: Selection::Ref(Reference::Target(0)),
+                subject: Reference::Target(0),
                 ..
             })
         ),
