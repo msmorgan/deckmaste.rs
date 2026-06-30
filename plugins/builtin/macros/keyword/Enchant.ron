@@ -8,10 +8,15 @@
 //      legal-host bound ([CR#702.5a]); also `Cant(Target)` so the spell can't
 //      target an illegal quality.
 //   3. the `AsEnters(Attach(...))` self-replacement ([CR#303.4,303.4f]) — the
-//      SOLE attach-on-entry. Written as the inlined `Also(would: ThisEnters,
-//      also: Attach(This, Filter(Param(0))))` form (what `AsEnters` expands to)
+//      SOLE attach-on-entry. The verb `Attach` takes a single `Reference` host
+//      now, so choosing the host is a separate pre-attach step: as it enters,
+//      the controller chooses a legal host matching the enchant quality, bound
+//      as `That`, then the Aura attaches to it — `With(binder: ChooseOne(
+//      Param(0)), body: Attach(This, That))`. Written as the inlined
+//      `Also(would: ThisEnters, also: …)` form (what `AsEnters` expands to)
 //      because Enchant's `Param(0)` can't thread through a nested macro call's
-//      arguments — the engine recognizes this `Also` shape directly (replace.rs).
+//      arguments — the engine recognizes this `With(ChooseOne(quality),
+//      Attach(This, That))` shape directly (replace.rs `enters_attached_quality`).
 // The must-be-attached graveyard SBA ([CR#704.5m]) is the AURA SUBTYPE's Innate
 // rule, NOT this keyword (the subtype/ability decoupling — spec §"finding").
 (
@@ -33,7 +38,7 @@
                 Cant(Attach(what: Ref(This), to: Not(Param(0)))),
                 Replacement(Also(
                     would: ThisEnters,
-                    also: Attach(what: This, to: Filter(Param(0))),
+                    also: With(binder: ChooseOne(Param(0)), body: Attach(what: This, to: That)),
                 )),
             ]),
         ],

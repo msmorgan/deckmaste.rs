@@ -11,12 +11,13 @@
 //   - from: Graveyard [CR#702.97a] — the zone-of-function seam ([CR#113.6]),
 //     the graveyard analogue of cycling's `from: Hand`. The ability functions
 //     only while the card is in a graveyard.
-//   - cost: the printed [cost] THEN exile this card. The exile-self is a
-//     cost-eligible player verb ([CR#701.13], `Exile(This)`) — the exile twin
-//     of cycling's discard-self (`Discard(count: 1, what: This)`). The card
-//     exiles ITSELF (`This`) from the graveyard as part of the cost
-//     ([CR#601.2b]); once paid it's too late to remove the card to fizzle the
-//     ability. `Do(Exile(This))` is a `CostComponent::Do` over that verb.
+//   - cost: the printed [cost] THEN exile this card. Exile is a pure zone move
+//     now ([CR#701.13]): the cost-eligible player verb `Move(This, Exile)` — the
+//     exile twin of cycling's discard-self (`Discard(count: 1, what: This)`).
+//     The card moves ITSELF (`This`) from the graveyard to exile as part of the
+//     cost ([CR#601.2b]); once paid it's too late to remove the card to fizzle
+//     the ability. `Do(Move(This, Exile))` is a `CostComponent::Do` over that
+//     verb.
 //   - window: SorcerySpeed [CR#602.5d] — "Activate only as a sorcery" (the same
 //     `Only`-window refinement Equip [CR#702.6a] and Fortify [CR#702.67a] use).
 //   - effect: a `Targeted` ([CR#115.1,601.2c]) — one target creature
@@ -40,7 +41,7 @@
         name: "Scavenge",
         abilities: [Activated(
             from: Graveyard,
-            cost: [Cost(Param(0)), Do(Exile(This))],
+            cost: [Cost(Param(0)), Do(Move(This, Exile))],
             window: SorcerySpeed,
             effect: Targeted(
                 targets: [Target(Exactly(1), Type(Creature))],

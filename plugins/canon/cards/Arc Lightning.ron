@@ -1,9 +1,12 @@
-// Arc Lightning — "Arc Lightning deals 3 damage divided as you choose among any
-// number of target creatures and/or players." The divided-distribution effect
-// ([CR#601.2d]): 3 is split across the chosen group, each element bound in turn
-// as `ThatObject` with its `Allotment` share, which the body
-// (`DealDamage(ThatObject, Allotment)`) reads. One primitive expresses divided
-// damage; the same shape with a `PutCounters` body is divided counters.
+// Arc Lightning — "Arc Lightning deals 3 damage divided as you choose among
+// one, two, or three target creatures and/or players." A TARGETED spell
+// ([CR#115.1,601.2c]): the `Targeted` wrapper announces ONE plural target spec
+// (1–3 creature/player targets), and the divided-distribution effect
+// ([CR#601.2d]) reads that announced set via `GetTargets(0)`. 3 is split across
+// the targets, each element bound in turn as `ThatObject` with its `Allotment`
+// share, which the body (`DealDamage(ThatObject, Allotment)`) reads. One
+// primitive expresses divided damage; the same shape with a `PutCounters` body
+// is divided counters.
 Normal(
   name: "Arc Lightning",
   mana_cost: [
@@ -15,10 +18,13 @@ Normal(
   ],
   abilities: [
     Spell(
-      effect: DivideAmong(
-        amount: 3,
-        group: Choose(AnyNumber, CreatureOrPlayer),
-        body: DealDamage(ThatObject, Allotment),
+      effect: Targeted(
+        targets: [Target(Between(1, 3), CreatureOrPlayer)],
+        effect: DivideAmong(
+          amount: 3,
+          group: GetTargets(0),
+          body: DealDamage(ThatObject, Allotment),
+        ),
       ),
     ),
   ],

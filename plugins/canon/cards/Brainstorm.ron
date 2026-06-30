@@ -10,7 +10,14 @@ Normal(
     Spell(
       effect: Sequence([
         Draw(3),
-        Move(Choose(Exactly(2), AllOf([InZone(Hand), Owner(Ref(You))])), Library(FromTop(0))),
+        // "put two cards from your hand on top of your library" — choosing is a
+        // separate pre-verb step now ([CR#601.2b]): a many-binder `Choose` binds
+        // the two chosen cards, the `Move` body reading them through the binder's
+        // anaphor.
+        With(
+          binder: Choose(Exactly(2), AllOf([InZone(Hand), Owner(Ref(You))])),
+          body: Move(That, Library(FromTop(0))),
+        ),
       ])
     ),
   ],

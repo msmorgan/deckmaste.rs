@@ -8,6 +8,9 @@ Normal(
     Sorcery,
   ],
   abilities: [
-    Spell(effect: DealDamage(Filter(Player), 4)),
+    // "deals 4 damage to each player" — plurality is the `Each` iterator
+    // binding each player as `ThatObject`; `Each` emits a simultaneous batch,
+    // so both players reaching 0 at once is a draw ([CR#608,700.1,104.4a]).
+    Spell(effect: Each(over: Filter(Player), effect: DealDamage(ThatObject, 4))),
   ],
 )
