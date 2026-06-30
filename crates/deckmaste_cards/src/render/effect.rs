@@ -132,32 +132,27 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
             let phrase = binder_phrase(&w.binder, ctx);
             effect(&w.body, &ctx.with_that(&phrase))
         }
-        // [CR#608]: iterate a group, the body reading each element as
-        // `ThatObject` ("it") — "For each creature, destroy it."
+        // [CR#608]: iterate a many-binder, the body reading each element as
+        // `It`. A single group-verb body collapses to the natural collective
+        // sentence — "Deal 2 damage to each creature." (Pyroclasm), "Destroy
+        // each creature." (a wrath), "Put two cards … on top of your library."
+        // (Brainstorm's group-move) — rather than the distributive "For each
+        // creature, …"; a body the collapse does not recognise falls back to
+        // that per-element form ([CR#608.2]). This is the renderer half of the
+        // `core-many-binder-group-move` seam.
         Effect::Each(fe) => {
-            let group = binder_phrase(&fe.binder, ctx);
-            // A damage body whose patient is the per-element anaphor reads as the
-            // natural "to each <group>" form — "Deal 2 damage to each creature."
-            // (Pyroclasm), "Deal 4 damage to each player." (Flame Rift) — not the
-            // distributive "For each creature, deal 2 damage to it." ([CR#608]).
-            if let Effect::Act(Action::DealDamage(target, amount, source)) = &*fe.effect
-                && matches!(target, Reference::It)
+            if let Effect::Act(act) = &*fe.effect
+                && let Some(collective) = each_collective(act, &fe.binder, ctx)
             {
-                let recipients = format!("each {group}");
-                return match source {
-                    Reference::This => {
-                        format!("Deal {} damage to {recipients}.", fragment::count(amount))
-                    }
-                    _ => format!(
-                        "{} deals {} damage to {recipients}.",
-                        capitalize_first(&fragment::reference(source, ctx)),
-                        fragment::count(amount),
-                    ),
-                };
+                return collective;
             }
             format!(
-                "For each {group}, {}.",
-                super::ability::lower_first(&trim_period(&effect(&fe.effect, ctx)))
+                "For each {}, {}.",
+                binder_group_noun(&fe.binder, ctx),
+                super::ability::lower_first(&trim_period(&effect(
+                    &fe.effect,
+                    &ctx.with_that("it"),
+                )))
             )
         }
         other => format!("[unrendered: {other:?}]."),
@@ -182,17 +177,66 @@ fn binder_phrase(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
     }
 }
 
-/// The bare group noun for a `Each` iterator — "creature" (no "each"
-/// prefix; the surrounding "For each …" supplies it), else the selection
-/// phrase. Retained for the `ron-emitter-bindable` follow-up (binder-aware
-/// rendering); the engine-anaphor-threading compile-fix routes through
-/// `binder_phrase` in the meantime.
-#[allow(dead_code)]
-fn group_noun(sel: &deckmaste_core::Selection, ctx: &Ctx) -> String {
+/// The collective rendering of an [`Effect::Each`] whose body is a single group
+/// verb acting on the per-element [`Reference::It`] — the natural
+/// "<verb> each <group>" / "put <group> on <dest>" surface ([CR#608]), the
+/// renderer half the `core-many-binder-group-move` seam calls for. Returns
+/// `None` for any body the collapse does not recognise, so the caller falls
+/// back to the per-element "For each <group>, …" form.
+fn each_collective(act: &Action, binder: &deckmaste_core::Binder, ctx: &Ctx) -> Option<String> {
+    // "each <bare group noun>" — the recipient/patient of a set-wide verb.
+    let each_group = || format!("each {}", binder_group_noun(binder, ctx));
+    match act {
+        // "Deal N damage to each <group>." — the implicit-source form; a named
+        // source reads "<source> deals N damage to each <group>."
+        Action::DealDamage(Reference::It, amount, source) => Some(match source {
+            Reference::This => {
+                format!(
+                    "Deal {} damage to {}.",
+                    fragment::count(amount),
+                    each_group()
+                )
+            }
+            _ => format!(
+                "{} deals {} damage to {}.",
+                capitalize_first(&fragment::reference(source, ctx)),
+                fragment::count(amount),
+                each_group(),
+            ),
+        }),
+        // "Destroy each <group>." ([CR#701.8a]).
+        Action::Destroy(Reference::It) => Some(format!("Destroy {}.", each_group())),
+        // A group move to the library reads "Put <group> on top/the bottom of
+        // your library." — Brainstorm's "put two cards … on top": the chosen
+        // group's own phrase, not "each" ([CR#401.7]).
+        Action::Move(Reference::It, Destination::Library(anchor)) => Some(format!(
+            "Put {} on {} of your library.",
+            binder_phrase(binder, ctx),
+            fragment::library_position(anchor),
+        )),
+        // Set-wide tap/untap ([CR#701.26a,701.26b]): "Tap each <group>."
+        Action::By(_, PlayerAction::Tap(Reference::It)) => Some(format!("Tap {}.", each_group())),
+        Action::By(_, PlayerAction::Untap(Reference::It)) => {
+            Some(format!("Untap {}.", each_group()))
+        }
+        _ => None,
+    }
+}
+
+/// The bare collective noun a [`Binder`](deckmaste_core::Binder) contributes to
+/// an [`Effect::Each`] "each <noun>" / "For each <noun>" construction: the
+/// whole matching set yields the bare noun ("creature", so the surrounding
+/// "each" supplies the quantifier — not "each each creature"), a
+/// bound/announced group its plural anaphor ("them"), and a chosen group its
+/// full phrase.
+fn binder_group_noun(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
+    use deckmaste_core::Binder;
     use deckmaste_core::Selection;
-    match sel {
-        Selection::Filter(f) => fragment::filter_noun(f),
-        other => fragment::selection(other, ctx),
+    match binder {
+        Binder::Existing(Selection::Filter(f)) => fragment::filter_noun(f),
+        Binder::Existing(sel) => fragment::selection(sel, ctx),
+        Binder::Expanded(e) => binder_group_noun(&e.value, ctx),
+        other => binder_phrase(other, ctx),
     }
 }
 
@@ -578,7 +622,7 @@ mod tests {
         );
 
         let may_them = Effect::MayPay(MayPay {
-            actor: Reference::ThatPlayer,
+            actor: Reference::EventActor,
             cost: one(),
             and_then: draw(),
             or_else: Some(lose()),
@@ -603,7 +647,7 @@ mod tests {
         );
 
         let must_them = Effect::MustPay(MustPay {
-            actor: Reference::ThatPlayer,
+            actor: Reference::EventActor,
             cost: one(),
             or_else: lose(),
         });
@@ -713,9 +757,9 @@ mod tests {
         let divide = super::effect(
             &deckmaste_core::Effect::DivideAmong(DivideAmong {
                 amount: Count::Literal(3),
-                group: Selection::Filter(Filter::creature()),
+                binder: Binder::Existing(Selection::Filter(Filter::creature())),
                 body: Box::new(deckmaste_core::Effect::Act(Action::deal_damage(
-                    Reference::ThatObject,
+                    Reference::It,
                     Count::Allotment,
                 ))),
             }),
@@ -808,21 +852,34 @@ mod tests {
         assert_eq!(effect(&with, &ctx), "Discard 2 cards.");
     }
 
-    /// `Effect::Each` iterates its `over` group, the body reading each
-    /// element as `ThatObject` ("it"): "For each creature, destroy it."
-    /// ([CR#608]).
+    /// `Effect::Each` over a many-binder collapses a single group-verb body
+    /// (acting on the per-element `It`) to the collective surface —
+    /// `Destroy(It)` → "Destroy each creature." — and falls back to the
+    /// per-element "For each <group>, …" form for a body the collapse does not
+    /// recognise ([CR#608]). This is the renderer half of
+    /// `core-many-binder-group-move`.
     #[test]
-    fn for_each_renders_per_element_clause() {
+    fn each_renders_collectively_or_per_element() {
+        use deckmaste_core::PlayerAction;
         let ctx = Ctx {
             subject: "it",
             targets: &[],
             that: None,
         };
-        let fe = Effect::Each(Each {
-            over: Selection::Filter(Filter::creature()),
-            effect: Box::new(Effect::Act(Action::Destroy(Reference::ThatObject))),
+        // A group verb on the per-element `It` → the collective sentence.
+        let destroy = Effect::Each(Each {
+            binder: Binder::Existing(Selection::Filter(Filter::creature())),
+            effect: Box::new(Effect::Act(Action::Destroy(Reference::It))),
         });
-        assert_eq!(effect(&fe, &ctx), "For each creature, destroy it.");
+        assert_eq!(effect(&destroy, &ctx), "Destroy each creature.");
+        // A body the collapse does not recognise → the per-element form.
+        let gain = Effect::Each(Each {
+            binder: Binder::Existing(Selection::Filter(Filter::creature())),
+            effect: Box::new(Effect::act_by_you(PlayerAction::GainLife(Count::Literal(
+                1,
+            )))),
+        });
+        assert_eq!(effect(&gain, &ctx), "For each creature, gain 1 life.");
     }
 
     /// A player `Move` to the exile zone renders "Exile <subject>." — exiling

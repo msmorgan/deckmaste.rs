@@ -10,13 +10,15 @@ Normal(
     Spell(
       effect: Sequence([
         Draw(3),
-        // "put two cards from your hand on top of your library" — choosing is a
-        // separate pre-verb step now ([CR#601.2b]): a many-binder `Choose` binds
-        // the two chosen cards, the `Move` body reading them through the binder's
-        // anaphor.
-        With(
+        // "put two cards from your hand on top of your library" — a many-binder
+        // `Choose` binds the two chosen cards, and `Each` iterates the whole
+        // group, moving each element `It` onto the library so BOTH cards move
+        // ([CR#601.2b,608.2]). The earlier `With(Choose(2), Move(That, …))` read
+        // only the first of the two (the dropped-cardinality bug); `Each` over
+        // the group is the group-move shape (`core-many-binder-group-move`).
+        Each(
           binder: Choose(Exactly(2), AllOf([InZone(Hand), Owner(Ref(You))])),
-          body: Move(That, Library(FromTop(0))),
+          effect: Move(It, Library(FromTop(0))),
         ),
       ])
     ),

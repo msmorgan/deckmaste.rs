@@ -15,7 +15,7 @@
 //   - `Type(Creature)` + `Attacking` ([CR#508.1a] a still-in-combat attacker);
 //   - the cross-object power comparison is a `Where(Compare(...))` filter arm
 //     ([CR#603.4] predicate language reached from a per-object filter slot):
-//     `Compare(StatOf(Subject, Power), Less, StatOf(This, Power))`. `Subject`
+//     `Compare(StatOf(It, Power), Less, StatOf(This, Power))`. `It`
 //     is the candidate being tested ([CR#107.1] numeric comparison), `This` the
 //     carrier (the attacking creature whose ability this is) — so each
 //     candidate's power ([CR#208]) is compared against the carrier's. The
@@ -40,7 +40,7 @@ KeywordAbility(
             targets: [Target(Exactly(1), AllOf([
                 Type(Creature),
                 Attacking,
-                Where(Compare(StatOf(Subject, Power), Less, StatOf(This, Power))),
+                Where(Compare(StatOf(It, Power), Less, StatOf(This, Power))),
             ]))],
             effect: PutCounters(Target(0), P1P1Counter, 1),
         ),
