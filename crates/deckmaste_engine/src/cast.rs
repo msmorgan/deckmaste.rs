@@ -392,18 +392,8 @@ fn verb_payment_items(verbs: &[PlayerAction], source: ObjectId, player: PlayerId
         .iter()
         .map(|verb| WorkItem::RunEffect {
             effect: Box::new(Effect::act_by_you(verb.clone())),
-            frame: Frame {
-                source,
-                controller: player,
-                targets: vec![],
-                bindings: None,
-                chosen: None,
-                // A cost verb reads no announced X.
-                x: None,
-                it: None,
-                that: None,
-                allotment: None,
-            },
+            // A cost verb names no targets and reads no announced X.
+            frame: Frame::bare(source, player),
         })
         .collect()
 }
@@ -552,17 +542,7 @@ impl GameState {
         // judges each LoseLife against full life independently, so sum them.
         // The frame mirrors the one `can_pay_verbs`/`verb_payment_items` use: a
         // cost verb names no targets and `~`/`This` is the live source.
-        let frame = Frame {
-            source: subject,
-            controller: player,
-            targets: vec![],
-            bindings: None,
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
-        };
+        let frame = Frame::bare(subject, player);
         let life_required: Uint = verb_actions
             .iter()
             .map(|v| self.life_cost_of(v, &frame))
@@ -976,17 +956,7 @@ impl GameState {
                         crate::decide::unless_cost_effect(with, &deckmaste_core::Reference::You);
                     items.push(WorkItem::RunEffect {
                         effect: Box::new(effect),
-                        frame: Frame {
-                            source,
-                            controller,
-                            targets: vec![],
-                            bindings: None,
-                            chosen: None,
-                            x: None,
-                            it: None,
-                            that: None,
-                            allotment: None,
-                        },
+                        frame: Frame::bare(source, controller),
                     });
                 }
                 // [CR#601.2h,702.122a]: pay each aggregate-stat (tap-total) cost

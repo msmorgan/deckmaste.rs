@@ -104,15 +104,11 @@ pub fn matches_with(
                     None => false,
                     Some((carrier, controller)) => {
                         let frame = crate::stack::Frame {
-                            source: carrier,
-                            controller,
-                            targets: Vec::new(),
-                            bindings: None,
-                            chosen: None,
-                            x: None,
-                            it: Some(state.it_binding(id)),
-                            that: None,
-                            allotment: None,
+                            endophora: crate::stack::Endophora {
+                                it: Some(state.it_binding(id)),
+                                ..crate::stack::Endophora::empty()
+                            },
+                            ..crate::stack::Frame::bare(carrier, controller)
                         };
                         state.condition_holds(cond, &frame)
                     }

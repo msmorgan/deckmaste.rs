@@ -137,8 +137,8 @@ pub struct GameConfig {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ChoiceContinuation {
     /// A `ChooseObjects` answer ([CR#608.2d]): bind the picks into
-    /// `frame.chosen`, then re-run `effect` (the action whose `Choose`/`Random`
-    /// selection produced the decision).
+    /// `frame.endophora.chosen`, then re-run `effect` (the action whose
+    /// `Choose`/`Random` selection produced the decision).
     BindChoice {
         effect: Box<deckmaste_core::Effect>,
         frame: crate::stack::Frame,

@@ -504,17 +504,7 @@ fn resolve_and_drive(state: &mut GameState, effect: Effect, source: ObjectId) {
     let controller = state.objects.obj(source).controller;
     state.agenda.push_front(WorkItem::RunEffect {
         effect: Box::new(effect),
-        frame: Frame {
-            source,
-            controller,
-            targets: vec![],
-            bindings: None,
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
-        },
+        frame: Frame::bare(source, controller),
     });
     drive(state);
 }

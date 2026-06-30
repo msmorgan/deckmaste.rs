@@ -30,6 +30,7 @@ use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::player::PlayerId;
+use crate::stack::Endophora;
 use crate::stack::Frame;
 use crate::stack::StackEntry;
 use crate::stack::StackObject;
@@ -788,13 +789,16 @@ impl GameState {
                     let frame = Frame {
                         source: this.object,
                         controller,
-                        targets: Vec::new(),
-                        bindings: Some(bindings.clone()),
-                        chosen: None,
-                        x: None,
-                        it: None,
-                        that: None,
-                        allotment: None,
+                        // Exophoric: the firing object's snapshot + combat defender.
+                        this: Some(this.clone()),
+                        defending_player: bindings.defending_player,
+                        // Endophoric event roles (no targets chosen at the gate).
+                        endophora: Endophora {
+                            that_object: bindings.that_object.clone(),
+                            that_player: bindings.that_player,
+                            that_patient: bindings.that_patient.clone(),
+                            ..Endophora::empty()
+                        },
                     };
                     if !self.condition_holds(c, &frame) {
                         continue;
@@ -1168,17 +1172,7 @@ mod tests {
     /// A minimal player-anchored gate frame (no bindings, no targets) for the
     /// trigger-fire intervening-if check ([CR#603.4]).
     fn gate_frame(state: &GameState, player: PlayerId) -> Frame {
-        Frame {
-            source: state.player(player).object,
-            controller: player,
-            targets: Vec::new(),
-            bindings: None,
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
-        }
+        Frame::bare(state.player(player).object, player)
     }
 
     fn builtin() -> Plugin {
@@ -1831,22 +1825,12 @@ mod tests {
     }
 
     /// A trigger-fire gate frame whose `this` binding is the carrier — mirrors
-    /// the real intervening-if frame (`bindings.this` set to the firing
+    /// the real intervening-if frame (the exophoric `this` set to the firing
     /// object's snapshot), so `frame_watcher` resolves `This` to the carrier.
     fn carrier_gate_frame(state: &GameState, carrier: ObjectId) -> Frame {
         Frame {
-            source: carrier,
-            controller: PlayerId(0),
-            targets: Vec::new(),
-            bindings: Some(super::TriggerBindings {
-                this: Some(crate::lki::LkiSnapshot::capture(state, carrier)),
-                ..Default::default()
-            }),
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
+            this: Some(crate::lki::LkiSnapshot::capture(state, carrier)),
+            ..Frame::bare(carrier, PlayerId(0))
         }
     }
 

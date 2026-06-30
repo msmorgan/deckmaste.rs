@@ -10,17 +10,7 @@ use crate::state::GameState;
 /// shape, enough to evaluate the context-free conditions these unit tests
 /// exercise.
 pub(crate) fn frame_for(state: &GameState, player: PlayerId) -> Frame {
-    Frame {
-        source: state.player(player).object,
-        controller: player,
-        targets: Vec::new(),
-        bindings: None,
-        chosen: None,
-        x: None,
-        it: None,
-        that: None,
-        allotment: None,
-    }
+    Frame::bare(state.player(player).object, player)
 }
 
 /// A plain resolution frame anchored on `source` (controlled by player 0) with
@@ -37,14 +27,10 @@ pub(crate) fn frame_src_targets(
     targets: Vec<crate::object::ObjectId>,
 ) -> Frame {
     Frame {
-        source,
-        controller: PlayerId(0),
-        targets,
-        bindings: None,
-        chosen: None,
-        x: None,
-        it: None,
-        that: None,
-        allotment: None,
+        endophora: crate::stack::Endophora {
+            targets,
+            ..crate::stack::Endophora::empty()
+        },
+        ..Frame::bare(source, PlayerId(0))
     }
 }

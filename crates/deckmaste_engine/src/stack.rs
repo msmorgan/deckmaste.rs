@@ -11,6 +11,7 @@ use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::player::PlayerId;
+use crate::trigger::EventPatient;
 use crate::trigger::TriggerBindings;
 
 /// What sits on (or is going onto) the stack.
@@ -187,25 +188,29 @@ pub struct ThatBinding {
     pub group: Vec<ObjectId>,
 }
 
-/// The bindings an effect reads during resolution ([CR#608.2]) — the binding
-/// environment, mirroring the Idris `Bindings` typestate. Carries the
-/// announce/event state (`targets`, `bindings`, `chosen`, `x`) plus the
-/// per-slot anaphor bindings threaded by `With`/`Each`/`DivideAmong`: the `It`
-/// iteration/projection element, the `That` one/many group (kind +
-/// cardinality), and the `DivideAmong` per-element allotment share.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Frame {
-    pub source: ObjectId,
-    pub controller: PlayerId,
+/// The text-internal (**endophoric**) binding environment a resolving effect
+/// reads ([CR#608.2]) — every referent an OPERATOR introduces and binds for a
+/// sub-scope, in either direction (anaphora "choose a creature; destroy *it*"
+/// AND cataphora "deal 2 damage to *each creature*"). Mirrors the single Idris
+/// `Bindings` record. Folds together what `engine-anaphor-threading` landed as
+/// separate `Frame` fields: the announce/event state (`targets`, `chosen`,
+/// `x`), the per-slot anaphor bindings threaded by `With`/`Each`/`DivideAmong`
+/// (the `It` iteration/projection element, the `That` one/many group, the
+/// `DivideAmong` per-element allotment share), and the firing event's
+/// provenance-explicit roles (`that_object`/`that_player`/`that_patient`).
+///
+/// Exophoric refs — `This`/`~`, `You`, `Opponent`, `DefendingPlayer` — name the
+/// game *situation*, are never bound by an operator, and so live on the
+/// [`Frame`] OUTSIDE this record.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Endophora {
+    /// Chosen at announce ([CR#601.2c]) or trigger placement ([CR#603.3d]);
+    /// read by `Reference::Target(n)`.
     pub targets: Vec<ObjectId>,
-    /// The trigger's last-known information ([CR#608.2]) — `None` for a spell
-    /// frame. When present, `Reference::This`/`~` reads the firing object's
-    /// snapshot rather than the live `source` (via `eval_reference`).
-    pub bindings: Option<TriggerBindings>,
-    /// A `Choose`/`Random` selection resolved into this frame for a re-run
-    /// ([CR#608.2d]). Set only on the continuation frame the choice produces;
+    /// A `Choose`/`Random` selection resolved into this scope for a re-run
+    /// ([CR#608.2d]). Set only on the continuation the choice produces;
     /// `eval_selection_set` reads it for the `Choose`/`Random` slot. `None`
-    /// on a fresh frame.
+    /// on a fresh scope.
     pub chosen: Option<Vec<ObjectId>>,
     /// [CR#107.3a]: the announced X for the resolving object — read by
     /// `Count::X`. `None` for triggers and non-X spells.
@@ -229,4 +234,77 @@ pub struct Frame {
     /// `bindIt`), so an outer share can never leak into a nested loop. `None`
     /// outside a `DivideAmong` body.
     pub allotment: Option<deckmaste_core::Uint>,
+    /// The event OBJECT ([CR#603.2e,608.2k]) — the moved/acting object a fired
+    /// trigger carried, or the object an `AdditionalCost` payment bound. Read
+    /// by `Reference::EventObject`.
+    pub that_object: Option<LkiSnapshot>,
+    /// The event ACTOR ([CR#608.2k]) — the responsible player ("that player").
+    /// Read by `Reference::EventActor`.
+    pub that_player: Option<PlayerId>,
+    /// The event PATIENT ([CR#608.2k,120.3]) — the acted-upon thing, kind-poly
+    /// (object or player). Read by `Reference::EventPatient`.
+    pub that_patient: Option<EventPatient>,
+}
+
+impl Endophora {
+    /// An empty binding environment: no targets, no anaphor bound, no event
+    /// role. The starting point every fresh `Frame` builds from (combine with
+    /// functional-record-update — `Endophora { targets, ..Endophora::empty()
+    /// }`).
+    #[must_use]
+    pub const fn empty() -> Self {
+        Endophora {
+            targets: Vec::new(),
+            chosen: None,
+            x: None,
+            it: None,
+            that: None,
+            allotment: None,
+            that_object: None,
+            that_player: None,
+            that_patient: None,
+        }
+    }
+}
+
+/// The binding environment a resolving effect reads ([CR#608.2]), split along
+/// the endophora/exophora line. The always-available **exophoric** refs that
+/// name the game *situation* stay here — `source`/`controller` (read by
+/// `This`/`You`/`Opponent`), the firing object's last-known self (`this`), and
+/// the combat `defending_player` — while everything an operator binds for a
+/// sub-scope lives in the nested [`Endophora`] record.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Frame {
+    pub source: ObjectId,
+    pub controller: PlayerId,
+    /// The firing object's last-known self (`~`/`This`/source), exophoric —
+    /// `None` is a spell frame (`Reference::This` reads the live `source`),
+    /// `Some` a trigger/activated frame (`This` reads this snapshot, which
+    /// survives the source's removal — [CR#603.10a]).
+    pub this: Option<LkiSnapshot>,
+    /// The combat DEFENDING player ([CR#506.2,508.5]) — always a player,
+    /// exophoric. Read by `Reference::DefendingPlayer`; `None` outside combat.
+    pub defending_player: Option<PlayerId>,
+    /// The text-internal binding environment — targets, the `It`/`That`
+    /// anaphors, the `DivideAmong` allotment, the chosen value, X, and the
+    /// firing event's roles. See [`Endophora`].
+    pub endophora: Endophora,
+}
+
+impl Frame {
+    /// A bare resolution frame: the exophoric `source`/`controller`, no trigger
+    /// snapshot (a spell frame — `Reference::This` reads the live `source`), no
+    /// combat defender, and an empty [`Endophora`]. The common starting shape
+    /// for gate/payability/instant frames; add targets, X, or an anaphor by
+    /// populating `.endophora`.
+    #[must_use]
+    pub fn bare(source: ObjectId, controller: PlayerId) -> Self {
+        Frame {
+            source,
+            controller,
+            this: None,
+            defending_player: None,
+            endophora: Endophora::empty(),
+        }
+    }
 }
