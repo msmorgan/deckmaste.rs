@@ -150,18 +150,17 @@ impl GameState {
         // The iteration/projection element ([CR#608.2]): a card element carries
         // a snapshot; a player element is zoneless and has none.
         if let Reference::It = reference {
-            return match frame.it.as_ref()? {
+            return match frame.endophora.it.as_ref()? {
                 crate::stack::ItBinding::Object(s) => Some(s),
                 crate::stack::ItBinding::Player(_) => None,
             };
         }
-        let bindings = frame.bindings.as_ref()?;
         match reference {
-            Reference::This => bindings.this.as_ref(),
+            Reference::This => frame.this.as_ref(),
             // The event OBJECT — the moved object's snapshot ([CR#603.2e]).
-            Reference::EventObject => bindings.that_object.as_ref(),
+            Reference::EventObject => frame.endophora.that_object.as_ref(),
             // An OBJECT patient carries a snapshot; a player patient has none.
-            Reference::EventPatient => match bindings.that_patient.as_ref()? {
+            Reference::EventPatient => match frame.endophora.that_patient.as_ref()? {
                 crate::trigger::EventPatient::Object(s) => Some(s),
                 crate::trigger::EventPatient::Player(_) => None,
             },
@@ -210,13 +209,13 @@ mod tests {
     use crate::lki::LkiSnapshot;
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
+    use crate::stack::Endophora;
     use crate::stack::Frame;
     use crate::state::GameConfig;
     use crate::state::GameState;
     use crate::state::PlayerConfig;
     use crate::state::StartingPlayer;
     use crate::test_support::frame_for;
-    use crate::trigger::TriggerBindings;
 
     fn game() -> GameState {
         GameState::new(GameConfig {
@@ -366,16 +365,12 @@ mod tests {
         let frame = Frame {
             source: bear,
             controller: PlayerId(0),
-            targets: vec![bear],
-            bindings: Some(TriggerBindings {
-                this: Some(LkiSnapshot::capture(&state, bear)),
-                ..Default::default()
-            }),
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
+            this: Some(LkiSnapshot::capture(&state, bear)),
+            defending_player: None,
+            endophora: Endophora {
+                targets: vec![bear],
+                ..Endophora::empty()
+            },
         };
 
         let creature = Filter::creature();
@@ -563,18 +558,8 @@ mod tests {
             );
 
             let frame = Frame {
-                source: bear,
-                controller: PlayerId(0),
-                targets: vec![],
-                bindings: Some(TriggerBindings {
-                    this: Some(snapshot),
-                    ..Default::default()
-                }),
-                chosen: None,
-                x: None,
-                it: None,
-                that: None,
-                allotment: None,
+                this: Some(snapshot),
+                ..Frame::bare(bear, PlayerId(0))
             };
             let cond = Condition::Is(
                 Reference::This,
@@ -853,19 +838,12 @@ mod tests {
         // Build a trigger-style frame whose `This` is the carrier and whose
         // `EventObject` is the just-entered creature `entrant`.
         let frame_for_entrant = |state: &GameState, entrant| Frame {
-            source: carrier,
-            controller: PlayerId(0),
-            targets: vec![],
-            bindings: Some(TriggerBindings {
-                this: Some(LkiSnapshot::capture(state, carrier)),
+            this: Some(LkiSnapshot::capture(state, carrier)),
+            endophora: Endophora {
                 that_object: Some(LkiSnapshot::capture(state, entrant)),
-                ..Default::default()
-            }),
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
+                ..Endophora::empty()
+            },
+            ..Frame::bare(carrier, PlayerId(0))
         };
 
         let enter = |state: &mut GameState, card: &Arc<deckmaste_core::Card>| {

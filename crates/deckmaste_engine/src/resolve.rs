@@ -30,6 +30,7 @@ use crate::layer::ContinuousEffect;
 use crate::layer::ScopeResolved;
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
+use crate::stack::Endophora;
 use crate::stack::Frame;
 use crate::stack::StackEntry;
 use crate::stack::StackObject;
@@ -103,13 +104,13 @@ impl GameState {
                     let frame = Frame {
                         source: spell,
                         controller: entry.controller,
-                        targets: entry.targets.clone(),
-                        bindings: None,
-                        chosen: None,
-                        x: entry.x,
-                        it: None,
-                        that: None,
-                        allotment: None,
+                        this: None,
+                        defending_player: None,
+                        endophora: Endophora {
+                            targets: entry.targets.clone(),
+                            x: entry.x,
+                            ..Endophora::empty()
+                        },
                     };
                     let effect = self
                         .spell_effect(spell)
@@ -163,13 +164,17 @@ impl GameState {
                     // last-known self; the live source may be gone.
                     source: bindings.this.as_ref().map_or(entry.id, |s| s.object),
                     controller: entry.controller,
-                    targets: entry.targets.clone(),
-                    bindings: Some(bindings.clone()),
-                    chosen: None,
-                    x: None,
-                    it: None,
-                    that: None,
-                    allotment: None,
+                    // Exophoric: the firing object's LKI and the combat defender.
+                    this: bindings.this.clone(),
+                    defending_player: bindings.defending_player,
+                    // Endophoric: the targets plus the event's bound roles.
+                    endophora: Endophora {
+                        targets: entry.targets.clone(),
+                        that_object: bindings.that_object.clone(),
+                        that_player: bindings.that_player,
+                        that_patient: bindings.that_patient.clone(),
+                        ..Endophora::empty()
+                    },
                 };
                 // [CR#603.4]: an intervening-if is rechecked as the ability
                 // resolves. If it no longer holds, the ability is removed from
@@ -216,13 +221,18 @@ impl GameState {
                         // snapshot; the live object may be gone.
                         source: this.object,
                         controller: entry.controller,
-                        targets: entry.targets.clone(),
-                        bindings: Some(bindings.clone()),
-                        chosen: None,
-                        x: entry.x,
-                        it: None,
-                        that: None,
-                        allotment: None,
+                        // Exophoric: the source snapshot and combat defender.
+                        this: Some(this.clone()),
+                        defending_player: bindings.defending_player,
+                        // Endophoric: targets, announced X, and event roles.
+                        endophora: Endophora {
+                            targets: entry.targets.clone(),
+                            x: entry.x,
+                            that_object: bindings.that_object.clone(),
+                            that_player: bindings.that_player,
+                            that_patient: bindings.that_patient.clone(),
+                            ..Endophora::empty()
+                        },
                     };
                     self.schedule_front(vec![
                         WorkItem::RunEffect {
@@ -289,13 +299,14 @@ impl GameState {
     /// element ids ([CR#608.2]) — the shared spine of `With`/`Each`/
     /// `DivideAmong`. `TheRef` is a singleton, `Existing` evaluates its
     /// `Selection`, and a chooser (`ChooseOne`/`Choose`) reads the picks that a
-    /// prior [`Self::binder_choice`] surfaced into `frame.chosen`.
+    /// prior [`Self::binder_choice`] surfaced into `frame.endophora.chosen`.
     fn resolve_binder(&self, binder: &deckmaste_core::Binder, frame: &Frame) -> Vec<ObjectId> {
         use deckmaste_core::Binder;
         match peel_binder(binder) {
             Binder::TheRef(reference) => vec![self.eval_reference(reference, frame)],
             Binder::Existing(selection) => self.eval_selection_set(selection, frame),
             Binder::ChooseOne(_) | Binder::Choose(..) => frame
+                .endophora
                 .chosen
                 .clone()
                 .expect("a chooser binder re-runs with its picks bound"),
@@ -320,15 +331,16 @@ impl GameState {
     /// If `binder` is a chooser (`ChooseOne`/`Choose`) whose pick has not yet
     /// been made, the `(candidates, min, max)` to surface as a `ChooseObjects`
     /// decision ([CR#601.2d]); else `None` (a `TheRef`/`Existing` binder, or a
-    /// chooser already resolved into `frame.chosen`). Shared by `With`/`Each`/
-    /// `DivideAmong` so all three iterate a player-chosen group identically.
+    /// chooser already resolved into `frame.endophora.chosen`). Shared by
+    /// `With`/`Each`/ `DivideAmong` so all three iterate a player-chosen
+    /// group identically.
     fn binder_choice(
         &self,
         binder: &deckmaste_core::Binder,
         frame: &Frame,
     ) -> Option<(Vec<ObjectId>, Uint, Uint)> {
         use deckmaste_core::Binder;
-        if frame.chosen.is_some() {
+        if frame.endophora.chosen.is_some() {
             return None;
         }
         match peel_binder(binder) {
@@ -463,7 +475,7 @@ impl GameState {
             // an outer share can't leak in. The many-binder is resolved through
             // the shared binder spine: a `ChooseOne`/`Choose` first surfaces the
             // controller's choice and re-runs this node with the picks in
-            // `frame.chosen` (the Brainstorm shape `Each(Choose(2, …), …)` then
+            // `frame.endophora.chosen` (the Brainstorm shape `Each(Choose(2, …), …)` then
             // iterates BOTH picks); `Existing` evaluates its `Selection`; `TheRef`
             // is a singleton. Because a verb takes a single `Reference` and never
             // pauses for a choice, a single-`Act` body resolves for EVERY element
@@ -499,9 +511,9 @@ impl GameState {
                 // picks.
                 let bind_it = |me: &Self, obj: ObjectId| {
                     let mut next = frame.clone();
-                    next.it = Some(me.it_binding(obj));
-                    next.allotment = None;
-                    next.chosen = None;
+                    next.endophora.it = Some(me.it_binding(obj));
+                    next.endophora.allotment = None;
+                    next.endophora.chosen = None;
                     next
                 };
                 match peel(&each.effect) {
@@ -565,7 +577,7 @@ impl GameState {
             // reads resolve by slot — a `(Many, k)` binding has no singular read,
             // making the first-of-many bug unrepresentable. A chooser binder
             // (`ChooseOne`/`Choose`) first surfaces the controller's choice and
-            // re-runs this node with the picks in `frame.chosen`.
+            // re-runs this node with the picks in `frame.endophora.chosen`.
             Effect::With(with) => {
                 if let Some((candidates, min, max)) = self.binder_choice(&with.binder, frame) {
                     self.pending = Some(crate::decide::PendingDecision::ChooseObjects {
@@ -586,14 +598,14 @@ impl GameState {
                     .first()
                     .map_or(crate::stack::RefKind::Object, |&id| self.ref_kind_of(id));
                 let mut next = frame.clone();
-                next.that = Some(crate::stack::ThatBinding {
+                next.endophora.that = Some(crate::stack::ThatBinding {
                     cardinality,
                     kind,
                     group,
                 });
                 // The body opens a fresh choice scope: a nested `With` surfaces
                 // its own choice rather than reading this one's picks.
-                next.chosen = None;
+                next.endophora.chosen = None;
                 self.schedule_front(vec![WorkItem::RunEffect {
                     effect: with.body,
                     frame: next,
@@ -632,10 +644,10 @@ impl GameState {
                         let mut next = frame.clone();
                         // `bindAllot`: bind `It` and put this element's share in
                         // scope for `Count::Allotment`.
-                        next.it = Some(self.it_binding(obj));
-                        next.allotment = Some(share);
+                        next.endophora.it = Some(self.it_binding(obj));
+                        next.endophora.allotment = Some(share);
                         // A fresh choice scope per element, like `Each`.
-                        next.chosen = None;
+                        next.endophora.chosen = None;
                         WorkItem::RunEffect {
                             effect: divide.body.clone(),
                             frame: next,
@@ -743,7 +755,7 @@ impl GameState {
                 });
             }
             // [CR#115.1,601.2c]: a target-scoping wrapper. Targets were chosen
-            // at announcement and already live in `frame.targets`; for a single
+            // at announcement and already live in `frame.endophora.targets`; for a single
             // top-level wrapper (the only shape today) this node is transparent
             // — descend into the inner effect, exactly like `Expanded`. Nested
             // wrappers would need a per-scope target stack (left a loud seam by
@@ -772,9 +784,7 @@ impl GameState {
                 let cost = ac.pay.normalize().0;
                 let mut body_frame = frame.clone();
                 if let Some(snapshot) = self.additional_cost_paid_object(&cost, frame) {
-                    let mut bindings = body_frame.bindings.clone().unwrap_or_default();
-                    bindings.that_object = Some(snapshot);
-                    body_frame.bindings = Some(bindings);
+                    body_frame.endophora.that_object = Some(snapshot);
                 }
                 let mut items: Vec<WorkItem> = cost
                     .iter()
@@ -1577,7 +1587,7 @@ impl GameState {
                     *spec, 0,
                     "GetTargets({spec}): multi target-spec announce not yet wired"
                 );
-                frame.targets.clone()
+                frame.endophora.targets.clone()
             }
             // [CR#107.1]: the extremal element(s) of a set, ranked by the
             // per-element projection. Each candidate is bound as the frame's
@@ -1591,8 +1601,11 @@ impl GameState {
                     .into_iter()
                     .map(|id| {
                         let sub = Frame {
-                            it: Some(self.it_binding(id)),
-                            allotment: None,
+                            endophora: Endophora {
+                                it: Some(self.it_binding(id)),
+                                allotment: None,
+                                ..frame.endophora.clone()
+                            },
                             ..frame.clone()
                         };
                         (id, self.eval_count(by, &sub))
@@ -1616,6 +1629,7 @@ impl GameState {
             // (player choice now lives in `With(ChooseOne/Choose, …)`); this
             // stays a dormant seam until one does.
             Selection::Random(..) => frame
+                .endophora
                 .chosen
                 .clone()
                 .expect("a Random selection is bound into the frame before it is read"),
@@ -1629,6 +1643,7 @@ impl GameState {
             // many-binder `With` — always a bug.
             Selection::That => {
                 let that = frame
+                    .endophora
                     .that
                     .as_ref()
                     .expect("Selection::That outside an enclosing With many-binder");
@@ -1692,17 +1707,14 @@ impl GameState {
     pub(crate) fn eval_reference(&self, reference: &Reference, frame: &Frame) -> ObjectId {
         match reference {
             Reference::Target(n) => *frame
+                .endophora
                 .targets
                 .get(*n)
                 .expect("announced target index in bounds"),
             // [CR#603.10a]: for a triggered ability, `~`/`This` is the firing
             // object's last-known self (the live source may be gone); for a
-            // spell frame (no bindings) it is the live source.
-            Reference::This => frame
-                .bindings
-                .as_ref()
-                .and_then(|b| b.this.as_ref())
-                .map_or(frame.source, |s| s.object),
+            // spell frame (no snapshot) it is the live source.
+            Reference::This => frame.this.as_ref().map_or(frame.source, |s| s.object),
             Reference::You => self.player(frame.controller).object,
             // [CR#102.1]: in a 2-player game the opponent is the only other
             // live player; picks the first opponent in turn order for >2.
@@ -1717,7 +1729,7 @@ impl GameState {
             // element resolves to its (last-known) id, a player element to its
             // proxy. Referenced at a frameless position it is a malformed read.
             Reference::It => {
-                match frame.it.as_ref().expect(
+                match frame.endophora.it.as_ref().expect(
                     "Reference::It referenced outside an Each/DivideAmong/Where/Pick element",
                 ) {
                     crate::stack::ItBinding::Object(snap) => snap.object,
@@ -1733,6 +1745,7 @@ impl GameState {
             // many. Panics outside an enclosing one-binder `With` — always a bug.
             Reference::That => {
                 let that = frame
+                    .endophora
                     .that
                     .as_ref()
                     .expect("Reference::That outside an enclosing With one-binder");
@@ -1751,18 +1764,15 @@ impl GameState {
             // roles, read from the bindings the fired trigger carried. The
             // event OBJECT (the moved/acting object) — `EventObject`.
             Reference::EventObject => {
-                let bindings = frame
-                    .bindings
-                    .as_ref()
-                    .expect("EventObject referenced where the trigger bound one");
                 // The OBJECT is normally the bound LKI snapshot. A replacement
                 // recipient that is a player proxy carries no snapshot
                 // ([CR#120.3]: the patient is kind-poly and a player is
                 // zoneless), so when `that_object` is unset it falls back to the
                 // patient — leaving existing snapshot-bearing reads unchanged.
-                match &bindings.that_object {
+                match &frame.endophora.that_object {
                     Some(s) => s.object,
-                    None => match bindings
+                    None => match frame
+                        .endophora
                         .that_patient
                         .as_ref()
                         .expect("EventObject referenced where the trigger bound one")
@@ -1775,9 +1785,8 @@ impl GameState {
             // The event ACTOR (the responsible player) — `EventActor`.
             Reference::EventActor => {
                 let p = frame
-                    .bindings
-                    .as_ref()
-                    .and_then(|b| b.that_player)
+                    .endophora
+                    .that_player
                     .expect("EventActor referenced where the trigger bound one");
                 self.player(p).object
             }
@@ -1785,9 +1794,9 @@ impl GameState {
             // kind-poly, an object or a player proxy.
             Reference::EventPatient => {
                 let patient = frame
-                    .bindings
+                    .endophora
+                    .that_patient
                     .as_ref()
-                    .and_then(|b| b.that_patient.as_ref())
                     .expect("EventPatient referenced where the trigger bound one");
                 match patient {
                     crate::trigger::EventPatient::Object(s) => s.object,
@@ -1797,9 +1806,7 @@ impl GameState {
             // [CR#506.2,508.5]: the combat DEFENDING player — always a player.
             Reference::DefendingPlayer => {
                 let p = frame
-                    .bindings
-                    .as_ref()
-                    .and_then(|b| b.defending_player)
+                    .defending_player
                     .expect("DefendingPlayer referenced where the trigger bound one");
                 self.player(p).object
             }
@@ -2000,7 +2007,7 @@ impl GameState {
             // it (the Idris allotment-clearing `bindIt`), so reading it outside a
             // `DivideAmong` body — or inside a nested loop that rebound `It` — is
             // a malformed card.
-            Count::Allotment => frame.allotment.expect(
+            Count::Allotment => frame.endophora.allotment.expect(
                 "Count::Allotment outside a DivideAmong body (or inside a nested Each/DivideAmong \
                  that cleared the outer share)",
             ),
@@ -2008,7 +2015,7 @@ impl GameState {
             // value announced as it was cast (engine-x-costs threads it onto the
             // resolution frame). [CR#107.3f] text-X chosen at resolution is a
             // separate seam.
-            Count::X => frame.x.expect(
+            Count::X => frame.endophora.x.expect(
                 "Count::X on a frame with no announced X — a card referenced X without an {X} cost",
             ),
             // [CR#608.2i]: count history facts matching `event` within `within` —
@@ -2187,9 +2194,8 @@ impl GameState {
     /// else the live source object's.
     pub(crate) fn frame_watcher(&self, frame: &Frame) -> crate::object::ObjectSource {
         frame
-            .bindings
+            .this
             .as_ref()
-            .and_then(|b| b.this.as_ref())
             .map_or_else(|| self.objects.obj(frame.source).source, |s| s.source)
     }
 
@@ -2303,16 +2309,15 @@ fn lki_counters<'f>(
     // `It` reads the iteration/projection element's snapshot (a card element);
     // a player element is zoneless and has none.
     if let Reference::It = reference {
-        return match frame.it.as_ref()? {
+        return match frame.endophora.it.as_ref()? {
             crate::stack::ItBinding::Object(s) => Some(&s.counters),
             crate::stack::ItBinding::Player(_) => None,
         };
     }
-    let bindings = frame.bindings.as_ref()?;
     let snapshot = match reference {
-        Reference::This => bindings.this.as_ref(),
-        Reference::EventObject => bindings.that_object.as_ref(),
-        Reference::EventPatient => match bindings.that_patient.as_ref()? {
+        Reference::This => frame.this.as_ref(),
+        Reference::EventObject => frame.endophora.that_object.as_ref(),
+        Reference::EventPatient => match frame.endophora.that_patient.as_ref()? {
             crate::trigger::EventPatient::Object(s) => Some(s),
             crate::trigger::EventPatient::Player(_) => None,
         },
@@ -2453,6 +2458,7 @@ mod tests {
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
     use crate::stack::Cardinality;
+    use crate::stack::Endophora;
     use crate::stack::Frame;
     use crate::stack::RefKind;
     use crate::stack::StackEntry;
@@ -3106,8 +3112,9 @@ mod tests {
     }
 
     /// `eval_selection_set` returns the bound set for a `Random` slot (the
-    /// value the RNG wrote into `frame.chosen`), instead of surfacing. (Player
-    /// choice now rides `With(ChooseOne/Choose, …)`, bound as `Those`.)
+    /// value the RNG wrote into `frame.endophora.chosen`), instead of
+    /// surfacing. (Player choice now rides `With(ChooseOne/Choose, …)`,
+    /// bound as `Those`.)
     #[test]
     fn eval_selection_set_reads_bound_choice() {
         use deckmaste_core::Quantity;
@@ -3118,15 +3125,11 @@ mod tests {
             Filter::creature(),
         ]);
         let frame = Frame {
-            source: bear,
-            controller: PlayerId(0),
-            targets: vec![],
-            bindings: None,
-            chosen: Some(vec![bear]),
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
+            endophora: Endophora {
+                chosen: Some(vec![bear]),
+                ..Endophora::empty()
+            },
+            ..Frame::bare(bear, PlayerId(0))
         };
         let sel = Selection::Random(Quantity::one(), creatures);
         assert_eq!(state.eval_selection_set(&sel, &frame), vec![bear]);
@@ -3137,7 +3140,7 @@ mod tests {
     /// over a frame whose `chosen` holds the RNG's pick destroys exactly that
     /// one creature. (Verbs take a single `Reference`, so plurality/choice is
     /// the enclosing `Each`; the `Random` inline-RNG resolution is a dormant
-    /// seam that reads `frame.chosen` — [CR#608.2d].)
+    /// seam that reads `frame.endophora.chosen` — [CR#608.2d].)
     #[test]
     fn destroy_random_destroys_one_without_a_decision() {
         use deckmaste_core::Each;
@@ -3153,10 +3156,8 @@ mod tests {
             Filter::creature(),
         ]);
         // The RNG's pick is bound into the frame before the group is read.
-        let frame = Frame {
-            chosen: Some(vec![theirs]),
-            ..frame_src(bear)
-        };
+        let mut frame = frame_src(bear);
+        frame.endophora.chosen = Some(vec![theirs]);
         let before = [bear, theirs]
             .iter()
             .filter(|o| state.zones.battlefield.contains(o))
@@ -3288,20 +3289,14 @@ mod tests {
         let theirs = second_bear_to_player_1(&mut state);
 
         let frame = Frame {
-            source: bear,
-            controller: PlayerId(0),
-            targets: vec![theirs],
-            bindings: Some(crate::trigger::TriggerBindings {
-                this: Some(crate::lki::LkiSnapshot::capture(&state, bear)),
+            this: Some(crate::lki::LkiSnapshot::capture(&state, bear)),
+            endophora: Endophora {
+                targets: vec![theirs],
                 that_object: Some(crate::lki::LkiSnapshot::capture(&state, theirs)),
                 that_player: Some(PlayerId(1)),
-                ..Default::default()
-            }),
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
+                ..Endophora::empty()
+            },
+            ..Frame::bare(bear, PlayerId(0))
         };
 
         assert_eq!(
@@ -3343,22 +3338,15 @@ mod tests {
         // An OBJECT patient (a damage recipient creature) distinct from the
         // agent — what makes a two-object event spellable.
         let object_patient = Frame {
-            source: bear,
-            controller: PlayerId(0),
-            targets: vec![],
-            bindings: Some(crate::trigger::TriggerBindings {
-                this: Some(crate::lki::LkiSnapshot::capture(&state, bear)),
+            this: Some(crate::lki::LkiSnapshot::capture(&state, bear)),
+            defending_player: Some(PlayerId(1)),
+            endophora: Endophora {
                 that_patient: Some(crate::trigger::EventPatient::Object(
                     crate::lki::LkiSnapshot::capture(&state, theirs),
                 )),
-                defending_player: Some(PlayerId(1)),
-                ..Default::default()
-            }),
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
+                ..Endophora::empty()
+            },
+            ..Frame::bare(bear, PlayerId(0))
         };
         assert_eq!(
             state.eval_reference(&Reference::EventPatient, &object_patient),
@@ -3373,18 +3361,11 @@ mod tests {
 
         // A PLAYER patient (a damage recipient player) resolves to the proxy.
         let player_patient = Frame {
-            source: bear,
-            controller: PlayerId(0),
-            targets: vec![],
-            bindings: Some(crate::trigger::TriggerBindings {
+            endophora: Endophora {
                 that_patient: Some(crate::trigger::EventPatient::Player(PlayerId(1))),
-                ..Default::default()
-            }),
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
+                ..Endophora::empty()
+            },
+            ..Frame::bare(bear, PlayerId(0))
         };
         assert_eq!(
             state.eval_reference(&Reference::EventPatient, &player_patient),
@@ -3648,8 +3629,8 @@ mod tests {
     }
 
     /// A `Targeted` wrapper is transparent at resolution — the inner
-    /// instruction runs with `frame.targets` already bound, so `Target(0)`
-    /// resolves and damage lands ([CR#115.1,608]).
+    /// instruction runs with `frame.endophora.targets` already bound, so
+    /// `Target(0)` resolves and damage lands ([CR#115.1,608]).
     #[test]
     fn targeted_effect_resolves_its_inner_effect() {
         let (mut state, bear) = bear_on_field();
@@ -3688,15 +3669,11 @@ mod tests {
     fn count_x_reads_announced_value() {
         let (state, src) = bear_on_field();
         let frame = Frame {
-            source: src,
-            controller: PlayerId(0),
-            targets: vec![],
-            bindings: None,
-            chosen: None,
-            x: Some(3),
-            it: None,
-            that: None,
-            allotment: None,
+            endophora: Endophora {
+                x: Some(3),
+                ..Endophora::empty()
+            },
+            ..Frame::bare(src, PlayerId(0))
         };
         assert_eq!(state.eval_count(&Count::X, &frame), 3);
     }
@@ -4187,18 +4164,8 @@ mod tests {
         assert!(state.objects.get(bear).is_none(), "the object is gone");
 
         let frame = Frame {
-            source: bear,
-            controller: PlayerId(0),
-            targets: Vec::new(),
-            bindings: Some(crate::trigger::TriggerBindings {
-                this: Some(snapshot),
-                ..Default::default()
-            }),
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
+            this: Some(snapshot),
+            ..Frame::bare(bear, PlayerId(0))
         };
 
         assert_eq!(
@@ -4618,14 +4585,12 @@ mod tests {
         // chosen `CreatureOrPlayer` set, bound by an enclosing `With`);
         // `split_evenly(3, 2)` is [2, 1], so the first-listed creature takes 2,
         // the player takes 1.
-        let frame = Frame {
-            that: Some(ThatBinding {
-                cardinality: Cardinality::Many,
-                kind: RefKind::Object,
-                group: vec![creature, player],
-            }),
-            ..frame_src(creature)
-        };
+        let mut frame = frame_src(creature);
+        frame.endophora.that = Some(ThatBinding {
+            cardinality: Cardinality::Many,
+            kind: RefKind::Object,
+            group: vec![creature, player],
+        });
         let effect = Effect::DivideAmong(DivideAmong {
             amount: Count::Literal(3),
             binder: Binder::Existing(Selection::That),
@@ -5743,10 +5708,10 @@ mod tests {
 
     /// [CR#608.2]: `Effect::Each` evaluates its binder once at resolution and
     /// runs the inner effect once per matched object, binding each iterated
-    /// object as the anaphor `It` (a per-iteration `frame.it`). Proven via
-    /// `Destroy(It)` over the battlefield creatures: every creature dies, which
-    /// can only happen if each iteration's `It` resolves to that iteration's
-    /// object.
+    /// object as the anaphor `It` (a per-iteration `frame.endophora.it`).
+    /// Proven via `Destroy(It)` over the battlefield creatures: every
+    /// creature dies, which can only happen if each iteration's `It`
+    /// resolves to that iteration's object.
     #[test]
     fn run_effect_foreach_binds_each_match_as_it() {
         use deckmaste_core::Each;
@@ -6902,17 +6867,7 @@ mod tests {
 
         // A source object for the frame — use p0's proxy.
         let source = state.player(p0).object;
-        let frame = Frame {
-            source,
-            controller: p0,
-            targets: vec![],
-            bindings: None,
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
-        };
+        let frame = Frame::bare(source, p0);
 
         // TopOfLibrary(count:2, of:You) → top two in order.
         let top2 = state.eval_selection_set(
@@ -6927,7 +6882,7 @@ mod tests {
         // With binds them as the many-binder `That`; the body frame sees the same
         // ordered group.
         let mut bound = frame.clone();
-        bound.that = Some(ThatBinding {
+        bound.endophora.that = Some(ThatBinding {
             cardinality: Cardinality::Many,
             kind: RefKind::Object,
             group: top2.clone(),
@@ -7004,17 +6959,7 @@ mod tests {
         state.zones.libraries[p0.index()].push_back(c);
 
         let source = state.player(p0).object;
-        let frame = Frame {
-            source,
-            controller: p0,
-            targets: vec![],
-            bindings: None,
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
-        };
+        let frame = Frame::bare(source, p0);
 
         // Run `Effect::With(TopOfLibrary(3), Distribute(Those, [Top, Bottom],
         // "Scry"))`.
@@ -7133,17 +7078,7 @@ mod tests {
 
         // Frame: controller is player 0 (the fatesealer).
         let source = state.player(p0).object;
-        let frame = Frame {
-            source,
-            controller: p0,
-            targets: vec![],
-            bindings: None,
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
-        };
+        let frame = Frame::bare(source, p0);
 
         // Run Effect::With(TopOfLibrary(count:2, of:Opponent),
         //                  Distribute(Those, [Top, Bottom], "Fateseal"))
@@ -7266,17 +7201,7 @@ mod tests {
         state.zones.libraries[p0.index()].push_back(c);
 
         let source = state.player(p0).object;
-        let frame = Frame {
-            source,
-            controller: p0,
-            targets: vec![],
-            bindings: None,
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
-        };
+        let frame = Frame::bare(source, p0);
 
         // Scry 0: TopOfLibrary(0) → empty window → no decision, no move.
         state.run_effect(
@@ -7352,17 +7277,7 @@ mod tests {
         state.zones.libraries[p0.index()].push_back(b);
 
         let source = state.player(p0).object;
-        let frame = Frame {
-            source,
-            controller: p0,
-            targets: vec![],
-            bindings: None,
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
-        };
+        let frame = Frame::bare(source, p0);
 
         // — N=0 case: scry 0 emits no Distributed event.
         state.run_effect(

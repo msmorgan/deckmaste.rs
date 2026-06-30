@@ -136,17 +136,7 @@ fn attachment_sbas(state: &GameState, view: &crate::layer::LayeredView) -> Vec<G
     for &id in &state.zones.battlefield {
         // A `This`-anchored frame: `condition_holds`/`action_items` resolve
         // `Ref(This)` to this object via the frame source ([CR#603.10a]).
-        let frame = crate::stack::Frame {
-            source: id,
-            controller: state.objects.obj(id).controller,
-            targets: Vec::new(),
-            bindings: None,
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
-        };
+        let frame = crate::stack::Frame::bare(id, state.objects.obj(id).controller);
         let mut rows: Vec<(deckmaste_core::Condition, deckmaste_core::Effect)> = Vec::new();
         crate::legal::for_each_static(view, id, |e| {
             if let deckmaste_core::StaticEffect::Sba { when, then } = e {
@@ -199,17 +189,7 @@ fn counter_state_based_sbas(state: &GameState) -> Vec<GameEvent> {
         if obj.counters.is_empty() {
             continue;
         }
-        let frame = crate::stack::Frame {
-            source: id,
-            controller: obj.controller,
-            targets: Vec::new(),
-            bindings: None,
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
-        };
+        let frame = crate::stack::Frame::bare(id, obj.controller);
         for kind in obj.counters.keys() {
             let Some(decl) = state.counter_decls.get(kind) else {
                 continue;
@@ -237,17 +217,7 @@ fn counter_state_based_sbas(state: &GameState) -> Vec<GameEvent> {
 fn global_sba_rules(state: &GameState) -> Vec<GameEvent> {
     let mut out = Vec::new();
     for &id in &state.zones.battlefield {
-        let frame = crate::stack::Frame {
-            source: id,
-            controller: state.objects.obj(id).controller,
-            targets: Vec::new(),
-            bindings: None,
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
-        };
+        let frame = crate::stack::Frame::bare(id, state.objects.obj(id).controller);
         for rule in &state.sba_rules {
             // `scope` binds `This`: only objects in the rule's domain reach
             // `when` (so a toughness read never runs on a non-creature).
@@ -772,17 +742,7 @@ mod tests {
         use deckmaste_core::Token;
 
         let (mut state, src) = bear_on_field();
-        let frame = crate::stack::Frame {
-            source: src,
-            controller: PlayerId(0),
-            targets: vec![],
-            bindings: None,
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
-        };
+        let frame = crate::stack::Frame::bare(src, PlayerId(0));
         let token = Token {
             color_indicator: vec![],
             supertypes: vec![],
@@ -1618,17 +1578,7 @@ mod tests {
     /// Build a `This`-anchored frame for `id`, mirroring the literal used in
     /// `attachment_sbas` and `global_sba_rules`.
     fn this_frame(state: &GameState, id: crate::object::ObjectId) -> crate::stack::Frame {
-        crate::stack::Frame {
-            source: id,
-            controller: state.objects.obj(id).controller,
-            targets: Vec::new(),
-            bindings: None,
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
-        }
+        crate::stack::Frame::bare(id, state.objects.obj(id).controller)
     }
 
     /// [CR#120.3]: `Count::Damage(Reference::This)` reads an object's marked

@@ -30,17 +30,7 @@ use crate::state::GameState;
 /// `eval_reference` evaluate a strategy's `Count`/`Condition`/`Reference`
 /// against this exactly as they do during effect resolution.
 pub(crate) fn eval_frame(state: &GameState, seat: PlayerId, candidate: Option<ObjectId>) -> Frame {
-    Frame {
-        source: candidate.unwrap_or_else(|| state.player(seat).object),
-        controller: seat,
-        targets: Vec::new(),
-        bindings: None,
-        chosen: None,
-        x: None,
-        it: None,
-        that: None,
-        allotment: None,
-    }
+    Frame::bare(candidate.unwrap_or_else(|| state.player(seat).object), seat)
 }
 
 /// Look through a remembered `Preference` macro invocation to the variant it

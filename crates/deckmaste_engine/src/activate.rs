@@ -230,17 +230,7 @@ impl GameState {
         if summary.mana_cost_of.is_empty() {
             return summary.mana.clone();
         }
-        let frame = Frame {
-            source,
-            controller,
-            targets: Vec::new(),
-            bindings: None,
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
-        };
+        let frame = Frame::bare(source, controller);
         let mut symbols: Vec<ManaSymbol> = summary.mana.iter().copied().collect();
         for reference in &summary.mana_cost_of {
             let object = self.eval_reference(reference, &frame);
@@ -315,17 +305,7 @@ impl GameState {
         // The gate runs before targets are chosen, so the frame carries none;
         // `Ref(This)`/`Is(This, …)` anchors to the live source.
         if let Some(c) = &ability.condition {
-            let frame = Frame {
-                source: object,
-                controller: player,
-                targets: Vec::new(),
-                bindings: None,
-                chosen: None,
-                x: None,
-                it: None,
-                that: None,
-                allotment: None,
-            };
+            let frame = Frame::bare(object, player);
             if !self.condition_holds(c, &frame) {
                 return false;
             }
@@ -424,17 +404,7 @@ impl GameState {
             // ≥ the quantity's lower bound of candidates (no partial payment).
             Binder::Choose(quantity, filter) => {
                 let candidates = crate::target::candidates(self, filter);
-                let frame = Frame {
-                    source,
-                    controller,
-                    targets: Vec::new(),
-                    bindings: None,
-                    chosen: None,
-                    x: None,
-                    it: None,
-                    that: None,
-                    allotment: None,
-                };
+                let frame = Frame::bare(source, controller);
                 let (lo, _hi) = quantity.bounds();
                 let need = lo.map_or(0, |c| self.eval_count(c, &frame));
                 Uint::try_from(candidates.len()).unwrap_or(Uint::MAX) >= need
@@ -461,17 +431,7 @@ impl GameState {
         source: ObjectId,
         controller: PlayerId,
     ) -> Option<Vec<ObjectId>> {
-        let frame = Frame {
-            source,
-            controller,
-            targets: Vec::new(),
-            bindings: None,
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
-        };
+        let frame = Frame::bare(source, controller);
         let need = self.eval_count(&req.count, &frame);
         let watcher = self.objects.obj(source).source;
         let view = self.layers();
@@ -533,18 +493,8 @@ impl GameState {
     ) -> bool {
         // Same anchoring as the condition gate (`can_activate` above): the
         // payer is the controller, `~`/`This` is the live source.
-        let frame = Frame {
-            source: subject,
-            controller: player,
-            targets: Vec::new(),
-            bindings: None,
-            chosen: None,
-            // A cost-payability gate reads no announced X.
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
-        };
+        // A cost-payability gate reads no announced X.
+        let frame = Frame::bare(subject, player);
         // TODO(engine-cost-payment / deontics): [CR#119.8] "can't pay life" is
         // NOT YET ENFORCED. Under a continuous effect saying a player can't lose
         // life, a cost that involves having that player pay life can't be paid —

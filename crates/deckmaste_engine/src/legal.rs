@@ -584,17 +584,8 @@ pub(crate) fn arrangement_forbidden_by(
             // than its power" — `StatOf(This, Power)`) evaluates instead of
             // panicking. `Ref(This)`/`StatOf(This)` anchor on the carrier, so
             // build a carrier-source frame with no resolution context.
-            let frame = crate::stack::Frame {
-                source: r.carrier_id,
-                controller: state.objects.obj(r.carrier_id).controller,
-                targets: Vec::new(),
-                bindings: None,
-                chosen: None,
-                x: None,
-                it: None,
-                that: None,
-                allotment: None,
-            };
+            let frame =
+                crate::stack::Frame::bare(r.carrier_id, state.objects.obj(r.carrier_id).controller);
             r.count
                 .as_ref()
                 .expect("filtered to Some")

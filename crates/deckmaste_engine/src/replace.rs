@@ -126,17 +126,7 @@ impl GameState {
     /// condition reads), no targets/bindings/chosen/x/subject. Shared by the
     /// counter-count and conditional-gate folds.
     fn enters_frame(&self, entering: crate::object::ObjectId) -> crate::stack::Frame {
-        crate::stack::Frame {
-            source: entering,
-            controller: self.objects.obj(entering).controller,
-            targets: Vec::new(),
-            bindings: None,
-            chosen: None,
-            x: None,
-            it: None,
-            that: None,
-            allotment: None,
-        }
+        crate::stack::Frame::bare(entering, self.objects.obj(entering).controller)
     }
 
     /// Resolve the host an `AsEnters(Attach(This, to))` attaches to (§4). The

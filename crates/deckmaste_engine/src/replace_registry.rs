@@ -24,9 +24,9 @@ use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::player::PlayerId;
+use crate::stack::Endophora;
 use crate::state::GameState;
 use crate::trigger::EventPatient;
-use crate::trigger::TriggerBindings;
 
 /// What an intent affects — the object being moved/changed, or the player
 /// experiencing the event (e.g. the player drawing a card, gaining life).
@@ -692,31 +692,24 @@ fn schedule_body(
     // reading it (a player proxy is zoneless, so it has no LKI snapshot — it
     // binds as the player patient; a card/token recipient binds as the object
     // patient).
-    let bindings = that.map(|id| match state.objects.obj(id).source {
-        ObjectSource::Player(p) => TriggerBindings {
+    let endophora = that.map_or_else(Endophora::empty, |id| match state.objects.obj(id).source {
+        ObjectSource::Player(p) => Endophora {
             that_player: Some(p),
             that_patient: Some(EventPatient::Player(p)),
-            ..Default::default()
+            ..Endophora::empty()
         },
         ObjectSource::Card(_) => {
             let snapshot = LkiSnapshot::capture(state, id);
-            TriggerBindings {
+            Endophora {
                 that_object: Some(snapshot.clone()),
                 that_patient: Some(EventPatient::Object(snapshot)),
-                ..Default::default()
+                ..Endophora::empty()
             }
         }
     });
     let frame = crate::stack::Frame {
-        source,
-        controller,
-        targets: vec![],
-        bindings,
-        chosen: None,
-        x: None,
-        it: None,
-        that: None,
-        allotment: None,
+        endophora,
+        ..crate::stack::Frame::bare(source, controller)
     };
     state.schedule_front(vec![crate::agenda::WorkItem::RunEffect {
         effect: Box::new(effect),
