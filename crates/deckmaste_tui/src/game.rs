@@ -11,8 +11,11 @@ use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::StartingPlayer;
 
-/// Fixed RNG seed so the demo game is reproducible.
-const SEED: u64 = 0xD00D;
+/// Fixed RNG seed so the demo game is reproducible — chosen so the shuffle
+/// deals both decks a keepable opening hand (guarded by
+/// `opening_hands_are_keepable`). The earlier value dealt the red Goblins deck
+/// a landless hand on every run.
+const SEED: u64 = 11;
 
 fn data(rel: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join(rel)
@@ -81,6 +84,31 @@ mod tests {
         assert_eq!(state.players.len(), 2);
         assert_eq!(state.players[0].life, 20);
         assert_eq!(state.players[1].life, 20);
+    }
+
+    /// The demo seed is fixed for reproducibility, so whatever opening hand it
+    /// deals is dealt on every run. Guard that the chosen seed never reverts to
+    /// dealing a degenerate hand — in particular the red Goblins deck (P0),
+    /// which a prior seed opened with zero lands every time. Both decks run 14
+    /// lands in 40, so a keepable 2–5 land hand is the sensible window.
+    #[test]
+    fn opening_hands_are_keepable() {
+        use deckmaste_core::Type;
+        let state = build_game().expect("build demo game");
+        let view = state.layers();
+        for (i, label) in ["Goblins (red, P0)", "Elves (green, P1)"]
+            .iter()
+            .enumerate()
+        {
+            let lands = state.zones.hands[i]
+                .iter()
+                .filter(|&&id| view.get(id).card_types.contains(&Type::Land))
+                .count();
+            assert!(
+                (2..=5).contains(&lands),
+                "{label} opens with {lands} lands; expected a keepable 2-5"
+            );
+        }
     }
 
     /// End-to-end: both seats are auto-developed by `GreedyDemo` (which, unlike
