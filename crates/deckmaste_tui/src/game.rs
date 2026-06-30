@@ -11,18 +11,33 @@ use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::StartingPlayer;
 
-/// Fixed RNG seed so the demo game is reproducible — chosen so the shuffle
-/// deals both decks a keepable opening hand (guarded by
-/// `opening_hands_are_keepable`). The earlier value dealt the red Goblins deck
-/// a landless hand on every run.
+/// The fixed shuffle seed used by the test suite — chosen so the shuffle deals
+/// both decks a keepable opening hand (guarded by
+/// `opening_hands_are_keepable`); an earlier value dealt the red Goblins deck a
+/// landless hand on every run. The binary seeds from `--seed`/entropy instead
+/// (see [`build_game_with_seed`]), so live play varies run to run.
+#[cfg(test)]
 const SEED: u64 = 11;
 
 fn data(rel: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join(rel)
 }
 
+/// Build the demo game with the fixed test seed — a deterministic game for the
+/// test suite. The binary builds with a `--seed`/entropy value via
+/// [`build_game_with_seed`] instead.
+///
+/// # Errors
+/// If a plugin or decklist fails to load, or a listed card can't be resolved.
+#[cfg(test)]
+pub fn build_game() -> Result<GameState> {
+    build_game_with_seed(SEED)
+}
+
 /// Loads canon + builtin + the generated `wizards` corpus and the two demo
-/// decklists, and assembles a two-player Goblins-vs-Elves game.
+/// decklists, and assembles a two-player Goblins-vs-Elves game shuffled with
+/// `seed`. The binary passes a `--seed` value or an entropy-derived one (so
+/// live play varies); tests use the fixed-seed `build_game`.
 ///
 /// The demo's cards are produced locally (not shipped): `wizards` is the
 /// gitignored generated corpus (`cargo xtask generate plugins/wizards`), so the
@@ -31,7 +46,7 @@ fn data(rel: &str) -> PathBuf {
 ///
 /// # Errors
 /// If a plugin or decklist fails to load, or a listed card can't be resolved.
-pub fn build_game() -> Result<GameState> {
+pub fn build_game_with_seed(seed: u64) -> Result<GameState> {
     let canon = Plugin::load_with_sibling_prelude(data("../../plugins/canon"))?;
     let builtin = Plugin::load(data("../../plugins/builtin"))?;
     let wizards = Plugin::load_with_prelude(&builtin, data("../../plugins/wizards"))?;
@@ -65,7 +80,7 @@ pub fn build_game() -> Result<GameState> {
 
     Ok(GameState::new(GameConfig {
         players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
-        seed: SEED,
+        seed,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules,
