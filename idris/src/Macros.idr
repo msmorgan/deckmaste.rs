@@ -50,7 +50,7 @@ inHand = InZone Hand
 
 -- player-predicates: `you` is the controller; `opponent`/`teammate` are TEAM-relative ([CR#102.3]) — an
 -- opponent is a player NOT on your team (NOT merely "not you": a teammate in Two-Headed Giant is neither),
--- a teammate another player ON your team. Lowercase sugar for the `Opponent`/`Teammate` engine primitives.
+-- a teammate another player ON your team. Lowercase sugar for the `OpponentOf`/`TeammateOf` engine primitives.
 -- Feed `ControlledBy`/`Actor`/`Target (^1)`/`SelectAll`.
 public export
 you : Predicate b APlayer
@@ -58,11 +58,11 @@ you = SameAs You
 
 public export
 opponent : Predicate b APlayer
-opponent = Opponent
+opponent = OpponentOf
 
 public export
 teammate : Predicate b APlayer
-teammate = Teammate
+teammate = TeammateOf
 
 -- "at the beginning of the next end step" — the common delayed-trigger event.
 public export
@@ -98,7 +98,7 @@ eachPlayer = SelectAll Anyone
 -- "any spell or ability" — the universal targeting SOURCE.
 public export
 spellOrAbility : Predicate b AnObject
-spellOrAbility = Or [IsKind IsSpell, IsKind IsAbility]
+spellOrAbility = Or [IsKind Spell, IsKind Ability]
 
 -- the two COMPULSION aliases over the single polarized `Constrain` ([CR#508.1c] restriction /
 -- [CR#508.1d] requirement): `cant d` forbids the deed, `must d` requires it (the combat solver
@@ -132,7 +132,7 @@ hexproof : Ability b
 hexproof = Keyword (Composite (Hexproof Nothing) [Static (cant (Enact Target (ControlledBy opponent) (SameAs This)))])
 
 -- "hexproof from [f]": can't be targeted by an opponent's source matching `f`. `f` may be an
--- ANAPHOR ("from the CHOSEN color") — the reason `Ability` is `Bindings`-indexed.
+-- ANAPHOR ("from the CHOSEN color") — the reason `Ability` is `Endophora`-indexed.
 public export
 hexproofFrom : Predicate b AnObject -> Ability b
 hexproofFrom f = Keyword (Composite (Hexproof (Just f)) [Static (cant (Enact Target (And [ControlledBy opponent, f]) (SameAs This)))])
@@ -261,7 +261,7 @@ protection q = Keyword (Composite (Protection q)
 -- host, attach to that host on resolution. The falls-off SBA ("no valid attachment → graveyard",
 -- [CR#704.5n]) is conferred by the Aura SUBTYPE (`subtypeConfers`), not here.
 public export
-enchant : {b : Bindings} -> ({0 c : Bindings} -> Predicate c AnObject) -> List (Ability b)
+enchant : {b : Endophora} -> ({0 c : Endophora} -> Predicate c AnObject) -> List (Ability b)
 enchant hosts =
   [ Static (Can (Enact Attach (SameAs This) hosts))                                  -- (1) permission: the aura ENABLES attaching
   , Static (Also thisEnters (If (Not (LegallyAttached This))                         -- (2) [CR#303.4f] non-cast entry only (cast path is already attached):
@@ -324,7 +324,7 @@ levelUp cost = Activated cost (Act (PutCounters Level (^1) This)) {window = AsSo
 -- creature until end of turn. The aggregate-tap cost is `TapTotal`.
 public export
 crew : Count b -> Ability b
-crew n = Activated (TapTotal Power GreaterEq n creature)
+crew n = Activated (TapTotal Power AtLeast n creature)
   (Continuously UntilEndOfTurn (Modify This (Alter Types (Add Creature))))
 
 -- "Morph [cost]" ([CR#702.37]): you may cast this face down as a 2/2 for {3} (`CastFaceDown`), and turn

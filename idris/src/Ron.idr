@@ -254,11 +254,11 @@ implementation ToRon EventKind where
 mutual
   -- heterogeneous lists (`All`) render like a homogeneous `List` would, but the
   -- element kinds differ per slot, so they need their own little folds.
-  ronTargets : {0 b : Bindings} -> {0 ks : List RefKind} -> (indent : Nat) -> All (TargetSpec b) ks -> List String
+  ronTargets : {0 b : Endophora} -> {0 ks : List RefKind} -> (indent : Nat) -> All (TargetSpec b) ks -> List String
   ronTargets _ [] = []
   ronTargets i (x :: xs) = toRon i x :: ronTargets i xs
 
-  ronPreds : {0 b : Bindings} -> {0 ks : List RefKind} -> (indent : Nat) -> All (Predicate b) ks -> List String
+  ronPreds : {0 b : Endophora} -> {0 ks : List RefKind} -> (indent : Nat) -> All (Predicate b) ks -> List String
   ronPreds _ [] = []
   ronPreds i (p :: ps) = toRon i p :: ronPreds i ps
 
@@ -359,8 +359,8 @@ mutual
     toRon _ WasKicked = "WasKicked"
     toRon _ OfChosen = "OfChosen"
     toRon _ Anyone = "Anyone"
-    toRon _ Opponent = "Opponent"
-    toRon _ Teammate = "Teammate"
+    toRon _ OpponentOf = "OpponentOf"
+    toRon _ TeammateOf = "TeammateOf"
     toRon i (And ps) = ctor "And" [toRon i ps]
     toRon i (Or ps) = ctor "Or" [ronBracket (ronPreds i ps)]
     toRon i (Not p) = ctor "Not" [toRon i p]
