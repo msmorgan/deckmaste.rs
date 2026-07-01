@@ -19,7 +19,7 @@ Normal(
   abilities: [
     Spell(
       effect: Targeted(
-        targets: [Target(Between(1, 3), CreatureOrPlayer)],
+        targets: [Target(Between(1, 3), AnyTarget)],
         effect: DivideAmong(
           amount: 3,
           binder: Existing(GetTargets(0)),

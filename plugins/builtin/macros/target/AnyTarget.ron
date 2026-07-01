@@ -3,10 +3,5 @@
     name: "AnyTarget",
     template: "any target",
     kinds: [TargetSpec],
-    body: TargetOne(OneOf([
-        Battle,
-        Creature,
-        Planeswalker,
-        Player,
-    ])),
+    body: TargetOne(AnyTarget),
 )

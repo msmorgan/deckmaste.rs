@@ -5,7 +5,7 @@ Normal(
   name: "Fate Transfer",
   mana_cost: [
     Generic(1),
-    Black,
+    Hybrid(Blue, Black),
   ],
   types: [
     Instant,

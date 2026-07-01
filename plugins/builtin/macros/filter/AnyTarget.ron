@@ -1,0 +1,12 @@
+// [CR#115.4]
+(
+    name: "AnyTarget",
+    template: "any target",
+    kinds: [Filter],
+    body: OneOf([
+        Battle,
+        Creature,
+        Planeswalker,
+        Player,
+    ]),
+)
