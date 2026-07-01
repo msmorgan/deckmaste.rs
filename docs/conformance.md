@@ -47,7 +47,7 @@ backlog (needs design dialogue)*, *variant-gated*, *UD-blocked*, or
 | exactly-N / up-to-N / any-number selection | `Quantity::{Exactly, AtMost, AnyNumber, …}` | ✓ |
 | variable-count targets, count locked at announce | `Count::X`; `LockPoint::Announce` | ✓ types; threading through the decision flow engine-seam |
 | `any target` shorthand | builtin Filter macro (`CreatureOrPlayer`-family) | ✓ |
-| `each [desc]` (untargeted universal) | `Selection::Each(Filter)` | ✓ |
+| `each [desc]` (untargeted universal) | `Selection::Filter` + `Effect::Each` | ✓ |
 | `among [previously computed set]` | `Selection::AmongNoted(key, Quantity)` — the domain is the `Noting` record, never re-evaluated | ✓ grammar; slot store engine-seam |
 | division/distribution among targets | — ([CR#601.2d] announced-with-targets vs [CR#608.2d] at-resolution) | MISSING — post-P0 grammar backlog (needs design dialogue) |
 | "another/other" source-default exclusion | `AllOf([…, Not(Ref(This))])` | ✓ |

@@ -513,12 +513,6 @@ impl GameState {
             // per-element scheduling, where each element runs and pauses
             // independently.
             Effect::Each(each) => {
-                fn peel(e: &Effect) -> &Effect {
-                    match e {
-                        Effect::Expanded(x) => peel(&x.value),
-                        other => other,
-                    }
-                }
                 if let Some((candidates, min, max)) = self.binder_choice(&each.binder, frame) {
                     self.pending = Some(crate::decide::PendingDecision::ChooseObjects {
                         player: frame.controller,
@@ -543,7 +537,7 @@ impl GameState {
                     next.endophora.chosen = None;
                     next
                 };
-                match peel(&each.effect) {
+                match peel_effect(&each.effect) {
                     Effect::Act(action) if !matches!(action, Action::CreateReplacement { .. }) => {
                         // Resolve every element's work items up front. Only a
                         // pure-event body — one whose items are all `Emit` —
@@ -1610,10 +1604,9 @@ impl GameState {
             // the whole announced target list (Arc Lightning's 1–3 targets); a
             // multi-spec spell needs per-spec offsets — a seam.
             Selection::GetTargets(spec) => {
-                assert_eq!(
-                    *spec, 0,
-                    "GetTargets({spec}): multi target-spec announce not yet wired"
-                );
+                if *spec != 0 {
+                    unimplemented!("GetTargets({spec}): multi target-spec announce not yet wired");
+                }
                 frame.endophora.targets.clone()
             }
             // [CR#107.1]: the extremal element(s) of a set, ranked by the
@@ -1722,8 +1715,7 @@ impl GameState {
         vec![self.eval_reference(reference, frame)]
     }
 
-    /// Resolve a [`Reference`] to an `ObjectId` (the bound-object resolver
-    /// `Selection::Ref` funnels through).
+    /// Resolve a [`Reference`] to an `ObjectId`.
     ///
     /// # Panics
     ///
@@ -2397,9 +2389,18 @@ fn split_evenly(total: Uint, n: usize) -> Vec<Uint> {
 /// Look through a [`Binder::Expanded`](deckmaste_core::Binder::Expanded) macro
 /// invocation to the structural binder underneath — the binder twin of the
 /// effect/selection `peel`s elsewhere.
-fn peel_binder(binder: &deckmaste_core::Binder) -> &deckmaste_core::Binder {
+pub(crate) fn peel_binder(binder: &deckmaste_core::Binder) -> &deckmaste_core::Binder {
     match binder {
         deckmaste_core::Binder::Expanded(e) => peel_binder(&e.value),
+        other => other,
+    }
+}
+
+/// Look through an [`Effect::Expanded`](deckmaste_core::Effect::Expanded) macro
+/// invocation to the structural effect underneath.
+pub(crate) fn peel_effect(effect: &deckmaste_core::Effect) -> &deckmaste_core::Effect {
+    match effect {
+        deckmaste_core::Effect::Expanded(e) => peel_effect(&e.value),
         other => other,
     }
 }

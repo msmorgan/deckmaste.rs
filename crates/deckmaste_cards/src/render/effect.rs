@@ -167,7 +167,7 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
 fn binder_phrase(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
     use deckmaste_core::Binder;
     match binder {
-        Binder::ChooseOne(f) => format!("a {}", fragment::filter_noun(f)),
+        Binder::ChooseOne(f) => a_an(&fragment::filter_noun(f)),
         Binder::Choose(q, f) => {
             format!("{} {}", fragment::quantity(q), fragment::filter_object(f))
         }
@@ -178,7 +178,7 @@ fn binder_phrase(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
         // body's `That` reads — the found card (`SearchOne`/`Search`) or the
         // produced object (`Produce`) — so the enum stays exhaustive without
         // fabricating the search/produce verb text.
-        Binder::SearchOne { filter, .. } => format!("a {}", fragment::filter_noun(filter)),
+        Binder::SearchOne { filter, .. } => a_an(&fragment::filter_noun(filter)),
         Binder::Search {
             quantity, filter, ..
         } => {
@@ -191,6 +191,17 @@ fn binder_phrase(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
         Binder::Produce(_) => "the produced object".to_string(),
         Binder::Expanded(e) => binder_phrase(&e.value, ctx),
     }
+}
+
+fn a_an(noun: &str) -> String {
+    let lowercase = noun.to_lowercase();
+    let is_vowel = |c: char| "aeiou".contains(c);
+    if let Some(first_char) = lowercase.chars().next() {
+        if is_vowel(first_char) {
+            return format!("an {noun}");
+        }
+    }
+    format!("a {noun}")
 }
 
 /// The collective rendering of an [`Effect::Each`] whose body is a single group

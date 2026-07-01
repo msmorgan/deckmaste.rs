@@ -357,19 +357,7 @@ fn flatten_all_of(f: &Filter) -> Vec<&Filter> {
 // ── PutInLibrary helpers ─────────────────────────────────────────────────────
 
 /// A `Selection` GROUP as the object of "put __": "them" for a bound group.
-/// Retained for the group "put __" surface — the single-object verb patient
-/// now renders via [`reference`], so a moved-object phrase has no caller in
-/// this stage; kept (per the migration plan) for the group sites a later stage
-/// re-wires.
-#[allow(dead_code)]
-pub(super) fn selection_object(sel: &Selection, ctx: &Ctx) -> String {
-    match sel {
-        // The plural anaphor / announced-target group as the moved object: reads
-        // the bound phrase when present, else the bare "them".
-        Selection::That | Selection::GetTargets(_) => ctx.that.unwrap_or("them").to_string(),
-        other => selection(other, ctx),
-    }
-}
+
 
 pub(super) fn quantity(q: &Quantity) -> String {
     // `Quantity` is one `Range(lo, hi)` primitive (seen through a remembered
