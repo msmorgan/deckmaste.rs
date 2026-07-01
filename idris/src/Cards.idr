@@ -191,7 +191,7 @@ card_ApproachOfTheSecondSun = Normal $ ^:
                                                [ Actor you
                                                , Patient (SameName This)
                                                , Within ThisGame ]))
-                            GreaterEq (Literal 2) ])
+                            AtLeast (Literal 2) ])
              (Conclude (WinGame You))
              { otherwise = Just (Sequence
                  [ Act (Move (This) (ToLibrary (FromTop (^6))))
@@ -461,7 +461,7 @@ card_ManaLeak = Normal $ ^:
   , manaCost := [^1, ^Blue]
   , types := [Instant]
   , abilities :=
-      [ Spell (Targeted [Target (^1) (IsKind IsSpell)]
+      [ Spell (Targeted [Target (^1) (IsKind Spell)]
           (MustPay {actor = ControllerOf (GetTarget 0)} (Mana [^3])
             (Act (Counter ((GetTarget 0)))))) ]
   }
@@ -494,7 +494,7 @@ card_CrypticCommand = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell (Modal (MkChooseSpec (^2))
-          [ MkMode (Targeted [Target (^1) (IsKind IsSpell)] (Act (Counter ((GetTarget 0)))))
+          [ MkMode (Targeted [Target (^1) (IsKind Spell)] (Act (Counter ((GetTarget 0)))))
           , MkMode (Targeted [Target (^1) permanent] (Act (Move ((GetTarget 0)) (ToZone Hand))))
           , MkMode (Each (Existing (SelectAll (And [creature, ControlledBy opponent]))) (Act (Tap It)))
           , MkMode (Act (Draw (^1)))
@@ -577,10 +577,10 @@ card_StudentOfWarfare = Normal $ ^:
   , toughness := Just 1
   , abilities :=
       [ levelUp (Mana [^White])                                                                  -- "Level up {W}"
-      , Static (While (And [ Compare (CountersOn Level This) GreaterEq (^2)
-                           , Compare (CountersOn Level This) LessEq (^6) ])
+      , Static (While (And [ Compare (CountersOn Level This) AtLeast (^2)
+                           , Compare (CountersOn Level This) AtMost (^6) ])
           (Modify This (ApplyAll [Alter Power (Set (^3)), Alter Toughness (Set (^3)), GrantAbility (keyword FirstStrike)])))   -- LEVEL 2–6: 3/3 first strike
-      , Static (While (Compare (CountersOn Level This) GreaterEq (^7))
+      , Static (While (Compare (CountersOn Level This) AtLeast (^7))
           (Modify This (ApplyAll [Alter Power (Set (^4)), Alter Toughness (Set (^4)), GrantAbility (keyword DoubleStrike)])))   -- LEVEL 7+: 4/4 double strike
       ]
   }
@@ -600,7 +600,7 @@ card_Iona = Normal $ ^:
   , abilities :=
       [ keyword Flying
       , AsEnters AColor
-          [ Static (cant (Enact Cast opponent (And [IsKind IsSpell, OfChosen]))) ]
+          [ Static (cant (Enact Cast opponent (And [IsKind Spell, OfChosen]))) ]
       ]
   , power := Just 7
   , toughness := Just 7
@@ -687,7 +687,7 @@ card_CavernOfSouls = Normal $ ^:
       [ Activated (Do (Tap This)) (Act (AddMana (^1) (^Colorless)))                          -- {T}: Add {C}
       , AsEnters ACreatureType
           [ Activated (Do (Tap This)) (Act (AddMana (^1) AnyColor
-              { riders = [ SpendOnly (And [IsKind IsSpell, creature, OfChosen])
+              { riders = [ SpendOnly (And [IsKind Spell, creature, OfChosen])
                          , GrantOnSpend (cant (Enact Counter spellOrAbility (SameAs It))) ] }))  -- {T}: any color — creature spell of the chosen type, uncounterable
           ]
       ]
@@ -819,7 +819,7 @@ card_MindBend = Normal $ ^:
   , manaCost := [^1, ^Blue]
   , types := [Sorcery]
   , abilities :=
-      [ Spell (Targeted [Target (^1) (Or [permanent, IsKind IsSpell])]
+      [ Spell (Targeted [Target (^1) (Or [permanent, IsKind Spell])]
           (Continuously Forever (Modify (GetTarget 0) (ChangeText [ColorWords, BasicLandTypes])))) ]
   }
 
@@ -921,7 +921,7 @@ card_Thalia = Normal $ ^:
   , subtypes := [^Human]
   , abilities :=
       [ keyword FirstStrike
-      , Static (CostModifier (And [IsKind IsSpell, Not (hasType Creature)]) (Increase [^1])) ]
+      , Static (CostModifier (And [IsKind Spell, Not (hasType Creature)]) (Increase [^1])) ]
   , power := Just 2
   , toughness := Just 1
   }
@@ -1056,17 +1056,17 @@ card_HistoryOfBenalia = Normal $ ^:
   , abilities :=
       [ -- I, II — create a 2/2 white Knight
         Triggered (MkEventQuery [PutCounters] [Patient (SameAs This)])
-          (If (Or [ Compare (CountersOn Lore This) Equal (^1)
-                  , Compare (CountersOn Lore This) Equal (^2) ])
+          (If (Or [ Compare (CountersOn Lore This) Eq (^1)
+                  , Compare (CountersOn Lore This) Eq (^2) ])
               (Act (CreateToken (^1)
                 (^: { name := Just "Knight", types := [Creature], subtypes := [^Knight]
                     , colors := [White], power := Just 2, toughness := Just 2 }))))
       , -- III — Knights you control get +2/+1 until end of turn
         Triggered (MkEventQuery [PutCounters] [Patient (SameAs This)])
-          (If (Compare (CountersOn Lore This) Equal (^3))
+          (If (Compare (CountersOn Lore This) Eq (^3))
               (Continuously UntilEndOfTurn (Each (Existing (SelectAll (And [hasSubtype (^Knight), ControlledBy you]))) (Modify It (ApplyAll [Alter Power (Up (^2)), Alter Toughness (Up (^1))])))))
       , -- sacrifice after the final chapter ([CR#714.4])
-        Static (Sba (Compare (CountersOn Lore This) GreaterEq (^3)) (Act (Move This (ToZone Graveyard))))
+        Static (Sba (Compare (CountersOn Lore This) AtLeast (^3)) (Act (Move This (ToZone Graveyard))))
       ]
   }
 
@@ -1082,7 +1082,7 @@ card_MeddlingMage = Normal $ ^:
   , subtypes := [^Human, ^Wizard]
   , abilities :=
       [ AsEnters AName
-          [ Static (cant (Enact Cast Anyone (And [IsKind IsSpell, OfChosen]))) ] ]
+          [ Static (cant (Enact Cast Anyone (And [IsKind Spell, OfChosen]))) ] ]
   , power := Just 2
   , toughness := Just 2
   }

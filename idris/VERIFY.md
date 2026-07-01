@@ -2,8 +2,8 @@
 
 The Idris model in `src/` is dependently typed: a card's effect tree typechecks
 only if every anaphor read is in scope at the right kind and cardinality. A type
-error therefore IS a soundness failure — the dependent `Bindings` typestate
-(`Core.idr`, `record Bindings`; rename to `Endophora` tracked by
+error therefore IS a soundness failure — the dependent `Endophora` typestate
+(`Core.idr`, `record Endophora` tracked by
 `idris-naming-reconciliation`) rejects an ill-scoped, first-of-many, or wrong-kind
 anaphor read. This makes the model an **oracle** for the Rust corpus: transcribe a
 suspect Rust RON term into the corresponding Idris term and typecheck it.

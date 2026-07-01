@@ -14,7 +14,7 @@ import Macros
 tTargetInScope : Reference (bindTargets [AnObject] Base) AnObject
 tTargetInScope = GetTarget 0
 
--- `That` is available inside a `With`-bound bindings (kind comes from the binding)
+-- `That` is available inside a `With`-bound endophora (kind comes from the binding)
 tThatInWith : Selection (bindThat Many AnObject Base) AnObject
 tThatInWith = That
 
@@ -84,7 +84,7 @@ tSubjectFilter = hasType Creature
 -- new filter atoms (close the audit's #1 hole): a numeric STAT comparison ("creature with power ≤
 -- 2") and runtime OBJECT STATE ("an attacking creature") — both now `Predicate`s, not just `Condition`s.
 tStatFilter : Predicate Base AnObject
-tStatFilter = And [creature, StatCmp Power LessEq (^2)]
+tStatFilter = And [creature, StatCmp Power AtMost (^2)]
 
 -- DURATIVE aspect of the relation spine (`Holds r role`): "an attacking creature" (cf the retired
 -- `HasState Attacking`).
@@ -99,8 +99,8 @@ tFilterAtoms : List (Predicate Base AnObject)
 tFilterAtoms =
   [ Multicolored
   , IsColorless
-  , And [IsKind IsSpell, Targets (SameAs You)]
-  , TargetCount Equal (^1)
+  , And [IsKind Spell, Targets (SameAs You)]
+  , TargetCount Eq (^1)
   , Holds Block Agent                                                -- "a blocking creature"
   , Holds Block Patient                                             -- "a blocked creature"
   , And [creature, Holds Attack Agent, Not (Holds Block Patient)] ]  -- "an unblocked attacker" (derived, no state)
@@ -142,7 +142,7 @@ tMonarchTest = HasDesignation Monarch
 -- an as-enters value choice in scope: `OfChosen` reads "the chosen color" under a `bindChosen AColor`
 -- binding (Iona: "spells of the chosen color"). The card-level `AsEnters AColor` opens this binding.
 tOfChosen : Predicate (bindChosen AColor Base) AnObject
-tOfChosen = And [IsKind IsSpell, OfChosen]
+tOfChosen = And [IsKind Spell, OfChosen]
 
 -- a MODAL as-enters choice: `ChosenIs i` reads the chosen mode, bounded by the mode count (Citadel/
 -- Outpost Siege gate each ability on it). `AMode 2` ⇒ valid indices 0 and 1.
@@ -153,7 +153,7 @@ tChosenMode = ChosenIs 1
 -- rides the paid-for spell, bound as `It` — Cavern's "creature spell of the chosen type, uncounterable".
 tRestrictedMana : Action (bindChosen ACreatureType Base)
 tRestrictedMana = AddMana (^1) AnyColor
-  { riders = [ SpendOnly (And [IsKind IsSpell, creature, OfChosen])
+  { riders = [ SpendOnly (And [IsKind Spell, creature, OfChosen])
              , GrantOnSpend (cant (Enact Counter spellOrAbility (SameAs It))) ] }
 
 -- the unified `Quantity` (one `Range` constructor) + its helpers all typecheck — `Choose` is a MANY binder
@@ -262,7 +262,7 @@ tAttacksObject = Enact Attack (hasType Creature) (SameAs This)
 
 -- note read-back: a chosen card NAME is read by `OfChosen` (Meddling Mage), a chosen NUMBER by `ChosenNumber`.
 tChosenName : Predicate (bindChosen AName Base) AnObject
-tChosenName = And [IsKind IsSpell, OfChosen]
+tChosenName = And [IsKind Spell, OfChosen]
 
 tChosenNumber : Count (bindChosen ANumber Base)
 tChosenNumber = ChosenNumber
@@ -311,17 +311,17 @@ tChooseNewTargets : Action (bindTargets [AnObject] Base)
 tChooseNewTargets = ChooseNewTargets (GetTarget 0)
 
 -- Bolt Bend ([CR#115.7d]) end-to-end: TARGET a "spell or ability with a SINGLE target" — the single-target
--- restriction is just `TargetCount Equal (^1)` (an existing predicate, no new machinery) conjoined with
+-- restriction is just `TargetCount Eq (^1)` (an existing predicate, no new machinery) conjoined with
 -- `spellOrAbility` — then the caster picks its new target. Pins the restriction TO the redirect action.
 tBoltBend : OneShotEffect Base
 tBoltBend =
-  Targeted [Target (^1) (And [spellOrAbility, TargetCount Equal (^1)])]
+  Targeted [Target (^1) (And [spellOrAbility, TargetCount Eq (^1)])]
     (Act (ChooseNewTargets (GetTarget 0)))
 
 -- the structural holes: aggregate-stat cost (Crew), all-counters move (Ozolith), alternative base
 -- cost (the base-SWAP type, distinct from CostChange). Solemnity is subsumed by Replaces+skip (a card).
 tCrewCost : Cost Base
-tCrewCost = TapTotal Power GreaterEq (^3) creature
+tCrewCost = TapTotal Power AtLeast (^3) creature
 
 -- every-kind move (Ozolith / Fate Transfer): `MoveCounters AllKinds`
 tMoveAllCounters : OneShotEffect Base
@@ -342,7 +342,7 @@ tCastFromGrave = MayCastFor [Mana [^3, ^Blue]] {from = [Graveyard]}
 -- a log-derived history count feeds a condition, and a game `Outcome` wraps into an effect
 tHistoryThenWin : OneShotEffect Base
 tHistoryThenWin =
-  If (Compare (CountEvents (MkEventQuery [Begins Cast] [Actor you, Within ThisGame])) GreaterEq (Literal 2))
+  If (Compare (CountEvents (MkEventQuery [Begins Cast] [Actor you, Within ThisGame])) AtLeast (Literal 2))
      (Conclude (WinGame You))
 
 -- an activated ability: a multi-component cost algebra + an effect
@@ -356,7 +356,7 @@ tMayPay : OneShotEffect Base
 tMayPay = MayPay (Do (LoseLife (Literal 2))) (Act (Draw (^1))) {or_else = Just (Act (LoseLife (^1)))}
 
 tMustPay : OneShotEffect Base
-tMustPay = MustPay (Mana [^2]) (Act (Counter (Only (IsKind IsSpell))))
+tMustPay = MustPay (Mana [^2]) (Act (Counter (Only (IsKind Spell))))
 
 -- scaled cost: "{2} for each creature" — `Scaled` pays the inner cost once per the count.
 tScaledCost : Cost Base
@@ -429,16 +429,16 @@ tGlobalSbas =
   [ -- lethal damage [CR#704.5g]: a creature with toughness > 0 whose marked damage ≥ toughness is destroyed
     MkSbaRule (And [creature, InZone Battlefield])
               (And [ Compare (StatOf This Toughness) Greater (^0)
-                   , Compare (Damage This) GreaterEq (StatOf This Toughness) ])
+                   , Compare (Damage This) AtLeast (StatOf This Toughness) ])
               (Act (Destroy This))
     -- 0-toughness [CR#704.5f]: toughness ≤ 0 → PUT INTO graveyard (a `Move`, NOT a `Destroy` — regeneration
     -- can't replace it; the Move-vs-Destroy choice is exactly what encodes that)
   , MkSbaRule (And [creature, InZone Battlefield])
-              (Compare (StatOf This Toughness) LessEq (^0))
+              (Compare (StatOf This Toughness) AtMost (^0))
               (Act (Move This (ToZone Graveyard)))
     -- loyalty-0 [CR#704.5i]: a planeswalker with 0 loyalty counters → put into graveyard
   , MkSbaRule (And [hasType Planeswalker, InZone Battlefield])
-              (Compare (CountersOn Loyalty This) Equal (^0))
+              (Compare (CountersOn Loyalty This) Eq (^0))
               (Act (Move This (ToZone Graveyard))) ]
 
 -- new verbs (scry/fight/token/search/copy) all typecheck
@@ -448,7 +448,7 @@ tVerbs =
   , fight This (Only creature)
   , Act (CreateToken (Literal 2) (^: { name := Just "Soldier", types := [Creature], colors := [White], power := Just 1, toughness := Just 1 }))
   , With (SearchOne {from = [Library, Graveyard]} (HasName "Forest")) (Act (Move That (ToZone Hand)))  -- tutor across two zones
-  , Act (Copy (Only (IsKind IsSpell))) ]
+  , Act (Copy (Only (IsKind Spell))) ]
 
 -- a token whose P/T is a `Count b` known at creation — "an X/X where X = creatures you control".
 -- This is the payoff of parameterizing `Characteristics` by `b`: a card `Face` is `Characteristics
