@@ -11,7 +11,7 @@ Normal(
     Green,
   ],
   types: [
-    Sorcery,
+    Instant,
   ],
   abilities: [
     Spell(

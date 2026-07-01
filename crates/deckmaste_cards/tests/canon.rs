@@ -210,3 +210,57 @@ fn brainstorm_exactly_two_round_trips() {
         "the Range primitive should not surface in card RON, got: {written}"
     );
 }
+
+#[test]
+fn fate_transfer_cost_is_hybrid_blue_black() {
+    use deckmaste_core::Color;
+    use deckmaste_core::ManaCost;
+    use deckmaste_core::ManaSymbol;
+    use deckmaste_core::SimpleManaSymbol;
+
+    let plugin = canon();
+    let Card::Normal(face) = plugin.card("Fate Transfer").unwrap() else {
+        panic!("Fate Transfer should be single-faced");
+    };
+    assert_eq!(
+        face.mana_cost,
+        ManaCost::from(vec![
+            ManaSymbol::Simple(SimpleManaSymbol::Generic(1)),
+            ManaSymbol::Hybrid(SimpleManaSymbol::from(Color::Blue), Color::Black),
+        ])
+    );
+}
+
+#[test]
+fn pounce_is_instant_type() {
+    let plugin = canon();
+    let Card::Normal(face) = plugin.card("Pounce").unwrap() else {
+        panic!("Pounce should be single-faced");
+    };
+    assert_eq!(face.types, vec![Type::Instant]);
+}
+
+#[test]
+fn arc_lightning_targets_any_target() {
+    let plugin = canon();
+    let Card::Normal(face) = plugin.card("Arc Lightning").unwrap() else {
+        panic!("Arc Lightning should be single-faced");
+    };
+    let Ability::Spell(ref spell) = face.abilities[0] else {
+        panic!("expected a spell ability");
+    };
+    let Effect::Targeted(ref te) = spell.effect else {
+        panic!("expected a Targeted wrapper, got {:?}", spell.effect);
+    };
+    let TargetSpec::Target(_, filter) = &te.targets[0] else {
+        panic!("expected Target variant, got {:?}", te.targets[0]);
+    };
+    let deckmaste_core::Filter::Expanded(exp) = filter else {
+        panic!("expected Expanded filter, got {filter:?}");
+    };
+    assert_eq!(
+        exp.name,
+        "AnyTarget",
+        "Arc Lightning's target should be AnyTarget filter macro"
+    );
+}
