@@ -14,6 +14,7 @@ use deckmaste_core::CausePattern;
 use deckmaste_core::Duration;
 use deckmaste_core::Event;
 use deckmaste_core::Filter;
+use deckmaste_core::Prevention;
 use deckmaste_core::Replacement;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::Zone;
@@ -381,12 +382,18 @@ pub enum ReplacementKey {
     Floating(InstanceId),
 }
 
-/// One replacement that is applicable to the current event — the key (for
-/// lineage), the replacement itself, and the source object.
+#[derive(Debug, Clone)]
+pub(crate) enum ApplicableEffect {
+    Replacement(Replacement),
+    Prevention(Prevention),
+}
+
+/// One replacement or prevention effect that is applicable to the current event —
+/// the key (for lineage), the effect itself, and the source object.
 #[derive(Debug, Clone)]
 pub(crate) struct Applicable {
     pub key: ReplacementKey,
-    pub replacement: Replacement,
+    pub effect: ApplicableEffect,
     pub source: ObjectId,
 }
 
@@ -416,7 +423,7 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
                             ability: ai,
                             effect: ei,
                         },
-                        replacement: (**r).clone(),
+                        effect: ApplicableEffect::Replacement((**r).clone()),
                         source: obj,
                     });
                 }
@@ -433,9 +440,36 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
         if floating_watches(&inst.replacement, inst.subject, e) {
             out.push(Applicable {
                 key: ReplacementKey::Floating(inst.id),
-                replacement: inst.replacement.clone(),
+                effect: ApplicableEffect::Replacement(inst.replacement.clone()),
                 source: inst.source,
             });
+        }
+    }
+
+    // Static preventions on every battlefield object (watching damage events).
+    if let GameEvent::DamageDealt { source: event_source, target: event_target, .. } = *e {
+        for &obj in &state.zones.battlefield {
+            let abilities = crate::derive::abilities_of_source(state, state.objects.obj(obj).source);
+            for (ai, ability) in abilities.iter().enumerate() {
+                let Ability::Static(s) = ability else {
+                    continue;
+                };
+                for (ei, eff) in s.effects.iter().enumerate() {
+                    if let StaticEffect::Prevention(p) = eff
+                        && prevention_watches(state, p, obj, event_source, event_target)
+                    {
+                        out.push(Applicable {
+                            key: ReplacementKey::Static {
+                                source: obj,
+                                ability: ai,
+                                effect: ei,
+                            },
+                            effect: ApplicableEffect::Prevention((**p).clone()),
+                            source: obj,
+                        });
+                    }
+                }
+            }
         }
     }
 
@@ -459,6 +493,23 @@ fn replacement_would(
         Replacement::Skip { .. } => false, // handled in begin_step, Task 9
         Replacement::Expanded(_) => unreachable!("look_through_replacement strips Expanded"),
     }
+}
+
+fn prevention_watches(
+    state: &GameState,
+    p: &Prevention,
+    obj: ObjectId,
+    source: ObjectId,
+    target: ObjectId,
+) -> bool {
+    let watcher = Some(state.objects.obj(obj).source);
+    let (from, to) = match p {
+        Prevention::PreventAll { from, to, .. } => (from, to),
+        Prevention::PreventNext { from, to, .. } => (from, to),
+        Prevention::PreventNextInstance { from, to } => (from, to),
+    };
+    crate::target::matches_with(state, source, from, watcher)
+        && crate::target::matches_with(state, target, to, watcher)
 }
 
 /// Whether a FLOATING shield watches intent `e`. A shield's `subject` was
@@ -525,6 +576,7 @@ fn event_shape_matches(would: &Event, abstract_ev: &Event) -> bool {
 // ── Task 4: replace_event loop + lineage + apply Instead/Also ────────────────
 
 /// The outcome of running the [CR#616.1] replacement loop for one event.
+#[derive(Debug)]
 pub(crate) enum ReplaceOutcome {
     /// No applicable replacement rewrote the event — apply `e` as-is.
     Pass(GameEvent),
@@ -636,34 +688,67 @@ fn apply_one(state: &mut GameState, e: GameEvent, a: &Applicable) -> Option<Game
     if let Some(amount) = intent_magnitude(&e) {
         state.that_much = Some(amount);
     }
-    match crate::replace::look_through_replacement(&a.replacement).clone() {
-        Replacement::Instead { instead, .. } => {
-            // [CR#614.1a,614.6]: the event is replaced — it does NOT happen.
-            // Schedule the `instead` body; consume a one-shot shield if present.
-            schedule_body(state, instead, a.source, that);
-            // [CR#614.3]: only consume a floating instance when it is one-shot
-            // (e.g. a regeneration shield). Duration-only floating replacements
-            // (one_shot: false) persist until their duration expires and must
-            // NOT be consumed on use.
-            if let ReplacementKey::Floating(iid) = a.key
-                && state.shields.iter().any(|s| s.id == iid && s.one_shot)
-            {
-                consume_shield(state, iid);
+    match &a.effect {
+        ApplicableEffect::Replacement(replacement) => {
+            match crate::replace::look_through_replacement(replacement).clone() {
+                Replacement::Instead { instead, .. } => {
+                    // [CR#614.1a,614.6]: the event is replaced — it does NOT happen.
+                    // Schedule the `instead` body; consume a one-shot shield if present.
+                    schedule_body(state, instead, a.source, that);
+                    // [CR#614.3]: only consume a floating instance when it is one-shot
+                    // (e.g. a regeneration shield). Duration-only floating replacements
+                    // (one_shot: false) persist until their duration expires and must
+                    // NOT be consumed on use.
+                    if let ReplacementKey::Floating(iid) = a.key
+                        && state.shields.iter().any(|s| s.id == iid && s.one_shot)
+                    {
+                        consume_shield(state, iid);
+                    }
+                    None // event replaced away
+                }
+                Replacement::Also { also, .. } => {
+                    // [CR#614.1c]: the event still happens AND `also` happens.
+                    // Schedule the body; the (unchanged) event continues.
+                    schedule_body(state, also, a.source, that);
+                    Some(e)
+                }
+                Replacement::Skip { .. } => {
+                    // Skip is handled by the step-elision pass (Task 9), not here.
+                    Some(e)
+                }
+                Replacement::Expanded(_) => {
+                    unreachable!("look_through_replacement strips Expanded")
+                }
             }
-            None // event replaced away
         }
-        Replacement::Also { also, .. } => {
-            // [CR#614.1c]: the event still happens AND `also` happens.
-            // Schedule the body; the (unchanged) event continues.
-            schedule_body(state, also, a.source, that);
-            Some(e)
-        }
-        Replacement::Skip { .. } => {
-            // Skip is handled by the step-elision pass (Task 9), not here.
-            Some(e)
-        }
-        Replacement::Expanded(_) => {
-            unreachable!("look_through_replacement strips Expanded")
+        ApplicableEffect::Prevention(prevention) => {
+            if let GameEvent::DamageDealt { source: event_source, target: event_target, amount } = e {
+                match prevention {
+                    Prevention::PreventAll { .. } => {
+                        // [CR#615.6]: prevented damage never happens.
+                        None
+                    }
+                    Prevention::PreventNext { n, .. } => {
+                        let frame = crate::stack::Frame::bare(a.source, state.objects.obj(a.source).controller);
+                        let n_val = state.eval_count(n, &frame);
+                        if amount <= n_val {
+                            None
+                        } else {
+                            Some(GameEvent::DamageDealt {
+                                source: event_source,
+                                target: event_target,
+                                amount: amount - n_val,
+                            })
+                        }
+                    }
+                    Prevention::PreventNextInstance { .. } => {
+                        // Prevents the entire instance of damage in this event
+                        None
+                    }
+                }
+            } else {
+                Some(e)
+            }
         }
     }
 }
@@ -1161,6 +1246,66 @@ mod tests {
                 agency: None,
                 agent: None,
             })),
+        }
+    }
+
+    /// A damage-prevention static effect prevents damage dealt to the creature.
+    #[test]
+    fn prevention_effect_prevents_damage() {
+        use deckmaste_core::Prevention;
+        use deckmaste_core::Filter;
+        use deckmaste_core::Reference;
+
+        let (mut state, id) = super::tests_support::creature_with_static(StaticEffect::Prevention(Box::new(
+            Prevention::PreventAll {
+                from: Filter::Any,
+                to: Filter::Ref(Reference::This),
+                duration: None,
+            }
+        )));
+        let source = super::tests_support::mint_creature_on_battlefield(&mut state);
+        let e = GameEvent::DamageDealt {
+            source,
+            target: id,
+            amount: 3,
+        };
+        let app = gather_applicable(&state, &e);
+        assert_eq!(app.len(), 1, "prevention is applicable to the damage event");
+        
+        let outcome = replace_event(&mut state, e);
+        assert!(matches!(outcome, ReplaceOutcome::Nothing), "damage is fully prevented");
+    }
+
+    /// A damage-prevention static effect prevents next N damage.
+    #[test]
+    fn prevention_effect_prevents_next_n_damage() {
+        use deckmaste_core::Prevention;
+        use deckmaste_core::Filter;
+        use deckmaste_core::Reference;
+        use deckmaste_core::Count;
+
+        let (mut state, id) = super::tests_support::creature_with_static(StaticEffect::Prevention(Box::new(
+            Prevention::PreventNext {
+                n: Count::Literal(2),
+                from: Filter::Any,
+                to: Filter::Ref(Reference::This),
+                duration: None,
+            }
+        )));
+        let source = super::tests_support::mint_creature_on_battlefield(&mut state);
+        let e = GameEvent::DamageDealt {
+            source,
+            target: id,
+            amount: 3,
+        };
+        let app = gather_applicable(&state, &e);
+        assert_eq!(app.len(), 1, "prevention is applicable");
+        
+        let outcome = replace_event(&mut state, e);
+        if let ReplaceOutcome::Pass(GameEvent::DamageDealt { amount, .. }) = outcome {
+            assert_eq!(amount, 1, "3 damage is reduced by 2 to 1");
+        } else {
+            panic!("expected Pass with reduced amount, got {:?}", outcome);
         }
     }
 }
