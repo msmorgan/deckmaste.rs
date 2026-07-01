@@ -390,13 +390,7 @@ impl GameState {
         let CostComponent::With { binder, .. } = with else {
             unreachable!("cost_summary collects only With components into `withs`");
         };
-        fn peel(b: &Binder) -> &Binder {
-            match b {
-                Binder::Expanded(e) => peel(&e.value),
-                other => other,
-            }
-        }
-        match peel(binder) {
+        match crate::resolve::peel_binder(binder) {
             // A captured reference / existing selection resolves directly.
             Binder::TheRef(_) | Binder::Existing(_) => true,
             // ≥ 1 candidate to choose ([CR#601.2b]).

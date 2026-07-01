@@ -217,8 +217,7 @@ fn find_in_graveyard(state: &GameState, player: PlayerId, card_id: CardId) -> Op
 /// The registry intercepts the `WillDestroy` SBA and redirects to exile.
 #[test]
 fn instead_redirects_destruction_to_exile() {
-    // The `instead` body: exile this object.
-    // `Exile` is a `PlayerAction`; By(You, ...) is the implicit agent sugar.
+    // The `instead` body: Move(This, Zone(Exile)) is a `PlayerAction`; By(You, ...) is the implicit agent sugar.
     let instead_body = Effect::Act(Action::By(
         Reference::You,
         PlayerAction::Move(

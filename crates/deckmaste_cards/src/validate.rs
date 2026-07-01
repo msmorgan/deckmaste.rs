@@ -215,14 +215,17 @@ fn lint_all_card_faces(
             lint_card_abilities(path, &face.abilities, out);
             lint_card_subtypes(path, &face.subtypes, declared_subtypes, out);
             lint_keyword_refs(path, &face.abilities, macros, out);
+            lint_get_targets(path, &face.abilities, out);
         }
         Card::ModalDfc(front, back) => {
             lint_card_abilities(path, &front.abilities, out);
             lint_card_subtypes(path, &front.subtypes, declared_subtypes, out);
             lint_keyword_refs(path, &front.abilities, macros, out);
+            lint_get_targets(path, &front.abilities, out);
             lint_card_abilities(path, &back.abilities, out);
             lint_card_subtypes(path, &back.subtypes, declared_subtypes, out);
             lint_keyword_refs(path, &back.abilities, macros, out);
+            lint_get_targets(path, &back.abilities, out);
         }
     }
 }
@@ -265,6 +268,34 @@ fn lint_keyword_refs(
                          KeywordAbility-kind macro"
                     ),
                 ));
+            }
+        }
+    }
+}
+
+fn lint_get_targets(
+    path: &Path,
+    abilities: &[Ability],
+    out: &mut Vec<(PathBuf, String)>,
+) {
+    for ability in abilities {
+        let Ok(ron) = deckmaste_core::ron::options().to_string(ability) else {
+            continue;
+        };
+        let mut rest = ron.as_str();
+        while let Some(i) = rest.find("GetTargets(") {
+            rest = &rest[i + 11..];
+            let end = rest.find(')').unwrap_or(rest.len());
+            let num_str = &rest[..end];
+            if let Ok(num) = num_str.parse::<usize>() {
+                if num > 0 {
+                    out.push((
+                        path.to_owned(),
+                        format!(
+                            "GetTargets({num}): multi target-spec announce not yet wired"
+                        ),
+                    ));
+                }
             }
         }
     }
@@ -688,6 +719,55 @@ mod keyword_ref_tests {
         assert!(
             out[0].1.contains("Has(Flyng)"),
             "message names the typo: {}",
+            out[0].1
+        );
+    }
+}
+
+#[cfg(test)]
+mod get_targets_tests {
+    use std::path::PathBuf;
+    use deckmaste_core::Ability;
+    use deckmaste_core::TargetSpec;
+    use deckmaste_core::Selection;
+    use deckmaste_core::Effect;
+    use deckmaste_core::Filter;
+    use deckmaste_core::Quantity;
+
+    #[test]
+    fn lint_get_targets_flags_non_zero_specs() {
+        let fine = Ability::Spell(deckmaste_core::SpellAbility {
+            effect: Effect::Targeted(deckmaste_core::Targeted::new(
+                vec![TargetSpec::Target(Quantity::one(), Filter::Any)],
+                Effect::Act(deckmaste_core::Action::Move(
+                    deckmaste_core::Reference::This,
+                    deckmaste_core::Destination::Zone(deckmaste_core::Zone::Exile),
+                )),
+            )),
+        });
+
+        let with_get_targets_1 = Ability::Spell(deckmaste_core::SpellAbility {
+            effect: Effect::Targeted(deckmaste_core::Targeted::new(
+                vec![TargetSpec::Target(Quantity::one(), Filter::Any)],
+                Effect::With(deckmaste_core::With {
+                    binder: deckmaste_core::Binder::Existing(Selection::GetTargets(1)),
+                    body: Box::new(Effect::Act(deckmaste_core::Action::Move(
+                        deckmaste_core::Reference::This,
+                        deckmaste_core::Destination::Zone(deckmaste_core::Zone::Exile),
+                    ))),
+                }),
+            )),
+        });
+
+        let mut out = Vec::new();
+        super::lint_get_targets(&PathBuf::from("test/dummy.ron"), &[fine], &mut out);
+        assert!(out.is_empty(), "GetTargets(0) is allowed (or absent)");
+
+        super::lint_get_targets(&PathBuf::from("test/dummy.ron"), &[with_get_targets_1], &mut out);
+        assert_eq!(out.len(), 1, "GetTargets(1) must be flagged");
+        assert!(
+            out[0].1.contains("GetTargets(1)"),
+            "message should mention the GetTargets spec: {}",
             out[0].1
         );
     }

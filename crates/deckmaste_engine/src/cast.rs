@@ -385,7 +385,7 @@ pub fn auto_pay_spendable(pool: &ManaPool, cost: &ManaCost, spendable: &[bool]) 
 /// `Reference::This` (a self-sacrifice) to the source — mirroring the frame
 /// any effect node resolves against (`targets`/`bindings`/`chosen` empty: a
 /// cost verb names no targets and carries no trigger context). A
-/// `Selection::Choose` inside a verb surfaces its own `ChooseObjects` decision
+/// `With(ChooseOne/Choose)` binder inside a verb surfaces its own `ChooseObjects` decision
 /// via `run_effect`'s `chosen.is_none()` path.
 fn verb_payment_items(verbs: &[PlayerAction], source: ObjectId, player: PlayerId) -> Vec<WorkItem> {
     verbs

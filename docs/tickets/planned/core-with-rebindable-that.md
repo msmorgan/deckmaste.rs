@@ -43,18 +43,13 @@ With(
 // already-built scry/surveil/fateseal partition action, which is unrelated.
 ```
 
-### Residual scope (optional, unblocked by model)
+### Residual scope
 
-The following cleanup is no longer model-critical but may still be useful:
-
-1. **(Optional/low-priority) Migrate existing `Selection::Each` / `Effect::ForEach`
-   call sites to explicit `Each`-over-selection form** — NOT required (Scry/Surveil/Fateseal
-   already shipped using only `With`/`Those`/`Distribute`). The old call sites work
-   as-is; this is a code-uniformity improvement only.
+1. **(DONE) Migrate existing `Selection::Each` / `Effect::ForEach` call sites to explicit `Each`-over-selection form** — completed.
 
 2. **(Unfinished) Re-express regeneration-shield `That`-capture through `With`**
    — `engine-replacements` added `CreateReplacement.subject` to capture the
-   shield's target as a bespoke field. Ideally, rework `Regenerate` (and other
+   shield's target as a bespoke field. Rework `Regenerate` (and other
    "the next time …" shields) to wrap their body in a `With` binding, so the
    capture rides the standard model (`That` inside the shield's effect body).
    This is architectural elegance, not a functional blocker.
