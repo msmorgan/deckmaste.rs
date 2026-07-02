@@ -56,13 +56,13 @@ fn green() -> deckmaste_core::ColorOrColorless {
 
 fn face_name(state: &GameState, id: ObjectId) -> &str {
     match state.def(id) {
-        Card::Normal(f) | Card::ModalDfc(f, _) => &f.name,
+        Card::Normal(f) | Card::TwoFaced { front: f, .. } => &f.name,
     }
 }
 
 fn printed_mana_value(state: &GameState, id: ObjectId) -> u32 {
     match state.def(id) {
-        Card::Normal(f) | Card::ModalDfc(f, _) => f.mana_cost.mana_value(),
+        Card::Normal(f) | Card::TwoFaced { front: f, .. } => f.mana_cost.mana_value(),
     }
 }
 

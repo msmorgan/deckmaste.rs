@@ -217,7 +217,7 @@ fn lint_all_card_faces(
             lint_keyword_refs(path, &face.abilities, macros, out);
             lint_get_targets(path, &face.abilities, out);
         }
-        Card::ModalDfc(front, back) => {
+        Card::TwoFaced { front, back, .. } => {
             lint_card_abilities(path, &front.abilities, out);
             lint_card_subtypes(path, &front.subtypes, declared_subtypes, out);
             lint_keyword_refs(path, &front.abilities, macros, out);

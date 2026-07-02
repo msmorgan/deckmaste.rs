@@ -165,7 +165,7 @@ pub fn resolve_card_with(
 ) -> anyhow::Result<bool> {
     let changed = match card {
         TodoCard::Normal(face) => resolve_face(face, registry, index)?,
-        TodoCard::ModalDfc(front, back) => {
+        TodoCard::TwoFaced { front, back, .. } => {
             let a = resolve_face(front, registry, index)?;
             let b = resolve_face(back, registry, index)?;
             a || b
@@ -373,18 +373,19 @@ mod tests {
 
     #[test]
     fn resolve_modal_dfc_resolves_both_faces() {
-        let mut card = TodoCard::ModalDfc(
-            TodoCardFace {
+        let mut card = TodoCard::TwoFaced {
+            layout: deckmaste_core::FaceLayout::ModalDfc,
+            front: TodoCardFace {
                 abilities: vec![TodoAbility::Unparsed("Flying".into())],
                 ..Default::default()
             },
-            TodoCardFace {
+            back: TodoCardFace {
                 abilities: vec![TodoAbility::Unparsed("Flying".into())],
                 ..Default::default()
             },
-        );
+        };
         assert!(resolve_card_with(&mut card, &[flying_only], &no_index()).unwrap());
-        let TodoCard::ModalDfc(front, back) = &card else { panic!() };
+        let TodoCard::TwoFaced { front, back, .. } = &card else { panic!() };
         assert!(matches!(&front.abilities[0], TodoAbility::Parsed(r) if r == "Flying"));
         assert!(matches!(&back.abilities[0], TodoAbility::Parsed(r) if r == "Flying"));
         // Idempotent.

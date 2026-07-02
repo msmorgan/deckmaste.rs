@@ -60,7 +60,7 @@ fn red() -> ColorOrColorless {
 /// Panics if `id` is a player proxy.
 fn face_name(state: &GameState, id: ObjectId) -> &str {
     match state.def(id) {
-        Card::Normal(f) | Card::ModalDfc(f, _) => &f.name,
+        Card::Normal(f) | Card::TwoFaced { front: f, .. } => &f.name,
     }
 }
 
@@ -80,7 +80,7 @@ fn is_land(state: &GameState, id: ObjectId) -> bool {
         .obj(id)
         .card_id()
         .is_some_and(|_| match state.def(id) {
-            Card::Normal(f) | Card::ModalDfc(f, _) => f.types.contains(&Type::Land),
+            Card::Normal(f) | Card::TwoFaced { front: f, .. } => f.types.contains(&Type::Land),
         })
 }
 

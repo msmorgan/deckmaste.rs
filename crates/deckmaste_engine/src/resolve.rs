@@ -7612,12 +7612,12 @@ mod tests {
                 .copied()
                 .find(|&o| {
                     state.objects.obj(o).card_id().is_some()
-                        && matches!(state.def(o), Card::Normal(f) | Card::ModalDfc(f, _) if f.name == *name)
+                        && matches!(state.def(o), Card::Normal(f) | Card::TwoFaced { front: f, .. } if f.name == *name)
                 })
                 .or_else(|| {
                     state.zones.libraries[p].iter().copied().find(|&o| {
                         state.objects.obj(o).card_id().is_some()
-                            && matches!(state.def(o), Card::Normal(f) | Card::ModalDfc(f, _) if f.name == *name)
+                            && matches!(state.def(o), Card::Normal(f) | Card::TwoFaced { front: f, .. } if f.name == *name)
                     })
                 })
                 .unwrap_or_else(|| panic!("no {name} in P0's hand or library"));

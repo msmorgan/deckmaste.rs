@@ -35,7 +35,7 @@ fn card(name: &str) -> Arc<Card> {
 
 fn face_name(state: &GameState, id: ObjectId) -> &str {
     match state.def(id) {
-        Card::Normal(f) | Card::ModalDfc(f, _) => &f.name,
+        Card::Normal(f) | Card::TwoFaced { front: f, .. } => &f.name,
     }
 }
 

@@ -24,7 +24,7 @@ use crate::state::GameState;
 #[must_use]
 pub fn face(card: &Card) -> &CardFace {
     match card {
-        Card::Normal(f) | Card::ModalDfc(f, _) => f,
+        Card::Normal(f) | Card::TwoFaced { front: f, .. } => f,
     }
 }
 

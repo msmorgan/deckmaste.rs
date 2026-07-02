@@ -43,10 +43,39 @@ pub struct CardFace {
     pub defense: Option<StatValue>,
 }
 
+/// How a two-faced card's faces are arranged — the Idris `FaceLayout`. The
+/// layouts share ONE card shape (two full faces, [CR#712.8] — each face has
+/// its own characteristics); what differs per layout — transforming, casting
+/// either face, casting halves, the adventure exile state, flipping — is the
+/// engine's job, not the grammar's. Single-faced "layouts" (saga, class,
+/// leveler, …) are NOT here: their mechanics ride subtypes and abilities on a
+/// `Normal` card.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum FaceLayout {
+    /// A transforming (nonmodal) double-faced card ([CR#712.2]).
+    Transforming,
+    /// A modal double-faced card — play either face ([CR#712.3]).
+    ModalDfc,
+    /// A split card — two halves on one face ([CR#709.1]).
+    Split,
+    /// An adventurer card — a permanent face with an Adventure spell face
+    /// ([CR#715.1]).
+    Adventure,
+    /// A Kamigawa-style flip card — one card, flipped half ([CR#710.1]).
+    Flip,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Expand, Serialize)]
 pub enum Card {
     Normal(CardFace),
-    ModalDfc(CardFace, CardFace),
+    /// A TWO-faced card: `front` (the primary/default face) and `back`,
+    /// arranged per `layout` — the Idris `TwoFaced`. Each face is a full
+    /// [`CardFace`] with its own characteristics ([CR#712.8]).
+    TwoFaced {
+        layout: FaceLayout,
+        front: CardFace,
+        back: CardFace,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]

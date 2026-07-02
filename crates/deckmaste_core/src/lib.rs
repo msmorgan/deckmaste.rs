@@ -29,6 +29,7 @@ pub use count::Stat;
 mod card;
 pub use card::Card;
 pub use card::CardFace;
+pub use card::FaceLayout;
 pub use card::StatValue;
 
 mod color;

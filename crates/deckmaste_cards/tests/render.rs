@@ -22,7 +22,7 @@ fn face(name: &str) -> CardFace {
     let plugin = Plugin::load_with_sibling_prelude(canon_path()).unwrap();
     match plugin.card(name).unwrap() {
         Card::Normal(f) => f,
-        other @ Card::ModalDfc(..) => panic!("expected a normal card, got {other:?}"),
+        other @ Card::TwoFaced { .. } => panic!("expected a normal card, got {other:?}"),
     }
 }
 
@@ -321,7 +321,7 @@ fn renders_every_canon_card_without_panicking() {
         let Ok(card) = plugin.card(&name) else { continue };
         let faces: Vec<CardFace> = match card {
             Card::Normal(f) => vec![f],
-            Card::ModalDfc(a, b) => vec![a, b],
+            Card::TwoFaced { front, back, .. } => vec![front, back],
         };
         for f in faces {
             let r = render_card_face(&f);

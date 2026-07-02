@@ -75,7 +75,7 @@ pub struct Summary {
 fn has_type(state: &GameState, id: ObjectId, ty: Type) -> bool {
     state.objects.obj(id).card_id().is_some()
         && match state.def(id) {
-            Card::Normal(f) | Card::ModalDfc(f, _) => f.types.contains(&ty),
+            Card::Normal(f) | Card::TwoFaced { front: f, .. } => f.types.contains(&ty),
         }
 }
 
@@ -89,7 +89,7 @@ fn is_land(state: &GameState, id: ObjectId) -> bool {
 /// The mana value of a card-backed object's printed cost ([CR#202.3]).
 fn mana_value(state: &GameState, id: ObjectId) -> Uint {
     let cost = match state.def(id) {
-        Card::Normal(f) | Card::ModalDfc(f, _) => &f.mana_cost,
+        Card::Normal(f) | Card::TwoFaced { front: f, .. } => &f.mana_cost,
     };
     cost.mana_value()
 }

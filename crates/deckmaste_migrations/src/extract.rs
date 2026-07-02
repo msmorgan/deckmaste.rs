@@ -267,8 +267,10 @@ fn face(card: &AtomicCard, keyword_abilities: &[DataStr<'_>]) -> anyhow::Result<
     })
 }
 
-/// The `TodoCard` for a card's supported faces, or `None` if its layout isn't a
-/// core `Card` variant (only `normal` / `modal_dfc`).
+/// The `TodoCard` for a card's supported faces, or `None` if its layout isn't
+/// extracted yet. The grammar (`Card::TwoFaced`) admits every two-faced
+/// layout; extraction still reads only `normal` / `modal_dfc` — widening the
+/// mtgjson layout coverage is `pipeline-layout-extraction`.
 ///
 /// # Errors
 /// If a face fails to build (see [`face`]).
@@ -279,10 +281,11 @@ fn todo_card(
 ) -> anyhow::Result<Option<TodoCard>> {
     Ok(match (layout, faces) {
         ("normal", [f]) => Some(TodoCard::Normal(face(f, keyword_abilities)?)),
-        ("modal_dfc", [front, back]) => Some(TodoCard::ModalDfc(
-            face(front, keyword_abilities)?,
-            face(back, keyword_abilities)?,
-        )),
+        ("modal_dfc", [front, back]) => Some(TodoCard::TwoFaced {
+            layout: deckmaste_core::FaceLayout::ModalDfc,
+            front: face(front, keyword_abilities)?,
+            back: face(back, keyword_abilities)?,
+        }),
         _ => None,
     })
 }

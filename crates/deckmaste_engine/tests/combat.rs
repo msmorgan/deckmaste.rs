@@ -102,7 +102,7 @@ fn two_player_decks(p0_card: &str, p1_card: &str, seed: u64, deck_size: usize) -
 /// The face name of a card-backed object.
 fn face_name(state: &GameState, id: ObjectId) -> &str {
     match state.def(id) {
-        Card::Normal(f) | Card::ModalDfc(f, _) => &f.name,
+        Card::Normal(f) | Card::TwoFaced { front: f, .. } => &f.name,
     }
 }
 
