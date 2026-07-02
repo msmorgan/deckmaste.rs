@@ -87,6 +87,12 @@ pub(super) fn selection(sel: &Selection, ctx: &Ctx) -> String {
     match sel {
         // [CR#608.2d] the whole matching set — "each creature".
         Selection::Filter(f) => format!("each {}", filter_noun(f)),
+        // Combined groups — "each X and each Y".
+        Selection::Union(members) => members
+            .iter()
+            .map(|m| selection(m, ctx))
+            .collect::<Vec<_>>()
+            .join(" and "),
         // The plural anaphor bound by an enclosing `With` ([CR#608.2d]): reads
         // the bound group's noun phrase, falling back to the bare "them".
         Selection::That => ctx.that.unwrap_or("them").to_string(),

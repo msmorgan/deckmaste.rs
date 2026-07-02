@@ -50,10 +50,11 @@ rename; no variant rename needed.
 
 ## Field/spelling drift
 
-### 7. `TopOfLibrary { of }` → `{ whose }`
-Rust `Selection::TopOfLibrary { count, of }` vs Idris `TopOfLibrary { count,
-whose }`. Rename the field to `whose` — it matches the search binders' `whose`
-field, which both models already share.
+### 7. `TopOfLibrary`/`BottomOfLibrary` `{ of }` → `{ whose }`
+Rust spells the library selections' player field `of`; Idris spells it
+`whose` on both `TopOfLibrary` and `BottomOfLibrary`. Rename the field to
+`whose` — it matches the search binders' `whose` field, which both models
+already share.
 
 ### 8. `Extremum` → align with Idris `AggregateOp`
 Rust `Pick` uses `Extremum { Greatest, Least }`; Idris uses `AggregateOp`

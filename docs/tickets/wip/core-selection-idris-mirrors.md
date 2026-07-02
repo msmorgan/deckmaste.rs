@@ -1,8 +1,18 @@
 ---
 needs: []
 ---
-Two `Selection` constructors exist in the Idris model with no Rust mirror.
-Source: the `Selection` namespace in `idris/src/Core.idr` vs
+DONE: both constructors mirrored. `Selection::Union(Vec<Selection>)`
+(order-preserving concatenation, first-position dedup) and
+`Selection::BottomOfLibrary { count, of }` (bottom→up, mirroring
+`TopOfLibrary`) landed in core, `eval_selection_set`, and the renderer
+(`Union` renders "each X and each Y"; the library windows keep the shared
+catch-all like `TopOfLibrary`). The `of`→`whose` spelling for BOTH library
+variants stays with [[idris-naming-phase-two]].
+
+---
+
+Original framing: two `Selection` constructors exist in the Idris model with
+no Rust mirror. Source: the `Selection` namespace in `idris/src/Core.idr` vs
 `crates/deckmaste_core/src/selection.rs`.
 
 - **`Union : List (Selection b k) -> Selection b k`** — several selections

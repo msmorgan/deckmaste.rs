@@ -40,6 +40,10 @@ pub enum Selection {
     /// All matching objects as one set — the shape continuous-effect
     /// scopes and set-wide instructions consume.
     Filter(Filter),
+    /// Several selections combined as ONE group ("each X and each Y") — the
+    /// Idris `Union`. Order-preserving concatenation of the member groups; an
+    /// object in more than one member appears once (first position wins).
+    Union(Vec<Selection>),
     /// A random selection of a quantity of matching objects.
     Random(Quantity, Filter),
     /// A choice from among a PREVIOUSLY COMPUTED set ("exile two of them",
@@ -52,6 +56,15 @@ pub enum Selection {
     /// position is the whole point). `of` names the library's player; the
     /// default `You` writes bare. Feeds `With`/`Distribute` ([CR#701.22a]).
     TopOfLibrary {
+        count: Count,
+        #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
+        of: Reference,
+    },
+    /// The bottom `count` cards of a library, bottom → up (ordered) — the
+    /// Idris `BottomOfLibrary`, mirroring
+    /// [`TopOfLibrary`](Self::TopOfLibrary). `of` names the library's player;
+    /// the default `You` writes bare.
+    BottomOfLibrary {
         count: Count,
         #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
         of: Reference,
@@ -147,6 +160,31 @@ mod tests {
         };
         // `of: You` is the default and writes bare.
         assert_eq!(read("TopOfLibrary(count:2)"), v);
+        assert_eq!(read(&to_string(&v)), v);
+    }
+
+    /// `BottomOfLibrary` mirrors `TopOfLibrary` (the Idris constructor):
+    /// same fields, same bare-default `of`.
+    #[test]
+    fn bottom_of_library_round_trips() {
+        let v = Selection::BottomOfLibrary {
+            count: Count::Literal(3),
+            of: crate::Reference::You,
+        };
+        assert_eq!(read("BottomOfLibrary(count:3)"), v);
+        assert_eq!(read(&to_string(&v)), v);
+    }
+
+    /// `Union` combines member selections as one group (the Idris `Union` —
+    /// "each X and each Y") and round-trips.
+    #[test]
+    fn union_round_trips() {
+        let v = Selection::Union(vec![
+            Selection::Filter(Filter::Characteristic(CharacteristicFilter::Type(
+                Type::Creature,
+            ))),
+            Selection::Filter(Filter::Kind(ObjectKind::Player)),
+        ]);
         assert_eq!(read(&to_string(&v)), v);
     }
 

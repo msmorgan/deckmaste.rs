@@ -1721,6 +1721,35 @@ impl GameState {
                     .copied()
                     .collect()
             }
+            // The bottom `count` cards of `of`'s library, bottom→up — the
+            // mirror of `TopOfLibrary` (the Idris `BottomOfLibrary`).
+            Selection::BottomOfLibrary { count, of } => {
+                let proxy = self.eval_reference(of, frame);
+                let pid = match self.objects.get(proxy).map(|o| o.source) {
+                    Some(ObjectSource::Player(p)) => p,
+                    other => {
+                        panic!("BottomOfLibrary.of must resolve to a player proxy, got {other:?}")
+                    }
+                };
+                let n = self.eval_count(count, frame) as usize;
+                self.zones.libraries[pid.index()]
+                    .iter()
+                    .rev()
+                    .take(n)
+                    .copied()
+                    .collect()
+            }
+            // Several groups combined as ONE ([CR#608.2d], "each X and each
+            // Y") — order-preserving concatenation; an object in more than
+            // one member appears once (first position wins).
+            Selection::Union(members) => {
+                let mut seen = std::collections::HashSet::new();
+                members
+                    .iter()
+                    .flat_map(|m| self.eval_selection_set(m, frame))
+                    .filter(|id| seen.insert(*id))
+                    .collect()
+            }
             // Grammar-valid but not yet wired: there is no `noted` object-set on
             // the frame to select among. An explicit named arm (not a catch-all)
             // so a future `Selection` variant is a compile error here rather than
@@ -7012,6 +7041,68 @@ mod tests {
         for _ in 0..10 {
             state.step();
         }
+    }
+
+    /// `BottomOfLibrary` mirrors `TopOfLibrary` from the other end (bottom→up
+    /// order), and `Union` concatenates member groups order-preserved with an
+    /// object in more than one member appearing once (the Idris `Union` /
+    /// `BottomOfLibrary` constructors).
+    #[test]
+    fn bottom_of_library_and_union_resolve_as_groups() {
+        use deckmaste_core::CardFace;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let make_card = |name: &str| {
+            Card::Normal(CardFace {
+                name: name.into(),
+                ..CardFace::default()
+            })
+        };
+        let card_a = state.cards.push(Arc::new(make_card("Alpha")), p0);
+        let card_b = state.cards.push(Arc::new(make_card("Beta")), p0);
+        let card_c = state.cards.push(Arc::new(make_card("Gamma")), p0);
+        let a = state
+            .objects
+            .mint(ObjectSource::Card(card_a), p0, Some(Zone::Library));
+        let b = state
+            .objects
+            .mint(ObjectSource::Card(card_b), p0, Some(Zone::Library));
+        let c = state
+            .objects
+            .mint(ObjectSource::Card(card_c), p0, Some(Zone::Library));
+        state.zones.libraries[p0.index()].push_back(a);
+        state.zones.libraries[p0.index()].push_back(b);
+        state.zones.libraries[p0.index()].push_back(c);
+        let source = state.player(p0).object;
+        let frame = Frame::bare(source, p0);
+
+        // BottomOfLibrary(count:2) → the bottom two, nearest-to-bottom first.
+        let bottom2 = state.eval_selection_set(
+            &Selection::BottomOfLibrary {
+                count: Count::Literal(2),
+                of: deckmaste_core::Reference::You,
+            },
+            &frame,
+        );
+        assert_eq!(bottom2, vec![c, b], "bottom 2 are c then b, bottom→up");
+
+        // Union of the top-2 and bottom-2 windows: b appears in both members
+        // and is kept once, at its first position.
+        let union = state.eval_selection_set(
+            &Selection::Union(vec![
+                Selection::TopOfLibrary {
+                    count: Count::Literal(2),
+                    of: deckmaste_core::Reference::You,
+                },
+                Selection::BottomOfLibrary {
+                    count: Count::Literal(2),
+                    of: deckmaste_core::Reference::You,
+                },
+            ]),
+            &frame,
+        );
+        assert_eq!(union, vec![a, b, c], "order-preserving union, b deduped");
     }
 
     /// [CR#701.22a]: `Distribute` over a 3-card window surfaces a decision,
