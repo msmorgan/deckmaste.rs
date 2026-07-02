@@ -1,0 +1,12 @@
+// Conjuncts share one candidate: a definite object atom and a definite player
+// atom can't both hold [CR#109.1].
+Normal(
+  name: "Reject Mixed AllOf",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Each(
+      binder: Existing(Filter(AllOf([Creature, Player]))),
+      effect: Destroy(It),
+    )),
+  ],
+)

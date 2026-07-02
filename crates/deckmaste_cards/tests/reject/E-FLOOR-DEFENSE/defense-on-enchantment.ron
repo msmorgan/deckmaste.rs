@@ -1,0 +1,6 @@
+// Printed defense on a non-Battle face [CR#210].
+Normal(
+  name: "Reject Defense",
+  types: [Enchantment],
+  defense: 3,
+)

@@ -1,0 +1,8 @@
+// A noted key read but never noted in scope [CR#607.2].
+Normal(
+  name: "Reject Unnoted Key",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Draw(Noted("Stashed"))),
+  ],
+)

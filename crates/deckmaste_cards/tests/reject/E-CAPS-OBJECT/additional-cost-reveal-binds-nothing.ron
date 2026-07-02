@@ -1,0 +1,14 @@
+// The `actionEventCaps` catch-all hole, not inherited: `Reveal` has an
+// EXPLICIT no-caps row in cost-actions.ron (never a silent grant), so an
+// additional-cost body reading `EventObject` off a reveal payment is refused
+// [CR#601.2f,701.20a].
+Normal(
+  name: "Reject Reveal Payment Object",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: AdditionalCost(
+      pay: [Do(Reveal(what: This))],
+      body: Move(EventObject, Exile),
+    )),
+  ],
+)

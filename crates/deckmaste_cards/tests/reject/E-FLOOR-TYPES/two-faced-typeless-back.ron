@@ -1,0 +1,7 @@
+// Twin of Spec.idr `tBadTwoFacedBack`: the BACK face is floor-checked too —
+// a typeless back fails [CR#109.3].
+TwoFaced(
+  layout: Split,
+  front: (name: "Front Half", types: [Instant], abilities: [Spell(effect: Draw(1))]),
+  back: (name: "Back Half", types: []),
+)

@@ -1,0 +1,9 @@
+#!/bin/sh
+# Regenerate the grammar tables the Rust load-time elaborator consumes
+# (crates/deckmaste_cards/tables/*.ron) from Core.idr's total functions.
+# CI runs this and diffs: a Core.idr change that moves a row must land with
+# regenerated tables. See idris/src/EmitTables.idr.
+set -e
+cd "$(dirname "$0")/.."
+mkdir -p ../crates/deckmaste_cards/tables
+exec idris2 --find-ipkg --exec emitTables src/EmitTables.idr

@@ -1,0 +1,12 @@
+// Twin of Spec.idr `tBadEventActorNoActor`: "that player" in a Destroy body —
+// a destruction supplies no responsible player [CR#603.2e,608.2k].
+Normal(
+  name: "Reject Destroy Actor",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: Performed(verb: "Destroy"),
+      effect: By(EventActor, LoseLife(1)),
+    ),
+  ],
+)

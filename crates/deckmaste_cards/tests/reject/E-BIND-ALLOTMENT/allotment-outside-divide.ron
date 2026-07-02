@@ -1,0 +1,8 @@
+// `Allotment` read outside any `DivideAmong` body [CR#601.2d].
+Normal(
+  name: "Reject Allotment Unbound",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Draw(Allotment)),
+  ],
+)

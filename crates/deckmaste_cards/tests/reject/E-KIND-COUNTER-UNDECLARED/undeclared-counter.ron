@@ -1,0 +1,8 @@
+// A counter reference naming no declared counter kind [CR#122.1].
+Normal(
+  name: "Reject Undeclared Counter",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: PutCounters(This, BogusCounter, 1)),
+  ],
+)

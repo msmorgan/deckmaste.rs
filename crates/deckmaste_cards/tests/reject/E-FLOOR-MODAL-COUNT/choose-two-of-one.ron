@@ -1,0 +1,12 @@
+// Twin of Spec.idr `tBadModalOverCount`: "choose two" of a single mode
+// [CR#700.2d].
+Normal(
+  name: "Reject Modal Overcount",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Modal(
+      choose: (count: 2),
+      modes: [(effect: Draw(1))],
+    )),
+  ],
+)

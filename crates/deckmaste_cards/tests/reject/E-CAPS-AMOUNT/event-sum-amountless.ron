@@ -1,0 +1,9 @@
+// Twin of Spec.idr `tBadEventAggAmountless`: folding the amount of an
+// amountless event — a cast carries no numeric payload [CR#107.3,608.2i].
+Normal(
+  name: "Reject Amountless Sum",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Draw(EventSum(Performed(verb: "Cast"), ThisTurn))),
+  ],
+)

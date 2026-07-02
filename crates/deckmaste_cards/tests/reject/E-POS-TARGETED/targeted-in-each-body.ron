@@ -1,0 +1,12 @@
+// `Targeted` in a loop body — targets are announced at cast/activation, never
+// per-iteration [CR#115.1a..115.1e,601.2c].
+Normal(
+  name: "Reject Targeted In Each",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Each(
+      binder: Existing(Filter(Creature)),
+      effect: Targeted(targets: [AnyTarget], effect: Destroy(Target(0))),
+    )),
+  ],
+)

@@ -1,0 +1,14 @@
+// `Targeted` in a replacement body — a replacement effect never targets
+// [CR#115.1a..115.1e,614.1a].
+Normal(
+  name: "Reject Targeted In Replacement",
+  types: [Enchantment],
+  abilities: [
+    Static(effects: [
+      Replacement(Instead(
+        would: Enters(Creature),
+        instead: Targeted(targets: [AnyTarget], effect: Destroy(Target(0))),
+      )),
+    ]),
+  ],
+)

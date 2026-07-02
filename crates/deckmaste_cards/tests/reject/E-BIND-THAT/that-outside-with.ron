@@ -1,0 +1,8 @@
+// Singular `That` read with no enclosing one-binder `With` [CR#608.2d].
+Normal(
+  name: "Reject That Unbound",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Destroy(That)),
+  ],
+)

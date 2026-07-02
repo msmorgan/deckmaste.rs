@@ -1,0 +1,12 @@
+// Twin of Spec.idr `tBadDrawThatManyOnEnter`: "draw that many" off a creature
+// entering — a zone move carries no amount [CR#107.3,608.2i].
+Normal(
+  name: "Reject Enters That Many",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: Enters(Creature),
+      effect: Draw(ThatMuch),
+    ),
+  ],
+)

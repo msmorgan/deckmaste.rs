@@ -1,0 +1,12 @@
+// Twin of Spec.idr `tBadInvertedRange`: a literal range with inverted bounds
+// ("between 5 and 2") [CR#115.6].
+Normal(
+  name: "Reject Inverted Range",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Targeted(
+      targets: [Target(Between(5, 2), Creature)],
+      effect: Destroy(Target(0)),
+    )),
+  ],
+)

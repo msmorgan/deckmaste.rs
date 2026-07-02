@@ -1,0 +1,12 @@
+// `DefendingPlayer` read where no combat onset supplies one — a zone-move
+// event has no defender [CR#506.2,508.5].
+Normal(
+  name: "Reject Enters Defender",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: ThisEnters,
+      effect: By(DefendingPlayer, LoseLife(1)),
+    ),
+  ],
+)

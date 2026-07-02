@@ -1,0 +1,17 @@
+// Twin of Spec.idr `tBadAllotmentInProjection`: an inner `Each` rebinds `It`
+// and CLEARS the allotment (the share was indexed to a different loop
+// element), so `Allotment` inside it is unbound [CR#601.2d].
+Normal(
+  name: "Reject Allotment Across Each",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: DivideAmong(
+      amount: 2,
+      binder: Choose(quantity: Exactly(2), filter: Creature),
+      body: Each(
+        binder: Existing(Filter(Creature)),
+        effect: DealDamage(It, Allotment),
+      ),
+    )),
+  ],
+)

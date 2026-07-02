@@ -8,5 +8,6 @@ modules = Core
         , Ron
         , Spec
         , Experimental
+        , EmitTables
 
 sourcedir = "src"

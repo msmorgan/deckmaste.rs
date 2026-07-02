@@ -1,6 +1,7 @@
 //! Reading card data from plugin directories.
 
 pub mod deck;
+pub mod elaborate;
 pub mod macros;
 pub mod plugin;
 pub mod render;

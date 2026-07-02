@@ -1,0 +1,5 @@
+// A token represents a permanent, and instants/sorceries cannot be permanents
+// — a token spec carries permanent types only [CR#111.1,110.4].
+Token(
+  types: [Instant],
+)

@@ -1,0 +1,9 @@
+// `X` read where the carrying cost declares no {X} [CR#107.3].
+Normal(
+  name: "Reject Orphan X",
+  mana_cost: [Red],
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Draw(X)),
+  ],
+)

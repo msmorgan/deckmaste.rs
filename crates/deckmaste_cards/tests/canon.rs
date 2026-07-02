@@ -39,8 +39,12 @@ fn canon_cards_are_valid() {
     for (path, msg) in &validation.lint_failures {
         eprintln!("{}: lint: {msg}", path.display());
     }
+    for (path, error) in &validation.elab_failures {
+        eprintln!("{}: {error}", path.display());
+    }
     assert!(validation.failures.is_empty());
     assert!(validation.lint_failures.is_empty());
+    assert!(validation.elab_failures.is_empty());
     // The canon slice: 25 cards at the time of writing, growing per
     // docs/card-data.md.
     assert!(

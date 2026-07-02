@@ -1,0 +1,15 @@
+// Twin of Spec.idr `tBadDelayedTarget`: a target leaking into a delayed body —
+// the Delayed bind-rule row drops all target antecedents [CR#603.7c].
+Normal(
+  name: "Reject Delayed Target",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Targeted(
+      targets: [AnyTarget],
+      effect: Delayed(
+        event: BeginningOf(Ending(End), Your),
+        effect: DealDamage(Target(0), 1),
+      ),
+    )),
+  ],
+)

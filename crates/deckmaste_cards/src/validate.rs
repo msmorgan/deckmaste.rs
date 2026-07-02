@@ -43,7 +43,8 @@ pub struct InvalidCard {
 }
 
 /// What a validation pass saw: todos are skipped, everything else either
-/// parsed (`valid`) or landed in `failures` or `lint_failures`.
+/// parsed (`valid`) or landed in `failures`, `lint_failures`, or
+/// `elab_failures`.
 pub struct Validation {
     /// Files that parsed successfully (cards + tokens combined).
     pub valid: usize,
@@ -54,6 +55,9 @@ pub struct Validation {
     /// Cost-eligibility violations: `(path, message)` for every
     /// `CostComponent::Do(action)` where `!action.is_cost_eligible()`.
     pub lint_failures: Vec<(PathBuf, String)>,
+    /// Elaboration errors (`deckmaste_cards::elaborate`): per-card `E-*`
+    /// findings from the load-time binding-context walk.
+    pub elab_failures: Vec<(PathBuf, crate::elaborate::ElabError)>,
 }
 
 /// Reads every non-todo `cards/**/*.ron` and `tokens/**/*.ron` in the plugin
@@ -71,6 +75,11 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
         todos: 0,
         failures: Vec::new(),
         lint_failures: Vec::new(),
+        elab_failures: Vec::new(),
+    };
+    let registries = crate::elaborate::Registries {
+        subtypes: &plugin.subtypes,
+        counters: &plugin.counters,
     };
 
     // --- cards ---
@@ -89,6 +98,11 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
                     &plugin.macros,
                     &mut validation.lint_failures,
                 );
+                if let Err(errors) = crate::elaborate::elaborate(&card, &registries) {
+                    validation
+                        .elab_failures
+                        .extend(errors.into_iter().map(|e| (path.clone(), e)));
+                }
                 validation.valid += 1;
             }
             Err(error) => validation.failures.push(InvalidCard { path, error }),
@@ -105,6 +119,11 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
         match plugin.macros.read_str::<Token>(&source) {
             Ok(token) => {
                 lint_card_abilities(&path, &token.abilities, &mut validation.lint_failures);
+                if let Err(errors) = crate::elaborate::elaborate_token(&token, &registries) {
+                    validation
+                        .elab_failures
+                        .extend(errors.into_iter().map(|e| (path.clone(), e)));
+                }
                 validation.valid += 1;
             }
             Err(error) => validation.failures.push(InvalidCard { path, error }),
@@ -720,13 +739,14 @@ mod keyword_ref_tests {
 
 #[cfg(test)]
 mod get_targets_tests {
+    use std::path::PathBuf;
+
     use deckmaste_core::Ability;
     use deckmaste_core::Effect;
     use deckmaste_core::Filter;
     use deckmaste_core::Quantity;
     use deckmaste_core::Selection;
     use deckmaste_core::TargetSpec;
-    use std::path::PathBuf;
 
     #[test]
     fn lint_get_targets_flags_non_zero_specs() {
