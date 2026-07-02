@@ -311,7 +311,7 @@ impl GameState {
         match peel_binder(binder) {
             Binder::TheRef(reference) => vec![self.eval_reference(reference, frame)],
             Binder::Existing(selection) => self.eval_selection_set(selection, frame),
-            Binder::ChooseOne(_) | Binder::Choose(..) => frame
+            Binder::ChooseOne { .. } | Binder::Choose { .. } => frame
                 .endophora
                 .chosen
                 .clone()
@@ -353,35 +353,49 @@ impl GameState {
             // `Search` is Many. This cardinality is a pure structural fact from
             // the Idris constructors, valid independent of the resolution seam.
             Binder::TheRef(_)
-            | Binder::ChooseOne(_)
+            | Binder::ChooseOne { .. }
             | Binder::Produce(_)
             | Binder::SearchOne { .. } => Cardinality::One,
-            Binder::Choose(..) | Binder::Existing(_) | Binder::Search { .. } => Cardinality::Many,
+            Binder::Choose { .. } | Binder::Existing(_) | Binder::Search { .. } => {
+                Cardinality::Many
+            }
             Binder::Expanded(_) => unreachable!("peeled above"),
         }
     }
 
     /// If `binder` is a chooser (`ChooseOne`/`Choose`) whose pick has not yet
-    /// been made, the `(candidates, min, max)` to surface as a `ChooseObjects`
-    /// decision ([CR#601.2d]); else `None` (a `TheRef`/`Existing` binder, or a
-    /// chooser already resolved into `frame.endophora.chosen`). Shared by
-    /// `With`/`Each`/ `DivideAmong` so all three iterate a player-chosen
-    /// group identically.
+    /// been made, the `(chooser, candidates, min, max)` to surface as a
+    /// `ChooseObjects` decision ([CR#601.2d]); else `None` (a
+    /// `TheRef`/`Existing` binder, or a chooser already resolved into
+    /// `frame.endophora.chosen`). The chooser is the binder's `by` resolved
+    /// to a player ([CR#608.2d] — default `You` = the controller; "that
+    /// player sacrifices a creature of their choice" routes to the foreign
+    /// actor). Shared by `With`/`Each`/`DivideAmong` so all three iterate a
+    /// player-chosen group identically.
     fn binder_choice(
         &self,
         binder: &deckmaste_core::Binder,
         frame: &Frame,
-    ) -> Option<(Vec<ObjectId>, Uint, Uint)> {
+    ) -> Option<(crate::player::PlayerId, Vec<ObjectId>, Uint, Uint)> {
         use deckmaste_core::Binder;
         if frame.endophora.chosen.is_some() {
             return None;
         }
         match peel_binder(binder) {
-            Binder::ChooseOne(filter) => Some((crate::target::candidates(self, filter), 1, 1)),
-            Binder::Choose(quantity, filter) => {
+            Binder::ChooseOne { filter, by } => Some((
+                self.acting_player(by, frame),
+                crate::target::candidates(self, filter),
+                1,
+                1,
+            )),
+            Binder::Choose {
+                quantity,
+                filter,
+                by,
+            } => {
                 let candidates = crate::target::candidates(self, filter);
                 let (min, max) = self.choice_bounds(quantity, candidates.len(), frame);
-                Some((candidates, min, max))
+                Some((self.acting_player(by, frame), candidates, min, max))
             }
             _ => None,
         }
@@ -519,9 +533,11 @@ impl GameState {
             // per-element scheduling, where each element runs and pauses
             // independently.
             Effect::Each(each) => {
-                if let Some((candidates, min, max)) = self.binder_choice(&each.binder, frame) {
+                if let Some((chooser, candidates, min, max)) =
+                    self.binder_choice(&each.binder, frame)
+                {
                     self.pending = Some(crate::decide::PendingDecision::ChooseObjects {
-                        player: frame.controller,
+                        player: chooser,
                         candidates,
                         min,
                         max,
@@ -603,12 +619,15 @@ impl GameState {
             // The cardinality rides the `that` slot so the singular and group
             // reads resolve by slot — a `(Many, k)` binding has no singular read,
             // making the first-of-many bug unrepresentable. A chooser binder
-            // (`ChooseOne`/`Choose`) first surfaces the controller's choice and
-            // re-runs this node with the picks in `frame.endophora.chosen`.
+            // (`ChooseOne`/`Choose`) first surfaces its `by`-player's choice
+            // ([CR#608.2d]) and re-runs this node with the picks in
+            // `frame.endophora.chosen`.
             Effect::With(with) => {
-                if let Some((candidates, min, max)) = self.binder_choice(&with.binder, frame) {
+                if let Some((chooser, candidates, min, max)) =
+                    self.binder_choice(&with.binder, frame)
+                {
                     self.pending = Some(crate::decide::PendingDecision::ChooseObjects {
-                        player: frame.controller,
+                        player: chooser,
                         candidates,
                         min,
                         max,
@@ -648,9 +667,11 @@ impl GameState {
             // the amount as evenly as possible; surfacing the "as you choose"
             // division as a player decision is a seam.
             Effect::DivideAmong(divide) => {
-                if let Some((candidates, min, max)) = self.binder_choice(&divide.binder, frame) {
+                if let Some((chooser, candidates, min, max)) =
+                    self.binder_choice(&divide.binder, frame)
+                {
                     self.pending = Some(crate::decide::PendingDecision::ChooseObjects {
-                        player: frame.controller,
+                        player: chooser,
                         candidates,
                         min,
                         max,
@@ -3230,6 +3251,46 @@ mod tests {
         assert_eq!(alive, 1, "exactly one creature destroyed (the bound pick)");
     }
 
+    /// A foreign chooser routes the `ChooseObjects` decision to the binder's
+    /// resolved `by` player, not the spell's controller ([CR#608.2d] — "that
+    /// player sacrifices a creature of their choice", [CR#701.21a]).
+    #[test]
+    fn foreign_by_routes_choice_to_that_player() {
+        use deckmaste_core::Binder;
+        use deckmaste_core::With;
+
+        use crate::decide::PendingDecision;
+        use crate::step::StepOutcome;
+
+        let (mut state, bear) = bear_on_field();
+        let _theirs = second_bear_to_player_1(&mut state);
+        let creatures = Filter::AllOf(vec![
+            Filter::State(StateFilter::InZone(Zone::Battlefield)),
+            Filter::creature(),
+        ]);
+        let frame = frame_src(bear);
+        state.run_effect(
+            Effect::With(With {
+                binder: Binder::ChooseOne {
+                    filter: creatures,
+                    by: Reference::Opponent,
+                },
+                body: Box::new(Effect::Act(Action::Destroy(Reference::That))),
+            }),
+            &frame,
+        );
+        let StepOutcome::NeedsDecision(PendingDecision::ChooseObjects { player, .. }) =
+            state.step()
+        else {
+            panic!("expected ChooseObjects, got {:?}", state.pending);
+        };
+        assert_eq!(
+            player,
+            PlayerId(1),
+            "the opponent (the binder's `by`) makes the pick"
+        );
+    }
+
     /// `With(ChooseOne(creature), Destroy(That))` surfaces `ChooseObjects`; an
     /// out-of-range count and an out-of-pool object are rejected; a legal pick
     /// destroys exactly that creature ([CR#608.2d]). Choosing is a pre-step
@@ -3253,7 +3314,10 @@ mod tests {
         let frame = frame_src(bear);
         state.run_effect(
             Effect::With(With {
-                binder: Binder::ChooseOne(creatures),
+                binder: Binder::ChooseOne {
+                    filter: creatures,
+                    by: Reference::You,
+                },
                 body: Box::new(Effect::Act(Action::Destroy(Reference::That))),
             }),
             &frame,
@@ -4734,10 +4798,11 @@ mod tests {
         let frame = frame_src(bear);
         state.run_effect(
             Effect::Each(deckmaste_core::Each {
-                binder: Binder::Choose(
-                    Quantity::Range(Some(Count::Literal(2)), Some(Count::Literal(2))),
-                    creatures,
-                ),
+                binder: Binder::Choose {
+                    quantity: Quantity::Range(Some(Count::Literal(2)), Some(Count::Literal(2))),
+                    filter: creatures,
+                    by: Reference::You,
+                },
                 effect: Box::new(Effect::Act(Action::Destroy(Reference::It))),
             }),
             &frame,

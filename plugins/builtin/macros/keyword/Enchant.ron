@@ -12,7 +12,7 @@
 //      now, so choosing the host is a separate pre-attach step: as it enters,
 //      the controller chooses a legal host matching the enchant quality, bound
 //      as `That`, then the Aura attaches to it — `With(binder: ChooseOne(
-//      Param(0)), body: Attach(This, That))`. Written as the inlined
+//      filter: Param(0)), body: Attach(This, That))`. Written as the inlined
 //      `Also(would: ThisEnters, also: …)` form (what `AsEnters` expands to)
 //      because Enchant's `Param(0)` can't thread through a nested macro call's
 //      arguments — the engine recognizes this `With(ChooseOne(quality),
@@ -38,7 +38,7 @@
                 Cant(Attach(what: Ref(This), to: Not(Param(0)))),
                 Replacement(Also(
                     would: ThisEnters,
-                    also: With(binder: ChooseOne(Param(0)), body: Attach(what: This, to: That)),
+                    also: With(binder: ChooseOne(filter: Param(0)), body: Attach(what: This, to: That)),
                 )),
             ]),
         ],

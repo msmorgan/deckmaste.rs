@@ -179,7 +179,7 @@ fn enters_attached_quality(effect: &Effect) -> Option<&Filter> {
 /// a remembered macro invocation.
 fn host_quality(binder: &deckmaste_core::Binder) -> Option<&Filter> {
     match binder {
-        deckmaste_core::Binder::ChooseOne(f) => Some(f),
+        deckmaste_core::Binder::ChooseOne { filter, .. } => Some(filter),
         deckmaste_core::Binder::Expanded(e) => host_quality(&e.value),
         _ => None,
     }
@@ -293,10 +293,15 @@ mod tests {
                         cause: None,
                     },
                     also: Effect::With(deckmaste_core::With {
-                        binder: deckmaste_core::Binder::ChooseOne(Filter::AllOf(vec![
-                            Filter::State(deckmaste_core::StateFilter::InZone(Zone::Battlefield)),
-                            Filter::creature(),
-                        ])),
+                        binder: deckmaste_core::Binder::ChooseOne {
+                            filter: Filter::AllOf(vec![
+                                Filter::State(deckmaste_core::StateFilter::InZone(
+                                    Zone::Battlefield,
+                                )),
+                                Filter::creature(),
+                            ]),
+                            by: Reference::You,
+                        },
                         body: Box::new(Effect::Act(Action::Attach {
                             what: Reference::This,
                             to: Reference::That,

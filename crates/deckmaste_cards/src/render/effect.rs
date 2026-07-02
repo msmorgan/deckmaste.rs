@@ -167,9 +167,18 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
 fn binder_phrase(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
     use deckmaste_core::Binder;
     match binder {
-        Binder::ChooseOne(f) => a_an(&fragment::filter_noun(f)),
-        Binder::Choose(q, f) => {
-            format!("{} {}", fragment::quantity(q), fragment::filter_object(f))
+        // The chooser (`by`) does not surface in the noun phrase — the body's
+        // verb rendering carries the acting player; a foreign chooser has no
+        // corpus card yet.
+        Binder::ChooseOne { filter, .. } => a_an(&fragment::filter_noun(filter)),
+        Binder::Choose {
+            quantity, filter, ..
+        } => {
+            format!(
+                "{} {}",
+                fragment::quantity(quantity),
+                fragment::filter_object(filter)
+            )
         }
         Binder::TheRef(r) => fragment::reference(r, ctx),
         Binder::Existing(sel) => fragment::selection(sel, ctx),
@@ -818,7 +827,10 @@ mod tests {
                 // "sacrifice a creature" is now the choose-then-pay `With` cost
                 // step: ChooseOne(Creature) binds `That`, then `Sacrifice(That)`.
                 pay: Cost(vec![CostComponent::With {
-                    binder: Box::new(Binder::ChooseOne(Filter::creature())),
+                    binder: Box::new(Binder::ChooseOne {
+                        filter: Filter::creature(),
+                        by: Reference::You,
+                    }),
                     body: Cost(vec![CostComponent::do_(PlayerAction::Sacrifice(
                         Reference::That,
                     ))]),
@@ -848,7 +860,10 @@ mod tests {
             that: None,
         };
         let with = Effect::With(With {
-            binder: Binder::ChooseOne(Filter::creature()),
+            binder: Binder::ChooseOne {
+                filter: Filter::creature(),
+                by: Reference::You,
+            },
             body: Box::new(Effect::act_by_you(PlayerAction::Sacrifice(Reference::That))),
         });
         assert_eq!(effect(&with, &ctx), "Sacrifice a creature.");
@@ -867,10 +882,11 @@ mod tests {
             that: None,
         };
         let with = Effect::With(With {
-            binder: Binder::Choose(
-                Quantity::Range(Some(Count::Literal(2)), Some(Count::Literal(2))),
-                Filter::Kind(ObjectKind::Card),
-            ),
+            binder: Binder::Choose {
+                quantity: Quantity::Range(Some(Count::Literal(2)), Some(Count::Literal(2))),
+                filter: Filter::Kind(ObjectKind::Card),
+                by: Reference::You,
+            },
             body: Box::new(Effect::act_by_you(PlayerAction::Discard {
                 count: Count::Literal(2),
                 what: Some(Reference::That),

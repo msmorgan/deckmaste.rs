@@ -80,9 +80,9 @@ fn discard(text: &str) -> Option<String> {
 }
 
 /// `Sacrifice <subject>` (non-self) -> the cost-side choose-then-pay `With`
-/// step ([CR#601.2b]): `With(binder: ChooseOne(<filter>), body:
-/// [Do(Sacrifice(That))])` for one, or `With(binder: Choose(Exactly(N),
-/// <filter>), body: [Do(Sacrifice(That))])` for N>1. The binder makes the
+/// step ([CR#601.2b]): `With(binder: ChooseOne(filter: <filter>), body:
+/// [Do(Sacrifice(That))])` for one, or `With(binder: Choose(quantity:
+/// Exactly(N), filter: <filter>), body: [Do(Sacrifice(That))])` for N>1. The binder makes the
 /// choice (bound as `That`) and `Sacrifice(That)` pays against it — choosing
 /// kept OUT of the verb (a verb takes a single [`Reference`]). The implicit
 /// "you control" restriction is the Sacrifice verb's own ([CR#701.21a]), not
@@ -102,9 +102,9 @@ fn sacrifice(text: &str) -> Option<String> {
     };
     let filter = filter::parse_phrase(phrase)?;
     let binder = if count == 1 {
-        format!("ChooseOne({filter})")
+        format!("ChooseOne(filter: {filter})")
     } else {
-        format!("Choose(Exactly({count}), {filter})")
+        format!("Choose(quantity: Exactly({count}), filter: {filter})")
     };
     Some(format!(
         "With(binder: {binder}, body: [Do(Sacrifice(That))])"

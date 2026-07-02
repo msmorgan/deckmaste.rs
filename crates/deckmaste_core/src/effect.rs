@@ -463,7 +463,7 @@ mod tests {
             // each onto the library via the `It` element. Core reader has no
             // macros, so the `Quantity` is the bare `Range` primitive
             // (`Exactly(2)` is the cards-layer macro spelling).
-            "With(binder:Choose(Range(Literal(2),Literal(2)),InZone(Hand)),\
+            "With(binder:Choose(quantity:Range(Literal(2),Literal(2)),filter:InZone(Hand)),\
              body:Each(binder:Existing(That),\
              effect:Move(It,Library(FromTop(Literal(0))))))",
         ];

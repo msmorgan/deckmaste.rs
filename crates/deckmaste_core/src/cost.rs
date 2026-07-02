@@ -223,7 +223,10 @@ mod tests {
         // "sacrifice a creature": choose one creature, then Sacrifice(That).
         let creature = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));
         let with = CostComponent::With {
-            binder: Box::new(Binder::ChooseOne(creature)),
+            binder: Box::new(Binder::ChooseOne {
+                filter: creature,
+                by: Reference::You,
+            }),
             body: Cost(vec![CostComponent::do_(PlayerAction::Sacrifice(
                 Reference::That,
             ))]),

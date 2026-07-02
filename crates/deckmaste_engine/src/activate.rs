@@ -394,9 +394,11 @@ impl GameState {
             // A captured reference / existing selection resolves directly.
             Binder::TheRef(_) | Binder::Existing(_) => true,
             // ≥ 1 candidate to choose ([CR#601.2b]).
-            Binder::ChooseOne(filter) => !crate::target::candidates(self, filter).is_empty(),
+            Binder::ChooseOne { filter, .. } => !crate::target::candidates(self, filter).is_empty(),
             // ≥ the quantity's lower bound of candidates (no partial payment).
-            Binder::Choose(quantity, filter) => {
+            Binder::Choose {
+                quantity, filter, ..
+            } => {
                 let candidates = crate::target::candidates(self, filter);
                 let frame = Frame::bare(source, controller);
                 let (lo, _hi) = quantity.bounds();

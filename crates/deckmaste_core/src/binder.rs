@@ -30,9 +30,18 @@ pub enum Binder {
     /// Bind an existing single reference (a captured target, `This`) — One →
     /// `That`.
     TheRef(Reference),
-    /// The actor chooses exactly one match — One → `That`. ("sacrifice a
-    /// creature")
-    ChooseOne(Filter),
+    /// The chooser picks exactly one match — One → `That`. ("sacrifice a
+    /// creature") `by` names who chooses, mirroring the Idris `{default You
+    /// by}`: the default is the controller; a foreign chooser ("that player
+    /// sacrifices a creature of their choice", [CR#608.2d,701.21a]) overrides
+    /// it.
+    ChooseOne {
+        /// What may be picked (the Idris `Predicate`).
+        filter: Filter,
+        /// Who chooses (default `You`).
+        #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
+        by: Reference,
+    },
     /// Run an [`Action`] for effect and bind its product — the moved/created
     /// object — as the singular [`Reference::That`](crate::Reference::That) —
     /// One → `That`. The Idris `Produce : Action b -> Bindable b One AnObject`
@@ -59,9 +68,18 @@ pub enum Binder {
         #[serde(default = "from_library", skip_serializing_if = "is_from_library")]
         from: Vec<Zone>,
     },
-    /// The actor chooses a quantity of matches — Many → `That` (group).
-    /// ("choose two cards")
-    Choose(Quantity, Filter),
+    /// The chooser picks a quantity of matches — Many → `That` (group).
+    /// ("choose two cards") Same `by` default as
+    /// [`ChooseOne`](Self::ChooseOne).
+    Choose {
+        /// How many to pick (the Idris `Quantity`).
+        quantity: Quantity,
+        /// What may be picked (the Idris `Predicate`).
+        filter: Filter,
+        /// Who chooses (default `You`).
+        #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
+        by: Reference,
+    },
     /// An existing group/selection — Many → `That` (group).
     Existing(Selection),
     /// Search `whose`'s `from`-zones for a [`Quantity`] of matches, bound as a
@@ -91,7 +109,7 @@ pub enum Binder {
 
 /// The `by`/`whose` default — the searching/choosing player is the controller
 /// ([`Reference::You`]). Mirrors the Idris `{default You by}` / `{default You
-/// whose}` on `Search`/`SearchOne`.
+/// whose}` on `ChooseOne`/`Choose`/`Search`/`SearchOne`.
 fn ref_you() -> Reference {
     Reference::You
 }
@@ -136,8 +154,26 @@ mod tests {
         let one_filter = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));
         for v in [
             Binder::TheRef(Reference::This),
-            Binder::ChooseOne(one_filter.clone()),
-            Binder::Choose(Quantity::one(), one_filter.clone()),
+            Binder::ChooseOne {
+                filter: one_filter.clone(),
+                by: Reference::You,
+            },
+            // A foreign chooser ("that player sacrifices a creature of their
+            // choice") writes its non-default `by` explicitly.
+            Binder::ChooseOne {
+                filter: one_filter.clone(),
+                by: Reference::EventActor,
+            },
+            Binder::Choose {
+                quantity: Quantity::one(),
+                filter: one_filter.clone(),
+                by: Reference::You,
+            },
+            Binder::Choose {
+                quantity: Quantity::one(),
+                filter: one_filter.clone(),
+                by: Reference::Opponent,
+            },
             Binder::Existing(Selection::That),
             Binder::Produce(Box::new(Action::Move(
                 Reference::It,
@@ -181,6 +217,35 @@ mod tests {
     #[test]
     fn existing_wraps_selection() {
         assert_eq!(read("Existing(That)"), Binder::Existing(Selection::That));
+    }
+
+    /// The choose binders omit the default `by: You` on write and read it
+    /// back — the common written form carries only the filter (and quantity).
+    #[test]
+    fn choose_binders_omit_default_by() {
+        let creature = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));
+        let one = Binder::ChooseOne {
+            filter: creature.clone(),
+            by: Reference::You,
+        };
+        let written = to_string(&one);
+        assert!(
+            !written.contains("by:"),
+            "default by omitted, got {written}"
+        );
+        assert_eq!(read(&written), one);
+
+        let many = Binder::Choose {
+            quantity: Quantity::one(),
+            filter: creature,
+            by: Reference::EventActor,
+        };
+        let written = to_string(&many);
+        assert!(
+            written.contains("by:"),
+            "non-default by written, got {written}"
+        );
+        assert_eq!(read(&written), many);
     }
 
     /// The search binders omit `by`/`whose`/`from` when default and read them

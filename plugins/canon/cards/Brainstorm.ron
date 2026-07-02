@@ -17,7 +17,7 @@ Normal(
         // only the first of the two (the dropped-cardinality bug); `Each` over
         // the group is the group-move shape (`core-many-binder-group-move`).
         Each(
-          binder: Choose(Exactly(2), AllOf([InZone(Hand), Owner(Ref(You))])),
+          binder: Choose(quantity: Exactly(2), filter: AllOf([InZone(Hand), Owner(Ref(You))])),
           effect: Move(It, Library(FromTop(0))),
         ),
       ])

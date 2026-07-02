@@ -1,8 +1,21 @@
 ---
 needs: []
 ---
-Reconcile "who chooses" on the choose binders with the Idris model — a design
-decision, then a small core change.
+DONE: decided for the policy default — **mirror Idris**. `Binder::ChooseOne`
+and `Binder::Choose` are now struct variants carrying `by: Reference`
+(default `You`, omitted on write), matching the search binders' shape inside
+the same enum and the Idris `{default You by}`. The engine reads the binder's
+own `by` (resolved via `acting_player`) as the `ChooseObjects` chooser — the
+runtime half is [[engine-choose-foreign-chooser]]. RON data (Brainstorm,
+Enchant) and the oracle-text emitters moved to the named-field form
+(`ChooseOne(filter: …)`, `Choose(quantity: …, filter: …)`). The rejected
+alternative (derive the chooser from the enclosing `By(actor, …)` scope) is
+recorded below for the design history.
+
+---
+
+Original framing: reconcile "who chooses" on the choose binders with the
+Idris model — a design decision, then a small core change.
 
 Idris carries the chooser directly on the binder: `ChooseOne : {default You by
 : Reference b APlayer} -> Predicate b k -> Bindable b One k`, and likewise
