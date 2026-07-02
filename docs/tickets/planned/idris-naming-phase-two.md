@@ -48,6 +48,21 @@ Already named `Exists` in both — but Rust's takes `Filter` while Idris's uses
 an existential over `Predicate`. Signature changes with the `Filter`→`Predicate`
 rename; no variant rename needed.
 
+## Field/spelling drift
+
+### 7. `TopOfLibrary { of }` → `{ whose }`
+Rust `Selection::TopOfLibrary { count, of }` vs Idris `TopOfLibrary { count,
+whose }`. Rename the field to `whose` — it matches the search binders' `whose`
+field, which both models already share.
+
+### 8. `Extremum` → align with Idris `AggregateOp`
+Rust `Pick` uses `Extremum { Greatest, Least }`; Idris uses `AggregateOp`
+(Min/Max) gated by `IsExtremal`. Same extremal-only concept, different
+spelling — align on one (policy default: mirror the Idris naming).
+
+(Missing-constructor gaps — Idris `Selection::Union` and `BottomOfLibrary` with
+no Rust mirror — are concept gaps, not renames: [[core-selection-idris-mirrors]].)
+
 ## Plugin data migration
 
 Every `.ron` card/macro/token file uses the serialized names. The renames above
