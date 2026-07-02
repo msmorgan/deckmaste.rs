@@ -31,8 +31,8 @@ use crate::Kind;
 /// code generic over the trait can deserialize a value of `Self`. The
 /// param-type validators (`read_str::<T>`) are exactly such code.
 pub trait SupportsMacros: DeserializeOwned {
-    /// This type's own tagged variant names (an `embed` newtype variant
-    /// like `Selection::Ref` is name-erased and not listed).
+    /// This type's own tagged variant names (a name-erased `embed`
+    /// newtype variant is not listed).
     const OWN_VARIANTS: &'static [&'static str];
     /// The full dispatch set — see the trait docs.
     const ALL_VARIANTS: &'static [&'static str];

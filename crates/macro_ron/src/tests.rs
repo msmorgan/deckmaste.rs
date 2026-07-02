@@ -1570,8 +1570,8 @@ mod derived {
         assert_eq!(back, clause);
     }
 
-    /// Embed fixtures, mirroring `Selection::Ref` (newtype, name-erased) and
-    /// `Action::By` (tuple, defaulted head).
+    /// Embed fixtures: `Pick::Ref` (newtype, name-erased) and `Deed::By`,
+    /// mirroring core's `Action::By` (tuple, defaulted head).
     #[derive(Debug, Clone, PartialEq, crate::SupportsMacros)]
     enum Who {
         Me,
