@@ -273,11 +273,7 @@ fn lint_keyword_refs(
     }
 }
 
-fn lint_get_targets(
-    path: &Path,
-    abilities: &[Ability],
-    out: &mut Vec<(PathBuf, String)>,
-) {
+fn lint_get_targets(path: &Path, abilities: &[Ability], out: &mut Vec<(PathBuf, String)>) {
     for ability in abilities {
         let Ok(ron) = deckmaste_core::ron::options().to_string(ability) else {
             continue;
@@ -291,9 +287,7 @@ fn lint_get_targets(
                 if num > 0 {
                     out.push((
                         path.to_owned(),
-                        format!(
-                            "GetTargets({num}): multi target-spec announce not yet wired"
-                        ),
+                        format!("GetTargets({num}): multi target-spec announce not yet wired"),
                     ));
                 }
             }
@@ -726,13 +720,13 @@ mod keyword_ref_tests {
 
 #[cfg(test)]
 mod get_targets_tests {
-    use std::path::PathBuf;
     use deckmaste_core::Ability;
-    use deckmaste_core::TargetSpec;
-    use deckmaste_core::Selection;
     use deckmaste_core::Effect;
     use deckmaste_core::Filter;
     use deckmaste_core::Quantity;
+    use deckmaste_core::Selection;
+    use deckmaste_core::TargetSpec;
+    use std::path::PathBuf;
 
     #[test]
     fn lint_get_targets_flags_non_zero_specs() {
@@ -763,7 +757,11 @@ mod get_targets_tests {
         super::lint_get_targets(&PathBuf::from("test/dummy.ron"), &[fine], &mut out);
         assert!(out.is_empty(), "GetTargets(0) is allowed (or absent)");
 
-        super::lint_get_targets(&PathBuf::from("test/dummy.ron"), &[with_get_targets_1], &mut out);
+        super::lint_get_targets(
+            &PathBuf::from("test/dummy.ron"),
+            &[with_get_targets_1],
+            &mut out,
+        );
         assert_eq!(out.len(), 1, "GetTargets(1) must be flagged");
         assert!(
             out[0].1.contains("GetTargets(1)"),

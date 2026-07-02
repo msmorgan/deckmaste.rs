@@ -259,8 +259,7 @@ fn arc_lightning_targets_any_target() {
         panic!("expected Expanded filter, got {filter:?}");
     };
     assert_eq!(
-        exp.name,
-        "AnyTarget",
+        exp.name, "AnyTarget",
         "Arc Lightning's target should be AnyTarget filter macro"
     );
 }

@@ -63,10 +63,16 @@ impl GameState {
             .find(|e| e.id == id)
             .expect("entry on stack")
             .clone();
-        // A fresh resolution has no amount fixed yet: `Count::ThatMuch` may
-        // only read an amount an earlier instruction of THIS resolution
-        // fixed, never one leaking in from combat or a prior resolution.
-        self.that_much = None;
+        // A fresh resolution has no amount fixed yet — `Count::ThatMuch` may
+        // only read an amount an earlier instruction of THIS resolution fixed,
+        // never one leaking in from combat or a prior resolution — EXCEPT for
+        // a triggered ability, whose firing event's magnitude seeds the
+        // register ("whenever you gain life, … that much"); a later
+        // amount-carrying apply of this resolution still re-fixes it.
+        self.that_much = match &entry.object {
+            StackObject::Triggered { bindings, .. } => bindings.that_much,
+            _ => None,
+        };
         match &entry.object {
             StackObject::Spell(spell) => {
                 let spell = *spell;
@@ -2010,14 +2016,15 @@ impl GameState {
             }
             // The amount fixed by an earlier instruction of this resolution —
             // recorded at the apply funnel (so it reads what actually
-            // happened, post-replacement), cleared by `resolve_object`. A
-            // trigger-bound magnitude ("whenever you gain life, … that much")
-            // must instead ride `TriggerBindings`, which the trigger-events
-            // lane owns — loud until that lands.
+            // happened, post-replacement) — or, for a triggered ability, the
+            // firing event's magnitude seeded from `TriggerBindings.that_much`
+            // by `resolve_object`. Still loud when neither fixed an amount:
+            // that is an authoring error (a `ThatMuch` with no antecedent
+            // magnitude), not an engine seam.
             Count::ThatMuch => self.that_much.unwrap_or_else(|| {
-                todo!(
-                    "ThatMuch with no amount fixed this resolution — trigger-bound magnitudes \
-                     are the engine-trigger-events bindings seam"
+                panic!(
+                    "ThatMuch with no amount fixed this resolution and no trigger-bound \
+                     magnitude — the card authors a magnitude anaphor with no antecedent"
                 )
             }),
             // [CR#601.2d]: the per-element share in scope inside a `DivideAmong`

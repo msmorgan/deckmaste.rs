@@ -476,9 +476,27 @@ impl GameState {
                 crate::derive::face(self.def(id)).mana_cost.mana_value(),
             )
             .ok(),
-            // Aggregate-stat costs over loyalty/defense have no canon card and
-            // ride the same unbuilt counter machinery as `eval_count`.
-            Stat::Loyalty | Stat::Defense => None,
+            // [CR#122.1e,122.1g]: loyalty/defense are the object's loyalty-/
+            // defense-counter counts (read off the counter map, mirroring
+            // `eval_count`).
+            Stat::Loyalty => deckmaste_core::Int::try_from(
+                self.objects
+                    .obj(id)
+                    .counters
+                    .get("LoyaltyCounter")
+                    .copied()
+                    .unwrap_or(0),
+            )
+            .ok(),
+            Stat::Defense => deckmaste_core::Int::try_from(
+                self.objects
+                    .obj(id)
+                    .counters
+                    .get("DefenseCounter")
+                    .copied()
+                    .unwrap_or(0),
+            )
+            .ok(),
         };
         raw.map(|v| Uint::try_from(v.max(0)).unwrap_or(0))
     }

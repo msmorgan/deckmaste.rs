@@ -407,9 +407,32 @@ fn derived_stat(
             )
             .expect("mana value fits Int"),
         ),
-        deckmaste_core::Stat::Loyalty | deckmaste_core::Stat::Defense => todo!(
-            "engine-filter-breadth: {stat:?} stat filter (planeswalker/battle counter machinery \
-             unbuilt — mirrors eval_count)"
+        // [CR#122.1e,122.1g]: loyalty/defense are the object's loyalty-/
+        // defense-counter counts (read off the counter map, mirroring
+        // `eval_count`).
+        deckmaste_core::Stat::Loyalty => Some(
+            deckmaste_core::Int::try_from(
+                state
+                    .objects
+                    .obj(id)
+                    .counters
+                    .get("LoyaltyCounter")
+                    .copied()
+                    .unwrap_or(0),
+            )
+            .expect("loyalty fits Int"),
+        ),
+        deckmaste_core::Stat::Defense => Some(
+            deckmaste_core::Int::try_from(
+                state
+                    .objects
+                    .obj(id)
+                    .counters
+                    .get("DefenseCounter")
+                    .copied()
+                    .unwrap_or(0),
+            )
+            .expect("defense fits Int"),
         ),
     }
 }
@@ -1040,6 +1063,7 @@ mod tests {
                     that_player: None,
                     that_patient: None,
                     defending_player: None,
+                    that_much: None,
                 },
             },
             controller: PlayerId(0),

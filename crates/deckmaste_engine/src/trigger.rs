@@ -74,6 +74,11 @@ pub struct TriggerBindings {
     /// The combat DEFENDING player ([CR#506.2,508.5]) — always a player. Read
     /// by `Reference::DefendingPlayer`.
     pub defending_player: Option<PlayerId>,
+    /// The event MAGNITUDE — the amount of an amount-carrying event (damage
+    /// dealt, life lost/gained), fixed at fire time; the set mirrors the
+    /// apply funnel's `that_much` register. Seeds `Count::ThatMuch` for the
+    /// fired ability's resolution ("whenever you gain life, … that much").
+    pub that_much: Option<Uint>,
 }
 
 /// A trigger that has fired but is not yet on the stack ([CR#603.2]). Noted by
@@ -715,6 +720,17 @@ impl GameState {
             _ => None,
         };
 
+        // The event MAGNITUDE — the same amount-carrying set the apply funnel
+        // fixes into the `that_much` register, captured here so the fired
+        // ability's resolution can read `Count::ThatMuch` ("whenever you gain
+        // life, … that much").
+        let that_much: Option<Uint> = match event {
+            GameEvent::DamageDealt { amount, .. }
+            | GameEvent::LifeLost { amount, .. }
+            | GameEvent::LifeGained { amount, .. } => Some(*amount),
+            _ => None,
+        };
+
         // The watcher set ([CR#603.6,113.6b]): every live battlefield permanent,
         // plus every object in a graveyard or hand (for graveyard/hand-
         // FUNCTIONING triggers — Madness, Bridge from Below; a per-ability
@@ -781,6 +797,7 @@ impl GameState {
                     that_player,
                     that_patient: that_patient.clone(),
                     defending_player,
+                    that_much,
                 };
                 // [CR#603.4]: the intervening-if gate — the condition is checked
                 // when the event occurs (no targets are chosen yet, so the gate
@@ -1135,9 +1152,29 @@ fn snapshot_stat(
             deckmaste_core::Int::try_from(face.mana_cost.mana_value())
                 .expect("mana value fits Int"),
         ),
-        deckmaste_core::Stat::Loyalty | deckmaste_core::Stat::Defense => {
-            todo!("engine-filter-breadth: snapshot {stat:?} stat (counter machinery unbuilt)")
-        }
+        // [CR#122.1e,122.1g,603.10a]: loyalty/defense are counter counts —
+        // read off the snapshot's carried counter map (the live object may be
+        // gone).
+        deckmaste_core::Stat::Loyalty => Some(
+            deckmaste_core::Int::try_from(
+                snapshot
+                    .counters
+                    .get("LoyaltyCounter")
+                    .copied()
+                    .unwrap_or(0),
+            )
+            .expect("loyalty fits Int"),
+        ),
+        deckmaste_core::Stat::Defense => Some(
+            deckmaste_core::Int::try_from(
+                snapshot
+                    .counters
+                    .get("DefenseCounter")
+                    .copied()
+                    .unwrap_or(0),
+            )
+            .expect("defense fits Int"),
+        ),
     }
 }
 
@@ -3940,6 +3977,111 @@ mod tests {
             .iter()
             .filter(|n| n.bindings.this.as_ref().is_some_and(|t| t.object == obj))
             .count()
+    }
+
+    /// A synthetic "whenever a creature is dealt damage, you gain that much
+    /// life" watcher — the trigger-bound magnitude lane.
+    fn pain_gainer() -> deckmaste_core::Card {
+        use deckmaste_core::Ability;
+        use deckmaste_core::Action;
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::Count;
+        use deckmaste_core::Effect;
+        use deckmaste_core::PlayerAction;
+        use deckmaste_core::StatValue;
+        use deckmaste_core::TriggeredAbility;
+
+        Card::Normal(CardFace {
+            name: "Pain Gainer".into(),
+            types: vec![Type::Creature],
+            abilities: vec![Ability::Triggered(TriggeredAbility {
+                from: None,
+                event: Event::Performed {
+                    verb: "DealDamage".into(),
+                    by: Filter::Any,
+                    on: Filter::creature(),
+                },
+                condition: None,
+                limits: vec![],
+                effect: Effect::Act(Action::By(
+                    Reference::You,
+                    PlayerAction::GainLife(Count::ThatMuch),
+                )),
+            })],
+            power: Some(StatValue::Number(2)),
+            toughness: Some(StatValue::Number(4)),
+            ..CardFace::default()
+        })
+    }
+
+    /// The firing event's magnitude rides `TriggerBindings.that_much` —
+    /// captured at fire time (mirroring the apply funnel's amount-carrying
+    /// set) and seeding `Count::ThatMuch` for the fired ability's resolution
+    /// ("whenever …, … that much").
+    #[test]
+    fn trigger_bound_that_much_reads_the_firing_events_magnitude() {
+        use deckmaste_core::Zone;
+
+        use crate::stack::StackEntry;
+        use crate::stack::StackObject;
+
+        let mut state = empty_game();
+        state.turn.active_player = PlayerId(0);
+        let gainer = put_synthetic_on_field(&mut state, pain_gainer(), PlayerId(0));
+        state.agenda.clear();
+        let life_before = state.players[0].life;
+
+        // 3 damage to the gainer through the emit funnel — the post-
+        // replacement fact the trigger scan sees.
+        let source = state.players[1].object;
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::Single(
+            GameEvent::DamageDealt {
+                source,
+                target: gainer,
+                amount: 3,
+            },
+        ))]);
+        for _ in 0..10 {
+            if state.agenda.is_empty() {
+                break;
+            }
+            let _ = state.step();
+        }
+
+        // Fire-time capture: the noted trigger carries the magnitude.
+        assert_eq!(noted_for(&state, gainer), 1, "the damage notes the trigger");
+        let noted = state.pending_triggers[0].clone();
+        assert_eq!(noted.bindings.that_much, Some(3));
+
+        // Resolve the trigger directly (no priority dance): `ThatMuch` reads
+        // the seeded magnitude, not a same-resolution apply.
+        let id = state
+            .objects
+            .mint(noted.source, noted.controller, Some(Zone::Stack));
+        state.stack.push(StackEntry {
+            id,
+            object: StackObject::Triggered {
+                source: noted.source,
+                ability: noted.ability,
+                bindings: noted.bindings.clone(),
+            },
+            controller: noted.controller,
+            targets: Vec::new(),
+            x: None,
+        });
+        state.resolve_object(id);
+        for _ in 0..10 {
+            if state.agenda.is_empty() {
+                break;
+            }
+            let _ = state.step();
+        }
+        assert_eq!(
+            state.players[0].life,
+            life_before + 3,
+            "GainLife(ThatMuch) reads the trigger-bound 3"
+        );
     }
 
     /// [CR#603.2h]: a once-per-turn triggered ability fires at most once each

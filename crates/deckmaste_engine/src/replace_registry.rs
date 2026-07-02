@@ -447,9 +447,15 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
     }
 
     // Static preventions on every battlefield object (watching damage events).
-    if let GameEvent::DamageDealt { source: event_source, target: event_target, .. } = *e {
+    if let GameEvent::DamageDealt {
+        source: event_source,
+        target: event_target,
+        ..
+    } = *e
+    {
         for &obj in &state.zones.battlefield {
-            let abilities = crate::derive::abilities_of_source(state, state.objects.obj(obj).source);
+            let abilities =
+                crate::derive::abilities_of_source(state, state.objects.obj(obj).source);
             for (ai, ability) in abilities.iter().enumerate() {
                 let Ability::Static(s) = ability else {
                     continue;
@@ -722,14 +728,22 @@ fn apply_one(state: &mut GameState, e: GameEvent, a: &Applicable) -> Option<Game
             }
         }
         ApplicableEffect::Prevention(prevention) => {
-            if let GameEvent::DamageDealt { source: event_source, target: event_target, amount } = e {
+            if let GameEvent::DamageDealt {
+                source: event_source,
+                target: event_target,
+                amount,
+            } = e
+            {
                 match prevention {
                     Prevention::PreventAll { .. } => {
                         // [CR#615.6]: prevented damage never happens.
                         None
                     }
                     Prevention::PreventNext { n, .. } => {
-                        let frame = crate::stack::Frame::bare(a.source, state.objects.obj(a.source).controller);
+                        let frame = crate::stack::Frame::bare(
+                            a.source,
+                            state.objects.obj(a.source).controller,
+                        );
                         let n_val = state.eval_count(n, &frame);
                         if amount <= n_val {
                             None
@@ -1252,17 +1266,17 @@ mod tests {
     /// A damage-prevention static effect prevents damage dealt to the creature.
     #[test]
     fn prevention_effect_prevents_damage() {
-        use deckmaste_core::Prevention;
         use deckmaste_core::Filter;
+        use deckmaste_core::Prevention;
         use deckmaste_core::Reference;
 
-        let (mut state, id) = super::tests_support::creature_with_static(StaticEffect::Prevention(Box::new(
-            Prevention::PreventAll {
+        let (mut state, id) = super::tests_support::creature_with_static(StaticEffect::Prevention(
+            Box::new(Prevention::PreventAll {
                 from: Filter::Any,
                 to: Filter::Ref(Reference::This),
                 duration: None,
-            }
-        )));
+            }),
+        ));
         let source = super::tests_support::mint_creature_on_battlefield(&mut state);
         let e = GameEvent::DamageDealt {
             source,
@@ -1271,27 +1285,30 @@ mod tests {
         };
         let app = gather_applicable(&state, &e);
         assert_eq!(app.len(), 1, "prevention is applicable to the damage event");
-        
+
         let outcome = replace_event(&mut state, e);
-        assert!(matches!(outcome, ReplaceOutcome::Nothing), "damage is fully prevented");
+        assert!(
+            matches!(outcome, ReplaceOutcome::Nothing),
+            "damage is fully prevented"
+        );
     }
 
     /// A damage-prevention static effect prevents next N damage.
     #[test]
     fn prevention_effect_prevents_next_n_damage() {
-        use deckmaste_core::Prevention;
-        use deckmaste_core::Filter;
-        use deckmaste_core::Reference;
         use deckmaste_core::Count;
+        use deckmaste_core::Filter;
+        use deckmaste_core::Prevention;
+        use deckmaste_core::Reference;
 
-        let (mut state, id) = super::tests_support::creature_with_static(StaticEffect::Prevention(Box::new(
-            Prevention::PreventNext {
+        let (mut state, id) = super::tests_support::creature_with_static(StaticEffect::Prevention(
+            Box::new(Prevention::PreventNext {
                 n: Count::Literal(2),
                 from: Filter::Any,
                 to: Filter::Ref(Reference::This),
                 duration: None,
-            }
-        )));
+            }),
+        ));
         let source = super::tests_support::mint_creature_on_battlefield(&mut state);
         let e = GameEvent::DamageDealt {
             source,
@@ -1300,7 +1317,7 @@ mod tests {
         };
         let app = gather_applicable(&state, &e);
         assert_eq!(app.len(), 1, "prevention is applicable");
-        
+
         let outcome = replace_event(&mut state, e);
         if let ReplaceOutcome::Pass(GameEvent::DamageDealt { amount, .. }) = outcome {
             assert_eq!(amount, 1, "3 damage is reduced by 2 to 1");
