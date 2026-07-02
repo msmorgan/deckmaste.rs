@@ -3,6 +3,17 @@ needs: []
 ---
 # Targets on effects (`Targeted`) — Implementation Plan
 
+> **DONE (verified 2026-07-01, closing claim):** the full expand→migrate→contract
+> arc landed on the default line ahead of this ticket being claimed — core
+> `Effect::Targeted`/`struct Targeted` with docs; the ability structs contracted
+> (no `targets` field; a doc pointer remains on `Mode`); the parser emits
+> wrappers; the 9 authored RON files migrated (canon carries `Targeted(…)`);
+> the renderer walks the wrapper; the engine reads targets exclusively through
+> `resolve::top_targets`. `cargo test --workspace` green (1310) on this
+> baseline; nested/multiple wrappers, modal per-mode targets, and Fight/Exchange
+> atomicity remain the documented out-of-scope loud seams. The unchecked task
+> boxes below are the original plan, kept for the design record.
+
 > **For agentic workers:** implement task-by-task with TDD. Steps use `- [ ]`.
 
 **Goal:** Move a targeted ability's `targets: Vec<TargetSpec>` declaration off the
