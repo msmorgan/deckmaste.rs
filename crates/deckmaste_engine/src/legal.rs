@@ -122,18 +122,6 @@ fn must_action(d: &Deontic) -> Option<&DeonticAction> {
     }
 }
 
-/// P0.W2 presence guard ([CR#601.2f] seam): `CostModifier` rows are
-/// grammar-complete, but no cost-modification pipeline applies them yet —
-/// a row in the derived view would silently change nothing. Loud instead;
-/// converts to the [CR#601.2f] pipeline, never gets deleted.
-fn guard_cost_modifier_seam(state: &GameState, view: &LayeredView) {
-    if statics_present(state, view, |e| {
-        matches!(e, StaticEffect::CostModifier { .. })
-    }) {
-        todo!("P0.W2: cost modification pipeline — CostModifier rows present go unapplied");
-    }
-}
-
 #[must_use]
 pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     // One derived view serves the whole window — the mana-ability and cast
@@ -236,7 +224,10 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         },
         "cast/play + non-Cant attach + May/Gate target",
     );
-    guard_cost_modifier_seam(state, &view);
+    // The former P0.W2 `CostModifier` presence guard converted to the real
+    // [CR#601.2f] pipeline: `GameState::mana_cost` applies the rows (see
+    // `cast::modified_mana_cost`), so `can_cast` below already gates on the
+    // modified total.
     for &object in &state.zones.hands[player.index()] {
         if state.can_cast(&view, player, object) {
             legal.push(Action::CastSpell { object });
@@ -446,7 +437,7 @@ pub(crate) fn must_block_rows(state: &GameState, view: &LayeredView) -> Vec<Bloc
 /// row. `Innate` is peeled here too, so subtype-conferred
 /// `Innate(Cant(Attach))` ([CR#301.5,301.6]) and `Innate(Static([Sba(...)]))`
 /// ([CR#704.5m]) are seen.
-fn walk_abilities<B, F: FnMut(&StaticEffect) -> ControlFlow<B>>(
+pub(crate) fn walk_abilities<B, F: FnMut(&StaticEffect) -> ControlFlow<B>>(
     abilities: &[Ability],
     visit: &mut F,
 ) -> ControlFlow<B> {

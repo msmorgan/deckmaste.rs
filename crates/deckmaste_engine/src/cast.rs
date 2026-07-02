@@ -59,6 +59,78 @@ pub(crate) fn concretize_x(cost: &ManaCost, x: Uint) -> ManaCost {
     )
 }
 
+/// Which half of the [CR#601.2f] application order a pass applies: increases
+/// (and mandatory additional mana) first, then reductions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ChangePhase {
+    Raise,
+    Lower,
+}
+
+/// Fold the MANA components of a cost change into `cost`. A non-mana
+/// component on a cost-change row has no consumer yet — loud, per the seam
+/// discipline.
+fn add_mana_components(cost: &mut Vec<ManaSymbol>, components: &[CostComponent]) {
+    for c in components {
+        match c {
+            CostComponent::Mana(m) => cost.extend(m.iter().copied()),
+            other => {
+                todo!("P0.W2 residue: non-mana cost increase {other:?} — fold when a card needs it")
+            }
+        }
+    }
+}
+
+/// Remove a reduction's MANA components from `cost` ([CR#601.2f]): `{N}`
+/// reduces the summed generic component (flooring at zero — a cost never
+/// goes negative, [CR#118.5]); a colored pip removes ONE matching colored
+/// pip and nothing else. Other symbol kinds in a reduction are loud.
+fn reduce_mana_components(cost: &mut Vec<ManaSymbol>, components: &[CostComponent]) {
+    for c in components {
+        match c {
+            CostComponent::Mana(m) => {
+                for sym in m.iter() {
+                    reduce_symbol(cost, sym);
+                }
+            }
+            other => todo!("P0.W2 residue: non-mana cost reduction {other:?}"),
+        }
+    }
+}
+
+/// Remove one reduction symbol from `cost` (see [`reduce_mana_components`]).
+fn reduce_symbol(cost: &mut Vec<ManaSymbol>, sym: &ManaSymbol) {
+    match sym {
+        ManaSymbol::Simple(SimpleManaSymbol::Generic(n)) => {
+            let mut remaining = *n;
+            for s in cost.iter_mut() {
+                if remaining == 0 {
+                    break;
+                }
+                if let ManaSymbol::Simple(SimpleManaSymbol::Generic(g)) = s {
+                    let cut = remaining.min(*g);
+                    *g -= cut;
+                    remaining -= cut;
+                }
+            }
+            // Drop zeroed generic pips ({0} artifacts keep their printed {0}:
+            // only pips this reduction emptied vanish, and a cost that was
+            // ALL generic keeps one {0} pip rather than becoming "no cost").
+            let had_pips = !cost.is_empty();
+            cost.retain(|s| !matches!(s, ManaSymbol::Simple(SimpleManaSymbol::Generic(0))));
+            if had_pips && cost.is_empty() {
+                cost.push(ManaSymbol::Simple(SimpleManaSymbol::Generic(0)));
+            }
+        }
+        colored @ ManaSymbol::Simple(SimpleManaSymbol::Specific(_)) => {
+            if let Some(i) = cost.iter().position(|s| s == colored) {
+                cost.remove(i);
+            }
+        }
+        other => todo!("P0.W2 residue: {other:?} in a cost reduction"),
+    }
+}
+
 /// A cost's payment requirement: its colored pips (per color), its `{S}` (snow,
 /// [CR#107.4h]) pip count, and its total generic. Hybrid/Phyrexian/`{X}` are
 /// *not* representable here — `requirement` returns `None` for them (they are
@@ -1112,18 +1184,130 @@ impl GameState {
         }
     }
 
-    /// The card face's printed mana cost ([CR#202]). `None` would mark an
-    /// uncastable object; every card face carries a (possibly empty) cost, so
-    /// this is always `Some` today — the option leaves room for future
-    /// faces/zones that have no castable cost (and lets `can_cast`/`pay_cost`
-    /// share the `let Some(cost) = …` gate).
+    /// The card face's mana cost ([CR#202]) with the [CR#601.2f]
+    /// cost-modification pipeline applied (see [`Self::modified_mana_cost`]).
+    /// `None` would mark an uncastable object; every card face carries a
+    /// (possibly empty) cost, so this is always `Some` today — the option
+    /// leaves room for future faces/zones that have no castable cost (and
+    /// lets `can_cast`/`pay_cost` share the `let Some(cost) = …` gate).
     #[must_use]
     #[allow(
         clippy::unnecessary_wraps,
         reason = "the Option is the cast-legality seam; future no-cost faces return None (now a pub API, so clippy may not fire — keep the seam documented)"
     )]
     pub fn mana_cost(&self, object: ObjectId) -> Option<ManaCost> {
-        Some(crate::derive::face(self.def(object)).mana_cost.clone())
+        Some(self.modified_mana_cost(object))
+    }
+
+    /// The [CR#601.2f] cost-modification pipeline: the printed mana cost with
+    /// every applicable `CostModifier` row applied — the spell's OWN rows
+    /// (affinity's `of: Ref(This)`, [CR#702.41a]) plus battlefield statics
+    /// whose `of` admits this spell (sphere taxers and reducers). Increases
+    /// apply before reductions ([CR#601.2f]); the generic component floors at
+    /// zero. Modifying the cost never changes the mana cost itself
+    /// ([CR#118.7]): mana-value reads keep going to the printed face.
+    fn modified_mana_cost(&self, object: ObjectId) -> ManaCost {
+        let printed = crate::derive::face(self.def(object)).mana_cost.clone();
+        let rows = self.cost_modifier_rows(object);
+        if rows.is_empty() {
+            return printed;
+        }
+        let mut cost: Vec<ManaSymbol> = printed.into();
+        for (frame, change) in &rows {
+            self.apply_cost_change(&mut cost, change, frame, ChangePhase::Raise, 1);
+        }
+        for (frame, change) in &rows {
+            self.apply_cost_change(&mut cost, change, frame, ChangePhase::Lower, 1);
+        }
+        ManaCost::from(cost)
+    }
+
+    /// Every applicable `CostModifier` row for casting `object`, each with a
+    /// frame anchored to the ROW's carrier — `Ref(This)`, `You`, and a
+    /// `Scaled` count all read relative to the ability's own carrier, whether
+    /// that is the spell itself (affinity) or a battlefield permanent (a
+    /// sphere taxer).
+    fn cost_modifier_rows(&self, object: ObjectId) -> Vec<(Frame, deckmaste_core::CostChange)> {
+        use std::ops::ControlFlow;
+        let mut rows: Vec<(Frame, deckmaste_core::CostChange)> = Vec::new();
+        // The spell's own rows (the card being cast is not on the battlefield,
+        // so the statics walk below never sees it).
+        let source = self.objects.obj(object).source;
+        let abilities = crate::derive::abilities_of_source(self, source);
+        let _ = crate::legal::walk_abilities(&abilities, &mut |e| {
+            if let deckmaste_core::StaticEffect::CostModifier { of, change } = e
+                && self.filter_matches_live(of, object, source)
+            {
+                rows.push((
+                    Frame::bare(object, self.objects.obj(object).controller),
+                    change.clone(),
+                ));
+            }
+            ControlFlow::<()>::Continue(())
+        });
+        // Battlefield rows.
+        let view = self.layers();
+        for &id in &self.zones.battlefield {
+            crate::legal::for_each_static(&view, id, |e| {
+                if let deckmaste_core::StaticEffect::CostModifier { of, change } = e
+                    && self.filter_matches_live(of, object, self.objects.obj(id).source)
+                {
+                    rows.push((
+                        Frame::bare(id, self.objects.obj(id).controller),
+                        change.clone(),
+                    ));
+                }
+            });
+        }
+        rows
+    }
+
+    /// Apply one `CostChange` to `cost` for the given phase — increases (and
+    /// mandatory additional mana) on `Raise`, reductions on `Lower` — with
+    /// `times` scaling from any enclosing `Scaled` ([CR#601.2f]).
+    /// `Additional { optional: true }` (the kicker shape, [CR#118.8b]) is the
+    /// [CR#601.2b] announce family: it stays inert here until its announce
+    /// machinery lands (core-alt-costs), exactly as before this pipeline.
+    fn apply_cost_change(
+        &self,
+        cost: &mut Vec<ManaSymbol>,
+        change: &deckmaste_core::CostChange,
+        frame: &Frame,
+        phase: ChangePhase,
+        times: Uint,
+    ) {
+        use deckmaste_core::CostChange;
+        match change {
+            CostChange::Increase(components) if phase == ChangePhase::Raise => {
+                for _ in 0..times {
+                    add_mana_components(cost, components);
+                }
+            }
+            CostChange::Reduce(components) if phase == ChangePhase::Lower => {
+                for _ in 0..times {
+                    reduce_mana_components(cost, components);
+                }
+            }
+            CostChange::Additional {
+                components,
+                optional: false,
+            } if phase == ChangePhase::Raise => {
+                for _ in 0..times {
+                    add_mana_components(cost, components);
+                }
+            }
+            CostChange::Scaled {
+                change,
+                times: count,
+            } => {
+                let n = self.eval_count(count, frame);
+                if n > 0 {
+                    self.apply_cost_change(cost, change, frame, phase, times.saturating_mul(n));
+                }
+            }
+            // The other phase's changes, and the inert optional-Additional.
+            _ => {}
+        }
     }
 
     /// [CR#115]: the legal candidates for a single `TargetSpec` (its filter's
@@ -1542,5 +1726,216 @@ mod tests {
         let pay = auto_pay(&p, &cost("{G}{S}"));
         assert!(validate_payment(&p, &cost("{G}{S}"), &pay));
         assert!(pay.units.contains(&0) && pay.units.contains(&1));
+    }
+
+    // ===== The [CR#601.2f] cost-modification pipeline =====
+
+    use std::sync::Arc;
+
+    use deckmaste_cards::plugin::Plugin;
+    use deckmaste_core::Ability;
+    use deckmaste_core::Card;
+    use deckmaste_core::CardFace;
+    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::CostChange;
+    use deckmaste_core::Count;
+    use deckmaste_core::Filter;
+    use deckmaste_core::Reference;
+    use deckmaste_core::StateFilter;
+    use deckmaste_core::StaticAbility;
+    use deckmaste_core::StaticEffect;
+    use deckmaste_core::Type;
+    use deckmaste_core::Zone;
+
+    use crate::object::ObjectSource;
+    use crate::player::PlayerId;
+    use crate::state::GameConfig;
+    use crate::state::GameState;
+    use crate::state::PlayerConfig;
+    use crate::state::StartingPlayer;
+
+    /// A two-player game with no permanents (builtin Forests as decks).
+    fn cm_game() -> GameState {
+        let builtin = Plugin::load(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"),
+        )
+        .unwrap();
+        let forest = Arc::new(builtin.card("Forest").unwrap());
+        GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 10],
+                },
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 10],
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+        })
+    }
+
+    /// Mint `card` for `controller` straight into `zone`.
+    fn put_synthetic(
+        state: &mut GameState,
+        card: Card,
+        controller: PlayerId,
+        zone: Zone,
+    ) -> crate::object::ObjectId {
+        let card_id = state.cards.push(Arc::new(card), controller);
+        let id = state
+            .objects
+            .mint(ObjectSource::Card(card_id), controller, Some(zone));
+        match zone {
+            Zone::Battlefield => state.zones.battlefield.push(id),
+            Zone::Hand => state.zones.hands[controller.index()].push(id),
+            other => panic!("unsupported test zone {other:?}"),
+        }
+        id
+    }
+
+    fn vanilla_artifact(name: &str) -> Card {
+        Card::Normal(CardFace {
+            name: name.into(),
+            mana_cost: "{1}".parse().unwrap(),
+            types: vec![Type::Artifact],
+            ..CardFace::default()
+        })
+    }
+
+    /// An affinity-shaped self-row ([CR#702.41a]): "costs {1} less for each
+    /// battlefield artifact".
+    fn affinity_card(printed: &str) -> Card {
+        Card::Normal(CardFace {
+            name: "Fromite".into(),
+            mana_cost: printed.parse().unwrap(),
+            types: vec![Type::Artifact],
+            abilities: vec![Ability::Static(StaticAbility {
+                from: None,
+                condition: None,
+                characteristic_defining: false,
+                effects: vec![StaticEffect::CostModifier {
+                    of: Filter::Ref(Reference::This),
+                    change: CostChange::Scaled {
+                        change: Box::new(CostChange::Reduce(vec![CostComponent::Mana(
+                            "{1}".parse().unwrap(),
+                        )])),
+                        times: Count::CountOf(Box::new(Filter::AllOf(vec![
+                            Filter::State(StateFilter::InZone(Zone::Battlefield)),
+                            Filter::Characteristic(CharacteristicFilter::Type(Type::Artifact)),
+                        ]))),
+                    },
+                }],
+            })],
+            ..CardFace::default()
+        })
+    }
+
+    /// Affinity's `Scaled(Reduce)` self-row lowers the generic component by
+    /// the live count, flooring at `{0}` ([CR#601.2f,702.41a]).
+    #[test]
+    fn affinity_scaled_reduce_lowers_generic_with_floor() {
+        let mut state = cm_game();
+        let spell = put_synthetic(&mut state, affinity_card("{3}"), PlayerId(0), Zone::Hand);
+        assert_eq!(
+            state.mana_cost(spell).unwrap(),
+            cost("{3}"),
+            "no artifacts: printed cost"
+        );
+        put_synthetic(
+            &mut state,
+            vanilla_artifact("Trinket A"),
+            PlayerId(0),
+            Zone::Battlefield,
+        );
+        put_synthetic(
+            &mut state,
+            vanilla_artifact("Trinket B"),
+            PlayerId(1),
+            Zone::Battlefield,
+        );
+        assert_eq!(
+            state.mana_cost(spell).unwrap(),
+            cost("{1}"),
+            "two artifacts: {{3}} - {{2}}"
+        );
+        // Floor: more reduction than pips leaves {0}, never "no cost".
+        put_synthetic(
+            &mut state,
+            vanilla_artifact("Trinket C"),
+            PlayerId(0),
+            Zone::Battlefield,
+        );
+        put_synthetic(
+            &mut state,
+            vanilla_artifact("Trinket D"),
+            PlayerId(0),
+            Zone::Battlefield,
+        );
+        assert_eq!(state.mana_cost(spell).unwrap(), cost("{0}"));
+    }
+
+    /// A battlefield taxer row ("creature spells cost {1} more") raises the
+    /// cast cost of a matching card in hand; a colored reduction removes only
+    /// its matching pip ([CR#601.2f]).
+    #[test]
+    fn battlefield_taxer_raises_and_colored_reduce_removes_pip() {
+        let mut state = cm_game();
+        let bear = Card::Normal(CardFace {
+            name: "Bear".into(),
+            mana_cost: "{1}{G}".parse().unwrap(),
+            types: vec![Type::Creature],
+            ..CardFace::default()
+        });
+        let spell = put_synthetic(&mut state, bear, PlayerId(0), Zone::Hand);
+
+        let taxer = Card::Normal(CardFace {
+            name: "Thorn Totem".into(),
+            types: vec![Type::Artifact],
+            abilities: vec![Ability::Static(StaticAbility {
+                from: None,
+                condition: None,
+                characteristic_defining: false,
+                effects: vec![StaticEffect::CostModifier {
+                    of: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                    change: CostChange::Increase(vec![CostComponent::Mana("{1}".parse().unwrap())]),
+                }],
+            })],
+            ..CardFace::default()
+        });
+        put_synthetic(&mut state, taxer, PlayerId(1), Zone::Battlefield);
+        // Increase appends: [{1}, {G}] + {1} -> [{1}, {G}, {1}].
+        let expected: ManaCost = vec![
+            ManaSymbol::Simple(SimpleManaSymbol::Generic(1)),
+            deckmaste_core::Color::Green.into(),
+            ManaSymbol::Simple(SimpleManaSymbol::Generic(1)),
+        ]
+        .into();
+        assert_eq!(state.mana_cost(spell).unwrap(), expected);
+    }
+
+    /// The pure reduction arithmetic: a colored pip removes one matching pip
+    /// and nothing else; generic reduction spreads across generic pips.
+    #[test]
+    fn reduce_symbol_arithmetic() {
+        let mut c: Vec<ManaSymbol> = Vec::from(&*cost("{2}{G}{G}"));
+        reduce_symbol(&mut c, &deckmaste_core::Color::Green.into());
+        assert_eq!(ManaCost::from(c.clone()), {
+            let v: Vec<ManaSymbol> = vec![
+                ManaSymbol::Simple(SimpleManaSymbol::Generic(2)),
+                deckmaste_core::Color::Green.into(),
+            ];
+            ManaCost::from(v)
+        });
+        reduce_symbol(&mut c, &ManaSymbol::Simple(SimpleManaSymbol::Generic(1)));
+        let v: Vec<ManaSymbol> = vec![
+            ManaSymbol::Simple(SimpleManaSymbol::Generic(1)),
+            deckmaste_core::Color::Green.into(),
+        ];
+        assert_eq!(ManaCost::from(c), ManaCost::from(v));
     }
 }
