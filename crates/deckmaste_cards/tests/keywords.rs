@@ -161,7 +161,7 @@ fn fortify_confers_sorcery_speed_attach_activated() {
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
     use deckmaste_core::Effect;
-    use deckmaste_core::Window;
+    use deckmaste_core::Timing;
 
     let plugin = builtin();
     let kw: KeywordAbility = plugin
@@ -182,7 +182,7 @@ fn fortify_confers_sorcery_speed_attach_activated() {
         })
         .expect("Fortify confers an Activated ability");
     assert!(
-        matches!(act.window, Some(Window::SorcerySpeed)),
+        matches!(act.window, Some(Timing::SorcerySpeed)),
         "fortify is sorcery-speed ([CR#702.67a]); got {:?}",
         act.window
     );
@@ -211,7 +211,7 @@ fn reconfigure_confers_attach_and_unattach_activated() {
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
     use deckmaste_core::Effect;
-    use deckmaste_core::Window;
+    use deckmaste_core::Timing;
 
     let plugin = builtin();
     let kw: KeywordAbility = plugin
@@ -235,7 +235,7 @@ fn reconfigure_confers_attach_and_unattach_activated() {
     // Both are sorcery-speed.
     assert!(
         acts.iter()
-            .all(|a| matches!(a.window, Some(Window::SorcerySpeed))),
+            .all(|a| matches!(a.window, Some(Timing::SorcerySpeed))),
         "both reconfigure abilities are sorcery-speed ([CR#702.151a])"
     );
     // One attaches, one unattaches.
@@ -266,7 +266,7 @@ fn outlast_confers_sorcery_speed_tap_put_counter() {
     use deckmaste_core::Normalize;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
-    use deckmaste_core::Window;
+    use deckmaste_core::Timing;
     use deckmaste_core::ron::options as ron_options;
 
     let plugin = builtin();
@@ -291,7 +291,7 @@ fn outlast_confers_sorcery_speed_tap_put_counter() {
 
     // (1) Activate only as a sorcery ([CR#702.107a]/[CR#602.5d]).
     assert!(
-        matches!(act.window, Some(Window::SorcerySpeed)),
+        matches!(act.window, Some(Timing::SorcerySpeed)),
         "outlast is sorcery-speed ([CR#702.107a]); got {:?}",
         act.window
     );
@@ -596,7 +596,7 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
     use deckmaste_core::Reference;
     use deckmaste_core::Stat;
     use deckmaste_core::TargetSpec;
-    use deckmaste_core::Window;
+    use deckmaste_core::Timing;
     use deckmaste_core::Zone;
     use deckmaste_core::ron::options as ron_options;
 
@@ -630,7 +630,7 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
     // (2) Activate only as a sorcery ([CR#702.97a], [CR#602.5d]).
     assert_eq!(
         act.window,
-        Some(Window::SorcerySpeed),
+        Some(Timing::SorcerySpeed),
         "scavenge is sorcery-speed"
     );
 
@@ -708,7 +708,7 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
     use deckmaste_core::Count;
     use deckmaste_core::Destination;
     use deckmaste_core::Effect;
-    use deckmaste_core::Event;
+    use deckmaste_core::EventFilter;
     use deckmaste_core::Filter;
     use deckmaste_core::Reference;
     use deckmaste_core::RelationFilter;
@@ -738,7 +738,7 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
         .expect("Soulshift confers a Triggered ability");
     // Dies trigger ([CR#700.4]) — the `ThisDies` macro invocation.
     assert!(
-        matches!(&trig.event, Event::Expanded(e) if e.name.as_str() == "ThisDies"),
+        matches!(&trig.event, EventFilter::Expanded(e) if e.name.as_str() == "ThisDies"),
         "soulshift triggers on dies; got {:?}",
         trig.event
     );
@@ -813,7 +813,7 @@ fn afterlife_confers_dies_create_spirit_tokens_with_flying() {
     use deckmaste_core::Color;
     use deckmaste_core::Count;
     use deckmaste_core::Effect;
-    use deckmaste_core::Event;
+    use deckmaste_core::EventFilter;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::StatValue;
@@ -840,7 +840,7 @@ fn afterlife_confers_dies_create_spirit_tokens_with_flying() {
         })
         .expect("Afterlife confers a Triggered ability");
     assert!(
-        matches!(&trig.event, Event::Expanded(e) if e.name.as_str() == "ThisDies"),
+        matches!(&trig.event, EventFilter::Expanded(e) if e.name.as_str() == "ThisDies"),
         "afterlife triggers on dies; got {:?}",
         trig.event
     );

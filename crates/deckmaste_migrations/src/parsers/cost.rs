@@ -82,17 +82,17 @@ fn discard(text: &str) -> Option<String> {
 /// `Sacrifice <subject>` (non-self) -> the cost-side choose-then-pay `With`
 /// step ([CR#601.2b]): `With(binder: ChooseOne(filter: <filter>), body:
 /// [Do(Sacrifice(That))])` for one, or `With(binder: Choose(quantity:
-/// Exactly(N), filter: <filter>), body: [Do(Sacrifice(That))])` for N>1. The binder makes the
-/// choice (bound as `That`) and `Sacrifice(That)` pays against it — choosing
-/// kept OUT of the verb (a verb takes a single [`Reference`]). The implicit
-/// "you control" restriction is the Sacrifice verb's own ([CR#701.21a]), not
-/// part of the printed-text filter — matching the self-sacrifice form
-/// (`Sacrifice ~` -> `SacrificeThis`). The leading determiner fixes N:
-/// `a`/`an`/`another`/`other` mean one and stay in the phrase (so the filter
-/// parser reads `another`/`other` as self-exclusion); a spelled count (`one`,
-/// `two`, …) is stripped and sets N. An unrecognized leader or a subject the
-/// filter grammar can't parse declines. The self form `Sacrifice ~` is matched
-/// earlier and never reaches here (it has no space).
+/// Exactly(N), filter: <filter>), body: [Do(Sacrifice(That))])` for N>1. The
+/// binder makes the choice (bound as `That`) and `Sacrifice(That)` pays against
+/// it — choosing kept OUT of the verb (a verb takes a single [`Reference`]).
+/// The implicit "you control" restriction is the Sacrifice verb's own
+/// ([CR#701.21a]), not part of the printed-text filter — matching the
+/// self-sacrifice form (`Sacrifice ~` -> `SacrificeThis`). The leading
+/// determiner fixes N: `a`/`an`/`another`/`other` mean one and stay in the
+/// phrase (so the filter parser reads `another`/`other` as self-exclusion); a
+/// spelled count (`one`, `two`, …) is stripped and sets N. An unrecognized
+/// leader or a subject the filter grammar can't parse declines. The self form
+/// `Sacrifice ~` is matched earlier and never reaches here (it has no space).
 fn sacrifice(text: &str) -> Option<String> {
     let rest = text.strip_prefix("Sacrifice ")?;
     let (first, tail) = rest.split_once(' ')?;

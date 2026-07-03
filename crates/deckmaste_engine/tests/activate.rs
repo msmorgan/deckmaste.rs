@@ -28,7 +28,7 @@ use deckmaste_core::Effect;
 use deckmaste_core::Filter;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
-use deckmaste_core::Phase;
+use deckmaste_core::PhaseStep;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::Reference;
 use deckmaste_core::SimpleManaSymbol;
@@ -205,7 +205,7 @@ fn step_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
 /// (via the engine's canonical `auto_pay_pending`) and continues. Tests that
 /// need a *specific* allocation must answer that `PayMana` explicitly before
 /// calling this helper.
-fn run_to_priority(state: &mut GameState, player: PlayerId, phase: Phase) -> Vec<Action> {
+fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) -> Vec<Action> {
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
@@ -260,7 +260,7 @@ fn advance_to_next_own_main(state: &mut GameState) -> Vec<Action> {
             StepOutcome::NeedsDecision(PendingDecision::Priority { player, legal })
                 if player == PlayerId(0)
                     && state.turn.active_player == PlayerId(0)
-                    && state.turn.current == Phase::PrecombatMain
+                    && state.turn.current == PhaseStep::PrecombatMain
                     && state.turn.turn_number > start_turn =>
             {
                 return legal;
@@ -312,7 +312,7 @@ fn tap_pinger_damages_target_through_stack() {
     state.objects.obj_mut(pinger).summoning_sick = false;
     let bear = force_into_play(&mut state, PlayerId(1), BEARS);
 
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     let activate = activate_action(&legal, pinger).expect("the pinger's tap ability is offered");
     state.submit_decision(Decision::Act(activate)).unwrap();
 
@@ -346,7 +346,7 @@ fn tap_pinger_damages_target_through_stack() {
 
     // Both players pass: the ability resolves and deals 1 to the bear.
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
-    let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let (trace, _) = step_to_stop(&mut state);
 
@@ -384,7 +384,7 @@ fn activation_announce_carries_a_minted_stack_identity() {
     state.objects.obj_mut(pinger).summoning_sick = false;
     let bear = force_into_play(&mut state, PlayerId(1), BEARS);
 
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     let activate = activate_action(&legal, pinger).expect("the pinger's tap ability is offered");
     state.submit_decision(Decision::Act(activate)).unwrap();
     let (_, stop) = step_to_stop(&mut state);
@@ -423,7 +423,7 @@ fn summoning_sick_pinger_not_offered() {
     // Reach priority FIRST: the turn-start untap clears summoning sickness on
     // the active player's permanents ([CR#302.6]), which would wipe a
     // pre-step stamp on the forced pinger.
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     state.objects.obj_mut(pinger).summoning_sick = true;
     // The pending legal list predates the stamp — take the offered land drop
     // to reopen priority with a freshly computed list.
@@ -433,7 +433,7 @@ fn summoning_sick_pinger_not_offered() {
         .cloned()
         .expect("a Mountain in hand for the land drop");
     state.submit_decision(Decision::Act(land)).unwrap();
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert!(
         activate_action(&legal, pinger).is_none(),
         "[CR#602.5a]: a summoning-sick creature cannot pay {{T}}, legal: {legal:?}"
@@ -451,7 +451,7 @@ fn artifact_pays_mana_ignores_sickness() {
     let mut state = activation_game(2, MANA_DRAWER, 2);
     let drawer = force_into_play(&mut state, PlayerId(0), MANA_DRAWER);
 
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     // Stamp sickness AFTER the turn-start untap (which clears the flag on the
     // active player's permanents, [CR#302.6]): the [CR#602.5a] gate is
     // creature-and-{T}/{Q}-only, so a summoning-sick artifact with a pure mana
@@ -461,7 +461,7 @@ fn artifact_pays_mana_ignores_sickness() {
     float_mana(&mut state, PlayerId(0), 2); // R, R
     let hand_before = state.zones.hands[0].len();
 
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     let activate = activate_action(&legal, drawer)
         .expect("a summoning-sick artifact's mana-only ability is offered");
     state.submit_decision(Decision::Act(activate)).unwrap();
@@ -479,10 +479,10 @@ fn artifact_pays_mana_ignores_sickness() {
     let pay = state.auto_pay_pending();
     state.submit_decision(Decision::Pay(pay)).unwrap();
 
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert_eq!(state.stack.len(), 1, "the ability is on the stack");
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
-    let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let _ = step_to_stop(&mut state);
 
@@ -538,11 +538,11 @@ fn sorcery_speed_drawer_gated() {
     let bear = force_into_play(&mut state, PlayerId(1), BEARS);
     let instant = find_in_hand(&state, PlayerId(0), INSTANT);
 
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     float_mana(&mut state, PlayerId(0), 2); // R, R
 
     // (a) Own precombat main, empty stack: the SorcerySpeed condition holds.
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert!(
         activate_action(&legal, drawer).is_some(),
         "offered at sorcery speed on an empty stack, legal: {legal:?}"
@@ -562,7 +562,7 @@ fn sorcery_speed_drawer_gated() {
         .submit_decision(Decision::Targets(vec![bear]))
         .unwrap();
     // run_to_priority auto-pays the all-colored {R}.
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert_eq!(state.stack.len(), 1, "the instant is on the stack");
     assert_eq!(
         state.player(PlayerId(0)).mana_pool.amount(red()),
@@ -577,9 +577,9 @@ fn sorcery_speed_drawer_gated() {
     // Let the instant resolve; at the next clean main-phase priority the
     // drawer is offered again.
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
-    let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert!(state.stack.is_empty(), "the instant resolved");
     assert!(
         activate_action(&legal, drawer).is_some(),
@@ -592,12 +592,12 @@ fn once_per_turn_resets_next_turn() {
     let mut state = activation_game(3, TURN_DRAWER, 2);
     let drawer = force_into_play(&mut state, PlayerId(0), TURN_DRAWER);
 
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     float_mana(&mut state, PlayerId(0), 2); // R, R
     let hand_before = state.zones.hands[0].len();
 
     // First activation this turn: offered; pay {1} with one red; resolve.
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     let activate = activate_action(&legal, drawer).expect("offered before any use this turn");
     state.submit_decision(Decision::Act(activate)).unwrap();
     let (_, stop) = step_to_stop(&mut state);
@@ -606,9 +606,9 @@ fn once_per_turn_resets_next_turn() {
     };
     let pay = state.auto_pay_pending();
     state.submit_decision(Decision::Pay(pay)).unwrap();
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
-    let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let _ = step_to_stop(&mut state);
     assert_eq!(
@@ -618,7 +618,7 @@ fn once_per_turn_resets_next_turn() {
     );
 
     // Same turn, mana still floating: spent for the turn ([CR#602.5b]).
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert_eq!(
         state.player(PlayerId(0)).mana_pool.amount(red()),
         1,
@@ -632,7 +632,7 @@ fn once_per_turn_resets_next_turn() {
     // P0's next turn: the per-turn ledger flushed; offered again.
     let _ = advance_to_next_own_main(&mut state);
     float_mana(&mut state, PlayerId(0), 1);
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert!(
         activate_action(&legal, drawer).is_some(),
         "the once-per-turn limit resets on a new turn, legal: {legal:?}"
@@ -644,12 +644,12 @@ fn once_per_game_stays_spent() {
     let mut state = activation_game(3, GAME_DRAWER, 2);
     let drawer = force_into_play(&mut state, PlayerId(0), GAME_DRAWER);
 
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     float_mana(&mut state, PlayerId(0), 2); // R, R
     let hand_before = state.zones.hands[0].len();
 
     // First (and only) activation: offered; resolve it.
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     let activate = activate_action(&legal, drawer).expect("offered before any use this game");
     state.submit_decision(Decision::Act(activate)).unwrap();
     let (_, stop) = step_to_stop(&mut state);
@@ -658,9 +658,9 @@ fn once_per_game_stays_spent() {
     };
     let pay = state.auto_pay_pending();
     state.submit_decision(Decision::Pay(pay)).unwrap();
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
-    let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let _ = step_to_stop(&mut state);
     assert_eq!(
@@ -670,7 +670,7 @@ fn once_per_game_stays_spent() {
     );
 
     // Same turn: spent.
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert!(
         activate_action(&legal, drawer).is_none(),
         "once-per-game exhausted, legal: {legal:?}"
@@ -679,7 +679,7 @@ fn once_per_game_stays_spent() {
     // P0's next turn: the per-turn flush must NOT revive a per-GAME limit.
     let _ = advance_to_next_own_main(&mut state);
     float_mana(&mut state, PlayerId(0), 1);
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert_eq!(
         state.player(PlayerId(0)).mana_pool.amount(red()),
         1,
@@ -737,7 +737,7 @@ fn pinger_fizzles_when_target_dies() {
     force_into_play(&mut state, PlayerId(1), "Mountain");
 
     // P0 activates the pinger at P1's bear.
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     let activate = activate_action(&legal, pinger).expect("the pinger is offered");
     state.submit_decision(Decision::Act(activate)).unwrap();
     let (_, stop) = step_to_stop(&mut state);
@@ -747,13 +747,13 @@ fn pinger_fizzles_when_target_dies() {
     state
         .submit_decision(Decision::Targets(vec![bear]))
         .unwrap();
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert_eq!(state.stack.len(), 1, "the ability is on the stack");
 
     // P0 passes; P1 responds: float {R} and kill their own bear with the
     // instant (3 damage on the 2/2 is lethal).
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
-    let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
     float_mana(&mut state, PlayerId(1), 1);
     let instant = find_in_hand(&state, PlayerId(1), INSTANT);
     state
@@ -768,14 +768,14 @@ fn pinger_fizzles_when_target_dies() {
         .submit_decision(Decision::Targets(vec![bear]))
         .unwrap();
     // run_to_priority auto-pays the all-colored {R}.
-    let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
     assert_eq!(state.stack.len(), 2, "the instant sits atop the ability");
 
     // Resolve LIFO, collecting every damage event: the instant kills the
     // bear, then the pinger's ability finds its only target gone and fizzles
     // ([CR#608.2b]).
     state.submit_decision(Decision::Act(Action::Pass)).unwrap(); // P1
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap(); // P0 → resolve
     let mut damage = Vec::new();
     loop {
@@ -889,7 +889,7 @@ fn cost_game(seed: u64, card: &Arc<Card>) -> GameState {
 /// Every `artifact_with_cost` test below relies on this `{0}`-surfaces-PayMana
 /// contract, so this asserts it once for all of them.
 fn activate_and_pay_zero(state: &mut GameState, object: ObjectId) {
-    let legal = run_to_priority(state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
     let activate =
         activate_action(&legal, object).expect("the in-Rust ability is offered at priority");
     state.submit_decision(Decision::Act(activate)).unwrap();
@@ -929,7 +929,7 @@ fn activated_ability_pays_self_sacrifice_cost() {
 
     // Drive to the next priority: the sacrifice cost must have fired during
     // payment, so the source is gone from the battlefield.
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert!(
         !state.zones.battlefield.contains(&obj),
         "the self-sacrifice cost removed the source from the battlefield"
@@ -1085,7 +1085,7 @@ fn activated_ability_pays_choose_sacrifice_cost() {
 
     // Drive to the next priority window: the sacrifice cost must fire during
     // payment so bear_a is already gone before the ability is on the stack.
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
     // bear_a was sacrificed: its original id is no longer on the battlefield.
     assert!(
@@ -1118,7 +1118,7 @@ fn activated_ability_pays_choose_sacrifice_cost() {
         "the activated ability is on the stack"
     );
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
-    let _ = run_to_priority(&mut state, PlayerId(1), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let _ = step_to_stop(&mut state);
     assert!(state.stack.is_empty(), "the ability resolved cleanly");
@@ -1127,7 +1127,7 @@ fn activated_ability_pays_choose_sacrifice_cost() {
 #[test]
 fn mana_ability_stays_stackless() {
     let mut state = activation_game(4, MANA_DRAWER, 1);
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert!(state.player(PlayerId(0)).mana_pool.is_empty());
 
     // The only battlefield activatable is the Mountain's mana ability.
@@ -1197,7 +1197,7 @@ fn schedule_activation(
     // Advance the game naturally to P0's precombat-main priority (the same
     // window the legality gate would offer the activation in), so the trailing
     // `OpenPriority` re-surfaces priority in the expected phase.
-    let _ = run_to_priority(state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
     // Float the cost's mana now — after the walk, in the window that pays it.
     for &(color, amount) in float {
         state.player_mut(PlayerId(0)).mana_pool.add(color, amount);
@@ -1283,7 +1283,7 @@ fn activated_ability_hybrid_picks_a_color() {
     let pay = state.auto_pay_pending();
     state.submit_decision(Decision::Pay(pay)).unwrap();
 
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     // The blue unit was spent on {U}; the white unit is untouched.
     assert_eq!(
         state.player(PlayerId(0)).mana_pool.amount(blue()),
@@ -1407,7 +1407,7 @@ fn activated_ability_monohybrid_picks_generic() {
     let pay = state.auto_pay_pending();
     state.submit_decision(Decision::Pay(pay)).unwrap();
 
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert_eq!(
         state.player(PlayerId(0)).mana_pool.amount(red()),
         0,
@@ -1464,7 +1464,7 @@ fn green() -> ColorOrColorless {
 /// The pool empties each step end ([CR#500.5]), so the float happens in the
 /// same window the gate is evaluated.
 fn legal_with_float(state: &mut GameState, pool: &[(ColorOrColorless, Uint)]) -> Vec<Action> {
-    let _ = run_to_priority(state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
     for &(color, amount) in pool {
         state.player_mut(PlayerId(0)).mana_pool.add(color, amount);
     }
@@ -1476,7 +1476,7 @@ fn legal_with_float(state: &mut GameState, pool: &[(ColorOrColorless, Uint)]) ->
     );
     state.pending = None;
     state.agenda.push_front(WorkItem::OpenPriority);
-    run_to_priority(state, PlayerId(0), Phase::PrecombatMain)
+    run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain)
 }
 
 /// [CR#107.4e,601.2g]: a hybrid `{W/U}` ability is OFFERED when only the blue
@@ -1531,11 +1531,11 @@ fn phyrexian_ability_offered_via_life() {
     // white -> neither payable -> not offered.
     let mut state = cost_game(7, &card);
     let obj = force_into_play(&mut state, PlayerId(0), NAME);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     state.player_mut(PlayerId(0)).life = 1;
     state.pending = None;
     state.agenda.push_front(WorkItem::OpenPriority);
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert!(
         activate_action(&legal, obj).is_none(),
         "{{W/P}} is NOT activatable at 1 life with no white, legal: {legal:?}"
@@ -1560,11 +1560,11 @@ fn two_phyrexian_share_life_correctly() {
     // via {W} (no white) -> not offered.
     let mut state = cost_game(7, &card);
     let obj = force_into_play(&mut state, PlayerId(0), NAME);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     state.player_mut(PlayerId(0)).life = 2;
     state.pending = None;
     state.agenda.push_front(WorkItem::OpenPriority);
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert!(
         activate_action(&legal, obj).is_none(),
         "{{W/P}}{{W/P}} at 2 life + no white is NOT activatable (only one life payment fits), \
@@ -1575,12 +1575,12 @@ fn two_phyrexian_share_life_correctly() {
     // -> offered.
     let mut state = cost_game(7, &card);
     let obj = force_into_play(&mut state, PlayerId(0), NAME);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     state.player_mut(PlayerId(0)).life = 2;
     state.player_mut(PlayerId(0)).mana_pool.add(white(), 1);
     state.pending = None;
     state.agenda.push_front(WorkItem::OpenPriority);
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert!(
         activate_action(&legal, obj).is_some(),
         "{{W/P}}{{W/P}} at 2 life + one white IS activatable (one life, one white), legal: {legal:?}"
@@ -1718,7 +1718,7 @@ fn x_plus_hybrid_announces_x_concretizes_hybrid_pays_composed_cost() {
     let pay = state.auto_pay_pending();
     state.submit_decision(Decision::Pay(pay)).unwrap();
 
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     // The blue unit paid {U}; the two greens paid the {2}. Nothing is left over.
     assert_eq!(
         state.player(PlayerId(0)).mana_pool.amount(blue()),
@@ -1809,11 +1809,11 @@ fn cast_gate_phyrexian_offered_via_life() {
 
     let mut state = cost_game(7, &card);
     let spell = find_in_hand(&state, PlayerId(0), NAME);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     state.player_mut(PlayerId(0)).life = 1;
     state.pending = None;
     state.agenda.push_front(WorkItem::OpenPriority);
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert!(
         cast_action(&legal, spell).is_none(),
         "{{W/P}} instant is NOT castable at 1 life with no white, legal: {legal:?}"

@@ -1,0 +1,11 @@
+// A CantHappen over a bare Not — no master-form anchor, the
+// freeze-everything shape the kind-anchored lanes refuse [CR#603.2].
+Normal(
+  name: "Reject Unanchored Cant",
+  types: [Enchantment],
+  abilities: [
+    Static(effects: [
+      CantHappen(Not(ZoneChange(what: Ref(This), from: Battlefield, to: Graveyard))),
+    ]),
+  ],
+)

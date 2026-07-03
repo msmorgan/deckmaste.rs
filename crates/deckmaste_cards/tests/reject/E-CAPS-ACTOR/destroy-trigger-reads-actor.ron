@@ -5,7 +5,7 @@ Normal(
   types: [Enchantment],
   abilities: [
     Triggered(
-      event: Performed(verb: "Destroy"),
+      event: Destroyed(Any),
       effect: By(EventActor, LoseLife(1)),
     ),
   ],

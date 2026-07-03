@@ -5,7 +5,7 @@
 // no `params` — the invocation is the bare name (`Undying`), like Wither/Infect.
 //
 // Pieces (all representable over existing primitives):
-//   - trigger:        `ThisDies` — the `ZoneMove(what: Ref(This), from:
+//   - trigger:        `ThisDies` — the `ZoneChange(what: Ref(This), from:
 //                     Battlefield, to: Graveyard)` macro ([CR#700.4]). The same
 //                     dies-event the morbid window watches.
 //   - intervening-if [CR#603.4]: "if it had no +1/+1 counters on it" =

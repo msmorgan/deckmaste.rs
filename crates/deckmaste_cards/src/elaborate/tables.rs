@@ -64,39 +64,57 @@ pub const NO_CAPS: Caps = Caps {
 
 impl Caps {
     /// The intersection — a multi-pattern event guarantees only what EVERY
-    /// disjunct supplies (the Idris `andCaps`; the patient kind survives only
-    /// when both sides fix the same one).
+    /// disjunct supplies (the Idris `andCaps`). A patient guaranteed by both
+    /// sides survives at the WIDENED sort ([CR#115.4] — object|player is
+    /// still a patient, kind-poly): never `sameKind`-dropped.
     #[must_use]
     pub fn meet(self, other: Caps) -> Caps {
         Caps {
             object: self.object && other.object,
             actor: self.actor && other.actor,
             amount: self.amount && other.amount,
-            patient: same_kind(self.patient, other.patient),
+            patient: widen_kind(self.patient, other.patient),
             defender: self.defender && other.defender,
         }
     }
 
-    /// The union — a composite cost's payment binds what ANY component binds
-    /// (the Idris `orCaps`); the patient kind still needs agreement.
+    /// The union — a conjunction/composite binds what ANY side binds (the
+    /// Idris `orCaps`), with patient-sort REFINEMENT: a side that fixes a
+    /// definite patient sort refines a polymorphic (`Any`) or absent one;
+    /// two incomparable definite sorts refine to nothing (conservative).
     #[must_use]
     pub fn join(self, other: Caps) -> Caps {
         Caps {
             object: self.object || other.object,
             actor: self.actor || other.actor,
             amount: self.amount || other.amount,
-            patient: same_kind(self.patient, other.patient),
+            patient: refine_kind(self.patient, other.patient),
             defender: self.defender || other.defender,
         }
     }
 }
 
-/// The Idris `sameKind`: a patient kind survives combination only when both
-/// sides fix the same kind.
-fn same_kind(a: Option<Kind>, b: Option<Kind>) -> Option<Kind> {
+/// The disjunctive patient combination: both sides must supply one, and the
+/// sort is their kind-lattice join (equal sorts keep it, object|player
+/// widens to `Any` — mirroring the emitted `kind-lattice.ron` square, in
+/// which patient sorts never involve `Empty`).
+fn widen_kind(a: Option<Kind>, b: Option<Kind>) -> Option<Kind> {
     match (a, b) {
         (Some(x), Some(y)) if x == y => Some(x),
+        (Some(_), Some(_)) => Some(Kind::Any),
         _ => None,
+    }
+}
+
+/// The conjunctive patient combination: either side alone supplies it, a
+/// definite sort refines `Any`, and two incomparable definite sorts cancel
+/// (the conjunction is vacuous there — the kind pass flags it separately).
+fn refine_kind(a: Option<Kind>, b: Option<Kind>) -> Option<Kind> {
+    match (a, b) {
+        (Some(x), Some(y)) if x == y => Some(x),
+        (Some(Kind::Any), Some(definite)) | (Some(definite), Some(Kind::Any)) => Some(definite),
+        (Some(_), Some(_)) => None,
+        (one, None) | (None, one) => one,
     }
 }
 
@@ -234,6 +252,73 @@ struct BindRulesFile {
     rows: Vec<BindRule>,
 }
 
+/// One cause-verb ENTAILMENT row ([CR#701] keyword actions): the fact form a
+/// [`deckmaste_core::CauseVerb`] normalizes to — its master-form kind and
+/// the zone coordinates it fixes — plus the caps guarantees a cause-narrowed
+/// pattern inherits from the verb (`Sacrifice` supplies the sacrificing
+/// player as actor, [CR#701.21a]). Consumed two ways: caps augmentation
+/// under `ZoneChange { cause }`, and the kind pass's entailment-consistency
+/// check (a pattern whose fixed coordinates contradict its verb's entailed
+/// ones can never match).
+#[derive(Debug, Deserialize)]
+pub struct EntailmentRow {
+    pub verb: String,
+    /// The entailed master-form KIND (an `event-caps.ron` key).
+    pub kind: String,
+    pub from: Option<deckmaste_core::Zone>,
+    pub to: Option<deckmaste_core::Zone>,
+    pub object: bool,
+    pub actor: bool,
+    pub amount: bool,
+    /// Rides the row for `cite audit`, not the checker.
+    pub cite: String,
+}
+
+impl EntailmentRow {
+    /// The caps guarantees the verb adds to a cause-narrowed pattern.
+    #[must_use]
+    pub fn caps(&self) -> Caps {
+        Caps {
+            object: self.object,
+            actor: self.actor,
+            amount: self.amount,
+            patient: None,
+            defender: false,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct EntailmentFile {
+    rows: Vec<EntailmentRow>,
+}
+
+/// One event-LANE row (the plan's §3.2 lane table): which algebra
+/// refinements each consumer position admits. `within` — history windows
+/// are vacuous against a live fact ([CR#603.2]); `one_or_more` — batch
+/// matching only makes sense where one occurrence fires once ([CR#603.2c]);
+/// `nth` — ordinal refinement; `anchored` — every disjunct must bottom out
+/// in a master form (kind-anchored; no freeze-everything `CantHappen`).
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the fields mirror the emitted RON row shape one-to-one"
+)]
+#[derive(Debug, Deserialize)]
+pub struct LaneRow {
+    pub lane: String,
+    pub within: bool,
+    pub nth: bool,
+    pub one_or_more: bool,
+    pub anchored: bool,
+    /// Rides the row for `cite audit`, not the checker.
+    pub cite: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct LanesFile {
+    rows: Vec<LaneRow>,
+}
+
 /// One checker-rule manifest row: an error code the elaborator may emit,
 /// with its CR citation. The drift pin: a test asserts the elaborator's code
 /// list equals this manifest (no checker rule without a table row).
@@ -261,6 +346,8 @@ pub struct Tables {
     agent_scopes: HashMap<String, Kind>,
     joins: HashMap<(Kind, Kind), Kind>,
     bind_rules: HashMap<String, BindRule>,
+    entailments: HashMap<String, EntailmentRow>,
+    lanes: HashMap<String, LaneRow>,
     pub rules: Vec<RuleRow>,
 }
 
@@ -328,6 +415,27 @@ impl Tables {
             .get(construct)
             .unwrap_or_else(|| panic!("no bind rule emitted for construct {construct:?}"))
     }
+
+    /// A cause verb's entailment row ([CR#701] keyword actions) — `None`
+    /// only for a verb outside the emitted closed set (impossible while the
+    /// emitter covers every `CauseVerb`; the caller treats a miss as
+    /// no-augmentation, the safe direction).
+    #[must_use]
+    pub fn entailment(&self, verb: &str) -> Option<&EntailmentRow> {
+        self.entailments.get(verb)
+    }
+
+    /// An event consumer position's lane row (the §3.2 lane table).
+    ///
+    /// # Panics
+    /// On a missing row: the walker's lane keys and the emitted rows are
+    /// fixed together (both compiled in), so a miss is a bug, not data.
+    #[must_use]
+    pub fn lane(&self, key: &str) -> &LaneRow {
+        self.lanes
+            .get(key)
+            .unwrap_or_else(|| panic!("no lane row emitted for {key:?}"))
+    }
 }
 
 fn parse<T: serde::de::DeserializeOwned>(what: &str, source: &str) -> T {
@@ -349,6 +457,9 @@ pub fn tables() -> &'static Tables {
             include_str!("../../tables/kind-lattice.ron"),
         );
         let binds: BindRulesFile = parse("bind-rules", include_str!("../../tables/bind-rules.ron"));
+        let entailments: EntailmentFile =
+            parse("entailments", include_str!("../../tables/entailments.ron"));
+        let lanes: LanesFile = parse("event-lanes", include_str!("../../tables/event-lanes.ron"));
         let rules: RulesFile = parse(
             "checker-rules",
             include_str!("../../tables/checker-rules.ron"),
@@ -412,6 +523,16 @@ pub fn tables() -> &'static Tables {
                 .into_iter()
                 .map(|r| (r.construct.clone(), r))
                 .collect(),
+            entailments: entailments
+                .rows
+                .into_iter()
+                .map(|r| (r.verb.clone(), r))
+                .collect(),
+            lanes: lanes
+                .rows
+                .into_iter()
+                .map(|r| (r.lane.clone(), r))
+                .collect(),
             rules: rules.rows,
         }
     });
@@ -428,20 +549,41 @@ mod tests {
         let t = tables();
         // The caps rows the corpus leans on.
         assert!(
-            t.event_caps("ZoneMove").object,
-            "a zone move binds its object"
+            t.event_caps("ZoneChange").object,
+            "a zone change binds its object"
         );
         assert!(
-            !t.event_caps("ZoneMove").actor,
-            "a bare zone move has no responsible player"
+            !t.event_caps("ZoneChange").actor,
+            "a bare zone change has no responsible player"
         );
-        let damage = t.event_caps("Performed:DealDamage");
+        let damage = t.event_caps("Damage");
         assert!(damage.object && damage.actor && damage.amount);
+        assert_eq!(
+            damage.patient,
+            Some(Kind::Any),
+            "a damage recipient is a kind-poly patient ([CR#120.3])"
+        );
         assert_eq!(
             t.event_caps("Bogus"),
             NO_CAPS,
             "unknown keys supply nothing"
         );
+        // Entailments: the cause-verb fact forms ([CR#701.21a,701.17a]).
+        let sac = t.entailment("Sacrifice").expect("Sacrifice row");
+        assert_eq!(sac.kind, "ZoneChange");
+        assert_eq!(sac.from, Some(deckmaste_core::Zone::Battlefield));
+        assert_eq!(sac.to, Some(deckmaste_core::Zone::Graveyard));
+        assert!(sac.actor, "the sacrificing player is the actor");
+        let mill = t.entailment("Mill").expect("Mill row");
+        assert_eq!(mill.from, Some(deckmaste_core::Zone::Library));
+        assert!(t.entailment("Bogus").is_none());
+        // Lanes: live lanes refuse Within; history refuses OneOrMore.
+        let trig = t.lane("Triggered.event");
+        assert!(!trig.within && trig.one_or_more && trig.nth && trig.anchored);
+        let hist = t.lane("Happened");
+        assert!(hist.within && !hist.one_or_more && hist.nth && !hist.anchored);
+        let mult = t.lane("TriggerMultiplier.cause");
+        assert!(!mult.nth, "Nth is refused on the multiplier lane");
         // Cost rows: an explicit row per eligible verb, no catch-all.
         assert!(t.cost_action("Sacrifice").is_some());
         assert!(t.cost_action("Draw").is_none(), "Draw is not a cost");

@@ -3,12 +3,12 @@ use serde::Serialize;
 
 use crate::Condition;
 use crate::Count;
-use crate::Event;
+use crate::EventFilter;
 use crate::Expand;
 use crate::Expansion;
 use crate::KeywordAbility;
 use crate::SupportsMacros;
-use crate::Window;
+use crate::Timing;
 use crate::continuous::StaticEffect;
 use crate::cost::Cost;
 use crate::cost::CostComponent;
@@ -41,7 +41,7 @@ pub struct ActivatedAbility {
     /// `window: SorcerySpeed`. Distinct from `condition`, which gates on
     /// game STATE.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub window: Option<Window>,
+    pub window: Option<Timing>,
     /// "Activate only if [state]" ([CR#602.5b..602.5e]) — a predicate over
     /// the game state at activation time.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -70,7 +70,7 @@ pub enum UseLimit {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct TriggeredAbility {
     /// The event that triggers it ([CR#603.2]).
-    pub event: Event,
+    pub event: EventFilter,
     /// The zone the ability functions from ([CR#113.6,113.6b]). `None` = the
     /// battlefield default (omitted on write); a `Some` names another zone the
     /// source must be in for the ability to trigger — a graveyard/hand trigger
@@ -302,7 +302,7 @@ mod tests {
     #[test]
     fn triggered_ability_parses() {
         let ability = read_ability(
-            "Triggered(event: ZoneMove(what: Ref(This), to: Graveyard), effect: Draw(Literal(1)))",
+            "Triggered(event: ZoneChange(what: Ref(This), to: Graveyard), effect: Draw(Literal(1)))",
         );
         let Ability::Triggered(triggered) = ability else {
             panic!("expected a triggered ability");
@@ -326,16 +326,16 @@ mod tests {
     #[test]
     fn triggered_from_zone_defaults_battlefield_and_reads_graveyard() {
         let omitted: TriggeredAbility = crate::ron::options()
-            .from_str("(event: ZoneMove(what: Ref(This), to: Graveyard), effect: Draw(Literal(1)))")
+            .from_str(
+                "(event: ZoneChange(what: Ref(This), to: Graveyard), effect: Draw(Literal(1)))",
+            )
             .unwrap();
         assert_eq!(omitted.from, None);
         let written = crate::ron::options().to_string(&omitted).unwrap();
         assert!(!written.contains("from"), "absent from omitted: {written}");
 
         let from_gy: TriggeredAbility = crate::ron::options()
-            .from_str(
-                r#"(event: Performed(verb: "Cast"), from: Graveyard, effect: Draw(Literal(1)))"#,
-            )
+            .from_str("(event: Cast(who: Ref(You)), from: Graveyard, effect: Draw(Literal(1)))")
             .unwrap();
         assert_eq!(from_gy.from, Some(crate::Zone::Graveyard));
         let reser = crate::ron::options().to_string(&from_gy).unwrap();

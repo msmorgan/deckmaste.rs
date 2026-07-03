@@ -5,7 +5,7 @@ use crate::Condition;
 use crate::Effect;
 use crate::Expand;
 use crate::Modification;
-use crate::Phase;
+use crate::PhaseStep;
 use crate::ability::Ability;
 use crate::continuous::Scope;
 
@@ -41,5 +41,5 @@ pub enum Property {
     },
     /// Performed as a turn-based action — no stack ([CR#714.3c]). Parses
     /// today; the engine executes it in stage 3.
-    TurnBased { at: Phase, effect: Box<Effect> },
+    TurnBased { at: PhaseStep, effect: Box<Effect> },
 }

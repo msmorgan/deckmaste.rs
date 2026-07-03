@@ -19,7 +19,7 @@ use deckmaste_core::CardFace;
 use deckmaste_core::CausePattern;
 use deckmaste_core::Duration;
 use deckmaste_core::Effect;
-use deckmaste_core::Event;
+use deckmaste_core::EventFilter;
 use deckmaste_core::Filter;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::Reference;
@@ -54,14 +54,13 @@ fn builtin_sba_rules() -> Vec<deckmaste_core::SbaRule> {
 
 /// The abstract `Event` for "this permanent would be destroyed"
 /// (BF→GY with verb "Destroy").
-fn destroyed_self() -> Event {
-    Event::ZoneMove {
+fn destroyed_self() -> EventFilter {
+    EventFilter::ZoneChange {
         what: Filter::Ref(Reference::This),
         from: Some(Zone::Battlefield),
         to: Some(Zone::Graveyard),
-        face: None,
         cause: Some(deckmaste_core::Cause::Cause(CausePattern {
-            verb: Some("Destroy".into()),
+            verb: Some(deckmaste_core::CauseVerb::Destroy),
             agency: None,
             agent: None,
         })),
@@ -217,7 +216,8 @@ fn find_in_graveyard(state: &GameState, player: PlayerId, card_id: CardId) -> Op
 /// The registry intercepts the `WillDestroy` SBA and redirects to exile.
 #[test]
 fn instead_redirects_destruction_to_exile() {
-    // The `instead` body: Move(This, Zone(Exile)) is a `PlayerAction`; By(You, ...) is the implicit agent sugar.
+    // The `instead` body: Move(This, Zone(Exile)) is a `PlayerAction`; By(You, ...)
+    // is the implicit agent sugar.
     let instead_body = Effect::Act(Action::By(
         Reference::You,
         PlayerAction::Move(
@@ -265,11 +265,10 @@ fn indestructible_still_survives_via_cant_pass() {
         vec![Ability::Static(StaticAbility {
             from: None,
             characteristic_defining: false,
-            effects: vec![StaticEffect::CantHappen(Event::ZoneMove {
+            effects: vec![StaticEffect::CantHappen(EventFilter::ZoneChange {
                 what: Filter::Ref(Reference::This),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
-                face: None,
                 cause: None,
             })],
             condition: None,
@@ -457,13 +456,12 @@ fn regenerate_effect(subject_ref: Reference) -> Effect {
     // The shield resolves `subject` to a concrete object and remembers it as
     // `That`; the watch and body refer to that captured permanent as
     // `ThatObject` (NOT `This` — `This` stays the source ability).
-    let would = Event::ZoneMove {
+    let would = EventFilter::ZoneChange {
         what: Filter::Ref(Reference::EventObject),
         from: Some(Zone::Battlefield),
         to: Some(Zone::Graveyard),
-        face: None,
         cause: Some(deckmaste_core::Cause::Cause(CausePattern {
-            verb: Some("Destroy".into()),
+            verb: Some(deckmaste_core::CauseVerb::Destroy),
             agency: None,
             agent: None,
         })),
@@ -722,13 +720,12 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
     ]);
 
     let umbra_armor = Replacement::Instead {
-        would: Event::ZoneMove {
+        would: EventFilter::ZoneChange {
             what: enchanted_perm,
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
-            face: None,
             cause: Some(deckmaste_core::Cause::Cause(CausePattern {
-                verb: Some("Destroy".into()),
+                verb: Some(deckmaste_core::CauseVerb::Destroy),
                 agency: None,
                 agent: None,
             })),
@@ -895,15 +892,15 @@ fn creature_with_non_destroy_replacement(replacement: Replacement) -> (GameState
 }
 
 /// [CR#614,616.1]: a non-destroy replacement (`GainLife` → `LoseLife`) proves the
-/// registry handles `Performed`-verb intents, not just `WillDestroy`.
+/// registry handles player-experienced intents, not just `WillDestroy`.
 ///
-/// A creature carrying `Instead(would: Performed("GainLife", on: Any), instead:
+/// A creature carrying `Instead(would: LifeGained(who: Any), instead:
 /// LoseLife(Literal(1)))` watches a `LifeGained` intent for player 0. When the
 /// `LifeGained` intent fires, the Instead fires: the player loses 1 life
 /// instead of gaining 3. This exercises the `Affected::Player` arm of
 /// `event_pattern_matches` and proves the registry is not destroy-only.
 ///
-/// `on: Filter::Any` matches any object, which in the `Affected::Player` case
+/// `who: Filter::Any` matches any object, which in the `Affected::Player` case
 /// resolves against the player's proxy object (`matches_with` with `Any`
 /// always returns true).
 #[test]
@@ -912,10 +909,9 @@ fn lifegain_replaced_by_draw() {
     // Draw because player 0's library may be empty after the opening-hand draw,
     // and an empty-library draw would silently set `drew_from_empty` rather than
     // adding a card. LoseLife(1) is directly observable as a life-total change.
-    let would = Event::Performed {
-        verb: "GainLife".into(),
-        by: Filter::Any,
-        on: Filter::Any,
+    let would = EventFilter::LifeGained {
+        who: Filter::Any,
+        amount: None,
     };
     let instead_body = Effect::Act(deckmaste_core::Action::By(
         Reference::You,
@@ -968,7 +964,7 @@ fn lifegain_replaced_by_draw() {
 /// `gather_applicable` finds nothing and the loop terminates.
 ///
 /// This proves:
-/// 1. The registry handles `DamageDealt` (`Performed`-verb) intents.
+/// 1. The registry handles `DamageDealt` (`Damage`-form) intents.
 /// 2. A one-shot shield is consumed after application ([CR#614.3]).
 /// 3. The fresh re-emitted event does NOT re-fire the same replacement (shield
 ///    gone), so the pipeline terminates.
@@ -1000,11 +996,12 @@ fn double_damage_lineage_terminates() {
     let card_id = state.objects.obj(id).card_id().expect("backed by a card");
 
     // The `would`: "this creature would be dealt damage"
-    //   Performed(verb: "DealDamage", on: Ref(This))
-    let would = Event::Performed {
-        verb: "DealDamage".into(),
-        by: Filter::Any,
-        on: Filter::Ref(Reference::This),
+    //   Damage(to: Ref(This))
+    let would = EventFilter::Damage {
+        source: Filter::Any,
+        to: Filter::Ref(Reference::This),
+        combat: None,
+        amount: None,
     };
 
     // The `instead` body: deal 10 damage to this creature (a fixed amount
@@ -1073,9 +1070,10 @@ fn double_damage_lineage_terminates() {
 // Wither ([CR#702.80a]): damage dealt to a creature by a source with wither
 // puts that many -1/-1 counters instead of being marked. Infect
 // ([CR#702.90b,702.90c]): to a creature → -1/-1 counters; to a player → poison.
-// Both are SOURCE abilities — the replacement's `would` keys on `by: Ref(This)`
-// ("damage dealt BY this creature"), which exercises the `by`-matcher, and the
-// body puts `Count::ThatMuch` counters on `Ref(ThatObject)` (the recipient).
+// Both are SOURCE abilities — the replacement's `would` keys on `source:
+// Ref(This)` ("damage dealt BY this creature"), which exercises the
+// `by`-matcher, and the body puts `Count::ThatMuch` counters on
+// `Ref(ThatObject)` (the recipient).
 
 /// A Static "damage by This to `on` → put `kind` counters on the recipient
 /// instead" replacement — the shape both Wither and Infect expand to. The
@@ -1083,10 +1081,11 @@ fn double_damage_lineage_terminates() {
 /// for a player — the proxy is zoneless and binds as the player).
 fn damage_as_counters_static(on: Filter, recipient: Reference, kind: &str) -> Ability {
     use deckmaste_core::Count;
-    let would = Event::Performed {
-        verb: "DealDamage".into(),
-        by: Filter::Ref(Reference::This),
-        on,
+    let would = EventFilter::Damage {
+        source: Filter::Ref(Reference::This),
+        to: on,
+        combat: None,
+        amount: None,
     };
     let instead = Effect::Act(Action::By(
         Reference::You,
@@ -1280,8 +1279,8 @@ fn ten_poison_counters_lose_the_game() {
     );
 }
 
-/// The `by`-matcher: a source-keyed replacement (`by: Ref(This)`) fires ONLY
-/// for damage from its own object. Damage from a DIFFERENT source must not
+/// The source-matcher: a source-keyed replacement (`source: Ref(This)`) fires
+/// ONLY for damage from its own object. Damage from a DIFFERENT source must not
 /// trigger it — the Wither source's counters appear only when IT deals the
 /// damage, never when a third creature does.
 #[test]
@@ -1296,12 +1295,12 @@ fn by_matcher_fires_only_for_damage_from_its_own_source() {
 
     // `target` is a plain creature (no wither). Damage FROM it (a different
     // source than wither_src) must NOT trigger the wither replacement, whose
-    // `would` is keyed `by: Ref(This)` = wither_src.
+    // `would` is keyed `source: Ref(This)` = wither_src.
     deal_damage(&mut state, target, target, 4);
     assert_eq!(
         state.objects.obj(target).counters.get(&m1m1).copied(),
         None,
-        "the wither replacement (by: Ref(This)=wither_src) must NOT fire for \
+        "the wither replacement (source: Ref(This)=wither_src) must NOT fire for \
          damage from a different source [CR#702.80a]"
     );
     assert_eq!(

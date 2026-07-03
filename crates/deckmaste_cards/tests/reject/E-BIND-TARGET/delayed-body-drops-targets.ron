@@ -7,7 +7,7 @@ Normal(
     Spell(effect: Targeted(
       targets: [AnyTarget],
       effect: Delayed(
-        event: BeginningOf(Ending(End), Your),
+        event: StepBegins(at: Ending(End), whose: Your),
         effect: DealDamage(Target(0), 1),
       ),
     )),

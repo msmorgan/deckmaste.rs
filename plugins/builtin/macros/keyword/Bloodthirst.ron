@@ -19,12 +19,12 @@
 // Here the `also` effect is CONDITIONAL — the counters land only "if an
 // opponent was dealt damage this turn" — so it is wrapped in
 // `If(condition, then)`:
-//   - condition = `Happened(event: Performed(verb: "DealDamage", on:
-//     OpponentOf(Ref(You))), within: ThisTurn)` ([CR#608.2i] history read):
-//     some damage was dealt this turn whose RECIPIENT (`on`) is an opponent of
+//   - condition = `Happened(event: Damage(to: OpponentOf(Ref(You))),
+//     within: ThisTurn)` ([CR#608.2i] history read):
+//     some damage was dealt this turn whose RECIPIENT (`to`) is an opponent of
 //     this permanent's controller. The engine's `Happened` scans the turn's
-//     history reusing the trigger event-matcher; `DealDamage` matches the
-//     `DamageDealt` fact with `on` = the live recipient, so a player recipient
+//     history reusing the trigger event-matcher; `Damage` matches the
+//     `DamageDealt` fact with `to` = the live recipient, so a player recipient
 //     who is an opponent matches `OpponentOf(Ref(You))`. `Window::ThisTurn` is
 //     a real history-lookback window — unlike Echo's "since your last upkeep",
 //     this needs no new window, so Bloodthirst is FULLY engine-executable.
@@ -49,7 +49,7 @@
                 would: ThisEnters,
                 also: If(
                     condition: Happened(
-                        event: Performed(verb: "DealDamage", on: OpponentOf(Ref(You))),
+                        event: Damage(to: OpponentOf(Ref(You))),
                         within: ThisTurn,
                     ),
                     then: PutCounters(This, P1P1Counter, Param(0)),

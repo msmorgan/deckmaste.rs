@@ -86,8 +86,9 @@ pub use deontic::DeonticAction;
 
 mod temporal;
 pub use temporal::LockPoint;
+pub use temporal::Lookback;
+pub use temporal::Timing;
 pub use temporal::TurnMarker;
-pub use temporal::Window;
 
 mod effect;
 pub use effect::AdditionalCost;
@@ -110,11 +111,12 @@ pub use event::Agency;
 pub use event::BeginningStep;
 pub use event::Cause;
 pub use event::CausePattern;
+pub use event::CauseVerb;
 pub use event::CombatStep;
 pub use event::EndingStep;
-pub use event::Event;
-pub use event::Phase;
-pub use event::StateFilterEvent;
+pub use event::EventFilter;
+pub use event::PhaseStep;
+pub use event::StateChange;
 pub use event::WhoseTurn;
 
 mod filter;

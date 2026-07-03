@@ -13,7 +13,7 @@
 // is free to keep meaning the source ability (it never moves), and the shield
 // works for "regenerate target creature" (source ≠ subject), not just self.
 //
-// The `would` inlines its `ZoneMove` rather than calling the `Destroyed`
+// The `would` inlines its `ZoneChange` rather than calling the `Destroyed`
 // macro: a `Param`/binding can't cross into a nested macro invocation's frame.
 // It is the cause-narrowed destruction view — the shape `Destroyed` expands to
 // ([CR#701.8b]: destroy verb or lethal-damage SBA).
@@ -24,11 +24,11 @@
     params: [Reference],
     body: CreateReplacement(
         replacement: Instead(
-            would: ZoneMove(
+            would: ZoneChange(
                 what: Ref(EventObject),
                 from: Battlefield,
                 to: Graveyard,
-                cause: Cause(verb: "Destroy"),
+                cause: Cause(verb: Destroy),
             ),
             instead: Sequence([
                 RemoveDamage(EventObject),

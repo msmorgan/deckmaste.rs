@@ -1,0 +1,10 @@
+// "NextEndStep" = the beginning of the next end step, whichever player's
+// turn it is — the delayed-trigger end-step family ([CR#603.7c], whose
+// example is the canonical "Exile this creature at the beginning of the
+// next end step" wording).
+(
+    name: "NextEndStep",
+    template: "the beginning of the next end step",
+    kinds: [EventFilter],
+    body: StepBegins(at: Ending(End), whose: EachPlayers),
+)

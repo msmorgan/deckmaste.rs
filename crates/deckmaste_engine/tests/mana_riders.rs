@@ -13,7 +13,7 @@ use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::Filter;
 use deckmaste_core::ManaRider;
-use deckmaste_core::Phase;
+use deckmaste_core::PhaseStep;
 use deckmaste_core::Supertype;
 use deckmaste_core::TurnMarker;
 use deckmaste_core::Type;
@@ -139,7 +139,7 @@ fn step_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
 /// Steps until a `Priority` decision surfaces for `player` in `phase`, passing
 /// any other priority and auto-paying any `PayMana` along the way. Returns the
 /// legal action list at that window.
-fn run_to_priority(state: &mut GameState, player: PlayerId, phase: Phase) -> Vec<Action> {
+fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) -> Vec<Action> {
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
@@ -181,7 +181,7 @@ fn resurface_priority(state: &mut GameState) {
 #[test]
 fn spend_only_creature_funds_a_creature_spell() {
     let mut state = bears_game(1, 0);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
     // Float a restricted green (creature-only) + a plain red for {1}.
     state.player_mut(PlayerId(0)).mana_pool.add_riders(
@@ -192,7 +192,7 @@ fn spend_only_creature_funds_a_creature_spell() {
     state.player_mut(PlayerId(0)).mana_pool.add(red(), 1);
     // Re-derive the frozen priority list with the freshly floated pool.
     resurface_priority(&mut state);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
     let bears = find_in_hand(&state, PlayerId(0), "Grizzly Bears");
     state
@@ -201,7 +201,7 @@ fn spend_only_creature_funds_a_creature_spell() {
 
     // The cast pays (PayMana surfaces and auto-pays) and the spell reaches the
     // stack: the SpendOnly(creature) green is spendable on the creature.
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert_eq!(state.stack.len(), 1, "the Bears spell sits on the stack");
     assert_eq!(state.stack[0].object, StackObject::Spell(bears));
     assert!(!state.zones.battlefield.contains(&bears));
@@ -212,7 +212,7 @@ fn spend_only_creature_funds_a_creature_spell() {
 fn run_to_priority_through_combat(
     state: &mut GameState,
     player: PlayerId,
-    phase: Phase,
+    phase: PhaseStep,
 ) -> Vec<Action> {
     loop {
         let (_, stop) = step_to_stop(state);
@@ -250,7 +250,7 @@ fn run_to_priority_through_combat(
 fn persistent_end_of_turn_mana_survives_step_boundaries() {
     let mut state = bears_game(1, 0);
     // Reach precombat-main priority for player 0.
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
     // Float one plain red and one persistent green (EndOfTurn).
     state.player_mut(PlayerId(0)).mana_pool.add(red(), 1);
@@ -268,7 +268,7 @@ fn persistent_end_of_turn_mana_survives_step_boundaries() {
     // empties; the EndOfTurn green survives. We drive to postcombat-main
     // priority (passing all intermediate decisions automatically, including
     // declare attackers and blockers).
-    let _ = run_to_priority_through_combat(&mut state, PlayerId(0), Phase::PostcombatMain);
+    let _ = run_to_priority_through_combat(&mut state, PlayerId(0), PhaseStep::PostcombatMain);
 
     assert_eq!(
         state.player(PlayerId(0)).mana_pool.amount(red()),
@@ -318,7 +318,7 @@ fn snow_vs_plain_game(seed: u64) -> GameState {
 /// Mana abilities skip the stack ([CR#605.3b]), so the unit lands in the pool
 /// immediately on the following `ManaAdded` apply.
 fn tap_for_mana(state: &mut GameState, object: ObjectId) {
-    let legal = run_to_priority(state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
     let action = legal
         .iter()
         .find(|a| matches!(a, Action::ActivateAbility { object: o, .. } if *o == object))
@@ -327,7 +327,7 @@ fn tap_for_mana(state: &mut GameState, object: ObjectId) {
     state.submit_decision(Decision::Act(action)).unwrap();
     // Flush the scheduled `ManaAdded` (and its SBA/trigger checks) back to a
     // priority window so the unit is in the pool when we inspect it.
-    let _ = run_to_priority(state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
 }
 
 /// [CR#107.4h]: any mana produced by a snow source (a permanent with the Snow
@@ -374,7 +374,7 @@ fn snow_source_mana_carries_snow_rider() {
 #[test]
 fn spend_only_instant_cannot_fund_a_creature_spell() {
     let mut state = bears_game(1, 0);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
     // The only green is instant-only; a plain red covers {1}. No other green is
     // available (no Forests in play), so the creature spell's {G} pip cannot be
@@ -389,7 +389,7 @@ fn spend_only_instant_cannot_fund_a_creature_spell() {
     resurface_priority(&mut state);
 
     let bears = find_in_hand(&state, PlayerId(0), "Grizzly Bears");
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert!(
         !legal.contains(&Action::CastSpell { object: bears }),
         "an instant-only green cannot fund a creature spell, so the cast is not offered: {legal:?}"

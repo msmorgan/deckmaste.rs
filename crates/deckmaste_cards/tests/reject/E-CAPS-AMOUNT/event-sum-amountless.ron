@@ -4,6 +4,6 @@ Normal(
   name: "Reject Amountless Sum",
   types: [Sorcery],
   abilities: [
-    Spell(effect: Draw(EventSum(Performed(verb: "Cast"), ThisTurn))),
+    Spell(effect: Draw(EventSum(Cast(who: Ref(You)), ThisTurn))),
   ],
 )

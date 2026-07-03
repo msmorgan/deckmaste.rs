@@ -1,6 +1,6 @@
 // Infect = a static ability [CR#702.90a] with two damage-result rewrites
-// ([CR#120.3b,120.3d]), both SOURCE-keyed (`by: Ref(This)`, "damage dealt BY
-// this"):
+// ([CR#120.3b,120.3d]), both SOURCE-keyed (`source: Ref(This)`, "damage dealt
+// BY this"):
 //   - to a CREATURE ([CR#702.90c]): not marked — instead that many -1/-1
 //     counters ([CR#122.1a]) on the creature. Same shape as wither.
 //   - to a PLAYER ([CR#702.90b]): no life loss — instead that many poison
@@ -8,7 +8,7 @@
 //     ([CR#704.5c]).
 //
 // Modeled as ONE static ability holding TWO `Replacement` effects, branched by
-// the `on` filter (`Type(Creature)` vs `Kind(Player)`) — the cleanest
+// the `to` filter (`Type(Creature)` vs `Kind(Player)`) — the cleanest
 // representable form: each branch is an independent replacement the registry
 // gathers and the body's recipient binding differs (a creature recipient binds
 // as `EventObject`; a player recipient — the proxy is zoneless, no LKI snapshot
@@ -22,12 +22,12 @@ KeywordAbility(
     abilities: [Static(effects: [
         // [CR#702.90c]: damage to a creature → -1/-1 counters.
         Replacement(Instead(
-            would: Performed(verb: "DealDamage", by: Ref(This), on: Type(Creature)),
+            would: Damage(source: Ref(This), to: Type(Creature)),
             instead: PutCounters(EventObject, M1M1Counter, ThatMuch),
         )),
         // [CR#702.90b]: damage to a player → poison counters.
         Replacement(Instead(
-            would: Performed(verb: "DealDamage", by: Ref(This), on: Kind(Player)),
+            would: Damage(source: Ref(This), to: Kind(Player)),
             instead: PutCounters(EventActor, Poison, ThatMuch),
         )),
     ])],

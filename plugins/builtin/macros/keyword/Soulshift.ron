@@ -6,7 +6,7 @@
 // instances trigger separately ([CR#702.46b]).
 //
 // Pieces (all representable over existing primitives):
-//   - trigger:        `ThisDies` — the `ZoneMove(what: Ref(This), from:
+//   - trigger:        `ThisDies` — the `ZoneChange(what: Ref(This), from:
 //                     Battlefield, to: Graveyard)` macro ([CR#700.4]); the same
 //                     dies-event Undying/Persist/Modular watch.
 //   - "you may":      `May` ([CR#603.4] / [CR#702.46a] "you may") wrapping the

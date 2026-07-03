@@ -7,7 +7,7 @@ Normal(
   abilities: [
     Static(effects: [
       Replacement(Instead(
-        would: Performed(verb: "Cast"),
+        would: Cast(who: Ref(You)),
         instead: Draw(ThatMuch),
       )),
     ]),

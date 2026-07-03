@@ -16,9 +16,9 @@ use deckmaste_core::PlayerAction;
 use deckmaste_core::SimpleManaSymbol;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::TargetSpec;
+use deckmaste_core::Timing;
 use deckmaste_core::Type;
 use deckmaste_core::Uint;
-use deckmaste_core::Window;
 use deckmaste_core::Zone;
 
 use crate::agenda::WorkItem;
@@ -457,8 +457,8 @@ pub fn auto_pay_spendable(pool: &ManaPool, cost: &ManaCost, spendable: &[bool]) 
 /// `Reference::This` (a self-sacrifice) to the source — mirroring the frame
 /// any effect node resolves against (`targets`/`bindings`/`chosen` empty: a
 /// cost verb names no targets and carries no trigger context). A
-/// `With(ChooseOne/Choose)` binder inside a verb surfaces its own `ChooseObjects` decision
-/// via `run_effect`'s `chosen.is_none()` path.
+/// `With(ChooseOne/Choose)` binder inside a verb surfaces its own
+/// `ChooseObjects` decision via `run_effect`'s `chosen.is_none()` path.
 fn verb_payment_items(verbs: &[PlayerAction], source: ObjectId, player: PlayerId) -> Vec<WorkItem> {
     verbs
         .iter()
@@ -665,7 +665,7 @@ impl GameState {
             || crate::legal::may_cast_rows(self, view, object)
                 .iter()
                 .any(|r| {
-                    r.window == Some(Window::InstantSpeed)
+                    r.window == Some(Timing::InstantSpeed)
                         && r.from.is_none()
                         && r.cost.is_none()
                         && self.filter_matches_live(&r.what, object, r.carrier)

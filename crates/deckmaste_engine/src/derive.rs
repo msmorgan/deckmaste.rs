@@ -189,7 +189,7 @@ mod tests {
     use deckmaste_core::Card;
     use deckmaste_core::CardFace;
     use deckmaste_core::Effect;
-    use deckmaste_core::Event;
+    use deckmaste_core::EventFilter;
     use deckmaste_core::Reference;
     use deckmaste_core::TriggeredAbility;
     use deckmaste_core::Zone;
@@ -223,11 +223,10 @@ mod tests {
         let mut state = game();
         let trigger = TriggeredAbility {
             from: None,
-            event: Event::ZoneMove {
+            event: EventFilter::ZoneChange {
                 what: deckmaste_core::Filter::Ref(Reference::This),
                 from: None,
                 to: Some(Zone::Graveyard),
-                face: None,
                 cause: None,
             },
             condition: None,

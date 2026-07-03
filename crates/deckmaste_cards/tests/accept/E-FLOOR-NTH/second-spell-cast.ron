@@ -1,0 +1,14 @@
+// Accept twin of reject/E-FLOOR-NTH/nth-zero.ron: the Erayo family —
+// "whenever you cast your second spell each turn" — a 1-based ordinal over
+// a master form, the operand's caps inherited (kind-pass rule (b))
+// [CR#603.2].
+Normal(
+  name: "Accept Second Cast",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: Nth(n: 2, of: Cast(who: Ref(You)), within: ThisTurn),
+      effect: By(EventActor, LoseLife(1)),
+    ),
+  ],
+)

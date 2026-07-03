@@ -1,0 +1,12 @@
+// `Nth` is 1-based: a 0th occurrence never occurs, so the pattern is dead
+// [CR#603.2g].
+Normal(
+  name: "Reject Zeroth Cast",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: Nth(n: 0, of: Cast(who: Ref(You)), within: ThisTurn),
+      effect: Draw(1),
+    ),
+  ],
+)

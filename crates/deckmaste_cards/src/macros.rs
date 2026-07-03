@@ -88,7 +88,7 @@ mod tests {
     use deckmaste_core::Counter;
     use deckmaste_core::Destination;
     use deckmaste_core::Effect;
-    use deckmaste_core::Event;
+    use deckmaste_core::EventFilter;
     use deckmaste_core::Filter;
     use deckmaste_core::KeywordAbility;
     use deckmaste_core::ManaRider;
@@ -139,7 +139,7 @@ mod tests {
             name_of::<Destination>(),
             name_of::<Zone>(),
             name_of::<Effect>(),
-            name_of::<Event>(),
+            name_of::<EventFilter>(),
             name_of::<Filter>(),
             name_of::<KeywordAbility>(),
             name_of::<ManaRider>(),

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Card;
-use deckmaste_core::Phase;
+use deckmaste_core::PhaseStep;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
@@ -76,7 +76,7 @@ fn step_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
 /// Steps until a `Priority` decision surfaces for `player` in `phase`, passing
 /// any other priority and auto-paying any `PayMana` along the way. Returns the
 /// legal action list at that window.
-fn run_to_priority(state: &mut GameState, player: PlayerId, phase: Phase) -> Vec<Action> {
+fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) -> Vec<Action> {
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
@@ -152,11 +152,11 @@ fn x_game(seed: u64) -> GameState {
 #[test]
 fn cast_x_draw_announces_pays_and_draws_x() {
     let mut state = x_game(1);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     // Float two generic-payable mana (greens).
     state.player_mut(PlayerId(0)).mana_pool.add(green(), 2);
     resurface_priority(&mut state);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
     let xdraw = find_in_hand(&state, PlayerId(0), "Sorcery X Draw");
     let library_before = state.zones.libraries[0].len();
@@ -200,11 +200,11 @@ fn cast_x_draw_announces_pays_and_draws_x() {
 #[test]
 fn unpayable_x_rewinds_the_cast() {
     let mut state = x_game(1);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     // Only one mana available; announcing X=5 (cost {5}) is unpayable.
     state.player_mut(PlayerId(0)).mana_pool.add(green(), 1);
     resurface_priority(&mut state);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
     let xdraw = find_in_hand(&state, PlayerId(0), "Sorcery X Draw");
     state
@@ -241,7 +241,7 @@ fn unpayable_x_rewinds_the_cast() {
 fn x_spell_is_offered_when_x_zero_is_affordable() {
     let mut state = x_game(1);
     // No mana floated: {X} at its floor X=0 is {0}, payable with nothing.
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     let xdraw = find_in_hand(&state, PlayerId(0), "Sorcery X Draw");
     assert!(
         legal.contains(&Action::CastSpell { object: xdraw }),
@@ -252,7 +252,7 @@ fn x_spell_is_offered_when_x_zero_is_affordable() {
 #[test]
 fn x_zero_draws_nothing_and_resolves() {
     let mut state = x_game(1);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     let xdraw = find_in_hand(&state, PlayerId(0), "Sorcery X Draw");
     let library_before = state.zones.libraries[0].len();
     state
@@ -314,10 +314,10 @@ fn bolt_game(seed: u64) -> GameState {
 #[test]
 fn non_x_cast_surfaces_no_choose_x() {
     let mut state = bolt_game(1);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     state.player_mut(PlayerId(0)).mana_pool.add(red(), 1);
     resurface_priority(&mut state);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     let bolt = find_in_hand(&state, PlayerId(0), "Lightning Bolt");
     state
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
@@ -360,7 +360,7 @@ fn artifact_x_game(seed: u64) -> GameState {
 #[test]
 fn activate_x_draw_announces_pays_and_draws_x() {
     let mut state = artifact_x_game(1);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     // Force the artifact onto the battlefield (no cast pipeline needed here).
     let art = find_in_hand(&state, PlayerId(0), "Artifact X-activated Draw");
     state.zones.hands[0].retain(|&o| o != art);
@@ -369,7 +369,7 @@ fn activate_x_draw_announces_pays_and_draws_x() {
     // Float two generic-payable mana, re-derive priority with the artifact in play.
     state.player_mut(PlayerId(0)).mana_pool.add(red(), 2);
     resurface_priority(&mut state);
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
     // Activate ability index 0 of the artifact (the {X}: Draw X ability).
     let act = Action::ActivateAbility {
@@ -443,10 +443,10 @@ fn x_burn_game(seed: u64) -> GameState {
 #[test]
 fn cast_x_burn_announces_x_then_targets_then_deals_x() {
     let mut state = x_burn_game(1);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     state.player_mut(PlayerId(0)).mana_pool.add(red(), 3);
     resurface_priority(&mut state);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
     let burn = find_in_hand(&state, PlayerId(0), "Sorcery X DealDamage AnyTarget");
     state

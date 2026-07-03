@@ -11,11 +11,11 @@
 use deckmaste_core::Ability;
 use deckmaste_core::CharacteristicFilter;
 use deckmaste_core::Count;
-use deckmaste_core::Event;
+use deckmaste_core::EventFilter;
 use deckmaste_core::Filter;
 use deckmaste_core::Reference;
+use deckmaste_core::StateChange;
 use deckmaste_core::StateFilter;
-use deckmaste_core::StateFilterEvent;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Type;
@@ -110,64 +110,64 @@ impl GameState {
     /// [CR#603.2,603.6]: does `pattern` match `event`, for an ability on
     /// `watcher`?
     ///
-    /// `Dies`/`Enters` are `Event::Expanded` macros over `ZoneMove`; they are
-    /// looked through transparently via the `Expanded` arm.
+    /// `Dies`/`Enters` are `EventFilter::Expanded` macros over `ZoneChange`;
+    /// they are looked through transparently via the `Expanded` arm. Master
+    /// forms map one-to-one onto `GameEvent` facts; refinement coordinates
+    /// with no fact-side data yet (a `combat:` narrow, an amount bound on a
+    /// per-card draw) trip loudly rather than silently never matching.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one arm per EventFilter master form — the grammar's full surface, \
+                  ported arm-by-arm ahead of the engine-eventfilter-bridge rebase"
+    )]
     pub(crate) fn event_matches(
         &self,
-        pattern: &Event,
+        pattern: &EventFilter,
         event: &GameEvent,
         watcher: ObjectSource,
     ) -> bool {
         match pattern {
             // Look through a remembered macro invocation — `Dies`, `Enters`,
             // `Landfall`, … all expand to one of the structural forms below.
-            Event::Expanded(e) => self.event_matches(&e.value, event, watcher),
+            EventFilter::Expanded(e) => self.event_matches(&e.value, event, watcher),
 
-            // [CR#603.6]: a `ZoneMove` pattern matches a `ZoneChanged` fact
+            // [CR#603.6]: a `ZoneChange` pattern matches a `ZoneChanged` fact
             // when the zone constraints hold and the `what` filter matches the
-            // moved object's last-known state.
-            Event::ZoneMove {
+            // moved object's last-known state. (The fact still carries a
+            // `face` coordinate; the pattern no longer narrows by it.)
+            EventFilter::ZoneChange {
                 what,
                 from,
                 to,
-                face,
                 cause,
-            } => {
-                // P0.W6 seam: the face coordinate — emitters don't track
-                // face yet, so an "enters face down" pattern must trip, not
-                // silently never fire.
-                if face.is_some() {
-                    todo!("P0.W6: face-coordinate matching");
+            } => match event {
+                GameEvent::ZoneChanged {
+                    snapshot,
+                    from: ef,
+                    to: et,
+                    cause: ec,
+                    ..
+                } => {
+                    zone_ok(*from, *ef)
+                        && zone_ok(*to, Some(*et))
+                        && cause
+                            .as_ref()
+                            .is_none_or(|c| self.cause_matches(c, ec.as_ref(), watcher))
+                        && self.filter_matches_snapshot(what, snapshot, watcher)
                 }
-                match event {
-                    GameEvent::ZoneChanged {
-                        snapshot,
-                        from: ef,
-                        to: et,
-                        cause: ec,
-                        ..
-                    } => {
-                        zone_ok(*from, *ef)
-                            && zone_ok(*to, Some(*et))
-                            && cause
-                                .as_ref()
-                                .is_none_or(|c| self.cause_matches(c, ec.as_ref(), watcher))
-                            && self.filter_matches_snapshot(what, snapshot, watcher)
-                    }
-                    _ => false,
-                }
-            }
+                _ => false,
+            },
 
             // [CR#603.2b]: when a step/phase begins, abilities that trigger "at
             // the beginning of" it trigger — match the `StepBegan` fact on the
-            // exact phase. The `whose` coordinate ([CR#503.1] "your upkeep")
+            // exact step. The `whose` coordinate ([CR#503.1] "your upkeep")
             // narrows by whose turn it is, relative to the watching ability's
             // controller: `Your` requires the watcher's controller to be the
             // active player, `AnOpponents` requires the active player to be
             // someone else, and `EachPlayers` fires on every player's turn.
-            Event::BeginningOf(step, whose) => {
+            EventFilter::StepBegins { at, whose } => {
                 use deckmaste_core::WhoseTurn;
-                if !matches!(event, GameEvent::StepBegan(s) if s == step) {
+                if !matches!(event, GameEvent::StepBegan(s) if s == at) {
                     return false;
                 }
                 let active = self.turn.active_player;
@@ -183,77 +183,219 @@ impl GameState {
                 }
             }
 
-            // [CR#603.2e]: a "becomes [state]" transition. The `Attacking`
-            // designation ([CR#508.1a]) is a live event ([CR#603.6] — it reaches
-            // the trigger stage like any occurrence): match `GameEvent::Attacking`
-            // against the `becomes` state and run the `of` filter against the
-            // still-live attacking object. "Becomes blocked" ([CR#509.3c])
-            // watches the ATTACKER; its once-per-attacker dedup lives in
-            // `scan_triggers`, so the point-wise match here stays naive.
-            Event::StateBecomes { of, becomes, cause } => {
-                // P0.W6 seam: phasing, turn-face, and OBJECT-scope
-                // designation deltas have no fact shapes yet — a pattern
-                // watching one must trip, not silently never fire.
-                // (`ControlChanged` is shaped; its emitter is the layers-L2
-                // seam, but the fact matches below.)
-                if matches!(
-                    becomes,
-                    StateFilterEvent::Phased(_)
-                        | StateFilterEvent::TurnedFace(_)
-                        | StateFilterEvent::Designated(_)
-                ) {
+            // [CR#603.2e]: a "becomes [state]" status transition — only the
+            // residual deltas live here (combat onsets, control changes, and
+            // designation gains are their own master forms below). The
+            // transitioning object is still live ([CR#603.2e] deltas are never
+            // zone moves); the pattern no longer narrows the tap fact's cause.
+            EventFilter::StateBecame { of, becomes } => {
+                // P0.W6 seam: phasing and turn-face have no fact shapes yet —
+                // a pattern watching one must trip, not silently never fire.
+                if matches!(becomes, StateChange::Phased(_) | StateChange::TurnedFace(_)) {
                     todo!("P0.W6: becomes-delta matching for {becomes:?}");
                 }
-                // The transitioning object (still live — [CR#603.2e] deltas
-                // are never zone moves) and the event's cause, where the
-                // fact carries one (the tap-cause table,
-                // [CR#107.5,508.1f,701.26a]).
-                let (live, ec) = match (becomes, event) {
-                    (StateFilterEvent::Attacking, GameEvent::Attacking(o))
-                    | (StateFilterEvent::Untapped, GameEvent::Untapped(o)) => (Some(*o), None),
-                    (StateFilterEvent::Tapped, GameEvent::Tapped { object, cause }) => {
-                        (Some(*object), cause.as_ref())
-                    }
-                    // The two sides of one declaration fact ([CR#509.1g..509.1h]):
-                    // `Blocked` watches the ATTACKER ("becomes blocked",
-                    // [CR#509.3c]); `Blocking` watches the BLOCKER ("whenever ~
-                    // blocks", [CR#509.3a]). Bushido ([CR#702.45a]) unions both.
-                    // SEAM: `scan_triggers` dedups `Blocked` facts once per
-                    // ATTACKER (serving the [CR#509.3c] becomes-blocked count),
-                    // so in a multi-block (one attacker, N blockers) only the
-                    // first blocker's fact is scanned — a second blocker's
-                    // "blocks" trigger is under-counted. Single-block (the
-                    // common case) is correct.
-                    (StateFilterEvent::Blocked, GameEvent::Blocked { attacker: o, .. })
-                    | (StateFilterEvent::Blocking, GameEvent::Blocked { blocker: o, .. }) => {
-                        (Some(*o), None)
-                    }
-                    // "Comes under the control of [a matching player]": the
-                    // inner filter runs against the NEW controller's proxy
-                    // ([CR#109.5]).
-                    (
-                        StateFilterEvent::ControlledBy(f),
-                        GameEvent::ControlChanged { object, to },
-                    ) => {
-                        if !self.filter_matches_live(f, self.player(*to).object, watcher) {
-                            return false;
-                        }
-                        (Some(*object), None)
-                    }
-                    _ => (None, None),
+                let live = match (becomes, event) {
+                    (StateChange::Tapped, GameEvent::Tapped { object, .. }) => Some(*object),
+                    (StateChange::Untapped, GameEvent::Untapped(o)) => Some(*o),
+                    _ => None,
                 };
-                live.is_some_and(|o| {
-                    cause
-                        .as_ref()
-                        .is_none_or(|c| self.cause_matches(c, ec, watcher))
-                        && self.filter_matches_live(of, o, watcher)
-                })
+                live.is_some_and(|o| self.filter_matches_live(of, o, watcher))
             }
 
-            // [CR#603.2] over the action log: a verb was performed.
-            Event::Performed { verb, by, on } => {
-                self.performed_matches(verb, by, on, event, watcher)
+            // [CR#508.1k]: a creature was declared as an attacker — a live
+            // event ([CR#603.6]). `against` matches the DEFENDING player's
+            // proxy ([CR#506.2,508.5]), computed exactly as the scan's
+            // `defending_player` role: the sole live opponent of the
+            // attacker's controller.
+            EventFilter::AttackDeclared { by, against } => match event {
+                GameEvent::Attacking(o) => {
+                    let dp = self.next_live_after(self.objects.obj(*o).controller);
+                    self.filter_matches_live(by, *o, watcher)
+                        && self.filter_matches_live(against, self.player(dp).object, watcher)
+                }
+                _ => false,
+            },
+
+            // One declaration fact, two filter positions ([CR#509.1g..509.1h]):
+            // `by` is the BLOCKER ("whenever ~ blocks", [CR#509.3a]), `of` the
+            // blocked ATTACKER ("becomes blocked", [CR#509.3c]). SEAM:
+            // `scan_triggers` dedups `Blocked` facts once per ATTACKER (serving
+            // the [CR#509.3c] becomes-blocked count), so in a multi-block (one
+            // attacker, N blockers) only the first blocker's fact is scanned —
+            // a second blocker's "blocks" trigger is under-counted.
+            // Single-block (the common case) is correct.
+            EventFilter::BlockDeclared { by, of } => match event {
+                GameEvent::Blocked { blocker, attacker } => {
+                    self.filter_matches_live(by, *blocker, watcher)
+                        && self.filter_matches_live(of, *attacker, watcher)
+                }
+                _ => false,
+            },
+
+            // [CR#601.2i]: "whenever you cast" — the spell is live on the
+            // stack when the fact applies; its controller (as a proxy) is
+            // the caster.
+            EventFilter::Cast { who, what } => match event {
+                GameEvent::SpellCast(o) => {
+                    let caster = self.player(self.objects.obj(*o).controller).object;
+                    self.filter_matches_live(who, caster, watcher)
+                        && self.filter_matches_live(what, *o, watcher)
+                }
+                _ => false,
+            },
+
+            // [CR#701.18a]: a card was played — the land drop, a cause-carried
+            // view riding a zone move (the W3 unification); the performer is
+            // the moved object's controller.
+            EventFilter::Played { who, what } => match event {
+                GameEvent::ZoneChanged {
+                    snapshot,
+                    cause: Some(c),
+                    ..
+                } if c.verb.as_str() == "Play" => {
+                    let performer = self.player(snapshot.controller).object;
+                    self.filter_matches_live(who, performer, watcher)
+                        && self.filter_matches_snapshot(what, snapshot, watcher)
+                }
+                _ => false,
+            },
+
+            // [CR#602.2a]: an activated ability was activated. `what` matches
+            // the ability's SOURCE object (live on the battlefield); `who` its
+            // controller's proxy.
+            EventFilter::ActivatedAb { who, what } => match event {
+                GameEvent::AbilityActivated { source, .. } => {
+                    let controller = self.player(self.objects.obj(*source).controller).object;
+                    self.filter_matches_live(who, controller, watcher)
+                        && self.filter_matches_live(what, *source, watcher)
+                }
+                _ => false,
+            },
+
+            // [CR#120.1]: `source` is the damage SOURCE, `to` the recipient
+            // (both live — an SBA death follows the fact, [CR#704.5g]).
+            // `amount` bounds the dealt amount.
+            EventFilter::Damage {
+                source,
+                to,
+                combat,
+                amount,
+            } => {
+                if combat.is_some() {
+                    todo!("engine-fact-record-batch: no combat flag on DamageDealt yet");
+                }
+                match event {
+                    GameEvent::DamageDealt {
+                        source: s,
+                        target,
+                        amount: a,
+                    } => {
+                        self.filter_matches_live(source, *s, watcher)
+                            && self.filter_matches_live(to, *target, watcher)
+                            && amount
+                                .as_ref()
+                                .is_none_or(|bound| bound.satisfied_by(*a, literal_count))
+                    }
+                    _ => false,
+                }
             }
+
+            // [CR#119.3]: `who` is the player gaining life.
+            EventFilter::LifeGained { who, amount } => match event {
+                GameEvent::LifeGained { player, amount: a } => {
+                    self.filter_matches_live(who, self.player(*player).object, watcher)
+                        && amount
+                            .as_ref()
+                            .is_none_or(|bound| bound.satisfied_by(*a, literal_count))
+                }
+                _ => false,
+            },
+
+            // [CR#119.3]: `who` is the player losing life.
+            EventFilter::LifeLost { who, amount } => match event {
+                GameEvent::LifeLost { player, amount: a } => {
+                    self.filter_matches_live(who, self.player(*player).object, watcher)
+                        && amount
+                            .as_ref()
+                            .is_none_or(|bound| bound.satisfied_by(*a, literal_count))
+                }
+                _ => false,
+            },
+
+            // [CR#121.1]: the intent of a draw. `who` is the drawing player;
+            // the per-fact granularity is one card, so an amount bound is
+            // batch semantics with no fact-side data yet.
+            EventFilter::Drawn { who, amount } => {
+                if amount.is_some() {
+                    todo!("engine-fact-record-batch: per-fact draw granularity is one card");
+                }
+                match event {
+                    GameEvent::WillDraw { player, .. } => {
+                        self.filter_matches_live(who, self.player(*player).object, watcher)
+                    }
+                    _ => false,
+                }
+            }
+
+            // [CR#122.1]: counters placed on an object or player proxy. An
+            // omitted `kind` watches any counter kind.
+            EventFilter::CounterPlaced { kind, on, amount } => match event {
+                GameEvent::CounterPlaced {
+                    object,
+                    kind: k,
+                    count,
+                    ..
+                } => {
+                    kind.as_ref().is_none_or(|r| r.0 == *k)
+                        && self.filter_matches_live(on, *object, watcher)
+                        && amount
+                            .as_ref()
+                            .is_none_or(|bound| bound.satisfied_by(*count, literal_count))
+                }
+                _ => false,
+            },
+
+            // [CR#122.1]: counters removed.
+            EventFilter::CounterRemoved { kind, on, amount } => match event {
+                GameEvent::CounterRemoved {
+                    object,
+                    kind: k,
+                    count,
+                    ..
+                } => {
+                    kind.as_ref().is_none_or(|r| r.0 == *k)
+                        && self.filter_matches_live(on, *object, watcher)
+                        && amount
+                            .as_ref()
+                            .is_none_or(|bound| bound.satisfied_by(*count, literal_count))
+                }
+                _ => false,
+            },
+
+            // [CR#701.7a,111.2]: a token was created. The fact carries the
+            // token SPEC (its object is minted at apply), so a `what` filter
+            // has no object to run against yet — only the match-anything
+            // default is buildable.
+            EventFilter::TokenCreated { what, by } => {
+                if !matches!(what, Filter::Any) {
+                    todo!("matching a token spec before its object is minted");
+                }
+                match event {
+                    GameEvent::TokenCreated { player, .. } => {
+                        self.filter_matches_live(by, self.player(*player).object, watcher)
+                    }
+                    _ => false,
+                }
+            }
+
+            // [CR#701.3a]: an attachment became attached — both ends live.
+            EventFilter::Attached { what, to } => match event {
+                GameEvent::Attached { attachment, host } => {
+                    self.filter_matches_live(what, *attachment, watcher)
+                        && self.filter_matches_live(to, *host, watcher)
+                }
+                _ => false,
+            },
 
             // [CR#601.2c]: an object became the target of a spell/ability at
             // announce (ward is the family exemplar, [CR#702.21a]). Both ends
@@ -261,122 +403,133 @@ impl GameState {
             // the announcing spell sits in the stack zone (its remint is the
             // one deferred move), an ability announce rides its SOURCE (the
             // stack identity isn't minted until the announce promotes,
-            // [CR#602.2a]), and a placing trigger carries its minted id.
-            Event::BecomesTarget { what, by } => match event {
-                GameEvent::BecameTarget { target, source } => {
-                    self.filter_matches_live(what, *target, watcher)
-                        && by
-                            .as_ref()
-                            .is_none_or(|f| self.filter_matches_live(f, *source, watcher))
+            // [CR#602.2a]), and a placing trigger carries its minted id. The
+            // `source` arm (hexproof-from, [CR#702.11d,702.16b]) narrows the
+            // targeting object's SOURCE — no fact-side data yet.
+            EventFilter::BecomesTarget { what, by, source } => {
+                if source.is_some() {
+                    todo!("engine-eventfilter-bridge: the hexproof-from source arm");
+                }
+                match event {
+                    GameEvent::BecameTarget { target, source: s } => {
+                        self.filter_matches_live(what, *target, watcher)
+                            && self.filter_matches_live(by, *s, watcher)
+                    }
+                    _ => false,
+                }
+            }
+
+            // [CR#613.1b]: an object came under the control of a matching
+            // player — `of` runs against the (still-live) object, `to` against
+            // the NEW controller's proxy ([CR#109.5]).
+            EventFilter::ControlChanged { of, to } => match event {
+                GameEvent::ControlChanged { object, to: pid } => {
+                    self.filter_matches_live(of, *object, watcher)
+                        && self.filter_matches_live(to, self.player(*pid).object, watcher)
                 }
                 _ => false,
             },
 
-            // [CR#731.1a]: a GAME-scope designation transition ("day becomes
-            // night" loses one designation and gains the other). An omitted
-            // `becomes` watches any transition of that designation.
-            Event::DesignationChanged { name, becomes } => match event {
-                GameEvent::DesignationChanged {
-                    name: en,
-                    becomes: eb,
-                } => name == en && becomes.as_ref().is_none_or(|b| Some(b) == eb.as_ref()),
+            // [CR#109.3]: a named designation changed hands. Two fact shapes:
+            // a GAME-scope transition (`DesignationChanged`) has no carrier
+            // for `of` to filter — only the match-anything default is
+            // satisfiable; a player-scope gain (`GotDesignation`) runs `of`
+            // against the gaining player's proxy.
+            EventFilter::DesignationChanged { name, of } => match event {
+                GameEvent::DesignationChanged { name: en, .. } => {
+                    name == en && matches!(of, Filter::Any)
+                }
+                GameEvent::GotDesignation { player, name: en } => {
+                    name == en && self.filter_matches_live(of, self.player(*player).object, watcher)
+                }
                 _ => false,
             },
 
-            // "Whenever X or Y" is a pattern union ([CR#700.1]); it still
-            // fires once per matching occurrence ([CR#603.2c]).
-            Event::OneOf(events) => events.iter().any(|p| self.event_matches(p, event, watcher)),
-
             // [CR#608.2i]: `Used` is the self/object-scoped ability-use count,
-            // resolved by `EventCount`'s frame path — `by` is resolved to a
+            // resolved by `EventCount`'s frame path — `of` is resolved to a
             // concrete `ObjectId` and matched against `AbilityUsed`'s object.
             // The watcher-only matcher here cannot resolve that object
             // identity (its `watcher` is an `ObjectSource`, not the resolved
             // id), so `Happened(Used)` is unbuilt — trip rather than silently
             // never fire.
-            Event::Used { .. } => todo!(
-                "Event::Used is counted via EventCount's frame-resolved object path \
+            EventFilter::Used { .. } => todo!(
+                "EventFilter::Used is counted via EventCount's frame-resolved object path \
                  ([CR#608.2i]); the watcher-only matcher cannot resolve the object \
                  identity — Happened(Used) is unbuilt"
             ),
-        }
-    }
 
-    /// [CR#603.2] over the action log: does the `Performed` pattern admit
-    /// this fact? Two fact families carry verbs — dedicated events (Cast →
-    /// `SpellCast`, `DealDamage` → `DamageDealt`), and cause-carried views
-    /// riding zone moves (the W3 unification: Sacrifice/Discard/Play,
-    /// [CR#701.21a,701.9a,701.18a], whose performer is the moved object's
-    /// controller). Agent-performed narrowing (Karmic Justice's "a spell or
-    /// ability an opponent controls destroys…") rides `ZoneMove`'s
-    /// `CausePattern` instead — `Performed`'s `by` is the PERFORMER, which
-    /// for the wired cause verbs is a player. A verb outside the wired set
-    /// must trip, not silently never fire.
-    fn performed_matches(
-        &self,
-        verb: &deckmaste_core::Ident,
-        by: &Filter,
-        on: &Filter,
-        event: &GameEvent,
-        watcher: ObjectSource,
-    ) -> bool {
-        match verb.as_str() {
-            // [CR#601.2i]: "whenever you cast" — the spell is live on the
-            // stack when the fact applies; its controller (as a proxy) is
-            // the caster.
-            "Cast" => match event {
-                GameEvent::SpellCast(o) => {
-                    let caster = self.player(self.objects.obj(*o).controller).object;
-                    self.filter_matches_live(by, caster, watcher)
-                        && self.filter_matches_live(on, *o, watcher)
+            // [CR#705.1]: a coin was flipped. The `won` narrow ([CR#705.2]) is
+            // call-relative; the fact records only the physical outcome.
+            EventFilter::CoinFlipped { by, won } => {
+                if won.is_some() {
+                    todo!("flip-win is call-relative [CR#705.2]; the fact carries only heads");
                 }
-                _ => false,
-            },
-            // [CR#120.1]: `by` is the damage SOURCE, `on` the recipient
-            // (both live — an SBA death follows the fact, [CR#704.5g]).
-            "DealDamage" => match event {
-                GameEvent::DamageDealt { source, target, .. } => {
-                    self.filter_matches_live(by, *source, watcher)
-                        && self.filter_matches_live(on, *target, watcher)
+                match event {
+                    GameEvent::CoinFlipped { player, .. } => {
+                        self.filter_matches_live(by, self.player(*player).object, watcher)
+                    }
+                    _ => false,
                 }
-                _ => false,
-            },
-            v @ ("Sacrifice" | "Discard" | "Play") => match event {
-                GameEvent::ZoneChanged {
-                    snapshot,
-                    cause: Some(c),
-                    ..
-                } if c.verb.as_str() == v => {
-                    let performer = self.player(snapshot.controller).object;
-                    self.filter_matches_live(by, performer, watcher)
-                        && self.filter_matches_snapshot(on, snapshot, watcher)
-                }
-                _ => false,
-            },
-            // [CR#121.1]: the intent of a draw. `by` is the drawing player;
-            // `on` is ignored (draws have no target object, the player is both
-            // actor and recipient).
-            "Draw" => match event {
-                GameEvent::WillDraw { player, .. } => {
+            }
+
+            // [CR#706.1]: a die was rolled.
+            EventFilter::DiceRolled { by } => match event {
+                GameEvent::DieRolled { player, .. } => {
                     self.filter_matches_live(by, self.player(*player).object, watcher)
                 }
                 _ => false,
             },
-            // [CR#119.3]: `by` is the player losing/gaining life.
-            "LoseLife" => match event {
-                GameEvent::LifeLost { player, .. } => {
-                    self.filter_matches_live(by, self.player(*player).object, watcher)
-                }
-                _ => false,
-            },
-            // [CR#119.3]: `by` is the player gaining life.
-            "GainLife" => match event {
-                GameEvent::LifeGained { player, .. } => {
-                    self.filter_matches_live(by, self.player(*player).object, watcher)
-                }
-                _ => false,
-            },
-            other => todo!("engine-trigger-events: Performed verb {other:?} has no wired fact"),
+
+            // [CR#731.1a]: the game gained the day/night designation — the
+            // expletive forms over the W5 game-scope registry's DayNight row.
+            EventFilter::BecameDay => matches!(
+                event,
+                GameEvent::DesignationChanged { name, becomes }
+                    if name.as_str() == "DayNight"
+                        && becomes.as_ref().is_some_and(|b| b.as_str() == "Day")
+            ),
+            EventFilter::BecameNight => matches!(
+                event,
+                GameEvent::DesignationChanged { name, becomes }
+                    if name.as_str() == "DayNight"
+                        && becomes.as_ref().is_some_and(|b| b.as_str() == "Night")
+            ),
+
+            // A refinement conjunction ([CR#603.2]): every sub-pattern must
+            // match the same occurrence.
+            EventFilter::AllOf(events) => {
+                events.iter().all(|p| self.event_matches(p, event, watcher))
+            }
+
+            // "Whenever X or Y" is a pattern union ([CR#700.1]); it still
+            // fires once per matching occurrence ([CR#603.2c]).
+            EventFilter::OneOf(events) => {
+                events.iter().any(|p| self.event_matches(p, event, watcher))
+            }
+
+            // The lane-gated algebra tail: load-time-legal, engine-unbuilt
+            // until the one-evaluator rebase — a card using one must trip,
+            // not silently never fire.
+            EventFilter::Not(_) => todo!(
+                "engine-eventfilter-bridge: Not is grammar+checker only until the \
+                 one-evaluator rebase"
+            ),
+            EventFilter::OneOrMore(_) => todo!(
+                "engine-eventfilter-bridge: OneOrMore is grammar+checker only until the \
+                 one-evaluator rebase"
+            ),
+            EventFilter::Nth { .. } => todo!(
+                "engine-eventfilter-bridge: Nth is grammar+checker only until the \
+                 one-evaluator rebase"
+            ),
+            EventFilter::When(..) => todo!(
+                "engine-eventfilter-bridge: When is grammar+checker only until the \
+                 one-evaluator rebase"
+            ),
+            EventFilter::Within(..) => todo!(
+                "engine-eventfilter-bridge: Within is grammar+checker only until the \
+                 one-evaluator rebase"
+            ),
         }
     }
 
@@ -403,7 +556,9 @@ impl GameState {
         let Some(cause) = actual else {
             return false;
         };
-        if p.verb.as_ref().is_some_and(|v| *v != cause.verb) {
+        // The pattern's closed `CauseVerb` matches the fact's `Ident` verb by
+        // its canonical spelling ([`CauseVerb::as_str`]).
+        if p.verb.is_some_and(|v| v.as_str() != cause.verb.as_str()) {
             return false;
         }
         if p.agency.is_some_and(|a| a != cause.agency) {
@@ -614,7 +769,7 @@ impl GameState {
             // trigger-matching happens on the downstream `ZoneChanged` fact (already
             // queued by the will-change apply at the agenda front — [CR#603.6]);
             // matching on the intent would double-fire every zone-move trigger.
-            // `StepBegan` is NOT skipped — `BeginningOf` step/phase triggers
+            // `StepBegan` is NOT skipped — `StepBegins` step/phase triggers
             // ([CR#603.2]) key off it (e.g. "at the beginning of combat on your
             // turn"); `TurnBegan` has no pattern shape that watches it.
             match event {
@@ -1186,7 +1341,7 @@ mod tests {
     use deckmaste_cards::plugin::Plugin;
     use deckmaste_core::CharacteristicFilter;
     use deckmaste_core::Condition;
-    use deckmaste_core::Event;
+    use deckmaste_core::EventFilter;
     use deckmaste_core::Filter;
     use deckmaste_core::Reference;
     use deckmaste_core::Type;
@@ -1470,8 +1625,7 @@ mod tests {
         let event = zone_changed_event(&state, bear, Zone::Battlefield, Zone::Graveyard);
 
         // The pattern from Dies(Type(Creature)) — built directly.
-        let pattern = Event::ZoneMove {
-            face: None,
+        let pattern = EventFilter::ZoneChange {
             cause: None,
             what: Filter::creature(),
             from: Some(Zone::Battlefield),
@@ -1533,8 +1687,7 @@ mod tests {
             cause: None,
         };
 
-        let dies_pattern = Event::ZoneMove {
-            face: None,
+        let dies_pattern = EventFilter::ZoneChange {
             cause: None,
             what: Filter::creature(),
             from: Some(Zone::Battlefield),
@@ -1579,8 +1732,7 @@ mod tests {
             cause: None,
         };
 
-        let dies_pattern = Event::ZoneMove {
-            face: None,
+        let dies_pattern = EventFilter::ZoneChange {
             cause: None,
             what: Filter::creature(),
             from: Some(Zone::Battlefield),
@@ -1642,8 +1794,7 @@ mod tests {
         let other_source = state.objects.obj(other).source;
 
         // Pattern: Dies(Ref(This))
-        let self_dies = Event::ZoneMove {
-            face: None,
+        let self_dies = EventFilter::ZoneChange {
             cause: None,
             what: Filter::Ref(Reference::This),
             from: Some(Zone::Battlefield),
@@ -1709,8 +1860,7 @@ mod tests {
         let etb_source = state.objects.obj(etb_obj).source;
 
         // Pattern: Enters(Ref(This))
-        let self_enters = Event::ZoneMove {
-            face: None,
+        let self_enters = EventFilter::ZoneChange {
             cause: None,
             what: Filter::Ref(Reference::This),
             from: None,
@@ -1923,20 +2073,19 @@ mod tests {
     // -------------------------------------------------------------------------
 
     /// Confirm that `Dies(Type(Creature))` parses and produces the expected
-    /// `Event::Expanded` shape wrapping `ZoneMove`.
+    /// `EventFilter::Expanded` shape wrapping `ZoneMove`.
     #[test]
     fn dies_macro_expands_to_zone_move() {
-        use deckmaste_core::Event;
+        use deckmaste_core::EventFilter;
 
-        let event: Event = canon().macros.read_str("Dies(Type(Creature))").unwrap();
-        let Event::Expanded(expanded) = &event else {
-            panic!("expected Event::Expanded, got {event:?}");
+        let event: EventFilter = canon().macros.read_str("Dies(Type(Creature))").unwrap();
+        let EventFilter::Expanded(expanded) = &event else {
+            panic!("expected EventFilter::Expanded, got {event:?}");
         };
         assert_eq!(expanded.name.as_str(), "Dies");
         assert_eq!(
             *expanded.value,
-            Event::ZoneMove {
-                face: None,
+            EventFilter::ZoneChange {
                 cause: None,
                 what: Filter::creature(),
                 from: Some(Zone::Battlefield),
@@ -1949,17 +2098,16 @@ mod tests {
     /// from: None }`.
     #[test]
     fn enters_macro_expands_to_zone_move() {
-        use deckmaste_core::Event;
+        use deckmaste_core::EventFilter;
 
-        let event: Event = canon().macros.read_str("Enters(Ref(This))").unwrap();
-        let Event::Expanded(expanded) = &event else {
-            panic!("expected Event::Expanded, got {event:?}");
+        let event: EventFilter = canon().macros.read_str("Enters(Ref(This))").unwrap();
+        let EventFilter::Expanded(expanded) = &event else {
+            panic!("expected EventFilter::Expanded, got {event:?}");
         };
         assert_eq!(expanded.name.as_str(), "Enters");
         assert_eq!(
             *expanded.value,
-            Event::ZoneMove {
-                face: None,
+            EventFilter::ZoneChange {
                 cause: None,
                 what: Filter::Ref(Reference::This),
                 from: None,
@@ -1976,25 +2124,24 @@ mod tests {
     fn destroyed_macro_expands_to_cause_narrowed_zone_move() {
         use deckmaste_core::Cause;
         use deckmaste_core::CausePattern;
-        use deckmaste_core::Event;
+        use deckmaste_core::EventFilter;
 
-        let event: Event = canon()
+        let event: EventFilter = canon()
             .macros
             .read_str("Destroyed(Type(Creature))")
             .unwrap();
-        let Event::Expanded(expanded) = &event else {
-            panic!("expected Event::Expanded, got {event:?}");
+        let EventFilter::Expanded(expanded) = &event else {
+            panic!("expected EventFilter::Expanded, got {event:?}");
         };
         assert_eq!(expanded.name.as_str(), "Destroyed");
         assert_eq!(
             *expanded.value,
-            Event::ZoneMove {
+            EventFilter::ZoneChange {
                 what: Filter::creature(),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
-                face: None,
                 cause: Some(Cause::Cause(CausePattern {
-                    verb: Some("Destroy".into()),
+                    verb: Some(deckmaste_core::CauseVerb::Destroy),
                     agency: None,
                     agent: None,
                 })),
@@ -2049,7 +2196,7 @@ mod tests {
     fn destroyed_matches_destroy_caused_death() {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
-        let pattern: Event = canon()
+        let pattern: EventFilter = canon()
             .macros
             .read_str("Destroyed(Type(Creature))")
             .unwrap();
@@ -2072,7 +2219,7 @@ mod tests {
     fn destroyed_does_not_match_uncaused_death() {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
-        let pattern: Event = canon()
+        let pattern: EventFilter = canon()
             .macros
             .read_str("Destroyed(Type(Creature))")
             .unwrap();
@@ -2089,7 +2236,7 @@ mod tests {
     fn destroyed_does_not_match_sacrifice() {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
-        let pattern: Event = canon()
+        let pattern: EventFilter = canon()
             .macros
             .read_str("Destroyed(Type(Creature))")
             .unwrap();
@@ -2117,8 +2264,7 @@ mod tests {
     fn dies_pattern_stays_cause_agnostic() {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
-        let pattern = Event::ZoneMove {
-            face: None,
+        let pattern = EventFilter::ZoneChange {
             cause: None,
             what: Filter::creature(),
             from: Some(Zone::Battlefield),
@@ -2146,8 +2292,7 @@ mod tests {
 
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
-        let pattern = Event::ZoneMove {
-            face: None,
+        let pattern = EventFilter::ZoneChange {
             cause: Some(deckmaste_core::Cause::Cause(CausePattern {
                 verb: None,
                 agency: Some(deckmaste_core::Agency::StateBasedAction),
@@ -2201,10 +2346,9 @@ mod tests {
             state.zones.battlefield.push(id);
             id
         };
-        let pattern = Event::ZoneMove {
-            face: None,
+        let pattern = EventFilter::ZoneChange {
             cause: Some(deckmaste_core::Cause::Cause(CausePattern {
-                verb: Some("Destroy".into()),
+                verb: Some(deckmaste_core::CauseVerb::Destroy),
                 agency: None,
                 agent: Some(Filter::Characteristic(CharacteristicFilter::Type(
                     Type::Creature,
@@ -2243,14 +2387,14 @@ mod tests {
     }
 
     // -------------------------------------------------------------------------
-    // StateBecomes: becomes-tapped / becomes-untapped ([CR#603.2e])
+    // StateBecame: becomes-tapped / becomes-untapped ([CR#603.2e])
     // -------------------------------------------------------------------------
 
-    /// `StateBecomes(of: Ref(This), becomes: Tapped)` matches the watcher's
+    /// `StateBecame(of: Ref(This), becomes: Tapped)` matches the watcher's
     /// own tap fact, anchored by the `of` filter — and not another object's.
     #[test]
     fn becomes_tapped_matches_the_tap_fact() {
-        use deckmaste_core::StateFilterEvent;
+        use deckmaste_core::StateChange;
 
         let (mut state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
@@ -2265,10 +2409,9 @@ mod tests {
             state.zones.battlefield.push(id);
             id
         };
-        let pattern = Event::StateBecomes {
+        let pattern = EventFilter::StateBecame {
             of: Filter::Ref(Reference::This),
-            becomes: StateFilterEvent::Tapped,
-            cause: None,
+            becomes: StateChange::Tapped,
         };
         let own_tap = GameEvent::Tapped {
             object: bear,
@@ -2292,18 +2435,17 @@ mod tests {
         );
     }
 
-    /// `StateBecomes(becomes: Untapped)` matches the untap fact and not the
+    /// `StateBecame(becomes: Untapped)` matches the untap fact and not the
     /// tap fact.
     #[test]
     fn becomes_untapped_matches_the_untap_fact() {
-        use deckmaste_core::StateFilterEvent;
+        use deckmaste_core::StateChange;
 
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
-        let pattern = Event::StateBecomes {
+        let pattern = EventFilter::StateBecame {
             of: Filter::creature(),
-            becomes: StateFilterEvent::Untapped,
-            cause: None,
+            becomes: StateChange::Untapped,
         };
         assert!(state.event_matches(&pattern, &GameEvent::Untapped(bear), watcher_source));
         assert!(!state.event_matches(
@@ -2316,23 +2458,19 @@ mod tests {
         ));
     }
 
-    /// The tap-cause table ([CR#107.5] cost vs [CR#701.26a] effect) narrows a
-    /// becomes-tapped pattern through the same cause triple as `ZoneMove`.
+    /// The `StateBecame` pattern no longer carries a cause coordinate — a
+    /// becomes-tapped watch matches the tap fact regardless of WHY it tapped
+    /// (cost [CR#107.5] vs effect [CR#701.26a]); the fact's cause triple is
+    /// simply not consulted.
     #[test]
-    fn becomes_tapped_cause_narrows() {
-        use deckmaste_core::CausePattern;
-        use deckmaste_core::StateFilterEvent;
+    fn becomes_tapped_matches_any_tap_cause() {
+        use deckmaste_core::StateChange;
 
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
-        let pattern = Event::StateBecomes {
+        let pattern = EventFilter::StateBecame {
             of: Filter::Any,
-            becomes: StateFilterEvent::Tapped,
-            cause: Some(deckmaste_core::Cause::Cause(CausePattern {
-                verb: None,
-                agency: Some(deckmaste_core::Agency::CostPayment),
-                agent: None,
-            })),
+            becomes: StateChange::Tapped,
         };
         let cost_tap = GameEvent::Tapped {
             object: bear,
@@ -2351,20 +2489,18 @@ mod tests {
             }),
         };
         assert!(state.event_matches(&pattern, &cost_tap, watcher_source));
-        assert!(!state.event_matches(&pattern, &effect_tap, watcher_source));
+        assert!(state.event_matches(&pattern, &effect_tap, watcher_source));
     }
 
     // -------------------------------------------------------------------------
-    // StateBecomes: becomes-blocked ([CR#509.3c]) — attacker-side, deduped
+    // BlockDeclared: becomes-blocked ([CR#509.3c]) — attacker-side, deduped
     // -------------------------------------------------------------------------
 
-    /// `StateBecomes(of: Ref(This), becomes: Blocked)` watches the ATTACKER
-    /// — "becomes blocked" is the attacker's transition ([CR#509.3c]); the
-    /// blocker-side "blocks" views ([CR#509.3a]) are a different shape.
+    /// `BlockDeclared(of: Ref(This))` watches the ATTACKER — "becomes
+    /// blocked" is the attacker's view of the declaration ([CR#509.3c]); the
+    /// blocker-side "blocks" view ([CR#509.3a]) is the `by` position.
     #[test]
     fn becomes_blocked_matches_the_attacker_not_the_blocker() {
-        use deckmaste_core::StateFilterEvent;
-
         let (mut state, attacker) = bear_on_field();
         let attacker_source = state.objects.obj(attacker).source;
         let blocker = {
@@ -2379,10 +2515,9 @@ mod tests {
             id
         };
         let blocker_source = state.objects.obj(blocker).source;
-        let pattern = Event::StateBecomes {
+        let pattern = EventFilter::BlockDeclared {
+            by: Filter::Any,
             of: Filter::Ref(Reference::This),
-            becomes: StateFilterEvent::Blocked,
-            cause: None,
         };
         let event = GameEvent::Blocked { blocker, attacker };
         assert!(
@@ -2515,9 +2650,10 @@ mod tests {
                 .objects
                 .mint(ObjectSource::Card(card), PlayerId(1), Some(Zone::Stack))
         };
-        let pattern = Event::BecomesTarget {
+        let pattern = EventFilter::BecomesTarget {
             what: Filter::Ref(Reference::This),
-            by: None,
+            by: Filter::Any,
+            source: None,
         };
         let event = GameEvent::BecameTarget {
             target: bear,
@@ -2538,15 +2674,14 @@ mod tests {
 
         // Ward's by-narrowing: an opponent-controlled stack object matches;
         // one the watcher's own controller controls does not.
-        let by_opponent = Event::BecomesTarget {
+        let by_opponent = EventFilter::BecomesTarget {
             what: Filter::Ref(Reference::This),
-            by: Some(Filter::Relation(
-                deckmaste_core::RelationFilter::ControlledBy(Box::new(Filter::Relation(
-                    deckmaste_core::RelationFilter::OpponentOf(Box::new(Filter::Ref(
-                        Reference::You,
-                    ))),
+            by: Filter::Relation(deckmaste_core::RelationFilter::ControlledBy(Box::new(
+                Filter::Relation(deckmaste_core::RelationFilter::OpponentOf(Box::new(
+                    Filter::Ref(Reference::You),
                 ))),
-            )),
+            ))),
+            source: None,
         };
         assert!(
             state.event_matches(&by_opponent, &event, watcher_source),
@@ -2570,23 +2705,21 @@ mod tests {
     }
 
     // -------------------------------------------------------------------------
-    // Performed — verb facts ([CR#603.2] over the action log)
+    // Onset master forms ([CR#603.2] over the action log)
     // -------------------------------------------------------------------------
 
-    /// Prowess's pattern ([CR#702.108a]): `Performed(verb: "Cast", by:
-    /// Ref(You), on: noncreature spell)` matches the controller's own
-    /// noncreature cast ([CR#601.2i]) — and not an opponent's cast or a
-    /// creature spell.
+    /// Prowess's pattern ([CR#702.108a]): `Cast(who: Ref(You), what:
+    /// noncreature spell)` matches the controller's own noncreature cast
+    /// ([CR#601.2i]) — and not an opponent's cast or a creature spell.
     #[test]
     fn performed_cast_matches_own_noncreature_cast() {
         use deckmaste_core::ObjectKind;
 
         let (mut state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
-        let pattern = Event::Performed {
-            verb: "Cast".into(),
-            by: Filter::Ref(Reference::You),
-            on: Filter::AllOf(vec![
+        let pattern = EventFilter::Cast {
+            who: Filter::Ref(Reference::You),
+            what: Filter::AllOf(vec![
                 Filter::Kind(ObjectKind::Spell),
                 Filter::Not(Box::new(Filter::Characteristic(
                     CharacteristicFilter::Type(Type::Creature),
@@ -2621,8 +2754,8 @@ mod tests {
         );
     }
 
-    /// `Performed(verb: "DealDamage", by: Ref(This))` matches the watcher's
-    /// own damage facts ([CR#120.1]) — `by` is the SOURCE, `on` the recipient.
+    /// `Damage(source: Ref(This))` matches the watcher's own damage facts
+    /// ([CR#120.1]) — `source` is the SOURCE, `to` the recipient.
     #[test]
     fn performed_deal_damage_matches_source_and_target() {
         let (mut state, bear) = bear_on_field();
@@ -2638,10 +2771,11 @@ mod tests {
             state.zones.battlefield.push(id);
             id
         };
-        let pattern = Event::Performed {
-            verb: "DealDamage".into(),
-            by: Filter::Ref(Reference::This),
-            on: Filter::Any,
+        let pattern = EventFilter::Damage {
+            source: Filter::Ref(Reference::This),
+            to: Filter::Any,
+            combat: None,
+            amount: None,
         };
         let own_damage = GameEvent::DamageDealt {
             source: bear,
@@ -2655,7 +2789,7 @@ mod tests {
         };
         assert!(
             state.event_matches(&pattern, &own_damage, watcher_source),
-            "the watcher dealing damage matches by: Ref(This)"
+            "the watcher dealing damage matches source: Ref(This)"
         );
         assert!(
             !state.event_matches(&pattern, &others_damage, watcher_source),
@@ -2663,17 +2797,24 @@ mod tests {
         );
     }
 
-    /// `Performed(verb: "Sacrifice", by: Ref(You))` matches the cause-carried
-    /// view of a zone move ([CR#701.21a] — the W3 unification retired the
-    /// dedicated verb facts): the performer is the moved object's controller.
+    /// A sacrifice view is a cause-narrowed `ZoneChange` ([CR#701.21a] — the
+    /// W3 unification retired the dedicated verb facts): "you sacrifice" is
+    /// spelled as the moved object being controlled by you.
     #[test]
     fn performed_sacrifice_matches_cause_carried_move() {
         let (mut state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
-        let pattern = Event::Performed {
-            verb: "Sacrifice".into(),
-            by: Filter::Ref(Reference::You),
-            on: Filter::Any,
+        let pattern = EventFilter::ZoneChange {
+            what: Filter::Relation(deckmaste_core::RelationFilter::ControlledBy(Box::new(
+                Filter::Ref(Reference::You),
+            ))),
+            from: None,
+            to: None,
+            cause: Some(deckmaste_core::Cause::Cause(deckmaste_core::CausePattern {
+                verb: Some(deckmaste_core::CauseVerb::Sacrifice),
+                agency: None,
+                agent: None,
+            })),
         };
         let sacrifice = |state: &GameState, id| {
             zone_changed_with_cause(
@@ -2721,13 +2862,11 @@ mod tests {
     // Becomes-deltas: control change + game-scope designation ([CR#603.2e])
     // -------------------------------------------------------------------------
 
-    /// `StateBecomes(becomes: ControlledBy(f))` matches a `ControlChanged`
-    /// fact whose NEW controller satisfies `f` — a control change is never a
-    /// zone move ([CR#603.2e]; the object keeps its identity).
+    /// `ControlChanged(of, to)` matches a `ControlChanged` fact whose NEW
+    /// controller satisfies `to` — a control change is never a zone move
+    /// ([CR#603.2e]; the object keeps its identity).
     #[test]
     fn controlled_by_matches_control_change() {
-        use deckmaste_core::StateFilterEvent;
-
         let (mut state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let other = {
@@ -2741,10 +2880,9 @@ mod tests {
             state.zones.battlefield.push(id);
             id
         };
-        let pattern = Event::StateBecomes {
+        let pattern = EventFilter::ControlChanged {
             of: Filter::creature(),
-            becomes: StateFilterEvent::ControlledBy(Filter::Ref(Reference::You)),
-            cause: None,
+            to: Filter::Ref(Reference::You),
         };
         let to_you = GameEvent::ControlChanged {
             object: other,
@@ -2756,7 +2894,7 @@ mod tests {
         };
         assert!(
             state.event_matches(&pattern, &to_you, watcher_source),
-            "a creature coming under YOUR control matches ControlledBy(Ref(You))"
+            "a creature coming under YOUR control matches to: Ref(You)"
         );
         assert!(
             !state.event_matches(&pattern, &to_them, watcher_source),
@@ -2764,10 +2902,13 @@ mod tests {
         );
     }
 
-    /// `DesignationChanged(name, becomes)` matches the game-scope
-    /// designation flip ([CR#731.1a] — "day becomes night" loses one
-    /// designation and gains the other); an omitted `becomes` watches any
-    /// transition of that designation.
+    /// The game-scope day/night flip ([CR#731.1a] — "day becomes night"
+    /// loses one designation and gains the other) rides the expletive forms:
+    /// `BecameNight` matches the to-Night transition and nothing else, and
+    /// `BecameDay` its mirror. A name-only "any `DayNight` transition" watch is
+    /// no longer spellable game-scope; the named `DesignationChanged{name,of}`
+    /// form matches a game-scope fact only with the match-anything `of` (the
+    /// game designation has no carrier to filter).
     #[test]
     fn designation_changed_matches_game_scope_flip() {
         let (state, bear) = bear_on_field();
@@ -2776,26 +2917,57 @@ mod tests {
             name: "DayNight".into(),
             becomes: Some("Night".into()),
         };
-        let exact = Event::DesignationChanged {
-            name: "DayNight".into(),
-            becomes: Some("Night".into()),
-        };
-        let any_flip = Event::DesignationChanged {
-            name: "DayNight".into(),
-            becomes: None,
-        };
-        let wrong_value = Event::DesignationChanged {
+        let to_day = GameEvent::DesignationChanged {
             name: "DayNight".into(),
             becomes: Some("Day".into()),
         };
-        let wrong_name = Event::DesignationChanged {
-            name: "Monarch".into(),
-            becomes: Some("Night".into()),
+        assert!(state.event_matches(&EventFilter::BecameNight, &to_night, watcher_source));
+        assert!(!state.event_matches(&EventFilter::BecameNight, &to_day, watcher_source));
+        assert!(state.event_matches(&EventFilter::BecameDay, &to_day, watcher_source));
+        assert!(!state.event_matches(&EventFilter::BecameDay, &to_night, watcher_source));
+
+        // The named form: a game-scope fact has no carrier, so only the
+        // match-anything `of` is satisfiable; a carrier-narrowed `of` never
+        // matches game scope. A player-scope `GotDesignation` runs `of`
+        // against the gaining player's proxy.
+        let named_any = EventFilter::DesignationChanged {
+            name: "DayNight".into(),
+            of: Filter::Any,
         };
-        assert!(state.event_matches(&exact, &to_night, watcher_source));
-        assert!(state.event_matches(&any_flip, &to_night, watcher_source));
-        assert!(!state.event_matches(&wrong_value, &to_night, watcher_source));
+        let named_narrowed = EventFilter::DesignationChanged {
+            name: "DayNight".into(),
+            of: Filter::Ref(Reference::You),
+        };
+        let wrong_name = EventFilter::DesignationChanged {
+            name: "Monarch".into(),
+            of: Filter::Any,
+        };
+        assert!(state.event_matches(&named_any, &to_night, watcher_source));
+        assert!(!state.event_matches(&named_narrowed, &to_night, watcher_source));
         assert!(!state.event_matches(&wrong_name, &to_night, watcher_source));
+        let got = GameEvent::GotDesignation {
+            player: PlayerId(0),
+            name: "Monarch".into(),
+        };
+        let monarch_you = EventFilter::DesignationChanged {
+            name: "Monarch".into(),
+            of: Filter::Ref(Reference::You),
+        };
+        assert!(
+            state.event_matches(&monarch_you, &got, watcher_source),
+            "a player-scope gain runs `of` against the gaining player's proxy"
+        );
+        assert!(
+            !state.event_matches(
+                &monarch_you,
+                &GameEvent::GotDesignation {
+                    player: PlayerId(1),
+                    name: "Monarch".into(),
+                },
+                watcher_source
+            ),
+            "an opponent's gain fails of: Ref(You)"
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -2810,16 +2982,14 @@ mod tests {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let creature = Filter::creature();
-        let pattern = Event::OneOf(vec![
-            Event::ZoneMove {
-                face: None,
+        let pattern = EventFilter::OneOf(vec![
+            EventFilter::ZoneChange {
                 cause: None,
                 what: creature.clone(),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
             },
-            Event::ZoneMove {
-                face: None,
+            EventFilter::ZoneChange {
                 cause: None,
                 what: creature,
                 from: None,
@@ -2849,13 +3019,13 @@ mod tests {
     /// object" form.
     #[test]
     fn dies_this_filter_ref_reference_this() {
-        use deckmaste_core::Event;
+        use deckmaste_core::EventFilter;
 
-        let event: Event = canon().macros.read_str("Dies(Ref(This))").unwrap();
-        let Event::Expanded(expanded) = &event else {
-            panic!("expected Event::Expanded");
+        let event: EventFilter = canon().macros.read_str("Dies(Ref(This))").unwrap();
+        let EventFilter::Expanded(expanded) = &event else {
+            panic!("expected EventFilter::Expanded");
         };
-        let Event::ZoneMove { what, .. } = expanded.value.as_ref() else {
+        let EventFilter::ZoneChange { what, .. } = expanded.value.as_ref() else {
             panic!("expected ZoneMove inner, got {:?}", expanded.value);
         };
         assert_eq!(
@@ -2995,14 +3165,14 @@ mod tests {
     }
 
     // -------------------------------------------------------------------------
-    // BeginningOf — step/phase-entry triggers ([CR#603.2b])
+    // StepBegins — step/phase-entry triggers ([CR#603.2b])
     // -------------------------------------------------------------------------
 
     /// A synthetic Goblin Rabblemaster: a red Goblin creature whose sole
     /// ability is "At the beginning of combat on your turn, create a 1/1 red
     /// Goblin creature token with haste" — i.e.
-    /// `Triggered(event: BeginningOf(Combat(BeginningOfCombat), Your),
-    /// effect: Create(1, Token(1/1 red Goblin)))`.
+    /// `Triggered(event: StepBegins(at: Combat(BeginningOfCombat), whose:
+    /// Your), effect: Create(1, Token(1/1 red Goblin)))`.
     fn rabblemaster() -> deckmaste_core::Card {
         use deckmaste_core::Ability;
         use deckmaste_core::Action;
@@ -3012,8 +3182,8 @@ mod tests {
         use deckmaste_core::CombatStep;
         use deckmaste_core::Count;
         use deckmaste_core::Effect;
-        use deckmaste_core::Event;
-        use deckmaste_core::Phase;
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::PhaseStep;
         use deckmaste_core::PlayerAction;
         use deckmaste_core::Reference;
         use deckmaste_core::StatValue;
@@ -3035,10 +3205,10 @@ mod tests {
             types: vec![Type::Creature],
             abilities: vec![Ability::Triggered(TriggeredAbility {
                 from: None,
-                event: Event::BeginningOf(
-                    Phase::Combat(CombatStep::BeginningOfCombat),
-                    WhoseTurn::Your,
-                ),
+                event: EventFilter::StepBegins {
+                    at: PhaseStep::Combat(CombatStep::BeginningOfCombat),
+                    whose: WhoseTurn::Your,
+                },
                 condition: None,
                 limits: Vec::new(),
                 effect: Effect::Act(Action::By(
@@ -3094,7 +3264,7 @@ mod tests {
     #[test]
     fn beginning_of_combat_your_turn_fires_on_controllers_turn() {
         use deckmaste_core::CombatStep;
-        use deckmaste_core::Phase;
+        use deckmaste_core::PhaseStep;
 
         use crate::agenda::WorkItem;
         use crate::event::Occurrence;
@@ -3103,9 +3273,9 @@ mod tests {
         state.turn.active_player = PlayerId(0);
         let rabble = put_synthetic_on_field(&mut state, rabblemaster(), PlayerId(0));
 
-        state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(Phase::Combat(
-            CombatStep::BeginningOfCombat,
-        ))));
+        state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(
+            PhaseStep::Combat(CombatStep::BeginningOfCombat),
+        )));
 
         let fired: Vec<&WorkItem> = state
             .agenda
@@ -3134,7 +3304,7 @@ mod tests {
     #[test]
     fn beginning_of_combat_your_turn_silent_on_opponents_turn() {
         use deckmaste_core::CombatStep;
-        use deckmaste_core::Phase;
+        use deckmaste_core::PhaseStep;
 
         use crate::agenda::WorkItem;
         use crate::event::Occurrence;
@@ -3145,9 +3315,9 @@ mod tests {
         state.turn.active_player = PlayerId(1);
         let _rabble = put_synthetic_on_field(&mut state, rabblemaster(), PlayerId(0));
 
-        state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(Phase::Combat(
-            CombatStep::BeginningOfCombat,
-        ))));
+        state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(
+            PhaseStep::Combat(CombatStep::BeginningOfCombat),
+        )));
 
         let fired = state
             .agenda
@@ -3176,8 +3346,8 @@ mod tests {
         use deckmaste_core::CardFace;
         use deckmaste_core::Count;
         use deckmaste_core::Effect;
-        use deckmaste_core::Event;
-        use deckmaste_core::Phase;
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::PhaseStep;
         use deckmaste_core::PlayerAction;
         use deckmaste_core::Reference;
         use deckmaste_core::TriggeredAbility;
@@ -3188,7 +3358,10 @@ mod tests {
             types: vec![Type::Creature],
             abilities: vec![Ability::Triggered(TriggeredAbility {
                 from,
-                event: Event::BeginningOf(Phase::Beginning(BeginningStep::Upkeep), WhoseTurn::Your),
+                event: EventFilter::StepBegins {
+                    at: PhaseStep::Beginning(BeginningStep::Upkeep),
+                    whose: WhoseTurn::Your,
+                },
                 condition: None,
                 limits: Vec::new(),
                 effect: Effect::Act(Action::By(
@@ -3224,7 +3397,7 @@ mod tests {
     #[test]
     fn graveyard_trigger_fires_only_from_its_function_zone() {
         use deckmaste_core::BeginningStep;
-        use deckmaste_core::Phase;
+        use deckmaste_core::PhaseStep;
 
         use crate::agenda::WorkItem;
         use crate::event::Occurrence;
@@ -3248,9 +3421,9 @@ mod tests {
             PlayerId(0),
         );
 
-        state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(Phase::Beginning(
-            BeginningStep::Upkeep,
-        ))));
+        state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(
+            PhaseStep::Beginning(BeginningStep::Upkeep),
+        )));
 
         let fired: Vec<&WorkItem> = state
             .agenda
@@ -3285,7 +3458,7 @@ mod tests {
     fn beginning_of_combat_trigger_ignores_other_steps() {
         use deckmaste_core::BeginningStep;
         use deckmaste_core::CombatStep;
-        use deckmaste_core::Phase;
+        use deckmaste_core::PhaseStep;
 
         use crate::agenda::WorkItem;
         use crate::event::Occurrence;
@@ -3295,9 +3468,9 @@ mod tests {
         let _rabble = put_synthetic_on_field(&mut state, rabblemaster(), PlayerId(0));
 
         // The upkeep step begins, not combat.
-        state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(Phase::Beginning(
-            BeginningStep::Upkeep,
-        ))));
+        state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(
+            PhaseStep::Beginning(BeginningStep::Upkeep),
+        )));
         assert_eq!(
             state
                 .agenda
@@ -3311,9 +3484,9 @@ mod tests {
             "a beginning-of-combat trigger must ignore the upkeep step"
         );
         // Sanity: the same trigger DOES fire on the matching step.
-        state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(Phase::Combat(
-            CombatStep::BeginningOfCombat,
-        ))));
+        state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(
+            PhaseStep::Combat(CombatStep::BeginningOfCombat),
+        )));
         assert_eq!(
             state
                 .agenda
@@ -3336,7 +3509,7 @@ mod tests {
     fn rabblemaster_mints_a_goblin_at_beginning_of_combat() {
         use deckmaste_core::CombatStep;
         use deckmaste_core::ObjectKind;
-        use deckmaste_core::Phase;
+        use deckmaste_core::PhaseStep;
 
         use crate::agenda::WorkItem;
         use crate::decide::Action;
@@ -3346,12 +3519,12 @@ mod tests {
 
         let mut state = empty_game();
         state.turn.active_player = PlayerId(0);
-        state.turn.current = Phase::PrecombatMain;
+        state.turn.current = PhaseStep::PrecombatMain;
         let rabble = put_synthetic_on_field(&mut state, rabblemaster(), PlayerId(0));
 
         // Schedule the beginning-of-combat step directly, then step the engine,
         // passing priority whenever it asks so the placed trigger resolves.
-        state.schedule_front(vec![WorkItem::BeginStep(Phase::Combat(
+        state.schedule_front(vec![WorkItem::BeginStep(PhaseStep::Combat(
             CombatStep::BeginningOfCombat,
         ))]);
         let goblin_exists = |state: &GameState| {
@@ -3841,7 +4014,7 @@ mod tests {
     /// source/ability pair.
     #[test]
     fn trigger_fire_records_ability_used() {
-        use deckmaste_core::Window;
+        use deckmaste_core::Lookback;
 
         use crate::agenda::WorkItem;
 
@@ -3867,7 +4040,7 @@ mod tests {
         // Use-limits are object-scoped: record the per-instance ObjectId,
         // not the persistent CardId/ObjectSource ([CR#400.7]).
         let turn = state.turn.turn_number;
-        let found = state.history.scan(Window::ThisGame, turn).any(|e| {
+        let found = state.history.scan(Lookback::ThisGame, turn).any(|e| {
             matches!(
                 e,
                 GameEvent::AbilityUsed { object, ability }
@@ -3897,7 +4070,7 @@ mod tests {
         use deckmaste_core::CardFace;
         use deckmaste_core::Count;
         use deckmaste_core::Effect;
-        use deckmaste_core::Event;
+        use deckmaste_core::EventFilter;
         use deckmaste_core::PlayerAction;
         use deckmaste_core::Reference;
         use deckmaste_core::StatValue;
@@ -3909,11 +4082,10 @@ mod tests {
             types: vec![Type::Creature],
             abilities: vec![Ability::Triggered(TriggeredAbility {
                 from: None,
-                event: Event::ZoneMove {
+                event: EventFilter::ZoneChange {
                     what: Filter::creature(),
                     from: Some(Zone::Battlefield),
                     to: Some(Zone::Graveyard),
-                    face: None,
                     cause: None,
                 },
                 condition: None,
@@ -3997,10 +4169,11 @@ mod tests {
             types: vec![Type::Creature],
             abilities: vec![Ability::Triggered(TriggeredAbility {
                 from: None,
-                event: Event::Performed {
-                    verb: "DealDamage".into(),
-                    by: Filter::Any,
-                    on: Filter::creature(),
+                event: EventFilter::Damage {
+                    source: Filter::Any,
+                    to: Filter::creature(),
+                    combat: None,
+                    amount: None,
                 },
                 condition: None,
                 limits: vec![],
@@ -4188,16 +4361,15 @@ mod tests {
     // Performed — Draw / LoseLife / GainLife ([CR#121.1,119.3])
     // -------------------------------------------------------------------------
 
-    /// `Performed(verb: "Draw", by: Ref(You))` matches `WillDraw` for the
-    /// watcher's controller ([CR#121.1]) and not another player's draw.
+    /// `Drawn(who: Ref(You))` matches `WillDraw` for the watcher's
+    /// controller ([CR#121.1]) and not another player's draw.
     #[test]
     fn performed_matches_draw_matches_will_draw() {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
-        let pattern = Event::Performed {
-            verb: "Draw".into(),
-            by: Filter::Ref(Reference::You),
-            on: Filter::Any,
+        let pattern = EventFilter::Drawn {
+            who: Filter::Ref(Reference::You),
+            amount: None,
         };
         let you_draw = GameEvent::WillDraw {
             player: PlayerId(0),
@@ -4217,16 +4389,15 @@ mod tests {
         );
     }
 
-    /// `Performed(verb: "LoseLife", by: Ref(You))` matches `LifeLost` for the
-    /// watcher's controller ([CR#119.3]) and not another player's life loss.
+    /// `LifeLost(who: Ref(You))` matches `LifeLost` for the watcher's
+    /// controller ([CR#119.3]) and not another player's life loss.
     #[test]
     fn performed_matches_loselife_matches_life_lost() {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
-        let pattern = Event::Performed {
-            verb: "LoseLife".into(),
-            by: Filter::Ref(Reference::You),
-            on: Filter::Any,
+        let pattern = EventFilter::LifeLost {
+            who: Filter::Ref(Reference::You),
+            amount: None,
         };
         let you_lose = GameEvent::LifeLost {
             player: PlayerId(0),
@@ -4246,16 +4417,15 @@ mod tests {
         );
     }
 
-    /// `Performed(verb: "GainLife", by: Ref(You))` matches `LifeGained` for the
-    /// watcher's controller ([CR#119.3]) and not another player's life gain.
+    /// `LifeGained(who: Ref(You))` matches `LifeGained` for the watcher's
+    /// controller ([CR#119.3]) and not another player's life gain.
     #[test]
     fn performed_matches_gainlife_matches_life_gained() {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
-        let pattern = Event::Performed {
-            verb: "GainLife".into(),
-            by: Filter::Ref(Reference::You),
-            on: Filter::Any,
+        let pattern = EventFilter::LifeGained {
+            who: Filter::Ref(Reference::You),
+            amount: None,
         };
         let you_gain = GameEvent::LifeGained {
             player: PlayerId(0),

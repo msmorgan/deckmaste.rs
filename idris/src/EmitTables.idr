@@ -74,49 +74,160 @@ capsRow key (MkEventCaps o a m p d) cite =
   ++ ", defender: " ++ bool d
   ++ ", cite: " ++ quoted cite ++ "),\n"
 
--- The key mapping: Rust `Event` shape / `Performed` verb → the Idris
--- `EventKind` whose `eventKindCaps` value the row carries. Verbs with no row
--- are treated by the checker as supplying NOTHING (safe direction: a body
--- anaphor under an unknown verb is rejected).
+-- The key mapping: each Rust `EventFilter` MASTER FORM → the Idris
+-- `EventKind` whose `eventKindCaps` value the row carries. A form with no
+-- row supplies NOTHING to the checker (safe direction: a body anaphor under
+-- an unknown form is rejected). The handful of literal rows (marked) are
+-- model gaps like the two documented holes above: forms the Idris EventKind
+-- spine doesn't carry yet, given deliberate explicit values.
 eventCapsRows : List String
 eventCapsRows =
-  [ -- structural shapes
-    capsRow "ZoneMove" (eventKindCaps (ZoneChanged Nothing Nothing)) "[CR#603.6]"
-  , capsRow "BeginningOf" (eventKindCaps (BeginStep (BeginningPhase UpkeepStep))) "[CR#603.2]"
+  [ -- object/zone forms
+    capsRow "ZoneChange" (eventKindCaps (ZoneChanged Nothing Nothing)) "[CR#603.6]"
+    -- the recipient is a kind-poly patient ([CR#120.3] "a player or permanent")
+  , capsRow "Damage" (eventKindCaps (DealDamage Nothing {toKind = Just Anything})) "[CR#120.1]"
+  , capsRow "LifeGained" (eventKindCaps GainLife) "[CR#119.3]"
+  , capsRow "LifeLost" (eventKindCaps LoseLife) "[CR#119.3]"
+  , capsRow "Drawn" (eventKindCaps Draw) "[CR#121.1]"
+  , capsRow "CounterPlaced" (eventKindCaps PutCounters) "[CR#122.1]"
+  , capsRow "CounterRemoved" (eventKindCaps RemoveCounters) "[CR#122.1]"
+    -- the onset family ([CR#603.2]) — the relation spine's inchoative aspect
+  , capsRow "Cast" (eventKindCaps (Begins Cast)) "[CR#601.2i]"
+  , capsRow "Played" (eventKindCaps (Begins Play)) "[CR#701.18a]"
+  , capsRow "ActivatedAb" (eventKindCaps (Begins Activate)) "[CR#602.2a]"
+  , capsRow "AttackDeclared" (eventKindCaps (Begins Attack)) "[CR#508.1k]"
+  , capsRow "BlockDeclared" (eventKindCaps (Begins Block)) "[CR#509.3a,509.3c]"
+  , capsRow "Attached" (eventKindCaps (Begins Attach)) "[CR#701.3a]"
   , capsRow "BecomesTarget" (eventKindCaps (Begins Target)) "[CR#601.2c]"
-  , capsRow "DesignationChanged" NoCaps "[CR#731.1]"
+    -- residual status transitions ([CR#603.2e])
+  , capsRow "StateBecame:Tapped" (eventKindCaps (Becomes Tapped)) "[CR#603.2e]"
+  , capsRow "StateBecame:Untapped" (eventKindCaps (Becomes Untapped)) "[CR#603.2e]"
+  , capsRow "StateBecame:Phased" (eventKindCaps (Becomes PhasedOut)) "[CR#702.26b]"
+  , capsRow "StateBecame:TurnedFace" (eventKindCaps (Becomes FaceDown)) "[CR#708]"
+    -- turn structure / control / designations
+  , capsRow "StepBegins" (eventKindCaps (BeginStep (BeginningPhase UpkeepStep))) "[CR#603.2b]"
+  , capsRow "ControlChanged" (eventKindCaps GainControl) "[CR#613.1b]"
+  , capsRow "DesignationChanged" NoCaps "[CR#109.3]"
+  , capsRow "TokenCreated" (eventKindCaps CreateToken) "[CR#701.7]"
   , capsRow "Used" NoCaps "[CR#608.2i]"
-    -- state transitions ([CR#603.2e]); combat onsets ride the relation spine
-  , capsRow "StateBecomes:Tapped" (eventKindCaps (Becomes Tapped)) "[CR#603.2e]"
-  , capsRow "StateBecomes:Untapped" (eventKindCaps (Becomes Untapped)) "[CR#603.2e]"
-  , capsRow "StateBecomes:Attacking" (eventKindCaps (Begins Attack)) "[CR#508.1k]"
-  , capsRow "StateBecomes:Blocking" (eventKindCaps (Begins Block)) "[CR#509.3a]"
-  , capsRow "StateBecomes:Blocked" (eventKindCaps (Begins Block)) "[CR#509.3c]"
-  , capsRow "StateBecomes:Phased" (eventKindCaps (Becomes PhasedOut)) "[CR#702.26b]"
-  , capsRow "StateBecomes:TurnedFace" (eventKindCaps (Becomes FaceDown)) "[CR#708]"
-  , capsRow "StateBecomes:Designated" (eventKindCaps (Becomes Tapped)) "[CR#109.3]"
-  , capsRow "StateBecomes:ControlledBy" (eventKindCaps GainControl) "[CR#603.2e]"
-    -- Performed verbs ([CR#603.2] over the action log)
-  , capsRow "Performed:Sacrifice" (eventKindCaps Sacrifice) "[CR#701.21a]"
-  , capsRow "Performed:Discard" (eventKindCaps Discard) "[CR#701.9a]"
-  , capsRow "Performed:Draw" (eventKindCaps Draw) "[CR#121.1]"
-  , capsRow "Performed:DealDamage" (eventKindCaps (DealDamage Nothing)) "[CR#120.1]"
-  , capsRow "Performed:GainLife" (eventKindCaps GainLife) "[CR#119.3]"
-  , capsRow "Performed:LoseLife" (eventKindCaps LoseLife) "[CR#119.3]"
-  , capsRow "Performed:Destroy" (eventKindCaps Destroy) "[CR#701.8]"
-  , capsRow "Performed:CreateToken" (eventKindCaps CreateToken) "[CR#701.7]"
-  , capsRow "Performed:PutCounters" (eventKindCaps PutCounters) "[CR#122.1]"
-  , capsRow "Performed:RemoveCounters" (eventKindCaps RemoveCounters) "[CR#122.1]"
-  , capsRow "Performed:GainControl" (eventKindCaps GainControl) "[CR#613.1b]"
-  , capsRow "Performed:Cast" (eventKindCaps (Begins Cast)) "[CR#601.2i]"
-  , capsRow "Performed:Play" (eventKindCaps (Begins Play)) "[CR#701.18a]"
-  , capsRow "Performed:Activate" (eventKindCaps (Begins Activate)) "[CR#602.2a]"
+    -- literal rows (no EventKind yet): the flipping/rolling player is the
+    -- actor; day/night is a game-scope expletive with no participants.
+  , capsRow "CoinFlipped" (MkEventCaps False True False Nothing False) "[CR#705.1]"
+  , capsRow "DiceRolled" (MkEventCaps False True False Nothing False) "[CR#706.1]"
+  , capsRow "BecameDay" NoCaps "[CR#731.1]"
+  , capsRow "BecameNight" NoCaps "[CR#731.1]"
   ]
 
 eventCapsTable : String
 eventCapsTable =
   header "Event caps: what each event pattern supplies its body's anaphora ([CR#603.2e,608.2k])."
   ++ "(\n    rows: [\n" ++ concat eventCapsRows ++ "    ],\n)\n"
+
+-- --------------------------------------------------------------------------
+-- cause-verb entailments ([CR#701] keyword actions): verb → fact form
+-- --------------------------------------------------------------------------
+
+zoneName : Zone -> String
+zoneName Battlefield = "Battlefield"
+zoneName Command = "Command"
+zoneName Exile = "Exile"
+zoneName Graveyard = "Graveyard"
+zoneName Hand = "Hand"
+zoneName Library = "Library"
+zoneName Sideboard = "Sideboard"
+zoneName Stack = "Stack"
+
+optZone : Maybe Zone -> String
+optZone Nothing = "None"
+optZone (Just z) = "Some(" ++ zoneName z ++ ")"
+
+-- One row: the Rust `CauseVerb` spelling, the entailed master-form KIND (an
+-- event-caps key), the zone coordinates the verb fixes, and the caps
+-- guarantees a cause-narrowed pattern inherits (object/actor/amount; the
+-- verb's own EventKind caps where the model has one, literal for the four
+-- verbs outside the EventKind spine — model gaps like the documented holes).
+entailRow : (verb : String) -> (kind : String)
+         -> (from : Maybe Zone) -> (to : Maybe Zone)
+         -> EventCaps -> (cite : String) -> String
+entailRow verb kind from to (MkEventCaps o a m _ _) cite =
+  "        (verb: " ++ quoted verb
+  ++ ", kind: " ++ quoted kind
+  ++ ", from: " ++ optZone from
+  ++ ", to: " ++ optZone to
+  ++ ", object: " ++ bool o
+  ++ ", actor: " ++ bool a
+  ++ ", amount: " ++ bool m
+  ++ ", cite: " ++ quoted cite ++ "),\n"
+
+-- The closed `CauseVerb` vocabulary, one CR-cited fact form each: the
+-- normal form that makes Dies-matches-sacrifice structural and kills the
+-- stringly `Performed` verb table.
+entailmentRows : List String
+entailmentRows =
+  [ entailRow "Sacrifice" "ZoneChange" (Just Battlefield) (Just Graveyard)
+      (eventKindCaps Sacrifice) "[CR#701.21a]"
+  , entailRow "Destroy" "ZoneChange" (Just Battlefield) (Just Graveyard)
+      (eventKindCaps Destroy) "[CR#701.8a]"
+  , entailRow "Discard" "ZoneChange" (Just Hand) (Just Graveyard)
+      (eventKindCaps Discard) "[CR#701.9a]"
+  , entailRow "Exile" "ZoneChange" Nothing (Just Exile)
+      (MkEventCaps True False False Nothing False) "[CR#701.13a]"
+  , entailRow "Mill" "ZoneChange" (Just Library) (Just Graveyard)
+      (MkEventCaps True True False Nothing False) "[CR#701.17a]"
+  , entailRow "Play" "ZoneChange" Nothing (Just Battlefield)
+      (eventKindCaps (Begins Play)) "[CR#701.18a]"
+    -- fight damage is noncombat damage dealt by the fighting creature
+  , entailRow "Fight" "Damage" Nothing Nothing
+      (MkEventCaps True False True Nothing False) "[CR#701.14a]"
+    -- explore reveals from the library; the card lands in hand or graveyard
+  , entailRow "Explore" "ZoneChange" (Just Library) Nothing
+      (MkEventCaps True True False Nothing False) "[CR#701.44a]"
+    -- an applied regeneration shield's visible fact is the tap
+  , entailRow "Regenerate" "StateBecame:Tapped" Nothing Nothing
+      (eventKindCaps (Begins Regenerate)) "[CR#701.19a]"
+  ]
+
+entailmentTable : String
+entailmentTable =
+  header "Cause-verb entailments ([CR#701] keyword actions): each CauseVerb's fact form + inherited caps."
+  ++ "(\n    rows: [\n" ++ concat entailmentRows ++ "    ],\n)\n"
+
+-- --------------------------------------------------------------------------
+-- event lanes (the plan's §3.2 lane table): per-consumer algebra gates
+-- --------------------------------------------------------------------------
+
+-- One row: the walker's lane key, whether `Within` / `Nth` / `OneOrMore`
+-- are admitted, and whether every disjunct must be kind-anchored (bottom
+-- out in a master form). Positional discipline like `bindRows`' caps_from —
+-- per-row data, each cited.
+laneRow : (lane : String) -> (within : Bool) -> (nth : Bool)
+       -> (oneOrMore : Bool) -> (anchored : Bool) -> (cite : String) -> String
+laneRow lane within nth oneOrMore anchored cite =
+  "        (lane: " ++ quoted lane
+  ++ ", within: " ++ bool within
+  ++ ", nth: " ++ bool nth
+  ++ ", one_or_more: " ++ bool oneOrMore
+  ++ ", anchored: " ++ bool anchored
+  ++ ", cite: " ++ quoted cite ++ "),\n"
+
+laneRows : List String
+laneRows =
+  [ -- live lanes: a history window is vacuous against a live fact
+    laneRow "Triggered.event" False True True True "[CR#603.2]"
+  , laneRow "Delayed.event" False True True True "[CR#603.7c]"
+  , laneRow "Replacement.would" False True True True "[CR#614.1]"
+  , laneRow "CantHappen" False True True True "[CR#614.17c]"
+  , laneRow "UntilEvent" False True True True "[CR#610.3]"
+    -- the multiplier watches another ability's trigger — no ordinals
+  , laneRow "TriggerMultiplier.cause" False False True True "[CR#603.2d]"
+    -- history lanes: the window is the required field; batches don't count
+  , laneRow "Happened" True True False False "[CR#608.2i]"
+  ]
+
+laneTable : String
+laneTable =
+  header "Event lanes: which algebra refinements each consumer position admits ([CR#603.2,608.2i])."
+  ++ "(\n    rows: [\n" ++ concat laneRows ++ "    ],\n)\n"
 
 -- --------------------------------------------------------------------------
 -- cost actions ([CR#118.3]): eligibility + payment-event caps
@@ -391,6 +502,10 @@ ruleRows =
   , ruleRow "E-CAPS-PATIENT" "[CR#120.3,608.2k]" "EventPatient read where the event fixes no patient kind"
   , ruleRow "E-CAPS-DEFENDER" "[CR#506.2,508.5]" "DefendingPlayer read where no combat onset supplies one"
   , ruleRow "E-CAPS-AMOUNT" "[CR#107.3,608.2i]" "amount anaphor/aggregation without an amount-guaranteeing antecedent"
+  , ruleRow "E-CAPS-ANCHOR" "[CR#603.2]" "event position that must bottom out in master forms doesn't (bare Not / unanchored disjunct)"
+  , ruleRow "E-CAPS-CONTRADICTION" "[CR#603.2g]" "conjunction over incompatible master forms or against a cause entailment - the pattern can never match"
+  , ruleRow "E-LANE-WITHIN" "[CR#603.2]" "Within refinement in a live event lane (vacuous outside history counting)"
+  , ruleRow "E-LANE-BATCH" "[CR#603.2c]" "OneOrMore/Nth refinement in a lane that forbids it"
   , ruleRow "E-POS-TARGETED" "[CR#115.1a..115.1e,601.2c]" "Targeted outside an announce root (replacement/static/loop position)"
   , ruleRow "E-KIND-FILTER" "[CR#109.1]" "filter kind conflicts with its slot's expected kind"
   , ruleRow "E-KIND-COUNTER-SCOPE" "[CR#122.1]" "counter kind used on a carrier its scope forbids"
@@ -408,6 +523,7 @@ ruleRows =
   , ruleRow "E-FLOOR-MODAL-COUNT" "[CR#700.2d]" "modal choose-count exceeds the number of modes"
   , ruleRow "E-FLOOR-MODAL-EMPTY" "[CR#700.2]" "modal effect with no modes"
   , ruleRow "E-FLOOR-DIVIDE" "[CR#601.2d]" "divided amount statically smaller than the minimum group size"
+  , ruleRow "E-FLOOR-NTH" "[CR#603.2g]" "Nth occurrence index below one - a 0th occurrence never occurs"
   , ruleRow "E-COST-INELIGIBLE" "[CR#118.3]" "cost Do(action) whose verb is not cost-eligible"
   , ruleRow "E-COST-X" "[CR#107.3]" "Count::X read where no {X} is declared by the carrying cost"
   ]
@@ -436,6 +552,8 @@ export
 emitTables : IO ()
 emitTables = do
   emit "event-caps.ron" eventCapsTable
+  emit "entailments.ron" entailmentTable
+  emit "event-lanes.ron" laneTable
   emit "cost-actions.ron" costActionTable
   emit "scopes.ron" scopesTable
   emit "kind-lattice.ron" latticeTable

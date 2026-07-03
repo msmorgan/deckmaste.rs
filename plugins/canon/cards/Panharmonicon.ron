@@ -14,7 +14,7 @@ Normal(
   abilities: [
     Static(effects: [
       TriggerMultiplier(
-        cause: ZoneMove(what: OneOf([Type(Artifact), Type(Creature)]), to: Battlefield),
+        cause: ZoneChange(what: OneOf([Type(Artifact), Type(Creature)]), to: Battlefield),
         extra: 1,
       ),
     ]),

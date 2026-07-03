@@ -1,4 +1,4 @@
-use deckmaste_core::Phase;
+use deckmaste_core::PhaseStep;
 
 use crate::event::GameEvent;
 use crate::event::Occurrence;
@@ -19,7 +19,7 @@ pub enum WorkItem {
     /// condition.
     EmitSbaBatch(Vec<GameEvent>),
     /// Turn-structure transition plus that step's schedule.
-    BeginStep(Phase),
+    BeginStep(PhaseStep),
     /// [CR#704.3]: state-based actions, checked before anyone gets priority.
     CheckSbas,
     /// [CR#603.3]: place noted triggers on the stack (APNAP, with an

@@ -6,7 +6,7 @@ use deckmaste_core::ColorOrColorless;
 use deckmaste_core::CombatStep;
 use deckmaste_core::EndingStep;
 use deckmaste_core::KeywordAbility;
-use deckmaste_core::Phase;
+use deckmaste_core::PhaseStep;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 use rand::seq::SliceRandom;
@@ -45,12 +45,12 @@ pub enum Progress {
     /// One or more events mutated the state (apply-time bindings filled in).
     Applied(Occurrence),
     /// A new step began.
-    Advanced(Phase),
+    Advanced(PhaseStep),
     /// [CR#510.4]: a step the turn structure traverses was elided without
     /// opening (no `StepBegan`, no turn-based action, no priority) — today only
     /// the `FirstCombatDamage` step, skipped when no combat creature has first
     /// or double strike. `BeginStep` of the successor was scheduled instead.
-    Skipped(Phase),
+    Skipped(PhaseStep),
     /// A [CR#704] sweep ran; `actions` lost-player events were scheduled.
     SbasChecked { actions: Uint },
     /// [CR#603.3]: the placement barrier ran; `placed` triggers went on the
@@ -582,10 +582,10 @@ impl GameState {
                     for limit in &limits {
                         let window = match limit {
                             deckmaste_core::UseLimit::OncePerTurn => {
-                                deckmaste_core::Window::ThisTurn
+                                deckmaste_core::Lookback::ThisTurn
                             }
                             deckmaste_core::UseLimit::OncePerGame => {
-                                deckmaste_core::Window::ThisGame
+                                deckmaste_core::Lookback::ThisGame
                             }
                         };
                         if self.ability_used_count(obj, ability, window) >= 1 {
@@ -1022,22 +1022,22 @@ impl GameState {
     }
 
     /// The turn-structure transition: schedules the step's whole shape.
-    fn begin_step(&mut self, s: Phase) -> Progress {
+    fn begin_step(&mut self, s: PhaseStep) -> Progress {
         // [CR#510.4]: the FirstCombatDamage step exists only when at least one
         // attacking or blocking creature has first/double strike. When none
         // does, elide it entirely — no StepBegan, no turn-based action, no
         // priority window — and schedule the regular CombatDamage step directly.
         // (`turn.current` is NOT advanced; the step never owns a turn.)
-        if s == Phase::Combat(CombatStep::FirstCombatDamage)
+        if s == PhaseStep::Combat(CombatStep::FirstCombatDamage)
             && !crate::combat::any_first_or_double_striker(self)
         {
-            self.schedule_front(vec![WorkItem::BeginStep(Phase::Combat(
+            self.schedule_front(vec![WorkItem::BeginStep(PhaseStep::Combat(
                 CombatStep::CombatDamage,
             ))]);
             return Progress::Skipped(s);
         }
         let mut items = Vec::new();
-        if s == Phase::Beginning(BeginningStep::Untap) {
+        if s == PhaseStep::Beginning(BeginningStep::Untap) {
             let turn_began = self.begin_turn();
             items.push(WorkItem::Emit(Occurrence::single(turn_began)));
         }
@@ -1055,10 +1055,10 @@ impl GameState {
     // Two arms produce vec![] for different reasons; keeping them separate
     // preserves the per-step CR references.
     #[expect(clippy::match_same_arms)]
-    fn turn_based_actions(&mut self, s: Phase) -> Vec<WorkItem> {
+    fn turn_based_actions(&mut self, s: PhaseStep) -> Vec<WorkItem> {
         match s {
             // [CR#502.3]: the active player's tapped permanents untap.
-            Phase::Beginning(BeginningStep::Untap) => {
+            PhaseStep::Beginning(BeginningStep::Untap) => {
                 let active = self.turn.active_player;
                 self.zones
                     .battlefield
@@ -1072,24 +1072,26 @@ impl GameState {
             }
             // [CR#504.1]; [CR#103.8a] (two-player): turn 1 is the starting
             // player's, who skips their first draw.
-            Phase::Beginning(BeginningStep::Draw) if self.turn.turn_number > 1 => {
+            PhaseStep::Beginning(BeginningStep::Draw) if self.turn.turn_number > 1 => {
                 vec![WorkItem::Emit(Occurrence::single(GameEvent::WillDraw {
                     player: self.turn.active_player,
                     source: None,
                 }))]
             }
-            Phase::Beginning(BeginningStep::Draw) => vec![],
+            PhaseStep::Beginning(BeginningStep::Draw) => vec![],
             // [CR#508.1]: the active player declares attackers — surface the
             // decision as this step's turn-based action.
-            Phase::Combat(CombatStep::DeclareAttackers) => vec![WorkItem::DeclareAttackers],
+            PhaseStep::Combat(CombatStep::DeclareAttackers) => vec![WorkItem::DeclareAttackers],
             // [CR#509.1]: the defending player declares blockers — but only when
             // there is something to block. [CR#508.8]: with no creatures
             // attacking, the Declare Blockers step is skipped (like
             // `check_hand_size` skipping the trivial discard).
-            Phase::Combat(CombatStep::DeclareBlockers) if !self.combat.attackers().is_empty() => {
+            PhaseStep::Combat(CombatStep::DeclareBlockers)
+                if !self.combat.attackers().is_empty() =>
+            {
                 vec![WorkItem::DeclareBlockers]
             }
-            Phase::Combat(CombatStep::DeclareBlockers) => vec![],
+            PhaseStep::Combat(CombatStep::DeclareBlockers) => vec![],
             // [CR#510.1,510.4]: assign + deal combat damage — but only when
             // something is attacking. With no attackers there is no damage to
             // assign ([CR#508.8] already skipped blockers); skip the step's work
@@ -1097,12 +1099,12 @@ impl GameState {
             // surface the same turn-based action; `assign_combat_damage` filters
             // sources by which step is current (first/double strikers in the
             // first step, normal + double strikers in the regular one).
-            Phase::Combat(CombatStep::FirstCombatDamage | CombatStep::CombatDamage)
+            PhaseStep::Combat(CombatStep::FirstCombatDamage | CombatStep::CombatDamage)
                 if !self.combat.attackers().is_empty() =>
             {
                 vec![WorkItem::AssignCombatDamage]
             }
-            Phase::Combat(CombatStep::FirstCombatDamage | CombatStep::CombatDamage) => vec![],
+            PhaseStep::Combat(CombatStep::FirstCombatDamage | CombatStep::CombatDamage) => vec![],
             // [CR#511.1]: the End of Combat step has NO turn-based actions — the
             // removal-from-combat ([CR#511.3]) happens as the step *ends*, after
             // its priority window, scheduled from `end_of_step_items` (so an
@@ -1111,7 +1113,7 @@ impl GameState {
             // [CR#514.1]: discard to hand size — checked after StepBegan.
             // [CR#514.2]: marked damage is removed from all permanents;
             // "until end of turn" continuous effects expire ([CR#514.2]).
-            Phase::Ending(EndingStep::Cleanup) => {
+            PhaseStep::Ending(EndingStep::Cleanup) => {
                 self.clear_marked_damage();
                 self.expire_end_of_turn();
                 vec![WorkItem::CheckHandSize]
@@ -1136,10 +1138,10 @@ impl GameState {
     /// What follows a step's turn-based actions: the priority barrier, or
     /// the step end for the no-priority steps ([CR#502.4,514.3] — cleanup's
     /// sweep runs per [CR#514.2] but can never act in the skeleton).
-    fn step_tail(&self, s: Phase) -> Vec<WorkItem> {
+    fn step_tail(&self, s: PhaseStep) -> Vec<WorkItem> {
         match s {
-            Phase::Beginning(BeginningStep::Untap) => self.end_of_step_items(),
-            Phase::Ending(EndingStep::Cleanup) => {
+            PhaseStep::Beginning(BeginningStep::Untap) => self.end_of_step_items(),
+            PhaseStep::Ending(EndingStep::Cleanup) => {
                 // [CR#514.3a]: if the sweep acts (or triggers are waiting),
                 // players DO get priority and cleanup repeats. Stage 3 must
                 // detect that and insert OpenPriority + another cleanup
@@ -1177,11 +1179,11 @@ impl GameState {
             .collect();
         // [CR#511.3]: removal from combat happens as the End of Combat step ends
         // — after its priority window, before the next step begins.
-        if self.turn.current == Phase::Combat(CombatStep::EndOfCombat) {
+        if self.turn.current == PhaseStep::Combat(CombatStep::EndOfCombat) {
             items.push(WorkItem::EndOfCombat);
         }
         items.push(WorkItem::BeginStep(
-            successor(self.turn.current).unwrap_or(Phase::Beginning(BeginningStep::Untap)),
+            successor(self.turn.current).unwrap_or(PhaseStep::Beginning(BeginningStep::Untap)),
         ));
         items
     }
@@ -1378,7 +1380,7 @@ impl GameState {
         // both). The regular filter includes everyone when no first strike
         // exists, so a single-pass combat is unchanged.
         let deals_this_step: fn(&crate::layer::LayeredView, ObjectId) -> bool =
-            if self.turn.current == Phase::Combat(CombatStep::FirstCombatDamage) {
+            if self.turn.current == PhaseStep::Combat(CombatStep::FirstCombatDamage) {
                 crate::combat::deals_first_strike
             } else {
                 crate::combat::deals_regular_strike
@@ -1565,8 +1567,8 @@ impl GameState {
 
 #[cfg(test)]
 mod tests {
-    use deckmaste_core::Phase;
-    use deckmaste_core::Window;
+    use deckmaste_core::Lookback;
+    use deckmaste_core::PhaseStep;
     use deckmaste_core::Zone;
 
     use crate::agenda::WorkItem;
@@ -1607,19 +1609,19 @@ mod tests {
         assert_eq!(
             state
                 .history
-                .scan(Window::ThisGame, state.turn.turn_number)
+                .scan(Lookback::ThisGame, state.turn.turn_number)
                 .count(),
             1
         );
 
         // A skipped (meta) fact is not.
         state.record_history(&Occurrence::single(GameEvent::StepBegan(
-            Phase::PrecombatMain,
+            PhaseStep::PrecombatMain,
         )));
         assert_eq!(
             state
                 .history
-                .scan(Window::ThisGame, state.turn.turn_number)
+                .scan(Lookback::ThisGame, state.turn.turn_number)
                 .count(),
             1,
             "StepBegan is skipped"

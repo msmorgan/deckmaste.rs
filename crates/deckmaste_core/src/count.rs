@@ -128,16 +128,19 @@ pub enum Count {
     /// [`Effect::DivideAmong`](crate::Effect::DivideAmong) body, where it
     /// stands for that element's share of the divided amount.
     Allotment,
-    /// How many times an event matching `Event` occurred within `Window`
-    /// ([CR#608.2i] history reads) — the count-valued twin of
-    /// `Condition::Happened`. `Event` is boxed (it is large) to keep `Count`
-    /// from growing, mirroring `CountOf(Box<Filter>)`.
-    EventCount(Box<crate::Event>, crate::Window),
-    /// The summed AMOUNT of history facts matching `Event` within `Window`
-    /// ([CR#608.2i,119.3]) — e.g. total life lost this turn. The match is by
-    /// the same `Event` pattern as `EventCount`; the magnitude is each matched
-    /// fact's carried amount. `EventCount` counts; `EventSum` sums.
-    EventSum(Box<crate::Event>, crate::Window),
+    /// How many times an event matching the pattern occurred within the
+    /// [`Lookback`](crate::Lookback) ([CR#608.2i] history reads) — the
+    /// count-valued twin of `Condition::Happened`. The window is a required
+    /// field: history counting never gets a silent default. The pattern is
+    /// boxed (it is large) to keep `Count` from growing, mirroring
+    /// `CountOf(Box<Filter>)`.
+    EventCount(Box<crate::EventFilter>, crate::Lookback),
+    /// The summed AMOUNT of history facts matching the pattern within the
+    /// [`Lookback`](crate::Lookback) ([CR#608.2i,119.3]) — e.g. total life
+    /// lost this turn. The match is by the same pattern as `EventCount`;
+    /// the magnitude is each matched fact's carried amount. `EventCount`
+    /// counts; `EventSum` sums.
+    EventSum(Box<crate::EventFilter>, crate::Lookback),
     /// A noted number read back from a slot ([CR#607.2] linked values).
     Noted(crate::Ident),
     /// Marked damage on a referenced object ([CR#120.3]) — "damage marked on
@@ -215,24 +218,23 @@ mod tests {
         assert!(matches!(value, Count::CountOf(_)));
     }
 
-    /// `EventCount(Event, Window)` parses and round-trips — the count-valued
-    /// twin of `Condition::Happened` ([CR#608.2i]).
+    /// `EventCount(EventFilter, Lookback)` parses and round-trips — the
+    /// count-valued twin of `Condition::Happened` ([CR#608.2i]).
     #[test]
     fn event_count_round_trips() {
-        use crate::Event;
+        use crate::EventFilter;
         use crate::Filter;
-        use crate::Window;
+        use crate::Lookback;
 
-        let event = Event::Performed {
-            verb: "Sacrifice".into(),
-            by: Filter::Any,
-            on: Filter::Any,
+        let event = EventFilter::Cast {
+            who: Filter::Ref(crate::Reference::You),
+            what: Filter::Any,
         };
-        // Parse from RON — verb only, `by`/`on` default to Any.
-        let parsed = read(r#"EventCount(Performed(verb: "Sacrifice"), ThisTurn)"#);
+        // Parse from RON — `what` defaults to Any.
+        let parsed = read("EventCount(Cast(who: Ref(You)), ThisTurn)");
         assert_eq!(
             parsed,
-            Count::EventCount(Box::new(event.clone()), Window::ThisTurn),
+            Count::EventCount(Box::new(event.clone()), Lookback::ThisTurn),
         );
         // Serialize → read round-trip.
         let written = write(&parsed);
@@ -291,24 +293,24 @@ mod tests {
         ));
     }
 
-    /// `EventSum(Event, Window)` parses and round-trips — the sum-valued twin
-    /// of `EventCount` for amount-carrying facts ([CR#608.2i,119.3]).
+    /// `EventSum(EventFilter, Lookback)` parses and round-trips — the
+    /// sum-valued twin of `EventCount` for amount-carrying facts
+    /// ([CR#608.2i,119.3]).
     #[test]
     fn event_sum_round_trips() {
-        use crate::Event;
+        use crate::EventFilter;
         use crate::Filter;
-        use crate::Window;
+        use crate::Lookback;
 
-        let event = Event::Performed {
-            verb: "LoseLife".into(),
-            by: Filter::Any,
-            on: Filter::Any,
+        let event = EventFilter::LifeLost {
+            who: Filter::Any,
+            amount: None,
         };
-        // Parse from RON — verb only, `by`/`on` default to Any.
-        let parsed = read(r#"EventSum(Performed(verb: "LoseLife"), ThisTurn)"#);
+        // Parse from RON — `who` defaults to Any.
+        let parsed = read("EventSum(LifeLost(), ThisTurn)");
         assert_eq!(
             parsed,
-            Count::EventSum(Box::new(event.clone()), Window::ThisTurn),
+            Count::EventSum(Box::new(event.clone()), Lookback::ThisTurn),
         );
         // Serialize → read round-trip.
         let written = write(&parsed);

@@ -8,7 +8,7 @@
 //
 // The intervening-if ([CR#603.4]) is the "came under your control since the
 // beginning of your last upkeep" recheck. The control-change event is
-// representable (`StateBecomes(becomes: ControlledBy(Ref(You)))`,
+// representable (`ControlChanged(to: Ref(You))`,
 // [CR#603.2e]), but its lookback WINDOW is not: the closed `Window` vocabulary
 // has no "since your last upkeep" bound. SEAM — `within: ThisTurn` is the
 // closest representable window (correct only when the permanent entered on the
@@ -27,9 +27,9 @@
     body: Composite(
         name: "Echo",
         abilities: [Triggered(
-            event: BeginningOf(Beginning(Upkeep), Your),
+            event: StepBegins(at: Beginning(Upkeep), whose: Your),
             condition: Happened(
-                event: StateBecomes(of: Ref(This), becomes: ControlledBy(Ref(You))),
+                event: ControlChanged(of: Ref(This), to: Ref(You)),
                 within: ThisTurn,
             ),
             effect: Unless(

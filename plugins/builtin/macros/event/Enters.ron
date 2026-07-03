@@ -3,7 +3,7 @@
 (
     name: "Enters",
     template: "${0} enters",
-    kinds: [Event],
+    kinds: [EventFilter],
     params: [Filter],
-    body: ZoneMove(what: Param(0), to: Battlefield),
+    body: ZoneChange(what: Param(0), to: Battlefield),
 )

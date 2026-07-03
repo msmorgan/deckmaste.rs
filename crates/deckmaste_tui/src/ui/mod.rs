@@ -38,11 +38,11 @@ use crate::ui::board::Zone;
 
 /// A human-readable name for a turn phase/step (the header otherwise shows the
 /// `Debug` form, e.g. `Beginning(Upkeep)`).
-fn phase_name(phase: deckmaste_core::Phase) -> &'static str {
+fn phase_name(phase: deckmaste_core::PhaseStep) -> &'static str {
     use deckmaste_core::BeginningStep as B;
     use deckmaste_core::CombatStep as C;
     use deckmaste_core::EndingStep as E;
-    use deckmaste_core::Phase as P;
+    use deckmaste_core::PhaseStep as P;
     match phase {
         P::Beginning(B::Untap) => "Untap",
         P::Beginning(B::Upkeep) => "Upkeep",

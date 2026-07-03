@@ -6,7 +6,7 @@ use deckmaste_core::CharacteristicFilter;
 use deckmaste_core::CollectionOp;
 use deckmaste_core::Color;
 use deckmaste_core::Count;
-use deckmaste_core::Event;
+use deckmaste_core::EventFilter;
 use deckmaste_core::Filter;
 use deckmaste_core::Modification;
 use deckmaste_core::NumericOp;
@@ -14,7 +14,7 @@ use deckmaste_core::PayAct;
 use deckmaste_core::PlayerAttr;
 use deckmaste_core::PlayerMod;
 use deckmaste_core::Reference;
-use deckmaste_core::StateFilterEvent;
+use deckmaste_core::StateChange;
 use deckmaste_core::StaticAbility;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::TriggeredAbility;
@@ -67,25 +67,41 @@ pub(super) fn from_zone_qualified(
 
 /// Returns (lead word, the event clause).
 /// "When", "Baleful Strix enters" | "Whenever", "Goblin Medics becomes tapped".
-pub(super) fn event_clause(e: &Event, ctx: &Ctx) -> (&'static str, String) {
+pub(super) fn event_clause(e: &EventFilter, ctx: &Ctx) -> (&'static str, String) {
     match e {
-        Event::Expanded(exp) => event_clause(&exp.value, ctx),
-        Event::ZoneMove {
+        EventFilter::Expanded(exp) => event_clause(&exp.value, ctx),
+        EventFilter::ZoneChange {
             what,
             to: Some(Zone::Battlefield),
             from: None,
             ..
         } => (lead_for(what), format!("{} enters", subject_of(what, ctx))),
-        Event::ZoneMove {
+        EventFilter::ZoneChange {
             what,
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             ..
         } => (lead_for(what), format!("{} dies", subject_of(what, ctx))),
-        Event::StateBecomes { of, becomes, .. } => (
+        EventFilter::StateBecame { of, becomes } => (
             "Whenever",
             format!("{} becomes {}", subject_of(of, ctx), state_word(becomes)),
         ),
+        // The one block fact, two views ([CR#509.3a,509.3c]): a narrowed
+        // `by` reads from the blocker side, a narrowed `of` from the
+        // blocked attacker's.
+        EventFilter::BlockDeclared {
+            by: Filter::Any,
+            of,
+        } => (
+            "Whenever",
+            format!("{} becomes blocked", subject_of(of, ctx)),
+        ),
+        EventFilter::BlockDeclared { by, .. } => {
+            ("Whenever", format!("{} blocks", subject_of(by, ctx)))
+        }
+        EventFilter::AttackDeclared { by, .. } => {
+            ("Whenever", format!("{} attacks", subject_of(by, ctx)))
+        }
         other => ("When", format!("[unrendered: {other:?}]")),
     }
 }
@@ -116,12 +132,10 @@ fn subject_of(f: &Filter, ctx: &Ctx) -> String {
     format!("[unrendered: {f:?}]")
 }
 
-fn state_word(s: &StateFilterEvent) -> &'static str {
+fn state_word(s: &StateChange) -> &'static str {
     match s {
-        StateFilterEvent::Tapped => "tapped",
-        StateFilterEvent::Untapped => "untapped",
-        StateFilterEvent::Attacking => "attacking",
-        StateFilterEvent::Blocked => "blocked",
+        StateChange::Tapped => "tapped",
+        StateChange::Untapped => "untapped",
         _ => "[unrendered]",
     }
 }
@@ -359,7 +373,7 @@ fn literal_count(c: &Count) -> Option<i64> {
 /// a permanent you control to trigger, that ability triggers an additional
 /// time." The canonical enter-cause and you-control affected shapes render
 /// faithfully; other shapes fall through to generic phrasing.
-fn trigger_multiplier(cause: &Event, extra: &Count, affected: &Filter) -> String {
+fn trigger_multiplier(cause: &EventFilter, extra: &Count, affected: &Filter) -> String {
     let times = match literal_count(extra) {
         Some(1) => "an additional time".to_string(),
         Some(n) => format!("{n} additional times"),
@@ -374,8 +388,8 @@ fn trigger_multiplier(cause: &Event, extra: &Count, affected: &Filter) -> String
 
 /// The cause clause: an enter-the-battlefield event renders as "{noun} entering
 /// the battlefield"; anything else as a generic "an event".
-fn cause_phrase(cause: &Event) -> String {
-    if let Event::ZoneMove {
+fn cause_phrase(cause: &EventFilter) -> String {
+    if let EventFilter::ZoneChange {
         what,
         to: Some(deckmaste_core::Zone::Battlefield),
         ..

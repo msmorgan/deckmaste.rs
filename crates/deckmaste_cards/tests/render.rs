@@ -859,7 +859,7 @@ fn renders_trigger_with_turnof_intervening_if() {
     use deckmaste_core::Condition;
     use deckmaste_core::Count;
     use deckmaste_core::Effect;
-    use deckmaste_core::Event;
+    use deckmaste_core::EventFilter;
     use deckmaste_core::Filter;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
@@ -870,11 +870,10 @@ fn renders_trigger_with_turnof_intervening_if() {
         name: "Vigil Keeper".into(),
         types: vec![Type::Creature],
         abilities: vec![Ability::Triggered(TriggeredAbility {
-            event: Event::ZoneMove {
+            event: EventFilter::ZoneChange {
                 what: Filter::type_(Type::Creature),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
-                face: None,
                 cause: None,
             },
             from: None,

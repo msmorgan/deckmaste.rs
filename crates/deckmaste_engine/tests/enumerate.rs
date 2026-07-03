@@ -9,7 +9,7 @@ use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Card;
 use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
-use deckmaste_core::Phase;
+use deckmaste_core::PhaseStep;
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
@@ -196,7 +196,7 @@ fn step_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
 /// (via the engine's canonical `auto_pay_pending`) and continues. Tests that
 /// need a *specific* allocation must answer that `PayMana` explicitly before
 /// calling this helper.
-fn run_to_priority(state: &mut GameState, player: PlayerId, phase: Phase) -> Vec<Action> {
+fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) -> Vec<Action> {
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
@@ -279,7 +279,7 @@ fn abilities_index_matches_activate_ability_action() {
     // forces one Mountain onto p0's battlefield and stocks the deck with PINGER.
     let mut state = activation_game(7, PINGER, 1);
     let pinger = force_into_play(&mut state, PlayerId(0), PINGER);
-    let _legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
     // Find the offered ActivateAbility for the pinger and read its ability back
     // by the SAME index — that round-trip is the public indexing contract.
@@ -334,7 +334,7 @@ fn mana_ability_identifies_a_mountains_tap_for_red() {
 #[test]
 fn decision_point_exposes_the_decider_player() {
     let mut state = activation_game(7, PINGER, 1);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     let StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) = state.step() else {
         panic!("expected priority");
     };
@@ -432,7 +432,7 @@ fn priority_enumerates_pass_concede_activate_and_land() {
     let mut state = activation_game(7, PINGER, 1);
     let _pinger = force_into_play(&mut state, PlayerId(0), PINGER);
     let land = force_into_hand(&mut state, PlayerId(0), "Mountain");
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
     assert!(legal.contains(&Action::Pass), "Pass is always offered");
     assert!(
@@ -459,7 +459,7 @@ fn cast_spell_is_enumerated_once_its_cost_is_payable() {
     let bolt_id = force_into_hand(&mut state, PlayerId(0), INSTANT);
 
     // Before floating mana, Bolt's cost isn't payable -> not offered.
-    let legal = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert!(
         !legal.contains(&Action::CastSpell { object: bolt_id }),
         "Bolt isn't castable with an empty pool"
@@ -508,7 +508,7 @@ fn priority_enumerates_all_action_kinds_at_one_window() {
     let bolt_id = force_into_hand(&mut state, PlayerId(0), INSTANT);
     let land = force_into_hand(&mut state, PlayerId(0), "Mountain");
 
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     // Float one red: taps the first untapped Mountain, leaving the other untapped.
     float_mana(&mut state, PlayerId(0), 1);
 
@@ -563,7 +563,7 @@ fn choose_targets_candidates_resolve_to_names() {
     let target = force_into_play(&mut state, PlayerId(1), "Grizzly Bears");
     let bolt_id = force_into_hand(&mut state, PlayerId(0), INSTANT);
 
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     float_mana(&mut state, PlayerId(0), 1);
     // Drain to the priority where Bolt is castable, then cast it.
     let StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) = state.step() else {

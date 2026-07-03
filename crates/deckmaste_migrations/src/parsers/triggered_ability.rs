@@ -104,10 +104,10 @@ fn render(event: &str, parsed: &ParsedEffect) -> String {
 /// subject).
 ///
 /// Shared with [`crate::parsers::replacement`]: an `Instead`/`Also`
-/// replacement's `would:` is the same `Event`, parsed from the same
+/// replacement's `would:` is the same `EventFilter`, parsed from the same
 /// enters/dies clause grammar.
 pub(super) fn parse_event(clause: &str) -> Option<String> {
-    // Cast trigger: "you cast a[n] <subtype> spell" — the Performed("Cast") view
+    // Cast trigger: "you cast a[n] <subtype> spell" — the `Cast` onset event
     // ([CR#601.2i]), filtered to a spell of the named subtype (Prowess shape).
     if let Some(event) = parse_cast_event(clause) {
         return Some(event);
@@ -155,10 +155,10 @@ pub(super) fn parse_event(clause: &str) -> Option<String> {
     }
 }
 
-/// "you cast a[n] <Subtype> spell" -> `Performed(verb: "Cast", by: Ref(You),
-/// on: AllOf([Kind(Spell), Subtype("<X>")]))` ([CR#601.2i] cast view; mirrors
-/// the Prowess macro's filtered-cast shape). Only the controller's own cast of
-/// a single-subtype spell is modeled here; any other cast surface (an
+/// "you cast a[n] <Subtype> spell" -> `Cast(who: Ref(You),
+/// what: AllOf([Kind(Spell), Subtype("<X>")]))` ([CR#601.2i] cast onset;
+/// mirrors the Prowess macro's filtered-cast shape). Only the controller's own
+/// cast of a single-subtype spell is modeled here; any other cast surface (an
 /// opponent's cast, a card-type-filtered spell, no subtype) declines.
 fn parse_cast_event(clause: &str) -> Option<String> {
     let rest = clause.strip_prefix("you cast ")?;
@@ -175,14 +175,14 @@ fn parse_cast_event(clause: &str) -> Option<String> {
         return None;
     }
     Some(format!(
-        "Performed(verb: \"Cast\", by: Ref(You), on: AllOf([Kind(Spell), Subtype(\"{}\")]))",
+        "Cast(who: Ref(You), what: AllOf([Kind(Spell), Subtype(\"{}\")]))",
         crate::ident::to_rust_ident(subtype)
     ))
 }
 
 /// "At the beginning of <step-phrase>, <effect>" (lead already stripped) ->
-/// (`BeginningOf(<phase>, <whose>)`, effect clause), or `None`. Two step-phrase
-/// shapes ([CR#603.3]):
+/// (`StepBegins(at: <phase>, whose: <whose>)`, effect clause), or `None`. Two
+/// step-phrase shapes ([CR#603.3]):
 ///
 /// - A possessive step naming whose turn it watches: "your upkeep" / "your end
 ///   step" -> `(<phase>, Your)`. The whose-turn is the leading possessive; the
@@ -195,8 +195,8 @@ fn parse_cast_event(clause: &str) -> Option<String> {
 ///   whose "on … turn" run carries an INTERNAL comma — kept for the existing
 ///   beginning-of-combat trigger.
 ///
-/// The phrase->`Phase` map covers the steps cards trigger on today (upkeep, end
-/// step, beginning of combat); an unmodeled step or a non-"your" possessive
+/// The phrase->`PhaseStep` map covers the steps cards trigger on today (upkeep,
+/// end step, beginning of combat); an unmodeled step or a non-"your" possessive
 /// declines.
 fn parse_beginning_of(rest: &str) -> Option<(String, &str)> {
     let (step_clause, effect_clause) = rest.split_once(", ")?;
@@ -208,7 +208,10 @@ fn parse_beginning_of(rest: &str) -> Option<(String, &str)> {
             "your" => "Your",
             _ => return None,
         };
-        return Some((format!("BeginningOf({phase}, {whose_turn})"), effect_clause));
+        return Some((
+            format!("StepBegins(at: {phase}, whose: {whose_turn})"),
+            effect_clause,
+        ));
     }
     // The plain "<possessive> <step>" / "the <step>" forms.
     let (whose_turn, step) = if let Some(step) = step_clause.strip_prefix("your ") {
@@ -220,11 +223,14 @@ fn parse_beginning_of(rest: &str) -> Option<(String, &str)> {
         return None;
     };
     let phase = step_phase(step)?;
-    Some((format!("BeginningOf({phase}, {whose_turn})"), effect_clause))
+    Some((
+        format!("StepBegins(at: {phase}, whose: {whose_turn})"),
+        effect_clause,
+    ))
 }
 
-/// A step phrase -> its `Phase` RON, or `None` for an unmodeled step. Covers
-/// the steps that carry "at the beginning of" triggers today
+/// A step phrase -> its `PhaseStep` RON, or `None` for an unmodeled step.
+/// Covers the steps that carry "at the beginning of" triggers today
 /// ([CR#502,503,513]).
 fn step_phase(step: &str) -> Option<&'static str> {
     Some(match step {
@@ -431,8 +437,8 @@ mod tests {
             trig("Whenever you cast an Elf spell, you may create a 1/1 green Elf Warrior creature token.")
                 .as_deref(),
             Some(
-                "Triggered(event: Performed(verb: \"Cast\", by: Ref(You), \
-                 on: AllOf([Kind(Spell), Subtype(\"Elf\")])), \
+                "Triggered(event: Cast(who: Ref(You), \
+                 what: AllOf([Kind(Spell), Subtype(\"Elf\")])), \
                  effect: May(effect: Create(1, Token(color_indicator: [Green], types: [Creature], \
                  subtypes: [Elf, Warrior], power: 1, toughness: 1))))"
             )
@@ -458,7 +464,7 @@ mod tests {
             trig("At the beginning of combat on your turn, create a 1/1 red Goblin creature token with haste.")
                 .as_deref(),
             Some(
-                "Triggered(event: BeginningOf(Combat(BeginningOfCombat), Your), \
+                "Triggered(event: StepBegins(at: Combat(BeginningOfCombat), whose: Your), \
                  effect: Create(1, Token(color_indicator: [Red], types: [Creature], \
                  subtypes: [Goblin], abilities: [Keyword(Haste)], power: 1, toughness: 1)))"
             )
@@ -476,12 +482,12 @@ mod tests {
     #[test]
     fn beginning_of_your_upkeep_sacrifice_unless_pay() {
         // Cumulative-style upkeep toll: "sacrifice ~ unless you pay {M}{M}" =>
-        // the same `BeginningOf(Beginning(Upkeep), Your)` + `Unless` shape the
-        // kw-echo macro emits.
+        // the same `StepBegins(at: Beginning(Upkeep), whose: Your)` + `Unless`
+        // shape the kw-echo macro emits.
         assert_eq!(
             trig("At the beginning of your upkeep, sacrifice ~ unless you pay {G}{G}.").as_deref(),
             Some(
-                "Triggered(event: BeginningOf(Beginning(Upkeep), Your), \
+                "Triggered(event: StepBegins(at: Beginning(Upkeep), whose: Your), \
                  effect: Unless(effect: Sacrifice(This), unless: [Mana([Green,Green])]))"
             )
         );
@@ -493,7 +499,7 @@ mod tests {
         assert_eq!(
             trig("At the beginning of the end step, sacrifice ~.").as_deref(),
             Some(
-                "Triggered(event: BeginningOf(Ending(End), EachPlayers), \
+                "Triggered(event: StepBegins(at: Ending(End), whose: EachPlayers), \
                  effect: Sacrifice(This))"
             )
         );

@@ -3,10 +3,9 @@
 // creature's power."
 //
 // The trigger is "whenever this creature attacks" — the same declare-attackers
-// transition Battle Cry watches: THIS creature becomes an attacker,
-// `StateBecomes(of: Ref(This), becomes: Attacking)` ([CR#508.1k] the chosen
-// creature becomes an attacking creature, the [CR#603.2e] becomes-delta keyed
-// on the carrier). No intervening-if: the ability always resolves; the
+// onset Battle Cry watches: THIS creature becomes an attacker,
+// `AttackDeclared(by: Ref(This))` ([CR#508.1k] the chosen creature becomes an
+// attacking creature, the [CR#603.2e] becomes-onset keyed on the carrier). No intervening-if: the ability always resolves; the
 // power restriction lives on the TARGET, not on a gate.
 //
 // The target ([CR#115.1,601.2c], declared on the `Targeted` wrapper, the same
@@ -35,7 +34,7 @@ KeywordAbility(
     name: "Mentor",
     template: "mentor",
     abilities: [Triggered(
-        event: StateBecomes(of: Ref(This), becomes: Attacking),
+        event: AttackDeclared(by: Ref(This)),
         effect: Targeted(
             targets: [Target(Exactly(1), AllOf([
                 Type(Creature),

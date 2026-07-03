@@ -1,5 +1,5 @@
 use deckmaste_core::ColorOrColorless;
-use deckmaste_core::Phase;
+use deckmaste_core::PhaseStep;
 use deckmaste_core::Token;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
@@ -136,7 +136,7 @@ pub enum GameEvent {
         player: PlayerId,
         turn: Uint,
     },
-    StepBegan(Phase),
+    StepBegan(PhaseStep),
     Untapped(ObjectId),
     // Shaped, unbuilt (no fixture forces it yet): `WillDiscard` (madness, above
     // Hand→Graveyard) — the replaceable intent above its committed zone change,
@@ -180,7 +180,7 @@ pub enum GameEvent {
     },
     ManaEmptied {
         player: PlayerId,
-        ending: deckmaste_core::Phase,
+        ending: deckmaste_core::PhaseStep,
     },
 
     /// [CR#701.7a,111.2]: `player` creates one token with the characteristics
@@ -267,7 +267,7 @@ pub enum GameEvent {
     },
     /// [CR#508.1a]: a creature was declared as an attacker. Its apply records
     /// it in `CombatState` and taps it ([CR#508.1f]). The "whenever ~ attacks"
-    /// trigger seam (`StateFilterEvent::Attacking`).
+    /// trigger seam (`EventFilter::AttackDeclared`).
     Attacking(ObjectId),
     /// [CR#509.1a]: a creature was declared as a blocker against `attacker`. Its
     /// apply records the block in `CombatState` and marks `attacker` blocked
@@ -384,7 +384,7 @@ pub enum GameEvent {
     /// An object changed controller — a becomes-delta, never a zone move
     /// (the object keeps its identity). Shaped, unbuilt: control-changing
     /// continuous effects are a layers seam (L2); its apply will re-home
-    /// the object and fire `StateFilterEvent::ControlledBy` patterns.
+    /// the object and fire `EventFilter::ControlChanged` patterns.
     ControlChanged {
         object: ObjectId,
         to: PlayerId,

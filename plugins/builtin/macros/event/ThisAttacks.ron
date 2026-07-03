@@ -2,6 +2,6 @@
 // Mirrors event/ThisDies + event/ThisEnters.
 (
     name: "ThisAttacks",
-    kinds: [Event],
+    kinds: [EventFilter],
     body: Attacks(Ref(This)),
 )

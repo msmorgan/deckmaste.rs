@@ -1,0 +1,13 @@
+// Kind-pass rule (c): AllOf over DIFFERENT master forms — one occurrence is
+// never both a zone change and a life gain, so the pattern can never match
+// [CR#603.2g].
+Normal(
+  name: "Reject Mixed Conjunction",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: AllOf([ThisEnters, LifeGained(who: Ref(You))]),
+      effect: GainLife(1),
+    ),
+  ],
+)

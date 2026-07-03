@@ -1,0 +1,17 @@
+// Accept twin of reject/E-LANE-WITHIN/trigger-within.ron: `Within` under a
+// HISTORY lane — `Happened` scans the log, where a window refinement is the
+// point [CR#608.2i]. The trigger's own event supplies the object binding.
+Normal(
+  name: "Accept Happened Within",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: ThisEnters,
+      condition: Happened(
+        event: Within(LifeGained(who: Ref(You)), ThisTurn),
+        within: ThisTurn,
+      ),
+      effect: Move(EventObject, Exile),
+    ),
+  ],
+)

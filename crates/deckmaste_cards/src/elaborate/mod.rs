@@ -72,6 +72,20 @@ pub enum Code {
     /// An amount anaphor (`ThatMuch`) or amount aggregation (`EventSum`)
     /// without an amount-guaranteeing antecedent ([CR#107.3,608.2i]).
     CapsAmount,
+    /// An event position that must bottom out in master forms doesn't — a
+    /// bare `Not` where the lane requires a kind anchor, or `Not` over an
+    /// unanchored operand ([CR#603.2]; no freeze-everything `CantHappen`).
+    CapsAnchor,
+    /// A conjunction over incompatible master forms, or a cause verb whose
+    /// entailed fact form contradicts its pattern — the pattern can never
+    /// match ([CR#603.2g]).
+    CapsContradiction,
+    /// A `Within` refinement in a live event lane — vacuous outside
+    /// history counting ([CR#603.2]).
+    LaneWithin,
+    /// A `OneOrMore`/`Nth` refinement in a lane that forbids it
+    /// ([CR#603.2c]).
+    LaneBatch,
     /// `Targeted` outside an announce root — replacement/static/loop
     /// position ([CR#115.1a..115.1e,601.2c]).
     PosTargeted,
@@ -114,6 +128,9 @@ pub enum Code {
     /// A divided amount statically smaller than the minimum group size
     /// ([CR#601.2d]).
     FloorDivide,
+    /// An `Nth` occurrence index below one — a 0th occurrence never occurs
+    /// ([CR#603.2g]).
+    FloorNth,
     /// A cost `Do(action)` whose verb is not cost-eligible ([CR#118.3]).
     CostIneligible,
     /// `Count::X` read where no `{X}` is declared by the carrying cost
@@ -124,7 +141,7 @@ pub enum Code {
 impl Code {
     /// Every active code, in manifest order — the drift pin against the
     /// emitted checker-rule manifest.
-    pub const ALL: [Code; 31] = [
+    pub const ALL: [Code; 36] = [
         Code::BindTarget,
         Code::BindThat,
         Code::BindThatGroup,
@@ -137,6 +154,10 @@ impl Code {
         Code::CapsPatient,
         Code::CapsDefender,
         Code::CapsAmount,
+        Code::CapsAnchor,
+        Code::CapsContradiction,
+        Code::LaneWithin,
+        Code::LaneBatch,
         Code::PosTargeted,
         Code::KindFilter,
         Code::KindCounterScope,
@@ -154,6 +175,7 @@ impl Code {
         Code::FloorModalCount,
         Code::FloorModalEmpty,
         Code::FloorDivide,
+        Code::FloorNth,
         Code::CostIneligible,
         Code::CostX,
     ];
@@ -175,6 +197,10 @@ impl Code {
             Code::CapsPatient => "E-CAPS-PATIENT",
             Code::CapsDefender => "E-CAPS-DEFENDER",
             Code::CapsAmount => "E-CAPS-AMOUNT",
+            Code::CapsAnchor => "E-CAPS-ANCHOR",
+            Code::CapsContradiction => "E-CAPS-CONTRADICTION",
+            Code::LaneWithin => "E-LANE-WITHIN",
+            Code::LaneBatch => "E-LANE-BATCH",
             Code::PosTargeted => "E-POS-TARGETED",
             Code::KindFilter => "E-KIND-FILTER",
             Code::KindCounterScope => "E-KIND-COUNTER-SCOPE",
@@ -192,6 +218,7 @@ impl Code {
             Code::FloorModalCount => "E-FLOOR-MODAL-COUNT",
             Code::FloorModalEmpty => "E-FLOOR-MODAL-EMPTY",
             Code::FloorDivide => "E-FLOOR-DIVIDE",
+            Code::FloorNth => "E-FLOOR-NTH",
             Code::CostIneligible => "E-COST-INELIGIBLE",
             Code::CostX => "E-COST-X",
         }

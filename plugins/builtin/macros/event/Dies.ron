@@ -3,7 +3,7 @@
 (
     name: "Dies",
     template: "${0} dies",
-    kinds: [Event],
+    kinds: [EventFilter],
     params: [Filter],
-    body: ZoneMove(what: Param(0), from: Battlefield, to: Graveyard),
+    body: ZoneChange(what: Param(0), from: Battlefield, to: Graveyard),
 )

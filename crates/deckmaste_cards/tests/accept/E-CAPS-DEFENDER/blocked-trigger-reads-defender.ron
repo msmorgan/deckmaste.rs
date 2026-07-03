@@ -7,7 +7,7 @@ Normal(
   types: [Enchantment],
   abilities: [
     Triggered(
-      event: StateBecomes(of: Ref(This), becomes: Blocked),
+      event: BlockDeclared(of: Ref(This)),
       effect: By(DefendingPlayer, LoseLife(1)),
     ),
   ],

@@ -1,8 +1,8 @@
 // Battle Cry = a triggered ability [CR#702.91a]: "Whenever this creature
 // attacks, each other attacking creature gets +1/+0 until end of turn." The
 // trigger fires when THIS creature becomes an attacker
-// (`StateBecomes(of: Ref(This), becomes: Attacking)`, the [CR#508.1k]/
-// [CR#603.2e] declare-attackers transition) — no intervening-if (it always
+// (`AttackDeclared(by: Ref(This))`, the [CR#508.1k]/
+// [CR#603.2e] declare-attackers onset) — no intervening-if (it always
 // resolves; "each other attacking creature" is the affected set, not a gate).
 //
 // "each other attacking creature" = every attacking creature that ISN'T this
@@ -18,7 +18,7 @@ KeywordAbility(
     name: "BattleCry",
     template: "battle cry",
     abilities: [Triggered(
-        event: StateBecomes(of: Ref(This), becomes: Attacking),
+        event: AttackDeclared(by: Ref(This)),
         effect: Continuously(
             effect: Modify(
                 of: Matching(AllOf([Type(Creature), Attacking, Not(Ref(This))])),

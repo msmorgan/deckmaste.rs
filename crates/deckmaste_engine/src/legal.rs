@@ -209,7 +209,7 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
                 from, window, cost, ..
             } => {
                 !(is_may(d)
-                    && *window == Some(deckmaste_core::Window::InstantSpeed)
+                    && *window == Some(deckmaste_core::Timing::InstantSpeed)
                     && from.is_none()
                     && cost.is_none())
             }
@@ -717,7 +717,7 @@ pub(crate) struct MayCastRow {
     pub what: Filter,
     pub by: Filter,
     pub from: Option<deckmaste_core::Zone>,
-    pub window: Option<deckmaste_core::Window>,
+    pub window: Option<deckmaste_core::Timing>,
     pub cost: Option<deckmaste_core::AlternativeCost>,
 }
 

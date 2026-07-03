@@ -9,12 +9,6 @@
 //! Layout mirrors `tests/reject/`: the DIRECTORY is the code the fixture's
 //! construct is associated with; every `*.ron` inside is one fixture (a
 //! `Card`, or a `Token` when named `*.token.ron`).
-//!
-//! `E-CAPS-PATIENT` has no accept fixture: every emitted event-caps row
-//! currently fixes no patient kind (`patient: None` throughout
-//! `tables/event-caps.ron`) — the check exists for a FUTURE event that fixes
-//! one; no card can legally read `EventPatient` today, so no accept twin is
-//! possible yet (`elaborate::tables` pins this; see the module doc there).
 
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -34,10 +28,6 @@ fn builtin() -> Plugin {
 fn accept_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/accept")
 }
-
-/// The one E-code with no possible accept fixture today — see the module
-/// doc.
-const NO_TWIN_YET: Code = Code::CapsPatient;
 
 /// Every accept fixture parses AND elaborates clean; a fixture that fails
 /// either is a test failure. Also collects, per fixture, whether `--dump`
@@ -85,10 +75,9 @@ fn accept_fixture_resolution_count(plugin: &Plugin, path: &Path) -> usize {
     }
 }
 
-/// Every accept fixture elaborates clean; every active code except
-/// [`NO_TWIN_YET`] has at least one twin; every binding/capability/cost-`{X}`
-/// code's twin resolves at least one binding (`--dump` has something to
-/// show).
+/// Every accept fixture elaborates clean; every active code has at least
+/// one twin; every binding/capability/cost-`{X}` code's twin resolves at
+/// least one binding (`--dump` has something to show).
 #[test]
 fn every_accept_fixture_elaborates_clean_and_covers_its_code() {
     let plugin = builtin();
@@ -143,9 +132,6 @@ fn every_accept_fixture_elaborates_clean_and_covers_its_code() {
         covered.insert(code.as_str().to_owned());
     }
     for code in Code::ALL {
-        if code == NO_TWIN_YET {
-            continue;
-        }
         assert!(
             covered.contains(code.as_str()),
             "no accept fixture for {code}"

@@ -2,8 +2,8 @@
 //! event intent and applies them per [CR#616.1] with lineage ([CR#614.5]).
 //!
 //! Task 1: the `replacement_watches` matcher — does a replacement's `would`
-//! (a core `Event`) watch a given live `GameEvent` intent, and who/what does
-//! the intent affect.
+//! (a core `EventFilter`) watch a given live `GameEvent` intent, and who/what
+//! does the intent affect.
 //!
 //! Later tasks (2–10) add: `CantHappen` variant + cant pass, shields registry,
 //! `replace_event` loop, `ChooseReplacement` decision, regeneration,
@@ -11,8 +11,9 @@
 
 use deckmaste_core::Ability;
 use deckmaste_core::CausePattern;
+use deckmaste_core::CauseVerb;
 use deckmaste_core::Duration;
-use deckmaste_core::Event;
+use deckmaste_core::EventFilter;
 use deckmaste_core::Filter;
 use deckmaste_core::Prevention;
 use deckmaste_core::Replacement;
@@ -37,31 +38,29 @@ pub(crate) enum Affected {
     Player(PlayerId),
 }
 
-/// The abstract `Event` a replaceable intent represents, plus what it affects.
-/// Returns `None` for non-replaceable facts (zone-change facts, life-loss,
-/// etc.) — only INTENTS are replaceable [CR#614].
-pub(crate) fn intent_event(e: &GameEvent) -> Option<(Event, Affected)> {
+/// The abstract `EventFilter` a replaceable intent represents, plus what it
+/// affects. Returns `None` for non-replaceable facts (zone-change facts,
+/// life-loss, etc.) — only INTENTS are replaceable [CR#614].
+pub(crate) fn intent_event(e: &GameEvent) -> Option<(EventFilter, Affected)> {
     match e {
         // [CR#701.8a]: destruction = a BF→GY move with the Destroy cause.
         // The abstract event mirrors the trigger pattern for "destroyed"
-        // ([CR#701.8b]): a ZoneMove with verb "Destroy".
+        // ([CR#701.8b]): a ZoneChange with verb "Destroy".
         GameEvent::WillDestroy { object, cause } => Some((
-            Event::ZoneMove {
+            EventFilter::ZoneChange {
                 what: Filter::Any,
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
-                face: None,
                 cause: cause.as_ref().map(lift_cause),
             },
             Affected::Object(*object),
         )),
         // [CR#121.1]: a draw — Library→Hand zone move.
         GameEvent::WillDraw { player, .. } => Some((
-            Event::ZoneMove {
+            EventFilter::ZoneChange {
                 what: Filter::Any,
                 from: Some(Zone::Library),
                 to: Some(Zone::Hand),
-                face: None,
                 cause: None,
             },
             Affected::Player(*player),
@@ -74,30 +73,29 @@ pub(crate) fn intent_event(e: &GameEvent) -> Option<(Event, Affected)> {
             cause,
             ..
         } => Some((
-            Event::ZoneMove {
+            EventFilter::ZoneChange {
                 what: Filter::Any,
                 from: *from,
                 to: Some(*to),
-                face: None,
                 cause: cause.as_ref().map(lift_cause),
             },
             Affected::Object(*object),
         )),
         // [CR#120.3]: damage dealt.
         GameEvent::DamageDealt { target, .. } => Some((
-            Event::Performed {
-                verb: "DealDamage".into(),
-                by: Filter::Any,
-                on: Filter::Any,
+            EventFilter::Damage {
+                source: Filter::Any,
+                to: Filter::Any,
+                combat: None,
+                amount: None,
             },
             Affected::Object(*target),
         )),
         // [CR#119.3]: life gain.
         GameEvent::LifeGained { player, .. } => Some((
-            Event::Performed {
-                verb: "GainLife".into(),
-                by: Filter::Any,
-                on: Filter::Any,
+            EventFilter::LifeGained {
+                who: Filter::Any,
+                amount: None,
             },
             Affected::Player(*player),
         )),
@@ -106,12 +104,12 @@ pub(crate) fn intent_event(e: &GameEvent) -> Option<(Event, Affected)> {
     }
 }
 
-/// The live object that PERFORMED a replaceable intent — the `by` coordinate of
-/// a `Performed` event ([CR#120.3], "damage dealt BY a source"). `Some` only
-/// for the verb-keyed intents that carry a source object; `None` for zone moves
-/// and player-experienced events, whose `Performed` pattern (if any) has no
-/// performer to bind. Mirrors `Affected` (the `on` coordinate): `Affected` is
-/// the recipient, this is the actor.
+/// The live object that PERFORMED a replaceable intent — the `source`
+/// coordinate of a `Damage` event ([CR#120.3], "damage dealt BY a source").
+/// `Some` only for the intents that carry a source object; `None` for zone
+/// moves and player-experienced events, whose pattern (if any) has no
+/// performer to bind. Mirrors `Affected` (the recipient coordinate):
+/// `Affected` is the recipient, this is the actor.
 pub(crate) fn intent_performer(e: &GameEvent) -> Option<ObjectId> {
     match e {
         // [CR#120.3]: the damage's SOURCE — the object infect/wither/lifelink
@@ -127,7 +125,7 @@ pub(crate) fn intent_performer(e: &GameEvent) -> Option<ObjectId> {
 pub(crate) fn replacement_watches(
     state: &GameState,
     view: &LayeredView,
-    would: &Event,
+    would: &EventFilter,
     this: ObjectId,
     e: &GameEvent,
 ) -> bool {
@@ -138,17 +136,20 @@ pub(crate) fn replacement_watches(
     event_pattern_matches(state, view, would, this, &abstract_ev, affected, performer)
 }
 
-/// Match `would` (a core `Event` pattern) against `abstract_ev` (the abstract
-/// representation of the intent). `this` anchors `Ref(This)`. `view` is
-/// threaded through for later-task derived-property checks. `performer` is the
-/// live actor (the `by` coordinate) when the intent carries one.
+/// Match `would` (a core `EventFilter` pattern) against `abstract_ev` (the
+/// abstract representation of the intent). `this` anchors `Ref(This)`. `view`
+/// is threaded through for later-task derived-property checks. `performer` is
+/// the live actor (the `source` coordinate) when the intent carries one.
+///
+/// Conservative v1 seam: pattern kinds/refinements this matcher doesn't
+/// handle return hard-`false` (documented), never a silent over-match.
 #[allow(clippy::only_used_in_recursion)]
 fn event_pattern_matches(
     state: &GameState,
     view: &LayeredView,
-    would: &Event,
+    would: &EventFilter,
     this: ObjectId,
-    abstract_ev: &Event,
+    abstract_ev: &EventFilter,
     affected: Affected,
     performer: Option<ObjectId>,
 ) -> bool {
@@ -156,19 +157,17 @@ fn event_pattern_matches(
     let would = look_through_event(would);
 
     match (would, abstract_ev) {
-        // Both are ZoneMove: compare each present field.
+        // Both are ZoneChange: compare each present field.
         (
-            Event::ZoneMove {
+            EventFilter::ZoneChange {
                 what,
                 from: w_from,
                 to: w_to,
-                face: w_face,
                 cause: w_cause,
             },
-            Event::ZoneMove {
+            EventFilter::ZoneChange {
                 from: e_from,
                 to: e_to,
-                face: e_face,
                 cause: e_cause,
                 ..
             },
@@ -181,10 +180,6 @@ fn event_pattern_matches(
             if w_to.is_some() && w_to != e_to {
                 return false;
             }
-            // `face`: if the would specifies a face, the intent must match.
-            if w_face.is_some() && w_face != e_face {
-                return false;
-            }
             // `cause`: if the would specifies a cause pattern, the intent's
             // cause must match every present coordinate.
             if let Some(w_c) = w_cause {
@@ -194,7 +189,7 @@ fn event_pattern_matches(
                     Some(e_c) => {
                         // The abstract event's cause was lifted from the intent.
                         let deckmaste_core::Cause::Cause(e_pattern) = e_c;
-                        cause_pattern_matches(pattern, e_pattern.verb.as_ref(), e_pattern.agency)
+                        cause_pattern_matches(pattern, e_pattern.verb, e_pattern.agency)
                     }
                 };
                 if !matched {
@@ -211,78 +206,103 @@ fn event_pattern_matches(
             );
             match affected {
                 Affected::Object(id) => crate::target::matches_with(state, id, what, Some(watcher)),
-                // A ZoneMove with an Affected::Player is the draw case; `what`
-                // should be `Filter::Any` for that, which always matches.
+                // A ZoneChange with an Affected::Player is the draw case;
+                // `what` should be `Filter::Any` for that, which always
+                // matches.
                 Affected::Player(_) => matches!(what, Filter::Any),
             }
         }
 
-        // Both are Performed: compare verb, then resolve the `on` filter against
-        // the recipient (`affected`) and the `by` filter against the performer
-        // (the live actor). Infect/Wither key a SOURCE replacement off
-        // `by: Ref(This)` — "damage dealt BY this creature"
-        // ([CR#702.80a,702.90b,702.90c,120.3]) — so the `by` match is what
-        // restricts the replacement to damage from that very source. A `by`
-        // filter present with no performer to test against never matches (the
-        // intent carries no actor).
+        // Both are Damage: resolve the `to` filter against the recipient
+        // (`affected`) and the `source` filter against the performer (the
+        // live actor). Infect/Wither key a SOURCE replacement off
+        // `source: Ref(This)` — "damage dealt BY this creature"
+        // ([CR#702.80a,702.90b,702.90c,120.3]) — so the `source` match is
+        // what restricts the replacement to damage from that very source. A
+        // `source` filter present with no performer to test against never
+        // matches (the intent carries no actor).
         (
-            Event::Performed {
-                verb: w_verb,
-                by: w_by,
-                on: w_on,
+            EventFilter::Damage {
+                source: w_source,
+                to: w_to,
+                combat,
+                amount,
             },
-            Event::Performed { verb: e_verb, .. },
+            EventFilter::Damage { .. },
         ) => {
-            if w_verb != e_verb {
+            // Hard-false, matching this matcher's conservative v1 style: the
+            // intent carries no combat flag and this matcher evaluates no
+            // amount bound, so a refined pattern must never over-match.
+            if combat.is_some() || amount.is_some() {
                 return false;
             }
             let watcher = object_source_of(state, this);
-            // `by`: resolve against the performer, mirroring `on` against the
-            // recipient. `Filter::Any` matches any (even a missing) performer;
-            // a more specific filter requires the actor to be present and match.
-            let by_ok = match w_by {
+            // `source`: resolve against the performer, mirroring `to` against
+            // the recipient. `Filter::Any` matches any (even a missing)
+            // performer; a more specific filter requires the actor to be
+            // present and match.
+            let source_ok = match w_source {
                 Filter::Any => true,
                 _ => performer.is_some_and(|src| {
-                    crate::target::matches_with(state, src, w_by, Some(watcher))
+                    crate::target::matches_with(state, src, w_source, Some(watcher))
                 }),
             };
-            if !by_ok {
+            if !source_ok {
                 return false;
             }
-            // `on`: resolve against the recipient.
+            // `to`: resolve against the recipient.
             match affected {
-                Affected::Object(id) => crate::target::matches_with(state, id, w_on, Some(watcher)),
+                Affected::Object(id) => crate::target::matches_with(state, id, w_to, Some(watcher)),
                 Affected::Player(p) => {
                     let proxy = state.player(p).object;
-                    crate::target::matches_with(state, proxy, w_on, Some(watcher))
+                    crate::target::matches_with(state, proxy, w_to, Some(watcher))
                 }
             }
         }
 
-        // OneOf: any arm matches.
-        (Event::OneOf(events), _) => events
+        // Both are LifeGained: resolve `who` against the affected player.
+        (EventFilter::LifeGained { who, amount }, EventFilter::LifeGained { .. }) => {
+            // Hard-false for the unevaluated amount bound (conservative v1).
+            if amount.is_some() {
+                return false;
+            }
+            let watcher = object_source_of(state, this);
+            match affected {
+                Affected::Object(id) => crate::target::matches_with(state, id, who, Some(watcher)),
+                Affected::Player(p) => {
+                    let proxy = state.player(p).object;
+                    crate::target::matches_with(state, proxy, who, Some(watcher))
+                }
+            }
+        }
+
+        // OneOf: any arm matches. AllOf: every arm matches.
+        (EventFilter::OneOf(events), _) => events
             .iter()
             .any(|p| event_pattern_matches(state, view, p, this, abstract_ev, affected, performer)),
+        (EventFilter::AllOf(events), _) => events
+            .iter()
+            .all(|p| event_pattern_matches(state, view, p, this, abstract_ev, affected, performer)),
 
         // A pattern for a different event kind never matches.
         _ => false,
     }
 }
 
-/// Whether a `CausePattern` matches an intent's cause coordinates.
+/// Whether a `CausePattern` matches an intent's (lifted) cause coordinates.
 /// Every PRESENT coordinate in the pattern must match; an absent one matches
 /// anything. An event with no cause (no verb/agency) fails every present-verb
-/// pattern.
+/// pattern. Verbs compare by their canonical spelling ([`CauseVerb::as_str`]).
 fn cause_pattern_matches(
     pattern: &CausePattern,
-    actual_verb: Option<&deckmaste_core::Ident>,
+    actual_verb: Option<CauseVerb>,
     actual_agency: Option<deckmaste_core::Agency>,
 ) -> bool {
-    if let Some(pv) = &pattern.verb {
+    if let Some(pv) = pattern.verb {
         let Some(av) = actual_verb else {
             return false;
         };
-        if pv != av {
+        if pv.as_str() != av.as_str() {
             return false;
         }
     }
@@ -303,17 +323,38 @@ fn cause_pattern_matches(
 /// Agent resolution is deferred (v1 seam) — agent → `None`.
 fn lift_cause(cause: &crate::event::Cause) -> deckmaste_core::Cause {
     deckmaste_core::Cause::Cause(CausePattern {
-        verb: Some(cause.verb),
+        verb: lift_verb(&cause.verb),
         agency: Some(cause.agency),
         agent: None,
     })
 }
 
-/// Look through a remembered `Event` macro invocation (`Expanded`) to the
-/// underlying structural form.
-pub(crate) fn look_through_event(event: &Event) -> &Event {
+/// The engine's open `Ident` fact verb, re-expressed in the closed
+/// [`CauseVerb`] pattern vocabulary. Fact verbs outside it (`Counter`, `Tap`,
+/// `PutCounters`, …) have no pattern spelling and lift to `None`: a
+/// verb-narrowed pattern can never match them (correct — the closed
+/// vocabulary has no such verb), and an unnarrowed pattern doesn't care.
+fn lift_verb(verb: &deckmaste_core::Ident) -> Option<CauseVerb> {
+    [
+        CauseVerb::Sacrifice,
+        CauseVerb::Destroy,
+        CauseVerb::Discard,
+        CauseVerb::Exile,
+        CauseVerb::Mill,
+        CauseVerb::Play,
+        CauseVerb::Fight,
+        CauseVerb::Explore,
+        CauseVerb::Regenerate,
+    ]
+    .into_iter()
+    .find(|v| v.as_str() == verb.as_str())
+}
+
+/// Look through a remembered `EventFilter` macro invocation (`Expanded`) to
+/// the underlying structural form.
+pub(crate) fn look_through_event(event: &EventFilter) -> &EventFilter {
     match event {
-        Event::Expanded(e) => look_through_event(&e.value),
+        EventFilter::Expanded(e) => look_through_event(&e.value),
         other => other,
     }
 }
@@ -388,8 +429,8 @@ pub(crate) enum ApplicableEffect {
     Prevention(Prevention),
 }
 
-/// One replacement or prevention effect that is applicable to the current event —
-/// the key (for lineage), the effect itself, and the source object.
+/// One replacement or prevention effect that is applicable to the current event
+/// — the key (for lineage), the effect itself, and the source object.
 #[derive(Debug, Clone)]
 pub(crate) struct Applicable {
     pub key: ReplacementKey,
@@ -522,7 +563,7 @@ fn prevention_watches(
 /// resolved to a concrete object when the shield was created (its captured
 /// `That`), so matching is by SUBJECT IDENTITY — the `would`'s `what`
 /// (typically `Ref(EventObject)`, which a frameless gather can't re-resolve) is
-/// NOT re-evaluated — paired with the event SHAPE (kind + from/to/face/cause).
+/// NOT re-evaluated — paired with the event SHAPE (kind + from/to/cause).
 fn floating_watches(replacement: &Replacement, subject: ObjectId, e: &GameEvent) -> bool {
     let Some((abstract_ev, affected)) = intent_event(e) else {
         return false;
@@ -537,44 +578,52 @@ fn floating_watches(replacement: &Replacement, subject: ObjectId, e: &GameEvent)
     event_shape_matches(look_through_event(would), &abstract_ev)
 }
 
-/// Whether a `would`'s event SHAPE matches the abstract intent: the event kind
-/// plus the `ZoneMove` coordinates (from/to/face/cause) or the `Performed`
-/// verb. The participant filter (`what`/`on`) is NOT checked here — the
-/// floating matcher pairs this with its own subject-identity check.
-fn event_shape_matches(would: &Event, abstract_ev: &Event) -> bool {
+/// Whether a `would`'s event SHAPE matches the abstract intent: the event
+/// kind plus the `ZoneChange` coordinates (from/to/cause) — a `Damage`/
+/// `LifeGained` would matches its intent kind. The participant filters
+/// (`what`/`to`/`who`) are NOT checked here — the floating matcher pairs this
+/// with its own subject-identity check. A refinement this matcher doesn't
+/// evaluate (a `combat:`/`amount:` narrow) is hard-`false`, matching the
+/// registry's conservative v1 style.
+fn event_shape_matches(would: &EventFilter, abstract_ev: &EventFilter) -> bool {
     match (would, abstract_ev) {
         (
-            Event::ZoneMove {
+            EventFilter::ZoneChange {
                 from: w_from,
                 to: w_to,
-                face: w_face,
                 cause: w_cause,
                 ..
             },
-            Event::ZoneMove {
+            EventFilter::ZoneChange {
                 from: e_from,
                 to: e_to,
-                face: e_face,
                 cause: e_cause,
                 ..
             },
         ) => {
             (w_from.is_none() || w_from == e_from)
                 && (w_to.is_none() || w_to == e_to)
-                && (w_face.is_none() || w_face == e_face)
                 && match w_cause {
                     None => true,
                     Some(deckmaste_core::Cause::Cause(p)) => matches!(
                         e_cause,
                         Some(deckmaste_core::Cause::Cause(ep))
-                            if cause_pattern_matches(p, ep.verb.as_ref(), ep.agency)
+                            if cause_pattern_matches(p, ep.verb, ep.agency)
                     ),
                 }
         }
-        (Event::Performed { verb: w, .. }, Event::Performed { verb: e, .. }) => w == e,
-        (Event::OneOf(ws), _) => ws
+        (EventFilter::Damage { combat, amount, .. }, EventFilter::Damage { .. }) => {
+            combat.is_none() && amount.is_none()
+        }
+        (EventFilter::LifeGained { amount, .. }, EventFilter::LifeGained { .. }) => {
+            amount.is_none()
+        }
+        (EventFilter::OneOf(ws), _) => ws
             .iter()
             .any(|w| event_shape_matches(look_through_event(w), abstract_ev)),
+        (EventFilter::AllOf(ws), _) => ws
+            .iter()
+            .all(|w| event_shape_matches(look_through_event(w), abstract_ev)),
         _ => false,
     }
 }
@@ -1089,7 +1138,7 @@ pub(crate) mod tests_support {
 mod tests {
     use deckmaste_core::Agency;
     use deckmaste_core::CausePattern;
-    use deckmaste_core::Event;
+    use deckmaste_core::EventFilter;
     use deckmaste_core::Filter;
     use deckmaste_core::Reference;
     use deckmaste_core::Zone;
@@ -1103,13 +1152,12 @@ mod tests {
     #[test]
     fn destroyed_would_watches_will_destroy_of_self() {
         let (state, view, id) = super::tests_support::lone_creature();
-        let would = Event::ZoneMove {
+        let would = EventFilter::ZoneChange {
             what: Filter::Ref(Reference::This),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
-            face: None,
             cause: Some(deckmaste_core::Cause::Cause(CausePattern {
-                verb: Some("Destroy".into()),
+                verb: Some(deckmaste_core::CauseVerb::Destroy),
                 agency: None,
                 agent: None,
             })),
@@ -1126,13 +1174,12 @@ mod tests {
     #[test]
     fn destroyed_would_does_not_watch_sacrifice() {
         let (state, view, id) = super::tests_support::lone_creature();
-        let would = Event::ZoneMove {
+        let would = EventFilter::ZoneChange {
             what: Filter::Ref(Reference::This),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
-            face: None,
             cause: Some(deckmaste_core::Cause::Cause(CausePattern {
-                verb: Some("Destroy".into()),
+                verb: Some(deckmaste_core::CauseVerb::Destroy),
                 agency: None,
                 agent: None,
             })),
@@ -1154,11 +1201,10 @@ mod tests {
     #[test]
     fn cant_happen_suppresses_own_destruction() {
         let (state, id) = super::tests_support::creature_with_static(
-            deckmaste_core::StaticEffect::CantHappen(Event::ZoneMove {
+            deckmaste_core::StaticEffect::CantHappen(EventFilter::ZoneChange {
                 what: Filter::Ref(Reference::This),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
-                face: None,
                 cause: None,
             }),
         );
@@ -1201,9 +1247,10 @@ mod tests {
     }
 
     /// The `by`-matcher ([CR#120.3], "damage dealt BY a source"): a `would`
-    /// keyed `by: Ref(This)` watches a `DamageDealt` whose SOURCE is `this`,
-    /// but NOT one whose source is a different object. This is the source-side
-    /// filter infect/wither rely on ([CR#702.80a,702.90b,702.90c]).
+    /// keyed `source: Ref(This)` watches a `DamageDealt` whose SOURCE is
+    /// `this`, but NOT one whose source is a different object. This is the
+    /// source-side filter infect/wither rely on
+    /// ([CR#702.80a,702.90b,702.90c]).
     #[test]
     fn by_matcher_distinguishes_damage_source() {
         let (mut state, view, source_a) = super::tests_support::lone_creature();
@@ -1212,10 +1259,11 @@ mod tests {
         let target = super::tests_support::mint_creature_on_battlefield(&mut state);
 
         // "damage dealt BY this creature" — keyed to the watching object.
-        let would = Event::Performed {
-            verb: "DealDamage".into(),
-            by: Filter::Ref(Reference::This),
-            on: Filter::Any,
+        let would = EventFilter::Damage {
+            source: Filter::Ref(Reference::This),
+            to: Filter::Any,
+            combat: None,
+            amount: None,
         };
 
         // `this == source_a`: damage from A fires the watch; damage from B does not.
@@ -1231,32 +1279,33 @@ mod tests {
         };
         assert!(
             replacement_watches(&state, &view, &would, source_a, &from_a),
-            "a `by: Ref(This)` would watches damage from its own source"
+            "a `source: Ref(This)` would watches damage from its own source"
         );
         assert!(
             !replacement_watches(&state, &view, &would, source_a, &from_b),
             "it must NOT watch damage from a different source"
         );
 
-        // A bare `by: Any` watches both (the default, source-agnostic).
-        let any = Event::Performed {
-            verb: "DealDamage".into(),
-            by: Filter::Any,
-            on: Filter::Any,
+        // A bare `source: Any` watches both (the default, source-agnostic).
+        let any = EventFilter::Damage {
+            source: Filter::Any,
+            to: Filter::Any,
+            combat: None,
+            amount: None,
         };
         assert!(replacement_watches(&state, &view, &any, source_a, &from_b));
     }
 
-    /// Helper: the abstract `Event` for "this permanent would be destroyed"
-    /// (BF→GY with verb "Destroy"), as used in replacement `would` fields.
-    fn destroyed_self() -> Event {
-        Event::ZoneMove {
+    /// Helper: the abstract `EventFilter` for "this permanent would be
+    /// destroyed" (BF→GY with verb "Destroy"), as used in replacement `would`
+    /// fields.
+    fn destroyed_self() -> EventFilter {
+        EventFilter::ZoneChange {
             what: Filter::Ref(Reference::This),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
-            face: None,
             cause: Some(deckmaste_core::Cause::Cause(CausePattern {
-                verb: Some("Destroy".into()),
+                verb: Some(deckmaste_core::CauseVerb::Destroy),
                 agency: None,
                 agent: None,
             })),

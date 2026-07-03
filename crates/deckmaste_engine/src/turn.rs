@@ -1,7 +1,7 @@
 use deckmaste_core::BeginningStep;
 use deckmaste_core::CombatStep;
 use deckmaste_core::EndingStep;
-use deckmaste_core::Phase;
+use deckmaste_core::PhaseStep;
 use deckmaste_core::Uint;
 
 use crate::player::PlayerId;
@@ -13,7 +13,7 @@ pub struct TurnState {
     pub active_player: PlayerId,
     /// 0 before the game starts; `BeginStep(Beginning(Untap))` increments.
     pub turn_number: Uint,
-    pub current: Phase,
+    pub current: PhaseStep,
     /// `Some` while a priority round is open ([CR#117]).
     pub priority: Option<PriorityRound>,
 }
@@ -27,9 +27,10 @@ pub struct PriorityRound {
 }
 
 /// The next phase/step in the turn order ([CR#500]), or `None` past Cleanup
-/// (the caller begins the next turn). Walks the `Phase` hierarchy in CR order.
+/// (the caller begins the next turn). Walks the `PhaseStep` hierarchy in CR
+/// order.
 #[must_use]
-pub fn successor(step: Phase) -> Option<Phase> {
+pub fn successor(step: PhaseStep) -> Option<PhaseStep> {
     use BeginningStep::Draw;
     use BeginningStep::Untap;
     use BeginningStep::Upkeep;
@@ -41,11 +42,11 @@ pub fn successor(step: Phase) -> Option<Phase> {
     use CombatStep::FirstCombatDamage;
     use EndingStep::Cleanup;
     use EndingStep::End;
-    use Phase::Beginning;
-    use Phase::Combat;
-    use Phase::Ending;
-    use Phase::PostcombatMain;
-    use Phase::PrecombatMain;
+    use PhaseStep::Beginning;
+    use PhaseStep::Combat;
+    use PhaseStep::Ending;
+    use PhaseStep::PostcombatMain;
+    use PhaseStep::PrecombatMain;
 
     Some(match step {
         // Beginning phase ([CR#501,502,503]).
@@ -86,11 +87,11 @@ mod tests {
     use CombatStep::FirstCombatDamage;
     use EndingStep::Cleanup;
     use EndingStep::End;
-    use Phase::Beginning;
-    use Phase::Combat;
-    use Phase::Ending;
-    use Phase::PostcombatMain;
-    use Phase::PrecombatMain;
+    use PhaseStep::Beginning;
+    use PhaseStep::Combat;
+    use PhaseStep::Ending;
+    use PhaseStep::PostcombatMain;
+    use PhaseStep::PrecombatMain;
 
     use super::*;
 

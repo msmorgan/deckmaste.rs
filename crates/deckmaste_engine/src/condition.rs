@@ -5,8 +5,7 @@
 //! this dispatch in place rather than growing a second evaluator.
 
 use deckmaste_core::Condition;
-use deckmaste_core::Phase;
-use deckmaste_core::Window;
+use deckmaste_core::PhaseStep;
 
 use crate::player::PlayerId;
 use crate::stack::Frame;
@@ -101,19 +100,17 @@ impl GameState {
             // Look through a macro.
             Condition::Expanded(e) => self.condition_holds(&e.value, frame),
 
-            // "[event] happened within [window]" ([CR#608.2i]): scan the
+            // "[event] happened within [lookback]" ([CR#608.2i]): scan the
             // history log for any recorded fact matching the pattern, reusing
             // the trigger event-matcher. The frame's source anchors a
-            // `Ref(This)` in the pattern's filter ([CR#603.10a]).
+            // `Ref(This)` in the pattern's filter ([CR#603.10a]). Lookback
+            // handling lives in `History::scan` (unbuilt lookbacks trip
+            // there).
             Condition::Happened { event, within } => {
                 let watcher = self.frame_watcher(frame);
-                match within {
-                    Window::ThisTurn | Window::ThisGame => self
-                        .history
-                        .scan(*within, self.turn.turn_number)
-                        .any(|fact| self.event_matches(event, fact, watcher)),
-                    other => todo!("{other:?} is not a history-lookback window for Happened"),
-                }
+                self.history
+                    .scan(*within, self.turn.turn_number)
+                    .any(|fact| self.event_matches(event, fact, watcher))
             }
 
             // It is the evaluating player's turn — the frame-robust sugar for
@@ -171,14 +168,14 @@ impl GameState {
 
     /// [CR#307.1,117.1a]: `player` could cast a sorcery right now — their
     /// turn, a main phase, stack (and announce slot) empty. The same facts
-    /// `Window::SorcerySpeed`'s activation gate reads; `kw-flash`'s
+    /// `Timing::SorcerySpeed`'s activation gate reads; `kw-flash`'s
     /// `May(Cast(window: InstantSpeed))` will relax the spell-side caller.
     #[must_use]
     pub(crate) fn sorcery_speed_ok(&self, player: PlayerId) -> bool {
         player == self.turn.active_player
             && matches!(
                 self.turn.current,
-                Phase::PrecombatMain | Phase::PostcombatMain
+                PhaseStep::PrecombatMain | PhaseStep::PostcombatMain
             )
             && self.stack.is_empty()
             && self.announcing.is_none()
@@ -195,14 +192,14 @@ mod tests {
     use deckmaste_core::Cmp;
     use deckmaste_core::Condition;
     use deckmaste_core::Count;
-    use deckmaste_core::Event;
+    use deckmaste_core::EventFilter;
     use deckmaste_core::Filter;
-    use deckmaste_core::Phase;
+    use deckmaste_core::Lookback;
+    use deckmaste_core::PhaseStep;
     use deckmaste_core::Reference;
     use deckmaste_core::StateFilter;
     use deckmaste_core::Type;
     use deckmaste_core::Uint;
-    use deckmaste_core::Window;
     use deckmaste_core::Zone;
 
     use crate::event::GameEvent;
@@ -282,20 +279,19 @@ mod tests {
             cause: None,
         };
 
-        let morbid_pattern = Event::ZoneMove {
+        let morbid_pattern = EventFilter::ZoneChange {
             what: Filter::creature(),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
-            face: None,
             cause: None,
         };
         let morbid = Condition::Happened {
             event: morbid_pattern.clone(),
-            within: Window::ThisTurn,
+            within: Lookback::ThisTurn,
         };
         let morbid_game = Condition::Happened {
             event: morbid_pattern,
-            within: Window::ThisGame,
+            within: Lookback::ThisGame,
         };
 
         // No death yet → false.
@@ -418,7 +414,7 @@ mod tests {
         use deckmaste_core::CardFace;
         use deckmaste_core::CharacteristicFilter;
         use deckmaste_core::Effect;
-        use deckmaste_core::Event;
+        use deckmaste_core::EventFilter;
         use deckmaste_core::TriggeredAbility;
 
         use crate::agenda::WorkItem;
@@ -440,7 +436,7 @@ mod tests {
                 types: vec![Type::Artifact],
                 abilities: vec![Ability::Triggered(TriggeredAbility {
                     from: None,
-                    event: Event::OneOf(Vec::new()),
+                    event: EventFilter::OneOf(Vec::new()),
                     condition: Some(Condition::Exists(Filter::Characteristic(
                         CharacteristicFilter::Type(Type::Creature),
                     ))),
@@ -612,7 +608,7 @@ mod tests {
     fn your_turn_and_phase() {
         let mut state = game();
         state.turn.active_player = PlayerId(0);
-        state.turn.current = Phase::PrecombatMain;
+        state.turn.current = PhaseStep::PrecombatMain;
 
         // YourTurn
         assert!(
@@ -627,14 +623,14 @@ mod tests {
         // DuringPhase — exact match
         assert!(
             state.condition_holds(
-                &Condition::DuringPhase(Phase::PrecombatMain),
+                &Condition::DuringPhase(PhaseStep::PrecombatMain),
                 &frame_for(&state, PlayerId(0))
             ),
             "DuringPhase(PrecombatMain) should hold during PrecombatMain"
         );
         assert!(
             !state.condition_holds(
-                &Condition::DuringPhase(Phase::PostcombatMain),
+                &Condition::DuringPhase(PhaseStep::PostcombatMain),
                 &frame_for(&state, PlayerId(0))
             ),
             "DuringPhase(PostcombatMain) should not hold during PrecombatMain"
@@ -882,12 +878,12 @@ mod tests {
     }
 
     /// [CR#702.54a] Bloodthirst's gate is the history condition "an opponent
-    /// was dealt damage this turn": `Happened(Performed(verb: "DealDamage", on:
+    /// was dealt damage this turn": `Happened(Damage(to:
     /// OpponentOf(Ref(You))), within: ThisTurn)`. The engine's `Happened` scans
-    /// the turn history reusing the trigger matcher; `DealDamage` matches a
-    /// `DamageDealt` fact with `on` = the LIVE recipient ([CR#120.1]), so a
+    /// the turn history reusing the trigger matcher; `Damage` matches a
+    /// `DamageDealt` fact with `to` = the LIVE recipient ([CR#120.1]), so a
     /// recipient who is an opponent of the carrier's controller passes
-    /// `OpponentOf(Ref(You))`. `Window::ThisTurn` is a real history-lookback
+    /// `OpponentOf(Ref(You))`. `Lookback::ThisTurn` is a real history-lookback
     /// window — unlike Echo's "since your last upkeep", Bloodthirst needs no
     /// new primitive. This test pins that the gap is already engine-executable:
     /// false before any damage, true after damage to an opponent, and NOT
@@ -904,14 +900,15 @@ mod tests {
 
         // The Bloodthirst gate, evaluated from player 0's seat (You = P0).
         let gate = Condition::Happened {
-            event: Event::Performed {
-                verb: "DealDamage".into(),
-                by: Filter::any(),
-                on: Filter::Relation(RelationFilter::OpponentOf(Box::new(Filter::Ref(
+            event: EventFilter::Damage {
+                source: Filter::any(),
+                to: Filter::Relation(RelationFilter::OpponentOf(Box::new(Filter::Ref(
                     Reference::You,
                 )))),
+                combat: None,
+                amount: None,
             },
-            within: Window::ThisTurn,
+            within: Lookback::ThisTurn,
         };
 
         // Player proxies are objects; damage to a player targets its proxy.
@@ -1005,7 +1002,7 @@ mod tests {
     fn sorcery_speed_ok_gates() {
         let mut state = game();
         state.turn.active_player = PlayerId(0);
-        state.turn.current = Phase::PrecombatMain;
+        state.turn.current = PhaseStep::PrecombatMain;
 
         assert!(
             state.sorcery_speed_ok(PlayerId(0)),
@@ -1017,7 +1014,7 @@ mod tests {
         );
 
         // Wrong phase
-        state.turn.current = Phase::Beginning(BeginningStep::Upkeep);
+        state.turn.current = PhaseStep::Beginning(BeginningStep::Upkeep);
         assert!(
             !state.sorcery_speed_ok(PlayerId(0)),
             "sorcery_speed_ok should be false outside main phases"

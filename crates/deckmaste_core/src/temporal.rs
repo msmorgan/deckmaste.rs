@@ -1,40 +1,55 @@
-//! The temporal vocabulary (mtg-rules `temporal.md`): windows, fixed
-//! duration markers, and the lock-point axis. One `Window` value type serves
-//! every position; the READING depends on the position — a lookback bound in
-//! `Condition::Happened` ([CR#608.2i]), a timing refinement on a cast
-//! permission row or an activated ability's "Activate only [timing]"
-//! ([CR#602.5d..602.5e]), never conflating the duration and history readings
-//! of "this turn".
+//! The temporal vocabulary (mtg-rules `temporal.md`): the timing/lookback
+//! SPLIT, fixed duration markers, and the lock-point axis. Two value types,
+//! no shared enum: [`Timing`] is a permission window ("Activate only
+//! [timing]", flash), [`Lookback`] a history window (`Condition::Happened`,
+//! `Count::EventCount`, `EventFilter::Within`) — never conflating the
+//! duration and history readings of "this turn".
 
 use serde::Deserialize;
 use serde::Serialize;
 
 use crate::Expand;
-use crate::Phase;
+use crate::PhaseStep;
 use crate::WhoseTurn;
 
-/// A timing window — a predicate over (turn-structure position, event log).
+/// A timing window — a predicate over the current turn-structure position.
 /// Closed rules vocabulary: new windows are CR concepts, not card macros.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum Window {
+pub enum Timing {
     /// Any time the player has priority (instant timing, [CR#117.1a];
     /// flash rides this as a cast-permission window, [CR#702.8a]).
     InstantSpeed,
     /// Main phase of the player's own turn, stack empty, priority held
     /// ([CR#117.1a,307.1] — "any time you could cast a sorcery").
     SorcerySpeed,
-    /// Since the start of the current turn (lookback: morbid, raid) or
-    /// until its cleanup (timing containment) — reading per position.
-    ThisTurn,
-    /// The whole current game so far (lookback: "a creature died this game",
-    /// "spells you've cast this game" [CR#608.2i]). Full history, every turn.
-    ThisGame,
     /// During the named player-relation's turn ([CR#500.1]).
     DuringTurn(WhoseTurn),
     /// During the named step/phase of the named player-relation's turn
     /// ("Activate only during the upkeep step of the card's owner",
     /// forecast-style, [CR#702.57b]).
-    DuringStep(Phase, WhoseTurn),
+    DuringStep(PhaseStep, WhoseTurn),
+}
+
+/// A history-lookback window ([CR#608.2i]) — how far back an event query
+/// scans. Split from [`Timing`]: a lookback never gates a permission, a
+/// timing never bounds a scan. Every history position carries one
+/// explicitly (no silent default window).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum Lookback {
+    /// Since the start of the current turn (morbid, raid — [CR#608.2i]).
+    ThisTurn,
+    /// The whole current game so far ("a creature died this game",
+    /// "spells you've cast this game" [CR#608.2i]). Full history.
+    ThisGame,
+    /// During the previous turn ([CR#500.1] turn boundaries).
+    LastTurn,
+    /// Since this combat phase began ([CR#506.1]).
+    ThisCombat,
+    /// Since the current step began ([CR#500.1]).
+    ThisStep,
+    /// Since the watcher's controller's last such step — the
+    /// `SinceYourLastUpkeep` family ([CR#603.2b] step anchoring).
+    SinceYour(PhaseStep),
 }
 
 /// A fixed turn-structure end marker for `Duration::FixedUntil`
@@ -92,23 +107,37 @@ mod tests {
     }
 
     /// Bare-identifier RON spellings for the closed vocabularies; the
-    /// parameterized windows read flat.
+    /// parameterized windows read flat. `Timing` and `Lookback` are two
+    /// types — "this turn" only exists on the lookback side.
     #[test]
-    fn windows_read() {
-        assert_eq!(read::<Window>("InstantSpeed"), Window::InstantSpeed);
-        assert_eq!(read::<Window>("SorcerySpeed"), Window::SorcerySpeed);
-        assert_eq!(read::<Window>("ThisTurn"), Window::ThisTurn);
-        assert_eq!(read::<Window>("ThisGame"), Window::ThisGame);
+    fn timings_and_lookbacks_read() {
+        assert_eq!(read::<Timing>("InstantSpeed"), Timing::InstantSpeed);
+        assert_eq!(read::<Timing>("SorcerySpeed"), Timing::SorcerySpeed);
         assert_eq!(
-            read::<Window>("DuringTurn(Your)"),
-            Window::DuringTurn(WhoseTurn::Your),
+            read::<Timing>("DuringTurn(Your)"),
+            Timing::DuringTurn(WhoseTurn::Your),
         );
         assert_eq!(
-            read::<Window>("DuringStep(Beginning(Upkeep), Your)"),
-            Window::DuringStep(
-                Phase::Beginning(crate::BeginningStep::Upkeep),
+            read::<Timing>("DuringStep(Beginning(Upkeep), Your)"),
+            Timing::DuringStep(
+                PhaseStep::Beginning(crate::BeginningStep::Upkeep),
                 WhoseTurn::Your
             ),
+        );
+        assert_eq!(read::<Lookback>("ThisTurn"), Lookback::ThisTurn);
+        assert_eq!(read::<Lookback>("ThisGame"), Lookback::ThisGame);
+        assert_eq!(read::<Lookback>("LastTurn"), Lookback::LastTurn);
+        assert_eq!(read::<Lookback>("ThisCombat"), Lookback::ThisCombat);
+        assert_eq!(read::<Lookback>("ThisStep"), Lookback::ThisStep);
+        assert_eq!(
+            read::<Lookback>("SinceYour(Beginning(Upkeep))"),
+            Lookback::SinceYour(PhaseStep::Beginning(crate::BeginningStep::Upkeep)),
+        );
+        assert!(
+            crate::ron::options()
+                .from_str::<Timing>("ThisTurn")
+                .is_err(),
+            "the lookback reading of 'this turn' must not parse as a Timing"
         );
     }
 

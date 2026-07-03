@@ -1,5 +1,5 @@
 (
     name: "ThisDies",
-    kinds: [Event],
+    kinds: [EventFilter],
     body: Dies(Ref(This)),
 )

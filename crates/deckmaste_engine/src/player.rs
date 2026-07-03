@@ -84,7 +84,7 @@ impl ManaPool {
     /// RETAIN any unit whose `Persistent` marker has not yet expired
     /// ([CR#702.189a]). A unit with several `Persistent` riders survives until
     /// the latest marker; a unit with none always empties.
-    pub fn empty_after(&mut self, ending: deckmaste_core::Phase) {
+    pub fn empty_after(&mut self, ending: deckmaste_core::PhaseStep) {
         self.0.retain(|u| {
             u.riders.iter().any(|r| {
                 matches!(r,
@@ -107,14 +107,17 @@ impl ManaPool {
 }
 
 /// [CR#514.2,511.2]: has `marker` elapsed by the end of `ending`?
-fn marker_expired_at(marker: deckmaste_core::TurnMarker, ending: deckmaste_core::Phase) -> bool {
+fn marker_expired_at(
+    marker: deckmaste_core::TurnMarker,
+    ending: deckmaste_core::PhaseStep,
+) -> bool {
     use deckmaste_core::CombatStep;
     use deckmaste_core::EndingStep;
-    use deckmaste_core::Phase;
+    use deckmaste_core::PhaseStep;
     use deckmaste_core::TurnMarker;
     match marker {
-        TurnMarker::EndOfTurn => ending == Phase::Ending(EndingStep::Cleanup),
-        TurnMarker::EndOfCombat => ending == Phase::Combat(CombatStep::EndOfCombat),
+        TurnMarker::EndOfTurn => ending == PhaseStep::Ending(EndingStep::Cleanup),
+        TurnMarker::EndOfCombat => ending == PhaseStep::Combat(CombatStep::EndOfCombat),
         // Seam: "until your next turn" needs turn-owner tracking; retained for now.
         TurnMarker::YourNextTurn => false,
     }
@@ -156,7 +159,7 @@ mod tests {
     use deckmaste_core::EndingStep;
     use deckmaste_core::Filter;
     use deckmaste_core::ManaRider;
-    use deckmaste_core::Phase;
+    use deckmaste_core::PhaseStep;
     use deckmaste_core::TurnMarker;
 
     use super::*;
@@ -188,10 +191,10 @@ mod tests {
             1,
             &[ManaRider::Persistent(TurnMarker::EndOfTurn)],
         );
-        pool.empty_after(Phase::Beginning(BeginningStep::Upkeep)); // a non-final step
+        pool.empty_after(PhaseStep::Beginning(BeginningStep::Upkeep)); // a non-final step
         assert_eq!(pool.amount(Color::Red.into()), 0); // plain mana emptied
         assert_eq!(pool.amount(Color::Green.into()), 1); // persistent survives the boundary
-        pool.empty_after(Phase::Ending(EndingStep::Cleanup)); // turn's last step
+        pool.empty_after(PhaseStep::Ending(EndingStep::Cleanup)); // turn's last step
         assert!(pool.is_empty()); // EndOfTurn expires at cleanup
     }
 

@@ -1,0 +1,17 @@
+// Accept twin of reject/E-CAPS-ANCHOR/*: `Not` as a REFINEMENT beside a
+// master-form anchor — the conjunction is kind-anchored through its
+// `Enters` conjunct [CR#603.2], and the anchored side's caps still supply
+// the event object.
+Normal(
+  name: "Accept Refining Not",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: AllOf([
+        Enters(Creature),
+        Not(ZoneChange(what: Any, to: Battlefield, cause: Cause(verb: Play))),
+      ]),
+      effect: Move(EventObject, Exile),
+    ),
+  ],
+)

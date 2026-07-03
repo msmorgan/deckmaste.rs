@@ -1,11 +1,12 @@
 // Wither = a static ability [CR#702.80a]: damage dealt to a CREATURE by a
 // source with wither isn't marked — instead it puts that many -1/-1 counters
 // ([CR#122.1a]) on the creature ([CR#120.3d]). It is a SOURCE ability: the
-// replacement keys on `by: Ref(This)` ("damage dealt BY this") so it fires only
-// for damage from the very object carrying wither, and only when the recipient
-// is a creature (`on: Type(Creature)`); damage to anything else is unaffected.
+// replacement keys on `source: Ref(This)` ("damage dealt BY this") so it fires
+// only for damage from the very object carrying wither, and only when the
+// recipient is a creature (`to: Type(Creature)`); damage to anything else is
+// unaffected.
 //
-// The body replaces the `DealDamage` event with `PutCounters(EventObject,
+// The body replaces the `Damage` event with `PutCounters(EventObject,
 // M1M1Counter, ThatMuch)`: `EventObject` is the damaged creature (the
 // replacement binds the affected recipient as `That`), and `ThatMuch`
 // ([CR#107.3], "that many") is the damage amount the replaced event carried.
@@ -17,7 +18,7 @@ KeywordAbility(
     template: "wither",
     abilities: [Static(effects: [
         Replacement(Instead(
-            would: Performed(verb: "DealDamage", by: Ref(This), on: Type(Creature)),
+            would: Damage(source: Ref(This), to: Type(Creature)),
             instead: PutCounters(EventObject, M1M1Counter, ThatMuch),
         )),
     ])],

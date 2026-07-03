@@ -3,8 +3,8 @@
 // attack, put a +1/+1 counter on this creature."
 //
 // The trigger is "whenever this creature ... attack[s]" — the declare-attackers
-// transition for THIS creature (`StateBecomes(of: Ref(This), becomes:
-// Attacking)`, [CR#508.1k]/[CR#603.2e]), the same this-attacks trigger Battle
+// onset for THIS creature (`AttackDeclared(by: Ref(This))`,
+// [CR#508.1k]/[CR#603.2e]), the same this-attacks trigger Battle
 // Cry and Mentor use. The "AND at least one other creature with greater power
 // also attacks" half is the intervening-if ([CR#603.4]), NOT a second trigger:
 // it is the condition checked when the event occurs and rechecked at
@@ -35,7 +35,7 @@ KeywordAbility(
     name: "Training",
     template: "training",
     abilities: [Triggered(
-        event: StateBecomes(of: Ref(This), becomes: Attacking),
+        event: AttackDeclared(by: Ref(This)),
         condition: Compare(
             CountOf(AllOf([
                 Type(Creature),

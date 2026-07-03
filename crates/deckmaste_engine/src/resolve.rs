@@ -2099,13 +2099,13 @@ impl GameState {
             // event-matcher, anchored to the frame's watcher (so `Ref(This)` in the
             // pattern resolves to the evaluating source).
             Count::EventCount(event, within) => {
-                // Self/object-scoped ability-use count: resolve `by` to a
+                // Self/object-scoped ability-use count: resolve `of` to a
                 // concrete `ObjectId` via the frame and count `AbilityUsed`
                 // for that object — the generic matcher can't, since its
                 // watcher is an `ObjectSource`, not the resolved id
                 // ([CR#608.2i,603.2]).
-                let n = if let deckmaste_core::Event::Used { by } = &**event {
-                    let obj = self.eval_reference(by, frame);
+                let n = if let deckmaste_core::EventFilter::Used { of } = &**event {
+                    let obj = self.eval_reference(of, frame);
                     self.history
                         .scan(*within, self.turn.turn_number)
                         .filter(|fact| {
@@ -2229,7 +2229,7 @@ impl GameState {
         let play = deckmaste_core::Ident::from("Play");
         let n = self
             .history
-            .scan(deckmaste_core::Window::ThisTurn, self.turn.turn_number)
+            .scan(deckmaste_core::Lookback::ThisTurn, self.turn.turn_number)
             .filter(|f| {
                 matches!(f,
                     GameEvent::ZoneChanged { to: Zone::Battlefield, cause: Some(c), snapshot, .. }
@@ -2250,7 +2250,7 @@ impl GameState {
         &self,
         object: crate::object::ObjectId,
         ability: Uint,
-        within: deckmaste_core::Window,
+        within: deckmaste_core::Lookback,
     ) -> Uint {
         let n = self
             .history
@@ -2526,13 +2526,13 @@ mod tests {
     use deckmaste_core::Count;
     use deckmaste_core::Effect;
     use deckmaste_core::Filter;
+    use deckmaste_core::Lookback;
     use deckmaste_core::ObjectKind;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::Selection;
     use deckmaste_core::StateFilter;
     use deckmaste_core::Type;
-    use deckmaste_core::Window;
     use deckmaste_core::Zone;
 
     use crate::agenda::WorkItem;
@@ -2615,7 +2615,7 @@ mod tests {
     fn history_tallies_via_event_count_sum() {
         use deckmaste_core::Agency;
         use deckmaste_core::Count;
-        use deckmaste_core::Event;
+        use deckmaste_core::EventFilter;
         use deckmaste_core::Filter;
         use deckmaste_core::Reference;
 
@@ -2640,14 +2640,13 @@ mod tests {
         state.history.record(1, GameEvent::SpellCast(sp1));
         state.history.record(1, GameEvent::SpellCast(sp2));
         state.history.record(1, GameEvent::SpellCast(sp3));
-        let cast_event = Event::Performed {
-            verb: "Cast".into(),
-            by: Filter::Any,
-            on: Filter::Any,
+        let cast_event = EventFilter::Cast {
+            who: Filter::Any,
+            what: Filter::Any,
         };
         assert_eq!(
             state.eval_count(
-                &Count::EventCount(Box::new(cast_event), Window::ThisTurn),
+                &Count::EventCount(Box::new(cast_event), Lookback::ThisTurn),
                 &frame
             ),
             3,
@@ -2669,14 +2668,13 @@ mod tests {
                 source: None,
             },
         );
-        let draw_event = Event::Performed {
-            verb: "Draw".into(),
-            by: Filter::Ref(Reference::You),
-            on: Filter::Any,
+        let draw_event = EventFilter::Drawn {
+            who: Filter::Ref(Reference::You),
+            amount: None,
         };
         assert_eq!(
             state.eval_count(
-                &Count::EventCount(Box::new(draw_event), Window::ThisTurn),
+                &Count::EventCount(Box::new(draw_event), Lookback::ThisTurn),
                 &frame
             ),
             2,
@@ -2708,14 +2706,13 @@ mod tests {
             1,
             "lands played by p this turn (direct helper)"
         );
-        let play_event = Event::Performed {
-            verb: "Play".into(),
-            by: Filter::Ref(Reference::You),
-            on: Filter::Any,
+        let play_event = EventFilter::Played {
+            who: Filter::Ref(Reference::You),
+            what: Filter::Any,
         };
         assert_eq!(
             state.eval_count(
-                &Count::EventCount(Box::new(play_event), Window::ThisTurn),
+                &Count::EventCount(Box::new(play_event), Lookback::ThisTurn),
                 &frame
             ),
             1,
@@ -2746,19 +2743,17 @@ mod tests {
                 amount: 4,
             },
         );
-        let lose_event = Event::Performed {
-            verb: "LoseLife".into(),
-            by: Filter::Ref(Reference::You),
-            on: Filter::Any,
+        let lose_event = EventFilter::LifeLost {
+            who: Filter::Ref(Reference::You),
+            amount: None,
         };
-        let gain_event = Event::Performed {
-            verb: "GainLife".into(),
-            by: Filter::Ref(Reference::You),
-            on: Filter::Any,
+        let gain_event = EventFilter::LifeGained {
+            who: Filter::Ref(Reference::You),
+            amount: None,
         };
         assert_eq!(
             state.eval_count(
-                &Count::EventSum(Box::new(lose_event), Window::ThisTurn),
+                &Count::EventSum(Box::new(lose_event), Lookback::ThisTurn),
                 &frame
             ),
             5,
@@ -2766,7 +2761,7 @@ mod tests {
         );
         assert_eq!(
             state.eval_count(
-                &Count::EventSum(Box::new(gain_event), Window::ThisTurn),
+                &Count::EventSum(Box::new(gain_event), Lookback::ThisTurn),
                 &frame
             ),
             4,
@@ -2775,19 +2770,17 @@ mod tests {
 
         // Prior-turn entries are excluded once the turn advances.
         state.turn.turn_number = 2;
-        let cast_event2 = Event::Performed {
-            verb: "Cast".into(),
-            by: Filter::Any,
-            on: Filter::Any,
+        let cast_event2 = EventFilter::Cast {
+            who: Filter::Any,
+            what: Filter::Any,
         };
-        let draw_event2 = Event::Performed {
-            verb: "Draw".into(),
-            by: Filter::Ref(Reference::You),
-            on: Filter::Any,
+        let draw_event2 = EventFilter::Drawn {
+            who: Filter::Ref(Reference::You),
+            amount: None,
         };
         assert_eq!(
             state.eval_count(
-                &Count::EventCount(Box::new(cast_event2), Window::ThisTurn),
+                &Count::EventCount(Box::new(cast_event2), Lookback::ThisTurn),
                 &frame
             ),
             0,
@@ -2795,7 +2788,7 @@ mod tests {
         );
         assert_eq!(
             state.eval_count(
-                &Count::EventCount(Box::new(draw_event2), Window::ThisTurn),
+                &Count::EventCount(Box::new(draw_event2), Lookback::ThisTurn),
                 &frame
             ),
             0,
@@ -2804,7 +2797,7 @@ mod tests {
     }
 
     /// `ability_used_count` counts `AbilityUsed` events keyed by (object,
-    /// ability) and respects the `Window` filter — `ThisTurn` excludes
+    /// ability) and respects the `Lookback` filter — `ThisTurn` excludes
     /// prior-turn entries, `ThisGame` includes them all.
     #[test]
     fn ability_used_count_keys_object_ability_window() {
@@ -2838,10 +2831,10 @@ mod tests {
             },
         );
 
-        assert_eq!(state.ability_used_count(obj_a, 0, Window::ThisGame), 2);
-        assert_eq!(state.ability_used_count(obj_a, 1, Window::ThisGame), 1);
+        assert_eq!(state.ability_used_count(obj_a, 0, Lookback::ThisGame), 2);
+        assert_eq!(state.ability_used_count(obj_a, 1, Lookback::ThisGame), 1);
         // obj_b has no uses recorded.
-        assert_eq!(state.ability_used_count(obj_b, 0, Window::ThisGame), 0);
+        assert_eq!(state.ability_used_count(obj_b, 0, Lookback::ThisGame), 0);
 
         // A use of (obj_a, 0) on a DIFFERENT turn.
         state.history.record(
@@ -2853,9 +2846,9 @@ mod tests {
         );
 
         // ThisTurn (still turn 1) excludes the turn-2 entry.
-        assert_eq!(state.ability_used_count(obj_a, 0, Window::ThisTurn), 2);
+        assert_eq!(state.ability_used_count(obj_a, 0, Lookback::ThisTurn), 2);
         // ThisGame includes it.
-        assert_eq!(state.ability_used_count(obj_a, 0, Window::ThisGame), 3);
+        assert_eq!(state.ability_used_count(obj_a, 0, Lookback::ThisGame), 3);
     }
 
     /// A two-player game; player 0's deck is Grizzly Bears.
@@ -2979,7 +2972,7 @@ mod tests {
     fn logged(state: &GameState, pred: impl Fn(&GameEvent) -> bool) -> bool {
         state
             .history
-            .scan(deckmaste_core::Window::ThisGame, state.turn.turn_number)
+            .scan(deckmaste_core::Lookback::ThisGame, state.turn.turn_number)
             .any(pred)
     }
 
@@ -4556,7 +4549,7 @@ mod tests {
 
         let found = state
             .history
-            .scan(Window::ThisGame, state.turn.turn_number)
+            .scan(Lookback::ThisGame, state.turn.turn_number)
             .any(|e| matches!(e, GameEvent::AbilityCountered { id, .. } if *id == ability_id));
         assert!(found, "AbilityCountered event must be recorded in history");
     }
@@ -6578,7 +6571,7 @@ mod tests {
     /// pattern (zone-enter) or a turn with no facts → count == 0.
     #[test]
     fn event_count_counts_matching_history() {
-        use deckmaste_core::Event;
+        use deckmaste_core::EventFilter;
 
         use crate::lki::LkiSnapshot;
 
@@ -6634,20 +6627,18 @@ mod tests {
         };
 
         // The creature-death event pattern (same as morbid Condition::Happened).
-        let death_pattern = Event::ZoneMove {
+        let death_pattern = EventFilter::ZoneChange {
             what: Filter::creature(),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
-            face: None,
             cause: None,
         };
 
         // A non-matching pattern: creatures entering the battlefield.
-        let enter_pattern = Event::ZoneMove {
+        let enter_pattern = EventFilter::ZoneChange {
             what: Filter::creature(),
             from: None,
             to: Some(Zone::Battlefield),
-            face: None,
             cause: None,
         };
 
@@ -6656,7 +6647,7 @@ mod tests {
         // No deaths recorded yet → 0.
         assert_eq!(
             state.eval_count(
-                &Count::EventCount(Box::new(death_pattern.clone()), Window::ThisTurn),
+                &Count::EventCount(Box::new(death_pattern.clone()), Lookback::ThisTurn),
                 &frame
             ),
             0,
@@ -6670,7 +6661,7 @@ mod tests {
         // Both deaths match → 2.
         assert_eq!(
             state.eval_count(
-                &Count::EventCount(Box::new(death_pattern.clone()), Window::ThisTurn),
+                &Count::EventCount(Box::new(death_pattern.clone()), Lookback::ThisTurn),
                 &frame
             ),
             2,
@@ -6680,7 +6671,7 @@ mod tests {
         // A non-matching pattern → 0.
         assert_eq!(
             state.eval_count(
-                &Count::EventCount(Box::new(enter_pattern), Window::ThisTurn),
+                &Count::EventCount(Box::new(enter_pattern), Lookback::ThisTurn),
                 &frame
             ),
             0,
@@ -6691,7 +6682,7 @@ mod tests {
         state.turn.turn_number = 2;
         assert_eq!(
             state.eval_count(
-                &Count::EventCount(Box::new(death_pattern.clone()), Window::ThisTurn),
+                &Count::EventCount(Box::new(death_pattern.clone()), Lookback::ThisTurn),
                 &frame
             ),
             0,
@@ -6699,7 +6690,7 @@ mod tests {
         );
         assert_eq!(
             state.eval_count(
-                &Count::EventCount(Box::new(death_pattern), Window::ThisGame),
+                &Count::EventCount(Box::new(death_pattern), Lookback::ThisGame),
                 &frame
             ),
             2,
@@ -6713,7 +6704,7 @@ mod tests {
     /// advance `ThisTurn` reads 0 while `ThisGame` still reads 5.
     #[test]
     fn event_sum_totals_amounts() {
-        use deckmaste_core::Event;
+        use deckmaste_core::EventFilter;
 
         let mut state = GameState::new(GameConfig {
             players: vec![
@@ -6731,16 +6722,15 @@ mod tests {
 
         let frame = frame_for(&state, PlayerId(0));
 
-        let lose_life_pattern = Event::Performed {
-            verb: "LoseLife".into(),
-            by: deckmaste_core::Filter::Ref(deckmaste_core::Reference::You),
-            on: deckmaste_core::Filter::Any,
+        let lose_life_pattern = EventFilter::LifeLost {
+            who: deckmaste_core::Filter::Ref(deckmaste_core::Reference::You),
+            amount: None,
         };
 
         // No facts yet → 0.
         assert_eq!(
             state.eval_count(
-                &Count::EventSum(Box::new(lose_life_pattern.clone()), Window::ThisTurn),
+                &Count::EventSum(Box::new(lose_life_pattern.clone()), Lookback::ThisTurn),
                 &frame
             ),
             0,
@@ -6774,7 +6764,7 @@ mod tests {
         // Only player 0's losses sum → 5.
         assert_eq!(
             state.eval_count(
-                &Count::EventSum(Box::new(lose_life_pattern.clone()), Window::ThisTurn),
+                &Count::EventSum(Box::new(lose_life_pattern.clone()), Lookback::ThisTurn),
                 &frame
             ),
             5,
@@ -6785,7 +6775,7 @@ mod tests {
         state.turn.turn_number = 2;
         assert_eq!(
             state.eval_count(
-                &Count::EventSum(Box::new(lose_life_pattern.clone()), Window::ThisTurn),
+                &Count::EventSum(Box::new(lose_life_pattern.clone()), Lookback::ThisTurn),
                 &frame
             ),
             0,
@@ -6793,7 +6783,7 @@ mod tests {
         );
         assert_eq!(
             state.eval_count(
-                &Count::EventSum(Box::new(lose_life_pattern), Window::ThisGame),
+                &Count::EventSum(Box::new(lose_life_pattern), Lookback::ThisGame),
                 &frame
             ),
             5,
@@ -6808,7 +6798,7 @@ mod tests {
     /// after a turn advance `ThisTurn` reads 0 while `ThisGame` still reads 2.
     #[test]
     fn event_count_used_counts_object_ability_uses() {
-        use deckmaste_core::Event;
+        use deckmaste_core::EventFilter;
 
         let mut state = GameState::new(GameConfig {
             players: vec![
@@ -6831,8 +6821,8 @@ mod tests {
 
         let used = |n| {
             Count::EventCount(
-                Box::new(Event::Used {
-                    by: Reference::This,
+                Box::new(EventFilter::Used {
+                    of: Reference::This,
                 }),
                 n,
             )
@@ -6840,7 +6830,7 @@ mod tests {
 
         // No uses recorded yet → 0.
         assert_eq!(
-            state.eval_count(&used(Window::ThisTurn), &frame),
+            state.eval_count(&used(Lookback::ThisTurn), &frame),
             0,
             "no ability uses recorded yet"
         );
@@ -6870,7 +6860,7 @@ mod tests {
 
         // Only `obj`'s two uses count (`This` == frame.source == obj).
         assert_eq!(
-            state.eval_count(&used(Window::ThisTurn), &frame),
+            state.eval_count(&used(Lookback::ThisTurn), &frame),
             2,
             "two uses by the frame object; the other object's use is excluded"
         );
@@ -6878,12 +6868,12 @@ mod tests {
         // Advance to turn 2: ThisTurn sees 0, ThisGame still sees the 2.
         state.turn.turn_number = 2;
         assert_eq!(
-            state.eval_count(&used(Window::ThisTurn), &frame),
+            state.eval_count(&used(Lookback::ThisTurn), &frame),
             0,
             "ThisTurn no longer sees last turn's uses"
         );
         assert_eq!(
-            state.eval_count(&used(Window::ThisGame), &frame),
+            state.eval_count(&used(Lookback::ThisGame), &frame),
             2,
             "ThisGame still sees last turn's two uses"
         );
@@ -6898,7 +6888,7 @@ mod tests {
     fn event_count_self_drives_branching_condition() {
         use deckmaste_core::Cmp;
         use deckmaste_core::Condition;
-        use deckmaste_core::Event;
+        use deckmaste_core::EventFilter;
 
         let mut state = GameState::new(GameConfig {
             players: vec![
@@ -6920,10 +6910,10 @@ mod tests {
         // "if this object's abilities have been used exactly twice this turn".
         let twice = Condition::Compare(
             Count::EventCount(
-                Box::new(Event::Used {
-                    by: Reference::This,
+                Box::new(EventFilter::Used {
+                    of: Reference::This,
                 }),
-                Window::ThisTurn,
+                Lookback::ThisTurn,
             ),
             Cmp::Eq,
             Count::Literal(2),
@@ -7504,7 +7494,7 @@ mod tests {
         }
         let has_distributed = state
             .history
-            .scan(Window::ThisGame, state.turn.turn_number)
+            .scan(Lookback::ThisGame, state.turn.turn_number)
             .any(|e| matches!(e, GameEvent::Distributed { .. }));
         assert!(!has_distributed, "scry-0 must not emit Distributed");
 
@@ -7550,7 +7540,7 @@ mod tests {
         }
         let found = state
             .history
-            .scan(Window::ThisGame, state.turn.turn_number)
+            .scan(Lookback::ThisGame, state.turn.turn_number)
             .any(|e| {
                 matches!(e, GameEvent::Distributed { name, count, .. }
                     if name.as_str() == "Scry" && *count == 2)

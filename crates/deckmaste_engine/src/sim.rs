@@ -16,7 +16,7 @@ use deckmaste_core::Card;
 use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::Int;
-use deckmaste_core::Phase;
+use deckmaste_core::PhaseStep;
 use deckmaste_core::Type;
 use deckmaste_core::Uint;
 
@@ -287,7 +287,7 @@ fn greedy_priority(
         let my_main = state.turn.active_player == player
             && matches!(
                 state.turn.current,
-                Phase::PrecombatMain | Phase::PostcombatMain
+                PhaseStep::PrecombatMain | PhaseStep::PostcombatMain
             );
         if !my_main {
             return Action::Pass;

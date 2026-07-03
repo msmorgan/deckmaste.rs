@@ -29,7 +29,7 @@ pub fn kinds() -> KindSet {
     kinds.add(crate::Destination::kind());
     kinds.add(crate::Zone::kind());
     kinds.add(crate::Effect::kind());
-    kinds.add(crate::Event::kind());
+    kinds.add(crate::EventFilter::kind());
     kinds.add(crate::Filter::kind());
     kinds.add(crate::KeywordAbility::kind());
     kinds.add(crate::ManaRider::kind());

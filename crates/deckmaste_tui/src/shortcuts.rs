@@ -3,7 +3,7 @@
 //! state; no engine mutation, no ratatui — unit-tested headlessly. The engine
 //! stays full-info and pure; what to auto-answer vs. surface is a runner
 //! concern (like the autotapper).
-use deckmaste_core::Phase;
+use deckmaste_core::PhaseStep;
 use deckmaste_core::Uint;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
@@ -74,7 +74,7 @@ pub enum PassMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Snapshot {
     pub active: PlayerId,
-    pub phase: Phase,
+    pub phase: PhaseStep,
     pub turn: Uint,
     pub stack: usize,
 }
@@ -93,12 +93,15 @@ pub fn keep_passing(mode: PassMode, armed: &Snapshot, now: &Snapshot, player: Pl
     // empty stack (pass until something happens) does not stop immediately.
     let stack_emptied = armed.stack > 0 && now.stack == 0;
     let entered_combat =
-        matches!(now.phase, Phase::Combat(_)) && !matches!(armed.phase, Phase::Combat(_));
-    let at_my_main =
-        now.active == player && matches!(now.phase, Phase::PrecombatMain | Phase::PostcombatMain);
+        matches!(now.phase, PhaseStep::Combat(_)) && !matches!(armed.phase, PhaseStep::Combat(_));
+    let at_my_main = now.active == player
+        && matches!(
+            now.phase,
+            PhaseStep::PrecombatMain | PhaseStep::PostcombatMain
+        );
     let entered_my_main = at_my_main && now.phase != armed.phase;
     let next_precombat_main =
-        now.active == player && now.phase == Phase::PrecombatMain && now.turn > armed.turn;
+        now.active == player && now.phase == PhaseStep::PrecombatMain && now.turn > armed.turn;
     match mode {
         PassMode::Yield => {
             !(stack_grew
@@ -236,7 +239,7 @@ mod tests {
         assert_eq!(oldest_playable_land(&[a, b], &[Action::Pass]), None);
     }
 
-    fn snap(active: Uint, phase: Phase, turn: Uint, stack: usize) -> Snapshot {
+    fn snap(active: Uint, phase: PhaseStep, turn: Uint, stack: usize) -> Snapshot {
         Snapshot {
             active: PlayerId(active),
             phase,
@@ -247,36 +250,36 @@ mod tests {
 
     #[test]
     fn yield_keeps_passing_when_nothing_changed() {
-        let s = snap(1, Phase::Ending(deckmaste_core::EndingStep::End), 1, 0);
+        let s = snap(1, PhaseStep::Ending(deckmaste_core::EndingStep::End), 1, 0);
         assert!(keep_passing(PassMode::Yield, &s, &s, PlayerId(0)));
     }
 
     #[test]
     fn yield_stops_on_stack_growth() {
-        let armed = snap(1, Phase::PrecombatMain, 1, 0);
-        let now = snap(1, Phase::PrecombatMain, 1, 1);
+        let armed = snap(1, PhaseStep::PrecombatMain, 1, 0);
+        let now = snap(1, PhaseStep::PrecombatMain, 1, 1);
         assert!(!keep_passing(PassMode::Yield, &armed, &now, PlayerId(0)));
     }
 
     #[test]
     fn yield_stops_when_combat_entered_but_not_when_armed_in_combat() {
-        let pre = snap(1, Phase::PrecombatMain, 1, 0);
+        let pre = snap(1, PhaseStep::PrecombatMain, 1, 0);
         let atk = snap(
             1,
-            Phase::Combat(deckmaste_core::CombatStep::DeclareAttackers),
+            PhaseStep::Combat(deckmaste_core::CombatStep::DeclareAttackers),
             1,
             0,
         );
         assert!(!keep_passing(PassMode::Yield, &pre, &atk, PlayerId(0)));
         let begin = snap(
             1,
-            Phase::Combat(deckmaste_core::CombatStep::BeginningOfCombat),
+            PhaseStep::Combat(deckmaste_core::CombatStep::BeginningOfCombat),
             1,
             0,
         );
         let blk = snap(
             1,
-            Phase::Combat(deckmaste_core::CombatStep::DeclareBlockers),
+            PhaseStep::Combat(deckmaste_core::CombatStep::DeclareBlockers),
             1,
             0,
         );
@@ -285,8 +288,8 @@ mod tests {
 
     #[test]
     fn yield_stops_at_my_next_precombat_main() {
-        let armed = snap(1, Phase::Ending(deckmaste_core::EndingStep::End), 1, 0);
-        let now = snap(0, Phase::PrecombatMain, 2, 0);
+        let armed = snap(1, PhaseStep::Ending(deckmaste_core::EndingStep::End), 1, 0);
+        let now = snap(0, PhaseStep::PrecombatMain, 2, 0);
         assert!(!keep_passing(PassMode::Yield, &armed, &now, PlayerId(0)));
     }
 
@@ -296,8 +299,8 @@ mod tests {
         // window that triggers no other stop. When your spell resolves and the
         // stack empties, Yield must stop and hand priority back — not keep
         // passing through the rest of the turn.
-        let armed = snap(1, Phase::Ending(deckmaste_core::EndingStep::End), 1, 1);
-        let now = snap(1, Phase::Ending(deckmaste_core::EndingStep::End), 1, 0);
+        let armed = snap(1, PhaseStep::Ending(deckmaste_core::EndingStep::End), 1, 1);
+        let now = snap(1, PhaseStep::Ending(deckmaste_core::EndingStep::End), 1, 0);
         assert!(!keep_passing(PassMode::Yield, &armed, &now, PlayerId(0)));
     }
 
@@ -306,7 +309,7 @@ mod tests {
         // Arming Yield with an empty stack (the reactive "pass until something
         // happens" use) must NOT stop just because the stack is empty now —
         // only a stack that *emptied since arming* (a resolution) stops it.
-        let s = snap(1, Phase::Ending(deckmaste_core::EndingStep::End), 1, 0);
+        let s = snap(1, PhaseStep::Ending(deckmaste_core::EndingStep::End), 1, 0);
         assert!(keep_passing(PassMode::Yield, &s, &s, PlayerId(0)));
     }
 
@@ -314,18 +317,18 @@ mod tests {
     fn turn_ignores_the_stack_emptying() {
         // Pass-until-your-turn deliberately ignores the stack; an emptying
         // stack must not stop it (only your next precombat main does).
-        let armed = snap(1, Phase::Ending(deckmaste_core::EndingStep::End), 1, 1);
-        let now = snap(1, Phase::Ending(deckmaste_core::EndingStep::End), 1, 0);
+        let armed = snap(1, PhaseStep::Ending(deckmaste_core::EndingStep::End), 1, 1);
+        let now = snap(1, PhaseStep::Ending(deckmaste_core::EndingStep::End), 1, 0);
         assert!(keep_passing(PassMode::Turn, &armed, &now, PlayerId(0)));
     }
 
     #[test]
     fn turn_ignores_stack_and_combat() {
-        let armed = snap(1, Phase::PrecombatMain, 1, 0);
-        let stack = snap(1, Phase::PrecombatMain, 1, 5);
+        let armed = snap(1, PhaseStep::PrecombatMain, 1, 0);
+        let stack = snap(1, PhaseStep::PrecombatMain, 1, 5);
         let combat = snap(
             1,
-            Phase::Combat(deckmaste_core::CombatStep::DeclareAttackers),
+            PhaseStep::Combat(deckmaste_core::CombatStep::DeclareAttackers),
             1,
             0,
         );
@@ -337,12 +340,12 @@ mod tests {
     fn turn_stops_only_at_my_next_precombat_main() {
         let armed = snap(
             0,
-            Phase::Beginning(deckmaste_core::BeginningStep::Upkeep),
+            PhaseStep::Beginning(deckmaste_core::BeginningStep::Upkeep),
             2,
             0,
         );
-        let same_turn_main = snap(0, Phase::PrecombatMain, 2, 0);
-        let next_turn_main = snap(0, Phase::PrecombatMain, 4, 0);
+        let same_turn_main = snap(0, PhaseStep::PrecombatMain, 2, 0);
+        let next_turn_main = snap(0, PhaseStep::PrecombatMain, 4, 0);
         assert!(keep_passing(
             PassMode::Turn,
             &armed,

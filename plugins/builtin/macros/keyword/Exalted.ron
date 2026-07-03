@@ -1,8 +1,8 @@
 // Exalted = a triggered ability [CR#702.83a]: "Whenever a creature you
 // control attacks alone, that creature gets +1/+1 until end of turn." The
 // trigger fires when a creature you control becomes an attacker
-// (`StateBecomes(becomes: Attacking)`, the [CR#508.1k]/[CR#603.2e] declare-
-// attackers transition), binding the attacking creature to `EventObject`.
+// (`AttackDeclared`, the [CR#508.1k]/[CR#603.2e] declare-
+// attackers onset), binding the attacking creature to `EventObject`.
 //
 // "attacks alone" [CR#702.83b] = "it's the only creature declared as an
 // attacker in a given combat phase" (see [CR#506.5]). That is the intervening-
@@ -21,9 +21,8 @@ KeywordAbility(
     name: "Exalted",
     template: "exalted",
     abilities: [Triggered(
-        event: StateBecomes(
-            of: AllOf([Type(Creature), ControlledBy(Ref(You))]),
-            becomes: Attacking,
+        event: AttackDeclared(
+            by: AllOf([Type(Creature), ControlledBy(Ref(You))]),
         ),
         condition: Compare(CountOf(Attacking), Eq, 1),
         effect: Continuously(

@@ -1,11 +1,11 @@
 // Twin of Spec.idr `tBadEventObjectNoObject`: "that card" in a step-begin
-// body — a BeginningOf event supplies no object [CR#603.2e,608.2k].
+// body — a StepBegins event supplies no object [CR#603.2e,608.2k].
 Normal(
   name: "Reject Upkeep Object",
   types: [Enchantment],
   abilities: [
     Triggered(
-      event: BeginningOf(Beginning(Upkeep), Your),
+      event: StepBegins(at: Beginning(Upkeep), whose: Your),
       effect: Move(EventObject, Exile),
     ),
   ],

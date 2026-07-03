@@ -12,7 +12,7 @@ use crate::Expand;
 use crate::Expansion;
 use crate::Filter;
 use crate::SupportsMacros;
-use crate::Window;
+use crate::Timing;
 use crate::Zone;
 
 /// An alternative base cost on a cast-permission row ([CR#118.9]): paid
@@ -148,7 +148,7 @@ pub enum DeonticAction {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         from: Option<Zone>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        window: Option<Window>,
+        window: Option<Timing>,
         /// An alternative base cost the permission carries ([CR#118.9]) —
         /// "you may cast … without paying its mana cost".
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -267,7 +267,7 @@ mod tests {
                 what: Filter::Ref(Reference::This),
                 by: Filter::Any,
                 from: None,
-                window: Some(Window::InstantSpeed),
+                window: Some(Timing::InstantSpeed),
                 cost: None,
             }),
         );

@@ -15,7 +15,7 @@ Normal(
   ],
   abilities: [
     Triggered(
-      event: StateBecomes(of: Ref(This), becomes: Blocked),
+      event: BlockDeclared(of: Ref(This)),
       effect: GainLife(2),
     ),
   ],

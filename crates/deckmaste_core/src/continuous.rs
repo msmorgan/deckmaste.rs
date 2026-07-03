@@ -8,7 +8,7 @@ use crate::Condition;
 use crate::CostComponent;
 use crate::Count;
 use crate::Deontic;
-use crate::Event;
+use crate::EventFilter;
 use crate::Expand;
 use crate::Expansion;
 use crate::Filter;
@@ -33,7 +33,7 @@ pub enum Duration {
     /// end ([CR#500.5a,511.2]).
     FixedUntil(TurnMarker),
     /// Until an event happens (the engine pairs the undo one-shot, [CR#610.3]).
-    UntilEvent(Event),
+    UntilEvent(EventFilter),
     /// "For as long as" — a tracked predicate ([CR#611.2b]). The
     /// never-started / already-ended edge rules ride a `started` latch on
     /// the ENGINE's effect-instance record, not the card grammar; once
@@ -291,11 +291,11 @@ pub enum StaticEffect {
     /// times. It is NOT a copy — each firing chooses its own modes and targets
     /// — and multipliers ADD rather than compound (two Panharmonicons → 3×,
     /// not 4×; [CR#603.2d] "doesn't invoke itself repeatedly").
-    /// Panharmonicon = `TriggerMultiplier(cause: ZoneMove(what:
+    /// Panharmonicon = `TriggerMultiplier(cause: ZoneChange(what:
     /// OneOf([Type(Artifact), Type(Creature)]), to: Battlefield), extra:
     /// 1)`.
     TriggerMultiplier {
-        cause: Event,
+        cause: EventFilter,
         extra: Count,
         /// The affected ability's source permanent; defaults to "you control"
         /// (the source's controller), overridden for opponent/any-doublers.
@@ -355,7 +355,7 @@ pub enum StaticEffect {
     /// `CantHappen(Destroyed(Ref(This)))`. Per [CR#614.17c] a can't-happen
     /// event can be touched only by a self-replacement, so the cant pass
     /// pre-empts the replacement registry entirely.
-    CantHappen(Event),
+    CantHappen(EventFilter),
     /// ALTERNATIVE PAYMENT of individual cost pips — NOT a cost reduction and
     /// NOT mana production. "For each [`PipClass`] pip in this spell's total
     /// cost, you may [`PayAct`] rather than pay that mana": convoke
@@ -554,7 +554,7 @@ mod tests {
     #[test]
     fn cant_happen_reads_flat() {
         let parsed = read(
-            "CantHappen(ZoneMove(what: Ref(This), from: Battlefield, to: Graveyard, cause: Cause(verb: \"Destroy\")))",
+            "CantHappen(ZoneChange(what: Ref(This), from: Battlefield, to: Graveyard, cause: Cause(verb: Destroy)))",
         );
         assert!(matches!(parsed, StaticEffect::CantHappen(_)));
     }
@@ -645,7 +645,7 @@ mod tests {
     #[test]
     fn trigger_multiplier_round_trips() {
         let parsed = read(
-            "TriggerMultiplier(cause: ZoneMove(what: OneOf([Type(Artifact), Type(Creature)]), to: Battlefield), extra: 1)",
+            "TriggerMultiplier(cause: ZoneChange(what: OneOf([Type(Artifact), Type(Creature)]), to: Battlefield), extra: 1)",
         );
         let StaticEffect::TriggerMultiplier {
             extra, affected, ..
@@ -664,7 +664,7 @@ mod tests {
 
         // An explicit non-default affected (an opponent doubler) is preserved.
         let opp = read(
-            "TriggerMultiplier(cause: ZoneMove(what: Type(Creature), to: Battlefield), extra: 1, affected: ControlledBy(OpponentOf(Ref(You))))",
+            "TriggerMultiplier(cause: ZoneChange(what: Type(Creature), to: Battlefield), extra: 1, affected: ControlledBy(OpponentOf(Ref(You))))",
         );
         let written = crate::ron::options().to_string(&opp).unwrap();
         assert!(written.contains("affected"), "non-default affected kept");

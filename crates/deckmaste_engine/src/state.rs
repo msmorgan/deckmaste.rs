@@ -5,7 +5,7 @@ use deckmaste_core::BeginningStep;
 use deckmaste_core::Card;
 use deckmaste_core::EndingStep;
 use deckmaste_core::Int;
-use deckmaste_core::Phase;
+use deckmaste_core::PhaseStep;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 use rand::RngExt;
@@ -357,10 +357,12 @@ impl GameState {
                 turn_number: 0,
                 // Pre-game placeholder; the first BeginStep(Beginning(Untap))
                 // begins turn 1.
-                current: Phase::Ending(EndingStep::Cleanup),
+                current: PhaseStep::Ending(EndingStep::Cleanup),
                 priority: None,
             },
-            agenda: VecDeque::from([WorkItem::BeginStep(Phase::Beginning(BeginningStep::Untap))]),
+            agenda: VecDeque::from([WorkItem::BeginStep(PhaseStep::Beginning(
+                BeginningStep::Untap,
+            ))]),
             pending: None,
             choice: None,
             outcome: None,

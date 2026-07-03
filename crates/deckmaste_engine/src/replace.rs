@@ -6,7 +6,7 @@
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::Effect;
-use deckmaste_core::Event;
+use deckmaste_core::EventFilter;
 use deckmaste_core::Filter;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::Reference;
@@ -216,12 +216,12 @@ pub(crate) fn look_through_replacement(replacement: &Replacement) -> &Replacemen
 /// remembered macro invocation. Such a `would` on a static replacement is the
 /// object's own self-enter (the watcher in `as_enters_status` is always self),
 /// so a `Ref(This)`/`Any` `what` both qualify.
-fn would_is_self_enter(would: &Event) -> bool {
+fn would_is_self_enter(would: &EventFilter) -> bool {
     match would {
         // Look through `Enters(…)` and any other remembered Event macro.
-        Event::Expanded(e) => would_is_self_enter(&e.value),
+        EventFilter::Expanded(e) => would_is_self_enter(&e.value),
         // A move *to* the battlefield, of this object (or match-anything).
-        Event::ZoneMove { what, to, .. } => {
+        EventFilter::ZoneChange { what, to, .. } => {
             *to == Some(Zone::Battlefield)
                 && matches!(what, Filter::Ref(Reference::This) | Filter::Any)
         }
@@ -285,11 +285,10 @@ mod tests {
                 from: None,
                 condition: None,
                 effects: vec![StaticEffect::Replacement(Box::new(Replacement::Also {
-                    would: Event::ZoneMove {
+                    would: EventFilter::ZoneChange {
                         what: Filter::Ref(Reference::This),
                         from: None,
                         to: Some(Zone::Battlefield),
-                        face: None,
                         cause: None,
                     },
                     also: Effect::With(deckmaste_core::With {
@@ -377,7 +376,7 @@ mod tests {
         assert!(
             state
                 .history
-                .scan(deckmaste_core::Window::ThisGame, state.turn.turn_number)
+                .scan(deckmaste_core::Lookback::ThisGame, state.turn.turn_number)
                 .any(|e| matches!(e, GameEvent::Attached { attachment, host: h }
                     if *attachment == aura && *h == host)),
             "the Attached fact was recorded on entry"
@@ -399,7 +398,7 @@ mod tests {
         assert!(
             !state
                 .history
-                .scan(deckmaste_core::Window::ThisGame, state.turn.turn_number)
+                .scan(deckmaste_core::Lookback::ThisGame, state.turn.turn_number)
                 .any(|e| matches!(e, GameEvent::Attached { .. })),
             "no Attached fact when there was no legal host"
         );
@@ -420,11 +419,10 @@ mod tests {
                 from: None,
                 condition: None,
                 effects: vec![StaticEffect::Replacement(Box::new(Replacement::Also {
-                    would: Event::ZoneMove {
+                    would: EventFilter::ZoneChange {
                         what: Filter::Ref(Reference::This),
                         from: None,
                         to: Some(Zone::Battlefield),
-                        face: None,
                         cause: None,
                     },
                     also: Effect::Act(Action::By(
@@ -513,11 +511,10 @@ mod tests {
                 from: None,
                 condition: None,
                 effects: vec![StaticEffect::Replacement(Box::new(Replacement::Also {
-                    would: Event::ZoneMove {
+                    would: EventFilter::ZoneChange {
                         what: Filter::Ref(Reference::This),
                         from: None,
                         to: Some(Zone::Battlefield),
-                        face: None,
                         cause: None,
                     },
                     also: Effect::If(If {

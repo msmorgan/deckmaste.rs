@@ -5,8 +5,8 @@
 //! any match. Full-game retention (a bounded game's event count is trivial);
 //! the window selects which turn-tagged entries to read.
 
+use deckmaste_core::Lookback;
 use deckmaste_core::Uint;
-use deckmaste_core::Window;
 
 use crate::event::GameEvent;
 
@@ -27,22 +27,32 @@ impl History {
         self.0.push(HistEntry { turn, fact });
     }
 
-    /// The facts visible through `within`, given `current_turn`. Only the
-    /// history-lookback windows are meaningful here ([CR#608.2i]): `ThisTurn`
-    /// is this turn's entries, `ThisGame` is all of them. The timing windows
-    /// (`InstantSpeed`/`SorcerySpeed`/`DuringTurn`/`DuringStep`) are not
-    /// lookbacks; callers gate them out, so they read as empty defensively.
+    /// The facts visible through `within`, given `current_turn`
+    /// ([CR#608.2i]): `ThisTurn` is this turn's entries, `LastTurn` the
+    /// previous turn's, `ThisGame` all of them. The sub-turn lookbacks
+    /// (`ThisCombat`/`ThisStep`/`SinceYour`) need combat/step markers the
+    /// log doesn't record yet — a query through one must trip loudly, not
+    /// silently read empty.
     pub(crate) fn scan(
         &self,
-        within: Window,
+        within: Lookback,
         current_turn: Uint,
     ) -> impl Iterator<Item = &GameEvent> {
+        if matches!(
+            within,
+            Lookback::ThisCombat | Lookback::ThisStep | Lookback::SinceYour(_)
+        ) {
+            todo!("engine-history-windows: no combat/step markers in the history log yet")
+        }
         self.0
             .iter()
             .filter(move |e| match within {
-                Window::ThisTurn => e.turn == current_turn,
-                Window::ThisGame => true,
-                _ => false,
+                Lookback::ThisTurn => e.turn == current_turn,
+                Lookback::ThisGame => true,
+                Lookback::LastTurn => e.turn + 1 == current_turn,
+                Lookback::ThisCombat | Lookback::ThisStep | Lookback::SinceYour(_) => {
+                    unreachable!("gated above")
+                }
             })
             .map(|e| &e.fact)
     }
@@ -53,8 +63,8 @@ mod tests {
     use super::*;
     use crate::object::ObjectId;
 
-    /// `ThisTurn` returns only the current turn's entries; `ThisGame` returns
-    /// all of them.
+    /// `ThisTurn` returns only the current turn's entries, `LastTurn` only
+    /// the previous turn's; `ThisGame` returns all of them.
     #[test]
     fn scan_windows_select_by_turn() {
         let mut h = History::default();
@@ -63,19 +73,29 @@ mod tests {
         h.record(2, GameEvent::SpellCast(ObjectId::from_raw(3)));
 
         assert_eq!(
-            h.scan(Window::ThisTurn, 2).count(),
+            h.scan(Lookback::ThisTurn, 2).count(),
             2,
             "ThisTurn = turn-2 entries"
         );
         assert_eq!(
-            h.scan(Window::ThisTurn, 1).count(),
+            h.scan(Lookback::ThisTurn, 1).count(),
             1,
             "ThisTurn = turn-1 entries"
         );
         assert_eq!(
-            h.scan(Window::ThisGame, 2).count(),
+            h.scan(Lookback::ThisGame, 2).count(),
             3,
             "ThisGame = all entries"
+        );
+        assert_eq!(
+            h.scan(Lookback::LastTurn, 2).count(),
+            1,
+            "LastTurn from turn 2 = turn-1 entries"
+        );
+        assert_eq!(
+            h.scan(Lookback::LastTurn, 3).count(),
+            2,
+            "LastTurn from turn 3 = turn-2 entries"
         );
     }
 }

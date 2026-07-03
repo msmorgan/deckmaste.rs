@@ -292,8 +292,8 @@ impl GameState {
         // sorcery" — the Only refinement on the activation permission).
         if let Some(window) = &ability.window {
             let in_window = match window {
-                deckmaste_core::Window::InstantSpeed => true,
-                deckmaste_core::Window::SorcerySpeed => self.sorcery_speed_ok(player),
+                deckmaste_core::Timing::InstantSpeed => true,
+                deckmaste_core::Timing::SorcerySpeed => self.sorcery_speed_ok(player),
                 other => todo!("P0.W1: activation window {other:?}"),
             };
             if !in_window {
@@ -316,14 +316,14 @@ impl GameState {
         for limit in &ability.limits {
             match limit {
                 UseLimit::OncePerTurn => {
-                    if self.ability_used_count(object, index_u, deckmaste_core::Window::ThisTurn)
+                    if self.ability_used_count(object, index_u, deckmaste_core::Lookback::ThisTurn)
                         >= 1
                     {
                         return false;
                     }
                 }
                 UseLimit::OncePerGame => {
-                    if self.ability_used_count(object, index_u, deckmaste_core::Window::ThisGame)
+                    if self.ability_used_count(object, index_u, deckmaste_core::Lookback::ThisGame)
                         >= 1
                     {
                         return false;
@@ -1453,7 +1453,7 @@ mod tests {
     /// any `PayMana` or `ChooseTargets` decisions.
     #[test]
     fn activation_records_ability_used() {
-        use deckmaste_core::Window;
+        use deckmaste_core::Lookback;
 
         use crate::agenda::WorkItem;
         use crate::event::Occurrence;
@@ -1517,7 +1517,7 @@ mod tests {
         // Use-limits are object-scoped: record the per-instance ObjectId,
         // not the persistent CardId/ObjectSource ([CR#400.7]).
         let turn = state.turn.turn_number;
-        let found = state.history.scan(Window::ThisGame, turn).any(|e| {
+        let found = state.history.scan(Lookback::ThisGame, turn).any(|e| {
             matches!(
                 e,
                 crate::event::GameEvent::AbilityUsed { object, ability }

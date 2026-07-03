@@ -3,11 +3,11 @@ use serde::Serialize;
 
 use crate::Count;
 use crate::Effect;
-use crate::Event;
+use crate::EventFilter;
 use crate::Expand;
 use crate::Expansion;
 use crate::Filter;
-use crate::Phase;
+use crate::PhaseStep;
 use crate::SupportsMacros;
 use crate::continuous::Duration;
 
@@ -19,12 +19,12 @@ use crate::continuous::Duration;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Replacement {
     /// "If [event] would happen, [effect] instead" — replace ([CR#614.1a]).
-    Instead { would: Event, instead: Effect },
+    Instead { would: EventFilter, instead: Effect },
     /// Skip a step or phase — omit ([CR#614.1b]).
-    Skip { what: Phase },
+    Skip { what: PhaseStep },
     /// "If [event] would happen, [event] and [effect]" — augment, all-at-once
     /// ([CR#614.1c]). `AsEnters` is a prelude macro over this.
-    Also { would: Event, also: Effect },
+    Also { would: EventFilter, also: Effect },
     /// A remembered `Replacement` macro invocation (`AsEnters`, …).
     #[macro_ron(expanded)]
     Expanded(Expansion<Replacement>),
@@ -70,7 +70,7 @@ mod tests {
         assert_eq!(
             parsed,
             Replacement::Skip {
-                what: Phase::Beginning(crate::BeginningStep::Upkeep)
+                what: PhaseStep::Beginning(crate::BeginningStep::Upkeep)
             },
         );
     }
@@ -80,8 +80,8 @@ mod tests {
     fn primitives_round_trip() {
         for source in [
             "Skip(what: Beginning(Upkeep))",
-            "Also(would: ZoneMove(what: Any, to: Battlefield), also: Tap(This))",
-            "Instead(would: ZoneMove(what: Any, to: Graveyard), instead: Tap(This))",
+            "Also(would: ZoneChange(what: Any, to: Battlefield), also: Tap(This))",
+            "Instead(would: ZoneChange(what: Any, to: Graveyard), instead: Tap(This))",
         ] {
             let parsed: Replacement = crate::ron::options().from_str(source).unwrap();
             let written = crate::ron::options().to_string(&parsed).unwrap();

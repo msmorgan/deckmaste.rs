@@ -15,15 +15,14 @@
 // must be inlined.
 //
 // The trigger is a union ([CR#603.2c], "whenever … or …") of the two
-// declare-blockers transitions THIS creature can undergo:
-//   - `becomes: Blocking` = "this creature blocks" ([CR#509.3a], the
-//     blocker-side trigger — it becomes a blocking creature, [CR#509.1g]);
-//   - `becomes: Blocked`  = "this creature becomes blocked" ([CR#509.3c], the
-//     attacker-side trigger).
-// Both are `StateBecomes` becomes-deltas ([CR#603.2e]) keyed on `Ref(This)`,
-// matched in the engine against the single `GameEvent::Blocked { blocker,
-// attacker }` declaration fact (blocker side for `Blocking`, attacker side for
-// `Blocked`).
+// views of the block declaration THIS creature can occupy:
+//   - `BlockDeclared(by: Ref(This))` = "this creature blocks" ([CR#509.3a],
+//     the blocker-side trigger — it becomes a blocking creature, [CR#509.1g]);
+//   - `BlockDeclared(of: Ref(This))` = "this creature becomes blocked"
+//     ([CR#509.3c], the attacker-side trigger).
+// Both are becomes-onsets ([CR#603.2e]) keyed on `Ref(This)`, matched in the
+// engine against the single `GameEvent::Blocked { blocker, attacker }`
+// declaration fact (blocker side for `by:`, attacker side for `of:`).
 (
     name: "Bushido",
     template: "bushido ${0}",
@@ -33,8 +32,8 @@
         name: "Bushido",
         abilities: [Triggered(
             event: OneOf([
-                StateBecomes(of: Ref(This), becomes: Blocking),
-                StateBecomes(of: Ref(This), becomes: Blocked),
+                BlockDeclared(by: Ref(This)),
+                BlockDeclared(of: Ref(This)),
             ]),
             effect: Continuously(
                 effect: Modify(

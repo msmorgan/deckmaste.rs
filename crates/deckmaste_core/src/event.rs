@@ -1,20 +1,26 @@
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::Condition;
+use crate::CountBound;
+use crate::CounterRef;
 use crate::Expand;
 use crate::Expansion;
 use crate::Filter;
 use crate::Ident;
+use crate::Lookback;
+use crate::Reference;
 use crate::SupportsMacros;
+use crate::Uint;
 use crate::Zone;
 
-/// A turn phase (the 5xx turn structure). `BeginningOf` triggers key off
-/// these. Each phase carries its constituent step(s); a phase that is a single
-/// step (the main phases — [CR#505.1]) is a bare variant. Nested enums
-/// round-trip in RON as `Beginning(Upkeep)`, `Combat(DeclareAttackers)`,
-/// `PostcombatMain`.
+/// A turn step, carried by its phase (the 5xx turn structure). `StepBegins`
+/// triggers key off these. Each phase carries its constituent step(s); a
+/// phase that is a single step (the main phases — [CR#505.1]) is a bare
+/// variant. Nested enums round-trip in RON as `Beginning(Upkeep)`,
+/// `Combat(DeclareAttackers)`, `PostcombatMain`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum Phase {
+pub enum PhaseStep {
     /// The beginning phase ([CR#501]): untap, upkeep, draw.
     Beginning(BeginningStep),
     /// The precombat main phase ([CR#505], one step).
@@ -76,24 +82,17 @@ pub enum WhoseTurn {
     AnOpponents,
 }
 
-/// The state a `StateBecomes` transition watches ([CR#603.2e]). A small set
-/// today; variants accrete as cards force them.
+/// The state a `StateBecame` transition watches ([CR#603.2e]) — transitions
+/// of an object's own status. Combat onsets are their own master forms
+/// (`AttackDeclared`/`BlockDeclared`), control changes are `ControlChanged`,
+/// designation gains are `DesignationChanged`: this enum carries only the
+/// residual status deltas.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum StateFilterEvent {
-    /// Becomes tapped.
+pub enum StateChange {
+    /// Becomes tapped ([CR#603.2e]).
     Tapped,
-    /// Becomes untapped.
+    /// Becomes untapped ([CR#603.2e]).
     Untapped,
-    /// Becomes attacking ([CR#508.1k]).
-    Attacking,
-    /// Becomes a blocking creature — "whenever ~ blocks" ([CR#509.3a],
-    /// the blocker-side declare-blockers trigger; the creature becomes a
-    /// blocker per [CR#509.1g]). Symmetric to `Attacking`; distinct from
-    /// `Blocked`, which watches the ATTACKER side ([CR#509.3c]). Bushido
-    /// ([CR#702.45a]) unions the two.
-    Blocking,
-    /// Becomes blocked ([CR#509.3c]).
-    Blocked,
     /// Phases out/in ([CR#702.26b] — a status change, explicitly NOT a
     /// zone change; a phased-out permanent is treated as though it
     /// doesn't exist).
@@ -101,15 +100,6 @@ pub enum StateFilterEvent {
     /// Is turned to the given face ([CR#708]; on turn-up, copiable values
     /// revert and ETB abilities don't fire again, [CR#708.8]).
     TurnedFace(crate::Face),
-    /// Gains the named designation ([CR#109.3]): "becomes the monarch" /
-    /// "becomes goaded" ride the player proxy or the object's registry
-    /// entry. GAME-scope transitions (day/night, [CR#731.1]) ride
-    /// `Event::DesignationChanged` instead.
-    Designated(Ident),
-    /// Comes under the control of a matching player — the control-change
-    /// becomes-delta ([CR#603.2e] transitions-only; a control change is
-    /// never a zone change, the object keeps its identity).
-    ControlledBy(Filter),
 }
 
 /// The machinery that demanded an event — the cause triple's AGENCY
@@ -135,16 +125,69 @@ pub enum Agency {
     SpecialAction,
 }
 
+/// The named cause VERBS a pattern may narrow by — the closed grammar
+/// vocabulary behind "sacrificed"/"destroyed"/"discarded" views. Each verb's
+/// fact form is one CR-cited row of the emitted entailment table
+/// (`crates/deckmaste_cards/tables/entailments.ron`): `Sacrifice` entails
+/// `ZoneChange { from: Battlefield, to: Graveyard }` [CR#701.21a], `Mill`
+/// entails `ZoneChange { from: Library, to: Graveyard }` [CR#701.17a] — so
+/// `Dies` matches a sacrifice structurally, and a cause-narrowed pattern
+/// admits exactly its verb's occurrences. Grows only through the closed-verb
+/// admission test.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum CauseVerb {
+    /// [CR#701.21a] — never a destruction (regeneration can't replace it).
+    Sacrifice,
+    /// [CR#701.8a]; one of "destroyed"'s exactly two causes ([CR#701.8b]).
+    Destroy,
+    /// [CR#701.9a].
+    Discard,
+    /// [CR#701.13a].
+    Exile,
+    /// [CR#701.17a].
+    Mill,
+    /// [CR#701.18a] — the land-drop cause (an effect putting a land onto
+    /// the battlefield is NOT a play).
+    Play,
+    /// [CR#701.14a] — fight damage is noncombat damage ([CR#701.14d]).
+    Fight,
+    /// [CR#701.44a].
+    Explore,
+    /// [CR#701.19a] — the visible fact of an applied regeneration shield
+    /// is the tap.
+    Regenerate,
+}
+
+impl CauseVerb {
+    /// The canonical fact-side spelling — the engine's cause triples store
+    /// verbs as `Ident`s (`crate::event::Cause` constructors on the engine
+    /// side); a pattern verb matches a fact verb by this string.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            CauseVerb::Sacrifice => "Sacrifice",
+            CauseVerb::Destroy => "Destroy",
+            CauseVerb::Discard => "Discard",
+            CauseVerb::Exile => "Exile",
+            CauseVerb::Mill => "Mill",
+            CauseVerb::Play => "Play",
+            CauseVerb::Fight => "Fight",
+            CauseVerb::Explore => "Explore",
+            CauseVerb::Regenerate => "Regenerate",
+        }
+    }
+}
+
 /// A trigger-side predicate over an event's cause triple (verb, agency,
 /// agent). Every omitted coordinate matches anything. `verb` names the
-/// performed view ("Destroy", "Sacrifice", …); `agent` filters the causing
-/// object/controller (Karmic Justice's "a spell or ability an opponent
-/// controls"). Agent-IDENTITY equality ("destroyed this way") is a
-/// binding concern, not a pattern — it rides the event log.
+/// entailed view ([`CauseVerb`] — "Destroy", "Sacrifice", …); `agent`
+/// filters the causing object/controller (Karmic Justice's "a spell or
+/// ability an opponent controls"). Agent-IDENTITY equality ("destroyed this
+/// way") is a binding concern, not a pattern — it rides the event log.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct CausePattern {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub verb: Option<Ident>,
+    pub verb: Option<CauseVerb>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agency: Option<Agency>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -158,92 +201,274 @@ pub struct CausePattern {
 /// the rules; that no card demands it yet is just the current state of
 /// things. When one does, `AnyOf`/`Not` variants accrete HERE without
 /// respelling existing files. RON requires enum variant names, so the
-/// position always reads `Cause(verb: "Destroy")` — never a bare tuple.
+/// position always reads `Cause(verb: Destroy)` — never a bare tuple.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Cause {
     /// Every PRESENT coordinate must match (the conjunction).
     Cause(CausePattern),
 }
 
-/// A trigger-event pattern, matched structurally against the action log
-/// ([CR#603.2]). Declared event names (`Dies`, `Enters`, `Landfall`) are macros
-/// over these forms. Each form binds fixed roles (`EventObject`,
-/// `EventActor`) for the body.
+/// The unified event-query language ([CR#603.2] and kin): master-form
+/// records over the one engine fact record, plus a lane-gated algebra.
+///
+/// Each master form carries ONLY the fields its kind supplies — dead facets
+/// (`what:` on a step event, an amount on a designation change) are
+/// unrepresentable by construction, not checker-caught. Forms lower to a
+/// field-atom normal form over the single engine fact record `{kind, object,
+/// patient, actor, source, from, to, cause, amount, counter, batch, before,
+/// after, time}` (the one-evaluator rebase is `engine-eventfilter-bridge`).
+/// Declared event names (`Dies`, `Enters`, `Sacrificed`) are macros over
+/// these forms. Omitted filter fields default to match-anything; omitted
+/// `Option` refinements are unconstrained.
+///
+/// The algebra tail (`AllOf`/`OneOf`/`Not`/`OneOrMore`/`Nth`/`When`/
+/// `Within`) is LANE-GATED at load by the emitted lane table
+/// (`crates/deckmaste_cards/tables/event-lanes.ron`): live lanes
+/// (trigger/replacement/duration) refuse `Within`; history lanes
+/// (`Happened`/`EventCount`) refuse `OneOrMore`; disjunction pairs kind
+/// with filters per-disjunct and must bottom out in master forms in
+/// kind-anchored lanes.
 ///
 /// Both serde impls are generated by `#[derive(SupportsMacros)]`: `Expanded`
 /// writes the invocation back, and the struct variants read flat in RON
 /// through generated helper structs (carrying the forwarded `#[serde(...)]`
 /// field defaults) + `unwrap_variant_newtypes`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
-pub enum Event {
-    /// A verb was performed ([CR#603.2] over the action log). `by`/`on` default
-    /// to match-anything (`Filter::Any`).
-    Performed {
-        verb: Ident,
-        #[serde(default = "Filter::any")]
-        by: Filter,
-        #[serde(default = "Filter::any")]
-        on: Filter,
-    },
+pub enum EventFilter {
     /// An object changed zones ([CR#603.6]). `Dies` = `from: Battlefield,
     /// to: Graveyard` is a prelude macro over this. `cause` narrows by the
     /// cause triple ("destroyed" admits exactly two causes, [CR#701.8b];
     /// "sacrificed" is never destruction, [CR#701.21a]); omitted = any
-    /// cause ("dies", [CR#700.4]).
-    ZoneMove {
+    /// cause ("dies", [CR#700.4]). Each [`CauseVerb`]'s entailed fact form
+    /// is an emitted entailment-table row.
+    ZoneChange {
+        #[serde(default = "Filter::any")]
         what: Filter,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         from: Option<Zone>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         to: Option<Zone>,
-        /// The face shown on arrival ("enters face down") — the master
-        /// event's `face` coordinate; omitted = any face.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        face: Option<crate::Face>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         cause: Option<Cause>,
     },
-    /// The beginning of a step or phase ([CR#603.2], "at the beginning of …").
-    BeginningOf(Phase, WhoseTurn),
-    /// An object's state changed — transitions only ([CR#603.2e]).
-    /// `cause` narrows by the tap-cause table (cost payment vs attack
-    /// declaration vs crewing vs effect, [CR#107.5,508.1f,702.122b]).
-    StateBecomes {
-        of: Filter,
-        becomes: StateFilterEvent,
+    /// Damage was dealt ([CR#120.1]): `source` is the damage SOURCE, `to`
+    /// the recipient — an object or a player ([CR#120.3], the kind-poly
+    /// patient). `combat` narrows combat vs noncombat damage ([CR#510.1]);
+    /// `amount` bounds the dealt amount.
+    Damage {
+        #[serde(default = "Filter::any")]
+        source: Filter,
+        #[serde(default = "Filter::any")]
+        to: Filter,
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        cause: Option<Cause>,
+        combat: Option<bool>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        amount: Option<CountBound>,
     },
-    /// An object becomes the target of a spell/ability ([CR#601.2c]
-    /// announce-time; ward is the family exemplar, [CR#702.21a]). `by`
-    /// narrows the targeting spell/ability ("a spell or ability an
-    /// opponent controls").
-    BecomesTarget {
+    /// A player gained life ([CR#119.3]).
+    LifeGained {
+        #[serde(default = "Filter::any")]
+        who: Filter,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        amount: Option<CountBound>,
+    },
+    /// A player lost life ([CR#119.3]).
+    LifeLost {
+        #[serde(default = "Filter::any")]
+        who: Filter,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        amount: Option<CountBound>,
+    },
+    /// A player drew ([CR#121.1]). Per-fact granularity is one card; a
+    /// multi-card `amount` bound is batch semantics
+    /// (`engine-fact-record-batch`).
+    Drawn {
+        #[serde(default = "Filter::any")]
+        who: Filter,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        amount: Option<CountBound>,
+    },
+    /// Counters were placed on an object or player ([CR#122.1]). An omitted
+    /// `kind` watches any counter kind.
+    CounterPlaced {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        kind: Option<CounterRef>,
+        #[serde(default = "Filter::any")]
+        on: Filter,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        amount: Option<CountBound>,
+    },
+    /// Counters were removed from an object or player ([CR#122.1]).
+    CounterRemoved {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        kind: Option<CounterRef>,
+        #[serde(default = "Filter::any")]
+        on: Filter,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        amount: Option<CountBound>,
+    },
+    /// A spell became cast ([CR#601.2i]) — the onset family ([CR#603.2]).
+    /// `who` is the casting player, `what` the spell on the stack.
+    Cast {
+        #[serde(default = "Filter::any")]
+        who: Filter,
+        #[serde(default = "Filter::any")]
         what: Filter,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        by: Option<Filter>,
     },
-    /// A GAME-scope designation transition ([CR#109.3]; day/night are
-    /// "designations that the game itself can have", [CR#731.1]). "Day
-    /// becomes night" = losing one designation and gaining the other
-    /// ([CR#731.1a]): `DesignationChanged(name: "DayNight", becomes:
-    /// Some("Night"))`. Object/player designation deltas ride
-    /// `StateBecomes(Designated(…))` instead.
+    /// A card was played — the land drop ([CR#701.18a]; a special action,
+    /// [CR#116.2a]).
+    Played {
+        #[serde(default = "Filter::any")]
+        who: Filter,
+        #[serde(default = "Filter::any")]
+        what: Filter,
+    },
+    /// An activated ability was activated ([CR#602.2a]). `what` matches
+    /// the ability's SOURCE object.
+    ActivatedAb {
+        #[serde(default = "Filter::any")]
+        who: Filter,
+        #[serde(default = "Filter::any")]
+        what: Filter,
+    },
+    /// A creature was declared as an attacker ([CR#508.1k] — it becomes an
+    /// attacking creature). `against` matches the DEFENDING player
+    /// ([CR#506.2,508.5]).
+    AttackDeclared {
+        #[serde(default = "Filter::any")]
+        by: Filter,
+        #[serde(default = "Filter::any")]
+        against: Filter,
+    },
+    /// A block was declared — one fact, two views ([CR#509.1g..509.1h]):
+    /// `by` is the BLOCKER ("whenever ~ blocks", [CR#509.3a]), `of` the
+    /// blocked ATTACKER ("becomes blocked", [CR#509.3c]). Bushido
+    /// ([CR#702.45a]) unions the two spellings.
+    BlockDeclared {
+        #[serde(default = "Filter::any")]
+        by: Filter,
+        #[serde(default = "Filter::any")]
+        of: Filter,
+    },
+    /// An Aura/Equipment/Fortification became attached ([CR#701.3a];
+    /// "becomes attached", [CR#603.2e]). `what` is the attachment, `to`
+    /// the host.
+    Attached {
+        #[serde(default = "Filter::any")]
+        what: Filter,
+        #[serde(default = "Filter::any")]
+        to: Filter,
+    },
+    /// An object's own status changed — transitions only ([CR#603.2e]).
+    StateBecame {
+        #[serde(default = "Filter::any")]
+        of: Filter,
+        becomes: StateChange,
+    },
+    /// An object became the target of a spell/ability ([CR#601.2c]
+    /// announce-time; ward is the family exemplar, [CR#702.21a]). TWO
+    /// ARMS: `by` narrows the targeting STACK OBJECT (shroud), `source`
+    /// narrows its SOURCE (hexproof-from) [CR#702.11d,702.16b].
+    BecomesTarget {
+        #[serde(default = "Filter::any")]
+        what: Filter,
+        #[serde(default = "Filter::any")]
+        by: Filter,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        source: Option<Filter>,
+    },
+    /// A step or phase began ([CR#603.2b], "at the beginning of …"). The
+    /// `whose` coordinate ([CR#503.1] "your upkeep") narrows by whose turn
+    /// it is, relative to the watching ability's controller.
+    StepBegins { at: PhaseStep, whose: WhoseTurn },
+    /// An object came under the control of a matching player ([CR#603.2e]
+    /// transitions-only; a control change is never a zone change — the
+    /// object keeps its identity, [CR#613.1b]).
+    ControlChanged {
+        #[serde(default = "Filter::any")]
+        of: Filter,
+        #[serde(default = "Filter::any")]
+        to: Filter,
+    },
+    /// A named designation changed hands ([CR#109.3]): "becomes the
+    /// monarch" / "becomes goaded" — `of` matches the gaining carrier
+    /// (player proxy or object). The GAME-scope day/night designation
+    /// ([CR#731.1]) rides the expletive forms
+    /// [`BecameDay`](EventFilter::BecameDay)/
+    /// [`BecameNight`](EventFilter::BecameNight) instead.
     DesignationChanged {
         name: Ident,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        becomes: Option<Ident>,
+        #[serde(default = "Filter::any")]
+        of: Filter,
     },
-    /// An ability of `by` was used — a triggered ability fired ([CR#603.2]) or
-    /// an activated ability was activated ([CR#602.2a]). Matches the engine's
-    /// `AbilityUsed` history fact; counted via `EventCount` ([CR#608.2i]).
-    Used { by: crate::Reference },
-    /// Any of several events ([CR#603.2], "whenever … or …").
-    OneOf(Vec<Event>),
-    /// A remembered `Event` macro invocation (`Dies`, `Enters`, `Landfall`,
-    /// …). Serialized as the invocation, not the struct.
+    /// A token was created ([CR#701.7a,111.2]). `what` matches the created
+    /// token, `by` its creator.
+    TokenCreated {
+        #[serde(default = "Filter::any")]
+        what: Filter,
+        #[serde(default = "Filter::any")]
+        by: Filter,
+    },
+    /// An ability of `of` was used — a triggered ability fired ([CR#603.2])
+    /// or an activated ability was activated ([CR#602.2a]). Matches the
+    /// engine's `AbilityUsed` history fact, object-scoped ([CR#400.7]);
+    /// counted via `EventCount` ([CR#608.2i]).
+    Used { of: Reference },
+    /// A coin was flipped ([CR#705.1]). `won` narrows by the flipper
+    /// winning/losing the flip ([CR#705.2]).
+    CoinFlipped {
+        #[serde(default = "Filter::any")]
+        by: Filter,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        won: Option<bool>,
+    },
+    /// A die was rolled ([CR#706.1]).
+    DiceRolled {
+        #[serde(default = "Filter::any")]
+        by: Filter,
+    },
+    /// "It becomes day" — the game gained the day designation
+    /// ([CR#731.1,731.1a]; an expletive-"it" verb, no participants).
+    BecameDay,
+    /// "It becomes night" ([CR#731.1,731.1a]).
+    BecameNight,
+    /// Every sub-pattern matches the same occurrence ([CR#603.2]) — a
+    /// refinement conjunction. All conjuncts must agree on one master-form
+    /// kind (the load-time kind pass; disagreement is `E-CAPS-CONTRADICTION`).
+    AllOf(Vec<EventFilter>),
+    /// Any of several events ([CR#603.2], "whenever … or …"); still fires
+    /// once per matching occurrence ([CR#603.2c]). Kind↔filter pairing is
+    /// kept per disjunct; caps guarantee only the meet.
+    OneOf(Vec<EventFilter>),
+    /// The occurrence does NOT match the operand — a refinement, never an
+    /// anchor: the operand must bottom out in master forms and `Not`
+    /// itself never kind-anchors a live lane ([CR#603.2]; no
+    /// freeze-everything `CantHappen`).
+    Not(Box<EventFilter>),
+    /// One or more matching occurrences in one event, matched as the
+    /// BATCH: the pattern matches the occurrence once, not per member
+    /// ([CR#603.2c]). Trigger/replacement lanes only.
+    OneOrMore(Box<EventFilter>),
+    /// The nth matching occurrence within a lookback ([CR#603.2]; a dead
+    /// 0th occurrence never happens, [CR#603.2g]) — "the second spell you
+    /// cast this turn". `n` is 1-based, checked ≥ 1 at load.
+    Nth {
+        n: Uint,
+        of: Box<EventFilter>,
+        within: Lookback,
+    },
+    /// A game-state refinement on the occurrence ("during your turn") —
+    /// the condition is evaluated as the event occurs ([CR#603.4] states
+    /// the ability-level twin; this is the pattern-level residue).
+    When(Box<EventFilter>, Box<Condition>),
+    /// A history-lane window refinement ([CR#608.2i]) — legal ONLY under
+    /// `Happened`/`EventCount`/`EventSum` (history lanes); vacuous, and
+    /// refused, in live lanes ([CR#603.2]).
+    Within(Box<EventFilter>, Lookback),
+    /// A remembered `EventFilter` macro invocation (`Dies`, `Enters`,
+    /// `Sacrificed`, …). Serialized as the invocation, not the struct.
     #[macro_ron(expanded)]
-    Expanded(Expansion<Event>),
+    Expanded(Expansion<EventFilter>),
 }
 
 #[cfg(test)]
@@ -252,41 +477,48 @@ mod tests {
     use crate::CharacteristicFilter;
     use crate::Type;
 
-    fn read(source: &str) -> Event {
+    fn read(source: &str) -> EventFilter {
         crate::ron::options().from_str(source).unwrap()
     }
 
-    /// `by`/`on` default to match-anything when omitted (the `Filter::Any`
-    /// default is load-bearing — removing it breaks `Performed(verb: …)`).
+    /// Filter fields default to match-anything when omitted — `Cast()`
+    /// reads as any-caster/any-spell, mirroring the old `Performed`
+    /// defaults.
     #[test]
-    fn performed_defaults_by_and_on_to_any() {
+    fn filter_fields_default_to_any() {
         assert_eq!(
-            read(r#"Performed(verb: "Sacrifice")"#),
-            Event::Performed {
-                verb: "Sacrifice".into(),
-                by: Filter::Any,
-                on: Filter::Any,
+            read("Cast(who: Ref(You))"),
+            EventFilter::Cast {
+                who: Filter::Ref(crate::Reference::You),
+                what: Filter::Any,
+            },
+        );
+        assert_eq!(
+            read("AttackDeclared(by: Ref(This))"),
+            EventFilter::AttackDeclared {
+                by: Filter::Ref(crate::Reference::This),
+                against: Filter::Any,
             },
         );
     }
 
     /// The cause position is an enum (single variant today) so the name
     /// is structural: it always reads `Cause(verb: …)` — a bare
-    /// `(verb: …)` tuple no longer parses (user ruling), and boolean
-    /// variants can accrete without respelling files.
+    /// `(verb: …)` tuple does not parse (user ruling), and boolean
+    /// variants can accrete without respelling files. The verb is the
+    /// closed [`CauseVerb`] vocabulary, spelled bare.
     #[test]
-    fn zone_move_cause_named_and_never_bare() {
+    fn zone_change_cause_named_and_never_bare() {
         assert_eq!(
             read(
-                r#"ZoneMove(what: Type(Creature), from: Battlefield, to: Graveyard, cause: Cause(verb: "Destroy"))"#
+                "ZoneChange(what: Type(Creature), from: Battlefield, to: Graveyard, cause: Cause(verb: Destroy))"
             ),
-            Event::ZoneMove {
+            EventFilter::ZoneChange {
                 what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
-                face: None,
                 cause: Some(Cause::Cause(CausePattern {
-                    verb: Some("Destroy".into()),
+                    verb: Some(CauseVerb::Destroy),
                     agency: None,
                     agent: None,
                 })),
@@ -294,56 +526,99 @@ mod tests {
         );
         assert!(
             crate::ron::options()
-                .from_str::<Event>(r#"ZoneMove(what: Type(Creature), cause: (verb: "Destroy"))"#)
+                .from_str::<EventFilter>("ZoneChange(what: Type(Creature), cause: (verb: Destroy))")
                 .is_err(),
             "a bare cause tuple must not parse — the variant name is mandatory"
         );
     }
 
     #[test]
-    fn zone_move_options_default_none() {
+    fn zone_change_options_default_none() {
         assert_eq!(
-            read("ZoneMove(what: Type(Creature), from: Battlefield, to: Graveyard)"),
-            Event::ZoneMove {
+            read("ZoneChange(what: Type(Creature), from: Battlefield, to: Graveyard)"),
+            EventFilter::ZoneChange {
                 what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
-                face: None,
                 cause: None,
             },
         );
         assert_eq!(
-            read("ZoneMove(what: Type(Creature))"),
-            Event::ZoneMove {
+            read("ZoneChange(what: Type(Creature))"),
+            EventFilter::ZoneChange {
                 what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
                 from: None,
                 to: None,
-                face: None,
                 cause: None,
             },
         );
     }
 
+    /// `StepBegins` carries ONLY the step and whose-turn coordinates — a
+    /// step event has no `what:` by construction.
     #[test]
-    fn beginning_of_reads() {
+    fn step_begins_reads() {
         assert_eq!(
-            read("BeginningOf(Beginning(Upkeep), Your)"),
-            Event::BeginningOf(Phase::Beginning(BeginningStep::Upkeep), WhoseTurn::Your),
+            read("StepBegins(at: Beginning(Upkeep), whose: Your)"),
+            EventFilter::StepBegins {
+                at: PhaseStep::Beginning(BeginningStep::Upkeep),
+                whose: WhoseTurn::Your,
+            },
         );
     }
 
-    /// `Used(by: This)` reads to the `Event::Used` variant and serializes back
-    /// to the same invocation — the self/object-scoped ability-use pattern
-    /// counted via `EventCount` ([CR#608.2i]).
+    /// `Used(of: This)` reads and serializes back to the same invocation —
+    /// the self/object-scoped ability-use pattern counted via `EventCount`
+    /// ([CR#608.2i]).
     #[test]
     fn used_round_trips() {
         use crate::Reference;
 
-        let v = Event::Used {
-            by: Reference::This,
+        let v = EventFilter::Used {
+            of: Reference::This,
         };
-        assert_eq!(read("Used(by: This)"), v);
+        assert_eq!(read("Used(of: This)"), v);
         let w = crate::ron::options().to_string(&v).unwrap();
         assert_eq!(read(&w), v);
+    }
+
+    /// The amount refinement is the comparator-headed [`CountBound`]
+    /// (`amount: AtLeast(3)`), with the bare-literal `Count` sugar inside.
+    #[test]
+    fn amount_bounds_read_comparator_headed() {
+        use crate::Count;
+
+        assert_eq!(
+            read("Damage(source: Ref(This), amount: AtLeast(3))"),
+            EventFilter::Damage {
+                source: Filter::Ref(crate::Reference::This),
+                to: Filter::Any,
+                combat: None,
+                amount: Some(CountBound::AtLeast(Count::Literal(3))),
+            },
+        );
+    }
+
+    /// The lane-gated algebra round-trips: `Nth` carries its 1-based index
+    /// and lookback; `Within` carries a lookback; `OneOrMore` boxes its
+    /// batch operand.
+    #[test]
+    fn algebra_round_trips() {
+        for source in [
+            "Nth(n: 2, of: Cast(who: Ref(You)), within: ThisTurn)",
+            "Within(LifeGained(who: Ref(You)), ThisTurn)",
+            "OneOrMore(ZoneChange(what: Type(Creature), from: Battlefield, to: Graveyard))",
+            "Not(ZoneChange(what: Any, to: Battlefield, cause: Cause(verb: Play)))",
+            "AllOf([ZoneChange(what: Any, to: Battlefield), ZoneChange(what: Type(Land))])",
+            "When(StepBegins(at: Ending(End), whose: EachPlayers), YourTurn)",
+            "BecameDay",
+            "BecameNight",
+            "CoinFlipped(by: Ref(You), won: true)",
+            "DiceRolled(by: Ref(You))",
+        ] {
+            let parsed = read(source);
+            let written = crate::ron::options().to_string(&parsed).unwrap();
+            assert_eq!(read(&written), parsed, "round-trip failed for: {source}");
+        }
     }
 }

@@ -5,8 +5,8 @@
 // don't, sacrifice it."
 //
 // Pieces (all representable):
-//   - trigger:    `BeginningOf(Beginning(Upkeep), Your)` — same upkeep trigger
-//                 Echo uses [CR#603.2].
+//   - trigger:    `StepBegins(at: Beginning(Upkeep), whose: Your)` — same
+//                 upkeep trigger Echo uses [CR#603.2].
 //   - intervening-if [CR#603.4]: "if this permanent is on the battlefield" =
 //                 `Is(This, InZone(Battlefield))`.
 //   - resolution: a `Sequence` — first `PutCounters(This, AgeCounter, 1)` (the
@@ -43,7 +43,7 @@
     body: Composite(
         name: "CumulativeUpkeep",
         abilities: [Triggered(
-            event: BeginningOf(Beginning(Upkeep), Your),
+            event: StepBegins(at: Beginning(Upkeep), whose: Your),
             condition: Is(This, InZone(Battlefield)),
             effect: Sequence([
                 PutCounters(This, AgeCounter, 1),

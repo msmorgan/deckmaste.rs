@@ -5,6 +5,8 @@
 //! the kind lattice come from the emitted tables too — the walker contributes
 //! tree shape, never rule values.
 
+use std::collections::BTreeSet;
+
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::AlternativeCost;
@@ -27,7 +29,7 @@ use deckmaste_core::DeonticAction;
 use deckmaste_core::Destination;
 use deckmaste_core::Duration;
 use deckmaste_core::Effect;
-use deckmaste_core::Event;
+use deckmaste_core::EventFilter;
 use deckmaste_core::Filter;
 use deckmaste_core::Ident;
 use deckmaste_core::KeywordAbility;
@@ -47,8 +49,8 @@ use deckmaste_core::RelationFilter;
 use deckmaste_core::Replacement;
 use deckmaste_core::Scope;
 use deckmaste_core::Selection;
+use deckmaste_core::StateChange;
 use deckmaste_core::StateFilter;
-use deckmaste_core::StateFilterEvent;
 use deckmaste_core::StaticAbility;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::TargetSpec;
@@ -67,6 +69,109 @@ use super::tables::Cardinality;
 use super::tables::Kind;
 use super::tables::NO_CAPS;
 use super::tables::Tables;
+
+/// Which consumer position an event pattern sits in — the key into the
+/// emitted lane table (`event-lanes.ron`, the plan's §3.2): each lane
+/// admits a different slice of the event algebra.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Lane {
+    /// `Triggered.event` / `Reflexive` ([CR#603.2,603.12a]).
+    Trigger,
+    /// `Delayed.event` ([CR#603.7c]).
+    Delayed,
+    /// `Replacement.would` — Instead/Also ([CR#614.1]).
+    Replacement,
+    /// `StaticEffect::CantHappen` ([CR#614.17c]).
+    CantHappen,
+    /// `Duration::UntilEvent` ([CR#610.3]).
+    UntilEvent,
+    /// `TriggerMultiplier.cause` ([CR#603.2d]).
+    TriggerMultiplier,
+    /// History counting — `Happened`/`EventCount`/`EventSum` ([CR#608.2i]).
+    History,
+}
+
+impl Lane {
+    /// The emitted lane row's key.
+    fn key(self) -> &'static str {
+        match self {
+            Lane::Trigger => "Triggered.event",
+            Lane::Delayed => "Delayed.event",
+            Lane::Replacement => "Replacement.would",
+            Lane::CantHappen => "CantHappen",
+            Lane::UntilEvent => "UntilEvent",
+            Lane::TriggerMultiplier => "TriggerMultiplier.cause",
+            Lane::History => "Happened",
+        }
+    }
+
+    /// The lane a triggered-ability construct's event sits in.
+    fn for_trigger_construct(construct: &str) -> Lane {
+        if construct == "Delayed" { Lane::Delayed } else { Lane::Trigger }
+    }
+}
+
+/// The event-caps table key of a MASTER form (`None` for the algebra tail) —
+/// also the kind name the residual kind pass compares.
+fn form_key(event: &EventFilter) -> Option<&'static str> {
+    Some(match event {
+        EventFilter::ZoneChange { .. } => "ZoneChange",
+        EventFilter::Damage { .. } => "Damage",
+        EventFilter::LifeGained { .. } => "LifeGained",
+        EventFilter::LifeLost { .. } => "LifeLost",
+        EventFilter::Drawn { .. } => "Drawn",
+        EventFilter::CounterPlaced { .. } => "CounterPlaced",
+        EventFilter::CounterRemoved { .. } => "CounterRemoved",
+        EventFilter::Cast { .. } => "Cast",
+        EventFilter::Played { .. } => "Played",
+        EventFilter::ActivatedAb { .. } => "ActivatedAb",
+        EventFilter::AttackDeclared { .. } => "AttackDeclared",
+        EventFilter::BlockDeclared { .. } => "BlockDeclared",
+        EventFilter::Attached { .. } => "Attached",
+        EventFilter::StateBecame { becomes, .. } => match becomes {
+            StateChange::Tapped => "StateBecame:Tapped",
+            StateChange::Untapped => "StateBecame:Untapped",
+            StateChange::Phased(_) => "StateBecame:Phased",
+            StateChange::TurnedFace(_) => "StateBecame:TurnedFace",
+        },
+        EventFilter::BecomesTarget { .. } => "BecomesTarget",
+        EventFilter::StepBegins { .. } => "StepBegins",
+        EventFilter::ControlChanged { .. } => "ControlChanged",
+        EventFilter::DesignationChanged { .. } => "DesignationChanged",
+        EventFilter::TokenCreated { .. } => "TokenCreated",
+        EventFilter::Used { .. } => "Used",
+        EventFilter::CoinFlipped { .. } => "CoinFlipped",
+        EventFilter::DiceRolled { .. } => "DiceRolled",
+        EventFilter::BecameDay => "BecameDay",
+        EventFilter::BecameNight => "BecameNight",
+        EventFilter::AllOf(_)
+        | EventFilter::OneOf(_)
+        | EventFilter::Not(_)
+        | EventFilter::OneOrMore(_)
+        | EventFilter::Nth { .. }
+        | EventFilter::When(..)
+        | EventFilter::Within(..)
+        | EventFilter::Expanded(_) => return None,
+    })
+}
+
+/// Whether a pattern is kind-ANCHORED — bottoms out in master forms
+/// ([CR#603.2]; no freeze-everything `CantHappen`): a master form anchors;
+/// a conjunction anchors if ANY conjunct does; a disjunction only if EVERY
+/// disjunct does; refinement wrappers inherit; `Not` never anchors.
+fn anchored(event: &EventFilter) -> bool {
+    match event {
+        EventFilter::AllOf(events) => events.iter().any(anchored),
+        EventFilter::OneOf(events) => events.iter().all(anchored),
+        EventFilter::Not(_) => false,
+        EventFilter::OneOrMore(inner)
+        | EventFilter::Nth { of: inner, .. }
+        | EventFilter::When(inner, _)
+        | EventFilter::Within(inner, _) => anchored(inner),
+        EventFilter::Expanded(e) => anchored(&e.value),
+        _master => true,
+    }
+}
 
 /// The running binding context — the antecedent state a position sees
 /// (the Idris `Endophora`, plus the positional discipline the plan's `Ctx`
@@ -470,7 +575,8 @@ impl<'a> Walker<'a> {
         // with the row's drops already applied (a delayed trigger's pattern
         // can't see the spell's targets either, [CR#603.7c]).
         let pattern_ctx = self.descend(ctx, construct, None, Kind::Any, NO_CAPS);
-        self.scoped("event", |w| w.event(&triggered.event, &pattern_ctx));
+        let lane = Lane::for_trigger_construct(construct);
+        self.scoped("event", |w| w.event(&triggered.event, &pattern_ctx, lane));
         let caps = self.event_caps(&triggered.event);
         let body = self.descend(ctx, construct, None, Kind::Any, caps);
         if let Some(condition) = &triggered.condition {
@@ -1559,9 +1665,9 @@ impl<'a> Walker<'a> {
                     );
                 }
             }
-            Count::EventCount(event, _) => self.event(event, ctx),
+            Count::EventCount(event, _) => self.event(event, ctx, Lane::History),
             Count::EventSum(event, _) => {
-                self.event(event, ctx);
+                self.event(event, ctx, Lane::History);
                 if !self.event_caps(event).amount {
                     self.err(
                         Code::CapsAmount,
@@ -1675,7 +1781,7 @@ impl<'a> Walker<'a> {
             Condition::LegallyAttached(r) | Condition::DamagedByDeathtouch(r) => {
                 self.reference(r, ctx, Kind::Object);
             }
-            Condition::Happened { event, within: _ } => self.event(event, ctx),
+            Condition::Happened { event, within: _ } => self.event(event, ctx, Lane::History),
             Condition::YourTurn | Condition::DuringPhase(_) => {}
             Condition::TurnOf(filter) => {
                 self.filter(filter, ctx, Kind::Player);
@@ -1695,99 +1801,310 @@ impl<'a> Walker<'a> {
     // ------------------------------------------------------------------
 
     /// Walks an event PATTERN's embedded filters/references (in the context
-    /// BEFORE the event binds — a pattern is not its own body).
-    fn event(&mut self, event: &Event, ctx: &Ctx) {
+    /// BEFORE the event binds — a pattern is not its own body), enforcing
+    /// the LANE gates (the emitted `event-lanes.ron` rows: `Within` only in
+    /// history lanes, `OneOrMore`/`Nth` per row, kind-anchoring where the
+    /// lane requires it) and the residual kind-consistency pass.
+    fn event(&mut self, event: &EventFilter, ctx: &Ctx, lane: Lane) {
+        if self.tables.lane(lane.key()).anchored && !anchored(event) {
+            self.err(
+                Code::CapsAnchor,
+                format!(
+                    "the {} lane is kind-anchored: every disjunct must bottom out \
+                     in a master form (a bare Not never anchors)",
+                    lane.key()
+                ),
+            );
+        }
+        self.event_node(event, ctx, lane);
+        self.event_kinds(event);
+    }
+
+    /// One node of the pattern walk: master forms walk their filter slots
+    /// with the slot's expected kind; algebra nodes apply their lane gates
+    /// and recurse.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one arm per master form; splitting would scatter the form list"
+    )]
+    fn event_node(&mut self, event: &EventFilter, ctx: &Ctx, lane: Lane) {
         match event {
-            Event::Performed { verb: _, by, on } => {
-                self.filter(by, ctx, Kind::Any);
-                self.filter(on, ctx, Kind::Any);
-            }
-            Event::ZoneMove { what, cause, .. } => {
+            EventFilter::ZoneChange {
+                what,
+                from,
+                to,
+                cause,
+            } => {
                 self.filter(what, ctx, Kind::Object);
-                if let Some(deckmaste_core::Cause::Cause(pattern)) = cause
-                    && let Some(agent) = &pattern.agent
-                {
-                    self.filter(agent, ctx, Kind::Any);
-                }
-            }
-            Event::BeginningOf(_, _) | Event::DesignationChanged { .. } => {}
-            Event::StateBecomes { of, becomes, cause } => {
-                let expected = match becomes {
-                    StateFilterEvent::Designated(name) => self
-                        .tables
-                        .designation_scope(name.as_str())
-                        .unwrap_or(Kind::Any),
-                    StateFilterEvent::ControlledBy(player) => {
-                        self.filter(player, ctx, Kind::Player);
-                        Kind::Object
+                if let Some(deckmaste_core::Cause::Cause(pattern)) = cause {
+                    if let Some(agent) = &pattern.agent {
+                        self.filter(agent, ctx, Kind::Any);
                     }
-                    StateFilterEvent::Tapped
-                    | StateFilterEvent::Untapped
-                    | StateFilterEvent::Attacking
-                    | StateFilterEvent::Blocking
-                    | StateFilterEvent::Blocked
-                    | StateFilterEvent::Phased(_)
-                    | StateFilterEvent::TurnedFace(_) => Kind::Object,
-                };
-                self.filter(of, ctx, expected);
-                if let Some(deckmaste_core::Cause::Cause(pattern)) = cause
-                    && let Some(agent) = &pattern.agent
-                {
-                    self.filter(agent, ctx, Kind::Any);
+                    // Entailment consistency ([CR#603.2g] — a pattern whose
+                    // fixed coordinates contradict its verb's entailed fact
+                    // form can never match).
+                    if let Some(verb) = pattern.verb
+                        && let Some(row) = self.tables.entailment(verb.as_str())
+                    {
+                        if row.kind != "ZoneChange" {
+                            self.err(
+                                Code::CapsContradiction,
+                                format!(
+                                    "cause verb {} entails a {} fact — a ZoneChange \
+                                     pattern narrowed by it can never match",
+                                    verb.as_str(),
+                                    row.kind
+                                ),
+                            );
+                        }
+                        for (slot, fixed, entailed) in
+                            [("from", *from, row.from), ("to", *to, row.to)]
+                        {
+                            if let (Some(p), Some(e)) = (fixed, entailed)
+                                && p != e
+                            {
+                                self.err(
+                                    Code::CapsContradiction,
+                                    format!(
+                                        "{slot}: {p:?} contradicts cause verb {}'s \
+                                         entailed {slot}: {e:?} ({})",
+                                        verb.as_str(),
+                                        row.cite
+                                    ),
+                                );
+                            }
+                        }
+                    }
                 }
             }
-            Event::BecomesTarget { what, by } => {
+            EventFilter::Damage { source, to, .. } => {
+                self.filter(source, ctx, Kind::Object);
+                self.filter(to, ctx, Kind::Any);
+            }
+            EventFilter::LifeGained { who, .. }
+            | EventFilter::LifeLost { who, .. }
+            | EventFilter::Drawn { who, .. } => {
+                self.filter(who, ctx, Kind::Player);
+            }
+            EventFilter::CounterPlaced { kind, on, .. }
+            | EventFilter::CounterRemoved { kind, on, .. } => {
+                let carrier = self.filter(on, ctx, Kind::Any);
+                if let Some(counter) = kind {
+                    self.counter_ref(counter, carrier);
+                }
+            }
+            EventFilter::Cast { who, what }
+            | EventFilter::Played { who, what }
+            | EventFilter::ActivatedAb { who, what } => {
+                self.filter(who, ctx, Kind::Player);
+                self.filter(what, ctx, Kind::Object);
+            }
+            EventFilter::AttackDeclared { by, against } => {
+                self.filter(by, ctx, Kind::Object);
+                self.filter(against, ctx, Kind::Player);
+            }
+            EventFilter::BlockDeclared { by, of } => {
+                self.filter(by, ctx, Kind::Object);
+                self.filter(of, ctx, Kind::Object);
+            }
+            EventFilter::Attached { what, to } => {
+                self.filter(what, ctx, Kind::Object);
+                // An attachment host may be an object or a player
+                // ([CR#701.3a] "to an object or player").
+                self.filter(to, ctx, Kind::Any);
+            }
+            EventFilter::StateBecame { of, becomes: _ } => {
+                self.filter(of, ctx, Kind::Object);
+            }
+            EventFilter::BecomesTarget { what, by, source } => {
                 self.filter(what, ctx, Kind::Any);
-                if let Some(by) = by {
-                    self.filter(by, ctx, Kind::Object);
+                self.filter(by, ctx, Kind::Object);
+                if let Some(source) = source {
+                    self.filter(source, ctx, Kind::Object);
                 }
             }
-            Event::Used { by } => {
-                self.reference(by, ctx, Kind::Object);
+            EventFilter::StepBegins { .. } | EventFilter::BecameDay | EventFilter::BecameNight => {}
+            EventFilter::ControlChanged { of, to } => {
+                self.filter(of, ctx, Kind::Object);
+                self.filter(to, ctx, Kind::Player);
             }
-            Event::OneOf(events) => {
+            EventFilter::DesignationChanged { name, of } => {
+                let expected = self
+                    .tables
+                    .designation_scope(name.as_str())
+                    .unwrap_or(Kind::Any);
+                self.filter(of, ctx, expected);
+            }
+            EventFilter::TokenCreated { what, by } => {
+                self.filter(what, ctx, Kind::Object);
+                self.filter(by, ctx, Kind::Player);
+            }
+            EventFilter::Used { of } => {
+                self.reference(of, ctx, Kind::Object);
+            }
+            EventFilter::CoinFlipped { by, .. } | EventFilter::DiceRolled { by } => {
+                self.filter(by, ctx, Kind::Player);
+            }
+            EventFilter::AllOf(events) | EventFilter::OneOf(events) => {
                 for event in events {
-                    self.event(event, ctx);
+                    self.event_node(event, ctx, lane);
                 }
             }
-            Event::Expanded(e) => self.event(&e.value, ctx),
+            EventFilter::Not(inner) => {
+                // Kind pass rule (a): the operand itself must bottom out in
+                // master forms ([CR#603.2]).
+                if !anchored(inner) {
+                    self.err(
+                        Code::CapsAnchor,
+                        "Not's operand must bottom out in master forms",
+                    );
+                }
+                self.event_node(inner, ctx, lane);
+            }
+            EventFilter::OneOrMore(inner) => {
+                if !self.tables.lane(lane.key()).one_or_more {
+                    self.err(
+                        Code::LaneBatch,
+                        format!(
+                            "OneOrMore (batch matching, [CR#603.2c]) is not admitted \
+                             in the {} lane",
+                            lane.key()
+                        ),
+                    );
+                }
+                self.event_node(inner, ctx, lane);
+            }
+            EventFilter::Nth { n, of, within: _ } => {
+                if !self.tables.lane(lane.key()).nth {
+                    self.err(
+                        Code::LaneBatch,
+                        format!("Nth is not admitted in the {} lane", lane.key()),
+                    );
+                }
+                if *n < 1 {
+                    self.err(
+                        Code::FloorNth,
+                        "Nth is 1-based — a 0th occurrence never occurs ([CR#603.2g])",
+                    );
+                }
+                self.event_node(of, ctx, lane);
+            }
+            EventFilter::When(inner, condition) => {
+                self.event_node(inner, ctx, lane);
+                self.scoped("When", |w| w.condition(condition, ctx));
+            }
+            EventFilter::Within(inner, _) => {
+                if !self.tables.lane(lane.key()).within {
+                    self.err(
+                        Code::LaneWithin,
+                        format!(
+                            "Within is a history refinement — vacuous, and refused, \
+                             in the {} lane",
+                            lane.key()
+                        ),
+                    );
+                }
+                self.event_node(inner, ctx, lane);
+            }
+            EventFilter::Expanded(e) => self.event_node(&e.value, ctx, lane),
+        }
+    }
+
+    /// The residual kind-consistency pass: the set of master-form kinds a
+    /// pattern can match (`None` = unconstrained — a bare `Not`), flagging
+    /// an `AllOf` whose conjuncts fix incompatible kinds
+    /// (`E-CAPS-CONTRADICTION`, rule (c)); `OneOf` is checked per disjunct
+    /// (rule (d)) by recursion; `When`/`Nth`/`OneOrMore`/`Within` inherit
+    /// the operand's kinds (rule (b)).
+    fn event_kinds(&mut self, event: &EventFilter) -> Option<BTreeSet<String>> {
+        match event {
+            EventFilter::AllOf(events) => {
+                let mut acc: Option<BTreeSet<String>> = None;
+                for event in events {
+                    let Some(kinds) = self.event_kinds(event) else {
+                        continue;
+                    };
+                    acc = Some(match acc {
+                        None => kinds,
+                        Some(prev) => {
+                            let both: BTreeSet<String> =
+                                prev.intersection(&kinds).cloned().collect();
+                            if both.is_empty() {
+                                self.err(
+                                    Code::CapsContradiction,
+                                    format!(
+                                        "AllOf conjoins different master forms \
+                                         ({prev:?} vs {kinds:?}) — the pattern can \
+                                         never match"
+                                    ),
+                                );
+                                return None;
+                            }
+                            both
+                        }
+                    });
+                }
+                acc
+            }
+            EventFilter::OneOf(events) => {
+                let mut acc: Option<BTreeSet<String>> = None;
+                for event in events {
+                    if let Some(kinds) = self.event_kinds(event) {
+                        acc.get_or_insert_with(BTreeSet::new).extend(kinds);
+                    }
+                }
+                acc
+            }
+            EventFilter::Not(_) => None,
+            EventFilter::OneOrMore(inner)
+            | EventFilter::Nth { of: inner, .. }
+            | EventFilter::When(inner, _)
+            | EventFilter::Within(inner, _) => self.event_kinds(inner),
+            EventFilter::Expanded(e) => self.event_kinds(&e.value),
+            master => Some(BTreeSet::from([form_key(master)
+                .expect("non-algebra variants are master forms")
+                .to_owned()])),
         }
     }
 
     /// The caps an event pattern guarantees its body — table rows keyed by
-    /// the pattern shape / `Performed` verb; a disjunction guarantees only
-    /// the meet ([CR#603.2c] — the Idris `eventQueryCaps`).
-    fn event_caps(&self, event: &Event) -> Caps {
+    /// the master-form name; a cause-narrowed `ZoneChange` inherits its
+    /// verb's entailed guarantees ([CR#701] entailment rows); a disjunction
+    /// guarantees only the meet ([CR#603.2c]); a conjunction the union with
+    /// patient refinement; `When`/`Nth`/`OneOrMore`/`Within` inherit the
+    /// operand's caps (kind pass rule (b)); `Not` guarantees nothing.
+    fn event_caps(&self, event: &EventFilter) -> Caps {
         match event {
-            Event::Performed { verb, .. } => self
-                .tables
-                .event_caps(&format!("Performed:{}", verb.as_str())),
-            Event::ZoneMove { .. } => self.tables.event_caps("ZoneMove"),
-            Event::BeginningOf(_, _) => self.tables.event_caps("BeginningOf"),
-            Event::StateBecomes { becomes, .. } => {
-                let key = match becomes {
-                    StateFilterEvent::Tapped => "StateBecomes:Tapped",
-                    StateFilterEvent::Untapped => "StateBecomes:Untapped",
-                    StateFilterEvent::Attacking => "StateBecomes:Attacking",
-                    StateFilterEvent::Blocking => "StateBecomes:Blocking",
-                    StateFilterEvent::Blocked => "StateBecomes:Blocked",
-                    StateFilterEvent::Phased(_) => "StateBecomes:Phased",
-                    StateFilterEvent::TurnedFace(_) => "StateBecomes:TurnedFace",
-                    StateFilterEvent::Designated(_) => "StateBecomes:Designated",
-                    StateFilterEvent::ControlledBy(_) => "StateBecomes:ControlledBy",
-                };
-                self.tables.event_caps(key)
+            EventFilter::ZoneChange { cause, .. } => {
+                let base = self.tables.event_caps("ZoneChange");
+                if let Some(deckmaste_core::Cause::Cause(pattern)) = cause
+                    && let Some(verb) = pattern.verb
+                    && let Some(row) = self.tables.entailment(verb.as_str())
+                    && row.kind == "ZoneChange"
+                {
+                    base.join(row.caps())
+                } else {
+                    base
+                }
             }
-            Event::BecomesTarget { .. } => self.tables.event_caps("BecomesTarget"),
-            Event::DesignationChanged { .. } => self.tables.event_caps("DesignationChanged"),
-            Event::Used { .. } => self.tables.event_caps("Used"),
-            Event::OneOf(events) => match events.split_first() {
+            EventFilter::AllOf(events) => events
+                .iter()
+                .fold(NO_CAPS, |acc, e| acc.join(self.event_caps(e))),
+            EventFilter::OneOf(events) => match events.split_first() {
                 None => NO_CAPS,
                 Some((first, rest)) => rest.iter().fold(self.event_caps(first), |acc, e| {
                     acc.meet(self.event_caps(e))
                 }),
             },
-            Event::Expanded(e) => self.event_caps(&e.value),
+            EventFilter::Not(_) => NO_CAPS,
+            EventFilter::OneOrMore(inner)
+            | EventFilter::Nth { of: inner, .. }
+            | EventFilter::When(inner, _)
+            | EventFilter::Within(inner, _) => self.event_caps(inner),
+            EventFilter::Expanded(e) => self.event_caps(&e.value),
+            master => self
+                .tables
+                .event_caps(form_key(master).expect("non-algebra variants are master forms")),
         }
     }
 
@@ -1808,7 +2125,7 @@ impl<'a> Walker<'a> {
                 extra,
                 affected,
             } => {
-                self.event(cause, ctx);
+                self.event(cause, ctx, Lane::TriggerMultiplier);
                 self.count(extra, ctx);
                 self.filter(affected, ctx, Kind::Object);
             }
@@ -1861,7 +2178,7 @@ impl<'a> Walker<'a> {
             StaticEffect::OutcomeGate { who, gate: _ } => {
                 self.filter(who, ctx, Kind::Player);
             }
-            StaticEffect::CantHappen(event) => self.event(event, ctx),
+            StaticEffect::CantHappen(event) => self.event(event, ctx, Lane::CantHappen),
             StaticEffect::PayPips(_, act) => match act {
                 deckmaste_core::PayAct::TapToPay(filter)
                 | deckmaste_core::PayAct::ExileToPay(filter) => {
@@ -1952,7 +2269,7 @@ impl<'a> Walker<'a> {
         match replacement {
             Replacement::Instead { would, instead } => {
                 self.scoped("Instead", |w| {
-                    w.event(would, ctx);
+                    w.event(would, ctx, Lane::Replacement);
                     let caps = w.event_caps(would);
                     let body = w.descend(ctx, "Replacement.Instead", None, Kind::Any, caps);
                     w.effect(instead, &body);
@@ -1961,7 +2278,7 @@ impl<'a> Walker<'a> {
             Replacement::Skip { what: _ } => {}
             Replacement::Also { would, also } => {
                 self.scoped("Also", |w| {
-                    w.event(would, ctx);
+                    w.event(would, ctx, Lane::Replacement);
                     let caps = w.event_caps(would);
                     let body = w.descend(ctx, "Replacement.Also", None, Kind::Any, caps);
                     w.effect(also, &body);
@@ -2038,7 +2355,7 @@ impl<'a> Walker<'a> {
     fn duration(&mut self, duration: &Duration, ctx: &Ctx) {
         match duration {
             Duration::FixedUntil(_) | Duration::EndOfGame => {}
-            Duration::UntilEvent(event) => self.event(event, ctx),
+            Duration::UntilEvent(event) => self.event(event, ctx, Lane::UntilEvent),
             Duration::ForAsLongAs(condition) => self.condition(condition, ctx),
         }
     }

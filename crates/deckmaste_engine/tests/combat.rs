@@ -16,7 +16,7 @@ use deckmaste_core::BeginningStep;
 use deckmaste_core::Card;
 use deckmaste_core::CombatStep;
 use deckmaste_core::KeywordAbility;
-use deckmaste_core::Phase;
+use deckmaste_core::PhaseStep;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
@@ -209,9 +209,9 @@ fn turn_start_clears_summoning_sickness_for_the_active_player_only() {
     // before any draw/discard, so no discard decision arises.
     loop {
         match state.step() {
-            StepOutcome::Progress(Progress::Advanced(Phase::Beginning(BeginningStep::Untap)))
-                if state.turn.turn_number == 1 =>
-            {
+            StepOutcome::Progress(Progress::Advanced(PhaseStep::Beginning(
+                BeginningStep::Untap,
+            ))) if state.turn.turn_number == 1 => {
                 break;
             }
             StepOutcome::Progress(_) => {}
@@ -310,7 +310,7 @@ fn declare_attackers_taps_records_and_fires_attacking() {
     assert_eq!(player, PlayerId(0));
     assert_eq!(
         state.turn.current,
-        Phase::Combat(CombatStep::DeclareAttackers)
+        PhaseStep::Combat(CombatStep::DeclareAttackers)
     );
     assert!(
         legal.contains(&bear),
@@ -476,7 +476,7 @@ fn declare_blockers_records_blocks_and_fires_blocked() {
     );
     assert_eq!(
         state.turn.current,
-        Phase::Combat(CombatStep::DeclareBlockers)
+        PhaseStep::Combat(CombatStep::DeclareBlockers)
     );
     assert!(
         legal.contains(&b1) && legal.contains(&b2),
@@ -819,7 +819,7 @@ fn pass_to_stop_after(state: &mut GameState, decision: Decision) -> (Vec<Progres
 fn pass_to_postcombat_main(state: &mut GameState) {
     loop {
         match state.step() {
-            StepOutcome::Progress(Progress::Advanced(Phase::PostcombatMain)) => return,
+            StepOutcome::Progress(Progress::Advanced(PhaseStep::PostcombatMain)) => return,
             StepOutcome::Progress(_) => {}
             StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
@@ -856,7 +856,7 @@ fn drive_to_combat_damage_done(
     loop {
         // Stop at the first priority decision once we're in the Combat Damage
         // step — by then damage has been dealt but End of Combat hasn't run.
-        if state.turn.current == Phase::Combat(CombatStep::CombatDamage)
+        if state.turn.current == PhaseStep::Combat(CombatStep::CombatDamage)
             && matches!(state.pending, Some(PendingDecision::Priority { .. }))
         {
             return;
@@ -963,7 +963,7 @@ fn mid_combat_death_prunes_combat_state() {
 }
 
 /// [CR#508.1a], [CR#508.1m]: a creature with a "whenever ~ attacks" trigger
-/// (`StateBecomes(of: Ref(This), becomes: Attacking)`, Library Larcenist)
+/// (`AttackDeclared(by: Ref(This))`, Library Larcenist)
 /// declared as an attacker fires its trigger — the `Attacking` event reached
 /// the trigger stage — and, once it resolves, the controller draws a card.
 #[test]
@@ -1565,7 +1565,7 @@ fn no_first_strike_elides_first_combat_damage_step() {
     let began_first = full.iter().any(|p| {
         matches!(
             p,
-            Progress::Applied(Occurrence::Single(GameEvent::StepBegan(Phase::Combat(
+            Progress::Applied(Occurrence::Single(GameEvent::StepBegan(PhaseStep::Combat(
                 CombatStep::FirstCombatDamage
             ))))
         )
@@ -1577,7 +1577,7 @@ fn no_first_strike_elides_first_combat_damage_step() {
     let skipped_first = full.iter().any(|p| {
         matches!(
             p,
-            Progress::Skipped(Phase::Combat(CombatStep::FirstCombatDamage))
+            Progress::Skipped(PhaseStep::Combat(CombatStep::FirstCombatDamage))
         )
     });
     assert!(
@@ -1589,7 +1589,7 @@ fn no_first_strike_elides_first_combat_damage_step() {
     let advanced_to_first = full.iter().any(|p| {
         matches!(
             p,
-            Progress::Advanced(Phase::Combat(CombatStep::FirstCombatDamage))
+            Progress::Advanced(PhaseStep::Combat(CombatStep::FirstCombatDamage))
         )
     });
     assert!(

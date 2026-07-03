@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Card;
-use deckmaste_core::Phase;
+use deckmaste_core::PhaseStep;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
@@ -83,7 +83,7 @@ fn step_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
     }
 }
 
-fn run_to_priority(state: &mut GameState, player: PlayerId, phase: Phase) -> Vec<Action> {
+fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) -> Vec<Action> {
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
@@ -154,7 +154,7 @@ fn convoke_game(seed: u64) -> GameState {
 #[test]
 fn convoke_taps_a_creature_to_pay_a_pip_without_changing_mana_value() {
     let mut state = convoke_game(1);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
     // A creature you control to convoke with.
     let bear = find_in_hand(&state, PlayerId(0), "Grizzly Bears");
@@ -165,7 +165,7 @@ fn convoke_taps_a_creature_to_pay_a_pip_without_changing_mana_value() {
     // reduces the actual payment). Convoke then pays the {1} by tapping.
     state.player_mut(PlayerId(0)).mana_pool.add(green(), 2);
     resurface_priority(&mut state);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
     let spell = find_in_hand(&state, PlayerId(0), "Sorcery Convoke Draw");
     assert_eq!(
@@ -258,7 +258,7 @@ fn delve_game(seed: u64) -> GameState {
 #[test]
 fn delve_exiles_a_graveyard_card_to_pay_a_pip_without_changing_mana_value() {
     let mut state = delve_game(1);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
     // A card in your graveyard to delve away.
     let fodder = find_in_hand(&state, PlayerId(0), "Island");
@@ -268,7 +268,7 @@ fn delve_exiles_a_graveyard_card_to_pay_a_pip_without_changing_mana_value() {
     // exiling the graveyard card.
     state.player_mut(PlayerId(0)).mana_pool.add(blue(), 2);
     resurface_priority(&mut state);
-    let _ = run_to_priority(&mut state, PlayerId(0), Phase::PrecombatMain);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
     let spell = find_in_hand(&state, PlayerId(0), "Sorcery Delve Draw");
     assert_eq!(

@@ -2,7 +2,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::Count;
-use crate::Event;
+use crate::EventFilter;
 use crate::Expand;
 use crate::Expansion;
 use crate::Filter;
@@ -36,7 +36,7 @@ impl Cmp {
     }
 }
 
-use crate::Window;
+use crate::Lookback;
 
 /// A truth-valued test the engine evaluates ([CR#603.4] intervening-if,
 /// [CR#118.12a] "unless", ability words). Ability words (`Threshold`,
@@ -71,7 +71,10 @@ pub enum Condition {
     /// Has(Deathtouch))`.)
     DamagedByDeathtouch(Reference),
     /// An event happened within a window (morbid/raid, [CR#608.2i]).
-    Happened { event: Event, within: Window },
+    Happened {
+        event: EventFilter,
+        within: Lookback,
+    },
     /// It is the evaluating player's turn (the `you` of the evaluation
     /// context — an ability's controller). Sugar for `TurnOf(Ref(You))`, kept
     /// as the common, frame-robust specialization.
@@ -87,7 +90,7 @@ pub enum Condition {
     /// single-step bare variants, so `DuringPhase(PrecombatMain)` works
     /// today; phase-class matching (any combat step) accretes when a card
     /// needs it.
-    DuringPhase(crate::Phase),
+    DuringPhase(crate::PhaseStep),
     /// All sub-conditions hold.
     AllOf(Vec<Condition>),
     /// At least one sub-condition holds.
@@ -145,7 +148,7 @@ mod tests {
     fn during_phase_reads() {
         assert_eq!(
             read("DuringPhase(PostcombatMain)"),
-            Condition::DuringPhase(crate::Phase::PostcombatMain),
+            Condition::DuringPhase(crate::PhaseStep::PostcombatMain),
         );
     }
 
@@ -163,15 +166,27 @@ mod tests {
 
     #[test]
     fn happened_reads() {
+        use crate::Cause;
+        use crate::CausePattern;
+        use crate::CauseVerb;
+        use crate::Zone;
+
         assert_eq!(
-            read(r#"Happened(event: Performed(verb: "Sacrifice"), within: ThisTurn)"#),
+            read(
+                "Happened(event: ZoneChange(cause: Cause(verb: Sacrifice), from: Battlefield, to: Graveyard), within: ThisTurn)"
+            ),
             Condition::Happened {
-                event: Event::Performed {
-                    verb: "Sacrifice".into(),
-                    by: Filter::Any,
-                    on: Filter::Any,
+                event: EventFilter::ZoneChange {
+                    what: Filter::Any,
+                    from: Some(Zone::Battlefield),
+                    to: Some(Zone::Graveyard),
+                    cause: Some(Cause::Cause(CausePattern {
+                        verb: Some(CauseVerb::Sacrifice),
+                        agency: None,
+                        agent: None,
+                    })),
                 },
-                within: Window::ThisTurn,
+                within: Lookback::ThisTurn,
             },
         );
     }

@@ -59,7 +59,7 @@ backlog (needs design dialogue)*, *variant-gated*, *UD-blocked*, or
 
 | skill concept | deckmaste | status |
 |---|---|---|
-| zone-change master event (object, from, to, position, face, cause) | core `Event::ZoneMove`; engine `ZoneWillChange`/`ZoneChanged` — all six coordinates | ✓ — every emitter is face-up today (morph/manifest post-P0); face-narrowed patterns trip the seam |
+| zone-change master event (object, from, to, position, face, cause) | core `EventFilter::ZoneChange` (cause verbs = the closed `CauseVerb` entailment table); engine `ZoneWillChange`/`ZoneChanged` | ✓ — every emitter is face-up today (morph/manifest post-P0); a face-narrowed pattern is no longer spellable (the coordinate returns with the morph grammar) |
 | named views: dies / enters | builtin `Dies`/`ThisDies`/`Enters`/`ThisEnters` macros | ✓ |
 | named views: sacrificed / discarded / played | cause triples on `ZoneWillChange`/`ZoneChanged` | ✓ |
 | named views: destroyed (cause-restricted) | verb "Destroy" cause rides BOTH causes ([CR#701.8b]: the `Destroy` arm + the lethal-damage SBA); builtin `Destroyed` macro | ✓ grammar; cause-pattern matching engine-seam (P0.W3) |
@@ -71,11 +71,11 @@ backlog (needs design dialogue)*, *variant-gated*, *UD-blocked*, or
 | life set-to-N (= gain/loss of difference) | `PlayerAction::SetLife(Count)` resolves REAL to the gain/loss ([CR#119.5]; equal = no event) | ✓ |
 | counter placed / removed (objects AND players) | `CounterPlaced`/`CounterRemoved` + `PutCounters`/`RemoveCounters` verbs | ✓ grammar; apply/storage engine-seam |
 | tap / untap (no-op = no event) | `Tapped` / `Untapped`, transition-only | ✓ |
-| becomes-target (announce-time) | `Event::BecomesTarget{what, by}` ([CR#601.2c]; ward the exemplar [CR#702.21a]) + shaped `BecameTarget` | ✓ grammar; announce emission engine-seam |
+| becomes-target (announce-time) | `EventFilter::BecomesTarget{what, by, source}` ([CR#601.2c]; ward the exemplar [CR#702.21a]) + shaped `BecameTarget` | ✓ grammar; announce emission engine-seam; the `source` arm (hexproof-from) trips until `engine-eventfilter-bridge` |
 | attack / block declaration events | `Attacking` / `Blocked` | ✓ |
 | phase / step / turn entry | `TurnBegan` / `StepBegan`; core `BeginningOf(Phase, WhoseTurn)` | ✓ |
-| day/night flip | `Event::DesignationChanged` ([CR#731.1a]) + shaped engine event; registry holds the `Mode` | ✓ grammar; flip emission engine-seam |
-| phase in / out (explicitly NOT a zone change) | `StateFilterEvent::Phased(Phasing)` ([CR#702.26b]) | ✓ grammar; phasing machinery engine-seam |
+| day/night flip | `EventFilter::BecameDay`/`BecameNight` ([CR#731.1a]) + shaped engine event; registry holds the `Mode` | ✓ grammar; flip emission engine-seam |
+| phase in / out (explicitly NOT a zone change) | `StateChange::Phased(Phasing)` ([CR#702.26b]) | ✓ grammar; phasing machinery engine-seam |
 | coin flip / die roll (ignored-roll never happened) | `CoinFlipped`/`DieRolled` + `FlipCoins`/`RollDice` verbs | ✓ grammar; apply engine-seam |
 | shuffle (also an information event) | `PlayerAction::Shuffle` + `Shuffled` apply — REAL, seeded rng ([CR#701.24a]; UD-8) | ✓ (revealed-state reset [CR#701.20d] = seam) |
 | reveal / look (scoped visibility window) | `Reveal{what, to}` verb ([CR#701.20a,701.20e]; cost-eligible) + shaped `Revealed` event | ✓ grammar; emit + window lifetimes engine-seam |
@@ -126,7 +126,7 @@ backlog (needs design dialogue)*, *variant-gated*, *UD-blocked*, or
 | Only window refinement — activation timing | `ActivatedAbility.window` | ✓ grammar; InstantSpeed/SorcerySpeed evaluated, other windows engine-seam |
 | cast-permission window (flash-style May rows) | `DeonticAction::Cast { window }` | ✓ grammar; consumption engine-seam (cast guard) |
 | AsThough premises (scoped counterfactuals) | `StaticEffect::AsThough` (`SpendManaAsAnyColor` + macros) | partial — premises accrete; consumption engine-seam |
-| shared Window vocabulary, reading per position | `Window` (speeds, ThisTurn, DuringTurn, DuringStep) | ✓ |
+| timing vs lookback windows, two types | `Timing` (speeds, DuringTurn, DuringStep) / `Lookback` (ThisTurn, ThisGame, LastTurn, ThisCombat, ThisStep, SinceYour) | ✓ |
 | skipped-window semantics ("the next" skips skipped) | — | MISSING — post-P0 grammar backlog (needs design dialogue) |
 | duration taxonomy (fixed / until-event / for-as-long-as / rest-of-game) | `Duration::{FixedUntil(TurnMarker), UntilEvent, ForAsLongAs, EndOfGame}` | ✓ grammar; sweeps beyond end-of-turn + predicate tracking engine-seam (creation guard in `resolve.rs`) |
 | `started` latch, never-started/already-ended edges | engine effect-instance record | engine-seam (arrives with ForAsLongAs tracking) |

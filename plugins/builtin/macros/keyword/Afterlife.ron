@@ -6,7 +6,7 @@
 // ([CR#702.135b]).
 //
 // Pieces (all representable over existing primitives):
-//   - trigger:        `ThisDies` — the `ZoneMove(what: Ref(This), from:
+//   - trigger:        `ThisDies` — the `ZoneChange(what: Ref(This), from:
 //                     Battlefield, to: Graveyard)` macro ([CR#700.4]).
 //   - resolution:     `Create(Param(0), Token(…))` — create N token permanents
 //                     ([CR#111.1]) of an INLINE creature token whose defined

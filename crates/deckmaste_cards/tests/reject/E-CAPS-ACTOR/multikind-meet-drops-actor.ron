@@ -6,7 +6,7 @@ Normal(
   types: [Enchantment],
   abilities: [
     Triggered(
-      event: OneOf([Performed(verb: "Cast"), Performed(verb: "Destroy")]),
+      event: OneOf([Cast(who: Ref(You)), Destroyed(Any)]),
       effect: By(EventActor, LoseLife(1)),
     ),
   ],

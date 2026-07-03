@@ -1,0 +1,16 @@
+// Accept twin of reject/E-CAPS-CONTRADICTION/*: a conjunction whose
+// conjuncts agree on ONE master form (both ZoneChange) — the refinement
+// conjunction the kind pass admits, its caps the union [CR#603.2].
+Normal(
+  name: "Accept Same-Kind Conjunction",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: AllOf([
+        Enters(Creature),
+        ZoneChange(what: ControlledBy(Ref(You))),
+      ]),
+      effect: Move(EventObject, Exile),
+    ),
+  ],
+)

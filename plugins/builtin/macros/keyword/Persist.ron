@@ -6,7 +6,7 @@
 // non-parameterized keyword (no printed argument), so no `params`.
 //
 // Pieces (all representable over existing primitives):
-//   - trigger:        `ThisDies` — the `ZoneMove(what: Ref(This), from:
+//   - trigger:        `ThisDies` — the `ZoneChange(what: Ref(This), from:
 //                     Battlefield, to: Graveyard)` macro ([CR#700.4]).
 //   - intervening-if [CR#603.4]: "if it had no -1/-1 counters on it" =
 //                     `Not(Is(This, HasCounter(M1M1Counter)))` — the dying
