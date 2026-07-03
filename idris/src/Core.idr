@@ -28,15 +28,24 @@ namespace SimpleManaSymbol
     = Generic Nat
     | Specific (Maybe Color)
 
+namespace HybridPair
+  public export
+  -- the TEN two-color hybrid pairs, in [CR#107.4]'s printed order. Enumerated (not `(Color, Color)`)
+  -- so `{W/W}` — and any other unprinted pairing — is unrepresentable BY CONSTRUCTION.
+  data HybridPair = WU | WB | UB | UR | BR | BG | RG | RW | GW | GU
+
 namespace ManaSymbol
   public export
-  -- the PRINTED cost language ([CR#107.4]) — what appears on a card as a mana cost. NOT what a mana
+  -- the PRINTED cost language — STRUCTURALLY closed to the [CR#107.4] symbol set. NOT what a mana
   -- ability produces (that's `ProducedMana` below — a different domain; the user's distinction).
   data ManaSymbol
     = Simple SimpleManaSymbol
-    | Hybrid SimpleManaSymbol Color
+    | Hybrid HybridPair              -- "{W/U}" ([CR#107.4e])
+    | MonoHybrid Color               -- "{2/W}" — one of the color, or two of any type ([CR#107.4e])
+    | ColorlessHybrid Color          -- "{C/W}" — one of the color, or one colorless ([CR#107.4])
     | Variable
-    | Phyrexian Color (Maybe Color)  -- "{W/P}" = `Phyrexian White Nothing` (pay the color OR 2 life); a HYBRID Phyrexian "{G/U/P}" = `Phyrexian Green (Just Blue)` is both component colors ([CR#107.4f])
+    | Phyrexian Color                -- "{W/P}" — the color OR 2 life ([CR#107.4f]); `{C/P}` has no printed form
+    | HybridPhyrexian HybridPair     -- "{G/U/P}" — either component color, or 2 life ([CR#107.4f])
     | SnowMana                  -- "{S}" — one mana from a snow source ([CR#107.4h]); `SnowMana`, not `Snow` (the supertype)
 
 -- `Promote a b` (method `promote`) is the toy's value-injection interface — formerly Prelude's
@@ -392,6 +401,24 @@ agentScope Attach   = AnObject
 agentScope Target   = AnObject   -- the source (a spell/ability) does the targeting
 agentScope Counter  = AnObject   -- the source (a spell/ability) does the countering
 agentScope Regenerate = APlayer  -- the controller regenerates the creature
+
+-- `agentScope`'s twin for the PATIENT slot: what kind of participant each relation acts upon.
+-- Attack reaches players, planeswalkers, and battles ([CR#508.1b]) and Target anything targetable
+-- ([CR#115.4]) — both object-or-player, `Anything`; Attach reaches "an object or player"
+-- ([CR#701.3a]); everything else acts on an object — a blocked ATTACKER ([CR#509.1a]), a cast/played
+-- card ([CR#601.2a,701.18a]), an object's activated ability ([CR#113.3b]), a countered spell/ability
+-- ([CR#701.6a]), a regenerated permanent ([CR#701.19a]).
+public export
+patientScope : Relation -> RefKind
+patientScope Attack   = Anything
+patientScope Block    = AnObject
+patientScope Cast     = AnObject
+patientScope Activate = AnObject
+patientScope Play     = AnObject
+patientScope Attach   = Anything
+patientScope Target   = Anything
+patientScope Counter  = AnObject
+patientScope Regenerate = AnObject
 
 -- the two participant SLOTS, as role selectors for the durative aspect (`Holds Attack Agent` = an attacker,
 -- `Holds Block Patient` = a blocked creature). `Agent`/`Patient` are the SAME role pair the event `Facet`s

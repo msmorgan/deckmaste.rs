@@ -20,11 +20,14 @@ use crate::state::GameState;
 impl GameState {
     /// The derived abilities of `object` after the layer pipeline — the SAME
     /// list, in the SAME order, that `Action::ActivateAbility { ability }`
-    /// indexes ([CR#613.1f]). A renderer resolves an offered activation with
-    /// `state.abilities(object)[ability]`.
+    /// indexes ([CR#613.1f]): the Innate-PEELED usable view, so a conferred
+    /// rule-of-the-object ability (a basic land's [CR#305.6] mana ability)
+    /// renders and activates like any other. A renderer resolves an offered
+    /// activation with `state.abilities(object)[ability]`. The card-facing
+    /// (Innate-FILTERED, [CR#113.12]) read is `derive::abilities`.
     #[must_use]
     pub fn abilities(&self, object: ObjectId) -> Arc<Vec<Ability>> {
-        crate::derive::abilities(self, object)
+        crate::derive::usable_abilities(self, object)
     }
 
     /// The activated ability at `index` in `object`'s derived list, looking

@@ -6,7 +6,9 @@
 //               [CR#704.5m..704.5n] sweeps' business);
 //   Blocked   — can't be blocked by matching creatures ([CR#702.16f]);
 //   Targeted  — can't be targeted by matching spells, or abilities from
-//               matching sources ([CR#702.16b]).
+//               matching sources ([CR#702.16b]) — ONE row through the deed
+//               agent's SOURCE arm (a spell is itself a source [CR#609.7a];
+//               an ability's source is its generator [CR#113.7]).
 (
     name: "Protection",
     template: "protection from ${0}",
@@ -18,7 +20,7 @@
             Prevention(PreventAll(from: Param(0), to: Ref(This))),
             Cant(Attach(what: Param(0), to: Ref(This))),
             Cant(Block(on: Ref(This), by: Param(0))),
-            Cant(Target(on: Ref(This), by: Param(0))),
+            Cant(Target(on: Ref(This), by: (source: Param(0)))),
         ])],
     ),
 )

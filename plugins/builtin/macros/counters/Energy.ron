@@ -1,0 +1,9 @@
+// Energy counters ([CR#122.1] — counters on players): PLAYER-borne, a pure
+// resource. They do nothing but accumulate and be paid ({E} costs); no
+// conferred bearing.
+(
+    name: "Energy",
+    template: "energy counter",
+    kinds: [Counter],
+    body: Counter(name: "Energy", scope: Player),
+)

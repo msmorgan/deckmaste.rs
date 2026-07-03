@@ -154,6 +154,7 @@ mod tests {
             name_of::<Subtype>(),
             name_of::<TargetSpec>(),
             name_of::<Counter>(),
+            name_of::<deckmaste_core::DesignationDecl>(),
             "Macro", // hand-registered: MacroDef's serde rename, loader-only
         ];
         let kinds = kinds();

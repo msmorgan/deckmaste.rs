@@ -1,0 +1,14 @@
+// A hand-inlined subtype VALUE whose category disagrees with the loaded
+// registry declaration of the same name: `Island` is declared a LAND type
+// ([CR#205.3i] via the builtin `BasicLandType` row), so a value carrying
+// `types: [Creature]` is a forgery, not a new subtype — the declaration is
+// the [CR#205.3] authority. (The face carries both types so the
+// [CR#205.3d] floor — which reads the DECLARED category — stays satisfied
+// and only the category forgery trips.)
+Normal(
+  name: "Reject Forged Island Category",
+  types: [Land, Creature],
+  subtypes: [(name: "Island", types: [Creature])],
+  power: 1,
+  toughness: 1,
+)

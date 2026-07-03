@@ -30,19 +30,23 @@ pub fn face(card: &Card) -> &CardFace {
 
 /// A face's PRINTED abilities: printed plus subtype-conferred (the
 /// `Property::Ability` arm; other flavors execute elsewhere), in that
-/// order. `Action::ActivateAbility` indexes this list. Computed once per
+/// order. Registry conferrals emit through the ONE emission path,
+/// [`Property::conferred_ability`], so a conferred ability arrives wrapped
+/// in `Ability::Innate` — a rule of the object ([CR#305.6,113.12]): a basic
+/// land that loses all abilities still taps for its color, and card-facing
+/// ability queries don't see the conferral. `Action::ActivateAbility`
+/// indexes the [`usable_abilities`] view of this list. Computed once per
 /// card at setup (`Cards::push`) and cached on the `CardInstance`.
 #[must_use]
 pub(crate) fn printed_of_face(face: &CardFace) -> Vec<Ability> {
     face.abilities
         .iter()
         .cloned()
-        .chain(face.subtypes.iter().flat_map(|s| {
-            s.confers.iter().filter_map(|p| match p {
-                Property::Ability(a) => Some((**a).clone()),
-                _ => None,
-            })
-        }))
+        .chain(
+            face.subtypes
+                .iter()
+                .flat_map(|s| s.confers.iter().filter_map(Property::conferred_ability)),
+        )
         .collect()
 }
 
@@ -59,6 +63,25 @@ pub(crate) fn printed_of_face(face: &CardFace) -> Vec<Ability> {
 pub(crate) fn printed_abilities(state: &GameState, id: ObjectId) -> &[Ability] {
     let card = state.objects.obj(id).card_id().expect("card-backed object");
     &state.cards.get(card).printed
+}
+
+/// The object's USABLE derived abilities after layer 6 — the layer view's
+/// list with every `Innate` wrapper PEELED IN PLACE (same length, same
+/// order): the indexable surface `Action::ActivateAbility { ability }`
+/// points into, shared by `legal_actions`, `decide`'s `ActivateAbility`
+/// arm, `begin_activate`, and the render views ("SAME list, SAME order").
+/// An `Innate` conferral FUNCTIONS for its own controller ([CR#604.1] — a
+/// basic land's conferred mana ability is activatable), it is only
+/// invisible to CARD-FACING queries — that filter is [`abilities`].
+#[must_use]
+pub fn usable_abilities(state: &GameState, id: ObjectId) -> std::sync::Arc<Vec<Ability>> {
+    let view = state.layers();
+    let derived = &view.get(id).abilities;
+    if derived.iter().any(|a| matches!(a, Ability::Innate(_))) {
+        std::sync::Arc::new(derived.iter().map(|a| a.peel_innate().clone()).collect())
+    } else {
+        std::sync::Arc::clone(derived)
+    }
 }
 
 /// The object's CARD-FACING derived abilities after layer 6

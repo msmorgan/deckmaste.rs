@@ -197,19 +197,23 @@ pub(crate) fn base_colors(face: &deckmaste_core::CardFace) -> Vec<Color> {
 }
 
 /// Collect the colors contributed by one mana symbol ([CR#202.2]).
-fn symbol_colors(sym: &ManaSymbol) -> impl Iterator<Item = Color> {
+pub(crate) fn symbol_colors(sym: &ManaSymbol) -> impl Iterator<Item = Color> {
     let mut buf: [Option<Color>; 2] = [None; 2];
     match sym {
         ManaSymbol::Simple(s) => {
             buf[0] = s.color();
         }
-        ManaSymbol::Hybrid(s, c) => {
-            buf[0] = s.color();
-            buf[1] = Some(*c);
+        // A hybrid symbol is ALL its component colors ([CR#107.4e]); a
+        // hybrid Phyrexian is both component colors ([CR#107.4f]).
+        ManaSymbol::Hybrid(pair) | ManaSymbol::HybridPhyrexian(pair) => {
+            let (a, b) = pair.colors();
+            buf[0] = Some(a);
+            buf[1] = Some(b);
         }
-        ManaSymbol::Phyrexian(c, c2) => {
+        // Monocolored hybrids ({2/W}, {C/W}) and Phyrexian symbols are
+        // their one color ([CR#107.4e..107.4f]).
+        ManaSymbol::MonoHybrid(c) | ManaSymbol::ColorlessHybrid(c) | ManaSymbol::Phyrexian(c) => {
             buf[0] = Some(*c);
-            buf[1] = *c2;
         }
         ManaSymbol::Variable | ManaSymbol::Snow => {}
     }
@@ -974,21 +978,9 @@ fn distinct_keys_derived(
         Ch::Name => vec![face.name.clone()],
         Ch::ManaCost => vec![format!("{}", face.mana_cost.mana_value())],
         Ch::Colors => {
-            use deckmaste_core::ManaSymbol;
             let mut colors: Vec<deckmaste_core::Color> = face.color_indicator.clone();
             for sym in face.mana_cost.iter() {
-                match sym {
-                    ManaSymbol::Simple(s) => colors.extend(s.color()),
-                    ManaSymbol::Hybrid(s, c) => {
-                        colors.extend(s.color());
-                        colors.push(*c);
-                    }
-                    ManaSymbol::Phyrexian(c, c2) => {
-                        colors.push(*c);
-                        colors.extend(*c2);
-                    }
-                    ManaSymbol::Variable | ManaSymbol::Snow => {}
-                }
+                colors.extend(symbol_colors(sym));
             }
             colors.iter().map(|c| format!("{c:?}")).collect()
         }
@@ -1024,6 +1016,11 @@ pub(crate) fn ability_is_named(a: &Ability, name: &Ident) -> bool {
     match a {
         Ability::Keyword(kw) => name == kw.as_str(),
         Ability::Expanded(e) => ability_is_named(&e.value, name),
+        // Engine machinery sees THROUGH the rule-of-the-object wrapper
+        // ([CR#604.1] — the conferred ability still functions); the
+        // layer-6 removal arms guard on `is_innate` BEFORE consulting the
+        // name, so Innate abilities still survive removal.
+        Ability::Innate(inner) => ability_is_named(inner, name),
         _ => false,
     }
 }
@@ -1731,6 +1728,90 @@ mod tests {
                 .iter()
                 .any(|a| matches!(a, Ability::Keyword(KeywordAbility::Trample))),
             "Trample removed by LoseAllAbilities"
+        );
+    }
+
+    /// [CR#305.6,113.12]: a REGISTRY-conferred basic-land mana ability —
+    /// emitted through the one conferral path (`Property::conferred_ability`,
+    /// which wraps it in `Innate`) — SURVIVES a lose-all-abilities effect:
+    /// the island still taps for blue. The usable (activation) surface keeps
+    /// offering it, while the card-facing list hides it before AND after.
+    #[test]
+    fn conferred_basic_land_mana_survives_lose_all_abilities() {
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::ColorOrColorless;
+        use deckmaste_core::CostComponent;
+        use deckmaste_core::Effect;
+        use deckmaste_core::ManaProduction;
+        use deckmaste_core::ManaSpec;
+        use deckmaste_core::PlayerAction;
+        use deckmaste_core::Property;
+        use deckmaste_core::Reference;
+        use deckmaste_core::Subtype;
+
+        // The Island registry row's conferral ([CR#305.6]): "{T}: Add {U}",
+        // carried on the subtype value exactly as the BasicLandType
+        // meta-macro declares it.
+        let island = Subtype {
+            name: "Island".into(),
+            types: vec![Type::Land],
+            confers: vec![Property::Ability(Box::new(Ability::Activated(
+                deckmaste_core::ActivatedAbility {
+                    cost: vec![CostComponent::Tap].into(),
+                    from: None,
+                    window: None,
+                    condition: None,
+                    limits: vec![],
+                    effect: Effect::Act(deckmaste_core::Action::By(
+                        Reference::You,
+                        PlayerAction::AddMana(
+                            Count::Literal(1),
+                            ManaProduction::Bare(ManaSpec::Specific(ColorOrColorless::Color(
+                                deckmaste_core::Color::Blue,
+                            ))),
+                        ),
+                    )),
+                },
+            )))],
+        };
+        let mut state = game();
+        let card = Card::Normal(CardFace {
+            name: "Test Island".into(),
+            types: vec![Type::Land],
+            subtypes: vec![island],
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+
+        let taps_for_blue = |state: &GameState| {
+            crate::derive::usable_abilities(state, id).iter().any(|a| {
+                crate::derive::tap_mana_ability(a)
+                    == Some((ColorOrColorless::Color(deckmaste_core::Color::Blue), 1))
+            })
+        };
+        assert!(taps_for_blue(&state), "the conferral taps for {{U}}");
+        assert!(
+            crate::derive::abilities(&state, id).is_empty(),
+            "the conferral is invisible to card-facing queries ([CR#113.12])"
+        );
+
+        lose_all_abilities(&mut state, id);
+
+        assert!(
+            taps_for_blue(&state),
+            "the conferred [CR#305.6] mana ability survives LoseAllAbilities — \
+             it is a rule of the object, not a removable ability"
+        );
+        assert!(
+            crate::derive::abilities(&state, id).is_empty(),
+            "still invisible to card-facing queries after removal"
         );
     }
 

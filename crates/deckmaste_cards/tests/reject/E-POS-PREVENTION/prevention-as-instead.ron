@@ -1,0 +1,16 @@
+// A damage-prevention effect written as a generic `Instead` — a damage event
+// replaced by NOTHING. Prevention is its own marked class ([CR#615.1,615.1a]);
+// a no-op damage `Instead` would dodge the `CantPrevent` gate ([CR#615.12]),
+// so it must be spelled `Prevention(PreventAll(...))`.
+Normal(
+  name: "Reject Prevention As Instead",
+  types: [Enchantment],
+  abilities: [
+    Static(effects: [
+      Replacement(Instead(
+        would: Damage(to: Ref(This)),
+        instead: Sequence([]),
+      )),
+    ]),
+  ],
+)

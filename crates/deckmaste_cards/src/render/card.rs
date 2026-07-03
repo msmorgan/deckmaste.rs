@@ -40,18 +40,28 @@ pub(super) fn mana_cost(cost: Option<&ManaCost>) -> String {
 }
 
 fn push_symbol(s: &mut String, sym: &ManaSymbol) {
+    // The [CR#107.4] printed forms, family by family — the closed symbol
+    // set renders totally.
     match sym {
         ManaSymbol::Simple(SimpleManaSymbol::Generic(n)) => {
-            s.push('{');
-            s.push_str(&n.to_string());
-            s.push('}');
+            write!(s, "{{{n}}}").unwrap();
         }
         ManaSymbol::Simple(SimpleManaSymbol::Specific(c)) => {
-            s.push('{');
-            s.push_str(color_letter(*c));
-            s.push('}');
+            write!(s, "{{{}}}", color_letter(*c)).unwrap();
         }
-        other => write!(s, "[unrendered: {other:?}]").unwrap(),
+        ManaSymbol::Variable => s.push_str("{X}"),
+        ManaSymbol::Snow => s.push_str("{S}"),
+        ManaSymbol::Hybrid(pair) => {
+            let (a, b) = pair.colors();
+            write!(s, "{{{}/{}}}", a.code(), b.code()).unwrap();
+        }
+        ManaSymbol::MonoHybrid(c) => write!(s, "{{2/{}}}", c.code()).unwrap(),
+        ManaSymbol::ColorlessHybrid(c) => write!(s, "{{C/{}}}", c.code()).unwrap(),
+        ManaSymbol::Phyrexian(c) => write!(s, "{{{}/P}}", c.code()).unwrap(),
+        ManaSymbol::HybridPhyrexian(pair) => {
+            let (a, b) = pair.colors();
+            write!(s, "{{{}/{}/P}}", a.code(), b.code()).unwrap();
+        }
     }
 }
 

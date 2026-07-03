@@ -1,0 +1,20 @@
+// Accept twin of reject/E-FLOOR-DEED-AGENT/empty-deed-agent.ron: the
+// hexproof-from-red agent with BOTH arms present ([CR#702.11d]) — the
+// opponent clause on the stack object, the quality on its source.
+Normal(
+  name: "Accept Two Slot Agent",
+  types: [Creature],
+  abilities: [
+    Static(effects: [
+      Cant(Target(
+        on: Ref(This),
+        by: (
+          stack_object: ControlledBy(OpponentOf(Ref(You))),
+          source: ColorIs(Red),
+        ),
+      )),
+    ]),
+  ],
+  power: 1,
+  toughness: 1,
+)

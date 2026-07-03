@@ -41,4 +41,15 @@
         (relation: "Counter", scope: Object, cite: "[CR#701.6a]"),
         (relation: "Regenerate", scope: Player, cite: "[CR#701.19]"),
     ],
+    patients: [
+        (relation: "Attack", scope: Any, cite: "[CR#508.1b]"),
+        (relation: "Block", scope: Object, cite: "[CR#509.1a]"),
+        (relation: "Cast", scope: Object, cite: "[CR#601.2a]"),
+        (relation: "Activate", scope: Object, cite: "[CR#113.3b]"),
+        (relation: "Play", scope: Object, cite: "[CR#701.18a]"),
+        (relation: "Attach", scope: Any, cite: "[CR#701.3a]"),
+        (relation: "Target", scope: Any, cite: "[CR#115.4]"),
+        (relation: "Counter", scope: Object, cite: "[CR#701.6a]"),
+        (relation: "Regenerate", scope: Object, cite: "[CR#701.19a]"),
+    ],
 )

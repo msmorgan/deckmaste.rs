@@ -57,6 +57,26 @@ pub fn matches(state: &GameState, id: ObjectId, filter: &Filter) -> bool {
     matches_with(state, id, filter, None)
 }
 
+/// The live object standing for `id`'s SOURCE: an activated/triggered
+/// ability on the stack reads the object that generated it ([CR#113.7]);
+/// anything else — a spell is itself a source ([CR#609.7a] lists "a spell on
+/// the stack" among sources) — reads as itself. `None` when an ability's
+/// source has no live object left ([CR#113.7a] the ability exists
+/// independently of its source) — the LKI read there is an engine-breadth
+/// seam.
+pub(crate) fn source_of(state: &GameState, id: ObjectId) -> Option<ObjectId> {
+    if object_kind(state, id) == ObjectKind::Ability {
+        let source = state.objects.obj(id).source;
+        state
+            .objects
+            .iter()
+            .find(|ob| ob.source == source && ob.id != id)
+            .map(|ob| ob.id)
+    } else {
+        Some(id)
+    }
+}
+
 /// Whether the live object `id` matches `filter`. `watcher` is the carrier of
 /// the ability doing the matching (`Some` in the trigger lane, `None` for
 /// frameless targeting); it anchors `Ref(This)`/`Ref(You)` and threads into
@@ -83,6 +103,14 @@ pub fn matches_with(
         Filter::AllOf(fs) => fs.iter().all(|f| matches_with(state, id, f, watcher)),
         Filter::OneOf(fs) => fs.iter().any(|f| matches_with(state, id, f, watcher)),
         Filter::Not(f) => !matches_with(state, id, f, watcher),
+        // [CR#702.11d] "abilities … from [quality] sources": strict to stack
+        // ABILITIES by construction — the candidate is an activated/triggered
+        // ability on the stack whose SOURCE (the generating object,
+        // [CR#113.7]) matches the inner filter.
+        Filter::FromSource(inner) => {
+            object_kind(state, id) == ObjectKind::Ability
+                && source_of(state, id).is_some_and(|src| matches_with(state, src, inner, watcher))
+        }
         // The candidate matches iff the condition holds with the iteration
         // anaphor `It` bound to it. `This`/`You` still anchor to the carrier, so
         // build a match frame from the watcher (source → live carrier id +

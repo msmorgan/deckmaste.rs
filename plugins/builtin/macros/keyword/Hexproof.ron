@@ -1,10 +1,15 @@
 // Hexproof [CR#702.11b]: "can't be the target of spells or abilities your
 // opponents control". The `from` param narrows it to matching sources
-// [CR#702.11d] — "hexproof from [quality]" IS a hexproof ability, so a "lose
-// hexproof" effect [CR#702.11e] strips it too; hence one macro, one
-// `Composite(name: "Hexproof")` identity. The optional `${ from #from#}`
-// fragment carries the parameterized printing; bare `Hexproof()` renders just
-// "hexproof". Player-proxy carriers get [CR#702.11c] for free.
+// [CR#702.11d] via the deed agent's SOURCE arm — "[quality] spells your
+// opponents control or abilities your opponents control from [quality]
+// sources" is ONE row: the opponent clause judges the stack object, the
+// quality its source (a spell is itself a source [CR#609.7a]; an ability's
+// source is its generator [CR#113.7]). "hexproof from [quality]" IS a
+// hexproof ability, so a "lose hexproof" effect [CR#702.11e] strips it too;
+// hence one macro, one `Composite(name: "Hexproof")` identity. The optional
+// `${ from #from#}` fragment carries the parameterized printing; bare
+// `Hexproof()` renders just "hexproof". Player-proxy carriers get
+// [CR#702.11c] for free.
 (
     name: "Hexproof",
     template: "hexproof${ from #from#}",
@@ -15,7 +20,10 @@
         abilities: [Static(effects: [
             Cant(Target(
                 on: Ref(This),
-                by: AllOf([ControlledBy(OpponentOf(Ref(You))), Param(from)]),
+                by: (
+                    stack_object: ControlledBy(OpponentOf(Ref(You))),
+                    source: Param(from),
+                ),
             )),
         ])],
     ),

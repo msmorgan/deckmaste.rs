@@ -34,7 +34,7 @@
                 ),
             ),
             Static(effects: [
-                Cant(Target(by: Ref(This), on: Not(Param(0)))),
+                Cant(Target(by: (stack_object: Ref(This)), on: Not(Param(0)))),
                 Cant(Attach(what: Ref(This), to: Not(Param(0)))),
                 Replacement(Also(
                     would: ThisEnters,

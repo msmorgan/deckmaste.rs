@@ -14,7 +14,10 @@ use std::path::PathBuf;
 use anyhow::Context;
 use deckmaste_core::Card;
 use deckmaste_core::Counter;
+use deckmaste_core::DesignationDecl;
 use deckmaste_core::Ident;
+use deckmaste_core::KeywordDecl;
+use deckmaste_core::ParamShape;
 use deckmaste_core::Subtype;
 use deckmaste_core::Token;
 use deckmaste_core::plugin::CARDS_DIR;
@@ -50,6 +53,18 @@ pub struct Plugin {
     /// resolves to. The post-load `validate_counter_refs` pass checks every
     /// authored `CounterRef` against this registry.
     pub counters: HashMap<Ident, Counter>,
+    /// The designations declared by `macros/` (`DesignationDecl`-kind,
+    /// nullary), keyed by the designation's identity. The elaborator's
+    /// designation-scope check consults this registry first, falling back to
+    /// the emitted curated table for undeclared names (an open vocabulary).
+    pub designations: HashMap<Ident, DesignationDecl>,
+    /// The keyword registry ([CR#702]): one row per `KeywordAbility`-kind
+    /// macro, its [`ParamShape`] DERIVED from the macro's typed parameter
+    /// signature (`params: [Cost]` ⇒ `Costed`) — the macro file is the
+    /// registry data, so the two can't drift. A `KeywordAbility` macro whose
+    /// signature fits no shape fails the load: keyword one-liners take typed
+    /// args from the closed shape vocabulary.
+    pub keywords: HashMap<Ident, KeywordDecl>,
     /// Rules-defined state-based actions loaded from `rules/sba/`. Evaluated
     /// globally by the engine's SBA sweep ([CR#704.3]). See
     /// `deckmaste_core::SbaRule`.
@@ -109,7 +124,7 @@ impl Plugin {
     /// If a macro definition or subtype declaration fails to read, expand,
     /// or register, or a directory isn't listable.
     pub fn load(root: impl Into<PathBuf>) -> anyhow::Result<Self> {
-        Self::load_onto(macro_set(), HashMap::new(), HashMap::new(), root.into())
+        Self::load_onto(macro_set(), Inherited::default(), root.into())
     }
 
     /// Loads `root` with `prelude`'s macros and subtype declarations
@@ -123,8 +138,12 @@ impl Plugin {
     pub fn load_with_prelude(prelude: &Plugin, root: impl Into<PathBuf>) -> anyhow::Result<Self> {
         Self::load_onto(
             prelude.macros.clone(),
-            prelude.subtypes.clone(),
-            prelude.counters.clone(),
+            Inherited {
+                subtypes: prelude.subtypes.clone(),
+                counters: prelude.counters.clone(),
+                designations: prelude.designations.clone(),
+                keywords: prelude.keywords.clone(),
+            },
             root.into(),
         )
     }
@@ -157,10 +176,15 @@ impl Plugin {
 
     fn load_onto(
         mut macros: MacroSet,
-        mut subtypes: HashMap<Ident, Subtype>,
-        mut counters: HashMap<Ident, Counter>,
+        inherited: Inherited,
         root: PathBuf,
     ) -> anyhow::Result<Self> {
+        let Inherited {
+            mut subtypes,
+            mut counters,
+            mut designations,
+            mut keywords,
+        } = inherited;
         // What this plugin itself defines, per kind. A name inherited from
         // the prelude may be overridden — last plugin wins — but two
         // definitions within one plugin still collide: file order here is
@@ -172,6 +196,9 @@ impl Plugin {
         let mut declared: Vec<Ident> = Vec::new();
         // Nullary Counter-kind definitions, expanded into the counter table.
         let mut declared_counters: Vec<Ident> = Vec::new();
+        // Nullary DesignationDecl-kind definitions, expanded into the
+        // designation table.
+        let mut declared_designations: Vec<Ident> = Vec::new();
 
         // A definition file may invoke a meta-macro from a file that
         // hasn't loaded yet — file order is alphabetical happenstance — so
@@ -206,6 +233,37 @@ impl Plugin {
                             && nullary(&def.params)
                         {
                             declared_counters.push(def.name);
+                        }
+                        if def
+                            .kinds
+                            .iter()
+                            .any(|kind| kind.as_str() == "DesignationDecl")
+                            && nullary(&def.params)
+                        {
+                            declared_designations.push(def.name);
+                        }
+                        // Every KeywordAbility-kind macro is a keyword
+                        // registry row; its ParamShape derives from the typed
+                        // parameter signature ([CR#702] one-liners).
+                        if def
+                            .kinds
+                            .iter()
+                            .any(|kind| kind.as_str() == "KeywordAbility")
+                        {
+                            let shape = keyword_shape(&def.params).ok_or_else(|| {
+                                anyhow::anyhow!(
+                                    "keyword {:?} declares a parameter signature fitting no ParamShape (the closed keyword-arg vocabulary)",
+                                    def.name.as_str()
+                                )
+                            })
+                            .with_context(|| format!(r#"loading "{}""#, path.display()))?;
+                            keywords.insert(
+                                def.name,
+                                KeywordDecl {
+                                    name: def.name,
+                                    shape,
+                                },
+                            );
                         }
                         macros
                             .replace(&def)
@@ -244,6 +302,15 @@ impl Plugin {
             counters.insert(counter.name, counter);
         }
 
+        // Expanding each declared designation validates its body and fills
+        // the table — keyed by the decl's own name.
+        for name in declared_designations {
+            let decl: DesignationDecl = macros
+                .read_str(name.as_str())
+                .with_context(|| format!("expanding designation `{name}`"))?;
+            designations.insert(decl.name, decl);
+        }
+
         let sba_rules = load_sba_rules(&root, &macros)?;
 
         // The load-time elaboration gate ([[cards-elab-load-gate]]): every
@@ -256,6 +323,8 @@ impl Plugin {
         let registries = Registries {
             subtypes: &subtypes,
             counters: &counters,
+            designations: &designations,
+            keywords: &keywords,
         };
         let elab_report = elaborate_finished(&root, &macros, &registries, elab_stage)?;
         let elab_skip = elab_report
@@ -269,11 +338,25 @@ impl Plugin {
             macros,
             subtypes,
             counters,
+            designations,
+            keywords,
             sba_rules,
             elab_stage,
             elab_report,
             elab_skip,
         })
+    }
+
+    /// The elaboration registries over this plugin's loaded tables — the
+    /// one construction point consumers (validate, tests, xtask) share.
+    #[must_use]
+    pub fn registries(&self) -> Registries<'_> {
+        Registries {
+            subtypes: &self.subtypes,
+            counters: &self.counters,
+            designations: &self.designations,
+            keywords: &self.keywords,
+        }
     }
 
     /// The file a card of this name would live in.
@@ -340,6 +423,46 @@ impl Plugin {
         }
         Ok(())
     }
+}
+
+/// The registry tables a prelude hands down to a dependent plugin's load —
+/// last plugin wins per name, exactly like the macro scope.
+#[derive(Default)]
+struct Inherited {
+    subtypes: HashMap<Ident, Subtype>,
+    counters: HashMap<Ident, Counter>,
+    designations: HashMap<Ident, DesignationDecl>,
+    keywords: HashMap<Ident, KeywordDecl>,
+}
+
+/// The [`ParamShape`] a keyword macro's typed parameter signature spells
+/// ([CR#702] keyword one-liners): nothing, a `Count`, a `Cost`, `Count` then
+/// `Cost` (suspend/awaken), a `Filter` (landwalk, hexproof-from), `Filter`
+/// then `Cost` (splice), or a `String` name (partner-with). `None` = the
+/// signature fits no shape — a load error, keeping the arg vocabulary
+/// closed. Named single-param signatures (`{"from": Default(Filter, Any)}`)
+/// map by their one value type.
+fn keyword_shape(params: &crate::macros::Params) -> Option<ParamShape> {
+    use crate::macros::Params;
+    let names: Vec<&str> = match params {
+        Params::Positional(list) => list.iter().map(|p| p.name.as_str()).collect(),
+        Params::Named(map) => {
+            let mut names: Vec<&str> = map.values().map(|p| p.name.as_str()).collect();
+            // A named signature is order-free; canonicalize before matching.
+            names.sort_unstable();
+            names
+        }
+    };
+    Some(match names.as_slice() {
+        [] => ParamShape::None,
+        ["Count"] => ParamShape::Counted,
+        ["Cost"] => ParamShape::Costed,
+        ["Count", "Cost"] | ["Cost", "Count"] => ParamShape::CountedCost,
+        ["Filter"] => ParamShape::Predicated,
+        ["Filter", "Cost"] | ["Cost", "Filter"] => ParamShape::PredicatedCosted,
+        ["String"] => ParamShape::Named,
+        _ => return Option::None,
+    })
 }
 
 /// Loads all `Vec<SbaRule>` files under `root/rules/sba/`, concatenating them

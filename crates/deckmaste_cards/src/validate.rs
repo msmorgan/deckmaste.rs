@@ -77,10 +77,7 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
         lint_failures: Vec::new(),
         elab_failures: Vec::new(),
     };
-    let registries = crate::elaborate::Registries {
-        subtypes: &plugin.subtypes,
-        counters: &plugin.counters,
-    };
+    let registries = plugin.registries();
 
     // --- cards ---
     for path in ron_files_recursive(&plugin_dir.join(CARDS_DIR))? {

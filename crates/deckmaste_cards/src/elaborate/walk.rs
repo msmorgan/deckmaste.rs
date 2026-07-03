@@ -23,9 +23,14 @@ use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
 use deckmaste_core::CountBound;
 use deckmaste_core::CounterRef;
+use deckmaste_core::CounterScope;
 use deckmaste_core::CounterSpec;
+use deckmaste_core::DeedAgent;
 use deckmaste_core::Deontic;
 use deckmaste_core::DeonticAction;
+use deckmaste_core::DesignationDecl;
+use deckmaste_core::DesignationDef;
+use deckmaste_core::DesignationScope;
 use deckmaste_core::Destination;
 use deckmaste_core::Duration;
 use deckmaste_core::Effect;
@@ -39,6 +44,7 @@ use deckmaste_core::ManaSymbol;
 use deckmaste_core::Modification;
 use deckmaste_core::Normalize;
 use deckmaste_core::NotedKind;
+use deckmaste_core::ParamShape;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::PlayerMod;
 use deckmaste_core::Prevention;
@@ -503,6 +509,32 @@ impl<'a> Walker<'a> {
     /// declaration), else from the inline value.
     fn subtype_floor(&mut self, subtypes: &[deckmaste_core::Subtype], types: &[Type]) {
         for subtype in subtypes {
+            // [CR#205.3]: the CATEGORY column of the loaded registry is the
+            // authority — a hand-inlined value whose governing types
+            // disagree with the declaration of the same name is a forgery,
+            // not a new subtype.
+            if let Some(declared) = self.registries.subtypes.get(&subtype.name) {
+                if declared.types == subtype.types {
+                    self.resolve(|| {
+                        format!(
+                            "subtype {:?} -> category {:?}",
+                            subtype.name.as_str(),
+                            declared.types
+                        )
+                    });
+                } else {
+                    self.err(
+                        Code::KindSubtypeCategory,
+                        format!(
+                            "subtype {:?} is declared with category {:?}, but this value \
+                             carries {:?} — the declaration is the authority",
+                            subtype.name.as_str(),
+                            declared.types,
+                            subtype.types
+                        ),
+                    );
+                }
+            }
             let governing_types = self
                 .registries
                 .subtypes
@@ -601,14 +633,44 @@ impl<'a> Walker<'a> {
     }
 
     fn keyword(&mut self, keyword: &KeywordAbility, face_x: bool) {
+        self.keyword_use(keyword, face_x, false);
+    }
+
+    /// A keyword USE against the loaded keyword registry ([CR#702] —
+    /// registry row + typed args): a `Composite` reached WITHOUT its macro
+    /// invocation (`via_invocation`) has lost its args, so a declared
+    /// non-`None` `ParamShape` refuses it — a bare parameterized keyword is
+    /// a load error. Invoked uses were arity/type-checked by the macro
+    /// layer; intrinsics and undeclared names (an open vocabulary) pass.
+    fn keyword_use(&mut self, keyword: &KeywordAbility, face_x: bool, via_invocation: bool) {
         match keyword {
             KeywordAbility::FirstStrike
             | KeywordAbility::DoubleStrike
             | KeywordAbility::Deathtouch
             | KeywordAbility::Trample
             | KeywordAbility::Vigilance => {}
-            KeywordAbility::Composite { abilities, .. } => self.abilities(abilities, face_x),
-            KeywordAbility::Expanded(e) => self.keyword(&e.value, face_x),
+            KeywordAbility::Composite { name, abilities } => {
+                match self.registries.keywords.get(name) {
+                    Some(decl) if !via_invocation && decl.shape != ParamShape::None => {
+                        self.err(
+                            Code::KindKeywordShape,
+                            format!(
+                                "keyword {:?} is declared {:?} — a bare Composite spelling loses its args; invoke the keyword macro",
+                                name.as_str(),
+                                decl.shape
+                            ),
+                        );
+                    }
+                    Some(decl) => {
+                        self.resolve(|| {
+                            format!("keyword {:?} -> shape {:?}", name.as_str(), decl.shape)
+                        });
+                    }
+                    None => {}
+                }
+                self.abilities(abilities, face_x);
+            }
+            KeywordAbility::Expanded(e) => self.keyword_use(&e.value, face_x, true),
         }
     }
 
@@ -1699,6 +1761,13 @@ impl<'a> Walker<'a> {
                 self.tables.join(acc, kind)
             }),
             Filter::Not(inner) => self.filter_kind(inner, ctx),
+            Filter::FromSource(inner) => {
+                // [CR#702.11d]: a stack ABILITY whose source matches — the
+                // inner filter judges the source OBJECT ([CR#113.7]), and
+                // the atom itself denotes an object (the ability).
+                self.filter(inner, ctx, Kind::Object);
+                Kind::Object
+            }
             Filter::Where(condition) => {
                 // The candidate binds as `It` for the condition ([CR#603.4]).
                 let body = self.descend(ctx, "Where", None, Kind::Any, NO_CAPS);
@@ -1723,12 +1792,9 @@ impl<'a> Walker<'a> {
             StateFilter::HasCounter(counter) => {
                 // The atom's kind IS the counter's carrier scope.
                 self.counter_declared(counter);
-                self.tables.counter_scope(counter.as_str())
+                self.counter_scope_of(counter)
             }
-            StateFilter::Designated(name) => self
-                .tables
-                .designation_scope(name.as_str())
-                .unwrap_or(Kind::Any),
+            StateFilter::Designated(name) => self.designation_scope_of(name).unwrap_or(Kind::Any),
             StateFilter::RelatedBy(_, inner) | StateFilter::Targets(inner) => {
                 self.filter(inner, ctx, Kind::Any);
                 Kind::Object
@@ -1773,9 +1839,23 @@ impl<'a> Walker<'a> {
         }
     }
 
+    /// A counter kind's carrier scope ([CR#122.1]): the LOADED registry
+    /// row's `scope` column is the authority; an undeclared kind (already an
+    /// `E-KIND-COUNTER-UNDECLARED` finding) falls back to the emitted
+    /// curated table and its object default.
+    fn counter_scope_of(&self, counter: &CounterRef) -> Kind {
+        match self.registries.counters.get(&counter.0) {
+            Some(decl) => match decl.scope {
+                CounterScope::Object => Kind::Object,
+                CounterScope::Player => Kind::Player,
+            },
+            None => self.tables.counter_scope(counter.as_str()),
+        }
+    }
+
     fn counter_ref(&mut self, counter: &CounterRef, carrier: Kind) {
         self.counter_declared(counter);
-        let scope = self.tables.counter_scope(counter.as_str());
+        let scope = self.counter_scope_of(counter);
         if carrier.compatible_with(scope) {
             self.resolve(|| format!("counter {:?} -> {scope:?}-borne", counter.as_str()));
         } else {
@@ -1790,8 +1870,20 @@ impl<'a> Walker<'a> {
         }
     }
 
+    /// A designation's carrier scope: the LOADED registry row first (its
+    /// `Stored` scope column; derived designations judge objects; a
+    /// game-scoped designation constrains no carrier), then the emitted
+    /// curated table — unknown names are an open vocabulary and impose no
+    /// constraint.
+    fn designation_scope_of(&self, name: &Ident) -> Option<Kind> {
+        match self.registries.designations.get(name) {
+            Some(decl) => designation_decl_scope(decl),
+            None => self.tables.designation_scope(name.as_str()),
+        }
+    }
+
     fn designation(&mut self, name: &Ident, carrier: Kind) {
-        if let Some(scope) = self.tables.designation_scope(name.as_str()) {
+        if let Some(scope) = self.designation_scope_of(name) {
             if carrier.compatible_with(scope) {
                 self.resolve(|| format!("designation {:?} -> {scope:?}-borne", name.as_str()));
             } else {
@@ -2227,10 +2319,7 @@ impl<'a> Walker<'a> {
                 self.filter(to, ctx, Kind::Player);
             }
             EventFilter::DesignationChanged { name, of } => {
-                let expected = self
-                    .tables
-                    .designation_scope(name.as_str())
-                    .unwrap_or(Kind::Any);
+                let expected = self.designation_scope_of(name).unwrap_or(Kind::Any);
                 self.filter(of, ctx, expected);
             }
             EventFilter::TokenCreated { what, by } => {
@@ -2502,8 +2591,20 @@ impl<'a> Walker<'a> {
                 }
             },
             StaticEffect::AsThough(as_though) => match as_though {
-                AsThough::SpendManaAsAnyColor | AsThough::Expanded(_) => {}
+                AsThough::Expanded(_) => {}
             },
+            // [CR#615.12]: the gate on the Prevention class — both slots
+            // judge objects (a damage source / recipient may also be a
+            // player, hence `Any` on `to`).
+            StaticEffect::CantPrevent { from, to } => {
+                self.filter(from, ctx, Kind::Object);
+                self.filter(to, ctx, Kind::Any);
+            }
+            // [CR#609.4b] payment freedom: `mana_from` judges the mana's
+            // PRODUCER (an object); the `as_` reading carries no bindings.
+            StaticEffect::SpendAsThough { mana_from, as_: _ } => {
+                self.filter(mana_from, ctx, Kind::Object);
+            }
             StaticEffect::Sba { when, then } => {
                 self.condition(when, ctx);
                 let body = self.descend(ctx, "Sba", None, Kind::Any, NO_CAPS);
@@ -2605,6 +2706,16 @@ impl<'a> Walker<'a> {
         match replacement {
             Replacement::Instead { would, instead } => {
                 self.scoped("Instead", |w| {
+                    // [CR#615.1,615.1a]: replacing a damage event with
+                    // NOTHING is a prevention effect in disguise — it must
+                    // be spelled through the marked `Prevention` class, or
+                    // the `CantPrevent` gate ([CR#615.12]) can't see it.
+                    if is_damage_form(would) && is_noop_effect(instead) {
+                        w.err(
+                            Code::PosPrevention,
+                            "a damage event replaced by nothing is a prevention effect - spell it Prevention(...), not a generic Instead",
+                        );
+                    }
                     w.event(would, ctx, Lane::Replacement);
                     let caps = w.event_caps(would);
                     let body = w.descend(ctx, "Replacement.Instead", None, Kind::Any, caps);
@@ -2640,7 +2751,8 @@ impl<'a> Walker<'a> {
     }
 
     /// A deed's agent slot is kind-gated by the relation (the Idris
-    /// `agentScope` rows); patients stay kind-poly ([CR#508.1]).
+    /// `agentScope` rows); its PATIENT slot by the relation's emitted
+    /// `patientScope` row ([CR#508.1b,509.1a,115.4]).
     fn deontic_action(&mut self, action: &DeonticAction, ctx: &Ctx) {
         let agent = |w: &mut Self, relation: &str, by: &Filter, ctx: &Ctx| {
             let expected = w.tables.agent_scope(relation).unwrap_or(Kind::Any);
@@ -2649,26 +2761,26 @@ impl<'a> Walker<'a> {
         match action {
             DeonticAction::Attack { by, on } => {
                 agent(self, "Attack", by, ctx);
-                self.filter(on, ctx, Kind::Any);
+                self.deed_patient("Attack", on, ctx);
             }
             DeonticAction::Block { by, on, count } => {
                 agent(self, "Block", by, ctx);
-                self.filter(on, ctx, Kind::Object);
+                self.deed_patient("Block", on, ctx);
                 if let Some(bound) = count {
                     self.count_bound(bound, ctx);
                     self.block_qty_floor(bound);
                 }
             }
             DeonticAction::Target { by, on } => {
-                agent(self, "Target", by, ctx);
-                self.filter(on, ctx, Kind::Any);
+                self.deed_agent("Target", by, ctx);
+                self.deed_patient("Target", on, ctx);
             }
             DeonticAction::Attach { what, to } => {
                 agent(self, "Attach", what, ctx);
-                self.filter(to, ctx, Kind::Any);
+                self.deed_patient("Attach", to, ctx);
             }
             DeonticAction::Cast { what, by, cost, .. } => {
-                self.filter(what, ctx, Kind::Object);
+                self.deed_patient("Cast", what, ctx);
                 agent(self, "Cast", by, ctx);
                 if let Some(AlternativeCost::Components(components)) = cost {
                     for (i, component) in components.iter().enumerate() {
@@ -2677,14 +2789,59 @@ impl<'a> Walker<'a> {
                 }
             }
             DeonticAction::Play { what, by, .. } => {
-                self.filter(what, ctx, Kind::Object);
+                self.deed_patient("Play", what, ctx);
                 agent(self, "Play", by, ctx);
             }
             DeonticAction::Activate { what, by } => {
-                self.filter(what, ctx, Kind::Object);
+                self.deed_patient("Activate", what, ctx);
                 agent(self, "Activate", by, ctx);
             }
             DeonticAction::Expanded(e) => self.deontic_action(&e.value, ctx),
+        }
+    }
+
+    /// The two-slot deed agent ([CR#702.11d,702.16b]): at least one arm must
+    /// be present, the `stack_object` arm is kind-gated by the relation's
+    /// `agentScope` row, and the `source` arm judges the acting object's
+    /// SOURCE — always an object ([CR#113.7,609.7a]).
+    fn deed_agent(&mut self, relation: &str, agent: &DeedAgent, ctx: &Ctx) {
+        if agent.is_empty() {
+            self.err(
+                Code::FloorDeedAgent,
+                format!(
+                    "the {relation} deed's agent has neither arm — a DeedAgent constrains through stack_object and/or source ([CR#702.11d,702.16b])"
+                ),
+            );
+        }
+        if let Some(f) = &agent.stack_object {
+            let expected = self.tables.agent_scope(relation).unwrap_or(Kind::Any);
+            self.scoped("stack_object", |w| {
+                w.filter(f, ctx, expected);
+            });
+        }
+        if let Some(f) = &agent.source {
+            self.scoped("source", |w| {
+                w.filter(f, ctx, Kind::Object);
+            });
+        }
+    }
+
+    /// A deed's PATIENT slot, kind-gated per relation by the emitted
+    /// `patientScope` row: a blocked thing is an attacking creature
+    /// ([CR#509.1a]), an attacked thing a player, planeswalker, or battle
+    /// ([CR#508.1b]), a target anything targetable ([CR#115.4]).
+    fn deed_patient(&mut self, relation: &str, on: &Filter, ctx: &Ctx) {
+        let expected = self.tables.patient_scope(relation).unwrap_or(Kind::Any);
+        let kind = self.filter_kind(on, ctx);
+        if kind.compatible_with(expected) {
+            self.resolve(|| format!("{relation} patient -> {expected:?}-scoped"));
+        } else {
+            self.err(
+                Code::KindPatientScope,
+                format!(
+                    "the {relation} deed acts on a {expected:?}-kinded patient, but the filter is {kind:?}-kinded"
+                ),
+            );
         }
     }
 
@@ -2694,6 +2851,44 @@ impl<'a> Walker<'a> {
             Duration::UntilEvent(event) => self.event(event, ctx, Lane::UntilEvent),
             Duration::ForAsLongAs(condition) => self.condition(condition, ctx),
         }
+    }
+}
+
+/// Whether an effect does NOTHING — the empty `Sequence`, the spelling a
+/// prevention-in-disguise `Instead` would use for "instead, no damage".
+fn is_noop_effect(effect: &Effect) -> bool {
+    matches!(effect, Effect::Sequence(seq) if seq.is_empty())
+}
+
+/// Whether a replacement's `would` pattern bottoms out in the `Damage`
+/// master form ([CR#615.1] prevention effects "watch for a damage event"):
+/// refinement wrappers inherit, a conjunction is damage-anchored if ANY
+/// member is, a disjunction if EVERY member is, `Not` never.
+fn is_damage_form(event: &EventFilter) -> bool {
+    match event {
+        EventFilter::AllOf(events) => events.iter().any(is_damage_form),
+        EventFilter::OneOf(events) => events.iter().all(is_damage_form),
+        EventFilter::Not(_) => false,
+        EventFilter::OneOrMore(inner)
+        | EventFilter::Nth { of: inner, .. }
+        | EventFilter::When(inner, _)
+        | EventFilter::Within(inner, _) => is_damage_form(inner),
+        EventFilter::Expanded(e) => is_damage_form(&e.value),
+        master => form_key(master) == Some("Damage"),
+    }
+}
+
+/// The carrier scope a loaded designation declaration imposes: a `Stored`
+/// decl's scope column ([CR#109.3]; game-scoped designations constrain no
+/// carrier); a derived designation re-evaluates an object predicate.
+fn designation_decl_scope(decl: &DesignationDecl) -> Option<Kind> {
+    match &decl.definition {
+        DesignationDef::Stored { scope, .. } => match scope {
+            DesignationScope::Object => Some(Kind::Object),
+            DesignationScope::Player => Some(Kind::Player),
+            DesignationScope::Game => None,
+        },
+        DesignationDef::Derived(_) | DesignationDef::DerivedIf(_) => Some(Kind::Object),
     }
 }
 

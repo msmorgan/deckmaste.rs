@@ -43,3 +43,29 @@ pub enum Property {
     /// today; the engine executes it in stage 3.
     TurnBased { at: PhaseStep, effect: Box<Effect> },
 }
+
+impl Property {
+    /// Registry-conferral EMISSION ([CR#305.6,113.12]): the ability an
+    /// `Ability`-flavored conferral contributes to its bearer's ability
+    /// list, wrapped in [`Ability::Innate`] — a rule of the object, immune
+    /// to layer-6 ability removal (a basic land that "loses all abilities"
+    /// still taps for its color) and invisible to card-facing ability
+    /// queries. THE one emission path: every registry (subtype, counter,
+    /// designation) that turns a conferral into a bearer ability routes
+    /// through here — no per-registry special case.
+    ///
+    /// `None` for the other flavors: they aren't ability emission — a
+    /// `Continuous` conferral joins the layer system directly with its own
+    /// timestamp (keyword counters are layer 6 BY RULE, [CR#613.1f], so
+    /// their grants stay removable there), and `StateBased`/`TurnBased`
+    /// execute in their own machinery.
+    #[must_use]
+    pub fn conferred_ability(&self) -> Option<Ability> {
+        match self {
+            Property::Ability(a) => Some(Ability::Innate(a.clone())),
+            Property::Continuous { .. }
+            | Property::StateBased { .. }
+            | Property::TurnBased { .. } => None,
+        }
+    }
+}

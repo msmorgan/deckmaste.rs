@@ -32,13 +32,12 @@ pub enum AlternativeCost {
 /// A scoped counterfactual premise ([CR#609.4]): "treat the game as if
 /// [premise] were true, for purposes of that effect only." Carried by
 /// `StaticEffect::AsThough`. Many as-though cards compile to deontic rows
-/// instead (cast-as-though-flash = `May(Cast(window: InstantSpeed))`); the
-/// variants here are the residue. Premises accrete as cards demand them.
+/// instead (cast-as-though-flash = `May(Cast(window: InstantSpeed))`), and
+/// the mana counterfactual has its own channel
+/// (`StaticEffect::SpendAsThough`, [CR#609.4b]); the variants here are the
+/// residue. Premises accrete as cards demand them.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum AsThough {
-    /// Payment freedom ([CR#609.4b]): changes only HOW a cost may be paid —
-    /// never the cost itself, nor what was actually spent.
-    SpendManaAsAnyColor,
     /// A remembered `AsThough` macro invocation. Serialized as the
     /// invocation, not the struct.
     #[macro_ron(expanded)]
@@ -88,6 +87,59 @@ impl CountBound {
     }
 }
 
+/// The TWO-SLOT agent of a stack-object deed ([CR#702.11d,702.16b] — the
+/// CR's two-armed "…[quality] spells … or abilities … from [quality]
+/// sources" wording as two slots). Both present arms must hold
+/// (conjunction):
+///
+/// * `stack_object` judges the acting stack object itself — shroud's "spells or
+///   abilities" is the match-anything default ([CR#702.18a]), hexproof's
+///   opponent clause is `ControlledBy(OpponentOf(Ref(You)))` ([CR#702.11b]).
+/// * `source` judges the acting object's SOURCE: an ability's source is the
+///   object that generated it ([CR#113.7]); a spell is itself a source
+///   ([CR#609.7a] lists "a spell on the stack" among sources), so ONE quality
+///   on this arm covers both CR arms at once — hexproof-from-red is `source:
+///   ColorIs(Red)` ([CR#702.11d]: red spells, or abilities from red sources),
+///   protection's targeted clause is `source: Param(quality)` ([CR#702.16b]).
+///
+/// The empty agent (neither arm) is spellable but meaningless — the
+/// elaborator refuses it (`E-FLOOR-DEED-AGENT`). Omitting the whole slot
+/// yields the shroud default (`stack_object: Any`).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub struct DeedAgent {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stack_object: Option<Filter>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<Filter>,
+}
+
+impl Default for DeedAgent {
+    /// Any spell or ability ([CR#702.18a] shroud's agent): the
+    /// `stack_object` arm present and match-anything.
+    fn default() -> Self {
+        DeedAgent {
+            stack_object: Some(Filter::Any),
+            source: None,
+        }
+    }
+}
+
+impl DeedAgent {
+    /// Whether this is the omitted-slot default (any spell or ability) — the
+    /// write side's `skip_serializing_if`.
+    #[must_use]
+    pub fn is_default(&self) -> bool {
+        *self == DeedAgent::default()
+    }
+
+    /// Whether NO arm is present — the shape the elaborator refuses (an
+    /// agent that constrains nothing matches nothing meaningfully).
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.stack_object.is_none() && self.source.is_none()
+    }
+}
+
 /// A proposed-action pattern — the typed verb the deontic polarities range
 /// over. Closed core enum (the engine pattern-matches it); openness comes
 /// from macro interception at the `Deontic`/`Ability` positions. Slots
@@ -120,10 +172,12 @@ pub enum DeonticAction {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         count: Option<CountBound>,
     },
-    /// `by` (a spell/ability source) targets `on` ([CR#115.1,601.2c]).
+    /// `by` (a stack object, through the two-slot [`DeedAgent`]) targets
+    /// `on` ([CR#115.1,601.2c]). The agent defaults to any spell or ability
+    /// — shroud is `Cant(Target(on: Ref(This)))` ([CR#702.18a]).
     Target {
-        #[serde(default = "Filter::any")]
-        by: Filter,
+        #[serde(default, skip_serializing_if = "DeedAgent::is_default")]
+        by: DeedAgent,
         #[serde(default = "Filter::any")]
         on: Filter,
     },
@@ -286,6 +340,55 @@ mod tests {
                 cost: None,
             }),
         );
+    }
+
+    /// The two-slot deed agent ([CR#702.11d,702.16b]): the omitted slot is
+    /// the shroud default (any spell or ability, [CR#702.18a]) and is
+    /// omitted on write; the hexproof-from shape sets both arms; the EMPTY
+    /// agent is spellable (the elaborator refuses it, not serde).
+    #[test]
+    fn deed_agent_two_slots_read_and_round_trip() {
+        use crate::CharacteristicFilter;
+        use crate::Color;
+
+        // Shroud: `by` omitted → the any-stack-object default, not written.
+        let shroud = read("Cant(Target(on: Ref(This)))");
+        assert_eq!(
+            shroud,
+            Deontic::Cant(DeonticAction::Target {
+                by: DeedAgent::default(),
+                on: Filter::Ref(Reference::This),
+            }),
+        );
+        let written = crate::ron::options().to_string(&shroud).unwrap();
+        assert!(!written.contains("by"), "default agent omitted: {written}");
+        assert_eq!(read(&written), shroud);
+
+        // Hexproof-from-red: opponent clause on the stack object, the
+        // quality on the source ([CR#702.11d]).
+        let hexproof = read(
+            "Cant(Target(on: Ref(This), by: (stack_object: ControlledBy(OpponentOf(Ref(You))), source: ColorIs(Red))))",
+        );
+        let Deontic::Cant(DeonticAction::Target { by, .. }) = &hexproof else {
+            panic!("expected Cant(Target), got {hexproof:?}");
+        };
+        assert!(by.stack_object.is_some() && by.source.is_some());
+        assert_eq!(
+            by.source,
+            Some(Filter::Characteristic(CharacteristicFilter::ColorIs(
+                Color::Red
+            ))),
+        );
+        let written = crate::ron::options().to_string(&hexproof).unwrap();
+        assert_eq!(read(&written), hexproof);
+
+        // The empty agent parses (both arms absent) — refusing it is the
+        // ELABORATOR's job (E-FLOOR-DEED-AGENT), not serde's.
+        let empty = read("Cant(Target(on: Ref(This), by: ()))");
+        let Deontic::Cant(DeonticAction::Target { by, .. }) = &empty else {
+            panic!("expected Cant(Target), got {empty:?}");
+        };
+        assert!(by.is_empty());
     }
 
     /// A declaration Gate (Propaganda-shaped, cost simplified to {T}).

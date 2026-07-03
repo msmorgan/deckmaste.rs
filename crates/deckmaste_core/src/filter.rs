@@ -29,6 +29,13 @@ pub enum ObjectKind {
     /// over.
     Ability,
     Card,
+    /// A copy of a card ([CR#109.1] lists it as its own object kind,
+    /// distinct from `Card`): what copy effects that create card copies in
+    /// non-stack zones produce ([CR#707.12]). A copy of a SPELL on the stack
+    /// is a `Spell`; this is the grammar footing for the card-copy object —
+    /// the engine's `object_kind` starts classifying copies when the copy
+    /// grammar lands.
+    CardCopy,
     Emblem,
     Player,
     Spell,
@@ -157,6 +164,14 @@ pub enum Filter {
     #[macro_ron(flatten)]
     Relation(RelationFilter),
     Ref(Reference),
+    /// Lifts a quality to a stack ABILITY's source ([CR#702.11d] "abilities
+    /// … from [quality] sources"): matches an activated/triggered ability on
+    /// the stack whose SOURCE — the object that generated it ([CR#113.7]) —
+    /// matches the inner filter. Strict to abilities by construction: a
+    /// spell carries its qualities itself, so "red spells or abilities from
+    /// red sources" is `OneOf([AllOf([Kind(Spell), ColorIs(Red)]),
+    /// FromSource(ColorIs(Red))])`. Boxed like the other one-child atoms.
+    FromSource(Box<Filter>),
     AllOf(Vec<Filter>),
     OneOf(Vec<Filter>),
     Not(Box<Filter>),
@@ -255,6 +270,7 @@ impl Normalize for Filter {
             Filter::Relation(r) => Filter::Relation(r.normalize()),
             Filter::State(s) => Filter::State(s.normalize()),
             Filter::Not(inner) => Filter::Not(inner.normalize()),
+            Filter::FromSource(inner) => Filter::FromSource(inner.normalize()),
 
             Filter::AllOf(children) => {
                 let mut flat = Vec::with_capacity(children.len());
@@ -416,6 +432,30 @@ mod tests {
             Filter::Relation(RelationFilter::Attachment(Box::new(
                 Filter::Characteristic(CharacteristicFilter::Type(Type::Enchantment),)
             ))),
+        );
+    }
+
+    /// `FromSource` lifts a quality to a stack ability's source
+    /// ([CR#702.11d]): it reads flat, nests a full filter, and round-trips.
+    #[test]
+    fn from_source_reads_and_round_trips() {
+        let v = read("FromSource(ColorIs(Red))");
+        assert_eq!(
+            v,
+            Filter::FromSource(Box::new(Filter::Characteristic(
+                CharacteristicFilter::ColorIs(Color::Red)
+            ))),
+        );
+        let written = crate::ron::options().to_string(&v).unwrap();
+        assert_eq!(read(&written), v);
+        // The hexproof-from-red agent shape: red spells, or abilities from
+        // red sources ([CR#702.11d]).
+        let agent = read("OneOf([AllOf([Kind(Spell), ColorIs(Red)]), FromSource(ColorIs(Red))])");
+        assert!(matches!(agent, Filter::OneOf(_)));
+        // Normalize recurses through FromSource.
+        assert_eq!(
+            read("FromSource(AllOf([ColorIs(Red)]))").normalize(),
+            read("FromSource(ColorIs(Red))"),
         );
     }
 

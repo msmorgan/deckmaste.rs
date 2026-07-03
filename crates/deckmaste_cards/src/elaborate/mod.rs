@@ -30,7 +30,9 @@ use std::fmt;
 
 use deckmaste_core::Card;
 use deckmaste_core::Counter;
+use deckmaste_core::DesignationDecl;
 use deckmaste_core::Ident;
+use deckmaste_core::KeywordDecl;
 use deckmaste_core::Subtype;
 use deckmaste_core::Token;
 
@@ -94,6 +96,12 @@ pub enum Code {
     /// `Targeted` outside an announce root — replacement/static/loop
     /// position ([CR#115.1a..115.1e,601.2c]).
     PosTargeted,
+    /// A damage-prevention effect written as a generic `Instead` — an
+    /// `Instead` replacing a damage event with NOTHING. Prevention is its
+    /// own marked class ([CR#615.1,615.1a] "prevent" effects), gated by
+    /// `CantPrevent` ([CR#615.12]); a no-op damage `Instead` would dodge
+    /// that gate, so it must be spelled `Prevention(…)`.
+    PosPrevention,
     /// An enter rider on a non-battlefield destination ([CR#614.12] — riders
     /// modify how a permanent enters the battlefield; a card arriving
     /// anywhere else has no tapped/attacking arrival state).
@@ -111,6 +119,20 @@ pub enum Code {
     /// linked reader refers only to the kind of information its writer
     /// noted ([CR#607.2]).
     KindNoteDomain,
+    /// A deed's PATIENT kind conflicts with its relation's patient scope
+    /// (the emitted `patientScope` rows): a blocked thing is an attacking
+    /// creature ([CR#509.1a]), an attacked thing is a player, planeswalker,
+    /// or battle ([CR#508.1b]), ….
+    KindPatientScope,
+    /// A face/token subtype VALUE whose category (governing card types)
+    /// disagrees with the loaded registry declaration of the same name —
+    /// the declaration is the authority for the [CR#205.3] category index.
+    KindSubtypeCategory,
+    /// A keyword use whose args don't fit the declared `ParamShape`
+    /// ([CR#702] one-liners take typed args): a bare
+    /// `Composite(name: "Ward", …)` spelled without its invocation loses
+    /// the declared cost.
+    KindKeywordShape,
     /// A card/token face with no card types ([CR#109.3]).
     FloorTypes,
     /// A subtype whose governing card type is absent from the face
@@ -145,6 +167,10 @@ pub enum Code {
     /// never a destination, objects reach it only by casting/activating/
     /// triggering, [CR#405.1]).
     FloorDestination,
+    /// A `DeedAgent` with NEITHER arm present ([CR#702.11d,702.16b] — the
+    /// two-armed agent constrains through at least one arm; an empty agent
+    /// is meaningless).
+    FloorDeedAgent,
     /// A cost `Do(action)` whose verb is not cost-eligible ([CR#118.3]).
     CostIneligible,
     /// `Count::X` read where no `{X}` is declared by the carrying cost
@@ -155,7 +181,7 @@ pub enum Code {
 impl Code {
     /// Every active code, in manifest order — the drift pin against the
     /// emitted checker-rule manifest.
-    pub const ALL: [Code; 39] = [
+    pub const ALL: [Code; 44] = [
         Code::BindTarget,
         Code::BindThat,
         Code::BindThatGroup,
@@ -175,11 +201,15 @@ impl Code {
         Code::BridgeCap,
         Code::PosTargeted,
         Code::PosRider,
+        Code::PosPrevention,
         Code::KindFilter,
         Code::KindCounterScope,
         Code::KindCounterUndeclared,
         Code::KindDesignationScope,
         Code::KindNoteDomain,
+        Code::KindPatientScope,
+        Code::KindSubtypeCategory,
+        Code::KindKeywordShape,
         Code::FloorTypes,
         Code::FloorSubtype,
         Code::FloorLoyalty,
@@ -193,6 +223,7 @@ impl Code {
         Code::FloorDivide,
         Code::FloorNth,
         Code::FloorDestination,
+        Code::FloorDeedAgent,
         Code::CostIneligible,
         Code::CostX,
     ];
@@ -221,11 +252,15 @@ impl Code {
             Code::BridgeCap => "E-BRIDGE-CAP",
             Code::PosTargeted => "E-POS-TARGETED",
             Code::PosRider => "E-POS-RIDER",
+            Code::PosPrevention => "E-POS-PREVENTION",
             Code::KindFilter => "E-KIND-FILTER",
             Code::KindCounterScope => "E-KIND-COUNTER-SCOPE",
             Code::KindCounterUndeclared => "E-KIND-COUNTER-UNDECLARED",
             Code::KindDesignationScope => "E-KIND-DESIGNATION-SCOPE",
             Code::KindNoteDomain => "E-KIND-NOTE-DOMAIN",
+            Code::KindPatientScope => "E-KIND-PATIENT-SCOPE",
+            Code::KindSubtypeCategory => "E-KIND-SUBTYPE-CATEGORY",
+            Code::KindKeywordShape => "E-KIND-KEYWORD-SHAPE",
             Code::FloorTypes => "E-FLOOR-TYPES",
             Code::FloorSubtype => "E-FLOOR-SUBTYPE",
             Code::FloorLoyalty => "E-FLOOR-LOYALTY",
@@ -239,6 +274,7 @@ impl Code {
             Code::FloorDivide => "E-FLOOR-DIVIDE",
             Code::FloorNth => "E-FLOOR-NTH",
             Code::FloorDestination => "E-FLOOR-DESTINATION",
+            Code::FloorDeedAgent => "E-FLOOR-DEED-AGENT",
             Code::CostIneligible => "E-COST-INELIGIBLE",
             Code::CostX => "E-COST-X",
         }
@@ -267,11 +303,16 @@ impl fmt::Display for ElabError {
 }
 
 /// The loaded registries the checker validates against — the plugin's
-/// declared subtypes and counter kinds (`Plugin::subtypes` /
-/// `Plugin::counters`).
+/// declared subtypes, counter kinds, designations, and keyword shapes
+/// (`Plugin::subtypes` / `Plugin::counters` / `Plugin::designations` /
+/// `Plugin::keywords`). Each row carries its dependent index
+/// (category/scope/shape) as data, so the open vocabularies stay open while
+/// the checker still enforces the index.
 pub struct Registries<'a> {
     pub subtypes: &'a HashMap<Ident, Subtype>,
     pub counters: &'a HashMap<Ident, Counter>,
+    pub designations: &'a HashMap<Ident, DesignationDecl>,
+    pub keywords: &'a HashMap<Ident, KeywordDecl>,
 }
 
 /// An elaborated card — proof the walk found nothing to refuse. A thin

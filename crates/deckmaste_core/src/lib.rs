@@ -67,6 +67,7 @@ pub use cost::TotalCost;
 mod counter;
 pub use counter::Counter;
 pub use counter::CounterRef;
+pub use counter::CounterScope;
 pub use counter::CounterSpec;
 
 mod decision;
@@ -86,6 +87,7 @@ mod deontic;
 pub use deontic::AlternativeCost;
 pub use deontic::AsThough;
 pub use deontic::CountBound;
+pub use deontic::DeedAgent;
 pub use deontic::Deontic;
 pub use deontic::DeonticAction;
 
@@ -141,15 +143,19 @@ pub use macro_ron::SupportsMacros;
 
 mod keyword;
 pub use keyword::KeywordAbility;
+pub use keyword::KeywordDecl;
 pub use keyword::KeywordRef;
+pub use keyword::ParamShape;
 
 mod mana;
+pub use mana::HybridPair;
 pub use mana::ManaCost;
 pub use mana::ManaProduction;
 pub use mana::ManaRider;
 pub use mana::ManaSpec;
 pub use mana::ManaSymbol;
 pub use mana::SimpleManaSymbol;
+pub use mana::SymbolPred;
 
 pub mod plugin;
 

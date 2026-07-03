@@ -194,6 +194,7 @@ struct ScopesFile {
     counters: Vec<ScopeRow>,
     designations: Vec<ScopeRow>,
     agents: Vec<AgentRow>,
+    patients: Vec<AgentRow>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -391,6 +392,7 @@ pub struct Tables {
     counter_scopes: HashMap<String, Kind>,
     designation_scopes: HashMap<String, Kind>,
     agent_scopes: HashMap<String, Kind>,
+    patient_scopes: HashMap<String, Kind>,
     joins: HashMap<(Kind, Kind), Kind>,
     bind_rules: HashMap<String, BindRule>,
     entailments: HashMap<String, EntailmentRow>,
@@ -436,6 +438,16 @@ impl Tables {
     #[must_use]
     pub fn agent_scope(&self, relation: &str) -> Option<Kind> {
         self.agent_scopes.get(relation).copied()
+    }
+
+    /// A deed relation's PATIENT kind (the Idris `patientScope`): what kind
+    /// of participant the relation acts upon — a blocked thing is an
+    /// attacking creature ([CR#509.1a]), an attacked thing is a player,
+    /// planeswalker, or battle ([CR#508.1b]), a target is anything
+    /// targetable ([CR#115.4]).
+    #[must_use]
+    pub fn patient_scope(&self, relation: &str) -> Option<Kind> {
+        self.patient_scopes.get(relation).copied()
     }
 
     /// The kind JOIN (the Idris `\/`): what a disjunction of the two kinds
@@ -577,6 +589,11 @@ pub fn tables() -> &'static Tables {
                 .into_iter()
                 .map(|r| (r.relation, r.scope))
                 .collect(),
+            patient_scopes: scopes
+                .patients
+                .into_iter()
+                .map(|r| (r.relation, r.scope))
+                .collect(),
             joins: lattice
                 .joins
                 .into_iter()
@@ -695,6 +712,13 @@ mod tests {
         assert_eq!(t.designation_scope("SomethingElse"), None);
         assert_eq!(t.agent_scope("Cast"), Some(Kind::Player));
         assert_eq!(t.agent_scope("Attack"), Some(Kind::Object));
+        // Patient scopes ([CR#508.1b,509.1a,115.4]): attack reaches
+        // players/planeswalkers/battles, block reaches attackers, targeting
+        // reaches anything targetable.
+        assert_eq!(t.patient_scope("Attack"), Some(Kind::Any));
+        assert_eq!(t.patient_scope("Block"), Some(Kind::Object));
+        assert_eq!(t.patient_scope("Target"), Some(Kind::Any));
+        assert_eq!(t.patient_scope("Cast"), Some(Kind::Object));
         // Bind rules: the Delayed row drops targets and keeps That
         // ([CR#603.7c] via `unbindTargets`).
         let delayed = t.bind_rule("Delayed");

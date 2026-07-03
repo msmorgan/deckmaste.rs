@@ -87,22 +87,43 @@ pub enum CounterSpec {
     AllKinds,
 }
 
-/// A counter-kind declaration ([CR#122], §6): an open `Ident` vocabulary with
-/// an optional payload (e.g. a keyword counter's `GainAbility(Flying)`, a stun
-/// / shield counter's replacement payload). This is a declaration-file type
-/// (like `MacroDef`); where Filters and Actions reference counters they use a
-/// bare `Ident`. No loader wiring yet.
+/// A counter kind's carrier scope ([CR#122.1]): most kinds sit on objects;
+/// poison/energy/experience are player-borne ([CR#122.1f] poison). The
+/// registry ROW carries this dependent index as data — the elaborator's
+/// `E-KIND-COUNTER-SCOPE` check reads the loaded declaration, not a
+/// hardcoded list.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum CounterScope {
+    /// Object-borne — the [CR#122.1] default (counters sit on objects
+    /// unless a player-borne kind says otherwise).
+    #[default]
+    Object,
+    /// Player-borne ([CR#122.1f] poison; energy, experience).
+    Player,
+}
+
 /// A counter-kind declaration ([CR#122.1]): an identity (`name`, the rusty
-/// ident a `CounterRef` resolves to) plus the bearings it confers on any object
-/// holding it. Authored as a `Counter`-kind macro (`kinds: [Counter]`, `body:
-/// Counter(name: "P1P1Counter", confers: […])`), loaded into the plugin's
-/// counter registry. Confers are routed by `Property` flavor — `Continuous`
-/// boosts into the layers, `StateBased` SBAs into the 704 sweep.
+/// ident a `CounterRef` resolves to), the carrier `scope` it may sit on
+/// (object-borne by default, omitted in RON), plus the bearings it confers
+/// on any carrier holding it. Authored as a `Counter`-kind macro (`kinds:
+/// [Counter]`, `body: Counter(name: "P1P1Counter", confers: […])`), loaded
+/// into the plugin's counter registry. Confers are routed by `Property`
+/// flavor — `Continuous` boosts into the layers, `StateBased` SBAs into the
+/// 704 sweep.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Counter {
     pub name: Ident,
+    #[serde(default, skip_serializing_if = "is_object_scope")]
+    pub scope: CounterScope,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub confers: Vec<Property>,
+}
+
+/// `skip_serializing_if` for [`Counter::scope`]: the object default is
+/// omitted from RON. serde requires the predicate to take `&T`.
+#[expect(clippy::trivially_copy_pass_by_ref)]
+fn is_object_scope(scope: &CounterScope) -> bool {
+    *scope == CounterScope::Object
 }
 
 #[cfg(test)]
@@ -125,6 +146,31 @@ mod tests {
                 .is_err(),
             "a quoted string is not a counter ref"
         );
+    }
+
+    /// The `scope` column ([CR#122.1]) defaults to `Object` (omitted from
+    /// RON) and a `Player` row reads and round-trips — the registry carries
+    /// the dependent index as data.
+    #[test]
+    fn counter_scope_column_round_trips() {
+        let object: Counter = crate::ron::options()
+            .from_str(r#"Counter(name: "P1P1Counter")"#)
+            .unwrap();
+        assert_eq!(object.scope, CounterScope::Object);
+        let written = crate::ron::options().to_string(&object).unwrap();
+        assert!(
+            !written.contains("scope"),
+            "object default omitted: {written}"
+        );
+
+        let player: Counter = crate::ron::options()
+            .from_str(r#"Counter(name: "Poison", scope: Player)"#)
+            .unwrap();
+        assert_eq!(player.scope, CounterScope::Player);
+        let written = crate::ron::options().to_string(&player).unwrap();
+        assert!(written.contains("scope:Player"), "player kept: {written}");
+        let reread: Counter = crate::ron::options().from_str(&written).unwrap();
+        assert_eq!(reread, player);
     }
 
     /// `CounterSpec` reads both forms: a named kind+count (bare counter ident,

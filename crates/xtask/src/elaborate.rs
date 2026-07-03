@@ -111,10 +111,7 @@ fn dump_card(plugin_dir: &Path, card_name: &str) -> anyhow::Result<()> {
         .macros
         .read_str(&source)
         .with_context(|| format!(r#"parsing "{}""#, path.display()))?;
-    let registries = elaborate::Registries {
-        subtypes: &plugin.subtypes,
-        counters: &plugin.counters,
-    };
+    let registries = plugin.registries();
     let (result, resolutions) = elaborate::elaborate_with_resolutions(&card, &registries);
 
     println!("{card_name} ({}):", path.display());

@@ -476,6 +476,27 @@ agentRow r =
   ++ ", scope: " ++ kindName (agentScope r)
   ++ ", cite: " ++ quoted (relationCite r) ++ "),\n"
 
+-- Per-relation PATIENT homes, each verified against the CR text: attack
+-- reaches players/planeswalkers/battles, block reaches attackers, attach
+-- reaches objects or players, targeting anything targetable; the rest act
+-- on objects.
+patientCite : Relation -> String
+patientCite Attack = "[CR#508.1b]"
+patientCite Block = "[CR#509.1a]"
+patientCite Cast = "[CR#601.2a]"
+patientCite Activate = "[CR#113.3b]"
+patientCite Play = "[CR#701.18a]"
+patientCite Attach = "[CR#701.3a]"
+patientCite Target = "[CR#115.4]"
+patientCite Counter = "[CR#701.6a]"
+patientCite Regenerate = "[CR#701.19a]"
+
+patientRow : Relation -> String
+patientRow r =
+  "        (relation: " ++ quoted (relationName r)
+  ++ ", scope: " ++ kindName (patientScope r)
+  ++ ", cite: " ++ quoted (patientCite r) ++ "),\n"
+
 allRelations : List Relation
 allRelations = [Attack, Block, Cast, Activate, Play, Attach, Target, Counter, Regenerate]
 
@@ -489,6 +510,7 @@ scopesTable =
   ++ "    counters: [\n" ++ concatMap counterRow allCounterKinds ++ "    ],\n"
   ++ "    designations: [\n" ++ concatMap designationRow allDesignations ++ "    ],\n"
   ++ "    agents: [\n" ++ concatMap agentRow allRelations ++ "    ],\n"
+  ++ "    patients: [\n" ++ concatMap patientRow allRelations ++ "    ],\n"
   ++ ")\n"
 
 -- --------------------------------------------------------------------------
@@ -624,11 +646,15 @@ ruleRows =
   , ruleRow "E-BRIDGE-CAP" "[CR#603.2]" "event construct the lane's bridge matcher cannot faithfully evaluate - load-capped until the one-evaluator rebase"
   , ruleRow "E-POS-TARGETED" "[CR#115.1a..115.1e,601.2c]" "Targeted outside an announce root (replacement/static/loop position)"
   , ruleRow "E-POS-RIDER" "[CR#614.12]" "enter rider on a non-battlefield destination"
+  , ruleRow "E-POS-PREVENTION" "[CR#615.1,615.1a]" "damage-prevention written as a generic Instead (a no-op damage replacement) - spell the marked Prevention class"
   , ruleRow "E-KIND-FILTER" "[CR#109.1]" "filter kind conflicts with its slot's expected kind"
   , ruleRow "E-KIND-COUNTER-SCOPE" "[CR#122.1]" "counter kind used on a carrier its scope forbids"
   , ruleRow "E-KIND-COUNTER-UNDECLARED" "[CR#122.1]" "counter reference names no declared counter kind"
   , ruleRow "E-KIND-DESIGNATION-SCOPE" "[CR#109.3]" "designation used on a carrier its scope forbids"
   , ruleRow "E-KIND-NOTE-DOMAIN" "[CR#607.2]" "noted key read with a domain its declared kind doesn't store"
+  , ruleRow "E-KIND-PATIENT-SCOPE" "[CR#508.1b,509.1a,115.4]" "deed patient kind conflicts with its relation's patientScope row"
+  , ruleRow "E-KIND-SUBTYPE-CATEGORY" "[CR#205.3]" "subtype value whose category disagrees with the loaded registry declaration"
+  , ruleRow "E-KIND-KEYWORD-SHAPE" "[CR#702]" "keyword use whose args don't fit the declared ParamShape (a bare parameterized keyword)"
   , ruleRow "E-FLOOR-TYPES" "[CR#109.3]" "card/token face with no card types"
   , ruleRow "E-FLOOR-SUBTYPE" "[CR#205.3d]" "subtype whose governing card type is absent from the face"
   , ruleRow "E-FLOOR-LOYALTY" "[CR#209]" "printed loyalty on a non-Planeswalker face"
@@ -642,6 +668,7 @@ ruleRows =
   , ruleRow "E-FLOOR-DIVIDE" "[CR#601.2d]" "divided amount statically smaller than the minimum group size"
   , ruleRow "E-FLOOR-NTH" "[CR#603.2g]" "Nth occurrence index below one - a 0th occurrence never occurs"
   , ruleRow "E-FLOOR-DESTINATION" "[CR#401.4,405.1]" "bare Library/Stack zone as a Move destination (ordered positions only via Library(Anchor); the stack is never a destination)"
+  , ruleRow "E-FLOOR-DEED-AGENT" "[CR#702.11d,702.16b]" "DeedAgent with neither arm present (the two-armed agent constrains through at least one arm)"
   , ruleRow "E-COST-INELIGIBLE" "[CR#118.3]" "cost Do(action) whose verb is not cost-eligible"
   , ruleRow "E-COST-X" "[CR#107.3]" "Count::X read where no {X} is declared by the carrying cost"
   ]

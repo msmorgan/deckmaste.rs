@@ -608,7 +608,7 @@ impl GameState {
             Some(Zone::Battlefield),
             "begin_activate only handles battlefield sources"
         );
-        let abilities = crate::derive::abilities(self, object);
+        let abilities = crate::derive::usable_abilities(self, object);
         let ability = as_activated(
             abilities
                 .get(index)

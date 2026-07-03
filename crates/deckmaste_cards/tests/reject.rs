@@ -15,7 +15,6 @@ use std::path::PathBuf;
 use deckmaste_cards::elaborate;
 use deckmaste_cards::elaborate::Code;
 use deckmaste_cards::elaborate::ElabError;
-use deckmaste_cards::elaborate::Registries;
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Card;
 use deckmaste_core::Token;
@@ -32,10 +31,7 @@ fn reject_root() -> PathBuf {
 /// elaborates CLEAN is a test failure, not an empty list.
 fn elaborate_fixture(plugin: &Plugin, path: &Path) -> Vec<ElabError> {
     let source = std::fs::read_to_string(path).unwrap();
-    let registries = Registries {
-        subtypes: &plugin.subtypes,
-        counters: &plugin.counters,
-    };
+    let registries = plugin.registries();
     let is_token = path
         .file_name()
         .and_then(|f| f.to_str())

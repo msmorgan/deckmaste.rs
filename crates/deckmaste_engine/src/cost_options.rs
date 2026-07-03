@@ -61,34 +61,52 @@ pub enum ConcretizeError {
 /// The legal nonhybrid/Phyrexian readings of `cost`'s multi-way symbols, in
 /// cost order ([CR#601.2b]).
 ///
-/// A hybrid `Hybrid(left, right)` offers `[Mana(left), Mana(right)]`
-/// ([CR#107.4e]); a Phyrexian `Phyrexian(c1, c2)` offers its color(s) then
-/// `Life` ([CR#107.4f]). `Simple`/`Snow`/`Variable` symbols aren't choosable
-/// and contribute nothing.
+/// A hybrid family symbol offers its halves ([CR#107.4e]); a Phyrexian
+/// symbol offers its color(s) then `Life` ([CR#107.4f]).
+/// `Simple`/`Snow`/`Variable` symbols aren't choosable and contribute
+/// nothing.
 #[must_use]
 pub fn choosable(cost: &ManaCost) -> ChoosableOptions {
-    let options = cost.iter().filter_map(symbol_options).collect();
+    let options = cost.iter().copied().filter_map(symbol_options).collect();
     ChoosableOptions { options }
 }
 
 /// The legal readings of one symbol, or `None` if it isn't choosable.
-fn symbol_options(symbol: &ManaSymbol) -> Option<SymbolOptions> {
-    let choices = match *symbol {
-        // [CR#107.4e]: the two halves — the chosen left component, or one mana
-        // of the right color. `left` is already a `SimpleManaSymbol` (covers
-        // both generic-amount and color halves); `right` is a `Color` and
-        // needs `.into()` to become `SimpleManaSymbol::Specific`.
-        ManaSymbol::Hybrid(left, right) => {
-            vec![SymbolChoice::Mana(left), SymbolChoice::Mana(right.into())]
+fn symbol_options(symbol: ManaSymbol) -> Option<SymbolOptions> {
+    use deckmaste_core::ColorOrColorless;
+    let choices = match symbol {
+        // [CR#107.4e]: the two color halves, in printed order.
+        ManaSymbol::Hybrid(pair) => {
+            let (left, right) = pair.colors();
+            vec![
+                SymbolChoice::Mana(left.into()),
+                SymbolChoice::Mana(right.into()),
+            ]
         }
-        // [CR#107.4f]: one mana of each color, then 2 life.
-        ManaSymbol::Phyrexian(c1, c2) => {
-            let mut choices = vec![SymbolChoice::Mana(c1.into())];
-            if let Some(c2) = c2 {
-                choices.push(SymbolChoice::Mana(c2.into()));
-            }
-            choices.push(SymbolChoice::Life);
-            choices
+        // [CR#107.4e]: {2/W} — two mana of any type, or one of the color.
+        ManaSymbol::MonoHybrid(c) => {
+            vec![
+                SymbolChoice::Mana(SimpleManaSymbol::Generic(2)),
+                SymbolChoice::Mana(c.into()),
+            ]
+        }
+        // [CR#107.4]: {C/W} — one colorless, or one of the color.
+        ManaSymbol::ColorlessHybrid(c) => {
+            vec![
+                SymbolChoice::Mana(ColorOrColorless::Colorless.into()),
+                SymbolChoice::Mana(c.into()),
+            ]
+        }
+        // [CR#107.4f]: one mana of the color, then 2 life.
+        ManaSymbol::Phyrexian(c) => vec![SymbolChoice::Mana(c.into()), SymbolChoice::Life],
+        // [CR#107.4f]: either component color, then 2 life.
+        ManaSymbol::HybridPhyrexian(pair) => {
+            let (c1, c2) = pair.colors();
+            vec![
+                SymbolChoice::Mana(c1.into()),
+                SymbolChoice::Mana(c2.into()),
+                SymbolChoice::Life,
+            ]
         }
         ManaSymbol::Simple(_) | ManaSymbol::Snow | ManaSymbol::Variable => return None,
     };
@@ -116,7 +134,7 @@ pub fn concretize(
 ) -> Result<(ManaCost, Vec<CostComponent>), ConcretizeError> {
     let expected = cost
         .iter()
-        .filter(|sym| symbol_options(sym).is_some())
+        .filter(|sym| symbol_options(**sym).is_some())
         .count();
     if choices.picks.len() != expected {
         return Err(ConcretizeError::WrongPickCount {
@@ -132,7 +150,7 @@ pub fn concretize(
     let mut index = 0;
 
     for symbol in cost.iter() {
-        match symbol_options(symbol) {
+        match symbol_options(*symbol) {
             // Choosable: consume the next pick and validate it.
             Some(legal) => {
                 let pick = choices.picks[index];

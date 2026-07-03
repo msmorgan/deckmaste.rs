@@ -1,0 +1,14 @@
+// Accept twin of reject/E-KIND-PATIENT-SCOPE/block-a-player.ron: the Block
+// deed's patient is an attacking CREATURE ([CR#509.1a]) — an object-kinded
+// `on` fits the emitted `patientScope` row.
+Normal(
+  name: "Accept Block An Attacker",
+  types: [Creature],
+  abilities: [
+    Static(effects: [
+      Cant(Block(by: Ref(This), on: Type(Creature))),
+    ]),
+  ],
+  power: 1,
+  toughness: 1,
+)

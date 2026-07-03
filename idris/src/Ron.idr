@@ -76,11 +76,18 @@ implementation ToRon SimpleManaSymbol where
     toRon _ (Generic k) = ctor "Generic" [show k]
     toRon indent (Specific c) = toRon indent c
 
+%runElab derive "HybridPair" [Show]
+implementation ToRon HybridPair where
+    toRon _ p = show p
+
 implementation ToRon ManaSymbol where
     toRon indent (Simple s) = toRon indent s
-    toRon indent (Hybrid x y) = ctor "Hybrid" [toRon indent x, toRon indent y]
+    toRon indent (Hybrid p) = ctor "Hybrid" [toRon indent p]
+    toRon indent (MonoHybrid c) = ctor "MonoHybrid" [toRon indent c]
+    toRon indent (ColorlessHybrid c) = ctor "ColorlessHybrid" [toRon indent c]
     toRon indent Variable = "Variable"
-    toRon indent (Phyrexian c mc) = ctor "Phyrexian" [toRon indent c, toRon indent mc]
+    toRon indent (Phyrexian c) = ctor "Phyrexian" [toRon indent c]
+    toRon indent (HybridPhyrexian p) = ctor "HybridPhyrexian" [toRon indent p]
     toRon indent SnowMana = "Snow"
 
 implementation ToRon a => ToRon (List a) where

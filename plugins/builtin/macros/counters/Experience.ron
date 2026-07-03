@@ -1,0 +1,9 @@
+// Experience counters ([CR#122.1] — counters on players): PLAYER-borne,
+// counted by the abilities that award them ("for each experience counter you
+// have"); no conferred bearing.
+(
+    name: "Experience",
+    template: "experience counter",
+    kinds: [Counter],
+    body: Counter(name: "Experience", scope: Player),
+)

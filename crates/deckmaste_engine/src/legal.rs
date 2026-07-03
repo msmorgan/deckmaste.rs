@@ -6,6 +6,7 @@
 use std::ops::ControlFlow;
 
 use deckmaste_core::Ability;
+use deckmaste_core::DeedAgent;
 use deckmaste_core::Deontic;
 use deckmaste_core::DeonticAction;
 use deckmaste_core::Filter;
@@ -164,14 +165,15 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         }
         let sick_creature =
             obj.summoning_sick && view.get(object).card_types.contains(&Type::Creature);
-        // Index the SAME card-facing (Innate-filtered) list resolution reads
-        // ([CR#113.12]): `begin_activate`, `decide`'s `ActivateAbility` arm, and
-        // `render`'s `activated_ability`/`mana_ability` all index
-        // `derive::abilities`. An `Innate` is never an activated ability, so
-        // filtering it changes no offered ability — it only keeps the
-        // `Action::ActivateAbility { ability }` index aligned with resolution
-        // (see the "SAME list, SAME order" invariant in `render.rs`).
-        for (ability, a) in derive::abilities(state, object).iter().enumerate() {
+        // Index the SAME Innate-PEELED list resolution reads ([CR#113.12]):
+        // `begin_activate`, `decide`'s `ActivateAbility` arm, and `render`'s
+        // `activated_ability`/`mana_ability` all index
+        // `derive::usable_abilities` (see the "SAME list, SAME order"
+        // invariant in `render.rs`). Peeling — not filtering — keeps a
+        // conferred `Innate(Activated)` (a basic land's [CR#305.6] mana
+        // ability) activatable by its controller while the indices stay
+        // aligned.
+        for (ability, a) in derive::usable_abilities(state, object).iter().enumerate() {
             // `tap_mana_ability` is the authoritative classifier here: its
             // subset scope (cost=[Tap], specific mana, no targets) defines
             // which abilities take the stackless path ([CR#605.3b]); widen it
@@ -586,13 +588,14 @@ pub(crate) fn arrangement_forbidden_by(
 }
 
 /// Every `Target` row of the polarity `pick` extracts in the derived view,
-/// with its carrier — `(carrier source, by, on)`: `by` matches the
-/// targeting spell/ability, `on` the would-be target.
+/// with its carrier — `(carrier source, by, on)`: `by` is the two-slot
+/// [`DeedAgent`] matching the targeting spell/ability
+/// ([CR#702.11d,702.16b]), `on` the would-be target.
 fn target_rows(
     state: &GameState,
     view: &LayeredView,
     pick: fn(&Deontic) -> Option<&DeonticAction>,
-) -> Vec<(crate::object::ObjectSource, Filter, Filter)> {
+) -> Vec<(crate::object::ObjectSource, DeedAgent, Filter)> {
     let mut rows = Vec::new();
     for &id in &state.zones.battlefield {
         let source = state.objects.obj(id).source;
@@ -607,13 +610,40 @@ fn target_rows(
     rows
 }
 
+/// Whether `actor` (a targeting stack object / in-flight announce) matches
+/// the two-slot deed agent: both PRESENT arms must hold —
+/// `stack_object` against the actor itself, `source` against the actor's
+/// source ([CR#113.7] an ability's generator; [CR#609.7a] a spell is itself
+/// a source) — so hexproof-from-red's one row covers "red spells … or
+/// abilities … from red sources" ([CR#702.11d]). The EMPTY agent (which the
+/// elaborator refuses, E-FLOOR-DEED-AGENT) defensively matches nothing.
+pub(crate) fn deed_agent_matches(
+    state: &GameState,
+    agent: &DeedAgent,
+    actor: ObjectId,
+    carrier: crate::object::ObjectSource,
+) -> bool {
+    if agent.is_empty() {
+        return false;
+    }
+    let stack_object_ok = agent
+        .stack_object
+        .as_ref()
+        .is_none_or(|f| state.filter_matches_live(f, actor, carrier));
+    let source_ok = agent.source.as_ref().is_none_or(|f| {
+        crate::target::source_of(state, actor)
+            .is_some_and(|src| state.filter_matches_live(f, src, carrier))
+    });
+    stack_object_ok && source_ok
+}
+
 /// Every `Cant(Target)` row in the derived view ([CR#702.11b] hexproof,
 /// [CR#702.16b] protection's targeted clause).
 #[must_use]
 pub(crate) fn cant_target_rows(
     state: &GameState,
     view: &LayeredView,
-) -> Vec<(crate::object::ObjectSource, Filter, Filter)> {
+) -> Vec<(crate::object::ObjectSource, DeedAgent, Filter)> {
     target_rows(state, view, cant_action)
 }
 
@@ -624,7 +654,7 @@ pub(crate) fn cant_target_rows(
 pub(crate) fn must_target_rows(
     state: &GameState,
     view: &LayeredView,
-) -> Vec<(crate::object::ObjectSource, Filter, Filter)> {
+) -> Vec<(crate::object::ObjectSource, DeedAgent, Filter)> {
     target_rows(state, view, must_action)
 }
 
@@ -633,13 +663,13 @@ pub(crate) fn must_target_rows(
 #[must_use]
 pub(crate) fn target_forbidden_by(
     state: &GameState,
-    rows: &[(crate::object::ObjectSource, Filter, Filter)],
+    rows: &[(crate::object::ObjectSource, DeedAgent, Filter)],
     spell: ObjectId,
     target: ObjectId,
 ) -> Option<crate::object::ObjectSource> {
     rows.iter()
         .find(|(carrier, by, on)| {
-            state.filter_matches_live(by, spell, *carrier)
+            deed_agent_matches(state, by, spell, *carrier)
                 && state.filter_matches_live(on, target, *carrier)
         })
         .map(|(carrier, ..)| *carrier)
@@ -1074,8 +1104,8 @@ mod tests {
         })
     }
 
-    /// An `Innate` static (any conferred rule), which `derive::abilities`
-    /// filters OUT of the card-facing list — the source of the index skew.
+    /// An `Innate` static (any conferred rule): PEELED in place — never
+    /// dropped — by the usable list, so it occupies an index slot.
     fn innate_static() -> Ability {
         Ability::Innate(Box::new(Ability::Static(StaticAbility {
             from: None,
@@ -1092,11 +1122,12 @@ mod tests {
 
     /// [CR#113.12,613.1f]: with an `Innate` ability positioned BEFORE an
     /// activated one, the legal-action list and resolution must share ONE
-    /// index space. `derive::abilities` filters the `Innate` out, so the
-    /// offered `Action::ActivateAbility { ability }` index must point into the
-    /// FILTERED list (index 0 = the activated ability), and `begin_activate`
-    /// must resolve THAT ability — not the Innate slot or an out-of-bounds
-    /// panic.
+    /// index space — the PEELED usable list (`derive::usable_abilities`),
+    /// where the Innate keeps its slot (peeled, never dropped): the offered
+    /// `Action::ActivateAbility { ability }` index is 1, and
+    /// `begin_activate` resolves THAT ability. The card-facing
+    /// `derive::abilities` still FILTERS the Innate out (the [CR#113.12]
+    /// invisibility surface) — it is no longer the index space.
     #[test]
     fn innate_before_activated_does_not_desync_the_index() {
         let mut state = game();
@@ -1109,8 +1140,8 @@ mod tests {
             vec![innate_static(), tap_for_colorless()],
         );
 
-        // (a) Exactly one activation is offered, and it indexes the FILTERED
-        // list: the Innate is filtered out, so the activated ability is at 0.
+        // (a) Exactly one activation is offered, and it indexes the PEELED
+        // usable list: the Innate keeps slot 0, the activated ability is 1.
         let actions = super::legal_actions(&state, PlayerId(0));
         let activations: Vec<_> = actions
             .iter()
@@ -1123,18 +1154,23 @@ mod tests {
             .collect();
         assert_eq!(
             activations,
-            vec![0],
-            "the offered activation must index the FILTERED ability list (0), not \
-             the unfiltered position (1) where the Innate skews it"
+            vec![1],
+            "the offered activation must index the PEELED usable list (1) — the \
+             Innate keeps its slot"
         );
 
-        // (b) The offered index resolves to the activated ability — the derived
-        // (filtered) list at that index is the tap-for-mana ability, and
-        // `begin_activate` stages it without panicking.
-        let derived = crate::derive::abilities(&state, object);
+        // (b) The offered index resolves to the activated ability in the SAME
+        // usable list, and `begin_activate` stages it without panicking.
+        let usable = crate::derive::usable_abilities(&state, object);
         assert!(
-            crate::activate::as_activated(&derived[activations[0]]).is_some(),
-            "the offered index names the activated ability in the filtered list"
+            crate::activate::as_activated(&usable[activations[0]]).is_some(),
+            "the offered index names the activated ability in the usable list"
+        );
+        // The card-facing surface still hides the conferral ([CR#113.12]).
+        assert_eq!(
+            crate::derive::abilities(&state, object).len(),
+            1,
+            "derive::abilities filters the Innate out of the card-facing list"
         );
         state.begin_activate(object, activations[0]);
         assert!(

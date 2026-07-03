@@ -2245,21 +2245,9 @@ impl GameState {
             Ch::Name => vec![face.name.clone()],
             Ch::ManaCost => vec![format!("{}", face.mana_cost.mana_value())],
             Ch::Colors => {
-                use deckmaste_core::ManaSymbol;
                 let mut colors: Vec<deckmaste_core::Color> = face.color_indicator.clone();
                 for sym in face.mana_cost.iter() {
-                    match sym {
-                        ManaSymbol::Simple(s) => colors.extend(s.color()),
-                        ManaSymbol::Hybrid(s, c) => {
-                            colors.extend(s.color());
-                            colors.push(*c);
-                        }
-                        ManaSymbol::Phyrexian(c, c2) => {
-                            colors.push(*c);
-                            colors.extend(*c2);
-                        }
-                        ManaSymbol::Variable | ManaSymbol::Snow => {}
-                    }
+                    colors.extend(crate::layer::symbol_colors(sym));
                 }
                 colors.iter().map(|c| format!("{c:?}")).collect()
             }

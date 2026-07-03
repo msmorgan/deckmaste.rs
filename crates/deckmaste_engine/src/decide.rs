@@ -662,7 +662,7 @@ impl GameState {
                         None => self.announcing.as_ref().expect("an announce in flight").id,
                     };
                     for (carrier, by, on) in &must_rows {
-                        if !self.filter_matches_live(by, targeting, *carrier) {
+                        if !crate::legal::deed_agent_matches(self, by, targeting, *carrier) {
                             continue;
                         }
                         if self.placing_trigger.is_some() {
@@ -1749,7 +1749,7 @@ impl GameState {
                 self.schedule_front(items);
             }
             Action::ActivateAbility { object, ability } => {
-                let abilities = derive::abilities(self, *object);
+                let abilities = derive::usable_abilities(self, *object);
                 let a = abilities.get(*ability).expect(
                     "ability index from the legal list is in bounds (state frozen by pending)",
                 );

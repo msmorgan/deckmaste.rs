@@ -303,3 +303,47 @@ fn named_quantity_macros_expand_to_range() {
     assert_eq!(q("AnyNumber").bounds(), (None, None));
     assert!(q("Exactly(1)").is_one());
 }
+
+/// The open-vocabulary REGISTRIES load as plugin data with their dependent
+/// index columns: counter rows carry `scope` ([CR#122.1,122.1f]),
+/// designation rows their `Stored` scope ([CR#725.1] Monarch on players,
+/// [CR#903.3] Commander on cards), and every `KeywordAbility`-kind macro
+/// derives a `KeywordDecl` whose `ParamShape` mirrors its typed parameter
+/// signature ([CR#702] keyword one-liners).
+#[test]
+fn registries_load_with_their_index_columns() {
+    use deckmaste_core::CounterScope;
+    use deckmaste_core::DesignationDef;
+    use deckmaste_core::DesignationScope;
+    use deckmaste_core::ParamShape;
+
+    let plugin = builtin();
+
+    // Counter scope column: poison is player-borne, +1/+1 object-borne.
+    assert_eq!(
+        plugin.counters[&deckmaste_core::Ident::from("Poison")].scope,
+        CounterScope::Player
+    );
+    assert_eq!(
+        plugin.counters[&deckmaste_core::Ident::from("P1P1Counter")].scope,
+        CounterScope::Object
+    );
+
+    // Designation rows: Monarch player-scoped; Commander (outside the
+    // curated engine table) object-scoped.
+    let scope_of =
+        |name: &str| match &plugin.designations[&deckmaste_core::Ident::from(name)].definition {
+            DesignationDef::Stored { scope, .. } => *scope,
+            other => panic!("{name} should be Stored, got {other:?}"),
+        };
+    assert_eq!(scope_of("Monarch"), DesignationScope::Player);
+    assert_eq!(scope_of("Commander"), DesignationScope::Object);
+
+    // Keyword shapes derive from the macros' typed params.
+    let shape_of = |name: &str| plugin.keywords[&deckmaste_core::Ident::from(name)].shape;
+    assert_eq!(shape_of("Flying"), ParamShape::None);
+    assert_eq!(shape_of("Ward"), ParamShape::Costed);
+    assert_eq!(shape_of("Crew"), ParamShape::Counted);
+    assert_eq!(shape_of("Hexproof"), ParamShape::Predicated);
+    assert_eq!(shape_of("Reinforce"), ParamShape::CountedCost);
+}

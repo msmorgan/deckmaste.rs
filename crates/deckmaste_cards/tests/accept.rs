@@ -16,7 +16,6 @@ use std::path::PathBuf;
 
 use deckmaste_cards::elaborate;
 use deckmaste_cards::elaborate::Code;
-use deckmaste_cards::elaborate::Registries;
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Card;
 use deckmaste_core::Token;
@@ -37,10 +36,7 @@ fn accept_root() -> PathBuf {
 /// resolve.
 fn accept_fixture_resolution_count(plugin: &Plugin, path: &Path) -> usize {
     let source = std::fs::read_to_string(path).unwrap();
-    let registries = Registries {
-        subtypes: &plugin.subtypes,
-        counters: &plugin.counters,
-    };
+    let registries = plugin.registries();
     let is_token = path
         .file_name()
         .and_then(|f| f.to_str())
@@ -125,6 +121,8 @@ fn every_accept_fixture_elaborates_clean_and_covers_its_code() {
                 | Code::FloorDestination
                 | Code::CostIneligible
                 | Code::KindFilter
+                // Class discipline — a marked Prevention binds nothing.
+                | Code::PosPrevention
         );
         assert!(
             !is_binding_code || resolved_any,

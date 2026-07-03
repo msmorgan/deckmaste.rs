@@ -27,6 +27,19 @@ impl Color {
             _ => return None,
         })
     }
+
+    /// The single-letter mana-symbol code — [`from_code`](Self::from_code)'s
+    /// inverse ([CR#105.1,107.4a]).
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        match self {
+            Color::White => "W",
+            Color::Blue => "U",
+            Color::Black => "B",
+            Color::Red => "R",
+            Color::Green => "G",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]

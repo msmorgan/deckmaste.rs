@@ -24,6 +24,9 @@
 use std::fmt;
 use std::str::FromStr;
 
+use serde::Deserialize;
+use serde::Serialize;
+
 use crate::Ability;
 use crate::Expansion;
 use crate::Ident;
@@ -94,6 +97,39 @@ impl<'de> serde::Deserialize<'de> for KeywordRef {
         }
         deserializer.deserialize_enum("", &[], NameVisitor)
     }
+}
+
+/// The closed vocabulary of keyword parameter SHAPES ([CR#702] — every
+/// parameterized keyword's printed one-liner takes typed args from this
+/// set): nothing (`flying`), a count (`bloodthirst 2`), a cost (`ward {2}`,
+/// `flashback {1}{R}`), a count and a cost (`awaken 3—{5}{W}`,
+/// `suspend 4—{1}{U}`), a quality (`landwalk`, `hexproof from red`), a
+/// quality and a cost (`splice onto Arcane {1}{R}`), or a name
+/// (`partner with N`). The registry ROW (`KeywordDecl`) carries the shape
+/// as data; the elaborator's `E-KIND-KEYWORD-SHAPE` check refuses a use
+/// whose args don't fit (a bare `Keyword(Composite(name: "Ward", …))` with
+/// its cost lost).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum ParamShape {
+    None,
+    Counted,
+    Costed,
+    CountedCost,
+    Predicated,
+    PredicatedCosted,
+    Named,
+}
+
+/// A keyword registry row ([CR#702]): the keyword's name plus its declared
+/// [`ParamShape`]. Derived at plugin load from each `KeywordAbility`-kind
+/// macro's typed parameter signature (`params: [Cost]` ⇒ `Costed`), so the
+/// macro file IS the registry data and the two can't drift; spellable
+/// standalone (`KeywordDecl(name: "Ward", shape: Costed)`) as the row's
+/// wire form.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub struct KeywordDecl {
+    pub name: Ident,
+    pub shape: ParamShape,
 }
 
 /// A keyword ability the engine treats as a first-class combat concept
@@ -229,6 +265,19 @@ mod tests {
             let read: KeywordAbility = crate::ron::options().from_str(&written).unwrap();
             assert_eq!(read, kw);
         }
+    }
+
+    /// A `KeywordDecl` registry row round-trips, shape column included.
+    #[test]
+    fn keyword_decl_round_trips() {
+        let decl = KeywordDecl {
+            name: Ident::from("Ward"),
+            shape: ParamShape::Costed,
+        };
+        let written = crate::ron::options().to_string(&decl).unwrap();
+        assert_eq!(written, r#"(name:"Ward",shape:Costed)"#);
+        let read: KeywordDecl = crate::ron::options().from_str(&written).unwrap();
+        assert_eq!(read, decl);
     }
 
     fn ward() -> KeywordAbility {

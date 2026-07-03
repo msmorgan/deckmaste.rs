@@ -1,0 +1,13 @@
+// Accept twin of reject/E-POS-PREVENTION/prevention-as-instead.ron: the
+// SAME damage-shield, spelled through the marked Prevention class
+// ([CR#615.1]) — visible to the `CantPrevent` gate ([CR#615.12]) by
+// construction.
+Normal(
+  name: "Accept Prevention As Marked Class",
+  types: [Enchantment],
+  abilities: [
+    Static(effects: [
+      Prevention(PreventAll(from: Any, to: Ref(This))),
+    ]),
+  ],
+)

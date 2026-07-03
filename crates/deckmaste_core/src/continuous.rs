@@ -333,6 +333,22 @@ pub enum StaticEffect {
     /// A prevention effect ([CR#615]). Boxed for the same size reason as
     /// `Replacement`.
     Prevention(Box<Prevention>),
+    /// "Damage … can't be prevented" ([CR#615.12]): matching damage —
+    /// `from` the source, `to` the recipient — is unpreventable. Gates
+    /// exactly the [`Prevention`] class and nothing else, BY CONSTRUCTION:
+    /// prevention is its own marked class, so the gate never touches
+    /// generic replacements ([CR#614] Instead/Skip/Also — which still apply
+    /// their non-prevention riders per [CR#615.12], an engine concern).
+    CantPrevent { from: Filter, to: Filter },
+    /// The mana counterfactual channel ([CR#609.4b] payment freedom): mana
+    /// matching `mana_from` (a filter over its PRODUCER — "mana produced by
+    /// Smokebraider") "may be spent as though it were mana of any
+    /// [color/type]" (`as_`). Changes only HOW a cost may be paid — never
+    /// the cost, the pool, or what was actually spent.
+    SpendAsThough {
+        mana_from: Filter,
+        as_: crate::SymbolPred,
+    },
     /// A scoped counterfactual premise ([CR#609.4]) — see [`AsThough`].
     AsThough(AsThough),
     /// A state-based action expressed as data ([CR#704]): whenever `when`
@@ -728,6 +744,46 @@ mod tests {
         );
         let written = crate::ron::options().to_string(&delve).unwrap();
         assert_eq!(read(&written), delve, "delve round-trips: {written}");
+    }
+
+    /// `CantPrevent` — the [CR#615.12] gate on the Prevention class — reads
+    /// flat and round-trips.
+    #[test]
+    fn cant_prevent_round_trips() {
+        let parsed = read("CantPrevent(from: Ref(This), to: Any)");
+        assert_eq!(
+            parsed,
+            StaticEffect::CantPrevent {
+                from: Filter::Ref(Reference::This),
+                to: Filter::Any,
+            },
+        );
+        let written = crate::ron::options().to_string(&parsed).unwrap();
+        assert_eq!(read(&written), parsed);
+    }
+
+    /// `SpendAsThough` — the [CR#609.4b] mana counterfactual channel —
+    /// reads flat and round-trips for both `SymbolPred` readings.
+    #[test]
+    fn spend_as_though_round_trips() {
+        let parsed = read("SpendAsThough(mana_from: Ref(This), as_: AnyColor)");
+        assert_eq!(
+            parsed,
+            StaticEffect::SpendAsThough {
+                mana_from: Filter::Ref(Reference::This),
+                as_: crate::SymbolPred::AnyColor,
+            },
+        );
+        let written = crate::ron::options().to_string(&parsed).unwrap();
+        assert_eq!(read(&written), parsed);
+        let any_type = read("SpendAsThough(mana_from: Any, as_: AnyType)");
+        assert!(matches!(
+            any_type,
+            StaticEffect::SpendAsThough {
+                as_: crate::SymbolPred::AnyType,
+                ..
+            }
+        ));
     }
 
     /// A deontic clause reads flat and serializes flat — the compartment

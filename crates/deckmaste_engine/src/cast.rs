@@ -90,7 +90,7 @@ fn reduce_mana_components(cost: &mut Vec<ManaSymbol>, components: &[CostComponen
         match c {
             CostComponent::Mana(m) => {
                 for sym in m.iter() {
-                    reduce_symbol(cost, sym);
+                    reduce_symbol(cost, *sym);
                 }
             }
             other => todo!("P0.W2 residue: non-mana cost reduction {other:?}"),
@@ -99,10 +99,10 @@ fn reduce_mana_components(cost: &mut Vec<ManaSymbol>, components: &[CostComponen
 }
 
 /// Remove one reduction symbol from `cost` (see [`reduce_mana_components`]).
-fn reduce_symbol(cost: &mut Vec<ManaSymbol>, sym: &ManaSymbol) {
+fn reduce_symbol(cost: &mut Vec<ManaSymbol>, sym: ManaSymbol) {
     match sym {
         ManaSymbol::Simple(SimpleManaSymbol::Generic(n)) => {
-            let mut remaining = *n;
+            let mut remaining = n;
             for s in cost.iter_mut() {
                 if remaining == 0 {
                     break;
@@ -123,7 +123,7 @@ fn reduce_symbol(cost: &mut Vec<ManaSymbol>, sym: &ManaSymbol) {
             }
         }
         colored @ ManaSymbol::Simple(SimpleManaSymbol::Specific(_)) => {
-            if let Some(i) = cost.iter().position(|s| s == colored) {
+            if let Some(i) = cost.iter().position(|s| *s == colored) {
                 cost.remove(i);
             }
         }
@@ -173,10 +173,16 @@ fn requirement(cost: &ManaCost) -> Option<Requirement> {
             }
             // [CR#107.4h]: a snow pip — paid by a unit carrying ManaRider::Snow.
             ManaSymbol::Snow => snow += 1,
-            // Hybrid/Phyrexian are concretized at [CR#601.2b] before payment;
-            // Variable ({X}) is announced there too (engine-x-costs). A residual
-            // one here is an engine bug, not a payable cost.
-            ManaSymbol::Hybrid(..) | ManaSymbol::Phyrexian(..) | ManaSymbol::Variable => {
+            // The hybrid/Phyrexian families are concretized at [CR#601.2b]
+            // before payment; Variable ({X}) is announced there too
+            // (engine-x-costs). A residual one here is an engine bug, not a
+            // payable cost.
+            ManaSymbol::Hybrid(_)
+            | ManaSymbol::MonoHybrid(_)
+            | ManaSymbol::ColorlessHybrid(_)
+            | ManaSymbol::Phyrexian(_)
+            | ManaSymbol::HybridPhyrexian(_)
+            | ManaSymbol::Variable => {
                 return None;
             }
         }
@@ -1921,7 +1927,7 @@ mod tests {
     #[test]
     fn reduce_symbol_arithmetic() {
         let mut c: Vec<ManaSymbol> = Vec::from(&*cost("{2}{G}{G}"));
-        reduce_symbol(&mut c, &deckmaste_core::Color::Green.into());
+        reduce_symbol(&mut c, deckmaste_core::Color::Green.into());
         assert_eq!(ManaCost::from(c.clone()), {
             let v: Vec<ManaSymbol> = vec![
                 ManaSymbol::Simple(SimpleManaSymbol::Generic(2)),
@@ -1929,7 +1935,7 @@ mod tests {
             ];
             ManaCost::from(v)
         });
-        reduce_symbol(&mut c, &ManaSymbol::Simple(SimpleManaSymbol::Generic(1)));
+        reduce_symbol(&mut c, ManaSymbol::Simple(SimpleManaSymbol::Generic(1)));
         let v: Vec<ManaSymbol> = vec![
             ManaSymbol::Simple(SimpleManaSymbol::Generic(1)),
             deckmaste_core::Color::Green.into(),

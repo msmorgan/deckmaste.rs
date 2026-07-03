@@ -50,6 +50,10 @@ pub fn kinds() -> KindSet {
     // Counter-kind macros (`P1P1Counter`, …) expand to a `Counter` decl in the
     // plugin loader; name-erasing like `Subtype`. No card position reads it.
     kinds.add(Kind::new("Counter"));
+    // Designation-kind macros (`Monarch`, …) expand to a `DesignationDecl`
+    // in the plugin loader; name-erasing like `Counter`. No card position
+    // reads it — cards reference designations by bare `Ident`.
+    kinds.add(Kind::new("DesignationDecl"));
     // Meta-macro positions: `MacroDef` reads in the plugin loader (serde name
     // "Macro"). No card position ever reads it; registering it keeps one kind
     // registry. Name-erasing like the other struct kinds.
