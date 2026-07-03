@@ -1,0 +1,14 @@
+// A block-arrangement bound satisfiable only by zero blockers — a declared
+// block involves at least one blocker (an arrangement unable to comply is an
+// illegal declaration), so this deontic row is dead [CR#509.1].
+Normal(
+  name: "Reject Zero Block Bound",
+  types: [Creature],
+  power: 1,
+  toughness: 1,
+  abilities: [
+    Static(effects: [
+      Cant(Block(on: Ref(This), count: Eq(0))),
+    ]),
+  ],
+)

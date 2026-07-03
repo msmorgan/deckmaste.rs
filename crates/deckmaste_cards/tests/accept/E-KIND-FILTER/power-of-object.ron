@@ -1,0 +1,9 @@
+// Accept twin of reject/E-KIND-FILTER/power-of-player.ron and
+// allof-mixes-kinds.ron: `StatOf` reading an object's power [CR#109.1].
+Normal(
+  name: "Accept Power Of Object",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Draw(StatOf(This, Power))),
+  ],
+)

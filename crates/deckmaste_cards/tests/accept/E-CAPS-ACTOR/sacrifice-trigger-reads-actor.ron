@@ -1,0 +1,13 @@
+// Accept twin of reject/E-CAPS-ACTOR/destroy-trigger-reads-actor.ron: "that
+// player" off an event that DOES supply a responsible player — a sacrifice
+// [CR#603.2e,608.2k].
+Normal(
+  name: "Accept Sacrifice Actor",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: Performed(verb: "Sacrifice"),
+      effect: By(EventActor, LoseLife(1)),
+    ),
+  ],
+)

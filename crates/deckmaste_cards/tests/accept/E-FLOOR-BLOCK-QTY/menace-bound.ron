@@ -1,0 +1,14 @@
+// Accept twin of reject/E-FLOOR-BLOCK-QTY/zero-block-bound.ron: menace's
+// shape — a bound whose statically-known upper limit is nonzero ("can't be
+// blocked except by two or more") [CR#702.111b,509.1].
+Normal(
+  name: "Accept Menace Bound",
+  types: [Creature],
+  power: 1,
+  toughness: 1,
+  abilities: [
+    Static(effects: [
+      Cant(Block(on: Ref(This), count: Less(2))),
+    ]),
+  ],
+)

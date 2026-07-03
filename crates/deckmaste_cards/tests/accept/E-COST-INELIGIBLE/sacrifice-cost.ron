@@ -1,0 +1,10 @@
+// Accept twin of reject/E-COST-INELIGIBLE/draw-cost.ron and
+// win-game-cost.ron: `Do(Sacrifice(...))` IS a cost-eligible verb
+// [CR#118.3].
+Normal(
+  name: "Accept Sacrifice Cost",
+  types: [Artifact],
+  abilities: [
+    Activated(cost: [Do(Sacrifice(This))], effect: Draw(1)),
+  ],
+)

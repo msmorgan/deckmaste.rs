@@ -1,0 +1,15 @@
+// Twin of Spec.idr `tBadReplaceAmountless`/`tBadThatMuchNoAmount`: an amount
+// anaphor in a Replacement body over an amountless event — a cast carries no
+// numeric payload, so "that much" has no antecedent [CR#107.3,608.2i].
+Normal(
+  name: "Reject Replacement Amount",
+  types: [Enchantment],
+  abilities: [
+    Static(effects: [
+      Replacement(Instead(
+        would: Performed(verb: "Cast"),
+        instead: Draw(ThatMuch),
+      )),
+    ]),
+  ],
+)

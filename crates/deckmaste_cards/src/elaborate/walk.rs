@@ -36,6 +36,7 @@ use deckmaste_core::ManaRider;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::Modification;
 use deckmaste_core::Normalize;
+use deckmaste_core::NotedKind;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::PlayerMod;
 use deckmaste_core::Prevention;
@@ -97,8 +98,10 @@ struct Ctx {
     has_x: bool,
     /// `Targeted` is legal here ([CR#115.1a..115.1e,601.2c]).
     may_target: bool,
-    /// Note keys in scope ([CR#607.2]).
-    notes: Vec<Ident>,
+    /// Note keys in scope, each with the domain its writer declared
+    /// ([CR#607.2] — a linked reader refers only to the kind of
+    /// information the writer noted).
+    notes: Vec<(Ident, NotedKind)>,
 }
 
 impl Ctx {
@@ -123,7 +126,7 @@ impl Ctx {
 #[derive(Debug, Default)]
 struct Intro {
     amount: bool,
-    notes: Vec<Ident>,
+    notes: Vec<(Ident, NotedKind)>,
 }
 
 impl Intro {
@@ -134,7 +137,24 @@ impl Intro {
 }
 
 pub(super) fn card(card: &Card, registries: &Registries) -> Vec<ElabError> {
-    let mut w = Walker::new(registries);
+    walk_card(card, registries, false).0
+}
+
+/// Like [`card`], additionally collecting every resolved binding
+/// ([`super::Resolution`]) — `cargo xtask elaborate --dump`.
+pub(super) fn card_traced(
+    card: &Card,
+    registries: &Registries,
+) -> (Vec<ElabError>, Vec<super::Resolution>) {
+    walk_card(card, registries, true)
+}
+
+fn walk_card(
+    card: &Card,
+    registries: &Registries,
+    trace: bool,
+) -> (Vec<ElabError>, Vec<super::Resolution>) {
+    let mut w = Walker::new(registries, trace);
     match card {
         Card::Normal(face) => w.scoped("face", |w| w.face(face)),
         Card::TwoFaced { front, back, .. } => {
@@ -142,13 +162,30 @@ pub(super) fn card(card: &Card, registries: &Registries) -> Vec<ElabError> {
             w.scoped("back", |w| w.face(back));
         }
     }
-    w.errors
+    (w.errors, w.resolutions)
 }
 
 pub(super) fn token(token: &Token, registries: &Registries) -> Vec<ElabError> {
-    let mut w = Walker::new(registries);
+    walk_token(token, registries, false).0
+}
+
+/// Like [`token`], additionally collecting every resolved binding
+/// ([`super::Resolution`]) — `cargo xtask elaborate --dump`.
+pub(super) fn token_traced(
+    token: &Token,
+    registries: &Registries,
+) -> (Vec<ElabError>, Vec<super::Resolution>) {
+    walk_token(token, registries, true)
+}
+
+fn walk_token(
+    token: &Token,
+    registries: &Registries,
+    trace: bool,
+) -> (Vec<ElabError>, Vec<super::Resolution>) {
+    let mut w = Walker::new(registries, trace);
     w.scoped("token", |w| w.token(token));
-    w.errors
+    (w.errors, w.resolutions)
 }
 
 struct Walker<'a> {
@@ -156,15 +193,22 @@ struct Walker<'a> {
     registries: &'a Registries<'a>,
     errors: Vec<ElabError>,
     path: Vec<String>,
+    /// Whether to collect [`super::Resolution`]s (`--dump`) — the load
+    /// gate's plain walk leaves this off so it never pays for the
+    /// bookkeeping.
+    trace: bool,
+    resolutions: Vec<super::Resolution>,
 }
 
 impl<'a> Walker<'a> {
-    fn new(registries: &'a Registries<'a>) -> Walker<'a> {
+    fn new(registries: &'a Registries<'a>, trace: bool) -> Walker<'a> {
         Walker {
             tables: tables::tables(),
             registries,
             errors: Vec::new(),
             path: Vec::new(),
+            trace,
+            resolutions: Vec::new(),
         }
     }
 
@@ -180,6 +224,17 @@ impl<'a> Walker<'a> {
             path: self.path.join("."),
             message: message.into(),
         });
+    }
+
+    /// Records a successfully-resolved binding when tracing (`--dump`); a
+    /// no-op (not even formatting `f`'s message) otherwise.
+    fn resolve(&mut self, f: impl FnOnce() -> String) {
+        if self.trace {
+            self.resolutions.push(super::Resolution {
+                path: self.path.join("."),
+                description: f(),
+            });
+        }
     }
 
     /// Applies a construct's emitted bind-rule row to the context. `targets`
@@ -564,13 +619,16 @@ impl<'a> Walker<'a> {
                 Intro::default()
             }
             Effect::Noting(noting) => {
+                // A `Noting` stores the OBJECT SET the inner effect touched
+                // ([CR#607.2a] "exiled with" linkage) — its slot is
+                // `NotedKind::Objects`.
                 let mut inner_ctx = ctx.clone();
-                inner_ctx.notes.push(noting.key);
+                inner_ctx.notes.push((noting.key, NotedKind::Objects));
                 let mut intro = Intro::default();
                 self.scoped("Noting", |w| {
                     intro = w.effect(&noting.effect, &inner_ctx);
                 });
-                intro.notes.push(noting.key);
+                intro.notes.push((noting.key, NotedKind::Objects));
                 intro
             }
             Effect::Delayed(triggered) => {
@@ -819,9 +877,9 @@ impl<'a> Walker<'a> {
                 self.designation(name, Kind::Player);
                 Intro::default()
             }
-            PlayerAction::ChooseAndNote(key, _) => Intro {
+            PlayerAction::ChooseAndNote(key, kind) => Intro {
                 amount: false,
-                notes: vec![*key],
+                notes: vec![(*key, *kind)],
             },
             PlayerAction::PutCounters(r, counter, count)
             | PlayerAction::RemoveCounters(r, counter, count) => {
@@ -1036,14 +1094,34 @@ impl<'a> Walker<'a> {
                 self.filter(filter, ctx, Kind::Any)
             }
             Selection::AmongNoted(key, quantity) => {
-                if !ctx.notes.contains(key) {
-                    self.err(
-                        Code::BindNote,
-                        format!(
-                            "AmongNoted reads key {:?} but nothing noted it",
-                            key.as_str()
-                        ),
-                    );
+                match noted_kind(ctx, key) {
+                    Some(NotedKind::Objects) => {
+                        self.resolve(|| {
+                            format!(
+                                "AmongNoted({:?}) -> bound to a prior Objects noting",
+                                key.as_str()
+                            )
+                        });
+                    }
+                    Some(kind) => {
+                        self.err(
+                            Code::KindNoteDomain,
+                            format!(
+                                "AmongNoted({:?}) reads an object set, but the key stores \
+                                 {kind:?} ([CR#607.2])",
+                                key.as_str()
+                            ),
+                        );
+                    }
+                    None => {
+                        self.err(
+                            Code::BindNote,
+                            format!(
+                                "AmongNoted reads key {:?} but nothing noted it",
+                                key.as_str()
+                            ),
+                        );
+                    }
                 }
                 self.quantity(quantity, ctx, false);
                 Kind::Object
@@ -1054,7 +1132,12 @@ impl<'a> Walker<'a> {
                 Kind::Object
             }
             Selection::That => match ctx.that {
-                Some((Cardinality::Many, kind)) => kind,
+                Some((Cardinality::Many, kind)) => {
+                    self.resolve(|| {
+                        format!("group That -> {kind:?} (the enclosing With many-binder)")
+                    });
+                    kind
+                }
                 Some((Cardinality::One, _)) => {
                     self.err(
                         Code::BindThatGroup,
@@ -1082,6 +1165,13 @@ impl<'a> Walker<'a> {
                     );
                     Kind::Any
                 } else {
+                    self.resolve(|| {
+                        format!(
+                            "GetTargets({n}) -> {:?} (target spec {n} of {} announced)",
+                            ctx.targets[*n],
+                            ctx.targets.len()
+                        )
+                    });
                     ctx.targets[*n]
                 }
             }
@@ -1118,6 +1208,9 @@ impl<'a> Walker<'a> {
             Reference::You | Reference::Opponent => Kind::Player,
             Reference::It => {
                 if let Some(kind) = ctx.it {
+                    self.resolve(|| {
+                        format!("It -> {kind:?} (the enclosing loop/candidate binder)")
+                    });
                     kind
                 } else {
                     self.err(
@@ -1138,24 +1231,36 @@ impl<'a> Walker<'a> {
                     );
                     Kind::Any
                 } else {
+                    self.resolve(|| {
+                        format!(
+                            "Target({n}) -> {:?} (target spec {n} of {} announced)",
+                            ctx.targets[*n],
+                            ctx.targets.len()
+                        )
+                    });
                     ctx.targets[*n]
                 }
             }
             Reference::EventObject => {
-                if !ctx.caps.object {
-                    if ctx.in_event {
-                        self.err(
-                            Code::CapsObject,
-                            "EventObject read where the event supplies no object",
-                        );
-                    } else {
-                        self.err(Code::BindEvent, "EventObject read outside any event body");
-                    }
+                if ctx.caps.object {
+                    self.resolve(|| "EventObject -> Object (the enclosing event's object)".into());
+                } else if ctx.in_event {
+                    self.err(
+                        Code::CapsObject,
+                        "EventObject read where the event supplies no object",
+                    );
+                } else {
+                    self.err(Code::BindEvent, "EventObject read outside any event body");
                 }
                 Kind::Object
             }
             Reference::EventPatient => {
                 if let Some(kind) = ctx.caps.patient {
+                    self.resolve(|| {
+                        format!(
+                            "EventPatient -> {kind:?} (the enclosing event's fixed patient kind)"
+                        )
+                    });
                     kind
                 } else {
                     if ctx.in_event {
@@ -1170,36 +1275,41 @@ impl<'a> Walker<'a> {
                 }
             }
             Reference::EventActor => {
-                if !ctx.caps.actor {
-                    if ctx.in_event {
-                        self.err(
-                            Code::CapsActor,
-                            "EventActor read where the event supplies no actor",
-                        );
-                    } else {
-                        self.err(Code::BindEvent, "EventActor read outside any event body");
-                    }
+                if ctx.caps.actor {
+                    self.resolve(|| "EventActor -> Player (the enclosing event's actor)".into());
+                } else if ctx.in_event {
+                    self.err(
+                        Code::CapsActor,
+                        "EventActor read where the event supplies no actor",
+                    );
+                } else {
+                    self.err(Code::BindEvent, "EventActor read outside any event body");
                 }
                 Kind::Player
             }
             Reference::DefendingPlayer => {
-                if !ctx.caps.defender {
-                    if ctx.in_event {
-                        self.err(
-                            Code::CapsDefender,
-                            "DefendingPlayer read where no combat onset supplies one",
-                        );
-                    } else {
-                        self.err(
-                            Code::BindEvent,
-                            "DefendingPlayer read outside any event body",
-                        );
-                    }
+                if ctx.caps.defender {
+                    self.resolve(|| {
+                        "DefendingPlayer -> Player (the enclosing combat onset's defender)".into()
+                    });
+                } else if ctx.in_event {
+                    self.err(
+                        Code::CapsDefender,
+                        "DefendingPlayer read where no combat onset supplies one",
+                    );
+                } else {
+                    self.err(
+                        Code::BindEvent,
+                        "DefendingPlayer read outside any event body",
+                    );
                 }
                 Kind::Player
             }
             Reference::That => match ctx.that {
-                Some((Cardinality::One, kind)) => kind,
+                Some((Cardinality::One, kind)) => {
+                    self.resolve(|| format!("That -> {kind:?} (the enclosing With one-binder)"));
+                    kind
+                }
                 Some((Cardinality::Many, _)) => {
                     self.err(
                         Code::BindThat,
@@ -1218,7 +1328,18 @@ impl<'a> Walker<'a> {
             },
             // Engine-seam references: named-role and linked-value bindings
             // are resolved by engine machinery this walk doesn't model.
-            Reference::Bound(_) | Reference::Linked(_) => Kind::Any,
+            Reference::Bound(name) => {
+                self.resolve(|| {
+                    format!("Bound({name:?}) -> resolved by engine machinery at runtime")
+                });
+                Kind::Any
+            }
+            Reference::Linked(name) => {
+                self.resolve(|| {
+                    format!("Linked({name:?}) -> resolved by engine machinery at runtime")
+                });
+                Kind::Any
+            }
             Reference::ControllerOf(inner) | Reference::OwnerOf(inner) => {
                 self.reference(inner, ctx, Kind::Object);
                 Kind::Player
@@ -1353,7 +1474,9 @@ impl<'a> Walker<'a> {
     fn counter_ref(&mut self, counter: &CounterRef, carrier: Kind) {
         self.counter_declared(counter);
         let scope = self.tables.counter_scope(counter.as_str());
-        if !carrier.compatible_with(scope) {
+        if carrier.compatible_with(scope) {
+            self.resolve(|| format!("counter {:?} -> {scope:?}-borne", counter.as_str()));
+        } else {
             self.err(
                 Code::KindCounterScope,
                 format!(
@@ -1366,16 +1489,18 @@ impl<'a> Walker<'a> {
     }
 
     fn designation(&mut self, name: &Ident, carrier: Kind) {
-        if let Some(scope) = self.tables.designation_scope(name.as_str())
-            && !carrier.compatible_with(scope)
-        {
-            self.err(
-                Code::KindDesignationScope,
-                format!(
-                    "designation {:?} is {scope:?}-borne but the carrier is {carrier:?}",
-                    name.as_str()
-                ),
-            );
+        if let Some(scope) = self.tables.designation_scope(name.as_str()) {
+            if carrier.compatible_with(scope) {
+                self.resolve(|| format!("designation {:?} -> {scope:?}-borne", name.as_str()));
+            } else {
+                self.err(
+                    Code::KindDesignationScope,
+                    format!(
+                        "designation {:?} is {scope:?}-borne but the carrier is {carrier:?}",
+                        name.as_str()
+                    ),
+                );
+            }
         }
     }
 
@@ -1386,7 +1511,9 @@ impl<'a> Walker<'a> {
     fn count(&mut self, count: &Count, ctx: &Ctx) {
         match count {
             Count::X => {
-                if !ctx.has_x {
+                if ctx.has_x {
+                    self.resolve(|| "X -> bound to the carrying cost's {X}".into());
+                } else {
                     self.err(
                         Code::CostX,
                         "X read where the carrying cost declares no {X}",
@@ -1413,7 +1540,9 @@ impl<'a> Walker<'a> {
             }
             Count::Half(_, inner) => self.count(inner, ctx),
             Count::ThatMuch => {
-                if !ctx.amount {
+                if ctx.amount {
+                    self.resolve(|| "ThatMuch -> bound to the in-scope amount antecedent".into());
+                } else {
                     self.err(
                         Code::CapsAmount,
                         "ThatMuch read with no amount antecedent in scope",
@@ -1421,7 +1550,9 @@ impl<'a> Walker<'a> {
                 }
             }
             Count::Allotment => {
-                if !ctx.allotment {
+                if ctx.allotment {
+                    self.resolve(|| "Allotment -> bound to the enclosing DivideAmong share".into());
+                } else {
                     self.err(
                         Code::BindAllotment,
                         "Allotment read outside a DivideAmong body",
@@ -1438,14 +1569,32 @@ impl<'a> Walker<'a> {
                     );
                 }
             }
-            Count::Noted(key) => {
-                if !ctx.notes.contains(key) {
+            Count::Noted(key) => match noted_kind(ctx, key) {
+                Some(NotedKind::Number) => {
+                    self.resolve(|| {
+                        format!(
+                            "Noted({:?}) -> bound to a prior Number noting",
+                            key.as_str()
+                        )
+                    });
+                }
+                Some(kind) => {
+                    self.err(
+                        Code::KindNoteDomain,
+                        format!(
+                            "Noted({:?}) reads a number, but the key stores {kind:?} \
+                             ([CR#607.2])",
+                            key.as_str()
+                        ),
+                    );
+                }
+                None => {
                     self.err(
                         Code::BindNote,
                         format!("Noted reads key {:?} but nothing noted it", key.as_str()),
                     );
                 }
-            }
+            },
             Count::Literal(_) => {}
             Count::Expanded(e) => self.count(&e.value, ctx),
         }
@@ -1485,6 +1634,27 @@ impl<'a> Walker<'a> {
             self.err(
                 Code::FloorTargetQty,
                 "a target slot cannot target zero things ([CR#115.1])",
+            );
+        }
+    }
+
+    /// [CR#509.1]: a declared block involves at least one blocker (an
+    /// arrangement unable to comply is an illegal declaration), so a
+    /// block-arrangement bound whose statically-known upper limit is zero
+    /// (`Eq(0)`/`AtMost(0)`/`Less(1)`) can never match a legal block — the
+    /// deontic row is dead. The set-level twin of `quantity`'s zero-target
+    /// floor ([CR#115.1]); menace's `Less(2)` ([CR#702.111b]) has upper
+    /// limit 1 and passes.
+    fn block_qty_floor(&mut self, bound: &CountBound) {
+        let upper = match bound {
+            CountBound::Eq(c) | CountBound::AtMost(c) => c.literal_value(),
+            CountBound::Less(c) => c.literal_value().map(|n| n.saturating_sub(1)),
+            CountBound::AtLeast(_) | CountBound::Greater(_) => None,
+        };
+        if upper == Some(0) {
+            self.err(
+                Code::FloorBlockQty,
+                "a block-arrangement bound satisfiable only by zero blockers ([CR#509.1])",
             );
         }
     }
@@ -1833,6 +2003,7 @@ impl<'a> Walker<'a> {
                 self.filter(on, ctx, Kind::Object);
                 if let Some(bound) = count {
                     self.count_bound(bound, ctx);
+                    self.block_qty_floor(bound);
                 }
             }
             DeonticAction::Target { by, on } => {
@@ -1871,6 +2042,16 @@ impl<'a> Walker<'a> {
             Duration::ForAsLongAs(condition) => self.condition(condition, ctx),
         }
     }
+}
+
+/// The declared domain of `key` in the running context, if any — the most
+/// recent noting wins ([CR#607.2]).
+fn noted_kind(ctx: &Ctx, key: &Ident) -> Option<NotedKind> {
+    ctx.notes
+        .iter()
+        .rev()
+        .find(|(k, _)| k == key)
+        .map(|&(_, kind)| kind)
 }
 
 /// The table key of a player verb — its variant name, looked through any

@@ -1,0 +1,13 @@
+// A noted key read as a NUMBER where its writer declared a COLOR slot — a
+// linked reader refers only to the kind of information the writer noted
+// [CR#607.2].
+Normal(
+  name: "Reject Note Domain",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Sequence([
+      By(You, ChooseAndNote("K", Color)),
+      Draw(Noted("K")),
+    ])),
+  ],
+)

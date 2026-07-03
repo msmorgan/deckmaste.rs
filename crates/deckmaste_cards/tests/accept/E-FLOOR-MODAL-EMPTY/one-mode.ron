@@ -1,0 +1,12 @@
+// Accept twin of reject/E-FLOOR-MODAL-EMPTY/no-modes.ron: a modal effect
+// offering at least one mode [CR#700.2].
+Normal(
+  name: "Accept Modal Nonempty",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Modal(
+      choose: (count: 1, up_to: true),
+      modes: [(effect: Draw(1))],
+    )),
+  ],
+)

@@ -1,0 +1,13 @@
+// Accept twin of reject/E-KIND-NOTE-DOMAIN/noted-number-read-of-color.ron:
+// the reader's domain matches the writer's declared slot kind — a Number
+// noting read as a number [CR#607.2].
+Normal(
+  name: "Accept Note Domain",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Sequence([
+      By(You, ChooseAndNote("K", Number)),
+      Draw(Noted("K")),
+    ])),
+  ],
+)

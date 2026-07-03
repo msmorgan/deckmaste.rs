@@ -14,9 +14,13 @@
 //! checker-rule manifest) and a twin reject fixture under
 //! `crates/deckmaste_cards/tests/reject/`.
 //!
-//! In this ticket the elaborator runs behind `cargo xtask validate`
-//! (`validate::validate_plugin`); wiring into `Plugin::load` with the
-//! deny/warn rollout is the `cards-elab-load-gate` ticket.
+//! Runs both behind `cargo xtask validate` (`validate::validate_plugin`,
+//! batch reporting over a whole plugin) AND, since `cards-elab-load-gate`, as
+//! the load-time GATE itself: `Plugin::load`/`load_with_prelude` walk every
+//! finished card/token eagerly (`plugin::elaborate_finished`) with a staged
+//! deny/warn rollout keyed on the plugin directory's own name
+//! ([`Stage::for_root`]) — a live engine can never resolve a card that would
+//! panic on an unbound reference.
 
 pub mod tables;
 mod walk;
@@ -80,6 +84,10 @@ pub enum Code {
     KindCounterUndeclared,
     /// A designation used on a carrier its scope forbids ([CR#109.3]).
     KindDesignationScope,
+    /// A noted key read with a domain its declared kind doesn't store — a
+    /// linked reader refers only to the kind of information its writer
+    /// noted ([CR#607.2]).
+    KindNoteDomain,
     /// A card/token face with no card types ([CR#109.3]).
     FloorTypes,
     /// A subtype whose governing card type is absent from the face
@@ -95,6 +103,10 @@ pub enum Code {
     FloorRange,
     /// A target slot whose quantity permits zero targets ([CR#115.1]).
     FloorTargetQty,
+    /// A block-arrangement bound satisfiable only by zero blockers — a
+    /// declared block involves at least one, so the deontic row is dead
+    /// ([CR#509.1]).
+    FloorBlockQty,
     /// A modal choose-count exceeding the number of modes ([CR#700.2d]).
     FloorModalCount,
     /// A modal effect with no modes ([CR#700.2]).
@@ -112,7 +124,7 @@ pub enum Code {
 impl Code {
     /// Every active code, in manifest order — the drift pin against the
     /// emitted checker-rule manifest.
-    pub const ALL: [Code; 29] = [
+    pub const ALL: [Code; 31] = [
         Code::BindTarget,
         Code::BindThat,
         Code::BindThatGroup,
@@ -130,6 +142,7 @@ impl Code {
         Code::KindCounterScope,
         Code::KindCounterUndeclared,
         Code::KindDesignationScope,
+        Code::KindNoteDomain,
         Code::FloorTypes,
         Code::FloorSubtype,
         Code::FloorLoyalty,
@@ -137,6 +150,7 @@ impl Code {
         Code::FloorTokenTypes,
         Code::FloorRange,
         Code::FloorTargetQty,
+        Code::FloorBlockQty,
         Code::FloorModalCount,
         Code::FloorModalEmpty,
         Code::FloorDivide,
@@ -166,6 +180,7 @@ impl Code {
             Code::KindCounterScope => "E-KIND-COUNTER-SCOPE",
             Code::KindCounterUndeclared => "E-KIND-COUNTER-UNDECLARED",
             Code::KindDesignationScope => "E-KIND-DESIGNATION-SCOPE",
+            Code::KindNoteDomain => "E-KIND-NOTE-DOMAIN",
             Code::FloorTypes => "E-FLOOR-TYPES",
             Code::FloorSubtype => "E-FLOOR-SUBTYPE",
             Code::FloorLoyalty => "E-FLOOR-LOYALTY",
@@ -173,6 +188,7 @@ impl Code {
             Code::FloorTokenTypes => "E-FLOOR-TOKEN-TYPES",
             Code::FloorRange => "E-FLOOR-RANGE",
             Code::FloorTargetQty => "E-FLOOR-TARGET-QTY",
+            Code::FloorBlockQty => "E-FLOOR-BLOCK-QTY",
             Code::FloorModalCount => "E-FLOOR-MODAL-COUNT",
             Code::FloorModalEmpty => "E-FLOOR-MODAL-EMPTY",
             Code::FloorDivide => "E-FLOOR-DIVIDE",
@@ -244,6 +260,85 @@ pub fn elaborate_token(token: &Token, registries: &Registries) -> Result<(), Vec
     if errors.is_empty() { Ok(()) } else { Err(errors) }
 }
 
+/// The staged `Plugin::load` rollout (`cards-elab-load-gate`): whether a
+/// plugin's malformed cards/tokens fail its WHOLE load, or are individually
+/// skipped with a counted warning. Computed from the plugin directory's own
+/// name — a property of the load call, not a global switch: `wizards` (the
+/// generated corpus) warns for one milestone; every hand-authored plugin —
+/// and any other directory, including an ad hoc test tempdir — denies.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Stage {
+    /// Any elaboration failure fails the whole
+    /// `Plugin::load`/`load_with_prelude` call outright.
+    Deny,
+    /// An elaboration failure is skipped — the offending card/token is never
+    /// reachable via `Plugin::card`/`Plugin::token` — but the load itself
+    /// still succeeds; findings accumulate in `Plugin::elab_report`.
+    Warn,
+}
+
+impl Stage {
+    /// `root`'s own final path component decides: only a directory literally
+    /// named `wizards` warns. Preserved by copying a plugin elsewhere (e.g. a
+    /// temp-dir drift demonstration) as long as the directory keeps its name.
+    #[must_use]
+    pub fn for_root(root: &std::path::Path) -> Stage {
+        if root.file_name().and_then(|f| f.to_str()) == Some("wizards") {
+            Stage::Warn
+        } else {
+            Stage::Deny
+        }
+    }
+}
+
+/// One binding resolved while walking a card — the review-facing twin of an
+/// [`ElabError`]: not a violation, but which antecedent an anaphor bound to.
+/// Surfaced by `cargo xtask elaborate --dump <card>`
+/// ([`elaborate_with_resolutions`]); the load-gate's plain [`elaborate`] never
+/// pays for collecting it.
+#[derive(Debug, Clone)]
+pub struct Resolution {
+    /// The same breadcrumb shape as [`ElabError::path`].
+    pub path: String,
+    /// What the anaphor at `path` resolved to.
+    pub description: String,
+}
+
+impl fmt::Display for Resolution {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}: {}", self.path, self.description)
+    }
+}
+
+/// Elaborates one card like [`elaborate`], additionally collecting every
+/// resolved binding (target slots, `That`/`It`, event roles, notes,
+/// allotment, `{X}`, counter/designation scopes) for review.
+#[must_use = "dropping the result discards both the elaboration outcome and the resolutions"]
+pub fn elaborate_with_resolutions(
+    card: &Card,
+    registries: &Registries,
+) -> (Result<ElabCard, Vec<ElabError>>, Vec<Resolution>) {
+    let (errors, resolutions) = walk::card_traced(card, registries);
+    let result = if errors.is_empty() {
+        Ok(ElabCard { card: card.clone() })
+    } else {
+        Err(errors)
+    };
+    (result, resolutions)
+}
+
+/// Elaborates one token like [`elaborate_token`], additionally collecting
+/// every resolved binding for review.
+#[must_use = "dropping the result discards both the elaboration outcome and the resolutions"]
+pub fn elaborate_token_with_resolutions(
+    token: &Token,
+    registries: &Registries,
+) -> (Result<(), Vec<ElabError>>, Vec<Resolution>) {
+    let (errors, resolutions) = walk::token_traced(token, registries);
+    let result = if errors.is_empty() { Ok(()) } else { Err(errors) };
+    (result, resolutions)
+}
+
 #[cfg(test)]
 mod manifest_tests {
     use super::*;
@@ -262,5 +357,43 @@ mod manifest_tests {
             .collect();
         let codes: Vec<&str> = Code::ALL.iter().map(|c| c.as_str()).collect();
         assert_eq!(codes, manifest, "Code::ALL must mirror checker-rules.ron");
+    }
+}
+
+#[cfg(test)]
+mod stage_tests {
+    use std::path::Path;
+
+    use super::Stage;
+
+    /// Only a directory literally named `wizards` warns — the staged
+    /// rollout table names hand-authored plugins (and everything else,
+    /// including a test tempdir) as deny.
+    #[test]
+    fn only_a_directory_named_wizards_warns() {
+        assert_eq!(
+            Stage::for_root(Path::new("/some/where/plugins/wizards")),
+            Stage::Warn
+        );
+        // Preserved by copying the plugin elsewhere, as long as the
+        // directory keeps its name (the temp-copy drift demonstration).
+        assert_eq!(
+            Stage::for_root(Path::new("/tmp/xyz123/wizards")),
+            Stage::Warn
+        );
+        for other in [
+            "/some/where/plugins/builtin",
+            "/some/where/plugins/canon",
+            "/some/where/plugins/testing",
+            "/some/where/plugins/demo",
+            "/tmp/xyz123",
+            "/tmp/xyz123/not-wizards",
+        ] {
+            assert_eq!(
+                Stage::for_root(Path::new(other)),
+                Stage::Deny,
+                "{other} must deny"
+            );
+        }
     }
 }

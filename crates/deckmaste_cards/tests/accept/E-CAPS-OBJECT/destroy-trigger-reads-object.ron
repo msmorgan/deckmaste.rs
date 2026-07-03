@@ -1,0 +1,13 @@
+// Accept twin of reject/E-CAPS-OBJECT/upkeep-trigger-reads-object.ron: "that
+// card" off an event that DOES supply an object — a destruction
+// [CR#603.2e,608.2k].
+Normal(
+  name: "Accept Destroy Object",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: Performed(verb: "Destroy"),
+      effect: Move(EventObject, Exile),
+    ),
+  ],
+)

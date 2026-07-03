@@ -1,0 +1,13 @@
+// Accept twin of reject/E-BIND-EVENT/event-object-outside-event.ron: an
+// event-role reference INSIDE its event's body [CR#603.2e,608.2k]. A
+// zone-move (`Enters`) supplies an object.
+Normal(
+  name: "Accept Event Object Bound",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: Enters(Creature),
+      effect: Destroy(EventObject),
+    ),
+  ],
+)

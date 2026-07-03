@@ -1,0 +1,9 @@
+// Accept twin of reject/E-BIND-TARGET/target-index-out-of-range.ron: reading
+// the ONE announced target slot [CR#115.3,601.2c].
+Normal(
+  name: "Accept Target Range",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), 1))),
+  ],
+)

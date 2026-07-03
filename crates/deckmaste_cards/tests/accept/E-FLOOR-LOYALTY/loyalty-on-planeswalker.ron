@@ -1,0 +1,7 @@
+// Accept twin of reject/E-FLOOR-LOYALTY/loyalty-on-creature.ron: printed
+// loyalty on a Planeswalker face [CR#209].
+Normal(
+  name: "Accept Loyalty",
+  types: [Planeswalker],
+  loyalty: 3,
+)

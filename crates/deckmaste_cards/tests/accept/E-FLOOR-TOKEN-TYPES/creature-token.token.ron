@@ -1,0 +1,5 @@
+// Accept twin of reject/E-FLOOR-TOKEN-TYPES/instant-token.token.ron: a token
+// spec carrying a permanent type [CR#111.1,110.4].
+Token(
+  types: [Creature],
+)

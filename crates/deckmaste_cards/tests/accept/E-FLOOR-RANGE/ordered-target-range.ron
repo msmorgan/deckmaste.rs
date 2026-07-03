@@ -1,0 +1,12 @@
+// Accept twin of reject/E-FLOOR-RANGE/inverted-target-range.ron: an ordered
+// literal range ("between 2 and 5") [CR#115.6].
+Normal(
+  name: "Accept Ordered Range",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Targeted(
+      targets: [Target(Between(2, 5), Creature)],
+      effect: Destroy(Target(0)),
+    )),
+  ],
+)
