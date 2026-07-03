@@ -19,7 +19,6 @@ use crate::Supertype;
 use crate::SupportsMacros;
 use crate::TurnMarker;
 use crate::Type;
-use crate::ability::is_false;
 use crate::replacement::Prevention;
 use crate::replacement::Replacement;
 
@@ -40,6 +39,13 @@ pub enum Duration {
     /// stopped (including losing sight of a phased-out object,
     /// [CR#702.26f]) it never resumes.
     ForAsLongAs(Condition),
+    /// In force while the CARRYING instruction's event executes — an
+    /// instruction-scoped rider duration: "Destroy target creature. It can't
+    /// be regenerated." rides the destroy event itself ([CR#701.19c] — a
+    /// can't-be-regenerated effect causes regeneration shields to not be
+    /// applied to that destruction). The footing for the `DestroyNoRegen`
+    /// macro (macro-first-wave).
+    ForThisEvent,
     /// For the rest of the game — the no-stated-duration default ([CR#611.2a]).
     EndOfGame,
 }
@@ -228,13 +234,13 @@ impl Modification {
 pub enum CostChange {
     Increase(Vec<CostComponent>),
     Reduce(Vec<CostComponent>),
-    /// "As an additional cost …" ([CR#118.8]); `optional` is the kicker
-    /// shape ("you may pay an additional …", [CR#118.8b]), announced at
-    /// [CR#601.2b].
+    /// A MANDATORY "as an additional cost …" ([CR#118.8]). The optional
+    /// kicker-family shape ("you may pay an additional …", [CR#118.8b])
+    /// is NOT a pipeline step — it is a declared
+    /// [`OptionalCost`](crate::OptionalCost) (`StaticEffect::CostOption`),
+    /// announced at [CR#601.2b] and folded into the total at [CR#601.2f].
     Additional {
         components: Vec<CostComponent>,
-        #[serde(default, skip_serializing_if = "is_false")]
-        optional: bool,
     },
     /// A COUNT-SCALED change: the inner change applies `times` times at
     /// total-cost time ([CR#601.2f]). Covers both polarities — "costs {1}
@@ -284,6 +290,13 @@ pub enum StaticEffect {
     Deontic(Deontic),
     /// A cost modifier ([CR#118.7]).
     CostModifier { of: Filter, change: CostChange },
+    /// A declared OPTIONAL cost on this object's own casting
+    /// ([CR#118.8b,601.2b]) — the kicker/multikicker/buyback identity
+    /// ([`OptionalCost`](crate::OptionalCost)): "you may pay an additional
+    /// [cost] as you cast this spell", read back through the tag by
+    /// `Condition::PaidCost` / `Count::TimesPaid` / `Filter::WasPaidWith`
+    /// ([CR#702.33d..702.33e,607.2]).
+    CostOption(crate::OptionalCost),
     /// A trigger multiplier ([CR#603.2d] — "triggers additional times"):
     /// Panharmonicon, Yarok, and the trigger half of Doubling Season. A
     /// triggered ability whose trigger matches `cause`, carried by a permanent
@@ -735,5 +748,16 @@ mod tests {
             "compartment tag leaked: {written}"
         );
         assert_eq!(read(&written), parsed);
+    }
+
+    /// `Duration::ForThisEvent` — the instruction-scoped rider duration
+    /// ("It can't be regenerated.", [CR#701.19c]) — reads bare and
+    /// round-trips.
+    #[test]
+    fn for_this_event_round_trips() {
+        let v: Duration = crate::ron::options().from_str("ForThisEvent").unwrap();
+        assert_eq!(v, Duration::ForThisEvent);
+        let written = crate::ron::options().to_string(&v).unwrap();
+        assert_eq!(written, "ForThisEvent");
     }
 }

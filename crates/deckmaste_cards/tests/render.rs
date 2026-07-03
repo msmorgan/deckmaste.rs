@@ -461,6 +461,7 @@ fn renders_named_predefined_token() {
                 PlayerAction::Create(
                     Count::Literal(1),
                     TokenSpec::Named(TokenName::from("Treasure")),
+                    vec![],
                 ),
             )),
         })],
@@ -477,7 +478,11 @@ fn renders_named_predefined_token() {
         abilities: vec![Ability::Spell(deckmaste_core::SpellAbility {
             effect: Effect::Act(Action::By(
                 Reference::You,
-                PlayerAction::Create(Count::Literal(2), TokenSpec::Named(TokenName::from("Food"))),
+                PlayerAction::Create(
+                    Count::Literal(2),
+                    TokenSpec::Named(TokenName::from("Food")),
+                    vec![],
+                ),
             )),
         })],
         ..CardFace::default()
@@ -690,7 +695,7 @@ fn renders_create_one_token() {
         abilities: vec![Ability::Spell(SpellAbility {
             effect: Effect::Act(Action::By(
                 Reference::You,
-                PlayerAction::Create(Count::Literal(1), TokenSpec::Token(token)),
+                PlayerAction::Create(Count::Literal(1), TokenSpec::Token(token), vec![]),
             )),
         })],
         ..CardFace::default()
@@ -732,7 +737,7 @@ fn renders_create_two_tokens() {
         abilities: vec![Ability::Spell(SpellAbility {
             effect: Effect::Act(Action::By(
                 Reference::You,
-                PlayerAction::Create(Count::Literal(2), TokenSpec::Token(token)),
+                PlayerAction::Create(Count::Literal(2), TokenSpec::Token(token), vec![]),
             )),
         })],
         ..CardFace::default()

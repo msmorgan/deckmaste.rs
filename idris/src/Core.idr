@@ -844,6 +844,7 @@ mutual
       EventAgg : AggregateOp -> (q : EventQuery b) -> {auto amt : eventQueryHasAmount q = True} -> Count b
       Damage : Reference b AnObject -> Count b  -- marked damage on r ([CR#120.3]); the lethal-damage SBA reads `Compare (Damage This) GreaterEq (StatOf This Toughness)`
       CountersOn : (c : CounterKind) -> Reference b (counterScope c) -> Count b   -- number of [kind] counters on r (object or player, per `counterScope`)
+      TimesPaid : (tag : String) -> Count b     -- how many times the tagged optional cost (`CostOption`) was paid (multikicker, [CR#702.33c..702.33d]). Rust: Count::TimesPaid(CostTag)
       PlayerStatOf : Reference b APlayer -> PlayerAttr -> Count b   -- a player's numeric attribute (`Life`/`HandSize`) — the player-side twin of `StatOf`. Sugar: `lifeTotal`/`handSize`.
       Plus  : Count b -> Count b -> Count b                -- arithmetic on values
       Minus : Count b -> Count b -> Count b
@@ -902,7 +903,10 @@ mutual
       -- `And [IsKind Spell, Targets (SameAs You)]`; "single-target spell" = `TargetCount Eq (^1)`.
       Targets : Predicate b k -> Predicate b AnObject
       TargetCount : Cmp -> Count b -> Predicate b AnObject
-      WasKicked : Predicate b AnObject           -- FLAG: kicker as a boolean flag on the object (no cost-mode model)
+      -- the candidate's TAGGED optional cost (`CostOption`) was paid ("a kicked spell",
+      -- [CR#702.33d..702.33e]) — the cost-mode read that retires the old `WasKicked` boolean flag.
+      -- Rust: Filter::WasPaidWith(CostTag).
+      WasPaidWith : (tag : String) -> Predicate b AnObject
       -- ANAPHOR: "the candidate has the chosen characteristic" — the chosen color (Iona: "spells of the
       -- chosen color") or creature type (Cavern: "a creature spell of the chosen type"). Gated on an
       -- as-enters CHARACTERISTIC choice being in scope (`IsCharDomain (chosenKind b)`); the engine
@@ -937,6 +941,10 @@ mutual
       -- "[r] is LEGALLY attached" ([CR#701.3b,303.4d]): has a host that passes the attach-legality
       -- predicate. The Aura graveyard SBA reads its negation (`Not (LegallyAttached This)`).
       LegallyAttached : Reference b AnObject -> Condition b
+      -- this object's tagged optional cost (`CostOption`) was paid ("if it was kicked",
+      -- [CR#702.33d]; buyback's "if the buyback cost was paid", [CR#702.27a]) — the [CR#607]
+      -- linked read. Rust: Condition::PaidCost(CostTag).
+      PaidCost : (tag : String) -> Condition b
       -- ANAPHOR (modal): "the chosen MODE is index i" — reads an as-enters `AMode` choice ([CR#614.12]).
       -- `i` is bounded by the choice's mode count `n` (recovered from `chosenKind b = Just (AMode n)`),
       -- so `ChosenIs 2` on a 2-mode card is rejected. Each siege ability gates on it: `If (ChosenIs k) …`.
@@ -1343,7 +1351,6 @@ mutual
       Reduce     : ManaCost -> CostChange b                 -- "costs {…} less" — a mana amount only (the mana-numeric layer [CR#118.7a])
       Increase   : ManaCost -> CostChange b                 -- "costs {…} more" — likewise mana-only; non-mana extras go through `Additional`
       Additional : List (Cost b) -> CostChange b            -- mandatory "as an additional cost, …"; may be NON-mana (sacrifice/discard/life) [CR#118.8]
-      Optional   : List (Cost b) -> CostChange b            -- Additional's baby brother: "you may pay …" (the kicker/buyback shape) [CR#118.8b]
       ScaledBy   : CostChange b -> Count b -> CostChange b  -- the change applied once per unit of the count (affinity)
 
   -- which pips of a spell's total cost an alternative payment ([CR#601.2]) may cover.
@@ -1713,6 +1720,12 @@ mutual
       -- "Instant/sorcery spells you cast cost {1} less" = `CostModifier (And […, ControlledBy you]) (Reduce
       -- [^1])`; affinity is a SELF modifier `CostModifier (SameAs This) (ScaledBy (Reduce …) (CountOf …))`.
       CostModifier : Predicate b AnObject -> CostChange b -> StaticEffect b
+      -- a DECLARED OPTIONAL COST on this object's own casting ([CR#118.8b,601.2b]) — the kicker/
+      -- multikicker/buyback identity: one tag, read back by `PaidCost`/`TimesPaid`/`WasPaidWith`
+      -- ([CR#702.33d..702.33e,607]). `repeatable` = multikicker's "any number of times"
+      -- ([CR#702.33c]). Replaces `CostChange.Optional` (the untagged, unreadable flag).
+      -- Rust: StaticEffect::CostOption(OptionalCost{components, tag, repeatable}).
+      CostOption : (tag : String) -> List (Cost b) -> {default False repeatable : Bool} -> StaticEffect b
       -- ALTERNATIVE PAYMENT of individual cost pips ([CR#601.2] — NOT mana production, NOT a `CostChange` reduction):
       -- "for each [pips] of THIS spell's total cost, you may [PayAct] rather than pay that mana." A static that
       -- functions while this is being cast ([CR#702.51a] convoke / [CR#702.66a] delve / [CR#702.126a] improvise; Avatar's

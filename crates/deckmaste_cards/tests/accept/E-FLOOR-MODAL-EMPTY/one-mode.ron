@@ -5,7 +5,7 @@ Normal(
   types: [Sorcery],
   abilities: [
     Spell(effect: Modal(
-      choose: (count: 1, up_to: true),
+      choose: (count: Exactly(1), up_to: true),
       modes: [(effect: Draw(1))],
     )),
   ],

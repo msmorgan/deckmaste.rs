@@ -258,8 +258,8 @@ card_LilianaOfTheVeil = Normal $ ^:
 
 -- Tide Shaper — layers + kicker. The kicked ETB makes a target land an Island for a
 -- duration (`Alter Subtypes (Add …)` + ForAsLongAs); a conditional static grants +1/+1 while an
--- opponent controls an Island (`While` + `exists`). FLAG: kicker is the WasKicked
--- boolean (no cost-mode model).
+-- opponent controls an Island (`While` + `exists`). Kicker is the cost-mode model: a tagged
+-- `CostOption` ([CR#702.33a]) read back by `PaidCost` ([CR#702.33d,607]).
 export
 card_TideShaper : Card
 card_TideShaper = Normal $ ^:
@@ -268,8 +268,9 @@ card_TideShaper = Normal $ ^:
   , types := [Creature]
   , subtypes := [^Merfolk, ^Wizard]
   , abilities :=
-      [ Triggered (thisEnters)
-          (If (Matches This WasKicked)
+      [ Static (CostOption "Kicker" [Mana [^1]])
+      , Triggered (thisEnters)
+          (If (PaidCost "Kicker")
               (Targeted [Target (^1) (hasType Land)]
                 (Continuously (ForAsLongAs (Matches This (InZone Battlefield)))
                               (Modify (GetTarget 0) (Alter Subtypes (Add (^Island)))))))

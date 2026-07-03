@@ -756,6 +756,7 @@ mod get_targets_tests {
                 Effect::Act(deckmaste_core::Action::Move(
                     deckmaste_core::Reference::This,
                     deckmaste_core::Destination::Zone(deckmaste_core::Zone::Exile),
+                    vec![],
                 )),
             )),
         });
@@ -768,6 +769,7 @@ mod get_targets_tests {
                     body: Box::new(Effect::Act(deckmaste_core::Action::Move(
                         deckmaste_core::Reference::This,
                         deckmaste_core::Destination::Zone(deckmaste_core::Zone::Exile),
+                        vec![],
                     ))),
                 }),
             )),

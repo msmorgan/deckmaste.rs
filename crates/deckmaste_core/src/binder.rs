@@ -67,6 +67,13 @@ pub enum Binder {
         /// graveyard).
         #[serde(default = "from_library", skip_serializing_if = "is_from_library")]
         from: Vec<Zone>,
+        /// The explicit WHIFF branch ([CR#701.23b] — a search may fail to
+        /// find): what happens when nothing is found. Whiff semantics are
+        /// DATA — a whiffed search skips the product-dependent body, and the
+        /// branch here runs instead; it elaborates WITHOUT the product
+        /// binding, so reading the search's `That` inside it is a load error.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        if_none: Option<Box<crate::Effect>>,
     },
     /// The chooser picks a quantity of matches — Many → `That` (group).
     /// ("choose two cards") Same `by` default as
@@ -101,6 +108,11 @@ pub enum Binder {
         /// The zones searched (default `[Library]`).
         #[serde(default = "from_library", skip_serializing_if = "is_from_library")]
         from: Vec<Zone>,
+        /// The explicit whiff branch ([CR#701.23b]) — see
+        /// [`SearchOne::if_none`](Binder::SearchOne). Elaborates without the
+        /// searched group bound.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        if_none: Option<Box<crate::Effect>>,
     },
     /// A remembered `Binder` macro invocation.
     #[macro_ron(expanded)]
@@ -178,6 +190,7 @@ mod tests {
             Binder::Produce(Box::new(Action::Move(
                 Reference::It,
                 Destination::Zone(Zone::Exile),
+                vec![],
             ))),
             // Bare defaults: by = whose = You, from = [Library].
             Binder::SearchOne {
@@ -185,6 +198,7 @@ mod tests {
                 by: Reference::You,
                 whose: Reference::You,
                 from: vec![Zone::Library],
+                if_none: None,
             },
             // Explicit non-default by/whose/from (Bribery-style: search an
             // opponent's library and graveyard).
@@ -193,6 +207,7 @@ mod tests {
                 by: Reference::You,
                 whose: Reference::Opponent,
                 from: vec![Zone::Library, Zone::Graveyard],
+                if_none: None,
             },
             Binder::Search {
                 quantity: Quantity::one(),
@@ -200,6 +215,7 @@ mod tests {
                 by: Reference::You,
                 whose: Reference::You,
                 from: vec![Zone::Library],
+                if_none: None,
             },
             Binder::Search {
                 quantity: Quantity::one(),
@@ -207,6 +223,7 @@ mod tests {
                 by: Reference::Opponent,
                 whose: Reference::Opponent,
                 from: vec![Zone::Graveyard],
+                if_none: None,
             },
         ] {
             assert_eq!(read(&to_string(&v)), v, "round-trip failed for {v:?}");
@@ -258,6 +275,7 @@ mod tests {
             by: Reference::You,
             whose: Reference::You,
             from: vec![Zone::Library],
+            if_none: None,
         };
         let written = to_string(&bare);
         assert!(
@@ -265,5 +283,42 @@ mod tests {
             "defaults must be omitted, got {written}"
         );
         assert_eq!(read(&written), bare);
+    }
+
+    /// The explicit whiff branch ([CR#701.23b]): an absent `if_none` is
+    /// omitted on write; a present branch reads flat and round-trips.
+    #[test]
+    fn search_if_none_defaults_and_round_trips() {
+        use crate::Count;
+        use crate::Effect;
+        use crate::PlayerAction;
+
+        let creature = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));
+        let bare = Binder::SearchOne {
+            filter: creature.clone(),
+            by: Reference::You,
+            whose: Reference::You,
+            from: vec![Zone::Library],
+            if_none: None,
+        };
+        assert!(
+            !to_string(&bare).contains("if_none"),
+            "absent if_none omitted"
+        );
+
+        let whiff = Binder::SearchOne {
+            filter: creature,
+            by: Reference::You,
+            whose: Reference::You,
+            from: vec![Zone::Library],
+            if_none: Some(Box::new(Effect::act_by_you(PlayerAction::LoseLife(
+                Count::Literal(1),
+            )))),
+        };
+        assert_eq!(read(&to_string(&whiff)), whiff);
+        assert_eq!(
+            read("SearchOne(filter: Type(Creature), if_none: LoseLife(1))"),
+            whiff,
+        );
     }
 }

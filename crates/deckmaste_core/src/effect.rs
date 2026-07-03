@@ -378,7 +378,8 @@ mod tests {
             read("Discard(count: Literal(1))"),
             act_by_you(PlayerAction::Discard {
                 count: Count::Literal(1),
-                what: None
+                what: None,
+                random: false
             }),
         );
     }
@@ -395,6 +396,7 @@ mod tests {
             Effect::Act(Action::Move(
                 Reference::This,
                 Destination::Library(Anchor::FromTop(Count::Literal(0))),
+                vec![],
             )),
         );
     }

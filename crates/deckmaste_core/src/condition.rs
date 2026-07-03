@@ -75,6 +75,12 @@ pub enum Condition {
         event: EventFilter,
         within: Lookback,
     },
+    /// The tagged optional cost ([`OptionalCost`](crate::OptionalCost)) was
+    /// paid for this object — "if it was kicked" ([CR#702.33d]; buyback's
+    /// "if the buyback cost was paid", [CR#702.27a]). The linked-ability read
+    /// ([CR#702.33e,607.2]): the tag names the declaring `CostOption` on the
+    /// same object. Replaces the bespoke `WasKicked` flag.
+    PaidCost(crate::CostTag),
     /// It is the evaluating player's turn (the `you` of the evaluation
     /// context — an ability's controller). Sugar for `TurnOf(Ref(You))`, kept
     /// as the common, frame-robust specialization.
@@ -162,6 +168,17 @@ mod tests {
         let v = Condition::LegallyAttached(Reference::This);
         let w = crate::ron::options().to_string(&v).unwrap();
         assert_eq!(read(&w), v);
+    }
+
+    /// `PaidCost(tag)` — the paid-optional-cost read ("if it was kicked",
+    /// [CR#702.33d]) — reads a bare-ident tag and round-trips.
+    #[test]
+    fn paid_cost_reads_and_round_trips() {
+        let v = read("PaidCost(Kicker)");
+        assert_eq!(v, Condition::PaidCost(crate::CostTag::from("Kicker")));
+        let written = crate::ron::options().to_string(&v).unwrap();
+        assert_eq!(written, "PaidCost(Kicker)");
+        assert_eq!(read(&written), v);
     }
 
     #[test]

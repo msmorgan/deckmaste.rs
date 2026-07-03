@@ -132,11 +132,12 @@ fn render_mode(parsed: &ParsedEffect) -> String {
 }
 
 /// Renders a classified header + its parsed modes into the bare
-/// `Spell(effect: Modal(...))` RON. `count` writes bare ([`Count::Literal`]);
+/// `Spell(effect: Modal(...))` RON. `count` is a `Quantity` — the parsed
+/// literal writes as the `Exactly(n)` builtin macro ([CR#700.2] "choose N");
 /// the two flags are omitted when false (matching `ChooseSpec`'s
 /// `skip_serializing_if`).
 fn render_modal(shape: ChooseShape, modes: &[ParsedEffect]) -> String {
-    let mut choose = format!("count: {}", shape.count);
+    let mut choose = format!("count: Exactly({})", shape.count);
     if shape.up_to {
         choose.push_str(", up_to: true");
     }
@@ -272,7 +273,7 @@ mod tests {
         );
         assert_eq!(
             parsed(&face, 0),
-            "Spell(effect: Modal(choose: ChooseSpec(count: 1), modes: [\
+            "Spell(effect: Modal(choose: ChooseSpec(count: Exactly(1)), modes: [\
              Mode(effect: GainLife(3)), Mode(effect: Draw(2))]))"
         );
     }
@@ -288,7 +289,7 @@ mod tests {
         assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)));
         assert_eq!(
             parsed(&face, 0),
-            "Spell(effect: Modal(choose: ChooseSpec(count: 1), modes: [\
+            "Spell(effect: Modal(choose: ChooseSpec(count: Exactly(1)), modes: [\
              Mode(effect: Targeted(targets: [TargetOne(Type(Artifact))], effect: Destroy(Target(0)))), \
              Mode(effect: GainLife(3))]))"
         );
@@ -303,7 +304,7 @@ mod tests {
             "\u{2022} Draw two cards.",
         ]);
         assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)));
-        assert!(parsed(&face, 0).contains("ChooseSpec(count: 2)"));
+        assert!(parsed(&face, 0).contains("ChooseSpec(count: Exactly(2))"));
     }
 
     /// "Choose one or both —" emits `up_to: true`.
@@ -315,7 +316,7 @@ mod tests {
             "\u{2022} Draw two cards.",
         ]);
         assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)));
-        assert!(parsed(&face, 0).contains("ChooseSpec(count: 2, up_to: true)"));
+        assert!(parsed(&face, 0).contains("ChooseSpec(count: Exactly(2), up_to: true)"));
     }
 
     /// "Choose one or more —" (escalate) emits `up_to` over the mode count.
@@ -328,7 +329,7 @@ mod tests {
             "\u{2022} Draw one card.",
         ]);
         assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)));
-        assert!(parsed(&face, 0).contains("ChooseSpec(count: 3, up_to: true)"));
+        assert!(parsed(&face, 0).contains("ChooseSpec(count: Exactly(3), up_to: true)"));
     }
 
     /// The repeat sentence form emits `repeats: true`.
@@ -341,7 +342,7 @@ mod tests {
         ]);
         assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)));
         assert!(
-            parsed(&face, 0).contains("ChooseSpec(count: 3, repeats: true)"),
+            parsed(&face, 0).contains("ChooseSpec(count: Exactly(3), repeats: true)"),
             "{}",
             parsed(&face, 0)
         );

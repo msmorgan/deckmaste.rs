@@ -811,18 +811,27 @@ impl<'a> Walker<'a> {
             if modal.modes.is_empty() {
                 w.err(Code::FloorModalEmpty, "a modal effect must offer a mode");
             }
-            w.count(&modal.choose.count, ctx);
+            w.quantity(&modal.choose.count, ctx, false);
+            w.reference(&modal.choose.chooser, ctx, Kind::Player);
+            if let Some(rider) = &modal.choose.rider {
+                // The entwine/escalate rider cost ([CR#702.42a,702.120a]) is
+                // announced with the mode choice ([CR#601.2b]).
+                let (deckmaste_core::ModalCostRider::Entwine(cost)
+                | deckmaste_core::ModalCostRider::Escalate(cost)) = rider;
+                w.scoped("rider", |w| w.cost(cost, ctx));
+            }
+            // [CR#700.2d]: the REQUIRED minimum must be satisfiable by the
+            // printed modes (repeats lifts the ceiling; up_to lowers the
+            // floor to zero).
             if !modal.choose.repeats
                 && !modal.choose.up_to
-                && let Some(count) = modal.choose.count.literal_value()
-                && count as usize > modal.modes.len()
+                && let (Some(lo), _) = modal.choose.count.bounds()
+                && let Some(lo) = lo.literal_value()
+                && lo as usize > modal.modes.len()
             {
                 w.err(
                     Code::FloorModalCount,
-                    format!(
-                        "choose {count} of {} modes ([CR#700.2d])",
-                        modal.modes.len()
-                    ),
+                    format!("choose {lo} of {} modes ([CR#700.2d])", modal.modes.len()),
                 );
             }
             for (i, mode) in modal.modes.iter().enumerate() {
@@ -887,11 +896,36 @@ impl<'a> Walker<'a> {
                 self.reference(to, ctx, Kind::Object);
                 Intro::default()
             }
-            Action::Move(r, destination) => {
+            Action::Move(r, destination, riders) => {
                 self.reference(r, ctx, Kind::Object);
                 self.destination(destination, ctx);
+                self.enter_riders(riders, Some(destination), ctx);
                 Intro::default()
             }
+            Action::MoveGroup {
+                group,
+                arrangement,
+                to,
+                riders,
+            } => {
+                self.selection(group, ctx, Kind::Object);
+                if let deckmaste_core::Arrangement::ChosenOrder(chooser) = arrangement {
+                    self.reference(chooser, ctx, Kind::Player);
+                }
+                self.destination(to, ctx);
+                self.enter_riders(riders, Some(to), ctx);
+                Intro::default()
+            }
+            Action::Fight(a, b) => {
+                self.reference(a, ctx, Kind::Object);
+                self.reference(b, ctx, Kind::Object);
+                Intro::default()
+            }
+            Action::ExtraPhase(_, player) | Action::TheRingTempts(player) => {
+                self.reference(player, ctx, Kind::Player);
+                Intro::default()
+            }
+            Action::BecomeDay | Action::BecomeNight => Intro::default(),
             Action::MoveCounters(spec, from, to) => {
                 match spec {
                     CounterSpec::Named(counter, count) => {
@@ -927,7 +961,8 @@ impl<'a> Walker<'a> {
             PlayerAction::Draw(count)
             | PlayerAction::SetLife(count)
             | PlayerAction::FlipCoins(count)
-            | PlayerAction::RollDice(count, _) => {
+            | PlayerAction::RollDice(count, _)
+            | PlayerAction::Mill(count) => {
                 self.count(count, ctx);
                 Intro::default()
             }
@@ -945,7 +980,11 @@ impl<'a> Walker<'a> {
                     notes: Vec::new(),
                 }
             }
-            PlayerAction::Discard { count, what } => {
+            PlayerAction::Discard {
+                count,
+                what,
+                random: _,
+            } => {
                 self.count(count, ctx);
                 if let Some(what) = what {
                     self.reference(what, ctx, Kind::Object);
@@ -957,9 +996,12 @@ impl<'a> Walker<'a> {
                 self.mana_production(production, ctx);
                 Intro::default()
             }
-            PlayerAction::Create(count, spec) => {
+            PlayerAction::Create(count, spec, riders) => {
                 self.count(count, ctx);
                 self.token_spec(spec);
+                // A created token always enters the battlefield ([CR#111.2]),
+                // so every rider is legal here — no destination gate.
+                self.enter_riders(riders, None, ctx);
                 Intro::default()
             }
             PlayerAction::Sacrifice(r)
@@ -970,9 +1012,10 @@ impl<'a> Walker<'a> {
                 self.reference(r, ctx, Kind::Object);
                 Intro::default()
             }
-            PlayerAction::Move(r, destination) => {
+            PlayerAction::Move(r, destination, riders) => {
                 self.reference(r, ctx, Kind::Object);
                 self.destination(destination, ctx);
+                self.enter_riders(riders, Some(destination), ctx);
                 Intro::default()
             }
             PlayerAction::GetEmblem(abilities) => {
@@ -1001,7 +1044,8 @@ impl<'a> Walker<'a> {
             PlayerAction::WinGame
             | PlayerAction::LoseGame
             | PlayerAction::RestartGame
-            | PlayerAction::Shuffle => Intro::default(),
+            | PlayerAction::Shuffle
+            | PlayerAction::VentureIntoDungeon => Intro::default(),
             PlayerAction::Reveal { what, to } => {
                 self.reference(what, ctx, Kind::Object);
                 if let Some(to) = to {
@@ -1015,10 +1059,79 @@ impl<'a> Walker<'a> {
 
     fn destination(&mut self, destination: &Destination, ctx: &Ctx) {
         match destination {
+            // An ordered-zone position exists only via `Library(Anchor)` — a
+            // bare `Library` names no position ([CR#401.4,401.7]); the stack
+            // is never a destination (objects reach it only by casting/
+            // activating/triggering, [CR#405.1]). The bare-`Library` spelling
+            // is unrepresentable in RON by construction (the `Library` name
+            // dispatches to `Destination::Library(Anchor)`), so this arm
+            // guards only programmatic construction; the Stack arm has the
+            // reject fixture.
+            Destination::Zone(deckmaste_core::Zone::Library) => {
+                self.err(
+                    Code::FloorDestination,
+                    "a bare Library destination names no position — use Library(FromTop(n)) / \
+                     Library(FromBottom(n)) ([CR#401.4,401.7])",
+                );
+            }
+            Destination::Zone(deckmaste_core::Zone::Stack) => {
+                self.err(
+                    Code::FloorDestination,
+                    "the stack is not a Move destination — objects reach it only by \
+                     casting/activating/triggering ([CR#405.1])",
+                );
+            }
             Destination::Zone(_) => {}
             Destination::Library(Anchor::FromTop(count) | Anchor::FromBottom(count)) => {
                 self.count(count, ctx);
             }
+        }
+    }
+
+    /// Walk a verb's entry riders ([CR#614.12]) and enforce the
+    /// battlefield-only gate: `destination` is `Some` for a `Move`/`MoveGroup`
+    /// (riders demand `Zone(Battlefield)`), `None` for `Create` (a token
+    /// always enters the battlefield, so every rider is legal).
+    fn enter_riders(
+        &mut self,
+        riders: &[deckmaste_core::EnterRider],
+        destination: Option<&Destination>,
+        ctx: &Ctx,
+    ) {
+        use deckmaste_core::EnterRider;
+        if riders.is_empty() {
+            return;
+        }
+        if let Some(destination) = destination
+            && !matches!(
+                destination,
+                Destination::Zone(deckmaste_core::Zone::Battlefield)
+            )
+        {
+            self.err(
+                Code::PosRider,
+                "enter riders modify how a permanent enters the BATTLEFIELD ([CR#614.12]); \
+                 this destination is not the battlefield",
+            );
+        }
+        for (i, rider) in riders.iter().enumerate() {
+            self.scoped(format!("riders[{i}]"), |w| match rider {
+                EnterRider::Tapped | EnterRider::FaceDown | EnterRider::UnderOwnersControl => {}
+                EnterRider::UnderControlOf(player) => {
+                    w.reference(player, ctx, Kind::Player);
+                }
+                EnterRider::Attacking(whom) => {
+                    if let Some(whom) = whom {
+                        w.reference(whom, ctx, Kind::Player);
+                    }
+                }
+                EnterRider::WithCounters(counter, count) => {
+                    // The arriving object is battlefield-bound — an object
+                    // carrier ([CR#122.1]).
+                    w.counter_ref(counter, Kind::Object);
+                    w.count(count, ctx);
+                }
+            });
         }
     }
 
@@ -1150,11 +1263,23 @@ impl<'a> Walker<'a> {
                 (Cardinality::One, Kind::Object)
             }
             Binder::SearchOne {
-                filter, by, whose, ..
+                filter,
+                by,
+                whose,
+                if_none,
+                ..
             } => {
                 self.reference(by, ctx, Kind::Player);
                 self.reference(whose, ctx, Kind::Player);
                 let kind = self.filter(filter, ctx, Kind::Object);
+                // The whiff branch elaborates in the PRE-binding context
+                // ([CR#701.23b]) — nothing was found, so the search's product
+                // is NOT in scope; reading it there is a load error.
+                if let Some(if_none) = if_none {
+                    self.scoped("if_none", |w| {
+                        w.effect(if_none, ctx);
+                    });
+                }
                 (Cardinality::One, kind)
             }
             Binder::Choose {
@@ -1176,12 +1301,19 @@ impl<'a> Walker<'a> {
                 filter,
                 by,
                 whose,
+                if_none,
                 ..
             } => {
                 self.quantity(quantity, ctx, false);
                 self.reference(by, ctx, Kind::Player);
                 self.reference(whose, ctx, Kind::Player);
                 let kind = self.filter(filter, ctx, Kind::Object);
+                // Pre-binding context, as on `SearchOne` ([CR#701.23b]).
+                if let Some(if_none) = if_none {
+                    self.scoped("if_none", |w| {
+                        w.effect(if_none, ctx);
+                    });
+                }
                 (Cardinality::Many, kind)
             }
             Binder::Expanded(e) => self.binder(&e.value, ctx),
@@ -1523,7 +1655,10 @@ impl<'a> Walker<'a> {
             | StateFilter::Status(_)
             | StateFilter::Attacking
             | StateFilter::Blocking
-            | StateFilter::Unblocked => Kind::Object,
+            | StateFilter::Unblocked
+            // The paid-cost linkage tests an OBJECT's own optional cost
+            // ([CR#702.33d..702.33e]).
+            | StateFilter::WasPaidWith(_) => Kind::Object,
             StateFilter::HasCounter(counter) => {
                 // The atom's kind IS the counter's carrier scope.
                 self.counter_declared(counter);
@@ -1701,7 +1836,9 @@ impl<'a> Walker<'a> {
                     );
                 }
             },
-            Count::Literal(_) => {}
+            // The paid-cost count reads the object's own announce record
+            // ([CR#702.33c..702.33d]) — a leaf, like `X`.
+            Count::TimesPaid(_) | Count::Literal(_) => {}
             Count::Expanded(e) => self.count(&e.value, ctx),
         }
     }
@@ -1782,7 +1919,9 @@ impl<'a> Walker<'a> {
                 self.reference(r, ctx, Kind::Object);
             }
             Condition::Happened { event, within: _ } => self.event(event, ctx, Lane::History),
-            Condition::YourTurn | Condition::DuringPhase(_) => {}
+            // The paid-cost flag reads the object's own announce record
+            // ([CR#702.33d]) — a leaf.
+            Condition::YourTurn | Condition::DuringPhase(_) | Condition::PaidCost(_) => {}
             Condition::TurnOf(filter) => {
                 self.filter(filter, ctx, Kind::Player);
             }
@@ -2120,6 +2259,13 @@ impl<'a> Walker<'a> {
                 self.filter(of, ctx, Kind::Object);
                 self.cost_change(change, ctx);
             }
+            StaticEffect::CostOption(optional) => {
+                // The declared optional cost's components are cost positions
+                // ([CR#118.8b,601.2b]).
+                for (i, component) in optional.components.iter().enumerate() {
+                    self.scoped(format!("option[{i}]"), |w| w.cost_component(component, ctx));
+                }
+            }
             StaticEffect::TriggerMultiplier {
                 cause,
                 extra,
@@ -2354,7 +2500,7 @@ impl<'a> Walker<'a> {
 
     fn duration(&mut self, duration: &Duration, ctx: &Ctx) {
         match duration {
-            Duration::FixedUntil(_) | Duration::EndOfGame => {}
+            Duration::FixedUntil(_) | Duration::ForThisEvent | Duration::EndOfGame => {}
             Duration::UntilEvent(event) => self.event(event, ctx, Lane::UntilEvent),
             Duration::ForAsLongAs(condition) => self.condition(condition, ctx),
         }
@@ -2402,6 +2548,8 @@ fn player_action_key(action: &PlayerAction) -> &'static str {
         PlayerAction::SetLife(_) => "SetLife",
         PlayerAction::Reveal { .. } => "Reveal",
         PlayerAction::RemoveDamage(_) => "RemoveDamage",
+        PlayerAction::Mill(_) => "Mill",
+        PlayerAction::VentureIntoDungeon => "VentureIntoDungeon",
         PlayerAction::Expanded(e) => player_action_key(&e.value),
     }
 }

@@ -1265,9 +1265,10 @@ impl GameState {
     /// Apply one `CostChange` to `cost` for the given phase — increases (and
     /// mandatory additional mana) on `Raise`, reductions on `Lower` — with
     /// `times` scaling from any enclosing `Scaled` ([CR#601.2f]).
-    /// `Additional { optional: true }` (the kicker shape, [CR#118.8b]) is the
-    /// [CR#601.2b] announce family: it stays inert here until its announce
-    /// machinery lands (core-alt-costs), exactly as before this pipeline.
+    /// The optional kicker-family shape ([CR#118.8b]) is a declared
+    /// `StaticEffect::CostOption` — the [CR#601.2b] announce family — and
+    /// stays inert here until its announce machinery lands
+    /// (core-alt-costs/engine-alt-costs), exactly as before this pipeline.
     fn apply_cost_change(
         &self,
         cost: &mut Vec<ManaSymbol>,
@@ -1288,10 +1289,7 @@ impl GameState {
                     reduce_mana_components(cost, components);
                 }
             }
-            CostChange::Additional {
-                components,
-                optional: false,
-            } if phase == ChangePhase::Raise => {
+            CostChange::Additional { components } if phase == ChangePhase::Raise => {
                 for _ in 0..times {
                     add_mana_components(cost, components);
                 }
@@ -1305,7 +1303,7 @@ impl GameState {
                     self.apply_cost_change(cost, change, frame, phase, times.saturating_mul(n));
                 }
             }
-            // The other phase's changes, and the inert optional-Additional.
+            // The other phase's changes.
             _ => {}
         }
     }

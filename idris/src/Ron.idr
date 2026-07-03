@@ -293,6 +293,7 @@ mutual
     toRon i (EventAgg op q) = ctor "EventAgg" [toRon i op, toRon i q]
     toRon i (Damage r) = ctor "Damage" [toRon i r]
     toRon i (CountersOn c r) = ctor "CountersOn" [toRon i c, toRon i r]
+    toRon i (TimesPaid tag) = ctor "TimesPaid" [toRon i tag]
     toRon i (PlayerStatOf r a) = ctor "PlayerStatOf" [toRon i r, toRon i a]
     toRon i (Plus x y) = ctor "Plus" [toRon i x, toRon i y]
     toRon i (Minus x y) = ctor "Minus" [toRon i x, toRon i y]
@@ -356,7 +357,7 @@ mutual
     toRon _ IsColorless = "IsColorless"
     toRon i (Targets p) = ctor "Targets" [toRon i p]
     toRon i (TargetCount c n) = ctor "TargetCount" [toRon i c, toRon i n]
-    toRon _ WasKicked = "WasKicked"
+    toRon i (WasPaidWith tag) = ctor "WasPaidWith" [toRon i tag]
     toRon _ OfChosen = "OfChosen"
     toRon _ Anyone = "Anyone"
     toRon _ OpponentOf = "OpponentOf"
@@ -371,6 +372,7 @@ mutual
     toRon i (TurnOf p) = ctor "TurnOf" [toRon i p]
     toRon i (During ps) = ctor "During" [toRon i ps]
     toRon i (LegallyAttached r) = ctor "LegallyAttached" [toRon i r]
+    toRon i (PaidCost tag) = ctor "PaidCost" [toRon i tag]
     toRon _ (ChosenIs n) = ctor "ChosenIs" [show n]
     toRon i (And cs) = ctor "And" [toRon i cs]
     toRon i (Or cs) = ctor "Or" [toRon i cs]
@@ -421,7 +423,6 @@ mutual
     toRon i (Reduce m) = ctor "Reduce" [toRon i m]
     toRon i (Increase m) = ctor "Increase" [toRon i m]
     toRon i (Additional cs) = ctor "Additional" [toRon i cs]
-    toRon i (Optional cs) = ctor "Optional" [toRon i cs]
     toRon i (ScaledBy ch c) = ctor "ScaledBy" [toRon i ch, toRon i c]
 
   implementation ToRon (ReplaceLimit b) where
@@ -557,6 +558,8 @@ mutual
     toRon i (ModifyPlayer r m) = ctor "ModifyPlayer" [toRon i r, toRon i m]
     toRon i (Each sel body) = ctor "Each" [toRon i sel, toRon i body]
     toRon i (CostModifier p ch) = ctor "CostModifier" [toRon i p, toRon i ch]
+    toRon i (CostOption tag costs {repeatable}) =
+      ctor "CostOption" [toRon i tag, toRon i costs, toRon i repeatable]
     toRon i (PayPips cls act) = ctor "PayPips" [toRon i cls, toRon i act]
     toRon i (Replaces q body {limit}) = ctor "Replaces" [toRon i q, toRon i body, toRon i limit]
     toRon i (CantHappen q) = ctor "CantHappen" [toRon i q]

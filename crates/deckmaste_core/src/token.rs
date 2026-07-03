@@ -203,6 +203,7 @@ impl PredefinedToken {
                     CostComponent::Do(Box::new(PlayerAction::Discard {
                         count: Count::Literal(1),
                         what: None,
+                        random: false,
                     })),
                     sac,
                 ],

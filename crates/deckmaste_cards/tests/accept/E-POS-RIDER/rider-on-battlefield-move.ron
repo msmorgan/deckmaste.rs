@@ -1,0 +1,17 @@
+// Accept twin of reject/E-POS-RIDER/rider-on-nonbattlefield-move.ron: riders
+// on a BATTLEFIELD destination are the [CR#614.12] enters-modified shape —
+// the Rampant-Growth-style "search … put that card onto the battlefield
+// tapped, then shuffle" ([CR#701.23b] search + [CR#603.6d] tapped).
+Normal(
+  name: "Accept Rider On Battlefield Move",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Sequence([
+      With(
+        binder: SearchOne(filter: AllOf([Supertype(Basic), Type(Land)])),
+        body: Move(That, Battlefield, [Tapped]),
+      ),
+      Shuffle,
+    ])),
+  ],
+)

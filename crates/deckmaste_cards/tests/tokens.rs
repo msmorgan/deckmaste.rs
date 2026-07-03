@@ -169,6 +169,7 @@ fn blood_token_parses() {
     let discard_one = CostComponent::Do(Box::new(PlayerAction::Discard {
         count: Count::Literal(1),
         what: None,
+        random: false,
     }));
     let token = builtin().token("Blood").unwrap();
     assert_eq!(

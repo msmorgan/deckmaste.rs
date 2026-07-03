@@ -3213,7 +3213,7 @@ mod tests {
                 limits: Vec::new(),
                 effect: Effect::Act(Action::By(
                     Reference::You,
-                    PlayerAction::Create(Count::Literal(1), goblin_token.into()),
+                    PlayerAction::Create(Count::Literal(1), goblin_token.into(), vec![]),
                 )),
             })],
             ..CardFace::default()

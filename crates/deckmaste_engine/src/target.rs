@@ -365,6 +365,12 @@ pub fn matches_with(
             .iter()
             .any(|o| o.attached_to == Some(id) && matches_with(state, o.id, inner, watcher)),
         // ----- Seams: backed by subsystems not yet built -----
+        // [CR#702.33d..702.33e]: the paid-cost linkage has no announce
+        // record yet (engine-alt-costs).
+        Filter::State(StateFilter::WasPaidWith(tag)) => todo!(
+            "engine-alt-costs: WasPaidWith({tag:?}) needs the [CR#601.2b] optional-cost \
+             announce record"
+        ),
         // [CR#607]: linked-ability relations have no registry yet.
         Filter::State(StateFilter::RelatedBy(..)) => todo!(
             "engine-filter-breadth: RelatedBy needs a CR#607 linked-ability relation registry \

@@ -113,6 +113,13 @@ impl GameState {
                     .any(|fact| self.event_matches(event, fact, watcher))
             }
 
+            // [CR#702.33d]: the paid-optional-cost read needs the announce
+            // record (which optional costs were paid) — engine-alt-costs.
+            Condition::PaidCost(tag) => todo!(
+                "engine-alt-costs: PaidCost({tag:?}) needs the [CR#601.2b] optional-cost \
+                 announce record"
+            ),
+
             // It is the evaluating player's turn — the frame-robust sugar for
             // `TurnOf(Ref(You))` (reads `you` directly, no carrier needed).
             Condition::YourTurn => self.turn.active_player == you,

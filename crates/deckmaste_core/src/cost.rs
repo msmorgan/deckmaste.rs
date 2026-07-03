@@ -173,6 +173,81 @@ impl<'a> IntoIterator for &'a Cost {
     }
 }
 
+/// A bare-identifier NAME for an optional cost ([CR#702.33e,607] — kicker's
+/// linked "if it was kicked" readers refer to the specific kicker ability by
+/// identity). Written as a bare ident in RON (`tag: Kicker`), mirroring
+/// [`CounterRef`](crate::CounterRef)/[`KeywordRef`](crate::KeywordRef).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct CostTag(pub crate::Ident);
+
+impl CostTag {
+    #[must_use]
+    pub fn as_str(&self) -> &'static str {
+        self.0.as_str()
+    }
+}
+
+impl From<&str> for CostTag {
+    fn from(s: &str) -> Self {
+        CostTag(s.into())
+    }
+}
+
+impl crate::Expand for CostTag {
+    // A leaf: a name, never an expandable value.
+    fn expand_all(self) -> Self {
+        self
+    }
+}
+
+impl Serialize for CostTag {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // A unit variant writes as a bare identifier in RON.
+        serializer.serialize_unit_variant("CostTag", 0, self.0.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for CostTag {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        // A bare identifier is a unit enum variant in the serde data model —
+        // the same channel `CounterRef`/`KeywordRef` read through.
+        struct NameVisitor;
+        impl<'de> serde::de::Visitor<'de> for NameVisitor {
+            type Value = CostTag;
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("a cost-tag name (bare identifier)")
+            }
+            fn visit_enum<A: serde::de::EnumAccess<'de>>(
+                self,
+                data: A,
+            ) -> Result<Self::Value, A::Error> {
+                use serde::de::VariantAccess;
+                let (ident, variant) = data.variant_seed(macro_ron::IdentSeed)?;
+                variant.unit_variant()?;
+                Ok(CostTag(ident))
+            }
+        }
+        deserializer.deserialize_enum("", &[], NameVisitor)
+    }
+}
+
+/// A declared OPTIONAL cost ([CR#118.8b] "you may pay an additional [cost] as
+/// you cast this spell") — the kicker/multikicker/buyback identity, carried by
+/// `StaticEffect::CostOption`. One `tag`, three read channels:
+/// `Condition::PaidCost(tag)` (was it paid — kicked, [CR#702.33d]),
+/// `Count::TimesPaid(tag)` (how many times — multikicker, [CR#702.33c]), and
+/// `Filter::WasPaidWith(tag)` (an object whose cost was paid with it,
+/// [CR#702.33e,607.2]). `repeatable: true` is multikicker's "any number of
+/// times" ([CR#702.33c]); buyback is one more tag ([CR#702.27a]). Intentions
+/// are announced at [CR#601.2b]; the total locks at [CR#601.2f].
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub struct OptionalCost {
+    pub components: Vec<CostComponent>,
+    pub tag: CostTag,
+    #[serde(default, skip_serializing_if = "crate::ability::is_false")]
+    pub repeatable: bool,
+}
+
 /// The total-cost record of the [CR#601.2f] pipeline — an ENGINE-traffic
 /// value, not card grammar: base (mana or alternative, per [CR#601.2b]) →
 /// the `trace` of applied steps (`CostChange`: additional/increases, then
@@ -237,6 +312,7 @@ mod tests {
         let exile = CostComponent::do_(PlayerAction::Move(
             Reference::This,
             Destination::Zone(crate::Zone::Exile),
+            vec![],
         ));
         assert_eq!(
             read(&to_string(&exile)),
@@ -274,6 +350,7 @@ mod tests {
         let discard_self = CostComponent::Do(Box::new(PlayerAction::Discard {
             count: Count::Literal(1),
             what: Some(Reference::This),
+            random: false,
         }));
         assert_eq!(
             lumpy,
@@ -363,6 +440,38 @@ mod tests {
         // variant with a boxed filter and a bare-literal count).
         let written = crate::ron::options().to_string(&crew).unwrap();
         assert_eq!(read(&written), crew, "round-trips: {written}");
+    }
+
+    /// `OptionalCost` — the kicker/multikicker/buyback identity
+    /// ([CR#118.8b,702.33a]) — reads flat with a bare-ident tag, omits the
+    /// default `repeatable: false`, and round-trips; `repeatable: true` is
+    /// multikicker ([CR#702.33c]).
+    #[test]
+    fn optional_cost_round_trips() {
+        let kicker: crate::OptionalCost = crate::ron::options()
+            .from_str("(components: [Mana([Generic(2)])], tag: Kicker)")
+            .unwrap();
+        assert_eq!(kicker.tag, crate::CostTag::from("Kicker"));
+        assert!(!kicker.repeatable, "repeatable defaults false");
+        let written = crate::ron::options().to_string(&kicker).unwrap();
+        assert!(
+            !written.contains("repeatable"),
+            "default repeatable omitted: {written}"
+        );
+        assert!(
+            written.contains("tag:Kicker"),
+            "tag writes as a bare ident: {written}"
+        );
+        let reread: crate::OptionalCost = crate::ron::options().from_str(&written).unwrap();
+        assert_eq!(reread, kicker);
+
+        let multi: crate::OptionalCost = crate::ron::options()
+            .from_str("(components: [Mana([Generic(1)])], tag: Multikicker, repeatable: true)")
+            .unwrap();
+        assert!(multi.repeatable);
+        let written = crate::ron::options().to_string(&multi).unwrap();
+        let reread: crate::OptionalCost = crate::ron::options().from_str(&written).unwrap();
+        assert_eq!(reread, multi);
     }
 
     #[test]

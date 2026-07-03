@@ -143,6 +143,12 @@ pub enum Count {
     EventSum(Box<crate::EventFilter>, crate::Lookback),
     /// A noted number read back from a slot ([CR#607.2] linked values).
     Noted(crate::Ident),
+    /// How many times the tagged optional cost
+    /// ([`OptionalCost`](crate::OptionalCost)) was paid for this object —
+    /// multikicker's "for each time it was kicked" ([CR#702.33c,702.33d]).
+    /// The count-valued twin of `Condition::PaidCost` (a `repeatable`
+    /// optional cost may be paid any number of times).
+    TimesPaid(crate::CostTag),
     /// Marked damage on a referenced object ([CR#120.3]) — "damage marked on
     /// ~". Used by the lethal-damage SBA: `Compare(Damage(This), AtLeast,
     /// StatOf(This, Toughness))`.
@@ -291,6 +297,16 @@ mod tests {
             read("CountDistinct(Power, Type(Creature))"),
             Count::CountDistinct(Characteristic::Power, _)
         ));
+    }
+
+    /// `TimesPaid(tag)` — multikicker's per-payment count
+    /// ([CR#702.33c,702.33d]) — reads a bare-ident tag and round-trips.
+    #[test]
+    fn times_paid_reads_and_round_trips() {
+        let v = read("TimesPaid(Kicker)");
+        assert_eq!(v, Count::TimesPaid(crate::CostTag::from("Kicker")));
+        assert_eq!(write(&v), "TimesPaid(Kicker)");
+        assert_eq!(read(&write(&v)), v);
     }
 
     /// `EventSum(EventFilter, Lookback)` parses and round-trips — the

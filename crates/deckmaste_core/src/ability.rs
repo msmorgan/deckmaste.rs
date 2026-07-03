@@ -2,7 +2,6 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::Condition;
-use crate::Count;
 use crate::EventFilter;
 use crate::Expand;
 use crate::Expansion;
@@ -119,16 +118,53 @@ pub(crate) fn is_false(b: &bool) -> bool {
     !*b
 }
 
-/// How a modal spell or ability's modes are chosen ([CR#700.2]). `up_to` is the
-/// "up to N" form ([CR#700.2]); `repeats` allows choosing the same mode more
-/// than once ([CR#700.2d]).
+/// How a modal spell or ability's modes are chosen ([CR#700.2]). `count` is a
+/// [`Quantity`](crate::Quantity) — "choose one" = `Exactly(1)`, escalate's
+/// printed "one or more" = `AtLeast(1)`. `up_to` is the "up to N" form
+/// ([CR#700.2]); `repeats` allows choosing the same mode more than once
+/// ([CR#700.2d]); `chooser` names who chooses ("An opponent chooses one —",
+/// [CR#700.2] — default `You`, omitted on write). Modes and optional-cost
+/// intentions are announced at mode choice ([CR#601.2b]); per-mode targets are
+/// chosen only for chosen modes ([CR#601.2c]); the total cost locks at
+/// [CR#601.2f].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct ChooseSpec {
-    pub count: Count,
+    pub count: crate::Quantity,
     #[serde(default, skip_serializing_if = "is_false")]
     pub up_to: bool,
     #[serde(default, skip_serializing_if = "is_false")]
     pub repeats: bool,
+    #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
+    pub chooser: crate::Reference,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rider: Option<ModalCostRider>,
+}
+
+/// serde default for [`ChooseSpec::chooser`] — the choosing player is the
+/// spell/ability's controller ([CR#700.2]).
+fn ref_you() -> crate::Reference {
+    crate::Reference::You
+}
+
+/// `skip_serializing_if` predicate for [`ChooseSpec::chooser`]: the default
+/// `You` is omitted from RON.
+fn ref_is_you(r: &crate::Reference) -> bool {
+    matches!(r, crate::Reference::You)
+}
+
+/// A cost rider on a modal choose spec — the entwine/escalate family
+/// ([CR#702.42a,702.120a]), announced with the mode choice ([CR#601.2b]) and
+/// locked into the total at [CR#601.2f].
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum ModalCostRider {
+    /// `Entwine(c)`: the printed count stays `Exactly(1)`; the caster may
+    /// instead choose ALL modes by adding `c` ([CR#702.42a]; the modes then
+    /// resolve in written order, [CR#702.42b]).
+    Entwine(Cost),
+    /// `Escalate(c)`: the printed count is the "one or more" quantity; the
+    /// total cost gains `c` for each mode chosen beyond the first
+    /// ([CR#702.120a]).
+    Escalate(Cost),
 }
 
 /// One mode of a modal spell or ability ([CR#700.2]). A mode's targets live on
@@ -507,6 +543,54 @@ mod tests {
             !not_innate.is_innate(),
             "Expanded(Static(...)) is not innate"
         );
+    }
+
+    /// `ChooseSpec` carries a `Quantity` count, defaults `chooser` to `You`
+    /// (omitted on write) and `rider` to `None`, and round-trips with the
+    /// entwine/escalate riders ([CR#700.2,702.42a,702.120a]).
+    #[test]
+    fn choose_spec_quantity_chooser_and_rider_round_trip() {
+        use crate::Count;
+        use crate::Quantity;
+
+        // Bare "choose one": count only; chooser/rider omitted on write.
+        let one: ChooseSpec = crate::ron::options()
+            .from_str("(count: Range(1, 1))")
+            .unwrap();
+        assert_eq!(one.count, Quantity::one());
+        assert_eq!(one.chooser, crate::Reference::You);
+        assert!(one.rider.is_none());
+        let written = crate::ron::options().to_string(&one).unwrap();
+        assert!(
+            !written.contains("chooser") && !written.contains("rider"),
+            "defaults omitted: {written}"
+        );
+
+        // Escalate: "one or more" + the per-extra-mode cost ([CR#702.120a]).
+        let escalate: ChooseSpec = crate::ron::options()
+            .from_str("(count: Range(1, None), rider: Escalate([Mana([Generic(1)])]))")
+            .unwrap();
+        assert_eq!(
+            escalate.count,
+            Quantity::Range(Some(Count::Literal(1)), None)
+        );
+        assert!(matches!(escalate.rider, Some(ModalCostRider::Escalate(_))));
+        let written = crate::ron::options().to_string(&escalate).unwrap();
+        let reread: ChooseSpec = crate::ron::options().from_str(&written).unwrap();
+        assert_eq!(reread, escalate);
+
+        // Entwine: printed Exactly(1) + the all-modes cost ([CR#702.42a]);
+        // a foreign chooser round-trips.
+        let entwine: ChooseSpec = crate::ron::options()
+            .from_str(
+                "(count: Range(1, 1), chooser: Opponent, rider: Entwine([Mana([Generic(2)])]))",
+            )
+            .unwrap();
+        assert_eq!(entwine.chooser, crate::Reference::Opponent);
+        assert!(matches!(entwine.rider, Some(ModalCostRider::Entwine(_))));
+        let written = crate::ron::options().to_string(&entwine).unwrap();
+        let reread: ChooseSpec = crate::ron::options().from_str(&written).unwrap();
+        assert_eq!(reread, entwine);
     }
 
     #[test]

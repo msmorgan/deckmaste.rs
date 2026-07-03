@@ -89,6 +89,10 @@ pub enum Code {
     /// `Targeted` outside an announce root — replacement/static/loop
     /// position ([CR#115.1a..115.1e,601.2c]).
     PosTargeted,
+    /// An enter rider on a non-battlefield destination ([CR#614.12] — riders
+    /// modify how a permanent enters the battlefield; a card arriving
+    /// anywhere else has no tapped/attacking arrival state).
+    PosRider,
     /// A filter/reference kind conflicts with its slot's expected kind
     /// ([CR#109.1]).
     KindFilter,
@@ -131,6 +135,11 @@ pub enum Code {
     /// An `Nth` occurrence index below one — a 0th occurrence never occurs
     /// ([CR#603.2g]).
     FloorNth,
+    /// A bare `Library`/`Stack` zone as a `Move` destination ([CR#401.4] — an
+    /// ordered-zone position exists only via `Library(Anchor)`; the stack is
+    /// never a destination, objects reach it only by casting/activating/
+    /// triggering, [CR#405.1]).
+    FloorDestination,
     /// A cost `Do(action)` whose verb is not cost-eligible ([CR#118.3]).
     CostIneligible,
     /// `Count::X` read where no `{X}` is declared by the carrying cost
@@ -141,7 +150,7 @@ pub enum Code {
 impl Code {
     /// Every active code, in manifest order — the drift pin against the
     /// emitted checker-rule manifest.
-    pub const ALL: [Code; 36] = [
+    pub const ALL: [Code; 38] = [
         Code::BindTarget,
         Code::BindThat,
         Code::BindThatGroup,
@@ -159,6 +168,7 @@ impl Code {
         Code::LaneWithin,
         Code::LaneBatch,
         Code::PosTargeted,
+        Code::PosRider,
         Code::KindFilter,
         Code::KindCounterScope,
         Code::KindCounterUndeclared,
@@ -176,6 +186,7 @@ impl Code {
         Code::FloorModalEmpty,
         Code::FloorDivide,
         Code::FloorNth,
+        Code::FloorDestination,
         Code::CostIneligible,
         Code::CostX,
     ];
@@ -202,6 +213,7 @@ impl Code {
             Code::LaneWithin => "E-LANE-WITHIN",
             Code::LaneBatch => "E-LANE-BATCH",
             Code::PosTargeted => "E-POS-TARGETED",
+            Code::PosRider => "E-POS-RIDER",
             Code::KindFilter => "E-KIND-FILTER",
             Code::KindCounterScope => "E-KIND-COUNTER-SCOPE",
             Code::KindCounterUndeclared => "E-KIND-COUNTER-UNDECLARED",
@@ -219,6 +231,7 @@ impl Code {
             Code::FloorModalEmpty => "E-FLOOR-MODAL-EMPTY",
             Code::FloorDivide => "E-FLOOR-DIVIDE",
             Code::FloorNth => "E-FLOOR-NTH",
+            Code::FloorDestination => "E-FLOOR-DESTINATION",
             Code::CostIneligible => "E-COST-INELIGIBLE",
             Code::CostX => "E-COST-X",
         }

@@ -949,6 +949,7 @@ fn eval_count(
         | Count::Allotment
         | Count::EventCount(..)
         | Count::EventSum(..)
+        | Count::TimesPaid(_)
         | Count::Noted(_) => 0,
     }
 }

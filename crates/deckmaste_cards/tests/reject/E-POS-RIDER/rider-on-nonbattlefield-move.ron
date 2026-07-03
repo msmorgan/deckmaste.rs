@@ -1,0 +1,11 @@
+// An enter rider on a NON-battlefield destination: riders spell how a
+// permanent enters the BATTLEFIELD [CR#614.12] — a card exiled or put into a
+// graveyard has no tapped/attacking arrival state, so `Move(This, Exile,
+// [Tapped])` is refused with E-POS-RIDER.
+Normal(
+  name: "Reject Rider On Nonbattlefield Move",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Move(This, Exile, [Tapped])),
+  ],
+)

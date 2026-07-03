@@ -507,6 +507,7 @@ ruleRows =
   , ruleRow "E-LANE-WITHIN" "[CR#603.2]" "Within refinement in a live event lane (vacuous outside history counting)"
   , ruleRow "E-LANE-BATCH" "[CR#603.2c]" "OneOrMore/Nth refinement in a lane that forbids it"
   , ruleRow "E-POS-TARGETED" "[CR#115.1a..115.1e,601.2c]" "Targeted outside an announce root (replacement/static/loop position)"
+  , ruleRow "E-POS-RIDER" "[CR#614.12]" "enter rider on a non-battlefield destination"
   , ruleRow "E-KIND-FILTER" "[CR#109.1]" "filter kind conflicts with its slot's expected kind"
   , ruleRow "E-KIND-COUNTER-SCOPE" "[CR#122.1]" "counter kind used on a carrier its scope forbids"
   , ruleRow "E-KIND-COUNTER-UNDECLARED" "[CR#122.1]" "counter reference names no declared counter kind"
@@ -524,6 +525,7 @@ ruleRows =
   , ruleRow "E-FLOOR-MODAL-EMPTY" "[CR#700.2]" "modal effect with no modes"
   , ruleRow "E-FLOOR-DIVIDE" "[CR#601.2d]" "divided amount statically smaller than the minimum group size"
   , ruleRow "E-FLOOR-NTH" "[CR#603.2g]" "Nth occurrence index below one - a 0th occurrence never occurs"
+  , ruleRow "E-FLOOR-DESTINATION" "[CR#401.4,405.1]" "bare Library/Stack zone as a Move destination (ordered positions only via Library(Anchor); the stack is never a destination)"
   , ruleRow "E-COST-INELIGIBLE" "[CR#118.3]" "cost Do(action) whose verb is not cost-eligible"
   , ruleRow "E-COST-X" "[CR#107.3]" "Count::X read where no {X} is declared by the carrying cost"
   ]

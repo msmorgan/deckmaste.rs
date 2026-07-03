@@ -244,12 +244,15 @@ fn each_collective(act: &Action, binder: &deckmaste_core::Binder, ctx: &Ctx) -> 
         Action::Destroy(Reference::It) => Some(format!("Destroy {}.", each_group())),
         // A group move to the library reads "Put <group> on top/the bottom of
         // your library." — Brainstorm's "put two cards … on top": the chosen
-        // group's own phrase, not "each" ([CR#401.7]).
-        Action::Move(Reference::It, Destination::Library(anchor)) => Some(format!(
-            "Put {} on {} of your library.",
-            binder_phrase(binder, ctx),
-            fragment::library_position(anchor),
-        )),
+        // group's own phrase, not "each" ([CR#401.7]). Riders never apply to
+        // a library destination, so a rider-carrying move falls through.
+        Action::Move(Reference::It, Destination::Library(anchor), riders) if riders.is_empty() => {
+            Some(format!(
+                "Put {} on {} of your library.",
+                binder_phrase(binder, ctx),
+                fragment::library_position(anchor),
+            ))
+        }
         // Set-wide tap/untap ([CR#701.26a,701.26b]): "Tap each <group>."
         Action::By(_, PlayerAction::Tap(Reference::It)) => Some(format!("Tap {}.", each_group())),
         Action::By(_, PlayerAction::Untap(Reference::It)) => {
@@ -333,7 +336,8 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         }
         // [CR#401.7]: a library destination — "Put <cards> on top/the bottom of
         // your library." (the former `PutInLibrary`, now a `Move` destination).
-        Action::Move(r, Destination::Library(anchor)) => format!(
+        // A rider list never applies to a library destination.
+        Action::Move(r, Destination::Library(anchor), riders) if riders.is_empty() => format!(
             "Put {} on {} of your library.",
             fragment::reference(r, ctx),
             fragment::library_position(anchor),
@@ -418,7 +422,9 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
         PlayerAction::Draw(c) => format!("Draw {} cards.", fragment::count(c)),
         PlayerAction::GainLife(c) => format!("Gain {} life.", fragment::count(c)),
         PlayerAction::LoseLife(c) => format!("Lose {} life.", fragment::count(c)),
-        PlayerAction::Create(count, spec) => create_text(count, spec),
+        // Rider-carrying token creation ("tapped and attacking") falls back
+        // to the structural form until its surface lands (macro-first-wave).
+        PlayerAction::Create(count, spec, riders) if riders.is_empty() => create_text(count, spec),
         PlayerAction::Tap(r) => format!("Tap {}.", fragment::reference(r, ctx)),
         PlayerAction::Untap(r) => format!("Untap {}.", fragment::reference(r, ctx)),
         // A sacrifice ([CR#701.21]) — the patient is a single reference. A
@@ -426,28 +432,43 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
         // `Reference::That` from an enclosing `With`, which supplies the phrase.
         PlayerAction::Sacrifice(r) => format!("Sacrifice {}.", fragment::reference(r, ctx)),
         // Discard ([CR#701.9]): a named card via `what` (e.g. the `With`-bound
-        // anaphor), else `count` cards chosen from hand.
+        // anaphor), else `count` cards chosen from hand; `random` appends the
+        // "at random" qualifier ([CR#701.9b]).
         PlayerAction::Discard { what: Some(r), .. } => {
             format!("Discard {}.", fragment::reference(r, ctx))
         }
         PlayerAction::Discard {
             count: Count::Literal(1),
             what: None,
-        } => "Discard a card.".to_string(),
-        PlayerAction::Discard { count, what: None } => {
-            format!("Discard {} cards.", fragment::count(count))
+            random,
+        } => {
+            if *random {
+                "Discard a card at random.".to_string()
+            } else {
+                "Discard a card.".to_string()
+            }
+        }
+        PlayerAction::Discard {
+            count,
+            what: None,
+            random,
+        } => {
+            let suffix = if *random { " at random" } else { "" };
+            format!("Discard {} cards{suffix}.", fragment::count(count))
         }
         // A player-performed relocation ([CR#400.7]). Exiling is a pure zone
         // move ([CR#701.13]) — "Exile X."; a library destination mirrors
         // `Action::Move`'s "Put X on top/the bottom of your library."
-        PlayerAction::Move(r, Destination::Zone(Zone::Exile)) => {
+        PlayerAction::Move(r, Destination::Zone(Zone::Exile), riders) if riders.is_empty() => {
             format!("Exile {}.", fragment::reference(r, ctx))
         }
-        PlayerAction::Move(r, Destination::Library(anchor)) => format!(
-            "Put {} on {} of your library.",
-            fragment::reference(r, ctx),
-            fragment::library_position(anchor),
-        ),
+        PlayerAction::Move(r, Destination::Library(anchor), riders) if riders.is_empty() => {
+            format!(
+                "Put {} on {} of your library.",
+                fragment::reference(r, ctx),
+                fragment::library_position(anchor),
+            )
+        }
         PlayerAction::GetDesignation(name) if name.as_ref() == "CitysBlessing" => {
             "You get the city's blessing.".to_string()
         }
@@ -733,11 +754,13 @@ mod tests {
         let top = Action::Move(
             Reference::This,
             Destination::Library(Anchor::FromTop(Count::Literal(0))),
+            vec![],
         );
         assert_eq!(action(&top, &ctx), "Put it on top of your library.");
         let bottom = Action::Move(
             Reference::This,
             Destination::Library(Anchor::FromBottom(Count::Literal(0))),
+            vec![],
         );
         assert_eq!(
             action(&bottom, &ctx),
@@ -890,6 +913,7 @@ mod tests {
             body: Box::new(Effect::act_by_you(PlayerAction::Discard {
                 count: Count::Literal(2),
                 what: Some(Reference::That),
+                random: false,
             })),
         });
         assert_eq!(effect(&with, &ctx), "Discard 2 cards.");
@@ -938,6 +962,7 @@ mod tests {
         let exile = Action::by_you(PlayerAction::Move(
             Reference::This,
             Destination::Zone(Zone::Exile),
+            vec![],
         ));
         assert_eq!(action(&exile, &ctx), "Exile Scavenger.");
     }

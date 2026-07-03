@@ -14,6 +14,25 @@ use crate::SupportsMacros;
 use crate::Uint;
 use crate::Zone;
 
+/// A phase KIND — the five phases of a turn without their step breakdown
+/// ([CR#500.1]). The grain effects that add whole phases speak at
+/// ([CR#500.8], `Action::ExtraPhase` — "an additional combat phase");
+/// [`PhaseStep`] names a phase-AND-step position instead. Extra STEPS
+/// ([CR#500.9]) accrete a step-grained twin when a card needs one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum PhaseKind {
+    /// The beginning phase ([CR#501]).
+    Beginning,
+    /// The precombat main phase ([CR#505]).
+    PrecombatMain,
+    /// The combat phase ([CR#506]).
+    Combat,
+    /// The postcombat main phase ([CR#505]).
+    PostcombatMain,
+    /// The ending phase ([CR#512]).
+    Ending,
+}
+
 /// A turn step, carried by its phase (the 5xx turn structure). `StepBegins`
 /// triggers key off these. Each phase carries its constituent step(s); a
 /// phase that is a single step (the main phases — [CR#505.1]) is a bare

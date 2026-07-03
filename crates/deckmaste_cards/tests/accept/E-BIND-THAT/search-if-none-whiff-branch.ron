@@ -1,0 +1,14 @@
+// Accept twin of reject/E-BIND-THAT/search-if-none-reads-product.ron: the
+// explicit whiff branch ([CR#701.23b]) is legal when it does NOT read the
+// search's product — the body reads `That` (the found card), the `if_none`
+// branch reads nothing bound by the search.
+Normal(
+  name: "Accept Search Whiff Branch",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: With(
+      binder: SearchOne(filter: Type(Creature), if_none: LoseLife(1)),
+      body: Move(That, Battlefield),
+    )),
+  ],
+)

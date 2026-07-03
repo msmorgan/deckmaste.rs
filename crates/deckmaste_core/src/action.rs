@@ -2,9 +2,11 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::Count;
+use crate::CounterRef;
 use crate::Expand;
 use crate::Expansion;
 use crate::Reference;
+use crate::Selection;
 use crate::SupportsMacros;
 use crate::TokenSpec;
 use crate::mana::ManaProduction;
@@ -50,6 +52,56 @@ pub enum Destination {
     Zone(crate::Zone),
     /// The library at an anchored position ([CR#401.7]).
     Library(Anchor),
+}
+
+/// An entry rider on a relocation/creation verb: how the object arrives on the
+/// battlefield ([CR#614.12] — effects that modify how a permanent enters). The
+/// rider list rides [`Action::Move`]/[`Action::MoveGroup`]/
+/// [`PlayerAction::Create`] (and the player-agent `Move`); it is
+/// **battlefield-only** — an elaborator rule (`E-POS-RIDER`) rejects riders on
+/// any non-battlefield destination (a card in a graveyard has no tapped/
+/// attacking state to arrive in, [CR#110.5,614.12]).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+pub enum EnterRider {
+    /// "enters tapped" ([CR#603.6d] wording; applied via [CR#614.12]) — the
+    /// Path-to-Exile-style search-tapped and Rampant Growth's "onto the
+    /// battlefield tapped".
+    Tapped,
+    /// Enters face down ([CR#708]) — the manifest/morph arrival state.
+    FaceDown,
+    /// Enters under the named player's control instead of the default
+    /// ([CR#110.2a] — the instructing player's, unless the effect states
+    /// otherwise).
+    UnderControlOf(Reference),
+    /// "under its owner's control" ([CR#110.2a] override by owner) — the
+    /// blink/return-at-end-of-turn wording, spelled without naming a player.
+    UnderOwnersControl,
+    /// Enters attacking ([CR#508.4]) — Ninjutsu's "tapped and attacking",
+    /// Myriad/Encore. The optional reference names WHOM it attacks; `None`
+    /// leaves the [CR#508.4] controller choice open.
+    Attacking(Option<Reference>),
+    /// "with N [kind] counters on it" ([CR#614.12,122.1]) — the reanimation/
+    /// Otherworldly-Journey "+1/+1 counter on it" arrival.
+    WithCounters(CounterRef, Count),
+}
+
+/// How a GROUP landing in an ordered position is arranged ([CR#401.4] — the
+/// owner may arrange simultaneous arrivals; effects fix or randomize that).
+/// Rides [`Action::MoveGroup`].
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+pub enum Arrangement {
+    /// The named player chooses the order ("in the order of your choice") —
+    /// the chooser is explicit ([CR#401.4]).
+    ChosenOrder(Reference),
+    /// "in any order" — the cards' owner arranges them, the [CR#401.4]
+    /// default for a simultaneous group (Brainstorm's "on top of your library
+    /// in any order").
+    AnyOrder,
+    /// The group keeps the order it was selected in ("in the same order").
+    SameOrder,
+    /// "in a random order" ([CR#401.4] — the order is randomized, not
+    /// chosen).
+    RandomOrder,
 }
 
 /// An intrinsic game verb ([CR#700,701]) whose **agent is the source object or
@@ -111,7 +163,51 @@ pub enum Action {
     /// or the library at an anchor (`Move(This, Library(FromTop(0)))` — top of
     /// library, the former `PutInLibrary`; `Library(FromBottom(0))` — bottom,
     /// [CR#401.7]). This one verb subsumes the old `Move`/`PutInLibrary` split.
-    Move(Reference, Destination),
+    /// The trailing `riders` list ([`EnterRider`], default `[]`, omitted on
+    /// write when empty) spells arrival state for a BATTLEFIELD destination —
+    /// "onto the battlefield tapped / under its owner's control / with a +1/+1
+    /// counter on it" ([CR#614.12]); riders on any other destination are an
+    /// elaboration error (`E-POS-RIDER`).
+    Move(
+        Reference,
+        Destination,
+        #[macro_ron(default = "Vec::new()")] Vec<EnterRider>,
+    ),
+    /// Move a GROUP to a destination as one event, with an [`Arrangement`]
+    /// fixing how the simultaneous arrivals are ordered ([CR#401.4]) — the
+    /// order only EMERGES for a group landing in an ordered position, so the
+    /// group verb carries it while single [`Move`](Action::Move) does not.
+    /// Brainstorm's "put two cards … on top of your library in any order" =
+    /// `MoveGroup(group: That, arrangement: AnyOrder, to:
+    /// Library(FromTop(0)))`. `riders` as on [`Move`](Action::Move)
+    /// (battlefield-only, [CR#614.12]). A struct variant: four fields exceed
+    /// the `SupportsMacros` tuple arity (mirrors
+    /// [`CostComponent::TapTotal`](crate::CostComponent)).
+    MoveGroup {
+        group: Selection,
+        arrangement: Arrangement,
+        to: Destination,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        riders: Vec<EnterRider>,
+    },
+    /// Two creatures fight ([CR#701.14a]): each deals damage equal to its
+    /// power to the other. A PRIMITIVE with native semantics — both-or-neither
+    /// (a fight happens only if both are still creatures on the battlefield,
+    /// [CR#701.14b]), self-fight = twice its power to itself ([CR#701.14c]),
+    /// and the damage isn't combat damage ([CR#701.14d]) — engine execution
+    /// lands with `engine-fact-record-batch`; this is the shape.
+    Fight(Reference, Reference),
+    /// Add an extra phase of the given kind to the referenced player's turn,
+    /// directly after the current phase ([CR#500.8]).
+    ExtraPhase(crate::PhaseKind, Reference),
+    /// "It becomes day." ([CR#731.1]) — the game gains the day designation.
+    BecomeDay,
+    /// "It becomes night." ([CR#731.1]).
+    BecomeNight,
+    /// "The Ring tempts [player]" ([CR#701.54a]) — the game tempts the
+    /// referenced player (Ring-bearer choice and The Ring emblem are the
+    /// engine's); a footing verb: the shape lands here, execution later.
+    TheRingTempts(Reference),
     /// Move counters from one object onto another ([CR#122] — counters move
     /// object→object as a single operation, distinct from a separate
     /// remove-then-put). The [`CounterSpec`](crate::CounterSpec) names a
@@ -152,12 +248,16 @@ pub enum PlayerAction {
     Draw(Count),
     /// Discard cards ([CR#701.9]). `count` is how many; the optional `what`
     /// names *which* — omitted = the discarding player chooses `count` from
-    /// hand (the common form). "Discard this card" (cycling's cost,
-    /// [CR#702.29a]) is `Discard(count: Literal(1), what: This)`.
+    /// hand (the common form, [CR#701.9b]). "Discard this card" (cycling's
+    /// cost, [CR#702.29a]) is `Discard(count: Literal(1), what: This)`.
+    /// `random: true` is the "discard at random" form ([CR#701.9b] — the
+    /// affected player does not choose); senseless combined with a `what`.
     Discard {
         count: Count,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         what: Option<Reference>,
+        #[serde(default, skip_serializing_if = "crate::ability::is_false")]
+        random: bool,
     },
     /// Gain an amount of life ([CR#119.3]).
     GainLife(Count),
@@ -166,8 +266,16 @@ pub enum PlayerAction {
     /// Add mana to the player's mana pool ([CR#106.4]) — the production
     /// carries optional unit riders ([CR#106.6]).
     AddMana(Count, ManaProduction),
-    /// Create a number of token permanents ([CR#111.1,701.7]).
-    Create(Count, TokenSpec),
+    /// Create a number of token permanents ([CR#111.1,701.7]). The trailing
+    /// `riders` list ([`EnterRider`], default `[]`, omitted when empty) spells
+    /// arrival state — "create a … token tapped and attacking" ([CR#508.4]);
+    /// a created token always enters the battlefield, so every rider is legal
+    /// here ([CR#614.12]).
+    Create(
+        Count,
+        TokenSpec,
+        #[macro_ron(default = "Vec::new()")] Vec<EnterRider>,
+    ),
     /// Sacrifice the referenced permanent ([CR#701.21]).
     Sacrifice(Reference),
     /// A player-performed relocation to a [`Destination`] ([CR#400.7]) — the
@@ -175,7 +283,20 @@ pub enum PlayerAction {
     /// (`CostComponent::Do`). Exiling is a pure zone move ([CR#701.13]), so it
     /// has no dedicated verb: cost-side/self exile is `Move(This, Exile)`
     /// (Scavenge), and bottom-of-library tuck, etc., ride the same verb.
-    Move(Reference, Destination),
+    /// `riders` as on [`Action::Move`] (battlefield-only, [CR#614.12]).
+    Move(
+        Reference,
+        Destination,
+        #[macro_ron(default = "Vec::new()")] Vec<EnterRider>,
+    ),
+    /// Mill a number of cards ([CR#701.17a] — the player puts that many cards
+    /// from the top of their library into their graveyard). The shape;
+    /// engine execution is keyword-action work elsewhere.
+    Mill(Count),
+    /// "[Player] ventures into the dungeon" ([CR#701.49a]) — a footing verb:
+    /// the venture-marker/dungeon machinery is the engine's; the agent rides
+    /// [`Action::By`].
+    VentureIntoDungeon,
     /// Tap the referenced object ([CR#701.26a]).
     Tap(Reference),
     /// Untap the referenced object ([CR#701.26b]).
@@ -283,10 +404,11 @@ impl Action {
     }
 
     /// `Move` to a plain zone — the common relocation (`Move(This,
-    /// Graveyard)`), without spelling the `Destination::Zone` wrapper.
+    /// Graveyard)`), without spelling the `Destination::Zone` wrapper or the
+    /// (empty) rider list.
     #[must_use]
     pub fn move_to(what: Reference, zone: crate::Zone) -> Action {
-        Action::Move(what, Destination::Zone(zone))
+        Action::Move(what, Destination::Zone(zone), Vec::new())
     }
 }
 
@@ -332,15 +454,20 @@ mod tests {
     fn is_cost_eligible_covers_self_directed_verbs() {
         assert!(PlayerAction::Sacrifice(Reference::This).is_cost_eligible());
         assert!(
-            PlayerAction::Move(Reference::This, Destination::Zone(crate::Zone::Exile))
-                .is_cost_eligible()
+            PlayerAction::Move(
+                Reference::This,
+                Destination::Zone(crate::Zone::Exile),
+                vec![]
+            )
+            .is_cost_eligible()
         );
         assert!(PlayerAction::Tap(Reference::This).is_cost_eligible());
         assert!(PlayerAction::Untap(Reference::This).is_cost_eligible());
         assert!(
             PlayerAction::Discard {
                 count: Count::Literal(1),
-                what: None
+                what: None,
+                random: false
             }
             .is_cost_eligible()
         );
@@ -367,7 +494,8 @@ mod tests {
                 Reference::You,
                 PlayerAction::Discard {
                     count: Count::Literal(2),
-                    what: None
+                    what: None,
+                    random: false
                 },
             ),
         );
@@ -379,6 +507,7 @@ mod tests {
                 PlayerAction::Discard {
                     count: Count::Literal(1),
                     what: Some(Reference::This),
+                    random: false,
                 },
             ),
         );
@@ -388,6 +517,7 @@ mod tests {
             PlayerAction::Discard {
                 count: Count::Literal(2),
                 what: None,
+                random: false,
             },
         );
         let written = write(&bare);
@@ -401,6 +531,7 @@ mod tests {
             PlayerAction::Discard {
                 count: Count::Literal(1),
                 what: Some(Reference::This),
+                random: false,
             },
         );
         assert_eq!(read(&write(&this)), this);
@@ -559,6 +690,7 @@ mod tests {
         let top = Action::Move(
             Reference::This,
             Destination::Library(Anchor::FromTop(Count::Literal(0))),
+            vec![],
         );
         assert_eq!(read("Move(This, Library(FromTop(0)))"), top);
         assert_eq!(read(&write(&top)), top);
@@ -566,9 +698,143 @@ mod tests {
         let bottom = Action::Move(
             Reference::This,
             Destination::Library(Anchor::FromBottom(Count::Literal(0))),
+            vec![],
         );
         assert_eq!(read("Move(This, Library(FromBottom(0)))"), bottom);
         assert_eq!(read(&write(&bottom)), bottom);
+    }
+
+    /// A `Move` to the battlefield may carry entry riders ([CR#614.12]): the
+    /// short two-slot form still reads (riders default `[]`) and writes back
+    /// short; an explicit rider list reads via the third slot and
+    /// round-trips — the Path-to-Exile search-tapped / reanimation-
+    /// under-owner's-control encodings.
+    #[test]
+    fn move_riders_default_and_round_trip() {
+        use crate::Zone;
+        // Short form: no riders — written without the third slot.
+        let bare = Action::move_to(Reference::This, Zone::Battlefield);
+        assert_eq!(read("Move(This, Battlefield)"), bare);
+        assert_eq!(write(&bare), "Move(This,Battlefield)");
+
+        // Riders read positionally and round-trip.
+        let tapped = Action::Move(
+            Reference::That,
+            Destination::Zone(Zone::Battlefield),
+            vec![EnterRider::Tapped, EnterRider::UnderOwnersControl],
+        );
+        assert_eq!(
+            read("Move(That, Battlefield, [Tapped, UnderOwnersControl])"),
+            tapped,
+        );
+        assert_eq!(read(&write(&tapped)), tapped);
+
+        // The counter/attacking riders carry their payloads.
+        let countered = Action::Move(
+            Reference::That,
+            Destination::Zone(Zone::Battlefield),
+            vec![
+                EnterRider::WithCounters(crate::CounterRef::from("P1P1Counter"), Count::Literal(1)),
+                EnterRider::Attacking(Some(Reference::Opponent)),
+            ],
+        );
+        assert_eq!(read(&write(&countered)), countered);
+    }
+
+    /// `MoveGroup` — the group relocation with an [`Arrangement`]
+    /// ([CR#401.4]) — reads flat as a struct variant, omits an empty rider
+    /// list, and round-trips: Brainstorm's "on top of your library in any
+    /// order".
+    #[test]
+    fn move_group_arrangements_round_trip() {
+        use crate::Selection;
+        let brainstorm = Action::MoveGroup {
+            group: Selection::That,
+            arrangement: Arrangement::AnyOrder,
+            to: Destination::Library(Anchor::FromTop(Count::Literal(0))),
+            riders: vec![],
+        };
+        assert_eq!(
+            read("MoveGroup(group: That, arrangement: AnyOrder, to: Library(FromTop(0)))"),
+            brainstorm,
+        );
+        let written = write(&brainstorm);
+        assert!(
+            !written.contains("riders"),
+            "empty riders omitted: {written}"
+        );
+        assert_eq!(read(&written), brainstorm);
+
+        // The chooser-carrying arrangement and a rider list round-trip.
+        let arranged = Action::MoveGroup {
+            group: Selection::That,
+            arrangement: Arrangement::ChosenOrder(Reference::Opponent),
+            to: Destination::Zone(crate::Zone::Battlefield),
+            riders: vec![EnterRider::Tapped],
+        };
+        assert_eq!(read(&write(&arranged)), arranged);
+        for arrangement in ["SameOrder", "RandomOrder"] {
+            let v = read(&format!(
+                "MoveGroup(group: That, arrangement: {arrangement}, to: Library(FromBottom(0)))"
+            ));
+            assert_eq!(read(&write(&v)), v, "round-trip failed for {arrangement}");
+        }
+    }
+
+    /// The new verb shapes — `Fight` ([CR#701.14a]), `ExtraPhase`
+    /// ([CR#500.8]), day/night ([CR#731.1]), `TheRingTempts` ([CR#701.54a]),
+    /// and the player verbs `Mill` ([CR#701.17a]) / `VentureIntoDungeon`
+    /// ([CR#701.49a]) — read and round-trip; the player verbs read bare as
+    /// `By(You, …)`.
+    #[test]
+    fn new_verb_shapes_round_trip() {
+        let fight = Action::Fight(Reference::Target(0), Reference::Target(1));
+        assert_eq!(read("Fight(Target(0), Target(1))"), fight);
+        assert_eq!(read(&write(&fight)), fight);
+
+        let phase = Action::ExtraPhase(crate::PhaseKind::Combat, Reference::You);
+        assert_eq!(read("ExtraPhase(Combat, You)"), phase);
+        assert_eq!(read(&write(&phase)), phase);
+
+        for (source, want) in [
+            ("BecomeDay", Action::BecomeDay),
+            ("BecomeNight", Action::BecomeNight),
+        ] {
+            assert_eq!(read(source), want);
+            assert_eq!(read(&write(&want)), want);
+        }
+
+        let tempt = Action::TheRingTempts(Reference::You);
+        assert_eq!(read("TheRingTempts(You)"), tempt);
+        assert_eq!(read(&write(&tempt)), tempt);
+
+        let mill = Action::by_you(PlayerAction::Mill(Count::Literal(3)));
+        assert_eq!(read("Mill(Literal(3))"), mill);
+        assert_eq!(read(&write(&mill)), mill);
+
+        let venture = Action::by_you(PlayerAction::VentureIntoDungeon);
+        assert_eq!(read("VentureIntoDungeon"), venture);
+        assert_eq!(read(&write(&venture)), venture);
+    }
+
+    /// `Discard`'s `random` flag ([CR#701.9b]) defaults false (omitted on
+    /// write) and round-trips when set — "discard a card at random".
+    #[test]
+    fn discard_random_defaults_and_round_trips() {
+        let chosen = read("Discard(count: Literal(1))");
+        let Action::By(_, PlayerAction::Discard { random, .. }) = &chosen else {
+            panic!("expected Discard, got {chosen:?}");
+        };
+        assert!(!random, "omitted random defaults to false");
+        assert!(!write(&chosen).contains("random"), "false random omitted");
+
+        let random = Action::by_you(PlayerAction::Discard {
+            count: Count::Literal(1),
+            what: None,
+            random: true,
+        });
+        assert_eq!(read("Discard(count: Literal(1), random: true)"), random);
+        assert_eq!(read(&write(&random)), random);
     }
 
     /// `MoveCounters(spec, from, to)` reads natively for both a named

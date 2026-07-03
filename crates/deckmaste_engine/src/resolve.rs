@@ -734,10 +734,24 @@ impl GameState {
                          announce-time ([CR#601.2b,700.2c,700.2h])"
                     );
                 }
+                if modal.choose.rider.is_some() {
+                    // Entwine/escalate costs are announce-time additions to the
+                    // total ([CR#702.42a,702.120a,601.2b,601.2f]).
+                    todo!(
+                        "engine-alt-costs seam: entwine/escalate riders are announce-time \
+                         cost additions ([CR#601.2b])"
+                    );
+                }
                 let options = Uint::try_from(modal.modes.len()).expect("mode count fits Uint");
-                let count = self.eval_count(&modal.choose.count, frame);
-                let max = if modal.choose.repeats { count } else { count.min(options) };
-                let min = if modal.choose.up_to { 0 } else { max };
+                // The choose-count is a Quantity ([CR#700.2]): its bounds cap
+                // the pick — a missing lower bound floors at 0, a missing
+                // upper bound is capped by the printed modes (escalate's "one
+                // or more"); `repeats` lifts that ceiling ([CR#700.2d]).
+                let (lo, hi) = modal.choose.count.bounds();
+                let lo = lo.map_or(0, |c| self.eval_count(c, frame));
+                let hi = hi.map_or(options, |c| self.eval_count(c, frame));
+                let max = if modal.choose.repeats { hi } else { hi.min(options) };
+                let min = if modal.choose.up_to { 0 } else { lo.min(max) };
                 self.pending = Some(crate::decide::PendingDecision::ChooseModes {
                     player: frame.controller,
                     options,
@@ -875,7 +889,7 @@ impl GameState {
             };
             let reference = match pa.as_ref() {
                 PlayerAction::Sacrifice(r)
-                | PlayerAction::Move(r, _)
+                | PlayerAction::Move(r, _, _)
                 | PlayerAction::Discard { what: Some(r), .. } => Some(r),
                 _ => None,
             };
@@ -1096,7 +1110,15 @@ impl GameState {
             // is converted to one against the owner's current library size
             // (`len - n`), clamped at apply ("an index past the bottom places it
             // on the bottom"). This arm subsumes the former `PutInLibrary`.
-            Action::Move(sel, destination) => {
+            Action::Move(sel, destination, riders) => {
+                // Enter riders ([CR#614.12]) await the enters-the-battlefield
+                // machinery — a loud seam, like the other unbuilt verbs.
+                if !riders.is_empty() {
+                    todo!(
+                        "core-action-riders-cost-modes seam: enter riders (tapped/attacking/\
+                         with-counters) execute with the ETB machinery"
+                    );
+                }
                 let to = match destination {
                     Destination::Zone(z) => *z,
                     Destination::Library(_) => Zone::Library,
@@ -1184,6 +1206,28 @@ impl GameState {
                 unreachable!(
                     "CreateReplacement is handled in run_effect before action_items is called"
                 )
+            }
+            // ----- core-action-riders-cost-modes: shapes landed, execution
+            // seams. Fight's both-or-neither/self-fight semantics
+            // ([CR#701.14a..701.14d]) are engine-fact-record-batch work; the
+            // group move's simultaneous ordered landing ([CR#401.4]) rides
+            // the same batch machinery; the rest are footing verbs.
+            Action::MoveGroup { .. } => todo!(
+                "engine-fact-record-batch seam: MoveGroup's simultaneous ordered landing \
+                 ([CR#401.4])"
+            ),
+            Action::Fight(..) => todo!(
+                "engine-fact-record-batch seam: Fight's native both-or-neither semantics \
+                 ([CR#701.14a..701.14d])"
+            ),
+            Action::ExtraPhase(..) => {
+                todo!("engine seam: extra phases ([CR#500.8]) — turn-structure insertion unbuilt")
+            }
+            Action::BecomeDay | Action::BecomeNight => {
+                todo!("engine seam: day/night designations ([CR#731.1]) unbuilt")
+            }
+            Action::TheRingTempts(_) => {
+                todo!("engine seam: the Ring tempts you ([CR#701.54a]) — Ring machinery unbuilt")
             }
         }
     }
@@ -1307,7 +1351,13 @@ impl GameState {
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
-            PlayerAction::Move(reference, destination) => {
+            PlayerAction::Move(reference, destination, riders) => {
+                if !riders.is_empty() {
+                    todo!(
+                        "core-action-riders-cost-modes seam: enter riders (tapped/attacking/\
+                         with-counters) execute with the ETB machinery"
+                    );
+                }
                 // [CR#400.7]: the actor relocates the referenced object to
                 // `destination` from whatever zone it's in ([CR#406.2]).
                 // Exiling is a pure zone move ([CR#701.13a]) — `Move(This,
@@ -1396,6 +1446,14 @@ impl GameState {
             PlayerAction::CopySpell(..) => todo!("P0.W4: copy-on-stack ([CR#707.10])"),
             // P0.W3 seams: grammar-complete verbs whose execution is unbuilt.
             PlayerAction::FlipCoins(..) => todo!("P0.W3: coin flips (emit CoinFlipped)"),
+            // core-action-riders-cost-modes: shapes landed, execution seams.
+            PlayerAction::Mill(_) => todo!(
+                "engine seam: Mill ([CR#701.17a]) — the top-of-library group move lands with \
+                 the keyword-action engine work"
+            ),
+            PlayerAction::VentureIntoDungeon => {
+                todo!("engine seam: venture into the dungeon ([CR#701.49a]) — dungeons unbuilt")
+            }
             PlayerAction::RollDice(..) => todo!("P0.W3: die rolls (emit DieRolled)"),
             // [CR#122.1]: place/remove `n` counters of `kind` on each selected
             // object or player proxy. `n == 0` (or an empty selection) is a
@@ -1493,7 +1551,17 @@ impl GameState {
                     }],
                 }
             }
-            PlayerAction::Discard { count, what } => {
+            PlayerAction::Discard {
+                count,
+                what,
+                random,
+            } => {
+                if *random {
+                    todo!(
+                        "core-action-riders-cost-modes seam: random discard ([CR#701.9b]) \
+                         needs the randomness source (with FlipCoins/RollDice, P0.W3)"
+                    );
+                }
                 // [CR#701.9b]: the actor chooses which cards — surfaced as a
                 // decision when the work item applies (the hand may change
                 // before then). A named `what` (discard a *specific* card) as a
@@ -1508,7 +1576,13 @@ impl GameState {
                     count,
                 }]
             }
-            PlayerAction::Create(qty, spec) => {
+            PlayerAction::Create(qty, spec, riders) => {
+                if !riders.is_empty() {
+                    todo!(
+                        "core-action-riders-cost-modes seam: token enter riders \
+                         (tapped/attacking) execute with the ETB machinery"
+                    );
+                }
                 // [CR#701.7a]: one instruction puts all N tokens onto the
                 // battlefield — one simultaneous batch of `TokenCreated`
                 // facts. (Token copies — `Create` of a copy-defined token —
@@ -2136,6 +2210,12 @@ impl GameState {
             Count::Noted(key) => todo!("P0.W4: noted read {key:?} (slot store is P0.W5)"),
             // [CR#120.3]: the damage marked on the referenced object — read
             // directly off the base state (damage is not a derived stat).
+            // [CR#702.33c..702.33d]: multikicker's per-payment count needs
+            // the optional-cost announce record (engine-alt-costs).
+            Count::TimesPaid(tag) => todo!(
+                "engine-alt-costs: TimesPaid({tag:?}) needs the [CR#601.2b] optional-cost \
+                 announce record"
+            ),
             Count::Damage(reference) => {
                 let id = self.eval_reference(reference, frame);
                 self.objects.obj(id).damage
@@ -3952,6 +4032,7 @@ mod tests {
             effect: Box::new(Effect::act_by_you(PlayerAction::Discard {
                 count: Count::Literal(1),
                 what: None,
+                random: false,
             })),
         });
         state.run_effect(effect, &frame);
@@ -4409,6 +4490,7 @@ mod tests {
             Effect::act_by_you(PlayerAction::Move(
                 Reference::This,
                 deckmaste_core::Destination::Zone(Zone::Exile),
+                vec![],
             )),
             &frame,
         );
@@ -4431,6 +4513,7 @@ mod tests {
             Effect::act_by_you(PlayerAction::Move(
                 Reference::This,
                 deckmaste_core::Destination::Zone(Zone::Exile),
+                vec![],
             )),
             &frame,
         );
@@ -4570,6 +4653,7 @@ mod tests {
             Effect::Act(Action::Move(
                 Reference::This,
                 Destination::Library(Anchor::FromTop(Count::Literal(0))),
+                vec![],
             )),
             &frame,
         );
@@ -4588,6 +4672,7 @@ mod tests {
             Effect::Act(Action::Move(
                 Reference::This,
                 Destination::Library(Anchor::FromBottom(Count::Literal(0))),
+                vec![],
             )),
             &frame,
         );
@@ -5006,6 +5091,7 @@ mod tests {
             Effect::act_by_you(PlayerAction::Discard {
                 count: Count::Literal(2),
                 what: None,
+                random: false,
             }),
             &frame,
         );
@@ -5038,6 +5124,7 @@ mod tests {
             Effect::act_by_you(PlayerAction::Discard {
                 count: Count::Literal(99),
                 what: None,
+                random: false,
             }),
             &frame,
         );
@@ -5102,7 +5189,11 @@ mod tests {
             toughness: None,
         };
         state.run_effect(
-            Effect::act_by_you(PlayerAction::Create(Count::Literal(2), token.into())),
+            Effect::act_by_you(PlayerAction::Create(
+                Count::Literal(2),
+                token.into(),
+                vec![],
+            )),
             &frame,
         );
         // One simultaneous batch of two TokenCreated facts.
@@ -5221,6 +5312,7 @@ mod tests {
                         toughness: Some(deckmaste_core::StatValue::Number(1)),
                     }
                     .into(),
+                    vec![],
                 )),
                 &frame,
             );
@@ -5258,6 +5350,7 @@ mod tests {
             Effect::act_by_you(PlayerAction::Create(
                 Count::Literal(1),
                 deckmaste_core::TokenSpec::Named(deckmaste_core::TokenName::from("Treasure")),
+                vec![],
             )),
             &frame,
         );
@@ -5290,7 +5383,11 @@ mod tests {
         let frame = frame_src(src);
         let treasure = builtin().token("Treasure").unwrap();
         state.run_effect(
-            Effect::act_by_you(PlayerAction::Create(Count::Literal(1), treasure.into())),
+            Effect::act_by_you(PlayerAction::Create(
+                Count::Literal(1),
+                treasure.into(),
+                vec![],
+            )),
             &frame,
         );
         let _ = state.step(); // the TokenCreated batch applies
@@ -5975,9 +6072,14 @@ mod tests {
         };
         let modes = || vec![gain_mode(3), gain_mode(5), gain_mode(7)];
         let spec = |count, up_to| ChooseSpec {
-            count: Count::Literal(count),
+            count: deckmaste_core::Quantity::Range(
+                Some(Count::Literal(count)),
+                Some(Count::Literal(count)),
+            ),
             up_to,
             repeats: false,
+            chooser: Reference::You,
+            rider: None,
         };
         let p0 = PlayerId(0);
 

@@ -94,6 +94,11 @@ pub enum StateFilter {
     /// chosen at stack-put; "targets only …" counts distinct chosen
     /// targets, then checks current state ([CR#115.9c]).
     TargetCount(crate::CountBound),
+    /// The object's tagged optional cost
+    /// ([`OptionalCost`](crate::OptionalCost)) was paid — the filter-language
+    /// channel of the paid-cost linkage ([CR#702.33d..702.33e,607.2]): "a
+    /// kicked spell" = `AllOf([Kind(Spell), WasPaidWith(Kicker)])`.
+    WasPaidWith(crate::CostTag),
 }
 
 /// Structural relations the engine owns. Relations are
@@ -387,6 +392,11 @@ mod tests {
             Filter::State(StateFilter::Designated("Monstrous".into())),
         );
         assert_eq!(
+            // The paid-cost tag is a bare ident (`CostTag`), not a string.
+            read("WasPaidWith(Kicker)"),
+            Filter::State(StateFilter::WasPaidWith("Kicker".into())),
+        );
+        assert_eq!(
             read(r#"RelatedBy("PairedWith", Type(Creature))"#),
             Filter::State(StateFilter::RelatedBy(
                 "PairedWith".into(),
@@ -529,6 +539,7 @@ mod tests {
             "InZone(Battlefield)",
             "Status(Tapped)",
             "HasCounter(P1P1Counter)",
+            "WasPaidWith(Kicker)",
             r#"Designated("Monstrous")"#,
             r#"RelatedBy("PairedWith", Type(Creature))"#,
             r#"Subtype("Forest")"#,

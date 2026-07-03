@@ -1,0 +1,38 @@
+// Collective Defiance — the modal cost-rider acceptance fixture: an escalate
+// rider ([CR#702.120a]) on the "one or more" choose-quantity ([CR#700.2]),
+// with per-mode targets chosen only for chosen modes ([CR#601.2c]).
+//
+// BLOCKED leg (event-side, noted for the coordinator): mode 1's oracle text
+// continues "…, then draws that many cards" — `Draw(ThatMuch)` needs the
+// `Discard` cause-verb entailment row (`entailments.ron`) to supply an
+// amount (the number of cards discarded, [CR#701.9]) AND the walker's
+// `Discard` action arm to read it as its amount Intro — a
+// fact-signature/event-side change this ticket does not own (the action-arm
+// amount caps still key the retired `Performed:*` rows, which now read as
+// no-caps). When that lands, mode 1 grows the `Draw(ThatMuch)` leg.
+Normal(
+  name: "Collective Defiance",
+  mana_cost: [Generic(1), Red, Red],
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Modal(
+      choose: ChooseSpec(count: AtLeast(1), rider: Escalate([Mana([Generic(1)])])),
+      modes: [
+        Mode(effect: Targeted(
+          targets: [Target(Exactly(1), Kind(Player))],
+          effect: By(Target(0), Discard(
+            count: CountOf(AllOf([Kind(Card), InZone(Hand), Owner(Ref(Target(0)))])),
+          )),
+        )),
+        Mode(effect: Targeted(
+          targets: [Target(Exactly(1), Type(Creature))],
+          effect: DealDamage(Target(0), 4),
+        )),
+        Mode(effect: Targeted(
+          targets: [Target(Exactly(1), OneOf([AllOf([Kind(Player), OpponentOf(Ref(You))]), Type(Planeswalker)]))],
+          effect: DealDamage(Target(0), 3),
+        )),
+      ],
+    )),
+  ],
+)

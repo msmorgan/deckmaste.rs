@@ -122,6 +122,7 @@ fn every_accept_fixture_elaborates_clean_and_covers_its_code() {
                 | Code::FloorModalCount
                 | Code::FloorModalEmpty
                 | Code::FloorDivide
+                | Code::FloorDestination
                 | Code::CostIneligible
                 | Code::KindFilter
         );

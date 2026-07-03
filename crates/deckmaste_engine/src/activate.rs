@@ -556,7 +556,7 @@ impl GameState {
             // (partial payment is forbidden). A named `what` (cycling's
             // "discard this card", [CR#702.29a]) is payable when those specific
             // cards resolve, same as the other selection-cost verbs.
-            PlayerAction::Discard { count, what } => match what {
+            PlayerAction::Discard { count, what, .. } => match what {
                 None => {
                     let need = self.eval_count(count, frame) as usize;
                     self.zones.hands[player.index()].len() >= need
@@ -1261,6 +1261,7 @@ mod tests {
         let verbs = [PlayerAction::Discard {
             count: deckmaste_core::Count::Literal(1),
             what: None,
+            random: false,
         }];
 
         // Empty hand: not payable.

@@ -223,6 +223,7 @@ fn instead_redirects_destruction_to_exile() {
         PlayerAction::Move(
             Reference::This,
             deckmaste_core::Destination::Zone(Zone::Exile),
+            vec![],
         ),
     ));
     let (mut state, id) = creature_with_replacement(Replacement::Instead {

@@ -793,7 +793,8 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
             &*t.effect,
             Effect::Act(Action::Move(
                 Reference::Target(0),
-                Destination::Zone(Zone::Hand)
+                Destination::Zone(Zone::Hand),
+                _,
             ))
         ),
         "soulshift returns target to hand; got {:?}",
@@ -848,7 +849,7 @@ fn afterlife_confers_dies_create_spirit_tokens_with_flying() {
     // implicit-you default an effect-slot player verb reads as.
     let Effect::Act(Action::By(
         Reference::You,
-        PlayerAction::Create(count, TokenSpec::Token(token)),
+        PlayerAction::Create(count, TokenSpec::Token(token), _),
     )) = &trig.effect
     else {
         panic!(
