@@ -1,0 +1,12 @@
+// Flip-WIN is call-relative ([CR#705.2]); the fact records only the
+// physical outcome: load-capped until engine-one-evaluator.
+Normal(
+  name: "Reject Bridge Flip Won",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: CoinFlipped(by: Ref(You), won: true),
+      effect: GainLife(1),
+    ),
+  ],
+)

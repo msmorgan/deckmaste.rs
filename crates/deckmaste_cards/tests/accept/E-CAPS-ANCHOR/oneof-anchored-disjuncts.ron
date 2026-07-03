@@ -1,0 +1,19 @@
+// Accept twin of reject/E-CAPS-ANCHOR/*: a disjunction is kind-anchored
+// when EVERY disjunct bottoms out in a master form [CR#603.2], and the
+// disjuncts' caps MEET still supplies the event object ([CR#603.2c] — both
+// sides are `ZoneChange`s). (The former twin here refined an anchor with
+// `Not`; `Not` is bridge-capped — E-BRIDGE-CAP — until
+// engine-one-evaluator, and that twin returns with it.)
+Normal(
+  name: "Accept Anchored Disjuncts",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: OneOf([
+        Enters(Creature),
+        ZoneChange(what: Type(Creature), from: Battlefield, to: Graveyard),
+      ]),
+      effect: Move(EventObject, Exile),
+    ),
+  ],
+)

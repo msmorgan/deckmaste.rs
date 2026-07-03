@@ -4,12 +4,13 @@
 //
 // BLOCKED leg (event-side, noted for the coordinator): mode 1's oracle text
 // continues "…, then draws that many cards" — `Draw(ThatMuch)` needs the
-// `Discard` cause-verb entailment row (`entailments.ron`) to supply an
+// `Discard` cause-verb entailment row (`entailments.ron`) to grow an
 // amount (the number of cards discarded, [CR#701.9]) AND the walker's
 // `Discard` action arm to read it as its amount Intro — a
-// fact-signature/event-side change this ticket does not own (the action-arm
-// amount caps still key the retired `Performed:*` rows, which now read as
-// no-caps). When that lands, mode 1 grows the `Draw(ThatMuch)` leg.
+// fact-signature/event-side change this ticket does not own (the
+// DealDamage/GainLife/LoseLife action arms key their master forms'
+// caps rows since engine-eventfilter-bridge; Discard grants none yet).
+// When that lands, mode 1 grows the `Draw(ThatMuch)` leg.
 Normal(
   name: "Collective Defiance",
   mana_cost: [Generic(1), Red, Red],

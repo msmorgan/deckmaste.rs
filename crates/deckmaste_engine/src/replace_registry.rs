@@ -45,16 +45,21 @@ pub(crate) fn intent_event(e: &GameEvent) -> Option<(EventFilter, Affected)> {
     match e {
         // [CR#701.8a]: destruction = a BF→GY move with the Destroy cause.
         // The abstract event mirrors the trigger pattern for "destroyed"
-        // ([CR#701.8b]): a ZoneChange with verb "Destroy".
-        GameEvent::WillDestroy { object, cause } => Some((
-            EventFilter::ZoneChange {
-                what: Filter::Any,
-                from: Some(Zone::Battlefield),
-                to: Some(Zone::Graveyard),
-                cause: cause.as_ref().map(lift_cause),
-            },
-            Affected::Object(*object),
-        )),
+        // ([CR#701.8b]): a ZoneChange with verb "Destroy", its zone
+        // coordinates read from the verb's emitted entailment row — the
+        // engine hardcodes no per-verb fact form.
+        GameEvent::WillDestroy { object, cause } => {
+            let row = crate::entail::entailment("Destroy").expect("emitted Destroy entailment row");
+            Some((
+                EventFilter::ZoneChange {
+                    what: Filter::Any,
+                    from: row.from,
+                    to: row.to,
+                    cause: cause.as_ref().map(lift_cause),
+                },
+                Affected::Object(*object),
+            ))
+        }
         // [CR#121.1]: a draw — Library→Hand zone move.
         GameEvent::WillDraw { player, .. } => Some((
             EventFilter::ZoneChange {
@@ -283,6 +288,11 @@ fn event_pattern_matches(
         (EventFilter::AllOf(events), _) => events
             .iter()
             .all(|p| event_pattern_matches(state, view, p, this, abstract_ev, affected, performer)),
+        // [CR#603.2c]: a would-fact is one intent — the batch quantifier
+        // matches iff its operand does.
+        (EventFilter::OneOrMore(inner), _) => {
+            event_pattern_matches(state, view, inner, this, abstract_ev, affected, performer)
+        }
 
         // A pattern for a different event kind never matches.
         _ => false,
@@ -314,8 +324,13 @@ fn cause_pattern_matches(
             return false;
         }
     }
-    // Agent matching deferred to v1 seam — a cause pattern with an agent
-    // filter would need live-object lookup here.
+    // The lifted abstract cause carries no AGENT coordinate (`lift_cause`
+    // drops it), so an agent-narrowed pattern is load-capped in the would
+    // lanes (E-BRIDGE-CAP, `Cause:agent`) and conservatively never matches
+    // here — hard-false, never a silent over-match.
+    if pattern.agent.is_some() {
+        return false;
+    }
     true
 }
 
@@ -624,6 +639,11 @@ fn event_shape_matches(would: &EventFilter, abstract_ev: &EventFilter) -> bool {
         (EventFilter::AllOf(ws), _) => ws
             .iter()
             .all(|w| event_shape_matches(look_through_event(w), abstract_ev)),
+        // [CR#603.2c]: a would-fact is one intent — the batch quantifier
+        // matches iff its operand does.
+        (EventFilter::OneOrMore(inner), _) => {
+            event_shape_matches(look_through_event(inner), abstract_ev)
+        }
         _ => false,
     }
 }
@@ -1372,6 +1392,134 @@ mod tests {
             assert_eq!(amount, 1, "3 damage is reduced by 2 to 1");
         } else {
             panic!("expected Pass with reduced amount, got {:?}", outcome);
+        }
+    }
+
+    /// The [CR#701.21a] entailment, replacement half: a PLAIN to-graveyard
+    /// `would` (no cause narrow) intercepts a SACRIFICE intent — the
+    /// sacrifice is structurally the entailed Battlefield→Graveyard move,
+    /// no per-verb engine arm — while the Destroy-narrowed `would` does not
+    /// (see `destroyed_would_does_not_watch_sacrifice`).
+    #[test]
+    fn graveyard_would_intercepts_a_sacrifice() {
+        let (state, view, id) = super::tests_support::lone_creature();
+        let would = EventFilter::ZoneChange {
+            what: Filter::Any,
+            from: None,
+            to: Some(Zone::Graveyard),
+            cause: None,
+        };
+        let e = GameEvent::ZoneWillChange {
+            object: id,
+            from: Some(Zone::Battlefield),
+            to: Zone::Graveyard,
+            enters: None,
+            position: None,
+            face: None,
+            cause: Some(Cause::sacrifice(Agency::EffectInstruction, None)),
+        };
+        assert!(
+            replacement_watches(&state, &view, &would, id, &e),
+            "a graveyard replacement intercepts a sacrifice [CR#701.21a]"
+        );
+        // And the SACRIFICE-narrowed would matches it too, by its verb.
+        let sacrifice_would = EventFilter::ZoneChange {
+            what: Filter::Any,
+            from: None,
+            to: Some(Zone::Graveyard),
+            cause: Some(deckmaste_core::Cause::Cause(CausePattern {
+                verb: Some(deckmaste_core::CauseVerb::Sacrifice),
+                agency: None,
+                agent: None,
+            })),
+        };
+        assert!(replacement_watches(&state, &view, &sacrifice_would, id, &e));
+    }
+
+    /// THE BRIDGE INVARIANT, would half ([CR#614.1]): every atom the
+    /// emitted bridge-caps table marks WOULD-supported evaluates through
+    /// `replacement_watches` on a representative (would, intent) pair;
+    /// everything else is load-capped (E-BRIDGE-CAP) and conservatively
+    /// hard-`false` here — never a silent over-match.
+    #[test]
+    fn bridge_caps_agree_with_the_would_matcher() {
+        use deckmaste_cards::elaborate::tables::Matcher;
+        use deckmaste_cards::elaborate::tables::tables;
+
+        let (state, view, id) = super::tests_support::lone_creature();
+        let dies_would = || EventFilter::ZoneChange {
+            what: Filter::Any,
+            from: None,
+            to: Some(Zone::Graveyard),
+            cause: None,
+        };
+        let destroy_intent = || GameEvent::WillDestroy {
+            object: id,
+            cause: None,
+        };
+        let pair = |atom: &str| -> Option<(EventFilter, GameEvent)> {
+            Some(match atom {
+                "ZoneChange" => (dies_would(), destroy_intent()),
+                "Damage" => (
+                    EventFilter::Damage {
+                        source: Filter::Any,
+                        to: Filter::Any,
+                        combat: None,
+                        amount: None,
+                    },
+                    GameEvent::DamageDealt {
+                        source: id,
+                        target: id,
+                        amount: 2,
+                    },
+                ),
+                "LifeGained" => (
+                    EventFilter::LifeGained {
+                        who: Filter::Any,
+                        amount: None,
+                    },
+                    GameEvent::LifeGained {
+                        player: crate::player::PlayerId(0),
+                        amount: 3,
+                    },
+                ),
+                // `Filter::Where` runs LIVE in the would lane — the intent's
+                // object is still on the battlefield.
+                "Where-in-snapshot" => (
+                    EventFilter::ZoneChange {
+                        what: Filter::Where(Box::new(deckmaste_core::Condition::YourTurn)),
+                        from: None,
+                        to: Some(Zone::Graveyard),
+                        cause: None,
+                    },
+                    destroy_intent(),
+                ),
+                "AllOf" => (EventFilter::AllOf(vec![dies_would()]), destroy_intent()),
+                "OneOf" => (EventFilter::OneOf(vec![dies_would()]), destroy_intent()),
+                "OneOrMore" => (
+                    EventFilter::OneOrMore(Box::new(dies_would())),
+                    destroy_intent(),
+                ),
+                _ => return None,
+            })
+        };
+        for row in tables().bridge_rows() {
+            let atom = row.atom.as_str();
+            if let Some((would, e)) = pair(atom) {
+                assert!(
+                    row.supports(Matcher::Would),
+                    "{atom}: the would-matcher evaluates it, but the table caps it"
+                );
+                assert!(
+                    replacement_watches(&state, &view, &would, id, &e),
+                    "{atom}: representative would/intent pair must match"
+                );
+            } else {
+                assert!(
+                    !row.supports(Matcher::Would),
+                    "{atom}: table says would-supported but no pair exercises it"
+                );
+            }
         }
     }
 }

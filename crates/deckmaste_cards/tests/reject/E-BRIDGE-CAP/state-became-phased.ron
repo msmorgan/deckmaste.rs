@@ -1,0 +1,12 @@
+// Phasing deltas ([CR#702.26b]) have no fact shape yet (P0.W6): load-capped
+// until engine-one-evaluator.
+Normal(
+  name: "Reject Bridge Phased",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: StateBecame(of: Ref(This), becomes: Phased(Out)),
+      effect: GainLife(1),
+    ),
+  ],
+)

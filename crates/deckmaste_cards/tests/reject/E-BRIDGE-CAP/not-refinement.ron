@@ -1,0 +1,17 @@
+// `Not` is beyond the bridge matchers ([CR#603.2] — a pattern must match
+// its occurrences, never silently mis-match): load-capped until
+// engine-one-evaluator. The conjunction is anchored through its `Enters`
+// conjunct, so only the cap trips.
+Normal(
+  name: "Reject Bridge Not",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: AllOf([
+        Enters(Creature),
+        Not(ZoneChange(what: Any, to: Battlefield, cause: Cause(verb: Play))),
+      ]),
+      effect: GainLife(1),
+    ),
+  ],
+)

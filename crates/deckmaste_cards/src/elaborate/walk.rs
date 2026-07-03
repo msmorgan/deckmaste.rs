@@ -155,6 +155,55 @@ fn form_key(event: &EventFilter) -> Option<&'static str> {
     })
 }
 
+/// The bridge-caps atom of a history window ([`deckmaste_core::Lookback`]) —
+/// the log is turn-tagged, so sub-turn windows need combat/step markers it
+/// doesn't record ([CR#608.2i]).
+fn lookback_atom(within: deckmaste_core::Lookback) -> &'static str {
+    use deckmaste_core::Lookback;
+    match within {
+        Lookback::ThisTurn => "Lookback:ThisTurn",
+        Lookback::ThisGame => "Lookback:ThisGame",
+        Lookback::LastTurn => "Lookback:LastTurn",
+        Lookback::ThisCombat => "Lookback:ThisCombat",
+        Lookback::ThisStep => "Lookback:ThisStep",
+        Lookback::SinceYour(_) => "Lookback:SinceYour",
+    }
+}
+
+/// Whether `Filter::Where` sits on the SPINE a snapshot-evaluated slot walks
+/// (`ZoneChange.what` / `Played.what` — the moved object is gone,
+/// [CR#603.10a]). Only the spine is snapshot-bound: the snapshot matcher
+/// recurses through the logical combinators itself but resolves
+/// relation-nested filters against LIVE objects (a controller's proxy, an
+/// owner's proxy), where `Where` evaluates.
+fn where_in_spine(filter: &Filter) -> bool {
+    match filter {
+        Filter::Where(_) => true,
+        Filter::AllOf(fs) | Filter::OneOf(fs) => fs.iter().any(where_in_spine),
+        Filter::Not(f) => where_in_spine(f),
+        Filter::Expanded(e) => where_in_spine(&e.value),
+        _ => false,
+    }
+}
+
+/// Whether a filter is the match-anything default, looking through
+/// remembered macros — the engine's `TokenCreated` arm makes the same read.
+fn is_any_filter(filter: &Filter) -> bool {
+    match filter {
+        Filter::Any => true,
+        Filter::Expanded(e) => is_any_filter(&e.value),
+        _ => false,
+    }
+}
+
+/// Looks through remembered `Reference` macros to the structural reference.
+fn deref_reference(r: &Reference) -> &Reference {
+    match r {
+        Reference::Expanded(e) => deref_reference(&e.value),
+        other => other,
+    }
+}
+
 /// Whether a pattern is kind-ANCHORED — bottoms out in master forms
 /// ([CR#603.2]; no freeze-everything `CantHappen`): a master form anchors;
 /// a conjunction anchors if ANY conjunct does; a disjunction only if EVERY
@@ -298,6 +347,11 @@ struct Walker<'a> {
     registries: &'a Registries<'a>,
     errors: Vec<ElabError>,
     path: Vec<String>,
+    /// Bridge-cap findings collected during one [`Self::event`] walk
+    /// (`engine-eventfilter-bridge`): the cap speaks LAST — a pattern the
+    /// grammar's own rules (lane, anchor, floor, kind) already refused
+    /// never reaches the engine, so its caps are not reported.
+    bridge_pending: Vec<(String, Lane)>,
     /// Whether to collect [`super::Resolution`]s (`--dump`) — the load
     /// gate's plain walk leaves this off so it never pays for the
     /// bookkeeping.
@@ -312,6 +366,7 @@ impl<'a> Walker<'a> {
             registries,
             errors: Vec::new(),
             path: Vec::new(),
+            bridge_pending: Vec::new(),
             trace,
             resolutions: Vec::new(),
         }
@@ -879,8 +934,11 @@ impl<'a> Walker<'a> {
                 self.reference(patient, ctx, Kind::Any);
                 self.count(amount, ctx);
                 self.reference(source, ctx, Kind::Object);
+                // The action emits a `Damage` fact — its amount antecedent
+                // ("that much", [CR#107.3]) comes from that master form's
+                // caps row, mirroring the apply funnel's `that_much` set.
                 Intro {
-                    amount: self.tables.event_caps("Performed:DealDamage").amount,
+                    amount: self.tables.event_caps("Damage").amount,
                     notes: Vec::new(),
                 }
             }
@@ -968,15 +1026,18 @@ impl<'a> Walker<'a> {
             }
             PlayerAction::GainLife(count) => {
                 self.count(count, ctx);
+                // The action emits a `LifeGained` fact ([CR#119.3]) — the
+                // amount antecedent comes from that master form's caps row.
                 Intro {
-                    amount: self.tables.event_caps("Performed:GainLife").amount,
+                    amount: self.tables.event_caps("LifeGained").amount,
                     notes: Vec::new(),
                 }
             }
             PlayerAction::LoseLife(count) => {
                 self.count(count, ctx);
+                // The action emits a `LifeLost` fact ([CR#119.3]).
                 Intro {
-                    amount: self.tables.event_caps("Performed:LoseLife").amount,
+                    amount: self.tables.event_caps("LifeLost").amount,
                     notes: Vec::new(),
                 }
             }
@@ -1800,9 +1861,13 @@ impl<'a> Walker<'a> {
                     );
                 }
             }
-            Count::EventCount(event, _) => self.event(event, ctx, Lane::History),
-            Count::EventSum(event, _) => {
+            Count::EventCount(event, within) => {
                 self.event(event, ctx, Lane::History);
+                self.bridge_gate_lookback(*within, Lane::History);
+            }
+            Count::EventSum(event, within) => {
+                self.event(event, ctx, Lane::History);
+                self.bridge_gate_lookback(*within, Lane::History);
                 if !self.event_caps(event).amount {
                     self.err(
                         Code::CapsAmount,
@@ -1918,7 +1983,10 @@ impl<'a> Walker<'a> {
             Condition::LegallyAttached(r) | Condition::DamagedByDeathtouch(r) => {
                 self.reference(r, ctx, Kind::Object);
             }
-            Condition::Happened { event, within: _ } => self.event(event, ctx, Lane::History),
+            Condition::Happened { event, within } => {
+                self.event(event, ctx, Lane::History);
+                self.bridge_gate_lookback(*within, Lane::History);
+            }
             // The paid-cost flag reads the object's own announce record
             // ([CR#702.33d]) — a leaf.
             Condition::YourTurn | Condition::DuringPhase(_) | Condition::PaidCost(_) => {}
@@ -1945,6 +2013,8 @@ impl<'a> Walker<'a> {
     /// history lanes, `OneOrMore`/`Nth` per row, kind-anchoring where the
     /// lane requires it) and the residual kind-consistency pass.
     fn event(&mut self, event: &EventFilter, ctx: &Ctx, lane: Lane) {
+        let before = self.errors.len();
+        let outer_pending = std::mem::take(&mut self.bridge_pending);
         if self.tables.lane(lane.key()).anchored && !anchored(event) {
             self.err(
                 Code::CapsAnchor,
@@ -1957,16 +2027,70 @@ impl<'a> Walker<'a> {
         }
         self.event_node(event, ctx, lane);
         self.event_kinds(event);
+        // The bridge cap speaks LAST (`engine-eventfilter-bridge`): a
+        // pattern the grammar's own rules already refused never reaches the
+        // engine's matchers, so only an otherwise-admissible pattern reports
+        // its caps — reject fixtures stay one-code-minimal.
+        let pending = std::mem::replace(&mut self.bridge_pending, outer_pending);
+        if self.errors.len() == before {
+            for (atom, lane) in pending {
+                self.bridge_cap_err(&atom, lane);
+            }
+        }
+    }
+
+    /// The `engine-eventfilter-bridge` cap gate (`E-BRIDGE-CAP`): until the
+    /// one-evaluator rebase, each lane's patterns run on one of the engine's
+    /// three bridge matchers, and an atom that matcher cannot faithfully
+    /// evaluate is refused at load — never silently mis-matched
+    /// ([CR#603.2]). Support is per-atom emitted data (`bridge-caps.ron`);
+    /// the lane→matcher mapping rides the lane table. Findings are DEFERRED
+    /// to the enclosing [`Self::event`] so the cap reports only
+    /// otherwise-admissible patterns.
+    fn bridge_gate(&mut self, atom: &str, lane: Lane) {
+        let matcher = self.tables.lane(lane.key()).matcher;
+        if !self.tables.bridge_supports(atom, matcher) {
+            self.bridge_pending.push((atom.to_owned(), lane));
+        }
+    }
+
+    /// Emits one bridge-cap finding (the flush half of [`Self::bridge_gate`];
+    /// also called directly for the history-window positions outside an
+    /// event pattern).
+    fn bridge_cap_err(&mut self, atom: &str, lane: Lane) {
+        self.err(
+            Code::BridgeCap,
+            format!(
+                "{atom} is beyond the {} lane's bridge matcher — \
+                 load-capped until engine-one-evaluator",
+                lane.key()
+            ),
+        );
+    }
+
+    /// The bridge gate for a HISTORY WINDOW position (`Happened` /
+    /// `EventCount` / `EventSum` lookbacks) — immediate, since it sits
+    /// outside the pattern walk's deferral scope.
+    fn bridge_gate_lookback(&mut self, within: deckmaste_core::Lookback, lane: Lane) {
+        let atom = lookback_atom(within);
+        let matcher = self.tables.lane(lane.key()).matcher;
+        if !self.tables.bridge_supports(atom, matcher) {
+            self.bridge_cap_err(atom, lane);
+        }
     }
 
     /// One node of the pattern walk: master forms walk their filter slots
     /// with the slot's expected kind; algebra nodes apply their lane gates
-    /// and recurse.
+    /// and recurse. Every node passes the [`Self::bridge_gate`] — master
+    /// forms by their key here, refinement atoms per arm below.
     #[expect(
         clippy::too_many_lines,
         reason = "one arm per master form; splitting would scatter the form list"
     )]
     fn event_node(&mut self, event: &EventFilter, ctx: &Ctx, lane: Lane) {
+        if let Some(key) = form_key(event) {
+            self.bridge_gate(key, lane);
+        }
         match event {
             EventFilter::ZoneChange {
                 what,
@@ -1975,9 +2099,14 @@ impl<'a> Walker<'a> {
                 cause,
             } => {
                 self.filter(what, ctx, Kind::Object);
+                // The moved object is matched by SNAPSHOT ([CR#603.10a]).
+                if where_in_spine(what) {
+                    self.bridge_gate("Where-in-snapshot", lane);
+                }
                 if let Some(deckmaste_core::Cause::Cause(pattern)) = cause {
                     if let Some(agent) = &pattern.agent {
                         self.filter(agent, ctx, Kind::Any);
+                        self.bridge_gate("Cause:agent", lane);
                     }
                     // Entailment consistency ([CR#603.2g] — a pattern whose
                     // fixed coordinates contradict its verb's entailed fact
@@ -2016,27 +2145,54 @@ impl<'a> Walker<'a> {
                     }
                 }
             }
-            EventFilter::Damage { source, to, .. } => {
+            EventFilter::Damage {
+                source,
+                to,
+                combat,
+                amount,
+            } => {
                 self.filter(source, ctx, Kind::Object);
                 self.filter(to, ctx, Kind::Any);
+                if combat.is_some() {
+                    self.bridge_gate("Damage:combat", lane);
+                }
+                if amount.is_some() {
+                    self.bridge_gate("Damage:amount", lane);
+                }
             }
-            EventFilter::LifeGained { who, .. }
-            | EventFilter::LifeLost { who, .. }
-            | EventFilter::Drawn { who, .. } => {
+            EventFilter::LifeGained { who, amount }
+            | EventFilter::LifeLost { who, amount }
+            | EventFilter::Drawn { who, amount } => {
                 self.filter(who, ctx, Kind::Player);
+                if amount.is_some() {
+                    // `form_key` is total over master forms, so the
+                    // refinement atom is the form's own key.
+                    let atom = format!("{}:amount", form_key(event).expect("a master form"));
+                    self.bridge_gate(&atom, lane);
+                }
             }
-            EventFilter::CounterPlaced { kind, on, .. }
-            | EventFilter::CounterRemoved { kind, on, .. } => {
+            EventFilter::CounterPlaced { kind, on, amount }
+            | EventFilter::CounterRemoved { kind, on, amount } => {
                 let carrier = self.filter(on, ctx, Kind::Any);
                 if let Some(counter) = kind {
                     self.counter_ref(counter, carrier);
                 }
+                if amount.is_some() {
+                    let atom = format!("{}:amount", form_key(event).expect("a master form"));
+                    self.bridge_gate(&atom, lane);
+                }
             }
-            EventFilter::Cast { who, what }
-            | EventFilter::Played { who, what }
-            | EventFilter::ActivatedAb { who, what } => {
+            EventFilter::Cast { who, what } | EventFilter::ActivatedAb { who, what } => {
                 self.filter(who, ctx, Kind::Player);
                 self.filter(what, ctx, Kind::Object);
+            }
+            EventFilter::Played { who, what } => {
+                self.filter(who, ctx, Kind::Player);
+                self.filter(what, ctx, Kind::Object);
+                // The played card is matched by SNAPSHOT ([CR#603.10a]).
+                if where_in_spine(what) {
+                    self.bridge_gate("Where-in-snapshot", lane);
+                }
             }
             EventFilter::AttackDeclared { by, against } => {
                 self.filter(by, ctx, Kind::Object);
@@ -2060,6 +2216,9 @@ impl<'a> Walker<'a> {
                 self.filter(by, ctx, Kind::Object);
                 if let Some(source) = source {
                     self.filter(source, ctx, Kind::Object);
+                    // The hexproof-from arm has no fact-side data yet
+                    // ([CR#702.11d,702.16b]).
+                    self.bridge_gate("BecomesTarget:source", lane);
                 }
             }
             EventFilter::StepBegins { .. } | EventFilter::BecameDay | EventFilter::BecameNight => {}
@@ -2077,19 +2236,46 @@ impl<'a> Walker<'a> {
             EventFilter::TokenCreated { what, by } => {
                 self.filter(what, ctx, Kind::Object);
                 self.filter(by, ctx, Kind::Player);
+                // The fact carries the token SPEC — no minted object for a
+                // `what` filter to run against ([CR#701.7a]).
+                if !is_any_filter(what) {
+                    self.bridge_gate("TokenCreated:what", lane);
+                }
             }
             EventFilter::Used { of } => {
                 self.reference(of, ctx, Kind::Object);
+                // The bridge resolves `of` through the watching object —
+                // only the self-scoped `This` is resolvable outside a frame
+                // ([CR#400.7]).
+                if !matches!(deref_reference(of), Reference::This) {
+                    self.bridge_gate("Used:of", lane);
+                }
             }
-            EventFilter::CoinFlipped { by, .. } | EventFilter::DiceRolled { by } => {
+            EventFilter::CoinFlipped { by, won } => {
+                self.filter(by, ctx, Kind::Player);
+                // Flip-WIN is call-relative ([CR#705.2]); the fact records
+                // only the physical outcome.
+                if won.is_some() {
+                    self.bridge_gate("CoinFlipped:won", lane);
+                }
+            }
+            EventFilter::DiceRolled { by } => {
                 self.filter(by, ctx, Kind::Player);
             }
-            EventFilter::AllOf(events) | EventFilter::OneOf(events) => {
+            EventFilter::AllOf(events) => {
+                self.bridge_gate("AllOf", lane);
+                for event in events {
+                    self.event_node(event, ctx, lane);
+                }
+            }
+            EventFilter::OneOf(events) => {
+                self.bridge_gate("OneOf", lane);
                 for event in events {
                     self.event_node(event, ctx, lane);
                 }
             }
             EventFilter::Not(inner) => {
+                self.bridge_gate("Not", lane);
                 // Kind pass rule (a): the operand itself must bottom out in
                 // master forms ([CR#603.2]).
                 if !anchored(inner) {
@@ -2101,6 +2287,7 @@ impl<'a> Walker<'a> {
                 self.event_node(inner, ctx, lane);
             }
             EventFilter::OneOrMore(inner) => {
+                self.bridge_gate("OneOrMore", lane);
                 if !self.tables.lane(lane.key()).one_or_more {
                     self.err(
                         Code::LaneBatch,
@@ -2114,6 +2301,7 @@ impl<'a> Walker<'a> {
                 self.event_node(inner, ctx, lane);
             }
             EventFilter::Nth { n, of, within: _ } => {
+                self.bridge_gate("Nth", lane);
                 if !self.tables.lane(lane.key()).nth {
                     self.err(
                         Code::LaneBatch,
@@ -2129,10 +2317,12 @@ impl<'a> Walker<'a> {
                 self.event_node(of, ctx, lane);
             }
             EventFilter::When(inner, condition) => {
+                self.bridge_gate("When", lane);
                 self.event_node(inner, ctx, lane);
                 self.scoped("When", |w| w.condition(condition, ctx));
             }
             EventFilter::Within(inner, _) => {
+                self.bridge_gate("Within", lane);
                 if !self.tables.lane(lane.key()).within {
                     self.err(
                         Code::LaneWithin,

@@ -1,0 +1,14 @@
+// Sub-turn history windows need combat/step markers the turn-tagged log
+// doesn't record ([CR#506.1,608.2i]): load-capped until
+// engine-one-evaluator.
+Normal(
+  name: "Reject Bridge This Combat",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: ThisEnters,
+      condition: Happened(event: AttackDeclared(by: Type(Creature)), within: ThisCombat),
+      effect: GainLife(1),
+    ),
+  ],
+)

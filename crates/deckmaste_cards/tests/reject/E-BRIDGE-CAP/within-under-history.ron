@@ -1,0 +1,18 @@
+// The pattern-level `Within` refinement is lane-LEGAL under history
+// counting ([CR#608.2i]) but beyond the bridge's history matcher (the scan
+// applies the window FIELD, not per-node refinements): load-capped until
+// engine-one-evaluator.
+Normal(
+  name: "Reject Bridge Within",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: ThisEnters,
+      condition: Happened(
+        event: Within(LifeGained(who: Ref(You)), ThisTurn),
+        within: ThisTurn,
+      ),
+      effect: GainLife(1),
+    ),
+  ],
+)

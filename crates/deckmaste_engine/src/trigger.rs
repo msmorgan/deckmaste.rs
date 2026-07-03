@@ -192,7 +192,10 @@ impl GameState {
                 // P0.W6 seam: phasing and turn-face have no fact shapes yet —
                 // a pattern watching one must trip, not silently never fire.
                 if matches!(becomes, StateChange::Phased(_) | StateChange::TurnedFace(_)) {
-                    todo!("P0.W6: becomes-delta matching for {becomes:?}");
+                    todo!(
+                        "load-capped (E-BRIDGE-CAP): becomes-delta matching for {becomes:?} \
+                         has no fact shape yet (P0.W6)"
+                    );
                 }
                 let live = match (becomes, event) {
                     (StateChange::Tapped, GameEvent::Tapped { object, .. }) => Some(*object),
@@ -246,19 +249,30 @@ impl GameState {
 
             // [CR#701.18a]: a card was played — the land drop, a cause-carried
             // view riding a zone move (the W3 unification); the performer is
-            // the moved object's controller.
-            EventFilter::Played { who, what } => match event {
-                GameEvent::ZoneChanged {
-                    snapshot,
-                    cause: Some(c),
-                    ..
-                } if c.verb.as_str() == "Play" => {
-                    let performer = self.player(snapshot.controller).object;
-                    self.filter_matches_live(who, performer, watcher)
-                        && self.filter_matches_snapshot(what, snapshot, watcher)
+            // the moved object's controller. The verb's fact form (a
+            // `ZoneChange` onto the battlefield) comes from its emitted
+            // entailment row — the engine hardcodes no per-verb coordinates.
+            EventFilter::Played { who, what } => {
+                let row = crate::entail::entailment("Play").expect("emitted Play entailment row");
+                debug_assert_eq!(row.kind, "ZoneChange", "a play rides a zone move");
+                match event {
+                    GameEvent::ZoneChanged {
+                        snapshot,
+                        from,
+                        to,
+                        cause: Some(c),
+                        ..
+                    } if row.verb == c.verb.as_str()
+                        && zone_ok(row.from, *from)
+                        && zone_ok(row.to, Some(*to)) =>
+                    {
+                        let performer = self.player(snapshot.controller).object;
+                        self.filter_matches_live(who, performer, watcher)
+                            && self.filter_matches_snapshot(what, snapshot, watcher)
+                    }
+                    _ => false,
                 }
-                _ => false,
-            },
+            }
 
             // [CR#602.2a]: an activated ability was activated. `what` matches
             // the ability's SOURCE object (live on the battlefield); `who` its
@@ -282,7 +296,10 @@ impl GameState {
                 amount,
             } => {
                 if combat.is_some() {
-                    todo!("engine-fact-record-batch: no combat flag on DamageDealt yet");
+                    todo!(
+                        "load-capped (E-BRIDGE-CAP): no combat flag on DamageDealt yet \
+                         (engine-fact-record-batch)"
+                    );
                 }
                 match event {
                     GameEvent::DamageDealt {
@@ -327,7 +344,10 @@ impl GameState {
             // batch semantics with no fact-side data yet.
             EventFilter::Drawn { who, amount } => {
                 if amount.is_some() {
-                    todo!("engine-fact-record-batch: per-fact draw granularity is one card");
+                    todo!(
+                        "load-capped (E-BRIDGE-CAP): per-fact draw granularity is one card \
+                         (engine-fact-record-batch)"
+                    );
                 }
                 match event {
                     GameEvent::WillDraw { player, .. } => {
@@ -377,8 +397,11 @@ impl GameState {
             // has no object to run against yet — only the match-anything
             // default is buildable.
             EventFilter::TokenCreated { what, by } => {
-                if !matches!(what, Filter::Any) {
-                    todo!("matching a token spec before its object is minted");
+                if !matches!(deref_filter(what), Filter::Any) {
+                    todo!(
+                        "load-capped (E-BRIDGE-CAP): matching a token spec before its \
+                         object is minted"
+                    );
                 }
                 match event {
                     GameEvent::TokenCreated { player, .. } => {
@@ -408,7 +431,10 @@ impl GameState {
             // targeting object's SOURCE — no fact-side data yet.
             EventFilter::BecomesTarget { what, by, source } => {
                 if source.is_some() {
-                    todo!("engine-eventfilter-bridge: the hexproof-from source arm");
+                    todo!(
+                        "load-capped (E-BRIDGE-CAP): the hexproof-from source arm \
+                         ([CR#702.11d,702.16b]) has no fact-side data yet"
+                    );
                 }
                 match event {
                     GameEvent::BecameTarget { target, source: s } => {
@@ -445,24 +471,37 @@ impl GameState {
                 _ => false,
             },
 
-            // [CR#608.2i]: `Used` is the self/object-scoped ability-use count,
-            // resolved by `EventCount`'s frame path — `of` is resolved to a
-            // concrete `ObjectId` and matched against `AbilityUsed`'s object.
-            // The watcher-only matcher here cannot resolve that object
-            // identity (its `watcher` is an `ObjectSource`, not the resolved
-            // id), so `Happened(Used)` is unbuilt — trip rather than silently
-            // never fire.
-            EventFilter::Used { .. } => todo!(
-                "EventFilter::Used is counted via EventCount's frame-resolved object path \
-                 ([CR#608.2i]); the watcher-only matcher cannot resolve the object \
-                 identity — Happened(Used) is unbuilt"
-            ),
+            // [CR#608.2i]: an ability of `of` was used — object-scoped
+            // ([CR#400.7]), matched against `AbilityUsed`'s object identity.
+            // The bridge resolves the self-scoped `This` through the
+            // watcher's LIVE object (so `Happened(Used(of: This))` works
+            // anywhere the watcher is still around); any other reference
+            // needs a frame — `EventCount`'s head path resolves those, and
+            // the load caps (E-BRIDGE-CAP, `Used:of`) keep them out of this
+            // frameless matcher until the one-evaluator's bindings land.
+            EventFilter::Used { of } => match deref_reference(of) {
+                Reference::This => match event {
+                    GameEvent::AbilityUsed { object, .. } => self
+                        .objects
+                        .iter()
+                        .find(|ob| ob.source == watcher)
+                        .is_some_and(|ob| ob.id == *object),
+                    _ => false,
+                },
+                other => todo!(
+                    "load-capped (E-BRIDGE-CAP, Used:of): Used(of: {other:?}) needs frame \
+                     resolution — EventCount's head path today, engine-one-evaluator later"
+                ),
+            },
 
             // [CR#705.1]: a coin was flipped. The `won` narrow ([CR#705.2]) is
             // call-relative; the fact records only the physical outcome.
             EventFilter::CoinFlipped { by, won } => {
                 if won.is_some() {
-                    todo!("flip-win is call-relative [CR#705.2]; the fact carries only heads");
+                    todo!(
+                        "load-capped (E-BRIDGE-CAP): flip-win is call-relative [CR#705.2]; \
+                         the fact carries only heads"
+                    );
                 }
                 match event {
                     GameEvent::CoinFlipped { player, .. } => {
@@ -507,29 +546,24 @@ impl GameState {
                 events.iter().any(|p| self.event_matches(p, event, watcher))
             }
 
-            // The lane-gated algebra tail: load-time-legal, engine-unbuilt
-            // until the one-evaluator rebase — a card using one must trip,
-            // not silently never fire.
-            EventFilter::Not(_) => todo!(
-                "engine-eventfilter-bridge: Not is grammar+checker only until the \
-                 one-evaluator rebase"
-            ),
-            EventFilter::OneOrMore(_) => todo!(
-                "engine-eventfilter-bridge: OneOrMore is grammar+checker only until the \
-                 one-evaluator rebase"
-            ),
-            EventFilter::Nth { .. } => todo!(
-                "engine-eventfilter-bridge: Nth is grammar+checker only until the \
-                 one-evaluator rebase"
-            ),
-            EventFilter::When(..) => todo!(
-                "engine-eventfilter-bridge: When is grammar+checker only until the \
-                 one-evaluator rebase"
-            ),
-            EventFilter::Within(..) => todo!(
-                "engine-eventfilter-bridge: Within is grammar+checker only until the \
-                 one-evaluator rebase"
-            ),
+            // [CR#603.2c]: one or more matching occurrences in one event,
+            // matched as the BATCH. Against a single fact the quantifier
+            // matches iff its operand does; the ONCE-per-occurrence
+            // discipline is `scan_event`'s batch dedup
+            // ([`contains_one_or_more`]).
+            EventFilter::OneOrMore(inner) => self.event_matches(inner, event, watcher),
+
+            // The algebra tail the bridge matchers do NOT evaluate: the load
+            // caps (E-BRIDGE-CAP, the emitted bridge-caps table) reject
+            // every loadable pattern carrying one, so only an engine-built
+            // pattern can reach here — trip loudly, never silently
+            // mis-match. The one-evaluator rebase lifts these.
+            EventFilter::Not(_)
+            | EventFilter::Nth { .. }
+            | EventFilter::When(..)
+            | EventFilter::Within(..) => {
+                todo!("load-capped (E-BRIDGE-CAP) until engine-one-evaluator: {pattern:?}")
+            }
         }
     }
 
@@ -763,6 +797,11 @@ impl GameState {
         // doesn't exist yet.)
         let mut blocked_attackers: std::collections::HashSet<ObjectId> =
             std::collections::HashSet::new();
+        // [CR#603.2c]: a `OneOrMore` pattern matches a batch occurrence ONCE
+        // — (watcher source, ability) pairs that already fired for a member
+        // of THIS occurrence are skipped for its later members.
+        let mut batch_fired: std::collections::HashSet<(ObjectSource, usize)> =
+            std::collections::HashSet::new();
         for event in events {
             // Skip facts no trigger pattern watches; never scan a `TriggerFired`
             // (avoids any chance of recursion). `ZoneWillChange` is skipped because
@@ -782,7 +821,7 @@ impl GameState {
                 }
                 _ => {}
             }
-            self.scan_event(event, &mut emits);
+            self.scan_event(event, &mut emits, &mut batch_fired);
         }
         if !emits.is_empty() {
             self.schedule_front(emits);
@@ -815,8 +854,15 @@ impl GameState {
     }
 
     /// Scan one occurred fact against every watcher, pushing a `TriggerFired`
-    /// emit per match onto `emits`.
-    fn scan_event(&self, event: &GameEvent, emits: &mut Vec<WorkItem>) {
+    /// emit per match onto `emits`. `batch_fired` is the occurrence-scoped
+    /// dedup set for `OneOrMore` patterns ([CR#603.2c] — a batch quantifier
+    /// matches the occurrence once, not per member).
+    fn scan_event(
+        &self,
+        event: &GameEvent,
+        emits: &mut Vec<WorkItem>,
+        batch_fired: &mut std::collections::HashSet<(ObjectSource, usize)>,
+    ) {
         // The firing event's provenance ([CR#603.2e,608.2k]) — the AGENT (the
         // acting/moved object) bound as `that_object` with its responsible-
         // player ACTOR as `that_player`, and the kind-poly PATIENT (the acted-
@@ -942,6 +988,14 @@ impl GameState {
                     continue;
                 }
                 if !self.event_matches(&t.event, event, source) {
+                    continue;
+                }
+                // [CR#603.2c]: a `OneOrMore` pattern matches the batch ONCE —
+                // skip a (source, ability) that already fired for an earlier
+                // member of this occurrence. (The intervening-if below can't
+                // split members: it reads the same post-occurrence state for
+                // all of them.)
+                if contains_one_or_more(&t.event) && !batch_fired.insert((source, idx)) {
                     continue;
                 }
                 // [CR#603.10a,608.2]: the bindings the fired trigger carries —
@@ -1262,6 +1316,40 @@ fn literal_count(count: &Count) -> Uint {
     }
 }
 
+/// Looks through remembered `Reference` macros to the structural reference.
+fn deref_reference(r: &Reference) -> &Reference {
+    match r {
+        Reference::Expanded(e) => deref_reference(&e.value),
+        other => other,
+    }
+}
+
+/// Looks through remembered `Filter` macros to the structural filter.
+fn deref_filter(f: &Filter) -> &Filter {
+    match f {
+        Filter::Expanded(e) => deref_filter(&e.value),
+        other => other,
+    }
+}
+
+/// Whether a pattern carries the batch quantifier ([CR#603.2c] `OneOrMore`)
+/// anywhere — such a pattern matches a multi-fact occurrence ONCE, not per
+/// member: `scan_event` dedups its fires across the batch.
+fn contains_one_or_more(pattern: &EventFilter) -> bool {
+    match pattern {
+        EventFilter::OneOrMore(_) => true,
+        EventFilter::AllOf(events) | EventFilter::OneOf(events) => {
+            events.iter().any(contains_one_or_more)
+        }
+        EventFilter::Not(inner)
+        | EventFilter::Nth { of: inner, .. }
+        | EventFilter::When(inner, _)
+        | EventFilter::Within(inner, _) => contains_one_or_more(inner),
+        EventFilter::Expanded(e) => contains_one_or_more(&e.value),
+        _ => false,
+    }
+}
+
 /// Whether `zone_constraint` (from the trigger pattern) is satisfied by
 /// `actual` (from the `ZoneChanged` event).
 ///
@@ -1491,7 +1579,7 @@ mod tests {
         let etb = zone_changed_event(&state, visionary, Zone::Hand, Zone::Battlefield);
 
         let mut emits = Vec::new();
-        state.scan_event(&etb, &mut emits);
+        state.scan_event(&etb, &mut emits, &mut std::collections::HashSet::new());
         assert_eq!(
             count_fired(&emits, vis_source),
             2,
@@ -1501,7 +1589,7 @@ mod tests {
         // Remove Panharmonicon: the trigger fires exactly once.
         state.zones.battlefield.retain(|&o| o != pan);
         let mut emits = Vec::new();
-        state.scan_event(&etb, &mut emits);
+        state.scan_event(&etb, &mut emits, &mut std::collections::HashSet::new());
         assert_eq!(
             count_fired(&emits, vis_source),
             1,
@@ -1531,7 +1619,7 @@ mod tests {
 
         let etb = zone_changed_event(&state, visionary, Zone::Hand, Zone::Battlefield);
         let mut emits = Vec::new();
-        state.scan_event(&etb, &mut emits);
+        state.scan_event(&etb, &mut emits, &mut std::collections::HashSet::new());
         assert_eq!(
             count_fired(&emits, vis_source),
             3,
@@ -1561,7 +1649,7 @@ mod tests {
 
         let etb = zone_changed_event(&state, visionary, Zone::Hand, Zone::Battlefield);
         let mut emits = Vec::new();
-        state.scan_event(&etb, &mut emits);
+        state.scan_event(&etb, &mut emits, &mut std::collections::HashSet::new());
         assert_eq!(
             count_fired(&emits, vis_source),
             1,
@@ -4358,7 +4446,7 @@ mod tests {
     }
 
     // -------------------------------------------------------------------------
-    // Performed — Draw / LoseLife / GainLife ([CR#121.1,119.3])
+    // Player-experienced facts — Draw / LoseLife / GainLife ([CR#121.1,119.3])
     // -------------------------------------------------------------------------
 
     /// `Drawn(who: Ref(You))` matches `WillDraw` for the watcher's
@@ -4442,6 +4530,506 @@ mod tests {
         assert!(
             !state.event_matches(&pattern, &opp_gain, watcher_source),
             "an opponent's life gain fails by: Ref(You)"
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // The engine-eventfilter-bridge agreement ([CR#603.2])
+    // -------------------------------------------------------------------------
+
+    /// A representative (pattern, fact) pair for a LIVE-matcher bridge atom,
+    /// built against the `bear_on_field` state. `None` = the atom has no
+    /// live-lane support (it must appear in the CAPPED list below).
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one representative pair per bridge-caps atom — the table's full surface"
+    )]
+    fn live_atom_pair(
+        state: &GameState,
+        bear: ObjectId,
+        atom: &str,
+    ) -> Option<(EventFilter, GameEvent)> {
+        use deckmaste_core::Count;
+        use deckmaste_core::CountBound;
+        use deckmaste_core::StateChange;
+
+        let died = zone_changed_event(state, bear, Zone::Battlefield, Zone::Graveyard);
+        let dies_pattern = EventFilter::ZoneChange {
+            what: Filter::creature(),
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
+            cause: None,
+        };
+        let at_least = |n| Some(CountBound::AtLeast(Count::Literal(n)));
+        Some(match atom {
+            "ZoneChange" => (dies_pattern, died),
+            "Damage" | "Damage:amount" => (
+                EventFilter::Damage {
+                    source: Filter::Any,
+                    to: Filter::Any,
+                    combat: None,
+                    amount: if atom == "Damage" { None } else { at_least(2) },
+                },
+                GameEvent::DamageDealt {
+                    source: bear,
+                    target: bear,
+                    amount: 2,
+                },
+            ),
+            "LifeGained" | "LifeGained:amount" => (
+                EventFilter::LifeGained {
+                    who: Filter::Any,
+                    amount: if atom == "LifeGained" { None } else { at_least(3) },
+                },
+                GameEvent::LifeGained {
+                    player: PlayerId(0),
+                    amount: 3,
+                },
+            ),
+            "LifeLost" | "LifeLost:amount" => (
+                EventFilter::LifeLost {
+                    who: Filter::Any,
+                    amount: if atom == "LifeLost" { None } else { at_least(3) },
+                },
+                GameEvent::LifeLost {
+                    player: PlayerId(0),
+                    amount: 3,
+                },
+            ),
+            "Drawn" => (
+                EventFilter::Drawn {
+                    who: Filter::Any,
+                    amount: None,
+                },
+                GameEvent::WillDraw {
+                    player: PlayerId(0),
+                    source: None,
+                },
+            ),
+            "CounterPlaced" | "CounterPlaced:amount" => (
+                EventFilter::CounterPlaced {
+                    kind: None,
+                    on: Filter::Any,
+                    amount: if atom == "CounterPlaced" { None } else { at_least(2) },
+                },
+                GameEvent::CounterPlaced {
+                    object: bear,
+                    kind: "P1P1Counter".into(),
+                    count: 2,
+                    cause: None,
+                },
+            ),
+            "CounterRemoved" | "CounterRemoved:amount" => (
+                EventFilter::CounterRemoved {
+                    kind: None,
+                    on: Filter::Any,
+                    amount: if atom == "CounterRemoved" { None } else { at_least(2) },
+                },
+                GameEvent::CounterRemoved {
+                    object: bear,
+                    kind: "P1P1Counter".into(),
+                    count: 2,
+                    cause: None,
+                },
+            ),
+            "Cast" => (
+                EventFilter::Cast {
+                    who: Filter::Any,
+                    what: Filter::Any,
+                },
+                GameEvent::SpellCast(bear),
+            ),
+            "Played" => (
+                EventFilter::Played {
+                    who: Filter::Any,
+                    what: Filter::Any,
+                },
+                zone_changed_with_cause(
+                    state,
+                    bear,
+                    Zone::Hand,
+                    Zone::Battlefield,
+                    crate::event::Cause::play(deckmaste_core::Agency::SpecialAction, None),
+                ),
+            ),
+            "ActivatedAb" => (
+                EventFilter::ActivatedAb {
+                    who: Filter::Any,
+                    what: Filter::Any,
+                },
+                GameEvent::AbilityActivated {
+                    source: bear,
+                    ability: 0,
+                },
+            ),
+            "AttackDeclared" => (
+                EventFilter::AttackDeclared {
+                    by: Filter::Any,
+                    against: Filter::Any,
+                },
+                GameEvent::Attacking(bear),
+            ),
+            "BlockDeclared" => (
+                EventFilter::BlockDeclared {
+                    by: Filter::Any,
+                    of: Filter::Any,
+                },
+                GameEvent::Blocked {
+                    blocker: bear,
+                    attacker: bear,
+                },
+            ),
+            "Attached" => (
+                EventFilter::Attached {
+                    what: Filter::Any,
+                    to: Filter::Any,
+                },
+                GameEvent::Attached {
+                    attachment: bear,
+                    host: bear,
+                },
+            ),
+            "StateBecame:Tapped" => (
+                EventFilter::StateBecame {
+                    of: Filter::Any,
+                    becomes: StateChange::Tapped,
+                },
+                GameEvent::Tapped {
+                    object: bear,
+                    cause: None,
+                },
+            ),
+            "StateBecame:Untapped" => (
+                EventFilter::StateBecame {
+                    of: Filter::Any,
+                    becomes: StateChange::Untapped,
+                },
+                GameEvent::Untapped(bear),
+            ),
+            "BecomesTarget" => (
+                EventFilter::BecomesTarget {
+                    what: Filter::Any,
+                    by: Filter::Any,
+                    source: None,
+                },
+                GameEvent::BecameTarget {
+                    target: bear,
+                    source: bear,
+                },
+            ),
+            "StepBegins" => (
+                EventFilter::StepBegins {
+                    at: deckmaste_core::PhaseStep::Beginning(deckmaste_core::BeginningStep::Upkeep),
+                    whose: deckmaste_core::WhoseTurn::EachPlayers,
+                },
+                GameEvent::StepBegan(deckmaste_core::PhaseStep::Beginning(
+                    deckmaste_core::BeginningStep::Upkeep,
+                )),
+            ),
+            "ControlChanged" => (
+                EventFilter::ControlChanged {
+                    of: Filter::Any,
+                    to: Filter::Any,
+                },
+                GameEvent::ControlChanged {
+                    object: bear,
+                    to: PlayerId(1),
+                },
+            ),
+            "DesignationChanged" => (
+                EventFilter::DesignationChanged {
+                    name: "Monarch".into(),
+                    of: Filter::Any,
+                },
+                GameEvent::GotDesignation {
+                    player: PlayerId(0),
+                    name: "Monarch".into(),
+                },
+            ),
+            "TokenCreated" => (
+                EventFilter::TokenCreated {
+                    what: Filter::Any,
+                    by: Filter::Any,
+                },
+                GameEvent::TokenCreated {
+                    player: PlayerId(0),
+                    token: deckmaste_core::Token {
+                        color_indicator: vec![],
+                        supertypes: vec![],
+                        types: vec![Type::Artifact],
+                        subtypes: vec![],
+                        abilities: vec![],
+                        power: None,
+                        toughness: None,
+                    },
+                },
+            ),
+            "Used" => (
+                EventFilter::Used {
+                    of: Reference::This,
+                },
+                GameEvent::AbilityUsed {
+                    object: bear,
+                    ability: 0,
+                },
+            ),
+            "CoinFlipped" => (
+                EventFilter::CoinFlipped {
+                    by: Filter::Any,
+                    won: None,
+                },
+                GameEvent::CoinFlipped {
+                    player: PlayerId(0),
+                    heads: true,
+                },
+            ),
+            "DiceRolled" => (
+                EventFilter::DiceRolled { by: Filter::Any },
+                GameEvent::DieRolled {
+                    player: PlayerId(0),
+                    sides: 6,
+                    natural: 3,
+                    result: 3,
+                },
+            ),
+            "BecameDay" => (
+                EventFilter::BecameDay,
+                GameEvent::DesignationChanged {
+                    name: "DayNight".into(),
+                    becomes: Some("Day".into()),
+                },
+            ),
+            "BecameNight" => (
+                EventFilter::BecameNight,
+                GameEvent::DesignationChanged {
+                    name: "DayNight".into(),
+                    becomes: Some("Night".into()),
+                },
+            ),
+            "Cause:agent" => (
+                EventFilter::ZoneChange {
+                    what: Filter::Any,
+                    from: None,
+                    to: None,
+                    cause: Some(deckmaste_core::Cause::Cause(deckmaste_core::CausePattern {
+                        verb: None,
+                        agency: None,
+                        agent: Some(Filter::creature()),
+                    })),
+                },
+                zone_changed_with_cause(
+                    state,
+                    bear,
+                    Zone::Battlefield,
+                    Zone::Graveyard,
+                    crate::event::Cause {
+                        verb: "Sacrifice".into(),
+                        agency: deckmaste_core::Agency::EffectInstruction,
+                        agent: Some((bear, PlayerId(0))),
+                    },
+                ),
+            ),
+            "AllOf" => (EventFilter::AllOf(vec![dies_pattern]), died),
+            "OneOf" => (EventFilter::OneOf(vec![dies_pattern]), died),
+            "OneOrMore" => (EventFilter::OneOrMore(Box::new(dies_pattern)), died),
+            _ => return None,
+        })
+    }
+
+    /// THE BRIDGE INVARIANT, live half ([CR#603.2]): every atom the emitted
+    /// bridge-caps table marks LIVE-supported evaluates through
+    /// `event_matches` on a representative (pattern, fact) pair — a `todo!`
+    /// seam would panic this test — and every atom it marks unsupported is
+    /// a known cap (each with a reject fixture under
+    /// `deckmaste_cards/tests/reject/E-BRIDGE-CAP/`). Grammar admission and
+    /// engine capability agree exactly: a new table row must land with a
+    /// pair here or a place in the capped list.
+    #[test]
+    fn bridge_caps_agree_with_the_live_matcher() {
+        use deckmaste_cards::elaborate::tables::Matcher;
+        use deckmaste_cards::elaborate::tables::tables;
+
+        // Live-unsupported atoms: capped (E-BRIDGE-CAP) until
+        // engine-one-evaluator (`Where-in-snapshot` is would-lane-only);
+        // `Lookback:*` rows are history-lane data (`History::scan` — see
+        // `scan_windows_select_by_turn`).
+        const CAPPED: [&str; 13] = [
+            "Not",
+            "Nth",
+            "When",
+            "Within",
+            "Damage:combat",
+            "Drawn:amount",
+            "TokenCreated:what",
+            "BecomesTarget:source",
+            "CoinFlipped:won",
+            "Used:of",
+            "Where-in-snapshot",
+            "StateBecame:Phased",
+            "StateBecame:TurnedFace",
+        ];
+
+        let (state, bear) = bear_on_field();
+        let watcher = state.objects.obj(bear).source;
+        for row in tables().bridge_rows() {
+            let atom = row.atom.as_str();
+            if let Some((pattern, event)) = live_atom_pair(&state, bear, atom) {
+                assert!(
+                    row.supports(Matcher::Live),
+                    "{atom}: the live matcher evaluates it, but the table caps it"
+                );
+                assert!(
+                    state.event_matches(&pattern, &event, watcher),
+                    "{atom}: representative pair must match"
+                );
+            } else {
+                assert!(
+                    !row.supports(Matcher::Live),
+                    "{atom}: table says live-supported but no pair exercises it"
+                );
+                assert!(
+                    CAPPED.contains(&atom) || atom.starts_with("Lookback:"),
+                    "{atom}: an unclassified live-unsupported atom — cap it \
+                     knowingly (fixture + this list) or build its arm"
+                );
+            }
+        }
+    }
+
+    /// The previously-`todo!()` batch seam, end to end ([CR#603.2c]): a real
+    /// `OneOrMore` trigger scanned over a two-death BATCH occurrence fires
+    /// ONCE; the plain (unquantified) twin fires once per member.
+    #[test]
+    fn one_or_more_trigger_fires_once_per_batch() {
+        let watcher_card = |quantified: bool| {
+            let event = if quantified {
+                "OneOrMore(ZoneChange(what: Type(Creature), from: Battlefield, to: Graveyard))"
+            } else {
+                "ZoneChange(what: Type(Creature), from: Battlefield, to: Graveyard)"
+            };
+            let source = format!(
+                "Normal(name: \"Batch Watcher\", types: [Enchantment], abilities: [\
+                     Triggered(event: {event}, effect: GainLife(1)),\
+                 ])"
+            );
+            Arc::new(
+                builtin()
+                    .macros
+                    .read_str::<deckmaste_core::Card>(&source)
+                    .unwrap(),
+            )
+        };
+        for (quantified, expected) in [(true, 1), (false, 2)] {
+            let (mut state, bear) = bear_on_field();
+            let other = {
+                let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+                let card = state.cards.push(bears, PlayerId(0));
+                let id = state.objects.mint(
+                    ObjectSource::Card(card),
+                    PlayerId(0),
+                    Some(Zone::Battlefield),
+                );
+                state.zones.battlefield.push(id);
+                id
+            };
+            let watcher = put_bf(&mut state, watcher_card(quantified), PlayerId(0));
+            let watcher_source = state.objects.obj(watcher).source;
+            let batch = Occurrence::Batch(vec![
+                zone_changed_event(&state, bear, Zone::Battlefield, Zone::Graveyard),
+                zone_changed_event(&state, other, Zone::Battlefield, Zone::Graveyard),
+            ]);
+            state.scan_triggers(&batch);
+            let fired = state
+                .agenda
+                .iter()
+                .filter(|w| {
+                    matches!(
+                        w,
+                        WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired {
+                            source, ..
+                        })) if *source == watcher_source
+                    )
+                })
+                .count();
+            assert_eq!(
+                fired, expected,
+                "quantified={quantified}: OneOrMore matches the batch once, \
+                 the plain pattern once per member"
+            );
+        }
+    }
+
+    /// The [CR#701.21a] entailment, trigger half: a plain "dies" trigger
+    /// (the `Dies` macro — no cause narrow) FIRES on a sacrifice, because
+    /// the sacrifice fact IS the entailed Battlefield→Graveyard move — no
+    /// per-verb engine arm.
+    #[test]
+    fn dies_trigger_fires_on_a_sacrifice() {
+        let source = "Normal(name: \"Death Watcher\", types: [Enchantment], abilities: [\
+             Triggered(event: Dies(Type(Creature)), effect: GainLife(1)),\
+         ])";
+        let card = Arc::new(
+            canon()
+                .macros
+                .read_str::<deckmaste_core::Card>(source)
+                .unwrap(),
+        );
+        let (mut state, bear) = bear_on_field();
+        let watcher = put_bf(&mut state, card, PlayerId(0));
+        let watcher_source = state.objects.obj(watcher).source;
+        let sacrifice = zone_changed_with_cause(
+            &state,
+            bear,
+            Zone::Battlefield,
+            Zone::Graveyard,
+            crate::event::Cause::sacrifice(deckmaste_core::Agency::CostPayment, None),
+        );
+        state.scan_triggers(&Occurrence::single(sacrifice));
+        let fired = state
+            .agenda
+            .iter()
+            .filter(|w| {
+                matches!(
+                    w,
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { source, .. }))
+                        if *source == watcher_source
+                )
+            })
+            .count();
+        assert_eq!(fired, 1, "a dies trigger sees a sacrifice [CR#701.21a]");
+    }
+
+    /// The previously-`todo!()` `Happened(Used)` seam ([CR#608.2i]): the
+    /// self-scoped `Used(of: This)` resolves through the watcher's live
+    /// object in the generic matcher, so the HISTORY lane reads it.
+    #[test]
+    fn happened_used_self_scoped_reads_history() {
+        let (mut state, bear) = bear_on_field();
+        let controller = state.objects.obj(bear).controller;
+        let gate = Condition::Happened {
+            event: EventFilter::Used {
+                of: Reference::This,
+            },
+            within: deckmaste_core::Lookback::ThisGame,
+        };
+        let frame = Frame::bare(bear, controller);
+        assert!(!state.condition_holds(&gate, &frame), "no use recorded yet");
+        state.history.record(
+            1,
+            GameEvent::AbilityUsed {
+                object: bear,
+                ability: 0,
+            },
+        );
+        assert!(
+            state.condition_holds(&gate, &frame),
+            "Happened(Used(of: This)) sees the recorded self-use"
+        );
+        // Another object's use is NOT this object's ([CR#400.7]).
+        let other_gate_frame = Frame::bare(state.player(controller).object, controller);
+        assert!(
+            !state.condition_holds(&gate, &other_gate_frame),
+            "object-scoped: a different carrier does not match"
         );
     }
 }

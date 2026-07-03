@@ -171,7 +171,7 @@ pub enum Filter {
     /// `Where(SharesColor(It, This))` and kin.
     Where(Box<Condition>),
     /// Matches every object — the bare-Filter default for event participant
-    /// slots (`Event::Performed`'s `by`/`on`).
+    /// slots (an `EventFilter` master form's `who`/`what`).
     Any,
     /// A remembered `Filter` macro invocation (evasion sets, protection
     /// qualities, …). Serialized as the invocation, not the struct.
@@ -180,8 +180,8 @@ pub enum Filter {
 }
 
 impl Filter {
-    /// The match-anything filter, as a serde `default` for fields like
-    /// `Event::Performed`'s `by`/`on`.
+    /// The match-anything filter, as a serde `default` for fields like an
+    /// `EventFilter` master form's `who`/`what`.
     #[must_use]
     pub fn any() -> Filter {
         Filter::Any

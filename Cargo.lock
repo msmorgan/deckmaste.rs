@@ -446,6 +446,8 @@ dependencies = [
  "rand",
  "rand_chacha",
  "rayon",
+ "ron",
+ "serde",
  "slotmap",
 ]
 

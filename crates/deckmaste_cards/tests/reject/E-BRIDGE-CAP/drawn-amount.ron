@@ -1,0 +1,13 @@
+// A draw fact's granularity is one card ([CR#121.1]); a multi-card amount
+// bound is batch semantics with no fact-side data: load-capped until
+// engine-one-evaluator.
+Normal(
+  name: "Reject Bridge Drawn Amount",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: Drawn(who: Ref(You), amount: AtLeast(2)),
+      effect: GainLife(1),
+    ),
+  ],
+)

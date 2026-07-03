@@ -293,12 +293,25 @@ struct EntailmentFile {
     rows: Vec<EntailmentRow>,
 }
 
+/// Which ENGINE MATCHER a lane's patterns run on until the one-evaluator
+/// rebase (the `engine-eventfilter-bridge` compile-down): the live trigger
+/// matcher (`event_matches`), the replacement would-matcher (abstract
+/// intents), or the history scan (the live matcher over recorded facts).
+/// The bridge-caps table is keyed per matcher.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+pub enum Matcher {
+    Live,
+    Would,
+    History,
+}
+
 /// One event-LANE row (the plan's §3.2 lane table): which algebra
 /// refinements each consumer position admits. `within` — history windows
 /// are vacuous against a live fact ([CR#603.2]); `one_or_more` — batch
 /// matching only makes sense where one occurrence fires once ([CR#603.2c]);
 /// `nth` — ordinal refinement; `anchored` — every disjunct must bottom out
-/// in a master form (kind-anchored; no freeze-everything `CantHappen`).
+/// in a master form (kind-anchored; no freeze-everything `CantHappen`);
+/// `matcher` — the bridge matcher the lane evaluates on.
 #[expect(
     clippy::struct_excessive_bools,
     reason = "the fields mirror the emitted RON row shape one-to-one"
@@ -310,6 +323,7 @@ pub struct LaneRow {
     pub nth: bool,
     pub one_or_more: bool,
     pub anchored: bool,
+    pub matcher: Matcher,
     /// Rides the row for `cite audit`, not the checker.
     pub cite: String,
 }
@@ -317,6 +331,39 @@ pub struct LaneRow {
 #[derive(Debug, Deserialize)]
 struct LanesFile {
     rows: Vec<LaneRow>,
+}
+
+/// One bridge-caps row (`engine-eventfilter-bridge`): an `EventFilter` ATOM
+/// (a master-form key, a `Form:field` refinement, an algebra node, or a
+/// `Lookback:*` history window) and whether each bridge [`Matcher`]
+/// evaluates it FAITHFULLY today. An atom a lane's matcher does not support
+/// is load-rejected (`E-BRIDGE-CAP`), never silently mis-matched; the
+/// one-evaluator rebase lifts the caps.
+#[derive(Debug, Deserialize)]
+pub struct BridgeRow {
+    pub atom: String,
+    pub live: bool,
+    pub would: bool,
+    pub history: bool,
+    /// Rides the row for `cite audit`, not the checker.
+    pub cite: String,
+}
+
+impl BridgeRow {
+    /// Whether `matcher` evaluates this atom faithfully.
+    #[must_use]
+    pub fn supports(&self, matcher: Matcher) -> bool {
+        match matcher {
+            Matcher::Live => self.live,
+            Matcher::Would => self.would,
+            Matcher::History => self.history,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct BridgeFile {
+    rows: Vec<BridgeRow>,
 }
 
 /// One checker-rule manifest row: an error code the elaborator may emit,
@@ -348,6 +395,7 @@ pub struct Tables {
     bind_rules: HashMap<String, BindRule>,
     entailments: HashMap<String, EntailmentRow>,
     lanes: HashMap<String, LaneRow>,
+    bridge: HashMap<String, BridgeRow>,
     pub rules: Vec<RuleRow>,
 }
 
@@ -436,6 +484,21 @@ impl Tables {
             .get(key)
             .unwrap_or_else(|| panic!("no lane row emitted for {key:?}"))
     }
+
+    /// Whether `matcher` supports the bridge-caps `atom`
+    /// (`engine-eventfilter-bridge`). An atom with no row supplies nothing —
+    /// unsupported is the safe direction (a new grammar atom must mint its
+    /// row before it loads).
+    #[must_use]
+    pub fn bridge_supports(&self, atom: &str, matcher: Matcher) -> bool {
+        self.bridge.get(atom).is_some_and(|r| r.supports(matcher))
+    }
+
+    /// Every bridge-caps row — the engine's bridge-agreement test iterates
+    /// these to pin admission against matcher capability.
+    pub fn bridge_rows(&self) -> impl Iterator<Item = &BridgeRow> {
+        self.bridge.values()
+    }
 }
 
 fn parse<T: serde::de::DeserializeOwned>(what: &str, source: &str) -> T {
@@ -460,6 +523,7 @@ pub fn tables() -> &'static Tables {
         let entailments: EntailmentFile =
             parse("entailments", include_str!("../../tables/entailments.ron"));
         let lanes: LanesFile = parse("event-lanes", include_str!("../../tables/event-lanes.ron"));
+        let bridge: BridgeFile = parse("bridge-caps", include_str!("../../tables/bridge-caps.ron"));
         let rules: RulesFile = parse(
             "checker-rules",
             include_str!("../../tables/checker-rules.ron"),
@@ -533,6 +597,11 @@ pub fn tables() -> &'static Tables {
                 .into_iter()
                 .map(|r| (r.lane.clone(), r))
                 .collect(),
+            bridge: bridge
+                .rows
+                .into_iter()
+                .map(|r| (r.atom.clone(), r))
+                .collect(),
             rules: rules.rows,
         }
     });
@@ -580,10 +649,40 @@ mod tests {
         // Lanes: live lanes refuse Within; history refuses OneOrMore.
         let trig = t.lane("Triggered.event");
         assert!(!trig.within && trig.one_or_more && trig.nth && trig.anchored);
+        assert_eq!(trig.matcher, Matcher::Live);
         let hist = t.lane("Happened");
         assert!(hist.within && !hist.one_or_more && hist.nth && !hist.anchored);
+        assert_eq!(hist.matcher, Matcher::History);
         let mult = t.lane("TriggerMultiplier.cause");
         assert!(!mult.nth, "Nth is refused on the multiplier lane");
+        assert_eq!(t.lane("Replacement.would").matcher, Matcher::Would);
+        assert_eq!(t.lane("CantHappen").matcher, Matcher::Would);
+        // Bridge caps: the named engine-eventfilter-bridge caps hold, and an
+        // unknown atom supplies nothing (never a silent grant).
+        assert!(t.bridge_supports("ZoneChange", Matcher::Live));
+        assert!(t.bridge_supports("ZoneChange", Matcher::Would));
+        assert!(
+            !t.bridge_supports("Not", Matcher::Live)
+                && !t.bridge_supports("Nth", Matcher::Live)
+                && !t.bridge_supports("When", Matcher::Live)
+                && !t.bridge_supports("Within", Matcher::History),
+            "the algebra caps hold until engine-one-evaluator"
+        );
+        assert!(
+            t.bridge_supports("OneOrMore", Matcher::Live)
+                && t.bridge_supports("OneOrMore", Matcher::Would),
+            "batch-once matching is bridged in the live/would lanes"
+        );
+        assert!(
+            !t.bridge_supports("Cast", Matcher::Would),
+            "the would-matcher lowers only the intent shapes the engine emits"
+        );
+        assert!(
+            t.bridge_supports("Lookback:ThisTurn", Matcher::History)
+                && !t.bridge_supports("Lookback:ThisCombat", Matcher::History),
+            "sub-turn history windows are capped (no combat/step markers)"
+        );
+        assert!(!t.bridge_supports("Bogus", Matcher::Live));
         // Cost rows: an explicit row per eligible verb, no catch-all.
         assert!(t.cost_action("Sacrifice").is_some());
         assert!(t.cost_action("Draw").is_none(), "Draw is not a cost");

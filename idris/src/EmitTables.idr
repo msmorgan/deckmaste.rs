@@ -196,38 +196,153 @@ entailmentTable =
 -- event lanes (the plan's §3.2 lane table): per-consumer algebra gates
 -- --------------------------------------------------------------------------
 
+-- Which ENGINE MATCHER a lane's patterns run on until the one-evaluator
+-- rebase (the `engine-eventfilter-bridge` compile-down): the live trigger
+-- matcher (`event_matches`), the replacement would-matcher
+-- (`event_pattern_matches` over abstract intents), or the history scan
+-- (the live matcher over recorded facts + `History::scan` windows). The
+-- bridge-caps table below is keyed per matcher.
+data Matcher = Live | Would | History
+
+matcherName : Matcher -> String
+matcherName Live = "Live"
+matcherName Would = "Would"
+matcherName History = "History"
+
 -- One row: the walker's lane key, whether `Within` / `Nth` / `OneOrMore`
--- are admitted, and whether every disjunct must be kind-anchored (bottom
--- out in a master form). Positional discipline like `bindRows`' caps_from —
--- per-row data, each cited.
+-- are admitted, whether every disjunct must be kind-anchored (bottom
+-- out in a master form), and the bridge matcher the lane evaluates on.
+-- Positional discipline like `bindRows`' caps_from — per-row data, each
+-- cited.
 laneRow : (lane : String) -> (within : Bool) -> (nth : Bool)
-       -> (oneOrMore : Bool) -> (anchored : Bool) -> (cite : String) -> String
-laneRow lane within nth oneOrMore anchored cite =
+       -> (oneOrMore : Bool) -> (anchored : Bool) -> Matcher
+       -> (cite : String) -> String
+laneRow lane within nth oneOrMore anchored matcher cite =
   "        (lane: " ++ quoted lane
   ++ ", within: " ++ bool within
   ++ ", nth: " ++ bool nth
   ++ ", one_or_more: " ++ bool oneOrMore
   ++ ", anchored: " ++ bool anchored
+  ++ ", matcher: " ++ matcherName matcher
   ++ ", cite: " ++ quoted cite ++ "),\n"
 
 laneRows : List String
 laneRows =
   [ -- live lanes: a history window is vacuous against a live fact
-    laneRow "Triggered.event" False True True True "[CR#603.2]"
-  , laneRow "Delayed.event" False True True True "[CR#603.7c]"
-  , laneRow "Replacement.would" False True True True "[CR#614.1]"
-  , laneRow "CantHappen" False True True True "[CR#614.17c]"
-  , laneRow "UntilEvent" False True True True "[CR#610.3]"
+    laneRow "Triggered.event" False True True True Live "[CR#603.2]"
+  , laneRow "Delayed.event" False True True True Live "[CR#603.7c]"
+  , laneRow "Replacement.would" False True True True Would "[CR#614.1]"
+  , laneRow "CantHappen" False True True True Would "[CR#614.17c]"
+  , laneRow "UntilEvent" False True True True Live "[CR#610.3]"
     -- the multiplier watches another ability's trigger — no ordinals
-  , laneRow "TriggerMultiplier.cause" False False True True "[CR#603.2d]"
+  , laneRow "TriggerMultiplier.cause" False False True True Live "[CR#603.2d]"
     -- history lanes: the window is the required field; batches don't count
-  , laneRow "Happened" True True False False "[CR#608.2i]"
+  , laneRow "Happened" True True False False History "[CR#608.2i]"
   ]
 
 laneTable : String
 laneTable =
   header "Event lanes: which algebra refinements each consumer position admits ([CR#603.2,608.2i])."
   ++ "(\n    rows: [\n" ++ concat laneRows ++ "    ],\n)\n"
+
+-- --------------------------------------------------------------------------
+-- bridge caps (`engine-eventfilter-bridge`): per-atom matcher support
+-- --------------------------------------------------------------------------
+
+-- One row: an `EventFilter` ATOM (a master-form key, a `Form:field`
+-- refinement, an algebra node, or a `Lookback:*` history window) and
+-- whether each bridge matcher evaluates it FAITHFULLY today. An atom a
+-- lane's matcher does not support is load-REJECTED (`E-BRIDGE-CAP`), never
+-- silently mis-matched; the one-evaluator rebase ([[engine-one-evaluator]])
+-- lifts the caps by replacing the matchers, not by editing card data.
+-- Support values are ENGINE capability facts (which arms exist in
+-- `trigger.rs` / `replace_registry.rs` / `history.rs`) — hand-maintained
+-- here like the checker-rule manifest, pinned by the engine's
+-- bridge-agreement test.
+bridgeRow : (atom : String) -> (live : Bool) -> (would : Bool)
+         -> (history : Bool) -> (cite : String) -> String
+bridgeRow atom live would history cite =
+  "        (atom: " ++ quoted atom
+  ++ ", live: " ++ bool live
+  ++ ", would: " ++ bool would
+  ++ ", history: " ++ bool history
+  ++ ", cite: " ++ quoted cite ++ "),\n"
+
+bridgeRows : List String
+bridgeRows =
+  [ -- master forms. The would-matcher lowers only the three intent shapes
+    -- the engine emits (`intent_event`): zone moves, damage, life gain.
+    bridgeRow "ZoneChange" True True True "[CR#603.6]"
+  , bridgeRow "Damage" True True True "[CR#120.1]"
+  , bridgeRow "LifeGained" True True True "[CR#119.3]"
+  , bridgeRow "LifeLost" True False True "[CR#119.3]"
+  , bridgeRow "Drawn" True False True "[CR#121.1]"
+  , bridgeRow "CounterPlaced" True False True "[CR#122.1]"
+  , bridgeRow "CounterRemoved" True False True "[CR#122.1]"
+  , bridgeRow "Cast" True False True "[CR#601.2i]"
+  , bridgeRow "Played" True False True "[CR#701.18a]"
+  , bridgeRow "ActivatedAb" True False True "[CR#602.2a]"
+  , bridgeRow "AttackDeclared" True False True "[CR#508.1k]"
+  , bridgeRow "BlockDeclared" True False True "[CR#509.3a]"
+  , bridgeRow "Attached" True False True "[CR#701.3a]"
+  , bridgeRow "StateBecame:Tapped" True False True "[CR#603.2e]"
+  , bridgeRow "StateBecame:Untapped" True False True "[CR#603.2e]"
+    -- phasing / turn-face have no fact shapes yet (P0.W6)
+  , bridgeRow "StateBecame:Phased" False False False "[CR#702.26b]"
+  , bridgeRow "StateBecame:TurnedFace" False False False "[CR#708]"
+  , bridgeRow "BecomesTarget" True False True "[CR#601.2c]"
+    -- step onsets are read off TurnState, never recorded to history
+  , bridgeRow "StepBegins" True False False "[CR#603.2b]"
+  , bridgeRow "ControlChanged" True False True "[CR#613.1b]"
+  , bridgeRow "DesignationChanged" True False True "[CR#109.3]"
+  , bridgeRow "TokenCreated" True False True "[CR#701.7a]"
+  , bridgeRow "Used" True False True "[CR#608.2i]"
+  , bridgeRow "CoinFlipped" True False True "[CR#705.1]"
+  , bridgeRow "DiceRolled" True False True "[CR#706.1]"
+  , bridgeRow "BecameDay" True False True "[CR#731.1]"
+  , bridgeRow "BecameNight" True False True "[CR#731.1]"
+    -- refinement atoms (checked only when the field is present / non-default)
+  , bridgeRow "Damage:combat" False False False "[CR#510.1]"
+  , bridgeRow "Damage:amount" True False True "[CR#120.1]"
+  , bridgeRow "LifeGained:amount" True False True "[CR#119.3]"
+  , bridgeRow "LifeLost:amount" True False True "[CR#119.3]"
+  , bridgeRow "Drawn:amount" False False False "[CR#121.1]"
+  , bridgeRow "CounterPlaced:amount" True False True "[CR#122.1]"
+  , bridgeRow "CounterRemoved:amount" True False True "[CR#122.1]"
+  , bridgeRow "TokenCreated:what" False False False "[CR#701.7a]"
+  , bridgeRow "BecomesTarget:source" False False False "[CR#702.11d,702.16b]"
+  , bridgeRow "CoinFlipped:won" False False False "[CR#705.2]"
+    -- the would-matcher's lifted cause carries no agent
+  , bridgeRow "Cause:agent" True False True "[CR#603.2]"
+    -- `Used` resolves object identity through the watcher — only the
+    -- self-scoped `of: This` is resolvable outside a frame ([CR#400.7])
+  , bridgeRow "Used:of" False False False "[CR#608.2i]"
+    -- `Filter::Where` under a snapshot-evaluated participant slot
+    -- (`ZoneChange.what` / `Played.what` — the moved object is gone); the
+    -- would-matcher evaluates the same slot LIVE (the intent's object)
+  , bridgeRow "Where-in-snapshot" False True False "[CR#603.10a]"
+    -- algebra nodes
+  , bridgeRow "AllOf" True True True "[CR#603.2]"
+  , bridgeRow "OneOf" True True True "[CR#603.2c]"
+  , bridgeRow "Not" False False False "[CR#603.2]"
+  , bridgeRow "Nth" False False False "[CR#603.2g]"
+  , bridgeRow "When" False False False "[CR#603.4]"
+  , bridgeRow "Within" False False False "[CR#608.2i]"
+  , bridgeRow "OneOrMore" True True False "[CR#603.2c]"
+    -- history windows (`Happened`/`EventCount`/`EventSum` lookbacks): the
+    -- log is turn-tagged; sub-turn markers are unrecorded
+  , bridgeRow "Lookback:ThisTurn" False False True "[CR#608.2i]"
+  , bridgeRow "Lookback:ThisGame" False False True "[CR#608.2i]"
+  , bridgeRow "Lookback:LastTurn" False False True "[CR#608.2i]"
+  , bridgeRow "Lookback:ThisCombat" False False False "[CR#506.1]"
+  , bridgeRow "Lookback:ThisStep" False False False "[CR#500.1]"
+  , bridgeRow "Lookback:SinceYour" False False False "[CR#603.2b]"
+  ]
+
+bridgeTable : String
+bridgeTable =
+  header "Bridge caps (engine-eventfilter-bridge): which EventFilter atoms each engine matcher evaluates faithfully; unsupported atoms are load-rejected (E-BRIDGE-CAP) until the one-evaluator rebase ([CR#603.2])."
+  ++ "(\n    rows: [\n" ++ concat bridgeRows ++ "    ],\n)\n"
 
 -- --------------------------------------------------------------------------
 -- cost actions ([CR#118.3]): eligibility + payment-event caps
@@ -506,6 +621,7 @@ ruleRows =
   , ruleRow "E-CAPS-CONTRADICTION" "[CR#603.2g]" "conjunction over incompatible master forms or against a cause entailment - the pattern can never match"
   , ruleRow "E-LANE-WITHIN" "[CR#603.2]" "Within refinement in a live event lane (vacuous outside history counting)"
   , ruleRow "E-LANE-BATCH" "[CR#603.2c]" "OneOrMore/Nth refinement in a lane that forbids it"
+  , ruleRow "E-BRIDGE-CAP" "[CR#603.2]" "event construct the lane's bridge matcher cannot faithfully evaluate - load-capped until the one-evaluator rebase"
   , ruleRow "E-POS-TARGETED" "[CR#115.1a..115.1e,601.2c]" "Targeted outside an announce root (replacement/static/loop position)"
   , ruleRow "E-POS-RIDER" "[CR#614.12]" "enter rider on a non-battlefield destination"
   , ruleRow "E-KIND-FILTER" "[CR#109.1]" "filter kind conflicts with its slot's expected kind"
@@ -556,6 +672,7 @@ emitTables = do
   emit "event-caps.ron" eventCapsTable
   emit "entailments.ron" entailmentTable
   emit "event-lanes.ron" laneTable
+  emit "bridge-caps.ron" bridgeTable
   emit "cost-actions.ron" costActionTable
   emit "scopes.ron" scopesTable
   emit "kind-lattice.ron" latticeTable

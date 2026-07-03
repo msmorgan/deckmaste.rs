@@ -3,12 +3,12 @@
 // Event lanes: which algebra refinements each consumer position admits ([CR#603.2,608.2i]).
 (
     rows: [
-        (lane: "Triggered.event", within: false, nth: true, one_or_more: true, anchored: true, cite: "[CR#603.2]"),
-        (lane: "Delayed.event", within: false, nth: true, one_or_more: true, anchored: true, cite: "[CR#603.7c]"),
-        (lane: "Replacement.would", within: false, nth: true, one_or_more: true, anchored: true, cite: "[CR#614.1]"),
-        (lane: "CantHappen", within: false, nth: true, one_or_more: true, anchored: true, cite: "[CR#614.17c]"),
-        (lane: "UntilEvent", within: false, nth: true, one_or_more: true, anchored: true, cite: "[CR#610.3]"),
-        (lane: "TriggerMultiplier.cause", within: false, nth: false, one_or_more: true, anchored: true, cite: "[CR#603.2d]"),
-        (lane: "Happened", within: true, nth: true, one_or_more: false, anchored: false, cite: "[CR#608.2i]"),
+        (lane: "Triggered.event", within: false, nth: true, one_or_more: true, anchored: true, matcher: Live, cite: "[CR#603.2]"),
+        (lane: "Delayed.event", within: false, nth: true, one_or_more: true, anchored: true, matcher: Live, cite: "[CR#603.7c]"),
+        (lane: "Replacement.would", within: false, nth: true, one_or_more: true, anchored: true, matcher: Would, cite: "[CR#614.1]"),
+        (lane: "CantHappen", within: false, nth: true, one_or_more: true, anchored: true, matcher: Would, cite: "[CR#614.17c]"),
+        (lane: "UntilEvent", within: false, nth: true, one_or_more: true, anchored: true, matcher: Live, cite: "[CR#610.3]"),
+        (lane: "TriggerMultiplier.cause", within: false, nth: false, one_or_more: true, anchored: true, matcher: Live, cite: "[CR#603.2d]"),
+        (lane: "Happened", within: true, nth: true, one_or_more: false, anchored: false, matcher: History, cite: "[CR#608.2i]"),
     ],
 )

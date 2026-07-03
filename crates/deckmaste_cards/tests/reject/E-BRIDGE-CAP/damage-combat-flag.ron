@@ -1,0 +1,12 @@
+// The `combat:` narrow ([CR#510.1]) has no fact-side flag yet
+// (engine-fact-record-batch): load-capped until engine-one-evaluator.
+Normal(
+  name: "Reject Bridge Combat",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: Damage(combat: true),
+      effect: GainLife(1),
+    ),
+  ],
+)

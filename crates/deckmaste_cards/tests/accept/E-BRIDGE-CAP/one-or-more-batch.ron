@@ -1,0 +1,14 @@
+// Accept twin of reject/E-BRIDGE-CAP/*: the bridge BOUNDARY from the
+// admitted side — `OneOrMore` (batch-once matching, [CR#603.2c]) IS
+// evaluated by the live trigger matcher, so it loads; its operand's caps
+// pass through and bind the event object.
+Normal(
+  name: "Accept Batch Once",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: OneOrMore(ZoneChange(what: Type(Creature), from: Battlefield, to: Graveyard)),
+      effect: Move(EventObject, Exile),
+    ),
+  ],
+)

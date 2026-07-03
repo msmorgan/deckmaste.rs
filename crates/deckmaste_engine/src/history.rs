@@ -31,8 +31,10 @@ impl History {
     /// ([CR#608.2i]): `ThisTurn` is this turn's entries, `LastTurn` the
     /// previous turn's, `ThisGame` all of them. The sub-turn lookbacks
     /// (`ThisCombat`/`ThisStep`/`SinceYour`) need combat/step markers the
-    /// log doesn't record yet — a query through one must trip loudly, not
-    /// silently read empty.
+    /// log doesn't record yet — load-capped (E-BRIDGE-CAP, the
+    /// `Lookback:*` bridge-caps rows) so no loadable card reaches one; an
+    /// engine-built query through one trips loudly, never silently reads
+    /// empty.
     pub(crate) fn scan(
         &self,
         within: Lookback,
@@ -42,7 +44,10 @@ impl History {
             within,
             Lookback::ThisCombat | Lookback::ThisStep | Lookback::SinceYour(_)
         ) {
-            todo!("engine-history-windows: no combat/step markers in the history log yet")
+            todo!(
+                "load-capped (E-BRIDGE-CAP): no combat/step markers in the history log yet \
+                 (engine-history-windows)"
+            )
         }
         self.0
             .iter()

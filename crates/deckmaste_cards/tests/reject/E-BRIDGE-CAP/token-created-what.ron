@@ -1,0 +1,13 @@
+// A `TokenCreated` fact carries the token SPEC ([CR#701.7a]) — no minted
+// object for a `what` filter to run against: load-capped until
+// engine-one-evaluator.
+Normal(
+  name: "Reject Bridge Token What",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: TokenCreated(what: Type(Creature)),
+      effect: GainLife(1),
+    ),
+  ],
+)

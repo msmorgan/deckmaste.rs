@@ -208,7 +208,7 @@ mod tests {
     }
 
     /// Omitted slots default to `Any` (load-bearing serde defaults, like
-    /// `Event::Performed`).
+    /// the `EventFilter` master forms').
     #[test]
     fn slots_default_to_any() {
         assert_eq!(

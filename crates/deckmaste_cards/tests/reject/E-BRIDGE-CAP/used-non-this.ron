@@ -1,0 +1,16 @@
+// The bridge resolves `Used.of` through the watching object — only the
+// self-scoped `This` is resolvable outside a frame ([CR#400.7,608.2i]):
+// a bound reference is load-capped until engine-one-evaluator.
+Normal(
+  name: "Reject Bridge Used Ref",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: With(
+      binder: ChooseOne(filter: Creature, by: You),
+      body: Delayed(
+        event: Used(of: That),
+        effect: GainLife(1),
+      ),
+    )),
+  ],
+)

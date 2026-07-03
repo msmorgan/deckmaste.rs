@@ -86,6 +86,11 @@ pub enum Code {
     /// A `OneOrMore`/`Nth` refinement in a lane that forbids it
     /// ([CR#603.2c]).
     LaneBatch,
+    /// An event construct the lane's bridge matcher cannot faithfully
+    /// evaluate ([CR#603.2] — a pattern must match its occurrences, never
+    /// silently mis-match): load-capped per the emitted bridge-caps table
+    /// until the one-evaluator rebase (`engine-one-evaluator`) lifts it.
+    BridgeCap,
     /// `Targeted` outside an announce root — replacement/static/loop
     /// position ([CR#115.1a..115.1e,601.2c]).
     PosTargeted,
@@ -150,7 +155,7 @@ pub enum Code {
 impl Code {
     /// Every active code, in manifest order — the drift pin against the
     /// emitted checker-rule manifest.
-    pub const ALL: [Code; 38] = [
+    pub const ALL: [Code; 39] = [
         Code::BindTarget,
         Code::BindThat,
         Code::BindThatGroup,
@@ -167,6 +172,7 @@ impl Code {
         Code::CapsContradiction,
         Code::LaneWithin,
         Code::LaneBatch,
+        Code::BridgeCap,
         Code::PosTargeted,
         Code::PosRider,
         Code::KindFilter,
@@ -212,6 +218,7 @@ impl Code {
             Code::CapsContradiction => "E-CAPS-CONTRADICTION",
             Code::LaneWithin => "E-LANE-WITHIN",
             Code::LaneBatch => "E-LANE-BATCH",
+            Code::BridgeCap => "E-BRIDGE-CAP",
             Code::PosTargeted => "E-POS-TARGETED",
             Code::PosRider => "E-POS-RIDER",
             Code::KindFilter => "E-KIND-FILTER",

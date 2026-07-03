@@ -1,0 +1,12 @@
+// The would-matcher lowers only the intent shapes the engine emits
+// (zone moves, damage, life gain — [CR#614.1]): a `Cast` would-pattern is
+// load-capped until engine-one-evaluator.
+Normal(
+  name: "Reject Bridge Would Cast",
+  types: [Enchantment],
+  abilities: [
+    Static(effects: [
+      CantHappen(Cast(who: Ref(You))),
+    ]),
+  ],
+)

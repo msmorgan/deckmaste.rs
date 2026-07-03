@@ -39,7 +39,7 @@ pub enum Property {
         condition: Box<Condition>,
         effect: Box<Effect>,
     },
-    /// Performed as a turn-based action — no stack ([CR#714.3c]). Parses
+    /// Executed as a turn-based action — no stack ([CR#714.3c]). Parses
     /// today; the engine executes it in stage 3.
     TurnBased { at: PhaseStep, effect: Box<Effect> },
 }

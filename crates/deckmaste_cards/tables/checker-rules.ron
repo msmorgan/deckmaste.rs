@@ -19,6 +19,7 @@
         (code: "E-CAPS-CONTRADICTION", cite: "[CR#603.2g]", summary: "conjunction over incompatible master forms or against a cause entailment - the pattern can never match"),
         (code: "E-LANE-WITHIN", cite: "[CR#603.2]", summary: "Within refinement in a live event lane (vacuous outside history counting)"),
         (code: "E-LANE-BATCH", cite: "[CR#603.2c]", summary: "OneOrMore/Nth refinement in a lane that forbids it"),
+        (code: "E-BRIDGE-CAP", cite: "[CR#603.2]", summary: "event construct the lane's bridge matcher cannot faithfully evaluate - load-capped until the one-evaluator rebase"),
         (code: "E-POS-TARGETED", cite: "[CR#115.1a..115.1e,601.2c]", summary: "Targeted outside an announce root (replacement/static/loop position)"),
         (code: "E-POS-RIDER", cite: "[CR#614.12]", summary: "enter rider on a non-battlefield destination"),
         (code: "E-KIND-FILTER", cite: "[CR#109.1]", summary: "filter kind conflicts with its slot's expected kind"),

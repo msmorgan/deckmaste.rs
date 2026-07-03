@@ -1,0 +1,13 @@
+// `When` (the pattern-level game-state refinement, [CR#603.4]) is beyond
+// the bridge matchers — the live matcher holds no frame to evaluate the
+// condition in: load-capped until engine-one-evaluator.
+Normal(
+  name: "Reject Bridge When",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: When(StepBegins(at: Ending(End), whose: EachPlayers), YourTurn),
+      effect: GainLife(1),
+    ),
+  ],
+)

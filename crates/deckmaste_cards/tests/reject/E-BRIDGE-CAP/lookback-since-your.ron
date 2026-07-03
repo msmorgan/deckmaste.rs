@@ -1,0 +1,17 @@
+// The `SinceYourLastUpkeep` family ([CR#603.2b,608.2i]) needs step markers
+// the turn-tagged log doesn't record: load-capped until
+// engine-one-evaluator.
+Normal(
+  name: "Reject Bridge Since Your",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: ThisEnters,
+      condition: Happened(
+        event: LifeGained(who: Ref(You)),
+        within: SinceYour(Beginning(Upkeep)),
+      ),
+      effect: GainLife(1),
+    ),
+  ],
+)

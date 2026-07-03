@@ -1,0 +1,16 @@
+// The would-matcher's lifted cause carries no AGENT coordinate
+// ([CR#603.2] over the cause triple): an agent-narrowed replacement is
+// load-capped until engine-one-evaluator.
+Normal(
+  name: "Reject Bridge Would Agent",
+  types: [Enchantment],
+  abilities: [
+    Static(effects: [
+      Replacement(Instead(
+        would: ZoneChange(what: Ref(This), from: Battlefield, to: Graveyard,
+                          cause: Cause(agent: Type(Instant))),
+        instead: GainLife(1),
+      )),
+    ]),
+  ],
+)

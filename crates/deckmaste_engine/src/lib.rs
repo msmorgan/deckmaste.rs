@@ -38,6 +38,8 @@ pub use decide::PendingDecision;
 mod derive;
 pub use derive::face;
 
+mod entail;
+
 mod event;
 pub use event::Audience;
 pub use event::EnterStatus;

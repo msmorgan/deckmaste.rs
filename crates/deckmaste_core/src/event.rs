@@ -501,8 +501,7 @@ mod tests {
     }
 
     /// Filter fields default to match-anything when omitted — `Cast()`
-    /// reads as any-caster/any-spell, mirroring the old `Performed`
-    /// defaults.
+    /// reads as any-caster/any-spell.
     #[test]
     fn filter_fields_default_to_any() {
         assert_eq!(

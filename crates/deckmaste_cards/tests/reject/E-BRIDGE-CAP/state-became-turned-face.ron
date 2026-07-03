@@ -1,0 +1,12 @@
+// Turn-face deltas ([CR#708]) have no fact shape yet (P0.W6): load-capped
+// until engine-one-evaluator.
+Normal(
+  name: "Reject Bridge Turned Face",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: StateBecame(of: Ref(This), becomes: TurnedFace(Up)),
+      effect: GainLife(1),
+    ),
+  ],
+)
