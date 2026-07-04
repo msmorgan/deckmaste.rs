@@ -12,7 +12,7 @@
     params: {
         "name": String,
         "template": String,
-        "abilities": Any,
+        "abilities": Abilities,
     },
     body: (
         name: Param(name),

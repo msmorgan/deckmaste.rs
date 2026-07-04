@@ -5,6 +5,6 @@
     name: "AsEnters",
     template: "as ~ enters",
     kinds: [Replacement],
-    params: [Any],
+    params: [Effect],
     body: Also(would: ThisEnters, also: Param(0)),
 )

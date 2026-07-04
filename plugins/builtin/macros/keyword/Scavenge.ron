@@ -3,9 +3,9 @@
 // Exile this card from your graveyard: Put a number of +1/+1 counters equal to
 // the power of the card you exiled on target creature. Activate only as a
 // sorcery." Cycling's graveyard twin ([CR#702.29a]): the printed [cost] is the
-// macro's list param; wrapping it as a nested cost (`Cost(Param(0))`) splices
-// it ahead of the fixed exile-self, and `Cost`'s deserialize flattens the two
-// into one cost list.
+// macro's list param; the generic `Splice(Param(0))` list-splice inlines its
+// components ahead of the fixed exile-self at read time, yielding one flat
+// cost list.
 //
 // Pieces (all representable over existing primitives — no engine gap):
 //   - from: Graveyard [CR#702.97a] — the zone-of-function seam ([CR#113.6]),
@@ -41,7 +41,7 @@
         name: "Scavenge",
         abilities: [Activated(
             from: Graveyard,
-            cost: [Cost(Param(0)), Do(Move(This, Exile))],
+            cost: [Splice(Param(0)), Do(Move(This, Exile))],
             window: SorcerySpeed,
             effect: Targeted(
                 targets: [Target(Exactly(1), Type(Creature))],

@@ -2232,6 +2232,182 @@ fn add_typed_registers_a_deserialize_validator() {
     );
 }
 
+/// [typed-holes delta 2] A parameter type may declare a BINDER CONTRACT
+/// `Effect(binds: [It])` — the anaphora the body wraps around the hole. The
+/// default is no contract (empty `binds`); `Default(T(binds: […]), expr)`
+/// carries a contract on a defaulted param too.
+#[test]
+fn param_type_parses_a_binder_contract() {
+    let d = def(r#"(
+        name: "WithLoop",
+        kinds: [Effect],
+        params: [Effect(binds: [It]), Count],
+        body: Each(binder: X, effect: Param(0)),
+    )"#);
+    let Params::Positional(types) = &d.params else {
+        panic!("positional signature");
+    };
+    assert_eq!(types[0].name, "Effect");
+    assert_eq!(types[0].binds, vec![Ident::from("It")]);
+    assert!(types[0].default.is_none());
+    // A plain param carries an empty contract by default.
+    assert_eq!(types[1].name, "Count");
+    assert!(types[1].binds.is_empty());
+
+    // A contract with several granted anaphora, and a defaulted param that
+    // still carries one.
+    let d = def(r#"(
+        name: "Bind2",
+        kinds: [Effect],
+        params: { "e": Effect(binds: [It, That]), "d": Default(Effect(binds: [It]), Draw(1)) },
+        body: Param(e),
+    )"#);
+    let Params::Named(sig) = &d.params else {
+        panic!("named signature");
+    };
+    assert_eq!(
+        sig[&Ident::from("e")].binds,
+        vec![Ident::from("It"), Ident::from("That")]
+    );
+    let defaulted = &sig[&Ident::from("d")];
+    assert_eq!(defaulted.binds, vec![Ident::from("It")]);
+    assert!(defaulted.default.is_some());
+}
+
+/// [typed-holes delta 5] `Splice(Param(i))` inlines a list-valued argument's
+/// elements into the surrounding list — the one generic rule replacing the
+/// old ad-hoc `Cost(Param(i))` / `Modification::Several` flatten idioms.
+#[test]
+fn splice_inlines_a_list_param_into_a_surrounding_list() {
+    let mut set = empty();
+    set.insert(&def(r#"(
+        name: "WithCreature",
+        kinds: [Filter],
+        params: [Any],
+        body: AllOf([Splice(Param(0)), Type(Creature)]),
+    )"#))
+        .unwrap();
+    let filter: Filter = set
+        .read_str(r#"WithCreature([Named("a"), Named("b")])"#)
+        .unwrap();
+    let Filter::Expanded(exp) = filter else {
+        panic!("expected a remembered filter, got {filter:?}");
+    };
+    assert_eq!(
+        *exp.value,
+        Filter::AllOf(vec![
+            Filter::Named("a".into()),
+            Filter::Named("b".into()),
+            Filter::Type(Type::Creature),
+        ]),
+    );
+}
+
+/// A `Splice(...)` at a scalar/enum position (not a list) is a load error
+/// naming the misplacement — the delta-5 reject shape.
+#[test]
+fn splice_at_a_non_list_position_is_an_error() {
+    let mut set = empty();
+    set.insert(&def(r#"(
+        name: "BadSplice",
+        kinds: [Filter],
+        params: [Any],
+        body: Type(Splice(Param(0))),
+    )"#))
+        .unwrap();
+    let err = set
+        .read_str::<Filter>("BadSplice(Creature)")
+        .unwrap_err()
+        .to_string();
+    assert!(
+        err.contains("Splice") && err.contains("list position"),
+        "unexpected error: {err}"
+    );
+}
+
+/// A `Splice` argument that doesn't resolve to a list is a load error — the
+/// splice needs a `[...]` to inline.
+#[test]
+fn splice_of_a_non_list_argument_is_an_error() {
+    let mut set = empty();
+    set.insert(&def(r#"(
+        name: "SpliceScalar",
+        kinds: [Filter],
+        params: [Any],
+        body: AllOf([Splice(Param(0))]),
+    )"#))
+        .unwrap();
+    let err = set
+        .read_str::<Filter>("SpliceScalar(Creature)")
+        .unwrap_err()
+        .to_string();
+    assert!(err.contains("not a list"), "unexpected error: {err}");
+}
+
+/// [typed-holes delta 4] `Quote(Param(i))` in a meta-macro body emits a
+/// literal `Param(i)` into the PRODUCED definition (deferred to that
+/// definition's own frame) rather than resolving eagerly against the meta's
+/// frame — the stage marker for two-level meta-macros. Here the meta OWNS `x`
+/// (used eagerly for the produced macro's name), and `Quote(Param(x))` defers
+/// a SECOND `x` — the produced macro's own parameter.
+#[test]
+fn quote_defers_a_meta_owned_param_to_the_produced_definition() {
+    let mut set = empty();
+    set.insert(&def(r#"(
+        name: "FilterNamed",
+        kinds: [Macro],
+        params: { "x": String },
+        body: (
+            name: Param(x),
+            kinds: [Filter],
+            params: { "x": Any },
+            body: Quote(Param(x)),
+        ),
+    )"#))
+        .unwrap();
+    // The meta resolves its own `x` for the produced macro's NAME; the body's
+    // `Quote(Param(x))` stays a literal `Param(x)` in the produced definition.
+    let produced: MacroDef = set.read_str(r#"FilterNamed(x: "MyFilter")"#).unwrap();
+    assert_eq!(produced.name, "MyFilter");
+    assert_eq!(produced.body(), "Param(x)", "the deferred hole survives");
+    set.insert(&produced).unwrap();
+    // Invoking the produced macro resolves its OWN `x` — proof the hole was
+    // deferred, not eagerly bound to the meta's `"MyFilter"` string (which is
+    // no Filter).
+    let filter: Filter = set.read_str("MyFilter(x: Type(Creature))").unwrap();
+    let Filter::Expanded(exp) = filter else {
+        panic!("expected a remembered filter, got {filter:?}");
+    };
+    assert_eq!(*exp.value, Filter::Type(Type::Creature));
+}
+
+/// Without `Quote`, a meta-owned hole resolves EAGERLY against the meta frame:
+/// the contrast that shows the stage marker earns its keep.
+#[test]
+fn a_bare_meta_owned_param_resolves_eagerly() {
+    let mut set = empty();
+    set.insert(&def(r#"(
+        name: "EagerNamed",
+        kinds: [Macro],
+        params: { "x": String },
+        body: (
+            name: Param(x),
+            kinds: [Filter],
+            body: Named(Param(x)),
+        ),
+    )"#))
+        .unwrap();
+    // `Param(x)` in the body is the meta's `x`, spliced now — so the produced
+    // body carries the string literal, not a hole.
+    let produced: MacroDef = set.read_str(r#"EagerNamed(x: "Zombie")"#).unwrap();
+    assert_eq!(produced.name, "Zombie");
+    assert!(
+        produced.body().contains(r#""Zombie""#) && !produced.body().contains("Param"),
+        "the meta-owned hole was spliced eagerly, not deferred: {:?}",
+        produced.body()
+    );
+}
+
 mod support_runtime {
     use crate::Expand;
     use crate::concat_variants;

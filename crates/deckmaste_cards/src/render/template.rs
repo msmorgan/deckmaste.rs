@@ -37,24 +37,74 @@ pub(super) fn fill(template: &str, subject: &str, args: &ExpansionArgs) -> Optio
                 }
                 if content.matches('#').count() == 2 {
                     // Conditional fragment: render prefix+value+suffix iff the value
-                    // param is present; absent renders to nothing.
+                    // param is present; absent renders to nothing. The value part
+                    // may itself carry a `:modifier` codec.
                     let mut parts = content.splitn(3, '#');
                     let prefix = parts.next().unwrap_or("");
                     let value = parts.next().unwrap_or("").trim();
                     let suffix = parts.next().unwrap_or("");
-                    if let Some(raw) = lookup_arg(args, value) {
+                    let (key, modifier) = split_modifier(value);
+                    if let Some(raw) = lookup_arg(args, key) {
                         out.push_str(prefix);
-                        out.push_str(&render_arg(raw)?);
+                        out.push_str(&render_slot(raw, modifier)?);
                         out.push_str(suffix);
                     }
                 } else {
-                    out.push_str(&render_arg(lookup_arg(args, content.trim())?)?);
+                    let (key, modifier) = split_modifier(content.trim());
+                    out.push_str(&render_slot(lookup_arg(args, key)?, modifier)?);
                 }
             }
             other => out.push(other),
         }
     }
     Some(out)
+}
+
+/// Split a slot spec `key:modifier` into its key and optional modifier codec
+/// ([typed-holes delta 6]): `${0:+}` → (`0`, `+`), `${n:card|cards}` → (`n`,
+/// `card|cards`), a bare `${0}` → (`0`, None). The modifier rides after the
+/// FIRST colon so a value key can't contain one.
+fn split_modifier(spec: &str) -> (&str, Option<&str>) {
+    match spec.split_once(':') {
+        Some((key, modifier)) => (key.trim(), Some(modifier.trim())),
+        None => (spec.trim(), None),
+    }
+}
+
+/// Render one slot, honoring its `:modifier` codec ([typed-holes delta 6]):
+///
+/// - none — the ordinary [`render_arg`] rendering.
+/// - `+` — sign-aware: a numeric arg renders with an explicit leading sign
+///   (`+1` / `-1`), the P/T-pump shape. A non-numeric arg declines (`None`).
+/// - `sing|plur` — plural-aware: a numeric arg renders as `<n> <word>`, the
+///   word `sing` when `n == 1` else `plur` ("1 card" / "3 cards"). A dynamic
+///   (non-literal) arg renders `<arg> <plur>` (the natural plural reading of a
+///   variable count).
+fn render_slot(raw: &str, modifier: Option<&str>) -> Option<String> {
+    let Some(modifier) = modifier else {
+        return render_arg(raw);
+    };
+    let t = raw.trim();
+    if modifier == "+" {
+        let n: i64 = t.parse().ok()?;
+        return Some(if n < 0 { n.to_string() } else { format!("+{n}") });
+    }
+    if let Some((sing, plur)) = modifier.split_once('|') {
+        return Some(match t.parse::<i64>() {
+            Ok(1) => format!("1 {sing}"),
+            Ok(n) => format!("{n} {plur}"),
+            // A dynamic count (`X`, `CountOf(...)`) reads plural — rendered
+            // through the shared count fragment, declining if it isn't a count.
+            Err(_) => {
+                let count: deckmaste_core::Count =
+                    deckmaste_core::ron::options().from_str(t).ok()?;
+                format!("{} {plur}", super::fragment::count(&count))
+            }
+        });
+    }
+    // An unrecognized modifier: decline to the structural fallback rather than
+    // emit a half-understood slot.
+    None
 }
 
 /// Resolve a `${key}` reference against the invocation's args: a numeric key
@@ -335,6 +385,71 @@ mod tests {
         let args = ExpansionArgs::Named(vec![("x".into(), "1".into())]);
         let s = fill("~ gets +${0}", "it", &args);
         assert_eq!(s, None);
+    }
+
+    /// [typed-holes delta 6] Sign-aware `${i:+}` renders an explicit leading
+    /// sign; plural-aware `${i:sing|plur}` agrees the word with the count.
+    #[test]
+    fn fills_sign_and_plural_codecs() {
+        // `+1/-1` sign form (the P/T-pump shape).
+        let pos = fill(
+            "gets ${0:+}/${1:+}",
+            "ignored",
+            &ExpansionArgs::Positional(vec!["2".into(), "3".into()]),
+        );
+        assert_eq!(pos.as_deref(), Some("gets +2/+3"));
+        let neg = fill(
+            "gets ${0:+}/${1:+}",
+            "ignored",
+            &ExpansionArgs::Positional(vec!["-1".into(), "-1".into()]),
+        );
+        assert_eq!(neg.as_deref(), Some("gets -1/-1"));
+
+        // Plural word agrees with the count: "1 card" vs "3 cards".
+        let one = fill(
+            "mills ${n:card|cards}",
+            "you",
+            &ExpansionArgs::Named(vec![("n".into(), "1".into())]),
+        );
+        assert_eq!(one.as_deref(), Some("mills 1 card"));
+        let many = fill(
+            "mills ${n:card|cards}",
+            "you",
+            &ExpansionArgs::Named(vec![("n".into(), "3".into())]),
+        );
+        assert_eq!(many.as_deref(), Some("mills 3 cards"));
+    }
+
+    /// A codec that can't render cleanly declines (`None`) so the caller falls
+    /// back to structural rendering, never a half-understood slot: a sign codec
+    /// over a non-numeric arg, and an unrecognized modifier.
+    #[test]
+    fn codec_declines_rather_than_emit_garbage() {
+        // `${0:+}` over a non-numeric arg declines.
+        let bad_sign = fill(
+            "gets ${0:+}",
+            "ignored",
+            &ExpansionArgs::Positional(vec!["SomeFilter".into()]),
+        );
+        assert_eq!(bad_sign, None);
+        // An unrecognized modifier declines.
+        let bad_mod = fill(
+            "x ${0:???}",
+            "ignored",
+            &ExpansionArgs::Positional(vec!["1".into()]),
+        );
+        assert_eq!(bad_mod, None);
+    }
+
+    /// A dynamic (non-literal) count reads plural.
+    #[test]
+    fn plural_codec_reads_dynamic_count_as_plural() {
+        let dynamic = fill(
+            "mills ${n:card|cards}",
+            "you",
+            &ExpansionArgs::Named(vec![("n".into(), "X".into())]),
+        );
+        assert_eq!(dynamic.as_deref(), Some("mills X cards"));
     }
 
     #[test]

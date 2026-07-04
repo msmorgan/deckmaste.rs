@@ -326,6 +326,13 @@ impl Plugin {
             designations: &designations,
             keywords: &keywords,
         };
+        // Definition-time macro body checking ([typed-holes delta 3]): every
+        // macro THIS plugin defines is expanded once with typed placeholder
+        // arguments and elaborated, NOW that the whole scope (including the
+        // prelude) has settled — so an ill-formed body or an unbound-anaphor
+        // read fails the load, naming the macro, before any card invokes it.
+        crate::elaborate::defcheck::check_own(&macros, &own, &registries)
+            .with_context(|| format!(r#"checking macro definitions in "{}""#, root.display()))?;
         let elab_report = elaborate_finished(&root, &macros, &registries, elab_stage)?;
         let elab_skip = elab_report
             .findings
@@ -854,6 +861,108 @@ mod tests {
         assert!(message.contains("E-BIND-TARGET"), "{message}");
         assert!(message.contains("Deliberately Bad Card"), "{message}");
         assert!(message.contains("Deliberately Bad Card.ron"), "{message}");
+    }
+
+    /// [typed-holes delta 3] Definition-time body checking: a macro whose body
+    /// reads an unbound anaphor (`It` outside any binder) fails at plugin LOAD,
+    /// named by the macro with `E-MACRO-CONTRACT` — before any card invokes it.
+    #[test]
+    fn defcheck_rejects_a_body_reading_an_unbound_anaphor() {
+        let builtin = Plugin::load(plugins().join("builtin")).unwrap();
+        let root = tempfile::tempdir().unwrap();
+        let macros_dir = root.path().join("macros");
+        std::fs::create_dir_all(&macros_dir).unwrap();
+        std::fs::write(
+            macros_dir.join("BadRegen.ron"),
+            r#"(
+                name: "BadRegen",
+                kinds: [Effect],
+                body: DealDamage(It, 1),
+            )"#,
+        )
+        .unwrap();
+        let err = Plugin::load_with_prelude(&builtin, root.path())
+            .err()
+            .expect("a body reading unbound It must fail the load");
+        let msg = format!("{err:#}");
+        assert!(msg.contains("E-MACRO-CONTRACT"), "{msg}");
+        assert!(msg.contains("BadRegen"), "{msg}");
+    }
+
+    /// [typed-holes delta 3] An ill-formed body — one that doesn't read as its
+    /// declared kind with placeholder arguments — fails at load with
+    /// `E-MACRO-BODY`, naming the macro.
+    #[test]
+    fn defcheck_rejects_an_ill_formed_body() {
+        let builtin = Plugin::load(plugins().join("builtin")).unwrap();
+        let root = tempfile::tempdir().unwrap();
+        let macros_dir = root.path().join("macros");
+        std::fs::create_dir_all(&macros_dir).unwrap();
+        std::fs::write(
+            macros_dir.join("BadBody.ron"),
+            r#"(
+                name: "BadBody",
+                kinds: [Effect],
+                body: Bogus(nonsense),
+            )"#,
+        )
+        .unwrap();
+        let err = Plugin::load_with_prelude(&builtin, root.path())
+            .err()
+            .expect("an ill-formed body must fail the load");
+        let msg = format!("{err:#}");
+        assert!(msg.contains("E-MACRO-BODY"), "{msg}");
+        assert!(msg.contains("BadBody"), "{msg}");
+    }
+
+    /// [typed-holes delta 2+3] A parameter's binder contract is CHECKED at
+    /// load: a body that wraps the hole in a binder supplying the granted
+    /// anaphor (`Effect(binds: [It])` over an `Each`) loads clean.
+    #[test]
+    fn defcheck_accepts_a_body_that_binds_its_contract_anaphor() {
+        let builtin = Plugin::load(plugins().join("builtin")).unwrap();
+        let root = tempfile::tempdir().unwrap();
+        let macros_dir = root.path().join("macros");
+        std::fs::create_dir_all(&macros_dir).unwrap();
+        std::fs::write(
+            macros_dir.join("GoodLoop.ron"),
+            r#"(
+                name: "GoodLoop",
+                kinds: [Effect],
+                params: [Effect(binds: [It])],
+                body: Each(binder: Existing(Filter(Creature)), effect: Param(0)),
+            )"#,
+        )
+        .unwrap();
+        Plugin::load_with_prelude(&builtin, root.path())
+            .expect("a body that binds It over the hole loads clean");
+    }
+
+    /// [typed-holes delta 2+3] The dual: a body that DECLARES `binds: [It]`
+    /// but doesn't wrap the hole in an It-binder is a capture hazard — the
+    /// contract the body doesn't honor is a load error.
+    #[test]
+    fn defcheck_rejects_a_declared_contract_the_body_doesnt_honor() {
+        let builtin = Plugin::load(plugins().join("builtin")).unwrap();
+        let root = tempfile::tempdir().unwrap();
+        let macros_dir = root.path().join("macros");
+        std::fs::create_dir_all(&macros_dir).unwrap();
+        std::fs::write(
+            macros_dir.join("BadContract.ron"),
+            r#"(
+                name: "BadContract",
+                kinds: [Effect],
+                params: [Effect(binds: [It])],
+                body: Param(0),
+            )"#,
+        )
+        .unwrap();
+        let err = Plugin::load_with_prelude(&builtin, root.path())
+            .err()
+            .expect("an unhonored binder contract must fail the load");
+        let msg = format!("{err:#}");
+        assert!(msg.contains("E-MACRO-CONTRACT"), "{msg}");
+        assert!(msg.contains("BadContract"), "{msg}");
     }
 
     /// [[cards-elab-load-gate]] `Stage::Warn`: a plugin directory literally

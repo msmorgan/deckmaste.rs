@@ -32,6 +32,11 @@ pub(crate) enum Segment {
 pub(crate) struct Slot {
     pub(crate) key: SlotKey,
     pub(crate) ty: Ident,
+    /// The `:modifier` codec ([typed-holes delta 6]), if any: `+` (sign-aware)
+    /// or `sing|plur` (plural-aware). Stored so a slot template compiles with
+    /// its codec; the render side ([`crate::render::template`]) is the one that
+    /// applies it. `None` for a bare `${i}`.
+    pub(crate) modifier: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -151,7 +156,13 @@ fn flush(lit: &mut String, segments: &mut Vec<Segment>) {
 /// Resolve a slot's key and declared type against the macro's `params`: a
 /// numeric key indexes a positional param, a name keys a named param. An
 /// unresolvable type falls back to the empty `Ident` (the `Any`-like default).
-fn slot_for(key: &str, params: &Params) -> Slot {
+/// A trailing `:modifier` ([typed-holes delta 6]) — `${0:+}`, `${n:card|cards}`
+/// — is split off the key and carried on the slot.
+fn slot_for(spec: &str, params: &Params) -> Slot {
+    let (key, modifier) = match spec.split_once(':') {
+        Some((key, modifier)) => (key.trim(), Some(modifier.trim().to_owned())),
+        None => (spec.trim(), None),
+    };
     if let Ok(i) = key.parse::<usize>() {
         let ty = match params {
             Params::Positional(v) => v.get(i).map_or_else(Ident::default, |p| p.name),
@@ -160,6 +171,7 @@ fn slot_for(key: &str, params: &Params) -> Slot {
         Slot {
             key: SlotKey::Index(i),
             ty,
+            modifier,
         }
     } else {
         let ty = match params {
@@ -169,6 +181,7 @@ fn slot_for(key: &str, params: &Params) -> Slot {
         Slot {
             key: SlotKey::Name(Ident::new(key)),
             ty,
+            modifier,
         }
     }
 }
@@ -218,11 +231,44 @@ mod tests {
                 Segment::Literal("protection from ".into()),
                 Segment::Slot(Slot {
                     key: SlotKey::Index(0),
-                    ty: "Filter".into()
+                    ty: "Filter".into(),
+                    modifier: None,
                 }),
             ]
         );
         assert!(!p.is_nullary());
+    }
+
+    /// [typed-holes delta 6] A `:modifier` codec is split off the key and
+    /// carried on the slot, so a sign/plural template still compiles and
+    /// resolves the param's declared type from the bare key.
+    #[test]
+    fn compiles_slot_with_a_modifier_codec() {
+        let p = compile("Mill".into(), "mills ${0:card|cards}", &pos(&["Count"]));
+        assert_eq!(
+            p.segments,
+            vec![
+                Segment::Literal("mills ".into()),
+                Segment::Slot(Slot {
+                    key: SlotKey::Index(0),
+                    ty: "Count".into(),
+                    modifier: Some("card|cards".into()),
+                }),
+            ]
+        );
+
+        let sign = compile("Pump".into(), "gets ${0:+}", &pos(&["Count"]));
+        assert_eq!(
+            sign.segments,
+            vec![
+                Segment::Literal("gets ".into()),
+                Segment::Slot(Slot {
+                    key: SlotKey::Index(0),
+                    ty: "Count".into(),
+                    modifier: Some("+".into()),
+                }),
+            ]
+        );
     }
 
     #[test]
@@ -251,7 +297,8 @@ mod tests {
                     prefix: " from ".into(),
                     slot: Slot {
                         key: SlotKey::Name("from".into()),
-                        ty: "Filter".into()
+                        ty: "Filter".into(),
+                        modifier: None,
                     },
                     suffix: String::new(),
                 },

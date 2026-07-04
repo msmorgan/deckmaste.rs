@@ -17,6 +17,7 @@ use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use serde::de::Deserializer;
 use serde::de::EnumAccess;
+use serde::de::MapAccess;
 use serde::de::SeqAccess;
 use serde::de::VariantAccess;
 use serde::de::Visitor;
@@ -26,77 +27,196 @@ use crate::IdentSeed;
 use crate::set::MacroSet;
 
 /// The declared type of one macro parameter: a type *name*, resolved against
-/// the [`ParamTypeSet`] in scope, plus an optional default expression.
-/// Written in definition files as a bare identifier (`params: [String,
-/// Color]`) or, in named signatures, `Default(String, <expr>)` — `Default` is
-/// thereby reserved as a spelling; a registered param type by that name would
-/// be unreachable.
+/// the [`ParamTypeSet`] in scope, an optional default expression, and an
+/// optional binder contract. Written in definition files as a bare identifier
+/// (`params: [String, Color]`), a `Default(String, <expr>)` (named
+/// signatures only), or a binder contract `Effect(binds: [It])` — `Default`
+/// is thereby reserved as a spelling; a registered param type by that name
+/// would be unreachable.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParamType {
     pub name: Ident,
     /// Raw RON source filled in for an omitted argument; its `Param(...)`
     /// holes may reference non-defaulted siblings (checked at insert).
     pub default: Option<Box<str>>,
+    /// The BINDER CONTRACT ([typed-holes delta 2]): the anaphora the macro's
+    /// body wraps around this hole. `Effect(binds: [It])` = "the body
+    /// introduces an It-binder over this hole", so an argument reading `It` is
+    /// legal. DEFAULT = empty = no anaphora beyond the call site: an argument
+    /// reading an anaphor the contract doesn't grant is a definition/call-site
+    /// error. Splice hygiene becomes checked, not conventional.
+    pub binds: Vec<Ident>,
 }
 
 impl ParamType {
-    /// A plain (non-defaulted) param type.
+    /// A plain (non-defaulted, no-binder-contract) param type.
     #[must_use]
     pub fn plain(name: impl Into<Ident>) -> Self {
         ParamType {
             name: name.into(),
             default: None,
+            binds: Vec::new(),
+        }
+    }
+
+    /// A param type that grants a binder contract (`Effect(binds: [It])`).
+    #[must_use]
+    pub fn binding(name: impl Into<Ident>, binds: Vec<Ident>) -> Self {
+        ParamType {
+            name: name.into(),
+            default: None,
+            binds,
         }
     }
 }
 
+/// The three `ParamType` spellings don't fit one serde variant shape — a bare
+/// ident (unit variant), `Default(T, expr)` (tuple variant), and `T(binds:
+/// […])` (struct variant) all read after the same tag, and serde can't peek
+/// which. So capture the source and route by structural shape, then re-parse
+/// the pieces with ron.
 impl<'de> Deserialize<'de> for ParamType {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        // A bare identifier is a unit enum variant in the serde data model —
-        // the same channel `kinds: [Subtype]` reads through (see
-        // `set::kind_names`). `Default(...)` arrives as a tuple variant.
-        struct TypeName;
-        impl<'de> Visitor<'de> for TypeName {
-            type Value = ParamType;
-            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                f.write_str("a parameter type name or Default(type, expression)")
-            }
-            fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
-                let (ident, variant) = data.variant_seed(IdentSeed)?;
-                if ident == "Default" {
-                    return variant.tuple_variant(2, DefaultArgs);
-                }
-                variant.unit_variant()?;
+        use serde::de::Error;
+        let raw = Box::<RawValue>::deserialize(deserializer)?;
+        let src = raw.get_ron().trim();
+        // A bare ident: no arguments, so no `(`.
+        let Some(open) = src.find('(') else {
+            return Ok(ParamType::plain(src));
+        };
+        let head = src[..open].trim();
+        let shape = if head == "Default" { Shape::Default } else { Shape::BinderContract };
+        let mut de = ron::de::Deserializer::from_str(src).map_err(D::Error::custom)?;
+        let value = de
+            .deserialize_enum("", &[], ParamTypeVisitor { shape })
+            .map_err(|e| D::Error::custom(de.span_error(e)))?;
+        Ok(value)
+    }
+}
+
+/// Which of the argument-bearing `ParamType` spellings the captured source is.
+enum Shape {
+    Default,
+    BinderContract,
+}
+
+struct ParamTypeVisitor {
+    shape: Shape,
+}
+
+impl<'de> Visitor<'de> for ParamTypeVisitor {
+    type Value = ParamType;
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("Default(type, expression) or Type(binds: [It, …])")
+    }
+    fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
+        let (ident, variant) = data.variant_seed(IdentSeed)?;
+        match self.shape {
+            Shape::Default => variant.tuple_variant(2, DefaultArgs),
+            Shape::BinderContract => {
+                let binds = variant.struct_variant(&["binds"], BinderContractArgs)?;
                 Ok(ParamType {
                     name: ident,
                     default: None,
+                    binds,
                 })
             }
         }
-        struct DefaultArgs;
-        impl<'de> Visitor<'de> for DefaultArgs {
-            type Value = ParamType;
+    }
+}
+
+struct DefaultArgs;
+impl<'de> Visitor<'de> for DefaultArgs {
+    type Value = ParamType;
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("Default(type, expression)")
+    }
+    fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+        use serde::de::Error;
+        let inner: ParamType = seq
+            .next_element()?
+            .ok_or_else(|| A::Error::custom("Default(type, expression) needs a type"))?;
+        if inner.default.is_some() {
+            return Err(A::Error::custom("Default(...) does not nest"));
+        }
+        let expr: Box<RawValue> = seq
+            .next_element()?
+            .ok_or_else(|| A::Error::custom("Default(type, expression) needs an expression"))?;
+        Ok(ParamType {
+            name: inner.name,
+            default: Some(expr.get_ron().trim().into()),
+            // A defaulted param may still carry a binder contract
+            // (`Default(Effect(binds: [It]), …)`).
+            binds: inner.binds,
+        })
+    }
+}
+
+/// Reads the `(binds: [It, That])` struct content into the granted-anaphor
+/// list. `binds` is the one recognized field; the anaphor names are bare
+/// identifiers, read through the same unit-variant channel as `kinds`.
+struct BinderContractArgs;
+impl<'de> Visitor<'de> for BinderContractArgs {
+    type Value = Vec<Ident>;
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("binds: [It, That, …]")
+    }
+    fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+        use serde::de::Error;
+        let mut binds: Option<Vec<Ident>> = None;
+        while let Some(key) = map.next_key_seed(IdentSeed)? {
+            if key != "binds" {
+                return Err(A::Error::custom(format_args!(
+                    "unknown binder-contract field `{key}`; only `binds` is recognized"
+                )));
+            }
+            if binds.is_some() {
+                return Err(A::Error::custom("duplicate `binds` field"));
+            }
+            binds = Some(map.next_value_seed(BareIdentList)?);
+        }
+        binds.ok_or_else(|| A::Error::custom("a binder contract needs a `binds` list"))
+    }
+}
+
+/// A `[It, That]` list of bare identifiers (unit enum variants) — the same
+/// channel `kinds: [Subtype]` reads through.
+struct BareIdentList;
+impl<'de> serde::de::DeserializeSeed<'de> for BareIdentList {
+    type Value = Vec<Ident>;
+    fn deserialize<D: Deserializer<'de>>(self, de: D) -> Result<Self::Value, D::Error> {
+        de.deserialize_seq(self)
+    }
+}
+impl<'de> Visitor<'de> for BareIdentList {
+    type Value = Vec<Ident>;
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("a list of anaphor names")
+    }
+    fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+        struct BareIdent;
+        impl<'de> serde::de::DeserializeSeed<'de> for BareIdent {
+            type Value = Ident;
+            fn deserialize<D: Deserializer<'de>>(self, de: D) -> Result<Self::Value, D::Error> {
+                de.deserialize_enum("", &[], self)
+            }
+        }
+        impl<'de> Visitor<'de> for BareIdent {
+            type Value = Ident;
             fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                f.write_str("Default(type, expression)")
+                f.write_str("an anaphor name")
             }
-            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
-                use serde::de::Error;
-                let inner: ParamType = seq
-                    .next_element()?
-                    .ok_or_else(|| A::Error::custom("Default(type, expression) needs a type"))?;
-                if inner.default.is_some() {
-                    return Err(A::Error::custom("Default(...) does not nest"));
-                }
-                let expr: Box<RawValue> = seq.next_element()?.ok_or_else(|| {
-                    A::Error::custom("Default(type, expression) needs an expression")
-                })?;
-                Ok(ParamType {
-                    name: inner.name,
-                    default: Some(expr.get_ron().trim().into()),
-                })
+            fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
+                let (ident, variant) = data.variant_seed(IdentSeed)?;
+                variant.unit_variant()?;
+                Ok(ident)
             }
         }
-        deserializer.deserialize_enum("", &[], TypeName)
+        let mut out = Vec::new();
+        while let Some(ident) = seq.next_element_seed(BareIdent)? {
+            out.push(ident);
+        }
+        Ok(out)
     }
 }
 

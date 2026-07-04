@@ -60,6 +60,22 @@ use crate::set::Params;
 /// it is pinned here (and by `raw_value_token_drift_pin` in the tests).
 pub(crate) const RAW_VALUE_TOKEN: &str = "$ron::private::RawValue";
 
+/// The reserved name for the generic list-splice ([typed-holes delta 5]):
+/// `Splice(X)` at a `Vec` position inlines the list `X` resolves to into the
+/// surrounding list — the one rule generalizing the old ad-hoc
+/// `Cost(Param(i))` / `Modification::Several` flatten idioms. Legal ONLY at a
+/// sequence position; `Quote` (delta 4) defers a param through a two-level
+/// meta-macro.
+pub(crate) const SPLICE: &str = "Splice";
+
+/// The reserved name for the two-level meta-macro stage marker
+/// ([typed-holes delta 4]): `Quote(Param(i))` in a meta-macro's body emits a
+/// literal `Param(i)` into the PRODUCED definition (deferred to that
+/// definition's own frame) instead of resolving eagerly against the meta's
+/// frame. The one construct that lets a meta forward a param into a nested
+/// macro invocation.
+pub(crate) const QUOTE: &str = "Quote";
+
 /// The read-long half of the context: the macros in scope, and the strings
 /// spliced together while reading one document, so they can be borrowed
 /// like the input is.
@@ -311,6 +327,10 @@ impl<'de> Visitor<'de> for Probe<'_, 'de> {
         if ident == "Param" {
             return Ok(Some(Invocation::Param(variant.newtype_variant()?)));
         }
+        // `Splice`/`Quote` are not invocations: probe reports "not a macro" so
+        // the value re-reads and — at a real value position — the
+        // `EnumIntercept` guards below flag it. A raw meta-body `Quote(...)`
+        // is unwrapped by `substitute_params` before it reaches here.
         let Some(def) = self
             .position
             .and_then(|kind| self.read.macros.get(kind, &ident))
@@ -400,6 +420,10 @@ fn probe<'de, E: serde::de::Error>(
 enum Node<'de> {
     /// A `Param(...)` hole.
     Hole(ParamKey),
+    /// A `Quote(X)` stage marker ([typed-holes delta 4]): its single child,
+    /// to be emitted verbatim (the `Quote(` wrapper stripped) so a param
+    /// defers through a two-level meta-macro to the produced definition.
+    Quote(&'de RawValue),
     /// Anything else: its immediate children, each captured as a raw
     /// subslice of the fragment. Scalars and bare identifiers have none.
     Branch(Vec<&'de RawValue>),
@@ -448,6 +472,9 @@ impl<'de> Visitor<'de> for IdentLed<'_> {
         self.entered.set(true);
         if ident == "Param" {
             return Ok(Node::Hole(variant.newtype_variant()?));
+        }
+        if ident == QUOTE {
+            return Ok(Node::Quote(variant.newtype_variant()?));
         }
         let children = if self.named {
             variant.struct_variant(&[], Children)?
@@ -580,6 +607,14 @@ fn collect_holes<'de>(
             // The produced definition's own hole: leave the text alone.
             (Err(_), HoleMode::PassThrough) => {}
         },
+        // `Quote(X)` unwraps to `X` verbatim, regardless of frame ownership
+        // ([typed-holes delta 4]): the meta's frame does NOT resolve the inner
+        // hole, so the produced definition carries a bare `Param(i)` its own
+        // frame resolves. The inner text is left un-walked.
+        Node::Quote(inner) => {
+            let start = fragment.as_ptr() as usize - root.as_ptr() as usize;
+            edits.push((start..start + fragment.len(), inner.get_ron().trim()));
+        }
         Node::Branch(children) => {
             for child in children {
                 collect_holes(root, child.get_ron(), ctx, mode, edits)?;
@@ -598,6 +633,9 @@ pub(crate) fn collect_param_keys(
 ) -> Result<(), String> {
     match decompose(fragment, options)? {
         Node::Hole(key) => keys.push(key),
+        // The inner hole still references a param — collect it, so a default
+        // expression carrying a `Quote(Param(x))` still validates `x`.
+        Node::Quote(inner) => collect_param_keys(inner.get_ron(), options, keys)?,
         Node::Branch(children) => {
             for child in children {
                 collect_param_keys(child.get_ron(), options, keys)?;
@@ -635,6 +673,88 @@ fn substitute_params<'de>(
     }
     out.push_str(&source[copied..]);
     Ok(std::borrow::Cow::Owned(out))
+}
+
+/// The inner source of a top-level `Splice(X)` element, or `None` when the
+/// element isn't a splice. Reads through the enum channel: a `Splice`-led
+/// value's single newtype child is `X`.
+fn splice_child<'de>(
+    element: &'de str,
+    options: &ron::Options,
+) -> Result<Option<&'de str>, String> {
+    struct SpliceSeed<'a>(&'a Cell<bool>);
+    impl<'de> DeserializeSeed<'de> for SpliceSeed<'_> {
+        type Value = Option<&'de str>;
+        fn deserialize<D: Deserializer<'de>>(self, de: D) -> Result<Self::Value, D::Error> {
+            de.deserialize_enum("", &[], self)
+        }
+    }
+    impl<'de> Visitor<'de> for SpliceSeed<'_> {
+        type Value = Option<&'de str>;
+        fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.write_str("a `Splice(...)`-led value")
+        }
+        fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
+            let (ident, variant) = data.variant_seed(IdentSeed)?;
+            self.0.set(true);
+            if ident != SPLICE {
+                // Not a splice; leave the body unread (the caller re-reads the
+                // element in full).
+                return Ok(None);
+            }
+            let inner: &RawValue = variant.newtype_variant()?;
+            Ok(Some(inner.get_ron().trim()))
+        }
+    }
+
+    let mut de = ron_deserializer(element, options).map_err(|e| e.to_string())?;
+    let entered = Cell::new(false);
+    match SpliceSeed(&entered).deserialize(&mut de) {
+        Ok(inner) => Ok(inner),
+        // Not identifier-led (a scalar, a nested list): never a splice.
+        Err(_) if !entered.get() => Ok(None),
+        Err(error) => Err(de.span_error(error).to_string()),
+    }
+}
+
+/// Rewrites a captured `[...]` list source, inlining every top-level
+/// `Splice(X)` element ([typed-holes delta 5]): `X` is resolved against the
+/// current frame (typically `Splice(Param(i))`), must itself be a `[...]`
+/// list, and its elements replace the `Splice(...)` in place. Returns `None`
+/// when the list carries no `Splice` element, so the caller re-reads it
+/// unchanged.
+fn splice_seq<'de>(source: &'de str, ctx: &Ctx<'de, '_>) -> Result<Option<String>, String> {
+    let options = ctx.read.macros.options();
+    let mut de = ron_deserializer(source, options).map_err(|e| e.to_string())?;
+    // Top-level elements as raw subslices; a non-list source (a whole-value
+    // hole was already handled) simply has no splices.
+    let Ok(elements) = Vec::<&RawValue>::deserialize(&mut de) else {
+        return Ok(None);
+    };
+    let mut spliced_any = false;
+    let mut out: Vec<String> = Vec::new();
+    for element in elements {
+        let element = element.get_ron();
+        let Some(inner) = splice_child(element, options)? else {
+            out.push(element.trim().to_owned());
+            continue;
+        };
+        spliced_any = true;
+        // Resolve `X` (typically `Param(i)`) against the frame, then require a
+        // `[...]` list and inline its elements.
+        let list_src: String = substitute_params(inner, ctx, HoleMode::Strict)?.into_owned();
+        let mut list_de = ron_deserializer(&list_src, options).map_err(|e| e.to_string())?;
+        let inner_elements = Vec::<&RawValue>::deserialize(&mut list_de).map_err(|_| {
+            format!("`Splice({inner})` resolves to `{list_src}`, which is not a list")
+        })?;
+        for inner_element in inner_elements {
+            out.push(inner_element.get_ron().trim().to_owned());
+        }
+    }
+    if !spliced_any {
+        return Ok(None);
+    }
+    Ok(Some(format!("[{}]", out.join(", "))))
 }
 
 /// Names the macro whose body failed: the reread's span points into a
@@ -714,11 +834,42 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
         deserialize_i64(), deserialize_i128(), deserialize_u8(), deserialize_u16(),
         deserialize_u32(), deserialize_u64(), deserialize_u128(), deserialize_f32(),
         deserialize_f64(), deserialize_char(), deserialize_str(), deserialize_string(),
-        deserialize_bytes(), deserialize_byte_buf(), deserialize_unit(), deserialize_seq(),
+        deserialize_bytes(), deserialize_byte_buf(), deserialize_unit(),
         deserialize_map(),
         deserialize_unit_struct(name: &'static str),
         deserialize_tuple(len: usize),
         deserialize_tuple_struct(name: &'static str, len: usize),
+    }
+
+    /// Like the `forward_or_param!` members, but splice-aware: inside a macro
+    /// body a `[...]` list is captured first, so a whole-value `Param(n)`
+    /// hole stands in for the whole list AND each top-level `Splice(X)`
+    /// element inlines the list `X` resolves to ([typed-holes delta 5]).
+    fn deserialize_seq<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        if self.intercept == Intercept::Skip || self.ctx.frame.is_none() {
+            let wrapped = self.wrap(visitor);
+            return self.de.deserialize_seq(wrapped);
+        }
+        let source = <&RawValue>::deserialize(self.de)?.get_ron();
+        // A whole-value hole (`changes: Param(0)`) resolves against the frame.
+        if let Some(Invocation::Param(key)) = probe::<Self::Error>(source, None, self.ctx)? {
+            let arg = self.ctx.param(key).map_err(Self::Error::custom)?;
+            return reread(arg, self.ctx.frameless(), Intercept::Full, |de| {
+                de.deserialize_seq(visitor)
+            });
+        }
+        // Element-level splices: inline every top-level `Splice(X)`.
+        if let Some(rewritten) = splice_seq(source, &self.ctx).map_err(Self::Error::custom)? {
+            let spliced = self.ctx.read.splice(rewritten);
+            return reread(spliced, self.ctx, Intercept::Skip, |de| {
+                de.deserialize_seq(visitor)
+            });
+        }
+        // Plain list: re-read verbatim (Skip so this capture doesn't loop; the
+        // elements re-enable macro-awareness through `WrapSeq`).
+        reread(source, self.ctx, Intercept::Skip, |de| {
+            de.deserialize_seq(visitor)
+        })
     }
 
     /// Like the `forward_or_param!` members, except that a raw-value
@@ -1104,6 +1255,18 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
             return reread(arg, self.ctx.frameless(), Intercept::Full, |de| {
                 de.deserialize_enum(self.name, self.variants, self.visitor)
             });
+        }
+        if ident == SPLICE {
+            return Err(A::Error::custom(format_args!(
+                "`Splice(...)` is only legal at a list position, not at a `{}`",
+                self.name,
+            )));
+        }
+        if ident == QUOTE {
+            return Err(A::Error::custom(
+                "`Quote(Param(i))` is only legal in a meta-macro body \
+                 (a `Macro`-kind definition)",
+            ));
         }
         // An empty variant list marks an arbitrary-identifier reader
         // (`kind_names`, `ParamType` — derived enums always pass their real

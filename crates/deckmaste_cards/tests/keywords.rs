@@ -254,8 +254,8 @@ fn reconfigure_confers_attach_and_unattach_activated() {
 /// [CR#702.107a]: **Outlast** confers an Activated ability — sorcery-speed,
 /// whose cost is the printed [cost] PLUS `{T}` ([CR#107.5]), and whose effect
 /// puts a +1/+1 counter on this creature ([CR#122.1a]). The printed cost is the
-/// macro's list param, spliced ahead of the fixed `Tap` as a nested `Cost`
-/// (the Cycling cost-splice); `Cost::normalize` flattens the two into one list.
+/// macro's list param, inlined ahead of the fixed `Tap` by the generic
+/// `Splice(Param(0))` list-splice ([typed-holes delta 5]) — flat at read time.
 #[test]
 fn outlast_confers_sorcery_speed_tap_put_counter() {
     use deckmaste_core::Ability;
@@ -263,7 +263,6 @@ fn outlast_confers_sorcery_speed_tap_put_counter() {
     use deckmaste_core::Cost;
     use deckmaste_core::Count;
     use deckmaste_core::Effect;
-    use deckmaste_core::Normalize;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::Timing;
@@ -296,14 +295,12 @@ fn outlast_confers_sorcery_speed_tap_put_counter() {
         act.window
     );
 
-    // (2) Cost = printed cost ({W}) THEN {T}. The printed cost rides in a nested
-    // `Cost` ahead of the fixed `Tap`; `.normalize()` splices it into one flat
-    // list.
+    // (2) Cost = printed cost ({W}) THEN {T}. `Splice(Param(0))` inlines the
+    // printed cost ahead of the fixed `Tap` at read time, so the cost is FLAT.
     let flat_cost: Cost = ron_options().from_str("[Mana([White]), Tap]").unwrap();
     assert_eq!(
-        act.cost.clone().normalize(),
-        flat_cost,
-        "outlast cost is the param cost plus {{T}} ([CR#702.107a])"
+        act.cost, flat_cost,
+        "outlast cost is the param cost plus {{T}}, spliced flat ([CR#702.107a])"
     );
 
     // (3) Effect puts one +1/+1 counter on THIS creature ([CR#122.1a]).
@@ -407,15 +404,14 @@ fn ascend_macro_expands_to_static_sba() {
 /// [CR#702.29a]: **Cycling** confers an Activated ability that functions from
 /// HAND, whose cost is the printed cost followed by "discard this card", and
 /// whose effect is "draw a card". The printed cost is the macro's list param,
-/// spliced ahead of the fixed discard-self as a nested `Cost`. Read is
-/// FAITHFUL — the nested `Cost` survives lumpy — and `Cost::normalize` splices
-/// it into one flat list.
+/// inlined ahead of the fixed discard-self by the generic `Splice(Param(0))`
+/// list-splice ([typed-holes delta 5]) — so the cost reads FLAT at expansion
+/// time, no nested `Cost` wrapper, no post-read normalize step.
 #[test]
 fn cycling_confers_from_hand_discard_self_draw() {
     use deckmaste_core::Ability;
     use deckmaste_core::Cost;
     use deckmaste_core::Effect;
-    use deckmaste_core::Normalize;
     use deckmaste_core::Zone;
     use deckmaste_core::ron::options as ron_options;
 
@@ -442,24 +438,15 @@ fn cycling_confers_from_hand_discard_self_draw() {
     // (1) Functions from hand ([CR#702.29a]).
     assert_eq!(act.from, Some(Zone::Hand), "cycling activates from hand");
 
-    // (2) Cost = printed cost ({2}) THEN discard this card. Read is faithful:
-    // the printed cost rides in a nested `Cost` ahead of the fixed
-    // discard-self, so the authored cost is LUMPY.
-    let lumpy_cost: Cost = ron_options()
-        .from_str("[Cost([Mana([Generic(2)])]), Do(Discard(count: Literal(1), what: This))]")
-        .unwrap();
-    assert_eq!(
-        act.cost, lumpy_cost,
-        "cycling cost reads lumpy (nested Cost survives the macro splice)"
-    );
-    // `.normalize()` splices the nested Cost into one flat list.
+    // (2) Cost = printed cost ({2}) THEN discard this card. `Splice(Param(0))`
+    // inlines the printed cost ahead of the fixed discard-self at read time, so
+    // the cost is FLAT — no nested `Cost` wrapper.
     let flat_cost: Cost = ron_options()
         .from_str("[Mana([Generic(2)]), Do(Discard(count: Literal(1), what: This))]")
         .unwrap();
     assert_eq!(
-        act.cost.clone().normalize(),
-        flat_cost,
-        "cycling cost normalizes to printed cost + discard this card"
+        act.cost, flat_cost,
+        "cycling cost is the printed cost + discard this card, spliced flat"
     );
 
     // (3) Effect = draw a card.
@@ -471,8 +458,9 @@ fn cycling_confers_from_hand_discard_self_draw() {
 /// functions from HAND, whose cost is the printed cost followed by "discard
 /// this card" (the Cycling discard-this construction), and whose effect is "put
 /// N +1/+1 counters on target creature". The printed cost is the macro's list
-/// param (`Param(1)`), spliced ahead of the fixed discard-self as a nested
-/// `Cost` that `Cost::normalize` flattens; N is `Param(0)`, the counter amount.
+/// param (`Param(1)`), inlined ahead of the fixed discard-self by the generic
+/// `Splice(Param(1))` list-splice (flat at read time); N is `Param(0)`, the
+/// counter amount.
 #[test]
 fn reinforce_confers_from_hand_discard_self_put_counters() {
     use deckmaste_core::Ability;
@@ -482,7 +470,6 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
     use deckmaste_core::CounterRef;
     use deckmaste_core::Effect;
     use deckmaste_core::Filter;
-    use deckmaste_core::Normalize;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::TargetSpec;
@@ -513,23 +500,15 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
     // (1) Functions from hand ([CR#702.77a]).
     assert_eq!(act.from, Some(Zone::Hand), "reinforce activates from hand");
 
-    // (2) Cost = printed cost ({1}{G}) THEN discard this card. Read is faithful:
-    // the printed cost rides in a nested `Cost` ahead of the fixed
-    // discard-self, so the authored cost is LUMPY; `.normalize()` flattens it.
-    let lumpy_cost: Cost = ron_options()
-        .from_str("[Cost([Mana([Generic(1),Green])]), Do(Discard(count: Literal(1), what: This))]")
-        .unwrap();
-    assert_eq!(
-        act.cost, lumpy_cost,
-        "reinforce cost reads lumpy (nested Cost survives the macro splice)"
-    );
+    // (2) Cost = printed cost ({1}{G}) THEN discard this card. `Splice(Param(1))`
+    // inlines the printed cost ahead of the fixed discard-self at read time, so
+    // the cost is FLAT — no nested `Cost` wrapper.
     let flat_cost: Cost = ron_options()
         .from_str("[Mana([Generic(1),Green]), Do(Discard(count: Literal(1), what: This))]")
         .unwrap();
     assert_eq!(
-        act.cost.clone().normalize(),
-        flat_cost,
-        "reinforce cost normalizes to printed cost + discard this card"
+        act.cost, flat_cost,
+        "reinforce cost is the printed cost + discard this card, spliced flat"
     );
 
     // (3) Effect = put N +1/+1 counters on target creature ([CR#702.77a]).
@@ -580,9 +559,9 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
 /// the GRAVEYARD, whose cost is the printed cost followed by "exile this card
 /// from your graveyard", that activates only as a sorcery, and whose effect
 /// puts a number of +1/+1 counters equal to this card's power on target
-/// creature. The printed cost is the macro's list param, spliced ahead of the
-/// fixed exile-self as a nested `Cost` (Cycling's discard-self twin); read is
-/// FAITHFUL (the nested `Cost` survives lumpy) and `.normalize()` flattens it.
+/// creature. The printed cost is the macro's list param, inlined ahead of the
+/// fixed exile-self by the generic `Splice(Param(0))` list-splice (Cycling's
+/// discard-self twin) — flat at read time, no nested `Cost` wrapper.
 #[test]
 fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
     use deckmaste_core::Ability;
@@ -591,7 +570,6 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
     use deckmaste_core::Count;
     use deckmaste_core::CounterRef;
     use deckmaste_core::Effect;
-    use deckmaste_core::Normalize;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::Stat;
@@ -635,24 +613,15 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
     );
 
     // (3) Cost = printed cost ({2}) THEN exile this card. Exile is a pure zone
-    // move now (`Move(This, Exile)`, [CR#701.13]). Read is faithful: the printed
-    // cost rides in a nested `Cost` ahead of the fixed exile-self, so the
-    // authored cost is LUMPY (Cycling's discard-self twin).
-    let lumpy_cost: Cost = ron_options()
-        .from_str("[Cost([Mana([Generic(2)])]), Do(Move(This, Exile))]")
-        .unwrap();
-    assert_eq!(
-        act.cost, lumpy_cost,
-        "scavenge cost reads lumpy (nested Cost survives the macro splice)"
-    );
-    // `.normalize()` splices the nested Cost into one flat list.
+    // move now (`Move(This, Exile)`, [CR#701.13]). `Splice(Param(0))` inlines the
+    // printed cost ahead of the fixed exile-self at read time (Cycling's
+    // discard-self twin), so the cost is FLAT — no nested `Cost` wrapper.
     let flat_cost: Cost = ron_options()
         .from_str("[Mana([Generic(2)]), Do(Move(This, Exile))]")
         .unwrap();
     assert_eq!(
-        act.cost.clone().normalize(),
-        flat_cost,
-        "scavenge cost normalizes to printed cost + exile this card"
+        act.cost, flat_cost,
+        "scavenge cost is the printed cost + exile this card, spliced flat"
     );
 
     // (4) Effect = put +1/+1 counters equal to this card's power on target

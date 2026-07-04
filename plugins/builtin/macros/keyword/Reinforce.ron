@@ -9,9 +9,9 @@
 // (`Reinforce(N, [cost])`):
 //   - `Param(0)` = N, a `Count` (the bare numeral, e.g. `Reinforce(1, …)`),
 //     threaded into the counter amount as `Count::Literal(N)`.
-//   - `Param(1)` = the printed [cost], the macro's list param. Wrapping it as a
-//     nested `Cost(Param(1))` splices it ahead of the fixed discard-self, and
-//     `Cost`'s deserialize flattens the two into one cost list — exactly the
+//   - `Param(1)` = the printed [cost], the macro's list param. The generic
+//     `Splice(Param(1))` list-splice inlines its components ahead of the fixed
+//     discard-self at read time, yielding one flat cost list — exactly the
 //     Cycling discard-this construction. The discard is of THIS card
 //     (`Discard(what: This)`), not a free-choice discard.
 //
@@ -30,7 +30,7 @@
         name: "Reinforce",
         abilities: [Activated(
             from: Hand,
-            cost: [Cost(Param(1)), Do(Discard(count: 1, what: This))],
+            cost: [Splice(Param(1)), Do(Discard(count: 1, what: This))],
             effect: Targeted(
                 targets: [Target(Exactly(1), Type(Creature))],
                 effect: PutCounters(It, P1P1Counter, Param(0)),

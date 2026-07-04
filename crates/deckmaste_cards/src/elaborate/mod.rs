@@ -22,6 +22,7 @@
 //! ([`Stage::for_root`]) — a live engine can never resolve a card that would
 //! panic on an unbound reference.
 
+pub mod defcheck;
 pub mod tables;
 mod walk;
 
@@ -35,6 +36,7 @@ use deckmaste_core::Ident;
 use deckmaste_core::KeywordDecl;
 use deckmaste_core::Subtype;
 use deckmaste_core::Token;
+pub use defcheck::MacroFault;
 
 /// A stable elaboration error code. The full code space is laid out by the
 /// emitted checker-rule manifest (`tables/checker-rules.ron`); the

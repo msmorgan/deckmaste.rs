@@ -45,24 +45,55 @@ pub fn kinds() -> KindSet {
 }
 
 /// The param types in scope for deckmaste plugins: the domain-neutral
-/// built-ins (`Any`, `String`) plus deckmaste's `Color`, `Filter`, and
-/// `Reference`. A validator reads the argument as its Rust type with macros
-/// in scope, so the check and the real grammar are one path.
+/// built-ins (`Any`, `String`) plus a validator for EVERY macroable core
+/// grammar kind — the [typed-holes delta 1] retype, so a `params: [Any]` slot
+/// is the deliberate escape hatch, not the default. A validator reads the
+/// argument as its Rust type with macros in scope, so the check and the real
+/// grammar are one path (a bad `Color`, `Effect`, `Filter`, … fails at the
+/// call site exactly as it would at a real position).
+///
+/// The registered name is the type's own serde name (`Filter`, `Effect`,
+/// `Reference`), with three shaped exceptions carrying their own spelling:
+/// `Color` (a characteristic, not a macro kind), `Cost` (the *list* form
+/// `Vec<CostComponent>`, the bracketed keyword-cost argument), and `Abilities`
+/// (the `Vec<Ability>` a `Composite`/keyword meta forwards).
 #[must_use]
 pub fn param_types() -> ParamTypeSet {
+    use deckmaste_core as dc;
     let mut param_types = ParamTypeSet::default();
-    param_types.add_typed::<deckmaste_core::Color>("Color");
-    param_types.add_typed::<deckmaste_core::Filter>("Filter");
-    // A reference slot: the object/player a macro compares against
-    // (`SharesColorWith(Ref(This))`, `SharesColor(Subject, This)`). Also types
-    // regeneration's `Regenerate(target)` param.
-    param_types.add_typed::<deckmaste_core::Reference>("Reference");
-    // A keyword/cost slot: the bracketed cost-component list authored as the
-    // macro's argument (`[Mana([Generic(2)])]`, `[Mana(...), Do(LoseLife(2))]`).
-    param_types.add_typed::<Vec<deckmaste_core::CostComponent>>("Cost");
-    // A count slot (`PumpThisUntilEot`'s P/T magnitudes): a bare numeral reads as
-    // `Count::Literal`, dynamic counts as `CountOf`/`StatOf`.
-    param_types.add_typed::<deckmaste_core::Count>("Count");
+    // A characteristic, not a macro kind: the basic-land / protection color.
+    param_types.add_typed::<dc::Color>("Color");
+    // The bracketed cost-component LIST authored as a macro's argument
+    // (`[Mana([Generic(2)])]`, `[Mana(...), Do(LoseLife(2))]`) — the list form,
+    // spliced by `Splice(Param(i))`; distinct from the single `CostComponent`.
+    param_types.add_typed::<Vec<dc::CostComponent>>("Cost");
+    // The `Vec<Ability>` a keyword/`Composite` meta forwards
+    // (`KeywordAbility(abilities: [...])`).
+    param_types.add_typed::<Vec<dc::Ability>>("Abilities");
+    // Every macroable core kind gets its own-name validator (delta 1).
+    param_types.add_typed::<dc::Ability>("Ability");
+    param_types.add_typed::<dc::Action>("Action");
+    param_types.add_typed::<dc::AsThough>("AsThough");
+    param_types.add_typed::<dc::Condition>("Condition");
+    param_types.add_typed::<dc::CostComponent>("CostComponent");
+    param_types.add_typed::<dc::Count>("Count");
+    param_types.add_typed::<dc::Destination>("Destination");
+    param_types.add_typed::<dc::Effect>("Effect");
+    param_types.add_typed::<dc::EventFilter>("EventFilter");
+    param_types.add_typed::<dc::Filter>("Filter");
+    param_types.add_typed::<dc::KeywordAbility>("KeywordAbility");
+    param_types.add_typed::<dc::ManaRider>("ManaRider");
+    param_types.add_typed::<dc::Modification>("Modification");
+    param_types.add_typed::<dc::PlayerAction>("PlayerAction");
+    param_types.add_typed::<dc::Quantity>("Quantity");
+    param_types.add_typed::<dc::Reference>("Reference");
+    param_types.add_typed::<dc::Replacement>("Replacement");
+    param_types.add_typed::<dc::Selection>("Selection");
+    param_types.add_typed::<dc::StaticEffect>("StaticEffect");
+    param_types.add_typed::<dc::TargetSpec>("TargetSpec");
+    param_types.add_typed::<dc::Subtype>("Subtype");
+    param_types.add_typed::<dc::Zone>("Zone");
+    param_types.add_typed::<dc::strategy::Preference>("Preference");
     param_types
 }
 
@@ -598,6 +629,82 @@ mod tests {
                     body: Subtype(name: Param(0), types: [Land]),
                 )"#))
             .expect("a Color param type should be registered");
+    }
+
+    /// [typed-holes delta 1] Every macroable kind is a registered param type,
+    /// so a macro may declare `Effect`/`Selection`/`Modification`/… slots — and
+    /// an argument that isn't that grammar is rejected at the call site, before
+    /// the body expands. Retyping the `Any` slots to real types is the point.
+    #[test]
+    fn every_macroable_kind_is_a_typed_param() {
+        let param_types = param_types();
+        for name in [
+            "Effect",
+            "Ability",
+            "Action",
+            "Condition",
+            "CostComponent",
+            "Count",
+            "Destination",
+            "EventFilter",
+            "Filter",
+            "KeywordAbility",
+            "ManaRider",
+            "Modification",
+            "PlayerAction",
+            "Quantity",
+            "Reference",
+            "Replacement",
+            "Selection",
+            "StaticEffect",
+            "TargetSpec",
+            "Subtype",
+            "Zone",
+            "AsThough",
+            "Preference",
+            // Shaped exceptions.
+            "Color",
+            "Cost",
+            "Abilities",
+        ] {
+            assert!(
+                param_types.contains(name),
+                "`{name}` should be a registered param type"
+            );
+        }
+    }
+
+    /// An `Effect`-typed slot rejects a non-Effect at the call site — the
+    /// delta-1 headline for a kind that had no validator before.
+    #[test]
+    fn effect_param_rejects_a_non_effect() {
+        let mut macros = macro_set();
+        macros
+            .insert(&def(r#"(
+                    name: "DoThen",
+                    kinds: [Replacement],
+                    params: [Effect],
+                    body: Also(would: ZoneChange(what: Any, to: Battlefield), also: Param(0)),
+                )"#))
+            .unwrap();
+        // `Purple` is neither an Effect variant nor an Effect macro.
+        let error = macros
+            .read_str::<deckmaste_core::Replacement>("DoThen(Purple)")
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.contains("DoThen") && error.contains("Effect"),
+            "unexpected error: {error}"
+        );
+        // A real Effect argument is accepted (remembered as `Expanded`).
+        let ok: deckmaste_core::Replacement = macros.read_str("DoThen(Tap(This))").unwrap();
+        let deckmaste_core::Replacement::Expanded(exp) = ok else {
+            panic!("expected a remembered replacement, got {ok:?}");
+        };
+        assert!(matches!(
+            *exp.value,
+            deckmaste_core::Replacement::Also { .. }
+        ));
     }
 
     /// `Reference` is a registered param type, so a macro may take one — the
