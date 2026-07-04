@@ -716,6 +716,8 @@ impl GameState {
         self.remove_from_hand(controller, object);
         self.objects.obj_mut(object).zone = Some(Zone::Stack);
         self.announcing = Some(PendingStackEntry {
+            optional_components: Vec::new(),
+            paid_costs: Vec::new(),
             // [CR#405]: a spell's stack identity is its own object id.
             id: object,
             object: StackObject::Spell(object),
@@ -919,6 +921,58 @@ impl GameState {
         true
     }
 
+    /// [CR#601.2b,702.33a]: announce the in-flight SPELL's tagged optional
+    /// additional costs — the kicker family, declared as
+    /// `StaticEffect::CostOption` rows on the card (they function from the
+    /// stack while the spell is cast). Surfaces one `YesNo` for the
+    /// `index`-th declared row (with the `OptionalCost` continuation
+    /// recording the answer); returns whether a decision surfaced. `false` =
+    /// past the last row / an activation / no rows — the announce walks on.
+    pub(crate) fn announce_optional_costs(&mut self, index: usize) -> bool {
+        let Some(pending) = self.announcing.as_ref() else {
+            return false;
+        };
+        // Kicker is a spell-cast announcement ([CR#702.33a] "as you cast
+        // this spell"); activations have no CostOption rows to walk.
+        let StackObject::Spell(object) = pending.object else {
+            return false;
+        };
+        let controller = pending.controller;
+        let rows = self.cost_option_rows(object);
+        let Some(option) = rows.get(index) else {
+            return false;
+        };
+        self.pending = Some(crate::decide::PendingDecision::YesNo { player: controller });
+        self.choice = Some(crate::state::ChoiceContinuation::OptionalCost {
+            tag: option.tag,
+            components: option.components.clone(),
+            repeatable: option.repeatable,
+            index,
+        });
+        true
+    }
+
+    /// The `CostOption` rows declared on `object`'s statics, in card order
+    /// ([CR#702.33a,118.8b] — the kicker-family declarations).
+    fn cost_option_rows(&self, object: ObjectId) -> Vec<deckmaste_core::OptionalCost> {
+        crate::derive::abilities_of_source(self, self.objects.obj(object).source)
+            .iter()
+            .filter_map(|a| match a {
+                deckmaste_core::Ability::Static(s) => Some(s),
+                _ => None,
+            })
+            .flat_map(|s| &s.effects)
+            .filter_map(|e| match e {
+                deckmaste_core::StaticEffect::CostOption(oc) => Some(oc.clone()),
+                deckmaste_core::StaticEffect::Expanded(exp) => match exp.value.as_ref() {
+                    deckmaste_core::StaticEffect::CostOption(oc) => Some(oc.clone()),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .collect()
+    }
+
     /// [CR#601.2f,601.2g,601.2h]: pay the in-flight cost. Always surfaces a `PayMana`
     /// decision for any non-empty mana cost; the core never auto-pays.
     /// Auto-resolution (an Arena-style autotapper) is a future runner concern.
@@ -949,6 +1003,8 @@ impl GameState {
             .concretized
             .clone()
             .expect("ChooseCostOptions concretized the cost before PayCost");
+        // [CR#601.2f]: the announced optional additional components.
+        let optional_components = pending.optional_components.clone();
         // The Phyrexian-life picks rode as `Do(LoseLife(2))` cost components;
         // unwrap them into payable verbs ([CR#601.2h]).
         let extra_verbs = phyrexian_life_verbs(&extra_verbs);
@@ -964,6 +1020,23 @@ impl GameState {
                 // [CR#601.2b]: apply the announced X to the concretized mana
                 // ({X} -> Generic(announced_x); hybrid/Phyrexian already resolved).
                 let mana = concretize_x(&mana, announced_x);
+                // [CR#601.2f]: announced optional additional costs (kicker,
+                // [CR#702.33a]) join the total — mana components into the
+                // mana decision, verb components into the payment window.
+                let mut mana: Vec<ManaSymbol> = mana.into();
+                for component in &optional_components {
+                    match component {
+                        CostComponent::Mana(m) => mana.extend(m.iter().copied()),
+                        CostComponent::Do(pa) => {
+                            items.extend(verb_payment_items(&[(**pa).clone()], object, controller));
+                        }
+                        other => todo!(
+                            "engine-alt-costs seam: an optional-cost component \
+                             beyond Mana/Do ({other:?})"
+                        ),
+                    }
+                }
+                let mana = ManaCost::from(mana);
                 // [CR#601.2g..601.2h]: convoke/delve/improvise — offer each
                 // eligible pip of the now-locked-in cost its `PayPips`
                 // alternative; pips paid that way drop out of the mana decision
@@ -1819,6 +1892,7 @@ mod tests {
             mana_cost: printed.parse().unwrap(),
             types: vec![Type::Artifact],
             abilities: vec![Ability::Static(StaticAbility {
+                ability_word: None,
                 from: None,
                 condition: None,
                 characteristic_defining: false,
@@ -1901,6 +1975,7 @@ mod tests {
             name: "Thorn Totem".into(),
             types: vec![Type::Artifact],
             abilities: vec![Ability::Static(StaticAbility {
+                ability_word: None,
                 from: None,
                 condition: None,
                 characteristic_defining: false,

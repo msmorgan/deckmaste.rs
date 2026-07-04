@@ -1,26 +1,45 @@
-// Ward = a triggered toll [CR#702.21a]: "whenever this permanent becomes
-// the target of a spell or ability an opponent controls, counter it
-// unless that player pays [cost]" — the becomes-target event ([CR#601.2c]
-// announce-time) driving counter-unless (the resolution Toll node,
-// Effect::Unless). The payer is the targeting spell's controller — the
-// Unless grammar doesn't carry a payer slot; that binding is engine work
-// at the seam.
+// Ward — ONE blessed spelling [CR#702.21a]: "Whenever this permanent
+// becomes the target of a spell or ability an opponent controls, counter
+// that spell or ability unless that player pays [cost]." A TRIGGERED
+// ability over the becomes-target event ([CR#601.2c] announce-time),
+// resolving to the `MustPay` punisher: the payer is the targeting stack
+// object's controller ("that player"), and the unpaid branch counters
+// that stack object. The engine binds the targeting spell-or-ability as
+// the event OBJECT (`EventObject`), so both reads land on the source on
+// the stack, never the warded permanent. Any cost-shaped/"toll" ward
+// home is deleted — this is the only spelling.
+//
+// Ward {X} ([CR#702.21b]): the optional `where_x` param carries the X
+// definition ("ward {X}, where X is the number of experience counters
+// you have" — Minthara, Merciless Soul). It lands on the conferred
+// triggered ability's `where_x`, and the toll's `Mana([Variable])` is
+// priced when the ward TRIGGER RESOLVES, never locked in as it triggers.
+// The param defaults to the inert `0` — a plain
+// `Ward(cost: [Mana([Generic(2)])])` has no {X} to price, so the default
+// is never read; the template's conditional fragment prints the where-X
+// clause only when a caller supplies a real definition.
+//
+// The inner ability is `Innate` — the rule OF THE KEYWORD, not a second
+// card-facing ability beside the Composite; layer-6 removal strips the
+// whole Composite, so "loses all abilities" still loses ward.
 (
     name: "Ward",
-    template: "ward ${0}",
+    template: "ward ${cost}${, where X is #where_x#}",
     kinds: [KeywordAbility],
-    params: [Cost],
+    params: { "cost": Cost, "where_x": Default(Count, 0) },
     body: Composite(
         name: "Ward",
-        abilities: [Triggered(
+        abilities: [Innate(Triggered(
             event: BecomesTarget(
                 what: Ref(This),
-                by: AllOf([InZone(Stack), ControlledBy(OpponentOf(Ref(You)))]),
+                by: ControlledBy(OpponentOf(Ref(You))),
             ),
-            effect: Unless(
-                effect: Counter(EventObject),
-                unless: Param(0),
+            where_x: Param(where_x),
+            effect: MustPay(
+                actor: ControllerOf(EventObject),
+                cost: [Splice(Param(cost))],
+                or_else: Counter(EventObject),
             ),
-        )],
+        ))],
     ),
 )

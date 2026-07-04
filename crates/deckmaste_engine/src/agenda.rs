@@ -54,6 +54,12 @@ pub enum WorkItem {
         object: crate::object::ObjectId,
         ability: usize,
     },
+    /// [CR#601.2b]: announce the in-flight spell's tagged OPTIONAL
+    /// additional costs (kicker/multikicker, [CR#702.33a,702.33c]) — one
+    /// `YesNo` per declared `CostOption` row, starting at `index`; a
+    /// repeatable row re-offers after each yes. No-op for activations and
+    /// spells with no rows.
+    AnnounceOptionalCosts { index: usize },
     /// [CR#601.2b,602.2b]: announce the value of `{X}` in the in-flight cost
     /// (before targets, [CR#601.2c]). No-op when the cost has no `{X}`.
     AnnounceX,
@@ -87,6 +93,17 @@ pub enum WorkItem {
         options: Vec<deckmaste_core::ColorOrColorless>,
         amount: deckmaste_core::Uint,
         riders: Vec<deckmaste_core::ManaRider>,
+    },
+    /// [CR#118.12a]: a mid-resolution mana toll — a `MustPay`/`MayPay`
+    /// continuation's `Mana(...)` cost component, paid by `player` from
+    /// their pool. Surfaces a `PayMana` decision; `subject` is the
+    /// resolving ability's source (a `SpendOnly` rider judges it). A ward
+    /// toll's cost arrives here already priced ([CR#702.21b] — `{X}`
+    /// resolved through `where_x` at `MustPay` execution).
+    TollMana {
+        player: crate::player::PlayerId,
+        cost: deckmaste_core::ManaCost,
+        subject: crate::object::ObjectId,
     },
     /// Resolve the named committed stack object ([CR#608]). Reads `self.stack`.
     Resolve(crate::object::ObjectId),

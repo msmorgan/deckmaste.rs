@@ -137,6 +137,17 @@ pub struct GameConfig {
 /// resolution-time analogue of the `announcing` cast slot.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ChoiceContinuation {
+    /// [CR#601.2b,702.33d]: the pending `YesNo` answers "pay this tagged
+    /// optional cost (again)?" for the in-flight announce. Yes records the
+    /// tag (+1) and adds `components` to the total ([CR#601.2f]); a
+    /// repeatable row ([CR#702.33c] multikicker) re-offers the same row,
+    /// otherwise the walk advances to the next declared row.
+    OptionalCost {
+        tag: deckmaste_core::CostTag,
+        components: Vec<deckmaste_core::CostComponent>,
+        repeatable: bool,
+        index: usize,
+    },
     /// A `ChooseObjects` answer ([CR#608.2d]): bind the picks into
     /// `frame.endophora.chosen`, then re-run `effect` (the action whose
     /// `Choose`/`Random` selection produced the decision).

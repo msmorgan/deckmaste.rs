@@ -81,10 +81,26 @@ mod tests {
 
     #[test]
     fn cost_keyword_renders_its_cost_arg() {
-        assert_eq!(keyword_name(&kw("Ward([Mana([Generic(2)])])")), "ward {2}");
+        // Ward's blessed signature is named (`cost:` + the optional ward-{X}
+        // `where_x`, [CR#702.21b]); a plain ward renders without the
+        // where-X fragment, a ward-{X} with a supplied definition prints it.
+        assert_eq!(
+            keyword_name(&kw("Ward(cost: [Mana([Generic(2)])])")),
+            "ward {2}"
+        );
         assert_eq!(
             keyword_name(&kw("Equip([Mana([Generic(3)])])")),
             "equip {3}"
+        );
+    }
+
+    #[test]
+    fn ward_x_renders_its_where_x_clause() {
+        assert_eq!(
+            keyword_name(&kw(
+                "Ward(cost: [Mana([Variable])],                  where_x: CounterCount(You, Experience))"
+            )),
+            "ward {X}, where X is the number of experience counters you have"
         );
     }
 }

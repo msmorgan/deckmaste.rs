@@ -1,0 +1,18 @@
+// A minimal kicker carrier ([CR#702.33a] — "you may pay an additional {2}
+// as you cast this spell") whose resolution branches on the linked
+// "if it was kicked" read ([CR#702.33d,607.2]): kicked → 4 life,
+// unkicked → 2. No canon-slice card carries kicker, so this fixture
+// isolates the [CR#601.2b] optional-cost announce + the `PaidCost` read.
+Normal(
+    name: "Kicker Charm",
+    mana_cost: [Green],
+    types: [Instant],
+    abilities: [
+        Keyword(Kicker([Mana([Generic(2)])])),
+        Spell(effect: If(
+            condition: PaidCost(Kicker),
+            then: GainLife(4),
+            otherwise: GainLife(2),
+        )),
+    ],
+)

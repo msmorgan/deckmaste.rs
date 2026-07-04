@@ -1,0 +1,11 @@
+// "Exile" — the render name over the pure zone move ([CR#701.13]: to exile
+// an object is to put it into the exile zone; exiling has no dedicated
+// core verb — `Move(<what>, Exile)` IS the exile). Usage: Exile(It),
+// Exile(That(Card)); targeting lives in an outer `Targeted` shell.
+(
+    name: "Exile",
+    template: "exile ${0}",
+    kinds: [Effect],
+    params: [Reference],
+    body: Move(Param(0), Exile),
+)

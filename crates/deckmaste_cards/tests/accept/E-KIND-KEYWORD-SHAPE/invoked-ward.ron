@@ -1,12 +1,13 @@
 // Accept twin of reject/E-KIND-KEYWORD-SHAPE/bare-parameterized-ward.ron:
 // the SAME keyword used through its macro invocation — `Ward` is declared
-// `Costed` ([CR#702.21a] "ward [cost]") and the invocation carries the
-// typed cost arg, so the shape check resolves.
+// `CountedCost` (the cost + the optional ward-{X} `where_x` definition,
+// [CR#702.21a,702.21b]) and the invocation carries the typed cost arg, so
+// the shape check resolves.
 Normal(
   name: "Accept Invoked Ward",
   types: [Creature],
   abilities: [
-    Keyword(Ward([Mana([Generic(2)])])),
+    Keyword(Ward(cost: [Mana([Generic(2)])])),
   ],
   power: 1,
   toughness: 1,

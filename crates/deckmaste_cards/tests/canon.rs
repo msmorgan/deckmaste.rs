@@ -92,6 +92,7 @@ fn lightning_bolt_expands_target_macros() {
     assert_eq!(
         face.abilities,
         vec![Ability::Spell(SpellAbility {
+            ability_word: None,
             effect: Effect::Targeted(deckmaste_core::Targeted::new(
                 vec![any_target],
                 Effect::Act(Action::deal_damage(Reference::It, Count::Literal(3),)),
@@ -102,7 +103,7 @@ fn lightning_bolt_expands_target_macros() {
 
 /// The `Domain` count macro expands at a `Count` position through real data:
 /// Tribal Flames' damage amount is a remembered `Domain` invocation wrapping
-/// the distinct-union count of the land-subtype axis.
+/// the distinct-union count of the BASIC-land-type axis ([CR#205.3i]).
 #[test]
 fn tribal_flames_expands_the_domain_count() {
     let plugin = canon();
@@ -124,7 +125,7 @@ fn tribal_flames_expands_the_domain_count() {
     assert_eq!(exp.name, "Domain");
     assert!(matches!(
         exp.value.as_ref(),
-        Count::CountDistinct(deckmaste_core::Characteristic::Subtypes, _),
+        Count::CountDistinct(deckmaste_core::Characteristic::BasicLandTypes, _),
     ));
 }
 

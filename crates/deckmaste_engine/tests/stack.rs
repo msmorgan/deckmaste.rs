@@ -367,9 +367,14 @@ fn testing_card(name: &str) -> Arc<Card> {
 /// deck is Ward Creatures (the warded target). One Mountain is forced onto P0's
 /// battlefield.
 fn ward_game(seed: u64) -> GameState {
+    ward_game_with(seed, "Ward Creature")
+}
+
+/// [`ward_game`] with a chosen testing ward carrier (the ward-{X} fixture).
+fn ward_game_with(seed: u64, ward_name: &str) -> GameState {
     let bolt = card("Lightning Bolt");
     let mountain = Arc::new(builtin().card("Mountain").unwrap());
-    let ward = testing_card("Ward Creature");
+    let ward = testing_card(ward_name);
     let mut p0 = vec![Arc::clone(&bolt); 5];
     p0.extend(vec![Arc::clone(&mountain); 5]);
     let p1 = vec![Arc::clone(&ward); 10];
@@ -388,13 +393,13 @@ fn ward_game(seed: u64) -> GameState {
 }
 
 /// [CR#702.21a,601.2c]: Ward reads the event provenance of a `BecameTarget`
-/// fact (NOT a zone change) — `Counter(ThatObject)` must counter the targeting
-/// SPELL ("counter it"), which the engine binds as `ThatObject` (the agent =
-/// the source on the stack), with the warded permanent the patient. Before the
-/// provenance fix this panicked at resolution (`ThatObject` unbound for a
-/// non-`ZoneChanged` event). P0 bolts P1's Ward creature; P1 (the warded
-/// permanent's controller, the default `who` of the toll) declines to pay → the
-/// Bolt is countered, the creature takes no damage.
+/// fact (NOT a zone change) — the `MustPay` toll's `Counter(EventObject)`
+/// must counter the targeting SPELL ("counter that spell or ability"), which
+/// the engine binds as the event object (the agent = the source on the
+/// stack), with the warded permanent the patient. The toll's payer is
+/// `ControllerOf(EventObject)` — [CR#702.21a]'s "that player", the TARGETING
+/// player, never the ward's controller. P0 bolts P1's Ward creature; P0
+/// declines to pay → the Bolt is countered, the creature takes no damage.
 #[test]
 fn ward_counters_targeting_spell_via_that_object() {
     let mut state = ward_game(7);
@@ -431,8 +436,9 @@ fn ward_counters_targeting_spell_via_that_object() {
             StepOutcome::NeedsDecision(PendingDecision::YesNo { player }) => {
                 assert_eq!(
                     player,
-                    PlayerId(1),
-                    "the Ward toll's default payer is the warded permanent's controller"
+                    PlayerId(0),
+                    "the Ward toll bills the targeting spell's controller \
+                     ([CR#702.21a] \"that player\"), not the ward's controller"
                 );
                 declined = true;
                 state.submit_decision(Decision::Answer(false)).unwrap();
@@ -476,6 +482,213 @@ fn ward_counters_targeting_spell_via_that_object() {
         0,
         "the warded creature took no damage — Counter hit the Bolt, not the creature"
     );
+}
+
+/// P0's deck holds kicker fixtures + Forests; three Forests are forced onto
+/// the battlefield for floating. P1 is inert (Forests).
+fn kicker_game(seed: u64) -> GameState {
+    let charm = testing_card("Kicker Charm");
+    let chant = testing_card("Multikicker Chant");
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mut p0 = vec![Arc::clone(&charm); 2];
+    p0.extend(vec![Arc::clone(&chant); 2]);
+    p0.extend(vec![Arc::clone(&forest); 6]);
+    let p1 = vec![Arc::clone(&forest); 10];
+    let mut state = GameState::new(GameConfig {
+        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
+        seed,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+    });
+    state.sba_rules = builtin().sba_rules;
+    for _ in 0..3 {
+        force_onto_battlefield(&mut state, PlayerId(0), "Forest");
+    }
+    state
+}
+
+/// [CR#702.33a,702.33d,601.2b]: kicker is announced as the spell is cast —
+/// a `YesNo` surfacing BEFORE X/targets — and "if it was kicked" reads the
+/// announced record as the spell resolves ([CR#607.2] linked read). Kicked:
+/// the {2} joins the mana demand ([CR#601.2f]) and the `If` takes the
+/// kicked branch (4 life); declined: base cost only, the otherwise branch
+/// (2 life).
+#[test]
+fn kicker_announce_records_and_paid_cost_reads() {
+    for (kick, expected_gain, floats) in [(true, 4, 3), (false, 2, 1)] {
+        let mut state = kicker_game(5);
+        let charm = force_into_hand(&mut state, PlayerId(0), "Kicker Charm");
+        let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+        float_mana(&mut state, PlayerId(0), floats);
+        let life0 = state.players[0].life;
+        state
+            .submit_decision(Decision::Act(Action::CastSpell { object: charm }))
+            .unwrap();
+        // [CR#601.2b]: the optional-cost YesNo surfaces first.
+        let (_, stop) = step_to_stop(&mut state);
+        let StepOutcome::NeedsDecision(PendingDecision::YesNo { player }) = stop else {
+            panic!("expected the kicker YesNo, got {stop:?}");
+        };
+        assert_eq!(player, PlayerId(0), "the caster announces the kicker");
+        state.submit_decision(Decision::Answer(kick)).unwrap();
+        loop {
+            let (_t, stop) = step_to_stop(&mut state);
+            match stop {
+                StepOutcome::NeedsDecision(PendingDecision::PayMana { cost, .. }) => {
+                    if kick {
+                        assert_eq!(
+                            cost.mana_value(),
+                            3,
+                            "base {{G}} + the kicked {{2}} ([CR#601.2f])"
+                        );
+                    }
+                    let pay = state.auto_pay_pending();
+                    state.submit_decision(Decision::Pay(pay)).unwrap();
+                }
+                StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                    if state.stack.is_empty() {
+                        break;
+                    }
+                    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+                }
+                other => panic!("unexpected stop while resolving the charm: {other:?}"),
+            }
+        }
+        assert_eq!(
+            state.players[0].life,
+            life0 + expected_gain,
+            "kick={kick}: PaidCost(Kicker) branched the resolution"
+        );
+    }
+}
+
+/// [CR#702.33c]: a multikicker row re-offers after each yes ("any number of
+/// times"), and `TimesPaid(Kicker)` reads the multiplicity at resolution —
+/// kicked twice gains exactly 2 life.
+#[test]
+fn multikicker_times_paid_counts_payments() {
+    let mut state = kicker_game(9);
+    let chant = force_into_hand(&mut state, PlayerId(0), "Multikicker Chant");
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 3);
+    let life0 = state.players[0].life;
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: chant }))
+        .unwrap();
+    // Pay the multikicker twice, then stop ([CR#702.33c] — re-offered after
+    // each yes).
+    for answer in [true, true, false] {
+        let (_t, stop) = step_to_stop(&mut state);
+        let StepOutcome::NeedsDecision(PendingDecision::YesNo { player }) = stop else {
+            panic!("expected a multikicker YesNo, got {stop:?}");
+        };
+        assert_eq!(player, PlayerId(0));
+        state.submit_decision(Decision::Answer(answer)).unwrap();
+    }
+    loop {
+        let (_t, stop) = step_to_stop(&mut state);
+        match stop {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana { cost, .. }) => {
+                assert_eq!(
+                    cost.mana_value(),
+                    3,
+                    "base {{G}} + two kicked {{1}}s ([CR#601.2f])"
+                );
+                let pay = state.auto_pay_pending();
+                state.submit_decision(Decision::Pay(pay)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                if state.stack.is_empty() {
+                    break;
+                }
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            other => panic!("unexpected stop while resolving the chant: {other:?}"),
+        }
+    }
+    assert_eq!(
+        state.players[0].life,
+        life0 + 2,
+        "TimesPaid(Kicker) read the announced multiplicity ([CR#702.33c])"
+    );
+}
+
+/// [CR#702.21b]: a ward-{X} toll prices X when the ward TRIGGER RESOLVES —
+/// "ward {X}, where X is the number of experience counters you have"
+/// (Minthara, Merciless Soul's shape, the `Ward X Creature` fixture). P1
+/// holds 3 experience counters when the toll resolves, so the `PayMana`
+/// demand P0 (the targeting player) faces is exactly `{3}` — the
+/// `Mana([Variable])` priced through the conferred ability's `where_x`,
+/// never locked in as the ability triggers.
+#[test]
+fn ward_x_prices_where_x_at_toll_resolution() {
+    let mut state = ward_game_with(7, "Ward X Creature");
+    let ward = force_into_play(&mut state, PlayerId(1), "Ward X Creature");
+
+    // P0's precombat main: float {R} and cast Bolt at P1's warded creature.
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 1); // {R}
+    let bolt = find_in_hand(&state, PlayerId(0), "Lightning Bolt");
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+        panic!("expected ChooseTargets, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Targets(vec![ward]))
+        .unwrap();
+
+    // The ward trigger fired at target choice. AFTER it triggered but BEFORE
+    // it resolves, P1 gains 3 experience counters — [CR#702.21b] says the
+    // toll must price the RESOLUTION-time count, so the late counters bill.
+    let p1_proxy = state.player(PlayerId(1)).object;
+    state
+        .objects
+        .obj_mut(p1_proxy)
+        .counters
+        .insert("Experience".into(), 3);
+
+    // Drive to the toll's YesNo (P0, the targeting player); accepting must
+    // demand exactly {3}. The Bolt's own {R} payment comes first and is
+    // auto-paid; the toll's demand is the PayMana AFTER the YesNo.
+    let mut accepted = false;
+    loop {
+        let (_t, stop) = step_to_stop(&mut state);
+        match stop {
+            StepOutcome::NeedsDecision(PendingDecision::YesNo { player }) => {
+                assert_eq!(player, PlayerId(0), "the toll bills the targeting player");
+                accepted = true;
+                state.submit_decision(Decision::Answer(true)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::PayMana { player, cost, .. }) => {
+                if !accepted {
+                    // The Bolt's own cast payment ({R}) — auto-pay and move on.
+                    let pay = state.auto_pay_pending();
+                    state.submit_decision(Decision::Pay(pay)).unwrap();
+                    continue;
+                }
+                assert_eq!(player, PlayerId(0));
+                assert_eq!(
+                    cost,
+                    deckmaste_core::ManaCost::from(vec![deckmaste_core::ManaSymbol::Simple(
+                        deckmaste_core::SimpleManaSymbol::Generic(3)
+                    )]),
+                    "the ward-X toll is priced {{3}} from where_x at resolution \
+                     ([CR#702.21b])"
+                );
+                return; // the pricing is the point; payment mechanics are covered elsewhere
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            other => panic!("unexpected stop while resolving the ward-X toll: {other:?}"),
+        }
+    }
 }
 
 /// Moves the first `name` card from `player`'s library into their hand

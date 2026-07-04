@@ -843,6 +843,7 @@ fn artifact_with_cost(name: &str, cost: Vec<CostComponent>) -> Arc<Card> {
         types: vec![Type::Artifact],
         subtypes: vec![],
         abilities: vec![Ability::Activated(ActivatedAbility {
+            ability_word: None,
             from: None,
             window: None,
             cost: cost.into(),

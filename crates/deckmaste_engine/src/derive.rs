@@ -146,6 +146,13 @@ pub fn abilities_of_source(state: &GameState, source: ObjectSource) -> Vec<Abili
 /// placement + resolution read the same flattened list), so peeling keeps it
 /// consistent.
 pub(crate) fn flatten_composites(ability: &Ability, out: &mut Vec<Ability>) {
+    // Look through a remembered Ability-kind macro invocation (`Chapter`,
+    // [CR#714.2b]) — the engine enumerates its expansion, exactly like a
+    // keyword's `Expanded` is looked through in `composite_members`.
+    if let Ability::Expanded(e) = ability {
+        flatten_composites(&e.value, out);
+        return;
+    }
     // Peel any `Innate` wrapper first, then re-dispatch on the inner ability
     // (which may itself be a composite keyword to splice).
     if let Ability::Innate(inner) = ability {
@@ -245,6 +252,8 @@ mod tests {
     fn abilities_of_source_peels_innate_triggered() {
         let mut state = game();
         let trigger = TriggeredAbility {
+            ability_word: None,
+            where_x: None,
             from: None,
             event: EventFilter::ZoneChange {
                 what: deckmaste_core::Filter::Ref(Reference::This),

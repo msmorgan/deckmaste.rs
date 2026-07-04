@@ -282,6 +282,7 @@ mod tests {
             name: "Test Aura".into(),
             types: vec![Type::Enchantment],
             abilities: vec![Ability::Static(StaticAbility {
+                ability_word: None,
                 from: None,
                 condition: None,
                 effects: vec![StaticEffect::Replacement(Box::new(Replacement::Also {
@@ -416,6 +417,7 @@ mod tests {
             name: "Test Counterer".into(),
             types: vec![Type::Artifact],
             abilities: vec![Ability::Static(StaticAbility {
+                ability_word: None,
                 from: None,
                 condition: None,
                 effects: vec![StaticEffect::Replacement(Box::new(Replacement::Also {
@@ -508,6 +510,7 @@ mod tests {
             name: "Test Tapland".into(),
             types: vec![Type::Land],
             abilities: vec![Ability::Static(StaticAbility {
+                ability_word: None,
                 from: None,
                 condition: None,
                 effects: vec![StaticEffect::Replacement(Box::new(Replacement::Also {

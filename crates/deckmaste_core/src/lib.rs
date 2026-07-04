@@ -24,6 +24,7 @@ mod binder;
 pub use binder::Binder;
 
 mod count;
+pub use count::BASIC_LAND_TYPES;
 pub use count::Characteristic;
 pub use count::Count;
 pub use count::RoundMode;
@@ -114,7 +115,6 @@ pub use effect::Noting;
 pub use effect::PileSource;
 pub use effect::SeparatePiles;
 pub use effect::Targeted;
-pub use effect::Unless;
 pub use effect::With;
 
 mod event;

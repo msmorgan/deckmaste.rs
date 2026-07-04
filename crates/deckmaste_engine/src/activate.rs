@@ -632,6 +632,8 @@ impl GameState {
         let src = self.objects.obj(object).source;
         let id = self.objects.mint(src, controller, Some(Zone::Stack));
         self.announcing = Some(PendingStackEntry {
+            optional_components: Vec::new(),
+            paid_costs: Vec::new(),
             id,
             object: StackObject::Activated {
                 source: object,
@@ -691,6 +693,7 @@ mod tests {
     /// condition/limits/targets.
     fn activated(cost: Vec<CostComponent>, effect: Effect) -> ActivatedAbility {
         ActivatedAbility {
+            ability_word: None,
             from: None,
             window: None,
             cost: cost.into(),
@@ -739,6 +742,7 @@ mod tests {
     fn as_activated_returns_none_for_non_activated() {
         assert!(
             as_activated(&Ability::Static(deckmaste_core::StaticAbility {
+                ability_word: None,
                 from: None,
                 condition: None,
                 effects: vec![],
@@ -1036,6 +1040,7 @@ mod tests {
         let obj = make_object_on_battlefield(&mut state, player);
 
         let ability = ActivatedAbility {
+            ability_word: None,
             from: None,
             cost: vec![].into(),
             window: None,
@@ -1057,6 +1062,7 @@ mod tests {
         let obj = make_object_on_battlefield(&mut state, player);
 
         let ability = ActivatedAbility {
+            ability_word: None,
             from: None,
             cost: vec![].into(),
             condition: Some(Condition::YourTurn),
@@ -1089,6 +1095,7 @@ mod tests {
         );
 
         let ability = ActivatedAbility {
+            ability_word: None,
             from: None,
             cost: vec![].into(),
             condition: None,
@@ -1132,6 +1139,7 @@ mod tests {
         state.turn.turn_number += 1;
 
         let ability = ActivatedAbility {
+            ability_word: None,
             from: None,
             cost: vec![].into(),
             condition: None,

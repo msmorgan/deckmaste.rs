@@ -1,0 +1,17 @@
+// A 2/2 vanilla carrying ward {X} with a where-X definition ([CR#702.21b]
+// — Minthara, Merciless Soul's shape: "ward {X}, where X is the number of
+// experience counters you have"). No canon-slice card carries ward-{X}, so
+// this minimal carrier isolates the RESOLUTION-TIME pricing: the toll's
+// `Mana([Variable])` is priced from the conferred ability's `where_x`
+// when the ward trigger resolves, never locked in as it triggers.
+Normal(
+    name: "Ward X Creature",
+    mana_cost: [Generic(1), White],
+    types: [Creature],
+    power: 2,
+    toughness: 2,
+    abilities: [Keyword(Ward(
+        cost: [Mana([Variable])],
+        where_x: CounterCount(You, Experience),
+    ))],
+)

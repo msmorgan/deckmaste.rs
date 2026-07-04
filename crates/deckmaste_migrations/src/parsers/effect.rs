@@ -49,6 +49,7 @@ pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect>
         .or_else(|| parse_pump(line))
         .or_else(|| parse_create_predefined_token(line))
         .or_else(|| parse_create_token(line))
+        .or_else(|| parse_declarative_subject(line, ctx))
         .or_else(|| parse_macro_effect(line, ctx))
 }
 
@@ -121,6 +122,96 @@ fn macro_slot_reader(ty: &str, input: &str) -> Option<(String, usize)> {
 /// ([CR#201.5]) -> `This`.
 fn self_reference(phrase: &str) -> Option<String> {
     matches!(phrase, "~" | "it" | "this creature").then(|| "This".to_owned())
+}
+
+/// The DECLARATIVE-SUBJECT production — ONE parser arm for the whole
+/// player-verb family ("Target player mills two cards", "Each opponent
+/// discards a card", "Each player loses 2 life"): the subject phrase parses
+/// into the agent, and the remaining THIRD-PERSON verb phrase is handed to
+/// the macro-template path — the `PlayerAction`-kind macros' templates
+/// (`mills ${0:card|cards}`, `draws …`, `discards …`, `loses ${0} life`,
+/// `gains ${0} life`) do the verb matching, so there are NO per-verb parser
+/// arms here. A targeted subject declares its announce slot and the agent
+/// reads the announced player as `It` ([CR#115.3]); an "each" subject wraps
+/// the verb in `Each` over the player set, the agent being the iteration
+/// anaphor `It` per element ([CR#608.2d]). The second-person "you" subject
+/// is NOT handled here — its verb phrase conjugates differently ("you
+/// mill", not "mills"), so it stays with the bespoke you-productions.
+fn parse_declarative_subject(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
+    let body = line.strip_suffix('.')?;
+    let (subject, verb_phrase) = player_subject(body)?;
+    let m = ctx
+        .index
+        .match_with("PlayerAction", verb_phrase, player_verb_slot_reader)?;
+    if m.consumed != verb_phrase.len() {
+        return None;
+    }
+    let inv = m.invocation;
+    Some(match subject {
+        PlayerSubject::Target(spec) => ParsedEffect {
+            targets: vec![spec],
+            effect: format!("By(It, {inv})"),
+        },
+        PlayerSubject::Each(filter) => ParsedEffect {
+            targets: Vec::new(),
+            effect: format!("Each(binder: Existing(Filter({filter})), effect: By(It, {inv}))"),
+        },
+    })
+}
+
+/// A parsed player-subject phrase: a targeted player slot or a distributive
+/// player set.
+enum PlayerSubject {
+    /// The `TargetSpec` RON to declare — the body reads it back as `It`.
+    Target(String),
+    /// The player `Filter` RON an `Each` iterates.
+    Each(String),
+}
+
+/// Split a declarative player-verb sentence into its subject phrase and the
+/// third-person verb phrase — the closed subject vocabulary of the
+/// mill/discard/draw/lose family (mirrors [`damage_target`]'s player rows).
+fn player_subject(body: &str) -> Option<(PlayerSubject, &str)> {
+    for prefix in [
+        "target player ",
+        "target opponent ",
+        "each player ",
+        "each opponent ",
+    ] {
+        let Some(rest) = strip_prefix_ci(body, prefix) else {
+            continue;
+        };
+        let subject = match prefix {
+            "target player " => PlayerSubject::Target("TargetOne(Player)".to_owned()),
+            "target opponent " => {
+                PlayerSubject::Target("TargetOne(OpponentOf(Ref(You)))".to_owned())
+            }
+            "each player " => PlayerSubject::Each("Player".to_owned()),
+            _ => PlayerSubject::Each("OpponentOf(Ref(You))".to_owned()),
+        };
+        return Some((subject, rest));
+    }
+    None
+}
+
+/// The slot reader for the third-person player-verb templates: their only
+/// slot type is `Count`, read as ONE leading token (a spelled cardinal, "a",
+/// or a bare decimal) so the template's own literal tail (" cards", " life")
+/// stays for the matcher — unlike [`macro_slot_reader`], which consumes the
+/// whole clause tail.
+fn player_verb_slot_reader(ty: &str, input: &str) -> Option<(String, usize)> {
+    if ty != "Count" {
+        return None;
+    }
+    let token = input.split_whitespace().next()?;
+    let n = number_word(token)?;
+    // The token is at the head of `input` (templates put whitespace between
+    // segments), so its byte length is the consumed span.
+    let start = input.find(token)?;
+    if start != 0 {
+        return None;
+    }
+    Some((n.to_string(), token.len()))
 }
 
 /// `<base>. If <condition>, [instead] <override> [instead].` -> a within-effect
@@ -1113,6 +1204,23 @@ pub(super) fn number_word(word: &str) -> Option<u32> {
         "a" | "one" => Some(1),
         "two" => Some(2),
         "three" => Some(3),
+        "four" => Some(4),
+        "five" => Some(5),
+        "six" => Some(6),
+        "seven" => Some(7),
+        "eight" => Some(8),
+        "nine" => Some(9),
+        "ten" => Some(10),
+        "eleven" => Some(11),
+        "twelve" => Some(12),
+        "thirteen" => Some(13),
+        "fourteen" => Some(14),
+        "fifteen" => Some(15),
+        "sixteen" => Some(16),
+        "seventeen" => Some(17),
+        "eighteen" => Some(18),
+        "nineteen" => Some(19),
+        "twenty" => Some(20),
         digits => digits.parse().ok(),
     }
 }
@@ -1182,6 +1290,91 @@ mod tests {
     fn declines(line: &str) -> bool {
         let ctx = crate::parsers::test_ctx::ctx(CardKind::Permanent);
         parse_clause(line, &ctx).is_none()
+    }
+
+    /// The declarative-subject production (ONE arm for the whole player-verb
+    /// family): subject phrase → agent; verb phrase → the `PlayerAction`-kind
+    /// macro whose template matches ([CR#701.17a,701.9b,121.1,119.3]). No
+    /// per-verb parser arms — a new verb is a new macro template only.
+    #[test]
+    fn declarative_subject_player_verbs() {
+        assert_eq!(
+            parsed_with_macros("Target player mills two cards."),
+            Some((
+                "TargetOne(Player)".to_owned(),
+                "By(It, Mills(2))".to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed_with_macros("Each opponent mills a card."),
+            Some((
+                String::new(),
+                "Each(binder: Existing(Filter(OpponentOf(Ref(You)))), effect: By(It, Mills(1)))"
+                    .to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed_with_macros("Each player discards two cards."),
+            Some((
+                String::new(),
+                "Each(binder: Existing(Filter(Player)), effect: By(It, Discards(2)))".to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed_with_macros("Target opponent loses 2 life."),
+            Some((
+                "TargetOne(OpponentOf(Ref(You)))".to_owned(),
+                "By(It, LosesLife(2))".to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed_with_macros("Target player draws three cards."),
+            Some((
+                "TargetOne(Player)".to_owned(),
+                "By(It, Draws(3))".to_owned()
+            ))
+        );
+        // The count reader tops out at spelled cardinals + decimals; a
+        // trailing rider ("at random") leaves the phrase unconsumed.
+        assert!(
+            parsed_with_macros("Target player mills half their library, rounded down.").is_none()
+        );
+        assert!(parsed_with_macros("Each player discards a card at random.").is_none());
+    }
+
+    /// The emitted invocations READ back through the builtin macros: the
+    /// `PlayerAction`-kind verb macros expand to the core player actions
+    /// (`Mills(2)` → `Mill(2)` under `By`), remembered with their template
+    /// so the render side prints the verb phrase back — the
+    /// parse-via-macros round trip at the read boundary.
+    #[test]
+    fn declarative_subject_emissions_read_back() {
+        use std::path::Path;
+        let plugins = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins");
+        let plugin = deckmaste_cards::plugin::Plugin::load(plugins.join("builtin")).unwrap();
+        let effect: deckmaste_core::Effect = plugin
+            .macros
+            .read_str("Each(binder: Existing(Filter(Player)), effect: By(It, Mills(2)))")
+            .unwrap();
+        let deckmaste_core::Effect::Each(each) = effect else {
+            panic!("expected Each, got {effect:?}");
+        };
+        let deckmaste_core::Effect::Act(deckmaste_core::Action::By(
+            deckmaste_core::Reference::It,
+            ref action,
+        )) = *each.effect
+        else {
+            panic!("expected By(It, …), got {:?}", each.effect);
+        };
+        let deckmaste_core::PlayerAction::Expanded(exp) = action else {
+            panic!("expected a remembered Mills expansion, got {action:?}");
+        };
+        assert_eq!(exp.name.as_str(), "Mills");
+        assert_eq!(
+            *exp.value,
+            deckmaste_core::PlayerAction::Mill(deckmaste_core::Count::Literal(2)),
+            "Mills(2) expands to the core Mill under By"
+        );
     }
 
     #[test]

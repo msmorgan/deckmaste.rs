@@ -286,6 +286,7 @@ mod tests {
         let state = opening();
         let id = *state.zones.libraries[0].front().expect("nonempty library");
         let entry = StackEntry {
+            paid_costs: Vec::new(),
             id,
             object: StackObject::Spell(id),
             controller: PlayerId(0),
@@ -315,6 +316,7 @@ mod tests {
         let id = *state.zones.libraries[0].front().expect("nonempty library");
         let target = state.player(PlayerId(1)).object;
         let entry = StackEntry {
+            paid_costs: Vec::new(),
             id,
             object: StackObject::Spell(id),
             controller: PlayerId(0),

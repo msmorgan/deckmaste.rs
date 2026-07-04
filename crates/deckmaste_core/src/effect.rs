@@ -95,18 +95,15 @@ pub enum Effect {
     May(May),
     /// "If [condition], [then]; otherwise [else]" ([CR#603.4]-style branch).
     If(If),
-    /// "[do] unless [you pay]" ([CR#118.12a]). The bare-[`CostComponent`]-list
-    /// sugar that [`MustPay`](Effect::MustPay) supersedes; kept for the corpus
-    /// already spelled with it.
-    Unless(Unless),
     /// "[actor] may pay [cost]; if they do, [`and_then`], else [`or_else`]"
     /// ([CR#603,608]) — a resolution-time kicker over the full [`Cost`] algebra
-    /// (the may-pay→branch shape `Unless` can't spell).
+    /// (the may-pay→branch shape [`MustPay`](Effect::MustPay) can't spell).
     MayPay(MayPay),
     /// "[actor] must pay [cost], or else [`or_else`]" ([CR#118.12a]) — the
     /// resolution-time punisher (Mana Leak's "counter target spell unless its
-    /// controller pays {N}") over the full [`Cost`] algebra. Supersedes
-    /// [`Unless`](Effect::Unless).
+    /// controller pays {N}") over the full [`Cost`] algebra. The English
+    /// "[do] unless [who] pays [cost]" order is the builtin `Unless` MACRO —
+    /// a render name over this node; core keeps only the CR-family form.
     MustPay(MustPay),
     /// "As an additional cost, [pay]; then [body]" ([CR#601.2f,118.8]) —
     /// imposes an additional cost whose paid object the body reads through
@@ -241,27 +238,13 @@ pub struct Noting {
     pub effect: Box<Effect>,
 }
 
-/// `Unless { do, who, unless }` — `do` is a keyword, so the field is `effect`;
-/// `unless` is the cost the affected player may pay to avoid it ([CR#118.12a]).
-/// `who` is that affected/paying player — "you" unless the text names another
-/// ("target player … unless that player pays …"); it defaults to `You` and is
-/// omitted from RON when it is.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub struct Unless {
-    pub effect: Box<Effect>,
-    #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
-    pub who: Reference,
-    pub unless: Vec<crate::CostComponent>,
-}
-
-/// serde default for [`Unless::who`] — the affected player is "you"
-/// unless the text names another ([CR#118.12a]).
+/// serde default for the paying/acting player — "you" unless the text names
+/// another ([CR#118.12a]).
 fn ref_you() -> Reference {
     Reference::You
 }
 
-/// `skip_serializing_if` predicate for [`Unless::who`]: the default `You`
-/// is omitted from RON.
+/// `skip_serializing_if` predicate: the default `You` is omitted from RON.
 fn ref_is_you(r: &Reference) -> bool {
     matches!(r, Reference::You)
 }
@@ -285,10 +268,9 @@ pub struct MayPay {
 /// `MustPay { actor, cost, or_else }` — "[actor] must pay [cost], or else
 /// [`or_else`]" ([CR#118.12a]): the resolution-time punisher (Mana Leak's
 /// "counter target spell unless its controller pays {N}") over the full
-/// [`Cost`] algebra. Supersedes [`Unless`](Effect::Unless), whose `unless` is a
-/// bare [`CostComponent`](crate::CostComponent) list:
-/// `MustPay { actor, cost, or_else }` is exactly
-/// `Unless { who: actor, unless: cost, effect: or_else }`. `actor` defaults to
+/// [`Cost`] algebra. The English-order spelling
+/// `Unless(effect: or_else, who: actor, unless: cost)` is the builtin
+/// `Unless` macro, which expands to exactly this node. `actor` defaults to
 /// `You` and is omitted from RON when it is.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct MustPay {
@@ -566,25 +548,9 @@ mod tests {
         }
     }
 
-    /// `Unless::who` defaults to `You` when omitted (and is dropped from
-    /// the written form); an explicit non-`You` payer round-trips.
-    #[test]
-    fn unless_who_defaults_to_you_and_round_trips() {
-        let omitted = "Unless(effect:LoseLife(1),unless:[Mana([Generic(2)])])";
-        let parsed = read(omitted);
-        let Effect::Unless(u) = &parsed else {
-            panic!("expected Unless");
-        };
-        assert_eq!(u.who, Reference::You, "omitted who defaults to You");
-        assert_eq!(write(&parsed), omitted, "default who is omitted on write");
-
-        let explicit = "Unless(effect:LoseLife(1),who:It,unless:[Mana([Generic(2)])])";
-        assert_eq!(write(&read(explicit)), explicit, "explicit who round-trips");
-    }
-
     /// `MustPay` reads flat over the full `Cost` algebra, defaults `actor` to
     /// `You` (omitted on write), and round-trips — the Mana Leak shape
-    /// ([CR#118.12a]) that supersedes `Unless`.
+    /// ([CR#118.12a]); the English "unless" order is the `Unless` macro.
     #[test]
     fn must_pay_defaults_actor_and_round_trips() {
         // Mana Leak: "counter target spell unless its controller pays {3}".

@@ -19,6 +19,10 @@ use crate::effect::Effect;
 /// (`It`/`That(Sort)`/`They`, or `The(label)` for an `As`-named slot).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct SpellAbility {
+    /// The ability word printed before the em dash ([CR#207.2c] — no rules
+    /// meaning), pure render metadata: "Domain — …". NEVER a macro tier.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ability_word: Option<crate::Ident>,
     pub effect: Effect,
 }
 
@@ -28,6 +32,10 @@ pub struct SpellAbility {
 /// is realized as `Effect::Modal` (see `effect`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct ActivatedAbility {
+    /// The ability word printed before the em dash ([CR#207.2c] — no rules
+    /// meaning), pure render metadata. NEVER a macro tier.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ability_word: Option<crate::Ident>,
     pub cost: Cost,
     /// The zone the ability functions from ([CR#113.6] — an object's abilities
     /// usually function only while it is on the battlefield). `None` = that
@@ -69,6 +77,11 @@ pub enum UseLimit {
 /// value, created inside an `Effect`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct TriggeredAbility {
+    /// The ability word printed before the em dash ([CR#207.2c] — no rules
+    /// meaning), pure render metadata: "Landfall — Whenever …". NEVER a
+    /// macro tier.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ability_word: Option<crate::Ident>,
     /// The event that triggers it ([CR#603.2]).
     pub event: EventFilter,
     /// The zone the ability functions from ([CR#113.6,113.6b]). `None` = the
@@ -84,6 +97,13 @@ pub struct TriggeredAbility {
     /// Trigger-frequency limits ([CR#603.2h]).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub limits: Vec<UseLimit>,
+    /// The "where X is …" definition of an {X} in this ability's text —
+    /// ability metadata that survives to render and defines the X a ward
+    /// toll prices. Evaluated when the ability RESOLVES, never locked in as
+    /// it triggers ([CR#702.21b] — Minthara's "ward {X}, where X is the
+    /// number of experience counters you have").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub where_x: Option<crate::Count>,
     pub effect: Effect,
 }
 
@@ -91,6 +111,10 @@ pub struct TriggeredAbility {
 /// functions ([CR#611.3]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct StaticAbility {
+    /// The ability word printed before the em dash ([CR#207.2c] — no rules
+    /// meaning), pure render metadata: "Metalcraft — …". NEVER a macro tier.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ability_word: Option<crate::Ident>,
     /// The zone the ability functions from ([CR#113.6,604.3]). `None` = the
     /// battlefield default (omitted on write); a `Some` names another zone the
     /// source must be in for the static to apply — a graveyard/hand static
@@ -276,6 +300,7 @@ mod tests {
         assert_eq!(
             ability,
             Ability::Activated(ActivatedAbility {
+                ability_word: None,
                 from: None,
                 window: None,
                 cost: vec![CostComponent::Tap].into(),
@@ -474,6 +499,7 @@ mod tests {
         use crate::StaticEffect;
 
         let inner = Ability::Static(StaticAbility {
+            ability_word: None,
             from: None,
             condition: None,
             effects: vec![StaticEffect::Deontic(Deontic::Cant(
@@ -508,6 +534,7 @@ mod tests {
         use crate::ExpansionArgs;
 
         let inner = Ability::Static(StaticAbility {
+            ability_word: None,
             from: None,
             condition: None,
             effects: vec![],

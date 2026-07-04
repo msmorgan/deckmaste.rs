@@ -83,6 +83,18 @@ fn is_derived(path: &Path) -> bool {
     path.components().any(|c| c.as_os_str() == "derived")
 }
 
+/// A cost-shape VARIANT of an umbrella keyword the skill classifies only
+/// under the umbrella's name. Multikicker is a kicker variant whose costs
+/// ARE kicker costs ([CR#702.33c]) — it can't delegate through the Kicker
+/// macro body (its `OptionalCost` sets `repeatable: true`, which the base
+/// macro's signature can't thread), so the alias carries the lookup.
+fn umbrella(name: &str) -> &str {
+    match name {
+        "Multikicker" => "Kicker",
+        other => other,
+    }
+}
+
 /// The leading identifier of a macro body — the base keyword a `derived/`
 /// variant delegates to, e.g. `Landwalk` from
 /// `Landwalk(quality: Subtype("Desert"))`. Empty when the body is not a macro
@@ -165,7 +177,7 @@ fn keyword_macros_match_the_classification() {
             let key = if is_derived(&path) {
                 delegate_head(def.body())
             } else {
-                def.name.as_str().to_owned()
+                umbrella(def.name.as_str()).to_owned()
             };
             let class = class_of(&json, &key);
             assert!(

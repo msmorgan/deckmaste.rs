@@ -1,0 +1,19 @@
+// Multikicker = the repeatable kicker variant [CR#702.33c]: "Multikicker
+// [cost]" means "You may pay an additional [cost] any number of times as
+// you cast this spell." Declared as the same tagged `CostOption`
+// (`OptionalCost`) as Kicker with `repeatable: true`; the tag stays
+// `Kicker` because "a multikicker cost is a kicker cost" ([CR#702.33c]) —
+// `PaidCost(Kicker)` ([CR#702.33d]) and the per-payment count
+// `TimesPaid(Kicker)` ("for each time it was kicked") read it unchanged.
+(
+    name: "Multikicker",
+    template: "multikicker ${0}",
+    kinds: [KeywordAbility],
+    params: [Cost],
+    body: Composite(
+        name: "Multikicker",
+        abilities: [Static(effects: [
+            CostOption(components: Param(0), tag: Kicker, repeatable: true),
+        ])],
+    ),
+)

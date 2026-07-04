@@ -44,6 +44,7 @@ fn basic_land_subtype(name: &str, color: Color) -> Subtype {
         types: vec![Type::Land],
         confers: vec![Property::Ability(Box::new(Ability::Activated(
             ActivatedAbility {
+                ability_word: None,
                 from: None,
                 window: None,
                 cost: vec![CostComponent::Tap].into(),
@@ -342,8 +343,145 @@ fn registries_load_with_their_index_columns() {
     // Keyword shapes derive from the macros' typed params.
     let shape_of = |name: &str| plugin.keywords[&deckmaste_core::Ident::from(name)].shape;
     assert_eq!(shape_of("Flying"), ParamShape::None);
-    assert_eq!(shape_of("Ward"), ParamShape::Costed);
+    // Ward's signature is { cost: Cost, where_x: Default(Count, X) } — the
+    // optional ward-{X} definition rides the params ([CR#702.21b]), so the
+    // derived shape is CountedCost.
+    assert_eq!(shape_of("Ward"), ParamShape::CountedCost);
     assert_eq!(shape_of("Crew"), ParamShape::Counted);
     assert_eq!(shape_of("Hexproof"), ParamShape::Predicated);
     assert_eq!(shape_of("Reinforce"), ParamShape::CountedCost);
+}
+
+/// The first-macro-wave idiom set expands to its blessed core bodies —
+/// each macro's acceptance floor: the invocation reads, the expansion is
+/// the CR-family node, and the spelling stays remembered for render.
+#[test]
+fn wave_macros_expand_to_their_blessed_bodies() {
+    let plugin = builtin();
+
+    // Unless — the English order over MustPay ([CR#118.12a]): actor
+    // defaults to You, the cost splices flat.
+    let unless: Effect = plugin
+        .macros
+        .read_str("Unless(effect: Draw(1), unless: [Mana([Generic(2)])])")
+        .unwrap();
+    let Effect::Expanded(exp) = unless else {
+        panic!("expected a remembered Unless expansion, got {unless:?}");
+    };
+    assert_eq!(exp.name.as_str(), "Unless");
+    let Effect::MustPay(m) = exp.value.as_ref() else {
+        panic!("Unless must expand to MustPay, got {:?}", exp.value);
+    };
+    assert_eq!(m.actor, Reference::You, "the payer defaults to You");
+    assert!(
+        matches!(
+            m.or_else.as_ref(),
+            Effect::Act(Action::By(_, PlayerAction::Draw(_)))
+        ),
+        "or_else carries the unpaid branch"
+    );
+
+    // Exile — the render name over the pure zone move ([CR#701.13]).
+    let exile: Effect = plugin.macros.read_str("Exile(This)").unwrap();
+    let Effect::Expanded(exp) = exile else {
+        panic!("expected a remembered Exile expansion");
+    };
+    assert!(
+        matches!(
+            exp.value.as_ref(),
+            Effect::Act(Action::Move(Reference::This, _, _))
+        ),
+        "Exile(This) is Move(This, Exile), got {:?}",
+        exp.value
+    );
+
+    // DestroyNoRegen — destroy + the ForThisEvent-scoped
+    // Cant(Regenerate) rider ([CR#701.19c]).
+    let dnr: Effect = plugin.macros.read_str("DestroyNoRegen(This)").unwrap();
+    let Effect::Expanded(exp) = dnr else {
+        panic!("expected a remembered DestroyNoRegen expansion");
+    };
+    let Effect::Sequence(parts) = exp.value.as_ref() else {
+        panic!("DestroyNoRegen is a Sequence, got {:?}", exp.value);
+    };
+    assert!(matches!(
+        parts[0],
+        Effect::Act(Action::Destroy(Reference::This))
+    ));
+    assert!(
+        matches!(&parts[1], Effect::Until(Duration::ForThisEvent, statics) if statics.len() == 1),
+        "the rider is a ForThisEvent-scoped static, got {:?}",
+        parts[1]
+    );
+
+    // PreventNext / PreventAll — render names over the Prevention class
+    // ([CR#615.7,615.1]), one-shot shields until end of turn.
+    let next: Effect = plugin
+        .macros
+        .read_str("PreventNext(n: 3, to: Creature)")
+        .unwrap();
+    let Effect::Expanded(exp) = next else {
+        panic!("expected a remembered PreventNext expansion");
+    };
+    assert!(
+        matches!(
+            exp.value.as_ref(),
+            Effect::Continuously(c) if c.duration == Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn)
+        ),
+        "PreventNext is an until-end-of-turn shield, got {:?}",
+        exp.value
+    );
+    let all: Effect = plugin.macros.read_str("PreventAll(to: Ref(You))").unwrap();
+    assert!(matches!(all, Effect::Expanded(_)));
+
+    // Multikicker — the repeatable kicker variant ([CR#702.33c]): the same
+    // Kicker-tagged CostOption with repeatable: true.
+    let multi: deckmaste_core::KeywordAbility = plugin
+        .macros
+        .read_str("Multikicker([Mana([Generic(1)])])")
+        .unwrap();
+    let deckmaste_core::KeywordAbility::Expanded(exp) = multi else {
+        panic!("expected a remembered Multikicker expansion");
+    };
+    let deckmaste_core::KeywordAbility::Composite { abilities, .. } = exp.value.as_ref() else {
+        panic!("Multikicker lands on a Composite");
+    };
+    let Ability::Static(s) = &abilities[0] else {
+        panic!("Multikicker's row is a Static");
+    };
+    let deckmaste_core::StaticEffect::CostOption(oc) = &s.effects[0] else {
+        panic!("Multikicker declares a CostOption");
+    };
+    assert!(oc.repeatable, "multikicker is the repeatable row");
+    assert_eq!(
+        oc.tag,
+        deckmaste_core::CostTag::from("Kicker"),
+        "a multikicker cost IS a kicker cost ([CR#702.33c])"
+    );
+
+    // Chapter — sagas as data ([CR#714.2b]): OneOrMore + Crossed.
+    let chapter: Ability = plugin
+        .macros
+        .read_str("Chapter(n: 2, effect: Draw(1))")
+        .unwrap();
+    let Ability::Expanded(exp) = chapter else {
+        panic!("expected a remembered Chapter expansion");
+    };
+    let Ability::Innate(inner) = exp.value.as_ref() else {
+        panic!("a chapter is the rule of the chapter symbol (Innate)");
+    };
+    let Ability::Triggered(t) = inner.as_ref() else {
+        panic!("a chapter is a triggered ability ([CR#714.2])");
+    };
+    assert!(
+        matches!(&t.event, deckmaste_core::EventFilter::OneOrMore(_)),
+        "one occurrence per placement batch ([CR#603.3b])"
+    );
+    assert!(
+        matches!(
+            &t.condition,
+            Some(deckmaste_core::Condition::Crossed { .. })
+        ),
+        "the [CR#714.2b] was-less-than/became-at-least gate"
+    );
 }

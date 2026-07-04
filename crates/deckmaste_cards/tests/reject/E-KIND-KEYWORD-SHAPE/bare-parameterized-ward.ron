@@ -1,7 +1,7 @@
 // A bare parameterized keyword: `Ward` is declared `Costed` (its macro's
 // typed `params: [Cost]` — [CR#702.21a] "ward [cost]"), so a hand-written
 // `Composite` spelling with no recorded invocation has LOST the cost — the
-// use must invoke the keyword macro (`Keyword(Ward([...]))`) so the typed
+// use must invoke the keyword macro (`Keyword(Ward(cost: [...]))`) so the typed
 // arg survives on the wire.
 Normal(
   name: "Reject Bare Parameterized Ward",

@@ -32,7 +32,7 @@ fn every_builtin_keyword_macro_expands() {
         ("BattleCry", "BattleCry"),
         ("Hexproof()", "Hexproof"),
         ("Hexproof(from: ColorIs(Blue))", "Hexproof"),
-        ("Ward([Tap])", "Ward"),
+        ("Ward(cost: [Tap])", "Ward"),
         ("Kicker([Tap])", "Kicker"),
         ("Flashback([Tap])", "Flashback"),
         ("Equip([Tap])", "Equip"),

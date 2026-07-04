@@ -66,6 +66,7 @@ fn treasure_token_parses() {
             types: vec![Type::Artifact],
             subtypes: vec![artifact_subtype("Treasure")],
             abilities: vec![Ability::Activated(ActivatedAbility {
+                ability_word: None,
                 from: None,
                 window: None,
                 cost: vec![CostComponent::Tap, sacrifice_this()].into(),
@@ -94,6 +95,7 @@ fn clue_token_parses() {
             types: vec![Type::Artifact],
             subtypes: vec![artifact_subtype("Clue")],
             abilities: vec![Ability::Activated(ActivatedAbility {
+                ability_word: None,
                 from: None,
                 window: None,
                 cost: vec![mana_2(), sacrifice_this()].into(),
@@ -119,6 +121,7 @@ fn food_token_parses() {
             types: vec![Type::Artifact],
             subtypes: vec![artifact_subtype("Food")],
             abilities: vec![Ability::Activated(ActivatedAbility {
+                ability_word: None,
                 from: None,
                 window: None,
                 cost: vec![mana_2(), CostComponent::Tap, sacrifice_this()].into(),
@@ -144,6 +147,7 @@ fn gold_token_parses() {
             types: vec![Type::Artifact],
             subtypes: vec![artifact_subtype("Gold")],
             abilities: vec![Ability::Activated(ActivatedAbility {
+                ability_word: None,
                 from: None,
                 window: None,
                 cost: vec![sacrifice_this()].into(),
@@ -180,6 +184,7 @@ fn blood_token_parses() {
             types: vec![Type::Artifact],
             subtypes: vec![artifact_subtype("Blood")],
             abilities: vec![Ability::Activated(ActivatedAbility {
+                ability_word: None,
                 from: None,
                 window: None,
                 cost: vec![mana_1, CostComponent::Tap, discard_one, sacrifice_this()].into(),

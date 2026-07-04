@@ -217,6 +217,7 @@ impl PredefinedToken {
             types: vec![Type::Artifact],
             subtypes: vec![subtype],
             abilities: vec![Ability::Activated(ActivatedAbility {
+                ability_word: None,
                 from: None,
                 window: None,
                 cost: cost.into(),
@@ -299,6 +300,7 @@ mod tests {
         assert_eq!(
             token.abilities,
             vec![Ability::Activated(ActivatedAbility {
+                ability_word: None,
                 from: None,
                 window: None,
                 cost: vec![
@@ -435,6 +437,7 @@ mod tests {
         assert_eq!(
             token.abilities,
             vec![Ability::Activated(ActivatedAbility {
+                ability_word: None,
                 from: None,
                 window: None,
                 cost: vec![

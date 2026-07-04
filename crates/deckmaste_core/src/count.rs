@@ -47,8 +47,13 @@ pub enum Characteristic {
     Colors,
     /// Card types ([CR#205]).
     Types,
-    /// Subtypes ([CR#205.3]) — Domain's land-type axis.
+    /// Subtypes ([CR#205.3]) — the whole land-type axis.
     Subtypes,
+    /// Basic land types only — Forest, Island, Mountain, Plains, Swamp
+    /// ([CR#205.3i]): Domain's axis ("the number of basic land types among
+    /// lands you control"). A Gate's `Gate` subtype counts on `Subtypes`
+    /// but never here.
+    BasicLandTypes,
     /// Supertypes ([CR#205.4]).
     Supertypes,
     /// Power ([CR#208]) — Coven's distinct-power axis.
@@ -62,6 +67,11 @@ pub enum Characteristic {
     /// Name ([CR#201]).
     Name,
 }
+
+/// The five basic land types ([CR#205.3i]) — the membership set of the
+/// [`Characteristic::BasicLandTypes`] axis, shared by every consumer
+/// (layer/resolve distinct-key evaluation).
+pub const BASIC_LAND_TYPES: [&str; 5] = ["Plains", "Island", "Swamp", "Mountain", "Forest"];
 
 /// A scalar magnitude an effect computes at resolution: an amount, never an
 /// object (objects are `Reference`s, [CR#107.1,107.3]).

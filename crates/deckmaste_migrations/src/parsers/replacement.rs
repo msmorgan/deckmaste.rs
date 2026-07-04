@@ -197,9 +197,9 @@ fn strip_count(object: &str) -> Option<(&'static str, u32, &str)> {
 }
 
 /// An English cardinal word → its value, for the threshold counts in the
-/// dual-land family ("two or more …", "eight or more …"). Broader than the
-/// shared [`effect::number_word`] (which tops out at "three"): the count
-/// thresholds here run up to "eight". A bare digit string also parses.
+/// dual-land family ("two or more …", "eight or more …"). A local subset of
+/// the shared [`effect::number_word`] (which also accepts "a" — an article
+/// this threshold position never prints). A bare digit string also parses.
 fn count_word(word: &str) -> Option<u32> {
     Some(match word {
         "one" => 1,

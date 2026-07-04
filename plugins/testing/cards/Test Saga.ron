@@ -1,0 +1,25 @@
+// A minimal Saga ([CR#714]) carrying three `Chapter` abilities — the
+// [CR#714.2b] was-less-than/became-at-least chapter shape as data — plus
+// the card-side final-chapter sacrifice SBA ([CR#714.4]; the final chapter
+// number is THIS card's own greatest threshold, [CR#714.2d], so it can't
+// live on the generic Saga registry row). The Saga subtype row confers the
+// enters-with-lore-counter Also ([CR#714.3a]) and the turn-based lore
+// increment ([CR#714.3c]); no canon-slice card is a Saga, so this carrier
+// isolates the chapter machinery.
+Normal(
+    name: "Test Saga",
+    mana_cost: [Generic(1), White],
+    types: [Enchantment],
+    subtypes: [Saga],
+    abilities: [
+        Chapter(n: 1, effect: GainLife(1)),
+        Chapter(n: 2, effect: GainLife(2)),
+        Chapter(n: 3, effect: GainLife(3)),
+        // [CR#714.4]: sacrifice once the lore total reaches the final
+        // chapter number (3 here).
+        Static(effects: [Sba(
+            when: Compare(CounterCount(This, LoreCounter), AtLeast, 3),
+            then: Sacrifice(This),
+        )]),
+    ],
+)

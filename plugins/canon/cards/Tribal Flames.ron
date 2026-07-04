@@ -1,7 +1,3 @@
-// waiver: "Domain —" ability-word prefix has no encoding yet (aw-prefix-parsing);
-// the Domain macro's v1 body counts every land subtype, so the where-X clause
-// renders "land types" where the oracle prints "basic land types" (the
-// approximation the macro's own header documents).
 Normal(
   name: "Tribal Flames",
   mana_cost: [
@@ -13,6 +9,9 @@ Normal(
   ],
   abilities: [
     Spell(
+      // "Domain —" is render metadata ([CR#207.2c]); the Domain macro counts
+      // basic land types ([CR#205.3i]).
+      ability_word: "Domain",
       effect: Targeted(targets: [AnyTarget], effect: DealDamage(It, Domain)),
     ),
   ],

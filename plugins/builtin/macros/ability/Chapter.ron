@@ -1,0 +1,33 @@
+// Chapter — a saga chapter ability as data [CR#714.2b]: "{rN}—[Effect]"
+// means "When one or more lore counters are put onto this Saga, if the
+// number of lore counters on it was less than N and became at least N,
+// [effect]." `OneOrMore` matches the placement BATCH once ([CR#603.3b]),
+// and `Crossed` is [CR#714.2b]'s was-less-than/became-at-least gate
+// verbatim, read off the fired fact's before/after channel — a
+// counter-doubled 0→2 jump is ONE fact whose crossing chapters I and II
+// each observe (and chapter III does not). The Saga subtype registry row
+// (types/enchantment/Saga.ron) confers the enters-with-counter Also
+// [CR#714.3a] and the turn-based lore increment [CR#714.3c]; the
+// final-chapter sacrifice SBA carries the card's own final chapter
+// number, so it is spelled card-side ([CR#714.4,714.2d] — the Idris
+// History of Benalia exemplar).
+//
+// The inner ability is `Innate` — the rule OF THE CHAPTER SYMBOL
+// ([CR#714.2] "a chapter symbol is a keyword ability that represents a
+// triggered ability"); removal strips the authored Expanded wrapper.
+//
+// Usage: Chapter(n: 2, effect: <chapter effect>).
+(
+    name: "Chapter",
+    template: "${n} — ${effect}",
+    kinds: [Ability],
+    params: { "n": Count, "effect": Effect },
+    body: Innate(Triggered(
+        event: OneOrMore(CounterPlaced(kind: LoreCounter, on: Ref(This))),
+        condition: Crossed(
+            value: CounterCount(This, LoreCounter),
+            threshold: AtLeast(Param(n)),
+        ),
+        effect: Param(effect),
+    )),
+)

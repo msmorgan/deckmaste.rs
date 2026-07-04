@@ -36,6 +36,16 @@ pub(super) fn number_word(n: u32) -> Option<&'static str> {
         8 => "eight",
         9 => "nine",
         10 => "ten",
+        11 => "eleven",
+        12 => "twelve",
+        13 => "thirteen",
+        14 => "fourteen",
+        15 => "fifteen",
+        16 => "sixteen",
+        17 => "seventeen",
+        18 => "eighteen",
+        19 => "nineteen",
+        20 => "twenty",
         _ => return None,
     })
 }
@@ -56,6 +66,26 @@ pub(super) fn count(c: &Count) -> String {
                 }
             )
         ),
+        // [CR#122.1]: the counter-count read — "the number of experience
+        // counters you have" (a player-borne kind), "the number of lore
+        // counters on it" (object-borne).
+        Count::CounterCount(r, kind) => {
+            let noun = counter_noun(kind.as_str());
+            match r.as_ref() {
+                Reference::You => format!("the number of {noun} counters you have"),
+                other => format!(
+                    "the number of {noun} counters on {}",
+                    reference(
+                        other,
+                        &Ctx {
+                            subject: "it",
+                            targets: &[],
+                            that: None,
+                        }
+                    )
+                ),
+            }
+        }
         // [CR#107.1] value arithmetic.
         Count::Plus(a, b) => format!("{} plus {}", count(a), count(b)),
         Count::Minus(a, b) => format!("{} minus {}", count(a), count(b)),
@@ -93,6 +123,13 @@ pub(super) fn count(c: &Count) -> String {
     }
 }
 
+/// A counter kind's English noun: the ident minus its `Counter` suffix,
+/// lowercased — `Experience` → "experience", `LoreCounter` → "lore",
+/// `AgeCounter` → "age".
+fn counter_noun(ident: &str) -> String {
+    ident.trim_end_matches("Counter").to_lowercase()
+}
+
 /// The plural noun for a [`Characteristic`] axis, used by the distinct-count
 /// phrase ("the number of subtypes among …").
 fn characteristic_word(axis: Characteristic) -> &'static str {
@@ -100,6 +137,8 @@ fn characteristic_word(axis: Characteristic) -> &'static str {
         Characteristic::Colors => "colors",
         Characteristic::Types => "types",
         Characteristic::Subtypes => "subtypes",
+        // [CR#205.3i] — Domain's axis.
+        Characteristic::BasicLandTypes => "basic land types",
         Characteristic::Supertypes => "supertypes",
         Characteristic::Power => "powers",
         Characteristic::Toughness => "toughnesses",

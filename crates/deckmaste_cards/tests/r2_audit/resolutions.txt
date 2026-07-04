@@ -576,7 +576,7 @@
   face: subtype "Construct" -> category [Creature, Kindred]
   face.abilities[0]: keyword "CumulativeUpkeep" -> shape Costed
   face.abilities[0].abilities[0].effect.Sequence[0]: counter "AgeCounter" -> Object-borne
-  face.abilities[0].abilities[0].effect.Sequence[1].Unless.unless[0].cost[0]: That(Permanent) -> #0 One OfType(Creature) at Chosen (binder frame)
+  face.abilities[0].abilities[0].effect.Sequence[1].MustPay.cost[0].cost[0]: That(Permanent) -> #0 One OfType(Creature) at Chosen (binder frame)
 == wizards/cards/Phyrexian Tower.ron
   face.abilities[1].cost.cost[1].cost[0]: That(Permanent) -> #0 One OfType(Creature) at Chosen (binder frame)
 == wizards/cards/Phyrexian Vault.ron
@@ -603,7 +603,7 @@
   face: subtype "Kraken" -> category [Creature, Kindred]
   face.abilities[2]: keyword "CumulativeUpkeep" -> shape Costed
   face.abilities[2].abilities[0].effect.Sequence[0]: counter "AgeCounter" -> Object-borne
-  face.abilities[2].abilities[0].effect.Sequence[1].Unless.unless[0].cost[0]: That(Permanent) -> #0 One OfType(Land) at Chosen (binder frame)
+  face.abilities[2].abilities[0].effect.Sequence[1].MustPay.cost[0].cost[0]: That(Permanent) -> #0 One OfType(Land) at Chosen (binder frame)
 == wizards/cards/Portcullis Vine.ron
   face: subtype "Plant" -> category [Creature, Kindred]
   face: subtype "Wall" -> category [Creature, Kindred]
@@ -723,7 +723,7 @@
   face: subtype "Elemental" -> category [Creature, Kindred]
   face.abilities[0]: keyword "Haste" -> shape None
   face.abilities[1]: keyword "Echo" -> shape Costed
-  !! E-BIND-THAT: singular That read where the enclosing binder binds a group (iterate it with Each, or read They) (face.abilities[1].abilities[0].effect.Unless.unless[0].cost[0])
+  !! E-BIND-THAT: singular That read where the enclosing binder binds a group (iterate it with Each, or read They) (face.abilities[1].abilities[0].effect.MustPay.cost[0].cost[0])
 == wizards/cards/Skyclave Shadowcat.ron
   face: subtype "Cat" -> category [Creature, Kindred]
   face: subtype "Horror" -> category [Creature, Kindred]

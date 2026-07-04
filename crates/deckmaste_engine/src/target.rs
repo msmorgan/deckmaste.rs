@@ -1087,6 +1087,7 @@ mod tests {
                 .objects
                 .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack));
         state.stack.push(StackEntry {
+            paid_costs: Vec::new(),
             id: ability_id,
             object: StackObject::Triggered {
                 source: ObjectSource::Card(cid),
@@ -1102,6 +1103,7 @@ mod tests {
             .objects
             .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack));
         state.stack.push(StackEntry {
+            paid_costs: Vec::new(),
             id: spell_id,
             object: StackObject::Spell(spell_id),
             controller: PlayerId(0),
@@ -1153,6 +1155,7 @@ mod tests {
                 .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack))
         };
         state.stack.push(StackEntry {
+            paid_costs: Vec::new(),
             id: spell,
             object: StackObject::Spell(spell),
             controller: PlayerId(0),

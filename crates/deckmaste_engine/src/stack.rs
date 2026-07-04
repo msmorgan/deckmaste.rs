@@ -78,6 +78,12 @@ pub struct StackEntry {
     /// [CR#107.3a]: the announced X — copied from the announce slot at promote.
     /// `None` for triggers and non-X spells.
     pub x: Option<deckmaste_core::Uint>,
+    /// [CR#601.2b,702.33d]: which tagged optional costs were announced paid,
+    /// with multiplicity (multikicker pays a tag several times,
+    /// [CR#702.33c]) — the record `Condition::PaidCost` / `Count::TimesPaid`
+    /// read while this entry resolves ([CR#607.2] linked reads). Copied from
+    /// the announce slot at promote; empty for triggers.
+    pub paid_costs: Vec<(deckmaste_core::CostTag, deckmaste_core::Uint)>,
 }
 
 /// An announce in flight ([CR#601.2] / [CR#602.2]). At most one exists, ever
@@ -109,6 +115,15 @@ pub struct PendingStackEntry {
     /// `begin_activate` and that step. `PayCost` reads it for the mana decision
     /// and the extra verbs.
     pub concretized: Option<(ManaCost, Vec<CostComponent>)>,
+    /// [CR#601.2b,702.33d]: the tagged optional costs announced paid so far
+    /// (tag → times), filled by the `AnnounceOptionalCosts` step. Promoted
+    /// onto the committed entry for the linked reads.
+    pub paid_costs: Vec<(deckmaste_core::CostTag, deckmaste_core::Uint)>,
+    /// [CR#601.2f]: the cost components those announcements ADD to the total
+    /// cost — folded into the payment demand by `PayCost` (a kicked spell's
+    /// `{2}` joins the mana decision; a `Do(...)` kicker joins the verb
+    /// window).
+    pub optional_components: Vec<CostComponent>,
 }
 
 /// Cardinality of a binder/anaphor slot ([CR#608.2]) — mirrors the Idris
@@ -216,6 +231,12 @@ pub struct Endophora {
     /// [CR#107.3a]: the announced X for the resolving object — read by
     /// `Count::X`. `None` for triggers and non-X spells.
     pub x: Option<deckmaste_core::Uint>,
+    /// The resolving ability's "where X is …" definition
+    /// ([CR#702.21b] — a ward-{X} toll's X is determined as the ability
+    /// RESOLVES, never locked in at trigger time). Threaded from
+    /// `TriggeredAbility::where_x` when a trigger's frame is built; priced
+    /// into `Mana([Variable])` cost components by `price_variable_cost`.
+    pub where_x: Option<deckmaste_core::Count>,
     /// The current iteration / projection element — the `It` anaphor
     /// ([CR#608.2]). Bound per element by an enclosing `Each`/`DivideAmong`
     /// loop, and by `Filter::Where` / `Selection::Pick` while they test a
@@ -267,6 +288,7 @@ impl Endophora {
             targets: Vec::new(),
             chosen: None,
             x: None,
+            where_x: None,
             it: None,
             that: None,
             allotment: None,

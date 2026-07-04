@@ -975,6 +975,13 @@ fn distinct_keys_derived(
     match characteristic {
         Ch::Types => face.types.iter().map(|t| format!("{t:?}")).collect(),
         Ch::Subtypes => face.subtypes.iter().map(|s| s.name.to_string()).collect(),
+        // [CR#205.3i]: only the five basic land types contribute keys.
+        Ch::BasicLandTypes => face
+            .subtypes
+            .iter()
+            .map(|s| s.name.to_string())
+            .filter(|n| deckmaste_core::BASIC_LAND_TYPES.contains(&n.as_str()))
+            .collect(),
         Ch::Supertypes => face.supertypes.iter().map(|s| format!("{s:?}")).collect(),
         Ch::Name => vec![face.name.clone()],
         Ch::ManaCost => vec![format!("{}", face.mana_cost.mana_value())],
@@ -1620,6 +1627,7 @@ mod tests {
     /// reference needed). Wrapped or not per `innate`.
     fn pump_static(innate: bool) -> Ability {
         let s = Ability::Static(StaticAbility {
+            ability_word: None,
             from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {
@@ -1759,6 +1767,7 @@ mod tests {
             types: vec![Type::Land],
             confers: vec![Property::Ability(Box::new(Ability::Activated(
                 deckmaste_core::ActivatedAbility {
+                    ability_word: None,
                     cost: vec![CostComponent::Tap].into(),
                     from: None,
                     window: None,
@@ -1940,6 +1949,7 @@ mod tests {
     fn host_pump_static(n: u32) -> Ability {
         use deckmaste_core::Reference;
         Ability::Static(StaticAbility {
+            ability_word: None,
             from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {
@@ -2043,6 +2053,7 @@ mod tests {
         use deckmaste_core::Reference;
 
         let dup_pump = Ability::Static(StaticAbility {
+            ability_word: None,
             from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {
@@ -2187,6 +2198,7 @@ mod tests {
         use deckmaste_core::Reference;
         use deckmaste_core::RelationFilter;
         Ability::Static(StaticAbility {
+            ability_word: None,
             from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {
@@ -2303,6 +2315,7 @@ mod tests {
         use deckmaste_core::Reference;
         let count = Count::CountOf(Box::new(Filter::creature()));
         Ability::Static(StaticAbility {
+            ability_word: None,
             from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {
@@ -2350,6 +2363,7 @@ mod tests {
         use deckmaste_core::Reference;
         let count = Count::CountOf(Box::new(Filter::creature()));
         Ability::Static(StaticAbility {
+            ability_word: None,
             from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {
@@ -2585,6 +2599,7 @@ mod tests {
     fn self_pump_static() -> Ability {
         use deckmaste_core::Reference;
         Ability::Static(StaticAbility {
+            ability_word: None,
             from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {
@@ -2607,6 +2622,7 @@ mod tests {
     fn lord_granting_static(granted: Ability) -> Ability {
         use deckmaste_core::Reference;
         Ability::Static(StaticAbility {
+            ability_word: None,
             from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {

@@ -1,0 +1,16 @@
+// "PreventNext" — the render name over the Prevention class ([CR#615.7]:
+// prevent the next N damage that would be dealt to [to] this turn). A
+// one-shot-created continuous shield ([CR#611.2,615.3]): the created
+// effect lasts until end of turn and its `PreventNext` ledger drains as
+// damage is prevented. Usage: PreventNext(n: 3, to: Ref(It)) under a
+// `Targeted` shell, or a plain filter `to`.
+(
+    name: "PreventNext",
+    template: "prevent the next ${n} damage that would be dealt to ${to} this turn",
+    kinds: [Effect],
+    params: { "n": Count, "to": Filter },
+    body: Continuously(
+        effect: Prevention(PreventNext(n: Param(n), from: Any, to: Param(to))),
+        duration: FixedUntil(EndOfTurn),
+    ),
+)

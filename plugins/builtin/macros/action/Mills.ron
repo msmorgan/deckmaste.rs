@@ -1,0 +1,15 @@
+// "mills" — the third-person mill verb phrase ([CR#701.17a]: that player
+// puts that many cards from the top of their library into their
+// graveyard). A parse/render TEMPLATE over the core `Mill` player action:
+// the declarative-subject production parses "target player / each
+// opponent / each player" into the agent, matches the remaining verb
+// phrase against this template, and emits `By(<agent>, Mills(n))`, which
+// expands in place to `By(<agent>, Mill(n))` — kind `PlayerAction` has no
+// remembered-expansion wrapper, so the macro is pure spelling sugar.
+(
+    name: "Mills",
+    template: "mills ${0:card|cards}",
+    kinds: [PlayerAction],
+    params: [Count],
+    body: Mill(Param(0)),
+)

@@ -1,0 +1,13 @@
+// A minimal multikicker carrier ([CR#702.33c] — "you may pay an additional
+// {1} any number of times as you cast this spell"; a multikicker cost IS a
+// kicker cost, so the reads share the `Kicker` tag): resolution gains 1
+// life for each time it was kicked (`TimesPaid`, [CR#702.33c]).
+Normal(
+    name: "Multikicker Chant",
+    mana_cost: [Green],
+    types: [Instant],
+    abilities: [
+        Keyword(Multikicker([Mana([Generic(1)])])),
+        Spell(effect: GainLife(TimesPaid(Kicker))),
+    ],
+)

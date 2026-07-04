@@ -1,15 +1,13 @@
 // "Domain" ([CR#207.2c] ability word): the number of basic land types among
-// the lands you control — a `Count`-position name for the distinct-union count
-// of the land subtype axis over your lands. Modeled with `CountDistinct`: each
-// land contributes its land subtypes, and the union's size is the domain.
-//
-// v1 approximation: this counts every DISTINCT land subtype among the lands
-// you control (so the five basic land types in a basics-only board), not only
-// the five basic land types — `CountDistinct` counts an object's whole subtype
-// axis, with no way yet to restrict to the basic-land-type subset.
+// the lands you control — a `Count`-position name for the distinct-union
+// count over the BASIC land-type axis ([CR#205.3i]: Forest, Island,
+// Mountain, Plains, and Swamp are the basic land types). Each land you
+// control contributes only its basic land types to the union — a Gate's
+// `Gate` subtype never counts — so the axis is `BasicLandTypes`, never the
+// whole `Subtypes` axis.
 (
     name: "Domain",
     template: "domain",
     kinds: [Count],
-    body: CountDistinct(Subtypes, AllOf([InZone(Battlefield), Type(Land), ControlledBy(Ref(You))])),
+    body: CountDistinct(BasicLandTypes, AllOf([InZone(Battlefield), Type(Land), ControlledBy(Ref(You))])),
 )

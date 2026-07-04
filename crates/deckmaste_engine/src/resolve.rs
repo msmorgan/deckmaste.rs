@@ -176,6 +176,9 @@ impl GameState {
                     // Endophoric: the targets plus the event's bound roles.
                     endophora: Endophora {
                         targets: entry.targets.clone(),
+                        // "where X is …" rides the resolving ability's text
+                        // and is evaluated at RESOLUTION ([CR#702.21b]).
+                        where_x: t.where_x.clone(),
                         that_object: bindings.that_object.clone(),
                         that_player: bindings.that_player,
                         that_patient: bindings.that_patient.clone(),
@@ -849,40 +852,29 @@ impl GameState {
                     frame: frame.clone(),
                 });
             }
-            // [CR#118.12a,608.2d]: "[do] unless [who] pays [cost]". Surface a
-            // yes/no to the paying player; on yes the cost is paid and `effect`
-            // is skipped, on no `effect` happens — branched when the answer
-            // returns (the `Unless` continuation). v1 does NOT gate the offer on
-            // affordability (a refinement); the runner only offers "pay" when
-            // able.
-            Effect::Unless(u) => {
-                let payer = self.acting_player(&u.who, frame);
-                self.pending = Some(crate::decide::PendingDecision::YesNo { player: payer });
-                self.choice = Some(crate::state::ChoiceContinuation::Unless {
-                    effect: u.effect,
-                    who: u.who,
-                    // Normalize the authored cost list at this boundary: read is
-                    // faithful, so a macro-spliced `unless` cost arrives lumpy
-                    // (a nested `CostComponent::Cost`); splice it flat before the
-                    // payment walk (`unless_cost_action`) consumes it.
-                    unless: deckmaste_core::Cost(u.unless).normalize().0,
-                    frame: frame.clone(),
-                });
-            }
             // [CR#118.12a]: "[actor] must pay [cost], or else [or_else]" — the
-            // Mana Leak punisher over the full `Cost`. Identical in shape to
-            // `Unless` (pay → the punisher is skipped; don't pay → it runs), so
-            // it reuses the `Unless` continuation: `or_else` is the unpaid
-            // effect, `actor` the payer, `cost` the toll.
+            // Mana Leak punisher over the full `Cost` (the English "unless"
+            // order is the `Unless` macro over this node). Surface a yes/no to
+            // the paying player; on yes the cost is paid and `or_else` is
+            // skipped, on no `or_else` happens — branched when the answer
+            // returns (the `Unless` continuation). v1 does NOT gate the offer
+            // on affordability (a refinement); the runner only offers "pay"
+            // when able. A ward toll's `Mana([Variable])` is priced by the
+            // resolving triggered ability's `where_x`, evaluated NOW
+            // ([CR#702.21b] — at resolution, never locked in at trigger).
             Effect::MustPay(m) => {
                 let payer = self.acting_player(&m.actor, frame);
                 self.pending = Some(crate::decide::PendingDecision::YesNo { player: payer });
+                // Normalize the authored cost at this boundary: read is
+                // faithful, so a macro-spliced cost arrives lumpy (a nested
+                // `CostComponent::Cost`); splice it flat before the payment
+                // walk (`unless_cost_action`) consumes it.
+                let cost = m.cost.normalize().0;
+                let cost = self.price_variable_cost(cost, frame);
                 self.choice = Some(crate::state::ChoiceContinuation::Unless {
                     effect: m.or_else,
                     who: m.actor,
-                    // The full `Cost` is normalized here (a macro-spliced nested
-                    // cost arrives lumpy), exactly like `Unless`.
-                    unless: m.cost.normalize().0,
+                    unless: cost,
                     frame: frame.clone(),
                 });
             }
@@ -1879,7 +1871,7 @@ impl GameState {
     ///
     /// Panics if `who` resolves to a non-player object — a player verb's agent
     /// must be a player ([CR#608.2]).
-    fn acting_player(&self, who: &Reference, frame: &Frame) -> crate::player::PlayerId {
+    pub(crate) fn acting_player(&self, who: &Reference, frame: &Frame) -> crate::player::PlayerId {
         let object = self.eval_reference(who, frame);
         match self.objects.get(object).map(|o| o.source) {
             Some(ObjectSource::Player(p)) => p,
@@ -2302,6 +2294,43 @@ impl GameState {
         }
     }
 
+    /// Price the `{X}` symbols of a resolution-time cost ([CR#702.21b] — a
+    /// ward-{X} toll's X "is determined at the time the ability resolves,
+    /// not locked in as the ability triggers"): with a `where_x` definition
+    /// on the resolving frame, every `Variable` mana symbol becomes
+    /// `Generic(X)` evaluated NOW; without one, the cost passes through
+    /// unchanged.
+    fn price_variable_cost(
+        &self,
+        cost: Vec<deckmaste_core::CostComponent>,
+        frame: &Frame,
+    ) -> Vec<deckmaste_core::CostComponent> {
+        use deckmaste_core::CostComponent;
+        use deckmaste_core::ManaSymbol;
+        use deckmaste_core::SimpleManaSymbol;
+        let Some(def) = &frame.endophora.where_x else {
+            return cost;
+        };
+        let x = self.eval_count(def, frame);
+        cost.into_iter()
+            .map(|component| match component {
+                CostComponent::Mana(m) => {
+                    let symbols: Vec<ManaSymbol> = Vec::from(m)
+                        .into_iter()
+                        .map(|s| match s {
+                            ManaSymbol::Variable => {
+                                ManaSymbol::Simple(SimpleManaSymbol::Generic(x))
+                            }
+                            other => other,
+                        })
+                        .collect();
+                    CostComponent::Mana(symbols.into())
+                }
+                other => other,
+            })
+            .collect()
+    }
+
     /// Evaluate a `Count` to a concrete number.
     ///
     /// # Panics
@@ -2512,10 +2541,17 @@ impl GameState {
             // directly off the base state (damage is not a derived stat).
             // [CR#702.33c..702.33d]: multikicker's per-payment count needs
             // the optional-cost announce record (engine-alt-costs).
-            Count::TimesPaid(tag) => todo!(
-                "engine-alt-costs: TimesPaid({tag:?}) needs the [CR#601.2b] optional-cost \
-                 announce record"
-            ),
+            // [CR#702.33c]: multikicker's "for each time it was kicked" —
+            // the resolving entry's announced record carries the tag's
+            // multiplicity ([CR#601.2b,607.2]; the record rides the STACK
+            // entry — the post-resolution recheck is engine-alt-costs
+            // follow-up work).
+            Count::TimesPaid(tag) => self
+                .stack
+                .iter()
+                .find(|e| e.id == frame.source)
+                .and_then(|e| e.paid_costs.iter().find(|(t, _)| t == tag).map(|(_, n)| *n))
+                .unwrap_or(0),
             Count::Damage(reference) => {
                 let id = self.eval_reference(reference, frame);
                 self.objects.obj(id).damage
@@ -2541,6 +2577,13 @@ impl GameState {
         match characteristic {
             Ch::Types => face.types.iter().map(|t| format!("{t:?}")).collect(),
             Ch::Subtypes => face.subtypes.iter().map(|s| s.name.to_string()).collect(),
+            // [CR#205.3i]: only the five basic land types contribute keys.
+            Ch::BasicLandTypes => face
+                .subtypes
+                .iter()
+                .map(|s| s.name.to_string())
+                .filter(|n| deckmaste_core::BASIC_LAND_TYPES.contains(&n.as_str()))
+                .collect(),
             Ch::Supertypes => face.supertypes.iter().map(|s| format!("{s:?}")).collect(),
             Ch::Name => vec![face.name.clone()],
             Ch::ManaCost => vec![format!("{}", face.mana_cost.mana_value())],
@@ -3489,6 +3532,7 @@ mod tests {
             name: "Test Equipment".into(),
             types: vec![Type::Artifact],
             abilities: vec![Ability::Innate(Box::new(Ability::Static(StaticAbility {
+                ability_word: None,
                 from: None,
                 condition: None,
                 effects: vec![StaticEffect::Deontic(Deontic::Cant(
@@ -5184,6 +5228,7 @@ mod tests {
         state.zones.hands[PlayerId(0).index()].retain(|&o| o != spell);
         state.objects.obj_mut(spell).zone = Some(Zone::Stack);
         state.stack.push(StackEntry {
+            paid_costs: Vec::new(),
             id: spell,
             object: StackObject::Spell(spell),
             controller: PlayerId(0),
@@ -5218,6 +5263,7 @@ mod tests {
             Some(Zone::Stack),
         );
         state.stack.push(StackEntry {
+            paid_costs: Vec::new(),
             id: ability_id,
             object: StackObject::Triggered {
                 source: ObjectSource::Card(state.objects.obj(bear).card_id().unwrap()),
@@ -6069,6 +6115,7 @@ mod tests {
     /// (`Of(AttachHostOf(This))`) — the equipped/enchanted-creature bonus.
     fn host_pump(n: u32) -> Ability {
         Ability::Static(StaticAbility {
+            ability_word: None,
             from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {
@@ -6178,6 +6225,7 @@ mod tests {
             .objects
             .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack));
         state.stack.push(StackEntry {
+            paid_costs: Vec::new(),
             id: spell,
             object: StackObject::Spell(spell),
             controller: PlayerId(0),
@@ -6281,6 +6329,7 @@ mod tests {
                 power: Some(deckmaste_core::StatValue::Number(2)),
                 toughness: Some(deckmaste_core::StatValue::Number(2)),
                 abilities: vec![Ability::Static(StaticAbility {
+                    ability_word: None,
                     from: None,
                     condition: None,
                     effects: vec![StaticEffect::Deontic(Deontic::Cant(
@@ -6752,61 +6801,10 @@ mod tests {
         assert_eq!(state.player(p0).life, life0 + 10, "both chosen modes run");
     }
 
-    /// [CR#118.12a,608.2d]: `Effect::Unless` lets the payer (`who`, default You)
-    /// choose to pay the `unless` cost to avoid `effect`. Paying runs the cost
-    /// and skips the effect; declining runs the effect. Driven via a `LoseLife`
-    /// cost + `GainLife` effect so each branch is a clean life delta.
-    #[test]
-    fn run_effect_unless_pays_or_suffers_the_effect() {
-        use deckmaste_core::CostComponent;
-        use deckmaste_core::Unless;
-
-        use crate::decide::Decision;
-        use crate::decide::PendingDecision;
-
-        let p0 = PlayerId(0);
-        let unless = || Unless {
-            who: Reference::You,
-            effect: Box::new(Effect::Act(Action::By(
-                Reference::You,
-                PlayerAction::GainLife(Count::Literal(10)),
-            ))),
-            unless: vec![CostComponent::do_(PlayerAction::LoseLife(Count::Literal(
-                2,
-            )))],
-        };
-
-        // "I'll pay" → lose 2 life, effect (gain 10) skipped; YesNo to the payer.
-        let mut state = game();
-        let frame = frame_for(&state, p0);
-        let life0 = state.player(p0).life;
-        state.run_effect(Effect::Unless(unless()), &frame);
-        let StepOutcome::NeedsDecision(PendingDecision::YesNo { player }) = state.step() else {
-            panic!("expected YesNo, got {:?}", state.pending);
-        };
-        assert_eq!(player, p0, "the payer decides");
-        state.submit_decision(Decision::Answer(true)).unwrap();
-        let _ = drain_progress(&mut state, 40);
-        assert_eq!(
-            state.player(p0).life,
-            life0 - 2,
-            "pay → cost paid, effect skipped"
-        );
-
-        // "won't pay" → effect runs (gain 10).
-        let mut state = game();
-        let frame = frame_for(&state, p0);
-        let life0 = state.player(p0).life;
-        state.run_effect(Effect::Unless(unless()), &frame);
-        state.submit_decision(Decision::Answer(false)).unwrap();
-        let _ = drain_progress(&mut state, 40);
-        assert_eq!(state.player(p0).life, life0 + 10, "decline → effect runs");
-    }
-
     /// [CR#118.12a]: `Effect::MustPay` — the Mana Leak punisher over the full
-    /// `Cost`. Pay → the cost runs and `or_else` is skipped; decline →
-    /// `or_else` runs. Behaves exactly like `Unless`, proving the shared
-    /// continuation.
+    /// `Cost` (the English "unless" order is the `Unless` macro over this
+    /// node). Pay → the cost runs and `or_else` is skipped; decline →
+    /// `or_else` runs.
     #[test]
     fn run_effect_must_pay_pays_or_suffers_or_else() {
         use deckmaste_core::Cost;
@@ -7089,6 +7087,7 @@ mod tests {
             name: "Secrets of the Golden City".into(),
             types: vec![Type::Sorcery],
             abilities: vec![Ability::Spell(SpellAbility {
+                ability_word: None,
                 effect: secrets_effect(),
             })],
             ..CardFace::default()
@@ -7098,6 +7097,7 @@ mod tests {
             .objects
             .mint(ObjectSource::Card(spell_card_id), p0, Some(Zone::Stack));
         state.stack.push(StackEntry {
+            paid_costs: Vec::new(),
             id: spell,
             object: StackObject::Spell(spell),
             controller: p0,

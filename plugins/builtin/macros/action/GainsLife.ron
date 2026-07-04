@@ -1,0 +1,11 @@
+// "gains N life" — the third-person life-gain verb phrase ([CR#119.3]).
+// A parse/render template over the core `GainLife` player action for the
+// declarative-subject production ("Each player gains 2 life"); expands in
+// place to `GainLife(n)`.
+(
+    name: "GainsLife",
+    template: "gains ${0} life",
+    kinds: [PlayerAction],
+    params: [Count],
+    body: GainLife(Param(0)),
+)

@@ -448,12 +448,39 @@ pub(crate) fn unless_cost_action(
             "engine-resolve-effects seam: an aggregate-stat (tap-total) 'unless' cost \
              ([CR#118.12a,702.122a]) needs a payment-time subset choice"
         ),
-        // Both spell mana 'unless' costs and "equal to its mana cost"
-        // ([CR#202.1]) are announce-slot-bound — the same seam.
+        // The `Unless`/`MayPay` continuations route `Mana` components to
+        // `WorkItem::TollMana` (see `toll_item`) before this walk; a caller
+        // that reaches here with one (the `AdditionalCost` arm) is still the
+        // announce-slot-bound seam, like "equal to its mana cost"
+        // ([CR#202.1]).
         CostComponent::Mana(_) | CostComponent::ManaCostOf(_) => todo!(
-            "engine-resolve-effects seam: a mid-resolution mana 'unless' cost \
-             ([CR#118.12a]) — the PayCost/PayMana flow is announce-slot-bound"
+            "engine-resolve-effects seam: a mid-resolution mana cost outside the \
+             Unless/MayPay toll path ([CR#118.12a]) — announce-slot-bound"
         ),
+    }
+}
+
+/// One toll cost component as an agenda item ([CR#118.12a]): a `Mana`
+/// component surfaces a mid-resolution `PayMana` (`WorkItem::TollMana`,
+/// paid by the resolved `payer` from their pool); every other component is
+/// the payer\'s action/effect via [`unless_cost_effect`].
+pub(crate) fn toll_item(
+    component: &deckmaste_core::CostComponent,
+    who: &deckmaste_core::Reference,
+    payer: crate::player::PlayerId,
+    frame: &crate::stack::Frame,
+) -> WorkItem {
+    match component {
+        deckmaste_core::CostComponent::Mana(mc) => WorkItem::TollMana {
+            player: payer,
+            cost: mc.clone(),
+            subject: frame.source,
+        },
+        deckmaste_core::CostComponent::Expanded(e) => toll_item(&e.value, who, payer, frame),
+        other => WorkItem::RunEffect {
+            effect: Box::new(unless_cost_effect(other, who)),
+            frame: frame.clone(),
+        },
     }
 }
 
@@ -1093,6 +1120,30 @@ impl GameState {
                             .collect();
                         self.schedule_front(items);
                     }
+                    // [CR#601.2b,702.33d]: "pay this tagged optional cost
+                    // (again)?" — yes records the tag and adds its components
+                    // to the total ([CR#601.2f]); a repeatable row re-offers
+                    // ([CR#702.33c] multikicker), else the walk advances.
+                    crate::state::ChoiceContinuation::OptionalCost {
+                        tag,
+                        components,
+                        repeatable,
+                        index,
+                    } => {
+                        if yes {
+                            let announce = self
+                                .announcing
+                                .as_mut()
+                                .expect("an optional-cost announce in flight");
+                            match announce.paid_costs.iter_mut().find(|(t, _)| *t == tag) {
+                                Some(entry) => entry.1 += 1,
+                                None => announce.paid_costs.push((tag, 1)),
+                            }
+                            announce.optional_components.extend(components);
+                        }
+                        let index = if yes && repeatable { index } else { index + 1 };
+                        self.schedule_front(vec![WorkItem::AnnounceOptionalCosts { index }]);
+                    }
                     // [CR#118.12a,608.2d]: `Effect::Unless` — yes pays the cost
                     // (each component as the payer's action) and `effect` is
                     // skipped; no runs `effect`.
@@ -1103,12 +1154,10 @@ impl GameState {
                         frame,
                     } => {
                         let items: Vec<WorkItem> = if yes {
+                            let payer = self.acting_player(&who, &frame);
                             unless
                                 .iter()
-                                .map(|c| WorkItem::RunEffect {
-                                    effect: Box::new(unless_cost_effect(c, &who)),
-                                    frame: frame.clone(),
-                                })
+                                .map(|c| toll_item(c, &who, payer, &frame))
                                 .collect()
                         } else {
                             vec![WorkItem::RunEffect { effect, frame }]
@@ -1127,11 +1176,9 @@ impl GameState {
                         frame,
                     } => {
                         let items: Vec<WorkItem> = if yes {
+                            let payer = self.acting_player(&actor, &frame);
                             cost.iter()
-                                .map(|c| WorkItem::RunEffect {
-                                    effect: Box::new(unless_cost_effect(c, &actor)),
-                                    frame: frame.clone(),
-                                })
+                                .map(|c| toll_item(c, &actor, payer, &frame))
                                 .chain(std::iter::once(WorkItem::RunEffect {
                                     effect: and_then,
                                     frame: frame.clone(),
@@ -1843,6 +1890,7 @@ impl GameState {
     pub(crate) fn announce_schedule(begin: WorkItem, cast_event: GameEvent) -> Vec<WorkItem> {
         let mut items = vec![
             begin,
+            WorkItem::AnnounceOptionalCosts { index: 0 },
             WorkItem::AnnounceX,
             WorkItem::AnnounceTargets,
             WorkItem::ChooseCostOptions,

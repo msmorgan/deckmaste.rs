@@ -1,10 +1,10 @@
 // Echo = a triggered ability [CR#702.30a]: "Echo [cost]" means "At the
 // beginning of your upkeep, if this permanent came under your control since
 // the beginning of your last upkeep, sacrifice it unless you pay [cost]." The
-// printed [cost] is the macro's `Cost` param, threaded straight into the
-// `unless` of the resolution Toll (Effect::Unless) — the same cost-list shape
-// the parser emits (`Echo([Mana(...)])`) and the same `unless: Param(0)`
-// splice Ward uses.
+// printed [cost] is the macro's `Cost` param, spliced straight into the
+// resolution `MustPay` toll ([CR#118.12a] — the English "unless" order is
+// the `Unless` macro over the same node) with the sacrifice as the unpaid
+// branch; the parser emits the same cost-list shape (`Echo([Mana(...)])`).
 //
 // The intervening-if ([CR#603.4]) is the "came under your control since the
 // beginning of your last upkeep" recheck. The control-change event is
@@ -32,9 +32,9 @@
                 event: ControlChanged(of: Ref(This), to: Ref(You)),
                 within: ThisTurn,
             ),
-            effect: Unless(
-                effect: Sacrifice(This),
-                unless: Param(0),
+            effect: MustPay(
+                cost: [Splice(Param(0))],
+                or_else: Sacrifice(This),
             ),
         )],
     ),

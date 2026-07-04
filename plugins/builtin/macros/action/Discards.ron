@@ -1,0 +1,13 @@
+// "discards" — the third-person discard verb phrase ([CR#701.9]; the
+// affected player chooses which cards, [CR#701.9b]). A parse/render
+// template over the core `Discard` player action for the
+// declarative-subject production ("Target player discards a card",
+// "Each opponent discards two cards"); expands in place to
+// `Discard(count: n)`.
+(
+    name: "Discards",
+    template: "discards ${0:card|cards}",
+    kinds: [PlayerAction],
+    params: [Count],
+    body: Discard(count: Param(0)),
+)

@@ -1224,6 +1224,7 @@ impl GameState {
                 .objects
                 .mint(noted.source, noted.controller, Some(Zone::Stack));
             self.stack.push(StackEntry {
+                paid_costs: Vec::new(),
                 id,
                 object: StackObject::Triggered {
                     source: noted.source,
@@ -1297,6 +1298,7 @@ impl GameState {
             .take()
             .expect("a trigger placement in flight");
         self.stack.push(StackEntry {
+            paid_costs: Vec::new(),
             id: staged.id,
             object: StackObject::Triggered {
                 source: staged.source,
@@ -3306,6 +3308,8 @@ mod tests {
             name: "Rabblemaster".into(),
             types: vec![Type::Creature],
             abilities: vec![Ability::Triggered(TriggeredAbility {
+                ability_word: None,
+                where_x: None,
                 from: None,
                 event: EventFilter::StepBegins {
                     at: PhaseStep::Combat(CombatStep::BeginningOfCombat),
@@ -3459,6 +3463,8 @@ mod tests {
             name: "Graveyard Echo".into(),
             types: vec![Type::Creature],
             abilities: vec![Ability::Triggered(TriggeredAbility {
+                ability_word: None,
+                where_x: None,
                 from,
                 event: EventFilter::StepBegins {
                     at: PhaseStep::Beginning(BeginningStep::Upkeep),
@@ -4183,6 +4189,8 @@ mod tests {
             name: "Death Watcher".into(),
             types: vec![Type::Creature],
             abilities: vec![Ability::Triggered(TriggeredAbility {
+                ability_word: None,
+                where_x: None,
                 from: None,
                 event: EventFilter::ZoneChange {
                     what: Filter::creature(),
@@ -4270,6 +4278,8 @@ mod tests {
             name: "Pain Gainer".into(),
             types: vec![Type::Creature],
             abilities: vec![Ability::Triggered(TriggeredAbility {
+                ability_word: None,
+                where_x: None,
                 from: None,
                 event: EventFilter::Damage {
                     source: Filter::Any,
@@ -4336,6 +4346,7 @@ mod tests {
             .objects
             .mint(noted.source, noted.controller, Some(Zone::Stack));
         state.stack.push(StackEntry {
+            paid_costs: Vec::new(),
             id,
             object: StackObject::Triggered {
                 source: noted.source,
@@ -4979,21 +4990,17 @@ mod tests {
     }
 
     /// The saga-chapter walk-through ([CR#714.2b]): three chapter abilities
-    /// (`OneOrMore(CounterPlaced(kind: LoreCounter, on: Ref(This)))`, each
-    /// gated by `Crossed` at thresholds 1/2/3) against a counter-DOUBLED
+    /// authored through the `Chapter` MACRO (`Chapter(n: N, effect: …)` —
+    /// the [CR#714.2b] "{rN}—[Effect]" spelling, expanding to
+    /// `OneOrMore(CounterPlaced(kind: LoreCounter, on: Ref(This)))` gated by
+    /// `Crossed` at thresholds 1/2/3) against a counter-DOUBLED
     /// 0→2 lore jump arriving as ONE batch fact — chapter I fires
     /// (before 0 < 1 ≤ 2 after), chapter II fires (0 < 2 ≤ 2), chapter III
     /// stays silent (2 < 3). A later 2→4 jump fires ONLY chapter III —
     /// already-crossed thresholds never re-fire.
     #[test]
     fn saga_chapters_fire_on_crossed_thresholds_from_one_batch_fact() {
-        let chapter = |n: u32| {
-            format!(
-                "Triggered(event: OneOrMore(CounterPlaced(kind: LoreCounter, on: Ref(This))), \
-                 condition: Crossed(value: CounterCount(This, LoreCounter), \
-                 threshold: AtLeast({n})), effect: GainLife(1))"
-            )
-        };
+        let chapter = |n: u32| format!("Chapter(n: {n}, effect: GainLife(1))");
         let source = format!(
             "Normal(name: \"Test Saga\", types: [Enchantment], abilities: [{}, {}, {}])",
             chapter(1),

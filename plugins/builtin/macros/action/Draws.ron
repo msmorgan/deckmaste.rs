@@ -1,0 +1,11 @@
+// "draws" — the third-person draw verb phrase ([CR#121.1]). A parse/render
+// template over the core `Draw` player action for the declarative-subject
+// production ("Target player draws two cards", "Each player draws a
+// card"); expands in place to `Draw(n)`.
+(
+    name: "Draws",
+    template: "draws ${0:card|cards}",
+    kinds: [PlayerAction],
+    params: [Count],
+    body: Draw(Param(0)),
+)

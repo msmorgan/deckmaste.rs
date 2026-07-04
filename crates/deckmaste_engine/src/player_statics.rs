@@ -176,6 +176,7 @@ mod tests {
             name: "Test Player Static".into(),
             types: vec![Type::Enchantment],
             abilities: vec![Ability::Static(StaticAbility {
+                ability_word: None,
                 condition: None,
                 from: None,
                 effects: vec![StaticEffect::ModifyPlayer(Reference::You, pmod)],

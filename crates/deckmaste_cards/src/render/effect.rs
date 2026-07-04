@@ -258,6 +258,13 @@ fn each_collective(act: &Action, binder: &deckmaste_core::Binder, ctx: &Ctx) -> 
         Action::By(_, PlayerAction::Untap(Reference::It)) => {
             Some(format!("Untap {}.", each_group()))
         }
+        // Subject-declarative player verbs over the loop element as AGENT
+        // ([CR#608.2d] distributive each; [CR#701.17a,701.9,121.1,119.3]):
+        // "Each player mills two cards." / "Each opponent loses 2 life."
+        Action::By(Reference::It, pa) => {
+            let verb = third_person_verb_phrase(pa)?;
+            Some(format!("{} {verb}.", capitalize_first(&each_group())))
+        }
         _ => None,
     }
 }
@@ -366,7 +373,22 @@ fn action(a: &Action, ctx: &Ctx) -> String {
             fragment::reference(r, ctx),
             fragment::library_position(anchor),
         ),
-        Action::By(_who, pa) => player_action(pa, ctx),
+        // A non-`You` agent renders subject-declarative ("Target player
+        // mills two cards.", [CR#701.17a]); the implicit-`You` default keeps
+        // the imperative form ("Draw a card."). A verb with no third-person
+        // phrase falls back to the imperative render.
+        Action::By(who, pa) => match who {
+            Reference::You => player_action(pa, ctx),
+            other => third_person_verb_phrase(pa).map_or_else(
+                || player_action(pa, ctx),
+                |verb| {
+                    format!(
+                        "{} {verb}.",
+                        capitalize_first(&fragment::reference(other, ctx))
+                    )
+                },
+            ),
+        },
         // [CR#701.19a]: a regeneration shield — rendered as "Regenerate <target>."
         // when the replacement body has the standard structure. The top-level
         // `Regenerate` keyword macro emits this via its template.
@@ -487,6 +509,38 @@ fn additional_payment(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) -> Opti
     Some(parts.join(" and "))
 }
 
+/// The THIRD-PERSON verb phrase of a player action — the declarative-subject
+/// tail ("mills two cards", "loses 2 life") a non-`You` `By` agent or an
+/// `Each` player loop prefixes with its subject. A remembered verb-macro
+/// expansion (`Mills(2)`) renders through its own template; the core verbs
+/// carry structural fallbacks. `None` = no third-person phrase (the caller
+/// falls back to the imperative render).
+fn third_person_verb_phrase(pa: &PlayerAction) -> Option<String> {
+    let counted_cards = |c: &Count| match c.literal_value() {
+        Some(1) => "a card".to_owned(),
+        Some(n) => match fragment::number_word(n) {
+            Some(word) => format!("{word} cards"),
+            None => format!("{n} cards"),
+        },
+        None => format!("{} cards", fragment::count(c)),
+    };
+    match pa {
+        PlayerAction::Expanded(e) => {
+            super::template::expanded(e, "it").or_else(|| third_person_verb_phrase(&e.value))
+        }
+        PlayerAction::Mill(c) => Some(format!("mills {}", counted_cards(c))),
+        PlayerAction::Draw(c) => Some(format!("draws {}", counted_cards(c))),
+        PlayerAction::Discard {
+            count,
+            what: None,
+            random: false,
+        } => Some(format!("discards {}", counted_cards(count))),
+        PlayerAction::LoseLife(c) => Some(format!("loses {} life", fragment::count(c))),
+        PlayerAction::GainLife(c) => Some(format!("gains {} life", fragment::count(c))),
+        _ => None,
+    }
+}
+
 fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
     match pa {
         PlayerAction::Draw(Count::Literal(1)) => "Draw a card.".to_string(),
@@ -496,6 +550,18 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
             None => format!("Draw {n} cards."),
         },
         PlayerAction::Draw(c) => format!("Draw {} cards.", fragment::count(c)),
+        // Mill ([CR#701.17a]) — the imperative you-form; object counts spell
+        // out as words ("Mill three cards.").
+        PlayerAction::Mill(Count::Literal(1)) => "Mill a card.".to_string(),
+        PlayerAction::Mill(Count::Literal(n)) => match fragment::number_word(*n) {
+            Some(word) => format!("Mill {word} cards."),
+            None => format!("Mill {n} cards."),
+        },
+        PlayerAction::Mill(c) => format!("Mill {} cards.", fragment::count(c)),
+        // A remembered verb-macro expansion (`Mills(2)` under an explicit
+        // `By`): the imperative frame renders the expanded CORE action —
+        // the third-person template belongs to the declarative subjects.
+        PlayerAction::Expanded(e) => player_action(&e.value, ctx),
         // Life totals move in digits, with the explicit "you" subject the
         // oracle prints ("You gain 2 life.").
         PlayerAction::GainLife(c) => format!("You gain {} life.", fragment::count(c)),

@@ -33,9 +33,10 @@ pub(crate) struct Slot {
     pub(crate) key: SlotKey,
     pub(crate) ty: Ident,
     /// The `:modifier` codec ([typed-holes delta 6]), if any: `+` (sign-aware)
-    /// or `sing|plur` (plural-aware). Stored so a slot template compiles with
-    /// its codec; the render side ([`crate::render::template`]) is the one that
-    /// applies it. `None` for a bare `${i}`.
+    /// or `sing|plur` (plural-aware). Applied on BOTH sides: the render side
+    /// ([`crate::render::template`]) formats through it, and the matcher
+    /// (`index::read_slot`) strips the sign / consumes the agreed plural
+    /// noun. `None` for a bare `${i}`.
     pub(crate) modifier: Option<String>,
 }
 

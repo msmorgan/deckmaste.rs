@@ -1,8 +1,11 @@
 //! A kind-scoped reverse index: `template → macro`. Built from a [`MacroSet`]'s
 //! registered macros, it matches an oracle-text fragment back to the macro
-//! whose template would render it. This ticket resolves NULLARY patterns (the
-//! pure-literal / self-only templates); slot-bearing patterns are compiled and
-//! held, but matching their `${…}` holes waits on the slot codec.
+//! whose template would render it. Nullary patterns (pure-literal /
+//! self-only templates) resolve via [`TemplateIndex::match_kind`];
+//! slot-bearing patterns fill their `${…}` holes through the typed slot
+//! codec ([`TemplateIndex::match_with`]), including the sign (`${0:+}`)
+//! and plural (`${n:card|cards}`) modifiers — the parse-side twins of the
+//! render codecs.
 
 use std::collections::HashMap;
 
@@ -110,6 +113,69 @@ fn fmt_arg(key: &SlotKey, arg: &str) -> String {
     }
 }
 
+/// Read one typed slot at `cursor`, applying its `:modifier` codec — the
+/// parse-side twin of `render::template::render_slot` ([typed-holes delta
+/// 6]):
+///
+/// - none — the plain typed read.
+/// - `+` — sign-aware: a literal `+` prefix is stripped before the read (`+1`
+///   reads as `1`); a `-` declines (counts are unsigned — the debuff spelling
+///   is a different template).
+/// - `sing|plur` — plural-aware: after the count reads, the agreeing noun must
+///   follow (`a card`/`1 card` singular, `two cards`/`X cards` plural),
+///   mirroring the render direction exactly.
+///
+/// Returns the raw arg RON and the cursor past the slot (and its agreed
+/// noun), or `None` (the slot declines).
+fn read_slot<F>(
+    slot: &Slot,
+    input: &str,
+    cursor: usize,
+    slot_reader: &mut F,
+) -> Option<(String, usize)>
+where
+    F: FnMut(&str, &str) -> Option<(String, usize)>,
+{
+    let rest = input.get(cursor..)?;
+    match slot.modifier.as_deref() {
+        None => {
+            let (arg, used) = slot_reader(slot.ty.as_str(), rest)?;
+            Some((arg, cursor + used))
+        }
+        Some("+") => {
+            let unsigned = rest.strip_prefix('+')?;
+            let (arg, used) = slot_reader(slot.ty.as_str(), unsigned)?;
+            Some((arg, cursor + 1 + used))
+        }
+        Some(m) => {
+            let (sing, plur) = m.split_once('|')?;
+            let (arg, used) = slot_reader(slot.ty.as_str(), rest)?;
+            let after_arg = cursor + used;
+            // Agreement mirrors the render side: a literal 1 is singular,
+            // any other literal — and every dynamic count — is plural.
+            let noun = match arg.trim().parse::<i64>() {
+                Ok(1) => sing,
+                _ => plur,
+            };
+            let expected = format!(" {noun}");
+            let end = after_arg + expected.len();
+            if !input.get(after_arg..end)?.eq_ignore_ascii_case(&expected) {
+                return None;
+            }
+            // Trailing word boundary: singular "card" must not eat the
+            // start of "cards".
+            if input[end..]
+                .chars()
+                .next()
+                .is_some_and(char::is_alphanumeric)
+            {
+                return None;
+            }
+            Some((arg, end))
+        }
+    }
+}
+
 /// Try to match an optional fragment (`prefix` literal, typed `slot`, `suffix`
 /// literal) at `cursor`. Returns the slot's raw arg and the new cursor on a
 /// full match, or `None` (the fragment is absent — caller leaves the cursor).
@@ -133,8 +199,7 @@ where
     {
         return None;
     }
-    let (arg, consumed) = slot_reader(slot.ty.as_str(), input.get(after_prefix..)?)?;
-    let after_slot = after_prefix + consumed;
+    let (arg, after_slot) = read_slot(slot, input, after_prefix, slot_reader)?;
     let after_suffix = after_slot + suffix.len();
     if !input
         .get(after_slot..after_suffix)?
@@ -169,9 +234,9 @@ where
                 cursor += 1;
             }
             Segment::Slot(slot) => {
-                let (arg, consumed) = slot_reader(slot.ty.as_str(), input.get(cursor..)?)?;
+                let (arg, new_cursor) = read_slot(slot, input, cursor, slot_reader)?;
                 args.push(fmt_arg(&slot.key, &arg));
-                cursor += consumed;
+                cursor = new_cursor;
             }
             Segment::Conditional {
                 prefix,

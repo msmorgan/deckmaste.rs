@@ -796,6 +796,7 @@ fn spell_leaves_the_stack_for_its_owners_graveyard() {
     state.zones.hands[PlayerId(0).index()].retain(|&o| o != spell);
     state.objects.obj_mut(spell).zone = Some(Zone::Stack);
     state.stack.push(StackEntry {
+        paid_costs: Vec::new(),
         id: spell,
         object: StackObject::Spell(spell),
         controller: PlayerId(0),
@@ -1007,6 +1008,7 @@ fn bolt_on_stack_targeting_bear() -> (GameState, ObjectId, ObjectId) {
     state.zones.hands[PlayerId(0).index()].retain(|&o| o != bolt);
     state.objects.obj_mut(bolt).zone = Some(Zone::Stack);
     state.stack.push(StackEntry {
+        paid_costs: Vec::new(),
         id: bolt,
         object: StackObject::Spell(bolt),
         controller: PlayerId(0),
@@ -1133,12 +1135,14 @@ fn casting_a_spell_schedules_the_announce_block_and_begin_cast_stages_it() {
     state
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
         .unwrap();
-    let front: Vec<WorkItem> = state.agenda.iter().take(9).cloned().collect();
+    let front: Vec<WorkItem> = state.agenda.iter().take(10).cloned().collect();
     assert_eq!(
         front,
         vec![
             WorkItem::BeginCast(bolt),
-            // [CR#601.2b]: X is announced before targets ([CR#601.2c]).
+            // [CR#601.2b]: optional additional costs (kicker) and X are
+            // announced before targets ([CR#601.2c]).
+            WorkItem::AnnounceOptionalCosts { index: 0 },
             WorkItem::AnnounceX,
             WorkItem::AnnounceTargets,
             WorkItem::ChooseCostOptions,

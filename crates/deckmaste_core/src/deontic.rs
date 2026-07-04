@@ -225,6 +225,19 @@ pub enum DeonticAction {
         #[serde(default = "Filter::any")]
         by: Filter,
     },
+    /// `by` regenerates `on` ([CR#701.19]) — the deed behind "can't be
+    /// regenerated": a `Cant` row over it causes regeneration shields not
+    /// to be APPLIED to `on` ([CR#701.19c] — activating/casting the
+    /// shield-creators stays legal). Mirrors the Idris
+    /// `Relation.Regenerate`. The `DestroyNoRegen` macro scopes one to its
+    /// own destroy event via `Duration::ForThisEvent`; engine enforcement
+    /// (the shield-application pass consulting deontic rows) is a seam.
+    Regenerate {
+        #[serde(default = "Filter::any")]
+        by: Filter,
+        #[serde(default = "Filter::any")]
+        on: Filter,
+    },
     /// A remembered `DeonticAction` macro invocation. Serialized as the
     /// invocation, not the struct.
     #[macro_ron(expanded)]

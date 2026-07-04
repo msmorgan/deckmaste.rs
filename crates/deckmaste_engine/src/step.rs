@@ -169,6 +169,26 @@ impl GameState {
                 amount,
                 riders,
             } => self.open_choose_mana_color(player, options, amount, riders),
+            WorkItem::AnnounceOptionalCosts { index } => {
+                let surfaced = self.announce_optional_costs(index);
+                Progress::CostOptionsChosen { surfaced }
+            }
+            WorkItem::TollMana {
+                player,
+                cost,
+                subject,
+            } => {
+                // [CR#118.12a]: surface the toll's mana demand; the `PayMana`
+                // answer validates coverage and drains the pool, then the
+                // agenda continues (payment is continuation-free).
+                self.pending = Some(PendingDecision::PayMana {
+                    player,
+                    cost,
+                    pool: self.player(player).mana_pool.clone(),
+                    subject,
+                });
+                Progress::CostPaid
+            }
             WorkItem::Resolve(obj) => {
                 self.resolve_object(obj);
                 Progress::Resolving(obj)
@@ -1730,6 +1750,9 @@ impl GameState {
             controller: pending.controller,
             targets: pending.targets.clone(),
             x: pending.x,
+            // [CR#601.2b,702.33d]: the announced optional-cost record rides
+            // the committed entry for the linked reads.
+            paid_costs: pending.paid_costs.clone(),
         });
         pending
     }
@@ -2016,6 +2039,7 @@ mod tests {
             GameState::announce_schedule(begin.clone(), event.clone()),
             vec![
                 begin,
+                WorkItem::AnnounceOptionalCosts { index: 0 },
                 WorkItem::AnnounceX,
                 WorkItem::AnnounceTargets,
                 WorkItem::ChooseCostOptions,
@@ -2044,6 +2068,8 @@ mod tests {
             Some(Zone::Stack),
         );
         state.announcing = Some(PendingStackEntry {
+            optional_components: Vec::new(),
+            paid_costs: Vec::new(),
             id,
             object: StackObject::Spell(id),
             controller: PlayerId(0),

@@ -86,7 +86,7 @@ fn load_keyword_catalog() -> Vec<String> {
 }
 
 /// One keyword token -> its invocation RON, always wrapped —
-/// `Keyword(Flying)`, `Keyword(Ward([Mana([Generic(2)])]))` — or `None`
+/// `Keyword(Flying)`, `Keyword(Ward(cost: [Mana([Generic(2)])]))` — or `None`
 /// (declines). Intrinsic enum variants and `KeywordAbility`-kind macros
 /// share the wrapper: card definitions always call out keyword-ness
 /// explicitly, and non-intrinsic names resolve (or stay todo) inside the
@@ -197,9 +197,12 @@ fn render_arg(ident: &str, arg: &str) -> anyhow::Result<Option<String>> {
     }
     // A bare mana run ("Ward {2}") or an em-dash cost ("Ward—Pay 3 life.",
     // "Ward—{2}, Pay 2 life." [CR#702.21a]) — the shared cost grammar.
+    // Ward's blessed signature is NAMED (`cost:` + the optional ward-{X}
+    // `where_x`, [CR#702.21b]), so its invocation spells the field.
     if arg.starts_with('{') || arg.starts_with('—') {
         let clause = arg.strip_prefix('—').unwrap_or(arg);
-        return Ok(cost_arg(clause)?.map(|cost| format!("{ident}({cost})")));
+        let field = if ident == "Ward" { "cost: " } else { "" };
+        return Ok(cost_arg(clause)?.map(|cost| format!("{ident}({field}{cost})")));
     }
     let (num, cost) = match arg.split_once('—') {
         Some((n, c)) => (n.trim(), Some(c.trim())),
@@ -305,7 +308,7 @@ mod tests {
     fn cost_keywords() {
         assert_eq!(
             bare("Ward {2}").as_deref(),
-            Some("Keyword(Ward([Mana([Generic(2)])]))")
+            Some("Keyword(Ward(cost: [Mana([Generic(2)])]))")
         );
         assert_eq!(
             bare("Equip {3}").as_deref(),
@@ -357,7 +360,7 @@ mod tests {
     fn word_costs_after_the_em_dash() {
         assert_eq!(
             bare("Ward—Pay 3 life.").as_deref(),
-            Some("Keyword(Ward([Do(LoseLife(3))]))")
+            Some("Keyword(Ward(cost: [Do(LoseLife(3))]))")
         );
         assert_eq!(
             bare("Cycling—Discard a card.").as_deref(),
@@ -368,7 +371,7 @@ mod tests {
         assert_eq!(
             bare("Ward—Sacrifice a creature.").as_deref(),
             Some(
-                "Keyword(Ward([With(binder: ChooseOne(filter: Creature), \
+                "Keyword(Ward(cost: [With(binder: ChooseOne(filter: Creature), \
                  body: [Do(Sacrifice(That(Permanent)))])]))"
             )
         );
@@ -379,7 +382,7 @@ mod tests {
         // A comma-separated cost list mixes mana and word costs.
         assert_eq!(
             bare("Ward—{2}, Pay 2 life.").as_deref(),
-            Some("Keyword(Ward([Mana([Generic(2)]), Do(LoseLife(2))]))")
+            Some("Keyword(Ward(cost: [Mana([Generic(2)]), Do(LoseLife(2))]))")
         );
     }
 
@@ -390,7 +393,7 @@ mod tests {
         // parser's business.
         assert_eq!(
             bare("Ward {X}").as_deref(),
-            Some("Keyword(Ward([Mana([Variable])]))")
+            Some("Keyword(Ward(cost: [Mana([Variable])]))")
         );
         assert_eq!(
             bare("Cycling {X}{1}{U}").as_deref(),
@@ -429,7 +432,7 @@ mod tests {
             )
             .unwrap()
             .as_deref(),
-            Some("Keyword(Ward([Mana([Generic(2)]), Do(LoseLife(2))]))")
+            Some("Keyword(Ward(cost: [Mana([Generic(2)]), Do(LoseLife(2))]))")
         );
     }
 
@@ -489,7 +492,7 @@ mod tests {
             )
             .unwrap()
             .as_deref(),
-            Some("Keyword(Ward([Mana([Generic(2)])]))")
+            Some("Keyword(Ward(cost: [Mana([Generic(2)])]))")
         );
         assert_eq!(
             resolve_line(

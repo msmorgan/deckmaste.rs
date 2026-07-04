@@ -21,10 +21,12 @@ use crate::resolve::ResolveCtx;
 /// registry signature (sibling parsers render fallibly).
 #[allow(clippy::unnecessary_wraps)]
 pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
-    // Strip a leading ability-word label ("Landfall — …", "Threshold — …").
-    // Ability words have NO rules meaning ([CR#207.2c]) — they're a flavor tag
-    // on the trigger that follows — so the ability underneath is what we parse.
-    let line = strip_ability_word(line);
+    // Split off a leading ability-word label ("Landfall — …",
+    // "Threshold — …"). Ability words have NO rules meaning ([CR#207.2c]) —
+    // the ability underneath is what we parse — but the label is RENDER
+    // metadata the emitted ability keeps (`ability_word:`), so the render
+    // side prints the oracle line back.
+    let (ability_word, line) = split_ability_word(line);
     // "At the beginning of …" is a step-entry trigger whose event clause carries
     // an internal comma ("on your turn,"), so it can't share the "When/Whenever
     // … , …" split. Route it to a dedicated event parser that consumes the whole
@@ -36,7 +38,7 @@ pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
         let Some(parsed) = effect::parse_clause(effect_clause, ctx) else {
             return Ok(None);
         };
-        return Ok(Some(render(&event, &parsed)));
+        return Ok(Some(render(ability_word, &event, &parsed)));
     }
     let Some(rest) = line
         .strip_prefix("When ")
@@ -53,21 +55,22 @@ pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
     let Some(parsed) = effect::parse_clause(effect_clause, ctx) else {
         return Ok(None);
     };
-    Ok(Some(render(&event, &parsed)))
+    Ok(Some(render(ability_word, &event, &parsed)))
 }
 
-/// Strip a leading ability-word label ("Landfall — ", "Pack Tactics — ").
-/// Ability words are reminder flavor with no rules weight ([CR#207.2c]); the
-/// label is the Title-Case run before the spaced em-dash, and the ability that
-/// carries weight is whatever follows. Returns the suffix when the line opens
-/// with such a label AND continues with a trigger word ("When"/"Whenever"/"At")
-/// — that follow-on word is the structural signal an ability is underneath,
+/// Split a leading ability-word label ("Landfall — ", "Pack Tactics — ")
+/// off the line. Ability words are reminder flavor with no rules weight
+/// ([CR#207.2c]); the label is the Title-Case run before the spaced
+/// em-dash, and the ability that carries weight is whatever follows.
+/// Returns `(Some(label), suffix)` when the line opens with such a label
+/// AND continues with a trigger word ("When"/"Whenever"/"At") — that
+/// follow-on word is the structural signal an ability is underneath,
 /// keeping a mid-sentence em-dash (a cost em-dash, a "choose one —" header)
-/// from being mistaken for an ability-word break. Otherwise returns the line
-/// unchanged.
-fn strip_ability_word(line: &str) -> &str {
+/// from being mistaken for an ability-word break. Otherwise
+/// `(None, line)`.
+fn split_ability_word(line: &str) -> (Option<&str>, &str) {
     let Some((label, rest)) = line.split_once(" — ") else {
-        return line;
+        return (None, line);
     };
     // A bare label: a short Title-Case run, no sentence punctuation (a real
     // effect clause before the em-dash would carry a comma/period/colon).
@@ -77,7 +80,7 @@ fn strip_ability_word(line: &str) -> &str {
         && !label.contains([',', '.', ':', ';', '"']);
     let trigger_follows =
         rest.starts_with("When ") || rest.starts_with("Whenever ") || rest.starts_with("At ");
-    if bare_label && trigger_follows { rest } else { line }
+    if bare_label && trigger_follows { (Some(label), rest) } else { (None, line) }
 }
 
 /// Wraps an event + [`ParsedEffect`] in the `Triggered` frame, emitting
@@ -89,9 +92,11 @@ fn strip_ability_word(line: &str) -> &str {
 /// here ([CR#608.2d] — the announce-ambiguous shape). The frame wraps the
 /// slot in `As("target", …)` and rewrites the body's slot reads to
 /// `The("target")` — the explicit labeled read, never a guess.
-fn render(event: &str, parsed: &ParsedEffect) -> String {
+fn render(ability_word: Option<&str>, event: &str, parsed: &ParsedEffect) -> String {
+    // [CR#207.2c]: the stripped ability-word label rides as render metadata.
+    let word = ability_word.map_or_else(String::new, |w| format!("ability_word: \"{w}\", "));
     if parsed.targets.is_empty() {
-        format!("Triggered(event: {event}, effect: {})", parsed.effect)
+        format!("Triggered({word}event: {event}, effect: {})", parsed.effect)
     } else {
         let targets: Vec<String> = parsed
             .targets
@@ -99,7 +104,7 @@ fn render(event: &str, parsed: &ParsedEffect) -> String {
             .map(|spec| format!("As(\"target\", {spec})"))
             .collect();
         format!(
-            "Triggered(event: {event}, effect: Targeted(targets: [{}], effect: {}))",
+            "Triggered({word}event: {event}, effect: Targeted(targets: [{}], effect: {}))",
             targets.join(", "),
             label_slot_reads(&parsed.effect),
         )
@@ -569,12 +574,14 @@ mod tests {
     #[test]
     fn landfall_ability_word_stripped_then_pump() {
         // "Landfall — " is a flavor label ([CR#207.2c]); the land-ETB trigger +
-        // self-pump underneath is what parses.
+        // self-pump underneath is what parses, and the label survives as the
+        // emitted ability's `ability_word` render metadata.
         assert_eq!(
             trig("Landfall — Whenever a land you control enters, ~ gets +2/+2 until end of turn.")
                 .as_deref(),
             Some(
-                "Triggered(event: Enters(AllOf([Type(Land), ControlledBy(Ref(You))])), \
+                "Triggered(ability_word: \"Landfall\", \
+                 event: Enters(AllOf([Type(Land), ControlledBy(Ref(You))])), \
                  effect: Continuously(effect: Modify(of: Of(This), \
                  changes: [AddPowerToughness(2, 2)]), duration: FixedUntil(EndOfTurn)))"
             )
@@ -589,7 +596,8 @@ mod tests {
             )
             .as_deref(),
             Some(
-                "Triggered(event: Enters(AllOf([Type(Land), ControlledBy(Ref(You))])), \
+                "Triggered(ability_word: \"Landfall\", \
+                 event: Enters(AllOf([Type(Land), ControlledBy(Ref(You))])), \
                  effect: PutCounters(This, P1P1Counter, 1))"
             )
         );
@@ -615,13 +623,13 @@ mod tests {
         // ability-word label (no trigger word right after) is left intact, so
         // the leading "Choose one —" style header isn't mistaken for a label.
         assert_eq!(
-            super::strip_ability_word("Threshold — Whenever ~ attacks, draw a card."),
-            "Whenever ~ attacks, draw a card."
+            super::split_ability_word("Threshold — Whenever ~ attacks, draw a card."),
+            (Some("Threshold"), "Whenever ~ attacks, draw a card.")
         );
-        // No trigger word after the dash => left whole.
+        // No trigger word after the dash => left whole, no label captured.
         assert_eq!(
-            super::strip_ability_word("Choose one — draw a card."),
-            "Choose one — draw a card."
+            super::split_ability_word("Choose one — draw a card."),
+            (None, "Choose one — draw a card.")
         );
     }
 

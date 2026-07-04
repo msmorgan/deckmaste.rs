@@ -123,7 +123,7 @@ mod tests {
         );
         assert_eq!(
             run("Ward {2}", &idx).as_deref(),
-            Some("Keyword(Ward([Mana([Generic(2)])]))")
+            Some("Keyword(Ward(cost: [Mana([Generic(2)])]))")
         );
     }
 }

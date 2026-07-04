@@ -1,0 +1,23 @@
+// "Unless" — the ENGLISH ORDER over the `MustPay` punisher ([CR#118.12a]):
+// "[effect] unless [who] pays [cost]" is `MustPay { actor: who, cost,
+// or_else: effect }`, exactly. Core keeps only the CR-family `MustPay`
+// node; this macro is the render name the corpus's unless-order spellings
+// (Mana Leak's "counter target spell unless its controller pays {3}",
+// the upkeep-toll "sacrifice ~ unless you pay …") read and write through —
+// the parser's counter/sacrifice emitters keep emitting `Unless(...)`
+// invocations, which expand to `MustPay` at read time.
+//
+// Rendering rides the structural `MustPay` arm (which conjugates the payer
+// verb — "unless you pay" / "unless its controller pays"); the template
+// documents the surface order.
+(
+    name: "Unless",
+    template: "${effect} unless ${who} pays ${unless}",
+    kinds: [Effect],
+    params: { "effect": Effect, "who": Default(Reference, You), "unless": Cost },
+    body: MustPay(
+        actor: Param(who),
+        cost: [Splice(Param(unless))],
+        or_else: Param(effect),
+    ),
+)

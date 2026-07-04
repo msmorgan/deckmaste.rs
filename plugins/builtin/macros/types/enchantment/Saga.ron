@@ -1,0 +1,43 @@
+// Saga ([CR#714]) — the enchantment subtype whose registry row confers the
+// rules OF THE SUBTYPE (as `Innate` / registry properties, never card
+// text):
+//
+//   - ENTERS with a lore counter ([CR#714.3a] — "This Saga enters with a
+//     lore counter on it", a [CR#614.1c] self-replacement): the same
+//     `Also(would: ThisEnters, …)` augment Modular uses. Read-ahead sagas
+//     ([CR#714.3b]) choose their starting chapter instead — a future row.
+//   - The TURN-BASED lore increment ([CR#714.3c] — as a player's precombat
+//     main phase begins, that player puts a lore counter on each Saga they
+//     control; no stack): `TurnBased` fires on the BEARER'S CONTROLLER'S
+//     own precombat main. Engine execution of registry `TurnBased` rows is
+//     stage 3; the chapter triggers themselves execute today.
+//
+// The FINAL-CHAPTER sacrifice SBA ([CR#714.4]) needs the card's own final
+// chapter number ([CR#714.2d] — the greatest threshold among ITS chapter
+// abilities), which a generic registry row cannot name; it is spelled
+// card-side as `Sba(when: Compare(CounterCount(This, LoreCounter),
+// AtLeast, <final>), then: Sacrifice(This))` — the Idris History of
+// Benalia exemplar. Chapters themselves are the `Chapter` ability macro
+// ([CR#714.2b]).
+(
+    name: "Saga",
+    kinds: [Subtype],
+    body: Subtype(
+        name: "Saga",
+        types: [Enchantment],
+        confers: [
+            // [CR#714.3a]: enters with a lore counter.
+            Ability(Innate(Static(effects: [
+                Replacement(Also(
+                    would: ThisEnters,
+                    also: PutCounters(This, LoreCounter, 1),
+                )),
+            ]))),
+            // [CR#714.3c]: the turn-based lore increment.
+            TurnBased(
+                at: PrecombatMain,
+                effect: PutCounters(This, LoreCounter, 1),
+            ),
+        ],
+    ),
+)

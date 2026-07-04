@@ -1383,6 +1383,12 @@ impl<'a> Walker<'a> {
             // context ("if that creature's power…").
             self.scoped("condition", |w| w.condition(condition, &body));
         }
+        if let Some(where_x) = &triggered.where_x {
+            // "where X is …" — the X definition is evaluated when the
+            // ability RESOLVES ([CR#702.21b]), so it reads the same
+            // event-extended context as the effect body.
+            self.scoped("where_x", |w| w.count(where_x, &body));
+        }
         self.scoped("effect", |w| {
             w.effect(&triggered.effect, &body);
         });
@@ -1498,16 +1504,6 @@ impl<'a> Walker<'a> {
                     if let Some(otherwise) = &branch.otherwise {
                         w.effect(otherwise, ctx);
                     }
-                });
-                Intro::default()
-            }
-            Effect::Unless(unless) => {
-                self.scoped("Unless", |w| {
-                    w.reference(&unless.who, ctx, Kind::Player);
-                    for (i, component) in unless.unless.iter().enumerate() {
-                        w.scoped(format!("unless[{i}]"), |w| w.cost_component(component, ctx));
-                    }
-                    w.effect(&unless.effect, ctx);
                 });
                 Intro::default()
             }
@@ -3911,6 +3907,12 @@ impl<'a> Walker<'a> {
             DeonticAction::Activate { what, by } => {
                 self.deed_patient("Activate", what, ctx);
                 agent(self, "Activate", by, ctx);
+            }
+            // "can't be regenerated" ([CR#701.19c]) — agent/patient kinds
+            // from the emitted `Regenerate` scope rows ([CR#701.19]).
+            DeonticAction::Regenerate { by, on } => {
+                agent(self, "Regenerate", by, ctx);
+                self.deed_patient("Regenerate", on, ctx);
             }
             DeonticAction::Expanded(e) => self.deontic_action(&e.value, ctx),
         }

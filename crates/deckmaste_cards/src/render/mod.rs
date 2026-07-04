@@ -108,18 +108,35 @@ fn rules(view: &CardView) -> Vec<String> {
                     targets: &[],
                     that: None,
                 };
-                body.push(effect::effect(&s.effect, &ctx));
+                body.push(with_ability_word(
+                    s.ability_word.as_ref(),
+                    effect::effect(&s.effect, &ctx),
+                ));
             }
-            Ability::Triggered(t) => body.push(ability::triggered(t, view)),
-            Ability::Static(s) => body.extend(ability::static_ability(
-                s,
-                &Ctx {
-                    subject: view.name,
-                    targets: &[],
-                    that: None,
-                },
+            Ability::Triggered(t) => body.push(with_ability_word(
+                t.ability_word.as_ref(),
+                ability::triggered(t, view),
             )),
-            Ability::Activated(a) => body.push(ability::activated(a, view)),
+            Ability::Static(s) => {
+                let mut lines = ability::static_ability(
+                    s,
+                    &Ctx {
+                        subject: view.name,
+                        targets: &[],
+                        that: None,
+                    },
+                );
+                // The printed ability word prefixes the static's (first)
+                // sentence ([CR#207.2c] — "Metalcraft — …").
+                if let Some(first) = lines.first_mut() {
+                    *first = with_ability_word(s.ability_word.as_ref(), std::mem::take(first));
+                }
+                body.extend(lines);
+            }
+            Ability::Activated(a) => body.push(with_ability_word(
+                a.ability_word.as_ref(),
+                ability::activated(a, view),
+            )),
             _ => {} // Mana-only variants beyond Activated: later tasks
         }
     }
@@ -141,6 +158,15 @@ fn rules(view: &CardView) -> Vec<String> {
     }
     out.extend(body);
     out
+}
+
+/// Prefix a rendered ability line with its printed ability word
+/// ([CR#207.2c] — italic render metadata, no rules meaning): "Domain — …".
+fn with_ability_word(word: Option<&deckmaste_core::Ident>, line: String) -> String {
+    match word {
+        Some(w) => format!("{} — {line}", w.as_str()),
+        None => line,
+    }
 }
 
 fn fragment_capitalize(s: &str) -> String {

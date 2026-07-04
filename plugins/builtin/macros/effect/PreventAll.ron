@@ -1,0 +1,15 @@
+// "PreventAll" — the render name over the Prevention class
+// ([CR#615.1,615.3] — Fog-style shields): prevent all damage that would
+// be dealt to [to] this turn, optionally narrowed by a `from` source
+// filter ("all combat damage" narrows there when the damage-class filter
+// lands). A one-shot-created continuous shield lasting until end of turn.
+(
+    name: "PreventAll",
+    template: "prevent all damage that would be dealt to ${to} this turn",
+    kinds: [Effect],
+    params: { "to": Filter, "from": Default(Filter, Any) },
+    body: Continuously(
+        effect: Prevention(PreventAll(from: Param(from), to: Param(to))),
+        duration: FixedUntil(EndOfTurn),
+    ),
+)

@@ -128,12 +128,16 @@ impl GameState {
                     && threshold.satisfied_by(after, |c| self.eval_count(c, frame))
             }
 
-            // [CR#702.33d]: the paid-optional-cost read needs the announce
-            // record (which optional costs were paid) — engine-alt-costs.
-            Condition::PaidCost(tag) => todo!(
-                "engine-alt-costs: PaidCost({tag:?}) needs the [CR#601.2b] optional-cost \
-                 announce record"
-            ),
+            // [CR#702.33d]: "was kicked" — the resolving entry's announced
+            // optional-cost record carries the tag ([CR#601.2b,607.2]; the
+            // record rides the STACK entry, so the read holds while this
+            // object resolves — an ETB "if it was kicked" recheck after the
+            // permanent lands is engine-alt-costs follow-up work).
+            Condition::PaidCost(tag) => self
+                .stack
+                .iter()
+                .find(|e| e.id == frame.source)
+                .is_some_and(|e| e.paid_costs.iter().any(|(t, n)| t == tag && *n > 0)),
 
             // It is the evaluating player's turn — the frame-robust sugar for
             // `TurnOf(Ref(You))` (reads `you` directly, no carrier needed).
@@ -457,6 +461,8 @@ mod tests {
                 name: "Conditional Trigger Artifact".into(),
                 types: vec![Type::Artifact],
                 abilities: vec![Ability::Triggered(TriggeredAbility {
+                    ability_word: None,
+                    where_x: None,
                     from: None,
                     event: EventFilter::OneOf(Vec::new()),
                     condition: Some(Condition::Exists(Filter::Characteristic(
@@ -494,6 +500,7 @@ mod tests {
                     .objects
                     .mint(ObjectSource::Card(card_id), PlayerId(0), Some(Zone::Stack));
             state.stack.push(StackEntry {
+                paid_costs: Vec::new(),
                 id: stack_id,
                 object: StackObject::Triggered {
                     source: ObjectSource::Card(card_id),
@@ -721,6 +728,8 @@ mod tests {
             Some(deckmaste_core::Zone::Stack),
         );
         state.announcing = Some(crate::stack::PendingStackEntry {
+            optional_components: Vec::new(),
+            paid_costs: Vec::new(),
             id: spell,
             object: crate::stack::StackObject::Spell(spell),
             controller: PlayerId(0),

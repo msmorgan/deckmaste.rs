@@ -844,6 +844,7 @@ mod tests {
 
     fn static_ability(effects: Vec<StaticEffect>) -> Ability {
         Ability::Static(StaticAbility {
+            ability_word: None,
             from: None,
             condition: None,
             effects,
@@ -978,6 +979,7 @@ mod tests {
     /// conferred host-restriction shape (Equipment/Fortification subtype rule).
     fn innate_cant_attach(what: Filter, to: Filter) -> Ability {
         Ability::Innate(Box::new(Ability::Static(StaticAbility {
+            ability_word: None,
             from: None,
             condition: None,
             effects: vec![StaticEffect::Deontic(Deontic::Cant(
@@ -1051,6 +1053,7 @@ mod tests {
             "Protected Bear",
             vec![Type::Creature],
             vec![Ability::Static(StaticAbility {
+                ability_word: None,
                 from: None,
                 condition: None,
                 effects: vec![StaticEffect::Deontic(Deontic::Cant(
@@ -1089,6 +1092,7 @@ mod tests {
         use deckmaste_core::ManaSpec;
         use deckmaste_core::PlayerAction;
         Ability::Activated(ActivatedAbility {
+            ability_word: None,
             from: None,
             cost: vec![CostComponent::Tap].into(),
             window: None,
@@ -1108,6 +1112,7 @@ mod tests {
     /// dropped — by the usable list, so it occupies an index slot.
     fn innate_static() -> Ability {
         Ability::Innate(Box::new(Ability::Static(StaticAbility {
+            ability_word: None,
             from: None,
             condition: None,
             effects: vec![StaticEffect::Deontic(Deontic::Cant(
@@ -1197,6 +1202,7 @@ mod tests {
         let enchant_composite = Ability::Keyword(KeywordAbility::Composite {
             name: "Enchant".into(),
             abilities: vec![Ability::Static(StaticAbility {
+                ability_word: None,
                 from: None,
                 condition: None,
                 effects: vec![StaticEffect::Deontic(Deontic::Cant(

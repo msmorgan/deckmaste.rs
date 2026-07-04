@@ -75,7 +75,8 @@ fn renders_must_pay_controller_of_mana_leak() {
 }
 
 /// A dynamic damage amount prints the oracle X-form with its "where X is …"
-/// definition clause — the `where_x` adjunct survives to the render.
+/// definition clause — the `where_x` adjunct survives to the render — and
+/// the `ability_word` metadata prefixes the line ([CR#207.2c]).
 #[test]
 fn renders_domain_count_tribal_flames() {
     let r = render_card_face(&face("Tribal Flames"));
@@ -84,8 +85,8 @@ fn renders_domain_count_tribal_flames() {
     assert_eq!(
         r.rules,
         vec![
-            "Tribal Flames deals X damage to any target, where X is the number of land \
-             types among lands you control."
+            "Domain — Tribal Flames deals X damage to any target, where X is the number \
+             of basic land types among lands you control."
                 .to_string()
         ]
     );
@@ -427,6 +428,7 @@ fn renders_synthesized_lose_life_and_destroy() {
         name: "Test Drain".into(),
         types: vec![Type::Sorcery],
         abilities: vec![Ability::Spell(SpellAbility {
+            ability_word: None,
             effect: Effect::Act(Action::By(
                 Reference::You,
                 PlayerAction::LoseLife(Count::Literal(3)),
@@ -444,6 +446,7 @@ fn renders_synthesized_lose_life_and_destroy() {
         name: "Test Smite".into(),
         types: vec![Type::Sorcery],
         abilities: vec![Ability::Spell(SpellAbility {
+            ability_word: None,
             effect: Effect::Targeted(deckmaste_core::Targeted::new(
                 vec![TargetSpec::Target(Quantity::one(), Filter::creature())],
                 Effect::Act(Action::Destroy(Reference::It)),
@@ -473,6 +476,7 @@ fn renders_named_predefined_token() {
         name: "Test Hoard".into(),
         types: vec![Type::Sorcery],
         abilities: vec![Ability::Spell(deckmaste_core::SpellAbility {
+            ability_word: None,
             effect: Effect::Act(Action::By(
                 Reference::You,
                 PlayerAction::Create(
@@ -493,6 +497,7 @@ fn renders_named_predefined_token() {
         name: "Test Feast".into(),
         types: vec![Type::Sorcery],
         abilities: vec![Ability::Spell(deckmaste_core::SpellAbility {
+            ability_word: None,
             effect: Effect::Act(Action::By(
                 Reference::You,
                 PlayerAction::Create(
@@ -576,6 +581,7 @@ fn renders_scope_of_singular() {
         name: "Test Aura".into(),
         types: vec![Type::Enchantment],
         abilities: vec![Ability::Static(StaticAbility {
+            ability_word: None,
             from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {
@@ -611,6 +617,7 @@ fn renders_aura_host_pump() {
         name: "Test Buff Aura".into(),
         types: vec![Type::Enchantment],
         abilities: vec![Ability::Static(StaticAbility {
+            ability_word: None,
             from: None,
             condition: None,
             effects: vec![StaticEffect::Modify {
@@ -657,6 +664,7 @@ fn renders_continuously_pump_until_eot() {
         name: "Test Pump".into(),
         types: vec![Type::Instant],
         abilities: vec![Ability::Spell(SpellAbility {
+            ability_word: None,
             effect: Effect::Targeted(deckmaste_core::Targeted::new(
                 vec![TargetSpec::Target(Quantity::one(), Filter::creature())],
                 Effect::Continuously(Continuously {
@@ -710,6 +718,7 @@ fn renders_create_one_token() {
         name: "Test Maker".into(),
         types: vec![Type::Sorcery],
         abilities: vec![Ability::Spell(SpellAbility {
+            ability_word: None,
             effect: Effect::Act(Action::By(
                 Reference::You,
                 PlayerAction::Create(Count::Literal(1), TokenSpec::Token(token), vec![]),
@@ -752,6 +761,7 @@ fn renders_create_two_tokens() {
         name: "Test Muster".into(),
         types: vec![Type::Sorcery],
         abilities: vec![Ability::Spell(SpellAbility {
+            ability_word: None,
             effect: Effect::Act(Action::By(
                 Reference::You,
                 PlayerAction::Create(Count::Literal(2), TokenSpec::Token(token), vec![]),
@@ -809,6 +819,7 @@ fn renders_get_designation() {
         name: "Test Ascend".into(),
         types: vec![Type::Sorcery],
         abilities: vec![Ability::Spell(SpellAbility {
+            ability_word: None,
             effect: Effect::Act(Action::By(
                 Reference::You,
                 PlayerAction::GetDesignation(Ident::from("CitysBlessing")),
@@ -842,6 +853,7 @@ fn renders_graveyard_static_from_zone() {
         name: "Test Incarnation".into(),
         types: vec![Type::Creature],
         abilities: vec![Ability::Static(StaticAbility {
+            ability_word: None,
             from: Some(Zone::Graveyard),
             condition: None,
             effects: vec![StaticEffect::Modify {
@@ -890,6 +902,8 @@ fn renders_trigger_with_turnof_intervening_if() {
         name: "Vigil Keeper".into(),
         types: vec![Type::Creature],
         abilities: vec![Ability::Triggered(TriggeredAbility {
+            ability_word: None,
+            where_x: None,
             event: EventFilter::ZoneChange {
                 what: Filter::type_(Type::Creature),
                 from: Some(Zone::Battlefield),

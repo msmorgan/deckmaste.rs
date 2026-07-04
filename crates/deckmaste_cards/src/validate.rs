@@ -438,6 +438,7 @@ mod tests {
             types: vec![Type::Artifact],
             subtypes: vec![],
             abilities: vec![Ability::Activated(ActivatedAbility {
+                ability_word: None,
                 from: None,
                 window: None,
                 cost: vec![CostComponent::do_(PlayerAction::Draw(Count::Literal(1)))].into(),
@@ -467,6 +468,7 @@ mod tests {
             types: vec![Type::Artifact],
             subtypes: vec![],
             abilities: vec![Ability::Activated(ActivatedAbility {
+                ability_word: None,
                 from: None,
                 window: None,
                 cost: vec![
@@ -497,6 +499,7 @@ mod tests {
             types: vec![Type::Artifact],
             subtypes: vec![],
             abilities: vec![Ability::Activated(ActivatedAbility {
+                ability_word: None,
                 from: None,
                 window: None,
                 cost: vec![CostComponent::Expanded(Expansion {
@@ -528,6 +531,7 @@ mod tests {
             types: vec![Type::Artifact],
             subtypes: vec![],
             abilities: vec![Ability::Static(StaticAbility {
+                ability_word: None,
                 from: None,
                 condition: None,
                 effects: vec![StaticEffect::Deontic(Deontic::Cant(

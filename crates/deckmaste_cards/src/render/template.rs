@@ -76,10 +76,11 @@ fn split_modifier(spec: &str) -> (&str, Option<&str>) {
 /// - none — the ordinary [`render_arg`] rendering.
 /// - `+` — sign-aware: a numeric arg renders with an explicit leading sign
 ///   (`+1` / `-1`), the P/T-pump shape. A non-numeric arg declines (`None`).
-/// - `sing|plur` — plural-aware: a numeric arg renders as `<n> <word>`, the
-///   word `sing` when `n == 1` else `plur` ("1 card" / "3 cards"). A dynamic
-///   (non-literal) arg renders `<arg> <plur>` (the natural plural reading of a
-///   variable count).
+/// - `sing|plur` — plural-aware: a numeric arg renders oracle-style — the word
+///   `sing` with the indefinite article when `n == 1` else `plur` with the
+///   count as a number word ("a card" / "three cards"). A dynamic (non-literal)
+///   arg renders `<arg> <plur>` (the natural plural reading of a variable
+///   count).
 fn render_slot(raw: &str, modifier: Option<&str>) -> Option<String> {
     let Some(modifier) = modifier else {
         return render_arg(raw);
@@ -91,8 +92,16 @@ fn render_slot(raw: &str, modifier: Option<&str>) -> Option<String> {
     }
     if let Some((sing, plur)) = modifier.split_once('|') {
         return Some(match t.parse::<i64>() {
-            Ok(1) => format!("1 {sing}"),
-            Ok(n) => format!("{n} {plur}"),
+            // Object counts print oracle-style words: "a card",
+            // "three cards"; large literals keep digits.
+            Ok(1) => format!("a {sing}"),
+            Ok(n) => {
+                let n_word = u32::try_from(n)
+                    .ok()
+                    .and_then(super::fragment::number_word)
+                    .map_or_else(|| n.to_string(), str::to_owned);
+                format!("{n_word} {plur}")
+            }
             // A dynamic count (`X`, `CountOf(...)`) reads plural — rendered
             // through the shared count fragment, declining if it isn't a count.
             Err(_) => {
@@ -143,6 +152,14 @@ fn render_arg(raw: &str) -> Option<String> {
         deckmaste_core::ron::options().from_str::<Vec<deckmaste_core::CostComponent>>(t)
     {
         return render_cost(&cost);
+    }
+    // A Count arg (ward-{X}'s `where_x`, quantity slots): the shared count
+    // fragment, declining when it has no clean phrase.
+    if let Ok(count) = deckmaste_core::ron::options().from_str::<deckmaste_core::Count>(t) {
+        let phrase = super::fragment::count(&count);
+        if !phrase.contains("[unrendered") {
+            return Some(phrase);
+        }
     }
     None
 }
@@ -405,19 +422,19 @@ mod tests {
         );
         assert_eq!(neg.as_deref(), Some("gets -1/-1"));
 
-        // Plural word agrees with the count: "1 card" vs "3 cards".
+        // Plural word agrees with the count: "a card" vs "three cards".
         let one = fill(
             "mills ${n:card|cards}",
             "you",
             &ExpansionArgs::Named(vec![("n".into(), "1".into())]),
         );
-        assert_eq!(one.as_deref(), Some("mills 1 card"));
+        assert_eq!(one.as_deref(), Some("mills a card"));
         let many = fill(
             "mills ${n:card|cards}",
             "you",
             &ExpansionArgs::Named(vec![("n".into(), "3".into())]),
         );
-        assert_eq!(many.as_deref(), Some("mills 3 cards"));
+        assert_eq!(many.as_deref(), Some("mills three cards"));
     }
 
     /// A codec that can't render cleanly declines (`None`) so the caller falls
