@@ -346,14 +346,13 @@ laneTable =
 
 -- One row: an `EventFilter` ATOM (a master-form key, a `Form:field`
 -- refinement, an algebra node, or a `Lookback:*` history window) and
--- whether each bridge matcher evaluates it FAITHFULLY today. An atom a
--- lane's matcher does not support is load-REJECTED (`E-BRIDGE-CAP`), never
--- silently mis-matched; the one-evaluator rebase ([[engine-one-evaluator]])
--- lifts the caps by replacing the matchers, not by editing card data.
--- Support values are ENGINE capability facts (which arms exist in
--- `trigger.rs` / `replace_registry.rs` / `history.rs`) — hand-maintained
--- here like the checker-rule manifest, pinned by the engine's
--- bridge-agreement test.
+-- whether the ONE evaluator ([[engine-one-evaluator]], the engine's
+-- `eval.rs`) evaluates it FAITHFULLY in each lane class. An unsupported
+-- atom is load-REJECTED (`E-BRIDGE-CAP`), never silently mis-matched.
+-- Every remaining False is a DELIBERATE cap with its reason inline (a
+-- missing fact shape, a CR-grounded granularity, a family owned by
+-- another subsystem); support values stay ENGINE capability facts,
+-- pinned by the engine's bridge-agreement tests.
 bridgeRow : (atom : String) -> (live : Bool) -> (would : Bool)
          -> (history : Bool) -> (cite : String) -> String
 bridgeRow atom live would history cite =
@@ -365,69 +364,95 @@ bridgeRow atom live would history cite =
 
 bridgeRows : List String
 bridgeRows =
-  [ -- master forms. The would-matcher lowers only the three intent shapes
-    -- the engine emits (`intent_event`): zone moves, damage, life gain.
+  [ -- master forms. The one evaluator (engine-one-evaluator) serves every
+    -- lane; a False would-column marks a kind the replacement pipeline does
+    -- not intercept as an intent (`replace_registry::replaceable`) — those
+    -- caps are DELIBERATE, each with its reason below.
     bridgeRow "ZoneChange" True True True "[CR#603.6]"
   , bridgeRow "Damage" True True True "[CR#120.1]"
   , bridgeRow "LifeGained" True True True "[CR#119.3]"
-  , bridgeRow "LifeLost" True False True "[CR#119.3]"
-  , bridgeRow "Drawn" True False True "[CR#121.1]"
-  , bridgeRow "CounterPlaced" True False True "[CR#122.1]"
-  , bridgeRow "CounterRemoved" True False True "[CR#122.1]"
-  , bridgeRow "Cast" True False True "[CR#601.2i]"
-  , bridgeRow "Played" True False True "[CR#701.18a]"
-  , bridgeRow "ActivatedAb" True False True "[CR#602.2a]"
+  , bridgeRow "LifeLost" True True True "[CR#119.3]"
+  , bridgeRow "Drawn" True True True "[CR#121.1]"
+  , bridgeRow "CounterPlaced" True True True "[CR#122.1]"
+  , bridgeRow "CounterRemoved" True True True "[CR#122.1]"
+  , bridgeRow "Cast" True True True "[CR#601.2i]"
+  , bridgeRow "Played" True True True "[CR#701.18a]"
+  , bridgeRow "ActivatedAb" True True True "[CR#602.2a]"
+    -- attack/block prevention rides the Cant statics, not the replacement
+    -- pipe (declare-time legality, no would-intent stage)
   , bridgeRow "AttackDeclared" True False True "[CR#508.1k]"
   , bridgeRow "BlockDeclared" True False True "[CR#509.3a]"
+    -- the Attached fact follows the already-performed relation mutation
   , bridgeRow "Attached" True False True "[CR#701.3a]"
+    -- tap/untap prevention rides the Cant/Skip families, not the pipe
   , bridgeRow "StateBecame:Tapped" True False True "[CR#603.2e]"
   , bridgeRow "StateBecame:Untapped" True False True "[CR#603.2e]"
     -- phasing / turn-face have no fact shapes yet (P0.W6)
   , bridgeRow "StateBecame:Phased" False False False "[CR#702.26b]"
   , bridgeRow "StateBecame:TurnedFace" False False False "[CR#708]"
+    -- targeting is announce-time legality, never a replaceable event
   , bridgeRow "BecomesTarget" True False True "[CR#601.2c]"
-    -- step onsets are read off TurnState, never recorded to history
-  , bridgeRow "StepBegins" True False False "[CR#603.2b]"
+    -- step onsets are recorded (active player on the view); skipping a
+    -- step is the Skip elision pass, not a would-replacement
+  , bridgeRow "StepBegins" True False True "[CR#603.2b]"
+    -- no control-change emitter yet; prevention is Cant-static territory
   , bridgeRow "ControlChanged" True False True "[CR#613.1b]"
-  , bridgeRow "DesignationChanged" True False True "[CR#109.3]"
-  , bridgeRow "TokenCreated" True False True "[CR#701.7a]"
+  , bridgeRow "DesignationChanged" True True True "[CR#109.3]"
+  , bridgeRow "TokenCreated" True True True "[CR#701.7a]"
+    -- AbilityUsed is recorded directly to history, never routed as an
+    -- interceptable intent
   , bridgeRow "Used" True False True "[CR#608.2i]"
+    -- coin/die facts carry an already-decided outcome — no would stage
   , bridgeRow "CoinFlipped" True False True "[CR#705.1]"
   , bridgeRow "DiceRolled" True False True "[CR#706.1]"
-  , bridgeRow "BecameDay" True False True "[CR#731.1]"
-  , bridgeRow "BecameNight" True False True "[CR#731.1]"
+  , bridgeRow "BecameDay" True True True "[CR#731.1]"
+  , bridgeRow "BecameNight" True True True "[CR#731.1]"
     -- refinement atoms (checked only when the field is present / non-default)
   , bridgeRow "Damage:combat" True True True "[CR#510.1]"
-  , bridgeRow "Damage:amount" True False True "[CR#120.1]"
-  , bridgeRow "LifeGained:amount" True False True "[CR#119.3]"
-  , bridgeRow "LifeLost:amount" True False True "[CR#119.3]"
+  , bridgeRow "Damage:amount" True True True "[CR#120.1]"
+  , bridgeRow "LifeGained:amount" True True True "[CR#119.3]"
+  , bridgeRow "LifeLost:amount" True True True "[CR#119.3]"
+    -- KEPT: cards are drawn one at a time ([CR#121.2]) — a multi-draw is N
+    -- facts, so a per-fact amount bound has nothing to compare against
   , bridgeRow "Drawn:amount" False False False "[CR#121.1]"
-  , bridgeRow "CounterPlaced:amount" True False True "[CR#122.1]"
-  , bridgeRow "CounterRemoved:amount" True False True "[CR#122.1]"
+  , bridgeRow "CounterPlaced:amount" True True True "[CR#122.1]"
+  , bridgeRow "CounterRemoved:amount" True True True "[CR#122.1]"
+    -- KEPT: the fact carries the token SPEC — pre-mint spec matching needs
+    -- a spec-side filter evaluator (design-gated)
   , bridgeRow "TokenCreated:what" False False False "[CR#701.7a]"
+    -- KEPT: the hexproof-from source arm has no fact-record coordinate
   , bridgeRow "BecomesTarget:source" False False False "[CR#702.11d,702.16b]"
+    -- KEPT: flip-WIN is call-relative; the fact records only heads
   , bridgeRow "CoinFlipped:won" False False False "[CR#705.2]"
-    -- the would-matcher's lifted cause carries no agent
-  , bridgeRow "Cause:agent" True False True "[CR#603.2]"
-    -- `Used` resolves object identity through the watcher — only the
-    -- self-scoped `of: This` is resolvable outside a frame ([CR#400.7])
-  , bridgeRow "Used:of" False False False "[CR#608.2i]"
-    -- `Filter::Where` under a snapshot-evaluated participant slot
-    -- (`ZoneChange.what` / `Played.what` — the moved object is gone); the
-    -- would-matcher evaluates the same slot LIVE (the intent's object)
-  , bridgeRow "Where-in-snapshot" False True False "[CR#603.10a]"
+    -- would-facts keep the raw engine cause triple — agent included
+  , bridgeRow "Cause:agent" True True True "[CR#603.2]"
+    -- `of` resolves through the consumer's frame (bound references are
+    -- E-BIND-guarded); frameless lanes still reach the self-scoped `This`
+    -- through the watcher. Would-lane stays False with `Used` above.
+  , bridgeRow "Used:of" True False True "[CR#608.2i]"
+    -- `Filter::Where` under a snapshot-evaluated participant slot: the
+    -- snapshot matcher binds the candidate as `It` and evaluates the
+    -- condition ([CR#603.10a])
+  , bridgeRow "Where-in-snapshot" True True True "[CR#603.10a]"
     -- algebra nodes
   , bridgeRow "AllOf" True True True "[CR#603.2]"
   , bridgeRow "OneOf" True True True "[CR#603.2c]"
-  , bridgeRow "Not" False False False "[CR#603.2]"
-  , bridgeRow "Nth" False False False "[CR#603.2g]"
-  , bridgeRow "When" False False False "[CR#603.4]"
-  , bridgeRow "Within" False False False "[CR#608.2i]"
+  , bridgeRow "Not" True True True "[CR#603.2]"
+  , bridgeRow "Nth" True True True "[CR#603.2g]"
+    -- When's condition is evaluated as the event occurs; a HISTORY read
+    -- cannot reconstruct the as-it-occurred state ([CR#603.4]) — kept
+  , bridgeRow "When" True True False "[CR#603.4]"
+    -- Within is the history-window refinement; in live/would lanes it is
+    -- vacuous BY DESIGN and stays refused (mirrors the lane table)
+  , bridgeRow "Within" False False True "[CR#608.2i]"
   , bridgeRow "OneOrMore" True True False "[CR#603.2c]"
-    -- history windows (`Happened`/`EventCount`/`EventSum` lookbacks): the
-    -- log is turn-tagged; sub-turn markers are unrecorded
-  , bridgeRow "Lookback:ThisTurn" False False True "[CR#608.2i]"
-  , bridgeRow "Lookback:ThisGame" False False True "[CR#608.2i]"
+    -- history windows: open windows feed live-lane Nth ordinals too; a
+    -- CLOSED past window (LastTurn) can never contain a current occurrence
+    -- and stays live/would-refused; sub-turn markers are recorded
+    -- (StepBegan) but no window derivation consumes them yet
+    -- (engine-history-windows)
+  , bridgeRow "Lookback:ThisTurn" True True True "[CR#608.2i]"
+  , bridgeRow "Lookback:ThisGame" True True True "[CR#608.2i]"
   , bridgeRow "Lookback:LastTurn" False False True "[CR#608.2i]"
   , bridgeRow "Lookback:ThisCombat" False False False "[CR#506.1]"
   , bridgeRow "Lookback:ThisStep" False False False "[CR#500.1]"

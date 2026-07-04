@@ -947,6 +947,78 @@ mod tests {
         assert!(cant_event(&state, &e));
     }
 
+    /// The `Cause:agent` lift in would lanes ([CR#603.2]): would-facts keep
+    /// the raw engine cause triple, so an agent-narrowed pattern evaluates
+    /// against the LIVE causing object — and an agentless cause (a
+    /// turn-based/state-based action) still fails it.
+    #[test]
+    fn would_cause_agent_narrows_by_the_live_agent() {
+        let (state, _view, id) = super::tests_support::lone_creature();
+        let would = EventFilter::ZoneChange {
+            what: Filter::Any,
+            from: None,
+            to: None,
+            cause: Some(deckmaste_core::Cause::Cause(deckmaste_core::CausePattern {
+                verb: None,
+                agency: None,
+                agent: Some(Filter::creature()),
+            })),
+        };
+        let intent = |agent| GameEvent::WillDestroy {
+            object: id,
+            cause: Some(crate::event::Cause::destroy(
+                deckmaste_core::Agency::EffectInstruction,
+                agent,
+            )),
+        };
+        assert!(
+            replacement_watches(&state, &would, id, &intent(Some((id, crate::player::PlayerId(0))))),
+            "a creature agent satisfies the agent narrow"
+        );
+        assert!(
+            !replacement_watches(&state, &would, id, &intent(None)),
+            "an agentless cause fails an agent-narrowed pattern"
+        );
+    }
+
+    /// The non-intent-master-form lift in would lanes ([CR#601.2i,614]): a
+    /// `CantHappen(Cast(who: Ref(You)))` static suppresses its controller's
+    /// own cast intent and leaves an opponent's alone.
+    #[test]
+    fn cant_happen_cast_suppresses_matching_casts() {
+        let (mut state, _watcher) = super::tests_support::creature_with_static(
+            deckmaste_core::StaticEffect::CantHappen(EventFilter::Cast {
+                who: Filter::Ref(Reference::You),
+                what: Filter::Any,
+            }),
+        );
+        // A spell object per caster (the fact record's actor is its
+        // controller).
+        let mut spell = |controller: crate::player::PlayerId| {
+            let card = std::sync::Arc::new(deckmaste_core::Card::Normal(
+                deckmaste_core::CardFace {
+                    name: "Test Spell".into(),
+                    types: vec![deckmaste_core::Type::Sorcery],
+                    ..deckmaste_core::CardFace::default()
+                },
+            ));
+            let cid = state.cards.push(card, controller);
+            state
+                .objects
+                .mint(ObjectSource::Card(cid), controller, Some(Zone::Stack))
+        };
+        let own = spell(crate::player::PlayerId(0));
+        let opponents = spell(crate::player::PlayerId(1));
+        assert!(
+            cant_event(&state, &GameEvent::SpellCast(own)),
+            "the controller's own cast can't happen"
+        );
+        assert!(
+            !cant_event(&state, &GameEvent::SpellCast(opponents)),
+            "an opponent's cast is not watched by Ref(You)"
+        );
+    }
+
     /// A creature with a static umbra-style `Instead` on itself, plus a
     /// floating shield on it → both gathered for its `WillDestroy`.
     #[test]
@@ -1173,17 +1245,27 @@ mod tests {
             object: id,
             cause: None,
         };
+        let at_least = |n| {
+            Some(deckmaste_core::CountBound::AtLeast(
+                deckmaste_core::Count::Literal(n),
+            ))
+        };
+        let p0 = crate::player::PlayerId(0);
+        #[expect(
+            clippy::too_many_lines,
+            reason = "one representative would/intent pair per would-supported bridge atom"
+        )]
         let pair = |atom: &str| -> Option<(EventFilter, GameEvent)> {
             Some(match atom {
                 "ZoneChange" => (dies_would(), destroy_intent()),
-                "Damage" | "Damage:combat" => (
+                "Damage" | "Damage:combat" | "Damage:amount" => (
                     EventFilter::Damage {
                         source: Filter::Any,
                         to: Filter::Any,
                         // The combat narrow reads the intent's carried flag
-                        // ([CR#510.1]).
+                        // ([CR#510.1]); the amount bound its carried amount.
                         combat: (atom == "Damage:combat").then_some(false),
-                        amount: None,
+                        amount: if atom == "Damage:amount" { at_least(2) } else { None },
                     },
                     GameEvent::DamageDealt {
                         source: id,
@@ -1192,14 +1274,162 @@ mod tests {
                         combat: false,
                     },
                 ),
-                "LifeGained" => (
+                "LifeGained" | "LifeGained:amount" => (
                     EventFilter::LifeGained {
+                        who: Filter::Any,
+                        amount: if atom == "LifeGained" { None } else { at_least(3) },
+                    },
+                    GameEvent::LifeGained {
+                        player: p0,
+                        amount: 3,
+                    },
+                ),
+                "LifeLost" | "LifeLost:amount" => (
+                    EventFilter::LifeLost {
+                        who: Filter::Any,
+                        amount: if atom == "LifeLost" { None } else { at_least(3) },
+                    },
+                    GameEvent::LifeLost {
+                        player: p0,
+                        amount: 3,
+                    },
+                ),
+                "Drawn" => (
+                    EventFilter::Drawn {
                         who: Filter::Any,
                         amount: None,
                     },
-                    GameEvent::LifeGained {
-                        player: crate::player::PlayerId(0),
-                        amount: 3,
+                    GameEvent::WillDraw {
+                        player: p0,
+                        source: None,
+                    },
+                ),
+                "CounterPlaced" | "CounterPlaced:amount" => (
+                    EventFilter::CounterPlaced {
+                        kind: None,
+                        on: Filter::Any,
+                        amount: if atom == "CounterPlaced" { None } else { at_least(2) },
+                    },
+                    GameEvent::CounterPlaced {
+                        object: id,
+                        kind: "P1P1Counter".into(),
+                        amount: 2,
+                        before: 0,
+                        after: 0,
+                        cause: None,
+                    },
+                ),
+                "CounterRemoved" | "CounterRemoved:amount" => (
+                    EventFilter::CounterRemoved {
+                        kind: None,
+                        on: Filter::Any,
+                        amount: if atom == "CounterRemoved" { None } else { at_least(2) },
+                    },
+                    GameEvent::CounterRemoved {
+                        object: id,
+                        kind: "P1P1Counter".into(),
+                        amount: 2,
+                        cause: None,
+                    },
+                ),
+                // Non-intent master forms in would lanes: every intercepted
+                // event presents its fact record ([CR#614]).
+                "Cast" => (
+                    EventFilter::Cast {
+                        who: Filter::Any,
+                        what: Filter::Any,
+                    },
+                    GameEvent::SpellCast(id),
+                ),
+                "Played" => (
+                    EventFilter::Played {
+                        who: Filter::Any,
+                        what: Filter::Any,
+                    },
+                    GameEvent::ZoneWillChange {
+                        object: id,
+                        from: Some(Zone::Hand),
+                        to: Zone::Battlefield,
+                        enters: None,
+                        position: None,
+                        face: None,
+                        cause: Some(crate::event::Cause::play(
+                            deckmaste_core::Agency::SpecialAction,
+                            None,
+                        )),
+                    },
+                ),
+                "ActivatedAb" => (
+                    EventFilter::ActivatedAb {
+                        who: Filter::Any,
+                        what: Filter::Any,
+                    },
+                    GameEvent::AbilityActivated {
+                        source: id,
+                        ability: 0,
+                    },
+                ),
+                "DesignationChanged" => (
+                    EventFilter::DesignationChanged {
+                        name: "Monarch".into(),
+                        of: Filter::Any,
+                    },
+                    GameEvent::GotDesignation {
+                        player: p0,
+                        name: "Monarch".into(),
+                    },
+                ),
+                "TokenCreated" => (
+                    EventFilter::TokenCreated {
+                        what: Filter::Any,
+                        by: Filter::Any,
+                    },
+                    GameEvent::TokenCreated {
+                        player: p0,
+                        token: deckmaste_core::Token {
+                            color_indicator: vec![],
+                            supertypes: vec![],
+                            types: vec![deckmaste_core::Type::Artifact],
+                            subtypes: vec![],
+                            abilities: vec![],
+                            power: None,
+                            toughness: None,
+                        },
+                    },
+                ),
+                "BecameDay" => (
+                    EventFilter::BecameDay,
+                    GameEvent::DesignationChanged {
+                        name: "DayNight".into(),
+                        becomes: Some("Day".into()),
+                    },
+                ),
+                "BecameNight" => (
+                    EventFilter::BecameNight,
+                    GameEvent::DesignationChanged {
+                        name: "DayNight".into(),
+                        becomes: Some("Night".into()),
+                    },
+                ),
+                // The `Cause:agent` lift: would-facts keep the raw engine
+                // cause triple, agent included ([CR#603.2]).
+                "Cause:agent" => (
+                    EventFilter::ZoneChange {
+                        what: Filter::Any,
+                        from: None,
+                        to: None,
+                        cause: Some(deckmaste_core::Cause::Cause(deckmaste_core::CausePattern {
+                            verb: None,
+                            agency: None,
+                            agent: Some(Filter::creature()),
+                        })),
+                    },
+                    GameEvent::WillDestroy {
+                        object: id,
+                        cause: Some(crate::event::Cause::destroy(
+                            deckmaste_core::Agency::EffectInstruction,
+                            Some((id, p0)),
+                        )),
                     },
                 ),
                 // `Filter::Where` runs LIVE in the would lane — the intent's
@@ -1215,6 +1445,41 @@ mod tests {
                 ),
                 "AllOf" => (EventFilter::AllOf(vec![dies_would()]), destroy_intent()),
                 "OneOf" => (EventFilter::OneOf(vec![dies_would()]), destroy_intent()),
+                "Not" => (
+                    // The complement refinement ([CR#603.2]): a destroy
+                    // intent is not a play-entry.
+                    EventFilter::Not(Box::new(EventFilter::ZoneChange {
+                        what: Filter::Any,
+                        from: None,
+                        to: Some(Zone::Battlefield),
+                        cause: None,
+                    })),
+                    destroy_intent(),
+                ),
+                // The would-fact has not occurred yet, so the ordinal counts
+                // it one past its recorded predecessors ([CR#603.2g]) — an
+                // empty log makes this the first.
+                "Nth" | "Lookback:ThisTurn" | "Lookback:ThisGame" => (
+                    EventFilter::Nth {
+                        n: 1,
+                        of: Box::new(dies_would()),
+                        within: if atom == "Lookback:ThisGame" {
+                            deckmaste_core::Lookback::ThisGame
+                        } else {
+                            deckmaste_core::Lookback::ThisTurn
+                        },
+                    },
+                    destroy_intent(),
+                ),
+                // The condition evaluates as the would-event occurs
+                // ([CR#603.4]), in a frame anchored on the watcher.
+                "When" => (
+                    EventFilter::When(
+                        Box::new(dies_would()),
+                        Box::new(deckmaste_core::Condition::YourTurn),
+                    ),
+                    destroy_intent(),
+                ),
                 "OneOrMore" => (
                     EventFilter::OneOrMore(Box::new(dies_would())),
                     destroy_intent(),

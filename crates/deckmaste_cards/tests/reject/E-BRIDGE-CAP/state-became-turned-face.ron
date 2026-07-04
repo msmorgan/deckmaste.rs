@@ -1,5 +1,6 @@
-// Turn-face deltas ([CR#708]) have no fact shape yet (P0.W6): load-capped
-// until engine-one-evaluator.
+// Turn-face deltas ([CR#708]) have no fact shape yet (P0.W6). KEPT cap
+// under engine-one-evaluator: nothing emits the transition, so a pattern
+// watching it could only silently never fire.
 Normal(
   name: "Reject Bridge Turned Face",
   types: [Enchantment],

@@ -3489,8 +3489,14 @@ impl<'a> Walker<'a> {
                 }
                 self.event_node(inner, ctx, lane);
             }
-            EventFilter::Nth { n, of, within: _ } => {
+            EventFilter::Nth { n, of, within } => {
                 self.bridge_gate("Nth", lane);
+                // The ordinal's counting WINDOW is a history read from any
+                // lane ([CR#603.2g,608.2i]) — gate it like the head
+                // lookbacks: sub-turn windows (and, in live lanes, closed
+                // past windows a current occurrence can never fall in) are
+                // capped.
+                self.bridge_gate(lookback_atom(*within), lane);
                 if !self.tables.lane(lane.key()).nth {
                     self.err(
                         Code::LaneBatch,

@@ -1,0 +1,18 @@
+// Formerly reject/E-BRIDGE-CAP/not-refinement.ron: `Not` was beyond the
+// bridge matchers. engine-one-evaluator evaluates it as the complement
+// refinement ([CR#603.2] — never an anchor: the conjunction stays anchored
+// through its `Enters` conjunct), so the row lifted and the fixture flipped
+// to the admitted side.
+Normal(
+  name: "Accept Bridge Not",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: AllOf([
+        Enters(Creature),
+        Not(ZoneChange(what: Any, to: Battlefield, cause: Cause(verb: Play))),
+      ]),
+      effect: GainLife(1),
+    ),
+  ],
+)

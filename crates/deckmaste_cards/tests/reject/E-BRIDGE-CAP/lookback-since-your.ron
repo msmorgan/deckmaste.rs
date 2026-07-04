@@ -1,6 +1,7 @@
-// The `SinceYourLastUpkeep` family ([CR#603.2b,608.2i]) needs step markers
-// the turn-tagged log doesn't record: load-capped until
-// engine-one-evaluator.
+// The `SinceYourLastUpkeep` family ([CR#603.2b,608.2i]) needs a
+// watcher-relative window derivation over the recorded step markers. KEPT
+// cap under engine-one-evaluator (engine-history-windows): `StepBegan`
+// facts are in the log now, but no window derivation consumes them yet.
 Normal(
   name: "Reject Bridge Since Your",
   types: [Enchantment],
@@ -8,7 +9,7 @@ Normal(
     Triggered(
       event: ThisEnters,
       condition: Happened(
-        event: LifeGained(who: Ref(You)),
+        event: Used(of: This),
         within: SinceYour(Beginning(Upkeep)),
       ),
       effect: GainLife(1),

@@ -1,0 +1,20 @@
+// Formerly reject/E-BRIDGE-CAP/where-in-snapshot.ron: `Filter::Where` on
+// the spine of a snapshot-evaluated slot (`ZoneChange.what` — the moved
+// object is matched by LKI, [CR#603.10a]) was load-capped.
+// engine-one-evaluator's snapshot matcher binds the gone candidate as `It`
+// and evaluates the condition, so the row lifted and the fixture flipped
+// to the admitted side.
+Normal(
+  name: "Accept Bridge Where Snapshot",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: ZoneChange(
+        what: AllOf([Type(Creature), Where(YourTurn)]),
+        from: Battlefield,
+        to: Graveyard,
+      ),
+      effect: GainLife(1),
+    ),
+  ],
+)

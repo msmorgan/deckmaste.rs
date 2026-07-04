@@ -1,5 +1,6 @@
 // Flip-WIN is call-relative ([CR#705.2]); the fact records only the
-// physical outcome: load-capped until engine-one-evaluator.
+// physical outcome. KEPT cap under engine-one-evaluator: lifting needs the
+// call (or the winner) on the flip fact.
 Normal(
   name: "Reject Bridge Flip Won",
   types: [Enchantment],

@@ -1,6 +1,7 @@
-// Sub-turn history windows need combat/step markers the turn-tagged log
-// doesn't record ([CR#506.1,608.2i]): load-capped until
-// engine-one-evaluator.
+// Sub-turn history windows ([CR#506.1,608.2i]) need a window derivation
+// over the recorded step markers. KEPT cap under engine-one-evaluator
+// (engine-history-windows): `StepBegan` facts are in the log now, but no
+// window derivation consumes them yet.
 Normal(
   name: "Reject Bridge This Combat",
   types: [Enchantment],

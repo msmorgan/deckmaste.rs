@@ -922,20 +922,28 @@ mod tests {
         assert!(t.bridge_supports("ZoneChange", Matcher::Live));
         assert!(t.bridge_supports("ZoneChange", Matcher::Would));
         assert!(
-            !t.bridge_supports("Not", Matcher::Live)
-                && !t.bridge_supports("Nth", Matcher::Live)
-                && !t.bridge_supports("When", Matcher::Live)
-                && !t.bridge_supports("Within", Matcher::History),
-            "the algebra caps hold until engine-one-evaluator"
+            t.bridge_supports("Not", Matcher::Live)
+                && t.bridge_supports("Nth", Matcher::Live)
+                && t.bridge_supports("When", Matcher::Live)
+                && t.bridge_supports("Within", Matcher::History),
+            "the algebra caps lifted with engine-one-evaluator"
+        );
+        assert!(
+            !t.bridge_supports("Within", Matcher::Live)
+                && !t.bridge_supports("When", Matcher::History),
+            "the deliberate residuals hold: Within is vacuous live, When is \
+             not reconstructible from history"
         );
         assert!(
             t.bridge_supports("OneOrMore", Matcher::Live)
                 && t.bridge_supports("OneOrMore", Matcher::Would),
-            "batch-once matching is bridged in the live/would lanes"
+            "batch-once matching runs in the live/would lanes"
         );
         assert!(
-            !t.bridge_supports("Cast", Matcher::Would),
-            "the would-matcher lowers only the intent shapes the engine emits"
+            t.bridge_supports("Cast", Matcher::Would)
+                && !t.bridge_supports("Used", Matcher::Would),
+            "would lanes evaluate every INTERCEPTED master form; a directly \
+             recorded fact (AbilityUsed) has no would stage"
         );
         assert!(
             t.bridge_supports("Lookback:ThisTurn", Matcher::History)

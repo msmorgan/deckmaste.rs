@@ -1,0 +1,18 @@
+// The StepBegins-in-history lift (engine-one-evaluator): step onsets are
+// recorded to the log with the active player on their fact view, so a
+// history read evaluates `whose` ([CR#603.2b,503.1,608.2i]) against the
+// turn of record.
+Normal(
+  name: "Accept Bridge Step History",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: ThisEnters,
+      condition: Happened(
+        event: StepBegins(at: Beginning(Upkeep), whose: EachPlayers),
+        within: ThisTurn,
+      ),
+      effect: GainLife(1),
+    ),
+  ],
+)

@@ -1,6 +1,7 @@
 // A `TokenCreated` fact carries the token SPEC ([CR#701.7a]) — no minted
-// object for a `what` filter to run against: load-capped until
-// engine-one-evaluator.
+// object for a `what` filter to run against. KEPT cap under
+// engine-one-evaluator: lifting needs a spec-side filter evaluator
+// (pre-mint spec matching), a design of its own.
 Normal(
   name: "Reject Bridge Token What",
   types: [Enchantment],

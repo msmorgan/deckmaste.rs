@@ -1,6 +1,7 @@
 // The hexproof-from `source` arm ([CR#702.11d,702.16b]) narrows the
-// targeting object's SOURCE — no fact-side data yet: load-capped until
-// engine-one-evaluator.
+// targeting object's SOURCE — the fact record carries no such coordinate.
+// KEPT cap under engine-one-evaluator: lifting needs source resolution on
+// the `BecameTarget` fact.
 Normal(
   name: "Reject Bridge Target Source",
   types: [Enchantment],

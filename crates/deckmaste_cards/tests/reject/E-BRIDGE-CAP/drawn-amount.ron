@@ -1,6 +1,7 @@
-// A draw fact's granularity is one card ([CR#121.1]); a multi-card amount
-// bound is batch semantics with no fact-side data: load-capped until
-// engine-one-evaluator.
+// Cards are drawn one at a time ([CR#121.2]) — a multi-draw is N facts,
+// so a per-fact amount bound has nothing to compare against. KEPT cap
+// under engine-one-evaluator (CR-grounded granularity): a multi-card draw
+// view is batch/aggregation semantics, not a per-fact bound.
 Normal(
   name: "Reject Bridge Drawn Amount",
   types: [Enchantment],

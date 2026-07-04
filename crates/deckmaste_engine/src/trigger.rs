@@ -4399,6 +4399,57 @@ mod tests {
             "AllOf" => (EventFilter::AllOf(vec![dies_pattern]), died),
             "OneOf" => (EventFilter::OneOf(vec![dies_pattern]), died),
             "OneOrMore" => (EventFilter::OneOrMore(Box::new(dies_pattern)), died),
+            // The complement refinement ([CR#603.2]): a death is not a
+            // play-entry.
+            "Not" => (
+                EventFilter::Not(Box::new(EventFilter::ZoneChange {
+                    what: Filter::Any,
+                    from: None,
+                    to: Some(Zone::Battlefield),
+                    cause: None,
+                })),
+                died,
+            ),
+            // The ordinal counts off the history log ([CR#603.2g]) — the
+            // test pre-records one matching death, and a scanned fact is
+            // already recorded, so this death is the first. The window
+            // atoms ride the same pair (open windows feed live-lane
+            // ordinals).
+            "Nth" | "Lookback:ThisTurn" | "Lookback:ThisGame" => (
+                EventFilter::Nth {
+                    n: 1,
+                    of: Box::new(dies_pattern),
+                    within: if atom == "Lookback:ThisGame" {
+                        deckmaste_core::Lookback::ThisGame
+                    } else {
+                        deckmaste_core::Lookback::ThisTurn
+                    },
+                },
+                died,
+            ),
+            // The condition evaluates as the event occurs ([CR#603.4]), in
+            // a frame anchored on the watcher's live carrier.
+            "When" => (
+                EventFilter::When(
+                    Box::new(dies_pattern),
+                    Box::new(deckmaste_core::Condition::YourTurn),
+                ),
+                died,
+            ),
+            // `Filter::Where` on the snapshot spine: the gone candidate
+            // binds as `It` and the condition evaluates now ([CR#603.10a]).
+            "Where-in-snapshot" => (
+                EventFilter::ZoneChange {
+                    what: Filter::AllOf(vec![
+                        Filter::creature(),
+                        Filter::Where(Box::new(deckmaste_core::Condition::YourTurn)),
+                    ]),
+                    from: Some(Zone::Battlefield),
+                    to: Some(Zone::Graveyard),
+                    cause: None,
+                },
+                died,
+            ),
             _ => return None,
         })
     }
@@ -4416,29 +4467,70 @@ mod tests {
         use deckmaste_cards::elaborate::tables::Matcher;
         use deckmaste_cards::elaborate::tables::tables;
 
-        // Live-unsupported atoms: capped (E-BRIDGE-CAP) until
-        // engine-one-evaluator (`Where-in-snapshot` is would-lane-only);
-        // `Lookback:*` rows are history-lane data (`History::scan` — see
-        // `scan_windows_select_by_turn`).
-        const CAPPED: [&str; 12] = [
-            "Not",
-            "Nth",
-            "When",
+        // Live-unsupported atoms — every one a DELIBERATE kept cap
+        // (E-BRIDGE-CAP + reject fixture): `Within` is vacuous in live
+        // lanes ([CR#603.2]); `Drawn:amount` is the [CR#121.2] per-fact
+        // granularity; the rest lack fact-record coordinates or fact
+        // shapes. `Lookback:LastTurn` (a closed past window never contains
+        // a current occurrence) and the sub-turn windows ride the
+        // starts_with allowance.
+        const CAPPED: [&str; 7] = [
             "Within",
             "Drawn:amount",
             "TokenCreated:what",
             "BecomesTarget:source",
             "CoinFlipped:won",
-            "Used:of",
-            "Where-in-snapshot",
             "StateBecame:Phased",
             "StateBecame:TurnedFace",
         ];
 
-        let (state, bear) = bear_on_field();
+        let (mut state, bear) = bear_on_field();
         let watcher = state.objects.obj(bear).source;
+        // One recorded matching death: the [CR#603.2g] ordinal pairs count
+        // history entries, and a scanned fact is recorded before its scan.
+        let prior = zone_changed_event(&state, bear, Zone::Battlefield, Zone::Graveyard);
+        let turn = state.turn.turn_number;
+        state.record_history_fact(turn, None, prior);
         for row in tables().bridge_rows() {
             let atom = row.atom.as_str();
+            if atom == "Used:of" {
+                // The bound-reference resolution rides the consumer's frame
+                // ([CR#400.7]) — exercised through the evaluator directly,
+                // since `event_matches` is the frameless entry.
+                assert!(
+                    row.supports(Matcher::Live),
+                    "Used:of: frame-resolved references are lifted"
+                );
+                let used = GameEvent::AbilityUsed {
+                    object: bear,
+                    ability: 0,
+                };
+                let fact = crate::eval::FactView::of(&state, &used).expect("a Used fact record");
+                let frame = Frame {
+                    endophora: crate::stack::Endophora {
+                        that_object: Some(LkiSnapshot::capture(&state, bear)),
+                        ..crate::stack::Endophora::empty()
+                    },
+                    ..Frame::bare(bear, PlayerId(0))
+                };
+                let bindings = crate::eval::Bindings {
+                    watcher,
+                    frame: Some(&frame),
+                    shape_only: false,
+                };
+                assert!(
+                    state.eval(
+                        &EventFilter::Used {
+                            of: Reference::EventObject,
+                        },
+                        &fact,
+                        crate::eval::Lane::Trigger,
+                        &bindings,
+                    ),
+                    "Used(of: EventObject) resolves through the frame"
+                );
+                continue;
+            }
             if let Some((pattern, event)) = live_atom_pair(&state, bear, atom) {
                 assert!(
                     row.supports(Matcher::Live),
@@ -4460,6 +4552,143 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// A helper for the lifted-refinement scan tests: a battlefield watcher
+    /// enchantment whose single triggered ability carries `event` (RON,
+    /// parsed under the canon macro scope so `Dies`-style names resolve).
+    fn scan_watcher(
+        state: &mut GameState,
+        controller: PlayerId,
+        event: &str,
+    ) -> (ObjectId, ObjectSource) {
+        let source = format!(
+            "Normal(name: \"Refinement Watcher\", types: [Enchantment], abilities: [\
+                 Triggered(event: {event}, effect: GainLife(1)),\
+             ])"
+        );
+        let card = Arc::new(
+            canon()
+                .macros
+                .read_str::<deckmaste_core::Card>(&source)
+                .unwrap(),
+        );
+        let id = put_bf(state, card, controller);
+        let src = state.objects.obj(id).source;
+        (id, src)
+    }
+
+    /// Fires of `source` currently emitted on the agenda.
+    fn fired_count(state: &GameState, source: ObjectSource) -> usize {
+        state
+            .agenda
+            .iter()
+            .filter(|w| {
+                matches!(
+                    w,
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { source: s, .. }))
+                        if *s == source
+                )
+            })
+            .count()
+    }
+
+    /// The lifted `Nth` ordinal end to end ([CR#603.2g]): an
+    /// `Nth(n: 2, …, within: ThisTurn)` trigger stays silent on the first
+    /// matching death and fires exactly once on the second — counted off
+    /// the history log, which receives each fact before its scan (the
+    /// production `apply_occurrence` ordering).
+    #[test]
+    fn nth_trigger_fires_only_on_the_second_matching_event() {
+        use crate::agenda::WorkItem;
+
+        let (mut state, bear) = bear_on_field();
+        let other = put_on_field(&mut state, "Grizzly Bears", PlayerId(0));
+        let (_watcher, watcher_source) = scan_watcher(
+            &mut state,
+            PlayerId(0),
+            "Nth(n: 2, of: ZoneChange(what: Type(Creature), from: Battlefield, to: Graveyard), \
+             within: ThisTurn)",
+        );
+        let turn = state.turn.turn_number;
+
+        let first = zone_changed_event(&state, bear, Zone::Battlefield, Zone::Graveyard);
+        state.record_history_fact(turn, None, first.clone());
+        state.scan_triggers(&Occurrence::single(first));
+        assert_eq!(
+            fired_count(&state, watcher_source),
+            0,
+            "the FIRST matching death is not the second"
+        );
+
+        let second = zone_changed_event(&state, other, Zone::Battlefield, Zone::Graveyard);
+        state.record_history_fact(turn, None, second.clone());
+        state.scan_triggers(&Occurrence::single(second));
+        assert_eq!(
+            fired_count(&state, watcher_source),
+            1,
+            "the SECOND matching death fires the ordinal trigger once"
+        );
+    }
+
+    /// The lifted `When` refinement end to end ([CR#603.4]): the condition
+    /// is evaluated as the event occurs, anchored on the watcher — the
+    /// active player's watcher fires on `YourTurn`, an opponent's stays
+    /// silent on the same fact.
+    #[test]
+    fn when_trigger_gates_on_the_condition_at_event_time() {
+        use crate::agenda::WorkItem;
+
+        for (controller, expected) in [(PlayerId(0), 1), (PlayerId(1), 0)] {
+            let (mut state, bear) = bear_on_field();
+            let (_watcher, watcher_source) = scan_watcher(
+                &mut state,
+                controller,
+                "When(ZoneChange(what: Type(Creature), from: Battlefield, to: Graveyard), \
+                 YourTurn)",
+            );
+            let died = zone_changed_event(&state, bear, Zone::Battlefield, Zone::Graveyard);
+            state.scan_triggers(&Occurrence::single(died));
+            assert_eq!(
+                fired_count(&state, watcher_source),
+                expected,
+                "controller {controller:?}: When(…, YourTurn) gates on whose turn it is"
+            );
+        }
+    }
+
+    /// The lifted Where-in-snapshot slot end to end ([CR#603.10a]): a
+    /// dies-trigger whose `what` carries `Where(Is(It, …))` reads the DEAD
+    /// candidate through its LKI snapshot bound as `It` — the named bear
+    /// fires it, a different creature does not.
+    #[test]
+    fn where_in_snapshot_reads_the_dead_candidate_as_it() {
+        use crate::agenda::WorkItem;
+
+        let (mut state, bear) = bear_on_field();
+        let fiend = put_on_field(&mut state, "Footlight Fiend", PlayerId(0));
+        let (_watcher, watcher_source) = scan_watcher(
+            &mut state,
+            PlayerId(0),
+            "ZoneChange(what: AllOf([Type(Creature), Where(Is(It, Named(\"Grizzly Bears\")))]), \
+             from: Battlefield, to: Graveyard)",
+        );
+
+        let fiend_died = zone_changed_event(&state, fiend, Zone::Battlefield, Zone::Graveyard);
+        state.scan_triggers(&Occurrence::single(fiend_died));
+        assert_eq!(
+            fired_count(&state, watcher_source),
+            0,
+            "a non-bear death fails the Where condition over It"
+        );
+
+        let bear_died = zone_changed_event(&state, bear, Zone::Battlefield, Zone::Graveyard);
+        state.scan_triggers(&Occurrence::single(bear_died));
+        assert_eq!(
+            fired_count(&state, watcher_source),
+            1,
+            "the named bear's death satisfies Where(Is(It, Named(…)))"
+        );
     }
 
     /// The previously-`todo!()` batch seam, end to end ([CR#603.2c]): a real

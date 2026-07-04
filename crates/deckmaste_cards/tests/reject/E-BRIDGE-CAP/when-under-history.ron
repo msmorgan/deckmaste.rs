@@ -1,0 +1,21 @@
+// `When`'s condition is evaluated as the event OCCURS ([CR#603.4]); a
+// history read cannot reconstruct the as-it-occurred game state from the
+// log. KEPT cap under engine-one-evaluator: `When` is live/would-lane
+// only.
+Normal(
+  name: "Reject Bridge When History",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: ThisEnters,
+      condition: Happened(
+        event: When(
+          ZoneChange(what: Any, to: Battlefield, cause: Cause(verb: Play)),
+          YourTurn,
+        ),
+        within: ThisTurn,
+      ),
+      effect: GainLife(1),
+    ),
+  ],
+)

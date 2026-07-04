@@ -1000,6 +1000,171 @@ mod tests {
         );
     }
 
+    /// THE per-fact LKI fix (engine-one-evaluator, [CR#603.10a]): a history
+    /// query over a participant that has since LEFT reads its record-time
+    /// snapshot — the previously documented
+    /// `Happened(Damage(to: Type(Creature)))`-over-a-dead-recipient hazard
+    /// (a live-store read through a stale id, an `obj()` panic) now
+    /// answers correctly.
+    #[test]
+    fn happened_damage_to_a_departed_creature_reads_its_snapshot() {
+        use deckmaste_core::CharacteristicFilter;
+        use deckmaste_core::Filter;
+
+        use crate::event::GameEvent;
+
+        let mut state = game();
+        state.turn.turn_number = 1;
+        let bear = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let card = state.cards.push(bear, PlayerId(0));
+        let id = state
+            .objects
+            .mint(ObjectSource::Card(card), PlayerId(0), Some(Zone::Battlefield));
+        state.zones.battlefield.push(id);
+        let p1 = state.player(PlayerId(1)).object;
+
+        // Damage recorded while the bear lives — its snapshot rides the
+        // history entry.
+        state.record_history_fact(
+            1,
+            None,
+            GameEvent::DamageDealt {
+                source: p1,
+                target: id,
+                amount: 2,
+                combat: false,
+            },
+        );
+
+        // The bear departs: its id is stale everywhere.
+        state.zones.battlefield.retain(|&o| o != id);
+        state.objects.remove(id);
+        assert!(state.objects.get(id).is_none(), "the recipient is gone");
+
+        let damaged = |filter: Filter| Condition::Happened {
+            event: EventFilter::Damage {
+                source: Filter::any(),
+                to: filter,
+                combat: None,
+                amount: None,
+            },
+            within: Lookback::ThisTurn,
+        };
+        assert!(
+            state.condition_holds(
+                &damaged(Filter::Characteristic(CharacteristicFilter::Type(
+                    Type::Creature
+                ))),
+                &frame_for(&state, PlayerId(0)),
+            ),
+            "the departed recipient WAS a creature — read through its snapshot, no panic"
+        );
+        assert!(
+            !state.condition_holds(
+                &damaged(Filter::Characteristic(CharacteristicFilter::Type(
+                    Type::Land
+                ))),
+                &frame_for(&state, PlayerId(0)),
+            ),
+            "the snapshot still discriminates — the recipient was never a land"
+        );
+    }
+
+    /// The StepBegins-in-history lift ([CR#603.2b,608.2i]): step onsets are
+    /// recorded with the active player of record, so `whose` ([CR#503.1])
+    /// evaluates in history reads — `EachPlayers` sees the onset, `Your`
+    /// keys on the recorded active player, `AnOpponents` on its complement.
+    #[test]
+    fn happened_step_begins_reads_the_recorded_onset() {
+        use deckmaste_core::WhoseTurn;
+
+        use crate::event::GameEvent;
+
+        let mut state = game();
+        state.turn.turn_number = 1;
+        state.turn.active_player = PlayerId(0);
+        state.record_history_fact(
+            1,
+            None,
+            GameEvent::StepBegan(PhaseStep::Beginning(BeginningStep::Upkeep)),
+        );
+
+        let began = |whose: WhoseTurn| Condition::Happened {
+            event: EventFilter::StepBegins {
+                at: PhaseStep::Beginning(BeginningStep::Upkeep),
+                whose,
+            },
+            within: Lookback::ThisTurn,
+        };
+        assert!(
+            state.condition_holds(&began(WhoseTurn::EachPlayers), &frame_for(&state, PlayerId(0))),
+            "the recorded upkeep onset is visible"
+        );
+        assert!(
+            state.condition_holds(&began(WhoseTurn::Your), &frame_for(&state, PlayerId(0))),
+            "it began on the reader's own turn of record"
+        );
+        assert!(
+            !state.condition_holds(&began(WhoseTurn::Your), &frame_for(&state, PlayerId(1))),
+            "it did not begin on the opponent-reader's turn"
+        );
+        assert!(
+            state.condition_holds(
+                &began(WhoseTurn::AnOpponents),
+                &frame_for(&state, PlayerId(1))
+            ),
+            "from the opponent's seat the onset was on an opponent's turn"
+        );
+    }
+
+    /// The lifted pattern-level `Within` refinement in history lanes
+    /// ([CR#608.2i]): the fact's own recorded turn bounds the inner window
+    /// even under a wider head window.
+    #[test]
+    fn happened_within_refinement_bounds_by_the_facts_turn() {
+        use crate::event::GameEvent;
+
+        let mut state = game();
+        state.turn.turn_number = 2;
+        // A life gain recorded LAST turn.
+        state.record_history_fact(
+            1,
+            None,
+            GameEvent::LifeGained {
+                player: PlayerId(0),
+                amount: 3,
+            },
+        );
+
+        let gained_this_turn = Condition::Happened {
+            event: EventFilter::Within(
+                Box::new(EventFilter::LifeGained {
+                    who: deckmaste_core::Filter::any(),
+                    amount: None,
+                }),
+                Lookback::ThisTurn,
+            ),
+            within: Lookback::ThisGame,
+        };
+        assert!(
+            !state.condition_holds(&gained_this_turn, &frame_for(&state, PlayerId(0))),
+            "last turn's gain is outside the inner ThisTurn window"
+        );
+
+        state.record_history_fact(
+            2,
+            None,
+            GameEvent::LifeGained {
+                player: PlayerId(0),
+                amount: 1,
+            },
+        );
+        assert!(
+            state.condition_holds(&gained_this_turn, &frame_for(&state, PlayerId(0))),
+            "this turn's gain satisfies the inner window"
+        );
+    }
+
     /// Combinators: `Not(AllOf([OneOf([])]))` is true because `OneOf([])` is
     /// vacuously false → `AllOf` of a false is false → `Not` of false is true.
     #[test]

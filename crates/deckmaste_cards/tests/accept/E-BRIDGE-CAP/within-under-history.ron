@@ -1,0 +1,20 @@
+// Formerly reject/E-BRIDGE-CAP/within-under-history.ron: the
+// pattern-level `Within` refinement was lane-LEGAL under history counting
+// ([CR#608.2i]) but beyond the bridge's history matcher.
+// engine-one-evaluator reads the fact record's own turn against the
+// window, so the row lifted (history lane) and the fixture flipped to the
+// admitted side.
+Normal(
+  name: "Accept Bridge Within",
+  types: [Enchantment],
+  abilities: [
+    Triggered(
+      event: ThisEnters,
+      condition: Happened(
+        event: Within(LifeGained(who: Ref(You)), ThisTurn),
+        within: ThisTurn,
+      ),
+      effect: GainLife(1),
+    ),
+  ],
+)
