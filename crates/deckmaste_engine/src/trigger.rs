@@ -14,7 +14,6 @@ use deckmaste_core::Count;
 use deckmaste_core::EventFilter;
 use deckmaste_core::Filter;
 use deckmaste_core::Reference;
-use deckmaste_core::StateChange;
 use deckmaste_core::StateFilter;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::TargetSpec;
@@ -113,499 +112,37 @@ pub struct PendingTrigger {
 
 impl GameState {
     /// [CR#603.2,603.6]: does `pattern` match `event`, for an ability on
-    /// `watcher`?
-    ///
-    /// `Dies`/`Enters` are `EventFilter::Expanded` macros over `ZoneChange`;
-    /// they are looked through transparently via the `Expanded` arm. Master
-    /// forms map one-to-one onto `GameEvent` facts; refinement coordinates
-    /// with no fact-side data yet (a `combat:` narrow, an amount bound on a
-    /// per-card draw) trip loudly rather than silently never matching.
-    #[expect(
-        clippy::too_many_lines,
-        reason = "one arm per EventFilter master form — the grammar's full surface, \
-                  ported arm-by-arm ahead of the engine-eventfilter-bridge rebase"
-    )]
+    /// `watcher`? The Trigger-lane entry into THE one evaluator
+    /// ([`GameState::eval`], `engine-one-evaluator`): the event becomes its
+    /// [`crate::eval::FactView`] fact record and evaluates frameless (a
+    /// trigger scan holds no resolution frame — `Ref(This)`/`Ref(You)`
+    /// anchor through `watcher`).
     pub(crate) fn event_matches(
         &self,
         pattern: &EventFilter,
         event: &GameEvent,
         watcher: ObjectSource,
     ) -> bool {
-        match pattern {
-            // Look through a remembered macro invocation — `Dies`, `Enters`,
-            // `Landfall`, … all expand to one of the structural forms below.
-            EventFilter::Expanded(e) => self.event_matches(&e.value, event, watcher),
-
-            // [CR#603.6]: a `ZoneChange` pattern matches a `ZoneChanged` fact
-            // when the zone constraints hold and the `what` filter matches the
-            // moved object's last-known state. (The fact still carries a
-            // `face` coordinate; the pattern no longer narrows by it.)
-            EventFilter::ZoneChange {
-                what,
-                from,
-                to,
-                cause,
-            } => match event {
-                GameEvent::ZoneChanged {
-                    snapshot,
-                    from: ef,
-                    to: et,
-                    cause: ec,
-                    ..
-                } => {
-                    zone_ok(*from, *ef)
-                        && zone_ok(*to, Some(*et))
-                        && cause
-                            .as_ref()
-                            .is_none_or(|c| self.cause_matches(c, ec.as_ref(), watcher))
-                        && self.filter_matches_snapshot(what, snapshot, watcher)
-                }
-                _ => false,
-            },
-
-            // [CR#603.2b]: when a step/phase begins, abilities that trigger "at
-            // the beginning of" it trigger — match the `StepBegan` fact on the
-            // exact step. The `whose` coordinate ([CR#503.1] "your upkeep")
-            // narrows by whose turn it is, relative to the watching ability's
-            // controller: `Your` requires the watcher's controller to be the
-            // active player, `AnOpponents` requires the active player to be
-            // someone else, and `EachPlayers` fires on every player's turn.
-            EventFilter::StepBegins { at, whose } => {
-                use deckmaste_core::WhoseTurn;
-                if !matches!(event, GameEvent::StepBegan(s) if s == at) {
-                    return false;
-                }
-                let active = self.turn.active_player;
-                match whose {
-                    WhoseTurn::EachPlayers => true,
-                    // The watcher's controller anchors "your"/"an opponent's";
-                    // a step trigger fires from a live battlefield permanent,
-                    // so its source resolves to a live controller.
-                    WhoseTurn::Your => self.controller_of_source(watcher) == Some(active),
-                    WhoseTurn::AnOpponents => self
-                        .controller_of_source(watcher)
-                        .is_some_and(|c| c != active),
-                }
-            }
-
-            // [CR#603.2e]: a "becomes [state]" status transition — only the
-            // residual deltas live here (combat onsets, control changes, and
-            // designation gains are their own master forms below). The
-            // transitioning object is still live ([CR#603.2e] deltas are never
-            // zone moves); the pattern no longer narrows the tap fact's cause.
-            EventFilter::StateBecame { of, becomes } => {
-                // P0.W6 seam: phasing and turn-face have no fact shapes yet —
-                // a pattern watching one must trip, not silently never fire.
-                if matches!(becomes, StateChange::Phased(_) | StateChange::TurnedFace(_)) {
-                    todo!(
-                        "load-capped (E-BRIDGE-CAP): becomes-delta matching for {becomes:?} \
-                         has no fact shape yet (P0.W6)"
-                    );
-                }
-                let live = match (becomes, event) {
-                    (StateChange::Tapped, GameEvent::Tapped { object, .. }) => Some(*object),
-                    (StateChange::Untapped, GameEvent::Untapped(o)) => Some(*o),
-                    _ => None,
-                };
-                live.is_some_and(|o| self.filter_matches_live(of, o, watcher))
-            }
-
-            // [CR#508.1k]: a creature was declared as an attacker — a live
-            // event ([CR#603.6]). `against` matches the DEFENDING player's
-            // proxy ([CR#506.2,508.5]), computed exactly as the scan's
-            // `defending_player` role: the sole live opponent of the
-            // attacker's controller.
-            EventFilter::AttackDeclared { by, against } => match event {
-                GameEvent::Attacking(o) => {
-                    let dp = self.next_live_after(self.objects.obj(*o).controller);
-                    self.filter_matches_live(by, *o, watcher)
-                        && self.filter_matches_live(against, self.player(dp).object, watcher)
-                }
-                _ => false,
-            },
-
-            // One declaration fact, two filter positions ([CR#509.1g..509.1h]):
-            // `by` is the BLOCKER ("whenever ~ blocks", [CR#509.3a]), `of` the
-            // blocked ATTACKER ("becomes blocked", [CR#509.3c]). SEAM:
-            // `scan_triggers` dedups `Blocked` facts once per ATTACKER (serving
-            // the [CR#509.3c] becomes-blocked count), so in a multi-block (one
-            // attacker, N blockers) only the first blocker's fact is scanned —
-            // a second blocker's "blocks" trigger is under-counted.
-            // Single-block (the common case) is correct.
-            EventFilter::BlockDeclared { by, of } => match event {
-                GameEvent::Blocked { blocker, attacker } => {
-                    self.filter_matches_live(by, *blocker, watcher)
-                        && self.filter_matches_live(of, *attacker, watcher)
-                }
-                _ => false,
-            },
-
-            // [CR#601.2i]: "whenever you cast" — the spell is live on the
-            // stack when the fact applies; its controller (as a proxy) is
-            // the caster.
-            EventFilter::Cast { who, what } => match event {
-                GameEvent::SpellCast(o) => {
-                    let caster = self.player(self.objects.obj(*o).controller).object;
-                    self.filter_matches_live(who, caster, watcher)
-                        && self.filter_matches_live(what, *o, watcher)
-                }
-                _ => false,
-            },
-
-            // [CR#701.18a]: a card was played — the land drop, a cause-carried
-            // view riding a zone move (the W3 unification); the performer is
-            // the moved object's controller. The verb's fact form (a
-            // `ZoneChange` onto the battlefield) comes from its emitted
-            // entailment row — the engine hardcodes no per-verb coordinates.
-            EventFilter::Played { who, what } => {
-                let row = crate::entail::entailment("Play").expect("emitted Play entailment row");
-                debug_assert_eq!(row.kind, "ZoneChange", "a play rides a zone move");
-                match event {
-                    GameEvent::ZoneChanged {
-                        snapshot,
-                        from,
-                        to,
-                        cause: Some(c),
-                        ..
-                    } if row.verb == c.verb.as_str()
-                        && zone_ok(row.from, *from)
-                        && zone_ok(row.to, Some(*to)) =>
-                    {
-                        let performer = self.player(snapshot.controller).object;
-                        self.filter_matches_live(who, performer, watcher)
-                            && self.filter_matches_snapshot(what, snapshot, watcher)
-                    }
-                    _ => false,
-                }
-            }
-
-            // [CR#602.2a]: an activated ability was activated. `what` matches
-            // the ability's SOURCE object (live on the battlefield); `who` its
-            // controller's proxy.
-            EventFilter::ActivatedAb { who, what } => match event {
-                GameEvent::AbilityActivated { source, .. } => {
-                    let controller = self.player(self.objects.obj(*source).controller).object;
-                    self.filter_matches_live(who, controller, watcher)
-                        && self.filter_matches_live(what, *source, watcher)
-                }
-                _ => false,
-            },
-
-            // [CR#120.1]: `source` is the damage SOURCE, `to` the recipient
-            // (both live — an SBA death follows the fact, [CR#704.5g]).
-            // `amount` bounds the dealt amount; `combat` narrows combat vs
-            // noncombat damage by the fact's carried flag ([CR#510.1] — a
-            // fight's damage is noncombat, [CR#701.14d]).
-            EventFilter::Damage {
-                source,
-                to,
-                combat,
-                amount,
-            } => match event {
-                GameEvent::DamageDealt {
-                    source: s,
-                    target,
-                    amount: a,
-                    combat: c,
-                } => {
-                    combat.is_none_or(|want| want == *c)
-                        && self.filter_matches_live(source, *s, watcher)
-                        && self.filter_matches_live(to, *target, watcher)
-                        && amount
-                            .as_ref()
-                            .is_none_or(|bound| bound.satisfied_by(*a, literal_count))
-                }
-                _ => false,
-            },
-
-            // [CR#119.3]: `who` is the player gaining life.
-            EventFilter::LifeGained { who, amount } => match event {
-                GameEvent::LifeGained { player, amount: a } => {
-                    self.filter_matches_live(who, self.player(*player).object, watcher)
-                        && amount
-                            .as_ref()
-                            .is_none_or(|bound| bound.satisfied_by(*a, literal_count))
-                }
-                _ => false,
-            },
-
-            // [CR#119.3]: `who` is the player losing life.
-            EventFilter::LifeLost { who, amount } => match event {
-                GameEvent::LifeLost { player, amount: a } => {
-                    self.filter_matches_live(who, self.player(*player).object, watcher)
-                        && amount
-                            .as_ref()
-                            .is_none_or(|bound| bound.satisfied_by(*a, literal_count))
-                }
-                _ => false,
-            },
-
-            // [CR#121.1]: the intent of a draw. `who` is the drawing player;
-            // the per-fact granularity is one card, so an amount bound is
-            // batch semantics with no fact-side data yet.
-            EventFilter::Drawn { who, amount } => {
-                if amount.is_some() {
-                    todo!(
-                        "load-capped (E-BRIDGE-CAP, Drawn:amount): per-fact draw granularity \
-                         is one card ([CR#121.2] — a multi-draw is N facts, so an amount \
-                         bound has nothing per-fact to compare against)"
-                    );
-                }
-                match event {
-                    GameEvent::WillDraw { player, .. } => {
-                        self.filter_matches_live(who, self.player(*player).object, watcher)
-                    }
-                    _ => false,
-                }
-            }
-
-            // [CR#122.1]: counters placed on an object or player proxy. An
-            // omitted `kind` watches any counter kind.
-            EventFilter::CounterPlaced { kind, on, amount } => match event {
-                GameEvent::CounterPlaced {
-                    object,
-                    kind: k,
-                    amount: n,
-                    ..
-                } => {
-                    kind.as_ref().is_none_or(|r| r.0 == *k)
-                        && self.filter_matches_live(on, *object, watcher)
-                        && amount
-                            .as_ref()
-                            .is_none_or(|bound| bound.satisfied_by(*n, literal_count))
-                }
-                _ => false,
-            },
-
-            // [CR#122.1]: counters removed.
-            EventFilter::CounterRemoved { kind, on, amount } => match event {
-                GameEvent::CounterRemoved {
-                    object,
-                    kind: k,
-                    amount: n,
-                    ..
-                } => {
-                    kind.as_ref().is_none_or(|r| r.0 == *k)
-                        && self.filter_matches_live(on, *object, watcher)
-                        && amount
-                            .as_ref()
-                            .is_none_or(|bound| bound.satisfied_by(*n, literal_count))
-                }
-                _ => false,
-            },
-
-            // [CR#701.7a,111.2]: a token was created. The fact carries the
-            // token SPEC (its object is minted at apply), so a `what` filter
-            // has no object to run against yet — only the match-anything
-            // default is buildable.
-            EventFilter::TokenCreated { what, by } => {
-                if !matches!(deref_filter(what), Filter::Any) {
-                    todo!(
-                        "load-capped (E-BRIDGE-CAP): matching a token spec before its \
-                         object is minted"
-                    );
-                }
-                match event {
-                    GameEvent::TokenCreated { player, .. } => {
-                        self.filter_matches_live(by, self.player(*player).object, watcher)
-                    }
-                    _ => false,
-                }
-            }
-
-            // [CR#701.3a]: an attachment became attached — both ends live.
-            EventFilter::Attached { what, to } => match event {
-                GameEvent::Attached { attachment, host } => {
-                    self.filter_matches_live(what, *attachment, watcher)
-                        && self.filter_matches_live(to, *host, watcher)
-                }
-                _ => false,
-            },
-
-            // [CR#601.2c]: an object became the target of a spell/ability at
-            // announce (ward is the family exemplar, [CR#702.21a]). Both ends
-            // are live: the target by definition, and the targeting object —
-            // the announcing spell sits in the stack zone (its remint is the
-            // one deferred move), an ability announce rides its SOURCE (the
-            // stack identity isn't minted until the announce promotes,
-            // [CR#602.2a]), and a placing trigger carries its minted id. The
-            // `source` arm (hexproof-from, [CR#702.11d,702.16b]) narrows the
-            // targeting object's SOURCE — no fact-side data yet.
-            EventFilter::BecomesTarget { what, by, source } => {
-                if source.is_some() {
-                    todo!(
-                        "load-capped (E-BRIDGE-CAP): the hexproof-from source arm \
-                         ([CR#702.11d,702.16b]) has no fact-side data yet"
-                    );
-                }
-                match event {
-                    GameEvent::BecameTarget { target, source: s } => {
-                        self.filter_matches_live(what, *target, watcher)
-                            && self.filter_matches_live(by, *s, watcher)
-                    }
-                    _ => false,
-                }
-            }
-
-            // [CR#613.1b]: an object came under the control of a matching
-            // player — `of` runs against the (still-live) object, `to` against
-            // the NEW controller's proxy ([CR#109.5]).
-            EventFilter::ControlChanged { of, to } => match event {
-                GameEvent::ControlChanged { object, to: pid } => {
-                    self.filter_matches_live(of, *object, watcher)
-                        && self.filter_matches_live(to, self.player(*pid).object, watcher)
-                }
-                _ => false,
-            },
-
-            // [CR#109.3]: a named designation changed hands. Two fact shapes:
-            // a GAME-scope transition (`DesignationChanged`) has no carrier
-            // for `of` to filter — only the match-anything default is
-            // satisfiable; a player-scope gain (`GotDesignation`) runs `of`
-            // against the gaining player's proxy.
-            EventFilter::DesignationChanged { name, of } => match event {
-                GameEvent::DesignationChanged { name: en, .. } => {
-                    name == en && matches!(of, Filter::Any)
-                }
-                GameEvent::GotDesignation { player, name: en } => {
-                    name == en && self.filter_matches_live(of, self.player(*player).object, watcher)
-                }
-                _ => false,
-            },
-
-            // [CR#608.2i]: an ability of `of` was used — object-scoped
-            // ([CR#400.7]), matched against `AbilityUsed`'s object identity.
-            // The bridge resolves the self-scoped `This` through the
-            // watcher's LIVE object (so `Happened(Used(of: This))` works
-            // anywhere the watcher is still around); any other reference
-            // needs a frame — `EventCount`'s head path resolves those, and
-            // the load caps (E-BRIDGE-CAP, `Used:of`) keep them out of this
-            // frameless matcher until the one-evaluator's bindings land.
-            EventFilter::Used { of } => match deref_reference(of) {
-                Reference::This => match event {
-                    GameEvent::AbilityUsed { object, .. } => self
-                        .objects
-                        .iter()
-                        .find(|ob| ob.source == watcher)
-                        .is_some_and(|ob| ob.id == *object),
-                    _ => false,
-                },
-                other => todo!(
-                    "load-capped (E-BRIDGE-CAP, Used:of): Used(of: {other:?}) needs frame \
-                     resolution — EventCount's head path today, engine-one-evaluator later"
-                ),
-            },
-
-            // [CR#705.1]: a coin was flipped. The `won` narrow ([CR#705.2]) is
-            // call-relative; the fact records only the physical outcome.
-            EventFilter::CoinFlipped { by, won } => {
-                if won.is_some() {
-                    todo!(
-                        "load-capped (E-BRIDGE-CAP): flip-win is call-relative [CR#705.2]; \
-                         the fact carries only heads"
-                    );
-                }
-                match event {
-                    GameEvent::CoinFlipped { player, .. } => {
-                        self.filter_matches_live(by, self.player(*player).object, watcher)
-                    }
-                    _ => false,
-                }
-            }
-
-            // [CR#706.1]: a die was rolled.
-            EventFilter::DiceRolled { by } => match event {
-                GameEvent::DieRolled { player, .. } => {
-                    self.filter_matches_live(by, self.player(*player).object, watcher)
-                }
-                _ => false,
-            },
-
-            // [CR#731.1a]: the game gained the day/night designation — the
-            // expletive forms over the W5 game-scope registry's DayNight row.
-            EventFilter::BecameDay => matches!(
-                event,
-                GameEvent::DesignationChanged { name, becomes }
-                    if name.as_str() == "DayNight"
-                        && becomes.as_ref().is_some_and(|b| b.as_str() == "Day")
-            ),
-            EventFilter::BecameNight => matches!(
-                event,
-                GameEvent::DesignationChanged { name, becomes }
-                    if name.as_str() == "DayNight"
-                        && becomes.as_ref().is_some_and(|b| b.as_str() == "Night")
-            ),
-
-            // A refinement conjunction ([CR#603.2]): every sub-pattern must
-            // match the same occurrence.
-            EventFilter::AllOf(events) => {
-                events.iter().all(|p| self.event_matches(p, event, watcher))
-            }
-
-            // "Whenever X or Y" is a pattern union ([CR#700.1]); it still
-            // fires once per matching occurrence ([CR#603.2c]).
-            EventFilter::OneOf(events) => {
-                events.iter().any(|p| self.event_matches(p, event, watcher))
-            }
-
-            // [CR#603.2c]: one or more matching occurrences in one event,
-            // matched as the BATCH. Against a single fact the quantifier
-            // matches iff its operand does; the ONCE-per-occurrence
-            // discipline is `scan_event`'s batch dedup
-            // ([`contains_one_or_more`]).
-            EventFilter::OneOrMore(inner) => self.event_matches(inner, event, watcher),
-
-            // The algebra tail the bridge matchers do NOT evaluate: the load
-            // caps (E-BRIDGE-CAP, the emitted bridge-caps table) reject
-            // every loadable pattern carrying one, so only an engine-built
-            // pattern can reach here — trip loudly, never silently
-            // mis-match. The one-evaluator rebase lifts these.
-            EventFilter::Not(_)
-            | EventFilter::Nth { .. }
-            | EventFilter::When(..)
-            | EventFilter::Within(..) => {
-                todo!("load-capped (E-BRIDGE-CAP) until engine-one-evaluator: {pattern:?}")
-            }
+        // [CR#603.6]: triggers fire on committed FACTS. A pre-evolution
+        // intent (`WillDestroy`/`ZoneWillChange`) presents the same
+        // fact-record kind as its downstream `ZoneChanged` — matching it
+        // here would double-fire every zone-move trigger, so the trigger
+        // lane refuses intents outright (the replacement lane is where
+        // they match, [CR#614]).
+        if crate::eval::shadowed_by_fact(event) {
+            return false;
         }
-    }
-
-    /// Does the pattern's cause narrowing admit the event's cause triple
-    /// ([CR#603.2] over the (verb, agency, agent) coordinates)?
-    ///
-    /// Every PRESENT coordinate must match; an omitted one matches anything.
-    /// An event with NO cause (an unattributed move) fails every
-    /// cause-narrowed pattern — "destroyed" admits exactly two causes
-    /// ([CR#701.8b]) and a sacrifice is never one of them ([CR#701.21a]),
-    /// while plain "dies" ([CR#700.4]) spells `cause: None` and never gets
-    /// here. The agent filter runs against the LIVE causing object
-    /// (Karmic-Justice predicates over "a spell or ability an opponent
-    /// controls"): the agent is on the stack mid-resolution when its
-    /// instructions emit, so it is live at scan time; turn-based and
-    /// state-based actions have no agent and fail an agent-narrowed pattern.
-    fn cause_matches(
-        &self,
-        pattern: &deckmaste_core::Cause,
-        actual: Option<&crate::event::Cause>,
-        watcher: ObjectSource,
-    ) -> bool {
-        let deckmaste_core::Cause::Cause(p) = pattern;
-        let Some(cause) = actual else {
+        let Some(fact) = crate::eval::FactView::of(self, event) else {
             return false;
         };
-        // The pattern's closed `CauseVerb` matches the fact's `Ident` verb by
-        // its canonical spelling ([`CauseVerb::as_str`]).
-        if p.verb.is_some_and(|v| v.as_str() != cause.verb.as_str()) {
-            return false;
-        }
-        if p.agency.is_some_and(|a| a != cause.agency) {
-            return false;
-        }
-        match (&p.agent, cause.agent) {
-            (None, _) => true,
-            (Some(_), None) => false,
-            (Some(f), Some((agent, _controller))) => self.filter_matches_live(f, agent, watcher),
-        }
+        self.eval(
+            pattern,
+            &fact,
+            crate::eval::Lane::Trigger,
+            &crate::eval::Bindings::watcher(watcher),
+        )
     }
+
 
     /// Evaluate `filter` against a *live* object `o` for an ability on
     /// `watcher`.
@@ -754,6 +291,32 @@ impl GameState {
             Filter::State(StateFilter::RelatedBy(..)) => {
                 todo!("engine-filter-breadth: snapshot RelatedBy needs a CR#607 relation registry")
             }
+
+            // [CR#603.10a]: the candidate-relative condition bridge — the
+            // GONE candidate binds as `It` (its snapshot), `This`/`You`
+            // anchor to the watcher's LIVE carrier, and the condition
+            // evaluates as the read occurs (the Where-in-snapshot lift,
+            // engine-one-evaluator; mirrors the live `Filter::Where` arm of
+            // `target::matches_with`, including its gone-carrier-no-match
+            // discipline).
+            Filter::Where(cond) => match self
+                .objects
+                .iter()
+                .find(|ob| ob.source == watcher)
+                .map(|ob| (ob.id, ob.controller))
+            {
+                None => false,
+                Some((carrier, controller)) => {
+                    let frame = Frame {
+                        endophora: Endophora {
+                            it: Some(crate::stack::ItBinding::Object(snapshot.clone())),
+                            ..Endophora::empty()
+                        },
+                        ..Frame::bare(carrier, controller)
+                    };
+                    self.condition_holds(cond, &frame)
+                }
+            },
 
             // Logical combinators: recurse.
             Filter::AllOf(fs) => fs
@@ -1322,27 +885,12 @@ enum Watcher {
 /// A `TriggerMultiplier`'s `extra` count as a literal. Only `Count::Literal` is
 /// supported (the doublers are literal `1`s); a dynamic count is a documented
 /// seam and contributes 0 additional firings until the resolve-time evaluator
-/// is threaded in.
-fn literal_count(count: &Count) -> Uint {
+/// is threaded in. Also the frameless amount-bound evaluator of the one
+/// evaluator (`crate::eval`).
+pub(crate) fn literal_count(count: &Count) -> Uint {
     match count {
         Count::Literal(v) => *v,
         _ => 0,
-    }
-}
-
-/// Looks through remembered `Reference` macros to the structural reference.
-fn deref_reference(r: &Reference) -> &Reference {
-    match r {
-        Reference::Expanded(e) => deref_reference(&e.value),
-        other => other,
-    }
-}
-
-/// Looks through remembered `Filter` macros to the structural filter.
-fn deref_filter(f: &Filter) -> &Filter {
-    match f {
-        Filter::Expanded(e) => deref_filter(&e.value),
-        other => other,
     }
 }
 
@@ -1361,18 +909,6 @@ fn contains_one_or_more(pattern: &EventFilter) -> bool {
         | EventFilter::Within(inner, _) => contains_one_or_more(inner),
         EventFilter::Expanded(e) => contains_one_or_more(&e.value),
         _ => false,
-    }
-}
-
-/// Whether `zone_constraint` (from the trigger pattern) is satisfied by
-/// `actual` (from the `ZoneChanged` event).
-///
-/// `None` in the pattern means "any zone" (open constraint); `Some(z)` requires
-/// an exact match.
-fn zone_ok(constraint: Option<Zone>, actual: Option<Zone>) -> bool {
-    match constraint {
-        None => true,
-        Some(z) => actual == Some(z),
     }
 }
 
@@ -5125,7 +4661,7 @@ mod tests {
         };
         let frame = Frame::bare(bear, controller);
         assert!(!state.condition_holds(&gate, &frame), "no use recorded yet");
-        state.history.record(
+        state.record_history_fact(
             1,
             None,
             GameEvent::AbilityUsed {

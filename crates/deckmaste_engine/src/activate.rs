@@ -1085,7 +1085,7 @@ mod tests {
 
         // Record an AbilityUsed fact in history to simulate a previous
         // activation this turn (replaces the deleted ledger bump).
-        state.history.record(
+        state.record_history_fact(
             state.turn.turn_number,
             None,
             crate::event::GameEvent::AbilityUsed {
@@ -1127,7 +1127,7 @@ mod tests {
 
         // Record an AbilityUsed fact in history to simulate a previous
         // activation (replaces the deleted ledger bump).
-        state.history.record(
+        state.record_history_fact(
             state.turn.turn_number,
             None,
             crate::event::GameEvent::AbilityUsed {

@@ -437,7 +437,7 @@ impl GameState {
                     }
                     _ => panic!("AbilityActivated with non-Activated stack object"),
                 };
-                self.history.record(
+                self.record_history_fact(
                     self.turn.turn_number,
                     None,
                     GameEvent::AbilityUsed {
@@ -661,14 +661,11 @@ impl GameState {
                 // Not routed through the occurrence pipeline — must not trigger
                 // anything and must not be re-recorded ([CR#608.2i]).
                 if let Some(this) = &bindings.this {
-                    self.history.record(
-                        self.turn.turn_number,
-                        None,
-                        GameEvent::AbilityUsed {
-                            object: this.object,
-                            ability,
-                        },
-                    );
+                    let used = GameEvent::AbilityUsed {
+                        object: this.object,
+                        ability,
+                    };
+                    self.record_history_fact(self.turn.turn_number, None, used);
                 }
                 event
             }
@@ -1093,15 +1090,17 @@ impl GameState {
     }
 
     /// Appends the substantive facts of `occurred` to the history log, tagged
-    /// with the current turn ([CR#608.2i]). Skips the same meta/intent facts
-    /// the trigger scan skips (`scan_triggers`): a `TriggerFired` is
-    /// bookkeeping, `ZoneWillChange` is the replaceable intent above its
-    /// committed `ZoneChanged`, and `StepBegan`/`TurnBegan` are read off
-    /// `TurnState` rather than the log. A `Batch`'s members share one fresh
-    /// batch id ([CR#603.3b] — they were ONE occurrence); a `Single` records
-    /// `None`. Every recorded `ZoneChanged` also feeds the open `Noting`
-    /// collections ([CR#607.2a] — fact-backed product groups: the group is
-    /// what the clause ACTUALLY moved, never its gathered input set).
+    /// with the current turn ([CR#608.2i]). Skips the meta/intent facts:
+    /// a `TriggerFired` is bookkeeping, `ZoneWillChange` is the replaceable
+    /// intent above its committed `ZoneChanged`, and `TurnBegan` is read
+    /// off `TurnState`. `StepBegan` IS recorded (with the active player on
+    /// its view) so history reads see step onsets ([CR#603.2b] — the
+    /// StepBegins-in-history lift; also the future sub-turn window
+    /// markers). A `Batch`'s members share one fresh batch id ([CR#603.3b]
+    /// — they were ONE occurrence); a `Single` records `None`. Every
+    /// recorded `ZoneChanged` also feeds the open `Noting` collections
+    /// ([CR#607.2a] — fact-backed product groups: the group is what the
+    /// clause ACTUALLY moved, never its gathered input set).
     fn record_history(&mut self, occurred: &Occurrence) {
         let turn = self.turn.turn_number;
         let (events, batch): (&[GameEvent], Option<Uint>) = match occurred {
@@ -1116,15 +1115,35 @@ impl GameState {
             match event {
                 GameEvent::TriggerFired { .. }
                 | GameEvent::AbilityResolved(_)
-                | GameEvent::StepBegan(_)
                 | GameEvent::TurnBegan { .. }
                 | GameEvent::ZoneWillChange { .. } => {}
                 _ => {
                     self.note_enacted(event);
-                    self.history.record(turn, batch, event.clone());
+                    self.record_history_fact(turn, batch, event.clone());
                 }
             }
         }
+    }
+
+    /// Records one fact to the history log with its per-fact LKI view
+    /// ([CR#603.10a]): live card participants are snapshotted NOW, so later
+    /// history matching reads them as they were — never the live store
+    /// through a stale id.
+    pub(crate) fn record_history_fact(
+        &mut self,
+        turn: Uint,
+        batch: Option<Uint>,
+        event: GameEvent,
+    ) {
+        // A pre-evolution intent is shadowed by its downstream fact
+        // ([CR#603.6]) — recording a view for BOTH would double-count every
+        // `Happened`/`EventCount` zone-move read.
+        let view = if crate::eval::shadowed_by_fact(&event) {
+            None
+        } else {
+            crate::eval::FactView::of(self, &event).map(|v| v.into_lki(self))
+        };
+        self.history.record(turn, batch, event, view);
     }
 
     /// Feeds one enacted fact to every OPEN `Noting` collection
@@ -1807,7 +1826,8 @@ mod tests {
             1
         );
 
-        // A skipped (meta) fact is not.
+        // A step onset IS recorded ([CR#603.2b] — the StepBegins-in-history
+        // lift), with the active player on its view.
         state.record_history(&Occurrence::single(GameEvent::StepBegan(
             PhaseStep::PrecombatMain,
         )));
@@ -1816,8 +1836,22 @@ mod tests {
                 .history
                 .scan(Lookback::ThisGame, state.turn.turn_number)
                 .count(),
-            1,
-            "StepBegan is skipped"
+            2,
+            "StepBegan is recorded"
+        );
+
+        // A skipped (meta) fact is not.
+        state.record_history(&Occurrence::single(GameEvent::TurnBegan {
+            player: PlayerId(0),
+            turn: 1,
+        }));
+        assert_eq!(
+            state
+                .history
+                .scan(Lookback::ThisGame, state.turn.turn_number)
+                .count(),
+            2,
+            "TurnBegan is skipped"
         );
     }
 

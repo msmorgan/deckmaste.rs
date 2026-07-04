@@ -1,13 +1,18 @@
 //! Turn/game event history ([CR#608.2i] history reads): an append-only log of
-//! the facts that have occurred, each tagged with the turn it happened in. The
-//! one source of truth the condition layer queries — `Count::EventCount`/
-//! `Count::EventSum` tally matching entries, `Condition::Happened` tests for
-//! any match. Full-game retention (a bounded game's event count is trivial);
-//! the window selects which turn-tagged entries to read.
+//! the facts that have occurred, each tagged with the turn it happened in and
+//! carrying its per-fact LKI [`FactView`] ([CR#603.10a]) — captured at RECORD
+//! time, so history matching reads participants as they were, never the live
+//! store through a stale id. The one source of truth the condition layer
+//! queries — `Count::EventCount`/`Count::EventSum` tally matching entries,
+//! `Condition::Happened` tests for any match. Full-game retention (a bounded
+//! game's event count is trivial); the window selects which turn-tagged
+//! entries to read.
 
 use deckmaste_core::Lookback;
 use deckmaste_core::Uint;
 
+use crate::eval::FactView;
+use crate::eval::window_contains;
 use crate::event::GameEvent;
 
 /// One recorded fact and the turn ([CR#500.1]) it occurred in.
@@ -20,6 +25,10 @@ pub struct HistEntry {
     /// readable from the log. `None` = a `Single` occurrence.
     pub batch: Option<Uint>,
     pub fact: GameEvent,
+    /// The fact's record for matching, with per-fact LKI participants
+    /// ([CR#603.10a]) — built at record time. `None` for plumbing facts no
+    /// pattern watches (they still ride the log for batch/debug reads).
+    pub(crate) view: Option<FactView<'static>>,
 }
 
 /// The append-only history log. Never truncated within a game.
@@ -28,9 +37,29 @@ pub struct History(Vec<HistEntry>);
 
 impl History {
     /// Records `fact` as having occurred on `turn`, as a member of `batch`
-    /// (`None` for a `Single` occurrence).
-    pub(crate) fn record(&mut self, turn: Uint, batch: Option<Uint>, fact: GameEvent) {
-        self.0.push(HistEntry { turn, batch, fact });
+    /// (`None` for a `Single` occurrence), with its per-fact LKI `view`.
+    /// The entry's log position and turn are stamped onto the view — the
+    /// [`crate::eval::Lane::History`] ordinal ([`deckmaste_core::EventFilter::Nth`])
+    /// and window reads key off them. Prefer
+    /// [`crate::state::GameState::record_history_fact`], which builds the
+    /// view.
+    pub(crate) fn record(
+        &mut self,
+        turn: Uint,
+        batch: Option<Uint>,
+        fact: GameEvent,
+        mut view: Option<FactView<'static>>,
+    ) {
+        if let Some(v) = view.as_mut() {
+            v.time = turn;
+            v.seq = Some(self.0.len());
+        }
+        self.0.push(HistEntry {
+            turn,
+            batch,
+            fact,
+            view,
+        });
     }
 
     /// The recorded entries, oldest first — batch-id reads (the
@@ -48,39 +77,33 @@ impl History {
         self.0.iter()
     }
 
+    /// The entries visible through `within`, given `current_turn`
+    /// ([CR#608.2i]), with their log positions — the one evaluator's
+    /// history-lane feed (`Happened`/`EventCount`/`EventSum`/`Nth`
+    /// counting). The sub-turn lookbacks (`ThisCombat`/`ThisStep`/
+    /// `SinceYour`) stay load-capped (E-BRIDGE-CAP, the `Lookback:*` rows;
+    /// engine-history-windows) and are unreachable here.
+    pub(crate) fn in_window(
+        &self,
+        within: Lookback,
+        current_turn: Uint,
+    ) -> impl Iterator<Item = (usize, &HistEntry)> {
+        self.0
+            .iter()
+            .enumerate()
+            .filter(move |(_, e)| window_contains(within, e.turn, current_turn))
+    }
+
     /// The facts visible through `within`, given `current_turn`
-    /// ([CR#608.2i]): `ThisTurn` is this turn's entries, `LastTurn` the
-    /// previous turn's, `ThisGame` all of them. The sub-turn lookbacks
-    /// (`ThisCombat`/`ThisStep`/`SinceYour`) need combat/step markers the
-    /// log doesn't record yet — load-capped (E-BRIDGE-CAP, the
-    /// `Lookback:*` bridge-caps rows) so no loadable card reaches one; an
-    /// engine-built query through one trips loudly, never silently reads
-    /// empty.
+    /// ([CR#608.2i]) — the raw-fact view of [`in_window`](History::in_window)
+    /// for readers that consume `GameEvent`s directly
+    /// (`lands_played_this_turn` and kin).
     pub(crate) fn scan(
         &self,
         within: Lookback,
         current_turn: Uint,
     ) -> impl Iterator<Item = &GameEvent> {
-        if matches!(
-            within,
-            Lookback::ThisCombat | Lookback::ThisStep | Lookback::SinceYour(_)
-        ) {
-            todo!(
-                "load-capped (E-BRIDGE-CAP): no combat/step markers in the history log yet \
-                 (engine-history-windows)"
-            )
-        }
-        self.0
-            .iter()
-            .filter(move |e| match within {
-                Lookback::ThisTurn => e.turn == current_turn,
-                Lookback::ThisGame => true,
-                Lookback::LastTurn => e.turn + 1 == current_turn,
-                Lookback::ThisCombat | Lookback::ThisStep | Lookback::SinceYour(_) => {
-                    unreachable!("gated above")
-                }
-            })
-            .map(|e| &e.fact)
+        self.in_window(within, current_turn).map(|(_, e)| &e.fact)
     }
 }
 
@@ -94,9 +117,9 @@ mod tests {
     #[test]
     fn scan_windows_select_by_turn() {
         let mut h = History::default();
-        h.record(1, None, GameEvent::SpellCast(ObjectId::from_raw(1)));
-        h.record(2, None, GameEvent::SpellCast(ObjectId::from_raw(2)));
-        h.record(2, None, GameEvent::SpellCast(ObjectId::from_raw(3)));
+        h.record(1, None, GameEvent::SpellCast(ObjectId::from_raw(1)), None);
+        h.record(2, None, GameEvent::SpellCast(ObjectId::from_raw(2)), None);
+        h.record(2, None, GameEvent::SpellCast(ObjectId::from_raw(3)), None);
 
         assert_eq!(
             h.scan(Lookback::ThisTurn, 2).count(),

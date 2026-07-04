@@ -40,6 +40,8 @@ pub use derive::face;
 
 mod entail;
 
+mod eval;
+
 mod event;
 pub use event::Audience;
 pub use event::EnterStatus;

@@ -100,17 +100,23 @@ impl GameState {
             // Look through a macro.
             Condition::Expanded(e) => self.condition_holds(&e.value, frame),
 
-            // "[event] happened within [lookback]" ([CR#608.2i]): scan the
-            // history log for any recorded fact matching the pattern, reusing
-            // the trigger event-matcher. The frame's source anchors a
-            // `Ref(This)` in the pattern's filter ([CR#603.10a]). Lookback
-            // handling lives in `History::scan` (unbuilt lookbacks trip
-            // there).
+            // "[event] happened within [lookback]" ([CR#608.2i]): any
+            // recorded fact matching the pattern through the one evaluator's
+            // History lane — each entry's per-fact LKI view ([CR#603.10a]),
+            // so departed participants read their snapshots, never the live
+            // store. The full frame rides the bindings: `Ref(This)`/`Ref(You)`
+            // anchor on the frame's watcher, and bound references
+            // (`Used(of: …)`) resolve through it.
             Condition::Happened { event, within } => {
-                let watcher = self.frame_watcher(frame);
+                let bindings = crate::eval::Bindings {
+                    watcher: self.frame_watcher(frame),
+                    frame: Some(frame),
+                    shape_only: false,
+                };
                 self.history
-                    .scan(*within, self.turn.turn_number)
-                    .any(|fact| self.event_matches(event, fact, watcher))
+                    .in_window(*within, self.turn.turn_number)
+                    .filter_map(|(_, entry)| entry.view.as_ref())
+                    .any(|view| self.eval(event, view, crate::eval::Lane::History, &bindings))
             }
 
             // [CR#714.2b]: "the total was less than N and became at least N"
@@ -327,7 +333,7 @@ mod tests {
         );
 
         // Record the death this turn → ThisTurn and ThisGame both hold.
-        state.history.record(1, None, death);
+        state.record_history_fact(1, None, death);
         assert!(
             state.condition_holds(&morbid, &frame_for(&state, PlayerId(0))),
             "morbid holds after a creature dies this turn"
@@ -954,7 +960,7 @@ mod tests {
 
         // Damage dealt to player 0 (You) this turn must NOT satisfy "an
         // opponent was dealt damage" from player 0's seat.
-        state.history.record(
+        state.record_history_fact(
             1,
             None,
             GameEvent::DamageDealt {
@@ -971,7 +977,7 @@ mod tests {
 
         // Damage dealt to player 1 (an opponent of P0) this turn → the gate
         // holds from player 0's seat.
-        state.history.record(
+        state.record_history_fact(
             1,
             None,
             GameEvent::DamageDealt {

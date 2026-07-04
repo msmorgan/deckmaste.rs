@@ -2498,42 +2498,43 @@ impl GameState {
                 "Count::X on a frame with no announced X — a card referenced X without an {X} cost",
             ),
             // [CR#608.2i]: count history facts matching `event` within `within` —
-            // the count-valued twin of `Condition::Happened`. Reuses the trigger
-            // event-matcher, anchored to the frame's watcher (so `Ref(This)` in the
-            // pattern resolves to the evaluating source).
+            // the count-valued twin of `Condition::Happened`, through the one
+            // evaluator's History lane over per-fact LKI views ([CR#603.10a]).
+            // The frame rides the bindings, so `Ref(This)`/`Ref(You)` anchor
+            // on the evaluating source and a `Used(of: …)` resolves its
+            // object-scoped identity ([CR#400.7]) — no per-form special case.
             Count::EventCount(event, within) => {
-                // Self/object-scoped ability-use count: resolve `of` to a
-                // concrete `ObjectId` via the frame and count `AbilityUsed`
-                // for that object — the generic matcher can't, since its
-                // watcher is an `ObjectSource`, not the resolved id
-                // ([CR#608.2i,603.2]).
-                let n = if let deckmaste_core::EventFilter::Used { of } = &**event {
-                    let obj = self.eval_reference(of, frame);
-                    self.history
-                        .scan(*within, self.turn.turn_number)
-                        .filter(|fact| {
-                            matches!(fact, GameEvent::AbilityUsed { object, .. } if *object == obj)
-                        })
-                        .count()
-                } else {
-                    let watcher = self.frame_watcher(frame);
-                    self.history
-                        .scan(*within, self.turn.turn_number)
-                        .filter(|fact| self.event_matches(event, fact, watcher))
-                        .count()
+                let bindings = crate::eval::Bindings {
+                    watcher: self.frame_watcher(frame),
+                    frame: Some(frame),
+                    shape_only: false,
                 };
+                let n = self
+                    .history
+                    .in_window(*within, self.turn.turn_number)
+                    .filter_map(|(_, entry)| entry.view.as_ref())
+                    .filter(|view| self.eval(event, view, crate::eval::Lane::History, &bindings))
+                    .count();
                 Uint::try_from(n).expect("event count fits Uint")
             }
             // [CR#608.2i,119.3]: sum the carried amount of history facts that
             // match `event` within `within` — the sum-valued twin of
-            // `EventCount`. Reuses the trigger event-matcher and extracts each
-            // matching fact's magnitude via `game_event_amount`.
+            // `EventCount`; each matching entry's magnitude comes from
+            // `game_event_amount`.
             Count::EventSum(event, within) => {
-                let watcher = self.frame_watcher(frame);
+                let bindings = crate::eval::Bindings {
+                    watcher: self.frame_watcher(frame),
+                    frame: Some(frame),
+                    shape_only: false,
+                };
                 self.history
-                    .scan(*within, self.turn.turn_number)
-                    .filter(|fact| self.event_matches(event, fact, watcher))
-                    .map(Self::game_event_amount)
+                    .in_window(*within, self.turn.turn_number)
+                    .filter(|(_, entry)| {
+                        entry.view.as_ref().is_some_and(|view| {
+                            self.eval(event, view, crate::eval::Lane::History, &bindings)
+                        })
+                    })
+                    .map(|(_, entry)| Self::game_event_amount(&entry.fact))
                     .sum()
             }
             Count::Noted(key) => todo!("P0.W4: noted read {key:?} (slot store is P0.W5)"),
@@ -2632,7 +2633,7 @@ impl GameState {
             | GameEvent::CounterPlaced { amount, .. }
             | GameEvent::CounterRemoved { amount, .. } => *amount,
             GameEvent::WillDraw { .. } | GameEvent::ZoneChanged { .. } => 1,
-            other => todo!(
+            other => unreachable!(
                 "load-capped (E-CAPS-AMOUNT): EventSum reached a fact kind with no \
                  amount channel: {other:?}"
             ),
@@ -3085,9 +3086,9 @@ mod tests {
         let sp1 = state.objects.mint(ObjectSource::Player(p), p, None);
         let sp2 = state.objects.mint(ObjectSource::Player(p), p, None);
         let sp3 = state.objects.mint(ObjectSource::Player(p), p, None);
-        state.history.record(1, None, GameEvent::SpellCast(sp1));
-        state.history.record(1, None, GameEvent::SpellCast(sp2));
-        state.history.record(1, None, GameEvent::SpellCast(sp3));
+        state.record_history_fact(1, None, GameEvent::SpellCast(sp1));
+        state.record_history_fact(1, None, GameEvent::SpellCast(sp2));
+        state.record_history_fact(1, None, GameEvent::SpellCast(sp3));
         let cast_event = EventFilter::Cast {
             who: Filter::Any,
             what: Filter::Any,
@@ -3102,7 +3103,7 @@ mod tests {
         );
 
         // Two draws by p this turn → EventCount(Draw, by: Ref(You)) = 2.
-        state.history.record(
+        state.record_history_fact(
             1,
             None,
             GameEvent::WillDraw {
@@ -3110,7 +3111,7 @@ mod tests {
                 source: None,
             },
         );
-        state.history.record(
+        state.record_history_fact(
             1,
             None,
             GameEvent::WillDraw {
@@ -3137,7 +3138,7 @@ mod tests {
         let land = state
             .objects
             .mint(ObjectSource::Player(p), p, Some(Zone::Battlefield));
-        state.history.record(
+        state.record_history_fact(
             1,
             None,
             GameEvent::ZoneChanged {
@@ -3173,7 +3174,7 @@ mod tests {
         // Life: lost 3 then 2 (=5), gained 4.
         // EventSum(LoseLife, by: Ref(You)) sums the amounts; EventSum(GainLife)
         // likewise ([CR#119.3]).
-        state.history.record(
+        state.record_history_fact(
             1,
             None,
             GameEvent::LifeLost {
@@ -3181,7 +3182,7 @@ mod tests {
                 amount: 3,
             },
         );
-        state.history.record(
+        state.record_history_fact(
             1,
             None,
             GameEvent::LifeLost {
@@ -3189,7 +3190,7 @@ mod tests {
                 amount: 2,
             },
         );
-        state.history.record(
+        state.record_history_fact(
             1,
             None,
             GameEvent::LifeGained {
@@ -3263,7 +3264,7 @@ mod tests {
 
         // Two uses of ability 0 on obj_a, one use of ability 1 on obj_a —
         // all on the current turn.
-        state.history.record(
+        state.record_history_fact(
             1,
             None,
             GameEvent::AbilityUsed {
@@ -3271,7 +3272,7 @@ mod tests {
                 ability: 0,
             },
         );
-        state.history.record(
+        state.record_history_fact(
             1,
             None,
             GameEvent::AbilityUsed {
@@ -3279,7 +3280,7 @@ mod tests {
                 ability: 0,
             },
         );
-        state.history.record(
+        state.record_history_fact(
             1,
             None,
             GameEvent::AbilityUsed {
@@ -3294,7 +3295,7 @@ mod tests {
         assert_eq!(state.ability_used_count(obj_b, 0, Lookback::ThisGame), 0);
 
         // A use of (obj_a, 0) on a DIFFERENT turn.
-        state.history.record(
+        state.record_history_fact(
             2,
             None,
             GameEvent::AbilityUsed {
@@ -7372,8 +7373,8 @@ mod tests {
         );
 
         // Record two deaths this turn.
-        state.history.record(1, None, death1);
-        state.history.record(1, None, death2);
+        state.record_history_fact(1, None, death1);
+        state.record_history_fact(1, None, death2);
 
         // Both deaths match → 2.
         assert_eq!(
@@ -7456,7 +7457,7 @@ mod tests {
 
         // Record two life-loss facts for player 0 (you) and one for player 1
         // (opponent).
-        state.history.record(
+        state.record_history_fact(
             1,
             None,
             GameEvent::LifeLost {
@@ -7464,7 +7465,7 @@ mod tests {
                 amount: 2,
             },
         );
-        state.history.record(
+        state.record_history_fact(
             1,
             None,
             GameEvent::LifeLost {
@@ -7472,7 +7473,7 @@ mod tests {
                 amount: 3,
             },
         );
-        state.history.record(
+        state.record_history_fact(
             1,
             None,
             GameEvent::LifeLost {
@@ -7556,7 +7557,7 @@ mod tests {
         );
 
         // Two uses by `obj` this turn, and one by `other`.
-        state.history.record(
+        state.record_history_fact(
             1,
             None,
             GameEvent::AbilityUsed {
@@ -7564,7 +7565,7 @@ mod tests {
                 ability: 0,
             },
         );
-        state.history.record(
+        state.record_history_fact(
             1,
             None,
             GameEvent::AbilityUsed {
@@ -7572,7 +7573,7 @@ mod tests {
                 ability: 0,
             },
         );
-        state.history.record(
+        state.record_history_fact(
             1,
             None,
             GameEvent::AbilityUsed {
@@ -7643,7 +7644,7 @@ mod tests {
         );
 
         // One use → not yet two → branch is FALSE.
-        state.history.record(
+        state.record_history_fact(
             1,
             None,
             GameEvent::AbilityUsed {
@@ -7657,7 +7658,7 @@ mod tests {
         );
 
         // Second use → exactly two → branch is TRUE.
-        state.history.record(
+        state.record_history_fact(
             1,
             None,
             GameEvent::AbilityUsed {
