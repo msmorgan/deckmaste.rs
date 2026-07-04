@@ -9,6 +9,7 @@ use xtask::card::CardArgs;
 use xtask::cite::CiteArgs;
 use xtask::elaborate::ElaborateArgs;
 use xtask::extract::ExtractArgs;
+use xtask::fidelity::FidelityArgs;
 use xtask::generate::GenerateArgs;
 use xtask::graduate::GraduateArgs;
 use xtask::resolve::ResolveArgs;
@@ -34,6 +35,10 @@ enum Cmd {
     /// `cards.elab.lock` bless flow (`--lock`), and a binding-resolution
     /// dump for one card (`--dump <card>`).
     Elaborate(ElaborateArgs),
+    /// The render-back fidelity gate: diff every finished card's rendered
+    /// English against the oracle snapshot (strong form — any unwaivered
+    /// difference fails; `--waivers` lists the waiver inventory).
+    Fidelity(FidelityArgs),
     /// Generate a plugin's cards (stubs -> extract -> resolve -> graduate).
     Generate(GenerateArgs),
     /// Generate a plugin's keyword/subtype macro stubs.
@@ -53,6 +58,7 @@ fn main() -> anyhow::Result<()> {
         Cmd::Validate(args) => xtask::validate::run(args),
         Cmd::Card(args) => xtask::card::run(args),
         Cmd::Elaborate(args) => xtask::elaborate::run(args),
+        Cmd::Fidelity(args) => xtask::fidelity::run(args),
         Cmd::Generate(args) => xtask::generate::run(args),
         Cmd::Stubs(args) => xtask::stubs::run(args),
         Cmd::Extract(args) => xtask::extract::run(args),

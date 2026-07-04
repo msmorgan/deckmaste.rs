@@ -118,15 +118,34 @@ fn rules(view: &CardView) -> Vec<String> {
                     that: None,
                 },
             )),
-            _ => {} // Activated: later tasks
+            Ability::Activated(a) => body.push(ability::activated(a, view)),
+            _ => {} // Mana-only variants beyond Activated: later tasks
         }
     }
     let mut out = Vec::new();
     if !kw_line.is_empty() {
-        out.push(kw_line.join(", "));
+        // The keyword line prints its first keyword capitalized and the
+        // rest lowercased ("Flying, deathtouch").
+        let line = kw_line
+            .iter()
+            .enumerate()
+            .map(
+                |(i, k)| {
+                    if i == 0 { fragment_capitalize(k) } else { ability::lower_first(k) }
+                },
+            )
+            .collect::<Vec<_>>()
+            .join(", ");
+        out.push(line);
     }
     out.extend(body);
     out
+}
+
+fn fragment_capitalize(s: &str) -> String {
+    let mut c = s.chars();
+    c.next()
+        .map_or_else(String::new, |first| first.to_uppercase().chain(c).collect())
 }
 
 /// General entry: render any `CardView`.

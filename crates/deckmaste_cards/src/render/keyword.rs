@@ -20,7 +20,24 @@ pub(super) fn keyword_name(k: &KeywordAbility) -> String {
     {
         return text;
     }
-    k.as_str().to_string()
+    display_name(k.as_str())
+}
+
+/// The PRINTED spelling of a keyword's catalog name: multi-word keywords
+/// carry an interior capital in the enum spelling (`DoubleStrike`,
+/// `FirstStrike`) and print with a space and lowercase continuation
+/// ("Double strike", "First strike").
+fn display_name(name: &str) -> String {
+    let mut out = String::with_capacity(name.len() + 2);
+    for (i, c) in name.chars().enumerate() {
+        if i > 0 && c.is_uppercase() {
+            out.push(' ');
+            out.extend(c.to_lowercase());
+        } else {
+            out.push(c);
+        }
+    }
+    out
 }
 
 fn has_args(args: &ExpansionArgs) -> bool {

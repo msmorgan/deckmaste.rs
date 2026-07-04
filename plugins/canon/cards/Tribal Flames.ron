@@ -1,3 +1,7 @@
+// waiver: "Domain —" ability-word prefix has no encoding yet (aw-prefix-parsing);
+// the Domain macro's v1 body counts every land subtype, so the where-X clause
+// renders "land types" where the oracle prints "basic land types" (the
+// approximation the macro's own header documents).
 Normal(
   name: "Tribal Flames",
   mana_cost: [

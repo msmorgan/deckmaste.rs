@@ -2,6 +2,7 @@
 
 pub mod deck;
 pub mod elaborate;
+pub mod fidelity;
 pub mod lock;
 pub mod macros;
 pub mod plugin;

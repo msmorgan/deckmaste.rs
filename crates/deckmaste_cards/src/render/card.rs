@@ -65,7 +65,7 @@ fn push_symbol(s: &mut String, sym: &ManaSymbol) {
     }
 }
 
-fn color_letter(c: ColorOrColorless) -> &'static str {
+pub(super) fn color_letter(c: ColorOrColorless) -> &'static str {
     match c {
         ColorOrColorless::Colorless => "C",
         ColorOrColorless::Color(Color::White) => "W",

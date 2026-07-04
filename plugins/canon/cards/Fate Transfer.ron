@@ -1,6 +1,8 @@
 // Fate Transfer — "Move all counters from target creature onto another target
 // creature." The `AllKinds` counter move ([CR#122]): every counter of every
 // kind relocates at once, the case a single-kind remove+put can't reach.
+// "another" = the co-target set-distinctness constraint ([CR#115.7e]) — the
+// second slot may not overlap the first.
 Normal(
   name: "Fate Transfer",
   mana_cost: [
@@ -15,7 +17,7 @@ Normal(
       effect: Targeted(
         targets: [
           TargetOne(Creature),
-          TargetOne(Creature),
+          Distinct([0], TargetOne(Creature)),
         ],
         effect: MoveCounters(AllKinds, Target(0), Target(1)),
       ),

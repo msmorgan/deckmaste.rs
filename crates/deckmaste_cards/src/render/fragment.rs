@@ -3,6 +3,7 @@
 use deckmaste_core::Anchor;
 use deckmaste_core::Characteristic;
 use deckmaste_core::CharacteristicFilter;
+use deckmaste_core::Color;
 use deckmaste_core::Count;
 use deckmaste_core::Extremum;
 use deckmaste_core::Filter;
@@ -19,6 +20,25 @@ use deckmaste_core::TargetSpec;
 use deckmaste_core::Zone;
 
 use super::Ctx;
+
+/// Small literal counts of OBJECTS spell out as words in oracle text
+/// ("draw three cards", "put two cards…"); amounts of damage/life keep
+/// digits ("deals 3 damage", "gain 2 life").
+pub(super) fn number_word(n: u32) -> Option<&'static str> {
+    Some(match n {
+        1 => "one",
+        2 => "two",
+        3 => "three",
+        4 => "four",
+        5 => "five",
+        6 => "six",
+        7 => "seven",
+        8 => "eight",
+        9 => "nine",
+        10 => "ten",
+        _ => return None,
+    })
+}
 
 /// A small count as text: `Literal(n)` -> "n"; callers special-case "a/an".
 pub(super) fn count(c: &Count) -> String {
@@ -49,13 +69,19 @@ pub(super) fn count(c: &Count) -> String {
             };
             format!("half {}, {rounding}", count(inner))
         }
-        // [CR#107.3] distinct-union count (Domain / Coven / Tarmogoyf).
+        // [CR#107.3] distinct-union count (Domain / Coven / Tarmogoyf). The
+        // subtype axis over a typed group names the type's own subtype
+        // family ("land types"); the group reads as its plural subject
+        // phrase ("lands you control").
         Count::CountDistinct(axis, filter) => {
-            format!(
-                "the number of {} among {}",
-                characteristic_word(*axis),
-                filter_noun(filter)
-            )
+            let axis_word = match (axis, find_card_type(filter)) {
+                (Characteristic::Subtypes, Some(t)) => {
+                    format!("{} types", super::card::type_str(t).to_lowercase())
+                }
+                _ => characteristic_word(*axis).to_string(),
+            };
+            let group = super::ability::lower_first(&filter_subject(filter));
+            format!("the number of {axis_word} among {group}")
         }
         // The value anaphor's two spellings ([CR#107.3,608.2i]).
         Count::ThatMany => "that many".to_string(),
@@ -193,8 +219,49 @@ pub(super) fn target_spec(spec: &TargetSpec) -> String {
         TargetSpec::Target(q, filter) if q.is_one() => {
             format!("target {}", filter_noun(filter))
         }
-        other => format!("[unrendered: {other:?}]"),
+        // The co-target set-distinctness constraint ([CR#115.7e]) prints as
+        // the "another" restrictor: "another target creature".
+        TargetSpec::Distinct(_, inner) => format!("another {}", target_spec(inner)),
+        other @ TargetSpec::Target(..) => format!("[unrendered: {other:?}]"),
     }
+}
+
+/// The announce phrase of a PLURAL target slot, read where a divided
+/// distribution names its announced set ([CR#601.2d]): `Target(Between(1,
+/// 3), AnyTarget)` → "one, two, or three targets". `None` for shapes without
+/// an oracle enumeration (the caller falls back to the plural pronoun).
+pub(super) fn announced_group_phrase(spec: &TargetSpec) -> Option<String> {
+    let (q, filter) = match spec {
+        TargetSpec::Expanded(exp) => return announced_group_phrase(&exp.value),
+        TargetSpec::Distinct(_, inner) => return announced_group_phrase(inner),
+        TargetSpec::Target(q, filter) => (q, filter),
+    };
+    let (Some(Count::Literal(lo)), Some(Count::Literal(hi))) = q.bounds() else {
+        return None;
+    };
+    if *lo < 1 || hi < lo || *hi - *lo > 3 {
+        return None;
+    }
+    let words: Vec<&str> = (*lo..=*hi)
+        .map(|n| number_word(n).unwrap_or("some"))
+        .collect();
+    let counts = match words.as_slice() {
+        [one] => (*one).to_string(),
+        [a, b] => format!("{a} or {b}"),
+        many => {
+            let (last, rest) = many.split_last()?;
+            format!("{}, or {last}", rest.join(", "))
+        }
+    };
+    // The any-target slot reads bare "targets"; a filtered slot names its
+    // noun ("target creatures").
+    let noun = filter_noun(filter);
+    let noun_phrase = if noun == "any target" || noun.starts_with("[unrendered") {
+        "targets".to_string()
+    } else {
+        format!("target {noun}s")
+    };
+    Some(format!("{counts} {noun_phrase}"))
 }
 
 /// A simple noun for a filter, used in target phrases and "each <noun>"
@@ -208,7 +275,14 @@ pub(super) fn filter_noun(filter: &Filter) -> String {
         return noun;
     }
     if let Some(t) = find_card_type(filter) {
-        return super::card::type_str(t).to_lowercase();
+        let base = super::card::type_str(t).to_lowercase();
+        // A controller restrictor rides the noun: "creature you control",
+        // "creature you don't control", "creature an opponent controls" —
+        // the restrictor is printed text, never dropped.
+        return match controller_suffix(filter) {
+            Some(suffix) => format!("{base} {suffix}"),
+            None => base,
+        };
     }
     match strip_expanded(filter) {
         Filter::Characteristic(CharacteristicFilter::ColorIs(c)) => {
@@ -231,6 +305,38 @@ pub(super) fn filter_noun(filter: &Filter) -> String {
         }
         other => format!("[unrendered: {other:?}]"),
     }
+}
+
+/// The controller-restrictor phrase among a filter's `AllOf` parts:
+/// `ControlledBy(You)` → "you control"; `Not(ControlledBy(You))` → "you
+/// don't control"; `ControlledBy(OpponentOf(You))` → "an opponent controls".
+/// `None` when the filter carries no controller part.
+fn controller_suffix(filter: &Filter) -> Option<&'static str> {
+    for part in flatten_all_of(filter) {
+        match strip_expanded(part) {
+            Filter::Relation(RelationFilter::ControlledBy(inner)) => {
+                return match strip_expanded(inner) {
+                    Filter::Ref(Reference::You) => Some("you control"),
+                    Filter::Relation(RelationFilter::OpponentOf(who))
+                        if matches!(strip_expanded(who), Filter::Ref(Reference::You)) =>
+                    {
+                        Some("an opponent controls")
+                    }
+                    _ => None,
+                };
+            }
+            Filter::Not(negated) => {
+                if let Filter::Relation(RelationFilter::ControlledBy(inner)) =
+                    strip_expanded(negated)
+                    && matches!(strip_expanded(inner), Filter::Ref(Reference::You))
+                {
+                    return Some("you don't control");
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 // ── Static-ability subject phrases ──────────────────────────────────────────
@@ -309,11 +415,17 @@ pub(super) fn filter_subject(f: &Filter) -> String {
     let parts = flatten_all_of(f);
     let mut other = false;
     let mut base = "Permanents".to_string();
+    let mut typed = false;
+    let mut color: Option<Color> = None;
     let mut control: Option<String> = None;
     for p in parts {
         match strip_expanded(p) {
             Filter::Characteristic(CharacteristicFilter::Type(t)) => {
                 base = format!("{}s", super::card::type_str(*t));
+                typed = true;
+            }
+            Filter::Characteristic(CharacteristicFilter::ColorIs(c)) => {
+                color = Some(*c);
             }
             Filter::Not(inner) if strip_expanded(inner).is_this() => {
                 other = true;
@@ -327,6 +439,7 @@ pub(super) fn filter_subject(f: &Filter) -> String {
             stripped => {
                 if let Some(t) = find_card_type(stripped) {
                     base = format!("{}s", super::card::type_str(t));
+                    typed = true;
                 }
             }
         }
@@ -334,6 +447,21 @@ pub(super) fn filter_subject(f: &Filter) -> String {
     let mut s = String::new();
     if other {
         s.push_str("Other ");
+        if let Some(c) = color {
+            s.push_str(super::effect::color_word(c));
+            s.push(' ');
+        }
+        s.push_str(&base.to_lowercase());
+    } else if let Some(c) = color {
+        // A color qualifier rides the subject: "Black creatures get
+        // +1/+1." — printed text, never dropped.
+        s.push_str(&capitalize(super::effect::color_word(c)));
+        s.push(' ');
+        s.push_str(&base.to_lowercase());
+    } else if typed && control.is_none() {
+        // The set-wide unqualified subject prints the "All" quantifier —
+        // "All creatures get -1/-1."
+        s.push_str("All ");
         s.push_str(&base.to_lowercase());
     } else {
         s.push_str(&base);
@@ -386,10 +514,14 @@ fn flatten_all_of(f: &Filter) -> Vec<&Filter> {
 
 pub(super) fn quantity(q: &Quantity) -> String {
     // `Quantity` is one `Range(lo, hi)` primitive (seen through a remembered
-    // macro by `bounds`). An exactly-N range renders as the count; richer
-    // phrasings ("up to N", "any number of") are a renderer follow-up.
+    // macro by `bounds`). An exactly-N range renders as the object-count
+    // word ("two cards", [`number_word`]); richer phrasings ("up to N",
+    // "any number of") are a renderer follow-up.
     match q.bounds() {
-        (Some(lo), Some(hi)) if lo == hi => count(lo),
+        (Some(lo), Some(hi)) if lo == hi => match lo {
+            Count::Literal(n) => number_word(*n).map_or_else(|| n.to_string(), str::to_string),
+            other => count(other),
+        },
         other => format!("[unrendered: {other:?}]"),
     }
 }

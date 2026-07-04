@@ -37,14 +37,37 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
         that: None,
     };
     let (lead, clause) = event_clause(&t.event, &ctx);
-    let body = lower_first(&effect::effect(&t.effect, &ctx));
+    // Inside the body the oracle refers to the (already-named) source as
+    // "it" — "When ~ dies, it deals 1 damage …", "…, sacrifice it."
+    let body_ctx = Ctx {
+        subject: "it",
+        targets: &[],
+        that: None,
+    };
+    let body = lower_first(&effect::effect(&t.effect, &body_ctx));
     // Intervening-if ([CR#603.4]): "…, if <cond>, <effect>."
     let cond = match &t.condition {
-        Some(c) => format!("if {}, ", super::condition::condition(c, &ctx)),
+        Some(c) => format!("if {}, ", super::condition::condition(c, &body_ctx)),
         None => String::new(),
     };
     let trig = format!("{lead} {clause}, {cond}{body}");
     from_zone_qualified(t.from, view.name, trig)
+}
+
+/// "{cost}: {effect}" — an activated ability's printed line ([CR#602.1]:
+/// cost, colon, effect). The cost renders through the shared symbol
+/// renderer; a cost with no clean symbol rendering falls back to the
+/// structural form.
+pub(super) fn activated(a: &deckmaste_core::ActivatedAbility, view: &CardView) -> String {
+    let ctx = Ctx {
+        subject: view.name,
+        targets: &[],
+        that: None,
+    };
+    let cost = super::template::render_cost(&a.cost.0)
+        .unwrap_or_else(|| format!("[unrendered: {:?}]", a.cost));
+    let body = effect::effect(&a.effect, &ctx);
+    from_zone_qualified(a.from, view.name, format!("{cost}: {body}"))
 }
 
 /// Prefix a "While ~ is in your <zone>," function-zone qualifier
@@ -102,6 +125,19 @@ pub(super) fn event_clause(e: &EventFilter, ctx: &Ctx) -> (&'static str, String)
         EventFilter::AttackDeclared { by, .. } => {
             ("Whenever", format!("{} attacks", subject_of(by, ctx)))
         }
+        // "When ~ becomes the target of a spell or ability" ([CR#115.4]) —
+        // the unconstrained agent reads as the printed "a spell or ability".
+        EventFilter::BecomesTarget {
+            what,
+            by: Filter::Any,
+            source: None,
+        } => (
+            lead_for(what),
+            format!(
+                "{} becomes the target of a spell or ability",
+                subject_of(what, ctx)
+            ),
+        ),
         other => ("When", format!("[unrendered: {other:?}]")),
     }
 }
@@ -154,9 +190,27 @@ pub(super) fn lower_first(s: &str) -> String {
 /// `from` zone ([CR#113.6,604.3] — a graveyard/hand static) prefixes each
 /// effect with an "As long as ~ is in your <zone>," qualifier.
 pub(super) fn static_ability(s: &StaticAbility, ctx: &Ctx) -> Vec<String> {
-    s.effects
-        .iter()
-        .filter_map(|e| static_effect(e, ctx))
+    let mut lines = Vec::new();
+    let mut i = 0;
+    while i < s.effects.len() {
+        // An adjacent can't-attack + can't-block pair over one subject
+        // prints as the single oracle clause "… can't attack or block."
+        // (Pacifism).
+        if i + 1 < s.effects.len()
+            && let Some(merged) =
+                super::deontic::merged_cant_attack_block(&s.effects[i], &s.effects[i + 1], ctx)
+        {
+            lines.push(merged);
+            i += 2;
+            continue;
+        }
+        if let Some(line) = static_effect(&s.effects[i], ctx) {
+            lines.push(line);
+        }
+        i += 1;
+    }
+    lines
+        .into_iter()
         .map(|line| from_zone_qualified(s.from, ctx.subject, line))
         .collect()
 }
@@ -395,7 +449,9 @@ fn cause_phrase(cause: &EventFilter) -> String {
         ..
     } = cause
     {
-        return format!("{} entering the battlefield", types_noun(what));
+        // Modern oracle elides the zone: "an artifact or creature entering
+        // causes …" (Panharmonicon).
+        return format!("{} entering", types_noun(what));
     }
     "an event".to_string()
 }

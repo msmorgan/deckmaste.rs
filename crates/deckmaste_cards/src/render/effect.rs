@@ -223,34 +223,34 @@ fn each_collective(act: &Action, binder: &deckmaste_core::Binder, ctx: &Ctx) -> 
     // "each <bare group noun>" — the recipient/patient of a set-wide verb.
     let each_group = || format!("each {}", binder_group_noun(binder, ctx));
     match act {
-        // "Deal N damage to each <group>." — the implicit-source form; a named
-        // source reads "<source> deals N damage to each <group>."
-        Action::DealDamage(Reference::It, amount, source) => Some(match source {
-            Reference::This => {
-                format!(
-                    "Deal {} damage to {}.",
-                    fragment::count(amount),
-                    each_group()
-                )
-            }
-            _ => format!(
+        // "<source> deals N damage to each <group>." — damage names its
+        // source; the default `This` reads as the carrier itself.
+        Action::DealDamage(Reference::It, amount, source) => {
+            let dealer = match source {
+                Reference::This => ctx.subject.to_string(),
+                other => fragment::reference(other, ctx),
+            };
+            Some(format!(
                 "{} deals {} damage to {}.",
-                capitalize_first(&fragment::reference(source, ctx)),
+                capitalize_first(&dealer),
                 fragment::count(amount),
                 each_group(),
-            ),
-        }),
+            ))
+        }
         // "Destroy each <group>." ([CR#701.8a]).
         Action::Destroy(Reference::It) => Some(format!("Destroy {}.", each_group())),
         // A group move to the library reads "Put <group> on top/the bottom of
         // your library." — Brainstorm's "put two cards … on top": the chosen
-        // group's own phrase, not "each" ([CR#401.7]). Riders never apply to
-        // a library destination, so a rider-carrying move falls through.
+        // group's own phrase, not "each" ([CR#401.7]). A multi-card put
+        // prints the "in any order" rider the oracle sentence carries.
+        // Riders never apply to a library destination, so a rider-carrying
+        // move falls through.
         Action::Move(Reference::It, Destination::Library(anchor), riders) if riders.is_empty() => {
             Some(format!(
-                "Put {} on {} of your library.",
+                "Put {} on {} of your library{}.",
                 binder_phrase(binder, ctx),
                 fragment::library_position(anchor),
+                if binder_is_plural(binder) { " in any order" } else { "" },
             ))
         }
         // Set-wide tap/untap ([CR#701.26a,701.26b]): "Tap each <group>."
@@ -259,6 +259,18 @@ fn each_collective(act: &Action, binder: &deckmaste_core::Binder, ctx: &Ctx) -> 
             Some(format!("Untap {}.", each_group()))
         }
         _ => None,
+    }
+}
+
+/// Whether a binder binds MORE than one object (a multi-card group move
+/// prints its "in any order" rider).
+fn binder_is_plural(binder: &deckmaste_core::Binder) -> bool {
+    use deckmaste_core::Binder;
+    match binder {
+        Binder::Choose { quantity, .. } | Binder::Search { quantity, .. } => !quantity.is_one(),
+        Binder::ChooseOne { .. } | Binder::SearchOne { .. } | Binder::TheRef(_) => false,
+        Binder::Existing(_) | Binder::Produce(_) => true,
+        Binder::Expanded(e) => binder_is_plural(&e.value),
     }
 }
 
@@ -297,19 +309,31 @@ fn turn_marker(m: TurnMarker) -> &'static str {
 
 fn action(a: &Action, ctx: &Ctx) -> String {
     match a {
-        // Default source (`This`): the implicit "deal N damage to X". An
-        // explicit non-`This` source names the dealer — "<source> deals N
-        // damage to <target>" (the fight / redirected-damage surface).
-        Action::DealDamage(target, amount, Reference::This) => format!(
-            "Deal {} damage to {}.",
-            fragment::count(amount),
-            fragment::reference(target, ctx)
-        ),
-        Action::DealDamage(target, amount, source) => format!(
-            "{} deals {} damage to {}.",
-            capitalize_first(&fragment::reference(source, ctx)),
-            fragment::count(amount),
-            fragment::reference(target, ctx)
+        // Damage always names its source in oracle text ("~ deals 3 damage
+        // to any target"): the default `This` source reads as the carrier
+        // itself — the card name at a spell root, "it" inside a trigger
+        // body — "<source> deals N damage to <target>". A dynamic amount
+        // prints the oracle X-form with its "where X is …" definition
+        // clause.
+        Action::DealDamage(target, amount, source) => {
+            let dealer = match source {
+                Reference::This => ctx.subject.to_string(),
+                other => fragment::reference(other, ctx),
+            };
+            let (value, where_x) = damage_amount(amount);
+            format!(
+                "{} deals {value} damage to {}{}.",
+                capitalize_first(&dealer),
+                fragment::reference(target, ctx),
+                where_x.map_or_else(String::new, |w| format!(", {w}")),
+            )
+        }
+        // [CR#701.14a]: "X fights Y" — each deals damage equal to its power
+        // to the other, printed as the single fight verb.
+        Action::Fight(a, b) => format!(
+            "{} fights {}.",
+            capitalize_first(&fragment::reference(a, ctx)),
+            fragment::reference(b, ctx)
         ),
         Action::Destroy(r) => format!("Destroy {}.", fragment::reference(r, ctx)),
         // [CR#701.6a]: counter a spell or ability on the stack — "Counter
@@ -353,14 +377,45 @@ fn action(a: &Action, ctx: &Ctx) -> String {
     }
 }
 
+/// A damage amount as its printed value plus, for a dynamic amount, the
+/// "where X is …" definition clause the oracle sentence carries — the
+/// `where_x` adjunct must survive to the render, never silently collapse to
+/// a bare macro name.
+fn damage_amount(amount: &Count) -> (String, Option<String>) {
+    match amount {
+        Count::Literal(_) | Count::X | Count::ThatMany | Count::ThatMuch => {
+            (fragment::count(amount), None)
+        }
+        // A dynamic amount: skip a macro invocation's own one-word template
+        // (e.g. Domain's "domain") — the definition clause spells the
+        // computation out.
+        Count::Expanded(e) => (
+            "X".to_string(),
+            Some(format!("where X is {}", fragment::count(&e.value))),
+        ),
+        other => (
+            "X".to_string(),
+            Some(format!("where X is {}", fragment::count(other))),
+        ),
+    }
+}
+
 /// Render a divided distribution ([CR#601.2d]). The body selects the verb;
-/// `group` is rendered as the set it divides among.
+/// `group` is rendered as the set it divides among — an announced plural
+/// target slot prints its announce phrase ("one, two, or three targets").
 fn divide_among(d: &deckmaste_core::DivideAmong, ctx: &Ctx) -> String {
     let amount = fragment::count(&d.amount);
-    let group = binder_phrase(&d.binder, ctx);
+    let group = divided_group_phrase(&d.binder, ctx);
     match &*d.body {
-        Effect::Act(Action::DealDamage(..)) => {
-            format!("Deal {amount} damage divided as you choose among {group}.")
+        Effect::Act(Action::DealDamage(_, _, source)) => {
+            let dealer = match source {
+                Reference::This => ctx.subject.to_string(),
+                other => fragment::reference(other, ctx),
+            };
+            format!(
+                "{} deals {amount} damage divided as you choose among {group}.",
+                capitalize_first(&dealer)
+            )
         }
         Effect::Act(Action::By(_, PlayerAction::PutCounters(_, kind, _))) => {
             format!(
@@ -370,6 +425,23 @@ fn divide_among(d: &deckmaste_core::DivideAmong, ctx: &Ctx) -> String {
         }
         other => format!("[unrendered: {other:?}]."),
     }
+}
+
+/// The group a divided distribution names: an announced plural target slot
+/// (read back as `GetTargets`/`They`) prints its announce phrase — "one,
+/// two, or three targets" ([CR#601.2d]); anything else falls back to the
+/// binder's own phrase.
+fn divided_group_phrase(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
+    use deckmaste_core::Binder;
+    use deckmaste_core::Selection;
+    let slot = match binder {
+        Binder::Existing(Selection::GetTargets(n)) => ctx.targets.get(*n),
+        // The plural anaphor over a single announced slot reads that slot.
+        Binder::Existing(Selection::They) if ctx.targets.len() == 1 => ctx.targets.first(),
+        _ => None,
+    };
+    slot.and_then(fragment::announced_group_phrase)
+        .unwrap_or_else(|| binder_phrase(binder, ctx))
 }
 
 /// The payment clause of an [`Effect::AdditionalCost`] ([CR#601.2f]): an
@@ -419,9 +491,19 @@ fn additional_payment(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) -> Opti
 fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
     match pa {
         PlayerAction::Draw(Count::Literal(1)) => "Draw a card.".to_string(),
+        // Object counts spell out as words ("Draw three cards.").
+        PlayerAction::Draw(Count::Literal(n)) => match fragment::number_word(*n) {
+            Some(word) => format!("Draw {word} cards."),
+            None => format!("Draw {n} cards."),
+        },
         PlayerAction::Draw(c) => format!("Draw {} cards.", fragment::count(c)),
-        PlayerAction::GainLife(c) => format!("Gain {} life.", fragment::count(c)),
-        PlayerAction::LoseLife(c) => format!("Lose {} life.", fragment::count(c)),
+        // Life totals move in digits, with the explicit "you" subject the
+        // oracle prints ("You gain 2 life.").
+        PlayerAction::GainLife(c) => format!("You gain {} life.", fragment::count(c)),
+        PlayerAction::LoseLife(c) => format!("You lose {} life.", fragment::count(c)),
+        // A mana ability's production ([CR#106.1]): "Add {W}.", "Add
+        // {C}{C}.", "Add one mana of any color."
+        PlayerAction::AddMana(count, production) => add_mana_text(count, production),
         // Rider-carrying token creation ("tapped and attacking") falls back
         // to the structural form until its surface lands (macro-first-wave).
         PlayerAction::Create(count, spec, riders) if riders.is_empty() => create_text(count, spec),
@@ -478,6 +560,42 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
             format!("Remove all damage from {}.", fragment::reference(r, ctx))
         }
         other => format!("[unrendered: {other:?}]."),
+    }
+}
+
+/// "Add {W}." / "Add {C}{C}." / "Add one mana of any color." / "Add {W} or
+/// {U}." — a mana ability's production ([CR#106.1]). Riders and dynamic
+/// counts fall back to the structural form.
+fn add_mana_text(count: &Count, production: &deckmaste_core::ManaProduction) -> String {
+    use deckmaste_core::ManaProduction;
+    use deckmaste_core::ManaSpec;
+    let ManaProduction::Bare(spec) = production else {
+        return format!("[unrendered: AddMana({count:?}, {production:?})].");
+    };
+    let Some(n) = count.literal_value() else {
+        return format!("[unrendered: AddMana({count:?}, {production:?})].");
+    };
+    match spec {
+        ManaSpec::Specific(c) => {
+            let symbol = format!("{{{}}}", super::card::color_letter(*c));
+            format!("Add {}.", symbol.repeat(n as usize))
+        }
+        ManaSpec::AnyColor => {
+            let amount = if n == 1 {
+                "one mana of any color".to_string()
+            } else {
+                let word = fragment::number_word(n).map_or_else(|| n.to_string(), str::to_string);
+                format!("{word} mana of any one color")
+            };
+            format!("Add {amount}.")
+        }
+        ManaSpec::OneOf(choices) => {
+            let symbols: Vec<String> = choices
+                .iter()
+                .map(|c| format!("{{{}}}", super::card::color_letter(*c)))
+                .collect();
+            format!("Add {}.", symbols.join(" or "))
+        }
     }
 }
 
@@ -715,9 +833,10 @@ mod tests {
         );
     }
 
-    /// The default `This` source renders the implicit "Deal N damage to X";
-    /// an explicit non-`This` source names the dealer — "<dealer> deals N
-    /// damage to <target>" (the fight / redirected-damage surface).
+    /// Damage always names its source: the default `This` source reads as
+    /// the carrier ("Pouncer deals N damage to X" — "it deals …" inside a
+    /// trigger body, where the ctx subject is "it"); an explicit non-`This`
+    /// source names the dealer (the fight / redirected-damage surface).
     #[test]
     fn deal_damage_source_renders_dealer_phrase() {
         let target = TargetSpec::Target(Quantity::one(), Filter::creature());
@@ -728,7 +847,10 @@ mod tests {
         };
 
         let default = Action::deal_damage(Reference::Target(0), Count::Literal(3));
-        assert_eq!(action(&default, &ctx), "Deal 3 damage to target creature.");
+        assert_eq!(
+            action(&default, &ctx),
+            "Pouncer deals 3 damage to target creature."
+        );
 
         let sourced = Action::DealDamage(
             Reference::Target(0),
@@ -826,7 +948,7 @@ mod tests {
         );
         assert_eq!(
             divide,
-            "Deal 3 damage divided as you choose among each creature."
+            "It deals 3 damage divided as you choose among each creature."
         );
     }
 
@@ -920,7 +1042,7 @@ mod tests {
                 random: false,
             })),
         });
-        assert_eq!(effect(&with, &ctx), "Discard 2 cards.");
+        assert_eq!(effect(&with, &ctx), "Discard two cards.");
     }
 
     /// `Effect::Each` over a many-binder collapses a single group-verb body
@@ -950,7 +1072,7 @@ mod tests {
                 1,
             )))),
         });
-        assert_eq!(effect(&gain, &ctx), "For each creature, gain 1 life.");
+        assert_eq!(effect(&gain, &ctx), "For each creature, you gain 1 life.");
     }
 
     /// A player `Move` to the exile zone renders "Exile <subject>." — exiling

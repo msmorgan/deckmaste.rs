@@ -1,9 +1,9 @@
 // Pounce — "Target creature you control fights target creature you don't
-// control." Fight ([CR#701.14a]) is two redirectable-source `DealDamage`
-// instructions: each creature deals damage equal to its power to the other,
-// expressed through the optional `source` slot (the dealer is the OTHER
-// creature, not this spell). Hand-written: the fight clause is beyond the
-// effect parser today.
+// control." Fight ([CR#701.14a]) is the single `Fight` primitive: each
+// creature deals damage equal to its power to the other, simultaneously —
+// the earlier two-`DealDamage` `Sequence` desugar lost the simultaneity and
+// the printed "fights" verb (caught by the fidelity gate). Hand-written: the
+// fight clause is beyond the effect parser today.
 Normal(
   name: "Pounce",
   mana_cost: [
@@ -20,10 +20,7 @@ Normal(
           TargetOne(AllOf([Creature, ControlledBy(Ref(You))])),
           TargetOne(AllOf([Creature, Not(ControlledBy(Ref(You)))])),
         ],
-        effect: Sequence([
-          DealDamage(Target(1), StatOf(Target(0), Power), Target(0)),
-          DealDamage(Target(0), StatOf(Target(1), Power), Target(1)),
-        ]),
+        effect: Fight(Target(0), Target(1)),
       ),
     ),
   ],

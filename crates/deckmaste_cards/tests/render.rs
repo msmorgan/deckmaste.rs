@@ -54,7 +54,10 @@ fn renders_spell_lightning_bolt() {
     let r = render_card_face(&face("Lightning Bolt"));
     assert_eq!(r.mana_cost, "{R}");
     assert_eq!(r.type_line, "Instant");
-    assert_eq!(r.rules, vec!["Deal 3 damage to any target.".to_string()]);
+    assert_eq!(
+        r.rules,
+        vec!["Lightning Bolt deals 3 damage to any target.".to_string()]
+    );
 }
 
 /// `MustPay(actor: ControllerOf(Target(0)), …)` renders the derived-player
@@ -71,8 +74,8 @@ fn renders_must_pay_controller_of_mana_leak() {
     );
 }
 
-/// The `Domain` count macro rides its template into rules text: Tribal Flames'
-/// damage amount renders "domain", not the expanded `CountDistinct`.
+/// A dynamic damage amount prints the oracle X-form with its "where X is …"
+/// definition clause — the `where_x` adjunct survives to the render.
 #[test]
 fn renders_domain_count_tribal_flames() {
     let r = render_card_face(&face("Tribal Flames"));
@@ -80,7 +83,11 @@ fn renders_domain_count_tribal_flames() {
     assert_eq!(r.type_line, "Sorcery");
     assert_eq!(
         r.rules,
-        vec!["Deal domain damage to any target.".to_string()]
+        vec![
+            "Tribal Flames deals X damage to any target, where X is the number of land \
+             types among lands you control."
+                .to_string()
+        ]
     );
 }
 
@@ -93,7 +100,7 @@ fn renders_keywords_and_etb_trigger_baleful_strix() {
     assert_eq!(
         r.rules,
         vec![
-            "Flying, Deathtouch".to_string(),
+            "Flying, deathtouch".to_string(),
             "When Baleful Strix enters, draw a card.".to_string(),
         ]
     );
@@ -104,7 +111,7 @@ fn renders_state_trigger_goblin_medics() {
     let r = render_card_face(&face("Goblin Medics"));
     assert_eq!(
         r.rules,
-        vec!["Whenever Goblin Medics becomes tapped, deal 1 damage to any target.".to_string()]
+        vec!["Whenever Goblin Medics becomes tapped, it deals 1 damage to any target.".to_string()]
     );
 }
 
@@ -163,7 +170,7 @@ fn renders_trigger_multiplier_panharmonicon() {
     assert_eq!(
         r.rules,
         vec![
-            "If an artifact or creature entering the battlefield causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.".to_string()
+            "If an artifact or creature entering causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.".to_string()
         ]
     );
 }
@@ -206,13 +213,13 @@ fn renders_must_attack_goblin_brigand() {
 fn renders_pacifism() {
     let r = render_card_face(&face("Pacifism"));
     assert_eq!(r.type_line, "Enchantment — Aura");
+    // The adjacent can't-attack + can't-block pair merges to the printed
+    // single clause.
     assert!(
         r.rules
-            .contains(&"Enchanted creature can't attack.".to_string())
-    );
-    assert!(
+            .contains(&"Enchanted creature can't attack or block.".to_string()),
+        "rules: {:?}",
         r.rules
-            .contains(&"Enchanted creature can't block.".to_string())
     );
     // No leaked fallback markers anywhere (the Enchant keyword line must render
     // too):
@@ -229,7 +236,11 @@ fn renders_sequence_brainstorm() {
     assert_eq!(r.mana_cost, "{U}");
     assert_eq!(
         r.rules,
-        vec!["Draw 3 cards, then put 2 cards from your hand on top of your library.".to_string()]
+        vec![
+            "Draw three cards, then put two cards from your hand on top of your library in \
+             any order."
+                .to_string()
+        ]
     );
 }
 
@@ -369,11 +380,11 @@ fn anchor_cards_fully_rendered() {
 #[test]
 fn renders_gain_life_deepwood_tantiv() {
     let r = render_card_face(&face("Deepwood Tantiv"));
-    // Whenever it becomes blocked, gain 2 life.
+    // Whenever it becomes blocked, you gain 2 life.
     assert!(
         r.rules
             .iter()
-            .any(|l| l == "Whenever Deepwood Tantiv becomes blocked, gain 2 life."),
+            .any(|l| l == "Whenever Deepwood Tantiv becomes blocked, you gain 2 life."),
         "rules: {:?}",
         r.rules
     );
@@ -382,13 +393,19 @@ fn renders_gain_life_deepwood_tantiv() {
 #[test]
 fn renders_damage_to_each_creature_pyroclasm() {
     let r = render_card_face(&face("Pyroclasm"));
-    assert_eq!(r.rules, vec!["Deal 2 damage to each creature.".to_string()]);
+    assert_eq!(
+        r.rules,
+        vec!["Pyroclasm deals 2 damage to each creature.".to_string()]
+    );
 }
 
 #[test]
 fn renders_damage_to_each_player_flame_rift() {
     let r = render_card_face(&face("Flame Rift"));
-    assert_eq!(r.rules, vec!["Deal 4 damage to each player.".to_string()]);
+    assert_eq!(
+        r.rules,
+        vec!["Flame Rift deals 4 damage to each player.".to_string()]
+    );
 }
 
 #[test]
@@ -419,7 +436,7 @@ fn renders_synthesized_lose_life_and_destroy() {
     };
     assert_eq!(
         render_card_face(&lose).rules,
-        vec!["Lose 3 life.".to_string()]
+        vec!["You lose 3 life.".to_string()]
     );
 
     // "Destroy target creature." spell
@@ -501,7 +518,7 @@ fn renders_dies_trigger_footlight_fiend() {
     assert!(
         r.rules
             .iter()
-            .any(|l| l == "When Footlight Fiend dies, deal 1 damage to any target."),
+            .any(|l| l == "When Footlight Fiend dies, it deals 1 damage to any target."),
         "rules: {:?}",
         r.rules
     );
@@ -513,7 +530,7 @@ fn renders_creature_dies_trigger_moonlit_wake() {
     assert!(
         r.rules
             .iter()
-            .any(|l| l == "Whenever a creature dies, gain 1 life."),
+            .any(|l| l == "Whenever a creature dies, you gain 1 life."),
         "rules: {:?}",
         r.rules
     );
@@ -525,7 +542,7 @@ fn renders_creature_dies_trigger_moonlit_wake() {
 fn renders_set_colors_darkest_hour() {
     assert_eq!(
         render_card_face(&face("Darkest Hour")).rules,
-        vec!["Creatures are black.".to_string()]
+        vec!["All creatures are black.".to_string()]
     );
 }
 
@@ -541,7 +558,7 @@ fn renders_gain_ability_serras_blessing() {
 fn renders_humility() {
     assert_eq!(
         render_card_face(&face("Humility")).rules,
-        vec!["Creatures lose all abilities and have base power and toughness 1/1.".to_string()]
+        vec!["All creatures lose all abilities and have base power and toughness 1/1.".to_string()]
     );
 }
 
@@ -752,9 +769,7 @@ fn renders_create_two_tokens() {
 fn renders_enters_tapped_diregraf_ghoul() {
     let r = render_card_face(&face("Diregraf Ghoul"));
     assert!(
-        r.rules
-            .iter()
-            .any(|l| l == "As Diregraf Ghoul enters, tap it."),
+        r.rules.iter().any(|l| l == "Diregraf Ghoul enters tapped."),
         "rules: {:?}",
         r.rules
     );
@@ -766,14 +781,14 @@ fn renders_kabira_crossroads() {
     assert!(
         r.rules
             .iter()
-            .any(|l| l == "As Kabira Crossroads enters, tap it."),
+            .any(|l| l == "Kabira Crossroads enters tapped."),
         "rules: {:?}",
         r.rules
     );
     assert!(
         r.rules
             .iter()
-            .any(|l| l == "When Kabira Crossroads enters, gain 2 life."),
+            .any(|l| l == "When Kabira Crossroads enters, you gain 2 life."),
         "rules: {:?}",
         r.rules
     );
