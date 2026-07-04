@@ -46,6 +46,22 @@ pub enum Effect {
     Act(Action),
     /// Explicit "then" — ordered sub-effects ([CR#608.2c]).
     Sequence(Vec<Effect>),
+    /// Simultaneous sub-effects — the written spec. **One snapshot:** every
+    /// member reads game state as of one pre-application view (an exchange
+    /// works BECAUSE both halves read the pre-state). **One timestamp, one
+    /// batch:** application emits the member facts as one batch sharing a
+    /// batch id — ONE occurrence for `OneOrMore` triggers ([CR#603.3b]).
+    /// **Replacements apply per member fact independently** (each event is
+    /// replaceable on its own, ordering per the affected object/player's
+    /// controller as usual, [CR#616.1]); replacing one member does not
+    /// unapply the others. **SBAs run after the whole batch**, never
+    /// between members. **All-or-nothing:** a member that evaluates to no
+    /// events voids the whole set ([CR#701.12a] — "if the entire exchange
+    /// can't be completed, no part of the exchange occurs"). `Fight` is NOT
+    /// `Simultaneous` sugar — it stays a primitive verb
+    /// ([CR#701.14a..701.14d]). Load-capped to the exchange-family macros'
+    /// bodies (`E-POS-SIMULTANEOUS`) until the wiring generalizes.
+    Simultaneous(Vec<Effect>),
     /// A one-shot-created continuous effect ([CR#611.2]).
     Continuously(Continuously),
     /// "You may [do]" ([CR#603,608]) — with "if you do"/"if you don't".

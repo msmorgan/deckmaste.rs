@@ -425,10 +425,16 @@ fn cleanup_discards_to_hand_size() {
         .submit_decision(Decision::Discard(vec![chosen]))
         .unwrap();
     let (trace, _) = step_to_stop(&mut state);
+    // A discard commits as a simultaneous BATCH (one member here) —
+    // engine-fact-record-batch's [CR#603.3b] shape.
     assert!(trace.iter().any(|p| matches!(
-        applied(p),
-        Some(GameEvent::ZoneWillChange { object, cause: Some(c), .. })
-            if *object == chosen && c.verb.as_str() == "Discard"
+        p,
+        Progress::Applied(Occurrence::Batch(events))
+            if events.iter().any(|e| matches!(
+                e,
+                GameEvent::ZoneWillChange { object, cause: Some(c), .. }
+                    if *object == chosen && c.verb.as_str() == "Discard"
+            ))
     )));
     assert_eq!(state.zones.hands[1].len(), 7);
     assert_eq!(state.zones.graveyards[1].len(), 1);
@@ -766,6 +772,7 @@ fn damage_to_a_player_is_life_loss_and_to_a_creature_is_marked() {
             source: bear,
             target: victim,
             amount: 3,
+            combat: false,
         },
     );
     assert_eq!(state.players[1].life, 17);
@@ -775,6 +782,7 @@ fn damage_to_a_player_is_life_loss_and_to_a_creature_is_marked() {
             source: victim,
             target: bear,
             amount: 2,
+            combat: false,
         },
     );
     assert_eq!(state.objects.obj(bear).damage, 2);

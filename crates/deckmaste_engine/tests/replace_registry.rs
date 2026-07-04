@@ -52,6 +52,16 @@ fn builtin_sba_rules() -> Vec<deckmaste_core::SbaRule> {
         .sba_rules
 }
 
+/// Load the builtin plugin's counter declarations — `M1M1Counter`'s
+/// conferred -1/-1 rides them ([CR#122.1a]; consumer-injected like
+/// `sba_rules`).
+fn builtin_counter_decls()
+-> std::collections::HashMap<deckmaste_core::Ident, deckmaste_core::Counter> {
+    Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"))
+        .unwrap()
+        .counters
+}
+
 /// The abstract `Event` for "this permanent would be destroyed"
 /// (BF→GY with verb "Destroy").
 fn destroyed_self() -> EventFilter {
@@ -1039,6 +1049,7 @@ fn double_damage_lineage_terminates() {
                 source: id, // source = the creature itself (arbitrary for the test)
                 target: id,
                 amount: 2,
+                combat: false,
             },
         )));
 
@@ -1153,9 +1164,116 @@ fn deal_damage(state: &mut GameState, source: ObjectId, target: ObjectId, amount
                 source,
                 target,
                 amount,
+                combat: false,
             },
         )));
     drive(state);
+}
+
+/// The wither batch interaction (`engine-fact-record-batch` fixture (c)):
+/// a wither source damaging TWO creatures as ONE simultaneous batch — each
+/// member is replaced independently ([CR#616.1]) into -1/-1 counters
+/// ([CR#702.80a]), the counters land in the batch's wake with NO SBA
+/// between members, and the SBA sweep runs only AFTER the whole batch —
+/// both creatures then go to their graveyards together.
+#[test]
+fn wither_batch_places_counters_for_every_member_and_sbas_run_after() {
+    let wither = damage_as_counters_static(
+        Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(Type::Creature)),
+        Reference::EventObject,
+        "M1M1Counter",
+    );
+    let four_four = |name: &str| {
+        Arc::new(Card::Normal(CardFace {
+            name: name.into(),
+            types: vec![Type::Creature],
+            power: Some(StatValue::Number(4)),
+            toughness: Some(StatValue::Number(4)),
+            ..CardFace::default()
+        }))
+    };
+    let src_card = Arc::new(Card::Normal(CardFace {
+        name: "Source".into(),
+        types: vec![Type::Creature],
+        power: Some(StatValue::Number(3)),
+        toughness: Some(StatValue::Number(3)),
+        abilities: vec![wither],
+        ..CardFace::default()
+    }));
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig {
+                deck: vec![src_card, four_four("Target"), four_four("Target Two")],
+            },
+            PlayerConfig { deck: vec![] },
+        ],
+        seed: 7,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+    });
+    let source = find_in_hand(&state, "Source");
+    force_onto_battlefield(&mut state, source);
+    let t1 = find_in_hand(&state, "Target");
+    force_onto_battlefield(&mut state, t1);
+    let t2 = find_in_hand(&state, "Target Two");
+    force_onto_battlefield(&mut state, t2);
+    state.agenda.clear();
+    state.pending = None;
+    state.sba_rules = builtin_sba_rules();
+    state.counter_decls = builtin_counter_decls();
+    let m1m1: deckmaste_core::Ident = "M1M1Counter".into();
+
+    // ONE batch of two damage packets (a "deals 4 damage to each of two
+    // target creatures" shape).
+    state
+        .agenda
+        .push_front(WorkItem::Emit(deckmaste_engine::Occurrence::Batch(vec![
+            deckmaste_engine::GameEvent::DamageDealt {
+                source,
+                target: t1,
+                amount: 4,
+                combat: false,
+            },
+            deckmaste_engine::GameEvent::DamageDealt {
+                source,
+                target: t2,
+                amount: 4,
+                combat: false,
+            },
+        ])));
+    drive(&mut state);
+
+    // Counters landed for BOTH members; nothing was marked; and no SBA has
+    // run between/after the members yet — both creatures still stand at
+    // 0/0 until the next SBA boundary.
+    for &t in &[t1, t2] {
+        assert_eq!(
+            state.objects.obj(t).counters.get(&m1m1).copied(),
+            Some(4),
+            "each batch member's damage became counters ([CR#702.80a])"
+        );
+        assert_eq!(state.objects.obj(t).damage, 0, "no marked damage");
+        assert!(
+            state.zones.battlefield.contains(&t),
+            "SBAs never run between a batch's members — only at the next \
+             CheckSbas boundary"
+        );
+    }
+
+    // The SBA boundary: both 0-toughness creatures leave TOGETHER.
+    drive_sbas(&mut state);
+    assert!(
+        !state.zones.battlefield.contains(&t1) && !state.zones.battlefield.contains(&t2),
+        "the toughness-0 SBA swept both after the whole batch ([CR#704.5f])"
+    );
+    assert_eq!(
+        state.zones.graveyards[0].len(),
+        2,
+        "both creatures in the graveyard"
+    );
 }
 
 /// [CR#702.80a,120.3d]: a Wither source dealing N damage to a creature places N

@@ -99,6 +99,9 @@ pub enum Progress {
     CostPaid,
     /// A resolution step ran (dispatch or one effect node) for this object.
     Resolving(crate::object::ObjectId),
+    /// A `Noting` collection window opened (`true`) or closed (`false`)
+    /// ([CR#607.2a] — fact-backed product groups).
+    NoteScoped { open: bool },
     /// [CR#701.22a]: a `Distribute` decision was surfaced (or skipped for an
     /// empty window — scry/surveil 0 no-op per [CR#701.22b]).
     DistributeOpened,
@@ -175,6 +178,19 @@ impl GameState {
                 self.run_effect(*effect, &frame);
                 Progress::Resolving(source)
             }
+            WorkItem::BeginNote { key } => {
+                // [CR#607.2a]: a fresh window — the key holds THIS noting
+                // run's product, never an earlier clause's leftovers.
+                self.noted.insert(key, Vec::new());
+                self.noting.push(key);
+                Progress::NoteScoped { open: true }
+            }
+            WorkItem::EndNote => {
+                self.noting
+                    .pop()
+                    .expect("EndNote pairs with a BeginNote (scheduled together)");
+                Progress::NoteScoped { open: false }
+            }
             WorkItem::OpenDistribute {
                 player,
                 window,
@@ -197,11 +213,17 @@ impl GameState {
     fn apply(&mut self, event: GameEvent) -> GameEvent {
         // Every amount-carrying event fixes the "that much" register
         // (`Count::ThatMuch`) as it actually happens — at the apply funnel,
-        // after any replacement has rewritten the event.
+        // after any replacement has rewritten the event. Cause-amount zone
+        // changes (a discard, a mill) are fixed per OCCURRENCE instead
+        // (`apply_occurrence` counts the batch — "discard two cards, then
+        // draw that many" reads the batch size, not 1).
         match &event {
             GameEvent::DamageDealt { amount, .. }
             | GameEvent::LifeLost { amount, .. }
-            | GameEvent::LifeGained { amount, .. } => self.that_much = Some(*amount),
+            | GameEvent::LifeGained { amount, .. }
+            | GameEvent::CounterPlaced { amount, .. }
+            | GameEvent::CounterRemoved { amount, .. } => self.that_much = Some(*amount),
+            GameEvent::WillDraw { .. } => self.that_much = Some(1),
             _ => {}
         }
         match event {
@@ -224,30 +246,44 @@ impl GameState {
             // [CR#122.1]: counters live in the object's (or player proxy's)
             // counter map. Placement sums by kind; removal saturates at zero
             // and DROPS the key, so an absent kind reads as zero everywhere
-            // (the layer-7c P/T read, `HasCounter`).
+            // (the layer-7c P/T read, `HasCounter`). The occurred fact
+            // carries the carrier's before/after TOTALS, apply-computed —
+            // the [CR#714.2b] `Crossed` reads run off the fact, never a
+            // post-hoc map read.
             GameEvent::CounterPlaced {
                 object,
-                ref kind,
-                count,
+                kind,
+                amount,
+                cause,
                 ..
             } => {
-                *self
+                let entry = self
                     .objects
                     .obj_mut(object)
                     .counters
-                    .entry(*kind)
-                    .or_insert(0) += count;
-                event
+                    .entry(kind)
+                    .or_insert(0);
+                let before = *entry;
+                *entry += amount;
+                let after = *entry;
+                GameEvent::CounterPlaced {
+                    object,
+                    kind,
+                    amount,
+                    before,
+                    after,
+                    cause,
+                }
             }
             GameEvent::CounterRemoved {
                 object,
                 ref kind,
-                count,
+                amount,
                 ..
             } => {
                 let counters = &mut self.objects.obj_mut(object).counters;
                 if let Some(have) = counters.get_mut(kind) {
-                    *have = have.saturating_sub(count);
+                    *have = have.saturating_sub(amount);
                     if *have == 0 {
                         counters.remove(kind);
                     }
@@ -265,17 +301,15 @@ impl GameState {
                 // (and other cant-happen statics) are handled upstream in
                 // `apply_occurrence` via the cant pass ([CR#614.17]) — the
                 // `WillDestroy` event never reaches `apply` for such objects.
-                self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                    GameEvent::ZoneWillChange {
-                        object,
-                        from: Some(Zone::Battlefield),
-                        to: Zone::Graveyard,
-                        enters: None,
-                        position: None,
-                        face: None,
-                        cause: cause.clone(),
-                    },
-                ))]);
+                self.schedule_evolution(GameEvent::ZoneWillChange {
+                    object,
+                    from: Some(Zone::Battlefield),
+                    to: Zone::Graveyard,
+                    enters: None,
+                    position: None,
+                    face: None,
+                    cause: cause.clone(),
+                });
                 GameEvent::WillDestroy { object, cause }
             }
             GameEvent::WillDraw { player, source } => {
@@ -285,17 +319,15 @@ impl GameState {
                 // in the history log. An empty library → DrewFromEmpty, the
                 // failed-draw fact the loss SBA keys on ([CR#121.4,704.5b]).
                 if let Some(&top) = self.zones.libraries[player.index()].front() {
-                    self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                        GameEvent::ZoneWillChange {
-                            object: top,
-                            from: Some(Zone::Library),
-                            to: Zone::Hand,
-                            enters: None,
-                            position: None,
-                            face: None,
-                            cause: None,
-                        },
-                    ))]);
+                    self.schedule_evolution(GameEvent::ZoneWillChange {
+                        object: top,
+                        from: Some(Zone::Library),
+                        to: Zone::Hand,
+                        enters: None,
+                        position: None,
+                        face: None,
+                        cause: None,
+                    });
                     GameEvent::WillDraw { player, source }
                 } else {
                     self.player_mut(player).drew_from_empty = true;
@@ -387,6 +419,7 @@ impl GameState {
                 };
                 self.history.record(
                     self.turn.turn_number,
+                    None,
                     GameEvent::AbilityUsed {
                         object: used_object,
                         ability: Uint::try_from(ability).expect("ability index fits in Uint"),
@@ -398,6 +431,7 @@ impl GameState {
                 source,
                 target,
                 amount,
+                combat,
             } => {
                 // [CR#120.3]: damage to a player is life loss; to a creature it is
                 // marked damage. `Int` is `i32`; `Uint` is `u32` — `try_from`
@@ -451,6 +485,7 @@ impl GameState {
                     source,
                     target,
                     amount,
+                    combat,
                 }
             }
             GameEvent::ZoneWillChange {
@@ -608,6 +643,7 @@ impl GameState {
                 if let Some(this) = &bindings.this {
                     self.history.record(
                         self.turn.turn_number,
+                        None,
                         GameEvent::AbilityUsed {
                             object: this.object,
                             ability,
@@ -651,8 +687,19 @@ impl GameState {
                     .or_insert(crate::state::DesignationValue::Flag);
                 GameEvent::GotDesignation { player, name }
             }
-            GameEvent::ControlChanged { .. } => {
-                todo!("P0.W6: control-change apply (layers L2 seam)")
+            // [CR#701.12b,613.1b]: a one-shot control TRANSITION — re-home
+            // the object (a control change is never a zone move; the object
+            // keeps its identity). The base controller moves; layer-2
+            // continuous control effects still override on top. The new
+            // controller has not controlled it continuously since their
+            // last turn began, so it is summoning-sick for them
+            // ([CR#302.6]).
+            GameEvent::ControlChanged { object, to } => {
+                if self.objects.get(object).is_some() {
+                    self.objects.obj_mut(object).controller = to;
+                    self.objects.obj_mut(object).summoning_sick = true;
+                }
+                event
             }
             // [CR#701.24a]: randomize so NO player knows the order — the
             // seeded rng (UD-8). Revealed-state reset ([CR#701.20d]) is a
@@ -795,24 +842,30 @@ impl GameState {
         }
 
         // 4. Schedule the unreplaceable fact(s) at the agenda front — the face
-        // and cause coordinates ride through from the intent. When the
-        // permanent entered attached ([CR#303.4]), the `Attached` fact follows
-        // the entry fact (it entered, then became attached) so "becomes
-        // attached / equipped" can match it (breadth is a seam, §9).
-        let mut facts = vec![WorkItem::Emit(Occurrence::single(GameEvent::ZoneChanged {
+        // and cause coordinates ride through from the intent. Inside a batch
+        // apply the fact joins the shared evolution collector instead, so a
+        // simultaneous move-batch commits as ONE `ZoneChanged` occurrence
+        // ([CR#603.3b,603.2c]). When the permanent entered attached
+        // ([CR#303.4]), the `Attached` fact follows the entry fact (it
+        // entered, then became attached) so "becomes attached / equipped"
+        // can match it (breadth is a seam, §9); it stays its own occurrence
+        // — the flushed evolution batch is front-scheduled after the member
+        // loop, landing AHEAD of it.
+        self.schedule_evolution(GameEvent::ZoneChanged {
             snapshot,
             from,
             to,
             face,
             cause,
-        }))];
+        });
         if let Some(host) = attached_host {
-            facts.push(WorkItem::Emit(Occurrence::single(GameEvent::Attached {
-                attachment: new,
-                host,
-            })));
+            self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+                GameEvent::Attached {
+                    attachment: new,
+                    host,
+                },
+            ))]);
         }
-        self.schedule_front(facts);
     }
 
     /// Applies a `TokenCreated` ([CR#701.7a]): synthesizes the token's
@@ -834,15 +887,16 @@ impl GameState {
         }
         self.zones.battlefield.push(new);
         let snapshot = crate::lki::LkiSnapshot::capture(self, new);
-        self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-            GameEvent::ZoneChanged {
-                snapshot,
-                from: None,
-                to: Zone::Battlefield,
-                face: None,
-                cause: None,
-            },
-        ))]);
+        // The entry fact joins the batch collector when N tokens are minted
+        // as one simultaneous instruction ([CR#701.7a] — "one instruction,
+        // simultaneous"): their enter-triggers see ONE occurrence.
+        self.schedule_evolution(GameEvent::ZoneChanged {
+            snapshot,
+            from: None,
+            to: Zone::Battlefield,
+            face: None,
+            cause: None,
+        });
     }
 
     /// Applies a `TokenCeased` ([CR#704.5d,111.7]): removes the token object
@@ -861,6 +915,22 @@ impl GameState {
             ),
         }
         self.objects.remove(id);
+    }
+
+    /// Routes an intent's evolution product (`WillDestroy` →
+    /// `ZoneWillChange` → `ZoneChanged`, a draw's move, a token's entry
+    /// fact): inside a `Batch` apply it joins the shared evolution
+    /// collector — the whole batch's products commit later as ONE follow-on
+    /// occurrence ([CR#603.3b,603.2c] — a simultaneous set stays one
+    /// occurrence through every stage) — and outside one it front-schedules
+    /// the familiar `Single`.
+    fn schedule_evolution(&mut self, event: GameEvent) {
+        match &mut self.evolving_batch {
+            Some(collector) => collector.push(event),
+            None => {
+                self.schedule_front(vec![WorkItem::Emit(Occurrence::single(event))]);
+            }
+        }
     }
 
     /// Applies an occurrence: each event through the pipe, returned as the
@@ -898,11 +968,20 @@ impl GameState {
             }
             Occurrence::Batch(events) => {
                 // Filter out suppressed events first (cant pass borrows self
-                // immutably), then run the replacement loop + apply on each.
+                // immutably), then run the replacement loop + apply on each —
+                // each member is replaceable ON ITS OWN ([CR#616.1]);
+                // replacing one member never unapplies the others. Member
+                // evolutions collect into `evolving_batch` and flush as ONE
+                // follow-on occurrence ([CR#603.3b]).
                 let live: Vec<GameEvent> = events
                     .into_iter()
                     .filter(|e| !crate::replace_registry::cant_event(self, e))
                     .collect();
+                debug_assert!(
+                    self.evolving_batch.is_none(),
+                    "batch applies never nest — apply schedules, it does not recurse"
+                );
+                self.evolving_batch = Some(Vec::new());
                 let mut facts = Vec::new();
                 let mut iter = live.into_iter();
                 while let Some(e) = iter.next() {
@@ -916,7 +995,10 @@ impl GameState {
                             // surfaced. Store the not-yet-processed tail of
                             // the batch into the suspended replace_state so
                             // `resume_replacements` can finish the batch after
-                            // the decision is answered.
+                            // the decision is answered. (The resumed tail's
+                            // evolutions run outside this collector — an
+                            // interactively split batch commits its halves as
+                            // separate occurrences.)
                             let remaining: Vec<GameEvent> = iter
                                 .filter(|ev| !crate::replace_registry::cant_event(self, ev))
                                 .collect();
@@ -926,6 +1008,7 @@ impl GameState {
                             // Record and scan the partial facts that DID happen
                             // before the suspension, then return — the decision
                             // will drive the rest of the batch via resume.
+                            self.flush_evolving_batch();
                             let partial = Occurrence::Batch(facts);
                             self.record_history(&partial);
                             self.check_game_end();
@@ -936,10 +1019,12 @@ impl GameState {
                         }
                     }
                 }
+                self.flush_evolving_batch();
                 Occurrence::Batch(facts)
             }
         };
         self.record_history(&occurred);
+        self.fix_occurrence_amount(&occurred);
         self.check_game_end();
         if self.outcome.is_none() {
             self.scan_triggers(&occurred);
@@ -947,17 +1032,65 @@ impl GameState {
         occurred
     }
 
+    /// Front-schedules the batch-evolution collector's contents as ONE
+    /// occurrence ([CR#603.3b]) and deactivates it. A single-product batch
+    /// stays a `Batch` — it was one simultaneous instruction, and its
+    /// follow-ons must keep collecting (a destroy-all that reached one
+    /// creature still evolves batch-wise).
+    fn flush_evolving_batch(&mut self) {
+        let collected = self
+            .evolving_batch
+            .take()
+            .expect("flush pairs with an active collector");
+        if !collected.is_empty() {
+            self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(collected))]);
+        }
+    }
+
+    /// The occurrence-level "that much" fix for cause-amount zone changes
+    /// ([CR#107.3] magnitude anaphora): a discard/mill clause's amount is
+    /// its CARD COUNT — "discards all the cards in their hand, then draws
+    /// that many" reads the batch size, so the per-fact funnel (which would
+    /// leave 1) defers to this count. Which cause verbs carry an amount is
+    /// the emitted entailment table's `amount` column.
+    fn fix_occurrence_amount(&mut self, occurred: &Occurrence) {
+        let events: &[GameEvent] = match occurred {
+            Occurrence::Single(e) => std::slice::from_ref(e),
+            Occurrence::Batch(es) => es,
+        };
+        let moved = events
+            .iter()
+            .filter(|e| match e {
+                GameEvent::ZoneChanged { cause: Some(c), .. } => {
+                    crate::entail::entailment(c.verb.as_str()).is_some_and(|row| row.amount)
+                }
+                _ => false,
+            })
+            .count();
+        if moved > 0 {
+            self.that_much = Some(Uint::try_from(moved).expect("batch size fits in Uint"));
+        }
+    }
+
     /// Appends the substantive facts of `occurred` to the history log, tagged
     /// with the current turn ([CR#608.2i]). Skips the same meta/intent facts
     /// the trigger scan skips (`scan_triggers`): a `TriggerFired` is
     /// bookkeeping, `ZoneWillChange` is the replaceable intent above its
     /// committed `ZoneChanged`, and `StepBegan`/`TurnBegan` are read off
-    /// `TurnState` rather than the log.
+    /// `TurnState` rather than the log. A `Batch`'s members share one fresh
+    /// batch id ([CR#603.3b] — they were ONE occurrence); a `Single` records
+    /// `None`. Every recorded `ZoneChanged` also feeds the open `Noting`
+    /// collections ([CR#607.2a] — fact-backed product groups: the group is
+    /// what the clause ACTUALLY moved, never its gathered input set).
     fn record_history(&mut self, occurred: &Occurrence) {
         let turn = self.turn.turn_number;
-        let events: &[GameEvent] = match occurred {
-            Occurrence::Single(e) => std::slice::from_ref(e),
-            Occurrence::Batch(es) => es,
+        let (events, batch): (&[GameEvent], Option<Uint>) = match occurred {
+            Occurrence::Single(e) => (std::slice::from_ref(e), None),
+            Occurrence::Batch(es) => {
+                let id = self.next_batch;
+                self.next_batch += 1;
+                (es, Some(id))
+            }
         };
         for event in events {
             match event {
@@ -966,8 +1099,43 @@ impl GameState {
                 | GameEvent::StepBegan(_)
                 | GameEvent::TurnBegan { .. }
                 | GameEvent::ZoneWillChange { .. } => {}
-                _ => self.history.record(turn, event.clone()),
+                _ => {
+                    self.note_enacted(event);
+                    self.history.record(turn, batch, event.clone());
+                }
             }
+        }
+    }
+
+    /// Feeds one enacted fact to every OPEN `Noting` collection
+    /// ([CR#607.2a]): a `ZoneChanged` fact contributes its moved object —
+    /// the fact's snapshot plus the post-move (reminted, [CR#400.7])
+    /// identity when the object still exists. Suppressed and
+    /// replaced-to-nothing members never get here, so an indestructible
+    /// survivor of a destroy-all is excluded from "destroyed this way" BY
+    /// CONSTRUCTION.
+    fn note_enacted(&mut self, event: &GameEvent) {
+        if self.noting.is_empty() {
+            return;
+        }
+        let GameEvent::ZoneChanged { snapshot, .. } = event else {
+            return;
+        };
+        // The post-move object: the freshly minted id with the same backing
+        // source (a card backs at most one live object).
+        let now = self
+            .objects
+            .iter()
+            .find(|o| o.source == snapshot.source)
+            .map(|o| o.id);
+        for key in &self.noting {
+            self.noted
+                .entry(*key)
+                .or_default()
+                .push(crate::state::NotedMember {
+                    snapshot: snapshot.clone(),
+                    now,
+                });
         }
     }
 
@@ -1462,6 +1630,8 @@ impl GameState {
                 source,
                 target: recipients[0],
                 amount: power,
+                // The combat-damage step's assignment ([CR#510.1]).
+                combat: true,
             });
         } else {
             queue.push(crate::state::PendingAssignment {
@@ -1508,7 +1678,7 @@ impl GameState {
     /// A creature's combat-damage output: its derived power as a non-negative
     /// number ([CR#510.1c]). `None`/negative power assigns 0.
     #[must_use]
-    fn power_of(view: &crate::layer::LayeredView, id: ObjectId) -> Uint {
+    pub(crate) fn power_of(view: &crate::layer::LayeredView, id: ObjectId) -> Uint {
         match view.power(id) {
             Some(p) if p > 0 => {
                 #[expect(clippy::cast_sign_loss)]
@@ -1625,6 +1795,200 @@ mod tests {
                 .count(),
             1,
             "StepBegan is skipped"
+        );
+    }
+
+    /// An applied `Batch`'s recorded facts share ONE fresh batch id
+    /// ([CR#603.3b] — they were one occurrence); `Single`s record `None`,
+    /// and distinct batches get distinct ids.
+    #[test]
+    fn batch_members_share_a_batch_id_singles_record_none() {
+        let mut state = game();
+        let a = state.objects.mint(
+            ObjectSource::Player(PlayerId(0)),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        let b = state.objects.mint(
+            ObjectSource::Player(PlayerId(1)),
+            PlayerId(1),
+            Some(Zone::Battlefield),
+        );
+
+        state.record_history(&Occurrence::single(GameEvent::Untapped(a)));
+        state.record_history(&Occurrence::Batch(vec![
+            GameEvent::Untapped(a),
+            GameEvent::Untapped(b),
+        ]));
+        state.record_history(&Occurrence::Batch(vec![GameEvent::Untapped(b)]));
+
+        let batches: Vec<Option<deckmaste_core::Uint>> =
+            state.history.entries().map(|e| e.batch).collect();
+        assert_eq!(batches[0], None, "a Single records no batch id");
+        assert!(batches[1].is_some(), "batch members carry an id");
+        assert_eq!(batches[1], batches[2], "members of ONE batch share it");
+        assert!(
+            batches[3].is_some() && batches[3] != batches[1],
+            "a distinct batch gets a distinct id"
+        );
+    }
+
+    /// A simultaneous batch of intents stays ONE occurrence through every
+    /// evolution stage ([CR#603.3b,603.2c]): a destroy-all's `WillDestroy`
+    /// batch evolves into one `ZoneWillChange` batch and then one committed
+    /// `ZoneChanged` batch — never per-member `Single`s — and the two dies-
+    /// facts share a history batch id.
+    #[test]
+    fn batch_of_intents_evolves_as_one_batch() {
+        let (mut state, _view, a) = crate::replace_registry::tests_support::lone_creature();
+        let b = crate::replace_registry::tests_support::mint_creature_on_battlefield(&mut state);
+
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(vec![
+            GameEvent::WillDestroy {
+                object: a,
+                cause: None,
+            },
+            GameEvent::WillDestroy {
+                object: b,
+                cause: None,
+            },
+        ]))]);
+
+        // Stage 1: the WillDestroy batch applies.
+        let crate::step::StepOutcome::Progress(crate::step::Progress::Applied(Occurrence::Batch(
+            stage1,
+        ))) = state.step()
+        else {
+            panic!("expected the WillDestroy batch to apply");
+        };
+        assert_eq!(stage1.len(), 2);
+
+        // Stage 2: ONE ZoneWillChange batch (not two Singles).
+        let crate::step::StepOutcome::Progress(crate::step::Progress::Applied(Occurrence::Batch(
+            stage2,
+        ))) = state.step()
+        else {
+            panic!("expected one ZoneWillChange batch");
+        };
+        assert_eq!(stage2.len(), 2);
+        assert!(
+            stage2
+                .iter()
+                .all(|e| matches!(e, GameEvent::ZoneWillChange { .. })),
+            "stage 2 is the intent batch, got {stage2:?}"
+        );
+
+        // Stage 3: ONE committed ZoneChanged batch.
+        let crate::step::StepOutcome::Progress(crate::step::Progress::Applied(Occurrence::Batch(
+            stage3,
+        ))) = state.step()
+        else {
+            panic!("expected one ZoneChanged batch");
+        };
+        assert_eq!(stage3.len(), 2);
+        assert!(
+            stage3
+                .iter()
+                .all(|e| matches!(e, GameEvent::ZoneChanged { .. })),
+            "stage 3 is the committed fact batch, got {stage3:?}"
+        );
+
+        // The two dies-facts share one history batch id.
+        let ids: Vec<Option<deckmaste_core::Uint>> = state
+            .history
+            .entries()
+            .filter(|e| matches!(e.fact, GameEvent::ZoneChanged { .. }))
+            .map(|e| e.batch)
+            .collect();
+        assert_eq!(ids.len(), 2);
+        assert!(ids[0].is_some() && ids[0] == ids[1], "one shared batch id");
+    }
+
+    /// `CounterPlaced`'s apply fills the carrier's before/after TOTALS onto
+    /// the occurred fact ([CR#714.2b] — `Crossed` reads them off the fact):
+    /// a second placement sees the first's total as its `before`.
+    #[test]
+    fn counter_placed_apply_fills_before_and_after_totals() {
+        let (mut state, _view, id) = crate::replace_registry::tests_support::lone_creature();
+        let place = |n: deckmaste_core::Uint| GameEvent::CounterPlaced {
+            object: id,
+            kind: "P1P1Counter".into(),
+            amount: n,
+            before: 0,
+            after: 0,
+            cause: None,
+        };
+
+        state.schedule_front(vec![
+            WorkItem::Emit(Occurrence::single(place(2))),
+            WorkItem::Emit(Occurrence::single(place(3))),
+        ]);
+        let facts: Vec<(
+            deckmaste_core::Uint,
+            deckmaste_core::Uint,
+            deckmaste_core::Uint,
+        )> = (0..2)
+            .map(|_| match state.step() {
+                crate::step::StepOutcome::Progress(crate::step::Progress::Applied(
+                    Occurrence::Single(GameEvent::CounterPlaced {
+                        amount,
+                        before,
+                        after,
+                        ..
+                    }),
+                )) => (amount, before, after),
+                other => panic!("expected an applied CounterPlaced, got {other:?}"),
+            })
+            .collect();
+        assert_eq!(facts[0], (2, 0, 2), "first placement: 0 -> 2");
+        assert_eq!(facts[1], (3, 2, 5), "second placement: 2 -> 5");
+    }
+
+    /// A cause-amount zone-change batch (a discard) fixes "that much" to
+    /// its CARD COUNT ([CR#107.3,701.9a]) — "discards all the cards in
+    /// their hand, then draws that many" reads the batch size, not 1. The
+    /// per-verb admission is the entailment table's `amount` column.
+    #[test]
+    fn discard_batch_fixes_that_much_to_its_card_count() {
+        let (mut state, _view, _id) = crate::replace_registry::tests_support::lone_creature();
+        // Two cards in hand to discard.
+        let mut in_hand = Vec::new();
+        for name in ["Discard A", "Discard B"] {
+            let card =
+                std::sync::Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+                    name: name.into(),
+                    types: vec![deckmaste_core::Type::Sorcery],
+                    ..deckmaste_core::CardFace::default()
+                }));
+            let cid = state.cards.push(card, PlayerId(0));
+            let id = state
+                .objects
+                .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Hand));
+            state.zones.hands[0].push(id);
+            in_hand.push(id);
+        }
+        let events: Vec<GameEvent> = in_hand
+            .into_iter()
+            .map(|object| GameEvent::ZoneWillChange {
+                object,
+                from: Some(Zone::Hand),
+                to: Zone::Graveyard,
+                enters: None,
+                position: None,
+                face: None,
+                cause: Some(crate::event::Cause::discard(
+                    deckmaste_core::Agency::EffectInstruction,
+                    None,
+                )),
+            })
+            .collect();
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
+        let _ = state.step(); // the intent batch
+        let _ = state.step(); // the committed ZoneChanged batch
+        assert_eq!(
+            state.that_much,
+            Some(2),
+            "the discard clause's amount is its card count"
         );
     }
 

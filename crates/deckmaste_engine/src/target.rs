@@ -1091,14 +1091,7 @@ mod tests {
             object: StackObject::Triggered {
                 source: ObjectSource::Card(cid),
                 ability: 0,
-                bindings: TriggerBindings {
-                    this: None,
-                    that_object: None,
-                    that_player: None,
-                    that_patient: None,
-                    defending_player: None,
-                    that_much: None,
-                },
+                bindings: TriggerBindings::default(),
             },
             controller: PlayerId(0),
             targets: vec![],

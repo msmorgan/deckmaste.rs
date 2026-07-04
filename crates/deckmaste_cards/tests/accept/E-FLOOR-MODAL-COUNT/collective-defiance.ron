@@ -1,16 +1,11 @@
 // Collective Defiance — the modal cost-rider acceptance fixture: an escalate
 // rider ([CR#702.120a]) on the "one or more" choose-quantity ([CR#700.2]),
-// with per-mode targets chosen only for chosen modes ([CR#601.2c]).
-//
-// BLOCKED leg (event-side, noted for the coordinator): mode 1's oracle text
-// continues "…, then draws that many cards" — `Draw(ThatMuch)` needs the
-// `Discard` cause-verb entailment row (`entailments.ron`) to grow an
-// amount (the number of cards discarded, [CR#701.9]) AND the walker's
-// `Discard` action arm to read it as its amount Intro — a
-// fact-signature/event-side change this ticket does not own (the
-// DealDamage/GainLife/LoseLife action arms key their master forms'
-// caps rows since engine-eventfilter-bridge; Discard grants none yet).
-// When that lands, mode 1 grows the `Draw(ThatMuch)` leg.
+// with per-mode targets chosen only for chosen modes ([CR#601.2c]), and the
+// full mode-1 leg — "…, then draws that many cards": `Draw(ThatMuch)` reads
+// the discard clause's amount antecedent, granted by the `Discard`
+// cause-verb entailment row's `amount` column ([CR#701.9a]; landed with
+// engine-fact-record-batch — the apply funnel fixes the discard batch's
+// card count into the "that much" register).
 Normal(
   name: "Collective Defiance",
   mana_cost: [Generic(1), Red, Red],
@@ -21,9 +16,12 @@ Normal(
       modes: [
         Mode(effect: Targeted(
           targets: [Target(Exactly(1), Kind(Player))],
-          effect: By(Target(0), Discard(
-            count: CountOf(AllOf([Kind(Card), InZone(Hand), Owner(Ref(Target(0)))])),
-          )),
+          effect: Sequence([
+            By(Target(0), Discard(
+              count: CountOf(AllOf([Kind(Card), InZone(Hand), Owner(Ref(Target(0)))])),
+            )),
+            By(Target(0), Draw(ThatMuch)),
+          ]),
         )),
         Mode(effect: Targeted(
           targets: [Target(Exactly(1), Type(Creature))],

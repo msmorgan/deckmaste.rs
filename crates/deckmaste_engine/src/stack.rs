@@ -244,6 +244,10 @@ pub struct Endophora {
     /// The event PATIENT ([CR#608.2k,120.3]) — the acted-upon thing, kind-poly
     /// (object or player). Read by `Reference::EventPatient`.
     pub that_patient: Option<EventPatient>,
+    /// The firing counter event's `(before, after)` totals ([CR#714.2b]) —
+    /// read by `Condition::Crossed` at the trigger gate and the resolution
+    /// recheck ([CR#603.4]). `None` outside a counter-event body.
+    pub crossed: Option<(deckmaste_core::Uint, deckmaste_core::Uint)>,
 }
 
 impl Endophora {
@@ -263,6 +267,7 @@ impl Endophora {
             that_object: None,
             that_player: None,
             that_patient: None,
+            crossed: None,
         }
     }
 }

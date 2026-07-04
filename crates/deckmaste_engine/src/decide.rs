@@ -1308,22 +1308,25 @@ impl GameState {
         // (the named "Discard" view; agency per demand site — this decision
         // serves effect-instructed and cleanup discards alike, so the
         // turn-based flavor rides the cleanup caller's context for now).
-        self.schedule_front(
-            objects
-                .into_iter()
-                .map(|object| {
-                    WorkItem::Emit(Occurrence::single(GameEvent::ZoneWillChange {
-                        object,
-                        from: Some(Zone::Hand),
-                        to: Zone::Graveyard,
-                        enters: None,
-                        position: None,
-                        face: None,
-                        cause: Some(Cause::discard(Agency::EffectInstruction, None)),
-                    }))
-                })
-                .collect(),
-        );
+        // ONE simultaneous batch: a multi-discard's moves commit together
+        // ([CR#603.3b]), and the clause's amount — its card count, the
+        // entailment row's `amount` — fixes "that many" for a following
+        // draw ([CR#107.3]; the `apply_occurrence` funnel counts the batch).
+        let events: Vec<GameEvent> = objects
+            .into_iter()
+            .map(|object| GameEvent::ZoneWillChange {
+                object,
+                from: Some(Zone::Hand),
+                to: Zone::Graveyard,
+                enters: None,
+                position: None,
+                face: None,
+                cause: Some(Cause::discard(Agency::EffectInstruction, None)),
+            })
+            .collect();
+        if !events.is_empty() {
+            self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
+        }
         Ok(())
     }
 
@@ -1475,6 +1478,8 @@ impl GameState {
                     source,
                     target,
                     amount,
+                    // The combat-damage step's assignment ([CR#510.1]).
+                    combat: true,
                 });
             }
         }

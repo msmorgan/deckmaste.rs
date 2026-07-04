@@ -1,0 +1,14 @@
+// `Action::GainControl` outside an exchange-family macro's body: one-shot
+// control transitions are the exchange primitive ([CR#701.12b]); a
+// duration-bounded "gain control until end of turn" is the continuous
+// layer-2 form, not this verb — load-capped like `Simultaneous`.
+Normal(
+  name: "Reject Bare Gain Control",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Targeted(
+      targets: [Target(Exactly(1), Type(Creature))],
+      effect: GainControl(Target(0), You),
+    )),
+  ],
+)

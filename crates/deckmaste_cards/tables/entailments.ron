@@ -5,7 +5,7 @@
     rows: [
         (verb: "Sacrifice", kind: "ZoneChange", from: Some(Battlefield), to: Some(Graveyard), object: true, actor: true, amount: false, cite: "[CR#701.21a]"),
         (verb: "Destroy", kind: "ZoneChange", from: Some(Battlefield), to: Some(Graveyard), object: true, actor: false, amount: false, cite: "[CR#701.8a]"),
-        (verb: "Discard", kind: "ZoneChange", from: Some(Hand), to: Some(Graveyard), object: true, actor: true, amount: false, cite: "[CR#701.9a]"),
+        (verb: "Discard", kind: "ZoneChange", from: Some(Hand), to: Some(Graveyard), object: true, actor: true, amount: true, cite: "[CR#701.9a]"),
         (verb: "Exile", kind: "ZoneChange", from: None, to: Some(Exile), object: true, actor: false, amount: false, cite: "[CR#701.13a]"),
         (verb: "Mill", kind: "ZoneChange", from: Some(Library), to: Some(Graveyard), object: true, actor: true, amount: false, cite: "[CR#701.17a]"),
         (verb: "Play", kind: "ZoneChange", from: None, to: Some(Battlefield), object: true, actor: true, amount: false, cite: "[CR#701.18a]"),

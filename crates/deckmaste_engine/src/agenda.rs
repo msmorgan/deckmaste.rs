@@ -95,6 +95,14 @@ pub enum WorkItem {
         effect: Box<deckmaste_core::Effect>,
         frame: crate::stack::Frame,
     },
+    /// Opens a `Noting` collection window ([CR#607.2a] linkage — the
+    /// fact-backed product group): resets `key`'s group and pushes it onto
+    /// the noting stack, so every enacted `ZoneChanged` fact until the
+    /// matching `EndNote` joins the group. Scheduled around the noted
+    /// effect's `RunEffect` by `Effect::Noting`.
+    BeginNote { key: deckmaste_core::Ident },
+    /// Closes the innermost `Noting` collection window ([CR#607.2a]).
+    EndNote,
     /// [CR#701.22a]: surface a `Distribute` decision — player sorts `window`
     /// into ordered `bins` (Top/Bottom/Graveyard). Dispatched from
     /// `player_action_items` after evaluating the looked-at group.

@@ -7,7 +7,7 @@
         (key: "Damage", object: true, actor: true, amount: true, patient: Some(Any), defender: false, cite: "[CR#120.1]"),
         (key: "LifeGained", object: false, actor: true, amount: true, patient: None, defender: false, cite: "[CR#119.3]"),
         (key: "LifeLost", object: false, actor: true, amount: true, patient: None, defender: false, cite: "[CR#119.3]"),
-        (key: "Drawn", object: false, actor: true, amount: false, patient: None, defender: false, cite: "[CR#121.1]"),
+        (key: "Drawn", object: false, actor: true, amount: true, patient: None, defender: false, cite: "[CR#121.1]"),
         (key: "CounterPlaced", object: true, actor: true, amount: true, patient: None, defender: false, cite: "[CR#122.1]"),
         (key: "CounterRemoved", object: true, actor: true, amount: true, patient: None, defender: false, cite: "[CR#122.1]"),
         (key: "Cast", object: true, actor: true, amount: false, patient: None, defender: false, cite: "[CR#601.2i]"),

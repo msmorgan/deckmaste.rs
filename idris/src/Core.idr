@@ -560,11 +560,17 @@ NoCaps = MkEventCaps False False False Nothing False
 public export
 eventKindCaps : EventKind -> EventCaps
 eventKindCaps Sacrifice         = MkEventCaps True  True  False Nothing       False
-eventKindCaps Draw              = MkEventCaps False True  False Nothing       False
+-- a draw's per-fact amount is ONE card ([CR#121.2] -- drawn one at a time):
+-- the fact channel sums draws ("for each card drawn"), while the multi-card
+-- amount BOUND stays bridge-capped (`Drawn:amount`).
+eventKindCaps Draw              = MkEventCaps False True  True  Nothing       False
 eventKindCaps GainLife          = MkEventCaps False True  True  Nothing       False
 eventKindCaps LoseLife          = MkEventCaps False True  True  Nothing       False
 eventKindCaps GainControl       = MkEventCaps True  True  False Nothing       False
-eventKindCaps Discard           = MkEventCaps True  True  False Nothing       False
+-- a discard's amount is its card count ([CR#701.9a]; the engine's apply
+-- funnel fixes the batch size) -- Collective Defiance's "then draws that
+-- many cards" reads it.
+eventKindCaps Discard           = MkEventCaps True  True  True  Nothing       False
 -- damage: the source object is the Agent (`hasObject`), its controller the actor, the amount the amount,
 -- and the RECIPIENT's kind rides the kind as `toKind` → the patient (`EventPatient`).
 eventKindCaps (DealDamage _ {toKind}) = MkEventCaps True True True toKind False

@@ -228,6 +228,32 @@ fn anchored(event: &EventFilter) -> bool {
     }
 }
 
+/// The exchange-family macro names ([CR#701.12]) whose bodies may carry the
+/// batch primitives `Effect::Simultaneous` and `Action::GainControl` — the
+/// engine's batch wiring is exchange-only until it generalizes
+/// (`E-POS-SIMULTANEOUS`; the load cap mirrors the E-BRIDGE-CAP discipline:
+/// reject at load, never silently misexecute).
+const EXCHANGE_FAMILY: &[&str] = &["ExchangeControl"];
+
+/// Whether the pattern GUARANTEES a before/after totals channel — every
+/// anchor is a counter-placement fact, the only kind carrying them
+/// ([CR#714.2b,122.1]): a conjunction needs one such conjunct, a
+/// disjunction needs every disjunct, refinement wrappers inherit, `Not`
+/// guarantees nothing (mirrors `anchored`/`event_caps`).
+fn fixes_crossing(event: &EventFilter) -> bool {
+    match event {
+        EventFilter::CounterPlaced { .. } => true,
+        EventFilter::AllOf(events) => events.iter().any(fixes_crossing),
+        EventFilter::OneOf(events) => !events.is_empty() && events.iter().all(fixes_crossing),
+        EventFilter::OneOrMore(inner)
+        | EventFilter::Nth { of: inner, .. }
+        | EventFilter::When(inner, _)
+        | EventFilter::Within(inner, _) => fixes_crossing(inner),
+        EventFilter::Expanded(e) => fixes_crossing(&e.value),
+        _ => false,
+    }
+}
+
 /// The running binding context — the antecedent state a position sees
 /// (the Idris `Endophora`, plus the positional discipline the plan's `Ctx`
 /// adds: `may_target`, `has_x`, the amount antecedent, noted keys).
@@ -254,6 +280,14 @@ struct Ctx {
     /// An amount antecedent is in scope ("that much", [CR#107.3]): the
     /// event's amount, or an amount-guaranteeing earlier instruction.
     amount: bool,
+    /// The surrounding event fixes a before/after totals channel — every
+    /// anchor is a counter-placement fact ([CR#714.2b,122.1]); the
+    /// `Condition::Crossed` read is legal only here.
+    crossing: bool,
+    /// Inside an exchange-family macro's body ([CR#701.12]) — the only
+    /// position where `Simultaneous`/`GainControl` load
+    /// (`E-POS-SIMULTANEOUS`).
+    in_exchange_macro: bool,
     /// `{X}` is declared by the carrying cost ([CR#107.3]).
     has_x: bool,
     /// `Targeted` is legal here ([CR#115.1a..115.1e,601.2c]).
@@ -274,6 +308,8 @@ impl Ctx {
             caps: NO_CAPS,
             in_event: false,
             amount: false,
+            crossing: false,
+            in_exchange_macro: false,
             has_x,
             may_target: false,
             notes: Vec::new(),
@@ -445,6 +481,10 @@ impl<'a> Walker<'a> {
                 next.caps = caps;
                 next.in_event = true;
                 next.amount = caps.amount;
+                // A fresh event context: the crossing channel is per-event
+                // ([CR#714.2b]); `triggered_ability` re-derives it from the
+                // new pattern.
+                next.crossing = false;
             }
         }
         if let Some(may_target) = rule.may_target {
@@ -695,7 +735,8 @@ impl<'a> Walker<'a> {
         let lane = Lane::for_trigger_construct(construct);
         self.scoped("event", |w| w.event(&triggered.event, &pattern_ctx, lane));
         let caps = self.event_caps(&triggered.event);
-        let body = self.descend(ctx, construct, None, Kind::Any, caps);
+        let mut body = self.descend(ctx, construct, None, Kind::Any, caps);
+        body.crossing = fixes_crossing(&triggered.event);
         if let Some(condition) = &triggered.condition {
             // Intervening-if ([CR#603.4]) is elaborated in the event-extended
             // context ("if that creature's power…").
@@ -717,6 +758,27 @@ impl<'a> Walker<'a> {
     fn effect(&mut self, effect: &Effect, ctx: &Ctx) -> Intro {
         match effect {
             Effect::Act(action) => self.action(action, ctx),
+            // [CR#603.3b,616.1]: the simultaneous batch — every member reads
+            // ONE pre-application snapshot, so no member's Intro reaches a
+            // sibling (unlike `Sequence`'s telescope). Load-capped to the
+            // exchange-family macros' bodies until the engine wiring
+            // generalizes.
+            Effect::Simultaneous(effects) => {
+                if !ctx.in_exchange_macro {
+                    self.err(
+                        Code::PosSimultaneous,
+                        "Simultaneous outside an exchange-family macro body — the engine's \
+                         batch wiring is exchange-only ([CR#701.12]) until it generalizes",
+                    );
+                }
+                let mut intro = Intro::default();
+                for (i, element) in effects.iter().enumerate() {
+                    self.scoped(format!("Simultaneous[{i}]"), |w| {
+                        intro.absorb(w.effect(element, ctx));
+                    });
+                }
+                intro
+            }
             Effect::Sequence(effects) => {
                 let mut running = ctx.clone();
                 let mut intro = Intro::default();
@@ -871,7 +933,18 @@ impl<'a> Walker<'a> {
                 Intro::default()
             }
             Effect::Targeted(targeted) => self.targeted(targeted, ctx),
-            Effect::Expanded(e) => self.effect(&e.value, ctx),
+            Effect::Expanded(e) => {
+                // The invocation's name is the macro-body provenance hook:
+                // an exchange-family expansion admits the batch primitives
+                // inside its own body ([CR#701.12], `E-POS-SIMULTANEOUS`).
+                if EXCHANGE_FAMILY.contains(&e.name.as_str()) {
+                    let mut inner = ctx.clone();
+                    inner.in_exchange_macro = true;
+                    self.effect(&e.value, &inner)
+                } else {
+                    self.effect(&e.value, ctx)
+                }
+            }
         }
     }
 
@@ -1041,6 +1114,21 @@ impl<'a> Walker<'a> {
                 self.reference(b, ctx, Kind::Object);
                 Intro::default()
             }
+            // The exchange-family control transition ([CR#701.12b]) — legal
+            // only inside an exchange macro's body, like `Simultaneous`.
+            Action::GainControl(what, to) => {
+                if !ctx.in_exchange_macro {
+                    self.err(
+                        Code::PosSimultaneous,
+                        "GainControl outside an exchange-family macro body — one-shot \
+                         control transitions are exchange-only ([CR#701.12b]); duration-bounded \
+                         control changes are the continuous layer-2 form",
+                    );
+                }
+                self.reference(what, ctx, Kind::Object);
+                self.reference(to, ctx, Kind::Player);
+                Intro::default()
+            }
             Action::ExtraPhase(_, player) | Action::TheRingTempts(player) => {
                 self.reference(player, ctx, Kind::Player);
                 Intro::default()
@@ -1112,7 +1200,18 @@ impl<'a> Walker<'a> {
                 if let Some(what) = what {
                     self.reference(what, ctx, Kind::Object);
                 }
-                Intro::default()
+                // The action's moves ride `ZoneChange` facts carrying the
+                // Discard cause ([CR#701.9a]); whether they fix an amount
+                // antecedent (the card count — "…, then draws that many
+                // cards") is the verb's entailment row, mirroring the
+                // master-form caps reads above.
+                Intro {
+                    amount: self
+                        .tables
+                        .entailment("Discard")
+                        .is_some_and(|row| row.caps().amount),
+                    notes: Vec::new(),
+                }
             }
             PlayerAction::AddMana(count, production) => {
                 self.count(count, ctx);
@@ -2078,6 +2177,30 @@ impl<'a> Walker<'a> {
             Condition::Happened { event, within } => {
                 self.event(event, ctx, Lane::History);
                 self.bridge_gate_lookback(*within, Lane::History);
+            }
+            // [CR#714.2b]: reads the firing fact's before/after totals —
+            // only a counter-placement event fixes that channel.
+            Condition::Crossed { value, threshold } => {
+                if !ctx.in_event {
+                    self.err(
+                        Code::BindEvent,
+                        "Crossed outside any event body — it reads the firing fact's \
+                         before/after totals ([CR#714.2b])",
+                    );
+                } else if !ctx.crossing {
+                    self.err(
+                        Code::CapsAmount,
+                        "Crossed under an event that fixes no before/after totals — only a \
+                         counter placement does ([CR#714.2b,122.1])",
+                    );
+                } else {
+                    self.resolve(|| {
+                        "Crossed -> bound to the counter event's before/after channel".into()
+                    });
+                }
+                self.count(value, ctx);
+                let (_, bound) = threshold.split();
+                self.count(bound, ctx);
             }
             // The paid-cost flag reads the object's own announce record
             // ([CR#702.33d]) — a leaf.

@@ -1081,6 +1081,7 @@ mod tests {
         // activation this turn (replaces the deleted ledger bump).
         state.history.record(
             state.turn.turn_number,
+            None,
             crate::event::GameEvent::AbilityUsed {
                 object: obj,
                 ability: 0,
@@ -1121,6 +1122,7 @@ mod tests {
         // activation (replaces the deleted ledger bump).
         state.history.record(
             state.turn.turn_number,
+            None,
             crate::event::GameEvent::AbilityUsed {
                 object: obj,
                 ability: 0,

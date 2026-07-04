@@ -614,7 +614,7 @@ mod tests {
         for kind in ["P1P1Counter", "M1M1Counter"] {
             assert!(
                 actions.iter().any(|e| matches!(e,
-                    GameEvent::CounterRemoved { object, kind: k, count: 2, .. }
+                    GameEvent::CounterRemoved { object, kind: k, amount: 2, .. }
                     if *object == bear && *k == deckmaste_core::Ident::from(kind))),
                 "removes 2 {kind}; got {actions:?}"
             );

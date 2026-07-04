@@ -1,0 +1,10 @@
+// `Effect::Simultaneous` outside an exchange-family macro's body: the
+// engine's simultaneous-batch wiring is exchange-only ([CR#701.12]) until
+// it generalizes — load-capped, mirroring the E-BRIDGE-CAP discipline.
+Normal(
+  name: "Reject Bare Simultaneous",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Simultaneous([GainLife(1), LoseLife(1)])),
+  ],
+)

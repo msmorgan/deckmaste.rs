@@ -179,6 +179,7 @@ impl GameState {
                         that_object: bindings.that_object.clone(),
                         that_player: bindings.that_player,
                         that_patient: bindings.that_patient.clone(),
+                        crossed: bindings.crossed,
                         ..Endophora::empty()
                     },
                 };
@@ -453,6 +454,52 @@ impl GameState {
                     .collect();
                 self.schedule_front(items);
             }
+            // The written `Simultaneous` spec. ONE SNAPSHOT: every member's
+            // items are evaluated up front against the current state, before
+            // any applies (an exchange works BECAUSE both halves read the
+            // pre-state). ONE BATCH: the merged events land as one
+            // occurrence, so triggers see one [CR#603.3b] simultaneous set,
+            // its facts share a batch id, replacements run per member
+            // ([CR#616.1]), and SBAs run after the whole batch (the next
+            // `CheckSbas`, never between members). ALL-OR-NOTHING: a member
+            // that evaluates to no events voids the whole set ([CR#701.12a]
+            // — "if the entire exchange can't be completed, no part of the
+            // exchange occurs"). The load cap (`E-POS-SIMULTANEOUS`)
+            // restricts members to the exchange family's pure-verb bodies —
+            // a choice-bearing member is unreachable from loadable data and
+            // trips loudly.
+            Effect::Simultaneous(children) => {
+                let mut member_events: Vec<Vec<GameEvent>> = Vec::new();
+                for child in &children {
+                    let Effect::Act(action) = peel_effect(child) else {
+                        todo!(
+                            "load-capped (E-POS-SIMULTANEOUS): a non-verb Simultaneous \
+                             member: {child:?}"
+                        )
+                    };
+                    let mut events = Vec::new();
+                    for item in self.action_items(action, frame) {
+                        match item {
+                            WorkItem::Emit(crate::event::Occurrence::Single(e)) => events.push(e),
+                            WorkItem::Emit(crate::event::Occurrence::Batch(es)) => {
+                                events.extend(es);
+                            }
+                            other => todo!(
+                                "load-capped (E-POS-SIMULTANEOUS): a choice-bearing \
+                                 Simultaneous member scheduled {other:?}"
+                            ),
+                        }
+                    }
+                    member_events.push(events);
+                }
+                if member_events.iter().any(Vec::is_empty) {
+                    return;
+                }
+                let events: Vec<GameEvent> = member_events.into_iter().flatten().collect();
+                self.schedule_front(vec![WorkItem::Emit(crate::event::Occurrence::Batch(
+                    events,
+                ))]);
+            }
             Effect::Continuously(e) => {
                 // [CR#611.2]/[CR#611.2c]: stamp at creation; lock the object set
                 // for non-floating scopes, leave `Matching` floating.
@@ -497,6 +544,24 @@ impl GameState {
             // `PumpThisUntilEot`) is transparent to resolution — run its value,
             // matching how every other engine layer sees through `*::Expanded`.
             Effect::Expanded(e) => self.run_effect(*e.value, frame),
+            // [CR#607.2a]: fact-backed product groups — run the inner
+            // effect between a BeginNote/EndNote pair; every `ZoneChanged`
+            // fact the clause ACTUALLY enacts (its whole apply cascade sits
+            // between the markers) joins `noted[key]`, never the gathered
+            // input set: a destroy-all's indestructible survivor is
+            // excluded by construction (its `WillDestroy` was canted and no
+            // move fact exists). Later clauses read the group via
+            // `Selection::AmongNoted` ("this way" anaphora).
+            Effect::Noting(noting) => {
+                self.schedule_front(vec![
+                    WorkItem::BeginNote { key: noting.key },
+                    WorkItem::RunEffect {
+                        effect: noting.effect,
+                        frame: frame.clone(),
+                    },
+                    WorkItem::EndNote,
+                ]);
+            }
             // [CR#608.2c,608.2h]: a plain effect "if" has only its normal
             // English meaning ([CR#603.4]) — NOT the intervening-"if" rule, which
             // is only the clause directly after a triggered ability's condition.
@@ -959,6 +1024,8 @@ impl GameState {
                         source: dealer,
                         target,
                         amount,
+                        // Effect damage is never combat damage ([CR#510.1]).
+                        combat: false,
                     })
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
@@ -1183,13 +1250,16 @@ impl GameState {
                     events.push(GameEvent::CounterRemoved {
                         object: from_id,
                         kind,
-                        count: n,
+                        amount: n,
                         cause: remove_cause.clone(),
                     });
                     events.push(GameEvent::CounterPlaced {
                         object: to_id,
                         kind,
-                        count: n,
+                        amount: n,
+                        // Apply-computed totals ([CR#714.2b]).
+                        before: 0,
+                        after: 0,
                         cause: place_cause.clone(),
                     });
                 }
@@ -1208,18 +1278,84 @@ impl GameState {
                 )
             }
             // ----- core-action-riders-cost-modes: shapes landed, execution
-            // seams. Fight's both-or-neither/self-fight semantics
-            // ([CR#701.14a..701.14d]) are engine-fact-record-batch work; the
-            // group move's simultaneous ordered landing ([CR#401.4]) rides
-            // the same batch machinery; the rest are footing verbs.
+            // seams. The batch machinery `MoveGroup` needs now exists (a
+            // batch of intents evolves as one occurrence); what remains is
+            // the ARRANGEMENT decision — a group landing in an ordered
+            // position surfaces its order choice ([CR#401.4]).
             Action::MoveGroup { .. } => todo!(
-                "engine-fact-record-batch seam: MoveGroup's simultaneous ordered landing \
-                 ([CR#401.4])"
+                "engine seam: MoveGroup's ordered landing needs the Arrangement \
+                 decision surface ([CR#401.4]); the simultaneous batch itself is built"
             ),
-            Action::Fight(..) => todo!(
-                "engine-fact-record-batch seam: Fight's native both-or-neither semantics \
-                 ([CR#701.14a..701.14d])"
-            ),
+            // [CR#701.12b]: the patient comes under the referenced player's
+            // control — a TRANSITION ([CR#603.2e]): a same-controller grant
+            // emits nothing ("the exchange effect does nothing"), and a gone
+            // patient yields no events (the enclosing `Simultaneous` then
+            // voids the whole exchange, [CR#701.12a]). A gone reference
+            // inside `to` still trips the layer view loudly — the
+            // illegal-target machinery upstream is the graceful path.
+            Action::GainControl(what, to) => {
+                let object = self.eval_reference(what, frame);
+                if self.objects.get(object).is_none() {
+                    return vec![];
+                }
+                let player = self.acting_player(to, frame);
+                if self.objects.obj(object).controller == player {
+                    return vec![];
+                }
+                vec![WorkItem::Emit(Occurrence::single(
+                    GameEvent::ControlChanged { object, to: player },
+                ))]
+            }
+            // [CR#701.14a]: each fighting creature deals damage equal to
+            // its power to the other — a PRIMITIVE verb with native
+            // semantics, never `Simultaneous` sugar (fight is its own CR
+            // event family).
+            Action::Fight(a, b) => {
+                let x = self.eval_reference(a, frame);
+                let y = self.eval_reference(b, frame);
+                let view = self.layers();
+                // [CR#701.14b]: both-or-neither — if either is no longer a
+                // creature on the battlefield when the fight would occur,
+                // NEITHER fights or deals damage.
+                let fighting = |id: ObjectId| {
+                    self.objects
+                        .get(id)
+                        .is_some_and(|o| o.zone == Some(Zone::Battlefield))
+                        && view.get(id).card_types.contains(&Type::Creature)
+                };
+                if !fighting(x) || !fighting(y) {
+                    return vec![];
+                }
+                // [CR#701.14d]: fight damage is never combat damage.
+                let events: Vec<GameEvent> = if x == y {
+                    // [CR#701.14c]: a self-fight deals damage to itself
+                    // equal to TWICE its power — one damage instance.
+                    vec![GameEvent::DamageDealt {
+                        source: x,
+                        target: x,
+                        amount: 2 * Self::power_of(&view, x),
+                        combat: false,
+                    }]
+                } else {
+                    // One simultaneous batch: both packets land together,
+                    // SBAs after the whole batch ([CR#701.14a]).
+                    vec![
+                        GameEvent::DamageDealt {
+                            source: x,
+                            target: y,
+                            amount: Self::power_of(&view, x),
+                            combat: false,
+                        },
+                        GameEvent::DamageDealt {
+                            source: y,
+                            target: x,
+                            amount: Self::power_of(&view, y),
+                            combat: false,
+                        },
+                    ]
+                };
+                vec![WorkItem::Emit(occurrence_of(events))]
+            }
             Action::ExtraPhase(..) => {
                 todo!("engine seam: extra phases ([CR#500.8]) — turn-structure insertion unbuilt")
             }
@@ -1447,10 +1583,36 @@ impl GameState {
             // P0.W3 seams: grammar-complete verbs whose execution is unbuilt.
             PlayerAction::FlipCoins(..) => todo!("P0.W3: coin flips (emit CoinFlipped)"),
             // core-action-riders-cost-modes: shapes landed, execution seams.
-            PlayerAction::Mill(_) => todo!(
-                "engine seam: Mill ([CR#701.17a]) — the top-of-library group move lands with \
-                 the keyword-action engine work"
-            ),
+            // [CR#701.17a]: mill — the actor puts that many cards from the
+            // top of their library into their graveyard, as ONE simultaneous
+            // batch of cause-carried moves ("milled this way" reads find
+            // them by the Mill cause, [CR#701.17c]).
+            PlayerAction::Mill(count) => {
+                let n = self.eval_count(count, frame) as usize;
+                // [CR#701.17b]: milling more cards than the library holds
+                // mills as many as possible.
+                let events: Vec<GameEvent> = self.zones.libraries[actor.index()]
+                    .iter()
+                    .take(n)
+                    .map(|&object| GameEvent::ZoneWillChange {
+                        object,
+                        from: Some(Zone::Library),
+                        to: Zone::Graveyard,
+                        enters: None,
+                        position: None,
+                        face: None,
+                        cause: Some(Cause::mill(
+                            Agency::EffectInstruction,
+                            Some((frame.source, frame.controller)),
+                        )),
+                    })
+                    .collect();
+                if events.is_empty() {
+                    vec![]
+                } else {
+                    vec![WorkItem::Emit(occurrence_of(events))]
+                }
+            }
             PlayerAction::VentureIntoDungeon => {
                 todo!("engine seam: venture into the dungeon ([CR#701.49a]) — dungeons unbuilt")
             }
@@ -1474,7 +1636,10 @@ impl GameState {
                         // The event carries the resolved Ident name (engine
                         // state is Ident-keyed); the authored ref is a `CounterRef`.
                         kind: kind.0,
-                        count: n,
+                        amount: n,
+                        // Apply-computed totals ([CR#714.2b]).
+                        before: 0,
+                        after: 0,
                         cause: Some(crate::event::Cause::put_counters(
                             deckmaste_core::Agency::EffectInstruction,
                             Some((frame.source, frame.controller)),
@@ -1498,7 +1663,7 @@ impl GameState {
                     .map(|object| GameEvent::CounterRemoved {
                         object,
                         kind: kind.0,
-                        count: n,
+                        amount: n,
                         cause: Some(crate::event::Cause::remove_counters(
                             deckmaste_core::Agency::EffectInstruction,
                             Some((frame.source, frame.controller)),
@@ -1828,10 +1993,30 @@ impl GameState {
             // the frame to select among. An explicit named arm (not a catch-all)
             // so a future `Selection` variant is a compile error here rather than
             // a silent runtime panic.
-            Selection::AmongNoted(label, _quantity) => {
-                unimplemented!(
-                    "Selection::AmongNoted({label:?}): noted-object sets are not yet wired"
-                )
+            // [CR#607.2a]: the fact-backed product group — the members the
+            // noting clause ACTUALLY moved, read through their post-move
+            // identities ("cards milled this way"); a member that has since
+            // left (a ceased token) drops out of the live read. The
+            // unconstrained quantity is the whole group; a CHOOSING
+            // quantity ("exile two of them") needs a chooser — unbuilt.
+            Selection::AmongNoted(label, quantity) => {
+                if !matches!(
+                    deref_quantity(quantity),
+                    deckmaste_core::Quantity::Range(None, None)
+                ) {
+                    todo!(
+                        "engine seam: a constraining AmongNoted quantity needs a chooser \
+                         ([CR#608.2d]); the full-group read is the wired path"
+                    )
+                }
+                let Some(members) = self.noted.get(label) else {
+                    return Vec::new();
+                };
+                members
+                    .iter()
+                    .filter_map(|m| m.now)
+                    .filter(|&id| self.objects.get(id).is_some())
+                    .collect()
             }
         }
     }
@@ -2273,12 +2458,26 @@ impl GameState {
         }
     }
 
-    /// The magnitude carried by an amount-bearing history fact ([CR#119.3]).
-    /// Returns `0` for facts with no scalar amount.
+    /// The magnitude carried by an amount-bearing history fact — the
+    /// event-amount channel `Count::EventSum` sums ([CR#608.2i]): damage and
+    /// life amounts ([CR#120.1,119.3]), counter deltas ([CR#122.1]), one per
+    /// draw fact ([CR#121.2] — drawn one at a time), and one per moved card
+    /// on a cause-amount zone change (a discard's/mill's card count,
+    /// [CR#701.9a,701.17a]). A fact kind outside this set trips loudly: the
+    /// caps gate (`E-CAPS-AMOUNT`) rejects `EventSum` over an event that
+    /// guarantees no amount, so no loadable card reaches the fallback.
     fn game_event_amount(fact: &GameEvent) -> Uint {
         match fact {
-            GameEvent::LifeLost { amount, .. } | GameEvent::LifeGained { amount, .. } => *amount,
-            _ => 0,
+            GameEvent::LifeLost { amount, .. }
+            | GameEvent::LifeGained { amount, .. }
+            | GameEvent::DamageDealt { amount, .. }
+            | GameEvent::CounterPlaced { amount, .. }
+            | GameEvent::CounterRemoved { amount, .. } => *amount,
+            GameEvent::WillDraw { .. } | GameEvent::ZoneChanged { .. } => 1,
+            other => todo!(
+                "load-capped (E-CAPS-AMOUNT): EventSum reached a fact kind with no \
+                 amount channel: {other:?}"
+            ),
         }
     }
 
@@ -2523,6 +2722,15 @@ pub(crate) fn peel_binder(binder: &deckmaste_core::Binder) -> &deckmaste_core::B
 
 /// Look through an [`Effect::Expanded`](deckmaste_core::Effect::Expanded) macro
 /// invocation to the structural effect underneath.
+/// Look through `Quantity` macro expansions (`Exactly`, `AtLeast`, …) to
+/// the underlying `Range` primitive.
+fn deref_quantity(q: &deckmaste_core::Quantity) -> &deckmaste_core::Quantity {
+    match q {
+        deckmaste_core::Quantity::Expanded(e) => deref_quantity(&e.value),
+        range @ deckmaste_core::Quantity::Range(..) => range,
+    }
+}
+
 pub(crate) fn peel_effect(effect: &deckmaste_core::Effect) -> &deckmaste_core::Effect {
     match effect {
         deckmaste_core::Effect::Expanded(e) => peel_effect(&e.value),
@@ -2705,9 +2913,9 @@ mod tests {
         let sp1 = state.objects.mint(ObjectSource::Player(p), p, None);
         let sp2 = state.objects.mint(ObjectSource::Player(p), p, None);
         let sp3 = state.objects.mint(ObjectSource::Player(p), p, None);
-        state.history.record(1, GameEvent::SpellCast(sp1));
-        state.history.record(1, GameEvent::SpellCast(sp2));
-        state.history.record(1, GameEvent::SpellCast(sp3));
+        state.history.record(1, None, GameEvent::SpellCast(sp1));
+        state.history.record(1, None, GameEvent::SpellCast(sp2));
+        state.history.record(1, None, GameEvent::SpellCast(sp3));
         let cast_event = EventFilter::Cast {
             who: Filter::Any,
             what: Filter::Any,
@@ -2724,6 +2932,7 @@ mod tests {
         // Two draws by p this turn → EventCount(Draw, by: Ref(You)) = 2.
         state.history.record(
             1,
+            None,
             GameEvent::WillDraw {
                 player: p,
                 source: None,
@@ -2731,6 +2940,7 @@ mod tests {
         );
         state.history.record(
             1,
+            None,
             GameEvent::WillDraw {
                 player: p,
                 source: None,
@@ -2757,6 +2967,7 @@ mod tests {
             .mint(ObjectSource::Player(p), p, Some(Zone::Battlefield));
         state.history.record(
             1,
+            None,
             GameEvent::ZoneChanged {
                 snapshot: LkiSnapshot::capture(&state, land),
                 from: Some(Zone::Hand),
@@ -2792,6 +3003,7 @@ mod tests {
         // likewise ([CR#119.3]).
         state.history.record(
             1,
+            None,
             GameEvent::LifeLost {
                 player: p,
                 amount: 3,
@@ -2799,6 +3011,7 @@ mod tests {
         );
         state.history.record(
             1,
+            None,
             GameEvent::LifeLost {
                 player: p,
                 amount: 2,
@@ -2806,6 +3019,7 @@ mod tests {
         );
         state.history.record(
             1,
+            None,
             GameEvent::LifeGained {
                 player: p,
                 amount: 4,
@@ -2879,6 +3093,7 @@ mod tests {
         // all on the current turn.
         state.history.record(
             1,
+            None,
             GameEvent::AbilityUsed {
                 object: obj_a,
                 ability: 0,
@@ -2886,6 +3101,7 @@ mod tests {
         );
         state.history.record(
             1,
+            None,
             GameEvent::AbilityUsed {
                 object: obj_a,
                 ability: 0,
@@ -2893,6 +3109,7 @@ mod tests {
         );
         state.history.record(
             1,
+            None,
             GameEvent::AbilityUsed {
                 object: obj_a,
                 ability: 1,
@@ -2907,6 +3124,7 @@ mod tests {
         // A use of (obj_a, 0) on a DIFFERENT turn.
         state.history.record(
             2,
+            None,
             GameEvent::AbilityUsed {
                 object: obj_a,
                 ability: 0,
@@ -3027,7 +3245,13 @@ mod tests {
         for _ in 0..30 {
             let injected = matches!(
                 state.agenda.front(),
-                Some(WorkItem::Emit(_) | WorkItem::RunEffect { .. } | WorkItem::Resolve(_))
+                Some(
+                    WorkItem::Emit(_)
+                        | WorkItem::RunEffect { .. }
+                        | WorkItem::Resolve(_)
+                        | WorkItem::BeginNote { .. }
+                        | WorkItem::EndNote
+                )
             );
             if !injected || state.pending.is_some() {
                 return;
@@ -4042,6 +4266,272 @@ mod tests {
         );
     }
 
+    /// The Blood-Money shape ([CR#607.2a] fact-backed product groups): a
+    /// `Noting`-wrapped destroy-all over three creatures, one of which
+    /// can't be destroyed — "destroyed this way" is exactly the clause's
+    /// enacted destroy-caused `ZoneChanged` facts, so the survivor is
+    /// excluded BY CONSTRUCTION (its `WillDestroy` was canted; no move
+    /// fact exists), and the two dies-facts share one history batch id
+    /// ([CR#603.3b]).
+    #[test]
+    fn destroyed_this_way_product_group_excludes_indestructible_survivor() {
+        let (mut state, a, b) = two_permanents_on_field();
+        // The indestructible shape ([CR#702.12b] — destruction can't
+        // happen), as the canted static.
+        let survivor = {
+            let source = "Normal(name: \"Darksteel Test\", types: [Creature], abilities: [\
+                 Static(effects: [CantHappen(ZoneChange(what: Ref(This), \
+                 from: Battlefield, to: Graveyard))])])";
+            let card = builtin()
+                .macros
+                .read_str::<deckmaste_core::Card>(source)
+                .unwrap();
+            mint_on_field(&mut state, card)
+        };
+
+        let effect = Effect::Noting(deckmaste_core::Noting {
+            key: "destroyed".into(),
+            effect: Box::new(Effect::Each(deckmaste_core::Each {
+                binder: deckmaste_core::Binder::Existing(Selection::Filter(Filter::AllOf(vec![
+                    Filter::State(deckmaste_core::StateFilter::InZone(Zone::Battlefield)),
+                    Filter::creature(),
+                ]))),
+                effect: Box::new(Effect::Act(Action::Destroy(Reference::It))),
+            })),
+        });
+        let frame = frame_src(a);
+        state.run_effect(effect, &frame);
+        run_injected(&mut state);
+
+        assert!(
+            state.objects.get(survivor).is_some()
+                && state.objects.obj(survivor).zone == Some(Zone::Battlefield),
+            "the can't-be-destroyed creature survived"
+        );
+        let group = &state.noted[&deckmaste_core::Ident::from("destroyed")];
+        assert_eq!(
+            group.len(),
+            2,
+            "the product group is the ENACTED destroy facts, not the gathered set"
+        );
+        let members: Vec<ObjectId> = group.iter().map(|m| m.snapshot.object).collect();
+        assert!(
+            members.contains(&a) && members.contains(&b),
+            "exactly the two destroyed creatures, by LKI"
+        );
+        // The dies-facts committed as ONE batch ([CR#603.3b]).
+        let ids: Vec<Option<deckmaste_core::Uint>> = state
+            .history
+            .entries()
+            .filter(|e| matches!(e.fact, GameEvent::ZoneChanged { .. }))
+            .map(|e| e.batch)
+            .collect();
+        assert_eq!(ids.len(), 2);
+        assert!(ids[0].is_some() && ids[0] == ids[1], "one shared batch id");
+    }
+
+    /// "Cards milled this way" ([CR#701.17a,701.17c,607.2a]): a
+    /// `Noting`-wrapped mill commits the three moves as ONE cause-carried
+    /// batch, populates the product group from the enacted facts, and a
+    /// following clause ACTS on the group through `AmongNoted` — exiling
+    /// exactly the milled cards.
+    #[test]
+    fn cards_milled_this_way_reads_the_enacted_product_group() {
+        let (mut state, a) = bear_on_field();
+        let libsize = state.zones.libraries[0].len();
+        assert!(libsize >= 3, "the harness deck has cards to mill");
+
+        let effect = Effect::Sequence(vec![
+            Effect::Noting(deckmaste_core::Noting {
+                key: "milled".into(),
+                effect: Box::new(Effect::act_by_you(PlayerAction::Mill(Count::Literal(3)))),
+            }),
+            Effect::Each(deckmaste_core::Each {
+                binder: deckmaste_core::Binder::Existing(Selection::AmongNoted(
+                    "milled".into(),
+                    deckmaste_core::Quantity::Range(None, None),
+                )),
+                effect: Box::new(Effect::Act(Action::Move(
+                    Reference::It,
+                    deckmaste_core::Destination::Zone(Zone::Exile),
+                    vec![],
+                ))),
+            }),
+        ]);
+        let frame = frame_src(a);
+        state.run_effect(effect, &frame);
+        run_injected(&mut state);
+
+        let group = &state.noted[&deckmaste_core::Ident::from("milled")];
+        assert_eq!(group.len(), 3, "three enacted mill facts");
+        assert!(
+            logged(&state, |e| matches!(
+                e,
+                GameEvent::ZoneChanged { cause: Some(c), to: Zone::Graveyard, .. }
+                    if c.verb.as_str() == "Mill"
+            )),
+            "the moves carry the Mill cause ([CR#701.17a])"
+        );
+        assert_eq!(
+            state.zones.libraries[0].len(),
+            libsize - 3,
+            "three cards left the library"
+        );
+        assert_eq!(
+            state.zones.exile.len(),
+            3,
+            "the follow-on clause exiled exactly the cards milled this way"
+        );
+        assert!(
+            state.zones.graveyards[0].is_empty(),
+            "the milled cards moved on from the graveyard"
+        );
+    }
+
+    /// The exchange-control card, through `Simultaneous`
+    /// ([CR#701.12a..701.12b]): the `ExchangeControl` macro's two halves
+    /// read ONE pre-application snapshot, land as one `ControlChanged`
+    /// batch, and the two creatures swap controllers — each
+    /// summoning-sick for its new controller ([CR#302.6]).
+    #[test]
+    fn exchange_control_swaps_controllers_through_one_simultaneous_batch() {
+        let (mut state, mine, other) = two_permanents_on_field();
+        // Re-home `other` to player 1 so the exchange crosses seats.
+        state.objects.obj_mut(other).controller = PlayerId(1);
+
+        let effect: Effect = builtin()
+            .macros
+            .read_str("ExchangeControl(Target(0), Target(1))")
+            .unwrap();
+        let frame = frame_src_targets(mine, vec![mine, other]);
+        state.run_effect(effect, &frame);
+
+        // ONE batch of two ControlChanged facts.
+        let front = state.agenda.front().cloned();
+        let Some(WorkItem::Emit(Occurrence::Batch(events))) = front else {
+            panic!("expected one ControlChanged batch, got {front:?}");
+        };
+        assert_eq!(events.len(), 2, "both halves in one occurrence");
+        assert!(
+            events
+                .iter()
+                .all(|e| matches!(e, GameEvent::ControlChanged { .. })),
+            "the exchange is a batch of control transitions, got {events:?}"
+        );
+
+        run_injected(&mut state);
+        assert_eq!(
+            state.objects.obj(mine).controller,
+            PlayerId(1),
+            "player 1 gained control of player 0's creature"
+        );
+        assert_eq!(
+            state.objects.obj(other).controller,
+            PlayerId(0),
+            "player 0 gained control of player 1's creature — both halves read \
+             the PRE-exchange controllers (one snapshot)"
+        );
+        assert!(
+            state.objects.obj(mine).summoning_sick && state.objects.obj(other).summoning_sick,
+            "newly controlled permanents are summoning-sick ([CR#302.6])"
+        );
+    }
+
+    /// [CR#701.12b]: exchanging control of two permanents the SAME player
+    /// controls does nothing — each half is a no-transition no-op, and the
+    /// all-or-nothing rule ([CR#701.12a]) voids the empty set.
+    #[test]
+    fn same_controller_exchange_does_nothing() {
+        let (mut state, mine, other) = two_permanents_on_field();
+        let effect: Effect = builtin()
+            .macros
+            .read_str("ExchangeControl(Target(0), Target(1))")
+            .unwrap();
+        let frame = frame_src_targets(mine, vec![mine, other]);
+        state.run_effect(effect, &frame);
+        assert!(
+            !state.agenda.iter().any(|w| matches!(w, WorkItem::Emit(_))),
+            "a same-controller exchange emits nothing ([CR#701.12b])"
+        );
+    }
+
+    /// [CR#701.14a]: a fight — each creature deals damage equal to its
+    /// power to the other, as ONE simultaneous batch of noncombat
+    /// ([CR#701.14d]) damage facts; SBAs run after the whole batch.
+    #[test]
+    fn fight_deals_each_others_power_as_one_noncombat_batch() {
+        let (mut state, a, b) = two_permanents_on_field();
+        let frame = frame_src_targets(a, vec![a, b]);
+        state.run_effect(
+            Effect::Act(Action::Fight(Reference::Target(0), Reference::Target(1))),
+            &frame,
+        );
+        // The scheduled work is ONE Emit of a two-packet batch.
+        let front = state.agenda.front().cloned();
+        let Some(WorkItem::Emit(Occurrence::Batch(events))) = front else {
+            panic!("expected one batch Emit, got {front:?}");
+        };
+        assert_eq!(events.len(), 2, "both damage packets in one occurrence");
+        assert!(
+            events
+                .iter()
+                .all(|e| matches!(e, GameEvent::DamageDealt { combat: false, .. })),
+            "fight damage is noncombat damage ([CR#701.14d]), got {events:?}"
+        );
+        run_injected(&mut state);
+        assert_eq!(state.objects.obj(a).damage, 2, "a took b's power");
+        assert_eq!(state.objects.obj(b).damage, 2, "b took a's power");
+    }
+
+    /// [CR#701.14b]: both-or-neither — a fighter that is no longer on the
+    /// battlefield when the fight would occur means NEITHER deals damage.
+    #[test]
+    fn fight_with_a_gone_fighter_deals_no_damage_at_all() {
+        let (mut state, a, b) = two_permanents_on_field();
+        // b leaves before the fight resolves.
+        state.zones.battlefield.retain(|&o| o != b);
+        state.objects.remove(b);
+        let frame = frame_src_targets(a, vec![a, b]);
+        state.run_effect(
+            Effect::Act(Action::Fight(Reference::Target(0), Reference::Target(1))),
+            &frame,
+        );
+        assert!(
+            !state.agenda.iter().any(|w| matches!(w, WorkItem::Emit(_))),
+            "neither creature deals damage ([CR#701.14b])"
+        );
+        assert_eq!(state.objects.obj(a).damage, 0);
+    }
+
+    /// [CR#701.14c]: a creature fighting itself deals damage to itself
+    /// equal to TWICE its power.
+    #[test]
+    fn self_fight_deals_twice_its_power_to_itself() {
+        let (mut state, a, _b) = two_permanents_on_field();
+        let frame = frame_src_targets(a, vec![a, a]);
+        state.run_effect(
+            Effect::Act(Action::Fight(Reference::Target(0), Reference::Target(1))),
+            &frame,
+        );
+        run_injected(&mut state);
+        assert_eq!(
+            state.objects.obj(a).damage,
+            4,
+            "a 2/2 fighting itself takes 2 x 2 = 4 ([CR#701.14c])"
+        );
+        assert!(
+            logged(&state, |e| matches!(
+                e,
+                GameEvent::DamageDealt {
+                    amount: 4,
+                    combat: false,
+                    ..
+                }
+            )),
+            "one damage instance of twice its power"
+        );
+    }
+
     /// [CR#120.1,701.14a]: `DealDamage`'s explicit `source` is the dealer — the
     /// emitted `DamageDealt` carries it, NOT `frame.source`. The fight shape:
     /// `b` (Target(1)) deals damage equal to its power to `a` (Target(0)), with
@@ -4067,7 +4557,7 @@ mod tests {
         assert!(
             logged(&state, |e| matches!(
                 e,
-                GameEvent::DamageDealt { source, target, amount }
+                GameEvent::DamageDealt { source, target, amount, .. }
                     if *source == b && *target == a && *amount == 2
             )),
             "DamageDealt carries the explicit source b, not frame.source a"
@@ -4216,7 +4706,9 @@ mod tests {
                 GameEvent::CounterPlaced {
                     object: bear,
                     kind: "P1P1Counter".into(),
-                    count: 2,
+                    amount: 2,
+                    before: 0,
+                    after: 0,
                     cause: Some(Cause::put_counters(
                         Agency::EffectInstruction,
                         Some((bear, PlayerId(0))),
@@ -5220,18 +5712,22 @@ mod tests {
                 "the creating effect's characteristics stick ([CR#111.3])"
             );
         }
-        // Each token's enter fact follows — from: None (created, not moved).
-        for _ in 0..2 {
-            match state.step() {
-                StepOutcome::Progress(Progress::Applied(Occurrence::Single(
+        // The enter facts follow as ONE batch occurrence ([CR#603.3b] — the
+        // two tokens were minted by one simultaneous instruction, so their
+        // enter-triggers see one occurrence): from: None (created, not moved).
+        match state.step() {
+            StepOutcome::Progress(Progress::Applied(Occurrence::Batch(facts))) => {
+                assert_eq!(facts.len(), 2, "both entry facts in one batch");
+                assert!(facts.iter().all(|e| matches!(
+                    e,
                     GameEvent::ZoneChanged {
                         from: None,
                         to: Zone::Battlefield,
                         ..
-                    },
-                ))) => {}
-                other => panic!("expected the token's ZoneChanged fact, got {other:?}"),
+                    }
+                )));
             }
+            other => panic!("expected the tokens' ZoneChanged batch, got {other:?}"),
         }
     }
 
@@ -6745,8 +7241,8 @@ mod tests {
         );
 
         // Record two deaths this turn.
-        state.history.record(1, death1);
-        state.history.record(1, death2);
+        state.history.record(1, None, death1);
+        state.history.record(1, None, death2);
 
         // Both deaths match → 2.
         assert_eq!(
@@ -6831,6 +7327,7 @@ mod tests {
         // (opponent).
         state.history.record(
             1,
+            None,
             GameEvent::LifeLost {
                 player: PlayerId(0),
                 amount: 2,
@@ -6838,6 +7335,7 @@ mod tests {
         );
         state.history.record(
             1,
+            None,
             GameEvent::LifeLost {
                 player: PlayerId(0),
                 amount: 3,
@@ -6845,6 +7343,7 @@ mod tests {
         );
         state.history.record(
             1,
+            None,
             GameEvent::LifeLost {
                 player: PlayerId(1),
                 amount: 10,
@@ -6928,6 +7427,7 @@ mod tests {
         // Two uses by `obj` this turn, and one by `other`.
         state.history.record(
             1,
+            None,
             GameEvent::AbilityUsed {
                 object: obj,
                 ability: 0,
@@ -6935,6 +7435,7 @@ mod tests {
         );
         state.history.record(
             1,
+            None,
             GameEvent::AbilityUsed {
                 object: obj,
                 ability: 0,
@@ -6942,6 +7443,7 @@ mod tests {
         );
         state.history.record(
             1,
+            None,
             GameEvent::AbilityUsed {
                 object: other,
                 ability: 0,
@@ -7012,6 +7514,7 @@ mod tests {
         // One use → not yet two → branch is FALSE.
         state.history.record(
             1,
+            None,
             GameEvent::AbilityUsed {
                 object: obj,
                 ability: 0,
@@ -7025,6 +7528,7 @@ mod tests {
         // Second use → exactly two → branch is TRUE.
         state.history.record(
             1,
+            None,
             GameEvent::AbilityUsed {
                 object: obj,
                 ability: 0,

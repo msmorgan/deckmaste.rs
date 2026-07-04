@@ -14,6 +14,11 @@ use crate::event::GameEvent;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HistEntry {
     pub turn: Uint,
+    /// The simultaneous batch this fact was a member of ([CR#603.3b]) —
+    /// every substantive fact of one applied `Occurrence::Batch` shares one
+    /// fresh id, so "these happened as ONE occurrence" ([CR#603.2c]) is
+    /// readable from the log. `None` = a `Single` occurrence.
+    pub batch: Option<Uint>,
     pub fact: GameEvent,
 }
 
@@ -22,9 +27,25 @@ pub struct HistEntry {
 pub struct History(Vec<HistEntry>);
 
 impl History {
-    /// Records `fact` as having occurred on `turn`.
-    pub(crate) fn record(&mut self, turn: Uint, fact: GameEvent) {
-        self.0.push(HistEntry { turn, fact });
+    /// Records `fact` as having occurred on `turn`, as a member of `batch`
+    /// (`None` for a `Single` occurrence).
+    pub(crate) fn record(&mut self, turn: Uint, batch: Option<Uint>, fact: GameEvent) {
+        self.0.push(HistEntry { turn, batch, fact });
+    }
+
+    /// The recorded entries, oldest first — batch-id reads (the
+    /// [CR#603.3b] "one occurrence" grouping) go through here; the
+    /// fact-only view is [`scan`](History::scan).
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "the batch-id read surface — core-anaphor-surface's product-antecedent \
+                      reads consume it; the batch/fixture tests pin it meanwhile"
+        )
+    )]
+    pub(crate) fn entries(&self) -> impl Iterator<Item = &HistEntry> {
+        self.0.iter()
     }
 
     /// The facts visible through `within`, given `current_turn`
@@ -73,9 +94,9 @@ mod tests {
     #[test]
     fn scan_windows_select_by_turn() {
         let mut h = History::default();
-        h.record(1, GameEvent::SpellCast(ObjectId::from_raw(1)));
-        h.record(2, GameEvent::SpellCast(ObjectId::from_raw(2)));
-        h.record(2, GameEvent::SpellCast(ObjectId::from_raw(3)));
+        h.record(1, None, GameEvent::SpellCast(ObjectId::from_raw(1)));
+        h.record(2, None, GameEvent::SpellCast(ObjectId::from_raw(2)));
+        h.record(2, None, GameEvent::SpellCast(ObjectId::from_raw(3)));
 
         assert_eq!(
             h.scan(Lookback::ThisTurn, 2).count(),

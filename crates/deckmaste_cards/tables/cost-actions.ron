@@ -4,7 +4,7 @@
 (
     rows: [
         (action: "Sacrifice", object: true, actor: true, amount: false, patient: None, defender: false, cite: "[CR#701.21a]"),
-        (action: "Discard", object: true, actor: true, amount: false, patient: None, defender: false, cite: "[CR#701.9a]"),
+        (action: "Discard", object: true, actor: true, amount: true, patient: None, defender: false, cite: "[CR#701.9a]"),
         (action: "Move", object: true, actor: false, amount: false, patient: None, defender: false, cite: "[CR#701.13]"),
         (action: "Tap", object: true, actor: false, amount: false, patient: None, defender: false, cite: "[CR#701.26a]"),
         (action: "Untap", object: true, actor: false, amount: false, patient: None, defender: false, cite: "[CR#701.26b]"),

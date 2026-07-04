@@ -100,6 +100,13 @@ impl Cause {
         Self::verb("Discard", agency, agent)
     }
 
+    /// "Mill" ([CR#701.17a]) — the Library→Graveyard move's named view;
+    /// "milled this way" reads find the moved cards through it ([CR#701.17c]).
+    #[must_use]
+    pub fn mill(agency: deckmaste_core::Agency, agent: Option<(ObjectId, PlayerId)>) -> Self {
+        Self::verb("Mill", agency, agent)
+    }
+
     /// "Play" ([CR#305.2,116.2a]) — the land-drop cause (an effect putting a
     /// land onto the battlefield is NOT a play, [CR#701.18a]).
     #[must_use]
@@ -221,6 +228,11 @@ pub enum GameEvent {
         source: ObjectId,
         target: ObjectId,
         amount: Uint,
+        /// Combat damage ([CR#510.1]) vs everything else — the combat-damage
+        /// step's assignments set it; effect damage (including a fight's,
+        /// [CR#701.14d]) is `false`. The `Damage:combat` pattern refinement
+        /// reads it.
+        combat: bool,
     },
     /// The INTENT of a zone change ([CR#400.7]). Replacements act here. Its
     /// apply captures LKI, moves+remints the object, folds the object's own
@@ -296,14 +308,24 @@ pub enum GameEvent {
     CounterPlaced {
         object: ObjectId,
         kind: deckmaste_core::Ident,
-        count: Uint,
+        amount: Uint,
+        /// The carrier's total of `kind` BEFORE this placement — filled at
+        /// apply (emitters leave `0`), alongside `after`, so a chapter
+        /// ability's `Crossed` gate reads "the total was less than N and
+        /// became at least N" off the one fact [CR#714.2b] — a doubled
+        /// placement is still ONE fact whose `after - before` is the doubled
+        /// amount.
+        before: Uint,
+        /// The carrier's total of `kind` AFTER this placement (apply-filled,
+        /// like `before`) [CR#714.2b].
+        after: Uint,
         cause: Option<Cause>,
     },
     /// Counters removed ([CR#122.1]).
     CounterRemoved {
         object: ObjectId,
         kind: deckmaste_core::Ident,
-        count: Uint,
+        amount: Uint,
         cause: Option<Cause>,
     },
     TriggerFired {

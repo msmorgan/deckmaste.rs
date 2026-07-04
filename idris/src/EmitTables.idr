@@ -302,7 +302,7 @@ bridgeRows =
   , bridgeRow "BecameDay" True False True "[CR#731.1]"
   , bridgeRow "BecameNight" True False True "[CR#731.1]"
     -- refinement atoms (checked only when the field is present / non-default)
-  , bridgeRow "Damage:combat" False False False "[CR#510.1]"
+  , bridgeRow "Damage:combat" True True True "[CR#510.1]"
   , bridgeRow "Damage:amount" True False True "[CR#120.1]"
   , bridgeRow "LifeGained:amount" True False True "[CR#119.3]"
   , bridgeRow "LifeLost:amount" True False True "[CR#119.3]"
@@ -647,6 +647,7 @@ ruleRows =
   , ruleRow "E-POS-TARGETED" "[CR#115.1a..115.1e,601.2c]" "Targeted outside an announce root (replacement/static/loop position)"
   , ruleRow "E-POS-RIDER" "[CR#614.12]" "enter rider on a non-battlefield destination"
   , ruleRow "E-POS-PREVENTION" "[CR#615.1,615.1a]" "damage-prevention written as a generic Instead (a no-op damage replacement) - spell the marked Prevention class"
+  , ruleRow "E-POS-SIMULTANEOUS" "[CR#701.12]" "exchange-family batch primitive (Simultaneous/GainControl) outside an exchange-family macro body - the engine's batch wiring is exchange-only until it generalizes"
   , ruleRow "E-KIND-FILTER" "[CR#109.1]" "filter kind conflicts with its slot's expected kind"
   , ruleRow "E-KIND-COUNTER-SCOPE" "[CR#122.1]" "counter kind used on a carrier its scope forbids"
   , ruleRow "E-KIND-COUNTER-UNDECLARED" "[CR#122.1]" "counter reference names no declared counter kind"

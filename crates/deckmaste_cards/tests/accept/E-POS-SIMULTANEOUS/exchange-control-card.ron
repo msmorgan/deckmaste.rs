@@ -1,0 +1,16 @@
+// The admitted side of the E-POS-SIMULTANEOUS cap: `Simultaneous` and
+// `GainControl` INSIDE the exchange-family `ExchangeControl` macro's body
+// ([CR#701.12a..701.12b]) — the exchange-control card shape ("exchange
+// control of two target creatures"), whose halves read one pre-application
+// snapshot and land as one batch.
+Normal(
+  name: "Accept Exchange Control",
+  mana_cost: [Generic(2), Blue],
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Targeted(
+      targets: [Target(Exactly(1), Type(Creature)), Target(Exactly(1), Type(Creature))],
+      effect: ExchangeControl(Target(0), Target(1)),
+    )),
+  ],
+)

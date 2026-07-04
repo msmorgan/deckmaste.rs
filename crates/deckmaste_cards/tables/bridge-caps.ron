@@ -30,7 +30,7 @@
         (atom: "DiceRolled", live: true, would: false, history: true, cite: "[CR#706.1]"),
         (atom: "BecameDay", live: true, would: false, history: true, cite: "[CR#731.1]"),
         (atom: "BecameNight", live: true, would: false, history: true, cite: "[CR#731.1]"),
-        (atom: "Damage:combat", live: false, would: false, history: false, cite: "[CR#510.1]"),
+        (atom: "Damage:combat", live: true, would: true, history: true, cite: "[CR#510.1]"),
         (atom: "Damage:amount", live: true, would: false, history: true, cite: "[CR#120.1]"),
         (atom: "LifeGained:amount", live: true, would: false, history: true, cite: "[CR#119.3]"),
         (atom: "LifeLost:amount", live: true, would: false, history: true, cite: "[CR#119.3]"),

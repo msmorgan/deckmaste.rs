@@ -79,6 +79,11 @@ pub struct TriggerBindings {
     /// apply funnel's `that_much` register. Seeds `Count::ThatMuch` for the
     /// fired ability's resolution ("whenever you gain life, … that much").
     pub that_much: Option<Uint>,
+    /// The firing counter event's `(before, after)` totals ([CR#714.2b]) —
+    /// the channel `Condition::Crossed` reads, at the intervening-if gate
+    /// and again at the resolution recheck ([CR#603.4]). `None` for facts
+    /// that fix no totals.
+    pub crossed: Option<(Uint, Uint)>,
 }
 
 /// A trigger that has fired but is not yet on the stack ([CR#603.2]). Noted by
@@ -288,34 +293,30 @@ impl GameState {
 
             // [CR#120.1]: `source` is the damage SOURCE, `to` the recipient
             // (both live — an SBA death follows the fact, [CR#704.5g]).
-            // `amount` bounds the dealt amount.
+            // `amount` bounds the dealt amount; `combat` narrows combat vs
+            // noncombat damage by the fact's carried flag ([CR#510.1] — a
+            // fight's damage is noncombat, [CR#701.14d]).
             EventFilter::Damage {
                 source,
                 to,
                 combat,
                 amount,
-            } => {
-                if combat.is_some() {
-                    todo!(
-                        "load-capped (E-BRIDGE-CAP): no combat flag on DamageDealt yet \
-                         (engine-fact-record-batch)"
-                    );
+            } => match event {
+                GameEvent::DamageDealt {
+                    source: s,
+                    target,
+                    amount: a,
+                    combat: c,
+                } => {
+                    combat.is_none_or(|want| want == *c)
+                        && self.filter_matches_live(source, *s, watcher)
+                        && self.filter_matches_live(to, *target, watcher)
+                        && amount
+                            .as_ref()
+                            .is_none_or(|bound| bound.satisfied_by(*a, literal_count))
                 }
-                match event {
-                    GameEvent::DamageDealt {
-                        source: s,
-                        target,
-                        amount: a,
-                    } => {
-                        self.filter_matches_live(source, *s, watcher)
-                            && self.filter_matches_live(to, *target, watcher)
-                            && amount
-                                .as_ref()
-                                .is_none_or(|bound| bound.satisfied_by(*a, literal_count))
-                    }
-                    _ => false,
-                }
-            }
+                _ => false,
+            },
 
             // [CR#119.3]: `who` is the player gaining life.
             EventFilter::LifeGained { who, amount } => match event {
@@ -345,8 +346,9 @@ impl GameState {
             EventFilter::Drawn { who, amount } => {
                 if amount.is_some() {
                     todo!(
-                        "load-capped (E-BRIDGE-CAP): per-fact draw granularity is one card \
-                         (engine-fact-record-batch)"
+                        "load-capped (E-BRIDGE-CAP, Drawn:amount): per-fact draw granularity \
+                         is one card ([CR#121.2] — a multi-draw is N facts, so an amount \
+                         bound has nothing per-fact to compare against)"
                     );
                 }
                 match event {
@@ -363,14 +365,14 @@ impl GameState {
                 GameEvent::CounterPlaced {
                     object,
                     kind: k,
-                    count,
+                    amount: n,
                     ..
                 } => {
                     kind.as_ref().is_none_or(|r| r.0 == *k)
                         && self.filter_matches_live(on, *object, watcher)
                         && amount
                             .as_ref()
-                            .is_none_or(|bound| bound.satisfied_by(*count, literal_count))
+                            .is_none_or(|bound| bound.satisfied_by(*n, literal_count))
                 }
                 _ => false,
             },
@@ -380,14 +382,14 @@ impl GameState {
                 GameEvent::CounterRemoved {
                     object,
                     kind: k,
-                    count,
+                    amount: n,
                     ..
                 } => {
                     kind.as_ref().is_none_or(|r| r.0 == *k)
                         && self.filter_matches_live(on, *object, watcher)
                         && amount
                             .as_ref()
-                            .is_none_or(|bound| bound.satisfied_by(*count, literal_count))
+                            .is_none_or(|bound| bound.satisfied_by(*n, literal_count))
                 }
                 _ => false,
             },
@@ -932,6 +934,14 @@ impl GameState {
             _ => None,
         };
 
+        // The counter event's before/after totals ([CR#714.2b]) — the
+        // `Condition::Crossed` channel: a chapter gate reads "was less than
+        // N and became at least N" off the ONE fired fact.
+        let crossed: Option<(Uint, Uint)> = match event {
+            GameEvent::CounterPlaced { before, after, .. } => Some((*before, *after)),
+            _ => None,
+        };
+
         // The watcher set ([CR#603.6,113.6b]): every live battlefield permanent,
         // plus every object in a graveyard or hand (for graveyard/hand-
         // FUNCTIONING triggers — Madness, Bridge from Below; a per-ability
@@ -1007,6 +1017,7 @@ impl GameState {
                     that_patient: that_patient.clone(),
                     defending_player,
                     that_much,
+                    crossed,
                 };
                 // [CR#603.4]: the intervening-if gate — the condition is checked
                 // when the event occurs (no targets are chosen yet, so the gate
@@ -1023,6 +1034,7 @@ impl GameState {
                             that_object: bindings.that_object.clone(),
                             that_player: bindings.that_player,
                             that_patient: bindings.that_patient.clone(),
+                            crossed: bindings.crossed,
                             ..Endophora::empty()
                         },
                     };
@@ -2869,11 +2881,13 @@ mod tests {
             source: bear,
             target: other,
             amount: 2,
+            combat: false,
         };
         let others_damage = GameEvent::DamageDealt {
             source: other,
             target: bear,
             amount: 2,
+            combat: false,
         };
         assert!(
             state.event_matches(&pattern, &own_damage, watcher_source),
@@ -4301,6 +4315,7 @@ mod tests {
                 source,
                 target: gainer,
                 amount: 3,
+                combat: false,
             },
         ))]);
         for _ in 0..10 {
@@ -4563,17 +4578,20 @@ mod tests {
         let at_least = |n| Some(CountBound::AtLeast(Count::Literal(n)));
         Some(match atom {
             "ZoneChange" => (dies_pattern, died),
-            "Damage" | "Damage:amount" => (
+            "Damage" | "Damage:amount" | "Damage:combat" => (
                 EventFilter::Damage {
                     source: Filter::Any,
                     to: Filter::Any,
-                    combat: None,
-                    amount: if atom == "Damage" { None } else { at_least(2) },
+                    // The combat narrow reads the fact's carried flag
+                    // ([CR#510.1]).
+                    combat: (atom == "Damage:combat").then_some(false),
+                    amount: if atom == "Damage:amount" { at_least(2) } else { None },
                 },
                 GameEvent::DamageDealt {
                     source: bear,
                     target: bear,
                     amount: 2,
+                    combat: false,
                 },
             ),
             "LifeGained" | "LifeGained:amount" => (
@@ -4615,7 +4633,9 @@ mod tests {
                 GameEvent::CounterPlaced {
                     object: bear,
                     kind: "P1P1Counter".into(),
-                    count: 2,
+                    amount: 2,
+                    before: 0,
+                    after: 2,
                     cause: None,
                 },
             ),
@@ -4628,7 +4648,7 @@ mod tests {
                 GameEvent::CounterRemoved {
                     object: bear,
                     kind: "P1P1Counter".into(),
-                    count: 2,
+                    amount: 2,
                     cause: None,
                 },
             ),
@@ -4853,12 +4873,11 @@ mod tests {
         // engine-one-evaluator (`Where-in-snapshot` is would-lane-only);
         // `Lookback:*` rows are history-lane data (`History::scan` — see
         // `scan_windows_select_by_turn`).
-        const CAPPED: [&str; 13] = [
+        const CAPPED: [&str; 12] = [
             "Not",
             "Nth",
             "When",
             "Within",
-            "Damage:combat",
             "Drawn:amount",
             "TokenCreated:what",
             "BecomesTarget:source",
@@ -4959,6 +4978,91 @@ mod tests {
         }
     }
 
+    /// The saga-chapter walk-through ([CR#714.2b]): three chapter abilities
+    /// (`OneOrMore(CounterPlaced(kind: LoreCounter, on: Ref(This)))`, each
+    /// gated by `Crossed` at thresholds 1/2/3) against a counter-DOUBLED
+    /// 0→2 lore jump arriving as ONE batch fact — chapter I fires
+    /// (before 0 < 1 ≤ 2 after), chapter II fires (0 < 2 ≤ 2), chapter III
+    /// stays silent (2 < 3). A later 2→4 jump fires ONLY chapter III —
+    /// already-crossed thresholds never re-fire.
+    #[test]
+    fn saga_chapters_fire_on_crossed_thresholds_from_one_batch_fact() {
+        let chapter = |n: u32| {
+            format!(
+                "Triggered(event: OneOrMore(CounterPlaced(kind: LoreCounter, on: Ref(This))), \
+                 condition: Crossed(value: CounterCount(This, LoreCounter), \
+                 threshold: AtLeast({n})), effect: GainLife(1))"
+            )
+        };
+        let source = format!(
+            "Normal(name: \"Test Saga\", types: [Enchantment], abilities: [{}, {}, {}])",
+            chapter(1),
+            chapter(2),
+            chapter(3),
+        );
+        let card = Arc::new(
+            builtin()
+                .macros
+                .read_str::<deckmaste_core::Card>(&source)
+                .unwrap(),
+        );
+        let (mut state, _bear) = bear_on_field();
+        let saga = put_bf(&mut state, card, PlayerId(0));
+        let saga_source = state.objects.obj(saga).source;
+        state.agenda.clear();
+        state.agenda.push_back(WorkItem::BeginStep(
+            deckmaste_core::PhaseStep::PrecombatMain,
+        ));
+
+        let fired_chapters =
+            |state: &mut GameState, amount: deckmaste_core::Uint| -> Vec<deckmaste_core::Uint> {
+                // The lore jump arrives through the emit pipeline as ONE batch
+                // fact (the post-replacement shape a doubler leaves) — apply
+                // fills before/after, and the scan reads the occurred fact.
+                state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(vec![
+                    GameEvent::CounterPlaced {
+                        object: saga,
+                        kind: "LoreCounter".into(),
+                        amount,
+                        before: 0,
+                        after: 0,
+                        cause: None,
+                    },
+                ]))]);
+                let _ = state.step();
+                let fired: Vec<deckmaste_core::Uint> = state
+                    .agenda
+                    .iter()
+                    .filter_map(|w| match w {
+                        WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired {
+                            source,
+                            ability,
+                            ..
+                        })) if *source == saga_source => Some(*ability),
+                        _ => None,
+                    })
+                    .collect();
+                state.agenda.clear();
+                state.agenda.push_back(WorkItem::BeginStep(
+                    deckmaste_core::PhaseStep::PrecombatMain,
+                ));
+                fired
+            };
+
+        assert_eq!(
+            fired_chapters(&mut state, 2),
+            vec![0, 1],
+            "the 0→2 jump crosses thresholds 1 and 2 — chapters I and II fire once \
+             each, chapter III stays silent"
+        );
+        assert_eq!(
+            fired_chapters(&mut state, 2),
+            vec![2],
+            "the 2→4 jump crosses only threshold 3 — chapters I and II are already \
+             past theirs"
+        );
+    }
+
     /// The [CR#701.21a] entailment, trigger half: a plain "dies" trigger
     /// (the `Dies` macro — no cause narrow) FIRES on a sacrifice, because
     /// the sacrifice fact IS the entailed Battlefield→Graveyard move — no
@@ -5016,6 +5120,7 @@ mod tests {
         assert!(!state.condition_holds(&gate, &frame), "no use recorded yet");
         state.history.record(
             1,
+            None,
             GameEvent::AbilityUsed {
                 object: bear,
                 ability: 0,

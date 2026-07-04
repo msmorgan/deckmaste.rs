@@ -190,12 +190,22 @@ pub enum Action {
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         riders: Vec<EnterRider>,
     },
+    /// The patient object comes under the control of the referenced player
+    /// — a one-shot control TRANSITION ([CR#701.12b]; a control change is
+    /// never a zone change, [CR#613.1b]). A same-controller grant is a
+    /// no-op ("the exchange effect does nothing", [CR#701.12b]). The
+    /// exchange-family primitive: load-capped to the exchange macros'
+    /// bodies (`E-POS-SIMULTANEOUS`) — DURATION-bounded control effects
+    /// ("gain control until end of turn") are the continuous layer-2 form,
+    /// not this verb.
+    GainControl(Reference, Reference),
     /// Two creatures fight ([CR#701.14a]): each deals damage equal to its
-    /// power to the other. A PRIMITIVE with native semantics — both-or-neither
-    /// (a fight happens only if both are still creatures on the battlefield,
-    /// [CR#701.14b]), self-fight = twice its power to itself ([CR#701.14c]),
-    /// and the damage isn't combat damage ([CR#701.14d]) — engine execution
-    /// lands with `engine-fact-record-batch`; this is the shape.
+    /// power to the other, as one simultaneous noncombat batch. A PRIMITIVE
+    /// with native semantics — both-or-neither (a fight happens only if
+    /// both are still creatures on the battlefield, [CR#701.14b]),
+    /// self-fight = twice its power to itself ([CR#701.14c]), and the
+    /// damage isn't combat damage ([CR#701.14d]). Never `Simultaneous`
+    /// sugar — fight is its own CR event family.
     Fight(Reference, Reference),
     /// Add an extra phase of the given kind to the referenced player's turn,
     /// directly after the current phase ([CR#500.8]).

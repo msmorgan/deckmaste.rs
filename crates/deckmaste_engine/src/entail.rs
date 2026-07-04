@@ -19,9 +19,12 @@ use deckmaste_core::Zone;
 use serde::Deserialize;
 
 /// One entailment row: the verb's canonical spelling, its entailed
-/// master-form KIND, and the zone coordinates it fixes (`None` = the verb
-/// leaves the coordinate open). The caps columns the elaborator also reads
-/// are ignored here (serde skips unknown fields).
+/// master-form KIND, the zone coordinates it fixes (`None` = the verb
+/// leaves the coordinate open), and the `amount` caps column — whether the
+/// verb's occurrences fix an amount antecedent (a discard clause's card
+/// count feeds "that many", [CR#107.3]); the apply funnel honors exactly
+/// the rows the elaborator admits. The remaining caps columns
+/// (object/actor) stay elaborator-only (serde skips unknown fields).
 #[derive(Debug, Deserialize)]
 pub(crate) struct EntailmentRow {
     pub verb: String,
@@ -29,6 +32,8 @@ pub(crate) struct EntailmentRow {
     pub kind: String,
     pub from: Option<Zone>,
     pub to: Option<Zone>,
+    /// Whether the verb's occurrences carry an amount ([CR#107.3]).
+    pub amount: bool,
 }
 
 #[derive(Debug, Deserialize)]

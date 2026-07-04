@@ -106,6 +106,13 @@ pub enum Code {
     /// modify how a permanent enters the battlefield; a card arriving
     /// anywhere else has no tapped/attacking arrival state).
     PosRider,
+    /// An exchange-family batch primitive (`Effect::Simultaneous` /
+    /// `Action::GainControl`) outside an exchange-family macro's body
+    /// ([CR#701.12]) — the engine's simultaneous-batch wiring is
+    /// exchange-only until it generalizes; the cap mirrors the
+    /// `E-BRIDGE-CAP` discipline (reject at load, never silently
+    /// misexecute).
+    PosSimultaneous,
     /// A filter/reference kind conflicts with its slot's expected kind
     /// ([CR#109.1]).
     KindFilter,
@@ -181,7 +188,7 @@ pub enum Code {
 impl Code {
     /// Every active code, in manifest order — the drift pin against the
     /// emitted checker-rule manifest.
-    pub const ALL: [Code; 44] = [
+    pub const ALL: [Code; 45] = [
         Code::BindTarget,
         Code::BindThat,
         Code::BindThatGroup,
@@ -202,6 +209,7 @@ impl Code {
         Code::PosTargeted,
         Code::PosRider,
         Code::PosPrevention,
+        Code::PosSimultaneous,
         Code::KindFilter,
         Code::KindCounterScope,
         Code::KindCounterUndeclared,
@@ -253,6 +261,7 @@ impl Code {
             Code::PosTargeted => "E-POS-TARGETED",
             Code::PosRider => "E-POS-RIDER",
             Code::PosPrevention => "E-POS-PREVENTION",
+            Code::PosSimultaneous => "E-POS-SIMULTANEOUS",
             Code::KindFilter => "E-KIND-FILTER",
             Code::KindCounterScope => "E-KIND-COUNTER-SCOPE",
             Code::KindCounterUndeclared => "E-KIND-COUNTER-UNDECLARED",

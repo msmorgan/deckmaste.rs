@@ -1404,6 +1404,7 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
                     source,
                     target,
                     amount,
+                    ..
                 },
             ))) if target == p1_proxy => {
                 assert_eq!(amount, 1, "the dies-trigger deals 1");

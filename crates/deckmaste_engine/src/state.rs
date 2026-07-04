@@ -16,6 +16,7 @@ use rand_chacha::ChaCha8Rng;
 use crate::agenda::WorkItem;
 use crate::combat::CombatState;
 use crate::decide::PendingDecision;
+use crate::event::GameEvent;
 use crate::layer::ContinuousEffect;
 use crate::object::Cards;
 use crate::object::ObjectId;
@@ -297,6 +298,42 @@ pub struct GameState {
     /// zone change ([CR#400.7]) — so grants expire for free on shuffle. Written
     /// by looks (Distribute); the redacted per-player VIEW is a runner concern.
     pub look_grants: std::collections::HashSet<(crate::player::PlayerId, crate::object::ObjectId)>,
+    /// Monotonically increasing batch-id source ([CR#603.3b]): every applied
+    /// `Occurrence::Batch` records its member facts under one fresh id, so
+    /// the history log keeps "these facts were one simultaneous event"
+    /// ([CR#603.2c] — a batch is ONE occurrence).
+    pub next_batch: Uint,
+    /// The batch-evolution collector: `Some` only while `apply_occurrence`
+    /// is applying a `Batch`'s members. Intent evolutions (`WillDestroy` →
+    /// `ZoneWillChange` → `ZoneChanged`, a draw's move, a created token's
+    /// entry fact) push here instead of front-scheduling a `Single`, and the
+    /// batch apply flushes the collection as ONE follow-on `Occurrence` — a
+    /// simultaneous batch stays a batch through every evolution stage
+    /// ([CR#603.3b,603.2c]; a destroy-all's dies-facts are one occurrence).
+    pub(crate) evolving_batch: Option<Vec<GameEvent>>,
+    /// Fact-backed product groups ([CR#607.2a] linkage; the "this way"
+    /// anaphora mechanism): `Effect::Noting { key, .. }` records the object
+    /// set its inner effect ACTUALLY moved — each enacted `ZoneChanged`
+    /// fact's snapshot plus the moved object's post-move identity — never
+    /// the gathered input set. Read by `Selection::AmongNoted`.
+    pub noted: std::collections::HashMap<deckmaste_core::Ident, Vec<crate::state::NotedMember>>,
+    /// The keys currently COLLECTING ([CR#607.2a]) — a stack: `BeginNote`
+    /// pushes, `EndNote` pops; while non-empty, every enacted `ZoneChanged`
+    /// fact appends to each open key's group.
+    pub(crate) noting: Vec<deckmaste_core::Ident>,
+}
+
+/// One member of a noted product group ([CR#607.2a]): the enacted
+/// `ZoneChanged` fact's snapshot (the group survives its members' departure
+/// — a destroyed member is read through LKI), plus the moved object's
+/// POST-move identity when it still exists (a milled card is live in the
+/// graveyard; "exile them" acts through this id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NotedMember {
+    /// The moved object's last-known state, from the enacted fact.
+    pub snapshot: crate::lki::LkiSnapshot,
+    /// The reminted post-move object, if it still exists at collection time.
+    pub now: Option<crate::object::ObjectId>,
 }
 
 impl GameState {
@@ -382,6 +419,10 @@ impl GameState {
             replace_state: None,
             next_shield_id: 0,
             look_grants: std::collections::HashSet::new(),
+            next_batch: 0,
+            evolving_batch: None,
+            noted: std::collections::HashMap::new(),
+            noting: Vec::new(),
         }
     }
 

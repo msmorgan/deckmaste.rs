@@ -75,6 +75,19 @@ pub enum Condition {
         event: EventFilter,
         within: Lookback,
     },
+    /// The watched `value` was below `threshold` before the triggering
+    /// occurrence and satisfies it after — [CR#714.2b]'s "the number of lore
+    /// counters on it was less than N and became at least N", verbatim: a
+    /// chapter ability's intervening-if. `value` NAMES the crossing quantity
+    /// (a saga's lore total, `CounterCount(This, LoreCounter)`) for the
+    /// checker to tie to the trigger's counter event; the engine reads the
+    /// fired FACT's `before`/`after` channel, never a recomputation — a
+    /// doubled 0→2 placement is one fact whose crossing both chapter I and
+    /// chapter II observe.
+    Crossed {
+        value: Count,
+        threshold: crate::CountBound,
+    },
     /// The tagged optional cost ([`OptionalCost`](crate::OptionalCost)) was
     /// paid for this object — "if it was kicked" ([CR#702.33d]; buyback's
     /// "if the buyback cost was paid", [CR#702.27a]). The linked-ability read

@@ -298,9 +298,11 @@ pub enum EventFilter {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         amount: Option<CountBound>,
     },
-    /// A player drew ([CR#121.1]). Per-fact granularity is one card; a
-    /// multi-card `amount` bound is batch semantics
-    /// (`engine-fact-record-batch`).
+    /// A player drew ([CR#121.1]). Per-fact granularity is one card
+    /// ([CR#121.2] — cards are drawn one at a time, so a multi-draw is N
+    /// facts, never one amount-N fact): the amount CHANNEL sums draws
+    /// ("for each card drawn"), while a multi-card `amount` BOUND stays
+    /// bridge-capped (`Drawn:amount`).
     Drawn {
         #[serde(default = "Filter::any")]
         who: Filter,

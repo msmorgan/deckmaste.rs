@@ -86,12 +86,14 @@ pub(crate) fn intent_event(e: &GameEvent) -> Option<(EventFilter, Affected)> {
             },
             Affected::Object(*object),
         )),
-        // [CR#120.3]: damage dealt.
-        GameEvent::DamageDealt { target, .. } => Some((
+        // [CR#120.3]: damage dealt — the abstract event carries the
+        // intent's combat flag ([CR#510.1]) so a combat-narrowed would
+        // evaluates faithfully.
+        GameEvent::DamageDealt { target, combat, .. } => Some((
             EventFilter::Damage {
                 source: Filter::Any,
                 to: Filter::Any,
-                combat: None,
+                combat: Some(*combat),
                 amount: None,
             },
             Affected::Object(*target),
@@ -233,12 +235,18 @@ fn event_pattern_matches(
                 combat,
                 amount,
             },
-            EventFilter::Damage { .. },
+            EventFilter::Damage {
+                combat: e_combat, ..
+            },
         ) => {
-            // Hard-false, matching this matcher's conservative v1 style: the
-            // intent carries no combat flag and this matcher evaluates no
-            // amount bound, so a refined pattern must never over-match.
-            if combat.is_some() || amount.is_some() {
+            // The abstract event carries the intent's combat flag
+            // ([CR#510.1]) — a combat-narrowed pattern compares against it;
+            // the unevaluated amount bound stays hard-false (conservative
+            // v1: a refined pattern must never over-match).
+            if amount.is_some() {
+                return false;
+            }
+            if combat.is_some() && combat != e_combat {
                 return false;
             }
             let watcher = object_source_of(state, this);
@@ -627,8 +635,15 @@ fn event_shape_matches(would: &EventFilter, abstract_ev: &EventFilter) -> bool {
                     ),
                 }
         }
-        (EventFilter::Damage { combat, amount, .. }, EventFilter::Damage { .. }) => {
-            combat.is_none() && amount.is_none()
+        (
+            EventFilter::Damage { combat, amount, .. },
+            EventFilter::Damage {
+                combat: e_combat, ..
+            },
+        ) => {
+            // The abstract event carries the intent's combat flag
+            // ([CR#510.1]); an amount narrow stays conservative-false.
+            amount.is_none() && combat.is_none_or(|w| Some(w) == *e_combat)
         }
         (EventFilter::LifeGained { amount, .. }, EventFilter::LifeGained { .. }) => {
             amount.is_none()
@@ -801,6 +816,7 @@ fn apply_one(state: &mut GameState, e: GameEvent, a: &Applicable) -> Option<Game
                 source: event_source,
                 target: event_target,
                 amount,
+                combat,
             } = e
             {
                 match prevention {
@@ -821,6 +837,7 @@ fn apply_one(state: &mut GameState, e: GameEvent, a: &Applicable) -> Option<Game
                                 source: event_source,
                                 target: event_target,
                                 amount: amount - n_val,
+                                combat,
                             })
                         }
                     }
@@ -1291,11 +1308,13 @@ mod tests {
             source: source_a,
             target,
             amount: 2,
+            combat: false,
         };
         let from_b = GameEvent::DamageDealt {
             source: source_b,
             target,
             amount: 2,
+            combat: false,
         };
         assert!(
             replacement_watches(&state, &view, &would, source_a, &from_a),
@@ -1351,6 +1370,7 @@ mod tests {
             source,
             target: id,
             amount: 3,
+            combat: false,
         };
         let app = gather_applicable(&state, &e);
         assert_eq!(app.len(), 1, "prevention is applicable to the damage event");
@@ -1383,6 +1403,7 @@ mod tests {
             source,
             target: id,
             amount: 3,
+            combat: false,
         };
         let app = gather_applicable(&state, &e);
         assert_eq!(app.len(), 1, "prevention is applicable");
@@ -1460,17 +1481,20 @@ mod tests {
         let pair = |atom: &str| -> Option<(EventFilter, GameEvent)> {
             Some(match atom {
                 "ZoneChange" => (dies_would(), destroy_intent()),
-                "Damage" => (
+                "Damage" | "Damage:combat" => (
                     EventFilter::Damage {
                         source: Filter::Any,
                         to: Filter::Any,
-                        combat: None,
+                        // The combat narrow reads the intent's carried flag
+                        // ([CR#510.1]).
+                        combat: (atom == "Damage:combat").then_some(false),
                         amount: None,
                     },
                     GameEvent::DamageDealt {
                         source: id,
                         target: id,
                         amount: 2,
+                        combat: false,
                     },
                 ),
                 "LifeGained" => (

@@ -113,6 +113,21 @@ impl GameState {
                     .any(|fact| self.event_matches(event, fact, watcher))
             }
 
+            // [CR#714.2b]: "the total was less than N and became at least N"
+            // — read off the firing counter fact's before/after channel
+            // (never recomputed; `value` is the checker's tie to that
+            // antecedent). A doubled 0→2 placement is ONE fact whose
+            // crossing satisfies both a threshold of 1 and of 2.
+            Condition::Crossed { threshold, .. } => {
+                let Some((before, after)) = frame.endophora.crossed else {
+                    todo!(
+                        "checker-gated (E-BIND-EVENT/E-CAPS-AMOUNT): Crossed with no                          before/after channel in the frame"
+                    )
+                };
+                !threshold.satisfied_by(before, |c| self.eval_count(c, frame))
+                    && threshold.satisfied_by(after, |c| self.eval_count(c, frame))
+            }
+
             // [CR#702.33d]: the paid-optional-cost read needs the announce
             // record (which optional costs were paid) — engine-alt-costs.
             Condition::PaidCost(tag) => todo!(
@@ -308,7 +323,7 @@ mod tests {
         );
 
         // Record the death this turn → ThisTurn and ThisGame both hold.
-        state.history.record(1, death);
+        state.history.record(1, None, death);
         assert!(
             state.condition_holds(&morbid, &frame_for(&state, PlayerId(0))),
             "morbid holds after a creature dies this turn"
@@ -932,10 +947,12 @@ mod tests {
         // opponent was dealt damage" from player 0's seat.
         state.history.record(
             1,
+            None,
             GameEvent::DamageDealt {
                 source: p1,
                 target: p0,
                 amount: 2,
+                combat: false,
             },
         );
         assert!(
@@ -947,10 +964,12 @@ mod tests {
         // holds from player 0's seat.
         state.history.record(
             1,
+            None,
             GameEvent::DamageDealt {
                 source: p0,
                 target: p1,
                 amount: 3,
+                combat: false,
             },
         );
         assert!(
