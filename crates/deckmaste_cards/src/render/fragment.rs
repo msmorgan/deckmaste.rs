@@ -227,9 +227,13 @@ pub(super) fn reference(r: &Reference, ctx: &Ctx) -> String {
             (None, 1) => target_phrase(0, ctx),
             _ => "it".to_string(),
         },
-        // The triggering event's object/patient ([CR#603.2e,608.2k]) render as
-        // the generic anaphor "it" (no type info at this layer).
-        Reference::EventObject | Reference::EventPatient => "it".to_string(),
+        // The triggering event's object/patient ([CR#603.2e,608.2k]): an
+        // enclosing binder's descriptive phrase when one is threaded
+        // (`AdditionalCost`'s "the sacrificed creature", mirroring `That`'s
+        // `ctx.that` read), else the generic anaphor "it".
+        Reference::EventObject | Reference::EventPatient => {
+            ctx.that.map_or_else(|| "it".to_string(), str::to_string)
+        }
         // The responsible player ("that player").
         Reference::EventActor => "that player".to_string(),
         // The combat defender ([CR#506.2]) — always a player.

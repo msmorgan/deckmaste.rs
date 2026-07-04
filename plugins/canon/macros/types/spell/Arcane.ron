@@ -1,0 +1,3 @@
+// [CR#205.3k] — the Kamigawa instant/sorcery subtype, no rules meaning of
+// its own; Otherworldly Journey is the first canon card to carry it.
+SpellType(name: "Arcane")

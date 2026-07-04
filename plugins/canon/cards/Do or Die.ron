@@ -1,0 +1,37 @@
+// Do or Die — "Separate all creatures target player controls into two
+// piles. Destroy all creatures in the pile of that player's choice. They
+// can't be regenerated." The `SeparatePiles`/`ChoosePile` pair
+// ([CR#700.3a..700.3b]): the chosen pile's fate is the ONLY consequence (no
+// "put the other pile elsewhere" clause), so this is the clean,
+// unambiguous shape — a Fact-or-Fiction-shaped "one pile here, the other
+// there" card needs a complementary "the other pile(s)" read `ChoosePile`
+// has no way to spell yet (see the sweep's completion notes).
+Normal(
+  name: "Do or Die",
+  mana_cost: [
+    Generic(1),
+    Black,
+  ],
+  types: [
+    Sorcery,
+  ],
+  abilities: [
+    Spell(
+      effect: Targeted(
+        targets: [TargetOne(Player)],
+        effect: SeparatePiles(
+          group: Filter(AllOf([Type(Creature), ControlledBy(Ref(It))])),
+          into: ["a", "b"],
+          then: ChoosePile(
+            from: Labels(["a", "b"]),
+            by: That(Player),
+            then: Each(
+              binder: Existing(Them(Pile)),
+              effect: DestroyNoRegen(It),
+            ),
+          ),
+        ),
+      ),
+    ),
+  ],
+)

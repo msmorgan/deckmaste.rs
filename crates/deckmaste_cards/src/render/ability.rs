@@ -218,13 +218,28 @@ pub(super) fn static_ability(s: &StaticAbility, ctx: &Ctx) -> Vec<String> {
 /// Render one `StaticEffect` as a period-terminated sentence, or `None` for
 /// effects that produce no text on their own.
 pub(super) fn static_effect(e: &StaticEffect, ctx: &Ctx) -> Option<String> {
+    static_effect_kind(e, ctx, false)
+}
+
+/// The one-shot twin of [`static_effect`] — a `Modify` inside
+/// `Effect::Continuously`/`Effect::Until` ([CR#611.2]) reads "gains X" for an
+/// ability grant, never the PERMANENT static's "has X" (Collective
+/// Resistance's "Target creature gains hexproof and indestructible until
+/// end of turn.", not "... has hexproof and has indestructible ..."). Every
+/// other `StaticEffect` shape reads identically either way, so this only
+/// changes `Modify`'s verb choice.
+pub(super) fn static_effect_one_shot(e: &StaticEffect, ctx: &Ctx) -> Option<String> {
+    static_effect_kind(e, ctx, true)
+}
+
+fn static_effect_kind(e: &StaticEffect, ctx: &Ctx, one_shot: bool) -> Option<String> {
     match e {
-        StaticEffect::Expanded(exp) => static_effect(&exp.value, ctx),
+        StaticEffect::Expanded(exp) => static_effect_kind(&exp.value, ctx, one_shot),
         StaticEffect::Modify { of, changes } => {
             let (subj, plural) = super::fragment::scope_subject_agreed(of, ctx);
             Some(format!(
                 "{subj} {}.",
-                modifications_predicate(changes, plural)
+                modifications_predicate(changes, plural, one_shot)
             ))
         }
         StaticEffect::ModifyPlayer(who, m) => Some(modify_player(who, m)),
@@ -271,7 +286,7 @@ fn pay_pips_keyword(act: &PayAct) -> String {
 ///   position of the first such modification.
 /// - `Power(Set)` + `Toughness(Set)` are combined into one "base P/T N/M"
 ///   clause at the position of the first such op in the list.
-fn modifications_predicate(changes: &[Modification], plural: bool) -> String {
+fn modifications_predicate(changes: &[Modification], plural: bool, one_shot: bool) -> String {
     let mut clauses: Vec<String> = Vec::new();
 
     // Flatten change-bundling macros (`AddPowerToughness` → `Several([AddPower,
@@ -283,9 +298,11 @@ fn modifications_predicate(changes: &[Modification], plural: bool) -> String {
     // Pre-scan to compute the combined values for the grouped cases.
     let delta = pt_delta_clause(changes, plural);
     let base = base_pt_clause(changes, plural);
+    let gained = gain_ability_clause(changes, plural, one_shot);
 
     let mut delta_emitted = false;
     let mut base_emitted = false;
+    let mut gained_emitted = false;
 
     for m in changes {
         match m {
@@ -312,8 +329,17 @@ fn modifications_predicate(changes: &[Modification], plural: bool) -> String {
             Modification::Colors(CollectionOp::Set(cs)) => {
                 clauses.push(format!("{} {}", be(plural), colors_phrase(cs)));
             }
-            Modification::GainAbility(a) => {
-                clauses.push(format!("{} {}", have(plural), ability_noun(a)));
+            // Every `GainAbility` in the list merges into ONE clause,
+            // emitted at the first occurrence — "gains hexproof and
+            // indestructible", never "gains hexproof and gains
+            // indestructible" ([CR#613.1f]).
+            Modification::GainAbility(_) => {
+                if !gained_emitted {
+                    if let Some(ref g) = gained {
+                        clauses.push(g.clone());
+                    }
+                    gained_emitted = true;
+                }
             }
             Modification::LoseAllAbilities => {
                 clauses.push(format!("{} all abilities", lose(plural)));
@@ -358,6 +384,26 @@ fn pt_delta_clause(changes: &[Modification], plural: bool) -> Option<String> {
         return None;
     }
     Some(format!("{} {p:+}/{t:+}", get(plural)))
+}
+
+/// "have flying and vigilance" (static) / "gain flying and vigilance"
+/// (one-shot) from every `GainAbility` in the list, `None` if there are
+/// none. `one_shot` picks the verb ([CR#613.1f] grant vs [CR#611.2] a
+/// duration-bound one-shot grant use different oracle verbs for the
+/// identical layer-6 effect).
+fn gain_ability_clause(changes: &[Modification], plural: bool, one_shot: bool) -> Option<String> {
+    let nouns: Vec<String> = changes
+        .iter()
+        .filter_map(|m| match m {
+            Modification::GainAbility(a) => Some(ability_noun(a)),
+            _ => None,
+        })
+        .collect();
+    if nouns.is_empty() {
+        return None;
+    }
+    let verb = if one_shot { gain(plural) } else { have(plural) };
+    Some(format!("{verb} {}", nouns.join(" and ")))
 }
 
 /// "have base power and toughness N/M" from `Power(Set)` + `Toughness(Set)`.
@@ -513,6 +559,9 @@ fn be(plural: bool) -> &'static str {
 }
 fn have(plural: bool) -> &'static str {
     if plural { "have" } else { "has" }
+}
+fn gain(plural: bool) -> &'static str {
+    if plural { "gain" } else { "gains" }
 }
 fn lose(plural: bool) -> &'static str {
     if plural { "lose" } else { "loses" }

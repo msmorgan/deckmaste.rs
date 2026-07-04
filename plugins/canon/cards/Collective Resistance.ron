@@ -1,0 +1,37 @@
+// Collective Resistance — "Escalate {G} (Pay this cost for each mode chosen
+// beyond the first.) Choose one or more — • Destroy target artifact. •
+// Destroy target enchantment. • Target creature gains hexproof and
+// indestructible until end of turn." The modal cost-rider shape
+// ([CR#700.2,702.120a]): `ChooseSpec.rider` carries the Escalate cost,
+// announced with the mode choice and locked into the total at [CR#601.2f].
+Normal(
+  name: "Collective Resistance",
+  mana_cost: [
+    Generic(1),
+    Green,
+  ],
+  types: [
+    Instant,
+  ],
+  abilities: [
+    Spell(
+      effect: Modal(
+        choose: (
+          count: AtLeast(1),
+          rider: Escalate([Mana([Green])]),
+        ),
+        modes: [
+          (effect: Targeted(targets: [TargetOne(Type(Artifact))], effect: Destroy(It))),
+          (effect: Targeted(targets: [TargetOne(Type(Enchantment))], effect: Destroy(It))),
+          (effect: Targeted(
+            targets: [TargetOne(Creature)],
+            effect: Until(FixedUntil(EndOfTurn), [Modify(
+              of: Of(It),
+              changes: [GainAbility(Keyword(Hexproof())), GainAbility(Keyword(Indestructible))],
+            )]),
+          )),
+        ],
+      ),
+    ),
+  ],
+)

@@ -1,0 +1,38 @@
+// Otherworldly Journey — "Exile target creature. At the beginning of the
+// next end step, return that card to the battlefield under its owner's
+// control with a +1/+1 counter on it." The signature delayed-trigger shape
+// ([CR#603.7c]): the announced target's product (the exiled CARD, sitting
+// in exile) survives the target-drop, read back as `That(Card)` — the
+// accept twin of `tests/accept/E-BIND-AMBIGUOUS/otherworldly-journey-shape.ron`
+// / the pinned reject twin `tests/reject/E-BIND-THAT/stale-target-that-creature.ron`
+// (`That(Creature)` has no compatible antecedent there).
+Normal(
+  name: "Otherworldly Journey",
+  mana_cost: [
+    Generic(1),
+    White,
+  ],
+  types: [
+    Instant,
+  ],
+  subtypes: [
+    Arcane,
+  ],
+  abilities: [
+    Spell(
+      effect: Targeted(
+        targets: [TargetOne(Creature)],
+        effect: Sequence([
+          Move(It, Exile),
+          Delayed(
+            event: NextEndStep,
+            effect: Move(That(Card), Battlefield, [
+              UnderOwnersControl,
+              WithCounters(P1P1Counter, 1),
+            ]),
+          ),
+        ]),
+      ),
+    ),
+  ],
+)

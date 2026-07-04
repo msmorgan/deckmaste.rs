@@ -108,10 +108,19 @@ fn rules(view: &CardView) -> Vec<String> {
                     targets: &[],
                     that: None,
                 };
-                body.push(with_ability_word(
-                    s.ability_word.as_ref(),
-                    effect::effect(&s.effect, &ctx),
-                ));
+                // A spell's effect can itself be multi-line (a modal's
+                // "Choose ..." + bulleted modes, or an "as an additional
+                // cost" clause the printed card breaks onto its own line):
+                // split on the renderer's embedded `\n`s into separate
+                // printed lines, mirroring the `Static` arm just below.
+                let mut lines: Vec<String> = effect::effect(&s.effect, &ctx)
+                    .split('\n')
+                    .map(str::to_string)
+                    .collect();
+                if let Some(first) = lines.first_mut() {
+                    *first = with_ability_word(s.ability_word.as_ref(), std::mem::take(first));
+                }
+                body.extend(lines);
             }
             Ability::Triggered(t) => body.push(with_ability_word(
                 t.ability_word.as_ref(),

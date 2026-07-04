@@ -1,16 +1,25 @@
 //! Effects / actions render to imperative sentences (spell mood).
 
+use std::fmt::Write as _;
+
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::Color;
 use deckmaste_core::Count;
 use deckmaste_core::CounterSpec;
+use deckmaste_core::Deontic;
+use deckmaste_core::DeonticAction;
 use deckmaste_core::Destination;
 use deckmaste_core::Duration;
 use deckmaste_core::Effect;
+use deckmaste_core::EnterRider;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::Reference;
+use deckmaste_core::Selection;
+use deckmaste_core::Sort;
+use deckmaste_core::Stat;
 use deckmaste_core::StatValue;
+use deckmaste_core::StaticEffect;
 use deckmaste_core::Token;
 use deckmaste_core::TokenSpec;
 use deckmaste_core::TurnMarker;
@@ -41,8 +50,18 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
             let mut out = String::new();
             for (i, p) in parts.iter().enumerate() {
                 let s = trim_period(&effect(p, ctx));
+                // A delayed/reflexive trigger created mid-sequence ("Exile
+                // target creature. At the beginning of the next end step,
+                // ...", Otherworldly Journey) always reads as its OWN
+                // sentence — never joined with ", then" the way two plain
+                // instructions are ([CR#603.7,603.12]).
+                let new_sentence =
+                    matches!(peel_expanded(p), Effect::Delayed(_) | Effect::Reflexive(_));
                 if i == 0 {
                     out.push_str(&s);
+                } else if new_sentence {
+                    out.push_str(". ");
+                    out.push_str(&capitalize_first(&s));
                 } else {
                     out.push_str(", then ");
                     out.push_str(&super::ability::lower_first(&s));
@@ -56,11 +75,30 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
             None => effect(&e.value, ctx),
         },
         Effect::Continuously(c) => {
-            let clause = super::ability::static_effect(&c.effect, ctx).map_or_else(
+            let clause = super::ability::static_effect_one_shot(&c.effect, ctx).map_or_else(
                 || format!("[unrendered: {:?}]", c.effect),
                 |s| trim_period(&s),
             );
             match duration_suffix(&c.duration) {
+                Some(d) => format!("{clause} {d}."),
+                None => format!("{clause}."),
+            }
+        }
+        // The multi-part spelling of `Continuously` ([CR#611.2c] — a list of
+        // static parts sharing one duration, the Boros Charm mode-2 shape).
+        // Parts join "and" — the common case is one part; the corpus has no
+        // multi-part `Until` fixture yet, so N>1 stays a plain "and" splice
+        // rather than fabricated punctuation.
+        Effect::Until(duration, parts) => {
+            let clauses: Vec<String> = parts
+                .iter()
+                .map(|p| {
+                    super::ability::static_effect_one_shot(p, ctx)
+                        .map_or_else(|| format!("[unrendered: {p:?}]"), |s| trim_period(&s))
+                })
+                .collect();
+            let clause = clauses.join(" and ");
+            match duration_suffix(duration) {
                 Some(d) => format!("{clause} {d}."),
                 None => format!("{clause}."),
             }
@@ -111,13 +149,30 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
                 None => format!("[unrendered: {m:?}]."),
             }
         }
-        // [CR#601.2f,118.8]: "As an additional cost, [pay]. [body]" — the
-        // printed/nested additional-cost clause whose body reads the paid object
-        // (via the event references). The payment renders as a symbol cost
-        // ("pay {2}") or an object-moving verb phrase ("sacrifice a creature");
-        // declines structurally if the cost has no clean rendering.
+        // [CR#601.2f,118.8]: "As an additional cost to cast ~, [pay]. [body]"
+        // — the printed additional-cost clause whose body reads the paid
+        // object (via the event references). The payment renders as a
+        // symbol cost ("pay {2}") or an object-moving verb phrase
+        // ("sacrifice a creature"); declines structurally if the cost has
+        // no clean rendering. Only the SPELL-root wording is implemented
+        // (every current corpus/test usage sits there); an activated
+        // ability's printed additional cost ("to activate this ability")
+        // is unhandled until a card needs it.
         Effect::AdditionalCost(ac) => match additional_payment(&ac.pay.0, ctx) {
-            Some(pay) => format!("As an additional cost, {pay}. {}", effect(&ac.body, ctx)),
+            Some(pay) => {
+                // "the sacrificed creature" (Fling), when the body reads it
+                // back via `EventObject` — the cost-side twin of `With`'s
+                // binder-phrase threading through `ctx.that`.
+                let obj_phrase = additional_cost_object_phrase(&ac.pay.0);
+                let body = match &obj_phrase {
+                    Some(phrase) => effect(&ac.body, &ctx.with_that(phrase)),
+                    None => effect(&ac.body, ctx),
+                };
+                format!(
+                    "As an additional cost to cast {}, {pay}.\n{body}",
+                    ctx.subject
+                )
+            }
             None => format!("[unrendered: {ac:?}]."),
         },
         // [CR#601.2d]: a divided distribution — the body picks the verb
@@ -155,7 +210,232 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
                 )))
             )
         }
+        // [CR#700.3a]: an opponent/the caster splits a group into labeled
+        // piles, then (`then`) acts on them — the Do-or-Die/Fact-or-Fiction
+        // family. Bespoke, like `divide_among`/`additional_payment`: the
+        // pile-shape has no generic "spell one sentence per node" reading,
+        // so this recognizes the shapes the corpus actually needs.
+        Effect::SeparatePiles(piles) => separate_piles(piles, ctx),
+        Effect::ChoosePile(cp) => choose_pile(cp, ctx),
+        // [CR#700.2]: a modal spell/ability — an optional Escalate/Entwine
+        // cost-rider line, then "Choose ... —" and one bulleted mode per
+        // line.
+        Effect::Modal(modal) => modal_effect(modal, ctx),
+        // [CR#603.7]: a delayed triggered ability created on resolution —
+        // "At the beginning of [event], [effect]." One-shot by construction,
+        // so a step-based event reads with whatever "next"-qualified
+        // phrasing its own macro template supplies (`NextEndStep` -> "the
+        // beginning of the next end step") rather than the generic
+        // recurring phrasing `ability::event_clause` uses for a permanent's
+        // own (repeating) triggers.
+        Effect::Delayed(t) => delayed(t, ctx),
         other => format!("[unrendered: {other:?}]."),
+    }
+}
+
+/// A delayed triggered ability's lead-in + body ([CR#603.7]). See
+/// [`Effect::Delayed`]'s render arm above for why this doesn't just call
+/// `ability::event_clause` uncritically.
+fn delayed(t: &deckmaste_core::TriggeredAbility, ctx: &Ctx) -> String {
+    use deckmaste_core::EventFilter;
+    let lead = match &t.event {
+        EventFilter::Expanded(e) if e.template.is_some() => {
+            format!("At {}", e.template.as_deref().unwrap_or_default())
+        }
+        other => {
+            let (lead, clause) = super::ability::event_clause(other, ctx);
+            format!("{lead} {clause}")
+        }
+    };
+    let cond = match &t.condition {
+        Some(c) => format!("if {}, ", super::condition::condition(c, ctx)),
+        None => String::new(),
+    };
+    let body = super::ability::lower_first(&trim_period(&effect(&t.effect, ctx)));
+    format!("{lead}, {cond}{body}.")
+}
+
+/// See through a macro invocation to its expanded value — the effect-side
+/// twin of `fragment::strip_expanded` (which does the same for `Filter`).
+fn peel_expanded(e: &Effect) -> &Effect {
+    match e {
+        Effect::Expanded(exp) => peel_expanded(&exp.value),
+        other => other,
+    }
+}
+
+/// `SeparatePiles { group, into, by, note, then }` ([CR#700.3a]) — "[by]
+/// separates [group] into [n] piles.", with a `TopOfLibrary` group preceded
+/// by its own "Reveal the top N cards of [owner]'s library." sentence (the
+/// group is revealed as part of being separated, [CR#701.20a]). `then`
+/// (almost always a `ChoosePile`) follows as its own sentence.
+fn separate_piles(piles: &deckmaste_core::SeparatePiles, ctx: &Ctx) -> String {
+    let by = fragment::reference(&piles.by, ctx);
+    let is_you = by.eq_ignore_ascii_case("you");
+    let (preamble, noun) = match &piles.group {
+        Selection::TopOfLibrary { count, of } => {
+            let owner = fragment::reference(of, ctx);
+            (
+                Some(format!(
+                    "Reveal the top {} cards of {}'s library.",
+                    fragment::count(count),
+                    if owner.eq_ignore_ascii_case("you") {
+                        "your".to_string()
+                    } else {
+                        format!("{owner}'s")
+                    },
+                )),
+                "those cards".to_string(),
+            )
+        }
+        Selection::Filter(f) => (None, plural_group_noun(f, ctx)),
+        other => (None, format!("[unrendered: {other:?}]")),
+    };
+    let piles_word = fragment::number_word(u32::try_from(piles.into.len()).unwrap_or(0))
+        .map_or_else(|| piles.into.len().to_string(), str::to_string);
+    let mut out = String::new();
+    if let Some(pre) = preamble {
+        out.push_str(&pre);
+        out.push(' ');
+    }
+    if is_you {
+        // The default, unnamed actor (`by: You`) renders imperative, like
+        // every other bare-you verb ("Destroy target creature.") — no
+        // subject pronoun ("Separate ..." not "You separate ...").
+        let _ = write!(out, "Separate {noun} into {piles_word} piles.");
+    } else {
+        out.push_str(&capitalize_first(&by));
+        let _ = write!(out, " separates {noun} into {piles_word} piles.");
+    }
+    if let Some(then) = &piles.then {
+        out.push(' ');
+        out.push_str(&ensure_period(&effect(then, ctx)));
+    }
+    out
+}
+
+/// The plural noun a `Selection::Filter` names, for the "[by] separates
+/// [noun] into..." slot — "all creatures target player controls" (Do or
+/// Die's shape: a `Type` + a `ControlledBy(<dynamic reference>)` restrictor
+/// the shared `fragment::filter_noun` doesn't cover, since it only prints
+/// the fixed you/opponent controller phrases).
+fn plural_group_noun(f: &deckmaste_core::Filter, ctx: &Ctx) -> String {
+    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::Filter;
+    use deckmaste_core::RelationFilter;
+    let parts: Vec<&Filter> = match f {
+        Filter::AllOf(members) => members.iter().collect(),
+        other => vec![other],
+    };
+    let mut noun = None;
+    let mut controller = None;
+    for part in parts {
+        match part {
+            Filter::Characteristic(CharacteristicFilter::Type(t)) => {
+                noun = Some(format!("{}s", super::card::type_str(*t).to_lowercase()));
+            }
+            Filter::Relation(RelationFilter::ControlledBy(who)) => {
+                if let Filter::Ref(r) = who.as_ref() {
+                    controller = Some(format!("{} controls", fragment::reference(r, ctx)));
+                }
+            }
+            _ => {}
+        }
+    }
+    match (noun, controller) {
+        (Some(n), Some(c)) => format!("all {n} {c}"),
+        (Some(n), None) => format!("all {n}"),
+        (None, _) => format!("[unrendered: {f:?}]"),
+    }
+}
+
+/// `ChoosePile { from, by, random, then }` ([CR#700.3b]) — recognizes the
+/// "act on the chosen pile" shape (`then` is an `Each` over
+/// `Existing(Them(Pile))`, peeling a macro wrapper) and renders the
+/// collective sentence the corpus needs ("Destroy all creatures in the pile
+/// of `[by]`'s choice. They can't be regenerated."); anything else declines
+/// structurally.
+fn choose_pile(cp: &deckmaste_core::ChoosePile, ctx: &Ctx) -> String {
+    let chooser = fragment::reference(&cp.by, ctx);
+    let pile_phrase = format!("the pile of {chooser}'s choice");
+    if let Effect::Each(each) = peel_expanded(&cp.then)
+        && matches!(
+            &each.binder,
+            deckmaste_core::Binder::Existing(Selection::Them(Sort::Pile))
+        )
+        && let Some(collective) = pile_collective(peel_expanded(&each.effect), &pile_phrase)
+    {
+        return collective;
+    }
+    format!("[unrendered: {cp:?}].")
+}
+
+/// The per-element body of a `ChoosePile`'s pile-wide `Each`, collapsed to
+/// the collective sentence CR text uses ("Destroy all creatures in
+/// [group]." rather than "For each creature in [group], destroy it."). Only
+/// the shapes the corpus needs are recognized; `None` declines to the
+/// caller's structural fallback.
+fn pile_collective(body: &Effect, group_phrase: &str) -> Option<String> {
+    match body {
+        Effect::Act(Action::Destroy(Reference::It)) => {
+            Some(format!("Destroy all creatures in {group_phrase}."))
+        }
+        // `DestroyNoRegen`'s expansion: `Sequence([Destroy(It), Until(
+        // ForThisEvent, [Cant(Regenerate(on: It))])])` ([CR#701.19c]).
+        Effect::Sequence(parts) => match parts.as_slice() {
+            [
+                Effect::Act(Action::Destroy(Reference::It)),
+                Effect::Until(Duration::ForThisEvent, statics),
+            ] => match statics.as_slice() {
+                [StaticEffect::Deontic(Deontic::Cant(DeonticAction::Regenerate { .. }))] => Some(
+                    format!("Destroy all creatures in {group_phrase}. They can't be regenerated."),
+                ),
+                _ => None,
+            },
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// A modal spell/ability ([CR#700.2]): an optional Escalate/Entwine cost-
+/// rider line, "Choose ... —", and one bulleted mode per line.
+fn modal_effect(modal: &deckmaste_core::Modal, ctx: &Ctx) -> String {
+    use deckmaste_core::ModalCostRider;
+    let mut lines = Vec::new();
+    if let Some(rider) = &modal.choose.rider {
+        let (name, cost) = match rider {
+            ModalCostRider::Escalate(cost) => ("Escalate", cost),
+            ModalCostRider::Entwine(cost) => ("Entwine", cost),
+        };
+        if let Some(symbols) = super::template::render_cost(&cost.0) {
+            // Reminder text ("(Pay this cost for each mode chosen beyond
+            // the first.)") is never rendered — the fidelity gate strips it
+            // from the ORACLE side only, so the rules-text renderer must
+            // already omit it (mirrors every keyword's bare-name render).
+            lines.push(format!("{name} {symbols}"));
+        }
+    }
+    lines.push(choose_line(&modal.choose));
+    for mode in &modal.modes {
+        lines.push(format!(
+            "\u{2022} {}",
+            ensure_period(&effect(&mode.effect, ctx))
+        ));
+    }
+    lines.join("\n")
+}
+
+/// The modal spec's "Choose ..." lead line ([CR#700.2]). Only the shapes the
+/// corpus needs (`AtLeast(1)` = "one or more") are named; anything else
+/// falls back to that reading rather than fabricating unverified wording.
+fn choose_line(spec: &deckmaste_core::ChooseSpec) -> String {
+    let (lo, hi) = spec.count.bounds();
+    let lo_n = lo.and_then(Count::literal_value);
+    let hi_n = hi.and_then(Count::literal_value);
+    match (lo_n, hi_n, spec.up_to) {
+        (Some(1), Some(1), false) => "Choose one \u{2014}".to_string(),
+        _ => "Choose one or more \u{2014}".to_string(),
     }
 }
 
@@ -327,6 +607,20 @@ fn action(a: &Action, ctx: &Ctx) -> String {
                 Reference::This => ctx.subject.to_string(),
                 other => fragment::reference(other, ctx),
             };
+            // A stat-derived amount ("equal to the sacrificed creature's
+            // power", Fling) reads a different template than the plain/
+            // dynamic-X forms — "damage EQUAL TO X" up front, not "N
+            // damage ... where X is N" (there is no substituted variable
+            // here at all).
+            if let Count::StatOf(r, stat) = amount {
+                return format!(
+                    "{} deals damage equal to {}'s {} to {}.",
+                    capitalize_first(&dealer),
+                    fragment::reference(r, ctx),
+                    stat_word(*stat),
+                    fragment::reference(target, ctx),
+                );
+            }
             let (value, where_x) = damage_amount(amount);
             format!(
                 "{} deals {value} damage to {}{}.",
@@ -373,6 +667,24 @@ fn action(a: &Action, ctx: &Ctx) -> String {
             fragment::reference(r, ctx),
             fragment::library_position(anchor),
         ),
+        // Exiling is a pure zone move ([CR#701.13]) — "Exile <r>." (the
+        // source-agent twin of `PlayerAction::Move`'s identical exile arm).
+        Action::Move(r, Destination::Zone(Zone::Exile), riders) if riders.is_empty() => {
+            format!("Exile {}.", fragment::reference(r, ctx))
+        }
+        // A battlefield destination WITH arrival riders ([CR#614.12],
+        // Otherworldly Journey's delayed return): "Return <r> to the
+        // battlefield <rider phrase>." — the empty-rider battlefield case
+        // has no oracle text of its own (a plain `Move(_, Battlefield, [])`
+        // reads as a reanimation-family verb this corpus doesn't have yet),
+        // so this arm is deliberately riders-non-empty.
+        Action::Move(r, Destination::Zone(Zone::Battlefield), riders) if !riders.is_empty() => {
+            format!(
+                "Return {} to the battlefield{}.",
+                fragment::reference(r, ctx),
+                enter_rider_phrase(riders, ctx),
+            )
+        }
         // A non-`You` agent renders subject-declarative ("Target player
         // mills two cards.", [CR#701.17a]); the implicit-`You` default keeps
         // the imperative form ("Draw a card."). A verb with no third-person
@@ -419,6 +731,63 @@ fn damage_amount(amount: &Count) -> (String, Option<String>) {
             "X".to_string(),
             Some(format!("where X is {}", fragment::count(other))),
         ),
+    }
+}
+
+/// The trailing " under ... control with a +1/+1 counter on it" clause an
+/// arrival-rider list contributes ([CR#614.12]) — only the riders the
+/// corpus needs (`UnderOwnersControl`/`UnderControlOf`, `WithCounters`) are
+/// named; `Tapped`/`FaceDown`/`Attacking` fall back to a plain joined word so
+/// the enum stays exhaustive without fabricating unverified phrasing.
+fn enter_rider_phrase(riders: &[EnterRider], ctx: &Ctx) -> String {
+    let mut parts = Vec::new();
+    for rider in riders {
+        match rider {
+            EnterRider::UnderOwnersControl => parts.push("under its owner's control".to_string()),
+            EnterRider::UnderControlOf(who) => {
+                parts.push(format!("under {}'s control", fragment::reference(who, ctx)));
+            }
+            EnterRider::WithCounters(kind, count) => {
+                parts.push(format!("with {} on it", counter_phrase(kind, count)));
+            }
+            EnterRider::Tapped => parts.push("tapped".to_string()),
+            EnterRider::FaceDown => parts.push("face down".to_string()),
+            EnterRider::Attacking(_) => parts.push("attacking".to_string()),
+        }
+    }
+    if parts.is_empty() { String::new() } else { format!(" {}", parts.join(" ")) }
+}
+
+/// A counter placement as its printed article + count noun phrase — "a
+/// +1/+1 counter" / "two +1/+1 counters". `P1P1Counter`/`M1M1Counter`
+/// (Undying/Persist's pip family) print their `+N/+N` symbol, exactly like
+/// the card frame does; any other named kind ("a lore counter") uses the
+/// plain word, same as `fragment`'s `counter_noun`.
+fn counter_phrase(kind: &deckmaste_core::CounterRef, count: &Count) -> String {
+    let symbol = match kind.as_str() {
+        "P1P1Counter" => "+1/+1".to_string(),
+        "M1M1Counter" => "-1/-1".to_string(),
+        other => other.trim_end_matches("Counter").to_lowercase(),
+    };
+    match count.literal_value() {
+        Some(1) => format!("a {symbol} counter"),
+        Some(n) => format!(
+            "{} {symbol} counters",
+            fragment::number_word(n).map_or_else(|| n.to_string(), str::to_string)
+        ),
+        None => format!("{} {symbol} counters", fragment::count(count)),
+    }
+}
+
+/// A `Stat` axis's printed noun ([CR#208,209,210,202.3]) — "power",
+/// "toughness", …
+fn stat_word(s: Stat) -> &'static str {
+    match s {
+        Stat::Power => "power",
+        Stat::Toughness => "toughness",
+        Stat::ManaValue => "mana value",
+        Stat::Loyalty => "loyalty",
+        Stat::Defense => "defense",
     }
 }
 
@@ -507,6 +876,21 @@ fn additional_payment(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) -> Opti
         }
     }
     Some(parts.join(" and "))
+}
+
+/// The phrase an `AdditionalCost` body's `EventObject` anaphor should read,
+/// derived from the payment itself ([CR#601.2f], "the sacrificed creature's
+/// power", Fling) — the cost-side twin of `With`'s binder-phrase threading.
+/// `None` for any payment shape besides the bare single sacrifice (the
+/// `EventObject` render then falls back to the plain "it").
+fn additional_cost_object_phrase(cost: &[deckmaste_core::CostComponent]) -> Option<String> {
+    use deckmaste_core::CostComponent;
+    if let [CostComponent::Do(pa)] = cost
+        && let PlayerAction::Sacrifice(Reference::A { filter, .. }) = pa.as_ref()
+    {
+        return Some(format!("the sacrificed {}", fragment::filter_noun(filter)));
+    }
+    None
 }
 
 /// The THIRD-PERSON verb phrase of a player action — the declarative-subject
@@ -1013,8 +1397,8 @@ mod tests {
     }
 
     /// `AdditionalCost` renders the printed clause: a chosen-creature sacrifice
-    /// cost reads "As an additional cost, sacrifice a creature." followed by
-    /// the body sentence ([CR#601.2f,118.8]).
+    /// cost reads "As an additional cost to cast ~, sacrifice a creature."
+    /// followed by the body sentence ([CR#601.2f,118.8]).
     #[test]
     fn additional_cost_renders_sacrifice_clause() {
         use deckmaste_core::AdditionalCost;
@@ -1050,7 +1434,7 @@ mod tests {
         );
         assert_eq!(
             fling,
-            "As an additional cost, sacrifice a creature. Draw a card."
+            "As an additional cost to cast Fling, sacrifice a creature.\nDraw a card."
         );
     }
 
