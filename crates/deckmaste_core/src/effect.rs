@@ -23,7 +23,7 @@ use crate::reference::Reference;
 /// so a bare player verb (`Draw(1)`) reads at an effect slot as the
 /// implicit-`You` default `Act(By(You, …))` — and the write is transparent.
 ///
-/// A single instruction stands bare (`effect: DealDamage(Target(0), 3)`); the
+/// A single instruction stands bare (`effect: DealDamage(It, 3)`); the
 /// structural forms (`Sequence`, `May`, `If`, …) are the corpus's connective
 /// tissue — data the engine interprets, never seen by the macro layer as
 /// control flow. The struct-carrying forms delegate to inner derived structs
@@ -161,7 +161,8 @@ pub enum Effect {
     Modal(Modal),
     /// Targets scoped over an inner effect ([CR#115.1,601.2c]): the rules-
     /// faithful home for the word "target" — declared on the effect that
-    /// consumes it, with `Reference::Target(n)` indexing this node's list.
+    /// consumes it, its announced slots read back by the anaphors
+    /// (`It`/`That(Sort)`/`They`, or `The(label)` for an `As`-named slot).
     Targeted(Targeted),
     /// A remembered `Effect` macro invocation (declared compound verbs like
     /// `Investigate`). Serialized as the invocation, not the struct.
@@ -187,7 +188,7 @@ pub struct Continuously {
 }
 
 /// `Targeted { targets, effect }` ([CR#115.1,601.2c]) — declares the
-/// targets its inner effect consumes, scoping `Reference::Target(n)` to this
+/// targets its inner effect consumes, scoping the announced-slot reads to this
 /// list. Targets are chosen at announcement and stored on the stack object;
 /// at resolution this node is transparent (the inner effect runs with
 /// `frame.targets` already bound), and per-instance illegal-target handling
@@ -439,8 +440,8 @@ mod tests {
             act_by_you(PlayerAction::Sacrifice(Reference::This)),
         );
         assert_eq!(
-            read("DealDamage(Target(0), Literal(3))"),
-            Effect::Act(Action::deal_damage(Reference::Target(0), Count::Literal(3),)),
+            read("DealDamage(It, Literal(3))"),
+            Effect::Act(Action::deal_damage(Reference::It, Count::Literal(3),)),
         );
         assert_eq!(
             read("AddMana(Literal(1), AnyColor)"),
@@ -490,13 +491,13 @@ mod tests {
         );
     }
 
-    /// An explicit player agent reads native — `By(Target(0), Draw(3))`.
+    /// An explicit player agent reads native — `By(It, Draw(3))`.
     #[test]
     fn explicit_agent_reads_flat() {
         assert_eq!(
-            read("By(Target(0), Draw(Literal(3)))"),
+            read("By(It, Draw(Literal(3)))"),
             Effect::Act(Action::By(
-                Reference::Target(0),
+                Reference::It,
                 PlayerAction::Draw(Count::Literal(3)),
             )),
         );
@@ -539,8 +540,8 @@ mod tests {
             "Draw(Literal(1))",
             "GainLife(Literal(3))",
             "Sacrifice(This)",
-            "By(Target(0),Draw(Literal(3)))",
-            "DealDamage(Target(0),Literal(3))",
+            "By(It,Draw(Literal(3)))",
+            "DealDamage(It,Literal(3))",
             "AddMana(Literal(1),AnyColor)",
             // Verb patients are a single bare `Reference` now.
             "Destroy(This)",
@@ -577,7 +578,7 @@ mod tests {
         assert_eq!(u.who, Reference::You, "omitted who defaults to You");
         assert_eq!(write(&parsed), omitted, "default who is omitted on write");
 
-        let explicit = "Unless(effect:LoseLife(1),who:Target(0),unless:[Mana([Generic(2)])])";
+        let explicit = "Unless(effect:LoseLife(1),who:It,unless:[Mana([Generic(2)])])";
         assert_eq!(write(&read(explicit)), explicit, "explicit who round-trips");
     }
 
@@ -587,15 +588,13 @@ mod tests {
     #[test]
     fn must_pay_defaults_actor_and_round_trips() {
         // Mana Leak: "counter target spell unless its controller pays {3}".
-        let mana_leak = "MustPay(actor:ControllerOf(Target(0)),cost:[Mana([Generic(3)])],or_else:Counter(Target(0)))";
+        let mana_leak =
+            "MustPay(actor:ControllerOf(It),cost:[Mana([Generic(3)])],or_else:Counter(It))";
         let parsed = read(mana_leak);
         let Effect::MustPay(m) = &parsed else {
             panic!("expected MustPay, got {parsed:?}");
         };
-        assert_eq!(
-            m.actor,
-            Reference::ControllerOf(Box::new(Reference::Target(0)))
-        );
+        assert_eq!(m.actor, Reference::ControllerOf(Box::new(Reference::It)));
         assert_eq!(
             m.cost.0.len(),
             1,
@@ -629,7 +628,8 @@ mod tests {
         assert_eq!(write(&parsed), bare, "bare MayPay round-trips");
 
         // With an explicit actor and an "if you don't" branch.
-        let full = "MayPay(actor:Target(0),cost:[Mana([Generic(2)])],and_then:Draw(2),or_else:LoseLife(1))";
+        let full =
+            "MayPay(actor:It,cost:[Mana([Generic(2)])],and_then:Draw(2),or_else:LoseLife(1))";
         assert_eq!(write(&read(full)), full, "full MayPay round-trips");
     }
 
@@ -640,7 +640,7 @@ mod tests {
     /// its power", over the core primitives — no card-layer macros).
     #[test]
     fn additional_cost_reads_and_round_trips() {
-        let src = "AdditionalCost(pay:[Do(Sacrifice(This))],body:DealDamage(Target(0),StatOf(EventObject,Power)))";
+        let src = "AdditionalCost(pay:[Do(Sacrifice(This))],body:DealDamage(It,StatOf(EventObject,Power)))";
         let parsed = read(src);
         let Effect::AdditionalCost(ac) = &parsed else {
             panic!("expected AdditionalCost, got {parsed:?}");
@@ -653,7 +653,7 @@ mod tests {
         assert_eq!(
             *ac.body,
             Effect::Act(Action::deal_damage(
-                Reference::Target(0),
+                Reference::It,
                 Count::StatOf(Reference::EventObject, crate::Stat::Power),
             )),
             "the body reads the paid object via EventObject",
@@ -671,12 +671,12 @@ mod tests {
         );
     }
 
-    /// A `Targeted` wrapper declares its targets and scopes `Target(n)`
+    /// A `Targeted` wrapper declares its targets and scopes the slot reads
     /// over the inner effect; it reads flat through the newtype variant and
     /// round-trips ([CR#115.1,601.2c]).
     #[test]
     fn targeted_effect_reads_and_round_trips() {
-        let src = "Targeted(targets:[Target(Range(Literal(1),Literal(1)),Type(Creature))],effect:DealDamage(Target(0),Literal(3)))";
+        let src = "Targeted(targets:[Target(Range(Literal(1),Literal(1)),Type(Creature))],effect:DealDamage(It,Literal(3)))";
         let parsed = read(src);
         let Effect::Targeted(te) = &parsed else {
             panic!("expected Targeted, got {parsed:?}");
@@ -684,7 +684,7 @@ mod tests {
         assert_eq!(te.targets.len(), 1);
         assert_eq!(
             *te.effect,
-            Effect::Act(Action::deal_damage(Reference::Target(0), Count::Literal(3),)),
+            Effect::Act(Action::deal_damage(Reference::It, Count::Literal(3),)),
         );
         assert_eq!(read(&write(&parsed)), parsed, "round-trip");
     }
@@ -811,7 +811,7 @@ mod tests {
     /// it back. The raw-keyword field spells `as` in RON.
     #[test]
     fn label_round_trips() {
-        let src = "Label(as:\"exiled\",effect:Move(Target(0),Exile))";
+        let src = "Label(as:\"exiled\",effect:Move(It,Exile))";
         let parsed = read(src);
         let Effect::Label(label) = &parsed else {
             panic!("expected Label, got {parsed:?}");

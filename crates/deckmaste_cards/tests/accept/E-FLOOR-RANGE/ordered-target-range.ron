@@ -6,7 +6,7 @@ Normal(
   abilities: [
     Spell(effect: Targeted(
       targets: [Target(Between(2, 5), Creature)],
-      effect: Destroy(Target(0)),
+      effect: Each(binder: Existing(They), effect: Destroy(It)),
     )),
   ],
 )

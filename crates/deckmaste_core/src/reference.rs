@@ -141,8 +141,6 @@ pub enum Reference {
     /// compatible antecedent makes it a guess (the R2 gate): Lightning
     /// Bolt's `DealDamage(It, 3)` reads its one announced target.
     It,
-    /// The nth target this ability announced ([CR#115.3,601.2c]).
-    Target(usize),
     /// The triggering event's OBJECT — the doer/source ("that card"): the
     /// moving object of a zone change, the source of damage
     /// ([CR#603.2e,608.2k]). Mirrors the Idris `Reference.EventObject`
@@ -180,8 +178,11 @@ pub enum Reference {
     /// [`Selection::Them`](crate::Selection::Them).
     That(crate::Sort),
     /// The LABELED antecedent — the ambiguity fallback: reads the unique
-    /// antecedent introduced under `Label { as, effect }` with this name
-    /// ([CR#608.2d]; the R2 gate's error text offers this spelling).
+    /// antecedent introduced under `Label { as, effect }` — or a
+    /// [`TargetSpec::As`](crate::TargetSpec::As)-named announce slot — with
+    /// this name ([CR#608.2d]; the R2 gate's error text offers this
+    /// spelling). Replaces the sunset `Target(n)` index read for
+    /// announce-ambiguous bodies.
     The(crate::Ident),
     /// The indefinite determiner — "a creature", "an artifact you control":
     /// `by` (the actor, default `You`) chooses one object matching `filter`

@@ -10,7 +10,7 @@
 //! ([`deckmaste_core::Expand::expand_all`], what the engine evaluates) PLUS
 //! its computed anaphor resolutions
 //! ([`crate::elaborate::elaborate_with_resolutions`] — which antecedent each
-//! `It`/`That(Sort)`/`They`/`ThatMany`/`Target(n)` bound to): the wire
+//! `It`/`That(Sort)`/`They`/`ThatMany`/`The(label)` bound to): the wire
 //! serializes surface anaphors (the anaphor-surface wire ruling), so the
 //! lock is what pins the COMPUTED indices — a macro or table change that
 //! re-points a reference changes the resolution trace even when the

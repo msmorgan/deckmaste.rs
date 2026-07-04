@@ -126,7 +126,6 @@ fn corpus_metrics(workspace_root: &Path) -> anyhow::Result<()> {
     let mut ambiguous_files = std::collections::BTreeSet::new();
     let mut fallback_reads = 0usize;
     let mut fallback_files = 0usize;
-    let mut deprecations = 0usize;
     let mut other_findings = 0usize;
 
     for plugin in CORPUS {
@@ -153,7 +152,6 @@ fn corpus_metrics(workspace_root: &Path) -> anyhow::Result<()> {
         }
         fallback_reads += v.fallback_reads;
         fallback_files += v.fallback_files;
-        deprecations += v.deprecations;
     }
 
     let pct = |n: usize| 100.0 * n as f64 / faces as f64;
@@ -177,10 +175,7 @@ fn corpus_metrics(workspace_root: &Path) -> anyhow::Result<()> {
         "(c) mis-binding hand audit: crates/deckmaste_cards/tests/r2_audit/ (sample + pinned \
          resolution tables)",
     );
-    println!(
-        "    context: {other_findings} non-gate elaboration finding(s), {deprecations} \
-         deprecated Target(n)/GetTargets(n) read(s)",
-    );
+    println!("    context: {other_findings} non-gate elaboration finding(s)");
     Ok(())
 }
 

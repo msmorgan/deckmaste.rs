@@ -300,7 +300,7 @@ mod tests {
     }
 
     /// A bare `Reference` reads natively at a `Reference` slot. Verb patients
-    /// are single references now, so `This` / `Target(0)` /
+    /// are single references now, so `This` / `It` /
     /// `ControllerOf(This)` read straight into `Reference` — the old
     /// `Selection::Ref` embed (a bare reference at a `Selection` slot) is gone.
     #[test]
@@ -310,10 +310,7 @@ mod tests {
             macros.read_str::<Reference>("This").unwrap(),
             Reference::This
         );
-        assert_eq!(
-            macros.read_str::<Reference>("Target(0)").unwrap(),
-            Reference::Target(0),
-        );
+        assert_eq!(macros.read_str::<Reference>("It").unwrap(), Reference::It);
         assert_eq!(
             macros.read_str::<Reference>("ControllerOf(This)").unwrap(),
             Reference::ControllerOf(Box::new(Reference::This)),
@@ -367,14 +364,14 @@ mod tests {
         );
     }
 
-    /// An explicit different agent (`By(Target(0), Draw(3))` — Ancestral
+    /// An explicit different agent (`By(It, Draw(3))` — Ancestral
     /// Recall) reads natively through `Action`'s own variants, not the embed.
     #[test]
     fn explicit_agent_reads_natively_at_action_slot() {
         let macros = macro_set();
         assert_eq!(
-            macros.read_str::<Action>("By(Target(0), Draw(3))").unwrap(),
-            Action::By(Reference::Target(0), PlayerAction::Draw(Count::Literal(3))),
+            macros.read_str::<Action>("By(It, Draw(3))").unwrap(),
+            Action::By(Reference::It, PlayerAction::Draw(Count::Literal(3))),
         );
     }
 

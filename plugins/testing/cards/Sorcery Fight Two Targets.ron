@@ -2,12 +2,11 @@
 // don't control." (Prey Upon's shape, [CR#701.14a].) The fight family's TWO
 // same-sort targets are the R2 ambiguity gate's canonical expected firer
 // ([[cards-corpus-dry-run]]): an anaphoric read (`It`/`That(Creature)`) of
-// either target would be a guess, and `Label` cannot name a TARGET slot
-// (labels name effect introductions, not announce-list entries) — so the
-// explicit `Target(n)` slots are the fight family's escape hatch, seeded here
-// per the calibration ticket and NOT counted as a gate failure. Inherited by
-// cards-fidelity-target-sunset: sunsetting `Target(n)` needs a labeling story
-// for announce-list slots first.
+// either target would be a guess. The sunset's announce-list labeling story
+// ([[cards-fidelity-target-sunset]]) names each slot with `As` and reads it
+// back with `The` ([CR#608.2d] labeled antecedents) — the labeled slots still
+// participate in R1/R2 exactly like unlabeled ones (this fixture pins that
+// the gate stayed frozen), and the explicit reads are never a guess.
 Normal(
     name: "Sorcery Fight Two Targets",
     mana_cost: [Generic(1), Green],
@@ -15,10 +14,10 @@ Normal(
     abilities: [
         Spell(effect: Targeted(
             targets: [
-                TargetOne(AllOf([Creature, ControlledBy(Ref(You))])),
-                TargetOne(AllOf([Creature, Not(ControlledBy(Ref(You)))])),
+                As("first", TargetOne(AllOf([Creature, ControlledBy(Ref(You))]))),
+                As("second", TargetOne(AllOf([Creature, Not(ControlledBy(Ref(You)))]))),
             ],
-            effect: Fight(Target(0), Target(1)),
+            effect: Fight(The("first"), The("second")),
         )),
     ],
 )

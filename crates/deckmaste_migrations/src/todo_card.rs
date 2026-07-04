@@ -184,7 +184,7 @@ mod tests {
   ],
   abilities: [
     Spell(
-      effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), 3)),
+      effect: Targeted(targets: [AnyTarget], effect: DealDamage(It, 3)),
     ),
   ],
 )

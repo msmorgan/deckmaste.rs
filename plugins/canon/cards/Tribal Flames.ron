@@ -13,7 +13,7 @@ Normal(
   ],
   abilities: [
     Spell(
-      effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), Domain)),
+      effect: Targeted(targets: [AnyTarget], effect: DealDamage(It, Domain)),
     ),
   ],
 )

@@ -1,0 +1,17 @@
+// Accept twin of reject/E-BIND-TARGET/distinct-sibling-out-of-range.ron: a
+// `Distinct` constraint naming a sibling slot that IS announced
+// [CR#115.7e,601.2c]. The two same-sort slots take the announce-list labels
+// ([CR#608.2d]) — the labeled reads are never a guess.
+Normal(
+  name: "Accept Distinct Sibling Range",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Targeted(
+      targets: [
+        As("first", AnyTarget),
+        As("second", Distinct([0], AnyTarget)),
+      ],
+      effect: Fight(The("first"), The("second")),
+    )),
+  ],
+)

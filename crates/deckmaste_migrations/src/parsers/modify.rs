@@ -22,7 +22,7 @@ pub(super) fn split_marker<'a>(body: &'a str, markers: &[&str]) -> Option<(&'a s
 /// self-ref; "enchanted …" the attach host; a class phrase parses via
 /// [`filter::parse_phrase`]. "target …" declines here — a targeted subject is
 /// the caller's concern (it declares a `TargetSpec` and scopes
-/// `Of(Target(0))`).
+/// `Of(It)`).
 pub(super) fn subject_to_filter(subj: &str) -> Option<String> {
     let s = subj.trim();
     if s == "~" {

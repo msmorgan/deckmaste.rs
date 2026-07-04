@@ -238,21 +238,21 @@ fn regenerate_macro_expands_with_typed_reference_param() {
     };
     assert_eq!(body.len(), 2, "remove all damage, then tap [CR#701.19a]");
 
-    // Regenerate(Target(0)): the bound-target form parses too — the param is a
-    // Reference, so a `Target` fits exactly where `This` did.
-    let tgt: Effect = plugin.macros.read_str("Regenerate(Target(0))").unwrap();
+    // Regenerate(It): the announced-target anaphor parses too — the param is
+    // a Reference, so `It` fits exactly where `This` did.
+    let tgt: Effect = plugin.macros.read_str("Regenerate(It)").unwrap();
     let Effect::Expanded(tex) = tgt else {
-        panic!("Regenerate(Target(0)) is remembered as Expanded");
+        panic!("Regenerate(It) is remembered as Expanded");
     };
     assert!(
         matches!(
             *tex.value,
             Effect::Act(Action::CreateReplacement {
-                subject: Reference::Target(0),
+                subject: Reference::It,
                 ..
             })
         ),
-        "Regenerate(Target(0)) expands with a Target subject, got {:?}",
+        "Regenerate(It) expands with the anaphor subject, got {:?}",
         tex.value
     );
 }

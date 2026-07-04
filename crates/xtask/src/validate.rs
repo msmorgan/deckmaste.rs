@@ -54,15 +54,6 @@ pub fn run(args: ValidateArgs) -> anyhow::Result<()> {
         validation.elab_failures.len(),
         mismatches.len(),
     );
-    if validation.deprecations > 0 {
-        // Warned, never gated: the explicit slot spellings stay legal until
-        // their sunset ticket (cards-fidelity-target-sunset).
-        println!(
-            "warning: {} deprecated Target(n)/GetTargets(n) read(s) — prefer the anaphor \
-             surface (It/That(Sort)/They)",
-            validation.deprecations,
-        );
-    }
     if !validation.failures.is_empty()
         || !validation.elab_failures.is_empty()
         || !mismatches.is_empty()

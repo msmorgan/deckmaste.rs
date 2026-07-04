@@ -15,7 +15,8 @@ use crate::effect::Effect;
 
 /// A spell ability — what an instant or sorcery does on resolution
 /// ([CR#113.3a]). Targeting, when present, lives on an `Effect::Targeted`
-/// wrapper in `effect` ([CR#115.1,601.2c]), referenced by index (`Target(0)`).
+/// wrapper in `effect` ([CR#115.1,601.2c]), read back by the anaphors
+/// (`It`/`That(Sort)`/`They`, or `The(label)` for an `As`-named slot).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct SpellAbility {
     pub effect: Effect,

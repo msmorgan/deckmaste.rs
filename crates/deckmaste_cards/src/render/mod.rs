@@ -66,7 +66,8 @@ pub(crate) struct Ctx<'a> {
     /// Display name of the subject object (used for self-referential
     /// events/effects).
     pub subject: &'a str,
-    /// The current ability's targets, so `Reference::Target(i)` can resolve.
+    /// The current ability's targets, so the slot-bound anaphors
+    /// (`It`/`The(label)`) can print their announce phrases.
     pub targets: &'a [TargetSpec],
     /// The noun phrase the enclosing `Effect::With` bound, so the body's
     /// `Reference::That` / `Selection::Those` anaphor renders as that phrase

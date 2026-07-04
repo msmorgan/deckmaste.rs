@@ -8,7 +8,7 @@ Normal(
   abilities: [
     Spell(effect: Targeted(
       targets: [Target(Exactly(1), Type(Creature))],
-      effect: GainControl(Target(0), You),
+      effect: GainControl(It, You),
     )),
   ],
 )

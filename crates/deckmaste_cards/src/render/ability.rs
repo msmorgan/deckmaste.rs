@@ -125,8 +125,8 @@ pub(super) fn event_clause(e: &EventFilter, ctx: &Ctx) -> (&'static str, String)
         EventFilter::AttackDeclared { by, .. } => {
             ("Whenever", format!("{} attacks", subject_of(by, ctx)))
         }
-        // "When ~ becomes the target of a spell or ability" ([CR#115.4]) —
-        // the unconstrained agent reads as the printed "a spell or ability".
+        // "When ~ becomes the target of a spell or ability" — the
+        // unconstrained agent reads as the printed "a spell or ability".
         EventFilter::BecomesTarget {
             what,
             by: Filter::Any,

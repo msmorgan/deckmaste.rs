@@ -13,7 +13,7 @@ use crate::resolve::ResolveCtx;
 
 /// One parsed effect clause: `TargetSpec` RON fragments to declare on the
 /// frame (empty when the effect targets nothing), and the `Effect`/`Action`
-/// body RON, which references any declared targets as `Target(0)`, `Target(1)`…
+/// body RON, which references any declared targets as `It`, `It`…
 pub(super) struct ParsedEffect {
     pub(super) targets: Vec<String>,
     pub(super) effect: String,
@@ -144,7 +144,7 @@ fn self_reference(phrase: &str) -> Option<String> {
 /// as an `Effect` action macro stands as an effect body. New condition phrases
 /// are added by authoring a `Condition` macro, with no parser change. v1
 /// declines when EITHER branch declares targets: the two clauses share no
-/// announce list here, so colliding `Target(0)` references can't be expressed —
+/// announce list here, so colliding `It` references can't be expressed —
 /// a later production with a hoisted shared `Targeted` wrapper will lift that.
 fn parse_if(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
     // The conditional sentence opens at ". If " (the base sentence ends, the
@@ -215,7 +215,7 @@ fn parse_may(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
 /// which declines the marker). The ±N/±N + keyword-grant grammar is shared with
 /// that anthem parser via [`modify`]; the changes are written inline
 /// (`Modification` is not a macro kind, so no `AddPowerToughness` macro can
-/// stand here). Subject: a target ("target creature" -> `Of(Target(0))` +
+/// stand here). Subject: a target ("target creature" -> `Of(It)` +
 /// `TargetOne(<filter>)`), or a team/self class via the shared subject grammar
 /// (`Matching`/`Of`).
 fn parse_pump(line: &str) -> Option<ParsedEffect> {
@@ -280,17 +280,14 @@ fn pump_changes(body: &str, scaled: Option<&str>) -> Option<Vec<String>> {
 }
 
 /// Pump subject -> (`Modify` scope, target declarations). A "target <filter>"
-/// subject scopes `Of(Target(0))` and declares `TargetOne(<filter>)`; the
+/// subject scopes `Of(It)` and declares `TargetOne(<filter>)`; the
 /// source anaphor "it" (a self-pump trigger surface, e.g. "it gets +2/+0 …")
 /// scopes `Of(This)`; a team/self class scopes via the shared subject grammar
 /// with no target.
 fn pump_scope(subj: &str) -> Option<(String, Vec<String>)> {
     if let Some(rest) = modify::strip_prefix_ci(subj.trim(), "target ") {
         let filter = filter::parse_phrase(rest)?;
-        return Some((
-            "Of(Target(0))".to_owned(),
-            vec![format!("TargetOne({filter})")],
-        ));
+        return Some(("Of(It)".to_owned(), vec![format!("TargetOne({filter})")]));
     }
     // "it" — the resolving source pumping itself (trigger anaphor); same scope as
     // a "~ gets …" self-pump.
@@ -308,7 +305,7 @@ const MODIFY_MARKERS: [&str; 6] = [" gets ", " get ", " gains ", " gain ", " hav
 /// subject parsed by the shared [`object_target_filter`] grammar — the shared
 /// [`filter`] phrase grammar, broadened with a type-noun disjunction for
 /// "<type> or <type>" subjects like "artifact or enchantment") and the body
-/// `Destroy(Target(0))` ([CR#701.8]). Only the single-target form; board wipes
+/// `Destroy(It)` ([CR#701.8]). Only the single-target form; board wipes
 /// ("destroy all/each …") are a later production. Declines when the subject
 /// isn't filter-parseable. Case-insensitive lead, since the clause opens a
 /// spell ("Destroy …") or follows a trigger comma ("…, destroy …").
@@ -316,7 +313,7 @@ const MODIFY_MARKERS: [&str; 6] = [" gets ", " get ", " gains ", " gain ", " hav
 /// splits into its sentences and parses each as a clause, in ORACLE ORDER —
 /// the telescope surface (each clause elaborates in the context extended by
 /// its left siblings' introductions; no binder inversion). Targets may be
-/// declared only by the FIRST sentence (later `Target(n)` indices would
+/// declared only by the FIRST sentence (a second announce list would
 /// collide with the first's); later sentences read the announced slot or the
 /// products through the anaphors (`That(Card)`, …). Declines unless every
 /// sentence parses.
@@ -380,7 +377,7 @@ fn parse_delayed_next_end_step(line: &str, ctx: &ResolveCtx) -> Option<ParsedEff
     })
 }
 
-/// `Exile target <subject>.` -> a targeted exile: `Move(Target(0), Exile)`
+/// `Exile target <subject>.` -> a targeted exile: `Move(It, Exile)`
 /// ([CR#701.13a]; the slot spelling stays the runtime-supported read). The
 /// exile clause's PRODUCT — the exiled card — is what a following sentence's
 /// `That(Card)` resolves to ([CR#400.7j]; the Otherworldly-Journey chain).
@@ -391,7 +388,7 @@ fn parse_exile_target(line: &str) -> Option<ParsedEffect> {
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
         targets: vec![format!("TargetOne({filter})")],
-        effect: "Move(Target(0), Exile)".to_owned(),
+        effect: "Move(It, Exile)".to_owned(),
     })
 }
 
@@ -438,7 +435,7 @@ fn parse_destroy(line: &str) -> Option<ParsedEffect> {
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
         targets: vec![format!("TargetOne({filter})")],
-        effect: "Destroy(Target(0))".to_owned(),
+        effect: "Destroy(It)".to_owned(),
     })
 }
 
@@ -510,15 +507,15 @@ fn parse_attach(line: &str) -> Option<ParsedEffect> {
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
         targets: vec![format!("TargetOne({filter})")],
-        effect: "Attach(what: This, to: Target(0))".to_owned(),
+        effect: "Attach(what: This, to: It)".to_owned(),
     })
 }
 
 /// `Counter target spell[ unless its controller pays <cost>].` -> a
-/// `TargetOne(Spell)` target on the stack and a `Counter(Target(0))` body
+/// `TargetOne(Spell)` target on the stack and a `Counter(It)` body
 /// ([CR#701.6a]). The "unless its controller pays" rider wraps the counter in
 /// an [`Unless`](deckmaste_core::Effect::Unless) ([CR#118.12a]): the spell's
-/// controller (`who: ControllerOf(Target(0))`) may pay the stated cost to stop
+/// controller (`who: ControllerOf(It)`) may pay the stated cost to stop
 /// the counter. Only the bare and the mana-tax riders parse; richer riders
 /// (replacement clauses, "you may cast …", restricted spell filters) are later
 /// productions. Case-insensitive lead (spell clause vs. trigger comma).
@@ -529,7 +526,7 @@ fn parse_counter(line: &str) -> Option<ParsedEffect> {
     if body.is_empty() {
         return Some(ParsedEffect {
             targets,
-            effect: "Counter(Target(0))".to_owned(),
+            effect: "Counter(It)".to_owned(),
         });
     }
     // "… unless its controller pays <cost>." — the spell's controller may pay
@@ -545,7 +542,7 @@ fn parse_counter(line: &str) -> Option<ParsedEffect> {
     Some(ParsedEffect {
         targets,
         effect: format!(
-            "Unless(effect: Counter(Target(0)), who: ControllerOf(Target(0)), unless: [{}])",
+            "Unless(effect: Counter(It), who: ControllerOf(It), unless: [{}])",
             cost.join(", ")
         ),
     })
@@ -563,7 +560,7 @@ fn parse_counter(line: &str) -> Option<ParsedEffect> {
 
 /// `Put <count> <kind> counter[s] on <where>.` -> a counter placement
 /// ([CR#122.1]):
-/// - `on target <subject>.` -> `PutCounters(Target(0), <kind>, <n>)` with a
+/// - `on target <subject>.` -> `PutCounters(It, <kind>, <n>)` with a
 ///   `TargetOne(<filter>)` declaration (the subject parsed by the shared
 ///   [`object_target_filter`] grammar).
 /// - `on it.` / `on ~.` -> `PutCounters(This, <kind>, <n>)`, no target — the
@@ -587,7 +584,7 @@ fn parse_put_counters(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
         _ => {
             let subject = dest.strip_prefix("target ")?;
             let filter = object_target_filter(subject)?;
-            ("Target(0)".to_owned(), vec![format!("TargetOne({filter})")])
+            ("It".to_owned(), vec![format!("TargetOne({filter})")])
         }
     };
     Some(ParsedEffect {
@@ -632,10 +629,10 @@ fn counter_kind(phrase: &str, ctx: &ResolveCtx) -> Option<String> {
 ///   activated abilities (the cost is the activated-frame's job).
 /// - `Return target <subject> card from your graveyard to your hand.` -> a
 ///   graveyard-to-hand recursion: a plain zone change ([CR#400.7]) of a card
-///   you own in your graveyard, via `Move(Target(0), Hand)`. The subject is a
-///   *card* (graveyard zone), so it's the card-type spelling
-///   (`Type(Creature)`), not the battlefield-scoped `Creature` macro, scoped
-///   `InZone(Graveyard)` + `Owner(Ref(You))`.
+///   you own in your graveyard, via `Move(It, Hand)`. The subject is a *card*
+///   (graveyard zone), so it's the card-type spelling (`Type(Creature)`), not
+///   the battlefield-scoped `Creature` macro, scoped `InZone(Graveyard)` +
+///   `Owner(Ref(You))`.
 fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
     let body = strip_prefix_ci(line, "return ")?.strip_suffix('.')?;
     // Self-bounce: "Return ~/it to its owner's hand." — an activated-ability
@@ -662,7 +659,7 @@ fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
         let card_filter = graveyard_card_filter(subject)?;
         return Some(ParsedEffect {
             targets: vec![format!("TargetOne({card_filter})")],
-            effect: "Move(Target(0), Hand)".to_owned(),
+            effect: "Move(It, Hand)".to_owned(),
         });
     }
     // Battlefield bounce: "target <subject> to its owner's hand."
@@ -672,7 +669,7 @@ fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
         targets: vec![format!("TargetOne({filter})")],
-        effect: "ReturnToHand(Target(0))".to_owned(),
+        effect: "ReturnToHand(It)".to_owned(),
     })
 }
 
@@ -695,7 +692,7 @@ fn parse_tap_untap(line: &str) -> Option<ParsedEffect> {
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
         targets: vec![format!("TargetOne({filter})")],
-        effect: format!("{verb}(Target(0))"),
+        effect: format!("{verb}(It)"),
     })
 }
 
@@ -867,7 +864,7 @@ fn parse_deal_damage(line: &str) -> Option<ParsedEffect> {
     // `Each` over the many-`Binder` `Existing(<selection>)`, binding each member
     // in turn as the iteration anaphor `It` per element ([CR#608.2d] to-each),
     // with the verb taking that anaphor. A targeted shape's patient is a
-    // `Reference` (`Target(0)`) and rides the verb unchanged.
+    // `Reference` (`It`) and rides the verb unchanged.
     let effect = if selection.starts_with("Filter(") {
         format!("Each(binder: Existing({selection}), effect: DealDamage(It, {amount}))")
     } else {
@@ -1122,22 +1119,22 @@ pub(super) fn number_word(word: &str) -> Option<u32> {
 
 /// Maps the "to <X>" tail of a damage clause to its `(target declarations,
 /// body selection)`. Targeted shapes declare a `TargetSpec` and the body reads
-/// `Target(0)`; "each" shapes declare nothing and inline a `Filter(...)`
+/// `It`; "each" shapes declare nothing and inline a `Filter(...)`
 /// selection.
 fn damage_target(text: &str) -> Option<(Vec<String>, String)> {
     Some(match text {
-        "any target" => (vec!["AnyTarget".to_owned()], "Target(0)".to_owned()),
-        "target player" => (vec!["TargetOne(Player)".to_owned()], "Target(0)".to_owned()),
+        "any target" => (vec!["AnyTarget".to_owned()], "It".to_owned()),
+        "target player" => (vec!["TargetOne(Player)".to_owned()], "It".to_owned()),
         // "target opponent" — a single opponent of you ([CR#102.2]).
         "target opponent" => (
             vec!["TargetOne(OpponentOf(Ref(You)))".to_owned()],
-            "Target(0)".to_owned(),
+            "It".to_owned(),
         ),
         // The restricted "any target" minus its object members ([CR#115.4]):
         // a player or planeswalker, never a creature/battle (Lava Spike).
         "target player or planeswalker" => (
             vec!["TargetOne(OneOf([Player, Planeswalker]))".to_owned()],
-            "Target(0)".to_owned(),
+            "It".to_owned(),
         ),
         "each creature" => (Vec::new(), "Filter(Creature)".to_owned()),
         "each player" => (Vec::new(), "Filter(Player)".to_owned()),
@@ -1155,7 +1152,7 @@ fn damage_target(text: &str) -> Option<(Vec<String>, String)> {
         _ => {
             let subject = text.strip_prefix("target ")?;
             let filter = object_target_filter(subject)?;
-            (vec![format!("TargetOne({filter})")], "Target(0)".to_owned())
+            (vec![format!("TargetOne({filter})")], "It".to_owned())
         }
     })
 }
@@ -1191,23 +1188,20 @@ mod tests {
     fn deal_damage_targeted_shapes() {
         assert_eq!(
             parsed("~ deals 3 damage to any target."),
-            Some((
-                "AnyTarget".to_owned(),
-                "DealDamage(Target(0), 3)".to_owned()
-            ))
+            Some(("AnyTarget".to_owned(), "DealDamage(It, 3)".to_owned()))
         );
         assert_eq!(
             parsed("~ deals 2 damage to target creature."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "DealDamage(Target(0), 2)".to_owned()
+                "DealDamage(It, 2)".to_owned()
             ))
         );
         assert_eq!(
             parsed("~ deals 4 damage to target player."),
             Some((
                 "TargetOne(Player)".to_owned(),
-                "DealDamage(Target(0), 4)".to_owned()
+                "DealDamage(It, 4)".to_owned()
             ))
         );
         // Lava Spike's restricted target: player-or-planeswalker (can't hit
@@ -1216,7 +1210,7 @@ mod tests {
             parsed("~ deals 3 damage to target player or planeswalker."),
             Some((
                 "TargetOne(OneOf([Player, Planeswalker]))".to_owned(),
-                "DealDamage(Target(0), 3)".to_owned()
+                "DealDamage(It, 3)".to_owned()
             ))
         );
     }
@@ -1256,23 +1250,20 @@ mod tests {
         // The target subject parses via filter.rs into a `TargetOne(<filter>)`.
         assert_eq!(
             parsed("Destroy target creature."),
-            Some((
-                "TargetOne(Creature)".to_owned(),
-                "Destroy(Target(0))".to_owned()
-            ))
+            Some(("TargetOne(Creature)".to_owned(), "Destroy(It)".to_owned()))
         );
         assert_eq!(
             parsed("Destroy target artifact."),
             Some((
                 "TargetOne(Type(Artifact))".to_owned(),
-                "Destroy(Target(0))".to_owned()
+                "Destroy(It)".to_owned()
             ))
         );
         assert_eq!(
             parsed("Destroy target nonland permanent."),
             Some((
                 "TargetOne(AllOf([Permanent, Not(Type(Land))]))".to_owned(),
-                "Destroy(Target(0))".to_owned()
+                "Destroy(It)".to_owned()
             ))
         );
         // Lowercase lead (the clause after a trigger comma) parses too. The
@@ -1281,7 +1272,7 @@ mod tests {
             parsed("destroy target Goblin."),
             Some((
                 "TargetOne(AllOf([Permanent, Subtype(\"Goblin\")]))".to_owned(),
-                "Destroy(Target(0))".to_owned()
+                "Destroy(It)".to_owned()
             ))
         );
     }
@@ -1294,7 +1285,7 @@ mod tests {
             parsed("Destroy target creature with flying."),
             Some((
                 "TargetOne(AllOf([Creature, Has(Flying)]))".to_owned(),
-                "Destroy(Target(0))".to_owned()
+                "Destroy(It)".to_owned()
             ))
         );
     }
@@ -1325,12 +1316,12 @@ mod tests {
                     .to_owned()
             ))
         );
-        // Single-target pump ("target creature gets …"): TargetOne + Of(Target(0)).
+        // Single-target pump ("target creature gets …"): TargetOne + Of(It).
         assert_eq!(
             parsed("Target creature gets +3/+3 until end of turn."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "Continuously(effect: Modify(of: Of(Target(0)), changes: [AddPowerToughness(3, 3)]), \
+                "Continuously(effect: Modify(of: Of(It), changes: [AddPowerToughness(3, 3)]), \
                  duration: FixedUntil(EndOfTurn))"
                     .to_owned()
             ))
@@ -1340,7 +1331,7 @@ mod tests {
             parsed("Target creature gains flying until end of turn."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "Continuously(effect: Modify(of: Of(Target(0)), changes: [GainAbility(Keyword(Flying))]), \
+                "Continuously(effect: Modify(of: Of(It), changes: [GainAbility(Keyword(Flying))]), \
                  duration: FixedUntil(EndOfTurn))".to_owned()
             ))
         );
@@ -1400,17 +1391,14 @@ mod tests {
         // Trigger surface: "it deals …" (the source), same RON as "~ deals …".
         assert_eq!(
             parsed("it deals 1 damage to any target."),
-            Some((
-                "AnyTarget".to_owned(),
-                "DealDamage(Target(0), 1)".to_owned()
-            ))
+            Some(("AnyTarget".to_owned(), "DealDamage(It, 1)".to_owned()))
         );
         // Activated surface: clause-initial "It deals …" after a cost colon.
         assert_eq!(
             parsed("It deals 2 damage to target creature."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "DealDamage(Target(0), 2)".to_owned()
+                "DealDamage(It, 2)".to_owned()
             ))
         );
     }
@@ -1429,10 +1417,7 @@ mod tests {
         // Regression: the spell forms must keep working after generalization.
         assert_eq!(
             parsed("~ deals 3 damage to any target."),
-            Some((
-                "AnyTarget".to_owned(),
-                "DealDamage(Target(0), 3)".to_owned()
-            ))
+            Some(("AnyTarget".to_owned(), "DealDamage(It, 3)".to_owned()))
         );
         assert_eq!(
             parsed("Draw two cards."),
@@ -1670,7 +1655,7 @@ mod tests {
             parsed("~ deals damage to any target equal to the number of Goblins you control."),
             Some((
                 "AnyTarget".to_owned(),
-                "DealDamage(Target(0), CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))".to_owned()
+                "DealDamage(It, CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))".to_owned()
             ))
         );
     }
@@ -1681,7 +1666,7 @@ mod tests {
             parsed("~ deals X damage to target player, where X is the number of Goblins you control."),
             Some((
                 "TargetOne(Player)".to_owned(),
-                "DealDamage(Target(0), CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))".to_owned()
+                "DealDamage(It, CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))".to_owned()
             ))
         );
     }
@@ -1691,10 +1676,7 @@ mod tests {
         // Regression: the literal path keeps emitting a bare numeral.
         assert_eq!(
             parsed("~ deals 3 damage to any target."),
-            Some((
-                "AnyTarget".to_owned(),
-                "DealDamage(Target(0), 3)".to_owned()
-            ))
+            Some(("AnyTarget".to_owned(), "DealDamage(It, 3)".to_owned()))
         );
     }
 
@@ -1905,7 +1887,7 @@ mod tests {
             parsed("Attach it to target creature you control."),
             Some((
                 "TargetOne(AllOf([Creature, ControlledBy(Ref(You))]))".to_owned(),
-                "Attach(what: This, to: Target(0))".to_owned()
+                "Attach(what: This, to: It)".to_owned()
             ))
         );
     }
@@ -2028,7 +2010,7 @@ mod tests {
     #[test]
     fn conditional_declines_targeted_branch() {
         // v1 declines when a branch declares targets: both branches would emit a
-        // `Target(0)` with no shared announce list, which the `If` node can't
+        // `It` with no shared announce list, which the `If` node can't
         // express yet. Decline cleanly rather than emit colliding targets.
         assert!(
             parsed_with_macros(
@@ -2044,18 +2026,12 @@ mod tests {
         // it ([CR#701.6a]).
         assert_eq!(
             parsed("Counter target spell."),
-            Some((
-                "TargetOne(Spell)".to_owned(),
-                "Counter(Target(0))".to_owned()
-            ))
+            Some(("TargetOne(Spell)".to_owned(), "Counter(It)".to_owned()))
         );
         // Lowercase lead (mid-sentence after a trigger comma).
         assert_eq!(
             parsed("counter target spell."),
-            Some((
-                "TargetOne(Spell)".to_owned(),
-                "Counter(Target(0))".to_owned()
-            ))
+            Some(("TargetOne(Spell)".to_owned(), "Counter(It)".to_owned()))
         );
     }
 
@@ -2067,7 +2043,7 @@ mod tests {
             parsed("Counter target spell unless its controller pays {2}."),
             Some((
                 "TargetOne(Spell)".to_owned(),
-                "Unless(effect: Counter(Target(0)), who: ControllerOf(Target(0)), \
+                "Unless(effect: Counter(It), who: ControllerOf(It), \
                  unless: [Mana([Generic(2)])])"
                     .to_owned()
             ))
@@ -2075,7 +2051,7 @@ mod tests {
         assert_eq!(
             parsed("Counter target spell unless its controller pays {1}.").map(|p| p.1),
             Some(
-                "Unless(effect: Counter(Target(0)), who: ControllerOf(Target(0)), \
+                "Unless(effect: Counter(It), who: ControllerOf(It), \
                  unless: [Mana([Generic(1)])])"
                     .to_owned()
             )
@@ -2092,7 +2068,7 @@ mod tests {
         )
         .expect("both sentences are productions");
         assert_eq!(parsed.targets, vec!["TargetOne(Spell)".to_owned()]);
-        assert_eq!(parsed.effect, "Sequence([Counter(Target(0)), GainLife(5)])");
+        assert_eq!(parsed.effect, "Sequence([Counter(It), GainLife(5)])");
     }
 
     #[test]
@@ -2119,14 +2095,14 @@ mod tests {
             parsed("Return target creature to its owner's hand."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "ReturnToHand(Target(0))".to_owned()
+                "ReturnToHand(It)".to_owned()
             ))
         );
         assert_eq!(
             parsed("Return target permanent to its owner's hand."),
             Some((
                 "TargetOne(Permanent)".to_owned(),
-                "ReturnToHand(Target(0))".to_owned()
+                "ReturnToHand(It)".to_owned()
             ))
         );
         // "nonland permanent" rides the shared filter grammar's negation.
@@ -2134,7 +2110,7 @@ mod tests {
             parsed("Return target nonland permanent to its owner's hand."),
             Some((
                 "TargetOne(AllOf([Permanent, Not(Type(Land))]))".to_owned(),
-                "ReturnToHand(Target(0))".to_owned()
+                "ReturnToHand(It)".to_owned()
             ))
         );
     }
@@ -2158,7 +2134,7 @@ mod tests {
             parsed("Return target creature card from your graveyard to your hand."),
             Some((
                 "TargetOne(AllOf([Type(Creature), InZone(Graveyard), Owner(Ref(You))]))".to_owned(),
-                "Move(Target(0), Hand)".to_owned()
+                "Move(It, Hand)".to_owned()
             ))
         );
         // Bare "card" (no type qualifier) — any card you own there.
@@ -2166,7 +2142,7 @@ mod tests {
             parsed("Return target card from your graveyard to your hand."),
             Some((
                 "TargetOne(AllOf([InZone(Graveyard), Owner(Ref(You))]))".to_owned(),
-                "Move(Target(0), Hand)".to_owned()
+                "Move(It, Hand)".to_owned()
             ))
         );
         // "instant or sorcery card" — a card-type disjunction.
@@ -2176,7 +2152,7 @@ mod tests {
                 "TargetOne(AllOf([OneOf([Type(Instant), Type(Sorcery)]), InZone(Graveyard), \
                  Owner(Ref(You))]))"
                     .to_owned(),
-                "Move(Target(0), Hand)".to_owned()
+                "Move(It, Hand)".to_owned()
             ))
         );
     }
@@ -2185,31 +2161,19 @@ mod tests {
     fn tap_and_untap_target() {
         assert_eq!(
             parsed("Tap target creature."),
-            Some((
-                "TargetOne(Creature)".to_owned(),
-                "Tap(Target(0))".to_owned()
-            ))
+            Some(("TargetOne(Creature)".to_owned(), "Tap(It)".to_owned()))
         );
         assert_eq!(
             parsed("Untap target creature."),
-            Some((
-                "TargetOne(Creature)".to_owned(),
-                "Untap(Target(0))".to_owned()
-            ))
+            Some(("TargetOne(Creature)".to_owned(), "Untap(It)".to_owned()))
         );
         assert_eq!(
             parsed("Untap target permanent."),
-            Some((
-                "TargetOne(Permanent)".to_owned(),
-                "Untap(Target(0))".to_owned()
-            ))
+            Some(("TargetOne(Permanent)".to_owned(), "Untap(It)".to_owned()))
         );
         assert_eq!(
             parsed("Untap target land."),
-            Some((
-                "TargetOne(Type(Land))".to_owned(),
-                "Untap(Target(0))".to_owned()
-            ))
+            Some(("TargetOne(Type(Land))".to_owned(), "Untap(It)".to_owned()))
         );
         // A trailing rider sentence leaves text past the period — declines here.
         assert!(declines(
@@ -2224,7 +2188,7 @@ mod tests {
             parsed("Destroy target artifact or enchantment."),
             Some((
                 "TargetOne(OneOf([Type(Artifact), Type(Enchantment)]))".to_owned(),
-                "Destroy(Target(0))".to_owned()
+                "Destroy(It)".to_owned()
             ))
         );
         // "creature or planeswalker" -> the battlefield macros disjoined.
@@ -2232,23 +2196,20 @@ mod tests {
             parsed("Destroy target creature or planeswalker."),
             Some((
                 "TargetOne(OneOf([Creature, Planeswalker]))".to_owned(),
-                "Destroy(Target(0))".to_owned()
+                "Destroy(It)".to_owned()
             ))
         );
         assert_eq!(
             parsed("Destroy target artifact or land."),
             Some((
                 "TargetOne(OneOf([Type(Artifact), Type(Land)]))".to_owned(),
-                "Destroy(Target(0))".to_owned()
+                "Destroy(It)".to_owned()
             ))
         );
         // Single-type "permanent" still parses through the shared phrase grammar.
         assert_eq!(
             parsed("Destroy target permanent."),
-            Some((
-                "TargetOne(Permanent)".to_owned(),
-                "Destroy(Target(0))".to_owned()
-            ))
+            Some(("TargetOne(Permanent)".to_owned(), "Destroy(It)".to_owned()))
         );
     }
 
@@ -2259,7 +2220,7 @@ mod tests {
             parsed("~ deals 1 damage to target opponent."),
             Some((
                 "TargetOne(OpponentOf(Ref(You)))".to_owned(),
-                "DealDamage(Target(0), 1)".to_owned()
+                "DealDamage(It, 1)".to_owned()
             ))
         );
         // "target attacking or blocking creature" — a shared-head status
@@ -2268,7 +2229,7 @@ mod tests {
             parsed("~ deals 4 damage to target attacking or blocking creature."),
             Some((
                 "TargetOne(AllOf([Creature, OneOf([Attacking, Blocking])]))".to_owned(),
-                "DealDamage(Target(0), 4)".to_owned()
+                "DealDamage(It, 4)".to_owned()
             ))
         );
         // "target creature or planeswalker" — disjoined object target.
@@ -2276,7 +2237,7 @@ mod tests {
             parsed("~ deals 5 damage to target creature or planeswalker."),
             Some((
                 "TargetOne(OneOf([Creature, Planeswalker]))".to_owned(),
-                "DealDamage(Target(0), 5)".to_owned()
+                "DealDamage(It, 5)".to_owned()
             ))
         );
         // "each creature and each player" — the unioned distributive sweep,
@@ -2300,7 +2261,7 @@ mod tests {
             parsed_with_macros("Put a +1/+1 counter on target creature."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "PutCounters(Target(0), P1P1Counter, 1)".to_owned()
+                "PutCounters(It, P1P1Counter, 1)".to_owned()
             ))
         );
         // Lowercase lead (the clause after a trigger comma).
@@ -2308,7 +2269,7 @@ mod tests {
             parsed_with_macros("put a +1/+1 counter on target creature you control."),
             Some((
                 "TargetOne(AllOf([Creature, ControlledBy(Ref(You))]))".to_owned(),
-                "PutCounters(Target(0), P1P1Counter, 1)".to_owned()
+                "PutCounters(It, P1P1Counter, 1)".to_owned()
             ))
         );
         // "two +1/+1 counters" — the plural count.
@@ -2316,7 +2277,7 @@ mod tests {
             parsed_with_macros("Put two +1/+1 counters on target creature."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "PutCounters(Target(0), P1P1Counter, 2)".to_owned()
+                "PutCounters(It, P1P1Counter, 2)".to_owned()
             ))
         );
         // "-1/-1 counter" generalizes to `M1M1Counter` for free.
@@ -2324,7 +2285,7 @@ mod tests {
             parsed_with_macros("Put a -1/-1 counter on target creature."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "PutCounters(Target(0), M1M1Counter, 1)".to_owned()
+                "PutCounters(It, M1M1Counter, 1)".to_owned()
             ))
         );
     }

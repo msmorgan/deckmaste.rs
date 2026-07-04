@@ -6,7 +6,7 @@ Normal(
   abilities: [
     Spell(effect: Each(
       binder: Existing(Filter(Creature)),
-      effect: Targeted(targets: [AnyTarget], effect: Destroy(Target(0))),
+      effect: Targeted(targets: [AnyTarget], effect: Destroy(It)),
     )),
   ],
 )

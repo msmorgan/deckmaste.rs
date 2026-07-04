@@ -84,8 +84,9 @@ pub enum Selection {
     Them(crate::Sort),
     /// The LABELED plural antecedent — piles and labeled groups: reads the
     /// unique Many antecedent introduced under this label
-    /// (`Label { as, effect }` or a
-    /// [`SeparatePiles`](crate::Effect::SeparatePiles) pile label)
+    /// (`Label { as, effect }`, a
+    /// [`SeparatePiles`](crate::Effect::SeparatePiles) pile label, or an
+    /// [`As`](crate::TargetSpec::As)-named plural announce slot)
     /// ([CR#700.3a,608.2d]; the ambiguity fallback for groups).
     TheGroup(crate::Ident),
     /// Piles noted earlier by a [`SeparatePiles`](crate::Effect::SeparatePiles)
@@ -93,11 +94,6 @@ pub enum Selection {
     /// whose piles these are ([CR#700.3a]; the Whims-of-the-Fates per-player
     /// nesting).
     PilesOf { note: crate::Ident, of: Reference },
-    /// The set of objects chosen for the nth announced target spec
-    /// ([CR#115.3,601.2c]) — the plural-target group fed to
-    /// [`DivideAmong`](crate::DivideAmong) / [`Each`](crate::Each)
-    /// (Idris `GetTargets`). Reads the announced-target set.
-    GetTargets(usize),
     /// The extremal element(s) of a set, ranked by a per-element projection
     /// ([CR#107.1]): "the creature with the greatest power" =
     /// `Pick(op: Greatest, of: Type(Creature), by: StatOf(It, Power))`.
@@ -156,15 +152,6 @@ mod tests {
             Quantity::one(),
             Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
         );
-        assert_eq!(read(&to_string(&v)), v);
-    }
-
-    /// `GetTargets(n)` carries the announced-target index and round-trips — the
-    /// plural-target group fed to `DivideAmong`/`Each` ([CR#115.3,601.2c]).
-    #[test]
-    fn get_targets_round_trips() {
-        assert_eq!(read("GetTargets(0)"), Selection::GetTargets(0));
-        let v = Selection::GetTargets(2);
         assert_eq!(read(&to_string(&v)), v);
     }
 

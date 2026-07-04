@@ -5,6 +5,6 @@ Normal(
   name: "Accept Targeted At Root",
   types: [Sorcery],
   abilities: [
-    Spell(effect: Targeted(targets: [AnyTarget], effect: Destroy(Target(0)))),
+    Spell(effect: Targeted(targets: [AnyTarget], effect: Destroy(It))),
   ],
 )

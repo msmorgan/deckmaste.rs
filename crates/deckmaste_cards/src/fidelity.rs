@@ -20,8 +20,8 @@
 //! - reminder text (parenthesized) is stripped from the oracle side;
 //! - self-reference collapses to `~` on both sides: the card's printed name
 //!   (and its short name before a comma) and the oracle's "this <type-word>"
-//!   self-references ([CR#201.4b] a name self-reference means the object
-//!   itself; the extraction pipeline uses the same `~` sigil);
+//!   self-references ([CR#201.5] a name self-reference means the object itself;
+//!   the extraction pipeline uses the same `~` sigil);
 //! - whitespace runs collapse.
 //!
 //! Everything else — riders, restrictors, `where X` clauses, word order —
@@ -343,7 +343,7 @@ fn normalize(line: &str, name: &str) -> String {
     {
         s = s.replace(short, "~");
     }
-    // The modern self-reference spellings ([CR#201.4b] — oracle text that
+    // The modern self-reference spellings ([CR#201.5] — oracle text that
     // names "this <type-word>" means the object itself; older frames print
     // the card name, which the branch above already collapsed).
     for this in [

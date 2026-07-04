@@ -381,27 +381,6 @@ impl Ctx {
         }
     }
 
-    /// The announced target-slot count in scope — slot antes carry their
-    /// index, so the count is `max + 1` ([CR#115.3,601.2c]).
-    fn target_count(&self) -> usize {
-        self.stack
-            .iter()
-            .filter_map(|a| match a.site {
-                Site::TargetSlot(i) => Some(i + 1),
-                _ => None,
-            })
-            .max()
-            .unwrap_or(0)
-    }
-
-    /// The slot ante for `Target(n)`/`GetTargets(n)`.
-    fn target_slot(&self, n: usize) -> Option<&Ante> {
-        self.stack
-            .iter()
-            .rev()
-            .find(|a| a.site == Site::TargetSlot(n))
-    }
-
     /// The innermost BINDER — a loop element or a `With`/pile choice
     /// frame — `It`'s deterministic antecedent ([CR#608.2]; the pre-stack
     /// semantics, generalized: inside a binder, `It` is ALWAYS the bound
@@ -715,8 +694,8 @@ impl<'a> Walker<'a> {
                 self.err(
                     Code::BindAmbiguous,
                     format!(
-                        "ambiguous reference — add `Label`/`The`, or use `Target(n)`: \
-                         {spelling} reaches {} antecedents (nearest: {})",
+                        "ambiguous reference — add `Label`/`The`, or name the announce slot \
+                         with `As`: {spelling} reaches {} antecedents (nearest: {})",
                         candidates.len(),
                         nearest.describe(),
                     ),
@@ -930,7 +909,6 @@ impl<'a> Walker<'a> {
             Selection::They
             | Selection::Them(_)
             | Selection::TheGroup(_)
-            | Selection::GetTargets(_)
             | Selection::PilesOf { .. } => Sort::Permanent,
             Selection::Expanded(e) => self.selection_sort(&e.value),
         }
@@ -1822,19 +1800,38 @@ impl<'a> Walker<'a> {
             // cardinality from its quantity ([CR#115.3,601.2c]).
             let row = w.tables.intro("Targeted.slot");
             debug_assert!(row.site == tables::IntroSite::TargetSlot);
+            let mut seen_labels: Vec<Ident> = Vec::new();
             for (i, spec) in targeted.targets.iter().enumerate() {
                 let mut slot = (Kind::Any, Sort::Permanent, Cardinality::One);
                 w.scoped(format!("targets[{i}]"), |w| {
                     slot = w.target_spec(spec, ctx, targeted.targets.len());
                 });
                 let (kind, sort, card) = slot;
+                // An `As`-named slot carries its label — read explicitly as
+                // `The`/`TheGroup` ([CR#608.2d]); it still participates in
+                // R1/R2 like an unlabeled slot. Duplicate names would make
+                // the labeled read a guess, so they are refused.
+                let label = slot_label(spec);
+                if let Some(label) = label {
+                    if seen_labels.contains(&label) {
+                        w.err(
+                            Code::BindLabel,
+                            format!(
+                                "duplicate announce label {:?} — every As-named slot needs \
+                                 a distinct name",
+                                label.as_str()
+                            ),
+                        );
+                    }
+                    seen_labels.push(label);
+                }
                 slots.push(Ante {
                     sort,
                     kind,
                     card,
                     site: Site::TargetSlot(i),
                     expected_zone: None,
-                    label: None,
+                    label,
                     binder: false,
                 });
             }
@@ -1861,6 +1858,9 @@ impl<'a> Walker<'a> {
                     if quantity_is_one(quantity) { Cardinality::One } else { Cardinality::Many };
                 (kind, self.filter_sort(filter), card)
             }
+            // The name is the enclosing announce walk's business
+            // ([`slot_label`]); the slot's shape is the inner spec's.
+            TargetSpec::As(_, inner) => self.target_spec(inner, ctx, sibling_count),
             TargetSpec::Distinct(siblings, inner) => {
                 for &index in siblings {
                     if index >= sibling_count {
@@ -2530,30 +2530,6 @@ impl<'a> Walker<'a> {
                 }
                 Kind::Object
             }
-            // The explicit slot-set spelling — LEGAL but deprecated in
-            // favor of the anaphor surface (sunset:
-            // cards-fidelity-target-sunset).
-            Selection::GetTargets(n) => {
-                let count = ctx.target_count();
-                if let Some(ante) = ctx.target_slot(*n) {
-                    let kind = ante.kind;
-                    self.resolve(|| {
-                        format!(
-                            "GetTargets({n}) -> {kind:?} (target spec {n} of {count} announced; \
-                             deprecated — prefer They/Them(Sort))"
-                        )
-                    });
-                    kind
-                } else {
-                    self.err(
-                        Code::BindTarget,
-                        format!(
-                            "GetTargets({n}) but {count} target spec(s) are announced in scope"
-                        ),
-                    );
-                    Kind::Any
-                }
-            }
             Selection::Pick { op: _, of, by } => {
                 self.filter(of, ctx, Kind::Object);
                 let candidate = Ante {
@@ -2628,27 +2604,6 @@ impl<'a> Walker<'a> {
                         Some(ante) => ante.kind,
                         None => Kind::Any,
                     }
-                }
-            }
-            // The explicit slot spelling — LEGAL but deprecated in favor of
-            // the anaphor surface (sunset: cards-fidelity-target-sunset).
-            Reference::Target(n) => {
-                let count = ctx.target_count();
-                if let Some(ante) = ctx.target_slot(*n) {
-                    let kind = ante.kind;
-                    self.resolve(|| {
-                        format!(
-                            "Target({n}) -> {kind:?} (target spec {n} of {count} announced; \
-                             deprecated — prefer It/That(Sort))"
-                        )
-                    });
-                    kind
-                } else {
-                    self.err(
-                        Code::BindTarget,
-                        format!("Target({n}) but {count} target spec(s) are announced in scope"),
-                    );
-                    Kind::Any
                 }
             }
             // The sorted singular anaphor: inside a `With`/pile choice
@@ -4110,6 +4065,17 @@ fn kind_sort(kind: Kind) -> Sort {
 
 /// Whether a quantity is literally "exactly one" — the One/Many
 /// cardinality derivation for announced slots ([CR#115.3]).
+/// The `As` name on an announce slot, seen through `Distinct` and macro
+/// provenance ([CR#608.2d] labeled antecedents).
+fn slot_label(spec: &TargetSpec) -> Option<Ident> {
+    match spec {
+        TargetSpec::As(label, _) => Some(*label),
+        TargetSpec::Distinct(_, inner) => slot_label(inner),
+        TargetSpec::Expanded(e) => slot_label(&e.value),
+        TargetSpec::Target(..) => None,
+    }
+}
+
 fn quantity_is_one(quantity: &Quantity) -> bool {
     let (lo, hi) = quantity.bounds();
     lo.and_then(Count::literal_value) == Some(1) && hi.and_then(Count::literal_value) == Some(1)

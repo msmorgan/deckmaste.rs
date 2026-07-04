@@ -1,9 +1,0 @@
-// Twin of Spec.idr `tBadTargetRange`: a 2nd target read where only one was
-// announced [CR#115.3,601.2c].
-Normal(
-  name: "Reject Target Range",
-  types: [Sorcery],
-  abilities: [
-    Spell(effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(1), 1))),
-  ],
-)

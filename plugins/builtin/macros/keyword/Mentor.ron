@@ -24,8 +24,8 @@
 //     threads the carrier as the filter's watcher.
 //
 // The resolution puts one +1/+1 counter ([CR#122.1a]) on the chosen target:
-// `PutCounters(Target(0), P1P1Counter, 1)` — the announced target read back via
-// `Target(0)`, the counter kind a bare identifier, the count a bare numeral.
+// `PutCounters(It, P1P1Counter, 1)` — the announced target read back via
+// `It`, the counter kind a bare identifier, the count a bare numeral.
 //
 // NOTE [CR#702.134b]: multiple instances of mentor trigger separately — the
 // engine's per-instance trigger handling, not anything this single-instance
@@ -36,12 +36,12 @@ KeywordAbility(
     abilities: [Triggered(
         event: AttackDeclared(by: Ref(This)),
         effect: Targeted(
-            targets: [Target(Exactly(1), AllOf([
+            targets: [As("target", Target(Exactly(1), AllOf([
                 Type(Creature),
                 Attacking,
                 Where(Compare(StatOf(It, Power), Less, StatOf(This, Power))),
-            ]))],
-            effect: PutCounters(Target(0), P1P1Counter, 1),
+            ])))],
+            effect: PutCounters(The("target"), P1P1Counter, 1),
         ),
     )],
 )

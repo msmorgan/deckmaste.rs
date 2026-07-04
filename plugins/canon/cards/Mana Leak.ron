@@ -17,9 +17,9 @@ Normal(
       effect: Targeted(
         targets: [TargetOne(Spell)],
         effect: MustPay(
-          actor: ControllerOf(Target(0)),
+          actor: ControllerOf(It),
           cost: [Mana([Generic(3)])],
-          or_else: Counter(Target(0)),
+          or_else: Counter(It),
         ),
       ),
     ),

@@ -404,9 +404,9 @@ mod tests {
             !state.condition_holds(&Condition::Is(Reference::This, land), &frame),
             "the bear is not a land"
         );
-        // Is(Target(0), …): the announced target is that same bear.
+        // Is(It, …): the lone announced target is that same bear.
         assert!(
-            state.condition_holds(&Condition::Is(Reference::Target(0), creature), &frame),
+            state.condition_holds(&Condition::Is(Reference::It, creature), &frame),
             "the target is a creature"
         );
         // Is(This, Ref(This)): the resolved object IS the watcher, so the

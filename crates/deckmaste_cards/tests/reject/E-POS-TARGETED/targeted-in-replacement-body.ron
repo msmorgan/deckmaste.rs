@@ -7,7 +7,7 @@ Normal(
     Static(effects: [
       Replacement(Instead(
         would: Enters(Creature),
-        instead: Targeted(targets: [AnyTarget], effect: Destroy(Target(0))),
+        instead: Targeted(targets: [As("t", AnyTarget)], effect: Destroy(The("t"))),
       )),
     ]),
   ],

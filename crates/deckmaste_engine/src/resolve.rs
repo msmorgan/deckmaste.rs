@@ -903,11 +903,41 @@ impl GameState {
             }
             // [CR#115.1,601.2c]: a target-scoping wrapper. Targets were chosen
             // at announcement and already live in `frame.endophora.targets`; for a single
-            // top-level wrapper (the only shape today) this node is transparent
-            // — descend into the inner effect, exactly like `Expanded`. Nested
-            // wrappers would need a per-scope target stack (left a loud seam by
-            // falling through to the `other` arm if a wrapper nests).
-            Effect::Targeted(te) => self.run_effect(*te.effect, frame),
+            // top-level wrapper (the only shape today) this node is otherwise
+            // transparent — descend into the inner effect, exactly like
+            // `Expanded`. `As`-NAMED slots ([CR#608.2d]) fill the frame's
+            // labeled map here so the body's `The(label)`/`TheGroup(label)`
+            // reads resolve: a single (possibly plural) slot owns the whole
+            // announced list; multiple slots are all Exactly(1) in v1, so the
+            // flat index IS the slot index (the same v1 alignment the
+            // announced-set reads rely on). Nested wrappers would need a
+            // per-scope target stack (left a loud seam by falling through to
+            // the `other` arm if a wrapper nests).
+            Effect::Targeted(te) => {
+                let mut labeled: Vec<(deckmaste_core::Ident, Vec<ObjectId>)> = Vec::new();
+                for (i, spec) in te.targets.iter().enumerate() {
+                    if let Some(label) = announce_slot_label(spec) {
+                        let ids = if te.targets.len() == 1 {
+                            frame.endophora.targets.clone()
+                        } else {
+                            frame
+                                .endophora
+                                .targets
+                                .get(i)
+                                .map(|id| vec![*id])
+                                .unwrap_or_default()
+                        };
+                        labeled.push((label, ids));
+                    }
+                }
+                if labeled.is_empty() {
+                    self.run_effect(*te.effect, frame);
+                } else {
+                    let mut body = frame.clone();
+                    body.endophora.labeled = labeled;
+                    self.run_effect(*te.effect, &body);
+                }
+            }
             // [CR#601.2f,118.8]: "As an additional cost, [pay]; then [body]." The
             // NESTED (resolution-time) form — an extra cost paid mid-resolution,
             // after which `body` runs reading the paid object via the event
@@ -1879,22 +1909,13 @@ impl GameState {
 
     /// A selection (a GROUP) resolved to its full set ([CR#608.2d]) — the
     /// home of plurality now that verbs take a single [`Reference`]. `Filter`
-    /// enumerates the matching set; `Those`/`GetTargets`/`TopOfLibrary` name an
+    /// enumerates the matching set; `They`/`TheGroup`/`TopOfLibrary` name an
     /// already-bound group. A per-object instruction runs over this set via an
     /// enclosing `Each`/`DivideAmong`/`With`, never the verb itself.
     pub(crate) fn eval_selection_set(&self, sel: &Selection, frame: &Frame) -> Vec<ObjectId> {
         match sel {
             Selection::Filter(f) => crate::target::candidates(self, f),
-            // The announced targets of the `spec`-th target spec ([CR#601.2c]).
-            // v1 has a single (possibly plural) target spec, so spec 0's set is
-            // the whole announced target list (Arc Lightning's 1–3 targets); a
-            // multi-spec spell needs per-spec offsets — a seam.
-            Selection::GetTargets(spec) => {
-                if *spec != 0 {
-                    unimplemented!("GetTargets({spec}): multi target-spec announce not yet wired");
-                }
-                frame.endophora.targets.clone()
-            }
+
             // [CR#107.1]: the extremal element(s) of a set, ranked by the
             // per-element projection. Each candidate is bound as the frame's
             // iteration anaphor `It` so the projection (`by`) reads it via
@@ -1949,12 +1970,20 @@ impl GameState {
             // many-binder `With` — always a bug.
             Selection::They | Selection::Them(_) => {
                 // The sort is elaborator-verified surface; the frame's bound
-                // group is the value. A product-sited plural read (create-
-                // two-tokens … They) is [[engine-bound-references]] work.
+                // group is the value. Without a `With` binding, the plural
+                // slot read: the announced target list is the one Many
+                // antecedent (Arc Lightning's 1–3 targets read back as
+                // `They` — the runtime twin of the elaborator's R1, sound
+                // because R2 refused any second Many candidate at load). A
+                // product-sited plural read (create-two-tokens … They) is
+                // [[engine-bound-references]] work.
                 let Some(that) = frame.endophora.that.as_ref() else {
+                    if !frame.endophora.targets.is_empty() {
+                        return frame.endophora.targets.clone();
+                    }
                     todo!(
                         "engine-bound-references: a product-sited They/Them(Sort) at \
-                         runtime (no enclosing With binding)"
+                         runtime (no enclosing With binding, no announced targets)"
                     )
                 };
                 assert_eq!(
@@ -1965,7 +1994,19 @@ impl GameState {
                 );
                 that.group.clone()
             }
-            Selection::TheGroup(_) | Selection::PilesOf { .. } => {
+            // The labeled plural read: an `As`-named plural announce slot
+            // ([CR#608.2d]); labeled PILES land with the piles engine
+            // subsystem.
+            Selection::TheGroup(label) => {
+                match frame.endophora.labeled.iter().find(|(l, _)| l == label) {
+                    Some((_, ids)) => ids.clone(),
+                    None => todo!(
+                        "engine-piles: labeled pile groups at runtime land with the piles \
+                         engine subsystem"
+                    ),
+                }
+            }
+            Selection::PilesOf { .. } => {
                 todo!(
                     "engine-piles: labeled pile groups at runtime land with the piles \
                      engine subsystem"
@@ -2064,17 +2105,12 @@ impl GameState {
     ///
     /// # Panics
     ///
-    /// Panics on a `Reference` not wired for Stage 3, an out-of-range
-    /// `Target(n)` index, or an `AttachHostOf`/`AttachedTo` over an
+    /// Panics on a `Reference` not wired for Stage 3, an unbound slot
+    /// anaphor, or an `AttachHostOf`/`AttachedTo` over an
     /// attachment/host with no live link (the reference is only well-defined
     /// where the relation is established).
     pub(crate) fn eval_reference(&self, reference: &Reference, frame: &Frame) -> ObjectId {
         match reference {
-            Reference::Target(n) => *frame
-                .endophora
-                .targets
-                .get(*n)
-                .expect("announced target index in bounds"),
             // [CR#603.10a]: for a triggered ability, `~`/`This` is the firing
             // object's last-known self (the live source may be gone); for a
             // spell frame (no snapshot) it is the live source.
@@ -2093,12 +2129,31 @@ impl GameState {
             // element resolves to its (last-known) id, a player element to its
             // proxy. Referenced at a frameless position it is a malformed read.
             Reference::It => {
-                match frame.endophora.it.as_ref().expect(
-                    "Reference::It referenced outside an Each/DivideAmong/Where/Pick element",
-                ) {
-                    crate::stack::ItBinding::Object(snap) => snap.object,
-                    crate::stack::ItBinding::Player(p) => self.player(*p).object,
+                if let Some(binding) = frame.endophora.it.as_ref() {
+                    return match binding {
+                        crate::stack::ItBinding::Object(snap) => snap.object,
+                        crate::stack::ItBinding::Player(p) => self.player(*p).object,
+                    };
                 }
+                // The slot-bound read: outside every loop binder, a lone
+                // announced target is `It`'s unique antecedent — the runtime
+                // twin of the elaborator's R1 resolution, sound because the
+                // R2 gate refused any second candidate AT LOAD. The guard on
+                // the other singular bindings keeps this from ever guessing:
+                // a frame carrying an event role or a `With` choice can't
+                // take the fallback (such a read would have been ambiguous
+                // and refused at load, so it can't reach here).
+                let no_other_singular = frame.endophora.that.is_none()
+                    && frame.endophora.that_object.is_none()
+                    && frame.endophora.that_patient.is_none()
+                    && frame.endophora.that_player.is_none();
+                if no_other_singular && frame.endophora.targets.len() == 1 {
+                    return frame.endophora.targets[0];
+                }
+                panic!(
+                    "Reference::It referenced outside an Each/DivideAmong/Where/Pick element \
+                     and without a lone announced target"
+                );
             }
             // The single object bound by an enclosing `Effect::With`/cost
             // `With` one-binder (`TheRef`/`ChooseOne`) — the choice made BEFORE
@@ -2130,10 +2185,22 @@ impl GameState {
                     .first()
                     .expect("a One binding holds its single element")
             }
-            // The labeled / indefinite reads land with
-            // [[engine-bound-references]]; loud until then.
-            Reference::The(_) => {
-                todo!("engine-bound-references: The(label) at runtime")
+            // The labeled read: an `As`-named announce slot ([CR#608.2d]),
+            // filled by the enclosing `Effect::Targeted`. A `Label`-effect
+            // antecedent at runtime lands with [[engine-bound-references]];
+            // loud until then.
+            Reference::The(label) => {
+                let Some((_, ids)) = frame.endophora.labeled.iter().find(|(l, _)| l == label)
+                else {
+                    todo!("engine-bound-references: a Label-effect The(label) at runtime")
+                };
+                assert_eq!(
+                    ids.len(),
+                    1,
+                    "The(label) reads a one-target slot; a plural slot is read as \
+                     TheGroup(label)",
+                );
+                ids[0]
             }
             Reference::A { .. } => {
                 todo!(
@@ -2818,9 +2885,21 @@ fn occurrence_of(mut events: Vec<GameEvent>) -> crate::event::Occurrence {
 ///
 /// # Panics
 ///
+/// The `As` name on an announce slot, seen through `Distinct` and macro
+/// provenance ([CR#608.2d]).
+fn announce_slot_label(spec: &TargetSpec) -> Option<deckmaste_core::Ident> {
+    match spec {
+        TargetSpec::As(label, _) => Some(*label),
+        TargetSpec::Distinct(_, inner) => announce_slot_label(inner),
+        TargetSpec::Expanded(e) => announce_slot_label(&e.value),
+        TargetSpec::Target(..) => None,
+    }
+}
+
 /// Panics on `TargetSpec` quantities not wired for Stage 3.
 pub(crate) fn target_spec_filter(spec: &TargetSpec) -> &deckmaste_core::Filter {
     match spec {
+        TargetSpec::As(_, inner) => target_spec_filter(inner),
         TargetSpec::Target(_quantity, f) => {
             // TODO(stage-4): enforce quantity; for now, Stage 3 only exercises
             // single targets and callers expect exactly one target slot.
@@ -2881,7 +2960,9 @@ mod tests {
     use crate::step::StepOutcome;
     use crate::test_support::frame_for;
     use crate::test_support::frame_src;
+    use crate::test_support::frame_src_labeled;
     use crate::test_support::frame_src_targets;
+    use crate::test_support::the;
     use crate::trigger::TriggerBindings;
 
     fn builtin() -> Plugin {
@@ -3325,7 +3406,7 @@ mod tests {
         state.run_effect(
             Effect::Act(Action::Attach {
                 what: Reference::This,
-                to: Reference::Target(0),
+                to: Reference::It,
             }),
             &frame,
         );
@@ -3355,7 +3436,7 @@ mod tests {
         state.run_effect(
             Effect::Act(Action::Attach {
                 what: Reference::This,
-                to: Reference::Target(0),
+                to: Reference::It,
             }),
             &frame,
         );
@@ -3375,7 +3456,7 @@ mod tests {
         state.run_effect(
             Effect::Act(Action::Attach {
                 what: Reference::This,
-                to: Reference::Target(0),
+                to: Reference::It,
             }),
             &frame,
         );
@@ -3448,7 +3529,7 @@ mod tests {
         state.run_effect(
             Effect::Act(Action::Attach {
                 what: Reference::This,
-                to: Reference::Target(0),
+                to: Reference::It,
             }),
             &frame,
         );
@@ -3757,6 +3838,7 @@ mod tests {
             this: Some(crate::lki::LkiSnapshot::capture(&state, bear)),
             endophora: Endophora {
                 targets: vec![theirs],
+                labeled: vec![(deckmaste_core::Ident::new("t"), vec![theirs])],
                 that_object: Some(crate::lki::LkiSnapshot::capture(&state, theirs)),
                 that_player: Some(PlayerId(1)),
                 ..Endophora::empty()
@@ -3765,15 +3847,12 @@ mod tests {
         };
 
         assert_eq!(
-            state.eval_reference(
-                &Reference::ControllerOf(Box::new(Reference::Target(0))),
-                &frame
-            ),
+            state.eval_reference(&Reference::ControllerOf(Box::new(the("t"))), &frame),
             state.player(PlayerId(1)).object,
             "controller of player 1's creature is player 1"
         );
         assert_eq!(
-            state.eval_reference(&Reference::OwnerOf(Box::new(Reference::Target(0))), &frame),
+            state.eval_reference(&Reference::OwnerOf(Box::new(the("t"))), &frame),
             state.player(PlayerId(0)).object,
             "owner is still player 0"
         );
@@ -3994,7 +4073,7 @@ mod tests {
         let p1_proxy = state.players[1].object;
         let frame = frame_src_targets(src, vec![p1_proxy]);
         let items = state.action_items(
-            &Action::By(Reference::Target(0), PlayerAction::Draw(Count::Literal(2))),
+            &Action::By(Reference::It, PlayerAction::Draw(Count::Literal(2))),
             &frame,
         );
         assert_eq!(items.len(), 2);
@@ -4045,7 +4124,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src_targets(bear, vec![bear]);
 
-        let power = Count::StatOf(Reference::Target(0), deckmaste_core::Stat::Power);
+        let power = Count::StatOf(Reference::It, deckmaste_core::Stat::Power);
         assert_eq!(state.eval_count(&power, &frame), 2);
         assert_eq!(
             state.eval_count(
@@ -4080,7 +4159,7 @@ mod tests {
         let frame = frame_src_targets(bear, vec![bear]);
         state.run_effect(
             Effect::Sequence(vec![
-                Effect::Act(Action::deal_damage(Reference::Target(0), Count::Literal(3))),
+                Effect::Act(Action::deal_damage(Reference::It, Count::Literal(3))),
                 Effect::act_by_you(PlayerAction::GainLife(Count::ThatMuch)),
             ]),
             &frame,
@@ -4103,7 +4182,7 @@ mod tests {
         state.run_effect(
             Effect::Targeted(deckmaste_core::Targeted::new(
                 vec![],
-                Effect::Act(Action::deal_damage(Reference::Target(0), Count::Literal(3))),
+                Effect::Act(Action::deal_damage(Reference::It, Count::Literal(3))),
             )),
             &frame,
         );
@@ -4123,10 +4202,10 @@ mod tests {
             deckmaste_core::TargetSpec::Target(deckmaste_core::Quantity::one(), Filter::creature());
         let wrapped = Effect::Targeted(deckmaste_core::Targeted::new(
             vec![spec.clone()],
-            Effect::Act(Action::deal_damage(Reference::Target(0), Count::Literal(3))),
+            Effect::Act(Action::deal_damage(Reference::It, Count::Literal(3))),
         ));
         assert_eq!(super::top_targets(&wrapped), std::slice::from_ref(&spec));
-        let bare = Effect::Act(Action::deal_damage(Reference::Target(0), Count::Literal(1)));
+        let bare = Effect::Act(Action::deal_damage(Reference::It, Count::Literal(1)));
         assert!(super::top_targets(&bare).is_empty());
     }
 
@@ -4453,9 +4532,9 @@ mod tests {
 
         let effect: Effect = builtin()
             .macros
-            .read_str("ExchangeControl(Target(0), Target(1))")
+            .read_str(r#"ExchangeControl(The("first"), The("second"))"#)
             .unwrap();
-        let frame = frame_src_targets(mine, vec![mine, other]);
+        let frame = frame_src_labeled(mine, vec![("first", mine), ("second", other)]);
         state.run_effect(effect, &frame);
 
         // ONE batch of two ControlChanged facts.
@@ -4497,9 +4576,9 @@ mod tests {
         let (mut state, mine, other) = two_permanents_on_field();
         let effect: Effect = builtin()
             .macros
-            .read_str("ExchangeControl(Target(0), Target(1))")
+            .read_str(r#"ExchangeControl(The("first"), The("second"))"#)
             .unwrap();
-        let frame = frame_src_targets(mine, vec![mine, other]);
+        let frame = frame_src_labeled(mine, vec![("first", mine), ("second", other)]);
         state.run_effect(effect, &frame);
         assert!(
             !state.agenda.iter().any(|w| matches!(w, WorkItem::Emit(_))),
@@ -4513,9 +4592,9 @@ mod tests {
     #[test]
     fn fight_deals_each_others_power_as_one_noncombat_batch() {
         let (mut state, a, b) = two_permanents_on_field();
-        let frame = frame_src_targets(a, vec![a, b]);
+        let frame = frame_src_labeled(a, vec![("first", a), ("second", b)]);
         state.run_effect(
-            Effect::Act(Action::Fight(Reference::Target(0), Reference::Target(1))),
+            Effect::Act(Action::Fight(the("first"), the("second"))),
             &frame,
         );
         // The scheduled work is ONE Emit of a two-packet batch.
@@ -4543,9 +4622,9 @@ mod tests {
         // b leaves before the fight resolves.
         state.zones.battlefield.retain(|&o| o != b);
         state.objects.remove(b);
-        let frame = frame_src_targets(a, vec![a, b]);
+        let frame = frame_src_labeled(a, vec![("first", a), ("second", b)]);
         state.run_effect(
-            Effect::Act(Action::Fight(Reference::Target(0), Reference::Target(1))),
+            Effect::Act(Action::Fight(the("first"), the("second"))),
             &frame,
         );
         assert!(
@@ -4560,9 +4639,9 @@ mod tests {
     #[test]
     fn self_fight_deals_twice_its_power_to_itself() {
         let (mut state, a, _b) = two_permanents_on_field();
-        let frame = frame_src_targets(a, vec![a, a]);
+        let frame = frame_src_labeled(a, vec![("first", a), ("second", a)]);
         state.run_effect(
-            Effect::Act(Action::Fight(Reference::Target(0), Reference::Target(1))),
+            Effect::Act(Action::Fight(the("first"), the("second"))),
             &frame,
         );
         run_injected(&mut state);
@@ -4586,17 +4665,17 @@ mod tests {
 
     /// [CR#120.1,701.14a]: `DealDamage`'s explicit `source` is the dealer — the
     /// emitted `DamageDealt` carries it, NOT `frame.source`. The fight shape:
-    /// `b` (Target(1)) deals damage equal to its power to `a` (Target(0)), with
-    /// the frame source set to `a`.
+    /// `b` (the "second" slot) deals damage equal to its power to `a` (the
+    /// "first" slot), with the frame source set to `a`.
     #[test]
     fn deal_damage_uses_explicit_source_not_frame_source() {
         let (mut state, a, b) = two_permanents_on_field();
-        let frame = frame_src_targets(a, vec![a, b]);
+        let frame = frame_src_labeled(a, vec![("first", a), ("second", b)]);
         state.run_effect(
             Effect::Act(Action::DealDamage(
-                Reference::Target(0),
-                Count::StatOf(Reference::Target(1), deckmaste_core::Stat::Power),
-                Reference::Target(1),
+                the("first"),
+                Count::StatOf(the("second"), deckmaste_core::Stat::Power),
+                the("second"),
             )),
             &frame,
         );
@@ -5115,7 +5194,7 @@ mod tests {
 
         // The source's effect counters that spell (chosen as Target(0)).
         let frame = frame_src_targets(bear, vec![spell]);
-        state.run_effect(Effect::Act(Action::Counter(Reference::Target(0))), &frame);
+        state.run_effect(Effect::Act(Action::Counter(Reference::It)), &frame);
         // ZoneWillChange → ZoneChanged.
         for _ in 0..2 {
             let _ = state.step();
@@ -5152,7 +5231,7 @@ mod tests {
 
         // The source's effect counters that ability (chosen as Target(0)).
         let frame = frame_src_targets(bear, vec![ability_id]);
-        state.run_effect(Effect::Act(Action::Counter(Reference::Target(0))), &frame);
+        state.run_effect(Effect::Act(Action::Counter(Reference::It)), &frame);
         // AbilityResolved applies.
         let _ = state.step();
 
@@ -5227,12 +5306,12 @@ mod tests {
         let charge: deckmaste_core::Ident = "ChargeCounter".into();
         state.objects.obj_mut(a).counters.insert(p1p1, 2);
         state.objects.obj_mut(a).counters.insert(charge, 1);
-        let frame = frame_src_targets(a, vec![a, b]);
+        let frame = frame_src_labeled(a, vec![("from", a), ("to", b)]);
         state.run_effect(
             Effect::Act(Action::MoveCounters(
                 CounterSpec::AllKinds,
-                Reference::Target(0),
-                Reference::Target(1),
+                the("from"),
+                the("to"),
             )),
             &frame,
         );
@@ -5255,12 +5334,12 @@ mod tests {
         let (mut state, a, b) = two_permanents_on_field();
         let p1p1: deckmaste_core::Ident = "P1P1Counter".into();
         state.objects.obj_mut(a).counters.insert(p1p1, 3);
-        let frame = frame_src_targets(a, vec![a, b]);
+        let frame = frame_src_labeled(a, vec![("from", a), ("to", b)]);
         state.run_effect(
             Effect::Act(Action::MoveCounters(
                 CounterSpec::Named(CounterRef::from("P1P1Counter"), Count::Literal(2)),
-                Reference::Target(0),
-                Reference::Target(1),
+                the("from"),
+                the("to"),
             )),
             &frame,
         );
@@ -6058,7 +6137,7 @@ mod tests {
         state.run_effect(
             Effect::Act(Action::Attach {
                 what: Reference::This,
-                to: Reference::Target(0),
+                to: Reference::It,
             }),
             &frame,
         );
@@ -6165,7 +6244,7 @@ mod tests {
 
         // Host dies.
         let frame = frame_src_targets(equipment, vec![host]);
-        state.run_effect(Effect::Act(Action::Destroy(Reference::Target(0))), &frame);
+        state.run_effect(Effect::Act(Action::Destroy(Reference::It)), &frame);
         drain(&mut state);
         for e in crate::sba::sweep(&state) {
             state.schedule_front(vec![WorkItem::Emit(Occurrence::single(e))]);
@@ -6269,7 +6348,7 @@ mod tests {
         state.run_effect(
             Effect::Act(Action::Attach {
                 what: Reference::This,
-                to: Reference::Target(0),
+                to: Reference::It,
             }),
             &frame,
         );
@@ -6309,7 +6388,7 @@ mod tests {
         state.run_effect(
             Effect::Act(Action::Attach {
                 what: Reference::This,
-                to: Reference::Target(0),
+                to: Reference::It,
             }),
             &frame,
         );

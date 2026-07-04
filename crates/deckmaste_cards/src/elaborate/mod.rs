@@ -67,7 +67,7 @@ pub enum Code {
     /// `ThatMany`) with a SECOND same-kind, compatible antecedent in scope —
     /// resolution would be a guess, so it is a load error instead
     /// ([CR#608.2d]); the error text offers the `Label`/`The` and
-    /// `Target(n)` fallbacks. Calibrated and FROZEN STRICT by
+    /// `As`-named-slot fallbacks. Calibrated and FROZEN STRICT by
     /// [[cards-corpus-dry-run]] (0 fires / 5785 faces, 0 mis-bindings in the
     /// 200-face audit); the one pre-approved loosening (exact-sort
     /// precedence) stays available as the emitted `exact_sort_precedence`

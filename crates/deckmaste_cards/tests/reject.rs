@@ -101,3 +101,49 @@ fn every_code_has_a_fixture_and_every_fixture_fails_with_exactly_its_code() {
         );
     }
 }
+
+/// The sunset pin ([[cards-fidelity-target-sunset]], plan ruling 4): the
+/// legacy explicit-slot spellings `Target(n)` / `GetTargets(n)` are GONE from
+/// the grammar — the old RON no longer parses, let alone loads. One spelling
+/// in the wild: the anaphors (`It`/`That(Sort)`/`They`), with `As`-named
+/// announce slots read via `The`/`TheGroup` as the explicit fallback.
+#[test]
+fn sunset_target_index_spellings_no_longer_parse() {
+    let plugin = builtin();
+    let reference_read = plugin.macros.read_str::<deckmaste_core::Card>(
+        r#"Normal(
+            name: "Reject Sunset Reference",
+            types: [Sorcery],
+            abilities: [
+                Spell(effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), 3))),
+            ],
+        )"#,
+    );
+    let err = reference_read
+        .expect_err("Target(0) must not parse")
+        .to_string();
+    assert!(
+        err.contains("Target"),
+        "the parse error names the dead spelling: {err}"
+    );
+
+    let selection_read = plugin.macros.read_str::<deckmaste_core::Card>(
+        r#"Normal(
+            name: "Reject Sunset Selection",
+            types: [Sorcery],
+            abilities: [
+                Spell(effect: Targeted(
+                    targets: [Target(Between(1, 3), AnyTarget)],
+                    effect: DivideAmong(amount: 3, binder: Existing(GetTargets(0)), body: DealDamage(It, Allotment)),
+                )),
+            ],
+        )"#,
+    );
+    let err = selection_read
+        .expect_err("GetTargets(0) must not parse")
+        .to_string();
+    assert!(
+        err.contains("GetTargets"),
+        "the parse error names the dead spelling: {err}"
+    );
+}

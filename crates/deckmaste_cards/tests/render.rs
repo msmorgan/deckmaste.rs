@@ -446,7 +446,7 @@ fn renders_synthesized_lose_life_and_destroy() {
         abilities: vec![Ability::Spell(SpellAbility {
             effect: Effect::Targeted(deckmaste_core::Targeted::new(
                 vec![TargetSpec::Target(Quantity::one(), Filter::creature())],
-                Effect::Act(Action::Destroy(Reference::Target(0))),
+                Effect::Act(Action::Destroy(Reference::It)),
             )),
         })],
         ..CardFace::default()
@@ -661,7 +661,7 @@ fn renders_continuously_pump_until_eot() {
                 vec![TargetSpec::Target(Quantity::one(), Filter::creature())],
                 Effect::Continuously(Continuously {
                     effect: Box::new(StaticEffect::Modify {
-                        of: Scope::Of(Reference::Target(0)),
+                        of: Scope::Of(Reference::It),
                         changes: vec![
                             Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(3))),
                             Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(

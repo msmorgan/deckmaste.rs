@@ -1,6 +1,6 @@
 // The Lightning-Bolt shape: with no loop binder in scope, `It` is the
 // wildcard singular anaphor — slot 0's antecedent is the unique candidate
-// ([CR#115.3]; canon's `Target(0)` stays legal, deprecated).
+// ([CR#115.3]; the one spelling since the Target(n) sunset).
 Normal(
   name: "Accept Bolt It Reads Target",
   types: [Instant],

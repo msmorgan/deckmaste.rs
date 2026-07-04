@@ -818,13 +818,14 @@ mod tests {
     }
 
     fn bad_card_source() -> &'static str {
-        // The E-BIND-TARGET reject fixture's shape: a 2nd target read where
-        // only one was announced ([CR#115.3,601.2c]).
+        // The E-BIND-TARGET reject fixture's shape: a `Distinct` constraint
+        // naming a sibling announce slot that doesn't exist
+        // ([CR#115.7e,601.2c]).
         r#"Normal(
             name: "Deliberately Bad Card",
             types: [Sorcery],
             abilities: [
-                Spell(effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(1), 1))),
+                Spell(effect: Targeted(targets: [Distinct([1], AnyTarget)], effect: DealDamage(It, 1))),
             ],
         )"#
     }

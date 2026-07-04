@@ -5,9 +5,10 @@
 // gate HERE, because the enclosing ETB event's object is a second in-scope
 // singular antecedent (`It reaches 2 antecedents`) — and both candidates are
 // exact-sort creatures, so the pre-approved exact-sort-precedence loosening
-// would not rescue it either. With `Label` unable to name a TARGET slot, the
-// whole fight family spells its patient as `Target(n)` today; inherited by
-// cards-fidelity-target-sunset.
+// would not rescue it either. The sunset's answer
+// ([[cards-fidelity-target-sunset]]) is the announce-list label: `As` names
+// the slot and `The` reads it ([CR#608.2d]), leaving the frozen gate
+// untouched — this fixture pins the announce-ambiguous shape's spelling.
 Normal(
     name: "Creature ETB Fight One Target",
     mana_cost: [Generic(2), Green],
@@ -18,8 +19,8 @@ Normal(
         Triggered(
             event: ThisEnters,
             effect: Targeted(
-                targets: [TargetOne(AllOf([Creature, Not(ControlledBy(Ref(You)))]))],
-                effect: Fight(This, Target(0)),
+                targets: [As("target", TargetOne(AllOf([Creature, Not(ControlledBy(Ref(You)))])))],
+                effect: Fight(This, The("target")),
             ),
         ),
     ],

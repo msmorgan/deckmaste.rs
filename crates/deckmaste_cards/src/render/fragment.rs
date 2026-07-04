@@ -132,8 +132,6 @@ pub(super) fn selection(sel: &Selection, ctx: &Ctx) -> String {
         Selection::PilesOf { of, .. } => {
             format!("the piles {} separated", reference(of, ctx))
         }
-        // The announced-target set of the nth spec ([CR#115.3,601.2c]).
-        Selection::GetTargets(_) => "them".to_string(),
         // [CR#107.1] the extremal element: "the creature with the greatest
         // power". The projection's axis is named when it is a simple stat read.
         Selection::Pick { op, of, by } => {
@@ -155,7 +153,6 @@ pub(super) fn selection(sel: &Selection, ctx: &Ctx) -> String {
 /// A `Reference` as a noun phrase.
 pub(super) fn reference(r: &Reference, ctx: &Ctx) -> String {
     match r {
-        Reference::Target(i) => target_phrase(*i, ctx),
         Reference::This => ctx.subject.to_string(),
         Reference::You => "you".to_string(),
         // The sorted singular anaphor: an enclosing binder's noun phrase
@@ -165,9 +162,13 @@ pub(super) fn reference(r: &Reference, ctx: &Ctx) -> String {
         Reference::That(sort) => ctx
             .that
             .map_or_else(|| format!("that {}", sort.noun()), str::to_string),
-        // The labeled fallback: "the exiled card" family reads as "the
-        // <label>".
-        Reference::The(label) => format!("the {}", label.as_str()),
+        // The labeled read: an `As`-named announce slot prints its slot's
+        // target phrase ("target creature you control"); a `Label`-effect
+        // antecedent reads as "the <label>".
+        Reference::The(label) => match labeled_slot(ctx, *label) {
+            Some(i) => target_phrase(i, ctx),
+            None => format!("the {}", label.as_str()),
+        },
         // The indefinite determiner ([CR#608.2d]): "a creature".
         Reference::A { filter, .. } => {
             let noun = filter_noun(filter);
@@ -178,9 +179,15 @@ pub(super) fn reference(r: &Reference, ctx: &Ctx) -> String {
             format!("{article} {noun}")
         }
         // `It`: an `Each`/`DivideAmong` element reads the binder's noun
-        // phrase from the shared `ctx.that` slot ([CR#601.2b,608]); outside
-        // a binder it is the wildcard anaphor — the plain English pronoun.
-        Reference::It => ctx.that.map_or_else(|| "it".to_string(), str::to_string),
+        // phrase from the shared `ctx.that` slot ([CR#601.2b,608]); at a
+        // single-slot announce root it reads the announced target's phrase
+        // ("any target", the R1 nearest antecedent); otherwise it is the
+        // wildcard anaphor — the plain English pronoun.
+        Reference::It => match (ctx.that, ctx.targets.len()) {
+            (Some(that), _) => that.to_string(),
+            (None, 1) => target_phrase(0, ctx),
+            _ => "it".to_string(),
+        },
         // The triggering event's object/patient ([CR#603.2e,608.2k]) render as
         // the generic anaphor "it" (no type info at this layer).
         Reference::EventObject | Reference::EventPatient => "it".to_string(),
@@ -199,12 +206,28 @@ pub(super) fn reference(r: &Reference, ctx: &Ctx) -> String {
     }
 }
 
-/// Resolve `Target(i)` against the ability's i-th `TargetSpec`.
+/// The i-th announced slot's phrase (an anaphor's slot-bound read).
 fn target_phrase(i: usize, ctx: &Ctx) -> String {
     match ctx.targets.get(i) {
         Some(spec) => target_spec(spec),
         None => "[unrendered: missing target]".to_string(),
     }
+}
+
+/// The announce-slot index carrying an `As` name, if any — the render-side
+/// twin of the elaborator's labeled-slot read.
+fn labeled_slot(ctx: &Ctx, label: deckmaste_core::Ident) -> Option<usize> {
+    fn spec_label(spec: &TargetSpec) -> Option<deckmaste_core::Ident> {
+        match spec {
+            TargetSpec::As(l, _) => Some(*l),
+            TargetSpec::Distinct(_, inner) => spec_label(inner),
+            TargetSpec::Expanded(e) => spec_label(&e.value),
+            TargetSpec::Target(..) => None,
+        }
+    }
+    ctx.targets
+        .iter()
+        .position(|spec| spec_label(spec) == Some(label))
 }
 
 /// A `TargetSpec` as the phrase naming what it points at.
@@ -219,6 +242,9 @@ pub(super) fn target_spec(spec: &TargetSpec) -> String {
         TargetSpec::Target(q, filter) if q.is_one() => {
             format!("target {}", filter_noun(filter))
         }
+        // The slot name is elaborator-facing; the phrase is the inner
+        // spec's.
+        TargetSpec::As(_, inner) => target_spec(inner),
         // The co-target set-distinctness constraint ([CR#115.7e]) prints as
         // the "another" restrictor: "another target creature".
         TargetSpec::Distinct(_, inner) => format!("another {}", target_spec(inner)),
@@ -233,7 +259,9 @@ pub(super) fn target_spec(spec: &TargetSpec) -> String {
 pub(super) fn announced_group_phrase(spec: &TargetSpec) -> Option<String> {
     let (q, filter) = match spec {
         TargetSpec::Expanded(exp) => return announced_group_phrase(&exp.value),
-        TargetSpec::Distinct(_, inner) => return announced_group_phrase(inner),
+        TargetSpec::As(_, inner) | TargetSpec::Distinct(_, inner) => {
+            return announced_group_phrase(inner);
+        }
         TargetSpec::Target(q, filter) => (q, filter),
     };
     let (Some(Count::Literal(lo)), Some(Count::Literal(hi))) = q.bounds() else {
@@ -363,7 +391,7 @@ pub(super) fn strip_expanded(f: &Filter) -> &Filter {
 }
 
 /// `(subject phrase, is_plural)`.  `ctx` resolves `Reference::This` and
-/// `Reference::Target(i)`.
+/// the slot-bound anaphors.
 pub(super) fn scope_subject_agreed(scope: &Scope, ctx: &super::Ctx) -> (String, bool) {
     match scope {
         Scope::Matching(f) => (filter_subject(f), true),
@@ -383,9 +411,15 @@ pub(super) fn scope_subject_agreed(scope: &Scope, ctx: &super::Ctx) -> (String, 
 fn reference_subject(r: &Reference, ctx: &super::Ctx) -> String {
     match r {
         Reference::This => ctx.subject.to_string(),
-        Reference::Target(i) => match ctx.targets.get(*i) {
-            Some(spec) => capitalize(&target_spec(spec)),
-            None => "[unrendered: missing target]".to_string(),
+        // The slot-bound anaphors as a sentence subject ("Target creature
+        // gets +3/+3 …"): `It` at a single-slot announce root, `The` at an
+        // `As`-named slot.
+        Reference::It if ctx.that.is_none() && ctx.targets.len() == 1 => {
+            capitalize(&target_phrase(0, ctx))
+        }
+        Reference::The(label) => match labeled_slot(ctx, *label) {
+            Some(i) => capitalize(&target_phrase(i, ctx)),
+            None => format!("the {}", label.as_str()),
         },
         // Aura host: "Enchanted creature gets +2/+2." (matches deontic_subject).
         Reference::AttachHostOf(inner) if matches!(**inner, Reference::This) => {

@@ -283,7 +283,7 @@ mod tests {
         assert!(matches!(
             &face.abilities[0],
             TodoAbility::Parsed(r)
-                if r == "Spell(effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), 3)))"
+                if r == "Spell(effect: Targeted(targets: [AnyTarget], effect: DealDamage(It, 3)))"
         ));
 
         // The same line on a creature is NOT a spell ability: it stays Unparsed.
@@ -329,7 +329,7 @@ mod tests {
         assert!(matches!(
             &face.abilities[0],
             TodoAbility::Parsed(r)
-                if r == "Triggered(event: ThisDies, effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), 1)))"
+                if r == "Triggered(event: ThisDies, effect: Targeted(targets: [As(\"target\", AnyTarget)], effect: DealDamage(The(\"target\"), 1)))"
         ));
     }
 

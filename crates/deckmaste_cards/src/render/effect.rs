@@ -67,7 +67,7 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
         }
         // A target-scoping wrapper ([CR#115.1,601.2c]): render the inner effect
         // with `ctx.targets` rebound to this node's targets, so the inner
-        // `Reference::Target(n)` resolves to "target creature" etc.
+        // the slot-bound anaphors resolve to "target creature" etc.
         Effect::Targeted(t) => effect(
             &t.effect,
             &Ctx {
@@ -428,14 +428,13 @@ fn divide_among(d: &deckmaste_core::DivideAmong, ctx: &Ctx) -> String {
 }
 
 /// The group a divided distribution names: an announced plural target slot
-/// (read back as `GetTargets`/`They`) prints its announce phrase — "one,
+/// (read back as `They`) prints its announce phrase — "one,
 /// two, or three targets" ([CR#601.2d]); anything else falls back to the
 /// binder's own phrase.
 fn divided_group_phrase(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
     use deckmaste_core::Binder;
     use deckmaste_core::Selection;
     let slot = match binder {
-        Binder::Existing(Selection::GetTargets(n)) => ctx.targets.get(*n),
         // The plural anaphor over a single announced slot reads that slot.
         Binder::Existing(Selection::They) if ctx.targets.len() == 1 => ctx.targets.first(),
         _ => None,
@@ -846,17 +845,13 @@ mod tests {
             that: None,
         };
 
-        let default = Action::deal_damage(Reference::Target(0), Count::Literal(3));
+        let default = Action::deal_damage(Reference::It, Count::Literal(3));
         assert_eq!(
             action(&default, &ctx),
             "Pouncer deals 3 damage to target creature."
         );
 
-        let sourced = Action::DealDamage(
-            Reference::Target(0),
-            Count::Literal(3),
-            Reference::Target(0),
-        );
+        let sourced = Action::DealDamage(Reference::It, Count::Literal(3), Reference::It);
         assert_eq!(
             action(&sourced, &ctx),
             "Target creature deals 3 damage to target creature."
@@ -897,26 +892,25 @@ mod tests {
         use deckmaste_core::CounterRef;
         use deckmaste_core::CounterSpec;
 
-        let creature = TargetSpec::Target(Quantity::one(), Filter::creature());
-        let targets = [creature.clone(), creature];
+        let slot = || TargetSpec::Target(Quantity::one(), Filter::creature());
+        let named_slot =
+            |name: &str| TargetSpec::As(deckmaste_core::Ident::new(name), Box::new(slot()));
+        let targets = [named_slot("from"), named_slot("to")];
         let ctx = Ctx {
             subject: "it",
             targets: &targets,
             that: None,
         };
-        let all = Action::MoveCounters(
-            CounterSpec::AllKinds,
-            Reference::Target(0),
-            Reference::Target(1),
-        );
+        let the = |name: &str| Reference::The(deckmaste_core::Ident::new(name));
+        let all = Action::MoveCounters(CounterSpec::AllKinds, the("from"), the("to"));
         assert_eq!(
             action(&all, &ctx),
             "Move all counters from target creature onto target creature."
         );
         let named = Action::MoveCounters(
             CounterSpec::Named(CounterRef::from("P1P1Counter"), Count::Literal(1)),
-            Reference::Target(0),
-            Reference::Target(1),
+            the("from"),
+            the("to"),
         );
         assert_eq!(
             action(&named, &ctx),

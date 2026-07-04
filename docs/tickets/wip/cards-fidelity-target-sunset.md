@@ -51,3 +51,43 @@ to emit anaphors and the R2 gate frozen ([[cards-corpus-dry-run]]):
   — empty.
 - `cargo test --workspace`; `cargo xtask cite check` — 0 stale,
   `--list-noncompliant` empty.
+
+## Completion notes (2026-07-03)
+
+**The sunset's announce-list labeling story (the design decision).** The
+corpus dry-run proved the fight family could not move off `Target(n)` with
+the anaphors alone: two same-sort announce slots make any anaphoric read a
+guess, and even the SINGLE-target ETB fight trips the frozen R2 gate because
+the trigger's event object is a second exact-sort antecedent. Rather than a
+carve-out keeping `Target(n)` legal for those shapes, the announce list
+itself gained the labeling vocabulary: **`TargetSpec::As(label, spec)` names
+an announce slot, and the body reads it back as `The(label)` (one target) /
+`TheGroup(label)` (a plural slot)** — the same labeled-antecedent mechanism
+`Label { as, effect }` already provides for effect introductions
+([CR#608.2d]), extended to the [CR#601.2c] announce list where the
+ambiguity actually arises. The frozen R2 gate is untouched by construction:
+an `As`-named slot still participates in R1/R2 exactly like an unlabeled
+one (the label only ADDS the explicit read, it never removes a candidate),
+duplicate labels in one announce list are refused (`E-BIND-LABEL`), and the
+post-sunset corpus run reproduces the dry-run's calibration exactly —
+5787 encodable faces, 0 gate fires (0.00%), the same 98 non-gate findings.
+So the explicit-fallback vocabulary is now uniformly `Label`/`The` for
+effect introductions and `As`/`The` for announce slots: one mechanism,
+never a guess, no index spelling anywhere.
+
+**Where the labels landed.** Fight family (canon Pounce, the two testing
+fixtures), Fate Transfer's two same-sort slots ("from"/"to"), every
+triggered targeted body (canon Footlight Fiend / Goblin Medics, the
+Modular/Soulshift/Mentor builtin macros, and every parser-emitted triggered
+frame — the parser now labels the slot `As("target", …)` and reads
+`The("target")`); spell/activated single-slot bodies read the plain `It`,
+and Arc Lightning's plural slot reads back as `They`.
+
+**Verification deviation.** The ticket's literal
+`rg 'Target\(' plugins/{builtin,canon,testing,demo}` cannot be empty: the
+regex also matches `TargetSpec::Target(quantity, filter)` slot DECLARATIONS
+and the `Cant(Target(…))`/`Must(Target(…))` deed forms, which are different
+grammar nodes and out of the sunset's scope. The precise check —
+`rg 'Target\([0-9]|GetTargets\(|Targets\([0-9]'` over every plugin including
+wizards — is empty, and a reject-suite pin
+(`sunset_target_index_spellings_no_longer_parse`) holds it there.

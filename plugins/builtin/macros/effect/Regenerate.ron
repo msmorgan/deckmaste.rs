@@ -3,7 +3,7 @@
 // turn, instead remove all damage marked on it, tap it, and remove it
 // from combat. The shield expires at end of turn if unused ([CR#614.3]).
 //
-// Usage: Regenerate(target) — e.g. Regenerate(This); Regenerate(Target(0)).
+// Usage: Regenerate(target) — e.g. Regenerate(This); Regenerate(It).
 // Template: "regenerate ${0}" (matches CR wording, [CR#701.19])
 //
 // The param is a `Reference` (the permanent to regenerate — `This` or a bound

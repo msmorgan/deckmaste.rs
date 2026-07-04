@@ -1,11 +1,14 @@
 use crate::Expansion;
 use crate::Filter;
+use crate::Ident;
 use crate::Quantity;
 use crate::SupportsMacros;
 
 /// One entry in an ability's announce list ([CR#601.2c,115]). A `TargetSpec`
-/// is the only place "target" lives: it binds `Reference::Target(n)` for the
-/// effect body to read, and is rechecked at resolution ([CR#608.2b]).
+/// is the only place "target" lives: it pushes the announced-target
+/// antecedent the effect body reads back (`It`/`That(Sort)`/`They`, or
+/// `The`/`TheGroup` via an [`As`](TargetSpec::As) label), and is rechecked
+/// at resolution ([CR#608.2b]).
 ///
 /// Separated from [`crate::Selection`] so that resolution-time choices
 /// (`Each`, `Choose`, …) and announce-time targets never share a position —
@@ -22,6 +25,16 @@ pub enum TargetSpec {
     /// number of targets" (or the `Exactly`/`AtMost`/`AnyNumber` macros at the
     /// RON surface).
     Target(Quantity, Filter),
+    /// A NAMED announce slot — the announce-list labeling story that
+    /// replaced the legacy `Target(n)` index reads: the slot's antecedent
+    /// carries this label, read explicitly as `The(label)` (one target) /
+    /// `TheGroup(label)` (a plural slot) ([CR#608.2d] labeled antecedents).
+    /// This is how an announce-AMBIGUOUS body names its slots — the fight
+    /// family's two same-sort slots, a triggered body whose event supplies
+    /// a second same-sort antecedent — without loosening the R2 uniqueness
+    /// gate: the labeled slot still participates in R1/R2 exactly like an
+    /// unlabeled one; the label only adds the explicit read.
+    As(Ident, Box<TargetSpec>),
     /// A co-target set-distinctness constraint ([CR#115.7e], Arc Trail's
     /// "any *other* target"): this spec's final picks must not overlap the
     /// sibling specs at the given indices. Evaluated on the FINAL target
@@ -88,5 +101,22 @@ mod tests {
             let written = crate::ron::options().to_string(&value).unwrap();
             assert_eq!(read(&written), value, "round-trip failed for {value:?}");
         }
+    }
+
+    /// The labeled announce slot `As(label, spec)` reads and round-trips —
+    /// the explicit-name vocabulary for announce-ambiguous bodies
+    /// ([CR#608.2d]).
+    #[test]
+    fn labeled_slot_round_trips() {
+        let value = TargetSpec::As(
+            crate::Ident::new("first"),
+            Box::new(TargetSpec::Target(Quantity::one(), creature_filter())),
+        );
+        assert_eq!(
+            read(r#"As("first", Target(Range(1, 1), Type(Creature)))"#),
+            value,
+        );
+        let written = crate::ron::options().to_string(&value).unwrap();
+        assert_eq!(read(&written), value, "round-trip failed: {written}");
     }
 }

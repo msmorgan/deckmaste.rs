@@ -94,7 +94,7 @@ fn lightning_bolt_expands_target_macros() {
         vec![Ability::Spell(SpellAbility {
             effect: Effect::Targeted(deckmaste_core::Targeted::new(
                 vec![any_target],
-                Effect::Act(Action::deal_damage(Reference::Target(0), Count::Literal(3),)),
+                Effect::Act(Action::deal_damage(Reference::It, Count::Literal(3),)),
             )),
         })]
     );
@@ -181,7 +181,7 @@ fn mana_leak_reads_to_a_must_pay_punisher() {
     };
     assert_eq!(
         m.actor,
-        Reference::ControllerOf(Box::new(Reference::Target(0))),
+        Reference::ControllerOf(Box::new(Reference::It)),
         "the payer is the targeted spell's controller"
     );
     assert_eq!(
@@ -193,7 +193,7 @@ fn mana_leak_reads_to_a_must_pay_punisher() {
     );
     assert_eq!(
         *m.or_else,
-        Effect::Act(Action::Counter(Reference::Target(0))),
+        Effect::Act(Action::Counter(Reference::It)),
         "unpaid → counter the spell"
     );
 }

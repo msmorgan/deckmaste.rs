@@ -26,7 +26,7 @@
 //                     is the same graveyard-return filter shape (`AllOf([…,
 //                     InZone(Graveyard), Owner(Ref(You))])`) the engine's
 //                     graveyard-return cards use.
-//   - resolution:     `Move(Target(0), Hand)` — the source-agent plain zone
+//   - resolution:     `Move(It, Hand)` — the source-agent plain zone
 //                     change returning the chosen card to its owner's hand
 //                     ([CR#400.7]).
 //
@@ -43,13 +43,13 @@
         abilities: [Triggered(
             event: ThisDies,
             effect: May(effect: Targeted(
-                targets: [Target(Exactly(1), AllOf([
+                targets: [As("target", Target(Exactly(1), AllOf([
                     Subtype("Spirit"),
                     InZone(Graveyard),
                     Owner(Ref(You)),
                     Stat(ManaValue, AtMost, Param(0)),
-                ]))],
-                effect: Move(Target(0), Hand),
+                ])))],
+                effect: Move(The("target"), Hand),
             )),
         )],
     ),

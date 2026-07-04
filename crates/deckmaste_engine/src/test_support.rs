@@ -20,8 +20,9 @@ pub(crate) fn frame_src(source: crate::object::ObjectId) -> Frame {
     frame_src_targets(source, Vec::new())
 }
 
-/// Like [`frame_src`] but with explicit `targets` — for effects/references that
-/// read `Reference::Target(_)`.
+/// Like [`frame_src`] but with explicit `targets` — for effects/references
+/// that read the announced slot (`It` over a lone target, `They` over a
+/// plural slot).
 pub(crate) fn frame_src_targets(
     source: crate::object::ObjectId,
     targets: Vec<crate::object::ObjectId>,
@@ -29,6 +30,32 @@ pub(crate) fn frame_src_targets(
     Frame {
         endophora: crate::stack::Endophora {
             targets,
+            ..crate::stack::Endophora::empty()
+        },
+        ..Frame::bare(source, PlayerId(0))
+    }
+}
+
+/// The labeled announce-slot read `The(label)` ([CR#608.2d]) — test
+/// shorthand pairing with [`frame_src_labeled`].
+pub(crate) fn the(label: &str) -> deckmaste_core::Reference {
+    deckmaste_core::Reference::The(deckmaste_core::Ident::new(label))
+}
+
+/// Like [`frame_src_targets`] but with each slot `As`-NAMED, one object per
+/// slot — for bodies that read multiple announce slots via
+/// `Reference::The(label)` ([CR#608.2d]; the fight family's shape).
+pub(crate) fn frame_src_labeled(
+    source: crate::object::ObjectId,
+    slots: Vec<(&str, crate::object::ObjectId)>,
+) -> Frame {
+    Frame {
+        endophora: crate::stack::Endophora {
+            targets: slots.iter().map(|(_, id)| *id).collect(),
+            labeled: slots
+                .into_iter()
+                .map(|(label, id)| (deckmaste_core::Ident::new(label), vec![id]))
+                .collect(),
             ..crate::stack::Endophora::empty()
         },
         ..Frame::bare(source, PlayerId(0))
