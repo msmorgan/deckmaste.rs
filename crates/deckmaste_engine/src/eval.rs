@@ -14,9 +14,9 @@
 //!   wake and participants are (normally) still around;
 //! - **per-fact LKI** ([`FactView::into_lki`]): at history-RECORD time every
 //!   live card participant is snapshotted, so a later history read matches the
-//!   participant *as it was* ([CR#603.10a]) — a
-//!   `Happened(Damage(to: Type(Creature)))` over a recipient that has since
-//!   died reads the snapshot instead of panicking on a stale id.
+//!   participant *as it was* ([CR#603.10a]) — a `Happened(Damage(to:
+//!   Type(Creature)))` over a recipient that has since died reads the snapshot
+//!   instead of panicking on a stale id.
 
 use std::borrow::Cow;
 
@@ -98,7 +98,7 @@ pub(crate) struct Bindings<'a> {
     pub shape_only: bool,
 }
 
-impl<'a> Bindings<'a> {
+impl Bindings<'_> {
     /// The common frameless bindings: a watcher anchor, full participant
     /// evaluation.
     pub(crate) fn watcher(watcher: ObjectSource) -> Self {
@@ -448,10 +448,7 @@ impl<'a> FactView<'a> {
             // [CR#109.3]: a game-scope transition has no carrier participant.
             GameEvent::DesignationChanged { name, becomes } => {
                 v = FactView::bare(FactKind::DesignationChanged, state);
-                v.designation = Some((
-                    Cow::Borrowed(name),
-                    becomes.as_ref().map(Cow::Borrowed),
-                ));
+                v.designation = Some((Cow::Borrowed(name), becomes.as_ref().map(Cow::Borrowed)));
             }
             // [CR#702.131c]: a player-scope gain — the gaining player is the
             // carrier the pattern's `of` runs against.
@@ -520,9 +517,12 @@ impl<'a> FactView<'a> {
             counter: self.counter.map(|c| Cow::Owned(c.into_owned())),
             combat: self.combat,
             step: self.step,
-            designation: self
-                .designation
-                .map(|(n, b)| (Cow::Owned(n.into_owned()), b.map(|b| Cow::Owned(b.into_owned())))),
+            designation: self.designation.map(|(n, b)| {
+                (
+                    Cow::Owned(n.into_owned()),
+                    b.map(|b| Cow::Owned(b.into_owned())),
+                )
+            }),
             time: self.time,
             seq: self.seq,
         }
@@ -871,14 +871,10 @@ impl GameState {
 
             // [CR#603.2]: refinement conjunction — one occurrence, every
             // sub-pattern.
-            EventFilter::AllOf(events) => events
-                .iter()
-                .all(|p| self.eval(p, fact, lane, bindings)),
+            EventFilter::AllOf(events) => events.iter().all(|p| self.eval(p, fact, lane, bindings)),
 
             // [CR#603.2c]: pattern union, still once per occurrence.
-            EventFilter::OneOf(events) => events
-                .iter()
-                .any(|p| self.eval(p, fact, lane, bindings)),
+            EventFilter::OneOf(events) => events.iter().any(|p| self.eval(p, fact, lane, bindings)),
 
             // [CR#603.2]: the complement refinement — never an anchor (the
             // load-time kind pass requires an anchored sibling).

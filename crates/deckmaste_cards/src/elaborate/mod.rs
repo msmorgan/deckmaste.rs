@@ -107,10 +107,12 @@ pub enum Code {
     /// A `OneOrMore`/`Nth` refinement in a lane that forbids it
     /// ([CR#603.2c]).
     LaneBatch,
-    /// An event construct the lane's bridge matcher cannot faithfully
-    /// evaluate ([CR#603.2] — a pattern must match its occurrences, never
-    /// silently mis-match): load-capped per the emitted bridge-caps table
-    /// until the one-evaluator rebase (`engine-one-evaluator`) lifts it.
+    /// An event construct the lane's evaluator cannot faithfully evaluate
+    /// ([CR#603.2] — a pattern must match its occurrences, never silently
+    /// mis-match): load-capped per the emitted bridge-caps table. Every
+    /// remaining cap is DELIBERATE (a missing fact shape, a CR-grounded
+    /// granularity, a family owned by another subsystem) — the emitter
+    /// carries each reason inline.
     BridgeCap,
     /// `Targeted` outside an announce root — replacement/static/loop
     /// position ([CR#115.1a..115.1e,601.2c]).

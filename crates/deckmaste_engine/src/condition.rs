@@ -1017,9 +1017,11 @@ mod tests {
         state.turn.turn_number = 1;
         let bear = Arc::new(canon().card("Grizzly Bears").unwrap());
         let card = state.cards.push(bear, PlayerId(0));
-        let id = state
-            .objects
-            .mint(ObjectSource::Card(card), PlayerId(0), Some(Zone::Battlefield));
+        let id = state.objects.mint(
+            ObjectSource::Card(card),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
         state.zones.battlefield.push(id);
         let p1 = state.player(PlayerId(1)).object;
 
@@ -1097,7 +1099,10 @@ mod tests {
             within: Lookback::ThisTurn,
         };
         assert!(
-            state.condition_holds(&began(WhoseTurn::EachPlayers), &frame_for(&state, PlayerId(0))),
+            state.condition_holds(
+                &began(WhoseTurn::EachPlayers),
+                &frame_for(&state, PlayerId(0))
+            ),
             "the recorded upkeep onset is visible"
         );
         assert!(

@@ -291,12 +291,11 @@ entailmentTable =
 -- event lanes (the plan's §3.2 lane table): per-consumer algebra gates
 -- --------------------------------------------------------------------------
 
--- Which ENGINE MATCHER a lane's patterns run on until the one-evaluator
--- rebase (the `engine-eventfilter-bridge` compile-down): the live trigger
--- matcher (`event_matches`), the replacement would-matcher
--- (`event_pattern_matches` over abstract intents), or the history scan
--- (the live matcher over recorded facts + `History::scan` windows). The
--- bridge-caps table below is keyed per matcher.
+-- Which LANE CLASS of the one evaluator ([[engine-one-evaluator]],
+-- `eval.rs`) a consumer position's patterns run in: Live (trigger/delayed
+-- scanning of a fact in its own wake), Would (the replacement pipeline's
+-- intercepted intents), or History (recorded facts matched through their
+-- per-fact LKI views). The bridge-caps table below is keyed per class.
 data Matcher = Live | Would | History
 
 matcherName : Matcher -> String
@@ -461,7 +460,7 @@ bridgeRows =
 
 bridgeTable : String
 bridgeTable =
-  header "Bridge caps (engine-eventfilter-bridge): which EventFilter atoms each engine matcher evaluates faithfully; unsupported atoms are load-rejected (E-BRIDGE-CAP) until the one-evaluator rebase ([CR#603.2])."
+  header "Bridge caps: which EventFilter atoms the one evaluator (engine-one-evaluator) evaluates faithfully per lane class; unsupported atoms are load-rejected (E-BRIDGE-CAP), each a deliberate cap ([CR#603.2])."
   ++ "(\n    rows: [\n" ++ concat bridgeRows ++ "    ],\n)\n"
 
 -- --------------------------------------------------------------------------
@@ -1266,8 +1265,8 @@ ruleRows =
       (RustOnly "lane admissibility is per-consumer engine data, deliberately not modeled at the Idris type level")
   , ruleRow "E-LANE-BATCH" "[CR#603.2c]" "OneOrMore/Nth refinement in a lane that forbids it"
       (RustOnly "lane admissibility is per-consumer engine data, deliberately not modeled at the Idris type level")
-  , ruleRow "E-BRIDGE-CAP" "[CR#603.2]" "event construct the lane's bridge matcher cannot faithfully evaluate - load-capped until the one-evaluator rebase"
-      (RustOnly "bridge support values are engine capability facts (which matcher arms exist today), not model content")
+  , ruleRow "E-BRIDGE-CAP" "[CR#603.2]" "event construct the lane's evaluator cannot faithfully evaluate - a deliberate load cap (missing fact shape, CR-grounded granularity, or a family owned by another subsystem)"
+      (RustOnly "bridge support values are engine capability facts (what the one evaluator's fact record carries today), not model content")
   , ruleRow "E-POS-TARGETED" "[CR#115.1a..115.1e,601.2c]" "Targeted outside an announce root (replacement/static/loop position)"
       (RustOnly "may_target positional discipline rides the bind-rules rows as per-row data; the Idris stack deliberately does not carry it")
   , ruleRow "E-POS-RIDER" "[CR#614.12]" "enter rider on a non-battlefield destination"

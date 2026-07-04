@@ -67,17 +67,15 @@ pub(crate) fn replaceable(e: &GameEvent) -> bool {
 /// not yet minted, a game-scope designation flip).
 pub(crate) fn affected(e: &GameEvent) -> Option<Affected> {
     match e {
-        GameEvent::WillDestroy { object, .. } | GameEvent::ZoneWillChange { object, .. } => {
-            Some(Affected::Object(*object))
-        }
+        GameEvent::WillDestroy { object, .. }
+        | GameEvent::ZoneWillChange { object, .. }
+        | GameEvent::CounterPlaced { object, .. }
+        | GameEvent::CounterRemoved { object, .. }
+        | GameEvent::DamageDealt { target: object, .. } => Some(Affected::Object(*object)),
         GameEvent::WillDraw { player, .. }
         | GameEvent::LifeGained { player, .. }
         | GameEvent::LifeLost { player, .. }
         | GameEvent::GotDesignation { player, .. } => Some(Affected::Player(*player)),
-        GameEvent::DamageDealt { target, .. } => Some(Affected::Object(*target)),
-        GameEvent::CounterPlaced { object, .. } | GameEvent::CounterRemoved { object, .. } => {
-            Some(Affected::Object(*object))
-        }
         GameEvent::SpellCast(o) => Some(Affected::Object(*o)),
         GameEvent::AbilityActivated { source, .. } => Some(Affected::Object(*source)),
         _ => None,
@@ -287,12 +285,7 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
 /// Whether replacement `r` (with watcher `source`) watches intent `e` — its
 /// `would` (Instead/Also) matches per `replacement_watches`. Returns `false`
 /// for `Skip` (handled by the step-elision pass, Task 9) and `Expanded`.
-fn replacement_would(
-    state: &GameState,
-    r: &Replacement,
-    source: ObjectId,
-    e: &GameEvent,
-) -> bool {
+fn replacement_would(state: &GameState, r: &Replacement, source: ObjectId, e: &GameEvent) -> bool {
     match crate::replace::look_through_replacement(r) {
         Replacement::Instead { would, .. } | Replacement::Also { would, .. } => {
             replacement_watches(state, would, source, e)
@@ -972,7 +965,12 @@ mod tests {
             )),
         };
         assert!(
-            replacement_watches(&state, &would, id, &intent(Some((id, crate::player::PlayerId(0))))),
+            replacement_watches(
+                &state,
+                &would,
+                id,
+                &intent(Some((id, crate::player::PlayerId(0))))
+            ),
             "a creature agent satisfies the agent narrow"
         );
         assert!(
@@ -995,13 +993,12 @@ mod tests {
         // A spell object per caster (the fact record's actor is its
         // controller).
         let mut spell = |controller: crate::player::PlayerId| {
-            let card = std::sync::Arc::new(deckmaste_core::Card::Normal(
-                deckmaste_core::CardFace {
+            let card =
+                std::sync::Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
                     name: "Test Spell".into(),
                     types: vec![deckmaste_core::Type::Sorcery],
                     ..deckmaste_core::CardFace::default()
-                },
-            ));
+                }));
             let cid = state.cards.push(card, controller);
             state
                 .objects
@@ -1230,6 +1227,11 @@ mod tests {
     /// everything else is load-capped (E-BRIDGE-CAP) and conservatively
     /// hard-`false` here — never a silent over-match.
     #[test]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one representative would/intent pair per would-supported bridge atom — \
+                  the table's full would surface"
+    )]
     fn bridge_caps_agree_with_the_would_matcher() {
         use deckmaste_cards::elaborate::tables::Matcher;
         use deckmaste_cards::elaborate::tables::tables;
@@ -1251,10 +1253,6 @@ mod tests {
             ))
         };
         let p0 = crate::player::PlayerId(0);
-        #[expect(
-            clippy::too_many_lines,
-            reason = "one representative would/intent pair per would-supported bridge atom"
-        )]
         let pair = |atom: &str| -> Option<(EventFilter, GameEvent)> {
             Some(match atom {
                 "ZoneChange" => (dies_would(), destroy_intent()),

@@ -143,7 +143,6 @@ impl GameState {
         )
     }
 
-
     /// Evaluate `filter` against a *live* object `o` for an ability on
     /// `watcher`.
     ///
@@ -4600,8 +4599,6 @@ mod tests {
     /// production `apply_occurrence` ordering).
     #[test]
     fn nth_trigger_fires_only_on_the_second_matching_event() {
-        use crate::agenda::WorkItem;
-
         let (mut state, bear) = bear_on_field();
         let other = put_on_field(&mut state, "Grizzly Bears", PlayerId(0));
         let (_watcher, watcher_source) = scan_watcher(
@@ -4637,8 +4634,6 @@ mod tests {
     /// silent on the same fact.
     #[test]
     fn when_trigger_gates_on_the_condition_at_event_time() {
-        use crate::agenda::WorkItem;
-
         for (controller, expected) in [(PlayerId(0), 1), (PlayerId(1), 0)] {
             let (mut state, bear) = bear_on_field();
             let (_watcher, watcher_source) = scan_watcher(
@@ -4663,8 +4658,6 @@ mod tests {
     /// fires it, a different creature does not.
     #[test]
     fn where_in_snapshot_reads_the_dead_candidate_as_it() {
-        use crate::agenda::WorkItem;
-
         let (mut state, bear) = bear_on_field();
         let fiend = put_on_field(&mut state, "Footlight Fiend", PlayerId(0));
         let (_watcher, watcher_source) = scan_watcher(

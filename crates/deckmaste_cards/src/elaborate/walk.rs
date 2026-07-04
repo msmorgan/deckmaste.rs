@@ -3231,11 +3231,12 @@ impl<'a> Walker<'a> {
         }
     }
 
-    /// The `engine-eventfilter-bridge` cap gate (`E-BRIDGE-CAP`): until the
-    /// one-evaluator rebase, each lane's patterns run on one of the engine's
-    /// three bridge matchers, and an atom that matcher cannot faithfully
-    /// evaluate is refused at load — never silently mis-matched
-    /// ([CR#603.2]). Support is per-atom emitted data (`bridge-caps.ron`);
+    /// The evaluator cap gate (`E-BRIDGE-CAP`): an atom the one evaluator
+    /// (`engine-one-evaluator`) cannot faithfully evaluate in this lane's
+    /// class is refused at load — never silently mis-matched ([CR#603.2]);
+    /// every remaining cap is deliberate (a missing fact shape, a
+    /// CR-grounded granularity, a family owned by another subsystem).
+    /// Support is per-atom emitted data (`bridge-caps.ron`);
     /// the lane→matcher mapping rides the lane table. Findings are DEFERRED
     /// to the enclosing [`Self::event`] so the cap reports only
     /// otherwise-admissible patterns.
@@ -3253,8 +3254,8 @@ impl<'a> Walker<'a> {
         self.err(
             Code::BridgeCap,
             format!(
-                "{atom} is beyond the {} lane's bridge matcher — \
-                 load-capped until engine-one-evaluator",
+                "{atom} is beyond the {} lane's evaluator — a deliberate \
+                 load cap (E-BRIDGE-CAP)",
                 lane.key()
             ),
         );

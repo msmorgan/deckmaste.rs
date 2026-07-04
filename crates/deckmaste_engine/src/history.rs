@@ -39,10 +39,10 @@ impl History {
     /// Records `fact` as having occurred on `turn`, as a member of `batch`
     /// (`None` for a `Single` occurrence), with its per-fact LKI `view`.
     /// The entry's log position and turn are stamped onto the view — the
-    /// [`crate::eval::Lane::History`] ordinal ([`deckmaste_core::EventFilter::Nth`])
-    /// and window reads key off them. Prefer
-    /// [`crate::state::GameState::record_history_fact`], which builds the
-    /// view.
+    /// [`crate::eval::Lane::History`] ordinal
+    /// ([`deckmaste_core::EventFilter::Nth`]) and window reads key off
+    /// them. Prefer [`crate::state::GameState::record_history_fact`], which
+    /// builds the view.
     pub(crate) fn record(
         &mut self,
         turn: Uint,

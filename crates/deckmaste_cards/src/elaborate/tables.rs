@@ -299,11 +299,12 @@ struct EntailmentFile {
     rows: Vec<EntailmentRow>,
 }
 
-/// Which ENGINE MATCHER a lane's patterns run on until the one-evaluator
-/// rebase (the `engine-eventfilter-bridge` compile-down): the live trigger
-/// matcher (`event_matches`), the replacement would-matcher (abstract
-/// intents), or the history scan (the live matcher over recorded facts).
-/// The bridge-caps table is keyed per matcher.
+/// Which LANE CLASS of the one evaluator (`engine-one-evaluator`, the
+/// engine's `eval.rs`) a consumer position's patterns run in: `Live`
+/// (trigger/delayed scanning of a fact in its own wake), `Would` (the
+/// replacement pipeline's intercepted intents), or `History` (recorded
+/// facts matched through their per-fact LKI views). The bridge-caps table
+/// is keyed per class.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 pub enum Matcher {
     Live,
@@ -339,12 +340,12 @@ struct LanesFile {
     rows: Vec<LaneRow>,
 }
 
-/// One bridge-caps row (`engine-eventfilter-bridge`): an `EventFilter` ATOM
-/// (a master-form key, a `Form:field` refinement, an algebra node, or a
-/// `Lookback:*` history window) and whether each bridge [`Matcher`]
-/// evaluates it FAITHFULLY today. An atom a lane's matcher does not support
-/// is load-rejected (`E-BRIDGE-CAP`), never silently mis-matched; the
-/// one-evaluator rebase lifts the caps.
+/// One bridge-caps row: an `EventFilter` ATOM (a master-form key, a
+/// `Form:field` refinement, an algebra node, or a `Lookback:*` history
+/// window) and whether the one evaluator evaluates it FAITHFULLY in each
+/// [`Matcher`] lane class. An unsupported atom is load-rejected
+/// (`E-BRIDGE-CAP`), never silently mis-matched — every remaining `false`
+/// is a DELIBERATE cap with its reason in the emitter.
 #[derive(Debug, Deserialize)]
 pub struct BridgeRow {
     pub atom: String,
@@ -940,8 +941,7 @@ mod tests {
             "batch-once matching runs in the live/would lanes"
         );
         assert!(
-            t.bridge_supports("Cast", Matcher::Would)
-                && !t.bridge_supports("Used", Matcher::Would),
+            t.bridge_supports("Cast", Matcher::Would) && !t.bridge_supports("Used", Matcher::Would),
             "would lanes evaluate every INTERCEPTED master form; a directly \
              recorded fact (AbilityUsed) has no would stage"
         );
