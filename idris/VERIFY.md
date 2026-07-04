@@ -18,12 +18,17 @@ From `idris/`, with `~/.local/bin` on `PATH` for `idris2`:
 
     idris2 --build mtg.ipkg
 
-Builds and typechecks all six modules (Core, Macros, Cards, Spec, Experimental,
-EmitTables) under `%default total`. `Spec.idr` is the self-checking regression
-suite — every `failing "<message>"` block must fail WITH its pinned message;
+Builds and typechecks all seven modules (Core, Macros, Cards, Spec,
+Experimental, Resolutions, EmitTables) under `%default total`. `Spec.idr` is
+the self-checking regression suite — every `failing "<message>"` block must
+fail WITH its pinned message, and the `-- @twin` line above each block names
+its Rust reject-fixture twin (machine-checked by the `twin_gate` test);
 `Cards.idr` is the worked corpus. Exit 0 means the whole model — including
 every card term — typechecks. (`./scripts/build` wraps this command;
-`./scripts/emit-tables` regenerates `crates/deckmaste_cards/tables/*.ron`.)
+`./scripts/emit-tables` regenerates `crates/deckmaste_cards/tables/*.ron`
+AND the per-card resolution fixtures under
+`crates/deckmaste_cards/tests/resolution/` — the tables the Rust elaborator
+consumes and the anaphor-binding tables it must reproduce byte-for-byte.)
 
 ## Check one transcribed card (the oracle loop)
 

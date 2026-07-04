@@ -19,6 +19,7 @@
 //! list lives in `Resolutions.idr` (`resolutionFixtures`). Regenerate with
 //! `idris/scripts/emit-tables`; drift on either side turns this red.
 
+use std::fmt::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -69,17 +70,21 @@ fn idris_resolution_fixtures_are_reproduced() {
             panic!("canon twin {name:?} must elaborate clean, got: {errors:?}")
         });
 
-        let rendered: String = resolutions
+        let mut rendered = String::new();
+        for resolution in resolutions
             .iter()
             .filter(|r| r.description.contains(" -> #"))
-            .map(|r| format!("{r}\n"))
-            .collect();
-        let expected: String = std::fs::read_to_string(&fixture)
+        {
+            writeln!(rendered, "{resolution}").unwrap();
+        }
+        let mut expected = String::new();
+        for line in std::fs::read_to_string(&fixture)
             .unwrap()
             .lines()
             .filter(|l| !l.starts_with('#') && !l.trim().is_empty())
-            .map(|l| format!("{l}\n"))
-            .collect();
+        {
+            writeln!(expected, "{line}").unwrap();
+        }
         if rendered != expected {
             let divergence = rendered
                 .lines()

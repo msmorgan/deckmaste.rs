@@ -605,6 +605,12 @@ cardRows (TwoFaced _ front back) = wFace "front" front ++ wFace "back" back
 -- the export list: canon-twinned cards whose Idris and RON encodings MIRROR
 -- (the module-header discipline). A card here must exist as
 -- `plugins/canon/cards/<name>.ron`; the Rust test walks that twin.
+-- The two remaining canon∩Cards.idr names are EXCLUDED for documented
+-- structural non-mirroring: Glorious Anthem (canon spells the anthem as the
+-- Rust `Modify(of: Matching(…))` static — no anaphor read; the Idris
+-- encoding is `Each … (Modify It …)`) and Pacifism (canon rides the Rust
+-- `Keyword(Enchant(…))` shape; the Idris `enchant` macro is three
+-- abilities). Re-encode a side to mirror before exporting either.
 -- ---------------------------------------------------------------------------
 
 export

@@ -95,7 +95,9 @@ fn violations(
                  (name its reject fixture, or declare `idris-only: <reason>`)"
             )),
             TwinTarget::IdrisOnly(reason) if reason.is_empty() => {
-                found.push(format!("{at}: `idris-only:` twin annotation with no reason"));
+                found.push(format!(
+                    "{at}: `idris-only:` twin annotation with no reason"
+                ));
             }
             TwinTarget::IdrisOnly(_) => {}
             TwinTarget::Fixture(path) => {
@@ -136,7 +138,9 @@ fn violations(
             }
             TwinDisposition::RustOnly(why) => {
                 if why.trim().is_empty() {
-                    found.push(format!("manifest marks {code} RustOnly with an empty reason"));
+                    found.push(format!(
+                        "manifest marks {code} RustOnly with an empty reason"
+                    ));
                 }
                 if twinned_codes.contains(code) {
                     found.push(format!(
@@ -154,8 +158,7 @@ fn idris_src(file: &str) -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../idris/src")
         .join(file);
-    std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("reading {}: {e}", path.display()))
+    std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("reading {}: {e}", path.display()))
 }
 
 fn tests_root() -> PathBuf {

@@ -42,3 +42,14 @@ jobs:
       # out to the mtg-rules skill and needs the CR snapshot under data/, neither
       # of which a clean runner has. Wiring it in (install the skill + fetch just
       # the rules snapshot) is a follow-up.
+      #
+      # The Idris↔Rust lockstep gates DO run here, entirely from committed
+      # artifacts (no idris2 on the runner): `cargo test` includes the
+      # twin-gate test (every checker E-code ↔ its Spec.idr failing block,
+      # both directions, via the emitted manifest's `twin:` column and the
+      # `-- @twin` annotations) and the resolution-agreement test (the
+      # Idris-exported per-card anaphor tables under
+      # crates/deckmaste_cards/tests/resolution/ replayed byte-for-byte by
+      # the elaborator). Regenerating the tables/fixtures themselves
+      # (idris/scripts/emit-tables + a clean `jj st`) needs idris2 and stays
+      # a local gate, like cite check.
