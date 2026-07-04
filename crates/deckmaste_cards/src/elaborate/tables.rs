@@ -488,9 +488,23 @@ struct ClassesFile {
     rows: Vec<ClassRow>,
 }
 
+/// A checker rule's fixture-TWIN disposition (the twin-gate's direction A —
+/// [[idris-tables-fixtures-v2]]): `Idris` = at least one `failing` block in
+/// `idris/src/Spec.idr`/`Experimental.idr` twins the code (its `-- @twin`
+/// annotation names the reject fixture; the `twin_gate` test enforces both
+/// directions), `RustOnly(why)` = the rule deliberately has no Idris twin,
+/// with the documented reason.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub enum TwinDisposition {
+    Idris,
+    RustOnly(String),
+}
+
 /// One checker-rule manifest row: an error code the elaborator may emit,
-/// with its CR citation. The drift pin: a test asserts the elaborator's code
-/// list equals this manifest (no checker rule without a table row).
+/// with its CR citation and twin disposition. The drift pin: a test asserts
+/// the elaborator's code list equals this manifest (no checker rule without
+/// a table row), and the `twin_gate` test cross-checks the disposition
+/// against the Idris proof suite's `@twin` annotations.
 #[derive(Debug, Deserialize)]
 pub struct RuleRow {
     pub code: String,
@@ -498,6 +512,8 @@ pub struct RuleRow {
     pub cite: String,
     /// Human-facing one-line meaning.
     pub summary: String,
+    /// The fixture-twin disposition the twin-gate test enforces.
+    pub twin: TwinDisposition,
 }
 
 #[derive(Debug, Deserialize)]

@@ -5,5 +5,5 @@
 # regenerated tables. See idris/src/EmitTables.idr.
 set -e
 cd "$(dirname "$0")/.."
-mkdir -p ../crates/deckmaste_cards/tables
+mkdir -p ../crates/deckmaste_cards/tables ../crates/deckmaste_cards/tests/resolution
 exec idris2 --find-ipkg --exec emitTables src/EmitTables.idr

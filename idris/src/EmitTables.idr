@@ -22,13 +22,23 @@
 |||   * every caps row carries the `patient:` kind the event actually fixes
 |||     (from `EventCaps.patientKind`) and the checker gates `EventPatient`
 |||     reads on it — `None` means the patient is unreachable, not kind-free.
-|||   * the sort-compat / intro rows remain hand data with their cites; the
-|||     Idris twins (`compat`, the intro machinery) are pinned against them
-|||     by Spec.idr's table-agreement proofs, and full derivation moves with
-|||     the fixture export (idris-tables-fixtures-v2).
+|||   * the sort-compat rows, the intro rows, and the event-caps `object_sort`
+|||     column are DERIVED (idris-tables-fixtures-v2): sort-compat enumerates
+|||     `compat` over one representative `Sort` per key; the intro columns are
+|||     read off `slotAnte`/`actionIntro`/`refIntro`/`binderAnte`/`bindIt`/
+|||     `bindAllot` probes (the "from_*"/"From*" tags are computed by varying
+|||     one axis); `object_sort` is computed from `eventKindObjectSort` + the
+|||     row's caps. Hand data is down to the key mapping, the Rust
+|||     participant-slot names, and the per-row cites.
+|||   * the checker-rule manifest carries the fixture-TWIN disposition per
+|||     code: `Idris` = a Spec.idr/Experimental.idr `failing` block twins it
+|||     (the `-- @twin` annotations name the reject fixture; the Rust
+|||     `twin_gate` test enforces both directions), `RustOnly(why)` = the rule
+|||     deliberately has no Idris twin, with the documented reason.
 module EmitTables
 
 import Core
+import Resolutions
 import System
 import System.File
 
@@ -71,17 +81,77 @@ header what =
 -- ("source"/"what"/"by"/"of"/"on"), the destination zone's `zone_sort`
 -- ("to_zone"), a fixed sort ("spell"/"stack_object"/"token"), or nothing
 -- ("none" — the form supplies no object, or its object has no useful noun).
--- Hand tags, MIRRORED by `Core.eventKindObjectSort` (the v2 role-ante
--- machinery); full derivation moves with the fixture export
--- ([[idris-tables-fixtures-v2]]).
+-- DERIVED from `Core.eventKindObjectSort` + the row's caps by
+-- `objectSortTag` below; the participant-slot NAME is the one hand input
+-- (Rust grammar keying, like the key mapping itself).
 ObjectSort : Type
 ObjectSort = String
 
+-- A row's caps source: a modeled `EventKind` (caps + object sort from the
+-- Core functions), or a literal caps value for the model-gap forms (no
+-- EventKind spine yet — CoinFlipped/DiceRolled/day-night/designations/Used).
+data CapsSource = FromKind EventKind | LiteralCaps EventCaps
+
+rowCaps : CapsSource -> EventCaps
+rowCaps (FromKind k) = eventKindCaps k
+rowCaps (LiteralCaps c) = c
+
+-- The `object_sort` TAG, computed from the model: "none" when the row's caps
+-- supply no object; "to_zone" for the zone-parameterized family (there
+-- `eventKindObjectSort` IS `zoneSort` of the new zone, with the conservative
+-- `Card` when the destination is unfixed — pinned by the 0-proofs below,
+-- which is exactly the Rust walker's "to_zone" interpretation); a fixed noun
+-- tag where the function fixes a stack/token noun; otherwise the Rust
+-- participant-slot name, whose walker fallback (an unfiltered slot) is
+-- exactly the conservative `Permanent` the function returns.
+objectSortTag : CapsSource -> (slot : Maybe String) -> ObjectSort
+objectSortTag src slot =
+  if not (hasObject (rowCaps src)) then "none"
+  else case src of
+    LiteralCaps _ => fromMaybe "none" slot
+    FromKind (ZoneChanged _ _) => "to_zone"
+    FromKind k => case eventKindObjectSort k of
+      Spell => "spell"
+      StackObject => "stack_object"
+      Token => "token"
+      _ => fromMaybe "none" slot
+
+-- the "to_zone" pin: the zone-parameterized family's object noun IS the new
+-- zone's (`zoneSort`), falling back to the conservative "card" when the
+-- destination is unfixed — the two facts the Rust walker's "to_zone" arm
+-- reproduces ([CR#400.7e]).
+0 zoneTagPin : map (\z => eventKindObjectSort (ZoneChanged Nothing (Just z)))
+                 (the (List Zone) [Battlefield, Command, Exile, Graveyard, Hand, Library, Sideboard, Stack])
+             = map Core.zoneSort
+                 (the (List Zone) [Battlefield, Command, Exile, Graveyard, Hand, Library, Sideboard, Stack])
+zoneTagPin = Refl
+
+0 zoneTagPinUnfixed : eventKindObjectSort (ZoneChanged Nothing Nothing) = Sort.Card
+zoneTagPinUnfixed = Refl
+
+-- the participant-slot pin: every slot-tagged row's kind answers to the
+-- conservative `Permanent` in the model — the Rust walker's slot-extraction
+-- fallback, refined per-pattern from the slot's own filter.
+0 slotTagPin : map Core.eventKindObjectSort
+                 (the (List EventKind)
+                   [ DealDamage Nothing, PutCounters, RemoveCounters
+                   , Begins Play, Begins Attack, Begins Block, Begins Attach
+                   , Begins Target, Becomes Tapped, Becomes Untapped
+                   , Becomes PhasedOut, Becomes FaceDown, GainControl ])
+             = the (List Sort)
+                 [ Permanent, Permanent, Permanent, Permanent, Permanent
+                 , Permanent, Permanent, Permanent, Permanent, Permanent
+                 , Permanent, Permanent, Permanent ]
+slotTagPin = Refl
+
 -- One row: the Rust-side event KEY (the `Event` node shape, or
--- `Performed:<verb>`), the caps VALUE computed via `eventKindCaps`, the
--- object-sort tag, the cite.
-capsRow : (key : String) -> EventCaps -> ObjectSort -> (cite : String) -> String
-capsRow key (MkEventCaps o a m p d) objectSort cite =
+-- `Performed:<verb>`), the caps VALUE + object-sort tag computed from the
+-- source, the participant-slot name where the tag derivation consumes one,
+-- the cite.
+capsRow : (key : String) -> CapsSource -> (slot : Maybe String) -> (cite : String) -> String
+capsRow key src slot cite =
+  let MkEventCaps o a m p d = rowCaps src
+      objectSort = objectSortTag src slot in
   "        (key: " ++ quoted key
   ++ ", object: " ++ bool o
   ++ ", actor: " ++ bool a
@@ -100,40 +170,41 @@ capsRow key (MkEventCaps o a m p d) objectSort cite =
 eventCapsRows : List String
 eventCapsRows =
   [ -- object/zone forms. The moved object's noun follows its NEW zone
-    -- ([CR#400.7] — the new object in the zone it moved to).
-    capsRow "ZoneChange" (eventKindCaps (ZoneChanged Nothing Nothing)) "to_zone" "[CR#603.6]"
+    -- ([CR#400.7] — the new object in the zone it moved to; the "to_zone"
+    -- tag is computed by `objectSortTag`, pinned by `zoneTagPin`).
+    capsRow "ZoneChange" (FromKind (ZoneChanged Nothing Nothing)) Nothing "[CR#603.6]"
     -- the recipient is a kind-poly patient ([CR#120.3] "a player or permanent")
-  , capsRow "Damage" (eventKindCaps (DealDamage Nothing {toKind = Just Anything})) "source" "[CR#120.1]"
-  , capsRow "LifeGained" (eventKindCaps GainLife) "none" "[CR#119.3]"
-  , capsRow "LifeLost" (eventKindCaps LoseLife) "none" "[CR#119.3]"
-  , capsRow "Drawn" (eventKindCaps Draw) "none" "[CR#121.1]"
-  , capsRow "CounterPlaced" (eventKindCaps PutCounters) "on" "[CR#122.1]"
-  , capsRow "CounterRemoved" (eventKindCaps RemoveCounters) "on" "[CR#122.1]"
+  , capsRow "Damage" (FromKind (DealDamage Nothing {toKind = Just Anything})) (Just "source") "[CR#120.1]"
+  , capsRow "LifeGained" (FromKind GainLife) Nothing "[CR#119.3]"
+  , capsRow "LifeLost" (FromKind LoseLife) Nothing "[CR#119.3]"
+  , capsRow "Drawn" (FromKind Draw) Nothing "[CR#121.1]"
+  , capsRow "CounterPlaced" (FromKind PutCounters) (Just "on") "[CR#122.1]"
+  , capsRow "CounterRemoved" (FromKind RemoveCounters) (Just "on") "[CR#122.1]"
     -- the onset family ([CR#603.2]) — the relation spine's inchoative aspect
-  , capsRow "Cast" (eventKindCaps (Begins Cast)) "spell" "[CR#601.2i]"
-  , capsRow "Played" (eventKindCaps (Begins Play)) "what" "[CR#701.18a]"
-  , capsRow "ActivatedAb" (eventKindCaps (Begins Activate)) "stack_object" "[CR#602.2a]"
-  , capsRow "AttackDeclared" (eventKindCaps (Begins Attack)) "by" "[CR#508.1k]"
-  , capsRow "BlockDeclared" (eventKindCaps (Begins Block)) "by" "[CR#509.3a,509.3c]"
-  , capsRow "Attached" (eventKindCaps (Begins Attach)) "what" "[CR#701.3a]"
-  , capsRow "BecomesTarget" (eventKindCaps (Begins Target)) "what" "[CR#601.2c]"
+  , capsRow "Cast" (FromKind (Begins Cast)) Nothing "[CR#601.2i]"
+  , capsRow "Played" (FromKind (Begins Play)) (Just "what") "[CR#701.18a]"
+  , capsRow "ActivatedAb" (FromKind (Begins Activate)) Nothing "[CR#602.2a]"
+  , capsRow "AttackDeclared" (FromKind (Begins Attack)) (Just "by") "[CR#508.1k]"
+  , capsRow "BlockDeclared" (FromKind (Begins Block)) (Just "by") "[CR#509.3a,509.3c]"
+  , capsRow "Attached" (FromKind (Begins Attach)) (Just "what") "[CR#701.3a]"
+  , capsRow "BecomesTarget" (FromKind (Begins Target)) (Just "what") "[CR#601.2c]"
     -- residual status transitions ([CR#603.2e])
-  , capsRow "StateBecame:Tapped" (eventKindCaps (Becomes Tapped)) "of" "[CR#603.2e]"
-  , capsRow "StateBecame:Untapped" (eventKindCaps (Becomes Untapped)) "of" "[CR#603.2e]"
-  , capsRow "StateBecame:Phased" (eventKindCaps (Becomes PhasedOut)) "of" "[CR#702.26b]"
-  , capsRow "StateBecame:TurnedFace" (eventKindCaps (Becomes FaceDown)) "of" "[CR#708]"
+  , capsRow "StateBecame:Tapped" (FromKind (Becomes Tapped)) (Just "of") "[CR#603.2e]"
+  , capsRow "StateBecame:Untapped" (FromKind (Becomes Untapped)) (Just "of") "[CR#603.2e]"
+  , capsRow "StateBecame:Phased" (FromKind (Becomes PhasedOut)) (Just "of") "[CR#702.26b]"
+  , capsRow "StateBecame:TurnedFace" (FromKind (Becomes FaceDown)) (Just "of") "[CR#708]"
     -- turn structure / control / designations
-  , capsRow "StepBegins" (eventKindCaps (BeginStep (BeginningPhase UpkeepStep))) "none" "[CR#603.2b]"
-  , capsRow "ControlChanged" (eventKindCaps GainControl) "of" "[CR#613.1b]"
-  , capsRow "DesignationChanged" NoCaps "none" "[CR#109.3]"
-  , capsRow "TokenCreated" (eventKindCaps CreateToken) "token" "[CR#701.7]"
-  , capsRow "Used" NoCaps "none" "[CR#608.2i]"
+  , capsRow "StepBegins" (FromKind (BeginStep (BeginningPhase UpkeepStep))) Nothing "[CR#603.2b]"
+  , capsRow "ControlChanged" (FromKind GainControl) (Just "of") "[CR#613.1b]"
+  , capsRow "DesignationChanged" (LiteralCaps NoCaps) Nothing "[CR#109.3]"
+  , capsRow "TokenCreated" (FromKind CreateToken) Nothing "[CR#701.7]"
+  , capsRow "Used" (LiteralCaps NoCaps) Nothing "[CR#608.2i]"
     -- literal rows (no EventKind yet): the flipping/rolling player is the
     -- actor; day/night is a game-scope expletive with no participants.
-  , capsRow "CoinFlipped" (MkEventCaps False True False Nothing False) "none" "[CR#705.1]"
-  , capsRow "DiceRolled" (MkEventCaps False True False Nothing False) "none" "[CR#706.1]"
-  , capsRow "BecameDay" NoCaps "none" "[CR#731.1]"
-  , capsRow "BecameNight" NoCaps "none" "[CR#731.1]"
+  , capsRow "CoinFlipped" (LiteralCaps (MkEventCaps False True False Nothing False)) Nothing "[CR#705.1]"
+  , capsRow "DiceRolled" (LiteralCaps (MkEventCaps False True False Nothing False)) Nothing "[CR#706.1]"
+  , capsRow "BecameDay" (LiteralCaps NoCaps) Nothing "[CR#731.1]"
+  , capsRow "BecameNight" (LiteralCaps NoCaps) Nothing "[CR#731.1]"
   ]
 
 eventCapsTable : String
@@ -177,6 +248,12 @@ entailRow verb kind from to (MkEventCaps o a m _ _) cite =
   ++ ", amount: " ++ bool m
   ++ ", cite: " ++ quoted cite ++ "),\n"
 
+-- Mill's entailed destination ([CR#701.17a]) — single-sourced: the
+-- entailment row AND the Mill intro row's noun/zone (via `zoneSort`) read
+-- this one definition (the Rust Mill player verb has no Idris Action twin).
+millTo : Zone
+millTo = Graveyard
+
 -- The closed `CauseVerb` vocabulary, one CR-cited fact form each: the
 -- normal form that makes Dies-matches-sacrifice structural and kills the
 -- stringly `Performed` verb table.
@@ -190,7 +267,7 @@ entailmentRows =
       (eventKindCaps Discard) "[CR#701.9a]"
   , entailRow "Exile" "ZoneChange" Nothing (Just Exile)
       (MkEventCaps True False False Nothing False) "[CR#701.13a]"
-  , entailRow "Mill" "ZoneChange" (Just Library) (Just Graveyard)
+  , entailRow "Mill" "ZoneChange" (Just Library) (Just millTo)
       (MkEventCaps True True False Nothing False) "[CR#701.17a]"
   , entailRow "Play" "ZoneChange" Nothing (Just Battlefield)
       (eventKindCaps (Begins Play)) "[CR#701.18a]"
@@ -674,9 +751,16 @@ bindTable =
 -- additionally requires the same card type, applied by the consumer);
 -- `widened: true` = a widening row (compatible, but not exact — the R2
 -- gate's exact-vs-widened distinction). A pair with NO row is incompatible.
--- Hand rows (each citing its noun's CR home), PINNED against the Idris v2
--- `compat` function by Spec.idr's `tCompatTable` agreement proof; full
--- derivation moves with the fixture export ([[idris-tables-fixtures-v2]]).
+-- DERIVED from the v2 `compat` function ([[idris-tables-fixtures-v2]]):
+-- rows are the compat-TRUE pairs over one representative `Sort` per key
+-- (`OfType` collapses at the key level — the same-card-type refinement is
+-- the consumer's), and `widened` is computed as not-same-noun. The one hand
+-- input is the per-pair cite (`compatCite`); a compat pair without a cite is
+-- a COMPILE error (`compatCitesTotal`), never a silently dropped row. The
+-- noun facts the rows carry: tokens aren't cards ([CR#108.2b]); "spell or
+-- ability" reaches both stack-object nouns ([CR#405.1]); "that permanent"
+-- reaches any battlefield noun ([CR#110.1]); a typed noun reaches exactly
+-- its own type ([CR#205.2a]).
 compatRow : (want : String) -> (have : String) -> (widened : Bool)
          -> (cite : String) -> String
 compatRow want have widened cite =
@@ -684,36 +768,6 @@ compatRow want have widened cite =
   ++ ", have: " ++ quoted have
   ++ ", widened: " ++ bool widened
   ++ ", cite: " ++ quoted cite ++ "),\n"
-
-compatRows : List String
-compatRows =
-  [ compatRow "Player" "Player" False "[CR#102.1]"
-    -- tokens aren't cards ([CR#108.2b]) — "that card" never reaches a token
-  , compatRow "Card" "Card" False "[CR#108.2]"
-  , compatRow "Token" "Token" False "[CR#111.1]"
-  , compatRow "Spell" "Spell" False "[CR#112.1]"
-    -- "spell or ability" reaches both stack-object nouns ([CR#405.1])
-  , compatRow "StackObject" "Spell" True "[CR#405.1]"
-  , compatRow "StackObject" "StackObject" False "[CR#405.1]"
-    -- "that permanent" reaches a typed battlefield antecedent ([CR#110.1])
-  , compatRow "Permanent" "Permanent" False "[CR#110.1]"
-  , compatRow "Permanent" "OfType" True "[CR#110.1]"
-  , compatRow "Permanent" "Token" True "[CR#110.1]"
-    -- "that creature" reaches exactly a creature antecedent ([CR#205.2a])
-  , compatRow "OfType" "OfType" False "[CR#205.2a]"
-  , compatRow "Amount" "Amount" False "[CR#608.2i]"
-  , compatRow "Pile" "Pile" False "[CR#700.3]"
-  ]
-
-compatTable : String
-compatTable =
-  header "Sort compatibility (R1): which antecedent sorts each anaphor sort reaches; `exact_sort_precedence` is the R2 gate's one pre-approved loosening (calibrated and FROZEN STRICT=off by [[cards-corpus-dry-run]], 2026-07-03: 0 gate fires / 5785 encodable faces, 0 mis-bindings in the 200-face hand audit)."
-  ++ "(\n    exact_sort_precedence: false,\n    rows: [\n"
-  ++ concat compatRows ++ "    ],\n)\n"
-
--- --------------------------------------------------------------------------
--- zone sorts: what noun an object answers to once it sits in this zone
--- --------------------------------------------------------------------------
 
 -- the shape key of a sort (OfType collapses — same as the Rust `Sort::key`).
 sortKey : Sort -> String
@@ -726,6 +780,61 @@ sortKey Permanent = "Permanent"
 sortKey (OfType _) = "OfType"
 sortKey Amount = "Amount"
 sortKey Pile = "Pile"
+
+-- one representative `Sort` per emitted KEY (one per `sortKey` class;
+-- `Creature` is the OfType probe — any type works, `compat` only asks
+-- same-type).
+allSortReps : List Sort
+allSortReps =
+  [Player, Card, Token, Spell, StackObject, Permanent, OfType Creature, Amount, Pile]
+
+-- each compatible pair's CR home — the per-row cite (the one hand column).
+compatCite : Sort -> Sort -> Maybe String
+compatCite Player Player = Just "[CR#102.1]"
+compatCite Card Card = Just "[CR#108.2]"
+compatCite Token Token = Just "[CR#111.1]"
+compatCite Spell Spell = Just "[CR#112.1]"
+compatCite StackObject Spell = Just "[CR#405.1]"
+compatCite StackObject StackObject = Just "[CR#405.1]"
+compatCite Permanent Permanent = Just "[CR#110.1]"
+compatCite Permanent (OfType _) = Just "[CR#110.1]"
+compatCite Permanent Token = Just "[CR#110.1]"
+compatCite (OfType _) (OfType _) = Just "[CR#205.2a]"
+compatCite Amount Amount = Just "[CR#608.2i]"
+compatCite Pile Pile = Just "[CR#700.3]"
+compatCite _ _ = Nothing
+
+-- every compat-TRUE pair carries a cite — a `compat` change that opens a new
+-- pair without minting its cite breaks the BUILD, not the table.
+0 compatCitesTotal :
+  all (\w => all (\h => not (compat w h) || isJust (compatCite w h))
+             EmitTables.allSortReps)
+      EmitTables.allSortReps
+  = True
+compatCitesTotal = Refl
+
+compatRows : List String
+compatRows = concatMap rowsFor allSortReps
+  where
+    rowFor : Sort -> Sort -> Maybe String
+    rowFor w h =
+      if compat w h
+        then map (compatRow (sortKey w) (sortKey h) (not (sameSort w h)))
+                 (compatCite w h)
+        else Nothing
+
+    rowsFor : Sort -> List String
+    rowsFor w = mapMaybe (rowFor w) allSortReps
+
+compatTable : String
+compatTable =
+  header "Sort compatibility (R1): which antecedent sorts each anaphor sort reaches; `exact_sort_precedence` is the R2 gate's one pre-approved loosening (calibrated and FROZEN STRICT=off by [[cards-corpus-dry-run]], 2026-07-03: 0 gate fires / 5785 encodable faces, 0 mis-bindings in the 200-face hand audit)."
+  ++ "(\n    exact_sort_precedence: false,\n    rows: [\n"
+  ++ concat compatRows ++ "    ],\n)\n"
+
+-- --------------------------------------------------------------------------
+-- zone sorts: what noun an object answers to once it sits in this zone
+-- --------------------------------------------------------------------------
 
 zoneSortRow : Zone -> (cite : String) -> String
 zoneSortRow z cite =
@@ -764,9 +873,14 @@ zoneSortTable =
 -- derivation the walker applies ("from_filter" — the clause's filter,
 -- "from_destination" — zone_sort of the destination, "from_binder" — the
 -- binder's own content). Zone rules: "none", a fixed zone, or
--- "from_destination" (the [CR#603.7c] expected_zone stamp). Hand rows,
--- mirrored by the Idris v2 `intro`/`actionIntro`/`binderAnte` machinery;
--- full derivation moves with the fixture export ([[idris-tables-fixtures-v2]]).
+-- "from_destination" (the [CR#603.7c] expected_zone stamp).
+-- DERIVED ([[idris-tables-fixtures-v2]]): each row's columns are read off a
+-- Core intro-machinery PROBE (`slotAnte`/`actionIntro`/`refIntro`/
+-- `binderAnte`/`bindIt`/`bindAllot`), and every "from_*"/"From*" tag is
+-- COMPUTED by a second probe varying exactly that axis — the tag is emitted
+-- only when the column actually tracks it, the fixed value otherwise. Hand
+-- data is down to the clause-key mapping, the per-row cites, and the two
+-- Rust-only shapes flagged inline (Mill, SeparatePiles.pile).
 introRow : (clause : String) -> (object : Bool) -> (site : String)
         -> (card : String) -> (sort : String) -> (zone : String)
         -> (amount : Bool) -> (cite : String) -> String
@@ -780,43 +894,258 @@ introRow clause object site card sort zone amount cite =
   ++ ", amount: " ++ bool amount
   ++ ", cite: " ++ quoted cite ++ "),\n"
 
+-- the Rust walker's site spelling: the deterministic choice FRAME and the
+-- resolution-time choice both land at "Chosen" (walk.rs marks frames with
+-- `binder: true` rather than a site of their own).
+introSiteName : Site -> String
+introSiteName TargetSlot = "TargetSlot"
+introSiteName Product = "Product"
+introSiteName EventRole = "EventRole"
+introSiteName Loop = "Loop"
+introSiteName Allot = "Allot"
+introSiteName Chosen = "Chosen"
+introSiteName Frame = "Chosen"
+
+cardTag : Cardinality -> String
+cardTag One = "One"
+cardTag Many = "Many"
+
+sameZone : Zone -> Zone -> Bool
+sameZone Battlefield Battlefield = True
+sameZone Command Command = True
+sameZone Exile Exile = True
+sameZone Graveyard Graveyard = True
+sameZone Hand Hand = True
+sameZone Library Library = True
+sameZone Sideboard Sideboard = True
+sameZone Stack Stack = True
+sameZone _ _ = False
+
+sameZoneM : Maybe Zone -> Maybe Zone -> Bool
+sameZoneM Nothing Nothing = True
+sameZoneM (Just a) (Just b) = sameZone a b
+sameZoneM _ _ = False
+
+-- the clause's OBJECT antecedent (the non-Amount push), and its DESCRIPTIVE
+-- antecedent — the amount push itself for the bare amount verbs, whose
+-- site/card/sort columns describe the "that much" antecedent.
+introObjAnte : List Ante -> Maybe Ante
+introObjAnte = find (\a => not (sameSort a.sort Amount))
+
+introDescrAnte : List Ante -> Maybe Ante
+introDescrAnte as = case introObjAnte as of
+  Just a => Just a
+  Nothing => find (\a => sameSort a.sort Amount) as
+
+-- the amount COMPANION ("that many/much") — an Amount push at a non-`Allot`
+-- site (the `Allot` share is `Count::Allotment`'s, not an intro column).
+introHasAmount : List Ante -> Bool
+introHasAmount = any (\a => sameSort a.sort Amount && not (isAllotSite a.site))
+
+-- an alternate probe — the SAME intro function at an input varying one axis
+-- — plus the tag to emit when the column tracks that axis.
+IntroAlt : Type
+IntroAlt = Maybe (List Ante, String)
+
+deriveCardCol : Ante -> IntroAlt -> String
+deriveCardCol base Nothing = cardTag base.card
+deriveCardCol base (Just (alt, tag)) = case introDescrAnte alt of
+  Just a => if sameCard base.card a.card then cardTag base.card else tag
+  Nothing => cardTag base.card
+
+deriveSortCol : Ante -> IntroAlt -> String
+deriveSortCol base Nothing = sortKey base.sort
+deriveSortCol base (Just (alt, tag)) = case introDescrAnte alt of
+  Just a => if sameSort base.sort a.sort then sortKey base.sort else tag
+  Nothing => sortKey base.sort
+
+zoneCol : Maybe Zone -> String
+zoneCol Nothing = "none"
+zoneCol (Just z) = zoneName z
+
+deriveZoneCol : Ante -> IntroAlt -> String
+deriveZoneCol base Nothing = zoneCol base.expectedZone
+deriveZoneCol base (Just (alt, tag)) = case introDescrAnte alt of
+  Just a => if sameZoneM base.expectedZone a.expectedZone
+              then zoneCol base.expectedZone
+              else tag
+  Nothing => zoneCol base.expectedZone
+
+-- one DERIVED row: columns read off `base` (the probe application), the tag
+-- columns computed against the axis-varying alternates.
+introRowD : (clause : String) -> (base : List Ante)
+         -> (cardAlt : IntroAlt) -> (sortAlt : IntroAlt) -> (zoneAlt : IntroAlt)
+         -> (cite : String) -> String
+introRowD clause base cardAlt sortAlt zoneAlt cite =
+  case introDescrAnte base of
+    -- a clause that pushes nothing has no row (unreachable for these keys)
+    Nothing => ""
+    Just a =>
+      introRow clause (isJust (introObjAnte base)) (introSiteName a.site)
+               (deriveCardCol a cardAlt) (deriveSortCol a sortAlt)
+               (deriveZoneCol a zoneAlt) (introHasAmount base) cite
+
+-- probe filters: two nouns (`OfType Creature` on the battlefield default vs
+-- `Card` in hand) so the from_filter probes actually vary the sort.
+probeCreature : Predicate Base AnObject
+probeCreature = HasChar Types Creature
+
+probeHand : Predicate Base AnObject
+probeHand = InZone Hand
+
+probeToken : Characteristics Base
+probeToken = ^: { types := [Creature] }
+
+-- the loop element a `Each`/`DivideAmong` body binds — the head of the
+-- `bindIt`/`bindAllot` stack over the binder's antecedent (`bindAllot` also
+-- pushes the `Allot` share, so its probe keeps two entries).
+loopHeadOf : Bindable Base Many AnObject -> List Ante
+loopHeadOf dom = take 1 (stack (bindIt (binderAnte dom) Base))
+
+allotHeadOf : Bindable Base Many AnObject -> List Ante
+allotHeadOf dom = take 2 (stack (bindAllot (binderAnte dom) Base))
+
 introRows : List String
 introRows =
-  [ -- announced target slots ([CR#115.3,601.2c])
-    introRow "Targeted.slot" True "TargetSlot" "FromQuantity" "from_filter" "none" False "[CR#115.3,601.2c]"
-    -- moved objects: the effect finds what it moved ([CR#400.7j]); the
-    -- destination fixes the noun and the [CR#603.7c] expected zone
-  , introRow "Move" True "Product" "One" "from_destination" "from_destination" False "[CR#400.7j]"
-  , introRow "MoveGroup" True "Product" "Many" "from_destination" "from_destination" False "[CR#400.7j]"
+  [ -- announced target slots ([CR#115.3,601.2c]): columns from `slotAnte` —
+    -- cardinality tracks the QUANTITY, the noun tracks the FILTER.
+    introRowD "Targeted.slot"
+      [slotAnte (Target (^1) probeCreature)]
+      (Just ([slotAnte (Target (between (^1) (^2)) probeCreature)], "FromQuantity"))
+      (Just ([slotAnte (Target (^1) probeHand)], "from_filter"))
+      Nothing
+      "[CR#115.3,601.2c]"
+    -- moved objects: the effect finds what it moved ([CR#400.7j]); the noun
+    -- AND the [CR#603.7c] expected zone track the destination (`actionIntro`).
+  , introRowD "Move"
+      (actionIntro (the (Action Base) (Move This (ToZone Exile))))
+      Nothing
+      (Just (actionIntro (the (Action Base) (Move This (ToZone Battlefield))), "from_destination"))
+      (Just (actionIntro (the (Action Base) (Move This (ToZone Battlefield))), "from_destination"))
+      "[CR#400.7j]"
+  , introRowD "MoveGroup"
+      (actionIntro (the (Action Base) (MoveArranged (SelectAll probeCreature) ChosenOrder (ToZone Exile))))
+      Nothing
+      (Just (actionIntro (the (Action Base) (MoveArranged (SelectAll probeCreature) ChosenOrder (ToZone Battlefield))), "from_destination"))
+      (Just (actionIntro (the (Action Base) (MoveArranged (SelectAll probeCreature) ChosenOrder (ToZone Battlefield))), "from_destination"))
+      "[CR#400.7j]"
     -- created tokens enter the battlefield ([CR#111.2]); arity derived from
-    -- the count (the fact-signature product-arity column)
-  , introRow "Create" True "Product" "FromCount" "Token" "Battlefield" False "[CR#111.2]"
-    -- card-flow verbs push the moved cards AND an amount antecedent
-  , introRow "Draw" True "Product" "FromCount" "Card" "Hand" True "[CR#121.1]"
-  , introRow "Discard" True "Product" "FromCount" "Card" "Graveyard" True "[CR#701.9a]"
-  , introRow "Mill" True "Product" "FromCount" "Card" "Graveyard" True "[CR#701.17a]"
-    -- amount-bearing verbs push "that much" ([CR#608.2i] look-back)
-  , introRow "DealDamage" False "Product" "One" "Amount" "none" True "[CR#120.1]"
-  , introRow "GainLife" False "Product" "One" "Amount" "none" True "[CR#119.3]"
-  , introRow "LoseLife" False "Product" "One" "Amount" "none" True "[CR#119.3]"
-    -- resolution-time choices push Chosen antecedents ([CR#608.2d])
-  , introRow "A" True "Chosen" "One" "from_filter" "none" False "[CR#608.2d]"
-  , introRow "With.ChooseOne" True "Chosen" "One" "from_filter" "none" False "[CR#608.2d]"
-  , introRow "With.Choose" True "Chosen" "Many" "from_filter" "none" False "[CR#608.2d]"
-  , introRow "With.TheRef" True "Chosen" "One" "from_binder" "none" False "[CR#608.2d]"
-  , introRow "With.Existing" True "Chosen" "Many" "from_binder" "none" False "[CR#608.2d]"
-  , introRow "With.Produce" True "Product" "One" "from_binder" "none" False "[CR#608.2d]"
-    -- searches produce WHIFFABLE products ([CR#701.23,701.23b])
-  , introRow "With.SearchOne" True "Product" "One" "Card" "none" False "[CR#701.23]"
-  , introRow "With.Search" True "Product" "Many" "Card" "none" False "[CR#701.23]"
+    -- the count (the fact-signature product-arity column).
+  , introRowD "Create"
+      (actionIntro (the (Action Base) (CreateToken (^1) probeToken)))
+      (Just (actionIntro (the (Action Base) (CreateToken (^2) probeToken)), "FromCount"))
+      Nothing Nothing
+      "[CR#111.2]"
+    -- card-flow verbs push the moved cards AND an amount antecedent.
+  , introRowD "Draw"
+      (actionIntro (the (Action Base) (Draw (^1))))
+      (Just (actionIntro (the (Action Base) (Draw (^2))), "FromCount"))
+      Nothing Nothing
+      "[CR#121.1]"
+  , introRowD "Discard"
+      (actionIntro (the (Action Base) (Discard (^1))))
+      (Just (actionIntro (the (Action Base) (Discard (^2))), "FromCount"))
+      Nothing Nothing
+      "[CR#701.9a]"
+    -- Mill: the one HAND card-flow row — the Rust player verb has no Idris
+    -- `Action` twin (the Idris `mill` is a Composite macro over Move); its
+    -- noun/zone are still single-sourced from the model (`zoneSort` of the
+    -- entailed `millTo` destination), and count/amount mirror Draw/Discard.
+  , introRow "Mill" True "Product" "FromCount"
+      (sortKey (zoneSort millTo)) (zoneName millTo) True "[CR#701.17a]"
+    -- amount-bearing verbs push "that much" ([CR#608.2i] look-back): the
+    -- probe pushes ONLY `amountAnte`, so object=false and the descriptive
+    -- columns are the amount antecedent's own.
+  , introRowD "DealDamage"
+      (actionIntro (the (Action Base) (DealDamage This (^1))))
+      Nothing Nothing Nothing
+      "[CR#120.1]"
+  , introRowD "GainLife"
+      (actionIntro (the (Action Base) (GainLife (^1))))
+      Nothing Nothing Nothing
+      "[CR#119.3]"
+  , introRowD "LoseLife"
+      (actionIntro (the (Action Base) (LoseLife (^1))))
+      Nothing Nothing Nothing
+      "[CR#119.3]"
+    -- resolution-time choices push Chosen antecedents ([CR#608.2d]): the
+    -- indefinite (`refIntro`) and the choice binders (`binderAnte` — the
+    -- deterministic Frame spells "Chosen" on the Rust surface).
+  , introRowD "A"
+      (refIntro (the (Reference Base AnObject) (A probeCreature)))
+      Nothing
+      (Just (refIntro (the (Reference Base AnObject) (A probeHand)), "from_filter"))
+      Nothing
+      "[CR#608.2d]"
+  , introRowD "With.ChooseOne"
+      [binderAnte (the (Bindable Base One AnObject) (ChooseOne probeCreature))]
+      Nothing
+      (Just ([binderAnte (the (Bindable Base One AnObject) (ChooseOne probeHand))], "from_filter"))
+      Nothing
+      "[CR#608.2d]"
+  , introRowD "With.Choose"
+      [binderAnte (the (Bindable Base Many AnObject) (Choose (^2) probeCreature))]
+      Nothing
+      (Just ([binderAnte (the (Bindable Base Many AnObject) (Choose (^2) probeHand))], "from_filter"))
+      Nothing
+      "[CR#608.2d]"
+  , introRowD "With.TheRef"
+      [binderAnte (the (Bindable Base One AnObject) (TheRef This))]
+      Nothing
+      (Just ([binderAnte (the (Bindable Base One APlayer) (TheRef You))], "from_binder"))
+      Nothing
+      "[CR#608.2d]"
+  , introRowD "With.Existing"
+      [binderAnte (the (Bindable Base Many AnObject) (Existing (SelectAll probeCreature)))]
+      Nothing
+      (Just ([binderAnte (the (Bindable Base Many AnObject) (Existing (TopOfLibrary (^3))))], "from_binder"))
+      Nothing
+      "[CR#608.2d]"
+  , introRowD "With.Produce"
+      [binderAnte (the (Bindable Base One AnObject) (Produce (Move This (ToZone Exile))))]
+      Nothing
+      (Just ([binderAnte (the (Bindable Base One AnObject) (Produce (Move This (ToZone Battlefield))))], "from_binder"))
+      Nothing
+      "[CR#608.2d]"
+    -- searches produce WHIFFABLE products ([CR#701.23,701.23b]); the noun is
+    -- fixed `Card` — the from_binder probe AGREES across filters, so the
+    -- fixed value is emitted (derivation, not assumption).
+  , introRowD "With.SearchOne"
+      [binderAnte (the (Bindable Base One AnObject) (SearchOne probeCreature))]
+      Nothing
+      (Just ([binderAnte (the (Bindable Base One AnObject) (SearchOne probeHand))], "from_binder"))
+      Nothing
+      "[CR#701.23]"
+  , introRowD "With.Search"
+      [binderAnte (the (Bindable Base Many AnObject) (Search (^1) probeCreature))]
+      Nothing
+      (Just ([binderAnte (the (Bindable Base Many AnObject) (Search (^1) probeHand))], "from_binder"))
+      Nothing
+      "[CR#701.23]"
     -- loop elements ([CR#608.2]); DivideAmong additionally binds Allotment
-    -- via its bind-rules row ([CR#601.2d])
-  , introRow "Each" True "Loop" "One" "from_binder" "none" False "[CR#608.2]"
-  , introRow "DivideAmong" True "Loop" "One" "from_binder" "none" False "[CR#601.2d]"
-    -- piles: one labeled Many antecedent per label ([CR#700.3]); the chosen
-    -- pile binds for the `then` body ([CR#700.3,608.2d])
-  , introRow "SeparatePiles.pile" True "Product" "Many" "Pile" "none" False "[CR#700.3]"
-  , introRow "ChoosePile" True "Chosen" "Many" "Pile" "none" False "[CR#700.3]"
+    -- via its bind-rules row ([CR#601.2d]) — `introHasAmount` excludes the
+    -- Allot share by site.
+  , introRowD "Each"
+      (loopHeadOf (Existing (SelectAll probeCreature)))
+      Nothing
+      (Just (loopHeadOf (Existing (TopOfLibrary (^3))), "from_binder"))
+      Nothing
+      "[CR#608.2]"
+  , introRowD "DivideAmong"
+      (allotHeadOf (Existing (SelectAll probeCreature)))
+      Nothing
+      (Just (allotHeadOf (Existing (TopOfLibrary (^3))), "from_binder"))
+      Nothing
+      "[CR#601.2d]"
+    -- piles ([CR#700.3]): the chosen pile IS the Idris `PileFrame`; the
+    -- labeled per-pile groups are the Rust `SeparatePiles` generalization
+    -- (the Idris `DivideAndChoose` is the fixed two-pile form), so their
+    -- SITE is the one Rust-shaped column — noun/cardinality read off
+    -- `PileFrame`.
+  , let pf = PileFrame in
+    introRow "SeparatePiles.pile" True "Product"
+      (cardTag pf.card) (sortKey pf.sort) "none" False "[CR#700.3]"
+  , introRowD "ChoosePile" [PileFrame] Nothing Nothing Nothing "[CR#700.3]"
   ]
 
 introTable : String
@@ -866,69 +1195,105 @@ classTable =
 -- checker-rule manifest: every error code the elaborator may emit
 -- --------------------------------------------------------------------------
 
-ruleRow : (code : String) -> (cite : String) -> (summary : String) -> String
-ruleRow code cite summary =
+-- The TWIN disposition ([[idris-tables-fixtures-v2]] — the fixture-twin CI
+-- gate's direction A): `IdrisTwin` = at least one `failing` block in
+-- Spec.idr/Experimental.idr twins this code (its `-- @twin` annotation names
+-- the reject fixture; the Rust `twin_gate` test cross-checks BOTH
+-- directions); `RustOnly why` = the rule deliberately has no Idris twin,
+-- with the documented reason riding the row.
+data TwinDisposition = IdrisTwin | RustOnly String
+
+twinField : TwinDisposition -> String
+twinField IdrisTwin = "Idris"
+twinField (RustOnly why) = "RustOnly(" ++ quoted why ++ ")"
+
+ruleRow : (code : String) -> (cite : String) -> (summary : String) -> TwinDisposition -> String
+ruleRow code cite summary twin =
   "        (code: " ++ quoted code
   ++ ", cite: " ++ quoted cite
-  ++ ", summary: " ++ quoted summary ++ "),\n"
+  ++ ", summary: " ++ quoted summary
+  ++ ", twin: " ++ twinField twin ++ "),\n"
 
 -- The full code space. `active: false` families are laid out now and turn on
 -- in the ticket that mints their grammar nodes (copy-except; macro contracts).
 ruleRows : List String
 ruleRows =
-  [ ruleRow "E-BIND-TARGET" "[CR#115.3,601.2c]" "target slot referenced but not announced in scope"
-  , ruleRow "E-BIND-THAT" "[CR#608.2d]" "sorted singular anaphor That(Sort) with no compatible antecedent in scope"
-  , ruleRow "E-BIND-THAT-GROUP" "[CR#608.2d]" "plural anaphor They/Them(Sort) with no compatible Many antecedent in scope"
-  , ruleRow "E-BIND-IT" "[CR#608.2]" "It with no antecedent: outside every loop binder and with an empty antecedent stack"
-  , ruleRow "E-BIND-ALLOTMENT" "[CR#601.2d]" "Allotment read outside a DivideAmong body"
-  , ruleRow "E-BIND-EVENT" "[CR#603.2e,608.2k]" "event-role reference outside any event body"
+  [ ruleRow "E-BIND-TARGET" "[CR#115.3,601.2c]" "target slot referenced but not announced in scope" IdrisTwin
+  , ruleRow "E-BIND-THAT" "[CR#608.2d]" "sorted singular anaphor That(Sort) with no compatible antecedent in scope" IdrisTwin
+  , ruleRow "E-BIND-THAT-GROUP" "[CR#608.2d]" "plural anaphor They/Them(Sort) with no compatible Many antecedent in scope" IdrisTwin
+  , ruleRow "E-BIND-IT" "[CR#608.2]" "It with no antecedent: outside every loop binder and with an empty antecedent stack" IdrisTwin
+  , ruleRow "E-BIND-ALLOTMENT" "[CR#601.2d]" "Allotment read outside a DivideAmong body" IdrisTwin
+  , ruleRow "E-BIND-EVENT" "[CR#603.2e,608.2k]" "event-role reference outside any event body" IdrisTwin
   , ruleRow "E-BIND-NOTE" "[CR#607.2]" "noted key read but never noted in scope"
-  , ruleRow "E-BIND-AMBIGUOUS" "[CR#608.2d]" "ambiguous reference - a second same-kind compatible antecedent exists; add Label/The, or use Target(n)"
-  , ruleRow "E-BIND-LABEL" "[CR#608.2d]" "labeled reference (The/TheGroup/pile label) naming no label in scope"
-  , ruleRow "E-CAPS-OBJECT" "[CR#603.2e,608.2k]" "EventObject read where the event caps supply no object"
-  , ruleRow "E-CAPS-ACTOR" "[CR#603.2e,608.2k]" "EventActor read where the event caps supply no actor"
-  , ruleRow "E-CAPS-PATIENT" "[CR#120.3,608.2k]" "EventPatient read where the event fixes no patient kind"
-  , ruleRow "E-CAPS-DEFENDER" "[CR#506.2,508.5]" "DefendingPlayer read where no combat onset supplies one"
-  , ruleRow "E-CAPS-AMOUNT" "[CR#107.3,608.2i]" "amount anaphor/aggregation without an amount-guaranteeing antecedent"
+      (RustOnly "the note channel is Rust-side linked-ability bookkeeping; the Idris model has no note primitive")
+  , ruleRow "E-BIND-AMBIGUOUS" "[CR#608.2d]" "ambiguous reference - a second same-kind compatible antecedent exists; add Label/The, or use Target(n)" IdrisTwin
+  , ruleRow "E-BIND-LABEL" "[CR#608.2d]" "labeled reference (The/TheGroup/pile label) naming no label in scope" IdrisTwin
+  , ruleRow "E-CAPS-OBJECT" "[CR#603.2e,608.2k]" "EventObject read where the event caps supply no object" IdrisTwin
+  , ruleRow "E-CAPS-ACTOR" "[CR#603.2e,608.2k]" "EventActor read where the event caps supply no actor" IdrisTwin
+  , ruleRow "E-CAPS-PATIENT" "[CR#120.3,608.2k]" "EventPatient read where the event fixes no patient kind" IdrisTwin
+  , ruleRow "E-CAPS-DEFENDER" "[CR#506.2,508.5]" "DefendingPlayer read where no combat onset supplies one" IdrisTwin
+  , ruleRow "E-CAPS-AMOUNT" "[CR#107.3,608.2i]" "amount anaphor/aggregation without an amount-guaranteeing antecedent" IdrisTwin
   , ruleRow "E-CAPS-ANCHOR" "[CR#603.2]" "event position that must bottom out in master forms doesn't (bare Not / unanchored disjunct)"
+      (RustOnly "the Idris EventQuery separates kinds from facets, so an unanchored pattern is unrepresentable by construction; the anchor check exists for the Rust EventFilter algebra")
   , ruleRow "E-CAPS-CONTRADICTION" "[CR#603.2g]" "conjunction over incompatible master forms or against a cause entailment - the pattern can never match"
+      (RustOnly "the Idris kinds list is a disjunction - a conjunction of master forms is unrepresentable by construction; the contradiction check is the Rust algebra's")
   , ruleRow "E-LANE-WITHIN" "[CR#603.2]" "Within refinement in a live event lane (vacuous outside history counting)"
+      (RustOnly "lane admissibility is per-consumer engine data, deliberately not modeled at the Idris type level")
   , ruleRow "E-LANE-BATCH" "[CR#603.2c]" "OneOrMore/Nth refinement in a lane that forbids it"
+      (RustOnly "lane admissibility is per-consumer engine data, deliberately not modeled at the Idris type level")
   , ruleRow "E-BRIDGE-CAP" "[CR#603.2]" "event construct the lane's bridge matcher cannot faithfully evaluate - load-capped until the one-evaluator rebase"
+      (RustOnly "bridge support values are engine capability facts (which matcher arms exist today), not model content")
   , ruleRow "E-POS-TARGETED" "[CR#115.1a..115.1e,601.2c]" "Targeted outside an announce root (replacement/static/loop position)"
+      (RustOnly "may_target positional discipline rides the bind-rules rows as per-row data; the Idris stack deliberately does not carry it")
   , ruleRow "E-POS-RIDER" "[CR#614.12]" "enter rider on a non-battlefield destination"
+      (RustOnly "enter riders are Rust grammar nodes with no Idris twin; the destination check is the elaborator's")
   , ruleRow "E-POS-PREVENTION" "[CR#615.1,615.1a]" "damage-prevention written as a generic Instead (a no-op damage replacement) - spell the marked Prevention class"
+      (RustOnly "the marked Prevention class is a Rust grammar node; the Idris model spells prevention as ReplaceAmount")
   , ruleRow "E-POS-SIMULTANEOUS" "[CR#701.12]" "exchange-family batch primitive (Simultaneous/GainControl) outside an exchange-family macro body - the engine's batch wiring is exchange-only until it generalizes"
-  , ruleRow "E-KIND-FILTER" "[CR#109.1]" "filter kind conflicts with its slot's expected kind"
-  , ruleRow "E-KIND-COUNTER-SCOPE" "[CR#122.1]" "counter kind used on a carrier its scope forbids"
+      (RustOnly "the exchange-family batch primitives are Rust grammar nodes; the Idris model has no Simultaneous or one-shot GainControl")
+  , ruleRow "E-KIND-FILTER" "[CR#109.1]" "filter kind conflicts with its slot's expected kind" IdrisTwin
+  , ruleRow "E-KIND-COUNTER-SCOPE" "[CR#122.1]" "counter kind used on a carrier its scope forbids" IdrisTwin
   , ruleRow "E-KIND-COUNTER-UNDECLARED" "[CR#122.1]" "counter reference names no declared counter kind"
-  , ruleRow "E-KIND-DESIGNATION-SCOPE" "[CR#109.3]" "designation used on a carrier its scope forbids"
+      (RustOnly "counter kinds are grammar-curated (a closed enum) in Idris, so an undeclared kind is unrepresentable; the check guards the Rust open registry")
+  , ruleRow "E-KIND-DESIGNATION-SCOPE" "[CR#109.3]" "designation used on a carrier its scope forbids" IdrisTwin
   , ruleRow "E-KIND-NOTE-DOMAIN" "[CR#607.2]" "noted key read with a domain its declared kind doesn't store"
+      (RustOnly "the note channel is Rust-side linked-ability bookkeeping; the Idris model has no note primitive")
   , ruleRow "E-KIND-PATIENT-SCOPE" "[CR#508.1b,509.1a,115.4]" "deed patient kind conflicts with its relation's patientScope row"
+      (RustOnly "the row VALUES are emitted from the Idris patientScope function, but the Idris Deed keeps its patient kind-poly - the scope check itself is the elaborator's")
   , ruleRow "E-KIND-SUBTYPE-CATEGORY" "[CR#205.3]" "subtype value whose category disagrees with the loaded registry declaration"
-  , ruleRow "E-KIND-KEYWORD-SHAPE" "[CR#702]" "keyword use whose args don't fit the declared ParamShape (a bare parameterized keyword)"
-  , ruleRow "E-FLOOR-TYPES" "[CR#109.3]" "card/token face with no card types"
-  , ruleRow "E-FLOOR-SUBTYPE" "[CR#205.3d]" "subtype whose governing card type is absent from the face"
+      (RustOnly "subtypeCategory is total by construction in Idris; the check guards the Rust open registry's declared categories")
+  , ruleRow "E-KIND-KEYWORD-SHAPE" "[CR#702]" "keyword use whose args don't fit the declared ParamShape (a bare parameterized keyword)" IdrisTwin
+  , ruleRow "E-FLOOR-TYPES" "[CR#109.3]" "card/token face with no card types" IdrisTwin
+  , ruleRow "E-FLOOR-SUBTYPE" "[CR#205.3d]" "subtype whose governing card type is absent from the face" IdrisTwin
   , ruleRow "E-FLOOR-LOYALTY" "[CR#209]" "printed loyalty on a non-Planeswalker face"
+      (RustOnly "the Idris face keeps printed loyalty lax (CharacteristicsOk is deliberately the one-type floor); the printed-stat floor is the elaborator's")
   , ruleRow "E-FLOOR-DEFENSE" "[CR#210]" "printed defense on a non-Battle face"
+      (RustOnly "the Idris face keeps printed defense lax (CharacteristicsOk is deliberately the one-type floor); the printed-stat floor is the elaborator's")
   , ruleRow "E-FLOOR-TOKEN-TYPES" "[CR#111.1,110.4]" "token spec with non-permanent card types"
-  , ruleRow "E-FLOOR-RANGE" "[CR#115.6]" "literal quantity range with inverted bounds"
-  , ruleRow "E-FLOOR-TARGET-QTY" "[CR#115.1]" "target slot whose quantity permits zero targets"
-  , ruleRow "E-FLOOR-BLOCK-QTY" "[CR#509.1]" "block-arrangement bound satisfiable only by zero blockers"
-  , ruleRow "E-FLOOR-MODAL-COUNT" "[CR#700.2d]" "modal choose-count exceeds the number of modes"
-  , ruleRow "E-FLOOR-MODAL-EMPTY" "[CR#700.2]" "modal effect with no modes"
+      (RustOnly "the Idris CreateToken demands only the one-type floor; the permanent-types token floor is the elaborator's")
+  , ruleRow "E-FLOOR-RANGE" "[CR#115.6]" "literal quantity range with inverted bounds" IdrisTwin
+  , ruleRow "E-FLOOR-TARGET-QTY" "[CR#115.1]" "target slot whose quantity permits zero targets" IdrisTwin
+  , ruleRow "E-FLOOR-BLOCK-QTY" "[CR#509.1]" "block-arrangement bound satisfiable only by zero blockers" IdrisTwin
+  , ruleRow "E-FLOOR-MODAL-COUNT" "[CR#700.2d]" "modal choose-count exceeds the number of modes" IdrisTwin
+  , ruleRow "E-FLOOR-MODAL-EMPTY" "[CR#700.2]" "modal effect with no modes" IdrisTwin
   , ruleRow "E-FLOOR-DIVIDE" "[CR#601.2d]" "divided amount statically smaller than the minimum group size"
+      (RustOnly "the Idris Distribute carries no static divide floor (a senseless split is engine-resolved); the literal floor is the elaborator's")
   , ruleRow "E-FLOOR-PILES" "[CR#700.3]" "pile shape floor: no pile labels, or duplicate pile labels"
+      (RustOnly "pile labels are the Rust SeparatePiles generalization; the Idris DivideAndChoose is the fixed two-pile form")
   , ruleRow "E-FLOOR-NTH" "[CR#603.2g]" "Nth occurrence index below one - a 0th occurrence never occurs"
-  , ruleRow "E-FLOOR-DESTINATION" "[CR#401.4,405.1]" "bare Library/Stack zone as a Move destination (ordered positions only via Library(Anchor); the stack is never a destination)"
+      (RustOnly "the Idris IsNth keeps n=0 a harmless never-matching facet by documented choice; the floor is the elaborator's")
+  , ruleRow "E-FLOOR-DESTINATION" "[CR#401.4,405.1]" "bare Library/Stack zone as a Move destination (ordered positions only via Library(Anchor); the stack is never a destination)" IdrisTwin
   , ruleRow "E-FLOOR-DEED-AGENT" "[CR#702.11d,702.16b]" "DeedAgent with neither arm present (the two-armed agent constrains through at least one arm)"
+      (RustOnly "the two-armed DeedAgent is a Rust grammar node; the Idris Enact carries a single agent predicate")
   , ruleRow "E-COST-INELIGIBLE" "[CR#118.3]" "cost Do(action) whose verb is not cost-eligible"
+      (RustOnly "the Idris Cost.Do is deliberately unrestricted (a senseless cost no-ops); eligibility is the emitted cost-actions closed set, checked by the elaborator")
   , ruleRow "E-COST-X" "[CR#107.3]" "Count::X read where no {X} is declared by the carrying cost"
+      (RustOnly "the {X} declaration channel (has_x) is positional discipline the Idris model does not carry")
   ]
 
 rulesTable : String
 rulesTable =
-  header "Checker-rule manifest: every E-code the elaborator may emit (each twinned to a reject fixture)."
+  header "Checker-rule manifest: every E-code the elaborator may emit, with its fixture-TWIN disposition (Idris = a Spec/Experimental failing block twins it; RustOnly = documented no-twin reason)."
   ++ "(\n    rows: [\n" ++ concat ruleRows ++ "    ],\n)\n"
 
 -- --------------------------------------------------------------------------
@@ -938,13 +1303,28 @@ rulesTable =
 outDir : String
 outDir = "../crates/deckmaste_cards/tables/"
 
-emit : (file : String) -> String -> IO ()
-emit file contents = do
-  Right () <- writeFile (outDir ++ file) contents
+resolutionDir : String
+resolutionDir = "../crates/deckmaste_cards/tests/resolution/"
+
+emitAt : (path : String) -> String -> IO ()
+emitAt path contents = do
+  Right () <- writeFile path contents
     | Left err => do
-        putStrLn ("emit-tables: failed to write " ++ file ++ ": " ++ show err)
+        putStrLn ("emit-tables: failed to write " ++ path ++ ": " ++ show err)
         exitFailure
-  putStrLn ("wrote " ++ outDir ++ file)
+  putStrLn ("wrote " ++ path)
+
+emit : (file : String) -> String -> IO ()
+emit file contents = emitAt (outDir ++ file) contents
+
+-- the per-card resolution-table fixtures (Resolutions.idr) — the Rust
+-- `resolution` test replays each card's canon RON twin and demands
+-- byte-for-byte agreement on the anaphor rows.
+emitResolutions : IO ()
+emitResolutions =
+  traverse_ (\p => emitAt (resolutionDir ++ fst p ++ ".txt")
+                          (renderResolutions (fst p) (snd p)))
+            resolutionFixtures
 
 export
 emitTables : IO ()
@@ -962,6 +1342,7 @@ emitTables = do
   emit "intro.ron" introTable
   emit "static-classes.ron" classTable
   emit "checker-rules.ron" rulesTable
+  emitResolutions
 
 -- `--exec main` convenience: the same entry.
 main : IO ()

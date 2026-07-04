@@ -1,0 +1,14 @@
+// Twin of Spec.idr `tBadAmbiguousAmount`: TWO amount antecedents make
+// `ThatMany` a guess — the R2 uniqueness gate ranges over value anaphora
+// too ([CR#608.2i]).
+Normal(
+  name: "Reject Two Amount Antecedents",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Sequence([
+      Draw(2),
+      GainLife(3),
+      LoseLife(ThatMany),
+    ])),
+  ],
+)

@@ -709,8 +709,9 @@ sameSort Pile Pile = True
 sameSort _ _ = False
 
 -- R1 sort COMPATIBILITY: which antecedent nouns an anaphor of each wanted
--- noun reaches — the Idris twin of the emitted `sort-compat.ron` rows
--- (`Spec.tCompatTable` pins the agreement). "That card" never reaches a
+-- noun reaches — the SOURCE of the emitted `sort-compat.ron` rows (the
+-- emitter enumerates this function over one representative Sort per key;
+-- `Spec.tCompatRows` pins the valuation). "That card" never reaches a
 -- token ([CR#108.2b]); "that permanent" reaches any battlefield noun
 -- ([CR#110.1]); "spell or ability" reaches a spell ([CR#405.1]); a typed
 -- noun reaches exactly its own type ([CR#205.2a]). (The exact-vs-widened
@@ -1001,7 +1002,8 @@ sortFromPins (MkPins k z t) =
 -- the object-role NOUN an event kind supplies its body's "that …" anaphor
 -- ([CR#400.7e] — a moved object's noun follows the zone it moved to; a
 -- sacrificed/destroyed/discarded object went to a graveyard, an exiled one
--- to exile — the entailment rows). Mirrors the emitted `object_sort` column.
+-- to exile — the entailment rows). DRIVES the emitted `object_sort` column
+-- (EmitTables.objectSortTag computes each row's tag from this + the caps).
 public export
 eventKindObjectSort : EventKind -> Sort
 eventKindObjectSort Sacrifice = Card                       -- [CR#701.21a] battlefield -> graveyard
