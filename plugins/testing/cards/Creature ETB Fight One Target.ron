@@ -1,0 +1,26 @@
+// {2}{G} 3/2: "When this creature enters, it fights target creature you
+// don't control." — the fight family's SINGLE-target shape ([CR#701.14a]).
+// Calibration evidence ([[cards-corpus-dry-run]]): even with only ONE
+// announced target, spelling the fight's patient as `It` trips the strict R2
+// gate HERE, because the enclosing ETB event's object is a second in-scope
+// singular antecedent (`It reaches 2 antecedents`) — and both candidates are
+// exact-sort creatures, so the pre-approved exact-sort-precedence loosening
+// would not rescue it either. With `Label` unable to name a TARGET slot, the
+// whole fight family spells its patient as `Target(n)` today; inherited by
+// cards-fidelity-target-sunset.
+Normal(
+    name: "Creature ETB Fight One Target",
+    mana_cost: [Generic(2), Green],
+    types: [Creature],
+    power: 3,
+    toughness: 2,
+    abilities: [
+        Triggered(
+            event: ThisEnters,
+            effect: Targeted(
+                targets: [TargetOne(AllOf([Creature, Not(ControlledBy(Ref(You)))]))],
+                effect: Fight(This, Target(0)),
+            ),
+        ),
+    ],
+)

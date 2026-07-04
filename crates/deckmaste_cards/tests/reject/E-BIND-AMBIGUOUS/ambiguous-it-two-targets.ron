@@ -1,7 +1,7 @@
 // The wildcard `It` with TWO compatible target antecedents in scope: which
 // one "it" names would be a guess, so it is a load error offering the
-// explicit fallbacks ([CR#608.2d]; the R2 uniqueness gate, strict until the
-// corpus dry-run calibrates it).
+// explicit fallbacks ([CR#608.2d]; the R2 uniqueness gate, calibrated and
+// frozen STRICT by the corpus dry-run).
 Normal(
   name: "Reject Ambiguous It",
   types: [Sorcery],

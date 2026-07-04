@@ -38,6 +38,14 @@ pub struct ElaborateArgs {
     /// errors print too).
     #[arg(long)]
     dump: Option<String>,
+    /// The corpus dry-run harness ([[cards-corpus-dry-run]]): elaborate every
+    /// encodable face across `plugins/{builtin,canon,testing,wizards}` and
+    /// print the calibration metrics — (a) the R2 ambiguity-gate fire rate,
+    /// (b) the `Label`/`The`/`TheGroup` fallback rate, (c) a pointer to the
+    /// archived hand-audit sample. Ignores the positional plugin dir;
+    /// honors `--workspace-root`.
+    #[arg(long)]
+    metrics: bool,
 }
 
 /// # Errors
@@ -51,12 +59,13 @@ pub fn run(args: ElaborateArgs) -> anyhow::Result<()> {
         lock,
         workspace_root,
         dump,
+        metrics,
     } = args;
 
-    if lock {
+    if lock || metrics {
         let workspace_root =
             workspace_root.unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."));
-        return write_lock(&workspace_root);
+        return if lock { write_lock(&workspace_root) } else { corpus_metrics(&workspace_root) };
     }
 
     let plugin_dir = plugin_dir
@@ -95,6 +104,82 @@ fn write_lock(workspace_root: &Path) -> anyhow::Result<()> {
         path.display(),
         checksums.len(),
         lock::HAND_AUTHORED.len(),
+    );
+    Ok(())
+}
+
+/// The plugins the dry-run measures: every hand-authored plugin with cards
+/// plus the extracted `wizards` corpus (`demo` has no cards).
+const CORPUS: [&str; 4] = ["builtin", "canon", "testing", "wizards"];
+
+/// The corpus dry-run harness ([[cards-corpus-dry-run]]): elaborates every
+/// encodable (finished, parsing) face across [`CORPUS`] via the same traced
+/// walk `validate` runs, and prints the R2 calibration metrics. Deterministic:
+/// two runs print identical numbers.
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "percentage display over face counts (~thousands) — exact in f64"
+)]
+fn corpus_metrics(workspace_root: &Path) -> anyhow::Result<()> {
+    let mut faces = 0usize;
+    let mut ambiguous_errors = 0usize;
+    let mut ambiguous_files = std::collections::BTreeSet::new();
+    let mut fallback_reads = 0usize;
+    let mut fallback_files = 0usize;
+    let mut deprecations = 0usize;
+    let mut other_findings = 0usize;
+
+    for plugin in CORPUS {
+        let dir = workspace_root.join("plugins").join(plugin);
+        let v = deckmaste_cards::validate::validate_plugin(&dir)?;
+        anyhow::ensure!(
+            v.failures.is_empty(),
+            "{plugin}: {} unparseable card(s) — not an encodable-face question, fix them first",
+            v.failures.len(),
+        );
+        println!(
+            "plugins/{plugin}: {} encodable face(s), {} elaboration finding(s)",
+            v.valid,
+            v.elab_failures.len(),
+        );
+        faces += v.valid;
+        for (path, error) in &v.elab_failures {
+            if error.code == elaborate::Code::BindAmbiguous {
+                ambiguous_errors += 1;
+                ambiguous_files.insert(path.clone());
+            } else {
+                other_findings += 1;
+            }
+        }
+        fallback_reads += v.fallback_reads;
+        fallback_files += v.fallback_files;
+        deprecations += v.deprecations;
+    }
+
+    let pct = |n: usize| 100.0 * n as f64 / faces as f64;
+    println!("corpus: {faces} encodable faces");
+    println!(
+        "(a) R2 ambiguity-gate fires (E-BIND-AMBIGUOUS): {} face(s), {} error(s) — {:.2}% of \
+         faces (bar: <=3%)",
+        ambiguous_files.len(),
+        ambiguous_errors,
+        pct(ambiguous_files.len()),
+    );
+    for path in &ambiguous_files {
+        println!("    {}", path.display());
+    }
+    println!(
+        "(b) Label/The/TheGroup fallback reads: {fallback_reads} read(s) across \
+         {fallback_files} face(s) — {:.2}% of faces",
+        pct(fallback_files),
+    );
+    println!(
+        "(c) mis-binding hand audit: crates/deckmaste_cards/tests/r2_audit/ (sample + pinned \
+         resolution tables)",
+    );
+    println!(
+        "    context: {other_findings} non-gate elaboration finding(s), {deprecations} \
+         deprecated Target(n)/GetTargets(n) read(s)",
     );
     Ok(())
 }

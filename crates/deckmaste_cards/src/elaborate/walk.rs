@@ -664,10 +664,11 @@ impl<'a> Walker<'a> {
 
     /// The R1+R2 stack resolution shared by every anaphor spelling:
     /// nearest compatible antecedent ([R1]), refusing when a SECOND
-    /// same-kind compatible antecedent is in scope ([R2] — strict; the
-    /// emitted `exact_sort_precedence` flag is the one pre-approved
-    /// loosening, [[cards-corpus-dry-run]] calibrates it). `Allot`-sited
-    /// antecedents never participate (they are `Count::Allotment`'s).
+    /// same-kind compatible antecedent is in scope ([R2] — calibrated and
+    /// FROZEN STRICT by [[cards-corpus-dry-run]]; the emitted
+    /// `exact_sort_precedence` flag is the one pre-approved loosening,
+    /// off). `Allot`-sited antecedents never participate (they are
+    /// `Count::Allotment`'s).
     ///
     /// On failure pushes `unbound` (nothing compatible) or
     /// `Code::BindAmbiguous` and returns `None`.
@@ -704,8 +705,9 @@ impl<'a> Walker<'a> {
         if !farther.is_empty() {
             // R2: a second same-kind, compatible antecedent exists. The one
             // pre-approved loosening: a nearer EXACT-sort match beats
-            // farther non-exact candidates ([[cards-corpus-dry-run]] flips
-            // the emitted flag; STRICT ships off).
+            // farther non-exact candidates ([[cards-corpus-dry-run]] froze
+            // the emitted flag STRICT=off; the path stays for Idris v2's
+            // mirror and any reviewed re-calibration).
             let loosened = self.tables.exact_sort_precedence()
                 && !nearest_widened
                 && farther.iter().all(|(_, _, widened)| *widened);

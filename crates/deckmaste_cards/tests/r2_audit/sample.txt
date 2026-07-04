@@ -1,0 +1,211 @@
+# The R2 ambiguity-gate calibration's 200-face hand-audit sample
+# ([[cards-corpus-dry-run]], drawn 2026-07-03 over the graduated corpus
+# at 5785 encodable faces). Strata:
+#   - every hand-authored (canon/testing/builtin) face reading an anaphor
+#     (It / That(Sort) / They / Them(Sort) / ThatMany): 4 canon faces, the
+#     only such users;
+#   - 196 of the 227 anaphor-reading graduated wizards faces, drawn by
+#     ordering md5("r2-audit-2026-07-03:<path>") ascending and taking the
+#     first 196 (deterministic, no RNG state).
+# Paths are relative to plugins/. tests/r2_audit.rs re-derives each
+# face's resolution table and pins it against resolutions.txt.
+canon/cards/Arc Lightning.ron
+canon/cards/Brainstorm.ron
+canon/cards/Flame Rift.ron
+canon/cards/Pyroclasm.ron
+wizards/cards/Agent of Shauku.ron
+wizards/cards/Akki Avalanchers.ron
+wizards/cards/Arcbound Ravager.ron
+wizards/cards/Arms Dealer.ron
+wizards/cards/Army Ants.ron
+wizards/cards/Ashnod's Altar.ron
+wizards/cards/Atog.ron
+wizards/cards/Attrition.ron
+wizards/cards/Aura Fracture.ron
+wizards/cards/Auratog.ron
+wizards/cards/Barrage of Expendables.ron
+wizards/cards/Barrage Ogre.ron
+wizards/cards/Barrin, Master Wizard.ron
+wizards/cards/Black Waltz No. 3.ron
+wizards/cards/Blazing Hellhound.ron
+wizards/cards/Blighted Shaman.ron
+wizards/cards/Bloodfire Colossus.ron
+wizards/cards/Bloodfire Kavu.ron
+wizards/cards/Bloodflow Connoisseur.ron
+wizards/cards/Blood Rites.ron
+wizards/cards/Bloodthrone Vampire.ron
+wizards/cards/Boggart Cursecrafter.ron
+wizards/cards/Bog Naughty.ron
+wizards/cards/Boltwave.ron
+wizards/cards/Breath of Malfegor.ron
+wizards/cards/Cabal Paladin.ron
+wizards/cards/Carnage Altar.ron
+wizards/cards/Carrion Feeder.ron
+wizards/cards/Cephalid Scout.ron
+wizards/cards/Chain Reaction.ron
+wizards/cards/Claws of Gix.ron
+wizards/cards/Clickslither.ron
+wizards/cards/Coastal Hornclaw.ron
+wizards/cards/Corpse Blockade.ron
+wizards/cards/Corrupted Harvester.ron
+wizards/cards/Dai Li Censor.ron
+wizards/cards/Dark Heart of the Wood.ron
+wizards/cards/Deafening Clarion.ron
+wizards/cards/Deranged Outcast.ron
+wizards/cards/Desert Sandstorm.ron
+wizards/cards/Devastate.ron
+wizards/cards/Dispersing Orb.ron
+wizards/cards/Dry Spell.ron
+wizards/cards/Eater of Hope.ron
+wizards/cards/Elven Palisade.ron
+wizards/cards/Elvish Skysweeper.ron
+wizards/cards/Embraal Gear-Smasher.ron
+wizards/cards/Etherium Astrolabe.ron
+wizards/cards/Extruder.ron
+wizards/cards/Facevaulter.ron
+wizards/cards/Fallen Angel.ron
+wizards/cards/Famine.ron
+wizards/cards/Ferrovore.ron
+wizards/cards/Festering Evil.ron
+wizards/cards/Fiery Confluence.ron
+wizards/cards/Firebrand Archer.ron
+wizards/cards/Fire Nation Archers.ron
+wizards/cards/Fire Tempest.ron
+wizards/cards/Flesh-Eater Imp.ron
+wizards/cards/Fodder Cannon.ron
+wizards/cards/Foratog.ron
+wizards/cards/Fountainport.ron
+wizards/cards/Fuel the Flames.ron
+wizards/cards/Gates Ablaze.ron
+wizards/cards/Gilded Goose.ron
+wizards/cards/Glimmer Bairn.ron
+wizards/cards/Gnathosaur.ron
+wizards/cards/Gobbling Ooze.ron
+wizards/cards/Goblin Bombardment.ron
+wizards/cards/Goblin Lookout.ron
+wizards/cards/Goblin Soothsayer.ron
+wizards/cards/Goblin Trashmaster.ron
+wizards/cards/Goblin Trenches.ron
+wizards/cards/Goblin Turncoat.ron
+wizards/cards/Goblin Warrens.ron
+wizards/cards/Golgari Guildmage.ron
+wizards/cards/Grim Backwoods.ron
+wizards/cards/Gruul Guildmage.ron
+wizards/cards/Guardian of Cloverdell.ron
+wizards/cards/Gutless Ghoul.ron
+wizards/cards/Hardened Tactician.ron
+wizards/cards/Hearthcage Giant.ron
+wizards/cards/Heartwood Giant.ron
+wizards/cards/High Market.ron
+wizards/cards/Hobblefiend.ron
+wizards/cards/Hungry Ghoul.ron
+wizards/cards/Hurler Cyclops.ron
+wizards/cards/Iizuka the Ruthless.ron
+wizards/cards/Impact Tremors.ron
+wizards/cards/Inferno.ron
+wizards/cards/Intruding Soulrager.ron
+wizards/cards/Keldon Arsonist.ron
+wizards/cards/Keldon Necropolis.ron
+wizards/cards/Kessig Flamebreather.ron
+wizards/cards/Knight Paladin.ron
+wizards/cards/Krark-Clan Engineers.ron
+wizards/cards/Krark-Clan Grunt.ron
+wizards/cards/Krark-Clan Ironworks.ron
+wizards/cards/Krark-Clan Stoker.ron
+wizards/cards/Kykar, Wind's Fury.ron
+wizards/cards/Lava Dart.ron
+wizards/cards/Lithatog.ron
+wizards/cards/Long Road Home.ron
+wizards/cards/Magmaw.ron
+wizards/cards/Malevolent Awakening.ron
+wizards/cards/Marrow-Gnawer.ron
+wizards/cards/Marsh Lurker.ron
+wizards/cards/Maw of the Obzedat.ron
+wizards/cards/Megatog.ron
+wizards/cards/Merciless Enforcers.ron
+wizards/cards/Mogg Raider.ron
+wizards/cards/Nantuko Husk.ron
+wizards/cards/Nemata, Grove Guardian.ron
+wizards/cards/Orcish Bloodpainter.ron
+wizards/cards/Orcish Mechanics.ron
+wizards/cards/Orcish Vandal.ron
+wizards/cards/Otherworldly Journey.ron
+wizards/cards/Overgrown Estate.ron
+wizards/cards/Oxidda Daredevil.ron
+wizards/cards/Pestilence Demon.ron
+wizards/cards/Phantatog.ron
+wizards/cards/Phyrexian Altar.ron
+wizards/cards/Phyrexian Broodlings.ron
+wizards/cards/Phyrexian Ghoul.ron
+wizards/cards/Phyrexian Plaguelord.ron
+wizards/cards/Phyrexian Soulgorger.ron
+wizards/cards/Phyrexian Tower.ron
+wizards/cards/Phyrexian Vault.ron
+wizards/cards/Phyrexia's Core.ron
+wizards/cards/Pitiless Pontiff.ron
+wizards/cards/Plagued Rusalka.ron
+wizards/cards/Plague Spitter.ron
+wizards/cards/Polar Kraken.ron
+wizards/cards/Portcullis Vine.ron
+wizards/cards/Pyroclasm.ron
+wizards/cards/Quagmire Druid.ron
+wizards/cards/Rain of Embers.ron
+wizards/cards/Ramunap Ruins.ron
+wizards/cards/Rath's Edge.ron
+wizards/cards/Ravenous Baloth.ron
+wizards/cards/Ravenous Harpy.ron
+wizards/cards/Ravenous Intruder.ron
+wizards/cards/Reckless Fireweaver.ron
+wizards/cards/Red Dragon.ron
+wizards/cards/Ripchain Razorkin.ron
+wizards/cards/Rootwater Alligator.ron
+wizards/cards/Rumbling Slum.ron
+wizards/cards/Rusted Slasher.ron
+wizards/cards/Ruthless Knave.ron
+wizards/cards/Sage of Lat-Nam.ron
+wizards/cards/Scarland Thrinax.ron
+wizards/cards/Scorched Rusalka.ron
+wizards/cards/Scrapyard Steelbreaker.ron
+wizards/cards/Seaside Haven.ron
+wizards/cards/Seething Pathblazer.ron
+wizards/cards/Sepulcher Ghoul.ron
+wizards/cards/Shivan Gorge.ron
+wizards/cards/Siege-Gang Commander.ron
+wizards/cards/Sizzle.ron
+wizards/cards/Skirk Prospector.ron
+wizards/cards/Skirsdag Flayer.ron
+wizards/cards/Skizzik Surger.ron
+wizards/cards/Skyclave Shadowcat.ron
+wizards/cards/Slagstorm.ron
+wizards/cards/Slash, Reptile Rampager.ron
+wizards/cards/Slobad, Goblin Tinkerer.ron
+wizards/cards/Soulreaper of Mogis.ron
+wizards/cards/Spear Spewer.ron
+wizards/cards/Spitfire Lagac.ron
+wizards/cards/Squirrel Wrangler.ron
+wizards/cards/Starved Rusalka.ron
+wizards/cards/Steam Blast.ron
+wizards/cards/Storm Caller.ron
+wizards/cards/Stormwatch Eagle.ron
+wizards/cards/Sweltering Suns.ron
+wizards/cards/Sylvan Safekeeper.ron
+wizards/cards/Syndicate Trafficker.ron
+wizards/cards/Teysa, Orzhov Scion.ron
+wizards/cards/Thallid Soothsayer.ron
+wizards/cards/Thaumatog.ron
+wizards/cards/Thermal Navigator.ron
+wizards/cards/Thermopod.ron
+wizards/cards/Trenching Steed.ron
+wizards/cards/Tunneling Geopede.ron
+wizards/cards/Unburied Earthcarver.ron
+wizards/cards/Vampire Warlord.ron
+wizards/cards/Viscera Seer.ron
+wizards/cards/Wake of Vultures.ron
+wizards/cards/Wall of Mulch.ron
+wizards/cards/Warleader's Call.ron
+wizards/cards/Warren Soultrader.ron
+wizards/cards/Weirding Shaman.ron
+wizards/cards/Welder Automaton.ron
+wizards/cards/Witty Roastmaster.ron
+wizards/cards/Yahenni, Undying Partisan.ron
+wizards/cards/Zuran Orb.ron

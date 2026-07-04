@@ -671,7 +671,7 @@ compatRows =
 
 compatTable : String
 compatTable =
-  header "Sort compatibility (R1): which antecedent sorts each anaphor sort reaches; `exact_sort_precedence` is the R2 gate's one pre-approved loosening (OFF until the corpus dry-run calibrates it, [[cards-corpus-dry-run]])."
+  header "Sort compatibility (R1): which antecedent sorts each anaphor sort reaches; `exact_sort_precedence` is the R2 gate's one pre-approved loosening (calibrated and FROZEN STRICT=off by [[cards-corpus-dry-run]], 2026-07-03: 0 gate fires / 5785 encodable faces, 0 mis-bindings in the 200-face hand audit)."
   ++ "(\n    exact_sort_precedence: false,\n    rows: [\n"
   ++ concat compatRows ++ "    ],\n)\n"
 

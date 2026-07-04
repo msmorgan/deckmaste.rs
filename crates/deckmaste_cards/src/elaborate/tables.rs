@@ -392,8 +392,9 @@ struct CompatRow {
 #[derive(Debug, Deserialize)]
 struct CompatFile {
     /// The R2 gate's ONE pre-approved loosening (a nearer exact-sort match
-    /// beats farther non-exact candidates without erroring) — OFF until the
-    /// corpus dry-run calibrates the gate ([[cards-corpus-dry-run]]).
+    /// beats farther non-exact candidates without erroring) — calibrated and
+    /// FROZEN STRICT (off) by [[cards-corpus-dry-run]]: 0 gate fires over
+    /// 5785 encodable faces, 0 mis-bindings in the 200-face hand audit.
     exact_sort_precedence: bool,
     rows: Vec<CompatRow>,
 }
@@ -638,9 +639,10 @@ impl Tables {
         self.bridge.values()
     }
 
-    /// The R2 gate's one pre-approved loosening flag (`sort-compat.ron`,
-    /// [[cards-corpus-dry-run]] flips it): a nearer exact-sort match beats
-    /// farther non-exact candidates without erroring.
+    /// The R2 gate's one pre-approved loosening flag (`sort-compat.ron`):
+    /// a nearer exact-sort match beats farther non-exact candidates without
+    /// erroring. Calibrated and FROZEN STRICT (off) by
+    /// [[cards-corpus-dry-run]] — flipping it is a reviewed event now.
     #[must_use]
     pub fn exact_sort_precedence(&self) -> bool {
         self.exact_sort_precedence
@@ -952,14 +954,16 @@ mod tests {
     }
 
     /// The anaphor-surface tables ride: sort compat (R1), the R2 loosening
-    /// flag (STRICT until the corpus dry-run), zone sorts, intro rows,
+    /// flag (calibrated FROZEN STRICT), zone sorts, intro rows,
     /// static-part classes, the event object-sort column.
     #[test]
     fn anaphor_tables_load() {
         let t = tables();
         assert!(
             !t.exact_sort_precedence(),
-            "the R2 gate ships STRICT — the dry-run flips the loosening"
+            "the R2 gate is FROZEN STRICT — calibrated by the corpus dry-run \
+             (0 fires / 5785 faces, 0 mis-bindings in the 200-face audit); \
+             flipping the flag is a reviewed event"
         );
         assert_eq!(t.sort_compat("Card", "Card"), Some(false));
         assert_eq!(t.sort_compat("Permanent", "OfType"), Some(true));

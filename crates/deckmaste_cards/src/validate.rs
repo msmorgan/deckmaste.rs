@@ -62,6 +62,13 @@ pub struct Validation {
     /// warned: the anaphor surface supersedes them (sunset:
     /// cards-fidelity-target-sunset).
     pub deprecations: usize,
+    /// R2-fallback reads (`The`/`TheGroup` label lookups): how often authors
+    /// reached for the ambiguity escape hatch. Counted from the traced
+    /// walk's resolutions — the corpus dry-run's metric (b)
+    /// ([[cards-corpus-dry-run]]).
+    pub fallback_reads: usize,
+    /// Files with at least one fallback read.
+    pub fallback_files: usize,
 }
 
 /// Reads every non-todo `cards/**/*.ron` and `tokens/**/*.ron` in the plugin
@@ -81,6 +88,8 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
         lint_failures: Vec::new(),
         elab_failures: Vec::new(),
         deprecations: 0,
+        fallback_reads: 0,
+        fallback_files: 0,
     };
     let registries = plugin.registries();
 
@@ -113,6 +122,7 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
                     .iter()
                     .filter(|r| r.description.contains("deprecated"))
                     .count();
+                count_fallbacks(&resolutions, &mut validation);
                 validation.valid += 1;
             }
             Err(error) => validation.failures.push(InvalidCard { path, error }),
@@ -129,11 +139,18 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
         match plugin.macros.read_str::<Token>(&source) {
             Ok(token) => {
                 lint_card_abilities(&path, &token.abilities, &mut validation.lint_failures);
-                if let Err(errors) = crate::elaborate::elaborate_token(&token, &registries) {
+                let (result, resolutions) =
+                    crate::elaborate::elaborate_token_with_resolutions(&token, &registries);
+                if let Err(errors) = result {
                     validation
                         .elab_failures
                         .extend(errors.into_iter().map(|e| (path.clone(), e)));
                 }
+                validation.deprecations += resolutions
+                    .iter()
+                    .filter(|r| r.description.contains("deprecated"))
+                    .count();
+                count_fallbacks(&resolutions, &mut validation);
                 validation.valid += 1;
             }
             Err(error) => validation.failures.push(InvalidCard { path, error }),
@@ -141,6 +158,19 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
     }
 
     Ok(validation)
+}
+
+/// Tallies one file's R2-fallback reads (`The`/`TheGroup` label lookups)
+/// into [`Validation::fallback_reads`]/[`Validation::fallback_files`] — the
+/// corpus dry-run's "escape hatch" metric. Matches the traced walk's
+/// `"{spelling} -> …"` resolution format.
+fn count_fallbacks(resolutions: &[crate::elaborate::Resolution], validation: &mut Validation) {
+    let reads = resolutions
+        .iter()
+        .filter(|r| r.description.starts_with("The ->") || r.description.starts_with("TheGroup ->"))
+        .count();
+    validation.fallback_reads += reads;
+    validation.fallback_files += usize::from(reads > 0);
 }
 
 /// A finished card that disagrees with canon's reference version of the same
